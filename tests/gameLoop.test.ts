@@ -164,7 +164,7 @@ describe('gameLoop.commandDispatch.test.ts', () => {
     });
 
     it('applies the command OPTIMISTICALLY — instant UI feedback before any worker result', async () => {
-      const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church)]);
+      const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church, { completed: false, constructionProgress: 0 })]);
       const loop = new GameLoop(world, createInitialView(400, 300), () => null);
       await settleLoop(loop);
       const fake = makeFakeHost(structuredClone(world));
@@ -176,8 +176,8 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       const cmdObj: WorkerCommand = { proto: WORKER_CMD_PROTO, op: 'assignWorker', buildingId: 4, humanId: 1 };
       loop.applyCommand(cmdObj);
 
-      const priest = loop.getWorld().entities.find((e) => e.id === 1)!;
-      expect(priest.workerBuildingId).toBe(4);
+      const builder = loop.getWorld().entities.find((e) => e.id === 1)!;
+      expect(builder.workerBuildingId).toBeUndefined();
       expect(loop.getWorld().buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
 
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -506,7 +506,7 @@ describe('gameLoop.commandDispatch.test.ts', () => {
     });
 
     it('tick results do NOT overwrite the optimistic display; the authoritative result replaces it', async () => {
-      const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church)]);
+      const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church, { completed: false, constructionProgress: 0 })]);
       const loop = new GameLoop(world, createInitialView(400, 300), () => null);
       await settleLoop(loop);
       const fake = makeFakeHost(structuredClone(world));
@@ -517,10 +517,9 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       loop.applyCommand({ proto: WORKER_CMD_PROTO, op: 'assignWorker', buildingId: 4, humanId: 1 });
 
       fake.fireTick(structuredClone(world));
-      expect(loop.getWorld().entities.find((e) => e.id === 1)!.workerBuildingId).toBe(4);
+      expect(loop.getWorld().buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
 
       const authoritative = structuredClone(world);
-      authoritative.entities.find((e) => e.id === 1)!.workerBuildingId = 4;
       authoritative.buildings.find((b) => b.id === 4)!.occupants = [1];
       fake.fireCommandResult(authoritative, true);
       expect(loop.getWorld()).toBe(authoritative);
@@ -579,7 +578,7 @@ describe('gameLoop.commandDispatch.test.ts', () => {
     });
 
     it('reverts to the authoritative world when the worker rejects the command', async () => {
-      const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church)]);
+      const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church, { completed: false, constructionProgress: 0 })]);
       const loop = new GameLoop(world, createInitialView(400, 300), () => null);
       await settleLoop(loop);
       const authoritative = structuredClone(world);
@@ -589,14 +588,14 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       (loop as unknown as { registerWorkerHandlers: (g: number) => void }).registerWorkerHandlers(0);
 
       loop.applyCommand({ proto: WORKER_CMD_PROTO, op: 'assignWorker', buildingId: 4, humanId: 1 });
-      expect(loop.getWorld().entities.find((e) => e.id === 1)!.workerBuildingId).toBe(4);
+      expect(loop.getWorld().buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
 
       fake.fireCommandResult(authoritative, false);
-      expect(loop.getWorld().entities.find((e) => e.id === 1)!.workerBuildingId).toBeUndefined();
+      expect(loop.getWorld().buildings.find((b) => b.id === 4)!.occupants).toEqual([]);
     });
 
     it('main-thread fallback applies the same domain implementation as the worker', async () => {
-      const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church)]);
+      const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church, { completed: false, constructionProgress: 0 })]);
       const loop = new GameLoop(world, createInitialView(400, 300), () => null);
       await settleLoop(loop);
       expect(loop.isUsingSimWorker()).toBe(false);
@@ -606,11 +605,11 @@ describe('gameLoop.commandDispatch.test.ts', () => {
 
       const viaLoop = loop.getWorld();
       const viaDirect = applyWorkerCommand(structuredClone(world), cmdObj);
-      const priestLoop = viaLoop.entities.find((e) => e.id === 1)!;
-      const priestDirect = viaDirect.entities.find((e) => e.id === 1)!;
+      const builderLoop = viaLoop.entities.find((e) => e.id === 1)!;
+      const builderDirect = viaDirect.entities.find((e) => e.id === 1)!;
 
-      expect(priestLoop.workerBuildingId).toBe(4);
-      expect(priestDirect.workerBuildingId).toBe(4);
+      expect(builderLoop.workerBuildingId).toBeUndefined();
+      expect(builderDirect.workerBuildingId).toBeUndefined();
       expect(viaLoop.buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
       expect(viaDirect.buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
     });
@@ -733,7 +732,7 @@ describe('gameLoop.commandDispatch.test.ts', () => {
     });
 
     it('falls back immediately on a worker tick fault and restores authoritative state', async () => {
-      const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church)]);
+      const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church, { completed: false, constructionProgress: 0 })]);
       const authoritative = structuredClone(world);
       const loop = new GameLoop(world, createInitialView(400, 300), () => null);
       await settleLoop(loop);
@@ -745,7 +744,7 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       (loop as unknown as { registerWorkerHandlers: (g: number) => void }).registerWorkerHandlers(0);
 
       loop.applyCommand({ proto: WORKER_CMD_PROTO, op: 'assignWorker', buildingId: 4, humanId: 1 });
-      expect(loop.getWorld().entities.find((e) => e.id === 1)!.workerBuildingId).toBe(4);
+      expect(loop.getWorld().buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
 
       fake.fireFault('tick', 'simulated tick failure');
 

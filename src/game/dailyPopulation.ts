@@ -18,7 +18,41 @@ import { logEvent } from './eventLog';
 import type { TickContext } from './simulation/simulationTypes';
 import { pruneFactionWanderStates } from './factionWander';
 import { getSimRng } from './simRng';
+import { Human, Immigration, VirtualPlayer } from './gameConstants';
+import { getProjectedFoodSupply, isMeasuredFoodDeficit, isProjectedFoodShortfall } from './economyLedger';
 import { pushNewEntity } from './simulation/simulationEntities';
+
+/**
+ * Automatic immigration should not admit a family on the strength of a
+ * well-stocked but shrinking larder. Compare real completed-day production
+ * with the projected need including the largest admissible new family.
+ * A documented sixty-day stored-food runway permits limited early expansion
+ * but never overrides an actual recorded deficit. Sparse startup history
+ * retains bootstrap immigration.
+ */
+export function canSupportImmigration(
+  state: Pick<WorldState, 'tick' | 'foodHistory'> & Partial<Pick<WorldState, 'resources'>>,
+  population: number,
+  openSlots: number,
+): boolean {
+  if (openSlots <= 0) return false;
+  const largestParty = Math.min(openSlots, 2 + Immigration.FAMILY_MAX_CHILDREN);
+  const upcomingDailyNeed = (population + largestParty) * Human.DAILY_FOOD_CONSUMPTION;
+  if (isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)) return false;
+  if (!isProjectedFoodShortfall(state, upcomingDailyNeed,
+    VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)) return true;
+
+  // A forecast gap for a *new* family is not today's food deficit. Founding
+  // colonies can still welcome a few settlers if the observed harvest and
+  // stocked provisions together cover sixty days of the projected shortfall,
+  // with two further weeks of food untouched. This prevents an early all-growth
+  // freeze without ever accepting arrivals into an actual measured deficit.
+  const outlook = getProjectedFoodSupply(state, upcomingDailyNeed);
+  const stocked = state.resources?.food ?? 0;
+  if (!outlook || !Number.isFinite(stocked)) return false;
+  const gapPerDay = Math.max(0, outlook.projectedNeedPerDay - outlook.producedPerDay);
+  return stocked - gapPerDay * 60 >= upcomingDailyNeed * 14;
+}
 
 function tickImmigration(
   state: WorldState,
@@ -69,7 +103,7 @@ function tickImmigration(
   const rng = getSimRng('dailyPopulation');
   if (
     state.tick > 0 &&
-    openSlots > 0 &&
+    canSupportImmigration(state, counts.humans, openSlots) &&
     rng() < immigrationChance
   ) {
     let spawnX = width / 2;

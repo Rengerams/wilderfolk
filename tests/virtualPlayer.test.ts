@@ -37,6 +37,7 @@ import { canLaunchRaidOnRival, getRaidChoiceEligibility } from '../src/game/fron
 import { getOpenBeds, getOpenPlayerBeds } from '../src/game/populationGrowth';
 import { canPlaceBuilding } from '../src/game/buildingPlacementActions';
 import { canAssignWorkerToBuilding } from '../src/game/buildingStaffingActions';
+import { assignMissingWorkers } from '../src/game/workforce';
 import { getRepairBuildingEligibility, buildingTypeHasLevelBenefit } from '../src/game/buildingMaintenanceActions';
 import { getForgeBlockReason, isForgeOrderComplete } from '../src/game/forge';
 import { getRecruitSettlerEligibility } from '../src/game/settlerInteractionActions';
@@ -217,7 +218,9 @@ function makeWorld(
     // A supplied colony: step 9 answers any resource above its own shortage line,
     // so the default world holds enough iron (the Mine's current line is 120) and tests
     // that care about a shortage set their own stores.
-    resources: { wood: 500, stone: 500, food: 500, gold: 500, iron: 150 },
+    // A settled baseline, not a storage-pressure test: stay below 85% of the
+    // authoritative 300-stone cap (500 stone falsely demands a Store first).
+    resources: { wood: 500, stone: 200, food: 500, gold: 500, iron: 150 },
     storageMax: { wood: 1000, stone: 1000, food: 1000, gold: 1000, iron: 300 },
     season: Season.Spring,
     weather: WeatherType.Clear,
@@ -815,12 +818,12 @@ describe('virtual player decision engine', () => {
     );
 
     // The owner agrees a worker *could* be moved there by hand…
-    expect(canAssignWorkerToBuilding(world, 3)).toBe(true);
+    expect(canAssignWorkerToBuilding(world, 3)).toBe(false);
     // …but the generic command cannot, so the bot must not spend the hour asking.
     expectNothingLeftButUpgrades(decideVirtualPlayerAction(world));
   });
 
-  it('leaves a deliberately manual Church alone, but allows the player to staff it', () => {
+  it('rejects individual Church assignment while the workforce handles legacy manual saves', () => {
     const world = makeWorld(
       [
         human(1, { residenceBuildingId: 1 }),
@@ -829,18 +832,12 @@ describe('virtual player decision engine', () => {
       ],
       [building(1, BuildingType.House, { occupants: [1, 2, 3] }), building(2, BuildingType.Church, { staffingMode: 'manual' })],
     );
-
-    const decision = decideVirtualPlayerAction(world);
-    expect(decision?.command?.op).not.toBe('assignWorker');
-    expect(decision?.command?.op).not.toBe('setBuildingStaffingMode');
-    expect(world.buildings.find((b) => b.id === 2)?.staffingMode).toBe('manual');
-    expect(world.buildings.find((b) => b.id === 2)?.occupants).toEqual([]);
-
-    // The human player still has the explicit manual-assign command available.
-    expect(canAssignWorkerToBuilding(world, 2)).toBe(true);
     const manuallyAssigned = applyWorkerCommand(world, { proto: WORKER_CMD_PROTO, op: 'assignWorker', buildingId: 2 });
-    expect(manuallyAssigned.buildings.find((b) => b.id === 2)?.occupants.length).toBeGreaterThan(0);
-    expect(manuallyAssigned.buildings.find((b) => b.id === 2)?.staffingMode).toBe('manual');
+    expect(manuallyAssigned).toBe(world);
+    expect(world.buildings.find((b) => b.id === 2)?.occupants).toEqual([]);
+    assignMissingWorkers(world.entities, world.buildings, world);
+    expect(world.buildings.find((b) => b.id === 2)?.staffingMode).toBe('auto');
+    expect(world.buildings.find((b) => b.id === 2)?.occupants.length).toBeGreaterThan(0);
   });
 
   it('proposes nothing the colony cannot afford', () => {
@@ -1064,6 +1061,7 @@ describe('virtual player remaining action surface', () => {
       [
         building(1, BuildingType.House, { occupants: [1], health: 30 }),
         building(2, BuildingType.Farm, { occupants: [1], health: 70 }),
+        building(3, BuildingType.Mansion, { level: 3 }),
       ],
     );
 
@@ -1076,7 +1074,7 @@ describe('virtual player remaining action surface', () => {
     expect(applied.buildings.find((b) => b.id === 1)?.health).toBe(100);
     expect(applied.buildings.find((b) => b.id === 2)?.health).toBe(100);
     expect(applied.resources.wood).toBe(480);
-    expect(applied.resources.stone).toBe(490);
+    expect(applied.resources.stone).toBe(190);
     expect(world.buildings.find((b) => b.id === 1)?.health).toBe(30);
   });
 
@@ -1153,7 +1151,8 @@ describe('virtual player remaining action surface', () => {
         building(2, BuildingType.Blacksmith, { occupants: [1] }),
       ],
       {
-        resources: { wood: 500, stone: 500, food: 500, gold: 500, iron: 150 },
+        // Keep stone below its actual 300-unit base cap: this test isolates forge behavior.
+        resources: { wood: 500, stone: 200, food: 500, gold: 500, iron: 150 },
         unlockedTechs: ['defense_4'],
         villageForge: { activeOrder: null, progress: 0, completed: { iron_spears: true } },
       },
@@ -1173,7 +1172,8 @@ describe('virtual player remaining action surface', () => {
         building(2, BuildingType.Blacksmith),
       ],
       {
-        resources: { wood: 500, stone: 500, food: 500, gold: 500, iron: 150 },
+        // Keep stone below its actual 300-unit base cap: this test isolates forge behavior.
+        resources: { wood: 500, stone: 200, food: 500, gold: 500, iron: 150 },
         unlockedTechs: ['defense_4'],
         villageForge: { activeOrder: null, progress: 0, completed: {} },
       },
@@ -1378,7 +1378,7 @@ describe('virtual player remaining action surface', () => {
     expect(applied.resources.gold).toBe(475);
   });
 
-  it('does not auto-assign manual vacancies across repeated virtual-player decisions', () => {
+  it('does not mutate job rosters during repeated pure virtual-player decisions', () => {
     const world = makeWorld(
       [
         human(1, { residenceBuildingId: 1 }),
@@ -1594,7 +1594,7 @@ describe('virtual player remaining action surface', () => {
       rivalId: 'rival_ravenhold',
     });
   });
-  it('never resets empty or staffed manual workplaces to automatic', () => {
+  it('does not mutate legacy staffing flags in a pure planning decision', () => {
     const empty = makeWorld(
       [human(1, { residenceBuildingId: 1, workerBuildingId: 3 })],
       [

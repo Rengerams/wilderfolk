@@ -1,22 +1,25 @@
-import { appendFileSync, writeFileSync } from 'node:fs';
+/** Optional 90-day diagnostic: run with `npx tsx scripts/probe-mirror.mts` (DAYS, FEATURES and LOG are configurable). */
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { gameTick } from '../src/game/gameEngine';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { BuildingType, EntityType, MapSize } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { getRecentFoodFlow } from '../src/game/economyLedger';
-import { resetRelationshipDiagnostics, setRelationshipDiagnosticsEnabled } from '../src/game/relationshipDiagnostics';
+import { isRelationshipDiagnosticsEnabled, resetRelationshipDiagnostics, setRelationshipDiagnosticsEnabled } from '../src/game/relationshipDiagnostics';
 import { resetSimRng } from '../src/game/simRng';
 import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
-import { countWorkersAtBuilding, isManualStaffingBuilding } from '../src/game/workforce';
+import { countWorkersAtBuilding } from '../src/game/workforce';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import {
   applyColonyBotAction, captureConsoleVolume, createColonyObserver, livingHumans,
   prepareColonyWorld, sampleDelta, type ColonyHealthReport,
-} from '../scripts/colonyHealth';
+} from './colonyHealth';
 
 const FEATURES = (process.env.FEATURES ?? 'diag,observer,capture').split(',');
 const DAYS = Number(process.env.DAYS ?? 90);
+if (!Number.isSafeInteger(DAYS) || DAYS < 1) throw new Error('DAYS must be a positive integer');
 const LOG = process.env.LOG ?? 'tmp/probe-mirror.log';
 const FOOD_TYPES: readonly BuildingType[] = [
   BuildingType.Farm, BuildingType.Greenhouse, BuildingType.FishingSpot, BuildingType.HuntingSpot,
@@ -47,9 +50,11 @@ function line(text: string): void {
 }
 
 function run(): void {
+  mkdirSync(dirname(LOG), { recursive: true });
   writeFileSync(LOG, '', 'utf8');
   const prepared = prepareColonyWorld({ size: MapSize.Medium, seed: 12345, scenario: 'producers' });
   const world: WorldState = prepared.world;
+  const diagnosticsWasEnabled = isRelationshipDiagnosticsEnabled();
   if (FEATURES.includes('diag')) setRelationshipDiagnosticsEnabled(true);
   const consoleCapture = FEATURES.includes('capture') ? captureConsoleVolume() : null;
   const observer = FEATURES.includes('observer') ? createColonyObserver(world) : null;
@@ -59,7 +64,9 @@ function run(): void {
   let dayReasons: string[] = [];
   let idleHours = 0;
   const gateLog: string[] = [];
-  (globalThis as { __foodDebug?: (message: string) => void }).__foodDebug = (message) => {
+  const debugGlobal = globalThis as { __foodDebug?: (message: string) => void };
+  const originalFoodDebug = debugGlobal.__foodDebug;
+  debugGlobal.__foodDebug = (message) => {
     if (gateLog.length < 60) gateLog.push(message);
   };
 
@@ -94,7 +101,7 @@ function run(): void {
       const idleAdults = humans.filter((e) => !e.isJuvenile && e.workerBuildingId == null).length;
       const flow = getRecentFoodFlow(world, 7);
       const foodSites = world.buildings.filter((b) => FOOD_TYPES.includes(b.type) && b.faction !== 'rival');
-      const understaffed = foodSites.filter((b) => b.completed && !isManualStaffingBuilding(b)
+      const understaffed = foodSites.filter((b) => b.completed
         && countWorkersAtBuilding(world.entities, b.id) < BUILDING_CONFIGS[b.type].maxOccupants).length;
       const incomplete = foodSites.filter((b) => !b.completed).length;
       const farms = foodSites.filter((b) => b.type === BuildingType.Farm && b.completed);
@@ -126,18 +133,17 @@ function run(): void {
       dayReasons = [];
       idleHours = 0;
     }
+    line(`final settlers=${livingHumans(world).length} food=${Math.round(world.resources.food)}`);
+    line('gates:');
+    for (const entry of gateLog) line(`  ${entry}`);
   } finally {
     consoleCapture?.restore();
+    if (originalFoodDebug) debugGlobal.__foodDebug = originalFoodDebug;
+    else delete debugGlobal.__foodDebug;
+    resetRelationshipDiagnostics();
+    setRelationshipDiagnosticsEnabled(diagnosticsWasEnabled);
+    resetSimRng();
   }
-  line(`final settlers=${livingHumans(world).length} food=${Math.round(world.resources.food)}`);
-  line('gates:');
-  for (const entry of gateLog) line(`  ${entry}`);
-  resetRelationshipDiagnostics();
-  resetSimRng();
 }
 
-import { it } from 'vitest';
-
-it('mirrors the integration loop', () => {
-  run();
-}, 900_000);
+run();

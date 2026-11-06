@@ -35,6 +35,7 @@ import { formatResourceCostNeed } from '../src/game/resourceCost';
 import { getOpenPlayerBeds } from '../src/game/populationGrowth';
 import { countHomelessSettlers } from '../src/game/housingModel';
 import { REPAIR_COST } from '../src/game/buildingMaintenanceActions';
+import { assignMissingWorkers, canAutoChangeWorkplace } from '../src/game/workforce';
 
 const MAP_WIDTH = 1200;
 const MAP_HEIGHT = 900;
@@ -227,13 +228,83 @@ describe('the health verdict at the owner numbers', () => {
   it('builds food rather than idling when the larder is short and a producer is placeable', () => {
     const famine = ownerColony(36, {
       resources: { food: 8, wood: 584, stone: 288, gold: 391, iron: 130 },
-    }, { mills: 12 });
+    }, { mills: 10 });
 
     const decision = decideVirtualPlayerAction(famine);
 
     expect(decision).not.toBeNull();
     expect(decision!.command).toMatchObject({ op: 'startBuilding' });
     expect(decision!.reason).toContain('food');
+  });
+
+  it('builds food capacity before a deficit when observed demand growth will overtake output', () => {
+    const colony = ownerColony(20, {
+      tick: 8 * TICKS_PER_DAY,
+      resources: { food: 500, wood: 500, stone: 500, gold: 500, iron: 30 },
+      foodHistory: Array.from({ length: 7 }, (_, index) => ({
+        day: index + 1,
+        produced: { farms: 80 },
+        consumed: { meals: 40 + index * 5 },
+      })),
+    }, { mills: 0, farms: 4 });
+
+    expect(colony.resources.food).toBeGreaterThan(20 * 3 * 2);
+    const decision = decideVirtualPlayerAction(colony);
+    // Upgrade real, already employed farmhands before needing another crew.
+    expect(decision?.command).toMatchObject({ op: 'upgradeBuilding', buildingId: 300 });
+    expect(decision?.reason).toContain('projected');
+  });
+
+  it('plans a future Farm with a safe excess donor even when every adult already works', () => {
+    const world = ownerColony(5, {
+      tick: 8 * TICKS_PER_DAY,
+      workforcePolicy: 'survival',
+      resources: { food: 500, wood: 500, stone: 500, gold: 0, iron: 30 },
+      foodHistory: Array.from({ length: 7 }, (_, index) => ({
+        day: index + 1,
+        produced: { farms: 80 }, consumed: { meals: 40 + index * 5 },
+      })),
+    }, { farms: 1, mills: 1 });
+    world.entities.forEach((human) => { human.lastAutoJobTransferTick = world.tick; });
+    expect(world.entities.every((human) => human.workerBuildingId != null)).toBe(true);
+    const action = decideVirtualPlayerAction(world);
+    expect(action?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+    expect(action?.reason).toContain('projected');
+  });
+
+  it('never plans a future Farm using protected food crews as pretend spare labor', () => {
+    const world = ownerColony(4, {
+      tick: 8 * TICKS_PER_DAY,
+      workforcePolicy: 'survival',
+      resources: { food: 500, wood: 500, stone: 500, gold: 0, iron: 30 },
+      foodHistory: Array.from({ length: 7 }, (_, index) => ({
+        day: index + 1,
+        produced: { farms: 80 }, consumed: { meals: 40 + index * 5 },
+      })),
+    }, { farms: 2, mills: 0 });
+    expect(world.entities.every((human) => human.workerBuildingId != null)).toBe(true);
+    expect(decideVirtualPlayerAction(world)?.command).not.toMatchObject({
+      op: 'startBuilding', type: BuildingType.Farm,
+    });
+  });
+
+  it('transfers an excess lumber worker to a waiting Farm before food runs short', () => {
+    const world = ownerColony(5, {
+      tick: 8 * TICKS_PER_DAY,
+      workforcePolicy: 'survival',
+      resources: { food: 500, wood: 500, stone: 500, gold: 0, iron: 30 },
+      foodHistory: Array.from({ length: 7 }, (_, index) => ({
+        day: index + 1,
+        produced: { farms: 80 }, consumed: { meals: 40 + index * 5 },
+      })),
+    }, { farms: 1, mills: 1,
+      extraBuildings: [building(77, BuildingType.Farm, { x: 340, y: 330 })] });
+    world.entities.forEach((human) => { human.lastAutoJobTransferTick = world.tick; });
+    const action = decideVirtualPlayerAction(world);
+    expect(action?.command).toMatchObject({ op: 'autoStaffWorkers' });
+    const after = applyWorkerCommand(world, action!.command);
+    expect(after.entities.filter((person) => person.workerBuildingId === 77)).toHaveLength(2);
+    expect(after.entities.filter((person) => person.workerBuildingId === 200)).toHaveLength(1);
   });
 
   it('plans farms for all mouths, not just adults who can staff them', () => {
@@ -254,29 +325,92 @@ describe('the health verdict at the owner numbers', () => {
     expect(decision?.reason).toContain('producer');
   });
 
-  it('releases one nonessential auto worker to crew an empty Farm under a sustained shortage', () => {
-    const history = [1, 2, 3].map((day) => ({
-      day, produced: { farms: 8 }, consumed: { meals: 18 },
-    }));
-    const world = ownerColony(4, {
+  it('uses the protected workforce pipeline to crew an empty Farm under a sustained shortage', () => {
+    const world = ownerColony(5, {
       tick: 4 * TICKS_PER_DAY,
-      resources: { food: 8, wood: 500, stone: 500, gold: 500, iron: 150 },
-      foodHistory: history,
+      resources: { food: 8, wood: 500, stone: 200, gold: 500, iron: 150 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 8 }, consumed: { meals: 18 },
+      })),
+    }, {
+      mills: 0, farms: 1,
+      extraBuildings: [
+        building(77, BuildingType.Farm, { x: 340, y: 330 }),
+        building(78, BuildingType.LumberMill, { x: 700, y: 420, occupants: [3, 4] }),
+        building(79, BuildingType.Quarry, { x: 770, y: 420, occupants: [5] }),
+      ],
+    });
+    const decision = decideVirtualPlayerAction(world);
+    expect(decision?.command).toMatchObject({ op: 'autoStaffWorkers' });
+    const applied = applyWorkerCommand(world, decision!.command);
+    expect(applied.entities.filter((entity) => entity.workerBuildingId === 77)).toHaveLength(1);
+    expect(applied.entities.filter((entity) => entity.workerBuildingId === 78)).toHaveLength(1);
+    expect(applied.entities.find((entity) => entity.id === 5)?.workerBuildingId).toBe(79);
+  });
+
+  it('prevents a food shortage: a well-stocked survival colony staffs the Farm before new housing', () => {
+    const world = ownerColony(3, {
+      tick: 4 * TICKS_PER_DAY,
+      workforcePolicy: 'survival',
+      resources: { food: 500, wood: 500, stone: 200, gold: 300, iron: 150 },
     }, {
       mills: 0,
       farms: 1,
       extraBuildings: [
-        building(77, BuildingType.Farm, { x: 700, y: 350 }),
-        building(78, BuildingType.LumberMill, { x: 700, y: 420, occupants: [3] }),
-        building(79, BuildingType.Quarry, { x: 770, y: 420, occupants: [4] }),
+        building(77, BuildingType.Farm, { x: 380, y: 360 }),
+        building(78, BuildingType.House, { x: 500, y: 460, completed: false, constructionProgress: 20 }),
       ],
     });
+    expect(world.entities.find((person) => person.id === 3)?.workerBuildingId).toBeUndefined();
+
+    assignMissingWorkers(world.entities, world.buildings, world, true);
+
+    expect(world.entities.find((person) => person.id === 3)?.workerBuildingId).toBe(77);
+    expect(world.buildings.find((site) => site.id === 78)?.occupants).not.toContain(3);
+  });
+
+  it('preserves construction-first staffing for the growth workforce preset', () => {
+    const world = ownerColony(3, {
+      tick: 4 * TICKS_PER_DAY,
+      workforcePolicy: 'growth',
+      resources: { food: 500, wood: 500, stone: 200, gold: 300, iron: 150 },
+    }, {
+      mills: 0,
+      farms: 1,
+      extraBuildings: [
+        building(77, BuildingType.Farm, { x: 380, y: 360 }),
+        building(78, BuildingType.House, { x: 500, y: 460, completed: false, constructionProgress: 20 }),
+      ],
+    });
+
+    assignMissingWorkers(world.entities, world.buildings, world, true);
+
+    expect(world.buildings.find((site) => site.id === 78)?.occupants).toContain(3);
+    expect(world.entities.find((person) => person.id === 3)?.workerBuildingId).toBeUndefined();
+  });
+
+  it('bypasses only the cooldown for an acute, measured food staffing emergency', () => {
+    const world = ownerColony(4, {
+      tick: 4 * TICKS_PER_DAY,
+      workforcePolicy: 'survival',
+      resources: { food: 8, wood: 500, stone: 200, gold: 500, iron: 150 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 7 }, consumed: { meals: 20 },
+      })),
+    }, {
+      mills: 1, farms: 1,
+      extraBuildings: [building(77, BuildingType.Farm, { x: 340, y: 330 })],
+    });
+    world.entities.forEach((entity) => { entity.lastAutoJobTransferTick = world.tick; });
+    expect(world.entities.every((entity) => !canAutoChangeWorkplace(entity, world.tick))).toBe(true);
     const decision = decideVirtualPlayerAction(world);
-    expect(decision?.command).toMatchObject({ op: 'removeWorker', buildingId: 79, humanId: 4 });
-    const applied = applyWorkerCommand(world, decision!.command);
-    expect(applied.entities.find((entity) => entity.id === 4)?.workerBuildingId).toBe(77);
-    expect(applied.buildings.find((building) => building.id === 79)?.staffingMode).toBe('manual');
-    expect(applied.entities.find((entity) => entity.id === 3)?.workerBuildingId).toBe(78);
+    expect(decision?.command).toMatchObject({ op: 'autoStaffWorkers' });
+    const after = applyWorkerCommand(world, decision!.command);
+    expect(after.entities.filter((entity) => entity.workerBuildingId === 77)).toHaveLength(1);
+    expect(after.entities.filter((entity) => entity.workerBuildingId === 200)).toHaveLength(1);
+    expect(after.entities.filter((entity) => entity.workerBuildingId === 300)).toHaveLength(2);
+    expect(after.entities.find((entity) => entity.workerBuildingId === 77)?.lastAutoJobTransferTick)
+      .toBe(world.tick);
   });
 
   it('switches to survival staffing before moving workers during a food crisis', () => {
@@ -295,7 +429,7 @@ describe('the health verdict at the owner numbers', () => {
     expect(decision?.command).toMatchObject({ op: 'setWorkforcePolicy', preset: 'survival' });
   });
 
-  it('does not reset a separate manual workplace while rebalancing food crews', () => {
+  it('preserves a separate worker while normalizing an old manual workplace during food rebalancing', () => {
     const world = ownerColony(6, {
       tick: 4 * TICKS_PER_DAY,
       resources: { food: 8, wood: 500, stone: 500, gold: 500, iron: 150 },
@@ -305,22 +439,22 @@ describe('the health verdict at the owner numbers', () => {
     }, {
       mills: 1, farms: 1,
       extraBuildings: [
-        building(77, BuildingType.Farm, { x: 700, y: 350 }),
+        building(77, BuildingType.Farm, { x: 340, y: 330 }),
         building(79, BuildingType.Quarry, { x: 770, y: 420, occupants: [6], staffingMode: 'manual' }),
       ],
     });
     const decision = decideVirtualPlayerAction(world);
-    expect(decision?.command).toMatchObject({ op: 'removeWorker', buildingId: 200 });
+    expect(decision?.command).toMatchObject({ op: 'autoStaffWorkers' });
     const applied = applyWorkerCommand(world, decision!.command);
-    expect(applied.buildings.find((building) => building.id === 79)?.staffingMode).toBe('manual');
+    expect(applied.buildings.find((building) => building.id === 79)?.staffingMode).toBe('auto');
     expect(applied.entities.find((entity) => entity.id === 6)?.workerBuildingId).toBe(79);
     expect(applied.entities.filter((entity) => entity.workerBuildingId === 77).length).toBeGreaterThan(0);
   });
 
-  it('does not override manual staffing to transfer food workers', () => {
+  it('protects the last essential industry worker during famine and normalizes legacy manual staffing', () => {
     const world = ownerColony(3, {
       tick: 4 * TICKS_PER_DAY,
-      resources: { food: 8, wood: 500, stone: 500, gold: 500, iron: 150 },
+      resources: { food: 8, wood: 500, stone: 200, gold: 500, iron: 150 },
       foodHistory: [1, 2, 3].map((day) => ({
         day, produced: { farms: 5 }, consumed: { meals: 14 },
       })),
@@ -331,8 +465,10 @@ describe('the health verdict at the owner numbers', () => {
         building(78, BuildingType.LumberMill, { x: 770, y: 420, occupants: [3], staffingMode: 'manual' }),
       ],
     });
-    expect(decideVirtualPlayerAction(world)?.command)
-      .not.toMatchObject({ op: 'removeWorker', buildingId: 78 });
+    assignMissingWorkers(world.entities, world.buildings, world, true);
+    expect(world.entities.find((entity) => entity.id === 3)?.workerBuildingId).toBe(78);
+    expect(world.buildings.find((building) => building.id === 78)?.staffingMode).toBe('auto');
+    expect(world.entities.filter((entity) => entity.workerBuildingId === 77)).toHaveLength(0);
   });
 
   it('upgrades staffed farm production instead of constructing unstaffable farms when food flow is negative', () => {
@@ -388,9 +524,9 @@ describe('the health verdict at the owner numbers', () => {
       .not.toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
   });
 
-  it('does not build food past the planned deficit capacity', () => {
-    // Four mouths plan one producer (4 / 4); three already stand, so no fourth may be started.
-    const world = ownerColony(4, {
+  it('does not let an old nominal producer ceiling conceal a sustained measured food deficit', () => {
+    // Four mouths once planned one site, but actual 3-day food losses take precedence.
+    const world = ownerColony(7, {
       tick: 4 * TICKS_PER_DAY,
       resources: { food: 300, wood: 500, stone: 500, gold: 0, iron: 150 },
       foodHistory: [1, 2, 3].map((day) => ({
@@ -398,8 +534,34 @@ describe('the health verdict at the owner numbers', () => {
       })),
     }, { mills: 0, farms: 3 });
 
-    expect(decideVirtualPlayerAction(world)?.command ?? null)
-      .not.toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+    expect(decideVirtualPlayerAction(world)?.command)
+      .toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+  });
+
+  it('stops unstaffable food expansion across repeated deficit days', () => {
+    const world = ownerColony(3, {
+      tick: 8 * TICKS_PER_DAY,
+      resources: { food: 300, wood: 500, stone: 200, gold: 0, iron: 150 },
+    }, {
+      mills: 1, farms: 1,
+      extraBuildings: [building(80, BuildingType.Mill)],
+    });
+    // The Farm requires both workers; the one remaining Lumber Mill employee
+    // is its protected minimum. There is no idle or surplus donor for a new site.
+    const farm = world.buildings.find((site) => site.type === BuildingType.Farm)!;
+    farm.level = 3;
+    for (let day = 8; day <= 14; day++) {
+      world.tick = day * TICKS_PER_DAY;
+      world.foodHistory = Array.from({ length: 7 }, (_, index) => ({
+        day: day - 7 + index, produced: { farms: 3 }, consumed: { meals: 9 },
+      }));
+      const action = decideVirtualPlayerAction(world)?.command;
+      if (action?.op === 'startBuilding') {
+        expect([
+          BuildingType.Farm, BuildingType.Greenhouse, BuildingType.FishingSpot, BuildingType.HuntingSpot,
+        ]).not.toContain(action.type);
+      }
+    }
   });
 
   it('still raises one food site at a time outside a measured deficit', () => {
@@ -479,7 +641,8 @@ describe('the health verdict at the owner numbers', () => {
 
   it('still reports healthy for a colony that really has everything', () => {
     const stocked = ownerColony(9, {
-      resources: { food: 500, wood: 500, stone: 500, gold: 500, iron: 150 },
+      // Stone without extra storage is capped at 300; 500 would be a real storage alert.
+      resources: { food: 500, wood: 500, stone: 200, gold: 500, iron: 150 },
     }, {
       extraBuildings: [
         building(12, BuildingType.Quarry, { x: 700, y: 380, occupants: [7] }),
@@ -566,6 +729,26 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
     for (const entity of world.entities) entity.lastAutoJobTransferTick = world.tick;
     expect(decideVirtualPlayerAction(world)?.command)
       .not.toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+  });
+
+  it('uses measured fish and hunting yield instead of counting them as Farm-equivalent sites', () => {
+    const producers = [
+      building(411, BuildingType.FishingSpot, { x: 700, y: 400 }),
+      building(412, BuildingType.HuntingSpot, { x: 800, y: 400 }),
+    ];
+    // These sites have produced more food than residents consumed for
+    // three consecutive days. No artificial Farm target is needed merely
+    // because the population has grown; all actual yield enters the ledger.
+    const healthy = ownerColony(24, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 500, wood: 500, stone: 500, gold: 500, iron: 150 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { fishing: 60, hunting: 30 }, consumed: { meals: 70 },
+      })),
+    }, { mills: 12, farms: 0, extraBuildings: producers });
+    const decision = decideVirtualPlayerAction(healthy);
+    expect(decision?.command).not.toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+    expect(decision?.command).not.toMatchObject({ op: 'startBuilding', type: BuildingType.Greenhouse });
   });
 
   it('keeps adding producers as the village grows instead of stopping at the first', () => {
@@ -736,6 +919,22 @@ describe('food-chain decisions under a recorded deficit', () => {
     const state = deficitVillage({ foodSpoilageRate: 0, ecosystemHealth: 90 });
     expect(decideVirtualPlayerAction(state)?.command).toMatchObject({
       op: 'startBuilding', type: BuildingType.Farm,
+    });
+  });
+
+  it('does not add speculative beds before the food forecast can feed new arrivals', () => {
+    const state = ownerColony(36, {
+      tick: 8 * TICKS_PER_DAY,
+      resources: { food: 1000, wood: 500, stone: 500, gold: 500, iron: 100 },
+      foodHistory: Array.from({ length: 7 }, (_, index) => ({
+        day: index + 1, produced: { farms: 150 },
+        consumed: { meals: 50 + 10 * index },
+      })),
+    }, { mills: 0, farms: 3, spareHouses: 0 });
+    expect(countHomelessSettlers(state)).toBe(0);
+    expect(getOpenPlayerBeds(state)).toBe(0);
+    expect(decideVirtualPlayerAction(state)?.command).not.toMatchObject({
+      op: 'startBuilding', type: BuildingType.House,
     });
   });
 
@@ -956,9 +1155,9 @@ describe('the hunting spot is sited by the hunting owner', () => {
   });
 
   it('prefers a Farm over hunting while the larder is short and land is free', () => {
-    // The order the owner asked about: with a farm site free, food comes from farming, so the
-    // Hunting Spot is the fallback it always was — and now also needs safe game in reach.
-    const world = ownerColony(10, {
+    // The existing Farm has two workers and four Lumber Mills have twelve, leaving
+    // one of these fifteen adults genuinely unemployed to staff a new Farm.
+    const world = ownerColony(15, {
       resources: { food: 20, wood: 300, stone: 200, gold: 100, iron: 30 },
     }, { mills: 4, farms: 1 });
     world.entities.push(human(900, { type: EntityType.Deer, x: 600, y: 450 }));

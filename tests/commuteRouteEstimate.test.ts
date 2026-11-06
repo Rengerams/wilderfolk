@@ -8,6 +8,7 @@ import {
   beginCommuteRoutePass,
   commuteLeadHoursFor,
   estimatedCommuteHours,
+  isWithinAssignableCommute,
   MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS,
 } from '../src/game/commuteReach';
 import { findRouteCost, getCurrentPathGrid, resetPathGridCaches, setCurrentPathMap } from '../src/game/pathfinding';
@@ -20,7 +21,7 @@ import {
 } from '../src/game/pathfindingMetrics';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
 import type { Building, WorldMap } from '../src/game/gameTypes';
-import { building } from '../src/test/factories';
+import { building, human } from '../src/test/factories';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 
 const WALK_SPEED = 1.2;
@@ -123,6 +124,21 @@ describe('estimatedCommuteHours route pricing', () => {
     // has priced the slower route and would misjudge a household's commute.
     expect(paved).not.toBeNull();
     expect(paved!).toBeLessThan(20);
+  });
+
+  it('food placement previews use the supplied map, not a prior walkable colony grid', () => {
+    const clear = testWorldMap({ tilesX: 40, tilesY: 40, seed: 9 });
+    const blocked = islandMap();
+    const home = onTile(1, BuildingType.House, 25, 30);
+    const farm = onTile(2, BuildingType.Farm, 30, 30);
+    const settler = human(3, { x: home.x, y: home.y, residenceBuildingId: home.id });
+    setCurrentPathMap(clear, [home, farm]);
+
+    expect(isWithinAssignableCommute(settler, farm, [home, farm], WALK_SPEED)).toBe(true);
+    expect(isWithinAssignableCommute(settler, farm, [home, farm], WALK_SPEED,
+      undefined, blocked)).toBe(false);
+    // A speculative bot decision must not replace the simulation's grid.
+    expect(isWithinAssignableCommute(settler, farm, [home, farm], WALK_SPEED)).toBe(true);
   });
 
   it('falls back to the straight line when no grid is current', () => {

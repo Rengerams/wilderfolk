@@ -1,7 +1,7 @@
-import type { Building, Entity } from './gameTypes';
+import type { Building, Entity, WorldMap } from './gameTypes';
 import { PATH_CELL } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycleClock';
-import { findRouteCostOutcome, getCurrentPathGrid, isWalkableRoad, type PathGrid } from './pathfinding';
+import { findRouteCostOutcome, getCurrentPathGrid, getReadOnlyPathGrid, isWalkableRoad, type PathGrid } from './pathfinding';
 import { ROAD_SPEED_MULT } from './simulation/movementSteering';
 
 /** Commute reach, lead hours and walk pacing, shared by the movement loop and work assignment. */
@@ -29,6 +29,10 @@ export const MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS = 256;
 
 /** Node cap per search: past it the leg keeps the straight-line estimate. */
 const MAX_COMMUTE_ROUTE_SEARCH_NODES = 4000;
+/** A single advanced search per pass prevents large colonies from multiplying expensive A* retries. */
+const ADVANCED_ROUTE_SEARCHES_PER_PASS = 1;
+/** Absolute terminal complexity bound for one commute; never spin indefinitely on one route. */
+const MAX_PROGRESSIVE_COMMUTE_ROUTE_NODES = 131072;
 
 /** Route hours cached per grid generation; the cap bounds memory on a long-lived map. */
 const COMMUTE_ROUTE_CACHE_LIMIT = 4096;
@@ -107,16 +111,31 @@ function straightRouteCost(
 
 /** Searches left in the housing sweep's budget; a cached leg costs nothing. */
 let routeSearchesLeft = MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS;
+let advancedRouteSearchesLeft = ADVANCED_ROUTE_SEARCHES_PER_PASS;
+/** Unpriced routes due to this pass's search/node budget are still pending. */
+let commuteRouteChecksDeferred = false;
+/** Each unresolved leg is attempted at most once per assignment pulse. */
+let attemptedRoutesThisPass = new WeakMap<PathGrid, Set<string>>();
 const routeCostCache = new WeakMap<PathGrid, Map<string, number>>();
+/** Next A* node limit per unresolved leg; scoped to its grid generation and bounded in size. */
+const pendingNodeBudgets = new WeakMap<PathGrid, Map<string, number>>();
 
 /** Opens a housing sweep's route-search budget. */
 export function beginCommuteRoutePass(): void {
   routeSearchesLeft = MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS;
+  advancedRouteSearchesLeft = ADVANCED_ROUTE_SEARCHES_PER_PASS;
+  commuteRouteChecksDeferred = false;
+  attemptedRoutesThisPass = new WeakMap<PathGrid, Set<string>>();
+}
+
+/** Report whether this pass left any candidate unpriced (not a proven blocked route). */
+export function wereCommuteRouteChecksDeferred(): boolean {
+  return commuteRouteChecksDeferred;
 }
 
 /** Route hours home → destination over the sim's current grid, or null when no route is priced. */
-function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: number, toWorldY: number, walkSpeed: number): number | null {
-  const grid = getCurrentPathGrid();
+function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: number, toWorldY: number, walkSpeed: number, gridOverride?: PathGrid): number | null {
+  const grid = gridOverride ?? getCurrentPathGrid();
   if (!grid) return null;
   const fromX = Math.floor(fromWorldX / PATH_CELL);
   const fromY = Math.floor(fromWorldY / PATH_CELL);
@@ -132,16 +151,64 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
   }
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
-  if (routeSearchesLeft <= 0) return null;
+  if (gridOverride) {
+    // Read-only planner: never consume or reset the assignment sweep's global
+    // search budget, and never treat a speculative placement as a real job.
+    const preview = findRouteCostOutcome(grid, fromX, fromY, toX, toY, MAX_COMMUTE_ROUTE_SEARCH_NODES);
+    const hours = preview.cost == null ? Infinity
+      : commuteLeadHoursFor(preview.cost * PATH_CELL, walkSpeed);
+    if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
+    cache.set(key, hours);
+    return hours;
+  }
+  // A food-priority prepass and the ordinary job pass may request the same
+  // unresolved commute. Escalate its A* node limit only on the NEXT staffing
+  // pulse, never by retrying it multiple times within one pulse.
+  const attempted = attemptedRoutesThisPass.get(grid);
+  if (attempted?.has(key)) {
+    commuteRouteChecksDeferred = true;
+    return null;
+  }
+  const retries = pendingNodeBudgets.get(grid);
+  const nextBudget = retries?.get(key) ?? MAX_COMMUTE_ROUTE_SEARCH_NODES;
+  if (routeSearchesLeft <= 0 || (nextBudget > MAX_COMMUTE_ROUTE_SEARCH_NODES && advancedRouteSearchesLeft <= 0)) {
+    commuteRouteChecksDeferred = true;
+    return null;
+  }
   routeSearchesLeft--;
-  const search = findRouteCostOutcome(grid, fromX, fromY, toX, toY, MAX_COMMUTE_ROUTE_SEARCH_NODES);
+  if (nextBudget > MAX_COMMUTE_ROUTE_SEARCH_NODES) advancedRouteSearchesLeft--;
+  const routes = attempted ?? new Set<string>();
+  routes.add(key);
+  attemptedRoutesThisPass.set(grid, routes);
+  const search = findRouteCostOutcome(grid, fromX, fromY, toX, toY, nextBudget);
   if (search.cost === null) {
-    // A spent budget leaves the leg unpriced; a finished search with no route proves the walk away.
-    if (search.budgetExhausted) return null;
+    if (search.budgetExhausted) {
+      // Repeating the same 4,000-node A* search makes no progress. Raise the
+      // bound on the NEXT assignment pulse, but let at most one expensive
+      // advanced search run per pass. Each generation owns its own attempts.
+      const terminalBudget = Math.min(MAX_PROGRESSIVE_COMMUTE_ROUTE_NODES,
+        Math.max(MAX_COMMUTE_ROUTE_SEARCH_NODES, grid.cols * grid.rows * 4));
+      if (nextBudget < terminalBudget) {
+        let pending = retries;
+        if (!pending) {
+          pending = new Map<string, number>();
+          pendingNodeBudgets.set(grid, pending);
+        }
+        if (pending.size >= COMMUTE_ROUTE_CACHE_LIMIT) pending.clear();
+        pending.set(key, Math.min(terminalBudget, nextBudget * 2));
+        commuteRouteChecksDeferred = true;
+        return null;
+      }
+      // Terminal safety policy: an unpriced, overly complex commute is not
+      // an acceptable new job. Cache that conservative refusal instead of
+      // repeating an unbounded search forever (not proof of disconnection).
+    }
+    retries?.delete(key);
     if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
     cache.set(key, Infinity);
     return Infinity;
   }
+  retries?.delete(key);
   // A* steps are tile units, so the walk distance is the route's step cost in world px.
   const hours = commuteLeadHoursFor(search.cost * PATH_CELL, walkSpeed);
   if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
@@ -188,26 +255,38 @@ export function estimatedCommuteHours(
  */
 export function isWithinAssignableCommute(
   entity: Entity,
-  building: Building,
+  building: Pick<Building, 'x' | 'y'>,
   buildings: readonly Building[],
   walkSpeed: number,
   buildingById?: ReadonlyMap<number, Building>,
+  worldMap?: WorldMap | null,
 ): boolean {
-  // workerBuildingId stores the JOB, not the residence. Commute always starts
-  // from the resident's home; fall back to their position if not housed.
+  // The residence, not a worker's present position or previous workplace, owns
+  // the commute origin. For an unhoused settler, use their current position.
   const home = entity.residenceBuildingId == null
     ? undefined
     : buildingById?.get(entity.residenceBuildingId)
       ?? buildings.find((candidate) => candidate.id === entity.residenceBuildingId);
   const from = home ?? entity;
-  const toX = building.x;
-  const toY = building.y;
-  if (home) {
-    return estimatedCommuteHours(home, building, buildings, walkSpeed) <= MAX_ASSIGNABLE_COMMUTE_HOURS;
-  }
-  const routed = routeCommuteHours(from.x, from.y, toX, toY, walkSpeed);
+  // Same path cell is handled locally by the route owner: it needs no A* search.
+  if (Math.floor(from.x / PATH_CELL) === Math.floor(building.x / PATH_CELL)
+    && Math.floor(from.y / PATH_CELL) === Math.floor(building.y / PATH_CELL)) return true;
+  // Bot placement can pass its own read-only world map. This reuses the same
+  // A* cost and two-hour rule without mutating the simulation's current grid.
+  const previewGrid = worldMap ? getReadOnlyPathGrid(worldMap, buildings as Building[]) : null;
+  const grid = previewGrid ?? getCurrentPathGrid();
+  // Only bot previews pass a grid override. Actual staffing MUST use the
+  // live bounded/retryable route budget, not the preview-only fast path.
+  const routed = routeCommuteHours(from.x, from.y, building.x, building.y, walkSpeed,
+    previewGrid ?? undefined);
   if (routed !== null) return routed <= MAX_ASSIGNABLE_COMMUTE_HOURS;
-  // No route grid: credit only the actual paved portion of the direct leg.
-  return commuteLeadHoursFor(straightRouteCost(from.x, from.y, toX, toY, buildings), walkSpeed)
-    <= MAX_ASSIGNABLE_COMMUTE_HOURS;
+
+  // A failed/budget-exhausted route search is UNKNOWN, not a passable road.
+  // Defer new jobs rather than assigning across unproven terrain. Only a
+  // bootstrap with no map retains the legacy straight-road estimate.
+  if (grid) return false;
+  return commuteLeadHoursFor(
+    straightRouteCost(from.x, from.y, building.x, building.y, buildings),
+    walkSpeed,
+  ) <= MAX_ASSIGNABLE_COMMUTE_HOURS;
 }

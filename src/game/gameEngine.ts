@@ -241,7 +241,7 @@ export {
 export { isFootprintOnBuildableTerrain } from './placementUtils';
 export { canPlaceBuilding, getPlaceBuildingFailureReason, startBuilding, buildStripPreview, placeStripChain } from './buildingPlacementActions';
 export { isOnConstructionCrew } from './workforce';
-export { pickAdultSettler, assignBuilderToBuilding, fillBuildingWorkers, autoStaffAllWorkers, listAssignableWorkersForBuilding, canAssignWorkerToBuilding } from './buildingStaffingActions';
+export { pickAdultSettler, assignBuilderToBuilding, fillBuildingWorkers, autoStaffAllWorkers, canAssignWorkerToBuilding } from './buildingStaffingActions';
 export { assignResidentToBuilding, removeResidentFromBuilding } from './buildingResidencyActions';
 export { assignIdleWorkerToBuilding, removeWorkerFromBuilding } from './buildingActionRouting';
 export { repairBuilding, getBuildingUpgradeCost, upgradeBuilding, demolishBuilding } from './buildingMaintenanceActions';

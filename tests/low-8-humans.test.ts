@@ -159,7 +159,7 @@ describe('L8 — removal targets the settler\'s own building', () => {
     expect(next.buildings.find((b) => b.id === church.id)!.occupants).toContain(worker.id);
   });
 
-  it('still detaches a settler from the building they actually work at', () => {
+  it('removes only the targeted job before automatic staffing refills the Church', () => {
     const state = newWorld();
     const church = building(1, BuildingType.Church, { staffingMode: 'manual' });
     state.buildings = [church];
@@ -170,8 +170,9 @@ describe('L8 — removal targets the settler\'s own building', () => {
     const next = removeStaffWorkerFromBuilding(state, church.id, worker.id);
 
     const nextWorker = next.entities.find((e) => e.id === worker.id)!;
-    expect(nextWorker.workerBuildingId).toBeUndefined();
-    expect(next.buildings.find((b) => b.id === church.id)!.occupants).not.toContain(worker.id);
+    expect(nextWorker.workerBuildingId).toBe(church.id);
+    expect(next.buildings.find((b) => b.id === church.id)!.occupants).toContain(worker.id);
+    expect(next.buildings.find((b) => b.id === church.id)!.staffingMode).toBe('auto');
   });
 });
 

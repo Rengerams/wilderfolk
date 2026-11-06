@@ -43,7 +43,7 @@ import { seedTutorialSeenForExistingState } from './contextualTutorial';
 import { adoptSimSeedFromWorld, getSimSeed, restoreSimRng, snapshotSimRng, worldSimRngSnapshot } from './simRng';
 import { rollLegacySettlerTraits, validSettlerTraits } from './settlerTraits';
 import { syncResearchUnlocks } from './research';
-import { assignMissingWorkers, removeWorkerTransition } from './workforce';
+import { assignMissingWorkers } from './workforce';
 import { syncBigNewsIdFromState } from './simEffects';
 import { rebuildEntityByIdMap } from './entityIndex';
 import {
@@ -61,7 +61,7 @@ import { normalizeSpotlightLoreOnLoad } from './spotlightLore';
 import { syncGenealogyRegistry } from './genealogyRegistry';
 import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
-import { nearestWalkableWorldPoint } from './pathfinding';
+import { nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
 import { pruneOrphanRivalEntities, retireLegacyCampStructures } from './rivalEvents';
 
 const SAVE_KEY = 'ecosim_save';
@@ -817,26 +817,6 @@ function writeSaveSlot(json: string): SaveResult {
         : 'Save failed — check browser storage permissions';
     return { success: false, error };
   }
-}
-
-/** One-time legacy migration — Church manual staffing. */
-export function clearAutoFilledChurches(world: WorldState): number {
-  const churches = world.buildings.filter(
-    (b) => b.completed && b.type === BuildingType.Church && b.faction !== 'rival',
-  );
-  let cleared = 0;
-  for (const church of churches) {
-    for (const occupantId of [...church.occupants]) {
-      const human = world.entities.find((e) => e.id === occupantId);
-      if (human && human.alive && human.workerBuildingId === church.id) {
-        removeWorkerTransition(human, world.buildings);
-      } else {
-        church.occupants = church.occupants.filter((id) => id !== occupantId);
-      }
-      cleared++;
-    }
-  }
-  return cleared;
 }
 
 /** Every resource key the economy reads, so a save can be checked for a complete purse. */
@@ -1692,22 +1672,6 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     migrateLegacySecurityRoles(world);
     assignMissingResidences(world.entities.filter(isPlayerHuman), world.buildings, world.entities, undefined, world.genealogyRegistry,
       (ledger) => applyLeaderHousePhase(world, ledger));
-    assignMissingWorkers(world.entities.filter(isPlayerHuman), world.buildings, world);
-
-    const churchMigrationDone = (world.appliedSaveMigrations ?? []).includes('church-manual-staffing');
-    const clearedChurchSeats = churchMigrationDone ? 0 : clearAutoFilledChurches(world);
-    if (!churchMigrationDone) {
-      if (clearedChurchSeats > 0) {
-        applySaveMigration(
-          'church-manual-staffing',
-          `Save migrated — ${clearedChurchSeats} auto-filled Church seat(s) cleared; assign a priest manually.`,
-        );
-      } else {
-        if (!world.appliedSaveMigrations) world.appliedSaveMigrations = [];
-        world.appliedSaveMigrations.push('church-manual-staffing');
-      }
-    }
-
     // Older or partial saves may not contain research nodes. Restore the
     // canonical starting tree before applying combat-research migrations.
     world.researchNodes = mergeCombatResearchNodes(
@@ -1778,6 +1742,9 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     // not yet earned — `rebuildBeautyGridFromWorld` exists for exactly this split.
     rebuildBeautyGridFromWorld(world);
     const view = createViewFromSave(parsed, world);
+    // The restored map, not the previous session's navigation grid, decides new job reachability.
+    setCurrentPathMap(world.worldMap, world.buildings);
+    assignMissingWorkers(world.entities.filter(isPlayerHuman), world.buildings, world);
     return { ok: true, world, view };
   } catch (e) {
     console.error('Save load failed:', e);

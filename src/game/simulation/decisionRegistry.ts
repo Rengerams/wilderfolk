@@ -61,6 +61,7 @@ export type DecisionKey =
   | 'workSchedule'
   | 'school'
   | 'workforce'
+  | 'immigration'
   | 'housing'
   | 'construction'
   | 'production'
@@ -85,9 +86,9 @@ export type DecisionKey =
 
 export const SIMULATION_DECISIONS = {
   virtualPlayer: {
-    owner: 'virtualPlayer.ts — decideVirtualPlayerAction, decideFood, decideUnstaffedFoodProducer, firstUnstaffedFoodProducer, wantedFoodProducerCount, chooseRefugeeChoice, isMeasuredFoodDeficit (read-only policy proposals)',
+    owner: 'virtualPlayer.ts — decideVirtualPlayerAction, decideFood, decideUnstaffedFoodProducer, firstUnstaffedFoodProducer, wantedBootstrapCropSiteCount, needsAdditionalStore, decideIndustry, chooseRefugeeChoice (read-only policy proposals); economyLedger.isMeasuredFoodDeficit owns measured trend, getProjectedFoodSupply/isProjectedFoodShortfall own proactive demand risk',
     cadence: 'on-demand',
-    cadenceNote: 'Once per in-game hour when auto-play is enabled; may propose a survival workforce preset, food producer build or release of a nonessential automatically staffed worker under a measured deficit. Actual world writes remain with command and workforce owners. The headless scenario command adapter hydrates runtime caches if it adopts a cloned WorldState into the existing shell.',
+    cadenceNote: 'Once per in-game hour when auto-play is enabled; may propose a survival workforce preset, a staffed food-production expansion, or a targeted emergency auto-staff request for a measured critical shortage. Food expansion prefers real getRecentFoodFlow output and a seven-day forecast of population demand over interchangeable building counts, acting before deficits while requiring an unemployed adult or protected-minimum-safe transferable donor who can actually commute to the new plot via the read-only path map; new sites still require spare adults beyond existing/pending food posts; before history exists, a crop-only bootstrap estimate excludes Fishing/Hunting Spot as Farm equivalents. Store expansion uses economy.computeStorageMax material caps at 85% pressure, never low gold or a population-based Store count. When no House plot is available, decideHousing first proposes safe redundant-site demolition or residence expansion before optional food construction. Actual world writes remain with command and workforce owners. The headless scenario command adapter hydrates runtime caches if it adopts a cloned WorldState into the existing shell.',
     writes: [],
     scheduledFrom: 'useVirtualPlayer.shouldVirtualPlayerAct → virtualPlayer.decideVirtualPlayerAction → GameLoop.applyCommand or scripts/colonyHealth.applyColonyBotAction',
     testFile: 'tests/virtualPlayer.test.ts, tests/virtualPlayerHealthVerdict.test.ts, tests/colonyBotCacheHydration.test.ts',
@@ -198,10 +199,11 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/school.test.ts, tests/schooling.explains.test.ts, tests/dashboardData.prisonAndCouncil.test.ts',
   },
   workforce: {
-    owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command entry: buildingActionRouting.assignIdleWorkerToBuilding',
+    owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, staffFoodJobsBeforeConstruction, workforceSignature, isAcuteFoodStaffingEmergency, hasFoodStaffingPressure, prospectiveFoodTransferDonors, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command assignWorker limited to construction/residency',
     cadence: 'assignment',
-    cadenceNote: 'The idle-only assignWorkerInPlace choice preserves commute eligibility, squared distance, existing skill and first-encountered stability; optional career/DNA fit breaks only exact ties and never changes transfer/rebalance/cooldown. Command/assignment phase; auto-staff pulses 4×/day via tickLayerAssign, plus two extra assignMissingWorkers calls per day from dailyBuildingEconomy (already a no-op once staffed). releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
+    cadenceNote: 'Under the survival preset, idle adults first fill reachable food vacancies before being claimed by construction even while the larder is full; other presets retain normal construction-first order. The idle-only assignWorkerInPlace choice uses the canonical two-hour home-to-work route gate; transfers use the same reachability owner. Existing jobs persist despite blocked routes. Automatic staffing completes reachable minimum-coverage transfers and tries alternate donors before caching its O(player humans+buildings) fingerprint; only fully priced passes cache completion. The signature also tracks current 60-day transfer eligibility, acute measured food emergency status, and unhoused applicant path cells, so expiry, shortages and movement retry on the next pulse. Under a measured or forecasted food shortfall, only food-post transfers bypass cooldown and no protected minimum crew or commute eligibility is sacrificed. Route-budget deferrals clear the cache; node-budget deferrals progress under a bounded escalating A* limit (one advanced search per pass, terminal conservative rejection), so unchanged pulses only skip when outcomes are resolved, with a weekly repair run. Explicit autoStaffWorkers requests force reconciliation.  Legacy manual flags normalize to auto without dropping jobs; career/DNA fit breaks exact ties without changing transfer cooldown. Command/assignment phase: tickLayerAssign and dailyBuildingEconomy still call the shared owner, but unchanged input signatures return without expensive staffing. Only a forced or changed event triggers re-matching. releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
     writes: [
+      'building.staffingMode',
       'building.occupants',
       'human.workerBuildingId',
       'human.occupation',
@@ -209,13 +211,21 @@ export const SIMULATION_DECISIONS = {
       'human.skills',
       'workforcePolicy',
     ],
-    scheduledFrom: 'tickLayerAssign.assignMissingWorkers; tickLayerRealtime.releasePrisoners; commands.ts "assignWorker" and "autoStaffWorkers" (owned world in place, isolated calls copied); buildingStaffingActions on place/recruit/death',
-    testFile: 'tests/leaderHouse.workforce.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
+    scheduledFrom: 'tickLayerAssign.assignMissingWorkers; saveLoad.loadGameFromParsedOutcome installs its restored path map before the load-time staffing pass; tickLayerRealtime.releasePrisoners; commands.ts "autoStaffWorkers" (owned world in place, isolated calls copied); "assignWorker" retained for construction/residency only; buildingStaffingActions on place/recruit/death',
+    testFile: 'tests/leaderHouse.workforce.test.ts, tests/saveLoad.commuteGrid.test.ts, tests/virtualPlayerHealthVerdict.test.ts, tests/workforce.persistentCommute.test.ts, tests/workforce.deferredCommuteRetry.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
+  },
+  immigration: {
+    owner: 'dailyPopulation.ts — tickDailyPopulation, tickImmigration, canSupportImmigration (one daily admission owner); economyLedger.ts owns historical and forecast food verdicts; worldGen.ts owns immigrant party composition',
+    cadence: 'daily',
+    cadenceNote: 'After real completed-day production is recorded, admission is gated against measured deficits and projected demand for the largest arriving family. A large stored larder alone cannot permit unsustainable growth; sparse startup history preserves bootstrap immigration. Never cancels births or reassigns existing residents. Housing, settlement entity spawning and spatial indexes keep their existing owners.',
+    writes: ['maxHumanPopulation', 'humanPopulation', 'entities (via spawned new settlers)', 'nextEntityId', 'eventLog (through logEvent)', 'notifications'],
+    scheduledFrom: 'tickLayerDaily.tickLayerDaily → dailyPopulation.tickDailyPopulation → tickImmigration once per colony day; spawn bookkeeping delegates to simulationEntities',
+    testFile: 'tests/dailyPopulation.foodAdmission.test.ts, tests/immigration.composition.test.ts',
   },
   housing: {
     owner: 'housingPipeline.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, planRelocation answers move-or-stay for homeless, custody, custodian, capacity, surplus, leave-home, commute and couple, and applyRelocation writes a plan; the commute phase also swaps two occupied homes when both households improve; manor seating is event-driven (start/election) and never a housing-phase decision; relocateHousehold applies a whole-household decision; relocateFamily retries a destination the writer refused with the next-best home; moveResident stays the sole write; HousingReport carries the run stats; assignMissingResidences accepts an optional resume ledger; ranking lives in the same module; facts: housingModel.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
     cadence: 'assignment',
-    cadenceNote: 'Scheduled housing sweeps run four times per day; demolition reconciles displaced households immediately using the bounded tick sweep, while removals without displaced residents skip the housing pipeline; other events request immediate reconciliation or a reasoned residence transition. assignMissingResidences schedules; planRelocation answers move-or-stay for each household and applyRelocation writes; the commute phase can swap two occupied homes when both improve, and its straight-line floor skips impossible route candidates; the capacity rebalance plans through it too, and the homeless repair pass still seats every partially housed unit. A mandatory phase settles a household for the run, so the optional adult-child and commute phases cannot undo it. Reconciliation owns reference and resident-roster writes; selection and leader entitlement provide rules. Worker transport applies authoritative snapshots, never new housing decisions.',
+    cadenceNote: 'Scheduled housing sweeps run four times per day, the last pulse revisits all units, and housingUnitBucket is only a deterministic hash of CURRENT member IDs (not stable through departures); demolition reconciles displaced households immediately using the bounded tick sweep, while removals without displaced residents skip the housing pipeline; other events request immediate reconciliation or a reasoned residence transition. assignMissingResidences schedules; planRelocation answers move-or-stay for each household and applyRelocation writes; the commute phase can swap two occupied homes when both improve, and its straight-line floor skips impossible route candidates; the capacity rebalance plans through it too, and the homeless repair pass still seats every partially housed unit. A mandatory phase settles a household for the run, so the optional adult-child and commute phases cannot undo it. Reconciliation owns reference and resident-roster writes; selection and leader entitlement provide rules. Worker transport applies authoritative snapshots, never new housing decisions.',
     writes: [
       'human.residenceBuildingId',
       'residence building.occupants',
@@ -356,7 +366,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/humanLifecycle.test.ts, tests/conceptionEvent.labelling.test.ts',
   },
   moonHowler: {
-    owner: 'moonHowler.ts + moonHowlerForm.ts — tickMoonHowlerCycle, curseMoonHowler, transformToWerewolfForm, revertToHumanForm, cureMoonHowler, finalizeMoonHowlerDeath, isSettlerRelationshipEntity',
+    owner: 'moonHowler.ts + moonHowlerForm.ts — tickMoonHowlerCycle, curseMoonHowler, transformToWerewolfForm, revertToHumanForm, cureMoonHowler, finalizeMoonHowlerDeath, isSettlerRelationshipEntity; night window owned by daycycleconstants.ts',
     cadence: 'full-moon-event',
     writes: [
       'human.moonHowlerCursed',
@@ -365,7 +375,7 @@ export const SIMULATION_DECISIONS = {
       'building.occupants during transform/restore',
       'eventLog/title (Moonslayer)',
     ],
-    scheduledFrom: 'tickLayerRealtime.ts → tickMoonHowlerCycle (gated internally to full-moon ticks)',
+    scheduledFrom: 'tickLayerRealtime.ts → tickMoonHowlerCycle (22:00 on full-moon day through next-day 06:00; form ends at 06:00)',
     testFile: 'tests/moonHowler.test.ts, tests/low-3-moon-lifecycle.test.ts, tests/medium-persistence.test.ts',
   },
   leadership: {
@@ -436,7 +446,7 @@ export const SIMULATION_DECISIONS = {
   commands: {
     owner: 'commands.ts (simWorker) → domain owners: buildingActionRouting, buildingStaffingActions, buildingResidencyActions, buildingMaintenanceActions and buildingConfigurationActions',
     cadence: 'player-command',
-    cadenceNote: 'Worker-owned building upgrades mutate the authoritative world without cloning it; isolated calls retain copy semantics. main-thread fallback must use the same domain implementation (gameLoop); demolition cleans references immediately, reconciles displaced households only, and triggers full workforce staffing only when staff or crews are displaced; gameLoop does not replay an unconfirmed command after its worker reports a command fault, but preserves later queued requests',
+    cadenceNote: 'Manual individual job assignment is retired; legacy setBuildingStaffingMode accepts auto only. Worker-owned building upgrades mutate the authoritative world without cloning it; isolated calls retain copy semantics. main-thread fallback must use the same domain implementation (gameLoop); demolition cleans references immediately, reconciles displaced households only, and triggers full workforce staffing only when staff or crews are displaced; gameLoop does not replay an unconfirmed command after its worker reports a command fault, but preserves later queued requests',
     writes: [
       'building.occupants',
       'building.level',

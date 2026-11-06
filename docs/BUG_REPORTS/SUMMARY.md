@@ -1,5 +1,25 @@
 # Bug report summary — one line per report
 
+**2026-11-06 — [Save load can use stale commute path grid](../bug_report/2026-11-06-save-load-uses-stale-commute-grid.md):** Load-time staffing ran before the restored map was installed; map-identity-aware caches and load order now prevent wrong-grid assignments. Source fixed; runtime unverified.
+
+**2026-11-06 — [Long diagnostic probe incorrectly collected by unit suite](../bug_report/2026-11-06-90-day-probe-in-unit-tests.md):** Unasserted 90-day probe moved from tests/ into an explicit standalone script; ordinary unit discovery no longer collects it. Runtime unverified.
+
+**2026-11-06 — [Measured food shortage can spawn unstaffable workplaces](../bug_report/2026-11-06-virtual-player-uncrewed-food-expansion.md):** Food-site growth now requires an available adult after existing and under-construction vacancies; multi-day regression added. Runtime unverified.
+
+**2026-11-06 — [Food emergency blocked by automatic transfer cooldown](../bug_report/2026-11-06-food-emergency-transfer-cooldown.md):** The workforce owner can bypass only the 60-day timer for urgent food posts after a verified deficit; donor protection and commute rules remain. Runtime unverified.
+
+**2026-11-06 — [Homeless dead end outranked by speculative food work](../bug_report/2026-11-06-housing-dead-end-priority.md):** Housing ladder now tries redundant-site demolition and existing residence expansion before food construction at a true housing dead end; existing tests cover both. Runtime unverified.
+
+**2026-11-06 — [Moon Howler can transform before full-moon nightfall](../bug_report/2026-11-06-moon-howler-pre-nightfall-transformation.md):** The full-moon predicate treated 00:00–05:59 on the full-moon date as active, before 22:00. Source corrected in PR #126; runtime verification not run.
+
+**2026-11-06 — [Dormant Moon Howler curse mislabeled active](../bug_report/2026-11-06-moon-howler-dormant-curse-mislabeled-active.md):** Dashboard and Population UI confused curse persistence with active werewolf form and listed 20:00 instead of 22:00. Corrected in PR #126; runtime verification not run.
+
+**2026-11-06 — [Automatic staffing can select unreachable jobs](../bug_report/2026-11-06-automatic-staffing-ignores-commute-reachability.md):** Assignment treats the two-hour pathfinding rule as a preference and transfers lack the reachability check. Open; source confirmed, runtime untested.
+
+**2026-11-06 — [Auto-play staffing policy inconsistency](../bug_report/2026-11-06-autoplay-staffing-policy-inconsistent.md):** Food and non-food proposals differ in manual-staffing handling; runtime effect unverified. Investigating; manual staffing is proposed for removal in favor of persistent automatic jobs.
+
+**2026-11-06 — [Virtual Player Store scaling unreachable](../bug_report/2026-11-06-virtual-player-store-scaling-unreachable.md):** The Store is excluded from the scaling branch despite its documented policy; open, static code evidence. Fix proposal is storage-pressure-based demand.
+
 **2026-11-06 — [Raid gold spoils bypass the configured storage cap](../bug_report/2026-11-06-raid-gold-bypasses-storage-cap.md):** Gold was added directly after the raid soft cap, so it could pass `storageMax.gold` and skipped shared resource accounting. Awarded gold now goes through the capped-resource owner; targeted tests, TypeScript, lint and build pass.
 
 **2026-11-06 — [Malformed worker deltas leave the replica stale](../bug_report/2026-11-06-worker-delta-application-unvalidated.md):** Tick and command replies were applied without a protocol guard or error handling, after counters and request state had already changed. The host now validates first, catches application failures and faults the worker for recovery; types, lint and worker tests pass.

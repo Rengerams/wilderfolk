@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { LEADER_OCCUPATION, applyLeaderOccupation, syncLeaderHouseResidency } from '../src/game/leaderHouse';
-import { isManualStaffingBuilding } from '../src/game/workforce';
 import { planRelocation, standaloneMoveContext } from '../src/game/housingPipeline';
 import { assignMissingResidences } from '../src/game/housingPipeline';
 import { getResidenceCapacity } from '../src/game/housingModel';
@@ -233,11 +232,9 @@ describe('succession residency handover', () => {
   });
 });
 
-describe('manual staffing policy', () => {
-  it('defaults every workplace to auto and honours an explicit manual flag', () => {
-    const church = building(4, BuildingType.Church);
-    expect(isManualStaffingBuilding(church)).toBe(false);
-    expect(isManualStaffingBuilding({ ...church, staffingMode: 'manual' })).toBe(true);
-    expect(isManualStaffingBuilding({ ...church, staffingMode: 'auto' })).toBe(false);
+describe('automatic workplace policy', () => {
+  it('preserves an existing leader workplace without a manual mode', () => {
+    const church = building(4, BuildingType.Church, { staffingMode: 'auto' });
+    expect(church.staffingMode).toBe('auto');
   });
 });
