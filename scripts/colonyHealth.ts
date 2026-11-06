@@ -24,12 +24,12 @@ import { serialize } from 'node:v8';
 import { initGame } from '../src/game/gameEngine';
 import { createBuilding } from '../src/game/worldGen';
 import { getBuildingFootprintForType, snapBuildingCenter } from '../src/game/buildingRotation';
-import { isFootprintWithinMapBounds, isFootprintOnBuildableTerrain, overlapsAnyBuilding } from '../src/game/placementUtils';
+import { isFootprintWithinMapBounds, overlapsAnyBuilding } from '../src/game/placementUtils';
 import { beginCommuteRoutePass, isWithinAssignableCommute } from '../src/game/commuteReach';
-import { setCurrentPathMap } from '../src/game/pathfinding';
+import { getCurrentPathGrid, setCurrentPathMap } from '../src/game/pathfinding';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { assignMissingResidences } from '../src/game/housingPipeline';
-import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, MapSize } from '../src/game/gameTypes';
+import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, MapSize, PATH_CELL } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { updateStorageCaps } from '../src/game/economy';
 import { getRecentFoodFlow } from '../src/game/economyLedger';
@@ -160,8 +160,8 @@ export function createCompletedBuilding(
 }
 
 /**
- * The seeded harness must create the same legal, navigable settlement that a player
- * could build. Hard-coded offsets previously put all four starter Farms in a river
+ * The seeded harness must create navigable, non-overlapping starter structures;
+ * some are provisioned before the player unlocks their building technology. Hard-coded offsets previously put all four starter Farms in a river
  * on seed 12345, so new farmhands were correctly refused by the commute owner.
  *
  * Search bounded rings around the scenario's preferred coordinates, using the
@@ -184,15 +184,22 @@ function placeLegalStarterBuilding(
       for (let dy = -ring; dy <= ring; dy++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
         const spot = snapBuildingCenter(type, preferred.x + dx * step, preferred.y + dy * step, 0);
-        // The scenario pre-provisions a Prison before its research unlock.
-        // Preserve that explicit fixture rule; do not waive terrain or overlap.
+        // These are already-built test fixtures, including a locked Prison. The real
+        // placement owner can reject an otherwise walkable pad for research or slope;
+        // those are not navigation barriers. Preserve the physical constraints that
+        // caused the regression: a walkable destination and no building overlaps.
         const footprint = getBuildingFootprintForType(type, 0);
         if (!isFootprintWithinMapBounds(footprint.width, footprint.height,
           spot.x, spot.y, world.width, world.height)
-          || !isFootprintOnBuildableTerrain(world, footprint.width, footprint.height,
-            spot.x, spot.y, type)
           || overlapsAnyBuilding(world.buildings, footprint.width, footprint.height,
             spot.x, spot.y)) continue;
+        const grid = getCurrentPathGrid();
+        if (grid) {
+          const col = Math.floor(spot.x / PATH_CELL);
+          const row = Math.floor(spot.y / PATH_CELL);
+          if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows
+            || grid.blocked[row * grid.cols + col]) continue;
+        }
         if (fromHomes.length > 0) {
           beginCommuteRoutePass();
           const candidate = createBuilding(type, spot.x, spot.y, -1);
