@@ -1150,7 +1150,8 @@ describe('virtual player remaining action surface', () => {
         building(2, BuildingType.Blacksmith, { occupants: [1] }),
       ],
       {
-        resources: { wood: 500, stone: 500, food: 500, gold: 500, iron: 150 },
+        // Keep stone below its actual 300-unit base cap: this test isolates forge behavior.
+        resources: { wood: 500, stone: 200, food: 500, gold: 500, iron: 150 },
         unlockedTechs: ['defense_4'],
         villageForge: { activeOrder: null, progress: 0, completed: { iron_spears: true } },
       },
@@ -1170,7 +1171,8 @@ describe('virtual player remaining action surface', () => {
         building(2, BuildingType.Blacksmith),
       ],
       {
-        resources: { wood: 500, stone: 500, food: 500, gold: 500, iron: 150 },
+        // Keep stone below its actual 300-unit base cap: this test isolates forge behavior.
+        resources: { wood: 500, stone: 200, food: 500, gold: 500, iron: 150 },
         unlockedTechs: ['defense_4'],
         villageForge: { activeOrder: null, progress: 0, completed: {} },
       },
