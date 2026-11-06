@@ -628,11 +628,17 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     const idleAdults = state.entities.filter((person) => person.alive && isPlayerHuman(person)
       && !person.isJuvenile && person.workerBuildingId == null && person.prisonBuildingId == null
       && !constructionCrew.has(person.id)).length;
+    const assignedFoodWorkers = new Map<number, number>();
+    for (const person of state.entities) {
+      if (!person.alive || !isPlayerHuman(person) || person.workerBuildingId == null) continue;
+      assignedFoodWorkers.set(person.workerBuildingId,
+        (assignedFoodWorkers.get(person.workerBuildingId) ?? 0) + 1);
+    }
     const openFoodPosts = state.buildings.reduce((total, building) => {
       if (building.faction === 'rival' || !FOOD_PRODUCER_TYPES.includes(building.type)) return total;
       return total + (building.completed
         ? Math.max(0, BUILDING_CONFIGS[building.type].maxOccupants
-          - countWorkersAtBuilding(state.entities, building.id))
+          - (assignedFoodWorkers.get(building.id) ?? 0))
         : BUILDING_CONFIGS[building.type].maxOccupants);
     }, 0);
     if (idleAdults <= openFoodPosts) return null;
