@@ -802,24 +802,29 @@ function decideUnstaffedProducer(state: WorldState): VirtualPlayerDecision | nul
   return null;
 }
 
-/** Store capacity is for wood, stone and iron; it never expands gold storage.
- * Use completed-building capacities, not a possibly stale once-daily storageMax snapshot.
- * Only one Store may be under construction, and the threshold is recalculated after completion.
+/** Stores expand material capacity, not gold. A once-daily storage snapshot can
+ * temporarily exceed the newly computed caps (notably in old saves and imports).
+ * Do not launch speculative construction against that smaller provisional cap;
+ * the next economy update will reconcile the snapshots.
  */
 function needsAdditionalStore(state: WorldState): boolean {
   const limits = computeStorageMax(state.buildings);
-  return (['wood', 'stone', 'iron'] as const).some(
-    (resource) => limits[resource] > 0 && state.resources[resource] >= limits[resource] * 0.85,
-  );
+  return (['wood', 'stone', 'iron'] as const).some((resource) => {
+    const recorded = state.storageMax?.[resource];
+    const capacity = Math.max(limits[resource], Number.isFinite(recorded) ? recorded : 0);
+    return capacity > 0 && (state.resources[resource] ?? 0) >= capacity * 0.85;
+  });
 }
 
-function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
+/** One industry owner, evaluated separately for actual producers and late storage expansion. */
+function decideIndustry(state: WorldState, storeOnly = false): VirtualPlayerDecision | null {
   const underConstruction = INDUSTRY_BUILD_ORDER.some((entry) => isUnderConstruction(state, entry.type));
   const wanted = wantedProducerCount(state, VirtualPlayer.SETTLERS_PER_INDUSTRY_PRODUCER);
 
   for (const entry of INDUSTRY_BUILD_ORDER) {
     const stock = state.resources[entry.stock] ?? 0;
     const store = entry.type === BuildingType.Store;
+    if (store !== storeOnly) continue;
     const short = store ? needsAdditionalStore(state) : stock < entry.minimumStock;
     const built = completedProducerCount(state, entry.type);
     const scaling = !store && built >= 1 && built < wanted;
@@ -1933,6 +1938,8 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
     // Last two on purpose: a community building and a building upgrade are the only proposals
     // that may spend an hour nothing else wanted, so neither can shadow defence or diplomacy.
     ?? decideCommunity(state)
+    // Storage growth is desirable, but cannot starve research, repairs or recruiting.
+    ?? decideIndustry(state, true)
     ?? decideUpgrades(state)
   );
 }
