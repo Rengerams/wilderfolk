@@ -6,6 +6,7 @@ import {
   BUILDING_JOB_TYPES,
   JobType,
   LEADER_OCCUPATION,
+  PATH_CELL,
 } from './gameTypes';
 import { getOccupationForBuilding, ensureEntitySkills, readSkill } from './skills';
 import { SPECIES_CONFIG } from './speciesConfig';
@@ -831,9 +832,25 @@ function workforceSignature(world: WorldState, humans: readonly Entity[]): strin
   const week = Math.floor(world.tick / (7 * TICKS_PER_DAY));
   const priority = getWorkforcePolicy(world);
   const resourceNeeds = `${Number((world.resources?.wood ?? 1) <= 0)}:${Number((world.resources?.stone ?? 1) <= 0)}`;
-  const residents = humans.map((human) =>
-    `${human.id}:${human.alive ? 1 : 0}:${human.isJuvenile ? 1 : 0}:${human.workerBuildingId ?? ''}:${human.residenceBuildingId ?? ''}:${human.prisonBuildingId ?? ''}:${human.lastAutoJobTransferTick ?? ''}:${human.faction ?? ''}`,
-  );
+  const residenceIds = new Set(world.buildings
+    .filter((site) => site.completed && site.faction !== 'rival' && isResidenceBuildingType(site.type))
+    .map((site) => site.id));
+  const residents = humans.map((human) => {
+    // A timestamp alone cannot invalidate this cache when a 60-day transfer
+    // cooldown expires. Include the owner's current eligibility verdict,
+    // which flips exactly when the settler becomes transferable again.
+    const transferable = human.workerBuildingId != null
+      && canAutoChangeWorkplace(human, world.tick);
+    // Unhoused applicants use their CURRENT position as the commute origin.
+    // Invalidate on path-cell changes, not every animation step or tiny walk.
+    // An invalid saved residence is likewise absent from the resolved homes.
+    const unhousedApplicant = human.workerBuildingId == null
+      && (human.residenceBuildingId == null || !residenceIds.has(human.residenceBuildingId));
+    const originCell = unhousedApplicant
+      ? `${Math.floor(human.x / PATH_CELL)},${Math.floor(human.y / PATH_CELL)}`
+      : '';
+    return `${human.id}:${human.alive ? 1 : 0}:${human.isJuvenile ? 1 : 0}:${human.workerBuildingId ?? ''}:${human.residenceBuildingId ?? ''}:${human.prisonBuildingId ?? ''}:${human.lastAutoJobTransferTick ?? ''}:${transferable ? 1 : 0}:${originCell}:${human.faction ?? ''}`;
+  });
   const sites = world.buildings.map((site) =>
     `${site.id}:${site.type}:${site.completed ? 1 : 0}:${site.faction ?? ''}:${site.level ?? 1}:${site.completed ? '' : site.occupants.join(',')}`,
   );
