@@ -850,7 +850,7 @@ const lastWorkforceSignature = new WeakMap<WorldState, string>();
 function workforceSignature(world: WorldState, humans: readonly Entity[]): string {
   const week = Math.floor(world.tick / (7 * TICKS_PER_DAY));
   const priority = getWorkforcePolicy(world);
-  const resourceNeeds = `${Number((world.resources?.wood ?? 1) <= 0)}:${Number((world.resources?.stone ?? 1) <= 0)}`;
+  const resourceNeeds = `${Number((world.resources?.wood ?? 1) <= 0)}:${Number((world.resources?.stone ?? 1) <= 0)}:${Number(isAcuteFoodStaffingEmergency(world))}`;
   const residenceIds = new Set(world.buildings
     .filter((site) => site.completed && site.faction !== 'rival' && isResidenceBuildingType(site.type))
     .map((site) => site.id));
