@@ -3,7 +3,7 @@
 ## 0.6.5.2 [Unreleased]
 
 - **Fixed (6 November 2026, PR #126; CI verification pending):** Seeded colony starts with legal, reachable homes and food producers instead of impassable river sites; the unaltered 90-day food-survival gate remains authoritative.
-- **Changed (6 November 2026, PR #126; CI verification pending):** Survival staffing puts idle farmhands before construction even when stores are full. Auto-play forecasts seven-day demand from real meal trends and plans only food sites with a verified commute from an available adult, without using the assignment layer's route budget.
+- **Changed (6 November 2026, PR #126; CI pending):** Survival staffing prioritizes food jobs. The bot forecasts demand and verifies a viable worker commute before adding food production.
 
 - **Fixed (6 November 2026, PR #126; runtime unverified):** Save-load reconciles vacancies using its restored navigation grid, with path-grid caches also keyed to the actual map identity; incumbent jobs remain unchanged.
 - **Fixed (6 November 2026, PR #126; runtime unverified):** Auto-play no longer builds food sites without an available adult after pending food vacancies, while urgent verified food shortages bypass only the transfer cooldown and retain protected donor staffing.
