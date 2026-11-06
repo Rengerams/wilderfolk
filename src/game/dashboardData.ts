@@ -748,6 +748,7 @@ const STAFFING_REFUSAL_LABELS: Record<WorkerAssignmentRefusal, string> = {
   'residence-building': 'Homes fill themselves — build a House and people move in.',
   'building-full': 'Every slot here is taken.',
   'building-has-no-job': 'This building takes no workers.',
+  'automatic-job': 'Employment is automatic; individual worker selection is unavailable.',
   'not-a-settler': 'Only your own settlers take a job here.',
   'settler-dead': 'They are dead.',
   juvenile: 'Children do not take jobs.',
@@ -876,7 +877,7 @@ export function explainBuildingStaffing(
   // The owner's "nobody can be taken" verdict, in the owner's terms: the building wants staff and has
   // an open slot, yet no settler is free for it.
   const acceptsWorker = canAssignWorkerToBuilding(state, buildingId);
-  if (takesStaff && !isResidence && workerCount < capacity && !acceptsWorker) {
+  if (takesStaff && !building.completed && !isResidence && workerCount < capacity && !acceptsWorker) {
     lines.push({
       label: 'Cannot add workers',
       value: 'No settler is free to take this post — recruit, or free someone from another job.',
