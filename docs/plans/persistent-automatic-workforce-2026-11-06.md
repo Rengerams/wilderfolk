@@ -42,6 +42,15 @@
 - If only deterministic current-pass scheduling is needed, clarify the comment and retain the function. If household continuity across roster changes matters, find the canonical persistent household identity first; no invented IDs or save migrations.
 - Reuse `housingPipeline.ts`; do not add another housing decision owner or rewrite the completed housing architecture.
 
+
+### E. Pathfinding contract for persistent jobs (confirmed staffing defect)
+- See `docs/bug_report/2026-11-06-automatic-staffing-ignores-commute-reachability.md`.
+- `commuteReach.isWithinAssignableCommute` limits **new** work placements to two hours from the settler's home (or position when unhoused), priced on the existing path grid; a completed search returning no route is unreachable. Never substitute current-position straight-line distance for this eligibility.
+- `workforce.assignWorkerInPlace` currently ranks `near === false` candidates but still assigns one when none is reachable: make eligibility mandatory. `pickWorkerToTransfer` has no such check: enforce the same rule for transfers, using the existing owner rather than a second route search algorithm.
+- Distinguish a route-search budget exhaustion/unknown route from a proven blocked route; use bounded defer/retry instead of silent eligibility or permanent exclusion.
+- **Keep a previously valid job when a later commute fails.** Let navigation recover/replan first; if permanently inaccessible, resolve housing/commute through its owner or make one justified transfer after cooldown, never daily reassignment and never blanket job clearing.
+- Only price routes for vacancy/transfer candidates on actual staffing events, not every worker on every tick. Respect the existing grid cache, routing budgets, blocked-waypoint behavior and save/worker parity.
+
 ## Acceptance criteria for implementation
 - Current jobs persist across multiple day boundaries without reassignment on each daily pulse; attendance varies independently.
 - New job openings are filled from eligible unemployed people; existing workers stay unless a recorded policy reason justifies transfer.
@@ -50,6 +59,7 @@
 - At large population, assignment work scales with relevant changed entities, not all citizens on every tick.
 - Store expansion follows one confirmed storage-pressure contract.
 - No unnecessary food-capacity or housing changes are made from unverified hypotheses.
+- Every **new** assignment and transfer satisfies canonical pathfinding-based two-hour reachability; blocked/unknown routes are handled distinctly without dismissing incumbents.
 - Owners/decision registry/changelog are updated in the implementation PR, with precisely scoped regression tests chosen by the local maintainer.
 
 ## Verification policy for this documentation task
