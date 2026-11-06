@@ -356,7 +356,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/humanLifecycle.test.ts, tests/conceptionEvent.labelling.test.ts',
   },
   moonHowler: {
-    owner: 'moonHowler.ts + moonHowlerForm.ts — tickMoonHowlerCycle, curseMoonHowler, transformToWerewolfForm, revertToHumanForm, cureMoonHowler, finalizeMoonHowlerDeath, isSettlerRelationshipEntity',
+    owner: 'moonHowler.ts + moonHowlerForm.ts — tickMoonHowlerCycle, curseMoonHowler, transformToWerewolfForm, revertToHumanForm, cureMoonHowler, finalizeMoonHowlerDeath, isSettlerRelationshipEntity; night window owned by daycycleconstants.ts',
     cadence: 'full-moon-event',
     writes: [
       'human.moonHowlerCursed',
@@ -365,7 +365,7 @@ export const SIMULATION_DECISIONS = {
       'building.occupants during transform/restore',
       'eventLog/title (Moonslayer)',
     ],
-    scheduledFrom: 'tickLayerRealtime.ts → tickMoonHowlerCycle (gated internally to full-moon ticks)',
+    scheduledFrom: 'tickLayerRealtime.ts → tickMoonHowlerCycle (22:00 on full-moon day through next-day 06:00; form ends at 06:00)',
     testFile: 'tests/moonHowler.test.ts, tests/low-3-moon-lifecycle.test.ts, tests/medium-persistence.test.ts',
   },
   leadership: {
