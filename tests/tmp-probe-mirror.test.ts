@@ -1,4 +1,5 @@
-import { appendFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { gameTick } from '../src/game/gameEngine';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { BuildingType, EntityType, MapSize } from '../src/game/gameTypes';
@@ -47,6 +48,7 @@ function line(text: string): void {
 }
 
 function run(): void {
+  mkdirSync(dirname(LOG), { recursive: true });
   writeFileSync(LOG, '', 'utf8');
   const prepared = prepareColonyWorld({ size: MapSize.Medium, seed: 12345, scenario: 'producers' });
   const world: WorldState = prepared.world;
