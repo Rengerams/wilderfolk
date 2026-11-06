@@ -30,9 +30,8 @@ jobs:
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          node scripts/check-semantic-duplicates.mjs --update-baseline
-          npm test -- standard --changed "$PR_BASE_SHA"
-          npm run build
+        
+          npm run Test:unit && npm run build
       - name: Run full checks on main
         if: github.event_name == 'push'
         run: |
