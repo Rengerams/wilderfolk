@@ -10,7 +10,6 @@ import {
 } from './gameTypes';
 import { MINE_ORES, type MineMode } from './buildings';
 
-const STAFFING_MODES: ReadonlySet<StaffingMode> = new Set(['auto', 'manual']);
 const MINE_MODES: ReadonlySet<string> = new Set(MINE_ORES);
 const VALID_RECIPE_IDS: ReadonlySet<string> = new Set(WORKSHOP_RECIPES.map((r) => r.id));
 const VALID_PREY_IDS: ReadonlySet<HuntingSpotPrey> = new Set(
@@ -48,10 +47,6 @@ function setValidatedOption<K extends keyof Building>(
     building[field] === value ? building : { ...building, [field]: value });
 }
 
-function isStaffingMode(mode: unknown): mode is StaffingMode {
-  return typeof mode === 'string' && STAFFING_MODES.has(mode as StaffingMode);
-}
-
 function isMineMode(mode: unknown): mode is MineMode {
   return typeof mode === 'string' && MINE_MODES.has(mode as MineMode);
 }
@@ -72,7 +67,7 @@ export function setWorkshopRecipe(
   );
 }
 
-/** Set automatic/manual staffing only for a player-owned building with a job type. */
+/** Legacy staffing commands can only select automatic mode. */
 export function setBuildingStaffingMode(
   originalState: WorldState,
   buildingId: number,
@@ -81,7 +76,7 @@ export function setBuildingStaffingMode(
   return setValidatedOption(
     originalState,
     buildingId,
-    isStaffingMode(mode),
+    mode === 'auto',
     'staffingMode',
     mode,
     (building) => !!BUILDING_JOB_TYPES[building.type],
