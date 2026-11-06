@@ -18,7 +18,28 @@ import { logEvent } from './eventLog';
 import type { TickContext } from './simulation/simulationTypes';
 import { pruneFactionWanderStates } from './factionWander';
 import { getSimRng } from './simRng';
+import { Human, Immigration, VirtualPlayer } from './gameConstants';
+import { isMeasuredFoodDeficit, isProjectedFoodShortfall } from './economyLedger';
 import { pushNewEntity } from './simulation/simulationEntities';
+
+/**
+ * Automatic immigration should not admit a family on the strength of a
+ * well-stocked but shrinking larder. Compare real completed-day production
+ * with the projected need including the largest admissible new family.
+ * Without three contiguous measured days the bootstrap policy is unchanged.
+ */
+export function canSupportImmigration(
+  state: Pick<WorldState, 'tick' | 'foodHistory'>,
+  population: number,
+  openSlots: number,
+): boolean {
+  if (openSlots <= 0) return false;
+  const largestParty = Math.min(openSlots, 2 + Immigration.FAMILY_MAX_CHILDREN);
+  const upcomingDailyNeed = (population + largestParty) * Human.DAILY_FOOD_CONSUMPTION;
+  return !isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)
+    && !isProjectedFoodShortfall(state, upcomingDailyNeed,
+      VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO);
+}
 
 function tickImmigration(
   state: WorldState,
@@ -69,7 +90,7 @@ function tickImmigration(
   const rng = getSimRng('dailyPopulation');
   if (
     state.tick > 0 &&
-    openSlots > 0 &&
+    canSupportImmigration(state, counts.humans, openSlots) &&
     rng() < immigrationChance
   ) {
     let spawnX = width / 2;
