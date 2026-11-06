@@ -6,7 +6,6 @@ import {
   assignMissingWorkers,
   isOnConstructionCrew,
   removeWorkerTransition,
-  staffingCapFor,
 } from './workforce';
 import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './housingModel';
 import { allPlayerHumans, isPlayerHuman } from './playerHuman';
