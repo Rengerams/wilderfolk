@@ -61,6 +61,7 @@ export type DecisionKey =
   | 'workSchedule'
   | 'school'
   | 'workforce'
+  | 'immigration'
   | 'housing'
   | 'construction'
   | 'production'
@@ -212,6 +213,14 @@ export const SIMULATION_DECISIONS = {
     ],
     scheduledFrom: 'tickLayerAssign.assignMissingWorkers; saveLoad.loadGameFromParsedOutcome installs its restored path map before the load-time staffing pass; tickLayerRealtime.releasePrisoners; commands.ts "autoStaffWorkers" (owned world in place, isolated calls copied); "assignWorker" retained for construction/residency only; buildingStaffingActions on place/recruit/death',
     testFile: 'tests/leaderHouse.workforce.test.ts, tests/saveLoad.commuteGrid.test.ts, tests/virtualPlayerHealthVerdict.test.ts, tests/workforce.persistentCommute.test.ts, tests/workforce.deferredCommuteRetry.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
+  },
+  immigration: {
+    owner: 'dailyPopulation.ts — tickDailyPopulation, tickImmigration, canSupportImmigration (one daily admission owner); economyLedger.ts owns historical and forecast food verdicts; worldGen.ts owns immigrant party composition',
+    cadence: 'daily',
+    cadenceNote: 'After real completed-day production is recorded, admission is gated against measured deficits and projected demand for the largest arriving family. A large stored larder alone cannot permit unsustainable growth; sparse startup history preserves bootstrap immigration. Never cancels births or reassigns existing residents. Housing, settlement entity spawning and spatial indexes keep their existing owners.',
+    writes: ['maxHumanPopulation', 'humanPopulation', 'entities (via spawned new settlers)', 'nextEntityId', 'eventLog (through logEvent)', 'notifications'],
+    scheduledFrom: 'tickLayerDaily.tickLayerDaily → dailyPopulation.tickDailyPopulation → tickImmigration once per colony day; spawn bookkeeping delegates to simulationEntities',
+    testFile: 'tests/dailyPopulation.foodAdmission.test.ts, tests/immigration.composition.test.ts',
   },
   housing: {
     owner: 'housingPipeline.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, planRelocation answers move-or-stay for homeless, custody, custodian, capacity, surplus, leave-home, commute and couple, and applyRelocation writes a plan; the commute phase also swaps two occupied homes when both households improve; manor seating is event-driven (start/election) and never a housing-phase decision; relocateHousehold applies a whole-household decision; relocateFamily retries a destination the writer refused with the next-best home; moveResident stays the sole write; HousingReport carries the run stats; assignMissingResidences accepts an optional resume ledger; ranking lives in the same module; facts: housingModel.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
