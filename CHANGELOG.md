@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Docs (6 November 2026):** Recorded two static-audit findings and proposed persistent automatic workforce assignment, removing individual manual staffing without daily job reshuffling; no gameplay behavior changed.
+
 - **Fixed (6 November 2026):** Auto-play now plans food capacity at the measured farm yield and raises two food sites during a sustained deficit, so the seeded producer colony no longer starves.
 
 - **Changed (6 November 2026):** Test fixtures build a smaller or terrain-free world and reuse it across cases, roughly halving the unit suite; the two year-long integration gates now run together.
