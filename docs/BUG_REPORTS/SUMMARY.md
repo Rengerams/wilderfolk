@@ -1,5 +1,15 @@
 # Bug report summary — one line per report
 
+**2026-11-06 — [Save load can use stale commute path grid](../bug_report/2026-11-06-save-load-uses-stale-commute-grid.md):** Load-time staffing ran before the restored map was installed; map-identity-aware caches and load order now prevent wrong-grid assignments. Source fixed; runtime unverified.
+
+**2026-11-06 — [Long diagnostic probe incorrectly collected by unit suite](../bug_report/2026-11-06-90-day-probe-in-unit-tests.md):** Unasserted 90-day probe moved from tests/ into an explicit standalone script; ordinary unit discovery no longer collects it. Runtime unverified.
+
+**2026-11-06 — [Measured food shortage can spawn unstaffable workplaces](../bug_report/2026-11-06-virtual-player-uncrewed-food-expansion.md):** Food-site growth now requires an available adult after existing and under-construction vacancies; multi-day regression added. Runtime unverified.
+
+**2026-11-06 — [Food emergency blocked by automatic transfer cooldown](../bug_report/2026-11-06-food-emergency-transfer-cooldown.md):** The workforce owner can bypass only the 60-day timer for urgent food posts after a verified deficit; donor protection and commute rules remain. Runtime unverified.
+
+**2026-11-06 — [Homeless dead end outranked by speculative food work](../bug_report/2026-11-06-housing-dead-end-priority.md):** Housing ladder now tries redundant-site demolition and existing residence expansion before food construction at a true housing dead end; existing tests cover both. Runtime unverified.
+
 **2026-11-06 — [Moon Howler can transform before full-moon nightfall](../bug_report/2026-11-06-moon-howler-pre-nightfall-transformation.md):** The full-moon predicate treated 00:00–05:59 on the full-moon date as active, before 22:00. Source corrected in PR #126; runtime verification not run.
 
 **2026-11-06 — [Dormant Moon Howler curse mislabeled active](../bug_report/2026-11-06-moon-howler-dormant-curse-mislabeled-active.md):** Dashboard and Population UI confused curse persistence with active werewolf form and listed 20:00 instead of 22:00. Corrected in PR #126; runtime verification not run.
