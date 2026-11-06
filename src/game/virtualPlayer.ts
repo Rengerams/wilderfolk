@@ -74,6 +74,8 @@ import {
   type VenueScheduleKind,
 } from './venueSchedule';
 import { findPath, getPathGrid, pathWaypoints } from './pathfinding';
+import { isWithinAssignableCommute, straightLineCommuteLowerBoundHours } from './commuteReach';
+import { SPECIES_CONFIG } from './speciesConfig';
 import { inferStripRotation, type StripSegment } from './stripBuild';
 
 /** One proposed auto-play action plus the short player-facing reason for it. */
@@ -633,14 +635,16 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   ).length;
   if (measuredDeficit ? goingUp >= 2 : goingUp > 0) return null;
   if (unstaffedFoodProducer && !measuredDeficit && !forecastRisk) return null;
-  // A new site needs at least one free adult after existing and incoming food posts are staffed.
+  // A new producer needs an actually available, reachable farmhand. Counting
+  // unemployed people alone let the bot place sites across a river, leave them
+  // empty forever and deplete the larder while 20+ adults remained idle.
+  const constructionCrew = new Set(state.buildings.filter((b) => !b.completed)
+    .flatMap((b) => b.occupants));
+  const idleAdults = state.entities.filter((person) => person.alive && isPlayerHuman(person)
+    && !person.isJuvenile && person.workerBuildingId == null && person.prisonBuildingId == null
+    && !constructionCrew.has(person.id));
   // The first producer remains buildable so an all-industrial bootstrap can recover.
   if (built > 0 || goingUp > 0) {
-    const constructionCrew = new Set(state.buildings.filter((b) => !b.completed)
-      .flatMap((b) => b.occupants));
-    const idleAdults = state.entities.filter((person) => person.alive && isPlayerHuman(person)
-      && !person.isJuvenile && person.workerBuildingId == null && person.prisonBuildingId == null
-      && !constructionCrew.has(person.id)).length;
     const assignedFoodWorkers = new Map<number, number>();
     for (const person of state.entities) {
       if (!person.alive || !isPlayerHuman(person) || person.workerBuildingId == null) continue;
@@ -654,7 +658,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
           - (assignedFoodWorkers.get(building.id) ?? 0))
         : BUILDING_CONFIGS[building.type].maxOccupants);
     }, 0);
-    if (idleAdults <= openFoodPosts) return null;
+    if (idleAdults.length <= openFoodPosts) return null;
   }
 
   const daysLeft = Math.max(0, Math.floor(food / needPerDay));
@@ -673,13 +677,35 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
       ...(healthyWildlife ? [BuildingType.HuntingSpot] : []),
     ]
     : FOOD_PRODUCER_TYPES;
+  const buildingById = new Map(state.buildings.map((site) => [site.id, site]));
+  const recruitableOrigins = new Map<number, typeof idleAdults[number]>();
+  for (const person of idleAdults) {
+    const key = person.residenceBuildingId ?? -(person.id + 1);
+    if (!recruitableOrigins.has(key)) recruitableOrigins.set(key, person);
+  }
+  const walkSpeed = SPECIES_CONFIG[EntityType.Human].speed;
+  const canCrewNewFoodSite = (spot: { x: number; y: number }): boolean => {
+    // Initial construction is allowed even before there is a free worker.
+    if (built === 0 && goingUp === 0) return true;
+    for (const person of recruitableOrigins.values()) {
+      const from = (person.residenceBuildingId == null
+        ? undefined : buildingById.get(person.residenceBuildingId)) ?? person;
+      if (straightLineCommuteLowerBoundHours(from, spot, walkSpeed) > 2) continue;
+      if (isWithinAssignableCommute(
+        person, spot, state.buildings, walkSpeed, buildingById, state.worldMap,
+      )) return true;
+    }
+    return false;
+  };
   for (const type of foodCandidates) {
     const requirement = BUILDING_CONFIGS[type].unlockRequirement;
     if (requirement && !isBuildingTechUnlocked(requirement, state.unlockedTechs, state.researchNodes)) continue;
     if (!shortOnFood && !measuredDeficit && (wantMore || forecastRisk)
       && !canSpendKeepingReserve(state, BUILDING_CONFIGS[type].cost)) continue;
     if (!canAfford(state, BUILDING_CONFIGS[type].cost)) continue;
-    const spot = findPlacementSpot(state, type, 0, siteCondition(state, type));
+    const preyCondition = siteCondition(state, type);
+    const spot = findPlacementSpot(state, type, 0, (candidate) =>
+      (!preyCondition || preyCondition(candidate)) && canCrewNewFoodSite(candidate));
     if (!spot) continue;
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type, x: spot.x, y: spot.y, rotation: 0 },
