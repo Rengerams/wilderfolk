@@ -1,7 +1,7 @@
 # Automatic workforce can assign an unreachable workplace
 
 - Bug: A candidate who fails the canonical commute reachability rule can still receive a job; transfers do not check commute reachability at all.
-- Status: open
+- Status: investigating — source fix committed on PR #126; runtime unverified
 - Severity: high
 - Date discovered: 2026-11-06
 - Version/build: main source audited at `6e9dd6bfcd525cb1df3d8960a636069f5aa240c7`
@@ -11,6 +11,7 @@
 - Related plan: `docs/plans/persistent-automatic-workforce-2026-11-06.md`
 
 ## Status history
+- 2026-11-06 — investigating: PR #126 adds a hard canonical two-hour eligibility gate to new hires and transfers; home-based transfer distances and conservative deferral on exhausted route search; no runtime checks executed.
 - 2026-11-06 — open: direct source inspection identified reachable-preference fallback and missing transfer eligibility; runtime not executed.
 
 ## Observed behavior
@@ -33,6 +34,8 @@ No *new* job assignment or transfer may select a settler with a definitely unrea
 Confirmed source-level eligibility omission: travel reachability is a soft preference for initial selection and absent from the automatic transfer picker. This is **not** evidence that every actual commute fails.
 
 ## Fix / proposed fix
+**Implemented on PR #126 (unverified):** `assignWorkerInPlace` ignores unreachable candidates, `pickWorkerToTransfer` checks the same canonical predicate with all colony buildings, and `commuteReach.isWithinAssignableCommute` refuses an unknown routed path while allowing same-cell and no-grid bootstrap estimates. An event-signature gate avoids running route searches on unchanged workforce pulses; a weekly safety sweep retries. Incumbent jobs are never revoked merely for being unreachable.
+
 Make the canonical `isWithinAssignableCommute` a hard eligibility rule for a **new assignment and transfer**, with deterministic candidate ordering. Reuse `commuteReach.ts`; do not invent distance formulas, straight-line substitutes or new pathfinding. Address route-search-budget exhaustion explicitly: an unpriced leg (`null`) is unknown, not proof of an impassable route; the owner should select a documented bounded retry/defer policy rather than accept false eligibility or reject forever.
 
 Keep existing valid jobs persistent when dynamic terrain, roads, homes or schedules change. A navigation failure should trigger route recovery or housing/commute resolution, **not automatic dismissal**. For an established worker whose route becomes permanently invalid, evaluate a bounded relocation or reassignment under the one workforce/housing owners, with cooldown and no day-by-day churn. Preserve commute waypoints and movement owners; don't recompute A* for every citizen on every tick.
