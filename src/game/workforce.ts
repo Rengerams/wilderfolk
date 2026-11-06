@@ -23,7 +23,7 @@ import { logEvent } from './eventLog';
 import { addFloatingText, addNotification } from './simEffects';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { Human, VirtualPlayer } from './gameConstants';
-import { isMeasuredFoodDeficit } from './economyLedger';
+import { isMeasuredFoodDeficit, isProjectedFoodShortfall } from './economyLedger';
 import { evaluateWorkerFit } from './careers/workerFit';
 import { profileStart, profileEnd } from './performanceProfiler';
 import {
@@ -186,6 +186,19 @@ export function isAcuteFoodStaffingEmergency(state: WorldState): boolean {
   return settlers > 0
     && state.resources.food < settlers * Human.DAILY_FOOD_CONSUMPTION * VirtualPlayer.FOOD_BUFFER_DAYS * 3
     && isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO);
+}
+
+/**
+ * Read the same prospective food-demand verdict as auto-play. A food vacancy
+ * may borrow a nonessential, cooldown-locked employee BEFORE the larder
+ * collapses. Only food destinations can use this exception.
+ */
+export function hasFoodStaffingPressure(state: WorldState): boolean {
+  if (!state.entities || !state.resources) return false;
+  const mouths = state.entities.filter((entity) => entity.alive && isPlayerHuman(entity)).length;
+  return mouths > 0 && (isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)
+    || isProjectedFoodShortfall(state, mouths * Human.DAILY_FOOD_CONSUMPTION,
+      VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO));
 }
 
 interface WorkforceAssignmentIndex {
@@ -866,7 +879,7 @@ export function staffJobBuildings(
 
   const rebalanceStart = profileStart();
   const world = worldSlices as WorldState | undefined;
-  const urgentFood = world?.entities && world.resources && isAcuteFoodStaffingEmergency(world);
+  const urgentFood = world?.entities && world.resources && hasFoodStaffingPressure(world);
   rebalanceJobWorkers(alive, buildings, policy, worldSlices?.tick, !!urgentFood);
   profileEnd('workforce.rebalance', rebalanceStart);
   const syncStart = profileStart();
@@ -885,7 +898,7 @@ const lastWorkforceSignature = new WeakMap<WorldState, string>();
 function workforceSignature(world: WorldState, humans: readonly Entity[]): string {
   const week = Math.floor(world.tick / (7 * TICKS_PER_DAY));
   const priority = getWorkforcePolicy(world);
-  const resourceNeeds = `${Number((world.resources?.wood ?? 1) <= 0)}:${Number((world.resources?.stone ?? 1) <= 0)}:${Number(isAcuteFoodStaffingEmergency(world))}`;
+  const resourceNeeds = `${Number((world.resources?.wood ?? 1) <= 0)}:${Number((world.resources?.stone ?? 1) <= 0)}:${Number(isAcuteFoodStaffingEmergency(world))}:${Number(hasFoodStaffingPressure(world))}`;
   const residenceIds = new Set(world.buildings
     .filter((site) => site.completed && site.faction !== 'rival' && isResidenceBuildingType(site.type))
     .map((site) => site.id));
