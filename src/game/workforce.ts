@@ -842,7 +842,7 @@ export function assignMissingWorkers(
   const world = worldSlices as WorldState | undefined;
   const cacheable = world?.entities != null && world.entities.length >= humans.length
     && world.buildings === buildings && world.tick != null;
-  if (cacheable) {
+  if (world && cacheable) {
     const signature = workforceSignature(world, humans);
     if (lastWorkforceSignature.get(world) === signature) return;
   }
@@ -881,7 +881,7 @@ export function assignMissingWorkers(
   const jobsStart = profileStart();
   staffJobBuildings(alive, buildings, worldSlices, policy, buildingById);
   profileEnd('workforce.jobs', jobsStart);
-  if (cacheable) {
+  if (world && cacheable) {
     // Record POST-reconciliation state so new assignments don't force another
     // heavy pass on the next unchanged six-hour or daily economy pulse.
     lastWorkforceSignature.set(world, workforceSignature(world, humans));
