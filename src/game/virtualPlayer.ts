@@ -545,7 +545,16 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     (total, type) => total + completedProducerCount(state, type),
     0,
   );
+  // The ledger observes REAL output, including weather, worker attendance,
+  // hunting success and prey availability. Never count a Fishing/Hunting Spot
+  // as a Farm-equivalent unit merely because both are food buildings.
+  const measuredFlow = getRecentFoodFlow(state);
   const measuredDeficit = isMeasuredFoodDeficit(state);
+  // No production history yet: use only crop sites for the conservative
+  // bootstrap footprint target. Once measured history exists, this guess
+  // yields to observed production versus actual consumption.
+  const cropSites = completedProducerCount(state, BuildingType.Farm)
+    + completedProducerCount(state, BuildingType.Greenhouse);
   // Consider staff-free output improvements even when the workforce cannot
   // yet crew an existing food site. Do not build another unstaffable farm.
   const unstaffedFoodProducer = (shortOnFood || measuredDeficit)
@@ -557,7 +566,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
       ? VirtualPlayer.DEFICIT_SETTLERS_PER_FOOD_PRODUCER
       : VirtualPlayer.SETTLERS_PER_FOOD_PRODUCER,
   );
-  const wantMore = built >= 1 && built < target;
+  const wantMore = measuredFlow === null && cropSites < target;
 
   // In a measured shortage, improve the output of existing farmhands before
   // constructing another workplace that may have no eligible workers. Level
@@ -616,10 +625,14 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     }
   }
 
-  if (!shortOnFood && !measuredDeficit && hasFoodProducer(state) && !wantMore) return null;
-  // The plan caps construction in every mode; a shortage is not a licence to build forever,
-  // but real hunger still outranks the plan.
-  if (built >= target && !shortOnFood) return null;
+  // With enough recorded days, the measured ledger replaces every type-count
+  // heuristic. A productive Fishery or Greenhouse can cover the colony without
+  // forcing extra farms; an unproductive Hunting Spot cannot masquerade as one.
+  if (measuredFlow !== null && !shortOnFood && !measuredDeficit) return null;
+  if (measuredFlow === null && !shortOnFood && hasFoodProducer(state) && !wantMore) return null;
+  // The bootstrap count is a temporary ceiling, NOT a hard ceiling during a
+  // verified deficit. Actual production, not site count, determines shortage.
+  if (measuredFlow === null && cropSites >= target && !shortOnFood) return null;
   // One site at a time normally; a measured deficit keeps two going up so capacity grows
   // faster than the mouths, and it never waits for an existing site to be crewing first.
   const goingUp = state.buildings.filter(
