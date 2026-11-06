@@ -150,6 +150,38 @@ export function isMeasuredFoodDeficit(state: Pick<WorldState, 'foodHistory' | 't
     && month.netPerDay < -month.consumedPerDay * toleranceRatio;
 }
 
+/**
+ * Seven-day production outlook. Uses real harvested/stored food, observed meal
+ * consumption and its recent upward slope, plus today's population demand.
+ * This warns before the *current* balance turns negative; it does not infer
+ * production from a building count or a theoretical full-attendance yield.
+ * Sparse or interrupted history remains unknown (the bot uses bootstrap rules).
+ */
+export function getProjectedFoodSupply(
+  state: Pick<WorldState, 'foodHistory' | 'tick'>,
+  currentDailyNeed: number,
+  horizonDays = 7,
+): { producedPerDay: number; projectedNeedPerDay: number; days: number } | null {
+  const flow = getRecentFoodFlow(state);
+  if (!flow || !Number.isFinite(currentDailyNeed) || currentDailyNeed < 0) return null;
+  const samples = (state.foodHistory ?? []).slice(-flow.days);
+  const size = Math.floor(flow.days / 2);
+  let slope = 0;
+  if (size >= 2) {
+    const dailyConsumption = (sample: typeof samples[number]): number =>
+      Object.values(sample.consumed).reduce((sum, amount) => sum + amount, 0);
+    const first = samples.slice(0, size).reduce((sum, entry) => sum + dailyConsumption(entry), 0) / size;
+    const last = samples.slice(-size).reduce((sum, entry) => sum + dailyConsumption(entry), 0) / size;
+    slope = Math.max(0, (last - first) / Math.max(1, flow.days - size));
+  }
+  return {
+    producedPerDay: flow.producedPerDay,
+    projectedNeedPerDay: Math.max(currentDailyNeed, flow.consumedPerDay)
+      + slope * Math.max(0, horizonDays),
+    days: flow.days,
+  };
+}
+
 /** The current day's ledger, or null when nothing has happened yet today. */
 export function getEconomyLedger(state: WorldState): DailyEconomyLedger | null {
   const ledger = state.economyLedger;
