@@ -1,13 +1,6 @@
 /**
- * Church staffing — a Church auto-fills by default and, once set to `manual`,
- * keeps only the player-selected priest: the auto pass and rebalance skip it.
- * A one-time save migration clears legacy Churches that were auto-filled
- * before manual priest selection existed.
- *
- * Covers: auto-fill by default, the manual override (auto/rebalance skip),
- * manual assignment, daily reconciliation (keeps the assigned priest, adds
- * none), legacy-save migration (idempotent, player Churches only), and
- * invariant cleanliness.
+ * Church staffing: automatic vacancy filling and job continuity, plus the legacy
+ * church-save cleanup contract. No individual worker assignment is available.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, JOB_LABELS, JobType } from '../src/game/gameTypes';
@@ -29,61 +22,49 @@ function makeWorld(entities: Entity[], buildings: Building[]): WorldState {
   } as unknown as WorldState;
 }
 
-describe('Church manual staffing', () => {
-  it('auto-fills an empty Church by default', () => {
+describe('Church automatic staffing and continuity', () => {
+  it('auto-fills an empty Church', () => {
     const idle = [human(1), human(2), human(3)];
     const church = building(4, BuildingType.Church);
-
     assignMissingWorkers(idle, [church]);
-
     expect(church.occupants.length).toBeGreaterThan(0);
   });
 
-  it('never auto-fills a Church set to manual', () => {
+  it('normalizes a legacy manual flag while filling an empty Church', () => {
     const idle = [human(1), human(2), human(3)];
     const church = building(4, BuildingType.Church, { staffingMode: 'manual' });
-
     assignMissingWorkers(idle, [church]);
+    expect(church.staffingMode).toBe('auto');
+    expect(church.occupants.length).toBeGreaterThan(0);
+  });
 
+  it('preserves an assigned priest across repeated workforce pulses', () => {
+    const priest = human(1, { workerBuildingId: 4, job: JobType.Priest });
+    const church = building(4, BuildingType.Church, { occupants: [1], staffingMode: 'manual' });
+    assignMissingWorkers([priest], [church]);
+    assignMissingWorkers([priest], [church]);
+    expect(church.staffingMode).toBe('auto');
+    expect(priest.workerBuildingId).toBe(4);
+    expect(church.occupants).toContain(1);
+  });
+
+  it('does not allow the former individual job-assignment command', () => {
+    const priest = human(1);
+    const church = building(4, BuildingType.Church);
+    const world = makeWorld([priest], [church]);
+    const next = assignIdleWorkerToBuilding(world, 4, 1);
+    expect(next).toBe(world);
+    expect(priest.workerBuildingId).toBeUndefined();
     expect(church.occupants).toEqual([]);
   });
 
-  it('never moves workers into a manual Church via rebalance', () => {
+  it('does not strip the sole Farm worker to fill an empty Church', () => {
     const farmWorker = human(1, { workerBuildingId: 2 });
     const farm = building(2, BuildingType.Farm, { occupants: [1] });
     const church = building(4, BuildingType.Church, { staffingMode: 'manual' });
-
     rebalanceJobWorkers([farmWorker], [farm, church]);
-
+    expect(farmWorker.workerBuildingId).toBe(2);
     expect(church.occupants).toEqual([]);
-    expect(farm.occupants).toEqual([1]);
-  });
-
-  it('assigns exactly the chosen priest manually', () => {
-    const priest = human(1);
-    const other = human(2);
-    const church = building(4, BuildingType.Church);
-    const world = makeWorld([priest, other], [church]);
-
-    const next = assignIdleWorkerToBuilding(world, 4, 1);
-    const assigned = next.entities.find((e) => e.id === 1)!;
-
-    expect(next.buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
-    expect(assigned.workerBuildingId).toBe(4);
-    expect(assigned.job).toBe(JobType.Priest);
-    expect(assigned.occupation).toBe(JOB_LABELS[JobType.Priest]);
-    expect(collectSimulationInvariantErrors(next)).toEqual([]);
-  });
-
-  it('daily reconciliation keeps the assigned priest and adds no extras', () => {
-    const priest = human(1, { workerBuildingId: 4, job: JobType.Priest });
-    const idle = [human(2), human(3), human(4)];
-    const church = building(4, BuildingType.Church, { occupants: [1], staffingMode: 'manual' });
-
-    assignMissingWorkers([priest, ...idle], [church]);
-
-    expect(church.occupants).toEqual([1]);
-    expect(priest.workerBuildingId).toBe(4);
   });
 });
 
