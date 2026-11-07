@@ -1,5 +1,11 @@
 # Bug report summary — one line per report
 
+**2026-11-07 — [A5 CB-02 React crash without recovery export](../bug_report/2026-11-07-react-render-crash-no-recovery-export.md):** Root error boundary and file-only last-known-colony export; no crash-unmount autosave. Status: source fixed, CI/browser verification pending.
+
+**2026-11-07 — [A5 CB-13 unused desktop shell capability](../bug_report/2026-11-07-tauri-unused-shell-capability.md):** Remove unused Tauri shell permission/plugin and direct dependency. Status: source fixed, native build pending.
+
+**2026-11-07 — [A5 UX-13/14 destructive bulk strip gesture](../bug_report/2026-11-07-alt-drag-bulk-demolition-without-confirmation.md):** Alt-drag road/wall demolition now requests confirmation before issuing the existing command. Status: source fixed, browser verification pending.
+
 **2026-11-07 — [A5 CB-01 stopped RAF chain and old renderer caches](../bug_report/2026-11-07-game-loop-raf-retains-stopped-session.md):** RAF reschedules after stop, risking an abandoned world frame chain. Status: resolved — lifecycle tests and CI passed.
 
 **2026-11-07 — [A5 UX-01 loading replaces the active colony and quick-save](../bug_report/2026-11-07-load-replaces-colony-overwrites-browser-save.md):** Browser/file loads lacked confirmation; file import silently overwrote quick-save. Status: source fixed, browser QA pending.
