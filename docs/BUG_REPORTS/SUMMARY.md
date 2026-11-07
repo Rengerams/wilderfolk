@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-07 — [A1 residual calendar fixture and festival-load double repair](../bug_report/2026-11-07-a1-residual-calendar-fixtures-festival-double-repair.md):** SIM-14 repairs festival twice; calendar fixtures and a README historical row still imply 72 ticks/day; Year-0 election sentinel needs a real saved-world check. Status: investigating; targeted tests added in A1 PR.
+
 **2026-11-07 — [A2 required calendar scheduler missing from PR CI](../bug_report/2026-11-07-calendar-regressions-not-required-in-pr-ci.md):** Affected-only tests can pass without exercising the midnight scheduler; adding a dedicated fast gameTick boundary CI job. Status: resolved — required scheduler workflow passed 11/11.
 
 **2026-11-07 — [A2 calendar-owner coverage has no enforced floor](../bug_report/2026-11-07-calendar-regression-coverage-ungated.md):** The standard suite does not enforce coverage; adding a narrowly scoped V8 threshold in the required calendar job. Status: resolved — scoped coverage thresholds passed.
