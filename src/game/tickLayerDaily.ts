@@ -12,6 +12,8 @@ import { addFloatingText } from './simEffects';
 import { playerHumansFrom } from './playerHuman';
 import { syncLeaderHouseResidency } from './leaderHouse';
 import { tickElectionPromises } from './electionPromises';
+import { tickVisitorGroups } from './groupEvents';
+import { decayIdleSkills } from './skills';
 
 // Social & Relationships
 import { advanceSocialRelationships } from './relationships';
@@ -24,7 +26,7 @@ import { tickDailyChallenges } from './dailyChallenges';
 import { tickGrassDaily } from './dailyGrassEcology';
 import { resolveDailyVillageScheduleFatigue } from './dailyScheduleFatigue';
 import { tickDailyBuildingEconomy } from './dailyBuildingEconomy';
-import { tickDailyWorldEvents } from './dailyWorldEvents';
+import { tickDailyWorldEvents, tickYearBoundaryWorldEvents } from './dailyWorldEvents';
 import { applyDailyWeatherEffects } from './worldEvents';
 
 // Chronicles
@@ -42,14 +44,19 @@ export function tickLayerDaily(
 ): void {
   const hour = getHourOfDay(state.tick);
   if (hour === DAILY_PHASE_HOURS.fatigue) {
+  // Run strict day-boundary owners before the day's later 06:00/18:00 work.
+  tickVisitorGroups(state, allAlive);
+  for (const human of ctx.playerHumans) {
+    if (human.alive && !human.isJuvenile) decayIdleSkills(human, human.job);
+  }
+  tickYearBoundaryWorldEvents(state);
   const stage1 = profileStart();
   resolveDailyVillageScheduleFatigue(state, ctx.playerHumans, ctx.buildingById, ctx.byType[EntityType.Werewolf]);
   profileEnd('daily.resolveDailyVillageScheduleFatigue', stage1);
 
   }
   if (hour === DAILY_PHASE_HOURS.relationships) {
-  // The living settler list both social owners need, derived once. Not `ctx.playerHumans`,
-  // which is built at tick start and lacks this tick's newborns.
+  // Social owners share the current living list; late 18:00 arrivals are not in this phase.
   const dayPeople = playerHumansFrom(allAlive);
 
   // Phase 7 social layers & chronicles — pulse daily
