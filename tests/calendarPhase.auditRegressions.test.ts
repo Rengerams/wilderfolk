@@ -1,7 +1,8 @@
 /** Calendar-phase audit regressions: assertions reach each owner through real gameTick. */
 import { describe, expect, it } from 'vitest';
 import { gameTick, initGame } from '../src/game/gameEngine';
-import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycleClock';
+import { DAYS_PER_YEAR, TICKS_PER_DAY, tickAtDailyPhase } from '../src/game/dayCycleClock';
+import { assertSimInvariants } from '../src/game/simulation/simInvariants';
 import { JobType, MapSize, type VisitorGroup, type WorldState } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { SKILL_IDLE_DECAY_PER_DAY } from '../src/game/skills';
@@ -25,12 +26,27 @@ describe('audit calendar phase integration', () => {
     world.pendingElectionYear = null;
     world.electionCeremony = null;
 
-    const after = gameTick(world);
+    // One real tick before the boundary MUST NOT elect. The next real tick MUST elect.
+    world.tick -= 1;
+    const before = gameTick(world);
+    expect(before.year).toBe(1);
+    expect(before.electionCeremony).toBeNull();
 
+    const after = gameTick(before);
     expect(after.year).toBe(2);
     expect(after.dayInYear).toBe(0);
     expect(after.electionCeremony?.reason).toBe('term');
-    expect(world.eventLog.some((event) => event.message.includes('Leadership election ceremony began'))).toBe(true);
+    expect(after.eventLog.filter((event) => event.message.includes('Leadership election ceremony began'))).toHaveLength(1);
+    expect(assertSimInvariants(after)).toEqual([]);
+
+    // Only the midnight scheduler may start the term ceremony. Jump to the
+    // next 06:00 and 18:00 gates, still using real gameTick (not owner calls).
+    for (const phase of ['relationships', 'worldEvents'] as const) {
+      after.tick = tickAtDailyPhase(2 * DAYS_PER_YEAR, phase) - 1;
+      gameTick(after);
+      expect(after.eventLog.filter((event) => event.message.includes('Leadership election ceremony began'))).toHaveLength(1);
+      expect(assertSimInvariants(after)).toEqual([]);
+    }
   });
 
   it('SIM-02: real gameTick decays an unused skill exactly once at midnight', () => {
@@ -43,8 +59,16 @@ describe('audit calendar phase integration', () => {
 
     gameTick(world);
 
-    expect(settler.skills[JobType.Miner]).toBeCloseTo(50 - SKILL_IDLE_DECAY_PER_DAY, 8);
+    const afterMidnight = 50 - SKILL_IDLE_DECAY_PER_DAY;
+    expect(settler.skills[JobType.Miner]).toBeCloseTo(afterMidnight, 8);
     expect(world.lastProcessedCalendarDay).toBe(7);
+
+    // Social (06:00) and economy/world-events (18:00) must not apply a second decay.
+    for (const phase of ['relationships', 'worldEvents'] as const) {
+      world.tick = tickAtDailyPhase(7, phase) - 1;
+      gameTick(world);
+      expect(settler.skills[JobType.Miner]).toBeCloseTo(afterMidnight, 8);
+    }
   });
 
   it('TEST-16: a visitor camp gifts, loses days and eventually departs via gameTick', () => {
