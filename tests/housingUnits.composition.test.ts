@@ -1,21 +1,6 @@
 /**
- * Housing units: one person, one unit; and only dependent children share a parent's home.
- *
- * Two defects in `buildHousingUnits`:
- *
- * 1. **Duplicate claim.** The custodian loop had a `visited` guard for the partner and the
- *    children but not for the custodian itself, so a settler who was the custodian of one
- *    child *and* the partner of another custodian ended up in two units. Each unit's
- *    reassignment invalidated the other, so the residency convergence loop never reached
- *    `reassigned === 0` and burned all its passes 4×/day, leaving the settler housed away
- *    from half of the family.
- * 2. **Adult children merged back in.** The fallback unit came from `collectOwnHousehold`,
- *    which walks `childrenIds` with no age filter. For a parent whose children had all grown
- *    up, the unit spanned the parents' house and the adult child's house, which can never be
- *    valid — so the convergence loop re-homed the whole unit together and silently undid the
- *    adult-child move-out on every pass.
- *
- * `buildHousingUnits` is pure, so these tests build plain settlers and read the units.
+ * Housing units: one person, one unit; only dependent children share a parent's home. An adult
+ * child keeps their own unit, and a settler is never claimed as custodian twice.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType, JobType } from '../src/game/gameTypes';

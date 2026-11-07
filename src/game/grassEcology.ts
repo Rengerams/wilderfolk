@@ -43,11 +43,7 @@ export function getGrassGrowthMultiplier(season: Season, weather: WeatherType): 
 }
 
 /**
- * Weather multiplier for farm/greenhouse food output.
- * Drought cuts harvests; rain is a small boon; storms rattle the fields.
- * `droughtResist` is the compound `drought_resist` research multiplier
- * (Irrigation, agriculture_3) applied to the drought penalty only, so the
- * advertised "farms work 50% better in drought" turns 0.5 into 0.75.
+ * Weather multiplier for farm/greenhouse food output; `droughtResist` scales the drought penalty only.
  */
 export function getWeatherFarmMultiplier(weather: WeatherType, droughtResist = 1): number {
   switch (weather) {

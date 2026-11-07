@@ -12,19 +12,14 @@ import {
   loadValleyStageWarnings,
 } from '../game/preferences';
 
-// `SidebarTab` is owned by `hotkeys.ts` — this file used to declare
-// a second, same-named union that differed by the unreachable `'schedule'` member.
+// `SidebarTab` is owned by `hotkeys.ts`; re-exported for the shell's tab state.
 export type { SidebarTab };
-// The three sub-tab unions are owned here, next to the state they type, and the panels import them:
-// `LogTabPanel`, `ProgressTabPanel` and `MoreTabPanel` each used to re-type their own copy, and
-// because the copies were contravariant-compatible a member added here compiled in the panel and was
-// simply unreachable — the same drift the `SidebarTab` note above records.
+// The three sub-tab unions are owned here, next to the state they type; the panels import them
+// instead of re-typing a contravariance-compatible copy.
 export type LogSubTab = 'chronicle' | 'combat';
 /**
- * Filter the Log window opens on, so a concern can hand over the ongoing history it is about.
- *
- * `'all'` is the panel's own unfiltered state and the default; a subject opens its own category
- * rather than the whole chronicle.
+ * Filter the Log window opens on, so a concern can hand over the history it is about. `'all'` is the
+ * panel's own unfiltered state and the default.
  */
 export type LogFilter = 'all' | GameEventLog['type'];
 export type ProgressSubTab = 'research' | 'trade' | 'goals';
@@ -66,11 +61,7 @@ export function toggleSidebarTab(
 
 /**
  * The one route table: which overview section (and world focus) each focused view opens.
- *
- * `mapSidebarTabToOverview`, `mapOverviewNav` and the two rail resyncs inside the hook all read
- * this table. Three places used to encode "which rail id is which section" — the two switches here
- * plus an inline ternary in `selectOverviewNav` — and the inline one was the copy a new nav id would
- * miss, silently desyncing `openTabs` from the section on screen ("Tab → section mapping").
+ * `mapSidebarTabToOverview`, `mapOverviewNav` and the rail resyncs all read it.
  */
 const OVERVIEW_ROUTES: Record<
   SidebarTab,
@@ -96,13 +87,8 @@ const OVERVIEW_NAV_RAIL: Record<OverviewNavId, SidebarTab> = {
 };
 
 /**
- * What each subject is called, and the glyph that stands for it.
- *
- * One owner for the three surfaces that must agree: the **header icon** that opens the subject, the
- * **window title** it opens (`GameWindow`), and the label the guide and hotkey list use. The old
- * full-screen overlay kept this in its own `navTabs`/`titleByNav` pair, so a new subject was three
- * edits in two files and the header could not name a subject it did not know. `hint` is visible text
- * in the header button's `title` and the window's subtitle, never the only statement of a rule.
+ * What each subject is called, and the glyph that stands for it — one owner for the header icon,
+ * the window title and the guide/hotkey label.
  */
 export interface OverviewSubjectMeta {
   /** Glyph for the header door and the window's title bar. */
@@ -258,10 +244,8 @@ export function useGameShellState() {
   }, []);
 
   /**
-   * Opens the Log window on the half and the category the caller was talking about.
-   *
-   * A concern is about a named history — a raid, a wolf attack, a wedding — and the Log door itself can
-   * only offer the whole chronicle, so the handover carries both the sub-tab and the filter.
+   * Opens the Log window on the sub-tab and filter the caller was talking about, so a concern hands
+   * over its own named history rather than the whole chronicle.
    */
   const openLog = useCallback((subTab: LogSubTab, filter: LogFilter = 'all') => {
     const mapped = mapSidebarTabToOverview('log');

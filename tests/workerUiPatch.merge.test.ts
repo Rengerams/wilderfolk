@@ -1,11 +1,6 @@
 /**
- * F2 of the 2026-09-16 worker-boundary audit (`docs/private/audits/2026-09-16/game-worker.md`):
- *
- * A `patchUi` message carries the main thread's whole UI snapshot, including `bigNews`,
- * `floatingTexts` and `activeEvent` — but those are authored by the tick on the worker, and the
- * host's snapshot can be up to `MAX_PIPELINE_DEPTH` ticks behind. Assigning them wholesale destroyed
- * worker-authored events (a Big News banner flashing for one tick and vanishing, an event card
- * replaced by `null` before it was answered) and could rewind `nextFloatingTextId`.
+ * A `patchUi` message carries a snapshot that can be several ticks stale, so the host adopts only the
+ * fields the player authors and keeps the worker's own `bigNews`, `floatingTexts` and `activeEvent`.
  */
 import { describe, expect, it } from 'vitest';
 import type { WorldState } from '../src/game/gameTypes';

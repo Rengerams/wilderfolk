@@ -224,8 +224,8 @@ async function main(): Promise<void> {
       measuredCareerBaseline = careerCredits(world);
     }
 
-    // Poll at most once per in-game hour, including any work credited at the daily noon pass.
-    // This avoids an audit scan on every tick and preserves exact worker / job / site evidence.
+    // Poll at most once per in-game hour: career days are credited in the midnight fatigue pass, so
+    // hourly sampling keeps exact worker / job / site evidence without scanning every tick.
     if (world.tick % TICKS_PER_HOUR === 0) {
       for (const entity of world.entities) {
         if (!entity.careerHistory) continue;

@@ -1,31 +1,6 @@
 /**
- * Wilderfolk — the **testing bot**: builds the whole catalogue and reports what became reachable.
- *
- * WHY THIS IS NOT THE IN-GAME BOT
- * -------------------------------
- * Owner, 2026-09-29: "well keep virtual-player.ts apart thats for in game and use own for testing"
- * and "give the bot just options to build all things so cheating but for testing".
- *
- * `src/game/virtualPlayer.ts` is the player-facing auto-play ladder. Its rules are pinned by 68
- * cases in `tests/virtualPlayer.test.ts` that assert the exact decision sequence and treat `null`
- * ("the colony needs nothing") as a reachable healthy state. Widening it to raise community
- * buildings contradicted 15 of those terminal expectations — measured, twice, at the civic step (36
- * failures) and at the end of the ladder (15) — so the ladder is the wrong home for a cheat. This
- * script is: a separate, automated driver that never ships and never changes a game rule.
- *
- * What it closes: `BUG_REPORTS/2026-09-29-automated-runs-never-build-a-church.md` — no automated run
- * in this repository ever reached `churchStrength > 0`, so the church-side branch of
- * `tryDailyAffairGossip` was exercised by nothing. This bot raises every building for free and then
- * proves the church branch is live, so future work on church/affair/scandal behaviour has a harness.
- *
- * It goes through the real command boundary (`applyWorkerCommand` with the `buildDebug` op, which
- * calls `startBuilding(..., free: true)`), so placement is still enforced by its owner: terrain,
- * overlap and one-per-village are all checked. Only research and cost are skipped. There is no second
- * mutation path into `WorldState`.
- *
- * Run:
- *   npx tsx scripts/test-bot-build-all.mts
- *   npx tsx scripts/test-bot-build-all.mts --seed=999 --verbose
+ * Testing bot: builds the whole building catalogue (free placement via `buildDebug`) and reports what
+ * became reachable, including a live church branch. Run: `npx tsx scripts/test-bot-build-all.mts [--seed=N] [--verbose]`.
  */
 import { gameTick } from '../src/game/gameEngine';
 import { BUILDING_CONFIGS, BuildingType, MapSize } from '../src/game/gameTypes';
@@ -42,9 +17,7 @@ import { prepareColonyWorld } from './colonyHealth';
 
 const DEFAULT_SEED = 12345;
 /**
- * `scripts/**` is deliberately outside every tsconfig project (see `tsconfig.node.json`), so the
- * Node globals are not in scope for the lint gate that does check this directory. Declared narrowly
- * rather than by pulling `@types/node` into a project that does not include this file.
+ * Narrow stand-in for Node's `process`: this file reads only `argv` and `exitCode`.
  */
 declare const process: { argv: string[]; exitCode?: number };
 /** Ring search radius, in placement grid steps, for a legal footprint. */
@@ -74,10 +47,8 @@ function buildableTypes(): BuildingType[] {
 }
 
 /**
- * First footprint this world will accept for `type`, searched outward from the map centre.
- *
- * Placement is checked with the placement owner before the command is built, so a refusal is never
- * silently counted as a success — the point of this bot is to report what actually happened.
+ * First footprint this world accepts for `type`, searched outward from the map centre; placement is
+ * checked by its owner first so a refusal is never counted as success.
  */
 function findSpot(state: WorldState, type: BuildingType): { x: number; y: number } | null {
   const originX = (state.width ?? 1200) / 2;
@@ -173,15 +144,8 @@ function runUntilKeeperOnSite(world: WorldState): {
 }
 
 /**
- * Finish every site the build pass raised, and assign one settler to the Church.
- *
- * `buildDebug` places a **construction site** — `startBuilding` sets `completed = false` and the
- * daily economy completes it later. That matters here because `getChurchStrength` is gated on
- * `b.completed` (`workforce.ts:121`): a raised-but-unbuilt church reads 0, which is the trap the
- * first run of this bot fell into ("church built: true, churchStrength: 0").
- *
- * Marking them complete is the debug half of the same cheat, done here in the harness rather than in
- * a game rule, so no shipping path can finish a building for free.
+ * Finish every site the build pass raised and assign one settler to the Church. `buildDebug` leaves
+ * sites unbuilt, and `getChurchStrength` counts only completed churches.
  */
 function completeEverything(world: WorldState): { world: WorldState; completed: number; churchStaffed: boolean } {
   let next = structuredClone(world);
@@ -249,9 +213,8 @@ function main(): void {
   console.log(`churchStrength after  : ${churchStrength}`);
   console.log(`church built          : ${finished.world.buildings.some((b) => b.type === BuildingType.Church)}`);
 
-  // Prove a settler actually reaches the church, and that the world still simulates with the whole
-  // catalogue standing. `getChurchStrength` only proves an *assignment*, so presence is measured
-  // separately here (owner: "no it need people workin there").
+  // Prove a settler actually reaches the church; `getChurchStrength` only proves an assignment, so
+  // presence is measured separately here.
   const watched = runUntilKeeperOnSite(finished.world);
   const ticked: WorldState = watched.world;
   const advanced = ticked.tick - finished.world.tick;
@@ -273,9 +236,8 @@ function main(): void {
   if (skipped.length > built.length) {
     failures.push(`${skipped.length} types were skipped against ${built.length} raised`);
   }
-  // There is deliberately no "the world must advance N ticks" gate here: the keeper can reach the
-  // church on the first tick, and a small menu of ticks is not evidence of anything. The presence
-  // check above is the proof, and a world that threw would have failed before reaching this line.
+  // Deliberately no "advance N ticks" gate: the keeper can arrive on the first tick, and a tick menu
+  // is not evidence; the presence check above is the proof.
 
   console.log('');
   if (failures.length === 0) {

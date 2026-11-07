@@ -1,11 +1,6 @@
 /**
- * The residency assign pass must stay bounded on a colony of a thousand settlers, spread its
- * reassignment work across the day's pulses, and never leave a settler waiting for a bucket.
- *
- * The wall-clock ceiling is deliberately loose: a tight number would flake on a loaded machine while
- * still letting a minute-long regression through. The shape assertions are what actually pin
- * behaviour — every pulse owns one bucket, a settled colony's homes are untouched by the split,
- * nobody sleeps outside for a bucket, and the pass ends at a fixed point.
+ * The residency assign pass must stay bounded at a thousand settlers, spread reassignment across the
+ * day's pulses, and never leave a settler waiting for a bucket; the timing ceiling is loose on purpose.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType, BuildingType, MapSize } from '../src/game/gameTypes';
@@ -167,9 +162,8 @@ function parkBeforeDayBoundary(state: WorldState): WorldState {
 
 describe('the residency sweep is spread across the day', () => {
   it('uses the current membership hash without mistaking it for a persistent household ID', () => {
-    // When the lowest-ID family member leaves, a unit may move to another
-    // scheduled bucket. The daily pulse coverage and final all-units revisit,
-    // not a persisted ID, guarantee eventual reconciliation.
+    // When the lowest-ID member leaves, a unit may move to another scheduled bucket; the daily pulse
+    // coverage and final all-units revisit guarantee eventual reconciliation.
     const first = { id: 1 } as Entity;
     const remaining = { id: 2 } as Entity;
     expect(housingUnitBucket([remaining, first], RESIDENCE_SWEEP_BUCKETS)).toBe(1);

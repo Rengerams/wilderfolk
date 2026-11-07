@@ -1,12 +1,6 @@
 /**
- * Residual cross-cutting audit items closed at their owners (2026-09-13).
- *
- * 1. `simQueries.REPRO_WILDLIFE_TYPES` omitted Wildkin although Wildkin is ticked as wildlife
- *    and carries a reproduction chance/cooldown, so its population snapshot was permanently 0:
- *    the 35-cap never applied and it always bred with the full scarcity boost.
- * 2. The leader-residency invariant had no exemption for a cursed leader hunting in Moon Howler
- *    form, whose live `residenceBuildingId` is parked in `moonHowlerSaved` for the duration of the
- *    form — so a cursed leader made the invariant report a manor violation that is not a defect.
+ * Cross-cutting guards: Wildkin joins the wildlife reproduction snapshot, and the
+ * leader-residency invariant exempts a cursed leader in Moon Howler form.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

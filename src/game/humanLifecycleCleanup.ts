@@ -50,16 +50,13 @@ export function finalizeHumanDeath(
   entity: Entity,
   buildings: Building[],
   entityById?: ReadonlyMap<number, Entity>,
-  /** Current world tick — used to set partner grief window. */
+  /** World tick for the partner grief window. */
   tick?: number,
 ): void {
   const partnerId = entity.partnerId;
   const affairPartnerId = entity.affairPartnerId;
-  // A dying settler can be mid-dialogue. The live-entity lookup the rest of this function already uses
-  // is exactly what `cleanupEntityDialogueState` needs to release the other half of the pair *with* the
-  // death, instead of leaving it holding a session key nobody owns until its own tick reclaims it.
-  // Present only when the caller passes the entity index, which is why the resolver stays optional in
-  // `humanChat`.
+  // A dying settler can be mid-dialogue: pass the live-entity lookup so the other half of the pair is
+  // released with the death instead of holding an orphaned session key. Optional in `humanChat`.
   const resolveDialoguePartner = entityById
     ? (id: number): Entity | undefined => entityById.get(id)
     : undefined;
@@ -135,7 +132,7 @@ export function finalizeHumanDeath(
 
 /**
  * After a settler dies, immediately adopt/place minor dependents so they are not
- * stuck under a dead custodian until the next housing assign pass (EK-E9).
+ * stuck under a dead custodian until the next housing assign pass.
  */
 function reassignOrphansAfterDeath(
   dead: Entity,
@@ -147,9 +144,8 @@ function reassignOrphansAfterDeath(
   if (residences.length === 0) return;
 
   const humans = [...entityById.values(), dead].filter(
-    // The residence-mirror owner's predicate, not a local rule: a cursed settler temporarily in
-    // Moon Howler form is still a residence occupant, and filtering them out here would wipe the
-    // residence they hold when this sync rebuilds the lists.
+    // The residence-mirror owner's predicate: a cursed settler temporarily in Moon Howler form is
+    // still a residence occupant, and filtering them out would wipe the residence they hold.
     (h) => h === dead || isResidenceOccupantEntity(h),
   );
   const deadId = dead.id;
@@ -165,9 +161,8 @@ function reassignOrphansAfterDeath(
       || (dead.childrenIds?.includes(child.id) ?? false);
     if (!related) continue;
 
-    // A deceased village leader's family retains the official residence until
-    // the succession is settled. Do not let orphan adoption relocate a minor
-    // who already lives there; general housing reconciliation also protects it.
+    // A deceased village leader's family retains the official residence until succession settles;
+    // orphan adoption must not relocate a minor who already lives there.
     const livesInLeaderHouse = residences.some(
       (residence) => residence.id === child.residenceBuildingId && residence.type === 'leaderHouse',
     );
@@ -211,17 +206,15 @@ export function reconcileFamilyReferencesAfterRemoval(
       survivor.courtshipProgress = 0;
     }
     if (survivor.pregnantById === removedId) survivor.pregnantById = undefined;
-    // A youth-love link joins two living settlers (§5). The daily youth-love reconciliation
-    // runs before most daily deaths, so the survivor's half must be cleared here or the
-    // collector reports a one-sided link to a pruned settler until the next day.
+    // A youth-love link joins two living settlers. Reconciliation runs before most daily deaths, so
+    // the survivor's half must be cleared here or it points at a pruned settler until the next day.
     if (survivor.youthLovePartnerId === removedId) {
       survivor.youthLovePartnerId = undefined;
       survivor.youthLoveProgress = undefined;
       survivor.youthLoveStartedDay = undefined;
     }
-    // Release a tamed animal whose owner just died: nothing else clears `tamedBy` on death and
-    // `isValidHuntPrey` refuses tamed prey, so the orphan stayed on the daily ration list forever
-    // and could never be hunted.
+    // Release a tamed animal whose owner died: nothing else clears `tamedBy`, and `isValidHuntPrey`
+    // refuses tamed prey, so the orphan would stay on the daily ration list forever.
     if (survivor.tamedBy === removedId) {
       survivor.tamedBy = undefined;
       if (state) {
@@ -261,17 +254,13 @@ export function killHuman(
 }
 
 /**
- * Clear marriage links when the partner row was removed from the alive list.
- * Runs after dead entities are pruned — safety net when widow cleanup missed a death path.
- * The "a cursed settler in Moon Howler form still counts as a partner" rule is owned by
- * `moonHowler.isSettlerRelationshipEntity`; this module reuses it instead of redefining it.
+ * Clear marriage links when the partner row was removed from the alive list. Runs after dead entities
+ * are pruned — the safety net when widow cleanup missed a death path.
  */
 export function reconcileOrphanedMarriages(entities: readonly Entity[]): void {
   const byId = new Map<number, Entity>();
-  // Index only the entities that can be somebody's partner. `isSettlerRelationshipEntity` is false
-  // for every other type, so below a miss and a hit on grass/tree/wildlife answer identically —
-  // while indexing them all built a ~900-entry Map on every tick (gameTick calls this with
-  // `allAlive`, grass and trees included) to look up a handful of partner ids.
+  // Index only entities that can be somebody's partner: `isSettlerRelationshipEntity` is false for
+  // every other type, and indexing them all built a ~900-entry Map each tick to look up a few ids.
   for (const entity of entities) {
     if (isSettlerRelationshipEntity(entity)) byId.set(entity.id, entity);
   }

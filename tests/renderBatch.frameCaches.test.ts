@@ -1,9 +1,6 @@
 /**
- * Per-frame render bookkeeping that must not repeat work when nothing changed.
- *
- * The renderer runs a chunk planner, a vignette gradient, an entity-layer cache key and a render
- * snapshot on every frame; the camera moves far more often than the simulation does, so each of
- * these has to be cheap on a frame where its *own* inputs are unchanged.
+ * Per-frame render bookkeeping — chunk planner, vignette gradient, entity-layer key, render
+ * snapshot — must be cheap on a frame where its own inputs are unchanged.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { planGroundChunks } from '../src/game/renderer/terrain';

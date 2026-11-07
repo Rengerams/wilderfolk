@@ -36,8 +36,7 @@ export function tickDailyChallenges(
       // the amount added, and the ledger's contract is "food that actually entered storage".
       recordFoodProduced(state, 'challenges', addResource(state, 'food', c.reward.food || 0));
       addResource(state, 'gold', c.reward.gold || 0);
-      // `challenges.ts` promises iron in five of the eight reward texts and `ChallengesPanel` renders
-      // them, but the grant list above never credited it (LIVE-FINDINGS-STATUS.md, M3).
+      // `challenges.ts` advertises iron in five of eight reward texts, so credit it with the rest.
       addResource(state, 'iron', c.reward.iron || 0);
       addFloatingText(state, state.width / 2, state.height / 2 - 40, `Challenge: ${c.title}!`, '#fbbf24');
       if (c.rewardText) {

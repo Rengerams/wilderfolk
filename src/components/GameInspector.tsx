@@ -20,12 +20,8 @@ export default function GameInspector({
   children,
   diagnostics,
 }: GameInspectorProps) {
-  // Collapsing used to hide the panel body while the column kept its
-  // 18.5rem width, so the player who collapsed it to see more map gained nothing — measured in the
-  // browser tier: the map canvas stayed 1304 px wide expanded *and* collapsed. The aside narrows
-  // with this state (App sizes it), so the collapsed inspector is a compact control strip — and the
-  // diagnostics drawer, which needs the column's width to lay out, is not rendered while collapsed.
-  // Expanding brings it straight back; its own open state is remembered in localStorage.
+  // The aside narrows with this state (App sizes it); the diagnostics drawer needs the column's
+  // width, so a collapsed inspector with a selection does not render it.
   if (hasSelection && collapsed) {
     return (
       <div className="flex flex-col items-center gap-1 px-1 py-1.5" aria-label="Inspector (collapsed)">
@@ -52,9 +48,8 @@ export default function GameInspector({
     );
   }
 
-  // Nothing selected: the column is a narrow rail (App sizes it), but the diagnostics drawer stays —
-  // it belongs to the session, not to the selection, and dropping it here silently closed a drawer the
-  // player had opened. A collapsed inspector still omits it: that is a request for less panel.
+  // With nothing selected the column is a narrow rail, but the diagnostics drawer stays: it
+  // belongs to the session, not to the selection.
   if (!hasSelection) {
     return (
       <div className="flex flex-col" aria-label="Inspector (nothing selected)">

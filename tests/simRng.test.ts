@@ -24,18 +24,11 @@ import {
 } from '../src/game/simRng';
 
 /**
- * Worker-boundary audit F4 — the tick-delta RNG restore rewound (or deleted) main-thread
- * presentation streams.
- *
- * `applySimTickDelta` calls `restoreSimRng(delta.simRng)` on the main thread, and that snapshot is the
- * **worker's**. The worker never draws `rendererShake` / `weatherFx` / `sfx` / `ambientAudio` /
- * `introScreen`, so those streams sat frozen at the last upload: every applied tick (~3×/s) replayed
- * the same weather respawn positions, screen shake and sfx variation, and a stream created after the
- * upload was deleted outright. Presentation randomness now lives in its own registry
- * (`getPresentationRng`) that snapshots never read or write.
+ * Presentation randomness lives in its own registry (`getPresentationRng`): a sim snapshot never
+ * reads or writes it, so applying a worker delta cannot rewind or delete main-thread streams.
  */
 describe('simRng.presentationStreams.test.ts', () => {
-  /** The main-thread presentation owners (audit F4). */
+  /** The main-thread presentation owners, whose streams stay out of the sim snapshot. */
   const PRESENTATION_OWNERS = [
     'rendererShake',
     'weatherFx',
@@ -66,9 +59,8 @@ describe('simRng.presentationStreams.test.ts', () => {
     });
 
     it('survives a snapshot restore: no rewind, no deletion, while sim streams still rewind', () => {
-      // Case 1 — the stream existed when the worker stamped the world, so the snapshot's position for
-      // it (if it were in the snapshot at all) is stale. An uninterrupted stream with the same seed and
-      // owner is the control: if the restore rewinds the live one, the two stop agreeing.
+      // Case 1 — the stream existed when the worker stamped the world, so its snapshot position is
+      // stale; an uninterrupted stream with the same seed and owner is the control.
       resetSimRng();
       setSimSeed(4242);
       const shake = getPresentationRng('rendererShake');
@@ -81,8 +73,8 @@ describe('simRng.presentationStreams.test.ts', () => {
       expect(restoreSimRng(frozen)).toBe(true);
       for (let i = 0; i < 3; i++) expect(shake()).toBe(shakeControl());
 
-      // Case 2 — the stream was created after the stamp, so the snapshot does not list it at all. The
-      // restore must not delete it (it used to, which repeated the seed's first draw).
+      // Case 2 — the stream was created after the stamp, so the snapshot does not list it; restore
+      // must not delete it.
       const weather = getPresentationRng('weatherFx');
       const weatherControl = createSeededRng(getSimSeed(), 'weatherFx');
       expect(restoreSimRng(frozen)).toBe(true);
@@ -113,13 +105,8 @@ describe('simRng.presentationStreams.test.ts', () => {
 });
 
 /**
- * Seeded RNG defaults (roadmap T3 — unified deterministic RNG helpers).
- *
- * Every simulation roll must come from an owner stream in `simRng.ts`. A raw `Math.random`
- * draw escapes `snapshotSimRng`/`restoreSimRng`, so the same seed stops reproducing the same
- * world after a save/load and two runs of one seed drift apart. These tests pin the default
- * stream of two representative rules and keep `Math.random(` out of `src/` entirely —
- * `simRng.ts` owns the only legitimate uses (it installs the seeded global override).
+ * Every simulation roll must come from an owner stream in `simRng.ts`: a raw `Math.random` draw
+ * escapes snapshot/restore, so a save/load or a second run of one seed stops reproducing the world.
  */
 describe('simRng.seededDefaults.test.ts', () => {
   /** Live Mulberry32 state of one owner stream, or null when the stream was never created. */
@@ -250,9 +237,8 @@ describe('simRng.seededDefaults.test.ts', () => {
     });
 
     it('ignores a replaced global Math.random', () => {
-      // `enableSeededGlobalRandom` deliberately backs off when `Math.random` was already
-      // replaced (a test spy, or a host that patches it), so a `Math.random` default would
-      // quietly follow the patch instead of the seed.
+      // `enableSeededGlobalRandom` backs off when `Math.random` was already replaced, so a
+      // `Math.random` default would follow the patch instead of the seed.
       resetSimRng();
       setSimSeed(4242);
       const profile = createRivalProfile(2, 'neutral');
@@ -309,14 +295,8 @@ describe('simRng.seededDefaults.test.ts', () => {
 });
 
 /**
- * Cross-cutting audit item X5 (2026-09-13): "RNG stream position is not part of any
- * rollback/save snapshot, so a resumed or retried world cannot reproduce its continuation."
- *
- * `simRng.snapshotSimRng` captures every live stream's Mulberry32 state, the seed and the seeded
- * global override; `restoreSimRng` puts them back *in place* (an existing stream object keeps
- * drawing from the restored position). Three transports carry it: the save file, the worker
- * world hand-off (`world.simRng`, read by `resetWorkerSession`) and the per-tick prep payload the
- * worker rolls a failed tick back with.
+ * `snapshotSimRng` captures every live stream's Mulberry32 state, the seed and the seeded global
+ * override; `restoreSimRng` rewinds them in place. Save, worker hand-off and prep payload carry it.
  */
 describe('simRng.snapshot.test.ts', () => {
   const PROBE = 'snapshotProbe';

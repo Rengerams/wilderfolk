@@ -1,16 +1,6 @@
 /**
- * P-3 — the main-thread fallback has to fail the way the worker fails.
- *
- * The worker snapshots the mutable sim slices before its tick and restores them when `gameTick`
- * throws (`gameWorker.ts:307`, `:346-349`). The fallback ran `gameTick` bare, and a throw there is
- * not harmless: `gameTick` advances `state.tick` and runs all four layers *before* its own invariant
- * check, so every failed frame left one more partially-applied tick in the world — and because the
- * throw escaped `frameBody` into the frame-level swallow-and-continue handler, that frame's draw and
- * UI notify were skipped too, once per frame, with the failed step's time still in the accumulator.
- *
- * The injection is a module mock of `gameEngine.gameTick`, the only seam the loop's tick has; the
- * replacement mutates exactly like the real tick does before it throws, so the rollback assertion
- * below cannot pass by accident. No production code was weakened for this test.
+ * The main-thread fallback fails like the worker: it snapshots the mutable sim slices before the tick
+ * and restores them when `gameTick` throws, so a failed frame leaves no partially-applied tick.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Season, WeatherType } from '../src/game/gameTypes';

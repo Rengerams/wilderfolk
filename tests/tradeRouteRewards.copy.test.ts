@@ -1,12 +1,6 @@
 /**
- * F13 — purchase trade routes advertised "+0s per round-trip"
- * (`docs/private/audits/2026-09-16/ui-logic.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * The reward line picked gold **or** stone by hand —
- * `route.resourcesReceived.gold > 0 ? gold + 'g' : stone + 's'` — so every route that pays in wood, food
- * or iron printed "+0s": `trade_8` receives `{ wood: 60 }`, `trade_10` `{ food: 60 }`, `trade_3` `{ iron: 15 }`.
- * The rows a wood-starved colony most needs therefore read as worthless. The owner now formats every
- * non-zero key (`resourceTypes.formatResourceAmounts`, built on `formatResourceAmount` + `RESOURCE_METAS`).
+ * Trade-route rewards name every non-zero resource: `resourceTypes.formatResourceAmounts` formats the
+ * received map, so no shipped route advertises a zero or missing reward.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

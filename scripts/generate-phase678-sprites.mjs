@@ -1,8 +1,6 @@
 /**
- * Generate Phase 6 building sprites — our own art, no external assets.
- *   fishingspot.png       52×40 — wooden dock on water, fishing rod + bobber
- *   wildlife_preserve.png 64×64 — fenced wild grove (trees inside a fence)
- * Run: node scripts/generate-phase678-sprites.mjs
+ * Generate our own Phase 6 building sprites: `fishingspot.png` (52×40 dock on water) and
+ * `wildlife_preserve.png` (64×64 fenced grove). Run: `node scripts/generate-phase678-sprites.mjs`.
  */
 import { deflateSync } from 'zlib';
 import { writeFileSync } from 'fs';

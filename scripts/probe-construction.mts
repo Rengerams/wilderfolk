@@ -1,9 +1,6 @@
 /**
- * Construction probe (local, gitignored): does an unfinished site get a crew and does its
- * completeness % rise? Covers both the "idle settler available" and "everyone already employed"
- * cases, because the builder picker only takes settlers with no job.
- *
- *   npx tsx scripts/probe-construction.mts
+ * Check whether an unfinished site gets a crew and its completeness rises, for both an idle settler
+ * and an all-employed colony. Run: `npx tsx scripts/probe-construction.mts`.
  */
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';

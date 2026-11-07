@@ -1,34 +1,13 @@
 /**
- * Keyboard ownership and typing guards in `useKeyboardControls`.
- *
- * These are **source contracts, not behavioural tests**. This tier is
- * `environment: 'node'` (`vitest.config.ts`, `include: tests/**\/*.test.ts`) with no DOM,
- * so a `KeyboardEvent` cannot be dispatched, React state cannot be mounted, and the
- * handler's ordering cannot be observed. They follow the same pattern and carry the same
- * caveat as `tests/tradeRoutes.eligibility.test.ts`: they prove the guard is still written
- * the right way round, not that the browser behaves.
- *
- * They guard the three defects in
- * `BUG_REPORTS/2026-09-17-keyboard-ignores-open-overlays.md`: an open overlay did not own
- * the keyboard, the sidebar-tab block sat above the form-control guard (so typing in the
- * Guide search switched sections), and a keyup aimed at a text field left the movement key
- * held so the map drifted.
- *
- * The 2026-09-20 audit added four: A-1 (the Valley overview claimed the keyboard, which makes
- * the game handler's own Escape branch unreachable, and had no Escape handler of its own),
- * A-3 (the first-run tutorial did not claim it), A-4 (the gameplay hotkeys were live on the
- * intro and map-setup screens) and A-6 (four selection strips signalled the active item by
- * colour alone). The claim-implies-Escape test is the general form of A-1 and would have
- * caught it on its own.
+ * Source contracts, not behavioural tests: this node tier cannot dispatch events, so these pin the
+ * guard order and keyboard claim in `useKeyboardControls` and the shared overlay hook.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * `KEYBOARD_GUARDS_ROOT` lets the red-before proof run these same guards against a mirrored
- * pre-fix tree (`tmp/red-before-keyboard`) without touching `src/`. Unset — the normal run —
- * reads the real working tree. Same knob shape as `uiSingleOwner.test.ts`.
+ * `KEYBOARD_GUARDS_ROOT` overrides the tree these guards read; unset, they read the working tree.
  */
 function source(relativePath: string): string {
   const root = process.env.KEYBOARD_GUARDS_ROOT ?? process.cwd();
@@ -54,12 +33,8 @@ function sourceFiles(): string[] {
 const CLAIM_OWNER = 'src/game/keyboardOwnership.ts';
 
 /**
- * The one module allowed to *apply* the claim: `useOverlayKeyboard` is the shared implementation of
- * "an open overlay owns the keyboard and handles Escape", so the overlays delegate to it instead of
- * repeating the two effects (2026-09-20 audit, clone 3). It is the claim site, and the overlays are its
- * callers — pinning the delegation rather than the old per-file literals is a strengthening, not a
- * relaxation: the previous form could not tell "the overlay uses the shared contract" from "the overlay
- * uses it *and* keeps a private effect beside it".
+ * The shared claim site — "an open overlay owns the keyboard and handles Escape"; overlays delegate
+ * to it instead of repeating the two effects.
  */
 const CLAIM_HOOK = 'src/hooks/useOverlayKeyboard.ts';
 
@@ -83,9 +58,7 @@ describe('an open overlay owns the keyboard', () => {
     const hook = source(CLAIM_HOOK);
     expect(hook).toContain('claimKeyboard(');
     expect(hook).toContain('releaseKeyboard(');
-    // The invariant A-1 broke: `useKeyboardControls` returns while a claim is held, so the game
-    // handler's own Escape branch is *unreachable* for as long as the overlay holds the claim — the
-    // overlay must dismiss itself, and the hook is where that now has to be true.
+    // `useKeyboardControls` returns while a claim is held, so the overlay must dismiss itself.
     expect(hook).toMatch(/['"]Escape['"]/);
   });
 
@@ -124,9 +97,8 @@ describe('an open overlay owns the keyboard', () => {
 
 describe('gameplay hotkeys only run while gameplay is active', () => {
   it('the gameplayActive gate precedes the building-hotkey table lookup', () => {
-    // A-4: the hook is mounted above the shell's early returns, and `isEditableTarget` is false
-    // whenever focus is on a button — which is every control on the intro and map-setup screens —
-    // so a digit armed a build type before a map existed and the colony started with the rail armed.
+    // The hook is mounted above the shell's early returns and `isEditableTarget` is false for
+    // buttons, so the gate must precede the building-hotkey lookup.
     const gate = hookSource.indexOf('if (!gameplayActiveRef.current) return;');
     const buildingHotkeys = hookSource.indexOf('const hotBuild = HOTKEY_BUILDINGS[e.key];');
 
@@ -176,13 +148,8 @@ describe('typing into a field keeps every key', () => {
 
 describe('a selection strip states its selection instead of only painting it', () => {
   it('A-6: the overview nav marks the current subject (aria-current)', () => {
-    // The contract, on its new owner. A-6 was "four selection strips signalled the active item by
-    // colour alone"; the strip this guarded was the Valley overview's nav, whose chips switched
-    // sections *inside* a full-screen panel. That overlay is gone (owner: *"each subject should just
-    // have its own window not stacking up"* — one window per subject, each with its own header icon),
-    // so the selector set is now the header's subject doors and the current one is still stated
-    // rather than painted. `aria-current` on a door, not `aria-pressed`: these are a navigation set,
-    // which is what the old nav chips used it for.
+    // `aria-current`, not `aria-pressed`: the header's subject doors are a navigation set, and the
+    // current one must be stated rather than painted.
     expect(source('src/components/GameHeader.tsx')).toContain('aria-current={open}');
     expect(source('src/components/GameHeader.tsx')).toContain('aria-label={`Open ${subject.label.toLowerCase()} window`}');
   });
@@ -220,9 +187,7 @@ describe('a selection strip states its selection instead of only painting it', (
   });
 
   it('A-2: the mini-map canvas is named, reachable by Tab, and activatable from the keyboard', () => {
-    // It was a bare `<canvas onClick>`: no role, no name, no tab stop, so the map's only navigation
-    // control was unusable without a pointer (bug 55 / OPEN-6). Role, name, tab stop and Enter are
-    // the four halves of that gap.
+    // Role, name, tab stop and Enter: without them the map's only navigation control needs a pointer.
     const map = source('src/components/MiniMap.tsx');
     expect(map).toContain('role="button"');
     expect(map).toContain('aria-label="Mini-map');
@@ -252,14 +217,8 @@ describe('a destructive start asks before it deletes', () => {
 });
 
 /**
- * The map canvas's keyboard path — bug 55 / OPEN-6, the half A-2 deliberately left open because it
- * "needs a design decision, not a patch".
- *
- * These are the seams the pure cursor tests (`tests/mapKeyboardCursor.test.ts`) cannot reach: whether
- * the canvas is actually wired to the cursor's key handler, whether the cursor's state is announced
- * rather than only painted, and whether the hook routes its two actions through the pointer path and
- * its ownership through the game's own claim instead of growing a second of either. The key table
- * itself is checked against `hotkeys.ts` (imported, not re-quoted) in that same pure tier.
+ * The map canvas's keyboard path: whether the canvas is wired to the cursor handler, whether the
+ * cursor state is announced rather than only painted, and how the hook routes its two actions.
  */
 describe('the map canvas has a keyboard path', () => {
   const stage = source('src/components/GameMapStage.tsx');
@@ -272,9 +231,8 @@ describe('the map canvas has a keyboard path', () => {
   });
 
   it('announces the cursor state instead of only painting it', () => {
-    // The requirement the canvas could not meet before: a keyboard user who cannot see the cursor is
-    // not served. `aria-describedby` states it when the canvas takes focus; `aria-live` repeats it as
-    // the cursor moves, because focus never leaves the canvas while it does.
+    // `aria-describedby` states the cursor when the canvas takes focus; `aria-live` repeats it
+    // because focus never leaves the canvas while the cursor moves.
     expect(stage).toContain('aria-describedby="map-keyboard-cursor-status"');
     const region = stage.slice(stage.indexOf('id="map-keyboard-cursor-status"'));
     expect(region.slice(0, 200)).toContain('aria-live="polite"');
@@ -282,9 +240,8 @@ describe('the map canvas has a keyboard path', () => {
   });
 
   it('paints a visible marker that cannot swallow pointer input or add a second accessible node', () => {
-    // The canvas ghost only exists while a build type is armed, so the cursor position needs a marker
-    // of its own — positioned from the render loop (the camera moves), and decorative: the state is
-    // the live region's job, not a second thing for a screen reader to read.
+    // The marker is positioned from the render loop (the camera moves) and is decorative: the live
+    // region owns the accessible state.
     expect(stage).toContain('keyboardCursor.active &&');
     const marker = stage.slice(stage.indexOf('ref={cursorMarkerRef}'));
     expect(marker.slice(0, 240)).toContain('pointer-events-none');
@@ -292,11 +249,8 @@ describe('the map canvas has a keyboard path', () => {
   });
 
   it('reads the app keyboard-ownership rule instead of keeping its own', () => {
-    // The claim is the app's single rule (`keyboardOwnership`), read by `useKeyboardControls` and by
-    // the shared overlay hook; the cursor must read it and never take a claim of its own. The
-    // *behaviour* is pinned in the pure tier (`keyboardClaimed: true` ⇒ every bound key is a no-op),
-    // so a change to how the claim is spelled breaks this hook and this guard together, never one
-    // silently.
+    // The claim is the app's single rule, read by `useKeyboardControls` and the overlay hook; the
+    // cursor reads it and never takes a claim of its own.
     expect(cursor).toContain("from '../game/keyboardOwnership'");
     expect(cursor).toMatch(/isKeyboardClaimed\s*\(/);
     expect(cursor).not.toContain('claimKeyboard(');
@@ -305,9 +259,7 @@ describe('the map canvas has a keyboard path', () => {
 
   it('acts through the pointer path and invents no command of its own', () => {
     // Enter dispatches the same DOM `click` a mouse produces, so placement and selection still run
-    // through `useCanvasInteractions` → `applyGameAction` → `WorkerCommand`. A `proto: 1` literal, a
-    // direct action call or a world mutation here would be the UI doing the simulation's job. The
-    // negatives are call-shaped on purpose: the hook's own doc comment names those routes.
+    // through `useCanvasInteractions` → `applyGameAction` → `WorkerCommand`.
     expect(cursor).toMatch(/dispatchEvent\(new MouseEvent\(type/);
     expect(cursor).not.toMatch(/proto:\s*1/);
     expect(cursor).not.toMatch(/applyGameAction\s*\(/);

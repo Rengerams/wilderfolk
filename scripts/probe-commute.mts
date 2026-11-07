@@ -1,10 +1,6 @@
 /**
- * Commute regression probe (local, gitignored): give a settler a real workplace and watch the
- * distance to it, so a "citizens don't walk" report can be traced to the commute path
- * (`simulation/humanMovement.commuteHumanToBuilding` → `pathfinding.steerWithPath` → the human
- * loop's single movement apply).
- *
- *   npx tsx scripts/probe-commute.mts
+ * Commute probe (local, gitignored): give a settler a real workplace and watch the distance to it, so
+ * a "citizens don't walk" report can be traced through the commute path.
  */
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';

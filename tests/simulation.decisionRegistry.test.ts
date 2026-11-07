@@ -1,11 +1,6 @@
 /**
- * Simulation decision registry — SIMULATION_AUTHORITY.md §3.
- *
- * The registry is the machine-checkable ownership contract: every major
- * decision has exactly one owner row with a declared cadence, written fields,
- * scheduling point, and test file. Adding or renaming a decision key must
- * happen together with an authority-document update — this test pins the set
- * so a new major decision cannot be introduced silently.
+ * The decision registry is the machine-checkable ownership contract: every major decision has one
+ * owner row with declared cadence, writes, scheduling point and test file.
  */
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
@@ -18,7 +13,7 @@ import {
   isPropertyWritePermitted,
 } from '../src/game/simulation/decisionRegistry';
 
-/** The decision keys required by NEXT_AGENT_OBJECTIVES.md Objective 2 (+ housing, 2026-08-20). */
+/** The decision keys the ownership contract requires, including housing. */
 const REQUIRED_DECISIONS = [
   'workerMotionPresentation',
   'virtualPlayer',
@@ -79,12 +74,8 @@ describe('simulation decision registry', () => {
   });
 
   it('files every decision under exactly one cadence, through the registry accessor', () => {
-    // `DECISION_CADENCES` is the source of the `DecisionCadence` union, and the table is
-    // `satisfies Record<DecisionKey, DecisionOwner>`, so the old assertion here —
-    // `expect(DECISION_CADENCES).toContain(row.cadence)` — was guaranteed by the type system and
-    // could only have failed with a compile error. What is worth pinning is the accessor's
-    // behaviour: it is the query a scheduler or a linter would use, and a filter that reads the
-    // wrong field would silently return nothing for every cadence.
+    // `DECISION_CADENCES` is the source of the `DecisionCadence` union and the table is typed, so what
+    // is worth pinning is the accessor's behaviour, not membership the type system already guarantees.
     const filedUnder = new Map<string, number>();
     for (const cadence of DECISION_CADENCES) {
       for (const key of getDecisionsByCadence(cadence)) {
@@ -172,9 +163,8 @@ describe('simulation decision registry', () => {
   });
 
   it('names test files that exist — the registry is the ownership contract, so a stale pointer lies', () => {
-    // The `pregnancyBirth` row pointed at `tests/phase678.regression.test.ts`, which does not exist,
-    // and four rows still said a test was "to be added in Objective N" long after those objectives
-    // shipped. A reader (or a linter) following a pointer that 404s learns nothing about coverage.
+    // A registry pointer must name a real file: a reader or linter following a 404 learns nothing
+    // about coverage.
     const named: string[] = [];
     for (const key of REQUIRED_DECISIONS) {
       const matches = SIMULATION_DECISIONS[key].testFile.match(/tests\/[A-Za-z0-9_.-]+\.test\.ts/g) ?? [];
@@ -189,7 +179,7 @@ describe('simulation decision registry', () => {
         .toBe(true);
     }
 
-    // The registry itself must not carry "to be added" promises any more.
+    // The registry itself must carry no "to be added" promise.
     const source = readFileSync(resolve(process.cwd(), 'src/game/simulation/decisionRegistry.ts'), 'utf8');
     expect(source, 'a stale "to be added" note is back').not.toMatch(/to be added/i);
   });

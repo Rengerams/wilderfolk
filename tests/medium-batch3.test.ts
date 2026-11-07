@@ -1,12 +1,6 @@
 /**
- * Medium-tier fixes, batch 3 (audit report, 2026-09-13).
- *
- * - M2 — `pickBeautySpot` returned the up-left corner of its search window when the grid held no
- *   beauty at all, because the first scanned cell always beat the `-1` seed.
- * - M32 — `availableScripts` read `eventLog.slice(-40)`, the *oldest* entries of a newest-first
- *   log, so the travelling theatre ignored recent history (and could find no script at all).
- * - M36 — rival-owned watchtowers counted as player early-warning towers and revealed their own
- *   raiders.
+ * Three owner rules: a beauty-free grid keeps the caller where they are, the travelling theatre
+ * reads recent history, and only player watchtowers reveal raiders.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

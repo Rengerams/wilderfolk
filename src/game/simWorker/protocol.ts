@@ -81,8 +81,7 @@ export type WorkerRequest =
       type: 'patchUi';
       proto: typeof WORKER_PROTO;
       // Player-authored fields only. `bigNews`, `floatingTexts` and `activeEvent` are authored by the
-      // tick on the worker side and were never adopted from a patch — see `WorkerUiPatch` in
-      // `GameWorkerHost.ts` for why shipping them was a problem.
+      // tick on the worker side and are never adopted from a patch.
       autoSave: boolean;
       nextFloatingTextId: number;
       dismissedBigNewsIds?: string[];

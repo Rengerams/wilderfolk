@@ -1,25 +1,6 @@
 /**
- * Rank a V8 `.cpuprofile` by **function, file and source line**, with self time (samples taken in
- * that function) and total time (samples in it and everything it called), plus the call edges that
- * carry the time and the time spent in GC, native code and the module loader.
- *
- * Usage:
- *   node scripts/analyze-cpuprofile.mjs prof_out/1200.cpuprofile
- *   node scripts/analyze-cpuprofile.mjs <file> --top=40 --lines=20 --json=out.json
- *   node scripts/analyze-cpuprofile.mjs <file> --root=assignMissingResidences --callers=pickResidenceForFamily
- *
- * Sections: time split (js/GC/native/loader/idle), self-time leaders with the chain that reaches them,
- * total-time leaders, per-step breakdowns, line hotspots (when the profile has line data), call edges,
- * self time per file, and optional `--root`/`--callers` drill-downs.
- *
- * Why both columns: self time names the leaf that burns the CPU, total time names the step worth
- * fixing. The "via" chain on a self-time leader says which caller reaches it, hot lines point at the
- * statement, and the GC share says whether the fix is allocation rather than algorithm.
- *
- * Samples are 1 ms apart by default, so a sample count reads as milliseconds of CPU on the thread
- * that was profiled. `(idle)` is not CPU: it is the profiler failing to sample a running thread, so
- * a large `(idle)` share means the profile wrapped a process that was waiting (or the work ran in a
- * child process — `tsx` spawns one; profile with `--import tsx`, not the `tsx` CLI).
+ * Rank a V8 `.cpuprofile` by function, file and line: self time, total time, call edges, GC/native/
+ * loader shares. Usage: `node scripts/analyze-cpuprofile.mjs <file> [--top=N] [--lines=N] [--json=out]`.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

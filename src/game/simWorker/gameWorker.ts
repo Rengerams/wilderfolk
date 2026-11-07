@@ -278,9 +278,8 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           break;
         }
 
-        // Only copy the shell: postMessage synchronously snapshots nested data.
-        // Never strip caches or stamp RNG on the live simulation world: a save
-        // (including a failed serialization) must not change its runtime state.
+        // Only copy the shell: never strip caches or stamp RNG on the live simulation world, so a
+        // save — including a failed serialization — cannot change runtime state.
         const exportWorld = { ...world };
         invalidateWorldRuntimeCaches(exportWorld);
         stampWorldSimRng(exportWorld);

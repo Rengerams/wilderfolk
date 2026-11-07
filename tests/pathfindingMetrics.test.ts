@@ -1,17 +1,6 @@
 /**
- * Pathfinder instrumentation contract (roadmap O4/P2).
- *
- * The perf harness reported `pathCalls` for months while the repository had **no pathfinder
- * counter at all** — the number was a spatial-query proxy, and nothing failed. These tests pin the
- * real counters that replaced it, so a recorder that silently stops firing is a red test rather
- * than a believable zero in a report.
- *
- * The risk each case guards:
- *   1. disabled means *no* counting (the zero-overhead claim, and no phantom numbers);
- *   2. a successful A* run is counted with its expanded nodes;
- *   3. a node-capped search is reported as failed **and** capped — not as "no route exists";
- *   4. a cheap pre-A* reject is not laundered into a search failure;
- *   5. the tick→session flush is what advances `measuredTicks`, so per-tick averages are honest.
+ * The pathfinder's real counters: disabled means no counting, a successful A* reports its expanded
+ * nodes, a capped search is failed *and* capped, and only the tick flush advances `measuredTicks`.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { findPath, type PathGrid } from '../src/game/pathfinding';

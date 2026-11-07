@@ -64,12 +64,8 @@ export function canPlaceBuilding(
 }
 
 /**
- * The `unique` gate's own statement: true when `type` is a one-per-village building and one already
- * stands.
- *
- * The build catalogue tested `config.unique && buildings.some(...)` itself and re-worded the refusal,
- * so the rule lived in a view as well as here. The wording the player reads is
- * `buildingPlacementLabels.PLACEMENT_FAILURE_LABELS.unique`.
+ * The `unique` gate's own statement: true when `type` is a one-per-village building
+ * and one already stands; the player-facing wording lives in `buildingPlacementLabels`.
  */
 export function isUniqueBuildingAlreadyBuilt(state: WorldState, type: BuildingType): boolean {
   if (type === BuildingType.LeaderHouse) return !canBuildLeaderHouse(state.buildings);
@@ -105,11 +101,8 @@ function clearTreesUnderFootprint(
   state: WorldState,
   building: Pick<Building, 'x' | 'y' | 'width' | 'height'>,
 ): void {
-  // The cleared rectangle is the rect the player sees: `placementUtils.getBuildingFootprintRect`
-  // is the single owner of "the ground this building stands on" (`x/y` is the centre). Reading
-  // `x … x + width` here cleared a rectangle half a footprint to the south-east of the pad — trees
-  // inside the drawn footprint survived, trees beside the building vanished (see the convention row
-  // in `LIVE-FINDINGS-STATUS.md`).
+  // The cleared rectangle is the rect the player sees: `getBuildingFootprintRect` owns
+  // "the ground this building stands on" and treats `x/y` as the centre.
   const { left, right, top, bottom } = getBuildingFootprintRect(building);
 
   for (const entity of state.entities) {
@@ -136,9 +129,7 @@ function clearTreesUnderFootprint(
   }
   if (tilesChanged) {
     rebakeTerrainGrids(map, { startTx, endTx, startTy, endTy });
-    // The terrain caches key on the map's immutable-looking fields, so a mutated tile needs the
-    // revision bump or the cleared forest keeps its old fill and canopy for the life of the
-    // cache entry (audit `visuals-looks.md` D4).
+    // A mutated tile needs the revision bump, or the terrain caches keep the old fill and canopy.
     bumpTerrainRevision();
   }
 }
@@ -150,15 +141,8 @@ export function startBuilding(
   y: number,
   rotation: BuildingRotation = 0,
   /**
-   * Debug/testing only: skip the research gate and the resource cost, so a test run can raise every
-   * building in the catalogue without first playing 200 days to afford it.
-   *
-   * Placement validity (terrain, overlap, the one-per-village rule) is **still enforced** even here:
-   * two buildings in the same footprint would corrupt the spatial indices the renderer and the
-   * adjacency graph read, which is a broken test world rather than a cheated one.
-   *
-   * This is the only cheat in the file and it is opt-in per call, so no shipping path can reach it.
-   * The player-facing route is the dev-only auto-play "build everything" toggle (`virtualPlayer`).
+   * Debug/testing only: skip the research gate and the resource cost.
+   * Placement validity (terrain, overlap, the one-per-village rule) is still enforced.
    */
   free = false,
 ): WorldState {
@@ -252,9 +236,8 @@ export function startBuilding(
   }
 
   clearTreesUnderFootprint(state, building);
-  // The third argument is the `WorldState`: without it the auto-staff pass falls back to
-  // `DEFAULT_WORKFORCE_POLICY` and the default tavern window, so a newly placed building could
-  // push a staffed venue one worker past the player's own preset.
+  // Pass `state` too: without it the auto-staff pass falls back to
+  // `DEFAULT_WORKFORCE_POLICY` and the default tavern window.
   assignMissingWorkers(allPlayerHumans(state.entities), state.buildings, state);
 
   createDeathParticles(state, x, y, '#ffd700', 8, 'star');
@@ -361,9 +344,8 @@ export function buildStripPreview(
 }
 
 /**
- * The one reason a whole stroke was refused, chosen from the per-segment verdicts the preview
- * already carries. `research` outranks terrain because a locked piece is refused whichever ground
- * it lands on, so naming the water would hide the real gate.
+ * The one reason a whole stroke was refused, chosen from the per-segment verdicts.
+ * `research` outranks terrain because a locked piece is refused on any ground.
  */
 const STRIP_REFUSAL_PRIORITY = ['research', 'terrain', 'unique', 'blocked'] as const;
 
@@ -426,9 +408,8 @@ export function placeStripChain(
     if (replacementId !== undefined && !replaced.has(replacementId)) {
       const existing = state.buildings.find((building) => building.id === replacementId);
       if (existing) {
-        // Feasibility is checked against a copy that omits the replaced building — the same shape
-        // `buildStripPreview` uses — so a refused replacement leaves authoritative state untouched
-        // and there is no removal bookkeeping to roll back.
+        // Feasibility is checked against a copy that omits the replaced building, as
+        // `buildStripPreview` does, so a refused replacement leaves state untouched.
         const withoutReplacement: WorldState = {
           ...state,
           buildings: state.buildings.filter((building) => building.id !== replacementId),

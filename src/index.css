@@ -1,9 +1,8 @@
 @import "tailwindcss";
 @import "./App.css";
 
-/* Tailwind v4 animatable utilities (drop-in replacement for tailwindcss-animate).
-   tw-animate-css is installed; tailwindcss-animate is a v3-only plugin and is
-   not present under node_modules, so its `@plugin` cannot resolve. */
+/* Tailwind v4 animatable utilities — tw-animate-css, the drop-in replacement for the v3-only
+   tailwindcss-animate plugin, which is not installed. */
 @import "tw-animate-css";
 
 @theme {

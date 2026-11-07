@@ -1,17 +1,8 @@
 import { normalizeHumanNeeds, rebaseHumanNeedsClockAfterFormRestore } from './simulation/humanPhysiology';
 import { moveResident } from './housingPipeline';
 /**
- * Moon Howler **form state** — the human form snapshot, the restore that puts a cursed settler back
- * into it, and the predicates that keep a cursed settler counted as the settler they were.
- *
- * The split exists to keep the dependency direction honest. `humanLifecycleCleanup.ts` (the death
- * primitive) and `simulationInvariants.ts` need the form rules, while `moonHowler.ts` owns the
- * Moon Howler *policy* (curse, full-moon cycle, exorcism) and is the side that calls `killHuman`.
- * Importing the policy from the primitive closes a runtime import cycle
- * (`humanLifecycleCleanup → moonHowler → … → humanLifecycleCleanup`), so the form rules live below
- * both: policy and primitive both depend on this module, and neither depends on the other through it.
- *
- * See `BUG_REPORTS/2026-09-16-runtime-import-cycles-in-the-game-module-graph.md`.
+ * Moon Howler form state — the snapshot, the restore and the predicates that keep a cursed settler
+ * counted as a settler. Policy lives in `moonHowler.ts`; this module sits below it to avoid a cycle.
  */
 import { BUILDING_CONFIGS, BuildingType, EntityType, JobType, LEADER_OCCUPATION } from './gameTypes';
 import { prisonPrisonerCapacity } from './prisonShifts';
@@ -57,11 +48,8 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   const humans = opts?.humans;
   const tick = opts?.tick;
   const savedOccupation = saved?.occupation;
-  // `null` is how `villageLeadership` spells "office vacant" — `WorldState.villageLeaderId` is
-  // `number | null` and `worldGen` starts it at `null` — so an explicitly vacant office must not hand
-  // the `village_leader` label back to the reverting settler. An *absent* option (undefined) still
-  // means "the caller cannot say", which keeps the previous behaviour
-  // (`tests/moonHowler.test.ts`, `LIVE-FINDINGS-STATUS.md` M8).
+  // `null` is how `villageLeadership` spells "office vacant", so an explicitly vacant office must not
+  // hand the `village_leader` label back; an absent option (undefined) still means "caller cannot say".
   const holderId = opts?.villageLeaderId;
   const staleLeaderOccupation =
     savedOccupation === LEADER_OCCUPATION

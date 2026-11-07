@@ -89,12 +89,8 @@ export function tickHumanDoctorHospitalService({
 }
 
 /**
- * One hospital treatment attempt per settler per colony day.
- *
- * `personDayRoll` is stable for a whole colony day, so re-evaluating it every tick
- * repeated the full treatment (heal + doctor skill + medicine food) on every tick of
- * a qualifying day. Pinning the attempt to a single, settler-staggered tick restores
- * the intended daily cadence without adding per-entity state.
+ * One treatment attempt per settler per colony day, pinned to a settler-staggered tick so the
+ * daily cadence needs no per-entity state.
  */
 function isHospitalTreatmentTick(entityId: number, tick: number): boolean {
   return getTickOfDay(tick) === entityId % TICKS_PER_DAY;

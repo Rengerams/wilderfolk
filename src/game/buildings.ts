@@ -117,9 +117,8 @@ export const MINE_ORES = ['iron', 'gold'] as const;
 export type MineMode = (typeof MINE_ORES)[number];
 
 /**
- * The ore a Mine extracts right now. Gold only when the player chose it; iron
- * otherwise — which also covers a save written while the Mine still had a
- * `stone` mode (there was no gold mode to fall back from).
+ * The ore a Mine extracts right now: gold only when the player chose it, iron otherwise. A legacy
+ * `stone` mode, from a save written when it existed, also falls back to iron.
  */
 export function mineOreForMode(mode: string | undefined): MineMode {
   return mode === 'gold' ? 'gold' : 'iron';
@@ -170,25 +169,13 @@ export interface Building {
   /** Hunting Spot only — which prey the staffed hunters target (see HUNTING_SPOT_PREY_OPTIONS). */
   huntingSpotPrey?: HuntingSpotPrey;
   /**
-   * Hunting Spot only — the animal the spot is currently **committed** to, by entity id.
-   *
-   * A chase needs one animal to chase. Without a commitment the spot re-picked the nearest candidate
-   * every tick, so a hunter standing among a herd swapped targets continuously and closed on none of
-   * them (measured: parked at ~150 px while the pick cycled #357 → #431 → #452 across a single day).
-   * Written by the spot's own pass (`dailyBuildingEconomy`), read by the hunter's movement
-   * (`humanTick`) and by the shot, so all three chase the same animal. Cleared when the animal dies, is
-   * tamed, or walks out of the spot's eyes.
+   * Hunting Spot only — the animal the spot is committed to, by entity id, so the spot pass, the
+   * hunter's movement and the shot all chase one animal (cleared when it dies, is tamed or leaves).
    */
   huntingSpotTargetId?: number;
   /**
-   * Hunting Spot only — the last tick the assigned hunter stood within killing distance of its target.
-   *
-   * The shot is resolved by the spot's production pass, which samples **one instant**; the hunter is
-   * beside a wandering animal for many ticks and at its post for many others, and the two never lined up.
-   * Measured: 162 "Too far to shoot" decisions across twelve colony days — every one of them at
-   * 00:00–01:00 with the hunter back at its post (`huntTargetId=none`) — and no catch at all, even though
-   * the hunter had closed to 10 px that same day. So the contact is recorded when it happens and the pass
-   * accepts a *recent* one (`HUNTING_SPOT_STRIKE_GRACE_TICKS`).
+   * Hunting Spot only — the last tick the hunter stood within killing distance; the production pass
+   * accepts a recent one (`HUNTING_SPOT_STRIKE_GRACE_TICKS`) because it samples one instant.
    */
   huntingSpotInReachTick?: number;
   /** Prison only — clock hours of the current day that nobody stood on the post (see `prisonGuardDuty`). */
@@ -209,12 +196,8 @@ export interface BuildingConfig {
   /** Calendar days of on-site work normal workday for one builder to finish. */
   buildTime: number;
   /**
-   * Slot cap for `building.occupants` — **overloaded by building role**:
-   *
-   * - **Housing** (House, Mansion, LeaderHouse): bed / resident capacity.
-   * - **Staffed workplaces** (Farm, Church, Barracks, Hotel, …): max assigned **workers/staff**.
-   * - **Prison**: guard + prisoner slots share this cap.
-   * - **0**: no permanent staff and no residents (e.g. roads, walls, wells, barn, mill).
+   * Slot cap for `building.occupants`, overloaded by role: housing = residents, staffed workplaces =
+   * workers, prison = guards + prisoner, 0 = no permanent occupants.
    */
   maxOccupants: number;
   emoji: string;
@@ -241,9 +224,8 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
   [BuildingType.House]: {
     width: 46,
     height: 40,
-    // No gold: housing is survival, and a colony at 0 gold with homeless settlers must
-    // still be able to build (this is the exact state that stalled a measured 30-day run
-    // for ten days — see docs/plans/auto-play-missing-rules-plan.md).
+    // No gold: housing is survival, and a colony at 0 gold with homeless settlers must still be able
+    // to build.
     cost: { wood: 40, stone: 10, gold: 0 },
     buildTime: 2,
     maxOccupants: 6,
@@ -321,10 +303,8 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     sprite: '/sprites/storehouse.png',
     backgroundColor: '#92400e',
     padShape: 'rect',
-    // This art's painted base sits at 96.2 % of the PNG rather than the 100 % of the edge-to-edge
-    // building sprites, so the default 0.92 anchor stood it ~4 % of sprite height proud of the
-    // ground line. Anchor at `paintedBase − 0.08` to sink it by the same 8 % as the rest (the value
-    // LeaderHouse already carries for the same reason).
+    // This art's painted base sits at 96.2 % of the PNG, so anchor at `paintedBase − 0.08`; the
+    // default 0.92 stands it proud of the ground line (LeaderHouse carries the same value).
     spriteAnchorY: 0.882,
   },
   [BuildingType.LumberMill]: {
@@ -675,9 +655,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     emoji: '⚔️',
     label: 'Barracks',
     // The per-guard strength is `MILITIA_BALANCE.guardBonusPerGuard` (defenseStructures, the owner).
-    // Importing it here would close a cycle — `defenseStructures` reads `gameTypes`, which reads this
-    // file — so the catalogue copy carries no number, the same remedy as the wall/watchtower
-    // descriptions above (`tests/copyAndDayIndex.owners.test.ts`, L2).
+    // Importing it here would close a cycle (`defenseStructures` → `gameTypes` → this file).
     description: 'Staff Soldiers to patrol the village — each guard adds militia strength.',
     sprite: '/sprites/barracks.png',
     backgroundColor: '#57534e',
@@ -749,8 +727,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     emoji: '🏨',
     label: 'Hotel',
     // No guest count here: `HOTEL_GUEST_CAPACITY` is the owner, and this catalogue is deliberately
-    // import-free (one type-only import), so a restated number would drift exactly as the Barracks
-    // "+14" and the preserve "+4" did.
+    // import-free (one type-only import), so a restated number would drift.
     description: 'Visitor lodging — staff Hoteliers (day shift). Guests sleep overnight for free.',
     sprite: '/sprites/hotel.png',
     backgroundColor: '#0e7490',

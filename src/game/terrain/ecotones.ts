@@ -1,7 +1,6 @@
 /**
- * Presentation/ecology weights for biome fringes. These do NOT classify tiles or
- * alter pathfinding: terrainGrid remains the single gameplay terrain owner.
- * World generation revision 4 uses them for gradual tree and ground-prop distributions.
+ * Presentation/ecology weights for biome fringes — they do not classify tiles or alter pathfinding;
+ * `terrainGrid` remains the single gameplay terrain owner.
  */
 import { TerrainType, type WorldMap } from '../gameTypes';
 import { COLD_TEMPERATURE, DEFAULT_MOISTURE_FOREST, DEFAULT_SEA_LEVEL, LAND_BANDS, TERRAIN_CELL, WATER_CELL, sampleElev } from './terrainGrid';

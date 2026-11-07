@@ -1,18 +1,6 @@
 /**
- * A3 / A10 / A11 — "one rule, two or more definitions"
- * (`docs/private/audits/2026-09-16/duplication-deadcode.md`, tracked in
- * `LIVE-FINDINGS-STATUS.md`).
- *
- * A3  the colony-human predicate is defined once, in `playerHuman.isPlayerHuman`, and decides by
- *     the *classified* `Entity['faction']` union — the six hand-copied
- *     `alive && type === Human && !faction` tests are gone, and a newly added faction cannot join
- *     the colony silently because the owner's classification `Record` stops compiling until it is
- *     classified.
- * A10 `combat.ts` owns what the *simulation* calls a predator; the audio layer composes its
- *     own, differently-defined "hunt-noise source" set out of it instead of keeping a second
- *     identically-named copy.
- * A11 "what is a wall" is defined once, by `defenseStructures.isWallBuildingType`; the strip
- *     modules read it instead of keeping private sets.
+ * Each "one rule" has a single owner: the colony-human predicate in `playerHuman`, the predator set
+ * in `combat`, and "what is a wall" in `defenseStructures`.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -50,9 +38,8 @@ function source(relPath: string): string {
 }
 
 /**
- * An entity carrying a faction string the declared union does not name yet. `faction` is
- * parsed from save data, so such a value is representable at runtime even though TypeScript
- * cannot express it — the widened intersection types exactly like a known faction.
+ * An entity carrying a faction string outside the declared union; `faction` is parsed from save data,
+ * so such a value is representable at runtime.
  */
 function humanWithFaction(id: number, faction?: string): Entity {
   const human = { id, type: EntityType.Human, x: 0, y: 0, alive: true, age: 30 } as Entity;
@@ -68,10 +55,8 @@ describe('A3 — the colony-human rule has one owner', () => {
   });
 
   it('keeps the explicit `player` marker the suite writes player-owned', () => {
-    // The marker is a string outside `Entity['faction']`, and the only writers left are
-    // `scripts/balance-militia.ts` and the handful of fixtures in other lanes that still carry it.
-    // Only *classified* foreign factions may be excluded, so this must stay a colonist — the rule
-    // is "not a foreign faction", not "any faction means not ours".
+    // `player` is outside `Entity['faction']` and only classified foreign factions may be excluded,
+    // so this marker must stay a colonist.
     expect(isPlayerHuman(humanWithFaction(3, 'player'))).toBe(true);
   });
 
@@ -88,10 +73,8 @@ describe('A3 — the colony-human rule has one owner', () => {
   it('keeps foreign-faction humans off the ballot and player-marked ones on it', () => {
     const state: WorldState = initGame({ villageName: 'Owner', size: 'medium' });
     state.entities = state.entities.filter((e) => e.type !== EntityType.Human);
-    // `'player'` is the explicit player-owned marker the union does not name. The hand-copied
-    // `!e.faction` filter this file used to hold excluded that voter, so the copies disagreed with
-    // the owner on a value the suite genuinely writes — live, not only latent. The marker is now
-    // gone from this lane's fixtures, but the runtime rule it exercises must keep working.
+    // `'player'` is the explicit player-owned marker the union does not name; only classified foreign
+    // factions are excluded, so this voter stays on the ballot.
     const voters: [number, string | undefined][] = [[1, undefined], [2, 'visitor'], [3, 'rival'], [4, 'player']];
     for (const [id, faction] of voters) {
       const voter = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `V${id}`, ageYears: 30 });
@@ -119,17 +102,13 @@ describe('A3 — the colony-human rule has one owner', () => {
     ];
     for (const rel of readers) {
       const src = source(rel);
-      // Either owner accessor counts: `playerHumansFrom` is the owner's own list helper beside
-      // `isPlayerHuman` (same module, `playerHuman.ts`), added so a caller that needs the whole list
-      // does one filter instead of re-deriving the predicate. Both are the owner's rule.
+      // Either owner accessor counts: `playerHumansFrom` is the list helper beside `isPlayerHuman`.
       expect(src, `${rel} no longer asks the owner`).toMatch(/isPlayerHuman|playerHumansFrom/);
       expect(src, `${rel} re-derives the colony-human test`).not.toMatch(copy);
     }
 
-    // Two modules left this list because they stopped *classifying* humans at all rather than switching
-    // to the owner: the Church card asks `moonHowler.countStaffedPriests` (O-6) and the work-schedule
-    // panel asks `readVillageFatigue` (O-8), and each owner applies `isPlayerHuman` for them. They are
-    // still held to the half that matters — they must not re-derive the test either.
+    // These two classify no humans themselves — their owners apply `isPlayerHuman` — but they must
+    // still not re-derive the test.
     for (const rel of [
       'src/components/SelectedBuildingPanel.tsx',
       'src/components/WorkSchedulePanel.tsx',

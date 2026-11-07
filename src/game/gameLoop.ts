@@ -1017,9 +1017,8 @@ export class GameLoop {
         this.lastPausedSentToWorker = false;
       }
       const msPerTick = 1000 / (BASE_TICKS_PER_SECOND * this.world.speed);
-      // Never replay an unbounded backlog after a slow worker tick or a stalled tab.
-      // Dropping overdue simulation time keeps the interface responsive instead of
-      // attempting hundreds of catch-up ticks on the main thread.
+      // Never replay an unbounded backlog after a slow tick or stalled tab: drop overdue time
+      // rather than attempting hundreds of catch-up ticks on the main thread.
       this.tickAccumulator = Math.min(this.tickAccumulator + dtMs, msPerTick * 4);
       let steps = 0;
       const catchUpBudget = catchUpBudgetFor(this.world.speed);

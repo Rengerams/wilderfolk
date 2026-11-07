@@ -143,11 +143,8 @@ export function resetPreferencesCache(): void {
 }
 
 /**
- * Whether this browser has already watched the opening cinematic.
- *
- * The intro is a 23.6-second timed reveal, so gating every load on it made a returning player wait
- * that long to reach "Load saved game". This is the flag that lets the game skip straight to the
- * map-setup screen instead; the cinematic stays reachable from the menu.
+ * Whether this browser has already watched the opening cinematic, so a returning player skips the
+ * timed reveal and goes straight to map setup. The cinematic stays reachable from the menu.
  */
 export function loadIntroSeen(): boolean {
   return readBoolPreference(INTRO_SEEN_KEY, false);

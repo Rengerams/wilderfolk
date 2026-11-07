@@ -1,14 +1,6 @@
 /**
- * F23 — a building's camera focus targeted the footprint corner, not the building
- * (`docs/private/audits/2026-09-16/ui-logic.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * Three call sites passed `x + width/2, y + height/2` to `onFocusBuilding(buildingId, cx, cy)` — adding
- * half a footprint to a value that **is already the centre** — so "center map on the Blacksmith" landed
- * half a building away from the building the button names. The convention is settled by the consumers:
- * the pad and sprite are drawn from `x - w/2`/`y - h/2` (`spriteDrawing.drawBuildingPad`),
- * `placementUtils.overlapsAnyBuilding` compares `b.x ± b.width/2`, `isFootprintWithinMapBounds` and
- * `isFootprintOnBuildableTerrain` take `x ± w/2`, and `snapBuildingCenter` + `createBuilding` store the
- * cursor's centre unchanged. `getBuildingCenter` now names that in one place, and the sites call it.
+ * A building's stored x/y is its centre, so camera focus and every footprint check use it unchanged.
+ * `getBuildingCenter` is the one accessor; focus callers must not add half a footprint to it.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

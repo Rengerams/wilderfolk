@@ -1,7 +1,6 @@
 /**
  * Escalating valley ecology stage — Stable → Strained → Damaged → Collapse.
- * Information-first: stage + drivers are always computable for UI; mechanical
- * effects scale only after sustained stress (see design spec 2026-07-30).
+ * Information-first: stage and drivers are always computable; effects scale only after stress.
  */
 import type { WorldState } from './gameTypes';
 import type { ValleyStage } from './ecologyTypes';

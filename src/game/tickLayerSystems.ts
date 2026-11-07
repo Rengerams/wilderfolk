@@ -93,10 +93,8 @@ function isWildlifePredator(entity: Entity): boolean {
 }
 
 /**
- * What a predator hunts depends only on its kind — a fox, an active Moon Howler, or any other canid
- * (wolf / Moon Howler between full moons) — so the prey filter and its grid fallback are built once
- * per pulse instead of once per predator. Array order is load-bearing: it is the order
- * `forEachInEntityGrid` falls back to when the spatial grid is off.
+ * What a predator hunts depends only on its kind — a fox, an active Moon Howler, or any other canid —
+ * so the prey filter and its grid fallback are built once per pulse. Array order is load-bearing.
  */
 type HuntPreyKind = 'fox' | 'moonHowler' | 'canid';
 
@@ -125,10 +123,7 @@ const isDeepWaterTile = (t: TerrainType | undefined): boolean =>
 function tickWolfRecruitment(state: WorldState, ctx: TickContext): void {
   const { width, height, byType, newEntities } = ctx;
 
-  // Cheap gate first: the whole function can only ever fire on a wolf-recruit production tick
-  // (`isProductionTick` requires `getTickOfDay(tick) === 0`), i.e. once per 21 days, and the `||`
-  // short-circuited here before the RNG draw already — so testing this first changes no draw order.
-  // The counts below used to be computed for all 18 systems pulses a day to be discarded.
+  // Cheap gate first: the function can only fire on a wolf-recruit production tick, once per 21 days.
   if (!isProductionTick(state.tick, EVENT_INTERVAL.wolfRecruit)) return;
 
   const currentWolves =
@@ -219,16 +214,13 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
   if (ctx.grassCap === undefined) {
     ctx.grassCap = getGrassPopulationCap(width, height);
   }
-  // Only read when the spatial grid is absent (`USE_SPATIAL_GRID` defaults ON, `spatialGrid.ts:52`),
-  // so build the snapshot on first use instead of on every systems pulse. Semantics unchanged: the
-  // first reader still gets one shared snapshot, exactly as the unconditional concat produced.
+  // Only read when the spatial grid is absent, so build the snapshot on first use rather than on
+  // every systems pulse.
   let preyFallback: Entity[] | undefined;
   const preyFallbackFor = (): Entity[] =>
     (preyFallback ??= (byType[EntityType.Rabbit] ?? []).concat(byType[EntityType.Deer] ?? []));
 
-  // Hunt-prey lookups are keyed by predator kind, not by predator: at most three `Set`/fallback
-  // pairs per pulse instead of one pair per predator. The fallback is a snapshot of the buckets at
-  // first use, which is safe because `isValidHuntPrey` rejects anything no longer alive.
+  // Hunt-prey lookups are keyed by predator kind, so at most three `Set`/fallback pairs per pulse.
   const huntPreyLookups = new Map<HuntPreyKind, { preyTypeSet: Set<EntityType>; fallback: Entity[] }>();
   const huntPreyLookup = (kind: HuntPreyKind): { preyTypeSet: Set<EntityType>; fallback: Entity[] } => {
     let lookup = huntPreyLookups.get(kind);
@@ -305,12 +297,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       // 5. Throttled processing for out-of-focus fauna
       const wildlifeInFocus = !focus || isInFocus(entity, focus);
       const wildlifeActive =
-        // `OFFSCREEN_WILDLIFE_THROTTLE` counts *wildlife-layer calls*, not raw ticks
-        // (simFocus.ts). tickWildlife only runs when `state.tick % WILDLIFE_LAYER_INTERVAL === 0`,
-        // so the old `(state.tick + entity.id) % 8` had no solution at all for ids ≡ 1, 2 or 3
-        // (mod 4): ~75% of out-of-focus fauna never passed the gate and were skipped past every
-        // AI step (movement, hunting, grazing, reproduction) while still draining energy every
-        // pulse. Count layer pulses instead.
+        // `OFFSCREEN_WILDLIFE_THROTTLE` counts wildlife-layer calls, not raw ticks, so out-of-focus
+        // fauna is gated by layer pulse.
         wildlifeInFocus || isOffscreenWildlifeActive(state.tick, entity.id);
       if (!wildlifeActive) {
         entity.reproductionCooldown = Math.max(0, entity.reproductionCooldown - step);
@@ -321,9 +309,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       let targetVx = 0;
       let targetVy = 0;
 
-      // 6. Evasion Behavior — grazers flee any predator; foxes are also prey to
-      // apex canids (wolves and Moon Howlers), so a fox flees those but stays a
-      // predator of rabbits.
+      // 6. Evasion Behavior — grazers flee any predator; foxes are also prey to apex canids
+      // (wolves and Moon Howlers), so a fox flees those but stays a predator of rabbits.
       const isGrazer =
         entity.type === EntityType.Rabbit ||
         entity.type === EntityType.Deer ||
@@ -333,19 +320,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         const sensesThreat = isGrazer ? SENSES_WILDLIFE_PREDATOR : SENSES_CANID_PREDATOR;
 
         /**
-         * The settler who is *hunting this very animal* does not spook it.
-         *
-         * Owner, 2026-09-30: *"let the animals just dont run anyway"* — and without this, no hunter can
-         * ever reach one. A grazer inside its `fleeRange` runs at `config.speed * 1.5`, so a deer at 3.0
-         * flees at **4.5 px/tick** while a settler on the job walks at 0.85 × 3.0 = **2.55** (3.57 at the
-         * Hunting Spot's own pursuit pace): the animal simply outruns the hunter, forever. Measured over
-         * twelve colony days before this change, the spot's hunter closed to 65 px — its quarry's
-         * `fleeRange` — and killed nothing at all.
-         *
-         * `ctx.huntTargetByPreyId` is the index that already exists for exactly this pairing (prey id →
-         * the hunters after it, built from `huntTargetId` in `simulationEntities`), so the exception
-         * names the one settler who is stalking this animal rather than exempting every human from every
-         * animal's fear. Wild predators and every other settler still spook it.
+         * The settler who is *hunting this very animal* does not spook it, or the animal simply
+         * outruns the hunter. Every other settler and every wild predator still spooks it.
          */
         const huntersAfterThisAnimal = ctx.huntTargetByPreyId?.get(entity.id);
         const sensesThreatForThisAnimal =
@@ -537,8 +513,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
 
               if (isHumanPrey) {
                 // The beast keeps its own nameless label ("A Moon Howler"): the line is about the
-                // howler, not the person it was. The victim's name is the citizenId owner's join, which
-                // this site (and `stats`) used to hand-roll.
+                // howler, not the person it was. The victim's name is the citizenId owner's join.
                 const wolfName = entity.name ? citizenFullName(entity) : 'A Moon Howler';
                 const victimName = citizenFullName(caughtPrey);
                 const line = WEREWOLF_ATTACK_LINES[

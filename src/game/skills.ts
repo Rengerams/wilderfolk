@@ -44,9 +44,7 @@ export const SKILL_CREDIT_INTERVAL_TICKS = TICKS_PER_DAY;
 
 /**
  * Every profession credited for the shift it works: each staffing post the game assigns a job to.
- *
- * Derived from `BUILDING_JOB_TYPES`, not a hand-kept list, so a workplace added there teaches its
- * trade without a second edit. A site with no job of its own (a construction crew) is paid separately.
+ * Derived from `BUILDING_JOB_TYPES`, so a new workplace teaches its trade without a second edit.
  */
 export const WORK_SKILL_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingType>(
   Object.keys(BUILDING_JOB_TYPES) as BuildingType[],
@@ -90,11 +88,8 @@ export function rewardProductionSkills(
 }
 
 /**
- * Credit a production crew for the shift it worked, on the building's production tick.
- *
- * Separate from `rewardProductionSkills` on purpose: that one is paid for *output* and so stops the
- * day stores fill, which strands every trade whose good has a full store (iron, gold, stone) at its
- * entry skill. This credit is paid for the shift, so a refused harvest still teaches the trade.
+ * Credit a production crew for the shift it worked, on the building's production tick. Separate from
+ * `rewardProductionSkills` on purpose: that one is paid for output, so a refused harvest would not teach.
  */
 export function rewardBuildingWork(
   state: WorldState,
@@ -112,10 +107,8 @@ export function rewardBuildingWork(
 export type WorkAction = 'production' | 'construction';
 
 /**
- * The crew's skill and the catalog's DNA factor for the work it is doing, as one multiplier.
- *
- * The activity is the build crew's construction activity or the site's routine production, so an
- * aptitude irrelevant to the work is neutral and each dimension is priced exactly once.
+ * The crew's skill and the catalog's DNA factor for the work it is doing, as one multiplier: the
+ * activity is construction or routine production, so each dimension is priced exactly once.
  */
 export function getWorkerSkillMultiplier(
   state: WorldState,

@@ -327,8 +327,7 @@ const DIPLOMACY_CARD_EXPIRE_AFTER_TICKS = 14 * TICKS_PER_DAY;
 
 /**
  * When a diplomacy card expires. Single owner: the daily sweep and the inspector's "Expires in N
- * days" both read this, so the countdown cannot promise a different deadline than the one that
- * removes the card (`duplication-deadcode` A17 — no caller reads the raw `expiresAtTick` field).
+ * days" both read it, so the countdown cannot promise a different deadline.
  */
 export function getDiplomacyExpiresAtTick(
   event: { createdAtTick: number; expiresAtTick?: number },

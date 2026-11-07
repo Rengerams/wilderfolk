@@ -46,12 +46,7 @@ function reportOf(overrides: {
   } as unknown as ColonyHealthReport;
 }
 
-/**
- * Minimal world fixture with all five resource types.
- *
- * Gold and iron are genuine resources in Wilderfolk.
- * Defaults preserve existing two-argument test calls.
- */
+/** Minimal world fixture with all five resource types; iron and gold default to 0. */
 function fakeWorld(
   wood: number,
   stone: number,

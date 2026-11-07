@@ -1,10 +1,6 @@
 /**
- * F-UX-9 — a disabled Research choice printed no reason: the owner answered "can I start this?" with
- * a bare boolean, so the panel could only grey the button out.
- *
- * The owner now answers with `getResearchBlockReason`, and `canStartResearch` stays the same gate as
- * a boolean for the callers that only need yes/no (the auto-play bot). The final case pins the two
- * against each other, so the panel can never print a reason for a node the command would accept.
+ * A disabled Research choice names its refusal: `getResearchBlockReason` answers with the cause and
+ * `canStartResearch` stays the same gate as a boolean. The panel renders that reason as text.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

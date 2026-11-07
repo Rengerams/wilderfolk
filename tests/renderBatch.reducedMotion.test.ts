@@ -1,10 +1,6 @@
 /**
- * F-RND-25 — the OS reduced-motion preference has to reach what the canvas animates.
- *
- * Every pulse, bob, sway and sparkle on the map reads the renderer's oscillator clock, and the
- * camera shake is applied straight from the snapshot. Honouring `prefers-reduced-motion` means the
- * oscillator holds still and the shake is dropped, while `renderTime` keeps advancing so weather
- * drift and particle integration still move (reduced, not stopped).
+ * `prefers-reduced-motion` stills the renderer oscillator and drops camera shake,
+ * while `renderTime` keeps advancing for weather and particles.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 

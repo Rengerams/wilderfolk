@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 /**
- * Dialogue migration ratchet. Run by scripts/test.mjs's existing check gate.
- *
- * Domain modules decide when speaking is eligible; dialogueTrees.ts selects
- * imported JSON; humanChat.ts alone writes simulated entity chat fields.
- * The render buffer is a transport mirror, never a second speech initiator.
+ * Dialogue migration ratchet: domain modules decide when speaking is eligible, dialogueTrees.ts
+ * selects imported JSON, humanChat.ts alone writes chat fields; render buffer is a mirror.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';

@@ -1,9 +1,6 @@
 /**
- * Read-only per-human activity label shown in the selected-entity inspector.
- *
- * Uses the building the human is standing near (its config label) so the
- * status always reads naturally: "Working at Farm", "Relaxing at Tavern",
- * "At Market", "Hunting", etc.
+ * Read-only per-human activity label shown in the selected-entity inspector. It uses the building the
+ * human is standing near, so the status reads naturally: "Working at Farm", "Hunting", etc.
  */
 import type { Building, Entity, WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
@@ -56,9 +53,7 @@ export type HumanActivityProjection = {
 
 /**
  * True when the settler has reached the projection's target — the owner's own "at the destination"
- * test, shared with {@link getHumanActivityStatus} (which reports `Working at X` rather than
- * `Commuting to X` on the same distance). The movement explanation uses it so a settler parked at a
- * stop is never described as being on a leg into it.
+ * test, shared with {@link getHumanActivityStatus}.
  */
 export function isAtActivityTarget(entity: Entity, target: HumanActivityTarget | null): boolean {
   if (!target) return false;
@@ -99,9 +94,8 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
     return dist <= WORK_ARRIVE_DISTANCE ? `Working at ${label}` : `Commuting to ${label}`;
   }
 
-  // Evening social outings are an intentional free-time state, not a failed
-  // home return. Surface it before nearby-building inference so the inspector
-  // explains why a resident is away from home.
+  // Evening social outings are an intentional free-time state, not a failed home return: surface it
+  // before nearby-building inference so the inspector explains why a resident is away.
   const isEveningOuting = hourOfDay >= EVENING_START
     && hourOfDay < 23
     && !prefersHomeTonightFor(getWorkSchedule(state), entity.id, state.tick, hourOfDay)
@@ -133,9 +127,8 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
 }
 
 /**
- * Structured, read-only projection for the selected-settler inspector.
- * This function reads authoritative WorldState and never writes simulation state.
- * Historical transitions remain null until a dedicated presentation history is added.
+ * Structured, read-only projection for the selected-settler inspector: reads authoritative WorldState
+ * and never writes simulation state. `transition` stays null until presentation history exists.
  */
 export function getHumanActivityProjection(
   state: WorldState,

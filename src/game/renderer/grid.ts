@@ -48,10 +48,8 @@ function getGridViewport(cam: RenderSnapshot['camera'], cw: number, ch: number):
   };
 }
 
-// Axis projections of the single owner transform (`viewState.worldToScreen`): the formula lives only
-// there, and the D27 wiring guard in `tests/visualsAudit.renderWiring.test.ts` pins the call site by
-// name (`worldToScreenX(cx, cam, cw)`). These are the owner's own single-axis accessors — imported,
-// not restated — so a grid line no longer allocates a `[x, y]` tuple and discards half of it.
+// Axis projections of the single owner transform (`viewState.worldToScreen`): imported, not
+// restated, so a grid line allocates no `[x, y]` tuple.
 
 /**
  * Strokes grid lines. Correctly uses major offsets (mx0/my0) when drawing major lines
@@ -264,11 +262,8 @@ export function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, c
         const { x: cx, y: cy } = state.buildMode
           ? snapBuildingCenter(state.buildMode, rawX, rawY, state.buildRotation)
           : { x: snapToGrid(rawX, gs), y: snapToGrid(rawY, gs) };
-        // Plate and verdict share one centre. The marker used to sit on the raw major-cell centre
-        // while `canPlaceBuildingSnapshot` was asked about the *snapped* centre — for a multi-tile
-        // footprint a different cell (the coarse lattice is 100 wu, placement snaps to GRID_SIZE =
-        // 20), so a plate could show the verdict of the cell beside it. `drawBuildZoneOverlay`
-        // below already draws at the snapped centre.
+        // Plate and verdict share one centre — the snapped centre `canPlaceBuildingSnapshot` is
+        // asked about, matching `drawBuildZoneOverlay` below.
         const px = worldToScreenX(cx, cam, cw);
         // Ride the 2.5D relief the same way the ghost does, so a plate and the building that lands
         // on it share one screen height instead of the plate floating at the flat-map position.

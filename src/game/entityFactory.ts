@@ -42,9 +42,8 @@ export interface CreateEntityOptions {
   inheritedGenome?: GenomeV2;
 }
 
-/** The species `tickLayerSystems` ticks — wildlife plus settlers — so the only ones whose animation
- *  clock runs and the only ones a predator/prey catch can involve. Inline: it imports `createEntity`.
- *  Exported so the save loader repairs `animFrame` for exactly the species this factory seeds it on. */
+/** The species `tickLayerSystems` ticks (wildlife plus settlers), so the only ones whose animation
+ *  clock runs. The save loader repairs `animFrame` for exactly these. */
 export const TICKED_SPECIES: ReadonlySet<EntityType> = new Set([
   EntityType.Human,
   EntityType.Rabbit,

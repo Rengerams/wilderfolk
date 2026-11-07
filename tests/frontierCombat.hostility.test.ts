@@ -1,9 +1,6 @@
 /**
- * Player-initiated hostility (`provokeRival`) — the frontier stand-off fix.
- *
- * A friendly or welcoming camp refused `launchRaidOnRival` before weapons, population or food were
- * ever considered, and every write of `relationship = 'tense'` in the sim was reactive, so a
- * friendly neighbour could never be attacked. These cases pin the door out of that stand-off.
+ * Player-initiated hostility (`provokeRival`): a friendly neighbour can be made tense and then
+ * raided, so the player-controlled camp never locks itself out of attacking.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';

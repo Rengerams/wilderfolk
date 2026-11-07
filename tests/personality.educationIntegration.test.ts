@@ -1,13 +1,6 @@
 /**
- * The school and research owners read the one aptitude evaluator (`personality/traitEvaluation.ts`).
- *
- * Two live paths are pinned against the owners rather than re-derived formulas:
- * 1. `getEducationResearchMultiplier` keeps the education share as its baseline and multiplies it
- *    once by the collective research factor — no retired per-apt-settler count and no double count.
- * 2. `creditChildSchoolDay` prices the class time one school day costs this pupil from the
- *    `learning` activity, so a pupil whose profile resists structure needs slightly more attendance
- *    for the same day — with the attendance threshold, graduation rule and one-credit-per-day
- *    behaviour otherwise untouched.
+ * The school and research owners read the one aptitude evaluator: research scales the education share
+ * once, and a school day's class time is priced from the `learning` activity.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
@@ -84,7 +77,7 @@ describe('the school-day credit prices the class time from the activity registry
     const required = SCHOOL_DAY_MIN_TICKS / factor;
     expect(required).toBeGreaterThan(SCHOOL_DAY_MIN_TICKS);
 
-    // The bare threshold is no longer enough for this pupil...
+    // The bare threshold is not enough for this pupil...
     const short = pupil(1, SCHOOL_RESISTANT_GENOME, SCHOOL_DAY_MIN_TICKS);
     creditChildSchoolDay(short);
     expect(short.schoolDays).toBe(0);

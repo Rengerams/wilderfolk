@@ -18,7 +18,7 @@ import { hasContinuousFields } from '../terrain/terrainGrid';
 import { getSprite } from '../spriteLoader';
 
 // Terrain base palette lives in the terrain owner (`terrainAtlas.TERRAIN_PALETTE`) so the bake
-// and the minimap cannot drift apart — audit D12.
+// and the minimap cannot drift apart.
 
 /** Per-preset palette overrides so coastal/arid/harsh maps read differently at a glance. */
 const PRESET_TERRAIN_COLORS: Partial<Record<MapPreset, Partial<Record<TerrainType, number>>>> = {
@@ -300,7 +300,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
       return chunk;
     };
 
-    /** Bake one chunk's river courses and L3 props onto the overhanging canvas of its own. */
+    /** Bake one chunk's L3 props onto its own overhanging canvas, margins included. */
     const bakeChunkDecor = (chunk: GroundChunk): void => {
       const topMargin = heightMesh ? DECOR_RAISED_TOP_MARGIN : DECOR_CHUNK_MARGIN;
       const decorWorldW = chunk.worldW + DECOR_CHUNK_MARGIN * 2;
@@ -610,11 +610,8 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     }
     ctx.restore();
 
-    // Ground: the per-pixel Whittaker chunks when present, else the chunked tile bake, then the decor
-    // overlay (river stroke, frame and the props baked into it). Both are **continuous art, not sprite
-    // sheets**, and both are magnified whenever the camera is above 100 % zoom, so they are blitted with
-    // smoothing on — the `imageSmoothingEnabled = false` the frame is set up with is for the entity
-    // sprites, and leaving it on for these layers stair-stepped the shader's fine detail and the props.
+    // Ground and decor are continuous art, not sprite sheets, so they are blitted with smoothing on;
+    // the frame's `imageSmoothingEnabled = false` is for entity sprites.
     ctx.save();
     ctx.imageSmoothingEnabled = true;
     if (whittakerChunks.size > 0) {
@@ -624,9 +621,8 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
         (a, b) => a.worldY - b.worldY || a.worldX - b.worldX,
       );
       for (const chunk of chunks) {
-        // A crisp chunk is drawn at full resolution; until it is whole, its coarse stand-in covers the
-        // same world rect, so the ground arrives early and sharpens in place. A chunk with neither is
-        // simply not drawn yet.
+        // Until a chunk is whole, its coarse stand-in covers the same world rect so the ground
+        // arrives early and sharpens in place.
         const complete = chunk.rowsBaked >= chunk.rowsTotal;
         const source = complete
           ? chunk.projected ?? chunk.canvas
@@ -703,21 +699,6 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   }
 }
 
-/**
- * Paint the ground. The canvas2D path is the **only** ground renderer.
- *
- * It bakes the terrain into per-viewport chunks from the fill sprites (`buildTerrainCache`), which is
- * the path the boot frame used and the look the minimap agrees with.
- *
- * The Pixi/WebGL ground that used to sit behind a `USE_PIXI_GROUND` constant is **deleted**, not
- * dormant (owner decision 2026-09-25, reversing "not used at the moment but maybe in future"). It is
- * worth recording why deleting beat keeping the switch: the path had already been abandoned once for
- * a real reason — it drew a bright vector river ribbon over pale tile water with a visible
- * square-tile checkerboard, and the owner marked that wrong — and it carried three separate defect
- * records (a detached `app.stage`, a WebGL init retried every frame, the water mismatch). A dormant
- * renderer that nothing renders, nothing reviews, and only tests assert the *shape* of is not an
- * option; it is maintenance surface with no user, and it kept `pixi.js` in the dependency list.
- */
 /** Sparse painted foundations live in terrain overrides, not in Buildings.
  * Draw only the marked cells visible on screen; ordinary terrain stays baked. */
 function drawReinforcedSoil(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number): void {

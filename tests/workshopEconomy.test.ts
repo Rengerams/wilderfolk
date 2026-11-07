@@ -14,8 +14,6 @@ const RECIPE = 'furniture';
 /** `getScheduleProductivityMultiplier` floors at 0.65, reached at fatigue 100. */
 const MAX_FATIGUE = 100;
 
-// `FIXTURE_SEED` (20_260_917), `SHOP_ID` (10) and `WORKER_ID` (1) were declared identically at the top
-// of all three original files, so the merged file declares each one once.
 const FIXTURE_SEED = 20_260_917;
 const SHOP_ID = 10;
 const WORKER_ID = 1;
@@ -41,17 +39,8 @@ function world(): { state: WorldState; shop: Building; worker: Entity } {
 }
 
 /**
- * Audit L6 (`docs/private/audits/2026-09-16/sim-economy-leadership-combat.md`, tracked in
- * `LIVE-FINDINGS-STATUS.md`): `estimateWorkshopGold` is the number the building panel prints as
- * `→ ~N gold / 2 days`, and it drifted from what the workshop actually produces. Production's own
- * assembly is `(1 + workers×0.5) × totalMult × goldMult × globalEff` (`dailyBuildingEconomy.ts:742`),
- * where `totalMult` carries level · terrain · adjacency · festival · skill · **fatigue** ·
- * **work-window** and `globalEff` carries global efficiency · **Town-Hall governance**; the estimate
- * omitted the last three and counted workers by `occupants.length` rather than by `workerBuildingId`.
- *
- * These cases drive the two omitted factors that can be set up without a whole civic apparatus:
- * a tired crew and a short configured work day. Both are asserted as a *band* on the ratio rather than
- * an exact value, because both sides floor and `Math.max(1, …)` the result.
+ * `estimateWorkshopGold` is the number the building panel prints as `→ ~N gold / 2 days`, so it must
+ * track production's own assembly: workers, level, terrain, adjacency, festival, skill, fatigue and window.
  */
 describe('the workshop gold estimate tracks production (L6)', () => {
   it('falls with schedule fatigue, and with a short work window', () => {
@@ -62,7 +51,7 @@ describe('the workshop gold estimate tracks production (L6)', () => {
 
     worker.scheduleFatigue = MAX_FATIGUE;
     const tired = estimateWorkshopGold(state, shop);
-    // Pre-fix these were equal: fatigue was not in the estimate at all.
+    // Schedule fatigue must lower the estimate, as it lowers production.
     expect(tired).toBeLessThan(rested);
     expect(tired / rested).toBeGreaterThan(0.5); // the owner's floor is 0.65; floors round it down
     expect(tired / rested).toBeLessThan(0.8);
@@ -136,27 +125,15 @@ function tickOnce(state: WorldState): void {
 }
 
 /**
- * E-4 (`docs/private/audits/2026-09-20/`): the workshop consumed a **full** recipe's inputs while the
- * gold cap accepted only part of the output.
- *
- * The guard was `added > 0`, not `added === amount`, so at gold 19 999 of a 20 000 cap a `furniture`
- * cycle deducted 10 wood + 2 stone, credited 1 gold and announced "+1 gold · Furniture (store full)".
- *
- * The cycle is now all-or-nothing on the gold headroom, tested **before** crediting — a partial
- * credit cannot simply be refused after the fact, because the gold `addResource` accepted would stay
- * in the store with nothing consumed. That keeps every announced string honest: `+N gold · <recipe>`
- * always means one full recipe. (The alternative — consuming inputs in proportion to the part that
- * fitted — would make a fraction of a cycle announce a whole one, and the recipe is priced per cycle.)
- *
- * The roomy case is asserted alongside, so the test cannot pass merely because the workshop stopped
- * producing: it is the cap that changes the outcome, and nothing else.
+ * The workshop spends a recipe's inputs only when the gold headroom accepts the whole output: the cap
+ * is tested before crediting, so every announced `+N gold · <recipe>` means one full recipe.
  */
 describe('E-4 — the workshop does not spend a full recipe on a partial credit', () => {
   it('refuses the whole cycle at cap − 1 gold, consuming no inputs', () => {
     const state = workshopWorld(GOLD_CAP - 1);
     tickOnce(state);
 
-    // Pre-fix: gold 20 000 (+1) with wood 490 and stone 198 — a full recipe spent on one gold.
+    // At cap − 1 the whole cycle is refused: no gold credit and no inputs spent.
     expect(state.resources.gold).toBe(GOLD_CAP - 1);
     expect(state.resources.wood).toBe(500);
     expect(state.resources.stone).toBe(200);
@@ -195,9 +172,8 @@ function worldWithWorkshop(): { state: WorldState; workshop: Building } {
 }
 
 /**
- * The workshop inspector must not advertise "~0 gold / 2 days" on a completed but unstaffed shop
- * (ui-logic audit F27). `estimateWorkshopGold` deliberately returns 0 for an unstaffed building
- * unless the caller asks for the one-worker preview, which is what the inspector now passes.
+ * The workshop inspector must not advertise "~0 gold / 2 days" on a completed but unstaffed shop:
+ * `estimateWorkshopGold` returns 0 unless the caller asks for the one-worker preview.
  */
 describe('estimateWorkshopGold unstaffed preview', () => {
   it('returns 0 for an unstaffed workshop unless the preview is requested', () => {

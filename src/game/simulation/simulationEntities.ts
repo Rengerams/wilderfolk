@@ -11,8 +11,7 @@ const GRASS_CAP_REFERENCE_AREA = 1200 * 900;
 const GRASS_CAP_BASE = 500;
 
 /**
- * Entity bookkeeping — births, deaths, spatial-grid synchronization and
- * population indexes. Owns the same-tick entity lists in TickContext and keeps
+ * Entity bookkeeping — births, deaths, spatial-grid sync and population indexes. Keeps
  * byType / entityById / population snapshots consistent when entities change.
  */
 export function pushNewEntity(state: WorldState, ctx: TickContext, entity: Entity): void {
@@ -175,9 +174,8 @@ export function buildHuntTargetByPreyIndex(
 }
 
 /**
- * The only types that can hold a `huntTargetId` — the same set `buildHuntTargetByPreyIndex` indexes.
- * Every write site agrees: the wildlife hunt step (Wolf/Fox/Werewolf), `tickHumanHunting` (Human,
- * gated on `isPlayerHuman`) and the Moon Howler form restore (Werewolf).
+ * The only types that can hold a `huntTargetId` — the same set
+ * `buildHuntTargetByPreyIndex` indexes.
  */
 const HUNTER_TYPES: readonly EntityType[] = [
   EntityType.Wolf,
@@ -203,11 +201,8 @@ export function clearHuntersTargetingPrey(
     }
   }
 
-  // The index is built once at tick start, so a hunter that acquires this prey later in the
-  // same tick is absent from it: those hunters still have to be cleared or they keep a
-  // huntTargetId pointing at a removed entity. Hunting is limited to `HUNTER_TYPES`, so when the
-  // caller hands over the tick's buckets the sweep is those four lists instead of `entityById` —
-  // every living entity, grass and trees included (~900 at full-year scale, per kill).
+  // The index is built once at tick start, so a hunter that acquires this prey later in the same
+  // tick is absent from it; when the caller passes the tick's buckets, sweep `HUNTER_TYPES` only.
   if (byType) {
     for (let t = 0; t < HUNTER_TYPES.length; t++) {
       const bucket = byType[HUNTER_TYPES[t]];

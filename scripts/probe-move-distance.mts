@@ -1,10 +1,6 @@
 /**
- * Movement-rate probe (local, gitignored): measures how far player settlers actually travel.
- * Prints total path length (sum of per-tick displacement), distance travelled per settler and the
- * per-tick speed distribution, so a "they move way less than they should" report can be compared
- * between revisions with one command.
- *
- *   npx tsx scripts/probe-move-distance.mts [days]
+ * Movement-rate probe (local, gitignored): prints total path length, distance per settler and the
+ * per-tick speed distribution, so a "they move way less than they should" report is comparable.
  */
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';

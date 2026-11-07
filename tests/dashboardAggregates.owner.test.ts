@@ -1,19 +1,6 @@
 /**
- * A5 + A7 — one owner for the ecosystem-health read and for the village labour counters
- * (`docs/private/audits/2026-09-16/duplication-deadcode.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * A5: the same ecosystem-health read was copied with four different "missing value" defaults —
- * `?? 80` in `storyEvents`/`deerParliament`, `?? 100` in `ecologyStage` and one `dashboardData`
- * metric, `?? 0` in another `dashboardData` metric, `?? 50` in `villagePortrait` — so one legacy
- * world (a save whose `state.ecosystemHealth` predates the field) read as a thriving valley in one
- * panel and a collapsed one in another. The missing value now reads as the documented midpoint
- * (`dailyEcology.getEcosystemHealth`), which is neither healthy nor collapsed.
- *
- * A7: the working/idle/imprisoned classification was aggregated twice, including the
- * `hasWorkAssignment(e) || constructionWorkers.has(e.id)` rule. A settler standing on an incomplete
- * building counted as *working* in the top-bar HUD and as an *idle adult* in the dashboard's
- * concerns for the same tick. The counters now have one aggregator (`uiSimSummary`) and the
- * dashboard, the People screen and the HUD compose it.
+ * `getEcosystemHealth` owns the ecosystem-health read (missing → documented midpoint);
+ * `uiSimSummary` owns the labour counters the dashboard, People screen and HUD share.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -96,8 +83,7 @@ describe('A5 — the ecosystem-health read has one owner and one missing-value d
     const state = worldMissingEcoHealth();
     const dashboard = collectDashboard(state);
 
-    // Pre-fix the population card read `?? 0` (a collapsed valley) while `deriveConcerns` read
-    // `?? 100` (a pristine one), so the same world showed "Eco 0" with no ecosystem concern at all.
+    // One neutral default for a missing `ecosystemHealth`: the card and the concern read the same value.
     expect(dashboard.population.ecoHealth).toBe(UNKNOWN_ECOSYSTEM_HEALTH);
     expect(UNKNOWN_ECOSYSTEM_HEALTH, 'the owner documents the neutral midpoint').toBe(50);
 
@@ -140,8 +126,7 @@ describe('A7 — the village labour counters have one aggregator', () => {
     expect(overview.working).toBe(stats.working);
     expect(overview.idle).toBe(stats.idle);
     expect(overview.adults).toBe(stats.adults);
-    // Pre-fix `deriveConcerns` counted `!juvenile && workerBuildingId == null` as an idle adult, so the
-    // dashboard reported "1 idle adult" while the HUD reported 1 working / 0 idle for the same tick.
+    // A construction-crew member counts as working, so the dashboard raises no idle-adult concern.
     expect(
       dashboard.concerns.find((c) => c.id === 'idle'),
       'the dashboard still calls a builder idle',

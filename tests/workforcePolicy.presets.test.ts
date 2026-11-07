@@ -1,17 +1,6 @@
 /**
- * Workforce Policy Presets — roadmap F3 (Roadmap_V0_6.4.1.MD line 36).
- *
- * The preset is a priority order over which job building receives the next idle worker
- * (`workforcePolicy.PRESET_BUILDING_ORDER`). These cases pin the three promises the roadmap
- * row makes:
- *
- * 1. The assignment order actually changes with the preset (one idle settler, four job
- *    buildings, four different winners — one per preset).
- * 2. Existing employment remains persistent while manual mode in old saves migrates
- *    to automatic staffing.
- * 3. `workforcePolicy` has a full transport contract — save/load, the worker tick delta,
- *    the prep rollback payload, the typed command path, and a documented default for a
- *    save written before the field existed.
+ * Workforce Policy Presets: a preset is a priority order over which job building receives the next
+ * idle worker; these cases pin assignment order, persistent employment and the transport contract.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, JobType } from '../src/game/gameTypes';

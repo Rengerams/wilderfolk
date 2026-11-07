@@ -1,15 +1,4 @@
 import { tickAtDailyPhase } from '../src/game/dayCycleClock';
-/**
- * Low-tier regression batch 4 — save/load cross-cutting items (X1/X5) plus the
- * worldGen / daily lows from the 2026-09-13 simulation-logic audit:
- * L12 (dead couple-split repair), L13/L14 (seasonal festival guarantee),
- * L72 (duplicate Grassland branch), L73 (always-true daily guards),
- * L80 (InitGameOptions.width/height + empty entityByType),
- * L81 (wildlife log throttle), L82 (sufficientGrass), L83 (dead final guard).
- *
- * Each test is written against a real function or fixture; the ones that pin a
- * deleted dead branch say so in their name.
- */
 import { describe, expect, it } from 'vitest';
 import { gameTick, initGame } from '../src/game/gameEngine';
 import {
@@ -35,14 +24,14 @@ describe('saveLoad cross-cutting items', () => {
     const world = initGame({ seed: 12, size: MapSize.Medium });
     const saved = buildSaveData(world, createInitialView(world.width, world.height));
 
-    // The gate rejects every other version, so `loadGameFromParsed` can only ever see this
-    // build's version — the v0.4 … v0.5.1 branches that used to run there are deleted.
+    // The version gate lives in `parseSaveJson`; this forged older payload bypasses it and must
+    // load without any legacy migration.
     expect(parseSaveJson(JSON.stringify({ ...saved, _version: '0.4' })).valid).toBe(false);
 
     const forged = { ...saved, _version: '0.4', foodSpoilageRate: 0.5 };
     const loaded = loadGameFromParsed(forged);
     expect(loaded).not.toBeNull();
-    // The removed `v0.4` branch forced 0.03 and stamped the migration id.
+    // A forged `v0.4` save keeps its own `foodSpoilageRate`; no migration id is stamped.
     expect(loaded!.world.foodSpoilageRate).toBe(0.5);
     expect(loaded!.world.appliedSaveMigrations ?? []).not.toContain('v0.4');
   });
@@ -64,8 +53,7 @@ describe('saveLoad cross-cutting items', () => {
 
     const loaded = loadGameFromParsed(parsed.parsed);
     expect(loaded).not.toBeNull();
-    // The old default (LEGACY_TICKS_PER_DAY = 24) rescaled the calendar and every absolute
-    // deadline by TICKS_PER_DAY / 24 = 3.
+    // A missing `_ticksPerDay` means the current day length: no calendar or deadline rescale.
     expect(loaded!.world.tick).toBe(10 * TICKS_PER_DAY);
     const loadedMother = loaded!.world.entities.find((e) => e.id === mother.id)!;
     expect(loadedMother.pregnancyDueProgress).toBe(1200);
@@ -120,12 +108,11 @@ describe('worldGen lows', () => {
   it('L82 — prey do not repopulate when the grass refill actually placed nothing', () => {
     const world = initGame({ seed: 33, size: MapSize.Medium });
     // A 40px world puts every grass patch centre out of bounds (`spawnGrassPatch` bounds-checks
-    // `state.width/height`), while a passable tile grid still lets wildlife spawn — so this
-    // isolates "the grass credit assumed the full 98 but nothing grew".
+    // `state.width/height`), while the tile grid below still lets wildlife spawn.
     world.width = 40;
     world.height = 40;
-    // A passable tile grid still lets wildlife spawn. Teraforge keeps no per-tile grid, so the
-    // "grassland everywhere" the old fixture built is one override per tile.
+    // A passable tile grid still lets wildlife spawn: Teraforge keeps no per-tile grid, so
+    // "grassland everywhere" is one override per tile.
     if (world.worldMap) {
       const map = world.worldMap;
       for (let ty = 0; ty < map.height; ty++) {
@@ -215,8 +202,8 @@ describe('daily lows', () => {
 
   it('L73 — the daily layer runs its social/chronicle block at tick 0 too', () => {
     const world = initGame({ seed: 8, size: MapSize.Medium });
-    // gameTick increments first, so tick -1 becomes the tick-0 boundary the removed guards
-    // used to treat as "initialization" and skip. Twelve hours worked must raise fatigue.
+    // `gameTick` increments first, so tick -1 lands on the tick-0 daily boundary; twelve hours
+    // worked must raise fatigue.
     world.tick = -1;
     for (const entity of world.entities) {
       if (entity.type === EntityType.Human) entity.scheduleWorkedTicksToday = 12 * TICKS_PER_HOUR;

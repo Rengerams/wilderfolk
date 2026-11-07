@@ -1,6 +1,6 @@
 /**
  * The genome owner — founder allocation, inheritance, validation, expression and old-save backfill.
- * PR #124 replaces the retired three-label model with fourteen continuous inherited dimensions.
+ * Every genome carries fourteen continuous inherited aptitude dimensions.
  */
 import { describe, it, expect } from 'vitest';
 import { createSeededRng } from '../src/game/simRng';

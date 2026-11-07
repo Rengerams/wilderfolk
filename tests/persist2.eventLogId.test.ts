@@ -1,14 +1,6 @@
 /**
- * A saved chronicle id must be a number the allocator can advance.
- *
- * The event log is the one `WorldState` container whose ids are numeric, and the load boundary's
- * shared element rule accepted a string id for every one of them. The allocator is
- * `Math.max(…ids) + 1`, so a non-numeric string id makes `nextEventLogId` `NaN` and every line the
- * colony logs afterwards carries a `NaN` id, which the log's own dedupe and merge keys cannot match.
- *
- * Each case corrupts one field of a real `buildSaveData` payload, so green means the guard bites
- * without refusing the world the payload came from. The final case is the differential: the same
- * refusals would be vacuous against a boundary that refused every save.
+ * A saved event-log id must be a number the allocator can advance; a non-numeric id
+ * would make the next id `NaN`.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

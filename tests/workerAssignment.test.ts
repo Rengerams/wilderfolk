@@ -8,11 +8,8 @@ import { assignWorkerInPlace } from '../src/game/workforce';
 import { building as buildingFixture, human } from '../src/test/factories';
 
 /**
- * A colonist of the player's village. The old fixture wrote `faction: 'player'` — a value
- * `Entity['faction']` does not name — behind an `as never`. `isPlayerHuman` classifies an
- * unnamed marker and no faction identically (both player-owned), and every gate the tests
- * below exercise (`isPlayerHuman`, `alive`, `isJuvenile`, `hasWorkAssignment`, `isImprisoned`,
- * `isOnConstructionCrew`) reads the same either way, so the marker is simply dropped.
+ * A colonist of the player's village: `isPlayerHuman` treats an unnamed marker and no faction
+ * identically, so no faction string is written.
  */
 function makeWorker(id: number, workerBuildingId: number | undefined): Entity {
   return human(id, {
@@ -26,9 +23,8 @@ function makeWorker(id: number, workerBuildingId: number | undefined): Entity {
 }
 
 /**
- * The workplace under test. `maxOccupants: 3` is gone with the `as never` cast: it is a
- * `BuildingConfig` field, not a `Building` one, and both callers read the cap from
- * `BUILDING_CONFIGS[BuildingType.Farm].maxOccupants` (2), never off the fixture.
+ * The workplace under test. The occupancy cap lives on `BuildingConfig` (`BUILDING_CONFIGS`), not
+ * on the `Building` fixture.
  */
 function makeFarm(id: number): Building {
   return buildingFixture(id, BuildingType.Farm, { x: 200, y: 200, width: 80, height: 60 });

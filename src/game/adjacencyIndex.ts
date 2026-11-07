@@ -3,12 +3,7 @@ import { BuildingType } from './gameTypes';
 
 export const ADJACENCY_CELL = 80;
 
-/**
- * Adjacency bonus a completed Barn gives a neighbouring Farm/Greenhouse.
- *
- * Exported because the inspector's Barn hint typed "+35%" as prose; the number a designer tunes now
- * lives only here.
- */
+/** Adjacency bonus a completed Barn gives a neighbouring Farm/Greenhouse — the one value to tune. */
 export const BARN_ADJACENCY_BONUS = 0.35;
 
 type AdjacencyBuckets = Map<string, Building[]>;
@@ -189,9 +184,7 @@ export function unindexAdjacency(
   state: { buildings: Building[]; adjacency?: AdjacencyIndex },
   buildingId: number,
 ): void {
-  // `structuredClone` preserves a truthy object but removes AdjacencyIndex's
-  // prototype. Rebuild only when a cache was present; callers with no cache do
-  // not need one solely to remove an already-unindexed building.
+  // `structuredClone` drops the AdjacencyIndex prototype, so rebuild only when a cache was present.
   if (!state.adjacency) return;
   ensureAdjacencyIndex(state).removeById(buildingId);
 }

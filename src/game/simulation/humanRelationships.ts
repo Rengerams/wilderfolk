@@ -8,11 +8,7 @@ import { SPECIES_CONFIG } from '../speciesConfig';
 import { addBigNews, addFloatingText, addNotification, createDeathParticles } from '../simEffects';
 import { getValleyIllnessChanceBonus } from '../ecologyStage';
 // One owner for "where the building is": `placementUtils.getBuildingCenter` reads `x/y` as the
-// footprint **centre**, which is what the pad and sprite are drawn around. This module used to
-// export a *second* `getBuildingCenter` that added half a footprint, so every proximity test here
-// (`isNearBuilding`, the affair tryst radius and the tryst rendezvous point) measured from a spot
-// half a building to the south-east of the building on screen. Importing the owner is the fix; the
-// duplicate was deleted rather than corrected so the two can never disagree again.
+// footprint **centre**, which is what the pad and sprite are drawn around.
 import { getBuildingCenter } from '../placementUtils';
 import { PROFILE_REVISION, bumpRevision } from '../entityRevision';
 import {
@@ -64,15 +60,8 @@ export const AFFAIR_BUILDING_NEAR_RADIUS = 55;
 export const AFFAIR_DAILY_TRYST_RADIUS = 95;
 
 /**
- * The phrase in the affair-establishment chronicle line — the only record that an affair became
- * *real* rather than merely suspicious.
- *
- * It is a constant because it has a reader as well as a writer: `citizenOverview` counts a year's
- * establishments from the event log to report the People screen's "affairs this year". A live affair
- * is short-lived (measured on the engine gate: the instantaneous count averages 0.2 per day and is
- * non-zero on only 35 of 360 days in a year with 93 establishments), so a snapshot alone reads zero
- * almost always and the feature looked absent. Written and read through this one string so the two
- * cannot drift.
+ * The affair-establishment chronicle phrase, written and read through one string so the People
+ * screen's yearly count cannot drift.
  */
 export const AFFAIR_ESTABLISHED_LOG_PHRASE = 'began a secret affair';
 
@@ -125,11 +114,8 @@ export function hasAffairPartner(entity: Entity, entityById: Map<number, Entity>
 }
 
 /**
- * The lover this settler is in an **established** mutual affair with, or nothing.
- *
- * Exposure is an established-affair outcome (see `tryDailyAffairGossip`). This used to also
- * return a partner whose progress had merely passed 45, which is what let a rumour fire on a
- * pair that had not established yet.
+ * The lover this settler is in an **established** mutual affair with, or nothing — exposure is an
+ * established-affair outcome.
  */
 export function findAffairLover(
   entity: Entity,
@@ -178,12 +164,8 @@ function isSpouseAtSharedHome(
 }
 
 /**
- * True when the settler is at their marital home *and the spouse is there too*.
- *
- * An empty marital home is a legitimate tryst site — that is exactly how a walk-in
- * becomes possible. Only the occupied home is off limits. The married-paramour branch of
- * `isValidAffairTrystSite` has always worked this way; the cheater's own home was the outlier,
- * which made the walk-in route unreachable.
+ * True when the settler is at their marital home *and the spouse is there too*; an empty marital
+ * home is a legitimate tryst site, which is how a walk-in becomes possible.
  */
 export function isMaritalHomeOccupiedBySpouse(
   entity: Entity,
@@ -208,13 +190,8 @@ function spouseIsOn(entity: Entity, entityById: Map<number, Entity>, buildingByI
 }
 
 /**
- * True when a spouse physically walks in on the pair.
- *
- * Deliberately **not limited to the marital home** (or to any relationship status beyond "is this
- * settler's spouse on them"): a walk-in is the spouse arriving on the couple wherever the tryst is —
- * the cheater's own home, the paramour's residence, or an outdoor spot. Gating this on the cheater
- * being at their own home was why the caught-in-the-act route stayed unreachable even after the site
- * itself became legal; both sides are checked, so a married paramour's spouse can walk in too.
+ * True when a spouse physically walks in on the pair — wherever the tryst is, not only the marital
+ * home; both sides are checked.
  */
 export function wouldWalkInOnAffair(
   cheater: Entity,
@@ -350,24 +327,16 @@ export function tryDailyAffairGossip(
   playerHumans: readonly Entity[],
 ): void {
   recordRelationshipDiagnostic('gossipChecks');
-  // Exposure requires an **established** affair. A pair that is still building progress has no
-  // affair to expose yet, and `exposeAffair` calls `clearAffairPair`, which resets BOTH partners
-  // to 0 — so a rumour rolled on an unestablished pair did not merely embarrass them, it undid
-  // the whole climb. The exposure floors used to sit at 45 (church) and 85 (no church), far below
-  // the `AFFAIR_PROGRESS_MAX` of 100 that establishment needs, so exposure almost always won:
-  // the owner's New Frontier save logged 145 "Whispers spread" and 0 establishments across Y0
-  // D198–D279, and the downstream chain (caught-in-the-act, arrest, imprisonment for scandal,
-  // the forced divorce, `startFeud`) was therefore unreachable — every one of those gates keys
-  // off `hasAffairPartner`, which only establishment sets.
+  // Exposure requires an **established** affair: an unestablished pair has no affair to expose, and
+  // exposing clears both partners' progress.
   if (!hasAffairPartner(entity, entityById)) return;
   const lover = findAffairLover(entity, entityById, state.tick);
   if (!lover) return;
   if (!shouldLeadAffairPair(entity, lover)) return;
   if (onScandalCooldown(entity, state.tick) || onScandalCooldown(lover, state.tick)) return;
 
-  // A church does not stop an affair being founded — `AFFAIR_CHURCH_FLOOR_FACTOR` already scales the
-  // daily tryst chance down. What it does is make the village talk far sooner, so the church's lever
-  // here is how long an established affair survives, not whether it can ever exist.
+  // A church does not stop an affair being founded — it scales the daily tryst chance down and makes
+  // the village talk sooner, so its lever is how long an established affair survives.
   const chance = churchStrength >= 1 ? 0.22 : churchStrength > 0 ? 0.12 : 0.06;
   // Salts stay split by branch so seeding a run does not change which days already gossiped.
   const salt = churchStrength > 0 ? 602 : 601;
@@ -474,26 +443,14 @@ export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () 
 // ============ YOUTHFUL FIRST LOVE LIFECYCLE ============
 
 /**
- * Youngest age a youth-love link may start at.
- *
- * Owner ruling (2026-09-13, re-confirmed 2026-09-16): **12**, not the originally documented 14. The
- * 14–17 band is too narrow for the game's pace, so the feature was a nice one that never happened in
- * play; widening it to 12–17 is what makes it fire. The documents were corrected to 12 — a 2026-09-13
- * audit filed the constant itself as the defect and the finding was withdrawn as intended behaviour
- * (`BUG_REPORTS/2026-09-13-youth-love-min-age-12-lets-12-13-year-olds-enter-youth-lov.md`). Fertility
- * starts at the same age through the mutual youth-love gate, and every adult system stays 18+.
+ * Youngest age a youth-love link may start at — **12**, not the originally documented 14; every
+ * adult system stays 18+.
  */
 const YOUTH_LOVE_MIN_AGE = 12;
 
 /**
- * Largest age difference a youth-love pair may have when it forms — and therefore also how long an
- * existing link may wait past the older partner's 18th birthday for the younger one to come of age
- * (see `reconcileYouthLove`).
- *
- * Owner ruling (2026-09-16): **4**, as the code has always been. The feature document's original
- * "no more than 2 years" made youth love effectively never form in play — the same reasoning as
- * `YOUTH_LOVE_MIN_AGE` above — so the document was the stale artifact and has been corrected; do not
- * "fix" this back to 2.
+ * Largest age difference a youth-love pair may have when it forms — and so how long an existing
+ * link may wait past the older partner's 18th birthday for the younger one to come of age.
  */
 export const YOUTH_LOVE_MAX_AGE_GAP = 4;
 export const YOUTH_LOVE_DAILY_START_CHANCE = 0.0015;
@@ -547,18 +504,8 @@ function isValidYouthLoveTarget(entity: Entity, candidate: Entity): boolean {
 }
 
 /**
- * Clear a youth-love link that can no longer be valid — except for the one case where it is the
- * *pending* path to a handoff: an existing pair may outlive the older partner's 18th birthday while
- * the younger one is still 12–17 (`docs/archive/YOUTH_LOVE_FEATURE.md`, "One is 18 and one is 17 →
- * Keep the valid youth link temporarily … Both reach 18 → Hand off to adult courtship"). `advanceYouthLove`
- * promotes the pair on the first pass where both are adults, so the wait ends by itself; it is bounded
- * here by the same age gap that let the pair form, because the younger partner is then at most
- * `YOUTH_LOVE_MAX_AGE_GAP` years from the adult floor.
- *
- * Audit F3: the previous `Math.max(age) > HUMAN_ADULT_MIN_AGE` clause cleared the link as soon as
- * the older partner turned 19 — the very day a pair one year apart became (19, 18) — so
- * `promoteYouthLoveToCourtship` was unreachable for every pair whose birthdays fall in different
- * years and those pairs were dropped silently instead of "growing up together".
+ * Clear a youth-love link that can no longer be valid — except the pending handoff where the older
+ * partner has turned 18 while the younger one is still a minor, which `advanceYouthLove` promotes.
  */
 export function reconcileYouthLove(entity: Entity, entityById: Map<number, Entity>): void {
   const partnerId = entity.youthLovePartnerId;
@@ -678,10 +625,8 @@ export function advanceYouthLove(
     createDeathParticles(state, (entity.x + candidate.x) / 2, (entity.y + candidate.y) / 2 - 12, '#f9a8d4', 7, 'heart');
     const sweetheartLine = `${citizenFullName(entity)} and ${citizenFullName(candidate)} became sweethearts`;
     logEvent(state, 'event', sweetheartLine, entity.name);
-    // Affairs raise a notification card from `exposeAffair`; a new sweetheart pair raised none, so
-    // its only trace was one line inside the Chronicle's generic "Events" bucket — 1 531 of the
-    // owner's 2 000 entries — which is why it read as "youth love i dont get a message or can see
-    // who it are". The pair is named here the same way the affair card names its pair.
+    // Affairs raise a notification card from `exposeAffair`; a new sweetheart pair raises one here
+    // too, naming the pair so the message says who they are.
     addNotification(state, 'Sweethearts', sweetheartLine, 'success', {
       x: (entity.x + candidate.x) / 2,
       y: (entity.y + candidate.y) / 2 - 12,
@@ -712,12 +657,8 @@ function clearAffairPair(a: Entity, b: Entity): void {
 }
 
 /**
- * When this pregnancy is due: `PREGNANCY_TICKS` jittered by ±15 %, drawn from the `humanRelationships`
- * RNG stream on a key of the settler and the tick.
- *
- * One definition for all three conception paths (married, youth love, affair) — the formula used to be
- * restated at each site, so a change to the jitter only ever reached whichever one was edited
- * (`duplicationA.remaining`, A22).
+ * When this pregnancy is due: `PREGNANCY_TICKS` jittered by ±15 % on a key of the settler and the
+ * tick. One definition for all three conception paths (married, youth love, affair).
  */
 function rollPregnancyDueProgress(entity: Entity, tick: number): number {
   return Math.round(PREGNANCY_TICKS * (0.85 + seededRandomForRun(`pregnancy-due:${entity.id}:${tick}`) * 0.3));
@@ -1266,9 +1207,8 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
     prison.occupants.push(offender.id);
   }
   const name = humanDisplayName(offender);
-  // A real `'prison'` type, not `'event'` (which buried it in the generic Events bucket and left the
-  // owner unable to find it) and not `'scandal'` (which would inflate the scandal count and pull
-  // imprisonments into the rumour ledger, whose `SOURCE_KINDS` reads that type).
+  // A real `'prison'` type — not `'event'`, which hides it, and not `'scandal'`, which would
+  // inflate the rumour ledger.
   logEvent(state, 'prison', `${name} was imprisoned for scandal`, name);
   addNotification(state, 'Imprisoned', `${name} sentenced for scandal`, 'warning');
   // A jailing is rare (roughly one per eleven days in a mature colony), so a toast that is gone
@@ -1286,13 +1226,8 @@ export function courtshipRatePerHour(socialTime: boolean): number {
 }
 
 export /**
- * Whether a settler may court at all — the per-settler half of the courtship gate.
- *
- * The pair half is `isWithinRemarriageBar`, applied wherever a couple is actually formed: a settler
- * who has been married to someone before may not court *that person* again until a year has passed
- * since the marriage ended. Without it a divorced pair — who usually still share a house and so meet
- * daily — remarried the next day and divorced again on the next daily roll, which is the cycle the
- * owner reported.
+ * Whether a settler may court at all — the per-settler half of the courtship gate; the pair half
+ * is `isWithinRemarriageBar`, so a divorced pair cannot remarry within a year.
  */
 function isEligibleToCourt(entity: Entity): boolean {
   return (
@@ -1315,8 +1250,7 @@ export const REMARRIAGE_BAR_TICKS = TICKS_PER_DAY * DAYS_PER_YEAR;
 
 /**
  * Whether `entity` is barred from courting `other` because their own marriage to them ended too
- * recently. One year, counted from the tick the marriage ended (`pastPartnerTicks`, stamped by the
- * divorce owner).
+ * recently — one year from `pastPartnerTicks`, stamped by the divorce owner.
  */
 export function isWithinRemarriageBar(entity: Entity, other: Entity, tick: number): boolean {
   const endedAt = entity.pastPartnerTicks?.[other.id];
@@ -1329,10 +1263,8 @@ export function startCourtshipCooldown(entity: Entity): void {
 }
 
 /**
- * A courtship is a mutual pair bond, so a settler who is already courting someone else is not a
- * candidate — except for the caller's own current partner, which the mutuality branch in
- * `findCourtshipPartner` re-selects every tick. Audit F5: without the exclusivity test a third
- * settler could take an already-courting partner, orphaning the previous link and its progress.
+ * A courtship is a mutual pair bond, so a settler already courting someone else is not a candidate —
+ * except the caller's own current partner, which the mutuality branch re-selects every tick.
  */
 function isCourtshipCandidate(entity: Entity, candidate: Entity, tick: number): boolean {
   return (
@@ -1349,9 +1281,8 @@ function isCourtshipCandidate(entity: Entity, candidate: Entity, tick: number): 
 }
 
 /**
- * Bind a courtship pair (or keep the current one). A **new** partner always starts the shared
- * progress at zero — audit F5: the progress used to carry over from whoever the settler courted
- * before, so a fresh pair could begin at 60 % while an abandoned pair kept its own value.
+ * Bind a courtship pair (or keep the current one); a **new** partner always starts the shared
+ * progress at zero.
  */
 export function bindCourtship(entity: Entity, partner: Entity): void {
   if (entity.courtshipPartnerId !== partner.id) {
@@ -1365,12 +1296,8 @@ export function bindCourtship(entity: Entity, partner: Entity): void {
 }
 
 /**
- * Dissolve a courtship that can no longer complete — the mirror of `reconcileYouthLove` for the adult
- * pair bond, and the guard that makes courtship exclusivity safe. A link is valid only while both
- * settlers could still court each other (alive, single, unpartnered, adult, not imprisoned or
- * pregnant) and both sides name each other; anything else clears the link **and its progress** on
- * both sides, so no settler is locked out of courting by a partner who moved on and no heart badge
- * survives a courtship that does not exist. Runs daily from `tickLayerDaily`.
+ * Dissolve a courtship that can no longer complete — the mirror of `reconcileYouthLove` for the
+ * adult pair bond, clearing the link **and its progress** on both sides.
  */
 export function reconcileCourtships(
   ctx: Pick<TickContext, 'entityById' | 'playerHumans'>,
@@ -1413,9 +1340,8 @@ export function findCourtshipPartner(
   fallbackHumans?: readonly Entity[],
   width?: number,
   height?: number,
-  // Defaulted to 0 so a caller that does not care about the divorce bar (most tests) keeps its
-  // argument list. A divorce is always stamped at a tick > 0, so from tick 0 every past marriage is
-  // still inside the bar — the strict reading, which is the safe one.
+  // Defaulted to 0 so a caller that does not care about the divorce bar keeps its argument list; a
+  // divorce is always stamped at a tick > 0, so from tick 0 every past marriage is inside the bar.
   tick = 0,
 ): Entity | undefined {
   const currentCourtship =
@@ -1506,23 +1432,8 @@ export function canPursueSecretAffair(
 }
 
 /**
- * The in-game hour a settler's once-per-day affair encounter is evaluated at, spread across the
- * settlement by id over the **waking day** (06:00–19:00, derived from the owner's own `NIGHT_END` /
- * `NIGHT_START`; settlers sleep 23:00–06:00, so midnight is inside the sleep window).
- *
- * The encounter used to run on the global `isNewCalendarDayTick` gate — tick-of-day 0, i.e.
- * **midnight for everyone, at once** — and at midnight it could not pass its own gates.
- * `canPursueSecretAffair` returns false on `isSpouseNearby` (22 px), which is true for a housed
- * couple asleep in the same room, and `isAtMaritalHome` is true besides. Establishment is written
- * nowhere else (`tests/affair.cadence.test.ts`: "the daily owner is the sole establisher"), so in a
- * well-housed village no affair could ever complete: New Frontier — 453 settlers, a church — logged
- * **145 "Whispers spread" and 0 "began a secret affair"** across Y0 D198–D279.
- *
- * Staggering costs nothing in probability, which is why it is the whole fix: `personDayRoll` hashes
- * `(entity, colony day, salt)` and **not** the tick-of-day, so a settler evaluated once per day at
- * their own waking hour still gets exactly one roll at exactly the same chance. Only the hour the
- * conditions are sampled at changes. `decisionRegistry` already declares this cadence as
- * "staggered/daily"; the implementation was the part that was not staggered.
+ * The in-game hour a settler's daily affair encounter is evaluated at, spread across the settlement
+ * by id over the waking day. `personDayRoll` keys on the colony day, not the tick-of-day.
  */
 // Deterministic once-daily encounter scheduling, weighted toward free time.
 // Weekends include more daytime opportunities; workdays strongly favor evenings.

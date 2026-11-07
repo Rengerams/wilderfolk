@@ -1,10 +1,6 @@
 /**
- * Pathfinding routes around water/mountains instead of walking straight
- * through them (fixes settlers stuck at map edges on blocked lines).
- *
- * The fixtures are real maps built through the production tile model: a tile's type comes from
- * the projection, and the passability grid is rebaked from it, so these cases exercise the same
- * agreement between "what the tile is" and "what the pathfinder thinks" that ships.
+ * Pathfinding routes around water and mountains instead of walking through them, over real maps
+ * whose passability grid is rebaked from the production tile projection.
  */
 import { describe, expect, it } from 'vitest';
 import { findPath, getPathGrid, lineCrossesBlocked } from '../src/game/pathfinding';
@@ -241,9 +237,7 @@ describe('pathfinding', () => {
     expect(findPath(bare, 0, 5, 9, 5)).toBeNull();
 
     // `isWalkableRoad` calls a completed bridge walkable, so its footprint must clear the blocked
-    // water it spans. Stamping only the road mask left the deck a cost discount on a tile the
-    // router still refused: no route was found and the walk fell back to the straight line, so a
-    // settler waded the river the bridge was built across.
+    // water it spans — a walkable deck the router still refuses connects nothing.
     const grid = getPathGrid(map, [bridge]);
     expect(grid.road?.[5 * grid.cols + 5]).toBe(1);
     expect(grid.blocked[5 * grid.cols + 5], 'the deck tile is still water to the router').toBe(0);

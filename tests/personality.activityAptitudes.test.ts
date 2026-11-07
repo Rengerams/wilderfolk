@@ -1,7 +1,6 @@
 /**
- * The activity registry is the signed contract of PR #124: every one of the fourteen inherited
- * dimensions must have a real upward and a real downward effect, and every declared activity must
- * be reachable through the live owner that reads it.
+ * Every inherited aptitude dimension must have a real upward and downward effect, and every declared
+ * activity must be reachable through the live owner that reads it.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

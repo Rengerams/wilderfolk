@@ -88,9 +88,8 @@ const VENUE_BY_BUILDING: Partial<Record<BuildingType, 'tavern' | 'hotel'>> = {
 };
 
 /**
- * The shift predicates `humanTick` composes, in its own order, each read from the owner that
- * already holds that window: the day schedule, the venue place window, the moon-howler night,
- * the prison roster.
+ * The shift predicates `humanTick` composes, each read from the owner holding that window: day
+ * schedule, venue hours, moon-howler night, prison roster.
  */
 function resolveShift(
   state: WorldState,

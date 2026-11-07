@@ -1,10 +1,6 @@
 /**
- * The auto-play verdict the owner read as "no action needed — colony looks healthy" while the
- * header painted a near-empty larder red and the stone chip read zero.
- *
- * These guards drive the REAL ladder (`decideVirtualPlayerAction`) and the REAL HUD projection
- * (`virtualPlayerWaitingReason` + `virtualPlayerStatusText`), on the owner's own numbers, so a
- * regression that makes the status line lie again fails here rather than in the owner's game.
+ * The auto-play verdict must agree with the HUD: these guards drive the real action ladder
+ * (`decideVirtualPlayerAction`) and the real status projection on the owner's numbers.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -127,11 +123,8 @@ function makeWorld(
 }
 
 /**
- * The owner's reporting numbers: `count` adults, all housed and all at a post, on the stated stores.
- *
- * `mills`/`farms` are the producers the colony already owns, each crewed to its own 3-post cap — so
- * no fixture crew is overstaffed (which the surplus step would otherwise trim) — over that many
- * Houses of the real 6-bed capacity, plus `spareHouses` empty ones.
+ * The owner's reporting numbers: `count` adults, all housed and all at a post, on the stated
+ * stores; producers are crewed to their 3-post cap over real 6-bed Houses.
  */
 function ownerColony(
   count: number,
@@ -308,9 +301,8 @@ describe('the health verdict at the owner numbers', () => {
   });
 
   it('plans farms for all mouths, not just adults who can staff them', () => {
-    // Eighteen working-age people and twelve children consume food, even though
-    // only adults can take a Farm assignment. Three farms satisfy the old
-    // adult-only target (18 / 9), but not the real thirty-person food need.
+    // Working-age people and children both eat, though only adults can take a Farm
+    // assignment, so the plan counts all mouths rather than adult workers.
     const colony = ownerColony(30, {}, { mills: 0, farms: 3 });
     for (const person of colony.entities.slice(18)) person.isJuvenile = true;
 
@@ -619,9 +611,8 @@ describe('the health verdict at the owner numbers', () => {
   });
 
   it('says which producer is short when no settler can be spared for it', () => {
-    // One settler with no spare hand to rebalance: the ladder genuinely cannot act, and the status
-    // line must name the stone rather than the colony's health. Every building is at its top level,
-    // so no upgrade can take the hour instead.
+    // One settler with no spare hand: the ladder cannot act, so the status line must name
+    // the short producer rather than reporting the colony healthy.
     const alone = makeWorld(
       [human(1, { residenceBuildingId: 1, workerBuildingId: 2 })],
       [
@@ -659,9 +650,8 @@ describe('the health verdict at the owner numbers', () => {
 
 describe('the ladder builds ahead of need, bounded by the owners', () => {
   it('raises a House while every settler is still housed', () => {
-    // 48 settlers filling eight 6-bed Houses with no spare: the housing owner calls that pressure
-    // `tight` (`collectHousingDiagnostics`), and the assignable spare beds are gone — the
-    // one-birth-away state the bot used to wait out until somebody was actually homeless.
+    // 48 settlers fill eight 6-bed Houses with no spare bed: the housing owner calls that
+    // pressure `tight`, and the ladder builds ahead of it.
     const crowded = ownerColony(48, {}, {
       mills: 16,
       spareHouses: 0,
@@ -736,9 +726,8 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
       building(411, BuildingType.FishingSpot, { x: 700, y: 400 }),
       building(412, BuildingType.HuntingSpot, { x: 800, y: 400 }),
     ];
-    // These sites have produced more food than residents consumed for
-    // three consecutive days. No artificial Farm target is needed merely
-    // because the population has grown; all actual yield enters the ledger.
+    // These sites out-produced resident consumption for three consecutive days, so no
+    // artificial Farm target is needed; all actual yield enters the ledger.
     const healthy = ownerColony(24, {
       tick: 4 * TICKS_PER_DAY,
       resources: { food: 500, wood: 500, stone: 500, gold: 500, iron: 150 },
@@ -778,9 +767,8 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
   });
 
   it('will not spend the repair materials on a building the colony could otherwise afford', () => {
-    // 36 settlers want four food producers and own one. 20 wood pays for a Farm (25?) only if the
-    // repair owner's 10 wood is left behind — the reserve, not the price, is what must refuse it,
-    // since the larder is deep enough that no shortage would justify the spend.
+    // 36 settlers want four food producers and own one; the Farm is affordable only by
+    // dipping into the repair owner's 10 wood, so the reserve must refuse it.
     const thin = ownerColony(36, {
       resources: { food: 500, wood: 30, stone: 500, gold: 500, iron: 30 },
     }, { mills: 12, farms: 1 });
@@ -1031,9 +1019,8 @@ describe('the storage buildings the owner reported missing', () => {
   });
 
   it('builds a Barn when the wood shelf is nearly full, even on a lean larder', () => {
-    // 12 settlers eat 36 a day, so 100 food is under the strict community reserve but over the
-    // general food buffer the storage entries wait on. Three Farms meet the 12/5 food plan, so the
-    // storage step is the one this case is about.
+    // 12 settlers eat 36 a day: 100 food is under the strict community reserve but over the
+    // general food buffer, so the storage step is what this case pins.
     const world = ownerColony(12, {
       resources: { food: 100, wood: 700, stone: 200, gold: 100, iron: 150 },
       storageMax: { wood: 900, stone: 300, food: 800, gold: 20000, iron: 300 },
@@ -1054,8 +1041,8 @@ describe('the storage buildings the owner reported missing', () => {
 });
 
 /**
- * Every building the catalogue offers that the ladder used to have no step for, so the owner's
- * *"all buildings should be buildable by the bot"* is a checkable claim rather than a hope.
+ * Catalogue buildings owned in the settled-village fixture; `BOT_BUILDABLE` adds Market, so the
+ * ladder's *"all buildings should be buildable by the bot"* claim is checkable.
  */
 const SETTLED_BUILDINGS: readonly BuildingType[] = [
   BuildingType.House, BuildingType.Farm, BuildingType.Greenhouse, BuildingType.Barn,
@@ -1140,9 +1127,8 @@ describe('every building type is buildable by the bot', () => {
 
 describe('the hunting spot is sited by the hunting owner', () => {
   it('never takes a spot that could only reach a wolf — a spot that can only hunt wolves loses hunters', () => {
-    // The food step reaches a Hunting Spot only when a Farm, Greenhouse and Fishing Spot all have no
-    // site, so this fixture blocks the Farm with the placement owner's own map rule (all water) and
-    // leaves the Greenhouse locked. Whatever the ladder answers, it must not be an unprepared spot.
+    // The food step reaches a Hunting Spot only when Farm, Greenhouse and Fishing Spot all
+    // have no site; this fixture blocks the Farm with the placement owner's all-water map.
     const world = ownerColony(10, {
       resources: { food: 20, wood: 300, stone: 200, gold: 100, iron: 30 },
       worldMap: unbuildableWorldMap(),

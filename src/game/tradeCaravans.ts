@@ -89,9 +89,8 @@ function canStoreImports(state: WorldState, route: TradeRoute, mult: number): bo
     { key: 'stone', amount: Math.floor(route.resourcesReceived.stone * mult) },
     { key: 'food', amount: Math.floor(route.resourcesReceived.food * mult) },
     { key: 'gold', amount: Math.floor(route.resourcesReceived.gold * mult) },
-    // Iron is a real fifth resource and Ironport (trade_3) is its only trade source: omitting
-    // it here let a round trip complete into a full iron store, where `addCappedResource`
-    // silently clamped the cargo away (BUG_REPORTS/2026-09-17-trade-imports-drop-iron.md).
+    // Iron is a real fifth resource: omitting it here let a full iron store silently clamp the
+    // cargo away.
     { key: 'iron', amount: Math.floor(route.resourcesReceived.iron * mult) },
   ];
   for (const r of receives) {
@@ -152,21 +151,12 @@ export function scheduleTradeRouteDeparture(
 }
 
 /**
- * Whether `establishTradeRoute` would actually open this route: the route
- * exists, is not already open, a completed player Market stands, and the
- * colony's reputation meets the route's requirement.
- *
- * Single definition of the route rule, shared with the auto-play bot
- * (`virtualPlayer.ts`), so the bot never claims an in-game hour with a route the
- * owner would refuse.
+ * Whether `establishTradeRoute` would actually open this route: it exists, is not already open, a
+ * completed player Market stands, and reputation meets the requirement.
  */
 /**
- * A route that only *buys* materials with coin — gold out, materials in, no gold back.
- *
- * These are the colony's way out of an empty larder or an empty timber pile, so they are
- * allowed to skip the Market requirement below: a Market costs 50 wood and 20 stone, which
- * is precisely what a colony that needs this route does not have. Without the exception the
- * only way back was a passing visitor caravan.
+ * A route that only buys materials with coin — gold out, materials in, no gold back — and may skip
+ * the Market requirement, since a colony needing it cannot afford the Market.
  */
 export function isMaterialPurchaseRoute(route: TradeRoute): boolean {
   const givesGoldOnly =
@@ -270,10 +260,8 @@ function spawnCaravan(state: WorldState, route: TradeRoute, ctx: TickContext): b
     return false;
   }
 
-  // ER-12: reserve the export goods at departure — the caravan physically loads
-  // them (no double-spend window, no empty-hand walks). If the carrier dies en
-  // route the goods are lost (deliberate: no refund; the route restarts and the
-  // next departure pays again).
+  // Reserve the exports at departure: the caravan physically loads them, so there is no
+  // double-spend window and a carrier that dies en route costs the goods.
   deductExports(state, route);
 
   const hub = getTradeHubCenter(state);
@@ -289,12 +277,8 @@ function spawnCaravan(state: WorldState, route: TradeRoute, ctx: TickContext): b
   moveResident(carrier, undefined, 'departure');
   carrier.relationshipStatus = 'single';
   carrier.reproductionCooldown = 9999;
-  // The carrier must go through the tick's canonical spawn path. Pushing it into
-  // `state.entities` alone lost it: `gameTick` rebuilds `state.entities` from the
-  // `allAlive` snapshot it built for this tick (plus `ctx.newEntities`), so a carrier
-  // created in the systems layer was dropped in the same tick it departed — the route
-  // then saw "no active carrier" again and the caravan could never travel.
-  // `pushNewEntity` also indexes it by id and adds it to the mobile spatial grid.
+  // The carrier must go through the tick's canonical spawn path, or `gameTick`'s entity rebuild
+  // drops it in the same tick; `pushNewEntity` also indexes it and adds it to the spatial grid.
   pushNewEntity(state, ctx, carrier);
   route.caravanCarrierId = carrier.id;
   route.caravanLeg = 'outbound';
@@ -306,13 +290,8 @@ function spawnCaravan(state: WorldState, route: TradeRoute, ctx: TickContext): b
 
 function hasActiveCarrier(state: WorldState, route: TradeRoute): boolean {
   if (route.caravanCarrierId == null) return false;
-  // `entityById` is the canonical id → living-entity map for this world (built from `state.entities`
-  // and kept in sync by `pushNewEntity` / the death paths). The previous form was a
-  // `state.entities.some(e => e.alive && e.id === id)` scan, once per active trade route on every
-  // systems pulse — 18 times a day — over every living entity including grass and trees. The original
-  // scan is kept as the map-miss fallback (`hotelStay`'s precedent) so an unindexed carrier is still
-  // found. `?.alive` rather than a bare `has()`: `buildingPlacementActions` clears `alive` on a
-  // demolished building's occupants without unindexing them, so the map can hold a corpse.
+  // `entityById` is the canonical id → living-entity map; the `state.entities` scan is the
+  // map-miss fallback, and `?.alive` guards a corpse the map may still hold.
   const carrierId = route.caravanCarrierId;
   const indexed = ensureEntityByIdMap(state).get(carrierId);
   if (indexed) return indexed.alive;
@@ -320,9 +299,8 @@ function hasActiveCarrier(state: WorldState, route: TradeRoute): boolean {
 }
 
 /**
- * Age a docked caravan's wait by `step` ticks — the systems layer owns it, because the countdown is
- * measured in ticks and the per-human throttle only reaches an off-screen caravan every 24 of them.
- * `caravanWaitTicks` is a tick count; `step` is the ticks one systems pulse covers.
+ * Age a docked caravan's wait by `step` ticks, owned by the systems layer because the countdown is
+ * measured in ticks while the per-human throttle only reaches an off-screen caravan every 24.
  */
 function countDownCaravanWait(state: WorldState, route: TradeRoute, step: number): void {
   if ((route.caravanWaitTicks ?? 0) > 0) {

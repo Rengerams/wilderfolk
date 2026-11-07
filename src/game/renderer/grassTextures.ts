@@ -1,22 +1,12 @@
 /**
- * Continuous, image-based understory material for v4 terrain.
- *
- * Original 512×512 tileable PNGs by Cethiel (CC0):
- * https://opengameart.org/content/tileable-grass-textures-set-1
- *
- * The Whittaker terrain bakes offline in world-aligned bands. Sampling decoded
- * albedo pixels by absolute world coordinates is crucial: independently baked
- * terrain chunks must have identical pixels at their shared boundaries.
- *
- * Source textures are loaded once during sprite preload and decoded once into
- * typed arrays, not decoded or drawn separately for every ground pixel.
+ * Understory material for v4 terrain. Albedos by Cethiel (CC0), 512×512 tileable:
+ * https://opengameart.org/content/tileable-grass-textures-set-1 — decoded once, sampled by world position.
  */
 import { MapPreset } from '../gameTypes';
 import { getSprite } from '../spriteLoader';
 
-// Curated 512px albedos from rubberduck's CC0 50-texture pack. Other albedos
-// remain available for future buildings/paths but are never loaded into the map
-// without a material that actually uses them.
+// Curated 512px albedos from rubberduck's CC0 pack; other albedos stay available for future
+// buildings/paths but are never loaded into the map without a material that uses them.
 export const TERRAIN_MATERIAL_PATHS = {
   sand: '/sprites/terrain/rubberduck/246.jpg',
   soil: '/sprites/terrain/rubberduck/206.jpg',
@@ -175,9 +165,8 @@ function smooth01(t: number): number {
 }
 
 /**
- * Adds palette-neutral RGB texture *detail* to the supplied reusable tuple.
- * The Whittaker ground owns colour and climate; this layer only supplies authored
- * leaves, grasses, and flower texture. No per-pixel objects or arrays are allocated.
+ * Adds palette-neutral RGB texture detail to the supplied tuple; the Whittaker ground owns colour and
+ * climate, and no per-pixel objects or arrays are allocated.
  */
 export function grassDetailAt(
   textures: GroundGrassTextures,

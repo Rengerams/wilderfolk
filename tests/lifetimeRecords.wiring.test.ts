@@ -1,15 +1,6 @@
 /**
- * The two lifetime records the Statistics panel shows are actually written.
- *
- * Both were declared, defaulted, normalized on load and cloned into the worker rollback payload,
- * but no code ever assigned them: `totalResourcesGathered` stayed `{0,0,0,0}` for a whole game
- * (the New Frontier export held all zeros after 888 buildings) and `mostProductiveYear` stayed
- * `{year: 0, buildings: 0}` while its player-facing card did not exist.
- *
- * `totalResourcesGathered` is written at the one place storage accepts a gain, so it follows
- * `addCappedResource`'s return value and can never record more than actually arrived. Iron is
- * deliberately outside the record — the stored shape is the four-key one every save reads.
- * `mostProductiveYear` is settled at the year boundary from the yearly records.
+ * `totalResourcesGathered` follows `addResource`'s accepted gain (four keys, no iron), and
+ * `mostProductiveYear` is settled at the year boundary.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

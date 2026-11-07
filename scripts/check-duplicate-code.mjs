@@ -1,9 +1,6 @@
 /**
- * Duplicate-code ratchet — baseline today's jscpd clones, fail only new ones.
- *
- * The standard gate already runs jscpd; this wrapper turns that report into a
- * stable fingerprint set so old duplication can be paid down without blocking
- * every PR on a full rewrite.
+ * Duplicate-code ratchet: fingerprints jscpd clones against a baseline so only new duplication fails
+ * the gate.
  */
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

@@ -1,7 +1,6 @@
 /**
- * Measured producers-run defects: an established affair was announced once per tick of the encounter
- * hour (three times a day, and again on every later night), a night's hotel lodging announced once per
- * check-in tick, and the auto-staff card blamed idle settlers while the only open posts were manual.
+ * The event log announces each settled outcome once: an affair, a hotel stay and the auto-staff
+ * result each produce one entry per occurrence, not one per checking tick.
  */
 import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';

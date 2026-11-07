@@ -1,12 +1,6 @@
 /**
- * BUG-1 (cadence audit 2026-08-15): election gossip ran twice on ceremony day
- * boundaries. The daily layer (tickStaticDaily) rolled tickElectionGossip
- * every day, and the ceremony's own tick gates (tick % 18 / % 24 in
- * tickElectionCeremony) rolled it again — and 72 % 18 === 0 and 72 % 24 === 0,
- * so the day-boundary tick got TWO gossip rolls during a ceremony's gossip or
- * tension phase. Fix: the daily layer skips gossip while a ceremony runs —
- * the ceremony's own gates already drive gossip then. This test pins the
- * daily-layer call (the ceremony's internal call is not observable from here).
+ * The daily layer must not roll election gossip while a ceremony runs — the ceremony's own
+ * tick gates already drive it, so a second roll would double it.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -35,9 +29,8 @@ function ceremonyWorld() {
 }
 
 /**
- * Run to just before the next day boundary and clear the spy. The colony now
- * founds at 08:00 (initGame starts at tick 24, not midnight), so the boundary
- * is computed relative to the start tick instead of assuming tick 0.
+ * Run to just before the next day boundary and clear the spy. The colony founds at 08:00, so the
+ * boundary is computed from the start tick rather than assumed at tick 0.
  */
 function runToDayBoundary(world: ReturnType<typeof initGame>, gameTick: typeof import('../src/game/gameTick').gameTick, tickElectionGossip: typeof import('../src/game/villageLeadership').tickElectionGossip) {
   const boundary = tickAtDailyPhase(Math.max(0, Math.ceil((world.tick - tickAtDailyPhase(0, 'production')) / TICKS_PER_DAY)), 'production');

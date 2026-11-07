@@ -1,16 +1,6 @@
 /**
- * F10 — homelessness with a house standing was invisible on the priority strip
- * (`docs/private/audits/2026-09-16/playability-gamefeel.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * The strip spoke about housing only when **no** house existed (`need-shelter`, critical), so the
- * ordinary case was silent: immigration outruns housing by design, beds run out, and a settler with no
- * `residenceBuildingId` never gets the home-rest saving in `humanNeeds` while nothing on screen says so.
- * `housing-short` now fires whenever a player settler has no bed *and* a residence stands.
- *
- * Prisoners are excluded on purpose. Imprisonment clears `residenceBuildingId` (`housingModel`
- * `isImprisoned` → `prisonBuildingId != null`), so a jailed settler looks homeless to a naive
- * `residenceBuildingId == null` count — the same mistake `collectHousingDiagnostics` still makes in its
- * `unassignedPlayerHumans` figure (`housingDiagnostics.ts:39`), which is how the audit found this.
+ * `housing-short` fires whenever a player settler has no bed *and* a residence stands; prisoners are
+ * excluded because imprisonment clears `residenceBuildingId`.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, MapSize } from '../src/game/gameTypes';

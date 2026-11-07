@@ -513,9 +513,8 @@ export function drawHuntChaseLines(ctx: CanvasRenderingContext2D, state: RenderS
   };
 
   if (state.renderSoA) {
-    // The SoA bucket builder already made `shimById` for this tick; iterating the two draw buckets
-    // directly avoids the per-repaint `[..._tickAnimals, ..._tickHumans]` spread and the per-repaint
-    // id Map rebuild.
+    // The SoA bucket builder already made `shimById` for this tick, so iterating the draw buckets
+    // avoids the per-repaint spread and id Map rebuild.
     const buckets = _renderSoABuckets ?? getRenderSoABuckets();
     const byId = buckets.shimById;
     for (const hunter of _tickAnimals) drawHunterLine(hunter, byId);
@@ -549,9 +548,8 @@ export function drawHuntVisuals(ctx: CanvasRenderingContext2D, state: RenderSnap
     const mx = sx + (tx - sx) * progress;
     const my = sy + (ty - sy) * progress;
 
-    // A physical arrow is rendered at the hunter's projectile position. Do not
-    // draw a map-sized dotted tracer: a Hunting Spot is a workplace, not a tower
-    // with an automatic beam weapon.
+    // A physical arrow is drawn at the hunter's projectile position; no map-sized dotted tracer — a
+    // Hunting Spot is a workplace, not a tower with a beam weapon.
     const angle = Math.atan2(ty - sy, tx - sx);
     const arrowLength = Math.max(8, 13 * cam.zoom);
     const shaftHalf = arrowLength * 0.48;
@@ -605,13 +603,8 @@ export function drawCombatBurst(ctx: CanvasRenderingContext2D, sx: number, sy: n
 }
 
 /**
- * Zoomed-out settler LOD: one small dot instead of the full sprite.
- *
- * Skips every per-settler cost the sprite path pays — frame lookup, walk frame, contact
- * shadow, bob, status badge, speech bubble and name plate — which is both the
- * readability fix and the frame-cost fix for a 200+ citizen village. The dot keeps the
- * settler's own class colour (visitors cyan, rivals orange, the leader gold and
- * crowned) so national and social identity survive the zoom-out.
+ * Zoomed-out settler LOD: one small dot instead of the full sprite, skipping the sprite path's
+ * per-settler costs. The dot keeps the settler's own class colour through the zoom-out.
  */
 function drawHumanMarker(
   ctx: CanvasRenderingContext2D,
@@ -647,17 +640,8 @@ function drawHumanMarker(
 }
 
 /**
- * The village leader's aura — gold ground rings, head halo and crown — drawn in the per-frame
- * overlay pass, and the **only** owner of it.
- *
- * The aura pulses on `renderTime`, which advances every frame, while the world entity bitmap is
- * repainted only when its layer key changes: once per simulation tick, and never while paused. An
- * aura painted into that bitmap therefore froze at whatever phase the last rebake caught, which is
- * why this lives outside {@link drawHumans}.
- *
- * It re-derives exactly the leader that pass would have drawn an aura for: the same
- * `villageLeaderId` + faction test, the same zoom floor, the same "asleep at home is hidden unless
- * selected" rule, and no aura in marker mode (the zoomed-out marker draws its own crown).
+ * The village leader's aura — ground rings, halo and crown — the only owner of it, drawn in the
+ * per-frame overlay pass because the entity bitmap only rebakes on a layer-key change.
  */
 export function drawLeaderAuraOverlay(
   ctx: CanvasRenderingContext2D,
@@ -808,10 +792,8 @@ export function drawHumans(
       if (isDrawableSpriteFrame(frame)) {
         const aspect = frame.sw / frame.sh;
         const anchorY = frame.anchorY ?? 1;
-        // A child's canvas carries transparent padding around its figure, so grow the drawn box by
-        // `1 / figure fraction`: the painted figure, not the canvas, is what has to match the shared
-        // `spriteH`. Keeping `spriteH` figure-sized leaves headY, the contact shadow and the
-        // selection ring measured against the figure rather than the padded canvas.
+        // A child's canvas carries transparent padding, so grow the drawn box by `1 / figure fraction`:
+        // the painted figure, not the canvas, has to match the shared `spriteH`.
         const boxH = human.isJuvenile ? spriteH * getJuvenileFigureScale(human) : spriteH;
         drawSpriteFrame(
           ctx, frame, sx, footY, boxH * aspect, boxH,
@@ -845,9 +827,8 @@ export function drawHumans(
     const isTalking = spotlightSpeech !== null
       || (state.spotlightLore?.phase !== 'ready' && (human.chatTicks ?? 0) > 0);
 
-    // Every plate is laid out before any bubble is placed, so a bubble dodges its own speaker's
-    // name plate and a neighbour's whatever order the settlers are drawn in.
-    // A running performance shows no overhead markers: plates and status badges buried the cast.
+    // Every plate is laid out before any bubble is placed, so a bubble dodges its speaker's name plate
+    // and a neighbour's. A running performance shows no overhead markers: they buried the cast.
     const stageHidesOverhead = state.spotlightLore?.phase === 'ready';
     const nameZoomMin = isLeader ? 0.28 : (human.isJuvenile ? 0.38 : 0.45);
     const labelY = headY - 4 - (isLeader && cam.zoom > 0.22 ? Math.max(10, 12 * cam.zoom) : 0);
@@ -879,8 +860,7 @@ export function drawHumans(
     }
 
     // The leader's aura is deliberately NOT drawn here: it pulses on `renderTime` while this painter
-    // feeds a bitmap that is only repainted when its layer key changes. `drawLeaderAuraOverlay` owns
-    // it, in the per-frame overlay pass.
+    // feeds a bitmap that only rebakes on a layer-key change. `drawLeaderAuraOverlay` owns it.
 
     // Status badge
     if (cam.zoom > 0.6 && !stageHidesOverhead) {

@@ -23,12 +23,8 @@ import { getProjectedFoodSupply, isMeasuredFoodDeficit, isProjectedFoodShortfall
 import { pushNewEntity } from './simulation/simulationEntities';
 
 /**
- * Automatic immigration should not admit a family on the strength of a
- * well-stocked but shrinking larder. Compare real completed-day production
- * with the projected need including the largest admissible new family.
- * A documented sixty-day stored-food runway permits limited early expansion
- * but never overrides an actual recorded deficit. Sparse startup history
- * retains bootstrap immigration.
+ * Automatic immigration needs real completed-day production to cover the projected need; sparse
+ * startup history still bootstraps, but stored food must leave a documented runway untouched.
  */
 export function canSupportImmigration(
   state: Pick<WorldState, 'tick' | 'foodHistory'> & Partial<Pick<WorldState, 'resources'>>,
@@ -42,11 +38,8 @@ export function canSupportImmigration(
   if (!isProjectedFoodShortfall(state, upcomingDailyNeed,
     VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)) return true;
 
-  // A forecast gap for a *new* family is not today's food deficit. Founding
-  // colonies can still welcome a few settlers if the observed harvest and
-  // stocked provisions together cover sixty days of the projected shortfall,
-  // with two further weeks of food untouched. This prevents an early all-growth
-  // freeze without ever accepting arrivals into an actual measured deficit.
+  // A forecast gap is not today's deficit: founding colonies may welcome a family while observed
+  // harvest plus stores cover sixty days of the gap, with two further weeks untouched.
   const outlook = getProjectedFoodSupply(state, upcomingDailyNeed);
   const stocked = state.resources?.food ?? 0;
   if (!outlook || !Number.isFinite(stocked)) return false;
@@ -94,12 +87,8 @@ function tickImmigration(
 
   const openSlots = state.maxHumanPopulation - counts.humans;
 
-  // Reached exactly once per colony day: `gameTick` calls `tickLayerDaily` only when
-  // `state.tick % TICKS_PER_DAY === 0`, and that layer is the only caller of this function. The
-  // roll is therefore a daily decision, and it must stay one — calling this a second time in the
-  // same day would roll the `dailyPopulation` stream again and admit a second family.
-  // Seeded: immigration is part of the world state, so the same day of the same seed admits
-  // the same family. Resolved here because `setSimSeed` drops cached streams.
+  // Once per colony day: `tickLayerDaily` is the only caller, and a second roll would admit
+  // another family from the same seeded `dailyPopulation` stream.
   const rng = getSimRng('dailyPopulation');
   if (
     state.tick > 0 &&
@@ -131,11 +120,8 @@ function tickImmigration(
       // 2. Living entities array for current frame
       allAlive.push(newcomer);
 
-      // 3. Canonical spawn bookkeeping: ctx.newEntities (worker delta), entityById, and the
-      // spatial grids. The grids are the point — this daily layer runs *after* the tick's
-      // `assertSpatialGridInvariants`, and the previous hand-rolled `indexEntity` left the
-      // newcomer invisible to social/hunt queries for the rest of the tick
-      // (`BUG_REPORTS/2026-09-16-daily-immigrant-bypasses-the-spatial-grid.md`).
+      // 3. Canonical spawn bookkeeping: ctx.newEntities, entityById and the spatial grids, so
+      // this tick's social and hunt queries can see the newcomer.
       pushNewEntity(state, ctx, newcomer);
 
       // 4. id → living map used by the optimistic display path

@@ -124,22 +124,16 @@ export function computeCitizenOverview(world: WorldState): CitizenOverviewStats 
     if (e.pregnant) pregnant++;
     if (isMarriedOrExpecting(e)) married++;
     if (e.affairPartnerId != null && e.id < e.affairPartnerId) affairs++;
-    // A youth-love link is a mutual bond, but count one half only — the same convention `affairs`
-    // above and the diagnostics flush's `activeYouthLovePairs` use. Counting both halves would
-    // report a single sweetheart pair as two.
+    // A youth-love link is mutual; count one half only, like `affairs` above, so a pair reads as
+    // one sweetheart couple rather than two.
     if (e.youthLovePartnerId != null && e.id < e.youthLovePartnerId) youthLove++;
     if ((e.griefUntilTick ?? 0) > tick) grieving++;
   }
 
   const homeless = countHomelessSettlers(world);
 
-  // Affairs *established this year*, from the log the Chronicle already reads. The live count above
-  // is a snapshot of a deliberately short-lived state — measured on the engine gate (`test:full-year`,
-  // 360 days, 70 settlers) the instantaneous count averages **0.2 per day** and is non-zero on only
-  // **35 of 360** days in a year that established **93** affairs — so a snapshot alone reads zero
-  // almost always and the feature looked absent from play. The phrase is the affair owner's constant,
-  // not a copy of it. The cap holds a year comfortably at this scale: the same run logged 230
-  // scandal lines, against a `EVENT_LOG_MAX_ENTRIES` of 6 000.
+  // Affairs established this year, read from the event-log phrase the affair owner defines; the live
+  // count above is a short-lived snapshot that reads zero most days.
   const affairsThisYear = world.eventLog.reduce(
     (count, entry) => (
       entry.year === world.year && entry.message.includes(AFFAIR_ESTABLISHED_LOG_PHRASE)
@@ -149,9 +143,7 @@ export function computeCitizenOverview(world: WorldState): CitizenOverviewStats 
     0,
   );
 
-  // Today's balance is the ledger owner's, not a second sum of the same map. `summarizeFoodLedger`
-  // reads the totals the ledger maintains (with the stale-save fallback it documents), so the People
-  // screen's "Today ±N" and the dashboard's "Net change" cannot report two balances for one day
+  // Today's balance is the ledger owner's (`summarizeFoodLedger`), not a second sum of the same map.
   const foodNetToday = summarizeFoodLedger(world).net;
 
   const base = {

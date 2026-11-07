@@ -9,10 +9,8 @@ import {
   withSpatialQuery,
 } from './spatialQueryMetrics';
 
-// ---------------------------------------------------------------------------
-// Spatial query gateway — sim hot paths call only these helpers so metrics
-// (queries / candidates / cells) stay consistent across grid and naive modes.
-// ---------------------------------------------------------------------------
+// Spatial query gateway — sim hot paths call only these helpers so metrics (queries / candidates /
+// cells) stay consistent across grid and naive modes.
 
 /** O(1) alive lookup by entity id (rebuilt once per tick). */
 export function getLivingEntity(
@@ -175,10 +173,8 @@ const REPRO_WILDLIFE_TYPES: EntityType[] = [
   EntityType.Deer,
   EntityType.Wolf,
   EntityType.Fox,
-  // Wildkin is ticked as wildlife and carries a `reproductionChance`/`reproductionCooldown`
-  // (tickLayerSystems WILDLIFE_TICK_TYPES + its reproduction block), so leaving it out of this
-  // list made `wildlifeTypePopulation` report 0 for it forever: its 35-population cap never
-  // applied and it permanently bred with the full scarcity boost.
+  // Wildkin is ticked as wildlife and carries reproduction chance/cooldown; leaving it out made
+  // `wildlifeTypePopulation` report 0 forever, so its cap never applied.
   EntityType.Wildkin,
 ];
 

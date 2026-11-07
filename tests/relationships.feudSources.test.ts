@@ -1,7 +1,6 @@
 /**
- * The daily social pulse's own feud source: two settlers whose conflicting aptitudes raise the
- * pair's friction and who share a home, workplace or job drift into a feud, mirroring how the same
- * grouping grows a friendship.
+ * The daily social pulse's feud source: conflicting aptitudes raise a pair's friction, and sharing a
+ * home, workplace or job drifts them into a feud, mirroring friendship growth.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';

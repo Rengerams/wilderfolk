@@ -1,7 +1,6 @@
 /**
- * The prison roster: three nine-hour shifts with a one-hour handover, assigned to the crew and
- * rotated weekly. The duty pass reads only these rules, so the arithmetic is what keeps a prison
- * staffed or leaking.
+ * The prison roster: three nine-hour shifts with one-hour handovers, rotated weekly. The duty pass
+ * reads only these rules, so the arithmetic is what keeps a prison staffed.
  */
 import { describe, expect, it } from 'vitest';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';

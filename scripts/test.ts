@@ -1,17 +1,6 @@
 /**
- * External layer profiler — does not modify gameTick or any tick layer.
- *
- * Runs one independent V8 CPU profile per population tier and reports the
- * CPU share of tickLayerRealtime, tickLayerSystems, and tickLayerDaily.
- * Grass and trees remain in the world unless SIM_STRIP_ECOLOGY=1 is supplied.
- *
- * Run:
- *   PERF_TICKS=120 SIM_FULL_SIM=1 npx tsx scripts/perf-layer-profile.ts
- *
- * Optional:
- *   SIM_LAYER_MAX_POP=1200   highest tier, in 200-human increments
- *   PERF_WARMUP=30
- *   SIM_STRIP_ECOLOGY=1      intentionally remove grass and trees
+ * External layer profiler: one V8 CPU profile per population tier; reports realtime/systems/daily
+ * shares. Env: PERF_TICKS, SIM_FULL_SIM, SIM_LAYER_MAX_POP, PERF_WARMUP, SIM_STRIP_ECOLOGY. Run: `npx tsx scripts/test.ts`.
  */
 import { Session } from 'node:inspector/promises';
 import { gameTick, initGame } from '../src/game/gameEngine';
@@ -27,7 +16,7 @@ const WARMUP = Number(process.env.PERF_WARMUP ?? 30);
 const FULL_SIM = process.env.SIM_FULL_SIM === '1';
 const STRIP_ECOLOGY = process.env.SIM_STRIP_ECOLOGY === '1';
 const SIM_SPEED = Number(process.env.SIM_SPEED ?? 1);
-// Keep in sync with `gameLoop.BASE_TICKS_PER_SECOND` (1 tick/s → a 72 s in-game day at 1×);
+// Keep in sync with `gameLoop.BASE_TICKS_PER_SECOND` (1 tick/s → a 288 s in-game day at 1×);
 // `tests/gameLoop.test.ts` fails if this copy drifts.
 const BASE_TICKS_PER_SECOND = 1;
 const TICK_INTERVAL_MS = 1000 / (BASE_TICKS_PER_SECOND * SIM_SPEED);

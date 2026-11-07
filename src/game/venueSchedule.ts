@@ -11,19 +11,8 @@ export const DEFAULT_TAVERN_SCHEDULE: VenueSchedule = Object.freeze({ startHour:
 export const DEFAULT_HOTEL_SCHEDULE: VenueSchedule = Object.freeze({ startHour: 6, endHour: 22 });
 
 /**
- * One settler covers a venue service window up to this many hours; a window longer
- * than it needs an extra settler ("if its goes over 8 hrs a extra person should go
- * work at the place", clarified by the owner: "well 9 hrs also fin" — 9 hours is
- * still one person, so the divisor is 9, not 8).
- *
- * `getVenueAutoStaffingTarget` therefore returns `ceil(hours / 9)` bounded below by
- * one settler and above by the building's own crew cap. Hotels additionally reserve
- * a one-hour shift handover: 1–9h → 1, 10–17h → 2, 18–23h → 3.
- *
- * The service window itself has **no length restriction** — the owner removed both the
- * old 18-hour cap and the 4-hour floor ("they should be no restrictrion for normal work
- * or hotel or cafe"). The only remaining bound is that a window cannot wrap through
- * midnight, so 23 hours (00:00–23:00) is the widest legal one and 1 hour the narrowest.
+ * One settler covers a venue service window up to this many hours; longer windows add a settler.
+ * The window itself has no length limit beyond not wrapping through midnight.
  */
 export const STANDARD_WORK_HOURS = 9;
 /** An hour of shared handover when the hotel has multiple shifts. */
@@ -42,9 +31,8 @@ export function getVenueSchedule(state: Pick<WorldState, 'tavernSchedule' | 'hot
 }
 
 /**
- * Validates candidate service hours. Pass the venue's current schedule to have an unchanged
- * window reported as `'unchanged'` rather than `'accepted'` — the panel uses that to say no
- * command will be sent (mirrors `workSchedule.validateWorkSchedule`).
+ * Validates candidate service hours; pass the venue's current schedule to report an unchanged window
+ * as `'unchanged'` rather than `'accepted'`.
  */
 export function validateVenueSchedule(
   startHour: unknown,
@@ -55,10 +43,8 @@ export function validateVenueSchedule(
     return { ok: false, status: 'blocked', reason: 'Venue hours must use whole clock hours from 0 through 23.' };
   }
   if (endHour <= startHour) return { ok: false, status: 'blocked', reason: 'Venue service hours cannot wrap through midnight.' };
-  // No minimum and no maximum on purpose: the owner chooses how long a venue stays
-  // open ("they should be no restrictrion for normal work or hotel or cafe"), and a
-  // longer window is covered by an extra settler (see `STANDARD_WORK_HOURS`) rather
-  // than refused. `endHour <= startHour` above is the only width limit that remains.
+  // No minimum and no maximum on purpose: the owner chooses how long a venue stays open, and a
+  // longer window is covered by an extra settler; `endHour <= startHour` is the only width limit.
   if (currentSchedule && currentSchedule.startHour === startHour && currentSchedule.endHour === endHour) {
     return { ok: true, status: 'unchanged', schedule: { startHour, endHour } };
   }
@@ -91,13 +77,8 @@ export function getVenueScheduleHours(schedule: VenueSchedule): number {
 }
 
 /**
- * Minimum Auto staff a venue needs for its service window: one settler up to
- * `STANDARD_WORK_HOURS` (9) hours, then an extra one per further nine hours —
- * 1–9h → 1, 10–18h → 2, 19h+ → 3 for taverns. Hotels reserve a one-hour
- * shift overlap, so 18–23h needs three instead of two. Always respect crew cap.
- *
- * This is the "if its goes over 8 hrs a extra person should go work at the place"
- * rule; a venue open all day is covered by more staff, never refused.
+ * Minimum Auto staff for a service window: one settler up to `STANDARD_WORK_HOURS`, then one per
+ * further `STANDARD_WORK_HOURS`; hotels reserve a one-hour handover. Always respect crew cap.
  */
 export function getVenueAutoStaffingTarget(
   state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
@@ -114,12 +95,8 @@ export function getVenueAutoStaffingTarget(
 }
 
 /**
- * The slice of a venue's service window one crew place covers.
- *
- * Taverns split coverage evenly; hotels stagger up to 9h shifts with a one-hour overlap,
- * so this is the only place that arithmetic lives:
- * `isVenueWorkerServiceHour` reads this window and a caller that needs to name the hour a place
- * starts reads the same numbers.
+ * The slice of a venue's service window one crew place covers: taverns split evenly, hotels
+ * stagger up to 9h shifts with a one-hour overlap.
  */
 export function getVenueWorkerServiceWindow(
   state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
@@ -136,10 +113,8 @@ export function getVenueWorkerServiceWindow(
     const start = schedule.startHour + workerIndex * duration;
     return { startHour: start, endHour: Math.min(schedule.endHour, start + duration) };
   }
-  // Hotel workers never exceed 9 hours, including manual-staff buildings.
-  // Distribute available crew across the entire opening window with up to one
-  // hour of handover at each boundary when enough workers are present.
-  // Example: 06–23 with two workers => 06–15 and 14–23.
+  // Hotel workers never exceed 9 hours; distribute the crew across the whole window with up to an
+  // hour of handover at each boundary (06–23 with two workers → 06–15 and 14–23).
   const desired = (hours + HOTEL_SHIFT_OVERLAP_HOURS * (count - 1)) / count;
   const duration = Math.min(STANDARD_WORK_HOURS, desired);
   const step = count === 1 ? 0 : (hours - duration) / (count - 1);

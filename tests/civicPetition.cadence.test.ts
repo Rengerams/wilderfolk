@@ -1,18 +1,6 @@
 /**
- * A civic petition is resolved once per colony day, by the town-hall owner.
- *
- * `resolveCivicPetition` is gated by a **day-stable** roll (`personDayRoll(id, tick, 821 + day)`),
- * but it was called from two realtime paths — the free-time petition helper and
- * `officialHandlePetitioners` — which both run every tick while the settler or official
- * stands at the hall. A roll that passed, therefore passed for all 72 ticks of the day, so
- * the petition's effects repeated at tick rate: +0.06 Official skill for every hall occupant
- * per tick, +1 reputation on the "heard" branch until reputation saturated at 100, and
- * food/gold aid spent per tick.
- *
- * The realtime paths are now cosmetic (the free-time walking motive stays; the official only
- * greets), and `tickTownHallAudiences` — the daily owner — is the single resolver. These
- * tests pin both halves: the official's per-tick greeting changes no state, and the daily
- * pulse still resolves a petition.
+ * A civic petition is resolved once per colony day: `tickTownHallAudiences` is the single resolver,
+ * and the realtime paths only walk and greet.
  */
 import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';

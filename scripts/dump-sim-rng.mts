@@ -1,14 +1,6 @@
 /**
- * Golden-master RNG dumper — the TypeScript oracle for the Godot port.
- *
- * Emits the exact uint32 numerators behind every Mulberry32 draw so the
- * GDScript port can be compared as INTEGERS. A draw is `u32 / 2**32`, and
- * that division is exact in binary floating point, so
- * `Math.round(stream() * 4294967296)` recovers the true uint32 with zero
- * precision loss. Comparing integers removes all float-format risk.
- *
- * Uses the real simRng exports (not a reimplementation) so the fixture can
- * never drift from production behaviour.
+ * Golden-master RNG dumper: emits the uint32 numerators behind every Mulberry32 draw so the GDScript
+ * port compares integers. Uses the real `simRng` exports. Run: `npx tsx scripts/dump-sim-rng.mts [out]`.
  */
 import { writeFileSync } from 'node:fs';
 import { createSeededRng, hashSalt, seededRandom } from '../src/game/simRng';
@@ -73,9 +65,8 @@ if (repro !== first) throw new Error(`oracle self-check failed: ${repro} !== ${f
 const json = JSON.stringify(fixture, null, 2);
 
 /**
- * Write the fixture from Node in UTF-8. Do NOT rely on shell redirection:
- * Windows PowerShell 5.1's `>` emits UTF-16LE (BOM FF FE), which Godot's
- * FileAccess reads as NUL-interleaved bytes and fails to JSON-parse.
+ * Write from Node in UTF-8: PowerShell 5.1's `>` emits UTF-16LE, which Godot's FileAccess cannot
+ * JSON-parse.
  */
 const target = process.argv[2] ?? '../Wilderfolk2/tests/fixtures/sim_rng_golden.json';
 writeFileSync(target, json + '\n', 'utf8');

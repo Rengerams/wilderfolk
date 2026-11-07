@@ -1,11 +1,6 @@
 /**
- * The Wildkin's chronicle lines — where the half-human creature is, at the three moments a player
- * can act on: its birth, the first time it comes near the settlement, and its death.
- *
- * Nothing here invents a naming scheme. A place is named from owners that already exist: the
- * biome cell the generator classified (`terrain/biomes`, the vocabulary the map is built from), the
- * nearest player building as the settlement anchor, and two plain distance bands. Everything goes
- * through `eventLog.logEvent`, the one chronicle writer.
+ * The Wildkin's chronicle lines — where the half-human creature is at the three moments a player can
+ * act on: birth, first approach to the settlement, death. Places are named from existing owners only.
  */
 import { EntityType, type Entity, type WorldState } from './gameTypes';
 import { BIOME_BY_IDX } from './terrain/biomes';
@@ -15,12 +10,8 @@ import { isPlayerHuman } from './playerHuman';
 import { logEvent } from './eventLog';
 
 /**
- * How near the settlement the creature has to come before its arrival is chronicled, in world units.
- *
- * Four biome cells — measured, not chosen for flavour: the map is 256×192 wu at the default size,
- * and the Wildkin's `wanderRadius` is 90, so it holds to a patch several hundred units across. Under
- * this band it is at the settlement rather than roaming the wilds, which is the one moment worth a
- * line; a creature that never approaches is never announced.
+ * How near the settlement the creature must come before its arrival is chronicled, in world units:
+ * four biome cells, the band at which it is at the settlement rather than roaming the wilds.
  */
 export const WILDKIN_SETTLEMENT_RANGE_WU = TERRAIN_CELL * 4;
 
@@ -46,9 +37,8 @@ function compassSector(dx: number, dy: number): string {
 }
 
 /**
- * The biome cell the generator classified at a world position, or `null` off-map / legacy map.
- * The cell axis comes from the one owner of the clamp (`spatialGrid.gridCellAxis`), so a world
- * position lands on the same cell here as it does in every uniform grid.
+ * The biome cell the generator classified at a world position, or `null` off-map / legacy map. The cell
+ * axis comes from `spatialGrid.gridCellAxis`, so a position lands on the same cell as every uniform grid.
  */
 export function biomeNameAt(state: WorldState, x: number, y: number): string | null {
   const map = state.worldMap;
@@ -122,9 +112,8 @@ export function logWildkinBirth(state: WorldState, entity: Entity, motherName: s
 }
 
 /**
- * Death chronicle line, carrying where it died. Not `logDeath`: that announces a settler's death to
- * the HUD, and this is not a settler. No age suffix either — `formatDeathAgeSuffix` reads human life
- * stages ("child" below 18), which would label a 4-year-old Wildkin a child.
+ * Death chronicle line, carrying where it died. Not `logDeath` (that announces a settler), and no age
+ * suffix: `formatDeathAgeSuffix` reads human life stages and would label a 4-year-old Wildkin a child.
  */
 export function logWildkinDeath(state: WorldState, entity: Entity): void {
   logEvent(

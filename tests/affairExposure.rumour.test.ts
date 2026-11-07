@@ -1,19 +1,6 @@
 /**
- * Daily affair gossip produces a rumour, never an unwitnessed "caught in the act".
- *
- * `tryDailyAffairGossip` used to pick its exposure reason with
- * `pickAffairExposureReason`, which discarded its arguments and returned `'caught'` on a
- * flat 22% roll gated only by the existence of a staffed prison. `exposeAffair` treats
- * `'caught'` very differently from `'rumor'`: it logs "X was caught with Y", **arrests both
- * partners**, and calls `tryDivorceOnCaughtCheater(..., caughtInAct = true)`, which skips the
- * `isSpouseNearby` gate and forces `divorceChance = 1`. A merely gossiped-about pair could
- * therefore be jailed and forcibly divorced while the Chronicle claimed they were caught.
- *
- * The caught-in-the-act verdict is a *spatial* event and already lives in
- * `tryExposeCaughtAffair` — that path checks `isSpouseNearby(cheater) || isSpouseNearby(paramour)
- * || walkInAtHome` and returns early without a witness. The daily gossip path now passes
- * `'rumor'` unconditionally, which is what `SIMULATION_AUTHORITY.md` §4 requires of the
- * new-calendar-day owner.
+ * Daily affair gossip produces a rumour; the caught-in-the-act verdict stays with
+ * `tryExposeCaughtAffair`, the only path that checks for a witness.
  */
 import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
@@ -171,9 +158,8 @@ describe('affair gossip is a rumour, not an unwitnessed arrest', () => {
 });
 
 /**
- * A jailing raises one toast that is gone four notifications later, so a player who is not watching
- * the corner misses a rare event entirely. The card (`bigNews`) is the notice that waits, and it
- * must appear for exactly the offenders who were actually jailed.
+ * A jailing's toast is transient; the `bigNews` card is the notice that waits, and it must
+ * appear for exactly the offenders who were actually jailed.
  */
 describe('a jailing raises a card the player cannot miss', () => {
   function makeCaughtWorld(seed: number, withGuard: boolean): ReturnType<typeof makeWorld> {

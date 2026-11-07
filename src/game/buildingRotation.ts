@@ -8,15 +8,8 @@ export type BuildingRotation = 0 | 90;
 export type CornerRotation = 0 | 90 | 180 | 270;
 
 /**
- * Types whose rotation the player may change.
- *
- * `BuildingRotation` is `0 | 90` and a 90° turn is applied by rotating the **sprite** (`spriteDrawing`),
- * which is the right meaning for a flat strip — the run axis — and the wrong one for a building drawn
- * with height. A Watchtower at 90 was therefore drawn lying on its side, and the `flipX` special case in
- * `renderer/buildings.ts` existed only to mirror that sideways sprite into something plausible. The
- * Watchtower is out of this set: its art has one correct orientation, so the rotate key does nothing for
- * it rather than tipping it over. `Bridge` is still in the set and is **not** a strip type either, so it
- * has the same defect — left as-is pending an owner decision.
+ * Types whose rotation the player may change — strip types, whose art rotates as a run axis.
+ * Height-drawn buildings like the Watchtower stay out: their art has one correct orientation.
  */
 const ROTATABLE = new Set<BuildingType>([
   BuildingType.Road,
@@ -57,14 +50,7 @@ export function placementRotationFor(rotation: BuildingRotation | CornerRotation
 
 /**
  * The rotation to actually apply to a building — its stored rotation when the player may rotate that
- * type, and none otherwise.
- *
- * `BuildingRotation` is a **run axis** for a flat strip and a **sprite rotation** for everything else,
- * which is why a Watchtower at 90 was drawn lying on its side. Rotating is only offered for the types
- * in `ROTATABLE`, and selecting a build type resets `buildRotation` to 0 (`App.tsx`), so a rotation on
- * a non-rotatable building can only come from an older save — where it must still not be applied, or
- * that tower draws into the ground. One definition, so the completed pass and the construction pass
- * cannot disagree about which way a building faces.
+ * type, and none otherwise, so an old save cannot draw a height-drawn building into the ground.
  */
 export function effectiveBuildingRotation(type: BuildingType, rotation: unknown): BuildingRotation {
   return isRotatableBuildingType(type) ? normalizeBuildingRotation(rotation) : 0;
@@ -110,13 +96,7 @@ export function snapBuildingCenter(
 }
 
 export function isEntityOnBuilding(entityX: number, entityY: number, building: Building, margin = 12): boolean {
-  // `building.x/y` is the footprint centre (`placementUtils.getBuildingCenter`), so the ground the
-  // building stands on is the owner's rect, padded outwards by `margin`. Reading `x … x + width` here
-  // treated the stored point as the top-left corner: for a 53 × 46 Farm it accepted ground up to
-  // 13.5 px outside the drawn pad on the east/south and missed the whole west/north half, so
-  // `isInsideCompletedBuilding` let settlers spawn inside a house and the cure-window sweep read a
-  // howler in that half as outdoors (`LIVE-FINDINGS-STATUS.md`, X-6 / PARKED-1). The comparisons stay
-  // inclusive at the padded edge, as the corner form's `>=`/`<=` were.
+  // `building.x/y` is the footprint centre, so the ground is the owner's rect padded by `margin`.
   const rect = getBuildingFootprintRect(building);
   return (
     entityX >= rect.left - margin

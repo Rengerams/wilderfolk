@@ -1,9 +1,6 @@
 /**
- * Regression: the autumn-migration state must survive save/load.
- * A save made mid-migration used to drop activeMigration + the herd memory
- * (whitelist miss) — the tagged deer then lingered forever as permanent extra
- * deer and next year's herd forgot the hunt. The save schema now carries
- * activeMigration / migrationNextHerdSize / migrationTag.
+ * The autumn-migration state survives save/load: the save schema carries
+ * `activeMigration`, `migrationNextHerdSize` and `migrationTag`.
  */
 import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';

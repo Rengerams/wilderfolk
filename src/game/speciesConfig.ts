@@ -9,9 +9,8 @@ export interface SpeciesConfig {
   /** Energy gained from consuming specific prey or forage items. */
   readonly energyGain: Readonly<Record<string, number>>;
   /**
-   * Maximum natural lifespan.
-   * Note: Wildlife, flora, and monsters are in simulation days (years * 365);
-   * humans track integer calendar years directly.
+   * Maximum natural lifespan: wildlife, flora and monsters in simulation days (years × 365); humans in
+   * integer calendar years.
    */
   readonly maxAge: number;
   /** Base movement speed in pixels per tick. */

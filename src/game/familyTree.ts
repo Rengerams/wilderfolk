@@ -508,11 +508,8 @@ export function groupFamiliesBySurname(allEntities: readonly Entity[]): FamilySu
 }
 
 /**
- * One family line: everyone descending from the same settler who has no recorded parent.
- *
- * Descent, not a surname. A surname is a label the sim also gives out by marriage, by adoption and
- * from a random pool, so two unrelated settlers can share one; a parent link cannot be acquired by
- * accident. The root is a founding household, or the household a later arrival came as.
+ * One family line: everyone descending from the same settler with no recorded parent. Descent, not a
+ * surname — a surname is also given by marriage, adoption and a random pool, so two lines can share one.
  */
 export interface FamilyLineageGroup {
   /** The parentless settler heading this line, or the lower id of a founding couple. */
@@ -807,16 +804,14 @@ function relationLabelOf(focus: Entity, person: Entity, delta: number, flags: Re
   if (delta === 0) {
     if (flags.isPartner) return 'Spouse';
     if (flags.isSibling) return 'Sibling';
-    // A bond is a relation of its own, and must not read as a kin word it is not: a sweetheart is
-    // neither an in-law nor a co-parent, and an affair is not a marriage. A live courtship outranks a
-    // past marriage — it is what the settler is doing now, and `Former spouse` rides along as a bond.
+    // A bond is a relation of its own and must not read as a kin word it is not: a sweetheart is
+    // neither in-law nor co-parent, an affair is not a marriage, and a live courtship outranks a past one.
     if (flags.isCourting) return RELATION_LABEL.courting;
     if (flags.isSweetheart) return RELATION_LABEL.sweetheart;
     if (flags.isLover) return RELATION_LABEL.affair;
     if (flags.isFormerPartner) return RELATION_LABEL.former_spouse;
-    // A divorce clears both `partnerId` links, so a former spouse arrives here as a co-parent: the
-    // children they share are what still ties them to the focus. Blood keeps its own word — a relative
-    // who raised the child is still a relative.
+    // A divorce clears both `partnerId` links, so a former spouse arrives here as a co-parent. Blood
+    // keeps its own word — a relative who raised the child is still a relative.
     if (flags.isCoParent && !flags.isBlood) return flags.wasSpouse ? 'Former spouse' : 'Co-parent';
     return flags.isBlood ? 'Cousin' : 'In-law';
   }
@@ -847,12 +842,8 @@ function familyRowLabel(delta: number): string {
 }
 
 /**
- * One settler's kin as generation rows, **anchored on that settler**: ancestors up, descendants down, a
- * spouse on their own row. A marriage links two branches, so an unbounded walk crosses into every
- * in-law in the colony and the tree stops being about the settler it was opened on.
- *
- * `tick` decides the remarriage-bar label; without it a former marriage is named but the bar it
- * holds cannot be stated.
+ * One settler's kin as generation rows anchored on that settler: ancestors up, descendants down, a
+ * spouse on their own row. `tick` decides the remarriage-bar label and is needed to state that bar.
  */
 export function buildFullFamilyTree(
   focus: Entity,
@@ -929,8 +920,7 @@ export function buildFullFamilyTree(
   }
 
   // Bonds the kin walk cannot reach — a courtship, a sweetheart, an affair, a former marriage — are
-  // drawn on the focus's own row, and for the focus only: seeding a bond's own family would cross into
-  // every in-law, which is the walk this tree bounds.
+  // drawn on the focus's own row. Seeding a bond's own family would cross into every in-law.
   const bondIds: number[] = [];
   for (const rawId of [
     focus.courtshipPartnerId,
@@ -1100,8 +1090,7 @@ export function buildFullFamilyTree(
   };
 
   // The other parent of one of the focus's children. A divorced couple keeps no link to each other, so
-  // this shared child is the only remaining trace of the marriage — and whether that child was born in
-  // wedlock is what says the marriage existed before it ended.
+  // this shared child is the only remaining trace of the marriage.
   const coParentIds = new Set<number>();
   const marriedCoParentIds = new Set<number>();
   for (const person of people) {

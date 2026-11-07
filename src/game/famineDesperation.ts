@@ -1,15 +1,6 @@
 /**
- * Famine desperation comedy (2026-09-08, developer joke feature).
- *
- * When the village larder is completely empty and a settler is truly starving,
- * the most desperate settler may lunge at a neighbour's "foot". This is a joke
- * beat — deliberately NON-LETHAL: no health, energy, or death changes. The only
- * real effect is that the victim resents it: the friendship drops, and a landed
- * bite opens a feud. If nothing else, it gives the player a grim chuckle and a
- * reason to feed the village before friendships rot and grudges form.
- *
- * Cadence: called once per colony day from the daily world-events owner. Fires
- * at most one bite per famine day, gated by a deterministic per-person roll.
+ * Famine desperation comedy, called once per colony day: at most one non-lethal "foot" bite per
+ * famine day, which costs friendship and can open a feud but never health, energy or a death.
  */
 import type { Entity, WorldState } from './gameTypes';
 import { addNotification } from './simEffects';

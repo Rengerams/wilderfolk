@@ -33,9 +33,8 @@ const TAME_INTERACTION_TYPES: ReadonlySet<EntityType> = new Set([
 function reconcileNewSettlerAssignments(state: WorldState): void {
   const settlers = allPlayerHumans(state.entities);
   assignMissingResidences(settlers, state.buildings, state.entities);
-  // `state` supplies `worldSlices`, so the pass uses the player's workforce preset and venue window
-  // instead of the defaults — a freshly recruited settler used to be staffed under 'survival' and
-  // against the default tavern hours.
+  // `state` supplies `worldSlices`, so the pass uses the player's workforce preset and venue
+  // window rather than the defaults.
   assignMissingWorkers(settlers, state.buildings, state);
 }
 
@@ -49,12 +48,8 @@ function recruitSpawnPosition(state: WorldState): { x: number; y: number } {
 }
 
 /**
- * Whether `recruitSettler` would actually admit a newcomer: room under the
- * population cap and the recruitment price in store.
- *
- * Single definition of the recruitment rule, shared with the auto-play bot
- * (`virtualPlayer.ts`), so the bot never claims an in-game hour with a
- * recruitment the owner would refuse.
+ * Whether `recruitSettler` would actually admit a newcomer: room under the population cap and the
+ * recruitment price in store. Single definition, shared with the auto-play bot.
  */
 export function getRecruitSettlerEligibility(
   state: WorldState,
@@ -162,13 +157,8 @@ export function getTameFoodCost(type: EntityType): number | null {
 }
 
 /**
- * Whether a player-owned Taming Post stands within reach of this settler.
- *
- * `building.x/y` is the footprint **centre** — the pad and sprite are drawn from `x - w/2`, and
- * `overlapsAnyBuilding`, `isFootprintWithinMapBounds` and `snapBuildingCenter` all treat that point as
- * the centre. This used to add half a footprint, so its circle reached a post-shaped area half a post
- * away from the one the player can see (`LIVE-FINDINGS-STATUS.md`, F17). Measuring from the centre
- * fixes the command and keeps the panel agreeing with it.
+ * Whether a player-owned Taming Post stands within reach of this settler — measured from
+ * `building.x/y`, the footprint **centre**.
  */
 export function hasNearbyPlayerTamingPost(state: WorldState, entity: Entity): boolean {
   return state.buildings.some(
@@ -181,12 +171,8 @@ export function hasNearbyPlayerTamingPost(state: WorldState, entity: Entity): bo
 }
 
 /**
- * The settlers the taming UI may offer: living adult **player** humans.
- *
- * The panel used to list every adult in `state.entities`, which includes `faction: 'visitor'`/`'rival'`
- * humans, while the command refuses them silently (`getTameEntityEligibility` -> `isPlayerHuman`), so
- * picking a visitor's name did nothing at all, ever — and the four-slot cap let foreign adults crowd
- * out every eligible settler (`LIVE-FINDINGS-STATUS.md`, F16).
+ * The settlers the taming UI may offer: living adult **player** humans, the same set the command
+ * accepts.
  */
 export function listTamingCandidates(state: WorldState): Entity[] {
   return state.entities.filter(
@@ -199,13 +185,8 @@ export function listTamingCandidates(state: WorldState): Entity[] {
 }
 
 /**
- * Whether `tameEntity` would actually tame this creature for this settler: both
- * exist, the settler is a living player human, the creature is untamed and of a
- * tameable species, a player Taming Post stands within reach, and the colony can
- * pay the species' food cost.
- *
- * Single definition of the taming rule, shared with the auto-play bot
- * (`virtualPlayer.ts`).
+ * Whether `tameEntity` would actually tame this creature: both exist, the settler is a living player
+ * human, the creature is untamed and tameable, a post is near, and the food cost is payable.
  */
 export function getTameEntityEligibility(
   state: WorldState,

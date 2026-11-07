@@ -39,12 +39,8 @@ import { getSimRng } from './simRng';
 import { syncGenealogyRegistry } from './genealogyRegistry';
 
 /**
- * A festival the simulation can actually run, or `null`.
- *
- * The daily tick decrements `daysLeft` and ends the festival when it reaches zero, so a stored
- * non-number (`"abc"`) makes that comparison permanently false: one corrupted value became a
- * permanent 1.5× production, economy and courtship buff that survived every later save. The loader
- * therefore runs the stored value through this, beside `normalizeWorkSchedule`.
+ * A festival the simulation can actually run, or `null`. The daily tick ends a festival when
+ * `daysLeft` reaches zero, so a stored non-number must never survive the load.
  */
 export function normalizeFestivalState(
   value: unknown,
@@ -58,10 +54,7 @@ export function normalizeFestivalState(
   return { active: candidate.active, name: candidate.name, daysLeft: candidate.daysLeft };
 }
 
-/** Recover old saves whose festivals never advanced because world events run at 18:00,
- * while the former countdown required the tick to be exactly midnight.
- * Only clear when a matching start entry proves that the stored festival is stale.
- */
+/** Recover old saves whose festival never advanced: clear it only when a matching start entry proves it stale. */
 export function repairStaleFestivalOnLoad(state: WorldState): void {
   if (!state.festival?.active) return;
   const match = [...(state.eventLog ?? [])].reverse().find(
@@ -82,9 +75,7 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
 
   let festivalStartedThisTick = false;
 
-  // Seasonal festivals — 5 days at the start of each season: 20 guaranteed
-  // festival days per year (Spring Revel · Midsummer Feast · Harvest Festival ·
-  // Frostfall Feast), on top of the random festivals.
+  // Seasonal festivals — 5 days at the start of each season, 20 guaranteed festival days a year.
   const dayInYear = getAbsoluteCalendarDay(state.tick) % DAYS_PER_YEAR;
   const seasonalStart = Math.floor(dayInYear / 90) * 90;
   const seasonalNames: Record<number, string> = {
@@ -94,11 +85,8 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
     270: 'Frostfall Feast',
   };
   const seasonalName = seasonalNames[seasonalStart] ?? 'Village Festival';
-  // The seasonal festival owns the first five days of its season, but a random festival that is
-  // still running on day +3 used to cancel it for the whole season (there was one eligible day
-  // and no retry). It now starts on the first free day instead. `eventsThisYear` — already saved
-  // and carried by the worker delta, and cleared at the year rollover — is the per-season
-  // memory, so a late start cannot become a second festival for the same season.
+  // The seasonal festival takes the first free day of its season rather than only day +3, and
+  // `eventsThisYear` remembers it so a late start cannot become a second festival.
   const seasonalFestivalAlreadyRun = (state.eventsThisYear ?? []).includes(seasonalName);
   if (
     !state.festival
@@ -156,9 +144,7 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   tickVillageRequests(state);
   tickVisitorQuest(state);
   tickLeaderPromise(state);
-  // First-session arc (year 0 only — zero cost in later years): the welcome
-  // beat, the wolf choice (first two months), the ranger's memory of it, and
-  // Old Kaia's first-winter quest with its freeze-day resolution.
+  // First-session arc (year 0 only): welcome, wolf choice, ranger's memory, Old Kaia's winter quest.
   if (state.year === 0) {
     maybeOfferWelcome(state);
     maybeOfferWolfChoice(state);
@@ -242,9 +228,8 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
     const rolled = rollYearlyWorldEvent(
       state, allAlive, ctx.updatedBuildings, ctx.width, ctx.height,
       () => state.nextEntityId++,
-      // The context is what routes these spawns through `pushNewEntity`, so they reach the spatial
-      // grids and `ctx.newEntities` inside the same tick. Without it they landed on the array
-      // `gameTick` discards a few lines later.
+      // The context routes these spawns through `pushNewEntity`, so they reach the spatial grids and
+      // `ctx.newEntities` inside this tick.
       ctx,
     );
     state.activeEvent = rolled.event;
@@ -280,14 +265,8 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
     state.bountifulHarvest = false;
   }
 
-  // Election buildup and ceremonies.
-  //
-  // The vacancy campaign is due on a *date* (`pendingElectionYear` is a fractional year), so it
-  // is evaluated every day. Evaluating it only at the year rollover stretched the declared
-  // 0.25-year campaign to as much as a year — a vacancy on day 300 of year 3 stored 4.083 and
-  // was only noticed at the year-5 rollover — and, because `tryStartTermElectionCeremony`
-  // refuses while a vacancy is pending, it silently skipped that year's scheduled term
-  // election too. The term election itself stays a year-rollover decision.
+  // Election buildup and ceremonies. The vacancy campaign is due on a fractional date, so it is
+  // evaluated daily; the term election stays a year-rollover decision.
   const vacancyCeremony = tryStartVacancyElectionCeremony(state, state.year, state.dayInYear);
 
   const prevCalendarDay = state.tick <= 1 ? 0 : getCalendarDay(state.tick - 1);

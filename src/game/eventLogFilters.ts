@@ -26,10 +26,8 @@ export const EVENT_LOG_FILTER_OPTIONS: Array<{ id: 'all' | GameEventLog['type'];
 ];
 
 /**
- * The label the filter dropdown shows, for a header that names the active filter mid-sentence.
- *
- * One definition: the dropdown and the "Showing N of M …" line used to disagree in wording because
- * the header interpolated the raw stored id ("Showing 500 of 823 death") instead of this label
+ * The filter dropdown's label, used when a header names the active filter mid-sentence.
+ * The dropdown and header share this one definition.
  */
 export function getEventLogFilterLabel(id: 'all' | GameEventLog['type']): string {
   return EVENT_LOG_FILTER_OPTIONS.find((option) => option.id === id)?.label ?? id;

@@ -1,6 +1,6 @@
 /**
- * Courtship pace: full rate in social life, far slower on a work shift, and a church plays no part.
- * The rate used to be `4 + churchStrength * 2`, so a church made courtship up to 50 % faster.
+ * Courtship pace: full rate in social life, `COURTSHIP_WORK_RATE_FACTOR` on a work shift; a church
+ * plays no part in the rate.
  */
 import { describe, expect, it } from 'vitest';
 import { courtshipRatePerHour } from '../src/game/simulation/humanRelationships';
@@ -21,7 +21,7 @@ describe('courtship pace', () => {
   });
 
   it('has no church term', () => {
-    // The old signature took a church strength; calling it must not change the social rate.
+    // No church strength is a parameter, so the social rate is the base.
     expect(courtshipRatePerHour(true)).toBe(4);
     expect(courtshipRatePerHour(false)).toBeCloseTo(0.6, 10);
   });

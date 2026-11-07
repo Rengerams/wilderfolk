@@ -102,13 +102,6 @@ describe('human movement helpers', () => {
     }
   });
 
-  /**
-   * The owner reported this clump twice — *"why are they all standing at side of the village?"* and
-   * later, with no event running at all, *"they again in a circle"*. The leisure crowd was sent to one
-   * coordinate on the venue (`b.x + b.width / 2`, `b.y + b.height * 0.92`) and stopped within 20 px of
-   * it, so a village's day-off crowd stacked into a ring around a single pixel. A venue is a place with
-   * room in it.
-   */
   it('gives each settler their own place in a venue crowd, in front of the building', () => {
     const venue = { ...building, x: 400, y: 300, width: 60, height: 40 };
 
@@ -132,11 +125,6 @@ describe('human movement helpers', () => {
     }
   });
 
-  /**
-   * The festival branch used to place its crowd on 35 repeating slots (`id % 7` × `floor(id / 7) % 5`),
-   * so a whole village stacked tens deep on those few points — the owner's *"they again in a circle"*,
-   * with no election running. A crowd needs places, not a lattice that repeats.
-   */
   it('spreads a festival crowd over many places instead of repeating a small lattice', () => {
     expect(crowdGatherPosition(500, 400, 3)).toEqual(crowdGatherPosition(500, 400, 3));
 

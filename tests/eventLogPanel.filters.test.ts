@@ -3,12 +3,8 @@ import { EVENT_LOG_FILTER_OPTIONS, getEventLogFilterLabel } from '../src/game/ev
 import type { GameEventLog } from '../src/game/gameTypes';
 
 /**
- * Every event type the game can write, declared once as a `Record` keyed by the union.
- *
- * The list was hand-written before, and it had silently fallen behind the type: `conception` and
- * `divorce` had no entry, and when `prison` was added (2026-09-29) it had none either — so this test
- * could not have caught the missing filter it exists to guard. Keying a record by the union makes a
- * new event type a **compile error** here instead of a silent gap.
+ * Every event type the game can write, declared once as a `Record` keyed by the union, so a new
+ * event type is a compile error here instead of a silent filter gap.
  */
 const EVENT_TYPE_COVERAGE: Record<GameEventLog['type'], true> = {
   birth: true,
@@ -42,9 +38,6 @@ describe('Chronicle filter options', () => {
   });
 
   it('names an imprisonment as its own filter, not as a scandal or a generic event', () => {
-    // Owner, 2026-09-29: "i cant seee if people get in prison its not happneing or its not logged and
-    // not shown". `arrestForScandal` wrote type `'event'`, so imprisonments landed in the 1 531-entry
-    // Events bucket with nothing to group them.
     expect(getEventLogFilterLabel('prison')).toMatch(/imprison/i);
     expect(getEventLogFilterLabel('prison')).not.toBe(getEventLogFilterLabel('event'));
     expect(getEventLogFilterLabel('prison')).not.toBe(getEventLogFilterLabel('scandal'));

@@ -1,45 +1,7 @@
 import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycycleconstants';
 /**
- * Worker-boundary closure — measured 2026-09-16.
- *
- * The audit behind these cases answered one question: does every piece of state the
- * simulation needs actually cross the host <-> worker boundary, and does it survive?
- * Each case reproduces the real transport (`GameWorkerHost.queueFullWorldUpload` /
- * `gameWorker.ts` handlers) including the `postMessage` serialization step, then
- * compares the two worlds field by field.
- *
- * What the boundary guarantees, and what these tests pin:
- *
- * - host -> worker (`init` / `importSave` / `syncWorld`): the whole WorldState crosses
- *   after `invalidateWorldRuntimeCaches` strips the class-typed runtime caches
- *   (grids, road index, adjacency), and `hydrateWorldRuntimeCaches` gives the worker a
- *   usable `entityById` back. `entityByType` is rebuilt lazily by its own owner.
- * - worker -> host (tick/command delta): every field the simulation writes reaches the
- *   display world, including the ones the earlier audits caught missing (visitorQuest,
- *   chronicleChapters, huntVisuals, workingSettlers, villageHappiness).
- * - rollback (`extractSimPrep` / `applySimPrep`): a failed tick or command restores the
- *   exact pre-tick world, nested entity state included.
- * - save/load: every `WORLD_STATE_SAVE_KEYS` value and every `ENTITY_PERSISTED_FIELDS`
- *   field survives the round trip. The only differences are the documented load-time
- *   normalizations, asserted explicitly below rather than skipped.
- *
- * Deliberately NOT compared, with the reason each is host-owned or transient (see
- * `HOST_OR_CACHE_KEYS` below — the list there is the authority, not this prose):
- * - `speed`, `paused` — authored on the main thread, carried across display rebuilds by
- *   `carryPresentationControls`, forwarded by `setSpeed` / `setPaused`.
- * - `autoSave`, `tutorialSeen`, the three `dismissed*Ids` sets — pushed into the worker by
- *   `patchUi` (`extractUiPatch`) and excluded by `HOST_OR_CACHE_KEYS`.
- * - `entityById`, `entityByType`, `*Grid`, `roadAvoidance`, `roadAvoidanceStamp`,
- *   `adjacency`, `beautyGrid` — runtime caches, rebuilt on each side by their owners.
- * - `simRng` — a snapshot the host stamps at hand-off; the display world receiving one
- *   from the delta is strictly more information, never less.
- *
- * The worker-authored presentation slices — `bigNews`, `floatingTexts`, `activeEvent`,
- * `nextFloatingTextId` — are **compared**, not excluded. Watch the fixture length when reading a
- * pass: `TICKS = 3 * TICKS_PER_DAY` is three colony days (216 ticks), while the first-week visitor event needs tick ≥ 504, so
- * `activeEvent` is `undefined` on both sides here. That vacuous comparison is exactly why the
- * missing `activeEvent` entry in the prep rollback payload could hide from this suite
- * (`BUG_REPORTS/2026-09-16-prep-rollback-misses-the-active-event-and-the-scent-field.md`).
+ * Reproduces the real host ↔ worker transport, `postMessage` serialization included, and compares
+ * the two worlds field by field; `HOST_OR_CACHE_KEYS` is the authority for what is not compared.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { initGame, createBuilding } from '../src/game/worldGen';
@@ -72,7 +34,7 @@ const TICKS = 3 * TICKS_PER_DAY; // Advance three colony days across each daily 
 /** Room for the two fixtures that carry whole colony days of state across the wire. */
 const FIXTURE_TIMEOUT_MS = 120_000;
 
-/** Host-owned or runtime-cache keys — excluded for the reasons in the file header. */
+/** Host-owned or runtime-cache keys — excluded from the boundary comparison. */
 const HOST_OR_CACHE_KEYS: readonly string[] = [
   'speed',
   'paused',
@@ -97,9 +59,8 @@ const HOST_OR_CACHE_KEYS: readonly string[] = [
 ];
 
 /**
- * Drops `undefined`-valued keys so an absent property and a property explicitly set to
- * `undefined` compare equal: every consumer reads a field, none enumerates entity keys,
- * and JSON drops them. The measured presence differences are exactly this shape.
+ * Drops `undefined`-valued keys so an absent property and one explicitly set to `undefined`
+ * compare equal: JSON drops them, and consumers read fields rather than enumerating keys.
  */
 function compact(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(compact);
@@ -115,9 +76,8 @@ function compact(value: unknown): unknown {
 }
 
 /**
- * Effective value of a slice. Several owners materialize a default when a world omits
- * the key (`getWorkSchedule`, `getVenueSchedule`, and the delta's `?? []` / `?? {}`
- * fallbacks), so an absent key and its owner default carry the same information.
+ * Effective value of a slice: several owners materialize a default when a world omits the key, so
+ * an absent key and its owner default carry the same information.
  */
 function effective(world: WorldState, key: string): unknown {
   const raw = (world as unknown as Record<string, unknown>)[key];
@@ -155,9 +115,8 @@ function worldProjection(world: WorldState, keys: readonly string[]): Record<str
 }
 
 /**
- * Union of the own keys of every world being compared. A key the sender materialized
- * with an owner default and the receiver never created carries the same information,
- * so both sides are projected over the same key list rather than each over its own.
+ * Union of the own keys of every world being compared, so a key only one side materialized is
+ * still compared against the other side's effective value.
  */
 function comparableKeys(...worlds: readonly WorldState[]): string[] {
   const keys = new Set<string>();
@@ -225,9 +184,8 @@ describe('worker boundary closure', () => {
       const exported = hydrateWorldRuntimeCaches(structuredClone(display));
       hydrateWorldRuntimeCaches(display);
 
-      // A settler born on January 1 carries day 0 of month 0, which a load must tell apart from a save
-      // that never carried a date (both zeroed) by the year. This fixture's own spawns all carry a real
-      // date, so a New Year settler is made here (an adult whose whole-year age recomputes unchanged).
+      // Day 0 of month 0 is January 1, which a load must tell apart from a save that never carried a
+      // date by the year, so one adult is given that date here.
       const newYearSettler = exported.entities.find(
         (entity) => entity.type === EntityType.Human && entity.alive && entity.age >= HUMAN_CHILDHOOD_YEARS,
       );
@@ -248,21 +206,15 @@ describe('worker boundary closure', () => {
       // Documented load-time normalizations, asserted rather than skipped.
       expect(reloaded.paused).toBe(false); // a loaded colony resumes immediately
       expect(reloaded.tradeRoutes.length).toBeGreaterThanOrEqual(exported.tradeRoutes.length); // ensureFullTradeRoutes merges
-      // `tutorialSeen` is host-owned (see HOST_OR_CACHE_KEYS), so the worker-authored `exported`
-      // world may legitimately omit it entirely — only the reloaded world is guaranteed to hold an
-      // array, because `loadGameFromParsed` seeds it via `seedTutorialSeenForExistingState`.
+      // `tutorialSeen` is host-owned, so `exported` may omit it; only the reloaded world is
+      // guaranteed to hold an array, seeded by `loadGameFromParsed`.
       expect(reloaded.tutorialSeen, 'a reloaded colony always carries a tutorialSeen list').toBeTruthy();
       expect(exported.tutorialSeen, 'the worker-authored world under test carries one too').toBeTruthy();
       expect(reloaded.tutorialSeen!.length).toBeGreaterThanOrEqual(exported.tutorialSeen!.length); // seeded for existing colonies
       expect(reloaded.eventLog.map((entry) => entry.id)).toEqual(exported.eventLog.map((entry) => entry.id));
 
-      // Every other save key keeps its effective value.
-      //
-      // The id allocators are normalized by the load, on purpose: `floorIdAllocators` raises each one to
-      // at least one past the highest id the world holds, because a payload can carry none (a later
-      // spawn then gets `NaN`) or a rewound one (the next spawn collides with a live id and
-      // `entityById` silently drops one of the two). A world whose allocator is already above every id
-      // round-trips unchanged, which the value-integrity suite pins.
+      // Every other save key keeps its effective value; the load normalizes the id allocators on
+      // purpose (`floorIdAllocators`), so those are asserted by the value-integrity suite instead.
       const normalizedByLoad = new Set([
         'paused',
         'tradeRoutes',
@@ -278,16 +230,14 @@ describe('worker boundary closure', () => {
         expect(compact(effective(reloaded, key)), key).toEqual(compact(effective(exported, key)));
       }
 
-      // `worldMap` is not in WORLD_STATE_SAVE_KEYS (it is stored compactly and regenerated
-      // on load), so it needs its own assertion: a scale error there is invisible to the
-      // key loop above and silently leaves every entity outside the restored valley.
+      // `worldMap` is stored compactly and regenerated on load, not in `WORLD_STATE_SAVE_KEYS`, so
+      // a scale error here would leave every entity outside the restored valley.
       expect(reloaded.width).toBe(exported.width);
       expect(reloaded.height).toBe(exported.height);
       expect(reloaded.worldMap?.width).toBe(exported.worldMap?.width);
       expect(reloaded.worldMap?.height).toBe(exported.worldMap?.height);
-      // The old assertion was `worldMap.tiles.length` / `tiles[0].length`, which was the tile
-      // rectangle. Teraforge keeps no per-tile grid: the same shape claim is made on the regenerated
-      // L0 path grid (one cell per tile) and the tile dimensions asserted just above.
+      // Teraforge keeps no per-tile grid: the shape claim is made on the regenerated L0 path grid
+      // (one cell per tile) plus the tile dimensions asserted above.
       expect(reloaded.worldMap?.pathGrid?.length).toBe(exported.worldMap?.pathGrid?.length);
       expect(reloaded.worldMap?.pCols).toBe(exported.worldMap?.pCols);
       expect(reloaded.worldMap?.pRows).toBe(exported.worldMap?.pRows);
@@ -448,17 +398,13 @@ describe('worker boundary closure', () => {
   });
 
   it('rolls a failed command back to the exact pre-command world', () => {
-    // The command path is the *other* caller of the prep pair (`gameWorker.ts`, the `command` case),
-    // and it had no coverage at all: the tick case above proves the snapshot restores a world the tick
-    // advanced, while a command is a different set of owners (`buildingPlacementActions`, `workforce`,
-    // `groupEvents` …) mutating the same fields. A command owner that returns a world the payload
-    // cannot undo would break the worker's failure path without touching any assertion.
+    // The command path is the other caller of the prep pair; a command is a different set of
+    // owners mutating the same fields, so its rollback needs its own coverage.
     resetSimRng();
     let world = initGame({ seed: SEED, size: MapSize.Medium });
     adoptSimSeedFromWorld(world);
-    // Pre-increment, matching every production allocator (`buildingPlacementActions`, `groupEvents`):
-    // post-increment allocated the building id 0 and then left `nextBuildingId` at 0, so the *next*
-    // building would have reused id 0. The fixture was the only thing relying on that.
+    // Pre-increment, matching every production allocator: post-increment allocates id 0 and leaves
+    // `nextBuildingId` at 0, so the next building reuses id 0.
     world.buildings.push(createBuilding(BuildingType.Farm, 60, 60, ++world.nextBuildingId));
     const before = structuredClone(world) as WorldState;
     const entitiesBefore = entitiesWithoutBirthDates(world);

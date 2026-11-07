@@ -1,9 +1,6 @@
 /**
- * Approach-easing probe (local, gitignored): measures how long the "cooling down" stretch into a
- * building takes — the last stretch inside `COMMUTE_CONFIG.LONG_RANGE_DIST` where the commute
- * decelerates. Prints the per-tick distance and the tick count to arrival.
- *
- *   npx tsx scripts/probe-approach.mts [startDistance]
+ * Measure how long the decelerating "cooling down" stretch into a building takes, and print the
+ * per-tick distance to arrival. Run: `npx tsx scripts/probe-approach.mts [startDistance]`.
  */
 import { initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType } from '../src/game/gameTypes';

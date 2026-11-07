@@ -1,34 +1,15 @@
 #!/usr/bin/env node
 /**
- * Documentation guards. Deliberately cheap: this runs inside the existing
- * `check` step, so `npm test` covers it and there is no new command to learn or
- * forget. Two rules, both of which were broken today and were found by hand:
- *
- *   1. A markdown LINK in a tracked document must resolve. Only links, not
- *      backticked prose: prose legitimately names absent things ("the old
- *      `BUG_TRACKER.md` became ..."), and checking prose produced nothing but
- *      false positives. A link is a promise the reader can click.
- *
- *   2. The NEWEST changelog section's entries stay short. The owner's rule is
- *      that the changelog is an index of what changed, and an essay belongs in
- *      its own document. Only the newest section is checked, so the ~290 long
- *      entries already in the file stay untouched — they are history, and
- *      rewriting them is not this script's business.
- *
- * Nothing here reads the network or the git index, and nothing is written.
+ * Documentation guards: tracked-document markdown links must resolve, and the newest changelog
+ * section's entries stay short. Read-only, no network, no git index.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const REPO = process.cwd();
 
-/** Documents a reader is expected to follow links in. History is excluded, and
- *  that includes `CHANGELOG.md`: it is a dated record, and its 290 historical
- *  entries link to files that were legitimately deleted afterwards
- *  (`ROADMAP.md`, `docs/private/BUGS_TRACKER.md`, `tmp/` probes). Checking those
- *  would be permanent noise, and `BUG_REPORTS/**` / `docs/archive/**` are
- *  snapshots of their day for the same reason. The newest changelog section is
- *  still guarded — by its length, below. */
+/** Documents whose markdown links must resolve. History is excluded (`CHANGELOG.md`, `BUG_REPORTS/**`,
+ *  `docs/archive/**`): old links may point at files legitimately deleted afterwards. */
 const LINK_DOCS = [
   'README.md',
   'AGENTS.md',
@@ -39,9 +20,7 @@ const LINK_DOCS = [
   'BUG_REPORTS/Readme.md',
 ];
 
-/** The cap for one changelog entry. The rule is "briefly what the agent did",
- *  so the newest section's entries run 165-225 characters. The file's historical
- *  average is 1 698. */
+/** Cap for one newest-section changelog entry: 300 characters. */
 const MAX_ENTRY_CHARS = 300;
 
 /** File references require a known source/document extension. Bare slash-separated

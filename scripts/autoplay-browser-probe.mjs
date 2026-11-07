@@ -1,37 +1,7 @@
 #!/usr/bin/env node
 /**
- * THE AUTOPLAY BOT HARNESS — not a throwaway probe, and not safe to delete.
- *
- * Extend this file instead of writing a new one: add a capability to `CAPABILITIES`
- * below and assert on it (AGENTS.md §7.1, "Extend the bot, do not write a new probe").
- * The changelog depends on this harness, and its earlier header — "TEMPORARY local
- * probe, safe to delete" — caused an audit to grade it a delete-candidate.
- *
- * WHY IT EXISTS: `useVirtualPlayer` is React wiring, and this repo's Node test tier
- * has no DOM implementation at all (no jsdom / happy-dom / react-test-renderer), so
- * no `vitest` test can drive the hook. This harness closes exactly that gap: it drives
- * the real dev build in real headless Chrome, clicks 🤖 Auto-play, and reports
- * what the header actually says and whether the bot actually acts.
- *
- * It answers the reported bug directly:
- *   - does the button reach `aria-pressed="true"` (state flips), and
- *   - does the status line ever appear, and
- *   - does the act history (the chip tooltip) ever fill up?
- *
- * It also runs the `auditControls` capability over the live valley — measured control sizes, font
- * sizes and WCAG contrast — and writes `control-audit.json` next to the window screenshot. That half
- * is reported, never gated.
- *
- * USAGE
- *   node node_modules/vite/bin/vite.js --port 5173 --strictPort --host 127.0.0.1   # dev server (DEV-only button)
- *   node scripts/autoplay-browser-probe.mjs
- *   node scripts/autoplay-browser-probe.mjs --url http://127.0.0.1:5173/ --watch-ms 25000 --speed 10
- *   node scripts/autoplay-browser-probe.mjs --sightings 12 --clip-w 320 --clip-h 240 --clip-scale 4
- *
- * `--sightings N` also writes N clipped frames (`sighting-000.png`…) centred on the village at the
- * `--zoom-preset` camera zoom, for overlays that only exist as pixels, and prints their paths.
- *
- * Exits 0 when the bot acted, 1 otherwise. Nothing to add to package.json.
+ * Autoplay bot harness — extend this file, never write a new probe. Drives the real Vite dev build in
+ * headless Chrome, reports Auto-play state/act history and runs `auditControls`. Usage: `node scripts/autoplay-browser-probe.mjs`.
  */
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
@@ -152,24 +122,8 @@ function clickButtonExpression(text) {
 }
 
 /* ============================ UI CAPABILITIES ============================
- * Reusable, named handles onto the game's own screens, so a new question does
- * not need a new probe (owner, 2026-09-29: "just extend the capaiblities of
- * the bot instead of making a own each time").
- *
- * Each entry is a self-contained page expression. They are deliberately
- * written as *capabilities* rather than one-off selectors: a caller composes
- * them (`await evaluate(CAPABILITIES.openVillageWindow())`) instead of
- * re-deriving where a control lives. When a screen moves, fix the one entry
- * here and every caller follows.
- *
- * Every panel is located by an **owner-authored heading**, never by select
- * index, so a layout change cannot silently make a capability read the wrong
- * panel and report a false pass.
- *
- * Adding one: put the expression in this object, keep it self-contained, and
- * prefer returning observed DOM state over a bare boolean. See AGENTS.md,
- * "Extend the bot, do not write a new probe".
- * ======================================================================== */
+ * Add an entry here instead of a new probe; locate panels by owner-authored heading.
+ */
 const CAPABILITIES = {
   /** Find a panel by the exact heading text it renders, then climb to the element that owns `buttonPattern`. */
   findPanel(headingText, buttonPattern) {
@@ -248,12 +202,7 @@ const CAPABILITIES = {
     })()`;
   },
 
-  /**
-   * Open the **Village** subject window, whose index holds the Household roster.
-   *
-   * The header carries two doors: the population chip (`aria-label="Open people overview"`) opens the
-   * full-screen People overview, and the village door (`Open village overview`) opens this window.
-   */
+  /** Open the **Village** subject window, whose index holds the Household roster. */
   openVillageWindow() {
     return CAPABILITIES.clickByAriaLabel('Open people window');
   },
@@ -364,9 +313,7 @@ const CAPABILITIES = {
   },
 
   /**
-   * Read a subject window by its accessible name — the shell every subject now renders into
-   * (`components/GameWindow.tsx`). Returns the shape a caller asserts on rather than a boolean, so a
-   * failure names what the window actually contained.
+   * Read a subject window by its accessible name; returns close label, selects and text, or null.
    */
   readWindow(title) {
     return `(() => {
@@ -398,14 +345,7 @@ const CAPABILITIES = {
     })()`;
   },
 
-  /**
-   * Select a settler deterministically, through the families panel rather than the map.
-   *
-   * Clicking the canvas only works if the generated world happens to put a settler under the click
-   * (measured: it does not, so this check reported "not reached" instead of verifying anything).
-   * The family-tree opener carries a stable `Family tree` title, read from the component rather
-   * than inferred from its text.
-   */
+  /** Click the first button whose title names a family tree; unused by the roster flow. */
   selectSettlerFromFamiliesPanel() {
     return `(() => {
       const hit = [...document.querySelectorAll('button[title]')]
@@ -422,14 +362,7 @@ const CAPABILITIES = {
     })()`;
   },
 
-  /**
-   * Open the family tree from the inspector.
-   *
-   * Matched on the button's **`title`**, not its text: `SelectedEntityPanel` renders a
-   * *collapsible section header* reading `🌳Family tree▾` as well as the opener, and matching on text
-   * clicked the header and reported `opened: NO` while the real control sat there unused. The opener
-   * is the only element with this title (`SelectedEntityPanel.tsx:571-583`).
-   */
+  /** Click the family-tree opener matched by `title`, not by its section-header text. */
   openFamilyTreeWindow() {
     return `(() => {
       const hit = [...document.querySelectorAll('button[title]')]
@@ -447,13 +380,8 @@ const CAPABILITIES = {
   },
 
   /**
-   * Select a settler deterministically, via the Village tab's **Household roster**.
-   *
-   * The families list this used to click was removed (it was a flat surname list mislabelled a family
-   * tree), which left the bot with no deterministic subject: clicking the map depends on where the
-   * generated world happens to put someone. `PopulationPanel` renders a clickable citizen per row and
-   * is reached through the roster section, which is collapsed by default — so this opens that section
-   * first, then clicks a citizen.
+   * Open the Village tab's Household roster, which is collapsed by default; the caller clicks a
+   * citizen row next.
    */
   selectSettlerFromRoster() {
     return `(() => {
@@ -467,8 +395,7 @@ const CAPABILITIES = {
   /** Click any citizen row the roster renders, identified by its family-tree/select affordance. */
   clickFirstCitizenRow() {
     return `(() => {
-      // Read from the source, not guessed: PopulationPanel renders every person as a button whose
-      // title is "Locate <name> on the map" (PopulationPanel.tsx:57).
+      // PopulationPanel renders every person as a button titled "Locate <name> on the map".
       const locate = [...document.querySelectorAll('button[title]')]
         .find((b) => /^locate .+ on the map$/i.test(b.getAttribute('title') || ''));
       if (locate) {
@@ -491,15 +418,8 @@ const CAPABILITIES = {
   },
 
   /**
-   * Measure every interactive control and player-readable text run on the current screen.
-   *
-   * Answers a question no Node tier can: *are the visible controls big enough to hit, and is their
-   * text readable against what is actually behind it?* It reports observed geometry and computed
-   * colour, not a verdict, because the thresholds are the caller's.
-   *
-   * Contrast is text colour against the nearest ancestor with an opaque background. An element that
-   * resolves to no opaque ancestor is reported as `backgroundKnown: false` instead of being guessed,
-   * and so is any element that paints over the canvas — which is most of the map HUD.
+   * Measure every interactive control and player-readable text run on the current screen: geometry,
+   * font size and contrast against the nearest opaque ancestor. Reports observations, not a verdict.
    */
   auditControls() {
     return `(() => {
@@ -624,9 +544,8 @@ const AUTO_PLAYER_STATE = `(() => {
   return {
     pressed: toggle ? toggle.getAttribute('aria-pressed') : null,
     status: statusEl ? (statusEl.textContent || '').trim() : null,
-    // "Silent" is the whole bug class: a status line that exists but is
-    // display:none / zero-width is exactly what the player reported as
-    // "does nothing". Measuring it is what makes this probe able to fail.
+    // "Silent" is the bug class: a status line that is display:none or zero-width reports
+    // "does nothing". Measuring it lets this probe fail.
     statusDisplay: statusStyle ? statusStyle.display : null,
     statusVisible: !!statusEl && !!statusStyle && !!statusRect
       && statusStyle.display !== 'none'
@@ -747,8 +666,7 @@ async function main() {
     const before = state;
     console.log(`before click: pressed=${before.pressed} paused=${before.paused} tick=${before.tickLabel} status=${before.status}`);
 
-    // Measured UX audit of the live valley. Reported, never gated: it describes the shipped layout at
-    // this viewport, and a threshold here would freeze an art direction that is still moving.
+    // Measured UX audit of the live valley: written to `control-audit.json` and printed, never asserted.
     const controlAudit = await evaluate(CAPABILITIES.auditControls());
     if (controlAudit) {
       writeFileSync(path.join(outDir, 'control-audit.json'), `${JSON.stringify(controlAudit, null, 2)}\n`);
@@ -851,13 +769,8 @@ async function main() {
       );
     }
 
-    // Subject windows: the family tree opens as its own window and closes again.
-    // The browser half of "one window per subject" (owner: "each subject should just have its own
-    // window not stacking up"). It reports `not reached` rather than failing when no settler can be
-    // selected, because selection depends on where the generated world happens to put a settler
-    // under the map centre — an environment fact, not a defect in the window.
-    // The household roster lives in the Village subject's window now, so open that first —
-    // without it the settler buttons do not exist in the DOM at all.
+    // Family tree opens as its own window and closes again; the household roster lives in the
+    // Village subject window, so open that first or the settler buttons never reach the DOM.
     const villageOpen = await evaluate(CAPABILITIES.openVillageWindow());
     await sleep(900);
     const villageSurface = await evaluate(`(() => ({
@@ -909,11 +822,8 @@ async function main() {
       console.log(`  closed / gone            : ${JSON.stringify(closed)} / ${gone}`);
     }
 
-    // The reported bugs, as assertions on what the real UI reported:
-    //  - the original "does nothing": the effect never re-ran, so one act was the
-    //    ceiling and the status line never rendered at all;
-    //  - the reported illogic: it researched "Advanced Farming" (farm_yield ×1.2,
-    //    unlocks the Greenhouse) while it owned no farm and never built one.
+    // Assertions on what the real UI reported: the bot must act repeatedly, and it must build a
+    // farm before researching.
     const MIN_ACTS = 3;
     const farmIndex = orderedActs.findIndex((act) => act.includes('build a Farm'));
     const researchIndex = orderedActs.findIndex((act) => act.includes('research'));
@@ -934,9 +844,8 @@ async function main() {
   } finally {
     session?.ws?.close?.();
     chrome.kill();
-    // Chrome's profile for this run is ~90 MB and nothing deleted it, so repeated runs filled the
-    // disk: measured 2026-09-30 at **27 leaked profile dirs / 2.5 GB**, which is what finally failed a
-    // later run with `ENOSPC`. It is this script's own scratch, so it removes it.
+    // Chrome's profile is this script's own scratch; let Chrome release its handles, then remove it
+    // so repeated runs do not fill the disk.
     await sleep(250); // let Chrome release its file handles before the tree is removed
     rmSync(profile, { recursive: true, force: true });
   }

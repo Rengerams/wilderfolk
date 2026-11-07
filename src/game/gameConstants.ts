@@ -5,12 +5,7 @@ export const Social = {
 
 /**
  * Affair tryst tuning (owner: `simulation/humanRelationships.ts`, daily cadence).
- *
- * The base daily chance is a per-eligible-pair roll applied only after every
- * pairing gate has already passed (a compatible, non-spouse paramour in range, a
- * valid tryst site, the lower id leading the pair). Each success adds a progress
- * bump, and an affair is *established* only when both partners reach
- * AFFAIR_PROGRESS_MAX — only establishment can produce a scandal.
+ * The base chance is per eligible pair; only establishment can produce a scandal.
  */
 export const Relationship = {
   AFFAIR_MIN_AGE: 18,
@@ -95,9 +90,7 @@ export const Famine = {
 } as const;
 
 /**
- * In-app virtual player ("auto-play") tuning.
- *
- * Owner of the decisions: the player. The bot (`virtualPlayer.ts`) only proposes
+ * In-app virtual player ("auto-play") tuning. The bot (`virtualPlayer.ts`) only proposes
  * one real `WorkerCommand` per in-game hour through the player's own command door.
  */
 export const VirtualPlayer = {
@@ -135,8 +128,7 @@ export const VirtualPlayer = {
   RECRUIT_FOOD_RESERVE_DAYS: 5,
   /**
    * 6 = days of settler food need above which spare food is sold to visitors.
-   * Higher than `RECRUIT_FOOD_RESERVE_DAYS` so buying and selling food cannot
-   * alternate hour after hour.
+   * Higher than `RECRUIT_FOOD_RESERVE_DAYS` so buying and selling cannot alternate hourly.
    */
   FOOD_SURPLUS_DAYS: 6,
   /** 5 = days of settler food need kept in store before taming a wild animal. */
@@ -153,9 +145,8 @@ export const VirtualPlayer = {
   /** 2 = spare assignable beds a refugee camp needs before it is welcomed. */
   REFUGEE_MIN_OPEN_BEDS: 2,
   /**
-   * 260 = world pixels (roughly a dozen tiles) a production building must stand
-   * from the village centre before the bot considers a road worth laying — roads
-   * pay for a real walk, not for the building next door.
+   * 260 = world pixels (roughly a dozen tiles) a production building must stand from the
+   * village centre before the bot considers a road worth laying.
    */
   ROAD_MIN_LINK_DISTANCE: 260,
   /**
@@ -180,18 +171,12 @@ export const VirtualPlayer = {
   ROAD_PATH_MAX_NODES: 4000,
   /**
    * 10 = settlers the colony must reach before the bot spends a building hour on a
-   * community service (well, tavern, church, workshop, storage).
-   *
-   * A founding pair needs a house, food and a leader's house; a well or a tavern
-   * before there is a village is a building a human would not raise yet. 10 is the
-   * point where the settlement outgrows a single camp and the per-settler services
-   * (`getWellCoverage`, storage caps, `ecosystemHealth`) start to bite.
+   * community service (well, tavern, church, workshop, storage); before that a camp needs basics.
    */
   COMMUNITY_MIN_SETTLERS: 10,
   /**
    * 3 = days of settler food need kept in store before the bot spends an hour on a
-   * community service. Stricter than the general `FOOD_BUFFER_DAYS` (2) because a
-   * service is optional: food, housing and repair all outrank it.
+   * community service; stricter than `FOOD_BUFFER_DAYS` because a service is optional.
    */
   COMMUNITY_FOOD_RESERVE_DAYS: 3,
   /**
@@ -200,19 +185,13 @@ export const VirtualPlayer = {
    */
   UPGRADE_FOOD_RESERVE_DAYS: 3,
   /**
-   * 2 = the wood, stone and gold *multiple* of an upgrade's own price the colony must
-   * hold before the bot will pay it (`getBuildingUpgradeCost` scales with level).
-   * Keeping one upgrade's worth in reserve means an upgrade can never be the reason
-   * the next house or farm cannot be built.
+   * 2 = the wood, stone and gold multiple of an upgrade's own price the colony must hold
+   * before the bot pays it, so an upgrade never blocks the next house or farm.
    */
   UPGRADE_COST_RESERVE_MULT: 2,
   /**
-   * 60 = the ecosystem-health line the bot treats as "the ground needs help", so a Wildlife
-   * Preserve is worth an hour (`decideCommunity`). It is the *same* 0–100 scale the Nature
-   * window paints green above 60 and the leader's score rewards at 60 — stated here by name
-   * rather than re-typed in the bot. Deliberately not extracted into a shared band constant:
-   * the two readers compare `> 60` and `>= 60`, and unifying the operator is a balance call,
-   * not this change's business.
+   * 60 = the ecosystem-health line below which the ground needs help, so a Wildlife Preserve
+   * is worth an hour. The same 0–100 scale the Nature window and the leader's score read.
    */
   ECOLOGY_HEALTHY_THRESHOLD: 60,
   /**

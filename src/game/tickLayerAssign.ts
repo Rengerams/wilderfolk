@@ -10,10 +10,8 @@ import { applyLeaderHousePhase, collectLeaderHousehold, findLeaderHouse } from '
 import { profileStart, profileEnd } from './performanceProfiler';
 
 /**
- * Assignment layer pulse interval (ticks).
- *
- * Housing + job fill — village logistics, not chat/courtship (those are Realtime).
- * Scales to fire ~4× per calendar day (18 ticks @ 3 ticks/hour with 72 ticks/day).
+ * Assignment layer pulse interval — six clock hours (72 ticks at 12 ticks/hour), so housing + job fill
+ * sweeps ~4× per calendar day.
  */
 export const LAYER_ASSIGN_INTERVAL = 6 * TICKS_PER_HOUR;
 /** First assignment sweep is at 03:00; subsequent sweeps recur every six hours. */
@@ -21,10 +19,8 @@ export const LAYER_ASSIGN_FIRST_HOUR = 3;
 export const LAYER_ASSIGN_PHASE_TICK = LAYER_ASSIGN_FIRST_HOUR * TICKS_PER_HOUR;
 
 /**
- * Cheap housing-change fingerprint for the scheduled sweeps. Work and movement
- * do not affect housing, so checking a few primitive fields is much cheaper
- * than rebuilding all household units four times a day. A full reconciliation
- * runs only for changed inputs; a weekly full audit remains as a safety net.
+ * Cheap housing-change fingerprint for the scheduled sweeps: work and movement do not affect housing,
+ * so a few primitives decide whether the full reconciliation runs. A weekly audit is the safety net.
  */
 const lastHousingSignature = new WeakMap<WorldState, string>();
 /** A change earlier in the day still gets its final commute sweep even after the change is reconciled. */
@@ -50,12 +46,8 @@ function housingSignature(world: WorldState, humans: readonly WorldState['entiti
 }
 
 /**
- * Assignment layer — residence + workforce bookkeeping.
- *
- * Realtime interactions (chat, affairs, courtship) run in `tickHumans`.
- * Daily mortality and conception stay under `isNewCalendarDay` in `humanTick`.
- *
- * Called when `world.tick % LAYER_ASSIGN_INTERVAL === 0`.
+ * Assignment layer — residence + workforce bookkeeping, called when
+ * `world.tick % LAYER_ASSIGN_INTERVAL === 0`. Realtime interactions and daily mortality live elsewhere.
  */
 export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
   const { playerHumans, updatedBuildings, byType, newEntities } = ctx;
@@ -127,10 +119,8 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
   }
   profileEnd('assign.assignMissingResidences', startedassignMissingResidences);
   checkLeader('assignMissingResidences');
-  // Assigning or relocating residents changes residenceBuildingId after the opening
-  // occupant sync. Rebuild the authoritative occupancy lists once more at the end
-  // of the housing pass so snapshots and invariants cannot see stale beds.
-  // Include cursed Moon Howlers, whose human residence survives their temporary form.
+  // Assigning or relocating residents changes residenceBuildingId after the opening occupant sync, so
+  // rebuild the authoritative occupancy lists here, cursed Moon Howlers included.
   const residentEntities = [
     ...allHumans,
     ...(byType[EntityType.Werewolf] ?? []).filter((entity) => entity.alive && entity.moonHowlerCursed),

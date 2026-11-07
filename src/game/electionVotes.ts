@@ -5,9 +5,8 @@ import { isPlayerHuman } from './playerHuman';
 import { seededRandomForRun } from './simRng';
 
 /**
- * Election vote-support (Phase 7) — every adult settler casts a ballot.
- * A bounded election-wide swing moves expected merit support; personal bonds then
- * weight each ballot without making every voter choose the same candidate.
+ * Election vote-support: every adult settler casts a ballot, moved by a bounded election-wide
+ * swing and weighted by personal bonds.
  */
 
 /** A structurally-minimal candidate — villageLeadership's score breakdown fits this. */

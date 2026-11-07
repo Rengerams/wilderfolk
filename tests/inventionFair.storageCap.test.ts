@@ -1,17 +1,6 @@
 /**
- * The Invention Fair's "dismantle" refund obeys the storage cap.
- *
- * Regression for audit L1 (`docs/private/audits/2026-09-16/sim-economy-leadership-combat.md`, tracked
- * in `LIVE-FINDINGS-STATUS.md`): the recover-timber branch was `state.resources.wood += 4`, a raw
- * write past `storageMax`. Nothing clamps resources *down*, so the cap stopped being authoritative and
- * the excess then fed the defects that assume stock is within it (the `Math.min` sites of M2 and
- * `canStoreImports`'s `current + amount > max` refusal). The sibling gains all go through
- * `addCappedResource`; this one now does too.
- *
- * The stage-2 answered path is reached by seeding the status flag the resolver dispatches on. That key
- * and its `funded` value are the persisted contract (`inventionFair.ts`), and stage 1 is already
- * covered through the public path by `tests/medium-C2-story.test.ts`, so this fixture seeds the status
- * rather than duplicating that setup.
+ * The Invention Fair's dismantle refund goes through `addCappedResource`, so it never pushes
+ * wood past `storageMax`; the fixture seeds the persisted `funded` status flag for stage 2.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -43,8 +32,7 @@ describe('the Invention Fair dismantle refund (L1)', () => {
 
   it('does not push wood past the storage cap', () => {
     const state = fundedWorld();
-    // Stock at the cap is a legitimate state — the very premise of M2 — so the refund must be the
-    // part that fits, which here is nothing.
+    // Stock at the cap is legitimate, so the refund can only be the part that fits — nothing here.
     state.resources.wood = state.storageMax.wood;
 
     expect(resolveInventionFair(state, 'dismantle')).toBe(true);

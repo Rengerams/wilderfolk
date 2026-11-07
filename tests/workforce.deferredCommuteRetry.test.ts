@@ -75,9 +75,8 @@ describe('budget-deferred workforce commute', () => {
       workforcePolicy: 'balanced',
     } as unknown as WorldState;
 
-    // Every request exhausts its node allowance. A 32×32 grid has a
-    // conservative terminal cap of 4,096 nodes, so the second search ends
-    // the retry sequence instead of deferring indefinitely.
+    // Every request exhausts its node allowance. A 32×32 grid caps the search at 4,096
+    // nodes, so the second search ends the retry sequence.
     assignMissingWorkers(world.entities, world.buildings, world);
     expect(route.budgets).toEqual([4000]);
     assignMissingWorkers(world.entities, world.buildings, world);

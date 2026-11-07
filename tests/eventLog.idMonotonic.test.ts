@@ -1,17 +1,6 @@
 /**
- * Event-log ids stay monotonic per log, in every realm.
- *
- * `nextEventLogId` is module state. A realm that *receives* a world — the simulation worker
- * (`gameWorker.resetWorkerSession`) or the optimistic display copy the main thread builds
- * from a worker snapshot — starts that counter at 1 while the imported log already holds ids
- * 1..N. `applySimTickDelta` skips incoming tail entries whose id already exists
- * (`if (!existingIds.has(entry.id))`), so every event the worker logged after loading a save
- * was silently discarded: the in-game Chronicle froze for hundreds-to-thousands of events
- * while the simulation kept logging.
- *
- * `logEvent` now derives the next id from the log it is writing to (newest-first, so the head
- * carries the highest id), which makes the allocator correct in a fresh realm with no sync
- * call at all.
+ * Event-log ids are derived from the log they are written to, so an imported log keeps
+ * issuing increasing ids in every realm.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

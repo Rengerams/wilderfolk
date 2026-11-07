@@ -12,9 +12,8 @@ import {
 
 const PREY_TYPES = new Set<EntityType>([EntityType.Rabbit, EntityType.Deer]);
 /**
- * Hunters audible near prey: the simulation's predators (owned by `combat`) **plus** humans, who hunt
- * prey too but are not sim predators. Composing the owner keeps a predator the simulation adds audible
- * without a new branch here (duplication A10).
+ * Hunters audible near prey: sim predators (`combat`'s PREDATOR_TYPES) plus humans.
+ * Composing the owner keeps added predators audible without a new branch here.
  */
 const HUNTING_TYPES = new Set<EntityType>([...PREDATOR_TYPES, EntityType.Human]);
 

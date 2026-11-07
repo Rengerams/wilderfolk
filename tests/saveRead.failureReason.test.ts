@@ -1,14 +1,6 @@
 /**
- * Save-refusal diagnostics (2026-09-16).
- *
- * Reported from play: “the savegame failed loading”, with no way to tell why. Every
- * cause used to collapse into the same `{ valid: false }`, and the UI then *guessed* —
- * “file may be corrupted” on one path, “Save from a different build” on the other — so a
- * player (and a developer) could not tell an empty slot from a truncated file from a
- * save written by another build, and the real cause was only visible in the console.
- *
- * These cases pin the five real causes, their player-facing messages, and the fact that
- * a valid payload still parses.
+ * Save refusals carry a typed cause (`reason` + `detail`) so the UI reports what actually failed;
+ * these cases pin the five causes, their messages, and that a valid payload still parses.
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -66,9 +58,8 @@ describe('save refusal reasons', () => {
   });
 
   it('refuses a payload that is not a save object instead of throwing on _version (P-1)', () => {
-    // `JSON.parse` returns these happily, and the old code read `_version` straight off the result:
-    // `null` threw `TypeError: Cannot read properties of null`, which escaped the file-load event
-    // handler (`App.handleLoadFromFile` has no try/catch) with no toast and no visible cause.
+    // `JSON.parse` accepts all of these, so a non-object payload is refused as `not-a-save`
+    // rather than throwing on `_version` and escaping the file-load handler uncaught.
     for (const raw of ['null', '[]', '"x"', '123', 'true']) {
       const refused = refusal(parseSaveJson(raw));
       expect(refused.reason, raw).toBe('not-a-save');

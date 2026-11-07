@@ -1,21 +1,8 @@
 import { personDayRoll } from '../src/game/simRng';
 import { WORK_COMMUTE_RUSH as MAX_COMMUTE_SPEED_MULTIPLIER } from '../src/game/commuteReach';
 /**
- * Regression tests for the medium-severity movement/cadence findings from
- * BUG_REPORTS/2026-09-13-simulation-logic-audit.md:
- *
- * - M12 hotelStay / M27 humanMovement: the *same* defect wearing two hats. A 2026-09-13 change
- *   made `pathfinding.steerWithPath` write the entity's position as well as its velocity, while
- *   the callers still applied their own step, so pathed walkers advanced twice per tick. The fix
- *   belongs to the owner: the stepper only sets velocity, and each caller applies exactly one step
- *   (the commute leaves it to the human loop, the hotel walk moves the visitor itself). Verified
- *   against the pre-regression contract in `de98bd6` (2026-08-29) and `3b0660f`.
- * - M13 humanHospitalBehavior: the day-stable treatment roll was re-evaluated every
- *   tick, so a patient near a staffed ward was treated on every tick of the day.
- * - M14 humanHospitalBehavior: the routing wrote position in addition to velocity, so the human
- *   loop's single movement apply stepped the settler twice; velocity only now.
- * - M22 pathfinding: a path cached under an origin-independent key was reused from a
- *   different origin, steering the settler back toward the stale path start.
+ * Movement/cadence regressions: a stepper sets velocity only and each caller applies one step, the
+ * day-stable hospital roll is per day, and cached paths are origin-aware.
  */
 import { describe, expect, it } from 'vitest';
 import { steerVisitorToHotel } from '../src/game/hotelStay';
@@ -214,8 +201,8 @@ describe('M13 hospital treatment cadence', () => {
       });
     }
 
-    // The day-stable gate passing is a once-per-day event, not a licence to treat
-    // (skill + 1 food each time) on all 72 ticks of that day.
+    // The day-stable gate passing is a once-per-day event, not a licence to repeat the
+    // skill + 1 food treatment on every tick of that day.
     expect(foodBefore - state.resources.food).toBe(1);
   });
 });
@@ -372,9 +359,8 @@ describe('M22 path cache origin', () => {
     // First leg: cached from the bottom-left corner.
     expect(steerWithPath(entity, target.x, target.y, 5, cacheKey)).toBe('path');
 
-    // Same commute leg begun from a different origin, still needing a path around
-    // the river. Reusing the cached waypoints would steer the settler 300px back
-    // toward the stale origin instead of toward the target.
+    // Same commute leg from a different origin: the cached waypoints must be recomputed, not reused
+    // to steer the settler back toward the stale origin.
     entity.x = pixel(25, 35);
     entity.y = pixel(25, 35);
     expect(steerWithPath(entity, target.x, target.y, 5, cacheKey)).toBe('path');
@@ -484,9 +470,8 @@ describe('water and walls are solid under every walk', () => {
   it('lets a walker already standing on a blocked tile walk off it', () => {
     const map = makeMap(40, 40, 944, (x) => x === 20);
     setCurrentPathMap(map, []);
-    // Settlers do end up on water — shoved by a neighbour, snapped to a doorstep, or restored from a
-    // save made while they waded. Testing the whole step instead of the ground ahead would freeze
-    // them there for good, so the cell they already occupy is not an obstacle to leaving it.
+    // Settlers can end up on water, so the occupied cell is not an obstacle to leaving it; testing
+    // the whole step instead of the ground ahead would freeze them there.
     const walker = human(5, pixel(20, 10) + 2, pixel(10, 10));
     walker.vx = -2;
     for (let tick = 0; tick < 20; tick++) applyHumanWalkStep(walker, 1);
@@ -556,9 +541,8 @@ describe('water and walls are solid under every walk', () => {
   });
 
   it('routes a short leg through a gap instead of fording it', () => {
-    // River column 20 with a single gap at row 12, and a workplace 20 px east of the settler: a leg
-    // under LONG_RANGE_DIST (50), which used to steer straight at the target and straight into the
-    // river.
+    // River column 20 with a gap at row 12, and a workplace 20 px east: a leg under LONG_RANGE_DIST
+    // (50) must route through the gap rather than ford.
     const map = makeMap(40, 40, 943, (x, y) => x === 20 && y !== 12);
     const buildings: Building[] = [];
     setCurrentPathMap(map, buildings);

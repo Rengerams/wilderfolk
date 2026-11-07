@@ -1,12 +1,6 @@
 /**
- * F9 — the intro's CTA and progress bar fired 11.6 s before the intro finished
- * (`docs/private/audits/2026-09-16/playability-gamefeel.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * `ready: 6000` sat inside `INTRO_TIMELINE_MS`, where every other entry is an offset from mount, so the
- * "Choose your land →" button, the "press any key" prompt and the bottom progress bar all completed at
- * 6 s — while the subtitle (9.8 s), hook (14.2 s) and food-chain (17.6 s) beats were still to come. Any
- * keypress after 6 s skipped the rest of the reveal. The beats and the total now live in
- * `src/game/introTimeline.ts` so the relationship is testable instead of implied.
+ * The intro's CTA, key prompt and progress bar finish only after the last reveal beat, so a keypress
+ * cannot skip beats that have not played; beats and total live in `introTimeline.ts`.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -21,7 +15,7 @@ import {
 describe('intro timeline', () => {
   it('finishes after the last reveal beat, not before it', () => {
     expect(INTRO_DURATION_MS).toBe(INTRO_LAST_BEAT_MS + INTRO_READY_DELAY_MS);
-    // The defect in one number: the CTA used to fire at 6 000 ms, 11 600 ms short of the last beat.
+    // The CTA must outlast every beat: duration is the last beat plus the ready delay.
     expect(INTRO_DURATION_MS).toBe(23_600);
     expect(INTRO_DURATION_MS).toBeGreaterThan(INTRO_LAST_BEAT_MS);
   });

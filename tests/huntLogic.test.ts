@@ -5,10 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 
-// Both rules are exported owners — import them instead of re-deriving them here. This file used
-// to carry hand-copied versions, and its copy knew only Deer and Rabbit: every other prey type
-// fell through to the 18 fallback, so Wolf (45) and Fox (28) were asserted as 18
-// (`LIVE-FINDINGS-STATUS.md`, duplication G1).
+// Both rules are exported owners — import them rather than re-deriving the tables here.
 import { freeHuntFoodGain } from '../src/game/simulation/humanNeeds';
 import { isValidHuntPrey } from '../src/game/simulation/simulationEntities';
 import { getValleyHuntYieldMultiplier } from '../src/game/ecologyStage';
@@ -27,10 +24,8 @@ describe('free-roam hunt food', () => {
   });
 
   it('prices every tabled prey type above the fallback for untabled ones', () => {
-    // A Werewolf has no entry in the owner's table, so it is priced at the fallback. The
-    // hand-copied function this file used to define treated Wolf and Fox the same way (18),
-    // which is what made this case fail before the import replaced it. Asserting the ordering
-    // rather than the numbers keeps the test from restating the tuning table.
+    // A Werewolf has no table entry, so it is the fallback; asserting the ordering rather than the
+    // numbers keeps this test from restating the tuning table.
     const fallback = freeHuntFoodGain(EntityType.Werewolf, baseState);
     expect(freeHuntFoodGain(EntityType.Wolf, baseState)).toBeGreaterThan(fallback);
     expect(freeHuntFoodGain(EntityType.Fox, baseState)).toBeGreaterThan(fallback);

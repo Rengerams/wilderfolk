@@ -7,11 +7,7 @@ export { addResource } from './resourceUtils';
 export { canAffordWorkshopRecipe } from './workshops';
 
 /**
- * Storage one completed building adds, per resource.
- *
- * Exported (with `updateStorageCaps` as the single reader) because the inspector's Silo and
- * Storehouse hints typed "+2000 food storage" and "+800 materials storage" as prose — the numbers a
- * designer tunes now live only here.
+ * Storage one completed building adds, per resource — the numbers the inspector hints quote.
  */
 export const BARN_FOOD_STORAGE = 400;
 export const BARN_WOOD_STORAGE = 300;
@@ -37,28 +33,13 @@ export const BASE_IRON_STORAGE = 300;
 export const WAREHOUSE_IRON_STORAGE = 100;
 
 /**
- * The one derivation of `storageMax` from the colony's completed storage buildings.
- *
- * **Every** writer of `storageMax` comes through here. There used to be three definitions — this rule,
- * `worldGen`'s initial literal, and `saveLoad`'s fallback — and they disagreed: a fresh colony was
- * handed `{ wood: 1000, stone: 500, food: 1000, gold: 2000, iron: 500 }` against this rule's
- * `800 / 300 / 800 / 20000 / 300`. Because `updateStorageCaps` only runs in the daily layer and a world
- * starts at tick 24, the first in-game day enforced a gold ceiling **10× lower** than the real one and
- * material ceilings 25–67 % higher — and since nothing ever clamps stock *down*, the opening
- * `wood: 2000` was already over its own cap from the first tick.
- *
- * Takes only `buildings` so a world under construction can call the same rule the daily tick does.
+ * The one derivation of `storageMax` from the colony's completed storage buildings — every writer
+ * comes through here. Takes only `buildings` so a world under construction calls the same rule.
  */
 export function computeStorageMax(
   buildings: readonly Building[],
 ): { wood: number; stone: number; food: number; gold: number; iron: number } {
-  // Which completed buildings confer storage is a *player* rule — `b.faction !== 'rival'` is the
-  // same test `tradeCaravans.hasCompletedMarket` and every other consumer of "the colony's
-  // buildings" applies. Without it a rival Market (built by `rivalEvents`, `faction: 'rival'` in
-  // `groupEvents.createRivalBuilding`) handed the player +200 wood, +200 stone and +100 iron of
-  // storage on the next day boundary while `canEstablishTradeRoute` still refused with
-  // "Build a Market" — and a rival Silo cut the player's spoilage rate too
-  // (`LIVE-FINDINGS-STATUS.md`, E-1). Guarded by `tests/storageCap.test.ts`.
+  // Which completed buildings confer storage is a player rule: rival-owned buildings never count.
   const countOf = (type: BuildingType): number =>
     buildings.filter((b) => b.completed && b.faction !== 'rival' && b.type === type).length;
   const barns = countOf(BuildingType.Barn);
@@ -90,8 +71,8 @@ export function updateStorageCaps(state: WorldState) {
   ).length;
 
   state.storageMax = computeStorageMax(state.buildings);
-  // Floor at 0, not 0.01: the 1% floor swallowed the formula's own first-Silo result
-  // (0.02 − 0.012 = 0.8%), and a negative rate is not a spoilage rate.
+  // Floor at 0, not 0.01: a negative rate is not a spoilage rate, and the first Silo's
+  // 0.8% must survive.
   state.foodSpoilageRate = Math.max(0, 0.02 - silos * 0.012);
 }
 
@@ -110,11 +91,7 @@ export function applyFoodSpoilage(state: WorldState, season: Season) {
   const loss = Math.floor(state.resources.food * state.foodSpoilageRate * seasonMult);
   if (loss > 0) {
     state.resources.food = Math.max(0, state.resources.food - loss);
-    // The ledger's `consumed` side is what lets the "why is my food low?" panel reconcile
-    // produced − consumed against the real delta, and spoilage was the one sink that never reached it:
-    // a village could lose food every day with nothing in the panel to explain the loss
-    // (`LIVE-FINDINGS-STATUS.md`, L8). Only recorded when something was actually lost, so a
-    // zero-loss day adds no row.
+    // Record spoilage on the ledger's consumed side so the food panel reconciles the real delta.
     recordFoodConsumed(state, 'spoilage', loss);
     if (loss >= 5) {
       addFloatingText(state, state.width / 2, state.height / 2 - 40, `-${loss} food spoiled`, '#ef4444', 'brief');
@@ -131,12 +108,8 @@ export function initTradeRoutes(): WorldState['tradeRoutes'] {
     { id: 'trade_5', targetName: 'Silkmarket', resourcesGiven: { wood: 30, stone: 10, food: 40, gold: 20, iron: 0 }, resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 80, iron: 0 }, reputationRequired: 75, active: false },
     { id: 'trade_6', targetName: 'Spice Coast', resourcesGiven: { wood: 25, stone: 15, food: 50, gold: 30, iron: 0 }, resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 120, iron: 0 }, reputationRequired: 85, active: false },
     { id: 'trade_7', targetName: 'Granite Reach', resourcesGiven: { wood: 40, stone: 35, food: 30, gold: 40, iron: 0 }, resourcesReceived: { wood: 0, stone: 80, food: 0, gold: 60, iron: 0 }, reputationRequired: 95, active: false },
-    // --- Coin → materials. Every route above *exports* materials for coin, which left a
-    // colony that had coin but no wood or stone with no way back (and nothing a colony
-    // builds is free). These three buy the other way. The first needs no reputation, so it
-    // is always available, and `canEstablishTradeRoute` lets a purchase route skip the
-    // Market requirement — a Market costs 50 wood and 20 stone, which is exactly what a
-    // trapped colony does not have.
+    // --- Coin → materials. These three buy the other way, so a colony with coin but no
+    // materials is not trapped; the first needs no reputation and skips the Market requirement.
     { id: 'trade_8', targetName: 'Timberland Traders', resourcesGiven: { wood: 0, stone: 0, food: 0, gold: 25, iron: 0 }, resourcesReceived: { wood: 60, stone: 0, food: 0, gold: 0, iron: 0 }, reputationRequired: 0, active: false },
     { id: 'trade_9', targetName: 'Stonefall Traders', resourcesGiven: { wood: 0, stone: 0, food: 0, gold: 30, iron: 0 }, resourcesReceived: { wood: 0, stone: 45, food: 0, gold: 0, iron: 0 }, reputationRequired: 10, active: false },
     { id: 'trade_10', targetName: 'Greenfields Traders', resourcesGiven: { wood: 0, stone: 0, food: 0, gold: 35, iron: 0 }, resourcesReceived: { wood: 0, stone: 0, food: 60, gold: 0, iron: 0 }, reputationRequired: 10, active: false },

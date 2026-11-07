@@ -1,12 +1,6 @@
 /**
- * Headless sim focus — matches in-game camera throttling.
- *
- * Without focus, gameTick treats every entity as "on screen" (full AI every tick).
- * That is slower than real play and behaves differently from a normal settlement view.
- *
- * Env:
- *   SIM_FULL_SIM=1 — disable throttling (slowest, all entities every tick)
- *   SIM_ZOOM       — camera zoom for focus box (default: map-aware ~1.5 on Large maps)
+ * Headless sim focus, matching in-game camera throttling: without it every entity counts as on screen.
+ * `SIM_FULL_SIM=1` disables throttling; `SIM_ZOOM` sets the focus-box zoom.
  */
 import type { WorldState } from '../src/game/gameTypes';
 import { createSimFocus, type SimulationFocus } from '../src/game/gameEngine';

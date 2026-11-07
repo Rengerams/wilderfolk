@@ -330,12 +330,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const staffedHospitals: Building[] = [];
   const staffedTownHalls: Building[] = [];
   /**
-   * The village's leisure venues, gathered **once per tick** rather than once per idle settler.
-   *
-   * `idleDestination` used to scan `state.buildings` for each idle adult on every tick — a village of a
-   * thousand settlers over a hundred buildings is a hundred thousand comparisons per tick, on a loop that
-   * is already fighting to deliver 10× (`[SpeedDiag]`, `gameLoop`). The list is a tick-stable fact, so it
-   * is computed where the other per-tick lists are and handed to the behaviour.
+   * The village's leisure venues, gathered once per tick: a tick-stable fact handed to the
+   * behaviour instead of rescanning every building for every idle settler.
    */
   const idleVenues: Building[] = [];
   for (const b of updatedBuildings) {
@@ -355,17 +351,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     else if (b.type === BuildingType.TownHall) staffedTownHalls.push(b);
   }
 
-  // Completed player residences, and the leisure-venue pools, are constant for this whole frame:
-  // `building.completed` has exactly one writer in the repo (`dailyBuildingEconomy.tickBuildingProgress`,
-  // daily layer only), `building.type` has none, and building `faction` has none — every
-  // `.faction =` write is on an entity. Both were previously re-derived per entity: the residence
-  // list was re-filtered for every courting pair (`updatedBuildings.filter(isResidenceBuilding)`)
-  // and the venue pool re-filtered for every leisure choice (2.98 calls/tick measured). Both are
-  // built on FIRST USE rather than unconditionally, so a tick that never reaches the courtship
-  // branch or the leisure picker does no extra work — the probe showed an eager version of this
-  // raised the `isResidenceBuilding` filter from 3 887 to 9 184 calls over 8 640 ticks. The pools are
-  // keyed by the requested type list and produced by the same predicate over the same array, so
-  // their contents and order are identical to the per-call filter.
+  // Residences and leisure-venue pools are frame-constant (only the daily layer completes
+  // buildings), so build each lazily on first use and reuse it for the rest of the tick.
   let playerResidences: Building[] | undefined;
   const playerResidencesFor = (): Building[] =>
     (playerResidences ??= updatedBuildings.filter(isResidenceBuilding));
@@ -429,12 +416,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   // looking, so the first barracks watch on shift builds the index and the rest reuse it.
   let patrolRevealIndex: PatrolRevealIndex | undefined;
 
-  // The village anchor was re-derived for every visitor, rival and barracks guard in this loop.
-  // Only the building half may be hoisted: nothing this loop reaches removes a building from
-  // `updatedBuildings` or flips one's `completed`, `type`, `faction` or geometry, so the hall/house
-  // answer is constant for the tick — while the settler half averages positions this very loop moves
-  // and drops settlers from, so caching that would hand later entities a stale anchor. `undefined`
-  // means "not resolved yet"; `null` means "no hall and no house, ask the entities every time".
+  // Only the building half of the camp anchor is tick-stable: entities move in this loop, so the
+  // settler half is always re-read. `null` means no hall and no house; `undefined` means unresolved.
   let buildingCampAnchor: { x: number; y: number } | null | undefined;
   const getCampAnchor = (): { x: number; y: number } => {
     if (buildingCampAnchor === undefined) {
@@ -506,18 +489,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       tryDailyAmicableDivorce(state, entity, entityById, updatedBuildings, playerHumans);
     }
 
-    // The affair encounter is the one daily affair decision that needs the settler *away from their
-    // spouse*, so it is evaluated at a per-settler waking hour rather than for the whole settlement
-    // at midnight — see `affairEncounterHourOfDay`. It stays once per settler per day, and at the
-    // same chance: `personDayRoll` is keyed on the colony day, not the tick-of-day, so this is the
-    // same single roll the midnight gate made, just sampled at an hour its own gates can pass.
+    // The affair encounter needs the settler away from the spouse, so it is sampled at a per-settler
+    // waking hour but stays one roll per colony day (`personDayRoll` is day-keyed).
     if (
       !isPrisoner &&
       isPlayerHuman(entity) &&
-      // Compare like with like: the owner's stagger is an **hour** (06:00–19:00), and
-      // `getTickOfDay` returns a tick-of-day (0–71), so the old test could only ever match clock
-      // hours 02:00–06:20 — asleep at home, where the encounter's own gates refuse it. Most married
-      // settlers therefore never reached the establishment owner at all.
+      // Compare clock hours with clock hours: the owner's stagger is an hour (06:00–19:00), not a
+      // tick-of-day.
       hourOfDay === affairEncounterHourOfDay(entity.id, state.tick) &&
       isStartOfClockHour(state.tick) &&
       !isAsleepAtHome(entity, buildingById, hourOfDay) &&
@@ -555,8 +533,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const schoolTarget = schoolAssignments.get(entity.id);
 
     if (schoolTarget) {
-      // Schoolyard rumours and new bonds require an awake child at school hours.
-      // Run once per day at noon, not at midnight while the children sleep.
+      // Schoolyard rumours and new bonds run once per day at noon, when an awake child is at school.
       if (
         hourOfDay === 12 &&
         isStartOfClockHour(state.tick) &&
@@ -612,9 +589,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     const venueWorkerIndex = workplace ? workplace.occupants.indexOf(entity.id) : -1;
     const venueWorkerCount = workplace?.occupants.length ?? 0;
-    // A festival keeps the Tavern open to visitors (`venueSchedule.isFestivalOverrideActive`) — and that
-    // is venue availability, never the Innkeeper's duty: crediting it pays for all 24 hours of a
-    // festival day and pins every innkeeper at maximum fatigue, which costs the tavern its output.
+    // A festival keeps the Tavern open to visitors, but that is venue availability, not the
+    // Innkeeper's duty — paying it pins every innkeeper at maximum fatigue.
     const onTavernShift =
       isInnkeeper &&
       (venueWorkerIndex >= 0
@@ -870,9 +846,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     let onSchedule = false;
 
 
-    // A crew larger than the three shifts takes days off in turn, and a resting guard is *free* — he is
-    // not on the colony work day. Without this he still walked to the prison for `goWorkTime`, so an
-    // off-duty guard stood on a post he was not rostered for and had no day off at all.
+    // A crew larger than three shifts takes days off in turn; a resting guard is off the colony work
+    // day and must not still walk to the prison.
     const offDutyPrisonGuard = isPrisonGuardAtPost && prisonShift == null;
 
     // A resting settler takes an actual off-duty pause, not merely a status label.
@@ -1011,8 +986,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       );
       const targetX = square ? square.x + square.width / 2 : (performers?.campX ?? (hall ? hall.x : width * 0.5));
       const targetY = square ? square.y + square.height / 2 : (performers?.campY ?? (hall ? hall.y : height * 0.5));
-      // A real place per festival-goer: the old 35-slot lattice (`id % 7` × `floor(id / 7) % 5`) stacked a
-      // whole village tens deep on those few points — the owner's *"they again in a circle"*.
+      // A real place per festival-goer: `crowdGatherPosition` spreads the crowd around the target.
       const stand = crowdGatherPosition(targetX, targetY, entity.id);
       const dx = stand.x - entity.x;
       const dy = stand.y - entity.y;
@@ -1046,9 +1020,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       hospitalCommuteDue && workplace &&
       !huntingWere && !inElectionCeremony && !inSpotlightGathering && !festivalGathering
     ) {
-      // Doctors travel for their own 00–08 / 08–16 / 16–24 shift,
-      // including the evening before a midnight duty. Never pull
-      // off-duty doctors to hospital merely because the village works.
+      // Doctors travel for their own shift, including the evening before a midnight duty; never pull
+      // an off-duty doctor to the hospital merely because the village works.
       commuteHumanToBuilding(entity, workplace, config.speed, false, WORK_COMMUTE_RUSH);
       onSchedule = true;
       suppressIdle = true;
@@ -1124,30 +1097,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       isHuntingSpotHunter(workplace, entity, entityById)
     ) {
       /**
-       * The move-to-prey order: the Hunting Spot sends its hunter **out to the animal**.
-       *
-       * Owner, 2026-09-30: *"why is it so difficult that hunter goes to the prey"*, then, on the reach,
-       * *"120 px is way to far, its 1800's they dont have guns"*. Both halves are one order: with a
-       * contact-distance reach (`huntingSpot.huntingKillReach`) a hunter who holds position takes
-       * nothing, so the assigned hunter walks to the animal the spot is actually going to shoot —
-       * `huntingSpotTarget`, the same commitment the shot reads — and holds beside it. A wolf does
-       * exactly this every tick in `tickLayerSystems`; the free-roam hunter does it in
-       * `humanHuntingBehavior`; this was the one hunter that did not.
-       *
-       * This sits in the *work-commute* branch rather than the shift branch above it because that is the
-       * one a spot's worker actually runs in: measured with the game's own workforce assignment, a
-       * hunter stood frozen at its post (`v=(0,0)`) through a whole working day while its committed deer
-       * walked from 193 px to 209 px away. Suit the movement to the branch that runs, not the one that
-       * looks right.
+       * The move-to-prey order: the Hunting Spot's hunter walks to the animal the spot is committed to
+       * shoot and holds beside it, because a contact-distance reach takes nothing from the post.
        */
       const spotPrey = huntingSpotTarget(workplace, entity, entityById, byType);
       const chase = spotPrey ? huntingSpotChaseTarget(workplace, entity, entityById, byType) : null;
-      // Record who is after what. This is the field the map draws its dashed hunt line from
-      // (`renderer/humans.ts`) and the one `buildHuntTargetByPreyIndex` indexes, which is how the prey's
-      // own flee rule knows not to bolt from the settler hunting it (`tickLayerSystems`).
+      // Who is after what: the map's dashed hunt line and the prey's flee rule both read this field.
       entity.huntTargetId = spotPrey ? spotPrey.id : undefined;
       // Record the contact while it is happening: the spot's production pass samples an instant and would
-      // otherwise never see the hunter beside the animal (measured — see `HUNTING_SPOT_STRIKE_GRACE_TICKS`).
+      // otherwise never see the hunter beside the animal (`HUNTING_SPOT_STRIKE_GRACE_TICKS`).
       if (spotPrey && Math.hypot(spotPrey.x - entity.x, spotPrey.y - entity.y) <= huntingKillReach(entity, spotPrey)) {
         workplace.huntingSpotInReachTick = state.tick;
       }
@@ -1178,9 +1136,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !isHospitalDoctor &&
       workplace
     ) {
-      // Leave early enough to be *at* work when the shift starts. The lead is the same for every job
-      // and grows with this settler's own distance; only the clock it counts back from differs, and
-      // for a prison guard that is the roster shift's start rather than the colony window.
+      // Leave early enough to arrive at work when the shift starts; the lead grows with the settler's
+      // own commute distance.
       const commuteLeadHours = commuteLeadHoursFor(
         commuteDistanceToBuilding(entity, workplace, false),
         config.speed,
@@ -1249,8 +1206,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         ) != null;
 
       if (!nearbySingle) {
-        // Somewhere real to be, instead of the old drift to the map centre that piled the village's idle
-        // population into one chatting blob (`idleDestination` — home, a venue, or a pretty spot).
+        // Somewhere real to be: `idleDestination` picks home, a venue or a pretty spot.
         const dest = idleDestination(state, entity, idleVenues, buildingById);
         const tx = dest.x;
         const ty = dest.y;
@@ -1378,7 +1334,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Secret affairs: pregnancy or expecting status no longer blocks encounters or catching
+    // Secret affairs: pregnancy or expecting status does not block encounters or catching.
     const hasActiveMarriage =
       isMarriedOrExpecting(entity) &&
       entity.partnerId != null;
@@ -1393,9 +1349,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.age < HUMAN_MAX_LIFESPAN_YEARS &&
       entity.energy > config.reproductionEnergyThreshold * 0.5 &&
       hasActiveMarriage &&
-      // An empty marital home is a valid tryst site: only a spouse who is right there
-      // blocks it (the same 22 px the affair gates use). The wider 55 px arrival window is
-      // the walk-in that catches them, so the two radii must not be the same one.
+      // An empty marital home is a valid tryst site: only a spouse right there blocks it, at the
+      // affair gates' 22 px — the wider 55 px arrival window is the walk-in that catches them.
       !isMaritalHomeOccupiedBySpouse(entity, entityById, buildingById, AFFAIR_SPOUSE_BLOCK_RADIUS)
     ) {
       const affairRange = 75;
@@ -1946,9 +1901,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     syncEntityGrids(ctx, entity);
   }
 
-  // Ceremony/leisure/snap branches can assign a final position directly rather than going through
-  // applyHumanWalkStep. Repair those positions after the full human pass so nobody can be left in
-  // water, reserved decor, or a completed wall by a later route.
+  // Some branches assign a final position directly, so repair those after the human pass: nobody
+  // may be left in water, reserved decor, or a completed wall.
   if (state.worldMap) {
     const walkGrid = getReadOnlyPathGrid(state.worldMap, state.buildings);
     for (const entity of allHumans) {

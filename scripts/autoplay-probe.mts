@@ -1,7 +1,6 @@
 /**
- * Temporary probe (local-only, safe to delete): the bot proposes an act every
- * hour — but does APPLYING it actually change the world, or is every command
- * silently refused (which is what "nothing happens" would look like)?
+ * Temporary probe (local-only, safe to delete): the bot proposes an act every hour, so does applying
+ * it actually change the world, or is every command silently refused?
  */
 import { initGame, gameTick } from '../src/game/gameEngine';
 import { MapSize } from '../src/game/gameTypes';

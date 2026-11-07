@@ -1,8 +1,7 @@
 import { building, human } from '../src/test/factories';
 /**
- * Regression: the Auto-staff button worked silently — it assigned workers but
- * gave no confirmation, so it looked broken. It confirms real assignments,
- * but no-op passes should not nag when no workplaces need staffing.
+ * The Auto-staff button confirms real assignments but stays quiet on a no-op pass, where no
+ * workplace needs staffing.
  */
 import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';

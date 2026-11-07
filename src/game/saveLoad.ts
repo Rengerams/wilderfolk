@@ -69,10 +69,8 @@ import { pruneOrphanRivalEntities, retireLegacyCampStructures } from './rivalEve
 const SAVE_KEY = 'ecosim_save';
 
 /**
- * The most a save payload may weigh before it leaves the browser slot for a file.
- *
- * One slot shares a typical ~5 MiB localStorage quota and browsers store UTF-16, two bytes per code
- * unit, so this ceiling (4.0 MB stored) keeps a write clear of a refused or truncated one.
+ * The most a save payload may weigh before it leaves the browser slot for a file. One slot shares a
+ * typical ~5 MiB localStorage quota and browsers store UTF-16, so 4.0 MB stored stays clear.
  */
 export const BROWSER_SLOT_BUDGET_BYTES = 4_000_000;
 
@@ -107,7 +105,6 @@ function repairLoadedHumanGround(world: WorldState): number {
   return repaired;
 }
 
-/** The serialized `_version` text `buildSaveData` writes, in `JSON.stringify`'s own encoding. */
 /** Last release with a save layout supported by the current load migrations. */
 const COMPATIBLE_SAVE_VERSIONS = new Set([GAME_VERSION, '0.6.5.0']);
 
@@ -172,13 +169,8 @@ function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): v
 }
 
 /**
- * `slotWarning` is present when the file downloaded but the **browser slot** could not be written
- * (storage full, or storage blocked). The caller must not mark the slot as present in that case:
- * the toast used to say success either way, so Load was offered against a stale or empty slot and
- * could silently restore an older colony with no date shown anywhere.
- *
- * `fileReason` means the slot was never attempted: the payload left for a file instead
- * (`decideSaveRoute`), so a caller must not advertise the slot as written either.
+ * `slotWarning` means the file downloaded but the browser slot could not be written (full or blocked),
+ * so the caller must not mark the slot present. `fileReason` means the slot was never attempted.
  */
 export type SaveResult =
   | { success: true; slotWarning?: string; fileReason?: FileSaveReason }
@@ -220,18 +212,8 @@ function describeJsonShape(value: unknown): string {
 }
 
 /**
- * Parse save JSON from localStorage or a downloaded .json file.
- *
- * A refusal always says *why*. Before this, every cause — an empty slot, a truncated
- * file, a save from another build — collapsed into the same `{ valid: false }`, so the
- * player got a guessed message ("file may be corrupted" / "from a different build")
- * while the real cause sat in the console.
- *
- * The parsed value is checked for the save *shape* before `_version` is read. `JSON.parse`
- * happily returns `null`, `[]` or `'x'`, and reading `_version` off those threw a `TypeError`
- * out of an event handler: the file-load path (`App.handleLoadFromFile` via `FileReader.onload`)
- * has no try/catch of its own, so a `null` payload produced no toast, no menu close and no
- * visible cause. Every non-object payload is now a refusal, not an exception.
+ * Parse save JSON from localStorage or a downloaded .json file. A refusal always says why, and the
+ * value is shape-checked before `_version` is read so no non-object payload throws out of a handler.
  */
 export function parseSaveJson(raw: string | null | undefined): SaveReadResult {
   if (!raw || !raw.trim()) return { valid: false, reason: 'empty' };
@@ -284,12 +266,8 @@ export function describeSaveReadFailure(
 }
 
 /**
- * Player-facing message for a refused *load*: a read refusal (via `describeSaveReadFailure`) or a
- * payload that parsed but could not be restored.
- *
- * The `unrestorable` detail (the field that was missing or mistyped) is carried into the message:
- * "could not be restored" alone told the player nothing and left the one fact worth reporting in the
- * console.
+ * Player-facing message for a refused load: a read refusal (via `describeSaveReadFailure`) or a payload
+ * that parsed but could not be restored. The failing field detail is carried into the message.
  */
 export function describeSaveLoadOutcome(failure: SaveLoadFailure): string {
   if (failure.reason === 'unrestorable') {
@@ -299,11 +277,8 @@ export function describeSaveLoadOutcome(failure: SaveLoadFailure): string {
 }
 
 /**
- * What a save version means, stated **before** the player hits a refusal (roadmap T4).
- *
- * The refusal path already names both versions (`describeSaveReadFailure`); this is the same rule
- * said up front. It is also the one place that wording lives, so the menu cannot drift from the
- * message a refused load shows.
+ * What a save version means, stated before the player hits a refusal. This wording is the one place it
+ * lives, so the menu cannot drift from the refusal message.
  */
 export function describeSaveCompatibility(): string {
   return `This build is v${GAME_VERSION}. Saves from v0.6.5.0 and v${GAME_VERSION} are supported. Keep backups of original save files when upgrading.`;
@@ -431,14 +406,8 @@ function compactWorldMapForSave(worldMap: WorldState['worldMap']) {
     width: worldMap.width,
     height: worldMap.height,
     /**
-     * The sparse per-tile overrides, as `[key, tile]` pairs.
-     *
-     * They are the **only** record of terrain the player changed — building placement clears forest
-     * under a footprint — and the compact save regenerates the ground from its seed, so without them
-     * every building's cleared ground came back as forest after a load: canopy repainted over houses,
-     * and `tileAt` reported Forest under a building for the rest of the game. The key is the owner's
-     * own encoding (`y * width + x`), which the regenerated map shares, so no tile arithmetic is
-     * needed here. A `Map` is not JSON, hence the pairs.
+     * The sparse per-tile overrides as `[key, tile]` pairs — the only record of terrain the player
+     * changed, since a compact save regenerates the ground from its seed. A `Map` is not JSON.
      */
     _overrides: worldMap.overrides ? [...worldMap.overrides.entries()] : undefined,
     /** The resolved noise seed, so the valley regenerates exactly — see `terrainSeedFor`. */
@@ -449,12 +418,8 @@ function compactWorldMapForSave(worldMap: WorldState['worldMap']) {
 }
 
 /**
- * The largest pixel span one axis of a map the game offers has. `MAP_SIZE_DIMENSIONS` is the source of
- * truth, so a preset the owner raises raises this.
- *
- * The world's own dimensions are the ones `generateWorldMap` allocates typed arrays from, so a pair no
- * preset could be (the largest width against the largest height) must be refused by name. A single
- * maximum shared by both axes let exactly that pair through.
+ * The largest pixel span one axis of a map the game offers has; `MAP_SIZE_DIMENSIONS` is the source of
+ * truth. Each axis is separate because a max-width × max-height pair is not a preset.
  */
 function maxSavedMapPixelsForAxis(axis: 'width' | 'height'): number {
   let maxPixels = 0;
@@ -466,10 +431,7 @@ function maxSavedMapPixelsForAxis(axis: 'width' | 'height'): number {
 
 /**
  * The largest tile grid the shipped presets can produce. `restoreWorldMapFromSave` multiplies a save's
- * tile dimensions by `PATH_CELL` when the payload carries no pixel size of its own, and hands the result
- * to `generateWorldMap`, which allocates typed
- * arrays for the whole surface — so an unbounded dimension pair lets a crafted file choose the
- * allocation (a 4000 × 3000 pair loads; a negative one surfaces a raw `RangeError`).
+ * tile dimensions by `PATH_CELL`, so an unbounded pair would let a crafted file choose the allocation.
  */
 function maxSavedMapTiles(): number {
   return Math.ceil(
@@ -487,11 +449,8 @@ function isUsableMapTileCount(value: unknown): value is number {
 }
 
 /**
- * Re-apply the saved per-tile overrides onto a freshly regenerated map.
- *
- * Delegates the key decoding and cache invalidation to `setTileOverride`, which owns both — a local
- * `map.overrides.set()` would leave the map's derived-tile projection cache holding the pre-load
- * ground for exactly the tiles being restored.
+ * Re-apply the saved per-tile overrides onto a freshly regenerated map. Key decoding and cache
+ * invalidation belong to `setTileOverride`; a raw `overrides.set` would leave the cache stale.
  */
 function applySavedTerrainOverrides(
   map: WorldState['worldMap'],
@@ -525,10 +484,8 @@ function restoreWorldMapFromSave(parsed: {
   buildings?: unknown;
 }): WorldState['worldMap'] {
   if (!parsed.worldMap) return null;
-  // Only a compact save (`_compact: true`) is a seed/preset reference to regenerate below; every
-  // other save carries its own map data and is restored as it was written. The old test also
-  // required a `tiles` array, which the four-layer map model no longer stores, so it was never
-  // true and a full save was silently regenerated instead of restored.
+  // Only a compact save (`_compact: true`) is a seed/preset reference to regenerate; every other save
+  // carries its own map data and is restored as written.
   if (!parsed.worldMap._compact) {
     return parsed.worldMap;
   }
@@ -567,9 +524,8 @@ function restoreWorldMapFromSave(parsed: {
   };
 
   const map = regenerateTerrain(storedTerrainSeed);
-  // A pre-offset save carries no terrain seed, and only its own placements can tell whether the
-  // current rule regenerated the valley it was played in. A completed fishing dock is the witness:
-  // its footprint rule needs water, and the legacy rule is the one that put it there.
+  // A pre-offset save carries no terrain seed, so only its own placements can tell whether the current
+  // rule regenerated the valley it was played in: a completed Fishing Spot is the witness.
   if (storedTerrainSeed !== undefined || !completedFishingSpotNeedsWater(map, parsed.buildings)) {
     return map;
   }
@@ -680,8 +636,8 @@ export function migrateLegacySecurityRoles(world: WorldState): void {
 }
 
 /**
- * Old saves used 24 ticks/day (1 tick = 1 hour). Current builds use TICKS_PER_DAY.
- * Scale world.tick and deadline fields so calendar day + remaining durations stay correct.
+ * Scale absolute tick values when the save's day length differs from `TICKS_PER_DAY`
+ * (legacy 24- and 72-tick days); current-resolution saves need no scaling.
  */
 function migrateTickTimeline(
   world: WorldState,
@@ -827,25 +783,16 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 /**
- * A year scalar that is legitimately `null`: no pending election, nothing to notify.
- *
- * A bare number rule would refuse every real save (`pendingElectionYear` is `number | null`). What it
- * must catch is `Infinity`: `getYearsUntilElection` returns `pendingElectionYear - year`, so an
- * infinite date reads as "merit election in Infinity years" and no election can ever run again.
+ * A year scalar that is legitimately `null` (no pending election). It must still reject `Infinity`, or
+ * "election in Infinity years" means no election can ever run again.
  */
 function isFiniteNumberOrNull(value: unknown): boolean {
   return value === null || isFiniteNumber(value);
 }
 
 /**
- * A payload's `resources`/`storageMax` must carry **every** key as a finite number.
- *
- * Absence is deliberately *not* tolerated here, which is the opposite of the rule for the calendar
- * fields below. `undefined` in the purse is not a default — it is the failure mode: every
- * affordability rule is `state.resources.wood >= cost.wood`, and a comparison against `undefined` is
- * permanently `false`, so a colony loaded with a short purse can never build, repair, upgrade or
- * research again, and the next save writes the same broken state back. A truncated object is the
- * shape a hand-edited or partially written file actually produces, so it is refused by name.
+ * A payload's `resources`/`storageMax` must carry every key as a finite number. Absence is a failure,
+ * not a default: a comparison against `undefined` is permanently false, so the colony can never build.
  */
 function hasCompleteResourceShape(value: unknown): boolean {
   if (!isSaveObject(value)) return false;
@@ -853,24 +800,8 @@ function hasCompleteResourceShape(value: unknown): boolean {
 }
 
 /**
- * Fields the restore dereferences with no default, so a payload that matches this build's version
- * but omits or mistypes one throws a `TypeError` from deep inside the restore — the two the audit
- * caught are `resources` (read as `resources.iron`) and `lifetimeStats` (read as
- * `lifetimeStats.tradeCaravansCompleted`). The throw was swallowed by the restore's catch-all, so
- * the player saw a bare "could not be restored" while the failing field stayed in the console.
- * Checking the shape first turns that into a named cause.
- *
- * The numeric checks below are the same class one step quieter. A same-version payload with
- * `tick: "abc"` used to **load successfully** into a world whose calendar was `NaN`: `% TICKS_PER_DAY`
- * is then never 0, so the daily layer never runs again — no days, no seasons, no aging, no births —
- * and "Year NaN" reaches the clock. The purse is checked more strictly still (see
- * `hasCompleteResourceShape`). Both are refused by name, which is the outcome `findUnrestorableField`
- * already exists to produce.
- *
- * The calendar/geometry fields do tolerate absence: the loader defaults each of them, so only a
- * present-but-unusable value is a refusal there.
- *
- * Returns the first failing field name, or `null` when the payload is worth attempting.
+ * Fields the restore dereferences with no default, so omitting or mistyping one throws a `TypeError`
+ * inside it. Shape is checked first so the player gets a named cause. Returns the first failing field.
  */
 function findUnrestorableField(parsed: Record<string, unknown>): string | null {
   if (!hasCompleteResourceShape(parsed.resources)) return 'resources';
@@ -916,10 +847,8 @@ function isFiniteWithin(limit: number): (value: unknown) => boolean {
 const MAX_USABLE_ID = Number.MAX_SAFE_INTEGER - 1;
 
 /**
- * An id the rest of the engine can key on, and one a later spawn can be numbered past.
- *
- * `isFiniteNumber` accepted `1.5` and `-4`, so a payload could restore entities the code looks up by
- * integer equality and never finds; an id at the top of the range would leave the next one unusable.
+ * An id the rest of the engine can key on, and one a later spawn can be numbered past: an integer in
+ * range, so a fractional or negative payload id cannot restore an entity no lookup finds.
  */
 function isUsableId(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= MAX_USABLE_ID;
@@ -977,11 +906,8 @@ const WORLD_ELEMENT_RULES: readonly ElementFieldRule[] = [
 ];
 
 /**
- * The container arrays a load must be able to walk, and what one element of each must be.
- *
- * A present-but-not-an-array value never reaches the restore's own `?? []`, so the first
- * `.map`/`.filter`/`.some` threw a `TypeError` out of the catch-all and the player read raw engine
- * text instead of a refusal. Every key is one `WorldState` array, so a renamed field stops compiling.
+ * The container arrays a load must be able to walk, and what one element of each must be: a
+ * present-but-not-an-array value never reaches the restore's own `?? []` and threw a `TypeError`.
  */
 type WorldArrayKeys = {
   [K in keyof WorldState]-?: Extract<WorldState[K], readonly unknown[] | null | undefined> extends never
@@ -1158,11 +1084,8 @@ function isSafeIntegerWithin(limit: number): (value: unknown) => boolean {
 }
 
 /**
- * The per-element keys a malformed payload actually mistypes, and what "usable" means for each.
- *
- * `x`/`y` are additionally bounded to the map, because an entity outside it is the other thing
- * `assertSimInvariants` reports (`simInvariants.ts`) — and that check only runs on a dev build, once
- * per colony day, long after the bad payload has been written back by the next save.
+ * The per-element keys a malformed payload mistypes, and what "usable" means for each. `x`/`y` are
+ * bounded to the map because an entity outside it is an invariant violation nothing else refuses.
  */
 function entityFieldRules(width: number, height: number): readonly ElementFieldRule[] {
   return [
@@ -1187,11 +1110,8 @@ function buildingFieldRules(width: number, height: number): readonly ElementFiel
 }
 
 /**
- * The world's top-level scalars, each with the rule a *present* value must satisfy.
- *
- * `tick` is the clock every date is derived from, and `lastProcessedCalendarDay` is the gate that
- * lets the daily layer run at all (`isNewCalendarDayTick` is `day > lastProcessed`, so a `NaN` day
- * there starves the colony of days, seasons, ageing and births just as a `NaN` tick does).
+ * The world's top-level scalars, each with the rule a present value must satisfy. `tick` and
+ * `lastProcessedCalendarDay` are both clocks: a `NaN` there starves the colony of days.
  */
 function worldScalarRules(): readonly ElementFieldRule[] {
   return [
@@ -1217,21 +1137,8 @@ function worldScalarRules(): readonly ElementFieldRule[] {
 }
 
 /**
- * The first malformed **element** of `entities` or `buildings`, named as `entities[3].x`.
- *
- * The scalar checks above protect the world's containers; this protects their contents, which is
- * where a payload that parses can still be unusable. Nothing downstream refuses one: the restore
- * builds each element by default-and-spread and casts it (`:591-612`, `:676-680`), so a JSON-valid
- * `{ x: "nope", type: "Dragon" }` reached a live world, rendered nowhere, and was written back by the
- * next save — permanent. `computeWildlifeCounts` only warns on the unknown type, and the invariant
- * that would have caught the non-finite position is a dev-build pulse once per colony day.
- *
- * Every rule tolerates **absence** except `type`: it is the one key whose absence is not a shape this
- * build can use (`EntityType` drives every bucket, `BuildingType` every production rule), it was
- * mandatory in every save this build can write, and the exact-version gate (`:128-137`) means no
- * payload from a build that omitted it is accepted anyway. The list itself is checked here too, so
- * this scan is the one owner of `entities` and `buildings`: a present value that is not an array is
- * refused as `entities`, and only its elements are named `entities[3].x`.
+ * The first malformed element of `entities` or `buildings`, named as `entities[3].x`. Nothing
+ * downstream refuses one, so this scan is the one owner; every rule tolerates absence except `type`.
  */
 function findUnrestorableEntityField(parsed: Record<string, unknown>): string | null {
   const width = isFiniteNumber(parsed.width) ? parsed.width : 0;
@@ -1250,9 +1157,8 @@ function findUnrestorableEntityField(parsed: Record<string, unknown>): string | 
     if (!(key in parsed)) continue;
     const list = parsed[key];
     if (!isAnyArray(list)) return key;
-    /** Ids already used in this list. Two entities sharing one id make `entityById` silently drop
-     *  whichever was inserted first, so that settler can never be selected, inspected or targeted —
-     *  and the next save writes the collision back. */
+    /** Ids already used in this list. A duplicate makes `entityById` silently drop one entity, which
+     *  can then never be selected, inspected or targeted. */
     const seenIds = new Set<number>();
     for (let i = 0; i < list.length; i++) {
       const element: unknown = list[i];
@@ -1285,29 +1191,16 @@ function isVillageRequestChoice(value: unknown): boolean {
 }
 
 /**
- * The one save field whose reader is a render-time call: `getVillageRequestEligibility` runs
- * `request.choices.some(…)` while the shell paints the card, so a card without a usable `choices`
- * array white-screens the UI instead of refusing. Absence is the owner's own default — the load path
- * defaults a missing card to `undefined` — but a *present* one must be walkable. Only `choices` is
- * judged: the other keys are strings the readers dereference without a rule of their own.
+ * The one save field whose reader is a render-time call: `getVillageRequestEligibility` walks
+ * `request.choices` while the card paints, so a present card must have a usable `choices` array.
  */
 function isUsableVillageRequest(value: unknown): boolean {
   return isSaveObject(value) && Array.isArray(value.choices) && value.choices.every(isVillageRequestChoice);
 }
 
 /**
- * Clear every reference a loaded colony cannot resolve.
- *
- * The restore rebuilds `childrenIds` and re-assigns missing homes and jobs, but nothing swept the
- * relationship ids a save can carry to a settler who is no longer in it. A dangling `partnerId` is
- * not a crash — every lookup is guarded — it is worse: a settler whose status says `married` with no
- * spouse never widows, never divorces, and is excluded from courtship by the very id it cannot
- * resolve, so the corruption is durable and the next save writes it back.
- *
- * The relationship half is delegated to the owner that already knows every field
- * (`reconcileFamilyReferencesAfterRemoval`, which the death path uses), called once per unresolvable
- * id; the building half is a scrub, because a home or a residence that does not exist is a missing
- * assignment, not a broken marriage.
+ * Clear every reference a loaded colony cannot resolve. A dangling `partnerId` is worse than a crash:
+ * a "married" settler who never widows or divorces is excluded from courtship by it, permanently.
  */
 function reconcileDanglingReferencesOnLoad(world: WorldState): void {
   const livingIds = new Set<number>();
@@ -1358,11 +1251,7 @@ function reconcileDanglingReferencesOnLoad(world: WorldState): void {
 
 /**
  * Make every id allocator safe to consume: at least one past the highest id the restored world holds.
- *
- * A same-version payload can carry no allocator at all (every later spawn gets `NaN`), or a rewound
- * one (the next spawn collides with a live id, and `entityById` then drops one of the two). Both are
- * silent: the ids are used unguarded by births, immigrants, wildlife spawns and building placement.
- * The floor is `max(current, highest + 1)`, so a legitimately larger allocator is never lowered.
+ * A payload can carry none (`NaN` spawns) or a rewound one (id collisions), both silently.
  */
 function floorIdAllocators(world: WorldState): void {
   const floorFor = (current: unknown, highest: number): number => {
@@ -1387,18 +1276,14 @@ function floorIdAllocators(world: WorldState): void {
 }
 
 /**
- * Hydrate a world+view from an already-parsed save object (browser or file), reporting **why** a
- * payload that parsed could not be restored.
- *
- * `loadGameFromParsed` collapsed every restore failure into `null`; this keeps the cause so
- * `describeSaveLoadOutcome` can name the field and `loadGameOutcome` can pass it on.
+ * Hydrate a world+view from an already-parsed save object, reporting why a payload that parsed could
+ * not be restored. The cause is kept so `describeSaveLoadOutcome` can name the field.
  */
 export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): SaveLoadOutcome {
   const unrestorableField = findUnrestorableField(parsed);
   if (unrestorableField) {
     // One wording for two kinds of refusal: a container that is missing or not an object, and an
-    // element field that is present but unusable (see `findUnrestorableEntityField`). The player gets
-    // the same actionable message — which field — either way.
+    // element field that is present but unusable. The player gets the same actionable message.
     const detail = `${unrestorableField} is missing or unusable`;
     console.error('Save load refused:', detail);
     return { ok: false, reason: 'unrestorable', detail };
@@ -1411,26 +1296,12 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         detail: `${field} is missing: retired building identities or citizen identities cannot be recovered safely. Use an intact save with its original identity counters.` };
     }
   }
-  // Work on a copy, so this reads as the pure function its signature promises.
-  //
-  // Two things write **through** to the caller's object otherwise: `pickWorldStateFromSave` copies
-  // top-level keys by reference, so the returned world's `entities` / `tradeRoutes` /
-  // `pendingRaidEvents` are the payload's own arrays; and `migrateTickTimeline` scales tick-valued
-  // fields in place (forging `_ticksPerDay` shows it plainly: one load rewrites
-  // `createdAtTick: 700 → 2100`, and a second load of the same payload scales it again to 7200,
-  // retroactively moving the first session's raid deadline). Production callers each parse fresh
-  // today, so this is a re-entrancy hazard rather than a live play bug — but "load" should not be a
-  // mutation of its input regardless of who calls it. The clone also means a throw from it lands in
-  // the refusal shape below instead of escaping.
+  // Work on a copy, so this reads as the pure function its signature promises: `pickWorldStateFromSave`
+  // copies top-level keys by reference and `migrateTickTimeline` scales tick fields in place.
   let source: Record<string, unknown>;
   /**
-   * The live session's RNG snapshot, captured before anything can replace it.
-   *
-   * `adoptSimSeedFromWorld` clears the whole RNG stream registry and `restoreSimRng` re-creates the
-   * streams, both part-way through the restore — so a restore that failed *after* them left the
-   * running colony drawing from the refused save's seed for the rest of the session, and baking that
-   * seed into every later save. The declared contract is "the session, or the reason", so a refusal
-   * puts this back.
+   * The live session's RNG snapshot, captured before anything can replace it: `adoptSimSeedFromWorld`
+   * clears the stream registry part-way through, so a refused load must put the running streams back.
    */
   const rngBeforeLoad = snapshotSimRng();
   try {
@@ -1445,10 +1316,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
 
     let loadedTick = (worldData.tick ?? (source.tick as number | undefined) ?? 0) as number;
     /**
-     * Accept the legacy 24- and 72-tick days alongside the current resolution.
-     * `migrateTickTimeline` *scales the whole timeline* by this — `tick`,
-     * every cooldown and every deadline — and it used to accept any positive number, so
-     * `_ticksPerDay: 1e-6` loaded a colony into **year 66666**.
+     * Only the legacy 24- and 72-tick days are scaled to the current resolution; any other
+     * `_ticksPerDay` value is read as current and left unscaled.
      */
     const savedTicksPerDay = source._ticksPerDay === LEGACY_TICKS_PER_DAY
       || source._ticksPerDay === 72
@@ -1466,9 +1335,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       scentGrid: undefined,
       autoSave,
       workSchedule: normalizeWorkSchedule(worldData.workSchedule),
-      // Roadmap F3: a save written before the workforce policy existed loads with the
-      // documented default (`workforcePolicy.DEFAULT_WORKFORCE_POLICY`). No save-version
-      // bump — the same in-place-default contract `workSchedule` and `mineMode` use.
+      // A save written before the workforce policy existed loads with the documented default
+      // (`workforcePolicy.DEFAULT_WORKFORCE_POLICY`); no save-version bump, as for `workSchedule`.
       workforcePolicy: normalizeWorkforcePolicy(worldData.workforcePolicy),
       // Same in-place-default contract for the venue windows: an unusable pair loads as that
       // venue's documented default instead of a silently substituted one the next save would keep.
@@ -1480,20 +1348,16 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         : undefined,
       dayInYear: 0,
       year: 0,
-      // Loading is already an explicit player action; do not leave the restored colony frozen until
-      // the player discovers the separate play control. The saved pause state is presentation state,
-      // not simulation progress, and can be changed immediately after loading.
+      // Loading is already an explicit player action, so do not leave the colony frozen until the
+      // player finds the separate play control; the saved pause state is presentation, not progress.
       paused: false,
       ...transient,
       bigNews: (worldData.bigNews ?? []).map(normalizeBigNewsItem),
       screenShakeImpulse: 0,
       festival: normalizeFestivalState(worldData.festival),
       townHallFestivalCooldownUntilTick: worldData.townHallFestivalCooldownUntilTick ?? 0,
-      // A save written before `storageMax` existed carries none, and the fallback was a third copy of
-      // the cap rule (`800 / 300 / 800 / 20000 / 300`) that could drift from `economy`'s own — so the
-      // fallback now calls the owner with the buildings this load already resolved (`buildings` is
-      // defaulted to `[]` a few lines above). Only the *rule* has one home; a save that does carry a
-      // `storageMax` still keeps its own numbers, since the daily layer would recompute them anyway.
+      // A save written before `storageMax` existed falls back to the owner's cap rule
+      // (`computeStorageMax`) rather than a copy; a save that carries its own numbers keeps them.
       storageMax: worldData.storageMax || computeStorageMax(worldData.buildings ?? []),
       foodSpoilageRate: worldData.foodSpoilageRate ?? 0.03,
       eventLog: worldData.eventLog || [],
@@ -1502,8 +1366,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       firstWeekVisitorSpawned: worldData.firstWeekVisitorSpawned ?? false,
       visitorGroups: (worldData.visitorGroups ?? []).map((g) => ({
         ...g,
-        // `giftsGiven` is `++`'d by the daily tick and has no rule of its own, so an absent one used
-        // to load as `NaN` and be re-saved as `null` — the sibling counter's default, applied here.
+        // `giftsGiven` has no rule of its own; default an absent count to 0 like `tradesCompleted`.
         giftsGiven: g.giftsGiven ?? 0,
         tradesCompleted: g.tradesCompleted ?? 0,
         refugeeResolved: g.refugeeResolved ?? g.kind !== 'refugees',
@@ -1541,9 +1404,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
           birthDay: 0,
           ...e,
         } as Entity;
-        // `generation` and `animFrame` are optional and are read only for the species that carry them,
-        // so they are repaired for those species alone. Defaulting them for every element re-materialised
-        // both on all 932 grass blades and trees of a loaded world, undoing the factory's own scoping.
+        // `generation` and `animFrame` are optional and read only for the species that carry them, so
+        // they are repaired for those species alone rather than for every element.
         if (entity.type === EntityType.Human) entity.generation ??= 0;
         if (TICKED_SPECIES.has(entity.type)) entity.animFrame ??= 0;
         migrateEntityPersistedFields(entity, e);
@@ -1573,11 +1435,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     }
     const colonyDayOnLoad = getAbsoluteCalendarDay(loadedTick);
     const hourOnLoad = getHourOfDay(loadedTick);
-    // The RNG snapshot must be in place *before* anything below draws, because `syncMoonHowlerForms`
-    // transforms a cursed settler at load time and `forceMoonHowlerOutside` scatters them off the
-    // stream. Restoring it afterwards (where these two calls used to sit, just before
-    // `createViewFromSave`) meant those draws came from the pre-load stream — seed 1 — so a load could
-    // not reproduce the positions its own save was written with (`LIVE-FINDINGS-STATUS.md`, L13).
+    // The RNG snapshot must be in place before anything below draws: `syncMoonHowlerForms` transforms a
+    // cursed settler at load time and scatters them off the stream, so restoring it later would misdraw.
     adoptSimSeedFromWorld(world);
     // Read the copy, like every other payload field in this body, so the load cannot hand the caller's
     // snapshot object back to the live RNG registry.
@@ -1644,8 +1503,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     };
 
     // A save written while village camps existed can hold camp structures the day pulse never reached,
-    // because it retires only what a rival row still lists. Runs before the dangling references below,
-    // which then clear the homes those structures were.
+    // since it retires only what a rival row still lists. Runs before the dangling-reference sweep.
     const campMigrationDone = (world.appliedSaveMigrations ?? []).includes('legacy-village-camps');
     if (!campMigrationDone) {
       const retiredCampStructures = retireLegacyCampStructures(world.buildings);
@@ -1672,7 +1530,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     reconcileDanglingReferencesOnLoad(world);
 
     migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });
-    // Trade-route carriers used to spawn at age 0 and age into children; keep them adult.
+    // Trade-route carriers are always adults; promote any carrier younger than the adult age.
     const colonyDay = getColonyDay(world);
     for (const carrier of world.entities) {
       if (carrier.faction === 'trade_caravan' && carrier.age < HUMAN_ADULT_MIN_AGE) {
@@ -1745,16 +1603,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       tutorialSeen: (parsed.tutorialSeen as string[] | undefined) ?? [],
     });
     clearAllFactionWanderStates();
-    // `beautyGrid` is a runtime cache (stripped from the save, and now dropped by
-    // `invalidateWorldRuntimeCaches`), and it used to be rebuilt only by the **daily** layer — so a
-    // loaded colony ran up to a full game day with no beauty field at all: free-time settlers were not
-    // drawn toward decor and the beauty happiness nudge was skipped, which made a just-loaded village
-    // behave differently from the same village a moment before the save.
-    //
-    // The **grid** is rebuilt here; `villageHappiness` is deliberately left at its saved value. It is
-    // in the save allow-list on purpose, and recomputing it from a grid that reflects the stored
-    // buildings would replace the persisted number with the base happiness a freshly loaded world has
-    // not yet earned — `rebuildBeautyGridFromWorld` exists for exactly this split.
+    // `beautyGrid` is a runtime cache, rebuilt here because the daily layer is the only other rebuilder
+    // and a loaded colony must not spend a day with no beauty field. `villageHappiness` stays as saved.
     rebuildBeautyGridFromWorld(world);
     const view = createViewFromSave(parsed, world);
     // The restored map, not the previous session's navigation grid, decides new job reachability.
@@ -1774,10 +1624,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
 }
 
 /**
- * Load a colony from an already-parsed save object, or `null` when it will not restore.
- *
- * The `null`-or-session shape its callers already read; `loadGameFromParsedOutcome` is where the
- * refusal reason lives.
+ * Load a colony from an already-parsed save object, or `null` when it will not restore. The refusal
+ * reason lives in `loadGameFromParsedOutcome`.
  */
 export function loadGameFromParsed(
   parsed: Record<string, unknown>,
@@ -1787,13 +1635,8 @@ export function loadGameFromParsed(
 }
 
 /**
- * Load the browser save slot, reporting **why** it failed.
- *
- * `loadGame()` collapsed every cause — an empty slot, unavailable storage, a save from another build,
- * and a payload that parsed but could not be restored — into `null`, so the map-setup screen's "Load
- * saved game" button did nothing at all, silently, on every retry while `hasSave()` stayed true
- * (`LIVE-FINDINGS-STATUS.md`, F19). The menu's load path already named its cause; this owner is what
- * both paths now read, and `describeSaveLoadOutcome` is the one place those messages live.
+ * Load the browser save slot, reporting why it failed: this owner is what both the menu and the
+ * map-setup screen read, and `describeSaveLoadOutcome` is the one place the messages live.
  */
 export function loadGameOutcome(): SaveLoadOutcome {
   try {
@@ -1834,17 +1677,8 @@ export function hasSave(): boolean {
 }
 
 /**
- * Is there *anything* in the browser save slot? — slot presence, not loadability.
- *
- * `hasSave()` answers "does this save load", which is `false` for a version-mismatched payload. Every
- * UI gate built on it (`App.canLoadSavedGame`, the menu's disabled Load item) therefore told the
- * player there was no save at all after a build update, while their colony sat in the slot — the
- * opposite of the truth, and the reason `describeSaveReadFailure({reason:'version-mismatch'})` could
- * only ever be reached from a running session. Gating Load on *presence* runs the load path,
- * which reports the real cause through `describeSaveLoadOutcome`.
- *
- * Raw slot presence on purpose: it must not depend on parse validity. A blocked-storage throw reads
- * as "absent", which is the only safe answer when nothing can be read.
+ * Is there anything in the browser save slot? — slot presence, not loadability, so a version-mismatched
+ * payload still offers Load and the load path reports the real cause. A blocked read counts as absent.
  */
 export function hasSaveSlot(): boolean {
   try {

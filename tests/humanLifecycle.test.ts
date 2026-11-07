@@ -21,9 +21,8 @@ const NEWBORN_ID = 100;
 const FIXTURE_SEED = 20240913;
 
 /**
- * The birth rolls are seeded — `seededRandomForRun('birth:<mother>:<tick>:<part>')` — so a
- * branch is chosen by picking a tick rather than by stubbing `Math.random`, which no longer
- * reaches them. The fixture seeds the sim, so this search and the production roll agree.
+ * Birth rolls are seeded (`seededRandomForRun('birth:<mother>:<tick>:<part>')`), so branches are
+ * picked by tick rather than by stubbing `Math.random`.
  */
 function tickWhere(predicate: (tick: number) => boolean): number {
   for (let tick = 1; tick <= 20000; tick++) {
@@ -347,9 +346,8 @@ describe('human lifecycle golden contracts', () => {
     expect(immigrant.pregnant).toBe(true);
     expect(immigrant.pregnancyDueProgress).toBeGreaterThan(immigrant.pregnancyProgress ?? 0);
     expect(Number.isFinite(immigrant.pregnancyDueProgress)).toBe(true);
-    // Deliberately partial: the invariant collector reads only `entities`, `buildings` and
-    // `villageLeaderId` from the world, and this case is about the entity-side pregnancy rule —
-    // there is no village, no manor and no elected leader to check against.
+    // The invariant collector reads only `entities`, `buildings` and `villageLeaderId`; this case
+    // is about the entity-side pregnancy rule, so no village, manor or leader is supplied.
     expect(
       collectSimulationInvariantErrors({ entities: [immigrant], buildings: [] } as unknown as WorldState),
     ).toEqual([]);

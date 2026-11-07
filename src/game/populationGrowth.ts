@@ -114,11 +114,8 @@ function resolveReputation(state: WorldState): number {
 }
 
 /**
- * The immigration cap every growth rule reads: the stored cap when it is finite, otherwise the
- * derived one (5 + beds + 1 per 10 reputation).
- *
- * One definition, because two surfaces ask "how close is the colony to its cap?" — the growth report
- * and the header's population chip — and they must not mean two different caps.
+ * The immigration cap every growth rule reads: the stored cap when finite, otherwise
+ * 5 + beds + 1 per 10 reputation. One definition for the growth report and the header chip.
  */
 export function resolvePopulationCap(state: WorldState): number {
   if (typeof state.maxHumanPopulation === 'number' && Number.isFinite(state.maxHumanPopulation)) {
@@ -132,11 +129,8 @@ export function resolvePopulationCap(state: WorldState): number {
 export const POPULATION_NEAR_CAP_RATIO = 0.9;
 
 /**
- * True when the living population is within {@link POPULATION_NEAR_CAP_RATIO} of the immigration cap.
- *
- * Owned here rather than in the header: the band is a tuning value, and the population it divides is
- * the owner's own snapshot — the chip used to divide a UI-supplied count by the raw cap field, so the
- * two surfaces of the same question could disagree.
+ * True when the living population is within {@link POPULATION_NEAR_CAP_RATIO} of the
+ * immigration cap. Owned here so both surfaces divide the same population by the same cap.
  */
 export function isPopulationNearCap(state: WorldState): boolean {
   const cap = resolvePopulationCap(state);
@@ -202,12 +196,8 @@ export function getOpenBedsFromPop(state: WorldState, pop: number): number {
 }
 
 /**
- * Empty beds, counted over **every** residence — the Leader's House included.
- *
- * The inclusive twin of {@link getOpenPlayerBeds}, and the two are deliberately two named owners
- * rather than one number with local copies: this one answers "how many beds are empty" (the growth
- * report's line), that one answers "how many beds a settler could be assigned" (every surface that
- * says *open beds* / *Housing available*). A view that means the second reads the second
+ * Empty beds, counted over every residence — the Leader's House included. The inclusive
+ * twin of {@link getOpenPlayerBeds}, which counts only beds a settler may be assigned.
  */
 export function getOpenBeds(state: WorldState): number {
   const { pop, beds } = snapshotPopulation(state);
@@ -215,10 +205,8 @@ export function getOpenBeds(state: WorldState): number {
 }
 
 /**
- * `pop > beds` — more settlers than beds, so housing is the bottleneck.
- *
- * One definition: the growth report's tone and the Focus panel's "Build more housing" hint ask the
- * same question, and each used to compare the two numbers itself.
+ * `pop > beds` — more settlers than beds. One definition for the growth report's tone and the
+ * Focus panel's "Build more housing" hint.
  */
 export function isOvercrowded(state: WorldState): boolean {
   const { pop, beds } = snapshotPopulation(state);
@@ -226,13 +214,8 @@ export function isOvercrowded(state: WorldState): boolean {
 }
 
 /**
- * Open beds a settler may actually be assigned.
- *
- * `getOpenBeds` counts every residence, including the Leader's House — and those
- * beds are reserved for the leader's household (`leaderHouse.syncLeaderHouseResidency`
- * evicts anyone else and re-homes them), so they are not spare housing for the
- * rest of the colony. Counting them would read as "a settler was simply not
- * assigned a bed" while the village is in fact short of housing.
+ * Open beds a settler may actually be assigned: every residence except the Leader's House,
+ * whose beds are reserved for the leader's household.
  */
 export function getOpenPlayerBeds(state: WorldState): number {
   const entities = state.entities ?? [];

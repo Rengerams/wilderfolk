@@ -1,10 +1,6 @@
 /**
- * Bundled game-loop suites. Each `describe('<original file name>')` below carries one former test
- * file's body verbatim, with that file's own top-of-file doc comment kept directly above it.
- *
- * `gameLoop.fallbackTickRollback.test.ts` (hoisted `vi.mock('../src/game/gameEngine', …)`) and
- * `gameLoop.diagnostics.test.ts` (top-level `afterEach`) were deliberately NOT bundled: both calls
- * become file-wide in a single module and would change cross-file behaviour.
+ * Bundled game-loop suites: each `describe` carries one former test file's body verbatim; suites whose
+ * top-level mocks or hooks would go file-wide are not bundled here.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -771,19 +767,8 @@ describe('gameLoop.commandDispatch.test.ts', () => {
 });
 
 /**
- * `GameLoop.exportAuthoritativeWorld` — the save path versus the display world.
- *
- * `workerHost.exportSave()` resolves to the worker's **clone** of the world. The loop used to adopt
- * that clone as `this.world`, which silently replaced the display world's identity mid-session while
- * `GameWorkerHost.getAuthoritativeWorld()` kept returning its own long-lived `worldRef`. Two things
- * followed from the split:
- *
- *  - the adopted clone carries the worker's `paused`/`speed`/dismissed-id sets, which
- *    `applySimTickDelta` never writes, so adopting it could flip the display back;
- *  - and from then on, every tick result replaced the display world from `worldRef` regardless.
- *
- * The save must read the authority without becoming it: `exportAuthoritativeWorld` returns the
- * export for the caller to persist and leaves `this.world` exactly as the display left it.
+ * `GameLoop.exportAuthoritativeWorld` — the save path versus the display world: it returns the
+ * worker's export for the caller to persist and leaves `this.world` exactly as the display had it.
  */
 describe('gameLoop.exportAuthority.test.ts', () => {
   /** A host that is ready and hands back a world the caller controls. */
@@ -809,9 +794,8 @@ describe('gameLoop.exportAuthority.test.ts', () => {
   };
 
   /**
-   * A loop wired to a fake worker. `GameLoop`'s constructor decides worker-vs-main-thread from the
-   * environment, so the two fields are set directly — this is the test seam the other `gameLoop` suites
-   * use too.
+   * A loop wired to a fake worker: `workerEnabled` and `workerHost` are set directly because the
+   * constructor decides worker-vs-main-thread from the environment.
    */
   function loopWithWorker(display: WorldState, exported: WorldState): GameLoop {
     const loop = new GameLoop(display, createInitialView(display.width, display.height), () => null);
@@ -1001,19 +985,8 @@ describe('gameLoop.exportAuthority.test.ts', () => {
     });
 
     /**
-     * A worker fault during the save window.
-     *
-     * `fallbackFromWorker` is reachable from the frame loop at any moment and replaces `workerHost`; it
-     * does **not** bump `sessionGen`, which is all the post-await re-check used to test. A stall landing
-     * while `whenIdle()` was pending therefore left the next line reading a host that was already gone —
-     * in the field, `null`, which threw `TypeError: Cannot read properties of null (reading
-     * 'exportSave')` into the catch below. The host is captured and identity-checked now, the shape
-     * `queueWorkerImport` in the same file already used.
-     *
-     * The replacement host here is a *different live host*, not `null`, on purpose: the throw from a
-     * `null` dereference is swallowed by that catch, so the pre-fix and post-fix paths would both return
-     * the display world and the test could not tell them apart. With two hosts, the save either uses the
-     * replacement's `exportSave` (pre-fix) or ignores it (post-fix) — and that is observable.
+     * `fallbackFromWorker` can replace `workerHost` mid-save without bumping `sessionGen`, so the save
+     * captures its host and identity-checks it after `whenIdle()`; a replaced host is not consulted.
      */
     it('ignores a host that was replaced while the save waited', async () => {
       const display = initGame({ skipTerrain: true, villageName: 'Display', seed: 20260925 });
@@ -1063,18 +1036,8 @@ describe('gameLoop.exportAuthority.test.ts', () => {
 });
 
 /**
- * Baseline pacing contract: one in-game day is 72 real seconds at 1×.
- *
- * The in-game time *grid* is `HOURS_PER_DAY (24) × TICKS_PER_HOUR (3) = 72 ticks/day`; the *pace* is
- * one simulation tick per real second, so an in-game hour is 3 real seconds and a day is 72 real
- * seconds (0.5× ≈ 144 s, 2× ≈ 36 s, 10× ≈ 7.2 s). `BASE_TICKS_PER_SECOND` is the only thing feeding
- * `msPerTick = 1000 / (BASE_TICKS_PER_SECOND * world.speed)` in `GameLoop.frame()`.
- *
- * It carries no test of its own in general, and that absence cost a 2× pacing regression: the
- * constant was silently reverted to `3` (24 s/day) while its doc comment, the `CHANGELOG` and four
- * modules all kept stating 48 s — see
- * `BUG_REPORTS/2026-09-16-baseline-pacing-reverted-to-24s-day.md`. This file makes both the pace and
- * the harness copies of it observable, so a change fails a test instead of only going stale in prose.
+ * Baseline pacing contract: one in-game day is 288 real seconds at 1×, on a 24 × 12 = 288 tick day,
+ * driven only by `BASE_TICKS_PER_SECOND` through `msPerTick` in `GameLoop.frame()`.
  */
 describe('gameLoop.pacingContract.test.ts', () => {
   /** Real milliseconds for one in-game day at a given speed multiplier (the scheduler's own formula). */
@@ -1084,13 +1047,8 @@ describe('gameLoop.pacingContract.test.ts', () => {
   }
 
   /**
-   * Scripts that legitimately hold their own copy of the rate (they must not import the app loop).
-   *
-   * `scripts/perf-all.ts` was removed as dead tooling during the 2026-09-20 audit campaign: nothing
-   * referenced it, no npm script targeted it, and its two `gameTick(state, FULL_SIM ? undefined : state)`
-   * calls passed a `WorldState` where a `SimulationFocus` belongs. `scripts/sim-profiles.mjs` and
-   * `scripts/balance-militia.ts` went with it (the latter's only referrer was the former). Listed here
-   * because a harness copy is deliberate — an absent file is a maintained list that went stale.
+   * Scripts that deliberately hold their own copy of the rate (they must not import the app loop);
+   * the sync guard below reads each listed file.
    */
   const HARNESS_COPIES = ['scripts/test.ts', 'scripts/probe-day-budget.mts'];
 
@@ -1112,10 +1070,8 @@ describe('gameLoop.pacingContract.test.ts', () => {
     });
 
     it('advances part of an in-game hour per four real seconds of the HUD liveness window', () => {
-      // The browser tier compares the HUD clock text across a 4 000 ms window (`scripts/browser-smoke.mjs`),
-      // which is how the 24 s/day rate was caught: it advanced four in-game hours in four seconds, and the
-      // 48 s/day rate advanced two. At 1 tick/s the same window is four ticks — the clock must move, and
-      // must not have swept a day.
+      // The browser tier compares HUD clock text across a 4 000 ms window: at 1 tick/s that is four
+      // ticks, so the clock must move without sweeping a day.
       const ticksPerWindow = (4000 / 1000) * BASE_TICKS_PER_SECOND;
       expect(ticksPerWindow).toBeCloseTo(4, 9);
       expect(ticksPerWindow).toBeLessThan(TICKS_PER_DAY);
@@ -1134,13 +1090,8 @@ describe('gameLoop.pacingContract.test.ts', () => {
 });
 
 /**
- * F1 of the 2026-09-16 worker-boundary audit (`docs/private/audits/2026-09-16/game-worker.md`):
- *
- * `GameLoop.adoptWorldSession()` raised `workerBooting` and then queued the import chain, whose
- * first statement polled that same flag while being **the only** code that clears it — so loading a
- * save (or any in-game session swap) on a live worker loop never posted the import, never ticked on
- * either path, and deferred every player command forever. The chain now waits on the host handshake
- * (`GameWorkerHost.whenReady()`), which no caller owns.
+ * `GameLoop.adoptWorldSession()` queues the import chain after the host handshake
+ * (`GameWorkerHost.whenReady()`), not on a boot flag it also has to clear itself.
  */
 describe('gameLoop.sessionSwapWorker.test.ts', () => {
   /** Renamed from `human` only so the bundled game-loop suites share one module scope; body unchanged. */
@@ -1297,16 +1248,8 @@ describe('gameLoop.sessionSwapWorker.test.ts', () => {
 });
 
 /**
- * Player speed / pause controls must survive an authoritative snapshot rebuild.
- *
- * `speed` and `paused` live inside WorldState (so the worker's `gameTick` can
- * early-return while paused and so prep/sync round-trips stay coherent), but the
- * player authors them on the main thread. `GameLoop.rebuildOptimisticDisplay()`
- * replaces the display world with a deep clone of the worker's LAST RECEIVED
- * snapshot, and that snapshot can predate the player's click because the
- * `setSpeed` / `setPaused` message is still in flight. Without a carry-over the
- * chosen speed silently reverts on the next command — and `mutateWorld` only
- * forwards speed when it changes, so nothing ever resends it.
+ * Player speed / pause controls survive an authoritative snapshot rebuild: `rebuildOptimisticDisplay()`
+ * carries the main-thread-authored `speed`/`paused` over a clone that can predate the click.
  */
 describe('gameLoop.speedControl.test.ts', () => {
   function building(id: number, type: BuildingType): Building {
@@ -1385,9 +1328,8 @@ describe('gameLoop.speedControl.test.ts', () => {
   }
 
   /**
-   * A loop wired to a fake worker whose authoritative snapshot still carries the
-   * OLD speed/pause values — i.e. the message with the player's new choice has not
-   * been processed yet.
+   * A loop wired to a fake worker whose authoritative snapshot still carries the old speed/pause
+   * values, i.e. the player's new choice has not reached it yet.
    */
   async function loopWithStaleSnapshot(snapshot: WorldState) {
     const world = makeWorldSpeed();
@@ -1457,10 +1399,8 @@ describe('gameLoop.speedControl.test.ts', () => {
     });
 
     it('notifies subscribers when the player pauses, although the tick does not advance', async () => {
-      // The pause control lives in the header and reads `world.paused`, and the world is mutated in
-      // place — so the ONLY thing that can repaint it is a subscriber notification. `notify` dedupes on
-      // the tick, and a pause never advances it: the sim froze while the button still read "Pause
-      // simulation" and the ⏸ banner never appeared (P6 browser pass, 2026-09-20).
+      // `notify` dedupes on the tick, so a pause — which never advances it — still needs a forced
+      // subscriber notification for the header control to repaint.
       const snapshot = makeWorldSpeed();
       const { loop } = await loopWithStaleSnapshot(snapshot);
       const notifications: Array<{ tick: number; paused: boolean }> = [];

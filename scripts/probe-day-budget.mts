@@ -1,14 +1,6 @@
 /**
- * Day-budget probe (local, gitignored): measures what a colony day actually contains, so the
- * clock constants can be judged on numbers instead of feel.
- *
- * Reports, per simulated day:
- *   - the tick split per settler (travelling / at work / at home / idle),
- *   - distance walked per settler per day,
- *   - when each worker first reaches its workplace inside the 07:00-16:00 shift,
- *   - the real-time length of that day at every speed multiplier (from the loop constants).
- *
- *   npx tsx scripts/probe-day-budget.mts [days]
+ * Day-budget probe (local, gitignored): per simulated day, the tick split per settler, distance
+ * walked, first workplace arrival in the shift, and the day's real-time length at every speed.
  */
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';

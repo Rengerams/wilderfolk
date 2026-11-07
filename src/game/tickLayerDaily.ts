@@ -1,10 +1,6 @@
 
 /**
- * Daily layer — invoked four times per colony day at 00:00, 06:00, 12:00 and 18:00.
- * `gameTick.ts` gates invocation with `tick % (TICKS_PER_DAY / 4) === 0`.
- *
- * Grass ecology (growth/spread), static bookkeeping, building production,
- * frontier systems, and daily-gated world events. Trees have no sim tick.
+ * Daily layer — invoked at 00:00, 06:00, 12:00 and 18:00; its phases run at 00:00, 06:00 and 18:00.
  */
 import type { Entity, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
@@ -52,13 +48,8 @@ export function tickLayerDaily(
 
   }
   if (hour === DAILY_PHASE_HOURS.relationships) {
-  // The living settler list the two social owners below both need, derived once.
-  //
-  // Deliberately NOT `ctx.playerHumans`: that list is built at tick start (`gameTick`) and refreshed
-  // only on a Moon Howler form change, whereas `allAlive` has this tick's `ctx.newEntities` appended
-  // — so substituting it would silently drop today's newborns from friendship and apprenticeship
-  // grouping. Between the two calls nothing writes `alive`, `faction` or `type`, so one array is
-  // correct for both.
+  // The living settler list both social owners need, derived once. Not `ctx.playerHumans`,
+  // which is built at tick start and lacks this tick's newborns.
   const dayPeople = playerHumansFrom(allAlive);
 
   // Phase 7 social layers & chronicles — pulse daily
@@ -75,9 +66,8 @@ export function tickLayerDaily(
   advanceApprenticeships(state, allAlive, dayPeople);
   profileEnd('daily.advanceApprenticeships', stage5);
 
-  // Idempotent leader-house reconciliation: marriage/divorce/reassignment may
-  // have changed the leader's household this day, so move the current spouse
-  // (and children) into the manor and evict former household members.
+  // Idempotent leader-house reconciliation: move the current spouse and children into the
+  // manor and evict former household members.
   const stage6 = profileStart();
   syncLeaderHouseResidency(state);
   profileEnd('daily.syncLeaderHouseResidency', stage6);
@@ -89,7 +79,7 @@ export function tickLayerDaily(
   tickElectionPromises(state);
   profileEnd('daily.tickElectionPromises', stage7);
 
-  // Valley Chronicle — milestone chapters unlock once per day boundary.
+  // Valley Chronicle — milestone chapters are checked once per day.
   const chronicleStart = profileStart();
   const newlyUnlocked = advanceValleyChronicle(state);
   profileEnd('daily.advanceValleyChronicle', chronicleStart);
@@ -124,8 +114,8 @@ export function tickLayerDaily(
   // Production may have queued spawns; fold them in before the point-of-use counts and before the
   // systems that read the working alive list.
   mergeNewEntitiesIntoAlive(allAlive, ctx.newEntities);
-  // The tail counts at the point of use, after this layer's own spawns and deaths: the tick's
-  // pre-daily snapshot no longer describes the colony by the time these three read it.
+  // Count at the point of use, after this layer's own spawns and deaths; the pre-daily snapshot
+  // misses them.
   const countsStart = profileStart();
   const counts = countLivingPopulation(allAlive, ctx.newEntities);
   profileEnd('daily.countLivingPopulation', countsStart);

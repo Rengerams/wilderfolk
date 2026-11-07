@@ -179,9 +179,8 @@ describe('persistGame', () => {
   });
 
   /**
-   * D-7 of the 2026-09-21 audit. The worker allows one export in flight; a second save used to reach
-   * it, be rejected, and fall back to the **display shadow** — writing a world up to
-   * `MAX_PIPELINE_DEPTH` ticks behind while reporting success. The second save now joins the first.
+   * The worker allows one export in flight; a second save joins the first instead of
+   * falling back to the display shadow.
    */
   it('coalesces a second save onto the one already in flight', async () => {
     const world = initGame({ skipTerrain: true, villageName: 'Coalesced' });

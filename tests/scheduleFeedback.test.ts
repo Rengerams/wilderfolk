@@ -8,9 +8,8 @@ const state = {
     { id: 2, type: BuildingType.Tavern, completed: true, occupants: [11], x: 0, y: 0, width: 1, height: 1 },
     { id: 3, type: BuildingType.Hotel, completed: true, occupants: [], x: 0, y: 0, width: 1, height: 1 },
   ],
-  // The occupants are real Entities: the worker count now asks the colony-human owner
-  // (`playerHuman.isPlayerHuman`), which requires the Human type. It used to accept any entity
-  // that merely lacked a faction, so a type-less stub counted (duplication finding A3).
+  // The occupants are real Entities: the worker count asks the colony-human owner
+  // (`playerHuman.isPlayerHuman`), which requires the Human type.
   entities: [
     { id: 10, type: EntityType.Human, alive: true, faction: undefined },
     { id: 11, type: EntityType.Human, alive: true, faction: undefined },

@@ -1,16 +1,6 @@
 /**
- * Affairs are adult-only on both sides (owner decision, 2026-09-13).
- *
- * The affair floor used to be `HUMAN_ADULT_MIN_AGE` (16 at the time, the then-courtship
- * age) for the *paramour* only, while the daily owner already required the cheater to be
- * married (18+) — so a married adult could take a 16–17-year-old paramour and reach the
- * affair-conception branch, which is outside the youth-love gate that
- * `docs/archive/SIMULATION_AUTHORITY.md` §5 makes the only conception route for
- * ages 12–17. `Relationship.AFFAIR_MIN_AGE` = 18 now gates both participants, and
- * `HUMAN_ADULT_MIN_AGE` itself is 18 since 2026-09-16.
- *
- * These are pure gate tests against the affair owner's own validator: they pin the
- * age floor for the cheater and the paramour, and that 18 is still accepted.
+ * Affairs are adult-only on both sides: `Relationship.AFFAIR_MIN_AGE` = 18 gates the
+ * cheater and the paramour. Pure gate tests against the affair owner's own validator.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType, JobType } from '../src/game/gameTypes';

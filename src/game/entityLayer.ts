@@ -10,14 +10,8 @@ import {
 import type { Camera } from './gameTypes';
 
 /**
- * Dynamic world-entity bitmap cache.
- *
- * The layer is painted relative to an **anchor camera** into a surface padded by
- * {@link LAYER_MARGIN_PX} on every side. While the live camera stays inside that
- * margin (panning without zoom), the cached bitmap is reused and just blitted at
- * an offset — no per-frame rebake. Rebake happens only when: the sim tick / UI
- * state changes, the camera leaves the margin, the zoom changes, or the surface
- * must resize.
+ * Dynamic world-entity bitmap cache: painted from an anchor camera into a surface padded by
+ * `LAYER_MARGIN_PX`, so panning inside the margin reuses the bitmap without a rebake.
  */
 
 /** Padding (px) around the viewport so small pans reuse the cached layer. */
@@ -44,13 +38,8 @@ export interface EntityLayerCache {
 let entityLayerCache: EntityLayerCache | null = null;
 
 /**
- * Cache key for the dynamic world entity bitmap.
- * Camera position is intentionally NOT part of the key — panning within the
- * margin reuses the layer via {@link entityLayerAnchorMoved} instead.
- *
- * Only what a **layer painter** reads belongs here. The placement ghost and every hover effect are
- * drawn per frame in the overlay pass (`renderer/overlay.ts`), and the movers in the per-frame pass
- * beside this one (`renderer/entityComposite.ts`), so none of them belongs in this key.
+ * Cache key for the dynamic world entity bitmap; camera position is deliberately excluded, since
+ * panning within the margin reuses the layer. Only what a layer painter reads belongs here.
  */
 /** Reused key scratch — this runs every frame, so the array and the joined string are memoised. */
 const layerKeyParts: (string | number)[] = [];
@@ -147,11 +136,7 @@ function setLayerScale(ctx: CanvasContext2d, dpr: number): void {
 
 /**
  * Acquire (or resize) the padded entity offscreen layer, cleared for painting.
- *
- * The surface is allocated at `dpr × logical` and its context carries the same scale, so
- * painters keep working in logical px while the raster is device-resolution — otherwise
- * the 1:1 blit in {@link paintEntityLayerTo} upscaled by the DPR under
- * `imageSmoothingEnabled = false`.
+ * The surface is `dpr × logical` with a matching context scale, so painters stay in logical px.
  */
 export function beginEntityLayerPaint(
   key: string,
@@ -210,17 +195,7 @@ export function commitEntityLayerPaint(key: string): void {
 
 /**
  * Blit the cached layer onto the target, translating for the current camera.
- *
- * Derivation: screen_x(W) = (W − cam.x)·zoom + cw/2. The layer paints world
- * relative to anchorX (the rebake camera centre) into a
- * (cw + 2·margin) surface, so the viewport starts at margin and the
- * correct offset is dx = (anchorX − cam.x)·zoom − margin. (Earlier versions used
- * +margin — everything drew shifted 2·margin px right/down.)
- *
- * The destination size is passed explicitly as the **logical** `width`/`height`: the
- * surface holds `width·dpr` device px and the target context is DPR-scaled, so this is the
- * 1:1 device-pixel blit. Omitting it draws the source at its intrinsic (device) size
- * through the scaled context, i.e. `dpr²` device px.
+ * The destination size must be the logical width/height for a 1:1 device-pixel blit under DPR.
  */
 export function paintEntityLayerTo(
   target: CanvasRenderingContext2D,

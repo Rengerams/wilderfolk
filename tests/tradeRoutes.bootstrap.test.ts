@@ -1,11 +1,6 @@
 /**
- * Trade routes must not be able to leave a colony trapped.
- *
- * Every route used to *export* materials for coin, so a colony with coin but no wood or
- * stone had no way back — and nothing a colony builds is free, so the trap was total. Two
- * things fix it: routes that buy materials with coin, and the purchase route being
- * establishable without a Market (a Market costs 50 wood and 20 stone, the very materials
- * the trapped colony is out of).
+ * Trade routes must let a colony with coin but no materials recover: a coin-for-materials route
+ * exists, and the purchase route is establishable without a Market.
  */
 import { describe, expect, it } from 'vitest';
 import { ensureFullTradeRoutes, initTradeRoutes } from '../src/game/economy';

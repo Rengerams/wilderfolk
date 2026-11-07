@@ -1,28 +1,6 @@
 /**
- * Simulation-invariants golden master — the TypeScript oracle for the Godot port.
- *
- * Emits `WorldState` snapshots together with the exact string list
- * `collectSimulationInvariantErrors` produces for each one. The GDScript port
- * asserts on the **strings**, not on a boolean: a collector that reports the
- * right number of violations for the wrong reasons is a port that is wrong, and
- * a boolean cannot tell the two apart.
- *
- * The scenarios are built from a real `initGame` world (seed 4242, Medium map)
- * rather than from hand-written literals, so the baseline exercises the same
- * record shape the live game produces — including the fields this collector
- * reads but that a hand-written fixture would forget to include.
- *
- * Each scenario deep-clones the baseline and applies exactly the mutation it is
- * named for. The expected error list is whatever the real collector says
- * afterwards, which is the point: this file never guesses what the rule does.
- *
- * Every world is round-tripped through `JSON.parse(JSON.stringify(...))` before
- * it is measured and emitted, so the recorded errors are the errors the port
- * will see after Godot's JSON parser has had its way with the same bytes — in
- * particular, every number becomes a float on the GDScript side, and an
- * `undefined` field disappears entirely.
- *
- * Run:  npx tsx scripts/dump-sim-invariants.mts [outputPath]
+ * Simulation-invariants golden master: emits `WorldState` snapshots plus the exact error strings
+ * `collectSimulationInvariantErrors` returns, for the Godot port. Run: `npx tsx scripts/dump-sim-invariants.mts [out]`.
  */
 import { writeFileSync } from 'node:fs';
 import { initGame } from '../src/game/worldGen';
@@ -59,20 +37,8 @@ function founders(world: JsonWorld): Entity[] {
   return world.entities.filter((e) => e.type === EntityType.Human && e.alive);
 }
 
-// ---------------------------------------------------------------------------
-// Projection — trim a world to exactly the fields the collector reads.
-// ---------------------------------------------------------------------------
-//
-// The raw baseline is ~230 MB of JSON: a Medium map carries a `worldMap` with two
-// 1 200-cell terrain grids, and 434 entities of which all but two are trees,
-// grass and wildlife. None of it reaches the collector. Shipping it would make
-// the gate unreadable and slow for no signal.
-//
-// The projection is a *claim*, so it is checked rather than trusted:
-// `projectWorld` is asserted to leave `collectSimulationInvariantErrors`
-// unchanged, case by case, before anything is written. A field the collector
-// needs but this list omits is therefore a build failure, not a silent
-// divergence in the port.
+// ------------ Projection — trim a world to exactly the fields the collector reads ------------
+// `projectWorld` must leave `collectSimulationInvariantErrors` unchanged; a missing field is a build failure.
 
 /** Entity fields `simulationInvariants` reads. Adding one here is a deliberate act. */
 const ENTITY_FIELDS = [
@@ -107,10 +73,8 @@ function pick<T extends object>(source: T, fields: readonly string[]): Record<st
 }
 
 /**
- * Entities worth keeping: a settler-relationship entity, or one referenced by a
- * settler. Everything else — trees, grass, wildlife — cannot appear in a
- * violation message, because the collector only ever iterates settlers it
- * already found and the ids their own fields point at.
+ * Keep humans and cursed werewolves; entities they reference are added by the closure in
+ * `projectWorld`. Trees, grass and wildlife never appear in a violation message.
  */
 function keepEntity(entity: Record<string, unknown>): boolean {
   if (entity.type === EntityType.Human) return true;
@@ -123,10 +87,8 @@ function projectWorld(world: JsonWorld): JsonWorld {
     const record = entity as unknown as Record<string, unknown>;
     if (keepEntity(record)) kept.add(record.id);
   }
-  // Closure over references: a violation message can name an id that is not a
-  // settler (a Rabbit sweetheart, a dead cursed settler), and that entity must
-  // stay resolvable or the port would report "missing entity" where the oracle
-  // reported something else.
+  // Closure over references: violation messages can name a non-settler id (a Rabbit sweetheart, a
+  // dead cursed settler), so add every referenced entity or the port reports "missing entity".
   const byId = new Map<unknown, Record<string, unknown>>();
   for (const entity of world.entities) {
     byId.set((entity as unknown as Record<string, unknown>).id, entity as unknown as Record<string, unknown>);
@@ -160,9 +122,7 @@ function projectWorld(world: JsonWorld): JsonWorld {
   return projected;
 }
 
-// ---------------------------------------------------------------------------
-// Baseline: a real fresh colony.
-// ---------------------------------------------------------------------------
+// ------------------------------- Baseline: a real fresh colony. -------------------------------
 
 const baseline = roundTrip(initGame({ size: MapSize.Medium, seed: 4242 }));
 const baselineFounders = founders(baseline);
@@ -171,9 +131,8 @@ if (baselineFounders.length === 0) {
   throw new Error('baseline world has no living founders — the fixture is meaningless');
 }
 
-// A completed House is appended so residence rules have an owner to point at.
-// `initGame` starts with `buildings: []` (generation never adds one), so there is
-// no house to borrow.
+// A completed House is appended so residence rules have an owner to point at; `initGame` starts
+// with `buildings: []`.
 function withHouse(world: JsonWorld, id: number, x = 10, y = 10): Building {
   const house: Building = {
     id,
@@ -217,9 +176,7 @@ function withFarm(world: JsonWorld, id: number, x = 30, y = 30): Building {
   return farm;
 }
 
-// ---------------------------------------------------------------------------
-// Scenarios.
-// ---------------------------------------------------------------------------
+// ------------------------------------ Scenarios. ------------------------------------
 
 const cases: Case[] = [];
 
@@ -670,18 +627,11 @@ add('stacked_violations', 'Several unrelated violations at once, to pin the repo
   w.buildings.push(road);
 });
 
-// ---------------------------------------------------------------------------
-// Emit.
-// ---------------------------------------------------------------------------
+// --------------------------------------- Emit. ---------------------------------------
 
 /**
- * Project every case and prove the projection is lossless for this collector.
- *
- * The assertion runs against the real collector, on every case: if a field the
- * rules read is missing from `ENTITY_FIELDS` / `BUILDING_FIELDS` / `WORLD_FIELDS`,
- * the projected world reports a different error list and this throws before a
- * fixture is written. A fixture that silently disagrees with the oracle is worse
- * than no fixture.
+ * Project every case and require the real collector to return the same error list before and
+ * after; a field missing from the `*_FIELDS` lists throws before any fixture is written.
  */
 const projectedCases = cases.map((entry) => {
   const before = collectSimulationInvariantErrors(entry.world);

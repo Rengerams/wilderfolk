@@ -1,7 +1,6 @@
 /**
- * The social owners read the one aptitude evaluator: friendship growth, feud drift, reconciliation
- * and workplace banter. The retired categorical incompatibility table is gone; friction is now a
- * signed, continuous activity factor.
+ * Friendship growth, feud drift, reconciliation and workplace banter all read the one aptitude
+ * evaluator; friction is a signed, continuous activity factor.
  */
 import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';

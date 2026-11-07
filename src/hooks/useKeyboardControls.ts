@@ -23,10 +23,8 @@ import { isKeyboardClaimed } from '../game/keyboardOwnership';
 export interface UseKeyboardControlsOptions {
   loopRef: RefObject<GameLoop | null>;
   /**
-   * The map canvas. Camera clamping needs the *render* viewport: `clampCameraTarget`
-   * otherwise falls back to `window.innerWidth/Height`, which is wider than the map
-   * canvas by the width of the side panels, so the camera can never reach the map's
-   * left/right edges.
+   * The map canvas. Camera clamping needs the render viewport, or `clampCameraTarget` falls back
+   * to `window.innerWidth/Height` and the camera cannot reach the map's left/right edges.
    */
   canvasRef: RefObject<HTMLCanvasElement | null>;
   selectedBuildingTypeRef: RefObject<import('../game/gameEngine').BuildingType | null>;
@@ -95,10 +93,8 @@ export function useKeyboardControls({
 }: UseKeyboardControlsOptions) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // An open overlay owns the keyboard. It mounts and registers *after* this
-      // window-capture handler, so it cannot preempt it: without this guard one Escape
-      // closes the overlay and also falls through to clear the map selection
-      // (BUG_REPORTS/2026-09-17-keyboard-ignores-open-overlays.md).
+      // An open overlay owns the keyboard: it registers after this window-capture handler, so
+      // without this guard one Escape also clears the map selection.
       if (isKeyboardClaimed()) return;
 
       const inFormControl = isEditableTarget(e.target);
@@ -114,8 +110,6 @@ export function useKeyboardControls({
       }
 
       // From here on the player is typing into a field, so no hotkey may take the key.
-      // The sidebar-tab block used to sit above this guard: typing "forge" into the Guide
-      // search stopped at 'f' and jumped to the Frontier tab.
       if (inFormControl) return;
 
       if (
@@ -181,18 +175,12 @@ export function useKeyboardControls({
       // fire while the sheet is open. Escape and '?' above are the ways out.
       if (showShortcutsRef.current) return;
 
-      // The hook is mounted above the shell's early returns, so it is live on the intro and the
-      // map-setup screens as well — and everything from here down acts on the map. There is no loop
-      // to act on there: `isEditableTarget` is false whenever focus sits on a button, which is every
-      // control on those screens, so a digit armed a build type and `B` opened the build panel, and
-      // the colony started with the rail armed. Ctrl/Cmd+S and `?` stay deliberately **above** this
-      // gate: saving and opening this sheet are meaningful before a map exists.
+      // Everything below acts on the map, so stop on the intro and map-setup screens; Ctrl/Cmd+S
+      // and `?` stay above this gate because they work before a map exists.
       if (!gameplayActiveRef.current) return;
 
-      // No chord reaches the map. Ctrl/Cmd+1..9 switches browser tabs and Alt+= is an OS zoom; both
-      // used to select a building or zoom the map too, so returning from the browser tab found the
-      // game in build mode. Every sibling hotkey below already tests for modifiers — this hoists the
-      // same rule above the zoom/digit pair that forgot it.
+      // No chord reaches the map: Ctrl/Cmd+1..9 switches browser tabs and Alt+= is an OS zoom, so
+      // modifier combos return before the zoom and digit handling below.
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
       if (e.key === '+' || e.key === '=') {
@@ -247,9 +235,8 @@ export function useKeyboardControls({
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
-      // Delete unconditionally, even when the event's target is a text field: the key may
-      // have been pressed while the map had focus, and any key left in the set keeps the
-      // camera panning forever. Deleting an absent key is a no-op.
+      // Delete unconditionally: a key may have been pressed while the map had focus, and a stale
+      // entry keeps the camera panning forever.
       keysRef.current.delete(e.key.toLowerCase());
     };
     // Focus loss never delivers the keyup, so a held movement key would stay in the set
@@ -270,12 +257,8 @@ export function useKeyboardControls({
       const keys = keysRef.current;
       const speed = 6;
       /**
-       * Arrow keys belong to the map cursor while the canvas holds focus.
-       *
-       * `GameMapStage` binds the same four keys to the keyboard map cursor, so without this the
-       * camera slid out from under the cursor on every step and the one keyboard route onto the map
-       * was unusable. WASD always pans: the cursor does not bind those, so movement never becomes
-       * unreachable.
+       * Arrow keys belong to the map cursor while the canvas holds focus; `GameMapStage` binds the
+       * same four keys. WASD always pans, so movement never becomes unreachable.
        */
       const arrowsPanCamera = typeof document === 'undefined'
         || document.activeElement !== canvasRef.current;

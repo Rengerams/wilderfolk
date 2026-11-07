@@ -1,9 +1,6 @@
 /**
- * A new session's opening view must start *on* the camp, not merely aim at it.
- *
- * `focusCameraOn` moves only the camera's target, so a session that aimed the camera with it
- * rendered its first frame at the map centre — open water on a coastal map — and panned to the
- * founding settlers afterwards. Both the camera and its target belong at the camp from the start.
+ * A new session's opening view starts on the camp: both `camera` and `camera.target`
+ * sit there, because `focusCameraOn` moves only the target.
  */
 import { describe, it, expect } from 'vitest';
 import { MapSize } from '../src/game/gameTypes';

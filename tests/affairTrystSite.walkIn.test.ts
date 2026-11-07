@@ -69,9 +69,8 @@ function settler(id: number, gender: 'male' | 'female', overrides: Partial<Entit
 }
 
 /**
- * Cheater + spouse in one house, a single paramour with their own house, and both cheater and
- * paramour standing away from the marital home (so `isAtMaritalHome` is false unless a test moves
- * people).
+ * Cheater and spouse share one house; the paramour has their own, and both stand away from the
+ * marital home unless a test moves them.
  */
 function fixture(): {
   cheater: Entity;

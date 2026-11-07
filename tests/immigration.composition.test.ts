@@ -1,11 +1,8 @@
 import { HUMAN_ADULT_MIN_AGE as HUMAN_MOVE_OUT_MIN_AGE } from '../src/game/daycycleconstants';
 import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
 /**
- * Immigration party composition (2026-09-16).
- *
- * A party is one of three shapes: a lone youth (12–17), a married couple that may bring 1–2 children,
- * or a single adult. A family child still only arrives with both parents; the lone youth is a
- * juvenile, since childhood ends at the adult floor.
+ * Immigration party shapes: a lone youth (12–17), a married couple that may bring 1–2
+ * children, or a single adult.
  */
 import { describe, expect, it } from 'vitest';
 

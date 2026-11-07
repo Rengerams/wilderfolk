@@ -272,18 +272,8 @@ function staffedBuildings(state: WorldState): number {
 }
 
 /**
- * Every first-time tutorial whose mechanic is **already true in this world**, derived from the current
- * state alone.
- *
- * This is the single definition of "this has happened": `seedTutorialSeenForExistingState` seeds a
- * loaded save from it so tips do not replay, and `detectContextualTutorials` reads the same derivation
- * for live play, so the two can never disagree about what counts as a first time.
- *
- * It must stay a pure function of the current world. The game loop mutates one `WorldState` in place
- * (`GameLoop.frame` calls `gameTick(this.world)`, the worker host hands back its single `worldRef`), so
- * any "since the previous tick" comparison is between an object and itself and is always false — that
- * is the defect that made no contextual tip ever appear
- * (`BUG_REPORTS/2026-09-17-contextual-tips-never-fire.md`).
+ * Every first-time tutorial whose mechanic is already true in this world, derived from the current
+ * state alone and shared by save seeding and live detection. Must stay pure: the loop mutates in place.
  */
 function derivedSeenIds(state: WorldState): Set<string> {
   const seen = new Set<string>();
@@ -344,9 +334,8 @@ export function detectContextualTutorials(world: WorldState): ContextualTutorial
   const hasHouse = world.buildings.some(
     (b) => b.type === BuildingType.House && b.faction !== 'rival',
   );
-  // Warn from late afternoon on day one (hour >= 16) until first house. Deliberately not part of
-  // `derivedSeenIds`: it is a day-one nudge about something that has *not* happened, not a mechanic
-  // that is already true, so a loaded save must not be seeded with it.
+  // From late afternoon on day one (hour >= 16) until first house. Not in `derivedSeenIds`: it
+  // nudges about something that has not happened, so a loaded save must not be seeded with it.
   const hour = getHourOfDay(world.tick);
   if (world.tick < TICKS_PER_DAY && hour >= Math.max(0, NIGHT_START - 4) && !hasHouse) {
     queue('shelter_night');

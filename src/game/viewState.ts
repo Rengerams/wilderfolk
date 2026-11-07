@@ -5,11 +5,8 @@ import { pickWorldFieldsForSave } from './saveSchema';
 import type { PlaceBuildingFailureReason } from './buildingPlacementLabels';
 
 /**
- * The placement ghost: the snapped point plus the placement owner's verdict on it.
- *
- * A discriminated union rather than two independent fields, because `valid` and `reason` are one
- * fact — a ghost whose reason is `null` is placeable and one with a reason is not. Build it through
- * {@link createBuildGhost} so the two can never disagree.
+ * The placement ghost: the snapped point plus the placement owner's verdict on it. A discriminated
+ * union because `valid` and `reason` are one fact; build it through {@link createBuildGhost}.
  */
 export type BuildGhost =
   | { x: number; y: number; valid: true; reason: null }

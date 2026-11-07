@@ -1,17 +1,6 @@
 /**
- * Every profession learns the trade it works, on one shift cadence.
- *
- * Skill paid for **accepted output** freezes a trade when its store is full: `rewardProductionSkills`
- * and the per-occupant `gainSkill` calls in `dailyBuildingEconomy` sit behind `added > 0` / a headroom
- * check, so on a colony whose stores stand at their caps only the trades with a live consumer keep
- * growing. A census of the owner's Year 3 save (all five stores exactly at cap, 1800/1800 iron) read
- * farmer mean 25.3 with 12 settlers at 100, against blacksmith 3.0, hunter 2.0 and teacher 0.4 — and
- * every civic trade at a floor, because a school's harvest can never be refused. None of them reached
- * 40, which is also the master bar `apprenticeships.advanceApprenticeships` needs, so 580 of 608
- * juveniles could never be apprenticed and elections could only ever be won by a farmer.
- *
- * `skills.rewardBuildingWork` pays for the shift instead, at `WORK_SKILL_PER_SHIFT` on the
- * `SKILL_CREDIT_INTERVAL_TICKS` cadence, whether or not `addResource` accepted anything.
+ * Every profession learns the trade it works on one shift cadence: `skills.rewardBuildingWork` pays
+ * `WORK_SKILL_PER_SHIFT` whether or not `addResource` accepted the output.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

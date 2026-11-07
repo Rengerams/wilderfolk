@@ -1,15 +1,6 @@
 /**
- * The budgeted ground fill has to produce the same picture as the unbudgeted one.
- *
- * `renderer/terrain.ts` no longer bakes a 256² chunk in one frame: a chunk is filled in **horizontal
- * bands** under a per-frame pixel budget, because one chunk measures 100–300 ms of per-pixel shader
- * work and a fresh view of 20–24 of them blocked the main thread for 3.9–6.0 s (the "0 fps" stall
- * reported from play). That is only safe if a band written at its own row offset is identical to the
- * matching rows of a whole-chunk bake — the bake is documented as a pure function of the world
- * coordinate, and this case holds it to that.
- *
- * The bake only calls `createImageData` / `putImageData`, so the capture stub below is enough — no
- * canvas dependency, no browser (same harness as `groundLook.bands.test.ts`).
+ * The budgeted ground fill must match an unbudgeted bake: a chunk is filled in horizontal bands under
+ * a per-frame pixel budget, so a band at its row offset must equal the same rows of a whole-chunk bake.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { generateRawTerrain } from '../src/game/terrain/terragen';
@@ -254,8 +245,7 @@ describe('the ground fill is budgeted per frame, and a season change costs nothi
     expect(sawCoarseCover).toBe(true);
 
     // The ground is **not** seasonal: the season is not part of the chunk key, so a rollover re-bakes
-    // nothing and the map it is already showing stays. (It used to re-bake the whole view four times an
-    // in-game year for a palette change.)
+    // nothing and the map it is already showing stays.
     counts.paintedPixels = 0;
     counts.drawnWidths = [];
     drawGround(destination, snapshot(Season.Winter), view.width, view.height);

@@ -28,9 +28,7 @@ export const HOSPITAL_WARD_RADIUS_PX = 70;
 
 /**
  * The hospital's whole reputation grant for one production interval: the flat staffed grant plus
- * the ward round's own grant for the patients it treats. `dailyBuildingEconomy` decides *when* the
- * interval fires and no longer adds reputation itself, so the amount a hospital produces is
- * readable from this module alone.
+ * the ward round's grant. `dailyBuildingEconomy` only decides when the interval fires.
  */
 export function grantHospitalIntervalReputation(
   state: WorldState,
@@ -42,9 +40,8 @@ export function grantHospitalIntervalReputation(
 }
 
 /**
- * The single player-facing description of the hospital reputation rule. The build tooltip
- * (`SelectedBuildingPanel`) and the More-tab guide both render this, so the advertised amount
- * cannot drift from what the ward pays.
+ * The single player-facing description of the hospital reputation rule, rendered by both the
+ * build tooltip and the More-tab guide so the advertised amount cannot drift.
  */
 export function describeHospitalReputation(): string {
   return `Staffed: +${HOSPITAL_REPUTATION_PER_INTERVAL} reputation every ${HOSPITAL_REPUTATION_INTERVAL_DAYS} days,`
@@ -62,10 +59,8 @@ export function isDoctorAtHospital(
 }
 
 /**
- * Whether this settler should seek medical care.
- *
- * `tick` is required because the grief window is an absolute deadline: comparing it with `0`
- * made every settler who had *ever* grieved a permanent walk-in candidate.
+ * Whether this settler should seek medical care. `tick` is required: the grief window is an
+ * absolute deadline, not something to compare with `0`.
  */
 export function needsMedicalCare(entity: Entity, tick: number): boolean {
   if (!entity.alive || entity.isJuvenile === undefined) return false;

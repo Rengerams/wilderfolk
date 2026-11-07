@@ -1,15 +1,6 @@
 /**
- * A legacy save without a genome loads with the deterministic fourteen-dimension backfill, and
- * nothing else moves.
- *
- * The fixture is a real payload from `buildSaveData` with `genomeV2` deleted from every human record
- * — the pre-genome layout. Pinned here:
- * - a settler with no genome gains a stable genome derived per entity id from the colony seed;
- * - a valid saved genome is never rerolled, reordered or padded;
- * - malformed genomes normalize deterministically;
- * - the backfill consumes no draw from the live `settlerGenetics` stream;
- * - the load is idempotent across save → load → save → load;
- * - the retired categorical `traits` field is dropped, and a Moon Howler transform leaves the genome.
+ * A legacy save with no `genomeV2` loads with the deterministic fourteen-dimension backfill derived
+ * from the colony seed, and nothing else moves.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

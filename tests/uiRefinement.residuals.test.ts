@@ -1,10 +1,6 @@
 /**
- * UI refinement residuals — R30–R33 of `docs/private/audits/2026-09-16/UI_REFINEMENT_AND_DUPLICATION_2026-09-17.md`.
- *
- * The audit's higher tiers were closed by the 2026-09-17 campaign; these four rows were re-verified
- * against the tree on 2026-09-20 and were still live. Each guard names the pre-fix expression it
- * replaces, so a regression fails here with that expression in the message (the
- * `uiSingleOwner.test.ts` house pattern).
+ * UI refinement guards, each naming the expression it replaces: controls state themselves in text
+ * rather than colour, keyboard reach stays intact, and one message prints in one place.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -12,8 +8,7 @@ import { resolve } from 'node:path';
 import { EVENT_LOG_FILTER_OPTIONS, getEventLogFilterLabel } from '../src/game/eventLogFilters';
 
 function read(relativePath: string): string {
-  // `UI_REFINEMENT_RESIDUALS_ROOT` lets the red-before proof run these guards against a mirrored
-  // pre-fix tree (`tmp/red-before-r30`) without touching `src/`.
+  // `UI_REFINEMENT_RESIDUALS_ROOT` points the guards at a mirrored source tree for a red-before proof.
   const root = process.env.UI_REFINEMENT_RESIDUALS_ROOT ?? process.cwd();
   return readFileSync(resolve(root, relativePath), 'utf8');
 }
@@ -23,8 +18,7 @@ describe('R30 — the chronicle header names the filter the dropdown names', () 
     for (const option of EVENT_LOG_FILTER_OPTIONS) {
       expect(getEventLogFilterLabel(option.id), `filter ${option.id}`).toBe(option.label);
     }
-    // `death` is the stored id; "Deaths (age, illness, exhaustion, raid)" is the label the player
-    // reads in the dropdown. The header used to print the id mid-sentence.
+    // `death` is the stored id; the header must print the dropdown label, never the id.
     expect(getEventLogFilterLabel('death')).not.toBe('death');
     expect(getEventLogFilterLabel('all')).toBe('All');
   });
@@ -43,8 +37,7 @@ describe('R30 — the chronicle header names the filter the dropdown names', () 
 
 describe('R31–R33 — controls state themselves, not only by colour', () => {
   it('R31: the header resource chip carries its full state as an accessible name', () => {
-    // Pre-fix the span had `title` only: the unit and the "full, production is lost" warning were
-    // invisible to screen readers and to touch.
+    // The chip's full state is its accessible name, not a mouse-only `title`.
     expect(read('src/components/ResourceBadge.tsx')).toContain('aria-label={title}');
   });
 
@@ -55,15 +48,14 @@ describe('R31–R33 — controls state themselves, not only by colour', () => {
   });
 
   it('R33: the collapsed build rail grid toggle exposes its pressed state', () => {
-    // `GameHeader`'s auto-play toggle already did this; the rail's grid toggle was colour-only.
+    // The rail's grid toggle must expose `aria-pressed` like the header's auto-play toggle.
     expect(read('src/components/GameBuildRail.tsx')).toContain('aria-pressed={showGrid}');
   });
 });
 
 describe('R11, R36, R37, R39 — keyboard reach and one message in one place', () => {
   it('R11: focus enters the menu dialog when it opens, so the Tab trap is reachable', () => {
-    // Pre-fix nothing ever focused into the panel, so both wrap branches were unreachable and Tab
-    // walked the whole game UI behind the click-catching backdrop.
+    // Focus must enter the panel on open, so the Tab trap is reachable.
     const menu = read('src/components/GameMenu.tsx');
 
     expect(menu).toContain('getFocusableElements(panelRef.current)[0]');
@@ -71,7 +63,7 @@ describe('R11, R36, R37, R39 — keyboard reach and one message in one place', (
   });
 
   it('R36: the intro does not treat Tab or a modifier chord as "continue"', () => {
-    // Any key but Escape continued the intro, so the 🔊/🔇 control beside the CTA was unreachable.
+    // Tab and modifier chords stay inert, so the mute control beside the CTA stays reachable.
     const intro = read('src/game/IntroScreen.tsx');
 
     expect(intro).toContain("event.key === 'Tab'");
@@ -90,8 +82,7 @@ describe('R11, R36, R37, R39 — keyboard reach and one message in one place', (
   });
 
   it('R39: the save banner renders in the new-settlement screen as well as the game', () => {
-    // "Load saved game" lives on the map-setup screen, and its refusal message was only rendered in
-    // the game shell — so the reason existed but the player never saw it.
+    // "Load saved game" lives on the map-setup screen, so its refusal banner must render there too.
     const app = read('src/App.tsx');
     const uses = app.split('<SaveToastBanner').length - 1;
 

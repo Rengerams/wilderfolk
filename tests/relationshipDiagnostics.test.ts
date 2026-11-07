@@ -1,18 +1,6 @@
 /**
- * Relationship diagnostics truthfulness — Objective 8.
- *
- * Every counter means exactly what its name says:
- *   - `conceptionCandidates` increments once per evaluated candidate.
- *   - Each gate failure (eligibility / energy / proximity / roll) records only
- *     the FIRST reason a candidate was blocked — candidates == successes +
- *     sum(blocks) for a single-path candidate.
- *   - `pregnanciesStartedThisInterval` increments ONLY when a new pregnancy is
- *     created; `birthsCompletedThisInterval` increments only at a completed
- *     birth; `activePregnancies` is the current pregnant count from the
- *     authoritative state and never derived from the interval counters.
- *
- * The fixture starts a pregnancy (mocked roll), advances it to term, and
- * completes a birth — then checks each counter.
+ * Relationship diagnostics truthfulness: counters mean exactly what their names say, a gate failure
+ * records only the first blocking reason, and `activePregnancies` comes from authoritative state.
  */
 import { personDayRoll } from '../src/game/simRng';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -32,9 +20,8 @@ import {
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 
 /**
- * The conception roll is stateless per settler and *day* (`personDayRoll(id, tick, salt)`), so
- * a roll failure or a success is forced by choosing the day — not by stubbing `Math.random`,
- * which no longer reaches the roll.
+ * The conception roll is stateless per settler and day (`personDayRoll(id, tick, salt)`), so a
+ * failure or success is forced by choosing the day rather than stubbing `Math.random`.
  */
 function dayWhere(predicate: (day: number) => boolean): number {
   for (let day = 1; day <= 5000; day++) {
@@ -75,9 +62,8 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
 }
 
 function makeState(entities: Entity[]): WorldState {
-  // Deliberately partial: the diagnostics owners under test read `entities`, `tick`, `season`,
-  // `resources`, `buildings`, `floatingTexts` and `villageReputation`; the rest of `WorldState`
-  // (worldMap, wildlife counts, research, festival, …) is absent because nothing here reads it.
+  // Deliberately partial: the owners under test read only `entities`, `tick`, `season`, `resources`,
+  // `buildings`, `floatingTexts` and `villageReputation`.
   return {
     entities,
     tick: 100,

@@ -198,8 +198,7 @@ describe('buildFullFamilyTree', () => {
     expect(fromFocus.rows.find((row) => row.delta === 0)?.members[0].id).toBe(5);
 
     // Anchored on the grandmother the walk reaches her grandchildren and stops: the great-grandchild
-    // is a third generation down. That is the point of the window — an unbounded walk drew the whole
-    // colony from every member, so one settler's tree was a list of names to search.
+    // is a third generation down, and the window stays bounded.
     const fromOma = buildFullFamilyTree(oma, all);
     expect(personIn(fromOma, 1)?.isFocus).toBe(true);
     expect(relationOf(fromOma, 3)).toBe('Adult child');

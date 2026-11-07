@@ -1,24 +1,6 @@
 /**
- * Conception vs birth event labelling — BUG_REPORTS/2026-09-10-conception-logged-as-birth.md.
- *
- * SCOPE — read this before trusting the result. These are **writer-level** tests:
- * they build a synthetic `WorldState` around `initGame({ skipTerrain: true })`, place two settlers by
- * hand, and call the conception owner directly. That makes them fast and
- * deterministic, and it is enough to pin the event *type* each writer emits —
- * but it is not how the game behaves. The real-game check lives in
- * `scripts/browser-smoke.mjs --days N`, which plays the shipped build in a real
- * browser, lets the real worker, calendar, immigration and relationship cadence
- * run, and then reads the counts back from the Chronicle panel the player uses
- * (it asserts that the Births filter equals the rendered delivery messages).
- *
- * The defect itself: the "expecting" announcement re-used the `'birth'` type, so
- * a 360-day run reported 56 birth-typed events against 32 completed deliveries
- * and every `'birth'` consumer (Chronicle filter, council report, `first_birth`
- * tutorial, rumour source kind) treated an expectation as a child.
- *
- * Owner/cadence are unchanged: `humanRelationships.ts` still creates the
- * pregnancy on the daily conception decision, and `humanLifecycle.ts` still
- * creates the birth. Only the event label is pinned here.
+ * Writer-level tests: the conception owner must emit the `conception` event type, never `'birth'`,
+ * because every `'birth'` consumer treats the event as a delivered child.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -45,11 +27,7 @@ const NEWBORN_ID = 100;
 const FIXTURE_SEED = 20240913;
 
 /**
- * A tick at which the real stillbirth roll clears the owner's threshold — a live delivery. The
- * comparison reads `LIFECYCLE_CONFIG.STILLBORN_CHANCE` rather than a literal: it used to search for
- * a roll `>= 0.5`, which is a strict subset of the owner's rule today, so it picked a genuine live
- * birth while silently detaching from the rule it claims to drive (`LIVE-FINDINGS-STATUS.md`,
- * duplication G2).
+ * A tick whose real stillbirth roll clears `LIFECYCLE_CONFIG.STILLBORN_CHANCE`, i.e. a live delivery.
  */
 function liveBirthTick(): number {
   for (let tick = 1; tick <= 20000; tick++) {
@@ -95,9 +73,8 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
 }
 
 /**
- * A colony-day fixture: `initGame({ skipTerrain: true })` for a complete valid world, then the two
- * settlers under test. Both stand on the same spot, so the conception gate sees
- * them "together" and only the probability roll decides.
+ * A colony-day fixture: `initGame({ skipTerrain: true })` plus both settlers, who share a spot so
+ * only the probability roll decides.
  */
 function makeFixture(entities: Entity[]): { state: WorldState; ctx: TickContext; mother: Entity } {
   const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
@@ -134,10 +111,8 @@ function eventTypes(state: WorldState): string[] {
 }
 
 /**
- * The conception rolls are stateless per settler and *day*
- * (`personDayRoll(id, tick, salt)`), so a branch is forced by choosing the day rather than by
- * stubbing `Math.random`, which no longer reaches them. Day→tick goes through the clock owner
- * (`ticksForDays`), never a bare `72`.
+ * Conception rolls are stateless per settler and day (`personDayRoll(id, tick, salt)`), so a branch
+ * is forced by choosing the day; day→tick goes through `ticksForDays`.
  */
 function dayWhere(predicate: (day: number) => boolean): number {
   for (let day = 1; day <= 5000; day++) {

@@ -56,9 +56,8 @@ export function captureRaidPrisoners(state: WorldState, rival: RivalSettlement, 
 }
 
 /**
- * Warfare decisions are political, not a fixed morality score. Villagers respond
- * to their own traits and recent threats. External rival diplomacy is independent.
- * Called once by the authoritative prisoner or settled-raid transition.
+ * Warfare decisions are political, not a fixed morality score: villagers respond to their own traits
+ * and recent threats. Called once by the authoritative prisoner or settled-raid transition.
  */
 export function applyWarCommunityReaction(state: WorldState,
   choice: 'release' | 'execution' | 'mercy' | 'tribute' | 'raze', rivalId: string,

@@ -1,11 +1,6 @@
 /**
- * A colony at zero stone with a Quarry nobody works must dig itself out with no player command.
- *
- * The health-verdict suite asserts the virtual player *warns* about the unmanned Quarry; this suite
- * asserts the outcome, because the recovery does not depend on the bot: `workforce.assignMissingWorkers`
- * runs from the assign tick layer four times a colony day and crews an empty producer on its own.
- *
- * Three shapes: an idle hand, hands that are all at work, and the bot left to play the colony alone.
+ * A colony at zero stone with an unmanned Quarry must recover without a player command:
+ * `workforce.assignMissingWorkers` runs from the assign layer and crews an empty producer.
  */
 import { describe, expect, it } from 'vitest';
 import { gameTick, initGame } from '../src/game/gameEngine';
@@ -161,9 +156,8 @@ describe('zero stone with an unmanned Quarry', () => {
     const result = runAutoplay(world, AUTOPLAY_DAYS, quarryId);
     world = result.world;
 
-    // The bot's build program can use every stone it mines. Final inventory is not
-    // cumulative production: a zero ending stock does not mean the Quarry never recovered.
-    // A real Quarry can recover stone before a later food crisis legitimately borrows its workers.
+    // Final inventory is not cumulative production: a zero ending stock does not mean the Quarry
+    // never recovered, as a later food crisis can legitimately borrow its workers.
     expect(result.peakQuarryWorkers, 'a hand must have worked the Quarry').toBeGreaterThan(0);
     expect(Math.floor(result.peakStone), 'the Quarry must replenish stone during autoplay').toBeGreaterThan(0);
   }, TEST_TIMEOUT_MS);

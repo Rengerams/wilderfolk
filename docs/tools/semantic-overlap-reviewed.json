@@ -1,7 +1,7 @@
 {
   "approvals": [
     {
-      "key": "src/game/simWorker/gameWorker.ts:219:installWorkerMessageHandlers@43217f3085132604dc8f3a4f8e56f7675654b8cfad498957cbcaa11717afd0e0 <-> src/game/simWorker/gameWorker.ts:232:onmessage@204c5b5a9658aeba4540512b4367577fb428017d9d3f686d76ac505d7afa92b9",
+      "key": "src/game/simWorker/gameWorker.ts:219:installWorkerMessageHandlers@af8c448551004e94244f555d0bd25702f8470fce22cffe768a4186311ffcd04b <-> src/game/simWorker/gameWorker.ts:232:onmessage@820f3d70166fc0babbecefabfd65248c55841d0d360f1f290b91fd92ada88e20",
       "reason": "The installer binds error hooks and the one worker message receiver on the active self shim, including a fresh test realm; it does not execute requests. The receiver alone validates protocol and requested features, awaits the shared census gate, then synchronously dispatches the request and classifies failures by source. Folding them into one entry would remove the explicit reinstallation seam needed by existing worker tests or duplicate registration. They have distinct call/timing responsibilities and a single implementation of each in the same owner module.",
       "tests": [
         "tests/gameWorker.profilerStop.test.ts",
@@ -73,6 +73,15 @@
       "tests": [
         "tests/economyLedger.foodFlow.test.ts",
         "tests/tradeImports.iron.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/nameLoader.ts:184:loadNames@8f99631f614aa955b6117d7fbb96e64d60b962f2b9e9fd39e9d1bc910da82701 <-> src/game/nameLoader.ts:188:loadPromise@a629d953f345bf2d5c1de0adeecc930962e1f570d9fc2177de65e0576db237c8",
+      "reason": "loadNames is the cached public entry; the async body it assigns to loadPromise is the implementation it awaits. There is one implementation, not two: the outer function owns the ready check and single-flight cache, the inner promise runs disk, raw-import and fetch fallbacks once.",
+      "tests": [
+        "tests/nameLoader.poolUpgrade.test.ts",
+        "tests/gameWorker.namePool.test.ts",
+        "tests/gameWorker.namePool.dispatchGate.test.ts"
       ]
     }
   ]

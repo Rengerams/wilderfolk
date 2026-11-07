@@ -26,14 +26,8 @@ function isWholeClockHour(value: unknown): value is number {
 }
 
 /**
- * Validates candidate start and end hours.
- *
- * There is deliberately **no length restriction**: the owner sets how long the colony
- * works ("they should be no restrictrion for normal work or hotel or cafe"). The old
- * `MIN_STANDARD_WORK_HOURS = 2` / `MAX_STANDARD_WORK_HOURS = 16` band refused a short
- * day and a long one; both are now legal. A longer window simply scales production
- * (`getWorkHourProductionMultiplier`) and carries more fatigue, which is the intended
- * pressure — not a refusal.
+ * Validates candidate start and end hours. There is deliberately no length restriction: a longer
+ * window simply scales production and carries more fatigue.
  */
 export function validateWorkSchedule(
   startHour: unknown,
@@ -122,11 +116,8 @@ export function isWorkScheduleHour(schedule: WorkSchedule, hour: number): boolea
 }
 
 /**
- * How long before the shift a settler is allowed to spend walking to work.
- *
- * The schedule names when a settler must be *at* work, not when they set off, so the hour before
- * the start is the commute window (owner spec: "they should arrive at begin time at work, they
- * have an hour to commute").
+ * How long before the shift a settler may spend walking to work: the schedule names when they must
+ * be at work, so the hour before the start is the commute window.
  */
 export const WORK_COMMUTE_LEAD_HOURS = 1;
 

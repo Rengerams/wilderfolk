@@ -1,8 +1,6 @@
 /*
- * Hunt Visual lifecycle regression — BUG 2026-08-21-hunt-visuals-expire-on-simulation-ticks.
- *
- * The renderer animates Hunt Visuals in milliseconds. Their transient-state
- * retention must use the same clock so finished arrows do not linger in render snapshots.
+ * Hunt Visuals animate in milliseconds, so their transient-state retention uses the same clock:
+ * a finished arrow does not linger in render snapshots.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';

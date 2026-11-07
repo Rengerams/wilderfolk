@@ -26,9 +26,8 @@ export function enterHumanBuilding(entity: Entity, building: Building): void {
 }
 
 /**
- * Steer toward a fixed place, taking the path owner's route when the direct line is blocked.
- * Short chases and follow-the-neighbour walks stay on `movementSteering`; this is for doorways,
- * work rows and venue spots a settler must reach rather than press against.
+ * Steer toward a fixed place, taking the path owner's route when the direct line is blocked — for
+ * doorways, work rows and venue spots a settler must reach rather than press against.
  */
 export function steerHumanToward(
   entity: Entity,
@@ -97,13 +96,8 @@ const STAND_POINT_FALLBACK_OFFSETS: readonly (readonly [number, number])[] = [
 ];
 
 /**
- * Moves a stand point onto ground a walker can occupy.
- *
- * A workplace row, a home arc and a crowd slot are geometry, not terrain: they land on water, on a
- * decor cell the L3 pass reserved, or under a completed wall. The owner's own save had two soldiers
- * standing in a pond and ten settlers inside walls — all of them simply standing where the row put
- * them, and a walk that cannot occupy its destination hovers at the edge of it instead of arriving.
- * The grid owns "can a walker stand here", so the point moves to the nearest cell it allows.
+ * Moves a stand point onto ground a walker can occupy: rows, arcs and crowd slots are geometry, not
+ * terrain, and the grid owns "can a walker stand here", so the point moves to the nearest allowed cell.
  */
 function walkableStandPoint(x: number, y: number): { x: number; y: number } {
   if (isGroundWalkableAt(x, y)) return { x, y };
@@ -118,14 +112,8 @@ function walkableStandPoint(x: number, y: number): { x: number; y: number } {
 }
 
 /**
- * A place in a crowd gathered around a point — a festival at the performers' camp or the hall front.
- *
- * Owner, 2026-09-30: *"they again in a circle"*, with no election running and five taverns in the
- * village. The festival branch of `humanTick` placed its crowd with `((id % 7) - 3) * 11` and
- * `((Math.floor(id / 7) % 5) - 2) * 9`: **35 slots total**, repeating, so a village's festival-goers
- * stacked tens deep on each one and the whole gathering read as a single dense, chatting ring. Twelve
- * staggered rings of sixteen slots give 192 distinct places spread over a few hundred px, so a crowd
- * looks like a crowd. Deterministic per settler — no RNG.
+ * A place in a crowd gathered around a point: 12 staggered rings of 16 slots (192 places) so a
+ * festival crowd spreads instead of stacking on the same slots. Deterministic per settler, no RNG.
  */
 export function crowdGatherPosition(cx: number, cy: number, entityId: number): { x: number; y: number } {
   const seed = Math.abs(entityId * 17 + 13);
@@ -149,19 +137,8 @@ const CROWD_GATHER_INNER_PX = 34;
 const CROWD_GATHER_RING_GAP_PX = 14;
 
 /**
- * A place of one's own at a venue — the arc in front of a tavern, market, hall or church.
- *
- * Owner, 2026-09-30, looking at a clump of dozens of settlers mid-village with no event running:
- * *"they again in a circle"*. Nothing was gathering them there: `humanLeisureBehavior`'s day-off /
- * Sunday-service / market / grief impulse sent **every** settler to a single point on the venue —
- * `b.x + b.width / 2, b.y + b.height * 0.92` — and each stopped within 20 px of it, so a village's
- * leisure crowd stacked into a ring around one coordinate. (That point is also the corner form applied
- * to a value that already is the footprint centre, `buildingGeometry`; see `humanBuildingTarget`.)
- *
- * This gives every settler a deterministic slot on three shallow arcs across the venue's front, using
- * the same stable hash idea as `homeStandPosition` and the same south-facing bias, so a crowd reads as a
- * crowd around the entrance rather than a circle around a pixel. No RNG: the same settler at the same
- * venue always stands in the same place.
+ * A place of one's own at a venue — a deterministic slot on three shallow arcs across the venue's
+ * front, so a leisure crowd reads as a crowd around the entrance, not a circle around one pixel.
  */
 export function venueGatherPosition(building: Building, entityId: number): { x: number; y: number } {
   const seed = Math.abs(entityId * 17 + building.id * 31);
@@ -224,31 +201,12 @@ export function humanBuildingTarget(
     return venueGatherPosition(building, entityId);
   }
   /**
-   * A real slot per worker, in a row across the building's front.
-   *
-   * Owner, 2026-09-30, looking at the crew of a Hunting Spot: *"why are they all standing at side of
-   * the village?"*, then *"but why all at the same palce not logic"*. Both halves of that were true
-   * here, and both are fixed by this one expression:
-   *
-   *  - the point was built in the **corner form** — `building.x + building.width / 2` — on a value
-   *    that already *is* the footprint centre (`buildingGeometry`), so a crew stood half a footprint to
-   *    the right of its own workplace. That is the "at the side of it" the owner saw, and it is the
-   *    same mistake the camera-focus callers made.
-   *  - the only dispersion was `((seed % 7) - 3) * 6` from a hash of the entity id: **seven** possible
-   *    x positions in a ±18 px band, an **identical y for everyone**, and past seven workers the hash
-   *    collides so two settlers stand on the exact same pixel.
-   *
-   * The slot now comes from the list that owns the crew (`building.occupants`, with the `?? []` its
-   * other save-boundary readers use), and the row is centred on the footprint. Deterministic — no RNG,
-   * so the same world and crew always give the same positions.
+   * A real slot per worker, in a row across the building's front, taken from `building.occupants` and
+   * centred on the footprint. Deterministic, so the same crew always stands in the same places.
    */
   const crew = building.occupants ?? [];
-  // A Prison's row holds its *guards*, but the only list the building carries is `occupants` — guards
-  // ∪ prisoners (`workforce.syncJobBuildingOccupants`). Folding the occupant index into the post count
-  // keeps the row the width of the posts, which is what the presence check can see: `prisonGuardDuty`
-  // samples within 55 px of the centre and this row stands 33 px south of it, leaving 44 px sideways.
-  // Five posts span ±32 px and fit; the nine occupants they were spread across spanned ±64 px and did
-  // not, so a guard on his post could read as away from it.
+  // A Prison's row holds its guards, but the building only carries `occupants` (guards ∪ prisoners), so
+  // the occupant index folds into the post count to keep the row within the presence check's width.
   const isPrison = building.type === BuildingType.Prison;
   const rawSlot = Math.max(0, crew.indexOf(entityId));
   const slot = isPrison ? rawSlot % PRISON_GUARDS_MAX : rawSlot;
@@ -317,15 +275,8 @@ const STUCK_WALK_MIN_PROGRESS_PX = 0.05;
 const stuckWalkers = new WeakMap<Entity, { x: number; y: number; ticks: number }>();
 
 /**
- * Applies one tick's walk step, refusing the tiles the path grid blocks.
- *
- * Every walk ends here, which is where "a wall is solid and water is not ground" has to hold: the
- * steerers only set a velocity, and none of them is obliged to check what it points into. A step
- * into a blocked tile becomes its axis-separated halves, so a walker pressed against a wall or bank
- * slides along its face instead of passing through it or stopping dead in the open.
- *
- * Velocity is left exactly as the steering owner set it — this only decides how far of it is walked,
- * because the blend the caller reads back (`vx`/`vy` after the tick) is that owner's contract.
+ * Applies one tick's walk step, refusing the tiles the path grid blocks. A blocked step is retried as
+ * its axis-separated halves so a walker slides along a wall or bank; velocity is left as steered.
  */
 export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
   const stepX = entity.vx * roadMult;
@@ -426,10 +377,8 @@ export function commuteHumanToBuilding(
 
   const moveSpeed = commuteWalkSpeed(speed, rush);
 
-  // The path owner is asked at **every** distance. This used to run only beyond LONG_RANGE_DIST
-  // (50 px), so a shorter leg — and the last 50 px of every leg — steered straight at the target,
-  // straight across a river or a wall. `steerWithPath` answers 'direct' when the line is clear,
-  // which is what leaves the direct and pathed movement on the same integration path.
+  // The path owner is asked at every distance: asking only beyond 50 px sent short legs and every final
+  // approach straight across a river or wall. `steerWithPath` answers 'direct' when the line is clear.
   const cacheKey = commutePathCacheKey(
     building.id,
     arrivingHome,

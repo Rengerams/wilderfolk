@@ -1,9 +1,6 @@
 /**
- * A graduated settler releases the school seat they held as a pupil.
- *
- * `syncSchoolAssignments` hands seats to `isJuvenile` pupils only, so the seat an adult kept from
- * childhood stayed on their record — and the housing commute score, which adds a school trip for
- * any member carrying a school id, went on walking educated adults to their old school.
+ * `syncSchoolAssignments` seats `isJuvenile` pupils only, so a graduated adult's leftover school id
+ * must be cleared rather than kept on their record.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';

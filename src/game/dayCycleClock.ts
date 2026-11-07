@@ -4,7 +4,7 @@ import { Time } from './gameConstants';
 export const TICKS_PER_HOUR = Time.TICKS_PER_HOUR;
 export const TICKS_PER_DAY = Time.HOURS_PER_DAY * TICKS_PER_HOUR;
 export const LEGACY_TICKS_PER_DAY = 24;
-/** Authoritative clock hours for the four daily simulation phases. */
+/** Named daily phases: 00:00, 06:00 and 18:00; the 12:00 invocation has no phase. */
 export const DAILY_PHASE_HOURS = {
   fatigue: 0,
   relationships: 6,
@@ -77,10 +77,6 @@ export function ticksForDays(days: number): number {
 /**
  * Whole days from `nowTick` until `untilTick`, never negative — the countdown the inspectors show for
  * a prison sentence, a diplomacy deadline and a festival cooldown.
- *
- * `ticksForDays` is the inverse conversion and lives here too, so the forward one belongs beside it:
- * four views and the header each wrote `Math.ceil((untilTick - tick) / TICKS_PER_DAY)` by hand, two of
- * them without the lower clamp, so an elapsed deadline could read as a negative day count
  */
 export function daysUntilTick(nowTick: number, untilTick: number): number {
   if (!Number.isFinite(nowTick) || !Number.isFinite(untilTick)) return 0;

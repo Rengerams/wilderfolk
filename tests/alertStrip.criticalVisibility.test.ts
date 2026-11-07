@@ -1,7 +1,6 @@
 /**
- * The alert strip keeps every `critical` alert on screen: with three criticals at once, a flat
- * `VISIBLE_LIMIT` slice hid the third behind "+N more". The selection is pure, so it is pinned here;
- * the chip's non-colour marker is pinned by source because this tier is `environment: 'node'`.
+ * The alert strip keeps every `critical` alert on screen; only non-critical overflow collapses.
+ * Selection is pure and pinned here; the chip's non-colour marker is pinned by source (node tier).
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

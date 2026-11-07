@@ -36,32 +36,19 @@ function addCompleted(state: WorldState, type: BuildingType): void {
 }
 
 /**
- * F10 (`docs/private/audits/2026-09-20/`, tracked in `LIVE-FINDINGS-STATUS.md`): `storageMax` had
- * **three** writers and they disagreed — `worldGen`'s initial literal
- * (`1000 / 500 / 1000 / 2000 / 500`), `saveLoad`'s fallback (`800 / 300 / 800 / 20000 / 300`) and
- * `economy.computeStorageMax`, the owner whose rule `updateStorageCaps` applies every day.
- *
- * The disagreement was visible, not theoretical: `updateStorageCaps` runs only in the daily layer and
- * `initGame` starts a world at tick 24, so the first pass is the tick-72 day boundary — the world-gen
- * literal was the ceiling the player actually played the first days against, with gold 10× too low
- * and materials 25–67 % too high.
- *
- * These tests pin the two *bootstrap* writers to the owner: world-gen from tick 0, and the load
- * fallback for a save that carries no `storageMax` at all. They are deliberately about the numbers a
- * player starts against, not about the daily recompute, which `tests/storageCaps.dailyWiring.test.ts`
- * already covers.
+ * `computeStorageMax` is the one owner of the storage caps; world-gen and the save-load fallback
+ * must both derive from it instead of carrying their own literals.
  */
 describe('F10 — the bootstrap writers of `storageMax` call the owner', () => {
   it('world-gen gives a fresh colony the caps of the owner rule, from tick 0', () => {
     const fresh = initGame({ skipTerrain: true, seed: BOOTSTRAP_FIXTURE_SEED });
 
-    // The premise that made the old literal matter: a fresh colony has no buildings, and the first
-    // daily pass is still 48 ticks away (tick 24 → the tick-72 day boundary).
+    // The premise: a fresh colony has no buildings and its first daily pass has not run.
     expect(fresh.buildings).toEqual([]);
     expect(fresh.tick).toBe(TICKS_PER_HOUR * 8);
     expect(fresh.tick).toBeLessThan(TICKS_PER_DAY);
 
-    // Pre-fix this was `{ wood: 1000, stone: 500, food: 1000, gold: 2000, iron: 500 }`.
+    // A fresh start uses the cap owner's derivation, never a stored literal.
     expect(fresh.storageMax).toEqual(computeStorageMax(fresh.buildings));
 
     // The daily owner agrees with world-gen instead of moving it: one rule, two callers.
@@ -86,8 +73,7 @@ describe('F10 — the bootstrap writers of `storageMax` call the owner', () => {
       'fixture premise: the Barn survived the round trip',
     ).toBe(true);
 
-    // Pre-fix the fallback was a third literal and building-blind: every save loaded with
-    // `800 / 800` wood and food, i.e. without the Barn's 300 wood and 400 food.
+    // The fallback derives caps from the saved buildings, so the Barn's storage counts.
     expect(loadedWorld.storageMax).toEqual(computeStorageMax(loadedWorld.buildings));
     const noBuildings = computeStorageMax([]);
     expect(loadedWorld.storageMax.wood).toBeGreaterThan(noBuildings.wood);
@@ -97,13 +83,8 @@ describe('F10 — the bootstrap writers of `storageMax` call the owner', () => {
   it('no opening store starts at or above its own cap, so day 1 can still bank a gain', () => {
     const world = initGame({ skipTerrain: true, seed: BOOTSTRAP_FIXTURE_SEED });
 
-    // Measured against `computeStorageMax([])` = `800 / 300 / 800 / 20000 / 300`:
-    // wood 220/800, stone 70/300, food 530/800, gold 80/20000, iron 30/300. Every starter stock sits
-    // **below** its ceiling, so the corrected caps change no day-1 resource. The F10 writeup's
-    // "the opening `wood: 2000` was already above its own cap of 1000, so a fresh colony could not
-    // gain a single unit of wood" does **not** reproduce here: `worldGen` already clamps each starter
-    // stock with `Math.min(<stock>, storageMax.<resource>)`. Reported to the coordinator as an open
-    // question rather than silently re-balanced.
+    // Against `computeStorageMax([])`, every starter stock sits below its cap, so a first gain is
+    // accepted; `worldGen` clamps each starter stock to `storageMax`.
     for (const key of ['wood', 'stone', 'food', 'gold', 'iron'] as const) {
       expect(world.resources[key], `${key} starts at or above its cap`).toBeLessThan(
         world.storageMax[key],
@@ -111,7 +92,7 @@ describe('F10 — the bootstrap writers of `storageMax` call the owner', () => {
       expect(getAvailableStorageHeadroom(world, key), `${key} has no headroom on day 1`).toBeGreaterThan(0);
     }
 
-    // The failure mode the finding described, asserted directly: a first gain must be accepted.
+    // The failure mode: a first gain must be accepted even on a fresh store.
     const woodBefore = world.resources.wood;
     expect(addResource(world, 'wood', 10)).toBe(10);
     expect(world.resources.wood).toBe(woodBefore + 10);
@@ -121,19 +102,8 @@ describe('F10 — the bootstrap writers of `storageMax` call the owner', () => {
 const GAIN_CLAMP_FIXTURE_SEED = 20_260_917;
 
 /**
- * A gain must never *lower* a purse that is already above its cap.
- *
- * Regression for audit M2 (`docs/private/audits/2026-09-16/sim-economy-leadership-combat.md`,
- * tracked in `LIVE-FINDINGS-STATUS.md`). Stock legitimately exceeds a cap — `refundHalfBuildingCost`
- * adds resources uncapped, and a Barn/Silo demolished recomputes `storageMax` downwards while the
- * stores stay put. `state.resources.gold = Math.min(state.storageMax.gold, state.resources.gold + gain)`
- * then *sets gold down to the cap*, so the reward is credited to nobody, the surplus is deleted, and
- * the float/chronicle still announce a gain. The audit found two live sites; the same expression
- * appeared at eleven (nine more in `groupEvents.ts`, which it flagged for "one sweep").
- *
- * The owner already existed: `resourceUtils.addCappedResource` floors the headroom at zero and
- * returns what it actually added. Every site now calls it, and the source guard below keeps the
- * expression from coming back.
+ * A gain must never lower a purse already above its cap: `addCappedResource` floors headroom at
+ * zero and returns what it actually added, so surplus stock survives.
  */
 describe('a gain never lowers an over-cap store', () => {
   it('a completed visitor quest leaves an over-cap purse alone and keeps the surplus', () => {
@@ -174,9 +144,8 @@ describe('a gain never lowers an over-cap store', () => {
     };
     walk(resolve(process.cwd(), 'src'));
 
-    // The exact shape: assigning `Math.min(storageMax.X, resources.X + …)` back onto the store.
-    // `worldGen`'s `Math.min(220, storageMax.wood)` initialisation is a different shape and is not
-    // matched; neither is the legitimate `Math.min(100, villageReputation + n)`.
+    // The exact shape: assigning `Math.min(storageMax.X, resources.X + …)` back onto the store;
+    // `worldGen`'s starter-stock clamp and the reputation clamp are different shapes.
     const defect = /state\.resources\.\w+\s*=\s*Math\.min\(\s*state\.storageMax\./;
     const offenders = files.filter((file) => defect.test(readFileSync(file, 'utf8')));
 
@@ -224,17 +193,8 @@ function capsFor(types: BuildingType[], faction: 'player' | 'rival'): WorldState
 }
 
 /**
- * E-1 (`docs/private/audits/2026-09-20/`): `updateStorageCaps` counted **rival-faction** buildings.
- *
- * The four filters were `completed && type === …`, so a rival Market — which `rivalEvents` really
- * does build (`completed: true`, `faction: 'rival'`, `groupEvents.createFactionBuilding`) — handed
- * the player +200 wood, +200 stone and +100 iron of storage on the next colony-day boundary, while
- * `canEstablishTradeRoute` still refused with "Build a Market". A rival Silo cut the player's
- * spoilage rate as well. The same concept is owned correctly elsewhere
- * (`tradeCaravans.hasCompletedMarket` uses `b.completed && b.faction !== 'rival' && …`).
- *
- * The player half of each case is asserted too, so the test cannot pass by the formula simply
- * falling back to its base values.
+ * `updateStorageCaps` counts only completed player buildings: a rival Market or Silo must confer
+ * no storage or spoilage benefit on the player.
  */
 describe('E-1 — a rival building confers no storage on the player', () => {
   it('a rival Market changes nothing; a player Market still adds its storage', () => {
@@ -242,7 +202,7 @@ describe('E-1 — a rival building confers no storage on the player', () => {
     const rival = capsFor([BuildingType.Market], 'rival');
     const player = capsFor([BuildingType.Market], 'player');
 
-    // Pre-fix the rival Market produced exactly the player's numbers.
+    // A rival Market confers none of a player Market's caps.
     expect(rival.storageMax).toEqual(base.storageMax);
     expect(rival.foodSpoilageRate).toBe(base.foodSpoilageRate);
 
@@ -263,7 +223,7 @@ describe('E-1 — a rival building confers no storage on the player', () => {
     const base = capsFor([], 'player');
 
     expect(rival.storageMax).toEqual(base.storageMax);
-    // A rival Silo used to cut the *player's* spoilage rate to 0.8%.
+    // Only the player's own Silo lowers the spoilage rate.
     expect(rival.foodSpoilageRate).toBe(base.foodSpoilageRate);
 
     expect(player.storageMax.wood).toBeGreaterThan(base.storageMax.wood);

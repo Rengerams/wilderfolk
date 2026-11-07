@@ -1,19 +1,6 @@
 /**
- * A4 — the world→screen transform was duplicated inside the renderer
- * (`docs/private/audits/2026-09-16/duplication-deadcode.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * The owner is `viewState.worldToScreen` (already imported into `grid.ts` as `w2s`). Two private
- * copies restated the formula — `renderer/grid.ts:53-59` and `renderer/scent.ts:5-11` — and the grid
- * used *both* transforms in one file, so a change to the camera transform (a screen-shake term, the
- * device-pixel-ratio term, the zoom guard) would have moved the ghost but not the grid lines.
- *
- * Both are now projections of the owner. `grid.ts` keeps the two axis accessors because the D27 wiring
- * guard in `tests/visualsAudit.renderWiring.test.ts` pins the call site by name
- * (`worldToScreenX(cx, cam, cw)`); their bodies contain no formula. `scent.ts` calls the owner directly.
- *
- * The drawn geometry is unchanged for every reachable zoom (`clampCameraZoom` floors at 0.5). The only
- * behavioural difference is the owner's non-positive-zoom repair, which the copies did not honour and
- * which no play path can reach — the second test below pins that the call sites now do.
+ * `viewState.worldToScreen` is the only world→screen transform: `grid.ts` keeps axis accessors
+ * that hold no formula and `scent.ts` calls the owner directly.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -26,7 +13,7 @@ function readSrc(relative: string): string {
   return readFileSync(resolve(process.cwd(), relative), 'utf8');
 }
 
-// ---- the duplicated formula the audit quoted, per axis ----
+// ---- the duplicated world→screen formula, per axis ----
 const DUPLICATE_X = /\(\s*\w+\s*-\s*cam\.x\s*\)\s*\*\s*cam\.zoom\s*\+\s*cw\s*\/\s*2/;
 const DUPLICATE_Y = /\(\s*\w+\s*-\s*cam\.y\s*\)\s*\*\s*cam\.zoom\s*\+\s*ch\s*\/\s*2/;
 
@@ -96,7 +83,7 @@ describe('A4 — the renderer draws through the single world→screen owner', ()
     expect(scent, 'scent.ts still restates the world→screen y formula').not.toMatch(DUPLICATE_Y);
     expect(scent).toContain('worldToScreen');
 
-    // Guards must not be vacuous: the pattern is fed the exact pre-fix source the audit quoted.
+    // Guards must not be vacuous: each pattern is fed the source it must reject.
     expect('  return (wx - cam.x) * cam.zoom + cw / 2;').toMatch(DUPLICATE_X);
     expect('  return (wy - cam.y) * cam.zoom + ch / 2;').toMatch(DUPLICATE_Y);
   });

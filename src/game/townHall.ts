@@ -239,11 +239,8 @@ export function resolveCivicPetition(
     return { kind: 'heard' };
   }
 
-  // Leader audience. Both lines are gated on `isDialogueBusy`: the petitioner's line had no gate at
-  // all (it could abandon any pair the petitioner was mid-way through), and the leader's used a raw
-  // `chatTicks` counter that reads the idle half of a live session as free (2026-09-20 audit,
-  // F-chat-2). Same rule as `hotelStay`/`hospitalCare`. The gates wrap the *lines* only — the
-  // audience itself still happens and still grants its reputation.
+  // Leader audience. Both lines are gated on `isDialogueBusy` so neither abandons a pair mid-way; the
+  // gates wrap the lines only — the audience still happens and still grants its reputation.
   if (leaderHere && personDayRoll(petitioner.id, state.tick, 824) < 0.35) {
     if (!isDialogueBusy(petitioner)) {
       requestDialogue({ eventKey: 'townHall.audience.petitioner', speaker: petitioner, tick: state.tick, selectionRoll: personDayRoll(petitioner.id, state.tick, 833), durationHours: dialogueHoursFromNominalTicks(48) });

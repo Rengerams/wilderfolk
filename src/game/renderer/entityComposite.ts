@@ -41,9 +41,8 @@ function paintWorldEntityLayer(ctx: CanvasContext2d, state: RenderSnapshot, cw: 
 }
 
 /**
- * Per-frame pass for everything that moves between simulation ticks — settlers, wildlife, trail
- * lines, notices and particles. It draws into the frame from the live camera, so positions can be
- * blended by the tick fraction; the tick-keyed bitmap cannot show motion between its repaints.
+ * Per-frame pass for what moves between simulation ticks — settlers, wildlife, trail lines, notices,
+ * particles. It draws from the live camera so positions can blend by the tick fraction.
  */
 export function paintMovingEntities(
   ctx: CanvasRenderingContext2D,

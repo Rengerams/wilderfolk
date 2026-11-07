@@ -24,9 +24,7 @@ import { getRivalPresenceSummary } from '../game/rivalPresence';
 import { MAX_STRATEGIC_SETTLEMENTS, MIN_RIVAL_FOUNDING_POPULATION, RIVAL_FOUNDING_START_DAY, RIVAL_FOUNDING_INTERVAL_DAYS } from '../game/rivalSettlements';
 
 /**
- * The frontier view's props — exported so the lazy wrapper (`tabPanels/FrontierTabPanel`) reuses
- * this contract instead of restating the six props, where the copy had already drifted on
- * `onFocusRival`'s `buildingId` optionality and `onLaunchRaid`'s optionality.
+ * The frontier view's props — the lazy wrapper (`tabPanels/FrontierTabPanel`) reuses this contract.
  */
 export interface FrontierPanelProps {
   state: WorldState;
@@ -63,10 +61,8 @@ function FrontierPanel({
     BuildingType.Wall,
     BuildingType.WallGate,
   ]);
-  // The owner covers all five tiers — iron swords and the three shield tiers included — and its
-  // multipliers are what `computeMilitiaBreakdown` prints as the strength a line above. The local
-  // two-tier ternary that used to live here made a sword-armed (or shield-only) village read
-  // "Unarmed adults" beside a non-zero militia strength (`LIVE-FINDINGS-STATUS.md`, F15).
+  // The armament label comes from the militia owner, whose multipliers are what `computeMilitiaBreakdown`
+  // prints as the strength above, so both lines must come from that owner.
   const armament = getMilitiaArmamentLabel(state) ?? 'Unarmed adults';
 
   if (!hasNeighbors && pendingRaidCount === 0 && pendingOutgoingRaidCount === 0 && !(state.raidBattleReports?.length)) {

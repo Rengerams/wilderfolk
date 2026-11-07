@@ -1,17 +1,6 @@
 /**
- * Medium-tier fixes, batch C2 (audit report, 2026-09-13).
- *
- * - M6 — the Nature tab's "Why this score" recomputed the ecosystem-health formula with a
- *   four-species wildlife tally and no Wildlife Preserve bonus, so it disagreed with the
- *   Health number the score owner recorded.
- * - M17 — `tickInventionFair` re-pushed a fresh Demonstration card every colony day and each
- *   duplicate could be answered again for free wood/reputation.
- * - M29 — `StripPlacementPiece.replacesBuildingId` was never produced, so the gate-over-wall
- *   replacement and its 50% refund were unreachable.
- * - M30 — a wall run that touched an existing wall gate emitted a piece on the gate, which made
- *   the whole run invalid and silently refused it.
- * - M33 — the time-cyclic `winter_watch` predicate made the first-spring guide reappear every
- *   year after it had finished.
+ * Regression guards for the Nature tab score, the single demonstration card per
+ * colony day, strip replacement/refund, wall-gate runs and the spring guide.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -82,7 +71,7 @@ describe('M6 — the Nature-tab breakdown shares the ecosystem-health owner', ()
     expect(metrics.totalWildlife).toBe(48);
     // The breakdown counts moon howlers and wildkin, not just the four prey/predator species.
     expect(breakdown.wildlifeCount).toBe(48);
-    // ...and it now reports the preserve bonus the build panel advertises.
+    // ...and it reports the preserve bonus the build panel advertises.
     expect(preserveLine?.delta).toBe(4);
     // The card's two Health numbers are the same owner value, and the lines sum to it.
     expect(breakdown.health).toBe(state.ecosystemHealth);
@@ -140,7 +129,7 @@ describe('M17 — the Demonstration card is offered once and pays out once', () 
     const woodAfterResolve = state.resources.wood;
     const reputationAfterResolve = state.villageReputation;
 
-    // A duplicate card from a pre-fix save would dispatch on the still-funded status again.
+    // A leftover duplicate card must not pay out against the still-funded status.
     expect(resolveInventionFair(state, 'keep')).toBe(true);
     expect(state.resources.wood).toBe(woodAfterResolve);
     expect(state.villageReputation).toBe(reputationAfterResolve);

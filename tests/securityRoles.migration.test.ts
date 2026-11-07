@@ -76,9 +76,8 @@ describe('legacy security-role migration', () => {
 });
 
 /**
- * `isJuvenile` is derived once at spawn and graduation only ever clears it, so a save carrying a child
- * flagged as an adult keeps him in an adult's posting — armed, posted, and barred from school, which
- * keys off the same flag (`education.ts` refuses any pupil who is not a juvenile).
+ * `isJuvenile` is derived once at spawn and graduation only ever clears it, so the load repair
+ * re-derives it: a child flagged as an adult would keep an adult posting and be barred from school.
  */
 describe('juvenile assignment load repair', () => {
   const barracks = (occupants: number[]): Building => ({ ...building(10, BuildingType.Barracks), occupants });

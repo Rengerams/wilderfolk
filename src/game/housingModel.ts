@@ -60,17 +60,8 @@ export function isImprisoned(human: Entity): boolean {
 }
 
 /**
- * A living player settler with no bed — the one definition of "homeless".
- *
- * Two rules meet here, and four surfaces used to disagree about them:
- *
- *  - **A prisoner is not homeless.** Imprisonment deliberately clears `residenceBuildingId`
- *    (`humanLifecycleCleanup`), so a naive `residenceBuildingId == null` count reports every jailed
- *    settler as unhoused — the mistake `LIVE-FINDINGS-STATUS.md` F10 recorded for the council report
- *    and the priority strip, and that `housingDiagnostics.unassignedPlayerHumans` still made.
- *  - **A child without a bed is homeless.** The People screen's Home card excluded juveniles, so a
- *    child sleeping rough was counted by the dashboard and the alert strip but not by the card whose
- * tone and "Housing is tight" mood depend on it.
+ * A living player settler with no bed — the one definition of "homeless". A prisoner is not
+ * homeless (imprisonment clears the residence); a child without a bed is.
  */
 export function isHomelessSettler(entity: Entity): boolean {
   return entity.alive
@@ -320,9 +311,8 @@ export function isAdultChildAtHome(
   human: Entity,
   humans: Entity[],
   /**
-   * Pre-built `id → entity` index for a caller testing many candidates against one list. Without it
-   * each call scans `humans` twice (mother, father), which is O(humans²) when the caller is itself a
-   * `humans.filter`.
+   * Pre-built `id → entity` index for a caller testing many candidates against one list; without it
+   * each call scans `humans` twice.
    */
   byId?: ReadonlyMap<number, Entity>,
 ): boolean {

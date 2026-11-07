@@ -20,39 +20,20 @@ const MAX_DEMOLITION_EFFECTS = 8;
 /** Upgrade ceiling: a completed building may reach this level, no further. */
 const MAX_BUILDING_LEVEL = 3;
 
-/**
- * The reason string returned for a type whose level buys nothing — the UI reads it as "no upgrade
- * available" and hides the button, the same way `Already level 3` does.
- *
- * Exported so the panel can ask "is this the no-benefit case?" without matching on prose.
- */
+/** Reason returned for a type whose level buys nothing; the UI hides the upgrade button for it. */
 export const NO_LEVEL_BENEFIT_REASON = 'This building does not have levels';
 
 /**
- * Whether a level of this building type changes anything at all.
- *
- * Owner's ruling (2026-09-29): *"if a building is not upgradable not show the button upgrade and do
- * like its upgradable"* — i.e. behave exactly like a maxed building, which already hides the button
- * and reads as complete.
- *
- * Membership of `LEVEL_BENEFIT_BUILDING_TYPES` is the whole rule, and that set lists every type the
- * colony may raise whose level something reads: the production multiplier, the workshop multiplier and
- * residence capacity. "Is a residence or has a job" was the older test, and it offered an upgrade on
- * Church, School, Tavern, Prison, Barracks, Hospital and Town Hall — staffed buildings whose level no
- * code reads, so the button charged real resources for a number that affected nothing.
+ * Whether a level of this building type changes anything at all. The whole rule is membership of
+ * `LEVEL_BENEFIT_BUILDING_TYPES`, which lists every type whose level some code reads.
  */
 export function buildingTypeHasLevelBenefit(type: BuildingType): boolean {
   return LEVEL_BENEFIT_BUILDING_TYPES.has(type);
 }
 
 /**
- * Whether `repairBuilding` would actually restore this building: it exists,
- * stands complete, is damaged, and its fixed cost is affordable.
- *
- * Single definition of the repair rule — `repairBuilding` refuses to spend
- * anything unless this says `ok`, and the auto-play bot
- * (`virtualPlayer.ts`) proposes a repair only when it does, so the bot can
- * never claim an in-game hour with a command the owner would refuse.
+ * Whether `repairBuilding` would actually restore this building: it exists, stands complete,
+ * is damaged, and its fixed cost is affordable. Single definition of the repair rule.
  */
 export function getRepairBuildingEligibility(
   state: WorldState,
@@ -107,9 +88,8 @@ export function repairBuilding(originalState: WorldState, buildingId: number): W
 }
 
 /**
- * Repair several damaged structures in one authoritative action. Selection stays with
- * the Virtual Player; the repair owner checks each target and the *remaining* budget.
- * A single world clone and no per-segment particles keep long roads cheap to restore.
+ * Repair several damaged structures in one authoritative action: one world clone, each target
+ * checked against the *remaining* budget by the repair owner.
  */
 export function repairBuildings(originalState: WorldState, buildingIds: readonly number[]): WorldState {
   if (buildingIds.length === 0) return originalState;
@@ -144,12 +124,8 @@ export function getBuildingUpgradeCost(building: Building): { wood: number; ston
 }
 
 /**
- * Whether `upgradeBuilding` would actually raise this building a level:
- * it exists, stands complete, is below the level ceiling, is a type the
- * colony may raise, and its cost is affordable.
- *
- * Single definition of the upgrade rule, shared with the auto-play bot
- * (`virtualPlayer.ts`) exactly like `getRepairBuildingEligibility`.
+ * Whether `upgradeBuilding` would actually raise this building a level: it exists, stands complete,
+ * is below the ceiling, has a level benefit, and its cost is affordable.
  */
 export function getBuildingUpgradeEligibility(
   state: WorldState,
@@ -161,9 +137,8 @@ export function getBuildingUpgradeEligibility(
   if (building.level >= MAX_BUILDING_LEVEL) {
     return { ok: false, blockReason: `Already level ${MAX_BUILDING_LEVEL}` };
   }
-  // A type whose level nothing reads must not offer the upgrade at all (owner's ruling). Reported as
-  // `structural` below, so it is silent and the button simply does not render — the same treatment
-  // `Already level 3` gets, rather than an error the player has to read.
+  // A type whose level nothing reads must not offer the upgrade: reported as `structural` below,
+  // so it stays silent and the button simply does not render.
   if (!buildingTypeHasLevelBenefit(building.type)) {
     return { ok: false, blockReason: NO_LEVEL_BENEFIT_REASON };
   }
@@ -211,10 +186,8 @@ export function upgradeBuilding(
   if (building.type === BuildingType.Silo || building.type === BuildingType.WoodStorehouse) {
     updateStorageCaps(state);
   }
-  // Bed capacity is level-dependent (`getResidenceCapacity`), and the population snapshot is cached
-  // per tick on counts a level change does not touch — so the header, the focus hints and the sim
-  // summary kept reporting the pre-upgrade bed count until the next tick. `populationGrowth` names
-  // this call ("e.g. after building upgrades") and had no caller.
+  // Bed capacity is level-dependent, and the population snapshot cache would keep reporting the
+  // pre-upgrade count until the next tick.
   invalidatePopulationSnapshotCache(state);
 
   if (isResidenceBuildingType(building.type)) {
@@ -291,13 +264,8 @@ function removeBuildingsFromState(state: WorldState, buildings: readonly Buildin
 }
 
 /**
- * Half a removed building's build cost, credited through the storage-cap owner.
- *
- * One owner for the refund rule, shared by `demolishBuilding` and the strip-replacement path. The
- * gain must go through `addResource` (which clamps to `storageMax`); the placement path used a raw
- * `+=`, so a replacement at the wood cap credited wood the store could not hold and permanently
- * desynchronised the cap. Returns what was **actually** accepted,
- * so an announcing caller can report the truth.
+ * Half a removed building's build cost, credited through `addResource` (storage-cap owner) so the
+ * refund clamps. One owner for the refund rule; returns what was actually accepted.
  */
 export function refundBuildingCost(
   state: WorldState,
@@ -314,11 +282,6 @@ export function refundBuildingCost(
   };
 }
 
-/**
- * Worker-authoritative demolition. The worker already owns its state, so cloning
- * the entire save (entities, world map and all) for one building is unnecessary.
- * Keep the immutable wrapper below for direct callers and tests.
- */
 /** A completed player gate toggles between an open passage and a solid obstacle. */
 export function toggleWallGate(originalState: WorldState, buildingId: number): WorldState {
   const gate = originalState.buildings.find((building) => building.id === buildingId);

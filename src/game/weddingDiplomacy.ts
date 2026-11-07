@@ -1,7 +1,6 @@
 /**
- * S3 — The Wedding That Nearly Started a War (roadmap v0.6.3).
- * Full three-stage chain per docs/archive/story/STORY_WEDDING_THAT_STARTED_A_WAR.md:
- * invitation gift → delayed rival response → feast/delegation/fortify → outcome.
+ * The Wedding That Nearly Started a War: invitation gift → delayed rival response →
+ * feast/delegation/fortify → outcome.
  */
 import type { Entity, StoryEvent, WorldState } from './gameTypes';
 import { BuildingType, EntityType } from './gameTypes';
@@ -151,12 +150,8 @@ function findWeddingEnvoy(state: WorldState): Entity | undefined {
 }
 
 /**
- * Whether `resolveWeddingDiplomacy` would accept this answer right now.
- *
- * Mirrors every gift, envoy, feast, and delegation gate the resolver applies, so
- * a consumer (the auto-play bot) can tell an answer that lands from one that is
- * refused and leaves the card open. `decline`, `stay_home_fortify`, and every
- * unlisted answer are always accepted.
+ * Whether `resolveWeddingDiplomacy` would accept this answer now. Mirrors every gift, envoy, feast and
+ * delegation gate; `decline`, `stay_home_fortify` and unlisted answers are always accepted.
  */
 export function getWeddingDiplomacyChoiceEligibility(
   state: WorldState,

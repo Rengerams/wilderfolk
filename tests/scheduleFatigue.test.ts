@@ -12,12 +12,8 @@ import { human as settler } from '../src/test/factories';
 const state = { workSchedule: { startHour: 7, endHour: 18 } };
 
 /**
- * The owner reads exactly these two numbers and nothing else — no `id`, no `alive`, no
- * `isJuvenile`. `resolveDailyScheduleFatigue` still declares `entity: Entity` while its two
- * siblings in the same file take `Pick<Entity, 'scheduleFatigue'>`; narrowing it the same way
- * would make this fixture type-check with no assertion at all. That is a `src/` change and is
- * reported, not made here, so the subject is annotated with the shared shape and asserted at
- * each call site below.
+ * `resolveDailyScheduleFatigue` reads only `scheduleFatigue` and
+ * `scheduleWorkedTicksToday`, so the fixture carries only that shared shape.
  */
 type ScheduleFatigueSubject = Pick<
   Entity,
@@ -53,10 +49,8 @@ describe('schedule fatigue', () => {
   });
 
   it('keeps a neutral nine-hour day at the bounded daily recovery rate', () => {
-    // The normal work day is 9 hours (owner, 2026-09-29), and `NEUTRAL_WORK_HOURS` now matches
-    // `STANDARD_PRODUCTION_WORK_HOURS`. At exactly 9 there is no excess, so fatigue only recovers:
-    // 30 - BASE_DAILY_RECOVERY(4) = 26. Under the old 8-hour neutral this same standard day was
-    // charged `FATIGUE_PER_EXCESS_HOUR` for one hour of overtime and landed on 36.
+    // A neutral nine-hour day has no excess, so fatigue only recovers:
+    // 30 - BASE_DAILY_RECOVERY(4) = 26.
     const worker = human({ scheduleFatigue: 30, scheduleWorkedTicksToday: 9 * TICKS_PER_HOUR });
     const result = resolveDailyScheduleFatigue(asEntity(worker), state);
     expect(result.fatigueAfter).toBe(26);

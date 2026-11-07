@@ -1,7 +1,5 @@
 /*
- * BUG 2026-08-21-ambient-dialogue-often-becomes-leader-monologue.
- * Nearby eligible settlers must join an ambient exchange rather than being
- * randomly discarded into a solo speech line.
+ * An ambient exchange pairs the leader with a nearby eligible settler, never a solo speech line.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {

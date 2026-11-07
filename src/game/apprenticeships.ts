@@ -11,9 +11,8 @@ import { advanceCareerProgression } from './careers/careerProgression';
 import { getAbsoluteCalendarDay } from './dayCycleClock';
 
 /**
- * Apprenticeships (Phase 7) — a skilled master (skill ≥ 40) working a production
- * building can take on a school-qualified young adult. The apprentice learns fast
- * under a good master and graduates (skill ≥ 50) into the trade.
+ * Apprenticeships: a skilled master (skill ≥ 40) working a production building takes on a
+ * school-qualified young adult; the apprentice graduates at skill ≥ 50.
  */
 
 const MASTER_SKILL = 40;
@@ -44,9 +43,8 @@ export function advanceApprenticeships(
   state: WorldState,
   allAlive: Entity[],
   /**
-   * `playerHumansFrom(allAlive)` for a caller that needs the same list more than once in one pass.
-   * Must be derived from `allAlive`: the daily layer passes `allAlive` (which includes this tick's
-   * newborns) rather than `ctx.playerHumans`, which is the tick-start list.
+   * `playerHumansFrom(allAlive)` for a caller needing the list twice in one pass; it must include
+   * this tick's newborns, unlike `ctx.playerHumans`.
    */
   peopleForPass?: Entity[],
 ): void {

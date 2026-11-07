@@ -111,9 +111,8 @@ describe("Leader's House", () => {
   });
 
   it('releases the former leader and PRESERVES the incoming leader\'s valid workplace', () => {
-    // Authority §5 (2026-08-20): the leader participates in normal workforce
-    // assignment — office-taking preserves a valid workplace; only STALE
-    // assignments (missing/demolished/invalid) are repaired.
+    // The leader participates in normal workforce assignment: office-taking preserves
+    // a valid workplace and repairs only stale assignments.
     const incoming = human(1, { workerBuildingId: 20, occupation: 'settler', job: JobType.Farmer });
     const former = human(2, { occupation: LEADER_OCCUPATION, job: JobType.Settler });
     const farm = building(20, BuildingType.Farm, { occupants: [1] });
@@ -151,9 +150,8 @@ describe("Leader's House", () => {
   });
 
   it('save-load reconcile (applyLeaderOccupation on load) PRESERVES a valid leader assignment', () => {
-    // validateVillageLeaderOnLoad calls applyLeaderOccupation(state, null) on
-    // every load — it must keep a manually assigned workplace (BUG
-    // 2026-08-20-leader-cannot-hold-workplace.md).
+    // validateVillageLeaderOnLoad calls applyLeaderOccupation(state, null) on every load;
+    // it must keep a manually assigned workplace.
     const leader = human(1, {
       workerBuildingId: 2,
       occupation: LEADER_OCCUPATION,

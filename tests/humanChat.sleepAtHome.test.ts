@@ -1,18 +1,6 @@
 /**
- * Sleepers keep their mouth shut (2026-09-16).
- *
- * Reported from play: settlers kept talking, with a speech bubble over them, while they
- * were sleeping at home. There is no `sleeping` flag in the simulation — "asleep" is
- * *at home during the night*, composed from the two rules that already own it:
- * `isNightHour` (the schedule owner's night window, 23:00–06:00) and `isNearResidence`
- * (the residency owner's 55 px proximity rule). The night routine is what puts them
- * there: `socialLife` sets `stayHome` for rest motives and `humanLeisureBehavior`
- * commutes them to their house.
- *
- * Two behaviours hang off that predicate: the ambient-chatter gate in `humanTick` and
- * the sleeper cull in `renderer/humans.ts` (they are indoors, so they are not drawn).
- * The scripted dialogue sessions are deliberately exempt — they are owned by the
- * dialogue tree, and ending one here would cut a story beat mid-line.
+ * "Asleep" is `isAsleepAtHome` — at home during the `isNightHour` night window — and it gates ambient
+ * chatter and the renderer cull; scripted dialogue sessions are exempt.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
@@ -143,9 +131,8 @@ function nightAmbientTick(id: number): number {
       const hour = getHourOfDay(tick);
       if (!(hour >= 23 || hour < 6)) continue;
       if (seededRandomForRun(`chat-ambient:${id}:${tick}`) > AMBIENT_CHANCE) continue;
-      // The random roll is only one gate: shifts and context can also prevent
-      // a conversation. Find a night tick where the real away-from-home control
-      // actually speaks, then compare the same tick at home.
+      // The roll is one gate only: find a night tick where the away-from-home control speaks,
+      // then compare the same tick at home.
       resetDialogueSessions();
       const control = newWorld();
       control.tick = tick;

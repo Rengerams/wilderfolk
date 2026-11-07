@@ -1,8 +1,6 @@
 /**
- * Blueberry Foraging & Bush Lifecycle Module
- *
- * Owns rare blueberry tree spawning, daily regrowth, and settler
- * opportunistic picking AI.
+ * Blueberry Foraging & Bush Lifecycle Module — rare tree spawning, daily regrowth
+ * and settler opportunistic picking.
  */
 
 import { addResource } from './economy';

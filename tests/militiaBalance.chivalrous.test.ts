@@ -1,11 +1,6 @@
 /**
- * Defensive aptitude is the player's alone, and its label states what the code does.
- *
- * Regression for two halves of one finding: a bare trait check let a rival or visitor raise the
- * player's `militiaStrength`, which the raid resolves into an outcome; and the breakdown line
- * claimed a per-protector percentage while the arithmetic added one flat share. The flat
- * army-wide share is retired — each mustered soldier now carries its own bounded aptitude factor,
- * gated by the same muster predicate as the adult count.
+ * Defensive aptitude belongs to the player's mustered soldiers alone, each with its own bounded
+ * factor, and the breakdown label states the same per-soldier arithmetic.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

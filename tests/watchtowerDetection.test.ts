@@ -35,15 +35,8 @@ function makeTower(x: number, y: number) {
 
 describe('watchtower early raid detection', () => {
   /**
-   * Reversed on the owner's call: *"remove it — watch doesn't matter if it can rotate"*.
-   *
-   * This case used to assert the opposite (that the Watchtower **is** rotatable), and the behaviour it
-   * pinned was real but wrong: `BuildingRotation` is `0 | 90` and a 90° turn is applied by rotating the
-   * **sprite** (`spriteDrawing.drawSpriteFrame` → `ctx.rotate(Math.PI / 2)`), which means the run axis
-   * for a flat strip and "lay this building on its side" for anything drawn with height. A Watchtower at
-   * 90 was drawn tipped over, with the `flipX` special case in `renderer/buildings.ts` mirroring the
-   * sideways sprite into something plausible. Rotatability was therefore a deliberate feature whose
-   * rendering could not work, so the ruling is that the key does nothing for this building.
+   * A Watchtower is not rotatable: a 90° turn rotates its sprite, which lays the building on its
+   * side, so the rotation key does nothing for it.
    */
   it('Watchtower is not rotatable, because a 90 degree turn laid it on its side', () => {
     expect(isRotatableBuildingType(BuildingType.Watchtower)).toBe(false);

@@ -1195,23 +1195,19 @@ export interface WorldMap {
   /** Teraforge continuous fields (L2). */
   cols?: number;
   rows?: number;
-  /** 0–1 per 64px cell. */
+  /** 0–1 per L2 cell (16 px). */
   elevation?: Float32Array;
   moisture?: Float32Array;
   /**
-   * 0–1 per 64px cell, and **latitude-parameterized**: the map's y axis is its latitude, so this
-   * field is warmest along the middle row (the equator) and cools toward both edges (the poles),
-   * on top of the preset's own climate. Both readers of it — `terrainGrid.classifyTile` and the
-   * per-pixel ground bake — therefore place biome zones by position for free.
+   * 0–1 per L2 cell, latitude-parameterized: warmest along the middle row, cooling toward both
+   * edges, so its readers place biome zones by position.
    */
   temperature?: Float32Array;
-  /** 15-biome index per 64px cell (see `terrain/biomes.ts` BIOME_IDS order). */
+  /** 15-biome index per L2 cell (see `terrain/biomes.ts` BIOME_IDS order). */
   terrain?: Uint8Array;
   /**
-   * Fine water-coverage field on its **own** lattice (`WATER_CELL`, 16 px), not the 64 px biome
-   * cell grid: `waterCols` × `waterRows`. Its own resolution is what keeps a coastline and a
-   * river bank smooth, because at the biome resolution a channel and its banks are whole cells
-   * and the waterline becomes a staircase.
+   * Fine water-coverage field on its own lattice (`WATER_CELL`, 16 px) and `waterCols` ×
+   * `waterRows`: at the 16 px L2 resolution a coastline would be a staircase.
    */
   riverDist?: Float32Array;
   waterCols?: number;
@@ -1232,20 +1228,15 @@ export interface WorldMap {
   seaLevel?: number;
   moistureBias?: number;
   /**
-   * The noise seed this ground was generated from.
-   *
-   * A compact save regenerates its whole valley from seed/preset/size, so the resolved seed has to
-   * travel with it — tuning the per-size offset otherwise repainted every existing settlement.
+   * The noise seed this ground was generated from; a compact save regenerates its whole valley from
+   * seed/preset/size, so the resolved seed travels with it.
    */
   terrainSeed?: number;
   /** Versioned procedural recipes keep compact saves visually identical across upgrades. */
   generationVersion?: 1 | 2 | 3 | 4;
   /**
-   * Per-map biome cuts for the moisture field, derived by the generator from that map's own
-   * distribution. Absolute constants cannot work: the tile-level moisture field runs 0.47 at
-   * p50 on an arid preset and 0.73 on a wet one, so a fixed cut paints one map entirely
-   * grassland and the next entirely canopy. A map without them falls back to the defaults in
-   * `terrain/terrainGrid`.
+   * Per-map biome cuts for the moisture field, derived from that map's own distribution: a fixed cut
+   * paints an arid map entirely grassland and a wet one entirely canopy. Defaults live in `terrainGrid`.
    */
   moistureForestThreshold?: number;
   moistureDarkForestThreshold?: number;
@@ -1255,9 +1246,8 @@ export interface WorldMap {
 
 export const GRID_SIZE = 20;
 /**
- * The world's L0 tile edge (px) — one tile of the map that the renderer, the pathfinder, placement,
- * saves and the generator all project onto. Named for that grid, not for the generator's biome field,
- * whose cell edge is a different number (`terrain/terrainGrid.TERRAIN_CELL`, 16 px).
+ * The world's L0 tile edge (px) — one tile the renderer, pathfinder, placement, saves and generator
+ * all project onto. Named for that grid, not the generator's 16 px biome cell.
  */
 export const PATH_CELL = 10;
 export const GRID_SNAP = true;

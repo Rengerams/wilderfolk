@@ -105,9 +105,8 @@ export function applyLeaderHousePhase(state: WorldState, ledger: HousingLedger):
   const manorIds = new Set(manorBuildings.map((building) => building.id));
   const annex = manorBuildings.find((building) => building.id !== house.id);
 
-  // Keep the late leader's surviving family in the manor throughout the vacancy.
-  // The succession election owns the handover: until a living successor is elected,
-  // do not replace the residents with an empty entitlement set.
+  // Keep the late leader's family in the manor through the vacancy: the succession election owns the
+  // handover, so no empty entitlement set replaces the residents before a successor exists.
   const incumbent = state.entities.find((e) => e.id === state.villageLeaderId);
   if (!incumbent?.alive) {
     const entitledIds = new Set(state.pendingLeaderHouseResidentIds ?? manorBuildings.flatMap((building) => building.occupants));

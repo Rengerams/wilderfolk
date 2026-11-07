@@ -1,19 +1,6 @@
 /**
- * A15 — the hospital reputation rule has one owner and one description
- * (`docs/private/audits/2026-09-16/duplication-deadcode.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * The grant used to be issued twice from two owners: a flat `addReputation(state, 2)` in
- * `dailyBuildingEconomy.tickDailyBuildingEconomy` (on the 5-day production interval) and the ward
- * round's `addReputation(state, 1 + Math.min(2, treated))` in `hospitalCare.tickHospitalDailyCare`.
- * Two UI copies described it, and they had already drifted from the rule and from each other:
- * `SelectedBuildingPanel` promised an unquantified amount, `MoreTabPanel` promised `+2` while the
- * sim paid 3–5 per interval.
- *
- * The rule now lives in `hospitalCare`: `grantHospitalIntervalReputation` pays the flat grant and
- * runs the ward round, and `describeHospitalReputation` is the single description both UI sites
- * render. The kept wording is the guide's (`MoreTabPanel`) — it names the amount and the interval —
- * extended with the ward-round half it was missing, and every number in it comes from the owner's
- * constants.
+ * The hospital reputation rule has one owner (`hospitalCare`) and one description
+ * (`describeHospitalReputation`), which every UI site renders and whose numbers come from the owner.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

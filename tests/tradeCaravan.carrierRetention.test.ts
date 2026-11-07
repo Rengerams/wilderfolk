@@ -1,16 +1,6 @@
 /**
- * A trade-caravan carrier survives the tick that creates it.
- *
- * `spawnCaravan` pushed the carrier into `state.entities` and indexed it, but nothing
- * registered it in `ctx.newEntities` — and `gameTick` finishes every tick by replacing
- * `state.entities` with the `allAlive` snapshot it built from the pre-tick entity list
- * plus `ctx.newEntities`. A carrier created in the systems layer was therefore discarded
- * in the same tick it departed, `hasActiveCarrier` saw no carrier again, and the route
- * restarted instead of walking: caravans could never travel (and the export goods were
- * already deducted at departure, so they were simply lost).
- *
- * The canonical spawn path for entities created during a tick is
- * `pushNewEntity(state, ctx, entity)`.
+ * A trade-caravan carrier must survive the tick that creates it: entities spawned during a tick go
+ * through `pushNewEntity(state, ctx, entity)`, or `gameTick` drops them from the new entity list.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

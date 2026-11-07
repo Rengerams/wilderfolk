@@ -1,30 +1,6 @@
 /**
- * N-8 / OPEN-5 (`src/game/hotelStay.ts`) — the per-tick hotel guest index, pinned as a differential.
- *
- * `tickHotelLodging` used to rebuild an alive-visitor `Set` and re-scan every entity once per hotel,
- * and then again for every (visitor × hotel) pair inside `pickHotelForVisitor` — O(visitors × hotels ×
- * entities) every tick. It now builds `entityIndex.ensureEntityByIdMap` **once** for the call and
- * repairs all stay pointers in a single pass over `state.entities`. The 2026-09-20 campaign recorded
- * this row as OPEN-5 rather than shipping it, on the explicit ground that *"shipping unverified
- * memoisation into the tick would be worse than a recorded OPEN"* — so this file supplies the missing
- * verification:
- *
- *   1. the pre-fix prune + pointer repair is kept below **verbatim** as
- *      {@link referencePruneAndRepair}, and the two worlds are then compared field by field;
- *   2. the expected guest lists and pointers are pinned literally, so the file cannot pass merely by
- *      agreeing with itself;
- *   3. the edges the predicate hides are covered: a dead guest, a guest that stopped being a visitor,
- *      a guest id with no entity at all, a pointer to a hotel that is not in the tick's list
- *      (incomplete / demolished), a completed-but-unstaffed hotel, and the map-miss fallback that is
- *      what makes the index safe to use.
- *
- * **Why the single pointer pass is equivalent to the per-hotel one.** An entity carries exactly one
- * `hotelStayBuildingId`, so only the pass belonging to *that* hotel could ever clear it, and such a
- * pass read only its own (already pruned) guest list plus that entity's own liveness/faction. The
- * union pass applies the same three-way predicate to each hotel's already-pruned list, which is why
- * every prune runs before the repair. The old interleaving (prune A, repair A, prune B, repair B, …)
- * and the new one (prune A, prune B, repair all) therefore reach the same state: no repair ever read
- * another hotel's list, and the mutation is idempotent.
+ * `tickHotelLodging` builds the entity-by-id map once and repairs all hotel stay pointers in one pass;
+ * this differential pins that index against the reference per-hotel prune-and-repair below.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
@@ -62,9 +38,8 @@ const MISSING_HOTEL = 999;
 const THEIR_TICK_IS_FAR_AWAY = 100_000;
 
 /**
- * REFERENCE IMPLEMENTATION — the pre-N-8 `tickHotelLodging` prune loop, verbatim: per hotel, rebuild
- * the alive-visitor id set, filter the guest list with it, then rescan every entity to clear the stay
- * pointers that no longer match. Not production code; it exists only to be diffed against the owner.
+ * Reference implementation, not production code: per hotel, rebuild the alive-visitor id set, filter
+ * the guest list with it, then rescan every entity to clear stay pointers that no longer match.
  */
 function referencePruneAndRepair(state: WorldState): void {
   const hotels = state.buildings.filter(
@@ -108,10 +83,8 @@ function settlerEntity(id: number): Entity {
 }
 
 /**
- * A fresh fixture per call, so the differential compares two independent worlds. `tickHotelLodging`
- * runs at the world's start tick (08:00), which is neither night nor past 18:00, so it prunes, runs
- * the checkout branch and returns — and every stay is far in the future, so checkout is a no-op and
- * the comparison isolates the prune + repair under test.
+ * A fresh fixture per call, so the differential compares two independent worlds: the start tick is
+ * neither night nor past 18:00, and every stay is far away, so only the prune and repair run.
  */
 function makeFixture(): WorldState {
   const state = initGame({ skipTerrain: true });
@@ -262,8 +235,7 @@ describe('the indexed lookups answer what the entity scans answered', () => {
   });
 
   it('hotelHasVacancy keeps the exported contract: a guest it drops loses its stay pointer', () => {
-    // The pre-N-8 body repaired pointers as part of its prune, and this function is exported, so the
-    // drop-and-repair pair has to stay together when a caller other than the tick asks directly.
+    // Exported contract: a guest this call drops must also lose its stay pointer.
     const state = makeFixture();
     const hall = state.buildings.find((b) => b.id === HOTEL_A)!;
 

@@ -13,11 +13,8 @@ interface Props {
 }
 
 /**
- * Workforce policy presets — roadmap F3.
- *
- * The panel restates no ordering and no preset copy: everything it renders comes from
- * `workforcePolicy.ts`, which is the single definition. Selecting the current preset is a
- * no-op (the command owner returns the same state unchanged, so no delta is produced).
+ * Workforce policy presets. The panel restates no ordering or preset copy:
+ * `workforcePolicy.ts` is the single definition of both.
  */
 export default function WorkforcePolicyPanel({ state, onApply }: Props) {
   const current = getWorkforcePolicy(state);

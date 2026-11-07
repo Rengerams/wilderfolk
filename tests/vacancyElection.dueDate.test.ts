@@ -1,16 +1,6 @@
 /**
- * A vacant leadership campaign is due on a date, not on a year boundary.
- *
- * `tryStartVacancyElectionCeremony` compares `year + dayInYear / DAYS_PER_YEAR` against
- * `state.pendingElectionYear`, but its only caller sat inside the year-rollover branch of the
- * daily layer. A leader who died on day 300 of year 3 stored a due date of 4.083: the year-4
- * rollover compared 4.0 < 4.083 and started nothing, and because `tryStartTermElectionCeremony`
- * refuses while a vacancy is pending, that year's scheduled term election was skipped as well —
- * the successor election only ran at the year-5 rollover, roughly a year after the promised
- * three months. The daily layer now evaluates the vacancy every day.
- *
- * The test drives a real `gameTick` day boundary (not a year rollover) and asserts the ceremony
- * starts on the day the campaign falls due.
+ * A vacant leadership campaign starts on its due date, not at a year rollover: the daily layer
+ * evaluates the vacancy every day and compares the fractional year against the stored due date.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

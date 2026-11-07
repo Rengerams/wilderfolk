@@ -1,9 +1,6 @@
 /**
- * F-RND-6 — a moving camera must not re-scan the whole world every frame.
- *
- * The draw lists are viewport-culled, and the camera lerps at frame rate while the simulation ticks
- * once a second, so the cull re-ran on almost every frame. The tick lists are now cut into
- * contiguous chunks with a y range, and a query scans only the chunks it can see.
+ * A moving camera must not re-scan the whole world every frame: the draw lists are cut into
+ * contiguous y-banded chunks and a query scans only the chunks it can see.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { EntityType, emptyEntityByType, type Camera, type Entity, type EntityByType } from '../src/game/gameTypes';

@@ -1,19 +1,6 @@
 /**
- * 2026-09-20 hot-path scan audit — differential equivalence for the four bucketing/hoisting fixes
- * that replaced a whole-collection scan inside a loop.
- *
- * Each case keeps the **pre-fix body verbatim** as a reference implementation and diffs the real
- * function against it on two identical worlds, so the assertions fail if the rewrite stops being
- * equivalent (rather than merely pinning today's output). The fixtures are built so the *live* input
- * the rewrite relies on actually moves inside the loop:
- *
- *   - `rebalanceOvercrowdedResidences` evicts (`residenceBuildingId = undefined`) while it walks the
- *     residence list, which is the only reason a naive bucket *could* diverge;
- *   - `syncJobBuildingOccupants` has a union predicate for the prison (home OR prison) and a
- *     narrower one for every other job building (home AND no prison), so a wrong bucket shows up as
- *     a missing or duplicated occupant id;
- *   - `syncResidenceOccupants` is now handed the whole alive collection instead of a pre-filtered
- *     copy, so the diff is "pre-filtered input" versus "unfiltered input".
+ * Differential equivalence for the bucketing/hoisting rewrites: each case keeps a reference
+ * implementation and diffs the real function against it on two identical worlds.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
@@ -53,11 +40,9 @@ function settler(residenceBuildingId?: number, overrides: Partial<Entity> = {}):
   return Object.assign(human, overrides);
 }
 
-// ---------------------------------------------------------------------------
-// Reference implementations — the pre-fix bodies, verbatim. Not production code.
-// ---------------------------------------------------------------------------
+// Reference implementations for the diffs below — not production code.
 
-/** Pre-fix `rebalanceOvercrowdedResidences`: re-filters the whole settler list per residence. */
+/** Reference `rebalanceOvercrowdedResidences`: re-filters the whole settler list per residence. */
 function referenceRebalanceOvercrowdedResidences(humans: Entity[], residences: Building[]): boolean {
   let evicted = false;
   for (const residence of residences) {
@@ -95,7 +80,7 @@ function referenceRebalanceOvercrowdedResidences(humans: Entity[], residences: B
   return evicted;
 }
 
-/** Pre-fix `syncJobBuildingOccupants`: re-filters the whole settler list per building. */
+/** Reference `syncJobBuildingOccupants`: re-filters the whole settler list per building. */
 function referenceSyncJobBuildingOccupants(humans: Entity[], buildings: Building[]): void {
   for (let i = 0; i < buildings.length; i++) {
     const building = buildings[i];
@@ -126,9 +111,8 @@ function referenceSyncJobBuildingOccupants(humans: Entity[], buildings: Building
 }
 
 /**
- * Local copy of the production `BUILDING_JOB_TYPES` membership test. It only has to be *stable* for
- * the fixture's building types, not identical: both the reference and the real function read the
- * production table, so the reference reaches the same building set either way.
+ * Local copy of the production `BUILDING_JOB_TYPES` membership test; it only has to cover the
+ * fixture's building types.
  */
 const BUILDING_JOB_TYPES_REF: Partial<Record<BuildingType, unknown>> = {
   [BuildingType.Farm]: true,
@@ -248,7 +232,7 @@ describe('syncResidenceOccupants accepts the unfiltered alive collection', () =>
       settler(farm.id),
     ];
 
-    // Pre-fix call shape: the caller filtered first, duplicating the callee's own predicate.
+    // Filtered call shape: the caller filters first, duplicating the callee's own predicate.
     const filteredWorld = newWorld();
     filteredWorld.buildings = structuredClone([house, mansion, rivalHouse, farm]);
     filteredWorld.entities = structuredClone(allAlive);
@@ -257,7 +241,7 @@ describe('syncResidenceOccupants accepts the unfiltered alive collection', () =>
       filteredWorld.buildings,
     );
 
-    // Post-fix call shape: the whole collection, as `gameTick` now passes `allAlive`.
+    // Production call shape: the whole collection, as `gameTick` passes `allAlive`.
     const unfilteredWorld = newWorld();
     unfilteredWorld.buildings = structuredClone([house, mansion, rivalHouse, farm]);
     unfilteredWorld.entities = structuredClone(allAlive);

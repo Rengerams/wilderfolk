@@ -140,10 +140,8 @@ function applyNameData(male: string, female: string, last: string, source: 'embe
 
     if (source === 'embedded') {
       legacyBootUpgradeDone = false;
-      // No log here. Installing the fallback is a normal, transient boot step — every normal start
-      // passes through it while the census files load — so announcing it only produced a misleading
-      // "have not been loaded yet" line on a perfectly healthy boot. A load that genuinely fails is
-      // reported once at the end of `loadNames()` instead.
+      // No log here: installing the fallback is a normal, transient boot step; a genuine
+      // load failure is reported once at the end of `loadNames()`.
     } else if (source === 'full') {
       console.log(
         `[nameloader] Full census name pool loaded successfully (${parsedMale.length} male, ${parsedFemale.length} female, ${parsedLast.length} surnames).`,
@@ -233,9 +231,7 @@ export async function loadNames(): Promise<void> {
 
     // 4. Fallback to embedded list if still uninitialized
     ensureNamesLoaded();
-    // A fallback pool that survives *every* strategy is a real defect — every settler would be
-    // named from the embedded list — so it is reported once here. This is the only nameloader line
-    // a healthy boot produces besides the success message.
+    // A fallback pool surviving every strategy is a real defect, so report it once here.
     if (!areNamesLoaded() && !loadFailureLogged) {
       loadFailureLogged = true;
       console.warn(
@@ -249,12 +245,7 @@ export async function loadNames(): Promise<void> {
 
 /**
  * Start loading the census files as soon as this module is imported.
- *
- * Every naming site draws from whatever pool is installed *at that moment*
- * (`entityFactory`, `worldGen`, births, immigration), so a late first load means
- * settlers named from the tiny embedded fallback. Importing this module is exactly
- * the moment the game (or the simulation worker) is about to need names, so the
- * load starts here — the explicit `loadNames()` awaits at boot stay in place.
+ * Naming sites read whatever pool is installed then, so the load starts here.
  */
 loadNames().catch(() => {});
 
@@ -286,18 +277,8 @@ export function areNamesLoaded(): boolean {
 }
 
 /**
- * Put the pool back to its pre-load state — `none`, so the next `ensureNamesLoaded()` installs the
- * embedded list again — and drop the cached load promise.
- *
- * **Test seam, in the same spirit as `resetSimRng`.** It exists because the race this module is
- * documented to have ("a late first load means settlers named from the tiny embedded fallback",
- * `:250-257`) cannot be reproduced in Node by re-importing: V8 caches dynamically imported modules
- * for the process, so `vi.resetModules()` hands a second caller the *same* `nameLoader` instance and a
- * "fresh" realm reads a pool the first realm already loaded. That made the worker-versus-host name
- * comparison pass with or without the fix. Resetting the module explicitly is the honest way to stand
- * a realm at its import-time state.
- *
- * Never called from production code.
+ * Put the pool back to its pre-load state and drop the cached load promise.
+ * Test seam only: lets a test realm stand at its import-time state. Never called in production.
  */
 export function resetNamePoolForTest(): void {
   maleNames = [];

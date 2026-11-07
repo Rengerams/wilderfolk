@@ -1,11 +1,6 @@
 /**
- * The construction progress bar must move between the daily steps, not jump once per colony day.
- *
- * `tickBuildingProgress` decides `building.constructionProgress` once per colony day (daily
- * cadence), so the raw value is frozen for a whole game day — 48 real seconds at 1x — and then
- * steps. `displayedConstructionProgress` ramps the *displayed* value across the day and lands
- * exactly on the authoritative one. Owner report: "when they building the % is not going up for
- * completeness ... it should be updated real life".
+ * `tickBuildingProgress` sets `constructionProgress` once per colony day; the displayed value must
+ * ramp between those steps and land exactly on the authoritative value.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';

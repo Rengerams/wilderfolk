@@ -1,14 +1,6 @@
 /**
- * A prisoner is not militia.
- *
- * Regression for audit M1 (`docs/private/audits/2026-09-16/sim-economy-leadership-combat.md`,
- * tracked in `LIVE-FINDINGS-STATUS.md`): `isImprisoned` guards every staffing rule and both election
- * paths, but the militia paths counted a prisoner as a full adult — so a jailed settler added
- * militia strength, was drawn as a barricade fighter, and could be killed "defending the village".
- *
- * Five sites now share one predicate, `militiaBalance.canBeMustered`: the adult count that feeds
- * militia strength, the raid fighter pool, the raid casualty pool, the chivalrous bonus, and the
- * combat flash that draws who appears to be fighting.
+ * A prisoner is not militia: the adult count, raid fighter pool, casualty pool, chivalrous bonus
+ * and combat flash all share `militiaBalance.canBeMustered`.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -117,10 +109,8 @@ describe('a prisoner is never mustered', () => {
   });
 
   it('leaves no bare player-adult filter in the combat pools', () => {
-    // The casualty pool and `flashMilitia` are module-private, so this pins them as a source contract
-    // rather than by behaviour: after the fix every adult filter in the file goes through
-    // `canBeMustered` — the fighter pool, the casualty pool and the combat flash — and the legacy
-    // inline shape is gone. Weaker than the tests above, and disclosed as such.
+    // The casualty pool and `flashMilitia` are module-private, so this pins the source contract:
+    // every adult filter in the file goes through `canBeMustered`, with no inline legacy shape.
     const src = readFileSync(resolve(process.cwd(), 'src/game/frontierCombat.ts'), 'utf8');
     expect(src.match(/canBeMustered\(/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
     expect(src).not.toMatch(/isPlayerHuman\(e\) && !e\.isJuvenile/);

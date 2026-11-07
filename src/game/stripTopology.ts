@@ -72,9 +72,8 @@ function collectSnapPoints(buildings: Building[], family: 'wall' | 'road'): { x:
     const rot = normalizeBuildingRotation(b.rotation);
     const sampleType = b.type === BuildingType.WallGate ? BuildingType.WallGate : b.type;
     const [a, c] = getStripSegmentEndpoints(sampleType, b.x, b.y, rot);
-    // The two ends and the centre leave a gap of half a tile on each side that the snap radius does
-    // not reach, so a drag a third of the way along a road found nothing to connect to. Sampling the
-    // whole run makes any point along an existing road a landing place for the next one.
+    // Sample the whole run: the ends and centre leave half-tile gaps the snap radius cannot reach,
+    // so any point along an existing road becomes a landing place.
     const span = Math.max(Math.abs(c.x - a.x), Math.abs(c.y - a.y));
     const steps = Math.max(1, Math.round(span / STRIP_SNAP_SAMPLE_PX));
     for (let i = 0; i <= steps; i++) {
@@ -211,10 +210,8 @@ export function resolveWallStripPlan(
         continue;
       }
       emitted.add(key);
-      // A WallGate run replaces the plain Wall it lands on — the placement owner
-      // demolishes it and refunds half. Any other wall-family overlap (a Wall run
-      // crossing an existing gate, or a same-type piece) is simply stepped over,
-      // so the rest of the run still places.
+      // A WallGate run replaces the plain Wall it lands on (the placement owner demolishes it and
+      // refunds half); any other wall-family overlap is stepped over so the rest of the run places.
       if (stripType === BuildingType.WallGate && existing.type === BuildingType.Wall) {
         pieces.push({
           type: stripType,

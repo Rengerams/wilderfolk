@@ -1,11 +1,6 @@
 /**
- * One owner per render surface: the device-pixel ratio, the map canvas's colour grade, the
- * mini-map's frame cadence, and the per-tick SoA bucket containers (audit batch ET: F-RND-7,
- * F-RND-8, F-RND-10, F-RND-14).
- *
- * F-RND-8 and the rAF half of F-RND-14 are "the right code runs in the wrong place" defects, so
- * their guards are on the source, in the style of `visualsAudit.renderWiring.test.ts`: every
- * pattern is declared once and then fed the pre-fix expression, so the guard cannot be vacuous.
+ * One owner per render surface: device-pixel ratio, the map canvas's colour grade, the mini-map's
+ * frame cadence, and the per-tick SoA bucket containers.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -28,11 +23,11 @@ function readSrc(relative: string): string {
   return readFileSync(fileURLToPath(new URL(`../src/${relative}`, import.meta.url)), 'utf8');
 }
 
-// ---- F-RND-8: the map canvas no longer carries a full-screen CSS filter ----
+// ---- The map canvas carries no full-screen CSS filter; the draw owns the grade ----
 const FULL_SCREEN_CANVAS_FILTER = /filter:\s*contrast\(/;
 const PRE_FIX_CANVAS_FILTER = '.map-canvas {\n  filter: contrast(1.04) saturate(1.06);\n}';
 
-// ---- F-RND-14: the panel paints through the render loop, not its own rAF loop ----
+// ---- The panel paints through the render loop, not its own rAF loop ----
 const PRIVATE_RAF_LOOP = /requestAnimationFrame/;
 const PRE_FIX_MINIMAP_LOOP = 'animId = requestAnimationFrame(draw);';
 
@@ -80,7 +75,7 @@ describe('the mini-map is driven by the main render loop', () => {
       if (shouldRepaintMiniMap(frame)) repainted.push(frame);
     }
 
-    // The panel's former `frameCounter % 5` gate, now owned by the cadence module.
+    // The cadence module's `frameCounter % 5` gate paints every fifth frame.
     expect(repainted).toEqual([5, 10, 15]);
   });
 
@@ -192,7 +187,7 @@ describe('the per-tick SoA bucket rebuild reuses its containers', () => {
   it('pays nothing for the containers: the retired shape allocated six per tick', () => {
     const slots = Array.from({ length: FIXTURE_ENTITIES }, (_, i) => i);
 
-    /** The retired shape — a fresh list per layer and two fresh Maps, every tick. */
+    /** The allocation-heavy shape: a fresh list per layer and two fresh Maps, every tick. */
     const retired = (): number => {
       const grass: number[] = [];
       const tree: number[] = [];

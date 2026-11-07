@@ -1,20 +1,6 @@
 /**
- * Low-severity audit batch — regression tests for the findings fixed in this change.
- *
- *   - L35 hospitalCare: the daily ward round must not pass the PATIENT's distance to
- *     the ward as `doctorPresent` (a patient near the building is not a doctor on site).
- *   - L36 hospitalCare: the medicine food cost is recorded on the economy ledger.
- *   - L37 humanChat: a forced phrase reclaims the settler's dialogue session, and a
- *     partner left holding a reclaimed key is not dialogue-busy forever.
- *   - L37 (X6): the seven unreferenced legacy chat/courtship helpers are gone.
- *   - L16 dialogueTrees: authored speech is chosen only from exact event key and mode.
- *   - L23 eventLog (already fixed): a non-combat chronicle line is never classified as combat.
- *   - L24/L25 eventLogFilters: the Chronicle offers a `divorce` category.
- *   - L74 travelingTheatre: the stage-1 script choice reaches the opening-night outcome.
- *   - L58 scheduleFeedback: the ordinary work window counts real workplaces only.
- *   - L52 relationshipDiagnostics: reset restores the `enabled` flag.
- *   - L53 relationships: friendship records of dead settlers are pruned and do not
- *     lift the survivor's energy.
+ * Low-severity regression guards for hospital care, dialogue sessions and trees, the chronicle's
+ * combat/filter classification, the travelling theatre, schedule feedback and friendship pruning.
  */
 import { personDayRoll } from '../src/game/simRng';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -150,8 +136,7 @@ describe('L35 — ward round doctor presence', () => {
     const withDoctorOnSite = runWardRound(0);
     const withoutDoctor = runWardRound(300);
 
-    // Both patients stand next to the ward, so the pre-fix code passed
-    // `doctorPresent: true` in both cases and the two gains were identical.
+    // The doctor bonus needs an occupant on site; a distant occupant must not earn it.
     expect(withoutDoctor).toBeLessThan(withDoctorOnSite);
     // The far case is the plain occupant-strength heal (no +0.35 doctor term).
     expect(withoutDoctor).toBeGreaterThan(0);
@@ -191,8 +176,7 @@ describe('L37 — dialogue session reclamation', () => {
 
     maybeDialogueChat(speaker, null, 'social', 1, 1);
 
-    // Pre-fix: `solo:41` stayed in the session map, so startDialogueTreeChat bailed
-    // out at its `dialogueSessions.has(key)` guard and the settler never spoke again.
+    // A reclaimed forced phrase frees `solo:41`, so the tree line starts again.
     expect(speaker.chatDialogueSessionKey).toBe('solo:41');
     expect(typeof speaker.chatPhrase).toBe('string');
     expect((speaker.chatPhrase ?? '').length).toBeGreaterThan(0);

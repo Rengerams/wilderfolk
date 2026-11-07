@@ -11,10 +11,8 @@ const state = { workSchedule: { startHour: 7, endHour: 16 } };
 
 describe('ordinary work window has no length restriction', () => {
   it('accepts any non-wrapping, whole-hour window', () => {
-    // Owner, 2026-09-29: "they should be no restrictrion for normal work or hotel or
-    // cafe". The old band (MIN 2 / MAX 16 hours) refused both a very short and a very
-    // long day; a longer day is meant to cost fatigue and scale production, not to be
-    // rejected. Under the old rules 6-23 (17h) and 9-10 (1h) were both blocked.
+    // Any non-wrapping whole-hour window: a longer day costs fatigue and scales production rather
+    // than being rejected.
     expect(validateWorkSchedule(6, 23).ok).toBe(true); // 17h
     expect(validateWorkSchedule(0, 23).ok).toBe(true); // 23h, the widest
     expect(validateWorkSchedule(9, 10).ok).toBe(true); // 1h, the narrowest

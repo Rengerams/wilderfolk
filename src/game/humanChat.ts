@@ -232,12 +232,8 @@ export function startDialogueTreeChat(
   solo = false,
   durationHours?: number,
 ): void {
-  // `isDialogueBusy`, not a raw `chatTicks` read: a participant is busy while either a visible line
-  // *or* a paired session is live, and `showDialogueStep` clears the idle half's line while keeping its
-  // session key. The raw test therefore read the idle half as free, and `entityB.chatDialogueSessionKey
-  // = key` below overwrote an in-flight partner's key — one settler speaking two dialogue trees at once
-  // while the old session entry stayed live. `isDialogueBusy` is the
-  // contract `tests/socialLife.dialogueBusy.test.ts` pins.
+  // `isDialogueBusy`, not a raw `chatTicks` read: the idle half of a pair has no visible line but
+  // still owns a session key, and overwriting it would run two dialogue trees at once.
   if (isDialogueBusy(entityA)) return;
   if (!solo && entityB && isDialogueBusy(entityB)) return;
 
@@ -341,15 +337,8 @@ export function tickHumanChat(
   entity: ChatSpeaker,
   resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
 ): void {
-  // Reclaim an orphaned session key FIRST, before the visible-line gate below.
-  //
-  // The key is what `isDialogueBusy` reads, and the only place it used to be released sat behind
-  // `if (!entity.chatTicks) return;` — unreachable for the *idle* half of a pair, whose visible line
-  // was already cleared by `showDialogueStep`. `resetDialogueSessions()` empties the map on every
-  // renderer-cache reset (boot, and every session swap), so a save/load during a paired dialogue
-  // stranded that settler: `resolveSessionEntities` returns null on a missing entry, so it could never
-  // advance, and it stayed excluded from greetings, workplace banter and ambient pairing until it
-  // happened to speak a solo line.
+  // Reclaim an orphaned session key first: the key is what `isDialogueBusy` reads, and a session
+  // map reset would otherwise leave the idle half permanently busy.
   const orphanKey = entity.chatDialogueSessionKey;
   if (orphanKey && !dialogueSessions.has(orphanKey)) {
     entity.chatDialogueSessionKey = undefined;
@@ -386,13 +375,8 @@ export function tickHumanChat(
 }
 
 /**
- * Ends an ordinary (non-dialogue) chat because the settler has gone home for the
- * night. Returns true when something was actually cleared.
- *
- * A scripted dialogue session is deliberately left alone: the dialogue tree owns it,
- * not the sleep schedule, and ending it here would cut a story beat mid-line. Only the
- * ambient chatter — which used to follow a settler indoors and put a speech bubble over
- * somebody in bed — is stopped.
+ * Ends an ordinary (non-dialogue) chat because the settler has gone home for the night. Returns true
+ * when something was cleared; a scripted dialogue session is left to the dialogue tree.
  */
 export function endAmbientHumanChat(entity: ChatSpeaker): boolean {
   if (entity.chatDialogueSessionKey) return false;
@@ -424,13 +408,8 @@ export function resetDialogueSessions(): void {
 }
 
 /**
- * Remove a dead/despawned entity's dialogue session and clear its chat state.
- *
- * The counterpart is released explicitly when a resolver is supplied. The old comment here claimed the
- * partner's "next tick … clean itself up" — that was false for the idle half, whose `chatTicks` is 0, so
- * `tickHumanChat` returned before it could reclaim anything and the survivor stayed dialogue-busy on a
- * session with no owner. The hoisted reclaim there now catches the case
- * even without a resolver; passing one releases the partner immediately instead of a tick later.
+ * Remove a dead/despawned entity's dialogue session and clear its chat state, releasing the
+ * counterpart immediately when a resolver is supplied.
  */
 export function cleanupEntityDialogueState(
   entity: ChatSpeaker,

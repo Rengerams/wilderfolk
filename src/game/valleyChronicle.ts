@@ -8,10 +8,8 @@ import { hasDynasty } from './familyLegacy';
 import { bumpHistoryRevision } from './historyRevisions';
 
 /**
- * Valley Chronicle — the sandbox's story spine (replaces the removed victory
- * paths). Chapters are milestone moments that the village reaches naturally;
- * each unlocks once, logs to the chronicle, and grants a small reward. No
- * win/lose — the valley just keeps living, and history keeps writing itself.
+ * Valley Chronicle — the sandbox's story spine: chapters are milestone moments the village
+ * reaches naturally, each unlocking once with a small reward. No win/lose.
  */
 export interface ChronicleChapter {
   id: string;
@@ -95,10 +93,8 @@ export function advanceValleyChronicle(state: WorldState): string[] {
         for (const [key, amount] of Object.entries(ch.reward)) {
           if (!(amount > 0)) continue;
           const added = addCappedResource(state, key as keyof Resources, amount);
-          // Three chapters reward food (`first_harvest` 100, `the_hunt` 80, `the_river` 80). The
-          // ledger's contract is "food that actually entered storage" (`economyLedger.ts`), so a
-          // chapter is a producer like any other — skipping this made those grants invisible to the
-          // "why is my food low?" panel.
+          // Food rewards are recorded as produced, per the ledger's "food that actually entered
+          // storage" contract, so chapter grants appear in the low-food panel.
           if (key === 'food') recordFoodProduced(state, 'chronicle', added);
         }
       }

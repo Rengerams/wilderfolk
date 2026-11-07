@@ -1,16 +1,6 @@
 /**
- * F2 of the 2026-09-16 lifecycle/social audit (`docs/private/audits/2026-09-16/sim-lifecycle-social.md`):
- * the daily friendship pass grouped the "shared home" bump by `workerBuildingId`, which is the
- * **workplace** in this codebase — so cohabitants never grew closer while coworkers in one building
- * were counted twice (workplace and job type).
- *
- * The fix keeps the workplace and job-type sources and adds the missing residence source, so the
- * documented rule ("friendships grow from shared work, home and childhood") is implemented without
- * removing the friendship growth that already existed.
- *
- * Fixtures come from `src/test/factories.ts`, the one entity factory the suite shares: the local
- * `settler()` this file used to carry ended in `as Entity`, which is how a missing required field
- * reaches the engine as `undefined` without the compiler noticing.
+ * Friendships grow from shared work, home and childhood: the daily pass must bump cohabitants
+ * by residence as well as by workplace and job type.
  */
 import { describe, expect, it } from 'vitest';
 import { JobType } from '../src/game/gameTypes';
@@ -89,9 +79,8 @@ describe('daily friendship sources (F2)', () => {
   });
 
   it('reaches members past the pair budget instead of bonding the same head every day', () => {
-    // 41 cohabitants is one more than PAIR_BUDGET (40), so a head-sliced window always left the
-    // same settler out and they could never gain a bond from the group. Update this count if the
-    // budget moves.
+    // 41 cohabitants is one more than PAIR_BUDGET, so a head-sliced window would leave the same
+    // settler out; update this count if the budget moves.
     const people = Array.from({ length: 41 }, (_, i) =>
       human(i + 1, { residenceBuildingId: 10, job: JobType.Settler }),
     );
@@ -109,10 +98,8 @@ describe('daily friendship sources (F2)', () => {
 });
 
 /**
- * The ceiling on close bonds. Feuds always had one (`MAX_LIVE_FEUDS_PER_SETTLER`) and
- * friendships never did, so every pair that ever shared a home or a job reached the close
- * threshold: a measured 90-settler colony ended with one settler holding 54 close friends, and
- * the owner's 641-settler village read as "everyone became friends".
+ * Close friendships are capped per settler at `MAX_CLOSE_FRIENDS_PER_SETTLER`, as live feuds
+ * are, so a colony cannot make everyone a close friend.
  */
 describe('close friendships are capped per settler', () => {
   it('stops a settler at MAX_CLOSE_FRIENDS_PER_SETTLER even when the whole house is in reach', () => {
@@ -138,9 +125,8 @@ describe('close friendships are capped per settler', () => {
   });
 
   it('reconciles loaded saves above the close-friend ceiling', () => {
-    // An 11-settler house whose first settler carries ten standing close bonds — the shape a
-    // save written before the ceiling has. The pass must preserve six strongest bonds.
-    // Scored relative to the threshold, so retuning it does not silently make these un-close.
+    // A loaded save above the ceiling: one settler holds ten close bonds and the pass must keep
+    // the six strongest. Scores are relative to the threshold so retuning it keeps them close.
     const closeScore = FRIEND_CLOSE_THRESHOLD + 10;
     const friends = Object.fromEntries(
       Array.from({ length: 10 }, (_, i) => [`friend_${i + 2}`, closeScore]),

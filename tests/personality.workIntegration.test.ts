@@ -1,11 +1,6 @@
 /**
- * The work consumers read the one aptitude evaluator (`personality/traitEvaluation.ts`).
- *
- * Pinned here, all against real owners rather than re-derived formulas:
- * 1. The shared crew multiplier (`skills.getWorkerSkillMultiplier`) prices the trade's activity once.
- * 2. A construction crew is priced from the `construction` activity — no separate per-worker branch.
- * 3. A worked shift still teaches its trade with any crew, store full or not.
- * 4. The `apprenticeshipTraining` activity reaches the real teaching path.
+ * Work consumers read the one aptitude evaluator (`personality/traitEvaluation.ts`):
+ * crew multipliers, construction pricing, shift teaching and apprenticeship training.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -130,10 +125,8 @@ describe('the crew multiplier prices the trade activity once', () => {
 });
 
 /**
- * One incomplete House raised for a single real colony day by one builder.
- *
- * A house has no production job, so this is the proof that the construction activity reaches the
- * daily progress and not only the multiplier in isolation.
+ * One incomplete House raised for a single real colony day by one builder: a house has
+ * no production job, so this proves the construction activity reaches daily progress.
  */
 function houseProgressAfterOneDay(genomeV2: GenomeV2): number {
   const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
@@ -182,10 +175,8 @@ const FARM_WORKERS = 2;
 const START_FOOD = 100;
 
 /**
- * One staffed Farm whose crew worked a real, completed shift, on the production day boundary.
- *
- * `skill` is the crew's Farmer trade skill: high for an output comparison (so the harvest clears the
- * integer the store records), zero when the point is the shift credit an unpractised crew earns.
+ * One staffed Farm whose crew worked a completed shift on the production day boundary;
+ * `skill` is the crew's Farmer trade skill.
  */
 function farmWorld(genomeV2: GenomeV2, skill = MAX_SKILL): { state: WorldState; workers: Entity[] } {
   const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });

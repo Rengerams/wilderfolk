@@ -1,15 +1,6 @@
 /**
- * Simulation Decision Registry — SIMULATION_AUTHORITY.md §3 Ownership Law
- *
- * One entry per major gameplay decision declaring:
- * 1. The authoritative owner module and entry functions
- * 2. The cadence on which it executes
- * 3. The state fields it is permitted to write
- * 4. The scheduler entry point (tick layer or command channel)
- * 5. Associated unit and invariant test files
- *
- * This is a static table used by test runners and architecture linters
- * to enforce mutation boundaries.
+ * Simulation Decision Registry — one entry per major gameplay decision: owner, cadence, permitted
+ * writes, scheduler and tests. A static table the test runners and architecture linters enforce.
  */
 
 export const DECISION_CADENCES = [
@@ -498,9 +489,7 @@ export const STRATEGIC_MAP_PRESENTATION = {
 /** All declared decision keys as a typed array. */
 export const DECISION_KEYS = Object.keys(SIMULATION_DECISIONS) as DecisionKey[];
 
-// ==========================================
 // TEST & VERIFICATION UTILITIES
-// ==========================================
 
 /** Retrieves decision metadata by subsystem key. */
 export function getDecisionOwner(key: DecisionKey): DecisionOwner {
@@ -516,9 +505,8 @@ export function getDecisionsByCadence(cadence: DecisionCadence): DecisionKey[] {
   return DECISION_KEYS.filter((key) => SIMULATION_DECISIONS[key].cadence === cadence);
 }
 
-/** Checks whether a specific property write is declared by a given subsystem.
- * Only exact field names match. A shorthand `job` may match `human.job`,
- * but `id` must never match `residenceBuildingId` or `villageLeaderId`.
+/** Checks whether a property write is declared by a subsystem; only exact field names match, so
+ * `job` may match `human.job` but `id` must never match `residenceBuildingId` or `villageLeaderId`.
  */
 export function isPropertyWritePermitted(key: DecisionKey, fieldName: string): boolean {
   const decision = SIMULATION_DECISIONS[key];

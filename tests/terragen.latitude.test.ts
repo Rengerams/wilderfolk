@@ -1,13 +1,6 @@
 /**
- * The latitude parameterization: the map's y axis is its latitude, so the air is warmest along
- * the middle row (the equator) and cools toward both edges (the poles), and the climate varies
- * with the seed.
- *
- * These pin the three properties the parameterization is *for*, none of which a biome histogram
- * would catch: the gradient exists, it is symmetric about the middle rather than biased to one
- * pole, and it is a real function of the seed rather than a fixed band. They are asserted through
- * the generator's own `temperature` field — the array the tile classifier and the per-pixel bake
- * both read — so a change that stopped the latitude term reaching either consumer fails here.
+ * The map's y axis is latitude: air is warmest along the middle row and cools toward both edges,
+ * symmetric about the middle and varying with the seed.
  */
 import { describe, expect, it } from 'vitest';
 import { generateRawTerrain } from '../src/game/terrain/terragen';
@@ -57,9 +50,8 @@ describe('latitude parameterization', () => {
     const rows = map.rows!;
     const mid = (rows - 1) / 2;
 
-    // Symmetry: row `mid - k` and row `mid + k` see the same latitude term, so their means may
-    // differ only by the elevation and weather noise on top of it. A latitude term applied from
-    // one edge to the other (north-to-south instead of pole-to-pole) fails this.
+    // Row `mid - k` and row `mid + k` see the same latitude term, so their means may differ only by
+    // elevation and weather noise; a one-edge-to-other gradient fails this.
     for (const k of [3, 8, 14]) {
       const north = rowMean(map, Math.floor(mid - k));
       const south = rowMean(map, Math.ceil(mid + k));
@@ -72,11 +64,7 @@ describe('latitude parameterization', () => {
   });
 
   it('makes the climate a function of the seed, not a fixed band', () => {
-    // The point of offsetting the band edge with noise is that two seeds do not share one set of
-    // horizontal climate lines. The *row means* are latitude-theoretic and stay comparable across
-    // seeds — the seed lives in the per-cell offset, so that is what has to differ. Every cell of
-    // the field is compared, and the bar is deliberately low only in that it must be most of the
-    // grid: with the offset removed, not one cell would move.
+    // The seed lives in the per-cell offset, not the row means, so two seeds differ across most of the grid.
     const a = generate(MapPreset.Continental, 12345);
     const b = generate(MapPreset.Continental, 4242);
     const ta = a.temperature!;
@@ -98,9 +86,8 @@ describe('latitude parameterization', () => {
 });
 
 /**
- * The orographic rain shadow (`terrain/rainShadow.ts`) — the *directional* half of the moisture field.
- * The altitude penalty dries both flanks of a range equally, so a range had no wet side; these pin the
- * asymmetry that gives it one, first on the rule itself and then through the generator's own field.
+ * The orographic rain shadow is the directional half of the moisture field: it gives a range a wet
+ * and a dry side instead of the altitude penalty's even drying.
  */
 describe('orographic rain shadow', () => {
   /** A wall on column 4 with low ground either side: the windward side has clear sky, the lee does not. */
@@ -128,9 +115,8 @@ describe('orographic rain shadow', () => {
   });
 
   it('dries the leeward flank of a generated range without flattening the climate', () => {
-    // `Continental` at this fixture's size: measured 0.217 shaded against 0.430 clear, against a
-    // correlation of -0.41 between the shadow field and moisture. (`Coastal` is useless here — on a
-    // 1280×960 map it is four-fifths water and its land sits in one narrow band.)
+    // `Continental` here leaves both a shaded and a clear mid-altitude population to compare;
+    // `Coastal` is four-fifths water with its land in one narrow band.
     const map = generate(MapPreset.Continental, 12345);
     const colsInMap = map.cols!;
     const rowsInMap = map.rows!;
@@ -159,7 +145,7 @@ describe('orographic rain shadow', () => {
     expect(clearN, 'unshaded mid-altitude cells').toBeGreaterThan(100);
     const shadedMean = shaded / shadedN;
     const clearMean = clear / clearN;
-    // Measured on this preset and size: 0.217 against 0.430, i.e. half the field.
+    // At matched altitude, the shaded band must carry a lower mean moisture than the clear band.
     expect(shadedMean, `shaded ${shadedMean.toFixed(3)} against clear ${clearMean.toFixed(3)}`).toBeLessThan(clearMean);
     expect(clearMean - shadedMean, 'the gap a rain shadow exists to make').toBeGreaterThan(0.08);
 

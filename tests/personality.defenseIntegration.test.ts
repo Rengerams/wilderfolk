@@ -1,13 +1,6 @@
 /**
- * The danger consumers: passive militia, hunting and flight.
- *
- * Three claims are pinned:
- * 1. The militia prices each already-mustered soldier with that soldier's own bounded aptitude
- *    factor, so one protector cannot raise the whole army; the muster guards are unchanged.
- * 2. The free-roam hunt range is the `hunting` factor — a patient, perceptive settler reaches game
- *    beyond an otherwise identical neutral one, driven through the real `tickHumanHunting`.
- * 3. Flight speed reads the `escape` activity: in a driven `tickHumans` frame the factor is the whole
- *    difference between two otherwise identical settlers.
+ * The danger consumers — militia pricing, hunting range, and flight speed — each read the
+ * settler's own bounded aptitude factor; the tests drive the real hunting and human ticks.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -65,7 +58,7 @@ describe('the militia prices each defender\'s own aptitudes', () => {
     const delta = withProtector - base;
 
     expect(delta, 'the aptitude must work at all, or the assertions below pass for free').toBeGreaterThan(0);
-    // The retired rule added 8 % of the entire militia; one soldier's own share stays far below it.
+    // One soldier's own share must stay under 6 % of the militia, never a whole-army fraction.
     expect(delta).toBeLessThan(base * 0.06);
   });
 

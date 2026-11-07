@@ -175,9 +175,8 @@ function festivalWorkWorld(): { state: WorldState; farmer: Entity; innkeeper: En
   const house = building(20, BuildingType.House, 400, 200, [1, 2]);
   const farm = building(10, BuildingType.Farm, 30, 40, [1]);
   const tavern = building(30, BuildingType.Tavern, 250, 40, [2]);
-  // Auto staffing is authoritative: the 15:00 assignment pulse may give any
-  // eligible unemployed adult a job. Use a minor as the genuinely off-duty
-  // festival participant rather than relying on the removed manual mode.
+  // Auto staffing is authoritative: the 15:00 assignment pulse may give any eligible unemployed
+  // adult a job, so a minor is the genuinely off-duty festival participant.
   const farmer = human(1, { job: JobType.Farmer, workerBuildingId: 10, residenceBuildingId: 20, x: 54, y: 61 });
   const innkeeper = human(2, { job: JobType.Innkeeper, workerBuildingId: 30, residenceBuildingId: 20, x: 274, y: 61 });
   const idler = human(3, { age: 12, isJuvenile: true });

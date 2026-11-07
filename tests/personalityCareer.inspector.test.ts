@@ -1,7 +1,6 @@
 /**
- * Rendered inspector behaviour: the fourteen inherited aptitudes, derived highlights, the same
- * activity factors the simulation uses, advisory job fit and witnessed career facts only.
- * Every expectation is read from the owning modules, never rebuilt here.
+ * Rendered inspector behaviour: inherited aptitudes, derived highlights, the simulation's activity
+ * factors, advisory job fit and witnessed career facts — every expectation read from its owner.
  */
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';

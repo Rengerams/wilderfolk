@@ -62,10 +62,8 @@ const BlacksmithForgePanel = lazy(() => import('./BlacksmithForgePanel'));
 const STAFFING_REFUSAL_LIMIT = 4;
 
 /**
- * The raid-card choice buttons. The incoming and outgoing cards render the same control, differing
- * only by the command op and the colour, so the block is written once: a change to raid-choice
- * rendering — showing the owner's block reason as text, for instance — used to have to be made
- * twice, in the pair of cards that most needs it.
+ * The raid-card choice buttons. The incoming and outgoing cards render this same control, differing
+ * only by command op and colour, so raid-choice rendering lives in one place.
  */
 function RaidChoiceButtons({
   choices,
@@ -94,13 +92,8 @@ function RaidChoiceButtons({
 }
 
 /**
- * Hints whose numbers are owned by a rule module. They are built from the owner at render time
- * instead of being typed as prose ("Building output/tuning copy"): the wall cap moves with
- * the Wall Plates forge order, the watchtower bonus moves with Tower Ballistae, the Blacksmith
- * boost stops at `SMITH_BONUS_CAP`, the guard bonus is `MILITIA_BALANCE.guardBonusPerGuard`, and the
- * Mill/Barn/preserve/storage bonuses and the Farm's worker cap are tunable constants — the Farm's
- * is the build catalogue's `maxOccupants`, which is also the cap the staffing command enforces.
- * Returns null for buildings with no tuning numbers — those keep the plain table below.
+ * Hints whose numbers are owned by a rule module: each is built from the owner at render time, so a
+ * tuning constant cannot leave the prose behind. Returns null for buildings with no tuning numbers.
  */
 function ownerOutputHint(building: Building, state: WorldState): string | null {
   const type = building.type;
@@ -204,11 +197,8 @@ export default function SelectedBuildingPanel({
     const provokeGate = rival ? canProvokeRival(state, rival) : null;
     const outgoingRaidAction = rival ? getOutgoingRaidActionLabel(state, rival.id) : null;
     const isCounterRaid = raidsForRival.length > 0;
-    // The four rival-action gates are the *owners'* verdicts, plus the refusal text they carry. The
-    // hand-written booleans that used to sit here drifted from the commands they guard: stricter on
-    // relations (`!atPeace`, extra `relationship` tests) and looser on armament (`hasIronSpears ||
-    // hasStoneSpears` against the owner's `hasWeapons`, which also accepts iron swords), so a button
-    // could disagree with the command it guarded.
+    // The four rival-action gates are the owners' verdicts plus their refusal text, so a button
+    // cannot disagree with the command it guards.
     const giftGate = rival ? getRivalGiftEligibility(state, rival.id) : null;
     const pactGate = rival ? getRivalTradePactEligibility(state, rival.id) : null;
     const showForceGate = rival ? getShowStrengthEligibility(state, rival.id) : null;
@@ -412,23 +402,16 @@ export default function SelectedBuildingPanel({
   /** The upgrade owner's verdict for this building — its price, its ceiling, its exceptions. */
   const upgradeEligibility = getBuildingUpgradeEligibility(state, building.id);
   /**
-   * Whether the upgrade owner would allow another level at all, as opposed to merely refusing the
-   * price: the same gate asked with resources the colony always has, so only the structural refusal
-   * (`MAX_BUILDING_LEVEL`) is left. `MAX_BUILDING_LEVEL` is module-private to
-   * `buildingMaintenanceActions`, so the ceiling is asked of the owner instead of being retyped here
-   * as a local level comparison — which made a raised ceiling unreachable from the UI and a lowered
-   * one offer a button whose command is refused (U-3).
+   * Whether the upgrade owner allows another level at all, as opposed to refusing the price: the same
+   * gate asked with unlimited resources, leaving only the structural ceiling refusal.
    */
   const upgradePossible = getBuildingUpgradeEligibility(
     { ...state, resources: { ...state.resources, wood: Infinity, stone: Infinity, gold: Infinity } },
     building.id,
   ).ok;
   const upgradeCost = building.completed && upgradePossible ? getBuildingUpgradeCost(building) : null;
-  // The residence rule is the owner's, not a local copy: `isResidenceOccupantEntity` also excludes
-  // foreign-faction entities and *includes* a cursed settler in werewolf form, so the local
-  // `alive && residenceBuildingId === id` test counted a visitor with a residence id as a resident and
-  // dropped a cursed one during a full moon — the same "view restates the owner" defect as bug 40/41.
-  // This is the exact predicate + id test `syncResidenceOccupants` uses to build `building.occupants`.
+  // The residence rule is the owner's: `isResidenceOccupantEntity` excludes foreign-faction entities
+  // and includes a cursed settler in werewolf form. Same predicate `syncResidenceOccupants` uses.
   const residents = isHousing
     ? state.entities.filter((e) => isResidenceOccupantEntity(e) && e.residenceBuildingId === building.id)
     : [];
@@ -670,8 +653,7 @@ export default function SelectedBuildingPanel({
           }
           if (building.occupants.length === 0) return null;
           // With no eligible priest the owner's rite never fires (`no_priest`), so the panel must not
-          // print the one-priest odds: it used to clamp an empty count up to one before asking the
-          // weights, promising a ~cure chance the simulation cannot produce (2026-09-20 audit, O-6).
+          // print one-priest odds the simulation cannot produce.
           if (priestCount === 0) {
             return (
               <p className="text-[11px] text-amber-400">
@@ -913,8 +895,8 @@ export default function SelectedBuildingPanel({
           if (!job) return null;
           const workers = state.entities.filter(e => building.occupants.includes(e.id));
           const avgSkill = workers.reduce((s, w) => s + (w.skills?.[job] ?? 0), 0) / Math.max(1, workers.length);
-          // The output bonus is the skills owner's, so `resourcefulMult` is included; reading it as
-          // `avgSkill * 2` was a second definition that omitted it (audit C2).
+          // The output bonus comes from the skills owner (`getWorkerSkillMultiplier`), which prices
+          // each worker's skill and traits; never re-derive it from `avgSkill`.
           const skillBonusPercent = Math.round((getWorkerSkillMultiplier(state, building) - 1) * 100);
           return (
             <p className="text-[11px] text-emerald-400">

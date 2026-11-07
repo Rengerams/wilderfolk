@@ -1,13 +1,6 @@
 /**
- * What the persisted leadership scalars must be at the load boundary.
- *
- * `electionBuildupNotifiedYear` mirrors `pendingElectionYear`: both are a year that is legitimately
- * `null` ("nothing scheduled" / "nothing to notify"), so both need the same rule. The other three
- * leadership scalars are plain finite numbers. A payload carrying `1e999` — which parses to
- * `Infinity` — was refused for every sibling and loaded unchanged for this one.
- *
- * The fixture is a **real** payload from `buildSaveData` with one field changed, so a green case
- * proves the rule refuses the corruption without refusing what the game writes.
+ * At the load boundary `electionBuildupNotifiedYear` mirrors `pendingElectionYear`: both are legitimately
+ * nullable years, and a non-finite payload must be refused like the sibling scalars.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

@@ -112,10 +112,8 @@ export default function SimulationDiagnosticsPanel({
   const [diagnostics, setDiagnostics] = useState<GameLoopDiagnostics | null>(null);
   const [lifecycle, setLifecycle] = useState<LifecycleAlignmentData | null>(null);
 
-  // Poll diagnostics straight from the (latest) simulation loop. Reading the
-  // loop through the ref inside the interval keeps this reactive to loop
-  // lifetime without touching refs during render. Gated on `open`: a collapsed
-  // section must not commit a fresh diagnostics object 4×/s.
+  // Poll diagnostics from the latest loop through the ref; gated on `open` so a collapsed section
+  // commits nothing.
   useEffect(() => {
     if (!open) return;
     const refresh = () => {

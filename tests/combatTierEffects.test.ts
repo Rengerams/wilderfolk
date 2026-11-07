@@ -1,19 +1,6 @@
 /**
- * Tiered combat research must not stack as a sum.
- *
- * The project's law is stated in `frontierCombat.ts`: "Weapon/armor tiers replace
- * lower ones — do not stack". `researchedEffect(..., 'add')` summed every matching
- * researched node instead, so once Iron Spears (`defense_4`, +0.45) and Iron Swords
- * (`defense_8`, +0.55) were both researched — and Iron Swords requires Iron Spears —
- * `getCounterAttackChance` returned exactly **1.0**, while `rollCounterAttack` computes
- * a roll in [0, 0.999] and returns `roll < chance`. Every wolf, fox and Moon Howler
- * that reached a settler therefore died instead of killing them, and the declared
- * 45%/55% tiers and the `hasIronSwords ? 0.55 : 0.45` fallback were unreachable.
- *
- * `predator_block` accumulated the same way (0.35 + 0.6 + 0.72 = 1.67); its 0.85 cap
- * hid the sum and simultaneously made every forged-tier branch dead.
- *
- * These tests pin the strongest-tier semantics for both effects.
+ * Tiered combat research replaces lower tiers instead of summing them: the strongest
+ * researched tier sets counter-attack and predator-block chance.
  */
 import { describe, expect, it } from 'vitest';
 import { createInitialResearchNodes, BuildingType } from '../src/game/gameTypes';

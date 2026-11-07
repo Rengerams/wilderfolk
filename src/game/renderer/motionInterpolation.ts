@@ -102,9 +102,8 @@ export function presentationPosition(entity: Entity): MotionPosition {
     return current;
   }
 
-  // Voorkom dat afronding of asynchrone worker-updates de entiteit achteruit trekken.
-  // Als de fractie door timingproblemen 'terug' in de tijd dreigt te interpoleren, 
-  // vallen we veilig terug op de actuele positie.
+  // Voorkom dat afronding of asynchrone worker-updates de entiteit achteruit trekken: val bij een
+  // ongeldige fractie veilig terug op de actuele positie.
   const t = sampledFraction <= 0 ? 0 : sampledFraction >= 1 ? 1 : sampledFraction;
 
   return {

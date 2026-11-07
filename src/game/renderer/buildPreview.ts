@@ -43,9 +43,8 @@ function previewGlowGradient(
 }
 
 /**
- * The whole drag stroke, drawn segment by segment while the button is held: green where the
- * placement owner will pave, red where it will refuse. Read-only — the owner's `buildStripPreview`
- * decides every verdict, this only paints it, so no second validator exists here.
+ * The whole drag stroke, painted segment by segment while the button is held: green where the
+ * placement owner will pave, red where it refuses. Read-only — no second validator here.
  */
 export function drawStripBuildPreview(
   ctx: CanvasRenderingContext2D,
@@ -213,10 +212,8 @@ export function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSna
   const pad = Math.max(2, Math.min(w, h) * 0.1);
   drawBuildingPad(ctx, cfg.padShape, sx, sy + h * 0.08, w + pad * 2, (h + pad * 2) * 0.7, tint, border, 0.55, dash, 2);
 
-  // Floating ghost sprite (hover bob).
-  //
-  // Decor types (Garden / Statue / Lamp) declare no sprite: the placed building is drawn
-  // procedurally (`drawProceduralDecor`, called from `buildings.ts`), so the ghost does the same.
+  // Floating ghost sprite (hover bob). Decor types (Garden / Statue / Lamp) declare no sprite:
+  // the placed building is drawn procedurally, and the ghost does the same.
   ctx.globalAlpha = 0.78;
   const isDecor = isDecorType(state.buildMode);
   const previewFrame = isDecor || !cfg.sprite ? null : getSpriteFrame(cfg.sprite);
@@ -262,9 +259,8 @@ export function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSna
   ctx.stroke();
   ctx.shadowBlur = 0;
 
-  // Status label under footprint. The wording is the game layer's (`buildingPlacementLabels`), not
-  // the renderer's: the ghost carries the owner's reason, so a Bridge on a dry bank says what it
-  // needs instead of the one fixed refusal this used to print (`LIVE-FINDINGS-STATUS.md` F5).
+  // Status label under footprint. The wording is the game layer's (`buildingPlacementLabels`),
+  // so the ghost carries the owner's reason rather than a renderer-fixed refusal.
   ctx.font = `bold ${Math.max(10, Math.round(11 * state.camera.zoom))}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';

@@ -23,43 +23,12 @@ import { isKeyboardClaimed } from '../game/keyboardOwnership';
 import { findBuildingAt } from '../hooks/useCanvasInteractions';
 
 /**
- * The map canvas's keyboard cursor — the keyboard path for the two actions the canvas only offered
- * to a pointer: placing the armed building type and selecting what is under the cursor
- * (bug 55 / OPEN-6; `GameMapStage`'s `role="img"` + `tabIndex` half landed with the 2026-09-20 audit,
- * A-2, which recorded the actions as "a design decision, not a mechanical a11y fix").
- *
- * Three rules shape the implementation:
- *
- *  1. **The UI never mutates the world and never invents a command.** Activating at the cursor
- *     dispatches the same `click` a pointer produces on the canvas, so placement and selection run
- *     through `useCanvasInteractions` → `applyGameAction` → `WorkerCommand`, unchanged. Moving the
- *     cursor dispatches the same `mousemove`, which is what makes the existing placement ghost
- *     (footprint outline + the placement owner's verdict label) follow the keyboard exactly as it
- *     follows the mouse — one visual language, not two.
- *  2. **One keyboard-ownership rule.** An overlay that claimed the keyboard owns every key, read
- *     through `keyboardOwnership.isKeyboardClaimed` — the same predicate `useKeyboardControls`
- *     returns on. This hook never claims, so the shared applier stays the only claim site.
- *  3. **The cursor is where the player can see it.** It is clamped to the map *and* to the visible
- *     viewport, so a keyboard user cannot walk it off screen (a pointer cannot leave the canvas
- *     either). Travelling further is the existing camera pan (WASD, drag, wheel, the mini-map).
- *
- * The cursor itself is live view state for a canvas this component does not paint — the map canvas
- * belongs to `GameLoop` — so the position is held here and the canvas is told about it through the
- * pointer path above. `GameMapStage` draws the screen-space marker from the same world point.
- *
- * The cursor maths and the key → intent mapping are pure and exported so they can be pinned without
- * a DOM (`tests/mapKeyboardCursor.test.ts`); the canvas wiring is a source contract
- * (`tests/keyboardGuards.contract.test.ts`).
+ * Keyboard cursor for the map canvas: arrows move it, Enter places/selects, Escape clears it.
+ * It dispatches real pointer events (never a new command) and defers to `isKeyboardClaimed`.
  */
 
 /**
- * One arrow-key step, in world units.
- *
- * Two placement cells: placement snaps to `GRID_SIZE` (20 wu), a Well is 30 × 30 wu and a House
- * 46 × 40 (`BUILDING_CONFIGS`), so two cells reads as "about one building per press" — coarse enough
- * to cross the valley in a few dozen presses, fine enough to land on a particular plot. A
- * screen-pixel step could not do this job: it is a different world distance at every zoom, and it
- * does not divide the lattice the placement snap uses.
+ * One arrow-key step, in world units — two placement cells, so one press reads as about one building.
  */
 export const MAP_CURSOR_STEP_WORLD_UNITS = GRID_SIZE * 2;
 
@@ -86,10 +55,7 @@ const CURSOR_STEPS: Readonly<Record<string, MapCursorPoint | undefined>> = {
 };
 
 /**
- * The activation key. Enter only — deliberately **not** Space: `useKeyboardControls` binds Space to
- * pause on `window` in the capture phase, before any handler on the canvas can run, and
- * `isActivatableTarget` is false for a `role="img"` canvas (it matches buttons and `role="button"`,
- * which is why `MiniMap` can use Space). Space here would pause the game on every placement.
+ * Activation key. Enter only, never Space: `useKeyboardControls` claims Space to pause in the capture phase.
  */
 export const MAP_CURSOR_ACTIVATION_KEY = 'Enter';
 
@@ -126,10 +92,7 @@ export interface MapCursorIntentContext {
 }
 
 /**
- * The key → intent mapping, ownership included.
- *
- * `keyboardClaimed` is part of the mapping rather than a caller's `if`, so the guard is one thing
- * with the table it guards and a test can pin it for every bound key at once.
+ * The key → intent mapping, ownership included, so the claim guard and its table stay one pinnable unit.
  */
 export function resolveMapCursorIntent(key: string, context: MapCursorIntentContext): MapCursorIntent {
   if (context.keyboardClaimed) return { type: 'none' };
@@ -170,9 +133,7 @@ export function moveMapCursor(
 }
 
 /**
- * Where the cursor appears when the player first presses a key: the world point at the middle of the
- * canvas — the pointer's own mapping (`screenToWorld`) rather than the camera field, so the two can
- * never disagree — snapped to the placement lattice so every later step stays on it.
+ * Where the cursor first appears: the canvas centre via `screenToWorld`, snapped to the placement lattice.
  */
 export function initialMapCursorPoint(
   camera: Camera,
@@ -184,10 +145,8 @@ export function initialMapCursorPoint(
 }
 
 /**
- * The rectangle the cursor may move in: the map, narrowed to what the camera can actually show.
- *
- * A zero-sized viewport (before layout) falls back to the whole map rather than to an inverted box,
- * which would otherwise pin the cursor to a corner.
+ * The cursor's movable rectangle: the map narrowed to the visible viewport; a zero-sized viewport
+ * (before layout) falls back to the whole map rather than an inverted box.
  */
 export function mapCursorBounds(
   camera: Camera,
@@ -216,12 +175,8 @@ export interface CanvasRect {
 }
 
 /**
- * Where a world point is on the page, in `MouseEvent` client coordinates.
- *
- * The exact inverse of `useCanvasInteractions.getEventWorldCoords`, which reads a pointer back with
- * `screenToWorld((clientX − rect.left) · canvasW / rect.width, …)`. Both halves use the canvas's
- * `offsetWidth`/`offsetHeight` (the renderer's logical px), because that is the space
- * `worldToScreen` is defined in.
+ * A world point in `MouseEvent` client coordinates — the inverse of `getEventWorldCoords` in
+ * `useCanvasInteractions`; both halves use the canvas's logical `offsetWidth`/`offsetHeight`.
  */
 export function mapCursorClientPoint(
   cursor: MapCursorPoint,
@@ -250,10 +205,8 @@ export function mapCursorClientPoint(
 export type MapCursorView = Pick<ViewState, 'buildMode' | 'buildRotation'>;
 
 /**
- * What a screen reader hears for the cursor: where it is, what is under it, and — while a build type
- * is armed — whether the placement Enter would make is legal, in the placement owner's own wording
- * (`getPlaceBuildingFailureReason` decides, `buildingPlacementLabels` words it, exactly as the ghost
- * on the canvas does).
+ * Screen-reader text for the cursor: position, what is under it, and — while a build type is armed —
+ * the placement owner's own verdict wording, exactly as the canvas ghost shows it.
  */
 export function describeMapCursor(
   world: WorldState,
@@ -278,11 +231,8 @@ export function describeMapCursor(
 }
 
 /**
- * Send the canvas the pointer event the cursor's world point implies.
- *
- * A real `MouseEvent` on the canvas, not a hand-built React event object: it is delivered to the
- * same `onClick` / `onMouseMove` props the mouse uses, so the keyboard cannot drift from the pointer
- * path and no caller has to pretend to be a `React.MouseEvent`.
+ * Replay the cursor's world point as a real `MouseEvent`, so the keyboard rides the same `onClick` /
+ * `onMouseMove` props as the pointer instead of a hand-built React event.
  */
 function dispatchCursorPointerEvent(
   canvas: HTMLCanvasElement,
@@ -308,9 +258,7 @@ export interface UseMapKeyboardCursorOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   worldRef: RefObject<WorldState>;
   /**
-   * The live view — read only. The cursor is not stored in `ViewState` because this component has no
-   * way to patch it (the loop owns the view; `GameMapStage` receives no patch callback), and the
-   * canvas already renders the pointer's own cursor state through the dispatched events above.
+   * The live view — read only. The cursor is not stored in `ViewState` because nothing here can patch it.
    */
   viewRef: RefObject<ViewState>;
   /**
@@ -340,14 +288,8 @@ export function useMapKeyboardCursor({
   const [announcement, setAnnouncement] = useState('');
 
   /**
-   * Canvas geometry and camera, read the way the pointer path reads them: `offsetWidth/Height` are
-   * the renderer's logical pixels and `getBoundingClientRect()` is where they sit on the page.
-   *
-   * The camera is `viewRef.current.camera` — the ref the shell refreshes on every loop notification.
-   * The loop also patches the view silently while the camera pans (momentum, drag) and only notifies
-   * on its `UI_UPDATE_MS` cadence, so a pan can leave this read up to that cadence behind; the marker
-   * therefore trails the map during a fast pan and settles with it. Reading the live camera needs a
-   * loop handle `App.tsx` does not pass.
+   * Canvas geometry and camera, read the way the pointer path reads them. The view ref can lag the
+   * loop's silent camera patches until its next notification, so the marker trails during a fast pan.
    */
   const readViewport = useCallback(() => {
     const canvas = canvasRef.current;
@@ -375,9 +317,8 @@ export function useMapKeyboardCursor({
       event.preventDefault();
 
       if (intent.type === 'cancel') {
-        // The armed build type is cancelled by the game's own Escape chain in `useKeyboardControls`
-        // (which runs before this handler and calls `cancelBuildMode`), so this half only has to
-        // clear the cursor: one owner per rule.
+        // The armed build type is cancelled by `useKeyboardControls`' Escape chain before this runs,
+        // so this half only clears the cursor: one owner per rule.
         cursorRef.current = null;
         setActive(false);
         setAnnouncement('');
@@ -407,9 +348,7 @@ export function useMapKeyboardCursor({
     [readViewport, viewRef, worldRef],
   );
 
-  // The marker is positioned in the canvas's own screen space, so it has to follow the camera, not
-  // only the cursor: the loop only guarantees the view at its own notification cadence, so this
-  // repaints every frame while a cursor exists rather than on React renders.
+  // The marker lives in screen space, so it follows the camera too: repaint every frame while a cursor exists.
   useEffect(() => {
     if (!active) return;
     let frame = 0;

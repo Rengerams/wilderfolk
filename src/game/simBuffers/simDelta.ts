@@ -230,13 +230,8 @@ export function createFallbackSimTickDelta(world: WorldState): SimTickDelta {
 }
 
 /**
- * The full-slice delta for one tick. `aliveOrdered` is the tick's own alive list when the caller
- * already built one (the worker does); otherwise it is derived from `world.entities`.
- *
- * The delta carries `aliveEntities` as a **complete replacement**, so it deliberately does not also
- * ship per-tick spawn/death id lists: they were extracted and transferred every tick but read by
- * nobody — the only consumer, `EntityCatalog.applyTickDelta`, had zero call
- * sites because the catalog is rebuilt from the world instead).
+ * The full-slice delta for one tick. `aliveOrdered` is the caller's alive list; otherwise it is
+ * derived from `world.entities`. `aliveEntities` is a complete replacement, with no spawn/death ids.
  */
 export function extractSimTickDelta(
   world: WorldState,
@@ -405,9 +400,8 @@ export function extractSimTickDelta(
       day: world.economyLedger.day,
       produced: { ...world.economyLedger.produced },
       consumed: { ...world.economyLedger.consumed },
-      // Carried explicitly: the display world reads these instead of adding the maps up
-      // (`LIVE-FINDINGS-STATUS.md`, F2), and `workerBoundary.closure.test.ts` fails if a
-      // simulation-written field is not shipped.
+      // Carried explicitly: the display world reads these instead of adding the maps up, and the
+      // worker-boundary test fails if a simulation-written field is not shipped.
       producedTotal: world.economyLedger.producedTotal,
       consumedTotal: world.economyLedger.consumedTotal,
     };

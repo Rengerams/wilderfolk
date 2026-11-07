@@ -65,9 +65,8 @@ export default function SelectedEntityPanel({
     ? getHumanActivityProjection(state, entity, previousActivity)
     : null;
 
-  // Remember the last shown activity for this entity so transitions can be
-  // annotated. Keyed on the primitive activity string to avoid resyncing on
-  // unrelated re-renders.
+  // Remember the last shown activity for this entity so transitions can be annotated; keyed on the
+  // primitive activity string to avoid resyncing on unrelated re-renders.
   const currentActivity = activityProjection?.activity;
   useEffect(() => {
     const record = () => {
@@ -84,11 +83,8 @@ export default function SelectedEntityPanel({
   const visitorGroup = isVisitor ? state.visitorGroups?.find((g) => g.id === entity.groupId) : null;
   const rivalCamp = isRival ? state.rivalSettlements?.find((r) => r.id === entity.groupId) : null;
 
-  /**
-   * P5 — the movement reason trace for this settler: the day's named stops in order, the leg they are
-   * on, and the path owner's blocked/rerouting verdict. Read-only projection; the panel prints its
-   * lines and derives nothing.
-   */
+  /** The movement reason trace for this settler — the day's named stops, the current leg and the
+   * path owner's blocked/rerouting verdict, printed as-is. Read-only; nothing is derived here. */
   const movementExplanation = isHuman && !isVisitor && !isRival
     ? explainSettlerMovement(state, entity.id)
     : null;
@@ -97,11 +93,8 @@ export default function SelectedEntityPanel({
   // keyed on them cannot see a change.
   const childCount = isHuman && !isVisitor && !isRival ? countLivingChildren(entity, allEntities) : 0;
 
-  // Both come from the taming owner: the local list offered visitors/rivals (a click did nothing, since
-  // the command refuses them) and the local reach test was paired with a command that added half a
-  // footprint to the post's position. `building.x/y` is the footprint **centre** (the pad and sprite are
-  // drawn from `x - w/2`; the bounds/terrain/overlap checks use `x ± w/2`), so both now measure from the
-  // centre (`LIVE-FINDINGS-STATUS.md`, F16 and F17).
+  // Both come from the taming owner: the candidate list is the one that filters visitors/rivals, and
+  // `building.x/y` is the footprint centre, so the reach test measures from the centre.
   const availableHumans = listTamingCandidates(state);
 
   const tameableTypes: EntityType[] = [EntityType.Wolf, EntityType.Fox, EntityType.Deer, EntityType.Rabbit];
@@ -117,10 +110,7 @@ export default function SelectedEntityPanel({
   const canAffordTame = tameFoodCost == null || currentFood >= tameFoodCost;
   // A tame is the whole colony's food, so affordability is the one gate that disables every candidate.
   const tameDisabled = tameFoodCost != null && !canAffordTame;
-  /**
-   * Why the buttons are dead, in the taming owner's own words. The owner prices a tame and the panel
-   * reads that price back, so a greyed-out name no longer has to be taken on trust.
-   */
+  /** Why the buttons are dead, in the taming owner's own words — the panel reads back the price it sets. */
   const tameBlockReason = tameDisabled && availableHumans.length > 0
     ? getTameEntityEligibility(state, entity.id, availableHumans[0].id).blockReason ?? null
     : null;
@@ -246,8 +236,7 @@ export default function SelectedEntityPanel({
           )}
           {isHuman && !isVisitor && !isRival && (
             <p className="text-[11px] text-amber-400">
-              {/* The settler's own name, not the internal entity id the save allocates: the id is
-                  engine bookkeeping and told the player nothing about the person in front of them. */}
+              {/* The settler's own name — the entity id is engine bookkeeping, not something to show. */}
               <span className="font-mono text-stone-400">{citizenFullName(entity)}</span>
               {' · '}
               {entity.gender === 'male' ? '♂' : '♀'} {entity.relationshipStatus || 'child'}
@@ -277,20 +266,6 @@ export default function SelectedEntityPanel({
           Following on the map — camera stays with them. Tap ⭐ again to stop.
         </p>
       )}
-
-      {/* The Food Chain Role block is **deleted**, on the owner's own reason rather than mine:
-          *"work is already defined lower in the civ viewer and civilationd builder is nothign"*.
-
-          Two independent facts make it redundant. (1) This settler's work is already shown further
-          down this card — `💼 occupation` plus the job and skill lines — so a second "role" line is a
-          duplicate of a fact the card already carries. (2) "Civilization Builder" says nothing: it is
-          the *species'* trophic role, a constant (`human: { role: 'Civilization Builder' }`) printed
-          on an individual settler, so it read as that person's job while carrying no information about
-          them — every citizen, a newborn included, was a "Civilization Builder".
-
-          The earlier pass relabelled it ("Role" → "Species role", under "Food chain · humans"), which
-          is why the owner had to report it a second time. Renaming a meaningless, duplicated line
-          cannot fix it. Do not reinstate it as a rename. */}
 
       <div className="space-y-0.5 text-xs text-amber-200">
         {isHuman && !isVisitor && !isRival && entity.needs ? (
@@ -365,10 +340,8 @@ export default function SelectedEntityPanel({
                 </p>
               );
             })()}
-            {/* Affair progress accumulates over several trysts *before* `affairPartnerId` is set at
-                100, and that whole build-up was invisible — the panel only read the established id.
-                Only the established pair gets a name: before establishment there is no recorded
-                paramour to name. */}
+            {/* Progress builds before `affairPartnerId` is set at 100, so a brewing affair is shown
+                without a name; only an established pair has a paramour to name. */}
             {entity.affairPartnerId == null && (entity.affairProgress ?? 0) > 0 && (
               <p className="text-rose-300/70">💋 Secret affair brewing ({Math.round(entity.affairProgress ?? 0)}%)</p>
             )}
@@ -378,10 +351,8 @@ export default function SelectedEntityPanel({
                 👶 {childCount} child{childCount === 1 ? '' : 'ren'}
               </p>
             )}
-            {/* Youth love (12–17) is a real mutual pair bond in the simulation, but nothing rendered
-                it: no panel line, no counter, no map badge — only a generic 🌝 log entry. The
-                sweetheart's given name and surname match the marriage line above; the `#id` form is
-                the Chronicle's. */}
+            {/* Youth love (12–17) is a real pair bond; the sweetheart is named like the marriage line
+                above, and the Chronicle's `#id` form is not used here. */}
             {entity.youthLovePartnerId != null && (() => {
               const sweetheart = allEntities.find((e) => e.id === entity.youthLovePartnerId && e.alive);
               return (
@@ -419,8 +390,7 @@ export default function SelectedEntityPanel({
                 {' · '}
                 {availableHumans.length} available:
               </p>
-              {/* Every candidate is offered: the old fixed four-slot grid dropped the rest with no hint
-                  that anyone had been left out. Four stay visible and the list scrolls past them. */}
+              {/* Every candidate is offered; four stay visible and the list scrolls past them. */}
               <div className="grid max-h-28 grid-cols-2 gap-1 overflow-y-auto overscroll-contain">
                 {availableHumans.map(h => (
                   <button
@@ -442,8 +412,7 @@ export default function SelectedEntityPanel({
       )}
 
       {/* Family — one icon that opens the tree in its own window (`FamilyTreeWindow`, the owner of
-          `game/familyTree`). Always rendered, so a settler with no relatives still finds the door;
-          the window owns the empty state. */}
+          `game/familyTree`). Always rendered; the window owns the empty state. */}
       <div className="mt-2 border-t border-amber-600/20 pt-2">
         <button
           type="button"

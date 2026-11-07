@@ -1,10 +1,6 @@
 /**
- * Regression cases for the fixes made by the 2026-09-21 deep audit.
- *
- * Each case names the defect it pins and the observable symptom, so reverting a fix fails here
- * rather than silently restoring the old behaviour. The source guards at the end close the owner
- * checks the pre-existing guards could not see (they only walked `.tsx`, so the two `.ts` copies of
- * `formatSettlerName` sat outside every scan).
+ * Regression cases: each names the defect it pins and the observable symptom, including the `.ts`
+ * name copies the `.tsx`-only owner guard could not see.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -123,9 +119,8 @@ describe('visitor trade can buy and sell stone (audit: no stone route to a carav
   });
 
   it('keeps the catalogue and the panel in step', () => {
-    // The command validator derives its accepted actions from this table (`commands.ts`), so a new
-    // action that is not here would be rejected as an invalid `WorkerCommand` before it reached the
-    // owner.
+    // The command validator derives its accepted actions from this table, so an action missing here
+    // is rejected as an invalid `WorkerCommand` before it reaches the owner.
     expect(Object.keys(VISITOR_TRADE_COSTS)).toContain('buy_stone');
     expect(Object.keys(VISITOR_TRADE_COSTS)).toContain('sell_stone');
 
@@ -137,8 +132,7 @@ describe('visitor trade can buy and sell stone (audit: no stone route to a carav
 
 describe('a multi-resource trade float names every resource, not only the last', () => {
   it('accumulates instead of overwriting', () => {
-    // The trade-route bundles this shape comes from (`trade_3` pays gold *and* iron, `trade_7` stone
-    // *and* gold) are the reason the accumulation exists; the formatter itself is what the float now
+    // The two-resource trade bundles are why the float accumulates; the formatter is what it now
     // reads, so this pins the exact string a two-resource deal produces.
     expect(formatResourceAmounts({ gold: 30, iron: 15 })).toBe('30 💰 · 15 🔩');
     expect(formatResourceAmounts({ stone: 80, gold: 60 })).toBe('80 🪨 · 60 💰');
@@ -265,9 +259,8 @@ describe('the leader-honored announcement survives a maxed reputation', () => {
   });
 
   it('stays silent when the clamp delivered nothing', () => {
-    // The defect: `addReputation` clamps, so at 100 every later victory had a zero delta and the
-    // `reputation > before` guard retired the announcement for the rest of the game. The banner
-    // promises "reputation rises", so it is gated on the amount *granted* — 0 here.
+    // `addReputation` clamps, so a victory at the cap grants 0; the banner promises "reputation
+    // rises", so it is gated on the amount granted, not on the clamped total.
     const { world, eventId } = defendableWorld(REPUTATION_MAX);
     const after = respondToRaidEvent(world, eventId, 'defend');
 
@@ -475,9 +468,7 @@ describe('a save that would load into a broken world is refused by name', () => 
 
   it('does not write through to the payload it is handed', () => {
     // `pickWorldStateFromSave` copies top-level keys by reference, so the returned world's arrays are
-    // the payload's own — and `migrateTickTimeline` scales tick-valued fields **in place**. A forged
-    // `_ticksPerDay` is the shortest way to exercise that path (the version gate refuses real older
-    // saves), and it shows the hazard plainly: loading twice scaled the caller's object twice.
+    // the payload's own — and `migrateTickTimeline` scales tick fields in place, mutating the caller.
     const raid = {
       id: 'raid_frozen',
       rivalId: 'rival_1',
@@ -519,9 +510,8 @@ describe('a save that would load into a broken world is refused by name', () => 
 
 describe('what the tick writes is durable', () => {
   it('saves the heating decision the simulation reads for the rest of the day', () => {
-    // `tickWinterHeating` caches today's answer on the world and `humanNeeds` reads it to apply the
-    // 1.5x unheated-winter penalty. It was not in the allow-list, so a reload mid-winter-day refunded
-    // the rest of that day's cold.
+    // `humanNeeds` reads the cached `villageCanHeat` to apply the 1.5x unheated-winter penalty, so a
+    // reload must not refund the rest of the day it was decided for.
     expect(
       (WORLD_STATE_SAVE_KEYS as readonly string[]).includes('villageCanHeat'),
       'villageCanHeat is not saved, so a reload cancels the rest of the day it was decided for',
@@ -529,11 +519,8 @@ describe('what the tick writes is durable', () => {
   });
 
   it('rebuilds the beauty grid on load without discarding the saved happiness', () => {
-    // `beautyGrid` is a runtime cache the save strips, and it used to be rebuilt only by the **daily**
-    // layer — so a loaded colony ran up to a full game day with no beauty field, and free-time settlers
-    // stopped being drawn toward decor. `villageHappiness` is deliberately *not* recomputed with it:
-    // it is in the save allow-list, and recomputing would replace the stored value with the base
-    // happiness of a world whose decor has not been re-stamped.
+    // `beautyGrid` is a stripped runtime cache and `villageHappiness` is saved, so the load rebuilds
+    // the grid from the stored decor without recomputing the happiness it already has.
     const world = initGame({ villageName: 'Pretty', seed: 20260927, size: MapSize.Medium });
     world.buildings = [
       ...world.buildings,
@@ -576,8 +563,7 @@ describe('the spatial grid refreshes an object that did not change cell', () => 
 
   it('replaces the stored entry when a fresh object arrives for the same cell', () => {
     // The worker's render path builds a new shim per slot per tick with the same id and cell, so the
-    // old early-return kept the first tick's objects forever and any field that changed without a cell
-    // change (flash, size) never reached the renderer.
+    // grid must replace the stored entry to carry fields that changed without a cell change.
     const grid = new EntitySpatialGrid(100, 100, 10);
     const first = human(1, { x: 5, y: 5 });
     const refreshed = human(1, { x: 5, y: 5, flash: 9 });
@@ -604,12 +590,8 @@ describe('the spatial grid refreshes an object that did not change cell', () => 
 
 describe('one terrain-tile size', () => {
   it('owns the world-units-per-tile constant once', () => {
-    // `PATH_CELL` (gameTypes.ts) is the world-units-per-tile value, and `frontierCombat`
-    // carried a `PIXELS_PER_TILE = 10` copy while `placementUtils` carried `PLACEMENT_TILE_SIZE = 10`.
-    // A tile-size copy in a domain module silently drifts if the owner ever moves, and the two
-    // call sites (`getCampDistanceTiles`, `getOutgoingRaidFoodCost`, `footprintTileIndices`) must agree
-    // with the terrain grid or raid distances and footprint validity disagree with the map. Both are
-    // gone; any re-introduction fails here.
+    // `PATH_CELL` is the one world-units-per-tile constant: raid distances and footprint validity
+    // are only correct when they agree with the terrain grid that defines it.
     const offenders = srcFiles().filter((file) =>
       /\b(PIXELS_PER_TILE|PLACEMENT_TILE_SIZE)\b/.test(read(file)),
     );

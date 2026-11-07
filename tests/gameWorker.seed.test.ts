@@ -1,11 +1,6 @@
 /**
- * End-to-end seed adoption in the simulation worker.
- *
- * `gameWorker.resetWorkerSession` runs for `init`, `importSave` and `syncWorld`, and the
- * worker is a separate realm whose `simRng` module state starts at the default seed 1. This
- * drives the real worker module — with a `self` shim, the same way the browser provides it —
- * through an `init` message and asserts the realm adopted the seed the world carries, so the
- * worker draws the same streams the world was created with instead of silently using seed 1.
+ * The worker is a separate realm whose `simRng` starts at seed 1, so `resetWorkerSession` must
+ * adopt the incoming world's seed on `init`, `importSave` and `syncWorld`.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { WORKER_PROTO, type WorkerRequest, type WorkerResponse } from '../src/game/simWorker/protocol';

@@ -1,16 +1,6 @@
 /**
- * Worker command round trips — SIMULATION_AUTHORITY.md §5 worker invariants
- * + Objective 6.
- *
- * `applyWorkerCommand` is the SINGLE domain implementation used by both
- * transport paths: the Web Worker (gameWorker.ts command handler) and the
- * main-thread fallback (gameLoop.applyCommandLocal). Parity is by
- * construction — both call this exact function on the authoritative WorldState.
- *
- * These tests drive the command surface the objective names: manual
- * assignment, priest selection, reassignment (remove + assign), demolition,
- * repair, upgrade, and building-mode commands — asserting the authoritative
- * state transition and that the Objective 1 invariants stay clean.
+ * `applyWorkerCommand` is the single domain implementation used by both transport paths, so
+ * parity is by construction; these cases drive the command surface it serves.
  */
 import { describe, expect, it } from 'vitest';
 import {

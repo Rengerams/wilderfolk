@@ -39,13 +39,8 @@ export function logEvent(
   combatKind?: CombatLogKind,
   combatStage?: CombatLogStage,
 ): void {
-  // Ids must be monotonic *per log*, not per realm. `nextEventLogId` is module state, and a
-  // realm that receives a world (the simulation worker, or the optimistic display copy the
-  // main thread builds from a worker snapshot) starts it at 1 while the imported log already
-  // holds ids 1..N. `applySimTickDelta` drops incoming entries whose id already exists, so
-  // every event that realm logged was silently discarded until its counter passed N.
-  // `eventLog` is newest-first (unshift/pop), so its head carries the highest id: never
-  // issue an id the log already uses.
+  // Ids must be monotonic per log, not per realm: `applySimTickDelta` drops entries whose id
+  // already exists, so never issue an id the newest-first log already uses.
   const newestId = state.eventLog[0]?.id ?? 0;
   if (newestId >= nextEventLogId) nextEventLogId = newestId + 1;
 
@@ -94,9 +89,8 @@ export function logDeath(
 }
 
 /**
- * Assign awaiting burial records to available completed graveyards.
- * Keeping unassigned records means building a graveyard later does not erase
- * ordinary deaths that occurred before one existed.
+ * Assign awaiting burial records to completed graveyards. Unassigned records persist, so a
+ * graveyard built later still receives earlier deaths.
  */
 export function assignPendingGraves(state: WorldState): void {
   const graves = state.graveRecords;
@@ -130,9 +124,8 @@ export function assignPendingGraves(state: WorldState): void {
 /** Legacy fallback for saves logged before combatKind existed. */
 export function resolveCombatLogKind(evt: GameEventLog): CombatLogKind | null {
   if (evt.combatKind) return evt.combatKind;
-  // Only combat entries may be classified. Without this guard every chronicle line was
-  // eligible, so any ordinary 'event' whose text mentioned a raid (a trade rumour, a story
-  // card, a festival note) was counted as an incoming raid or a defence in the summary.
+  // Only combat entries may be classified, so an ordinary event mentioning a raid is not
+  // counted as one in the summary.
   if (evt.type !== 'combat') return null;
   const msg = evt.message.toLowerCase();
   if (msg.includes('repelled') || msg.includes('routed')) return 'repelled';

@@ -88,12 +88,8 @@ kbd {
     0 0 0 1px rgba(0, 0, 0, 0.4);
 }
 
-/* The build catalogue is an overlay drawn *above* the map stage (`.game-view-drawer`, z-index 30),
-   and the mini-map is pinned to that same stage's bottom-left corner with no z-index of its own.
-   While the catalogue was open it therefore sat on top of the mini-map, which looked like the
-   mini-map had been removed. Slide the mini-map clear of the drawer while it is open.
-   Below 721px the drawer spans the whole map (see the media query further down), so there is no
-   room beside it and the mini-map stays where it is. */
+/* The build drawer overlays the map stage; slide the mini-map clear of it while open.
+   Below 721px the drawer spans the whole map, so the mini-map stays where it is. */
 @media (min-width: 721px) {
   .game-shell:has(.game-view-drawer--build.game-view-drawer--open) .minimap-frame {
     left: calc(0.75rem + var(--build-drawer-width) + 0.5rem);

@@ -1,23 +1,4 @@
-/**
- * Low-severity audit batch 8 — regression tests for the findings fixed in this change.
- *
- *   - L8  buildingStaffingActions: `removeStaffWorkerFromBuilding` refuses a settler
- *         who does not work at the targeted building (it used to free their real job).
- *   - L39 humanTick: ambient dialogue rolls on the same SOCIAL_STAGGER bucket as the
- *         neighbour scan, so a roll never samples an always-empty candidate list.
- *   - L40 humanTick: imprisoned settlers keep their per-tick upkeep (dialogue timers,
- *         energy/meals, pregnancy progress) instead of freezing at the early return.
- *   - L41 humanTick: the realtime affair gate receives the colony work schedule.
- *   - L42 humanTick: company-following leisure blends velocity exactly once.
- *   - L60 humanRelationships: `reassignDivorcedResidences` leaves an imprisoned
- *         custodian unhoused and never moves minors into a prisoner's home.
- *   - L61 humanRelationships: the amicable-divorce rate has one definition.
- *   - L62 humanRelationships: the caught-in-the-act path is the only 'caught' path,
- *         so its deterministic divorce is the intended surviving contract.
- *   - L75 villageLeadership: load reconciliation clears a dangling `villageLeaderId`.
- *   - L76 groupEvents/virtualPlayer: one Village Request eligibility rule.
- *   - L78 workforce: an imprisoned settler is detached from construction crews.
- */
+/** Low-severity simulation regressions: staffing, humanTick upkeep, relationships and leadership. */
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
@@ -152,8 +133,7 @@ describe('L8 — removal targets the settler\'s own building', () => {
 
     const next = removeStaffWorkerFromBuilding(state, school.id, worker.id);
 
-    // Pre-fix `removeWorkerTransition` released the priest from the church even though
-    // the command named the school; the settler must still hold the church job.
+    // The command names the school, so the priest's church job and occupant slot must survive.
     const nextWorker = next.entities.find((e) => e.id === worker.id)!;
     expect(nextWorker.workerBuildingId).toBe(church.id);
     expect(next.buildings.find((b) => b.id === church.id)!.occupants).toContain(worker.id);
@@ -222,8 +202,7 @@ describe('L39 — ambient dialogue cadence', () => {
 
     const { speaker } = runAmbient(tick);
 
-    // Pre-fix `(tick + id) % 3` ran the ambient roll on a bucket the neighbour scan
-    // rejects, so a nearby peer was invisible and the settler spoke a solo line.
+    // An ambient roll on a bucket the neighbour scan rejects must not speak a solo line.
     expect(speaker.chatPhrase).toBeUndefined();
     expect(speaker.chatDialogueSessionKey).toBeUndefined();
   });
@@ -257,7 +236,7 @@ describe('L40 — prisoner upkeep', () => {
 
     tickHumans(state, contextFor(state, [prisoner]));
 
-    // Pre-fix the prisoner branch `continue`d before `tickHumanChat`, so the timer froze.
+    // A jailed settler still advances the chat timer.
     expect(prisoner.chatTicks).toBe(5);
     expect(prisoner.chatPhrase).toBe('Let me out.');
   });
@@ -310,8 +289,7 @@ describe('L41 — realtime affair gate honours the colony work schedule', () => 
     setSimSeed(TEST_SEED);
     const tick = noonTick();
 
-    // Player schedule 20:00-23:00 excludes noon: the legacy 07:00-16:00 fallback used
-    // to open the gate here and sent the settler to the tryst anyway.
+    // The player's 20:00–23:00 schedule excludes noon, so the affair gate stays shut.
     const farmHand = affairScene(tick, 20, 23);
 
     expect(farmHand.vx).toBe(0);
@@ -369,8 +347,7 @@ describe('L42 — company-following leisure blends velocity once', () => {
     const deltas = companyFollowTicks()
       .map((tick) => runCompanyFollow(fixture, tick, 20) - runCompanyFollow(fixture, tick, 0));
 
-    // Pre-fix the branch blended 0.45/0.55 and the shared tail blended 0.5/0.5 again,
-    // weighting the previous velocity at 0.225. Only a single 0.5 blend is correct.
+    // The previous velocity is weighted once at 0.5; a double blend would halve it again.
     expect(deltas.some((delta) => Math.abs(delta - 10) < 1e-9)).toBe(true);
   });
 });
@@ -448,8 +425,7 @@ describe('L61 — amicable-divorce rate has one definition', () => {
   it('drives the daily rule from the surviving exported annual rate', () => {
     const daily = MARRIAGE_ANNUAL_AMICABLE_DIVORCE_RATE / DAYS_PER_YEAR;
 
-    // The deleted `RELATIONSHIP_CONFIG` copy was unread; the rate the daily rule reads
-    // is the exported owner value, so a roll just under it still divorces.
+    // The daily rule derives from the exported annual rate, so a roll just under it still divorces.
     const divorced = runDivorce(daily - 1e-9);
     expect(divorced.husband.partnerId).toBeUndefined();
     expect(divorced.wife.partnerId).toBeUndefined();
@@ -613,7 +589,7 @@ describe('L78 — imprisoned settlers leave construction crews', () => {
 
     prepareWorkforce([prisoner], state.buildings);
 
-    // Pre-fix the prisoner cleared only the job link, so the site kept working them.
+    // A prisoner leaves the construction crew's occupant list, not just the job link.
     expect(site.occupants).not.toContain(prisoner.id);
     expect(prisoner.prisonBuildingId).toBe(prison.id);
     expect(prison.occupants).toContain(prisoner.id);

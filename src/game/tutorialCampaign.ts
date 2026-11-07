@@ -2,10 +2,8 @@ import type { WorldState } from './gameTypes';
 import { BuildingType } from './buildings';
 
 /**
- * First-spring tutorial campaign — a living step-by-step guide that auto-advances
- * as the player actually builds/plays. Non-modal: shows as a banner, skippable
- * anytime. Steps are pure predicates over world state, so the current step is
- * simply the first incomplete one.
+ * First-spring tutorial campaign — a living guide that auto-advances as the player builds and plays.
+ * Non-modal and skippable; steps are pure predicates, so the current step is the first incomplete one.
  */
 export interface TutorialCampaignStep {
   id: string;
@@ -63,9 +61,8 @@ export const TUTORIAL_CAMPAIGN: TutorialCampaignStep[] = [
     icon: '❄️',
     title: 'Prepare for winter',
     detail: 'Settlers burn wood to heat homes each winter day (1 per 5 people). Stockpile wood and keep food production running — a hungry village is a dying village.',
-    // `dayInYear` wraps every year, so the predicate must stay monotonic: once the
-    // colony reaches year 2 the step is finished for good instead of regressing
-    // (and re-showing this guide) on each new year's day 0.
+    // `dayInYear` wraps every year, so the predicate must stay monotonic: once the colony reaches
+    // year 2 the step is finished for good instead of regressing on each new year's day 0.
     isComplete: (w) => w.year >= 2 || w.dayInYear >= 250,
   },
   {

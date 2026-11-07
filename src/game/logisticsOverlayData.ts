@@ -1,25 +1,6 @@
 /**
  * F4 — Infrastructure and Logistics Overlay: the read-only projection behind the overlay.
- *
- * The renderer draws; it does not decide. Every threshold and every classification below lives
- * here, in the game layer, so the overlay can be tested without a canvas and so the renderer
- * cannot drift from the rule. Nothing in this module writes to the world, mutates a building or
- * entity, or reaches the save schema — it is a pure function of the authoritative `WorldState`.
- *
- * Three questions the projection answers for the first slice:
- *
- * 1. **Which road strips form one network?** Connectivity components over the road family
- *    (`stripTopology.stripFamilyFor`), joined when their footprints are within
- *    {@link ROAD_CONNECT_GAP}.
- * 2. **Which buildings are poorly connected to it?** Completed player buildings outside the road
- *    family, classified by their centre's distance to the nearest road footprint.
- * 3. **Where is commute pressure?** Settlers whose home↔work leg is blocked by water or mountains
- *    (it cannot be walked and must be detoured), exceeds the simulation's own too-far-to-walk
- *    distance, or exceeds the owner's one-hour commute allowance.
- *
- * Commute pressure is deliberately *not* rare: a long walk can exceed the one-hour allowance
- * (`WORK_COMMUTE_LEAD_HOURS`), even with bounded urgency pacing. Surfacing that is the point of
- * the overlay — the amber/red split is the finding, not a bug in the thresholds.
+ * The renderer draws; every threshold and classification lives here, pure over `WorldState`.
  */
 import { BuildingType, EntityType, type Building, type Entity, type WorldState } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycle';
@@ -36,10 +17,7 @@ import { humanBuildingTarget } from './simulation/humanMovement';
 
 /**
  * Footprint gap (world units) between two road strips that still counts as one network.
- *
- * Roads are chained edge-to-edge by `resolveRoadStripPlan`/`snapBuildingCenter`, so a real
- * junction has a gap of zero. The tolerance covers one placement-grid step (`GRID_SIZE` = 20)
- * plus rounding slack, which is what a player drawing a chain with the mouse actually leaves.
+ * A real junction has a zero gap; the tolerance covers one placement-grid step plus rounding.
  */
 export const ROAD_CONNECT_GAP = 26;
 
@@ -47,11 +25,8 @@ export const ROAD_CONNECT_GAP = 26;
 export const GOOD_ROAD_ACCESS_DISTANCE = 40;
 
 /**
- * Beyond this distance from any road footprint edge, a building has **no** road access at all.
- *
- * Measured from the building's placement anchor (its centre, `placementUtils.getBuildingCenter`)
- * to the nearest point of the nearest road footprint — not centre-to-centre, so a building that
- * touches a road reads as `0` regardless of either footprint's size.
+ * Beyond this distance from any road footprint edge, a building has no road access at all.
+ * Measured from the building's centre to the nearest point of the nearest road footprint.
  */
 export const MAX_ROAD_ACCESS_DISTANCE = 120;
 
@@ -61,10 +36,8 @@ export const MAX_ROAD_ACCESS_DISTANCE = 120;
 export const COMMUTE_EXTREME_DISTANCE = 200;
 
 /**
- * Walk time an ordinary home↔work leg may take before it is over budget.
- *
- * The owner's commute allowance is `WORK_COMMUTE_LEAD_HOURS` hours before the shift
- * (`workSchedule`: "they have an hour to commute"), converted to sim ticks with `TICKS_PER_HOUR`.
+ * Walk time an ordinary home↔work leg may take before it is over budget: the owner's
+ * `WORK_COMMUTE_LEAD_HOURS` allowance converted to sim ticks.
  */
 export const COMMUTE_WALK_BUDGET_TICKS = WORK_COMMUTE_LEAD_HOURS * TICKS_PER_HOUR;
 
@@ -90,9 +63,8 @@ export interface LogisticsRoadComponent {
 }
 
 /**
- * Why a building is flagged. A discriminated union of causes rather than a boolean plus a
- * distance, because "no roads exist at all" and "this building is off the network" are different
- * problems for the player, and `poorly_connected` is the only one with a finite distance.
+ * Why a building is flagged: a discriminated union because "no roads exist" and "this
+ * building is off the network" are different problems; only `poorly_connected` has a distance.
  */
 export type LogisticsConnectionIssue = 'no_road_network' | 'no_road_access' | 'poorly_connected';
 
@@ -187,12 +159,8 @@ function nearestPointOnRect(rect: Rect, x: number, y: number): RectHit {
 }
 
 /**
- * Uniform bucket index over road footprint centres.
- *
- * Only exists so the projection stays near-linear in village size on a per-frame path: a naive
- * buildings × roads scan is O(n²). Cell size is comfortably wider than the widest strip footprint
- * (Road is 66×26), so a query expanded by the caller's radius plus the largest road half-extent
- * is fully covered by walking the cell square around the query point.
+ * Uniform bucket index over road footprint centres, so the projection stays near-linear:
+ * a naive buildings × roads scan is O(n²). Cell size exceeds the widest strip footprint.
  */
 const ROAD_BUCKET_CELL = 128;
 
@@ -232,21 +200,16 @@ class RoadBucketGrid {
 // ============ WORLD SELECTION ============
 
 /**
- * Completed player roads — `stripTopology.isRoadStripType` is the owner of that membership.
- *
- * Deliberately not `stripFamilyFor`, which routes any unclassified strip type (Fence) into the
- * 'road' family through its fallback: a fence line is a barrier, not a supply route.
+ * Completed player roads — `stripTopology.isRoadStripType` owns that membership; not
+ * `stripFamilyFor`, whose fallback routes a Fence into the 'road' family.
  */
 function isNetworkRoad(b: Building): boolean {
   return b.completed && b.faction !== 'rival' && isRoadStripType(b.type);
 }
 
 /**
- * A building the network is supposed to serve.
- *
- * Excludes every multi-tile strip type (roads are the network; walls, gates and fences are
- * barriers, not destinations), rival structures, and sites still under construction — a
- * half-built farm has no supply demand yet.
+ * A building the network serves: completed, non-rival, and not a multi-tile strip type
+ * (roads are the network; walls, gates and fences are barriers).
  */
 function isServicedBuilding(b: Building): boolean {
   return b.completed && b.faction !== 'rival' && !isStripBuildType(b.type);
@@ -402,11 +365,8 @@ function findNearestRoad(
 // ============ PROJECTION ============
 
 /**
- * Projects the overlay's read of the world.
- *
- * Pure and deterministic: the same world always yields the same result, an empty world yields
- * empty output, and nothing here is cached between calls. Callers that render per frame want
- * {@link computeLogisticsOverlayCached} instead, which wraps this with a tick-keyed memo.
+ * Projects the overlay's read of the world. Pure and deterministic: the same world yields
+ * the same result and nothing is cached; per-frame callers use the cached wrapper.
  */
 export function computeLogisticsOverlay(world: WorldState): LogisticsOverlayData {
   const buildings = world.buildings ?? [];
@@ -521,34 +481,8 @@ export function computeLogisticsOverlay(world: WorldState): LogisticsOverlayData
 }
 
 /**
- * A settler's home↔work leg, or `null` when they have none or it is inside budget **and** passable.
- *
- * Severity precedence is `blocked` → `extreme` → `over_budget`, and the first is reported even when
- * the leg is within the walk budget: a direct line that crosses water or mountains is its own
- * finding, because the settler cannot walk it at all and must detour (`pathfinding.steerWithPath`).
- * A short-but-blocked commute was previously invisible here — it never exceeded the budget.
- *
- * The line test uses the **read-only** grid (`getReadOnlyPathGrid`) so this per-frame projection
- * cannot disturb the simulation's own grid/waypoint cache, and it is `lineCrossesBlocked` rather
- * than A\*: this runs on every render snapshot, so a search per leg would be a frame-time
- * regression. Step count scales with span (4–128 samples), so cheap short legs stay cheap.
- *
- */
-/**
- * Memoised front for {@link computeLogisticsOverlay}.
- *
- * The projection is a pure function of the world, but it is **expensive** — it rebuilds the road
- * graph and a `RoadBucketGrid`, and runs `classifyCommute` (4–128 grid samples each) for every
- * settler. `buildRenderSnapshot` calls it once per snapshot, and the snapshot cache key in
- * `gameLoop.snapshotDirtyKey()` includes the camera, which `updateView` lerps **every frame**. So with
- * the overlay on, panning re-ran the whole projection at frame rate (~60× per second) instead of once
- * per simulation tick, with ~200 commute objects of garbage per frame
- *
- * The cache key is the world **object identity** plus the tick. Identity catches adopting a new
- * authoritative world; an in-place mutation keeps the same object, so it must invalidate the memo
- * through `resetLogisticsOverlayCache` — `GameLoop.invalidateRenderSnapshot` does that at every
- * command/mutation boundary. It is deliberately conservative: a false miss costs one projection,
- * a false hit would draw stale data.
+ * Memoised front for {@link computeLogisticsOverlay}: the projection is expensive and the
+ * snapshot cache is camera-keyed. Key is world identity plus tick; reset clears it.
  */
 let cachedOverlayWorld: WorldState | null = null;
 let cachedOverlayTick = -1;
@@ -572,6 +506,10 @@ export function resetLogisticsOverlayCache(): void {
   cachedOverlay = null;
 }
 
+/**
+ * A settler's home↔work leg, or `null` when none or inside budget and passable; severity is
+ * `blocked` → `extreme` → `over_budget`, and a short blocked leg is still reported. Read-only grid, no A*.
+ */
 function classifyCommute(
   entity: Entity,
   byId: ReadonlyMap<number, Building>,

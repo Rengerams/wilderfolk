@@ -5,21 +5,14 @@ export type RngStream = () => number;
 let currentSeed = 1;
 const streams = new Map<string, RngStream>();
 /**
- * Main-thread presentation streams (screen shake, weather particles, sfx, the intro canvas).
- *
- * They are deliberately **not** in `streams`: `snapshotSimRng`/`restoreSimRng` carry the simulation
- * worker's stream positions, and the worker never draws a presentation stream. Leaving them in the
- * same registry meant every applied tick delta rewound them to the position frozen at the last
- * upload — or deleted a stream created after it — so weather respawn positions, screen shake and sfx
- * variation restarted from the same values ~3×/s. Use
- * `getPresentationRng` for these; `getSimRng` stays the simulation namespace.
+ * Main-thread presentation streams (screen shake, weather particles, sfx, the intro canvas), kept out
+ * of `streams` so a snapshot/restore of the simulation does not rewind them. Use `getPresentationRng`.
  */
 const presentationStreams = new Map<string, RngStream>();
 
 /**
- * Live 32-bit state of a created stream. Mulberry32 keeps `s` inside the closure, so a
- * rollback/save snapshot needs a handle to read it and to reset it in place — re-deriving the
- * stream from its seed would replay every draw instead of resuming it.
+ * Live 32-bit state of a created stream: Mulberry32 keeps `s` in the closure, so a snapshot needs a
+ * handle to read and reset it in place — re-deriving from the seed would replay every draw.
  */
 interface StreamStateHandle {
   get(): number;
@@ -45,12 +38,8 @@ export function hashSalt(text: string): number {
 }
 
 /**
- * Advances a Mulberry32 state by one step: `s = (s + 0x6d2b79f5) >>> 0`.
- *
- * Split from {@link mulberry32Draw} rather than returned as a `{ state, value }` tuple so the hot
- * stream body and closure-free callers (`renffrStar`, hot paths) stay allocation-free; the two
- * together are the one definition of the generator step (`duplication-deadcode.md` A21 — the copy in
- * `renffrStar.ts` had already drifted, omitting this file's documented pre-mix).
+ * Advances a Mulberry32 state by one step: `s = (s + 0x6d2b79f5) >>> 0`. Split from
+ * {@link mulberry32Draw} so the hot stream body and closure-free callers stay allocation-free.
  */
 export function mulberry32Advance(state: number): number {
   return (state + 0x6d2b79f5) >>> 0;
@@ -149,10 +138,8 @@ export interface SimRngSnapshot {
 }
 
 /**
- * Capture every live stream position so a resumed or retried world continues its draws.
- *
- * Simulation streams only — presentation streams (`getPresentationRng`) are main-thread-only and are
- * never captured or restored.
+ * Capture every live stream position so a resumed or retried world continues its draws. Simulation
+ * streams only — presentation streams are main-thread-only and are never captured or restored.
  */
 export function snapshotSimRng(): SimRngSnapshot {
   const owners: Array<[string, number]> = [];
@@ -258,11 +245,8 @@ export function adoptSimSeedFromWorld(world: { worldMap?: { seed?: number } | nu
 }
 
 /**
- * Retrieves or lazily creates a domain-isolated PRNG stream for the current run seed.
- *
- * Simulation namespace: streams created here travel with the world (save file, worker hand-off,
- * prep rollback, tick delta). Presentation-owned randomness must use `getPresentationRng` instead,
- * or a restored snapshot will rewind it.
+ * Retrieves or lazily creates a domain-isolated PRNG stream for the current run seed. Simulation
+ * streams here travel with the world; presentation-owned randomness must use `getPresentationRng`.
  */
 export function getSimRng(owner: string): RngStream {
   let rng = streams.get(owner);
@@ -274,13 +258,8 @@ export function getSimRng(owner: string): RngStream {
 }
 
 /**
- * Retrieves or lazily creates a main-thread **presentation** stream (screen shake, weather
- * particles, sfx, intro canvas).
- *
- * Seeded from the active simulation seed so a replay of one seed still looks the same, but kept in a
- * separate registry that `snapshotSimRng`/`restoreSimRng` never read or write: the simulation worker
- * cannot know a presentation stream's position, so its snapshot must not rewind or delete one.
- * `setSimSeed`/`resetSimRng` do clear this registry, so a new world starts every stream fresh.
+ * Retrieves or lazily creates a main-thread presentation stream (screen shake, weather particles, sfx,
+ * intro canvas), in a registry the simulation snapshot never reads or writes.
  */
 export function getPresentationRng(owner: string): RngStream {
   let rng = presentationStreams.get(owner);

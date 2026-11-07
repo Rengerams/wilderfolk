@@ -101,11 +101,8 @@ export default function PopulationPanel({
   const playerHumans = state.entities.filter(
     (e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e),
   );
-  // Work / bed counts come from the village aggregation and the assignable-bed owner rather than the
-  // raw tick counters and `getOpenBeds`: the counters can disagree with the header, and
-  // `getOpenBeds` counts beds a settler cannot actually be assigned to. The panel states no counter
-  // of its own — adults, children, jailed, working and idle all come from `villageStats`, and the
-  // immigration cap from `resolvePopulationCap`.
+  // Work / bed counts come from the village aggregation and the assignable-bed owner, not the raw tick
+  // counters or `getOpenBeds`, which count beds a settler cannot be assigned to.
   const villageStats = computeVillageStats(state);
   const moonHowlerCursed = countActiveMoonHowlerCurses(state.entities);
   const moonHowlerTransformed = state.entities.filter(isActiveMoonHowler).length;
@@ -140,9 +137,8 @@ export default function PopulationPanel({
       <div className="mb-3 flex items-end justify-between gap-2">
         <div>
           <h3 className="text-sm font-bold text-stone-300">Population & Families</h3>
-          {/* The roster's own header: how many households, how many beds they share, and the cap the
-              growth owner applies. The open-bed count and the mood label are the People screen's stat
-              cards above this panel — they were printed a second time here (2026-09-22 audit, P1). */}
+          {/* The roster's own header: households, shared beds, and the growth owner's cap. The
+              open-bed count and mood label belong to the stat cards above this panel. */}
           <p className="text-[13px] text-stone-300">{familyGroups.length} families · 🛏️ {beds} beds · cap {capacity}</p>
         </div>
       </div>

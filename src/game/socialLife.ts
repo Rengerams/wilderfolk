@@ -389,14 +389,8 @@ export function pickSocialImpulse(
   // `nearbyKids` is intentionally unused here; kid_play is dispatched by the caller.
   void nearbyKids;
 
-  // Day Out — a settler with nowhere to be had no anchor in this list at all. `sunday_service` is
-  // `weekday === 6` only (Sun 09:00–13:00), and every other motive is a low-probability personal
-  // errand, so they fell straight through to `none`: `tickAdultLeisureMotive` does nothing with
-  // `none`, no target was set, and the village sat indoors. Measured on the shipped tick over 60
-  // days (09:00–15:00): **nine of every ten adult settler-samples had no work assignment at all**,
-  // and an idle settler's only reachable destination was home — which is why the owner saw the same
-  // thing on workdays and weekends. Resting at home is the *fallback*, not the plan. Sick, grieving
-  // and storm-bound settlers never reach here, because those branches return above.
+  // Day Out — a settler with nowhere to be needs an anchor in this list; without it an idle
+  // settler's only destination is home. Resting at home is the fallback, not the plan.
   const idle = !hasWorkAssignment(entity);
   if ((!isWorkDay(tick) || idle) && hour >= 9 && hour < EVENING_START) {
     const haunt = pickSocialBuilding(

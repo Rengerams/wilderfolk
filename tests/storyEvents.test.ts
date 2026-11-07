@@ -1,9 +1,6 @@
 /**
- * Signature stories (v0.6.1): authored cross-system choices — the first-session
- * wolf choice and the philosophical election debate. These pin the offer
- * guards (once-per-world / once-per-election), the resolution effects (eco,
- * reputation, food) and the command-validator parity so the stories can't
- * drift from the UI the player sees.
+ * Signature story beats pin their offer guards (once per world / once per election), their
+ * resolution effects, and command-validator parity with the UI.
  */
 import { describe, expect, it } from 'vitest';
 import { isWorkerCommand } from '../src/game/simWorker/commands';
@@ -250,9 +247,7 @@ describe('first-session arc', () => {
     expect(state.pendingStoryEvents?.length).toBe(1);
     const accepted = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'accept');
     expect(accepted.storyFlags?.winter_accepted).toBeGreaterThan(0);
-    // 270 is the first freeze (after three 90-day seasons) — the day
-    // the check actually fires. These three cases drove 260, ten days inside autumn, which encoded the
-    // card's stale copy rather than the season owner (2026-09-21 audit).
+    // 270 is the first freeze (after three 90-day seasons), the day the check actually fires.
     accepted.dayInYear = 270;
     accepted.resources.wood = 150;
     accepted.resources.food = 200;
@@ -281,9 +276,8 @@ describe('first-session arc', () => {
     state.dayInYear = 210;
     maybeOfferWinterPrep(state);
     const declined = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'decline');
-    // Same day as the two cases above, on purpose: at 260 this asserted only that nothing happens on a
-    // day the check does not run. On the freeze day it asserts the real rule — a decline is not
-    // penalised when the freeze is actually graded.
+    // Same freeze day as the two cases above: a decline is not penalised when the freeze is
+    // actually graded.
     declined.dayInYear = 270;
     declined.resources.wood = 5;
     declined.resources.food = 5;

@@ -1,9 +1,6 @@
 /**
- * F-RND-30 — the master bus is limited before the speakers.
- *
- * The `loud` preset scales the master past unity and every bus sums into it, so the last node
- * before `destination` has to bound the signal. Node has no Web Audio, so the graph is built
- * against a recording stand-in for `AudioContext` — the boundary, not one of our own modules.
+ * The master bus is limited before the speakers: `loud` scales past unity, so the last node before
+ * `destination` must bound it. Node has no Web Audio, so the graph uses a recording stand-in.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { LIMITER } from '../src/audio/constants';

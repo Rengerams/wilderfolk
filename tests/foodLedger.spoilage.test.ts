@@ -1,9 +1,6 @@
 /**
- * Audit L8 (`docs/private/audits/2026-09-16/sim-economy-leadership-combat.md`, tracked in
- * `LIVE-FINDINGS-STATUS.md`): food spoilage was the one sink that never reached the economy ledger.
- * `applyFoodSpoilage` removed up to 2 %/day (×1.3 summer, ×0.6 winter) and floated `-N food spoiled`,
- * while `recordFoodConsumed` was only ever called for `meals` and `medicine` — so the "why is my food
- * low?" panel could not reconcile produced − consumed against the real food delta.
+ * `applyFoodSpoilage` must record what it destroyed on the ledger's consumed side, and
+ * `ECONOMY_SOURCE_LABELS` must name the `spoilage` source so the panel can render the row.
  */
 import { describe, expect, it } from 'vitest';
 import { Season } from '../src/game/gameTypes';
@@ -23,7 +20,7 @@ describe('spoilage reaches the food ledger (L8)', () => {
 
     const lost = 1000 - state.resources.food;
     expect(lost).toBe(20);
-    // Pre-fix the store lost 20 with no ledger row at all (`consumed` had only meals/medicine).
+    // Spoilage is a `consumed.spoilage` ledger row — the store never shrinks untracked.
     expect(state.economyLedger?.consumed.spoilage).toBe(lost);
     expect(ECONOMY_SOURCE_LABELS.spoilage).toBeTruthy();
     // The panel's label map is what renders the row; an unknown key would print the raw key.

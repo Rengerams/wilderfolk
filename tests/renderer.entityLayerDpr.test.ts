@@ -1,13 +1,6 @@
 /**
- * The entity layer rasterises at the device pixel ratio (audit `visuals-looks.md` D1).
- *
- * The layer used to be allocated at **logical** size and blitted 1:1 through a destination
- * context scaled by `devicePixelRatio`, so under `imageSmoothingEnabled = false` every sprite,
- * building, shadow and particle was nearest-neighbour upscaled by the DPR while HUD text drawn
- * straight into the context stayed crisp.
- *
- * These pin both halves of the fix: the surface is `dpr × logical`, and the blit names the
- * **logical** destination size — which, through the DPR-scaled target, is the 1:1 device copy.
+ * The entity layer rasterises at the device pixel ratio: the surface is `dpr × logical`, and the blit
+ * names the logical destination size, which through the DPR-scaled target is the 1:1 device copy.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -41,10 +34,8 @@ let entityLayerNeedsRebuild: EntityLayerModule['entityLayerNeedsRebuild'];
 let paintEntityLayerTo: EntityLayerModule['paintEntityLayerTo'];
 
 /**
- * `targetX` / `targetY` / `targetZoom` are the camera's smoothing targets; `Camera` requires
- * them, and `beginEntityLayerPaint` / `paintEntityLayerTo` read only `x`, `y` and `zoom`
- * (they anchor and translate straight from the live camera), so the targets are set equal to
- * the live values and never read here.
+ * `targetX` / `targetY` / `targetZoom` are required by `Camera` but unread by the entity layer, so
+ * they mirror the live values.
  */
 const CAM = { x: 0, y: 0, zoom: 1, targetX: 0, targetY: 0, targetZoom: 1 };
 

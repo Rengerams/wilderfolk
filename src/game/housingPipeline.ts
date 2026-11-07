@@ -698,13 +698,8 @@ export function rebalanceOvercrowdedResidences(
 
 
 /**
- * Keep house/mansion occupants in sync with residenceBuildingId for the UI.
- *
- * One forward pass over `humans` buckets occupant ids by residence instead of re-scanning the
- * whole array once per residence. The occupant id **order** is unchanged: the per-building
- * `.filter().map()` this replaces emitted ids in `humans` order, and appending to a building's
- * bucket during the single forward pass emits exactly that order
- * (`tests/housingPipeline.occupantOrder.test.ts` pins it).
+ * Keep house/mansion occupants in sync with `residenceBuildingId` for the UI: one forward pass over
+ * `humans` buckets ids by residence, preserving `humans` order.
  */
 export function syncResidenceOccupants(humans: Entity[], buildings: Building[]): void {
   const occupantsByResidenceId = new Map<number, number[]>();
@@ -807,12 +802,8 @@ function fillHomelessAfterEviction(
 }
 
 /**
- * Sweep buckets per day — one per assignment pulse.
- *
- * `assignMissingResidences` with a tick sweeps only the units whose bucket that pulse owns, so a day
- * of reassignment work is spread across the day instead of landing whole on the day boundary. It must
- * equal the assignment layer's pulses per day (`TICKS_PER_DAY / LAYER_ASSIGN_INTERVAL`, 72 / 18 = 4)
- * or a bucket would never come round; the guard test pins that coupling.
+ * Sweep buckets per day — one per assignment pulse, so a day's reassignment work is spread rather
+ * than landing on the day boundary. Must equal the assignment layer's pulses per day (test-pinned).
  */
 export const RESIDENCE_SWEEP_BUCKETS = 4;
 
@@ -823,15 +814,8 @@ function activeSweepBucket(tick: number): number {
 }
 
 /**
- * Seat every settler who has no residence, repair every housing unit that is wrongly placed.
- *
- * `allHumansForGenealogy` widens the family pool and the bed count beyond the settlers being seated:
- * a settler who may not move still occupies a bed. With no `sweepTick`
- * the whole colony converges at once — a load, a player command or an event must not wait for a
- * bucket to come round. With one, only that pulse's bucket of already-housed units is swept; the
- * eviction rebalance and the homeless fill below stay global on every call, so a settler who loses a
- * bed is never left outside until the next cycle. `leaderPhase` supplies the manor hold's decision, run
- * as the first phase on this run's ledger so housing stays one ordered process.
+ * Seat every settler with no residence and repair wrongly placed units; `allHumansForGenealogy` widens
+ * the pool and bed count. A `sweepTick` limits the sweep to its bucket; the fill stays global.
  */
 export function assignMissingResidences(
   humans: Entity[],
@@ -902,8 +886,8 @@ export function assignMissingResidences(
     for (let pass = 0; pass < 24; pass++) {
       ledger.report.stats.passes += 1;
       let reassigned = 0;
-      // One occupancy scan per pass — O(H) then O(1) counts (EK-E2) — and one trait walk beside it,
-      // threaded through every pick below instead of rebuilt per pick (F-SIM-9).
+      // One occupancy scan per pass — O(H) then O(1) counts — and one trait walk beside it, threaded
+      // through every pick below instead of rebuilt per pick.
       const occupancy = buildResidenceOccupancy(residents);
       const playerOccupancy = buildPlayerResidenceOccupancy(alive);
       const traits = buildResidenceTraits(residents);
@@ -933,9 +917,8 @@ export function assignMissingResidences(
       if (reassigned === 0 && !evicted) break;
     }
   } else {
-    // A pulse visits only its own quarter of the housing units. Several units
-    // can depend on the same available house, so re-evaluate this bucket after
-    // the first round rather than postponing a newly feasible move for a day.
+    // A pulse visits only its own quarter of the housing units. Several units can depend on the same
+    // available house, so re-evaluate this bucket rather than postponing a feasible move by a day.
     const bucket = activeSweepBucket(sweepTick);
     const sweepUnits = housingUnitsBase.filter(
       (unit) => housingUnitBucket(unit, RESIDENCE_SWEEP_BUCKETS) === bucket,
@@ -963,10 +946,8 @@ export function assignMissingResidences(
       fillHomelessAfterEviction(alive, residences, afterEvict, traitsAfterEvict, ledger);
     }
 
-    // Earlier buckets can acquire a newly available house only after later
-    // buckets release it. At the final daily pulse, revisit those units once
-    // against the now-current occupancy. This removes the one-day delay without
-    // re-running the expensive 24-pass unsplit allocator every tick.
+    // Earlier buckets can only acquire a house after later buckets release it, so the final daily
+    // pulse revisits every unit against the now-current occupancy — no one-day delay.
     if (bucket === RESIDENCE_SWEEP_BUCKETS - 1) {
       ledger.report.stats.passes += 1;
       const occupancy = buildResidenceOccupancy(residents);
@@ -1096,7 +1077,7 @@ export function syncPartnerResidence(
 ): void {
   if (residences.length === 0) return;
 
-  // Couple + housing-minor kids only — adult children who moved out stay put (EK-E5).
+  // Couple + housing-minor kids only — adult children who moved out stay put.
   const household: Entity[] = [human, partner];
   for (const member of collectOwnHousehold(human, humans)) {
     if (member.id === human.id || member.id === partner.id) continue;
@@ -1537,13 +1518,8 @@ export function buildHousingUnits(humans: Entity[]): Entity[][] {
     childrenByCustodian.set(custodian.id, bucket);
   }
 
-  // A settler may appear in exactly one unit. Custodians are visited in bucket order, and a
-  // settler can be the custodian of one bucket *and* the partner (or a member) of another —
-  // for example a widower adding his late partner's child, and his new partner adding hers.
-  // The old loop had no guard, so the second bucket re-added the already-visited settler and
-  // produced two units claiming one person: each unit's reassignment invalidated the other,
-  // `reassigned` never reached 0 and the convergence loop burned all its passes 4×/day,
-  // leaving that settler housed away from one half of the family.
+  // A settler may appear in exactly one unit: a custodian can also be the partner or member of another
+  // bucket, which would produce two units claiming one person. `unitByMember` enforces one home.
   const unitByMember = new Map<number, Entity[]>();
   const claim = (unit: Entity[], member: Entity) => {
     unit.push(member);
@@ -1572,11 +1548,8 @@ export function buildHousingUnits(humans: Entity[]): Entity[][] {
 
   for (const human of alive.sort((a, b) => a.id - b.id)) {
     if (visited.has(human.id)) continue;
-    // The fallback unit is the settler, a living partner and their *minor* children.
-    // `collectOwnHousehold` also walks `childrenIds` with no age filter, so a parent whose
-    // children had all grown up formed a unit spanning two houses; `isFamilyHousingValid`
-    // then failed and the convergence loop re-homed the whole unit together, silently
-    // undoing the adult-child move-out on every pass (it could never persist).
+    // The fallback unit is the settler, a living partner and their *minor* children: `collectOwnHousehold`
+    // has no age filter, so a unit spanning two houses would undo the adult-child move-out every pass.
     const unit = collectMinorHousehold(human, alive).filter((member) => !visited.has(member.id));
     if (unit.length === 0) continue;
     for (const member of unit) visited.add(member.id);
@@ -1677,13 +1650,8 @@ function lowestMemberId(unit: readonly Entity[]): number {
 }
 
 /**
- * Deterministic CURRENT sweep bucket, not a persisted household identity. When the
- * lowest-ID member leaves or dies, the remaining unit can move to another bucket.
- * That is safe: each day's four pulses cover all buckets, and the final pulse
- * revisits every housing unit against current occupancy. Mandatory homelessness,
- * custody and capacity repairs are also handled independently of this hash.
- * Persisting a separate household ID would create save/migration state without
- * fixing any missed relocation in the existing bounded daily sweep.
+ * Deterministic CURRENT sweep bucket, not a persisted household identity: a unit can move bucket when
+ * its lowest-ID member leaves, which the day's four pulses and the final revisit cover.
  */
 export function housingUnitBucket(unit: Entity[], buckets: number): number {
   return lowestMemberId(unit) % buckets;
@@ -1766,9 +1734,8 @@ function isUnnecessarilySharingHousing(
 
 export function auditHousingSharingIssues(humans: Entity[], buildings: Building[]): string[] {
   const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
-  // Player housing only, and never the Leader's House: rival-camp houses count 0 *player*
-  // residents and the manor is never a placement target, so counting either as an "empty
-  // house available" reported sharing that no picker could actually resolve.
+  // Player housing only, and never the Leader's House: rival-camp houses count 0 *player* residents
+  // and the manor is never a placement target.
   const residences = buildings.filter(
     (b) => isAssignableHome(b) && !isLeaderHouseResidence(b),
   );
@@ -2105,9 +2072,8 @@ function relocateCommuteSwaps(
 }
 
 /**
- * Per-residence facts the pickers ask about, built in **one** walk over `humans` and then kept
- * current by `residenceTraitMove` beside every occupancy move — threading it through is what makes
- * a pick O(residences) instead of O(residences × humans).
+ * Per-residence facts the pickers ask about, built in one walk and kept current by `residenceTraitMove`
+ * beside every occupancy move, which makes a pick O(residences) rather than O(residences × humans).
  */
 export interface ResidenceTraits {
   adults: number;
@@ -2153,9 +2119,8 @@ export function buildResidenceTraits(humans: readonly Entity[]): ResidenceTraits
 }
 
 /**
- * Applies one move to a threaded trait map, exactly as a fresh `buildResidenceTraits` would read it
- * at that moment. Every residence write inside an assignment pass must call this beside
- * `occupancyMove`, or the threaded map drifts from the live world.
+ * Applies one move to a threaded trait map, exactly as a fresh `buildResidenceTraits` would read it.
+ * Every residence write in an assignment pass must call this beside `occupancyMove`.
  */
 export function residenceTraitMove(
   traits: ResidenceTraitsById,

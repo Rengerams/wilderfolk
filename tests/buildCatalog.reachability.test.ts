@@ -1,9 +1,6 @@
 /**
- * Every building type must be reachable from the build menu.
- *
- * The menu renders a category's `types` and nothing else, so a type missing from
- * `BUILDING_CATEGORIES` is unbuildable by the player even when its config, art and effect exist.
- * `WildlifePreserve` was in that state, which also made the `keeper_of_the_wild` chapter unreachable.
+ * Every building type must be reachable from the build menu: the menu renders a category's `types`
+ * only, so a type missing from `BUILDING_CATEGORIES` is unbuildable however complete its config.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

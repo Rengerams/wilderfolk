@@ -1,10 +1,6 @@
 /**
- * Textured 2.5D ground: project an existing flat Whittaker chunk onto the same
- * 32px triangular elevation mesh used by all world-space entity foot positions.
- *
- * Baked ONLY when the source chunk completes (or its coarse preview appears).
- * The main draw loop then does one ordinary drawImage per cached projected chunk;
- * there are no triangle transforms or height samples per animation frame.
+ * Textured 2.5D ground: project a flat Whittaker chunk onto the 32px triangular elevation mesh.
+ * Baked when the chunk completes or its preview appears, so the draw loop does one `drawImage`.
  */
 import type { WorldMap } from '../gameTypes';
 import { TERRAIN_HEIGHT_MESH_MAX_RISE, TERRAIN_HEIGHT_MESH_STEP, supportsTerrainHeightMesh, terrainRiseAt } from '../terrainAtlas';
@@ -23,9 +19,8 @@ interface Vertex {
 }
 
 /**
- * Approximate the unique ground coordinate under a pixel. Because the mesh's maximum
- * 28px rise is smaller than its 32px cell, y → y − rise is strictly increasing.
- * A bounded bisection gives an unambiguous inverse even on the steepest cliffs.
+ * Approximate the unique ground coordinate under a pixel. The max 28px rise is smaller than the
+ * 32px cell, so y → y − rise is strictly increasing and bounded bisection inverts it.
  */
 export function unprojectTerrainY(map: WorldMap | null, x: number, flatY: number): number {
   // v1/v2 draw flat terrain: keep their historic XY pointer mapping unchanged.
@@ -43,11 +38,8 @@ export function unprojectTerrainY(map: WorldMap | null, x: number, flatY: number
 }
 
 /**
- * Clip source material to one projected triangle, then apply an affine y warp.
- *
- * For a planar triangle rise(x,y)=gx*x+gy*y+intercept, x' = x and
- * y' = y + pad - rise(x,y). This avoids heavyweight WebGL and draws exactly the
- * source texels belonging to each cell, rather than re-blitting the whole chunk.
+ * Clip source material to one projected triangle, then apply an affine y warp:
+ * `x' = x`, `y' = y + pad - rise(x, y)` for the triangle's planar rise.
  */
 function paintTriangle(
   ctx: CanvasContext2d,
@@ -65,10 +57,8 @@ function paintTriangle(
   const gy = ((b.x - a.x) * (c.rise - a.rise) - (c.x - a.x) * (b.rise - a.rise)) / det;
   const intercept = a.rise - gx * a.x - gy * a.y;
 
-  // Adjacent Canvas clip masks each antialias the exact shared edge down
-  // toward alpha 0. Their two half-covered triangles leave a visible diagonal
-  // seam in opaque water and soil. Overlap triangle masks slightly, and extend
-  // the source crop past the nominal cell so the overlapping clip has texels.
+  // Adjacent clip masks antialias the shared edge to alpha 0, leaving a seam; overlap triangle
+  // masks slightly and extend the source crop so the overlap has texels.
   const ax = a.x, ay = a.y + HEIGHT_MESH_TOP_PAD - a.rise;
   const bx = b.x, by = b.y + HEIGHT_MESH_TOP_PAD - b.rise;
   const cx = c.x, cy = c.y + HEIGHT_MESH_TOP_PAD - c.rise;

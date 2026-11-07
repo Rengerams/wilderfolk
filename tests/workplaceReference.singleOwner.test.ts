@@ -1,14 +1,6 @@
 /**
- * One authoritative reference for a settler's workplace (§5).
- *
- * The pointer, its roster entry and the `job`/`occupation` labels go through the workforce doors
- * (`clearWorkerAssignment`, `detachWorkplaceReference`, `assignWorkerTransition`,
- * `transferWorkerBetweenBuildings`), so a death, a demolition, a stale leader post, a caravan
- * departure and the moon forms all reach the same code. A prison sentence clears nothing.
- *
- * This guard pins the modules allowed to write the pointer directly: the owner, the save boundary
- * (the nested Moon Howler form included) and the moon-form owner, where a form transform or the
- * Church rite displaces or restores a post outside the staffing transition.
+ * One authoritative reference for a settler's workplace: only the owner (`workforce.ts`), the save
+ * boundary and the moon-form owner write the pointer; every other module uses the workforce doors.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';

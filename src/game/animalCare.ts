@@ -1,9 +1,6 @@
 /**
- * A1 — Post-taming animal care (roadmap v0.6.3).
- * Bounded daily stewardship: each tamed animal consumes 15% of a human's
- * normal daily food consumption (3 food/day) = 0.45 food per animal per day.
- * Status transitions: fed → warning (low food) → shortage (no food) → fed.
- * Approved direction: the shared food stock represents a fish-capable ration.
+ * Post-taming animal care: each tamed animal consumes 15% of a human's daily food (0.45/day).
+ * Status steps fed → warning → shortage → fed when rations resume.
  */
 import type { WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
@@ -34,13 +31,8 @@ const ANIMAL_DAILY_FOOD = Human.DAILY_FOOD_CONSUMPTION * Animal.FOOD_RATIO_OF_HU
 export const TAMED_ANIMAL_OWNER_ENERGY_BONUS = 8;
 
 export function countTamedAnimals(state: WorldState): number {
-  // A pet is a living animal that has an owner, full stop. The audit's L2 defect — a pet whose
-  // owner died stayed on the ration list forever and could never be hunted — is fixed where it
-  // belongs, at the removal owner: `humanLifecycleCleanup.reconcileFamilyReferencesAfterRemoval`
-  // clears the dead owner's `tamedBy`, which makes the animal wild and huntable again the moment
-  // the owner is removed. Filtering on the owner's liveness here as well would instead leave a
-  // stale link in place and hide the animal from the ration list while `isValidHuntPrey` still
-  // refused it, i.e. an animal that is neither fed nor huntable.
+  // A pet is a living animal with an owner, full stop: removal of the owner clears `tamedBy` at
+  // `reconcileFamilyReferencesAfterRemoval`, which makes the animal wild and huntable again.
   let count = 0;
   for (const e of state.entities) {
     if (e.alive && e.tamedBy != null) count++;
@@ -54,9 +46,8 @@ export function getAnimalCareStatus(state: WorldState): AnimalCareStatus {
 }
 
 /**
- * True when the colony provided today's tamed-animal ration, i.e. a pet is
- * being fed this colony day. When false, tamed predators are on their own and
- * may hunt to feed themselves rather than relying on the pantry.
+ * True when the colony provided today's tamed-animal ration. When false, tamed predators may hunt
+ * for themselves instead of relying on the pantry.
  */
 export function tamedAnimalsFedToday(state: WorldState): boolean {
   return (state.storyFlags?.[FLAG_FED_DAY] ?? -1) === getColonyDay(state);
@@ -85,15 +76,8 @@ export function tickAnimalCare(state: WorldState): void {
     if (previousStatus === 'shortage' || previousStatus === 'warning') {
       addNotification(state, '🐾 Animals fed again', 'The tamed animals are back on rations.', 'success');
     }
-    // Tamed animals are not just a food sink — a fed pet gives its owner a
-    // small daily energy lift so taming has a real gameplay benefit.
-    //
-    // The owner is looked up in the canonical id → living-entity map instead of
-    // `state.entities.find(…)`: the previous form walked every living entity (grass and trees
-    // included) once per tamed animal, inside a loop that was already walking all of them. The
-    // original scan is kept as the map-miss fallback (the `hotelStay` precedent): every production
-    // spawn is indexed, but a caller that pushes an entity straight into `state.entities` is still
-    // answered the old way rather than silently skipped.
+    // A fed pet gives its owner a small daily energy lift. The canonical id → living-entity map is
+    // read first, with the entity scan kept as fallback for unindexed spawns.
     const entityById = ensureEntityByIdMap(state);
     for (const animal of state.entities) {
       if (!animal.alive || animal.tamedBy == null) continue;
@@ -114,9 +98,8 @@ export function tickAnimalCare(state: WorldState): void {
 
   if (!alreadyFedToday) {
     const warningDay = state.storyFlags?.[FLAG_WARNING_DAY] ?? -1;
-    // `FLAG_SHORTAGE_DAY` records that the shortage has already been announced (it was written
-    // but never read), so the warning fires once per shortage episode instead of every day the
-    // animals stay unfed. The fed branch above clears both markers.
+    // `FLAG_SHORTAGE_DAY` records an announced shortage, so the warning fires once per episode;
+    // the fed branch clears both markers.
     const shortageAlreadyAnnounced = (state.storyFlags?.[FLAG_SHORTAGE_DAY] ?? -1) >= 0;
     if (warningDay >= 0 && colonyDay - warningDay >= 2) {
       // Two consecutive days without food → shortage.

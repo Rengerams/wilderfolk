@@ -1,8 +1,6 @@
 /**
- * End-of-tick entity rebuild: `gameTick` merges `ctx.newEntities` into the living
- * list, retaining each entity once. This drives the real day boundary — the tick
- * with the most new spawns — and asserts the outcome on the world: the newcomers
- * survive in the merged list exactly once, and no entity repeats.
+ * End-of-tick entity rebuild: `gameTick` merges `ctx.newEntities` into the living list,
+ * retaining each entity exactly once.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

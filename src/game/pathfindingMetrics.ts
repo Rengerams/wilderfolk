@@ -1,18 +1,6 @@
 /**
- * Pathfinder instrumentation — the real A* counters the performance harness was missing.
- *
- * `spatialQueryMetrics` counts *spatial searches* (graze/flee/hunt/social/road), which the
- * perf harness reports under the name `pathCalls`. That name was always a proxy: the harness
- * record itself carries `pathCalls.source` telling a reader not to quote the number as
- * pathfinding. This module is the real thing —  A* invocations, node expansions, cache
- * behaviour and passability-grid rebuilds — so path calls can be reported honestly.
- *
- * Follows the established `spatialQueryMetrics` contract: opt-in via env flag, per-tick and
- * session buckets, and **zero overhead when disabled** (every recorder returns immediately on a
- * module-level boolean, so the hot path pays one predictable branch per call site).
- *
- * Owner: `src/game/pathfinding.ts` is the only writer. There is no second home for these
- * counters — `spatialQueryMetrics` deliberately stays the spatial-search owner (AGENTS.md §5.2).
+ * Pathfinder instrumentation — the real A* counters, so path calls can be reported honestly.
+ * Opt-in via env flag, per-tick and session buckets, zero overhead when disabled; `pathfinding.ts` writes it.
  */
 
 export interface PathfinderCounters {

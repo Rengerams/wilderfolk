@@ -1,21 +1,6 @@
 /**
- * Audit N-4 — one village anchor per tick, and only the half that cannot move.
- *
- * `tickHumans` re-derived `getPlayerCampCenter` for every visitor, rival and barracks guard in its
- * per-entity loop. The derivation has two halves with different lifetimes inside that loop:
- *
- *  - the building half (`getPlayerCampCenterFromBuildings`) reads `updatedBuildings`, which nothing
- *    reachable from the human loop writes — `state.buildings` is only reassigned by the demolition
- *    and placement *commands* (`buildingMaintenanceActions.ts:202`, `buildingPlacementActions.ts:163`,
- *    `:313`) and by `gameTick.ts:254/286` after all four layers; `completed` is only ever raised in
- *    the daily layer (`dailyBuildingEconomy.ts:217`), which runs after realtime. So one answer holds
- *    for the whole tick, and `tickHumans` may hoist it.
- *  - the entity half (`getPlayerSettlerCenter`) averages live settler positions. That same loop moves
- *    settlers (`entity.x += entity.vx` — humanTick.ts:501, 534, 1525) and kills them (humanTick.ts:323,
- *    1516), so a cached answer would be wrong for every entity processed after the first change.
- *
- * These cases pin both halves: the split reproduces the pre-fix anchor exactly, and after a real
- * `tickHumans` the marching raider and the barracks guard stand where the *live* anchor put them.
+ * One village anchor per tick: `tickHumans` hoists the building half (`getPlayerCampCenterFromBuildings`)
+ * because `updatedBuildings` cannot change during the loop, but re-reads the settler half each time.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, MapSize, Season, emptyEntityByType } from '../src/game/gameTypes';
@@ -154,9 +139,8 @@ interface Fixture {
 }
 
 /**
- * A village with one barracks, a marching war-band heading for the anchor, a visitor group, a
- * barracks guard on shift, and settlers who are free to roam. `withHall` decides which half of the
- * anchor answers.
+ * A village with a barracks, a marching war-band, a visitor group, a barracks guard on shift and
+ * roaming settlers; `withHall` decides which half of the anchor answers.
  */
 function anchorFixture(withHall: boolean): Fixture {
   const world = initGame({
@@ -316,9 +300,8 @@ describe('camp anchor inside the human loop (N-4)', () => {
     expect(raider.y).toBeCloseTo(320, 5);
     expect(Math.hypot(guard.x - 215, guard.y - 215)).toBeLessThan(30);
 
-    // The visitor is the third call site: its anchor read only feeds `nearVillage`, which scales the
-    // chat chance rather than steering, so it is asserted to have survived the shared branch rather
-    // than pinned to a position the anchor does not decide.
+    // The visitor's anchor read only feeds `nearVillage`, which scales chat chance rather than
+    // steering, so only its survival through the shared branch is asserted.
     expect(visitor.alive).toBe(true);
     expect(Number.isFinite(visitor.x) && Number.isFinite(visitor.y)).toBe(true);
   });

@@ -1,17 +1,6 @@
 /**
- * F6 — a full store used to discard production in silence
- * (`docs/private/audits/2026-09-16/playability-gamefeel.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * Every production gain goes through the clamp `addResource`, which caps at `storageMax` and returns
- * what it actually accepted. The producers in `dailyBuildingEconomy` threw that return away, so a
- * capped Lumber Mill was indistinguishable from an idle one — measured in the audit, wood sat at
- * exactly 800 (the cap) from ~day 60 to day 290 while a staffed mill kept running, and the only clue
- * was a number that stopped moving. The helper that answers "is this store full?" existed and had **no
- * consumer** (`resourceUtils.isResourceCapped`, grep: definition only).
- *
- * The fix routes production gains through `addProductionOutput`, which announces a refused gain —
- * **total or partial** — and returns the accepted amount for the ledger and skill reward. These tests
- * drive the real daily boundary through `gameTick` so the wiring, not the helper, is what is pinned.
+ * `addProductionOutput` announces a refused gain, total or partial, instead of discarding it: every
+ * production gain is clamped at `storageMax` and must report what it actually accepted.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -95,7 +84,7 @@ describe('a clamped store announces what it discarded', () => {
   it('leaves no producer that discards the clamp result, and gives the predicate a consumer', () => {
     const economy = readFileSync(resolve(process.cwd(), 'src/game/dailyBuildingEconomy.ts'), 'utf8');
     expect(economy).toContain('function addProductionOutput');
-    // The pre-fix shape: the accepted amount used only as a truthiness gate.
+    // Banned shape: a producer gating on the clamp result and dropping the refusal.
     expect(economy, 'a producer still gates on the clamp result and drops the refusal')
       .not.toMatch(/if \(addResource\(/);
 

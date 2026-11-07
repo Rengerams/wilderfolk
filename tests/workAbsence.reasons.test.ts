@@ -1,9 +1,6 @@
 /**
- * One case per reason class `workAbsence` distinguishes: the settler's reason for being away from
- * their post must be read from the state the simulation wrote, not re-derived by a view.
- *
- * Every fixture here builds the *stored* state a step is in — an assigned post, a residence, a
- * prison id, a festival — and asserts the owner's reason code for it.
+ * The settler's reason for being away from their post must come from `workAbsence`, read from the
+ * state the simulation wrote rather than re-derived by a view.
  */
 import { describe, expect, it } from 'vitest';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';

@@ -1,13 +1,6 @@
 /**
- * Connecting a new road to an existing one.
- *
- * `snapStripDragEndpoints` moved a drag onto a nearby chain, but its snap points were only an
- * existing strip's two ends and its centre. A road is 66 px long, so the half-tile either side of the
- * centre was further than `STRIP_SNAP_RADIUS` from any point and a drag that started part-way along a
- * road found nothing to attach to — which reads as "hard to connect".
- *
- * These cases pin the reachability of the whole run, and that a connected drag lands flush on the
- * existing road's line rather than a tile out.
+ * A drag can attach anywhere along an existing road: `snapStripDragEndpoints` snaps to the whole run,
+ * and a connected drag lands flush on the existing road's line rather than a tile out.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { initGame, createBuilding } from '../src/game/worldGen';
@@ -45,7 +38,7 @@ describe('a drag can connect anywhere along an existing road', () => {
     const [a, c] = getStripSegmentEndpoints(BuildingType.Road, road.x, road.y, 0);
     const span = Math.max(Math.abs(c.x - a.x), Math.abs(c.y - a.y));
 
-    // Walk the whole run: the tenth-of-a-tile bands either side of the centre used to find nothing.
+    // Walk the whole run: every band either side of the centre must snap to the road.
     for (let i = 0; i <= 10; i++) {
       for (const offset of [-6, 0, 6]) {
         const t = i / 10;

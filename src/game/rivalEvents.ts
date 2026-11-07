@@ -103,8 +103,7 @@ export function tickRivalSettlements(
   allAlive: Entity[],
   callbacks: RivalEventCallbacks,
 ): void {
-  // Runs once a day from tickDailyWorldEvents at 18:00, not only at the calendar boundary —
-  // a midnight-only guard stalled peace treaties, raid cooldowns and growth.
+  // Runs once a day from `tickDailyWorldEvents`, in the 18:00 world-events phase.
   callbacks.tickPendingDiplomacyEvents(state);
   maybeFoundRivalSettlement(state, allAlive);
   pruneOrphanRivalEntities(state);
@@ -139,8 +138,7 @@ export function tickRivalSettlements(
     // sit under the action-timer gate below (which is reached once per 45–90 days).
     if (!isRivalAtPeace(rival)) maybeQueueRaid(state, rival, allAlive);
 
-    // Growth rolls on its own cadence: the action-timer gate below is reached once per 45-90 days,
-    // so a camp that only grew there stayed at its founding size for years.
+    // Growth rolls on its own cadence, not through the 45–90-day action-timer gate below.
     if (
       state.year > rival.foundedYear + 1
       && isRivalGrowthDay(index, getColonyDay(state))
@@ -168,8 +166,7 @@ export function tickRivalSettlements(
 
     if (rival.relationship === 'friendly' && getSimRng('rivalEvents')() < 0.6) {
       const gold = 12 + Math.floor(getSimRng('rivalEvents')() * 18);
-      // Gift through the resource owner — the clamp used to delete the surplus of an over-cap purse
-      // while the float and the chronicle announced "Trade +Ng".
+      // Gift through the resource owner so storage caps apply.
       addCappedResource(state, 'gold', gold);
       callbacks.pushFloat(state, rival.campX, rival.campY - 20, `Trade +${gold}g`, '#22d3ee');
       callbacks.logEvent(state, 'trade', `${rival.name} sent a trade gift (+${gold} gold)`, rival.name);

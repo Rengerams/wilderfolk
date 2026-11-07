@@ -1,14 +1,6 @@
 /**
- * Wiring guards for the renderer fixes in audit `visuals-looks.md`.
- *
- * Several of these defects are not "a function returns the wrong number" but "the right code runs
- * in the wrong place" (or "the wrong code is still there"), so the honest assertion is on the
- * call site / expression rather than on a return value.
- *
- * A source guard is only evidence if it would have caught the defect, so every pattern here is
- * declared once and then fed **the pre-fix expression quoted by the audit** in
- * "guards are not vacuous" below. The same pattern is used for both halves, so the proof cannot
- * drift from the guard.
+ * Wiring guards for the renderer: each pattern is declared once and checked against the source
+ * expression it must catch.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -29,37 +21,32 @@ function readSrc(relative: string): string {
   return readFileSync(fileURLToPath(new URL(`../src/${relative}`, import.meta.url)), 'utf8');
 }
 
-// ---- D5: hunt arrows belong in the per-frame overlay, not the tick-keyed entity layer ----
+// ---- Hunt arrows belong in the per-frame overlay, not the tick-keyed entity layer ----
 const HUNT_ARROW_IN_ENTITY_LAYER = /drawHuntVisuals\(/;
 const HUNT_ARROW_IN_OVERLAY = /drawHuntVisuals\(ctx, state, cw, ch\)/;
 
-// ---- D7 and D22 were deleted with the code they pinned (`pixiTerrain.ts`, 2026-09-25), and their
-// patterns with them: an unread constant is the same dead surface the module was. ----
-
-// ---- D8: the sand/water overlay is not nested inside the atlas branch ----
+// ---- The sand/water overlay is not nested inside the atlas branch ----
 const OVERLAY_INSIDE_ATLAS_PICK = /if \(atlasPick\) \{\s*\n\s*const overlayPick/;
 
-// ---- D12: the minimap reads the canonical palette instead of its own table ----
+// ---- The minimap reads the canonical palette instead of its own table ----
 const MINIMAP_LOCAL_PALETTE = /#5f8a48/;
 
-// ---- D14: one strip index per repaint, not one per road ----
+// ---- One strip index per repaint, not one per road ----
 const PER_ROAD_JUNCTION = /detectBuildingJunction\(/;
 
-// ---- D17: the decor ghost takes the procedural draw, not a sprite that has no art on disk ----
+// ---- The decor ghost takes the procedural draw, not a sprite that has no art on disk ----
 const DECOR_PREVIEW_PROCEDURAL = /drawProceduralDecor\(ctx, state\.buildMode/;
 
-// ---- D19: the pulsing leader aura lives only in the per-frame overlay pass ----
+// ---- The pulsing leader aura lives only in the per-frame overlay pass ----
 const UNGUARDED_LEADER_AURA = /if \(isLeader && cam\.zoom > 0\.22\) \{/;
 const AURA_FROM_LAYER_PAINTER = /drawLeaderAura\(ctx, human/;
 const AURA_OWNER = /export function drawLeaderAuraOverlay/;
 const AURA_IN_LIVE_PASS = /drawLeaderAuraOverlay\(ctx, state, cw, ch\)/;
 
-// ---- D22 was deleted with the code it pinned (`pixiTerrain.ts`, 2026-09-25) ----
-
 describe('D5 — hunt arrows draw in the per-frame overlay', () => {
   it('is not painted into the tick-keyed entity layer', () => {
-    // The arrow advances on a millisecond clock (`HUNT_ANIM_MS`) while the layer repaints on a
-    // sim tick (≈1.5×/s at 1×), so a ~1 s flight was sampled once or twice and strobed.
+    // The arrow advances on the millisecond clock `HUNT_ANIM_MS`, which the tick-keyed layer
+    // cannot sample.
     expect(readSrc('game/renderer/entityComposite.ts')).not.toMatch(HUNT_ARROW_IN_ENTITY_LAYER);
     expect(readSrc('game/renderer/overlay.ts')).toMatch(HUNT_ARROW_IN_OVERLAY);
   });
@@ -102,9 +89,8 @@ describe('D12 — one terrain palette owner', () => {
   it('is defined once and imported by every consumer', () => {
     expect((readSrc('game/terrainAtlas.ts').match(/0x5e7a3a/g) ?? []).length).toBe(1);
     expect(readSrc('game/renderer/terrain.ts')).toContain('TERRAIN_PALETTE');
-    // The dormant Pixi ground used to own a third copy of this table; it was deleted 2026-09-25, so
-    // the bake and the minimap below are the only two consumers left.
-    // The minimap used to carry its own third table, which is why it could not match the map.
+    // The bake and the minimap are the only consumers of the canonical palette;
+    // the minimap reads `terrainPaletteHex`, never a local table.
     expect(readSrc('components/MiniMap.tsx')).toContain('terrainPaletteHex');
     expect(readSrc('components/MiniMap.tsx')).not.toMatch(MINIMAP_LOCAL_PALETTE);
   });
@@ -119,16 +105,15 @@ describe('D12 — one terrain palette owner', () => {
 describe('D14 — road and wall indexes are each collected once per repaint', () => {
   it('does not re-derive the junction index per road', () => {
     const src = readSrc('game/renderer/buildings.ts');
-    // A call, not the word: the doc comment above the loop names what it replaced.
+    // Match the call, not the word: the loop's doc comment also names it.
     expect(src).not.toMatch(PER_ROAD_JUNCTION);
     expect((src.match(/collectStripCenters\(/g) ?? []).length).toBe(2);
   });
 });
 
 describe('D16 — every child sprite draws the same painted figure height', () => {
-  // Painted-figure fraction of each shipped PNG's canvas, from its alpha bounding box (the Node
-  // test tier has no PNG decoder, so these are measurements, not derivations). `child_*` art that
-  // is re-cut must re-measure these *and* `JUVENILE_FIGURE_FRACTIONS`.
+  // Painted-figure fraction of each PNG's canvas from its alpha bounding box (this tier has no
+  // PNG decoder). Re-cut `child_*` art must re-measure these and `JUVENILE_FIGURE_FRACTIONS`.
   const CHILD_ART = [
     { gender: 'male', variant: 0, path: 'child_boy_bakersboy.png', figure: 0.918 },
     { gender: 'male', variant: 1, path: 'child_boy_merchantson.png', figure: 0.880 },
@@ -211,9 +196,8 @@ describe('D18 — the entity layer key covers what its painters read', () => {
   });
 
   it('the pre-fix key could not tell those states apart', () => {
-    // The field list the key carried before the fix (audit D18): no `selectedEntityIds`, no
-    // `juiceEffectsEnabled`. Same snapshots, same string — which is why the cached bitmap stayed
-    // stale until the next tick, and indefinitely while paused.
+    // A key without `selectedEntityIds` and `juiceEffectsEnabled` collides on these snapshots,
+    // so the cached bitmap stays stale.
     const preFixKey = (s: RenderSnapshot): string => [
       s.tick, s.hourOfDay, s.showGrid ? 1 : 0, s.showPaths ? 1 : 0,
       s.hoveredBuilding?.id ?? '', s.selectedEntity?.id ?? '', s.selectedBuilding?.id ?? '',
@@ -232,27 +216,14 @@ describe('D18 — the entity layer key covers what its painters read', () => {
 describe('D19 — the leader aura is drawn per frame, not into the cached layer', () => {
   it('has exactly one owner, in the overlay pass', () => {
     const humans = readSrc('game/renderer/humans.ts');
-    // The aura pulses on `renderTime` (every frame) while `drawHumans` feeds the tick-keyed entity
-    // bitmap (one repaint per sim tick, none while paused), and that painter's only caller passes
-    // `forEntityLayerCache = true` — so an aura drawn from it either froze or vanished entirely.
+    // The aura pulses on `renderTime` every frame, while `drawHumans` feeds a tick-keyed
+    // bitmap; drawing the aura there would freeze or drop it.
     expect(humans).not.toMatch(AURA_FROM_LAYER_PAINTER);
     expect(humans).not.toMatch(UNGUARDED_LEADER_AURA);
     expect(humans).toMatch(AURA_OWNER);
     expect(readSrc('game/renderer/overlay.ts')).toMatch(AURA_IN_LIVE_PASS);
   });
 });
-
-// D20 (the Pixi seasonal animation clock) was deleted with the code it pinned: `pixiTerrain.ts`
-// and its `animateSeasonalEffects` are gone (2026-09-25), so the render-clock claim has no owner
-// left to guard.
-
-// D21 (the prop-flip mirror) was deleted with the code it pinned: `stampPropSprite` and the
-// whole tile-era ground pass it belonged to. The per-pixel Whittaker bake (`bakeWhittakerGround`)
-// and the per-chunk decor bake (`bakeDecorInRect`) own
-// ground detail now, and a real `flipX` mirror for L3 decor is D24's business, not this one's.
-
-// D22 (boundary tiles feathering every differing neighbour) was deleted with the code it pinned:
-// `drawSoftTransition` lived in `pixiTerrain.ts`, deleted 2026-09-25.
 
 describe('D23 — ghost and strip previews ride the terrain relief', () => {
   it('lifts the ghost sprite and both preview plates', () => {
@@ -291,17 +262,17 @@ describe('D26 — one floating-text fade window', () => {
 });
 
 describe('guards are not vacuous', () => {
-  // Each case feeds the pattern above the exact pre-fix source quoted by the audit, so a pattern
-  // that could never fail is a test failure here rather than a silent non-guard.
+  // Each case feeds the pattern a source it must catch, so a vacuous pattern fails here rather
+  // than sitting as a silent non-guard.
   it('each pattern catches the defect it was written for', () => {
-    // D5 — `entityComposite.ts:42` before the move.
+    // The entity-layer call the pattern must catch.
     expect('  drawHuntVisuals(drawCtx, state, cw, ch);').toMatch(HUNT_ARROW_IN_ENTITY_LAYER);
-    // D8 — `terrainLayer.ts:535-536` before the fix.
+    // The overlay nested inside the atlas branch.
     expect('if (atlasPick) {\n      const overlayPick = overlayReady ? pickSandWaterOverlay(map, tx, ty) : null;')
       .toMatch(OVERLAY_INSIDE_ATLAS_PICK);
-    // D12 — `MiniMap.tsx:19` before the fix.
+    // The minimap's local palette literal.
     expect("  [TerrainType.Grassland]: '#5f8a48',").toMatch(MINIMAP_LOCAL_PALETTE);
-    // D14 — `buildings.ts:49` before the fix.
+    // The per-road junction lookup.
     expect("const roadJunction = detectBuildingJunction(state.buildings, b, 'road');")
       .toMatch(PER_ROAD_JUNCTION);
   });
@@ -317,22 +288,20 @@ describe('guards are not vacuous', () => {
   });
 
   it('each D16–D27 pattern catches the pre-fix code the audit quoted', () => {
-    // D17 — `buildPreview.ts:77-80` before the fix: the sprite lookup could only return null, so
-    // the ghost was this validity-coloured rectangle and no procedural draw existed.
+    // The validity-coloured ghost rectangle with no procedural draw.
     expect("    ctx.fillStyle = valid ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)';")
       .not.toMatch(DECOR_PREVIEW_PROCEDURAL);
-    // D19 — the aura call the layer painter used to make, verbatim.
+    // The aura call the layer painter must not make.
     expect('      drawLeaderAura(ctx, human, sx, footY, headY, size, spriteH, bobY, cam.zoom);')
       .toMatch(AURA_FROM_LAYER_PAINTER);
     expect('    if (isLeader && cam.zoom > 0.22) {').toMatch(UNGUARDED_LEADER_AURA);
-    // D27 — `grid.ts:272-273` before the fix: plate on the raw cell, verdict on the snapped one.
+    // Plate on the raw cell, verdict on the snapped one.
     expect('const px = worldToScreenX(rawX, cam, cw);').not.toContain('worldToScreenX(cx,');
   });
 
   it('the D21 flip is a transform, so identical draw calls are not a defect', () => {
-    // Pre-fix (and current) `stampPropSprite`: the two `drawImage` calls are textually identical
-    // inside `if (flipX)`, *after* `ctx.scale(-1, 1)`. That mirrors the content — the audit read it
-    // as a no-op and its suggested re-positioning would have moved the prop a full width.
+    // `stampPropSprite`'s two `drawImage` calls are identical inside `if (flipX)`, after
+    // `ctx.scale(-1, 1)`, so the transform mirrors the content; this is not a defect.
     const preFixBody = `
   if (flipX) {
     ctx.scale(-1, 1);

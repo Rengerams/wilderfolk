@@ -1,18 +1,4 @@
-/**
- * Medium-severity simulation-audit findings M3, M4, M15, M16.
- *
- * M3  buildingStaffingActions.ts — the construction-builder picker must use the
- *     same eligibility rules as the assignment it feeds: no pregnant settler is
- *     put on a construction crew, and no "Builder Assigned" is announced when
- *     addToConstructionCrew refuses.
- * M4  buildingStaffingActions.ts — canAssignWorkerToBuilding's unfinished-building
- *     branch must require `!hasWorkAssignment`, or the button is enabled for an
- *     action the assignment path always refuses.
- * M15 humanTick.ts — the throttled off-screen drain must call the single
- *     humanEnergyLoss owner, so exhaustion does not depend on the camera.
- * M16 humanTick.ts — an on-duty Official at a completed Town Hall must reach
- *     officialHandlePetitioners.
- */
+/** Staffing, off-screen energy drain and official-duty regressions. */
 import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
 import {
@@ -143,9 +129,8 @@ const FAR_FOCUS: SimulationFocus = { minX: 5000, maxX: 6000, minY: 5000, maxY: 6
 
 describe('M3 — construction-builder picker matches addToConstructionCrew', () => {
   it('accepts a pregnant settler on a construction crew, as the crew owner does', () => {
-    // Pregnancy stopped being an exclusion on 2026-09-17 (owner ruling, `LIVE-FINDINGS-STATUS.md` L4):
-    // the crew owner itself never refused it, so the picker was the only side saying no. The picker and
-    // the assignment it feeds must agree — here both accept.
+    // The construction-builder picker and the crew owner must agree: neither excludes a pregnant
+    // settler, so this picks and assigns her.
     const pregnant = human(1, { pregnant: true });
     const site = building(5, BuildingType.House, { completed: false });
     const world = makeWorld([pregnant], [site]);

@@ -1,9 +1,8 @@
 import type { Entity, WorldState } from './gameTypes';
 
 /**
- * A Map remains a Map after `structuredClone`, but its values are detached
- * clones. This weak association marks the exact map built for a live
- * WorldState so cloned or delta-stale maps are rebuilt instead of trusted.
+ * A Map survives `structuredClone`, but its values are detached clones. This weak association
+ * marks the exact map built for a live WorldState so stale maps are rebuilt, not trusted.
  */
 const canonicalMapByWorld = new WeakMap<WorldState, Map<number, Entity>>();
 
@@ -22,9 +21,8 @@ export function unindexEntityFromState(state: WorldState, id: number): void {
 }
 
 /**
- * Ensure entity lookup entries belong to this WorldState's active entities.
- * A transferred Map is structurally valid but stores detached entity clones,
- * so only maps created for this specific world object may be reused.
+ * Ensure entity lookup entries belong to this WorldState's active entities; a transferred map
+ * is structurally valid but stores detached clones, so only maps created here are reused.
  */
 export function ensureEntityByIdMap(state: WorldState): Map<number, Entity> {
   const existing = state.entityById;

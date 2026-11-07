@@ -21,9 +21,8 @@ export default function VillageLeadershipPanel({ state }: { state: WorldState })
   const leaderBreakdown = leader ? getLeadershipScoreBreakdown(state, leader) : null;
   const leaderRecord = leader ? getIncumbentRecordAssessment(state, leader) : null;
   const ceremonyStatus = getElectionCeremonyStatus(state);
-  // The promise system judges the player 180 game days after the ceremony (`EVAL_DAY_OFFSET`), and
-  // until now nothing in the UI said what was promised or how it was going
-  // (`LIVE-FINDINGS-STATUS.md`, F4).
+  // The promise system judges the player 180 game days after the ceremony (`EVAL_DAY_OFFSET`);
+  // this surfaces what was promised and how it is going.
   const promises = getActiveElectionPromises(state);
   const lastVote = state.lastElectionResult;
   const liveVote = state.electionCeremony?.ballotCast ? state.electionCeremony : null;

@@ -6,8 +6,7 @@ import type { WorldState } from '../src/game/gameTypes';
 
 /**
  * `WorldState.year` counts closed calendar years from 0, but every player-facing surface reads the
- * first year as "Year 1". `displayYear` is the one conversion; these tests pin the boundary case the
- * owner reported and the interval/absolute-year split it must not blur.
+ * first year as "Year 1"; `displayYear` is the one conversion, including for term intervals.
  */
 describe('displayYear formats a stored year for the player', () => {
   it('reads the stored first year as Year 1', () => {

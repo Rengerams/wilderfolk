@@ -67,9 +67,7 @@ describe('daily village schedule fatigue', () => {
 
     resolveDailyVillageScheduleFatigue(world, [settler], new Map());
 
-    // Zero hours worked, so the whole 9-hour day counts as rest:
-    // 80 - (BASE_DAILY_RECOVERY 4 + 9 x RECOVERY_PER_SHORT_HOUR 3) = 80 - 31 = 49.
-    // It was 52 under the old 8-hour neutral day (8 x 3 of rest).
+    // Zero hours worked, so the whole 9-hour day rests: 80 - (BASE_DAILY_RECOVERY 4 + 9 x 3) = 49.
     expect(settler.scheduleFatigue).toBe(49);
     expect(world.eventLog).toHaveLength(0);
   });

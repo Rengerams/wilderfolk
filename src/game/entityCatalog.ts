@@ -4,9 +4,8 @@ import { isPlayerHuman } from './playerHuman';
 import { ensureEntityByIdMap } from './entityIndex';
 
 /**
- * Sparse entity store for React UI. Avoids scanning `world.entities` each render.
- * Worker path rebuilds it from the authoritative snapshot; main-thread path mirrors alive entities
- * each session update.
+ * Sparse entity store for React UI, avoiding a scan of `world.entities` each render. Rebuilt from the
+ * authoritative snapshot on the worker path, mirrored each session update on the main thread.
  */
 export class EntityCatalog {
   private byId = new Map<number, Entity>();

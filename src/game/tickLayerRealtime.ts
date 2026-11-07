@@ -41,7 +41,7 @@ import { getEcosystemHealth } from './dailyEcology';
 /** How often we sample world metrics into populationHistory. */
 export const STATS_SAMPLE_INTERVAL_TICKS = 10;
 
-/** Rolling buffer length — 300 samples × STATS_SAMPLE_INTERVAL_TICKS (≈42 game days at 72 ticks/day). */
+/** Rolling buffer length — 300 samples × STATS_SAMPLE_INTERVAL_TICKS (≈10 game days at 288 ticks/day). */
 export const POPULATION_HISTORY_MAX = 300;
 
 /** Zero-allocation array building instead of spread operator concatenation. */

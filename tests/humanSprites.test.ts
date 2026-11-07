@@ -29,20 +29,8 @@ import { getHumanWalkMotion } from '../src/game/renderer/spriteDrawing';
 import { CAMERA_ZOOM_PRESETS } from '../src/game/viewState';
 
 /**
- * Male class ladder — the ten cut sprites from
- * `public/sprites/new_male_set/V2/Spritesheet_V2_10_males.png` (2026-09-16).
- *
- * Three nameable risks are guarded here:
- *  1. a ladder entry whose PNG is missing from the public tree — the loader then logs
- *     a failed-asset console error at boot and quietly falls back to the base sprite;
- *  2. the weighted social ladder silently flattening (a uniform male spread was the
- *     pre-2026-09-16 behaviour, and the female ladder's whole point is that the poor
- *     are common and the aristocracy rare);
- *  3. an out-of-range `spriteVariant` (older saves, hand-edited fixtures) escaping the
- *     ladder instead of wrapping into it.
- *
- * The previous five male files are kept under `new_male_set/legacy/` for rollback, so
- * the existence check also covers that path.
+ * Male class ladder: ten classes ordered poorest to aristocrat, every sprite path present and
+ * registered with the loader, weighted so the poor are common and out-of-range variants wrap in.
  */
 describe('humanSprites.maleLadder.test.ts', () => {
   /** `public/...` path existence, the same way tests/terrainAtlas.waterColor.test.ts reads art. */
@@ -109,10 +97,8 @@ describe('humanSprites.maleLadder.test.ts', () => {
 });
 
 /**
- * 4-frame walk sheets: landscape human sprites are sliced into
- * HUMAN_WALK_FRAMES frames side by side (real leg animation), while portrait
- * art (the current 27×72 placeholders) stays a single frame. Variants also
- * fall back to the entity-id pick when unset, so the village shows all outfits.
+ * 4-frame walk sheets: landscape sprites slice into `HUMAN_WALK_FRAMES` frames side by side, while
+ * portrait art stays one frame; an unset variant falls back to the entity-id pick.
  */
 describe('humanSprites.walkFrames.test.ts', () => {
   function sheet(sw: number, sh: number, anchorY?: number): SpriteFrame {
@@ -168,13 +154,8 @@ describe('humanSprites.walkFrames.test.ts', () => {
 });
 
 /**
- * Settlers show a step while walking (audit `visuals-looks.md` D10).
- *
- * `humanSprites.sliceWalkFrame` returns the sheet **unchanged** for every walk frame because
- * every shipped human sheet is portrait (taller than it is wide), so `HUMAN_WALK_FRAMES`, the
- * modulo and the frame counter produced no visible leg or arm motion at all — walking settlers
- * translated with a bob and nothing else. `getHumanWalkMotion` therefore drives the step from
- * the draw transform, and `renderer/humans.ts` forwards the whole motion object.
+ * Settlers show a step while walking: `sliceWalkFrame` leaves portrait sheets unchanged, so
+ * `getHumanWalkMotion` drives the step from the draw transform.
  */
 describe('humanSprites.walkMotion.test.ts', () => {
   function walker(): Entity {
@@ -210,19 +191,8 @@ describe('humanSprites.walkMotion.test.ts', () => {
 });
 
 /**
- * Zoomed-out settler LOD (2026-09-16).
- *
- * Past a certain population the village stopped being readable: above
- * `HUMAN_MIN_SCREEN_PX` (30 px) the sprite path stops shrinking, so at village-wide zoom
- * every settler claimed 30 px of screen plus a shadow, a status badge, a speech bubble
- * and often a name plate. Below `HUMAN_SPRITE_MIN_ZOOM` a settler is now one small dot;
- * the frame cost falls with it, because the marker path skips the sprite lookup, walk
- * frame, contact shadow, bob, badge, bubble and label.
- *
- * These cases pin the parts that are pure decisions: which zoom levels switch, that a
- * selected settler is exempt, the marker's size bounds, and that every class still gets
- * a distinct dot colour with a legible outline. The canvas work itself is covered by the
- * browser acceptance tier.
+ * Zoomed-out settler LOD: below `HUMAN_SPRITE_MIN_ZOOM` a settler is a small dot (no sprite lookup,
+ * shadow, badge, bubble or label), and these cases pin the pure decisions that switch modes.
  */
 describe('humanSprites.zoomMarker.test.ts', () => {
   /** Perceived brightness of a #rrggbb colour — enough to compare fill against outline. */

@@ -1,14 +1,6 @@
 /**
- * Regression: pregnant settlers used to `continue` at the end of the pregnancy
- * block in tickHumans, skipping work, social life, leisure and the single
- * movement apply at the loop bottom. The walk-to-hospital logic only existed
- * inside that block (duplicated as the "BUGFIX" band-aid), so only pregnant
- * settlers could seek a staffed hospital at all.
- *
- * After the fix, hospital seeking is a main-loop behavior gated on
- * `needsMedicalCare(entity)` (which already covers pregnancy): sick or
- * pregnant settlers pick the nearest staffed hospital to walk to; healthy
- * settlers and already-hospital settlers do not.
+ * Hospital seeking is a main-loop behavior gated on `needsMedicalCare`: sick or
+ * pregnant settlers walk to the nearest staffed hospital, healthy ones do not.
  */
 import { describe, expect, it } from 'vitest';
 import { pickHospitalWalkTarget } from '../src/game/hospitalCare';

@@ -1,17 +1,6 @@
 /**
- * Roadmap **U2/O2** — the shared action outcome.
- *
- * `U2`'s stated outcome is *"every blocked story choice gives a clear reason and remains available
- * until the player can act"*. The card staying open was already true (`respondToStoryEvent` re-queues
- * a refused answer); the missing half was the reason, which is what these cases pin.
- *
- * The gate itself stays with its owner, so this file asserts the **shaping** contract and the
- * **wiring**, not the tuning values: no case restates a cost (`Need 30🍖`), because a restated number
- * is exactly the duplication the campaign's audits keep finding. What is asserted instead is that a
- * blocked answer carries the owner's own text unchanged, that a gate which refuses without a reason
- * does not get an invented one, and that every answer the simulation can actually refuse reports
- * blocked while a free alternative beside it stays open (the negative control that keeps the table
- * from passing vacuously).
+ * The shaping and wiring of the shared action outcome: a blocked answer carries the owner's own text
+ * unchanged, and a gate that refuses without a reason never gets an invented one.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -31,7 +20,7 @@ let starved: WorldState;
 
 beforeAll(() => {
   starved = initGame({ seed: 4242 });
-  // A colony that cannot pay any of the gated answers, which is the player-visible case U2 is about.
+  // A colony that cannot pay any of the gated answers — the player-visible refusal case.
   starved.resources = { wood: 0, stone: 0, food: 0, gold: 0, iron: 0 };
 });
 
@@ -50,9 +39,8 @@ function storyEvent(storyKey: StoryEvent['storyKey']): StoryEvent {
 }
 
 /**
- * Every answer the simulation can refuse, with a free alternative beside it. The set is complete as
- * of 2026-09-20: `children_shelter` and `rumour_ledger` push their card back but their resolvers
- * never return false, so the four gated stories below are the whole refusing surface.
+ * Every answer the simulation can refuse, with a free alternative beside it: the four gated stories
+ * below are the whole refusing surface — `children_shelter` and `rumour_ledger` never return false.
  */
 const GATED_ANSWERS: ReadonlyArray<{
   storyKey: StoryEvent['storyKey'];
@@ -128,9 +116,8 @@ describe('action outcome (roadmap U2/O2)', () => {
   );
 
   it('blocks an answer refused for a condition rather than a cost, and still explains it', () => {
-    // The wedding envoy gate is not about resources: it needs a living adult who can carry the
-    // answer. A colony with no living settler therefore refuses it, and the outcome still has to
-    // carry a reason — the U2 row asks for the missing "resource or condition".
+    // The wedding envoy gate needs a living adult who can carry the answer, not resources, and the
+    // refusal still has to explain itself.
     const noAdults = initGame({ seed: 4242 });
     for (const entity of noAdults.entities) {
       if (entity.type === EntityType.Human) entity.alive = false;
@@ -148,8 +135,7 @@ describe('action outcome (roadmap U2/O2)', () => {
 });
 
 function read(relativePath: string): string {
-  // `ACTION_OUTCOME_ROOT` lets the red-before proof run this guard against a mirrored pre-fix tree
-  // (`tmp/red-before-u2`) without touching `src/` — the `uiSingleOwner.test.ts` house pattern.
+  // `ACTION_OUTCOME_ROOT` overrides the tree the source guard reads; unset, it reads the working tree.
   const root = process.env.ACTION_OUTCOME_ROOT ?? process.cwd();
   return readFileSync(resolve(root, relativePath), 'utf8');
 }
@@ -158,15 +144,12 @@ describe('story card wiring (roadmap U2)', () => {
   const app = read('src/App.tsx');
   const storyCard = app.slice(app.indexOf('Signature story cards'), app.indexOf('Diplomacy event cards'));
   const diplomacyCard = app.slice(app.indexOf('Diplomacy event cards'), app.indexOf('Favorite citizen follow banner'));
-  // Both cards render the one shared control (2026-09-20 audit, clone 2), so the *rendering* half of
-  // these requirements lives in that component now while the *wiring* half stays in the card regions.
-  // Asserting both halves keeps every original requirement: the card asks the owner, and a refused
-  // answer is disabled and explained in visible text.
+  // Both cards drive the one shared control, so the rendering half lives in that component while the
+  // wiring half stays in the card regions; asserting both keeps every requirement.
   const choiceButton = app.slice(app.indexOf('function GatedChoiceButton'));
 
   it('asks the story owner for eligibility instead of offering every answer', () => {
-    // Pre-fix the story card rendered every choice as an enabled button with `title={choice.detail}`
-    // and never consulted a gate, so an unaffordable answer looked clickable and refused in silence.
+    // The card asks the owner per answer; an unconditional button with a hover-only title hides the refusal.
     expect(storyCard, 'the story card no longer asks the story owner').toContain(
       'getStoryChoiceEligibility(world, evt, choice.id)',
     );

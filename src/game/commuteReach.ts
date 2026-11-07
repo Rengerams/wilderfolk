@@ -161,9 +161,8 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
     cache.set(key, hours);
     return hours;
   }
-  // A food-priority prepass and the ordinary job pass may request the same
-  // unresolved commute. Escalate its A* node limit only on the NEXT staffing
-  // pulse, never by retrying it multiple times within one pulse.
+  // A food-priority prepass and the job pass may request the same unresolved commute; retry it
+  // with a larger A* node limit on the next staffing pulse, not within this one.
   const attempted = attemptedRoutesThisPass.get(grid);
   if (attempted?.has(key)) {
     commuteRouteChecksDeferred = true;
@@ -183,9 +182,8 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
   const search = findRouteCostOutcome(grid, fromX, fromY, toX, toY, nextBudget);
   if (search.cost === null) {
     if (search.budgetExhausted) {
-      // Repeating the same 4,000-node A* search makes no progress. Raise the
-      // bound on the NEXT assignment pulse, but let at most one expensive
-      // advanced search run per pass. Each generation owns its own attempts.
+      // Repeating the same search makes no progress: double the bound for the next pulse, and let
+      // at most one expensive advanced search run per pass.
       const terminalBudget = Math.min(MAX_PROGRESSIVE_COMMUTE_ROUTE_NODES,
         Math.max(MAX_COMMUTE_ROUTE_SEARCH_NODES, grid.cols * grid.rows * 4));
       if (nextBudget < terminalBudget) {
@@ -199,9 +197,8 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
         commuteRouteChecksDeferred = true;
         return null;
       }
-      // Terminal safety policy: an unpriced, overly complex commute is not
-      // an acceptable new job. Cache that conservative refusal instead of
-      // repeating an unbounded search forever (not proof of disconnection).
+      // An unpriced, overly complex commute is not an acceptable new job; cache the refusal
+      // instead of searching without bound.
     }
     retries?.delete(key);
     if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
@@ -271,9 +268,8 @@ export function isWithinAssignableCommute(
   // Same path cell is handled locally by the route owner: it needs no A* search.
   if (Math.floor(from.x / PATH_CELL) === Math.floor(building.x / PATH_CELL)
     && Math.floor(from.y / PATH_CELL) === Math.floor(building.y / PATH_CELL)) return true;
-  // Bot placement can pass its own read-only world map. This reuses the same
-  // A* cost and two-hour rule without mutating the simulation's current grid.
-  // The proposed destination is not built yet, so it must not block its own approach.
+  // Bot placement may pass its own read-only map; reuse the same cost rule without mutating the
+  // live grid. The proposed destination is not built yet, so it must not block its own approach.
   const previewBuildings = worldMap
     ? buildings.filter((candidate) => candidate !== building)
     : buildings;
@@ -285,9 +281,8 @@ export function isWithinAssignableCommute(
     previewGrid ?? undefined);
   if (routed !== null) return routed <= MAX_ASSIGNABLE_COMMUTE_HOURS;
 
-  // A failed/budget-exhausted route search is UNKNOWN, not a passable road.
-  // Defer new jobs rather than assigning across unproven terrain. Only a
-  // bootstrap with no map retains the legacy straight-road estimate.
+  // A failed or budget-exhausted search is unknown, not a passable road: defer new jobs. Only a
+  // bootstrap with no map falls back to the straight-road estimate.
   if (grid) return false;
   return commuteLeadHoursFor(
     straightRouteCost(from.x, from.y, building.x, building.y, buildings),

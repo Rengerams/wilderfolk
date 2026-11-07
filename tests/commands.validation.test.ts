@@ -1,12 +1,6 @@
 /**
- * Regression: worker-command validation allow-lists drifted from the source
- * unions/catalogs — `queueForgeOrder` rejected `iron_swords` / `scale_mail` /
- * `tower_ballistae` and `tradeWithVisitors` rejected `sell_wood`, so those
- * player actions silently no-op'd (both main-thread and worker paths).
- *
- * These tests pin the validator to the real catalogs (FORGE_ORDERS /
- * VISITOR_TRADE_COSTS) so any future order/action addition fails the gate
- * unless the validator accepts it too.
+ * Worker-command validation must accept every value in the source catalogs (FORGE_ORDERS,
+ * VISITOR_TRADE_COSTS): a validator allow-list that drifts silently no-ops the player action.
  */
 import { describe, expect, it } from 'vitest';
 import { isWorkerCommand } from '../src/game/simWorker/commands';

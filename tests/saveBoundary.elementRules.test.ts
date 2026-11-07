@@ -1,14 +1,6 @@
 /**
- * What a camp, an incoming raid and a provisions card must be at the load boundary.
- *
- * These three are the persisted objects a malformed payload could get past the container rule: only
- * `id` was vetted, so `{ id, daysLeft: 0 }` with no `entityIds` loaded and then threw inside a daily
- * tick, a group with no `daysLeft` never departed, a raid with no `attackerStrength` resolved every
- * Defend/Barricade as `'defeat'`, and a card without a usable `choices` list white-screened the shell
- * from `getVillageRequestEligibility`.
- *
- * Each fixture is a **real** payload from `buildSaveData` with one writer-shaped element added, so a
- * green case proves the new rules refuse the corruption without refusing what the game writes.
+ * The camp, incoming raid and provisions card are the persisted objects a malformed payload could
+ * slip past the container rule, so each has its own load-boundary validation.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

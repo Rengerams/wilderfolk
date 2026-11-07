@@ -1,14 +1,6 @@
 /**
- * Player-facing wording for a refused building placement — the other half of
- * `buildingPlacementActions.getPlaceBuildingFailureReason`.
- *
- * The owner decides **why** a spot is refused; this module decides how to say it, so the canvas
- * (`renderer/buildPreview.ts`) only draws the string: values are computed by the game layer, never by
- * the view. Before this existed the ghost printed one fixed `'✗ Blocked'` for every refusal, which
- * reads as "the game will not let me build here" for the two buildings whose rule is about the
- * **whole footprint**: a Bridge must span actual river water and a Fishing Spot must cover a water
- * tile (`placementUtils.isFootprintOnBuildableTerrain`), so a dry-bank drop-off is not "blocked" — it
- * is missing the water the building needs inside its own pad.
+ * Player-facing wording for a refused building placement; `buildingPlacementActions` decides why a
+ * spot is refused, this module decides how to say it, and the canvas only draws the string.
  */
 import { BUILDING_CONFIGS, BuildingType, type ResearchNode } from './gameTypes';
 import type { getPlaceBuildingFailureReason } from './buildingPlacementActions';
@@ -21,10 +13,7 @@ export type PlaceBuildingFailureReason = NonNullable<ReturnType<typeof getPlaceB
 
 /**
  * Fallback label per reason; `terrain` and `research` are refined per building by
- * {@link getPlaceBuildingFailureLabel}. Every entry is reachable, so the map stays honest.
- *
- * `blocked` is deliberately one sentence for two causes: the owner returns it for a footprint off the
- * map **and** for one overlapping a structure, so the wording has to be true of both.
+ * {@link getPlaceBuildingFailureLabel}.
  */
 export const PLACEMENT_FAILURE_LABELS: Record<PlaceBuildingFailureReason, string> = {
   terrain: 'Cannot build on water/terrain',
@@ -34,9 +23,7 @@ export const PLACEMENT_FAILURE_LABELS: Record<PlaceBuildingFailureReason, string
 };
 
 /**
- * The two types whose terrain rule is a footprint-wide water requirement rather than "flat ground".
- * Bridge: every tile river/bank with at least one actual river tile. Fishing Spot: at least one water
- * tile under the dock.
+ * Types whose terrain rule is a footprint-wide water requirement rather than "flat ground".
  */
 const FOOTPRINT_WATER_LABELS: Partial<Record<BuildingType, string>> = {
   [BuildingType.Bridge]: 'Must span river water',

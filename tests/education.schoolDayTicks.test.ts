@@ -1,8 +1,6 @@
 /**
- * F1 of the 2026-09-16 lifecycle/social audit (`docs/private/audits/2026-09-16/sim-lifecycle-social.md`):
- * `creditChildSchoolDay` compared the `schoolTicksToday` **tick** counter against a **hours**
- * threshold (`WORK_HOURS_PER_DAY * 0.5` = 5.5), so a child who sat in class for ~1.7 in-game hours
- * was credited a whole school day and `schoolDays` accrued ~3.3× too fast.
+ * `creditChildSchoolDay` must compare the `schoolTicksToday` tick counter against a tick threshold,
+ * not an hours value, or `schoolDays` accrues far too fast.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
@@ -59,11 +57,7 @@ describe('school-day credit threshold (F1)', () => {
   });
 });
 
-/**
- * 2026-10-22: a school day needs the teacher in the classroom as well as the
- * pupil — the credit is gated on a teacher standing at the school, not only on
- * a staffed building the child happens to be at.
- */
+/** A school day needs a teacher at the school, not only a staffed building the child is at. */
 describe('school-day credit needs the teacher there', () => {
   /** A workday tick inside class hours, found through the owner's own rule. */
   function classTick(): number {

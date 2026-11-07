@@ -185,9 +185,8 @@ export function reconcileCloseFriendships(people: Entity[]): void {
       }
       const pair = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
       if (retained.has(pair)) continue;
-      // A one-way imported bond below the ceiling is still a valid recorded
-      // friendship. Only demote excess close bonds; the normal daily pass will
-      // remove links to people who have actually died.
+      // A one-way imported bond below the ceiling is still a valid recorded friendship; only demote
+      // excess close bonds. The normal daily pass removes links to people who have died.
       if (!originallyMutual.has(pair) && closeCount < MAX_CLOSE_FRIENDS_PER_SETTLER) continue;
       // Drop just below the close-friend threshold, preserving acquaintance history.
       const next = writableFriendships(a);

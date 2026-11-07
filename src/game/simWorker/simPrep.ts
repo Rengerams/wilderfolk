@@ -17,23 +17,8 @@ import { ScentGrid, isScentGridRuntime } from '../scentGrid';
 import { restoreSimRng, snapshotSimRng } from '../simRng';
 
 /**
- * Mutable sim slices backed up before each tick/command for instant failure recovery.
- *
- * **What this payload is, and what it is not.** It is the `WorldState` half of the rollback: every key
- * here is snapshotted by `extractSimPrep` and written back by `applySimPrep`, and
- * `tests/workerBoundary.closure.test.ts` proves the rollback is complete for the world by comparing the
- * *union* of both worlds' own keys after a real tick — so a world field the tick advances and this list
- * omits is a failing difference, not an invisible one.
- *
- * The module-level counters are deliberately outside that contract, and this is the one place to say
- * so. `nextBigNewsId` (`simEffects.ts`) and `nextEventLogId` (`eventLog.ts`) are imported bindings, not
- * world fields, so a rollback cannot restore them — they stay ahead of the restored `bigNews` /
- * `eventLog` arrays. Both owners already defend against the only consequence that matters, by clamping
- * their next id against the ids the restored world actually carries (`simEffects.ts` `addBigNews`,
- * `eventLog.ts` `logEvent`), so ids stay unique and monotonic and no rule reads the value. The residual
- * is that the *sequence* of minted ids is not reproducible across a rollback. If a future counter
- * cannot be defended that way, move it onto `WorldState` and add it here rather than adding a second
- * rule about which module state a rollback covers.
+ * Mutable sim slices backed up before each tick/command for rollback. `extractSimPrep` and
+ * `applySimPrep` are the two halves; module-level id counters are outside this contract.
  */
 type SimPrepKeys =
   | 'tick'
@@ -193,11 +178,8 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
       hotelGuestIds: b.hotelGuestIds ? [...b.hotelGuestIds] : undefined,
     }))),
 
-    // Copy the elements, not just the arrays. The realtime layer decays these **in place**
-    // (`tickLayerRealtime`: `ft.y -= 0.7; ft.life--`, `p.x += p.vx; p.life--`), so a shallow spread
-    // left the backup holding the live objects and the rollback restored the already-mutated values —
-    // a partial no-op that aged every popup and particle twice for one failed tick. The entity and
-    // building clones above already copy at this depth for the same reason.
+    // Copy the elements, not just the arrays: the realtime layer decays these in place, so a
+    // shallow spread would let a rollback restore already-mutated values.
     deathParticles: (state.deathParticles ?? []).map((particle) => ({ ...particle })),
     floatingTexts: (state.floatingTexts ?? []).map((text) => ({ ...text })),
     screenShakeImpulse: state.screenShakeImpulse ?? 0,
@@ -211,8 +193,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
           produced: { ...state.economyLedger.produced },
           consumed: { ...state.economyLedger.consumed },
           // The totals ride with the maps they summarize: the display world reads them instead of
-          // adding up (`simDelta.ts`), and `summarizeFoodLedger`'s `?? sum` fallback hid their
-          // absence after a rollback.
+          // adding up, so a rollback must restore them too.
           producedTotal: state.economyLedger.producedTotal,
           consumedTotal: state.economyLedger.consumedTotal,
         }
@@ -276,9 +257,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     electionCeremony: state.electionCeremony ? { ...state.electionCeremony } : null,
     spotlightLore: state.spotlightLore ? structuredClone(state.spotlightLore) : null,
     spotlightLoreLastDay: state.spotlightLoreLastDay,
-    // Written by the daily layer (`dailyWorldEvents.ts:194-230`), so the tick must be able to
-    // roll it back — it used to be the one WorldState field the delta carried but the prep
-    // payload did not.
+    // Written by the daily layer, so the tick must be able to roll it back.
     activeEvent: state.activeEvent ? structuredClone(state.activeEvent) : null,
     eventLog: [...(state.eventLog ?? [])],
     genealogyRegistry: profileSection('rollback.genealogy', () => (state.genealogyRegistry ? { people: Object.fromEntries(Object.entries(state.genealogyRegistry.people).map(([id, person]) => [id, { ...person, partners: [...person.partners], childrenIds: [...person.childrenIds] }])) } : undefined)),
@@ -314,9 +293,8 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     bigNews: [...(state.bigNews ?? [])],
     notifications: [...(state.notifications ?? [])],
     huntVisuals: [...(state.huntVisuals ?? [])],
-    // A real copy, not a reference: the realtime layer decays the grid and deposits predator odour
-    // into it in place, before anything in the tick can throw, so a rolled-back tick used to keep
-    // the failed decay and spread.
+    // A real copy, not a reference: the realtime layer decays the grid and deposits predator
+    // odour into it in place before anything can throw.
     scentGrid: isScentGridRuntime(state.scentGrid)
       ? ScentGrid.fromRuntime(state.scentGrid)
       : undefined,
@@ -444,26 +422,15 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.simRng = prep.simRng;
   restoreSimRng(prep.simRng);
 
-  // Two separate duties meet on the scent field, and conflating them is what let F-1 hide behind
-  // the persist-across-rebuild fix:
-  //   1. rollback — the field must return to its pre-tick value, because the realtime layer decayed
-  //      and spread the live grid before the tick could fail (`restoreScentGridSnapshot`);
-  //   2. persistence — `invalidateWorldRuntimeCaches` drops the slot as a runtime cache
-  //      (worldRuntimeCaches.ts), which zeroed the whole trail after every rollback (F5), so the
-  //      rebuild has to carry the restored grid across (`rebuildWorldRuntimeCaches`).
-  // Order matters: restore first, rebuild second — the rebuild preserves what is in the slot then.
+  // Scent field: rollback restores its pre-tick value, then `rebuildWorldRuntimeCaches`
+  // carries it across the runtime-cache slot. Order matters: restore first, rebuild second.
   restoreScentGridSnapshot(world, prep.scentGrid);
   rebuildWorldRuntimeCaches(world);
 }
 
 /**
- * Puts a prep snapshot of the scent field back onto `world`.
- *
- * Written back into the live grid whenever its geometry still matches, so the instance survives the
- * rollback (sidecar packing and the F5 case in `tests/simPrep.rollbackFields.test.ts` hold on to it);
- * the snapshot is copied out of, never adopted, so the payload stays re-appliable. An absent or
- * malformed snapshot means the pre-tick world had no usable grid at all: the one the failed tick
- * created is dropped, and the next realtime layer recreates it through `ensureScentGrid`.
+ * Puts a prep snapshot of the scent field back onto `world`, copying into the live grid when its
+ * geometry matches; the snapshot is never adopted, so it stays re-appliable.
  */
 function restoreScentGridSnapshot(world: WorldState, snapshot: WorldState['scentGrid']): void {
   const live = world.scentGrid;

@@ -1,9 +1,6 @@
 /**
- * Semantic duplicate ratchet — group functions by the calls, members and writes
- * they perform, independent of the token order used to express them.
- *
- * Old groups are baselined. A new group fails unless a reviewed-distinct entry
- * explains why the functions are genuinely different.
+ * Semantic duplicate ratchet — groups functions by the calls, members and writes they perform,
+ * independent of token order. Baselined groups pass; a new group needs a reviewed-distinct entry.
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';

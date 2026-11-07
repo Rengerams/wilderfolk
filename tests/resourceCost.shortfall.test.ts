@@ -1,7 +1,6 @@
 /**
- * `missingResourceCost` — the cost owner's "what is still short", added so the build catalogue can
- * disable an unaffordable tile and name the shortfall instead of letting it be selected and then
- * refused at the map (F-IX-9).
+ * `missingResourceCost` reports what is still short, so the build catalogue can disable an
+ * unaffordable tile and name the shortfall instead of refusing it at the map.
  */
 import { describe, expect, it } from 'vitest';
 import { canAffordResourceCost, missingResourceCost } from '../src/game/resourceCost';

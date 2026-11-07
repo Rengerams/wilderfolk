@@ -73,9 +73,8 @@ export function hasTowerBallistae(state: CombatContext & { villageForge?: Villag
 }
 
 /**
- * Combat research readings. The combination rule (multiplier product, additive TIERS take the
- * strongest — see `simHelpers.TIERED_ADD_TARGETS`) lives in the one owner so a second consumer of
- * `counter_attack` / `predator_block` cannot re-introduce the summed guaranteed kill.
+ * Combat research readings. The combination rule lives in `simHelpers.TIERED_ADD_TARGETS`; read
+ * effects through this owner so no second consumer re-introduces a summed guaranteed kill.
  */
 export function getHuntRangeMultiplier(state: WorldState): number {
   return resolveResearchEffect(state, 'hunt_range')?.multiplier ?? 1;
@@ -396,9 +395,8 @@ export function getHumanStatusCombatIcon(
 }
 
 /**
- * The simulation's predator set. Exported because the audio layer composes its hunt cue from this
- * rather than declaring a second set that could drift (duplication A10); `isPredatorType` is the
- * predicate, this is the membership data behind it.
+ * The simulation's predator set, also read by the audio layer's hunt cue rather than duplicated;
+ * `isPredatorType` is the predicate over it.
  */
 export const PREDATOR_TYPES: ReadonlySet<EntityType> = new Set<EntityType>([
   EntityType.Wolf,

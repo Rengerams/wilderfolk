@@ -1,12 +1,6 @@
 /**
- * Roadmap **T4** — *"the game explains when a new settlement is needed and what a save version
- * means."*
- *
- * The refusal path already names both versions (`describeSaveReadFailure`, pinned by
- * `tests/saveRead.failureReason.test.ts`). What was missing is the rule stated **before** the player
- * hits it: the About box said "Saves may break between updates", which is neither the rule nor an
- * explanation. The sentence now comes from the save owner, so the menu cannot drift from the message
- * a refused load shows.
+ * The About box must state the save-compatibility rule from the save owner, so the menu cannot drift
+ * from the message a refused load shows.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -15,8 +9,7 @@ import { describeSaveCompatibility, describeSaveReadFailure } from '../src/game/
 import { GAME_VERSION } from '../src/game/version';
 
 function read(relativePath: string): string {
-  // `SAVE_VERSION_EXPERIENCE_ROOT` lets the red-before proof run this guard against a mirrored
-  // pre-fix tree (`tmp/red-before-t4`) without touching `src/`.
+  // `SAVE_VERSION_EXPERIENCE_ROOT` points the read at a mirrored tree for red-before runs.
   const root = process.env.SAVE_VERSION_EXPERIENCE_ROOT ?? process.cwd();
   return readFileSync(resolve(root, relativePath), 'utf8');
 }

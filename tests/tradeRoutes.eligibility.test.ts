@@ -1,10 +1,6 @@
 /**
- * The trade-route eligibility rule lives in the trade owner, and the UI must ask it rather than
- * restate it. The owner exempts the coin→materials rescue routes from the Market requirement
- * (`isMaterialPurchaseRoute`: gold out, materials in), and a local `marketOk && repOk` copy in
- * `ProgressTabPanel`/`App` disabled exactly those three routes and labelled them "Need Market" —
- * while a Market costs the wood and stone the player is trying to buy
- * (`BUG_REPORTS/2026-09-16-material-purchase-trade-routes-unreachable.md`).
+ * The trade-route eligibility rule lives in the trade owner and the UI must ask it, including the
+ * coin→materials rescue routes the owner exempts from the Market requirement.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';

@@ -1,10 +1,6 @@
 /**
- * A completed trade round trip must credit every resource the route says it receives.
- *
- * Regression for Ironport (`trade_3`), the only trade source of iron: its `resourcesReceived`
- * carries `iron: 15`, but `applyImports` and `canStoreImports` listed only wood/stone/food/gold,
- * so the colony paid 30 stone + 10 gold and the iron was discarded on every trip
- * (`BUG_REPORTS/2026-09-17-trade-imports-drop-iron.md`).
+ * A completed trade round trip must credit every resource the route says it receives, including
+ * Ironport's iron, which `applyImports` and `canStoreImports` must both carry.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

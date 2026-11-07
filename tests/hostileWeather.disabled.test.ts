@@ -1,15 +1,6 @@
 /**
- * The temporary owner switch that turns hostile weather off.
- *
- * `worldEvents.HOSTILE_WEATHER_ENABLED` (set `false` 2026-09-17) makes `updateDisasters` and
- * `applyDailyWeatherEffects` return immediately, so no disaster spawns and a storm damages nothing.
- * Weather itself still rolls — rain, fog, snow, drought, their visuals and the farm multiplier are
- * untouched — this removes the harm, not the sky.
- *
- * The first test pins the switch. That is deliberate: a temporary product switch should fail loudly
- * if someone flips it back, rather than silently changing what the rest of this file asserts. When
- * hostile weather is re-enabled, delete that test together with the `skipIf` guards in
- * `tests/weatherConsequences.test.ts`, which then run again unchanged.
+ * `worldEvents.HOSTILE_WEATHER_ENABLED` gates the harm: when false, `updateDisasters` and
+ * `applyDailyWeatherEffects` return immediately while weather itself still rolls.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

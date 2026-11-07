@@ -11,16 +11,13 @@ export interface HousingDiagnosticsSnapshot {
   calendarDay: number;
   totalBeds: number;
   /**
-   * Beds held by the residence owner's occupant rule (`housingModel.countResidentsInBuilding`),
-   * not by summing `building.occupants` here: the two disagree for a cursed settler in werewolf form,
-   * whom the residence sync counts and `isPlayerHuman` does not.
+   * Beds held by the residence owner's occupant rule, not by summing `building.occupants`; the
+   * two disagree for a cursed settler in werewolf form.
    */
   occupiedBeds: number;
   /**
-   * Beds a settler may actually be assigned, from the growth owner
-   * (`populationGrowth.getOpenPlayerBeds`). The Leader's House is excluded because those beds are
-   * reserved for the leader's household, and this figure is what "open beds" means everywhere else on
-   * screen.
+   * Beds a settler may actually be assigned, from the growth owner; the Leader's House beds are
+   * reserved for the leader's household.
    */
   openBeds: number;
   residences: number;
@@ -37,9 +34,7 @@ export interface HousingDiagnosticsSnapshot {
 }
 
 /**
- * Read-only housing truth report. It intentionally reads authoritative WorldState
- * but never repairs occupants or assigns residents; reconciliation remains owned
- * by dayCycle/residence assignment.
+ * Read-only housing truth report; it never repairs occupants or assigns residents.
  */
 export function collectHousingDiagnostics(
   state: WorldState,

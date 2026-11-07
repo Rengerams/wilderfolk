@@ -1,11 +1,6 @@
 /**
- * The render sidecar is derived, not shipped.
- *
- * `renderMetaBySlot` used to travel with every render tick and duplicated fields that
- * `aliveEntities` already carries (name, job, needs, skills, relationship ids, …). The render buffer
- * names every packed entity, so the host rebuilds the per-slot metadata from the applied world. This
- * pins that reconstruction against the worker's old per-slot packing so the move cannot drift: same
- * slots, same values, including a thinned overflow buffer where slot order is priority-selected.
+ * The render sidecar is derived, not shipped: the host rebuilds per-slot metadata from the applied
+ * world, and this pins that reconstruction to the worker's packed slots and values.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { initGame } from '../src/game/gameEngine';

@@ -1,19 +1,6 @@
 /**
- * The per-world entity-bucket cache must not outlive the population it describes.
- *
- * `getCachedEntityByType` is the cache's only reader, and the entry is cleared only by
- * `invalidateCachedEntityByType` (`worldRuntimeCaches.ts`) or by the tick's own composition
- * heuristic (`gameTick.ts`, `deathsThisTick` / `untrackedSpawns`) — and that heuristic counts only
- * spawns that happen *during* a tick, because it diffs the tick's opening list. An entity added
- * between ticks therefore left the stale entry in place: the next tick read buckets that omitted it
- * and then republished them as `state.entityByType`, so `ctx.byType` (predator selection,
- * `playerHumans`, workforce counts) and every `byType` renderer for one tick described a population
- * that no longer existed. The only detector was `assertSimInvariants`' bucket-count check
- * (`simulation/simInvariants.ts`), which is dev-only and runs once per colony day.
- *
- * The reuse contract is as important as the rebuild: an unchanged population must still return the
- * same bucket object, which is what the cache exists for (`gameTick` compares `state.entityByType`
- * identity to decide whether the render catalog has to rebuild).
+ * The per-world entity-bucket cache must validate against the current population: unchanged →
+ * the same bucket object, a spawn between ticks → rebuilt buckets.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

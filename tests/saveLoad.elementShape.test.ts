@@ -1,14 +1,6 @@
 /**
- * Shape refusal at the load boundary — the *contents* of `entities` and `buildings`.
- *
- * `saveLoad.outcomeReasons.test.ts` covers the world's scalar containers (`resources`, `tick`, …).
- * This case covers what lives inside them, which nothing refused: the restore builds each element by
- * default-and-spread and casts it (`saveLoad.ts`, the `entities:` mapper), so a payload that parsed
- * and matched the version gate could put `x: "nope"` or `type: "Dragon"` into a live world. There was
- * no refusal to observe and no test that fed one in — the differential below is the guard.
- *
- * The fixture is a **real** payload from `buildSaveData` with one field corrupted, so a green case
- * proves the new scan refuses the corruption without refusing the world it came from.
+ * Shape refusal at the load boundary: a payload that parses and passes the version gate must still be
+ * refused when the contents of `entities` or `buildings` are corrupt.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -22,10 +14,8 @@ import { EntityType, MapSize, type Entity, type WorldState } from '../src/game/g
 let cachedPayload: Record<string, unknown> | null = null;
 
 /**
- * A real, loadable payload with a couple of settlers and a building to corrupt.
- *
- * Built once and cloned per case: the shape scan does not depend on which size the world is, and
- * rebuilding a Huge map per case spent most of this file's time on terrain the scan never reads.
+ * A real, loadable payload with a couple of settlers and a building to corrupt, built once and
+ * cloned per case.
  */
 function realPayload(): Record<string, unknown> {
   cachedPayload ??= buildPayload();
@@ -171,9 +161,8 @@ describe('a save whose element shape is unusable is refused by name', () => {
 
 describe('a save whose container array is unusable is refused by name', () => {
   it('refuses a container that is not an array, naming the container', () => {
-    // The restore's `?? []` does not fire for a value that is merely not an array, so the first
-    // `.map`/`.filter`/`.some` over it threw a `TypeError` out of the catch-all and its raw text
-    // became the player's explanation.
+    // The restore's `?? []` does not fire for a non-array value, so refusing it by name keeps the raw
+    // `TypeError` text out of the player's explanation.
     const payload = realPayload();
     payload.tradeRoutes = 'traders';
 

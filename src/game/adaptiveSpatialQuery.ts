@@ -128,10 +128,8 @@ export function forEachAdaptiveInRadius(
         radius,
         (entity, distSq) => {
           if (predicate && !predicate(entity)) return;
-          // Count the candidate *after* the predicate, exactly like the naive branch below and
-          // like findClosestInRadius, so the opt-in benchmark report is comparable across modes.
-          // The grid's own counter (default `recordCandidates = true`) counted every in-radius
-          // entity before the predicate.
+          // Count the candidate *after* the predicate, matching the naive branch and
+          // findClosestInRadius, so benchmark reports are comparable across modes.
           if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate();
           callback(entity, distSq);
         },

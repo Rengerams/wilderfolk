@@ -22,11 +22,7 @@ export interface VillageFatigueReading {
 
 /**
  * The village-level fatigue reading the work-schedule panel shows: the mean over living adult settlers
- * and the band its label comes from.
- *
- * Both halves lived in that view (`WorkSchedulePanel` averaged `scheduleFatigue` and banded it at 60/25
- * itself), so the thresholds a designer tunes sat in a component, invisible to this module — which
- * already aggregates the same quantity for the chronicle and owns its wording.
+ * and the band its label comes from, using this module's thresholds rather than a view's own copy.
  */
 export function readVillageFatigue(state: WorldState): VillageFatigueReading {
   const values: number[] = [];
@@ -54,10 +50,8 @@ function formatHours(hours: number): string {
 }
 
 /**
- * Resolves each eligible settler's schedule fatigue at the day boundary and
- * writes at most one meaningful village-level chronicle event. Individual
- * fatigue remains authoritative on the people; this module also dispatches a
- * verified career credit immediately as each completed day is settled.
+ * Resolves each eligible settler's schedule fatigue at the day boundary and writes at most one
+ * meaningful village-level chronicle event; individual fatigue stays authoritative on the people.
  */
 export function resolveDailyVillageScheduleFatigue(
   state: WorldState,
@@ -67,8 +61,7 @@ export function resolveDailyVillageScheduleFatigue(
 ): void {
   const results: FatigueResult[] = [];
   // The standard work window is the same for every settler in this pass — `state.workSchedule` is
-  // written only at the worker boundary (`simPrep`/`simDelta`) and nothing in this loop touches it —
-  // so it is derived once instead of twice per settler.
+  // written only at the worker boundary — so it is derived once instead of twice per settler.
   const targetHours = getScheduleTargetHours(state);
   const completedDay = getAbsoluteCalendarDay(state.tick) - 1;
   const completedDayWasWorkday = isWorkDay(completedDay * TICKS_PER_DAY);

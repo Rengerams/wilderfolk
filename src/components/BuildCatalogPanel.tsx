@@ -37,11 +37,8 @@ export default function BuildCatalogPanel({
 }: Props) {
   const [manualCategory, setManualCategory] = useState(BUILDING_CATEGORIES[0].id);
 
-  // React to a changed selection without an effect (adjust-state-during-render):
-  // selecting a build jumps the category tab to it, but the user stays free to
-  // navigate other tabs while a build is selected (previously the tab was
-  // pinned to the selected type, so you could never switch to another category
-  // without cancelling first — "can't change build type while one is selected").
+  // Adjust state during render: a new selection jumps the category tab to it, while the
+  // user stays free to navigate other tabs while a build is selected.
   const [prevSelected, setPrevSelected] = useState<BuildingType | null>(null);
   if (selected !== prevSelected) {
     setPrevSelected(selected);
@@ -118,9 +115,8 @@ export default function BuildCatalogPanel({
                 : resourceCostEntries(missingResourceCost(world.resources, config.cost))
                   .map(({ key, amount }) => `${amount} more ${RESOURCE_LABELS[key].toLowerCase()}`)
                   .join(' · ');
-              // Both gates are the placement owners' own statements, so the catalogue cannot offer a
-              // tile the placement command would refuse: the local tech test ignored the research
-              // node, and the local unique-flag test restated the rule.
+              // Both gates are the placement owners' own predicates, so the catalogue cannot offer
+              // a tile the placement command would refuse.
               const locked = !!config.unlockRequirement
                 && !isBuildingTechUnlocked(config.unlockRequirement, world.unlockedTechs, world.researchNodes);
               const uniqueBuilt = isUniqueBuildingAlreadyBuilt(world, type);
@@ -150,9 +146,8 @@ export default function BuildCatalogPanel({
                           : 'border-stone-700 bg-stone-800/50 opacity-70'
                   }`}
                 >
-                  {/* A sprite-less type (procedural decor) has no art on disk, and `<img src>` with an
-                      absent path asks the server for the page itself — the tile shows the config's own
-                      emoji instead, the same fallback the map's pad uses. */}
+                  {/* A sprite-less type has no art on disk, and `<img src>` with an absent path
+                      requests the page itself — show the config's emoji instead. */}
                   {(config.sprite || type === BuildingType.GroundReinforcement) ? (
                     <img
                       src={type === BuildingType.GroundReinforcement ? '/sprites/ground_soil.png' : config.sprite}

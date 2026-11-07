@@ -1,10 +1,6 @@
 /**
- * Famine desperation comedy — BITE joke.
- *
- * When food is truly gone and a settler is starving, the most desperate adult
- * may lunge at a neighbour's foot. Deliberately NON-LETHAL: no death, no energy
- * loss. The victim is not amused: the friendship score drops, and a landed bite
- * opens a feud.
+ * Starving settlers may bite a neighbour: non-lethal (no death, no energy loss), but the victim's
+ * friendship drops and a landed bite opens a feud.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
@@ -45,9 +41,8 @@ function human(id: number, energyRatio: number): Entity {
 }
 
 /**
- * Force the famine-desperation RNG stream into a state where the attempt roll
- * succeeds: the module uses `getSimRng('famine-desperation')`, seeded from the
- * run seed, so we set a seed and pick one whose first draws trigger a bite.
+ * Picks a run seed whose first `getSimRng('famine-desperation')` draw clears the 0.15 attempt
+ * roll, so the real call takes the same draw.
  */
 function seedThatFiresBite(): number {
   for (let seed = 1; seed < 5000; seed++) {

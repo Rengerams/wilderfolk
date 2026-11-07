@@ -1,25 +1,6 @@
 /**
- * Per-pixel Whittaker ground bake, ported from Teraforge `render.ts`.
- *
- * Fed by the continuous fields on `WorldMap` (`elevation` / `moisture` /
- * `temperature` / `riverDist` / `terrain`), this produces the smooth, hillshaded,
- * texture-detailed ground Teraforge renders — no tile seams. Returns `null` for a
- * legacy map that lacks those fields, so the caller keeps the old tile bake.
- *
- * **Not seasonal.** The bake used to apply a per-season tint inline (a vegetation-weighted shift, and
- * winter snow settling with height) which made `season` part of the chunk cache key — so every season
- * rollover re-baked the whole visible view, four times an in-game year, for a palette change. It is
- * gone: the ground is a function of the map and the bake resolution alone, so a chunk is baked once and
- * a season change costs nothing. Seasons remain visible through the weather layer, the grass and the
- * entities.
- *
- * **The height axis is the classifier's.** Land colour is computed from
- * `hn = (e − seaLevel) / (1 − seaLevel)` and its bands come from `LAND_BANDS`,
- * which `terrainGrid.classifyTile` owns. Colouring on absolute elevation above sea
- * instead (as the first version did) puts the whole alpine half of the ramp out of
- * reach on any preset with `seaLevel ≥ 0.12` — measured, **0.0 % of a scandinavia
- * map's land could paint snow** while 1.0 % of its tiles were `Snow`, and its
- * `Rocky` / `Mountains` tiles were painted lawn green.
+ * Per-pixel Whittaker ground bake, ported from Teraforge `render.ts`: continuous map fields in,
+ * smooth hillshaded ground out. Returns null for a legacy map, so the caller keeps the tile bake.
  */
 import { TerrainType, PATH_CELL, type WorldMap } from '../gameTypes';
 import { clamp, valueNoise } from '../terrain/noise';
@@ -38,41 +19,16 @@ import {
 } from '../terrain/terrainGrid';
 
 /**
- * Full 1:1 bake up to this many pixels; a larger **whole-map** region drops to a world step of 2
- * (2 world px per canvas px) and is stretched across the world rect, which reads as a soft,
- * 2×-magnified ground.
- *
- * This only governs a bake that covers a whole map — the probes, the tests and the legacy call shape.
- * The shipping renderer bakes one small chunk per visible viewport (`renderer/terrain.ts`), always at a
- * world step of **1**, under a per-frame pixel budget, so the budget here is not on the play path at all.
- *
- * Measured whole-map, per spec map size (2026-09-24, seed 12345, continental):
- *
- * | world | Mpx | surface at budget 13 M | bake |
- * |---|---|---|---|
- * | Medium 2560×1920 | 4.9 | 2560×1920 (1:1) | 3.2–3.4 s |
- * | Large 4096×3072 | 12.6 | 4096×3072 (1:1) | 7.7–8.0 s |
- * | Huge 6144×4608 | 28.3 | 3072×2304 (1:2) | 4.1 s |
- *
- * **Large used to fall on the wrong side of this line by 4.6 %** — 12,582,912 against a 12 M budget —
- * so the *larger* map baked at 1:2 and rendered softer than Medium, at *half* Medium's bake cost. The
- * budget now clears Large; Huge still does not, because 1:1 there is a 113 MB surface.
+ * Full 1:1 bake up to this many pixels; a larger whole-map region drops to a world step of 2.
+ * Only whole-map bakes use it — the shipping renderer bakes viewport chunks at step 1.
  */
 const FULL_BAKE_PIXEL_BUDGET = 13_000_000;
 
 type Rgb = [number, number, number];
 
 /**
- * Depth at which water is fully deep — **derived from the map**, not a fixed constant.
- *
- * The ramp used to saturate at a hard `0.11`, which is a fraction of the depth range the generator
- * actually produces: measured, `islands` bottoms out **0.588** below sea level, `coastal` **0.490**
- * and `scandinavia` **0.380**, so **81 % / 78 % / 71 %** of their water sat at the deepest ramp colour.
- * That is what made the sea a featureless field — water local contrast measured
- * **0.55–1.82** against the land's **4.0–5.1**. Spanning the map's own
- * {@link DEEP_WATER_DEPTH_PERCENTILE} of water depth uses the whole gradient on every preset, so a
- * soundings chart reads as depth instead of a navy plate. This is the water twin of
- * `terragen.spreadHeights`, which fixed the same saturation for the land.
+ * Depth at which water is fully deep, derived per map (see {@link DEEP_WATER_DEPTH_PERCENTILE}) so
+ * the bathymetric ramp spans the preset's own depth range.
  */
 const DEEP_WATER_DEPTH_PERCENTILE = 0.98;
 /** Far-end depth used when a map has too little water to measure (an oasis lake, a river-only map). */
@@ -80,15 +36,8 @@ const DEEP_WATER_DEPTH_FALLBACK = 0.11;
 /** Water cells needed before the map's own depth is trusted over {@link DEEP_WATER_DEPTH_FALLBACK}. */
 const MIN_WATER_CELLS_FOR_DEPTH = 64;
 /**
- * Deepening tints, shallow → deep — the bathymetric ramp.
- *
- * **Discrete bands, not a continuous gradient.** A smooth ramp spread across a 0.59-deep ocean changes
- * too little per pixel to see (measured: water local contrast **0.55–1.82** against the land's
- * **4.0–5.1**), which is why the sea read as one plate. Banded tints are how depth is actually drawn —
- * on charts per [IHO S-4](https://iho.int/uploads/user/pubs/standards/s-4/S4_V4-9-0_March_2021.pdf),
- * and in `gdaldem color-relief -exact_color_entry` for a DEM: flat within a band, a readable edge
- * between bands, and the band count carrying depth at a glance. The ramp spans the map's own deep
- * depth (see {@link DEEP_WATER_DEPTH_PERCENTILE}), so the bands are used on every preset.
+ * Deepening tints, shallow → deep — the bathymetric ramp. Discrete bands with a soft edge, not a
+ * continuous gradient, so depth reads at a glance.
  */
 const BATHYMETRY_TINTS: readonly Rgb[] = [
   [104, 182, 206],
@@ -100,11 +49,7 @@ const BATHYMETRY_TINTS: readonly Rgb[] = [
 ];
 /** Share of a band's span over which it blends into the next — a soft edge, not a hard step. */
 const BATHYMETRY_EDGE_BLEND = 0.18;
-/**
- * The floor's own grain, in 0–255 units, so a band is a surface rather than a flat fill. This is the
- * cheap half of the seabed rugosity that `gdaldem TRI -alg Wilson` documents as "recommended for
- * bathymetric use cases": the bands carry the depth, the grain carries the floor.
- */
+/** The floor's own grain, in 0–255 units, so a band is a surface rather than a flat fill. */
 const BATHYMETRY_GRAIN = 11;
 /** Wet-sand line half-width, as a fraction of the land range. */
 const WET_LINE_OF_LAND_RANGE = 0.012;
@@ -156,28 +101,15 @@ const RIM_SLOPE = 0.045;
 const RIM_STRENGTH = 0.12;
 
 /**
- * The heading **toward the light**, in cell steps: up and to the left.
- *
- * This is the one source of truth for the light. The hillshade reads it as a dot product against the
- * surface normal (`light = −(sx·x + sy·y) · SHADE_GAIN`), and the shadow trace walks *along* it to
- * find the ground standing between a cell and the sun. Both used to carry their own copy, and the
- * trace's copy had the **opposite sign** — so the cast shadow was painted onto the flank the
- * hillshade was busy lighting (measured: the cells the shadow field darkened came out **42–48 luma
- * brighter** than the rest, because a slope rising away from the light is the *lit* one).
+ * The heading toward the light, in cell steps: up and to the left. One source of truth — the
+ * hillshade dots it and the shadow trace walks along it, so the two can never disagree in sign.
  */
 const LIGHT_TOWARD_X = -0.6;
 const LIGHT_TOWARD_Y = -0.8;
 
 /**
- * Lights for the **hillshade**, as unit vectors toward the light (screen space: x right, y down).
- *
- * Four lights, not one. The established "multidirectional" hillshade — USGS Open-File 92-422, which
- * GDAL exposes as `gdaldem hillshade -multidirectional` with azimuths 225/270/315/360 — exists because
- * a single azimuth renders any slope face parallel to it flat. On this terrain that is exactly what
- * happened: whole mountain flanks came out as one featureless grey blob (measured on 1:1 crops of
- * `highland`). The primary entry is the same sun the shadow trace walks toward ({@link LIGHT_TOWARD_X},
- * ~322°), so the map still reads as lit from the upper left — the cartographic default — while a face
- * at any other heading is lit by one of the other three instead of going flat.
+ * Lights for the hillshade, as unit vectors toward the light (screen x right, y down): the primary
+ * sun the shadow trace follows, plus 225°, 270° and 360°, so no slope face is left flat.
  */
 const SHADE_LIGHTS: readonly (readonly [number, number])[] = [
   [LIGHT_TOWARD_X, LIGHT_TOWARD_Y], // primary — the sun the cast-shadow trace walks toward
@@ -186,21 +118,16 @@ const SHADE_LIGHTS: readonly (readonly [number, number])[] = [
   [0, -1],                          // 360° — north
 ];
 /**
- * Weight of the primary light against each of the other three. Averaging four equal lights would wash
- * the north-west reading out; dividing the weighted sum by this value leaves a slope facing the
- * primary with exactly the shade it had when there was only one light.
+ * Weight of the primary light against each of the other three; dividing the weighted sum by it
+ * leaves a slope facing the primary shaded as it was under one light.
  */
 const SHADE_PRIMARY_WEIGHT = 2;
 
 /** How far the shadow trace looks for a blocker, in cells — a ridge shadows further than 6 cells. */
 const SHADOW_TRACE_STEPS = 14;
 /**
- * The sun's inclination, as a rise per cell of distance. A blocker only shadows a cell when the
- * ground toward the light climbs **faster than this**, which is what keeps a cast shadow a local
- * feature: with a flat minimum rise and no distance term, 45 % of highland's land came out fully
- * shadowed (measured) and the whole map just went dim. Measured up-light rise per cell: p50
- * 0.007–0.021, p75 0.025–0.045, p90 0.048–0.074 across highland / scandinavia / continental, so a
- * sun at 0.035 puts the shadow on the steepest quarter of the land.
+ * The sun's inclination, as a rise per cell of distance: a blocker shadows a cell only when the
+ * ground toward the light climbs faster than this, keeping cast shadows local.
  */
 const SHADOW_SUN_SLOPE = 0.035;
 /** How far past the sun's inclination the ground has to climb for a full-strength shadow. */
@@ -213,11 +140,6 @@ const SHADOW_STRENGTH = 0.24;
 /**
  * Altitude relief (Imhof): gain applied to a cell's height above its own neighbourhood, and the
  * height over which that cue fades in above the lowland band.
- *
- * The hillshade alone cannot show it: a valley floor is *flat*, so its slope is zero and it comes out
- * exactly as bright as a plain. Measured before this term, the mean luma of the highest quartile of
- * hilly ground was **0.5 luma** from the lowest quartile on scandinavia (highland −9.3, and that is
- * mostly snow) — height barely read as light at all.
  */
 const RELIEF_GAIN = 26;
 const RELIEF_FADE_OF_LAND_RANGE = 0.25;
@@ -225,24 +147,13 @@ const RELIEF_FADE_OF_LAND_RANGE = 0.25;
 const RELIEF_NEIGHBOURHOOD_CELLS = 6;
 
 /**
- * The band of ground detail the eye reads as **surface roughness**, in canvas px per cycle.
- *
- * Padilla (2008), *Mathematical models for perceived roughness of three-dimensional surface
- * textures*, fits a band-pass over the psychophysical data for 1/f^β noise surfaces and lands on an
- * optimised pass band of **1.53–4.58 cycles per degree** (§7.3.1). Detail outside that band barely
- * moves perceived roughness, so grain finer than its lower edge is close to free of effect: it reads
- * as fizz instead of as a rougher material. The calibration display resolved 60 px per degree
- * (0.255 mm pixel pitch at 87.7 cm), putting the band at **≈13–39 px per cycle** here.
- *
- * The material detail below is built on both halves of that: each material carries a roughness
- * octave *inside* this band ({@link ROUGHNESS_OCTAVE_PX}), and the sub-pixel octaves that used to
- * dominate the mix are trimmed to the share material identity needs.
+ * The band of ground detail the eye reads as surface roughness, in canvas px per cycle — Padilla
+ * (2008) fits a 1.53–4.58 cycles/degree pass band, ≈13–39 px here.
  */
 export const ROUGHNESS_BAND_PX = { fine: 13, coarse: 39 } as const;
 
 /**
- * The canvas-px period of each material's roughness octave — one period per octave, all inside
- * {@link ROUGHNESS_BAND_PX}. This is the octave that decides how rough the material reads.
+ * The canvas-px period of each material's roughness octave, all inside {@link ROUGHNESS_BAND_PX}.
  */
 export const ROUGHNESS_OCTAVE_PX = {
   grass: [15],
@@ -264,9 +175,8 @@ function lc(a: Rgb, b: Rgb, t: number): Rgb {
 }
 
 /**
- * One detail octave whose period is fixed in **canvas** px, so it stays inside the roughness band at
- * every bake step: at a world step of 2 the same structure is sampled at half the world frequency
- * instead of being pushed out of the band. Returns ±0.5, like the raw `valueNoise` it wraps.
+ * One detail octave whose period is fixed in canvas px, so it stays inside the roughness band at
+ * every bake step. Returns ±0.5, like the raw `valueNoise` it wraps.
  */
 export function bandDetail(
   wx: number,
@@ -290,19 +200,8 @@ function darken(c: Rgb, factor: number): Rgb {
 }
 
 /**
- * Whittaker biome colours — the **Ricklefs palette**, the published scheme used to draw Whittaker
- * diagrams in ecology, positioned on the diagram's own axes: mean annual temperature (0–1 after the
- * generator's mapping) and annual precipitation (0–1, the `moisture` field).
- *
- * The land ramp used to be keyed on **height** with climate as sub-branches, which is why an arid
- * preset painted green: every inland stop on the ramp was a shade of green, so `arabia` (hot + dry,
- * moisture 0.12) could never reach a sand or ochre colour. Reading the colour off the chart the
- * classifier is modelled on fixes that at the source, and it is the same one-chart rule the tile and
- * the ground art are supposed to share.
- *
- * Anchors are read from the **colours and their positions**, not the printed region numbers: the
- * figure's numbering and its legend disagree (figure region 9 = dark green = legend "Tropical rain
- * forest" 5; figure region 2 = pale yellow = legend "Temperate grassland/desert" 8).
+ * Whittaker biome colours — the Ricklefs palette, keyed on the diagram's own axes: mean annual
+ * temperature and annual precipitation (`moisture`), both 0–1 after the generator's mapping.
  */
 const WHITTAKER_BIOMES: readonly { color: Rgb; te: number; mo: number }[] = [
   { color: [193, 225, 221], te: 0.25, mo: 0.075 },  // Tundra
@@ -317,35 +216,15 @@ const WHITTAKER_BIOMES: readonly { color: Rgb; te: number; mo: number }[] = [
 ];
 
 /**
- * The diagram as a lookup table, built **once** and sampled per pixel.
- *
- * Evaluating a nine-anchor climate chart per pixel would be the most expensive thing in the bake, and
- * the chart does not depend on the map or the seed, so it is a constant. Red Blob Games gives exactly
- * this prescription for biome lookup: "The square is easier to use in a lookup table or GPU texture
- * lookup."
- *
- * Blending is Shepard inverse-distance weighting over the anchors, which turns the diagram from nine
- * hard regions into a continuous surface. That is the documented answer to this project's own open
- * item — roadmap Theme 1: *"biome colour still steps where the classification steps … the documented
- * technique is per-biome weights blended into the colour rather than one label per cell."*
+ * The diagram as a lookup table, built once and sampled per pixel: fixed anchors, Shepard
+ * inverse-distance blending, so biome colour stays continuous across a boundary.
  */
 const WHITTAKER_LUT_SIZE = 65;
-/**
- * Shepard exponent for the chart blend. Lower is smoother — the roadmap wants the *colour* continuous
- * across a biome boundary rather than stepping on it, so this stays low. (Tried raising it to 7 to see
- * whether a cold swatch was bleeding into warm ground: it changed nothing, because the cyan on a hot
- * preset's edges is the temperature field's own polar cooling, not a blend artefact.)
- */
+/** Shepard exponent for the chart blend; lower is smoother, keeping colour continuous across biomes. */
 const WHITTAKER_IDW_POWER = 4;
 /**
- * How much of each published swatch survives as **ground albedo**.
- *
- * The Ricklefs palette is a *categorical* scheme: nine fills chosen to be told apart in a diagram, not
- * to look like a landscape. Painted raw on terrain it reads as a lurid patchwork, and its Tundra swatch
- * (`#C1E1DD`) is a pale cyan that reads as shallow water when it sits beside sand. Blending each swatch
- * this far toward its own grey keeps the biome identity — yellow steppe, green forest, rust shrubland —
- * while letting the relief shading carry the form. That is the standard cartographic move: a
- * hypsometric ramp is deliberately low-saturation so the hillshading reads through it.
+ * How much of each published swatch survives as ground albedo: the categorical palette is blended
+ * toward its own grey so hillshading reads through it.
  */
 const WHITTAKER_ALBEDO_SATURATION = 0.6;
 let whittakerLut: Uint8Array | null = null;
@@ -414,14 +293,8 @@ function whittakerColor(te: number, mo: number): Rgb {
 }
 
 /**
- * The ground colour at one pixel.
- *
- * `shorePush` is the pixel's share of the coastline jitter (see the bake loop): it moves the
- * waterline and nothing else, so a coast is a curve rather than a run of 16 px lattice steps while
- * the classification that decides what a settler may cross stays exactly where it was.
- *
- * `deepWaterDepth` is the map's own far end for the water ramp (see {@link WhittakerFields}), so the
- * shallow→shelf→deep gradient spans the depth this map actually has instead of a fixed 0.11.
+ * The ground colour at one pixel. `shorePush` shifts only the painted waterline; `deepWaterDepth`
+ * is the map's own far end for the water ramp.
  */
 function groundColor(
   e: number,
@@ -440,13 +313,7 @@ function groundColor(
   const jitterFade = clamp(1 - Math.abs(aboveSea) / SHORE_JITTER_FADE, 0, 1);
   const hShore = aboveSea + shorePush * jitterFade;
 
-  // OCEAN — banded depth tints. The first version had two smooth arms that did not meet at the shelf
-  // edge (`[12,45,90]` against `[34,83,134]`), which drew a hard dark ring inside every shelf; that
-  // was fixed into one continuous ramp — and a continuous ramp across a 0.59-deep ocean then changed
-  // too little per pixel to read at all. Discrete bands are the established answer (IHO S-4 charts;
-  // `gdaldem color-relief -exact_color_entry`): the band count carries the depth at a glance and each
-  // band edge is a contour line for free. Bands are normalised to this map's own deep depth, so a
-  // shallow lake and a deep ocean both use the full set.
+  // OCEAN — banded depth tints, normalised to this map's deep depth; the band count carries depth.
   if (hShore < 0) {
     const depth = -hShore;
     const dn = clamp(depth / deepWaterDepth, 0, 1);
@@ -461,8 +328,6 @@ function groundColor(
   }
 
   // SHORE — wet sand at the waterline drying inland, ending exactly where the `Beach` tile ends.
-  // An absolute sand ramp (the first version's `SEA + 0.04`-style band) bled its pale strip onto
-  // the first grass tiles of every shore.
   const inland = getInlandColor(hn, mo, te, dv);
   const wetT = clamp(hn / WET_LINE_OF_LAND_RANGE, 0, 1);
   const sand = lc(SAND_WET, [SAND_DRY[0] + dv * 12, SAND_DRY[1] + dv * 10, SAND_DRY[2] + dv * 12], wetT);
@@ -491,9 +356,8 @@ function getInlandColor(hn: number, mo: number, te: number, dv: number): Rgb {
   // range is what made the mid-altitude band read as olive mud instead of as forest.
   const elevDarken = clamp(hn / 0.95, 0, 1) * 0.55;
 
-  // BELOW THE ALPINE LINE, CLIMATE DECIDES THE COLOUR — read straight off the Whittaker diagram, the
-  // chart `classifyTile` is modelled on, so the ground cannot disagree with the tile beneath it. `dv`
-  // is the four-octave albedo variation; altitude desaturates a little as the ground rises.
+  // Below the alpine line climate decides the colour, read off the same Whittaker chart
+  // `classifyTile` is modelled on.
   const climate = whittakerColor(te, mo);
 
   if (hn < LAND_BANDS.hills) {
@@ -504,9 +368,8 @@ function getInlandColor(hn: number, mo: number, te: number, dv: number): Rgb {
     );
   }
 
-  // ALPINE — scrub gives way to rock, rock to scree, and cold crests take snow. The bands are the
-  // classifier's own, and snow is gated on the same temperature, so a `Mountains` tile the air is
-  // too warm to cap stays bare stone instead of being painted white.
+  // ALPINE — scrub gives way to rock, then scree; snow is gated on the same temperature
+  // as the classifier, so a warm `Mountains` tile stays bare stone.
   const scrub: Rgb = [98 + dv * 15, 108 + dv * 12, 80 + dv * 12];
   const rock1: Rgb = [122 + dv * 18, 120 + dv * 16, 114 + dv * 16];
   const rock2: Rgb = [136 + dv * 20, 133 + dv * 18, 128 + dv * 18];
@@ -526,12 +389,8 @@ function getInlandColor(hn: number, mo: number, te: number, dv: number): Rgb {
 }
 
 /**
- * Sample a cell field at fractional cell coordinates.
- *
- * **Smoothstep, not linear.** Bilinear interpolation is only C0 — its derivative jumps at every
- * cell edge — so a band edge, a hillshade and a rim all carry a faint lattice kink. Smoothstep
- * weights make the sample C1. (This is not on its own what removed the 16 px mosaic: that was the
- * shading's *input*, a raw-cell difference that is constant across a cell. See `slopeX`/`slopeY`.)
+ * Sample a cell field at fractional cell coordinates. Smoothstep weights, not linear ones: bilinear
+ * interpolation is only C0, so band edges, hillshade and rims would carry a lattice kink.
  */
 function sampleF(f: Float32Array, cols: number, rows: number, fx: number, fy: number): number {
   const x0 = clamp(Math.floor(fx), 0, cols - 1), y0 = clamp(Math.floor(fy), 0, rows - 1);
@@ -544,12 +403,8 @@ function sampleF(f: Float32Array, cols: number, rows: number, fx: number, fy: nu
 }
 
 /**
- * Interpolate along-stream phase only over assigned flow cells. The phase field is
- * zero in unassigned bank cells, so ordinary interpolation would pull long-river
- * distances toward zero and create compressed, cross-stream wave fronts.
- *
- * The mask uses exactly the same smoothstep weights as the phase sample.
- * Outside the flow field there is no phase to paint.
+ * Interpolate along-stream phase only over assigned flow cells; unassigned bank cells carry zero
+ * phase and would otherwise pull long-river distances toward zero.
  */
 export function sampleRiverPhase(
   phase: Float32Array,
@@ -565,14 +420,12 @@ export function sampleRiverPhase(
 }
 
 /**
- * Whole-map fields the bake needs. They are **cell-resolution** — 160 × 120 at the current
- * constants on a 2560 × 1920 map — so they are cheap to hold for the whole world while the
+ * Whole-map fields the bake needs, at cell resolution, so they are cheap to hold while the
  * per-pixel loop runs over one viewport at a time.
  */
 /**
- * River paint details are *render-only*, derived from the saved world-space drainage lines.
- * Find the nearest segment for each fine water cell once per map, not once per baked pixel.
- * Waterfalls contribute localized riffle intensity; neither field affects movement or saves.
+ * Render-only river paint derived from the saved drainage lines: nearest segment per fine water
+ * cell once per map, plus waterfall riffle intensity. Neither field affects movement or saves.
  */
 function buildRiverSurfaceFields(map: WorldMap): {
   riverPhase: Float32Array;
@@ -657,30 +510,19 @@ export interface WhittakerFields {
   cols: number;
   rows: number;
   /**
-   * The height the **ground art** reads: `map.elevation` after one 3×3 pass.
-   *
-   * The generator's river carve writes whole-cell plates — a channel at `seaLevel - 0.01` and its
-   * banks at `seaLevel + 0.04` — so the raw field steps by a whole cell and the waterline lands hard
-   * on the lattice. Classification keeps reading the raw field (walkability must not move); the
-   * colour ramp, the waterline and the light all read this one instead, which turns a one-cell step
-   * into a smooth bank and is what removed the terraces around every carved pool.
+   * The height the ground art reads: `map.elevation` after one 3×3 pass. Classification keeps the
+   * raw field, so walkability does not move.
    */
   shade: Float32Array;
   /**
-   * Terrain slope per cell, x and y — the shading's input.
-   *
-   * The hillshade and the slope rim read these **sampled** fields rather than differencing elevation
-   * cells directly: a raw difference is constant across one cell, so it paints the shading as a
-   * mosaic of 16 px squares (measured on a 1:1 crop of a scandinavia bake). Precomputing the
-   * gradient once per map costs one pass over the cells and leaves the per-pixel loop two smooth
-   * samples instead of four.
+   * Terrain slope per cell, x and y — the shading's input, sampled so shading does not paint the
+   * raw-cell difference as 16 px squares.
    */
   slopeX: Float32Array;
   slopeY: Float32Array;
   /**
    * How much higher (or lower) this cell stands than the ground around it, in elevation units —
-   * negative in a valley, positive on a ridge. This is the altitude half of the relief: the slope
-   * fields describe the *tilt* of a cell, this describes where the cell sits on the mountain.
+   * negative in a valley, positive on a ridge.
    */
   relief: Float32Array;
   /** How much of the sun's path from the light to this cell is blocked, 0–1. */
@@ -696,30 +538,22 @@ export interface WhittakerFields {
   riverFlowMask: Float32Array;
   riverRapids: Float32Array;
   /**
-   * Depth at which this map's water is fully deep — the far end of the water ramp, in elevation
-   * units. Derived per map (see {@link DEEP_WATER_DEPTH_PERCENTILE}) so the shallow→shelf→deep
-   * gradient spans the depth the map actually has; a fixed far end saturated 68–81 % of the sea on
-   * the ocean presets into one flat colour.
+   * Depth at which this map's water is fully deep, in elevation units — the far end of the water
+   * ramp, derived per map.
    */
   deepWaterDepth: number;
 }
 
 /**
- * The slope, relief, cast-shadow and water-proximity fields for a map.
- *
- * O(cells), not O(pixels): the shadow trace is 14 steps per cell, the relief blur 169 samples and the
- * proximity probe 9, so this stays negligible at every map size the spec names — which is why a
- * chunked baker can afford to hold it for the whole world and reuse it across chunks.
+ * The slope, relief, cast-shadow and water-proximity fields for a map. O(cells), so a chunked baker
+ * can hold it for the whole world and reuse it across chunks.
  */
 export function buildWhittakerFields(map: WorldMap): WhittakerFields | null {
   const { cols, rows, elevation, terrain } = map;
   if (!cols || !rows || !elevation || !terrain) return null;
 
-  // One 3×3 pass over the height, and the ground art reads *this* field rather than `map.elevation`.
-  // The generator's river carve writes whole-cell plates — a channel at `seaLevel - 0.01` and its
-  // banks at `seaLevel + 0.04` — so the raw field steps by a whole cell: the waterline landed hard
-  // on the lattice and every carved pool rendered as a staircase. Classification keeps reading the
-  // raw field (walkability must not move), and a 3×3 average turns that one-cell step into a bank.
+  // One 3×3 pass over the height, and the ground art reads this field rather than `map.elevation`:
+  // the generator's carved river plates would otherwise land the waterline hard on the lattice.
   const shade = new Float32Array(cols * rows);
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
@@ -753,9 +587,8 @@ export function buildWhittakerFields(map: WorldMap): WhittakerFields | null {
     }
   }
 
-  // Altitude relief: each cell's height against a blurred copy of the whole field. Plain loops, not a
-  // sliding window — the cell grid is a few thousand entries even on Huge, so the extra pass is free
-  // next to the per-pixel bake and there is no edge case to get wrong.
+  // Altitude relief: each cell's height against a blurred copy of the whole field. Plain loops, not
+  // a sliding window — the cell grid is small next to the per-pixel bake.
   const relief = new Float32Array(cols * rows);
   {
     const radius = RELIEF_NEIGHBOURHOOD_CELLS;
@@ -782,7 +615,7 @@ export function buildWhittakerFields(map: WorldMap): WhittakerFields | null {
       const myElev = shade[i];
       let maxShadow = 0;
       // Walk **toward** the light: the ground that can stand between this cell and the sun is up-light
-      // of it. This used to walk the other way, which is why the shadow landed on the lit flank.
+      // of it, so only terrain on that side can cast the shadow.
       for (let step = 1; step <= SHADOW_TRACE_STEPS; step++) {
         const sx = x + LIGHT_TOWARD_X * step;
         const sy = y + LIGHT_TOWARD_Y * step;
@@ -823,10 +656,8 @@ export function buildWhittakerFields(map: WorldMap): WhittakerFields | null {
 
   const waterProx = new Float32Array(cols * rows);
   const sea = map.seaLevel ?? DEFAULT_SEA_LEVEL;
-  // The water ramp's far end, from this map's own depth distribution. A high percentile rather than
-  // the maximum, so a single trench cell cannot compress the whole shelf into a few pixels; the
-  // fallback keeps a map with almost no water (an oasis lake, a river-only map) on the constant the
-  // ramp was originally tuned with rather than over-stretching a handful of shallow cells.
+  // The water ramp's far end from this map's own depth distribution: a high percentile, so one
+  // trench cell cannot compress the shelf; the fallback covers a map with almost no water.
   const waterDepths: number[] = [];
   for (let i = 0; i < elevation.length; i++) {
     if (elevation[i] < sea) waterDepths.push(sea - elevation[i]);
@@ -842,9 +673,8 @@ export function buildWhittakerFields(map: WorldMap): WhittakerFields | null {
   }
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
-      // Water is read from the elevation field rather than from the biome *label*: the classifier's
-      // water is exactly `e < seaLevel`, so this is the same water, and it keeps the one renderer
-      // field-driven — no cell label reaches the ground art.
+      // Water is `e < seaLevel` in the elevation field, not a biome label — keeps the renderer
+      // field-driven.
       if (elevation[y * cols + x] < sea) continue;
       let minDist = 99;
       for (let j = -1; j <= 1; j++) {
@@ -883,23 +713,8 @@ export interface WhittakerViewport {
 }
 
 /**
- * Bake a per-pixel Whittaker ground surface.
- *
- * Returns null when the map has no continuous fields (a legacy map). `seaLevel` / `moistureBias`
- * come from the map's stored generation settings, so no per-preset table is needed.
- *
- * **`viewRect` is what bounds the cost.** Every colour term is a function of the *world*
- * coordinate only — the noise, the field samples, the hillshade and the shadow trace all read
- * absolute positions — so a viewport bake is pixel-identical to the matching crop of a whole-map
- * bake, with no seam. That is what lets the renderer bake just what the camera can see: without
- * it this loop is the one cost that scales with map area, and it measured **5.4 s** at
- * 6144×4608, which is why the Teraforge spec map sizes could not ship.
- *
- * `worldStep` is world pixels per canvas pixel; `null`/omitted keeps the whole-map default (1, or 2
- * once the baked area passes {@link FULL_BAKE_PIXEL_BUDGET}). A caller that knows the camera zoom
- * should pass `targetGroundStep(zoom)` (owned by `renderer/terrain`). Whatever the caller passes, the
- * canvas is pixel-aligned to the world grid — the chunk origin is a multiple of the step — so
- * neighbouring chunks never seam.
+ * Bake a per-pixel Whittaker ground surface, null for a legacy map. Colour reads only the world
+ * coordinate, so a `viewRect` crop matches the whole map; `worldStep` is world px per canvas px.
  */
 export function bakeWhittakerGround(
   map: WorldMap,
@@ -987,11 +802,8 @@ export function bakeWhittakerGround(
           - (map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST), 0, 1)
         : mo;
       let te = sampleF(temperature, cols, rows, tcx, tcy);
-      // Four octaves across four scales, collapsed to a **0-mean deviation** (`dv`) because every
-      // consumer below multiplies it by a per-channel amplitude while adding it to a mean colour.
-      // Teraforge's source wrote these amplitudes into the base ramps themselves (`98 + nv * 22` on
-      // grass, `54 + nv * 14` on woodland); Wilderfolk's ramps carry the mean explicitly, so the
-      // variation arrives here instead. Same field, same scales, one place to read it from.
+      // Four octaves across four scales, collapsed to a 0-mean deviation (`dv`); every consumer
+      // below multiplies it by a per-channel amplitude when adding it to a mean colour.
       const nv = valueNoise(wx * 0.032, wy * 0.032, seed + 7777) * 0.4
         + valueNoise(wx * 0.075, wy * 0.075, seed + 8888) * 0.3
         + valueNoise(wx * 0.17, wy * 0.17, seed + 9999) * 0.2
@@ -999,15 +811,8 @@ export function bakeWhittakerGround(
       const dv = nv - 0.5;
       const nearWater = sampleF(waterProx, cols, rows, tcx, tcy);
 
-      // One coastline/bank jitter displaces the two *water* edges so both are curves instead of runs
-      // of lattice steps. It is deliberately not applied to the land bands: those are the
-      // classification, and they must stay where the classifier put it.
-      //
-      // **Wavelength matters more than amplitude.** At ~3 px the edge frays — the waterline moves by
-      // `jitter / local gradient` pixels, so a short wavelength turns a coast into a torn, speckled
-      // rim — and at a world step of 2 (any bake coarser than the screen) a 3 px wave is sampled under
-      // Nyquist and aliases back into the steps it was added to remove. At ~8 px it reads as a
-      // meander at 1:1, survives half-resolution sampling, and still breaks the 16 px lattice.
+      // One coastline/bank jitter displaces the two water edges so both are curves — an ~8 px
+      // wavelength, long enough to survive half-resolution sampling. Land bands are left alone.
       const edgeJit = (valueNoise(wx * 0.13, wy * 0.13, seed + 5150) - 0.5) * 2;
 
       const aboveSea = e - sea;
@@ -1031,14 +836,8 @@ export function bakeWhittakerGround(
         edgeJit * SHORE_JITTER_ELEVATION, deepWaterDepth,
       );
 
-      // Seabed grain: the floor's own variation *inside* each tint band, so a band is a surface and not
-      // a flat fill. Depth itself is carried by the banded ramp in `groundColor` — this adds no depth
-      // cue, deliberately, so the band edges stay the readable contour. (The first version modulated
-      // the whole bed with un-warped cloud noise at 26/255, which read as dirt rather than as depth.)
-      //
-      // A sine "contour" term used to live here. It was not a standard method and it did not work:
-      // `sin(depth * 190) * 5` put ~10 bands in a 0.59-deep sea and one in a shallow lake, at a 2 %
-      // swing — computed on every water pixel and invisible. Charts use discrete tints, not sine waves.
+      // Seabed grain: the floor's own variation inside each tint band so a band is a surface; depth
+      // itself is carried by the banded ramp in `groundColor`.
       if (isWater) {
         const grain = (valueNoise(wx * 0.03, wy * 0.03, seed + 4321) - 0.5)
           + (valueNoise(wx * 0.11, wy * 0.11, seed + 4322) - 0.5) * 0.6;
@@ -1048,22 +847,8 @@ export function bakeWhittakerGround(
         b = clamp(b + g2, 0, 255);
       }
 
-      // Material detail. Each material now carries an octave **inside** the band the eye reads
-      // roughness in (`ROUGHNESS_BAND_PX`) and authored in canvas px (`bandDetail`), because that is
-      // the octave that decides how rough the material reads. The sub-pixel octaves that used to
-      // dominate these mixes are trimmed to the share material identity still needs: past the band's
-      // lower edge extra grain buys almost no perceived roughness — a 1:1 crop of stone was a uniform
-      // grey speckle with no bedding in it at all, and a snowfield was flat white.
-      //
-      // The material is chosen from the **smooth** fields — height, moisture, proximity to water —
-      // and not from the nearest cell's biome label. A per-cell label puts every biome boundary on
-      // the 16 px lattice, and a 1:1 crop of a scandinavia bake showed exactly that: a checkerboard
-      // of grass, dirt and stone squares between the ridges. The colour ramp was always continuous
-      // in these fields; now the material is too, so a material edge lands on a shoreline or a
-      // hillside instead of on the lattice.
-      // V4 uses continuous material weights instead of selecting a single texture
-      // family by if/else. Every term is an absolute-world-coordinate function, so
-      // adjacent chunk bakes remain pixel-identical and no materials pop at biome cuts.
+      // Material detail: each material carries an octave inside the roughness band, and materials
+      // are chosen from the smooth fields so edges land on shorelines, not the 16 px lattice.
       if (!isWater && map.generationVersion === 4) {
         const fade = (v: number): number => {
           const t = clamp(v, 0, 1);
@@ -1129,9 +914,8 @@ export function bakeWhittakerGround(
         }
         if (dryW > 0.005) {
           if (dirtTextures) {
-            // The supplied CC0 dirt pack is painted for close top-down views:
-            // damp fine loam gives way continuously to drier, stony dirt.
-            // The rutted image is *not* used as random terrain detail.
+            // The supplied CC0 dirt pack is painted for close top-down views: damp fine loam gives
+            // way continuously to drier, stony dirt. The rutted image is deliberately not used.
             const wet = fade((mo - (dryMoistureCut - 0.10)) / 0.20);
             sampleTerrainMaterial(dirtTextures.loam, wx, wy, materialDetail);
             const loamK = dryW * wet * 0.76;
@@ -1166,9 +950,8 @@ export function bakeWhittakerGround(
         }
         if (grassW > 0.005) {
           if (grassTextures) {
-            // Four tileable 512px albedos by Cethiel: open grass, flower-rich meadow,
-            // forest floor and dense leaves. Moisture controls their proportions,
-            // never the coarse tile label. Delta-from-mean preserves climate colour.
+            // Four tileable 512px albedos by Cethiel: open grass, meadow, forest floor, dense leaves.
+            // Moisture controls their proportions, never the tile label.
             grassDetailAt(
               grassTextures, wx, wy, mo,
               map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST,
@@ -1180,9 +963,8 @@ export function bakeWhittakerGround(
             r += grassDetail[0] * textureStrength;
             g += grassDetail[1] * textureStrength;
             b += grassDetail[2] * textureStrength;
-            // Dense forests carry leaf litter even where live grass continues:
-            // blend the artist's brown foliage texture rather than stamping
-            // isolated vector leaves or sharp "forest" tiles.
+            // Dense forests carry leaf litter: blend the artist's brown foliage texture rather than
+            // stamping isolated vector leaves or sharp forest tiles.
             if (dirtTextures) {
               const forestCut = map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST;
               const litter = grassW * fade((mo - (forestCut - 0.12)) / 0.30)
@@ -1242,9 +1024,8 @@ export function bakeWhittakerGround(
           g = clamp(g + drift * 0.9, 0, 255);
           b = clamp(b + drift, 0, 255);
         } else if (rockT > 0.35) {
-          // Two fracture sets at different scales plus strata that follow the elevation, and a bedding
-          // ledge plus rubble in the roughness band — stone is read from ledges, and the old mix put
-          // every octave below the band.
+          // Two fracture sets at different scales plus elevation-following strata: stone reads from
+          // ledges, and the bedding and rubble sit in the roughness band.
           const crack = valueNoise(wx * 0.22 + wy * 0.08, wy * 0.3 - wx * 0.11, seed + 7770);
           const crack2 = valueNoise(wx * 0.62, wy * 0.5, seed + 7771);
           const seam = Math.abs(crack - 0.5) < 0.035 ? -16 : 0;
@@ -1265,17 +1046,8 @@ export function bakeWhittakerGround(
             r = Math.min(255, r + 24); g = Math.min(255, g + 22); b = Math.min(255, b + 18);
           }
         } else {
-          // Grass detail is ported from Teraforge `render.ts`'s high-frequency pass — the source this
-          // renderer was derived from. It is *structured*, not random: directional streaks that read as
-          // blades, coarse mottling so a field reads as varied, and **discrete** dark flecks standing in
-          // for soil showing through. That structure is the whole point. An earlier attempt here raised
-          // these amplitudes as plain per-pixel grain and looked like fizz, because independent noise at
-          // every pixel has no blade, no patch and no fleck in it — it is texture with nothing in it to
-          // read, which is exactly what the band-limit note above warns about, applied to the wrong
-          // scale. Keep the structure, tune the amplitudes.
-          //
-          // `clump`/`streak` are the low-frequency halves and stay in the roughness band; the blade
-          // streaks and flecks are deliberately finer, because that is how the source art reads at 1:1.
+          // Grass detail is structured, not random: directional blade streaks, coarse mottling and
+          // discrete dark flecks for soil, all in the roughness band.
           const clump = (valueNoise(wx * 0.048 + wy * 0.012, wy * 0.041 - wx * 0.009, seed + 2222) - 0.5) * (60 + mo * 44);
           const patch = (valueNoise(wx * 0.035, wy * 0.035, seed + 2345) - 0.5) * (52 + mo * 36);
           const streak = (valueNoise(wx * 0.17 + wy * 0.05, wy * 0.14 - wx * 0.03, seed + 2223) - 0.5) * 34;
@@ -1378,15 +1150,11 @@ export function bakeWhittakerGround(
         b = b * (1 - str) + (river[2] + dv * 12) * str;
       }
 
-      // Hillshading, light from the upper-left, read from the map's precomputed slope field — plus the
-      // **altitude** term, which is the half a slope field cannot express: a valley floor is flat, so
-      // its gradient is zero and it came out exactly as bright as a plain. Lit faces warm up and
-      // shaded faces cool down — the first version only darkened, which reads as grime rather than as
-      // light.
+      // Hillshading, light from the upper-left, read from the precomputed slope field, plus the
+      // altitude term a slope field cannot express: a flat valley floor still catches relief light.
       const reliefWeight = clamp((hn - LOWLAND_OF_LAND_RANGE) / RELIEF_FADE_OF_LAND_RANGE, 0, 1);
-      // Multidirectional hillshade (see `SHADE_LIGHTS`): the weighted sum of four azimuths, divided by
-      // the primary's weight so a slope facing the primary keeps the shade a single-light model gave
-      // it. One light left every face parallel to it flat — the grey-blob mountains.
+      // Multidirectional hillshade (see `SHADE_LIGHTS`): weighted sum of four azimuths, divided by
+      // the primary's weight so a slope facing it keeps its single-light shade.
       let shadeSum = 0;
       for (let k = 0; k < SHADE_LIGHTS.length; k++) {
         const lightDir = SHADE_LIGHTS[k];
@@ -1404,8 +1172,7 @@ export function bakeWhittakerGround(
       }
 
       // Cast shadow, cooled and softened. Water is skipped: a carved river cell sits far below its
-      // banks, so the trace reads a large height difference there and paints the channel — and every
-      // river bend's inside corner — dark. That is what drew the hard dark outlines around rivers.
+      // banks, so the trace would paint the channel dark.
       if (!isWater) {
         const ao = sampleF(skyOcclusion, cols, rows, tcx, tcy);
         const ambientShade = ao * 0.32;
@@ -1419,9 +1186,8 @@ export function bakeWhittakerGround(
         }
       }
 
-      // Slope edge — a sharp slope change darkens into a rim, which is what makes a ridgeline read
-      // as a ridgeline rather than as a colour change. Kept off water, off beaches and along
-      // riverbanks, where a rim would draw a hard line over ground meant to blend.
+      // Slope edge — a sharp slope change darkens into a rim, so a ridgeline reads as one rather
+      // than as a colour change. Kept off water, beaches and riverbanks.
       const maxSlope = Math.max(Math.abs(sx), Math.abs(sy));
       if (maxSlope > RIM_SLOPE && !isWater && rd <= 0.01 && hn > BEACH_BAND_OF_LAND_RANGE) {
         const edgeStrength = clamp((maxSlope - RIM_SLOPE) * 8, 0, 1) * RIM_STRENGTH;
@@ -1430,9 +1196,8 @@ export function bakeWhittakerGround(
         b = b * (1 - edgeStrength);
       }
 
-      // Snow is strongly reflective even on a shaded mountainside. Retain the
-      // silhouette and cast shadows, but prevent north-facing snowfields from
-      // disappearing into the grey rock palette at the steepest cold crests.
+      // Snow is strongly reflective even on a shaded mountainside: keep the silhouette and cast
+      // shadows, but lift north-facing snowfields out of the grey rock palette.
       if (!isWater) {
         const brightSnow = clamp((snowAmountAt(hn, te) - 0.78) / 0.22, 0, 1);
         const bounce = brightSnow * 0.65;

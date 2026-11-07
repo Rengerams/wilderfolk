@@ -1,7 +1,6 @@
 /**
- * The entity payload ships relationship maps only when a settler's revision changed: friendships are
- * the bulk of a large colony's delta, and most settlers' webs are untouched in any given tick. The
- * replica must keep the maps it already has (sparse merge), so this pins both the elision and parity.
+ * The entity payload ships relationship maps only when a settler's revision changed, and the replica
+ * sparse-merges them; this pins both the elision and the parity.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/gameEngine';

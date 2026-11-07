@@ -1,10 +1,6 @@
 /**
- * Audit L30 (2026-09-13): `grassEcology.getGrazerDailyDemand` was exported but never called,
- * so its winter energy penalty was never applied to grazing demand.
- *
- * The grazing-pressure report is the live consumer; it called the low-level
- * `grazerGrassEnergyDemandPerDay` with `winterPenalty = 0` inline. It now goes through the
- * owner of the daily-demand rule, which is also the only place the penalty is applied.
+ * The grazing-pressure report bills each grazer through `grassEcology.getGrazerDailyDemand`, the one
+ * rule that applies the winter energy penalty; predators such as the Wildkin are not billed.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -32,9 +28,8 @@ describe('L30 — grazing demand reaches the winter penalty', () => {
 
   it('uses the owner rule per species instead of an inline metabolism sum', () => {
     const winter = getGrazingPressureReport(worldWithGrazers(Season.Winter));
-    // Grazers only: the Wildkin is an apex predator on a meat diet (`speciesConfig`), so the 2 in
-    // `worldWithGrazers` must not appear in the pasture's demand. Its count still travels on the
-    // report; what changed is that it is not billed as a grass eater.
+    // Grazers only: the Wildkin eats meat (`speciesConfig`), so its 2 must not appear in the
+    // pasture's demand — its count still travels on the report.
     const expected =
       getGrazerDailyDemand('deer', Season.Winter) * 6 +
       getGrazerDailyDemand('rabbit', Season.Winter) * 4;

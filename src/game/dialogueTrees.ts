@@ -336,9 +336,8 @@ export function getDialogueCategories(): readonly DialogueCategory[] {
 }
 
 /**
- * Timed, presentation-only dialogue (e.g. PR #91's paused Spotlight Lore).
- * This is NOT an Entity chat session: the caller owns its wall-clock timing,
- * real actor mapping, pause/camera/skip, and world state.
+ * Timed, presentation-only dialogue. Not an Entity chat session: the caller owns its wall clock,
+ * actor mapping, pause/camera/skip and world state.
  */
 export interface PresentationDialogueLine extends DialogueLine {
   readonly id?: string;
@@ -370,12 +369,8 @@ interface PresentationDialogueSource {
 }
 
 /**
- * Parse PR-owned 1.3 JSON without importing it into an ambient-chat bank.
- *
- * PR #91 imports its own JSON and calls this once at module initialization.
- * A group scene may identify many named roles (or one rotating "chorus" role),
- * but it never touches chatPhrase, chatTicks, the simulation clock or RNG.
- * Missing/ambiguous event keys and invalid content fail closed with an error.
+ * Parse presentation-owned JSON without importing it into an ambient-chat bank. Never touches
+ * `chatPhrase`, `chatTicks`, the simulation clock or RNG; invalid content fails closed.
  */
 export function readPresentationDialogue(
   rawSource: unknown,
@@ -437,9 +432,8 @@ export function readPresentationDialogue(
 }
 
 /**
- * Central presentation catalog in the dialogue orchestrator. JSON sources belong here,
- * never in UI code. Group presentations use the shared validated, frozen dialogue text,
- * but do not schedule normal solo/pair Entity chat sessions or mutate chat fields.
+ * Presentation catalog for the dialogue orchestrator. JSON sources belong here, never in UI code;
+ * these scenes never schedule Entity chat sessions or mutate chat fields.
  */
 const presentationScenesByEvent = new Map<string, PresentationDialogueScene>();
 for (const raw of [spotlightPresentationJson]) {
@@ -464,9 +458,8 @@ export function getPresentationDialogue(eventKey: string): PresentationDialogueS
 }
 
 /**
- * Bind numbered presentation roles to 6–10 distinct, real gathered adults.
- * Every gathered actor must speak; excess JSON roles repeat real actors.
- * Never invent an actor, mutate gameplay fields, or consume RNG.
+ * Bind numbered presentation roles to 6–10 distinct, real gathered adults. Never invent an actor,
+ * mutate gameplay fields, or consume RNG.
  */
 export interface BoundPresentationDialogueLine extends PresentationDialogueLine {
   readonly speakerId: number;
@@ -636,10 +629,7 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
   return true;
 }
 
-/** Pick an already-existing event context without creating another event scheduler.
- * Only use specific scenes when their real-world role requirements are met.
- * Unsupported relationships retain the original ambient source for that mode.
- */
+/** Pick an existing event context; use a specific scene only when its role requirements are met. */
 function contextualAmbientScene(
   entity: ChatSpeaker,
   partner: ChatSpeaker | null,
@@ -748,9 +738,7 @@ export function pickRandomChatContext(
 }
 
 /**
- * Ambient dialogue — random time, random context, optional random nearby partner.
- * Not gated to work hours / evening / “arrived at building”.
- *
+ * Ambient dialogue — random time and context, optional nearby partner.
  * @param chancePerTick raw chance this tick (e.g. 0.012 ≈ occasional chatter)
  */
 export function tryAmbientRandomDialogue(

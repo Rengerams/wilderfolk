@@ -19,9 +19,8 @@ export type VolumePreset = 'soft' | 'normal' | 'loud';
 type MenuView = 'main' | 'settings' | 'graphics' | 'about' | 'profiler';
 
 /**
- * The save/settings callback tail the menu and the header both accept — one owner, so the pass-through
- * between them cannot drift into two declarations of the same contract. `GameHeader`'s
- * `Props` extends this instead of restating it.
+ * The save/settings callback tail the menu and the header both accept, declared once so the
+ * pass-through cannot drift into two contracts. `GameHeader`'s `Props` extends this.
  */
 export interface GameMenuSettingsCallbacks {
   hasSavedGame: boolean;
@@ -242,10 +241,8 @@ export default function GameMenu({
     };
   }, [open, updateAnchor]);
 
-  // The menu owns the keyboard while open: the game's window-capture handler runs before this
-  // component's document handler, so without the claim one Escape closes the menu *and* falls through
-  // to clear the map selection. Escape steps back to the main page first, then closes — the shared
-  // hook owns the claim, this component only says what Escape means here.
+  // The menu owns the keyboard while open: the game's window-capture handler runs first, so without
+  // the claim one Escape would close the menu and also clear the map selection.
   const handleEscape = useCallback(() => {
     if (view !== 'main') setView('main');
     else close();

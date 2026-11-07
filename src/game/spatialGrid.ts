@@ -52,14 +52,8 @@ function isSpatialGridDisabled(): boolean {
 export const USE_SPATIAL_GRID = !isSpatialGridDisabled();
 
 /**
- * World→cell clamping convention for every uniform grid (`EntitySpatialGrid`, `ScentGrid`): floor the
- * coordinate, then clamp it into `0 .. cellCount - 1`.
- *
- * This is the single owner of the rule (duplication-deadcode A12); a cell coordinate must mean the
- * same thing to entity lookups and to odour deposits or the two grids disagree about which cell a
- * world position belongs to. One axis per call rather than a bundled `(x, y) => { col, row }`
- * helper, so the hot `insert` path stays allocation-free. Callers own the non-finite policy: `EntitySpatialGrid`
- * rejects non-finite input before calling this, `ScentGrid` deposits finite coordinates only.
+ * World→cell clamping convention for every uniform grid (`EntitySpatialGrid`, `ScentGrid`):
+ * floor the coordinate, then clamp into `0 .. cellCount - 1`. Callers own the non-finite policy.
  */
 export function gridCellAxis(coord: number, cellSize: number, cellCount: number): number {
   return Math.min(cellCount - 1, Math.max(0, Math.floor(coord / cellSize)));
@@ -100,12 +94,8 @@ export class EntitySpatialGrid {
   private readonly entityCell = new Map<number, number>();
 
   /**
-   * entity id → the object currently stored in that bucket.
-   *
-   * Needed because `entityCell` only records the *cell*, so an unchanged-cell update could not tell
-   * whether the bucket already held this very object without scanning the bucket — and that branch is
-   * the per-entity hot path of every tick. With the reference here the common case (the simulation,
-   * whose entity objects are stable) is a single Map read.
+   * entity id → the object currently stored in that bucket, so an unchanged-cell update can
+   * tell whether the bucket already holds this object without scanning it.
    */
   private readonly entityStored = new Map<number, Entity>();
 
@@ -186,19 +176,8 @@ export class EntitySpatialGrid {
 
     const existingIdx = this.entityCell.get(entity.id);
     if (existingIdx === newIdx) {
-      // Same cell: the bucket already has an entry for this id, but not necessarily *this object*.
-      //
-      // In the simulation the entity object is stable, so the stored entry is already identical and
-      // there is nothing to do. That is the common case and it must stay O(1) — hence `entityStored`,
-      // which holds the reference so no bucket scan is needed to prove it. (The first version of this
-      // fix scanned the bucket here, which turned every stationary entity on every tick into an
-      // O(bucket) walk and stalled the simulation worker: `docs/private/audits` records the revert.)
-      //
-      // The worker's render path is the other case: `updateRenderSoABuckets` builds a **fresh** shim
-      // object for every slot on every tick but gives it the same id and the same cell when the grass
-      // has not moved, so a bare `return` dropped each new shim and left the grid holding the first
-      // tick's objects. Any field that changes without a cell change — `flash`, `size`, `chatTicks` —
-      // then never reached the renderer.
+      // Same cell: the bucket may hold an older object with this id. The stored reference makes
+      // the stable-object case O(1); otherwise replace the bucket entry by id.
       if (this.entityStored.get(entity.id) === entity) return;
       const bucket = this.cells[newIdx];
       const pos = bucket.findIndex((e) => e.id === entity.id);
@@ -465,9 +444,8 @@ export function syncGrassRenderGrid(
   if (grid !== existing) {
     grid.rebuild(grassEntities, isGrassGridEntity);
   } else {
-    // A reused grid must track the entities it indexes: grass spawns and deaths happen
-    // mid-run (`dailyGrassEcology`, `nature_boom`), so a rebuild-only-on-new-instance
-    // path froze the index at the first sync and left ghost/depleted grass in it.
+    // A reused grid must track mid-run spawns and deaths, so reconcile it, not rebuild only on
+    // a new instance.
     grid.reconcile(grassEntities, isGrassGridEntity);
   }
   return grid;
@@ -519,9 +497,8 @@ export function viewportFromCamera(
 }
 
 /**
- * Gathers grass entities in the viewport.
- * Uses the spatial grid when available; falls back to an allocation-free linear AABB walk
- * rather than rebuilding a fresh spatial grid each render frame.
+ * Gathers grass entities in the viewport: the spatial grid when available, otherwise an
+ * allocation-free linear AABB walk rather than rebuilding a grid per frame.
  */
 export function collectGrassInViewport(
   grassGrid: EntitySpatialGrid | null | undefined,
@@ -567,12 +544,8 @@ export function syncSpatialGridEntity(
   grassGrid?: EntitySpatialGrid,
   mobileGrid?: EntitySpatialGrid,
   /**
-   * The tree grid. Required for a tree spawned **mid-tick**: `tickLayerRealtime` reconciles the tree
-   * grid once per tick from `byType[Tree]`, and a same-tick spawn is not in that bucket yet, so
-   * without this the newcomer is invisible to tree queries for the rest of the tick — queryable from
-   * the next tick's reconcile, but not from the tick that created it. `nature_boom` adds 15 trees and
-   * `clearTreesUnderFootprint` removes them, both after the grid was first built; that comment on
-   * `syncTreeGrid` records the same hazard and is why it reconciles rather than only rebuilds.
+   * The tree grid. Required for a tree spawned mid-tick: the realtime layer reconciles the tree
+   * grid once per tick, so a same-tick spawn is invisible without this.
    */
   treeGrid?: EntitySpatialGrid,
 ): void {

@@ -49,10 +49,8 @@ export interface UseVirtualPlayerResult {
 }
 
 /**
- * The one-line status shown next to the toggle. It is `null` only while
- * auto-play is off, so an enabled-but-idle bot still says *why* it is idle
- * instead of looking broken. Pure, so "never silent again" is testable without
- * a DOM.
+ * The one-line status shown next to the toggle: `null` only while auto-play is off, so an
+ * enabled-but-idle bot still says why it is idle.
  */
 export function virtualPlayerStatusText(
   enabled: boolean,
@@ -74,9 +72,8 @@ interface VirtualPlayerRun {
 const EMPTY_RUN: VirtualPlayerRun = { status: null, acts: 0, history: [] };
 
 /**
- * Whether the bot may act on this world snapshot: enabled, not paused, on an
- * in-game hour boundary, and never twice for the same tick. Pure, so the
- * cadence rule is testable without a DOM.
+ * Whether the bot may act on this world snapshot: enabled, not paused, on an in-game hour boundary,
+ * and never twice for the same tick.
  */
 export function shouldVirtualPlayerAct(
   enabled: boolean,
@@ -89,13 +86,8 @@ export function shouldVirtualPlayerAct(
 }
 
 /**
- * Drives the in-app virtual player.
- *
- * Presentation-side only (AGENTS.md §5): it reads the current world, asks the
- * pure engine for at most one decision per in-game hour, and dispatches that
- * command through `applyGameAction` — the same door a click uses, so in worker
- * mode the command travels the real worker transport and the worker stays
- * authoritative. It never mutates `WorldState` itself.
+ * Drives the in-app virtual player. Presentation-side only: it asks the pure engine for at most one
+ * decision per in-game hour and dispatches it through `applyGameAction`, never mutating `WorldState`.
  */
 export function useVirtualPlayer({
   world,
@@ -107,10 +99,8 @@ export function useVirtualPlayer({
   /** Last tick the bot acted (or decided) on — a re-render cannot double-fire it. */
   const lastActedTickRef = useRef<number | null>(null);
   /**
-   * The act effect is keyed on these scalars, not on the `world` object: the game
-   * loop mutates one `WorldState` in place (`GameLoop.frame` / the worker host
-   * `worldRef`), so `world` keeps the same identity across ticks. Object identity
-   * is therefore not a "a new in-game hour arrived" signal — the tick is.
+   * The act effect is keyed on these scalars, not on `world`: the loop mutates one `WorldState` in
+   * place, so object identity never signals a new in-game hour — the tick does.
    */
   const { paused, tick } = world;
 
@@ -133,9 +123,7 @@ export function useVirtualPlayer({
     const decision = decideVirtualPlayerAction(world);
     if (decision) applyGameAction(decision.command);
 
-    // This effect mirrors what the bot just dispatched (an external system:
-    // the game loop) into the on-screen readout. `lastActedTickRef` above makes
-    // it fire at most once per in-game hour, so it cannot cascade renders.
+    // This effect mirrors the dispatched act into the on-screen readout.
     // oxlint-disable-next-line react/set-state-in-effect
     setRun((previous) => {
       if (!decision) {
@@ -155,9 +143,8 @@ export function useVirtualPlayer({
         history: [act, ...previous.history].slice(0, VIRTUAL_PLAYER_HISTORY_LIMIT),
       };
     });
-    // `paused` and `tick` are dependencies on purpose: the loop mutates `world`
-    // in place, so the object alone never re-triggers this effect after the click
-    // that enabled the bot — which is exactly the "Auto-play does nothing" bug.
+    // `paused` and `tick` are dependencies on purpose: the loop mutates `world` in place, so the
+    // object alone never re-triggers this effect.
   }, [applyGameAction, enabled, paused, tick, world]);
 
   const session = useMemo<VirtualPlayerSession | null>(() => {

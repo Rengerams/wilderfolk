@@ -146,7 +146,7 @@ export {
   formatRaidDeadline,
   formatRaidLootSummary,
   raidEventLoot,
-  /** The raid card's own gate — the view asks the owner instead of restating it (roadmap U2/O2). */
+  /** The raid card's own gate — the view asks the owner instead of restating it. */
   getRaidChoiceEligibility,
   type CombatPreview,
   type RaidOutcomeTier,
@@ -225,10 +225,7 @@ export {
   describeSaveLoadOutcome,
   loadGameFromParsed,
   hasSave,
-  // Re-exported beside `hasSave` because the shell must be able to tell the two questions apart —
-  // "is there a save in the slot" (`hasSaveSlot`) versus "can this build load it" (`hasSave`). The
-  // player-visible Load affordance depends on the first and the refusal message on the second.
-  // Same owner (`saveLoad`), so this is a façade export, not a second definition.
+  // `hasSaveSlot` answers "is there a save in the slot"; `hasSave` answers "can this build load it".
   hasSaveSlot,
   deleteSave,
   downloadSaveFile,

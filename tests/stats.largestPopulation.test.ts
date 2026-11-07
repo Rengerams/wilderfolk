@@ -1,9 +1,6 @@
 /**
- * `largestPopulation` tracks the true peak, not just the year-end sample.
- *
- * `yearlyStats.population.humans` is a year-end snapshot, so deriving the lifetime record from it
- * alone undercounted a colony whose population peaked mid-year (the famine loop's 2 → 64 → 10 →
- * 26). `gameTick` now keeps a running max on every tick.
+ * `largestPopulation` tracks the true peak with a running max on every tick, not the
+ * year-end sample in `yearlyStats.population.humans`.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

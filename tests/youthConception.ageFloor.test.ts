@@ -1,21 +1,6 @@
 /**
- * Youth conception age floor — ages 12 and 13 are eligible (owner decision, 2026-09-13).
- *
- * The youth-love minimum age is 12 (`YOUTH_LOVE_MIN_AGE` in
- * `simulation/humanRelationships.ts`), so the youth-conception gate has to admit the
- * same ages: `YOUTH_CONCEPTION_MULTIPLIERS` now carries 12 and 13 entries (0.25, the
- * same base value 14 already used) and `HUMAN_FERTILITY_START` is 12.
- *
- * These tests pin the floor (11 still cannot conceive, so the window did not silently
- * widen further) and prove that a 12/13 pregnancy remains reachable *only* through an
- * existing mutual youth-love pair — the ownership rule in
- * `docs/archive/SIMULATION_AUTHORITY.md` §5 ("At ages 12–17 it requires the documented
- * mutual youth-love, nearby, energy, and reduced-probability gate").
- *
- * SCOPE — writer-level tests: they build a synthetic `WorldState` around `initGame({ skipTerrain: true })`,
- * place the pair by hand, and call the conception owner directly. Conception rolls are
- * stateless per settler and *day* (`personDayRoll`), so a passing branch is forced by
- * choosing the day rather than by stubbing randomness.
+ * The youth-conception gate admits 12 and 13 (`HUMAN_FERTILITY_START` is 12), but only through an
+ * existing mutual youth-love pair; 11 still cannot conceive.
  */
 import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';

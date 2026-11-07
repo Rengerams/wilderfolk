@@ -1,9 +1,6 @@
 /**
- * The physiology labor activity reaches a player settler's own stamina.
- *
- * The player drain divides by the `labor` factor during a worked shift only; merely walking keeps
- * the base drain. The captive energy equation is separately genetics-free
- * (`personality.captiveEnergyIntegration`).
+ * The physiology `labor` activity reaches a player settler's own stamina: a worked shift divides the
+ * drain, while merely walking keeps the base drain.
  */
 import { describe, expect, it } from 'vitest';
 import { advanceHumanNeeds, initialHumanNeeds } from '../src/game/simulation/humanPhysiology';

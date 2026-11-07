@@ -1,14 +1,6 @@
 /**
- * A16 — `formatRaidDeadlineSafe` was a divergent wrapper around the owner's own legacy fallback
- * (`docs/private/audits/2026-09-16/duplication-deadcode.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * The owner `frontierCombat.formatRaidDeadline` already resolves a missing `expiresAtTick` through
- * `getRaidExpiresAtTick`'s legacy window. The wrapper re-checked both fields by hand and printed
- * `'deadline unknown'` for exactly the case the owner handles — so a legacy raid showed "deadline
- * unknown" on the outgoing card (`App.tsx`) and "N days left" on the incoming one, in the same frame.
- *
- * Both cards now call the owner, and the genuinely-unknown case (no `createdAtTick` and no
- * `expiresAtTick`) is expressed *inside* the owner, so the two cards cannot disagree again.
+ * Both raid cards call the owner `frontierCombat.formatRaidDeadline`, which resolves a missing
+ * `expiresAtTick` through `getRaidExpiresAtTick`; the unknown case is expressed inside the owner.
  */
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
@@ -44,7 +36,7 @@ describe('A16 — one raid-deadline renderer for both cards', () => {
   it('expresses the genuinely unknown deadline inside the owner', () => {
     const undated = legacyRaid(undefined, undefined);
     expect(Number.isFinite(getRaidExpiresAtTick(undated))).toBe(false);
-    // Pre-fix this path printed `NaN days left` while the wrapper printed `deadline unknown`.
+    // An undated raid renders `deadline unknown`, never `NaN days left`.
     expect(formatRaidDeadline(undated, 0)).toBe('deadline unknown');
   });
 

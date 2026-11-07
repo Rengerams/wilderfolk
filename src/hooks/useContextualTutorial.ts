@@ -45,9 +45,8 @@ export function useContextualTutorial(world: WorldState, enabled: boolean) {
       return;
     }
 
-    // Detection reads the live world alone; it must never compare against a "previous" world,
-    // because the loop mutates one `WorldState` in place. The first run only establishes that the
-    // world is ready, so a tip that is already true at mount is seeded rather than replayed.
+    // Detection reads the live world alone; it must never compare against a "previous" world, because
+    // the loop mutates one `WorldState` in place. The first run only establishes the world is ready.
     if (!seededRef.current) {
       seededRef.current = true;
       return;

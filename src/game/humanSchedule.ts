@@ -56,8 +56,7 @@ export function isFestivalGatherer(
 }
 
 /**
- * Legacy innkeeper-duty query. A festival opens the Tavern to visitors and creates no worker duty, so
- * the festival flag no longer extends the shift — it stays in the signature for its existing callers.
+ * Legacy innkeeper-duty query: the tavern service window, ignoring any festival.
  */
 export function isOnInnkeeperShift(tick: number, hour?: number): boolean {
   return isTavernServiceHour(hour ?? getHourOfDay(tick));
@@ -78,17 +77,8 @@ export function shouldBeAtHomeFor(schedule: WorkSchedule | undefined, hour: numb
 }
 
 /**
- * An off-duty settler near their residence during sleep hours is asleep.
- *
- * Composes the two owners that already describe this: the night window
- * (`isNightHour`, 23:00–06:00) and the residency proximity rule (`isNearResidence`,
- * 55 px of the assigned house). Anyone out at night — a tavern keeper, a night-shift
- * worker, a visitor, a settler still walking home — is away from their residence and
- * therefore unaffected.
- *
- * Sleepers keep their mouth shut (the ambient chatter gate in `humanTick`) and are not
- * drawn (the sleeper cull in `renderer/humans.ts`), which is what keeps a 200-citizen
- * village readable after dark. The simulation still owns every one of them.
+ * An off-duty settler near their residence during sleep hours is asleep — the night window plus
+ * the residency proximity rule. Anyone out at night is away from their residence and unaffected.
  */
 export function isAsleepAtHome(
   human: Entity,
@@ -110,18 +100,8 @@ export function prefersHomeTonightFor(
   const weekend = isWeekend(tick);
   const roll = (salt: number) => personDayRoll(entityId, tick, salt);
 
-  // Deep night is not a preference. This used to be `roll(101) > 0.07`, i.e. 7% of settlers
-  // deliberately did NOT prefer home after dark — and because `personDayRoll` is keyed on the
-  // colony day, it was the SAME 7% every night of that day. They never reached their house, so
-  // `isAsleepAtHome` (night + within 55 px of the assigned residence) could never hide them and
-  // they stood outside until dawn: the owner's report, "at night people should disappear in they
-  // house but that is not happening", in a village where a 7% band is ~30 settlers on the street.
-  // Anyone who is legitimately out after dark is excluded by JOB, not by this roll — the home
-  // commute at `humanTick` requires `!onJobShift`, so tavern keepers, hotel staff and the
-  // moon-howler priest still work through the night.
-  // Most settlers sleep through deep night. A small deterministic minority
-  // may stay out or sneak away, sacrificing that night's energy recovery.
-  // Work schedules are handled separately by the simulation's duty checks.
+  // Deep night is not a preference: most settlers sleep, a small deterministic minority may stay
+  // out. Anyone legitimately out after dark is excluded by JOB, not by this roll.
   if (hour >= 23 || hour < 5) return roll(101) >= 0.05;
   if (hour >= 5 && hour < s.startHour) return roll(102) > 0.12;
   if (hour >= s.endHour && hour < 22) return roll(103) < 0.5;

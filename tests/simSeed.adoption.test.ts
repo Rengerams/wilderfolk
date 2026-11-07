@@ -1,13 +1,6 @@
 /**
- * The colony seed has to be *adopted* by every realm that receives a world instead of
- * creating one — the simulation worker (`gameWorker.resetWorkerSession`) and the save-load
- * path (`saveLoad.loadGameFromParsed`).
- *
- * Both used to inherit `simRng`'s module default of seed 1: the worker because it is a
- * separate realm that was never seeded, and a load because nothing re-seeded this realm
- * after the game it had created. Every `getSimRng(owner)` / `seededRandomForRun()` draw in
- * those realms then came from the wrong seed, so the same world diverged between worker and
- * main-thread mode and two different seeds shared one set of random streams.
+ * Every realm that receives a world must adopt its colony seed rather than create one — the
+ * simulation worker on session reset, and the save-load path.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import {

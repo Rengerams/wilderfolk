@@ -748,9 +748,8 @@ export function initGame(options: InitGameOptions = {}): WorldState {
           const px = sx + (simRandom() - 0.5) * spacing * 0.46;
           const py = sy + (simRandom() - 0.5) * spacing * 0.46;
           const biome = getTileAtWorld(state, px, py)?.type;
-          // Revision 4 fades recruitment and canopy type through the local climate
-          // rather than jumping from 3.5% grassland to 40% forest in one 10px tile.
-          // Older recipes retain the exact original RNG sequence and tree positions.
+          // Revision 4 fades recruitment and canopy type through the local climate rather than
+          // jumping from 3.5% grassland to 40% forest in one 10px tile.
           const ecotone = map.generationVersion === 4 && biome != null
             ? treeEcotoneAt(map, px, py, biome)
             : null;

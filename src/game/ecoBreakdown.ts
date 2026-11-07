@@ -21,12 +21,8 @@ export interface EcosystemBreakdown {
 }
 
 /**
- * Read-only explanation of the ecosystem-health score. The score itself is
- * owned by `dailyEcology.tickEcosystemMetrics`; this module always reports the
- * value that owner recorded (`state.ecosystemHealth`) and derives every line
- * from the same inputs through the owner's `calculateEcosystemMetrics`, so the
- * Nature tab's "Why this score" lines cannot disagree with the Health shown
- * above them.
+ * Read-only explanation of the ecosystem-health score: reports the value its owner recorded and
+ * derives every line from the same inputs, so the Nature tab cannot disagree with the Health shown.
  */
 export function getEcosystemBreakdown(state: WorldState, buildings: Building[] = state.buildings): EcosystemBreakdown {
   const counts: EcosystemCounts = { ...state.wildlifeCounts, humans: state.humanPopulation };

@@ -1,30 +1,6 @@
 /**
- * Import-cycle gate — TypeScript-version-agnostic, dependency-free.
- *
- * Why this exists instead of `depcruise`: `typescript@7.0.2` is outside dependency-cruiser
- * 18.3.1's supported range (`>=2.0.0 <7.0.0`), so its TypeScript transpiler is never attached and
- * every `audit:deps*` run reported "0 modules, 0 dependencies cruised" while exiting 0 — a green
- * tick that verified nothing (`BUG_REPORTS/2026-09-16-dependency-cruiser-gate-cruises-zero-modules.md`).
- *
- * This script parses the import specifiers itself, so it works regardless of the TypeScript
- * version, and it asserts its own coverage: a cruise that finds no modules or no dependencies fails
- * loudly instead of printing success.
- *
- * Checks:
- *   1. coverage — at least `MIN_MODULES` modules and one resolved edge, or fail;
- *   2. runtime cycles — strongly connected components of size > 1 over erased-excluded imports
- *      (Tarjan), plus self-imports; these are the cycles that exist at run time → fail;
- *   3. type-only cycles — the same analysis over `import type` / `export type` edges, which
- *      TypeScript erases. Always reported to stderr under `--strict`, never fatal: `WorldState`
- *      holds class-typed grid fields (`EntitySpatialGrid`, `RoadAvoidanceIndex`) while those classes
- *      are functions of `WorldState`/`Entity` (`stats.ts`, `scentGrid.ts`, `beautyGrid.ts`), so the
- *      type graph is mutual by construction. Breaking it would mean duplicating each grid's public
- *      API into a leaf interface or widening the fields to `unknown` — both worse than the warning.
- *      `--strict` therefore means one concrete thing: **the runtime graph is acyclic**.
- *   4. layering — no production module imports a test file (the depcruise `not-to-test` rule).
- *
- * Usage: node scripts/check-import-cycles.mjs [--json] [--strict]
- * Exit codes: 0 clean · 1 runtime cycles, test imports, or insufficient coverage · 2 unexpected error.
+ * TypeScript-version-agnostic import-cycle gate: a dependency-free graph over `src` that fails on
+ * insufficient coverage, runtime cycles and test imports; type-only cycles warn. Usage: `node scripts/check-import-cycles.mjs [--json] [--strict]`.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -233,10 +209,8 @@ function main() {
 
   let failed = false;
 
-  // Severity deliberately matches the retired `.dependency-cruiser.cjs` it replaced
-  // (`no-circular: warn`): cycles are reported, and `--strict` makes them fatal for whoever wants the
-  // tree cleaned up. Reported findings go to stdout while the run is non-fatal, so a green run can
-  // still be read; `--strict` uses stderr.
+  // Cycles are reported but non-fatal unless `--strict`; stdout keeps a green run readable, and
+  // `--strict` sends findings to stderr.
   const report = strict ? console.error : console.log;
 
   if (runtimeCycles.length > 0) {

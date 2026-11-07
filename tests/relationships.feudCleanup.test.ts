@@ -1,9 +1,6 @@
 /**
- * F4 of the 2026-09-16 lifecycle/social audit (`docs/private/audits/2026-09-16/sim-lifecycle-social.md`):
- * the feud pass deletes the record of a counterpart who is gone, but that deletion sat **below** the
- * "lower id takes responsibility" guard — so when the lower-id settler died, the survivor kept
- * `feud_<deadId>` forever: never decayed, never deleted, and unable to log "settled their feud".
- * The friendship pass it claims to mirror prunes for both sides.
+ * The feud pass prunes a dead counterpart's record on both sides, so a survivor keeps
+ * no permanent `feud_<deadId>`.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';

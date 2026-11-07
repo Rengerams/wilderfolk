@@ -1,7 +1,4 @@
-/**
- * Camp wander / visitor village activities.
- * Visitors no longer only orbit their tent — they visit POIs by kind.
- */
+/** Camp wander / visitor village activities: visitors pick POIs by kind, loiter, and return to camp. */
 import type { WorldState, Entity, Building, VisitorKind, VisitorGroup } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { isCompletedPlayerBuilding } from './buildings';

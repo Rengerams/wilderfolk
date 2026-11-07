@@ -1,9 +1,6 @@
 /**
- * Two writers of entity position, and a render bucket cache keyed on the tick alone.
- *
- * The render SoA is a *snapshot of a past tick*; the live world is advanced by the tick delta. Both
- * were writing the same `Entity` objects, and the render-SoA bucket cache answered a same-tick
- * refresh with the previous buffer. Each case below is stated as the invariant it violates.
+ * The render SoA is a snapshot of a past tick: it must not write its positions into the live world,
+ * and the bucket cache must key on the buffer, not the tick alone.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType, type Entity, type WorldState } from '../src/game/gameTypes';

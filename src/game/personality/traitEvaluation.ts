@@ -87,11 +87,8 @@ function markScoreOf(subject: AptitudeSubject | null | undefined, activity: Apti
 }
 
 /**
- * One combined modifier for one settler in one activity: signed aptitudes plus any personal
- * marks, normalized to `[-1, 1]` and capped once.
- *
- * `score = clamp(sum(w*d) / (50*sum|w|) + marks, -1, +1)` and `factor = 1 + cap*score`, with `d`
- * the dimension's deviation from the settler's own fourteen-dimension mean.
+ * One combined modifier for one settler in one activity: signed aptitudes plus personal marks,
+ * normalized to `[-1, 1]` and capped once (`factor = 1 + cap*score`).
  */
 export function evaluateAptitudeInfluence(
   subject: AptitudeSubject | null | undefined,

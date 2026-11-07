@@ -1,9 +1,6 @@
 /**
- * Non-invasive lifeSimulation bottleneck profiler.
- * Does not modify gameTick or any simulation layer.
- *
- * Run:
- *   PERF_TICKS=120 SIM_FULL_SIM=1 npx tsx scripts/perf-life-bottleneck.ts
+ * Non-invasive lifeSimulation bottleneck profiler: does not modify gameTick or any simulation layer.
+ * Run: `PERF_TICKS=120 SIM_FULL_SIM=1 npx tsx scripts/perf-life-bottleneck.ts`.
  */
 import { Session } from 'node:inspector/promises';
 import { gameTick, initGame } from '../src/game/gameEngine';

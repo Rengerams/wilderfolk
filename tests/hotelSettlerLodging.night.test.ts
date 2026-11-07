@@ -29,11 +29,7 @@ import { tickHumans } from '../src/game/humanTick';
 const TEST_SEED = 20_261_010;
 /** 23:00 — deep night, so `stayIn` is unconditional and the old hourly home snap would fire. */
 const LATE_NIGHT_OFFSET = 23 * TICKS_PER_HOUR;
-/**
- * A walkable land point on this seed, with land to its west and east. The cases below used
- * `width * 0.78`, which on this map is open sea several tiles from any shore — they passed only
- * while a settler could walk over water.
- */
+/** A walkable land point on this seed, with land to its west and east. */
 const WALKER_X = 1280;
 const WALKER_Y = 672;
 

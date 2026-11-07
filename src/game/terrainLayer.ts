@@ -83,8 +83,7 @@ function drawTerrainFill(
   y0: number,
   fillW: number,
   fillH: number,
-  // Tile coords are kept in the signature for the call sites' shape; the per-tile phase they
-  // used to drive was the D9 ghost (see below).
+  // Tile coords are kept for the call sites' shape; the fill itself is position-independent.
   _tx: number,
   _ty: number,
   alpha = 1,
@@ -258,12 +257,8 @@ export function getTerrainRevision(): number {
 }
 
 /**
- * Cache key for one baked terrain chunk.
- *
- * Every input the bake reads must be here. `seed`/`preset`/size are stable for a world, but
- * `tile.type` is **not** — the building-placement path clears forest under a new footprint — so
- * {@link getTerrainRevision} is part of the key and a mutated tile cannot keep its old fill and
- * canopy for the life of the cache entry (audit `visuals-looks.md` D4).
+ * Cache key for one baked terrain chunk. Every input the bake reads must be here: `tile.type` is not
+ * stable (placement clears forest), so `getTerrainRevision` is in the key and a mutated tile re-bakes.
  */
 export function terrainChunkCacheKeyFor(
   map: Pick<WorldMap, 'seed' | 'preset'>,
@@ -478,10 +473,8 @@ export function bakeTerrainLayer(
       ? drawAtlasTile(ctx, atlasImg, atlasPick, x0, y0, fillW, fillH)
       : drawTerrainFill(ctx, tile.type, x0, y0, fillW, fillH, tx, ty);
 
-    // The shoreline mask is independent of which base painter stamped the tile: it is authored
-    // for Beach **and** RiverBank, while `pickAtlasTile` returns null for Beach (its family is
-    // not in the atlas). Nesting this under `atlasPick` therefore made the beach half of the
-    // mask — the material it exists for — unreachable (audit `visuals-looks.md` D8).
+    // The shoreline mask is independent of which base painter stamped the tile: it is authored for
+    // Beach and RiverBank, while `pickAtlasTile` returns null for Beach, so it must not nest under it.
     const overlayPick = overlayReady ? pickSandWaterOverlay(map, tx, ty, tile) : null;
     const overlayImg = overlayPick ? getSprite(SAND_WATER_OVERLAY_PATH) : null;
 

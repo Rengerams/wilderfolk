@@ -38,9 +38,8 @@ const SEVERITY_RANK: Record<PriorityAlertSeverity, number> = {
 };
 
 /**
- * Homeless settlers at which the housing nudge escalates from `info` to `warning`. One or two
- * settlers without a bed is worth saying (they never get the home-rest saving in `humanNeeds`) but
- * must not crowd the strip's `warning` tier, which the raid/diplomacy cards use.
+ * Homeless settlers at which the housing nudge escalates from `info` to `warning`, so it does not
+ * crowd the strip's warning tier used by raid and diplomacy cards.
  */
 const HOMELESS_WARNING_THRESHOLD = 3;
 
@@ -120,13 +119,8 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
     });
   }
 
-  // Homelessness *with a house standing* was invisible on the strip: the only housing alert fired when
-  // there was no house at all, so a colony whose beds ran out — the normal case, because immigration
-  // outruns housing by design — said nothing, even though a settler without a residence never gets the
-  // home-rest energy saving (`humanNeeds`). The count is the residence owner's
-  // (`housingModel.countHomelessSettlers`), which excludes prisoners on purpose — imprisonment
-  // clears `residenceBuildingId`, and counting them here is the mistake the council report already made
-  // (`LIVE-FINDINGS-STATUS.md`, F10). Copy mirrors the housing hint in `focusHints.ts`.
+  // Homelessness with a house standing: count from the residence owner (prisoners excluded) and
+  // warn, since a bedless settler never gets the home-rest saving.
   const homeless = countHomelessSettlers(state);
   if (houses > 0 && homeless > 0) {
     alerts.push({

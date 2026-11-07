@@ -5,7 +5,7 @@ import { motionTime } from './shared';
 import { worldToScreenX, worldToScreenY } from '../viewState';
 
 // ============ NIGHT BUILDING GLOW ============
-/** Disabled: day and night visual differences are removed. */
+/** No-op: day/night lighting and building glow are disabled. */
 export function drawNightBuildingGlow(
   _ctx: CanvasRenderingContext2D,
   _state: RenderSnapshot,

@@ -1,13 +1,6 @@
 /**
- * One overview subject, in its own window.
- *
- * Presentation only; all simulation changes go through typed command callbacks. The owner's ruling
- * governs the shape — *"each subject should just have its own window not stacking up"* — so this is
- * **one subject per window**, opened from its own icon in the game header (`GameHeader` reads the same
- * `OVERVIEW_SUBJECTS` table), and the nav strip that used to switch sections inside a full-screen
- * overlay is gone.
- *
- * Read a subject's own panel for its rules; nothing here restates one.
+ * One overview subject, in its own window: presentation only, all simulation changes go through
+ * typed command callbacks. Read a subject's own panel for its rules; nothing here restates one.
  */
 import { Suspense, lazy, useEffect, useRef } from 'react';
 import type { Entity, WorldState } from '../game/gameTypes';
@@ -68,7 +61,7 @@ export interface CitizenOverviewScreenProps {
   onFocusCitizen: (entity: Entity) => void;
   onToggleFavoriteCitizen?: (entityId: number) => void;
   onHintAction: (action: FocusHintAction) => void;
-  /** Opens the work & venue hours window, which this screen no longer hosts (owner: one window per subject). */
+  /** Opens the work & venue hours window; the hours editors live in their own window. */
   onOpenWorkHours: () => void;
   onFocusVisitor: (id: string, x: number, y: number) => void;
   onFocusRival: (id: string, x: number, y: number, buildingId?: number) => void;
@@ -181,9 +174,8 @@ export default function CitizenOverviewScreen({
 }: CitizenOverviewScreenProps) {
   const overview = computeCitizenOverview(state);
   const worldFocusRef = useRef<HTMLDivElement | null>(null);
-  // The window owns the keyboard and handles Escape itself, in one place shared with the other
-  // overlays. The *focus* half is `GameWindow`'s now — the trap must be attached to the element that
-  // carries `role="dialog"`, which is the shell's, not this component's.
+  // Escape handling is shared with the other overlays; focus trapping lives in `GameWindow`,
+  // which owns the element carrying `role="dialog"`.
   useOverlayKeyboard('overview-subject', onClose);
 
   useEffect(() => {
@@ -209,13 +201,7 @@ export default function CitizenOverviewScreen({
       subtitle={subject.hint}
       onClose={onClose}
       /*
-       * A window, not the screen. This used to be a `fixed inset-0` dialog whose own header, nav strip
-       * and six panels filled the viewport; the owner's ruling is *"each subject should just have its
-       * own window not stacking up"*, and their report of this screen was *"the 6 panel stacked now
-       * that opens full screen should be each subject a own icon the header and open a window for that
-       * subject not full screen"*. The six doors are now header icons (`GameHeader`), each opening this
-       * window on its own subject — so the nav strip that used to switch between them is gone: the way
-       * to another subject is its own icon, not a chip inside a panel.
+       * A window, not the screen: one subject per window, opened from that subject's header icon.
        */
       centered
       widthClassName={activeNav === 'frontier'
@@ -224,15 +210,10 @@ export default function CitizenOverviewScreen({
       maxBodyClassName={activeNav === 'frontier' ? 'max-h-[calc(92vh-4rem)]' : 'max-h-[70vh]'}
     >
         <div>
-          {/* The citizen summary belongs to the *Village* subject: it counts people, work, homes, life,
-              food and mood, which is exactly what that window is about. It used to sit above every
-              section, which made one summary read as part of Frontier, Nature and the rest. */}
+          {/* The citizen summary belongs to the *Village* subject: people, work, homes, life, food, mood. */}
           {activeNav === 'people' && (
             <>
-              {/* The mood *explanation*, which the old full-screen header carried. It must stay visible
-                  even though the mood *label* now appears only on its own stat card: audit R37 removed
-                  the duplicate label, not the sentence, and `tests/uiRefinement.residuals.test.ts`
-                  guards exactly this pair. */}
+              {/* Mood explanation stays visible; the mood label appears only on its own stat card. */}
               <p className="mb-3 text-[13px] leading-snug text-stone-300">{overview.moodDetail}</p>
               <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-3">
               <StatusCard
@@ -263,9 +244,7 @@ export default function CitizenOverviewScreen({
               detail={`${overview.married} married · ${overview.youthLove} sweethearts · ${overview.affairsThisYear} affairs this year · ${overview.imprisoned} jailed`}
               tone={overview.affairs > 0 || overview.imprisoned > 0 ? 'warn' : 'life'}
             />
-            {/* The threshold is the food owner's, not a second `max(20, pop × 2)` here: the
-                hand-written copy turned the card red at 35 food / 20 settlers beside a green
-                "Thriving" mood, which the owner's own rule does not (audit R6, residual of F20). */}
+            {/* Food alert threshold comes from the food owner (`isFoodAlertAmount`), never a local copy. */}
             <StatusCard
               icon="🍖"
               label="Food"
@@ -309,8 +288,7 @@ export default function CitizenOverviewScreen({
                 <section className="rounded-xl border border-stone-600/40 bg-stone-900/40 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="text-sm font-bold text-stone-200">🕰️ Work & venue hours</h3>
-                    {/* Its own window, not an inline stack (owner: "each subject should just have
-                        its own window not stacking up"). The editors themselves are unchanged. */}
+                    {/* The hours editors open in their own window; this card only links to them. */}
                     <button
                       type="button"
                       onClick={onOpenWorkHours}

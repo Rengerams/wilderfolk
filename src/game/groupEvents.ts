@@ -176,9 +176,8 @@ export function resolveVillageRequest(
   }
 
   state.resources.gold -= VILLAGE_REQUEST_PROVISIONS_COST_GOLD;
-  // The provisions are food *bought*, so the ledger's produced side gets the row — and it gets what
-  // storage actually accepted, not the nominal amount (`LIVE-FINDINGS-STATUS.md`, E-2; the same rule
-  // as M5's accepted catch).
+  // The provisions are food bought, so the ledger records the produced side with what storage
+  // actually accepted, not the nominal amount.
   recordFoodProduced(state, 'trade', addCappedResource(state, 'food', VILLAGE_REQUEST_PROVISIONS_FOOD));
   addReputation(state, VILLAGE_REQUEST_PROVISIONS_REPUTATION);
   source.tradesCompleted++;
@@ -335,11 +334,8 @@ export function spawnVisitorGroup(
 }
 
 export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
-  // The loop below is the only consumer of both indexes and the only writer is the
-  // `state.visitorGroups = remaining` reassignment at the end (this function never spawns a group —
-  // `spawnVisitorGroup` is called from the yearly/mid-year event rolls). With the list empty those
-  // two passes over `allAlive`, grass and trees included, plus a ~900-entry Map, bought nothing, and
-  // they ran unconditionally once per colony day.
+  // Early return keeps an empty visitor list from building the two indexes; this function never
+  // spawns a group, and `state.visitorGroups` is only reassigned at the end.
   if (state.visitorGroups.length === 0) return;
 
   const remaining: VisitorGroup[] = [];
@@ -544,11 +540,7 @@ export function talkToVisitorLeader(originalState: WorldState, groupId: string):
 export const VISITOR_TRADE_COSTS = {
   buy_food: { pay: { gold: 25 }, receive: { food: 40 } },
   buy_wood: { pay: { gold: 20 }, receive: { wood: 30 } },
-  // Stone is a building, repair, upgrade, forge and research input everywhere else, and until now it
-  // was the one `ResourceKey` a caravan could neither sell nor buy — a colony short of stone had no
-  // visitor route to it at all (`tradeRoutes` could import it; the caravan could not). Priced against
-  // the two neighbours: as cheap as wood in gold per unit, but the pile is smaller, and it sells for
-  // slightly more per unit than wood because the caravan has no cheaper way to get it.
+  // Stone is a caravan trade good alongside wood and iron.
   buy_stone: { pay: { gold: 20 }, receive: { stone: 25 } },
   buy_iron: { pay: { gold: 35 }, receive: { iron: 12 } },
   sell_food: { pay: { food: 30 }, receive: { gold: 25 } },
@@ -560,11 +552,8 @@ export const VISITOR_TRADE_COSTS = {
 export type VisitorTradeAction = keyof typeof VISITOR_TRADE_COSTS;
 
 /**
- * Visitor trade prices by the reputation bands its owner declares (`simHelpers`, next to
- * `addReputation`). The bands were hand-written here at `>= 80` / `<= 30` while `frontierCombat`
- * hand-wrote the same two numbers again for its raid odds, so retuning one left the other quoting
- * retired bands (audit "Reputation 80/30 bands"). `getVisitorTradePriceMult` below is the trade's
- * own pricing and stays here; only the band boundaries are the owner's.
+ * Visitor trade price multiplier from the reputation bands its owner declares (`simHelpers`);
+ * the pricing itself stays here.
  */
 export function getVisitorTradePriceMult(rep: number): number {
   const band = getReputationBand(rep);
@@ -685,12 +674,8 @@ export function tradeWithVisitors(
   }
 
   const { effectivePay, effectiveReceive } = getVisitorTradeTerms(state, action);
-  // Food is the one resource the economy ledger tracks, so both of its sides here go through the
-  // owners: `spendFood` deducts *and* records the named sink on the way out, and `recordFoodProduced`
-  // records what storage actually accepted on the way in. Selling 30 food to a passing caravan used
-  // to leave the "Net food flow" panel untouched, which is how the panel could read a positive net on
-  // a day the larder fell (`LIVE-FINDINGS-STATUS.md`, E-2). The other resources keep their existing
-  // bundle path — the ledger has no row for them.
+  // Food is the one resource the ledger tracks, so both sides go through its owners:
+  // `spendFood` records the sink, `recordFoodProduced` what storage accepted. Others use the bundle.
   const foodPaid = effectivePay.food ?? 0;
   if (foodPaid > 0) {
     delete effectivePay.food;
@@ -700,11 +685,7 @@ export function tradeWithVisitors(
   const paidGold = effectivePay.gold ?? 0;
   if (paidGold > 0) group.gold = (group.gold ?? 0) + paidGold;
   // What actually landed, per resource — not the nominal amounts. A gain the cap refused must not
-  // appear in the ledger as food the colony received (`LIVE-FINDINGS-STATUS.md`, M5), and the float
-  // must name every resource the deal carried. Accumulating into a list rather than assigning a
-  // single string is the fix for the other half of that: a multi-resource deal (`trade_3` pays gold
-  // *and* iron, `trade_7` stone *and* gold) used to overwrite the label each pass, so the float
-  // announced only the last key and silently dropped the rest.
+  // appear in the ledger, and the float names every resource the deal carried.
   const received: Partial<Record<keyof WorldState['resources'], number>> = {};
   for (const [key, amount] of Object.entries(effectiveReceive) as [keyof WorldState['resources'], number][]) {
     if ((amount ?? 0) <= 0) continue;
@@ -916,11 +897,8 @@ export function rollYearlyWorldEvent(
   height: number,
   nextEntityId: () => number,
   /**
-   * The tick's context. This runs inside the daily layer, i.e. **after**
-   * `gameTick`'s `assertSpatialGridInvariants` and **before** `state.entities = allAlive`, so a bare
-   * `allAlive.push` + `indexLivingEntity` lands on an array that is about to be discarded: the spawned
-   * entity is missing from `ctx.newEntities` and from the spatial grids for the rest of the tick.
-   * Optional because the perf/probe harnesses call this without a context; production always passes it.
+   * The tick's context. A spawn must go through `ctx.newEntities`: a bare `allAlive.push` here lands
+   * on an array about to be discarded. Optional only for the perf/probe harnesses.
    */
   ctx?: TickContext,
 ): { event: GameEvent | null; bountifulHarvest: boolean } {

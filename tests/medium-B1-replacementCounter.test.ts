@@ -1,11 +1,6 @@
 /**
- * Audit B-1 + E-5 — the Wall→Gate strip replacement must answer the same way a plain demolition does.
- *
- * B-1: `placeStripChain` removed the replaced Wall without touching `totalBuildingsCompleted`, so the
- * denormalized counter the Village tab, the Statistics panel and the population-snapshot cache key read
- * drifted one above the load-time recompute (`saveLoad.ts` line ~588) for the rest of the session.
- * E-5: the refund used a raw `+=`, so replacing a Wall while the wood store was full credited wood the
- * store could not hold and permanently desynchronised `storageMax`.
+ * Replacing a Wall with a Gate must decrement the denormalized `totalBuildingsCompleted` counter and
+ * refund through the storage-capped path, exactly as a plain demolition does.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

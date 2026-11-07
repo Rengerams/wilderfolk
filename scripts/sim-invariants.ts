@@ -1,16 +1,10 @@
 /**
- * Invariant long-sim — runs the sim for N years asserting world sanity every tick.
- * Catches the silent-corruption class (NaN, negative resources, orphaned bonds,
- * cache divergence) that unit tests never reach.
- *
- * Run: npx tsx scripts/sim-invariants.ts        (3 years default)
- *      SIM_YEARS=5 npx tsx scripts/sim-invariants.ts
- *      SIM_BUILD=1  auto-place a house + staff it every few days (population growth)
- *      SIM_SEED=12345  use an explicit deterministic simulation seed
- * Exit code 1 on the first violation.
+ * Invariant long-sim: runs for N years asserting world sanity every tick. Env: `SIM_YEARS`,
+ * `SIM_BUILD`, `SIM_SEED`. Run: `npx tsx scripts/sim-invariants.ts`; exits 1 on the first violation.
  */
 import { gameTick, initGame } from '../src/game/gameEngine';
 import { EntityType, MapSize } from '../src/game/gameTypes';
+import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { getSimFocus } from './simFocus';
 import { preloadDialogueBank } from '../src/game/dialogueTrees';
 import { createEntity } from '../src/game/worldGen';
@@ -19,7 +13,7 @@ import { assertSimInvariants } from '../src/game/simulation/simInvariants';
 const YEARS = Number(process.env.SIM_YEARS ?? 3);
 const BUILD = process.env.SIM_BUILD === '1';
 const SEED = Number(process.env.SIM_SEED ?? 12345);
-const TICKS_PER_YEAR = 72 * 360; // 72 ticks/day, 360 days/year
+const TICKS_PER_YEAR = TICKS_PER_DAY * 360; // 288 ticks/day, 360 days/year
 const TARGET = YEARS * TICKS_PER_YEAR;
 
 function createSeededRandom(seed: number): () => number {

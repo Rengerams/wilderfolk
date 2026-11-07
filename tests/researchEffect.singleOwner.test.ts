@@ -1,19 +1,6 @@
 /**
- * A1 (HIGH) — two research-effect resolvers encoded opposite additive semantics
- * (`docs/private/audits/2026-09-16/duplication-deadcode.md` §A1; tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * `combat.researchedEffect(..., 'add')` takes `Math.max`, and the comment there records why: additive
- * combat effects are TIERS, and summing them made `counter_attack` 0.45 + 0.55 = 1.0 — every predator
- * contact a guaranteed kill. `simHelpers.getMultiplier` kept summing that same branch, so the
- * 2026-09-13 fix only moved the bug out of reach of one call path: any consumer that reads a tiered
- * target through `getMultiplier` re-arms it. Measured on the current tree before the fix,
- * `getMultiplier(state, 'predator_block')` was `1 + 0.35 + 0.60 + 0.72 = 2.67` while the combat owner
- * reported the tier `0.72`, and `getMultiplier(state, 'counter_attack')` was `1 + 0.45 + 0.55 = 2.0`
- * while combat reported `0.55`.
- *
- * Both paths now read the single owner `simHelpers.resolveResearchEffect`. These tests pin the
- * observable consequence for each resolver, so the two can never disagree again: a tiered key can
- * never accumulate past its largest single contribution.
+ * Research effects resolve through one owner: tiered targets take their strongest contribution,
+ * while genuinely additive targets still sum. Both resolvers must agree.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -64,9 +51,8 @@ describe('research effects combine through one owner', () => {
     // The combat resolver already took max; this pins the tier it reports.
     expect(getPredatorBlockChance(state)).toBeCloseTo(0.72);
 
-    // `getMultiplier`'s convention is the multiplier product (1 — no `multiplier` is declared for
-    // this target) plus the additive contribution, so the ceiling here is 1 + 0.72. Pre-fix the sum
-    // made this 2.67, i.e. the tier ceiling was not a ceiling on this path at all.
+    // `getMultiplier` returns the multiplier product (1 here, no `multiplier` declared) plus the
+    // additive contribution, so the tier ceiling is 1 + 0.72.
     expect(getMultiplier(state, 'predator_block')).toBeCloseTo(1 + 0.72);
   });
 
@@ -92,7 +78,7 @@ describe('research effects combine through one owner', () => {
     const read = (path: string): string => readFileSync(resolve(process.cwd(), path), 'utf8');
     const walk = /for \(let j = 0; j < node\.effects\.length/;
 
-    // The pre-fix duplication: this loop existed in both simHelpers.ts and combat.ts.
+    // The walk is owned by `simHelpers.ts`; `combat.ts` must not keep a copy.
     const walkers = ['src/game/simHelpers.ts', 'src/game/combat.ts'].filter((path) => walk.test(read(path)));
     expect(walkers, 'the research-effect walk is duplicated again').toEqual(['src/game/simHelpers.ts']);
 

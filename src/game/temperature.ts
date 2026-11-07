@@ -40,9 +40,7 @@ export function computeDailyTemperatureC(
   dayInYear: number,
   year: number,
 ): number {
-  // `getColonyDay`, not a restated year-times-360 literal: the day index has one definition, and that
-  // literal duplicated `DAYS_PER_YEAR` (found while fixing `LIVE-FINDINGS-STATUS.md` L7, which had the
-  // same expression in `rivalEvents.ts`).
+  // `getColonyDay` owns the day index; do not restate it as a year-times-360 literal.
   const seed = getColonyDay({ year, dayInYear });
   const noise = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
   const unit = noise - Math.floor(noise);

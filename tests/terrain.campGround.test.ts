@@ -1,10 +1,6 @@
 /**
- * The camp must stand on ground the ground art paints as land.
- *
- * `ensureCampClearing` flattens the camp area into buildable tiles, and a coastal map's centre can
- * be open sea. Filling that sea left walkable land the per-pixel bake still painted as water, so the
- * founding settlers stood in the middle of the sea — the water is now left alone and the camp moves
- * to the nearest buildable ground instead.
+ * The camp must stand on buildable land the ground art paints as land: `findCampSite` picks buildable
+ * ground and `ensureCampClearing` leaves water untouched.
  */
 import { describe, expect, it } from 'vitest';
 import { MapPreset, MapSize, PATH_CELL, type WorldMap } from '../src/game/gameTypes';

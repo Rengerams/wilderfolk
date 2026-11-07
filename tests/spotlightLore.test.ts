@@ -409,10 +409,8 @@ describe('spotlight lore — ordinary human movement must not steal actors', () 
       { name: `Audience${i}`, gender: 'male', ageYears: 28, colonyDay: 96 },
     ));
     world.entities = [girl, ...adults];
-    // initGame already populated its tick-persistent ID/type caches with the
-    // founder and wildlife entities. Replacing its entire population in a test
-    // must also rebuild the authoritative lookup, otherwise the real tick
-    // treats the new heroine as missing and aborts this otherwise valid scene.
+    // Replacing the whole population must rebuild the tick-persistent ID/type caches, or the real
+    // tick treats the new heroine as missing and aborts this otherwise valid scene.
     rebuildEntityByIdMap(world);
     invalidateCachedEntityByType(world);
     // 19:00 on a weekend; find a deterministic actor who prefers home.
@@ -442,9 +440,8 @@ describe('spotlight lore — ordinary human movement must not steal actors', () 
     actor.residenceBuildingId = home.id;
     // Home is far to the right; the spotlight slot is to the left.
     const beforeX = actor.x;
-    // A ready scene has already gathered: every actor must actually be on stage.
-    // Keep this actor 10 units from its slot (inside the 11-unit ready tolerance,
-    // but outside the 9-unit steering stop), so a home-commute override is observable.
+    // A ready scene has already gathered: place this actor 10 units from its slot, inside the
+    // 11-unit ready tolerance but outside the 9-unit steering stop.
     const slots = adults.map((person, i) => {
       const isActor = person.id === actor.id;
       return {

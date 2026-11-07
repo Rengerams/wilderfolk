@@ -1,25 +1,6 @@
 /**
- * Tick-layer schedule lock — SIMULATION_AUTHORITY.md §4.
- *
- * The tick-layer structure is FIXED for this architecture. `gameTick` is the
- * only orchestrator and it calls exactly four layer files, in this order, on
- * fixed cadences:
- *
- *   1. tickLayerRealtime — every tick (movement, animation, realtime spatial behavior)
- *   2. tickLayerSystems  — every LAYER_SYSTEMS_INTERVAL (4) ticks
- *   3. tickLayerAssign   — every LAYER_ASSIGN_INTERVAL (72) ticks, offset 36 ticks (03:00)
- *   4. tickLayerDaily    — every TICKS_PER_DAY (288) ticks, once per colony day
- *
- * No tickLayerSocial.ts / tickLayerPregnancy.ts / tickLayerMoonHowler.ts /
- * tickLayerBuildings.ts may exist; new layers require an authority-document
- * update first (§4 gate).
- *
- * This test instruments the four layer modules with spies and drives the real
- * `gameTick` orchestration (all domain logic inside the layers is mocked out),
- * then asserts the fixed order and the exact per-interval call counts — the
- * executable version of the cadence law. TICKS_PER_DAY === 288 (production
- * cadence) is asserted explicitly; a temporary benchmark cadence must never be
- * committed.
+ * Tick-layer schedule lock: `gameTick` is the only orchestrator and calls these four modules in order
+ * — realtime every tick, systems 4, assign 72 (offset 36), daily 288 ticks — and no other layer may exist.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorldState } from '../src/game/gameTypes';

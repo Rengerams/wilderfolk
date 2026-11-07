@@ -1,23 +1,6 @@
 /**
- * Relationship diagnostics — flush-cadence counters and active state.
- *
- * Truth rule (SIMULATION_AUTHORITY.md §5 + Objective 8): every counter means
- * exactly what its name says.
- *
- *   - INTERVAL counters are reset on every flush (once per colony day):
- *     conceptionCandidates / conceptionEligibilityRejected /
- *     conceptionProximityBlocked / conceptionEnergyBlocked /
- *     conceptionRollFailed / pregnanciesStartedThisInterval /
- *     birthsCompletedThisInterval / affair* / gossip* / scandal*.
- *   - ACTIVE state is computed at flush from the authoritative WorldState and
- *     never reset: `activePregnancies` = living pregnant humans RIGHT NOW.
- *
- * A birth must never be inferred from `pregnanciesStartedThisInterval` (that
- * counter means "new pregnancies created this interval", not "pregnancies
- * existing"). A seeded or earlier pregnancy is visible only through
- * `activePregnancies`.
- *
- * This module only records and reports — it never mutates gameplay state.
+ * Relationship diagnostics — interval counters reset each colony day; active state is computed at
+ * flush and never reset. This module only records and reports, never mutating gameplay state.
  */
 export interface RelationshipDiagnosticsSnapshot {
   tick: number;
@@ -101,12 +84,8 @@ export function recordRelationshipDiagnostic(key: RelationshipDiagnosticKey): vo
 }
 
 /**
- * Flush interval counters once per colony day.
- *
- * `activePregnancies` is NOT a counter — it is the current count of living
- * pregnant humans in the authoritative state (pass it in from the caller's
- * world read). A value of 0 here means "no pregnancy exists right now"; it is
- * never derived from `pregnanciesStartedThisInterval`.
+ * Flush interval counters once per colony day. `activePregnancies` is not a counter: it is the
+ * current count of living pregnant humans, passed in from the caller's world read.
  */
 export interface ActiveRelationshipDiagnostics {
   activeMarriages: number;

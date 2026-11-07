@@ -1,14 +1,6 @@
 /**
- * F4 — Infrastructure and Logistics Overlay.
- *
- * The overlay must be testable without a canvas, so all classification is asserted on the pure
- * projection `computeLogisticsOverlay` and the renderer is guarded by source only. Boundaries are
- * asserted at the exact threshold value **and** one step past it, because "off by one world unit"
- * is the failure mode a named constant is supposed to make impossible.
- *
- * The fixtures are hand-placed on the real `BUILDING_CONFIGS` footprints: a Road is 66×26, so a
- * road whose centre is at (100, 100) has its footprint edge at y = 113 and every distance below is
- * measured from that edge.
+ * Infrastructure and Logistics Overlay: classification is asserted on the pure
+ * `computeLogisticsOverlay` projection, boundaries at the threshold and one step past it.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -37,20 +29,16 @@ function readSrc(relative: string): string {
 }
 
 /**
- * The projection reads only `buildings` and `entities`; the size/tick fields are there so the
- * `ViewState` save round-trip in this file has a sane world to work against. A narrow, documented
- * cast rather than a whole `WorldState` mock.
+ * The projection reads only `buildings` and `entities`; the size/tick fields keep the `ViewState`
+ * save round-trip in this file working against a sane world.
  */
 function makeWorld(buildings: Building[], entities: Entity[] = []): WorldState {
   return { buildings, entities, width: 2000, height: 2000, tick: 0 } as unknown as WorldState;
 }
 
 /**
- * A world **with** a `worldMap`, because blocked-path classification is the only part of the
- * projection that reads terrain (every other case above deliberately omits the map, so `grid` is
- * null and they behave exactly as before). `hasRiver` blocks one tile column at x = 12 (world
- * 120–129); all other inputs are identical between the two arms of the controlled pair below, so
- * only the terrain can explain a severity change.
+ * A world with a `worldMap`, needed because blocked-path classification is the only part of the
+ * projection that reads terrain; every other case omits the map, so `grid` is null there.
  */
 function makeMappedWorld(buildings: Building[], entities: Entity[], hasRiver: boolean): WorldState {
   const cols = 40;
@@ -288,10 +276,8 @@ describe('F4 projection — commute pressure', () => {
 
 describe('F4 projection — blocked paths (the row-text residual)', () => {
   /**
-   * Both grid caches key on `seed|preset|walls|size`, and in a real world the terrain *is* a pure
-   * function of those (`generateWorldMap`), so the cache is correct. This controlled pair varies
-   * terrain under a fixed seed, which no real world does — so the caches are cleared between the
-   * two arms rather than pretending the key is wrong.
+   * The grid caches key on `seed|preset|walls|size`, and a real world's terrain is a pure function
+   * of those; this pair varies terrain under a fixed seed, so the caches are cleared between arms.
    */
   beforeEach(() => {
     resetPathGridCaches();
@@ -315,7 +301,7 @@ describe('F4 projection — blocked paths (the row-text residual)', () => {
   });
 
   it('keeps the short clear-water-free leg below the new commute budget', () => {
-    // With twelve ticks per hour, the same unobstructed 40-pixel walk is not over-budget.
+    // With twelve ticks per hour, the unobstructed 40-pixel walk stays inside the commute budget.
     const data = computeLogisticsOverlay(mappedPair(false));
 
     expect(data.commutes).toHaveLength(0);
@@ -335,9 +321,8 @@ describe('F4 projection — blocked paths (the row-text residual)', () => {
     expect(readOnly).not.toBe(simGrid);
     expect(readOnly.blocked).not.toBe(simGrid.blocked);
 
-    // …and asking the projection for its grid again must not swap the simulation's identity —
-    // which is what would make `setCurrentPathMap` clear the sim's waypoint cache from the render
-    // path, the hazard that keeps this projection off `getPathGrid`.
+    // Asking the projection for its grid again must not swap the simulation's identity, which is
+    // how `setCurrentPathMap` would clear the sim's waypoint cache from the render path.
     expect(getPathGrid(map, world.buildings)).toBe(simGrid);
   });
 });
@@ -414,18 +399,14 @@ describe('F4 source guard — the overlay draws the projection, it does not deci
   /** The per-frame call, name and arguments included. */
   const OVERLAY_CALL = /drawLogisticsOverlay\(ctx, state, cw, ch\)/;
   /**
-   * The projection owner, invoked where the snapshot is built.
-   *
-   * Both spellings are accepted: the plain function, and the memoised accessor the snapshot uses so
-   * that panning (which rebuilds the snapshot every frame, because its key includes the camera) does
-   * not re-project the whole colony per frame. Both live in the same owner module, which is what this
-   * guard is about — a call to the owner, not a second implementation in the renderer.
+   * The projection owner, invoked where the snapshot is built: either the plain function or the
+   * memoised accessor that saves panning from re-projecting the colony every frame.
    */
   const PROJECTION_OWNER = /computeLogisticsOverlayCached\(world\)|computeLogisticsOverlay\(world\)/;
   /** Any projection threshold — a decision the renderer must never take. */
   const THRESHOLD_IN_RENDERER =
     /GOOD_ROAD_ACCESS_DISTANCE|MAX_ROAD_ACCESS_DISTANCE|COMMUTE_WALK_BUDGET_TICKS|COMMUTE_EXTREME_DISTANCE|ROAD_CONNECT_GAP/;
-  /** A projection read inside the tick-keyed layer key — the recorded bug class. */
+  /** A projection read inside the tick-keyed layer key. */
   const PROJECTION_IN_ENTITY_LAYER = /logistics/i;
 
   it('runs in the per-frame overlay pass, never in the tick-keyed entity layer', () => {
@@ -447,8 +428,7 @@ describe('F4 source guard — the overlay draws the projection, it does not deci
     // The renderer deciding for itself (the defect the threshold guard exists for).
     expect('if (nearest.distance > GOOD_ROAD_ACCESS_DISTANCE) {').toMatch(THRESHOLD_IN_RENDERER);
     expect('if (hit.distance > MAX_ROAD_ACCESS_DISTANCE) return;').toMatch(THRESHOLD_IN_RENDERER);
-    // A logistics read folded into the baked layer (`entityLayer.ts` before the fix would look
-    // exactly like this line, added beside `state.showPaths ? 1 : 0`).
+    // A logistics read in the baked layer looks exactly like this line, beside `state.showPaths ? 1 : 0`.
     expect('    state.showLogistics ? 1 : 0,').toMatch(PROJECTION_IN_ENTITY_LAYER);
     // The overlay call with a different receiver is not the per-frame pass.
     expect('  drawLogisticsOverlay(drawCtx, state, cw, ch);').not.toMatch(OVERLAY_CALL);

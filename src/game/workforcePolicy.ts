@@ -211,11 +211,8 @@ export function jobBuildingPriorityForPolicy(
 }
 
 /**
- * Set the colony workforce policy. Returns the original state unchanged (identity, so no
- * delta is produced) when the preset is unknown or already current.
- *
- * Generic over the world shape so this owner imports no `WorldState` value and stays out of
- * the `gameTypes.ts` import cycle.
+ * Set the colony workforce policy; returns the original state unchanged (identity, so no delta is
+ * produced) when the preset is unknown or already current. Generic to stay out of the import cycle.
  */
 export function setWorkforcePolicy<T extends { workforcePolicy?: WorkforcePolicy }>(
   originalState: T,

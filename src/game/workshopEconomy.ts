@@ -50,10 +50,8 @@ export function estimateWorkshopGold(
     return 0;
   }
 
-  // Production counts a workshop's workers by their live work assignment, not by occupancy
-  // (`dailyBuildingEconomy.tickBuildingProduction` keys `buildingWorkerStats` on
-  // `worker.workerBuildingId`), so the estimate has to use the same rule or it predicts output for a
-  // workshop that is standing idle (`LIVE-FINDINGS-STATUS.md`, L6).
+  // Production counts a workshop's workers by live work assignment, not occupancy, so the estimate
+  // must use the same rule or it predicts output for a workshop standing idle.
   const assignedWorkers = state.entities.filter(
     (entity) => entity.alive && isPlayerHuman(entity) && entity.workerBuildingId === building.id,
   );
@@ -73,18 +71,14 @@ export function estimateWorkshopGold(
     : 1.0;
   const goldMultiplier = getMultiplier(state, 'gold_production');
   const globalEfficiencyMultiplier = getMultiplier(state, 'global_efficiency');
-  // The three terms the estimate used to omit while production applied them every cycle
-  // (`dailyBuildingEconomy.ts:299-305` for the state-wide pair, `:340-347` for fatigue): the
-  // schedule-fatigue average over the assigned crew, the attendance share, and the Town Hall's
-  // governance efficiency, which production folds into its `globalEff`
-  // (`LIVE-FINDINGS-STATUS.md`, L6).
+  // The three terms production applies every cycle that the estimate must also apply: schedule
+  // fatigue, attendance share, and the Town Hall's governance efficiency.
   const fatigueMultiplier = actualWorkers > 0
     ? assignedWorkers.reduce((sum, worker) => sum + Math.min(
         getScheduleProductivityMultiplier(worker), getHumanNeedsWorkMultiplier(worker)), 0) / actualWorkers
     : 1.0;
   // Attendance through the same `getWorkplacePresenceShare` rule production uses, so the estimate
-  // cannot drift from real output. An unstaffed preview (`previewUnstaffed`) and a world that has no
-  // settled day yet both report a full shift, which keeps a standing workshop from looking idle.
+  // cannot drift from real output; an unstaffed preview and a world with no settled day report a full shift.
   const schedule = getWorkSchedule(state);
   const workedHours = actualWorkers > 0
     ? assignedWorkers.reduce((sum, worker) => sum + getScheduleLastWorkedHours(worker), 0) / actualWorkers

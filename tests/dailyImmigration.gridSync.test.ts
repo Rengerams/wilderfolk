@@ -1,10 +1,6 @@
 /**
- * F6 of the 2026-09-16 lifecycle/social audit (`docs/private/audits/2026-09-16/sim-lifecycle-social.md`):
- * the daily immigration spawn pushed the newcomer into `state.entities` / `allAlive` and only updated
- * the id maps, never `mobileGrid`. The daily layer runs **after** the tick's
- * `assertSpatialGridInvariants`, so the newcomer stayed invisible to social/hunt grid queries for the
- * rest of the tick (it self-heals on the next tick's reconcile). The spawn now goes through the
- * canonical `pushNewEntity` path, exactly as births do.
+ * The daily immigration spawn must index its newcomer in `mobileGrid` and `ctx.newEntities` in the
+ * same tick, not wait for the next tick's reconcile.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';

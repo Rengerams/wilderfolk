@@ -1,15 +1,6 @@
 /**
- * `updateStorageCaps` is wired into the daily economy owner.
- *
- * The function existed, was documented in the decision registry as a daily production
- * write, and was asserted by `tests/economyAudit.storageCaps.test.ts` — but it had **no
- * caller anywhere in `src/`**, so in a running game `state.storageMax` stayed at the
- * world-gen literals and `foodSpoilageRate` stayed at 0.03 forever: Barns, Silos, Wood
- * Storehouses, Stores and Markets conferred no storage at all, and the Silo spoilage cut
- * never applied. The unit test passed because it invoked the function by hand.
- *
- * This test drives the real daily boundary through `gameTick` instead, so removing the
- * call from `tickStaticDaily` fails it.
+ * `updateStorageCaps` is wired into the daily economy owner: this test drives the real daily
+ * boundary through `gameTick`, so removing the call from `tickStaticDaily` fails it.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -46,8 +37,7 @@ function addCompleted(state: WorldState, type: BuildingType): void {
 describe('storage caps are recomputed by the daily economy owner', () => {
   it('applies a Barn and a Silo bonus on the next colony-day boundary', () => {
     const state = initGame({ seed: FIXTURE_SEED });
-    // World-gen now seeds its caps from `computeStorageMax([])`, so there is no longer a
-    // bootstrap divergence to pin here (F10). The wiring stays observable because the
+    // World-gen seeds its caps from `computeStorageMax([])`. The wiring stays observable because the
     // Barn/Silo assertions below only hold if `updateStorageCaps` runs on the boundary.
     addCompleted(state, BuildingType.Barn);
     addCompleted(state, BuildingType.Silo);

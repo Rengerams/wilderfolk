@@ -3,9 +3,8 @@ import { EntityType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 
 /**
- * Family legacy (Phase 7) — dynasties: surnames with multiple living generations.
- * Founders are generation 1; every birth bumps the child a generation, so a
- * family line that keeps living writes itself into the valley's history.
+ * Family legacy: dynasties are surnames with multiple living generations. Founders are generation 1;
+ * each birth bumps the child one generation.
  */
 export interface Dynasty {
   surname: string;
@@ -52,12 +51,8 @@ export function computeDynasties(state: WorldState): Dynasty[] {
 }
 
 /**
- * Whether one family line counts as a dynasty.
- *
- * Single definition of the "three living generations of the same family, at least three members"
- * rule: `hasDynasty` gates the 200-gold chronicle chapter on it, and `DynastyPanel` lists and counts
- * families with it. The panel used to filter on `generationsAlive >= 2` alone, so it advertised
- * two-generation families as dynasties — contradicting both its own sentence and the reward gate
+ * Whether one family line counts as a dynasty: at least three living generations and three members.
+ * Single definition, shared by the chronicle reward gate and `DynastyPanel`.
  */
 export function isDynasty(dynasty: Pick<Dynasty, 'generationsAlive' | 'members'>): boolean {
   return dynasty.generationsAlive >= 3 && dynasty.members >= 3;

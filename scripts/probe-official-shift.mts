@@ -1,8 +1,6 @@
 /**
- * Official/leader shift probe (local, gitignored): put the village head on the Town Hall
- * (job = Official) and watch whether they actually go there during the work day.
- *
- *   npx tsx scripts/probe-official-shift.mts
+ * Official/leader shift probe (local, gitignored): put the village head on the Town Hall and watch
+ * whether they go there during the work day.
  */
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';

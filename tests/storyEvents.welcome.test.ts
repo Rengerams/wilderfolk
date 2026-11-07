@@ -1,20 +1,6 @@
 /**
- * The opening card "The valley wakes" is actually offered.
- *
- * Regression for audit M4 (`docs/private/audits/2026-09-16/sim-economy-leadership-combat.md`,
- * tracked in `LIVE-FINDINGS-STATUS.md`): `maybeOfferWelcome` required `year === 0 && dayInYear === 0`,
- * which no reachable tick satisfies. Verified on the tree rather than taken from the audit:
- *
- * - `getCalendarDay(tick)` is `floor(tick / TICKS_PER_DAY) % DAYS_PER_YEAR`, so `dayInYear === 0`
- *   recurs only at ticks 0, 25 920, 51 840 …
- * - the daily layer runs only at `tick % TICKS_PER_DAY === 0` (`gameTick.ts:223`) — the same ticks —
- *   and a world starts at tick 24, so tick 0 never happens;
- * - on every tick where `dayInYear === 0`, `yearRollover` is true, so `gameTick.ts:96` increments
- *   `state.year` **before** the daily layer runs.
- *
- * The beat therefore never fired in a real game, only in tests that called the function directly with
- * `dayInYear = 0`. Its `welcome` flag already made it once-only, so the gate only had to accept the
- * first day boundary a live game actually reaches.
+ * The opening card "The valley wakes" must be offered on the first day boundary a live game
+ * reaches, and only once.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

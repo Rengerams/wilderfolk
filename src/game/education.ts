@@ -453,9 +453,7 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
 
 /**
  * Up to +15% research speed when most adults attended school, priced once by the collective DNA.
- *
- * The education share is this owner's baseline; the catalog's `school`/research factor is averaged
- * over the same eligible adults and multiplies it, so an aptitude bonus cannot be counted twice.
+ * The education share is this owner's baseline; the catalog's research factor multiplies it.
  */
 export function getEducationResearchMultiplier(humans: Entity[]): number {
   const adults = humans.filter((h) => h.alive && isPlayerHuman(h) && !h.isJuvenile);
