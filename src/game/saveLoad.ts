@@ -67,6 +67,8 @@ import { nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
 import { pruneOrphanRivalEntities, retireLegacyCampStructures } from './rivalEvents';
 
 const SAVE_KEY = 'ecosim_save';
+/** A file import never writes the quick-save; the import has its own recoverable slot. */
+const IMPORTED_SAVE_KEY = 'ecosim_imported_save';
 
 /**
  * The most a save payload may weigh before it leaves the browser slot for a file. One slot shares a
@@ -284,9 +286,9 @@ export function describeSaveCompatibility(): string {
   return `This build is v${GAME_VERSION}. Saves from v0.6.5.0 and v${GAME_VERSION} are supported. Keep backups of original save files when upgrading.`;
 }
 
-export function readSavePayload(): SaveReadResult {
+export function readSavePayload(slotKey: string = SAVE_KEY): SaveReadResult {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(slotKey);
     if (!raw) return { valid: false, reason: 'empty' };
     return parseSaveJson(raw);
   } catch (e) {
@@ -761,9 +763,18 @@ export function saveGameToSlot(world: WorldState, view: ViewState): SaveResult {
   return writeSaveSlot(json);
 }
 
-function writeSaveSlot(json: string): SaveResult {
+/** Keep the original, validated JSON in a separate slot, never touching the existing quick-save. */
+export function saveImportedFileToSlot(json: string, world: WorldState): SaveResult {
+  const route = decideSaveRoute(world, json);
+  if (route.target === 'file') {
+    return { success: false, error: describeCadenceFileSave(route.reason), fileReason: route.reason };
+  }
+  return writeSaveSlot(json, IMPORTED_SAVE_KEY);
+}
+
+function writeSaveSlot(json: string, slotKey: string = SAVE_KEY): SaveResult {
   try {
-    localStorage.setItem(SAVE_KEY, json);
+    localStorage.setItem(slotKey, json);
     return { success: true };
   } catch (e) {
     const error =
@@ -1648,6 +1659,23 @@ export function loadGameOutcome(): SaveLoadOutcome {
   } catch (e) {
     console.error('Save load failed:', e);
     return { ok: false, reason: 'unreadable', detail: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Reload the separately retained file import; never reads or modifies the quick-save. */
+export function loadImportedGameOutcome(): SaveLoadOutcome {
+  const parsed = readSavePayload(IMPORTED_SAVE_KEY);
+  if (!parsed.valid) return { ok: false, reason: parsed.reason, detail: parsed.detail };
+  return loadGameFromParsedOutcome(parsed.parsed);
+}
+
+/** The imported-save slot has an accepted and currently readable payload. */
+export function hasImportedSave(): boolean {
+  try {
+    const raw = localStorage.getItem(IMPORTED_SAVE_KEY);
+    return !!raw && parseSaveJson(raw).valid;
+  } catch {
+    return false;
   }
 }
 
