@@ -31,7 +31,7 @@ src/main.tsx lacked a root error boundary; useGamePersistence.ts registers an un
 No root error boundary, and no file-only mode was exposed to the recovery UI.
 
 ## Fix / proposed fix
-GameErrorBoundary snapshots read-only live session refs before unmount. The existing downloadSaveFile export runs in file-only mode, and the normal auto-save cleanup stands down during a React crash. The UI warns that the most recent worker commands may be missing.
+GameErrorBoundary snapshots read-only live session refs before unmount. The existing saveGame export runs in file-only mode, and the normal auto-save cleanup stands down during a React crash. The UI warns that the most recent worker commands may be missing.
 
 ## Save/migration impact
 No save schema change. The recovered file is best-effort and does not replace ecosim_save or ecosim_imported_save.
