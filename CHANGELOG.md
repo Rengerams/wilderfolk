@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Tests (7 Nov 2026, PR #132):** Restored the unmount-save CI contract after merging A5: a stopped loop or active crash recovery must prevent an exit save, without weakening either protection.
 - **Changed (7 Nov 2026):** The current calendar has 288 ticks per day (12 per hour), with 00:00, 06:00 and 18:00 daily work phases; the 12:00 phase remains empty. Earlier release notes retain their historical tick rates.
 - **Fixed (7 Nov 2026):** A1 follow-up removes duplicate festival restoration on save load, derives calendar test fixtures from the 288-tick day, and adds actual save-load regressions for stale festivals and Year-0 election state.
 - **Fixed (7 Nov 2026, PR #131 A5):** Added a React crash screen with a last-available-snapshot JSON export. Crash unmount avoids replacing a healthy quick-save with an unconfirmed display shadow.
