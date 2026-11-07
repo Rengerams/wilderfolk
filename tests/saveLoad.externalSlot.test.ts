@@ -13,7 +13,6 @@ import {
   decideSaveRoute,
   describeCadenceFileSave,
   describeFileSaveReason,
-  downloadSaveFile,
   hasSaveSlot,
   hasImportedSave,
   loadGameFromFileTextOutcome,
@@ -138,7 +137,7 @@ describe('a colony too big for the browser slot saves externally', () => {
 
     const crashed = colony();
     crashed.villageName = 'Crash snapshot';
-    const result = downloadSaveFile(crashed, createInitialView(crashed.width, crashed.height), false);
+    const result = saveGame(crashed, createInitialView(crashed.width, crashed.height), false);
     expect(result.success).toBe(true);
     expect(localStorage.getItem('ecosim_save')).toEqual(quickSave);
     expect(localStorage.getItem('ecosim_imported_save')).toEqual(importJson);
@@ -179,7 +178,7 @@ describe('a colony too big for the browser slot saves externally', () => {
       },
       removeItem: () => {},
     });
-    const result = downloadSaveFile(world, createInitialView(world.width, world.height));
+    const result = saveGame(world, createInitialView(world.width, world.height));
 
     expect(result.success).toBe(true);
     expect(result).toHaveProperty('slotWarning');
