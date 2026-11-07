@@ -179,10 +179,12 @@ describe('gameTick layer orchestration (fixed schedule)', () => {
     expect(assignments).toEqual(['assign@36', 'assign@108', 'assign@180', 'assign@252']);
   });
 
-  it('daily runs exactly once per colony day at the day boundary', async () => {
+  it('invokes daily layer four times per calendar day at 00:00, 06:00, 12:00 and 18:00', async () => {
     await runTicks(0, 3 * TICKS_PER_DAY);
     const dailies = callLog.calls.filter((c) => c.startsWith('daily@'));
-    expect(dailies).toEqual(Array.from({ length: 12 }, (_, i) => `daily@${(i + 1) * (TICKS_PER_DAY / 4)}`));
+    expect(dailies).toEqual(Array.from({ length: 3 }, (_, day) =>
+      [6, 12, 18, 24].map((hour) => `daily@${day * TICKS_PER_DAY + hour * TICKS_PER_HOUR}`),
+    ).flat());
   });
 
   it('produces an identical trace on repeated runs (deterministic schedule)', async () => {
