@@ -11,6 +11,7 @@ import { saveGame, saveGameToSlot, describeFileSaveReason } from '../game/gameEn
 import type { WorldState } from '../game/gameEngine';
 import { downloadChronicleLog, loadExportChronicleOnSave } from '../game/eventLogExport';
 import { GameLoop } from '../game/gameLoop';
+import { isCrashRecoveryActive } from '../components/GameErrorBoundary';
 import type { ViewState } from '../game/viewState';
 
 /**
@@ -250,7 +251,7 @@ export function useGamePersistence({
       // No loop means no colony to save: StrictMode would otherwise overwrite the real slot.
       // eslint-disable-next-line react-hooks/exhaustive-deps
       const loop = loopRef.current;
-      if (!loop) return;
+      if (!loop || isCrashRecoveryActive()) return;
       // The auto-save preference now means "save when you leave"; with it off, exit writes nothing.
       if (!loop.getWorld().autoSave) return;
       void persistCurrentGameRef.current({ chronicle: false, feedback: false, background: true });
