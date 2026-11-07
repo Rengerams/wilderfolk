@@ -70,7 +70,6 @@ function paintWorldEntityLayer(ctx: CanvasContext2d, state: RenderSnapshot, cw: 
   drawBuildingGroundwork(drawCtx, state, cw, ch);
   drawStaticOccluders(drawCtx, state, cw, ch);
   drawCampMarkers(drawCtx, state, cw, ch);
-  drawEcoConnections(drawCtx, state, state.camera, cw, ch);
 }
 
 /**
@@ -86,6 +85,8 @@ export function paintMovingEntities(
   const drawCtx = ctx;
   // Build ghost is drawn live in renderGame (animated bob / brackets)
   // Hunt arrows stay in the overlay pass (`overlay.ts`) — they advance on a millisecond clock.
+  // Marriage links follow the settlers, so they belong to the moving pass, not the static layer.
+  drawEcoConnections(drawCtx, state, state.camera, cw, ch);
   drawAnimals(drawCtx, state, cw, ch, true);
   drawTradeRouteLines(drawCtx, state, cw, ch);
   drawHuntChaseLines(drawCtx, state, cw, ch);

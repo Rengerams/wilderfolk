@@ -47,6 +47,7 @@
 | GFX-11 | fixed | Terrain chunks re-bake only their dirty 256-world-px region. `tests/terrain.regionRevision.test.ts` (4). [Report](../bug_report/2026-11-07-terrain-change-rebakes-every-chunk.md) |
 | GFX-01 | fixed | Trees and buildings share one depth-sorted static pass. [Report](../bug_report/2026-11-07-trees-lost-behind-southern-buildings.md) |
 | GFX-02, GFX-03 | fixed | `renderSnapshotDirtyKey` carries the F4 logistics and juice preferences, so a paused view rebuilds. Preview run: overlay pixels 76 → 122 → 76 while paused. `tests/renderSnapshot.dirtyKey.test.ts` (2). [Report](../bug_report/2026-11-07-paused-snapshot-ignores-overlay-toggles.md) |
+| Static entity layer | fixed | Keyed on a static-world revision instead of `state.tick`; the tick joins it only while a building is under construction, and the marriage links moved to the per-frame pass. Preview run: new colony rendered, wheel zoom rebaked cleanly. `tests/renderSnapshot.staticLayerKey.test.ts` (4). [Report](../bug_report/2026-11-07-static-entity-layer-repaints-every-tick.md) |
 | COV-I-02, SIM-18 | fixed | The chunk key carries seed, terrain seed, generation version and map size plus the region revision; the path grid keys on that revision. `tests/terrain.regionRevision.test.ts` (4), `tests/pathfinding.terrainRevision.test.ts` (1). [Report](../bug_report/2026-11-07-terrain-cache-keys-omit-runtime-identity.md) |
 
 ## Phase A7 — performance hot paths
@@ -62,7 +63,7 @@
 - GAME-05 was re-checked and needs no change: the negative founding-year sentinel is already in source.
 - CB-02's boundary screen was not forced open in the preview; the export path is covered by typecheck and build only.
 - CB-13's Rust build was not run in this environment.
-- A6's tree/building draw order and the road/build dark flash have no screenshot matrix; only the paused-overlay pixel run is recorded.
+- A6's road-through-forest dark frame and the tree/building depth order have no screenshot matrix; the paused-overlay pixel run and the static-layer preview run (new colony, zoom rebake, 0 console errors) are what is recorded.
 - The 720-day continuous simulation stays out of scope by instruction and plan decision; only the fast boundary gate runs.
 - SIM-03/SIM-04 and the rest of Plan Phase 1 beyond SIM-01/SIM-02/TEST-16 have no description in this repository: the audit archive (`MASTER-BUG-LIST.md`) is not checked in, so they cannot be actioned here.
 

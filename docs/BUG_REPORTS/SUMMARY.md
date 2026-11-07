@@ -2272,3 +2272,11 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 - **Raid report and warfare dialogs left gameplay hotkeys active — resolved:** both use the shared focus trap and keyboard claim, and execution copy states permanence. [Report](../bug_report/2026-11-07-raid-warfare-dialogs-leak-keyboard.md).
 - **Alt+drag strip demolition removed segments unconfirmed — resolved:** the eraser now arms a counted confirmation. [Report](../bug_report/2026-11-07-strip-demolition-unconfirmed.md).
 - **The desktop shell granted an unused Tauri shell capability — resolved:** the plugin, permission and unused direct dependencies are gone. [Report](../bug_report/2026-11-07-tauri-shell-capability-unused.md).
+
+## 2026-11-07 — Audit A6 render cache
+
+- **The static entity layer repainted every simulation tick — resolved:** the layer key now carries a static-world revision, the tick joins it only while a building is under construction, and the marriage links moved to the per-frame pass that follows the settlers. [Report](../bug_report/2026-11-07-static-entity-layer-repaints-every-tick.md).
+- **Terrain chunks rebaked the whole map on any change — resolved:** chunk keys carry the region revision and a change rebakes only its dirty 256-px region. [Report](../bug_report/2026-11-07-terrain-change-rebakes-every-chunk.md).
+- **Trees drew behind southern buildings — resolved:** trees and buildings share one depth-sorted static pass. [Report](../bug_report/2026-11-07-trees-lost-behind-southern-buildings.md).
+- **A paused view ignored the F4 logistics and juice toggles — resolved:** the snapshot key carries both preferences. [Report](../bug_report/2026-11-07-paused-snapshot-ignores-overlay-toggles.md).
+- **Terrain cache keys omitted runtime identity — resolved:** keys carry seed, terrain seed, generation version and map size, and the path grid keys the same revision. [Report](../bug_report/2026-11-07-terrain-cache-keys-omit-runtime-identity.md).

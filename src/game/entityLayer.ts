@@ -50,7 +50,7 @@ export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: numbe
   const parts = layerKeyParts;
   parts.length = 0;
   parts.push(
-    state.tick,
+    state.staticLayerRevision,
     cw,
     ch,
     state.hourOfDay,

@@ -93,6 +93,8 @@ export interface RenderSnapshot {
   readonly floatingTexts: WorldState['floatingTexts'];
   readonly huntVisuals: WorldState['huntVisuals'];
   readonly tick: number;
+  /** Static-layer cache identity — an advancing tick alone must not repaint the layer. */
+  readonly staticLayerRevision: string;
   readonly hourOfDay: number;
   readonly workSchedule?: WorldState['workSchedule'];
   readonly season: WorldState['season'];
@@ -145,6 +147,44 @@ export interface RenderSnapshot {
   readonly scentReader: ScentGridReader | null;
   /** Tick-persistent grass spatial index — sim path from world; worker path from render SoA. */
   readonly grassGrid: EntitySpatialGrid | null;
+}
+
+/**
+ * Identity of everything the cached static entity layer paints. Only a live build folds in the
+ * tick, so a settled world stops repainting its trees, grass and buildings every tick.
+ */
+function staticEntityLayerRevision(world: WorldState): string {
+  const buildings = world.buildings ?? [];
+  const parts: (string | number)[] = [
+    world.width,
+    world.height,
+    world.season,
+    world.year,
+    world.dayInYear,
+    world.entities.length,
+    buildings.length,
+  ];
+  let buildingAnimates = false;
+  for (const b of buildings) {
+    parts.push(
+      b.id,
+      b.type,
+      b.level,
+      b.spriteScale,
+      b.rotation ?? 0,
+      b.faction ?? '',
+      b.completed ? 1 : 0,
+      b.gateClosed ? 1 : 0,
+      b.health,
+      b.occupants.length,
+    );
+    if (!b.completed) buildingAnimates = true;
+  }
+  for (const group of world.visitorGroups ?? []) {
+    parts.push(group.id, group.campX, group.campY, group.daysLeft);
+  }
+  parts.push(buildingAnimates ? world.tick : 0);
+  return parts.join('|');
 }
 
 /** Last colony-wide blacksmith scan — this runs per frame, and the camera alone rebuilds the snapshot. */
@@ -210,6 +250,7 @@ export function buildRenderSnapshot(
     floatingTexts: world.floatingTexts ?? [],
     huntVisuals: world.huntVisuals ?? [],
     tick: world.tick,
+    staticLayerRevision: staticEntityLayerRevision(world),
     hourOfDay: getHourOfDay(world.tick),
     workSchedule: getWorkSchedule(world),
     season: world.season,
