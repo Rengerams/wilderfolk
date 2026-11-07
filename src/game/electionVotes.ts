@@ -5,7 +5,7 @@ import { isPlayerHuman } from './playerHuman';
 import { seededRandomForRun } from './simRng';
 
 /**
- * Election vote-support: every adult settler casts a ballot, moved by a bounded election-wide
+ * Election vote-support: eligible adult settlers may cast a ballot (seeded turnout 65–98%), moved by a bounded election-wide
  * swing and weighted by personal bonds.
  */
 

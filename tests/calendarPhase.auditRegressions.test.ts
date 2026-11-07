@@ -6,6 +6,7 @@ import { assertSimInvariants } from '../src/game/simulation/simInvariants';
 import { JobType, MapSize, type VisitorGroup, type WorldState } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { SKILL_IDLE_DECAY_PER_DAY } from '../src/game/skills';
+import { recordElectionPromises } from '../src/game/electionPromises';
 
 const SEED = 20261107;
 
@@ -106,4 +107,28 @@ describe('audit calendar phase integration', () => {
     expect(world.visitorGroups).not.toContain(camp);
     expect(world.eventLog.some((event) => event.message.includes('Audit Pilgrims departed'))).toBe(true);
   });
+  it('SIM-06/07: promises are judged at the 18:00 world-events boundary only once', () => {
+    const world = worldBeforeDay(7);
+    gameTick(world); // Enter day 7 at midnight through the real scheduler.
+    recordElectionPromises(world, world.year);
+    const record = world.electionPromiseRecords?.at(-1);
+    expect(record).toBeDefined();
+    if (!record) return;
+    record.dueDay = 7;
+
+    world.tick = tickAtDailyPhase(7, 'worldEvents') - 2;
+    gameTick(world); // Not yet 18:00.
+    expect(record.evaluated).toBe(false);
+
+    gameTick(world); // Actual 18:00 pass.
+    expect(record.evaluated).toBe(true);
+    const verdicts = () => world.eventLog.filter((event) =>
+      event.message.includes(`Election #${record.electionId}:`) && event.message.includes('promises.'));
+    expect(verdicts()).toHaveLength(1);
+
+    world.tick = tickAtDailyPhase(8, 'worldEvents') - 1;
+    gameTick(world); // Following evening must not re-judge.
+    expect(verdicts()).toHaveLength(1);
+  });
+
 });

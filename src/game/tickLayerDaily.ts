@@ -11,7 +11,6 @@ import { mergeNewEntitiesIntoAlive } from './simulation/simulationEntities';
 import { addFloatingText } from './simEffects';
 import { playerHumansFrom } from './playerHuman';
 import { syncLeaderHouseResidency } from './leaderHouse';
-import { tickElectionPromises } from './electionPromises';
 import { tickVisitorGroups } from './groupEvents';
 import { decayIdleSkills } from './skills';
 
@@ -81,11 +80,7 @@ export function tickLayerDaily(
 
   }
   if (hour === DAILY_PHASE_HOURS.worldEvents) {
-  // Evaluate active campaign promises when their evaluation day arrives
-  const stage7 = profileStart();
-  tickElectionPromises(state);
-  profileEnd('daily.tickElectionPromises', stage7);
-
+  // World-events owns promise evaluation, once per evening, after today's production.
   // Valley Chronicle — milestone chapters are checked once per day.
   const chronicleStart = profileStart();
   const newlyUnlocked = advanceValleyChronicle(state);

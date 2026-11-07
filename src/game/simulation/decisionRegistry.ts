@@ -400,7 +400,7 @@ export const SIMULATION_DECISIONS = {
   leadership: {
     owner: 'leaderHouse.ts — syncLeaderHouseResidency, applyLeaderOccupation; election: villageLeadership.ts — tickElectionBuildup, tryStartTermElectionCeremony, tryStartVacancyElectionCeremony, tickElectionCeremony, tickElectionGossip; dailyWorldEvents.ts — tickYearBoundaryWorldEvents (midnight scheduling), tickDailyWorldEvents (18:00 vacancy scheduling); ceremony attendance: villageLeadership.ts — isCeremonyAttendee, getElectionGatherTarget (read-only)',
     cadence: 'daily',
-    cadenceNote: 'Term elections and buildup run at 00:00 on year rollover, vacancies on their due date at 18:00, ceremony progression in realtime; residency remains idempotent. Required CI: calendar-scheduler tests Year-2 midnight via gameTick.',
+    cadenceNote: 'Term elections and buildup run at 00:00 on year rollover, vacancies and one campaign-promise evaluation pass run at 18:00 through dailyWorldEvents, ceremony progression in realtime; residency remains idempotent. Required CI: calendar-scheduler tests Year-2 midnight via gameTick.',
     writes: [
       'human.occupation',
       'human.job',
