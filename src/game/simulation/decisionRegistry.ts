@@ -74,6 +74,7 @@ export type DecisionKey =
   | 'raidRecovery'
   | 'raidCaptivity'
   | 'raidTerminalPresentation'
+  | 'crashRecovery'
   | 'valleyChronicle'
   | 'terrainRiverSurface'
   | 'commands';
@@ -449,6 +450,14 @@ export const SIMULATION_DECISIONS = {
     scheduledFrom: 'components/WarfareStatus.tsx → buildRaidTerminalReport when raidRecovery.status is destroyed; App.tsx → RazeConfirmation for an existing pending raid',
     testFile: 'tests/raidTerminalReport.test.ts',
   },
+  crashRecovery: {
+    owner: 'components/GameErrorBoundary.tsx — GameErrorBoundary, registerCrashRecoverySource, isCrashRecoveryActive (UI fallback); saveLoad.ts — downloadRecoverySaveFile (file-only export)',
+    cadence: 'on-demand',
+    cadenceNote: 'On a React render/lifecycle crash, capture the live read-only session refs before App unmount; do not overwrite the quick-save or run the normal unmount auto-save. The recovery file is the last available display snapshot, not a promised worker-authoritative export.',
+    writes: [],
+    scheduledFrom: 'main.tsx → GameErrorBoundary; App.tsx useLayoutEffect registers session refs; export button → saveLoad.downloadRecoverySaveFile; useGamePersistence cleanup checks crash state',
+    testFile: 'tests/gameErrorBoundary.test.ts, tests/saveLoad.externalSlot.test.ts',
+  },
   valleyChronicle: {
     owner: 'valleyChronicle.ts — advanceValleyChronicle; components/tabPanels/ValleyChroniclePanel.tsx is read-only',
     cadence: 'daily',
@@ -484,8 +493,8 @@ export const SIMULATION_DECISIONS = {
       'building.health',
       'validated requested state transition (building/assignment/recipe/mode fields)',
     ],
-    scheduledFrom: 'GameWorkerHost command channel; main-thread fallback in gameLoop',
-    testFile: 'tests/commands.validation.test.ts, tests/workerCommand.roundtrip.test.ts',
+    scheduledFrom: 'hooks/useCanvasInteractions.handleMouseUp (Alt-drag confirmation) → GameWorkerHost command channel; main-thread fallback in gameLoop',
+    testFile: 'tests/commands.validation.test.ts, tests/workerCommand.roundtrip.test.ts, tests/keyboardGuards.contract.test.ts',
   },
 } as const satisfies Record<DecisionKey, DecisionOwner>;
 
