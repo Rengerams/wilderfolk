@@ -17,6 +17,10 @@ interface LiteralSite {
 }
 
 const SITES: LiteralSite[] = [
+  { file: 'tests/displayYear.oneBased.test.ts', preFix: /90\s*\*\s*72/, spelling: '90 * 72 calendar day fixture' },
+  { file: 'tests/spotlightLore.test.ts', preFix: /72\s*\*\s*200/, spelling: '72 * 200 day-200 fixture' },
+  { file: 'tests/dayCycle.cadence.test.ts', preFix: /TICKS_PER_DAY=72|72 TPD/, spelling: '72-tick active clock description' },
+  { file: 'tests/visitorSpawn.gridSync.test.ts', preFix: /tick:\s*72,/, spelling: 'tick: 72 visitor spawn time' },
   { file: 'tests/autoStaff.notify.test.ts', preFix: /72 \* 5/, spelling: '72 * 5' },
   { file: 'tests/demolish.roundtrip.test.ts', preFix: /3 \* 72/, spelling: '3 * 72' },
   { file: 'tests/dayCycle.tavern.test.ts', preFix: /72 \* 10/, spelling: '72 * 10' },
@@ -70,7 +74,7 @@ describe('G3 — the test tier reads the day length from the clock owner', () =>
       expect(
         source,
         `${file} no longer names the clock owner at all — the literal was removed without using it`,
-      ).toMatch(/TICKS_PER_DAY|ticksForDays/);
+      ).toMatch(/TICKS_PER_DAY|ticksForDays|tickAtDailyPhase/);
     });
   }
 });
