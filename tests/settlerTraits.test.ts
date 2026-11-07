@@ -3,8 +3,10 @@
  * Every genome carries fourteen continuous inherited aptitude dimensions.
  */
 import { describe, it, expect } from 'vitest';
-import { createSeededRng } from '../src/game/simRng';
+import { createSeededRng, resetSimRng } from '../src/game/simRng';
 import { initGame } from '../src/game/worldGen';
+import { createInitialView } from '../src/game/viewState';
+import { buildSaveData, loadGameFromParsedOutcome, parseSaveJson } from '../src/game/saveLoad';
 import { createEntity } from '../src/game/entityFactory';
 import { EntityType } from '../src/game/gameTypes';
 import {
@@ -200,6 +202,17 @@ describe('entity creation', () => {
     expect(rabbit.genomeV2).toBeUndefined();
   });
 
+  it('leaves a foreign human neutral: no genome and no born marks', () => {
+    for (const faction of ['visitor', 'trade_caravan'] as const) {
+      const foreigner = createEntity(EntityType.Human, 0, 0, 4, 100, false, { faction });
+      expect(foreigner.faction).toBe(faction);
+      expect(foreigner.genomeV2).toBeUndefined();
+      expect(foreigner.marks).toBeUndefined();
+    }
+    const settler = createEntity(EntityType.Human, 0, 0, 5, 100, false, { gender: 'male' });
+    expect(settler.genomeV2?.aptitudeAlleles).toHaveLength(14);
+  });
+
   it('survives the full game init (worldGen path)', () => {
     const state = initGame();
     const settlers = state.entities.filter((entity) => entity.type === EntityType.Human && entity.alive);
@@ -207,5 +220,36 @@ describe('entity creation', () => {
     for (const settler of settlers) {
       expect(settler.genomeV2?.aptitudeAlleles).toHaveLength(14);
     }
+  });
+});
+
+describe('foreign humans stay neutral across the load boundary', () => {
+  it('keeps a player genome and strips a saved foreign genome and marks', () => {
+    resetSimRng();
+    const world = initGame({ skipTerrain: true, villageName: 'DNA', size: 'medium', seed: 20_261_109 });
+    const settler = world.entities.find((entity) => entity.type === EntityType.Human && entity.alive);
+    if (!settler) throw new Error('fixture premise: the colony has a living settler');
+    settler.marks = [{ id: 'pretty', day: 0, source: 'born' }];
+    const visitor = createEntity(EntityType.Human, 300, 300, world.nextEntityId++, 100, false, {
+      name: 'Old Visitor',
+      ageYears: 30,
+      faction: 'visitor',
+    });
+    // A save written before the contract existed still carries foreign DNA.
+    visitor.genomeV2 = genomeFrom();
+    visitor.marks = [{ id: 'lucky', day: 4, source: 'raidVictory' }];
+    world.entities.push(visitor);
+
+    const raw = JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height)));
+    const parsed = parseSaveJson(raw);
+    if (!parsed.valid || !parsed.parsed) throw new Error('fixture save invalid');
+    const loaded = loadGameFromParsedOutcome(parsed.parsed);
+    if (!loaded.ok) throw new Error(`payload refused: ${loaded.reason}`);
+    const afterVisitor = loaded.world.entities.find((entity) => entity.id === visitor.id);
+    expect(afterVisitor?.genomeV2).toBeUndefined();
+    expect(afterVisitor?.marks).toBeUndefined();
+    const afterSettler = loaded.world.entities.find((entity) => entity.id === settler.id);
+    expect(afterSettler?.genomeV2?.aptitudeAlleles).toHaveLength(14);
+    expect(afterSettler?.marks).toEqual([{ id: 'pretty', day: 0, source: 'born' }]);
   });
 });

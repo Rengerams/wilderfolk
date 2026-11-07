@@ -29,7 +29,7 @@ import { logEvent, repairEventLogOnLoad, syncEventLogIdFromState } from './event
 import { pickHumanVariant } from './humanSprites';
 import { migrateLegacyMoonHowler, syncMoonHowlerForms } from './moonHowler';
 import { reconcileFamilyReferencesAfterRemoval } from './humanLifecycleCleanup';
-import { isPlayerHuman } from './playerHuman';
+import { isForeignFaction, isPlayerHuman } from './playerHuman';
 import { clampCloseFriendships } from './relationships';
 import { GAME_VERSION } from './version';
 import { ensureEntitySkills } from './skills';
@@ -109,7 +109,7 @@ function repairLoadedHumanGround(world: WorldState): number {
 const COMPATIBLE_SAVE_VERSIONS = new Set([GAME_VERSION, '0.6.5.0']);
 
 /**
- * The one genotype load boundary: keep a valid saved genome, backfill an old settler
+ * The one genotype load boundary: keep a valid saved genome, backfill an old player settler
  * deterministically, and drop the retired categorical traits field.
  */
 function backfillLegacySettlerDNA(entities: Entity[], colonySeed: number): number {
@@ -118,6 +118,12 @@ function backfillLegacySettlerDNA(entities: Entity[], colonySeed: number): numbe
     if (entity.type !== EntityType.Human && entity.type !== EntityType.Werewolf) continue;
     // The retired categorical labels are never kept as a second genetics source, even for the dead.
     delete (entity as unknown as Record<string, unknown>).traits;
+    // Foreign humans stay neutral by contract: no genome and no marks, whatever the save held.
+    if (isForeignFaction(entity.faction)) {
+      delete entity.genomeV2;
+      delete entity.marks;
+      continue;
+    }
     // A cursed settler may be saved in moon form, which is still the same person and their genome.
     if (!entity.alive) continue;
     const saved = normalizeGenome(entity.genomeV2);
@@ -1491,6 +1497,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     // Personal marks are not genetics: validate or drop them without ever drawing a new one.
     for (const entity of world.entities) {
       if (entity.type !== EntityType.Human && entity.type !== EntityType.Werewolf) continue;
+      if (isForeignFaction(entity.faction)) continue;
       const marks = normalizeMarks(entity.marks);
       if (marks === undefined) delete entity.marks;
       else entity.marks = marks;

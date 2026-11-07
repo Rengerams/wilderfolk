@@ -1,5 +1,9 @@
 # Bug report summary — one line per report
 
+**2026-11-07 — [Foreign humans received genomes and born marks](../bug_report/2026-11-07-foreign-humans-get-dna-and-born-marks.md):** Visitors and caravan carriers were created as full genetic settlers and showed aptitude chips, against the doc's foreign-neutral contract. Status: resolved — creation and the load backfill gate on the faction predicate; 50 DNA tests pass.
+
+**2026-11-07 — [Personal mark provenance accepted impossible pairs](../bug_report/2026-11-07-mark-provenance-unvalidated.md):** A born-only mark could claim an earned source and vice versa. Status: resolved — one per-mark allowed-source table validates the pair in both writers; 21 mark tests pass.
+
 **2026-11-07 — [The human render pass rescanned buildings and re-sampled ground height every frame](../bug_report/2026-11-07-per-frame-human-rescans.md):** The sleeper cull walked the building list per settler, the status-icon context rebuilt on every repaint, and every mover re-read the elevation field. Status: resolved — 80 sleepers fell from 8,600 to 560 building reads per frame and shared height vertices are sampled once; 6/6 tests pass.
 
 **2026-11-07 — [Every settler re-scanned buildings and faction lists each tick](../bug_report/2026-11-07-per-settler-building-and-camp-scans.md):** Camp, war-band, performer, festival-square and hotel lookups sat inside the per-settler loop. Status: resolved — per-tick indexes cut a 20→80 goer run from 1,638→4,368 building reads to 798→1,008; 3/3 tests pass.

@@ -268,10 +268,10 @@ function spawnCaravan(state: WorldState, route: TradeRoute, ctx: TickContext): b
   const carrier = createEntity(EntityType.Human, hub.x, hub.y, state.nextEntityId++, 300, false, {
     name: `${route.targetName} trader`,
     gender: 'male',
+    faction: 'trade_caravan',
   });
   finalizeSettlerAge(carrier, state);
   carrier.job = JobType.Merchant;
-  carrier.faction = 'trade_caravan';
   carrier.groupId = route.id;
   carrier.occupation = 'merchant';
   moveResident(carrier, undefined, 'departure');

@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (7 Nov 2026):** Audit A4 DNA contract: visitors and caravan traders are created neutral instead of receiving a genome and born marks, their saved DNA is dropped on load, their selection panel no longer shows aptitudes, and a personal mark must come from a source its definition allows.
 - **Fixed (7 Nov 2026):** Audit A6 static layer: the cached trees, grass and buildings now repaint only when the world's static content changes instead of on every simulation tick, while a live construction site keeps animating.
 - **Fixed (7 Nov 2026):** Audit A7 hot paths: a settler no longer rescans every building and faction list for camp, war-band, festival and hotel answers, and the population roster is counted once when nothing changed.
 - **Fixed (7 Nov 2026):** Audit A7 render hot paths: sleeping settlers share one building index per tick, status badges rebuild only when the world changes, and movers reuse sampled ground-height vertices instead of re-reading the terrain.

@@ -11,18 +11,23 @@ const FACTION_IS_FOREIGN: Record<NonNullable<Entity['faction']>, boolean> = {
   trade_caravan: true,
 };
 
+/** Whether a faction marker means "not the player's"; a missing marker is player-owned. */
+export function isForeignFaction(faction: Entity['faction']): boolean {
+  return faction !== undefined && FACTION_IS_FOREIGN[faction] === true;
+}
+
 /**
  * Whether an entity is a settler of the player's village: a Human that is not in a foreign faction.
  * A missing or unnamed faction marker still counts as player-owned.
  */
 export function isPlayerHuman(e: Entity): boolean {
-  return e.type === EntityType.Human && (!e.faction || !FACTION_IS_FOREIGN[e.faction]);
+  return e.type === EntityType.Human && !isForeignFaction(e.faction);
 }
 
 /** A player's witnessed human shift still belongs to them during a temporary Moon Howler form. */
 export function isPlayerHumanShiftOwner(e: Entity): boolean {
   return isPlayerHuman(e) || (e.type === EntityType.Werewolf && !!e.moonHowlerCursed
-    && !!e.moonHowlerSaved && (!e.faction || !FACTION_IS_FOREIGN[e.faction]));
+    && !!e.moonHowlerSaved && !isForeignFaction(e.faction));
 }
 
 /**

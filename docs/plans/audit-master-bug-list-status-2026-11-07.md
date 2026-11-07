@@ -25,6 +25,8 @@
 | COV-G-05 | fixed | Rival growth cadence hashes the stable rival id. `tests/rivalProfiles.test.ts` |
 | COV-I-03 | fixed | One hex parser; short colours no longer produce NaN. `tests/renderer.shared.hex.test.ts` |
 | DNA-01 | fixed | A valid flat genome loads unchanged. `tests/settlerTraits.test.ts` |
+| DNA-02 | fixed | Player-only DNA: `createEntity`, the load backfill and the selection panel gate on `isForeignFaction`; visitors and caravan carriers are created neutral and lose a saved foreign genome/marks on load. `tests/settlerTraits.test.ts` (6), `tests/personality.legacyDNA.test.ts` (9). [Report](../bug_report/2026-11-07-foreign-humans-get-dna-and-born-marks.md) |
+| DNA-03 | fixed | One per-mark allowed-source table validates provenance in `grantMark` and `normalizeMarks`. `tests/personalMarks.test.ts` (21). [Report](../bug_report/2026-11-07-mark-provenance-unvalidated.md) |
 
 ## Phase A4 — lifecycle, data loss and modal safety
 
@@ -66,6 +68,7 @@
 - CB-02's boundary screen was not forced open in the preview; the export path is covered by typecheck and build only.
 - CB-13's Rust build was not run in this environment.
 - A6's road-through-forest dark frame and the tree/building depth order have no screenshot matrix; the paused-overlay pixel run and the static-layer preview run (new colony, zoom rebake, 0 console errors) are what is recorded.
+- The visitor/caravan aptitude-chip gate has no component test and was not exercised in the browser; only the creation and load contracts are covered by tests. The preview run confirmed the app boots with zero console errors.
 - The 720-day continuous simulation stays out of scope by instruction and plan decision; only the fast boundary gate runs.
 - SIM-03/SIM-04 and the rest of Plan Phase 1 beyond SIM-01/SIM-02/TEST-16 have no description in this repository: the audit archive (`MASTER-BUG-LIST.md`) is not checked in, so they cannot be actioned here.
 
