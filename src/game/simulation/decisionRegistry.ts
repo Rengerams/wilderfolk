@@ -58,6 +58,8 @@ export type DecisionKey =
   | 'construction'
   | 'production'
   | 'villageRequests'
+  | 'visitorLifecycle'
+  | 'idleSkillDecay'
   | 'socialFeedback'
   | 'dialogueContent'
   | 'dialogueSessions'
@@ -272,8 +274,24 @@ export const SIMULATION_DECISIONS = {
       'source visitor-group counters',
       'eventLog/bigNews/floatingTexts',
     ],
-    scheduledFrom: 'dailyWorldEvents.ts (tickVisitorGroups then tickVillageRequests), reached from tickLayerDaily.ts; commands.ts "resolveVillageRequest" → groupEvents.resolveVillageRequest',
+    scheduledFrom: 'tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → groupEvents.tickVillageRequests; commands.ts "resolveVillageRequest" → groupEvents.resolveVillageRequest',
     testFile: 'tests/villageRequests.test.ts, tests/workerCommand.roundtrip.test.ts, tests/gameWorker.transport.test.ts',
+  },
+  visitorLifecycle: {
+    owner: 'groupEvents.ts — tickVisitorGroups; sole visitor stay, gift, and departure owner',
+    cadence: 'new-calendar-day',
+    cadenceNote: 'One 00:00 pass per colony day; arrival grace stays in groupEvents and departure unindexes visitors. Required CI: calendar-scheduler executes the real gameTick regression.',
+    writes: ['visitorGroups', 'visitorGroup.daysLeft', 'visitorGroup.giftsGiven', 'visitorGroup.gold', 'visitorHuman.alive', 'resources', 'villageReputation', 'eventLog/bigNews/floatingTexts'],
+    scheduledFrom: 'gameTick.ts → tickLayerDaily.ts 00:00 → groupEvents.tickVisitorGroups',
+    testFile: 'tests/calendarPhase.auditRegressions.test.ts',
+  },
+  idleSkillDecay: {
+    owner: 'skills.ts — decayIdleSkills; sole non-active trade-skill decay writer',
+    cadence: 'new-calendar-day',
+    cadenceNote: 'Exactly once at 00:00 for living adult player humans; active job skill is exempt. Required CI: calendar-scheduler tests exact loss through gameTick.',
+    writes: ['human.skills', 'human.profileRevision'],
+    scheduledFrom: 'gameTick.ts → tickLayerDaily.ts 00:00 → skills.decayIdleSkills',
+    testFile: 'tests/calendarPhase.auditRegressions.test.ts',
   },
   socialFeedback: {
     owner: 'humanSocial.ts — simAmbientChatNeighbors, simSettlerPairChat; socialLife.ts — pickSocialImpulse, tryWorkplaceBanter, tryNeighborGreeting',
@@ -380,9 +398,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/moonHowler.test.ts, tests/low-3-moon-lifecycle.test.ts, tests/medium-persistence.test.ts',
   },
   leadership: {
-    owner: 'leaderHouse.ts — syncLeaderHouseResidency (the housing pipeline\'s `leader` phase, decided through relocateHousehold), applyLeaderOccupation; election: villageLeadership.ts (villageLeaderId, selectElectionGossip, tickElectionGossip); ceremony attendance: villageLeadership.ts (isCeremonyAttendee, getElectionGatherTarget — read-only)',
+    owner: 'leaderHouse.ts — syncLeaderHouseResidency, applyLeaderOccupation; election: villageLeadership.ts — tickElectionBuildup, tryStartTermElectionCeremony, tryStartVacancyElectionCeremony, tickElectionCeremony, tickElectionGossip; dailyWorldEvents.ts — tickYearBoundaryWorldEvents (midnight scheduling), tickDailyWorldEvents (18:00 vacancy scheduling); ceremony attendance: villageLeadership.ts — isCeremonyAttendee, getElectionGatherTarget (read-only)',
     cadence: 'daily',
-    cadenceNote: 'authority declares daily/idempotent — residency reconciliation is idempotent per day; applyLeaderOccupation preserves a valid leader workplace (only repairs stale), per 2026-08-20 decision',
+    cadenceNote: 'Term elections and buildup run at 00:00 on year rollover, vacancies on their due date at 18:00, ceremony progression in realtime; residency remains idempotent. Required CI: calendar-scheduler tests Year-2 midnight via gameTick.',
     writes: [
       'human.occupation',
       'human.job',
@@ -391,10 +409,13 @@ export const SIMULATION_DECISIONS = {
       'villageLeaderId',
       'leaderSinceYear',
       'electionCeremony',
+      'pendingElectionYear',
+      'electionBuildupNotifiedYear',
       'eventLog',
+      'notifications/bigNews',
     ],
-    scheduledFrom: 'tickLayerDaily.ts → syncLeaderHouseResidency; villageLeadership election flow',
-    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts, tests/medium-N5-electionGatherSlot.test.ts',
+    scheduledFrom: 'tickLayerDaily.ts 00:00 → dailyWorldEvents.tickYearBoundaryWorldEvents → villageLeadership term owner; tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → villageLeadership vacancy owner; tickLayerDaily.ts 06:00 → leaderHouse.syncLeaderHouseResidency',
+    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts, tests/medium-N5-electionGatherSlot.test.ts, tests/calendarPhase.auditRegressions.test.ts',
   },
   raidCombat: {
     owner: 'frontierCombat.ts — queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory',
