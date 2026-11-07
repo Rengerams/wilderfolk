@@ -25,11 +25,11 @@ describe('audit calendar phase integration', () => {
     world.pendingElectionYear = null;
     world.electionCeremony = null;
 
-    gameTick(world);
+    const after = gameTick(world);
 
-    expect(world.year).toBe(2);
-    expect(world.dayInYear).toBe(0);
-    expect(world.electionCeremony?.reason).toBe('term');
+    expect(after.year).toBe(2);
+    expect(after.dayInYear).toBe(0);
+    expect(after.electionCeremony?.reason).toBe('term');
     expect(world.eventLog.some((event) => event.message.includes('Leadership election ceremony began'))).toBe(true);
   });
 
