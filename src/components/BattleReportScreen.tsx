@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { useModalFocus } from '../hooks/useModalFocus';
+import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 import type { GameEventLog, OutgoingRaidEvent, RaidEvent, WorldState } from '../game/gameTypes';
 import { TICKS_PER_HOUR } from '../game/dayCycle';
 import RazeConfirmation from './RazeConfirmation';
@@ -64,6 +66,12 @@ export default function BattleReportScreen({
   const [revealed, setRevealed] = useState(() => Math.min(1, events.length));
   const [confirmExterminate, setConfirmExterminate] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useModalFocus<HTMLDivElement>();
+  // Escape dismisses the nested fate confirmation before closing the report.
+  useOverlayKeyboard('battle-report', () => {
+    if (confirmExterminate) setConfirmExterminate(false);
+    else onClose();
+  });
 
   useEffect(() => {
     if (revealed >= events.length) return;
@@ -90,7 +98,7 @@ export default function BattleReportScreen({
   const visible = events.slice(0, revealed);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Raid match report" className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/95 p-3 text-stone-100 sm:p-5">
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Raid match report" className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/95 p-3 text-stone-100 sm:p-5">
       <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-amber-700/60 bg-stone-950 shadow-2xl">
         <header className="border-b border-amber-800/50 bg-gradient-to-r from-stone-950 via-amber-950/60 to-stone-950 px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between gap-3">
