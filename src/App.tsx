@@ -86,7 +86,7 @@ import GameInspector from './components/GameInspector';
 import GameOverlays from './components/GameOverlays';
 import WarfareStatus from './components/WarfareStatus';
 import BattleReportScreen from './components/BattleReportScreen';
-import { downloadSaveFile } from './game/saveLoad';
+import { saveGame } from './game/saveLoad';
 import { downloadChronicleLog } from './game/eventLogExport';
 
 import GameBuildRail from './components/GameBuildRail';
@@ -2096,7 +2096,7 @@ export default function App() {
           <WarfareStatus world={world}
             onRepair={(buildingId) => applyGameAction({ proto: 1, op: 'repairBuilding', buildingId })}
             onPrisonerDecision={(entityId, choiceId) => applyGameAction({ proto: 1, op: 'resolveWarPrisoner', entityId, choiceId })}
-            onExport={() => { downloadSaveFile(world, view); }}
+            onExport={() => { saveGame(world, view); }}
             onChronicle={() => { downloadChronicleLog(world.eventLog, { villageName: world.villageName, year: world.year, day: world.dayInYear, tick: world.tick, population: world.humanPopulation }); }}
             onNewVillage={startNewGame} onMainMenu={() => setShowIntro(true)} />
       {/*
