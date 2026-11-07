@@ -1,5 +1,11 @@
 # Bug report summary — one line per report
 
+**2026-11-07 — [A5 CB-01 stopped RAF chain and old renderer caches](../bug_report/2026-11-07-game-loop-raf-retains-stopped-session.md):** RAF reschedules after stop, risking an abandoned world frame chain. Status: investigating in A5 PR.
+
+**2026-11-07 — [A5 UX-01 loading replaces the active colony and quick-save](../bug_report/2026-11-07-load-replaces-colony-overwrites-browser-save.md):** Browser/file loads lacked confirmation; file import silently overwrote quick-save. Status: investigating in A5 PR.
+
+**2026-11-07 — [A5 UX-03/04 war modals leak focus and hotkeys](../bug_report/2026-11-07-war-overlays-leak-keyboard-and-focus.md):** Battle, terminal and prisoner dialogs lacked shared focus/keyboard ownership. Status: investigating in A5 PR.
+
 **2026-11-07 — [A2 required calendar scheduler missing from PR CI](../bug_report/2026-11-07-calendar-regressions-not-required-in-pr-ci.md):** Affected-only tests can pass without exercising the midnight scheduler; adding a dedicated fast gameTick boundary CI job. Status: resolved — required scheduler workflow passed 11/11.
 
 **2026-11-07 — [A2 calendar-owner coverage has no enforced floor](../bug_report/2026-11-07-calendar-regression-coverage-ungated.md):** The standard suite does not enforce coverage; adding a narrowly scoped V8 threshold in the required calendar job. Status: resolved — scoped coverage thresholds passed.
