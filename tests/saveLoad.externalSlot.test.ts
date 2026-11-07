@@ -22,6 +22,7 @@ import {
   saveGame,
   saveGameToSlot,
   saveImportedFileToSlot,
+  executeConfirmedColonyLoad,
 } from '../src/game/saveLoad';
 
 function memoryStorage() {
@@ -51,6 +52,43 @@ afterEach(() => {
   resetSimRng();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+describe('UX-01: confirmed load contract', () => {
+  it('cancel protects the running world and leaves the in-flight guard reusable', () => {
+    const guard = { current: false };
+    const confirm = vi.fn(() => false);
+    const mutateWorld = vi.fn();
+    expect(executeConfirmedColonyLoad(true, guard, confirm, mutateWorld)).toBe(false);
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(mutateWorld).not.toHaveBeenCalled();
+    expect(guard.current).toBe(false);
+
+    expect(executeConfirmedColonyLoad(false, guard, confirm, mutateWorld)).toBe(true);
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(mutateWorld).toHaveBeenCalledOnce();
+    expect(guard.current).toBe(false);
+  });
+
+  it('confirmed loading runs once; a re-entrant click is ignored', () => {
+    const guard = { current: false };
+    const confirm = vi.fn(() => true);
+    const callback = vi.fn(() => {
+      expect(executeConfirmedColonyLoad(true, guard, confirm, vi.fn())).toBe(false);
+    });
+    expect(executeConfirmedColonyLoad(true, guard, confirm, callback)).toBe(true);
+    expect(callback).toHaveBeenCalledOnce();
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(guard.current).toBe(false);
+  });
+
+  it('releases the lock if the load throws', () => {
+    const guard = { current: false };
+    expect(() => executeConfirmedColonyLoad(false, guard, () => true, () => {
+      throw new Error('corrupt load');
+    })).toThrow('corrupt load');
+    expect(guard.current).toBe(false);
+  });
 });
 
 describe('a colony too big for the browser slot saves externally', () => {
