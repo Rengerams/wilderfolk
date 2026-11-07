@@ -763,6 +763,28 @@ export function saveGameToSlot(world: WorldState, view: ViewState): SaveResult {
   return writeSaveSlot(json);
 }
 
+/**
+ * One synchronous player-confirmation boundary shared by quick-save, imported-slot and file loads.
+ * Acquiring the guard before the confirmation also rejects a re-entrant click/loader call.
+ * No WorldState is mutated when the player cancels.
+ */
+export function executeConfirmedColonyLoad(
+  replacingActiveColony: boolean,
+  inFlight: { current: boolean },
+  confirmReplace: () => boolean,
+  load: () => void,
+): boolean {
+  if (inFlight.current) return false;
+  inFlight.current = true;
+  try {
+    if (replacingActiveColony && !confirmReplace()) return false;
+    load();
+    return true;
+  } finally {
+    inFlight.current = false;
+  }
+}
+
 /** Keep the original, validated JSON in a separate slot, never touching the existing quick-save. */
 export function saveImportedFileToSlot(json: string, world: WorldState): SaveResult {
   const route = decideSaveRoute(world, json);
