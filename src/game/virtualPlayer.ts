@@ -86,7 +86,8 @@ export interface VirtualPlayerDecision {
   reason: string;
 }
 
-const FOOD_PRODUCER_TYPES: readonly BuildingType[] = [
+/** Building types the auto-player counts as food producers (see `decideFood`). */
+export const FOOD_PRODUCER_TYPES: readonly BuildingType[] = [
   BuildingType.Farm,
   BuildingType.Greenhouse,
   BuildingType.FishingSpot,

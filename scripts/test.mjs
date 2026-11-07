@@ -63,9 +63,9 @@ const STEP = {
 
 /** Gates, as ordered step lists: fail-fast, so the first failing step stops the gate. */
 const GATE = {
-  standard: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
+  standard: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'scriptsTypes', 'lint', 'unit'],
   all: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
-  full: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'integrationTests', 'invariants'],
+  full: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'integrationTests', 'invariants', 'scriptsTypes', 'dup', 'knip', 'Build'],
   audit: ['knip', 'owners', 'cycles'],
   accept: ['build', 'browser'],
 };

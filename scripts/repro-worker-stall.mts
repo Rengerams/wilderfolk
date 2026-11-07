@@ -130,13 +130,13 @@ async function main(): Promise<void> {
       return;
     }
     if ((msg.type === 'tickResult' || msg.type === 'commandResult')
-        && msg.renderBuffer && msg.bufferIndex !== undefined) {
+        && msg.renderBuffer && msg.bufferIndex !== undefined && msg.bufferLease !== undefined) {
       buffersReceived++;
       maxOutstandingBuffers = Math.max(maxOutstandingBuffers, buffersReceived - buffersReturned);
       try {
         worker.postMessage({
           type: 'returnBuffer', proto: WORKER_PROTO,
-          bufferIndex: msg.bufferIndex, buffer: msg.renderBuffer,
+          bufferIndex: msg.bufferIndex, bufferLease: msg.bufferLease, buffer: msg.renderBuffer,
         } satisfies WorkerRequest, [msg.renderBuffer]);
         buffersReturned++;
       } catch (err) {

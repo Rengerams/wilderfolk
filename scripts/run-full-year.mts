@@ -7,8 +7,8 @@ import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gameTick } from '../src/game/gameEngine';
 import { DAYS_PER_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
-import { EntityType, MapSize, BuildingType } from '../src/game/gameTypes';
-import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
+import { EntityType, MapSize } from '../src/game/gameTypes';
+import { decideVirtualPlayerAction, FOOD_PRODUCER_TYPES } from '../src/game/virtualPlayer';
 import type { WorldState } from '../src/game/gameTypes';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
@@ -501,8 +501,7 @@ function run(): void {
     writeCheckpoint(day, world, startedAt, health, provisional);
     if (options.verbose && options.bot && options.scenario === 'producers') {
       const proposed = decideVirtualPlayerAction(world);
-      const foodSites = world.buildings.filter((building) =>
-        [BuildingType.Farm, BuildingType.FishingSpot, BuildingType.HuntingSpot, BuildingType.Greenhouse].includes(building.type));
+      const foodSites = world.buildings.filter((building) => FOOD_PRODUCER_TYPES.includes(building.type));
       writeLog({
         kind: 'producer-bot-decision-audit', day, population: health.food.consumedToday,
         proposed: proposed == null ? null : { command: proposed.command, reason: proposed.reason },

@@ -1,5 +1,11 @@
 # Bug report summary — one line per report
 
+**2026-11-07 — [Raid-scaling test became flaky after personal marks entered defence](../bug_report/2026-11-07-raid-scaling-test-flaky-after-marks.md):** The test built each village size from a random map seed, so personal marks (now a defence input) and the juvenile count differed between sizes and the ratio spread passed 0.01 in ~40% of runs. The fixture now seeds the world and normalises marks and juvenile status; 20/20 isolated runs and the full suite pass.
+
+**2026-11-07 — [Day-boundary performance gate read an out-of-scope report](../bug_report/2026-11-07-day-boundary-gate-undefined-report.md):** The ceiling check added to the save benchmark compared a `report` that only exists inside `bench`, so enabling it threw a ReferenceError and the harness type check was red. `bench` now returns its report and the check reads it; types, lint, build and a boundary-enabled smoke run pass.
+
+**2026-11-07 — [Full-year food-site audit broke the harness type check](../bug_report/2026-11-07-full-year-food-site-narrowing.md):** An untyped four-member array literal made `includes(building.type)` reject the wider `BuildingType` union and duplicated the auto-player's food-producer set. The harness now imports the auto-player's typed set; types, lint and build pass.
+
 **2026-11-06 — [Trade caravan merchants can stand stuck at a river and appear as children](../bug_report/2026-11-06-trade-caravan-stuck-and-child.md):** The carrier used direct steering, spawned at a solid hub centre and started at age zero. It now uses the path owner from a walkable hub door, is created adult, and is promoted to adult on load. Source fixed; runtime unverified.
 
 **2026-11-06 — [Settlers meeting friends at a building press into its wall](../bug_report/2026-11-06-settlers-bump-into-building-frontage.md):** A corner-form meeting point could sit inside the now-solid footprint, and route cache keys were shared by every settler at that building. It now uses the walkable venue frontage and per-settler route keys. Source fixed; runtime unverified.
@@ -87,7 +93,7 @@ This sweep records the current tree; the individual report headers were delibera
 
 **2026-11-02 — [Failed fallback tick loses accumulated time](../bug_report/2026-11-02-fallback-tick-consumes-time-on-failure.md):** A failed rollback-safe local tick still consumed tick time. Clock debit now occurs only after success; the rollback regression proves retained debt and no extra retry.
 
-**2026-11-02 — [Render stress harness consumes all worker leases](../bug_report/2026-11-02-worker-stress-harness-exhausts-render-buffers.md):** Tick and command render leases were never returned. Harness now transfers leases back, tracks counts and confirms save exports; 5,000 render ticks returned all 5,007 leases with no exhaustion.
+**2026-11-02 — [Render stress harness consumes all worker leases](../bug_report/2026-11-02-worker-stress-harness-exhausts-render-buffers.md):** Tick and command render leases were never returned. Harness now transfers leases back, tracks counts and confirms save exports; 5,000 render ticks returned all 5,007 leases with no exhaustion. The later lease protocol left the harness returning no lease, exhausting the pool again after five ticks; on 2026-11-07 it echoes the lease and a 200-tick run returned 200/200.
 
 **2026-11-02 — [Render pool accepts oversized returns](../bug_report/2026-11-02-render-buffer-pool-accepts-oversize.md):** A larger-than-schema buffer silently entered the fixed-size pool. Exact-length checks and the 200,000-cycle capacity regression now pass.
 

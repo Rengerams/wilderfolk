@@ -13,9 +13,13 @@
 ## Status history
 - 2026-11-02 — investigating: source defect confirmed and proposed repair committed; CI and runtime verification not yet completed.
 - 2026-11-02 — resolved: merged into `main`; a 5,000-tick render-enabled run received and returned every lease with zero pool exhaustion.
+- 2026-11-07 — resolved: the lease protocol added in commit c3eafff8 made the harness's index-only return stale, so every slot leaked again after five acquisitions; the harness now requires and echoes the lease.
 
 ## Observed behavior
 Render stress measurements can exhaust the pool because the harness never returns transferred render buffers.
+On the 2026-11-07 tree the pool exhausts again after five ticks: the harness still returns by index alone, while
+`RenderBufferPool.release` now ignores a return whose lease does not match, so `acquire()` returns null and the
+worker reports "Render buffer pool exhausted". The scripts type check also rejects the request (`bufferLease` required).
 
 ## Expected behavior
 Every received buffer must be returned with a transferable and the harness must report failed or outstanding returns.
@@ -33,6 +37,7 @@ Both tickResult and commandResult paths discard the bufferIndex and renderBuffer
 
 ## Fix / proposed fix
 The harness now returns tick and command buffers, counts arrivals/returns/failures, validates real export acknowledgement, and avoids repeated same-tick command submission.
+It also requires the response's `bufferLease` and echoes it, matching `GameWorkerHost.returnRenderBuffer`, which refuses a lease-less return.
 
 ## Save/migration impact
 None. Existing saved world data is not migrated.
@@ -41,3 +46,6 @@ None. Existing saved world data is not migrated.
 - `TICKS=5000 npx tsx scripts/repro-worker-stall.mts` — PASS: requested 5000, results 5000, errors 0, buffers received 5007 / returned 5007, failures 0, max outstanding 1, no pool-exhaustion error, p99 inter-result gap 27.6 ms, exit code 0.
 - `npm run test:types` — PASS; `npm run lint` — PASS (0 errors); `npm run build` — PASS.
 - CI: not run in this session.
+- 2026-11-07 re-verification: `TICKS=200 npx tsx scripts/repro-worker-stall.mts` — PASS: 200/200 results,
+  0 errors, 200 buffers received / 200 returned, 0 return failures, max outstanding 1, no pool-exhaustion
+  error; `node scripts/test.mjs scripts-types`, `npm run test:types`, `npm run lint` and `npm run build` pass.

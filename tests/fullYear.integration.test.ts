@@ -4,7 +4,8 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { initGame, gameTick } from '../src/game/gameEngine';
-import { createBuilding } from '../src/game/worldGen';
+import { createBuilding, createEntity } from '../src/game/worldGen';
+import { buildEntityByType } from '../src/game/simFocus';
 import { assignMissingResidences } from '../src/game/housingPipeline';
 import { BuildingType, EntityType, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
@@ -27,6 +28,13 @@ const POPULATION_SANITY_LIMIT = 5_000;
 const TEST_TIMEOUT_MS = 300_000;
 /** The larder this scenario starts with; raised so food never gates a social event. */
 const SCAFFOLD_FOOD = 100_000;
+/** Eligible neighbours for the seeded village — a one-couple start can never show a marriage. */
+const SCAFFOLD_SETTLERS = [
+  { gender: 'male' as const, ageYears: 26, name: 'Alden', surname: 'Reed' },
+  { gender: 'female' as const, ageYears: 23, name: 'Briar', surname: 'Stone' },
+  { gender: 'male' as const, ageYears: 25, name: 'Corin', surname: 'Vale' },
+  { gender: 'female' as const, ageYears: 27, name: 'Dara', surname: 'Wilde' },
+] as const;
 const DEBUG = process.env.WILDERFOLK_DEBUG !== '0';
 const VERBOSE = process.env.WILDERFOLK_VERBOSE === '1';
 const DEBUG_PROGRESS_DAYS = 30;
@@ -292,10 +300,51 @@ function runFullYear(seed: number): {
   starterHouse.constructionProgress = 1;
   starterHouse.spriteScale = 1;
   world.buildings.push(starterHouse);
+  // A one-couple start would leave the year with no eligible adult to marry, so the scenario places
+  // neighbours with their own homes; the relationship engine, not a missing population, does the work.
+  for (const [index, settler] of SCAFFOLD_SETTLERS.entries()) {
+    const home = createBuilding(
+      BuildingType.House,
+      Math.max(0, anchor.x - STARTER_HOUSE_OFFSET + 48 + (index % 2) * 48),
+      Math.max(0, anchor.y - STARTER_HOUSE_OFFSET + Math.floor(index / 2) * 48),
+      world.nextBuildingId++,
+    );
+    home.completed = true;
+    home.constructionProgress = 1;
+    home.spriteScale = 1;
+    world.buildings.push(home);
+    world.entities.push(createEntity(
+      EntityType.Human,
+      anchor.x + 12 * (index + 1),
+      anchor.y + 6 * index,
+      world.nextEntityId++,
+      undefined,
+      false,
+      settler,
+    ));
+  }
+  // Two Silos make the larder keep: `updateStorageCaps` derives spoilage as 0.02 − 2 × 0.012.
+  for (let index = 0; index < 2; index++) {
+    const silo = createBuilding(
+      BuildingType.Silo,
+      Math.max(0, anchor.x - STARTER_HOUSE_OFFSET - 48 * (index + 1)),
+      Math.max(0, anchor.y - STARTER_HOUSE_OFFSET),
+      world.nextBuildingId++,
+    );
+    silo.completed = true;
+    silo.constructionProgress = 1;
+    silo.spriteScale = 1;
+    world.buildings.push(silo);
+  }
+  world.entityByType = buildEntityByType(world.entities);
   world.storageMax.food = SCAFFOLD_FOOD;
   world.resources.food = world.storageMax.food;
   world.foodSpoilageRate = 0;
-  assignMissingResidences(founders, world.buildings, world.entities);
+  assignMissingResidences(
+    world.entities.filter((entity) => entity.type === EntityType.Human),
+    world.buildings,
+    world.entities,
+  );
   resetRelationshipDiagnostics();
   setRelationshipDiagnosticsEnabled(true);
   setRelationshipDiagnosticsConsoleLoggingEnabled(false);
