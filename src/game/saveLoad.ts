@@ -362,11 +362,21 @@ export function downloadSaveFile(world: WorldState, view: ViewState): SaveResult
   return downloadSaveJson(world, JSON.stringify(saveData));
 }
 
-function downloadSaveJson(world: WorldState, json: string): SaveResult {
+/** Crash recovery exports the last available snapshot without overwriting any healthy quick-save. */
+export function downloadRecoverySaveFile(world: WorldState, view: ViewState): SaveResult {
+  try {
+    return downloadSaveJson(world, JSON.stringify(buildSaveData(world, view)), false);
+  } catch (error) {
+    console.error('Recovery save build failed:', error);
+    return { success: false, error: 'Could not export the last available colony snapshot' };
+  }
+}
+
+function downloadSaveJson(world: WorldState, json: string, writeBrowserSlot = true): SaveResult {
   try {
     const route = decideSaveRoute(world, json);
     let slotWarning: string | undefined;
-    if (route.target === 'slot') {
+    if (writeBrowserSlot && route.target === 'slot') {
       try {
         localStorage.setItem(SAVE_KEY, json);
       } catch {
