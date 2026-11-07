@@ -1,0 +1,31 @@
+name: Required calendar scheduler gate
+
+# Fast integration contract: real gameTick around day/year boundaries, no full two-year simulation.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: calendar-scheduler-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  calendar-scheduler:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '26.12.1'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Real gameTick calendar boundaries, invariants and minimum owner coverage
+        run: npm test -- calendar-scheduler

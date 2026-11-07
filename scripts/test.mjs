@@ -28,6 +28,8 @@ const STEP = {
   unit: 'vitest run --exclude tests/fullYear.integration.test.ts --exclude tests/longRunColony.integration.test.ts',
   unitAll: 'vitest run',
   invariantTest: 'vitest run tests/fullYear.integration.test.ts',
+  /** Required in PR/main: real gameTick at selected day/year boundaries, not 720 simulated days. */
+  calendarScheduler: 'vitest run tests/calendarPhase.auditRegressions.test.ts tests/simulation.decisionRegistry.test.ts --coverage',
   colonyIntegrationTest: 'vitest run tests/longRunColony.integration.test.ts',
   /** Both year-long gates are independent processes; running them together halves the wall time. */
   integrationTests: 'vitest run tests/fullYear.integration.test.ts tests/longRunColony.integration.test.ts',
@@ -85,6 +87,7 @@ const ALIAS = {
   'semantic-dup': ['owners', 'semantic', 'semanticDup'],
   invariants: ['invariants'],
   'invariant-test': ['invariantTest'],
+  'calendar-scheduler': ['calendarScheduler'],
   'colony-integration': ['colonyIntegrationTest'],
   browser: ['browser'],
   build: ['build'],
@@ -104,6 +107,7 @@ wilderfolk test runner - one entry point, choose with args
   npm test -- unit [<pattern>]    vitest only; <pattern> filters by name/path
   npm test -- unit-all            vitest including the full-year integration file
   npm test -- invariant-test      just tests/fullYear.integration.test.ts
+  npm test -- calendar-scheduler  required quick day/year boundary + registry/invariant coverage gate
   npm test -- colony-integration  dedicated 90-day producer regression
   npm test -- invariants          the 360-day run (docs/log/full-year-*.jsonl)
   npm test -- types               tsc on the vitest project
