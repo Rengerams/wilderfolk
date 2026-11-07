@@ -1,5 +1,9 @@
 # Bug report summary — one line per report
 
+**2026-11-07 — [A2 required calendar scheduler missing from PR CI](../bug_report/2026-11-07-calendar-regressions-not-required-in-pr-ci.md):** Affected-only tests can pass without exercising the midnight scheduler; adding a dedicated fast gameTick boundary CI job. Status: investigating pending CI.
+
+**2026-11-07 — [A2 calendar-owner coverage has no enforced floor](../bug_report/2026-11-07-calendar-regression-coverage-ungated.md):** The standard suite does not enforce coverage; adding a narrowly scoped V8 threshold in the required calendar job. Status: investigating pending measured results.
+
 **2026-11-07 — [SIM-01: term elections never fire](../bug_report/2026-11-07-term-election-skipped-at-1800.md):** Year-boundary scheduler was gated at 18:00; moved to 00:00. Status: resolved — the `gameTick` regression passed in Node.js CI.
 
 **2026-11-07 — [SIM-02: idle skills never decay](../bug_report/2026-11-07-idle-skill-decay-never-runs.md):** Midnight-only skill decay was called from the 18:00 world-events pass; moved to midnight. Status: resolved — exact decay passed in Node.js CI.
