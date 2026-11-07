@@ -1,7 +1,7 @@
 # Calendar regression coverage is not enforced
 
 - Bug: TEST-11
-- Status: investigating
+- Status: resolved
 - Severity: high
 - Date discovered: 2026-11-07
 - Version/build: 0.6.5.1
@@ -13,6 +13,7 @@
 ## Status history
 - 2026-11-07 — open: standard unit tests assert outcomes but do not enforce any coverage floor.
 - 2026-11-07 — investigating: calendar-owner coverage floor scoped narrowly to prevent expensive whole-project collection on every PR.
+- 2026-11-07 — resolved: scoped V8 report measured 72.09% statements, 54.28% branches, 71.42% functions and 76.69% lines; ratcheted CI floors pass.
 
 ## Observed behavior
 The default CI does not run Vitest with --coverage, and vitest.config.ts has no coverage thresholds. Entire calendar paths could become untested without a coverage regression signal.
@@ -38,4 +39,4 @@ Enable V8 coverage only for the calendar scheduler modules in the dedicated CI g
 none.
 
 ## Verification result
-NOT RUN — pending measured CI coverage report.
+PASS — GitHub Actions run 42412449453, 11/11 tests: measured statements 72.09% (floor 65%), branches 54.28% (floor 45%), functions 71.42% (floor 60%), lines 76.69% (floor 70%). Targeted modules only; not a whole-repository threshold.
