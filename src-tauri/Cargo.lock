@@ -3294,29 +3294,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tauri-plugin-shell"
-version = "2.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7375b25f72f70f6168f27f1ba3a413e30eaa0a2098cff53a4046ebfe9e2f142d"
-dependencies = [
- "encoding_rs",
- "libc",
- "log",
- "open",
- "os_pipe",
- "regex",
- "schemars 0.8.22",
- "serde",
- "serde_json",
- "shared_child",
- "tauri",
- "tauri-plugin",
- "thiserror 2.0.21",
- "tokio",
- "windows-sys 0.60.2",
-]
-
-[[package]]
 name = "tauri-runtime"
 version = "2.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4057,7 +4034,6 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-log",
- "tauri-plugin-shell",
 ]
 
 [[package]]
