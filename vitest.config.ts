@@ -24,6 +24,23 @@ export default defineConfig({
     execArgv: [`--localstorage-file=${storageFile}`],
     slowTestThreshold: 2000,
     testTimeout: 30_000,
+    // Instrument only the critical calendar owners in the required, fast A2 gate.
+    // Other test tiers remain non-instrumented; expand/ratchet measured thresholds separately.
+    coverage: {
+      provider: 'v8',
+      include: [
+        'src/game/dayCycleClock.ts',
+        'src/game/tickLayerDaily.ts',
+        'src/game/dailyWorldEvents.ts',
+      ],
+      reporter: ['text-summary'],
+      thresholds: {
+        lines: 25,
+        statements: 25,
+        functions: 20,
+        branches: 10,
+      },
+    },
   },
   resolve: {
     alias: {
