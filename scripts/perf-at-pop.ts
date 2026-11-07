@@ -176,7 +176,7 @@ function bench(
     if (old) showComparison(report, old);
     else console.log(`  No matching baseline label for ${report.label}`);
   }
-  return { avg, p95 };
+  return report;
 }
 
 function loadSave(path: string): ReturnType<typeof initGame> {
@@ -288,7 +288,7 @@ async function main() {
     console.log(
       `Ticks=${TICKS} warmup=${WARMUP} | focus=${fullSim ? 'OFF (full sim)' : 'ON (viewport throttle)'} | save=${basename(savePath)} tick=${state.tick}`,
     );
-    bench(
+    const report = bench(
       state,
       `Save ${basename(savePath)}`,
       fullSim ? undefined : getSimFocus(state),
@@ -299,7 +299,7 @@ async function main() {
       console.error(`day-boundary ceiling exceeded: ${report.maxMs.toFixed(0)} ms`);
       process.exitCode = 1;
     }
-  if (REPORT) writeFileSync(REPORT, JSON.stringify({ version: 2, node: process.version, platform: process.platform, arch: process.arch, seed: SEED, fullSim, profiling: PROFILE, createdAt: new Date().toISOString(), save: basename(savePath), reports: benchmarkReports }, null, 2) + '\n');
+    if (REPORT) writeFileSync(REPORT, JSON.stringify({ version: 2, node: process.version, platform: process.platform, arch: process.arch, seed: SEED, fullSim, profiling: PROFILE, createdAt: new Date().toISOString(), save: basename(savePath), reports: benchmarkReports }, null, 2) + '\n');
     return;
   }
 
