@@ -8,6 +8,12 @@ type RecoverySource = { getWorld: () => WorldState | null; getView: () => ViewSt
 type BoundaryState = { crashed: boolean; snapshot: RecoverySnapshot | null; exportMessage: string | null };
 
 let recoverySource: RecoverySource | null = null;
+let recoveringFromCrash = false;
+
+/** Crash unmount must not auto-save a potentially inconsistent render/worker snapshot. */
+export function isCrashRecoveryActive(): boolean {
+  return recoveringFromCrash;
+}
 
 /** Keep only the active game's read-only refs; the boundary snapshots them before React unmounts App. */
 export function registerCrashRecoverySource(source: RecoverySource): () => void {
@@ -22,6 +28,7 @@ export default class GameErrorBoundary extends Component<{ children: ReactNode }
   state: BoundaryState = { crashed: false, snapshot: null, exportMessage: null };
 
   static getDerivedStateFromError(): Partial<BoundaryState> {
+    recoveringFromCrash = true;
     let snapshot: RecoverySnapshot | null = null;
     try {
       const world = recoverySource?.getWorld();
