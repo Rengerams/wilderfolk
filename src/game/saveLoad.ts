@@ -356,16 +356,6 @@ export function describeCadenceFileSave(reason: FileSaveReason): string {
   return `${fileSaveCause(reason)} — auto-save is off here. Save by hand with Save to file.`;
 }
 
-/** Export colony data; emergency recovery sets writeBrowserSlot=false to preserve a healthy save. */
-export function downloadSaveFile(world: WorldState, view: ViewState, writeBrowserSlot = true): SaveResult {
-  try {
-    return downloadSaveJson(world, JSON.stringify(buildSaveData(world, view)), writeBrowserSlot);
-  } catch (error) {
-    console.error('Save export build failed:', error);
-    return { success: false, error: 'Could not export the colony snapshot' };
-  }
-}
-
 function downloadSaveJson(world: WorldState, json: string, writeBrowserSlot = true): SaveResult {
   try {
     const route = decideSaveRoute(world, json);
@@ -738,9 +728,9 @@ function migrateTickTimeline(
 
 /**
  * A manual save always exports a JSON file. The browser slot is written too when the payload fits it,
- * so Load stays in step, and a slot that cannot be written is reported, never silently dropped.
+ * so Load stays in step. Crash recovery sets writeBrowserSlot=false and never touches the slot.
  */
-export function saveGame(world: WorldState, view: ViewState): SaveResult {
+export function saveGame(world: WorldState, view: ViewState, writeBrowserSlot = true): SaveResult {
   let json: string;
   try {
     json = JSON.stringify(buildSaveData(world, view));
@@ -748,7 +738,7 @@ export function saveGame(world: WorldState, view: ViewState): SaveResult {
     console.error('Save build failed:', e);
     return { success: false, error: 'Save failed — check browser storage permissions' };
   }
-  return downloadSaveJson(world, json);
+  return downloadSaveJson(world, json, writeBrowserSlot);
 }
 
 /** Save to the browser slot only — the path a save with no user gesture may take. */
