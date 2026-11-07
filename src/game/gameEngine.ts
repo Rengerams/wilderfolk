@@ -220,6 +220,9 @@ export { getFocusHints, type FocusHintAction } from './focusHints';
 export {
   saveGame,
   saveGameToSlot,
+  saveImportedFileToSlot,
+  loadImportedGameOutcome,
+  hasImportedSave,
   describeFileSaveReason,
   loadGameOutcome,
   describeSaveLoadOutcome,
