@@ -157,9 +157,12 @@ describe('audit calendar phase integration', () => {
 
   it('A1: wildlife reaches old age at midnight, not 18:00', () => {
     const world = worldBeforeDay(7);
+    const wildlifeTypes: ReadonlySet<EntityType> = new Set([
+      EntityType.Rabbit, EntityType.Deer, EntityType.Wolf, EntityType.Fox,
+    ]);
     const wildlife = world.entities.find((entity) =>
       entity.alive && Number.isFinite(entity.maxAge) && entity.maxAge > 1
-        && [EntityType.Rabbit, EntityType.Deer, EntityType.Wolf, EntityType.Fox].includes(entity.type));
+        && wildlifeTypes.has(entity.type));
     expect(wildlife).toBeDefined();
     if (!wildlife) return;
     const maxAge = wildlife.maxAge;
