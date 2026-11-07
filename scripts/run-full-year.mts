@@ -330,9 +330,17 @@ function writeCheckpoint(
   health: ColonyHealthReport,
   stall: ColonyStallVerdict,
 ): void {
+  // Read-only A1 regression metric alongside the existing food/population checkpoint:
+  // completed trade skill points over living player settlers (no separate harness).
+  const skillPoints = Math.round(world.entities.reduce((total, person) => {
+    if (!person.alive || !isPlayerHuman(person)) return total;
+    return total + Object.values(person.skills ?? {}).reduce((sum, value) =>
+      sum + (typeof value === 'number' && Number.isFinite(value) ? value : 0), 0);
+  }, 0) * 1000) / 1000;
   writeLog(
     {
       kind: 'full-year-checkpoint',
+      skillPoints,
       scenario: options.scenario,
       restocksAtCheckpoint: SCENARIOS[options.scenario].restocksAtCheckpoint,
       day,
