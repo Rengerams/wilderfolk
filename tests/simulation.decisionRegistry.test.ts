@@ -75,6 +75,15 @@ describe('simulation decision registry', () => {
     expect(DECISION_KEYS.sort()).toEqual([...REQUIRED_DECISIONS].sort());
   });
 
+  it('requires a real gameTick integration file for midnight-owned decisions', () => {
+    // Metadata alone is not a test: the named file runs as an explicit required CI step.
+    for (const key of ['leadership', 'idleSkillDecay', 'visitorLifecycle'] as const) {
+      expect(SIMULATION_DECISIONS[key].testFile).toContain('tests/calendarPhase.auditRegressions.test.ts');
+      expect(SIMULATION_DECISIONS[key].scheduledFrom).toContain('tickLayerDaily.ts');
+      expect(SIMULATION_DECISIONS[key].cadenceNote).toContain('calendar-scheduler');
+    }
+  });
+
   it('files every decision under exactly one cadence, through the registry accessor', () => {
     // `DECISION_CADENCES` is the source of the `DecisionCadence` union and the table is typed, so what
     // is worth pinning is the accessor's behaviour, not membership the type system already guarantees.
