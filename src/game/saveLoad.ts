@@ -356,19 +356,13 @@ export function describeCadenceFileSave(reason: FileSaveReason): string {
   return `${fileSaveCause(reason)} — auto-save is off here. Save by hand with Save to file.`;
 }
 
-/** Download colony save as a file; the browser slot is written only when the payload fits it. */
-export function downloadSaveFile(world: WorldState, view: ViewState): SaveResult {
-  const saveData = buildSaveData(world, view);
-  return downloadSaveJson(world, JSON.stringify(saveData));
-}
-
-/** Crash recovery exports the last available snapshot without overwriting any healthy quick-save. */
-export function downloadRecoverySaveFile(world: WorldState, view: ViewState): SaveResult {
+/** Export colony data; emergency recovery sets writeBrowserSlot=false to preserve a healthy save. */
+export function downloadSaveFile(world: WorldState, view: ViewState, writeBrowserSlot = true): SaveResult {
   try {
-    return downloadSaveJson(world, JSON.stringify(buildSaveData(world, view)), false);
+    return downloadSaveJson(world, JSON.stringify(buildSaveData(world, view)), writeBrowserSlot);
   } catch (error) {
-    console.error('Recovery save build failed:', error);
-    return { success: false, error: 'Could not export the last available colony snapshot' };
+    console.error('Save export build failed:', error);
+    return { success: false, error: 'Could not export the colony snapshot' };
   }
 }
 
