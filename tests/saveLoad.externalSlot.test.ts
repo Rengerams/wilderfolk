@@ -15,10 +15,13 @@ import {
   describeFileSaveReason,
   downloadSaveFile,
   hasSaveSlot,
+  hasImportedSave,
   loadGameFromFileTextOutcome,
+  loadImportedGameOutcome,
   readSavePayload,
   saveGame,
   saveGameToSlot,
+  saveImportedFileToSlot,
 } from '../src/game/saveLoad';
 
 function memoryStorage() {
@@ -126,6 +129,42 @@ describe('a colony too big for the browser slot saves externally', () => {
     expect(result.success).toBe(true);
     expect(result).toHaveProperty('slotWarning');
     expect(result).not.toHaveProperty('fileReason');
+  });
+
+  it('keeps a pre-existing quick-save byte-for-byte when importing another colony', () => {
+    const quick = colony();
+    quick.villageName = 'My original quick-save';
+    expect(saveGameToSlot(quick, createInitialView(quick.width, quick.height)).success).toBe(true);
+    const original = localStorage.getItem('ecosim_save');
+    expect(original).toBeTruthy();
+
+    const imported = colony();
+    imported.villageName = 'Imported Valley';
+    const fileJson = JSON.stringify(buildSaveData(
+      imported, createInitialView(imported.width, imported.height),
+    ));
+    expect(saveImportedFileToSlot(fileJson, imported).success).toBe(true);
+    expect(localStorage.getItem('ecosim_save')).toBe(original);
+    expect(localStorage.getItem('ecosim_imported_save')).toBe(fileJson);
+    expect(hasImportedSave()).toBe(true);
+
+    const recovered = loadImportedGameOutcome();
+    expect(recovered.ok).toBe(true);
+    if (!recovered.ok) return;
+    expect(recovered.world.villageName).toBe('Imported Valley');
+    expect(localStorage.getItem('ecosim_save')).toBe(original);
+  });
+
+  it('refuses to copy an overlarge import without disturbing either browser slot', () => {
+    const quick = colony();
+    expect(saveGameToSlot(quick, createInitialView(quick.width, quick.height)).success).toBe(true);
+    const original = localStorage.getItem('ecosim_save');
+    const imported = colony(MapSize.Large);
+    const result = saveImportedFileToSlot('{"_version":"ignored"}', imported);
+    expect(result.success).toBe(false);
+    expect(result).toHaveProperty('fileReason', 'map-too-large');
+    expect(localStorage.getItem('ecosim_save')).toBe(original);
+    expect(hasImportedSave()).toBe(false);
   });
 
   it('round-trips a colony through the file text a download would carry', () => {
