@@ -451,11 +451,11 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/raidTerminalReport.test.ts',
   },
   crashRecovery: {
-    owner: 'components/GameErrorBoundary.tsx — GameErrorBoundary, registerCrashRecoverySource, isCrashRecoveryActive (UI fallback); saveLoad.ts — downloadSaveFile (file-only export option)',
+    owner: 'components/GameErrorBoundary.tsx — GameErrorBoundary, registerCrashRecoverySource, isCrashRecoveryActive (UI fallback); saveLoad.ts — saveGame (file-only export option)',
     cadence: 'on-demand',
     cadenceNote: 'On a React render/lifecycle crash, capture the live read-only session refs before App unmount; do not overwrite the quick-save or run the normal unmount auto-save. The recovery file is the last available display snapshot, not a promised worker-authoritative export.',
     writes: [],
-    scheduledFrom: 'main.tsx → GameErrorBoundary; App.tsx useLayoutEffect registers session refs; export button → saveLoad.downloadSaveFile; useGamePersistence cleanup checks crash state',
+    scheduledFrom: 'main.tsx → GameErrorBoundary; App.tsx useLayoutEffect registers session refs; export button → saveLoad.saveGame; useGamePersistence cleanup checks crash state',
     testFile: 'tests/gameErrorBoundary.test.ts, tests/saveLoad.externalSlot.test.ts',
   },
   valleyChronicle: {
