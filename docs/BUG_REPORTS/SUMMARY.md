@@ -2249,3 +2249,12 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 - **Rival growth cadence followed array position — resolved:** the cadence now hashes the stable rival id. [Report](../bug_report/2026-11-07-rival-growth-cadence-tied-to-array-index.md).
 - **A valid flat genome was rewritten on load — resolved:** validation keeps a legal genome as written; creation still enforces spread. [Report](../bug_report/2026-11-07-dna-flat-genome-rewritten-on-load.md).
 - **Two renderer hex parsers disagreed on short colours — resolved:** the shade path now uses the documented parser and its fallback. [Report](../bug_report/2026-11-07-renderer-two-hex-parsers-disagree.md).
+
+## 2026-11-07 — Audit A4 lifecycle and data loss
+
+- **A stopped GameLoop kept scheduling frames and retained its colony — resolved:** the frame chain now reschedules only while running, and a stop/start regression pins the contract. [Report](../bug_report/2026-11-07-game-loop-raf-chain-never-stops.md).
+- **A render throw blanked the game with no save path — resolved:** one top-level boundary offers a live-save export and reload. [Report](../bug_report/2026-11-07-no-react-error-boundary.md).
+- **Loading replaced the colony unconfirmed and a file load overwrote the quick-save — resolved:** both loads are armed, and a file load leaves the browser quick-save untouched. [Report](../bug_report/2026-11-07-load-overwrites-colony-and-quicksave.md).
+- **Raid report and warfare dialogs left gameplay hotkeys active — resolved:** both use the shared focus trap and keyboard claim, and execution copy states permanence. [Report](../bug_report/2026-11-07-raid-warfare-dialogs-leak-keyboard.md).
+- **Alt+drag strip demolition removed segments unconfirmed — resolved:** the eraser now arms a counted confirmation. [Report](../bug_report/2026-11-07-strip-demolition-unconfirmed.md).
+- **The desktop shell granted an unused Tauri shell capability — resolved:** the plugin, permission and unused direct dependencies are gone. [Report](../bug_report/2026-11-07-tauri-shell-capability-unused.md).

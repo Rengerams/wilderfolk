@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { GameLoop } from '../game/gameLoop';
 import type { WorldState, BuildingType, Building, Entity } from '../game/gameEngine';
 import type { EntityCatalog } from '../game/entityCatalog';
@@ -107,6 +107,7 @@ export function useCanvasInteractions({
   // Suppresses subsequent onClick handling if strip build was already committed on mouseUp
   const stripPlacedOnMouseUpRef = useRef(false);
   const stripDemolitionGestureRef = useRef(false);
+  const [pendingStripDemolition, setPendingStripDemolition] = useState<number[] | null>(null);
   const stripStrokeRef = useRef<{ x: number; y: number }[]>([]);
   /**
    * Did the gesture that just ended move the pointer far enough to be a pan rather than a click?
@@ -555,10 +556,7 @@ export function useCanvasInteractions({
             end?.worldX ?? start.x, end?.worldY ?? start.y,
           );
           stripPlacedOnMouseUpRef.current = true;
-          if (buildingIds.length > 0) {
-            applyGameAction({ proto: 1, op: 'demolishStripBuildings', buildingIds });
-            playClickSound();
-          }
+          if (buildingIds.length > 0) setPendingStripDemolition(buildingIds);
           loop?.patchView({ buildStripPreview: null });
         } else {
           const end = e ? getEventWorldCoords(e.clientX, e.clientY) : null;
@@ -667,6 +665,14 @@ export function useCanvasInteractions({
     };
   }, [handleMouseLeave]);
 
+  const confirmStripDemolition = useCallback(() => {
+    const ids = pendingStripDemolition;
+    setPendingStripDemolition(null);
+    if (!ids?.length) return;
+    applyGameAction({ proto: 1, op: 'demolishStripBuildings', buildingIds: ids });
+    playClickSound();
+  }, [applyGameAction, pendingStripDemolition]);
+
   return {
     handleCanvasClick,
     handleMouseMove,
@@ -674,5 +680,8 @@ export function useCanvasInteractions({
     handleMouseUp,
     handleMouseLeave,
     handleContextMenu,
+    pendingStripDemolition,
+    confirmStripDemolition,
+    cancelStripDemolition: () => setPendingStripDemolition(null),
   };
 }

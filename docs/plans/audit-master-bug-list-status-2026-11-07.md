@@ -20,12 +20,28 @@
 | SIM-10 | fixed | `electionPromiseRecords` ships in the tick delta and the prep rollback. `tests/simDelta.storyRoundtrip.test.ts`, `tests/simPrep.rollbackFields.test.ts` |
 | GAME-09 | verified | Compact-save terrain-seed round-trip and fishing-dock witness pass at runtime. `tests/saveWorldMap.terrainSeed.test.ts`, `tests/terrain.saveGenerationVersion.test.ts` |
 | COV-G-03 | fixed | Gazette week 0 reports colony days 0–6. `tests/weeklyGazette.test.ts` |
-| COV-G-04 | fixed | Birth genome uses a stream derived from the birth key. Typecheck and lint pass; dedicated replay test not added. |
+| COV-G-04 | fixed | Birth genome uses a stream derived from the birth key. `tests/humanLifecycle.test.ts` replays one birth and compares a second tick. |
 | COV-G-05 | fixed | Rival growth cadence hashes the stable rival id. `tests/rivalProfiles.test.ts` |
 | COV-I-03 | fixed | One hex parser; short colours no longer produce NaN. `tests/renderer.shared.hex.test.ts` |
 | DNA-01 | fixed | A valid flat genome loads unchanged. `tests/settlerTraits.test.ts` |
 
-## Remaining A3 verification debt
+## Phase A4 — lifecycle, data loss and modal safety
+
+| ID | Status | Evidence |
+|---|---|---|
+| CB-01 | fixed | `GameLoop.frame` reschedules only while running; `tests/gameLoop.raf.test.ts` proves stop schedules none and restart one chain. |
+| CB-02 | fixed | Top-level `AppErrorBoundary` exports the live colony or stored quick-save; build passes, forced-throw browser check not run. |
+| CB-13 | fixed | Tauri shell plugin, `shell:default` and unused direct `serde` deps removed; Rust build not run here. |
+| UX-01 | fixed | Both load paths arm `ConfirmActionDialog`; a file load no longer writes the browser quick-save. |
+| UX-02 | fixed | Execution confirmation states the kill is permanent and cannot be undone. |
+| UX-03, UX-04 | fixed | Raid report and both warfare dialogs use `useModalFocus` and `useOverlayKeyboard`; contract test covers both files. |
+| UX-13 | fixed | Alt+drag strip demolition arms a counted confirmation before `demolishStripBuildings`. |
+| UX-14 | fixed | The load confirmation guards re-entry with an in-flight ref; other command buttons still rely on owner-side id guards. |
+| COV-B-02 | verified | `tests/useGamePersistence.test.ts` coalesces a second save onto the in-flight save. |
+
+## Remaining verification debt
 
 - GAME-05 was re-checked and needs no change: the negative founding-year sentinel is already in source.
-- A dedicated single-birth replay test for COV-G-04 is not yet added; whole-simulation determinism remains covered by the existing parity suite.
+- CB-02's boundary screen was not forced open in the preview; the export path is covered by typecheck and build only.
+- CB-13's Rust build was not run in this environment.
+

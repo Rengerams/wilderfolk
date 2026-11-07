@@ -45,6 +45,8 @@ const OVERLAY_DELEGATES = [
   'src/components/TutorialOverlay.tsx',
   'src/components/ShortcutsOverlay.tsx',
   'src/components/SpotlightLoreOverlay.tsx',
+  'src/components/BattleReportScreen.tsx',
+  'src/components/WarfareStatus.tsx',
 ];
 
 const hookSource = source('src/hooks/useKeyboardControls.ts');
@@ -78,6 +80,19 @@ describe('an open overlay owns the keyboard', () => {
     expect(overlay).toContain('const skip = () => {');
     expect(overlay).toContain("callbacks.current.onFinish(scene.id, 'skipped');");
     expect(overlay).toContain('onClick={skip}');
+  });
+
+  it('the raid report and warfare dialogs trap focus as well as claiming the keyboard', () => {
+    for (const path of ['src/components/BattleReportScreen.tsx', 'src/components/WarfareStatus.tsx']) {
+      expect(source(path), `${path} dropped the shared focus trap`).toContain('useModalFocus<HTMLDivElement>(');
+    }
+  });
+
+  it('the shared confirmation traps focus and starts on Cancel', () => {
+    const dialog = source('src/components/ConfirmActionDialog.tsx');
+    expect(dialog).toContain('useModalFocus<HTMLDivElement>()');
+    expect(dialog).toContain('useOverlayKeyboard(owner, onCancel)');
+    expect(dialog).toContain('data-autofocus');
   });
 
   it('a claim is paid for with an Escape handler', () => {

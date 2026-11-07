@@ -12,6 +12,7 @@ import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { createEntity } from '../src/game/entityFactory';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { genomeFrom, heterozygous } from './helpers/genome';
 
 const MATERNAL_ID = 1;
 const FATHER_ID = 2;
@@ -157,6 +158,41 @@ describe('human lifecycle golden contracts', () => {
     expect(mother.pregnantById).toBeUndefined();
     expect(mother.relationshipStatus).toBe('married');
     expect(collectSimulationInvariantErrors({ ...state, entities: [...state.entities, ...ctx.newEntities] })).toEqual([]);
+  });
+
+  it('derives the newborn genome from the birth key, so a replayed birth is identical', () => {
+    const runBirthAt = (tick: number) => {
+      const fatherGenome = genomeFrom();
+      const motherGenome = genomeFrom();
+      for (let index = 0; index < 4; index++) {
+        fatherGenome.aptitudeAlleles[index] = heterozygous(60 + index * 5);
+        motherGenome.aptitudeAlleles[index] = heterozygous(20 + index * 5);
+      }
+      const father = human(FATHER_ID, { genomeV2: fatherGenome });
+      const mother = human(MATERNAL_ID, {
+        genomeV2: motherGenome,
+        partnerId: FATHER_ID,
+        pregnant: true,
+        pregnantById: FATHER_ID,
+        pregnancyProgress: 9,
+        pregnancyDueProgress: 10,
+        relationshipStatus: 'expecting',
+      });
+      const { state, ctx } = makeFixture([mother, father]);
+      state.tick = tick;
+      runBirth(state, ctx, mother);
+      return ctx.newEntities.find((entity) => entity.type === EntityType.Human)?.genomeV2;
+    };
+
+    const firstTick = liveBirthTick();
+    const secondTick = tickWhere((tick) => tick > firstTick && birthRoll('stillborn', tick) >= LIFECYCLE_CONFIG.STILLBORN_CHANCE);
+    const first = runBirthAt(firstTick);
+    const replay = runBirthAt(firstTick);
+    const otherBirth = runBirthAt(secondTick);
+
+    expect(first).toBeDefined();
+    expect(replay).toEqual(first);
+    expect(otherBirth).not.toEqual(first);
   });
 
   it('records a stillbirth without creating a child and still clears pregnancy state', () => {

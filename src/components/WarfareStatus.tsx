@@ -4,6 +4,8 @@ import { formatCitizenName } from '../game/citizenId';
 import { getOpenPlayerBeds } from '../game/populationGrowth';
 import { daysUntilTick } from '../game/dayCycleClock';
 import { buildRaidTerminalReport } from '../game/raidTerminalReport';
+import { useModalFocus } from '../hooks/useModalFocus';
+import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 
 interface WarfareStatusProps {
   world: WorldState;
@@ -24,8 +26,12 @@ export default function WarfareStatus({ world, onPrisonerDecision, onRepair, onE
   const openBeds = useMemo(() => prisoners.length ? getOpenPlayerBeds(world) : 0, [world, prisoners.length]);
   const buildingById = useMemo(() => new Map((recovery?.status === 'recovering' ? world.buildings : []).map((home) => [home.id, home])), [world, recovery?.status]);
   const terminal = recovery?.status === 'destroyed' ? buildRaidTerminalReport(world) : null;
+  const terminalRef = useModalFocus<HTMLDivElement>(Boolean(terminal));
+  const captivesRef = useModalFocus<HTMLDivElement>(showCaptives);
+  useOverlayKeyboard('warfare-terminal', onMainMenu, Boolean(terminal));
+  useOverlayKeyboard('warfare-captives', () => setShowCaptives(false), showCaptives);
   if (terminal && recovery) {
-    return <div role="dialog" aria-modal="true" aria-label="Settlement fallen" className="pointer-events-auto fixed inset-0 z-[1200] flex items-center justify-center bg-black/95 p-3 text-stone-100 sm:p-6">
+    return <div ref={terminalRef} role="dialog" aria-modal="true" aria-label="Settlement fallen" className="pointer-events-auto fixed inset-0 z-[1200] flex items-center justify-center bg-black/95 p-3 text-stone-100 sm:p-6">
       <section className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-xl border border-rose-800 bg-stone-950 p-4 sm:p-8">
         <h2 className="text-3xl font-bold text-rose-200">The settlement has fallen</h2>
         <p>{world.villageName} · year {world.year + 1}, day {world.dayInYear}</p>
@@ -91,7 +97,7 @@ export default function WarfareStatus({ world, onPrisonerDecision, onRepair, onE
       <p>{daysUntilTick(world.tick, recovery.protectedUntilTick)} days before new raids can be raised.</p>
     </aside>}
     {prisoners.length > 0 && <button onClick={() => setShowCaptives(true)} className="pointer-events-auto fixed bottom-3 right-3 z-50 rounded border border-slate-500 bg-stone-950 p-3 text-stone-100">Prisoners of war ({prisoners.length})</button>}
-    {showCaptives && <div role="dialog" aria-modal="true" aria-label="Prisoners of war" className="pointer-events-auto fixed inset-0 z-[1100] flex items-center justify-center bg-black/90 p-6 text-stone-100">
+    {showCaptives && <div ref={captivesRef} role="dialog" aria-modal="true" aria-label="Prisoners of war" className="pointer-events-auto fixed inset-0 z-[1100] flex items-center justify-center bg-black/90 p-6 text-stone-100">
       <section className="max-h-[85vh] w-full max-w-2xl space-y-4 overflow-auto rounded-xl border border-stone-600 bg-stone-950 p-6">
         <h2 className="text-2xl font-bold">Prisoners of war</h2>
         <p>Only real enemy combatants are held. Captives consume food and guarded prison space. Recruitment is voluntary and may be refused.</p>
@@ -107,7 +113,7 @@ export default function WarfareStatus({ world, onPrisonerDecision, onRepair, onE
           {openBeds <= 0 && <p>No free village housing is available for a recruit.</p>}
           {world.tick < person.warCaptive!.recruitAfterTick && <p>Another recruitment offer is available in {daysUntilTick(world.tick, person.warCaptive!.recruitAfterTick)} days.</p>}
           {confirmExecution === person.id && <div className="rounded border border-stone-600 p-3">
-            <p>Execute {formatCitizenName(person)}?</p>
+            <p>Execute {formatCitizenName(person)}? Executing kills this captive permanently; this cannot be undone.</p>
             <button onClick={() => { onPrisonerDecision(person.id, 'execute_confirmed'); setConfirmExecution(null); }} className="mr-3 rounded bg-stone-700 p-2">Confirm</button>
             <button onClick={() => setConfirmExecution(null)}>Cancel</button>
           </div>}

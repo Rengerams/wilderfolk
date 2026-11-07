@@ -1020,7 +1020,7 @@ export class GameLoop {
     } catch (error) {
       console.error('[GameLoop] frame failed — continuing', error);
     } finally {
-      this.rafId = requestAnimationFrame(this.frame);
+      if (this.running) this.rafId = requestAnimationFrame(this.frame);
     }
   };
 
