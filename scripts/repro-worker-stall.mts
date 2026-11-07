@@ -134,9 +134,12 @@ async function main(): Promise<void> {
       buffersReceived++;
       maxOutstandingBuffers = Math.max(maxOutstandingBuffers, buffersReceived - buffersReturned);
       try {
+        if (msg.bufferLease === undefined) {
+          throw new Error(`Worker response missing bufferLease for bufferIndex=${msg.bufferIndex}`);
+        }
         worker.postMessage({
           type: 'returnBuffer', proto: WORKER_PROTO,
-          bufferIndex: msg.bufferIndex, buffer: msg.renderBuffer,
+          bufferIndex: msg.bufferIndex, bufferLease: msg.bufferLease, buffer: msg.renderBuffer,
         } satisfies WorkerRequest, [msg.renderBuffer]);
         buffersReturned++;
       } catch (err) {
