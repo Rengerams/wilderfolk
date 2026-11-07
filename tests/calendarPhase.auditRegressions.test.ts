@@ -178,4 +178,24 @@ describe('audit calendar phase integration', () => {
     expect(wildlife.alive).toBe(false);
   });
 
+  it('GAME-01: a term ceremony finishes after 24 game hours plus one reveal tick', () => {
+    const world = worldBeforeDay(2 * DAYS_PER_YEAR);
+    world.lastElectionYear = 0;
+    world.pendingElectionYear = null;
+    world.electionCeremony = null;
+    gameTick(world);
+    expect(world.electionCeremony?.reason).toBe('term');
+    expect(world.electionCeremony?.phase).toBe('gathering');
+
+    for (let tick = 0; tick < TICKS_PER_DAY; tick++) gameTick(world);
+    expect(world.electionCeremony?.phase).toBe('reveal');
+    const electionTick = world.tick;
+    gameTick(world);
+    expect(world.tick).toBe(electionTick + 1);
+    expect(world.electionCeremony).toBeNull();
+    expect(world.lastElectionYear).toBe(2);
+    expect(world.eventLog.some((event) => event.message.includes('Election revelry began'))).toBe(true);
+    expect(assertSimInvariants(world)).toEqual([]);
+  });
+
 });
