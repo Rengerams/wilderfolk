@@ -95,6 +95,7 @@ import GameBuildRail from './components/GameBuildRail';
 import { useGamePersistence, type SaveToast } from './hooks/useGamePersistence';
 import { useTransientGameFeedback } from './hooks/useTransientGameFeedback';
 import { useGameSession } from './hooks/useGameSession';
+import { registerCrashRecoverySource } from './components/GameErrorBoundary';
 import {
   TUTORIAL_DONE_STORAGE_KEY,
   overviewNavFromState,
@@ -299,6 +300,10 @@ export default function App() {
     setCatalog,
     setHasPlacedHouse,
   });
+  useLayoutEffect(() => registerCrashRecoverySource({
+    getWorld: () => loopRef.current?.getWorld() ?? worldRef.current,
+    getView: () => loopRef.current?.getView() ?? viewRef.current,
+  }), [loopRef, worldRef, viewRef]);
   const autoPlayer = useVirtualPlayer({ world, applyGameAction });
   const fps = useFpsMeter(showFps || autoPlayer.enabled);
   const gameplayActive = !showIntro && !showMapSetup && spritesLoaded;
