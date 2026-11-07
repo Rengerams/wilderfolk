@@ -221,6 +221,7 @@ export {
   saveGame,
   saveGameToSlot,
   saveImportedFileToSlot,
+  executeConfirmedColonyLoad,
   loadImportedGameOutcome,
   hasImportedSave,
   describeFileSaveReason,
