@@ -65,7 +65,6 @@ describe('F-RND-3 — the overlay vignette gradient is built once per viewport',
 function snapshot(overrides: Partial<RenderSnapshot> = {}): RenderSnapshot {
   return {
     tick: 10,
-    staticLayerRevision: 'settled-colony',
     hourOfDay: 3,
     showGrid: false,
     showPaths: false,
@@ -87,14 +86,12 @@ function snapshot(overrides: Partial<RenderSnapshot> = {}): RenderSnapshot {
 }
 
 describe('F-RND-4 — the entity-layer key is not rebuilt while its fields hold', () => {
-  it('reuses the key when its inputs hold, including a settled-world tick change', () => {
+  it('reuses the key while fields hold and rebuilds when the tick changes', () => {
     const state = snapshot({ selectedEntityIds: [7, 8] });
     const key = buildEntityLayerKey(state, 800, 600);
     expect(buildEntityLayerKey(state, 800, 600)).toBe(key);
-    // A settled colony intentionally keeps its static-layer revision across ticks.
-    expect(buildEntityLayerKey(snapshot({ selectedEntityIds: [7, 8], tick: 11 }), 800, 600)).toBe(key);
-
-    const changed = snapshot({ selectedEntityIds: [7, 8], staticLayerRevision: 'new-building' });
+    // On main the entity-layer key is tick-based (the static revision lands with A6).
+    const changed = snapshot({ selectedEntityIds: [7, 8], tick: 11 });
     expect(buildEntityLayerKey(changed, 800, 600)).not.toBe(key);
     expect(buildEntityLayerKey(state, 800, 600)).toBe(key);
   });
@@ -103,7 +100,7 @@ describe('F-RND-4 — the entity-layer key is not rebuilt while its fields hold'
     const base = snapshot();
     const key = buildEntityLayerKey(base, 800, 600);
     const variants: RenderSnapshot[] = [
-      snapshot({ staticLayerRevision: 'changed-layer' }),
+      snapshot({ tick: 11 }),
       snapshot({ hourOfDay: 4 }),
       snapshot({ showGrid: true }),
       snapshot({ showPaths: true }),
@@ -164,8 +161,8 @@ function camera(x: number, y: number): RenderSnapshot['camera'] {
 }
 
 /**
- * Fixtures must satisfy the static-layer revision contract, which inspects occupants,
- * completion, sprite and health fields even when a test only targets the blacksmith cache.
+ * Use complete building fixtures, including occupants and visual attributes, so the
+ * blacksmith predicate tests also survive render-snapshot revision changes.
  */
 function blacksmithBuilding(overrides: Partial<Building> = {}): Building {
   return {
@@ -190,8 +187,7 @@ function blacksmithBuilding(overrides: Partial<Building> = {}): Building {
 describe('F-RND-9 — camera-only snapshots reuse the blacksmith predicate result', () => {
   it('does not rerun the blacksmith search when only the camera moved', () => {
     const buildings = [blacksmithBuilding()];
-    // The static-layer revision deliberately enumerates buildings each snapshot.
-    // Count only the blacksmith predicate scan, not unrelated revision reads.
+    // Count only the blacksmith predicate scan, not other render-snapshot work.
     const scan = vi.spyOn(buildings, 'some');
     try {
       const first = buildRenderSnapshot(minimalWorld(buildings, 5), { camera: camera(0, 0) } as never);
