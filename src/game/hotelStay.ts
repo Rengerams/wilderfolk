@@ -198,11 +198,14 @@ export function createHotelLodgingIndex(
 /** True when a settler has arrived at their reserved hotel bed during the night. */
 export function isSettlerLodgingAtHotel(
   entity: Entity,
-  buildings: readonly Building[],
+  buildings: readonly Building[] | ReadonlyMap<number, Building>,
   hour: number,
+  hotels?: readonly Building[],
 ): boolean {
   if (!isNightHour(hour) || !needsHotelBed(entity, buildings, hour)) return false;
-  for (const b of buildings) {
+  const candidates: Iterable<Building> = hotels
+    ?? ('get' in buildings ? (buildings as ReadonlyMap<number, Building>).values() : buildings);
+  for (const b of candidates) {
     if (!b.completed || b.type !== BuildingType.Hotel || b.faction === 'rival') continue;
     if (holdsSettlerHotelBed(entity, b.id) && centreDistance(entity, b) <= HOTEL_LODGING_RADIUS_PX) return true;
   }
@@ -545,12 +548,12 @@ export function tickHotelLodging(state: WorldState): void {
 /** Visitors checked in walk to / rest at the hotel. */
 export function steerVisitorToHotel(
   visitor: Entity,
-  buildings: readonly Building[],
+  buildings: readonly Building[] | ReadonlyMap<number, Building>,
   speed: number,
 ): boolean {
   visitor.indoorBuildingId = undefined;
   if (visitor.hotelStayBuildingId == null) return false;
-  const hotel = buildings.find((b) => b.id === visitor.hotelStayBuildingId);
+  const hotel = buildingFrom(buildings, visitor.hotelStayBuildingId);
   if (!hotel?.completed) {
     checkoutVisitor(visitor);
     return false;

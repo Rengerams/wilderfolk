@@ -1,5 +1,9 @@
 # Bug report summary — one line per report
 
+**2026-11-07 — [Every settler re-scanned buildings and faction lists each tick](../bug_report/2026-11-07-per-settler-building-and-camp-scans.md):** Camp, war-band, performer, festival-square and hotel lookups sat inside the per-settler loop. Status: resolved — per-tick indexes cut a 20→80 goer run from 1,638→4,368 building reads to 798→1,008; 3/3 tests pass.
+
+**2026-11-07 — [Population was counted twice per tick](../bug_report/2026-11-07-population-counted-twice-per-tick.md):** The post-daily scan recomputed the roster the pre-daily scan had already counted on three ticks in four. Status: resolved — the pre-daily counts are reused when nothing changed after the snapshot; parity suites pass.
+
 **2026-11-07 — [A single terrain change re-baked every ground chunk](../bug_report/2026-11-07-terrain-change-rebakes-every-chunk.md):** One global revision sat in every chunk key, so a road or a clearing disposed all baked ground and left a dark frame. Status: resolved — per-cell dirty revisions re-bake only the footprint; 4/4 tests pass.
 
 **2026-11-07 — [Trees south of a building disappeared behind it](../bug_report/2026-11-07-trees-lost-behind-southern-buildings.md):** Fixed tree-then-building passes could not honour feet depth. Status: resolved — trees and buildings share one depth-sorted occluder pass; screenshot matrix not run.

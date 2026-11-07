@@ -418,12 +418,12 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts, tests/medium-N5-electionGatherSlot.test.ts, tests/calendarPhase.auditRegressions.test.ts',
   },
   raidCombat: {
-    owner: 'frontierCombat.ts — queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory',
+    owner: 'frontierCombat.ts — queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory, buildIncomingRaidIndex, isRaidMarchingForRival',
     cadence: 'realtime',
     cadenceNote: 'Incoming and outgoing battles progress on game ticks across six game hours. Raid dispatch, responses and settlement-fate choices also enter through player commands; treaties may be broken at a reputation cost, extermination kills every remaining inhabitant, and events are written through the ordinary Chronicle owner. Awarded spoils—gold included—enter through addCappedResource, so the configured storage cap and the common resource accounting apply. Rival camp growth is staggered by the stable rival id, never by list position.',
     writes: ['pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports', 'scoredRaidIds', 'human.raidDeploymentId', 'human.battleLeadershipMerit', 'rivalSettlements', 'resources (through economy owner)', 'eventLog (through logEvent)'],
-    scheduledFrom: 'gameTick.ts → tickPendingRaidEvents/tickPendingOutgoingRaidEvents; simWorker/commands.ts → raid and victory commands',
-    testFile: 'tests/warfare.lifecycle.test.ts, tests/raidChronicle.lifecycle.test.ts, tests/raidDeadline.owner.test.ts',
+    scheduledFrom: 'gameTick.ts → tickPendingRaidEvents/tickPendingOutgoingRaidEvents; simWorker/commands.ts → raid and victory commands; humanTick.ts builds buildIncomingRaidIndex once per tick for its rival wanderers',
+    testFile: 'tests/warfare.lifecycle.test.ts, tests/raidChronicle.lifecycle.test.ts, tests/raidDeadline.owner.test.ts, tests/humanTick.hotPathIndexes.test.ts',
   },
   raidRecovery: {
     owner: 'raidAftermath.ts — beginRaidRecovery, tickRaidRecovery, isSettlementDestroyed, rememberRivalDisposition',

@@ -288,7 +288,8 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   state.humanPopulation = counts.humans;
 
   // Daily layer is invoked at 00:00, 06:00, 12:00 and 18:00; phases occupy 00/06/18 and 12 is empty.
-  if (state.tick % (TICKS_PER_DAY / 4) === 0) {
+  const dailyLayerRan = state.tick % (TICKS_PER_DAY / 4) === 0;
+  if (dailyLayerRan) {
     const dailyStart = profileStart();
     tickLayerDaily(state, ctx, allAlive);
     profileEnd('sim.daily', dailyStart);
@@ -310,14 +311,21 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // before publishing `allAlive` or counting population.
   const seenFinalIds = new Set<number>();
   let writeIndex = 0;
+  let droppedInFinalPass = 0;
   for (let i = 0; i < allAlive.length; i++) {
     const entity = allAlive[i];
-    if (!entity.alive || entity.departedAlive || seenFinalIds.has(entity.id)) continue;
+    if (!entity.alive || entity.departedAlive || seenFinalIds.has(entity.id)) {
+      droppedInFinalPass++;
+      continue;
+    }
     seenFinalIds.add(entity.id);
     allAlive[writeIndex++] = entity;
   }
   allAlive.length = writeIndex;
-  const finalCounts = computePopulationCounts(allAlive);
+  // Only a daily pass or a dropped entry can change the roster the pre-daily scan already counted.
+  const finalCounts = !dailyLayerRan && droppedInFinalPass === 0
+    ? counts
+    : computePopulationCounts(allAlive);
 
   // --- Deaths: entries alive at tick start and not now ---
   // `aliveEntities` is the tick-start list, so each dead entry died during this tick.
@@ -355,7 +363,6 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // Rebuild type buckets only when composition changed; reusing them keeps object identity
   // stable so the render catalog can skip its rebuild.
   const deathsThisTick = aliveEntities.length - (allAlive.length - newEntities.length);
-  const dailyLayerRan = state.tick % (TICKS_PER_DAY / 4) === 0;
   // Untracked spawns (immigration, world events) grow `allAlive` without `newEntities`, making
   // `deathsThisTick` negative; rebuild instead of caching a byType missing them.
   const untrackedSpawns = deathsThisTick < 0;

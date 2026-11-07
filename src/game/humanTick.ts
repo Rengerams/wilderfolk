@@ -1,5 +1,5 @@
 import { MAX_ASSIGNABLE_COMMUTE_HOURS, WORK_COMMUTE_RUSH } from './commuteReach';
-import type { WorldState, Entity, Building } from './gameTypes';
+import type { WorldState, Entity, Building, VisitorGroup, RivalSettlement } from './gameTypes';
 import { EntityType, BuildingType, JobType, Season } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
@@ -56,9 +56,9 @@ import {
   SCHOOL_START_HOUR,
 } from './education';
 import {
+  buildIncomingRaidIndex,
   getPlayerCampCenterFromBuildings,
   getPlayerSettlerCenter,
-  isRaidMarchingForRival,
 } from './frontierCombat';
 import { buildPatrolRevealIndex, detectRaidersForPatrol, type PatrolRevealIndex } from './humanPatrolBehavior';
 import { idleDestination, tickHumanChildLeisure, tickAdultLeisureMotive } from './humanLeisureBehavior';
@@ -201,12 +201,12 @@ function observeHumanSleep(entity: Entity, context: {
   previousIndoorBuildingId: number | undefined;
   onDuty: boolean;
   recoveringSleep: boolean;
-  buildings: Building[];
+  hotels: readonly Building[];
   buildingById: Map<number, Building>;
   entityById: Map<number, Entity>;
   tick: number;
 }): { sleeping: boolean; hasHospital: boolean } {
-  const { hourOfDay, previousIndoorBuildingId, onDuty, recoveringSleep, buildings, buildingById, entityById, tick } = context;
+  const { hourOfDay, previousIndoorBuildingId, onDuty, recoveringSleep, hotels, buildingById, entityById, tick } = context;
   if (entity.raidDeploymentId) return { sleeping: false, hasHospital: false };
   const night = isNightHour(hourOfDay);
   if (entity.prisonBuildingId != null) {
@@ -223,7 +223,7 @@ function observeHumanSleep(entity: Entity, context: {
     && previousIndoorBuildingId === home.id;
   const atHotel = entity.hotelStayBuildingId != null
     && previousIndoorBuildingId === entity.hotelStayBuildingId
-    && isSettlerLodgingAtHotel(entity, buildings, hourOfDay);
+    && isSettlerLodgingAtHotel(entity, buildingById, hourOfDay, hotels);
   const ward = previousIndoorBuildingId == null ? undefined : buildingById.get(previousIndoorBuildingId);
   const hasHospital = isRestingHospitalPatient(entity, ward, tick, previousIndoorBuildingId);
 
@@ -444,6 +444,18 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   // Ceremony seats are the same id-sorted ranks for every settler; build them once per tick.
   const ceremonySeats = state.electionCeremony ? buildCeremonySeatIndex(state) : undefined;
 
+  // Camps, war-bands and festival places are tick-stable facts: index them once, never per settler.
+  const visitorGroupById = new Map<string, VisitorGroup>();
+  for (const group of state.visitorGroups ?? []) visitorGroupById.set(group.id, group);
+  const rivalSettlementById = new Map<string, RivalSettlement>();
+  for (const rival of state.rivalSettlements ?? []) rivalSettlementById.set(rival.id, rival);
+  const incomingRaids = buildIncomingRaidIndex(state);
+  const festivalPerformers = (state.visitorGroups ?? [])
+    .find((group) => group.kind === 'performers' && group.daysLeft > 0);
+  const festivalSquare = updatedBuildings.find(
+    (b) => b.type === BuildingType.Square && b.completed && b.faction !== 'rival',
+  );
+
   for (const entity of allHumans) {
     if (!entity.alive) continue;
     const previousIndoorBuildingId = entity.indoorBuildingId;
@@ -499,7 +511,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       hourOfDay === affairEncounterHourOfDay(entity.id, state.tick) &&
       isStartOfClockHour(state.tick) &&
       !isAsleepAtHome(entity, buildingById, hourOfDay) &&
-      !isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay)
+      !isSettlerLodgingAtHotel(entity, buildingById, hourOfDay, hotelLodging.hotels)
     ) {
       // Gossip is a daytime interaction, not an automatic midnight rumour.
       tryDailyAffairGossip(
@@ -681,7 +693,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const onDutyForSleep = onJobShift || onOfficialShift || onPriestShift || schoolCommuteDue;
     const sleep = observeHumanSleep(entity, {
       hourOfDay, previousIndoorBuildingId, onDuty: onDutyForSleep, recoveringSleep,
-      buildings: updatedBuildings, buildingById, entityById, tick: state.tick,
+      hotels: hotelLodging.hotels, buildingById, entityById, tick: state.tick,
     });
     const sleepingForNeeds = sleep.sleeping;
     let ateMeal = false;
@@ -794,13 +806,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
     // Visitors & rival settlers
     if (entity.faction === 'visitor' || entity.faction === 'rival') {
-      const camp =
-        entity.faction === 'visitor'
-          ? state.visitorGroups.find((g) => g.id === entity.groupId)
-          : state.rivalSettlements.find((r) => r.id === entity.groupId);
+      const camp = entity.groupId == null
+        ? undefined
+        : entity.faction === 'visitor'
+          ? visitorGroupById.get(entity.groupId)
+          : rivalSettlementById.get(entity.groupId);
 
       if (camp) {
-        const marching = entity.faction === 'rival' && entity.groupId && isRaidMarchingForRival(state, entity.groupId);
+        const marching = entity.faction === 'rival' && entity.groupId != null && incomingRaids.has(entity.groupId);
         if (entity.faction === 'rival') {
           entity.hiddenFromPlayer = Boolean(marching && !entity.detectedByPatrol);
         }
@@ -810,7 +823,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
         let speedMult = entity.faction === 'visitor' ? 0.62 : 0.4;
         if (marching) {
-          const raidEvt = state.pendingRaidEvents?.find((r) => r.rivalId === entity.groupId);
+          const raidEvt = entity.groupId == null ? undefined : incomingRaids.get(entity.groupId);
           const marchTiles = raidEvt?.marchDistanceTiles ?? 30;
           speedMult = Math.max(0.38, 0.92 - marchTiles / 130);
         }
@@ -820,7 +833,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           applyHumanWalkStep(entity, 1);
         } else if (
           entity.faction === 'visitor' &&
-          steerVisitorToHotel(entity, updatedBuildings, config.speed * speedMult)
+          steerVisitorToHotel(entity, buildingById, config.speed * speedMult)
         ) {
           // Hotel lodging owns its single walk step, including the road-speed multiplier.
         } else {
@@ -979,11 +992,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       suppressIdle = true;
       onSchedule = true;
     } else if (festivalGathering) {
-      const performers = state.visitorGroups.find((group) => group.kind === 'performers' && group.daysLeft > 0);
+      const performers = festivalPerformers;
       const hall = staffedTownHalls.length > 0 ? staffedTownHalls[entity.id % staffedTownHalls.length] : undefined;
-      const square = state.buildings.find((building) =>
-        building.type === BuildingType.Square && building.completed && building.faction !== 'rival'
-      );
+      const square = festivalSquare;
       const targetX = square ? square.x + square.width / 2 : (performers?.campX ?? (hall ? hall.x : width * 0.5));
       const targetY = square ? square.y + square.height / 2 : (performers?.campY ?? (hall ? hall.y : height * 0.5));
       // A real place per festival-goer: `crowdGatherPosition` spreads the crowd around the target.
@@ -1813,7 +1824,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               gy = hall.y + hall.height + 20;
             }
           }
-          const performers = state.visitorGroups.find((g) => g.kind === 'performers' && g.daysLeft > 0);
+          const performers = festivalPerformers;
           if (performers) {
             gx = performers.campX;
             gy = performers.campY;

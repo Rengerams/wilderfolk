@@ -54,6 +54,8 @@
 | ID | Status | Evidence |
 |---|---|---|
 | Audio death scan (Phase 6) | fixed | Deaths resolve through an id map instead of a roster search per corpse: 2,009,004 → under 12,006 roster reads at 2,001 entities. `tests/audio.interactionDetect.test.ts` (4). [Report](../bug_report/2026-11-07-audio-death-scan-quadratic.md) |
+| PERF-04, RED-05 | fixed | Camp, incoming-raid, performer, festival-square and hotel answers are built once per tick; `buildIncomingRaidIndex` is the one read model for “is this rival marching”. 20→80 festival goers: 1,638→4,368 building reads before, 798→1,008 after. `tests/humanTick.hotPathIndexes.test.ts` (3). [Report](../bug_report/2026-11-07-per-settler-building-and-camp-scans.md) |
+| RED-01 | fixed | The final population scan is reused unless the daily layer ran or the dedupe dropped an entity. `tests/gameTick.dedupe.test.ts`, `tests/workerMainThread.parity.test.ts`. [Report](../bug_report/2026-11-07-population-counted-twice-per-tick.md) |
 
 ## Remaining verification debt
 
