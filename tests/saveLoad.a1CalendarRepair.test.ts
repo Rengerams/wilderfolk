@@ -74,4 +74,30 @@ describe('A1 calendar-owner save and old-election regression', () => {
     gameTick(loaded.world);
     expect(loaded.world.electionCeremony).toBeNull();
   });
+  it('restores synthetic legacy 72-tick Year-0 election state without electing a founder (GAME-05)', () => {
+    const world = initGame({ skipTerrain: true, seed: 20_261_110 });
+    world.villageLeaderId = null;
+    world.lastElectionYear = 0;
+    world.pendingElectionYear = null;
+    world.electionCeremony = null;
+    const payload = JSON.parse(JSON.stringify(
+      buildSaveData(world, createInitialView(world.width, world.height)),
+    )) as Record<string, unknown>;
+    payload._ticksPerDay = 72;
+    payload.tick = 30 * 72 + 8 * 3; // Legacy save clock: day 30 at 08:00.
+    payload.lastElectionYear = 0;
+    payload.pendingElectionYear = null;
+    payload.electionCeremony = null;
+
+    const loaded = loadGameFromParsedOutcome(payload);
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    expect(loaded.world.tick).toBe(30 * TICKS_PER_DAY + 8 * TICKS_PER_HOUR);
+    expect([loaded.world.year, loaded.world.dayInYear]).toEqual([0, 30]);
+    expect(loaded.world.lastElectionYear).toBe(0);
+    expect(loaded.world.villageLeaderId).toBeNull();
+    expect(loaded.world.pendingElectionYear).not.toBeNull();
+    expect(loaded.world.electionCeremony).toBeNull();
+  });
+
 });
