@@ -1,7 +1,7 @@
 # Term elections skipped by 18:00-only rollover gate
 
 - Bug: SIM-01 — The year rollover check lived in the 18:00 world-events phase, but year rollover is true only at 00:00. The audit reproduced a year-2 boundary with no election ceremony.
-- Status: investigating
+- Status: resolved
 - Severity: critical
 - Date discovered: 2026-11-07
 - Version/build: V.0.6.5.1 / inspected main (7 November 2026)
@@ -12,7 +12,8 @@
 
 ## Status history
 - 2026-11-07 — open: reproduced in the audit's code trace and recorded as SIM-01.
-- 2026-11-07 — investigating: scheduling change committed on the fix branch; regression suite and CI are not yet verified.
+- 2026-11-07 — investigating: scheduling change committed on the fix branch; regression suite and CI initially unverified.
+- 2026-11-07 — resolved: the real gameTick regression passed and all five GitHub Actions workflows were green at commit 3546fd55 (Node.js CI run 42409653516).
 
 ## Observed behavior
 The year rollover check lived in the 18:00 world-events phase, but year rollover is true only at 00:00. The audit reproduced a year-2 boundary with no election ceremony.
@@ -36,5 +37,6 @@ Moved year-boundary scheduling to tickYearBoundaryWorldEvents called at midnight
 none (no save schema changes)
 
 ## Verification result
-- Focused regression: NOT RUN at report creation. tests/calendarPhase.auditRegressions.test.ts — SIM-01 real gameTick transition
-- Typecheck/lint/build: NOT RUN at report creation; GitHub CI to provide the authoritative verdict.
+- Focused regression: PASS — tests/calendarPhase.auditRegressions.test.ts — SIM-01 real gameTick transition (tests/calendarPhase.auditRegressions.test.ts: 3/3 passed).
+- Typecheck/lint/build and affected tests: PASS — Node.js CI run 42409653516, 1,054 test cases (1,052 passed, 2 skipped at final revision).
+- Required full 720-day A2 calendar gate: NOT RUN; scheduled as a separate audit action.
