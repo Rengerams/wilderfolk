@@ -10,6 +10,7 @@
 |---|---|---|
 | SIM-01, SIM-02, TEST-16 | fixed | PR #129; midnight owners and `gameTick` boundary regressions |
 | TEST-01..05, TEST-08, TEST-11, TEST-12, TQ-01..03, TQ-06..08, TQ-14 | fixed | PR #130 required fast calendar gate and coverage floors |
+| CB-04, TQ-05 (time-model drift) | fixed | Active README no longer claims a 72-tick day; the day-cadence suite header and the display-year fixture use the 24-hour day. The remaining 72 references are legacy-save migration code and a dated plan. |
 
 ## Phase A3 — save, schema and data integrity
 
@@ -60,4 +61,6 @@
 - CB-02's boundary screen was not forced open in the preview; the export path is covered by typecheck and build only.
 - CB-13's Rust build was not run in this environment.
 - A6's tree/building draw order and the road/build dark flash have no screenshot matrix; only the paused-overlay pixel run is recorded.
+- The 720-day continuous simulation stays out of scope by instruction and plan decision; only the fast boundary gate runs.
+- SIM-03/SIM-04 and the rest of Plan Phase 1 beyond SIM-01/SIM-02/TEST-16 have no description in this repository: the audit archive (`MASTER-BUG-LIST.md`) is not checked in, so they cannot be actioned here.
 
