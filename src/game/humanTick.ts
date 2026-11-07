@@ -770,7 +770,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const expectantSpouse = entity.partnerId == null ? null : resolveChatPartner(entity.partnerId);
       tryAmbientRandomDialogue(
         entity,
-        ambientChatNeighbors(entity),
+        () => ambientChatNeighbors(entity),
         state.tick,
         0.036 * PER_TICK_RATE_SCALE,
         chatHints,

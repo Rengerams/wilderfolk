@@ -50,21 +50,23 @@ export function tickHumanChildLeisure(args: {
   const tickBucket = Math.floor(state.tick / CHILD_PLAYMATE_REFRESH_TICKS);
   let cached = childCache.get(entity);
   if (!cached || cached.tickBucket !== tickBucket) {
-    const playmates: Entity[] = [];
-    forEachAdaptiveInRadius(
-      humanSocialGrid,
-      allHumans,
-      entity.x,
-      entity.y,
-      SOCIAL_FRIENDSHIP_RADIUS,
-      (human) => {
-        if (human.id !== entity.id && human.alive && human.isJuvenile && isPlayerHuman(human)) playmates.push(human);
-      },
-      socialAdaptiveOptions('social', allHumans.length, width, height),
-    );
-    const mate = playmates.length > 0 && personDayRoll(entity.id, state.tick, 718 + tickBucket) < KID_PLAY_CHANCE
-      ? playmates[(entity.id + tickBucket) % playmates.length]
-      : undefined;
+    let mate: Entity | undefined;
+    // The play roll is stateless, so a child who will not play never pays for the scan.
+    if (personDayRoll(entity.id, state.tick, 718 + tickBucket) < KID_PLAY_CHANCE) {
+      const playmates: Entity[] = [];
+      forEachAdaptiveInRadius(
+        humanSocialGrid,
+        allHumans,
+        entity.x,
+        entity.y,
+        SOCIAL_FRIENDSHIP_RADIUS,
+        (human) => {
+          if (human.id !== entity.id && human.alive && human.isJuvenile && isPlayerHuman(human)) playmates.push(human);
+        },
+        socialAdaptiveOptions('social', allHumans.length, width, height),
+      );
+      if (playmates.length > 0) mate = playmates[(entity.id + tickBucket) % playmates.length];
+    }
     cached = { tickBucket, mate };
     childCache.set(entity, cached);
   }

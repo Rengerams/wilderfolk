@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-07 — [Ambient chat scanned the neighbourhood before its chatter roll](../bug_report/2026-11-07-ambient-chat-neighbor-scan-eager.md):** Every eligible settler built and sorted the full nearby-settler list, and every child scanned for playmates, before the seeded roll that rejects ~96% and ~28% of them. Status: resolved — the neighbour read is deferred until the roll fires and a non-playing child skips the scan; the 1,800-settler average tick fell from 624.9 to 106.2 ms with an identical simulation hash, and the targeted suites pass, including a new case for the deferred read.
+
 **2026-11-07 — [A settler dying in wolf form was counted as an animal death](../bug_report/2026-11-07-werewolf-form-death-counted-as-animal.md):** The tick death scan tested the visual type first, so a Moon Howler settler who died transformed raised the animal tally. Status: resolved — ownership decides before the type; 5 death-accounting tests pass.
 
 **2026-11-07 — [The longest-lived settler record missed anyone who died mid-year](../bug_report/2026-11-07-longest-life-missed-midyear-deaths.md):** The lifetime record was refreshed from year-end survivors. Status: resolved — the age is recorded when the death commits; 5 tests pass.
