@@ -35,10 +35,12 @@ export default defineConfig({
       ],
       reporter: ['text-summary'],
       thresholds: {
-        lines: 25,
-        statements: 25,
-        functions: 20,
-        branches: 10,
+        // Measured A2 baseline (required CI): 76.69 / 72.09 / 71.42 / 54.28.
+        // Set a meaningful initial floor with room for non-calendar changes.
+        lines: 70,
+        statements: 65,
+        functions: 60,
+        branches: 45,
       },
     },
   },
