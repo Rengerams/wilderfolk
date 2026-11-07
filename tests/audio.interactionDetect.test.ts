@@ -77,4 +77,25 @@ describe('interaction audio', () => {
     expect(sfx.playSettlerDeathSfx).toHaveBeenCalledTimes(1);
     expect(indexReads).toBeLessThan(prev.length * 6);
   });
+
+  it('stays silent for a visitor or rival death', () => {
+    detectInteractionSounds(
+      [human(1, 0, 0), { ...human(2, 10, 0), faction: 'visitor' } as Entity],
+      [human(1, 0, 0), { ...human(2, 10, 0, false), faction: 'visitor' } as Entity],
+    );
+    expect(sfx.playSettlerDeathSfx).not.toHaveBeenCalled();
+  });
+
+  it('cues one death for a cursed settler dying in wolf form', () => {
+    const cursed = {
+      ...beast(1, EntityType.Werewolf, 0, 0),
+      moonHowlerCursed: true,
+      moonHowlerSaved: {},
+    } as Entity;
+    detectInteractionSounds(
+      [cursed],
+      [{ ...cursed, alive: false } as Entity],
+    );
+    expect(sfx.playSettlerDeathSfx).toHaveBeenCalledTimes(1);
+  });
 });

@@ -705,6 +705,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         moving: Math.hypot(entity.vx, entity.vy) > 0.1,
         hasWell: hasNearbyWell(entity, nearbyWells),
         hasHospital: sleep.hasHospital,
+        unheatedWinter: isWinter && !canHeat,
       });
       if (resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds && !sleep.hasHospital) === 'eat') {
         ateMeal = tryEatColonyMeal(entity, state, hourOfDay);

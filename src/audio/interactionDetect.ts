@@ -1,6 +1,7 @@
 import { EntityType } from '../game/gameEngine';
 import { PREDATOR_TYPES } from '../game/combat';
 import type { Entity } from '../game/gameEngine';
+import { isPlayerHumanShiftOwner } from '../game/playerHuman';
 import {
   playHumanHuntSfx,
   playPredatorHuntSfx,
@@ -65,10 +66,13 @@ export function detectInteractionSounds(prevEntities: Entity[], currentEntities:
     const curr = currentById.get(prev.id);
     if (!curr || curr.alive) continue;
 
-    if (prev.type === EntityType.Human) {
+    // The one settler-death cue: ownership comes from the player module, so a cursed settler
+    // dying in wolf form still counts and a visitor or rival death stays silent.
+    if (isPlayerHumanShiftOwner(prev)) {
       playSettlerDeathSfx();
       continue;
     }
+    if (prev.type === EntityType.Human) continue;
 
     if (!PREY_TYPES.has(prev.type)) continue;
 

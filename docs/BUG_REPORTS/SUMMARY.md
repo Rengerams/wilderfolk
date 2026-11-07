@@ -1,5 +1,19 @@
 # Bug report summary — one line per report
 
+**2026-11-07 — [A settler dying in wolf form was counted as an animal death](../bug_report/2026-11-07-werewolf-form-death-counted-as-animal.md):** The tick death scan tested the visual type first, so a Moon Howler settler who died transformed raised the animal tally. Status: resolved — ownership decides before the type; 5 death-accounting tests pass.
+
+**2026-11-07 — [The longest-lived settler record missed anyone who died mid-year](../bug_report/2026-11-07-longest-life-missed-midyear-deaths.md):** The lifetime record was refreshed from year-end survivors. Status: resolved — the age is recorded when the death commits; 5 tests pass.
+
+**2026-11-07 — [Winter heating spent wood and changed nothing](../bug_report/2026-11-07-winter-heating-had-no-effect.md):** The heat flag only flashed a settler; the schema claimed a 1.5x cold penalty. Status: resolved — an unheated day multiplies nutrition loss by 1.5; 1 test passes.
+
+**2026-11-07 — [Pollution pinned every mid-size colony at 100](../bug_report/2026-11-07-pollution-pinned-at-cap.md):** `humans / 3` saturated the 0-100 scale at 300 settlers. Status: resolved — 300/1,000/2,500 now read 12/40/100 and preserves damp the score; 2 tests pass.
+
+**2026-11-07 — [A settler death played two cues, and foreign deaths played one](../bug_report/2026-11-07-player-death-sound-doubled.md):** The interaction pass and the population-drop effect both fired, and visitors triggered the settler cue. Status: resolved — one ownership-gated cue; 6 tests pass.
+
+**2026-11-07 — [An unstaffed farm satisfied the auto-player's food step](../bug_report/2026-11-07-unstaffed-farm-satisfied-food-step.md):** The producer predicate counted by building type alone. Status: resolved — a completed producer needs a crew, an unfinished site still counts; 4 tests pass.
+
+**2026-11-07 — [Every unpaused frame forced a layout read and allocated a position per mover](../bug_report/2026-11-07-per-frame-layout-read-and-position-allocation.md):** The loop read `offsetWidth` per frame and the motion pass copied every entity. Status: resolved — cached layout size and entity reuse for unsmeared movers; 10 tests pass.
+
 **2026-11-07 — [Foreign humans received genomes and born marks](../bug_report/2026-11-07-foreign-humans-get-dna-and-born-marks.md):** Visitors and caravan carriers were created as full genetic settlers and showed aptitude chips, against the doc's foreign-neutral contract. Status: resolved — creation and the load backfill gate on the faction predicate; 50 DNA tests pass.
 
 **2026-11-07 — [Personal mark provenance accepted impossible pairs](../bug_report/2026-11-07-mark-provenance-unvalidated.md):** A born-only mark could claim an earned source and vice versa. Status: resolved — one per-mark allowed-source table validates the pair in both writers; 21 mark tests pass.

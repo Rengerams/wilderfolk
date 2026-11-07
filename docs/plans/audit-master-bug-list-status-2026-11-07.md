@@ -62,6 +62,35 @@
 | Render sleeper cull and status context | fixed | `drawHumans` builds one id → building map per tick and the status-icon inputs are memoised per snapshot. 20→80 sleepers: 1,730→8,600 building reads per frame before, 320→560 after; a repeated repaint of one unchanged state read 1,650 → 0. `tests/renderer.humanHotPaths.test.ts` (2). [Report](../bug_report/2026-11-07-per-frame-human-rescans.md) |
 | COV-I-04 | fixed | Height-mesh lattice vertices are sampled once per map instead of per mover per frame; 200 movers inside one 32-px cell now read 0 elevation entries after the cell is warm. `tests/terrainAtlas.riseCache.test.ts` (4). [Report](../bug_report/2026-11-07-per-frame-human-rescans.md) |
 
+## Phase A4 (continued) — death, needs and ecology
+
+| ID | Status | Evidence |
+|---|---|---|
+| SIM-05 | fixed | The per-tick death tally (`tallyTickDeaths`, the single owner in `stats.ts`) asks `isPlayerHumanShiftOwner` before the visual type, so a cursed settler dying in wolf form counts as a human death; trees, grass and foreign humans stay out of both tallies. `tests/stats.deathAccounting.test.ts` (5). [Report](../bug_report/2026-11-07-werewolf-form-death-counted-as-animal.md) |
+| SIM-16 | fixed | `recordHumanDeath` writes the age when the death commits, called by the tick tally and the raid casualty path, so a mid-year elder death reaches the record. `tests/stats.deathAccounting.test.ts` (5). [Report](../bug_report/2026-11-07-longest-life-missed-midyear-deaths.md) |
+| SIM-19 | fixed | `advanceHumanNeeds` takes `unheatedWinter` and multiplies nutrition loss by 1.5; human tick supplies the season and the stored heating result. One worked hour: 78.64 heated vs 77.96 cold. `tests/humanNeeds.unheatedWinter.test.ts` (1). [Report](../bug_report/2026-11-07-winter-heating-had-no-effect.md) |
+| SIM-22 | fixed | The population term is one point per 25 settlers and each Wildlife Preserve damps the score by 5% (50% floor): 300/1,000/2,500 read 12/40/100 instead of a flat 100. `tests/dailyEcology.pollutionGrading.test.ts` (2). [Report](../bug_report/2026-11-07-pollution-pinned-at-cap.md) |
+| COV-G-08 | fixed | `hasProductiveFoodProducer` requires a crew for a completed producer and still counts a site under construction; rivals never count. `tests/virtualPlayer.foodProducer.test.ts` (4). [Report](../bug_report/2026-11-07-unstaffed-farm-satisfied-food-step.md) |
+| GAME-15 (dead config half) | verified | `Human.energyLossPerTick` is already absent from the source tree; only the species energy model declares that field. The romance-gate retune is a balance decision, listed under deferred items. |
+| GAME-14 | open (info) | Documented only: wildlife refill and offscreen metabolism remain as described; no code change in this pass. |
+
+## Phase A8 — main-thread frame cost
+
+| ID | Status | Evidence |
+|---|---|---|
+| PERF-16 | fixed | The unpaused frame builds its simulation focus from the `ResizeObserver` layout size instead of reading `offsetWidth`/`offsetHeight` every frame. `npm run test:types`, `npm run lint`, `npm run build`. [Report](../bug_report/2026-11-07-per-frame-layout-read-and-position-allocation.md) |
+| PERF-09 | fixed | `presentationPosition` compares coordinates without copying the entity and returns the entity itself for a stationary or teleporting mover, so an unsmeared entity allocates nothing; a blended position still allocates one object because callers hold two positions at once. `tests/renderer.motionAndHover.test.ts` (10). |
+| COV-A-02 | fixed | The interaction pass is the single death-sound owner and gates on `isPlayerHumanShiftOwner`; the duplicate population-drop cue was removed from the audio hook, so a settler death plays once and a visitor or rival death is silent. `tests/audio.interactionDetect.test.ts` (6). [Report](../bug_report/2026-11-07-player-death-sound-doubled.md) |
+
+## Deferred with reasons
+
+- **PERF-01, PERF-03 (P1, worker rollback clone and full entity roster).** Replacing the every-tick deep clone with an inverse-operation journal or periodic snapshot/replay, and shipping incremental entity deltas, changes the worker's rollback contract. It needs its own phase with the parity/seed/pool-stress suites as the gate and a before/after measurement; not attempted in this pass.
+- **GAME-08 (P1, 1,800-settler freeze).** Reproducing it needs the owner's 2,027-settler save or the large population fixture; neither is present in this environment, and the audit's own rule forbids a speculative fix before the freeze is reproduced.
+- **SIM-20, GAME-13 (captive needs).** Giving captives a starvation-capable needs record contradicts the decision registry's written contract that prisoners do not work or roam and that the 08:00 ration creates no stamina or energy needs; it needs an explicit gameplay decision (and a decision-registry rewrite) before code.
+- **SIM-21, GAME-16 (exhaustion price and scale gate).** Both depend on the 2,500-settler tier's 18:00 stamina and food distribution; choose the tuning only after that measurement exists.
+- **GAME-15 (romance gates).** Retuning the 22–27 stamina thresholds changes romance pacing; it is a balance decision, not a correctness fix.
+- **PERF-15, RED-07 (SoA bucket shims, repeated sorts, construction-worker membership).** Neither has a recorded profile to prove the change; the audit requires measured before/after for renderer work.
+
 ## Remaining verification debt
 
 - GAME-05 was re-checked and needs no change: the negative founding-year sentinel is already in source.
@@ -70,5 +99,8 @@
 - A6's road-through-forest dark frame and the tree/building depth order have no screenshot matrix; the paused-overlay pixel run and the static-layer preview run (new colony, zoom rebake, 0 console errors) are what is recorded.
 - The visitor/caravan aptitude-chip gate has no component test and was not exercised in the browser; only the creation and load contracts are covered by tests. The preview run confirmed the app boots with zero console errors.
 - The 720-day continuous simulation stays out of scope by instruction and plan decision; only the fast boundary gate runs.
+- The A4 needs/ecology changes (unheated winter, graded pollution) have unit regressions but no 7/30/360-day balance re-measurement.
+- The A8 frame changes have no `SpeedDiag` before/after profile; the loop and interpolation regressions cover the contract, not the frame time.
+- The death-sound change has no live audio capture; only the cue-count contract is covered.
 - SIM-03/SIM-04 and the rest of Plan Phase 1 beyond SIM-01/SIM-02/TEST-16 have no description in this repository: the audit archive (`MASTER-BUG-LIST.md`) is not checked in, so they cannot be actioned here.
 

@@ -282,12 +282,15 @@ function isUnderConstruction(state: WorldState, type: BuildingType): boolean {
 }
 
 /**
- * True when the player already has a food producer, built or under construction. Known gap: it counts
- * by `type` alone, so an unfinished or unstaffed farm still satisfies the ladder's food step.
+ * True when a food producer is standing with a crew or is going up. An unstaffed building produces
+ * nothing, so it does not satisfy the ladder's food step.
  */
-function hasFoodProducer(state: WorldState): boolean {
+export function hasProductiveFoodProducer(state: WorldState): boolean {
   return state.buildings.some(
-    (building) => building.faction !== 'rival' && FOOD_PRODUCER_TYPES.includes(building.type),
+    (building) =>
+      building.faction !== 'rival'
+      && FOOD_PRODUCER_TYPES.includes(building.type)
+      && (!building.completed || building.occupants.length > 0),
   );
 }
 
@@ -599,7 +602,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   // Real harvested output decides whether the colony needs expansion, but forecast growth can request
   // it before today's balance turns negative: a productive Fishery may already cover the forecast.
   if (measuredFlow !== null && !shortOnFood && !measuredDeficit && !forecastRisk) return null;
-  if (measuredFlow === null && !shortOnFood && hasFoodProducer(state) && !wantMore) return null;
+  if (measuredFlow === null && !shortOnFood && hasProductiveFoodProducer(state) && !wantMore) return null;
   // The bootstrap count is a temporary ceiling, NOT a hard ceiling during a
   // verified deficit. Actual production, not site count, determines shortage.
   if (measuredFlow === null && cropSites >= target && !shortOnFood) return null;
@@ -700,7 +703,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
       command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type, x: spot.x, y: spot.y, rotation: 0 },
       reason: shortOnFood
         ? `build a ${BUILDING_CONFIGS[type].label} — ${daysLeft} day${daysLeft === 1 ? '' : 's'} of food left`
-        : !hasFoodProducer(state)
+        : !hasProductiveFoodProducer(state)
           ? `build a ${BUILDING_CONFIGS[type].label} — the colony has no food producer`
           : measuredDeficit
             ? `build a ${BUILDING_CONFIGS[type].label} — actual food production trails consumption`

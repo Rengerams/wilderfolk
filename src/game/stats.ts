@@ -1,6 +1,6 @@
-import type { WorldState } from './gameTypes';
+import type { Entity, WorldState } from './gameTypes';
 import { EntityType as ET } from './gameTypes';
-import { isPlayerHuman } from './playerHuman';
+import { isPlayerHuman, isPlayerHumanShiftOwner } from './playerHuman';
 import { citizenFullName } from './citizenId';
 import { bondCensus, isMarriedOrExpecting, type BondCensus } from './relationships';
 import { getEcosystemHealth } from './dailyEcology';
@@ -137,6 +137,37 @@ export function recordResourcesGathered(state: WorldState, type: ResourceKey, ac
   const gathered = state.lifetimeStats.totalResourcesGathered as GatheredResources | undefined;
   if (!gathered) return;
   gathered[type] = (gathered[type] ?? 0) + accepted;
+}
+
+/**
+ * Record a settler's age at the moment the death commits. The year-end scan sees only the living,
+ * so an elder who died in June never reached the record.
+ */
+export function recordHumanDeath(state: WorldState, entity: Entity): void {
+  if (!entity.name || !(entity.age > state.lifetimeStats.longestLivingHuman.age)) return;
+  state.lifetimeStats.longestLivingHuman = { name: citizenFullName(entity), age: entity.age };
+}
+
+/**
+ * Tally the entities alive at tick start that are not now. Ownership decides before the visual type,
+ * so a cursed settler dying in wolf form counts as a human and a foreign human counts as neither.
+ */
+export function tallyTickDeaths(state: WorldState, aliveAtTickStart: readonly Entity[]): void {
+  let deadHumans = 0;
+  let deadAnimals = 0;
+  for (const entity of aliveAtTickStart) {
+    if (entity.alive) continue;
+    if (isPlayerHumanShiftOwner(entity)) {
+      deadHumans++;
+      recordHumanDeath(state, entity);
+    } else if (entity.type !== ET.Human && entity.type !== ET.Tree && entity.type !== ET.Grass) {
+      deadAnimals++;
+    }
+  }
+  if (deadHumans === 0 && deadAnimals === 0) return;
+  const tally = state.deathsThisYear ?? (state.deathsThisYear = { humans: 0, animals: 0 });
+  tally.humans += deadHumans;
+  tally.animals += deadAnimals;
 }
 
 export function recordYearlyStats(state: WorldState, forYear?: number): YearlyStats {

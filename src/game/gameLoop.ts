@@ -1012,8 +1012,10 @@ export class GameLoop {
       let steps = 0;
       const catchUpBudget = catchUpBudgetFor(this.world.speed);
       const canvas = this.getCanvas();
+      // The ResizeObserver's cached layout size; reading `offsetWidth` here forced layout every frame.
       const focus: SimulationFocus | undefined = canvas
-        ? computeSimulationFocus(this.view.camera, canvas.offsetWidth, canvas.offsetHeight)
+        && this.layoutSize.w > 0 && this.layoutSize.h > 0
+        ? computeSimulationFocus(this.view.camera, this.layoutSize.w, this.layoutSize.h)
         : undefined;
 
       if (this.workerBooting) {

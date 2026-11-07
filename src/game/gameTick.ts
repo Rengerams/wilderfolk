@@ -10,7 +10,7 @@ import {
   Season,
   EntityType,
 } from './gameTypes';
-import { recordYearlyStats, updateLifetimeStats } from './stats';
+import { recordHumanDeath, recordYearlyStats, tallyTickDeaths, updateLifetimeStats } from './stats';
 import { logEvent } from './eventLog';
 import { bumpHistoryRevision } from './historyRevisions';
 import { ensureEntityByIdMap } from './entityIndex';
@@ -136,10 +136,11 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     tickPendingOutgoingRaidEvents(state);
     tickPendingRaidEvents(state, state.entities.filter((person) => person.alive));
     tickRaidRecovery(state);
-    const fallen = beforeRaids.filter((person) => !person.alive).length;
-    if (fallen > 0) {
+    const fallen = beforeRaids.filter((person) => !person.alive);
+    if (fallen.length > 0) {
       const tally = state.deathsThisYear ??= { humans: 0, animals: 0 };
-      tally.humans += fallen;
+      tally.humans += fallen.length;
+      for (const person of fallen) recordHumanDeath(state, person);
     }
     if (isSettlementDestroyed(state)) return state;
   }
@@ -329,20 +330,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
 
   // --- Deaths: entries alive at tick start and not now ---
   // `aliveEntities` is the tick-start list, so each dead entry died during this tick.
-  let deadHumans = 0;
-  let deadAnimals = 0;
-  for (const entity of aliveEntities) {
-    if (entity.alive) continue;
-    if (entity.type === EntityType.Human) {
-      // A departing visitor group or a finished caravan carrier clears `alive` without dying.
-      if (isPlayerHuman(entity)) deadHumans++;
-    } else if (entity.type !== EntityType.Tree && entity.type !== EntityType.Grass) deadAnimals++;
-  }
-  if (deadHumans > 0 || deadAnimals > 0) {
-    const tally = state.deathsThisYear ?? (state.deathsThisYear = { humans: 0, animals: 0 });
-    tally.humans += deadHumans;
-    tally.animals += deadAnimals;
-  }
+  tallyTickDeaths(state, aliveEntities);
 
   traceLeaderResidence('post-layers');
   // --- Post ---

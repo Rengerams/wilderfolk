@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (7 Nov 2026):** Audit A4 needs and ecology: an unheated winter day burns 1.5x nutrition, pollution grades with settlement size instead of pinning at the cap, and preserves now lower it.
+- **Fixed (7 Nov 2026):** Audit A4 death records: a settler dying in wolf form counts as a human death, and the longest-life record now catches elders who die mid-year.
+- **Fixed (7 Nov 2026):** Audit A8 frame cost: the loop reuses the measured canvas size instead of forcing a layout every frame, and a still or teleporting mover no longer allocates a position.
+- **Fixed (7 Nov 2026):** A settler death now plays exactly one sound, a visitor or rival death stays silent, and the auto-player no longer treats an unstaffed farm as a food source.
 - **Fixed (7 Nov 2026):** Audit A4 DNA contract: visitors and caravan traders are created neutral instead of receiving a genome and born marks, their saved DNA is dropped on load, their selection panel no longer shows aptitudes, and a personal mark must come from a source its definition allows.
 - **Fixed (7 Nov 2026):** Audit A6 static layer: the cached trees, grass and buildings now repaint only when the world's static content changes instead of on every simulation tick, while a live construction site keeps animating.
 - **Fixed (7 Nov 2026):** Audit A7 hot paths: a settler no longer rescans every building and faction list for camp, war-band, festival and hotel answers, and the population roster is counted once when nothing changed.
