@@ -6,7 +6,7 @@
 - Date discovered: 2026-11-07
 - Version/build: PR #131 before follow-up commits
 - Area: root React tree / persistence
-- Owner module: src/components/GameErrorBoundary.tsx (UI), src/game/saveLoad.ts (file export)
+- Owner module: src/components/GameErrorBoundary.tsx (UI), src/game/saveLoad.ts (canonical file export)
 - Related PR: #131
 
 ## Status history
@@ -28,10 +28,10 @@ A crashed React tree presents a recovery UI, exports the most recent available w
 src/main.tsx lacked a root error boundary; useGamePersistence.ts registers an unmount autosave; gameLoop.ts keeps worker-authored data independently from render state.
 
 ## Root cause
-No root error boundary, and no dedicated emergency-export path that is guaranteed not to overwrite localStorage.
+No root error boundary, and no file-only mode was exposed to the recovery UI.
 
 ## Fix / proposed fix
-GameErrorBoundary snapshots read-only live session refs before unmount. downloadRecoverySaveFile is file-only, and the normal auto-save cleanup stands down during a React crash. The UI warns that the most recent worker commands may be missing.
+GameErrorBoundary snapshots read-only live session refs before unmount. The existing downloadSaveFile export runs in file-only mode, and the normal auto-save cleanup stands down during a React crash. The UI warns that the most recent worker commands may be missing.
 
 ## Save/migration impact
 No save schema change. The recovered file is best-effort and does not replace ecosim_save or ecosim_imported_save.
