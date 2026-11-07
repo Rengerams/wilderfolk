@@ -555,7 +555,9 @@ export function useCanvasInteractions({
             end?.worldX ?? start.x, end?.worldY ?? start.y,
           );
           stripPlacedOnMouseUpRef.current = true;
-          if (buildingIds.length > 0) {
+          if (buildingIds.length > 0 && window.confirm(
+            `Demolish ${buildingIds.length} road or wall ${buildingIds.length === 1 ? 'segment' : 'segments'}? This cannot be undone.`,
+          )) {
             applyGameAction({ proto: 1, op: 'demolishStripBuildings', buildingIds });
             playClickSound();
           }

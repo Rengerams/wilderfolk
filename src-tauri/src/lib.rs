@@ -14,8 +14,6 @@ pub fn run() {
             }
             Ok(())
         })
-        // 2. Shell-plugin hier toegevoegd zodat de 'unused dependency' waarschuwing verdwijnt
-        .plugin(tauri_plugin_shell::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -4,13 +4,16 @@ import { BrowserRouter } from 'react-router-dom'
 import { bootstrapIntroAudio } from './audio/bootstrap'
 import './index.css'
 import App from './App.tsx'
+import GameErrorBoundary from './components/GameErrorBoundary'
 
 bootstrapIntroAudio()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <GameErrorBoundary>
+        <App />
+      </GameErrorBoundary>
     </BrowserRouter>
   </StrictMode>,
 )

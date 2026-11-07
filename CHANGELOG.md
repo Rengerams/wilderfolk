@@ -4,6 +4,12 @@
 
 - **Changed (7 Nov 2026):** The current calendar has 288 ticks per day (12 per hour), with 00:00, 06:00 and 18:00 daily work phases; the 12:00 phase remains empty. Earlier release notes retain their historical tick rates.
 - **Fixed (7 Nov 2026):** A1 follow-up removes duplicate festival restoration on save load, derives calendar test fixtures from the 288-tick day, and adds actual save-load regressions for stale festivals and Year-0 election state.
+- **Fixed (7 Nov 2026, PR #131 A5):** Added a React crash screen with a last-available-snapshot JSON export. Crash unmount avoids replacing a healthy quick-save with an unconfirmed display shadow.
+- **Fixed (7 Nov 2026, PR #131 A5):** Confirm bulk Alt-drag road/wall demolition with the number of segments before dispatching the command.
+- **Fixed (7 Nov 2026, PR #131 A5):** Removed unused Tauri shell plugin and permission. Restored modal focus when the battle commentary controls change.
+- **Tests (7 Nov 2026, PR #131 A5):** Expanded recovery, modal, strip demolition and overlapping-save failure/retry coverage; native Tauri and live browser checks pending.
+
+- **Fixed (7 Nov 2026):** Stopped RAF chains from reviving after GameLoop disposal; isolated imported JSON saves from quick-saves with confirmation; added shared keyboard ownership and focus to battle and prisoner dialogs.
 - **Added (7 Nov 2026):** Required fast `gameTick` midnight/Year-2 regression gate with targeted calendar coverage thresholds. It jumps directly to boundaries; the 720-day continuous simulation stays outside PR CI.
 - **Fixed (7 Nov 2026):** Term elections, idle skill decay and visitor departures now run at 00:00 (SIM-01/02, TEST-16). Added `gameTick` regressions and corrected year-length invariant math; 230-ID audit remains open.
 - **Fixed (7 November 2026):** The harness type check is green again: the day-boundary performance gate reads its measured report, the worker stall harness returns render leases, and the full-year audit shares the auto-player's food-producer set.
