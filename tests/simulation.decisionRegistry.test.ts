@@ -34,6 +34,8 @@ const REQUIRED_DECISIONS = [
   'construction',
   'production',
   'villageRequests',
+  'visitorLifecycle',
+  'idleSkillDecay',
   'socialFeedback',
   'dialogueContent',
   'dialogueSessions',

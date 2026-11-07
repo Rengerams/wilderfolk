@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (7 Nov 2026):** Term elections, idle skill decay and visitor departures now run at 00:00 (SIM-01/02, TEST-16). Added `gameTick` regressions and corrected year-length invariant math; 230-ID audit remains open.
 - **Fixed (7 November 2026):** The harness type check is green again: the day-boundary performance gate reads its measured report, the worker stall harness returns render leases, and the full-year audit shares the auto-player's food-producer set.
 - **Changed (6 November 2026):** Every settler now carries fourteen inherited aptitudes; one signed activity evaluator gives each person real strengths and real weaknesses, and no genome is universally best.
 - **Added (6 November 2026):** Settlers now carry personal marks — lucky, pretty, scarred and sickly — born once or earned by surviving a raid or a rare find. They are never inherited and are priced through the same activity factors as aptitudes, including a small lucky conception nudge.

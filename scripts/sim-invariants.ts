@@ -1,19 +1,18 @@
 /**
  * Invariant long-sim: runs for N years asserting world sanity every tick. Env: `SIM_YEARS`,
- * `SIM_BUILD`, `SIM_SEED`. Run: `npx tsx scripts/sim-invariants.ts`; exits 1 on the first violation.
+ * `SIM_SEED`. Run: `npx tsx scripts/sim-invariants.ts`; exits 1 on the first violation.
  */
 import { gameTick, initGame } from '../src/game/gameEngine';
 import { EntityType, MapSize } from '../src/game/gameTypes';
-import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
+import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { getSimFocus } from './simFocus';
 import { preloadDialogueBank } from '../src/game/dialogueTrees';
 import { createEntity } from '../src/game/worldGen';
 import { assertSimInvariants } from '../src/game/simulation/simInvariants';
 
 const YEARS = Number(process.env.SIM_YEARS ?? 3);
-const BUILD = process.env.SIM_BUILD === '1';
 const SEED = Number(process.env.SIM_SEED ?? 12345);
-const TICKS_PER_YEAR = TICKS_PER_DAY * 360; // 288 ticks/day, 360 days/year
+const TICKS_PER_YEAR = TICKS_PER_DAY * DAYS_PER_YEAR;
 const TARGET = YEARS * TICKS_PER_YEAR;
 
 function createSeededRandom(seed: number): () => number {
@@ -58,15 +57,10 @@ async function main(): Promise<void> {
     const focus = getSimFocus(state);
     const t0 = performance.now();
     for (let tick = 1; tick <= TARGET; tick++) {
-      if (BUILD && tick % 4320 === 0) {
-        // try to keep the village growing — place a house near the center
-        state = gameTick(state, focus);
-        continue;
-      }
       state = gameTick(state, focus);
       const violations = assertSimInvariants(state);
       if (violations.length > 0) {
-        console.error(`INVARIANT VIOLATION at tick ${state.tick} (day ${Math.floor(state.tick / 72)}; seed ${SEED}):`);
+        console.error(`INVARIANT VIOLATION at tick ${state.tick} (day ${Math.floor(state.tick / TICKS_PER_DAY)}; seed ${SEED}):`);
         for (const v of violations.slice(0, 8)) console.error('  -', v);
         process.exitCode = 1;
         return;
