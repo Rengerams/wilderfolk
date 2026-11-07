@@ -1,6 +1,6 @@
 # Full-audit remediation plan — V.0.6.5.2
 
-**Status:** proposed plan, no code changed. **Source:** `docs/private/audits/2026-11-07/FULL-AUDIT-2026-11-07.md` and its category reports, including `code-quality.md` (Q-01..Q-16) and `dna-aptitudes.md` (DNA-01..04). **Related plans that remain authoritative for their areas:** `worker-sync-and-performance-2026-11-02.md`, `human-needs-issue-61-2026-10-26.md`, `roads-walls-navigation-overhaul.md`, `duplicate-code-elimination-2026-11-02.md`, `test-suite-optimization-2026-10-28.md`.
+**Status:** implementation underway (A1: merged PR #129; A2: PR #130). Calendar-gate scope was revised on 7 November 2026: no 720-day continuous simulation in PR CI. **Source:** `docs/private/audits/2026-11-07/FULL-AUDIT-2026-11-07.md` and its category reports, including `code-quality.md` (Q-01..Q-16) and `dna-aptitudes.md` (DNA-01..04). **Related plans that remain authoritative for their areas:** `worker-sync-and-performance-2026-11-02.md`, `human-needs-issue-61-2026-10-26.md`, `roads-walls-navigation-overhaul.md`, `duplicate-code-elimination-2026-11-02.md`, `test-suite-optimization-2026-10-28.md`.
 
 ## 0. Outcome
 
@@ -9,12 +9,12 @@ Ship V.0.6.5.2 with:
 - no critical or high correctness/data-loss defect open;
 - the calendar and needs foundations explicitly decided and documented, not patched around;
 - every audit ID either fixed, deliberately deferred with a reason, or proven not-a-bug;
-- a gate that would have caught SIM-01/SIM-02/TEST-16 (720-day scheduler) and a 2,500-settler scale tier;
+- a gate that would have caught SIM-01/SIM-02/TEST-16 (fast real-`gameTick` boundary gate) and a separately scheduled 2,500-settler scale tier;
 - the user-visible road/build dark flash (GFX-11) and the worst FPS spikes removed or measured;
 - dead/alias/duplicate surface reduced without behaviour change;
 - docs, ownership registers and decision registry consistent with the code.
 
-**Definition of done:** `npm run test:types`, `npm run lint`, `npm run build`, `npm test`, `npm run audit`, `npm run check:source` all pass; the 720-day and 2,500-settler gates pass; the audit's `LIVE-FINDINGS-STATUS.md` has no unstatused ID; every PR reports its bug-report counts.
+**Definition of done:** `npm run test:types`, `npm run lint`, `npm run build`, `npm test`, `npm run audit`, `npm run check:source` all pass; the required Year-2 boundary gate and the separate scheduled 2,500-settler scale gate pass; the audit's `LIVE-FINDINGS-STATUS.md` has no unstatused ID; every PR reports its bug-report counts.
 
 ---
 
@@ -31,7 +31,7 @@ The audit found more than isolated bugs. These are the contracts that produced t
 | F-5 | **Cache invalidation is string-keyed and global.** Terrain revision is global (GFX-11); the entity layer keys on `state.tick`; the snapshot key is a hand-enumerated string; the path cache omits terrain overrides. | GFX-01/02/03/11, SIM-18, COV-I-02, the per-tick static repaint/FPS spike | Replace global invalidation with **revision tokens per region/cache domain**; keep old layers until replacements are ready | 5 |
 | F-6 | **Worker transport is correct but conservative.** One tick in flight, full rollback clone every tick, full entity roster per tick; `MAX_PIPELINE_DEPTH=4` is dead configuration. | PERF-01/03, FPS tick-boundary spikes, slow 2,000+ sim rate | Keep **one tick in flight** until measured; replace full clone/roster with incremental state; update the constant/docs | 6 |
 | F-7 | **Ownership/duplication contracts drift.** Rival relationship ladder is copied, `ChatSpeaker` mirrors entity fields, the registry names a private production function, dead exports hide behind barrels. | DUP-10/11/16/17..23, DEAD-01..26, COV-G-01/02/06 | One owner per contract; delete verified dead surface; shrink knip tolerances to symbols | 8 |
-| F-8 | **Test architecture proves owners, not the schedule.** Owner-direct tests pass while the scheduler is dead; two integration tests are excluded; ~90 source-text tests assert file contents. | TEST-01..17, TQ-01..14 | Behavioural scheduler gate, **720-day** and **2,500-settler** tiers, fewer source-regex tests, coverage thresholds | 9 |
+| F-8 | **Test architecture proves owners, not the schedule.** Owner-direct tests pass while the scheduler is dead; two integration tests are excluded; ~90 source-text tests assert file contents. | TEST-01..17, TQ-01..14 | Behavioural real-`gameTick` **boundary-jump gate** on each PR, **2,500-settler** scheduled tier, fewer source-regex tests, scoped coverage thresholds | 9 |
 
 **Rule:** do not "fix SIM-01 by moving one `if`" and leave F-1/F-2 in place. Phase 1 changes the phase contract once, with tests, and then the individual gates become consequences.
 
@@ -42,7 +42,7 @@ The audit found more than isolated bugs. These are the contracts that produced t
 - **One workstream per branch/PR.** Do not mix a calendar change, a cache change and a dead-code sweep in one diff.
 - **Bug reports first.** Before changing a P0/P1 defect, follow `docs/bug_report/readme.md`: de-duplicate against `docs/BUG_REPORTS/`, file the report in `docs/bug_report/`, add it to the single index, and link it in the PR. Every PR reports exact new/updated counts.
 - **Baseline before/after.** Record gate results and the `SpeedDiag`/profile numbers before touching the worker, renderer or scheduler. Existing harnesses only: `scripts/autoplay_playwright_probe.py`, `scripts/run-full-year.mts`, `scripts/colonyHealth.ts`, `scripts/perf-at-pop.ts`. No private probes.
-- **No behaviour change in cleanup phases.** Dead/duplicate/doc phases must keep the 720-day outcome and the parity tests identical.
+- **No behaviour change in cleanup phases.** Dead/duplicate/doc phases must keep the fast calendar-boundary outcomes and the parity tests identical.
 - **Decision gates.** F-1..F-8 each needs a written decision (in this plan or an owning doc) before implementation. If a decision changes game balance, record the measured before/after.
 - **Concurrent agents:** one owner per file area; re-read immediately before editing; no drive-by refactors.
 
@@ -50,16 +50,19 @@ The audit found more than isolated bugs. These are the contracts that produced t
 
 ---
 
+
+**A2 test-duration decision (7 November 2026):** The required PR scheduler job must not replay 720 continuous calendar days. It uses a seeded state positioned immediately before chosen boundaries, then executes genuine `gameTick` calls and assertions through 00:00, 06:00 and 18:00. This protects the integration seam; it does not prove full 720-day survival. The existing 120-day producer workflow and separately scheduled long-scale tests retain that distinct purpose. The required focused gate also enforces measured V8 coverage floors for the calendar owner modules.
+
 ## 3. Phases
 
 ### Phase 0 — Baseline, decisions, failing tests (no behaviour change)
 
 **Goal:** make the audit executable, not just readable.
 
-- Record the baseline: current gate results, `SpeedDiag` at 1×/10× on the owner's 2,027 save, 47-settler producer colony, 720-day harness, browser probe.
+- Record the baseline: current gate results, `SpeedDiag` at 1×/10× on the owner's 2,027 save, 47-settler producer colony, targeted calendar-boundary harness and existing 120-day producer run, browser probe.
 - Create `docs/private/audits/2026-11-07/LIVE-FINDINGS-STATUS.md`: every ID with `open / in-progress / fixed / deferred / not-a-bug`, owner, phase, PR link.
 - File bug reports for the P0/P1 set first: SIM-01, SIM-02, TEST-16, CB-01, UX-01, UX-03, UX-04, PERF-01, PERF-03, COV-A-01, GFX-11.
-- Add **failing regressions** (allowed before the fix): 720-day election/decay/visitor test, synthetic 72→288 save, GFX-11 cache-disposal test, audio death-count test, load-confirmation test.
+- Add **failing regressions** (allowed before the fix): fast real-`gameTick` boundary election/decay/visitor tests, synthetic 72→288 save, GFX-11 cache-disposal test, audio death-count test, load-confirmation test.
 - Confirm external dirty file `scripts/check-function-overlap.integration.test.mjs` is not ours; do not revert it.
 - Exit: baseline recorded; reports filed; failing tests demonstrate the defects; no production behavior changed.
 
@@ -82,7 +85,7 @@ The audit found more than isolated bugs. These are the contracts that produced t
 - Derive all year/day constants from `TICKS_PER_DAY × DAYS_PER_YEAR`; remove `72 * 360` hardcodes.
 - Recalibrate `ELECTION_INTERVAL_YEARS` and the ceremony duration text to the 28.8-hour year; fix README/ARCHITECTURE/comments and `tests/ticksPerDay.literals.test.ts` header.
 - Update `OWNERSHIP_OVERVIEW.md` and `decisionRegistry.ts` cadence/caller/test cells for every moved function.
-- Exit: 720-day test asserts Year-2 election, idle-skill decay, visitor gift+departure; `gameTick.layerOrder` still passes; docs no longer say 72/52h; no function called from two phases.
+- Exit: required boundary-jump `gameTick` tests assert Year-2 election, idle-skill decay, visitor gift+departure; `gameTick.layerOrder` still passes; docs no longer say 72/52h; no function called from two phases.
 
 **Risk:** moving work between phases changes economy timing. Compare 7/30/360-day food/skill/population before/after and keep the 360-day invariants.
 
@@ -169,7 +172,7 @@ The audit found more than isolated bugs. These are the contracts that produced t
 - Delete the 101 verified dead exports, 32 export-only symbols, 13 aliases, 16 dead re-export lines, dead config (`MEAL_*`, `Human.energyLossPerTick`), dead scripts, orphan assets and the `tmp-gate` test.
 - Shrink `knip.ts` file-level tolerances to per-symbol `@public`; refresh ownership rows; update README/ARCHITECTURE/CHANGELOG.
 - **Ownership coverage:** every function is owned (3,353/3,353), but only 1,285 (38.3%) are individually named; 2,068 are module-only and 55 files have no explicit entry. Prioritize the 880 exported/module-only functions and the zero-explicit clusters (`housingPipeline`, `saveLoad`, `virtualPlayer`, `frontierCombat`, `humanRelationships`, `gameLoop`), not a mechanical 2,068-row fill. See `ownership-coverage.md`.
-- Exit: strict knip reports 0 unused exports/files (or a documented allow-list); `npm run audit` green; 720-day outcome unchanged; no behaviour diff.
+- Exit: strict knip reports 0 unused exports/files (or a documented allow-list); `npm run audit` green; calendar-boundary outcome unchanged; no behaviour diff.
 
 **Sequencing:** do this after Phases 1–6 so deleted symbols are not still needed by behaviour changes.
 
@@ -177,17 +180,17 @@ The audit found more than isolated bugs. These are the contracts that produced t
 
 **Issues:** TEST-01..17, TQ-01..14, COV-D-01, CB-06, CB-07, CB-08; the must-add tests in §4.
 
-- Add the **720-day scheduler test** to the standard/required gate; add the **2,500-settler tier** to the scheduled/nightly performance gate with a fixed time budget (not every PR).
+- Add the **fast Year-2 scheduler boundary-jump tests** to the always-required PR/main job (no continuous 720-day run); add the **2,500-settler tier** to the scheduled/nightly performance gate with a fixed time budget (not every PR).
 - Add synthetic migration, audio death, load-confirmation/modal, GFX-11 cache, path-cache override, birth-key and Gazette tests.
 - Replace owner-direct scheduler tests with boundary tests; shrink ~90 source-regex files to architecture guards; strengthen the `workSkill` floor; delete/relocate `tmp-gate`; make `src/test/setup.ts` real.
 - Fix the browser request gate (wait for network idle or classify post-verdict cancellations) and decide the 44/97 aborted requests.
 - Add coverage thresholds and a required invariant job; rename/alias `test:unit` correctly.
-- Exit: a deliberately broken scheduler or cache key fails the gate; the 720-day test is a required CI job (path-filtered to simulation changes is acceptable); the 2,500-tier is a scheduled release gate; no test with zero assertions; source-regex count materially reduced.
+- Exit: a deliberately broken scheduler fails the required CI gate; real Year-2 `gameTick` boundary tests run on **every PR** (no affected-only filter); the 2,500-tier is a scheduled release gate; no test with zero assertions; source-regex count materially reduced.
 
 ### Phase 10 — Release and documentation
 
 - Update README/ARCHITECTURE/OWNERSHIP/decision registry/CHANGELOG/roadmap; mark GAME-09 register resolved; record deferred IDs with reasons.
-- Run the full gate, the 720-day and 2,500-settler harness, the browser probe at 100/125/150%, and a clean build.
+- Run the full gate, the required fast calendar-boundary checks and the separately scheduled 2,500-settler harness, the browser probe at 100/125/150%, and a clean build.
 - Bump V.0.6.5.2; attach the audit status table and before/after performance table.
 - Exit: release checklist complete; no open critical/high; no unstatused audit ID.
 
@@ -195,7 +198,7 @@ The audit found more than isolated bugs. These are the contracts that produced t
 
 ## 4. Must-add tests (gate blockers)
 
-1. **720-day `gameTick` scheduler:** Year-2 term election, idle skill decays, visitor gifts and departs within its window. This is the single test that would have caught SIM-01/02/TEST-16.
+1. **Fast real-`gameTick` calendar-boundary CI:** jump to a tick before Year 2, run real ticks immediately before/at midnight, 06:00 and 18:00; assert one term election, once-daily idle skill decay and visitor gifts/departure using short day jumps. This would have caught SIM-01/02/TEST-16 without executing 720 continuous days. Long-running survival tests remain optional scheduled diagnostics, not required PR checks.
 2. **Synthetic 72→288 save migration:** every field group, plus festival/terrain seed; assert the loaded calendar and cooldowns.
 3. **2,500-settler tier:** food balance, 18:00 stamina distribution, pollution, no starvation spiral; record p50/p95/p99.
 4. **Audio death:** one player death sound, none for visitor/rival; O(n) not O(n²) with a 2,000-entity fixture.
@@ -275,7 +278,7 @@ Phase 10 release
 
 | Risk | Mitigation |
 |---|---|
-| Calendar move changes economy/pacing | 7/30/360-day before/after; 720-day outcome comparison; keep the empty 12:00 phase |
+| Calendar move changes economy/pacing | 7/30/360-day before/after when measuring balance; preserve fast Year-2 boundary outcomes and the empty 12:00 phase |
 | Needs/captive changes alter balance | 7/30/360-day calibration + 2,500 tier; one decision PR per subsystem |
 | Cache rewrite causes stale visuals | screenshot matrix at 100/125/150%; a cache-disposal test; feature flag the old path for one release if needed |
 | Worker journal changes rollback semantics | parity, seed, pool-stress, fallback tests; no pipeline-depth increase without measured proof |
@@ -290,10 +293,10 @@ Phase 10 release
 
 1. Record baseline gates and `SpeedDiag` on the owner's save; create `LIVE-FINDINGS-STATUS.md`.
 2. File the P0/P1 bug reports (SIM-01, SIM-02, TEST-16, CB-01, UX-01, UX-03/04, PERF-01/03, COV-A-01, GFX-11).
-3. Add the 720-day failing test (election + decay + visitor).
+3. Add fast Year-2 boundary-jump `gameTick` regressions (election + decay + visitor).
 4. Add the synthetic 72→288 migration test.
 5. Add the GFX-11 cache-disposal test and a screenshot repro of the road dark flash.
-6. Write the phase-table decision and move year/decay/visitor work to 00:00; make the 720-day test pass.
+6. Write the phase-table decision and move year/decay/visitor work to 00:00; make the fast boundary gate pass.
 7. Fix CB-01 and UX-01 (data safety) in parallel with the calendar work.
 8. Replace the global terrain revision with per-chunk dirty tokens; remove the dark flash.
 9. Remove `state.tick` from the static entity-layer key; measure `frameMax` before/after.
