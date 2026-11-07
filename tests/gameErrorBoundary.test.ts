@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import GameErrorBoundary, { registerCrashRecoverySource } from '../src/components/GameErrorBoundary';
+import GameErrorBoundary, { isCrashRecoveryActive, registerCrashRecoverySource } from '../src/components/GameErrorBoundary';
 import { initGame } from '../src/game/worldGen';
 import { createInitialView } from '../src/game/viewState';
 
@@ -20,6 +20,7 @@ describe('CB-02: root crash recovery', () => {
     const fallback = GameErrorBoundary.getDerivedStateFromError();
     unregister();
     expect(fallback.crashed).toBe(true);
+    expect(isCrashRecoveryActive()).toBe(true);
     expect(fallback.snapshot).toEqual({ world, view });
     expect(getWorld).toHaveBeenCalledOnce();
     expect(getView).toHaveBeenCalledOnce();
