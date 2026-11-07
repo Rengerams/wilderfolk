@@ -9,7 +9,7 @@ import {
   GAME_TITLE, GAME_VERSION, GAME_PHASE, GAME_SUBTITLE,
 
   loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave,
-  saveImportedFileToSlot, loadImportedGameOutcome, hasImportedSave,
+  saveImportedFileToSlot, loadImportedGameOutcome, hasImportedSave, executeConfirmedColonyLoad,
   loadGameFromFileTextOutcome,
   getVisitorLeaderTalkMeta,
   ensureFullTradeRoutes,
@@ -1162,17 +1162,15 @@ export default function App() {
    * A player who previously entered the game may have unsaved progress even on the setup screen.
    */
   const runConfirmedLoad = useCallback((load: () => void) => {
-    if (loadInFlightRef.current) return;
-    loadInFlightRef.current = true;
-    try {
-      const replacing = gameplayActive || mapSetupSource === 'game' || hasEnteredGameplayRef.current;
-      if (replacing && !window.confirm(
+    const replacing = gameplayActive || mapSetupSource === 'game' || hasEnteredGameplayRef.current;
+    executeConfirmedColonyLoad(
+      replacing,
+      loadInFlightRef,
+      () => window.confirm(
         'Load another colony? Your current colony will be replaced and unsaved progress will be lost.',
-      )) return;
-      load();
-    } finally {
-      loadInFlightRef.current = false;
-    }
+      ),
+      load,
+    );
   }, [gameplayActive, mapSetupSource]);
 
   /** The one browser-slot load path, shared by the menu and new-settlement screen. */
