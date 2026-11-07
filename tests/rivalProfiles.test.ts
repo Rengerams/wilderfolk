@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyRivalDailyAction, createRivalProfile, ensureRivalProfile, normalizeRivalProfile, selectRivalDailyAction } from '../src/game/rivalProfiles';
+import { isRivalGrowthDay, RIVAL_GROWTH_INTERVAL_DAYS } from '../src/game/frontierCombat';
 import type { RivalSettlement } from '../src/game/gameTypes';
 
 const rival = (profile?: RivalSettlement['profile']): RivalSettlement => ({
@@ -9,6 +10,12 @@ const rival = (profile?: RivalSettlement['profile']): RivalSettlement => ({
 });
 
 describe('rival profiles and ledgers', () => {
+  it('keys the growth cadence on stable rival identity, not list position', () => {
+    expect(isRivalGrowthDay('rival-b', 12)).toBe(isRivalGrowthDay('rival-b', 12));
+    expect(isRivalGrowthDay('rival-b', 12 + RIVAL_GROWTH_INTERVAL_DAYS))
+      .toBe(isRivalGrowthDay('rival-b', 12));
+  });
+
   it('creates deterministic bounded defaults', () => {
     const profile = createRivalProfile(7, 'neutral');
     expect(profile.ledger.food).toBeGreaterThanOrEqual(30);

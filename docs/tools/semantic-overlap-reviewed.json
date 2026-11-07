@@ -1,7 +1,7 @@
 {
   "approvals": [
     {
-      "key": "src/game/simWorker/gameWorker.ts:219:installWorkerMessageHandlers@af8c448551004e94244f555d0bd25702f8470fce22cffe768a4186311ffcd04b <-> src/game/simWorker/gameWorker.ts:232:onmessage@820f3d70166fc0babbecefabfd65248c55841d0d360f1f290b91fd92ada88e20",
+      "key": "src/game/simWorker/gameWorker.ts:229:installWorkerMessageHandlers@9be7a737b871aa2c148419ef3d10f974cc95d2005799a5936874437705f5167a <-> src/game/simWorker/gameWorker.ts:242:onmessage@efcf7d22babf269f3b76ecc2c214b46695a1442c7362fd3a4140c192992eec64",
       "reason": "The installer binds error hooks and the one worker message receiver on the active self shim, including a fresh test realm; it does not execute requests. The receiver alone validates protocol and requested features, awaits the shared census gate, then synchronously dispatches the request and classifies failures by source. Folding them into one entry would remove the explicit reinstallation seam needed by existing worker tests or duplicate registration. They have distinct call/timing responsibilities and a single implementation of each in the same owner module.",
       "tests": [
         "tests/gameWorker.profilerStop.test.ts",
@@ -53,7 +53,7 @@
       ]
     },
     {
-      "key": "src/game/pathfinding.ts:221:getPathGrid@524477825f71d9bc4fdbf4bbe1857bde6e592a46a0c51616aea1b12247673d0e <-> src/game/pathfinding.ts:250:getReadOnlyPathGrid@189564c4232455c5e35d2e530d606b949ea911044fda3af0b52cd64bc8b26de8",
+      "key": "src/game/pathfinding.ts:209:getPathGrid@524477825f71d9bc4fdbf4bbe1857bde6e592a46a0c51616aea1b12247673d0e <-> src/game/pathfinding.ts:229:getReadOnlyPathGrid@189564c4232455c5e35d2e530d606b949ea911044fda3af0b52cd64bc8b26de8",
       "reason": "Both accessors derive the same passability rules using buildPathGrid, but their cache owners and side effects are intentionally different. getPathGrid feeds the active simulation and records rebuilds; its identity changes cause setCurrentPathMap to invalidate movement waypoint caches. getReadOnlyPathGrid serves the UI/logistics projection with an independent cache and no simulation metrics or waypoint invalidation. Combining their cache state would let render snapshots invalidate live movement routes. The logistics-overlay regression proves separate grid/buffer identities and unchanged simulation cache identity after a projection read; the terrain pathfinding test separately exercises the simulation cache.",
       "tests": [
         "tests/logisticsOverlay.projection.test.ts",
@@ -61,14 +61,14 @@
       ]
     },
     {
-      "key": "src/game/economyLedger.ts:119:getRecentFoodFlow@c7ea8a34ea77f75f684450dce065ef4569513ec572f01af678fc74974f7c0f0d <-> src/game/economyLedger.ts:166:getProjectedFoodSupply@1c8ce75d48c86f12616a5b8a55e315f36c92fd86e0c6a73733ee839cf08d50de",
+      "key": "src/game/economyLedger.ts:105:getRecentFoodFlow@c7ea8a34ea77f75f684450dce065ef4569513ec572f01af678fc74974f7c0f0d <-> src/game/economyLedger.ts:149:getProjectedFoodSupply@1c8ce75d48c86f12616a5b8a55e315f36c92fd86e0c6a73733ee839cf08d50de",
       "reason": "getRecentFoodFlow is the canonical bounded contiguous-history reader and sums actual daily food-production and consumption totals. getProjectedFoodSupply calls that reader rather than copying it, then estimates forward demand from differences between the earlier and later halves of the historical consumption window. They do not make the same decision: one reports measured retrospective flows, the other projects future risk. A single function would combine unrelated observed and forecast semantics. The food-ledger regression tests both independently.",
       "tests": [
         "tests/economyLedger.foodFlow.test.ts"
       ]
     },
     {
-      "key": "src/game/economyLedger.ts:166:getProjectedFoodSupply@1c8ce75d48c86f12616a5b8a55e315f36c92fd86e0c6a73733ee839cf08d50de <-> src/game/tradeCaravans.ts:367:getCaravanMoveTarget@755deed4d0ff0d3005c1a32fad2a490adf693b9193c7fe913c100e72322a5c2c",
+      "key": "src/game/economyLedger.ts:149:getProjectedFoodSupply@1c8ce75d48c86f12616a5b8a55e315f36c92fd86e0c6a73733ee839cf08d50de <-> src/game/tradeCaravans.ts:351:getCaravanMoveTarget@755deed4d0ff0d3005c1a32fad2a490adf693b9193c7fe913c100e72322a5c2c",
       "reason": "These functions concern unrelated domains with different inputs and outputs. getProjectedFoodSupply reads completed food-ledger history and reports a predicted daily need, while getCaravanMoveTarget computes a caravan's physical movement destination based on its trade-route journey. Their token similarity is accidental shared array/math operations; they have different simulation owners, timing and data dependencies. Existing regressions cover food-flow projections and caravan route progression separately.",
       "tests": [
         "tests/economyLedger.foodFlow.test.ts",

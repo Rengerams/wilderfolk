@@ -102,6 +102,11 @@ export function seededRandomForRun(salt: string): number {
   return seededRandom(currentSeed, salt);
 }
 
+/** A fresh stream derived from the active colony seed and a salt, for replay-stable sub-decisions. */
+export function seededStreamForRun(salt: string): RngStream {
+  return createSeededRng(currentSeed, salt);
+}
+
 /**
  * Sets the base simulation seed and drops all cached per-owner streams (simulation and presentation).
  */

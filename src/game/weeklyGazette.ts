@@ -85,8 +85,8 @@ export function buildWeeklyGazette(
 
   return {
     week,
-    startDay: week * DAYS_PER_ISSUE + 1,
-    endDay: (week + 1) * DAYS_PER_ISSUE,
+    startDay: week * DAYS_PER_ISSUE,
+    endDay: (week + 1) * DAYS_PER_ISSUE - 1,
     eventCount: selected.length,
     mayBeIncomplete: events.length >= EVENT_LOG_MAX_ENTRIES
       && events.length > 0

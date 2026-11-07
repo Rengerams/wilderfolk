@@ -90,7 +90,7 @@ export const SIMULATION_DECISIONS = {
   workerMotionPresentation: {
     owner: 'gameLoop.ts — isLightweightWorkerCommand, canPreviewWorkerCommand, registerWorkerHandlers, frameBody, stepFallbackTick, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
     cadence: 'render',
-    cadenceNote: 'Worker message admission awaits the shared census-name gate. Failed fallback ticks retain accumulator time; buffer pooling and delta packing remain transport-only, and display caches are hydrated once. On acknowledged ticks, blend only confirmed positions. Top-level schedule/policy commands use shallow previews and skip unnecessary catalog rebuilding unless a tick completed while commands were pending; the next acknowledgement reconciles entities and stale selections. Read-only schedule impact indexes roster IDs once per render. On save, halt new ticks while earlier commands settle. No gameplay writes.',
+    cadenceNote: 'Worker message admission awaits the shared census-name gate. Failed fallback ticks retain accumulator time; each command carries a host monotonic id and the worker echoes the last applied id so recovery replays only unproven work. Buffer pooling and delta packing remain transport-only, and display caches are hydrated once. On acknowledged ticks, blend only confirmed positions. Top-level schedule/policy commands use shallow previews and skip unnecessary catalog rebuilding unless a tick completed while commands were pending; the next acknowledgement reconciles entities and stale selections. Read-only schedule impact indexes roster IDs once per render. On save, halt new ticks while earlier commands settle. No gameplay writes.',
     writes: [],
     scheduledFrom: 'GameWorkerHost tick acknowledgement and requestAnimationFrame → GameLoop.frameBody; useGamePersistence.persistGame → GameLoop.exportAuthoritativeWorld (on-demand)',
     testFile: 'tests/gameLoop.test.ts, tests/gameLoop.fallbackTickRollback.test.ts, tests/renderer.motionAndHover.test.ts',
@@ -381,7 +381,7 @@ export const SIMULATION_DECISIONS = {
       'new child human.genomeV2 (one allele per biological parent per dimension; parents are read-only)',
       'eventLog/bigNews/floatingTexts',
     ],
-    scheduledFrom: 'humanTick.ts pregnancy gate → humanLifecycle.tickPregnancyAndBirth → settlerTraits.inheritGenome',
+    scheduledFrom: 'humanTick.ts pregnancy gate → humanLifecycle.tickPregnancyAndBirth → settlerTraits.inheritGenome (birth-key seeded stream)',
     testFile: 'tests/humanLifecycle.test.ts, tests/conceptionEvent.labelling.test.ts, tests/personality.romanceContext.test.ts, tests/settlerTraits.test.ts',
   },
   moonHowler: {
@@ -420,7 +420,7 @@ export const SIMULATION_DECISIONS = {
   raidCombat: {
     owner: 'frontierCombat.ts — queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory',
     cadence: 'realtime',
-    cadenceNote: 'Incoming and outgoing battles progress on game ticks across six game hours. Raid dispatch, responses and settlement-fate choices also enter through player commands; treaties may be broken at a reputation cost, extermination kills every remaining inhabitant, and events are written through the ordinary Chronicle owner. Awarded spoils—gold included—enter through addCappedResource, so the configured storage cap and the common resource accounting apply.',
+    cadenceNote: 'Incoming and outgoing battles progress on game ticks across six game hours. Raid dispatch, responses and settlement-fate choices also enter through player commands; treaties may be broken at a reputation cost, extermination kills every remaining inhabitant, and events are written through the ordinary Chronicle owner. Awarded spoils—gold included—enter through addCappedResource, so the configured storage cap and the common resource accounting apply. Rival camp growth is staggered by the stable rival id, never by list position.',
     writes: ['pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports', 'scoredRaidIds', 'human.raidDeploymentId', 'human.battleLeadershipMerit', 'rivalSettlements', 'resources (through economy owner)', 'eventLog (through logEvent)'],
     scheduledFrom: 'gameTick.ts → tickPendingRaidEvents/tickPendingOutgoingRaidEvents; simWorker/commands.ts → raid and victory commands',
     testFile: 'tests/warfare.lifecycle.test.ts, tests/raidChronicle.lifecycle.test.ts, tests/raidDeadline.owner.test.ts',

@@ -52,6 +52,8 @@ import {
 /* -------------------------------------------------------------------------- */
 let world: WorldState | null = null;
 let bufferPool: RenderBufferPool | null = null;
+/** Highest host command id applied in this worker session; a fault reports it so replays skip it. */
+let lastAppliedCommandId = 0;
 let headlessMode = false;
 let lastFocus: import('../simFocus').SimulationFocus | undefined;
 /** Relationship revisions the display world already received; reset with the session. */
@@ -82,7 +84,13 @@ function postError(
   message: string,
   source: 'tick' | 'command' | 'export' | 'general' = 'general',
 ): void {
-  const response: WorkerResponse = { type: 'error', proto: WORKER_PROTO, message, source };
+  const response: WorkerResponse = {
+    type: 'error',
+    proto: WORKER_PROTO,
+    message,
+    source,
+    lastAppliedCommandId,
+  };
   self.postMessage(response);
 }
 
@@ -160,6 +168,7 @@ function packAndPostTickResult(
       schemaVersion: pack.schemaVersion,
       delta,
       scentBuffer,
+      lastAppliedCommandId,
     };
     self.postMessage(response, transferables);
     prevBuildingsSnapshot = nextBuildings;
@@ -183,6 +192,7 @@ function resetWorkerSession(nextWorld: WorldState): void {
   adoptSimSeedFromWorld(nextWorld);
   restoreSimRng(nextWorld.simRng);
   world = nextWorld;
+  lastAppliedCommandId = 0;
   lastFocus = undefined;
   prevBuildingsSnapshot = null;
   prevBuildingGeometry = null;
@@ -317,6 +327,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         let delta;
         try {
           world = applyWorkerCommand(world, msg.cmd, 'owned');
+          if (typeof msg.commandId === 'number') lastAppliedCommandId = msg.commandId;
           prevBuildingsSnapshot = null;
           prevBuildingGeometry = null;
           prevHistoryRevisions = null;
@@ -377,6 +388,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           proto: WORKER_PROTO,
           ok: true,
           delta,
+          commandId: msg.commandId,
           renderBuffer,
           bufferIndex,
           bufferLease,
@@ -452,6 +464,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
               delta,
               performanceSnapshot: withPathfinderReport(maybeWorkerPerformanceSnapshot()),
               headless: true,
+              lastAppliedCommandId,
             };
             self.postMessage(response);
             break;

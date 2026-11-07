@@ -112,6 +112,7 @@ type SimPrepKeys =
   | 'lastMoonHowlerExorcismTick'
   | 'moonHowlerPriestsFleeUntil'
   | 'chronicleChapters'
+  | 'electionPromiseRecords'
   | 'renffrChatterUntilTick'
   | 'lastProcessedCalendarDay'
   | 'lastWildlifeReplenishLogDay'
@@ -280,6 +281,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     lastMoonHowlerExorcismTick: state.lastMoonHowlerExorcismTick,
     moonHowlerPriestsFleeUntil: state.moonHowlerPriestsFleeUntil,
     chronicleChapters: [...(state.chronicleChapters ?? [])],
+    electionPromiseRecords: structuredClone(state.electionPromiseRecords ?? []),
     renffrChatterUntilTick: state.renffrChatterUntilTick ?? 0,
     lastProcessedCalendarDay: state.lastProcessedCalendarDay ?? 0,
     lastWildlifeReplenishLogDay: state.lastWildlifeReplenishLogDay ?? 0,
@@ -406,6 +408,7 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.lastMoonHowlerExorcismTick = prep.lastMoonHowlerExorcismTick;
   world.moonHowlerPriestsFleeUntil = prep.moonHowlerPriestsFleeUntil;
   world.chronicleChapters = prep.chronicleChapters;
+  world.electionPromiseRecords = prep.electionPromiseRecords;
   world.renffrChatterUntilTick = prep.renffrChatterUntilTick;
   world.lastProcessedCalendarDay = prep.lastProcessedCalendarDay;
   world.lastWildlifeReplenishLogDay = prep.lastWildlifeReplenishLogDay;

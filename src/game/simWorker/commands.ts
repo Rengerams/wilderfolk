@@ -41,6 +41,9 @@ import {
 
 export const WORKER_CMD_PROTO = 1;
 
+/** A dispatched command with the host's monotonic id, so a fault can replay only unapplied work. */
+export type StampedWorkerCommand = WorkerCommand & { commandId?: number };
+
 /** Versioned main → worker command channel (Rule 6). */
 export type WorkerCommand =
   | { proto: 1; op: 'startBuilding'; type: BuildingType; x: number; y: number; rotation?: BuildingRotation }

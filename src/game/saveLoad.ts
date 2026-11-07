@@ -639,6 +639,61 @@ export function migrateLegacySecurityRoles(world: WorldState): void {
  * Scale absolute tick values when the save's day length differs from `TICKS_PER_DAY`
  * (legacy 24- and 72-tick days); current-resolution saves need no scaling.
  */
+const WORLD_TICK_FIELDS = [
+  'townHallFestivalCooldownUntilTick',
+  'renffrChatterUntilTick',
+  'lastMoonHowlerExorcismTick',
+  'moonHowlerPriestsFleeUntil',
+] as const satisfies readonly (keyof WorldState)[];
+
+const ENTITY_TICK_FIELDS = [
+  'prisonerUntilTick',
+  'scandalCooldownUntilTick',
+  'griefUntilTick',
+  'hotelStayUntilTick',
+  'reproductionCooldown',
+  'pregnancyProgress',
+  'pregnancyDueProgress',
+  'lastAutoJobTransferTick',
+] as const satisfies readonly (keyof Entity)[];
+
+const NEEDS_TICK_FIELDS = [
+  'lastMealTick',
+  'lastAdvancedTick',
+  'sleepRecoveryUntilTick',
+] as const satisfies readonly (keyof NonNullable<Entity['needs']>)[];
+
+const MOON_HOWLER_TICK_FIELDS = [
+  'pregnancyProgress',
+  'pregnancyDueProgress',
+  'lastAutoJobTransferTick',
+  'prisonerUntilTick',
+] as const satisfies readonly (keyof NonNullable<Entity['moonHowlerSaved']>)[];
+
+const SPOTLIGHT_TICK_FIELDS = [
+  'startedAtTick',
+  'readyAtTick',
+] as const satisfies readonly (keyof NonNullable<WorldState['spotlightLore']>)[];
+
+/** Scale one typed numeric field in place; non-finite or absent values are left untouched. */
+function scaleTickField<T extends object, K extends keyof T>(obj: T, key: K, scale: number): void {
+  const next = scaleTickValue(obj[key], scale);
+  if (next !== undefined) obj[key] = next as T[K];
+}
+
+/** Scale every value of a tick-keyed map (partner ids, line hashes, award keys). */
+function scaleTickRecord(record: Record<string | number, number> | undefined, scale: number): void {
+  if (!record) return;
+  for (const key of Object.keys(record)) {
+    const next = scaleTickValue(record[key], scale);
+    if (next !== undefined) record[key] = next;
+  }
+}
+
+/**
+ * Scale absolute tick values when the save's day length differs from `TICKS_PER_DAY`
+ * (legacy 24- and 72-tick days); current-resolution saves need no scaling.
+ */
 function migrateTickTimeline(
   world: WorldState,
   savedTicksPerDay: number,
@@ -649,85 +704,74 @@ function migrateTickTimeline(
 
   world.tick = Math.round((world.tick ?? 0) * scale);
 
-  const scaleField = (obj: Record<string, unknown>, key: string) => {
-    const next = scaleTickValue(obj[key], scale);
-    if (next !== undefined) obj[key] = next;
-  };
+  for (const key of WORLD_TICK_FIELDS) scaleTickField(world, key, scale);
 
-  scaleField(world as unknown as Record<string, unknown>, 'townHallFestivalCooldownUntilTick');
-  scaleField(world as unknown as Record<string, unknown>, 'renffrChatterUntilTick');
-
-  for (const e of world.entities ?? []) {
-    const rec = e as unknown as Record<string, unknown>;
-    scaleField(rec, 'prisonerUntilTick');
-    if (e.warCaptive) {
-      scaleField(e.warCaptive as unknown as Record<string, unknown>, 'capturedAtTick');
-      scaleField(e.warCaptive as unknown as Record<string, unknown>, 'recruitAfterTick');
+  for (const entity of world.entities ?? []) {
+    for (const key of ENTITY_TICK_FIELDS) scaleTickField(entity, key, scale);
+    if (entity.needs) {
+      for (const key of NEEDS_TICK_FIELDS) scaleTickField(entity.needs, key, scale);
     }
-    if (e.battleLeadershipAwards) {
-      for (const key of Object.keys(e.battleLeadershipAwards)) scaleField(e.battleLeadershipAwards, key);
+    if (entity.warCaptive) {
+      scaleTickField(entity.warCaptive, 'capturedAtTick', scale);
+      scaleTickField(entity.warCaptive, 'recruitAfterTick', scale);
     }
-    scaleField(rec, 'scandalCooldownUntilTick');
-    scaleField(rec, 'griefUntilTick');
-    scaleField(rec, 'hotelStayUntilTick');
-    scaleField(rec, 'reproductionCooldown');
-    scaleField(rec, 'pregnancyProgress');
-    scaleField(rec, 'pregnancyDueProgress');
-
-    const saved = rec.moonHowlerSaved;
-    if (saved && typeof saved === 'object') {
-      scaleField(saved as Record<string, unknown>, 'pregnancyProgress');
-      scaleField(saved as Record<string, unknown>, 'pregnancyDueProgress');
+    scaleTickRecord(entity.battleLeadershipAwards, scale);
+    scaleTickRecord(entity.pastPartnerTicks, scale);
+    scaleTickRecord(entity.dialogueRecentLines, scale);
+    if (entity.dialogueRecentScenes) {
+      for (const scene of Object.values(entity.dialogueRecentScenes)) scaleTickField(scene, 'tick', scale);
+    }
+    if (entity.moonHowlerSaved) {
+      for (const key of MOON_HOWLER_TICK_FIELDS) scaleTickField(entity.moonHowlerSaved, key, scale);
+      if (entity.moonHowlerSaved.needs) {
+        for (const key of NEEDS_TICK_FIELDS) scaleTickField(entity.moonHowlerSaved.needs, key, scale);
+      }
     }
   }
 
   for (const route of world.tradeRoutes ?? []) {
-    const rec = route as unknown as Record<string, unknown>;
-    scaleField(rec, 'nextDepartureTick');
-    scaleField(rec, 'caravanWaitTicks');
+    scaleTickField(route, 'nextDepartureTick', scale);
+    scaleTickField(route, 'caravanWaitTicks', scale);
   }
 
   if (world.electionCeremony) {
-    const rec = world.electionCeremony as unknown as Record<string, unknown>;
-    scaleField(rec, 'phaseTicksLeft');
-    scaleField(rec, 'startedAtTick');
-    scaleField(rec, 'endsAtTick');
+    scaleTickField(world.electionCeremony, 'phaseTicksLeft', scale);
   }
 
   for (const evt of world.pendingRaidEvents ?? []) {
-    const rec = evt as unknown as Record<string, unknown>;
-    scaleField(rec, 'createdAtTick');
-    scaleField(rec, 'expiresAtTick');
-    scaleField(rec, 'battleStartedAtTick');
+    scaleTickField(evt, 'createdAtTick', scale);
+    scaleTickField(evt, 'expiresAtTick', scale);
+    scaleTickField(evt, 'battleStartedAtTick', scale);
   }
   for (const evt of world.pendingOutgoingRaidEvents ?? []) {
-    const rec = evt as unknown as Record<string, unknown>;
-    for (const field of ['createdAtTick', 'expiresAtTick', 'battleStartedAtTick', 'launchedAtTick',
-      'arrivalAtTick', 'returnAtTick', 'returnStartedAtTick']) scaleField(rec, field);
+    scaleTickField(evt, 'createdAtTick', scale);
+    scaleTickField(evt, 'expiresAtTick', scale);
+    scaleTickField(evt, 'battleStartedAtTick', scale);
+    scaleTickField(evt, 'launchedAtTick', scale);
+    scaleTickField(evt, 'arrivalAtTick', scale);
+    scaleTickField(evt, 'returnAtTick', scale);
+    scaleTickField(evt, 'returnStartedAtTick', scale);
   }
   if (world.raidRecovery) {
-    scaleField(world.raidRecovery as unknown as Record<string, unknown>, 'startedAtTick');
-    scaleField(world.raidRecovery as unknown as Record<string, unknown>, 'protectedUntilTick');
+    scaleTickField(world.raidRecovery, 'startedAtTick', scale);
+    scaleTickField(world.raidRecovery, 'protectedUntilTick', scale);
   }
-  for (const report of world.raidBattleReports ?? []) scaleField(report as unknown as Record<string, unknown>, 'resolvedAtTick');
-  for (const record of world.raidPrisonerHistory ?? []) scaleField(record as unknown as Record<string, unknown>, 'tick');
-  for (const rival of world.rivalSettlements ?? []) scaleField(rival as unknown as Record<string, unknown>, 'lastDispositionRewardTick');
+  for (const report of world.raidBattleReports ?? []) scaleTickField(report, 'resolvedAtTick', scale);
+  for (const record of world.raidPrisonerHistory ?? []) scaleTickField(record, 'tick', scale);
+  for (const rival of world.rivalSettlements ?? []) scaleTickField(rival, 'lastDispositionRewardTick', scale);
   for (const evt of world.pendingDiplomacyEvents ?? []) {
-    const rec = evt as unknown as Record<string, unknown>;
-    scaleField(rec, 'createdAtTick');
-    scaleField(rec, 'expiresAtTick');
-    scaleField(rec, 'startedAtTick');
-  }
-  if (world.festival) {
-    const rec = world.festival as unknown as Record<string, unknown>;
-    scaleField(rec, 'startedAtTick');
-    scaleField(rec, 'endsAtTick');
+    scaleTickField(evt, 'createdAtTick', scale);
+    scaleTickField(evt, 'expiresAtTick', scale);
   }
   for (const evt of world.pendingStoryEvents ?? []) {
-    const rec = evt as unknown as Record<string, unknown>;
-    scaleField(rec, 'createdAtTick');
-    scaleField(rec, 'expiresAtTick');
+    scaleTickField(evt, 'createdAtTick', scale);
+    scaleTickField(evt, 'expiresAtTick', scale);
   }
+  if (world.spotlightLore) {
+    for (const key of SPOTLIGHT_TICK_FIELDS) scaleTickField(world.spotlightLore, key, scale);
+  }
+  for (const grave of world.graveRecords ?? []) scaleTickField(grave, 'tick', scale);
+  for (const evt of world.eventLog ?? []) scaleTickField(evt, 'tick', scale);
 }
 
 /**

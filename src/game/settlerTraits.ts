@@ -199,7 +199,7 @@ export function normalizeGenome(value: unknown): GenomeV2 | undefined {
     }
     pairs.push([entry[0], entry[1]]);
   }
-  return buildGenome(ensureSpread(pairs));
+  return buildGenome(pairs);
 }
 
 function mutated(allele: AptitudeAllele, rng: RngStream): AptitudeAllele {

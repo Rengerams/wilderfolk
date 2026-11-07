@@ -20,7 +20,7 @@ import type { RenderSoAReaderV1 } from './simBuffers/renderSoAReader';
 import { clearAllFactionWanderStates } from './factionWander';
 import { GameWorkerHost, isGameWorkerEnabled, type WorkerUiPatch } from './simWorker/GameWorkerHost';
 import { applySimPrep, extractSimPrep } from './simWorker/simPrep';
-import type { WorkerCommand } from './simWorker/commands';
+import type { StampedWorkerCommand, WorkerCommand } from './simWorker/commands';
 import { applyWorkerCommand } from './simWorker/commands';
 import { carryPresentationControls, createOptimisticDisplayWorld, hydrateWorldRuntimeCaches } from './worldRuntimeCaches';
 import type { ScentGridReader } from './scentGrid';
@@ -179,8 +179,10 @@ export class GameLoop {
   private lastPausedSentToWorker: boolean | null = null;
   private commandChain: Promise<void> = Promise.resolve();
   private workerCommandEpoch = 0;
-  private optimisticCommands: WorkerCommand[] = [];
-  private deferredWorkerCommands: Array<{ cmd: WorkerCommand; sessionGen: number }> = [];
+  private nextCommandId = 0;
+  private optimisticCommands: StampedWorkerCommand[] = [];
+  private optimisticCommandIds: number[] = [];
+  private deferredWorkerCommands: Array<{ cmd: StampedWorkerCommand; sessionGen: number }> = [];
   private canvasCtx: CanvasRenderingContext2D | null = null;
   private canvasCtxFor: HTMLCanvasElement | null = null;
   private layoutSize = { w: 0, h: 0 };
@@ -408,9 +410,13 @@ export class GameLoop {
       this.workerTickChanged = changed;
     });
 
-    host.setWorkerFaultHandler((source, message) => {
+    host.setWorkerFaultHandler((source, message, lastAppliedCommandId) => {
       if (this.workerHost !== host) return;
-      this.fallbackFromWorker(`Worker ${source} error: ${message}`, source === 'command');
+      this.fallbackFromWorker(
+        `Worker ${source} error: ${message}`,
+        source === 'command',
+        lastAppliedCommandId,
+      );
     });
 
     host.setCommandResultHandler((world, _delta, render, ok, reason) => {
@@ -418,6 +424,7 @@ export class GameLoop {
       this.lastWorkerActivity = performance.now();
 
       const completedCommand = this.optimisticCommands.shift();
+      this.optimisticCommandIds.shift();
       const hadOptimistic = completedCommand != null;
 
       this.world = world;
@@ -451,19 +458,28 @@ export class GameLoop {
     });
   }
 
-  private fallbackFromWorker(reason: string, discardUnconfirmedCommand = false): void {
+  private fallbackFromWorker(
+    reason: string,
+    discardUnconfirmedCommand = false,
+    lastAppliedCommandId = -1,
+  ): void {
     if (!this.workerEnabled && !this.workerBooting) return;
     this.lastWorkerPresentation = null;
     console.warn(`[GameLoop] ${reason} — ${isGameWorkerEnabled() ? 'recovering simulation worker' : 'falling back to main-thread ticks'}`);
 
     const retryCommands = isGameWorkerEnabled()
-      ? this.optimisticCommands.slice(discardUnconfirmedCommand ? 1 : 0) : [];
+      ? this.optimisticCommands.filter((_cmd, index) => (
+        !(discardUnconfirmedCommand && index === 0)
+        && (this.optimisticCommandIds[index] ?? -1) > lastAppliedCommandId
+      ))
+      : [];
     if (discardUnconfirmedCommand && this.optimisticCommands.length > 0) {
       console.error('[GameLoop] Unconfirmed command not replayed after worker fault:', this.optimisticCommands[0].op);
     }
     this.workerCommandEpoch++;
     this.commandChain = Promise.resolve();
     this.optimisticCommands = [];
+    this.optimisticCommandIds = [];
     this.deferredWorkerCommands.unshift(...retryCommands.map((cmd) => ({ cmd, sessionGen: this.sessionGen })));
     this.syncAfterWorkerMutation();
     this.catalog.rebuild(this.world.entities);
@@ -572,6 +588,7 @@ export class GameLoop {
     this.sessionGen++;
     this.commandChain = Promise.resolve();
     this.optimisticCommands = [];
+    this.optimisticCommandIds = [];
     this.deferredWorkerCommands = [];
     if (this.workerEnabled && this.workerHost?.isReady()) {
       this.workerBooting = true;
@@ -676,13 +693,18 @@ export class GameLoop {
   }
 
   applyCommand(cmd: WorkerCommand): void {
+    if (typeof (cmd as StampedWorkerCommand).commandId !== 'number') {
+      (cmd as StampedWorkerCommand).commandId = ++this.nextCommandId;
+    }
+    const stamped = cmd as StampedWorkerCommand;
     if ((this.workerBooting && this.workerHost) || this.workerRecoveryTimer !== null || this.workerRecoveryInFlight) {
-      this.deferredWorkerCommands.push({ cmd, sessionGen: this.sessionGen });
+      this.deferredWorkerCommands.push({ cmd: stamped, sessionGen: this.sessionGen });
       return;
     }
 
     if (this.workerEnabled && this.workerHost?.isReady()) {
-      this.optimisticCommands.push(cmd);
+      this.optimisticCommands.push(stamped);
+      this.optimisticCommandIds.push(stamped.commandId!);
       this.rebuildOptimisticDisplay();
       if (this.world.entities !== this.workerHost.getAuthoritativeWorld()?.entities) {
         this.catalog.rebuild(this.world.entities);
@@ -699,14 +721,15 @@ export class GameLoop {
           if (cmdGen !== this.sessionGen || commandEpoch !== this.workerCommandEpoch || !this.running || !host?.isReady()) return;
           return host.whenIdle().then(() => {
             if (cmdGen !== this.sessionGen || commandEpoch !== this.workerCommandEpoch || !this.running || this.workerHost !== host || !host.isReady()) return;
-            return host.sendCommand(cmd).then(() => undefined);
+            return host.sendCommand(stamped).then(() => undefined);
           });
         })
         .catch((err) => {
           if (cmdGen !== this.sessionGen || commandEpoch !== this.workerCommandEpoch || !this.running) return;
-          const index = this.optimisticCommands.indexOf(cmd);
+          const index = this.optimisticCommands.indexOf(stamped);
           if (index >= 0) {
             this.optimisticCommands.splice(index, 1);
+            this.optimisticCommandIds.splice(index, 1);
             if (this.optimisticCommands.length > 0) this.rebuildOptimisticDisplay();
             else this.syncAfterWorkerMutation();
             this.catalog.rebuild(this.world.entities);
@@ -719,7 +742,7 @@ export class GameLoop {
       return;
     }
 
-    this.applyCommandLocal(cmd);
+    this.applyCommandLocal(stamped);
   }
 
   private syncAfterWorkerMutation(): void {
@@ -892,6 +915,7 @@ export class GameLoop {
     this.workerRecoveryInFlight = false;
     this.commandChain = Promise.resolve();
     this.optimisticCommands = [];
+    this.optimisticCommandIds = [];
     this.deferredWorkerCommands = [];
 
     if (this.rafId) {

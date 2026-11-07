@@ -170,6 +170,7 @@ export interface SimTickDelta {
   lastMoonHowlerExorcismTick: WorldState['lastMoonHowlerExorcismTick'];
   moonHowlerPriestsFleeUntil: WorldState['moonHowlerPriestsFleeUntil'];
   chronicleChapters?: WorldState['chronicleChapters'];
+  electionPromiseRecords?: WorldState['electionPromiseRecords'];
   renffrChatterUntilTick: number;
   lastProcessedCalendarDay: number;
   lastWildlifeReplenishLogDay: number;
@@ -384,6 +385,7 @@ export function extractSimTickDelta(
     lastMoonHowlerExorcismTick: world.lastMoonHowlerExorcismTick,
     moonHowlerPriestsFleeUntil: world.moonHowlerPriestsFleeUntil,
     chronicleChapters: deltaClone(world.chronicleChapters ?? [], cloneMode),
+    electionPromiseRecords: deltaClone(world.electionPromiseRecords ?? [], cloneMode),
     renffrChatterUntilTick: world.renffrChatterUntilTick ?? 0,
     lastProcessedCalendarDay: world.lastProcessedCalendarDay ?? 0,
     lastWildlifeReplenishLogDay: world.lastWildlifeReplenishLogDay ?? 0,
@@ -699,6 +701,9 @@ export function applySimTickDelta(
   world.moonHowlerPriestsFleeUntil = delta.moonHowlerPriestsFleeUntil;
   if ('chronicleChapters' in delta) {
     world.chronicleChapters = deltaClone(delta.chronicleChapters ?? [], cloneMode);
+  }
+  if ('electionPromiseRecords' in delta) {
+    world.electionPromiseRecords = deltaClone(delta.electionPromiseRecords ?? [], cloneMode);
   }
   world.renffrChatterUntilTick = delta.renffrChatterUntilTick;
   world.lastProcessedCalendarDay = delta.lastProcessedCalendarDay;

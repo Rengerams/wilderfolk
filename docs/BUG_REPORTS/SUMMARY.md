@@ -2238,3 +2238,14 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 ## 2026-11-03 — War-band
 
 - **Deployed soldiers were drawn standing in the village — resolved:** the tick froze them but the village layer kept drawing their last position and the inspector said "Walking home to sleep"; both render paths now skip deployed settlers and the projection reports "Away with the war-band". [Report](../bug_report/2026-11-03-deployed-soldiers-drawn-in-village.md).
+
+## 2026-11-07 — Audit A3 data integrity
+
+- **A 72-tick save left persisted cooldown, remarriage, spotlight, grave and event ticks unscaled — resolved:** one typed tick-field table now scales every persisted group, and the event log shares the festival repair's time base. [Report](../bug_report/2026-11-07-save-tick-migration-leaves-fields-unscaled.md).
+- **A worker fault replayed commands the worker had already applied — resolved:** commands carry a monotonic id and the worker echoes the last applied id, so recovery replays only unproven work. [Report](../bug_report/2026-11-07-worker-fault-replays-applied-commands.md).
+- **Election promise records were missing from the tick delta and rollback — resolved:** the records now round-trip and roll back like the other election state. [Report](../bug_report/2026-11-07-election-promise-records-missing-from-tick-delta.md).
+- **The first gazette issue labelled week 0 as days 1–7 — resolved:** the header now reports the zero-based range 0–6. [Report](../bug_report/2026-11-07-gazette-week-label-off-by-one.md).
+- **A birth genome did not derive from its birth key — resolved:** the delivery seeds genome inheritance from the same key as its other rolls. [Report](../bug_report/2026-11-07-birth-genome-not-keyed-on-birth-key.md).
+- **Rival growth cadence followed array position — resolved:** the cadence now hashes the stable rival id. [Report](../bug_report/2026-11-07-rival-growth-cadence-tied-to-array-index.md).
+- **A valid flat genome was rewritten on load — resolved:** validation keeps a legal genome as written; creation still enforces spread. [Report](../bug_report/2026-11-07-dna-flat-genome-rewritten-on-load.md).
+- **Two renderer hex parsers disagreed on short colours — resolved:** the shade path now uses the documented parser and its fallback. [Report](../bug_report/2026-11-07-renderer-two-hex-parsers-disagree.md).

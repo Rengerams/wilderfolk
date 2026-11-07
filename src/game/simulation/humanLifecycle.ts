@@ -23,7 +23,7 @@ import { dampScandalReputationLoss } from '../townHall';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 import { adjustHumanStaminaFromEnergy } from './humanPhysiology';
 import { isPlayerHuman } from '../playerHuman';
-import { seededRandomForRun } from '../simRng';
+import { seededRandomForRun, seededStreamForRun } from '../simRng';
 import { addReputation } from '../simHelpers';
 import { isResidenceBuilding, isLeaderHouseResidence, residenceRoomFor } from '../housingModel';
 
@@ -174,7 +174,11 @@ export function tickPregnancyAndBirth(
 
   const babyGen = (entity.generation ?? 0) + 1;
   const childGender: 'male' | 'female' = seededRandomForRun(`${birthKey}:gender`) > 0.5 ? 'male' : 'female';
-  const inheritedGenome = inheritGenome(genomeOf(entity), genomeOf(biologicalFather));
+  const inheritedGenome = inheritGenome(
+    genomeOf(entity),
+    genomeOf(biologicalFather),
+    seededStreamForRun(`${birthKey}:genome`),
+  );
 
   const child = createEntity(EntityType.Human, nx, ny, state.nextEntityId++, 80, true, {
     gender: childGender,

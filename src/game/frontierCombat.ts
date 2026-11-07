@@ -21,7 +21,7 @@ import { isSettlementDestroyed, beginRaidRecovery, rememberRivalDisposition } fr
 import { normalizeRivalProfile } from './rivalProfiles';
 export { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter };
 import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } from './resourceCost';
-import { getSimRng } from './simRng';
+import { getSimRng, hashSalt } from './simRng';
 import { addCappedResource } from './resourceUtils';
 import { spendFood } from './economyLedger';
 import { addBigNews, addFloatingText } from './simEffects';
@@ -409,9 +409,9 @@ export function canRivalCampGrow(rival: RivalSettlement): boolean {
     && profile.ledger.recovery >= RIVAL_GROWTH_MIN_RECOVERY;
 }
 
-/** Which day of the cadence this camp takes stock on — staggered so camps do not all roll together. */
-export function isRivalGrowthDay(rivalIndex: number, colonyDay: number): boolean {
-  return (colonyDay + rivalIndex * 3) % RIVAL_GROWTH_INTERVAL_DAYS === 0;
+/** Which day of the cadence this camp takes stock on — staggered by stable identity, not list order. */
+export function isRivalGrowthDay(rivalId: string, colonyDay: number): boolean {
+  return (colonyDay + (hashSalt(rivalId) % RIVAL_GROWTH_INTERVAL_DAYS)) % RIVAL_GROWTH_INTERVAL_DAYS === 0;
 }
 
 export function getCombatPreview(

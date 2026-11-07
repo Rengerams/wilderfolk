@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (7 Nov 2026):** Audit A3 data integrity: legacy saves now scale every persisted tick field, worker faults replay only unapplied commands, election promises travel with the tick and roll back, and birth genomes follow their birth key.
+- **Fixed (7 Nov 2026):** Audit A3 corrections: the gazette's first week reads colony days 0–6, rival growth follows stable camp identity, a valid flat genome loads unchanged, and building shade uses one hex parser.
 - **Added (7 Nov 2026):** Required fast `gameTick` midnight/Year-2 regression gate with targeted calendar coverage thresholds. It jumps directly to boundaries; the 720-day continuous simulation stays outside PR CI.
 - **Fixed (7 Nov 2026):** Term elections, idle skill decay and visitor departures now run at 00:00 (SIM-01/02, TEST-16). Added `gameTick` regressions and corrected year-length invariant math; 230-ID audit remains open.
 - **Fixed (7 November 2026):** The harness type check is green again: the day-boundary performance gate reads its measured report, the worker stall harness returns render leases, and the full-year audit shares the auto-player's food-producer set.

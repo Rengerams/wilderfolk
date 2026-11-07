@@ -34,6 +34,19 @@ describe('sim delta story/campaign transport (audit CRITICAL)', () => {
     expect(target.guidedCampaign).toEqual(world.guidedCampaign);
   });
 
+  it('ships election promise records with the tick delta', () => {
+    const world = initGame({ size: MapSize.Medium, seed: 123 });
+    world.electionPromiseRecords = [{
+      electionId: 4, leaderId: 7, year: 2, dueDay: 700, codes: [1, 4], evaluated: false,
+    }];
+
+    const delta = extractSimTickDelta(world, undefined, { cloneMode: 'isolated' });
+    const target = initGame({ size: MapSize.Medium, seed: 123 });
+    applySimTickDelta(target, delta, { cloneMode: 'isolated' });
+
+    expect(target.electionPromiseRecords).toEqual(world.electionPromiseRecords);
+  });
+
   it('includes the story fields in the save allow-list', async () => {
     const { WORLD_STATE_SAVE_KEYS } = await import('../src/game/saveSchema');
     expect(WORLD_STATE_SAVE_KEYS).toContain('storyFlags');

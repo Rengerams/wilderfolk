@@ -140,6 +140,14 @@ describe('normalizeGenome', () => {
     expect(normalizeGenome([])).toBeUndefined();
   });
 
+  it('keeps a valid flat genome exactly as written', () => {
+    const flat = {
+      version: 2,
+      aptitudeAlleles: Array.from({ length: 14 }, () => [50, 50] as const),
+    };
+    expect(normalizeGenome(flat)?.aptitudeAlleles).toEqual(flat.aptitudeAlleles);
+  });
+
   it('never rerolls a valid saved genome (double-load idempotence)', () => {
     const saved = genomeFrom({ sociability: 81, composure: 19 });
     const first = normalizeGenome(JSON.parse(JSON.stringify(saved)));
