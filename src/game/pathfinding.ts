@@ -6,6 +6,7 @@ import type { Building, Entity, WorldMap } from './gameTypes';
 import { BuildingType, PATH_CELL } from './gameTypes';
 import {
   Walkability,
+  getTerrainRevision,
   isWalkableTerrainType,
   tileAt,
 } from './terrain/terrainGrid';
@@ -140,13 +141,13 @@ let gridCacheMap: WorldMap | null = null;
 
 /**
  * The passability grid's cache identity: seed alone does not identify the tiles, so preset,
- * blocking/cheapening buildings and size are all part of it.
+ * blocking/cheapening buildings, size and runtime terrain overrides are all part of it.
  */
 function pathGridCacheKey(map: WorldMap, buildings?: Building[]): string {
   const seed = typeof map.seed === 'number' ? map.seed : 1;
   const obstacles = buildingSignature(buildings, isWalkingObstacle);
   const roads = buildingSignature(buildings, isWalkableRoad);
-  return `${seed}|${map.preset}|${obstacles}|${roads}|${map.width}x${map.height}`;
+  return `${seed}|${map.preset}|${obstacles}|${roads}|${map.width}x${map.height}|t${getTerrainRevision()}`;
 }
 
 /**

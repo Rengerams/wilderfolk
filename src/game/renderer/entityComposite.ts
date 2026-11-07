@@ -5,10 +5,14 @@ import { terrainRiseAt } from '../terrainAtlas';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { motionTime } from './shared';
 import { presentationPosition } from './motionInterpolation';
-import { _cachedAnimals, _cachedHumans } from './entityCache';
+import { _cachedAnimals, _cachedHumans, _cachedTrees } from './entityCache';
 import { worldToScreenX, worldToScreenY } from '../viewState';
 import { drawAnimals } from './animals';
-import { drawBuildings } from './buildings';
+import {
+  depthSortedBuildings,
+  drawBuildingGroundwork,
+  drawDepthSortedBuilding,
+} from './buildings';
 import { drawBuildZoneOverlay, drawGrid } from './grid';
 import { drawGrass } from './grass';
 import { drawHumans, drawHuntChaseLines, drawTradeRouteLines } from './humans';
@@ -16,7 +20,8 @@ import { shouldDrawSpotlightHuman } from './overheadLayout';
 import { drawCampMarkers, drawEcoConnections, drawFloatingTexts } from './markers';
 import { drawParticles } from './particles';
 import { drawScentOverlay } from './scent';
-import { drawTrees } from './trees';
+import { drawTree, sortedTrees } from './trees';
+import type { Building, Entity } from '../gameTypes';
 import {
   beginEntityLayerPaint,
   buildEntityLayerKey,
@@ -27,6 +32,34 @@ import {
   paintEntityLayerTo,
 } from '../entityLayer';
 
+/** Trees and buildings interleaved by feet depth, so a trunk south of a building draws in front. */
+function drawStaticOccluders(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+): void {
+  const trees = _cachedTrees ? sortedTrees(_cachedTrees) : [];
+  const buildings = depthSortedBuildings(state.buildings);
+  let treeIndex = 0;
+  let buildingIndex = 0;
+  while (true) {
+    const tree: Entity | undefined = treeIndex < trees.length ? trees[treeIndex] : undefined;
+    const building: Building | undefined = buildingIndex < buildings.length ? buildings[buildingIndex] : undefined;
+    if (!tree && !building) return;
+    const buildingDepth = building ? building.y + building.height / 2 : Infinity;
+    if (tree && tree.y <= buildingDepth) {
+      drawTree(ctx, state, tree, cw, ch);
+      treeIndex++;
+    } else if (building) {
+      drawDepthSortedBuilding(ctx, state, building, cw, ch);
+      buildingIndex++;
+    } else {
+      return;
+    }
+  }
+}
+
 function paintWorldEntityLayer(ctx: CanvasContext2d, state: RenderSnapshot, cw: number, ch: number): void {
   // OffscreenCanvas 2d contexts are API-compatible with CanvasRenderingContext2D for draw passes.
   const drawCtx = ctx as CanvasRenderingContext2D;
@@ -34,8 +67,8 @@ function paintWorldEntityLayer(ctx: CanvasContext2d, state: RenderSnapshot, cw: 
   drawBuildZoneOverlay(drawCtx, state, cw, ch);
   drawGrid(drawCtx, state, cw, ch);
   drawGrass(drawCtx, state, cw, ch);
-  drawTrees(drawCtx, state, cw, ch);
-  drawBuildings(drawCtx, state, cw, ch);
+  drawBuildingGroundwork(drawCtx, state, cw, ch);
+  drawStaticOccluders(drawCtx, state, cw, ch);
   drawCampMarkers(drawCtx, state, cw, ch);
   drawEcoConnections(drawCtx, state, state.camera, cw, ch);
 }

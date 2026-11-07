@@ -1,12 +1,17 @@
 import type { WorldState, Entity, Building } from '../gameTypes';
-import { isStaticPropEntity } from '../gameTypes';
+import { isStaticPropEntity, PATH_CELL } from '../gameTypes';
 import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
 import { getWorkforcePolicy, normalizeWorkforcePolicy } from '../workforcePolicy';
 import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
 import { HISTORY_FAMILIES, snapshotHistoryRevisions, type HistoryRevisions } from '../historyRevisions';
-import { rebakeTerrainGrids, setTileOverride, takeTerrainPatches, type TerrainTilePatch } from '../terrain/terrainGrid';
-import { bumpTerrainRevision } from '../terrainLayer';
+import {
+  bumpTerrainRevision,
+  rebakeTerrainGrids,
+  setTileOverride,
+  takeTerrainPatches,
+  type TerrainTilePatch,
+} from '../terrain/terrainGrid';
 import { snapshotSimRng, restoreSimRng, type SimRngSnapshot } from '../simRng';
 
 export const SIM_DELTA_PROTO = 6;
@@ -458,7 +463,12 @@ function applyTerrainPatches(world: WorldState, patches: readonly TerrainTilePat
   }
   if (endTx < 0) return;
   rebakeTerrainGrids(map, { startTx, endTx, startTy, endTy });
-  bumpTerrainRevision();
+  bumpTerrainRevision({
+    left: startTx * PATH_CELL,
+    top: startTy * PATH_CELL,
+    right: (endTx + 1) * PATH_CELL,
+    bottom: (endTy + 1) * PATH_CELL,
+  });
 }
 
 const RELATIONSHIP_FIELDS = ['friendships', 'feuds', 'feudPeaks'] as const;

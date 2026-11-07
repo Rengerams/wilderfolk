@@ -12,7 +12,7 @@ import { EntityCatalog } from './entityCatalog';
 import { renderGame, resetRendererCaches } from './renderer';
 import type { SpotlightPresentation } from './renderer/motionInterpolation';
 import { getRenderDpr } from './canvasLayer';
-import { buildRenderSnapshot, type RenderSnapshot } from './renderSnapshot';
+import { buildRenderSnapshot, renderSnapshotDirtyKey, type RenderSnapshot } from './renderSnapshot';
 import { resetLogisticsOverlayCache } from './logisticsOverlayData';
 import { patchCatalogKinematicsFromRenderSoA } from './simBuffers/applyKinematics';
 import type { EntityRenderMeta } from './simBuffers/entityRenderMeta';
@@ -976,42 +976,7 @@ export class GameLoop {
   }
 
   private snapshotDirtyKey(): string {
-    const w = this.world;
-    const v = this.view;
-    const ghost = v.buildGhost;
-    const strip = v.buildStripPreview;
-
-    return [
-      w.tick,
-      w.paused ? 1 : 0,
-      w.season,
-      w.floatingTexts.length,
-      w.bigNews.length,
-      w.deathParticles.length,
-      w.pendingRaidEvents?.length ?? 0,
-      w.pendingOutgoingRaidEvents?.length ?? 0,
-      w.visitorGroups.length,
-      w.buildings.length,
-      w.entities.length,
-      v.camera.x.toFixed(1),
-      v.camera.y.toFixed(1),
-      v.camera.zoom.toFixed(3),
-      v.screenShake.toFixed(1),
-      v.selectedEntityId ?? '',
-      (v.selectedEntityIds ?? []).join(','),
-      v.selectedBuildingId ?? '',
-      v.hoveredBuildingId ?? '',
-      v.buildMode ?? '',
-      v.buildRotation ?? 0,
-      v.favoriteEntityId ?? '',
-      v.highlightedCampKey ?? '',
-      v.selectedCampKey ?? '',
-      v.showGrid ? 1 : 0,
-      v.showPaths ? 1 : 0,
-      ghost ? `${ghost.x.toFixed(0)},${ghost.y.toFixed(0)},${ghost.valid ? 1 : 0}` : '',
-      strip?.segments.length ? `${strip.segments.length}|${strip.rotation}|${strip.segments[0].x},${strip.segments[0].y}|${strip.segments[strip.segments.length - 1].x},${strip.segments[strip.segments.length - 1].y}|${strip.segments[0].valid ? 1 : 0}` : '',
-      this.renderSoA ? 'soa' : 'obj',
-    ].join('|');
+    return renderSnapshotDirtyKey(this.world, this.view, this.renderSoA ? 'soa' : 'obj');
   }
 
   private frame = (time: number) => {

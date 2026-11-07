@@ -2,7 +2,7 @@
 
 
 import { TerrainType, PATH_CELL, type MapPreset, type Season, type TerrainTile, type WorldMap } from './gameTypes';
-import { tileAt } from './terrain/terrainGrid';
+import { terrainRegionRevision, tileAt, type TerrainDirtyRect } from './terrain/terrainGrid';
 import {
   createCanvasSurface,
   disposeCanvasSurface,
@@ -228,6 +228,8 @@ function drawCliffFace(
 export type TerrainSurface = CanvasSurface;
 
 export interface TerrainLayerCache {
+  /** Cache identity the bake was made for; the chunk re-bakes when its own region changes. */
+  identity: string;
   surface: TerrainSurface;
   ctx: CanvasContext2d;
   width: number;
@@ -246,27 +248,20 @@ export interface TerrainLayerCache {
   materialAtlasRevision: number;
 }
 
-let terrainRevision = 0;
-
-export function bumpTerrainRevision(): void {
-  terrainRevision++;
-}
-
-export function getTerrainRevision(): number {
-  return terrainRevision;
-}
-
 /**
  * Cache key for one baked terrain chunk. Every input the bake reads must be here: `tile.type` is not
- * stable (placement clears forest), so `getTerrainRevision` is in the key and a mutated tile re-bakes.
+ * stable (placement clears forest), so the chunk's own dirty region is in the key and only that
+ * chunk re-bakes.
  */
 export function terrainChunkCacheKeyFor(
-  map: Pick<WorldMap, 'seed' | 'preset'>,
+  map: Pick<WorldMap, 'seed' | 'terrainSeed' | 'generationVersion' | 'preset' | 'width' | 'height'>,
   season: Season,
   lod: number,
+  rect: TerrainDirtyRect,
   blendT?: number,
 ): string {
-  return `${map.seed}|${map.preset}|${season}|${lod}|${blendT ?? ''}|r${getTerrainRevision()}`;
+  return `${map.seed}|${map.terrainSeed ?? ''}|v${map.generationVersion ?? 1}|${map.preset}`
+    + `|${map.width}x${map.height}|${season}|${lod}|${blendT ?? ''}|${terrainRegionRevision(rect)}`;
 }
 
 export function terrainFillSpritesReady(): boolean {
@@ -703,6 +698,7 @@ export function bakeTerrainLayer(
   ctx.restore();
 
   return {
+    identity: '',
     surface,
     ctx,
     width: w,
