@@ -1,6 +1,7 @@
 /**
  * Tick-layer schedule lock: `gameTick` is the only orchestrator and calls these four modules in order
- * — realtime every tick, systems 4, assign 72 (offset 36), daily 288 ticks — and no other layer may exist.
+ * — realtime every tick, systems on their own interval, assignment at 03/09/15/21 and
+ * daily entry at 00/06/12/18 (12 is empty) — and no other layer may exist.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorldState } from '../src/game/gameTypes';
