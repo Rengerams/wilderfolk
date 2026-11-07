@@ -182,7 +182,7 @@ describe('audit calendar phase integration', () => {
     const world = worldBeforeDay(2 * DAYS_PER_YEAR);
     world.lastElectionYear = 0;
     world.pendingElectionYear = null;
-    world.electionCeremony = null;
+    expect(world.electionCeremony).toBeNull();
     gameTick(world);
     expect(world.electionCeremony?.reason).toBe('term');
     expect(world.electionCeremony?.phase).toBe('gathering');
