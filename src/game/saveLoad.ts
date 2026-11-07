@@ -1578,7 +1578,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     ensureValleyEcologyOnLoad(world);
     migrateVillageForgeOnLoad(world);
     repairJuvenileAssignmentsOnLoad(world);
-    repairStaleFestivalOnLoad(world);
+    // Festival reconciliation is a single load-boundary operation (SIM-14).
     repairStaleFestivalOnLoad(world);
     for (const challenge of world.challenges ?? []) {
       const fresh = INITIAL_CHALLENGES.find((c) => c.id === challenge.id);
