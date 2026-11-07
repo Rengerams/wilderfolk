@@ -1,7 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import type { WorldState } from '../game/gameTypes';
 import type { ViewState } from '../game/viewState';
-import { downloadSaveFile } from '../game/saveLoad';
+import { saveGame } from '../game/saveLoad';
 
 type RecoverySnapshot = { world: WorldState; view: ViewState };
 type RecoverySource = { getWorld: () => WorldState | null; getView: () => ViewState | null };
@@ -47,7 +47,7 @@ export default class GameErrorBoundary extends Component<{ children: ReactNode }
   private exportSnapshot = (): void => {
     const snapshot = this.state.snapshot;
     if (!snapshot) return;
-    const result = downloadSaveFile(snapshot.world, snapshot.view, false);
+    const result = saveGame(snapshot.world, snapshot.view, false);
     this.setState({
       exportMessage: result.success
         ? 'Recovery file downloaded. Your existing browser quick-save was not changed.'
