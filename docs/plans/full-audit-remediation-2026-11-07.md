@@ -68,7 +68,7 @@ The audit found more than isolated bugs. These are the contracts that produced t
 
 ### Phase 1 — Time, calendar and scheduler foundation (P0)
 
-**Issues:** SIM-01, SIM-02, SIM-03, SIM-04, TEST-16, CB-04, GAME-01, GAME-02, GAME-07, GAME-11, TEST-06, TEST-10, TEST-17, TQ-05; verify GAME-05.
+**Issues (complete A1 inventory from MASTER-APPROACH):** SIM-01, SIM-02, SIM-03, SIM-04, SIM-07, SIM-13, SIM-14; TEST-16; CB-04; GAME-01, GAME-02, GAME-05, GAME-07, GAME-11; TEST-06, TEST-10, TEST-17; TQ-05.
 
 **Decision (F-1/F-2):** keep `TICKS_PER_DAY = 288` (24 h × 12). Write the phase table:
 
@@ -83,11 +83,39 @@ The audit found more than isolated bugs. These are the contracts that produced t
 
 - Move the year-rollover/term-election block out of the 18:00 `tickDailyWorldEvents` into a 00:00 owner; same for `decayIdleSkills` and `tickVisitorGroups` (or make the visitor gate day-based, like `tickVillageRequests`).
 - Derive all year/day constants from `TICKS_PER_DAY × DAYS_PER_YEAR`; remove `72 * 360` hardcodes.
-- Recalibrate `ELECTION_INTERVAL_YEARS` and the ceremony duration text to the 28.8-hour year; fix README/ARCHITECTURE/comments and `tests/ticksPerDay.literals.test.ts` header.
+- Preserve the two-year election cadence; describe the 24-hour ceremony plus one reveal tick using the 288-tick day; fix current README/ARCHITECTURE/comments and calendar fixture headers without rewriting dated release history.
 - Update `OWNERSHIP_OVERVIEW.md` and `decisionRegistry.ts` cadence/caller/test cells for every moved function.
 - Exit: required boundary-jump `gameTick` tests assert Year-2 election, idle-skill decay, visitor gift+departure; `gameTick.layerOrder` still passes; docs no longer say 72/52h; no function called from two phases.
 
 **Risk:** moving work between phases changes economy timing. Compare 7/30/360-day food/skill/population before/after and keep the 360-day invariants.
+
+**A1 implementation and test matrix (PR #129 merged, PR #132):**
+
+| Audit ID | Verified code contract / dedicated evidence |
+|---|---|
+| SIM-01 | Year-2 term-election midnight owner in `tickYearBoundaryWorldEvents`; real `gameTick` regression |
+| SIM-02 | Midnight `decayIdleSkills`, exact decrease and no 06:00/18:00 double decay |
+| SIM-03 | Invariant harness derives the 288×360 year; required non-DEV short Year-2 run asserts term election |
+| SIM-04 | 288-tick day and four phases in active README, ARCHITECTURE and owners; historical dated releases retained |
+| SIM-07 | 00/06/12/18 layer phases; production and world events both intentionally 18:00, noon empty; layer-order test |
+| SIM-13 | 06:00 relationships see that phase's alive list; later 18:00 spawns are merged at their point of use, not retroactively |
+| SIM-14 | Save load performs one festival repair; real stale/valid festival round-trip regressions without module mocks |
+| TEST-16 | Midnight visitor gift, countdown and departure via real `gameTick` |
+| CB-04 | Canonical current 288/day and 24-hour ceremony; historical 72/day release entries are protected |
+| GAME-01 | 8+10+6 game-hour ceremony plus one reveal tick; real Year-2 `gameTick` duration test |
+| GAME-02 | Current README/calendar owners describe 288/day; dated v0.6.2.1 release note preserves its original 72/day |
+| GAME-05 | Synthetic Year-0 election save loads without a silent founder or instant ceremony, with both current and legacy 72-tick payloads |
+| GAME-07 | Voters' documented attendance is sampled (65–98% per eligible voter), not universal; deterministic real ballot test |
+| GAME-11 | Festival movement window 15:00–22:59 matches `humanSchedule` and current README; no behavior change required |
+| TEST-06 | Invariants always asserted in the existing harness; it runs from a real Year-2 midnight under required CI |
+| TEST-10 | Active 72-day assumptions in test fixtures replaced with `TICKS_PER_DAY`/`tickAtDailyPhase`, protected by literal-site guard |
+| TEST-17 | Init starts at 08:00 (tick 96), and welcome begins at 18:00 (tick 216); source comments and live tests match |
+| TQ-05 | Day-90/200, visitor, welcome and clock fixtures re-derived; legacy-save migration's deliberate 72 ticks remain supported |
+
+An additional duplicated 18:00 promise evaluation (SIM-06) was fixed: `tickElectionPromises` has one owner/call path from `dailyWorldEvents` after production, and a real-boundary regression.
+
+**A1 gate:** Required fast Year-2 `gameTick` boundary plus non-DEV invariant harness, 120-day producer scenario, and existing performance tiers. The owner-approved CI scope explicitly excludes a 720-day *continuous* PR simulation; a short boundary run cannot be represented as 720 elapsed simulated days. Day 7/30/360 checks are boundary snapshots, not a before/after continuous 360-day economy comparison. Those longer observational comparisons require a separate actual long-run measurement; do not claim they were executed by the fast tests.
+
 
 ### Phase 2 — Save, schema and data integrity
 

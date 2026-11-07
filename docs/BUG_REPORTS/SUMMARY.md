@@ -1,6 +1,6 @@
 # Bug report summary — one line per report
 
-**2026-11-07 — [A1 residual calendar fixture and festival-load double repair](../bug_report/2026-11-07-a1-residual-calendar-fixtures-festival-double-repair.md):** SIM-14 repairs festival twice; calendar fixtures and a README historical row still imply 72 ticks/day; Year-0 election sentinel needs a real saved-world check. Status: resolved for SIM-14 and named fixture drift; synthetic Year-0 election load passed 929-test CI run, historic GAME-05 old-save verification pending.
+**2026-11-07 — [A1 residual calendar fixture and festival-load double repair](../bug_report/2026-11-07-a1-residual-calendar-fixtures-festival-double-repair.md):** SIM-14 called its festival repair twice, and live fixtures used obsolete 72-tick day math. The historical README release record must retain 72/day. Status: repair/fixtures updated; valid and stale festival outcomes plus current and synthetic legacy Year-0 election saves tested in A1 PR #132; final CI is required before closure.
 
 **2026-11-07 — [A2 required calendar scheduler missing from PR CI](../bug_report/2026-11-07-calendar-regressions-not-required-in-pr-ci.md):** Affected-only tests can pass without exercising the midnight scheduler; adding a dedicated fast gameTick boundary CI job. Status: resolved — required scheduler workflow passed 11/11.
 
