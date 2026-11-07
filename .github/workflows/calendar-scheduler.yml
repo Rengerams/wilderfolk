@@ -29,3 +29,5 @@ jobs:
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Real gameTick calendar boundaries, invariants and minimum owner coverage
         run: npm test -- calendar-scheduler
+      - name: Non-DEV invariants through Year-2 midnight
+        run: SIM_START_DAY=720 SIM_DAYS=3 npx tsx scripts/sim-invariants.ts
