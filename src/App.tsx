@@ -8,7 +8,7 @@ import {
 
   GAME_TITLE, GAME_VERSION, GAME_PHASE, GAME_SUBTITLE,
 
-  saveGameToSlot, loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave,
+  loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave,
   saveImportedFileToSlot, loadImportedGameOutcome, hasImportedSave,
   loadGameFromFileTextOutcome,
   getVisitorLeaderTalkMeta,
