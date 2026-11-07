@@ -1,16 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { gameTick } from '../src/game/gameTick';
-import { repairStaleFestivalOnLoad } from '../src/game/dailyWorldEvents';
-
-vi.mock('../src/game/dailyWorldEvents', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/game/dailyWorldEvents')>();
-  return { ...actual, repairStaleFestivalOnLoad: vi.fn(actual.repairStaleFestivalOnLoad) };
-});
-
 function roundTrip(world: ReturnType<typeof initGame>) {
   const view = createInitialView(world.width, world.height);
   const serialized = JSON.parse(JSON.stringify(buildSaveData(world, view))) as Record<string, unknown>;
@@ -18,7 +11,7 @@ function roundTrip(world: ReturnType<typeof initGame>) {
 }
 
 describe('A1 calendar-owner save and old-election regression', () => {
-  it('repairs a stale festival once per real save load (SIM-14)', () => {
+  it('removes a provably stale festival after real save and load (SIM-14)', () => {
     const world = initGame({ skipTerrain: true, seed: 20_261_107 });
     world.tick = 41 * TICKS_PER_DAY;
     world.year = 0;
@@ -32,13 +25,31 @@ describe('A1 calendar-owner save and old-election regression', () => {
       type: 'event',
       message: 'Old Revel festival began in the village',
     });
-    vi.mocked(repairStaleFestivalOnLoad).mockClear();
+    const loaded = roundTrip(world);
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    expect(loaded.world.festival).toBeNull();
+  });
+
+  it('preserves a still-running festival after real save and load (SIM-14)', () => {
+    const world = initGame({ skipTerrain: true, seed: 20_261_109 });
+    world.tick = 41 * TICKS_PER_DAY;
+    world.year = 0;
+    world.dayInYear = 41;
+    world.festival = { active: true, name: 'Current Revel', daysLeft: 2 };
+    world.eventLog.push({
+      id: 1000,
+      tick: 40 * TICKS_PER_DAY,
+      year: 0,
+      day: 40,
+      type: 'event',
+      message: 'Current Revel festival began in the village',
+    });
 
     const loaded = roundTrip(world);
     expect(loaded.ok).toBe(true);
     if (!loaded.ok) return;
-    expect(repairStaleFestivalOnLoad).toHaveBeenCalledTimes(1);
-    expect(loaded.world.festival).toBeNull();
+    expect(loaded.world.festival).toEqual({ active: true, name: 'Current Revel', daysLeft: 2 });
   });
 
   it('preserves a real Year-0 election stamp instead of treating it as founding sentinel (GAME-05)', () => {

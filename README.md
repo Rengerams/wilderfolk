@@ -598,7 +598,7 @@ Wilderfolk is gradually moving toward its **first proper release**, so ease of a
 | 📜 **A Chronicle that keeps up** | Worker-generated events now arrive newest-first, without duplicate merges, and the Chronicle includes a dedicated **Milestones** filter. |
 | 🏹 **Sharper movement and hunts** | Deterministic heap-backed A* improves route finding; commute caches respect each settler’s target tile. Hunting Spots use shared wildlife cleanup, while arrow visuals expire by their actual wall-clock lifetime. |
 | 🎨 **Clearer frontier presentation** | Building art supports per-building scale and ground anchors, so the Leader’s House reads properly in previews and in the world. Live right-side charts were removed to keep the menu focused on village decisions. |
-| 🚀 **Performance retained** | The worker-safe social grid, adaptive spatial queries, and now-canonical 288-tick day preserve active social life and reliable player commands without surrendering the performance gains. |
+| 🚀 **Performance retained** | The worker-safe social grid, adaptive spatial queries, and fixed 72-tick day preserve active social life and reliable player commands without surrendering the performance gains. |
 
 **Performance**
 
