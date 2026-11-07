@@ -11,7 +11,7 @@ import { addReputation } from './simHelpers';
 import { tickLeaderVacancy, tickElectionBuildup, tryStartVacancyElectionCeremony, tryStartTermElectionCeremony } from './villageLeadership';
 import { getTownHallFestivalCooldownTicks, isTownHallStaffed } from './townHall';
 
-import { rollYearlyWorldEvent, tryFirstWeekVisitor, tryMidYearVisitorEvent, tickVisitorGroups, tickVillageRequests } from './groupEvents';
+import { rollYearlyWorldEvent, tryFirstWeekVisitor, tryMidYearVisitorEvent, tickVillageRequests } from './groupEvents';
 import { tickWorldRivalSettlements } from './rivalWorldTick';
 import { tickVisitorQuest } from './visitorQuest';
 import { tickLeaderPromise } from './villageLeadership';
@@ -34,7 +34,6 @@ import { tickMigration } from './migration';
 import { tickBeauty } from './beautyGrid';
 import { tickEcosystemMetrics } from './dailyEcology';
 import { tickValleyEcologyStage } from './ecologyStage';
-import { decayIdleSkills } from './skills';
 import { getSimRng } from './simRng';
 import { syncGenealogyRegistry } from './genealogyRegistry';
 
@@ -140,7 +139,6 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   // Catch burials delayed by missing or full graveyards; constant-time when none await.
   assignPendingGraves(state);
   // Frontier systems
-  tickVisitorGroups(state, allAlive);
   tickVillageRequests(state);
   tickVisitorQuest(state);
   tickLeaderPromise(state);
@@ -201,14 +199,6 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
 
 
 
-  // Skill decay (new calendar day)
-  if (isNewCalendarDayTick(state)) {
-    for (const human of ctx.playerHumans) {
-      if (!human.alive || human.isJuvenile) continue;
-      decayIdleSkills(human, human.job);
-    }
-  }
-
   // Election ceremony advances in realtime (every tick) — see tickLayerRealtime
 
   // Leader vacancy
@@ -265,38 +255,38 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
     state.bountifulHarvest = false;
   }
 
-  // Election buildup and ceremonies. The vacancy campaign is due on a fractional date, so it is
-  // evaluated daily; the term election stays a year-rollover decision.
-  const vacancyCeremony = tryStartVacancyElectionCeremony(state, state.year, state.dayInYear);
-
-  const prevCalendarDay = state.tick <= 1 ? 0 : getCalendarDay(state.tick - 1);
-  const yearRollover = state.dayInYear === 0 && prevCalendarDay > 0;
-  let termCeremony = false;
-  if (yearRollover) {
-    const buildupNews = tickElectionBuildup(state, state.year, yearRollover);
-    if (buildupNews) {
-      addBigNews(state, buildupNews.title, buildupNews.message, 'neutral');
-      addNotification(state, buildupNews.title, buildupNews.message, 'event');
-    }
-
-    termCeremony = !vacancyCeremony
-      && tryStartTermElectionCeremony(state, state.year, state.dayInYear);
+  // Vacancies can mature on any calendar day; year-boundary elections are midnight-only.
+  if (tryStartVacancyElectionCeremony(state, state.year, state.dayInYear)) {
+    announceElectionCeremony(state);
   }
+}
 
-  if (vacancyCeremony || termCeremony) {
-    addBigNews(
-      state,
-      '🗳️ Election Day',
-      `Settlers gather for the leadership election (Year ${displayYear(state.year)}). Gossip, tension, then the merit reveal — and a village party after.`,
-      'neutral',
-    );
-    addNotification(
-      state,
-      '🗳️ Election Day',
-      `Year ${displayYear(state.year)} leadership election — villagers gathering now.`,
-      'event',
-    );
+function announceElectionCeremony(state: WorldState): void {
+  addBigNews(
+    state,
+    '🗳️ Election Day',
+    `Settlers gather for the leadership election (Year ${displayYear(state.year)}). Gossip, tension, then the merit reveal — and a village party after.`,
+    'neutral',
+  );
+  addNotification(
+    state,
+    '🗳️ Election Day',
+    `Year ${displayYear(state.year)} leadership election — villagers gathering now.`,
+    'event',
+  );
+}
+
+/** Only the 00:00 day-zero boundary may schedule a term election. */
+export function tickYearBoundaryWorldEvents(state: WorldState): void {
+  if (!isNewCalendarDayTick(state) || state.dayInYear !== 0 || state.year <= 0) return;
+  if (getCalendarDay(state.tick - 1) === 0) return;
+
+  const buildupNews = tickElectionBuildup(state, state.year, true);
+  if (buildupNews) {
+    addBigNews(state, buildupNews.title, buildupNews.message, 'neutral');
+    addNotification(state, buildupNews.title, buildupNews.message, 'event');
   }
-
-  
+  if (tryStartTermElectionCeremony(state, state.year, state.dayInYear)) {
+    announceElectionCeremony(state);
+  }
 }
