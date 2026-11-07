@@ -501,8 +501,11 @@ function run(): void {
     writeCheckpoint(day, world, startedAt, health, provisional);
     if (options.verbose && options.bot && options.scenario === 'producers') {
       const proposed = decideVirtualPlayerAction(world);
+      const foodProducerTypes: readonly BuildingType[] = [
+        BuildingType.Farm, BuildingType.FishingSpot, BuildingType.HuntingSpot, BuildingType.Greenhouse,
+      ];
       const foodSites = world.buildings.filter((building) =>
-        [BuildingType.Farm, BuildingType.FishingSpot, BuildingType.HuntingSpot, BuildingType.Greenhouse].includes(building.type));
+        foodProducerTypes.includes(building.type));
       writeLog({
         kind: 'producer-bot-decision-audit', day, population: health.food.consumedToday,
         proposed: proposed == null ? null : { command: proposed.command, reason: proposed.reason },
