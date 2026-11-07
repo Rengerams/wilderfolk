@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-07 — [Full-year test demanded a marriage a one-couple start cannot produce](../bug_report/2026-11-07-full-year-marriage-guard-one-couple-start.md):** The 360-day scenario started with one married couple in a full two-bed house, so no eligible pair or immigrant could exist and the marriage guard failed; the scaffold now seeds four eligible neighbours with homes plus two Silos (spoilage 0). The file and the full suite pass.
+
 **2026-11-07 — [Raid-scaling test became flaky after personal marks entered defence](../bug_report/2026-11-07-raid-scaling-test-flaky-after-marks.md):** The test built each village size from a random map seed, so personal marks (now a defence input) and the juvenile count differed between sizes and the ratio spread passed 0.01 in ~40% of runs. The fixture now seeds the world and normalises marks and juvenile status; 20/20 isolated runs and the full suite pass.
 
 **2026-11-07 — [Day-boundary performance gate read an out-of-scope report](../bug_report/2026-11-07-day-boundary-gate-undefined-report.md):** The ceiling check added to the save benchmark compared a `report` that only exists inside `bench`, so enabling it threw a ReferenceError and the harness type check was red. `bench` now returns its report and the check reads it; types, lint, build and a boundary-enabled smoke run pass.
