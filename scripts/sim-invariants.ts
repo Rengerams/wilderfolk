@@ -75,6 +75,26 @@ async function main(): Promise<void> {
       if (START_DAY === 2 * DAYS_PER_YEAR && tick === 1 && state.electionCeremony?.reason !== 'term') {
         throw new Error('Year-2 midnight did not schedule a term election through gameTick');
       }
+      // A1 parity: use the EXISTING invariant harness for the same seeded
+      // 7/30/360-day measurement before #129 and after #132. No separate probe.
+      if (process.env.SIM_A1_CHECKPOINTS === '1'
+          && START_DAY === 0
+          && tick % TICKS_PER_DAY === 0
+          && [7, 30, DAYS_PER_YEAR].includes(tick / TICKS_PER_DAY)) {
+        const playerHumans = state.entities.filter((entity) =>
+          entity.alive && entity.type === EntityType.Human && entity.faction !== 'rival');
+        const skillPoints = playerHumans.reduce((sum, human) =>
+          sum + Object.values(human.skills ?? {}).reduce((total, value) =>
+            total + (typeof value === 'number' && Number.isFinite(value) ? value : 0), 0), 0);
+        console.log('A1_SNAPSHOT ' + JSON.stringify({
+          elapsedDays: tick / TICKS_PER_DAY,
+          food: state.resources.food,
+          population: state.humanPopulation,
+          livingHumans: playerHumans.length,
+          totalSkillPoints: Math.round(skillPoints * 1000) / 1000,
+          tick: state.tick,
+        }));
+      }
       const violations = assertSimInvariants(state);
       if (violations.length > 0) {
         console.error(`INVARIANT VIOLATION at tick ${state.tick} (day ${Math.floor(state.tick / TICKS_PER_DAY)}; seed ${SEED}):`);
