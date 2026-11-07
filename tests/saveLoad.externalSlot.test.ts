@@ -14,6 +14,7 @@ import {
   describeCadenceFileSave,
   describeFileSaveReason,
   downloadSaveFile,
+  downloadRecoverySaveFile,
   hasSaveSlot,
   hasImportedSave,
   loadGameFromFileTextOutcome,
@@ -125,6 +126,23 @@ describe('a colony too big for the browser slot saves externally', () => {
       fileReason: 'payload-too-large',
     });
     expect(hasSaveSlot()).toBe(false);
+  });
+
+  it('exports a crash recovery file without overwriting either browser save', () => {
+    const original = colony();
+    expect(saveGameToSlot(original, createInitialView(original.width, original.height)).success).toBe(true);
+    const quickSave = localStorage.getItem('ecosim_save');
+    const imported = colony();
+    imported.villageName = 'Other imported colony';
+    const importJson = JSON.stringify(buildSaveData(imported, createInitialView(imported.width, imported.height)));
+    expect(saveImportedFileToSlot(importJson, imported).success).toBe(true);
+
+    const crashed = colony();
+    crashed.villageName = 'Crash snapshot';
+    const result = downloadRecoverySaveFile(crashed, createInitialView(crashed.width, crashed.height));
+    expect(result.success).toBe(true);
+    expect(localStorage.getItem('ecosim_save')).toEqual(quickSave);
+    expect(localStorage.getItem('ecosim_imported_save')).toEqual(importJson);
   });
 
   it('still writes the slot for a Medium colony inside the budget', () => {
