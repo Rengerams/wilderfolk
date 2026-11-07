@@ -1,5 +1,13 @@
 # Bug report summary — one line per report
 
+**2026-11-07 — [A single terrain change re-baked every ground chunk](../bug_report/2026-11-07-terrain-change-rebakes-every-chunk.md):** One global revision sat in every chunk key, so a road or a clearing disposed all baked ground and left a dark frame. Status: resolved — per-cell dirty revisions re-bake only the footprint; 4/4 tests pass.
+
+**2026-11-07 — [Trees south of a building disappeared behind it](../bug_report/2026-11-07-trees-lost-behind-southern-buildings.md):** Fixed tree-then-building passes could not honour feet depth. Status: resolved — trees and buildings share one depth-sorted occluder pass; screenshot matrix not run.
+
+**2026-11-07 — [Paused view ignored the logistics overlay and juice toggles](../bug_report/2026-11-07-paused-snapshot-ignores-overlay-toggles.md):** The snapshot key omitted both preferences, so a paused view reused the old snapshot. Status: resolved — the key carries both; 2/2 tests pass.
+
+**2026-11-07 — [Terrain caches survived map identity and override changes](../bug_report/2026-11-07-terrain-cache-keys-omit-runtime-identity.md):** The chunk key omitted terrain seed and generation version; the path grid key omitted runtime overrides, leaving stale walkability. Status: resolved — both keys carry the missing identity; 5/5 tests pass.
+
 **2026-11-07 — [Interaction audio rescanned the whole roster for every death](../bug_report/2026-11-07-audio-death-scan-quadratic.md):** The death pass searched the current roster per previous entity; it now resolves deaths through an id map built once per call. Status: resolved — 2,009,004 roster reads fell below 12,006 in the regression, 4/4 tests pass.
 
 **2026-11-07 — [A2 required calendar scheduler missing from PR CI](../bug_report/2026-11-07-calendar-regressions-not-required-in-pr-ci.md):** Affected-only tests can pass without exercising the midnight scheduler; adding a dedicated fast gameTick boundary CI job. Status: resolved — required scheduler workflow passed 11/11.

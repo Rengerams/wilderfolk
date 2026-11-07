@@ -43,9 +43,10 @@
 
 | ID | Status | Evidence |
 |---|---|---|
-| GFX-11, GFX-01 | fixed | Terrain chunks re-bake only their dirty 256-world-px region; trees and buildings share one depth-sorted static pass. `tests/terrain.regionRevision.test.ts` (4), `tests/renderSnapshot.dirtyKey.test.ts` (2). |
-| GFX-02, GFX-03 | fixed | `renderSnapshotDirtyKey` carries the F4 logistics and juice preferences, so a paused view rebuilds. Preview run: overlay pixels 76 → 122 → 76 while paused. |
-| COV-I-02, SIM-18 | fixed | The chunk key carries seed, terrain seed, generation version and map size plus the region revision; the path grid keys on that revision. `tests/pathfinding.terrainRevision.test.ts` (1). |
+| GFX-11 | fixed | Terrain chunks re-bake only their dirty 256-world-px region. `tests/terrain.regionRevision.test.ts` (4). [Report](../bug_report/2026-11-07-terrain-change-rebakes-every-chunk.md) |
+| GFX-01 | fixed | Trees and buildings share one depth-sorted static pass. [Report](../bug_report/2026-11-07-trees-lost-behind-southern-buildings.md) |
+| GFX-02, GFX-03 | fixed | `renderSnapshotDirtyKey` carries the F4 logistics and juice preferences, so a paused view rebuilds. Preview run: overlay pixels 76 → 122 → 76 while paused. `tests/renderSnapshot.dirtyKey.test.ts` (2). [Report](../bug_report/2026-11-07-paused-snapshot-ignores-overlay-toggles.md) |
+| COV-I-02, SIM-18 | fixed | The chunk key carries seed, terrain seed, generation version and map size plus the region revision; the path grid keys on that revision. `tests/terrain.regionRevision.test.ts` (4), `tests/pathfinding.terrainRevision.test.ts` (1). [Report](../bug_report/2026-11-07-terrain-cache-keys-omit-runtime-identity.md) |
 
 ## Phase A7 — performance hot paths
 
@@ -58,4 +59,5 @@
 - GAME-05 was re-checked and needs no change: the negative founding-year sentinel is already in source.
 - CB-02's boundary screen was not forced open in the preview; the export path is covered by typecheck and build only.
 - CB-13's Rust build was not run in this environment.
+- A6's tree/building draw order and the road/build dark flash have no screenshot matrix; only the paused-overlay pixel run is recorded.
 
