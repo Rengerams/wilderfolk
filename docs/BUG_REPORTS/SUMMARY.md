@@ -1,5 +1,11 @@
 # Bug report summary — one line per report
 
+**2026-11-07 — [SIM-01: term elections never fire](../bug_report/2026-11-07-term-election-skipped-at-1800.md):** Year-boundary scheduler was gated at 18:00; moved to 00:00. Status: investigating until CI verifies the `gameTick` regression.
+
+**2026-11-07 — [SIM-02: idle skills never decay](../bug_report/2026-11-07-idle-skill-decay-never-runs.md):** Midnight-only skill decay was called from the 18:00 world-events pass; moved to midnight. Status: investigating until CI verifies exact decay.
+
+**2026-11-07 — [TEST-16: visitor groups never age or depart](../bug_report/2026-11-07-visitor-groups-never-depart.md):** Visitor lifecycle now runs at 00:00 so gift/counter/departure decisions fire. Status: investigating until CI verifies the multi-day regression.
+
 **2026-11-07 — [Full-year test demanded a marriage a one-couple start cannot produce](../bug_report/2026-11-07-full-year-marriage-guard-one-couple-start.md):** The 360-day scenario started with one married couple in a full two-bed house, so no eligible pair or immigrant could exist and the marriage guard failed; the scaffold now seeds four eligible neighbours with homes plus two Silos (spoilage 0). The file and the full suite pass.
 
 **2026-11-07 — [Raid-scaling test became flaky after personal marks entered defence](../bug_report/2026-11-07-raid-scaling-test-flaky-after-marks.md):** The test built each village size from a random map seed, so personal marks (now a defence input) and the juvenile count differed between sizes and the ratio spread passed 0.01 in ~40% of runs. The fixture now seeds the world and normalises marks and juvenile status; 20/20 isolated runs and the full suite pass.
