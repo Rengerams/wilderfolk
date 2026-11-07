@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { gameTick, initGame } from '../src/game/gameEngine';
 import { DAYS_PER_YEAR, TICKS_PER_DAY, tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { assertSimInvariants } from '../src/game/simulation/simInvariants';
-import { JobType, MapSize, type VisitorGroup, type WorldState } from '../src/game/gameTypes';
+import { EntityType, JobType, MapSize, type VisitorGroup, type WorldState } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { SKILL_IDLE_DECAY_PER_DAY } from '../src/game/skills';
 import { recordElectionPromises } from '../src/game/electionPromises';
@@ -129,6 +129,50 @@ describe('audit calendar phase integration', () => {
     world.tick = tickAtDailyPhase(8, 'worldEvents') - 1;
     gameTick(world); // Following evening must not re-judge.
     expect(verdicts()).toHaveLength(1);
+  });
+
+  it('A1: day 7, day 30 and day 360 preserve calendar, food, skills and population', () => {
+    for (const day of [7, 30, DAYS_PER_YEAR]) {
+      const world = worldBeforeDay(day);
+      const settler = world.entities.find((entity) => entity.alive && !entity.isJuvenile && isPlayerHuman(entity));
+      expect(settler).toBeDefined();
+      if (!settler) continue;
+      settler.job = JobType.Settler;
+      settler.skills = { [JobType.Miner]: 50 };
+      const storedFood = world.resources.food;
+
+      gameTick(world);
+
+      expect(world.tick).toBe(day * TICKS_PER_DAY);
+      expect(world.dayInYear).toBe(day % DAYS_PER_YEAR);
+      expect(world.year).toBe(Math.floor(day / DAYS_PER_YEAR));
+      expect(settler.skills[JobType.Miner]).toBeCloseTo(50 - SKILL_IDLE_DECAY_PER_DAY, 8);
+      expect(Number.isFinite(storedFood)).toBe(true);
+      expect(Number.isFinite(world.resources.food)).toBe(true);
+      expect(world.resources.food).toBeGreaterThanOrEqual(0);
+      expect(world.humanPopulation).toBeGreaterThan(0);
+      expect(assertSimInvariants(world)).toEqual([]);
+    }
+  });
+
+  it('A1: wildlife reaches old age at midnight, not 18:00', () => {
+    const world = worldBeforeDay(7);
+    const wildlife = world.entities.find((entity) =>
+      entity.alive && Number.isFinite(entity.maxAge) && entity.maxAge > 1
+        && [EntityType.Rabbit, EntityType.Deer, EntityType.Wolf, EntityType.Fox].includes(entity.type));
+    expect(wildlife).toBeDefined();
+    if (!wildlife) return;
+    const maxAge = wildlife.maxAge;
+    wildlife.age = maxAge - 1;
+
+    gameTick(world);
+    expect(wildlife.age).toBe(maxAge);
+    expect(wildlife.alive).toBe(false);
+
+    world.tick = tickAtDailyPhase(7, 'worldEvents') - 1;
+    gameTick(world);
+    expect(wildlife.age).toBe(maxAge);
+    expect(wildlife.alive).toBe(false);
   });
 
 });
