@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useModalFocus } from '../hooks/useModalFocus';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 import type { GameEventLog, OutgoingRaidEvent, RaidEvent, WorldState } from '../game/gameTypes';
@@ -66,6 +66,7 @@ export default function BattleReportScreen({
   const [revealed, setRevealed] = useState(() => Math.min(1, events.length));
   const [confirmExterminate, setConfirmExterminate] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
+  const stableCloseRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useModalFocus<HTMLDivElement>();
   // Escape dismisses the nested fate confirmation before closing the report.
   useOverlayKeyboard('battle-report', () => {
@@ -88,6 +89,12 @@ export default function BattleReportScreen({
 
   const allSeen = revealed >= events.length;
   const finalReady = allSeen && (resolved || !!pending);
+
+  // Restore focus when commentary/fate actions unmount during a footer transition.
+  useLayoutEffect(() => {
+    const container = dialogRef.current;
+    if (container && document.activeElement === document.body) stableCloseRef.current?.focus();
+  }, [allSeen, finalReady, confirmExterminate, dialogRef]);
   const playerLosses = pending?.playerDead ?? report?.playerDeaths
     ?? liveArmy?.battlePlayerCasualties?.length ?? liveDefense?.battlePlayerCasualties?.length ?? 0;
   const enemyLosses = pending?.enemyDead ?? report?.enemyDeaths ?? 0;
@@ -103,7 +110,10 @@ export default function BattleReportScreen({
         <header className="border-b border-amber-800/50 bg-gradient-to-r from-stone-950 via-amber-950/60 to-stone-950 px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between gap-3">
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-500">War-band · text match</p>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-stone-500">{dayLabel}</p>
+            <div className="flex items-center gap-3">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-stone-500">{dayLabel}</p>
+              <button type="button" ref={stableCloseRef} data-autofocus aria-label="Close battle report" className="rounded border border-stone-700 px-2 py-1 text-[10px] uppercase tracking-wider text-stone-300 hover:bg-stone-800" onClick={onClose}>Close</button>
+            </div>
           </div>
 
           <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
