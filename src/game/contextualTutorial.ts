@@ -54,14 +54,14 @@ export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutori
     id: 'shelter_night',
     icon: '🌙',
     title: 'Night is approaching',
-    detail: 'Build a House (key 1), click the map, then assign pioneers as workers. Settlers need shelter before nightfall on day one.',
+    detail: 'Build a House (key 1), click the map — builders join the site automatically. Settlers need shelter before nightfall on day one.',
     action: { label: 'Place house', id: 'build_house' },
   },
   first_building_done: {
     id: 'first_building_done',
     icon: '🏗️',
     title: 'Building finished',
-    detail: 'Select the building on the map and press + Fill workers to staff it. Lumber mills, farms, and wells only produce when workers are assigned.',
+    detail: 'Workers are assigned automatically: lumber mills, farms, and wells produce only while staffed. The building panel lists its crew.',
   },
   first_worker_assigned: {
     id: 'first_worker_assigned',

@@ -38,7 +38,6 @@ function renderPanel(target: Building, state: WorldState): string {
     createElement(SelectedBuildingPanel, {
       building: target,
       state,
-      onAssign: () => {},
       onRepair: () => {},
       onUpgrade: () => {},
       onDemolish: () => {},
@@ -163,6 +162,19 @@ describe('building worker roster shows work duty, not private activities', () =>
     const html = renderPanel(barracks, state);
     expect(html).toContain('Off duty');
     expect(html).not.toContain(' · Sleeping');
+  });
+});
+
+describe('construction crews are filled automatically', () => {
+  it('offers no manual fill control on an unfinished site', () => {
+    const site = building(30, BuildingType.House, { completed: false, constructionProgress: 0 });
+    const state = makeWorld([human(1)], [site]);
+
+    // The owner would accept this settler, so the old command button would have rendered.
+    expect(canAssignWorkerToBuilding(state, site.id)).toBe(true);
+    const html = renderPanel(site, state);
+    expect(html).not.toContain('Fill builders');
+    expect(html).toContain('Builders are assigned automatically');
   });
 });
 
