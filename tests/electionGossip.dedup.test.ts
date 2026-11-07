@@ -14,7 +14,7 @@ vi.mock('../src/game/villageLeadership', async (importOriginal) => {
 
 function ceremonyWorld() {
   const world = initGame({ villageName: 'W', size: 'medium' });
-  // A ceremony stuck in its gossip phase long enough to survive to tick 72.
+  // A ceremony stuck in its gossip phase through the first 18:00 world-events pass.
   world.electionCeremony = {
     phase: 'gossip',
     phaseTicksLeft: 200,
@@ -52,13 +52,13 @@ describe('election gossip cadence', () => {
 
   it('daily layer skips gossip while a ceremony is running (ceremony gates cover it)', () => {
     const world = runToDayBoundary(ceremonyWorld(), gameTick, tickElectionGossip);
-    gameTick(world); // 12:00 economy pulse, ceremony in gossip phase
+    gameTick(world); // 18:00 world-events pulse, ceremony in gossip phase
     expect(vi.mocked(tickElectionGossip)).toHaveBeenCalledTimes(0);
   });
 
   it('daily layer still rolls gossip on day boundaries with no ceremony', () => {
     const world = runToDayBoundary(initGame({ villageName: 'W', size: 'medium' }), gameTick, tickElectionGossip);
-    gameTick(world); // 12:00 economy pulse, no ceremony
+    gameTick(world); // 18:00 world-events pulse, no ceremony
     expect(vi.mocked(tickElectionGossip)).toHaveBeenCalledTimes(1);
   });
 });
