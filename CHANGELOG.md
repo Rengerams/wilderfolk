@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (7 Nov 2026):** A1 follow-up removes duplicate festival restoration on save load, derives calendar test fixtures from the 288-tick day, and adds actual save-load regressions for stale festivals and Year-0 election state.
 - **Added (7 Nov 2026):** Required fast `gameTick` midnight/Year-2 regression gate with targeted calendar coverage thresholds. It jumps directly to boundaries; the 720-day continuous simulation stays outside PR CI.
 - **Fixed (7 Nov 2026):** Term elections, idle skill decay and visitor departures now run at 00:00 (SIM-01/02, TEST-16). Added `gameTick` regressions and corrected year-length invariant math; 230-ID audit remains open.
 - **Fixed (7 November 2026):** The harness type check is green again: the day-boundary performance gate reads its measured report, the worker stall harness returns render leases, and the full-year audit shares the auto-player's food-producer set.
