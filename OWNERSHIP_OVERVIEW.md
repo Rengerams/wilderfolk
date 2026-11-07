@@ -10,6 +10,7 @@ Genetics layers, activity registry, evaluator contract and change recipes: [DNA 
 
 | Responsibility | Sole owner | Invocation |
 |---|---|---|
+| Required real-calendar CI gate | `scripts/test.mjs` — `calendarScheduler` (test runner), `.github/workflows/calendar-scheduler.yml` (mandatory PR/main job), `vitest.config.ts` (scoped coverage) | `npm test -- calendar-scheduler`: selected day/year boundaries, no 720-day continuous loop or `--passWithNoTests` |
 | Calendar-phase test world fixture | `tests/calendarPhase.auditRegressions.test.ts` — `worldBeforeDay` | test-only: derive previous day from the canonical clock |
 | CI and standard/slow gate routing | `scripts/test.mjs` — `run` | `npm run test:standard`; PRs pass `--changed <base SHA>` to select affected unit tests through Vitest's import graph; main keeps the full standard suite. Static gates and build remain project-wide. `npm test -- colony-integration`, `npm test -- full` retain their separate slow gates. |
 | Bounded simulation CI | `.github/workflows/simulation-120-day.yml` | PR simulation-rule changes and manual dispatch; seeded producer bot, 120 days, 30-day invariant checkpoints |
