@@ -2,7 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (7 Nov 2026, PR #131 A5 follow-up):** Added a root React crash recovery screen with a file-only last-available-snapshot download; crash unmount no longer auto-saves an unconfirmed display shadow over a healthy quick-save. Alt-drag road/wall demolition now requires confirmation with the segment count. Removed the unused Tauri shell plugin and permission. Battle commentary transitions retain keyboard focus inside the modal, and overlapping-save failure/retry regression coverage is expanded. Browser focus/gesture and desktop native build verification remain pending.
+- **Fixed (7 Nov 2026, PR #131 A5):** Added a React crash screen with a last-available-snapshot JSON export. Crash unmount avoids replacing a healthy quick-save with an unconfirmed display shadow.
+- **Fixed (7 Nov 2026, PR #131 A5):** Confirm bulk Alt-drag road/wall demolition with the number of segments before dispatching the command.
+- **Fixed (7 Nov 2026, PR #131 A5):** Removed unused Tauri shell plugin and permission. Restored modal focus when the battle commentary controls change.
+- **Tests (7 Nov 2026, PR #131 A5):** Expanded recovery, modal, strip demolition and overlapping-save failure/retry coverage; native Tauri and live browser checks pending.
 
 - **Fixed (7 Nov 2026):** Stopped RAF chains from reviving after GameLoop disposal; isolated imported JSON saves from quick-saves with confirmation; added shared keyboard ownership and focus to battle and prisoner dialogs.
 - **Added (7 Nov 2026):** Required fast `gameTick` midnight/Year-2 regression gate with targeted calendar coverage thresholds. It jumps directly to boundaries; the 720-day continuous simulation stays outside PR CI.
