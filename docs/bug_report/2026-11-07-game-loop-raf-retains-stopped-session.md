@@ -1,7 +1,7 @@
 # CB-01 — Frame loop continues after stop
 
 - Bug: GameLoop.frame unconditionally schedules requestAnimationFrame in finally, even after stop.
-- Status: investigating
+- Status: resolved
 - Severity: high
 - Date discovered: 2026-11-07
 - Version/build: main after PR #130
@@ -12,6 +12,7 @@
 ## Status history
 - 2026-11-07 — open: 2026-11-07 audit, CB-01; source trace confirmed unconditional RAF scheduling.
 - 2026-11-07 — investigating: add a running guard, release rendering caches on stop and test stop/restart.
+- 2026-11-07 — resolved: generation-bound RAF stops stale and in-flight callbacks and resetRendererCaches runs at stop. Node.js CI green, lifecycle test 2/2.
 
 ## Observed behavior
 frame() always enters finally with requestAnimationFrame(this.frame), even after stop() cancels the known frame. If a frame is in progress and stop fires, that finally callback creates a new animation chain retaining the session and world. The renderer-level caches also remain alive after stop.
@@ -37,4 +38,4 @@ Schedule only if running, cancel outstanding callback, reset renderer caches on 
 None.
 
 ## Verification result
-NOT RUN — pending implementation and CI.
+PASS — `tests/gameLoop.lifecycle.test.ts` 2/2, run 42414084557 (Node.js CI 952 tests passed), plus 120-day simulation and 1,800-settler performance pass. No RAF chain remains rooted after stop; the GameLoop itself intentionally allows start() using its retained world until caller discards it, and useGameSession clears loopRef on cleanup.

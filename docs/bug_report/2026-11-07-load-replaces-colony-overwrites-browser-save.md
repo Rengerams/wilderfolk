@@ -12,6 +12,7 @@
 ## Status history
 - 2026-11-07 — open: audit UX-01; source trace confirmed unconfirmed session replacement and quick-save overwrite.
 - 2026-11-07 — investigating: guard load against active colony replacement and preserve quick-save on file import.
+- 2026-11-07 — source fixed: every App load is routed via executeConfirmedColonyLoad; imported JSON is stored separately. Node unit tests passed; manual browser UX check still required.
 
 ## Observed behavior
 handleLoad and handleLoadFromFile immediately call applyLoadedSession. handleLoadFromFile also immediately calls saveGameToSlot, replacing an unrelated existing save.
@@ -37,4 +38,4 @@ Require confirmation for replacing a running colony, add a guard against repeate
 Keep original browser save key and file format unchanged. An imported-save slot is separate.
 
 ## Verification result
-NOT RUN — pending implementation and CI.
+PASS — `tests/saveLoad.externalSlot.test.ts` 11/11 (cancel/no mutation, re-entrancy, error lock release, independent recoverable import slot, unchanged quick-save); Node.js CI 42414084557 passed. NOT RUN — manual browser click-confirm, cancel and import navigation; retain investigating until that UX check.

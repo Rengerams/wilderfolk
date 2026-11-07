@@ -12,6 +12,7 @@
 ## Status history
 - 2026-11-07 — open: audit UX-03/04; missing modal hooks confirmed from source.
 - 2026-11-07 — investigating: wire existing useModalFocus and useOverlayKeyboard hooks without duplicated handler policy.
+- 2026-11-07 — source fixed: all three modal owners now use shared focus and keyboard hooks; CI source contract passed. Runtime Tab/Escape browser verification outstanding.
 
 ## Observed behavior
 Dialogs are marked aria-modal=true without keyboard ownership and focus trapping. Map hotkeys can still run and Tab can escape to background controls.
@@ -37,4 +38,4 @@ Use the shared hooks in each modal with active-scoped ownership and focus ref; t
 None.
 
 ## Verification result
-NOT RUN — pending implementation and CI.
+PASS — `tests/keyboardGuards.contract.test.ts` 26/26 and TypeScript/React build (Node.js CI 42414084557). NOT RUN — browser keyboard-walk: focus entry/restore, Tab trap and Escape across all 3 dialogs; retain investigating until real UI verification.
