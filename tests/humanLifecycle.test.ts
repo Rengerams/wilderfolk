@@ -12,7 +12,16 @@ import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { createEntity } from '../src/game/entityFactory';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
-import { genomeFrom, heterozygous } from './helpers/genome';
+import { genomeFrom, heterozygous, NEUTRAL_VALUE } from './helpers/genome';
+import { APTITUDE_IDS } from '../src/game/settlerTraits';
+import type { AllelePair, GenomeV2 } from '../src/game/settlerTraits';
+
+/** Genomes are frozen, so a fixture builds its four heterozygous alleles whole. */
+const genomeWithAlleles = (start: number): GenomeV2 => ({
+  version: 2,
+  aptitudeAlleles: APTITUDE_IDS.map((_, index): AllelePair =>
+    index < 4 ? heterozygous(start + index * 5) : [NEUTRAL_VALUE, NEUTRAL_VALUE]),
+});
 
 const MATERNAL_ID = 1;
 const FATHER_ID = 2;
@@ -162,12 +171,8 @@ describe('human lifecycle golden contracts', () => {
 
   it('derives the newborn genome from the birth key, so a replayed birth is identical', () => {
     const runBirthAt = (tick: number) => {
-      const fatherGenome = genomeFrom();
-      const motherGenome = genomeFrom();
-      for (let index = 0; index < 4; index++) {
-        fatherGenome.aptitudeAlleles[index] = heterozygous(60 + index * 5);
-        motherGenome.aptitudeAlleles[index] = heterozygous(20 + index * 5);
-      }
+      const fatherGenome = genomeWithAlleles(60);
+      const motherGenome = genomeWithAlleles(20);
       const father = human(FATHER_ID, { genomeV2: fatherGenome });
       const mother = human(MATERNAL_ID, {
         genomeV2: motherGenome,

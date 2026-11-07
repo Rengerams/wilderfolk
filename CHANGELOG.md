@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (7 Nov 2026):** Interaction audio looks deaths up by id instead of rescanning the whole roster for each one, so a large colony no longer pays a quadratic cost on every tick.
 - **Fixed (7 Nov 2026):** Audit A4 lifecycle: stopped loops end their frame chain, a render boundary exports the colony, loads are confirmed without overwriting the quick-save, raid and warfare dialogs trap focus, bulk strip demolition is confirmed, and the unused desktop shell capability is gone.
 - **Fixed (7 Nov 2026):** Audit A3 data integrity: legacy saves now scale every persisted tick field, worker faults replay only unapplied commands, election promises travel with the tick and roll back, and birth genomes follow their birth key.
 - **Fixed (7 Nov 2026):** Audit A3 corrections: the gazette's first week reads colony days 0–6, rival growth follows stable camp identity, a valid flat genome loads unchanged, and building shade uses one hex parser.

@@ -39,6 +39,20 @@
 | UX-14 | fixed | The load confirmation guards re-entry with an in-flight ref; other command buttons still rely on owner-side id guards. |
 | COV-B-02 | verified | `tests/useGamePersistence.test.ts` coalesces a second save onto the in-flight save. |
 
+## Phase A6 — render cache and invalidation
+
+| ID | Status | Evidence |
+|---|---|---|
+| GFX-11, GFX-01 | fixed | Terrain chunks re-bake only their dirty 256-world-px region; trees and buildings share one depth-sorted static pass. `tests/terrain.regionRevision.test.ts` (4), `tests/renderSnapshot.dirtyKey.test.ts` (2). |
+| GFX-02, GFX-03 | fixed | `renderSnapshotDirtyKey` carries the F4 logistics and juice preferences, so a paused view rebuilds. Preview run: overlay pixels 76 → 122 → 76 while paused. |
+| COV-I-02, SIM-18 | fixed | The chunk key carries seed, terrain seed, generation version and map size plus the region revision; the path grid keys on that revision. `tests/pathfinding.terrainRevision.test.ts` (1). |
+
+## Phase A7 — performance hot paths
+
+| ID | Status | Evidence |
+|---|---|---|
+| Audio death scan (Phase 6) | fixed | Deaths resolve through an id map instead of a roster search per corpse: 2,009,004 → under 12,006 roster reads at 2,001 entities. `tests/audio.interactionDetect.test.ts` (4). [Report](../bug_report/2026-11-07-audio-death-scan-quadratic.md) |
+
 ## Remaining verification debt
 
 - GAME-05 was re-checked and needs no change: the negative founding-year sentinel is already in source.

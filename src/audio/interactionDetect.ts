@@ -29,6 +29,8 @@ function nearbyHunters(prey: Entity, entities: Entity[], radius = 90): Entity[] 
 /** Play SFX only when sim state shows a real interaction this tick. */
 export function detectInteractionSounds(prevEntities: Entity[], currentEntities: Entity[]) {
   const prevById = new Map(prevEntities.map((e) => [e.id, e]));
+  // Death lookup by id: scanning the roster per dead entity is quadratic in colony size.
+  const currentById = new Map(currentEntities.map((e) => [e.id, e]));
 
   for (const curr of currentEntities) {
     const prev = prevById.get(curr.id);
@@ -60,7 +62,7 @@ export function detectInteractionSounds(prevEntities: Entity[], currentEntities:
   // Deaths
   for (const prev of prevEntities) {
     if (!prev.alive) continue;
-    const curr = currentEntities.find((e) => e.id === prev.id);
+    const curr = currentById.get(prev.id);
     if (!curr || curr.alive) continue;
 
     if (prev.type === EntityType.Human) {

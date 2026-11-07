@@ -50,7 +50,7 @@ describe('terrain render invalidation', () => {
     const first = key();
     expect(terrainChunkCacheKeyFor({ ...map, terrainSeed: 12 }, Season.Spring, 1, CHUNK_A))
       .not.toBe(first);
-    expect(terrainChunkCacheKeyFor({ ...map, generationVersion: 5 }, Season.Spring, 1, CHUNK_A))
+    expect(terrainChunkCacheKeyFor({ ...map, generationVersion: 3 }, Season.Spring, 1, CHUNK_A))
       .not.toBe(first);
 
     bumpTerrainRevision({ left: 300, top: 300, right: 320, bottom: 320 });

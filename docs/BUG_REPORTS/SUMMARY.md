@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-07 — [Interaction audio rescanned the whole roster for every death](../bug_report/2026-11-07-audio-death-scan-quadratic.md):** The death pass searched the current roster per previous entity; it now resolves deaths through an id map built once per call. Status: resolved — 2,009,004 roster reads fell below 12,006 in the regression, 4/4 tests pass.
+
 **2026-11-07 — [A2 required calendar scheduler missing from PR CI](../bug_report/2026-11-07-calendar-regressions-not-required-in-pr-ci.md):** Affected-only tests can pass without exercising the midnight scheduler; adding a dedicated fast gameTick boundary CI job. Status: resolved — required scheduler workflow passed 11/11.
 
 **2026-11-07 — [A2 calendar-owner coverage has no enforced floor](../bug_report/2026-11-07-calendar-regression-coverage-ungated.md):** The standard suite does not enforce coverage; adding a narrowly scoped V8 threshold in the required calendar job. Status: resolved — scoped coverage thresholds passed.
