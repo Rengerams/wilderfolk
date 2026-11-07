@@ -10,7 +10,7 @@ import {
 import { bakeWhittakerGround, buildWhittakerFields, type WhittakerFields } from './whittakerTerrain';
 import { bakeDecorInRect } from './decor';
 import { worldToScreen, screenToWorld } from '../viewState';
-import { TERRAIN_PALETTE, supportsTerrainHeightMesh, terrainRiseAt } from '../terrainAtlas';
+import { TERRAIN_PALETTE, resetTerrainRiseCache, supportsTerrainHeightMesh, terrainRiseAt } from '../terrainAtlas';
 import { bakeHeightMeshSurface, HEIGHT_MESH_TOP_PAD } from './heightMesh';
 import { createCanvasSurface, disposeCanvasSurface, getCanvasContext, type CanvasSurface } from '../canvasLayer';
 import {
@@ -182,6 +182,7 @@ export function resetTerrainCaches(): void {
   whittakerCacheKey = '';
   whittakerFields = null;
   whittakerFieldsKey = '';
+  resetTerrainRiseCache();
 }
 
 /** Per-season shift on land tiles so spring/fall/winter aren't only a faint overlay. */

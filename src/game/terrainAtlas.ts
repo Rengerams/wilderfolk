@@ -259,20 +259,51 @@ function meshVertexRise(map: WorldMap, x: number, y: number): number {
   return uplift * TERRAIN_HEIGHT_MESH_MAX_RISE;
 }
 
+/** Lattice vertices per map: the elevation field is generated once and never patched afterwards. */
+const MESH_VERTEX_CACHE_LIMIT = 4096;
+const MESH_VERTEX_KEY_OFFSET = 32768;
+let meshVertexCacheMap: WorldMap | null = null;
+let meshVertexCache = new Map<number, number>();
+
+function meshVertexKey(cellX: number, cellY: number): number {
+  return (cellX + MESH_VERTEX_KEY_OFFSET) * 65536 + (cellY + MESH_VERTEX_KEY_OFFSET);
+}
+
+/** Movers share lattice vertices every frame, and a bake sweeps them — sample each vertex once. */
+function cachedMeshVertexRise(map: WorldMap, cellX: number, cellY: number): number {
+  if (meshVertexCacheMap !== map) {
+    meshVertexCacheMap = map;
+    meshVertexCache = new Map();
+  }
+  const key = meshVertexKey(cellX, cellY);
+  const cached = meshVertexCache.get(key);
+  if (cached !== undefined) return cached;
+  const rise = meshVertexRise(map, cellX * TERRAIN_HEIGHT_MESH_STEP, cellY * TERRAIN_HEIGHT_MESH_STEP);
+  if (meshVertexCache.size >= MESH_VERTEX_CACHE_LIMIT) meshVertexCache.clear();
+  meshVertexCache.set(key, rise);
+  return rise;
+}
+
+/** Drop sampled vertices when a session or save swaps the world. */
+export function resetTerrainRiseCache(): void {
+  meshVertexCacheMap = null;
+  meshVertexCache = new Map();
+}
+
 /** Shared triangulated mesh height — continuous across chunk edges and independent of zoom. */
 export function terrainRiseAt(map: WorldMap | null, x: number, y: number): number {
   if (!map) return 0;
   if (supportsTerrainHeightMesh(map)) {
     const s = TERRAIN_HEIGHT_MESH_STEP;
-    const x0 = Math.floor(x / s) * s, y0 = Math.floor(y / s) * s;
-    const fx = (x - x0) / s, fy = (y - y0) / s;
-    const z00 = meshVertexRise(map, x0, y0);
-    const z10 = meshVertexRise(map, x0 + s, y0);
-    const z01 = meshVertexRise(map, x0, y0 + s);
+    const cellX = Math.floor(x / s), cellY = Math.floor(y / s);
+    const fx = x / s - cellX, fy = y / s - cellY;
+    const z00 = cachedMeshVertexRise(map, cellX, cellY);
+    const z10 = cachedMeshVertexRise(map, cellX + 1, cellY);
+    const z01 = cachedMeshVertexRise(map, cellX, cellY + 1);
     if (fx + fy <= 1) {
       return z00 * (1 - fx - fy) + z10 * fx + z01 * fy;
     }
-    const z11 = meshVertexRise(map, x0 + s, y0 + s);
+    const z11 = cachedMeshVertexRise(map, cellX + 1, cellY + 1);
     return z11 * (fx + fy - 1) + z10 * (1 - fy) + z01 * (1 - fx);
   }
   // Keep the original small relief curve on legacy worlds, whose historical surface is flat.

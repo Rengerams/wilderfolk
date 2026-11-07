@@ -4,6 +4,7 @@
 
 - **Fixed (7 Nov 2026):** Audit A6 static layer: the cached trees, grass and buildings now repaint only when the world's static content changes instead of on every simulation tick, while a live construction site keeps animating.
 - **Fixed (7 Nov 2026):** Audit A7 hot paths: a settler no longer rescans every building and faction list for camp, war-band, festival and hotel answers, and the population roster is counted once when nothing changed.
+- **Fixed (7 Nov 2026):** Audit A7 render hot paths: sleeping settlers share one building index per tick, status badges rebuild only when the world changes, and movers reuse sampled ground-height vertices instead of re-reading the terrain.
 - **Fixed (7 Nov 2026):** Audit A6 rendering: a local terrain change re-bakes only its own ground region, trees and buildings share one depth-sorted pass, paused overlays update at once, and terrain caches follow runtime map identity.
 - **Fixed (7 Nov 2026):** Interaction audio looks deaths up by id instead of rescanning the whole roster for each one, so a large colony no longer pays a quadratic cost on every tick.
 - **Fixed (7 Nov 2026):** Audit A4 lifecycle: stopped loops end their frame chain, a render boundary exports the colony, loads are confirmed without overwriting the quick-save, raid and warfare dialogs trap focus, bulk strip demolition is confirmed, and the unused desktop shell capability is gone.

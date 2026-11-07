@@ -4,7 +4,6 @@ import { getSpriteFrame } from '../spriteLoader';
 import { terrainRiseAt } from '../terrainAtlas';
 import { isDrawableSpriteFrame } from './shared';
 import { drawContactShadow, drawGroundAO, drawSpriteFrame } from './spriteDrawing';
-import { _cachedTrees } from './entityCache';
 import { worldToScreenX, worldToScreenY } from '../viewState';
 
 const BLUEBERRY_TREE_SPRITE_PATH = '/sprites/blueberry_tree.png';
@@ -134,9 +133,4 @@ export function drawTree(
       );
     }
   }
-}
-
-export function drawTrees(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
-  if (!_cachedTrees || _cachedTrees.length === 0) return;
-  for (const tree of sortedTrees(_cachedTrees)) drawTree(ctx, state, tree, cw, ch);
 }

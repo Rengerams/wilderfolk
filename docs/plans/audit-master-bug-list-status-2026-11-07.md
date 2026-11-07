@@ -57,6 +57,8 @@
 | Audio death scan (Phase 6) | fixed | Deaths resolve through an id map instead of a roster search per corpse: 2,009,004 → under 12,006 roster reads at 2,001 entities. `tests/audio.interactionDetect.test.ts` (4). [Report](../bug_report/2026-11-07-audio-death-scan-quadratic.md) |
 | PERF-04, RED-05 | fixed | Camp, incoming-raid, performer, festival-square and hotel answers are built once per tick; `buildIncomingRaidIndex` is the one read model for “is this rival marching”. 20→80 festival goers: 1,638→4,368 building reads before, 798→1,008 after. `tests/humanTick.hotPathIndexes.test.ts` (3). [Report](../bug_report/2026-11-07-per-settler-building-and-camp-scans.md) |
 | RED-01 | fixed | The final population scan is reused unless the daily layer ran or the dedupe dropped an entity. `tests/gameTick.dedupe.test.ts`, `tests/workerMainThread.parity.test.ts`. [Report](../bug_report/2026-11-07-population-counted-twice-per-tick.md) |
+| Render sleeper cull and status context | fixed | `drawHumans` builds one id → building map per tick and the status-icon inputs are memoised per snapshot. 20→80 sleepers: 1,730→8,600 building reads per frame before, 320→560 after; a repeated repaint of one unchanged state read 1,650 → 0. `tests/renderer.humanHotPaths.test.ts` (2). [Report](../bug_report/2026-11-07-per-frame-human-rescans.md) |
+| COV-I-04 | fixed | Height-mesh lattice vertices are sampled once per map instead of per mover per frame; 200 movers inside one 32-px cell now read 0 elevation entries after the cell is warm. `tests/terrainAtlas.riseCache.test.ts` (4). [Report](../bug_report/2026-11-07-per-frame-human-rescans.md) |
 
 ## Remaining verification debt
 
