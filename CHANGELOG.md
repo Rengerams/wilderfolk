@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Added (7 Nov 2026):** Required fast `gameTick` midnight/Year-2 regression gate with targeted calendar coverage thresholds. It jumps directly to boundaries; the 720-day continuous simulation stays outside PR CI.
 - **Fixed (7 Nov 2026):** Term elections, idle skill decay and visitor departures now run at 00:00 (SIM-01/02, TEST-16). Added `gameTick` regressions and corrected year-length invariant math; 230-ID audit remains open.
 - **Fixed (7 November 2026):** The harness type check is green again: the day-boundary performance gate reads its measured report, the worker stall harness returns render leases, and the full-year audit shares the auto-player's food-producer set.
 - **Changed (6 November 2026):** Every settler now carries fourteen inherited aptitudes; one signed activity evaluator gives each person real strengths and real weaknesses, and no genome is universally best.
