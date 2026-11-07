@@ -10,6 +10,7 @@ Genetics layers, activity registry, evaluator contract and change recipes: [DNA 
 
 | Responsibility | Sole owner | Invocation |
 |---|---|---|
+| Calendar-phase test world fixture | `tests/calendarPhase.auditRegressions.test.ts` — `worldBeforeDay` | test-only: derive previous day from the canonical clock |
 | CI and standard/slow gate routing | `scripts/test.mjs` — `run` | `npm run test:standard`; PRs pass `--changed <base SHA>` to select affected unit tests through Vitest's import graph; main keeps the full standard suite. Static gates and build remain project-wide. `npm test -- colony-integration`, `npm test -- full` retain their separate slow gates. |
 | Bounded simulation CI | `.github/workflows/simulation-120-day.yml` | PR simulation-rule changes and manual dispatch; seeded producer bot, 120 days, 30-day invariant checkpoints |
 | Incremental function overlap review | `scripts/check-function-overlap.mjs` — `changedLines`, `lex`, `dice`, `overlap`, `checkOverlaps`, `extractFact` and internal comparison helpers | Standard CI after `scripts/build-call-graph.mjs`; fingerprints and test-backed exceptions in `docs/tools/semantic-overlap-reviewed.json` |
@@ -293,7 +294,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | Grass ecology day pulse | `dailyGrassEcology.ts` | daily (`tickLayerDaily`) | `tickGrassDaily` |
 | Visitor group stay, daily gifts, and departure | `groupEvents.ts` | 00:00 new-calendar-day via `tickLayerDaily` | `tickVisitorGroups` (the sole writer of the visit lifecycle) |
 | Daily population reconciliation and food-safe immigration | `dailyPopulation.ts` | daily (`tickLayerDaily`) | `tickDailyPopulation`, `tickImmigration`, `canSupportImmigration` — checks actual and forecast food capacity for an incoming family before the seeded roll; missing history retains bootstrap arrivals, births stay independent |
-| Daily world events schedule | `dailyWorldEvents.ts` | 00:00 year transition; 18:00 world-events tail | `tickYearBoundaryWorldEvents` (only term-election scheduler and buildup); `tickDailyWorldEvents` (vacancy/visitors' other world events) |
+| Daily world events schedule | `dailyWorldEvents.ts` | 00:00 year transition; 18:00 world-events tail | `tickYearBoundaryWorldEvents`, `tickDailyWorldEvents`, `announceElectionCeremony` (private one-notice formatter; no second election decision) |
 | Hunting behaviour and hunting-spot rules | `humanHuntingBehavior.ts` + `huntingSpots.ts` | realtime (`humanTick`) + command validation | `tickHumanHunting` (hunt range and chase speed carry the `hunting` and `pursuit` activity factors; free-roam yield is recorded in the food ledger), `isValidHuntingSpotPrey`, `getHuntingSpotPreyOption` |
 | Patrol and raider detection | `humanPatrolBehavior.ts` | realtime (`humanTick`) | `detectRaidersForPatrol` |
 | Leisure motives (children and adults) | `humanLeisureBehavior.ts` | realtime (`humanTick`) | `tickHumanChildLeisure`, `tickAdultLeisureMotive` |
