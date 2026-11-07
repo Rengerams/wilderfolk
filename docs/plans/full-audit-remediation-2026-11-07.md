@@ -1,6 +1,6 @@
 # Full-audit remediation plan — V.0.6.5.2
 
-**Status:** implementation underway (A1: merged PR #129; A2: PR #130). Calendar-gate scope was revised on 7 November 2026: no 720-day continuous simulation in PR CI. **Source:** `docs/private/audits/2026-11-07/FULL-AUDIT-2026-11-07.md` and its category reports, including `code-quality.md` (Q-01..Q-16) and `dna-aptitudes.md` (DNA-01..04). **Related plans that remain authoritative for their areas:** `worker-sync-and-performance-2026-11-02.md`, `human-needs-issue-61-2026-10-26.md`, `roads-walls-navigation-overhaul.md`, `duplicate-code-elimination-2026-11-02.md`, `test-suite-optimization-2026-10-28.md`.
+**Status:** implementation underway (A1: merged PR #129; A2: PR #130; A3: save/schema/data-integrity fixes implemented on `master-approach-buglist`). Per-ID outcomes live in [audit-master-bug-list-status-2026-11-07.md](audit-master-bug-list-status-2026-11-07.md). Calendar-gate scope was revised on 7 November 2026: no 720-day continuous simulation in PR CI. **Source:** `docs/private/audits/2026-11-07/FULL-AUDIT-2026-11-07.md` and its category reports, including `code-quality.md` (Q-01..Q-16) and `dna-aptitudes.md` (DNA-01..04). **Related plans that remain authoritative for their areas:** `worker-sync-and-performance-2026-11-02.md`, `human-needs-issue-61-2026-10-26.md`, `roads-walls-navigation-overhaul.md`, `duplicate-code-elimination-2026-11-02.md`, `test-suite-optimization-2026-10-28.md`.
 
 ## 0. Outcome
 
