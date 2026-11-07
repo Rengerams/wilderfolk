@@ -916,6 +916,10 @@ export class GameLoop {
     this.layoutSize = { w: 0, h: 0 };
     this.snapshotCache = null;
     this.snapshotKey = '';
+    // The frame loop is no longer a GC root after stop. Drop the global renderer's
+    // world-derived layers too, so the next session cannot inherit old terrain.
+    resetRendererCaches();
+    resetLogisticsOverlayCache();
   }
 
   getWorldAndView(): { world: WorldState; view: ViewState } {
@@ -991,12 +995,17 @@ export class GameLoop {
   }
 
   private frame = (time: number) => {
+    // A cancelled callback may already be executing when stop() runs.
+    if (!this.running) return;
     try {
       this.frameBody(time);
     } catch (error) {
       console.error('[GameLoop] frame failed — continuing', error);
     } finally {
-      this.rafId = requestAnimationFrame(this.frame);
+      // stop() may be invoked synchronously by a listener inside frameBody().
+      // Never resurrect a stopped RAF chain or retain the abandoned world.
+      if (this.running) this.rafId = requestAnimationFrame(this.frame);
+      else this.rafId = 0;
     }
   };
 
