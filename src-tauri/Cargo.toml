@@ -19,7 +19,6 @@ serde = { version = "1.0", features = ["derive"] } # Geüpdatet naar moderne 1.0
 log = "0.4"
 tauri = { version = "2.12.1", features = [] }
 tauri-plugin-log = "2.4.0"
-tauri-plugin-shell = "2.4.0" # Toegevoegd: essentieel voor tauri_plugin_shell::init()
 
 # Keep dev builds debuggable — no stripping, no abort.
 [profile.dev]

@@ -220,6 +220,10 @@ export { getFocusHints, type FocusHintAction } from './focusHints';
 export {
   saveGame,
   saveGameToSlot,
+  saveImportedFileToSlot,
+  executeConfirmedColonyLoad,
+  loadImportedGameOutcome,
+  hasImportedSave,
   describeFileSaveReason,
   loadGameOutcome,
   describeSaveLoadOutcome,
@@ -228,7 +232,6 @@ export {
   // `hasSaveSlot` answers "is there a save in the slot"; `hasSave` answers "can this build load it".
   hasSaveSlot,
   deleteSave,
-  downloadSaveFile,
   loadGameFromFileText,
   loadGameFromFileTextOutcome,
   parseSaveJson,

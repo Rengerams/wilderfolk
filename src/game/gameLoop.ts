@@ -138,6 +138,7 @@ export class GameLoop {
   private lastCatalogByTypeRef: unknown = undefined;
   private catalogDirtyFromDeferredTick = false;
   private rafId = 0;
+  private frameGeneration = 0;
   private running = false;
   private tickAccumulator = 0;
   private tickFraction = 1;
@@ -866,6 +867,7 @@ export class GameLoop {
   start(): void {
     if (this.running) return;
     this.running = true;
+    this.frameGeneration++;
     this.lastFrameTime = 0;
     this.tickAccumulator = 0;
     this.tickFraction = 1;
@@ -873,7 +875,7 @@ export class GameLoop {
     if (!this.workerHost && !this.workerBooting) {
       this.scheduleWorkerRecovery();
     }
-    this.rafId = requestAnimationFrame(this.frame);
+    this.scheduleFrame();
   }
 
   stop(): void {
@@ -883,6 +885,7 @@ export class GameLoop {
       this.workerHost?.setProfilingEnabled(false);
     }
     this.running = false;
+    this.frameGeneration++;
     this.sessionGen++;
     this.lastWorkerPresentation = null;
     if (this.workerRecoveryTimer) {
@@ -916,6 +919,10 @@ export class GameLoop {
     this.layoutSize = { w: 0, h: 0 };
     this.snapshotCache = null;
     this.snapshotKey = '';
+    // The frame loop is no longer a GC root after stop. Drop the global renderer's
+    // world-derived layers too, so the next session cannot inherit old terrain.
+    resetRendererCaches();
+    resetLogisticsOverlayCache();
   }
 
   getWorldAndView(): { world: WorldState; view: ViewState } {
@@ -990,13 +997,27 @@ export class GameLoop {
     ].join('|');
   }
 
+  /** Every scheduled callback carries a generation: a stale cancelled callback cannot restart an older chain. */
+  private scheduleFrame(): void {
+    const generation = this.frameGeneration;
+    this.rafId = requestAnimationFrame((time) => {
+      if (!this.running || generation !== this.frameGeneration) return;
+      this.frame(time);
+    });
+  }
+
   private frame = (time: number) => {
+    // A cancelled callback may already be executing when stop() runs.
+    if (!this.running) return;
     try {
       this.frameBody(time);
     } catch (error) {
       console.error('[GameLoop] frame failed — continuing', error);
     } finally {
-      this.rafId = requestAnimationFrame(this.frame);
+      // stop() may be invoked synchronously by a listener inside frameBody().
+      // Never resurrect a stopped RAF chain or retain the abandoned world.
+      if (this.running) this.scheduleFrame();
+      else this.rafId = 0;
     }
   };
 
