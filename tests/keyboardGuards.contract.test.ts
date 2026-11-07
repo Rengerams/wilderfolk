@@ -39,6 +39,8 @@ const CLAIM_OWNER = 'src/game/keyboardOwnership.ts';
 const CLAIM_HOOK = 'src/hooks/useOverlayKeyboard.ts';
 
 const OVERLAY_DELEGATES = [
+  'src/components/BattleReportScreen.tsx',
+  'src/components/WarfareStatus.tsx',
   'src/components/GameMenu.tsx',
   'src/components/dashboard/GameDashboard.tsx',
   'src/components/CitizenOverviewScreen.tsx',
@@ -70,6 +72,19 @@ describe('an open overlay owns the keyboard', () => {
       );
       expect(overlay, `${path} claims the keyboard beside the shared hook`).not.toContain('claimKeyboard(');
     }
+  });
+
+  it('battle, terminal and prisoner fullscreen dialogs use the shared focus owner', () => {
+    for (const path of ['src/components/BattleReportScreen.tsx', 'src/components/WarfareStatus.tsx']) {
+      const component = source(path);
+      expect(component).toContain('useModalFocus<');
+      expect(component).toContain('useOverlayKeyboard(');
+    }
+    const battle = source('src/components/BattleReportScreen.tsx');
+    expect(battle).toContain('ref={dialogRef}');
+    const warfare = source('src/components/WarfareStatus.tsx');
+    expect(warfare).toContain('ref={terminalRef}');
+    expect(warfare).toContain('ref={captivesRef}');
   });
 
   it('spotlight claims the keyboard and sends Escape through the same Skip scene action', () => {
