@@ -76,6 +76,9 @@ export function isAtBuildingReach(entity: Pick<Entity, 'x' | 'y'>, building: Bui
   const rect = getBuildingFootprintRect(building);
   const nearestX = Math.max(rect.left, Math.min(rect.right, entity.x));
   const nearestY = Math.max(rect.top, Math.min(rect.bottom, entity.y));
-  return Math.hypot(entity.x - nearestX, entity.y - nearestY) <= BUILDING_REACH_RADIUS_PX
-    && isGroundWalkableAt(entity.x, entity.y);
+  if (Math.hypot(entity.x - nearestX, entity.y - nearestY) > BUILDING_REACH_RADIUS_PX) return false;
+  // Halfway ground must be walkable too, or a river/wall between the settler and the facade would
+  // count as reach without ever crossing.
+  return isGroundWalkableAt(entity.x, entity.y)
+    && isGroundWalkableAt((entity.x + nearestX) / 2, (entity.y + nearestY) / 2);
 }

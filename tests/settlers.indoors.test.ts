@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { building, human } from '../src/test/factories';
 import { BuildingType, type WorldState } from '../src/game/gameTypes';
 import { commuteDistanceToBuilding, commuteHumanToBuilding, enterHumanBuilding, homeStandPosition, humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { buildingAccessPoint } from '../src/game/buildingAccess';
 import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
 import { packEntityRenderMeta, buildRenderEntityShim } from '../src/game/simBuffers/entityRenderMeta';
 import { packRenderSoA } from '../src/game/simBuffers/packRenderSoA';
@@ -26,16 +27,18 @@ describe('settlers inside buildings', () => {
     BuildingType.TownHall, BuildingType.Church, BuildingType.Greenhouse, BuildingType.Mine])('enters completed %s only after arriving', (type) => {
     const home = building(0, type, { x: 300, y: 300, occupants: [1] });
     const person = human(1, { x: -1000, y: -1000 });
-    expect(commuteHumanToBuilding(person, home, 2, false)).toBe(false);
+    expect(commuteHumanToBuilding(person, home, 2)).toBe(false);
     expect(person.indoorBuildingId).toBeUndefined();
-    Object.assign(person, humanBuildingTarget(home, person.id));
-    expect(commuteHumanToBuilding(person, home, 2, false)).toBe(true);
-    expect(person.indoorBuildingId).toBe(0);
+    Object.assign(person, buildingAccessPoint(home));
+    expect(commuteHumanToBuilding(person, home, 2)).toBe(true);
+    // Arrival is not entry: the activity decides, so the commuter leaves indoor state alone.
+    expect(person.indoorBuildingId).toBeUndefined();
     expect([person.vx, person.vy]).toEqual([0, 0]);
-    commuteDistanceToBuilding(person, home, false);
+    commuteDistanceToBuilding(person, home);
+    enterHumanBuilding(person, home);
     expect(person.indoorBuildingId).toBe(0);
-    commuteHumanToBuilding(person, building(2, type, { x: 1000, y: 1000 }), 2, false);
-    expect(person.indoorBuildingId).toBeUndefined();
+    commuteHumanToBuilding(person, building(2, type, { x: 1000, y: 1000 }), 2);
+    expect(person.indoorBuildingId).toBe(0);
   });
 
   it.each([BuildingType.Farm, BuildingType.Quarry, BuildingType.HuntingSpot, BuildingType.FishingSpot,

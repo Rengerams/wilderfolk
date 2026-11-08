@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { building, human } from '../src/test/factories';
 import { BuildingType } from '../src/game/gameTypes';
-import { applyHumanWalkStep, commuteHumanToBuilding, homeStandPosition } from '../src/game/simulation/humanMovement';
-import { buildingAccessPoint } from '../src/game/buildingAccess';
+import { applyHumanWalkStep, commuteHumanToBuilding, enterHumanBuilding, homeStandPosition } from '../src/game/simulation/humanMovement';
+import { buildingAccessPoint, isAtBuildingReach } from '../src/game/buildingAccess';
 import { getBuildingFootprintRect } from '../src/game/buildingGeometry';
 import { isGroundWalkableAt, setCurrentPathMap } from '../src/game/pathfinding';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -18,7 +18,8 @@ describe('home entry geometry', () => {
       const porch = homeStandPosition(home, id);
       expect(porch.y, `resident ${id}`).toBeGreaterThan(home.y + home.height / 2);
       const person = human(id, { x: porch.x, y: porch.y, residenceBuildingId: home.id });
-      expect(commuteHumanToBuilding(person, home, 2, true), `resident ${id}`).toBe(true);
+      expect(commuteHumanToBuilding(person, home, 2), `resident ${id}`).toBe(true);
+      enterHumanBuilding(person, home);
       expect(person.indoorBuildingId, `resident ${id}`).toBe(home.id);
     }
   });
@@ -53,12 +54,13 @@ describe('home entry geometry', () => {
       const person = human(31 + index, { ...point, residenceBuildingId: home.id });
       let entered = false;
       for (let tick = 0; tick < 600 && !entered; tick++) {
-        entered = commuteHumanToBuilding(person, home, 3, true);
+        entered = commuteHumanToBuilding(person, home, 3);
         if (!entered) applyHumanWalkStep(person, 1);
       }
       expect(entered, `side ${index}`).toBe(true);
+      expect(isAtBuildingReach(person, home), `side ${index}`).toBe(true);
+      enterHumanBuilding(person, home);
       expect(person.indoorBuildingId, `side ${index}`).toBe(home.id);
-      expect(Math.hypot(person.x - access.x, person.y - access.y), `side ${index}`).toBeLessThanOrEqual(24);
     }
   });
 

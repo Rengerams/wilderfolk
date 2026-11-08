@@ -164,8 +164,8 @@ describe('settler lodging overnight', () => {
     const walkerX = WALKER_X;
     const walkerY = WALKER_Y;
     const home = house(1, Math.round(state.width * 0.06), walkerY);
-    // ~45 px from the walker's centre, inside the walk's direct (non-pathing) branch.
-    const inn = hotel(2, walkerX + 45, walkerY);
+    // Far enough that the walker is not already within the hotel's arrival reach.
+    const inn = hotel(2, walkerX + 90, walkerY);
     const walker = settler(1, { x: walkerX, y: walkerY, residenceBuildingId: home.id });
     state.buildings = [home, inn];
     state.entities = [walker];

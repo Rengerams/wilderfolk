@@ -19,7 +19,7 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import { initGame } from '../src/game/worldGen';
 import { SOCIAL_STAGGER } from '../src/game/adaptiveSpatialQuery';
 import { tickHumans } from '../src/game/humanTick';
-import { commuteHumanToBuilding, homeStandPosition } from '../src/game/simulation/humanMovement';
+import { commuteHumanToBuilding, enterHumanBuilding, homeStandPosition } from '../src/game/simulation/humanMovement';
 
 const TEST_SEED = 20_260_916;
 const AMBIENT_CHANCE = 0.036 * PER_TICK_RATE_SCALE;
@@ -223,7 +223,8 @@ describe('ambient chatter at home after dark', () => {
     });
     const homePeer = settler(2, homeStandPosition(home, 2));
     homeWorld.entities = [sleeping, homePeer];
-    expect(commuteHumanToBuilding(sleeping, home, 2, true)).toBe(true);
+    expect(commuteHumanToBuilding(sleeping, home, 2)).toBe(true);
+    enterHumanBuilding(sleeping, home);
     expect(sleeping.indoorBuildingId).toBe(home.id);
     setSimSeed(TEST_SEED);
     tickHumans(homeWorld, contextFor(homeWorld, [sleeping, homePeer]));
@@ -246,7 +247,8 @@ describe('ambient chatter at home after dark', () => {
     });
     state.entities = [talker];
 
-    expect(commuteHumanToBuilding(talker, home, 2, true)).toBe(true);
+    expect(commuteHumanToBuilding(talker, home, 2)).toBe(true);
+    enterHumanBuilding(talker, home);
     expect(talker.indoorBuildingId).toBe(home.id);
     tickHumans(state, contextFor(state, [talker]));
 

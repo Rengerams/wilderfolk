@@ -7,7 +7,7 @@ import { gameTick } from '../src/game/gameTick';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
-import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { buildingAccessPoint } from '../src/game/buildingAccess';
 import { createSimFocus } from '../src/game/simFocus';
 import { getWorkSchedule } from '../src/game/workSchedule';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, getTickOfDay } from '../src/game/dayCycle';
@@ -52,12 +52,12 @@ function classify(e: Entity): keyof Omit<Tally, 'walked'> {
   if (Math.hypot(e.vx, e.vy) > 0.05) return 'travelling';
   const workplace = state.buildings.find((b) => b.id === e.workerBuildingId);
   if (workplace?.completed) {
-    const target = humanBuildingTarget(workplace, e.id, false);
+    const target = buildingAccessPoint(workplace);
     if (dist(e, target) < 22) return 'atWork';
   }
   const residence = state.buildings.find((b) => b.id === e.residenceBuildingId);
   if (residence) {
-    const target = humanBuildingTarget(residence, e.id, true);
+    const target = buildingAccessPoint(residence);
     if (dist(e, target) < 30) return 'atHome';
   }
   return 'idle';
@@ -79,7 +79,7 @@ for (const day of [0, ...Array.from({ length: days }, (_, i) => i + 1)]) {
         if (workplace?.completed) {
           const dayStart = state.tick - getTickOfDay(state.tick);
           const key = `${e.id}|${dayStart}`;
-          if (!arrivalTick.has(key) && dist(e, humanBuildingTarget(workplace, e.id, false)) < 22) {
+          if (!arrivalTick.has(key) && dist(e, buildingAccessPoint(workplace)) < 22) {
             arrivalTick.set(key, getTickOfDay(state.tick));
           }
         }

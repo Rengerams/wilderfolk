@@ -12,7 +12,8 @@ import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
-import { commuteDistanceFromResidence, humanBuildingTarget } from './simulation/humanMovement';
+import { commuteDistanceFromResidence } from './simulation/humanMovement';
+import { isAtBuildingReach } from './buildingAccess';
 import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
 
@@ -158,25 +159,21 @@ export function syncSchoolAssignments(
   return assignments;
 }
 
-export function isChildAtSchool(child: Entity, school: Building, maxDist = 28): boolean {
-  // Inside the footprint counts too: a pupil who walked in is in class even between yard slots.
+export function isChildAtSchool(child: Entity, school: Building): boolean {
+  // Inside the footprint counts too: a pupil who walked in is in class between yard slots.
   if (Math.abs(child.x - school.x) <= school.width / 2
     && Math.abs(child.y - school.y) <= school.height / 2) return true;
-  const target = humanBuildingTarget(school, child.id);
-  return Math.hypot(child.x - target.x, child.y - target.y) <= maxDist;
+  return isAtBuildingReach(child, school);
 }
 
 /** Whether a teacher on this school's staff is standing at the school right now. */
 export function hasTeacherPresent(
   school: Building,
   entityById: ReadonlyMap<number, Entity>,
-  maxDist = 28,
 ): boolean {
   for (const id of school.occupants) {
     const teacher = entityById.get(id);
-    if (!teacher || !teacher.alive) continue;
-    const target = humanBuildingTarget(school, teacher.id);
-    if (Math.hypot(teacher.x - target.x, teacher.y - target.y) <= maxDist) return true;
+    if (teacher?.alive && isAtBuildingReach(teacher, school)) return true;
   }
   return false;
 }

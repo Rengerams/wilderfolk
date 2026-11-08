@@ -6,7 +6,8 @@ import { initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
-import { commuteHumanToBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { commuteHumanToBuilding } from '../src/game/simulation/humanMovement';
+import { buildingAccessPoint, isAtBuildingReach } from '../src/game/buildingAccess';
 
 const state = initGame({ seed: 7, villageName: 'ApproachProbe' });
 const person = state.entities.find((e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e));
@@ -20,7 +21,7 @@ const building = {
 
 const startDistance = Number(process.argv[2] ?? 45);
 // Place the worker so it starts `startDistance` px from its stand position (inside LONG_RANGE_DIST).
-const stand = humanBuildingTarget(building, person.id, false);
+const stand = buildingAccessPoint(building);
 person.x = stand.x;
 person.y = stand.y - startDistance;
 person.vx = 0;
@@ -31,8 +32,8 @@ const speed = 1.05;
 const rush = Number(process.argv[3] ?? 3.5);
 let ticks = 0;
 const trace: string[] = [];
-while (dist() > 8 && ticks < 400) {
-  const arrived = commuteHumanToBuilding(person, building, speed, false, rush);
+while (!isAtBuildingReach(person, building) && ticks < 400) {
+  const arrived = commuteHumanToBuilding(person, building, speed, rush);
   person.x += person.vx;
   person.y += person.vy;
   ticks++;

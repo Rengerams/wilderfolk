@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (8 Nov 2026):** Reaching a building is one rule again: the walk stops at any reachable wall on any side, and only the activity decides whether the settler goes inside, so a commuter no longer clears or sets indoor state.
 - **Fixed (8 Nov 2026):** Every building now has one doorway outside its walls: settlers walk to it from any side instead of slipping in through the nearest wall, and the porch, hospital, hotel, prison and trade approaches all use the same point.
 - **Fixed (8 Nov 2026):** A settler walking to a building in their free time, or a prisoner walking to the cell, now follows a route around the walls instead of pressing into them, so the walk actually arrives.
 - **Fixed (8 Nov 2026):** Automatic staffing now tops a workplace's open posts up to its capacity from a workplace holding a clear surplus, instead of leaving every site with a single worker while other crews stay full.

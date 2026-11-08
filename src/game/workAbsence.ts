@@ -201,7 +201,7 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
     state.tick,
     entity.id,
     commuteLeadHoursFor(
-      commuteDistanceToBuilding(entity, workplace, false),
+      commuteDistanceToBuilding(entity, workplace),
       SPECIES_CONFIG[EntityType.Human].speed,
     ),
   ));

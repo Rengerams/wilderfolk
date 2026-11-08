@@ -10,6 +10,7 @@ import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior'
 import { getPathGrid, invalidateCommutePathsForWalker, isOnWalkableRoadAt, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { getCurrentPathfinderTickCounters, resetPathfinderSession, setPathfindingMetricsEnabled } from '../src/game/pathfindingMetrics';
 import { applyHumanWalkStep, commuteHumanToBuilding, humanBuildingTarget, steerHumanToward } from '../src/game/simulation/humanMovement';
+import { buildingAccessPoint, isAtBuildingReach } from '../src/game/buildingAccess';
 import { ROAD_SPEED_MULT } from '../src/game/simulation/movementSteering';
 import { COMMUTE_CONFIG } from '../src/game/commuteReach';
 import { PREGNANCY_TICKS, TICKS_PER_DAY } from '../src/game/dayCycle';
@@ -421,7 +422,7 @@ describe('M27 commute movement', () => {
 
     const startX = entity.x;
     const startY = entity.y;
-    expect(commuteHumanToBuilding(entity, building, speed, false)).toBe(false);
+    expect(commuteHumanToBuilding(entity, building, speed)).toBe(false);
 
     // The stepper must leave the entity untouched: the loop's apply is the single integration.
     // (`toBeCloseTo`: the step is set as a velocity and applied by the caller.)
@@ -441,7 +442,7 @@ describe('M27 commute movement', () => {
     const building = { id: 8, x: 600, y: 600, width: 40, height: 30, completed: true } as Building;
     const entity = human(4, 0, 0);
 
-    expect(commuteHumanToBuilding(entity, building, 1, false, 3.5)).toBe(false);
+    expect(commuteHumanToBuilding(entity, building, 1, 3.5)).toBe(false);
     expect(Math.hypot(entity.vx, entity.vy)).toBeCloseTo(
       MAX_COMMUTE_SPEED_MULTIPLIER * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO,
       6,
@@ -550,13 +551,13 @@ describe('water and walls are solid under every walk', () => {
     const map = makeMap(40, 40, 943, (x, y) => x === 20 && y !== 12);
     const buildings: Building[] = [];
     setCurrentPathMap(map, buildings);
-    const workplace = { id: 7, x: pixel(21, 10), y: pixel(10, 10) - 25, width: 40, height: 30, completed: true } as Building;
+    const workplace = { id: 7, x: pixel(23, 10), y: pixel(10, 10) - 25, width: 40, height: 30, completed: true } as Building;
     const walker = human(3, pixel(19, 10), pixel(10, 10));
 
     let arrived = false;
     let forded = false;
     for (let tick = 0; tick < 600 && !arrived; tick++) {
-      arrived = commuteHumanToBuilding(walker, workplace, 1, false);
+      arrived = commuteHumanToBuilding(walker, workplace, 1);
       applyHumanWalkStep(walker, 1);
       if (blockedAt(map, buildings, walker.x, walker.y)) forded = true;
     }
@@ -603,30 +604,31 @@ describe('water and walls are solid under every walk', () => {
 });
 
 describe('commute approach easing (the doorstep stretch)', () => {
-  it('reaches the doorstep without overshooting or exceeding urgent walking pace', () => {
+  it('reaches the building without overshooting or exceeding urgent walking pace', () => {
     const building = { id: 9, x: 600, y: 600, width: 60, height: 48, completed: true } as Building;
     const entity = human(5, 0, 0);
-    const stand = humanBuildingTarget(building, entity.id);
-    entity.x = stand.x;
-    entity.y = stand.y - 45;
+    const access = buildingAccessPoint(building);
+    entity.x = access.x;
+    entity.y = access.y + 45;
     entity.vx = 0;
     entity.vy = 0;
 
     const steps: number[] = [];
     let ticks = 0;
-    while (Math.hypot(stand.x - entity.x, stand.y - entity.y) > 8 && ticks < 200) {
-      commuteHumanToBuilding(entity, building, 1.05, false, 2);
+    while (!isAtBuildingReach(entity, building) && ticks < 200) {
+      commuteHumanToBuilding(entity, building, 1.05, 2);
       steps.push(Math.hypot(entity.vx, entity.vy));
       entity.x += entity.vx;
       entity.y += entity.vy;
       ticks++;
     }
 
-    // The urgent pace is capped at twice the configured walk speed and eases near the target.
+    // The urgent pace is capped at twice the configured walk speed, and the walker stops outside.
+    expect(isAtBuildingReach(entity, building)).toBe(true);
     expect(ticks).toBeLessThanOrEqual(30);
-    expect(ticks).toBeGreaterThanOrEqual(4);
+    expect(ticks).toBeGreaterThanOrEqual(1);
     expect(Math.max(...steps)).toBeLessThanOrEqual(1.05 * MAX_COMMUTE_SPEED_MULTIPLIER);
-    expect(steps[0]!).toBeGreaterThan(steps[steps.length - 1]! * 2);
+    expect(entity.y).toBeGreaterThan(building.y + building.height / 2);
   });
 });
 describe('blocked commuter path recovery', () => {

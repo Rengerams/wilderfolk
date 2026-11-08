@@ -8,7 +8,7 @@ import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { assignMissingWorkers } from '../src/game/workforce';
-import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { buildingAccessPoint } from '../src/game/buildingAccess';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 
 const state = initGame({ seed: 4242, villageName: 'CommuteProbe' });
@@ -46,10 +46,10 @@ console.log('worker', worker.id, 'job', worker.job, 'workplace', workplace.id, '
 console.log('start', { x: Math.round(worker.x), y: Math.round(worker.y) });
 
 const dist = (): number => {
-  const t = humanBuildingTarget(workplace, worker.id, false);
+  const t = buildingAccessPoint(workplace);
   return Number(Math.hypot(t.x - worker.x, t.y - worker.y).toFixed(1));
 };
-console.log('stand target', humanBuildingTarget(workplace, worker.id, false), 'start dist', dist());
+console.log('stand target', buildingAccessPoint(workplace), 'start dist', dist());
 let closest = dist();
 for (let day = 0; day < 3; day++) {
   for (let t = 0; t < TICKS_PER_DAY; t++) {

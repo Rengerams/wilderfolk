@@ -3,7 +3,7 @@
  * Lodging is free: the hotelier gains work experience for tending guests.
  */
 import { enterHumanBuilding } from './simulation/humanMovement';
-import { buildingAccessPoint } from './buildingAccess';
+import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import type { Building, Entity, WorldState } from './gameTypes';
 import {
   BuildingType,
@@ -565,7 +565,7 @@ export function steerVisitorToHotel(
   const dx = tx - visitor.x;
   const dy = ty - visitor.y;
   const dist = Math.hypot(dx, dy) || 1;
-  if (dist > 14) {
+  if (!isAtBuildingReach(visitor, hotel)) {
     // Route around water/mountains on the camp→hotel walk. Key on the visitor, not the moving
     // position: a position key changes every step, so A* re-ran per tick and the shared cache churned.
     const handled = steerWithPath(visitor, tx, ty, speed * 0.7, `h_${hotel.id}_${visitor.id}`);

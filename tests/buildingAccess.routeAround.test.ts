@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { building, human } from '../src/test/factories';
 import { BuildingType } from '../src/game/gameTypes';
-import { applyHumanWalkStep, commuteHumanToBuilding, homeStandPosition, steerHumanToward } from '../src/game/simulation/humanMovement';
+import { applyHumanWalkStep, commuteHumanToBuilding, enterHumanBuilding, homeStandPosition, steerHumanToward } from '../src/game/simulation/humanMovement';
 import { buildingAccessPoint } from '../src/game/buildingAccess';
 import { getBuildingFootprintRect } from '../src/game/buildingGeometry';
 import { setCurrentPathMap } from '../src/game/pathfinding';
@@ -10,13 +10,16 @@ import { testWorldMap } from '../src/test/worldMapFixtures';
 /** Walk a settler home one tick at a time, as the human loop does. */
 function walkHome(person: ReturnType<typeof human>, home: ReturnType<typeof building>, ticks: number): boolean {
   for (let tick = 0; tick < ticks; tick++) {
-    if (commuteHumanToBuilding(person, home, 3, true)) return true;
+    if (commuteHumanToBuilding(person, home, 3)) {
+      enterHumanBuilding(person, home);
+      return true;
+    }
     applyHumanWalkStep(person, 1);
   }
   return false;
 }
 
-describe('a settler routes around a building to its one door', () => {
+describe('a settler reaches a building from every side', () => {
   it.each([
     ['north', 0, -100],
     ['south', 0, 100],

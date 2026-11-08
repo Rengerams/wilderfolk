@@ -157,7 +157,7 @@ export const WORKER_STAND_SPACING_PX = 16;
 /** How far south of the footprint's edge the worker row stands, in px — in front of it, never on it. */
 export const WORKER_STAND_STANDOFF_PX = 10;
 
-/** The exact destination coordinates for a human heading to their workplace or venue. */
+/** The work-post stand point in front of a building; placement only, never a navigation target. */
 export function humanBuildingTarget(building: Building, entityId: number): { x: number; y: number } {
   if (building.type === BuildingType.School && !building.occupants.includes(entityId)) {
     // A pupil's place is a yard slot, not the footprint centre: the centre is unwalkable and every

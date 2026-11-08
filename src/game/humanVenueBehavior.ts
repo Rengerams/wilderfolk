@@ -4,7 +4,7 @@ import { JobType } from './gameTypes';
 import { PER_TICK_RATE_SCALE } from './dayCycle';
 import { isPlayerHuman } from './playerHuman';
 import { seededRandomForRun } from './simRng';
-import { commuteHumanToBuilding } from './simulation/humanMovement';
+import { commuteHumanToBuilding, enterHumanBuilding } from './simulation/humanMovement';
 import {
   isOfficialAtHall,
   officialHandlePetitioners,
