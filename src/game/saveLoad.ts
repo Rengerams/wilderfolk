@@ -116,14 +116,8 @@ function backfillLegacySettlerDNA(entities: Entity[], colonySeed: number): numbe
   let filled = 0;
   for (const entity of entities) {
     if (entity.type !== EntityType.Human && entity.type !== EntityType.Werewolf) continue;
-    // The retired categorical labels are never kept as a second genetics source, even for the dead.
-    delete (entity as unknown as Record<string, unknown>).traits;
-    // Foreign humans stay neutral by contract: no genome and no marks, whatever the save held.
-    if (isForeignFaction(entity.faction)) {
-      delete entity.genomeV2;
-      delete entity.marks;
-      continue;
-    }
+    // Foreign humans stay neutral by contract; adoption already dropped their genome and marks.
+    if (isForeignFaction(entity.faction)) continue;
     // A cursed settler may be saved in moon form, which is still the same person and their genome.
     if (!entity.alive) continue;
     const saved = normalizeGenome(entity.genomeV2);
@@ -153,7 +147,7 @@ function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): v
       && Number.isSafeInteger(legacy.homeBuildingId) && legacy.homeBuildingId >= 0) {
       assignment.workerBuildingId = legacy.homeBuildingId;
     }
-    delete legacy.homeBuildingId;
+    legacy.homeBuildingId = undefined;
   }
   if (entity.type === EntityType.Human || entity.type === EntityType.Werewolf) {
     entity.careerHistory = normalizeCareerHistory(saved.careerHistory);
@@ -1438,9 +1432,17 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       raidRecovery: worldData.raidRecovery,
       scoredRaidIds: worldData.scoredRaidIds,
       raidPrisonerHistory: worldData.raidPrisonerHistory,
-      entities: (worldData.entities || []).map((e: Partial<Entity>) => {
+      entities: (worldData.entities || []).map((saved: Partial<Entity> & { traits?: unknown }) => {
         // Required fields (`vx`, `vy`, `alive`, `flash`, `birthYear`, `birthMonth`, `birthDay`) are
         // repaired for every element here; `...e` still wins over every default the payload carries.
+        // Retired and foreign-only keys leave in this copy: a later `delete` would put every entity
+        // into dictionary-mode properties and slow the whole session.
+        const { traits: _retiredTraits, ...e } = saved;
+        let fields: Partial<Entity> = e;
+        if (isForeignFaction(e.faction)) {
+          const { genomeV2: _genome, marks: _marks, ...neutral } = e;
+          fields = neutral;
+        }
         const entity = {
           childrenIds: [],
           spriteAngle: 0,
@@ -1452,13 +1454,13 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
           birthYear: 0,
           birthMonth: 0,
           birthDay: 0,
-          ...e,
+          ...fields,
         } as Entity;
         // `generation` and `animFrame` are optional and read only for the species that carry them, so
         // they are repaired for those species alone rather than for every element.
         if (entity.type === EntityType.Human) entity.generation ??= 0;
         if (TICKED_SPECIES.has(entity.type)) entity.animFrame ??= 0;
-        migrateEntityPersistedFields(entity, e);
+        migrateEntityPersistedFields(entity, fields);
         if (isPlayerHuman(entity)) normalizeHumanNeeds(entity);
         if (entity.type === EntityType.Human && entity.spriteVariant === undefined && entity.gender) {
           entity.spriteVariant = pickHumanVariant(entity.id, entity.gender);
@@ -1498,9 +1500,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     for (const entity of world.entities) {
       if (entity.type !== EntityType.Human && entity.type !== EntityType.Werewolf) continue;
       if (isForeignFaction(entity.faction)) continue;
-      const marks = normalizeMarks(entity.marks);
-      if (marks === undefined) delete entity.marks;
-      else entity.marks = marks;
+      // Cleared to `undefined`, not deleted, so the roster keeps fast properties for the session.
+      entity.marks = normalizeMarks(entity.marks);
     }
     for (const entity of world.entities) {
       migrateLegacyMoonHowler(entity, colonyDayOnLoad, hourOnLoad);

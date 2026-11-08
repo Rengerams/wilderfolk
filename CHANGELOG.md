@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (8 Nov 2026):** Audit A7 hot paths: a loaded colony keeps fast object properties, so the per-tick rollback backup costs about half as much and every later read of a loaded settler is cheaper.
 - **Changed (8 Nov 2026):** Audit A10 family tree: the window now draws the shared generation model one row per generation with wrapping cards, names each relation and bond, lists missing records, and can include deceased relatives from genealogy history.
 - **Fixed (8 Nov 2026):** Audit A10 accessibility: the reputation chip and save toast are announced, focus rings cover every control, graveyard and research copy no longer promise enemy graves or disabled disasters, and the Tauri CLI is a development dependency only.
 - **Changed (8 Nov 2026):** Audit A12 duplication: the rivalry ladder has one owner, so the wedding story and diplomacy step relations along the same order.
