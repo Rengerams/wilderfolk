@@ -52,7 +52,7 @@ describe('settlers inside buildings', () => {
 
   it('admits a pregnant patient already at the ward instead of leaving her outside', () => {
     const ward = building(0, BuildingType.Hospital, { x: 100, y: 100 });
-    const person = human(1, { x: 110, y: 110, pregnant: true });
+    const person = human(1, { x: 110, y: 110, pregnant: true, pregnancyProgress: 900, pregnancyDueProgress: 1000 });
     tickHumanHospitalPatientCare({ state: { tick: 5 } as WorldState, entity: person, staffedHospitals: [ward], onJobShift: false, speed: 2 });
     expect(person.indoorBuildingId).toBe(0);
     person.x = 1000;
@@ -63,7 +63,7 @@ describe('settlers inside buildings', () => {
   it('keeps a pregnant patient indoors across real simulation ticks and releases her when care ends', () => {
     const world = initGame({ skipTerrain: true, seed: 622 });
     world.worldMap = null;
-    world.entities = [human(1, { x: 110, y: 110, gender: 'female', pregnant: true, pregnancyProgress: 1 }),
+    world.entities = [human(1, { x: 110, y: 110, gender: 'female', pregnant: true, pregnancyProgress: 900, pregnancyDueProgress: 1000 }),
       human(2, { x: 100, y: 120, job: 'doctor', workerBuildingId: 0 })];
     world.buildings = [building(0, BuildingType.Hospital, { x: 100, y: 100, occupants: [2], staffingMode: 'manual' })];
     world.entityByType = undefined;
@@ -74,7 +74,7 @@ describe('settlers inside buildings', () => {
     const patient = world.entities.find((entry) => entry.id === 1)!;
     expect(patient.indoorBuildingId).toBe(0);
     expect(patient.alive).toBe(true);
-    expect(patient.pregnancyProgress).toBeGreaterThan(1);
+    expect(patient.pregnancyProgress).toBeGreaterThan(900);
     expect(observeIndoorPatients(world).patients).toContainEqual({ id: 1, indoorBuildingId: 0, hospitalId: 0 });
     const fixtureDirectory = process.env.INDOOR_SMOKE_FIXTURE_DIR;
     if (fixtureDirectory) {
