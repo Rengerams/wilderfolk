@@ -374,7 +374,7 @@ export const SIMULATION_DECISIONS = {
   pregnancyBirth: {
     owner: 'humanLifecycle.ts — tickPregnancyAndBirth, getPregnancyProgressFraction, isPregnancyHospitalStage (ONLY pregnancy-progress and due-date threshold owner; never starts a second pregnancy path); settlerTraits.ts — inheritGenome is the only birth genetics rule',
     cadence: 'pregnancy-progress',
-    cadenceNote: 'A single 85%-of-individual-due-date gate in humanLifecycle is read by humanHospitalBehavior doctor duty/admission and hospitalCare needs/reason. SelectedEntityPanel displays the nominal 24-day percentage without capping it: late deliveries can exceed 100%. HumanTick schedules progress and handles no extra pregnancy verdict.',
+    cadenceNote: 'A single 85%-of-individual-due-date gate in humanLifecycle is read by humanHospitalBehavior doctor duty/admission and hospitalCare needs/reason. SelectedEntityPanel displays the nominal 24-day percentage without capping it: late deliveries can exceed 100%. HumanTick schedules progress and reads the same stage verdict to stop work shifts, attendance and commutes; no second pregnancy rule exists.',
     writes: [
       'human.pregnancyProgress',
       'human.pregnant/pregnantById/pregnancyDueProgress/pregnancyFromYouthLove (cleared at birth)',
