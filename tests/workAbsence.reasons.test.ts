@@ -200,7 +200,24 @@ describe('the reason a settler is not at their post', () => {
     const worker = settler(1, { energy: 90, pregnant: true, pregnancyProgress: PREGNANCY_TICKS * 0.9 });
     const state = world(workdayTick(11), { entities: [worker] });
 
-    expect(getSettlerWorkReason(state, worker)).toEqual({ code: 'expecting', label: 'Expecting — resting' });
+    expect(getSettlerWorkReason(state, worker)).toEqual({ code: 'expecting', label: 'Expecting — seeking hospital care' });
+  });
+
+  it('reports hospital rest only after admission to a staffed ward', () => {
+    const hospital = building(7, BuildingType.Hospital, { x: 200, y: 200, occupants: [2] });
+    const mother = settler(1, {
+      energy: 90, pregnant: true, pregnancyProgress: PREGNANCY_TICKS * 0.9,
+      x: 200, y: 200, indoorBuildingId: hospital.id,
+    });
+    const state = world(workdayTick(11), { entities: [mother], buildings: [hospital] });
+    expect(getSettlerWorkReason(state, mother)).toEqual({
+      code: 'expecting', label: 'Expecting — resting in hospital',
+    });
+
+    mother.x = 1000;
+    expect(getSettlerWorkReason(state, mother)).toEqual({
+      code: 'expecting', label: 'Expecting — seeking hospital care',
+    });
   });
 
   it('does not report ordinary early pregnancy as work absence', () => {
