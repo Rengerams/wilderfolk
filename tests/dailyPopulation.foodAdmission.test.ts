@@ -44,7 +44,7 @@ describe('automatic immigration follows actual food capacity, not stocked reserv
 
   it('keeps a one-off recruitment food purchase out of sustained meal demand', () => {
     const world = stateFor(80, () => 45);
-    world.foodHistory[4].consumed.recruitment = 330;
+    world.foodHistory![4].consumed.recruitment = 330;
 
     expect(getRecentFoodFlow(world)?.netPerDay).toBeLessThan(0); // accounting includes the real expense
     expect(getRecentFoodFlow(world, 7, 'meals')?.netPerDay).toBeGreaterThan(0);
