@@ -295,7 +295,7 @@ export function tickHumanLeisure(args: {
   idleVenues: readonly Building[];
   festivalPerformers: VisitorGroup | undefined;
   treeGrid: TickContext['treeGrid'];
-  trees: TickContext['byType'][EntityType.Tree];
+  trees: readonly Entity[];
   weekend: boolean;
 }): boolean {
   const {
