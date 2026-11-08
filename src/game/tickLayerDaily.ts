@@ -11,7 +11,6 @@ import { mergeNewEntitiesIntoAlive } from './simulation/simulationEntities';
 import { addFloatingText } from './simEffects';
 import { playerHumansFrom } from './playerHuman';
 import { syncLeaderHouseResidency } from './leaderHouse';
-import { tickElectionPromises } from './electionPromises';
 import { tickVisitorGroups } from './groupEvents';
 import { decayIdleSkills } from './skills';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
@@ -90,10 +89,7 @@ export function tickLayerDaily(
 
   // 18:00 — election promises and the chronicle, before production feeds world events.
   if (hour === DAILY_PHASE_HOURS.worldEvents) {
-    const stage7 = profileStart();
-    tickElectionPromises(state);
-    profileEnd('daily.tickElectionPromises', stage7);
-
+  // World-events owns promise evaluation, once per evening, after today's production.
     const chronicleStart = profileStart();
     const newlyUnlocked = advanceValleyChronicle(state);
     profileEnd('daily.advanceValleyChronicle', chronicleStart);

@@ -46,6 +46,20 @@
 
 **2026-11-07 — [Interaction audio rescanned the whole roster for every death](../bug_report/2026-11-07-audio-death-scan-quadratic.md):** The death pass searched the current roster per previous entity; it now resolves deaths through an id map built once per call. Status: resolved — 2,009,004 roster reads fell below 12,006 in the regression, 4/4 tests pass.
 
+**2026-11-07 — [A1 residual calendar fixture and festival-load double repair](../bug_report/2026-11-07-a1-residual-calendar-fixtures-festival-double-repair.md):** SIM-14 called its festival repair twice, and live fixtures used obsolete 72-tick day math. The historical README release record must retain 72/day. Status: repair/fixtures updated; valid and stale festival outcomes plus current and synthetic legacy Year-0 election saves tested in A1 PR #132; final CI is required before closure.
+
+**2026-11-07 — [A5 CB-02 React crash without recovery export](../bug_report/2026-11-07-react-render-crash-no-recovery-export.md):** Root error boundary and file-only last-known-colony export; no crash-unmount autosave. Status: source fixed, CI/browser verification pending.
+
+**2026-11-07 — [A5 CB-13 unused desktop shell capability](../bug_report/2026-11-07-tauri-unused-shell-capability.md):** Remove unused Tauri shell permission/plugin and direct dependency. Status: source fixed, native build pending.
+
+**2026-11-07 — [A5 UX-13/14 destructive bulk strip gesture](../bug_report/2026-11-07-alt-drag-bulk-demolition-without-confirmation.md):** Alt-drag road/wall demolition now requests confirmation before issuing the existing command. Status: source fixed, browser verification pending.
+
+**2026-11-07 — [A5 CB-01 stopped RAF chain and old renderer caches](../bug_report/2026-11-07-game-loop-raf-retains-stopped-session.md):** RAF reschedules after stop, risking an abandoned world frame chain. Status: resolved — lifecycle tests and CI passed.
+
+**2026-11-07 — [A5 UX-01 loading replaces the active colony and quick-save](../bug_report/2026-11-07-load-replaces-colony-overwrites-browser-save.md):** Browser/file loads lacked confirmation; file import silently overwrote quick-save. Status: source fixed, browser QA pending.
+
+**2026-11-07 — [A5 UX-03/04 war modals leak focus and hotkeys](../bug_report/2026-11-07-war-overlays-leak-keyboard-and-focus.md):** Battle, terminal and prisoner dialogs lacked shared focus/keyboard ownership. Status: source fixed, browser QA pending.
+
 **2026-11-07 — [A2 required calendar scheduler missing from PR CI](../bug_report/2026-11-07-calendar-regressions-not-required-in-pr-ci.md):** Affected-only tests can pass without exercising the midnight scheduler; adding a dedicated fast gameTick boundary CI job. Status: resolved — required scheduler workflow passed 11/11.
 
 **2026-11-07 — [A2 calendar-owner coverage has no enforced floor](../bug_report/2026-11-07-calendar-regression-coverage-ungated.md):** The standard suite does not enforce coverage; adding a narrowly scoped V8 threshold in the required calendar job. Status: resolved — scoped coverage thresholds passed.

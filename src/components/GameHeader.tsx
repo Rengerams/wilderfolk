@@ -87,6 +87,7 @@ export default function GameHeader({
   muted,
   volumePreset,
   hasSavedGame,
+  hasImportedSave,
 tutorialsEnabled,
   juiceEffectsEnabled,
   showSimTick,
@@ -102,6 +103,7 @@ tutorialsEnabled,
   onOpenTrade,
   onSave,
   onLoad,
+  onLoadImported,
   onLoadFromFile,
   onReplayIntro,
   onToggleAutoSave,
@@ -414,6 +416,7 @@ tutorialsEnabled,
           gamePhase={gamePhase}
           gameSubtitle={gameSubtitle}
           hasSavedGame={hasSavedGame}
+          hasImportedSave={hasImportedSave}
           autoSave={world.autoSave}
           tutorialsEnabled={tutorialsEnabled}
           juiceEffectsEnabled={juiceEffectsEnabled}
@@ -424,6 +427,7 @@ tutorialsEnabled,
           volumePreset={volumePreset}
           onSave={onSave}
           onLoad={onLoad}
+          onLoadImported={onLoadImported}
           onLoadFromFile={onLoadFromFile}
           onReplayIntro={onReplayIntro}
           onToggleAutoSave={onToggleAutoSave}

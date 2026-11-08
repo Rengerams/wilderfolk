@@ -126,7 +126,7 @@ function makeState(): WorldState {
   // hunter's position, and a spot whose worker is elsewhere does nothing.
   const prey = deer(2);
   return {
-    // gameTick increments first: 71 -> 72 is the shared systems/assign/daily boundary.
+    // gameTick increments first: 107 -> 108 is a systems + 09:00 assignment boundary.
     tick: 107,
     paused: false,
     speed: 1,

@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useModalFocus } from '../hooks/useModalFocus';
+import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 import type { WorldState } from '../game/gameTypes';
 import { formatCitizenName } from '../game/citizenId';
 import { getOpenPlayerBeds } from '../game/populationGrowth';
 import { daysUntilTick } from '../game/dayCycleClock';
 import { buildRaidTerminalReport } from '../game/raidTerminalReport';
-import { useModalFocus } from '../hooks/useModalFocus';
-import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 
 interface WarfareStatusProps {
   world: WorldState;
@@ -26,10 +26,19 @@ export default function WarfareStatus({ world, onPrisonerDecision, onRepair, onE
   const openBeds = useMemo(() => prisoners.length ? getOpenPlayerBeds(world) : 0, [world, prisoners.length]);
   const buildingById = useMemo(() => new Map((recovery?.status === 'recovering' ? world.buildings : []).map((home) => [home.id, home])), [world, recovery?.status]);
   const terminal = recovery?.status === 'destroyed' ? buildRaidTerminalReport(world) : null;
-  const terminalRef = useModalFocus<HTMLDivElement>(Boolean(terminal));
-  const captivesRef = useModalFocus<HTMLDivElement>(showCaptives);
-  useOverlayKeyboard('warfare-terminal', onMainMenu, Boolean(terminal));
-  useOverlayKeyboard('warfare-captives', () => setShowCaptives(false), showCaptives);
+  const closeCaptives = useCallback(() => {
+    setShowCaptives(false);
+    setConfirmExecution(null);
+  }, []);
+  const captivesActive = showCaptives && !terminal;
+  const terminalRef = useModalFocus<HTMLDivElement>(!!terminal);
+  const captivesRef = useModalFocus<HTMLDivElement>(!!captivesActive);
+  useOverlayKeyboard('warfare-terminal', onMainMenu, !!terminal);
+  useOverlayKeyboard('warfare-prisoners', () => {
+    if (confirmExecution != null) setConfirmExecution(null);
+    else closeCaptives();
+  }, !!captivesActive);
+
   if (terminal && recovery) {
     return <div ref={terminalRef} role="dialog" aria-modal="true" aria-label="Settlement fallen" className="pointer-events-auto fixed inset-0 z-[1200] flex items-center justify-center bg-black/95 p-3 text-stone-100 sm:p-6">
       <section className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-xl border border-rose-800 bg-stone-950 p-4 sm:p-8">
@@ -113,13 +122,13 @@ export default function WarfareStatus({ world, onPrisonerDecision, onRepair, onE
           {openBeds <= 0 && <p>No free village housing is available for a recruit.</p>}
           {world.tick < person.warCaptive!.recruitAfterTick && <p>Another recruitment offer is available in {daysUntilTick(world.tick, person.warCaptive!.recruitAfterTick)} days.</p>}
           {confirmExecution === person.id && <div className="rounded border border-stone-600 p-3">
-            <p>Execute {formatCitizenName(person)}? Executing kills this captive permanently; this cannot be undone.</p>
+            <p>Execute {formatCitizenName(person)}? This is permanent and cannot be undone.</p>
             <button onClick={() => { onPrisonerDecision(person.id, 'execute_confirmed'); setConfirmExecution(null); }} className="mr-3 rounded bg-stone-700 p-2">Confirm</button>
             <button onClick={() => setConfirmExecution(null)}>Cancel</button>
           </div>}
         </div>)}
         {prisoners.length === 0 && <p>No identifiable combatants remain in captivity.</p>}
-        <button onClick={() => setShowCaptives(false)} className="rounded bg-stone-700 p-2">Return to village</button>
+        <button onClick={closeCaptives} className="rounded bg-stone-700 p-2">Return to village</button>
       </section>
     </div>}
   </>;

@@ -116,4 +116,18 @@ describe('election vote-support — merit is strongest', () => {
   it('the influence cap bounds friendship/feud power', () => {
     expect(BOND_INFLUENCE_CAP).toBe(15);
   });
+  it('GAME-07: a real election samples deterministic attendance below 100%', () => {
+    const world = makeWorld();
+    for (let id = 1; id <= 200; id++) addVoter(world, id);
+    const ballot = candidates({ id: 10, score: 100 }, { id: 20, score: 90 });
+    const first = simulateElectionVotes(world, ballot, 42);
+    const repeated = simulateElectionVotes(world, ballot, 42);
+    expect(repeated.totalVotes).toBe(first.totalVotes);
+    expect(repeated.tally).toEqual(first.tally);
+    expect(first.totalVotes).toBeGreaterThanOrEqual(130);
+    expect(first.totalVotes).toBeLessThanOrEqual(196);
+    expect(first.totalVotes).toBeLessThan(200);
+    expect([...first.tally.values()].reduce((sum, votes) => sum + votes, 0)).toBe(first.totalVotes);
+  });
+
 });

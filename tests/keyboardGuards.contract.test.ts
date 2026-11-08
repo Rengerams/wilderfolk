@@ -39,6 +39,8 @@ const CLAIM_OWNER = 'src/game/keyboardOwnership.ts';
 const CLAIM_HOOK = 'src/hooks/useOverlayKeyboard.ts';
 
 const OVERLAY_DELEGATES = [
+  'src/components/BattleReportScreen.tsx',
+  'src/components/WarfareStatus.tsx',
   'src/components/GameMenu.tsx',
   'src/components/dashboard/GameDashboard.tsx',
   'src/components/CitizenOverviewScreen.tsx',
@@ -72,6 +74,27 @@ describe('an open overlay owns the keyboard', () => {
       );
       expect(overlay, `${path} claims the keyboard beside the shared hook`).not.toContain('claimKeyboard(');
     }
+  });
+
+  it('battle, terminal and prisoner fullscreen dialogs use the shared focus owner', () => {
+    for (const path of ['src/components/BattleReportScreen.tsx', 'src/components/WarfareStatus.tsx']) {
+      const component = source(path);
+      expect(component).toContain('useModalFocus<');
+      expect(component).toContain('useOverlayKeyboard(');
+    }
+    const battle = source('src/components/BattleReportScreen.tsx');
+    expect(battle).toContain('ref={dialogRef}');
+    const warfare = source('src/components/WarfareStatus.tsx');
+    expect(warfare).toContain('ref={terminalRef}');
+    expect(warfare).toContain('ref={captivesRef}');
+  });
+
+  it('battle commentary transition retains an autofocus target and recovers lost focus', () => {
+    const battle = source('src/components/BattleReportScreen.tsx');
+    expect(battle).toContain('data-autofocus aria-label="Close battle report"');
+    expect(battle).toContain('ref={stableCloseRef}');
+    expect(battle).toContain('stableCloseRef.current?.focus()');
+    expect(battle).toContain('[allSeen, finalReady, confirmExterminate, dialogRef]');
   });
 
   it('spotlight claims the keyboard and sends Escape through the same Skip scene action', () => {
@@ -209,6 +232,17 @@ describe('a selection strip states its selection instead of only painting it', (
     expect(map).toContain('tabIndex={0}');
     expect(map).toContain('onKeyDown=');
     expect(map).toContain('navigateToVillage');
+  });
+});
+
+describe('UX-13/14: a bulk demolition needs explicit confirmation', () => {
+  it('does not send the strip demolition command until the player confirms', () => {
+    const gestures = source('src/hooks/useCanvasInteractions.ts');
+    const confirmAt = gestures.indexOf('buildingIds.length > 0 && window.confirm(');
+    const commandAt = gestures.indexOf("op: 'demolishStripBuildings'");
+    expect(confirmAt).toBeGreaterThan(-1);
+    expect(commandAt).toBeGreaterThan(confirmAt);
+    expect(gestures).toContain('This cannot be undone.');
   });
 });
 

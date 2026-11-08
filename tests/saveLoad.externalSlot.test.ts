@@ -13,12 +13,15 @@ import {
   decideSaveRoute,
   describeCadenceFileSave,
   describeFileSaveReason,
-  downloadSaveFile,
   hasSaveSlot,
+  hasImportedSave,
   loadGameFromFileTextOutcome,
+  loadImportedGameOutcome,
   readSavePayload,
   saveGame,
   saveGameToSlot,
+  saveImportedFileToSlot,
+  executeConfirmedColonyLoad,
 } from '../src/game/saveLoad';
 
 function memoryStorage() {
@@ -48,6 +51,43 @@ afterEach(() => {
   resetSimRng();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+describe('UX-01: confirmed load contract', () => {
+  it('cancel protects the running world and leaves the in-flight guard reusable', () => {
+    const guard = { current: false };
+    const confirm = vi.fn(() => false);
+    const mutateWorld = vi.fn();
+    expect(executeConfirmedColonyLoad(true, guard, confirm, mutateWorld)).toBe(false);
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(mutateWorld).not.toHaveBeenCalled();
+    expect(guard.current).toBe(false);
+
+    expect(executeConfirmedColonyLoad(false, guard, confirm, mutateWorld)).toBe(true);
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(mutateWorld).toHaveBeenCalledOnce();
+    expect(guard.current).toBe(false);
+  });
+
+  it('confirmed loading runs once; a re-entrant click is ignored', () => {
+    const guard = { current: false };
+    const confirm = vi.fn(() => true);
+    const callback = vi.fn(() => {
+      expect(executeConfirmedColonyLoad(true, guard, confirm, vi.fn())).toBe(false);
+    });
+    expect(executeConfirmedColonyLoad(true, guard, confirm, callback)).toBe(true);
+    expect(callback).toHaveBeenCalledOnce();
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(guard.current).toBe(false);
+  });
+
+  it('releases the lock if the load throws', () => {
+    const guard = { current: false };
+    expect(() => executeConfirmedColonyLoad(false, guard, () => true, () => {
+      throw new Error('corrupt load');
+    })).toThrow('corrupt load');
+    expect(guard.current).toBe(false);
+  });
 });
 
 describe('a colony too big for the browser slot saves externally', () => {
@@ -86,6 +126,23 @@ describe('a colony too big for the browser slot saves externally', () => {
     expect(hasSaveSlot()).toBe(false);
   });
 
+  it('exports a crash recovery file without overwriting either browser save', () => {
+    const original = colony();
+    expect(saveGameToSlot(original, createInitialView(original.width, original.height)).success).toBe(true);
+    const quickSave = localStorage.getItem('ecosim_save');
+    const imported = colony();
+    imported.villageName = 'Other imported colony';
+    const importJson = JSON.stringify(buildSaveData(imported, createInitialView(imported.width, imported.height)));
+    expect(saveImportedFileToSlot(importJson, imported).success).toBe(true);
+
+    const crashed = colony();
+    crashed.villageName = 'Crash snapshot';
+    const result = saveGame(crashed, createInitialView(crashed.width, crashed.height), false);
+    expect(result.success).toBe(true);
+    expect(localStorage.getItem('ecosim_save')).toEqual(quickSave);
+    expect(localStorage.getItem('ecosim_imported_save')).toEqual(importJson);
+  });
+
   it('still writes the slot for a Medium colony inside the budget', () => {
     const world = colony();
     const result = saveGame(world, createInitialView(world.width, world.height));
@@ -121,11 +178,47 @@ describe('a colony too big for the browser slot saves externally', () => {
       },
       removeItem: () => {},
     });
-    const result = downloadSaveFile(world, createInitialView(world.width, world.height));
+    const result = saveGame(world, createInitialView(world.width, world.height));
 
     expect(result.success).toBe(true);
     expect(result).toHaveProperty('slotWarning');
     expect(result).not.toHaveProperty('fileReason');
+  });
+
+  it('keeps a pre-existing quick-save byte-for-byte when importing another colony', () => {
+    const quick = colony();
+    quick.villageName = 'My original quick-save';
+    expect(saveGameToSlot(quick, createInitialView(quick.width, quick.height)).success).toBe(true);
+    const original = localStorage.getItem('ecosim_save');
+    expect(original).toBeTruthy();
+
+    const imported = colony();
+    imported.villageName = 'Imported Valley';
+    const fileJson = JSON.stringify(buildSaveData(
+      imported, createInitialView(imported.width, imported.height),
+    ));
+    expect(saveImportedFileToSlot(fileJson, imported).success).toBe(true);
+    expect(localStorage.getItem('ecosim_save')).toBe(original);
+    expect(localStorage.getItem('ecosim_imported_save')).toBe(fileJson);
+    expect(hasImportedSave()).toBe(true);
+
+    const recovered = loadImportedGameOutcome();
+    expect(recovered.ok).toBe(true);
+    if (!recovered.ok) return;
+    expect(recovered.world.villageName).toBe('Imported Valley');
+    expect(localStorage.getItem('ecosim_save')).toBe(original);
+  });
+
+  it('refuses to copy an overlarge import without disturbing either browser slot', () => {
+    const quick = colony();
+    expect(saveGameToSlot(quick, createInitialView(quick.width, quick.height)).success).toBe(true);
+    const original = localStorage.getItem('ecosim_save');
+    const imported = colony(MapSize.Large);
+    const result = saveImportedFileToSlot('{"_version":"ignored"}', imported);
+    expect(result.success).toBe(false);
+    expect(result).toHaveProperty('fileReason', 'map-too-large');
+    expect(localStorage.getItem('ecosim_save')).toBe(original);
+    expect(hasImportedSave()).toBe(false);
   });
 
   it('round-trips a colony through the file text a download would carry', () => {

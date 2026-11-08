@@ -3,9 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { gameTick, initGame } from '../src/game/gameEngine';
 import { DAYS_PER_YEAR, TICKS_PER_DAY, tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { assertSimInvariants } from '../src/game/simulation/simInvariants';
-import { JobType, MapSize, type VisitorGroup, type WorldState } from '../src/game/gameTypes';
+import { EntityType, JobType, MapSize, type VisitorGroup, type WorldState } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { SKILL_IDLE_DECAY_PER_DAY } from '../src/game/skills';
+import { recordElectionPromises } from '../src/game/electionPromises';
 
 const SEED = 20261107;
 
@@ -106,4 +107,95 @@ describe('audit calendar phase integration', () => {
     expect(world.visitorGroups).not.toContain(camp);
     expect(world.eventLog.some((event) => event.message.includes('Audit Pilgrims departed'))).toBe(true);
   });
+  it('SIM-06/07: promises are judged at the 18:00 world-events boundary only once', () => {
+    const world = worldBeforeDay(7);
+    gameTick(world); // Enter day 7 at midnight through the real scheduler.
+    recordElectionPromises(world, world.year);
+    const record = world.electionPromiseRecords?.at(-1);
+    expect(record).toBeDefined();
+    if (!record) return;
+    record.dueDay = 7;
+
+    world.tick = tickAtDailyPhase(7, 'worldEvents') - 2;
+    gameTick(world); // Not yet 18:00.
+    expect(record.evaluated).toBe(false);
+
+    gameTick(world); // Actual 18:00 pass.
+    expect(record.evaluated).toBe(true);
+    const verdicts = () => world.eventLog.filter((event) =>
+      event.message.includes(`Election #${record.electionId}:`) && event.message.includes('promises.'));
+    expect(verdicts()).toHaveLength(1);
+
+    world.tick = tickAtDailyPhase(8, 'worldEvents') - 1;
+    gameTick(world); // Following evening must not re-judge.
+    expect(verdicts()).toHaveLength(1);
+  });
+
+  it('A1: day 7, day 30 and day 360 preserve calendar, food, skills and population', () => {
+    for (const day of [7, 30, DAYS_PER_YEAR]) {
+      const world = worldBeforeDay(day);
+      const settler = world.entities.find((entity) => entity.alive && !entity.isJuvenile && isPlayerHuman(entity));
+      expect(settler).toBeDefined();
+      if (!settler) continue;
+      settler.job = JobType.Settler;
+      settler.skills = { [JobType.Miner]: 50 };
+      const storedFood = world.resources.food;
+
+      gameTick(world);
+
+      expect(world.tick).toBe(day * TICKS_PER_DAY);
+      expect(world.dayInYear).toBe(day % DAYS_PER_YEAR);
+      expect(world.year).toBe(Math.floor(day / DAYS_PER_YEAR));
+      expect(settler.skills[JobType.Miner]).toBeCloseTo(50 - SKILL_IDLE_DECAY_PER_DAY, 8);
+      expect(Number.isFinite(storedFood)).toBe(true);
+      expect(Number.isFinite(world.resources.food)).toBe(true);
+      expect(world.resources.food).toBeGreaterThanOrEqual(0);
+      expect(world.humanPopulation).toBeGreaterThan(0);
+      expect(assertSimInvariants(world)).toEqual([]);
+    }
+  });
+
+  it('A1: wildlife reaches old age at midnight, not 18:00', () => {
+    const world = worldBeforeDay(7);
+    const wildlifeTypes: ReadonlySet<EntityType> = new Set([
+      EntityType.Rabbit, EntityType.Deer, EntityType.Wolf, EntityType.Fox,
+    ]);
+    const wildlife = world.entities.find((entity) =>
+      entity.alive && Number.isFinite(entity.maxAge) && entity.maxAge > 1
+        && wildlifeTypes.has(entity.type));
+    expect(wildlife).toBeDefined();
+    if (!wildlife) return;
+    const maxAge = wildlife.maxAge;
+    wildlife.age = maxAge - 1;
+
+    gameTick(world);
+    expect(wildlife.age).toBe(maxAge);
+    expect(wildlife.alive).toBe(false);
+
+    world.tick = tickAtDailyPhase(7, 'worldEvents') - 1;
+    gameTick(world);
+    expect(wildlife.age).toBe(maxAge);
+    expect(wildlife.alive).toBe(false);
+  });
+
+  it('GAME-01: a term ceremony finishes after 24 game hours plus one reveal tick', () => {
+    const world = worldBeforeDay(2 * DAYS_PER_YEAR);
+    world.lastElectionYear = 0;
+    world.pendingElectionYear = null;
+    expect(world.electionCeremony).toBeNull();
+    gameTick(world);
+    expect(world.electionCeremony?.reason).toBe('term');
+    expect(world.electionCeremony?.phase).toBe('gathering');
+
+    for (let tick = 0; tick < TICKS_PER_DAY; tick++) gameTick(world);
+    expect(world.electionCeremony?.phase).toBe('reveal');
+    const electionTick = world.tick;
+    gameTick(world);
+    expect(world.tick).toBe(electionTick + 1);
+    expect(world.electionCeremony).toBeNull();
+    expect(world.lastElectionYear).toBe(2);
+    expect(world.eventLog.some((event) => event.message.includes('Election revelry began'))).toBe(true);
+    expect(assertSimInvariants(world)).toEqual([]);
+  });
+
 });

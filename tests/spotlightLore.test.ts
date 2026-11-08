@@ -384,7 +384,7 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
 
   it('idempotently completes once and abandons missing/dead actors without rewards', () => {
     const { world, girl, adults } = makeFixture();
-    world.tick = 72 * 200;
+    world.tick = TICKS_PER_DAY * 200;
     const scene = readyScene(world, girl, adults);
     world.spotlightLore = scene;
     const startResources = structuredClone(world.resources);

@@ -25,10 +25,12 @@ type MenuView = 'main' | 'settings' | 'graphics' | 'about' | 'profiler';
  */
 export interface GameMenuSettingsCallbacks {
   hasSavedGame: boolean;
+  hasImportedSave: boolean;
   muted: boolean;
   volumePreset: VolumePreset;
   onSave: () => void;
   onLoad: () => void;
+  onLoadImported: () => void;
   onLoadFromFile: (jsonText: string) => void;
   onReplayIntro: () => void;
   onToggleAutoSave: () => void;
@@ -170,6 +172,7 @@ export default function GameMenu({
   gamePhase,
   gameSubtitle,
   hasSavedGame,
+  hasImportedSave,
   autoSave,
   tutorialsEnabled,
   juiceEffectsEnabled,
@@ -180,6 +183,7 @@ export default function GameMenu({
   volumePreset,
   onSave,
   onLoad,
+  onLoadImported,
   onLoadFromFile,
   onReplayIntro,
   onToggleAutoSave,
@@ -333,6 +337,14 @@ export default function GameMenu({
                   disabled={!hasSavedGame}
                   onClick={() => { onLoad(); close(); }}
                 />
+                {hasImportedSave && (
+                  <MenuAction
+                    icon="🗂️"
+                    label="Load last imported colony"
+                    hint="Separate browser slot; the quick-save is untouched"
+                    onClick={() => { onLoadImported(); close(); }}
+                  />
+                )}
                 <MenuAction
                   icon="📁"
                   label="Load game from file"

@@ -131,6 +131,8 @@ interface MapSetupScreenProps {
   onPresetChange: (preset: MapPreset) => void;
   onStart: (villageName: string) => void;
   onLoad?: () => void;
+  onLoadImported?: () => void;
+  hasImportedSave?: boolean;
   onLoadFromFile?: (jsonText: string) => void;
   onBack?: () => void;
   backLabel?: string;
@@ -149,6 +151,8 @@ export default function MapSetupScreen({
   onPresetChange,
   onStart,
   onLoad,
+  onLoadImported,
+  hasImportedSave,
   onLoadFromFile,
   onBack,
   backLabel = '← Back to intro',
@@ -430,6 +434,15 @@ export default function MapSetupScreen({
                   }}
                 />
               </>
+            )}
+            {hasImportedSave && onLoadImported && (
+              <button
+                type="button"
+                onClick={onLoadImported}
+                className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-5 py-2.5 text-sm font-semibold text-amber-300 transition-all hover:bg-amber-500/20"
+              >
+                Load imported colony
+              </button>
             )}
             {hasSave && onLoad && (
               <button

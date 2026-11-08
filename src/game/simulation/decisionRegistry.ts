@@ -75,6 +75,7 @@ export type DecisionKey =
   | 'raidRecovery'
   | 'raidCaptivity'
   | 'raidTerminalPresentation'
+  | 'crashRecovery'
   | 'valleyChronicle'
   | 'terrainRiverSurface'
   | 'commands';
@@ -89,12 +90,12 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/virtualPlayer.test.ts, tests/virtualPlayerHealthVerdict.test.ts, tests/colonyBotCacheHydration.test.ts',
   },
   workerMotionPresentation: {
-    owner: 'gameLoop.ts — isLightweightWorkerCommand, canPreviewWorkerCommand, registerWorkerHandlers, frameBody, stepFallbackTick, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
+    owner: 'gameLoop.ts — isLightweightWorkerCommand, canPreviewWorkerCommand, registerWorkerHandlers, scheduleFrame, frameBody, stepFallbackTick, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
     cadence: 'render',
     cadenceNote: 'Worker message admission awaits the shared census-name gate. Failed fallback ticks retain accumulator time; each command carries a host monotonic id and the worker echoes the last applied id so recovery replays only unproven work. Buffer pooling and delta packing remain transport-only, and display caches are hydrated once. On acknowledged ticks, blend only confirmed positions. Top-level schedule/policy commands use shallow previews and skip unnecessary catalog rebuilding unless a tick completed while commands were pending; the next acknowledgement reconciles entities and stale selections. Read-only schedule impact indexes roster IDs once per render. On save, halt new ticks while earlier commands settle. No gameplay writes.',
     writes: [],
     scheduledFrom: 'GameWorkerHost tick acknowledgement and requestAnimationFrame → GameLoop.frameBody; useGamePersistence.persistGame → GameLoop.exportAuthoritativeWorld (on-demand)',
-    testFile: 'tests/gameLoop.test.ts, tests/gameLoop.fallbackTickRollback.test.ts, tests/renderer.motionAndHover.test.ts',
+    testFile: 'tests/gameLoop.test.ts, tests/gameLoop.lifecycle.test.ts, tests/gameLoop.fallbackTickRollback.test.ts, tests/renderer.motionAndHover.test.ts',
   },
   chronicleProseNames: {
     owner: 'citizenId.ts — citizenFullName, formatDeathLog',
@@ -409,7 +410,7 @@ export const SIMULATION_DECISIONS = {
   leadership: {
     owner: 'leaderHouse.ts — syncLeaderHouseResidency, applyLeaderOccupation; election: villageLeadership.ts — tickElectionBuildup, tryStartTermElectionCeremony, tryStartVacancyElectionCeremony, tickElectionCeremony, tickElectionGossip; dailyWorldEvents.ts — tickYearBoundaryWorldEvents (midnight scheduling), tickDailyWorldEvents (18:00 vacancy scheduling); ceremony attendance: villageLeadership.ts — isCeremonyAttendee, getElectionGatherTarget (read-only)',
     cadence: 'daily',
-    cadenceNote: 'Term elections and buildup run at 00:00 on year rollover, vacancies on their due date at 18:00, ceremony progression in realtime; residency remains idempotent. Required CI: calendar-scheduler tests Year-2 midnight via gameTick.',
+    cadenceNote: 'Term elections and buildup run at 00:00 on year rollover, vacancies and one campaign-promise evaluation pass run at 18:00 through dailyWorldEvents, ceremony progression in realtime; residency remains idempotent. Required CI: calendar-scheduler tests Year-2 midnight via gameTick.',
     writes: [
       'human.occupation',
       'human.job',
@@ -424,7 +425,7 @@ export const SIMULATION_DECISIONS = {
       'notifications/bigNews',
     ],
     scheduledFrom: 'tickLayerDaily.ts 00:00 → dailyWorldEvents.tickYearBoundaryWorldEvents → villageLeadership term owner; tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → villageLeadership vacancy owner; tickLayerDaily.ts 06:00 → leaderHouse.syncLeaderHouseResidency',
-    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts, tests/medium-N5-electionGatherSlot.test.ts, tests/calendarPhase.auditRegressions.test.ts',
+    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts, tests/medium-N5-electionGatherSlot.test.ts, tests/calendarPhase.auditRegressions.test.ts, tests/saveLoad.a1CalendarRepair.test.ts',
   },
   raidCombat: {
     owner: 'frontierCombat.ts — queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory, buildIncomingRaidIndex, isRaidMarchingForRival',
@@ -451,12 +452,20 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/warfare.lifecycle.test.ts',
   },
   raidTerminalPresentation: {
-    owner: 'raidTerminalReport.ts — buildRaidTerminalReport (pure read-only projection); components/WarfareStatus.tsx and components/RazeConfirmation.tsx own display only',
+    owner: 'raidTerminalReport.ts — buildRaidTerminalReport (pure read-only projection); components/WarfareStatus.tsx, components/BattleReportScreen.tsx and components/RazeConfirmation.tsx own display only, including modal keyboard/focus',
     cadence: 'on-demand',
     cadenceNote: 'Only derived for a genuinely destroyed settlement; one bounded scan of retained Chronicle events and one player-entity scan per report render. No tick, scheduler, RNG, state changes or additional save fields.',
     writes: [],
     scheduledFrom: 'components/WarfareStatus.tsx → buildRaidTerminalReport when raidRecovery.status is destroyed; App.tsx → RazeConfirmation for an existing pending raid',
     testFile: 'tests/raidTerminalReport.test.ts',
+  },
+  crashRecovery: {
+    owner: 'components/GameErrorBoundary.tsx — GameErrorBoundary, registerCrashRecoverySource, isCrashRecoveryActive (UI fallback); saveLoad.ts — saveGame (file-only export option)',
+    cadence: 'on-demand',
+    cadenceNote: 'On a React render/lifecycle crash, capture the live read-only session refs before App unmount; do not overwrite the quick-save or run the normal unmount auto-save. The recovery file is the last available display snapshot, not a promised worker-authoritative export.',
+    writes: [],
+    scheduledFrom: 'main.tsx → GameErrorBoundary; App.tsx useLayoutEffect registers session refs; export button → saveLoad.saveGame; useGamePersistence cleanup checks crash state',
+    testFile: 'tests/gameErrorBoundary.test.ts, tests/saveLoad.externalSlot.test.ts',
   },
   valleyChronicle: {
     owner: 'valleyChronicle.ts — advanceValleyChronicle; components/tabPanels/ValleyChroniclePanel.tsx is read-only',
@@ -493,8 +502,8 @@ export const SIMULATION_DECISIONS = {
       'building.health',
       'validated requested state transition (building/assignment/recipe/mode fields)',
     ],
-    scheduledFrom: 'GameWorkerHost command channel; main-thread fallback in gameLoop',
-    testFile: 'tests/commands.validation.test.ts, tests/workerCommand.roundtrip.test.ts',
+    scheduledFrom: 'hooks/useCanvasInteractions.handleMouseUp (Alt-drag confirmation) → GameWorkerHost command channel; main-thread fallback in gameLoop',
+    testFile: 'tests/commands.validation.test.ts, tests/workerCommand.roundtrip.test.ts, tests/keyboardGuards.contract.test.ts',
   },
 } as const satisfies Record<DecisionKey, DecisionOwner>;
 

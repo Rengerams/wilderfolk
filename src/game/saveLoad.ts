@@ -67,6 +67,8 @@ import { nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
 import { pruneOrphanRivalEntities, retireLegacyCampStructures } from './rivalEvents';
 
 const SAVE_KEY = 'ecosim_save';
+/** A file import never writes the quick-save; the import has its own recoverable slot. */
+const IMPORTED_SAVE_KEY = 'ecosim_imported_save';
 
 /**
  * The most a save payload may weigh before it leaves the browser slot for a file. One slot shares a
@@ -284,9 +286,9 @@ export function describeSaveCompatibility(): string {
   return `This build is v${GAME_VERSION}. Saves from v0.6.5.0 and v${GAME_VERSION} are supported. Keep backups of original save files when upgrading.`;
 }
 
-export function readSavePayload(): SaveReadResult {
+export function readSavePayload(slotKey: string = SAVE_KEY): SaveReadResult {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(slotKey);
     if (!raw) return { valid: false, reason: 'empty' };
     return parseSaveJson(raw);
   } catch (e) {
@@ -354,17 +356,11 @@ export function describeCadenceFileSave(reason: FileSaveReason): string {
   return `${fileSaveCause(reason)} — auto-save is off here. Save by hand with Save to file.`;
 }
 
-/** Download colony save as a file; the browser slot is written only when the payload fits it. */
-export function downloadSaveFile(world: WorldState, view: ViewState): SaveResult {
-  const saveData = buildSaveData(world, view);
-  return downloadSaveJson(world, JSON.stringify(saveData));
-}
-
-function downloadSaveJson(world: WorldState, json: string): SaveResult {
+function downloadSaveJson(world: WorldState, json: string, writeBrowserSlot = true): SaveResult {
   try {
     const route = decideSaveRoute(world, json);
     let slotWarning: string | undefined;
-    if (route.target === 'slot') {
+    if (writeBrowserSlot && route.target === 'slot') {
       try {
         localStorage.setItem(SAVE_KEY, json);
       } catch {
@@ -776,9 +772,9 @@ function migrateTickTimeline(
 
 /**
  * A manual save always exports a JSON file. The browser slot is written too when the payload fits it,
- * so Load stays in step, and a slot that cannot be written is reported, never silently dropped.
+ * so Load stays in step. Crash recovery sets writeBrowserSlot=false and never touches the slot.
  */
-export function saveGame(world: WorldState, view: ViewState): SaveResult {
+export function saveGame(world: WorldState, view: ViewState, writeBrowserSlot = true): SaveResult {
   let json: string;
   try {
     json = JSON.stringify(buildSaveData(world, view));
@@ -786,7 +782,7 @@ export function saveGame(world: WorldState, view: ViewState): SaveResult {
     console.error('Save build failed:', e);
     return { success: false, error: 'Save failed — check browser storage permissions' };
   }
-  return downloadSaveJson(world, json);
+  return downloadSaveJson(world, json, writeBrowserSlot);
 }
 
 /** Save to the browser slot only — the path a save with no user gesture may take. */
@@ -805,9 +801,40 @@ export function saveGameToSlot(world: WorldState, view: ViewState): SaveResult {
   return writeSaveSlot(json);
 }
 
-function writeSaveSlot(json: string): SaveResult {
+/**
+ * One synchronous player-confirmation boundary shared by quick-save, imported-slot and file loads.
+ * Acquiring the guard before the confirmation also rejects a re-entrant click/loader call.
+ * No WorldState is mutated when the player cancels.
+ */
+export function executeConfirmedColonyLoad(
+  replacingActiveColony: boolean,
+  inFlight: { current: boolean },
+  confirmReplace: () => boolean,
+  load: () => void,
+): boolean {
+  if (inFlight.current) return false;
+  inFlight.current = true;
   try {
-    localStorage.setItem(SAVE_KEY, json);
+    if (replacingActiveColony && !confirmReplace()) return false;
+    load();
+    return true;
+  } finally {
+    inFlight.current = false;
+  }
+}
+
+/** Keep the original, validated JSON in a separate slot, never touching the existing quick-save. */
+export function saveImportedFileToSlot(json: string, world: WorldState): SaveResult {
+  const route = decideSaveRoute(world, json);
+  if (route.target === 'file') {
+    return { success: false, error: describeCadenceFileSave(route.reason), fileReason: route.reason };
+  }
+  return writeSaveSlot(json, IMPORTED_SAVE_KEY);
+}
+
+function writeSaveSlot(json: string, slotKey: string = SAVE_KEY): SaveResult {
+  try {
+    localStorage.setItem(slotKey, json);
     return { success: true };
   } catch (e) {
     const error =
@@ -1630,6 +1657,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     ensureValleyEcologyOnLoad(world);
     migrateVillageForgeOnLoad(world);
     repairJuvenileAssignmentsOnLoad(world);
+    // Festival reconciliation is a single load-boundary operation (SIM-14).
     repairStaleFestivalOnLoad(world);
     for (const challenge of world.challenges ?? []) {
       const fresh = INITIAL_CHALLENGES.find((c) => c.id === challenge.id);
@@ -1699,6 +1727,23 @@ export function loadGameOutcome(): SaveLoadOutcome {
   } catch (e) {
     console.error('Save load failed:', e);
     return { ok: false, reason: 'unreadable', detail: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Reload the separately retained file import; never reads or modifies the quick-save. */
+export function loadImportedGameOutcome(): SaveLoadOutcome {
+  const parsed = readSavePayload(IMPORTED_SAVE_KEY);
+  if (!parsed.valid) return { ok: false, reason: parsed.reason, detail: parsed.detail };
+  return loadGameFromParsedOutcome(parsed.parsed);
+}
+
+/** The imported-save slot has an accepted and currently readable payload. */
+export function hasImportedSave(): boolean {
+  try {
+    const raw = localStorage.getItem(IMPORTED_SAVE_KEY);
+    return !!raw && parseSaveJson(raw).valid;
+  } catch {
+    return false;
   }
 }
 
