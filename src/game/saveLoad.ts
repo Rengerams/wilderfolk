@@ -1,4 +1,5 @@
 import { normalizeHumanNeeds } from './simulation/humanPhysiology';
+import { isFiniteNumber } from './inputGuards';
 import { normalizeCareerHistory } from './careers/careerHistory';
 import { normalizeCareerMilestones } from './careers/careerProgression';
 import { applyLeaderHousePhase } from './leaderHouse';
@@ -850,10 +851,6 @@ function writeSaveSlot(json: string, slotKey: string = SAVE_KEY): SaveResult {
 /** Every resource key the economy reads, so a save can be checked for a complete purse. */
 const RESOURCE_KEYS = ['wood', 'stone', 'food', 'gold', 'iron'] as const;
 
-/** Present *and* a finite number. An absent key is a failure, not a default: see below. */
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
 
 /**
  * A year scalar that is legitimately `null` (no pending election). It must still reject `Infinity`, or
