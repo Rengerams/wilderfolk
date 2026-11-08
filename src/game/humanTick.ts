@@ -31,7 +31,8 @@ import {
 } from './workSchedule';
 import { isWorkDay } from './dayCycleClock';
 import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, isOnMoonHowlerNightShift, isWeekend, getAbsoluteCalendarDay, isNightHour, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
-import { hasResidenceAssignment, isAdult, isNearResidence, isResidenceBuilding, shareResidence } from './housingModel';
+import { hasResidenceAssignment, isNearResidence, isResidenceBuilding, shareResidence } from './housingModel';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import {
   chatHintsFromWorld,
   endAmbientHumanChat,
@@ -299,7 +300,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const workersByWorkplace = new Map<number, Entity[]>();
   const workerIndexById = new Map<number, number>();
   for (const h of allHumans) {
-    if (!h.alive || !isPlayerHuman(h) || h.isJuvenile) continue;
+    if (!h.alive || !isPlayerHuman(h) || h.age < HUMAN_ADULT_MIN_AGE) continue;
     const siteId = h.workerBuildingId;
     if (siteId == null) continue;
     const bucket = workersByWorkplace.get(siteId);
@@ -467,7 +468,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Common updates
     if (isNewCalendarDay) {
-      if (entity.isJuvenile && isPlayerHuman(entity)) {
+      if (entity.age < HUMAN_ADULT_MIN_AGE && isPlayerHuman(entity)) {
         creditChildSchoolDay(entity);
       }
       syncHumanAgeFromCalendar(entity, state);
@@ -479,7 +480,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (entity.combatTicks <= 0) entity.combatTicks = 0;
     }
     // Children cannot pursue prey, including stale targets carried by old saves.
-    if (entity.isJuvenile) {
+    if (entity.age < HUMAN_ADULT_MIN_AGE) {
       entity.huntTargetId = undefined;
     } else if (entity.huntTargetId) {
       const prey = entityById.get(entity.huntTargetId);
@@ -1107,7 +1108,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !festivalGathering &&
       (goWorkTime || onWorkCommuteHours) &&
       workplace?.type === BuildingType.HuntingSpot &&
-      !entity.isJuvenile &&
+      entity.age >= HUMAN_ADULT_MIN_AGE &&
       isHuntingSpotHunter(workplace, entity, entityById)
     ) {
       /**
@@ -1358,9 +1359,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !goingToHospital &&
       canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
       isPlayerHuman(entity) &&
-      !entity.isJuvenile &&
       entity.gender &&
-      isAdult(entity) &&
+      entity.age >= HUMAN_ADULT_MIN_AGE &&
       entity.age < HUMAN_MAX_LIFESPAN_YEARS &&
       entity.energy > config.reproductionEnergyThreshold * 0.5 &&
       hasActiveMarriage &&
@@ -1445,7 +1445,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !goingToHospital &&
       canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
       isPlayerHuman(entity) &&
-      !entity.isJuvenile &&
+      entity.age >= HUMAN_ADULT_MIN_AGE &&
       hasAffairPartner(entity, entityById) &&
       !isMaritalHomeOccupiedBySpouse(entity, entityById, buildingById, AFFAIR_SPOUSE_BLOCK_RADIUS)
     ) {
@@ -1482,7 +1482,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     // Midday coworker banter
-    if (onDayJobShift && workplace && isPlayerHuman(entity) && !entity.isJuvenile && entity.job !== JobType.Innkeeper) {
+    if (onDayJobShift && workplace && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE && entity.job !== JobType.Innkeeper) {
       const workplaceWorkers = workersByWorkplace.get(entity.workerBuildingId ?? -1) ?? [];
       tryWorkplaceBanter(entity, workplaceWorkers, state.tick, hourOfDay, true);
     }
@@ -1518,7 +1518,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (entity.indoorBuildingId != null) suppressIdle = true;
 
     // Morning greetings
-    if (allowFreeRoam && isPlayerHuman(entity) && !entity.isJuvenile && hourOfDay >= 6 && hourOfDay <= 9) {
+    if (allowFreeRoam && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE && hourOfDay >= 6 && hourOfDay <= 9) {
       if ((state.tick + entity.id) % SOCIAL_STAGGER === 0) {
         const passer = findClosestAdaptiveInRadius(
           humanSocialGrid,
@@ -1526,7 +1526,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           entity.x,
           entity.y,
           SOCIAL_GREETING_RADIUS,
-          (h) => h.id !== entity.id && h.alive && isPlayerHuman(h) && !h.isJuvenile,
+          (h) => h.id !== entity.id && h.alive && isPlayerHuman(h) && h.age >= HUMAN_ADULT_MIN_AGE,
           socialAdaptiveOptions('social', allHumans.length, width, height),
         );
         tryNeighborGreeting(entity, passer, state.tick, hourOfDay);
@@ -1554,7 +1554,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       })
     ) {
       suppressIdle = true;
-    } else if (allowFreeRoam && !suppressIdle && isPlayerHuman(entity) && !entity.isJuvenile) {
+    } else if (allowFreeRoam && !suppressIdle && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE) {
       const tick = state.tick;
       const absDay = getAbsoluteCalendarDay(tick);
       const leisureSlotPeriod = 80 * TICKS_PER_HOUR;
@@ -1626,7 +1626,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const spouse = spouseEarly ?? (entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined);
         const kids = (entity.childrenIds ?? [])
           .map((id) => livingHumanAt(id))
-          .filter((k): k is Entity => !!k?.alive && !!k.isJuvenile);
+          .filter((k): k is Entity => !!k?.alive && k.age < HUMAN_ADULT_MIN_AGE);
         const workplaceWorkers =
           entity.workerBuildingId != null
             ? workersByWorkplace.get(entity.workerBuildingId) ?? []
@@ -1801,7 +1801,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
                 entity.x,
                 entity.y,
                 SOCIAL_FRIENDSHIP_RADIUS,
-                (h) => h.id !== entity.id && h.alive && isPlayerHuman(h) && !h.isJuvenile && h.id !== entity.affairPartnerId,
+                (h) => h.id !== entity.id && h.alive && isPlayerHuman(h) && h.age >= HUMAN_ADULT_MIN_AGE && h.id !== entity.affairPartnerId,
                 socialAdaptiveOptions('social', allHumans.length, width, height),
               ) ?? null;
           }

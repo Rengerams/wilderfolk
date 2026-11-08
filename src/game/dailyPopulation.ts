@@ -7,7 +7,8 @@ import type { WorldState, Entity, Building } from './gameTypes';
 import type { PopulationCounts } from './entityCounts';
 import { BuildingType } from './gameTypes';
 import { indexLivingEntity } from './entityIndex';
-import { getResidenceCapacity, isMinor } from './housingModel';
+import { getResidenceCapacity } from './housingModel';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { assignMissingResidences } from './housingPipeline';
 import { createImmigrantSettler } from './worldGen';
 import { findHumanSpawnNear } from './terrainSystems';
@@ -141,7 +142,7 @@ function tickImmigration(
         (ledger) => applyLeaderHousePhase(state, ledger));
 
       const label = admitted === 1
-        ? (isMinor(newcomers[0]) ? 'A young settler arrived' : '+1 Settler arrived')
+        ? (newcomers[0].age < HUMAN_ADULT_MIN_AGE ? 'A young settler arrived' : '+1 Settler arrived')
         : (admitted >= 3 ? `A settler family arrived (${admitted})` : `+${admitted} Settlers arrived`);
       addFloatingText(state, spawnX, spawnY - 18, label, '#22c55e');
       logEvent(state, 'migration', label);

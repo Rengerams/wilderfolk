@@ -1,4 +1,4 @@
-import { personDayRoll } from './simRng';
+import { PERSON_DAY_ROLL_SALTS, personDayRoll } from './simRng';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
@@ -18,7 +18,6 @@ import {
 } from './hospitalCare';
 
 const PATIENT_CENTRE_RADIUS_PX = 36;
-const HOSPITAL_TREATMENT_ROLL_SALT = 840;
 const HOSPITAL_TREATMENT_DAILY_CHANCE = 0.2;
 
 /** A patient is at the ward inside its centre radius or at its one entrance; walls block the rest. */
@@ -124,7 +123,7 @@ export function tickHumanHospitalPatientCare({
     if (
       hospital
       && isHospitalTreatmentTick(entity.id, state.tick)
-      && personDayRoll(entity.id, state.tick, HOSPITAL_TREATMENT_ROLL_SALT) < HOSPITAL_TREATMENT_DAILY_CHANCE
+      && personDayRoll(entity.id, state.tick, PERSON_DAY_ROLL_SALTS.hospitalTreatment) < HOSPITAL_TREATMENT_DAILY_CHANCE
     ) {
       treatPatientAtHospital(state, entity, hospital);
     }

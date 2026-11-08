@@ -7,7 +7,7 @@ import { citizenGivenName, humanDisplayName } from './citizenId';
 import { EntityType, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isMarriedOrExpecting } from './relationships';
-import { isAdult } from './housingModel';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isWithinRemarriageBar } from './simulation/humanRelationships';
 
 export type KinRelation =
@@ -249,7 +249,7 @@ function otherParentIdOfChild(child: Entity, parentId: number): number | undefin
 function childRelation(child: Entity): KinRelation {
   if (child.isBastard) return 'bastard_child';
   // Age, not `isJuvenile`: the household owner's adult rule is the one boundary.
-  return isAdult(child) ? 'adult_child' : 'child';
+  return child.age >= HUMAN_ADULT_MIN_AGE ? 'adult_child' : 'child';
 }
 
 function iconFor(relation: KinRelation, gender?: 'male' | 'female'): string {
@@ -499,8 +499,8 @@ export function groupFamiliesBySurname(allEntities: readonly Entity[]): FamilySu
         (a.generation ?? 1) - (b.generation ?? 1)
         || humanDisplayName(a).localeCompare(humanDisplayName(b))
       ),
-      adults: members.filter((m) => !m.isJuvenile).length,
-      children: members.filter((m) => !!m.isJuvenile).length,
+      adults: members.filter((m) => m.age >= HUMAN_ADULT_MIN_AGE).length,
+      children: members.filter((m) => m.age < HUMAN_ADULT_MIN_AGE).length,
       generations: new Set(members.map((m) => m.generation ?? 1)).size,
     });
   }
@@ -594,8 +594,8 @@ export function groupFamiliesByLineage(allEntities: readonly Entity[]): FamilyLi
         || b.age - a.age
         || humanDisplayName(a).localeCompare(humanDisplayName(b))
       ),
-      adults: members.filter((m) => !m.isJuvenile).length,
-      children: members.filter((m) => !!m.isJuvenile).length,
+      adults: members.filter((m) => m.age >= HUMAN_ADULT_MIN_AGE).length,
+      children: members.filter((m) => m.age < HUMAN_ADULT_MIN_AGE).length,
       generations: new Set(members.map((m) => m.generation ?? 1)).size,
     });
   }
@@ -742,7 +742,7 @@ function childLabel(person: Entity): string {
   const relation = childRelation(person);
   if (relation === 'child') return RELATION_LABEL.child;
   if (relation === 'adult_child') return RELATION_LABEL.adult_child;
-  return isAdult(person) ? 'Adult child · outside wedlock' : 'Child · outside wedlock';
+  return person.age >= HUMAN_ADULT_MIN_AGE ? 'Adult child · outside wedlock' : 'Child · outside wedlock';
 }
 
 /** The small portrait glyph for one person on the tree, from their own life stage. */

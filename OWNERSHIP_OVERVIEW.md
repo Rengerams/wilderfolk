@@ -116,7 +116,7 @@ Genetics layers, activity registry, evaluator contract and change recipes: [DNA 
 | Blueberry foraging and rare-tree placement | `blueberryForaging.ts` | new-game spawn / staggered / daily | `isBlueberryTree`, `hasRipeBlueberries`, `clearBlueberryTarget`, `spawnBlueberryTrees`, `tickBlueberryRegrowth`, `tryTickBlueberryForaging` — emptying a rare bush is the one windfall that awards `personalMarks.awardRareWindfallMark` |
 | Calendar clock | `dayCycleClock.ts` | — | `TICKS_PER_DAY`, `isNewCalendarDayTick`, hour/day math |
 | Calendar constants | `daycycleconstants.ts` | — | night/moon/adult-age constants |
-| RNG salt | `simRng.ts` | — | `hashSalt` |
+| RNG salt | `simRng.ts` | — | `hashSalt`, `PERSON_DAY_ROLL_SALTS` |
 | Player commands | `simWorker/commands.ts` → domain owners | player-command | `isWorkerCommand`, `applyWorkerCommand` |
 
 ## Owners recorded by the 2026-09-13 simulation audit
