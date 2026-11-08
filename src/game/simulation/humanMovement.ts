@@ -231,13 +231,13 @@ export function commutePathCacheKey(
   return `c_${buildingId}_${startTileX}_${startTileY}_${targetTileX}_${targetTileY}`;
 }
 
-const STUCK_WALK_RECOVERY_TICKS = 12;
+/** Minimum genuine progress in a tick before a blocked walk is considered stuck. */
 const STUCK_WALK_MIN_PROGRESS_PX = 0.05;
 const stuckWalkers = new WeakMap<Entity, { x: number; y: number; ticks: number }>();
 
 /**
- * Applies one tick's walk step, refusing the tiles the path grid blocks. A blocked step is retried as
- * its axis-separated halves so a walker slides along a wall or bank; velocity is left as steered.
+ * Apply only collision-valid displacement. Replan a blocked route after repeated failed steps.
+ * Never snap to another tile: that caused a visible move/backtrack loop against walls.
  */
 export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
   const stepX = entity.vx * roadMult;
@@ -249,7 +249,7 @@ export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
 
   const startX = entity.x;
   const startY = entity.y;
-  if (isWalkStepAllowed(entity.x, entity.y, entity.x + stepX, entity.y + stepY)) {
+  if (isWalkStepAllowed(startX, startY, startX + stepX, startY + stepY)) {
     entity.x += stepX;
     entity.y += stepY;
   } else {
@@ -272,37 +272,11 @@ export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
     ? previous.ticks + 1
     : 1;
   stuckWalkers.set(entity, { x: entity.x, y: entity.y, ticks });
-  // Recalculate a stale route early; don't let a blocked waypoint hold a commuter
-  // stationary until the emergency stand-point relocation after twelve ticks.
-  if (ticks === 3) invalidateCommutePathsForWalker(entity.id);
-  if (ticks < STUCK_WALK_RECOVERY_TICKS) return;
-
-  const tileX = Math.floor(entity.x / PATH_CELL);
-  const tileY = Math.floor(entity.y / PATH_CELL);
-  const directionX = Math.sign(stepX);
-  const directionY = Math.sign(stepY);
-  const recoveryOffsets: readonly (readonly [number, number])[] = [
-    [-directionX, -directionY],
-    [-directionX, 0],
-    [0, -directionY],
-    ...STAND_POINT_FALLBACK_OFFSETS,
-  ];
-  for (let ring = 1; ring <= 3; ring++) {
-    for (const [dx, dy] of recoveryOffsets) {
-      if (dx === 0 && dy === 0) continue;
-      const recoveryX = (tileX + dx * ring + 0.5) * PATH_CELL;
-      const recoveryY = (tileY + dy * ring + 0.5) * PATH_CELL;
-      if (!isGroundWalkableAt(recoveryX, recoveryY)) continue;
-      // Recovery may not teleport across a wall or river to a disconnected stand point.
-      if (!isWalkStepAllowed(entity.x, entity.y, recoveryX, recoveryY)) continue;
-      entity.x = recoveryX;
-      entity.y = recoveryY;
-      entity.vx = 0;
-      entity.vy = 0;
-      stuckWalkers.delete(entity);
-      return;
-    }
-  }
+  // Invalidate all destination-specific routes, not merely the commute cache. Retries are
+  // bounded to every third failed step; an unreachable walk remains stationary instead of teleporting.
+  if (ticks % 3 === 0) invalidateCommutePathsForWalker(entity.id);
+  entity.vx = 0;
+  entity.vy = 0;
 }
 
 /**
