@@ -101,10 +101,11 @@ export function refreshFoodLedgerTotals(state: WorldState): DailyEconomyLedger |
   return ledger;
 }
 
-/** Continuous completed-day food flow; missing history is unknown, not zero. */
+/** Completed-day food flow. 'all' includes every food expense for reporting; 'meals' measures recurring demand for growth decisions. */
 export function getRecentFoodFlow(
   state: Pick<WorldState, 'foodHistory' | 'tick'>,
   maxDays = 7,
+  consumption: 'all' | 'meals' = 'all',
 ): { days: number; producedPerDay: number; consumedPerDay: number; netPerDay: number } | null {
   const samples = state.foodHistory ?? [];
   let expectedDay = getAbsoluteCalendarDay(state.tick) - 1;
@@ -115,7 +116,9 @@ export function getRecentFoodFlow(
     const sample = samples[i];
     if (sample.day !== expectedDay) break;
     const dailyProduced = Object.values(sample.produced).reduce((sum, amount) => sum + amount, 0);
-    const dailyConsumed = Object.values(sample.consumed).reduce((sum, amount) => sum + amount, 0);
+    const dailyConsumed = consumption === 'meals'
+      ? (sample.consumed.meals ?? 0)
+      : Object.values(sample.consumed).reduce((sum, amount) => sum + amount, 0);
     if (!Number.isFinite(dailyProduced) || !Number.isFinite(dailyConsumed)) return null;
     produced += dailyProduced;
     consumed += dailyConsumed;
@@ -132,12 +135,12 @@ export function getRecentFoodFlow(
   };
 }
 
-/** A verified negative production trend, with monthly persistence across a brief good week. */
+/** Verified recurring meal deficit, with monthly persistence. One-time recruitment/trade costs affect stores, not meal demand. */
 export function isMeasuredFoodDeficit(state: Pick<WorldState, 'foodHistory' | 'tick'>, toleranceRatio: number): boolean {
-  const recent = getRecentFoodFlow(state);
+  const recent = getRecentFoodFlow(state, 7, 'meals');
   if (!recent) return false;
   if (recent.consumedPerDay > 0 && recent.netPerDay < -recent.consumedPerDay * toleranceRatio) return true;
-  const month = getRecentFoodFlow(state, 30);
+  const month = getRecentFoodFlow(state, 30, 'meals');
   return month != null && month.days >= 14 && month.consumedPerDay > 0
     && month.netPerDay < -month.consumedPerDay * toleranceRatio;
 }
@@ -151,14 +154,13 @@ export function getProjectedFoodSupply(
   currentDailyNeed: number,
   horizonDays = 7,
 ): { producedPerDay: number; projectedNeedPerDay: number; days: number } | null {
-  const flow = getRecentFoodFlow(state);
+  const flow = getRecentFoodFlow(state, 7, 'meals');
   if (!flow || !Number.isFinite(currentDailyNeed) || currentDailyNeed < 0) return null;
   const samples = (state.foodHistory ?? []).slice(-flow.days);
   const size = Math.floor(flow.days / 2);
   let slope = 0;
   if (size >= 2) {
-    const dailyConsumption = (sample: typeof samples[number]): number =>
-      Object.values(sample.consumed).reduce((sum, amount) => sum + amount, 0);
+    const dailyConsumption = (sample: typeof samples[number]): number => sample.consumed.meals ?? 0;
     const first = samples.slice(0, size).reduce((sum, entry) => sum + dailyConsumption(entry), 0) / size;
     const last = samples.slice(-size).reduce((sum, entry) => sum + dailyConsumption(entry), 0) / size;
     slope = Math.max(0, (last - first) / Math.max(1, flow.days - size));
