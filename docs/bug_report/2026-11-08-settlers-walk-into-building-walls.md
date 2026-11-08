@@ -1,7 +1,7 @@
 # Settlers walked straight into a building wall instead of routing around it
 
 - Bug: Free-time walks toward a building's frontage and a prisoner's walk to the cell used a raw straight-line velocity, so a settler whose destination was on the far side of the building pressed into the wall and slid along it instead of walking around and arriving.
-- Status: resolved
+- Status: follow-up PR #136 open; live runtime verification pending
 - Severity: high
 - Date discovered: 2026-11-08
 - Version/build: 0.6.5.2
@@ -12,7 +12,9 @@
 
 ## Status history
 - 2026-11-08 — open: player reported settlers walking into a building; source trace found raw steering on building frontage and prison approaches.
-- 2026-11-08 — resolved: every building-named walk goes through the path owner; arrival around a building and around a wall is covered by regression tests.
+- 2026-11-08 — initial fix: named building destinations use the path owner; arrival around buildings and walls covered by regression tests.
+- 2026-11-08 — reopened: player still observes settlers walking into buildings. Additional source trace finds direct velocity steering for roaming, parent/child following, courtship, patrol, hunting and ceremonies; distant LOS could also skip narrow footprints due to the 128-sample limit.
+- 2026-11-08 — follow-up in PR #136: deliberate movement now routes through the existing path owner, long LOS visits every crossed tile and impassable commutes stop instead of sliding. CI and real-save replay not yet verified.
 
 ## Observed behavior
 In the free-time block, `steerTo` set `idleVx`/`idleVy` straight at the destination and never consulted the path owner, even when a building was named as the destination. A settler north of their house walking to the south porch therefore drove into the north wall; `applyHumanWalkStep` refused the blocked step and slid along the facade, which looks like walking against the building. The prisoner walk to the cell door used the same raw velocity.
@@ -43,3 +45,8 @@ None; no persisted field changes.
 - `npx tsc -p tsconfig.app.json --noEmit` — PASS.
 - `npm run lint` — PASS.
 - Pre-existing, not caused by this change: `tests/buildingPanel.staffingRule.test.ts` expects "Walking to work" for a distant soldier but the panel renders "Absent"; the test reads no function changed here.
+
+## Follow-up validation requirement (PR #136)
+- CI must run the new long-distance narrow-building LOS and detour regression tests, plus the no-route commuter test.
+- Confirm standard, 120-day and population-performance gates before merging; routing more free-time targets may increase A* work.
+- Reproduce with the player's affected save in the actual game; a synthetic detour test does not prove every scripted movement scenario.
