@@ -1,4 +1,4 @@
-import { downloadSaveFile, loadGameOutcome } from './saveLoad';
+import { saveGame, loadGameOutcome } from './saveLoad';
 import type { WorldState } from './gameTypes';
 import type { ViewState } from './viewState';
 
@@ -16,7 +16,7 @@ export function registerLiveSessionSave(provider: () => LiveSession | null): () 
 /** Live colony when the loop is alive, otherwise the last browser quick-save. */
 export function exportCurrentSession(): boolean {
   const live = liveSession?.();
-  if (live) return downloadSaveFile(live.world, live.view).success;
+  if (live) return saveGame(live.world, live.view, false).success;
   const stored = loadGameOutcome();
-  return stored.ok ? downloadSaveFile(stored.world, stored.view).success : false;
+  return stored.ok ? saveGame(stored.world, stored.view, false).success : false;
 }
