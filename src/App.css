@@ -455,9 +455,15 @@ aside {
   }
 }
 
-/* Custom focus styles */
+/* Custom focus styles — every focusable control, not just buttons and inputs. */
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible {
   outline: 2px solid #22c55e;
   outline-offset: 2px;
 }

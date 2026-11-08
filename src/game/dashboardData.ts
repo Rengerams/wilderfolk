@@ -255,7 +255,7 @@ function deriveConcerns(state: WorldState, postAbsences: string | null = null): 
       detail: postAbsences
         ? `Not assigned to a workplace. ${postAbsences}`
         : 'Not assigned to a workplace.',
-      hint: 'Open a building and assign workers, or enable auto-staffing.',
+      hint: 'Staffing is automatic — build more workplaces or check the Village tab.',
     });
   }
 

@@ -229,9 +229,8 @@ function createVisitorHuman(
     state.nextEntityId++,
     undefined,
     false,
-    { surname, ageYears: age, colonyDay: getColonyDay(state) },
+    { surname, ageYears: age, colonyDay: getColonyDay(state), faction: 'visitor' },
   );
-  ent.faction = 'visitor';
   ent.hiddenFromPlayer = false;
   ent.groupId = groupId;
   ent.occupation = 'visitor';

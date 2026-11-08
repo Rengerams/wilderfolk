@@ -38,7 +38,6 @@ function renderPanel(target: Building, state: WorldState): string {
     createElement(SelectedBuildingPanel, {
       building: target,
       state,
-      onAssign: () => {},
       onRepair: () => {},
       onUpgrade: () => {},
       onDemolish: () => {},
@@ -135,9 +134,9 @@ describe('individual job selection is unavailable', () => {
 describe('building worker roster shows work duty, not private activities', () => {
   it('distinguishes working and walking to work on the same barracks roster', () => {
     const barracks = building(20, BuildingType.Barracks, { occupants: [1, 2] });
-    const atPost = humanBuildingTarget(barracks, 1, false);
+    const atPost = humanBuildingTarget(barracks, 1);
     const present = human(1, { workerBuildingId: barracks.id, job: JobType.Soldier, x: atPost.x, y: atPost.y });
-    const commuter = human(2, { workerBuildingId: barracks.id, job: JobType.Soldier, x: 3000, y: 3000 });
+    const commuter = human(2, { workerBuildingId: barracks.id, job: JobType.Soldier, x: 3000, y: 3000, vx: -1, vy: 0 });
     const state = makeWorld([present, commuter], [barracks]);
     state.tick = 10 * TICKS_PER_HOUR;
     const html = renderPanel(barracks, state);
@@ -163,6 +162,19 @@ describe('building worker roster shows work duty, not private activities', () =>
     const html = renderPanel(barracks, state);
     expect(html).toContain('Off duty');
     expect(html).not.toContain(' · Sleeping');
+  });
+});
+
+describe('construction crews are filled automatically', () => {
+  it('offers no manual fill control on an unfinished site', () => {
+    const site = building(30, BuildingType.House, { completed: false, constructionProgress: 0 });
+    const state = makeWorld([human(1)], [site]);
+
+    // The owner would accept this settler, so the old command button would have rendered.
+    expect(canAssignWorkerToBuilding(state, site.id)).toBe(true);
+    const html = renderPanel(site, state);
+    expect(html).not.toContain('Fill builders');
+    expect(html).toContain('Builders are assigned automatically');
   });
 });
 

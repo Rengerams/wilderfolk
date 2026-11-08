@@ -126,7 +126,7 @@ function isExhausted(entity: Entity): boolean {
 }
 
 function isElder(entity: Entity): boolean {
-  return !entity.isJuvenile && entity.age >= HUMAN_VENERABLE_AGE;
+  return entity.age >= HUMAN_VENERABLE_AGE;
 }
 
 function isMedicallyVulnerable(entity: Entity): boolean {

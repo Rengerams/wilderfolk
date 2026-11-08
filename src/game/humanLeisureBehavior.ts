@@ -9,6 +9,7 @@ import { getHourOfDay, getAbsoluteCalendarDay } from './dayCycleClock';
 import { BuildingType } from './buildings';
 import { pickSocialImpulse, type SocialBuildingPicker } from './socialLife';
 import { isPlayerHuman } from './playerHuman';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { requestDialogue } from './dialogueTrees';
 import { isDialogueBusy } from './humanChat';
@@ -21,6 +22,8 @@ import { pickBeautySpot } from './beautyGrid';
 /** A free child has a 72% chance to choose a nearby playmate each hour. */
 const KID_PLAY_CHANCE = 0.72;
 const CHILD_PLAYMATE_REFRESH_TICKS = TICKS_PER_HOUR;
+/** Enough playmates to choose from; stops a crowded colony paying a quadratic hourly scan. */
+export const CHILD_PLAYMATE_CANDIDATE_LIMIT = 32;
 const childPlaymateByWorld = new WeakMap<WorldState, WeakMap<Entity, { tickBucket: number; mate?: Entity }>>();
 
 export function tickHumanChildLeisure(args: {
@@ -40,7 +43,7 @@ export function tickHumanChildLeisure(args: {
   livingHumanAt: (id: number | null | undefined) => Entity | undefined;
   suppressIdleInitial: boolean;
 }): boolean {
-  if (args.onSchedule || !args.entity.isJuvenile || !isPlayerHuman(args.entity)) return args.suppressIdleInitial;
+  if (args.onSchedule || args.entity.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(args.entity)) return args.suppressIdleInitial;
   const { state, entity, speed, hourOfDay, allHumans, updatedBuildings, buildingById, humanSocialGrid, width, height, livingHumanAt } = args;
   let childCache = childPlaymateByWorld.get(state);
   if (!childCache) {
@@ -50,21 +53,26 @@ export function tickHumanChildLeisure(args: {
   const tickBucket = Math.floor(state.tick / CHILD_PLAYMATE_REFRESH_TICKS);
   let cached = childCache.get(entity);
   if (!cached || cached.tickBucket !== tickBucket) {
-    const playmates: Entity[] = [];
-    forEachAdaptiveInRadius(
-      humanSocialGrid,
-      allHumans,
-      entity.x,
-      entity.y,
-      SOCIAL_FRIENDSHIP_RADIUS,
-      (human) => {
-        if (human.id !== entity.id && human.alive && human.isJuvenile && isPlayerHuman(human)) playmates.push(human);
-      },
-      socialAdaptiveOptions('social', allHumans.length, width, height),
-    );
-    const mate = playmates.length > 0 && personDayRoll(entity.id, state.tick, 718 + tickBucket) < KID_PLAY_CHANCE
-      ? playmates[(entity.id + tickBucket) % playmates.length]
-      : undefined;
+    let mate: Entity | undefined;
+    // The play roll is stateless, so a child who will not play never pays for the scan.
+    if (personDayRoll(entity.id, state.tick, 718 + tickBucket) < KID_PLAY_CHANCE) {
+      const playmates: Entity[] = [];
+      forEachAdaptiveInRadius(
+        humanSocialGrid,
+        allHumans,
+        entity.x,
+        entity.y,
+        SOCIAL_FRIENDSHIP_RADIUS,
+        (human) => {
+          if (human.id !== entity.id && human.alive && human.age < HUMAN_ADULT_MIN_AGE && isPlayerHuman(human)) {
+            playmates.push(human);
+            if (playmates.length >= CHILD_PLAYMATE_CANDIDATE_LIMIT) return false;
+          }
+        },
+        socialAdaptiveOptions('social', allHumans.length, width, height),
+      );
+      if (playmates.length > 0) mate = playmates[(entity.id + tickBucket) % playmates.length];
+    }
     cached = { tickBucket, mate };
     childCache.set(entity, cached);
   }
@@ -107,7 +115,7 @@ export function tickHumanChildLeisure(args: {
   if (hasResidenceAssignment(entity)) {
     const residence = buildingById.get(entity.residenceBuildingId!);
     if (residence?.completed) {
-      commuteHumanToBuilding(entity, residence, speed, true);
+      if (commuteHumanToBuilding(entity, residence, speed)) enterHumanBuilding(entity, residence);
       return true;
     }
   }
@@ -190,7 +198,7 @@ export function tickAdultLeisureMotive(args: {
   const nearbyAdults: Entity[] = [];
   if ((state.tick + entity.id) % SOCIAL_STAGGER === 0) {
     forEachAdaptiveInRadius(humanSocialGrid, allHumans, entity.x, entity.y, SOCIAL_FRIENDSHIP_RADIUS, (h) => {
-      if (h.alive && isPlayerHuman(h) && !h.isJuvenile) nearbyAdults.push(h);
+      if (h.alive && isPlayerHuman(h) && h.age >= HUMAN_ADULT_MIN_AGE) nearbyAdults.push(h);
     }, socialAdaptiveOptions('social', allHumans.length, width, height));
   }
   const spouseEarly = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;
@@ -208,7 +216,7 @@ export function tickAdultLeisureMotive(args: {
     if (impulse.stayHome && hasResidenceAssignment(entity)) {
       const home = buildingById.get(entity.residenceBuildingId!);
       if (home?.completed) {
-        commuteHumanToBuilding(entity, home, speed * (impulse.motive === 'sick_day' ? 0.7 : 0.9), true, 1);
+        if (commuteHumanToBuilding(entity, home, speed * (impulse.motive === 'sick_day' ? 0.7 : 0.9), 1)) enterHumanBuilding(entity, home);
         if (impulse.motive === 'sick_day') adjustHumanStaminaFromEnergy(entity, 0.25 * PER_TICK_RATE_SCALE);
         suppressIdle = true;
       }

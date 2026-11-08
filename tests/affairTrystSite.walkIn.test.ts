@@ -10,7 +10,7 @@ import {
   recordAffairTrystSite,
   wouldWalkInOnAffair,
 } from '../src/game/simulation/humanRelationships';
-import { affairTrystEntry } from '../src/game/simulation/humanMovement';
+import { buildingAccessPoint } from '../src/game/buildingAccess';
 
 const MARITAL_HOME_ID = 10;
 const PARAMOUR_HOME_ID = 20;
@@ -119,7 +119,7 @@ describe('affair rendezvous belongs to the lovers, not random houses', () => {
 
   it('sends both lovers to a doorstep outside the chosen home, never its blocked centre', () => {
     const home = house(MARITAL_HOME_ID);
-    const door = affairTrystEntry(home);
+    const door = buildingAccessPoint(home);
     const halfW = home.width / 2;
     const halfH = home.height / 2;
 

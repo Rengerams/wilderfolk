@@ -42,7 +42,7 @@ function workerAtHome(state: WorldState): { person: Entity; mill: Building; stan
   const offsets = [[240, 120], [160, 80], [120, 0], [80, 0], [60, 0], [0, 60], [-60, 0], [0, -60]];
   for (const [dx, dy] of offsets) {
     const mill = workplace(state, person.x + dx, person.y + dy);
-    const stand = humanBuildingTarget(mill, person.id, false);
+    const stand = humanBuildingTarget(mill, person.id);
     if (lineCrossesBlocked(grid, person.x, person.y, stand.x, stand.y)) {
       state.buildings.pop();
       state.nextBuildingId--;

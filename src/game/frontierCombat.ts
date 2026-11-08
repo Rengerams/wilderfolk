@@ -1,6 +1,7 @@
 import type { Building, Entity, RivalSettlement, WorldState, RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
 import { EntityType, JobType, PATH_CELL } from './gameTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, getAbsoluteCalendarDay, killHuman } from './dayCycle';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { awardRaidSurvivalMark } from './personalMarks';
 import { ensureEntityByIdMap } from './entityIndex';
 import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
@@ -21,7 +22,7 @@ import { isSettlementDestroyed, beginRaidRecovery, rememberRivalDisposition } fr
 import { normalizeRivalProfile } from './rivalProfiles';
 export { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter };
 import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } from './resourceCost';
-import { getSimRng } from './simRng';
+import { getSimRng, hashSalt } from './simRng';
 import { addCappedResource } from './resourceUtils';
 import { spendFood } from './economyLedger';
 import { addBigNews, addFloatingText } from './simEffects';
@@ -222,8 +223,17 @@ export function getOutgoingRaidFoodCostForRival(state: WorldState, rival: RivalS
   );
 }
 
+/** Incoming war-bands keyed by rival id; build once per tick instead of scanning per settler. */
+export function buildIncomingRaidIndex(state: WorldState): Map<string, RaidEvent> {
+  const byRival = new Map<string, RaidEvent>();
+  for (const raid of state.pendingRaidEvents ?? []) {
+    if (!byRival.has(raid.rivalId)) byRival.set(raid.rivalId, raid);
+  }
+  return byRival;
+}
+
 export function isRaidMarchingForRival(state: WorldState, groupId: string): boolean {
-  return (state.pendingRaidEvents ?? []).some((r) => r.rivalId === groupId);
+  return buildIncomingRaidIndex(state).has(groupId);
 }
 
 /** True when that rival has an incoming war-band — your strike back is a counter-raid, not a first strike. */
@@ -409,9 +419,9 @@ export function canRivalCampGrow(rival: RivalSettlement): boolean {
     && profile.ledger.recovery >= RIVAL_GROWTH_MIN_RECOVERY;
 }
 
-/** Which day of the cadence this camp takes stock on — staggered so camps do not all roll together. */
-export function isRivalGrowthDay(rivalIndex: number, colonyDay: number): boolean {
-  return (colonyDay + rivalIndex * 3) % RIVAL_GROWTH_INTERVAL_DAYS === 0;
+/** Which day of the cadence this camp takes stock on — staggered by stable identity, not list order. */
+export function isRivalGrowthDay(rivalId: string, colonyDay: number): boolean {
+  return (colonyDay + (hashSalt(rivalId) % RIVAL_GROWTH_INTERVAL_DAYS)) % RIVAL_GROWTH_INTERVAL_DAYS === 0;
 }
 
 export function getCombatPreview(
@@ -1491,7 +1501,7 @@ function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, stren
   rival.population -= losses;
   // Rivals can have a larger simulated population than their visible character roster: kill living
   // members and count remaining losses as off-map casualties instead of inventing names.
-  const livingRivals = state.entities.filter((entity) => entity.alive && !entity.warCaptive && !entity.isJuvenile
+  const livingRivals = state.entities.filter((entity) => entity.alive && !entity.warCaptive && entity.age >= HUMAN_ADULT_MIN_AGE
     && entity.job === JobType.Soldier && rival.entityIds.includes(entity.id));
   const victims = livingRivals.slice(0, losses);
   const casualties = new Set(victims.map((entity) => entity.id));

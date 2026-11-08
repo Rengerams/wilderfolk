@@ -1,6 +1,6 @@
 import type { Building, Entity } from '../gameTypes';
 import { BUILDING_JOB_TYPES, JobType } from '../gameTypes';
-import { isMinor } from '../housingModel';
+import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 import { isPlayerHumanShiftOwner } from '../playerHuman';
 import { PROFILE_REVISION, bumpRevision } from '../entityRevision';
 
@@ -38,8 +38,8 @@ export function normalizeCareerHistory(raw: unknown): CareerHistory | undefined 
 export function recordCareerWork(
   worker: Entity, site: Building, job: JobType, day: number, observedHours: number,
 ): boolean {
-  if (!isPlayerHumanShiftOwner(worker) || !worker.alive || worker.isJuvenile
-    || isMinor(worker) || worker.prisonBuildingId != null) return false;
+  if (!isPlayerHumanShiftOwner(worker) || !worker.alive
+    || worker.age < HUMAN_ADULT_MIN_AGE || worker.prisonBuildingId != null) return false;
   if (!Number.isSafeInteger(day) || day < 0 || day > MAX_CAREER_DAY
     || !Number.isFinite(observedHours) || observedHours <= 0) return false;
   // Credit the witnessed prior shift, not the worker's current job or roster.

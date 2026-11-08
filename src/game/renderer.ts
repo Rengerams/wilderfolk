@@ -12,6 +12,7 @@ import {
   _tickHumans,
 } from './renderer/entityCache';
 import { resetWeatherCaches } from './renderer/weather';
+import { resetHumanRenderCaches } from './renderer/humans';
 import { compositeCachedEntityLayer, paintMovingEntities } from './renderer/entityComposite';
 import { drawGameOverlay } from './renderer/overlay';
 import { beginMotionFrame, resetMotionInterpolation, setSpotlightPresentationFrame, type SpotlightPresentation } from './renderer/motionInterpolation';
@@ -27,6 +28,7 @@ export function resetRendererCaches(): void {
   disposeEntityLayerCache();
   resetDialogueSessions();
   resetWeatherCaches();
+  resetHumanRenderCaches();
   resetRenderClock();
   resetMotionInterpolation();
   // The logistics projection memo is keyed on world identity and caches a reference to it, so dropping

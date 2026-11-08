@@ -68,8 +68,7 @@ export function tickRenderClock(now: number): number {
 
 // ============ COLOR UTILITIES ============
 export function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const n = parseInt(hex.replace('#', ''), 16);
-  return { r: (n >> 16) & 0xff, g: (n >> 8) & 0xff, b: n & 0xff };
+  return parseHexRgb(hex);
 }
 
 export function rgbToHex(r: number, g: number, b: number): string {

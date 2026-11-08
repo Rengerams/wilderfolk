@@ -31,7 +31,7 @@ const ESCAPE_GENOME = genomeFrom({ composure: 95, perception: 90, riskTaking: 5,
 const RECKLESS_GENOME = genomeFrom({ composure: 5, perception: 5, riskTaking: 95, patience: 95, persistence: 95, reasoning: 95 });
 
 function soldier(id: number, genomeV2: GenomeV2, overrides: Partial<Entity> = {}): Entity {
-  const entity = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `S${id}` });
+  const entity = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `S${id}`, ageYears: 30 });
   entity.alive = true;
   entity.isJuvenile = false;
   entity.job = JobType.Soldier;
@@ -102,7 +102,7 @@ describe('the militia prices each defender\'s own aptitudes', () => {
 
     expect(militia(state, [...own, soldier(92, DEFENSIVE_GENOME, { faction: 'rival' })])).toBe(base);
     expect(militia(state, [...own, soldier(93, DEFENSIVE_GENOME, { faction: 'visitor' })])).toBe(base);
-    expect(militia(state, [...own, soldier(94, DEFENSIVE_GENOME, { isJuvenile: true })])).toBe(base);
+    expect(militia(state, [...own, soldier(94, DEFENSIVE_GENOME, { age: 12, isJuvenile: true })])).toBe(base);
     expect(militia(state, [...own, soldier(95, DEFENSIVE_GENOME, { job: JobType.Settler })])).toBe(base);
     expect(militia(state, [...own, soldier(96, DEFENSIVE_GENOME, { prisonBuildingId: 9 })])).toBe(base);
   });

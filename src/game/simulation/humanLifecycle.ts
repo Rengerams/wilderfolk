@@ -8,6 +8,7 @@ import {
   ticksForDays,
   getColonyDay,
 } from '../dayCycle';
+import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 import { resolveChildSurname, getRandomName } from '../nameLoader';
 import { genomeOf, inheritGenome } from '../settlerTraits';
 import { createEntity } from '../entityFactory';
@@ -23,7 +24,7 @@ import { dampScandalReputationLoss } from '../townHall';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 import { adjustHumanStaminaFromEnergy } from './humanPhysiology';
 import { isPlayerHuman } from '../playerHuman';
-import { seededRandomForRun } from '../simRng';
+import { seededRandomForRun, seededStreamForRun } from '../simRng';
 import { addReputation } from '../simHelpers';
 import { isResidenceBuilding, isLeaderHouseResidence, residenceRoomFor } from '../housingModel';
 
@@ -35,7 +36,7 @@ const BIRTH_TALENT_JOBS = [
 ] as const;
 
 export function grantRareBirthTalent(child: Entity, birthKey: string): void {
-  if (child.type !== EntityType.Human || !child.isJuvenile) return;
+  if (child.type !== EntityType.Human || child.age >= HUMAN_ADULT_MIN_AGE) return;
   const chance = seededRandomForRun(`${birthKey}:talent-chance`);
   if (chance >= 0.01) return;
   const roll = seededRandomForRun(`${birthKey}:talent-job`);
@@ -72,6 +73,17 @@ function clearExpectingStatus(human?: Entity): void {
   if (human.relationshipStatus === 'expecting') {
     human.relationshipStatus = human.partnerId != null ? 'married' : 'single';
   }
+}
+
+/** Share of the term at which a pregnancy requires hospital attendance instead of work. */
+const PREGNANCY_HOSPITAL_THRESHOLD_RATIO = 0.85;
+
+/** The one pregnancy hospital threshold: true from 85% of the term until childbirth clears it. */
+export function isPregnancyHospitalDue(
+  entity: Pick<Entity, 'pregnant' | 'pregnancyProgress'>,
+): boolean {
+  if (!entity.pregnant) return false;
+  return (entity.pregnancyProgress ?? 0) >= PREGNANCY_TICKS * PREGNANCY_HOSPITAL_THRESHOLD_RATIO;
 }
 
 /**
@@ -174,7 +186,11 @@ export function tickPregnancyAndBirth(
 
   const babyGen = (entity.generation ?? 0) + 1;
   const childGender: 'male' | 'female' = seededRandomForRun(`${birthKey}:gender`) > 0.5 ? 'male' : 'female';
-  const inheritedGenome = inheritGenome(genomeOf(entity), genomeOf(biologicalFather));
+  const inheritedGenome = inheritGenome(
+    genomeOf(entity),
+    genomeOf(biologicalFather),
+    seededStreamForRun(`${birthKey}:genome`),
+  );
 
   const child = createEntity(EntityType.Human, nx, ny, state.nextEntityId++, 80, true, {
     gender: childGender,

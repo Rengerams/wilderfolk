@@ -18,7 +18,7 @@ const SETTLER_COUNT = 20;
 
 /** One adult settler; the genome is written directly so a roll cannot skew a fixture. */
 function adult(id: number, overrides: Partial<Entity> = {}): Entity {
-  const entity = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `S${id}` });
+  const entity = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `S${id}`, ageYears: 30 });
   entity.alive = true;
   entity.isJuvenile = false;
   entity.job = JobType.Soldier;

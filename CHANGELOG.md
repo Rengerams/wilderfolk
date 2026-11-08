@@ -2,6 +2,37 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (8 Nov 2026):** Building destinations now satisfy the arrival rule, and blocked zero-distance targets cannot produce invalid walking velocity.
+- **Fixed (8 Nov 2026):** Settler death audio consumes transported death tallies, retaining one cue after the worker removes the deceased while departures stay silent.
+- **Fixed (8 Nov 2026):** Terrain clearing refreshes the derived clearing mask while retaining unaffected regional ground caches.
+- **Changed (8 Nov 2026):** Approach, commute and daily movement observations now run through the existing colony harness with --movement after normal simulation ticks.
+- **Fixed (8 Nov 2026):** Audit A7 hot paths: a loaded colony keeps fast object properties, so the per-tick rollback backup costs about half as much and every later read of a loaded settler is cheaper.
+- **Changed (8 Nov 2026):** Audit A10 family tree: the window now draws the shared generation model one row per generation with wrapping cards, names each relation and bond, lists missing records, and can include deceased relatives from genealogy history.
+- **Fixed (8 Nov 2026):** Audit A10 accessibility: the reputation chip and save toast are announced, focus rings cover every control, graveyard and research copy no longer promise enemy graves or disabled disasters, and the Tauri CLI is a development dependency only.
+- **Changed (8 Nov 2026):** Audit A12 duplication: the rivalry ladder has one owner, so the wedding story and diplomacy step relations along the same order.
+- **Fixed (8 Nov 2026):** A panel window whose first module fetch loses a race with a reloading dev server fetches once more, so a stale chunk no longer drops the game onto the render-error screen.
+- **Changed (8 Nov 2026):** Reaching a building is one rule again: the walk stops at any reachable wall on any side, and only the activity decides whether the settler goes inside, so a commuter no longer clears or sets indoor state.
+- **Fixed (8 Nov 2026):** Every building now has one doorway outside its walls: settlers walk to it from any side instead of slipping in through the nearest wall, and the porch, hospital, hotel, prison and trade approaches all use the same point.
+- **Fixed (8 Nov 2026):** A settler walking to a building in their free time, or a prisoner walking to the cell, now follows a route around the walls instead of pressing into them, so the walk actually arrives.
+- **Fixed (8 Nov 2026):** Automatic staffing now tops a workplace's open posts up to its capacity from a workplace holding a clear surplus, instead of leaving every site with a single worker while other crews stay full.
+- **Fixed (8 Nov 2026):** Audit A8 tick cost: the blocked-ground repair now reads only the ring around a stranded settler and compares squared distances, halving its cost in the 1,800-settler profile with an identical result.
+- **Fixed (7 Nov 2026):** Audit A8 hourly spike: a child now picks a playmate from the first 32 nearby children and the neighbourhood walk stops there, so a crowded 3,000-settler colony no longer spends seconds on every hour boundary.
+
+- **Fixed (7 Nov 2026):** Audit A8 tick cost: ambient chatter now reads the nearby settlers only after its chance roll, and a child who will not play skips the playmate scan, cutting a 1,800-settler tick from 625 to 106 ms with the same simulation result.
+- **Changed (7 Nov 2026):** The manual builder crew button is gone from the building panel and the tutorials no longer ask players to fill or assign workers; crews staff themselves automatically.
+- **Fixed (7 Nov 2026):** Audit A4 needs and ecology: an unheated winter day burns 1.5x nutrition, pollution grades with settlement size instead of pinning at the cap, and preserves now lower it.
+- **Fixed (7 Nov 2026):** Audit A4 death records: a settler dying in wolf form counts as a human death, and the longest-life record now catches elders who die mid-year.
+- **Fixed (7 Nov 2026):** Audit A8 frame cost: the loop reuses the measured canvas size instead of forcing a layout every frame, and a still or teleporting mover no longer allocates a position.
+- **Fixed (7 Nov 2026):** A settler death now plays exactly one sound, a visitor or rival death stays silent, and the auto-player no longer treats an unstaffed farm as a food source.
+- **Fixed (7 Nov 2026):** Audit A4 DNA contract: visitors and caravan traders are created neutral instead of receiving a genome and born marks, their saved DNA is dropped on load, their selection panel no longer shows aptitudes, and a personal mark must come from a source its definition allows.
+- **Fixed (7 Nov 2026):** Audit A6 static layer: the cached trees, grass and buildings now repaint only when the world's static content changes instead of on every simulation tick, while a live construction site keeps animating.
+- **Fixed (7 Nov 2026):** Audit A7 hot paths: a settler no longer rescans every building and faction list for camp, war-band, festival and hotel answers, and the population roster is counted once when nothing changed.
+- **Fixed (7 Nov 2026):** Audit A7 render hot paths: sleeping settlers share one building index per tick, status badges rebuild only when the world changes, and movers reuse sampled ground-height vertices instead of re-reading the terrain.
+- **Fixed (7 Nov 2026):** Audit A6 rendering: a local terrain change re-bakes only its own ground region, trees and buildings share one depth-sorted pass, paused overlays update at once, and terrain caches follow runtime map identity.
+- **Fixed (7 Nov 2026):** Interaction audio looks deaths up by id instead of rescanning the whole roster for each one, so a large colony no longer pays a quadratic cost on every tick.
+- **Fixed (7 Nov 2026):** Audit A4 lifecycle: stopped loops end their frame chain, a render boundary exports the colony, loads are confirmed without overwriting the quick-save, raid and warfare dialogs trap focus, bulk strip demolition is confirmed, and the unused desktop shell capability is gone.
+- **Fixed (7 Nov 2026):** Audit A3 data integrity: legacy saves now scale every persisted tick field, worker faults replay only unapplied commands, election promises travel with the tick and roll back, and birth genomes follow their birth key.
+- **Fixed (7 Nov 2026):** Audit A3 corrections: the gazette's first week reads colony days 0–6, rival growth follows stable camp identity, a valid flat genome loads unchanged, and building shade uses one hex parser.
 - **Tests (7 Nov 2026, PR #132):** Restored the unmount-save CI contract after merging A5: a stopped loop or active crash recovery must prevent an exit save, without weakening either protection.
 - **Changed (7 Nov 2026):** The current calendar has 288 ticks per day (12 per hour), with 00:00, 06:00 and 18:00 daily work phases; the 12:00 phase remains empty. Earlier release notes retain their historical tick rates.
 - **Fixed (7 Nov 2026):** A1 follow-up removes duplicate festival restoration on save load, derives calendar test fixtures from the 288-tick day, and adds actual save-load regressions for stale festivals and Year-0 election state.

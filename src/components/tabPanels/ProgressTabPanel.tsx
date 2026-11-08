@@ -1,4 +1,5 @@
-import { Suspense, lazy, useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
+import { lazyWithRetry } from '../lazyWithRetry';
 import { ResearchType } from '../../game/gameTypes';
 import type { WorldState } from '../../game/gameEngine';
 import { canEstablishTradeRoute, hasCompletedMarket, summarizeTradeRouteBlocks } from '../../game/tradeCaravans';
@@ -9,10 +10,10 @@ import SubjectWindow from '../SubjectWindow';
 // The sub-tab union is owned by the shell hook; import it rather than redeclaring a copy.
 import type { ProgressSubTab } from '../../hooks/useGameShellState';
 
-const ChallengesPanel = lazy(() => import('../ChallengesPanel'));
-const StatisticsPanel = lazy(() => import('../../game/StatisticsPanel'));
-const ValleyChroniclePanel = lazy(() => import('./ValleyChroniclePanel'));
-const DynastyPanel = lazy(() => import('./DynastyPanel'));
+const ChallengesPanel = lazyWithRetry(() => import('../ChallengesPanel'));
+const StatisticsPanel = lazyWithRetry(() => import('../../game/StatisticsPanel'));
+const ValleyChroniclePanel = lazyWithRetry(() => import('./ValleyChroniclePanel'));
+const DynastyPanel = lazyWithRetry(() => import('./DynastyPanel'));
 
 /**
  * The five subjects of the Goals sub-tab — one owner for the index buttons and for the windows they

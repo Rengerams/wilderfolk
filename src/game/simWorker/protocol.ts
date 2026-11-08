@@ -72,7 +72,7 @@ export type WorkerRequest =
   | { type: 'importSave'; proto: typeof WORKER_PROTO; world: WorldState; uploadId: number }
   | { type: 'syncWorld'; proto: typeof WORKER_PROTO; world: WorldState; uploadId: number }
   | { type: 'tick'; proto: typeof WORKER_PROTO; focus?: SimulationFocus }
-  | { type: 'command'; proto: typeof WORKER_PROTO; cmd: WorkerCommandEnvelope }
+  | { type: 'command'; proto: typeof WORKER_PROTO; cmd: WorkerCommandEnvelope; commandId?: number }
   | { type: 'exportSave'; proto: typeof WORKER_PROTO }
   | { type: 'setPaused'; proto: typeof WORKER_PROTO; paused: boolean }
   | { type: 'setSpeed'; proto: typeof WORKER_PROTO; speed: number }
@@ -115,6 +115,8 @@ export type WorkerResponse =
       proto: typeof WORKER_PROTO;
       performanceSnapshot?: PerformanceSnapshot;
       delta: SimTickDeltaPayload;
+      /** Highest command id the worker has applied, so a fault replays only unapplied commands. */
+      lastAppliedCommandId?: number;
       /** Headless simulation – no SoA render transfer. */
       headless?: boolean;
       renderBuffer?: ArrayBuffer;
@@ -131,6 +133,7 @@ export type WorkerResponse =
       ok: boolean;
       delta: SimTickDeltaPayload;
       reason?: string;
+      commandId?: number;
       renderBuffer?: ArrayBuffer;
       bufferIndex?: number;
       /** Lease paired with `bufferIndex`; echoed back on returnBuffer. */
@@ -149,4 +152,6 @@ export type WorkerResponse =
       message: string;
       /** Which request failed – used by the host to adjust in‑flight counters. */
       source?: 'tick' | 'command' | 'export' | 'general';
+      /** Highest command id the worker proved it applied before the fault. */
+      lastAppliedCommandId?: number;
     };

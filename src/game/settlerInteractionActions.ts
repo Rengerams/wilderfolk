@@ -179,7 +179,7 @@ export function listTamingCandidates(state: WorldState): Entity[] {
     (candidate) =>
       candidate.type === EntityType.Human
       && candidate.alive
-      && !candidate.isJuvenile
+      && candidate.age >= HUMAN_ADULT_MIN_AGE
       && isPlayerHuman(candidate),
   );
 }

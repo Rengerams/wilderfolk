@@ -6,6 +6,7 @@ import type { Entity, WorldState } from './gameTypes';
 import { addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { getSimRng, randomBool, randomChoice } from './simRng';
 import { hurtFriendship, startFeud } from './relationships';
 import { Famine } from './gameConstants';
@@ -18,7 +19,7 @@ const RNG_OWNER = 'famine-desperation';
 function starvingCandidates(allAlive: readonly Entity[]): Entity[] {
   const adults: Entity[] = [];
   for (const e of allAlive) {
-    if (e.alive && isPlayerHuman(e) && !e.isJuvenile) adults.push(e);
+    if (e.alive && isPlayerHuman(e) && e.age >= HUMAN_ADULT_MIN_AGE) adults.push(e);
   }
   return adults;
 }

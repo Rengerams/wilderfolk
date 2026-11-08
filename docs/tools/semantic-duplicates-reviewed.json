@@ -1,0 +1,22 @@
+{
+  "groups": [
+    {
+      "hash": "42031f903aee973dd4f4e6ffc84744e0e650696f",
+      "status": "distinct",
+      "reason": "ConfirmActionDialog is a destructive-action confirmation with its own cancel-first focus and explicit affirmative step; SubjectWindow is a read-only subject panel using a GameWindow shell. Their only shared call in this lexical gate is the keyboard claim, not duplicated decision authority.",
+      "tests": [
+        "tests/keyboardGuards.contract.test.ts"
+      ]
+    },
+    {
+      "hash": "1851cc11fd6dabdc22d7ed4f1f45377fc2557558",
+      "status": "distinct",
+      "reason": "The same Map.get/set lexical signature masks different behavior. Genealogy has one shared findFamilyGroupRoot path-compression implementation used by familyTree and genealogyRegistry for temporary family-group maps; simDelta.relationshipFieldCoverage instead tracks which relationship payload revisions were sent to the worker replica. Different data ownership and contracts; no remaining duplicate union-find implementation.",
+      "tests": [
+        "tests/familyTree.test.ts",
+        "tests/genealogyRegistry.test.ts",
+        "tests/simDelta.fieldCoverage.test.ts"
+      ]
+    }
+  ]
+}

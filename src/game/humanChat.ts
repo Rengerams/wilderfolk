@@ -1,6 +1,6 @@
 import type { DialogueTree } from './dialogueTrees';
 import { TICKS_PER_HOUR } from './dayCycleClock';
-import type { Season, WeatherType } from './gameTypes';
+import type { Entity, Season, WeatherType } from './gameTypes';
 
 export type HumanChatContext =
   | 'social'
@@ -37,21 +37,26 @@ export interface ChatWorldHints {
   food?: number;
 }
 
-export type ChatSpeaker = {
+/** The entity fields a speaker exposes; derived from `Entity` so the two lists cannot drift. */
+type ChatSpeakerFields = Pick<Entity,
+  | 'id'
+  | 'chatPhrase'
+  | 'chatTicks'
+  | 'chatPartnerId'
+  | 'chatDialogueSessionKey'
+  | 'dialogueRecentScenes'
+  | 'dialogueRecentLines'
+  | 'isJuvenile'
+  | 'name'
+  | 'pregnant'
+  | 'partnerId'
+  | 'residenceBuildingId'
+>;
+
+/** A real Entity satisfies this; dialogue tests may supply only the fields a scene reads. */
+export type ChatSpeaker = Partial<Omit<ChatSpeakerFields, 'id' | 'childrenIds'>> & {
   id: number;
-  chatPhrase?: string;
-  chatTicks?: number;
-  chatPartnerId?: number;
-  chatDialogueSessionKey?: string;
-  dialogueRecentScenes?: Record<string, { id: string; tick: number }>;
-  dialogueRecentLines?: Record<string, number>;
-  isJuvenile?: boolean;
-  name?: string;
-  /** Read-only contextual eligibility hints, supplied by the real Entity. */
-  pregnant?: boolean;
-  partnerId?: number;
   childrenIds?: readonly number[];
-  residenceBuildingId?: number;
 };
 
 /** A participant is busy while either a visible line or paired dialogue session is active. */

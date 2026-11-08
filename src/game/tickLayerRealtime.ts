@@ -37,6 +37,7 @@ import { tickElectionCeremony } from './villageLeadership';
 import { findPlayerTownHall } from './playerTownHall';
 import { addBigNews, addNotification, impulseScreenShake } from './simEffects';
 import { getEcosystemHealth } from './dailyEcology';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 
 /** How often we sample world metrics into populationHistory. */
 export const STATS_SAMPLE_INTERVAL_TICKS = 10;
@@ -60,7 +61,7 @@ function rebuildPredators(byType: TickContext['byType'], playerHumans?: readonly
 
   const settlers = playerHumans ?? (byType[EntityType.Human]?.filter(isPlayerHuman) ?? []);
   for (const h of settlers) {
-    if (h.alive && !h.isJuvenile) out.push(h);
+    if (h.alive && h.age >= HUMAN_ADULT_MIN_AGE) out.push(h);
   }
   
   const humans = byType[EntityType.Human] ?? [];

@@ -76,6 +76,13 @@ export function createSeededRng(seed: number, owner: string): RngStream {
   return stream;
 }
 
+/**
+ * Salts for independent `personDayRoll` decisions: one entry per decision, never reused.
+ */
+export const PERSON_DAY_ROLL_SALTS = {
+  hospitalTreatment: 840,
+} as const;
+
 /** Stable 0..1 roll for one person on one colony day. */
 export function personDayRoll(entityId: number, tick: number, salt = 0): number {
   const day = getAbsoluteCalendarDay(tick);
@@ -100,6 +107,11 @@ export function seededRandom(seed: number, salt: string): number {
  */
 export function seededRandomForRun(salt: string): number {
   return seededRandom(currentSeed, salt);
+}
+
+/** A fresh stream derived from the active colony seed and a salt, for replay-stable sub-decisions. */
+export function seededStreamForRun(salt: string): RngStream {
+  return createSeededRng(currentSeed, salt);
 }
 
 /**

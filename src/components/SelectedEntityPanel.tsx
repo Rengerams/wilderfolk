@@ -1,5 +1,6 @@
 import {
   EntityType,
+  isPlayerHuman,
   isVillageLeader,
   getHumanArmamentLabel,
   getAgeInYears,
@@ -197,7 +198,7 @@ export default function SelectedEntityPanel({
           {isHuman && entity.moonHowlerCursed && (
             <p className="text-[11px] font-semibold text-violet-300">🌝 Moon Howler curse — transforms again every 14 days until cured</p>
           )}
-          {isHuman && entity.genomeV2 && (
+          {isHuman && isPlayerHuman(entity) && entity.genomeV2 && (
             <div className="mt-0.5 flex flex-wrap gap-1">
               {expressAptitudes(entity.genomeV2).relative
                 .map((relative, index) => ({ relative, id: APTITUDE_IDS[index] }))

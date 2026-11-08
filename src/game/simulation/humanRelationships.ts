@@ -32,7 +32,8 @@ import {
   PREGNANCY_TICKS,
   isStartOfClockHour,
 } from '../dayCycle';
-import { hasResidenceAssignment, hasWorkAssignment, isAdult, isMinor, isNearResidence, isResidenceBuilding, shareResidence } from '../housingModel';
+import { hasResidenceAssignment, hasWorkAssignment, isNearResidence, isResidenceBuilding, shareResidence } from '../housingModel';
+import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 import { citizenFullName, formatCitizenName, formatDeathLog, humanDisplayName } from '../citizenId';
 import { dissolveMarriage, formatCaughtCheaterDivorceDetail, syncMarriageSurnames } from '../nameLoader';
 import { dampScandalReputationLoss } from '../townHall';
@@ -357,7 +358,7 @@ export function trySchoolyardGossip(
   playerHumans: readonly Entity[],
   rng: () => number = getSimRng('humanRelationships'),
 ): void {
-  if (!child.isJuvenile || !isPlayerHuman(child)) return;
+  if (child.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(child)) return;
   const parentIds = [child.fatherId, child.motherId, child.adoptiveFatherId, child.adoptiveMotherId].filter(
     (id): id is number => id != null,
   );
@@ -391,7 +392,7 @@ export function trySchoolyardGossip(
 }
 
 export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () => number = getSimRng('humanRelationships')): void {
-  if (!child.isJuvenile || !isPlayerHuman(child)) return;
+  if (child.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(child)) return;
   const day = getAbsoluteCalendarDay(state.tick);
   if (child.schoolBondDay === day) return;
   const schoolDays = child.schoolDays ?? 0;
@@ -405,7 +406,7 @@ export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () 
     (e) =>
       e.alive &&
       e.type === EntityType.Human &&
-      e.isJuvenile &&
+      e.age < HUMAN_ADULT_MIN_AGE &&
       isPlayerHuman(e) &&
       e.id !== child.id &&
       !friends.includes(e.id) &&
@@ -483,7 +484,7 @@ export function isEligibleForYouthLove(entity: Entity): boolean {
     isPlayerHuman(entity) &&
     entity.alive &&
     entity.age >= YOUTH_LOVE_MIN_AGE &&
-    isMinor(entity) &&
+    entity.age < HUMAN_ADULT_MIN_AGE &&
     entity.prisonBuildingId == null &&
     !entity.pregnant &&
     entity.partnerId == null &&
@@ -566,7 +567,7 @@ export function advanceYouthLove(
       if (!shouldLeadAffairPair(entity, partner)) continue;
       // Both adults → the documented handoff. A pair retained by `reconcileYouthLove` (one adult, one
       // 12–17) waits here until the younger partner comes of age.
-      if (isAdult(entity) && isAdult(partner)) {
+      if (entity.age >= HUMAN_ADULT_MIN_AGE && partner.age >= HUMAN_ADULT_MIN_AGE) {
         promoteYouthLoveToCourtship(state, entity, partner);
         continue;
       }
@@ -641,7 +642,7 @@ export function isValidAffairTarget(entity: Entity, target: Entity, tick: number
   if (entity.prisonBuildingId != null || target.prisonBuildingId != null) return false;
   if (!entity.gender || target.gender === entity.gender || target.id === entity.id) return false;
   if (target.id === entity.partnerId || entity.id === target.partnerId) return false;
-  if (isMinor(entity) || isMinor(target)) return false;
+  if (entity.age < HUMAN_ADULT_MIN_AGE || target.age < HUMAN_ADULT_MIN_AGE) return false;
   if (target.age >= HUMAN_MAX_LIFESPAN_YEARS) return false;
   if (entity.affairPartnerId != null && target.id !== entity.affairPartnerId) return false;
   if (target.affairPartnerId != null && target.affairPartnerId !== entity.id) return false;
@@ -798,7 +799,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
     // The retained youth link keeps the youth route across the first 18th birthday: the older
     // partner may be 18 while the younger is still a minor; both 18 or 19+ closes it.
     Math.max(entity.age, youthPartner.age) <= HUMAN_YOUTH_FERTILITY_END &&
-    (isMinor(entity) || isMinor(youthPartner)) &&
+    (entity.age < HUMAN_ADULT_MIN_AGE || youthPartner.age < HUMAN_ADULT_MIN_AGE) &&
     youthPartner.youthLovePartnerId === entity.id &&
     !youthPartner.pregnant
   ) {
@@ -882,7 +883,7 @@ export function tryDailyHumanMortality(
   }
   {
     const illnessChance = HUMAN_DAILY_ILLNESS_CHANCE + getValleyIllnessChanceBonus(state);
-    if (isAdult(entity) && personDayRoll(entity.id, state.tick, 607) < illnessChance) {
+    if (entity.age >= HUMAN_ADULT_MIN_AGE && personDayRoll(entity.id, state.tick, 607) < illnessChance) {
       killHuman(entity, buildings, entityById, state.tick, state);
       createDeathParticles(state, entity.x, entity.y, '#aaaaaa', 5, 'smoke');
       logDeath(
@@ -1233,14 +1234,13 @@ function isEligibleToCourt(entity: Entity): boolean {
   return (
     isPlayerHuman(entity) &&
     entity.alive &&
-    !entity.isJuvenile &&
+    entity.age >= HUMAN_ADULT_MIN_AGE &&
     !entity.pregnant &&
     entity.prisonBuildingId == null &&
     entity.partnerId == null &&
     entity.youthLovePartnerId == null &&
     entity.relationshipStatus === 'single' &&
     (entity.courtshipCooldownDays ?? 0) <= 0 &&
-    isAdult(entity) &&
     entity.age < HUMAN_MAX_LIFESPAN_YEARS
   );
 }
@@ -1467,8 +1467,8 @@ export function tryDailyAffairEncounter(
   recordRelationshipDiagnostic('affairChecks');
   if (!isPlayerHuman(entity)) return;
   if (entity.prisonBuildingId != null) return;
-  if (!isMarriedOrExpecting(entity) || entity.isJuvenile) return;
-  if (!entity.gender || isMinor(entity) || entity.age >= HUMAN_MAX_LIFESPAN_YEARS) return;
+  if (!isMarriedOrExpecting(entity) || entity.age < HUMAN_ADULT_MIN_AGE) return;
+  if (!entity.gender || entity.age >= HUMAN_MAX_LIFESPAN_YEARS) return;
   if (entity.energy <= config.reproductionEnergyThreshold * 0.5) return;
   if (onScandalCooldown(entity, state.tick)) return;
   const workplace = findHumanWorkplace(entity, buildings, { buildingById });
@@ -1574,7 +1574,7 @@ export function tryCompleteCourtshipMarriage(  state: WorldState,
   if (entity.id >= partner.id) return false;
   if (!entity.gender || !partner.gender || entity.gender === partner.gender) return false;
   if ((entity.courtshipProgress ?? 0) < 100 || (partner.courtshipProgress ?? 0) < 100) return false;
-  if (isMinor(entity) || isMinor(partner)) return false;
+  if (entity.age < HUMAN_ADULT_MIN_AGE || partner.age < HUMAN_ADULT_MIN_AGE) return false;
   if (!isEligibleToCourt(entity) || !isEligibleToCourt(partner)) return false;
   // A pair who were married before must stay apart a year before they can marry again. Checked on
   // both sides, because either partner may be the one whose courtship completes the pair.

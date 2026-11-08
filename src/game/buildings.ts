@@ -501,7 +501,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     maxOccupants: 1,
     emoji: '🪦',
     label: 'Graveyard',
-    description: 'Memorial for up to 50 dead villagers and enemies. Families may visit to mourn.',
+    description: 'Memorial for up to 50 dead villagers. Families may visit to mourn.',
     sprite: '/sprites/graveyard.png',
     backgroundColor: '#64748b',
     padShape: 'rect',

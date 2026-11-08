@@ -1,7 +1,7 @@
 {
   "approvals": [
     {
-      "key": "src/game/simWorker/gameWorker.ts:219:installWorkerMessageHandlers@af8c448551004e94244f555d0bd25702f8470fce22cffe768a4186311ffcd04b <-> src/game/simWorker/gameWorker.ts:232:onmessage@820f3d70166fc0babbecefabfd65248c55841d0d360f1f290b91fd92ada88e20",
+      "key": "src/game/simWorker/gameWorker.ts:239:installWorkerMessageHandlers@644700dc885fd2cb9c388bd90790a78c17ac5eafbece81427659e075155d25a5 <-> src/game/simWorker/gameWorker.ts:252:onmessage@21e44015d152cd19b594542833c4c43a91462cbefc01a1663dab0a81ec9448ff",
       "reason": "The installer binds error hooks and the one worker message receiver on the active self shim, including a fresh test realm; it does not execute requests. The receiver alone validates protocol and requested features, awaits the shared census gate, then synchronously dispatches the request and classifies failures by source. Folding them into one entry would remove the explicit reinstallation seam needed by existing worker tests or duplicate registration. They have distinct call/timing responsibilities and a single implementation of each in the same owner module.",
       "tests": [
         "tests/gameWorker.profilerStop.test.ts",
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "key": "src/game/simulation/humanRelationships.ts:1286:isEligibleToCourt@a69c59697cf77383f8438b1fece7078787a8bfa05e4179635cc4043e1dcb02db <-> src/game/simulation/humanRelationships.ts:529:isEligibleForYouthLove@37ca3a01958f74dea5e25380174a359b4fdf66303f934575d1c00b89b00fbb3f",
+      "key": "src/game/simulation/humanRelationships.ts:1229:isEligibleToCourt@41cb0f0a616832d0fcc789dbfa9f220e9a300b139346e0a7f657acd2633184b9 <-> src/game/simulation/humanRelationships.ts:482:isEligibleForYouthLove@57a6b8254b9236f543f2d76debd245b5172c032a8a91732b83c96166fb0ad3f6",
       "reason": "Two disjoint age windows with different contracts: youth love is the 12-17 band (YOUTH_LOVE_MIN_AGE, minor, gender required, no courtship cooldown) while courtship is 18+ (adult, lifespan cap, cooldown). They share the necessary available-single conditions (alive, player, no partner, single status, no youth partner, not pregnant, not imprisoned), but merging would either admit minors to courtship or block youth love. Each has its own gate, and the handoff from youth love to courtship is pinned separately.",
       "tests": [
         "tests/citizenOverview.youthLove.test.ts",
@@ -53,7 +53,7 @@
       ]
     },
     {
-      "key": "src/game/pathfinding.ts:221:getPathGrid@524477825f71d9bc4fdbf4bbe1857bde6e592a46a0c51616aea1b12247673d0e <-> src/game/pathfinding.ts:250:getReadOnlyPathGrid@189564c4232455c5e35d2e530d606b949ea911044fda3af0b52cd64bc8b26de8",
+      "key": "src/game/pathfinding.ts:210:getPathGrid@524477825f71d9bc4fdbf4bbe1857bde6e592a46a0c51616aea1b12247673d0e <-> src/game/pathfinding.ts:230:getReadOnlyPathGrid@189564c4232455c5e35d2e530d606b949ea911044fda3af0b52cd64bc8b26de8",
       "reason": "Both accessors derive the same passability rules using buildPathGrid, but their cache owners and side effects are intentionally different. getPathGrid feeds the active simulation and records rebuilds; its identity changes cause setCurrentPathMap to invalidate movement waypoint caches. getReadOnlyPathGrid serves the UI/logistics projection with an independent cache and no simulation metrics or waypoint invalidation. Combining their cache state would let render snapshots invalidate live movement routes. The logistics-overlay regression proves separate grid/buffer identities and unchanged simulation cache identity after a projection read; the terrain pathfinding test separately exercises the simulation cache.",
       "tests": [
         "tests/logisticsOverlay.projection.test.ts",
@@ -61,14 +61,14 @@
       ]
     },
     {
-      "key": "src/game/economyLedger.ts:119:getRecentFoodFlow@c7ea8a34ea77f75f684450dce065ef4569513ec572f01af678fc74974f7c0f0d <-> src/game/economyLedger.ts:166:getProjectedFoodSupply@1c8ce75d48c86f12616a5b8a55e315f36c92fd86e0c6a73733ee839cf08d50de",
+      "key": "src/game/economyLedger.ts:105:getRecentFoodFlow@c7ea8a34ea77f75f684450dce065ef4569513ec572f01af678fc74974f7c0f0d <-> src/game/economyLedger.ts:149:getProjectedFoodSupply@1c8ce75d48c86f12616a5b8a55e315f36c92fd86e0c6a73733ee839cf08d50de",
       "reason": "getRecentFoodFlow is the canonical bounded contiguous-history reader and sums actual daily food-production and consumption totals. getProjectedFoodSupply calls that reader rather than copying it, then estimates forward demand from differences between the earlier and later halves of the historical consumption window. They do not make the same decision: one reports measured retrospective flows, the other projects future risk. A single function would combine unrelated observed and forecast semantics. The food-ledger regression tests both independently.",
       "tests": [
         "tests/economyLedger.foodFlow.test.ts"
       ]
     },
     {
-      "key": "src/game/economyLedger.ts:166:getProjectedFoodSupply@1c8ce75d48c86f12616a5b8a55e315f36c92fd86e0c6a73733ee839cf08d50de <-> src/game/tradeCaravans.ts:367:getCaravanMoveTarget@755deed4d0ff0d3005c1a32fad2a490adf693b9193c7fe913c100e72322a5c2c",
+      "key": "src/game/economyLedger.ts:149:getProjectedFoodSupply@1c8ce75d48c86f12616a5b8a55e315f36c92fd86e0c6a73733ee839cf08d50de <-> src/game/tradeCaravans.ts:351:getCaravanMoveTarget@755deed4d0ff0d3005c1a32fad2a490adf693b9193c7fe913c100e72322a5c2c",
       "reason": "These functions concern unrelated domains with different inputs and outputs. getProjectedFoodSupply reads completed food-ledger history and reports a predicted daily need, while getCaravanMoveTarget computes a caravan's physical movement destination based on its trade-route journey. Their token similarity is accidental shared array/math operations; they have different simulation owners, timing and data dependencies. Existing regressions cover food-flow projections and caravan route progression separately.",
       "tests": [
         "tests/economyLedger.foodFlow.test.ts",
@@ -82,6 +82,23 @@
         "tests/nameLoader.poolUpgrade.test.ts",
         "tests/gameWorker.namePool.test.ts",
         "tests/gameWorker.namePool.dispatchGate.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/adaptiveSpatialQuery.ts:152:naiveFindClosestInArray@6a5cc32c3dbe1995f0c2f71a4df0bd516c3764c359dc8174fb08f01c92f87380 <-> src/game/adaptiveSpatialQuery.ts:43:forEachInArrayRadius@4490c612f181ddb5d50e902787013be58eb282c71b6d8847ff197e085cc111c3",
+      "reason": "Both scan a contiguous entity array within one radius, but their contracts differ. forEachInArrayRadius is a visitor: it reports every living entity inside the radius, counts each candidate for the spatial metrics, and stops only when the callback returns false (the child playmate cap relies on that). naiveFindClosestInArray answers one nearest-match query: it takes a distance-aware predicate, keeps the best distance so far, drops later-but-farther matches before counting them, and returns one entity or undefined. Merging them would either give the visitor a nearest-match return it never uses or make the nearest scan report candidates nobody asked for. No writes in either.",
+      "tests": [
+        "tests/adaptiveSpatialQuery.earlyStop.test.ts",
+        "tests/humanLeisureBehavior.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/simDelta.ts:565:stripUnchangedRelationships@4c331c79462fe95983c74ceaa5bac4aefc4982337f1c434ac1c025928ca72872 <-> src/game/simBuffers/simDelta.ts:625:stripUnchangedProfile@7480f1ce137deb4a05425da173cc957383870360e1d05bf39649cde804b91df3",
+      "reason": "Both strip replica-held fields from a tick delta by delegating to stripCoveredEntityFields, but their coverage contracts differ. Relationship coverage is revision-exact: a map ships again only when its revision changes. Profile coverage also stores a tick stamp and re-ships once PROFILE_REFRESH_TICKS elapses, so a missed writer can only be briefly stale. Merging them would either drop that refresh window or re-ship relationship maps on a timer nobody asked for. Both are write-free over the delta.",
+      "tests": [
+        "tests/simDelta.fieldCoverage.test.ts",
+        "tests/simDelta.relationshipPayload.test.ts",
+        "tests/simDelta.entityProfile.test.ts"
       ]
     }
   ]

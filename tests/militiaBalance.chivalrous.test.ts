@@ -21,7 +21,7 @@ const DEFENSIVE_GENOME = genomeFrom({ composure: 95, riskTaking: 90 });
  * non-deterministic.
  */
 function adult(id: number, overrides: Partial<Entity> = {}): Entity {
-  const entity = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `S${id}` });
+  const entity = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `S${id}`, ageYears: 30 });
   entity.alive = true;
   entity.isJuvenile = false;
   entity.job = JobType.Soldier;
@@ -57,7 +57,7 @@ describe('the defensive aptitude counts only the player\'s own adults', () => {
     const state = initGame({ villageName: 'Militia', size: 'medium', seed: FIXTURE_SEED });
     const own = settlers();
     const base = strength(state, own);
-    const child = adult(94, { isJuvenile: true });
+    const child = adult(94, { isJuvenile: true, age: 12 });
     expect(strength(state, [...own, child])).toBe(base);
   });
 

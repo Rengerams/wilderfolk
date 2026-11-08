@@ -3,8 +3,8 @@ import { useModalFocus } from '../hooks/useModalFocus';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 
 const QUICK_START_STEPS = [
-  { icon: '🏠', title: 'Build a House before night', detail: `Press B to open Build, pick Housing → House (or press 1), click the map, then assign workers. Night starts at 20:00 on day one.` },
-  { icon: '👆', title: 'Click the map to manage', detail: 'Select people, buildings, or visitor camps — actions appear in the right panel. Assign workers with + Worker on finished buildings.' },
+  { icon: '🏠', title: 'Build a House before night', detail: `Press B to open Build, pick Housing → House (or press 1), click the map — the builder crew joins automatically. Night starts at 20:00 on day one.` },
+  { icon: '👆', title: 'Click the map to manage', detail: 'Select people, buildings, or visitor camps — actions appear in the right panel. Staffing is automatic; a building panel lists its crew.' },
   { icon: '💡', title: 'Tips appear as you play', detail: 'When something new happens — traders, rivals, winter, raids — a tip card appears on the map. Alerts under the header jump to urgent issues. Press ? for shortcuts.' },
 ];
 

@@ -463,7 +463,7 @@ describe('prison coverage is presence, not the roster', () => {
     prison.occupants = [...cellmates, ...guards.map((guard) => guard.id)];
 
     for (const guard of guards) {
-      const stand = humanBuildingTarget(prison, guard.id, false);
+      const stand = humanBuildingTarget(prison, guard.id);
       const posted = { ...guard, x: stand.x, y: stand.y };
       expect(isNearBuilding(posted, prison)).toBe(true);
     }

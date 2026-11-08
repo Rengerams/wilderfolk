@@ -38,8 +38,8 @@ export const TUTORIAL_CAMPAIGN: TutorialCampaignStep[] = [
   {
     id: 'assign_workers',
     icon: '👷',
-    title: 'Assign workers',
-    detail: 'Select a finished building and press + Fill workers (or Auto-staff all job buildings). Idle settlers eat but produce nothing — a staffed building is a living building.',
+    title: 'Workers on the job',
+    detail: 'Finished buildings staff themselves automatically from idle settlers. Idle settlers eat but produce nothing — a staffed building is a living building.',
     isComplete: hasAnyStaffedBuilding,
   },
   {

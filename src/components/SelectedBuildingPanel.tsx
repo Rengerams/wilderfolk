@@ -1,5 +1,6 @@
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, useState } from 'react';
 import CollapsibleSection from './CollapsibleSection';
+import { lazyWithRetry } from './lazyWithRetry';
 import {
   BuildingType, EntityType, BUILDING_JOB_TYPES, WORKSHOP_RECIPES, getWorkshopRecipe, formatRecipeInputs,
   getTerrainEfficiencyMultiplier, getAdjacencyMultiplier,
@@ -55,8 +56,8 @@ import type { ForgeOrderId, RaidChoice } from '../game/gameTypes';
 import type { RivalSettlement } from '../game/gameTypes';
 import type { WorkerCommand } from '../game/simWorker/commands';
 
-const CombatPreviewPanel = lazy(() => import('../game/CombatPreviewPanel'));
-const BlacksmithForgePanel = lazy(() => import('./BlacksmithForgePanel'));
+const CombatPreviewPanel = lazyWithRetry(() => import('../game/CombatPreviewPanel'));
+const BlacksmithForgePanel = lazyWithRetry(() => import('./BlacksmithForgePanel'));
 
 /** Settlers named under the empty worker picker before the rest are only counted. */
 const STAFFING_REFUSAL_LIMIT = 4;
@@ -161,7 +162,6 @@ function canAffordRecipe(resources: WorldState['resources'], recipe: ReturnType<
 export interface SelectedBuildingPanelProps {
   building: Building;
   state: WorldState;
-  onAssign: () => void;
   onRepair: () => void;
   onUpgrade: () => void;
   onDemolish: () => void;
@@ -177,7 +177,7 @@ export interface SelectedBuildingPanelProps {
 }
 
 export default function SelectedBuildingPanel({
-  building, state, onAssign, onRepair, onUpgrade, onDemolish, onToggleGate, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onQueueForge, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
+  building, state, onRepair, onUpgrade, onDemolish, onToggleGate, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onQueueForge, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
 }: SelectedBuildingPanelProps) {
   // Demolish confirmation is armed for the current building only, so switching
   // to another building automatically resets it (no effect required).
@@ -592,10 +592,10 @@ export default function SelectedBuildingPanel({
           );
         })()}
         {building.completed && building.type === BuildingType.Barracks && (
-          <p className="text-[11px] text-violet-300">Assigned soldiers strengthen militia around the clock, including off duty. Staff this barracks with Auto-fill or Manual below.</p>
+          <p className="text-[11px] text-violet-300">Assigned soldiers strengthen militia around the clock, including off duty. Soldiers are staffed automatically.</p>
         )}
         {!building.completed && (
-          <p className="text-[11px] text-sky-300">Builders work {getWorkScheduleLabel(getWorkSchedule(state))} only — auto-assigned each morning.</p>
+          <p className="text-[11px] text-sky-300">Builders work {getWorkScheduleLabel(getWorkSchedule(state))} only — the crew fills automatically from idle settlers.</p>
         )}
         {building.completed && (ownerOutputHint(building, state) ?? BUILDING_OUTPUT_HINTS[building.type]) && (
           <p className="text-[11px] text-stone-300">
@@ -941,7 +941,7 @@ export default function SelectedBuildingPanel({
                 <p key={w.id} className="text-[11px] text-emerald-200">
                   👷 {citizenFullName(w)}
                   {w.job ? ` · ${w.job}` : ''}
-                  <span className={duty === 'Working' ? 'text-emerald-300' : duty === 'Walking to work' ? 'text-sky-300' : 'text-stone-400'}> · {duty}</span>
+                  <span className={duty === 'Working' ? 'text-emerald-300' : duty === 'Walking to work' || duty === 'Going to hospital' ? 'text-sky-300' : duty === 'Absent' ? 'text-amber-300' : 'text-stone-400'}> · {duty}</span>
                   {w.apprenticeId != null && (
                     <span className="text-cyan-300">
                       {' '}🎓 {(() => {
@@ -969,10 +969,8 @@ export default function SelectedBuildingPanel({
             <p className="mb-1 text-[11px] text-amber-200">{getUnstaffedPostNote(building)}</p>
           )}
           <div className="grid grid-cols-2 gap-1">
-          {!building.completed && canAssignWorker && staffedWorkers < staffingCap && (
-            <button onClick={onAssign} className="rounded bg-emerald-600 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-emerald-500 transition-all">
-              + {!building.completed ? 'Fill builders' : 'Fill workers'}
-            </button>
+          {!building.completed && (
+            <p className="col-span-2 text-[11px] text-sky-300">Builders are assigned automatically — no manual crew needed.</p>
           )}
           {building.completed && BUILDING_JOB_TYPES[building.type] && (
             <p className="col-span-2 text-[11px] text-sky-300">Employment is automatic; existing jobs are retained.</p>

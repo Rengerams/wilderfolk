@@ -3,6 +3,7 @@ import type { Entity, WorldState } from './gameTypes';
 import type { TickContext } from './simulation/simulationTypes';
 import { EntityType, JobType } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { getHumanHuntRange } from './combat';
 import { addResource } from './economy';
 import { recordFoodProduced } from './economyLedger';
@@ -82,7 +83,7 @@ export function tickHumanHunting(
     (allowFreeRoam || famine) &&
     isPlayerHuman(entity) &&
     !ateMeal &&
-    !entity.isJuvenile &&
+    entity.age >= HUMAN_ADULT_MIN_AGE &&
     freeHuntHungry
   ) {
     const preyTypes = famine ? FAMINE_PREY_TYPES : NORMAL_PREY_TYPES;
@@ -207,7 +208,7 @@ export function tickHumanHunting(
     !allowFreeRoam ||
     ateMeal ||
     !isPlayerHuman(entity) ||
-    entity.isJuvenile ||
+    entity.age < HUMAN_ADULT_MIN_AGE ||
     !freeHuntHungry
   ) {
     entity.huntTargetId = undefined;

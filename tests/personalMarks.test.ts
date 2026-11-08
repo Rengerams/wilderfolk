@@ -91,6 +91,17 @@ describe('a mark is born once or earned once, never inherited', () => {
     expect(grantMark(settler, 'lucky', 1, 'invented' as PersonalMark['source'])).toBe(false);
     expect(marksOf(settler)).toEqual([]);
   });
+
+  it('rejects a mark whose source contradicts its definition', () => {
+    const settler: Entity = { id: 1 } as Entity;
+    expect(grantMark(settler, 'lucky', 1, 'born')).toBe(false);
+    expect(grantMark(settler, 'pretty', 0, 'raidVictory')).toBe(false);
+    expect(grantMark(settler, 'sickly', 0, 'rareWindfall')).toBe(false);
+    expect(grantMark(settler, 'scarred', 5, 'born')).toBe(false);
+    expect(marksOf(settler)).toEqual([]);
+    expect(grantMark(settler, 'lucky', 1, 'rareWindfall')).toBe(true);
+    expect(grantMark(settler, 'scarred', 5, 'raidWound')).toBe(true);
+  });
 });
 
 describe('the save boundary validates marks without inventing one', () => {
@@ -106,6 +117,15 @@ describe('the save boundary validates marks without inventing one', () => {
       null,
     ]);
     expect(normalized).toEqual([{ id: 'lucky', day: 3, source: 'raidVictory' }]);
+  });
+
+  it('drops an impossible mark/source pair such as a born lucky or a raid-earned pretty', () => {
+    expect(normalizeMarks([
+      { id: 'lucky', day: 1, source: 'born' },
+      { id: 'pretty', day: 1, source: 'raidVictory' },
+      { id: 'sickly', day: 2, source: 'raidWound' },
+      { id: 'scarred', day: 3, source: 'born' },
+    ])).toEqual([]);
   });
 
   it('reports a non-list as absent and an empty list as no marks', () => {

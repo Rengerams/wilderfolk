@@ -38,16 +38,21 @@ describe('two-month automatic job stability', () => {
     }
   });
 
-  it('keeps an already staffed nonessential workplace stable instead of topping it off', () => {
+  it('tops up a staffed workplace from a surplus without spending protected coverage', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2, 3] });
     const market = building(11, BuildingType.Market, { occupants: [4] });
     const workers = [1, 2, 3].map((id) => human(id, { workerBuildingId: 10 }));
     workers.push(human(4, { workerBuildingId: 11 }));
-    const original = workers.map((worker) => worker.workerBuildingId);
 
-    for (const tick of [100, 101, 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS]) {
+    rebalanceJobWorkers(workers, [farm, market], undefined, 100);
+    expect(farm.occupants).toHaveLength(2);
+    expect(market.occupants).toHaveLength(2);
+
+    // The surplus is spent: later pulses leave both rosters alone.
+    const settled = workers.map((worker) => worker.workerBuildingId);
+    for (const tick of [101, 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS]) {
       rebalanceJobWorkers(workers, [farm, market], undefined, tick);
-      expect(workers.map((worker) => worker.workerBuildingId)).toEqual(original);
+      expect(workers.map((worker) => worker.workerBuildingId)).toEqual(settled);
     }
   });
 

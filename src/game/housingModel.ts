@@ -149,20 +149,6 @@ export function residenceRoomFor(human: Entity, residence: Building, humans: Ent
 
 // ——— Households, custody and kin ———
 
-/** The age rule alone: an 18-year-old is adult even if a stale flag says otherwise. */
-export function isMinor(human: Entity): boolean {
-  return human.age < HUMAN_ADULT_MIN_AGE;
-}
-
-export function isAdult(human: Entity): boolean {
-  return !isMinor(human);
-}
-
-export function isMinorChild(child: Entity): boolean {
-  if (child.partnerId != null) return false;
-  return child.isJuvenile || isMinor(child);
-}
-
 /** One adult-led home: settler + spouse + their children, not parents or siblings. */
 export function collectOwnHousehold(seed: Entity, humans: Entity[]): Entity[] {
   const household: Entity[] = [];
@@ -187,8 +173,10 @@ export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Enti
 /** The same household, dependent children only: an adult child is its own housing unit. */
 export function collectMinorHousehold(seed: Entity, humans: Entity[]): Entity[] {
   const partnerId = seed.partnerId;
+  // A partnered minor is its own housing unit; age alone still makes them a minor elsewhere.
   return collectOwnHousehold(seed, humans).filter(
-    (member) => member.id === seed.id || member.id === partnerId || isMinorChild(member),
+    (member) => member.id === seed.id || member.id === partnerId
+      || (member.age < HUMAN_ADULT_MIN_AGE && member.partnerId == null),
   );
 }
 
@@ -316,8 +304,8 @@ export function isAdultChildAtHome(
    */
   byId?: ReadonlyMap<number, Entity>,
 ): boolean {
-  if (!human.alive || !isPlayerHuman(human) || human.isJuvenile) return false;
-  if (isMinor(human) || !hasResidenceAssignment(human)) return false;
+  if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE) return false;
+  if (!hasResidenceAssignment(human)) return false;
   const findLivingParent = (id: number | undefined): Entity | undefined => {
     if (byId) {
       const found = id == null ? undefined : byId.get(id);

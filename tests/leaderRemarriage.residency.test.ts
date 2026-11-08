@@ -65,7 +65,7 @@ describe('leader remarriage residency', () => {
     });
     const newSpouse = human(5, { partnerId: 1, relationshipStatus: 'married', residenceBuildingId: 11, childrenIds: [3] });
     const formerSpouse = human(2, { residenceBuildingId: 10 }); // divorced earlier, still squatting in manor
-    const child = human(3, { motherId: 5, isJuvenile: true });
+    const child = human(3, { motherId: 5, age: 8, isJuvenile: true });
     const manor = building(10, BuildingType.LeaderHouse, { occupants: [1, 2, 3] });
     const normalHouse = building(11, BuildingType.House, { occupants: [5] });
     const state = {

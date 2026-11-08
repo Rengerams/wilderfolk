@@ -124,7 +124,7 @@ export function tickRivalSettlements(
   const nextDeer = makeNextAliveDeer(allAlive);
   let tenseRepDrainToday = 0;
 
-  for (const [index, rival] of state.rivalSettlements.entries()) {
+  for (const rival of state.rivalSettlements) {
     const profile = ensureRivalProfile(rival);
     if (rival.raidCooldownDays > 0) rival.raidCooldownDays--;
     if (rival.peaceTreatyDays > 0) {
@@ -141,7 +141,7 @@ export function tickRivalSettlements(
     // Growth rolls on its own cadence, not through the 45–90-day action-timer gate below.
     if (
       state.year > rival.foundedYear + 1
-      && isRivalGrowthDay(index, getColonyDay(state))
+      && isRivalGrowthDay(rival.id, getColonyDay(state))
       && canRivalCampGrow(rival)
       && getSimRng('rivalEvents')() < 0.45
     ) {

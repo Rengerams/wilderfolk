@@ -3,6 +3,7 @@ import type { Entity, WorldState } from './gameTypes';
 import { rollFounderGenome, type GenomeV2 } from './settlerTraits';
 import { rollBornMarks } from './personalMarks';
 import { EntityType, JobType } from './gameTypes';
+import { isForeignFaction } from './playerHuman';
 import {
   getColonyDay,
   PREGNANCY_TICKS,
@@ -40,6 +41,8 @@ export interface CreateEntityOptions {
   name?: string;
   /** Genome inherited from both biological parents at birth. */
   inheritedGenome?: GenomeV2;
+  /** Faction set at creation; a foreign faction never receives a genome or born marks. */
+  faction?: Entity['faction'];
 }
 
 /** The species `tickLayerSystems` ticks (wildlife plus settlers), so the only ones whose animation
@@ -86,10 +89,12 @@ export function createEntity(
     name = opts?.name ?? getRandomName(entGender === 'male' ? 'male' : 'female');
   }
 
-  // One genome for every human; founders draw it, newborns receive the inherited one.
-  const genomeV2 = isHuman ? (opts?.inheritedGenome ?? rollFounderGenome()) : undefined;
+  // DNA belongs to a player settler only; a foreign human is created neutral.
+  const isSettler = isHuman && !isForeignFaction(opts?.faction);
+  // Founders draw the genome; newborns receive the inherited one.
+  const genomeV2 = isSettler ? (opts?.inheritedGenome ?? rollFounderGenome()) : undefined;
   // Appearance and constitution are personal marks, drawn once and never inherited.
-  const bornMarks = isHuman ? rollBornMarks() : undefined;
+  const bornMarks = isSettler ? rollBornMarks() : undefined;
   const marks = bornMarks && bornMarks.length > 0 ? bornMarks : undefined;
 
   // Derive surnames and maiden surnames safely
@@ -112,6 +117,7 @@ export function createEntity(
   const entity: Entity = {
     id,
     type,
+    faction: opts?.faction,
     x,
     y,
     energy: energy ?? config.spawnEnergy,

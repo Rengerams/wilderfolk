@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/gameEngine';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Building } from '../src/game/gameTypes';
-import { extractSimTickDelta } from '../src/game/simBuffers/simDelta';
+import { extractSimTickDelta, type BuildingFingerprint } from '../src/game/simBuffers/simDelta';
 
 function worldWithBuildings(): { world: ReturnType<typeof initGame>; buildings: Building[] } {
   const world = initGame({ seed: 515 });
@@ -37,7 +37,7 @@ describe('building delta fingerprint', () => {
     const first = extractSimTickDelta(world, alive, { cloneMode: 'transfer' });
     expect(first.buildings).toHaveLength(buildings.length);
 
-    const prev = new Map<number, string>();
+    const prev = new Map<number, BuildingFingerprint>();
     const initial = extractSimTickDelta(world, alive, {
       cloneMode: 'transfer',
       prevBuildings: new Map(),

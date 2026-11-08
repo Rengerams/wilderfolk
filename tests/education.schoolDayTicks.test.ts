@@ -7,7 +7,7 @@ import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
 import { SCHOOL_DAY_MIN_HOURS, SCHOOL_DAY_MIN_TICKS, SCHOOL_HOURS_PER_DAY, isSchoolTime, creditChildSchoolDay, recordChildSchoolTick } from '../src/game/education';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
-import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { buildingAccessPoint } from '../src/game/buildingAccess';
 
 function child(overrides: Partial<Entity> = {}): Entity {
   return {
@@ -83,7 +83,7 @@ describe('school-day credit needs the teacher there', () => {
 
   /** A pupil standing exactly where the tick sends them at this school. */
   function pupilAt(target: Building): Entity {
-    const spot = humanBuildingTarget(target, 1, false);
+    const spot = buildingAccessPoint(target);
     return child({ x: spot.x, y: spot.y });
   }
 
