@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
-import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { PREGNANCY_TICKS, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { getWorkSchedule } from '../src/game/workSchedule';
 import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
@@ -196,11 +196,26 @@ describe('the reason a settler is not at their post', () => {
     expect(getSettlerWorkReason(state, worker)).toEqual({ code: 'ill', label: 'Ill — exhausted' });
   });
 
-  it('says expecting for a pregnant settler', () => {
-    const worker = settler(1, { energy: 90, pregnant: true, pregnancyProgress: 100 });
+  it('says expecting only after the lifecycle hospitalization stage is reached', () => {
+    const worker = settler(1, { energy: 90, pregnant: true, pregnancyProgress: PREGNANCY_TICKS * 0.9 });
     const state = world(workdayTick(11), { entities: [worker] });
 
     expect(getSettlerWorkReason(state, worker)).toEqual({ code: 'expecting', label: 'Expecting — resting' });
+  });
+
+  it('does not report ordinary early pregnancy as work absence', () => {
+    const farm = building(1, BuildingType.Farm, { occupants: [1] });
+    const stand = humanBuildingTarget(farm, 1, false);
+    const worker = postedFarmer(farm, {
+      x: stand.x,
+      y: stand.y,
+      energy: 90,
+      pregnant: true,
+      pregnancyDueProgress: PREGNANCY_TICKS,
+      pregnancyProgress: PREGNANCY_TICKS * 0.5,
+    });
+    const state = world(workdayTick(11), { entities: [worker], buildings: [farm] });
+    expect(getSettlerWorkReason(state, worker).code).toBe('working');
   });
 
   it('says no post assigned for an adult with no workplace and no construction crew', () => {
