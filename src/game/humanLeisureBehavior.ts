@@ -21,6 +21,8 @@ import { pickBeautySpot } from './beautyGrid';
 /** A free child has a 72% chance to choose a nearby playmate each hour. */
 const KID_PLAY_CHANCE = 0.72;
 const CHILD_PLAYMATE_REFRESH_TICKS = TICKS_PER_HOUR;
+/** Enough playmates to choose from; stops a crowded colony paying a quadratic hourly scan. */
+export const CHILD_PLAYMATE_CANDIDATE_LIMIT = 32;
 const childPlaymateByWorld = new WeakMap<WorldState, WeakMap<Entity, { tickBucket: number; mate?: Entity }>>();
 
 export function tickHumanChildLeisure(args: {
@@ -61,7 +63,10 @@ export function tickHumanChildLeisure(args: {
         entity.y,
         SOCIAL_FRIENDSHIP_RADIUS,
         (human) => {
-          if (human.id !== entity.id && human.alive && human.isJuvenile && isPlayerHuman(human)) playmates.push(human);
+          if (human.id !== entity.id && human.alive && human.isJuvenile && isPlayerHuman(human)) {
+            playmates.push(human);
+            if (playmates.length >= CHILD_PLAYMATE_CANDIDATE_LIMIT) return false;
+          }
         },
         socialAdaptiveOptions('social', allHumans.length, width, height),
       );

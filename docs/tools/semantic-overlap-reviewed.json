@@ -83,6 +83,14 @@
         "tests/gameWorker.namePool.test.ts",
         "tests/gameWorker.namePool.dispatchGate.test.ts"
       ]
+    },
+    {
+      "key": "src/game/adaptiveSpatialQuery.ts:152:naiveFindClosestInArray@6a5cc32c3dbe1995f0c2f71a4df0bd516c3764c359dc8174fb08f01c92f87380 <-> src/game/adaptiveSpatialQuery.ts:43:forEachInArrayRadius@4490c612f181ddb5d50e902787013be58eb282c71b6d8847ff197e085cc111c3",
+      "reason": "Both scan a contiguous entity array within one radius, but their contracts differ. forEachInArrayRadius is a visitor: it reports every living entity inside the radius, counts each candidate for the spatial metrics, and stops only when the callback returns false (the child playmate cap relies on that). naiveFindClosestInArray answers one nearest-match query: it takes a distance-aware predicate, keeps the best distance so far, drops later-but-farther matches before counting them, and returns one entity or undefined. Merging them would either give the visitor a nearest-match return it never uses or make the nearest scan report candidates nobody asked for. No writes in either.",
+      "tests": [
+        "tests/adaptiveSpatialQuery.earlyStop.test.ts",
+        "tests/humanLeisureBehavior.test.ts"
+      ]
     }
   ]
 }

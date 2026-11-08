@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (7 Nov 2026):** Audit A8 hourly spike: a child now picks a playmate from the first 32 nearby children and the neighbourhood walk stops there, so a crowded 3,000-settler colony no longer spends seconds on every hour boundary.
+
 - **Fixed (7 Nov 2026):** Audit A8 tick cost: ambient chatter now reads the nearby settlers only after its chance roll, and a child who will not play skips the playmate scan, cutting a 1,800-settler tick from 625 to 106 ms with the same simulation result.
 - **Changed (7 Nov 2026):** The manual builder crew button is gone from the building panel and the tutorials no longer ask players to fill or assign workers; crews staff themselves automatically.
 - **Fixed (7 Nov 2026):** Audit A4 needs and ecology: an unheated winter day burns 1.5x nutrition, pollution grades with settlement size instead of pinning at the cap, and preserves now lower it.

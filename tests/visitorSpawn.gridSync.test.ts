@@ -49,7 +49,7 @@ describe('visitor spawn and the spatial grid', () => {
     expect(ctx.newEntities.length).toBeGreaterThan(0);
     for (const visitor of ctx.newEntities) {
       const found: number[] = [];
-      mobileGrid.forEachInRadius(visitor.x, visitor.y, 48, (entity) => found.push(entity.id));
+      mobileGrid.forEachInRadius(visitor.x, visitor.y, 48, (entity) => { found.push(entity.id); });
       expect(found).toContain(visitor.id);
     }
   });

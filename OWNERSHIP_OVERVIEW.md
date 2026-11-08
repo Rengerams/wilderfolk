@@ -208,7 +208,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Building adjacency index | `adjacencyIndex.ts` | assignment/daily (production, completion, demolition) | `ensureAdjacencyIndex`, `syncAdjacency`, `unindexAdjacency`, `getAdjacencyMultiplierFromIndex` |
 | Valley ecology stage (`ValleyEcology.ENABLED` is the single switch) | `ecologyStage.ts` | daily (`tickDailyWorldEvents`) | `tickValleyEcologyStage`, `valleyStageIndex`, `computeRawEcologyStress`, `getValleyHuntYieldMultiplier` |
 | Housing/bed projection for decisions and UI | `populationGrowth.ts` | on demand (auto-play `decide*`, citizen overview, focus hints) | `snapshotPopulation` (cache key includes a building-state signature so level/type/completion/ownership changes cannot return stale beds), `getOpenPlayerBeds`, `getTotalBeds`, `getLivePlayerPopulation` |
-| Social proximity queries | `adaptiveSpatialQuery.ts` | — (query helper over the human social grid) | `forEachAdaptiveInRadius`, `findClosestAdaptiveInRadius`, `socialAdaptiveOptions` |
+| Social proximity queries | `adaptiveSpatialQuery.ts` | — (query helper over the human social grid) | `forEachAdaptiveInRadius` (a `false` callback return stops the walk), `findClosestAdaptiveInRadius`, `socialAdaptiveOptions` |
 | Citizen identity, display names and chronicle names | `citizenId.ts` | — (formatting/parse, no state) | `humanDisplayName`, `formatCitizenName` (identified labels), `citizenFullName` (prose), `formatDeathLog` (prose with death-age detail), `findCitizenByQuery` |
 | Name pool, census names and marriage surname dissolve | `nameLoader.ts` | boot load + spawn + divorce/remarriage | `loadNames`, `ensureNamesLoaded`, `getRandomName`, `getRandomSurname`, `fixDefaultNames`, `dissolveMarriage` |
 | Shared sim helpers (multipliers, reputation, season) | `simHelpers.ts` | — (helper, no cadence of its own) | `getMultiplier`, `addReputation`, `hasTech`, `getSeason` |
@@ -302,7 +302,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | Daily world events schedule | `dailyWorldEvents.ts` | 00:00 year transition; 18:00 world-events tail | `tickYearBoundaryWorldEvents`, `tickDailyWorldEvents`, `announceElectionCeremony` (private one-notice formatter; no second election decision) |
 | Hunting behaviour and hunting-spot rules | `humanHuntingBehavior.ts` + `huntingSpots.ts` | realtime (`humanTick`) + command validation | `tickHumanHunting` (hunt range and chase speed carry the `hunting` and `pursuit` activity factors; free-roam yield is recorded in the food ledger), `isValidHuntingSpotPrey`, `getHuntingSpotPreyOption` |
 | Patrol and raider detection | `humanPatrolBehavior.ts` | realtime (`humanTick`) | `detectRaidersForPatrol` |
-| Leisure motives (children and adults) | `humanLeisureBehavior.ts` | realtime (`humanTick`) | `tickHumanChildLeisure`, `tickAdultLeisureMotive` |
+| Leisure motives (children and adults) | `humanLeisureBehavior.ts` | realtime (`humanTick`) | `tickHumanChildLeisure` (hourly playmate refresh capped at `CHILD_PLAYMATE_CANDIDATE_LIMIT`), `tickAdultLeisureMotive` |
 | Venue service (tavern, civic venues) | `humanVenueBehavior.ts` | realtime (`humanTick`) | `tickTavernService`, `tickHumanCivicVenueService` |
 | Map-bounds clamp | `mapBounds.ts` | realtime + systems | `clampToMapBounds` |
 | Election vote simulation | `electionVotes.ts` | election ceremony | `simulateElectionVotes` |

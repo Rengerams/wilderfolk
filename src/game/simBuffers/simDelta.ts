@@ -390,7 +390,9 @@ export function extractSimTickDelta(
     lastMoonHowlerExorcismTick: world.lastMoonHowlerExorcismTick,
     moonHowlerPriestsFleeUntil: world.moonHowlerPriestsFleeUntil,
     chronicleChapters: deltaClone(world.chronicleChapters ?? [], cloneMode),
-    electionPromiseRecords: deltaClone(world.electionPromiseRecords ?? [], cloneMode),
+    ...(world.electionPromiseRecords === undefined
+      ? {}
+      : { electionPromiseRecords: deltaClone(world.electionPromiseRecords, cloneMode) }),
     renffrChatterUntilTick: world.renffrChatterUntilTick ?? 0,
     lastProcessedCalendarDay: world.lastProcessedCalendarDay ?? 0,
     lastWildlifeReplenishLogDay: world.lastWildlifeReplenishLogDay ?? 0,

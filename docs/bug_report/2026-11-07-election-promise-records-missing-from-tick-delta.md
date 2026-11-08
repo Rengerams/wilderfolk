@@ -13,6 +13,7 @@
 ## Status history
 - 2026-11-07 — open: delta and prep lacked the saved field.
 - 2026-11-07 — resolved: shipped and snapshotted like `chronicleChapters`.
+- 2026-11-07 — follow-up: the snapshot and delta also normalised an absent field to an empty list, which the worker rollback closure check rejected; absence is now preserved.
 
 ## Observed behavior
 `electionPromiseRecords` was written worker-side and saved, but absent from `SimTickDelta` and `SimPrepKeys`, so the display kept the pre-election list until a reload and a failed tick did not restore the records.
@@ -40,3 +41,4 @@ None; the save shape was already correct.
 ## Verification result
 - `npx vitest run tests/simPrep.rollbackFields.test.ts tests/simDelta.storyRoundtrip.test.ts` — PASS.
 - `npm run test:types` — PASS.
+- Follow-up: `npx vitest run tests/workerBoundary.closure.test.ts tests/simPrep.rollbackFields.test.ts tests/simDelta.storyRoundtrip.test.ts tests/simPrep.rollbackClosure.test.ts` — PASS (19); the closure suite failed with `electionPromiseRecords: undefined` versus `[]` before the shape fix.
