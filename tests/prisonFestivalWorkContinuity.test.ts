@@ -9,6 +9,7 @@ import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, setHumanBirthFromAge } from '../src/game/dayCycle';
 import { homeStandPosition } from '../src/game/simulation/humanMovement';
 import { isAtBuildingReach } from '../src/game/buildingAccess';
+import { tickPrisonPresence } from '../src/game/prisonGuardDuty';
 import { getHourOfDay } from '../src/game/dayCycleClock';
 import { getVenueSchedule, getVenueScheduleHours, isFestivalOverrideActive, isVenueServiceHour } from '../src/game/venueSchedule';
 import { getHumanActivityStatus } from '../src/game/humanStatus';
@@ -195,6 +196,18 @@ function festivalWorkWorld(): { state: WorldState; farmer: Entity; innkeeper: En
 }
 
 describe('a prison is open 24 hours', () => {
+  it('counts a guard at the valid facade as present even outside the old centre-radius cutoff', () => {
+    const { state, prison, nightGuard } = prisonWorld();
+    // This is within the 24px reachable facade, but >55px from the building centre.
+    nightGuard.x = PRISON_X - 44;
+    nightGuard.y = PRISON_Y + 34;
+    expect(isAtBuildingReach(nightGuard, prison)).toBe(true);
+    expect(Math.hypot(nightGuard.x - prison.x, nightGuard.y - prison.y)).toBeGreaterThan(55);
+    // The remaining guards are far away; only the legitimately posted night guard covers the hour.
+    tickPrisonPresence(state);
+    expect(prison.uncoveredPrisonHours ?? []).toEqual([]);
+  });
+
   it('holds the post at 02:00 — an hour inside the night shift, outside the work window', () => {
     const { state, prison, nightGuard } = prisonWorld();
     // From the top of the day, so the whole rotation is walked and every clock hour is sampled.
