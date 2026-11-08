@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { canSupportImmigration } from '../src/game/dailyPopulation';
-import { getRecentFoodFlow } from '../src/game/economyLedger';
+import { getRecentFoodFlow, isMeasuredFoodDeficit } from '../src/game/economyLedger';
 
 const stateFor = (produced: number, consumed: (day: number) => number) => ({
   tick: 8 * TICKS_PER_DAY,
@@ -40,6 +40,36 @@ describe('automatic immigration follows actual food capacity, not stocked reserv
 
   it('refuses immigration during a verified current deficit even when there are empty beds', () => {
     expect(canSupportImmigration(stateFor(100, () => 160), 50, 10)).toBe(false);
+  });
+
+  it('keeps a one-off recruitment food purchase out of sustained meal demand', () => {
+    const world = stateFor(80, () => 45);
+    world.foodHistory[4].consumed.recruitment = 330;
+
+    expect(getRecentFoodFlow(world)?.netPerDay).toBeLessThan(0); // accounting includes the real expense
+    expect(getRecentFoodFlow(world, 7, 'meals')?.netPerDay).toBeGreaterThan(0);
+    expect(isMeasuredFoodDeficit(world, 0.05)).toBe(false);
+    expect(canSupportImmigration(world, 18, 4)).toBe(true);
+  });
+
+  it('does not let a single recruitment expense poison the 30-day sustainability gate', () => {
+    const world = {
+      tick: 31 * TICKS_PER_DAY,
+      foodHistory: Array.from({ length: 30 }, (_, index) => ({
+        day: index + 1,
+        produced: { farms: 60 },
+        consumed: { meals: 55, recruitment: index === 14 ? 330 : 0 },
+      })),
+    } as Pick<WorldState, 'tick' | 'foodHistory'>;
+    expect(getRecentFoodFlow(world, 30)?.netPerDay).toBeLessThan(0);
+    expect(isMeasuredFoodDeficit(world, 0.05)).toBe(false);
+    expect(canSupportImmigration(world, 16, 1)).toBe(true);
+  });
+
+  it('can support one newcomer even when a four-person arriving family is unaffordable', () => {
+    const world = stateFor(63, () => 54);
+    expect(canSupportImmigration(world, 18, 1)).toBe(true);
+    expect(canSupportImmigration(world, 18, 4)).toBe(false);
   });
 
   it('preserves bootstrap immigration without enough completed-day evidence, and respects a full cap', () => {
