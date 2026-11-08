@@ -79,6 +79,8 @@ import {
   type SocialBuildingPicker,
 } from './socialLife';
 import {
+  isPregnancyHospitalPriority,
+  isStaffedHospital,
   tickHumanDoctorHospitalService,
   tickHumanHospitalPatientCare,
 } from './humanHospitalBehavior';
@@ -346,9 +348,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
   }
   for (const b of updatedBuildings) {
-    if (!b.completed || b.faction === 'rival' || b.occupants.length === 0) continue;
-    if (b.type === BuildingType.Hospital) staffedHospitals.push(b);
-    else if (b.type === BuildingType.TownHall) staffedTownHalls.push(b);
+    if (isStaffedHospital(b)) staffedHospitals.push(b);
+    else if (b.type === BuildingType.TownHall && b.completed && b.faction !== 'rival' && b.occupants.length > 0) {
+      staffedTownHalls.push(b);
+    }
   }
 
   // Residences and leisure-venue pools are frame-constant (only the daily layer completes
@@ -662,9 +665,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const wasInsideWorkplace = workplace != null && previousIndoorBuildingId === workplace.id;
     // Hunters work away from the spot; every other scheduled trade must be at its post or inside it.
     const hunterInField = entity.job === JobType.Hunter && entity.huntTargetId != null;
+    // Pregnancy hospital priority outranks the shift: the settler still owes the duty hours, but
+    // standing at a post they are leaving is not verified work.
+    const goingToHospital = isPregnancyHospitalPriority(entity, staffedHospitals.length > 0);
     if (isPlayerHuman(entity) && (onJobShift || onOfficialShift || onPriestShift)) {
       recordScheduleWorkTick(entity);
-      if (atPost || wasInsideWorkplace || hunterInField) recordPresentWorkTick(entity);
+      if (!goingToHospital && (atPost || wasInsideWorkplace || hunterInField)) recordPresentWorkTick(entity);
     }
 
     const recoveringSleep = (entity.needs?.sleepRecoveryUntilTick ?? 0) > state.tick;
@@ -880,6 +886,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         || isWithinWorkCommuteLead(state.tick, commuteStartHour, commuteLeadHours));
 
     const stayIn =
+      !goingToHospital &&
       !inSpotlightGathering &&
       !festivalGathering &&
       !onTavernShift &&
@@ -888,12 +895,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       (prefersHomeTonightFor(workSchedule, entity.id, state.tick, hourOfDay)
         || (recoveringSleep && !onJobShift));
 
-    const allowFreeRoam = !inSpotlightGathering && !takingNeedsBreak && (festivalGathering || (!onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && !stayIn));
+    const allowFreeRoam = !goingToHospital && !inSpotlightGathering && !takingNeedsBreak && (festivalGathering || (!onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && !stayIn));
     const socialBlockedByJob = isInnkeeper
       ? onTavernShift
       : ordinaryWorkplace && isWorkScheduleHour(workSchedule, hourOfDay) && goWorkTime;
     const socialTime =
-      !inSpotlightGathering && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && (
+      !goingToHospital && !inSpotlightGathering && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && (
         (!socialBlockedByJob && allowSocialLifeFor(workSchedule, hourOfDay, false, state.tick)) ||
         (allowFreeRoam && isPlayerHuman(entity))
       );
@@ -1353,6 +1360,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     if (
       !inSpotlightGathering &&
+      !goingToHospital &&
       canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
       isPlayerHuman(entity) &&
       !entity.isJuvenile &&
@@ -1439,6 +1447,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // spotlight participants' movement after the gathering vector is assigned.
     if (
       !inSpotlightGathering &&
+      !goingToHospital &&
       canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
       isPlayerHuman(entity) &&
       !entity.isJuvenile &&
@@ -1488,6 +1497,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity,
       allHumans,
       updatedBuildings,
+      staffedHospitals,
       onHospitalShift,
     });
     tickHumanCivicVenueService({
@@ -1504,9 +1514,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         state,
         entity,
         staffedHospitals,
-        onJobShift,
         speed: config.speed,
       });
+      // Hospital travel is the destination for the rest of the tick: no idle wander may replace it.
+      if (goingToHospital) suppressIdle = true;
     }
 
     if (entity.indoorBuildingId != null) suppressIdle = true;

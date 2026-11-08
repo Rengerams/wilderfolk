@@ -16,6 +16,7 @@ import { createInitialView } from '../src/game/viewState';
 import { _cachedHumans, resetEntityCaches, updateCachedEntitiesFromSoA } from '../src/game/renderer/entityCache';
 import { observeIndoorPatients } from '../src/game/virtualPlayer';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
+import { PREGNANCY_TICKS } from '../src/game/dayCycle';
 import { prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { drawHumans, drawLeaderAuraOverlay } from '../src/game/renderer/humans';
 
@@ -52,11 +53,12 @@ describe('settlers inside buildings', () => {
 
   it('admits a pregnant patient already at the ward instead of leaving her outside', () => {
     const ward = building(0, BuildingType.Hospital, { x: 100, y: 100 });
-    const person = human(1, { x: 110, y: 110, pregnant: true });
-    tickHumanHospitalPatientCare({ state: { tick: 5 } as WorldState, entity: person, staffedHospitals: [ward], onJobShift: false, speed: 2 });
+    // Past the pregnancy hospital threshold, so this is the routing rule under test.
+    const person = human(1, { x: 110, y: 110, pregnant: true, pregnancyProgress: PREGNANCY_TICKS });
+    tickHumanHospitalPatientCare({ state: { tick: 5 } as WorldState, entity: person, staffedHospitals: [ward], speed: 2 });
     expect(person.indoorBuildingId).toBe(0);
     person.x = 1000;
-    tickHumanHospitalPatientCare({ state: { tick: 5 } as WorldState, entity: person, staffedHospitals: [ward], onJobShift: false, speed: 2 });
+    tickHumanHospitalPatientCare({ state: { tick: 5 } as WorldState, entity: person, staffedHospitals: [ward], speed: 2 });
     expect(person.indoorBuildingId).toBeUndefined();
   });
 

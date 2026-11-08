@@ -1,10 +1,11 @@
 import { personDayRoll } from './simRng';
 import type { Building, Entity, WorldState } from './gameTypes';
-import { JobType } from './gameTypes';
+import { BuildingType, JobType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
-import { PREGNANCY_TICKS, TICKS_PER_DAY, getTickOfDay } from './dayCycle';
+import { TICKS_PER_DAY, getTickOfDay } from './dayCycle';
 import { doctorHospitalShift, HOSPITAL_SHIFT_HOURS } from './hospitalShifts';
 import { TICKS_PER_HOUR } from './dayCycleClock';
+import { isPregnancyHospitalDue } from './simulation/humanLifecycle';
 import { enterHumanBuilding, homeEntryPosition, steerHumanToward } from './simulation/humanMovement';
 import {
   doctorTreatNearby,
@@ -16,8 +17,6 @@ import {
 
 const PATIENT_CENTRE_RADIUS_PX = 36;
 const PATIENT_ENTRY_RADIUS_PX = 16;
-/** A doctor past this share of a pregnancy is a patient, not a carer. */
-const DOCTOR_PREGNANCY_OFF_DUTY_RATIO = 0.8;
 const HOSPITAL_TREATMENT_ROLL_SALT = 840;
 const HOSPITAL_TREATMENT_DAILY_CHANCE = 0.2;
 
@@ -30,9 +29,20 @@ function isAtHospital(entity: Entity, hospital: Building): boolean {
   return Math.hypot(entity.x - entrance.x, entity.y - entrance.y) < PATIENT_ENTRY_RADIUS_PX;
 }
 
-/** Near-term doctors give birth, they do not run a ward round. */
-export function doctorMayServe(entity: Entity): boolean {
-  return (entity.pregnancyProgress ?? 0) <= PREGNANCY_TICKS * DOCTOR_PREGNANCY_OFF_DUTY_RATIO;
+/** A staffed ward: completed, player-owned and with someone on its roster. */
+export function isStaffedHospital(building: Building): boolean {
+  return building.type === BuildingType.Hospital
+    && building.completed
+    && building.faction !== 'rival'
+    && building.occupants.length > 0;
+}
+
+/**
+ * Pregnancy hospital priority: the lifecycle owns the 85% threshold, this module the staffed ward.
+ * Below both, pregnancy is no different from any other medical need and never bars ordinary work.
+ */
+export function isPregnancyHospitalPriority(entity: Entity, hasStaffedHospital: boolean): boolean {
+  return hasStaffedHospital && isPlayerHuman(entity) && isPregnancyHospitalDue(entity);
 }
 
 export type HospitalRuntimeContext = {
@@ -42,20 +52,8 @@ export type HospitalRuntimeContext = {
   updatedBuildings: Building[];
   staffedHospitals: Building[];
   onHospitalShift: boolean;
-  onJobShift: boolean;
   speed: number;
 };
-
-export function shouldRoutePregnantSettlerToHospital(
-  entity: Entity,
-  onJobShift: boolean,
-  hasStaffedHospital: boolean,
-): boolean {
-  return !!entity.pregnant
-    && isPlayerHuman(entity)
-    && hasStaffedHospital
-    && (!onJobShift || (entity.pregnancyProgress ?? 0) > PREGNANCY_TICKS * 0.85);
-}
 
 export function shouldAttemptHospitalTreatment(
   entity: Entity,
@@ -73,10 +71,12 @@ export function tickHumanDoctorHospitalService({
   entity,
   allHumans,
   updatedBuildings,
+  staffedHospitals,
   onHospitalShift,
-}: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'allHumans' | 'updatedBuildings' | 'onHospitalShift'>): void {
+}: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'allHumans' | 'updatedBuildings' | 'staffedHospitals' | 'onHospitalShift'>): void {
   if (!onHospitalShift || !isPlayerHuman(entity) || entity.job !== JobType.Doctor) return;
-  if (!doctorMayServe(entity)) return;
+  // At the pregnancy threshold a doctor with a ward to go to is a patient, not a carer.
+  if (isPregnancyHospitalPriority(entity, staffedHospitals.length > 0)) return;
   const ward = isDoctorAtHospital(entity, updatedBuildings);
   const shift = ward ? doctorHospitalShift(ward, state.tick, entity.id) : undefined;
   if (!ward || !shift) return;
@@ -104,10 +104,9 @@ export function tickHumanHospitalPatientCare({
   state,
   entity,
   staffedHospitals,
-  onJobShift,
   speed,
-}: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'staffedHospitals' | 'onJobShift' | 'speed'>): void {
-  if (shouldRoutePregnantSettlerToHospital(entity, onJobShift, staffedHospitals.length > 0)) {
+}: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'staffedHospitals' | 'speed'>): void {
+  if (isPregnancyHospitalPriority(entity, staffedHospitals.length > 0)) {
     const best = staffedHospitals.find((hospital) => isAtHospital(entity, hospital))
       ?? pickHospitalWalkTarget(entity, staffedHospitals);
     if (best) {

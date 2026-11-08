@@ -17,6 +17,18 @@ const OUTDOOR_BUILDINGS = new Set<Building['type']>([
   BuildingType.Lamp, BuildingType.Fence,
 ]);
 
+/** The sim's own walk threshold: below this a settler is standing still, not travelling. */
+const WALKING_MIN_SPEED_PX = 0.1;
+
+/**
+ * Read-only evidence of travel: the settler is moving this tick and closing on this point. Reports
+ * only what the movement owners already steered — it never plans a route.
+ */
+export function isWalkingToward(entity: Entity, point: { x: number; y: number }): boolean {
+  if (Math.hypot(entity.vx, entity.vy) <= WALKING_MIN_SPEED_PX) return false;
+  return (point.x - entity.x) * entity.vx + (point.y - entity.y) * entity.vy > 0;
+}
+
 /** Arrival changes presentation only; the settler remains in the simulation and building roster. */
 export function enterHumanBuilding(entity: Entity, building: Building): void {
   if (!building.completed || OUTDOOR_BUILDINGS.has(building.type)) return;

@@ -74,6 +74,17 @@ function clearExpectingStatus(human?: Entity): void {
   }
 }
 
+/** Share of the term at which a pregnancy requires hospital attendance instead of work. */
+const PREGNANCY_HOSPITAL_THRESHOLD_RATIO = 0.85;
+
+/** The one pregnancy hospital threshold: true from 85% of the term until childbirth clears it. */
+export function isPregnancyHospitalDue(
+  entity: Pick<Entity, 'pregnant' | 'pregnancyProgress'>,
+): boolean {
+  if (!entity.pregnant) return false;
+  return (entity.pregnancyProgress ?? 0) >= PREGNANCY_TICKS * PREGNANCY_HOSPITAL_THRESHOLD_RATIO;
+}
+
 /**
  * Advances pregnancy progress and executes delivery upon reaching term.
  */

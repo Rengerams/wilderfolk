@@ -23,11 +23,13 @@ import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { prisonGuardIds } from './prisonGuardDuty';
 import { isBarracksGuard } from './defenseStructures';
 import { isCeremonyAttendee } from './villageLeadership';
-import { medicalCareReason } from './hospitalCare';
+import { isRestingHospitalPatient, medicalCareReason } from './hospitalCare';
+import { isPregnancyHospitalPriority, isStaffedHospital } from './humanHospitalBehavior';
 import { isHospitalDoctorOnShift, isHospitalDoctorCommuteTime } from './hospitalShifts';
 import { isSettlerLodgingAtHotel } from './hotelStay';
 import { canEatColonyMeal } from './simulation/humanNeeds';
-import { humanBuildingTarget, commuteDistanceToBuilding } from './simulation/humanMovement';
+import { humanBuildingTarget, commuteDistanceToBuilding, isWalkingToward } from './simulation/humanMovement';
+import { getRouteObstruction } from './pathfinding';
 import { commuteLeadHoursFor } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { findHumanWorkplace } from './workforce';
@@ -47,7 +49,10 @@ export type SettlerWorkReasonCode =
   | 'sleeping'
   | 'eating'
   | 'ill'
-  | 'expecting'
+  | 'going-to-hospital'
+  | 'in-hospital'
+  | 'unreachable'
+  | 'unknown'
   | 'at-home'
   | 'socialising'
   | 'at-festival'
@@ -63,10 +68,21 @@ export interface SettlerWorkReason {
   label: string;
 }
 
+export type WorkplaceDutyLabel =
+  | 'Working'
+  | 'Walking to work'
+  | 'Going to hospital'
+  | 'In hospital'
+  | 'Absent'
+  | 'Off duty';
+
 /** Maps a staff member's work reason to a workplace-only duty label. */
-export function workplaceDutyLabel(reason: SettlerWorkReason): 'Working' | 'Walking to work' | 'Off duty' {
+export function workplaceDutyLabel(reason: SettlerWorkReason): WorkplaceDutyLabel {
   if (reason.code === 'working') return 'Working';
   if (reason.code === 'walking-to-work') return 'Walking to work';
+  if (reason.code === 'going-to-hospital') return 'Going to hospital';
+  if (reason.code === 'in-hospital') return 'In hospital';
+  if (reason.code === 'unreachable' || reason.code === 'unknown') return 'Absent';
   return 'Off duty';
 }
 
@@ -188,6 +204,22 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
       SPECIES_CONFIG[EntityType.Human].speed,
     ),
   ));
+  // Pregnancy travel outranks every ordinary activity once the lifecycle threshold and a ward hold.
+  const hospitalPriority = isPregnancyHospitalPriority(entity, buildings.some(isStaffedHospital));
+  const ward = entity.indoorBuildingId == null
+    ? undefined
+    : buildings.find((building) => building.id === entity.indoorBuildingId);
+  // A doctor on their own ward's shift is serving unless the pregnancy rule has made them a patient.
+  const servingOwnWard = !hospitalPriority
+    && ward != null
+    && ward.id === workplace?.id
+    && entity.job === JobType.Doctor
+    && isHospitalDoctorOnShift(ward, state.tick, entity.id);
+  if (ward && !servingOwnWard && isRestingHospitalPatient(entity, ward, state.tick, entity.indoorBuildingId)) {
+    return { code: 'in-hospital', label: `In hospital — ${labelFor(ward)}` };
+  }
+  if (hospitalPriority) return { code: 'going-to-hospital', label: 'Going to hospital' };
+
   if (canEatColonyMeal(state, entity, hour)) return { code: 'eating', label: 'Eating' };
   // The hospital roster owns commute duty, including the hour before midnight.
   if (!doctorCommuteDue && (isAsleepAtHome(entity, buildings, hour)
@@ -195,10 +227,10 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
     return { code: 'sleeping', label: 'Sleeping' };
   }
 
-  // The hospital owner's own word for why this settler needs care, verbatim.
+  // The hospital owner's own word for why this settler needs care, verbatim. Pregnancy alone is
+  // not an absence: `expecting` is a clinical reason, not evidence that no work happened.
   const care = medicalCareReason(entity, state.tick);
-  if (care === 'expecting') return { code: 'expecting', label: 'Expecting — resting' };
-  if (care) return { code: 'ill', label: `Ill — ${care}` };
+  if (care && care !== 'expecting') return { code: 'ill', label: `Ill — ${care}` };
 
   // `humanTick` holds a ceremony's attendees before its festival gatherers; keep that order.
   if (state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id)) {
@@ -221,15 +253,25 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
   }
 
   const { onShift, next } = resolveShift(state, entity, workplace, hour);
+  const label = labelFor(workplace);
+  const point = humanBuildingTarget(workplace, entity.id, false);
+  // The same three cases `humanTick` credits as verified work: at the post, inside it, or in the
+  // field for a hunter holding prey.
+  const atWork = Math.hypot(point.x - entity.x, point.y - entity.y) <= WORK_ARRIVE_DISTANCE
+    || entity.indoorBuildingId === workplace.id
+    || (entity.job === JobType.Hunter && entity.huntTargetId != null);
+  if (onShift && atWork) return { code: 'working', label: `Working at ${label}` };
+  // The hospital roster owns its own commute window, which opens before the ward duty does.
+  if (doctorCommuteDue) return { code: 'walking-to-work', label: `Walking to work — ${label}` };
   if (onShift) {
-    const point = humanBuildingTarget(workplace, entity.id, false);
-    const atPost = Math.hypot(point.x - entity.x, point.y - entity.y) <= WORK_ARRIVE_DISTANCE;
-    return atPost
-      ? { code: 'working', label: `Working at ${labelFor(workplace)}` }
-      : { code: 'walking-to-work', label: `Walking to work — ${labelFor(workplace)}` };
-  }
-  if (doctorCommuteDue) {
-    return { code: 'walking-to-work', label: `Walking to work — ${labelFor(workplace)}` };
+    if (isWalkingToward(entity, point)) {
+      return { code: 'walking-to-work', label: `Walking to work — ${label}` };
+    }
+    // Only the navigation owner's own verdict may explain a walk that is not happening.
+    if (getRouteObstruction(state.worldMap, state.buildings, entity, point) === 'blocked') {
+      return { code: 'unreachable', label: `Route failure — cannot reach ${label}` };
+    }
+    return { code: 'unknown', label: `Unexplained absence — ${label}` };
   }
 
   if (entity.huntTargetId != null) return { code: 'hunting', label: 'Hunting' };

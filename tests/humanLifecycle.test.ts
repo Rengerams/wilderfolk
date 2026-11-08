@@ -6,12 +6,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import { tickPregnancyAndBirth, LIFECYCLE_CONFIG } from '../src/game/simulation/humanLifecycle';
+import { tickPregnancyAndBirth, isPregnancyHospitalDue, LIFECYCLE_CONFIG } from '../src/game/simulation/humanLifecycle';
 import { seededRandomForRun } from '../src/game/simRng';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { createEntity } from '../src/game/entityFactory';
-import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { PREGNANCY_TICKS, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { genomeFrom, heterozygous, NEUTRAL_VALUE } from './helpers/genome';
 import { APTITUDE_IDS } from '../src/game/settlerTraits';
 import type { AllelePair, GenomeV2 } from '../src/game/settlerTraits';
@@ -167,6 +167,30 @@ describe('human lifecycle golden contracts', () => {
     expect(mother.pregnantById).toBeUndefined();
     expect(mother.relationshipStatus).toBe('married');
     expect(collectSimulationInvariantErrors({ ...state, entities: [...state.entities, ...ctx.newEntities] })).toEqual([]);
+  });
+
+  it('ends the pregnancy hospital rule at childbirth and keeps the job assignment', () => {
+    const father = human(FATHER_ID);
+    const mother = human(MATERNAL_ID, {
+      partnerId: FATHER_ID,
+      pregnant: true,
+      pregnantById: FATHER_ID,
+      pregnancyProgress: PREGNANCY_TICKS * 0.9,
+      pregnancyDueProgress: PREGNANCY_TICKS * 0.9 + 1,
+      relationshipStatus: 'expecting',
+      job: JobType.Farmer,
+      workerBuildingId: 42,
+    });
+    const { state, ctx } = makeFixture([mother, father]);
+    state.tick = liveBirthTick();
+
+    expect(isPregnancyHospitalDue(mother)).toBe(true);
+
+    runBirth(state, ctx, mother);
+
+    expect(isPregnancyHospitalDue(mother)).toBe(false);
+    expect(mother.job).toBe(JobType.Farmer);
+    expect(mother.workerBuildingId).toBe(42);
   });
 
   it('derives the newborn genome from the birth key, so a replayed birth is identical', () => {

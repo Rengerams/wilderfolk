@@ -12,7 +12,7 @@ import { getCurrentPathfinderTickCounters, resetPathfinderSession, setPathfindin
 import { applyHumanWalkStep, commuteHumanToBuilding, humanBuildingTarget, steerHumanToward } from '../src/game/simulation/humanMovement';
 import { ROAD_SPEED_MULT } from '../src/game/simulation/movementSteering';
 import { COMMUTE_CONFIG } from '../src/game/commuteReach';
-import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { PREGNANCY_TICKS, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldMap, WorldState } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -162,7 +162,13 @@ describe('hotel guest routing and road speed', () => {
 
 describe('M14 hospital routing movement', () => {
   it('sets walk velocity without writing position (the human loop applies the step)', () => {
-    const patient = human(1, 20, 16, { pregnant: true, energy: 40, maxEnergy: 100 });
+    // Above the one pregnancy hospital threshold: routing is the threshold's job, not the shift's.
+    const patient = human(1, 20, 16, {
+      pregnant: true,
+      pregnancyProgress: PREGNANCY_TICKS,
+      energy: 40,
+      maxEnergy: 100,
+    });
     const ward = hospital(5, 400, 0, [2]);
     const state = makeState(0, [patient]);
 
@@ -170,7 +176,6 @@ describe('M14 hospital routing movement', () => {
       state,
       entity: patient,
       staffedHospitals: [ward],
-      onJobShift: false,
       speed: 2,
     });
 
@@ -196,7 +201,6 @@ describe('M13 hospital treatment cadence', () => {
         state,
         entity: patient,
         staffedHospitals: [ward],
-        onJobShift: false,
         speed: 2,
       });
     }
