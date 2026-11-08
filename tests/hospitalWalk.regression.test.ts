@@ -96,6 +96,17 @@ describe('hospital duty and care gates', () => {
     expect(doctorMayServe(entity(0, 0, { pregnant: false, pregnancyProgress: PREGNANCY_TICKS }))).toBe(true);
   });
 
+  it('tells the scheduler when the hospital route owns movement', () => {
+    const ward = hospital(20, 500, 200);
+    const early = entity(0, 0, { pregnant: true, pregnancyProgress: 840, pregnancyDueProgress: 1000 });
+    const late = entity(0, 0, { pregnant: true, pregnancyProgress: 860, pregnancyDueProgress: 1000 });
+    const ctx = { state: { tick: 10 } as WorldState, staffedHospitals: [ward],
+      onJobShift: false, speed: 2 };
+    expect(tickHumanHospitalPatientCare({ ...ctx, entity: early })).toBe(false);
+    expect(tickHumanHospitalPatientCare({ ...ctx, entity: late })).toBe(true);
+    expect(Math.hypot(late.vx, late.vy)).toBeGreaterThan(0);
+  });
+
   it('does not send a pregnant worker to hospital until she reaches 85% of her personal term', () => {
     const due = PREGNANCY_TICKS * 1.15;
     const early = entity(0, 0, { pregnant: true, pregnancyDueProgress: due, pregnancyProgress: due * 0.84 });
