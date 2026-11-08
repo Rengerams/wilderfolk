@@ -189,6 +189,14 @@ export function isCompletedPlayerBuilding(building: Building): boolean {
   return building.completed && building.faction !== 'rival';
 }
 
+/** First completed player building of the requested type, if one exists. */
+export function findCompletedBuilding(
+  buildings: readonly Building[],
+  type: BuildingType,
+): Building | undefined {
+  return buildings.find((building) => building.type === type && isCompletedPlayerBuilding(building));
+}
+
 export interface BuildingConfig {
   width: number;
   height: number;
