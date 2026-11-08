@@ -10,6 +10,7 @@ import SelectedEntityPanel from '../src/components/SelectedEntityPanel';
 import { APTITUDE_DEFS, APTITUDE_IDS } from '../src/game/settlerTraits';
 import { CAREER_TIER_LABELS } from '../src/game/careers/careerProgression';
 import { EntityType, JOB_LABELS, JobType } from '../src/game/gameTypes';
+import { PREGNANCY_TICKS } from '../src/game/dayCycle';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { initGame } from '../src/game/worldGen';
@@ -131,6 +132,16 @@ describe('personality and career inspector', () => {
     const before = structuredClone(person);
     render(person);
     expect(person).toEqual(before);
+  });
+
+  it('shows overdue pregnancy above 100% against the nominal 24-day date', () => {
+    const state = initGame({ seed: 20_261_029 });
+    const mother = livingSettler(state);
+    mother.pregnant = true;
+    mother.pregnancyProgress = Math.round(PREGNANCY_TICKS * 1.02);
+    mother.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * 1.12);
+
+    expect(renderPanel(mother, state)).toContain('Pregnant! (102%)');
   });
 
   it('reaches the panel for a living player settler and is absent for a visitor', () => {
