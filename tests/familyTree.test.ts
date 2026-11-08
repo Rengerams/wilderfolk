@@ -600,6 +600,20 @@ describe('the links the tree cannot draw, named in the projection', () => {
     expect(gapKindsOf(tree)).toContain('former-partner-record-gone');
   });
 
+  it('draws a dead relative only when the caller asks for the deceased', () => {
+    const deadMother = human({ id: 1, name: 'Mum', alive: false, childrenIds: [2] });
+    const focus = human({ id: 2, name: 'Kid', motherId: 1 });
+    const world = [deadMother, focus];
+
+    const livingOnly = buildFullFamilyTree(focus, world);
+    expect(drawnIds(livingOnly)).not.toContain(1);
+    expect(gapKindsOf(livingOnly)).toContain('parent-record-gone');
+
+    const withDeceased = buildFullFamilyTree(focus, world, undefined, { includeDeceased: true });
+    expect(drawnIds(withDeceased)).toContain(1);
+    expect(relationOf(withDeceased, 1)).toBe('Mother');
+  });
+
   it('names a courtship that ended, whose partner the game does not keep', () => {
     const settler = human({ id: 1, name: 'Ada', gender: 'female', courtshipCooldownDays: 1 });
 

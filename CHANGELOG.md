@@ -2,6 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (8 Nov 2026):** Audit A10 family tree: the window now draws the shared generation model one row per generation with wrapping cards, names each relation and bond, lists missing records, and can include deceased relatives from genealogy history.
+- **Fixed (8 Nov 2026):** Audit A10 accessibility: the reputation chip and save toast are announced, focus rings cover every control, graveyard and research copy no longer promise enemy graves or disabled disasters, and the Tauri CLI is a development dependency only.
+- **Changed (8 Nov 2026):** Audit A12 duplication: the rivalry ladder has one owner, so the wedding story and diplomacy step relations along the same order.
 - **Fixed (8 Nov 2026):** A panel window whose first module fetch loses a race with a reloading dev server fetches once more, so a stale chunk no longer drops the game onto the render-error screen.
 - **Changed (8 Nov 2026):** Reaching a building is one rule again: the walk stops at any reachable wall on any side, and only the activity decides whether the settler goes inside, so a commuter no longer clears or sets indoor state.
 - **Fixed (8 Nov 2026):** Every building now has one doorway outside its walls: settlers walk to it from any side instead of slipping in through the nearest wall, and the porch, hospital, hotel, prison and trade approaches all use the same point.

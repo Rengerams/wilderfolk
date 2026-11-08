@@ -219,8 +219,8 @@ function missingLinks(focus: Entity, known: ReadonlyMap<number, Entity>): Family
   return gaps;
 }
 
-function livingHumans(all: readonly Entity[]): Entity[] {
-  return all.filter((e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e));
+function familyHumans(all: readonly Entity[], includeDeceased: boolean): Entity[] {
+  return all.filter((e) => (includeDeceased || e.alive) && e.type === EntityType.Human && isPlayerHuman(e));
 }
 
 function byId(all: readonly Entity[], id: number | undefined): Entity | undefined {
@@ -331,7 +331,7 @@ export function buildFamilyTree(
   allEntities: readonly Entity[],
   tick?: number,
 ): FamilyTree {
-  const people = livingHumans(allEntities);
+  const people = familyHumans(allEntities, false);
   const members: KinMember[] = [];
   const seen = new Set<number>();
 
@@ -483,7 +483,7 @@ export function buildFamilyTree(
 
 /** Living player humans grouped by surname for the Families browser. */
 export function groupFamiliesBySurname(allEntities: readonly Entity[]): FamilySurnameGroup[] {
-  const people = livingHumans(allEntities);
+  const people = familyHumans(allEntities, false);
   const bySurname = new Map<string, Entity[]>();
   for (const person of people) {
     const key = (person.surname ?? 'Unknown').trim() || 'Unknown';
@@ -574,7 +574,7 @@ export function groupFamiliesByLineage(allEntities: readonly Entity[]): FamilyLi
   };
 
   const byRoot = new Map<number, Entity[]>();
-  for (const person of livingHumans(allEntities)) {
+  for (const person of familyHumans(allEntities, false)) {
     const root = rootOf(person.id);
     const list = byRoot.get(root);
     if (list) list.push(person);
@@ -652,6 +652,12 @@ export interface FamilyTreeRow {
   delta: number;
   label: string;
   members: FamilyTreePerson[];
+}
+
+/** Toggles for the full-tree walk; the plain tree stays a living-relative view by default. */
+export interface FamilyTreeOptions {
+  /** Draw dead settlers the caller still holds (the window adds registry history to the roster). */
+  includeDeceased?: boolean;
 }
 
 /** The whole connected family of one settler, oldest generation first. */
@@ -849,8 +855,9 @@ export function buildFullFamilyTree(
   focus: Entity,
   allEntities: readonly Entity[],
   tick?: number,
+  options?: FamilyTreeOptions,
 ): FullFamilyTree {
-  const people = livingHumans(allEntities);
+  const people = familyHumans(allEntities, options?.includeDeceased === true);
   const byId = new Map<number, Entity>();
   for (const person of people) byId.set(person.id, person);
   // The focus is normally one of `people`; drawing its tree anyway beats an empty window.

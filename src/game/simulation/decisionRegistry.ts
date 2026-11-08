@@ -258,7 +258,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/commands.validation.test.ts, tests/demolish.roundtrip.test.ts, tests/personality.workIntegration.test.ts',
   },
   production: {
-    owner: 'tickLayerDaily.tickBuildingProduction; economy.ts — addResource, applyFoodSpoilage, updateStorageCaps, computeStorageMax; the crew term this decision multiplies is skills.getWorkerSkillMultiplier',
+    owner: 'dailyBuildingEconomy.tickBuildingProduction; economy.ts — addResource, applyFoodSpoilage, updateStorageCaps, computeStorageMax; the crew term this decision multiplies is skills.getWorkerSkillMultiplier',
     cadence: 'daily',
     cadenceNote: 'system/daily at 18:00, after the work window, and before the same-hour ecology/world-event tail — the per-player-worker pass prefers verified on-post ticks (schedulePresentTicksToday) and the site actually worked; a changed site (-1) is excluded rather than guessed, and scheduled hours are the fallback only when no presence sample exists. Farms/hunt/smith production and spoilage are daily ledger work. Day-interval producers are additionally gated on isWorkDay, so they run 5 days in 7; the 2/3/5-day interval buildings (store, market, workshop, townHall, hospital) skip that work-day test. Silos are storage-only. The crew\'s trade DNA (personality traitInfluence, `work`/production context) enters through getWorkerSkillMultiplier, which reads `building.occupants` only; the workshop estimate reads the same function so the preview cannot drift. An occupant id that resolves to nobody contributes neutral DNA to that average instead of diluting it',
     writes: [

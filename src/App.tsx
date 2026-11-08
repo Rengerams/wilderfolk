@@ -169,7 +169,9 @@ function SaveToastBanner({
             : 'border-rose-500/40 bg-rose-950/90 text-rose-200'
       }`}
     >
-      {toast.type === 'success' ? '💾 ' : '⚠️ '}{toast.message}
+      <span role="status" aria-live="polite">
+        {toast.type === 'success' ? '💾 ' : '⚠️ '}{toast.message}
+      </span>
     </button>
   );
 }

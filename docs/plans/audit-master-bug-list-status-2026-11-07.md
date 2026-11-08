@@ -86,6 +86,45 @@
 
 | Blocked-ground repair scan | fixed | The per-tick repair pass called `nearestWalkableWorldPoint` for every settler standing on a blocked cell, and that leaf walked the whole `(2r+1)²` square, filtered it by Chebyshev distance and ran `Math.hypot` per candidate: 353 of 6,699 profile samples (5.3 %, 6.5 % of the 1,800-settler tick). It now visits only the ring perimeter in the same order and ranks candidates by squared distance: 153 samples (2.3 %), micro-benchmark 3.12 → 1.62 µs/call, and a 610-sample old-vs-new comparison returns identical points. `tests/pathfinding.nearestWalkable.test.ts` (5), pathfinding and worker-parity suites (19). [Report](../bug_report/2026-11-08-blocked-settler-scan-hypot-ring.md) |
 
+## Phase A9 — 2,500-settler scale
+
+| ID | Status | Evidence |
+|---|---|---|
+| SIM-22 | verified | Population pollution already grades across the scale (`HUMAN_POLLUTION_PER_POINT = 25` reads 300/1,000/2,500 settlers as 12/40/100) instead of pinning at the cap; preserves damp the score. `tests/dailyEcology.pollutionGrading.test.ts` (2). |
+| 2,500-tier measurement | recorded | `PERF_POPS=2500 PERF_TICKS=60 PERF_WARMUP=10 npx tsx scripts/perf-at-pop.ts`: 2,500 player humans, 3,832 alive, avg 95.59 ms, p50 92.24 ms, p95 148.83 ms, max 159.22 ms, 10.46 ticks/s, `deltaHash c63ecde465952c20`; slowest clock hours 12:00 and 09:00. This is a 60-tick sample, not a full-horizon survival run. |
+| SIM-21 | open | The 18:00 stamina distribution and the "worst legal day" exhaustion gate still need an explicit gameplay decision (break latch ends the shift, softer walk/work drain, or an exhaustion price); the 2,500 sample above is the measurement it was waiting on. |
+| RED-06 | deferred | `computeVillageStats` is a UI projection by contract: `tests/uiRefinement.owners.test.ts` forbids panels reading the raw `workingSettlers`/`idleSettlers` tick counters, because a paused edit changes assignments without advancing the tick. Reusing the shipped counters would reintroduce that stale-read defect, so the per-call aggregation stays. |
+| PERF-01, PERF-03 | deferred | See the worker rollback/roster entry under “Deferred with reasons”. |
+
+## Phase A10 — UX, gameplay and visual polish
+
+| ID | Status | Evidence |
+|---|---|---|
+| UX-07 | fixed | The reputation chip now has an accessible name that includes the current value and the action. |
+| UX-08 | fixed | The global focus ring now covers `select`, `textarea`, links, `[role=button]`, `[role=tab]` and any focusable `[tabindex]`, not only buttons and inputs. |
+| UX-09 | fixed | The save/load banner exposes its text through `role="status"` + `aria-live="polite"`, so a screen reader announces the result. |
+| UX-15, UX-16 | fixed | `FamilyTreeWindow` is now a production caller of `buildFullFamilyTree`: one generation per row, wrapping cards, owner relation words and bond labels, an include-deceased roster fed by the genealogy registry, and a gaps list for records the world has released. `buildFullFamilyTree` gained an opt-in `includeDeceased` option (default unchanged). `tests/familyTree.test.ts` (29, including a new deceased-roster case). |
+| GAME-03 | fixed | The graveyard description promises only dead villagers; only player graves are recorded. |
+| GAME-04 | fixed | Research copy no longer advertises disabled disasters (`defense_1` damage resist, `medicine_2` plague immunity wording). The `HOSTILE_WEATHER_ENABLED=false` switch is unchanged. |
+| UX-10, UX-11, UX-12 | open | Invalid-click reason for mouse, 11–12 px/contrast sweep and the compact header breakpoint still need the 900/1,200/1,600 px screenshot matrix. |
+| GFX-04..GFX-10, GAME-06, GAME-12, GAME-17, GAME-18, COV-A-03 | open | Untouched in this pass; each needs its own measured or visual verification. |
+
+## Phase A11 — code-quality debt
+
+| ID | Status | Evidence |
+|---|---|---|
+| Q-16 | fixed | `@tauri-apps/cli` moved from runtime `dependencies` to `devDependencies`; the lockfile's `dev` flags were regenerated with `npm install --package-lock-only`. The Tauri shell plugin stays removed. |
+| Q-01..Q-15 | open | The App/tickHumans/SelectedBuildingPanel split, clone rule, failure policy, wall-clock timestamps, logger, comment and strict-flag items are untouched in this pass. |
+
+## Phase A12 — duplication, dead code and ownership
+
+| ID | Status | Evidence |
+|---|---|---|
+| DUP-10 | fixed | One rivalry ladder owns the order and the step: `RIVAL_RELATIONSHIP_STEPS` + `shiftRivalRelationship` in `rivalDiplomacy`; the wedding story and the diplomacy actions both call it. `tests/rivalDiplomacy.test.ts` (4), dialogue suite (4). |
+| DUP-11 | fixed | `ChatSpeaker` is derived from `Entity` (`Pick` + partial) instead of hand-mirroring the chat fields; dialogue tests still pass with partial stubs. |
+| DUP-16 | fixed | The decision registry names the real production owner `dailyBuildingEconomy.tickBuildingProduction` instead of the former `tickLayerDaily` cell. |
+| DUP-01..09, DUP-12..15, DUP-17..23, DEAD-01..26 | open | The remaining duplicate utilities, story scaffold and dead-export sweep are untouched; `npm run audit:knip` remains green through the existing tolerances, not through deletion. |
+
 ## Deferred with reasons
 
 - **PERF-01, PERF-03 (P1, worker rollback clone and full entity roster).** Replacing the every-tick deep clone with an inverse-operation journal or periodic snapshot/replay, and shipping incremental entity deltas, changes the worker's rollback contract. It needs its own phase with the parity/seed/pool-stress suites as the gate and a before/after measurement; not attempted in this pass.
@@ -94,6 +133,8 @@
 - **SIM-21, GAME-16 (exhaustion price and scale gate).** Both depend on the 2,500-settler tier's 18:00 stamina and food distribution; choose the tuning only after that measurement exists.
 - **GAME-15 (romance gates).** Retuning the 22–27 stamina thresholds changes romance pacing; it is a balance decision, not a correctness fix.
 - **PERF-15, RED-07 (SoA bucket shims, repeated sorts, construction-worker membership).** Neither has a recorded profile to prove the change; the audit requires measured before/after for renderer work.
+- **GAME-17 (universal commute rush).** `WORK_COMMUTE_RUSH` feeds both the movement step and the lead-hour estimate; lowering it or gating it on lateness changes when every settler leaves and how fast every commute finishes. It needs a balance decision plus the commute ETA/path-cost measurements the audit asks for.
+- **GAME-18 (child and adult walk speed).** Human walking reads one species speed today, and `entity.speed` is equal for children and adults, so the graduation write is the only misleading part. Making age affect speed touches ~30 movement call sites and the commute scheduler; the alternative is a declared size-only age rule, and choosing it is a gameplay decision.
 
 ## Remaining verification debt
 

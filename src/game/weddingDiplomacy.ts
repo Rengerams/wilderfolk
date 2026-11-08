@@ -10,6 +10,7 @@ import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard, AUTHORED_STORY_COOLDOWN_FLAG } from './storyHelpers';
 import { spendFood } from './economyLedger';
+import { RIVAL_RELATIONSHIP_STEPS, shiftRivalRelationship } from './rivalDiplomacy';
 
 export const STORY_KEY = 'wedding_diplomacy';
 export const AUTHORED_STORY_COOLDOWN_DAYS = 28;
@@ -70,21 +71,18 @@ function rivalName(state: WorldState): string {
 }
 
 function relationshipIndex(state: WorldState): number {
-  const order: string[] = ['tense', 'competitive', 'neutral', 'friendly'];
   const rivalIndex = storyFlag(state, FLAG_RIVAL);
   const rival = state.rivalSettlements[rivalIndex] ?? state.rivalSettlements[0];
-  const idx = rival ? order.indexOf(rival.relationship) : 1;
+  const idx = rival ? RIVAL_RELATIONSHIP_STEPS.indexOf(rival.relationship) : 1;
   return idx < 0 ? 1 : idx;
 }
 
 function shiftRelationship(state: WorldState, steps: number): void {
-  const order: string[] = ['tense', 'competitive', 'neutral', 'friendly'];
   const rivalIndex = storyFlag(state, FLAG_RIVAL);
   const rival = state.rivalSettlements[rivalIndex] ?? state.rivalSettlements[0];
   if (!rival) return;
-  const idx = order.indexOf(rival.relationship);
-  const next = Math.max(0, Math.min(order.length - 1, (idx < 0 ? 1 : idx) + steps));
-  rival.relationship = order[next] as typeof rival.relationship;
+  const current = RIVAL_RELATIONSHIP_STEPS.includes(rival.relationship) ? rival.relationship : 'competitive';
+  rival.relationship = shiftRivalRelationship(current, steps);
 }
 
 export function maybeOfferWeddingDiplomacy(state: WorldState): void {
