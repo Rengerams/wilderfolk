@@ -1,13 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { human } from '../src/test/factories';
 import type { WorldState } from '../src/game/gameTypes';
-import { descendantsOf, largestBloodlines, largestExtendedFamilies, recordGenealogyBirth, recordGenealogyDeath, syncGenealogyRegistry } from '../src/game/genealogyRegistry';
+import { findFamilyGroupRoot, descendantsOf, largestBloodlines, largestExtendedFamilies, recordGenealogyBirth, recordGenealogyDeath, syncGenealogyRegistry } from '../src/game/genealogyRegistry';
 
 function world(): WorldState {
   return { entities: [], year: 4, dayInYear: 15 } as unknown as WorldState;
 }
 
 describe('persistent genealogy registry', () => {
+  it('uses one compressed root lookup for all family group projections', () => {
+    const parents = new Map<number, number>([[1, 2], [2, 3], [3, 3], [4, 4]]);
+    expect(findFamilyGroupRoot(parents, 1)).toBe(3);
+    expect(parents.get(1)).toBe(3);
+    expect(parents.get(2)).toBe(3);
+    expect(findFamilyGroupRoot(parents, 4)).toBe(4);
+    expect(findFamilyGroupRoot(parents, 99)).toBe(99);
+    expect(parents.has(99)).toBe(false);
+  });
+
   it('preserves a dead ancestor and descendants across surnames and save serialization', () => {
     const state = world();
     const ancestor = human(1, { name: 'Founder', surname: 'Aquino' });
