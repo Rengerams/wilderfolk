@@ -2,7 +2,7 @@ import { pruneHuntVisuals } from './huntvisuals';
 import type {
   WorldState, PopulationHistoryEntry, Entity,
 } from './gameTypes';
-import { EntityType, FLOATING_TEXT_FADE_TICKS } from './gameTypes';
+import { BuildingType, EntityType, FLOATING_TEXT_FADE_TICKS } from './gameTypes';
 import {
   USE_SPATIAL_GRID,
   syncMobileSimGrid,
