@@ -97,7 +97,7 @@ import {
 } from './hotelStay';
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
-import { getCurrentPathGrid, lineCrossesBlocked, getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
+import { getReadOnlyPathGrid, isGroundWalkableAt, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
 import { crowdGatherPosition, venueGatherPosition, homeStandPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { fract, tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
@@ -1569,29 +1569,31 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const phase = entity.id * 0x9e3779b9 + leisureSlot * 0x85ebca6b + absDay;
       let idleVx = 0;
       let idleVy = 0;
-      let routedToBuilding = false;
+      let routedIdleWalk = false;
 
       const steerTo = (tx: number, ty: number, speedMult: number, arrive = 14, destination?: Building): boolean => {
-        routedToBuilding = false;
+        routedIdleWalk = false;
         idleVx = 0;
         idleVy = 0;
-        const dx = tx - entity.x;
-        const dy = ty - entity.y;
-        const dist = Math.hypot(dx, dy) || 1;
+        // Random and social targets may fall inside a completed footprint. Use standable ground
+        // before routing so an unreachable target cannot hold the settler against a wall.
+        const safe = state.worldMap && !isGroundWalkableAt(tx, ty)
+          ? nearestWalkableWorldPoint(state.worldMap, state.buildings, tx, ty)
+          : null;
+        const walkX = safe?.x ?? tx;
+        const walkY = safe?.y ?? ty;
+        const dist = Math.hypot(walkX - entity.x, walkY - entity.y);
         if (dist <= arrive) {
           if (destination) enterHumanBuilding(entity, destination);
           idleVx = Math.sin(tick * 0.04 + entity.id) * config.speed * 0.08;
           idleVy = Math.cos(tick * 0.035 + entity.id) * config.speed * 0.08;
           return true;
         }
-        if (destination) {
-          // The frontage may sit across the building itself: walk the route, not into the wall.
-          steerHumanToward(entity, tx, ty, config.speed, speedMult, `idle_${destination.id}_${entity.id}`);
-          routedToBuilding = true;
-          return false;
-        }
-        idleVx = (dx / dist) * config.speed * speedMult;
-        idleVy = (dy / dist) * config.speed * speedMult;
+        // All deliberate leisure walks use A* when a footprint blocks the line, including
+        // roaming and beautiful-ground targets without a named building.
+        steerHumanToward(entity, walkX, walkY, config.speed, speedMult,
+          `idle_${destination?.id ?? 'roam'}_${entity.id}`);
+        routedIdleWalk = true;
         return false;
       };
 
@@ -1668,8 +1670,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           const sdist = Math.hypot(sdx, sdy) || 1;
           const arrive = companyKind === 'kid' ? 14 : 18;
           if (sdist > arrive) {
-            idleVx = (sdx / sdist) * config.speed * 0.48;
-            idleVy = (sdy / sdist) * config.speed * 0.48;
+            steerHumanToward(entity, company.x, company.y, config.speed, 0.48,
+              `idle_company_${entity.id}_${company.id}`);
+            routedIdleWalk = true;
           } else if (sdist < 8) {
             idleVx = -(sdx / sdist) * config.speed * 0.1;
             idleVy = -(sdy / sdist) * config.speed * 0.1;
@@ -1808,13 +1811,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             const sdy = friend.y - entity.y;
             const sdist = Math.hypot(sdx, sdy) || 1;
             if (sdist > 22) {
-              const grid = getCurrentPathGrid();
-              if (grid && lineCrossesBlocked(grid, entity.x, entity.y, friend.x, friend.y)) {
-                steerHumanToward(entity, friend.x, friend.y, config.speed, 0.42, `idle_friend_${entity.id}_${friend.id}`);
-              } else {
-                idleVx = (sdx / sdist) * config.speed * 0.42;
-                idleVy = (sdy / sdist) * config.speed * 0.42;
-              }
+              steerHumanToward(entity, friend.x, friend.y, config.speed, 0.42,
+                `idle_friend_${entity.id}_${friend.id}`);
+              routedIdleWalk = true;
             } else if (sdist < 9) {
               idleVx = -(sdx / sdist) * config.speed * 0.12;
               idleVy = -(sdy / sdist) * config.speed * 0.12;
@@ -1883,7 +1882,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           }
         }
 
-        if (routedToBuilding) {
+        if (routedIdleWalk) {
           suppressIdle = true;
         } else if (idleVx !== 0 || idleVy !== 0) {
           entity.vx = entity.vx * 0.5 + idleVx * 0.5;
