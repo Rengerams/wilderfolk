@@ -2,7 +2,8 @@ import { personDayRoll } from './simRng';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
-import { PREGNANCY_TICKS, TICKS_PER_DAY, getTickOfDay } from './dayCycle';
+import { TICKS_PER_DAY, getTickOfDay } from './dayCycle';
+import { isPregnancyHospitalStage } from './simulation/humanLifecycle';
 import { doctorHospitalShift, HOSPITAL_SHIFT_HOURS } from './hospitalShifts';
 import { TICKS_PER_HOUR } from './dayCycleClock';
 import { enterHumanBuilding, homeEntryPosition, steerHumanToward } from './simulation/humanMovement';
@@ -16,8 +17,6 @@ import {
 
 const PATIENT_CENTRE_RADIUS_PX = 36;
 const PATIENT_ENTRY_RADIUS_PX = 16;
-/** A doctor past this share of a pregnancy is a patient, not a carer. */
-const DOCTOR_PREGNANCY_OFF_DUTY_RATIO = 0.8;
 const HOSPITAL_TREATMENT_ROLL_SALT = 840;
 const HOSPITAL_TREATMENT_DAILY_CHANCE = 0.2;
 
@@ -32,7 +31,7 @@ function isAtHospital(entity: Entity, hospital: Building): boolean {
 
 /** Near-term doctors give birth, they do not run a ward round. */
 export function doctorMayServe(entity: Entity): boolean {
-  return (entity.pregnancyProgress ?? 0) <= PREGNANCY_TICKS * DOCTOR_PREGNANCY_OFF_DUTY_RATIO;
+  return !isPregnancyHospitalStage(entity);
 }
 
 export type HospitalRuntimeContext = {
@@ -48,13 +47,11 @@ export type HospitalRuntimeContext = {
 
 export function shouldRoutePregnantSettlerToHospital(
   entity: Entity,
-  onJobShift: boolean,
+  _onJobShift: boolean,
   hasStaffedHospital: boolean,
 ): boolean {
-  return !!entity.pregnant
-    && isPlayerHuman(entity)
-    && hasStaffedHospital
-    && (!onJobShift || (entity.pregnancyProgress ?? 0) > PREGNANCY_TICKS * 0.85);
+  // The shift does not override the lifecycle owner's 85% threshold.
+  return isPlayerHuman(entity) && hasStaffedHospital && isPregnancyHospitalStage(entity);
 }
 
 export function shouldAttemptHospitalTreatment(
