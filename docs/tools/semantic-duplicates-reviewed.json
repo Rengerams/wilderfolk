@@ -35,6 +35,16 @@
         "tests/relationships.sharedHomeFriendship.test.ts",
         "tests/workforce.transitions.test.ts"
       ]
+    },
+    {
+      "hash": "a4c60a4aaacc578968006a339af5d4869514c707",
+      "status": "distinct",
+      "reason": "pathfinding.lineCrossesBlocked's local isBlocked checks each traversed grid cell for obstruction and cliff elevation differences; stripBuild.inferStripRotation uses the absolute drag delta to choose a horizontal (0 degree) or vertical (90 degree) segment. Both happen to call Math.abs, the only shared lexical feature. They have separate inputs, outputs, owners, and no common behavior to refactor; coupling them would corrupt navigation or strip geometry.",
+      "tests": [
+        "tests/pathfinding.test.ts",
+        "tests/pathfinding.cliffCorners.test.ts",
+        "tests/stripTopology.connections.test.ts"
+      ]
     }
   ]
 }
