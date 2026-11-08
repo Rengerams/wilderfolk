@@ -727,7 +727,11 @@ function collapseStraightWaypoints(points: { x: number; y: number }[]): { x: num
   return result;
 }
 
-/** True when the straight line from (x0,y0) to (x1,y1) crosses a blocked tile. */
+/**
+ * True when a direct walk crosses a blocked tile, including a diagonal corner.
+ * Exact grid traversal avoids skipping narrow buildings on long walks. Previously a 128-sample
+ * ceiling missed thin walls and reported a blocked distant destination as a clear straight line.
+ */
 export function lineCrossesBlocked(
   grid: PathGrid,
   x0: number,
@@ -736,31 +740,59 @@ export function lineCrossesBlocked(
   y1: number,
 ): boolean {
   recordLineCheck();
-  const span = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
-  // Sub-tile sampling steps prevent tunneling through 1-tile diagonal obstacles
-  const steps = Math.max(4, Math.min(128, Math.ceil(span / (PATH_CELL * 0.5))));
-  const startTx = Math.floor(x0 / PATH_CELL);
-  const startTy = Math.floor(y0 / PATH_CELL);
-  let prevElev: number | null = grid.elevation && startTx >= 0 && startTy >= 0
-    && startTx < grid.cols && startTy < grid.rows
-    ? grid.elevation[startTy * grid.cols + startTx] : null;
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-    const px = x0 + (x1 - x0) * t;
-    const py = y0 + (y1 - y0) * t;
-    const tx = Math.floor(px / PATH_CELL);
-    const ty = Math.floor(py / PATH_CELL);
-    if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) continue;
-    const idx = ty * grid.cols + tx;
-    if (grid.blocked[idx]) return true;
-    // A cliff step along the line also forces a detour, matching the A* cliff rule.
-    if (grid.elevation) {
-      const e = grid.elevation[idx];
-      if (prevElev !== null && Math.abs(e - prevElev) > CLIFF_STEP) return true;
-      prevElev = e;
+  if (![x0, y0, x1, y1].every(Number.isFinite)) return true;
+
+  const { cols, rows, blocked, elevation } = grid;
+  let tx = Math.floor(x0 / PATH_CELL);
+  let ty = Math.floor(y0 / PATH_CELL);
+  const goalX = Math.floor(x1 / PATH_CELL);
+  const goalY = Math.floor(y1 / PATH_CELL);
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const stepX = Math.sign(dx);
+  const stepY = Math.sign(dy);
+  const deltaX = dx === 0 ? Infinity : PATH_CELL / Math.abs(dx);
+  const deltaY = dy === 0 ? Infinity : PATH_CELL / Math.abs(dy);
+  let nextX = stepX > 0 ? ((tx + 1) * PATH_CELL - x0) / dx
+    : stepX < 0 ? (tx * PATH_CELL - x0) / dx : Infinity;
+  let nextY = stepY > 0 ? ((ty + 1) * PATH_CELL - y0) / dy
+    : stepY < 0 ? (ty * PATH_CELL - y0) / dy : Infinity;
+  let lastElevation: number | null = null;
+
+  const isBlocked = (cellX: number, cellY: number, fromElevation: number | null): boolean => {
+    if (cellX < 0 || cellY < 0 || cellX >= cols || cellY >= rows) return false;
+    const index = cellY * cols + cellX;
+    if (blocked[index]) return true;
+    return !!elevation && fromElevation !== null
+      && Math.abs(elevation[index] - fromElevation) > CLIFF_STEP;
+  };
+
+  // Each transition moves across a tile boundary, even when the line is thousands of pixels long.
+  const maxTransitions = Math.abs(goalX - tx) + Math.abs(goalY - ty);
+  for (let crossed = 0; crossed <= maxTransitions; crossed++) {
+    if (isBlocked(tx, ty, lastElevation)) return true;
+    if (elevation && tx >= 0 && ty >= 0 && tx < cols && ty < rows) {
+      lastElevation = elevation[ty * cols + tx];
+    }
+    if (tx === goalX && ty === goalY) return false;
+
+    if (nextX < nextY) {
+      tx += stepX;
+      nextX += deltaX;
+    } else if (nextY < nextX) {
+      ty += stepY;
+      nextY += deltaY;
+    } else {
+      // Neither of the two orthogonal cells may be solid at a diagonal grid corner.
+      if (isBlocked(tx + stepX, ty, lastElevation)
+        || isBlocked(tx, ty + stepY, lastElevation)) return true;
+      tx += stepX;
+      ty += stepY;
+      nextX += deltaX;
+      nextY += deltaY;
     }
   }
-  return false;
+  return true;
 }
 
 /** Module-level "current map" for pathing — set once per tick by the sim. */
