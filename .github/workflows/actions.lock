@@ -6,6 +6,9 @@ workflows:
     '.github/workflows/120days.yml':
         - 'actions/checkout@v4.4.0'
         - 'actions/setup-node@v4.4.0'
+    '.github/workflows/calendar-scheduler.yml':
+        - 'actions/checkout@v4.4.0'
+        - 'actions/setup-node@v4.4.0'
     '.github/workflows/dialogue-pr93-validation.yml':
         - 'actions/checkout@v4.4.0'
         - 'actions/setup-node@v4.4.0'
