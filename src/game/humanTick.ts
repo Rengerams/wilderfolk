@@ -386,10 +386,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     food: state.resources.food,
   });
 
-  const resolveChatPartner = (id: number): Entity | null => {
-    const partner = entityById.get(id);
-    return isSettlerRelationshipEntity(partner) ? partner : null;
-  };
+  // All partner lookups share the live-settler predicate; chat callers require null on a miss.
+  const resolveChatPartner = (id: number): Entity | null => livingHumanAt(id) ?? null;
 
   const settlerChat = (
     entity: Entity,

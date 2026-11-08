@@ -319,23 +319,33 @@ function advanceDialogue(
   return true;
 }
 
+/** Release an entity's current scene once; callers decide whether to clear an unrelated partner bubble. */
+function clearCurrentEntityDialogue(
+  entity: ChatSpeaker,
+  resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
+): ChatSpeaker | undefined {
+  const key = entity.chatDialogueSessionKey;
+  let counterpart: ChatSpeaker | undefined;
+  if (key) {
+    const session = dialogueSessions.get(key);
+    const counterpartId = session
+      ? (session.entityAId === entity.id ? session.entityBId : session.entityAId)
+      : entity.chatPartnerId;
+    counterpart = counterpartId != null ? resolvePartner?.(counterpartId) ?? undefined : undefined;
+    clearDialogueSession(key, entity, counterpart);
+  }
+  entity.chatDialogueSessionKey = undefined;
+  entity.chatPartnerId = undefined;
+  clearEntityChat(entity);
+  return counterpart;
+}
+
 /** Scripted speech interrupts the current session and frees both participants. */
 export function prepareScriptedDialogue(
   entity: ChatSpeaker,
   resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
 ): void {
-  const key = entity.chatDialogueSessionKey;
-  if (key) {
-    const session = dialogueSessions.get(key);
-    const otherId = session
-      ? (session.entityAId === entity.id ? session.entityBId : session.entityAId)
-      : entity.chatPartnerId;
-    const other = otherId != null ? resolvePartner?.(otherId) ?? undefined : undefined;
-    clearDialogueSession(key, entity, other);
-  }
-  entity.chatDialogueSessionKey = undefined;
-  entity.chatPartnerId = undefined;
-  clearEntityChat(entity);
+  clearCurrentEntityDialogue(entity, resolvePartner);
 }
 
 export function tickHumanChat(
@@ -420,18 +430,7 @@ export function cleanupEntityDialogueState(
   entity: ChatSpeaker,
   resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
 ): void {
-  const key = entity.chatDialogueSessionKey;
-  if (key) {
-    const session = dialogueSessions.get(key);
-    const counterpartId = session
-      ? (session.entityAId === entity.id ? session.entityBId : session.entityAId)
-      : entity.chatPartnerId;
-    const counterpart =
-      counterpartId != null ? resolvePartner?.(counterpartId) ?? undefined : undefined;
-    clearDialogueSession(key, entity, counterpart);
-    if (counterpart) clearEntityChat(counterpart);
-  }
-  entity.chatDialogueSessionKey = undefined;
-  entity.chatPartnerId = undefined;
-  clearEntityChat(entity);
+  const counterpart = clearCurrentEntityDialogue(entity, resolvePartner);
+  // Despawning also clears a separately resolved ambient bubble, if any.
+  if (counterpart) clearEntityChat(counterpart);
 }
