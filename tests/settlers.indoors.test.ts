@@ -99,7 +99,7 @@ describe('settlers inside buildings', () => {
     world.buildings = [building(0, BuildingType.Hospital)];
     world.entities = [];
     expect(observeIndoorPatients(world).patients).toEqual([]);
-    world.entities = [human(1, { pregnant: true }), human(2, { pregnant: true, alive: false, indoorBuildingId: 0 })];
+    world.entities = [human(1, { pregnant: true, pregnancyProgress: 900, pregnancyDueProgress: 1000 }), human(2, { pregnant: true, alive: false, indoorBuildingId: 0 })];
     expect(observeIndoorPatients(world).patients).toEqual([{ id: 1, indoorBuildingId: null, hospitalId: null }]);
     world.entities[0].indoorBuildingId = 0;
     world.buildings[0].completed = false;
