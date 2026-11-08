@@ -8,6 +8,7 @@ import { EntityType, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isMarriedOrExpecting } from './relationships';
 import { findFamilyGroupRoot } from './genealogyRegistry';
+import type { GenealogyRegistry } from './genealogyTypes';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isWithinRemarriageBar } from './simulation/humanRelationships';
 
@@ -659,6 +660,8 @@ export interface FamilyTreeRow {
 export interface FamilyTreeOptions {
   /** Draw dead settlers the caller still holds (the window adds registry history to the roster). */
   includeDeceased?: boolean;
+  /** Saved partner history, kept separate from active marriages and divorce cooldown ticks. */
+  historicalRegistry?: GenealogyRegistry;
 }
 
 /** The whole connected family of one settler, oldest generation first. */
@@ -935,6 +938,7 @@ export function buildFullFamilyTree(
     focus.youthLovePartnerId,
     focus.affairPartnerId,
     ...Object.keys(focus.pastPartnerTicks ?? {}).map(Number),
+    ...(options?.historicalRegistry?.people[String(focus.id)]?.partners ?? []),
   ]) {
     if (rawId == null || rawId === focus.id || !byId.has(rawId)) continue;
     if (seen.has(rawId) || bondIds.includes(rawId)) continue;
@@ -1029,6 +1033,9 @@ export function buildFullFamilyTree(
   // ancestor, which is what keeps a married-in spouse an in-law rather than a cousin.
   const bloodLine = closureOf([focus.id, ...ancestorsOfFocus], (id) => childLinks.get(id) ?? []);
   const partnersOfFocus = new Set<number>(partnerLinks.get(focus.id) ?? []);
+  const historicalPartnersOfFocus = new Set<number>(
+    options?.historicalRegistry?.people[String(focus.id)]?.partners ?? [],
+  );
   const parentsOfFocus = parentIdSet(focus);
   // A parent's spouse is the focus's step-parent: a married-in relation, but not the generic in-law
   // a sibling's or uncle's spouse is, and the difference is the word on their row.
@@ -1122,7 +1129,7 @@ export function buildFullFamilyTree(
           const relation = isFocus
             ? ''
             : relationLabelOf(focus, person, delta, {
-              isPartner: partnersOfFocus.has(person.id),
+              isPartner: focus.alive && person.alive && partnersOfFocus.has(person.id),
               isSibling: siblingsOfFocus.has(person.id),
               isAncestor: ancestorsOfFocus.has(person.id),
               isDescendant: descendantsOfFocus.has(person.id),
@@ -1130,7 +1137,9 @@ export function buildFullFamilyTree(
               isParentSpouse: parentSpouseIds.has(person.id),
               isCoParent: coParentIds.has(person.id),
               wasSpouse: marriedCoParentIds.has(person.id),
-              isFormerPartner: focus.pastPartnerTicks?.[person.id] != null,
+              isFormerPartner: focus.pastPartnerTicks?.[person.id] != null
+                || (historicalPartnersOfFocus.has(person.id)
+                  && !(focus.alive && person.alive && partnersOfFocus.has(person.id))),
               isCourting: courting,
               isSweetheart: sweetheart,
               isLover: lover,

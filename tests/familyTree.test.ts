@@ -9,6 +9,7 @@ import {
   type FullFamilyTree,
 } from '../src/game/familyTree';
 import { REMARRIAGE_BAR_TICKS } from '../src/game/simulation/humanRelationships';
+import type { GenealogyRegistry } from '../src/game/genealogyTypes';
 
 function human(partial: Partial<Entity> & { id: number; name: string }): Entity {
   return {
@@ -151,6 +152,27 @@ const rowsOf = (tree: FullFamilyTree): number[][] =>
   tree.rows.map((row) => row.members.map((member) => member.id).sort((a, b) => a - b));
 
 describe('buildFullFamilyTree', () => {
+  it('preserves every archived marriage without inventing a current spouse or divorce cooldown', () => {
+    const deceased = human({ id: 60, name: 'Deceased', gender: 'male', alive: false });
+    const first = human({ id: 61, name: 'First', gender: 'female', alive: false });
+    const second = human({ id: 62, name: 'Second', gender: 'female' });
+    const historicalRegistry: GenealogyRegistry = { people: {
+      '60': { id: 60, name: 'Deceased', birthSurname: 'Ash', surname: 'Ash', alive: false,
+        partners: [61, 62], childrenIds: [] },
+      '62': { id: 62, name: 'Second', birthSurname: 'Ash', surname: 'Ash', alive: true,
+        partners: [60], childrenIds: [] },
+    } };
+    const opts = { includeDeceased: true, historicalRegistry };
+    const tree = buildFullFamilyTree(deceased, [deceased, first, second], 10, opts);
+    expect(drawnIds(tree).sort((a, b) => a - b)).toEqual([60, 61, 62]);
+    expect(relationOf(tree, 61)).toBe('Former spouse');
+    expect(relationOf(tree, 62)).toBe('Former spouse');
+    expect(personIn(tree, 62)?.bonds).not.toContain('May not remarry yet');
+    // The survivor also sees their archived spouse, even without a live partnerId link.
+    const survivorTree = buildFullFamilyTree(second, [deceased, first, second], 10, opts);
+    expect(relationOf(survivorTree, 60)).toBe('Former spouse');
+  });
+
   /** Four generations: grandparents, two children (one married in), grandchildren including a cousin, one great-grandchild. */
   function fourGenerations(): { all: Entity[]; focus: Entity; oma: Entity } {
     const oma = human({ id: 1, name: 'Oma', gender: 'female', partnerId: 2, childrenIds: [3, 4], generation: 1 });

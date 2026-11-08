@@ -55,8 +55,7 @@ function historicalEntity(person: GenealogyPerson): Entity {
     adoptiveMotherId: person.adoptiveMotherId,
     adoptiveFatherId: person.adoptiveFatherId,
     childrenIds: [...person.childrenIds],
-    partnerId: person.partners[0],
-    pastPartnerTicks: {},
+    // No current marriage can be inferred from a historical registry of all past partners.
   };
 }
 
@@ -85,8 +84,11 @@ export default function FamilyTreeWindow({
 
   const focusEntity = roster.find((e) => e.id === focusId) ?? entity;
   const tree = useMemo(
-    () => buildFullFamilyTree(focusEntity, roster, tick, { includeDeceased: showDeceased }),
-    [focusEntity, roster, tick, showDeceased],
+    () => buildFullFamilyTree(focusEntity, roster, tick, {
+      includeDeceased: showDeceased,
+      historicalRegistry: showDeceased ? genealogyRegistry : undefined,
+    }),
+    [focusEntity, roster, tick, showDeceased, genealogyRegistry],
   );
 
   const visibleRows = tree.rows.filter((row) => {
