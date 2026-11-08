@@ -581,7 +581,7 @@ take ownership away from their leaf implementations. Module-qualified names keep
 | Game: combatTech.ts | `src/game/combatTech.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
 | Game: ecologyTypes.ts | `src/game/ecologyTypes.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
 | Game: gameEngine.ts | `src/game/gameEngine.ts` | module-local | Compatibility exports only; implementation ownership stays with leaf modules |
-| Game: genealogyRegistry.ts | `src/game/genealogyRegistry.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: genealogyRegistry.ts | `src/game/genealogyRegistry.ts` | module-local / on-demand read-only | `findFamilyGroupRoot` — sole owner of path-compressed genealogy group-root lookup (shared with `familyTree.ts`); remaining local functions and methods are defined in this module, not re-exported definitions |
 | Game: genealogyTypes.ts | `src/game/genealogyTypes.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
 | Game: introTimeline.ts | `src/game/introTimeline.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
 | Game: moonHowlerForm.ts | `src/game/moonHowlerForm.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
