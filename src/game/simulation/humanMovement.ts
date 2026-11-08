@@ -356,11 +356,9 @@ export function commuteHumanToBuilding(
   // the tick is the single integration (the stepper must not move the entity as well).
   if (handled === 'path') return false;
   if (handled === 'blocked') {
-    // Keep a wall-sliding velocity so the stuck detector can recover instead of freezing here.
-    const escapeSpeed = moveSpeed * 0.5;
-    entity.vx = (dx / dist) * escapeSpeed;
-    entity.vy = (dy / dist) * escapeSpeed;
-    faceVelocity(entity);
+    // No path exists. Wall-sliding toward the inaccessible door cannot create a route.
+    entity.vx = 0;
+    entity.vy = 0;
     return false;
   }
 
