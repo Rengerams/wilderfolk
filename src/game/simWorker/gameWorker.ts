@@ -19,7 +19,15 @@ import type { Entity, WorldState } from '../gameTypes';
 /* Rendering & simulation helpers */
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
 import { RenderBufferPool, type AcquiredRenderBuffer } from '../simBuffers/renderBufferPool';
-import { extractSimTickDelta, splitStaticProps, stripUnchangedProfile, stripUnchangedRelationships, type SimTickDelta } from '../simBuffers/simDelta';
+import {
+  extractSimTickDelta,
+  profileFieldCoverage,
+  relationshipFieldCoverage,
+  splitStaticProps,
+  stripCoveredEntityFields,
+  type BuildingFingerprint,
+  type SimTickDelta,
+} from '../simBuffers/simDelta';
 import { PROFILE_REVISION, RELATIONSHIP_REVISION, revisionOf } from '../entityRevision';
 import { getPerformanceSnapshot, maybeWorkerPerformanceSnapshot, profileEnd, profileStart, setPerformanceProfilingEnabled, type PerformanceSnapshot } from '../performanceProfiler';
 import { getPathfinderReport, resetPathfinderSession, setPathfindingMetricsEnabled } from '../pathfindingMetrics';
@@ -64,7 +72,7 @@ let staticPropsSent = new Set<number>();
 let profileFieldsSent = new Map<number, { revision: number; tick: number }>();
 
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
-let prevBuildingsSnapshot: Map<number, string> | null = null;
+let prevBuildingsSnapshot: Map<number, BuildingFingerprint> | null = null;
 /** Geometry signature of the last acknowledged building delta; drives host cache retention. */
 let prevBuildingGeometry: Map<number, string> | null = null;
 /** History revisions at the last acknowledged tick; unchanged families are not re-shipped. */
@@ -133,7 +141,7 @@ function packAndPostTickResult(
     const pack = packRenderSoA(world, acquired.buffer, undefined, lastFocus, aliveNow);
     profileEnd('worker.packRenderSoA', packStart);
     const deltaStart = profileStart();
-    const nextBuildings = new Map<number, string>();
+    const nextBuildings = new Map<number, BuildingFingerprint>();
     const nextBuildingGeometry = new Map<number, string>();
     const delta = extractSimTickDelta(world, aliveNow, {
       cloneMode: 'transfer',
@@ -145,8 +153,7 @@ function packAndPostTickResult(
       previousEventHeadId,
     });
     attachStaticProps(delta);
-    attachRelationshipRevisions(delta);
-    attachProfileFields(delta);
+    attachReplicaFieldCoverage(delta);
     profileEnd('worker.extractDelta', deltaStart);
     world.screenShakeImpulse = 0; // one-shot impulse – clear each tick
 
@@ -208,19 +215,22 @@ function attachStaticProps(delta: SimTickDelta): void {
   splitStaticProps(delta, staticPropsSent);
 }
 
-/** Attach profile revisions: skill/trait/career maps cross the port only when they change. */
-function attachProfileFields(delta: SimTickDelta): void {
+/**
+ * Rare entity fields (profile maps, relationship maps) cross the port only when their revision
+ * changed. Both families are dropped in one pass: a second pass would copy an already-sparse roster.
+ */
+function attachReplicaFieldCoverage(delta: SimTickDelta): void {
   if (!world) return;
-  const revisions = new Map<number, number>();
-  for (const entity of world.entities) revisions.set(entity.id, revisionOf(entity, PROFILE_REVISION));
-  stripUnchangedProfile(delta, revisions, profileFieldsSent, world.tick);
-}
-
-/** Attach the relationship revisions the display already has, so only changed records ship. */function attachRelationshipRevisions(delta: SimTickDelta): void {
-  if (!world) return;
-  const revisions = new Map<number, number>();
-  for (const entity of world.entities) revisions.set(entity.id, revisionOf(entity, RELATIONSHIP_REVISION));
-  stripUnchangedRelationships(delta, revisions, relationshipRevisionsSent);
+  const profileRevisions = new Map<number, number>();
+  const relationshipRevisions = new Map<number, number>();
+  for (const entity of world.entities) {
+    profileRevisions.set(entity.id, revisionOf(entity, PROFILE_REVISION));
+    relationshipRevisions.set(entity.id, revisionOf(entity, RELATIONSHIP_REVISION));
+  }
+  stripCoveredEntityFields(delta, [
+    profileFieldCoverage(profileRevisions, profileFieldsSent, world.tick),
+    relationshipFieldCoverage(relationshipRevisions, relationshipRevisionsSent),
+  ]);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -310,8 +320,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         if (!isWorkerCommand(msg.cmd)) {
           const delta = safeExtractCommandDelta(world);
           attachStaticProps(delta);
-          attachRelationshipRevisions(delta);
-          attachProfileFields(delta);
+          attachReplicaFieldCoverage(delta);
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
@@ -334,14 +343,12 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           previousEventHeadId = undefined;
           delta = safeExtractCommandDelta(world);
           attachStaticProps(delta);
-          attachRelationshipRevisions(delta);
-          attachProfileFields(delta);
+          attachReplicaFieldCoverage(delta);
         } catch (err) {
           applySimPrep(world, prepBackup);
           const failedDelta = safeExtractCommandDelta(world);
           attachStaticProps(failedDelta);
-          attachRelationshipRevisions(failedDelta);
-          attachProfileFields(failedDelta);
+          attachReplicaFieldCoverage(failedDelta);
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
@@ -455,8 +462,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
               cloneMode: 'transfer',
             });
             attachStaticProps(delta);
-            attachRelationshipRevisions(delta);
-            attachProfileFields(delta);
+            attachReplicaFieldCoverage(delta);
             world.screenShakeImpulse = 0;
             const response: WorkerResponse = {
               type: 'tickResult',

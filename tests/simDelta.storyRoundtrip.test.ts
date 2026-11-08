@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { MapSize } from '../src/game/gameTypes';
-import { extractSimTickDelta, applySimTickDelta } from '../src/game/simBuffers/simDelta';
+import { extractSimTickDelta, applySimTickDelta, type BuildingFingerprint } from '../src/game/simBuffers/simDelta';
 import {
   bumpHistoryRevision,
   resetHistoryRevisions,
@@ -72,7 +72,8 @@ describe('sim delta story/campaign transport (audit CRITICAL)', () => {
     expect(delta1.buildings).toBeUndefined();
 
     // A stable tick with an up-to-date snapshot ships no buildings at all.
-    const snapshot = new Map(world.buildings.map((b) => [b.id, JSON.stringify(b)]));
+    const snapshot = new Map<number, BuildingFingerprint>();
+    extractSimTickDelta(world, undefined, { cloneMode: 'isolated', prevBuildings: new Map(), nextBuildings: snapshot });
     const delta2 = extractSimTickDelta(world, undefined, {
       cloneMode: 'isolated',
       prevBuildings: snapshot,

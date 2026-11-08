@@ -193,8 +193,8 @@ export type SimDeltaCloneMode = 'isolated' | 'transfer';
 
 export interface ExtractSimTickDeltaOptions {
   cloneMode?: SimDeltaCloneMode;
-  prevBuildings?: ReadonlyMap<number, string> | null;
-  nextBuildings?: Map<number, string>;
+  prevBuildings?: ReadonlyMap<number, BuildingFingerprint> | null;
+  nextBuildings?: Map<number, BuildingFingerprint>;
   /** Geometry signature per building; whether it changed decides cache retention on the host. */
   prevBuildingGeometry?: ReadonlyMap<number, string> | null;
   nextBuildingGeometry?: Map<number, string>;
@@ -215,8 +215,46 @@ function deltaCloneOptional<T>(value: T | null | undefined, mode: SimDeltaCloneM
   return mode === 'isolated' ? structuredClone(value) : value;
 }
 
-function buildingFingerprint(building: Building): string {
-  return JSON.stringify(building);
+/**
+ * Every mutable `Building` field, in one fixed order: the delta compares these values directly, so a
+ * JSON round-trip over ~1,000 buildings per tick is avoided. The interface contract test pins the list.
+ */
+export const BUILDING_FINGERPRINT_FIELDS = [
+  'id', 'type', 'siteTerrain', 'x', 'y', 'width', 'height', 'occupants', 'staffingMode', 'level',
+  'constructionProgress', 'completed', 'health', 'maxHealth', 'spriteScale', 'buildAnimTimer',
+  'faction', 'groupId', 'campLabel', 'workshopRecipeId', 'rotation', 'gateClosed', 'hotelGuestIds',
+  'huntingSpotPrey', 'huntingSpotTargetId', 'huntingSpotInReachTick', 'uncoveredPrisonHours', 'mineMode',
+] as const satisfies readonly (keyof Building)[];
+
+/** One building's compared values, in `BUILDING_FINGERPRINT_FIELDS` order (arrays are copied). */
+export type BuildingFingerprint = readonly unknown[];
+
+function buildingFingerprint(building: Building): BuildingFingerprint {
+  const values: unknown[] = new Array(BUILDING_FINGERPRINT_FIELDS.length);
+  for (let i = 0; i < BUILDING_FINGERPRINT_FIELDS.length; i++) {
+    const value = building[BUILDING_FINGERPRINT_FIELDS[i]];
+    // In-place array edits keep the same reference, so the snapshot must own the contents.
+    values[i] = Array.isArray(value) ? [...value] : value;
+  }
+  return values;
+}
+
+function sameBuildingFingerprint(building: Building, previous: BuildingFingerprint): boolean {
+  for (let i = 0; i < BUILDING_FINGERPRINT_FIELDS.length; i++) {
+    const value = building[BUILDING_FINGERPRINT_FIELDS[i]];
+    const before = previous[i];
+    if (value === before) continue;
+    if (Array.isArray(value) && Array.isArray(before)) {
+      if (value.length !== before.length) return false;
+      let same = true;
+      for (let j = 0; j < value.length; j++) {
+        if (value[j] !== before[j]) { same = false; break; }
+      }
+      if (same) continue;
+    }
+    return false;
+  }
+  return true;
 }
 
 /** The fields the derived geometry caches (road avoidance, adjacency, beauty) depend on. */
@@ -283,7 +321,7 @@ export function extractSimTickDelta(
         buildingGeometryChanged = true;
       }
       const prev = prevBuildings?.get(building.id);
-      if (prev !== fingerprint) {
+      if (!prev || !sameBuildingFingerprint(building, prev)) {
         changedBuildings.push(building);
       }
     }
@@ -475,28 +513,36 @@ function applyTerrainPatches(world: WorldState, patches: readonly TerrainTilePat
 
 const RELATIONSHIP_FIELDS = ['friendships', 'feuds', 'feudPeaks'] as const;
 
+/** One family of rare entity fields the replica already holds; dropped while its revision is covered. */
+export interface EntityFieldCoverage {
+  revisionsById: ReadonlyMap<number, number>;
+  covered: (id: number, revision: number) => boolean;
+  include: (id: number, revision: number) => void;
+  fields: readonly string[];
+}
+
 /**
- * Replace a delta entity with a copy that omits `fields` when the replica already holds them;
- * `include` records the revision for entities that do ship. The live entity is never mutated.
+ * Drop every covered family in one pass: each delta entity is copied once, not once per family
+ * (`{ ...entity }` on an already-sparse object is the most expensive case). Live entities are untouched.
  */
-function stripCoveredFields(
-  delta: SimTickDelta,
-  revisionsById: ReadonlyMap<number, number>,
-  covered: (id: number, revision: number) => boolean,
-  include: (id: number, revision: number) => void,
-  fields: readonly string[],
-): void {
+export function stripCoveredEntityFields(delta: SimTickDelta, coverages: readonly EntityFieldCoverage[]): void {
   const entities = delta.aliveEntities;
   for (let i = 0; i < entities.length; i++) {
     const entity = entities[i];
-    const revision = revisionsById.get(entity.id) ?? 0;
-    if (covered(entity.id, revision)) {
-      const sparse = { ...entity };
-      for (const field of fields) delete (sparse as Record<string, unknown>)[field];
-      entities[i] = sparse;
-    } else {
-      include(entity.id, revision);
+    let drop: Set<string> | null = null;
+    for (const coverage of coverages) {
+      const revision = coverage.revisionsById.get(entity.id) ?? 0;
+      if (coverage.covered(entity.id, revision)) {
+        drop ??= new Set<string>();
+        for (const field of coverage.fields) drop.add(field);
+      } else {
+        coverage.include(entity.id, revision);
+      }
     }
+    if (!drop) continue;
+    const sparse = { ...entity } as Record<string, unknown>;
+    for (const field of drop) delete sparse[field];
+    entities[i] = sparse as unknown as Entity;
   }
 }
 
@@ -504,18 +550,24 @@ function stripCoveredFields(
  * Drop relationship records the replica already holds: the maps are the bulk of the entity payload
  * and change on a minority of settlers per tick.
  */
+export function relationshipFieldCoverage(
+  revisionsById: ReadonlyMap<number, number>,
+  sent: Map<number, number>,
+): EntityFieldCoverage {
+  return {
+    revisionsById,
+    covered: (id, revision) => sent.get(id) === revision,
+    include: (id, revision) => sent.set(id, revision),
+    fields: RELATIONSHIP_FIELDS,
+  };
+}
+
 export function stripUnchangedRelationships(
   delta: SimTickDelta,
   revisionsById: ReadonlyMap<number, number>,
   sent: Map<number, number>,
 ): void {
-  stripCoveredFields(
-    delta,
-    revisionsById,
-    (id, revision) => sent.get(id) === revision,
-    (id, revision) => sent.set(id, revision),
-    RELATIONSHIP_FIELDS,
-  );
+  stripCoveredEntityFields(delta, [relationshipFieldCoverage(revisionsById, sent)]);
 }
 
 /**
@@ -552,6 +604,23 @@ const PROFILE_FIELDS = [
 /** Re-ship profile fields at least this often, so a missed writer can only be briefly stale. */
 export const PROFILE_REFRESH_TICKS = 240;
 
+/** Profile fields the replica already holds; re-shipped once its copy reaches the refresh window. */
+export function profileFieldCoverage(
+  revisionsById: ReadonlyMap<number, number>,
+  sent: Map<number, { revision: number; tick: number }>,
+  tick: number,
+): EntityFieldCoverage {
+  return {
+    revisionsById,
+    covered: (id, revision) => {
+      const last = sent.get(id);
+      return !!last && last.revision === revision && tick - last.tick < PROFILE_REFRESH_TICKS;
+    },
+    include: (id, revision) => sent.set(id, { revision, tick }),
+    fields: PROFILE_FIELDS,
+  };
+}
+
 /** Drop profile fields the replica already holds (or refreshed recently). */
 export function stripUnchangedProfile(
   delta: SimTickDelta,
@@ -559,16 +628,7 @@ export function stripUnchangedProfile(
   sent: Map<number, { revision: number; tick: number }>,
   tick: number,
 ): void {
-  stripCoveredFields(
-    delta,
-    revisionsById,
-    (id, revision) => {
-      const last = sent.get(id);
-      return !!last && last.revision === revision && tick - last.tick < PROFILE_REFRESH_TICKS;
-    },
-    (id, revision) => sent.set(id, { revision, tick }),
-    PROFILE_FIELDS,
-  );
+  stripCoveredEntityFields(delta, [profileFieldCoverage(revisionsById, sent, tick)]);
 }
 
 export function applySimTickDelta(
