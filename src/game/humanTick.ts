@@ -1575,11 +1575,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           idleVy = Math.cos(tick * 0.035 + entity.id) * config.speed * 0.08;
           return true;
         }
-        // All deliberate leisure walks use A* when a footprint blocks the line, including
-        // roaming and beautiful-ground targets without a named building.
-        steerHumanToward(entity, walkX, walkY, config.speed, speedMult,
+        // Keep the original once-per-tick idle blend when the direct line is clear.
+        // Only a routed detour owns the velocity outright; otherwise last tick's
+        // momentum must still be weighted at 0.5 for ordinary leisure walks.
+        const route = steerWithPath(entity, walkX, walkY, config.speed * speedMult,
           `idle_${destination?.id ?? 'roam'}_${entity.id}`);
-        routedIdleWalk = true;
+        if (route === 'direct') {
+          idleVx = ((walkX - entity.x) / dist) * config.speed * speedMult;
+          idleVy = ((walkY - entity.y) / dist) * config.speed * speedMult;
+        } else {
+          routedIdleWalk = true;
+        }
         return false;
       };
 
@@ -1656,9 +1662,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           const sdist = Math.hypot(sdx, sdy) || 1;
           const arrive = companyKind === 'kid' ? 14 : 18;
           if (sdist > arrive) {
-            steerHumanToward(entity, company.x, company.y, config.speed, 0.48,
+            const route = steerWithPath(entity, company.x, company.y, config.speed * 0.48,
               `idle_company_${entity.id}_${company.id}`);
-            routedIdleWalk = true;
+            if (route === 'direct') {
+              idleVx = (sdx / sdist) * config.speed * 0.48;
+              idleVy = (sdy / sdist) * config.speed * 0.48;
+            } else {
+              routedIdleWalk = true;
+            }
           } else if (sdist < 8) {
             idleVx = -(sdx / sdist) * config.speed * 0.1;
             idleVy = -(sdy / sdist) * config.speed * 0.1;
@@ -1797,9 +1808,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             const sdy = friend.y - entity.y;
             const sdist = Math.hypot(sdx, sdy) || 1;
             if (sdist > 22) {
-              steerHumanToward(entity, friend.x, friend.y, config.speed, 0.42,
+              const route = steerWithPath(entity, friend.x, friend.y, config.speed * 0.42,
                 `idle_friend_${entity.id}_${friend.id}`);
-              routedIdleWalk = true;
+              if (route === 'direct') {
+                idleVx = (sdx / sdist) * config.speed * 0.42;
+                idleVy = (sdy / sdist) * config.speed * 0.42;
+              } else {
+                routedIdleWalk = true;
+              }
             } else if (sdist < 9) {
               idleVx = -(sdx / sdist) * config.speed * 0.12;
               idleVy = -(sdy / sdist) * config.speed * 0.12;
