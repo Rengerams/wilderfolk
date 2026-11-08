@@ -8,6 +8,7 @@ import type { PopulationCounts } from './entityCounts';
 import { BuildingType } from './gameTypes';
 import { indexLivingEntity } from './entityIndex';
 import { getResidenceCapacity, isMinor } from './housingModel';
+import { getOpenPlayerBeds } from './populationGrowth';
 import { assignMissingResidences } from './housingPipeline';
 import { createImmigrantSettler } from './worldGen';
 import { findHumanSpawnNear } from './terrainSystems';
@@ -85,14 +86,24 @@ function tickImmigration(
       townHallMultiplier,
   );
 
-  const openSlots = state.maxHumanPopulation - counts.humans;
+  // The reputation cap is not a bed count. Immigrants must fit real assignable residences,
+  // excluding the Leader's House, whose beds belong to the leader's household.
+  const openSlots = Math.max(0, Math.min(state.maxHumanPopulation - counts.humans, getOpenPlayerBeds(state)));
+
+  // Admit a smaller party when the colony can feed one newcomer but not the largest family.
+  // Each affordable size is checked against the same projected meal demand and stored-food guard.
+  let affordableSlots = 0;
+  for (let size = 1; size <= Math.min(openSlots, 2 + Immigration.FAMILY_MAX_CHILDREN); size++) {
+    if (!canSupportImmigration(state, counts.humans, size)) break;
+    affordableSlots = size;
+  }
 
   // Once per colony day: `tickLayerDaily` is the only caller, and a second roll would admit
   // another family from the same seeded `dailyPopulation` stream.
   const rng = getSimRng('dailyPopulation');
   if (
     state.tick > 0 &&
-    canSupportImmigration(state, counts.humans, openSlots) &&
+    affordableSlots > 0 &&
     rng() < immigrationChance
   ) {
     let spawnX = width / 2;
@@ -107,7 +118,7 @@ function tickImmigration(
     const rawSpawnX = spawnX + (rng() - 0.5) * 40;
     const rawSpawnY = spawnY + (rng() - 0.5) * 40;
     const spawn = findHumanSpawnNear(state, rawSpawnX, rawSpawnY);
-    const newcomers = createImmigrantSettler(state, spawn.x, spawn.y, openSlots, rng);
+    const newcomers = createImmigrantSettler(state, spawn.x, spawn.y, affordableSlots, rng);
     let admitted = 0;
 
     for (let i = 0; i < newcomers.length; i++) {
