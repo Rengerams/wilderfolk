@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import { tickPregnancyAndBirth, LIFECYCLE_CONFIG } from '../src/game/simulation/humanLifecycle';
+import { tickPregnancyAndBirth, LIFECYCLE_CONFIG, getPregnancyProgressFraction, isPregnancyHospitalStage } from '../src/game/simulation/humanLifecycle';
 import { seededRandomForRun } from '../src/game/simRng';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
@@ -127,6 +127,27 @@ afterEach(() => {
 });
 
 describe('human lifecycle golden contracts', () => {
+  it('uses each pregnancy\'s individual due date for the 85% stage and bounded UI progress', () => {
+    const early = human(MATERNAL_ID, { pregnant: true, pregnancyProgress: 84, pregnancyDueProgress: 100 });
+    const late = human(MATERNAL_ID, { pregnant: true, pregnancyProgress: 85, pregnancyDueProgress: 100 });
+    expect(getPregnancyProgressFraction(early)).toBeCloseTo(0.84);
+    expect(isPregnancyHospitalStage(early)).toBe(false);
+    expect(isPregnancyHospitalStage(late)).toBe(true);
+    expect(getPregnancyProgressFraction(human(MATERNAL_ID, { pregnancyProgress: 150, pregnancyDueProgress: 100 }))).toBe(1);
+    expect(isPregnancyHospitalStage(human(MATERNAL_ID, { pregnant: false, pregnancyProgress: 99, pregnancyDueProgress: 100 }))).toBe(false);
+  });
+
+  it('continues a legacy saved pregnancy whose progress field is absent', () => {
+    const mother = human(MATERNAL_ID, { pregnant: true, pregnancyProgress: undefined, pregnancyDueProgress: 2 });
+    const { state, ctx } = makeFixture([mother]);
+    state.tick = liveBirthTick();
+    runBirth(state, ctx, mother);
+    expect(mother.pregnancyProgress).toBe(1);
+    expect(mother.pregnant).toBe(true);
+    state.tick += 1;
+    runBirth(state, ctx, mother);
+    expect(mother.pregnant).toBe(false);
+  });
   it('creates one ordinary newborn and clears every completed-pregnancy field in the same tick', () => {
     const father = human(FATHER_ID);
     const mother = human(MATERNAL_ID, {
