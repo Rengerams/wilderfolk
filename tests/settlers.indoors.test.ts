@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { building, human } from '../src/test/factories';
-import { BuildingType, type WorldState } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType, type WorldState } from '../src/game/gameTypes';
 import { commuteDistanceToBuilding, commuteHumanToBuilding, enterHumanBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
 import { packEntityRenderMeta, buildRenderEntityShim } from '../src/game/simBuffers/entityRenderMeta';
@@ -93,6 +93,34 @@ describe('settlers inside buildings', () => {
     expect(patient.indoorBuildingId).toBeUndefined();
   });
 
+
+  it('stops crediting a pregnant worker at 85% without clearing her assigned job', () => {
+    const world = initGame({ skipTerrain: true, seed: 626 });
+    world.worldMap = null;
+    const mother = world.entities.find((person) =>
+      person.alive && person.type === EntityType.Human && person.gender === 'female');
+    if (!mother) throw new Error('missing founding mother');
+    const farm = building(world.nextBuildingId++, BuildingType.Farm, { x: mother.x + 80,
+      y: mother.y + 40, occupants: [mother.id], completed: true });
+    world.buildings.push(farm);
+    mother.job = JobType.Farmer;
+    mother.workerBuildingId = farm.id;
+    mother.pregnant = true;
+    mother.pregnancyDueProgress = 1000;
+    mother.pregnancyProgress = 840;
+    world.paused = false;
+    world.tick = 10 * TICKS_PER_HOUR;
+
+    gameTick(world);
+    const workedBefore = mother.scheduleWorkedTicksToday ?? 0;
+    expect(workedBefore).toBeGreaterThan(0);
+
+    mother.pregnancyProgress = 850;
+    gameTick(world);
+    expect(mother.scheduleWorkedTicksToday).toBe(workedBefore);
+    expect(mother.job).toBe(JobType.Farmer);
+    expect(mother.workerBuildingId).toBe(farm.id);
+  });
 
   it('observes missing, outdoor and dead patients without claiming admission', () => {
     const world = initGame({ skipTerrain: true, seed: 623 });
