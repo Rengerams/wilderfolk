@@ -336,6 +336,28 @@ describe('real raid captives', () => {
     expect(resolved.raidPrisonerHistory?.[0].status).toBe('released');
   });
 
+  it('initializes a recruited rival genome and born marks once, unchanged by save/load', () => {
+    const world = captiveColony();
+    const foreign = world.entities.find((entry) => entry.id === 910000)!;
+    foreign.genomeV2 = undefined;
+    foreign.marks = undefined;
+    world.tick = foreign.warCaptive!.recruitAfterTick;
+    // The first warPrisoners roll at seed 25 accepts recruitment; the marks roll yields sickly.
+    setSimSeed(25);
+    const recruited = resolveWarPrisoner(world, foreign.id, 'recruit');
+    const citizen = recruited.entities.find((entry) => entry.id === foreign.id)!;
+    expect(citizen.faction).toBeUndefined();
+    expect(citizen.warCaptive).toBeUndefined();
+    expect(citizen.genomeV2?.version).toBe(2);
+    expect(citizen.genomeV2?.aptitudeAlleles).toHaveLength(14);
+    expect(citizen.marks).toEqual([{ id: 'sickly', day: 0, source: 'born' }]);
+    expect(foreign.genomeV2).toBeUndefined();
+    expect(resolveWarPrisoner(recruited, foreign.id, 'recruit')).toBe(recruited);
+    const restored = reload(recruited).entities.find((entry) => entry.id === foreign.id)!;
+    expect(restored.genomeV2).toEqual(citizen.genomeV2);
+    expect(restored.marks).toEqual(citizen.marks);
+  });
+
   it('allows refusal and applies a persisted recruitment cooldown', () => {
     const world = captiveColony();
     const person = world.entities.find((entry) => entry.id === 910000)!;

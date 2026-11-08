@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycle';
+import { DAYS_PER_YEAR, TICKS_PER_DAY, getColonyDay, setHumanBirthFromAge } from '../src/game/dayCycle';
+import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
 import {
   BuildingType,
   EntityType,
@@ -140,8 +141,11 @@ describe('villageLeadership.electionGaps.test.ts', () => {
 
   /** No eligible candidate: `isEligibleForLeadership` requires a non-juvenile, un-imprisoned adult. */
   function makeEveryoneIneligible(state: WorldState): void {
+    const colonyDay = getColonyDay(state);
     for (const entity of state.entities) {
-      if (entity.type === EntityType.Human && entity.faction == null) entity.isJuvenile = true;
+      if (entity.type === EntityType.Human && entity.faction == null) {
+        setHumanBirthFromAge(entity, HUMAN_ADULT_MIN_AGE - 1, colonyDay);
+      }
     }
   }
 
@@ -194,8 +198,11 @@ describe('villageLeadership.electionGaps.test.ts', () => {
       expect(state.pendingElectionYear).toBeCloseTo(TERM_YEAR + VACANCY_ELECTION_DELAY_YEARS, 10);
 
       // And the retry really runs: restore adults and land on the armed day.
+      const colonyDay = getColonyDay(state);
       for (const entity of state.entities) {
-        if (entity.type === EntityType.Human && entity.faction == null) entity.isJuvenile = false;
+        if (entity.type === EntityType.Human && entity.faction == null) {
+          setHumanBirthFromAge(entity, HUMAN_ADULT_MIN_AGE + 10, colonyDay);
+        }
       }
       const due = state.pendingElectionYear ?? 0;
       const dueYear = Math.floor(due);
@@ -219,8 +226,11 @@ describe('villageLeadership.electionGaps.test.ts', () => {
       expect(state.pendingElectionYear).toBeCloseTo(TERM_YEAR + VACANCY_ELECTION_DELAY_YEARS, 10);
 
       // And the retry really runs once an adult is eligible again.
+      const colonyDay = getColonyDay(state);
       for (const entity of state.entities) {
-        if (entity.type === EntityType.Human && entity.faction == null) entity.isJuvenile = false;
+        if (entity.type === EntityType.Human && entity.faction == null) {
+          setHumanBirthFromAge(entity, HUMAN_ADULT_MIN_AGE + 10, colonyDay);
+        }
       }
       const due = state.pendingElectionYear ?? 0;
       const dueYear = Math.floor(due);

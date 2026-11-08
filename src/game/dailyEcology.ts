@@ -14,6 +14,12 @@ const INDUSTRIAL_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingTyp
 
 const IDEAL_WILDLIFE = 80;
 
+/** Settlers per point of population pollution: 300 / 1,000 / 2,500 colonies grade 12 / 40 / 100. */
+const HUMAN_POLLUTION_PER_POINT = 25;
+/** Each Wildlife Preserve damps the whole pollution score by 5%, floored so it never erases it. */
+const POLLUTION_PRESERVE_DAMPING = 0.05;
+const POLLUTION_PRESERVE_FLOOR = 0.5;
+
 /** Ecosystem health a completed Wildlife Preserve adds (advertised in the build panel). */
 export const PRESERVE_HEALTH_BONUS = 4;
 
@@ -137,9 +143,14 @@ export function calculateEcosystemMetrics(
     }
   }
 
-  // Calculate Pollution
+  // Calculate Pollution: the population term grades across the scale instead of pinning at the cap.
   const pollutionMult = hasTech(state, 'forestry_2') ? 0.5 : 1.0;
-  const rawPollution = industrialCount * 4 * pollutionMult + counts.humans / 3;
+  const preserveDamping = Math.max(
+    POLLUTION_PRESERVE_FLOOR,
+    1 - preserveCount * POLLUTION_PRESERVE_DAMPING,
+  );
+  const rawPollution = (industrialCount * 4 * pollutionMult
+    + counts.humans / HUMAN_POLLUTION_PER_POINT) * preserveDamping;
   const pollutionLevel = Math.max(0, Math.min(100, Math.floor(rawPollution)));
 
   // Calculate Total Wildlife & Ratio

@@ -42,9 +42,18 @@ const BORN_MARK_CHANCE: Readonly<Record<'pretty' | 'sickly', number>> = { pretty
 
 const EMPTY_MARKS: readonly PersonalMark[] = Object.freeze([]);
 const MARK_IDS: ReadonlySet<string> = new Set(PERSONAL_MARK_IDS);
-const MARK_SOURCES: ReadonlySet<string> = new Set<PersonalMarkSource>([
-  'born', 'raidVictory', 'raidWound', 'rareWindfall',
-]);
+/** Provenance per mark: born marks come from birth, earned marks from their own resolved event. */
+const MARK_ALLOWED_SOURCES: Readonly<Record<PersonalMarkId, readonly PersonalMarkSource[]>> = {
+  lucky: ['raidVictory', 'rareWindfall'],
+  pretty: ['born'],
+  scarred: ['raidWound'],
+  sickly: ['born'],
+};
+
+function isAllowedMarkSource(id: PersonalMarkId, source: unknown): source is PersonalMarkSource {
+  return typeof source === 'string'
+    && (MARK_ALLOWED_SOURCES[id] as readonly string[]).includes(source);
+}
 
 export function isPersonalMarkId(value: unknown): value is PersonalMarkId {
   return typeof value === 'string' && MARK_IDS.has(value);
@@ -70,7 +79,7 @@ export function grantMark(
   source: PersonalMarkSource,
 ): boolean {
   if (!isPersonalMarkId(id) || !Number.isSafeInteger(day) || day < 0) return false;
-  if (!MARK_SOURCES.has(source)) return false;
+  if (!isAllowedMarkSource(id, source)) return false;
   const existing = marksOf(carrier);
   if (existing.some((mark) => mark.id === id)) return false;
   carrier.marks = [...existing, Object.freeze({ id, day, source })];
@@ -87,8 +96,8 @@ export function rollBornMarks(stream?: RngStream): PersonalMark[] {
 }
 
 /**
- * Validate an untrusted saved mark list. Unknown ids, duplicate ids, impossible days and
- * unrecognised sources are dropped; a non-array value is reported as absent.
+ * Validate an untrusted saved mark list. Unknown ids, duplicate ids and impossible day/source
+ * pairs are dropped; a non-array value is reported as absent.
  */
 export function normalizeMarks(value: unknown): PersonalMark[] | undefined {
   if (!Array.isArray(value)) return undefined;
@@ -102,9 +111,9 @@ export function normalizeMarks(value: unknown): PersonalMark[] | undefined {
     const source = record.source;
     if (!isPersonalMarkId(id) || seen.has(id)) continue;
     if (typeof day !== 'number' || !Number.isSafeInteger(day) || day < 0) continue;
-    if (typeof source !== 'string' || !MARK_SOURCES.has(source)) continue;
+    if (!isAllowedMarkSource(id, source)) continue;
     seen.add(id);
-    marks.push(Object.freeze({ id, day, source: source as PersonalMarkSource }));
+    marks.push(Object.freeze({ id, day, source }));
   }
   return marks;
 }

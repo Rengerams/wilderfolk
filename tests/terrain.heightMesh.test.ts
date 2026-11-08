@@ -3,6 +3,7 @@ import { testWorldMap } from '../src/test/worldMapFixtures';
 import {
   TERRAIN_HEIGHT_MESH_MAX_RISE,
   TERRAIN_HEIGHT_MESH_STEP,
+  resetTerrainRiseCache,
   supportsTerrainHeightMesh,
   terrainRiseAt,
 } from '../src/game/terrainAtlas';
@@ -57,6 +58,8 @@ describe('triangulated 2.5D ground', () => {
     expect(terrainRiseAt(map, 256, 256)).toBeGreaterThan(12);
     expect(terrainRiseAt(map, 256, 256)).toBeLessThanOrEqual(TERRAIN_HEIGHT_MESH_MAX_RISE);
     map.elevation!.fill(0.20);
+    // The lattice samples are dropped when a bake re-reads the map, as an elevation change does.
+    resetTerrainRiseCache();
     expect(terrainRiseAt(map, 256, 256)).toBe(0);
     map.generationVersion = 2;
     expect(supportsTerrainHeightMesh(map)).toBe(false);

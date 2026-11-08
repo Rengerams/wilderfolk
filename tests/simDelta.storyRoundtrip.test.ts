@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { MapSize } from '../src/game/gameTypes';
-import { extractSimTickDelta, applySimTickDelta } from '../src/game/simBuffers/simDelta';
+import { extractSimTickDelta, applySimTickDelta, type BuildingFingerprint } from '../src/game/simBuffers/simDelta';
 import {
   bumpHistoryRevision,
   resetHistoryRevisions,
@@ -34,6 +34,19 @@ describe('sim delta story/campaign transport (audit CRITICAL)', () => {
     expect(target.guidedCampaign).toEqual(world.guidedCampaign);
   });
 
+  it('ships election promise records with the tick delta', () => {
+    const world = initGame({ size: MapSize.Medium, seed: 123 });
+    world.electionPromiseRecords = [{
+      electionId: 4, leaderId: 7, year: 2, dueDay: 700, codes: [1, 4], evaluated: false,
+    }];
+
+    const delta = extractSimTickDelta(world, undefined, { cloneMode: 'isolated' });
+    const target = initGame({ size: MapSize.Medium, seed: 123 });
+    applySimTickDelta(target, delta, { cloneMode: 'isolated' });
+
+    expect(target.electionPromiseRecords).toEqual(world.electionPromiseRecords);
+  });
+
   it('includes the story fields in the save allow-list', async () => {
     const { WORLD_STATE_SAVE_KEYS } = await import('../src/game/saveSchema');
     expect(WORLD_STATE_SAVE_KEYS).toContain('storyFlags');
@@ -59,7 +72,8 @@ describe('sim delta story/campaign transport (audit CRITICAL)', () => {
     expect(delta1.buildings).toBeUndefined();
 
     // A stable tick with an up-to-date snapshot ships no buildings at all.
-    const snapshot = new Map(world.buildings.map((b) => [b.id, JSON.stringify(b)]));
+    const snapshot = new Map<number, BuildingFingerprint>();
+    extractSimTickDelta(world, undefined, { cloneMode: 'isolated', prevBuildings: new Map(), nextBuildings: snapshot });
     const delta2 = extractSimTickDelta(world, undefined, {
       cloneMode: 'isolated',
       prevBuildings: snapshot,

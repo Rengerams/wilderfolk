@@ -8,7 +8,7 @@ import {
   PATH_CELL,
 } from './gameTypes';
 import { addFloatingText, createDeathParticles, impulseScreenShake } from './simEffects';
-import { bumpTerrainRevision } from './terrainLayer';
+import { bumpTerrainRevision } from './terrain/terrainGrid';
 import { assignMissingWorkers } from './workforce';
 import { refundBuildingCost, removeBuildingFromState } from './buildingMaintenanceActions';
 import { assignMissingResidences } from './housingPipeline';
@@ -130,7 +130,12 @@ function clearTreesUnderFootprint(
   if (tilesChanged) {
     rebakeTerrainGrids(map, { startTx, endTx, startTy, endTy });
     // A mutated tile needs the revision bump, or the terrain caches keep the old fill and canopy.
-    bumpTerrainRevision();
+    bumpTerrainRevision({
+      left: startTx * PATH_CELL,
+      top: startTy * PATH_CELL,
+      right: endTx * PATH_CELL,
+      bottom: endTy * PATH_CELL,
+    });
   }
 }
 
@@ -202,7 +207,12 @@ export function startBuilding(
     }
     if (changed) {
       rebakeTerrainGrids(map, { startTx, endTx: endTx - 1, startTy, endTy: endTy - 1 });
-      bumpTerrainRevision();
+      bumpTerrainRevision({
+        left: startTx * PATH_CELL,
+        top: startTy * PATH_CELL,
+        right: endTx * PATH_CELL,
+        bottom: endTy * PATH_CELL,
+      });
       addFloatingText(state, x, y, `Ground reinforced · ${changed} tiles`, '#22c55e', 'brief');
       logEvent(state, 'building', `Ground reinforced (${changed} tiles)`);
     }

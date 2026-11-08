@@ -117,7 +117,7 @@ describe('an on-duty prison guard is not walked off his post by his marriage', (
 
     expect(getHourOfDay(tick), 'the guard should be inside his morning shift').toBe(9);
 
-    const post = humanBuildingTarget(prison, GUARD_ID, false);
+    const post = humanBuildingTarget(prison, GUARD_ID);
     const before = Math.hypot(post.x - guard.x, post.y - guard.y);
     const wifeBefore = Math.hypot(wife.x - guard.x, wife.y - guard.y);
 
@@ -152,7 +152,7 @@ describe('an on-duty prison guard is not walked off his post by his marriage', (
     const house = building(21, BuildingType.House, 60, PRISON_Y, []);
     const prison = building(PRISON_ID, BuildingType.Prison, PRISON_X, PRISON_Y, [GUARD_ID]);
     const state = worldState([guard], [house, prison], tick);
-    const post = humanBuildingTarget(prison, GUARD_ID, false);
+    const post = humanBuildingTarget(prison, GUARD_ID);
     const before = Math.hypot(post.x - guard.x, post.y - guard.y);
 
     gameTick(state, { minX: 5_000, maxX: 6_000, minY: 5_000, maxY: 6_000 });

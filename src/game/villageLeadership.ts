@@ -1,7 +1,7 @@
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState } from './gameTypes';
 import { maybeOfferValleyDebate } from './storyEvents';
-import { recordElectionPromises, tickElectionPromises } from './electionPromises';
+import { recordElectionPromises } from './electionPromises';
 import { BuildingType, EntityType } from './gameTypes';
 import { DAYS_PER_YEAR, getAgeInYears, TICKS_PER_HOUR } from './dayCycle';
 import { isImprisoned } from './housingModel';
@@ -264,7 +264,6 @@ export function isEligibleForLeadership(
     entity.alive &&
     entity.type === EntityType.Human &&
     isPlayerHuman(entity) &&
-    !entity.isJuvenile &&
     ageYears >= HUMAN_ADULT_MIN_AGE &&
     !isImprisoned(entity)
   );
@@ -385,7 +384,7 @@ export function isActingVillageHead(
 ): boolean {
   // Imprisonment must not clear the office: a jailed leader keeps villageLeaderId and the
   // occupation for the term, while elections exclude jailed candidates.
-  if (!entity || !entity.alive || entity.faction || entity.isJuvenile) {
+  if (!entity || !entity.alive || entity.faction || entity.age < HUMAN_ADULT_MIN_AGE) {
     return false;
   }
 
@@ -608,7 +607,7 @@ export function getElectionGatherTarget(
 
 export function findFoundingColonyLeader(state: WorldState): Entity | null {
   const pioneers = state.entities
-    .filter((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile)
+    .filter((e) => e.alive && isPlayerHuman(e) && e.age >= HUMAN_ADULT_MIN_AGE)
     .sort((a, b) => a.id - b.id);
   return pioneers.find((e) => e.gender === 'male') ?? pioneers[0] ?? null;
 }
@@ -1007,7 +1006,7 @@ export function runVillageElection(
     winnerId: winner.entityId,
     ballots: vote.totalVotes,
     tally: Object.fromEntries(vote.tally),
-    eligibleVoters: state.entities.filter((person) => person.alive && isPlayerHuman(person) && !person.isJuvenile).length,
+    eligibleVoters: state.entities.filter((person) => person.alive && isPlayerHuman(person) && person.age >= HUMAN_ADULT_MIN_AGE).length,
     turnout: vote.totalVotes,
   };
   state.villageLeaderId = winner.entityId;
@@ -1287,9 +1286,3 @@ export function setNewLeaderPromise(state: WorldState): void {
   recordElectionPromises(state, state.year);
 }
 
-/**
- * Advances evaluation for campaign promises from electionPromises.ts.
- */
-export function tickLeaderPromise(state: WorldState): void {
-  tickElectionPromises(state);
-}

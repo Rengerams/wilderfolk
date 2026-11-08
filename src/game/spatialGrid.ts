@@ -291,12 +291,13 @@ export class EntitySpatialGrid {
   /**
    * Broad-phase radial search with narrow-phase distance-squared filtering.
    * Derives bounds directly to prevent boundary edge distortion and wasteful walks.
+   * A callback that returns `false` stops the walk.
    */
   forEachInRadius(
     x: number,
     y: number,
     radius: number,
-    fn: (entity: Entity, distSq: number) => void,
+    fn: (entity: Entity, distSq: number) => boolean | void,
     recordCandidates = true,
   ): void {
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(radius) || radius < 0) return;
@@ -318,7 +319,7 @@ export class EntitySpatialGrid {
     const cols = this.cols;
     const cells = this.cells;
 
-    for (let row = minRow; row <= maxRow; row++) {
+    walk: for (let row = minRow; row <= maxRow; row++) {
       const rowOffset = row * cols;
       for (let col = minCol; col <= maxCol; col++) {
         const bucket = cells[rowOffset + col];
@@ -333,7 +334,7 @@ export class EntitySpatialGrid {
           if (dSq > radiusSq) continue;
           if (recordCandidates && metrics) recordSpatialCandidate();
 
-          fn(entity, dSq);
+          if (fn(entity, dSq) === false) break walk;
         }
       }
     }

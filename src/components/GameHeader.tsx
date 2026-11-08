@@ -87,6 +87,7 @@ export default function GameHeader({
   muted,
   volumePreset,
   hasSavedGame,
+  hasImportedSave,
 tutorialsEnabled,
   juiceEffectsEnabled,
   showSimTick,
@@ -102,6 +103,7 @@ tutorialsEnabled,
   onOpenTrade,
   onSave,
   onLoad,
+  onLoadImported,
   onLoadFromFile,
   onReplayIntro,
   onToggleAutoSave,
@@ -304,6 +306,7 @@ tutorialsEnabled,
             onClick={onOpenTrade}
             className="flex items-center gap-0.5 rounded-md bg-violet-900/35 px-1.5 py-1 text-[13px] text-violet-200 hover:bg-violet-800/45"
             title={`Reputation ${world.villageReputation} — click for trade routes`}
+            aria-label={`Reputation ${world.villageReputation} — open trade routes`}
           >
             <span>⭐</span>
             <span className="font-mono font-bold">{world.villageReputation}</span>
@@ -413,6 +416,7 @@ tutorialsEnabled,
           gamePhase={gamePhase}
           gameSubtitle={gameSubtitle}
           hasSavedGame={hasSavedGame}
+          hasImportedSave={hasImportedSave}
           autoSave={world.autoSave}
           tutorialsEnabled={tutorialsEnabled}
           juiceEffectsEnabled={juiceEffectsEnabled}
@@ -423,6 +427,7 @@ tutorialsEnabled,
           volumePreset={volumePreset}
           onSave={onSave}
           onLoad={onLoad}
+          onLoadImported={onLoadImported}
           onLoadFromFile={onLoadFromFile}
           onReplayIntro={onReplayIntro}
           onToggleAutoSave={onToggleAutoSave}

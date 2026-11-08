@@ -32,7 +32,8 @@ export function isHighlightableBuilding(b: Building): boolean {
   return b.completed && b.type !== BuildingType.Road && !ISO_PANEL_BUILDINGS.has(b.type);
 }
 
-function completedDepthSortedBuildings(buildings: readonly Building[]): Building[] {
+/** Completed, highlightable buildings in feet-depth order; the static occluder pass merges them. */
+export function depthSortedBuildings(buildings: readonly Building[]): Building[] {
   let count = 0;
   for (const b of buildings) {
     if (isHighlightableBuilding(b)) count++;
@@ -225,10 +226,14 @@ export function drawHoveredBuildingTint(
   drawConstructionBody(ctx, state, hovered, rect, true);
 }
 
-export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+/** Roads, walls and construction pads: flat groundwork below the y-sorted static occluders. */
+export function drawBuildingGroundwork(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+): void {
   const cam = state.camera;
-  // A running performance hides the gold level frames, pennants and "Lv" text: the show owns the frame.
-  const stageHidesLevelMarks = state.spotlightLore?.phase === 'ready';
 
   let roadStrips: ReturnType<typeof collectStripCenters> | null = null;
   for (const b of state.buildings) {
@@ -257,11 +262,28 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     if (rect.sy + rect.h < -20 || rect.sy - rect.h > ch + 20) continue;
     drawConstructionBody(ctx, state, b, rect, false);
   }
+}
 
-  for (const b of completedDepthSortedBuildings(state.buildings)) {
-    if (b.faction === 'rival') continue;
-    const { sx, sy, w, h } = getBuildingScreenRect(b, state, cam, cw, ch);
-    if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
+export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+  drawBuildingGroundwork(ctx, state, cw, ch);
+  for (const b of depthSortedBuildings(state.buildings)) {
+    drawDepthSortedBuilding(ctx, state, b, cw, ch);
+  }
+}
+
+/** One completed building, drawn at its y-sorted place in the static occluder list. */
+export function drawDepthSortedBuilding(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  b: Building,
+  cw: number,
+  ch: number,
+): void {
+  if (b.faction === 'rival') return;
+  const cam = state.camera;
+  const stageHidesLevelMarks = state.spotlightLore?.phase === 'ready';
+  const { sx, sy, w, h } = getBuildingScreenRect(b, state, cam, cw, ch);
+    if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) return;
 
     const cfg = BUILDING_CONFIGS[b.type];
     const frame = cfg.sprite ? getSpriteFrame(cfg.sprite) : null;
@@ -347,6 +369,5 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
       ctx.textBaseline = 'middle';
       ctx.fillText(`${b.occupants.length}`, bx, by + 1);
       ctx.textBaseline = 'alphabetic';
-    }
   }
 }

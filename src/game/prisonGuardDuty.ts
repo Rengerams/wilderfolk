@@ -13,7 +13,7 @@ import { addFloatingText, addNotification } from './simEffects';
 import { humanDisplayName } from './citizenId';
 import { Prison } from './gameConstants';
 import { getHourOfDay, isStartOfClockHour } from './dayCycleClock';
-import { isNearBuilding } from './simulation/humanRelationships';
+import { isAtBuildingReach } from './buildingAccess';
 import { getSimRng, randomBool, randomChoice } from './simRng';
 import {
   PRISON_GUARDS_FOR_FULL_COVERAGE,
@@ -110,7 +110,9 @@ export function tickPrisonPresence(state: WorldState): void {
     // every open hour carries an escape roll.
     const posted = guardIds.some((id) => {
       const guard = livingById(state, entityById, id);
-      return guard != null && isNearBuilding(guard, prison);
+      // A staffed post is reached at the walkable facade, not an arbitrary distance from the centre.
+      // The movement owner already admits guards at this boundary and marks them indoors.
+      return guard != null && (guard.indoorBuildingId === prison.id || isAtBuildingReach(guard, prison));
     });
     if (posted) continue;
 

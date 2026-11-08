@@ -1,6 +1,6 @@
 import { getBattleProgressPercent, RAID_BATTLE_HOURS } from './game/frontierCombat';
 import { isStripBuildType } from './game/stripBuild';
-import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, lazy, Suspense } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, Suspense } from 'react';
 import {
   initGame,
   initTradeRoutes,
@@ -8,7 +8,8 @@ import {
 
   GAME_TITLE, GAME_VERSION, GAME_PHASE, GAME_SUBTITLE,
 
-  saveGameToSlot, loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave,
+  loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave,
+  saveImportedFileToSlot, loadImportedGameOutcome, hasImportedSave,
   loadGameFromFileTextOutcome,
   getVisitorLeaderTalkMeta,
   ensureFullTradeRoutes,
@@ -64,9 +65,10 @@ import { discardSpotlightReturn, takeSpotlightReturn } from './components/spotli
 import { isPlayerHuman } from './game/playerHuman';
 import { areNamesLoaded, loadNames, fixDefaultNames } from './game/nameLoader';
 import { ensureDialogueBankFromBundle, preloadDialogueBank } from './game/dialogueTrees';
-const IntroScreen = lazy(() => import('./game/IntroScreen'));
-const MapSetupScreen = lazy(() => import('./game/MapSetupScreen'));
-const CombatPreviewPanel = lazy(() => import('./game/CombatPreviewPanel'));
+import { lazyWithRetry } from './components/lazyWithRetry';
+const IntroScreen = lazyWithRetry(() => import('./game/IntroScreen'));
+const MapSetupScreen = lazyWithRetry(() => import('./game/MapSetupScreen'));
+const CombatPreviewPanel = lazyWithRetry(() => import('./game/CombatPreviewPanel'));
 import ActiveEventBanner from './components/ActiveEventBanner';
 import VillageRequestCard from './components/VillageRequestCard';
 import BigNewsBanner from './components/BigNewsBanner';
@@ -77,7 +79,7 @@ import SelectedEntityPanel from './components/SelectedEntityPanel';
 import FamilyTreeWindow from './components/FamilyTreeWindow';
 import WorkHoursWindow from './components/WorkHoursWindow';
 const SimulationDiagnosticsPanel = import.meta.env.DEV
-  ? lazy(() => import('./components/SimulationDiagnosticsPanel'))
+  ? lazyWithRetry(() => import('./components/SimulationDiagnosticsPanel'))
   : null;
 import { setRelationshipDiagnosticsConsoleLoggingEnabled } from './game/relationshipDiagnostics';
 import GamePlayLayout from './components/GamePlayLayout';
@@ -85,8 +87,10 @@ import GameInspector from './components/GameInspector';
 import GameOverlays from './components/GameOverlays';
 import WarfareStatus from './components/WarfareStatus';
 import BattleReportScreen from './components/BattleReportScreen';
-import { downloadSaveFile } from './game/saveLoad';
+import { saveGame } from './game/saveLoad';
+import ConfirmActionDialog from './components/ConfirmActionDialog';
 import { downloadChronicleLog } from './game/eventLogExport';
+import { registerLiveSessionSave } from './game/liveSessionSave';
 
 import GameBuildRail from './components/GameBuildRail';
 
@@ -94,6 +98,7 @@ import GameBuildRail from './components/GameBuildRail';
 import { useGamePersistence, type SaveToast } from './hooks/useGamePersistence';
 import { useTransientGameFeedback } from './hooks/useTransientGameFeedback';
 import { useGameSession } from './hooks/useGameSession';
+import { registerCrashRecoverySource } from './components/GameErrorBoundary';
 import {
   TUTORIAL_DONE_STORAGE_KEY,
   overviewNavFromState,
@@ -166,10 +171,17 @@ function SaveToastBanner({
             : 'border-rose-500/40 bg-rose-950/90 text-rose-200'
       }`}
     >
-      {toast.type === 'success' ? '💾 ' : '⚠️ '}{toast.message}
+      <span role="status" aria-live="polite">
+        {toast.type === 'success' ? '💾 ' : '⚠️ '}{toast.message}
+      </span>
     </button>
   );
 }
+
+type PendingLoad =
+  | { source: 'slot'; closeSetup?: boolean; successToast?: string }
+  | { source: 'file'; jsonText: string }
+  | { source: 'imported' };
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -264,6 +276,9 @@ export default function App() {
   // render body. `saveSlotPresent` is raw slot presence; `hasSavedGame` is "this build can load it".
   const [saveSlotPresent, setSaveSlotPresent] = useState(hasSaveSlot);
   const [hasSavedGame, setHasSavedGame] = useState(hasSave);
+  const [pendingLoad, setPendingLoad] = useState<PendingLoad | null>(null);
+  const loadConfirmInFlightRef = useRef(false);
+  const [hasImportedGame, setHasImportedGame] = useState(hasImportedSave);
   useEffect(() => {
     const refreshSaveSlot = () => setSaveSlotPresent(hasSaveSlot());
     window.addEventListener('storage', refreshSaveSlot);
@@ -295,10 +310,14 @@ export default function App() {
     setCatalog,
     setHasPlacedHouse,
   });
+  useLayoutEffect(() => registerCrashRecoverySource({
+    getWorld: () => loopRef.current?.getWorld() ?? worldRef.current,
+    getView: () => loopRef.current?.getView() ?? viewRef.current,
+  }), [loopRef, worldRef, viewRef]);
   const autoPlayer = useVirtualPlayer({ world, applyGameAction });
   const fps = useFpsMeter(showFps || autoPlayer.enabled);
   const gameplayActive = !showIntro && !showMapSetup && spritesLoaded;
-  const { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset } = useGameAudio(world, gameplayActive);
+  const { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset } = useGameAudio(world, gameplayActive, sessionRevision);
 
   useEffect(() => {
     if (showIntro) {
@@ -313,6 +332,11 @@ export default function App() {
     if (!gameplayActive) return;
     void beginAudio();
   }, [gameplayActive]);
+
+  useEffect(
+    () => registerLiveSessionSave(() => loopRef.current?.getWorldAndView() ?? null),
+    [loopRef],
+  );
   const { active: contextualTip, dismissActive: dismissContextualTip, markSeen: markContextualTipSeen } = useContextualTutorial(
     world,
     gameplayActive && tutorialsEnabled && !showTutorial,
@@ -1038,6 +1062,9 @@ export default function App() {
     handleMouseUp,
     handleMouseLeave,
     handleContextMenu,
+    pendingStripDemolition,
+    confirmStripDemolition,
+    cancelStripDemolition,
   } = useCanvasInteractions({
     canvasRef,
     loopRef,
@@ -1148,50 +1175,101 @@ export default function App() {
     // cannot freeze it after the session swap.
     setShowTutorial(false);
     setTutorialStep(0);
-    setHasSavedGame(true);
   }, [replaceSession, synchronizeTransientFeedbackFromWorld, setShowTutorial, setTutorialStep]);
 
-  /**
-   * The one browser-slot load path, shared by the game menu and the new-settlement screen.
-   * Read first so a refusal names its real cause instead of guessing.
-   */
+  /** Every slot load arms here; only `confirmPendingLoad` replaces the running colony. */
+  /** The one browser-slot load path, shared by the menu and new-settlement screen. */
   const loadFromSlot = useCallback((options?: { closeSetup?: boolean; successToast?: string }) => {
-    const outcome = loadGameOutcome();
-    if (!outcome.ok) {
-      setHasSavedGame(outcome.reason === 'unrestorable' ? hasSave() : false);
-      showSaveToast({ message: describeSaveLoadOutcome(outcome), type: 'error' });
-      return;
-    }
-    applyLoadedSession(outcome);
-    setHasSavedGame(true);
-    if (options?.closeSetup) setShowMapSetup(false);
-    if (options?.successToast) showSaveToast({ message: options.successToast, type: 'success' });
-  }, [applyLoadedSession, showSaveToast, setShowMapSetup]);
+    setPendingLoad({ source: 'slot', ...options });
+  }, []);
 
   const handleLoad = useCallback(() => {
     loadFromSlot({ successToast: 'Game loaded' });
   }, [loadFromSlot]);
 
   const handleLoadFromFile = useCallback((jsonText: string) => {
-    // One owner for the refusal detail, so a file load names the field that broke exactly as the
-    // slot path does.
-    const outcome = loadGameFromFileTextOutcome(jsonText);
-    if (!outcome.ok) {
-      showSaveToast({ message: describeSaveLoadOutcome(outcome), type: 'error' });
+    if (!jsonText.trim()) {
+      showSaveToast({ message: 'That save file is empty.', type: 'error' });
       return;
     }
-    applyLoadedSession(outcome);
-    setShowMapSetup(false);
-    // Keep the browser slot in step with the file just loaded — the slot only, never a download.
-    // A valley the slot cannot hold leaves it untouched, so Load follows the slot's real contents.
-    saveGameToSlot(outcome.world, outcome.view);
-    setHasSavedGame(hasSave());
-    showSaveToast({ message: 'Colony loaded from file', type: 'success' });
-  }, [applyLoadedSession, showSaveToast, setShowMapSetup]);
+    setPendingLoad({ source: 'file', jsonText });
+  }, [showSaveToast]);
+
+  const confirmPendingLoad = useCallback(() => {
+    const pending = pendingLoad;
+    if (!pending || loadConfirmInFlightRef.current) return;
+    loadConfirmInFlightRef.current = true;
+    setPendingLoad(null);
+    try {
+      if (pending.source === 'slot') {
+        const outcome = loadGameOutcome();
+        if (!outcome.ok) {
+          setHasSavedGame(outcome.reason === 'unrestorable' ? hasSave() : false);
+          showSaveToast({ message: describeSaveLoadOutcome(outcome), type: 'error' });
+          return;
+        }
+        applyLoadedSession(outcome);
+        setHasSavedGame(true);
+        if (pending.closeSetup) setShowMapSetup(false);
+        if (pending.successToast) showSaveToast({ message: pending.successToast, type: 'success' });
+        return;
+      }
+
+      if (pending.source === 'imported') {
+        const outcome = loadImportedGameOutcome();
+        if (!outcome.ok) {
+          setHasImportedGame(hasImportedSave());
+          showSaveToast({ message: describeSaveLoadOutcome(outcome), type: 'error' });
+          return;
+        }
+        applyLoadedSession(outcome);
+        setShowMapSetup(false);
+        setHasSavedGame(hasSave());
+        setSaveSlotPresent(hasSaveSlot());
+        showSaveToast({ message: 'Imported colony restored; original quick-save preserved', type: 'success' });
+        return;
+      }
+
+      const outcome = loadGameFromFileTextOutcome(pending.jsonText);
+      if (!outcome.ok) {
+        showSaveToast({ message: describeSaveLoadOutcome(outcome), type: 'error' });
+        return;
+      }
+      // Imported files use their own backup slot; the browser quick-save must survive.
+      const imported = saveImportedFileToSlot(pending.jsonText, outcome.world);
+      applyLoadedSession(outcome);
+      setShowMapSetup(false);
+      setHasSavedGame(hasSave());
+      setSaveSlotPresent(hasSaveSlot());
+      setHasImportedGame(hasImportedSave());
+      showSaveToast(imported.success
+        ? { message: 'Colony loaded from file; original quick-save preserved', type: 'success' }
+        : { message: `Colony loaded; import backup unavailable: ${imported.error}`, type: 'error' });
+    } finally {
+      loadConfirmInFlightRef.current = false;
+    }
+  }, [applyLoadedSession, pendingLoad, showSaveToast, setShowMapSetup]);
+
+  const handleLoadImported = useCallback(() => {
+    setPendingLoad({ source: 'imported' });
+  }, []);
 
   const handleLoadFromSetup = useCallback(() => {
     loadFromSlot({ closeSetup: true });
   }, [loadFromSlot]);
+
+  const loadConfirmation = pendingLoad ? (
+    <ConfirmActionDialog
+      owner="load-confirmation"
+      title={pendingLoad.source === 'file' ? 'Load this save file?' : pendingLoad.source === 'imported' ? 'Load the imported colony?' : 'Load the browser quick-save?'}
+      message={pendingLoad.source !== 'slot'
+        ? 'Loading replaces the colony you are playing — unsaved progress is lost. Your browser quick-save stays untouched.'
+        : 'Loading replaces the colony you are playing — unsaved progress is lost.'}
+      confirmLabel="Load colony"
+      onConfirm={confirmPendingLoad}
+      onCancel={() => setPendingLoad(null)}
+    />
+  ) : null;
 
   useLayoutEffect(() => {
     dismissBigNewsRef.current = dismissBigNewsItem;
@@ -1246,6 +1324,7 @@ export default function App() {
 
   if (showMapSetup) {
     return (
+      <>
       <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-stone-950 text-stone-400">Loading…</div>}>
       <MapSetupScreen
         selectedSize={selectedMapSize}
@@ -1270,6 +1349,8 @@ export default function App() {
           handleLoadFromFile(jsonText);
         }}
         hasSave={canLoadSavedGame}
+        hasImportedSave={hasImportedGame}
+        onLoadImported={handleLoadImported}
         tutorialsEnabled={tutorialsEnabled}
         onTutorialsChange={(enabled) => {
           saveTutorialsEnabled(enabled);
@@ -1289,6 +1370,8 @@ export default function App() {
           it — this is the screen whose "Load saved game" button produces the refusal. */}
       {saveToast && <SaveToastBanner toast={saveToast} onDismiss={dismissSaveToast} className="z-[60]" />}
       </Suspense>
+      {loadConfirmation}
+      </>
     );
   }
 
@@ -1340,6 +1423,7 @@ export default function App() {
       : 'default';
 
   return (
+    <>
     <GamePlayLayout
       header={(
         <GameHeader
@@ -1354,6 +1438,8 @@ export default function App() {
           muted={muted}
           volumePreset={volumePreset}
           hasSavedGame={canLoadSavedGame}
+          hasImportedSave={hasImportedGame}
+          onLoadImported={handleLoadImported}
           speedOptions={SPEED_OPTIONS}
           onTogglePause={togglePause}
           onSetSpeed={setSpeed}
@@ -2005,7 +2091,6 @@ export default function App() {
                 key={selectedBuilding.id}
                 building={selectedBuilding}
                 state={world}
-                onAssign={() => applyGameAction({ proto: 1, op: 'assignWorker', buildingId: selectedBuilding.id })}
                 onRepair={() => applyGameAction({ proto: 1, op: 'repairBuilding', buildingId: selectedBuilding.id })}
                 onUpgrade={() => applyGameAction({ proto: 1, op: 'upgradeBuilding', buildingId: selectedBuilding.id })}
                 onDemolish={() => applyGameAction({ proto: 1, op: 'demolishBuilding', buildingId: selectedBuilding.id })}
@@ -2049,7 +2134,7 @@ export default function App() {
           <WarfareStatus world={world}
             onRepair={(buildingId) => applyGameAction({ proto: 1, op: 'repairBuilding', buildingId })}
             onPrisonerDecision={(entityId, choiceId) => applyGameAction({ proto: 1, op: 'resolveWarPrisoner', entityId, choiceId })}
-            onExport={() => { downloadSaveFile(world, view); }}
+            onExport={() => { saveGame(world, view); }}
             onChronicle={() => { downloadChronicleLog(world.eventLog, { villageName: world.villageName, year: world.year, day: world.dayInYear, tick: world.tick, population: world.humanPopulation }); }}
             onNewVillage={startNewGame} onMainMenu={() => setShowIntro(true)} />
       {/*
@@ -2266,6 +2351,18 @@ export default function App() {
         </GameOverlays>
       )}
     />
+    {loadConfirmation}
+    {pendingStripDemolition && (
+      <ConfirmActionDialog
+        owner="strip-demolition"
+        title="Remove these segments?"
+        message={`This permanently removes ${pendingStripDemolition.length} road, wall or reinforcement segment${pendingStripDemolition.length === 1 ? '' : 's'}. This cannot be undone.`}
+        confirmLabel={`Remove ${pendingStripDemolition.length}`}
+        onConfirm={confirmStripDemolition}
+        onCancel={cancelStripDemolition}
+      />
+    )}
+    </>
   );
 }
 

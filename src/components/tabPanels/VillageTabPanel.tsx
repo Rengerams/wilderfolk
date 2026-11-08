@@ -1,4 +1,5 @@
-import { memo, Suspense, lazy, useState } from 'react';
+import { memo, Suspense, useState } from 'react';
+import { lazyWithRetry } from '../lazyWithRetry';
 import { BuildingType } from '../../game/gameTypes';
 import { getForgeOrder } from '../../game/forge';
 import { getHumanArmamentLabel, getArmamentSteps, hasTech } from '../../game/gameEngine';
@@ -18,9 +19,9 @@ import { getHourOfDay } from '../../game/dayCycle';
 import { largestBloodlines, largestExtendedFamilies } from '../../game/genealogyRegistry';
 import { REPUTATION_FRIENDLY_MIN, REPUTATION_HARSH_MAX } from '../../game/simHelpers';
 
-const FocusPanel = lazy(() => import('../../game/FocusPanel'));
-const VillageLeadershipPanel = lazy(() => import('../../game/VillageLeadershipPanel'));
-const PopulationPanel = lazy(() => import('../../game/PopulationPanel'));
+const FocusPanel = lazyWithRetry(() => import('../../game/FocusPanel'));
+const VillageLeadershipPanel = lazyWithRetry(() => import('../../game/VillageLeadershipPanel'));
+const PopulationPanel = lazyWithRetry(() => import('../../game/PopulationPanel'));
 
 interface StatBadgeProps {
   label: string;

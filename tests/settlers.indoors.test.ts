@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { building, human } from '../src/test/factories';
 import { BuildingType, type WorldState } from '../src/game/gameTypes';
-import { commuteDistanceToBuilding, commuteHumanToBuilding, enterHumanBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { commuteDistanceToBuilding, commuteHumanToBuilding, enterHumanBuilding, homeStandPosition, humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { buildingAccessPoint } from '../src/game/buildingAccess';
 import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
 import { packEntityRenderMeta, buildRenderEntityShim } from '../src/game/simBuffers/entityRenderMeta';
 import { packRenderSoA } from '../src/game/simBuffers/packRenderSoA';
@@ -16,6 +17,7 @@ import { createInitialView } from '../src/game/viewState';
 import { _cachedHumans, resetEntityCaches, updateCachedEntitiesFromSoA } from '../src/game/renderer/entityCache';
 import { observeIndoorPatients } from '../src/game/virtualPlayer';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
+import { PREGNANCY_TICKS } from '../src/game/dayCycle';
 import { prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { drawHumans, drawLeaderAuraOverlay } from '../src/game/renderer/humans';
 
@@ -25,16 +27,18 @@ describe('settlers inside buildings', () => {
     BuildingType.TownHall, BuildingType.Church, BuildingType.Greenhouse, BuildingType.Mine])('enters completed %s only after arriving', (type) => {
     const home = building(0, type, { x: 300, y: 300, occupants: [1] });
     const person = human(1, { x: -1000, y: -1000 });
-    expect(commuteHumanToBuilding(person, home, 2, false)).toBe(false);
+    expect(commuteHumanToBuilding(person, home, 2)).toBe(false);
     expect(person.indoorBuildingId).toBeUndefined();
-    Object.assign(person, humanBuildingTarget(home, person.id, false));
-    expect(commuteHumanToBuilding(person, home, 2, false)).toBe(true);
-    expect(person.indoorBuildingId).toBe(0);
+    Object.assign(person, buildingAccessPoint(home));
+    expect(commuteHumanToBuilding(person, home, 2)).toBe(true);
+    // Arrival is not entry: the activity decides, so the commuter leaves indoor state alone.
+    expect(person.indoorBuildingId).toBeUndefined();
     expect([person.vx, person.vy]).toEqual([0, 0]);
-    commuteDistanceToBuilding(person, home, false);
+    commuteDistanceToBuilding(person, home);
+    enterHumanBuilding(person, home);
     expect(person.indoorBuildingId).toBe(0);
-    commuteHumanToBuilding(person, building(2, type, { x: 1000, y: 1000 }), 2, false);
-    expect(person.indoorBuildingId).toBeUndefined();
+    commuteHumanToBuilding(person, building(2, type, { x: 1000, y: 1000 }), 2);
+    expect(person.indoorBuildingId).toBe(0);
   });
 
   it.each([BuildingType.Farm, BuildingType.Quarry, BuildingType.HuntingSpot, BuildingType.FishingSpot,
@@ -52,11 +56,12 @@ describe('settlers inside buildings', () => {
 
   it('admits a pregnant patient already at the ward instead of leaving her outside', () => {
     const ward = building(0, BuildingType.Hospital, { x: 100, y: 100 });
-    const person = human(1, { x: 110, y: 110, pregnant: true });
-    tickHumanHospitalPatientCare({ state: { tick: 5 } as WorldState, entity: person, staffedHospitals: [ward], onJobShift: false, speed: 2 });
+    // Past the pregnancy hospital threshold, so this is the routing rule under test.
+    const person = human(1, { x: 110, y: 110, pregnant: true, pregnancyProgress: PREGNANCY_TICKS });
+    tickHumanHospitalPatientCare({ state: { tick: 5 } as WorldState, entity: person, staffedHospitals: [ward], speed: 2 });
     expect(person.indoorBuildingId).toBe(0);
     person.x = 1000;
-    tickHumanHospitalPatientCare({ state: { tick: 5 } as WorldState, entity: person, staffedHospitals: [ward], onJobShift: false, speed: 2 });
+    tickHumanHospitalPatientCare({ state: { tick: 5 } as WorldState, entity: person, staffedHospitals: [ward], speed: 2 });
     expect(person.indoorBuildingId).toBeUndefined();
   });
 
@@ -110,7 +115,7 @@ describe('settlers inside buildings', () => {
     const world = initGame({ skipTerrain: true, seed: 624 });
     world.worldMap = null;
     const workplace = building(0, BuildingType.Blacksmith, { x: 300, y: 300, occupants: [1], staffingMode: 'manual' });
-    const person = human(1, { ...humanBuildingTarget(workplace, 1, false), gender: 'male',
+    const person = human(1, { ...humanBuildingTarget(workplace, 1), gender: 'male',
       job: 'blacksmith', workerBuildingId: 0, relationshipStatus: 'married', partnerId: 2,
       affairPartnerId: 3, affairProgress: 30, residenceBuildingId: 4 });
     world.entities = [person,
@@ -140,7 +145,7 @@ describe('settlers inside buildings', () => {
     const home = building(7, BuildingType.House, {
       x: 220, y: 220, width: 40, height: 36, occupants: [residentId!],
     });
-    const porch = humanBuildingTarget(home, residentId!, true);
+    const porch = homeStandPosition(home, residentId!);
     const person = human(residentId!, {
       x: porch.x - 40, y: porch.y, residenceBuildingId: home.id, energy: 0, maxEnergy: 100,
       needs: { nutrition: 80, rest: 70, stamina: 0, severeHungerTicks: 0, breakUntilRecovered: true },

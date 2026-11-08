@@ -29,7 +29,7 @@ import { logEvent, repairEventLogOnLoad, syncEventLogIdFromState } from './event
 import { pickHumanVariant } from './humanSprites';
 import { migrateLegacyMoonHowler, syncMoonHowlerForms } from './moonHowler';
 import { reconcileFamilyReferencesAfterRemoval } from './humanLifecycleCleanup';
-import { isPlayerHuman } from './playerHuman';
+import { isForeignFaction, isPlayerHuman } from './playerHuman';
 import { clampCloseFriendships } from './relationships';
 import { GAME_VERSION } from './version';
 import { ensureEntitySkills } from './skills';
@@ -67,6 +67,8 @@ import { nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
 import { pruneOrphanRivalEntities, retireLegacyCampStructures } from './rivalEvents';
 
 const SAVE_KEY = 'ecosim_save';
+/** A file import never writes the quick-save; the import has its own recoverable slot. */
+const IMPORTED_SAVE_KEY = 'ecosim_imported_save';
 
 /**
  * The most a save payload may weigh before it leaves the browser slot for a file. One slot shares a
@@ -109,15 +111,15 @@ function repairLoadedHumanGround(world: WorldState): number {
 const COMPATIBLE_SAVE_VERSIONS = new Set([GAME_VERSION, '0.6.5.0']);
 
 /**
- * The one genotype load boundary: keep a valid saved genome, backfill an old settler
+ * The one genotype load boundary: keep a valid saved genome, backfill an old player settler
  * deterministically, and drop the retired categorical traits field.
  */
 function backfillLegacySettlerDNA(entities: Entity[], colonySeed: number): number {
   let filled = 0;
   for (const entity of entities) {
     if (entity.type !== EntityType.Human && entity.type !== EntityType.Werewolf) continue;
-    // The retired categorical labels are never kept as a second genetics source, even for the dead.
-    delete (entity as unknown as Record<string, unknown>).traits;
+    // Foreign humans stay neutral by contract; adoption already dropped their genome and marks.
+    if (isForeignFaction(entity.faction)) continue;
     // A cursed settler may be saved in moon form, which is still the same person and their genome.
     if (!entity.alive) continue;
     const saved = normalizeGenome(entity.genomeV2);
@@ -147,6 +149,8 @@ function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): v
       && Number.isSafeInteger(legacy.homeBuildingId) && legacy.homeBuildingId >= 0) {
       assignment.workerBuildingId = legacy.homeBuildingId;
     }
+    // Remove the retired own property, not merely its value: both restored objects and
+    // subsequent serialization must have the same authoritative workplace field.
     delete legacy.homeBuildingId;
   }
   if (entity.type === EntityType.Human || entity.type === EntityType.Werewolf) {
@@ -284,9 +288,9 @@ export function describeSaveCompatibility(): string {
   return `This build is v${GAME_VERSION}. Saves from v0.6.5.0 and v${GAME_VERSION} are supported. Keep backups of original save files when upgrading.`;
 }
 
-export function readSavePayload(): SaveReadResult {
+export function readSavePayload(slotKey: string = SAVE_KEY): SaveReadResult {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(slotKey);
     if (!raw) return { valid: false, reason: 'empty' };
     return parseSaveJson(raw);
   } catch (e) {
@@ -354,17 +358,11 @@ export function describeCadenceFileSave(reason: FileSaveReason): string {
   return `${fileSaveCause(reason)} — auto-save is off here. Save by hand with Save to file.`;
 }
 
-/** Download colony save as a file; the browser slot is written only when the payload fits it. */
-export function downloadSaveFile(world: WorldState, view: ViewState): SaveResult {
-  const saveData = buildSaveData(world, view);
-  return downloadSaveJson(world, JSON.stringify(saveData));
-}
-
-function downloadSaveJson(world: WorldState, json: string): SaveResult {
+function downloadSaveJson(world: WorldState, json: string, writeBrowserSlot = true): SaveResult {
   try {
     const route = decideSaveRoute(world, json);
     let slotWarning: string | undefined;
-    if (route.target === 'slot') {
+    if (writeBrowserSlot && route.target === 'slot') {
       try {
         localStorage.setItem(SAVE_KEY, json);
       } catch {
@@ -639,6 +637,61 @@ export function migrateLegacySecurityRoles(world: WorldState): void {
  * Scale absolute tick values when the save's day length differs from `TICKS_PER_DAY`
  * (legacy 24- and 72-tick days); current-resolution saves need no scaling.
  */
+const WORLD_TICK_FIELDS = [
+  'townHallFestivalCooldownUntilTick',
+  'renffrChatterUntilTick',
+  'lastMoonHowlerExorcismTick',
+  'moonHowlerPriestsFleeUntil',
+] as const satisfies readonly (keyof WorldState)[];
+
+const ENTITY_TICK_FIELDS = [
+  'prisonerUntilTick',
+  'scandalCooldownUntilTick',
+  'griefUntilTick',
+  'hotelStayUntilTick',
+  'reproductionCooldown',
+  'pregnancyProgress',
+  'pregnancyDueProgress',
+  'lastAutoJobTransferTick',
+] as const satisfies readonly (keyof Entity)[];
+
+const NEEDS_TICK_FIELDS = [
+  'lastMealTick',
+  'lastAdvancedTick',
+  'sleepRecoveryUntilTick',
+] as const satisfies readonly (keyof NonNullable<Entity['needs']>)[];
+
+const MOON_HOWLER_TICK_FIELDS = [
+  'pregnancyProgress',
+  'pregnancyDueProgress',
+  'lastAutoJobTransferTick',
+  'prisonerUntilTick',
+] as const satisfies readonly (keyof NonNullable<Entity['moonHowlerSaved']>)[];
+
+const SPOTLIGHT_TICK_FIELDS = [
+  'startedAtTick',
+  'readyAtTick',
+] as const satisfies readonly (keyof NonNullable<WorldState['spotlightLore']>)[];
+
+/** Scale one typed numeric field in place; non-finite or absent values are left untouched. */
+function scaleTickField<T extends object, K extends keyof T>(obj: T, key: K, scale: number): void {
+  const next = scaleTickValue(obj[key], scale);
+  if (next !== undefined) obj[key] = next as T[K];
+}
+
+/** Scale every value of a tick-keyed map (partner ids, line hashes, award keys). */
+function scaleTickRecord(record: Record<string | number, number> | undefined, scale: number): void {
+  if (!record) return;
+  for (const key of Object.keys(record)) {
+    const next = scaleTickValue(record[key], scale);
+    if (next !== undefined) record[key] = next;
+  }
+}
+
+/**
+ * Scale absolute tick values when the save's day length differs from `TICKS_PER_DAY`
+ * (legacy 24- and 72-tick days); current-resolution saves need no scaling.
+ */
 function migrateTickTimeline(
   world: WorldState,
   savedTicksPerDay: number,
@@ -649,92 +702,81 @@ function migrateTickTimeline(
 
   world.tick = Math.round((world.tick ?? 0) * scale);
 
-  const scaleField = (obj: Record<string, unknown>, key: string) => {
-    const next = scaleTickValue(obj[key], scale);
-    if (next !== undefined) obj[key] = next;
-  };
+  for (const key of WORLD_TICK_FIELDS) scaleTickField(world, key, scale);
 
-  scaleField(world as unknown as Record<string, unknown>, 'townHallFestivalCooldownUntilTick');
-  scaleField(world as unknown as Record<string, unknown>, 'renffrChatterUntilTick');
-
-  for (const e of world.entities ?? []) {
-    const rec = e as unknown as Record<string, unknown>;
-    scaleField(rec, 'prisonerUntilTick');
-    if (e.warCaptive) {
-      scaleField(e.warCaptive as unknown as Record<string, unknown>, 'capturedAtTick');
-      scaleField(e.warCaptive as unknown as Record<string, unknown>, 'recruitAfterTick');
+  for (const entity of world.entities ?? []) {
+    for (const key of ENTITY_TICK_FIELDS) scaleTickField(entity, key, scale);
+    if (entity.needs) {
+      for (const key of NEEDS_TICK_FIELDS) scaleTickField(entity.needs, key, scale);
     }
-    if (e.battleLeadershipAwards) {
-      for (const key of Object.keys(e.battleLeadershipAwards)) scaleField(e.battleLeadershipAwards, key);
+    if (entity.warCaptive) {
+      scaleTickField(entity.warCaptive, 'capturedAtTick', scale);
+      scaleTickField(entity.warCaptive, 'recruitAfterTick', scale);
     }
-    scaleField(rec, 'scandalCooldownUntilTick');
-    scaleField(rec, 'griefUntilTick');
-    scaleField(rec, 'hotelStayUntilTick');
-    scaleField(rec, 'reproductionCooldown');
-    scaleField(rec, 'pregnancyProgress');
-    scaleField(rec, 'pregnancyDueProgress');
-
-    const saved = rec.moonHowlerSaved;
-    if (saved && typeof saved === 'object') {
-      scaleField(saved as Record<string, unknown>, 'pregnancyProgress');
-      scaleField(saved as Record<string, unknown>, 'pregnancyDueProgress');
+    scaleTickRecord(entity.battleLeadershipAwards, scale);
+    scaleTickRecord(entity.pastPartnerTicks, scale);
+    scaleTickRecord(entity.dialogueRecentLines, scale);
+    if (entity.dialogueRecentScenes) {
+      for (const scene of Object.values(entity.dialogueRecentScenes)) scaleTickField(scene, 'tick', scale);
+    }
+    if (entity.moonHowlerSaved) {
+      for (const key of MOON_HOWLER_TICK_FIELDS) scaleTickField(entity.moonHowlerSaved, key, scale);
+      if (entity.moonHowlerSaved.needs) {
+        for (const key of NEEDS_TICK_FIELDS) scaleTickField(entity.moonHowlerSaved.needs, key, scale);
+      }
     }
   }
 
   for (const route of world.tradeRoutes ?? []) {
-    const rec = route as unknown as Record<string, unknown>;
-    scaleField(rec, 'nextDepartureTick');
-    scaleField(rec, 'caravanWaitTicks');
+    scaleTickField(route, 'nextDepartureTick', scale);
+    scaleTickField(route, 'caravanWaitTicks', scale);
   }
 
   if (world.electionCeremony) {
-    const rec = world.electionCeremony as unknown as Record<string, unknown>;
-    scaleField(rec, 'phaseTicksLeft');
-    scaleField(rec, 'startedAtTick');
-    scaleField(rec, 'endsAtTick');
+    scaleTickField(world.electionCeremony, 'phaseTicksLeft', scale);
   }
 
   for (const evt of world.pendingRaidEvents ?? []) {
-    const rec = evt as unknown as Record<string, unknown>;
-    scaleField(rec, 'createdAtTick');
-    scaleField(rec, 'expiresAtTick');
-    scaleField(rec, 'battleStartedAtTick');
+    scaleTickField(evt, 'createdAtTick', scale);
+    scaleTickField(evt, 'expiresAtTick', scale);
+    scaleTickField(evt, 'battleStartedAtTick', scale);
   }
   for (const evt of world.pendingOutgoingRaidEvents ?? []) {
-    const rec = evt as unknown as Record<string, unknown>;
-    for (const field of ['createdAtTick', 'expiresAtTick', 'battleStartedAtTick', 'launchedAtTick',
-      'arrivalAtTick', 'returnAtTick', 'returnStartedAtTick']) scaleField(rec, field);
+    scaleTickField(evt, 'createdAtTick', scale);
+    scaleTickField(evt, 'expiresAtTick', scale);
+    scaleTickField(evt, 'battleStartedAtTick', scale);
+    scaleTickField(evt, 'launchedAtTick', scale);
+    scaleTickField(evt, 'arrivalAtTick', scale);
+    scaleTickField(evt, 'returnAtTick', scale);
+    scaleTickField(evt, 'returnStartedAtTick', scale);
   }
   if (world.raidRecovery) {
-    scaleField(world.raidRecovery as unknown as Record<string, unknown>, 'startedAtTick');
-    scaleField(world.raidRecovery as unknown as Record<string, unknown>, 'protectedUntilTick');
+    scaleTickField(world.raidRecovery, 'startedAtTick', scale);
+    scaleTickField(world.raidRecovery, 'protectedUntilTick', scale);
   }
-  for (const report of world.raidBattleReports ?? []) scaleField(report as unknown as Record<string, unknown>, 'resolvedAtTick');
-  for (const record of world.raidPrisonerHistory ?? []) scaleField(record as unknown as Record<string, unknown>, 'tick');
-  for (const rival of world.rivalSettlements ?? []) scaleField(rival as unknown as Record<string, unknown>, 'lastDispositionRewardTick');
+  for (const report of world.raidBattleReports ?? []) scaleTickField(report, 'resolvedAtTick', scale);
+  for (const record of world.raidPrisonerHistory ?? []) scaleTickField(record, 'tick', scale);
+  for (const rival of world.rivalSettlements ?? []) scaleTickField(rival, 'lastDispositionRewardTick', scale);
   for (const evt of world.pendingDiplomacyEvents ?? []) {
-    const rec = evt as unknown as Record<string, unknown>;
-    scaleField(rec, 'createdAtTick');
-    scaleField(rec, 'expiresAtTick');
-    scaleField(rec, 'startedAtTick');
-  }
-  if (world.festival) {
-    const rec = world.festival as unknown as Record<string, unknown>;
-    scaleField(rec, 'startedAtTick');
-    scaleField(rec, 'endsAtTick');
+    scaleTickField(evt, 'createdAtTick', scale);
+    scaleTickField(evt, 'expiresAtTick', scale);
   }
   for (const evt of world.pendingStoryEvents ?? []) {
-    const rec = evt as unknown as Record<string, unknown>;
-    scaleField(rec, 'createdAtTick');
-    scaleField(rec, 'expiresAtTick');
+    scaleTickField(evt, 'createdAtTick', scale);
+    scaleTickField(evt, 'expiresAtTick', scale);
   }
+  if (world.spotlightLore) {
+    for (const key of SPOTLIGHT_TICK_FIELDS) scaleTickField(world.spotlightLore, key, scale);
+  }
+  for (const grave of world.graveRecords ?? []) scaleTickField(grave, 'tick', scale);
+  for (const evt of world.eventLog ?? []) scaleTickField(evt, 'tick', scale);
 }
 
 /**
  * A manual save always exports a JSON file. The browser slot is written too when the payload fits it,
- * so Load stays in step, and a slot that cannot be written is reported, never silently dropped.
+ * so Load stays in step. Crash recovery sets writeBrowserSlot=false and never touches the slot.
  */
-export function saveGame(world: WorldState, view: ViewState): SaveResult {
+export function saveGame(world: WorldState, view: ViewState, writeBrowserSlot = true): SaveResult {
   let json: string;
   try {
     json = JSON.stringify(buildSaveData(world, view));
@@ -742,7 +784,7 @@ export function saveGame(world: WorldState, view: ViewState): SaveResult {
     console.error('Save build failed:', e);
     return { success: false, error: 'Save failed — check browser storage permissions' };
   }
-  return downloadSaveJson(world, json);
+  return downloadSaveJson(world, json, writeBrowserSlot);
 }
 
 /** Save to the browser slot only — the path a save with no user gesture may take. */
@@ -761,9 +803,40 @@ export function saveGameToSlot(world: WorldState, view: ViewState): SaveResult {
   return writeSaveSlot(json);
 }
 
-function writeSaveSlot(json: string): SaveResult {
+/**
+ * One synchronous player-confirmation boundary shared by quick-save, imported-slot and file loads.
+ * Acquiring the guard before the confirmation also rejects a re-entrant click/loader call.
+ * No WorldState is mutated when the player cancels.
+ */
+export function executeConfirmedColonyLoad(
+  replacingActiveColony: boolean,
+  inFlight: { current: boolean },
+  confirmReplace: () => boolean,
+  load: () => void,
+): boolean {
+  if (inFlight.current) return false;
+  inFlight.current = true;
   try {
-    localStorage.setItem(SAVE_KEY, json);
+    if (replacingActiveColony && !confirmReplace()) return false;
+    load();
+    return true;
+  } finally {
+    inFlight.current = false;
+  }
+}
+
+/** Keep the original, validated JSON in a separate slot, never touching the existing quick-save. */
+export function saveImportedFileToSlot(json: string, world: WorldState): SaveResult {
+  const route = decideSaveRoute(world, json);
+  if (route.target === 'file') {
+    return { success: false, error: describeCadenceFileSave(route.reason), fileReason: route.reason };
+  }
+  return writeSaveSlot(json, IMPORTED_SAVE_KEY);
+}
+
+function writeSaveSlot(json: string, slotKey: string = SAVE_KEY): SaveResult {
+  try {
+    localStorage.setItem(slotKey, json);
     return { success: true };
   } catch (e) {
     const error =
@@ -1388,9 +1461,17 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       raidRecovery: worldData.raidRecovery,
       scoredRaidIds: worldData.scoredRaidIds,
       raidPrisonerHistory: worldData.raidPrisonerHistory,
-      entities: (worldData.entities || []).map((e: Partial<Entity>) => {
+      entities: (worldData.entities || []).map((saved: Partial<Entity> & { traits?: unknown }) => {
         // Required fields (`vx`, `vy`, `alive`, `flash`, `birthYear`, `birthMonth`, `birthDay`) are
         // repaired for every element here; `...e` still wins over every default the payload carries.
+        // Retired and foreign-only keys leave in this copy: a later `delete` would put every entity
+        // into dictionary-mode properties and slow the whole session.
+        const { traits: _retiredTraits, ...e } = saved;
+        let fields: Partial<Entity> = e;
+        if (isForeignFaction(e.faction)) {
+          const { genomeV2: _genome, marks: _marks, ...neutral } = e;
+          fields = neutral;
+        }
         const entity = {
           childrenIds: [],
           spriteAngle: 0,
@@ -1402,13 +1483,13 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
           birthYear: 0,
           birthMonth: 0,
           birthDay: 0,
-          ...e,
+          ...fields,
         } as Entity;
         // `generation` and `animFrame` are optional and read only for the species that carry them, so
         // they are repaired for those species alone rather than for every element.
         if (entity.type === EntityType.Human) entity.generation ??= 0;
         if (TICKED_SPECIES.has(entity.type)) entity.animFrame ??= 0;
-        migrateEntityPersistedFields(entity, e);
+        migrateEntityPersistedFields(entity, fields);
         if (isPlayerHuman(entity)) normalizeHumanNeeds(entity);
         if (entity.type === EntityType.Human && entity.spriteVariant === undefined && entity.gender) {
           entity.spriteVariant = pickHumanVariant(entity.id, entity.gender);
@@ -1447,9 +1528,9 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     // Personal marks are not genetics: validate or drop them without ever drawing a new one.
     for (const entity of world.entities) {
       if (entity.type !== EntityType.Human && entity.type !== EntityType.Werewolf) continue;
-      const marks = normalizeMarks(entity.marks);
-      if (marks === undefined) delete entity.marks;
-      else entity.marks = marks;
+      if (isForeignFaction(entity.faction)) continue;
+      // Cleared to `undefined`, not deleted, so the roster keeps fast properties for the session.
+      entity.marks = normalizeMarks(entity.marks);
     }
     for (const entity of world.entities) {
       migrateLegacyMoonHowler(entity, colonyDayOnLoad, hourOnLoad);
@@ -1578,7 +1659,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     ensureValleyEcologyOnLoad(world);
     migrateVillageForgeOnLoad(world);
     repairJuvenileAssignmentsOnLoad(world);
-    repairStaleFestivalOnLoad(world);
+    // Festival reconciliation is a single load-boundary operation (SIM-14).
     repairStaleFestivalOnLoad(world);
     for (const challenge of world.challenges ?? []) {
       const fresh = INITIAL_CHALLENGES.find((c) => c.id === challenge.id);
@@ -1648,6 +1729,23 @@ export function loadGameOutcome(): SaveLoadOutcome {
   } catch (e) {
     console.error('Save load failed:', e);
     return { ok: false, reason: 'unreadable', detail: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Reload the separately retained file import; never reads or modifies the quick-save. */
+export function loadImportedGameOutcome(): SaveLoadOutcome {
+  const parsed = readSavePayload(IMPORTED_SAVE_KEY);
+  if (!parsed.valid) return { ok: false, reason: parsed.reason, detail: parsed.detail };
+  return loadGameFromParsedOutcome(parsed.parsed);
+}
+
+/** The imported-save slot has an accepted and currently readable payload. */
+export function hasImportedSave(): boolean {
+  try {
+    const raw = localStorage.getItem(IMPORTED_SAVE_KEY);
+    return !!raw && parseSaveJson(raw).valid;
+  } catch {
+    return false;
   }
 }
 

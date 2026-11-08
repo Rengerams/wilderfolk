@@ -122,18 +122,17 @@ export interface HospitalRosterEntry {
   patients: HospitalPatientEntry[];
 }
 
-/** Who is in the ward, each with the owner's reason — the same reach the ward round treats by. */
+/** Who is in the ward: verified admissions only, each with the owner's reason for being there. */
 export function getHospitalRoster(
   hospital: Building,
   entities: readonly Entity[],
   tick: number,
 ): HospitalRosterEntry {
-  const hx = hospital.x + hospital.width / 2;
-  const hy = hospital.y + hospital.height / 2;
   const patients: HospitalPatientEntry[] = [];
   for (const e of entities) {
     if (!e.alive || !isPlayerHuman(e)) continue;
-    if (Math.hypot(e.x - hx, e.y - hy) > HOSPITAL_WARD_RADIUS_PX) continue;
+    // Admission, not proximity: the same verified-ward test that grants hospital rest.
+    if (!isRestingHospitalPatient(e, hospital, tick, e.indoorBuildingId)) continue;
     const reason = medicalCareReason(e, tick);
     if (reason) patients.push({ entity: e, reason });
   }

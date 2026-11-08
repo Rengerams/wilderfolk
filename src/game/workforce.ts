@@ -22,6 +22,7 @@ import { prisonGuardCapacity } from './prisonShifts';
 import { logEvent } from './eventLog';
 import { addFloatingText, addNotification } from './simEffects';
 import { TICKS_PER_DAY } from './dayCycleClock';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { Human, VirtualPlayer } from './gameConstants';
 import { isMeasuredFoodDeficit, isProjectedFoodShortfall } from './economyLedger';
 import { evaluateWorkerFit } from './careers/workerFit';
@@ -204,7 +205,7 @@ function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number, f
     const id = human.workerBuildingId;
     if (id == null) continue;
     counts.set(id, (counts.get(id) ?? 0) + 1);
-    if (!human.isJuvenile && canAutoChangeWorkplace(human, currentTick, foodEmergency)) {
+    if (human.age >= HUMAN_ADULT_MIN_AGE && canAutoChangeWorkplace(human, currentTick, foodEmergency)) {
       movable.set(id, (movable.get(id) ?? 0) + 1);
     }
   }
@@ -228,6 +229,7 @@ function pickOverstaffedDonor(
   excludeBuildingId: number,
   preserveEssentialCoverage = false,
   rejectedDonors?: ReadonlySet<number>,
+  minCount = 0,
 ): Building | undefined {
   let best: Building | undefined;
   let smallestCount = Infinity;
@@ -236,6 +238,7 @@ function pickOverstaffedDonor(
     const count = index.counts.get(building.id) ?? 0;
     const keep = preserveEssentialCoverage ? minimumAutoCoverage(building) : 1;
     if (count <= keep || (index.movable.get(building.id) ?? 0) === 0) continue;
+    if (count < minCount) continue;
     if (count < smallestCount) {
       best = building;
       smallestCount = count;
@@ -255,7 +258,7 @@ export function prospectiveFoodTransferDonors(
 ): { workers: Entity[]; spareSlots: number }[] {
   const workersBySite = new Map<number, Entity[]>();
   for (const human of humans) {
-    if (!human.alive || !isPlayerHuman(human) || human.isJuvenile
+    if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE
       || human.workerBuildingId == null
       || !canAutoChangeWorkplace(human, currentTick, true)) continue;
     const assigned = workersBySite.get(human.workerBuildingId) ?? [];
@@ -306,7 +309,7 @@ export function pickWorkerToTransfer(
     (h) =>
       isPlayerHuman(h) &&
       h.alive &&
-      !h.isJuvenile &&
+      h.age >= HUMAN_ADULT_MIN_AGE &&
       h.workerBuildingId === fromBuilding.id &&
       !excludedWorkers?.has(h.id) &&
       canAutoChangeWorkplace(h, currentTick, foodEmergency) &&
@@ -343,7 +346,7 @@ export function pickWorkerToTransfer(
 export function assignWorkerTransition(human: Entity, building: Building, currentTick?: number): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
-  if (!human.alive || !isPlayerHuman(human) || human.isJuvenile) return false;
+  if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE) return false;
   if (human.prisonBuildingId != null) return false;
   if (human.workerBuildingId != null && human.workerBuildingId !== building.id) return false;
   const alreadyListed = building.occupants.includes(human.id);
@@ -418,7 +421,7 @@ export function removeWorkerTransition(human: Entity, buildings: Building[]): vo
  */
 export function addToConstructionCrew(human: Entity, building: Building): boolean {
   if (building.completed || building.faction === 'rival') return false;
-  if (!human.alive || !isPlayerHuman(human) || human.isJuvenile) return false;
+  if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE) return false;
   if (human.prisonBuildingId != null) return false;
   if (human.workerBuildingId != null) return false; // Must be unassigned from regular jobs first
   if (building.occupants.includes(human.id)) return true;
@@ -462,23 +465,21 @@ export function rebalanceJobWorkers(
   const index = buildWorkforceAssignmentIndex(humans, currentTick, foodEmergency);
   const movedThisPass = new Set<number>();
 
-  // Finish the bounded minimum-coverage rebalance in this invocation, before `assignMissingWorkers`
-  // caches the post-pass fingerprint; a newly transferred employee remains at their new post.
-  for (const needy of jobBuildings) {
-    if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
+  // The cheapest donor may have no worker who can actually commute here; try each other
+  // eligible donor before leaving the vacancy. A donor is skipped for this destination only.
+  const fillFromDonors = (needy: Building, target: number, fromClearingSurplus = false): void => {
     let staffed = index.counts.get(needy.id) ?? 0;
-    const capacity = staffingCapFor(needy, humans, staffed).cap;
-    const target = Math.min(capacity, minimumAutoCoverage(needy));
-    if (staffed >= target) continue;
-
-    // The cheapest donor may have no worker who can actually commute here; try each other
-    // eligible donor before leaving the vacancy. A donor is skipped for this destination only.
+    if (staffed >= target) return;
+    const priorityFood = needy.type === BuildingType.Farm || needy.type === BuildingType.Greenhouse
+      || needy.type === BuildingType.FishingSpot || needy.type === BuildingType.HuntingSpot;
     const rejectedDonors = new Set<number>();
     while (staffed < target) {
-      const donor = pickOverstaffedDonor(jobBuildings, index, needy.id, true, rejectedDonors);
+      // A capacity top-up only draws from a workplace that keeps more hands than this one gains.
+      const donor = pickOverstaffedDonor(
+        jobBuildings, index, needy.id, true, rejectedDonors,
+        fromClearingSurplus ? staffed + 2 : 0,
+      );
       if (!donor) break;
-      const priorityFood = needy.type === BuildingType.Farm || needy.type === BuildingType.Greenhouse
-        || needy.type === BuildingType.FishingSpot || needy.type === BuildingType.HuntingSpot;
       const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings,
         movedThisPass, foodEmergency && priorityFood);
       if (!worker) {
@@ -496,6 +497,22 @@ export function rebalanceJobWorkers(
       // The new employee is not available as a donor during this pass, even when a unit-level
       // caller has no tick to enforce the cooldown; existing coworkers remain eligible.
     }
+  };
+
+  // Finish the bounded minimum-coverage rebalance in this invocation, before `assignMissingWorkers`
+  // caches the post-pass fingerprint; a newly transferred employee remains at their new post.
+  for (const needy of jobBuildings) {
+    if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
+    const capacity = staffingCapFor(needy, humans, index.counts.get(needy.id) ?? 0).cap;
+    fillFromDonors(needy, Math.min(capacity, minimumAutoCoverage(needy)));
+  }
+
+  // Open posts left after coverage are filled up from workplaces holding a clear surplus, so a
+  // building can staff fully instead of every site sitting at a single worker.
+  for (const needy of jobBuildings) {
+    if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
+    const capacity = staffingCapFor(needy, humans, index.counts.get(needy.id) ?? 0).cap;
+    fillFromDonors(needy, capacity, true);
   }
 }
 
@@ -575,7 +592,7 @@ export function assignWorkerInPlace(
     }
   }
   for (const candidate of humans) {
-    if (!isPlayerHuman(candidate) || !candidate.alive || candidate.isJuvenile
+    if (!isPlayerHuman(candidate) || !candidate.alive || candidate.age < HUMAN_ADULT_MIN_AGE
       || hasWorkAssignment(candidate) || isImprisoned(candidate)
       || crewIds.has(candidate.id)) continue;
     const home = candidate.residenceBuildingId == null
@@ -636,7 +653,7 @@ export function assignBuilderInPlace(
     (h) =>
       isPlayerHuman(h) &&
       h.alive &&
-      !h.isJuvenile &&
+      h.age >= HUMAN_ADULT_MIN_AGE &&
       !hasWorkAssignment(h) &&
       !isImprisoned(h) &&
       !building.occupants.includes(h.id) &&
@@ -658,7 +675,7 @@ export function assignBuilderInPlace(
       (h) =>
         isPlayerHuman(h) &&
         h.alive &&
-        !h.isJuvenile &&
+        h.age >= HUMAN_ADULT_MIN_AGE &&
         hasWorkAssignment(h) &&
         canAutoChangeWorkplace(h, currentTick) &&
         !isImprisoned(h) &&
@@ -740,7 +757,7 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
 
   // Keep incomplete crews limited to unique living, idle, unjailed settlers.
   const eligibleBuilders = new Set(
-    alive.filter((human) => !human.isJuvenile && !isImprisoned(human) && !hasWorkAssignment(human))
+    alive.filter((human) => human.age >= HUMAN_ADULT_MIN_AGE && !isImprisoned(human) && !hasWorkAssignment(human))
       .map((human) => human.id),
   );
   const rosteredBuilders = new Set<number>();
@@ -1016,7 +1033,7 @@ export function countWorkingAndIdleSettlers(
 
   for (let i = 0; i < humans.length; i++) {
     const e = humans[i];
-    if (!e.alive || !isPlayerHuman(e) || e.isJuvenile) continue;
+    if (!e.alive || !isPlayerHuman(e) || e.age < HUMAN_ADULT_MIN_AGE) continue;
     if (isImprisoned(e)) continue;
 
     if (hasWorkAssignment(e) || constructionWorkers.has(e.id)) {

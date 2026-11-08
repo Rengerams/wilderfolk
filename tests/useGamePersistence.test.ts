@@ -225,6 +225,47 @@ describe('persistGame', () => {
     expect(saveGameMock).toHaveBeenCalledOnce();
   });
 
+  it('joins a failed overlapping export, then allows one clean retry (COV-B-02)', async () => {
+    const world = initGame({ skipTerrain: true, villageName: 'Failed overlap' });
+    const view = createInitialView(world.width, world.height);
+    const showToast = vi.fn();
+    const markGameSaved = vi.fn();
+    let releaseExport = (): void => {};
+    const gate = new Promise<void>((resolve) => { releaseExport = resolve; });
+    const exportAuthoritativeWorld = vi.fn(async () => {
+      await gate;
+      return world;
+    });
+    const loop = {
+      exportAuthoritativeWorld,
+      getView: () => view,
+      getWorld: () => world,
+      mutateWorld: (_mutator: (world: WorldState) => void) => undefined,
+    };
+    const accessors = {
+      getLoop: () => loop,
+      getWorld: () => world,
+      getView: () => view,
+    };
+    const callbacks = { markGameSaved, showToast };
+    saveGameMock.mockReturnValueOnce({ success: false, error: 'Quota exceeded' });
+    saveGameMock.mockReturnValueOnce({ success: true });
+
+    const first = persistGame(accessors, callbacks);
+    const joined = persistGame(accessors, callbacks, { background: true });
+    releaseExport();
+    expect(await Promise.all([first, joined])).toEqual([false, false]);
+    expect(exportAuthoritativeWorld).toHaveBeenCalledTimes(1);
+    expect(saveGameMock).toHaveBeenCalledTimes(1);
+    expect(saveGameToSlotMock).not.toHaveBeenCalled();
+    expect(markGameSaved).not.toHaveBeenCalled();
+
+    expect(await persistGame(accessors, callbacks)).toBe(true);
+    expect(exportAuthoritativeWorld).toHaveBeenCalledTimes(2);
+    expect(saveGameMock).toHaveBeenCalledTimes(2);
+    expect(markGameSaved).toHaveBeenCalledTimes(1);
+  });
+
   it('allows a later save after the in-flight one settles', async () => {
     const world = initGame({ skipTerrain: true, villageName: 'Sequential' });
     const view = createInitialView(world.width, world.height);

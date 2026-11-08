@@ -1,6 +1,7 @@
 import type { WorldState } from './gameTypes';
 import { EntityType, BuildingType } from './gameTypes';
-import { isAdult, isResidenceBuilding } from './housingModel';
+import { isResidenceBuilding } from './housingModel';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isPlayerHuman } from './playerHuman';
 import type { TickContext } from './simulation/simulationTypes';
 import { TICKS_PER_HOUR } from './dayCycle';
@@ -39,7 +40,7 @@ function housingSignature(world: WorldState, humans: readonly WorldState['entiti
     if (!h.alive || !isPlayerHuman(h)) continue;
     parts.push(h.id, h.residenceBuildingId ?? -1, h.partnerId ?? -1, h.motherId ?? -1,
       h.fatherId ?? -1, h.adoptiveMotherId ?? -1, h.adoptiveFatherId ?? -1,
-      isAdult(h) ? 1 : 0, h.isJuvenile ? 1 : 0, h.prisonBuildingId ?? -1,
+      h.age >= HUMAN_ADULT_MIN_AGE ? 1 : 0, h.isJuvenile ? 1 : 0, h.prisonBuildingId ?? -1,
       h.workerBuildingId ?? -1, h.schoolBuildingId ?? -1);
   }
   return parts.join(',');

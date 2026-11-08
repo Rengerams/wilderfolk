@@ -17,6 +17,7 @@ import { isBuildingTechUnlocked } from './placementUtils';
 import { PLACEMENT_FAILURE_LABELS, getPlaceBuildingFailureLabel } from './buildingPlacementLabels';
 import { countHomelessSettlers, isResidenceBuilding } from './housingModel';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { getEcosystemHealth } from './dailyEcology';
 import { computeVillageStats } from './uiSimSummary';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
@@ -282,12 +283,15 @@ function isUnderConstruction(state: WorldState, type: BuildingType): boolean {
 }
 
 /**
- * True when the player already has a food producer, built or under construction. Known gap: it counts
- * by `type` alone, so an unfinished or unstaffed farm still satisfies the ladder's food step.
+ * True when a food producer is standing with a crew or is going up. An unstaffed building produces
+ * nothing, so it does not satisfy the ladder's food step.
  */
-function hasFoodProducer(state: WorldState): boolean {
+export function hasProductiveFoodProducer(state: WorldState): boolean {
   return state.buildings.some(
-    (building) => building.faction !== 'rival' && FOOD_PRODUCER_TYPES.includes(building.type),
+    (building) =>
+      building.faction !== 'rival'
+      && FOOD_PRODUCER_TYPES.includes(building.type)
+      && (!building.completed || building.occupants.length > 0),
   );
 }
 
@@ -599,7 +603,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   // Real harvested output decides whether the colony needs expansion, but forecast growth can request
   // it before today's balance turns negative: a productive Fishery may already cover the forecast.
   if (measuredFlow !== null && !shortOnFood && !measuredDeficit && !forecastRisk) return null;
-  if (measuredFlow === null && !shortOnFood && hasFoodProducer(state) && !wantMore) return null;
+  if (measuredFlow === null && !shortOnFood && hasProductiveFoodProducer(state) && !wantMore) return null;
   // The bootstrap count is a temporary ceiling, NOT a hard ceiling during a
   // verified deficit. Actual production, not site count, determines shortage.
   if (measuredFlow === null && cropSites >= target && !shortOnFood) return null;
@@ -616,7 +620,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   const constructionCrew = new Set(state.buildings.filter((b) => !b.completed)
     .flatMap((b) => b.occupants));
   const idleAdults = state.entities.filter((person) => person.alive && isPlayerHuman(person)
-    && !person.isJuvenile && person.workerBuildingId == null && person.prisonBuildingId == null
+    && person.age >= HUMAN_ADULT_MIN_AGE && person.workerBuildingId == null && person.prisonBuildingId == null
     && !constructionCrew.has(person.id));
   // Each listed donor remains above its protected minimum after ONE transfer.
   // It is a real staffing resource even when all adults currently have jobs.
@@ -700,7 +704,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
       command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type, x: spot.x, y: spot.y, rotation: 0 },
       reason: shortOnFood
         ? `build a ${BUILDING_CONFIGS[type].label} — ${daysLeft} day${daysLeft === 1 ? '' : 's'} of food left`
-        : !hasFoodProducer(state)
+        : !hasProductiveFoodProducer(state)
           ? `build a ${BUILDING_CONFIGS[type].label} — the colony has no food producer`
           : measuredDeficit
             ? `build a ${BUILDING_CONFIGS[type].label} — actual food production trails consumption`
@@ -1228,7 +1232,7 @@ function decideVenueSchedules(state: WorldState): VirtualPlayerDecision | null {
 function decideSurplusWorkers(state: WorldState): VirtualPlayerDecision | null {
   const crewsByBuilding = new Map<number, WorldState['entities']>();
   for (const human of state.entities) {
-    if (!human.alive || !isPlayerHuman(human) || human.isJuvenile || human.workerBuildingId == null) continue;
+    if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE || human.workerBuildingId == null) continue;
     const crew = crewsByBuilding.get(human.workerBuildingId);
     if (crew) crew.push(human);
     else crewsByBuilding.set(human.workerBuildingId, [human]);
@@ -1398,7 +1402,7 @@ function decideUpkeep(state: WorldState): VirtualPlayerDecision | null {
       || getEcosystemHealth(state) >= VirtualPlayer.ECOLOGY_HEALTHY_THRESHOLD)
     && hasFoodMargin(state, VirtualPlayer.TAME_FOOD_RESERVE_DAYS)) {
     const humans = state.entities.filter(isPlayerHuman);
-    const tamer = humans.find((human) => !human.isJuvenile);
+    const tamer = humans.find((human) => human.age >= HUMAN_ADULT_MIN_AGE);
     if (tamer) {
       for (const entity of state.entities) {
         if (!getTameEntityEligibility(state, entity.id, tamer.id).ok) continue;
@@ -1508,14 +1512,14 @@ function hasCompletedBuildingOfType(state: WorldState, type: BuildingType): bool
 function adultSettlerCount(state: WorldState): number {
   let adults = 0;
   for (const entity of state.entities) {
-    if (!entity.alive || !isPlayerHuman(entity) || entity.isJuvenile) continue;
+    if (!entity.alive || !isPlayerHuman(entity) || entity.age < HUMAN_ADULT_MIN_AGE) continue;
     adults++;
   }
   return adults;
 }
 
 function hasJuvenileSettler(state: WorldState): boolean {
-  return state.entities.some((entity) => entity.alive && isPlayerHuman(entity) && entity.isJuvenile);
+  return state.entities.some((entity) => entity.alive && isPlayerHuman(entity) && entity.age < HUMAN_ADULT_MIN_AGE);
 }
 
 /** The `state.resources.storageMax` key a storage building extends. */

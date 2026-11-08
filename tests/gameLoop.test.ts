@@ -107,7 +107,7 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       | ((w: WorldState, d: SimTickDelta | null, r: unknown, ok: boolean, reason?: string) => void)
       | null = null;
     let faultHandler:
-      | ((source: 'tick' | 'command' | 'export' | 'general', message: string) => void)
+      | ((source: 'tick' | 'command' | 'export' | 'general', message: string, lastAppliedCommandId?: number) => void)
       | null = null;
 
     return {
@@ -131,8 +131,8 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       },
       fireTick: (w: WorldState) => tickHandler!(w, null, null, true),
       fireCommandResult: (w: WorldState, ok: boolean) => cmdHandler!(w, null, null, ok),
-      fireFault: (source: 'tick' | 'command' | 'export' | 'general', message: string) =>
-        faultHandler!(source, message),
+      fireFault: (source: 'tick' | 'command' | 'export' | 'general', message: string, lastAppliedCommandId?: number) =>
+        faultHandler!(source, message, lastAppliedCommandId),
     };
   }
 
@@ -422,6 +422,36 @@ describe('gameLoop.commandDispatch.test.ts', () => {
         expect(recovered.host.sendCommand).toHaveBeenCalledTimes(2);
         expect(first.host.sendCommand).not.toHaveBeenCalled();
       } finally {
+        loop.stop();
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it('replays only commands the worker did not prove it applied', async () => {
+      const world = makeWorldForEntities([human(1)], [finishedBuilding(2, BuildingType.Farm), finishedBuilding(3, BuildingType.Quarry)]);
+      const loop = new GameLoop(world, createInitialView(400, 300), () => null);
+      await settleLoop(loop);
+      const first = makeFakeHost(structuredClone(world));
+      first.host.whenIdle.mockReturnValue(new Promise<void>(() => {}));
+      const internals = loop as unknown as {
+        workerEnabled: boolean; workerHost: unknown; workerRecoveryTimer: ReturnType<typeof setTimeout> | null;
+        registerWorkerHandlers: (g: number) => void;
+        deferredWorkerCommands: Array<{ cmd: WorkerCommand }>;
+      };
+      internals.workerEnabled = true;
+      internals.workerHost = first.host;
+      internals.registerWorkerHandlers(0);
+      const applied: WorkerCommand = { proto: WORKER_CMD_PROTO, op: 'demolishBuilding', buildingId: 2 };
+      const queued: WorkerCommand = { proto: WORKER_CMD_PROTO, op: 'demolishBuilding', buildingId: 3 };
+      loop.applyCommand(applied);
+      loop.applyCommand(queued);
+      await Promise.resolve();
+      vi.stubGlobal('Worker', class {});
+      try {
+        first.fireFault('general', 'worker crashed', (applied as { commandId?: number }).commandId);
+        expect(internals.deferredWorkerCommands.map((entry) => entry.cmd)).toEqual([queued]);
+      } finally {
+        if (internals.workerRecoveryTimer) clearTimeout(internals.workerRecoveryTimer);
         loop.stop();
         vi.unstubAllGlobals();
       }
@@ -1050,7 +1080,7 @@ describe('gameLoop.pacingContract.test.ts', () => {
    * Scripts that deliberately hold their own copy of the rate (they must not import the app loop);
    * the sync guard below reads each listed file.
    */
-  const HARNESS_COPIES = ['scripts/test.ts', 'scripts/probe-day-budget.mts'];
+  const HARNESS_COPIES = ['scripts/test.ts'];
 
   describe('baseline pacing contract', () => {
     it('runs one in-game day every 288 real seconds at 1×', () => {

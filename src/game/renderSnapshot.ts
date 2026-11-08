@@ -24,6 +24,57 @@ const EMPTY_ENTITY_BY_TYPE: EntityByType = (() => {
   return Object.freeze(table);
 })();
 
+/**
+ * Cache identity for {@link buildRenderSnapshot}: every world and view input the snapshot reads must
+ * appear here, including the F4 logistics and juice-effects preferences — a paused view never ticks.
+ */
+export function renderSnapshotDirtyKey(
+  world: WorldState,
+  view: ViewState,
+  renderMode: 'soa' | 'obj',
+): string {
+  const ghost = view.buildGhost;
+  const strip = view.buildStripPreview;
+
+  return [
+    world.tick,
+    world.paused ? 1 : 0,
+    world.season,
+    world.floatingTexts.length,
+    world.bigNews.length,
+    world.deathParticles.length,
+    world.pendingRaidEvents?.length ?? 0,
+    world.pendingOutgoingRaidEvents?.length ?? 0,
+    world.visitorGroups.length,
+    world.buildings.length,
+    world.entities.length,
+    view.camera.x.toFixed(1),
+    view.camera.y.toFixed(1),
+    view.camera.zoom.toFixed(3),
+    view.screenShake.toFixed(1),
+    view.selectedEntityId ?? '',
+    (view.selectedEntityIds ?? []).join(','),
+    view.selectedBuildingId ?? '',
+    view.hoveredBuildingId ?? '',
+    view.buildMode ?? '',
+    view.buildRotation ?? 0,
+    view.favoriteEntityId ?? '',
+    view.highlightedCampKey ?? '',
+    view.selectedCampKey ?? '',
+    view.showGrid ? 1 : 0,
+    view.showPaths ? 1 : 0,
+    view.showLogistics ? 1 : 0,
+    loadJuiceEffectsEnabled() ? 1 : 0,
+    ghost ? `${ghost.x.toFixed(0)},${ghost.y.toFixed(0)},${ghost.valid ? 1 : 0}` : '',
+    strip?.segments.length
+      ? `${strip.segments.length}|${strip.rotation}|${strip.segments[0].x},${strip.segments[0].y}|`
+        + `${strip.segments[strip.segments.length - 1].x},${strip.segments[strip.segments.length - 1].y}|`
+        + `${strip.segments[0].valid ? 1 : 0}`
+      : '',
+    renderMode,
+  ].join('|');
+}
+
 export interface RenderSnapshotOptions {
   renderSoA?: RenderSoAReaderV1 | null;
   renderMetaBySlot?: EntityRenderMeta[];
@@ -42,6 +93,8 @@ export interface RenderSnapshot {
   readonly floatingTexts: WorldState['floatingTexts'];
   readonly huntVisuals: WorldState['huntVisuals'];
   readonly tick: number;
+  /** Static-layer cache identity — an advancing tick alone must not repaint the layer. */
+  readonly staticLayerRevision: string;
   readonly hourOfDay: number;
   readonly workSchedule?: WorldState['workSchedule'];
   readonly season: WorldState['season'];
@@ -94,6 +147,44 @@ export interface RenderSnapshot {
   readonly scentReader: ScentGridReader | null;
   /** Tick-persistent grass spatial index — sim path from world; worker path from render SoA. */
   readonly grassGrid: EntitySpatialGrid | null;
+}
+
+/**
+ * Identity of everything the cached static entity layer paints. Only a live build folds in the
+ * tick, so a settled world stops repainting its trees, grass and buildings every tick.
+ */
+function staticEntityLayerRevision(world: WorldState): string {
+  const buildings = world.buildings ?? [];
+  const parts: (string | number)[] = [
+    world.width,
+    world.height,
+    world.season,
+    world.year,
+    world.dayInYear,
+    world.entities.length,
+    buildings.length,
+  ];
+  let buildingAnimates = false;
+  for (const b of buildings) {
+    parts.push(
+      b.id,
+      b.type,
+      b.level,
+      b.spriteScale,
+      b.rotation ?? 0,
+      b.faction ?? '',
+      b.completed ? 1 : 0,
+      b.gateClosed ? 1 : 0,
+      b.health,
+      b.occupants.length,
+    );
+    if (!b.completed) buildingAnimates = true;
+  }
+  for (const group of world.visitorGroups ?? []) {
+    parts.push(group.id, group.campX, group.campY, group.daysLeft);
+  }
+  parts.push(buildingAnimates ? world.tick : 0);
+  return parts.join('|');
 }
 
 /** Last colony-wide blacksmith scan — this runs per frame, and the camera alone rebuilds the snapshot. */
@@ -159,6 +250,7 @@ export function buildRenderSnapshot(
     floatingTexts: world.floatingTexts ?? [],
     huntVisuals: world.huntVisuals ?? [],
     tick: world.tick,
+    staticLayerRevision: staticEntityLayerRevision(world),
     hourOfDay: getHourOfDay(world.tick),
     workSchedule: getWorkSchedule(world),
     season: world.season,

@@ -251,6 +251,55 @@ function projectTile(map: WorldMap, tx: number, ty: number): TerrainTile | undef
   };
 }
 
+/* ===== Render invalidation ===== */
+
+/** Invalidation cell (world px): the smallest ground chunk, so a footprint dirties only its own. */
+export const TERRAIN_RENDER_CELL = 256;
+
+export interface TerrainDirtyRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+let terrainRevision = 0;
+const dirtyCells = new Map<string, number>();
+
+/** Visit every render cell a world rect covers; an empty rect visits none. */
+function forEachDirtyCell(rect: TerrainDirtyRect, visit: (key: string) => void): void {
+  if (rect.right <= rect.left || rect.bottom <= rect.top) return;
+  const x0 = Math.floor(rect.left / TERRAIN_RENDER_CELL);
+  const x1 = Math.floor((rect.right - 1) / TERRAIN_RENDER_CELL);
+  const y0 = Math.floor(rect.top / TERRAIN_RENDER_CELL);
+  const y1 = Math.floor((rect.bottom - 1) / TERRAIN_RENDER_CELL);
+  for (let cy = y0; cy <= y1; cy++) {
+    for (let cx = x0; cx <= x1; cx++) visit(`${cx},${cy}`);
+  }
+}
+
+/**
+ * Bump the terrain revision. Passing the changed world rect invalidates only the render cells it
+ * covers, so a forest-clearing footprint does not dispose every other ground chunk.
+ */
+export function bumpTerrainRevision(rect?: TerrainDirtyRect): void {
+  terrainRevision++;
+  if (!rect) return;
+  forEachDirtyCell(rect, (key) => dirtyCells.set(key, (dirtyCells.get(key) ?? 0) + 1));
+}
+
+/** Monotonic whole-terrain revision — the path grid keys on it. */
+export function getTerrainRevision(): number {
+  return terrainRevision;
+}
+
+/** Exact per-cell revision identity for one ground-chunk rect. */
+export function terrainRegionRevision(rect: TerrainDirtyRect): string {
+  const parts: string[] = [];
+  forEachDirtyCell(rect, (key) => parts.push(String(dirtyCells.get(key) ?? 0)));
+  return parts.length > 0 ? parts.join(',') : '0';
+}
+
 /* ===== Overrides ===== */
 
 /** Write one sparse tile override (camp clearing / forest clearing). */

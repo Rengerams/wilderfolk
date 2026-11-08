@@ -2,6 +2,7 @@ import type { Entity, WorldState } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycle';
 import { getWorkSchedule } from './workSchedule';
 import { isPlayerHuman } from './playerHuman';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 
 export const MAX_SCHEDULE_FATIGUE = 100;
 /** The worst output a fully fatigued crew can fall to — the floor of the penalty, not a % of energy. */
@@ -26,7 +27,7 @@ export function getScheduleProductivityMultiplier(entity: Pick<Entity, 'schedule
  * does not evaluate every tick can still record the ticks it covered (see `humanTick`).
  */
 export function recordScheduleWorkTick(entity: Entity, step = 1): void {
-  if (!entity.alive || entity.isJuvenile || !isPlayerHuman(entity)) return;
+  if (!entity.alive || entity.age < HUMAN_ADULT_MIN_AGE || !isPlayerHuman(entity)) return;
   // A jailed settler keeps the reserved post but earns no attendance: a cell is not a shift.
   if (entity.prisonBuildingId != null) return;
   if (!Number.isFinite(step) || step <= 0) return;
@@ -44,7 +45,7 @@ export function recordScheduleWorkTick(entity: Entity, step = 1): void {
 
 /** Credit only a tick the settler actually spent at the post. */
 export function recordPresentWorkTick(entity: Entity, step = 1): void {
-  if (!entity.alive || entity.isJuvenile || !isPlayerHuman(entity)) return;
+  if (!entity.alive || entity.age < HUMAN_ADULT_MIN_AGE || !isPlayerHuman(entity)) return;
   if (entity.prisonBuildingId != null) return;
   if (!Number.isFinite(step) || step <= 0) return;
   const priorTicks = entity.schedulePresentTicksToday ?? 0;
@@ -56,7 +57,7 @@ export function recordPresentWorkTick(entity: Entity, step = 1): void {
 
 /**
  * Resolve a settler's fatigue for the day. This is the end-of-day settle, so it does not narrow on
- * `alive`, `isJuvenile` or `faction` the way the per-tick recorders do.
+ * `alive`, age or `faction` the way the per-tick recorders do.
  */
 /**
  * The standard work window's length, capped at the neutral day — the loop-invariant half of

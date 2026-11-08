@@ -1,6 +1,6 @@
 import { BuildingType, type Building, type Entity, type HumanNeedsState } from '../gameTypes';
 import { TICKS_PER_HOUR } from '../dayCycleClock';
-import { NIGHT_END, NIGHT_START } from '../daycycleconstants';
+import { HUMAN_ADULT_MIN_AGE, NIGHT_END, NIGHT_START } from '../daycycleconstants';
 import { evaluateAptitudeInfluence } from '../personality/traitEvaluation';
 
 export const HUMAN_NEEDS = {
@@ -26,6 +26,7 @@ export const HUMAN_NEEDS = {
   NUTRITION_STARVING: 8,
   NUTRITION_FAMINE_BITE_THRESHOLD: 30,
   STARVATION_FATAL_SIM_HOURS: 48,
+  UNHEATED_WINTER_NUTRITION_MULTIPLIER: 1.5,
 } as const;
 
 /** Single (nonstacking) well access check using squared world-pixel distance. */
@@ -78,6 +79,8 @@ export interface HumanNeedsObservation {
   moving: boolean;
   hasWell?: boolean;
   hasHospital?: boolean;
+  /** Winter with the fire unlit: cold raises the calorie burn. */
+  unheatedWinter?: boolean;
 }
 
 export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): HumanNeedsState {
@@ -89,7 +92,11 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
   const nutritionLoss = HUMAN_NEEDS.NUTRITION_BASE_LOSS_PER_SIM_HOUR
     + (obs.working ? HUMAN_NEEDS.NUTRITION_WORK_EXTRA_PER_SIM_HOUR : 0)
     + (obs.moving ? HUMAN_NEEDS.NUTRITION_WALK_EXTRA_PER_SIM_HOUR : 0);
-  needs.nutrition = bounded(needs.nutrition - nutritionLoss * hours * (entity.isJuvenile ? 0.85 : 1), 0);
+  const coldMultiplier = obs.unheatedWinter ? HUMAN_NEEDS.UNHEATED_WINTER_NUTRITION_MULTIPLIER : 1;
+  needs.nutrition = bounded(
+    needs.nutrition - nutritionLoss * hours * coldMultiplier * (entity.age < HUMAN_ADULT_MIN_AGE ? 0.85 : 1),
+    0,
+  );
   needs.rest = bounded(needs.rest + hours * (obs.sleeping
     ? HUMAN_NEEDS.SLEEP_RECOVERY_PER_SIM_HOUR : -HUMAN_NEEDS.REST_LOSS_AWAKE_PER_SIM_HOUR), 0);
   let staminaRate = obs.sleeping ? HUMAN_NEEDS.SLEEP_RECOVERY_PER_SIM_HOUR

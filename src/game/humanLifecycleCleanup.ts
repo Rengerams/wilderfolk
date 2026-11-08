@@ -10,8 +10,8 @@ import { recordGenealogyDeath } from './genealogyRegistry';
 import { finalizeMoonHowlerDeath, isSettlerRelationshipEntity } from './moonHowlerForm';
 import { cleanupEntityDialogueState } from './humanChat';
 import { TICKS_PER_DAY } from './dayCycleClock';
-import { isMinorChild } from './housingModel';
 import { hasResidenceAssignment } from './housingModel';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { clearWorkerAssignment } from './workforce';
 import { syncResidenceOccupants } from './housingPipeline';
 import { isResidenceOccupantEntity } from './housingModel';
@@ -152,7 +152,7 @@ function reassignOrphansAfterDeath(
   let touched = false;
 
   for (const child of humans) {
-    if (!isMinorChild(child)) continue;
+    if (child.age >= HUMAN_ADULT_MIN_AGE || child.partnerId != null) continue;
     const related =
       child.motherId === deadId
       || child.fatherId === deadId

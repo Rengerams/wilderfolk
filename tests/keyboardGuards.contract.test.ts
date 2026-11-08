@@ -39,12 +39,16 @@ const CLAIM_OWNER = 'src/game/keyboardOwnership.ts';
 const CLAIM_HOOK = 'src/hooks/useOverlayKeyboard.ts';
 
 const OVERLAY_DELEGATES = [
+  'src/components/BattleReportScreen.tsx',
+  'src/components/WarfareStatus.tsx',
   'src/components/GameMenu.tsx',
   'src/components/dashboard/GameDashboard.tsx',
   'src/components/CitizenOverviewScreen.tsx',
   'src/components/TutorialOverlay.tsx',
   'src/components/ShortcutsOverlay.tsx',
   'src/components/SpotlightLoreOverlay.tsx',
+  'src/components/BattleReportScreen.tsx',
+  'src/components/WarfareStatus.tsx',
 ];
 
 const hookSource = source('src/hooks/useKeyboardControls.ts');
@@ -72,12 +76,46 @@ describe('an open overlay owns the keyboard', () => {
     }
   });
 
+  it('battle, terminal and prisoner fullscreen dialogs use the shared focus owner', () => {
+    for (const path of ['src/components/BattleReportScreen.tsx', 'src/components/WarfareStatus.tsx']) {
+      const component = source(path);
+      expect(component).toContain('useModalFocus<');
+      expect(component).toContain('useOverlayKeyboard(');
+    }
+    const battle = source('src/components/BattleReportScreen.tsx');
+    expect(battle).toContain('ref={dialogRef}');
+    const warfare = source('src/components/WarfareStatus.tsx');
+    expect(warfare).toContain('ref={terminalRef}');
+    expect(warfare).toContain('ref={captivesRef}');
+  });
+
+  it('battle commentary transition retains an autofocus target and recovers lost focus', () => {
+    const battle = source('src/components/BattleReportScreen.tsx');
+    expect(battle).toContain('data-autofocus aria-label="Close battle report"');
+    expect(battle).toContain('ref={stableCloseRef}');
+    expect(battle).toContain('stableCloseRef.current?.focus()');
+    expect(battle).toContain('[allSeen, finalReady, confirmExterminate, dialogRef]');
+  });
+
   it('spotlight claims the keyboard and sends Escape through the same Skip scene action', () => {
     const overlay = source('src/components/SpotlightLoreOverlay.tsx');
     expect(overlay).toContain("useOverlayKeyboard('spotlight-lore', skip)");
     expect(overlay).toContain('const skip = () => {');
     expect(overlay).toContain("callbacks.current.onFinish(scene.id, 'skipped');");
     expect(overlay).toContain('onClick={skip}');
+  });
+
+  it('the raid report and warfare dialogs trap focus as well as claiming the keyboard', () => {
+    for (const path of ['src/components/BattleReportScreen.tsx', 'src/components/WarfareStatus.tsx']) {
+      expect(source(path), `${path} dropped the shared focus trap`).toContain('useModalFocus<HTMLDivElement>(');
+    }
+  });
+
+  it('the shared confirmation traps focus and starts on Cancel', () => {
+    const dialog = source('src/components/ConfirmActionDialog.tsx');
+    expect(dialog).toContain('useModalFocus<HTMLDivElement>()');
+    expect(dialog).toContain('useOverlayKeyboard(owner, onCancel)');
+    expect(dialog).toContain('data-autofocus');
   });
 
   it('a claim is paid for with an Escape handler', () => {
@@ -194,6 +232,28 @@ describe('a selection strip states its selection instead of only painting it', (
     expect(map).toContain('tabIndex={0}');
     expect(map).toContain('onKeyDown=');
     expect(map).toContain('navigateToVillage');
+  });
+});
+
+describe('UX-13/14: a bulk demolition needs explicit confirmation', () => {
+  it('does not send the strip demolition command until the player confirms', () => {
+    const gestures = source('src/hooks/useCanvasInteractions.ts');
+    const armAt = gestures.indexOf('if (buildingIds.length > 0) setPendingStripDemolition(buildingIds);');
+    const confirmOwnerAt = gestures.indexOf('const confirmStripDemolition = useCallback(');
+    const commandAt = gestures.indexOf("op: 'demolishStripBuildings'");
+    expect(armAt).toBeGreaterThan(-1);
+    expect(confirmOwnerAt).toBeGreaterThan(armAt);
+    expect(commandAt).toBeGreaterThan(confirmOwnerAt);
+    // A pointer gesture only arms an action: the actual command lives behind the confirmation callback.
+    expect(gestures.slice(armAt, confirmOwnerAt)).not.toContain("op: 'demolishStripBuildings'");
+    expect(gestures).toContain('if (!ids?.length) return;');
+
+    const app = source('src/App.tsx');
+    expect(app).toContain('{pendingStripDemolition && (');
+    expect(app).toContain('owner="strip-demolition"');
+    expect(app).toContain('onConfirm={confirmStripDemolition}');
+    expect(app).toContain('onCancel={cancelStripDemolition}');
+    expect(app).toContain('This cannot be undone.');
   });
 });
 

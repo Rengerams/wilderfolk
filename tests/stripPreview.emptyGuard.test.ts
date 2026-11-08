@@ -21,7 +21,8 @@ describe('empty strip preview render guards', () => {
   });
 
   it('does not dereference an empty preview inside the render dirty-key', () => {
-    const loop = source('game/gameLoop.ts');
-    expect(loop).toContain('strip?.segments.length ?');
+    const snapshot = source('game/renderSnapshot.ts');
+    expect(snapshot).toContain('strip?.segments.length');
+    expect(source('game/renderer/buildPreview.ts')).toContain('preview.segments.length === 0');
   });
 });

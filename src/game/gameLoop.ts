@@ -12,7 +12,7 @@ import { EntityCatalog } from './entityCatalog';
 import { renderGame, resetRendererCaches } from './renderer';
 import type { SpotlightPresentation } from './renderer/motionInterpolation';
 import { getRenderDpr } from './canvasLayer';
-import { buildRenderSnapshot, type RenderSnapshot } from './renderSnapshot';
+import { buildRenderSnapshot, renderSnapshotDirtyKey, type RenderSnapshot } from './renderSnapshot';
 import { resetLogisticsOverlayCache } from './logisticsOverlayData';
 import { patchCatalogKinematicsFromRenderSoA } from './simBuffers/applyKinematics';
 import type { EntityRenderMeta } from './simBuffers/entityRenderMeta';
@@ -20,7 +20,7 @@ import type { RenderSoAReaderV1 } from './simBuffers/renderSoAReader';
 import { clearAllFactionWanderStates } from './factionWander';
 import { GameWorkerHost, isGameWorkerEnabled, type WorkerUiPatch } from './simWorker/GameWorkerHost';
 import { applySimPrep, extractSimPrep } from './simWorker/simPrep';
-import type { WorkerCommand } from './simWorker/commands';
+import type { StampedWorkerCommand, WorkerCommand } from './simWorker/commands';
 import { applyWorkerCommand } from './simWorker/commands';
 import { carryPresentationControls, createOptimisticDisplayWorld, hydrateWorldRuntimeCaches } from './worldRuntimeCaches';
 import type { ScentGridReader } from './scentGrid';
@@ -138,6 +138,7 @@ export class GameLoop {
   private lastCatalogByTypeRef: unknown = undefined;
   private catalogDirtyFromDeferredTick = false;
   private rafId = 0;
+  private frameGeneration = 0;
   private running = false;
   private tickAccumulator = 0;
   private tickFraction = 1;
@@ -179,8 +180,10 @@ export class GameLoop {
   private lastPausedSentToWorker: boolean | null = null;
   private commandChain: Promise<void> = Promise.resolve();
   private workerCommandEpoch = 0;
-  private optimisticCommands: WorkerCommand[] = [];
-  private deferredWorkerCommands: Array<{ cmd: WorkerCommand; sessionGen: number }> = [];
+  private nextCommandId = 0;
+  private optimisticCommands: StampedWorkerCommand[] = [];
+  private optimisticCommandIds: number[] = [];
+  private deferredWorkerCommands: Array<{ cmd: StampedWorkerCommand; sessionGen: number }> = [];
   private canvasCtx: CanvasRenderingContext2D | null = null;
   private canvasCtxFor: HTMLCanvasElement | null = null;
   private layoutSize = { w: 0, h: 0 };
@@ -408,9 +411,13 @@ export class GameLoop {
       this.workerTickChanged = changed;
     });
 
-    host.setWorkerFaultHandler((source, message) => {
+    host.setWorkerFaultHandler((source, message, lastAppliedCommandId) => {
       if (this.workerHost !== host) return;
-      this.fallbackFromWorker(`Worker ${source} error: ${message}`, source === 'command');
+      this.fallbackFromWorker(
+        `Worker ${source} error: ${message}`,
+        source === 'command',
+        lastAppliedCommandId,
+      );
     });
 
     host.setCommandResultHandler((world, _delta, render, ok, reason) => {
@@ -418,6 +425,7 @@ export class GameLoop {
       this.lastWorkerActivity = performance.now();
 
       const completedCommand = this.optimisticCommands.shift();
+      this.optimisticCommandIds.shift();
       const hadOptimistic = completedCommand != null;
 
       this.world = world;
@@ -451,19 +459,28 @@ export class GameLoop {
     });
   }
 
-  private fallbackFromWorker(reason: string, discardUnconfirmedCommand = false): void {
+  private fallbackFromWorker(
+    reason: string,
+    discardUnconfirmedCommand = false,
+    lastAppliedCommandId = -1,
+  ): void {
     if (!this.workerEnabled && !this.workerBooting) return;
     this.lastWorkerPresentation = null;
     console.warn(`[GameLoop] ${reason} — ${isGameWorkerEnabled() ? 'recovering simulation worker' : 'falling back to main-thread ticks'}`);
 
     const retryCommands = isGameWorkerEnabled()
-      ? this.optimisticCommands.slice(discardUnconfirmedCommand ? 1 : 0) : [];
+      ? this.optimisticCommands.filter((_cmd, index) => (
+        !(discardUnconfirmedCommand && index === 0)
+        && (this.optimisticCommandIds[index] ?? -1) > lastAppliedCommandId
+      ))
+      : [];
     if (discardUnconfirmedCommand && this.optimisticCommands.length > 0) {
       console.error('[GameLoop] Unconfirmed command not replayed after worker fault:', this.optimisticCommands[0].op);
     }
     this.workerCommandEpoch++;
     this.commandChain = Promise.resolve();
     this.optimisticCommands = [];
+    this.optimisticCommandIds = [];
     this.deferredWorkerCommands.unshift(...retryCommands.map((cmd) => ({ cmd, sessionGen: this.sessionGen })));
     this.syncAfterWorkerMutation();
     this.catalog.rebuild(this.world.entities);
@@ -572,6 +589,7 @@ export class GameLoop {
     this.sessionGen++;
     this.commandChain = Promise.resolve();
     this.optimisticCommands = [];
+    this.optimisticCommandIds = [];
     this.deferredWorkerCommands = [];
     if (this.workerEnabled && this.workerHost?.isReady()) {
       this.workerBooting = true;
@@ -676,13 +694,18 @@ export class GameLoop {
   }
 
   applyCommand(cmd: WorkerCommand): void {
+    if (typeof (cmd as StampedWorkerCommand).commandId !== 'number') {
+      (cmd as StampedWorkerCommand).commandId = ++this.nextCommandId;
+    }
+    const stamped = cmd as StampedWorkerCommand;
     if ((this.workerBooting && this.workerHost) || this.workerRecoveryTimer !== null || this.workerRecoveryInFlight) {
-      this.deferredWorkerCommands.push({ cmd, sessionGen: this.sessionGen });
+      this.deferredWorkerCommands.push({ cmd: stamped, sessionGen: this.sessionGen });
       return;
     }
 
     if (this.workerEnabled && this.workerHost?.isReady()) {
-      this.optimisticCommands.push(cmd);
+      this.optimisticCommands.push(stamped);
+      this.optimisticCommandIds.push(stamped.commandId!);
       this.rebuildOptimisticDisplay();
       if (this.world.entities !== this.workerHost.getAuthoritativeWorld()?.entities) {
         this.catalog.rebuild(this.world.entities);
@@ -699,14 +722,15 @@ export class GameLoop {
           if (cmdGen !== this.sessionGen || commandEpoch !== this.workerCommandEpoch || !this.running || !host?.isReady()) return;
           return host.whenIdle().then(() => {
             if (cmdGen !== this.sessionGen || commandEpoch !== this.workerCommandEpoch || !this.running || this.workerHost !== host || !host.isReady()) return;
-            return host.sendCommand(cmd).then(() => undefined);
+            return host.sendCommand(stamped).then(() => undefined);
           });
         })
         .catch((err) => {
           if (cmdGen !== this.sessionGen || commandEpoch !== this.workerCommandEpoch || !this.running) return;
-          const index = this.optimisticCommands.indexOf(cmd);
+          const index = this.optimisticCommands.indexOf(stamped);
           if (index >= 0) {
             this.optimisticCommands.splice(index, 1);
+            this.optimisticCommandIds.splice(index, 1);
             if (this.optimisticCommands.length > 0) this.rebuildOptimisticDisplay();
             else this.syncAfterWorkerMutation();
             this.catalog.rebuild(this.world.entities);
@@ -719,7 +743,7 @@ export class GameLoop {
       return;
     }
 
-    this.applyCommandLocal(cmd);
+    this.applyCommandLocal(stamped);
   }
 
   private syncAfterWorkerMutation(): void {
@@ -866,6 +890,7 @@ export class GameLoop {
   start(): void {
     if (this.running) return;
     this.running = true;
+    this.frameGeneration++;
     this.lastFrameTime = 0;
     this.tickAccumulator = 0;
     this.tickFraction = 1;
@@ -873,7 +898,7 @@ export class GameLoop {
     if (!this.workerHost && !this.workerBooting) {
       this.scheduleWorkerRecovery();
     }
-    this.rafId = requestAnimationFrame(this.frame);
+    this.scheduleFrame();
   }
 
   stop(): void {
@@ -883,6 +908,7 @@ export class GameLoop {
       this.workerHost?.setProfilingEnabled(false);
     }
     this.running = false;
+    this.frameGeneration++;
     this.sessionGen++;
     this.lastWorkerPresentation = null;
     if (this.workerRecoveryTimer) {
@@ -892,6 +918,7 @@ export class GameLoop {
     this.workerRecoveryInFlight = false;
     this.commandChain = Promise.resolve();
     this.optimisticCommands = [];
+    this.optimisticCommandIds = [];
     this.deferredWorkerCommands = [];
 
     if (this.rafId) {
@@ -916,6 +943,10 @@ export class GameLoop {
     this.layoutSize = { w: 0, h: 0 };
     this.snapshotCache = null;
     this.snapshotKey = '';
+    // The frame loop is no longer a GC root after stop. Drop the global renderer's
+    // world-derived layers too, so the next session cannot inherit old terrain.
+    resetRendererCaches();
+    resetLogisticsOverlayCache();
   }
 
   getWorldAndView(): { world: WorldState; view: ViewState } {
@@ -952,51 +983,30 @@ export class GameLoop {
   }
 
   private snapshotDirtyKey(): string {
-    const w = this.world;
-    const v = this.view;
-    const ghost = v.buildGhost;
-    const strip = v.buildStripPreview;
+    return renderSnapshotDirtyKey(this.world, this.view, this.renderSoA ? 'soa' : 'obj');
+  }
 
-    return [
-      w.tick,
-      w.paused ? 1 : 0,
-      w.season,
-      w.floatingTexts.length,
-      w.bigNews.length,
-      w.deathParticles.length,
-      w.pendingRaidEvents?.length ?? 0,
-      w.pendingOutgoingRaidEvents?.length ?? 0,
-      w.visitorGroups.length,
-      w.buildings.length,
-      w.entities.length,
-      v.camera.x.toFixed(1),
-      v.camera.y.toFixed(1),
-      v.camera.zoom.toFixed(3),
-      v.screenShake.toFixed(1),
-      v.selectedEntityId ?? '',
-      (v.selectedEntityIds ?? []).join(','),
-      v.selectedBuildingId ?? '',
-      v.hoveredBuildingId ?? '',
-      v.buildMode ?? '',
-      v.buildRotation ?? 0,
-      v.favoriteEntityId ?? '',
-      v.highlightedCampKey ?? '',
-      v.selectedCampKey ?? '',
-      v.showGrid ? 1 : 0,
-      v.showPaths ? 1 : 0,
-      ghost ? `${ghost.x.toFixed(0)},${ghost.y.toFixed(0)},${ghost.valid ? 1 : 0}` : '',
-      strip?.segments.length ? `${strip.segments.length}|${strip.rotation}|${strip.segments[0].x},${strip.segments[0].y}|${strip.segments[strip.segments.length - 1].x},${strip.segments[strip.segments.length - 1].y}|${strip.segments[0].valid ? 1 : 0}` : '',
-      this.renderSoA ? 'soa' : 'obj',
-    ].join('|');
+  /** Every scheduled callback carries a generation: a stale cancelled callback cannot restart an older chain. */
+  private scheduleFrame(): void {
+    const generation = this.frameGeneration;
+    this.rafId = requestAnimationFrame((time) => {
+      if (!this.running || generation !== this.frameGeneration) return;
+      this.frame(time);
+    });
   }
 
   private frame = (time: number) => {
+    // A cancelled callback may already be executing when stop() runs.
+    if (!this.running) return;
     try {
       this.frameBody(time);
     } catch (error) {
       console.error('[GameLoop] frame failed — continuing', error);
     } finally {
-      this.rafId = requestAnimationFrame(this.frame);
+      // stop() may be invoked synchronously by a listener inside frameBody().
+      // Never resurrect a stopped RAF chain or retain the abandoned world.
+      if (this.running) this.scheduleFrame();
+      else this.rafId = 0;
     }
   };
 
@@ -1023,8 +1033,10 @@ export class GameLoop {
       let steps = 0;
       const catchUpBudget = catchUpBudgetFor(this.world.speed);
       const canvas = this.getCanvas();
+      // The ResizeObserver's cached layout size; reading `offsetWidth` here forced layout every frame.
       const focus: SimulationFocus | undefined = canvas
-        ? computeSimulationFocus(this.view.camera, canvas.offsetWidth, canvas.offsetHeight)
+        && this.layoutSize.w > 0 && this.layoutSize.h > 0
+        ? computeSimulationFocus(this.view.camera, this.layoutSize.w, this.layoutSize.h)
         : undefined;
 
       if (this.workerBooting) {

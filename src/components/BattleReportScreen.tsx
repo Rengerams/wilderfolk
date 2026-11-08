@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useModalFocus } from '../hooks/useModalFocus';
+import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 import type { GameEventLog, OutgoingRaidEvent, RaidEvent, WorldState } from '../game/gameTypes';
 import { TICKS_PER_HOUR } from '../game/dayCycle';
 import RazeConfirmation from './RazeConfirmation';
@@ -64,6 +66,13 @@ export default function BattleReportScreen({
   const [revealed, setRevealed] = useState(() => Math.min(1, events.length));
   const [confirmExterminate, setConfirmExterminate] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
+  const stableCloseRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useModalFocus<HTMLDivElement>();
+  // Escape dismisses the nested fate confirmation before closing the report.
+  useOverlayKeyboard('battle-report', () => {
+    if (confirmExterminate) setConfirmExterminate(false);
+    else onClose();
+  });
 
   useEffect(() => {
     if (revealed >= events.length) return;
@@ -80,6 +89,12 @@ export default function BattleReportScreen({
 
   const allSeen = revealed >= events.length;
   const finalReady = allSeen && (resolved || !!pending);
+
+  // Restore focus when commentary/fate actions unmount during a footer transition.
+  useLayoutEffect(() => {
+    const container = dialogRef.current;
+    if (container && document.activeElement === document.body) stableCloseRef.current?.focus();
+  }, [allSeen, finalReady, confirmExterminate, dialogRef]);
   const playerLosses = pending?.playerDead ?? report?.playerDeaths
     ?? liveArmy?.battlePlayerCasualties?.length ?? liveDefense?.battlePlayerCasualties?.length ?? 0;
   const enemyLosses = pending?.enemyDead ?? report?.enemyDeaths ?? 0;
@@ -90,12 +105,15 @@ export default function BattleReportScreen({
   const visible = events.slice(0, revealed);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Raid match report" className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/95 p-3 text-stone-100 sm:p-5">
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Raid match report" className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/95 p-3 text-stone-100 sm:p-5">
       <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-amber-700/60 bg-stone-950 shadow-2xl">
         <header className="border-b border-amber-800/50 bg-gradient-to-r from-stone-950 via-amber-950/60 to-stone-950 px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between gap-3">
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-500">War-band · text match</p>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-stone-500">{dayLabel}</p>
+            <div className="flex items-center gap-3">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-stone-500">{dayLabel}</p>
+              <button type="button" ref={stableCloseRef} data-autofocus aria-label="Close battle report" className="rounded border border-stone-700 px-2 py-1 text-[10px] uppercase tracking-wider text-stone-300 hover:bg-stone-800" onClick={onClose}>Close</button>
+            </div>
           </div>
 
           <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2">

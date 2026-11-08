@@ -1,6 +1,7 @@
 import type { Entity, WorldState, Building } from './gameTypes';
 import { BuildingType, BUILDING_JOB_TYPES, EntityType, JOB_LABELS, JobType } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycleClock';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { PROFILE_REVISION, bumpRevision } from './entityRevision';
 
@@ -59,14 +60,14 @@ export function gainSkill(
 ) {
   // A supplied index is authoritative: an id it lacks is a stale slot, not a cue to scan the world.
   const human = entityById ? entityById.get(humanId) : state.entities.find((e) => e.id === humanId);
-  if (!human || human.type !== EntityType.Human || human.isJuvenile || !human.alive) return;
+  if (!human || human.type !== EntityType.Human || human.age < HUMAN_ADULT_MIN_AGE || !human.alive) return;
   const skills = writableEntitySkills(human);
   skills[job] = Math.min(MAX_SKILL, (skills[job] ?? 0) + amount);
 }
 
 /** Apply a small decay to non-active job skills on calendar day rollover. */
 export function decayIdleSkills(entity: Entity, activeJob?: JobType, amount = SKILL_IDLE_DECAY_PER_DAY): void {
-  if (entity.type !== EntityType.Human || !entity.alive || entity.isJuvenile) return;
+  if (entity.type !== EntityType.Human || !entity.alive || entity.age < HUMAN_ADULT_MIN_AGE) return;
   const skills = writableEntitySkills(entity);
   for (const job of Object.values(JobType)) {
     if (job === activeJob) continue;

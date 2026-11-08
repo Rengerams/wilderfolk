@@ -6,6 +6,7 @@ import type { Building, Entity, WorldMap } from './gameTypes';
 import { BuildingType, PATH_CELL } from './gameTypes';
 import {
   Walkability,
+  getTerrainRevision,
   isWalkableTerrainType,
   tileAt,
 } from './terrain/terrainGrid';
@@ -140,13 +141,13 @@ let gridCacheMap: WorldMap | null = null;
 
 /**
  * The passability grid's cache identity: seed alone does not identify the tiles, so preset,
- * blocking/cheapening buildings and size are all part of it.
+ * blocking/cheapening buildings, size and runtime terrain overrides are all part of it.
  */
 function pathGridCacheKey(map: WorldMap, buildings?: Building[]): string {
   const seed = typeof map.seed === 'number' ? map.seed : 1;
   const obstacles = buildingSignature(buildings, isWalkingObstacle);
   const roads = buildingSignature(buildings, isWalkableRoad);
-  return `${seed}|${map.preset}|${obstacles}|${roads}|${map.width}x${map.height}`;
+  return `${seed}|${map.preset}|${obstacles}|${roads}|${map.width}x${map.height}|t${getTerrainRevision()}`;
 }
 
 /**
@@ -254,21 +255,33 @@ export function nearestWalkableWorldPoint(
   if (grid.blocked[startIndex] === 0) return { x, y };
   const maxRadius = Math.max(grid.cols, grid.rows);
   for (let radius = 1; radius <= maxRadius; radius++) {
-    let best: { x: number; y: number; distance: number } | null = null;
     const minX = Math.max(0, startX - radius);
     const maxX = Math.min(grid.cols - 1, startX + radius);
     const minY = Math.max(0, startY - radius);
     const maxY = Math.min(grid.rows - 1, startY + radius);
+    // Only the ring's perimeter holds radius cells; squared distances rank candidates as `Math.hypot` did.
+    let found = false;
+    let bestX = 0;
+    let bestY = 0;
+    let bestDistanceSq = 0;
     for (let ty = minY; ty <= maxY; ty++) {
+      const onEdgeRow = ty === minY || ty === maxY;
       for (let tx = minX; tx <= maxX; tx++) {
-        if (Math.max(Math.abs(tx - startX), Math.abs(ty - startY)) !== radius) continue;
+        if (!onEdgeRow && tx !== minX && tx !== maxX) continue;
         if (grid.blocked[ty * grid.cols + tx] !== 0) continue;
-        const point = { x: tx * PATH_CELL + PATH_CELL / 2, y: ty * PATH_CELL + PATH_CELL / 2 };
-        const distance = Math.hypot(point.x - x, point.y - y);
-        if (!best || distance < best.distance) best = { ...point, distance };
+        const pointX = tx * PATH_CELL + PATH_CELL / 2;
+        const pointY = ty * PATH_CELL + PATH_CELL / 2;
+        const dx = pointX - x;
+        const dy = pointY - y;
+        const distanceSq = dx * dx + dy * dy;
+        if (found && distanceSq >= bestDistanceSq) continue;
+        found = true;
+        bestX = pointX;
+        bestY = pointY;
+        bestDistanceSq = distanceSq;
       }
     }
-    if (best) return { x: best.x, y: best.y };
+    if (found) return { x: bestX, y: bestY };
   }
   return null;
 }

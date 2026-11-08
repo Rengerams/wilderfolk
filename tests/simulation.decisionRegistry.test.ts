@@ -30,6 +30,10 @@ const REQUIRED_DECISIONS = [
   'workforce',
   'immigration',
   'school',
+  'buildingAccess',
+  'settlerDeathAudio',
+  'terrainClearingFields',
+  'colonyMovementObservation',
   'housing',
   'construction',
   'production',
@@ -50,6 +54,7 @@ const REQUIRED_DECISIONS = [
   'raidRecovery',
   'raidCaptivity',
   'raidTerminalPresentation',
+  'crashRecovery',
   'valleyChronicle',
   'terrainRiverSurface',
   'commands',
@@ -58,9 +63,14 @@ const REQUIRED_DECISIONS = [
 /** Pure projections only; dialogueContent persists speaker scene history and is not read-only. */
 const READ_ONLY_DECISIONS = new Set<string>([
   'terrainRiverSurface',
+  'buildingAccess',
+  'settlerDeathAudio',
+  'terrainClearingFields',
+  'colonyMovementObservation',
   'traitInfluence',
   'workerFit',
   'raidTerminalPresentation',
+  'crashRecovery',
   'chronicleProseNames',
   'dailyPersonRoll',
   'workerMotionPresentation',
@@ -68,7 +78,7 @@ const READ_ONLY_DECISIONS = new Set<string>([
 ]);
 
 /** The read-only owners that run inside the render loop rather than on a demand query. */
-const RENDER_ONLY_DECISIONS = new Set<string>(['terrainRiverSurface', 'workerMotionPresentation']);
+const RENDER_ONLY_DECISIONS = new Set<string>(['terrainRiverSurface', 'workerMotionPresentation', 'settlerDeathAudio', 'terrainClearingFields']);
 
 describe('simulation decision registry', () => {
   it('contains exactly the required decision keys', () => {

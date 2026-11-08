@@ -19,7 +19,15 @@ import type { Entity, WorldState } from '../gameTypes';
 /* Rendering & simulation helpers */
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
 import { RenderBufferPool, type AcquiredRenderBuffer } from '../simBuffers/renderBufferPool';
-import { extractSimTickDelta, splitStaticProps, stripUnchangedProfile, stripUnchangedRelationships, type SimTickDelta } from '../simBuffers/simDelta';
+import {
+  extractSimTickDelta,
+  profileFieldCoverage,
+  relationshipFieldCoverage,
+  splitStaticProps,
+  stripCoveredEntityFields,
+  type BuildingFingerprint,
+  type SimTickDelta,
+} from '../simBuffers/simDelta';
 import { PROFILE_REVISION, RELATIONSHIP_REVISION, revisionOf } from '../entityRevision';
 import { getPerformanceSnapshot, maybeWorkerPerformanceSnapshot, profileEnd, profileStart, setPerformanceProfilingEnabled, type PerformanceSnapshot } from '../performanceProfiler';
 import { getPathfinderReport, resetPathfinderSession, setPathfindingMetricsEnabled } from '../pathfindingMetrics';
@@ -52,6 +60,8 @@ import {
 /* -------------------------------------------------------------------------- */
 let world: WorldState | null = null;
 let bufferPool: RenderBufferPool | null = null;
+/** Highest host command id applied in this worker session; a fault reports it so replays skip it. */
+let lastAppliedCommandId = 0;
 let headlessMode = false;
 let lastFocus: import('../simFocus').SimulationFocus | undefined;
 /** Relationship revisions the display world already received; reset with the session. */
@@ -62,7 +72,7 @@ let staticPropsSent = new Set<number>();
 let profileFieldsSent = new Map<number, { revision: number; tick: number }>();
 
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
-let prevBuildingsSnapshot: Map<number, string> | null = null;
+let prevBuildingsSnapshot: Map<number, BuildingFingerprint> | null = null;
 /** Geometry signature of the last acknowledged building delta; drives host cache retention. */
 let prevBuildingGeometry: Map<number, string> | null = null;
 /** History revisions at the last acknowledged tick; unchanged families are not re-shipped. */
@@ -82,7 +92,13 @@ function postError(
   message: string,
   source: 'tick' | 'command' | 'export' | 'general' = 'general',
 ): void {
-  const response: WorkerResponse = { type: 'error', proto: WORKER_PROTO, message, source };
+  const response: WorkerResponse = {
+    type: 'error',
+    proto: WORKER_PROTO,
+    message,
+    source,
+    lastAppliedCommandId,
+  };
   self.postMessage(response);
 }
 
@@ -125,7 +141,7 @@ function packAndPostTickResult(
     const pack = packRenderSoA(world, acquired.buffer, undefined, lastFocus, aliveNow);
     profileEnd('worker.packRenderSoA', packStart);
     const deltaStart = profileStart();
-    const nextBuildings = new Map<number, string>();
+    const nextBuildings = new Map<number, BuildingFingerprint>();
     const nextBuildingGeometry = new Map<number, string>();
     const delta = extractSimTickDelta(world, aliveNow, {
       cloneMode: 'transfer',
@@ -137,8 +153,7 @@ function packAndPostTickResult(
       previousEventHeadId,
     });
     attachStaticProps(delta);
-    attachRelationshipRevisions(delta);
-    attachProfileFields(delta);
+    attachReplicaFieldCoverage(delta);
     profileEnd('worker.extractDelta', deltaStart);
     world.screenShakeImpulse = 0; // one-shot impulse – clear each tick
 
@@ -160,6 +175,7 @@ function packAndPostTickResult(
       schemaVersion: pack.schemaVersion,
       delta,
       scentBuffer,
+      lastAppliedCommandId,
     };
     self.postMessage(response, transferables);
     prevBuildingsSnapshot = nextBuildings;
@@ -183,6 +199,7 @@ function resetWorkerSession(nextWorld: WorldState): void {
   adoptSimSeedFromWorld(nextWorld);
   restoreSimRng(nextWorld.simRng);
   world = nextWorld;
+  lastAppliedCommandId = 0;
   lastFocus = undefined;
   prevBuildingsSnapshot = null;
   prevBuildingGeometry = null;
@@ -198,19 +215,22 @@ function attachStaticProps(delta: SimTickDelta): void {
   splitStaticProps(delta, staticPropsSent);
 }
 
-/** Attach profile revisions: skill/trait/career maps cross the port only when they change. */
-function attachProfileFields(delta: SimTickDelta): void {
+/**
+ * Rare entity fields (profile maps, relationship maps) cross the port only when their revision
+ * changed. Both families are dropped in one pass: a second pass would copy an already-sparse roster.
+ */
+function attachReplicaFieldCoverage(delta: SimTickDelta): void {
   if (!world) return;
-  const revisions = new Map<number, number>();
-  for (const entity of world.entities) revisions.set(entity.id, revisionOf(entity, PROFILE_REVISION));
-  stripUnchangedProfile(delta, revisions, profileFieldsSent, world.tick);
-}
-
-/** Attach the relationship revisions the display already has, so only changed records ship. */function attachRelationshipRevisions(delta: SimTickDelta): void {
-  if (!world) return;
-  const revisions = new Map<number, number>();
-  for (const entity of world.entities) revisions.set(entity.id, revisionOf(entity, RELATIONSHIP_REVISION));
-  stripUnchangedRelationships(delta, revisions, relationshipRevisionsSent);
+  const profileRevisions = new Map<number, number>();
+  const relationshipRevisions = new Map<number, number>();
+  for (const entity of world.entities) {
+    profileRevisions.set(entity.id, revisionOf(entity, PROFILE_REVISION));
+    relationshipRevisions.set(entity.id, revisionOf(entity, RELATIONSHIP_REVISION));
+  }
+  stripCoveredEntityFields(delta, [
+    profileFieldCoverage(profileRevisions, profileFieldsSent, world.tick),
+    relationshipFieldCoverage(relationshipRevisions, relationshipRevisionsSent),
+  ]);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -300,8 +320,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         if (!isWorkerCommand(msg.cmd)) {
           const delta = safeExtractCommandDelta(world);
           attachStaticProps(delta);
-          attachRelationshipRevisions(delta);
-          attachProfileFields(delta);
+          attachReplicaFieldCoverage(delta);
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
@@ -317,20 +336,19 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         let delta;
         try {
           world = applyWorkerCommand(world, msg.cmd, 'owned');
+          if (typeof msg.commandId === 'number') lastAppliedCommandId = msg.commandId;
           prevBuildingsSnapshot = null;
           prevBuildingGeometry = null;
           prevHistoryRevisions = null;
           previousEventHeadId = undefined;
           delta = safeExtractCommandDelta(world);
           attachStaticProps(delta);
-          attachRelationshipRevisions(delta);
-          attachProfileFields(delta);
+          attachReplicaFieldCoverage(delta);
         } catch (err) {
           applySimPrep(world, prepBackup);
           const failedDelta = safeExtractCommandDelta(world);
           attachStaticProps(failedDelta);
-          attachRelationshipRevisions(failedDelta);
-          attachProfileFields(failedDelta);
+          attachReplicaFieldCoverage(failedDelta);
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
@@ -377,6 +395,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           proto: WORKER_PROTO,
           ok: true,
           delta,
+          commandId: msg.commandId,
           renderBuffer,
           bufferIndex,
           bufferLease,
@@ -443,8 +462,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
               cloneMode: 'transfer',
             });
             attachStaticProps(delta);
-            attachRelationshipRevisions(delta);
-            attachProfileFields(delta);
+            attachReplicaFieldCoverage(delta);
             world.screenShakeImpulse = 0;
             const response: WorkerResponse = {
               type: 'tickResult',
@@ -452,6 +470,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
               delta,
               performanceSnapshot: withPathfinderReport(maybeWorkerPerformanceSnapshot()),
               headless: true,
+              lastAppliedCommandId,
             };
             self.postMessage(response);
             break;

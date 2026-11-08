@@ -1,5 +1,6 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BUILDING_JOB_TYPES } from './gameTypes';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { addFloatingText, addNotification } from './simEffects';
 import {
   addToConstructionCrew,
@@ -60,7 +61,7 @@ export type WorkerAssignmentRefusal =
 function staffCandidateRefusal(entity: Entity): WorkerAssignmentRefusal | null {
   if (!isPlayerHuman(entity)) return 'not-a-settler';
   if (!entity.alive) return 'settler-dead';
-  if (entity.isJuvenile) return 'juvenile';
+  if (entity.age < HUMAN_ADULT_MIN_AGE) return 'juvenile';
   if (hasWorkAssignment(entity)) return 'already-assigned';
   if (isImprisoned(entity)) return 'imprisoned';
   return null;

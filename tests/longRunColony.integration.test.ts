@@ -5,7 +5,9 @@ import { MapSize } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { buildResidenceOccupancy, getResidenceCapacity, isHomelessSettler, isImprisoned, isResidenceBuilding, isResidenceOccupantEntity } from '../src/game/housingModel';
 import { buildHousingUnits, listPlayerResidences, pickResidenceForFamily, pickResidenceForHuman } from '../src/game/housingPipeline';
-import { getChildCustodian, isMinorChild } from '../src/game/housingModel';
+import { getChildCustodian } from '../src/game/housingModel';
+import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
+import type { Entity } from '../src/game/gameTypes';
 import { resetRelationshipDiagnostics, setRelationshipDiagnosticsEnabled } from '../src/game/relationshipDiagnostics';
 import { resetSimRng } from '../src/game/simRng';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
@@ -13,6 +15,10 @@ import { applyColonyBotAction, assessColonyStall, captureConsoleVolume, createCo
 
 const SEED = 12345;
 const CHECKPOINT_DAYS = 30;
+
+/** The housing owner's dependent-child policy: below adult age and not partnered. */
+const isDependentMinor = (person: Entity): boolean =>
+  person.age < HUMAN_ADULT_MIN_AGE && person.partnerId == null;
 
 const HEALTHY_DAYS = CHECKPOINT_DAYS * 3;
 
@@ -181,15 +187,15 @@ describe('90-day producer colony integration', () => {
           `household containing ${homeless.map((human) => human.id).join(', ')} has a viable home`,
         ).toBeUndefined();
         const dependentIds = new Set(
-          unit.filter(isMinorChild).map((child) => getChildCustodian(child, residents)?.id),
+          unit.filter(isDependentMinor).map((child) => getChildCustodian(child, residents)?.id),
         );
         for (const human of homeless) {
-          if (isMinorChild(human) || dependentIds.has(human.id)
+          if (isDependentMinor(human) || dependentIds.has(human.id)
             || unit.some((member) => member.id === human.partnerId)) continue;
           const availableHome = pickResidenceForHuman(human, residents, possibleHomes, occupancy);
           const target = possibleHomes.find((home) => home.id === availableHome);
           const household = unit.map((member) =>
-            `${member.id}:${member.age}:${member.residenceBuildingId ?? 'homeless'}:${isMinorChild(member) ? 'minor' : 'adult'}`,
+            `${member.id}:${member.age}:${member.residenceBuildingId ?? 'homeless'}:${isDependentMinor(member) ? 'minor' : 'adult'}`,
           ).join(',');
           const occupants = residents.filter((member) => member.residenceBuildingId === availableHome)
             .map((member) => member.id).join(',');

@@ -7,7 +7,7 @@ import {
   WEREWOLF_HOWL_LINES,
 } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { isAdult } from './housingModel';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import {
   isProductionTick,
   EVENT_INTERVAL,
@@ -87,7 +87,7 @@ function isWildlifePredator(entity: Entity): boolean {
       entity.type === EntityType.Fox ||
       entity.type === EntityType.Werewolf ||
       (entity.type === EntityType.Human &&
-        !entity.isJuvenile &&
+        entity.age >= HUMAN_ADULT_MIN_AGE &&
         (isPlayerHuman(entity) || entity.faction === 'rival')))
   );
 }
@@ -270,7 +270,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       }
 
       // 3. Growth transitions
-      if (entity.isJuvenile && isAdult(entity)) {
+      if (entity.isJuvenile && entity.age >= HUMAN_ADULT_MIN_AGE) {
         entity.isJuvenile = false;
         entity.size = SPECIES_CONFIG[entity.type].size;
         entity.speed = SPECIES_CONFIG[entity.type].speed;

@@ -4,7 +4,6 @@ import { TICKS_PER_HOUR } from './dayCycle';
 import { isWorkDay } from './dayCycleClock';
 import { SCHOOL_MIN_AGE } from './gameConstants';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { isMinor } from './housingModel';
 import { writableEntitySkills } from './skills';
 import { addNotification } from './simEffects';
 import { citizenFullName } from './citizenId';
@@ -12,7 +11,8 @@ import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
-import { commuteDistanceFromResidence, humanBuildingTarget } from './simulation/humanMovement';
+import { commuteDistanceFromResidence } from './simulation/humanMovement';
+import { isAtBuildingReach } from './buildingAccess';
 import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
 
@@ -124,7 +124,7 @@ export function syncSchoolAssignments(
   const staffed = new Map(findStaffedSchools(buildings).map((school) => [school.id, school]));
   const reserved = new Map<number, number>();
   const children = humans.filter((e) =>
-    e.alive && isPlayerHuman(e) && e.isJuvenile && e.age >= SCHOOL_MIN_AGE,
+    e.alive && isPlayerHuman(e) && e.age < HUMAN_ADULT_MIN_AGE && e.age >= SCHOOL_MIN_AGE,
   );
   // A settler who is no longer a pupil holds no seat: released here, where it is assigned, so no
   // later reader (school rosters, housing commute scoring) walks a graduate to school.
@@ -158,25 +158,21 @@ export function syncSchoolAssignments(
   return assignments;
 }
 
-export function isChildAtSchool(child: Entity, school: Building, maxDist = 28): boolean {
-  // Inside the footprint counts too: a pupil who walked in is in class even between yard slots.
+export function isChildAtSchool(child: Entity, school: Building): boolean {
+  // Inside the footprint counts too: a pupil who walked in is in class between yard slots.
   if (Math.abs(child.x - school.x) <= school.width / 2
     && Math.abs(child.y - school.y) <= school.height / 2) return true;
-  const target = humanBuildingTarget(school, child.id, false);
-  return Math.hypot(child.x - target.x, child.y - target.y) <= maxDist;
+  return isAtBuildingReach(child, school);
 }
 
 /** Whether a teacher on this school's staff is standing at the school right now. */
 export function hasTeacherPresent(
   school: Building,
   entityById: ReadonlyMap<number, Entity>,
-  maxDist = 28,
 ): boolean {
   for (const id of school.occupants) {
     const teacher = entityById.get(id);
-    if (!teacher || !teacher.alive) continue;
-    const target = humanBuildingTarget(school, teacher.id, false);
-    if (Math.hypot(teacher.x - target.x, teacher.y - target.y) <= maxDist) return true;
+    if (teacher?.alive && isAtBuildingReach(teacher, school)) return true;
   }
   return false;
 }
@@ -191,7 +187,7 @@ export function getSchoolingBlockReason(
   reserved?: ReadonlyMap<number, number>,
 ): string | null {
   if (child.age < SCHOOL_MIN_AGE) return `Too young — school starts at age ${SCHOOL_MIN_AGE}`;
-  if (!child.isJuvenile) return 'Grown up — past school age';
+  if (child.age >= HUMAN_ADULT_MIN_AGE) return 'Grown up — past school age';
   const schools = buildings.filter((b) => b.type === BuildingType.School && b.faction !== 'rival');
   if (schools.length === 0) return 'No school built';
   if (!schools.some((b) => b.completed)) return 'School still under construction';
@@ -222,7 +218,7 @@ export function buildSchoolRosters(
   const rosters = new Map<number, SchoolRosterEntry>();
   const schools = new Map(findStaffedSchools(buildings).map((school) => [school.id, school]));
   const children = humans.filter((e) =>
-    e.alive && isPlayerHuman(e) && e.isJuvenile && e.age >= SCHOOL_MIN_AGE,
+    e.alive && isPlayerHuman(e) && e.age < HUMAN_ADULT_MIN_AGE && e.age >= SCHOOL_MIN_AGE,
   );
   const reserved = new Map<number, number>();
   const assigned = new Map<number, Building>();
@@ -322,7 +318,7 @@ export function summarizeSchooling(
   hourOfDay: number,
 ): SchoolingSummary {
   const children = state.entities.filter(
-    (e) => e.alive && e.type === EntityType.Human && e.isJuvenile && isPlayerHuman(e),
+    (e) => e.alive && e.type === EntityType.Human && e.age < HUMAN_ADULT_MIN_AGE && isPlayerHuman(e),
   );
   const classHours = isSchoolTime(tick, hourOfDay);
   // Pass every settler: the roster reads teacher presence from the same list it seats children in.
@@ -423,7 +419,7 @@ export function formatEducationLabel(entity: Pick<Entity, 'isJuvenile' | 'school
 
 export function applyEducationGraduation(state: WorldState, entity: Entity): void {
   // Schooling may accrue throughout ages 6–17, but graduation is adulthood-only.
-  if (isMinor(entity) || entity.isJuvenile) return;
+  if (entity.age < HUMAN_ADULT_MIN_AGE) return;
   const days = entity.schoolDays ?? 0;
   const tier = getEducationTier(days);
   if (tier === 0) return;
@@ -456,7 +452,7 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
  * The education share is this owner's baseline; the catalog's research factor multiplies it.
  */
 export function getEducationResearchMultiplier(humans: Entity[]): number {
-  const adults = humans.filter((h) => h.alive && isPlayerHuman(h) && !h.isJuvenile);
+  const adults = humans.filter((h) => h.alive && isPlayerHuman(h) && h.age >= HUMAN_ADULT_MIN_AGE);
   if (adults.length === 0) return 1;
   const educated = adults.filter((h) => h.educated).length;
   let dnaFactorSum = 0;
