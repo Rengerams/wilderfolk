@@ -1041,8 +1041,8 @@ describe('the storage buildings the owner reported missing', () => {
 });
 
 /**
- * Catalogue buildings owned in the settled-village fixture; `BOT_BUILDABLE` adds Market, so the
- * ladder's *"all buildings should be buildable by the bot"* claim is checkable.
+ * Catalogue buildings owned in the settled-village fixture; `BOT_BUILDABLE` adds Market.
+ * The Virtual Player may choose functional buildings, never the decor entries.
  */
 const SETTLED_BUILDINGS: readonly BuildingType[] = [
   BuildingType.House, BuildingType.Farm, BuildingType.Greenhouse, BuildingType.Barn,
@@ -1089,10 +1089,9 @@ function villageMissing(missing: BuildingType, overrides: Partial<WorldState> = 
   return world;
 }
 
-describe('every building type is buildable by the bot', () => {
+describe('functional buildings are buildable but decoration is player-only', () => {
   for (const type of [
     BuildingType.Market, BuildingType.Hospital, BuildingType.Prison, BuildingType.Mansion,
-    BuildingType.Garden, BuildingType.Statue, BuildingType.Lamp,
   ]) {
     it(`raises a ${type} once the village is settled`, () => {
       const world = villageMissing(type);
@@ -1105,7 +1104,6 @@ describe('every building type is buildable by the bot', () => {
 
   for (const type of [
     BuildingType.Watchtower, BuildingType.Barracks, BuildingType.Wall, BuildingType.WallGate,
-    BuildingType.Fence,
   ]) {
     it(`fortifies with a ${type} once gifting has failed`, () => {
       const world = villageMissing(type, { rivalSettlements: [rival({ giftsGiven: 1 })] });
@@ -1113,6 +1111,19 @@ describe('every building type is buildable by the bot', () => {
       const decision = decideVirtualPlayerAction(world);
 
       expect(decision?.command ?? null).toMatchObject({ type });
+    });
+  }
+
+  for (const type of [
+    BuildingType.Garden, BuildingType.Statue, BuildingType.Lamp, BuildingType.Fence,
+  ]) {
+    it(`does not auto-place decorative ${type} even when it is the only missing building`, () => {
+      const world = villageMissing(type, { rivalSettlements: [rival({ giftsGiven: 1 })] });
+      const decision = decideVirtualPlayerAction(world);
+      expect(decision?.command ?? null).not.toMatchObject({ type });
+      if (decision?.command.op === 'startBuilding' || decision?.command.op === 'placeStripChain') {
+        expect(BUILDING_CONFIGS[decision.command.type].decor).not.toBe(true);
+      }
     });
   }
 
