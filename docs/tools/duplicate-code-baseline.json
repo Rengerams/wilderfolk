@@ -1,0 +1,229 @@
+{
+  "generatedAt": "2026-11-02T08:04:39.493Z",
+  "clones": [
+    {
+      "hash": "6320383dc927087375034ce9765cb294dbdcd45d",
+      "fileA": "src/App.tsx",
+      "fileB": "src/App.tsx",
+      "tokens": 62,
+      "lines": 8,
+      "count": 1
+    },
+    {
+      "hash": "dc36cea0ea47f7a7d5e0a1cd0a2b8d72c6e40625",
+      "fileA": "src/game/buildingResidencyActions.ts",
+      "fileB": "src/game/buildingStaffingActions.ts",
+      "tokens": 72,
+      "lines": 9,
+      "count": 1
+    },
+    {
+      "hash": "2f56d71d063ebbcb6cf27fe5f7ab7face8c3b601",
+      "fileA": "src/game/dailyBuildingEconomy.ts",
+      "fileB": "src/game/dailyBuildingEconomy.ts",
+      "tokens": 92,
+      "lines": 10,
+      "count": 1
+    },
+    {
+      "hash": "71382b43bac3960c820b4eb3a4cee36fbb11e466",
+      "fileA": "src/game/dailyBuildingEconomy.ts",
+      "fileB": "src/game/dailyBuildingEconomy.ts",
+      "tokens": 65,
+      "lines": 9,
+      "count": 1
+    },
+    {
+      "hash": "84c97b4a65e084360d5a2843638621a80e2249ca",
+      "fileA": "src/game/dailyBuildingEconomy.ts",
+      "fileB": "src/game/dailyBuildingEconomy.ts",
+      "tokens": 73,
+      "lines": 7,
+      "count": 1
+    },
+    {
+      "hash": "6938179502d306707611388cfb3d5efd68212f9a",
+      "fileA": "src/game/familyTree.ts",
+      "fileB": "src/game/familyTree.ts",
+      "tokens": 104,
+      "lines": 8,
+      "count": 1
+    },
+    {
+      "hash": "28811b60ba60a1dd7a8467fc10d67b5a3bfbfb3b",
+      "fileA": "src/game/gameLoop.ts",
+      "fileB": "src/game/gameLoop.ts",
+      "tokens": 61,
+      "lines": 8,
+      "count": 1
+    },
+    {
+      "hash": "5668ca0c4d818b4ed9e16d1bc77357512b4c053d",
+      "fileA": "src/game/householdComposition.ts",
+      "fileB": "src/game/householdComposition.ts",
+      "tokens": 104,
+      "lines": 8,
+      "count": 1
+    },
+    {
+      "hash": "6b1965db2e0a13d58af1a0be60da024ab26a0101",
+      "fileA": "src/game/moonHowler.ts",
+      "fileB": "src/game/moonHowler.ts",
+      "tokens": 60,
+      "lines": 10,
+      "count": 1
+    },
+    {
+      "hash": "5441990c98308ffe8cf983bd066864c8334fde5e",
+      "fileA": "src/game/pathfindingMetrics.ts",
+      "fileB": "src/game/spatialQueryMetrics.ts",
+      "tokens": 86,
+      "lines": 12,
+      "count": 1
+    },
+    {
+      "hash": "61137aa9e752590a2bec5e56bb9b54a87ae7e57b",
+      "fileA": "src/game/renderer/grid.ts",
+      "fileB": "src/game/renderer/grid.ts",
+      "tokens": 64,
+      "lines": 9,
+      "count": 1
+    },
+    {
+      "hash": "c9fa1a89231a64828c8aeacfe6051915ac875c7a",
+      "fileA": "src/game/renderer/grid.ts",
+      "fileB": "src/game/renderer/grid.ts",
+      "tokens": 66,
+      "lines": 7,
+      "count": 1
+    },
+    {
+      "hash": "bb38de31762a15785be1d712b9d3b3498e202741",
+      "fileA": "src/game/renderer/terrain.ts",
+      "fileB": "src/game/renderer/terrain.ts",
+      "tokens": 98,
+      "lines": 13,
+      "count": 1
+    },
+    {
+      "hash": "21c7ffa0c8ba10e19002585c002626b15fd4c345",
+      "fileA": "src/game/renderer/whittakerTerrain.ts",
+      "fileB": "src/game/renderer/whittakerTerrain.ts",
+      "tokens": 106,
+      "lines": 9,
+      "count": 1
+    },
+    {
+      "hash": "2bbbe023738b9ba8097663f8f5f98a7060b5979a",
+      "fileA": "src/game/residencySelection.ts",
+      "fileB": "src/game/residencySelection.ts",
+      "tokens": 86,
+      "lines": 11,
+      "count": 1
+    },
+    {
+      "hash": "340f3036113f8890a78e0984f505d3d1b6a6cfe2",
+      "fileA": "src/game/rivalDiplomacy.ts",
+      "fileB": "src/game/rivalDiplomacy.ts",
+      "tokens": 64,
+      "lines": 7,
+      "count": 2
+    },
+    {
+      "hash": "8ec8f978d17fae9980245936a0d742a36a512197",
+      "fileA": "src/game/rivalDiplomacy.ts",
+      "fileB": "src/game/rivalDiplomacy.ts",
+      "tokens": 81,
+      "lines": 7,
+      "count": 1
+    },
+    {
+      "hash": "32fb7ec20faac213f7395e6b321d5cf410593a2c",
+      "fileA": "src/game/saveLoad.ts",
+      "fileB": "src/game/saveLoad.ts",
+      "tokens": 60,
+      "lines": 8,
+      "count": 1
+    },
+    {
+      "hash": "ee9732ae1b77019256536d3982bd45c0f0ec9352",
+      "fileA": "src/game/simulation/humanRelationships.ts",
+      "fileB": "src/game/simulation/humanRelationships.ts",
+      "tokens": 86,
+      "lines": 10,
+      "count": 1
+    },
+    {
+      "hash": "8b0936a5b666d57ab8b526723f62d3715bfb053f",
+      "fileA": "src/game/spatialGrid.ts",
+      "fileB": "src/game/spatialGrid.ts",
+      "tokens": 95,
+      "lines": 10,
+      "count": 1
+    },
+    {
+      "hash": "62838134ea7cad801464a0437195d5132557549b",
+      "fileA": "src/game/stripBuild.ts",
+      "fileB": "src/game/stripBuild.ts",
+      "tokens": 64,
+      "lines": 7,
+      "count": 1
+    },
+    {
+      "hash": "84d6c6ab45dc673572eea0f97580381e7aec5864",
+      "fileA": "src/game/stripRender.ts",
+      "fileB": "src/game/stripRender.ts",
+      "tokens": 62,
+      "lines": 12,
+      "count": 1
+    },
+    {
+      "hash": "d92257844f6318d865d8b81b05901cfc3d1214d7",
+      "fileA": "src/game/terrain/hydrology.ts",
+      "fileB": "src/game/terrain/hydrology.ts",
+      "tokens": 108,
+      "lines": 11,
+      "count": 1
+    },
+    {
+      "hash": "c7a7f2435f44163bc8ddf7255539351135841eed",
+      "fileA": "src/game/terrain/noise.ts",
+      "fileB": "src/game/terrain/noise.ts",
+      "tokens": 84,
+      "lines": 12,
+      "count": 1
+    },
+    {
+      "hash": "4d2c0642124615ae3232afe356d8e65a1560214c",
+      "fileA": "src/game/tickLayerSystems.ts",
+      "fileB": "src/game/tickLayerSystems.ts",
+      "tokens": 62,
+      "lines": 10,
+      "count": 1
+    },
+    {
+      "hash": "0f135d1f8b877f472b75eca837c183354a2a644b",
+      "fileA": "src/game/travelingTheatre.ts",
+      "fileB": "src/game/weddingDiplomacy.ts",
+      "tokens": 61,
+      "lines": 8,
+      "count": 1
+    },
+    {
+      "hash": "2adc6f032d7fb82601906b9ef40ad9060a9e4977",
+      "fileA": "src/game/virtualPlayer.ts",
+      "fileB": "src/game/virtualPlayer.ts",
+      "tokens": 66,
+      "lines": 7,
+      "count": 1
+    },
+    {
+      "hash": "eac8c17dec3a4eb3302024daad2278d34c5f9309",
+      "fileA": "src/game/virtualPlayer.ts",
+      "fileB": "src/game/virtualPlayer.ts",
+      "tokens": 73,
+      "lines": 8,
+      "count": 1
+    }
+  ]
+}
