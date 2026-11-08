@@ -6,8 +6,6 @@ import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT, steerEntityToward } from './simulation/movementSteering';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
-import { addFloatingText } from './simEffects';
-import { beautyAt, pickBeautySpot } from './beautyGrid';
 import { getChurchStrength, findHumanWorkplace, buildConstructionCrewIndex } from './workforce';
 
 import { isPlayerHuman } from './playerHuman';
@@ -30,7 +28,7 @@ import {
   isWorkScheduleHour,
 } from './workSchedule';
 import { isWorkDay } from './dayCycleClock';
-import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, isOnMoonHowlerNightShift, isWeekend, getAbsoluteCalendarDay, isNightHour, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
+import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, isOnMoonHowlerNightShift, isWeekend, getAbsoluteCalendarDay, isNightHour, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
 import { hasResidenceAssignment, isNearResidence, isResidenceBuilding, shareResidence } from './housingModel';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import {
@@ -61,7 +59,7 @@ import {
   getPlayerSettlerCenter,
 } from './frontierCombat';
 import { buildPatrolRevealIndex, detectRaidersForPatrol, type PatrolRevealIndex } from './humanPatrolBehavior';
-import { idleDestination, tickHumanChildLeisure, tickAdultLeisureMotive } from './humanLeisureBehavior';
+import { idleDestination, tickHumanLeisure } from './humanLeisureBehavior';
 import { tickHumanHunting } from './humanHuntingBehavior';
 import {
   HUNTING_PURSUIT_SPEED_MULT,
@@ -97,10 +95,10 @@ import {
 } from './hotelStay';
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
-import { getReadOnlyPathGrid, isGroundWalkableAt, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
-import { crowdGatherPosition, venueGatherPosition, homeStandPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
+import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
+import { crowdGatherPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
-import { fract, tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
+import { tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, adjustHumanStaminaFromEnergy, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { isRestingHospitalPatient } from './hospitalCare';
 import { simAmbientChatNeighbors, simSettlerPairChat } from './simulation/humanSocial';
@@ -120,7 +118,6 @@ import {
   socialAdaptiveOptions,
   SOCIAL_STAGGER,
   SOCIAL_GREETING_RADIUS,
-  SOCIAL_FRIENDSHIP_RADIUS,
   SOCIAL_COURTSHIP_RADIUS,
 } from './adaptiveSpatialQuery';
 import {
@@ -131,7 +128,6 @@ import {
   findCourtshipPartner,
   getAffairTrystBuilding,
   hasAffairPartner,
-  isAtMaritalHome,
   isEligibleToCourt,
   isMaritalHomeOccupiedBySpouse,
   isSpouseNearby,
@@ -1517,383 +1513,39 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Free time & leisure
-    if (
-      !inSpotlightGathering && tickHumanChildLeisure({
-        state,
-        entity,
-        speed: config.speed,
-        hourOfDay,
-        onSchedule,
-        allHumans,
-        entityById,
-        pickSocialBuilding,
-        updatedBuildings,
-        buildingById,
-        humanSocialGrid,
-        width,
-        height,
-        livingHumanAt,
-        suppressIdleInitial: suppressIdle,
-      })
-    ) {
-      suppressIdle = true;
-    } else if (allowFreeRoam && !suppressIdle && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE) {
-      const tick = state.tick;
-      const absDay = getAbsoluteCalendarDay(tick);
-      const leisureSlotPeriod = 80 * TICKS_PER_HOUR;
-      const leisureSlot = Math.floor(tick / leisureSlotPeriod + entity.id * 3);
-      const daySpice = Math.floor(personDayRoll(entity.id, tick, 401 + leisureSlot) * 12);
-      const quietBias = personDayRoll(entity.id, tick, 202) < 0.35;
-      let leisureKind = (leisureSlot * 17 + entity.id * 31 + absDay * 13 + daySpice) % 12;
-      if (quietBias && personDayRoll(entity.id, tick, 403 + leisureSlot) < 0.45) {
-        leisureKind = leisureKind < 6 ? 10 + (leisureKind % 2) : leisureKind;
-      }
-      if (weekend && personDayRoll(entity.id, tick, 201) > 0.55 && leisureKind >= 8) {
-        leisureKind = (entity.id + leisureSlot + absDay) % 7;
-      }
-      const phase = entity.id * 0x9e3779b9 + leisureSlot * 0x85ebca6b + absDay;
-      let idleVx = 0;
-      let idleVy = 0;
-      let routedIdleWalk = false;
-
-      const steerTo = (tx: number, ty: number, speedMult: number, arrive = 14, destination?: Building): boolean => {
-        routedIdleWalk = false;
-        idleVx = 0;
-        idleVy = 0;
-        // Random and social targets may fall inside a completed footprint. Use standable ground
-        // before routing so an unreachable target cannot hold the settler against a wall.
-        const safe = state.worldMap && !isGroundWalkableAt(tx, ty)
-          ? nearestWalkableWorldPoint(state.worldMap, state.buildings, tx, ty)
-          : null;
-        const walkX = safe?.x ?? tx;
-        const walkY = safe?.y ?? ty;
-        const dist = Math.hypot(walkX - entity.x, walkY - entity.y);
-        if (dist <= arrive) {
-          if (destination) enterHumanBuilding(entity, destination);
-          idleVx = Math.sin(tick * 0.04 + entity.id) * config.speed * 0.08;
-          idleVy = Math.cos(tick * 0.035 + entity.id) * config.speed * 0.08;
-          return true;
-        }
-        // Keep the original once-per-tick idle blend when the direct line is clear.
-        // Only a routed detour owns the velocity outright; otherwise last tick's
-        // momentum must still be weighted at 0.5 for ordinary leisure walks.
-        const route = steerWithPath(entity, walkX, walkY, config.speed * speedMult,
-          `idle_${destination?.id ?? 'roam'}_${entity.id}`);
-        if (route === 'direct') {
-          idleVx = ((walkX - entity.x) / dist) * config.speed * speedMult;
-          idleVy = ((walkY - entity.y) / dist) * config.speed * speedMult;
-        } else {
-          routedIdleWalk = true;
-        }
-        return false;
-      };
-
-      const pickCompleted = (types: BuildingType[]): Building | undefined => {
-        const pool = completedPoolOf(types);
-        if (pool.length === 0) return undefined;
-        return pool[(entity.id + leisureSlot) % pool.length];
-      };
-
-      const adultLeisure = tickAdultLeisureMotive({
-        state,
-        entity,
-        speed: config.speed,
-        allHumans,
-        pickSocialBuilding,
-        updatedBuildings,
-        buildingById,
-        humanSocialGrid,
-        width,
-        height,
-        livingHumanAt,
-        settlerChat,
-        settlerPairChat,
-        suppressIdleInitial: suppressIdle,
-      });
-      suppressIdle = adultLeisure.suppressIdle;
-      const spouseEarly = adultLeisure.spouseEarly;
-
-      if (!suppressIdle) {
-        const spouse = spouseEarly ?? (entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined);
-        const kids = (entity.childrenIds ?? [])
-          .map((id) => livingHumanAt(id))
-          .filter((k): k is Entity => !!k?.alive && k.age < HUMAN_ADULT_MIN_AGE);
-        const workplaceWorkers =
-          entity.workerBuildingId != null
-            ? workersByWorkplace.get(entity.workerBuildingId) ?? []
-            : [];
-        const selfIndex = workerIndexById.get(entity.id);
-        const coworkerCount = workplaceWorkers.length - (selfIndex == null ? 0 : 1);
-        const targetPeerIndex = coworkerCount > 0
-          ? (leisureSlot + entity.id) % coworkerCount
-          : -1;
-        const coworkerIndex =
-          targetPeerIndex >= 0 && selfIndex != null && selfIndex <= targetPeerIndex
-            ? targetPeerIndex + 1
-            : targetPeerIndex;
-        const coworker = coworkerIndex >= 0 ? workplaceWorkers[coworkerIndex] : undefined;
-
-        const sneaking =
-          hasAffairPartner(entity, entityById) &&
-          canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
-          !isAtMaritalHome(entity, entityById, buildingById);
-
-        const bondRoll = personDayRoll(entity.id, tick, 510 + leisureSlot);
-        let company: Entity | null = null;
-        let companyKind: 'partner' | 'kid' | 'coworker' | null = null;
-        if (!sneaking) {
-          if (spouse?.alive && bondRoll < 0.4) {
-            company = spouse;
-            companyKind = 'partner';
-          } else if (kids.length > 0 && bondRoll < 0.62) {
-            company = kids[(entity.id + leisureSlot) % kids.length]!;
-            companyKind = 'kid';
-          } else if (coworker && bondRoll < 0.82) {
-            company = coworker;
-            companyKind = 'coworker';
-          }
-        }
-
-        const hangWithCompany = company != null && personDayRoll(entity.id, tick, 520 + leisureSlot) < 0.78;
-        if (hangWithCompany && company) {
-          const sdx = company.x - entity.x;
-          const sdy = company.y - entity.y;
-          const sdist = Math.hypot(sdx, sdy) || 1;
-          const arrive = companyKind === 'kid' ? 14 : 18;
-          if (sdist > arrive) {
-            const route = steerWithPath(entity, company.x, company.y, config.speed * 0.48,
-              `idle_company_${entity.id}_${company.id}`);
-            if (route === 'direct') {
-              idleVx = (sdx / sdist) * config.speed * 0.48;
-              idleVy = (sdy / sdist) * config.speed * 0.48;
-            } else {
-              routedIdleWalk = true;
-            }
-          } else if (sdist < 8) {
-            idleVx = -(sdx / sdist) * config.speed * 0.1;
-            idleVy = -(sdy / sdist) * config.speed * 0.1;
-          } else {
-            if (state.beautyGrid != null && getSimRng('humanTick')() < 0.35) {
-              const pretty = pickBeautySpot(
-                state.beautyGrid,
-                (entity.x + company.x) / 2,
-                (entity.y + company.y) / 2,
-                5,
-              );
-              steerTo(pretty.x, pretty.y, 0.42, 14);
-              if (beautyAt(state.beautyGrid, entity.x, entity.y) >= 3 && getSimRng('humanTick')() < 0.04 * PER_TICK_RATE_SCALE) {
-                adjustHumanStaminaFromEnergy(entity, 0.4 * PER_TICK_RATE_SCALE);
-                addFloatingText(state, entity.x, entity.y - 26, '💐', '#f9a8d4', 'brief');
-              }
-            } else {
-              const steerToShop = (): void => {
-                const shop = pickCompleted([BuildingType.Market, BuildingType.Store]);
-                if (shop) {
-                  const spot = venueGatherPosition(shop, entity.id);
-                  steerTo(spot.x, spot.y, 0.42, 20, shop);
-                } else idleVx = Math.sin(tick * 0.03 + entity.id) * config.speed * 0.1;
-              };
-
-              const shared = (Math.min(entity.id, company.id) * 31 + leisureSlot * 17 + absDay) % 6;
-              if (shared <= 1) {
-                const tavern = pickCompleted([BuildingType.Tavern]);
-                if (tavern) {
-                  const spot = venueGatherPosition(tavern, entity.id);
-                  steerTo(spot.x, spot.y, 0.45, 20, tavern);
-                } else {
-                  steerToShop();
-                }
-              } else if (shared === 2) {
-                steerToShop();
-              } else if (shared === 3) {
-                const well = pickCompleted([BuildingType.Well]);
-                if (well) {
-                  const spot = crowdGatherPosition(well.x + well.width / 2, well.y + well.height / 2, entity.id);
-                  steerTo(spot.x, spot.y, 0.4, 12);
-                }
-              } else if (shared === 4) {
-                const hall = pickCompleted([BuildingType.TownHall]);
-                if (hall) {
-                  const spot = venueGatherPosition(hall, entity.id);
-                  steerTo(spot.x, spot.y, 0.42, 22, hall);
-                }
-              } else {
-                idleVx = Math.sin(tick * 0.025 + entity.id) * config.speed * 0.12;
-                idleVy = Math.cos(tick * 0.02 + company.id) * config.speed * 0.12;
-              }
-            }
-
-            if (companyKind === 'partner') {
-              settlerPairChat(entity, company, 'home', 0.08);
-            } else if (companyKind === 'kid') {
-              settlerChat(entity, 'child', 0.06, company);
-            } else if (companyKind === 'coworker') {
-              settlerPairChat(entity, company, 'social', 0.07);
-            }
-          }
-
-          suppressIdle = true;
-        } else if (leisureKind <= 2) {
-          const tavern = pickCompleted([BuildingType.Tavern]);
-          if (tavern) {
-            const spot = venueGatherPosition(tavern, entity.id);
-            const arrived = steerTo(spot.x, spot.y, 0.5, 18, tavern);
-            if (arrived) {
-              adjustHumanStaminaFromEnergy(entity, 0.45 * PER_TICK_RATE_SCALE);
-              settlerChat(entity, 'social', 0.14 * PER_TICK_RATE_SCALE);
-              if (getSimRng('humanTick')() < 0.04 * PER_TICK_RATE_SCALE) {
-                addFloatingText(state, entity.x, entity.y - 14, '🍺', '#fbbf24');
-              }
-            }
-          } else {
-            const shop = pickCompleted([BuildingType.Market, BuildingType.Store]);
-            if (shop) {
-              const spot = venueGatherPosition(shop, entity.id);
-              steerTo(spot.x, spot.y, 0.48, 16, shop);
-            } else {
-              steerTo(width * 0.5, height * 0.55, 0.4);
-            }
-          }
-        } else if (leisureKind === 3) {
-          const well = pickCompleted([BuildingType.Well]);
-          if (well) {
-            const spot = crowdGatherPosition(well.x + well.width / 2, well.y + well.height / 2, entity.id);
-            const arrived = steerTo(spot.x, spot.y, 0.45, 12);
-            if (arrived) {
-              adjustHumanStaminaFromEnergy(entity, 0.35 * PER_TICK_RATE_SCALE);
-            }
-          } else {
-            steerTo(
-              fract(phase * 0.41) * width * 0.5 + width * 0.25,
-              fract(phase * 0.73) * height * 0.5 + height * 0.25,
-              0.4,
-            );
-          }
-        } else if (leisureKind === 4) {
-          const church = pickCompleted([BuildingType.Church]);
-          if (church) {
-            const spot = venueGatherPosition(church, entity.id);
-            steerTo(spot.x, spot.y, 0.42, 18, church);
-          } else {
-            steerTo(width * 0.45, height * 0.45, 0.38);
-          }
-        } else if (leisureKind === 5) {
-          const hall = pickCompleted([BuildingType.TownHall]);
-          if (hall) {
-            const spot = venueGatherPosition(hall, entity.id);
-            steerTo(spot.x, spot.y, 0.44, 20, hall);
-          } else {
-            steerTo(width * 0.5, height * 0.5, 0.4);
-          }
-        } else if (leisureKind === 6) {
-          let friend: Entity | null = spouse?.alive ? spouse : null;
-          if (!friend && coworker && personDayRoll(entity.id, tick, 530) < 0.55) {
-            friend = coworker;
-          }
-          if (!friend && (state.tick + entity.id) % SOCIAL_STAGGER === 0) {
-            friend =
-              findClosestAdaptiveInRadius(
-                humanSocialGrid,
-                allHumans,
-                entity.x,
-                entity.y,
-                SOCIAL_FRIENDSHIP_RADIUS,
-                (h) => h.id !== entity.id && h.alive && isPlayerHuman(h) && h.age >= HUMAN_ADULT_MIN_AGE && h.id !== entity.affairPartnerId,
-                socialAdaptiveOptions('social', allHumans.length, width, height),
-              ) ?? null;
-          }
-          if (friend) {
-            const sdx = friend.x - entity.x;
-            const sdy = friend.y - entity.y;
-            const sdist = Math.hypot(sdx, sdy) || 1;
-            if (sdist > 22) {
-              const route = steerWithPath(entity, friend.x, friend.y, config.speed * 0.42,
-                `idle_friend_${entity.id}_${friend.id}`);
-              if (route === 'direct') {
-                idleVx = (sdx / sdist) * config.speed * 0.42;
-                idleVy = (sdy / sdist) * config.speed * 0.42;
-              } else {
-                routedIdleWalk = true;
-              }
-            } else if (sdist < 9) {
-              idleVx = -(sdx / sdist) * config.speed * 0.12;
-              idleVy = -(sdy / sdist) * config.speed * 0.12;
-              if (friend.id === entity.partnerId) settlerPairChat(entity, friend, 'home', 0.1);
-              else settlerPairChat(entity, friend, 'social', 0.08);
-            } else {
-              idleVx = Math.sin(tick * 0.03 + entity.id) * config.speed * 0.1;
-              idleVy = Math.cos(tick * 0.025 + entity.id) * config.speed * 0.1;
-            }
-          } else {
-            // As above: a destination, not the map centre.
-            const idleDest = idleDestination(state, entity, idleVenues, buildingById);
-            steerTo(idleDest.x, idleDest.y, 0.4);
-          }
-        } else if (leisureKind === 7) {
-          let gx = width * 0.5;
-          let gy = height * 0.5;
-          if (state.festival?.active) {
-            const hall = pickCompleted([BuildingType.TownHall]);
-            if (hall) {
-              gx = hall.x + hall.width / 2;
-              gy = hall.y + hall.height + 20;
-            }
-          }
-          const performers = festivalPerformers;
-          if (performers) {
-            gx = performers.campX;
-            gy = performers.campY;
-          }
-          steerTo(gx + ((entity.id % 6) - 2.5) * 12, gy + ((entity.id % 5) - 2) * 10, 0.5, 22);
-        } else if (leisureKind === 8) {
-          const tree = findClosestEntityInRadius(
-            ctx.treeGrid,
-            entity.x,
-            entity.y,
-            120,
-            (t) => t.type === EntityType.Tree && t.alive,
-            'social',
-            byType[EntityType.Tree],
-          );
-          if (tree) {
-            steerTo(tree.x, tree.y + 8, 0.38, 16);
-          } else {
-            steerTo(fract(phase * 0.27) * width * 0.55 + width * 0.2, fract(phase * 0.53) * height * 0.55 + height * 0.2, 0.35);
-          }
-        } else if (leisureKind === 9) {
-          const edge = (entity.id + leisureSlot) % 4;
-          const tx = edge === 0 ? width * 0.12 : edge === 1 ? width * 0.88 : width * (0.3 + fract(phase) * 0.4);
-          const ty = edge === 2 ? height * 0.12 : edge === 3 ? height * 0.88 : height * (0.3 + fract(phase * 1.3) * 0.4);
-          steerTo(tx, ty, 0.4, 20);
-        } else if (leisureKind === 10) {
-          const a = fract(phase * 0.6180339887);
-          const b = fract(phase * 0.3819660113);
-          const targetX = a * width * 0.7 + width * 0.15;
-          const targetY = b * height * 0.7 + height * 0.15;
-          steerTo(targetX, targetY, 0.46, 18);
-        } else {
-          if (hasResidenceAssignment(entity)) {
-            const home = buildingById.get(entity.residenceBuildingId!);
-            if (home?.completed) {
-              const porch = homeStandPosition(home, entity.id);
-              steerTo(porch.x, porch.y, 0.4, 12, home);
-            }
-          } else {
-            steerTo(width * 0.5, height * 0.5, 0.38);
-          }
-        }
-
-        if (routedIdleWalk) {
-          suppressIdle = true;
-        } else if (idleVx !== 0 || idleVy !== 0) {
-          entity.vx = entity.vx * 0.5 + idleVx * 0.5;
-          entity.vy = entity.vy * 0.5 + idleVy * 0.5;
-          faceVelocity(entity);
-          suppressIdle = true;
-        }
-      }
-    }
+    // Scheduling, physiology and the single final walk step stay in this tick owner.
+    // All child/adult free-time motives and leisure movement belong to humanLeisureBehavior.
+    suppressIdle = tickHumanLeisure({
+      state,
+      entity,
+      speed: config.speed,
+      hourOfDay,
+      onSchedule,
+      allowFreeRoam,
+      inSpotlightGathering,
+      allHumans,
+      entityById,
+      pickSocialBuilding,
+      updatedBuildings,
+      buildingById,
+      humanSocialGrid,
+      width,
+      height,
+      livingHumanAt,
+      suppressIdleInitial: suppressIdle,
+      settlerChat,
+      settlerPairChat,
+      completedPoolOf,
+      workersByWorkplace,
+      workerIndexById,
+      workplace,
+      workSchedule,
+      idleVenues,
+      festivalPerformers,
+      treeGrid: ctx.treeGrid,
+      trees: byType[EntityType.Tree],
+      weekend,
+    });
 
     if (!suppressIdle) {
       entity.vx *= 0.9;
