@@ -1,7 +1,6 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition, crowdGatherPosition, homeStandPosition, steerHumanToward } from './simulation/humanMovement';
-import { getCurrentPathGrid, lineCrossesBlocked } from './pathfinding';
-import { faceVelocity, setVelocityToward, steerEntityToward } from './simulation/movementSteering';
+import { faceVelocity } from './simulation/movementSteering';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
 import { getChildCustodian, hasResidenceAssignment } from './housingModel';
 import { getWorkSchedule, isOnWorkScheduleShift } from './workSchedule';
@@ -83,7 +82,7 @@ export function tickHumanChildLeisure(args: {
     if (mate?.alive && Math.hypot(mate.x - entity.x, mate.y - entity.y) <= SOCIAL_FRIENDSHIP_RADIUS) {
       const pdist = Math.hypot(mate.x - entity.x, mate.y - entity.y) || 1;
       if (pdist > 16) {
-        setVelocityToward(entity, mate.x, mate.y, speed, 0.7);
+        steerHumanToward(entity, mate.x, mate.y, speed, 0.7, `child_play_${entity.id}_${mate.id}`);
       } else {
         entity.vx = Math.sin(state.tick * 0.2 + entity.id) * speed * 0.45;
         entity.vy = Math.cos(state.tick * 0.18 + mate.id) * speed * 0.45;
@@ -106,9 +105,9 @@ export function tickHumanChildLeisure(args: {
   if (follow?.alive && personDayRoll(entity.id, state.tick, 601) > 0.22) {
     const distance = Math.hypot(follow.x - entity.x, follow.y - entity.y) || 1;
     if (distance > 22) {
-      steerEntityToward(entity, follow.x, follow.y, speed, 0.55);
+      steerHumanToward(entity, follow.x, follow.y, speed, 0.55, `child_follow_${entity.id}_${follow.id}`);
     } else if (distance > 8) {
-      setVelocityToward(entity, follow.x, follow.y, speed, 0.18);
+      steerHumanToward(entity, follow.x, follow.y, speed, 0.18, `child_follow_${entity.id}_${follow.id}`);
     }
     return true;
   }
@@ -186,7 +185,7 @@ export function tickAdultLeisureMotive(args: {
       if (yard?.completed && yard.type === BuildingType.Graveyard) {
         const spot = venueGatherPosition(yard, entity.id);
         if (Math.hypot(entity.x - spot.x, entity.y - spot.y) > 18) {
-          steerEntityToward(entity, spot.x, spot.y, speed * 0.5);
+          steerHumanToward(entity, spot.x, spot.y, speed, 0.5, `leisure_grief_${entity.id}_${yard.id}`);
         } else {
           entity.vx *= 0.2;
           entity.vy *= 0.2;
@@ -239,12 +238,7 @@ export function tickAdultLeisureMotive(args: {
     } else if (impulse.company?.alive) {
       const c = impulse.company; const dist = Math.hypot(c.x - entity.x, c.y - entity.y) || 1;
       if (dist > 16) {
-        const grid = getCurrentPathGrid();
-        if (grid && lineCrossesBlocked(grid, entity.x, entity.y, c.x, c.y)) {
-          steerHumanToward(entity, c.x, c.y, speed, 0.5, `leisure_person_${entity.id}_${c.id}`);
-        } else {
-          steerEntityToward(entity, c.x, c.y, speed, 0.5);
-        }
+        steerHumanToward(entity, c.x, c.y, speed, 0.5, `leisure_person_${entity.id}_${c.id}`);
       }
       else if (impulse.motive === 'comfort_neighbor') { settlerPairChat(entity, c, 'social', 0.12); if (isPlayerHuman(c)) adjustHumanStaminaFromEnergy(c, 0.15 * PER_TICK_RATE_SCALE); }
       else if (impulse.motive === 'care_pregnant') settlerPairChat(entity, c, 'home', 0.12);
