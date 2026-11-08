@@ -50,7 +50,7 @@ tmp/
 GIT_SURVIVAL_GUIDE.md
 TERAFORGE.md
 terminals/
-tools/
+
 
 # Editor and operating-system files
 .vscode/*
