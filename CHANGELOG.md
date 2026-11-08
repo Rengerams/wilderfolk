@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (8 Nov 2026):** Automatic staffing now tops a workplace's open posts up to its capacity from a workplace holding a clear surplus, instead of leaving every site with a single worker while other crews stay full.
 - **Fixed (8 Nov 2026):** Audit A8 tick cost: the blocked-ground repair now reads only the ring around a stranded settler and compares squared distances, halving its cost in the 1,800-settler profile with an identical result.
 - **Fixed (7 Nov 2026):** Audit A8 hourly spike: a child now picks a playmate from the first 32 nearby children and the neighbourhood walk stops there, so a crowded 3,000-settler colony no longer spends seconds on every hour boundary.
 
