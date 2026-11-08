@@ -1,0 +1,22 @@
+{
+  "groups": [
+    {
+      "hash": "42031f903aee973dd4f4e6ffc84744e0e650696f",
+      "status": "distinct",
+      "reason": "ConfirmActionDialog is a destructive-action confirmation with its own cancel-first focus and explicit affirmative step; SubjectWindow is a read-only subject panel using a GameWindow shell. Their only shared call in this lexical gate is the keyboard claim, not duplicated decision authority.",
+      "tests": [
+        "tests/keyboardGuards.contract.test.ts"
+      ]
+    },
+    {
+      "hash": "1851cc11fd6dabdc22d7ed4f1f45377fc2557558",
+      "status": "distinct",
+      "reason": "The signature collapses unrelated local Map.get/set operations: familyTree groups UI partners, genealogyRegistry finds historical family networks, and relationshipFieldCoverage tracks revisions for worker-delta transport. The state, cadence, reads and writes are different; sharing the method names does not make them one gameplay decision.",
+      "tests": [
+        "tests/familyTree.test.ts",
+        "tests/genealogyRegistry.test.ts",
+        "tests/simDelta.entityProfile.test.ts"
+      ]
+    }
+  ]
+}
