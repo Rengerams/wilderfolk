@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (8 Nov 2026):** Audit A8 tick cost: the blocked-ground repair now reads only the ring around a stranded settler and compares squared distances, halving its cost in the 1,800-settler profile with an identical result.
 - **Fixed (7 Nov 2026):** Audit A8 hourly spike: a child now picks a playmate from the first 32 nearby children and the neighbourhood walk stops there, so a crowded 3,000-settler colony no longer spends seconds on every hour boundary.
 
 - **Fixed (7 Nov 2026):** Audit A8 tick cost: ambient chatter now reads the nearby settlers only after its chance roll, and a child who will not play skips the playmate scan, cutting a 1,800-settler tick from 625 to 106 ms with the same simulation result.
