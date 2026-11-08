@@ -11,8 +11,7 @@ import {
   hasWorkAssignment,
   isImprisoned,
 } from '../game/housingModel';
-import { daysUntilTick, getBirthDateString } from '../game/dayCycle';
-import { getPregnancyProgressFraction } from '../game/simulation/humanLifecycle';
+import { PREGNANCY_TICKS, daysUntilTick, getBirthDateString } from '../game/dayCycle';
 import { isMarriedOrExpecting } from '../game/relationships';
 import { APTITUDE_DEFS, APTITUDE_IDS, expressAptitudes } from '../game/settlerTraits';
 import { getHumanVariantLabel } from '../game/humanSprites';
@@ -320,7 +319,7 @@ export default function SelectedEntityPanel({
             )}
             {entity.pregnant && (
               <p className="font-bold text-pink-400">
-                🤰 Pregnant! ({Math.round(getPregnancyProgressFraction(entity) * 100)}%)
+                🤰 Pregnant! ({Math.round(((entity.pregnancyProgress ?? 0) / PREGNANCY_TICKS) * 100)}%)
               </p>
             )}
             {entity.partnerId && isMarriedOrExpecting(entity) && (() => {
