@@ -34,7 +34,7 @@ import { isPlayerHuman } from './playerHuman';
 import { getSimRng } from './simRng';
 import { tickHotelLodging } from './hotelStay';
 import { tickElectionCeremony } from './villageLeadership';
-import { findPlayerTownHall } from './playerTownHall';
+import { findCompletedBuilding } from './buildings';
 import { addBigNews, addNotification, impulseScreenShake } from './simEffects';
 import { getEcosystemHealth } from './dailyEcology';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
@@ -84,7 +84,7 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     const electionReveal = tickElectionCeremony(state, state.year);
     if (electionReveal) {
       addBigNews(state, electionReveal.title, electionReveal.message, 'positive');
-      const hall = findPlayerTownHall(state.buildings);
+      const hall = findCompletedBuilding(state.buildings, BuildingType.TownHall);
       addNotification(
         state,
         electionReveal.title,
