@@ -61,10 +61,11 @@
       ]
     },
     {
-      "key": "src/game/economyLedger.ts:119:getRecentFoodFlow@c7ea8a34ea77f75f684450dce065ef4569513ec572f01af678fc74974f7c0f0d <-> src/game/economyLedger.ts:166:getProjectedFoodSupply@1c8ce75d48c86f12616a5b8a55e315f36c92fd86e0c6a73733ee839cf08d50de",
-      "reason": "getRecentFoodFlow is the canonical bounded contiguous-history reader and sums actual daily food-production and consumption totals. getProjectedFoodSupply calls that reader rather than copying it, then estimates forward demand from differences between the earlier and later halves of the historical consumption window. They do not make the same decision: one reports measured retrospective flows, the other projects future risk. A single function would combine unrelated observed and forecast semantics. The food-ledger regression tests both independently.",
+      "key": "src/game/economyLedger.ts:105:getRecentFoodFlow@413019618852f30682d5546bf7ad3dc1502aa4248af96573271671d5fb5af5bf <-> src/game/economyLedger.ts:152:getProjectedFoodSupply@1c8ce75d48c86f12616a5b8a55e315f36c92fd86e0c6a73733ee839cf08d50de",
+      "reason": "getRecentFoodFlow is the canonical bounded contiguous-history measurement and retains raw all-spend reporting, with an optional meals-only consumption projection for sustainable growth. getProjectedFoodSupply calls that reader and then forecasts future meal needs from the historical consumption slope, rather than duplicating the history scan. The first returns retrospective measured production and consumption; the second computes risk against future population. Merging them would conflate measured accounting with forward demand and lose the separate caller contracts. Tests cover both modes and the one-off recruitment expense regression.",
       "tests": [
-        "tests/economyLedger.foodFlow.test.ts"
+        "tests/economyLedger.foodFlow.test.ts",
+        "tests/dailyPopulation.foodAdmission.test.ts"
       ]
     },
     {
