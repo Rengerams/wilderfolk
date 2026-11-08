@@ -162,7 +162,7 @@ describe('hotel guest routing and road speed', () => {
 
 describe('M14 hospital routing movement', () => {
   it('sets walk velocity without writing position (the human loop applies the step)', () => {
-    const patient = human(1, 20, 16, { pregnant: true, energy: 40, maxEnergy: 100 });
+    const patient = human(1, 20, 16, { pregnant: true, pregnancyProgress: 900, pregnancyDueProgress: 1000, energy: 40, maxEnergy: 100 });
     const ward = hospital(5, 400, 0, [2]);
     const state = makeState(0, [patient]);
 
