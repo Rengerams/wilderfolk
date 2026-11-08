@@ -11,7 +11,7 @@ import { spendFood } from './economyLedger';
 import { addFloatingText, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { getVillageLeader } from './villageLeadership';
-import { findPlayerTownHall } from './playerTownHall';
+import { findCompletedBuilding } from './buildings';
 import { isDialogueBusy } from './humanChat';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { isPlayerHuman } from './playerHuman';
@@ -24,7 +24,7 @@ export const TOWN_HALL_FESTIVAL_COST = { food: 25, gold: 20 };
 export const TOWN_HALL_FESTIVAL_DAYS = 14;
 
 export function isTownHallStaffed(buildings: Building[]): boolean {
-  const hall = findPlayerTownHall(buildings);
+  const hall = findCompletedBuilding(buildings, BuildingType.TownHall);
   return !!hall && hall.occupants.length > 0;
 }
 
@@ -43,7 +43,7 @@ export function getTownHallOfficialSkillAvg(state: WorldState, hall: Building): 
 
 /** Active trade routes yield more when civic clerks keep ledgers. */
 export function getTownHallTradeMultiplier(state: WorldState, buildings: Building[]): number {
-  const hall = findPlayerTownHall(buildings);
+  const hall = findCompletedBuilding(buildings, BuildingType.TownHall);
   if (!hall || hall.occupants.length === 0) return 1;
   const skill = getTownHallOfficialSkillAvg(state, hall);
   return 1 + Math.min(0.3, hall.occupants.length * 0.06 + skill * 0.0015);
@@ -56,7 +56,7 @@ export function getTownHallImmigrationMultiplier(buildings: Building[]): number 
 
 /** Village-wide production efficiency when officials govern. */
 export function getTownHallGovernanceEfficiency(state: WorldState, buildings: Building[]): number {
-  const hall = findPlayerTownHall(buildings);
+  const hall = findCompletedBuilding(buildings, BuildingType.TownHall);
   if (!hall || hall.occupants.length === 0) return 1;
   let mult = 1.05 + hall.occupants.length * 0.02;
   const leader = getVillageLeader(state);
