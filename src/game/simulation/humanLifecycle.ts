@@ -58,7 +58,28 @@ export const LIFECYCLE_CONFIG = {
   MATERNAL_ENERGY_MIN_RATIO: 0.18,
   STILLBORN_GRIEF_DAYS: 3,
   SCANDAL_BASE_REP_LOSS: -3,
+  HOSPITAL_THRESHOLD_RATIO: 0.85,
 } as const;
+
+/** Authoritative progress toward this mother's individual due date (±15% term variation). */
+export function getPregnancyProgressFraction(
+  mother: Pick<Entity, 'pregnancyProgress' | 'pregnancyDueProgress'>,
+): number {
+  const due = mother.pregnancyDueProgress;
+  const term = typeof due === 'number' && Number.isFinite(due) && due > 0
+    ? due : PREGNANCY_TICKS;
+  const elapsed = mother.pregnancyProgress;
+  const progress = typeof elapsed === 'number' && Number.isFinite(elapsed) ? elapsed : 0;
+  return Math.min(1, Math.max(0, progress / term));
+}
+
+/** Shared pregnancy stage verdict for hospital routing, doctor duty and medical care. */
+export function isPregnancyHospitalStage(
+  mother: Pick<Entity, 'pregnant' | 'pregnancyProgress' | 'pregnancyDueProgress'>,
+): boolean {
+  return mother.pregnant === true
+    && getPregnancyProgressFraction(mother) >= LIFECYCLE_CONFIG.HOSPITAL_THRESHOLD_RATIO;
+}
 
 function safeAddChildId(parent: Entity, childId: number): void {
   parent.childrenIds ??= [];
