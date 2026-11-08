@@ -983,7 +983,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const dist = Math.hypot(target.x - entity.x, target.y - entity.y);
       if (dist > 10) {
         steerHumanToward(entity, target.x, target.y, config.speed, 1.15,
-          `election_${state.electionCeremony.id ?? 'gather'}_${entity.id}`);
+          `election_${state.electionCeremony.electionId ?? 'gather'}_${entity.id}`);
       } else {
         entity.vx = 0;
         entity.vy = 0;
