@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
-import type { Entity, WorldState } from '../src/game/gameTypes';
+import { BuildingType, type Building, type Entity, type WorldState } from '../src/game/gameTypes';
 import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 
 /** Seed whose day-boundary tick admits a family into a high-reputation village. */
@@ -23,6 +23,14 @@ describe('gameTick retains each new entity once at the day boundary', () => {
     const state = initGame({ seed: FIXTURE_SEED });
     // High reputation keeps the daily immigration roll near certainty so the boundary spawns.
     state.villageReputation = 100;
+    // An actual completed home is required for admission; reputation alone adds no beds.
+    state.buildings.push({
+      id: state.nextBuildingId++, type: BuildingType.House,
+      x: state.width / 2 + 100, y: state.height / 2 + 100,
+      width: 60, height: 48, level: 1, rotation: 0, faction: 'player',
+      occupants: [], constructionProgress: 100, completed: true,
+      health: 100, maxHealth: 100, spriteScale: 1,
+    } as Building);
     // Land exactly on a colony-day boundary: `gameTick` increments onto it.
     state.tick = tickAtDailyPhase(1, 'worldEvents') - 1;
     const before = new Set(state.entities);
