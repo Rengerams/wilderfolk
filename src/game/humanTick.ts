@@ -1493,13 +1493,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       onHotelShift,
     });
     if (!huntingWere && !inElectionCeremony && !inSpotlightGathering && !festivalGathering) {
-      tickHumanHospitalPatientCare({
+      const receivingHospitalCare = tickHumanHospitalPatientCare({
         state,
         entity,
         staffedHospitals,
         onJobShift,
         speed: config.speed,
       });
+      if (receivingHospitalCare) {
+        suppressIdle = true;
+        onSchedule = true;
+      }
     }
 
     if (entity.indoorBuildingId != null) suppressIdle = true;
