@@ -821,6 +821,8 @@ function distanceToSegment(px: number, py: number, ax: number, ay: number, bx: n
 const PATH_CACHE_LIMIT = 4096;
 
 interface CachedPath {
+  /** The mover that owns this entry, regardless of the activity-specific cache key. */
+  walkerId: number;
   targetX: number;
   targetY: number;
   startTileX: number;
@@ -834,11 +836,10 @@ interface CachedPath {
 
 const pathCache = new Map<string, CachedPath>();
 
-/** Discard a walker's stale commute routes after its movement step repeatedly fails. */
+/** Discard every route for a stuck walker, including leisure and social destinations. */
 export function invalidateCommutePathsForWalker(entityId: number): void {
-  const prefix = `c_${entityId}_`;
-  for (const key of pathCache.keys()) {
-    if (key.startsWith(prefix)) pathCache.delete(key);
+  for (const [key, route] of pathCache) {
+    if (route.walkerId === entityId) pathCache.delete(key);
   }
 }
 
@@ -965,6 +966,7 @@ export function steerWithPath(
         waypoints = [{ x: entity.x, y: entity.y }, ...waypoints];
       }
       cached = {
+        walkerId: entity.id,
         waypoints, nextIndex: waypoints && waypoints.length > 1 ? 1 : 0,
         targetX, targetY, startTileX: startTx, startTileY: startTy,
         directDetourRejected: !directBlocked && !savesTime,
