@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyHumanWalkStep, commuteHumanToBuilding, commutePathCacheKey, crowdGatherPosition, homeStandPosition, nearestActiveMoonHowler, venueGatherPosition } from '../src/game/simulation/humanMovement';
+import { applyHumanWalkStep, commuteHumanToBuilding, commutePathCacheKey, crowdGatherPosition, enterHumanBuilding, homeStandPosition, nearestActiveMoonHowler, venueGatherPosition } from '../src/game/simulation/humanMovement';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import { isActiveMoonHowler } from '../src/game/moonHowler';
@@ -27,15 +27,14 @@ function werewolf(id: number, x: number, y: number, active: boolean): Entity {
 
 describe('human movement helpers', () => {
   it('keeps commute cache keys stable only when both endpoint tiles match', () => {
-    const first = commutePathCacheKey(building.id, false, 101, 81, 200, 120);
-    const sameTiles = commutePathCacheKey(building.id, false, 109, 89, 207, 127);
-    const nextStartTile = commutePathCacheKey(building.id, false, 111, 81, 200, 120);
-    const nextTargetTile = commutePathCacheKey(building.id, false, 101, 81, 216, 120);
+    const first = commutePathCacheKey(building.id, 101, 81, 200, 120);
+    const sameTiles = commutePathCacheKey(building.id, 109, 89, 207, 127);
+    const nextStartTile = commutePathCacheKey(building.id, 111, 81, 200, 120);
+    const nextTargetTile = commutePathCacheKey(building.id, 101, 81, 216, 120);
 
     expect(first).toBe(sameTiles);
     expect(nextStartTile).not.toBe(first);
     expect(nextTargetTile).not.toBe(first);
-    expect(commutePathCacheKey(building.id, true, 101, 81, 200, 120)).not.toBe(first);
   });
 
   it('keeps a blocked commuter moving so the stuck detector can recover', () => {
@@ -45,7 +44,7 @@ describe('human movement helpers', () => {
     const person = { id: 1, type: EntityType.Human, x: 50, y: 150, alive: true, vx: 0, vy: 0 } as Entity;
     setCurrentPathMap(map, [wall]);
 
-    expect(commuteHumanToBuilding(person, target, 2, false)).toBe(false);
+    expect(commuteHumanToBuilding(person, target, 2)).toBe(false);
     expect(Math.hypot(person.vx, person.vy)).toBeGreaterThan(0);
 
     setCurrentPathMap(null);
@@ -93,7 +92,7 @@ describe('human movement helpers', () => {
     setCurrentPathMap(null);
     try {
       for (let tick = 0; tick < 150 && tomika.indoorBuildingId !== leaderHouse.id; tick++) {
-        commuteHumanToBuilding(tomika, leaderHouse, 3, true);
+        if (commuteHumanToBuilding(tomika, leaderHouse, 3)) enterHumanBuilding(tomika, leaderHouse);
         applyHumanWalkStep(tomika, 1);
       }
       expect(tomika.indoorBuildingId).toBe(leaderHouse.id);

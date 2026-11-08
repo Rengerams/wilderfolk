@@ -90,16 +90,16 @@ export function presentationPosition(entity: Entity): MotionPosition {
     return { x: spotlightPresentation.x, y: spotlightPresentation.y };
   }
   const previous = previousByEntity.get(entity.id);
-  if (!previous) return { x: entity.x, y: entity.y };
+  // The entity itself satisfies the read-only position contract; stationary movers allocate none.
+  if (!previous) return entity;
 
-  const current: MotionPosition = { x: entity.x, y: entity.y };
-  const dx = current.x - previous.x;
-  const dy = current.y - previous.y;
+  const dx = entity.x - previous.x;
+  const dy = entity.y - previous.y;
 
   // Als de entiteit een teleporatie maakt of niet beweegt, niet interpoleren
   const distSq = dx * dx + dy * dy;
   if (distSq === 0 || distSq > MAX_INTERPOLATED_STEP_PX * MAX_INTERPOLATED_STEP_PX) {
-    return current;
+    return entity;
   }
 
   // Voorkom dat afronding of asynchrone worker-updates de entiteit achteruit trekken: val bij een

@@ -1,4 +1,4 @@
-import { BuildingType, EntityType, type Entity } from '../gameTypes';
+import { BuildingType, EntityType, type Building, type Entity } from '../gameTypes';
 import { shouldBeAtHomeFor } from '../humanSchedule';
 import { DEFAULT_WORK_SCHEDULE, isWorkScheduleHour } from '../workSchedule';
 import { isMarriedOrExpecting } from '../relationships';
@@ -208,6 +208,58 @@ function buildHumanStatusIconContext(
     ),
     childSchoolById,
   };
+}
+
+/**
+ * Status inputs move with the snapshot (one simulation state), so frames between two ticks reuse
+ * them instead of rescanning schools, construction crews and barracks on every repaint.
+ */
+let _statusContextSource: { state: RenderSnapshot; humans: readonly Entity[] } | null = null;
+let _statusContext: HumanStatusIconContext | null = null;
+
+/** Id → building for the sleeper cull; keyed like the colony blacksmith scan. */
+let _buildingIndexSource: { buildings: readonly Building[]; length: number; tick: number } | null = null;
+let _buildingIndex: Map<number, Building> | null = null;
+
+function humanStatusIconContext(
+  state: RenderSnapshot,
+  humans: readonly Entity[],
+): HumanStatusIconContext {
+  const source = _statusContextSource;
+  if (_statusContext && source && source.state === state && source.humans === humans) {
+    return _statusContext;
+  }
+  _statusContext = buildHumanStatusIconContext(state, humans);
+  _statusContextSource = { state, humans };
+  return _statusContext;
+}
+
+/** The world keeps one buildings array for the session, so identity alone is not a key. */
+function renderBuildingIndex(state: RenderSnapshot): ReadonlyMap<number, Building> {
+  const buildings = state.buildings;
+  const source = _buildingIndexSource;
+  if (
+    _buildingIndex
+    && source
+    && source.buildings === buildings
+    && source.length === buildings.length
+    && source.tick === state.tick
+  ) {
+    return _buildingIndex;
+  }
+  const index = new Map<number, Building>();
+  for (const building of buildings) index.set(building.id, building);
+  _buildingIndex = index;
+  _buildingIndexSource = { buildings, length: buildings.length, tick: state.tick };
+  return index;
+}
+
+/** Drop the per-tick render memos when a session or save replaces the world. */
+export function resetHumanRenderCaches(): void {
+  _statusContextSource = null;
+  _statusContext = null;
+  _buildingIndexSource = null;
+  _buildingIndex = null;
 }
 
 function getStatusFacts(human: Entity, ctx: HumanStatusIconContext): HumanStatusFacts {
@@ -721,7 +773,8 @@ export function drawHumans(
   forEntityLayerCache = false,
 ) {  const tick = state.tick;
   const cam = state.camera;
-  const statusCtx = buildHumanStatusIconContext(state, _cachedHumans);
+  const statusCtx = humanStatusIconContext(state, _cachedHumans);
+  const buildingById = renderBuildingIndex(state);
   const occupiedBubbleRects: OverheadRect[] = [];
   /** Bubbles wait for the layout pass to finish, so every name plate is reserved before one is placed. */
   const pendingBubbles: {
@@ -733,7 +786,7 @@ export function drawHumans(
       || !shouldDrawSpotlightHuman(state.spotlightLore, human.id)) continue;
     const isSel = state.selectedEntityIds.includes(human.id) || state.selectedEntity?.id === human.id;
     // Indoor occupants stay selectable in inspectors but never draw a body or overhead UI.
-    if (human.indoorBuildingId != null || (!isSel && isAsleepAtHome(human, state.buildings, state.hourOfDay))) continue;
+    if (human.indoorBuildingId != null || (!isSel && isAsleepAtHome(human, buildingById, state.hourOfDay))) continue;
 
     const pos = presentationPosition(human);
     const sx = (pos.x - cam.x) * cam.zoom + cw / 2;

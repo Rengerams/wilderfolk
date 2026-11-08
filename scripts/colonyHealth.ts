@@ -2,6 +2,10 @@
  * Shared seeded scenarios and colony-health observation for the long-run harnesses, so they cannot
  * drift apart. Writes are only setup the game performs itself when a player builds and staffs.
  */
+import { buildingAccessPoint, isAtBuildingReach } from '../src/game/buildingAccess';
+import { isPlayerHuman } from '../src/game/playerHuman';
+import { getHourOfDay, getTickOfDay, TICKS_PER_DAY } from '../src/game/dayCycle';
+import { getWorkSchedule, isWorkScheduleHour } from '../src/game/workSchedule';
 import { createHash } from 'node:crypto';
 import { serialize } from 'node:v8';
 import { initGame } from '../src/game/gameEngine';
@@ -590,7 +594,21 @@ function safeInspect(value: unknown): string {
 // The eight health domains, projected together
 // ─────────────────────────────────────────────────────────────────────────────
 
+export interface ColonyMovementSample {
+  id: number;
+  workplaceId?: number;
+  travelling: number;
+  atWork: number;
+  atHome: number;
+  idle: number;
+  walked: number;
+  distanceToAccess: number | null;
+  closestApproach: number | null;
+  firstShiftArrivalTick: number | null;
+}
+
 export interface ColonyHealthReport {
+  movement: { dayStart: number; secondsPerDayAt1x: number; settlers: ColonyMovementSample[] };
   day: number;
   tick: number;
   year: number;
@@ -710,6 +728,7 @@ function countChanged(previous: Map<number, string>, next: Map<number, string>):
 }
 
 export interface ColonyObserver {
+  sampleMovement(): void;
   /** Snapshot the eight domains for `day`, plus the transitions since the previous call. */
   observe(day: number, deltas: DeltaSample, invariantErrors: readonly string[]): ColonyHealthReport;
   /** Exact cumulative event totals since the observer was created. */
@@ -722,6 +741,58 @@ export interface ColonyObserver {
  */
 export function createColonyObserver(world: WorldState): ColonyObserver {
   const counter = createEventCounter();
+  let movementDayStart = world.tick - getTickOfDay(world.tick);
+  const movement = new Map<number, ColonyMovementSample>();
+  const previousPositions = new Map(world.entities.map((entity) => [entity.id, { x: entity.x, y: entity.y }]));
+  const sampleMovement = (): void => {
+    const sampledTick = Math.max(0, world.tick - 1);
+    const dayStart = sampledTick - getTickOfDay(sampledTick);
+    if (dayStart !== movementDayStart) {
+      movement.clear();
+      movementDayStart = dayStart;
+    }
+    const buildings = new Map(world.buildings.map((building) => [building.id, building]));
+    const schedule = getWorkSchedule(world);
+    const livingIds = new Set<number>();
+    for (const entity of world.entities) {
+      if (!entity.alive || !isPlayerHuman(entity)) continue;
+      livingIds.add(entity.id);
+      const previous = previousPositions.get(entity.id);
+      const walked = previous ? Math.hypot(entity.x - previous.x, entity.y - previous.y) : 0;
+      previousPositions.set(entity.id, { x: entity.x, y: entity.y });
+      let sample = movement.get(entity.id);
+      if (!sample) {
+        sample = { id: entity.id, travelling: 0, atWork: 0, atHome: 0, idle: 0, walked: 0,
+          distanceToAccess: null, closestApproach: null, firstShiftArrivalTick: null };
+        movement.set(entity.id, sample);
+      }
+      if (sample.workplaceId !== entity.workerBuildingId) {
+        sample.workplaceId = entity.workerBuildingId;
+        sample.closestApproach = null;
+        sample.firstShiftArrivalTick = null;
+      }
+      const workplace = buildings.get(entity.workerBuildingId ?? -1);
+      const home = buildings.get(entity.residenceBuildingId ?? -1);
+      const atWork = !!workplace?.completed && (entity.indoorBuildingId === workplace.id || isAtBuildingReach(entity, workplace));
+      const atHome = !!home && (entity.indoorBuildingId === home.id || isAtBuildingReach(entity, home));
+      const access = workplace?.completed ? buildingAccessPoint(workplace) : null;
+      sample.distanceToAccess = access ? Math.hypot(access.x - entity.x, access.y - entity.y) : null;
+      if (sample.distanceToAccess != null) {
+        sample.closestApproach = Math.min(sample.closestApproach ?? Infinity, sample.distanceToAccess);
+      }
+      sample.walked += walked;
+      if (walked > 0) sample.travelling++;
+      else if (atWork) sample.atWork++;
+      else if (atHome) sample.atHome++;
+      else sample.idle++;
+      if (atWork && sample.firstShiftArrivalTick == null && isWorkScheduleHour(schedule, getHourOfDay(world.tick))) {
+        sample.firstShiftArrivalTick = getTickOfDay(world.tick);
+      }
+    }
+    for (const id of previousPositions.keys()) {
+      if (!livingIds.has(id)) previousPositions.delete(id);
+    }
+  };
   let previousKeys: TransitionKeys | null = null;
   let previousDiagnostics = 0;
   let previousLeaderId = world.villageLeaderId;
@@ -788,6 +859,8 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
     const wildlifeTotal = Object.values(wildlife).reduce((total, value) => total + value, 0);
 
     return {
+      movement: { dayStart: movementDayStart, secondsPerDayAt1x: TICKS_PER_DAY / BASE_TICKS_PER_SECOND,
+        settlers: [...movement.values()].map((sample) => ({ ...sample })) },
       day,
       tick: world.tick,
       year: world.year,
@@ -890,6 +963,7 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
   };
 
   return {
+    sampleMovement,
     observe,
     events(): ColonyEventTotals {
       return counter.observe(world);

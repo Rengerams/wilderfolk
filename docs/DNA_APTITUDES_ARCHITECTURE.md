@@ -8,7 +8,7 @@ This document describes what the live code does, not the proposal. It is the ref
 
 ## 1. One-paragraph summary
 
-Every human carries one immutable `GenomeV2`: fourteen inherited aptitude dimensions, each stored as two alleles. Expression is the mean of the two alleles; gameplay uses each dimension's deviation from that settler's own fourteen-dimension mean. One static registry maps a typed activity to signed weights; one pure evaluator turns a genome and an activity into a single bounded factor (`1 ± cap`). The existing decision owner applies that factor to its own baseline and keeps sole write authority. Conception reads no genetics. Four **personal marks** — lucky, pretty, scarred and sickly — are born or earned, never inherited, and enter the same evaluator through the same activity records. The inspector reads the same evaluator; there is no UI-side scoring rule.
+Every living player settler carries one immutable `GenomeV2`: fourteen inherited aptitude dimensions, each stored as two alleles. Expression is the mean of the two alleles; gameplay uses each dimension's deviation from that settler's own fourteen-dimension mean. One static registry maps a typed activity to signed weights; one pure evaluator turns a genome and an activity into a single bounded factor (`1 ± cap`). The existing decision owner applies that factor to its own baseline and keeps sole write authority. Conception reads no genetics. Four **personal marks** — lucky, pretty, scarred and sickly — are born or earned, never inherited, and enter the same evaluator through the same activity records. The inspector reads the same evaluator; there is no UI-side scoring rule.
 
 ---
 
@@ -76,14 +76,14 @@ Personal-mean centering is what prevents a settler with universally high raw val
 
 | Event | Function | Behaviour |
 | --- | --- | --- |
-| Founder creation | `entityFactory.createEntity` → `rollFounderGenome` | Draws 14 pairs from the live `settlerGenetics` stream, then enforces spread. |
+| Founder creation | `entityFactory.createEntity` → `rollFounderGenome` | Draws 14 pairs from the live `settlerGenetics` stream for a player settler only, then enforces spread; a foreign faction is created neutral. |
 | Birth | `humanLifecycle.tickPregnancyAndBirth` → `inheritGenome` | Picks one allele per parent per dimension, applies the rare bounded mutation, enforces spread. Biological father only. |
 | Old save | `saveLoad.backfillLegacySettlerDNA` → `normalizeGenome` / `genomeFromSeed` | Valid genome kept; otherwise deterministic per colony seed and citizen id. Runs after the RNG registry is restored. |
 | Worker prep | `simPrep.extractSimPrep` / `applySimPrep` | Copies `genomeV2` with the entity; never rerolls. |
 | Worker delta | `simDelta.PROFILE_FIELDS` | Ships the genome once and on profile refresh; no per-tick payload. |
 | Moon Howler | `moonHowler.transformToWerewolfForm` / `moonHowlerForm.revertToHumanForm` | The same entity keeps the same genome through both forms. |
 | Dead / foreign | — | No genome is created or read; behaviour falls back to neutral. |
-| Personal marks | `entityFactory.createEntity` → `rollBornMarks`; `frontierCombat.resolveIncomingRaidCasualties` and `blueberryForaging.tryTickBlueberryForaging` → `grantMark` | Born marks draw once at creation; an earned mark needs a real resolved event; a parent passes neither. |
+| Personal marks | `entityFactory.createEntity` → `rollBornMarks`; `frontierCombat.resolveIncomingRaidCasualties` and `blueberryForaging.tryTickBlueberryForaging` → `grantMark` | Born marks draw once at creation for a player settler; an earned mark needs a real resolved event and its definition's own source; a parent passes neither. |
 
 No recurring genome roll exists. RNG draws happen only at founder creation, birth and the one creation-time mark draw; no mark is ever rerolled.
 

@@ -740,10 +740,11 @@ export function pickRandomChatContext(
 /**
  * Ambient dialogue — random time and context, optional nearby partner.
  * @param chancePerTick raw chance this tick (e.g. 0.012 ≈ occasional chatter)
+ * @param readNearbyCandidates read only after the chance roll fires; the scan is the caller's cost
  */
 export function tryAmbientRandomDialogue(
   entity: ChatSpeaker,
-  nearbyCandidates: ChatSpeaker[],
+  readNearbyCandidates: () => ChatSpeaker[],
   tick: number,
   chancePerTick: number,
   options: ChatPickOptions = {},
@@ -759,6 +760,7 @@ export function tryAmbientRandomDialogue(
   if (isDialogueBusy(entity)) return;
   if (seededRandomForRun(`chat-ambient:${entity.id}:${tick}`) > chancePerTick) return;
 
+  const nearbyCandidates = readNearbyCandidates();
   const context = pickRandomChatContext(entity, tick, options, extra);
   
   // 🚀 OPTIMIZED: Single-pass random partner selection instead of .filter()

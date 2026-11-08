@@ -1,13 +1,25 @@
 /**
- * Hospital seeking is a main-loop behavior gated on `needsMedicalCare`: sick or
- * near-term pregnant settlers walk to a staffed hospital, healthy ones do not.
+ * One pregnancy hospital rule: the lifecycle's 85% threshold plus a staffed ward sends a settler to
+ * hospital regardless of shift, and below it pregnancy never routes anyone away from work.
  */
 import { describe, expect, it } from 'vitest';
 import { pickHospitalWalkTarget } from '../src/game/hospitalCare';
-import { doctorMayServe, shouldRoutePregnantSettlerToHospital, shouldAttemptHospitalTreatment, tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
-import { PREGNANCY_TICKS } from '../src/game/dayCycle';
-import { BuildingType } from '../src/game/gameTypes';
+import {
+  isPregnancyHospitalPriority,
+  isStaffedHospital,
+  tickHumanDoctorHospitalService,
+  tickHumanHospitalPatientCare,
+  shouldAttemptHospitalTreatment,
+} from '../src/game/humanHospitalBehavior';
+import { isPregnancyHospitalDue } from '../src/game/simulation/humanLifecycle';
+import { doctorHospitalShift, HOSPITAL_SHIFT_HOURS } from '../src/game/hospitalShifts';
+import { personDayRoll } from '../src/game/simRng';
+import { PREGNANCY_TICKS, TICKS_PER_DAY, TICKS_PER_HOUR, getTickOfDay } from '../src/game/dayCycle';
+import { BuildingType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
+
+/** The one threshold, as a test fixture may spell it: 85% of the term. */
+const HOSPITAL_THRESHOLD_PROGRESS = PREGNANCY_TICKS * 0.85;
 
 function entity(x: number, y: number, overrides: Partial<Entity> = {}): Entity {
   return {
@@ -27,7 +39,7 @@ function entity(x: number, y: number, overrides: Partial<Entity> = {}): Entity {
   } as Entity;
 }
 
-function hospital(id: number, x: number, y: number): Building {
+function hospital(id: number, x: number, y: number, occupants: number[] = []): Building {
   return {
     id,
     type: BuildingType.Hospital,
@@ -35,7 +47,7 @@ function hospital(id: number, x: number, y: number): Building {
     y,
     width: 40,
     height: 32,
-    occupants: [],
+    occupants,
     level: 1,
     constructionProgress: 100,
     completed: true,
@@ -57,8 +69,7 @@ describe('pickHospitalWalkTarget', () => {
 
   it('returns undefined when the settler is already at a hospital (<= 28px)', () => {
     const patient = entity(10, 10, { pregnant: true });
-    const target = pickHospitalWalkTarget(patient, [hospital(1, 0, 0)]);
-    expect(target).toBeUndefined();
+    expect(pickHospitalWalkTarget(patient, [hospital(1, 0, 0)])).toBeUndefined();
   });
 
   it('returns undefined when there is no staffed hospital', () => {
@@ -72,7 +83,7 @@ describe('pickHospitalWalkTarget', () => {
   });
 
   it('admits an exhausted patient at a large hospital by its entrance, not its footprint centre', () => {
-    const ward = { ...hospital(1, 100, 100), width: 120, height: 80, occupants: [7] };
+    const ward = { ...hospital(1, 100, 100, [7]), width: 120, height: 80 };
     // Standing at the south door: 60 px from the centre, 8 px from the entrance.
     const patient = entity(ward.x, ward.y + ward.height / 2 + 20, { energy: 10, pregnant: false });
 
@@ -80,61 +91,14 @@ describe('pickHospitalWalkTarget', () => {
       state: { tick: 0 } as WorldState,
       entity: patient,
       staffedHospitals: [ward],
-      onJobShift: false,
       speed: 2,
     });
 
     expect(patient.indoorBuildingId).toBe(ward.id);
   });
-});
-
-describe('hospital duty and care gates', () => {
-  it('takes a doctor off the ward round at 85% of her own due date, not at the nominal term', () => {
-    const personalTerm = PREGNANCY_TICKS * 0.85;
-    expect(doctorMayServe(entity(0, 0, { pregnant: true, pregnancyDueProgress: personalTerm, pregnancyProgress: personalTerm * 0.84 }))).toBe(true);
-    expect(doctorMayServe(entity(0, 0, { pregnant: true, pregnancyDueProgress: personalTerm, pregnancyProgress: personalTerm * 0.85 }))).toBe(false);
-    expect(doctorMayServe(entity(0, 0, { pregnant: false, pregnancyProgress: PREGNANCY_TICKS }))).toBe(true);
-  });
-
-  it('tells the scheduler when the hospital route owns movement', () => {
-    const ward = hospital(20, 500, 200);
-    const early = entity(0, 0, { pregnant: true, pregnancyProgress: 840, pregnancyDueProgress: 1000 });
-    const late = entity(0, 0, { pregnant: true, pregnancyProgress: 860, pregnancyDueProgress: 1000 });
-    const ctx = { state: { tick: 10 } as WorldState, staffedHospitals: [ward],
-      onJobShift: false, speed: 2 };
-    expect(tickHumanHospitalPatientCare({ ...ctx, entity: early })).toBe(false);
-    expect(tickHumanHospitalPatientCare({ ...ctx, entity: late })).toBe(true);
-    expect(Math.hypot(late.vx, late.vy)).toBeGreaterThan(0);
-  });
-
-  it('does not send a pregnant worker to hospital until she reaches 85% of her personal term', () => {
-    const due = PREGNANCY_TICKS * 1.15;
-    const early = entity(0, 0, { pregnant: true, pregnancyDueProgress: due, pregnancyProgress: due * 0.84 });
-    const late = entity(0, 0, { pregnant: true, pregnancyDueProgress: due, pregnancyProgress: due * 0.86 });
-    for (const onShift of [false, true]) {
-      expect(shouldRoutePregnantSettlerToHospital(early, onShift, true)).toBe(false);
-      expect(shouldRoutePregnantSettlerToHospital(late, onShift, true)).toBe(true);
-    }
-    expect(shouldRoutePregnantSettlerToHospital(late, true, false)).toBe(false);
-    expect(shouldAttemptHospitalTreatment(early, true, 10)).toBe(false);
-    expect(shouldAttemptHospitalTreatment(late, true, 10)).toBe(true);
-  });
-
-  it('seeks care for a detected need even with stamina above half, working or not', () => {
-    const grieving = entity(0, 0, {
-      griefUntilTick: 500,
-      needs: { nutrition: 80, rest: 80, stamina: 60, severeHungerTicks: 0 },
-    });
-    const healthy = entity(0, 0, {
-      needs: { nutrition: 80, rest: 80, stamina: 90, severeHungerTicks: 0 },
-    });
-
-    expect(shouldAttemptHospitalTreatment(grieving, true, 10)).toBe(true);
-    expect(shouldAttemptHospitalTreatment(healthy, true, 10)).toBe(false);
-  });
 
   it('does not mark a patient indoors while they are still more than a door away', () => {
-    const ward = { ...hospital(1, 100, 100), width: 120, height: 120, occupants: [7] };
+    const ward = { ...hospital(1, 100, 100, [7]), width: 120, height: 120 };
     const door = { x: ward.x + ward.width / 2, y: ward.y + ward.height + 12 };
     const patient = entity(door.x, door.y - 20, { energy: 10 });
 
@@ -142,10 +106,179 @@ describe('hospital duty and care gates', () => {
       state: { tick: 0 } as WorldState,
       entity: patient,
       staffedHospitals: [ward],
-      onJobShift: false,
       speed: 2,
     });
 
     expect(patient.indoorBuildingId).toBeUndefined();
+  });
+});
+
+describe('the single pregnancy hospital threshold', () => {
+  it('is false without a pregnancy and false below 85%', () => {
+    expect(isPregnancyHospitalDue(entity(0, 0))).toBe(false);
+    expect(isPregnancyHospitalDue(entity(0, 0, { pregnant: true, pregnancyProgress: 0 }))).toBe(false);
+    expect(isPregnancyHospitalDue(entity(0, 0, { pregnant: true, pregnancyProgress: HOSPITAL_THRESHOLD_PROGRESS - 1 }))).toBe(false);
+  });
+
+  it('is true at exactly 85% and every later progress', () => {
+    expect(isPregnancyHospitalDue(entity(0, 0, { pregnant: true, pregnancyProgress: HOSPITAL_THRESHOLD_PROGRESS }))).toBe(true);
+    expect(isPregnancyHospitalDue(entity(0, 0, { pregnant: true, pregnancyProgress: PREGNANCY_TICKS }))).toBe(true);
+  });
+
+  it('needs a staffed ward as well as the threshold', () => {
+    const due = entity(0, 0, { pregnant: true, pregnancyProgress: HOSPITAL_THRESHOLD_PROGRESS });
+    expect(isPregnancyHospitalPriority(due, true)).toBe(true);
+    expect(isPregnancyHospitalPriority(due, false)).toBe(false);
+    expect(isPregnancyHospitalPriority(entity(0, 0, { pregnant: true, pregnancyProgress: 120 }), true)).toBe(false);
+  });
+
+  it('counts only a completed, player-owned, staffed ward as available', () => {
+    expect(isStaffedHospital(hospital(1, 0, 0, [2]))).toBe(true);
+    expect(isStaffedHospital(hospital(1, 0, 0, []))).toBe(false);
+    expect(isStaffedHospital({ ...hospital(1, 0, 0, [2]), completed: false })).toBe(false);
+    expect(isStaffedHospital({ ...hospital(1, 0, 0, [2]), faction: 'rival' })).toBe(false);
+  });
+});
+
+describe('hospital routing follows the threshold, not the shift', () => {
+  function routedAt(progress: number, opts: { staffed?: boolean; overrides?: Partial<Entity> } = {}) {
+    const ward = hospital(5, 400, 300, [7]);
+    const patient = entity(20, 20, {
+      pregnant: true,
+      pregnancyProgress: progress,
+      ...opts.overrides,
+    });
+    tickHumanHospitalPatientCare({
+      state: { tick: 0 } as WorldState,
+      entity: patient,
+      staffedHospitals: opts.staffed === false ? [] : [ward],
+      speed: 2,
+    });
+    return patient;
+  }
+
+  it('leaves a settler below 85% where she is, off shift or not', () => {
+    const patient = routedAt(HOSPITAL_THRESHOLD_PROGRESS - 1);
+    expect(Math.hypot(patient.vx, patient.vy)).toBe(0);
+    expect(patient.indoorBuildingId).toBeUndefined();
+  });
+
+  it('starts hospital travel at exactly 85%', () => {
+    const patient = routedAt(HOSPITAL_THRESHOLD_PROGRESS);
+    expect(Math.hypot(patient.vx, patient.vy)).toBeGreaterThan(0);
+    expect(patient.indoorBuildingId).toBeUndefined();
+  });
+
+  it('keeps travelling above 85% with no shift in play', () => {
+    const patient = routedAt(PREGNANCY_TICKS);
+    expect(Math.hypot(patient.vx, patient.vy)).toBeGreaterThan(0);
+  });
+
+  it('invents neither travel nor admission when no ward is staffed', () => {
+    const patient = routedAt(PREGNANCY_TICKS, { staffed: false });
+    expect(Math.hypot(patient.vx, patient.vy)).toBe(0);
+    expect(patient.indoorBuildingId).toBeUndefined();
+  });
+
+  it('admits her only on real arrival at the ward', () => {
+    const ward = hospital(5, 100, 100, [7]);
+    const patient = entity(ward.x, ward.y, { pregnant: true, pregnancyProgress: PREGNANCY_TICKS });
+    tickHumanHospitalPatientCare({
+      state: { tick: 0 } as WorldState,
+      entity: patient,
+      staffedHospitals: [ward],
+      speed: 2,
+    });
+    expect(patient.indoorBuildingId).toBe(ward.id);
+  });
+
+  it('gives a near-term doctor the same hospital priority as every other trade', () => {
+    const doctor = routedAt(PREGNANCY_TICKS, { overrides: { job: JobType.Doctor, workerBuildingId: 5 } });
+    expect(Math.hypot(doctor.vx, doctor.vy)).toBeGreaterThan(0);
+  });
+});
+
+describe('doctor duty under the one pregnancy rule', () => {
+  it('keeps early pregnancy out of medical care without suppressing independent grief', () => {
+    const early = entity(0, 0, { pregnant: true, pregnancyProgress: 840, pregnancyDueProgress: 1000,
+      needs: { nutrition: 80, rest: 80, stamina: 90, severeHungerTicks: 0 } });
+    expect(shouldAttemptHospitalTreatment(early, true, 10)).toBe(false);
+    early.griefUntilTick = 500;
+    early.needs!.stamina = 60;
+    expect(shouldAttemptHospitalTreatment(early, true, 10)).toBe(true);
+  });
+
+  /** A patient id whose daily roll clears the doctor's own 35% treatment gate on that tick. */
+  function treatablePatientId(doctorId: number, tick: number): number | null {
+    for (let id = 2; id < 200; id++) {
+      if (personDayRoll(doctorId, tick, 901 + id) <= 0.35) return id;
+    }
+    return null;
+  }
+
+  /**
+   * Runs the real ward round at the ticks the roster schedules it, with a patient whose roll passes,
+   * so `treated` reports whether the doctor actually served.
+   */
+  function wardRoundServes(progress: number, staffed: boolean, due = PREGNANCY_TICKS): boolean {
+    const ward = { ...hospital(5, 100, 100, [1, 2, 3, 4, 5]), width: 60, height: 40 };
+    const hx = ward.x + ward.width / 2;
+    const hy = ward.y + ward.height * 0.9;
+    const doctor = entity(hx, hy, {
+      id: 1,
+      job: JobType.Doctor,
+      workerBuildingId: ward.id,
+      pregnant: true,
+      pregnancyProgress: progress,
+      pregnancyDueProgress: due,
+    });
+    for (let tick = 1; tick <= 6 * TICKS_PER_DAY; tick++) {
+      const shift = doctorHospitalShift(ward, tick, doctor.id);
+      if (!shift) continue;
+      const roundTick = shift.startHour * TICKS_PER_HOUR + (doctor.id % (HOSPITAL_SHIFT_HOURS * TICKS_PER_HOUR));
+      if (getTickOfDay(tick) !== roundTick) continue;
+      const patientId = treatablePatientId(doctor.id, tick);
+      if (patientId == null) continue;
+      const patient = entity(hx, hy, {
+        id: patientId,
+        energy: 5,
+        needs: { nutrition: 80, rest: 80, stamina: 10, severeHungerTicks: 0 },
+      });
+      const state = {
+        tick,
+        entities: [doctor, patient],
+        resources: { wood: 0, stone: 0, food: 100, gold: 0, iron: 0 },
+        floatingTexts: [],
+        nextFloatingTextId: 1,
+      } as unknown as WorldState;
+      tickHumanDoctorHospitalService({
+        state,
+        entity: doctor,
+        allHumans: [doctor, patient],
+        updatedBuildings: [ward],
+        staffedHospitals: staffed ? [ward] : [],
+        onHospitalShift: true,
+      });
+      return patient.energy > 5;
+    }
+    throw new Error('no scheduled ward round found in the fixture window');
+  }
+
+  it.each([0.85, 1.15])('uses the doctor’s individual due date (term factor %s)', (factor) => {
+    const due = PREGNANCY_TICKS * factor;
+    expect(wardRoundServes(due * 0.84, true, due)).toBe(true);
+    expect(wardRoundServes(due * 0.85, true, due)).toBe(false);
+  });
+
+  it('lets a doctor at 81% run the ward round', () => {
+    expect(wardRoundServes(PREGNANCY_TICKS * 0.81, true)).toBe(true);
+  });
+
+  it('keeps a doctor at 85% from serving when a staffed ward can take her', () => {
+    expect(wardRoundServes(PREGNANCY_TICKS, true)).toBe(false);
+  });
+
+  it('still lets her serve at 85% when no staffed ward exists to attend', () => {
+    expect(wardRoundServes(PREGNANCY_TICKS, false)).toBe(true);
   });
 });

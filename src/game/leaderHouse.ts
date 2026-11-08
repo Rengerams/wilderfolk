@@ -16,7 +16,8 @@ import {
 } from './gameTypes';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
-import { collectLeaderDescendants, getChildCustodian, isMinorChild } from './housingModel';
+import { collectLeaderDescendants, getChildCustodian } from './housingModel';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isPlayerHuman } from './playerHuman';
 import { getResidenceCapacity, isImprisoned, isResidenceOccupantEntity } from './housingModel';
 import { clearWorkerAssignment } from './workforce';
@@ -154,14 +155,15 @@ export function applyLeaderHousePhase(state: WorldState, ledger: HousingLedger):
   const settledIds = new Set<number>();
   for (const member of atHome) {
     const ownHome = member.residenceBuildingId;
-    if (ownHome == null || manorIds.has(ownHome) || isMinorChild(member)) continue;
+    if (ownHome == null || manorIds.has(ownHome)
+      || (member.age < HUMAN_ADULT_MIN_AGE && member.partnerId == null)) continue;
     if (member.id === state.villageLeaderId || member.partnerId === state.villageLeaderId) continue;
     settledIds.add(member.id);
     const partner = member.partnerId == null ? undefined : atHome.find((m) => m.id === member.partnerId);
     if (partner && partner.residenceBuildingId === ownHome) settledIds.add(partner.id);
   }
   for (const member of atHome) {
-    if (!isMinorChild(member) || settledIds.has(member.id)) continue;
+    if (member.age >= HUMAN_ADULT_MIN_AGE || member.partnerId != null || settledIds.has(member.id)) continue;
     const custodian = getChildCustodian(member, atHome);
     if (!custodian || !settledIds.has(custodian.id)) continue;
     if (custodian.residenceBuildingId != null

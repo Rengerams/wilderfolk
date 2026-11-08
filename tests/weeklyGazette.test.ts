@@ -26,8 +26,8 @@ describe('the weekly gazette reads the Chronicle without changing the simulation
     ];
     const before = structuredClone(events);
     const first = buildWeeklyGazette(events, 0);
-    expect(first.startDay).toBe(1);
-    expect(first.endDay).toBe(7);
+    expect(first.startDay).toBe(0);
+    expect(first.endDay).toBe(6);
     expect(first.eventCount).toBe(4);
     expect(first.births).toBe(1);
     expect(first.marriages).toBe(1);
@@ -36,6 +36,8 @@ describe('the weekly gazette reads the Chronicle without changing the simulation
     expect(first.articles.every((article) => article.event.tick < 7 * TICKS_PER_DAY)).toBe(true);
 
     const next = buildWeeklyGazette(events, 1);
+    expect(next.startDay).toBe(7);
+    expect(next.endDay).toBe(13);
     expect(next.eventCount).toBe(2);
     expect(next.scandals).toBe(1);
     expect(next.articles.some((article) => article.event.type === 'election')).toBe(true);

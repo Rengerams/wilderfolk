@@ -2,7 +2,8 @@
  * One overview subject, in its own window: presentation only, all simulation changes go through
  * typed command callbacks. Read a subject's own panel for its rules; nothing here restates one.
  */
-import { Suspense, lazy, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
+import { lazyWithRetry } from './lazyWithRetry';
 import type { Entity, WorldState } from '../game/gameTypes';
 import { computeCitizenOverview, hasManyAdultsIdle } from '../game/citizenOverview';
 import type { VillageStatsSummary } from '../game/uiSimSummary';
@@ -21,12 +22,12 @@ import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 import { isFoodAlertAmount } from '../game/resourceUtils';
 import GameWindow from './GameWindow';
 
-const VillageTabPanel = lazy(() => import('./tabPanels/VillageTabPanel'));
-const FrontierTabPanel = lazy(() => import('./tabPanels/FrontierTabPanel'));
-const NatureTabPanel = lazy(() => import('./tabPanels/NatureTabPanel'));
-const ProgressTabPanel = lazy(() => import('./tabPanels/ProgressTabPanel'));
-const LogTabPanel = lazy(() => import('./tabPanels/LogTabPanel'));
-const MoreTabPanel = lazy(() => import('./tabPanels/MoreTabPanel'));
+const VillageTabPanel = lazyWithRetry(() => import('./tabPanels/VillageTabPanel'));
+const FrontierTabPanel = lazyWithRetry(() => import('./tabPanels/FrontierTabPanel'));
+const NatureTabPanel = lazyWithRetry(() => import('./tabPanels/NatureTabPanel'));
+const ProgressTabPanel = lazyWithRetry(() => import('./tabPanels/ProgressTabPanel'));
+const LogTabPanel = lazyWithRetry(() => import('./tabPanels/LogTabPanel'));
+const MoreTabPanel = lazyWithRetry(() => import('./tabPanels/MoreTabPanel'));
 
 export type { OverviewSection, OverviewWorldFocus };
 

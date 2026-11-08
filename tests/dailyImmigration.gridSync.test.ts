@@ -151,7 +151,7 @@ describe('daily immigration and the spatial grid (F6)', () => {
     expect(newcomer).toBeDefined();
 
     const foundInGrid: number[] = [];
-    mobileGrid.forEachInRadius(newcomer!.x, newcomer!.y, 8, (e) => foundInGrid.push(e.id));
+    mobileGrid.forEachInRadius(newcomer!.x, newcomer!.y, 8, (e) => { foundInGrid.push(e.id); });
     expect(foundInGrid).toContain(newcomer!.id);
     expect(ctx.newEntities).toContain(newcomer);
   });

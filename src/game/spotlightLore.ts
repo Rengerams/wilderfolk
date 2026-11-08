@@ -33,13 +33,12 @@ function availableSpotlightActor(entity: Entity): boolean {
 }
 
 function eligibleGirl(entity: Entity): boolean {
-  return availableSpotlightActor(entity) && entity.gender === 'female' && entity.isJuvenile &&
+  return availableSpotlightActor(entity) && entity.gender === 'female' &&
     entity.age >= 12 && entity.age < 18;
 }
 
 function eligibleChorus(entity: Entity): boolean {
-  return availableSpotlightActor(entity) && entity.gender === 'male' && !entity.isJuvenile &&
-    entity.age >= 18;
+  return availableSpotlightActor(entity) && entity.gender === 'male' && entity.age >= 18;
 }
 
 function buildSpotlightLoreScene(
@@ -166,14 +165,14 @@ export function startSpotlightLoreDebug(state: WorldState): boolean {
   if (state.spotlightLore || !map) return false;
   const girl = state.entities.filter((entity) =>
     entity.alive && entity.type === EntityType.Human && isPlayerHuman(entity) &&
-    entity.gender === 'female' && entity.isJuvenile &&
+    entity.gender === 'female' &&
     entity.age >= 12 && entity.age < 18 &&
     !entity.prisonBuildingId && !entity.raidDeploymentId &&
     !entity.warCaptive && !entity.departedAlive
   ).sort((a, b) => a.id - b.id)[0];
   const men = state.entities.filter((entity) =>
     entity.alive && entity.type === EntityType.Human && isPlayerHuman(entity) &&
-    entity.gender === 'male' && !entity.isJuvenile && entity.age >= 18 &&
+    entity.gender === 'male' && entity.age >= 18 &&
     !entity.prisonBuildingId && !entity.raidDeploymentId &&
     !entity.warCaptive && !entity.departedAlive
   );

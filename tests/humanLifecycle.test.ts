@@ -6,12 +6,22 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import { tickPregnancyAndBirth, LIFECYCLE_CONFIG, getPregnancyProgressFraction, isPregnancyHospitalStage } from '../src/game/simulation/humanLifecycle';
+import { tickPregnancyAndBirth, LIFECYCLE_CONFIG, getPregnancyProgressFraction, isPregnancyHospitalDue } from '../src/game/simulation/humanLifecycle';
 import { seededRandomForRun } from '../src/game/simRng';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { createEntity } from '../src/game/entityFactory';
-import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { PREGNANCY_TICKS, TICKS_PER_DAY } from '../src/game/dayCycle';
+import { genomeFrom, heterozygous, NEUTRAL_VALUE } from './helpers/genome';
+import { APTITUDE_IDS } from '../src/game/settlerTraits';
+import type { AllelePair, GenomeV2 } from '../src/game/settlerTraits';
+
+/** Genomes are frozen, so a fixture builds its four heterozygous alleles whole. */
+const genomeWithAlleles = (start: number): GenomeV2 => ({
+  version: 2,
+  aptitudeAlleles: APTITUDE_IDS.map((_, index): AllelePair =>
+    index < 4 ? heterozygous(start + index * 5) : [NEUTRAL_VALUE, NEUTRAL_VALUE]),
+});
 
 const MATERNAL_ID = 1;
 const FATHER_ID = 2;
@@ -131,10 +141,10 @@ describe('human lifecycle golden contracts', () => {
     const early = human(MATERNAL_ID, { pregnant: true, pregnancyProgress: 84, pregnancyDueProgress: 100 });
     const late = human(MATERNAL_ID, { pregnant: true, pregnancyProgress: 85, pregnancyDueProgress: 100 });
     expect(getPregnancyProgressFraction(early)).toBeCloseTo(0.84);
-    expect(isPregnancyHospitalStage(early)).toBe(false);
-    expect(isPregnancyHospitalStage(late)).toBe(true);
+    expect(isPregnancyHospitalDue(early)).toBe(false);
+    expect(isPregnancyHospitalDue(late)).toBe(true);
     expect(getPregnancyProgressFraction(human(MATERNAL_ID, { pregnancyProgress: 150, pregnancyDueProgress: 100 }))).toBe(1);
-    expect(isPregnancyHospitalStage(human(MATERNAL_ID, { pregnant: false, pregnancyProgress: 99, pregnancyDueProgress: 100 }))).toBe(false);
+    expect(isPregnancyHospitalDue(human(MATERNAL_ID, { pregnant: false, pregnancyProgress: 99, pregnancyDueProgress: 100 }))).toBe(false);
   });
 
   it('continues a legacy saved pregnancy whose progress field is absent', () => {
@@ -178,6 +188,61 @@ describe('human lifecycle golden contracts', () => {
     expect(mother.pregnantById).toBeUndefined();
     expect(mother.relationshipStatus).toBe('married');
     expect(collectSimulationInvariantErrors({ ...state, entities: [...state.entities, ...ctx.newEntities] })).toEqual([]);
+  });
+
+  it('ends the pregnancy hospital rule at childbirth and keeps the job assignment', () => {
+    const father = human(FATHER_ID);
+    const mother = human(MATERNAL_ID, {
+      partnerId: FATHER_ID,
+      pregnant: true,
+      pregnantById: FATHER_ID,
+      pregnancyProgress: PREGNANCY_TICKS * 0.9,
+      pregnancyDueProgress: PREGNANCY_TICKS * 0.9 + 1,
+      relationshipStatus: 'expecting',
+      job: JobType.Farmer,
+      workerBuildingId: 42,
+    });
+    const { state, ctx } = makeFixture([mother, father]);
+    state.tick = liveBirthTick();
+
+    expect(isPregnancyHospitalDue(mother)).toBe(true);
+
+    runBirth(state, ctx, mother);
+
+    expect(isPregnancyHospitalDue(mother)).toBe(false);
+    expect(mother.job).toBe(JobType.Farmer);
+    expect(mother.workerBuildingId).toBe(42);
+  });
+
+  it('derives the newborn genome from the birth key, so a replayed birth is identical', () => {
+    const runBirthAt = (tick: number) => {
+      const fatherGenome = genomeWithAlleles(60);
+      const motherGenome = genomeWithAlleles(20);
+      const father = human(FATHER_ID, { genomeV2: fatherGenome });
+      const mother = human(MATERNAL_ID, {
+        genomeV2: motherGenome,
+        partnerId: FATHER_ID,
+        pregnant: true,
+        pregnantById: FATHER_ID,
+        pregnancyProgress: 9,
+        pregnancyDueProgress: 10,
+        relationshipStatus: 'expecting',
+      });
+      const { state, ctx } = makeFixture([mother, father]);
+      state.tick = tick;
+      runBirth(state, ctx, mother);
+      return ctx.newEntities.find((entity) => entity.type === EntityType.Human)?.genomeV2;
+    };
+
+    const firstTick = liveBirthTick();
+    const secondTick = tickWhere((tick) => tick > firstTick && birthRoll('stillborn', tick) >= LIFECYCLE_CONFIG.STILLBORN_CHANCE);
+    const first = runBirthAt(firstTick);
+    const replay = runBirthAt(firstTick);
+    const otherBirth = runBirthAt(secondTick);
+
+    expect(first).toBeDefined();
+    expect(replay).toEqual(first);
+    expect(otherBirth).not.toEqual(first);
   });
 
   it('records a stillbirth without creating a child and still clears pregnancy state', () => {

@@ -47,6 +47,7 @@ export type CommandResultHandler = (
 export type WorkerFaultHandler = (
   source: 'tick' | 'command' | 'export' | 'general',
   message: string,
+  lastAppliedCommandId?: number,
 ) => void;
 
 /**
@@ -111,6 +112,8 @@ export class GameWorkerHost {
   private onTickResult: TickResultHandler | null = null;
   private onCommandResult: CommandResultHandler | null = null;
   private onWorkerFault: WorkerFaultHandler | null = null;
+  /** Highest command id the worker has acknowledged; used when a crash cannot report its own. */
+  private lastAppliedCommandId = 0;
   private worldRef: WorldState | null = null;
   private pendingCommand: {
     resolve: (delta: SimTickDelta) => void;
@@ -183,7 +186,7 @@ export class GameWorkerHost {
           return;
         }
         this.rejectInFlight(err, { resetAllTicks: true });
-        this.onWorkerFault?.('general', err.message);
+        this.onWorkerFault?.('general', err.message, this.lastAppliedCommandId);
       };
 
       const onMessage = (event: MessageEvent<WorkerResponse>) => {
@@ -275,6 +278,7 @@ export class GameWorkerHost {
     this.ready = false;
     this.ticksInFlight = 0;
     this.tickRequestTimes = [];
+    this.lastAppliedCommandId = 0;
     this.lastCompletedTickLatencyMs = null;
     this.pendingFocus = undefined;
     this.uploadBarrier = false;
@@ -411,6 +415,7 @@ export class GameWorkerHost {
         // Old tick results have now drained. Only now adopt the imported world,
         // so no old-world delta can be applied to the new settlement.
         this.worldRef = hydrateWorldRuntimeCaches(world);
+        this.lastAppliedCommandId = 0;
         this.lastPausedSent = world.paused;
         this.lastSpeedSent = world.speed;
 
@@ -559,7 +564,7 @@ export class GameWorkerHost {
         }, COMMAND_REPLY_DEADLINE_MS),
       };
       this.pendingCommand = entry;
-      const msg: WorkerRequest = { type: 'command', proto: WORKER_PROTO, cmd };
+      const msg: WorkerRequest = { type: 'command', proto: WORKER_PROTO, cmd, commandId: (cmd as { commandId?: number }).commandId };
       try {
         this.worker!.postMessage(msg);
       } catch (err) {
@@ -760,6 +765,9 @@ export class GameWorkerHost {
 
     if (msg.type === 'error') {
       this.logWorkerFault(msg.message);
+      if (typeof msg.lastAppliedCommandId === 'number') {
+        this.lastAppliedCommandId = Math.max(this.lastAppliedCommandId, msg.lastAppliedCommandId);
+      }
       if (msg.source === 'tick') {
         this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
         this.tickRequestTimes.shift();
@@ -772,7 +780,7 @@ export class GameWorkerHost {
       this.settleProfilingStop((pending) => pending.reject(new Error(msg.message)));
       this.settleUpload((pending) => pending.reject(new Error(msg.message)));
       this.resolveIdleWaiters();
-      this.onWorkerFault?.(msg.source ?? 'general', msg.message);
+      this.onWorkerFault?.(msg.source ?? 'general', msg.message, this.lastAppliedCommandId);
       return;
     }
 
@@ -784,6 +792,9 @@ export class GameWorkerHost {
     }
 
     if (msg.type === 'commandResult') {
+      if (typeof msg.commandId === 'number') {
+        this.lastAppliedCommandId = Math.max(this.lastAppliedCommandId, msg.commandId);
+      }
       // Validate the envelope before touching bookkeeping: an unusable reply must still settle its
       // promise and ask the loop to recover, not leave a stale replica marked ready.
       if (!isSimTickDelta(msg.delta)) {

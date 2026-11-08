@@ -1,11 +1,13 @@
 /**
- * Historical genealogy viewer. Vertical ancestor and descendant branches follow recorded
- * biological/adoptive parent IDs, not surnames or household co-residence.
+ * Family tree window: the owner-built generation rows, drawn horizontally one generation per row.
+ * Living relatives come from the world; the genealogy registry adds people the world has released.
  */
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import type { Entity } from '../game/gameTypes';
+import { EntityType } from '../game/gameTypes';
 import type { GenealogyRegistry, GenealogyPerson } from '../game/genealogyRegistry';
-import { citizenFullName, humanDisplayName } from '../game/citizenId';
+import { buildFullFamilyTree, type FamilyTreePerson } from '../game/familyTree';
+import { humanDisplayName } from '../game/citizenId';
 import GameWindow from './GameWindow';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 
@@ -18,180 +20,126 @@ export interface FamilyTreeWindowProps {
   onSelect?: (entityId: number) => void;
 }
 
-type Person = Pick<GenealogyPerson, 'id' | 'name' | 'surname' | 'alive' |
-  'motherId' | 'fatherId' | 'adoptiveMotherId' | 'adoptiveFatherId' | 'childrenIds'>;
+type TreeMode = 'all' | 'ancestors' | 'descendants';
 
-const PARENT_KEYS = ['motherId', 'fatherId', 'adoptiveMotherId', 'adoptiveFatherId'] as const;
+/**
+ * A vanished settler as the tree builder needs them. The registry keeps the kinship fields the
+ * world has already released; the movement and need fields are neutral because nobody simulates them.
+ */
+function historicalEntity(person: GenealogyPerson): Entity {
+  return {
+    id: person.id,
+    type: EntityType.Human,
+    x: 0,
+    y: 0,
+    energy: 0,
+    maxEnergy: 0,
+    age: Math.max(0, (person.diedYear ?? person.bornYear ?? 0) - (person.bornYear ?? 0)),
+    birthYear: person.bornYear ?? 0,
+    birthMonth: 0,
+    birthDay: person.bornDay ?? 0,
+    maxAge: 0,
+    speed: 0,
+    size: 0,
+    vx: 0,
+    vy: 0,
+    reproductionCooldown: 0,
+    alive: false,
+    flash: 0,
+    isJuvenile: false,
+    name: person.name,
+    surname: person.surname,
+    gender: person.gender,
+    motherId: person.motherId,
+    fatherId: person.fatherId,
+    adoptiveMotherId: person.adoptiveMotherId,
+    adoptiveFatherId: person.adoptiveFatherId,
+    childrenIds: [...person.childrenIds],
+    // No current marriage can be inferred from a historical registry of all past partners.
+  };
+}
 
 export default function FamilyTreeWindow({
-  entity, allEntities, genealogyRegistry, onClose, onSelect,
+  entity, allEntities, genealogyRegistry, tick, onClose, onSelect,
 }: FamilyTreeWindowProps) {
   useOverlayKeyboard('family-tree-window', onClose);
   const [depth, setDepth] = useState(3);
   const [historicalFocusId, setHistoricalFocusId] = useState<number | null>(null);
   const focusId = historicalFocusId ?? entity.id;
-  const [mode, setMode] = useState<'descendants' | 'ancestors'>('descendants');
+  const [mode, setMode] = useState<TreeMode>('all');
   const [showDeceased, setShowDeceased] = useState(true);
 
-  const { people, children } = useMemo(() => {
-    const known = new Map<number, Person>();
-    // Keep historical identities; the living entity row provides the most recent name.
-    for (const record of Object.values(genealogyRegistry?.people ?? {})) known.set(record.id, record);
-    for (const e of allEntities) {
-      if (e.type !== 'human') continue;
-      known.set(e.id, {
-        id: e.id, name: e.name ?? 'Unknown', surname: e.surname || '',
-        alive: e.alive, motherId: e.motherId, fatherId: e.fatherId,
-        adoptiveMotherId: e.adoptiveMotherId, adoptiveFatherId: e.adoptiveFatherId,
-        childrenIds: e.childrenIds ?? [],
-      });
+  // The world keeps dead settlers until cleanup; the registry keeps them forever. Merge the two so
+  // a family branch does not end at the first person the world has released.
+  const roster = useMemo(() => {
+    if (!showDeceased) return allEntities;
+    const known = new Set(allEntities.map((e) => e.id));
+    const released: Entity[] = [];
+    for (const person of Object.values(genealogyRegistry?.people ?? {})) {
+      if (person.alive || known.has(person.id)) continue;
+      released.push(historicalEntity(person));
     }
-    // Do not let incomplete live rows erase parent links already captured historically.
-    for (const record of Object.values(genealogyRegistry?.people ?? {})) {
-      const current = known.get(record.id);
-      if (current) known.set(record.id, {
-        ...current,
-        motherId: current.motherId ?? record.motherId,
-        fatherId: current.fatherId ?? record.fatherId,
-        adoptiveMotherId: current.adoptiveMotherId ?? record.adoptiveMotherId,
-        adoptiveFatherId: current.adoptiveFatherId ?? record.adoptiveFatherId,
-        childrenIds: [...new Set([...(current.childrenIds ?? []), ...record.childrenIds])],
-      });
-    }
-    const childIds = new Map<number, Set<number>>();
-    for (const person of known.values()) {
-      for (const parentId of PARENT_KEYS.map(k => person[k])) {
-        if (parentId == null || parentId === person.id) continue;
-        const set = childIds.get(parentId) ?? new Set<number>();
-        set.add(person.id); childIds.set(parentId, set);
-      }
-    }
-    // Old saves may only preserve a parent's childrenIds.
-    for (const person of known.values()) for (const id of person.childrenIds ?? []) {
-      if (!known.has(id)) continue;
-      const set = childIds.get(person.id) ?? new Set<number>();
-      set.add(id); childIds.set(person.id, set);
-    }
-    return { people: known, children: childIds };
-  }, [allEntities, genealogyRegistry]);
+    return released.length > 0 ? [...allEntities, ...released] : allEntities;
+  }, [allEntities, genealogyRegistry, showDeceased]);
 
-  const focus = people.get(focusId);
-  const focusName = focus ? humanDisplayName(focus as Entity) : citizenFullName(entity);
-  const renderPerson = (person: Person, isFocus: boolean) => {
-    const label = humanDisplayName(person as Entity);
-    return (
-      <button type="button" disabled={person.id === focusId}
-        onClick={() => {
-          setHistoricalFocusId(person.id);
-          if (person.alive) onSelect?.(person.id);
-        }}
-        className={`inline-flex min-w-40 max-w-56 flex-col rounded-lg border px-3 py-2 text-left shadow-sm transition
-          ${isFocus ? 'border-amber-300 bg-amber-900/60 text-amber-50' :
-            'border-stone-600 bg-stone-800 text-stone-100 hover:border-amber-500'}
-          ${!person.alive ? 'opacity-65' : ''}`}>
-        <span className="text-[13px] font-semibold">{label}</span>
-        <span className="text-[10px] text-stone-400">
-          {person.alive ? 'Living' : 'Deceased'} · #{person.id}
+  const focusEntity = roster.find((e) => e.id === focusId) ?? entity;
+  const tree = useMemo(
+    () => buildFullFamilyTree(focusEntity, roster, tick, {
+      includeDeceased: showDeceased,
+      historicalRegistry: showDeceased ? genealogyRegistry : undefined,
+    }),
+    [focusEntity, roster, tick, showDeceased, genealogyRegistry],
+  );
+
+  const visibleRows = tree.rows.filter((row) => {
+    if (Math.abs(row.delta) > depth) return false;
+    if (mode === 'ancestors') return row.delta <= 0;
+    if (mode === 'descendants') return row.delta >= 0;
+    return true;
+  });
+
+  const selectPerson = (person: FamilyTreePerson) => {
+    if (person.id === focusId) return;
+    setHistoricalFocusId(person.id);
+    if (person.alive) onSelect?.(person.id);
+  };
+
+  const renderPerson = (person: FamilyTreePerson) => (
+    <button
+      key={person.id}
+      type="button"
+      disabled={person.id === focusId}
+      onClick={() => selectPerson(person)}
+      className={`flex min-w-40 max-w-56 flex-col rounded-lg border px-3 py-2 text-left shadow-sm transition
+        ${person.isFocus
+          ? 'border-amber-300 bg-amber-900/60 text-amber-50'
+          : 'border-stone-600 bg-stone-800 text-stone-100 hover:border-amber-500'}
+        ${!person.alive ? 'opacity-65' : ''}`}
+    >
+      <span className="flex items-center gap-1.5">
+        <span aria-hidden>{person.icon}</span>
+        <span className="text-[13px] font-semibold">{person.name}</span>
+      </span>
+      {person.relation && (
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-amber-300/90">
+          {person.relation}
         </span>
-      </button>
-    );
-  };
-
-  const branch = (id: number, generation: number, trail: ReadonlySet<number>): ReactNode => {
-    const person = people.get(id);
-    if (!person || (trail.has(id)) || (!showDeceased && !person.alive)) return null;
-    const nextTrail = new Set(trail); nextTrail.add(id);
-    const relatives = mode === 'ancestors'
-      ? [...new Set(PARENT_KEYS.map(k => person[k]).filter((v): v is number => v != null))]
-      : [...(children.get(id) ?? [])].sort((a, b) => a - b);
-    const visible = generation < depth ? relatives.filter(nextId => {
-      const candidate = people.get(nextId);
-      return candidate && (showDeceased || candidate.alive) && !nextTrail.has(nextId);
-    }) : [];
-    const partnerIds = new Set<number>();
-    const recorded = genealogyRegistry?.people[String(id)];
-    for (const partnerId of recorded?.partners ?? []) if (people.has(partnerId)) partnerIds.add(partnerId);
-    // Only the co-parent of a recorded child is an assured family link; historic partners
-    // not recorded on the current entity are marked as known partners, not current spouses.
-    for (const childId of children.get(id) ?? []) {
-      const child = people.get(childId);
-      if (!child) continue;
-      for (const parentId of PARENT_KEYS.map(k => child[k])) {
-        if (parentId != null && parentId !== id && people.has(parentId)) partnerIds.add(parentId);
-      }
-    }
-    const partners = mode === 'descendants' ? [...partnerIds].filter(partnerId => {
-      const p = people.get(partnerId);
-      return p && (showDeceased || p.alive);
-    }) : [];
-    const childrenByParent = new Map<number | null, number[]>();
-    if (mode === 'descendants') {
-      for (const childId of visible) {
-        const child = people.get(childId);
-        if (!child) continue;
-        const otherParentId = PARENT_KEYS.map(k => child[k])
-          .find(parentId => parentId != null && parentId !== id && people.has(parentId)) ?? null;
-        const group = childrenByParent.get(otherParentId) ?? [];
-        group.push(childId);
-        childrenByParent.set(otherParentId, group);
-      }
-    }
-    const childBranch = (childIds: number[]) => (
-      <div className="relative ml-5 border-l-2 border-amber-600/60 pl-5">
-        {childIds.map(nextId => (
-          <div key={nextId} className="relative pb-3 before:absolute before:-left-5 before:top-5 before:w-5 before:border-t-2 before:border-amber-600/60">
-            {branch(nextId, generation + 1, nextTrail)}
-          </div>
-        ))}
-      </div>
-    );
-    return (
-      <div key={id} className="flex flex-col items-start">
-        <div className="flex items-center gap-3">
-          {renderPerson(person, id === focusId)}
-          {partners.length > 0 && (
-            <div className="flex items-center gap-2 border-l-2 border-rose-500/50 pl-3">
-              {partners.map(partnerId => {
-                const partner = people.get(partnerId)!;
-                return <div key={partnerId} className="flex flex-col gap-1">
-                  <span className="text-[10px] text-rose-300">Partner / co-parent</span>
-                  {renderPerson(partner, false)}
-                </div>;
-              })}
-            </div>
-          )}
-        </div>
-        {mode === 'descendants' ? (
-          <div className="mt-3 space-y-4">
-            {[...childrenByParent].map(([coParentId, childrenIds]) => (
-              <div key={coParentId ?? 'unrecorded'} className="relative ml-6 border-l-2 border-rose-600/50 pl-5">
-                <p className="mb-2 text-[10px] text-rose-200">
-                  {coParentId == null ? 'Other parent not recorded' :
-                    `Children shared with ${people.get(coParentId)?.name ?? 'unknown parent'}`}
-                </p>
-                {childBranch(childrenIds)}
-              </div>
-            ))}
-          </div>
-        ) : visible.length > 0 ? (
-          <div className="mt-3">{childBranch(visible)}</div>
-        ) : null}
-        {generation === depth && relatives.length > 0 && (
-          <span className="mt-1 text-[11px] text-stone-400">More generations available · increase depth</span>
-        )}
-      </div>
-    );
-  };
-
-  const knownCount = people.size;
-  const familyCount = focus ? (mode === 'ancestors'
-    ? PARENT_KEYS.filter(k => focus[k] != null).length : (children.get(focusId)?.size ?? 0)) : 0;
+      )}
+      <span className="text-[10px] text-stone-400">
+        {person.alive ? 'Living' : 'Deceased'} · #{person.id}
+        {person.detail ? ` · ${person.detail}` : ''}
+      </span>
+      {person.bonds.length > 0 && (
+        <span className="text-[10px] text-rose-300">{person.bonds.join(' · ')}</span>
+      )}
+    </button>
+  );
 
   return (
     <GameWindow
-      title={`Family tree · ${focusName}`}
+      title={`Family tree · ${tree.focusName || humanDisplayName(entity)}`}
       icon="🌳"
-      subtitle={`${knownCount} people recorded · ${familyCount} direct ${mode === 'ancestors' ? 'parents' : 'children'}`}
+      subtitle={`${tree.memberCount} people drawn · ${visibleRows.length} generations shown`}
       onClose={onClose}
       centered
       widthClassName="w-[56rem] max-w-[95vw]"
@@ -199,18 +147,18 @@ export default function FamilyTreeWindow({
     >
       <div className="space-y-4 text-stone-200">
         <div className="flex flex-wrap items-center gap-2 rounded-lg bg-stone-800/80 p-2">
-          <button type="button" onClick={() => setMode('ancestors')}
-            className={`rounded px-3 py-1.5 text-xs ${mode === 'ancestors' ? 'bg-amber-700 text-white' : 'bg-stone-700'}`}>
-            Ancestors ↑
-          </button>
-          <button type="button" onClick={() => setMode('descendants')}
-            className={`rounded px-3 py-1.5 text-xs ${mode === 'descendants' ? 'bg-amber-700 text-white' : 'bg-stone-700'}`}>
-            Descendants ↓
-          </button>
+          {([['all', 'All'], ['ancestors', 'Ancestors ↑'], ['descendants', 'Descendants ↓']] as const)
+            .map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setMode(value)}
+                aria-pressed={mode === value}
+                className={`rounded px-3 py-1.5 text-xs ${mode === value ? 'bg-amber-700 text-white' : 'bg-stone-700'}`}>
+                {label}
+              </button>
+            ))}
           <label className="ml-2 text-xs">Generations
-            <select value={depth} onChange={event => setDepth(Number(event.target.value))}
+            <select value={depth} onChange={(event) => setDepth(Number(event.target.value))}
               className="ml-2 rounded border border-stone-600 bg-stone-900 p-1">
-              {[2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
+              {[2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </label>
           {historicalFocusId != null && historicalFocusId !== entity.id && (
@@ -221,17 +169,40 @@ export default function FamilyTreeWindow({
           )}
           <label className="ml-auto flex items-center gap-2 text-xs">
             <input type="checkbox" checked={showDeceased}
-              onChange={event => setShowDeceased(event.target.checked)} />
+              onChange={(event) => setShowDeceased(event.target.checked)} />
             Include deceased
           </label>
         </div>
         <p className="text-xs text-stone-400">
-          Lines show recorded biological or adoptive parent-child relationships.
-          Marriage alone does not imply shared ancestry. Click any card, including deceased relatives, to explore their branch.
+          Rows are generations: older generations above, younger below. Lines show recorded biological
+          or adoptive parent-child relationships; marriage alone does not imply shared ancestry.
         </p>
-        <div className="max-h-[57vh] overflow-auto rounded-xl border border-amber-900/40 bg-stone-950/60 p-5">
-          {focus ? branch(focus.id, 0, new Set<number>()) : (
+        <div className="max-h-[57vh] overflow-auto rounded-xl border border-amber-900/40 bg-stone-950/60 p-4">
+          {visibleRows.length === 0 ? (
             <p>No genealogy record available for this settler.</p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {visibleRows.map((row) => (
+                <section key={row.delta} className="flex flex-col gap-2">
+                  <h3 className="text-[10px] font-semibold uppercase tracking-wide text-amber-500/80">
+                    {row.label}
+                  </h3>
+                  <div className="flex flex-wrap items-stretch gap-2">
+                    {row.members.map(renderPerson)}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+          {tree.truncated && (
+            <p className="mt-3 text-[11px] text-amber-300">
+              The tree is larger than the window can draw; the closest kin are shown.
+            </p>
+          )}
+          {tree.gaps.length > 0 && (
+            <ul className="mt-3 space-y-1 border-t border-stone-800 pt-3 text-[11px] text-stone-400">
+              {tree.gaps.map((gap) => <li key={gap.kind}>{gap.text}</li>)}
+            </ul>
           )}
         </div>
       </div>

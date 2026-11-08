@@ -306,6 +306,7 @@ tutorialsEnabled,
             onClick={onOpenTrade}
             className="flex items-center gap-0.5 rounded-md bg-violet-900/35 px-1.5 py-1 text-[13px] text-violet-200 hover:bg-violet-800/45"
             title={`Reputation ${world.villageReputation} — click for trade routes`}
+            aria-label={`Reputation ${world.villageReputation} — open trade routes`}
           >
             <span>⭐</span>
             <span className="font-mono font-bold">{world.villageReputation}</span>

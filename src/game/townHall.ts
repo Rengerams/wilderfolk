@@ -2,6 +2,7 @@ import { personDayRoll } from './simRng';
 import type { WorldState, Building, Entity } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
 import { ticksForDays, TICKS_PER_DAY, getHourOfDay } from './dayCycle';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isWorkScheduleHour } from './workSchedule';
 import { getWorkSchedule } from './workSchedule';
 import { readSkill, rewardProductionSkills, gainSkill } from './skills';
@@ -157,7 +158,7 @@ export function isOfficialAtHall(
 
 /** Settler wants civic attention (dispute, aid, gossip, leader). */
 export function wantsCivicAudience(entity: Entity, state: WorldState): boolean {
-  if (!isPlayerHuman(entity) || entity.isJuvenile) return false;
+  if (!isPlayerHuman(entity) || entity.age < HUMAN_ADULT_MIN_AGE) return false;
   if (entity.job === JobType.Official) return false;
   if ((entity.griefUntilTick ?? 0) > state.tick) return true;
   if (state.resources.food < Math.max(40, state.humanPopulation * 2)
@@ -185,7 +186,7 @@ export function resolveCivicPetition(
   hall: Building,
 ): CivicPetitionResult {
   if (!hall.completed || hall.occupants.length === 0) return { kind: 'none' };
-  if (!isPlayerHuman(petitioner) || petitioner.isJuvenile) return { kind: 'none' };
+  if (!isPlayerHuman(petitioner) || petitioner.age < HUMAN_ADULT_MIN_AGE) return { kind: 'none' };
 
   const hx = hall.x + hall.width / 2;
   const hy = hall.y + hall.height * 0.9;
@@ -292,7 +293,7 @@ export function officialHandlePetitioners(
       v.id !== official.id
       && v.alive
       && isPlayerHuman(v)
-      && !v.isJuvenile
+      && v.age >= HUMAN_ADULT_MIN_AGE
       && Math.hypot(v.x - hx, v.y - hy) < 55
       && wantsCivicAudience(v, state),
   );
@@ -314,7 +315,7 @@ export function tickTownHallAudiences(
 ): void {
   if (!hall.completed || hall.occupants.length === 0) return;
   let handled = 0;
-  const adults = playerHumans.filter((h) => h.alive && !h.isJuvenile);
+  const adults = playerHumans.filter((h) => h.alive && h.age >= HUMAN_ADULT_MIN_AGE);
   for (const h of adults) {
     if (handled >= 2) break;
     if (!wantsCivicAudience(h, state)) continue;

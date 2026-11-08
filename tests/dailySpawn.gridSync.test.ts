@@ -31,7 +31,7 @@ afterEach(() => {
 /** The membership assertion `tests/dailyImmigration.gridSync.test.ts` uses. */
 function gridContains(grid: EntitySpatialGrid, entity: Entity): boolean {
   const found: number[] = [];
-  grid.forEachInRadius(entity.x, entity.y, 8, (candidate) => found.push(candidate.id));
+  grid.forEachInRadius(entity.x, entity.y, 8, (candidate) => { found.push(candidate.id); });
   return found.includes(entity.id);
 }
 

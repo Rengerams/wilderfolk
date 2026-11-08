@@ -13,11 +13,13 @@ import { clearWorkerAssignment } from './workforce';
 import { moveResident, assignMissingResidences } from './housingPipeline';
 import { applyLeaderHousePhase } from './leaderHouse';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
-import { isAdult } from './housingModel';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { rememberRivalDisposition } from './raidAftermath';
 import { getOpenPlayerBeds } from './populationGrowth';
 import { initialHumanNeeds } from './simulation/humanPhysiology';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
+import { rollFounderGenome } from './settlerTraits';
+import { rollBornMarks } from './personalMarks';
 
 const RECRUIT_COOLDOWN_DAYS = 7;
 const RECRUIT_BASE_CHANCE = 0.2;
@@ -34,8 +36,8 @@ const CIVIC_VOICE_THRESHOLD = 0.04;
 export function captureRaidPrisoners(state: WorldState, rival: RivalSettlement, raidId: string, escorts: number): void {
   let availableEscorts = escorts;
   const candidates = state.entities.filter((person) => person.alive && person.faction === 'rival'
-    && person.type === EntityType.Human && person.job === JobType.Soldier && !person.isJuvenile
-    && isAdult(person) && rival.entityIds.includes(person.id) && !person.warCaptive);
+    && person.type === EntityType.Human && person.job === JobType.Soldier
+    && person.age >= HUMAN_ADULT_MIN_AGE && rival.entityIds.includes(person.id) && !person.warCaptive);
   for (const person of candidates) {
     if (availableEscorts <= 0 || rival.population <= 1) break;
     const prison = state.buildings.find((building) => building.type === BuildingType.Prison && building.completed
@@ -134,6 +136,15 @@ export function resolveWarPrisoner(original: WorldState, entityId: number, choic
     person.prisonSentenceCrime = undefined;
     person.faction = undefined;
     person.groupId = undefined;
+    // Foreign humans start neutral; citizenship must establish their permanent DNA before any activity.
+    person.genomeV2 ??= rollFounderGenome();
+    const bornMarks = rollBornMarks();
+    if (bornMarks.length > 0) {
+      const existingMarks = person.marks ?? [];
+      person.marks = [...existingMarks, ...bornMarks.filter(
+        (mark) => !existingMarks.some((existing) => existing.id === mark.id),
+      )];
+    }
     person.job = JobType.Settler;
     person.occupation = undefined;
     person.warCaptive = undefined;

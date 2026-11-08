@@ -7,6 +7,7 @@ import { EntitySpatialGrid } from '../src/game/spatialGrid';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
+import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 
 const WIDTH = 1200;
 const HEIGHT = 900;
@@ -28,7 +29,7 @@ describe('visitor spawn and the spatial grid', () => {
       mobileGrid,
     } as unknown as TickContext;
     const state = {
-      tick: 72,
+      tick: tickAtDailyPhase(0, 'worldEvents'),
       villageName: 'Camp',
       visitorGroups: [],
       rivalSettlements: [],
@@ -49,7 +50,7 @@ describe('visitor spawn and the spatial grid', () => {
     expect(ctx.newEntities.length).toBeGreaterThan(0);
     for (const visitor of ctx.newEntities) {
       const found: number[] = [];
-      mobileGrid.forEachInRadius(visitor.x, visitor.y, 48, (entity) => found.push(entity.id));
+      mobileGrid.forEachInRadius(visitor.x, visitor.y, 48, (entity) => { found.push(entity.id); });
       expect(found).toContain(visitor.id);
     }
   });

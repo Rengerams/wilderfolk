@@ -37,13 +37,14 @@ describe('R1 — the unmount save never writes a colony no loop owns', () => {
     // before saving when no loop owns a colony (StrictMode mounts twice).
     const body = effect?.[1] ?? '';
     expect(body, 'the cleanup reads the loop ref into a local').toContain('const loop = loopRef.current;');
+    const guard = body.match(/if\s*\(\s*!loop\s*\|\|\s*isCrashRecoveryActive\(\)\s*\)\s*return;/);
     expect(
-      body,
-      'the unmount cleanup saves without a loop again (StrictMode overwrites the save slot)',
-    ).toMatch(/if \(!loop(?: \|\| isCrashRecoveryActive\(\))?\) return;/);
+      guard,
+      'unmount must skip saving without a loop or during crash recovery',
+    ).not.toBeNull();
     expect(
-      body.indexOf('if (!loop'),
-      'the unmount cleanup saves before it checks for a loop',
+      guard?.index ?? Infinity,
+      'the unmount cleanup saves before its loop/crash guard',
     ).toBeLessThan(body.indexOf('persistCurrentGameRef'));
   });
 });

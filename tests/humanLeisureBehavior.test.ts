@@ -1,7 +1,7 @@
 import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
 import { WeatherType, type Entity } from '../src/game/gameTypes';
-import { tickHumanChildLeisure } from '../src/game/humanLeisureBehavior';
+import { CHILD_PLAYMATE_CANDIDATE_LIMIT, tickHumanChildLeisure } from '../src/game/humanLeisureBehavior';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { initGame } from '../src/game/worldGen';
@@ -54,6 +54,20 @@ function nextPlayHour(child: Entity): { firstCheck: number; sameHourCheck: numbe
   throw new Error('could not find consecutive child play hours');
 }
 
+/** A crowded play tick whose uncapped choice would fall outside the bounded candidate list. */
+function crowdedSteeringTick(state: ReturnType<typeof initGame>, child: Entity, allHumans: Entity[]): number {
+  const nearby = allHumans.length - 1;
+  for (let tick = 1; tick < 5000; tick++) {
+    const tickBucket = Math.floor(tick / TICKS_PER_HOUR);
+    if ((child.id + tickBucket) % nearby < CHILD_PLAYMATE_CANDIDATE_LIMIT) continue;
+    if (personDayRoll(child.id, tick, 718 + tickBucket) >= 0.72) continue;
+    child.vx = 0;
+    child.vy = 0;
+    if (tickChild(state, child, allHumans, tick)) return tick;
+  }
+  throw new Error('could not find a crowded child play tick');
+}
+
 function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans: Entity[], tick: number): boolean {
   state.tick = tick;
   return tickHumanChildLeisure({
@@ -91,6 +105,19 @@ describe('tickHumanChildLeisure', () => {
     expect(tickChild(state, child, [child, distant], playTickFor(child))).toBe(false);
     expect(child.vx).toBe(0);
     expect(child.vy).toBe(0);
+  });
+
+  it('chooses from a bounded candidate set in a crowded neighborhood', () => {
+    const { state, child } = childFixture();
+    const right = Array.from({ length: CHILD_PLAYMATE_CANDIDATE_LIMIT }, (_, i) =>
+      playerChild(child, 100 + i, { x: 140, y: 100 }));
+    const left = Array.from({ length: CHILD_PLAYMATE_CANDIDATE_LIMIT / 2 }, (_, i) =>
+      playerChild(child, 200 + i, { x: 60, y: 100 }));
+    const humans = [child, ...right, ...left];
+
+    crowdedSteeringTick(state, child, humans);
+
+    expect(child.vx).toBeGreaterThan(0);
   });
 
   it('refreshes neighborhood selection every hour while keeping the mate between checks', () => {

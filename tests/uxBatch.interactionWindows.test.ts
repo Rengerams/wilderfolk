@@ -33,6 +33,15 @@ describe('every window that opens over the map claims the keyboard', () => {
   });
 });
 
+describe('bulk strip demolition is armed', () => {
+  const interactions = read('src/hooks/useCanvasInteractions.ts');
+
+  it('queues the collected ids instead of applying the command on mouse up', () => {
+    expect(interactions).toContain('setPendingStripDemolition(buildingIds)');
+    expect(interactions).toContain('confirmStripDemolition');
+  });
+});
+
 describe('a camera pan does not throw the selection away', () => {
   const interactions = read('src/hooks/useCanvasInteractions.ts');
 

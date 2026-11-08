@@ -27,7 +27,7 @@ function building(id: number, type: BuildingType, completed: boolean): Building 
 /** One idle, pregnant, adult player settler — the only candidate in the world. */
 function world(): WorldState {
   const state = initGame({ villageName: 'Staffing', size: 'medium', seed: FIXTURE_SEED });
-  const her: Entity = createEntity(EntityType.Human, 300, 300, HER_ID, 80, false, { name: 'Mara' });
+  const her: Entity = createEntity(EntityType.Human, 300, 300, HER_ID, 80, false, { name: 'Mara', ageYears: 30 });
   her.alive = true;
   her.isJuvenile = false;
   her.pregnant = true;

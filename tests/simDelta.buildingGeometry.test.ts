@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/gameEngine';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Building } from '../src/game/gameTypes';
-import { extractSimTickDelta } from '../src/game/simBuffers/simDelta';
+import { extractSimTickDelta, type BuildingFingerprint } from '../src/game/simBuffers/simDelta';
 
 function fixture(): { world: ReturnType<typeof initGame>; buildings: Building[] } {
   const world = initGame({ seed: 616 });
@@ -32,7 +32,7 @@ describe('building geometry signal', () => {
   it('separates geometry edits from occupancy edits for cache retention', () => {
     const { world, buildings } = fixture();
     const alive = world.entities.filter((e) => e.alive);
-    const prevBuildings = new Map<number, string>();
+    const prevBuildings = new Map<number, BuildingFingerprint>();
     const prevGeometry = new Map<number, string>();
 
     const first = extractSimTickDelta(world, alive, {

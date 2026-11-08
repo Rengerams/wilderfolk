@@ -1,5 +1,5 @@
 import { MAX_ASSIGNABLE_COMMUTE_HOURS, WORK_COMMUTE_RUSH } from './commuteReach';
-import type { WorldState, Entity, Building } from './gameTypes';
+import type { WorldState, Entity, Building, VisitorGroup, RivalSettlement } from './gameTypes';
 import { EntityType, BuildingType, JobType, Season } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
@@ -31,8 +31,8 @@ import {
 } from './workSchedule';
 import { isWorkDay } from './dayCycleClock';
 import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, isOnMoonHowlerNightShift, isWeekend, getAbsoluteCalendarDay, isNightHour, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
-import { hasResidenceAssignment, isAdult, isNearResidence, isResidenceBuilding, shareResidence } from './housingModel';
-import { WORK_ARRIVE_DISTANCE } from './workAbsence';
+import { hasResidenceAssignment, isNearResidence, isResidenceBuilding, shareResidence } from './housingModel';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import {
   chatHintsFromWorld,
   endAmbientHumanChat,
@@ -56,9 +56,9 @@ import {
   SCHOOL_START_HOUR,
 } from './education';
 import {
+  buildIncomingRaidIndex,
   getPlayerCampCenterFromBuildings,
   getPlayerSettlerCenter,
-  isRaidMarchingForRival,
 } from './frontierCombat';
 import { buildPatrolRevealIndex, detectRaidersForPatrol, type PatrolRevealIndex } from './humanPatrolBehavior';
 import { idleDestination, tickHumanChildLeisure, tickAdultLeisureMotive } from './humanLeisureBehavior';
@@ -79,6 +79,8 @@ import {
   type SocialBuildingPicker,
 } from './socialLife';
 import {
+  isPregnancyHospitalPriority,
+  isStaffedHospital,
   tickHumanDoctorHospitalService,
   tickHumanHospitalPatientCare,
 } from './humanHospitalBehavior';
@@ -96,12 +98,13 @@ import {
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getCurrentPathGrid, lineCrossesBlocked, getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
-import { crowdGatherPosition, venueGatherPosition, homeStandPosition, homeEntryPosition, affairTrystEntry, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, humanBuildingTarget, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
+import { crowdGatherPosition, venueGatherPosition, homeStandPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
+import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { fract, tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, adjustHumanStaminaFromEnergy, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { isRestingHospitalPatient } from './hospitalCare';
 import { simAmbientChatNeighbors, simSettlerPairChat } from './simulation/humanSocial';
-import { isPregnancyHospitalStage, tickPregnancyAndBirth } from './simulation/humanLifecycle';
+import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
 
 import { clampToMapBounds } from './mapBounds';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
@@ -167,7 +170,7 @@ function getAffairTrystTarget(
   const trystBuilding = getAffairTrystBuilding(cheater, paramour, entityById, buildingById);
   // Both lovers walk to the same doorstep. The footprint centre is blocked, so steering at it
   // pressed them against opposite walls and the tryst never became reachable.
-  if (trystBuilding) return affairTrystEntry(trystBuilding);
+  if (trystBuilding) return buildingAccessPoint(trystBuilding);
   return { x: paramour.x, y: paramour.y };
 }
 
@@ -201,12 +204,12 @@ function observeHumanSleep(entity: Entity, context: {
   previousIndoorBuildingId: number | undefined;
   onDuty: boolean;
   recoveringSleep: boolean;
-  buildings: Building[];
+  hotels: readonly Building[];
   buildingById: Map<number, Building>;
   entityById: Map<number, Entity>;
   tick: number;
 }): { sleeping: boolean; hasHospital: boolean } {
-  const { hourOfDay, previousIndoorBuildingId, onDuty, recoveringSleep, buildings, buildingById, entityById, tick } = context;
+  const { hourOfDay, previousIndoorBuildingId, onDuty, recoveringSleep, hotels, buildingById, entityById, tick } = context;
   if (entity.raidDeploymentId) return { sleeping: false, hasHospital: false };
   const night = isNightHour(hourOfDay);
   if (entity.prisonBuildingId != null) {
@@ -223,7 +226,7 @@ function observeHumanSleep(entity: Entity, context: {
     && previousIndoorBuildingId === home.id;
   const atHotel = entity.hotelStayBuildingId != null
     && previousIndoorBuildingId === entity.hotelStayBuildingId
-    && isSettlerLodgingAtHotel(entity, buildings, hourOfDay);
+    && isSettlerLodgingAtHotel(entity, buildingById, hourOfDay, hotels);
   const ward = previousIndoorBuildingId == null ? undefined : buildingById.get(previousIndoorBuildingId);
   const hasHospital = isRestingHospitalPatient(entity, ward, tick, previousIndoorBuildingId);
 
@@ -297,7 +300,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const workersByWorkplace = new Map<number, Entity[]>();
   const workerIndexById = new Map<number, number>();
   for (const h of allHumans) {
-    if (!h.alive || !isPlayerHuman(h) || h.isJuvenile) continue;
+    if (!h.alive || !isPlayerHuman(h) || h.age < HUMAN_ADULT_MIN_AGE) continue;
     const siteId = h.workerBuildingId;
     if (siteId == null) continue;
     const bucket = workersByWorkplace.get(siteId);
@@ -346,9 +349,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
   }
   for (const b of updatedBuildings) {
-    if (!b.completed || b.faction === 'rival' || b.occupants.length === 0) continue;
-    if (b.type === BuildingType.Hospital) staffedHospitals.push(b);
-    else if (b.type === BuildingType.TownHall) staffedTownHalls.push(b);
+    if (isStaffedHospital(b)) staffedHospitals.push(b);
+    else if (b.type === BuildingType.TownHall && b.completed && b.faction !== 'rival' && b.occupants.length > 0) {
+      staffedTownHalls.push(b);
+    }
   }
 
   // Residences and leisure-venue pools are frame-constant (only the daily layer completes
@@ -444,6 +448,18 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   // Ceremony seats are the same id-sorted ranks for every settler; build them once per tick.
   const ceremonySeats = state.electionCeremony ? buildCeremonySeatIndex(state) : undefined;
 
+  // Camps, war-bands and festival places are tick-stable facts: index them once, never per settler.
+  const visitorGroupById = new Map<string, VisitorGroup>();
+  for (const group of state.visitorGroups ?? []) visitorGroupById.set(group.id, group);
+  const rivalSettlementById = new Map<string, RivalSettlement>();
+  for (const rival of state.rivalSettlements ?? []) rivalSettlementById.set(rival.id, rival);
+  const incomingRaids = buildIncomingRaidIndex(state);
+  const festivalPerformers = (state.visitorGroups ?? [])
+    .find((group) => group.kind === 'performers' && group.daysLeft > 0);
+  const festivalSquare = updatedBuildings.find(
+    (b) => b.type === BuildingType.Square && b.completed && b.faction !== 'rival',
+  );
+
   for (const entity of allHumans) {
     if (!entity.alive) continue;
     const previousIndoorBuildingId = entity.indoorBuildingId;
@@ -452,7 +468,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Common updates
     if (isNewCalendarDay) {
-      if (entity.isJuvenile && isPlayerHuman(entity)) {
+      if (entity.age < HUMAN_ADULT_MIN_AGE && isPlayerHuman(entity)) {
         creditChildSchoolDay(entity);
       }
       syncHumanAgeFromCalendar(entity, state);
@@ -464,7 +480,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (entity.combatTicks <= 0) entity.combatTicks = 0;
     }
     // Children cannot pursue prey, including stale targets carried by old saves.
-    if (entity.isJuvenile) {
+    if (entity.age < HUMAN_ADULT_MIN_AGE) {
       entity.huntTargetId = undefined;
     } else if (entity.huntTargetId) {
       const prey = entityById.get(entity.huntTargetId);
@@ -499,7 +515,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       hourOfDay === affairEncounterHourOfDay(entity.id, state.tick) &&
       isStartOfClockHour(state.tick) &&
       !isAsleepAtHome(entity, buildingById, hourOfDay) &&
-      !isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay)
+      !isSettlerLodgingAtHotel(entity, buildingById, hourOfDay, hotelLodging.hotels)
     ) {
       // Gossip is a daytime interaction, not an automatic midnight rumour.
       tryDailyAffairGossip(
@@ -554,18 +570,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       workplace.type !== BuildingType.TownHall &&
       workplace.type !== BuildingType.Prison &&
       workplace.type !== BuildingType.Hospital;
-    // The lifecycle owner decides when pregnancy ends normal work availability.
-    const pregnancyHospitalStage = isPregnancyHospitalStage(entity);
     const isHospitalDoctor = entity.job === JobType.Doctor
       && workplace?.type === BuildingType.Hospital && workplace.completed;
-    const onHospitalShift = !!(!pregnancyHospitalStage && isHospitalDoctor && isHospitalDoctorOnShift(workplace, state.tick, entity.id));
-    const hospitalCommuteDue = !!(!pregnancyHospitalStage && isHospitalDoctor && isHospitalDoctorCommuteTime(
+    const onHospitalShift = !!(isHospitalDoctor && isHospitalDoctorOnShift(workplace, state.tick, entity.id));
+    const hospitalCommuteDue = !!(isHospitalDoctor && isHospitalDoctorCommuteTime(
       workplace,
       state.tick,
       entity.id,
-      commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace, false), config.speed),
+      commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace), config.speed),
     ));
-    const onSchoolShift = !pregnancyHospitalStage && schoolTarget != null && isSchoolTime(state.tick, hourOfDay);
+    const onSchoolShift = schoolTarget != null && isSchoolTime(state.tick, hourOfDay);
     const schoolResidence = entity.residenceBuildingId == null
       ? undefined : buildingById.get(entity.residenceBuildingId);
     const schoolLeadHours = schoolTarget
@@ -574,17 +588,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         config.speed,
       )))
       : 0;
-    const schoolCommuteDue = !pregnancyHospitalStage && schoolTarget != null && isWorkDay(state.tick)
+    const schoolCommuteDue = schoolTarget != null && isWorkDay(state.tick)
       && hourOfDay >= SCHOOL_START_HOUR - schoolLeadHours && hourOfDay < SCHOOL_START_HOUR;
     const onDayJobShift =
-      !pregnancyHospitalStage && (goWorkTime &&
+      (goWorkTime &&
         !isInnkeeper &&
         (ordinaryWorkplace ||
           (entity.job === JobType.Soldier &&
             isBarracksGuard(entity.id, entity.workerBuildingId, updatedBuildings)))) ||
       onSchoolShift;
     const onOfficialShift =
-      !pregnancyHospitalStage && entity.job === JobType.Official &&
+      entity.job === JobType.Official &&
       workplace?.type === BuildingType.TownHall &&
       workplace.completed &&
       goWorkTime;
@@ -594,7 +608,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // A festival keeps the Tavern open to visitors, but that is venue availability, not the
     // Innkeeper's duty — paying it pins every innkeeper at maximum fatigue.
     const onTavernShift =
-      !pregnancyHospitalStage && isInnkeeper &&
+      isInnkeeper &&
       (venueWorkerIndex >= 0
         ? isVenueWorkerServiceHour(state, 'tavern', hourOfDay, venueWorkerIndex, venueWorkerCount)
         : isVenueServiceHour(state, 'tavern', hourOfDay));
@@ -602,19 +616,19 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const isHotelier =
       entity.job === JobType.Hotelier && workplace?.type === BuildingType.Hotel && workplace.completed;
     const onHotelShift =
-      !pregnancyHospitalStage && isHotelier && (venueWorkerIndex >= 0
+      isHotelier && (venueWorkerIndex >= 0
         ? isVenueWorkerServiceHour(state, 'hotel', hourOfDay, venueWorkerIndex, venueWorkerCount)
         : isVenueServiceHour(state, 'hotel', hourOfDay));
 
     const onMoonPriestShift =
-      !pregnancyHospitalStage && entity.job === JobType.Priest &&
+      entity.job === JobType.Priest &&
       workplace?.type === BuildingType.Church &&
       workplace.completed &&
       isOnMoonHowlerNightShift(state.tick, hourOfDay);
     // Ordinary service: the church is a day-shift post too, so the priest works the colony's window
     // (`ordinaryWorkplace` excludes the church because this predicate, not the generic one, owns it).
     const onPriestShift =
-      !pregnancyHospitalStage && entity.job === JobType.Priest &&
+      entity.job === JobType.Priest &&
       workplace?.type === BuildingType.Church &&
       workplace.completed &&
       (goWorkTime || onMoonPriestShift);
@@ -624,14 +638,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const prisonShift = isPrisonGuardAtPost
       ? prisonShiftForGuard(entity.id, prisonGuardIds(state, workplace.occupants ?? []), state.tick)
       : null;
-    const onPrisonShift = !pregnancyHospitalStage && prisonShift != null && shiftCoversHour(prisonShift, hourOfDay);
+    const onPrisonShift = prisonShift != null && shiftCoversHour(prisonShift, hourOfDay);
     const prisonShiftStartHour = prisonShift?.startHour ?? workSchedule.startHour;
     const prisonCommuteLeadHours = isPrisonGuardAtPost && prisonShift != null && workplace
-      ? commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace, false), config.speed)
+      ? commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace), config.speed)
       : 0;
     // Prison watches run every day, including weekends. Start walking before the shift even when the
     // ordinary evening routine would otherwise keep a guard at home.
-    const prisonCommuteDue = !pregnancyHospitalStage && isPrisonGuardAtPost && prisonShift != null && (
+    const prisonCommuteDue = isPrisonGuardAtPost && prisonShift != null && (
       onPrisonShift || isWithinWorkCommuteLead(state.tick, prisonShiftStartHour, prisonCommuteLeadHours)
     );
 
@@ -640,21 +654,22 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const onJobShift =
       onDayJobShift || onTavernShift || onHotelShift || onHospitalShift || onMoonPriestShift || onPrisonShift;
     // Work wins over revelry: the festival gathering is the free-time case (see `isFestivalGatherer`).
-    const festivalGathering = !pregnancyHospitalStage && isFestivalGatherer(
+    const festivalGathering = isFestivalGatherer(
       hourOfDay,
       state.festival?.active,
       onJobShift || onOfficialShift || hospitalCommuteDue || prisonCommuteDue || schoolCommuteDue,
       isInnkeeper,
     );
-    const attendanceTarget = workplace ? humanBuildingTarget(workplace, entity.id, false) : null;
-    const atPost = attendanceTarget != null
-      && Math.hypot(entity.x - attendanceTarget.x, entity.y - attendanceTarget.y) <= WORK_ARRIVE_DISTANCE;
+    const atPost = workplace != null && isAtBuildingReach(entity, workplace);
     const wasInsideWorkplace = workplace != null && previousIndoorBuildingId === workplace.id;
     // Hunters work away from the spot; every other scheduled trade must be at its post or inside it.
     const hunterInField = entity.job === JobType.Hunter && entity.huntTargetId != null;
+    // Pregnancy hospital priority outranks the shift: the settler still owes the duty hours, but
+    // standing at a post they are leaving is not verified work.
+    const goingToHospital = isPregnancyHospitalPriority(entity, staffedHospitals.length > 0);
     if (isPlayerHuman(entity) && (onJobShift || onOfficialShift || onPriestShift)) {
       recordScheduleWorkTick(entity);
-      if (atPost || wasInsideWorkplace || hunterInField) recordPresentWorkTick(entity);
+      if (!goingToHospital && (atPost || wasInsideWorkplace || hunterInField)) recordPresentWorkTick(entity);
     }
 
     const recoveringSleep = (entity.needs?.sleepRecoveryUntilTick ?? 0) > state.tick;
@@ -675,15 +690,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // A ceremony holds its **attendees**, not the whole village: the owner's *"they again in a circle"*
     // was a thousand settlers sharing sixty ring slots. Everyone else keeps their day.
     const inElectionCeremony =
-      !pregnancyHospitalStage && !prisonCommuteDue && state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id, ceremonySeats);
+      !prisonCommuteDue && state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id, ceremonySeats);
     // Only the selected actors receive exclusive gathering movement; everyone else
     // keeps the normal commute, social and work priority rules.
-    const inSpotlightGathering = !pregnancyHospitalStage && spotlightActorIds?.has(entity.id) === true;
+    const inSpotlightGathering = spotlightActorIds?.has(entity.id) === true;
 
     const onDutyForSleep = onJobShift || onOfficialShift || onPriestShift || schoolCommuteDue;
     const sleep = observeHumanSleep(entity, {
       hourOfDay, previousIndoorBuildingId, onDuty: onDutyForSleep, recoveringSleep,
-      buildings: updatedBuildings, buildingById, entityById, tick: state.tick,
+      hotels: hotelLodging.hotels, buildingById, entityById, tick: state.tick,
     });
     const sleepingForNeeds = sleep.sleeping;
     let ateMeal = false;
@@ -695,6 +710,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         moving: Math.hypot(entity.vx, entity.vy) > 0.1,
         hasWell: hasNearbyWell(entity, nearbyWells),
         hasHospital: sleep.hasHospital,
+        unheatedWinter: isWinter && !canHeat,
       });
       if (resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds && !sleep.hasHospital) === 'eat') {
         ateMeal = tryEatColonyMeal(entity, state, hourOfDay);
@@ -716,17 +732,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.vy = 0;
       const prison = buildingById.get(entity.prisonBuildingId!);
       if (prison) {
-        const door = homeEntryPosition(prison, entity.x, entity.y);
-        const dx = door.x - entity.x;
-        const dy = door.y - entity.y;
-        const dist = Math.hypot(dx, dy) || 1;
-        if (entity.indoorBuildingId === prison.id || dist <= 14) {
+        const door = buildingAccessPoint(prison);
+        if (entity.indoorBuildingId === prison.id || isAtBuildingReach(entity, prison)) {
           enterHumanBuilding(entity, prison);
           entity.x = prison.x;
           entity.y = prison.y;
         } else {
-          entity.vx = (dx / dist) * Math.min(dist, 1.2);
-          entity.vy = (dy / dist) * Math.min(dist, 1.2);
+          // The cell door is outside the walls; route around them instead of into them.
+          steerHumanToward(entity, door.x, door.y, 1.2, 1, `prison_${prison.id}_${entity.id}`);
           applyHumanWalkStep(entity, 1);
         }
       }
@@ -759,7 +772,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const expectantSpouse = entity.partnerId == null ? null : resolveChatPartner(entity.partnerId);
       tryAmbientRandomDialogue(
         entity,
-        ambientChatNeighbors(entity),
+        () => ambientChatNeighbors(entity),
         state.tick,
         0.036 * PER_TICK_RATE_SCALE,
         chatHints,
@@ -796,13 +809,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
     // Visitors & rival settlers
     if (entity.faction === 'visitor' || entity.faction === 'rival') {
-      const camp =
-        entity.faction === 'visitor'
-          ? state.visitorGroups.find((g) => g.id === entity.groupId)
-          : state.rivalSettlements.find((r) => r.id === entity.groupId);
+      const camp = entity.groupId == null
+        ? undefined
+        : entity.faction === 'visitor'
+          ? visitorGroupById.get(entity.groupId)
+          : rivalSettlementById.get(entity.groupId);
 
       if (camp) {
-        const marching = entity.faction === 'rival' && entity.groupId && isRaidMarchingForRival(state, entity.groupId);
+        const marching = entity.faction === 'rival' && entity.groupId != null && incomingRaids.has(entity.groupId);
         if (entity.faction === 'rival') {
           entity.hiddenFromPlayer = Boolean(marching && !entity.detectedByPatrol);
         }
@@ -812,7 +826,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
         let speedMult = entity.faction === 'visitor' ? 0.62 : 0.4;
         if (marching) {
-          const raidEvt = state.pendingRaidEvents?.find((r) => r.rivalId === entity.groupId);
+          const raidEvt = entity.groupId == null ? undefined : incomingRaids.get(entity.groupId);
           const marchTiles = raidEvt?.marchDistanceTiles ?? 30;
           speedMult = Math.max(0.38, 0.92 - marchTiles / 130);
         }
@@ -822,7 +836,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           applyHumanWalkStep(entity, 1);
         } else if (
           entity.faction === 'visitor' &&
-          steerVisitorToHotel(entity, updatedBuildings, config.speed * speedMult)
+          steerVisitorToHotel(entity, buildingById, config.speed * speedMult)
         ) {
           // Hotel lodging owns its single walk step, including the road-speed multiplier.
         } else {
@@ -860,14 +874,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     const commuteStartHour = isPrisonGuardAtPost ? prisonShiftStartHour : workSchedule.startHour;
     const commuteLeadHours = workplace
-      ? commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace, false), config.speed)
+      ? commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace), config.speed)
       : 0;
-    const workCommuteDue = !pregnancyHospitalStage && workplace != null
+    const workCommuteDue = workplace != null
       && (isPrisonGuardAtPost || isWorkDay(state.tick))
       && (goWorkTime || onWorkCommuteHours
         || isWithinWorkCommuteLead(state.tick, commuteStartHour, commuteLeadHours));
 
     const stayIn =
+      !goingToHospital &&
       !inSpotlightGathering &&
       !festivalGathering &&
       !onTavernShift &&
@@ -876,12 +891,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       (prefersHomeTonightFor(workSchedule, entity.id, state.tick, hourOfDay)
         || (recoveringSleep && !onJobShift));
 
-    const allowFreeRoam = !inSpotlightGathering && !takingNeedsBreak && (festivalGathering || (!onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && !stayIn));
+    const allowFreeRoam = !goingToHospital && !inSpotlightGathering && !takingNeedsBreak && (festivalGathering || (!onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && !stayIn));
     const socialBlockedByJob = isInnkeeper
       ? onTavernShift
       : ordinaryWorkplace && isWorkScheduleHour(workSchedule, hourOfDay) && goWorkTime;
     const socialTime =
-      !inSpotlightGathering && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && (
+      !goingToHospital && !inSpotlightGathering && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && (
         (!socialBlockedByJob && allowSocialLifeFor(workSchedule, hourOfDay, false, state.tick)) ||
         (allowFreeRoam && isPlayerHuman(entity))
       );
@@ -931,7 +946,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity.vy = (hdy / hdist) * config.speed * mult * dir;
         faceVelocity(entity);
       } else if (workplace) {
-        commuteHumanToBuilding(entity, workplace, config.speed, false, WORK_COMMUTE_RUSH);
+        if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
       }
     } else if (huntingWere) {
       const fdx = entity.x - huntingWere.x;
@@ -981,11 +996,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       suppressIdle = true;
       onSchedule = true;
     } else if (festivalGathering) {
-      const performers = state.visitorGroups.find((group) => group.kind === 'performers' && group.daysLeft > 0);
+      const performers = festivalPerformers;
       const hall = staffedTownHalls.length > 0 ? staffedTownHalls[entity.id % staffedTownHalls.length] : undefined;
-      const square = state.buildings.find((building) =>
-        building.type === BuildingType.Square && building.completed && building.faction !== 'rival'
-      );
+      const square = festivalSquare;
       const targetX = square ? square.x + square.width / 2 : (performers?.campX ?? (hall ? hall.x : width * 0.5));
       const targetY = square ? square.y + square.height / 2 : (performers?.campY ?? (hall ? hall.y : height * 0.5));
       // A real place per festival-goer: `crowdGatherPosition` spreads the crowd around the target.
@@ -1010,11 +1023,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (!huntingWere && !inElectionCeremony && !inSpotlightGathering && !festivalGathering && !onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && stayIn && hasResidenceAssignment(entity)) {
       const residence = buildingById.get(entity.residenceBuildingId!);
       if (lodgingHotel) {
-        commuteHumanToBuilding(entity, lodgingHotel, config.speed, false, WORK_COMMUTE_RUSH);
+        if (commuteHumanToBuilding(entity, lodgingHotel, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, lodgingHotel);
         onSchedule = true;
         suppressIdle = true;
       } else if (residence?.completed) {
-        commuteHumanToBuilding(entity, residence, config.speed, true, WORK_COMMUTE_RUSH);
+        if (commuteHumanToBuilding(entity, residence, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, residence);
         onSchedule = true;
         suppressIdle = true;
       }
@@ -1024,7 +1037,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     ) {
       // Doctors travel for their own shift, including the evening before a midnight duty; never pull
       // an off-duty doctor to the hospital merely because the village works.
-      commuteHumanToBuilding(entity, workplace, config.speed, false, WORK_COMMUTE_RUSH);
+      if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
       onSchedule = true;
       suppressIdle = true;
     } else if (
@@ -1033,7 +1046,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !inSpotlightGathering &&
       !festivalGathering &&
       goWorkTime &&
-      !pregnancyHospitalStage &&
       workplace &&
       entity.job === JobType.Soldier &&
       isBarracksGuard(entity.id, entity.workerBuildingId, updatedBuildings)
@@ -1055,12 +1067,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         onSchedule = true;
         suppressIdle = true;
       } else if (workplace) {
-        commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), WORK_COMMUTE_RUSH);
+        if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
         onSchedule = true;
         suppressIdle = true;
       }
     } else if (!huntingWere && !inElectionCeremony && !inSpotlightGathering && !festivalGathering && (onSchoolShift || schoolCommuteDue) && !isInnkeeper && schoolTarget) {
-      commuteHumanToBuilding(entity, schoolTarget, config.speed, false, WORK_COMMUTE_RUSH);
+      if (commuteHumanToBuilding(entity, schoolTarget, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, schoolTarget);
       onSchedule = true;
       suppressIdle = true;
       recordChildSchoolTick(
@@ -1094,10 +1106,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !inElectionCeremony &&
       !inSpotlightGathering &&
       !festivalGathering &&
-      !pregnancyHospitalStage &&
       (goWorkTime || onWorkCommuteHours) &&
       workplace?.type === BuildingType.HuntingSpot &&
-      !entity.isJuvenile &&
+      entity.age >= HUMAN_ADULT_MIN_AGE &&
       isHuntingSpotHunter(workplace, entity, entityById)
     ) {
       /**
@@ -1125,7 +1136,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity.vy = 0;
       } else {
         // Nothing in sight: wait at the post like every other worker.
-        commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), WORK_COMMUTE_RUSH);
+        if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
       }
       onSchedule = true;
       suppressIdle = true;
@@ -1135,7 +1146,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !inSpotlightGathering &&
       !festivalGathering &&
       !offDutyPrisonGuard &&
-      !pregnancyHospitalStage &&
       (goWorkTime || onWorkCommuteHours || prisonShift != null) &&
       !isInnkeeper &&
       !isHospitalDoctor &&
@@ -1144,7 +1154,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       // Leave early enough to arrive at work when the shift starts; the lead grows with the settler's
       // own commute distance.
       const commuteLeadHours = commuteLeadHoursFor(
-        commuteDistanceToBuilding(entity, workplace, false),
+        commuteDistanceToBuilding(entity, workplace),
         config.speed,
       );
       const needsToLeaveForWork = isPrisonGuardAtPost
@@ -1156,7 +1166,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         ? prisonShift != null && (onPrisonShift || needsToLeaveForWork)
         : goWorkTime || onWorkCommuteHours || needsToLeaveForWork;
       if (wantsToWork) {
-        commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), WORK_COMMUTE_RUSH);
+        if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
         onSchedule = true;
         suppressIdle = true;
       }
@@ -1346,11 +1356,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     if (
       !inSpotlightGathering &&
+      !goingToHospital &&
       canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
       isPlayerHuman(entity) &&
-      !entity.isJuvenile &&
       entity.gender &&
-      isAdult(entity) &&
+      entity.age >= HUMAN_ADULT_MIN_AGE &&
       entity.age < HUMAN_MAX_LIFESPAN_YEARS &&
       entity.energy > config.reproductionEnergyThreshold * 0.5 &&
       hasActiveMarriage &&
@@ -1432,9 +1442,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // spotlight participants' movement after the gathering vector is assigned.
     if (
       !inSpotlightGathering &&
+      !goingToHospital &&
       canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
       isPlayerHuman(entity) &&
-      !entity.isJuvenile &&
+      entity.age >= HUMAN_ADULT_MIN_AGE &&
       hasAffairPartner(entity, entityById) &&
       !isMaritalHomeOccupiedBySpouse(entity, entityById, buildingById, AFFAIR_SPOUSE_BLOCK_RADIUS)
     ) {
@@ -1471,7 +1482,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     // Midday coworker banter
-    if (onDayJobShift && workplace && isPlayerHuman(entity) && !entity.isJuvenile && entity.job !== JobType.Innkeeper) {
+    if (onDayJobShift && workplace && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE && entity.job !== JobType.Innkeeper) {
       const workplaceWorkers = workersByWorkplace.get(entity.workerBuildingId ?? -1) ?? [];
       tryWorkplaceBanter(entity, workplaceWorkers, state.tick, hourOfDay, true);
     }
@@ -1481,6 +1492,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity,
       allHumans,
       updatedBuildings,
+      staffedHospitals,
       onHospitalShift,
     });
     tickHumanCivicVenueService({
@@ -1493,23 +1505,20 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       onHotelShift,
     });
     if (!huntingWere && !inElectionCeremony && !inSpotlightGathering && !festivalGathering) {
-      const receivingHospitalCare = tickHumanHospitalPatientCare({
+      tickHumanHospitalPatientCare({
         state,
         entity,
         staffedHospitals,
-        onJobShift,
         speed: config.speed,
       });
-      if (receivingHospitalCare) {
-        suppressIdle = true;
-        onSchedule = true;
-      }
+      // Hospital travel is the destination for the rest of the tick: no idle wander may replace it.
+      if (goingToHospital) suppressIdle = true;
     }
 
     if (entity.indoorBuildingId != null) suppressIdle = true;
 
     // Morning greetings
-    if (allowFreeRoam && isPlayerHuman(entity) && !entity.isJuvenile && hourOfDay >= 6 && hourOfDay <= 9) {
+    if (allowFreeRoam && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE && hourOfDay >= 6 && hourOfDay <= 9) {
       if ((state.tick + entity.id) % SOCIAL_STAGGER === 0) {
         const passer = findClosestAdaptiveInRadius(
           humanSocialGrid,
@@ -1517,7 +1526,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           entity.x,
           entity.y,
           SOCIAL_GREETING_RADIUS,
-          (h) => h.id !== entity.id && h.alive && isPlayerHuman(h) && !h.isJuvenile,
+          (h) => h.id !== entity.id && h.alive && isPlayerHuman(h) && h.age >= HUMAN_ADULT_MIN_AGE,
           socialAdaptiveOptions('social', allHumans.length, width, height),
         );
         tryNeighborGreeting(entity, passer, state.tick, hourOfDay);
@@ -1545,7 +1554,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       })
     ) {
       suppressIdle = true;
-    } else if (allowFreeRoam && !suppressIdle && isPlayerHuman(entity) && !entity.isJuvenile) {
+    } else if (allowFreeRoam && !suppressIdle && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE) {
       const tick = state.tick;
       const absDay = getAbsoluteCalendarDay(tick);
       const leisureSlotPeriod = 80 * TICKS_PER_HOUR;
@@ -1562,8 +1571,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const phase = entity.id * 0x9e3779b9 + leisureSlot * 0x85ebca6b + absDay;
       let idleVx = 0;
       let idleVy = 0;
+      let routedToBuilding = false;
 
       const steerTo = (tx: number, ty: number, speedMult: number, arrive = 14, destination?: Building): boolean => {
+        routedToBuilding = false;
+        idleVx = 0;
+        idleVy = 0;
         const dx = tx - entity.x;
         const dy = ty - entity.y;
         const dist = Math.hypot(dx, dy) || 1;
@@ -1572,6 +1585,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           idleVx = Math.sin(tick * 0.04 + entity.id) * config.speed * 0.08;
           idleVy = Math.cos(tick * 0.035 + entity.id) * config.speed * 0.08;
           return true;
+        }
+        if (destination) {
+          // The frontage may sit across the building itself: walk the route, not into the wall.
+          steerHumanToward(entity, tx, ty, config.speed, speedMult, `idle_${destination.id}_${entity.id}`);
+          routedToBuilding = true;
+          return false;
         }
         idleVx = (dx / dist) * config.speed * speedMult;
         idleVy = (dy / dist) * config.speed * speedMult;
@@ -1607,7 +1626,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const spouse = spouseEarly ?? (entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined);
         const kids = (entity.childrenIds ?? [])
           .map((id) => livingHumanAt(id))
-          .filter((k): k is Entity => !!k?.alive && !!k.isJuvenile);
+          .filter((k): k is Entity => !!k?.alive && k.age < HUMAN_ADULT_MIN_AGE);
         const workplaceWorkers =
           entity.workerBuildingId != null
             ? workersByWorkplace.get(entity.workerBuildingId) ?? []
@@ -1782,7 +1801,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
                 entity.x,
                 entity.y,
                 SOCIAL_FRIENDSHIP_RADIUS,
-                (h) => h.id !== entity.id && h.alive && isPlayerHuman(h) && !h.isJuvenile && h.id !== entity.affairPartnerId,
+                (h) => h.id !== entity.id && h.alive && isPlayerHuman(h) && h.age >= HUMAN_ADULT_MIN_AGE && h.id !== entity.affairPartnerId,
                 socialAdaptiveOptions('social', allHumans.length, width, height),
               ) ?? null;
           }
@@ -1822,7 +1841,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               gy = hall.y + hall.height + 20;
             }
           }
-          const performers = state.visitorGroups.find((g) => g.kind === 'performers' && g.daysLeft > 0);
+          const performers = festivalPerformers;
           if (performers) {
             gx = performers.campX;
             gy = performers.campY;
@@ -1866,7 +1885,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           }
         }
 
-        if (idleVx !== 0 || idleVy !== 0) {
+        if (routedToBuilding) {
+          suppressIdle = true;
+        } else if (idleVx !== 0 || idleVy !== 0) {
           entity.vx = entity.vx * 0.5 + idleVx * 0.5;
           entity.vy = entity.vy * 0.5 + idleVy * 0.5;
           faceVelocity(entity);

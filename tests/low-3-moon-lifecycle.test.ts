@@ -269,8 +269,8 @@ describe('birth vs the residence invariant', () => {
     expect(child).toBeDefined();
     expect(child?.residenceBuildingId).toBe(HOUSE_ID);
 
-    // The assign layer runs later the same tick on every daily boundary (72 % 18 === 0) and is
-    // the residence-occupants owner; it must see the newborn it has to list.
+    // Exercise the residence-occupants owner directly here: assignment is normally scheduled
+    // at 03:00, 09:00, 15:00 and 21:00, not on the daily layer's midnight boundary.
     tickLayerAssign(state, ctx);
 
     expect(house.occupants).toContain(child?.id);

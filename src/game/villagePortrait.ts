@@ -2,6 +2,7 @@ import type { WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { displayYear } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isRivalAtPeace } from './rivalPeace';
 import { resolveCombatLogKind, resolveCombatLogStage } from './eventLog';
 import { getEcosystemHealth } from './dailyEcology';
@@ -64,7 +65,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
     if (!e.alive) continue;
     if (e.type === EntityType.Wolf && e.tamedBy == null) wildWolves++;
     else if (e.type === EntityType.Wildkin) wildkin++;
-    else if (e.type === EntityType.Human && isPlayerHuman(e) && !e.isJuvenile) adults++;
+    else if (e.type === EntityType.Human && isPlayerHuman(e) && e.age >= HUMAN_ADULT_MIN_AGE) adults++;
   }
 
   // Single-pass rival settlements scan

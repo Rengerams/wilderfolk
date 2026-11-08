@@ -10,7 +10,8 @@ import { isAsleepAtHome, isFestivalGatherer, prefersHomeTonightFor } from './hum
 import { isNearResidence } from './housingModel';
 import { getWorkSchedule, getWorkScheduleLabel, isOnWorkScheduleShift } from './workSchedule';
 import { findHumanWorkplace } from './workforce';
-import { humanBuildingTarget } from './simulation/humanMovement';
+import { isWalkingToward } from './simulation/humanMovement';
+import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { BUILDING_CONFIGS } from './gameTypes';
 import { WORK_ARRIVE_DISTANCE, getSettlerWorkReason, type SettlerWorkReason } from './workAbsence';
 
@@ -60,9 +61,16 @@ export function isAtActivityTarget(entity: Entity, target: HumanActivityTarget |
   return Math.hypot(target.x - entity.x, target.y - entity.y) <= WORK_ARRIVE_DISTANCE;
 }
 
-export function getHumanActivityStatus(state: WorldState, entity: Entity): string {
+export function getHumanActivityStatus(
+  state: WorldState,
+  entity: Entity,
+  workReason: SettlerWorkReason = getSettlerWorkReason(state, entity),
+): string {
   if (!entity.alive) return 'Dead';
   if (entity.raidDeploymentId) return 'Away with the war-band';
+  // Hospital travel and admission are activities in their own right, not free time.
+  if (workReason.code === 'going-to-hospital') return 'Walking to hospital';
+  if (workReason.code === 'in-hospital') return 'In hospital';
 
   const hourOfDay = getHourOfDay(state.tick);
   const festivalActive = state.festival?.active;
@@ -86,12 +94,15 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
   }
   if (isAsleepAtHome(entity, state.buildings, hourOfDay, onWorkSchedule)) return 'Sleeping';
 
-  // Assigned workplace during the configured work shift.
+  // Assigned workplace during the configured work shift. Commuting is reported only on the
+  // movement owner's evidence; being far from the post is not travel.
   if (workplace && onWorkSchedule) {
-    const target = humanBuildingTarget(workplace, entity.id, false);
-    const dist = Math.hypot(target.x - entity.x, target.y - entity.y);
+    const target = buildingAccessPoint(workplace);
     const label = labelFor(workplace);
-    return dist <= WORK_ARRIVE_DISTANCE ? `Working at ${label}` : `Commuting to ${label}`;
+    if (isAtBuildingReach(entity, workplace) || entity.indoorBuildingId === workplace.id) {
+      return `Working at ${label}`;
+    }
+    return isWalkingToward(entity, target) ? `Commuting to ${label}` : `Away from ${label}`;
   }
 
   // Evening social outings are an intentional free-time state, not a failed home return: surface it
@@ -105,22 +116,15 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
   // Home is a real residence assignment, not proximity to a random building.
   if (entity.residenceBuildingId != null) {
     const residence = state.buildings.find((b) => b.id === entity.residenceBuildingId && b.completed);
-    if (residence) {
-      const point = humanBuildingTarget(residence, entity.id, true);
-      if (Math.hypot(point.x - entity.x, point.y - entity.y) <= WORK_ARRIVE_DISTANCE) {
-        return `At home (${labelFor(residence)})`;
-      }
+    if (residence && isAtBuildingReach(entity, residence)) {
+      return `At home (${labelFor(residence)})`;
     }
   }
 
   // Not near any building but has a home → likely walking home (or away).
   if (entity.residenceBuildingId != null) {
     const home = state.buildings.find((b) => b.id === entity.residenceBuildingId);
-    if (home) {
-      const target = humanBuildingTarget(home, entity.id, true);
-      const dist = Math.hypot(target.x - entity.x, target.y - entity.y);
-      if (dist > WORK_ARRIVE_DISTANCE) return 'Walking home';
-    }
+    if (home && !isAtBuildingReach(entity, home)) return 'Walking home';
   }
 
   return entity.isJuvenile ? 'Free time' : 'Idle';
@@ -141,10 +145,13 @@ export function getHumanActivityProjection(
   const homeBuilding = entity.residenceBuildingId == null
     ? null
     : state.buildings.find((building) => building.id === entity.residenceBuildingId) ?? null;
-  const activity = getHumanActivityStatus(state, entity);
+  const workReason = getSettlerWorkReason(state, entity);
+  const activity = getHumanActivityStatus(state, entity, workReason);
   const target: HumanActivityTarget | null = (() => {
+    // A hospital-bound or admitted settler is not walking a workplace leg, so claim no post target.
+    if (workReason.code === 'going-to-hospital' || workReason.code === 'in-hospital') return null;
     if (!entity.isJuvenile && workplace && isOnWorkScheduleShift(state, hour)) {
-      const point = humanBuildingTarget(workplace, entity.id, false);
+      const point = buildingAccessPoint(workplace);
       return { kind: 'workplace', label: labelFor(workplace), buildingId: workplace.id, ...point };
     }
     const eveningOuting = hour >= EVENING_START
@@ -164,7 +171,7 @@ export function getHumanActivityProjection(
       return { kind: 'combat', label: 'Combat', x: entity.x, y: entity.y };
     }
     if (activity === 'Walking home' && homeBuilding) {
-      const point = humanBuildingTarget(homeBuilding, entity.id, true);
+      const point = buildingAccessPoint(homeBuilding);
       return { kind: 'home', label: labelFor(homeBuilding), buildingId: homeBuilding.id, ...point };
     }
     return null;
@@ -191,7 +198,7 @@ export function getHumanActivityProjection(
     workplace: workplace ? { id: workplace.id, label: labelFor(workplace) } : null,
     target,
     blockedReason,
-    workReason: getSettlerWorkReason(state, entity),
+    workReason,
     transition: previousActivity && previousActivity !== activity
       ? { from: previousActivity, to: activity, observedAtTick: state.tick }
       : null,

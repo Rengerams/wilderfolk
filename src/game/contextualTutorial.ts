@@ -5,6 +5,7 @@ import type { FocusHintAction } from './focusHints';
 import { NIGHT_START, TICKS_PER_DAY, getHourOfDay } from './dayCycle';
 import { displayYear } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isMarriedOrExpecting } from './relationships';
 import { ELECTION_INTERVAL_YEARS } from './villageLeadership';
 import { isFoodCritical } from './resourceUtils';
@@ -54,14 +55,14 @@ export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutori
     id: 'shelter_night',
     icon: '🌙',
     title: 'Night is approaching',
-    detail: 'Build a House (key 1), click the map, then assign pioneers as workers. Settlers need shelter before nightfall on day one.',
+    detail: 'Build a House (key 1), click the map — builders join the site automatically. Settlers need shelter before nightfall on day one.',
     action: { label: 'Place house', id: 'build_house' },
   },
   first_building_done: {
     id: 'first_building_done',
     icon: '🏗️',
     title: 'Building finished',
-    detail: 'Select the building on the map and press + Fill workers to staff it. Lumber mills, farms, and wells only produce when workers are assigned.',
+    detail: 'Workers are assigned automatically: lumber mills, farms, and wells produce only while staffed. The building panel lists its crew.',
   },
   first_worker_assigned: {
     id: 'first_worker_assigned',
@@ -304,7 +305,7 @@ function derivedSeenIds(state: WorldState): Set<string> {
   if ((state.valleyStage ?? 'stable') !== 'stable') seen.add('valley_strained');
   const hasRecordedBirth = state.yearlyStats.some((ys) => ys.births.humans > 0);
   const hasBornChild = state.entities.some(
-    (e) => e.alive && isPlayerHuman(e) && e.isJuvenile && (e.motherId != null || (e.generation ?? 0) > 1),
+    (e) => e.alive && isPlayerHuman(e) && e.age < HUMAN_ADULT_MIN_AGE && (e.motherId != null || (e.generation ?? 0) > 1),
   );
   if (hasRecordedBirth || hasBornChild) seen.add('first_birth');
   if (state.entities.some((e) => e.alive && isPlayerHuman(e) && isMarriedOrExpecting(e))) {

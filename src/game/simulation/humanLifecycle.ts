@@ -8,6 +8,7 @@ import {
   ticksForDays,
   getColonyDay,
 } from '../dayCycle';
+import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 import { resolveChildSurname, getRandomName } from '../nameLoader';
 import { genomeOf, inheritGenome } from '../settlerTraits';
 import { createEntity } from '../entityFactory';
@@ -23,7 +24,7 @@ import { dampScandalReputationLoss } from '../townHall';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 import { adjustHumanStaminaFromEnergy } from './humanPhysiology';
 import { isPlayerHuman } from '../playerHuman';
-import { seededRandomForRun } from '../simRng';
+import { seededRandomForRun, seededStreamForRun } from '../simRng';
 import { addReputation } from '../simHelpers';
 import { isResidenceBuilding, isLeaderHouseResidence, residenceRoomFor } from '../housingModel';
 
@@ -35,7 +36,7 @@ const BIRTH_TALENT_JOBS = [
 ] as const;
 
 export function grantRareBirthTalent(child: Entity, birthKey: string): void {
-  if (child.type !== EntityType.Human || !child.isJuvenile) return;
+  if (child.type !== EntityType.Human || child.age >= HUMAN_ADULT_MIN_AGE) return;
   const chance = seededRandomForRun(`${birthKey}:talent-chance`);
   if (chance >= 0.01) return;
   const roll = seededRandomForRun(`${birthKey}:talent-job`);
@@ -73,14 +74,6 @@ export function getPregnancyProgressFraction(
   return Math.min(1, Math.max(0, progress / term));
 }
 
-/** Shared pregnancy stage verdict for hospital routing, doctor duty and medical care. */
-export function isPregnancyHospitalStage(
-  mother: Pick<Entity, 'pregnant' | 'pregnancyProgress' | 'pregnancyDueProgress'>,
-): boolean {
-  return mother.pregnant === true
-    && getPregnancyProgressFraction(mother) >= LIFECYCLE_CONFIG.HOSPITAL_THRESHOLD_RATIO;
-}
-
 function safeAddChildId(parent: Entity, childId: number): void {
   parent.childrenIds ??= [];
   if (!parent.childrenIds.includes(childId)) {
@@ -93,6 +86,14 @@ function clearExpectingStatus(human?: Entity): void {
   if (human.relationshipStatus === 'expecting') {
     human.relationshipStatus = human.partnerId != null ? 'married' : 'single';
   }
+}
+
+/** The one pregnancy hospital threshold: 85% of this mother's individual term. */
+export function isPregnancyHospitalDue(
+  entity: Pick<Entity, 'pregnant' | 'pregnancyProgress' | 'pregnancyDueProgress'>,
+): boolean {
+  return entity.pregnant === true
+    && getPregnancyProgressFraction(entity) >= LIFECYCLE_CONFIG.HOSPITAL_THRESHOLD_RATIO;
 }
 
 /**
@@ -195,7 +196,11 @@ export function tickPregnancyAndBirth(
 
   const babyGen = (entity.generation ?? 0) + 1;
   const childGender: 'male' | 'female' = seededRandomForRun(`${birthKey}:gender`) > 0.5 ? 'male' : 'female';
-  const inheritedGenome = inheritGenome(genomeOf(entity), genomeOf(biologicalFather));
+  const inheritedGenome = inheritGenome(
+    genomeOf(entity),
+    genomeOf(biologicalFather),
+    seededStreamForRun(`${birthKey}:genome`),
+  );
 
   const child = createEntity(EntityType.Human, nx, ny, state.nextEntityId++, 80, true, {
     gender: childGender,

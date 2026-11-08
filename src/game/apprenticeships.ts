@@ -4,7 +4,6 @@ import { readSkill, writableEntitySkills } from './skills';
 import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { isAdult, isMinor } from './housingModel';
 import { SCHOOL_GRADUATION_DAYS, getEducationTier } from './education';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { advanceCareerProgression } from './careers/careerProgression';
@@ -55,7 +54,7 @@ export function advanceApprenticeships(
   // Remove legacy underage apprenticeship bonds (including those in older saves).
   // Apprenticeship skills and school progress remain untouched.
   for (const p of people) {
-    if (p.apprenticeOfId != null && (!byId.has(p.apprenticeOfId) || isMinor(p))) {
+    if (p.apprenticeOfId != null && (!byId.has(p.apprenticeOfId) || p.age < HUMAN_ADULT_MIN_AGE)) {
       const master = byId.get(p.apprenticeOfId);
       if (master?.apprenticeId === p.id) master.apprenticeId = undefined;
       p.apprenticeOfId = undefined;
@@ -65,13 +64,13 @@ export function advanceApprenticeships(
   const claimed = new Set<number>(people.filter((p) => p.apprenticeOfId != null).map((p) => p.id));
   // An apprenticeship is optional, not a guaranteed next step after school.
   // The stable id-based selection prevents repeatedly offering every eligible adult a place.
-  const scholars = people.filter((p) => !p.isJuvenile && isAdult(p)
+  const scholars = people.filter((p) => p.age >= HUMAN_ADULT_MIN_AGE
     && p.educated && getEducationTier(p.schoolDays ?? 0) === 3
     && !p.grandmasterApprenticeshipCompleted && !claimed.has(p.id));
   // Scholars keep their place in the waiting pool even after age 24.
   scholars.sort((a, b) => b.age - a.age || a.id - b.id);
-  const candidates = people.filter((p) => !p.isJuvenile
-    && isAdult(p) && p.age <= HUMAN_ADULT_MIN_AGE + 6
+  const candidates = people.filter((p) => p.age >= HUMAN_ADULT_MIN_AGE
+    && p.age <= HUMAN_ADULT_MIN_AGE + 6
     && (p.schoolDays ?? 0) >= SCHOOL_GRADUATION_DAYS
     && getEducationTier(p.schoolDays ?? 0) < 3
     && (p.id * 37 + 17) % 4 === 0 && !claimed.has(p.id));
@@ -83,7 +82,7 @@ export function advanceApprenticeships(
 
     const masters = (b.occupants ?? [])
       .map((id) => byId.get(id))
-      .filter((e): e is Entity => !!e && !e.isJuvenile && readSkill(e, job) >= MASTER_SKILL);
+      .filter((e): e is Entity => !!e && e.age >= HUMAN_ADULT_MIN_AGE && readSkill(e, job) >= MASTER_SKILL);
 
     for (const master of masters) {
       const currentApprentice = master.apprenticeId != null ? byId.get(master.apprenticeId) : undefined;

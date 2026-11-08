@@ -1,6 +1,7 @@
 /**
  * Tick-layer schedule lock: `gameTick` is the only orchestrator and calls these four modules in order
- * — realtime every tick, systems 4, assign 72 (offset 36), daily 288 ticks — and no other layer may exist.
+ * — realtime every tick, systems on their own interval, assignment at 03/09/15/21 and
+ * daily entry at 00/06/12/18 (12 is empty) — and no other layer may exist.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorldState } from '../src/game/gameTypes';
@@ -179,10 +180,12 @@ describe('gameTick layer orchestration (fixed schedule)', () => {
     expect(assignments).toEqual(['assign@36', 'assign@108', 'assign@180', 'assign@252']);
   });
 
-  it('daily runs exactly once per colony day at the day boundary', async () => {
+  it('invokes daily layer four times per calendar day at 00:00, 06:00, 12:00 and 18:00', async () => {
     await runTicks(0, 3 * TICKS_PER_DAY);
     const dailies = callLog.calls.filter((c) => c.startsWith('daily@'));
-    expect(dailies).toEqual(Array.from({ length: 12 }, (_, i) => `daily@${(i + 1) * (TICKS_PER_DAY / 4)}`));
+    expect(dailies).toEqual(Array.from({ length: 3 }, (_, day) =>
+      [6, 12, 18, 24].map((hour) => `daily@${day * TICKS_PER_DAY + hour * TICKS_PER_HOUR}`),
+    ).flat());
   });
 
   it('produces an identical trace on repeated runs (deterministic schedule)', async () => {

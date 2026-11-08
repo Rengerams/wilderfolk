@@ -37,6 +37,19 @@ describe('prep rollback covers what the tick writes (F3/F5)', () => {
     expect(world.activeEvent?.id).toBe('raid_before');
   });
 
+  it('restores election promise records written by the tick', () => {
+    const world = initGame();
+    world.electionPromiseRecords = [];
+    const prep = extractSimPrep(world);
+
+    world.electionPromiseRecords = [{
+      electionId: 1, leaderId: 2, year: 2, dueDay: 700, codes: [1], evaluated: false,
+    }];
+    applySimPrep(world, prep);
+
+    expect(world.electionPromiseRecords).toEqual([]);
+  });
+
   it('keeps the live scent grid across a rollback', () => {
     const world = initGame();
     const grid = ensureScentGrid(world);

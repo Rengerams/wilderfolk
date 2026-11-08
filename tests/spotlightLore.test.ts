@@ -10,6 +10,7 @@ import { getPathGrid, lineCrossesBlocked, resetPathGridCaches } from '../src/gam
 import { rebuildEntityByIdMap } from '../src/game/entityIndex';
 import { canPursueSecretAffair, hasAffairPartner } from '../src/game/simulation/humanRelationships';
 import { getSettlerWorkReason } from '../src/game/workAbsence';
+import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
 import { createBuilding, initGame } from '../src/game/worldGen';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -164,8 +165,10 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     });
     world.buildings = [tavern];
     innkeeper.workerBuildingId = tavern.id;
+    // At his own post: the attendance projection no longer calls distance from it travel.
+    Object.assign(innkeeper, humanBuildingTarget(tavern, innkeeper.id));
     world.tick = pickEligibleTick(world);
-    expect(getSettlerWorkReason(world, innkeeper).code).toMatch(/^(working|walking-to-work)$/);
+    expect(getSettlerWorkReason(world, innkeeper).code).toBe('working');
     expect(maybeStartSpotlightLore(world)).toBe(true);
     expect(world.spotlightLore?.performerIds).toHaveLength(7);
     expect(world.spotlightLore?.performerIds).not.toContain(innkeeper.id);
@@ -381,7 +384,7 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
 
   it('idempotently completes once and abandons missing/dead actors without rewards', () => {
     const { world, girl, adults } = makeFixture();
-    world.tick = 72 * 200;
+    world.tick = TICKS_PER_DAY * 200;
     const scene = readyScene(world, girl, adults);
     world.spotlightLore = scene;
     const startResources = structuredClone(world.resources);
