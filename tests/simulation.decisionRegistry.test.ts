@@ -31,6 +31,9 @@ const REQUIRED_DECISIONS = [
   'immigration',
   'school',
   'buildingAccess',
+  'settlerDeathAudio',
+  'terrainClearingFields',
+  'colonyMovementObservation',
   'housing',
   'construction',
   'production',
@@ -61,6 +64,9 @@ const REQUIRED_DECISIONS = [
 const READ_ONLY_DECISIONS = new Set<string>([
   'terrainRiverSurface',
   'buildingAccess',
+  'settlerDeathAudio',
+  'terrainClearingFields',
+  'colonyMovementObservation',
   'traitInfluence',
   'workerFit',
   'raidTerminalPresentation',
@@ -72,7 +78,7 @@ const READ_ONLY_DECISIONS = new Set<string>([
 ]);
 
 /** The read-only owners that run inside the render loop rather than on a demand query. */
-const RENDER_ONLY_DECISIONS = new Set<string>(['terrainRiverSurface', 'workerMotionPresentation']);
+const RENDER_ONLY_DECISIONS = new Set<string>(['terrainRiverSurface', 'workerMotionPresentation', 'settlerDeathAudio', 'terrainClearingFields']);
 
 describe('simulation decision registry', () => {
   it('contains exactly the required decision keys', () => {

@@ -326,6 +326,12 @@ export function commuteHumanToBuilding(
     return true;
   }
 
+  if (dist === 0) {
+    entity.vx = 0;
+    entity.vy = 0;
+    return false;
+  }
+
   const moveSpeed = commuteWalkSpeed(speed, rush);
 
   // The path owner is asked at every distance: asking only beyond 50 px sent short legs and every final

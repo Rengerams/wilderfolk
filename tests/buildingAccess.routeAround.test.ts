@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { building, human } from '../src/test/factories';
 import { BuildingType } from '../src/game/gameTypes';
 import { applyHumanWalkStep, commuteHumanToBuilding, enterHumanBuilding, homeStandPosition, steerHumanToward } from '../src/game/simulation/humanMovement';
-import { buildingAccessPoint } from '../src/game/buildingAccess';
+import { buildingAccessPoint, isAtBuildingReach } from '../src/game/buildingAccess';
 import { getBuildingFootprintRect } from '../src/game/buildingGeometry';
 import { setCurrentPathMap } from '../src/game/pathfinding';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -34,6 +34,38 @@ describe('a settler reaches a building from every side', () => {
       const person = human(1, { x: door.x + dx, y: door.y + dy, residenceBuildingId: home.id });
       expect(walkHome(person, home, 900), `side ${_label}`).toBe(true);
       expect(person.indoorBuildingId).toBe(home.id);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('rejects an outward doorstep with a wall between it and the facade', () => {
+    const map = testWorldMap({ tilesX: 60, tilesY: 60 });
+    const home = building(7, BuildingType.House, { x: 300, y: 300, width: 60, height: 60, occupants: [1] });
+    const wall = building(9, BuildingType.Wall, { x: 300, y: 340, width: 60, height: 20 });
+    setCurrentPathMap(map, [home, wall]);
+    try {
+      expect(isAtBuildingReach({ x: 300, y: 352 }, home)).toBe(false);
+      const door = buildingAccessPoint(home);
+      expect(door.side).toBe('east');
+      expect(isAtBuildingReach(door, home)).toBe(true);
+      const person = human(1, { x: 300, y: 420, residenceBuildingId: home.id });
+      expect(walkHome(person, home, 900)).toBe(true);
+      expect(Number.isFinite(person.x + person.y + person.vx + person.vy)).toBe(true);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('keeps velocity finite at an unreachable fallback doorstep', () => {
+    const map = testWorldMap({ tilesX: 60, tilesY: 60 });
+    const home = building(7, BuildingType.House, { x: 300, y: 300, width: 60, height: 60 });
+    const enclosure = building(9, BuildingType.Wall, { x: 300, y: 300, width: 160, height: 160 });
+    setCurrentPathMap(map, [home, enclosure]);
+    try {
+      const person = human(1, buildingAccessPoint(home));
+      expect(commuteHumanToBuilding(person, home, 3)).toBe(false);
+      expect([person.vx, person.vy]).toEqual([0, 0]);
     } finally {
       setCurrentPathMap(null);
     }

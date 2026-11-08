@@ -62,7 +62,9 @@ export function buildingAccessPoint(building: Building): BuildingAccessPoint {
     for (let step = 0; step <= BUILDING_ACCESS_MAX_OUTWARD_STEPS; step++) {
       const x = baseX + normalX * PATH_CELL * step;
       const y = baseY + normalY * PATH_CELL * step;
-      if (isOpenDoorstep(x, y, normalX, normalY)) return { x, y, side };
+      if (isOpenDoorstep(x, y, normalX, normalY) && isAtBuildingReach({ x, y }, building)) {
+        return { x, y, side };
+      }
     }
   }
   return front;

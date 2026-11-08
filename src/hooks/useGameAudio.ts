@@ -28,10 +28,13 @@ import {
 /**
  * React hook: mute control, day/night music mood, and SFX on sim interactions.
  */
-export function useGameAudio(world: WorldState, enabled: boolean) {
+export function useGameAudio(world: WorldState, enabled: boolean, sessionRevision = 0) {
   const [muted, setMuted] = useState(() => getMuteState());
   const [volumePreset, setVolumePresetState] = useState<VolumePreset>(() => getVolumePreset());
   const prevEntitiesRef = useRef(world.entities);
+  const prevDeathCountRef = useRef(0);
+  const prevYearRef = useRef(world.year);
+  const prevSessionRevisionRef = useRef(sessionRevision);
   const prevBuildingsRef = useRef(world.buildings);
   const prevDisasterCountRef = useRef(0);
   const prevMarriedCountRef = useRef(0);
@@ -68,7 +71,10 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
       return;
     }
 
-    if (!seededRef.current) {
+    if (!seededRef.current || prevSessionRevisionRef.current !== sessionRevision) {
+      prevSessionRevisionRef.current = sessionRevision;
+      prevDeathCountRef.current = world.deathsThisYear?.humans ?? 0;
+      prevYearRef.current = world.year;
       prevEntitiesRef.current = world.entities;
       prevBuildingsRef.current = world.buildings;
       prevDisasterCountRef.current = world.disasters.length;
@@ -86,7 +92,13 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
     const currentBuildings = world.buildings;
 
     // Hunt, tame, predator kills, transforms
-    detectInteractionSounds(prevEntities, currentEntities);
+    const deathCount = world.deathsThisYear?.humans ?? 0;
+    const completedYearDeaths = world.yearlyStats.reduce((total, stats) =>
+      stats.year >= prevYearRef.current && stats.year < world.year ? total + stats.deaths.humans : total, 0);
+    detectInteractionSounds(prevEntities, currentEntities,
+      Math.max(0, completedYearDeaths + deathCount - prevDeathCountRef.current));
+    prevDeathCountRef.current = deathCount;
+    prevYearRef.current = world.year;
 
     // Work & footstep ambience — throttled so they read as ambience, not noise.
     ambienceTickRef.current++;
@@ -102,8 +114,6 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
     const prevBabies = new Set(prevEntities.filter(e => e.alive && e.isJuvenile).map(e => e.id));
     const newBabies = currentEntities.filter(e => e.alive && e.isJuvenile && !prevBabies.has(e.id));
     if (newBabies.length > 0) playBirthSound();
-
-    // Death audio is event-owned: `detectInteractionSounds` cues the one player death.
 
     const currentMarriedCount = currentEntities.filter(
       e => e.alive && e.type === EntityType.Human && isMarriedOrExpecting(e),
@@ -128,7 +138,7 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
 
     prevEntitiesRef.current = currentEntities;
     prevBuildingsRef.current = currentBuildings;
-  }, [world.tick, enabled, world.entities, world.buildings, world.disasters.length, world.researchNodes, world.worldMap, world.workSchedule]);
+  }, [world.tick, enabled, world.entities, world.buildings, world.disasters.length, world.researchNodes, world.worldMap, world.workSchedule, world.deathsThisYear, world.yearlyStats, world.year, sessionRevision]);
 
   return { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset };
 }

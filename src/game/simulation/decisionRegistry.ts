@@ -49,6 +49,9 @@ export type DecisionKey =
   | 'careerProgression'
   | 'workerFit'
   | 'buildingAccess'
+  | 'settlerDeathAudio'
+  | 'terrainClearingFields'
+  | 'colonyMovementObservation'
   | 'humanPhysiology'
   | 'humanMeals'
   | 'workSchedule'
@@ -156,10 +159,34 @@ export const SIMULATION_DECISIONS = {
   buildingAccess: {
     owner: 'buildingAccess.ts — buildingAccessPoint (the one doorstep), isOpenDoorstep, isAtBuildingReach (the one arrival rule)',
     cadence: 'on-demand',
-    cadenceNote: 'Pure read-only geometry: one access per building from its footprint and the walk grid, and one arrival test that counts walkable ground within reach of any facade while rejecting a blocked half-way tile. No tick, no scheduler, no RNG and no writes; the commuter targets the access and the activity enterHumanBuilding call decides entry.',
+    cadenceNote: 'Pure read-only geometry: one access per building from its footprint and the walk grid, accepting a candidate only when it also satisfies isAtBuildingReach; zero-distance blocked fallback targets stop without reporting arrival, and one arrival test that counts walkable ground within reach of any facade while rejecting a blocked half-way tile. No tick, no scheduler, no RNG and no writes; the commuter targets the access and the activity enterHumanBuilding call decides entry.',
     writes: [],
     scheduledFrom: 'humanMovement.commuteHumanToBuilding (navigation target and arrival), humanTick attendance, workAbsence, humanStatus, education, humanHospitalBehavior, hotelStay, logisticsOverlayData',
     testFile: 'tests/homeEntry.geometry.test.ts, tests/buildingAccess.routeAround.test.ts, tests/settlers.indoors.test.ts, tests/education.centerGeometry.test.ts',
+  },
+  settlerDeathAudio: {
+    owner: 'audio/interactionDetect.ts — detectInteractionSounds; hooks/useGameAudio.ts — useGameAudio holds the observed annual death count, year and session revision',
+    cadence: 'render',
+    cadenceNote: 'Player death tallies survive worker living-roster filtering; seed on enable/session replacement, include completed-year tallies across rollover, and play only the positive increment. The tally includes cursed settlers and excludes departures; retained corpse fallback applies only without a tally.',
+    writes: [],
+    scheduledFrom: 'useGameAudio effect after worker state publication',
+    testFile: 'tests/audio.interactionDetect.test.ts',
+  },
+  terrainClearingFields: {
+    owner: 'renderer/terrain.ts — buildTerrainCache',
+    cadence: 'render',
+    cadenceNote: 'Refresh override-dependent Whittaker fields on terrain revision; chunk surfaces retain their separate regional revision keys. Only renderer-local caches change.',
+    writes: [],
+    scheduledFrom: 'renderer/terrain.drawGround',
+    testFile: 'tests/groundChunk.rebake.test.ts, tests/terrain.clearingVisuals.test.ts',
+  },
+  colonyMovementObservation: {
+    owner: 'scripts/colonyHealth.ts — createColonyObserver, sampleMovement, observe',
+    cadence: 'on-demand',
+    cadenceNote: 'Opt-in harness sampling after normal gameTick movement integration. Reads actual positions, canonical building reach, configured shift, and loop pacing; records daily budgets, distance, closest approach and first shift arrival without writing world state.',
+    writes: [],
+    scheduledFrom: 'scripts/run-full-year.mts run with --movement',
+    testFile: 'tests/colonyProducerCommute.test.ts',
   },
   humanPhysiology: {
     owner: 'simulation/humanPhysiology.ts — initialHumanNeeds, normalizeHumanNeeds, advanceHumanNeeds, resolveHumanNeedsIntent, getHumanNeedsWorkMultiplier, hasFatalStarvation, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy, getHumanStaminaRatio, rebaseHumanNeedsClockAfterFormRestore, hasNearbyWell',

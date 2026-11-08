@@ -1,6 +1,6 @@
 /**
  * Seeded long-run colony gate: one settlement, a JSONL run log, invariant checkpoints, a health report
- * and a stall verdict. Options: `--years` | `--days`, `--scenario`, `--seed`, `--bot`, `--verbose`.
+ * and a stall verdict. Options: `--years` | `--days`, `--scenario`, `--seed`, `--bot`, `--movement`, `--verbose`.
  */
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
@@ -72,6 +72,7 @@ interface RunOptions {
   verbose: boolean;
   /** True when the virtual player drives the run; false leaves the world ticking passively. */
   bot: boolean;
+  movement: boolean;
 }
 
 function readPositiveIntegerOption(args: readonly string[], name: string): number | null {
@@ -116,6 +117,7 @@ function readRunOptions(args: readonly string[]): RunOptions {
     seed,
     verbose: args.includes('--verbose'),
     bot: args.includes('--bot'),
+    movement: args.includes('--movement'),
   };
 }
 
@@ -453,6 +455,7 @@ function run(): void {
   for (let tick = 1; tick <= TOTAL_TICKS; tick += 1) {
     const tickStartedAt = performance.now();
     gameTick(world);
+    if (options.movement) observer.sampleMovement();
     if (performance.now() - tickStartedAt > PACING_TICK_BUDGET_MS) counters.stalledTicks += 1;
 
     // The bot's own cadence rule, read from the hook that drives it in the game rather than copied.

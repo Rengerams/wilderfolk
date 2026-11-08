@@ -317,7 +317,7 @@ export default function App() {
   const autoPlayer = useVirtualPlayer({ world, applyGameAction });
   const fps = useFpsMeter(showFps || autoPlayer.enabled);
   const gameplayActive = !showIntro && !showMapSetup && spritesLoaded;
-  const { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset } = useGameAudio(world, gameplayActive);
+  const { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset } = useGameAudio(world, gameplayActive, sessionRevision);
 
   useEffect(() => {
     if (showIntro) {

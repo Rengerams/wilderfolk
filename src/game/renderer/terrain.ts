@@ -15,6 +15,7 @@ import { bakeHeightMeshSurface, HEIGHT_MESH_TOP_PAD } from './heightMesh';
 import { createCanvasSurface, disposeCanvasSurface, getCanvasContext, type CanvasSurface } from '../canvasLayer';
 import {
   hasContinuousFields,
+  getTerrainRevision,
   TERRAIN_RENDER_CELL,
   terrainRegionRevision,
 } from '../terrain/terrainGrid';
@@ -242,9 +243,10 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
       whittakerChunks.clear();
       whittakerCacheKey = mapKey;
     }
-    if (whittakerFieldsKey !== mapKey) {
+    const fieldsKey = `${mapKey}|r${getTerrainRevision()}`;
+    if (whittakerFieldsKey !== fieldsKey) {
       whittakerFields = buildWhittakerFields(map);
-      whittakerFieldsKey = mapKey;
+      whittakerFieldsKey = fieldsKey;
     }
 
     // Visible world rect — the bake window is chunk-aligned with one chunk of margin

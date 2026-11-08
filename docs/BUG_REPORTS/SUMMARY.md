@@ -1,5 +1,16 @@
 # Bug report summary — one line per report
 
+**2026-11-08 — [Selected doorstep cannot satisfy arrival](../bug_report/2026-11-08-doorstep-arrival-predicate.md):** resolved. Require isAtBuildingReach for every candidate and guard zero-distance blocked fallback steering.
+
+**2026-11-08 — [Worker roster removal silences settler death audio](../bug_report/2026-11-08-worker-roster-death-audio.md):** resolved. Consume transported player death tally increments, accounting for year rollover and session replacement.
+
+**2026-11-08 — [Regional ground rebakes retain stale clearing fields](../bug_report/2026-11-08-terrain-clearing-fields-stale.md):** resolved. Key fields separately by terrain revision while retaining regional chunk keys.
+
+**2026-11-08 — [Standalone probes bypass normal movement integration](../bug_report/2026-11-08-standalone-movement-probes.md):** resolved. Remove the three scripts; add --movement observation after normal gameTick in the existing full-year harness. Reports use actual positions, canonical reach, configured shift and loop pacing.
+
+**2026-11-08 — [Build duplicate-code gate references an untracked baseline](../bug_report/2026-11-08-build-duplicate-baseline-missing.md):** open. Open: restore or deliberately review the baseline separately; do not accept current duplicates automatically to make this review pass.
+
+
 **2026-11-08 — [Settlers walked straight into a building wall instead of routing around it](../bug_report/2026-11-08-settlers-walk-into-building-walls.md):** free-time walks toward a building frontage (and a prisoner's walk to the cell) set raw velocity with no route, so a destination on the far side of a footprint became endless wall-sliding. Status: resolved — every building-named walk goes through the path owner, and arrival from all four sides, around a building and around a wall is covered by regressions.
 
 **2026-11-08 — [Houses had two different entrances and admitted settlers through any wall](../bug_report/2026-11-08-two-house-entrances-and-any-wall-entry.md):** the home commute picked the nearest wall to the settler, entry accepted any facade within 24 px, and the porch was fixed to the south, so a settler could vanish into a back or side wall while the porch and dashboard described another door. Status: resolved — one access point outside the footprint on the first clear side now serves route, movement, arrival, frontage and the dashboard; four-sided and walled-front regressions pass.

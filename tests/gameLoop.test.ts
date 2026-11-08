@@ -1080,7 +1080,7 @@ describe('gameLoop.pacingContract.test.ts', () => {
    * Scripts that deliberately hold their own copy of the rate (they must not import the app loop);
    * the sync guard below reads each listed file.
    */
-  const HARNESS_COPIES = ['scripts/test.ts', 'scripts/probe-day-budget.mts'];
+  const HARNESS_COPIES = ['scripts/test.ts'];
 
   describe('baseline pacing contract', () => {
     it('runs one in-game day every 288 real seconds at 1×', () => {

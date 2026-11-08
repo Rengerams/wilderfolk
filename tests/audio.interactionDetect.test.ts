@@ -3,6 +3,9 @@
  * actually beside the prey.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { initGame } from '../src/game/worldGen';
+import { tallyTickDeaths } from '../src/game/stats';
+import { simTickDeltaFromWorld, applySimTickDelta } from '../src/game/simBuffers/simDelta';
 import { EntityType } from '../src/game/gameTypes';
 import type { Entity } from '../src/game/gameTypes';
 
@@ -36,6 +39,40 @@ beforeEach(() => {
 describe('interaction audio', () => {
   it('plays the settler death cue for a human death', () => {
     detectInteractionSounds([human(1, 0, 0)], [human(1, 0, 0, false)]);
+    expect(sfx.playSettlerDeathSfx).toHaveBeenCalledTimes(1);
+  });
+
+  it('cues a recorded death after the worker removes the settler, but not a departure', () => {
+    detectInteractionSounds([human(1, 0, 0)], []);
+    expect(sfx.playSettlerDeathSfx).not.toHaveBeenCalled();
+    detectInteractionSounds([human(1, 0, 0)], [], 1);
+    expect(sfx.playSettlerDeathSfx).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([false, true])('consumes the transported death tally with a living-only roster (wolf form: %s)', (wolfForm) => {
+    const world = initGame({ seed: 7, villageName: 'Death transport' });
+    const replica = structuredClone(world);
+    const settler = world.entities.find((entity) => entity.type === EntityType.Human)!;
+    if (wolfForm) {
+      settler.type = EntityType.Werewolf;
+      settler.moonHowlerCursed = true;
+      settler.moonHowlerSaved = {} as NonNullable<Entity['moonHowlerSaved']>;
+    }
+    const previous = structuredClone(world.entities);
+    const deathCount = world.deathsThisYear?.humans ?? 0;
+    settler.alive = false;
+    tallyTickDeaths(world, previous.map((entity) => entity.id === settler.id ? settler : entity));
+    world.entities = world.entities.filter((entity) => entity.alive);
+    applySimTickDelta(replica, simTickDeltaFromWorld(world));
+    expect(replica.entities.some((entity) => entity.id === settler.id)).toBe(false);
+    detectInteractionSounds(previous, replica.entities, (replica.deathsThisYear?.humans ?? 0) - deathCount);
+    expect(sfx.playSettlerDeathSfx).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not double a recorded death when the corpse is still present', () => {
+    detectInteractionSounds([human(1, 0, 0)], [human(1, 0, 0, false)], 1);
+    expect(sfx.playSettlerDeathSfx).toHaveBeenCalledTimes(1);
+    detectInteractionSounds([], [], 0);
     expect(sfx.playSettlerDeathSfx).toHaveBeenCalledTimes(1);
   });
 
