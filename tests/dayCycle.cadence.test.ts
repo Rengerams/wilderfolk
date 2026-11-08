@@ -1,5 +1,5 @@
 /**
- * Cadence regressions after TICKS_PER_DAY=72 — pure clock helpers + production gate.
+ * Cadence regressions for the canonical 288-tick day — pure clock helpers + production gate.
  * These fail if someone reintroduces "1 tick = 1 hour" or weekend-starved multi-day production.
  */
 import { describe, expect, it } from 'vitest';
@@ -91,7 +91,7 @@ describe('isProductionTick (EJ-11)', () => {
   });
 });
 
-describe('day-length scaling (no 3× spam after 72 TPD)', () => {
+describe('day-length scaling (no legacy-rate overscheduling)', () => {
   it('off-screen human throttle runs every 2 clock hours at the higher resolution', () => {
     // Twenty-four ticks now span two in-game hours; offscreen travel needs regular AI.
     expect(OFFSCREEN_HUMAN_THROTTLE).toBe(2 * TICKS_PER_HOUR);

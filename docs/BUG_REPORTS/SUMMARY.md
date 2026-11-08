@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-07 — [A1 residual calendar fixture and festival-load double repair](../bug_report/2026-11-07-a1-residual-calendar-fixtures-festival-double-repair.md):** SIM-14 called its festival repair twice, and live fixtures used obsolete 72-tick day math. The historical README release record must retain 72/day. Status: repair/fixtures updated; valid and stale festival outcomes plus current and synthetic legacy Year-0 election saves tested in A1 PR #132; final CI is required before closure.
+
 **2026-11-07 — [A5 CB-02 React crash without recovery export](../bug_report/2026-11-07-react-render-crash-no-recovery-export.md):** Root error boundary and file-only last-known-colony export; no crash-unmount autosave. Status: source fixed, CI/browser verification pending.
 
 **2026-11-07 — [A5 CB-13 unused desktop shell capability](../bug_report/2026-11-07-tauri-unused-shell-capability.md):** Remove unused Tauri shell permission/plugin and direct dependency. Status: source fixed, native build pending.

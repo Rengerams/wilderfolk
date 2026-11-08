@@ -1,5 +1,5 @@
 /**
- * Day-budget probe (local, gitignored): per simulated day, the tick split per settler, distance
+ * Day-budget probe (local diagnostic): per simulated day, the tick split per settler, distance
  * walked, first workplace arrival in the shift, and the day's real-time length at every speed.
  */
 import { initGame } from '../src/game/worldGen';
@@ -12,7 +12,7 @@ import { createSimFocus } from '../src/game/simFocus';
 import { getWorkSchedule } from '../src/game/workSchedule';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, getTickOfDay } from '../src/game/dayCycle';
 
-// Keep in sync with `gameLoop.BASE_TICKS_PER_SECOND` (1 tick/s → a 72 s in-game day at 1×);
+// Keep in sync with `gameLoop.BASE_TICKS_PER_SECOND` (1 tick/s → a 288 s in-game day at 1×);
 // `tests/gameLoop.test.ts` fails if this copy drifts.
 const BASE_TICKS_PER_SECOND = 1;
 const SPEEDS = [0.5, 1, 2, 3, 5, 10];
@@ -111,7 +111,7 @@ for (const [key, tick] of [...arrivalTick].sort((a, b) => a[0].localeCompare(b[0
   );
 }
 
-console.log('\n--- real-time length of one game day (72 ticks) ---');
+console.log(`\n--- real-time length of one game day (${TICKS_PER_DAY} ticks) ---`);
 console.log(`BASE_TICKS_PER_SECOND=${BASE_TICKS_PER_SECOND}, TICKS_PER_DAY=${TICKS_PER_DAY}, TICKS_PER_HOUR=${TICKS_PER_HOUR}`);
 for (const s of SPEEDS) {
   const seconds = TICKS_PER_DAY / (BASE_TICKS_PER_SECOND * s);

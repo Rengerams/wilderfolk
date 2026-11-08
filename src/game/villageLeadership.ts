@@ -1,7 +1,7 @@
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState } from './gameTypes';
 import { maybeOfferValleyDebate } from './storyEvents';
-import { recordElectionPromises, tickElectionPromises } from './electionPromises';
+import { recordElectionPromises } from './electionPromises';
 import { BuildingType, EntityType } from './gameTypes';
 import { DAYS_PER_YEAR, getAgeInYears, TICKS_PER_HOUR } from './dayCycle';
 import { isImprisoned } from './housingModel';
@@ -1287,9 +1287,3 @@ export function setNewLeaderPromise(state: WorldState): void {
   recordElectionPromises(state, state.year);
 }
 
-/**
- * Advances evaluation for campaign promises from electionPromises.ts.
- */
-export function tickLeaderPromise(state: WorldState): void {
-  tickElectionPromises(state);
-}

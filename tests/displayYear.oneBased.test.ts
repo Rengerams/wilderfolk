@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { displayYear } from '../src/game/dayCycleClock';
+import { displayYear, TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { buildSaveFilename } from '../src/game/saveLoad';
 import { ELECTION_INTERVAL_YEARS, getElectionCeremonyStatus } from '../src/game/villageLeadership';
 import type { WorldState } from '../src/game/gameTypes';
@@ -26,7 +26,7 @@ describe('displayYear formats a stored year for the player', () => {
       electionCeremony: null,
       year: 0,
       dayInYear: 90,
-      tick: 90 * 72,
+      tick: 90 * TICKS_PER_DAY,
     } as unknown as WorldState;
 
     expect(getElectionCeremonyStatus(state)).toContain('(Year 1)');
