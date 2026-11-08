@@ -127,7 +127,7 @@ afterEach(() => {
 });
 
 describe('human lifecycle golden contracts', () => {
-  it('uses each pregnancy\'s individual due date for the 85% stage and bounded UI progress', () => {
+  it('uses each pregnancy\'s individual due date for the 85% stage and bounded medical progress', () => {
     const early = human(MATERNAL_ID, { pregnant: true, pregnancyProgress: 84, pregnancyDueProgress: 100 });
     const late = human(MATERNAL_ID, { pregnant: true, pregnancyProgress: 85, pregnancyDueProgress: 100 });
     expect(getPregnancyProgressFraction(early)).toBeCloseTo(0.84);
