@@ -1428,7 +1428,6 @@ function decideUpkeep(state: WorldState): VirtualPlayerDecision | null {
  * plus the reserve policy, and `buildingTypeHasLevelBenefit` keeps it off types whose level nothing reads.
  */
 function decideUpgrades(state: WorldState): VirtualPlayerDecision | null {
-  if (countHomelessSettlers(state) > 0 && getOpenPlayerBeds(state) === 0) return null;
   // An idle settler is work the colony has not placed yet, and placing one is worth more than a
   // level — so while anybody is idle, the ladder's other steps get the hour.
   if (computeVillageStats(state).idle > 0) return null;
@@ -1543,8 +1542,6 @@ function storageNearlyFull(state: WorldState, key: StorageResourceKey, ratio = S
  * need. Each `needed` is grounded in the mechanic that building owns; `canPlaceBuilding` decides placement.
  */
 function decideCommunity(state: WorldState): VirtualPlayerDecision | null {
-  // Spare plots and materials belong to homeless settlers before elective community expansion.
-  if (countHomelessSettlers(state) > 0 && getOpenPlayerBeds(state) === 0) return null;
   if (adultSettlerCount(state) < VirtualPlayer.COMMUNITY_MIN_SETTLERS) return null;
 
   for (const { type, needed, foodReserveDays } of COMMUNITY_BUILD_ORDER) {
@@ -1777,7 +1774,6 @@ function buildPerimeterRun(state: WorldState, type: BuildingType): StripSegment[
 }
 
 function decidePerimeter(state: WorldState): VirtualPlayerDecision | null {
-  if (countHomelessSettlers(state) > 0 && getOpenPlayerBeds(state) === 0) return null;
   if (adultSettlerCount(state) < VirtualPlayer.COMMUNITY_MIN_SETTLERS) return null;
   const hostile = (state.rivalSettlements ?? []).filter(
     (rival) => rival.relationship === 'tense' || rival.relationship === 'competitive',
@@ -1819,6 +1815,9 @@ function decidePerimeter(state: WorldState): VirtualPlayerDecision | null {
  * needs nothing the bot knows how to fix. Pure: it never writes to `state`.
  */
 export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecision | null {
+  // Zero (or too few) spare beds is housing pressure even before someone is homeless.
+  // Essential production and civic decisions remain available; optional spending must wait.
+  const housingReserveShortage = getOpenPlayerBeds(state) < spareBedReserve(state);
   return (
     answerOpenCard(state)
     ?? decideLeaderHouse(state)
@@ -1842,14 +1841,14 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
     ?? decideDemolish(state)
     ?? decideUpkeep(state)
     // Defence of the village outranks one more gift: fortifying waits until gifting has failed.
-    ?? decidePerimeter(state)
+    ?? (housingReserveShortage ? null : decidePerimeter(state))
     ?? decideRivalRelations(state)
     // Last two on purpose: a community building and a building upgrade are the only proposals
     // that may spend an hour nothing else wanted, so neither can shadow defence or diplomacy.
-    ?? decideCommunity(state)
+    ?? (housingReserveShortage ? null : decideCommunity(state))
     // Storage growth is desirable, but cannot starve research, repairs or recruiting.
-    ?? decideIndustry(state, true)
-    ?? decideUpgrades(state)
+    ?? (housingReserveShortage ? null : decideIndustry(state, true))
+    ?? (housingReserveShortage ? null : decideUpgrades(state))
   );
 }
 
