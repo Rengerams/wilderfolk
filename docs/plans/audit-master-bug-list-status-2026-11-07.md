@@ -11,6 +11,11 @@
 | SIM-01, SIM-02, TEST-16 | fixed | PR #129; midnight owners and `gameTick` boundary regressions |
 | TEST-01..05, TEST-08, TEST-11, TEST-12, TQ-01..03, TQ-06..08, TQ-14 | fixed | PR #130 required fast calendar gate and coverage floors |
 | CB-04, TQ-05 (time-model drift) | fixed | Active README no longer claims a 72-tick day; the day-cadence suite header and the display-year fixture use the 24-hour day. The remaining 72 references are legacy-save migration code and a dated plan. |
+| SIM-03 | verified | `scripts/sim-invariants.ts` derives `TICKS_PER_YEAR = TICKS_PER_DAY × DAYS_PER_YEAR` and defaults to three years, so the run crosses the Year-2 boundary; no `72 * 360` literal remains. |
+| SIM-04 | verified | 288 ticks/day is canonical in `dayCycleClock`; `DAILY_PHASE_HOURS` names the 00/06/18 phases and documents the empty 12:00 invocation. A scan of README, ARCHITECTURE and OWNERSHIP finds no stale 72-ticks-per-day claim; the remaining 72 is the six-hour slot length. |
+| SIM-07 | fixed | `tickLayerDaily` now groups its work into one block per phase with labels matching `DAILY_PHASE_HOURS`; the shared 18:00 hour is stated as production-then-world-events. `tests/gameTick.layerOrder.test.ts` passes. |
+| SIM-13 | verified | The relationships-phase comment states that later same-day arrivals are not in the phase, matching `mergeNewEntitiesIntoAlive`, which runs only in the 18:00 block. |
+| SIM-14 | fixed | One `repairStaleFestivalOnLoad` call on load instead of two; `tests/festival.behavior.test.ts` passes. |
 
 ## Phase A3 — save, schema and data integrity
 
@@ -124,6 +129,7 @@
 | DUP-11 | fixed | `ChatSpeaker` is derived from `Entity` (`Pick` + partial) instead of hand-mirroring the chat fields; dialogue tests still pass with partial stubs. |
 | DUP-16 | fixed | The decision registry names the real production owner `dailyBuildingEconomy.tickBuildingProduction` instead of the former `tickLayerDaily` cell. |
 | DUP-01..09, DUP-12..15, DUP-17..23, DEAD-01..26 | open | The remaining duplicate utilities, story scaffold and dead-export sweep are untouched; `npm run audit:knip` remains green through the existing tolerances, not through deletion. |
+| Semantic-overlap gate (supporting A12) | fixed | Three approvals whose fingerprints moved with the worker, age-gate and delta refactors were refreshed, and the relationship-versus-profile strip pair was reviewed and documented; `npm run build` reports 0 unresolved matches. |
 
 ## Deferred with reasons
 
@@ -149,5 +155,6 @@
 - GAME-08's measurement is the synthetic city tier, not the owner's 2,027-settler save. Its 3,000-tier spike is now profiled and fixed (hourly child playmate scan), but the cap binds only because the fixture packs every settler into a few grid cells, so the change is not measured against a spread-out colony.
 - The worker closure suite was red before this pass: a failed tick installed an empty promise-record list where the world had none. The snapshot and delta now preserve absence; `tests/workerBoundary.closure.test.ts` passes (7).
 - The death-sound change has no live audio capture; only the cue-count contract is covered.
-- SIM-03/SIM-04 and the rest of Plan Phase 1 beyond SIM-01/SIM-02/TEST-16 have no description in this repository: the audit archive (`MASTER-BUG-LIST.md`) is not checked in, so they cannot be actioned here.
+- The SIM-03 invariant harness run itself was not executed here; the derivation and default three-year horizon are read from source.
+- Plan Phase 1 items beyond A1's list (SIM-06, SIM-09, SIM-11, SIM-12) remain in their later triage phase; SIM-06 still calls `tickElectionPromises` twice in the 18:00 phase.
 

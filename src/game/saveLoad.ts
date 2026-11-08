@@ -1630,7 +1630,6 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     migrateVillageForgeOnLoad(world);
     repairJuvenileAssignmentsOnLoad(world);
     repairStaleFestivalOnLoad(world);
-    repairStaleFestivalOnLoad(world);
     for (const challenge of world.challenges ?? []) {
       const fresh = INITIAL_CHALLENGES.find((c) => c.id === challenge.id);
       if (!fresh || challenge.completed) continue;

@@ -1,7 +1,7 @@
 {
   "approvals": [
     {
-      "key": "src/game/simWorker/gameWorker.ts:229:installWorkerMessageHandlers@9be7a737b871aa2c148419ef3d10f974cc95d2005799a5936874437705f5167a <-> src/game/simWorker/gameWorker.ts:242:onmessage@efcf7d22babf269f3b76ecc2c214b46695a1442c7362fd3a4140c192992eec64",
+      "key": "src/game/simWorker/gameWorker.ts:239:installWorkerMessageHandlers@644700dc885fd2cb9c388bd90790a78c17ac5eafbece81427659e075155d25a5 <-> src/game/simWorker/gameWorker.ts:252:onmessage@21e44015d152cd19b594542833c4c43a91462cbefc01a1663dab0a81ec9448ff",
       "reason": "The installer binds error hooks and the one worker message receiver on the active self shim, including a fresh test realm; it does not execute requests. The receiver alone validates protocol and requested features, awaits the shared census gate, then synchronously dispatches the request and classifies failures by source. Folding them into one entry would remove the explicit reinstallation seam needed by existing worker tests or duplicate registration. They have distinct call/timing responsibilities and a single implementation of each in the same owner module.",
       "tests": [
         "tests/gameWorker.profilerStop.test.ts",
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "key": "src/game/simulation/humanRelationships.ts:1286:isEligibleToCourt@a69c59697cf77383f8438b1fece7078787a8bfa05e4179635cc4043e1dcb02db <-> src/game/simulation/humanRelationships.ts:529:isEligibleForYouthLove@37ca3a01958f74dea5e25380174a359b4fdf66303f934575d1c00b89b00fbb3f",
+      "key": "src/game/simulation/humanRelationships.ts:1229:isEligibleToCourt@41cb0f0a616832d0fcc789dbfa9f220e9a300b139346e0a7f657acd2633184b9 <-> src/game/simulation/humanRelationships.ts:482:isEligibleForYouthLove@57a6b8254b9236f543f2d76debd245b5172c032a8a91732b83c96166fb0ad3f6",
       "reason": "Two disjoint age windows with different contracts: youth love is the 12-17 band (YOUTH_LOVE_MIN_AGE, minor, gender required, no courtship cooldown) while courtship is 18+ (adult, lifespan cap, cooldown). They share the necessary available-single conditions (alive, player, no partner, single status, no youth partner, not pregnant, not imprisoned), but merging would either admit minors to courtship or block youth love. Each has its own gate, and the handoff from youth love to courtship is pinned separately.",
       "tests": [
         "tests/citizenOverview.youthLove.test.ts",
@@ -90,6 +90,15 @@
       "tests": [
         "tests/adaptiveSpatialQuery.earlyStop.test.ts",
         "tests/humanLeisureBehavior.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/simDelta.ts:565:stripUnchangedRelationships@4c331c79462fe95983c74ceaa5bac4aefc4982337f1c434ac1c025928ca72872 <-> src/game/simBuffers/simDelta.ts:625:stripUnchangedProfile@7480f1ce137deb4a05425da173cc957383870360e1d05bf39649cde804b91df3",
+      "reason": "Both strip replica-held fields from a tick delta by delegating to stripCoveredEntityFields, but their coverage contracts differ. Relationship coverage is revision-exact: a map ships again only when its revision changes. Profile coverage also stores a tick stamp and re-ships once PROFILE_REFRESH_TICKS elapses, so a missed writer can only be briefly stale. Merging them would either drop that refresh window or re-ship relationship maps on a timer nobody asked for. Both are write-free over the delta.",
+      "tests": [
+        "tests/simDelta.fieldCoverage.test.ts",
+        "tests/simDelta.relationshipPayload.test.ts",
+        "tests/simDelta.entityProfile.test.ts"
       ]
     }
   ]

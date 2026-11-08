@@ -7,6 +7,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/gameEngine';
 import { BUILDING_FINGERPRINT_FIELDS, extractSimTickDelta } from '../src/game/simBuffers/simDelta';
+import type { BuildingFingerprint } from '../src/game/simBuffers/simDelta';
 import type { WorldState } from '../src/game/gameTypes';
 import { BuildingType } from '../src/game/gameTypes';
 import { createBuilding } from '../src/game/worldGen';
@@ -40,16 +41,16 @@ describe('building delta fingerprint fields', () => {
     building.completed = true;
     const world = worldWith([building]);
 
-    const first = new Map<number, string>();
+    const first = new Map<number, BuildingFingerprint>();
     const initial = extractSimTickDelta(world, [], { nextBuildings: first });
     expect(initial.changedBuildings?.map((row) => row.id)).toEqual([building.id]);
 
-    const second = new Map<number, string>();
+    const second = new Map<number, BuildingFingerprint>();
     const unchanged = extractSimTickDelta(world, [], { prevBuildings: first, nextBuildings: second });
     expect(unchanged.changedBuildings).toEqual([]);
 
     building.health = building.health - 1;
-    const third = new Map<number, string>();
+    const third = new Map<number, BuildingFingerprint>();
     const changed = extractSimTickDelta(world, [], { prevBuildings: second, nextBuildings: third });
     expect(changed.changedBuildings?.map((row) => row.id)).toEqual([building.id]);
   });
