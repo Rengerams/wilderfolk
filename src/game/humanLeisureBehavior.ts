@@ -23,7 +23,6 @@ import { isGroundWalkableAt, nearestWalkableWorldPoint, steerWithPath } from './
 import { fract } from './simulation/humanNeeds';
 import { findClosestEntityInRadius } from './simQueries';
 import { hasAffairPartner, canPursueSecretAffair, isAtMaritalHome } from './simulation/humanRelationships';
-import { isWeekend } from './dayCycle';
 
 /** A free child has a 72% chance to choose a nearby playmate each hour. */
 const KID_PLAY_CHANCE = 0.72;
