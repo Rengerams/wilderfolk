@@ -1,10 +1,10 @@
 /**
  * Hospital seeking is a main-loop behavior gated on `needsMedicalCare`: sick or
- * pregnant settlers walk to the nearest staffed hospital, healthy ones do not.
+ * near-term pregnant settlers walk to a staffed hospital, healthy ones do not.
  */
 import { describe, expect, it } from 'vitest';
 import { pickHospitalWalkTarget } from '../src/game/hospitalCare';
-import { doctorMayServe, shouldAttemptHospitalTreatment, tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
+import { doctorMayServe, shouldRoutePregnantSettlerToHospital, shouldAttemptHospitalTreatment, tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
 import { PREGNANCY_TICKS } from '../src/game/dayCycle';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
@@ -89,9 +89,24 @@ describe('pickHospitalWalkTarget', () => {
 });
 
 describe('hospital duty and care gates', () => {
-  it('takes a near-term doctor off the ward round', () => {
-    expect(doctorMayServe(entity(0, 0, { pregnancyProgress: PREGNANCY_TICKS * 0.79 }))).toBe(true);
-    expect(doctorMayServe(entity(0, 0, { pregnancyProgress: PREGNANCY_TICKS * 0.81 }))).toBe(false);
+  it('takes a doctor off the ward round at 85% of her own due date, not at the nominal term', () => {
+    const personalTerm = PREGNANCY_TICKS * 0.85;
+    expect(doctorMayServe(entity(0, 0, { pregnant: true, pregnancyDueProgress: personalTerm, pregnancyProgress: personalTerm * 0.84 }))).toBe(true);
+    expect(doctorMayServe(entity(0, 0, { pregnant: true, pregnancyDueProgress: personalTerm, pregnancyProgress: personalTerm * 0.85 }))).toBe(false);
+    expect(doctorMayServe(entity(0, 0, { pregnant: false, pregnancyProgress: PREGNANCY_TICKS }))).toBe(true);
+  });
+
+  it('does not send a pregnant worker to hospital until she reaches 85% of her personal term', () => {
+    const due = PREGNANCY_TICKS * 1.15;
+    const early = entity(0, 0, { pregnant: true, pregnancyDueProgress: due, pregnancyProgress: due * 0.84 });
+    const late = entity(0, 0, { pregnant: true, pregnancyDueProgress: due, pregnancyProgress: due * 0.86 });
+    for (const onShift of [false, true]) {
+      expect(shouldRoutePregnantSettlerToHospital(early, onShift, true)).toBe(false);
+      expect(shouldRoutePregnantSettlerToHospital(late, onShift, true)).toBe(true);
+    }
+    expect(shouldRoutePregnantSettlerToHospital(late, true, false)).toBe(false);
+    expect(shouldAttemptHospitalTreatment(early, true, 10)).toBe(false);
+    expect(shouldAttemptHospitalTreatment(late, true, 10)).toBe(true);
   });
 
   it('seeks care for a detected need even with stamina above half, working or not', () => {
