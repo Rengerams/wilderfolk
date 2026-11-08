@@ -103,11 +103,13 @@ export function tickHumanHospitalPatientCare({
   staffedHospitals,
   onJobShift,
   speed,
-}: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'staffedHospitals' | 'onJobShift' | 'speed'>): void {
+}: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'staffedHospitals' | 'onJobShift' | 'speed'>): boolean {
+  let receivingCare = false;
   if (shouldRoutePregnantSettlerToHospital(entity, onJobShift, staffedHospitals.length > 0)) {
     const best = staffedHospitals.find((hospital) => isAtHospital(entity, hospital))
       ?? pickHospitalWalkTarget(entity, staffedHospitals);
     if (best) {
+      receivingCare = true;
       if (isAtHospital(entity, best)) enterHumanBuilding(entity, best);
       else {
         entity.indoorBuildingId = undefined;
@@ -119,7 +121,10 @@ export function tickHumanHospitalPatientCare({
 
   if (shouldAttemptHospitalTreatment(entity, staffedHospitals.length > 0, state.tick)) {
     const hospital = staffedHospitals.find((building) => isAtHospital(entity, building));
-    if (hospital) enterHumanBuilding(entity, hospital);
+    if (hospital) {
+      enterHumanBuilding(entity, hospital);
+      receivingCare = true;
+    }
     if (
       hospital
       && isHospitalTreatmentTick(entity.id, state.tick)
@@ -128,4 +133,5 @@ export function tickHumanHospitalPatientCare({
       treatPatientAtHospital(state, entity, hospital);
     }
   }
+  return receivingCare;
 }
