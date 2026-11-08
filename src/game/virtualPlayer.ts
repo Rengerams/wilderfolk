@@ -17,6 +17,7 @@ import { isBuildingTechUnlocked } from './placementUtils';
 import { PLACEMENT_FAILURE_LABELS, getPlaceBuildingFailureLabel } from './buildingPlacementLabels';
 import { countHomelessSettlers, isResidenceBuilding } from './housingModel';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { getEcosystemHealth } from './dailyEcology';
 import { computeVillageStats } from './uiSimSummary';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
@@ -619,7 +620,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   const constructionCrew = new Set(state.buildings.filter((b) => !b.completed)
     .flatMap((b) => b.occupants));
   const idleAdults = state.entities.filter((person) => person.alive && isPlayerHuman(person)
-    && !person.isJuvenile && person.workerBuildingId == null && person.prisonBuildingId == null
+    && person.age >= HUMAN_ADULT_MIN_AGE && person.workerBuildingId == null && person.prisonBuildingId == null
     && !constructionCrew.has(person.id));
   // Each listed donor remains above its protected minimum after ONE transfer.
   // It is a real staffing resource even when all adults currently have jobs.
@@ -1231,7 +1232,7 @@ function decideVenueSchedules(state: WorldState): VirtualPlayerDecision | null {
 function decideSurplusWorkers(state: WorldState): VirtualPlayerDecision | null {
   const crewsByBuilding = new Map<number, WorldState['entities']>();
   for (const human of state.entities) {
-    if (!human.alive || !isPlayerHuman(human) || human.isJuvenile || human.workerBuildingId == null) continue;
+    if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE || human.workerBuildingId == null) continue;
     const crew = crewsByBuilding.get(human.workerBuildingId);
     if (crew) crew.push(human);
     else crewsByBuilding.set(human.workerBuildingId, [human]);
@@ -1401,7 +1402,7 @@ function decideUpkeep(state: WorldState): VirtualPlayerDecision | null {
       || getEcosystemHealth(state) >= VirtualPlayer.ECOLOGY_HEALTHY_THRESHOLD)
     && hasFoodMargin(state, VirtualPlayer.TAME_FOOD_RESERVE_DAYS)) {
     const humans = state.entities.filter(isPlayerHuman);
-    const tamer = humans.find((human) => !human.isJuvenile);
+    const tamer = humans.find((human) => human.age >= HUMAN_ADULT_MIN_AGE);
     if (tamer) {
       for (const entity of state.entities) {
         if (!getTameEntityEligibility(state, entity.id, tamer.id).ok) continue;
@@ -1511,14 +1512,14 @@ function hasCompletedBuildingOfType(state: WorldState, type: BuildingType): bool
 function adultSettlerCount(state: WorldState): number {
   let adults = 0;
   for (const entity of state.entities) {
-    if (!entity.alive || !isPlayerHuman(entity) || entity.isJuvenile) continue;
+    if (!entity.alive || !isPlayerHuman(entity) || entity.age < HUMAN_ADULT_MIN_AGE) continue;
     adults++;
   }
   return adults;
 }
 
 function hasJuvenileSettler(state: WorldState): boolean {
-  return state.entities.some((entity) => entity.alive && isPlayerHuman(entity) && entity.isJuvenile);
+  return state.entities.some((entity) => entity.alive && isPlayerHuman(entity) && entity.age < HUMAN_ADULT_MIN_AGE);
 }
 
 /** The `state.resources.storageMax` key a storage building extends. */

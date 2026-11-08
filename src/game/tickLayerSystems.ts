@@ -87,7 +87,7 @@ function isWildlifePredator(entity: Entity): boolean {
       entity.type === EntityType.Fox ||
       entity.type === EntityType.Werewolf ||
       (entity.type === EntityType.Human &&
-        !entity.isJuvenile &&
+        entity.age >= HUMAN_ADULT_MIN_AGE &&
         (isPlayerHuman(entity) || entity.faction === 'rival')))
   );
 }

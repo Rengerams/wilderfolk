@@ -18,7 +18,7 @@ const PRISON_X = 600;
 const PRISON_Y = 40;
 
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
-  return {
+  const entity: Entity = {
     id,
     type: EntityType.Human,
     x: 150,
@@ -45,6 +45,9 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
     job: JobType.Settler,
     ...overrides,
   };
+  // The birth date follows the age, so a midnight sync cannot reset an adult fixture to zero.
+  setHumanBirthFromAge(entity, entity.age, 0);
+  return entity;
 }
 
 function building(

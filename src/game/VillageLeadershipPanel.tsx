@@ -1,5 +1,6 @@
 import type { WorldState } from './gameTypes';
 import { displayYear } from './dayCycleClock';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import {
   ELECTION_INTERVAL_YEARS,
   formatElectionDelay,
@@ -28,7 +29,7 @@ export default function VillageLeadershipPanel({ state }: { state: WorldState })
   const liveVote = state.electionCeremony?.ballotCast ? state.electionCeremony : null;
   const ballotEntries = liveVote?.ballotTally ?? lastVote?.tally ?? {};
   const ballots = liveVote?.ballotTotal ?? lastVote?.ballots ?? 0;
-  const voters = liveVote ? state.entities.filter((person) => person.alive && person.type === 'human' && !person.faction && !person.isJuvenile).length : lastVote?.eligibleVoters ?? 0;
+  const voters = liveVote ? state.entities.filter((person) => person.alive && person.type === 'human' && !person.faction && person.age >= HUMAN_ADULT_MIN_AGE).length : lastVote?.eligibleVoters ?? 0;
 
   return (
     <div className="rounded-xl border border-amber-600/30 bg-amber-950/20 p-3">

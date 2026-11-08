@@ -8,6 +8,7 @@ import {
   ticksForDays,
   getColonyDay,
 } from '../dayCycle';
+import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 import { resolveChildSurname, getRandomName } from '../nameLoader';
 import { genomeOf, inheritGenome } from '../settlerTraits';
 import { createEntity } from '../entityFactory';
@@ -35,7 +36,7 @@ const BIRTH_TALENT_JOBS = [
 ] as const;
 
 export function grantRareBirthTalent(child: Entity, birthKey: string): void {
-  if (child.type !== EntityType.Human || !child.isJuvenile) return;
+  if (child.type !== EntityType.Human || child.age >= HUMAN_ADULT_MIN_AGE) return;
   const chance = seededRandomForRun(`${birthKey}:talent-chance`);
   if (chance >= 0.01) return;
   const roll = seededRandomForRun(`${birthKey}:talent-job`);

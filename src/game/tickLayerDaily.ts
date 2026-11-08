@@ -14,6 +14,7 @@ import { syncLeaderHouseResidency } from './leaderHouse';
 import { tickElectionPromises } from './electionPromises';
 import { tickVisitorGroups } from './groupEvents';
 import { decayIdleSkills } from './skills';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 
 // Social & Relationships
 import { advanceSocialRelationships } from './relationships';
@@ -47,7 +48,7 @@ export function tickLayerDaily(
   // Run strict day-boundary owners before the day's later 06:00/18:00 work.
   tickVisitorGroups(state, allAlive);
   for (const human of ctx.playerHumans) {
-    if (human.alive && !human.isJuvenile) decayIdleSkills(human, human.job);
+    if (human.alive && human.age >= HUMAN_ADULT_MIN_AGE) decayIdleSkills(human, human.job);
   }
   tickYearBoundaryWorldEvents(state);
   const stage1 = profileStart();

@@ -9,6 +9,7 @@ import { getHourOfDay, getAbsoluteCalendarDay } from './dayCycleClock';
 import { BuildingType } from './buildings';
 import { pickSocialImpulse, type SocialBuildingPicker } from './socialLife';
 import { isPlayerHuman } from './playerHuman';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { requestDialogue } from './dialogueTrees';
 import { isDialogueBusy } from './humanChat';
@@ -42,7 +43,7 @@ export function tickHumanChildLeisure(args: {
   livingHumanAt: (id: number | null | undefined) => Entity | undefined;
   suppressIdleInitial: boolean;
 }): boolean {
-  if (args.onSchedule || !args.entity.isJuvenile || !isPlayerHuman(args.entity)) return args.suppressIdleInitial;
+  if (args.onSchedule || args.entity.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(args.entity)) return args.suppressIdleInitial;
   const { state, entity, speed, hourOfDay, allHumans, updatedBuildings, buildingById, humanSocialGrid, width, height, livingHumanAt } = args;
   let childCache = childPlaymateByWorld.get(state);
   if (!childCache) {
@@ -63,7 +64,7 @@ export function tickHumanChildLeisure(args: {
         entity.y,
         SOCIAL_FRIENDSHIP_RADIUS,
         (human) => {
-          if (human.id !== entity.id && human.alive && human.isJuvenile && isPlayerHuman(human)) {
+          if (human.id !== entity.id && human.alive && human.age < HUMAN_ADULT_MIN_AGE && isPlayerHuman(human)) {
             playmates.push(human);
             if (playmates.length >= CHILD_PLAYMATE_CANDIDATE_LIMIT) return false;
           }
@@ -197,7 +198,7 @@ export function tickAdultLeisureMotive(args: {
   const nearbyAdults: Entity[] = [];
   if ((state.tick + entity.id) % SOCIAL_STAGGER === 0) {
     forEachAdaptiveInRadius(humanSocialGrid, allHumans, entity.x, entity.y, SOCIAL_FRIENDSHIP_RADIUS, (h) => {
-      if (h.alive && isPlayerHuman(h) && !h.isJuvenile) nearbyAdults.push(h);
+      if (h.alive && isPlayerHuman(h) && h.age >= HUMAN_ADULT_MIN_AGE) nearbyAdults.push(h);
     }, socialAdaptiveOptions('social', allHumans.length, width, height));
   }
   const spouseEarly = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;

@@ -1,6 +1,7 @@
 import type { Building, Entity, RivalSettlement, WorldState, RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
 import { EntityType, JobType, PATH_CELL } from './gameTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, getAbsoluteCalendarDay, killHuman } from './dayCycle';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { awardRaidSurvivalMark } from './personalMarks';
 import { ensureEntityByIdMap } from './entityIndex';
 import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
@@ -1500,7 +1501,7 @@ function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, stren
   rival.population -= losses;
   // Rivals can have a larger simulated population than their visible character roster: kill living
   // members and count remaining losses as off-map casualties instead of inventing names.
-  const livingRivals = state.entities.filter((entity) => entity.alive && !entity.warCaptive && !entity.isJuvenile
+  const livingRivals = state.entities.filter((entity) => entity.alive && !entity.warCaptive && entity.age >= HUMAN_ADULT_MIN_AGE
     && entity.job === JobType.Soldier && rival.entityIds.includes(entity.id));
   const victims = livingRivals.slice(0, losses);
   const casualties = new Set(victims.map((entity) => entity.id));

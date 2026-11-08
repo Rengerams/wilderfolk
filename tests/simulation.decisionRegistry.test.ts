@@ -30,6 +30,7 @@ const REQUIRED_DECISIONS = [
   'workforce',
   'immigration',
   'school',
+  'buildingAccess',
   'housing',
   'construction',
   'production',
@@ -58,6 +59,7 @@ const REQUIRED_DECISIONS = [
 /** Pure projections only; dialogueContent persists speaker scene history and is not read-only. */
 const READ_ONLY_DECISIONS = new Set<string>([
   'terrainRiverSurface',
+  'buildingAccess',
   'traitInfluence',
   'workerFit',
   'raidTerminalPresentation',

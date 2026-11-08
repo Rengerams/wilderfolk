@@ -6,6 +6,7 @@ import { getAbsoluteCalendarDay, isWorkDay, TICKS_PER_DAY } from './dayCycleCloc
 import { recordCareerWork } from './careers/careerHistory';
 import { advanceCareerProgression } from './careers/careerProgression';
 import { getScheduleProductivityMultiplier, getScheduleTargetHours, resolveDailyScheduleFatigue } from './scheduleFatigue';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 
 const MEANINGFUL_FATIGUE_CHANGE = 8;
 
@@ -27,7 +28,7 @@ export interface VillageFatigueReading {
 export function readVillageFatigue(state: WorldState): VillageFatigueReading {
   const values: number[] = [];
   for (const entity of state.entities) {
-    if (!entity.alive || entity.isJuvenile || !isPlayerHuman(entity)) continue;
+    if (!entity.alive || entity.age < HUMAN_ADULT_MIN_AGE || !isPlayerHuman(entity)) continue;
     values.push(entity.scheduleFatigue ?? 0);
   }
   const mean = average(values);
@@ -70,7 +71,7 @@ export function resolveDailyVillageScheduleFatigue(
   for (let i = 0; i < humans.length + moonHowlers.length; i++) {
     const inMoonForm = i >= humans.length;
     const human = inMoonForm ? moonHowlers[i - humans.length] : humans[i];
-    if (!human.alive || human.isJuvenile) continue;
+    if (!human.alive || human.age < HUMAN_ADULT_MIN_AGE) continue;
     if (inMoonForm && (human.type !== EntityType.Werewolf || !isPlayerHumanShiftOwner(human))) continue;
     const priorLastWorkedHours = human.scheduleLastWorkedHours ?? 0;
     const result = resolveDailyScheduleFatigue(human, state, targetHours);

@@ -5,6 +5,7 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BuildingType, EntityType, JobType } from './gameTypes';
 import { getHourOfDay, isWorkDay } from './dayCycleClock';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import {
   EVENING_START,
   isAsleepAtHome,
@@ -189,7 +190,7 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
   if (!entity.alive) return { code: 'dead', label: 'Dead' };
   if (isImprisoned(entity)) return { code: 'in-prison', label: 'In prison' };
   if (entity.raidDeploymentId) return { code: 'deployed', label: 'Away with the war-band' };
-  if (entity.isJuvenile) return { code: 'no-post', label: 'Child — too young for a post' };
+  if (entity.age < HUMAN_ADULT_MIN_AGE) return { code: 'no-post', label: 'Child — too young for a post' };
 
   const hour = getHourOfDay(state.tick);
   const buildings = state.buildings;
@@ -245,7 +246,7 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
   }
 
   if (!workplace) {
-    return entity.isJuvenile
+    return entity.age < HUMAN_ADULT_MIN_AGE
       ? { code: 'no-post', label: 'Child — too young for a post' }
       : { code: 'no-post', label: 'No post assigned' };
   }

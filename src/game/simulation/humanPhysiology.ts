@@ -1,6 +1,6 @@
 import { BuildingType, type Building, type Entity, type HumanNeedsState } from '../gameTypes';
 import { TICKS_PER_HOUR } from '../dayCycleClock';
-import { NIGHT_END, NIGHT_START } from '../daycycleconstants';
+import { HUMAN_ADULT_MIN_AGE, NIGHT_END, NIGHT_START } from '../daycycleconstants';
 import { evaluateAptitudeInfluence } from '../personality/traitEvaluation';
 
 export const HUMAN_NEEDS = {
@@ -94,7 +94,7 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
     + (obs.moving ? HUMAN_NEEDS.NUTRITION_WALK_EXTRA_PER_SIM_HOUR : 0);
   const coldMultiplier = obs.unheatedWinter ? HUMAN_NEEDS.UNHEATED_WINTER_NUTRITION_MULTIPLIER : 1;
   needs.nutrition = bounded(
-    needs.nutrition - nutritionLoss * hours * coldMultiplier * (entity.isJuvenile ? 0.85 : 1),
+    needs.nutrition - nutritionLoss * hours * coldMultiplier * (entity.age < HUMAN_ADULT_MIN_AGE ? 0.85 : 1),
     0,
   );
   needs.rest = bounded(needs.rest + hours * (obs.sleeping

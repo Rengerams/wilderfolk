@@ -5,6 +5,7 @@ import type { FocusHintAction } from './focusHints';
 import { NIGHT_START, TICKS_PER_DAY, getHourOfDay } from './dayCycle';
 import { displayYear } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isMarriedOrExpecting } from './relationships';
 import { ELECTION_INTERVAL_YEARS } from './villageLeadership';
 import { isFoodCritical } from './resourceUtils';
@@ -304,7 +305,7 @@ function derivedSeenIds(state: WorldState): Set<string> {
   if ((state.valleyStage ?? 'stable') !== 'stable') seen.add('valley_strained');
   const hasRecordedBirth = state.yearlyStats.some((ys) => ys.births.humans > 0);
   const hasBornChild = state.entities.some(
-    (e) => e.alive && isPlayerHuman(e) && e.isJuvenile && (e.motherId != null || (e.generation ?? 0) > 1),
+    (e) => e.alive && isPlayerHuman(e) && e.age < HUMAN_ADULT_MIN_AGE && (e.motherId != null || (e.generation ?? 0) > 1),
   );
   if (hasRecordedBirth || hasBornChild) seen.add('first_birth');
   if (state.entities.some((e) => e.alive && isPlayerHuman(e) && isMarriedOrExpecting(e))) {

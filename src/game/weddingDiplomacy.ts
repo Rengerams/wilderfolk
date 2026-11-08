@@ -5,6 +5,7 @@
 import type { Entity, StoryEvent, WorldState } from './gameTypes';
 import { BuildingType, EntityType } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard, AUTHORED_STORY_COOLDOWN_FLAG } from './storyHelpers';
@@ -106,7 +107,7 @@ export function maybeOfferWeddingDiplomacy(state: WorldState): void {
   });
 
   const envoyAvailable = state.entities.some(
-    (e) => e.alive && e.type === EntityType.Human && !e.isJuvenile && e.faction !== 'rival',
+    (e) => e.alive && e.type === EntityType.Human && e.age >= HUMAN_ADULT_MIN_AGE && e.faction !== 'rival',
   );
   const event: StoryEvent = {
     id: `wedding_stage1_${state.tick}`,
@@ -145,7 +146,7 @@ export function maybeOfferWeddingDiplomacy(state: WorldState): void {
 /** The adult settler who can carry the colony's answer to the wedding, if any. */
 function findWeddingEnvoy(state: WorldState): Entity | undefined {
   return state.entities.find(
-    (e) => e.alive && e.type === EntityType.Human && !e.isJuvenile && e.faction !== 'rival',
+    (e) => e.alive && e.type === EntityType.Human && e.age >= HUMAN_ADULT_MIN_AGE && e.faction !== 'rival',
   );
 }
 

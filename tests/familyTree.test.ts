@@ -128,7 +128,7 @@ describe('familyTree', () => {
   it('groups living settlers by surname with child counts', () => {
     const people = [
       human({ id: 1, name: 'Ada', surname: 'Bell', gender: 'female' }),
-      human({ id: 2, name: 'Bo', surname: 'Bell', gender: 'male', isJuvenile: true }),
+      human({ id: 2, name: 'Bo', surname: 'Bell', gender: 'male', age: 8, isJuvenile: true }),
       human({ id: 3, name: 'Cy', surname: 'Dale', gender: 'male' }),
     ];
     const groups = groupFamiliesBySurname(people);

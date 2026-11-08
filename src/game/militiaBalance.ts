@@ -4,6 +4,7 @@
  */
 
 import type { Entity, WorldState } from './gameTypes';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import {
   hasIronShields,
   hasIronSpears,
@@ -97,7 +98,7 @@ export function getMilitiaArmamentLabel(state: WorldState): string | null {
  * count, the raid fighter pool and the raid casualty pool share. Imprisonment excludes.
  */
 export function canBeMustered(entity: Entity): boolean {
-  return entity.alive && isPlayerHuman(entity) && !entity.isJuvenile && !isImprisoned(entity) && entity.job === JobType.Soldier && !entity.raidDeploymentId;
+  return entity.alive && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE && !isImprisoned(entity) && entity.job === JobType.Soldier && !entity.raidDeploymentId;
 }
 
 export function computeMilitiaBreakdown(

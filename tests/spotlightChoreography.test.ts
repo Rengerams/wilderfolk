@@ -172,7 +172,9 @@ describe('spotlight choreography — canonical JSON 1.3 captions and stable cues
     resetMotionInterpolation();
     setSpotlightPresentationFrame({ id: 99, x: 471, y: 354, moving: true, facingLeft: true });
     try {
-      expect(presentationPosition(original)).toEqual({ x: 471, y: 354 });
+      const projected = presentationPosition(original);
+      expect(projected.x).toBe(471);
+      expect(projected.y).toBe(354);
       expect(getSpotlightPresentationMotion(original.id)?.facingLeft).toBe(true);
       expect(original.x).toBe(480);
       expect(original.y).toBe(350);
@@ -180,7 +182,9 @@ describe('spotlight choreography — canonical JSON 1.3 captions and stable cues
     } finally {
       setSpotlightPresentationFrame(null);
     }
-    expect(presentationPosition(original)).toEqual({ x: 480, y: 350 });
+    const resting = presentationPosition(original);
+    expect(resting.x).toBe(480);
+    expect(resting.y).toBe(350);
   });
 
 });

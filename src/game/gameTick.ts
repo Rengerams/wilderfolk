@@ -25,6 +25,7 @@ import {
 } from './dayCycle';
 import { syncResidenceOccupants } from './housingPipeline';
 import { displayYear } from './dayCycleClock';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { getEcosystemHealth } from './dailyEcology';
 import { buildEntityByType, type SimulationFocus } from './simFocus';
 import {
@@ -183,7 +184,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     ...byType[EntityType.Werewolf],
   ];
   for (const h of playerHumans) {
-    if (!h.isJuvenile) predators.push(h);
+    if (h.age >= HUMAN_ADULT_MIN_AGE) predators.push(h);
   }
   for (const h of byType[EntityType.Human]) {
     if (h.alive && h.faction === 'rival') predators.push(h);

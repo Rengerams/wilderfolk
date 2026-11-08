@@ -1585,7 +1585,7 @@ export function familyFitsInResidence(
 
 function isLoneSettler(family: Entity[], humans: Entity[]): boolean {
   if (family.length !== 1) return false;
-  if (family[0].isJuvenile) return false;
+  if (family[0].age < HUMAN_ADULT_MIN_AGE) return false;
   return !findLivingHuman(humans, family[0].partnerId);
 }
 
