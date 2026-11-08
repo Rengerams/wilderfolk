@@ -3,7 +3,7 @@
 ## 0.6.5.2 [Unreleased]
 
 - **Fixed (8 November 2026, PR #133):** Immigration now uses recurring meal demand rather than one-off food spending, avoids counting population growth twice, and admits only affordable groups with real vacant beds.
-- **Fixed (8 November 2026, PR #133):** Pregnant settlers continue working until 85% of their individual term before hospital care; doctor duty and the displayed pregnancy percentage follow the same central rule.
+- **Fixed (8 November 2026, PR #133):** Pregnant settlers work until 85% of their individual term before hospital care; doctors follow the same rule, while the displayed percentage can exceed 100% for late deliveries.
 
 - **Fixed (7 Nov 2026, PR #131 A5):** Added a React crash screen with a last-available-snapshot JSON export. Crash unmount avoids replacing a healthy quick-save with an unconfirmed display shadow.
 - **Fixed (7 Nov 2026, PR #131 A5):** Confirm bulk Alt-drag road/wall demolition with the number of segments before dispatching the command.
