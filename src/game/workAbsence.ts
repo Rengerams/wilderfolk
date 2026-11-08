@@ -23,7 +23,7 @@ import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { prisonGuardIds } from './prisonGuardDuty';
 import { isBarracksGuard } from './defenseStructures';
 import { isCeremonyAttendee } from './villageLeadership';
-import { medicalCareReason } from './hospitalCare';
+import { isRestingHospitalPatient, medicalCareReason } from './hospitalCare';
 import { isHospitalDoctorOnShift, isHospitalDoctorCommuteTime } from './hospitalShifts';
 import { isSettlerLodgingAtHotel } from './hotelStay';
 import { canEatColonyMeal } from './simulation/humanNeeds';
@@ -197,7 +197,12 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
 
   // The hospital owner's own word for why this settler needs care, verbatim.
   const care = medicalCareReason(entity, state.tick);
-  if (care === 'expecting') return { code: 'expecting', label: 'Expecting — resting' };
+  if (care === 'expecting') {
+    const ward = buildings.find((building) => building.id === entity.indoorBuildingId);
+    const admitted = isRestingHospitalPatient(entity, ward, state.tick, entity.indoorBuildingId);
+    return { code: 'expecting', label: admitted
+      ? 'Expecting — resting in hospital' : 'Expecting — seeking hospital care' };
+  }
   if (care) return { code: 'ill', label: `Ill — ${care}` };
 
   // `humanTick` holds a ceremony's attendees before its festival gatherers; keep that order.
