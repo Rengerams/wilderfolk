@@ -1,5 +1,5 @@
 import type { Building, BuildingType, Camera, Entity, WorldState } from './gameTypes';
-import { BuildingType as BuildingTypeEnum } from './gameTypes';
+import { isBuildingType, isFiniteNumber } from './inputGuards';
 import type { StripBuildPreview } from './stripBuild';
 import { pickWorldFieldsForSave } from './saveSchema';
 import type { PlaceBuildingFailureReason } from './buildingPlacementLabels';
@@ -61,17 +61,6 @@ const CAMERA_EPS = 1e-3;
 const CAMERA_LERP = 0.12;
 const CAMP_KEY_PATTERN = /^(rival|visitor):/;
 
-/** Safe lazy set to prevent circular import crashes at startup. */
-let buildingTypeValuesSet: Set<string> | null = null;
-function getBuildingTypeValues(): Set<string> {
-  if (!buildingTypeValuesSet) {
-    buildingTypeValuesSet = new Set<string>(
-      BuildingTypeEnum && typeof BuildingTypeEnum === 'object' ? Object.values(BuildingTypeEnum) : [],
-    );
-  }
-  return buildingTypeValuesSet;
-}
-
 /** A new session's opening view: the standard camera, placed on the camp the map cleared. */
 export function createInitialViewForWorld(world: WorldState): ViewState {
   const view = createInitialView(world.width, world.height);
@@ -121,10 +110,6 @@ export function clampCameraZoom(zoom: number): number {
   return Math.max(CAMERA_ZOOM_MIN, Math.min(CAMERA_ZOOM_MAX, zoom));
 }
 
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
 function parseFiniteNumber(value: unknown): number | null {
   if (isFiniteNumber(value)) return value;
   if (typeof value === 'string' && value.trim() !== '') {
@@ -156,10 +141,6 @@ function parseCampKey(value: unknown): string | null {
 export function parseBuildRotation(value: unknown): 0 | 90 {
   const n = parseFiniteNumber(value);
   return n === 90 ? 90 : 0;
-}
-
-function isBuildingType(value: unknown): value is BuildingType {
-  return typeof value === 'string' && getBuildingTypeValues().has(value);
 }
 
 // ============ ENTITY & BUILDING RESOLUTION ============
