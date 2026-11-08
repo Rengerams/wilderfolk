@@ -20,6 +20,27 @@ function walkHome(person: ReturnType<typeof human>, home: ReturnType<typeof buil
 }
 
 describe('a settler reaches a building from every side', () => {
+  it('routes a long free-time walk around a thin house instead of hitting its wall', () => {
+    const map = testWorldMap({ tilesX: 500, tilesY: 12 });
+    const obstacle = building(89, BuildingType.House, { x: 1250, y: 55, width: 10, height: 10 });
+    setCurrentPathMap(map, [obstacle]);
+    try {
+      const person = human(1, { x: 25, y: 55 });
+      let arrived = false;
+      for (let tick = 0; tick < 1300; tick++) {
+        steerHumanToward(person, 4975, 55, 5, 1, `long_leisure_${person.id}`);
+        applyHumanWalkStep(person, 1);
+        if (Math.hypot(4975 - person.x, 55 - person.y) <= 8) {
+          arrived = true;
+          break;
+        }
+      }
+      expect(arrived, 'the settler should walk around the distant house').toBe(true);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
   it.each([
     ['north', 0, -100],
     ['south', 0, 100],
