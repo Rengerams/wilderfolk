@@ -980,13 +980,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     } else if (inElectionCeremony && state.electionCeremony) {
       const target = getElectionGatherTarget(state, entity.id, ceremonySeats);
-      const dx = target.x - entity.x;
-      const dy = target.y - entity.y;
-      const dist = Math.hypot(dx, dy) || 1;
+      const dist = Math.hypot(target.x - entity.x, target.y - entity.y);
       if (dist > 10) {
-        entity.vx = (dx / dist) * config.speed * 1.15;
-        entity.vy = (dy / dist) * config.speed * 1.15;
-        faceVelocity(entity);
+        steerHumanToward(entity, target.x, target.y, config.speed, 1.15,
+          `election_${state.electionCeremony.id ?? 'gather'}_${entity.id}`);
       } else {
         entity.vx = 0;
         entity.vy = 0;
@@ -1005,9 +1002,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const dy = stand.y - entity.y;
       const dist = Math.hypot(dx, dy) || 1;
       if (dist > 18) {
-        entity.vx = (dx / dist) * config.speed * 0.72;
-        entity.vy = (dy / dist) * config.speed * 0.72;
-        faceVelocity(entity);
+        steerHumanToward(entity, stand.x, stand.y, config.speed, 0.72,
+          `festival_${entity.id}`);
       } else {
         entity.vx = Math.sin(state.tick * 0.04 + entity.id) * config.speed * 0.12;
         entity.vy = Math.cos(state.tick * 0.035 + entity.id) * config.speed * 0.12;
@@ -1056,12 +1052,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const angle = state.tick * 0.028 * PER_TICK_RATE_SCALE + entity.id * 2.1;
         const tx = anchor.x + Math.cos(angle) * radius;
         const ty = anchor.y + Math.sin(angle) * radius * 0.55;
-        const pdx = tx - entity.x;
-        const pdy = ty - entity.y;
-        const pdist = Math.hypot(pdx, pdy) || 1;
-        entity.vx = (pdx / pdist) * config.speed * 0.65;
-        entity.vy = (pdy / pdist) * config.speed * 0.65;
-        faceVelocity(entity);
+        steerHumanToward(entity, tx, ty, config.speed, 0.65, `patrol_${entity.id}`);
         onSchedule = true;
         suppressIdle = true;
       } else if (workplace) {
@@ -1126,7 +1117,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         // Aim where the animal is going, not where it is (`huntingPursuitPoint`), at a pace that can
         // actually close: prey do not flee, but they wander faster than a damped working walk.
         const aim = huntingPursuitPoint(chase);
-        steerEntityToward(entity, aim.x, aim.y, config.speed * HUNTING_PURSUIT_SPEED_MULT);
+        steerHumanToward(entity, aim.x, aim.y, config.speed * HUNTING_PURSUIT_SPEED_MULT, 1,
+          `hunt_${entity.id}_${chase.id}`);
       } else if (spotPrey) {
         // Beside the animal, or waiting for the shot: hold, because walking back to the post would open
         // the gap the contact reach needs.
@@ -1223,13 +1215,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const dest = idleDestination(state, entity, idleVenues, buildingById);
         const tx = dest.x;
         const ty = dest.y;
-        const edx = tx - entity.x;
-        const edy = ty - entity.y;
-        const edist = Math.hypot(edx, edy) || 1;
+        const edist = Math.hypot(tx - entity.x, ty - entity.y);
         if (edist > 12) {
-          entity.vx = (edx / edist) * config.speed * 0.45;
-          entity.vy = (edy / edist) * config.speed * 0.45;
-          faceVelocity(entity);
+          steerHumanToward(entity, tx, ty, config.speed, 0.45, `evening_${entity.id}`);
           suppressIdle = true;
         }
       }
@@ -1259,9 +1247,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
         if (!closeEnough) {
           const chaseSpeed = atHome ? 0.35 : 0.45;
-          entity.vx = (dx / dist) * config.speed * chaseSpeed;
-          entity.vy = (dy / dist) * config.speed * chaseSpeed;
-          faceVelocity(entity);
+          steerHumanToward(entity, closest.x, closest.y, config.speed, chaseSpeed,
+            `courtship_${entity.id}_${closest.id}`);
           suppressIdle = true;
         } else {
           entity.vx *= 0.6;
@@ -1339,9 +1326,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const dist = Math.hypot(dx, dy) || 1;
         const together = dist < 22 || (atHome && shareResidence(entity, partner));
         if (!together && dist > 15) {
-          entity.vx = (dx / dist) * config.speed * 0.3;
-          entity.vy = (dy / dist) * config.speed * 0.3;
-          faceVelocity(entity);
+          steerHumanToward(entity, partner.x, partner.y, config.speed, 0.3,
+            `spouse_${entity.id}_${partner.id}`);
           suppressIdle = true;
         }
       }
