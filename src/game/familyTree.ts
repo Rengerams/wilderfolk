@@ -7,6 +7,7 @@ import { citizenGivenName, humanDisplayName } from './citizenId';
 import { EntityType, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isMarriedOrExpecting } from './relationships';
+import { findFamilyGroupRoot } from './genealogyRegistry';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isWithinRemarriageBar } from './simulation/humanRelationships';
 
@@ -948,25 +949,9 @@ export function buildFullFamilyTree(
   // Partners share one group, so a couple sits on one row wherever their own lines sit.
   const groupParent = new Map<number, number>();
   for (const id of seen) groupParent.set(id, id);
-  const groupOf = (id: number): number => {
-    let root = id;
-    let parent = groupParent.get(root);
-    while (parent !== undefined && parent !== root) {
-      root = parent;
-      parent = groupParent.get(root);
-    }
-    let walk = id;
-    while (walk !== root) {
-      const next = groupParent.get(walk);
-      if (next === undefined) break;
-      groupParent.set(walk, root);
-      walk = next;
-    }
-    return root;
-  };
   const mergeGroups = (a: number, b: number): void => {
-    const rootA = groupOf(a);
-    const rootB = groupOf(b);
+    const rootA = findFamilyGroupRoot(groupParent, a);
+    const rootB = findFamilyGroupRoot(groupParent, b);
     if (rootA !== rootB) groupParent.set(rootB, rootA);
   };
   for (const [id, partners] of partnerLinks) {
@@ -979,13 +964,13 @@ export function buildFullFamilyTree(
   // Longest descent path from the oldest recorded generation; Kahn's order ranks each group once.
   const childGroups = new Map<number, number[]>();
   const groupInDegree = new Map<number, number>();
-  for (const id of seen) groupInDegree.set(groupOf(id), 0);
+  for (const id of seen) groupInDegree.set(findFamilyGroupRoot(groupParent, id), 0);
   for (const [childId, parentIds] of parentLinks) {
     if (!seen.has(childId)) continue;
-    const childGroup = groupOf(childId);
+    const childGroup = findFamilyGroupRoot(groupParent, childId);
     for (const parentId of parentIds) {
       if (!seen.has(parentId)) continue;
-      const parentGroup = groupOf(parentId);
+      const parentGroup = findFamilyGroupRoot(groupParent, parentId);
       // Partners who are also parent and child share one row; that edge would be a cycle of its own.
       if (parentGroup === childGroup) continue;
       const childrenOfGroup = childGroups.get(parentGroup);
@@ -1033,7 +1018,7 @@ export function buildFullFamilyTree(
   }
 
   const rowOf = new Map<number, number>();
-  for (const id of seen) rowOf.set(id, groupRank.get(groupOf(id)) ?? 0);
+  for (const id of seen) rowOf.set(id, groupRank.get(findFamilyGroupRoot(groupParent, id)) ?? 0);
   const focusRow = rowOf.get(focus.id) ?? 0;
   // A bond partner is drawn beside the focus whichever branch their own descent ranked them on.
   for (const id of bondIds) rowOf.set(id, focusRow);
