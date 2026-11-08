@@ -238,11 +238,22 @@ describe('a selection strip states its selection instead of only painting it', (
 describe('UX-13/14: a bulk demolition needs explicit confirmation', () => {
   it('does not send the strip demolition command until the player confirms', () => {
     const gestures = source('src/hooks/useCanvasInteractions.ts');
-    const confirmAt = gestures.indexOf('buildingIds.length > 0 && window.confirm(');
+    const armAt = gestures.indexOf('if (buildingIds.length > 0) setPendingStripDemolition(buildingIds);');
+    const confirmOwnerAt = gestures.indexOf('const confirmStripDemolition = useCallback(');
     const commandAt = gestures.indexOf("op: 'demolishStripBuildings'");
-    expect(confirmAt).toBeGreaterThan(-1);
-    expect(commandAt).toBeGreaterThan(confirmAt);
-    expect(gestures).toContain('This cannot be undone.');
+    expect(armAt).toBeGreaterThan(-1);
+    expect(confirmOwnerAt).toBeGreaterThan(armAt);
+    expect(commandAt).toBeGreaterThan(confirmOwnerAt);
+    // A pointer gesture only arms an action: the actual command lives behind the confirmation callback.
+    expect(gestures.slice(armAt, confirmOwnerAt)).not.toContain("op: 'demolishStripBuildings'");
+    expect(gestures).toContain('if (!ids?.length) return;');
+
+    const app = source('src/App.tsx');
+    expect(app).toContain('{pendingStripDemolition && (');
+    expect(app).toContain('owner="strip-demolition"');
+    expect(app).toContain('onConfirm={confirmStripDemolition}');
+    expect(app).toContain('onCancel={cancelStripDemolition}');
+    expect(app).toContain('This cannot be undone.');
   });
 });
 

@@ -8,6 +8,7 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, setHumanBirthFromAge } from '../src/game/dayCycle';
 import { homeStandPosition } from '../src/game/simulation/humanMovement';
+import { isAtBuildingReach } from '../src/game/buildingAccess';
 import { getHourOfDay } from '../src/game/dayCycleClock';
 import { getVenueSchedule, getVenueScheduleHours, isFestivalOverrideActive, isVenueServiceHour } from '../src/game/venueSchedule';
 import { getHumanActivityStatus } from '../src/game/humanStatus';
@@ -238,7 +239,15 @@ describe('a prison is open 24 hours', () => {
         gameTick(state);
         // Read before the day boundary's pulse clears the list, or the day's own hours are invisible.
         if (t === TICKS_PER_DAY - 1) {
-          expect(prison.uncoveredPrisonHours ?? [], `day ${day} hours with nobody on the post`).toEqual([]);
+          const uncovered = prison.uncoveredPrisonHours ?? [];
+          const guardStatus = guards.map((guard) => ({
+            id: guard.id, alive: guard.alive, job: guard.job,
+            workerBuildingId: guard.workerBuildingId, at: [Math.round(guard.x), Math.round(guard.y)],
+            indoorBuildingId: guard.indoorBuildingId, stamina: guard.needs?.stamina,
+          }));
+          expect(uncovered,
+            `day ${day} hours without a guard; occupants=${JSON.stringify(prison.occupants)}, guards=${JSON.stringify(guardStatus)}`,
+          ).toEqual([]);
         }
       }
     }
@@ -252,8 +261,11 @@ describe('settlers keep working during a festival', () => {
 
     // Attendance is the job: the schedule owner credits every tick spent on shift.
     expect(farmer.scheduleWorkedTicksToday ?? 0).toBeGreaterThan(0);
-    // The farm is left of him; the festival crowd is not where he went.
-    expect(farmer.vx).toBeLessThan(0);
+    // The worker starts inside his farm's footprint, so a stationary worker is not a failure.
+    // Test the actual activity and workplace reach, not the sign of a velocity that may be zero.
+    const farm = state.buildings.find((site) => site.id === farmer.workerBuildingId)!;
+    expect(isAtBuildingReach(farmer, farm) || farmer.indoorBuildingId === farm.id).toBe(true);
+    expect(getHumanActivityStatus(state, farmer)).not.toBe('Gathering at festival');
   });
 
   it('labels the settler on shift as working and the free one as gathering', () => {

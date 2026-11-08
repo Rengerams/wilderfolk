@@ -149,7 +149,9 @@ function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): v
       && Number.isSafeInteger(legacy.homeBuildingId) && legacy.homeBuildingId >= 0) {
       assignment.workerBuildingId = legacy.homeBuildingId;
     }
-    legacy.homeBuildingId = undefined;
+    // Remove the retired own property, not merely its value: both restored objects and
+    // subsequent serialization must have the same authoritative workplace field.
+    delete legacy.homeBuildingId;
   }
   if (entity.type === EntityType.Human || entity.type === EntityType.Werewolf) {
     entity.careerHistory = normalizeCareerHistory(saved.careerHistory);
