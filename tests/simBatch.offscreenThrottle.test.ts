@@ -14,6 +14,7 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 import { initGame } from '../src/game/worldGen';
 import { nearestWalkableWorldPoint } from '../src/game/pathfinding';
+import { testWorldMap } from '../src/test/worldMapFixtures';
 
 const TEST_SEED = 20_261_006;
 /** 23:00 on day 1: `prefersHomeTonightFor` is unconditional, so the settler walks home when active. */
@@ -82,6 +83,10 @@ function house(): Building {
 /** A night world whose only settler starts far from their house. */
 function nightWorld(id: number): WorldState {
   const state = initGame({ size: MapSize.Medium, seed: TEST_SEED });
+  // This tests scheduling, not route connectivity. On generated terrain the only route home
+  // can be blocked, so an active settler correctly holds position and looks throttled.
+  // Keep both start and home on deterministic, connected walkable ground.
+  state.worldMap = testWorldMap({ tilesX: 100, tilesY: 100, seed: TEST_SEED });
   state.buildings = [house()];
   const position = state.worldMap
     ? nearestWalkableWorldPoint(state.worldMap, state.buildings, 100, 100)
