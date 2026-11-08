@@ -167,8 +167,10 @@ export function getProjectedFoodSupply(
   }
   return {
     producedPerDay: flow.producedPerDay,
-    projectedNeedPerDay: Math.max(currentDailyNeed, flow.consumedPerDay)
-      + slope * Math.max(0, horizonDays),
+    // Current population-plus-newcomers demand and measured consumption trend are alternative
+    // forecasts, not additive costs. Adding both would count population growth twice.
+    projectedNeedPerDay: Math.max(currentDailyNeed,
+      flow.consumedPerDay + slope * Math.max(0, horizonDays)),
     days: flow.days,
   };
 }
