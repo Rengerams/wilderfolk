@@ -40,9 +40,9 @@ describe('R1 — the unmount save never writes a colony no loop owns', () => {
     expect(
       body,
       'the unmount cleanup saves without a loop again (StrictMode overwrites the save slot)',
-    ).toMatch(/if \(!loop\) return;/);
+    ).toMatch(/if \(!loop(?: \|\| isCrashRecoveryActive\(\))?\) return;/);
     expect(
-      body.indexOf('if (!loop) return;'),
+      body.indexOf('if (!loop'),
       'the unmount cleanup saves before it checks for a loop',
     ).toBeLessThan(body.indexOf('persistCurrentGameRef'));
   });
