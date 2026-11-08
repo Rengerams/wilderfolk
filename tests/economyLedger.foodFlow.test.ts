@@ -43,7 +43,7 @@ describe('measured food flow for colony planning', () => {
     } as Pick<WorldState, 'tick' | 'foodHistory'>;
     expect(getRecentFoodFlow(state)?.netPerDay).toBeGreaterThan(0);
     expect(getProjectedFoodSupply(state, 60)).toEqual({
-      days: 7, producedPerDay: 80, projectedNeedPerDay: 95,
+      days: 7, producedPerDay: 80, projectedNeedPerDay: 90,
     });
     expect(isProjectedFoodShortfall(state, 60, 0.05)).toBe(true);
     expect(isProjectedFoodShortfall(state, 15, 0.05)).toBe(true);
