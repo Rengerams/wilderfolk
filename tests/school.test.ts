@@ -372,7 +372,7 @@ describe('school.roster.test.ts', () => {
 
   /** A teacher on the school's staff, standing on the school's own worker row. */
   function teacherAt(school: Building, id: number): Entity {
-    const spot = humanBuildingTarget(school, id, false);
+    const spot = humanBuildingTarget(school, id);
     return { ...child(id, spot.x, spot.y), isJuvenile: false, workerBuildingId: school.id };
   }
 

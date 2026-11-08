@@ -158,7 +158,7 @@ describe('the reason a settler is not at their post', () => {
 
   it('says working once the settler stands at the post the movement owner chose', () => {
     const farm = building(1, BuildingType.Farm, { occupants: [1] });
-    const stand = humanBuildingTarget(farm, 1, false);
+    const stand = humanBuildingTarget(farm, 1);
     const worker = postedFarmer(farm, { x: stand.x, y: stand.y });
     const state = world(workdayTick(10), { entities: [worker], buildings: [farm] });
 
@@ -195,7 +195,7 @@ describe('the reason a settler is not at their post', () => {
     });
     state.tick = TICKS_PER_DAY;
     expect(getSettlerWorkReason(state, doctor).code).toBe('walking-to-work');
-    const post = humanBuildingTarget(hospital, doctor.id, false);
+    const post = humanBuildingTarget(hospital, doctor.id);
     doctor.x = post.x;
     doctor.y = post.y;
     expect(getSettlerWorkReason(state, doctor).code).toBe('working');
@@ -231,7 +231,7 @@ describe('the reason a settler is not at their post', () => {
 
   it('says working for a pregnant settler who is actually at her post', () => {
     const farm = building(1, BuildingType.Farm, { occupants: [1] });
-    const stand = humanBuildingTarget(farm, 1, false);
+    const stand = humanBuildingTarget(farm, 1);
     const worker = postedFarmer(farm, { x: stand.x, y: stand.y, pregnant: true, pregnancyProgress: 100 });
 
     for (const progress of [100, PREGNANCY_TICKS * 0.84]) {
@@ -288,7 +288,7 @@ describe('the reason a settler is not at their post', () => {
   it('keeps working past 85% when no staffed ward exists', () => {
     const farm = building(1, BuildingType.Farm, { occupants: [1] });
     const emptyWard = building(10, BuildingType.Hospital, { occupants: [] });
-    const stand = humanBuildingTarget(farm, 1, false);
+    const stand = humanBuildingTarget(farm, 1);
     const worker = postedFarmer(farm, {
       x: stand.x,
       y: stand.y,
@@ -419,7 +419,7 @@ describe('the reason reaches every surface the player reads', () => {
   it('names every settler on a building’s roster, with their own reason', () => {
     const farm = building(1, BuildingType.Farm, { occupants: [1, 2] });
     const offShift = postedFarmer(farm, { vx: -3, vy: -3 });
-    const stand = humanBuildingTarget(farm, 2, false);
+    const stand = humanBuildingTarget(farm, 2);
     const working = postedFarmer(farm, { id: 2, x: stand.x, y: stand.y });
     const state = world(workdayTick(10), { entities: [offShift, working], buildings: [farm] });
 
@@ -480,7 +480,7 @@ describe('24-hour hospital workplace reasons', () => {
     });
     const atFour = world(4 * TICKS_PER_HOUR, { entities: [doctor], buildings: [hospital, home] });
     expect(getSettlerWorkReason(atFour, doctor).code).toBe('walking-to-work');
-    const stand = humanBuildingTarget(hospital, doctor.id, false);
+    const stand = humanBuildingTarget(hospital, doctor.id);
     doctor.x = stand.x;
     doctor.y = stand.y;
     expect(getSettlerWorkReason(atFour, doctor).code).toBe('working');

@@ -9,7 +9,7 @@ describe('movement geometry and transient population regressions', () => {
     const stand = homeStandPosition(home, 12);
     expect(Math.abs(stand.x - home.x)).toBeLessThan(40);
     expect(stand.y).toBeGreaterThan(home.y);
-    const worker = humanBuildingTarget(home, 12, false);
+    const worker = humanBuildingTarget(home, 12);
     expect(worker.x).toBe(home.x);
     expect(worker.y).toBe(home.y + home.height / 2 + 10);
   });

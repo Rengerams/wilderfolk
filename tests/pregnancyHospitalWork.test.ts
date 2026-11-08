@@ -87,7 +87,7 @@ function farmWorld(pregnancyProgress: number): Fixture {
   const house = building(HOUSE_ID, BuildingType.House, { x: 300, y: 60 }, [1, 2]);
   world.buildings = [farm, hospital, house];
 
-  const post = humanBuildingTarget(farm, 1, false);
+  const post = humanBuildingTarget(farm, 1);
   const farmer = settler(world, 1, {
     x: post.x,
     y: post.y,

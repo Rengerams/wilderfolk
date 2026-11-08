@@ -50,7 +50,7 @@ export function tickTavernService({
     return false;
   }
 
-  commuteHumanToBuilding(entity, workplace, speed, false, WORK_COMMUTE_RUSH);
+  if (commuteHumanToBuilding(entity, workplace, speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
   onSchedule();
   onSuppressIdle();
   if (seededRandomForRun(`chat-work:${entity.id}:${tick}`) < 0.04 * PER_TICK_RATE_SCALE) {

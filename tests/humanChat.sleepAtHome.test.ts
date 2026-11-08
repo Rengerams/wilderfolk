@@ -19,7 +19,7 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import { initGame } from '../src/game/worldGen';
 import { SOCIAL_STAGGER } from '../src/game/adaptiveSpatialQuery';
 import { tickHumans } from '../src/game/humanTick';
-import { commuteHumanToBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { commuteHumanToBuilding, homeStandPosition } from '../src/game/simulation/humanMovement';
 
 const TEST_SEED = 20_260_916;
 const AMBIENT_CHANCE = 0.036 * PER_TICK_RATE_SCALE;
@@ -218,10 +218,10 @@ describe('ambient chatter at home after dark', () => {
     const home = house(1, { occupants: [1] });
     homeWorld.buildings = [home];
     const sleeping = settler(1, {
-      ...humanBuildingTarget(home, 1, true),
+      ...homeStandPosition(home, 1),
       residenceBuildingId: home.id,
     });
-    const homePeer = settler(2, humanBuildingTarget(home, 2, true));
+    const homePeer = settler(2, homeStandPosition(home, 2));
     homeWorld.entities = [sleeping, homePeer];
     expect(commuteHumanToBuilding(sleeping, home, 2, true)).toBe(true);
     expect(sleeping.indoorBuildingId).toBe(home.id);
@@ -239,7 +239,7 @@ describe('ambient chatter at home after dark', () => {
     const home = house(1, { occupants: [1] });
     state.buildings = [home];
     const talker = settler(1, {
-      ...humanBuildingTarget(home, 1, true),
+      ...homeStandPosition(home, 1),
       residenceBuildingId: home.id,
       chatPhrase: 'Still talking.',
       chatTicks: 6,

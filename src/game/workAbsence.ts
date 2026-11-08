@@ -28,7 +28,8 @@ import { isPregnancyHospitalPriority, isStaffedHospital } from './humanHospitalB
 import { isHospitalDoctorOnShift, isHospitalDoctorCommuteTime } from './hospitalShifts';
 import { isSettlerLodgingAtHotel } from './hotelStay';
 import { canEatColonyMeal } from './simulation/humanNeeds';
-import { humanBuildingTarget, commuteDistanceToBuilding, isWalkingToward } from './simulation/humanMovement';
+import { commuteDistanceToBuilding, isWalkingToward } from './simulation/humanMovement';
+import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { getRouteObstruction } from './pathfinding';
 import { commuteLeadHoursFor } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
@@ -254,10 +255,10 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
 
   const { onShift, next } = resolveShift(state, entity, workplace, hour);
   const label = labelFor(workplace);
-  const point = humanBuildingTarget(workplace, entity.id, false);
-  // The same three cases `humanTick` credits as verified work: at the post, inside it, or in the
-  // field for a hunter holding prey.
-  const atWork = Math.hypot(point.x - entity.x, point.y - entity.y) <= WORK_ARRIVE_DISTANCE
+  const point = buildingAccessPoint(workplace);
+  // The same three cases `humanTick` credits as verified work: at the building, inside it, or in
+  // the field for a hunter holding prey.
+  const atWork = isAtBuildingReach(entity, workplace)
     || entity.indoorBuildingId === workplace.id
     || (entity.job === JobType.Hunter && entity.huntTargetId != null);
   if (onShift && atWork) return { code: 'working', label: `Working at ${label}` };

@@ -98,7 +98,8 @@ import {
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getCurrentPathGrid, lineCrossesBlocked, getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
-import { crowdGatherPosition, venueGatherPosition, homeStandPosition, homeEntryPosition, affairTrystEntry, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, humanBuildingTarget, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
+import { crowdGatherPosition, venueGatherPosition, homeStandPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, humanBuildingTarget, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
+import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { fract, tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, adjustHumanStaminaFromEnergy, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { isRestingHospitalPatient } from './hospitalCare';
@@ -169,7 +170,7 @@ function getAffairTrystTarget(
   const trystBuilding = getAffairTrystBuilding(cheater, paramour, entityById, buildingById);
   // Both lovers walk to the same doorstep. The footprint centre is blocked, so steering at it
   // pressed them against opposite walls and the tryst never became reachable.
-  if (trystBuilding) return affairTrystEntry(trystBuilding);
+  if (trystBuilding) return buildingAccessPoint(trystBuilding);
   return { x: paramour.x, y: paramour.y };
 }
 
@@ -659,9 +660,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       onJobShift || onOfficialShift || hospitalCommuteDue || prisonCommuteDue || schoolCommuteDue,
       isInnkeeper,
     );
-    const attendanceTarget = workplace ? humanBuildingTarget(workplace, entity.id, false) : null;
-    const atPost = attendanceTarget != null
-      && Math.hypot(entity.x - attendanceTarget.x, entity.y - attendanceTarget.y) <= WORK_ARRIVE_DISTANCE;
+    const atPost = workplace != null && isAtBuildingReach(entity, workplace);
     const wasInsideWorkplace = workplace != null && previousIndoorBuildingId === workplace.id;
     // Hunters work away from the spot; every other scheduled trade must be at its post or inside it.
     const hunterInField = entity.job === JobType.Hunter && entity.huntTargetId != null;
@@ -733,17 +732,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.vy = 0;
       const prison = buildingById.get(entity.prisonBuildingId!);
       if (prison) {
-        const door = homeEntryPosition(prison, entity.x, entity.y);
-        const dx = door.x - entity.x;
-        const dy = door.y - entity.y;
-        const dist = Math.hypot(dx, dy) || 1;
-        if (entity.indoorBuildingId === prison.id || dist <= 14) {
+        const door = buildingAccessPoint(prison);
+        if (entity.indoorBuildingId === prison.id || isAtBuildingReach(entity, prison)) {
           enterHumanBuilding(entity, prison);
           entity.x = prison.x;
           entity.y = prison.y;
         } else {
-          entity.vx = (dx / dist) * Math.min(dist, 1.2);
-          entity.vy = (dy / dist) * Math.min(dist, 1.2);
+          // The cell door is outside the walls; route around them instead of into them.
+          steerHumanToward(entity, door.x, door.y, 1.2, 1, `prison_${prison.id}_${entity.id}`);
           applyHumanWalkStep(entity, 1);
         }
       }
@@ -950,7 +946,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity.vy = (hdy / hdist) * config.speed * mult * dir;
         faceVelocity(entity);
       } else if (workplace) {
-        commuteHumanToBuilding(entity, workplace, config.speed, false, WORK_COMMUTE_RUSH);
+        if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
       }
     } else if (huntingWere) {
       const fdx = entity.x - huntingWere.x;
@@ -1027,11 +1023,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (!huntingWere && !inElectionCeremony && !inSpotlightGathering && !festivalGathering && !onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && stayIn && hasResidenceAssignment(entity)) {
       const residence = buildingById.get(entity.residenceBuildingId!);
       if (lodgingHotel) {
-        commuteHumanToBuilding(entity, lodgingHotel, config.speed, false, WORK_COMMUTE_RUSH);
+        if (commuteHumanToBuilding(entity, lodgingHotel, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, lodgingHotel);
         onSchedule = true;
         suppressIdle = true;
       } else if (residence?.completed) {
-        commuteHumanToBuilding(entity, residence, config.speed, true, WORK_COMMUTE_RUSH);
+        if (commuteHumanToBuilding(entity, residence, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, residence);
         onSchedule = true;
         suppressIdle = true;
       }
@@ -1041,7 +1037,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     ) {
       // Doctors travel for their own shift, including the evening before a midnight duty; never pull
       // an off-duty doctor to the hospital merely because the village works.
-      commuteHumanToBuilding(entity, workplace, config.speed, false, WORK_COMMUTE_RUSH);
+      if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
       onSchedule = true;
       suppressIdle = true;
     } else if (
@@ -1071,12 +1067,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         onSchedule = true;
         suppressIdle = true;
       } else if (workplace) {
-        commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), WORK_COMMUTE_RUSH);
+        if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
         onSchedule = true;
         suppressIdle = true;
       }
     } else if (!huntingWere && !inElectionCeremony && !inSpotlightGathering && !festivalGathering && (onSchoolShift || schoolCommuteDue) && !isInnkeeper && schoolTarget) {
-      commuteHumanToBuilding(entity, schoolTarget, config.speed, false, WORK_COMMUTE_RUSH);
+      if (commuteHumanToBuilding(entity, schoolTarget, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, schoolTarget);
       onSchedule = true;
       suppressIdle = true;
       recordChildSchoolTick(
@@ -1140,7 +1136,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity.vy = 0;
       } else {
         // Nothing in sight: wait at the post like every other worker.
-        commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), WORK_COMMUTE_RUSH);
+        if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
       }
       onSchedule = true;
       suppressIdle = true;
@@ -1170,7 +1166,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         ? prisonShift != null && (onPrisonShift || needsToLeaveForWork)
         : goWorkTime || onWorkCommuteHours || needsToLeaveForWork;
       if (wantsToWork) {
-        commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), WORK_COMMUTE_RUSH);
+        if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
         onSchedule = true;
         suppressIdle = true;
       }
@@ -1576,8 +1572,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const phase = entity.id * 0x9e3779b9 + leisureSlot * 0x85ebca6b + absDay;
       let idleVx = 0;
       let idleVy = 0;
+      let routedToBuilding = false;
 
       const steerTo = (tx: number, ty: number, speedMult: number, arrive = 14, destination?: Building): boolean => {
+        routedToBuilding = false;
+        idleVx = 0;
+        idleVy = 0;
         const dx = tx - entity.x;
         const dy = ty - entity.y;
         const dist = Math.hypot(dx, dy) || 1;
@@ -1586,6 +1586,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           idleVx = Math.sin(tick * 0.04 + entity.id) * config.speed * 0.08;
           idleVy = Math.cos(tick * 0.035 + entity.id) * config.speed * 0.08;
           return true;
+        }
+        if (destination) {
+          // The frontage may sit across the building itself: walk the route, not into the wall.
+          steerHumanToward(entity, tx, ty, config.speed, speedMult, `idle_${destination.id}_${entity.id}`);
+          routedToBuilding = true;
+          return false;
         }
         idleVx = (dx / dist) * config.speed * speedMult;
         idleVy = (dy / dist) * config.speed * speedMult;
@@ -1880,7 +1886,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           }
         }
 
-        if (idleVx !== 0 || idleVy !== 0) {
+        if (routedToBuilding) {
+          suppressIdle = true;
+        } else if (idleVx !== 0 || idleVy !== 0) {
           entity.vx = entity.vx * 0.5 + idleVx * 0.5;
           entity.vy = entity.vy * 0.5 + idleVy * 0.5;
           faceVelocity(entity);

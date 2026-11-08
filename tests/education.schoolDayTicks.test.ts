@@ -83,7 +83,7 @@ describe('school-day credit needs the teacher there', () => {
 
   /** A pupil standing exactly where the tick sends them at this school. */
   function pupilAt(target: Building): Entity {
-    const spot = humanBuildingTarget(target, 1, false);
+    const spot = humanBuildingTarget(target, 1);
     return child({ x: spot.x, y: spot.y });
   }
 

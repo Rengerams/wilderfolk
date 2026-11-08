@@ -13,7 +13,7 @@ import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { ensureEntityByIdMap, unindexEntityFromState } from './entityIndex';
 import { clearWorkerAssignment } from './workforce';
 import { pushNewEntity } from './simulation/simulationEntities';
-import { homeEntryPosition } from './simulation/humanMovement';
+import { buildingAccessPoint } from './buildingAccess';
 import type { TickContext } from './simulation/simulationTypes';
 
 /** Long-range trade routes require a completed player Market (EC-4). */
@@ -57,12 +57,12 @@ export function getTradeHubCenter(state: WorldState): { x: number; y: number } {
     const building = state.buildings.find((b) => b.completed && b.faction !== 'rival' && b.type === type);
     if (building) {
       // The building centre is inside a solid footprint; the caravan uses its door.
-      return homeEntryPosition(building, building.x, building.y);
+      return buildingAccessPoint(building);
     }
   }
   const fallback = state.buildings.find((b) => b.completed && b.faction !== 'rival');
   return fallback
-    ? homeEntryPosition(fallback, fallback.x, fallback.y)
+    ? buildingAccessPoint(fallback)
     : getPlayerSettlerCenter(state);
 }
 

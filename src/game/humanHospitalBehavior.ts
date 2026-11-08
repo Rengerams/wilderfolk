@@ -6,7 +6,9 @@ import { TICKS_PER_DAY, getTickOfDay } from './dayCycle';
 import { doctorHospitalShift, HOSPITAL_SHIFT_HOURS } from './hospitalShifts';
 import { TICKS_PER_HOUR } from './dayCycleClock';
 import { isPregnancyHospitalDue } from './simulation/humanLifecycle';
-import { enterHumanBuilding, homeEntryPosition, steerHumanToward } from './simulation/humanMovement';
+import { enterHumanBuilding, steerHumanToward } from './simulation/humanMovement';
+import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
+import { getBuildingCenter } from './buildingGeometry';
 import {
   doctorTreatNearby,
   isDoctorAtHospital,
@@ -16,17 +18,14 @@ import {
 } from './hospitalCare';
 
 const PATIENT_CENTRE_RADIUS_PX = 36;
-const PATIENT_ENTRY_RADIUS_PX = 16;
 const HOSPITAL_TREATMENT_ROLL_SALT = 840;
 const HOSPITAL_TREATMENT_DAILY_CHANCE = 0.2;
 
-/** A patient is at the ward inside its centre radius or at its nearest entrance; walls block the rest. */
+/** A patient is at the ward inside its centre radius or at its one entrance; walls block the rest. */
 function isAtHospital(entity: Entity, hospital: Building): boolean {
-  const centreX = hospital.x + hospital.width / 2;
-  const centreY = hospital.y + hospital.height / 2;
-  if (Math.hypot(entity.x - centreX, entity.y - centreY) < PATIENT_CENTRE_RADIUS_PX) return true;
-  const entrance = homeEntryPosition(hospital, entity.x, entity.y);
-  return Math.hypot(entity.x - entrance.x, entity.y - entrance.y) < PATIENT_ENTRY_RADIUS_PX;
+  const centre = getBuildingCenter(hospital);
+  if (Math.hypot(entity.x - centre.x, entity.y - centre.y) < PATIENT_CENTRE_RADIUS_PX) return true;
+  return isAtBuildingReach(entity, hospital);
 }
 
 /** A staffed ward: completed, player-owned and with someone on its roster. */
@@ -113,7 +112,7 @@ export function tickHumanHospitalPatientCare({
       if (isAtHospital(entity, best)) enterHumanBuilding(entity, best);
       else {
         entity.indoorBuildingId = undefined;
-        const entrance = homeEntryPosition(best, entity.x, entity.y);
+        const entrance = buildingAccessPoint(best);
         steerHumanToward(entity, entrance.x, entrance.y, speed, 0.55, `hospital_${best.id}_${entity.id}`);
       }
     }

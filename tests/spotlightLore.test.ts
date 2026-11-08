@@ -166,7 +166,7 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     world.buildings = [tavern];
     innkeeper.workerBuildingId = tavern.id;
     // At his own post: the attendance projection no longer calls distance from it travel.
-    Object.assign(innkeeper, humanBuildingTarget(tavern, innkeeper.id, false));
+    Object.assign(innkeeper, humanBuildingTarget(tavern, innkeeper.id));
     world.tick = pickEligibleTick(world);
     expect(getSettlerWorkReason(world, innkeeper).code).toBe('working');
     expect(maybeStartSpotlightLore(world)).toBe(true);

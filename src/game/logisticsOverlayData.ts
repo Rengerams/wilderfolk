@@ -11,7 +11,7 @@ import { isStripBuildType } from './stripBuild';
 import { isRoadStripType } from './stripTopology';
 import { WORK_COMMUTE_LEAD_HOURS } from './workSchedule';
 import { getReadOnlyPathGrid, lineCrossesBlocked, type PathGrid } from './pathfinding';
-import { humanBuildingTarget } from './simulation/humanMovement';
+import { buildingAccessPoint } from './buildingAccess';
 
 // ============ TUNABLE THRESHOLDS ============
 
@@ -529,9 +529,9 @@ function classifyCommute(
   const speed = Number.isFinite(entity.speed) && entity.speed > 0 ? entity.speed : SETTLER_WALK_SPEED;
   const walkTicks = distance / speed;
 
-  // The centres are inside solid footprints; measure the walk between the home stand and work row.
-  const homeDoor = humanBuildingTarget(home, entity.id, true);
-  const workDoor = humanBuildingTarget(work, entity.id, false);
+  // The centres are inside solid footprints; measure the walk from the home door to the work row.
+  const homeDoor = buildingAccessPoint(home);
+  const workDoor = buildingAccessPoint(work);
   const blocked = grid
     ? lineCrossesBlocked(grid, homeDoor.x, homeDoor.y, workDoor.x, workDoor.y)
     : false;

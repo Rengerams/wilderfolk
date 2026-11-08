@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { building, human } from '../src/test/factories';
 import { BuildingType, type WorldState } from '../src/game/gameTypes';
-import { commuteDistanceToBuilding, commuteHumanToBuilding, enterHumanBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { commuteDistanceToBuilding, commuteHumanToBuilding, enterHumanBuilding, homeStandPosition, humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
 import { packEntityRenderMeta, buildRenderEntityShim } from '../src/game/simBuffers/entityRenderMeta';
 import { packRenderSoA } from '../src/game/simBuffers/packRenderSoA';
@@ -28,7 +28,7 @@ describe('settlers inside buildings', () => {
     const person = human(1, { x: -1000, y: -1000 });
     expect(commuteHumanToBuilding(person, home, 2, false)).toBe(false);
     expect(person.indoorBuildingId).toBeUndefined();
-    Object.assign(person, humanBuildingTarget(home, person.id, false));
+    Object.assign(person, humanBuildingTarget(home, person.id));
     expect(commuteHumanToBuilding(person, home, 2, false)).toBe(true);
     expect(person.indoorBuildingId).toBe(0);
     expect([person.vx, person.vy]).toEqual([0, 0]);
@@ -112,7 +112,7 @@ describe('settlers inside buildings', () => {
     const world = initGame({ skipTerrain: true, seed: 624 });
     world.worldMap = null;
     const workplace = building(0, BuildingType.Blacksmith, { x: 300, y: 300, occupants: [1], staffingMode: 'manual' });
-    const person = human(1, { ...humanBuildingTarget(workplace, 1, false), gender: 'male',
+    const person = human(1, { ...humanBuildingTarget(workplace, 1), gender: 'male',
       job: 'blacksmith', workerBuildingId: 0, relationshipStatus: 'married', partnerId: 2,
       affairPartnerId: 3, affairProgress: 30, residenceBuildingId: 4 });
     world.entities = [person,
@@ -142,7 +142,7 @@ describe('settlers inside buildings', () => {
     const home = building(7, BuildingType.House, {
       x: 220, y: 220, width: 40, height: 36, occupants: [residentId!],
     });
-    const porch = humanBuildingTarget(home, residentId!, true);
+    const porch = homeStandPosition(home, residentId!);
     const person = human(residentId!, {
       x: porch.x - 40, y: porch.y, residenceBuildingId: home.id, energy: 0, maxEnergy: 100,
       needs: { nutrition: 80, rest: 70, stamina: 0, severeHungerTicks: 0, breakUntilRecovered: true },

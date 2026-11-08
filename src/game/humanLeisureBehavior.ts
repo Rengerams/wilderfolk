@@ -114,7 +114,7 @@ export function tickHumanChildLeisure(args: {
   if (hasResidenceAssignment(entity)) {
     const residence = buildingById.get(entity.residenceBuildingId!);
     if (residence?.completed) {
-      commuteHumanToBuilding(entity, residence, speed, true);
+      if (commuteHumanToBuilding(entity, residence, speed)) enterHumanBuilding(entity, residence);
       return true;
     }
   }
@@ -215,7 +215,7 @@ export function tickAdultLeisureMotive(args: {
     if (impulse.stayHome && hasResidenceAssignment(entity)) {
       const home = buildingById.get(entity.residenceBuildingId!);
       if (home?.completed) {
-        commuteHumanToBuilding(entity, home, speed * (impulse.motive === 'sick_day' ? 0.7 : 0.9), true, 1);
+        if (commuteHumanToBuilding(entity, home, speed * (impulse.motive === 'sick_day' ? 0.7 : 0.9), 1)) enterHumanBuilding(entity, home);
         if (impulse.motive === 'sick_day') adjustHumanStaminaFromEnergy(entity, 0.25 * PER_TICK_RATE_SCALE);
         suppressIdle = true;
       }

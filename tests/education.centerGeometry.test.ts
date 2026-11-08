@@ -16,7 +16,7 @@ describe('school yard geometry', () => {
   it('recognizes a pupil standing at their own yard slot as attending class', () => {
     const building = school(5, 100, 100);
     const pupil = child(100, 100);
-    const target = humanBuildingTarget(building, pupil.id, false);
+    const target = humanBuildingTarget(building, pupil.id);
     pupil.x = target.x;
     pupil.y = target.y;
     expect(isChildAtSchool(pupil, building)).toBe(true);

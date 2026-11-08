@@ -162,7 +162,7 @@ export function isChildAtSchool(child: Entity, school: Building, maxDist = 28): 
   // Inside the footprint counts too: a pupil who walked in is in class even between yard slots.
   if (Math.abs(child.x - school.x) <= school.width / 2
     && Math.abs(child.y - school.y) <= school.height / 2) return true;
-  const target = humanBuildingTarget(school, child.id, false);
+  const target = humanBuildingTarget(school, child.id);
   return Math.hypot(child.x - target.x, child.y - target.y) <= maxDist;
 }
 
@@ -175,7 +175,7 @@ export function hasTeacherPresent(
   for (const id of school.occupants) {
     const teacher = entityById.get(id);
     if (!teacher || !teacher.alive) continue;
-    const target = humanBuildingTarget(school, teacher.id, false);
+    const target = humanBuildingTarget(school, teacher.id);
     if (Math.hypot(teacher.x - target.x, teacher.y - target.y) <= maxDist) return true;
   }
   return false;

@@ -412,7 +412,7 @@ describe('M27 commute movement', () => {
     setCurrentPathMap(makeMap(40, 40, 927, (x, y) => x === 20 && y !== 20), []);
     const building = { id: 7, x: 300, y: 150, width: 40, height: 30, completed: true } as Building;
     const entity = human(3, 55, 55);
-    const target = humanBuildingTarget(building, entity.id, false);
+    const target = humanBuildingTarget(building, entity.id);
 
     const speed = 1;
     const distBefore = Math.hypot(target.x - entity.x, target.y - entity.y);
@@ -606,7 +606,7 @@ describe('commute approach easing (the doorstep stretch)', () => {
   it('reaches the doorstep without overshooting or exceeding urgent walking pace', () => {
     const building = { id: 9, x: 600, y: 600, width: 60, height: 48, completed: true } as Building;
     const entity = human(5, 0, 0);
-    const stand = humanBuildingTarget(building, entity.id, false);
+    const stand = humanBuildingTarget(building, entity.id);
     entity.x = stand.x;
     entity.y = stand.y - 45;
     entity.vx = 0;

@@ -2,7 +2,8 @@
  * Hotel lodging — hotels host visitors and, overnight, settlers whose walk home is too long.
  * Lodging is free: the hotelier gains work experience for tending guests.
  */
-import { enterHumanBuilding, homeEntryPosition } from './simulation/humanMovement';
+import { enterHumanBuilding } from './simulation/humanMovement';
+import { buildingAccessPoint } from './buildingAccess';
 import type { Building, Entity, WorldState } from './gameTypes';
 import {
   BuildingType,
@@ -558,7 +559,7 @@ export function steerVisitorToHotel(
     checkoutVisitor(visitor);
     return false;
   }
-  const door = homeEntryPosition(hotel, visitor.x, visitor.y);
+  const door = buildingAccessPoint(hotel);
   const tx = door.x;
   const ty = door.y;
   const dx = tx - visitor.x;
