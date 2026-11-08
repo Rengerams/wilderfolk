@@ -48,6 +48,7 @@ export type DecisionKey =
   | 'careerHistory'
   | 'careerProgression'
   | 'workerFit'
+  | 'completedBuildingLookup'
   | 'buildingAccess'
   | 'settlerDeathAudio'
   | 'terrainClearingFields'
@@ -155,6 +156,14 @@ export const SIMULATION_DECISIONS = {
     writes: [],
     scheduledFrom: 'workforce.assignWorkerInPlace — already-visited eligible idle candidates when proximity and skill tie',
     testFile: 'tests/careers.workerFit.test.ts',
+  },
+  completedBuildingLookup: {
+    owner: 'buildings.ts — isCompletedPlayerBuilding, findCompletedBuilding',
+    cadence: 'on-demand',
+    cadenceNote: 'Pure read-only lookup of the first completed building of the requested type. Existing legacy rival-building exclusion remains centralized; no world state, ticks, or RNG are mutated.',
+    writes: [],
+    scheduledFrom: 'townHall.isTownHallStaffed / getTownHallTradeMultiplier / getTownHallGovernanceEfficiency, villageLeadership election site, tickLayerRealtime election notification, virtualPlayer.decideFestival',
+    testFile: 'tests/buildings.lookup.test.ts',
   },
   buildingAccess: {
     owner: 'buildingAccess.ts — buildingAccessPoint (the one doorstep), isOpenDoorstep, isAtBuildingReach (the one arrival rule)',
