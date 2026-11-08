@@ -428,13 +428,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     return buildingCampAnchor ?? getPlayerSettlerCenter(state);
   };
 
-  const advancePregnancy = (entity: Entity, conceivedToday: boolean): void => {    if (
+  const advancePregnancy = (entity: Entity, conceivedToday: boolean): void => {
+    if (
       entity.alive &&
       isPlayerHuman(entity) &&
       entity.gender === 'female' &&
       entity.pregnant &&
-      !conceivedToday &&
-      entity.pregnancyProgress !== undefined
+      !conceivedToday
     ) {
       tickPregnancyAndBirth(state, ctx, entity, { livingHumanAt });
     }

@@ -1,5 +1,10 @@
 # Bug report summary — one line per report
 
+**2026-11-08 — [Pregnancy merge introduced competing hospital thresholds](../bug_report/2026-11-08-pregnancy-individual-term-merge.md):** resolved; targeted regressions pass.
+
+**2026-11-08 — [Immigration treats one-off food spending as recurring demand](../bug_report/2026-11-08-immigration-recurring-demand-and-beds.md):** resolved; targeted regressions pass.
+
+
 **2026-11-08 — [Selected doorstep cannot satisfy arrival](../bug_report/2026-11-08-doorstep-arrival-predicate.md):** resolved. Require isAtBuildingReach for every candidate and guard zero-distance blocked fallback steering.
 
 **2026-11-08 — [Worker roster removal silences settler death audio](../bug_report/2026-11-08-worker-roster-death-audio.md):** resolved. Consume transported player death tally increments, accounting for year rollover and session replacement.

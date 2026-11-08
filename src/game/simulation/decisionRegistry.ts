@@ -256,10 +256,10 @@ export const SIMULATION_DECISIONS = {
   immigration: {
     owner: 'dailyPopulation.ts — tickDailyPopulation, tickImmigration, canSupportImmigration (one daily admission owner); economyLedger.ts owns historical and forecast food verdicts; worldGen.ts owns immigrant party composition',
     cadence: 'daily',
-    cadenceNote: 'After real completed-day production is recorded, admission is gated against measured deficits and projected demand for the largest arriving family. A large stored larder alone cannot permit unsustainable growth; sparse startup history preserves bootstrap immigration. Never cancels births or reassigns existing residents. Housing, settlement entity spawning and spatial indexes keep their existing owners.',
+    cadenceNote: 'After completed-day production is recorded, recurring meal demand (not one-off recruitment or trade food spending) gates admission. The admitted party is bounded by the actual unreserved vacant beds and its affordable projected meal demand; large families are not forced when only a smaller party is sustainable. A large stored larder alone cannot permit unsustainable growth; sparse startup history preserves bootstrap immigration. Never cancels births or reassigns existing residents. Housing, settlement entity spawning and spatial indexes retain their owners.',
     writes: ['maxHumanPopulation', 'humanPopulation', 'entities (via spawned new settlers)', 'nextEntityId', 'eventLog (through logEvent)', 'notifications'],
     scheduledFrom: 'tickLayerDaily.tickLayerDaily → dailyPopulation.tickDailyPopulation → tickImmigration once per colony day; spawn bookkeeping delegates to simulationEntities',
-    testFile: 'tests/dailyPopulation.foodAdmission.test.ts, tests/immigration.composition.test.ts',
+    testFile: 'tests/dailyPopulation.foodAdmission.test.ts, tests/dailyImmigration.gridSync.test.ts, tests/immigration.composition.test.ts',
   },
   housing: {
     owner: 'housingPipeline.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, planRelocation answers move-or-stay for homeless, custody, custodian, capacity, surplus, leave-home, commute and couple, and applyRelocation writes a plan; the commute phase also swaps two occupied homes when both households improve; manor seating is event-driven (start/election) and never a housing-phase decision; relocateHousehold applies a whole-household decision; relocateFamily retries a destination the writer refused with the next-best home; moveResident stays the sole write; HousingReport carries the run stats; assignMissingResidences accepts an optional resume ledger; ranking lives in the same module; facts: housingModel.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
@@ -408,8 +408,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/phase7.social.test.ts, tests/conceptionEvent.labelling.test.ts, tests/youthConception.ageFloor.test.ts',
   },
   pregnancyBirth: {
-    owner: 'humanLifecycle.ts — tickPregnancyAndBirth (ONLY birth owner; never starts a second pregnancy path); settlerTraits.ts — inheritGenome is the only birth genetics rule',
+    owner: 'humanLifecycle.ts — tickPregnancyAndBirth, getPregnancyProgressFraction, isPregnancyHospitalDue (ONLY pregnancy-progress and due-date threshold owner; never starts a second pregnancy path); settlerTraits.ts — inheritGenome is the only birth genetics rule',
     cadence: 'pregnancy-progress',
+    cadenceNote: 'A single 85%-of-individual-due-date gate in humanLifecycle is read by humanHospitalBehavior doctor duty/admission and hospitalCare needs/reason. SelectedEntityPanel displays the nominal 24-day percentage without capping it: late deliveries can exceed 100%. HumanTick schedules progress and uses humanHospitalBehavior hospital priority to protect the route and stop crediting work presence when a staffed ward is available; duty hours and assigned jobs remain intact. No second pregnancy rule exists.',
     writes: [
       'human.pregnancyProgress',
       'human.pregnant/pregnantById/pregnancyDueProgress/pregnancyFromYouthLove (cleared at birth)',
@@ -419,7 +420,7 @@ export const SIMULATION_DECISIONS = {
       'eventLog/bigNews/floatingTexts',
     ],
     scheduledFrom: 'humanTick.ts pregnancy gate → humanLifecycle.tickPregnancyAndBirth → settlerTraits.inheritGenome (birth-key seeded stream)',
-    testFile: 'tests/humanLifecycle.test.ts, tests/conceptionEvent.labelling.test.ts, tests/personality.romanceContext.test.ts, tests/settlerTraits.test.ts',
+    testFile: 'tests/humanLifecycle.test.ts, tests/hospitalWalk.regression.test.ts, tests/pregnancyHospitalWork.test.ts, tests/settlers.indoors.test.ts, tests/workAbsence.reasons.test.ts, tests/conceptionEvent.labelling.test.ts, tests/personality.romanceContext.test.ts, tests/settlerTraits.test.ts',
   },
   moonHowler: {
     owner: 'moonHowler.ts + moonHowlerForm.ts — tickMoonHowlerCycle, curseMoonHowler, transformToWerewolfForm, revertToHumanForm, cureMoonHowler, finalizeMoonHowlerDeath, isSettlerRelationshipEntity; night window owned by daycycleconstants.ts',

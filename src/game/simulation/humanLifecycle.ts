@@ -59,7 +59,20 @@ export const LIFECYCLE_CONFIG = {
   MATERNAL_ENERGY_MIN_RATIO: 0.18,
   STILLBORN_GRIEF_DAYS: 3,
   SCANDAL_BASE_REP_LOSS: -3,
+  HOSPITAL_THRESHOLD_RATIO: 0.85,
 } as const;
+
+/** Authoritative progress toward this mother's individual due date (±15% term variation). */
+export function getPregnancyProgressFraction(
+  mother: Pick<Entity, 'pregnancyProgress' | 'pregnancyDueProgress'>,
+): number {
+  const due = mother.pregnancyDueProgress;
+  const term = typeof due === 'number' && Number.isFinite(due) && due > 0
+    ? due : PREGNANCY_TICKS;
+  const elapsed = mother.pregnancyProgress;
+  const progress = typeof elapsed === 'number' && Number.isFinite(elapsed) ? elapsed : 0;
+  return Math.min(1, Math.max(0, progress / term));
+}
 
 function safeAddChildId(parent: Entity, childId: number): void {
   parent.childrenIds ??= [];
@@ -75,15 +88,12 @@ function clearExpectingStatus(human?: Entity): void {
   }
 }
 
-/** Share of the term at which a pregnancy requires hospital attendance instead of work. */
-const PREGNANCY_HOSPITAL_THRESHOLD_RATIO = 0.85;
-
-/** The one pregnancy hospital threshold: true from 85% of the term until childbirth clears it. */
+/** The one pregnancy hospital threshold: 85% of this mother's individual term. */
 export function isPregnancyHospitalDue(
-  entity: Pick<Entity, 'pregnant' | 'pregnancyProgress'>,
+  entity: Pick<Entity, 'pregnant' | 'pregnancyProgress' | 'pregnancyDueProgress'>,
 ): boolean {
-  if (!entity.pregnant) return false;
-  return (entity.pregnancyProgress ?? 0) >= PREGNANCY_TICKS * PREGNANCY_HOSPITAL_THRESHOLD_RATIO;
+  return entity.pregnant === true
+    && getPregnancyProgressFraction(entity) >= LIFECYCLE_CONFIG.HOSPITAL_THRESHOLD_RATIO;
 }
 
 /**

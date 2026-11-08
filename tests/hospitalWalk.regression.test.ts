@@ -9,6 +9,7 @@ import {
   isStaffedHospital,
   tickHumanDoctorHospitalService,
   tickHumanHospitalPatientCare,
+  shouldAttemptHospitalTreatment,
 } from '../src/game/humanHospitalBehavior';
 import { isPregnancyHospitalDue } from '../src/game/simulation/humanLifecycle';
 import { doctorHospitalShift, HOSPITAL_SHIFT_HOURS } from '../src/game/hospitalShifts';
@@ -198,6 +199,15 @@ describe('hospital routing follows the threshold, not the shift', () => {
 });
 
 describe('doctor duty under the one pregnancy rule', () => {
+  it('keeps early pregnancy out of medical care without suppressing independent grief', () => {
+    const early = entity(0, 0, { pregnant: true, pregnancyProgress: 840, pregnancyDueProgress: 1000,
+      needs: { nutrition: 80, rest: 80, stamina: 90, severeHungerTicks: 0 } });
+    expect(shouldAttemptHospitalTreatment(early, true, 10)).toBe(false);
+    early.griefUntilTick = 500;
+    early.needs!.stamina = 60;
+    expect(shouldAttemptHospitalTreatment(early, true, 10)).toBe(true);
+  });
+
   /** A patient id whose daily roll clears the doctor's own 35% treatment gate on that tick. */
   function treatablePatientId(doctorId: number, tick: number): number | null {
     for (let id = 2; id < 200; id++) {
@@ -210,7 +220,7 @@ describe('doctor duty under the one pregnancy rule', () => {
    * Runs the real ward round at the ticks the roster schedules it, with a patient whose roll passes,
    * so `treated` reports whether the doctor actually served.
    */
-  function wardRoundServes(progress: number, staffed: boolean): boolean {
+  function wardRoundServes(progress: number, staffed: boolean, due = PREGNANCY_TICKS): boolean {
     const ward = { ...hospital(5, 100, 100, [1, 2, 3, 4, 5]), width: 60, height: 40 };
     const hx = ward.x + ward.width / 2;
     const hy = ward.y + ward.height * 0.9;
@@ -220,6 +230,7 @@ describe('doctor duty under the one pregnancy rule', () => {
       workerBuildingId: ward.id,
       pregnant: true,
       pregnancyProgress: progress,
+      pregnancyDueProgress: due,
     });
     for (let tick = 1; tick <= 6 * TICKS_PER_DAY; tick++) {
       const shift = doctorHospitalShift(ward, tick, doctor.id);
@@ -252,6 +263,12 @@ describe('doctor duty under the one pregnancy rule', () => {
     }
     throw new Error('no scheduled ward round found in the fixture window');
   }
+
+  it.each([0.85, 1.15])('uses the doctor’s individual due date (term factor %s)', (factor) => {
+    const due = PREGNANCY_TICKS * factor;
+    expect(wardRoundServes(due * 0.84, true, due)).toBe(true);
+    expect(wardRoundServes(due * 0.85, true, due)).toBe(false);
+  });
 
   it('lets a doctor at 81% run the ward round', () => {
     expect(wardRoundServes(PREGNANCY_TICKS * 0.81, true)).toBe(true);

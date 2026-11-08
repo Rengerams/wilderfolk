@@ -75,7 +75,7 @@ interface Fixture {
 }
 
 /** One pregnant farmer posted at her farm, one doctor staffing the hospital. */
-function farmWorld(pregnancyProgress: number): Fixture {
+function farmWorld(pregnancyProgress: number, pregnancyDueProgress = PREGNANCY_TICKS): Fixture {
   const world = initGame({
     villageName: 'Attendance', size: MapSize.Medium, seed: FIXTURE_SEED, skipTerrain: true,
   });
@@ -97,7 +97,7 @@ function farmWorld(pregnancyProgress: number): Fixture {
     gender: 'female',
     pregnant: true,
     pregnancyProgress,
-    pregnancyDueProgress: PREGNANCY_TICKS,
+    pregnancyDueProgress,
   });
   const doctor = settler(world, 2, {
     x: hospital.x,
@@ -142,6 +142,18 @@ function runTicks(world: WorldState, ticks: number): void {
 }
 
 describe('pregnancy at work and at the hospital', () => {
+  it.each([0.85, 1.15])('uses the individual term for work and hospital priority (term factor %s)', (factor) => {
+    const due = PREGNANCY_TICKS * factor;
+    const { world, farmer, farm } = farmWorld(due * 0.84, due);
+    runTicks(world, 1);
+    const before = farmer.schedulePresentTicksToday ?? 0;
+    expect(before).toBeGreaterThan(0);
+    farmer.pregnancyProgress = due * 0.85;
+    runTicks(world, 1);
+    expect(farmer.schedulePresentTicksToday).toBe(before);
+    expect(farmer.workerBuildingId).toBe(farm.id);
+  });
+
   it('stops crediting work presence from the 85% threshold while the duty hours still accrue', () => {
     const { world, farmer, farm } = farmWorld(PREGNANCY_TICKS * 0.9);
     runTicks(world, 3);

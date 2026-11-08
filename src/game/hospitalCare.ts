@@ -13,6 +13,7 @@ import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
 import { spendFood } from './economyLedger';
 import { adjustHumanStaminaFromEnergy, getHumanStaminaRatio } from './simulation/humanPhysiology';
+import { getPregnancyProgressFraction, isPregnancyHospitalDue } from './simulation/humanLifecycle';
 
 /** Flat reputation a staffed hospital grants on each production interval. */
 export const HOSPITAL_REPUTATION_PER_INTERVAL = 2;
@@ -64,7 +65,7 @@ export function isDoctorAtHospital(
  */
 export function needsMedicalCare(entity: Entity, tick: number): boolean {
   if (!entity.alive || entity.isJuvenile === undefined) return false;
-  if (entity.pregnant) return true;
+  if (isPregnancyHospitalDue(entity)) return true;
   const stamina = getHumanStaminaRatio(entity);
   if (stamina < 0.42) return true;
   if ((entity.griefUntilTick ?? 0) > tick && stamina < 0.7) return true;
@@ -90,10 +91,8 @@ export function isRestingHospitalPatient(
 
 /** How urgently this settler should seek the hospital (0–1). */
 export function medicalUrgency(entity: Entity): number {
-  // pregnancyProgress runs ~0..PREGNANCY_TICKS (~24 days); scale urgency over the term
-  if (entity.pregnant) {
-    const term = Math.max(1, entity.pregnancyProgress ?? 0);
-    return 0.55 + Math.min(0.4, term / 1800);
+  if (isPregnancyHospitalDue(entity)) {
+    return 0.55 + 0.4 * getPregnancyProgressFraction(entity);
   }
   const stamina = getHumanStaminaRatio(entity);
   if (stamina < 0.28) return 0.85;
@@ -105,7 +104,7 @@ export function medicalUrgency(entity: Entity): number {
 /** The owner's own reason this settler needs care, or `null` — the roster renders it verbatim. */
 export function medicalCareReason(entity: Entity, tick: number): string | null {
   if (!needsMedicalCare(entity, tick)) return null;
-  if (entity.pregnant) return 'expecting';
+  if (isPregnancyHospitalDue(entity)) return 'expecting';
   if (getHumanStaminaRatio(entity) < 0.42) return 'exhausted';
   return 'grieving';
 }

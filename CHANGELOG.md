@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (8 Nov 2026):** Pregnancy integration keeps one individual-term hospital threshold while retaining staffed-ward routing, actual admission labels, birth-key genetics and normal duty-hour accounting.
+- **Fixed (8 November 2026, PR #133):** Immigration now uses recurring meal demand rather than one-off food spending, avoids counting population growth twice, and admits only affordable groups with real vacant beds.
+- **Fixed (8 November 2026, PR #133):** Pregnant settlers work until 85% of their individual term before hospital care; doctors follow the same rule, while the displayed percentage can exceed 100% for late deliveries.
+
 - **Fixed (8 Nov 2026):** Building destinations now satisfy the arrival rule, and blocked zero-distance targets cannot produce invalid walking velocity.
 - **Fixed (8 Nov 2026):** Settler death audio consumes transported death tallies, retaining one cue after the worker removes the deceased while departures stay silent.
 - **Fixed (8 Nov 2026):** Terrain clearing refreshes the derived clearing mask while retaining unaffected regional ground caches.

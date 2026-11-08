@@ -320,7 +320,7 @@ export default function SelectedEntityPanel({
             )}
             {entity.pregnant && (
               <p className="font-bold text-pink-400">
-                🤰 Pregnant! ({Math.round(((entity.pregnancyProgress || 0) / PREGNANCY_TICKS) * 100)}%)
+                🤰 Pregnant! ({Math.round(((entity.pregnancyProgress ?? 0) / PREGNANCY_TICKS) * 100)}%)
               </p>
             )}
             {entity.partnerId && isMarriedOrExpecting(entity) && (() => {

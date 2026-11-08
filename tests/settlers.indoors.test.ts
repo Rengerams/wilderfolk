@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { building, human } from '../src/test/factories';
-import { BuildingType, type WorldState } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType, type WorldState } from '../src/game/gameTypes';
 import { commuteDistanceToBuilding, commuteHumanToBuilding, enterHumanBuilding, homeStandPosition, humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import { buildingAccessPoint } from '../src/game/buildingAccess';
 import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
@@ -68,7 +68,7 @@ describe('settlers inside buildings', () => {
   it('keeps a pregnant patient indoors across real simulation ticks and releases her when care ends', () => {
     const world = initGame({ skipTerrain: true, seed: 622 });
     world.worldMap = null;
-    world.entities = [human(1, { x: 110, y: 110, gender: 'female', pregnant: true, pregnancyProgress: 1 }),
+    world.entities = [human(1, { x: 110, y: 110, gender: 'female', pregnant: true, pregnancyProgress: 900, pregnancyDueProgress: 1000 }),
       human(2, { x: 100, y: 120, job: 'doctor', workerBuildingId: 0 })];
     world.buildings = [building(0, BuildingType.Hospital, { x: 100, y: 100, occupants: [2], staffingMode: 'manual' })];
     world.entityByType = undefined;
@@ -79,7 +79,7 @@ describe('settlers inside buildings', () => {
     const patient = world.entities.find((entry) => entry.id === 1)!;
     expect(patient.indoorBuildingId).toBe(0);
     expect(patient.alive).toBe(true);
-    expect(patient.pregnancyProgress).toBeGreaterThan(1);
+    expect(patient.pregnancyProgress).toBeGreaterThan(900);
     expect(observeIndoorPatients(world).patients).toContainEqual({ id: 1, indoorBuildingId: 0, hospitalId: 0 });
     const fixtureDirectory = process.env.INDOOR_SMOKE_FIXTURE_DIR;
     if (fixtureDirectory) {
@@ -99,12 +99,47 @@ describe('settlers inside buildings', () => {
   });
 
 
+  it('stops crediting workplace presence at the individual 85% stage without clearing the job', () => {
+    const world = initGame({ skipTerrain: true, seed: 626 });
+    world.worldMap = null;
+    const mother = world.entities.find((person) =>
+      person.alive && person.type === EntityType.Human && person.gender === 'female');
+    if (!mother) throw new Error('missing founding mother');
+    const farm = building(world.nextBuildingId++, BuildingType.Farm, { x: mother.x + 80,
+      y: mother.y + 40, occupants: [mother.id], completed: true });
+    const doctor = world.entities.find((person) => person.id !== mother.id && person.type === EntityType.Human)!;
+    const ward = building(world.nextBuildingId++, BuildingType.Hospital, {
+      x: mother.x + 300, y: mother.y + 300, occupants: [doctor.id], completed: true,
+    });
+    doctor.job = JobType.Doctor;
+    doctor.workerBuildingId = ward.id;
+    world.buildings.push(farm, ward);
+    Object.assign(mother, humanBuildingTarget(farm, mother.id));
+    mother.job = JobType.Farmer;
+    mother.workerBuildingId = farm.id;
+    mother.pregnant = true;
+    mother.pregnancyDueProgress = 1000;
+    mother.pregnancyProgress = 840;
+    world.paused = false;
+    world.tick = 10 * TICKS_PER_HOUR;
+
+    gameTick(world);
+    const workedBefore = mother.schedulePresentTicksToday ?? 0;
+    expect(workedBefore).toBeGreaterThan(0);
+
+    mother.pregnancyProgress = 850;
+    gameTick(world);
+    expect(mother.schedulePresentTicksToday).toBe(workedBefore);
+    expect(mother.job).toBe(JobType.Farmer);
+    expect(mother.workerBuildingId).toBe(farm.id);
+  });
+
   it('observes missing, outdoor and dead patients without claiming admission', () => {
     const world = initGame({ skipTerrain: true, seed: 623 });
     world.buildings = [building(0, BuildingType.Hospital)];
     world.entities = [];
     expect(observeIndoorPatients(world).patients).toEqual([]);
-    world.entities = [human(1, { pregnant: true }), human(2, { pregnant: true, alive: false, indoorBuildingId: 0 })];
+    world.entities = [human(1, { pregnant: true, pregnancyProgress: 900, pregnancyDueProgress: 1000 }), human(2, { pregnant: true, alive: false, indoorBuildingId: 0 })];
     expect(observeIndoorPatients(world).patients).toEqual([{ id: 1, indoorBuildingId: null, hospitalId: null }]);
     world.entities[0].indoorBuildingId = 0;
     world.buildings[0].completed = false;
