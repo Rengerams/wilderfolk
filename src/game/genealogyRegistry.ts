@@ -143,6 +143,28 @@ export function recordGenealogyDeath(state: WorldState, entity: Entity): void {
 /** Connected family network: parentage (biological and adoptive) plus known partners.
  * One living member is counted once, even if multiple family paths reach them.
  */
+/**
+ * Authoritative path-compressed root lookup for genealogy disjoint sets.
+ * The family-tree layout and persistent family grouping supply their own parent maps,
+ * so this operation changes only the supplied projection map, never the world or registry.
+ */
+export function findFamilyGroupRoot(parents: Map<number, number>, id: number): number {
+  let root = id;
+  let parent = parents.get(root);
+  while (parent !== undefined && parent !== root) {
+    root = parent;
+    parent = parents.get(root);
+  }
+  let walk = id;
+  while (walk !== root) {
+    const next = parents.get(walk);
+    if (next === undefined) break;
+    parents.set(walk, root);
+    walk = next;
+  }
+  return root;
+}
+
 export function largestExtendedFamilies(registry: GenealogyRegistry, limit = 10): Array<{
   memberIds: number[];
   livingMembers: number;
@@ -151,19 +173,9 @@ export function largestExtendedFamilies(registry: GenealogyRegistry, limit = 10)
 }> {
   const records = Object.values(registry.people);
   const root = new Map(records.map(person => [person.id, person.id]));
-  const find = (id: number): number => {
-    let node = id;
-    while (root.get(node) !== node) node = root.get(node)!;
-    while (root.get(id) !== node) {
-      const next = root.get(id)!;
-      root.set(id, node);
-      id = next;
-    }
-    return node;
-  };
   const unite = (a: number, b: number): void => {
     if (!root.has(b)) return;
-    const x = find(a), y = find(b);
+    const x = findFamilyGroupRoot(root, a), y = findFamilyGroupRoot(root, b);
     if (x !== y) root.set(Math.max(x, y), Math.min(x, y));
   };
   for (const person of records) {
@@ -174,7 +186,7 @@ export function largestExtendedFamilies(registry: GenealogyRegistry, limit = 10)
   }
   const groups = new Map<number, GenealogyPerson[]>();
   for (const person of records) {
-    const key = find(person.id);
+    const key = findFamilyGroupRoot(root, person.id);
     const group = groups.get(key) ?? [];
     group.push(person);
     groups.set(key, group);
