@@ -66,6 +66,19 @@ describe('automatic immigration follows actual food capacity, not stocked reserv
     expect(canSupportImmigration(world, 16, 1)).toBe(true);
   });
 
+  it('does not double-count meal growth already covered by the projected newcomer population', () => {
+    const produced = [70, 80, 0, 0, 85, 120, 89];
+    const meals = [51, 53, 50, 52, 53, 57, 53];
+    const world = {
+      tick: 8 * TICKS_PER_DAY,
+      foodHistory: produced.map((farms, index) => ({ day: index + 1,
+        produced: { farms }, consumed: { meals: meals[index] } })),
+    } as Pick<WorldState, 'tick' | 'foodHistory'>;
+    // This is the seven-day pattern seen in the New Frontier day-45 save.
+    expect(canSupportImmigration(world, 18, 1)).toBe(true);
+    expect(canSupportImmigration(world, 18, 3)).toBe(false);
+  });
+
   it('can support one newcomer even when a four-person arriving family is unaffordable', () => {
     const world = stateFor(63, () => 54);
     expect(canSupportImmigration(world, 18, 1)).toBe(true);
