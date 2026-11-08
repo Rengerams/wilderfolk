@@ -9,6 +9,8 @@ import type { PopulationCounts } from '../src/game/entityCounts';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { EntitySpatialGrid } from '../src/game/spatialGrid';
 import { tickDailyPopulation } from '../src/game/dailyPopulation';
+import { getOpenPlayerBeds } from '../src/game/populationGrowth';
+import { getResidenceCapacity } from '../src/game/housingModel';
 import { getSimRng, resetSimRng, setSimSeed } from '../src/game/simRng';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 
@@ -118,6 +120,27 @@ afterEach(() => {
 });
 
 describe('daily immigration and the spatial grid (F6)', () => {
+  it('does not admit anyone when the population cap has room but all assignable beds are occupied', () => {
+    const { state, ctx, allAlive, counts } = fixture();
+    const home = state.buildings[0];
+    const capacity = getResidenceCapacity(home);
+    for (let id = 3; id <= capacity; id++) {
+      const resident = settler(id, home.x, home.y);
+      allAlive.push(resident);
+      state.entities.push(resident);
+      ctx.entityById.set(id, resident);
+      counts.humans++;
+    }
+    home.occupants = allAlive.map((human) => human.id);
+    expect(getOpenPlayerBeds(state)).toBe(0);
+
+    setSimSeed(seedAdmittingSettler());
+    tickDailyPopulation(state, ctx, allAlive, counts);
+
+    expect(state.maxHumanPopulation).toBeGreaterThan(counts.humans);
+    expect(ctx.newEntities).toHaveLength(0);
+    expect(state.eventLog.some((event) => event.type === 'migration')).toBe(false);
+  });
   it('indexes an admitted settler in mobileGrid during the same tick', () => {
     const { state, ctx, allAlive, counts, mobileGrid, before } = fixture();
 
