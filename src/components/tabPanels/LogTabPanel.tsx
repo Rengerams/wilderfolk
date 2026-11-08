@@ -1,12 +1,13 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyWithRetry } from '../lazyWithRetry';
 import type { WorldState } from '../../game/gameEngine';
 import type { ChronicleExportMeta } from '../../game/eventLogExport';
 // `LogSubTab` is owned by `useGameShellState`; declaring a second same-named union here would
 // make added members unreachable.
 import type { LogFilter, LogSubTab } from '../../hooks/useGameShellState';
 
-const EventLogPanel = lazy(() => import('../../game/EventLogPanel'));
-const CombatLogPanel = lazy(() => import('../CombatLogPanel'));
+const EventLogPanel = lazyWithRetry(() => import('../../game/EventLogPanel'));
+const CombatLogPanel = lazyWithRetry(() => import('../CombatLogPanel'));
 
 export interface LogTabPanelProps {
   state: WorldState;

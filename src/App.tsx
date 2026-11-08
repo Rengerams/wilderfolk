@@ -1,6 +1,6 @@
 import { getBattleProgressPercent, RAID_BATTLE_HOURS } from './game/frontierCombat';
 import { isStripBuildType } from './game/stripBuild';
-import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, lazy, Suspense } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, Suspense } from 'react';
 import {
   initGame,
   initTradeRoutes,
@@ -64,9 +64,10 @@ import { discardSpotlightReturn, takeSpotlightReturn } from './components/spotli
 import { isPlayerHuman } from './game/playerHuman';
 import { areNamesLoaded, loadNames, fixDefaultNames } from './game/nameLoader';
 import { ensureDialogueBankFromBundle, preloadDialogueBank } from './game/dialogueTrees';
-const IntroScreen = lazy(() => import('./game/IntroScreen'));
-const MapSetupScreen = lazy(() => import('./game/MapSetupScreen'));
-const CombatPreviewPanel = lazy(() => import('./game/CombatPreviewPanel'));
+import { lazyWithRetry } from './components/lazyWithRetry';
+const IntroScreen = lazyWithRetry(() => import('./game/IntroScreen'));
+const MapSetupScreen = lazyWithRetry(() => import('./game/MapSetupScreen'));
+const CombatPreviewPanel = lazyWithRetry(() => import('./game/CombatPreviewPanel'));
 import ActiveEventBanner from './components/ActiveEventBanner';
 import VillageRequestCard from './components/VillageRequestCard';
 import BigNewsBanner from './components/BigNewsBanner';
@@ -77,7 +78,7 @@ import SelectedEntityPanel from './components/SelectedEntityPanel';
 import FamilyTreeWindow from './components/FamilyTreeWindow';
 import WorkHoursWindow from './components/WorkHoursWindow';
 const SimulationDiagnosticsPanel = import.meta.env.DEV
-  ? lazy(() => import('./components/SimulationDiagnosticsPanel'))
+  ? lazyWithRetry(() => import('./components/SimulationDiagnosticsPanel'))
   : null;
 import { setRelationshipDiagnosticsConsoleLoggingEnabled } from './game/relationshipDiagnostics';
 import GamePlayLayout from './components/GamePlayLayout';

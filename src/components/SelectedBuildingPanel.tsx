@@ -1,5 +1,6 @@
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, useState } from 'react';
 import CollapsibleSection from './CollapsibleSection';
+import { lazyWithRetry } from './lazyWithRetry';
 import {
   BuildingType, EntityType, BUILDING_JOB_TYPES, WORKSHOP_RECIPES, getWorkshopRecipe, formatRecipeInputs,
   getTerrainEfficiencyMultiplier, getAdjacencyMultiplier,
@@ -55,8 +56,8 @@ import type { ForgeOrderId, RaidChoice } from '../game/gameTypes';
 import type { RivalSettlement } from '../game/gameTypes';
 import type { WorkerCommand } from '../game/simWorker/commands';
 
-const CombatPreviewPanel = lazy(() => import('../game/CombatPreviewPanel'));
-const BlacksmithForgePanel = lazy(() => import('./BlacksmithForgePanel'));
+const CombatPreviewPanel = lazyWithRetry(() => import('../game/CombatPreviewPanel'));
+const BlacksmithForgePanel = lazyWithRetry(() => import('./BlacksmithForgePanel'));
 
 /** Settlers named under the empty worker picker before the rest are only counted. */
 const STAFFING_REFUSAL_LIMIT = 4;

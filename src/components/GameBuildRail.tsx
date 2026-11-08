@@ -1,10 +1,11 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
+import { lazyWithRetry } from './lazyWithRetry';
 import type { WorldState } from '../game/gameEngine';
 import type { BuildingType } from '../game/gameTypes';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { BUILDING_HOTKEYS } from '../game/hotkeys';
 
-const BuildCatalogPanel = lazy(() => import('./BuildCatalogPanel'));
+const BuildCatalogPanel = lazyWithRetry(() => import('./BuildCatalogPanel'));
 
 type GameBuildRailProps = {
   world: WorldState;

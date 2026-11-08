@@ -1,9 +1,10 @@
 import type { RefObject } from 'react';
 import type { GameLoop } from '../game/gameLoop';
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
+import { lazyWithRetry } from './lazyWithRetry';
 
 const PerformanceProfilerPanel = import.meta.env.DEV
-  ? lazy(() => import('./PerformanceProfilerPanel'))
+  ? lazyWithRetry(() => import('./PerformanceProfilerPanel'))
   : null;
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';

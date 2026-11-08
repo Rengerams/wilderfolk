@@ -1,7 +1,8 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
 import type { FrontierPanelProps } from '../FrontierPanel';
+import { lazyWithRetry } from '../lazyWithRetry';
 
-const FrontierPanel = lazy(() => import('../FrontierPanel'));
+const FrontierPanel = lazyWithRetry(() => import('../FrontierPanel'));
 
 /**
  * The wrapper adds `Suspense` + `lazy` and nothing else, so it forwards the child's own contract —
