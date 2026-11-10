@@ -37,15 +37,15 @@ describe('human movement helpers', () => {
     expect(nextTargetTile).not.toBe(first);
   });
 
-  it('keeps a blocked commuter moving so the stuck detector can recover', () => {
+  it('stops a blocked commuter instead of repeatedly walking into a wall', () => {
     const map = testWorldMap({ tilesX: 40, tilesY: 30 });
-    const wall = { ...building, id: 8, type: BuildingType.Wall, x: 100, y: 150, width: 10, height: 300 } as Building;
+    const wall = { ...building, id: 8, type: BuildingType.Wall, x: 100, y: 150, width: 10, height: 300, completed: true } as Building;
     const target = { ...building, id: 9, type: BuildingType.House, x: 200, y: 150, width: 20, height: 20 } as Building;
     const person = { id: 1, type: EntityType.Human, x: 50, y: 150, alive: true, vx: 0, vy: 0 } as Entity;
     setCurrentPathMap(map, [wall]);
 
     expect(commuteHumanToBuilding(person, target, 2)).toBe(false);
-    expect(Math.hypot(person.vx, person.vy)).toBeGreaterThan(0);
+    expect([person.vx, person.vy]).toEqual([0, 0]);
 
     setCurrentPathMap(null);
   });

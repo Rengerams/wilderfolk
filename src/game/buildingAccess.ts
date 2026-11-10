@@ -1,6 +1,6 @@
 /**
- * The one building access — the doorstep every walker, route, frontage slot and view shares.
- * Chosen from the footprint and the walk grid alone, never from the approaching settler's side.
+ * Canonical building access geometry: every reachable facade has a valid stand point.
+ * The selected approach may vary with the settler; arrival uses one shared reach rule.
  */
 import { PATH_CELL } from './gameTypes';
 import type { Building, Entity } from './gameTypes';
@@ -42,18 +42,13 @@ function isOpenDoorstep(x: number, y: number, normalX: number, normalY: number):
 }
 
 /**
- * The one access of a building: just outside the collision footprint, on the first side whose
- * doorstep is walkable ground with open ground in front of it. Independent of the walker, so
- * route, arrival, porch slots and the dashboard cannot disagree about where the door is.
+ * Every facade that has a walkable, reachable access point. Order is deterministic for stable
+ * presentation: the first entry remains the canonical south-first frontage used by UI consumers.
+ * Movement can choose another entry when arriving from another side or when a wall blocks one side.
  */
-export function buildingAccessPoint(building: Building): BuildingAccessPoint {
+export function buildingAccessPoints(building: Building): BuildingAccessPoint[] {
   const rect = getBuildingFootprintRect(building);
-  // A fully enclosed building keeps its south front; the path owner reports the blocked walk.
-  const front: BuildingAccessPoint = {
-    x: building.x,
-    y: rect.bottom + BUILDING_ACCESS_STANDOFF_PX,
-    side: 'south',
-  };
+  const points: BuildingAccessPoint[] = [];
   for (const { side, normalX, normalY } of BUILDING_ACCESS_SIDES) {
     const edgeX = normalX > 0 ? rect.right : normalX < 0 ? rect.left : building.x;
     const edgeY = normalY > 0 ? rect.bottom : normalY < 0 ? rect.top : building.y;
@@ -63,11 +58,26 @@ export function buildingAccessPoint(building: Building): BuildingAccessPoint {
       const x = baseX + normalX * PATH_CELL * step;
       const y = baseY + normalY * PATH_CELL * step;
       if (isOpenDoorstep(x, y, normalX, normalY) && isAtBuildingReach({ x, y }, building)) {
-        return { x, y, side };
+        points.push({ x, y, side });
+        break;
       }
     }
   }
-  return front;
+  return points;
+}
+
+/**
+ * Canonical stable frontage for house/venue presentation and distance estimates.
+ * A fully enclosed building retains its south marker, but movement only selects the
+ * validated candidates from buildingAccessPoints and never walks toward this fallback.
+ */
+export function buildingAccessPoint(building: Building): BuildingAccessPoint {
+  const rect = getBuildingFootprintRect(building);
+  return buildingAccessPoints(building)[0] ?? {
+    x: building.x,
+    y: rect.bottom + BUILDING_ACCESS_STANDOFF_PX,
+    side: 'south',
+  };
 }
 
 /**
