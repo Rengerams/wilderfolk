@@ -13,7 +13,7 @@ import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees'
 import { ensureEntitySkills } from './skills';
 import { simulateElectionVotes } from './electionVotes';
 import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
-import { findPlayerTownHall } from './playerTownHall';
+import { findCompletedBuilding } from './buildings';
 import { seededRandomForRun } from './simRng';
 import { humanDisplayName } from './citizenId';
 import { friendCount, isMarriedOrExpecting, MAX_CLOSE_FRIENDS_PER_SETTLER, startFeud } from './relationships';
@@ -446,7 +446,7 @@ export function getElectionGatherSite(state: WorldState): { x: number; y: number
     building.type === 'square' && building.completed && building.faction !== 'rival'
   );
   if (square) return { x: square.x + square.width / 2, y: square.y + square.height / 2 };
-  const hall = findPlayerTownHall(state.buildings);
+  const hall = findCompletedBuilding(state.buildings, BuildingType.TownHall);
   if (hall) {
     return { x: hall.x + hall.width / 2, y: hall.y + hall.height / 2 };
   }
@@ -800,7 +800,7 @@ export function startElectionCeremony(
   };
 
   const place = state.buildings.some((building) => building.type === 'square' && building.completed && building.faction !== 'rival')
-    ? 'the Village Square' : findPlayerTownHall(state.buildings) ? 'the Town Hall' : 'the village center';
+    ? 'the Village Square' : findCompletedBuilding(state.buildings, BuildingType.TownHall) ? 'the Town Hall' : 'the village center';
 
   logEvent(
     state,

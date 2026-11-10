@@ -34,7 +34,7 @@ import { getWorkforcePolicy } from './workforcePolicy';
 import { readSkill } from './skills';
 import { getOpenPlayerBeds } from './populationGrowth';
 import { canHostTownFestival } from './townHall';
-import { findPlayerTownHall } from './playerTownHall';
+import { findCompletedBuilding } from './buildings';
 import { canStartResearch } from './research';
 import { getRefugeeChoiceEligibility, getVisitorLeaderTalkMeta, getVisitorTradeEligibility, getVillageRequestEligibility, type RefugeeChoice, type VisitorTradeAction } from './groupEvents';
 import { getDiplomacyChoiceEligibility, getPeaceTreatyEligibility, getRivalGiftEligibility, getRivalTradePactEligibility, getShowStrengthEligibility } from './rivalDiplomacy';
@@ -768,7 +768,7 @@ function decideResearch(state: WorldState): VirtualPlayerDecision | null {
 
 /** 8 — a staffed, stocked Town Hall whose festival cooldown has elapsed. */
 function decideFestival(state: WorldState): VirtualPlayerDecision | null {
-  const hall = findPlayerTownHall(state.buildings);
+  const hall = findCompletedBuilding(state.buildings, BuildingType.TownHall);
   if (!hall) return null;
   // The festival owner also requires an assigned official, stores, and no
   // running festival; checking first avoids an hourly rejected command.
