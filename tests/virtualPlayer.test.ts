@@ -420,6 +420,34 @@ function expectNothingLeftButUpgrades(decision: ReturnType<typeof decideVirtualP
 }
 
 describe('virtual player decision engine', () => {
+  it('never auto-builds or upgrades decorative objects, whether housed or homeless', () => {
+    const completedHouse = building(1, BuildingType.House, { occupants: [1, 2, 3] });
+    const fixtures = [
+      makeWorld([human(1), human(2), human(3)], []),
+      makeWorld([human(1), human(2), human(3)], [
+        building(2, BuildingType.House, { completed: false, constructionProgress: 20 }),
+      ]),
+      settledVillage(3),
+      makeWorld(
+        [human(1, { residenceBuildingId: 1 }), human(2, { residenceBuildingId: 1 }),
+          human(3, { residenceBuildingId: 1 })],
+        [completedHouse, building(45, BuildingType.Garden), building(46, BuildingType.Statue),
+          building(47, BuildingType.Lamp), building(48, BuildingType.Fence)],
+      ),
+    ];
+    for (const state of fixtures) {
+      const action = decideVirtualPlayerAction(state)?.command;
+      if (!action) continue;
+      if (action.op === 'startBuilding' || action.op === 'placeStripChain') {
+        expect(BUILDING_CONFIGS[action.type].decor, JSON.stringify(action)).not.toBe(true);
+      }
+      if (action.op === 'upgradeBuilding') {
+        const site = state.buildings.find((entry) => entry.id === action.buildingId);
+        expect(site && BUILDING_CONFIGS[site.type].decor, JSON.stringify(action)).not.toBe(true);
+      }
+    }
+  });
+
   it('proposes a House when a settler is homeless and placement is legal', () => {
     const world = makeWorld([human(1), human(2), human(3)], []);
 

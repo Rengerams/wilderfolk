@@ -1434,6 +1434,7 @@ function decideUpgrades(state: WorldState): VirtualPlayerDecision | null {
 
   for (const building of state.buildings) {
     if (!building.completed || building.faction === 'rival') continue;
+    if (BUILDING_CONFIGS[building.type].decor) continue;
     if (!buildingTypeHasLevelBenefit(building.type)) continue;
     if (!getBuildingUpgradeEligibility(state, building.id).ok) continue;
     if (!canAffordUpgradeWithReserve(state, building)) continue;
@@ -1546,6 +1547,7 @@ function decideCommunity(state: WorldState): VirtualPlayerDecision | null {
   for (const { type, needed, foodReserveDays } of COMMUNITY_BUILD_ORDER) {
     // The reserve is per entry: a comfort building waits for the strict community reserve, while a
     // storehouse for a shelf that is already full only clears the general food buffer.
+    if (BUILDING_CONFIGS[type].decor) continue; // The bot never spends resources or plots on decoration.
     if (!hasFoodMargin(state, foodReserveDays ?? VirtualPlayer.COMMUNITY_FOOD_RESERVE_DAYS)) continue;
     if (needed(state) && canAfford(state, BUILDING_CONFIGS[type].cost)) {
       const spot = findPlacementSpot(state, type, 0);
@@ -1625,8 +1627,7 @@ const COMMUNITY_BUILD_ORDER: readonly ServiceBuildOption[] = [
       !ownsBuildingOfType(state, BuildingType.WildlifePreserve)
       && getEcosystemHealth(state) < VirtualPlayer.ECOLOGY_HEALTHY_THRESHOLD,
   },
-  // Everything else the catalogue offers, one of each, appended after the entries that already had a
-  // rule. Each is priced, gated and sited by its own owners; functional ones clear the general buffer.
+  // Functional settlement services, not decoration. Each is priced and gated by its owner.
   {
     type: BuildingType.Market,
     needed: (state) => !ownsBuildingOfType(state, BuildingType.Market),
@@ -1645,18 +1646,6 @@ const COMMUNITY_BUILD_ORDER: readonly ServiceBuildOption[] = [
   {
     type: BuildingType.Mansion,
     needed: (state) => !ownsBuildingOfType(state, BuildingType.Mansion),
-  },
-  {
-    type: BuildingType.Garden,
-    needed: (state) => !ownsBuildingOfType(state, BuildingType.Garden),
-  },
-  {
-    type: BuildingType.Statue,
-    needed: (state) => !ownsBuildingOfType(state, BuildingType.Statue),
-  },
-  {
-    type: BuildingType.Lamp,
-    needed: (state) => !ownsBuildingOfType(state, BuildingType.Lamp),
   },
 ];
 
@@ -1746,8 +1735,8 @@ function decideRivalRelations(state: WorldState): VirtualPlayerDecision | null {
 }
 
 /**
- * 26 — the defence a village raises once words have failed: a watchtower, a barracks, then a wall, its
- * gate and a fence. Walls and fences are strip types, placed one short run per act through the owner preview.
+ * 26 — the defence a village raises once words have failed: a watchtower, a barracks, then a wall
+ * and its gate. Decorative fences are player-only; walls/gates use the owner preview.
  */
 const DEFENCE_BUILD_ORDER: readonly BuildingType[] = [
   BuildingType.Watchtower,
@@ -1757,7 +1746,6 @@ const DEFENCE_BUILD_ORDER: readonly BuildingType[] = [
 const PERIMETER_ORDER: readonly BuildingType[] = [
   BuildingType.Wall,
   BuildingType.WallGate,
-  BuildingType.Fence,
 ];
 
 /** Tiles one perimeter act may lay, so a wall appears a piece at a time. */
@@ -1806,7 +1794,7 @@ function decidePerimeter(state: WorldState): VirtualPlayerDecision | null {
   }
 
   for (const type of PERIMETER_ORDER) {
-    if (ownsBuildingOfType(state, type)) continue;
+    if (BUILDING_CONFIGS[type].decor || ownsBuildingOfType(state, type)) continue;
     // A gate joins a wall; it is not the first thing a colony puts up.
     if (type === BuildingType.WallGate && !ownsBuildingOfType(state, BuildingType.Wall)) continue;
     if (!canAffordKeepingRepair(state, BUILDING_CONFIGS[type].cost)) continue;
@@ -1827,6 +1815,9 @@ function decidePerimeter(state: WorldState): VirtualPlayerDecision | null {
  * needs nothing the bot knows how to fix. Pure: it never writes to `state`.
  */
 export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecision | null {
+  // Zero (or too few) spare beds is housing pressure even before someone is homeless.
+  // Essential production and civic decisions remain available; optional spending must wait.
+  const housingReserveShortage = getOpenPlayerBeds(state) < spareBedReserve(state);
   return (
     answerOpenCard(state)
     ?? decideLeaderHouse(state)
@@ -1850,14 +1841,14 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
     ?? decideDemolish(state)
     ?? decideUpkeep(state)
     // Defence of the village outranks one more gift: fortifying waits until gifting has failed.
-    ?? decidePerimeter(state)
+    ?? (housingReserveShortage ? null : decidePerimeter(state))
     ?? decideRivalRelations(state)
     // Last two on purpose: a community building and a building upgrade are the only proposals
     // that may spend an hour nothing else wanted, so neither can shadow defence or diplomacy.
-    ?? decideCommunity(state)
+    ?? (housingReserveShortage ? null : decideCommunity(state))
     // Storage growth is desirable, but cannot starve research, repairs or recruiting.
-    ?? decideIndustry(state, true)
-    ?? decideUpgrades(state)
+    ?? (housingReserveShortage ? null : decideIndustry(state, true))
+    ?? (housingReserveShortage ? null : decideUpgrades(state))
   );
 }
 
