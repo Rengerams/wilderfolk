@@ -20,6 +20,7 @@ import {
 
 /** The decision keys required by NEXT_AGENT_OBJECTIVES.md Objective 2 (+ housing, 2026-08-20). */
 const REQUIRED_DECISIONS = [
+  'navigation',
   'workerMotionPresentation',
   'virtualPlayer',
   'chronicleProseNames',
@@ -59,6 +60,7 @@ const REQUIRED_DECISIONS = [
 
 /** Pure projections only; dialogueContent persists speaker scene history and is not read-only. */
 const READ_ONLY_DECISIONS = new Set<string>([
+  'navigation',
   'terrainRiverSurface',
   'traitInfluence',
   'workerFit',
