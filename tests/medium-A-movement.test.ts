@@ -526,17 +526,26 @@ describe('water and walls are solid under every walk', () => {
       .toBeLessThan(wall.x);
   });
 
-  it('moves a persistently stuck walker to nearby walkable ground', () => {
+  it('stops repeated blocked steps without teleporting or entering solid terrain', () => {
     const map = makeMap(40, 40, 946, (x) => x === 20);
     setCurrentPathMap(map, []);
     const walker = human(7, pixel(19, 10), pixel(10, 10));
     const startX = walker.x;
-    walker.vx = 2;
+    const startY = walker.y;
 
-    for (let tick = 0; tick < 20; tick++) applyHumanWalkStep(walker, 1);
+    // A stale steering request can recur while the route is invalidated. It must not move the
+    // settler backwards, snap to a remote cell or push through the impassable river column.
+    for (let tick = 0; tick < 20; tick++) {
+      walker.vx = 2;
+      applyHumanWalkStep(walker, 1);
+      expect(blockedAt(map, [], walker.x, walker.y), 'step entered blocked ground').toBe(false);
+      expect(walker.x, 'blocked recovery jumped behind the starting point').toBeGreaterThanOrEqual(startX);
+      expect(walker.x, 'blocked recovery crossed the river boundary').toBeLessThan(20 * PATH_CELL);
+      expect(walker.y, 'blocked recovery changed the walk row').toBe(startY);
+    }
 
-    expect(walker.x, 'the walker remained pinned against the obstacle').toBeLessThan(startX);
-    expect(blockedAt(map, [], walker.x, walker.y), 'recovery must use walkable ground').toBe(false);
+    expect(walker.vx, 'blocked steering should stop movement until a valid new route exists').toBe(0);
+    expect(walker.vy).toBe(0);
   });
 
   it('routes a short leg through a gap instead of fording it', () => {
