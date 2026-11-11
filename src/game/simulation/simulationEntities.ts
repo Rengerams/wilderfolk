@@ -140,19 +140,20 @@ export function allLivingHumans(
   return Array.from(byId.values());
 }
 
+const HUNTER_TYPES: readonly EntityType[] = [
+  EntityType.Wolf,
+  EntityType.Fox,
+  EntityType.Werewolf,
+  EntityType.Wildkin,
+  EntityType.Human,
+];
+
 export function buildHuntTargetByPreyIndex(
   byType: Partial<Record<EntityType, Entity[]>>,
 ): Map<number, Set<number>> {
   const index = new Map<number, Set<number>>();
-  const hunterTypes = [
-    EntityType.Wolf,
-    EntityType.Fox,
-    EntityType.Werewolf,
-    EntityType.Human,
-  ] as const;
-
-  for (let t = 0; t < hunterTypes.length; t++) {
-    const type = hunterTypes[t];
+  for (let t = 0; t < HUNTER_TYPES.length; t++) {
+    const type = HUNTER_TYPES[t];
     const bucket = byType[type];
     if (!bucket) continue;
 
@@ -172,17 +173,6 @@ export function buildHuntTargetByPreyIndex(
 
   return index;
 }
-
-/**
- * The only types that can hold a `huntTargetId` — the same set
- * `buildHuntTargetByPreyIndex` indexes.
- */
-const HUNTER_TYPES: readonly EntityType[] = [
-  EntityType.Wolf,
-  EntityType.Fox,
-  EntityType.Werewolf,
-  EntityType.Human,
-];
 
 export function clearHuntersTargetingPrey(
   preyId: number,
