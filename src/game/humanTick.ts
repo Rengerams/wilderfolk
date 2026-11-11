@@ -27,7 +27,7 @@ import {
   isWithinWorkCommuteLead,
   isWorkScheduleHour,
 } from './workSchedule';
-import { isWorkDay } from './dayCycleClock';
+import { isWorkDay, TICKS_PER_HOUR } from './dayCycleClock';
 import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, isOnMoonHowlerNightShift, isWeekend, getAbsoluteCalendarDay, isNightHour, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
 import { hasResidenceAssignment, isNearResidence, isResidenceBuilding, shareResidence } from './housingModel';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
@@ -94,7 +94,8 @@ import {
   steerVisitorToHotel,
 } from './hotelStay';
 import { prisonGuardIds } from './prisonGuardDuty';
-import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
+import { prisonDutyForGuard } from './prisonShifts';
+import { MAX_COMMUTE_LEAD_HOURS, quoteBuildingCommute } from './commuteReach';
 import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
 import { crowdGatherPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
@@ -156,7 +157,7 @@ import { syncEntityGrids } from './simulation/simulationEntities';
 
 /** A departure is sticky until the watch begins: recalculating lead time from the
  * shrinking remaining distance otherwise switches a guard's commute off mid-journey. */
-const prisonGuardCommuteStarted = new WeakMap<Entity, { prisonId: number; shiftStartHour: number }>();
+const prisonGuardCommuteStarted = new WeakMap<Entity, { prisonId: number; shiftStartTick: number }>();
 
 /** Live on-screen intimate tryst distance. */
 const AFFAIR_INTIMATE_RADIUS = 22;
@@ -634,27 +635,36 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     const isPrisonGuardAtPost =
       entity.job === JobType.PrisonGuard && workplace?.type === BuildingType.Prison && workplace.completed;
-    const prisonShift = isPrisonGuardAtPost
-      ? prisonShiftForGuard(entity.id, prisonGuardIds(state, workplace.occupants ?? []), state.tick)
+    const prisonDuty = isPrisonGuardAtPost
+      ? prisonDutyForGuard(entity.id, prisonGuardIds(state, workplace.occupants ?? []), state.tick)
       : null;
-    const onPrisonShift = prisonShift != null && shiftCoversHour(prisonShift, hourOfDay);
+    const prisonShift = prisonDuty?.shift ?? null;
+    const onPrisonShift = prisonDuty?.onShift === true;
     const prisonShiftStartHour = prisonShift?.startHour ?? workSchedule.startHour;
-    const prisonCommuteLeadHours = isPrisonGuardAtPost && prisonShift != null && workplace
-      ? commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace), config.speed)
-      : 0;
-    // Prison watches run every day, including weekends. Once the early commute starts,
-    // shrinking distance must not move the departure threshold ahead of the walking guard.
+    // Absolute shift starts preserve last night's watch through midnight and let a new
+    // week's morning guard depart on Sunday. Quoted detours use the same commute owner
+    // as work/school, rather than planning an unrealistically short straight-line walk.
     const previousPrisonCommute = prisonGuardCommuteStarted.get(entity);
-    const prisonCommuteDue = isPrisonGuardAtPost && prisonShift != null && (
-      onPrisonShift || isWithinWorkCommuteLead(state.tick, prisonShiftStartHour, prisonCommuteLeadHours)
-      || (previousPrisonCommute?.prisonId === workplace.id
-        && previousPrisonCommute.shiftStartHour === prisonShiftStartHour)
+    const alreadyDeparted = previousPrisonCommute?.prisonId === workplace?.id
+      && previousPrisonCommute.shiftStartTick === prisonDuty?.startTick;
+    const prisonRoute = workplace && prisonDuty && !onPrisonShift && !alreadyDeparted
+      ? quoteBuildingCommute(entity, workplace, config.speed) : null;
+    const estimatedPrisonHours = prisonRoute?.status === 'priced'
+      ? prisonRoute.leadHours
+      : workplace ? commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace), config.speed) : 0;
+    // Half an hour of travel reserve means the one-hour handover is a real overlap,
+    // not the only thing keeping the prison covered while the replacement arrives.
+    const prisonCommuteLeadHours = Math.min(MAX_COMMUTE_LEAD_HOURS, estimatedPrisonHours + 0.5);
+    const prisonCommuteDue = prisonDuty != null && (
+      onPrisonShift || alreadyDeparted
+      || (state.tick < prisonDuty.startTick
+        && state.tick >= prisonDuty.startTick - prisonCommuteLeadHours * TICKS_PER_HOUR)
     );
-    if (!prisonCommuteDue || onPrisonShift || prisonShift == null) {
+    if (!prisonCommuteDue || onPrisonShift || prisonDuty == null) {
       prisonGuardCommuteStarted.delete(entity);
     } else if (workplace) {
       prisonGuardCommuteStarted.set(entity, {
-        prisonId: workplace.id, shiftStartHour: prisonShiftStartHour,
+        prisonId: workplace.id, shiftStartTick: prisonDuty.startTick,
       });
     }
 
@@ -885,8 +895,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const commuteLeadHours = workplace
       ? commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace), config.speed)
       : 0;
-    const workCommuteDue = workplace != null
-      && (isPrisonGuardAtPost || isWorkDay(state.tick))
+    const workCommuteDue = isPrisonGuardAtPost ? prisonCommuteDue : workplace != null
+      && isWorkDay(state.tick)
       && (goWorkTime || onWorkCommuteHours
         || isWithinWorkCommuteLead(state.tick, commuteStartHour, commuteLeadHours));
 
