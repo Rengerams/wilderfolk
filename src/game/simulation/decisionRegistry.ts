@@ -251,10 +251,10 @@ export const SIMULATION_DECISIONS = {
   workSchedule: {
     owner: 'workSchedule.ts — validateWorkSchedule, normalizeWorkSchedule, getWorkSchedule, setWorkSchedule, isWorkScheduleHour, isOnWorkScheduleShift; humanSchedule.ts — home/night/festival/shift-aligned sleep policy (shouldBeAtHomeFor, prefersHomeTonightFor, preShiftSleepPlan, allowSocialLifeFor); prisonShifts.ts — prisonDutyForGuard (absolute watch owner, internal holds predicate)',
     cadence: 'player-command',
-    cadenceNote: 'The shipped window is 07–16; the player may set any non-wrapping whole-hour window. The command writes only world.workSchedule. Renderer status, work audio, town-hall hours, home preference and shift checks read that configured window hourly instead of a hard-coded legacy 07–18 default.',
+    cadenceNote: 'The shipped window is 07–16; the player may set any non-wrapping whole-hour window. The command writes only world.workSchedule. `humanSchedule.preShiftSleepPlan` reads upcoming prison, hospital, venue or day shift and home-to-work commute; `humanTick.observeHumanSleep` honors the planned rest after confirmed arrival home, and the realtime tick gives departure priority over sleep. The sleep policy is read-only; physiology remains the sole writer of needs.',
     writes: ['workSchedule'],
     scheduledFrom: 'simWorker/commands.ts "setWorkSchedule"; renderer/humans, hooks/useGameAudio, townHall and humanStatus read getWorkSchedule',
-    testFile: 'tests/workSchedule.bounds.test.ts, tests/humanSchedule.defaultWindow.test.ts, tests/audio.workDetect.test.ts',
+    testFile: 'tests/workSchedule.bounds.test.ts, tests/humanSchedule.defaultWindow.test.ts, tests/prisonFestivalWorkContinuity.test.ts, tests/audio.workDetect.test.ts',
   },
   school: {
     owner: 'education.ts — syncSchoolAssignments, findSchoolForChild, schoolCapacity, isSchoolTime (weekday 09–15), buildSchoolRosters, recordChildSchoolTick, creditChildSchoolDay, applyEducationGraduation',
