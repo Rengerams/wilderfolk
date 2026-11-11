@@ -1,4 +1,4 @@
-import { MAX_ASSIGNABLE_COMMUTE_HOURS, WORK_COMMUTE_RUSH, quoteBuildingCommute } from './commuteReach';
+import { MAX_ASSIGNABLE_COMMUTE_HOURS, MAX_COMMUTE_LEAD_HOURS, WORK_COMMUTE_RUSH, quoteBuildingCommute } from './commuteReach';
 import type { WorldState, Entity, Building, VisitorGroup, RivalSettlement } from './gameTypes';
 import { EntityType, BuildingType, JobType, Season, PATH_CELL } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
@@ -95,7 +95,7 @@ import {
 } from './hotelStay';
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonDutyForGuard } from './prisonShifts';
-import { MAX_COMMUTE_LEAD_HOURS, quoteBuildingCommute } from './commuteReach';
+
 import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
 import { crowdGatherPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
