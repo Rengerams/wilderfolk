@@ -101,12 +101,15 @@ export function findSchoolForChild(
   let best: Building | undefined;
   let bestCost = Infinity;
   let currentCost = Infinity;
+  let currentEligible = false;
+  let currentPending = false;
   let pending = false;
   for (const school of schools) {
     if ((reserved?.get(school.id) ?? 0) >= schoolCapacity(school)) continue;
     const route = gridReady ? quoteBuildingCommute(home ?? child, school, walkSpeed) : null;
     if (route?.status === 'pending') {
       pending = true;
+      if (current?.id === school.id) currentPending = true;
       continue;
     }
     if (route?.status === 'unreachable') continue;
@@ -116,16 +119,19 @@ export function findSchoolForChild(
       ? route.leadHours : commuteLeadHoursFor(distance, walkSpeed);
     if (current?.id === school.id) currentCost = distance;
     if (hours > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
+    if (current?.id === school.id) currentEligible = true;
     const cost = distance;
     if (cost < bestCost) {
       best = school;
       bestCost = cost;
     }
   }
-  // A scheduled review may improve a priced route, but cannot evict an incumbent on missing evidence.
-  if (current && (pending || !best || current.id === best.id)) return current;
+  // The current seat survives missing route evidence, not a completed over-limit or
+  // unreachable verdict. Free an ineligible seat even when no alternative is available.
   if (!current) return best;
-  if (currentCost === Infinity) return best;
+  if (currentPending) return current;
+  if (!currentEligible) return best;
+  if (pending || !best || current.id === best.id) return current;
   if (currentCost - bestCost < 12 || bestCost > currentCost * 0.75) return current;
   return best;
 }

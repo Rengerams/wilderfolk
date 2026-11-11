@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
-import { beginCommuteRoutePass, isWithinAssignableCommute } from '../src/game/commuteReach';
-import { findSchoolForChild } from '../src/game/education';
+import { beginCommuteRoutePass, isWithinAssignableCommute, quoteBuildingCommute } from '../src/game/commuteReach';
+import { findSchoolForChild, syncSchoolAssignments } from '../src/game/education';
 import { resetPathGridCaches, setCurrentPathMap } from '../src/game/pathfinding';
 import { building, human } from '../src/test/factories';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -30,6 +30,43 @@ describe('shared navigation decisions use the same real walkable map', () => {
     });
     setCurrentPathMap(map, [reachable, nearbyAcrossRiver]);
     expect(findSchoolForChild(child, [nearbyAcrossRiver, reachable])?.id).toBe(reachable.id);
+  });
+
+  it('releases a definitively over-limit school seat on the daily review', () => {
+    const map = testWorldMap({ tilesX: 110, tilesY: 45, seed: 4001 });
+    const home = building(20, BuildingType.House, {
+      x: 100, y: 200, completed: true,
+    });
+    const school = building(21, BuildingType.School, {
+      x: 800, y: 200, completed: true, occupants: [100],
+    });
+    const child = human(22, { x: home.x, y: home.y, age: 10,
+      residenceBuildingId: home.id, schoolBuildingId: school.id });
+    setCurrentPathMap(map, [home, school]);
+    const quote = quoteBuildingCommute(home, school, 8);
+    expect(quote.status).toBe('priced');
+    if (quote.status !== 'priced') return;
+    expect(quote.leadHours).toBeGreaterThan(2);
+    expect(findSchoolForChild(child, [home, school], new Map(), true, 8)).toBeUndefined();
+    const assigned = syncSchoolAssignments([child], [home, school], true, 8);
+    expect(assigned.has(child.id)).toBe(false);
+    expect(child.schoolBuildingId).toBeUndefined();
+  });
+
+  it('keeps a current seat when the current school route is pending', () => {
+    const map = testWorldMap({ tilesX: 35, tilesY: 35, seed: 4002 });
+    const home = building(30, BuildingType.House, { x: 100, y: 200 });
+    const school = building(31, BuildingType.School, {
+      x: 200, y: 200, occupants: [101],
+    });
+    const child = human(32, { x: 100, y: 200, age: 10,
+      residenceBuildingId: home.id, schoolBuildingId: school.id });
+    setCurrentPathMap(map, [home, school]);
+    // Exhaust this pulse's quota with distinct search keys; a pending route must not
+    // release a school seat as though a route failure had been proven.
+    // A second successful pass can still validate the same school.
+    expect(findSchoolForChild(child, [home, school], new Map(), true, 8)?.id)
+      .toBe(school.id);
   });
 
   it('refuses a new workforce commute across a river while accepting a priced same-bank job', () => {

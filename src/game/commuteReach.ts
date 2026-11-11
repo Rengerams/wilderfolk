@@ -275,7 +275,6 @@ export function quoteBuildingCommute(
   const toPoints = toBuilding ? buildingAccessPoints(destination as Building, grid) : [destination];
   if (fromPoints.length === 0 || toPoints.length === 0) return { status: 'unreachable' };
 
-  const centreDistance = Math.hypot(destination.x - origin.x, destination.y - origin.y);
   const pairs = fromPoints.flatMap((from) => toPoints.map((to) => ({
     from, to, distance: Math.hypot(to.x - from.x, to.y - from.y),
   }))).sort((a, b) => a.distance - b.distance
@@ -287,7 +286,7 @@ export function quoteBuildingCommute(
   for (const { from, to, distance: straightDistance } of pairs) {
     // Every road discount is bounded by ROAD_SPEED_MULT: this is a safe geometric
     // lower bound, used for pruning only after a confirmed route is priced.
-    const lowerBound = Math.max(centreDistance, straightDistance / (ROAD_SPEED_MULT + 0.001));
+    const lowerBound = straightDistance / (ROAD_SPEED_MULT + 0.001);
     if (lowerBound >= bestDistance) continue;
     const costTiles = routeCommuteCost(from.x, from.y, to.x, to.y, gridOverride);
     if (costTiles === null) {
@@ -302,9 +301,9 @@ export function quoteBuildingCommute(
       : costTiles * PATH_CELL
         + Math.hypot(from.x - (start.x + 0.5) * PATH_CELL, from.y - (start.y + 0.5) * PATH_CELL)
         + Math.hypot(to.x - (goal.x + 0.5) * PATH_CELL, to.y - (goal.y + 0.5) * PATH_CELL);
-    // Do not invent walking through a solid interior; use centre distance only
-    // as the pre-existing conservative floor for a scored doorstep-to-doorstep route.
-    bestDistance = Math.min(bestDistance, Math.max(centreDistance, routeDistance));
+    // Doorstep-to-doorstep weighted cost is the effective commute. An unpaved
+    // building-centre floor would erase real road discounts and reject legal jobs.
+    bestDistance = Math.min(bestDistance, routeDistance);
   }
   // A pending pair with a lower possible cost prevents a confirmed optimal quote.
   if (cheapestPendingBound < bestDistance) return { status: 'pending', reason: 'search-budget' };
