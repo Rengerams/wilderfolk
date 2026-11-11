@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { PATH_CELL } from '../src/game/gameTypes';
-import { quoteCommute } from '../src/game/commuteReach';
+import { BuildingType, PATH_CELL } from '../src/game/gameTypes';
+import { building } from '../src/test/factories';
+import { buildingAccessPoints } from '../src/game/buildingAccess';
+import { quoteBuildingCommute, quoteCommute } from '../src/game/commuteReach';
 import { findRouteCostOutcome, getNavigationQuote, resetPathGridCaches, type PathGrid } from '../src/game/pathfinding';
 import {
   flushPathfinderTickToSession, getPathfinderReport, resetPathfinderSession,
@@ -97,6 +99,35 @@ describe('shared navigation route authority — checkpoint A', () => {
     }
     expect(quoteCommute(origin, destination, 1.2, null))
       .toEqual({ status: 'pending', reason: 'no-grid' });
+  });
+
+  it('chooses the lowest priced route across all facades, not the nearest doorstep pair', () => {
+    const map = grid(60, 45);
+    map.road = new Uint8Array(map.cols * map.rows);
+    // The shortest facing-door pair must detour around a barrier. A paved south
+    // passage is farther geometrically but cheaper after actual A* travel pricing.
+    for (let y = 0; y <= 30; y++) map.blocked[y * map.cols + 25] = 1;
+    for (let x = 6; x <= 45; x++) map.road[31 * map.cols + x] = 1;
+    const home = building(1, BuildingType.House, {
+      x: 105, y: 205, width: 40, height: 200,
+    });
+    const workplace = building(2, BuildingType.Farm, {
+      x: 405, y: 205, width: 40, height: 200,
+    });
+    const start = buildingAccessPoints(home, map);
+    const end = buildingAccessPoints(workplace, map);
+    const facingHome = start.find((point) => point.side === 'east')!;
+    const facingWork = end.find((point) => point.side === 'west')!;
+    expect(facingHome).toBeDefined();
+    expect(facingWork).toBeDefined();
+    const facingRoute = quoteCommute(facingHome, facingWork, 6.4, map);
+    const best = quoteBuildingCommute(home, workplace, 6.4, map);
+    expect(facingRoute.status).toBe('priced');
+    expect(best.status).toBe('priced');
+    if (facingRoute.status !== 'priced' || best.status !== 'priced') return;
+    expect(best.costTiles).toBeLessThan(facingRoute.costTiles);
+    // A confirmed cheaper route must not be rejected near the two-hour cutoff.
+    expect(best.travelHours).toBeLessThan(facingRoute.travelHours);
   });
 
   it('isolates cache generations and invalidates them on reset', () => {
