@@ -933,6 +933,8 @@ interface CachedPath {
   waypoints: { x: number; y: number }[] | null;
   /** A clear walk rejected a road detour; keep direct travel cached across tiles. */
   directDetourRejected?: boolean;
+  /** Retry unresolved shared route searches after a bounded pause. */
+  retryAfter?: number;
   /** Waypoint the settler is currently walking toward, so progress survives a cache hit. */
   nextIndex: number;
 }
@@ -1029,6 +1031,11 @@ export function steerWithPath(
         || cached.startTileY !== Math.floor(entity.y / PATH_CELL))))) {
       cached = undefined;
     }
+    // A pending search is not an unreachable route. Do not run expensive retries every tick.
+    if (cached?.retryAfter !== undefined) {
+      if (cached.retryAfter <= 1) cached = undefined;
+      else cached.retryAfter--;
+    }
     // Reuse the route while the settler is still walking it; advance past reached waypoints and
     // recompute only when the settler has left the current segment (interrupted elsewhere).
     if (cached !== undefined && cached.waypoints !== null && cached.waypoints.length > 1) {
@@ -1057,15 +1064,19 @@ export function steerWithPath(
         || startTy >= currentGrid.rows || currentGrid.blocked[startTy * currentGrid.cols + startTx] !== 0;
       const goalBlocked = goalTx < 0 || goalTy < 0 || goalTx >= currentGrid.cols
         || goalTy >= currentGrid.rows || currentGrid.blocked[goalTy * currentGrid.cols + goalTx] !== 0;
-      // Legacy obstacle recovery can snap invalid endpoints; ordinary walkers share exact route quotes.
+      // Prefer shared optimal geometry; a remote road may exhaust its discounted A* budget.
+      // In that case retry with the existing bounded movement heuristic and preserve its
+      // path. Never downgrade a confirmed unreachable quote into an unbounded search.
+      const shared = startBlocked || goalBlocked ? null : getNavigationQuote(currentGrid,
+        { x: startTx, y: startTy }, { x: goalTx, y: goalTy }, { maxNodes: PATH_MAX_SEARCH_NODES });
       const fallback = startBlocked || goalBlocked
         ? walkRoute(currentGrid, startTx, startTy, goalTx, goalTy, PATH_MAX_SEARCH_NODES)
-        : null;
-      const shared = fallback ? null : getNavigationQuote(currentGrid,
-        { x: startTx, y: startTy }, { x: goalTx, y: goalTy }, { maxNodes: PATH_MAX_SEARCH_NODES });
-      const routeCost = fallback ? fallback.cost : shared?.status === 'priced' ? shared.costTiles : null;
-      const routeTiles = fallback?.path
-        ?? (shared?.status === 'priced' ? shared.tiles.map((tile) => ({ x: tile.x, y: tile.y })) : null);
+        : shared?.status === 'pending'
+          ? searchRoute(currentGrid, startTx, startTy, goalTx, goalTy, PATH_MAX_SEARCH_NODES, false, true)
+          : null;
+      const routeCost = shared?.status === 'priced' ? shared.costTiles : fallback?.cost ?? null;
+      const routeTiles = shared?.status === 'priced' ? shared.tiles : fallback?.path ?? null;
+      const routePending = shared?.status === 'pending' && (!fallback || fallback.hitNodeCap);
       const savesTime = routeCost !== null && routeCost * PATH_CELL < dist;
       let waypoints = routeTiles && (directBlocked || savesTime)
         ? collapseStraightWaypoints(pathWaypoints(routeTiles)) : null;
@@ -1080,6 +1091,7 @@ export function steerWithPath(
         waypoints, nextIndex: waypoints && waypoints.length > 1 ? 1 : 0,
         targetX, targetY, startTileX: startTx, startTileY: startTy,
         directDetourRejected: !directBlocked && !savesTime,
+        retryAfter: routePending && !waypoints ? 32 : undefined,
       };
       pathCache.delete(cacheKey);
       if (pathCache.size >= PATH_CACHE_LIMIT) {
