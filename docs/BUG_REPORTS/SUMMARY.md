@@ -4,6 +4,20 @@
 
 **2026-11-11 — [Invention Fair unknown choices reject or refund the story](../bug_report/2026-11-11-invention-fair-unknown-choice-side-effects.md):** investigating; guarded stage-specific answers and regression tests in the Invention Fair audit PR; CI pending.
 
+**2026-11-11 — [Invariant harness did not use SIM_SEED for world generation](../bug_report/2026-11-11-invariant-harness-ignores-sim-seed.md):** resolved; explicit seed verified by calendar-scheduler run 43005607966.
+
+**2026-11-11 — [Worker parity fixture ran 20 hours rather than the documented five days](../bug_report/2026-11-11-worker-parity-covers-only-20-hours.md):** resolved; two-day worker/main parity passed in Node.js CI 43005608136.
+
+**2026-11-11 — [Blueberry generation test assumes exact count on random terrain](../bug_report/2026-11-11-blueberry-worldgen-test-assumes-exact-random-count.md):** investigating; deterministic seed and valid bounded spawn assertions in PR #141; CI pending.
+
+**2026-11-11 — [Main pushes skip standard CI and production build](../bug_report/2026-11-11-main-push-skips-standard-ci.md):** investigating; patch runs standard tests and build for PRs and main pushes; post-merge push verification pending.
+
+**2026-11-11 — [Standard tests overwrite semantic-duplicate baseline](../bug_report/2026-11-11-standard-gate-rebases-semantic-duplicates.md):** investigating; patched test script checks the existing baseline without updating it; CI pending.
+
+**2026-11-11 — [Full test gate references nonexistent Build step](../bug_report/2026-11-11-full-test-gate-unknown-build-step.md):** investigating; corrected case-sensitive runner key; long full-suite execution pending.
+
+**2026-11-11 — [Historical producer parity check is unreachable and invalid](../bug_report/2026-11-11-producer-parity-workflow-unreachable-and-invalid.md):** investigating; opt-in manual dispatch, valid comparison iteration and Bash pipefail; 360-day workflow not yet run.
+
 **2026-11-11 — [Scenery reservations blocked ordinary walking](../bug_report/2026-11-11-scenery-reservations-blocked-walking.md):** investigating; source fix in PR #127 ignores non-solid scenery and decorative footprints, with collision and removal regression coverage; CI pending.
 
 **2026-11-08 — [Pregnancy merge introduced competing hospital thresholds](../bug_report/2026-11-08-pregnancy-individual-term-merge.md):** resolved; targeted regressions pass.

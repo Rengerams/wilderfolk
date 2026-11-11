@@ -38,7 +38,7 @@ async function main(): Promise<void> {
   try {
     // `MapSize` is Medium | Large | Huge — there is no `Small`, so this read `undefined` and
     // `initGame` resolved it to Medium anyway. Naming Medium is the same world, honestly typed.
-    let state = initGame({ villageName: 'Invariantville', size: MapSize.Medium });
+    let state = initGame({ villageName: 'Invariantville', size: MapSize.Medium, seed: SEED });
     state.resources.food = 2000;
     state.resources.wood = 2000;
     state.resources.stone = 1000;

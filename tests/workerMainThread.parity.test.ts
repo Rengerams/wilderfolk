@@ -5,6 +5,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
+import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { buildSaveData } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
 import { loadNames } from '../src/game/nameLoader';
@@ -13,7 +14,7 @@ import { WORKER_PROTO, type WorkerRequest, type WorkerResponse } from '../src/ga
 import type { WorldState } from '../src/game/gameTypes';
 
 const SEED = 4242;
-const TICKS = 240; // 5 colony days — the same fixture length the closure suite uses
+const TICKS = TICKS_PER_DAY * 2; // Two full 24-hour days, including both midnight boundaries
 
 /** The `self` the worker module registers itself on when it is imported. */
 interface WorkerSelf {
@@ -85,6 +86,9 @@ describe('seeded worker versus main-thread parity', () => {
     // Guard the fixture: the run must have actually moved the colony, or equality proves little.
     expect(seedWorldRng, 'the hand-off must carry RNG positions').toBeDefined();
     expect(mainThread.tick).toBeGreaterThan(TICKS);
+    expect(Math.floor(mainThread.tick / TICKS_PER_DAY)).toBe(
+      Math.floor(initialWorld.tick / TICKS_PER_DAY) + 2,
+    );
     expect(mainThread.entities.length).toBeGreaterThan(2);
     expect(workerWorld.tick).toBe(mainThread.tick);
 

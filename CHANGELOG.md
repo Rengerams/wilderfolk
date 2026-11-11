@@ -9,6 +9,15 @@
 
 - **Fixed (11 Nov 2026):** The Invention Fair now rejects unsupported and stale-stage story choices instead of treating them as rejection or awarding free dismantle wood. An accompanying design audit separates current mechanics from proposed features.
 
+- **Fixed (11 Nov 2026, PR #141 / review #135):** Registered the shared `inputGuards` boundary in the simulation decision registry with on-demand, read-only ownership, real save/view/worker callers and enforced registry test coverage.
+
+- **Fixed (11 Nov 2026):** The invariant harness now uses the requested seed, and worker/main parity covers two full game days. See the supplementary simulation audit.
+
+- **Fixed (11 Nov 2026):** The blueberry world-generation regression now uses a deterministic seed and accepts terrain-limited spawn counts up to the documented per-map cap instead of assuming every map can place the maximum.
+
+- **Fixed (11 Nov 2026):** CI now runs standard checks and the production build on both PRs and `main` pushes; PRs retain affected-test selection, while `main` runs the full standard suite. Standard tests no longer rewrite the semantic-duplicate baseline.
+- **Fixed (11 Nov 2026):** `npm test -- full` reaches its real `build` step, and the optional manual historical producer-parity workflow has a valid 7/30/360-day comparison loop and failure-safe Bash pipelines.
+
 - **Changed (11 Nov 2026, PR #140):** Rebalanced stamina to ~30% at bedtime after 9h work and 8h leisure. Work costs 6/h, awake idle 2/h, walking 5/h; only actual breaks recover 5/h. Seven hours of sleep still restore 100%. Existing schedule-fatigue penalties stay separate.
 
 - **Fixed (11 Nov 2026, PR #140):** Courtship now needs two awake settlers within 10 px; on-shift courtship is possible only when both actually work together at the same post. Each pair advances at most once per tick, and the selected-settler panel names the mutual courtship partner and percentage.
