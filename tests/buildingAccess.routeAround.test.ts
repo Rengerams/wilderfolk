@@ -110,6 +110,23 @@ describe('a settler reaches a building from every side', () => {
     }
   });
 
+  it('uses the accessible north facade when south is cut off by east and west walls', () => {
+    const map = testWorldMap({ tilesX: 60, tilesY: 60 });
+    const home = building(7, BuildingType.House, { x: 300, y: 300, width: 60, height: 60, occupants: [1] });
+    const west = building(8, BuildingType.Wall, { x: 135, y: 300, width: 270, height: 60 });
+    const east = building(9, BuildingType.Wall, { x: 465, y: 300, width: 270, height: 60 });
+    setCurrentPathMap(map, [home, west, east]);
+    try {
+      expect(buildingAccessPoint(home).side).toBe('south');
+      const person = human(1, { x: 300, y: 200, residenceBuildingId: home.id });
+      expect(walkHome(person, home, 200)).toBe(true);
+      expect(person.indoorBuildingId).toBe(home.id);
+      expect(person.y).toBeLessThan(home.y);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
   it('walks around a wall that blocks the direct line to the door', () => {
     const map = testWorldMap({ tilesX: 60, tilesY: 60 });
     const home = building(7, BuildingType.House, { x: 320, y: 300, width: 60, height: 60, occupants: [1] });
