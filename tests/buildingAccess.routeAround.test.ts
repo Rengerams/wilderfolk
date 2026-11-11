@@ -78,6 +78,20 @@ describe('a settler reaches a building from every side', () => {
     }
   });
 
+  it('retains all four entrances on a house whose footprint touches partial path cells', () => {
+    const map = testWorldMap({ tilesX: 40, tilesY: 40 });
+    const home = building(19, BuildingType.House, {
+      x: 146, y: 156, width: 53, height: 47,
+    });
+    setCurrentPathMap(map, [home]);
+    try {
+      expect(buildingAccessPoints(home).map((point) => point.side).sort())
+        .toEqual(['east', 'north', 'south', 'west']);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
   it('never treats an entrance beyond a river immediately outside the facade as reachable', () => {
     const map = testWorldMap({
       tilesX: 40, tilesY: 40,
