@@ -80,10 +80,12 @@ describe('The Apprentice’s Terrible Invention Fair — canonical simulation co
     maybeOfferInventionFair(state);
     expect(state.inventionFair).toBeNull();
     state.resources.wood = 100;
-    const removed = state.entities.splice(-1, 1);
+    const unavailable = [...state.entities].reverse().find((e) => e.alive && e.type === EntityType.Human);
+    if (!unavailable) throw new Error('No human for population gate');
+    unavailable.alive = false;
     maybeOfferInventionFair(state);
     expect(state.inventionFair).toBeNull();
-    state.entities.push(...removed);
+    unavailable.alive = true;
     state.buildings = [];
     maybeOfferInventionFair(state);
     expect(state.inventionFair).toBeNull();
