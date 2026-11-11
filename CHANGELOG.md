@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026, PR #141 / review #135):** Registered the shared `inputGuards` boundary in the simulation decision registry with on-demand, read-only ownership, real save/view/worker callers and enforced registry test coverage.
+
 - **Fixed (11 Nov 2026):** The invariant harness now uses the requested seed, and worker/main parity covers two full game days. See the supplementary simulation audit.
 
 - **Fixed (11 Nov 2026):** The blueberry world-generation regression now uses a deterministic seed and accepts terrain-limited spawn counts up to the documented per-map cap instead of assuming every map can place the maximum.
