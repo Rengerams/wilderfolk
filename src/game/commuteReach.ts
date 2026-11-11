@@ -269,10 +269,10 @@ export function quoteBuildingCommute(
   if (!grid) return { status: 'pending', reason: 'no-grid' };
   // A lightweight test-only grid without its blocked mask cannot validate facade points.
   const hasBlockedMask = grid.blocked?.length === grid.cols * grid.rows;
-  const fromPoints = hasBlockedMask && 'type' in origin && 'width' in origin && 'height' in origin
-    ? buildingAccessPoints(origin as Building, grid) : [origin];
-  const toPoints = hasBlockedMask && 'type' in destination && 'width' in destination && 'height' in destination
-    ? buildingAccessPoints(destination as Building, grid) : [destination];
+  const fromBuilding = hasBlockedMask && 'type' in origin && 'width' in origin && 'height' in origin;
+  const toBuilding = hasBlockedMask && 'type' in destination && 'width' in destination && 'height' in destination;
+  const fromPoints = fromBuilding ? buildingAccessPoints(origin as Building, grid) : [origin];
+  const toPoints = toBuilding ? buildingAccessPoints(destination as Building, grid) : [destination];
   if (fromPoints.length === 0 || toPoints.length === 0) return { status: 'unreachable' };
 
   const pairs = fromPoints.flatMap((from) => toPoints.map((to) => ({
@@ -287,11 +287,16 @@ export function quoteBuildingCommute(
     if (costTiles === Infinity) continue;
     const start = { x: Math.floor(from.x / PATH_CELL), y: Math.floor(from.y / PATH_CELL) };
     const goal = { x: Math.floor(to.x / PATH_CELL), y: Math.floor(to.y / PATH_CELL) };
-    const distance = start.x === goal.x && start.y === goal.y
+    const routeDistance = start.x === goal.x && start.y === goal.y
       ? Math.hypot(to.x - from.x, to.y - from.y)
       : costTiles * PATH_CELL
         + Math.hypot(from.x - (start.x + 0.5) * PATH_CELL, from.y - (start.y + 0.5) * PATH_CELL)
         + Math.hypot(to.x - (goal.x + 0.5) * PATH_CELL, to.y - (goal.y + 0.5) * PATH_CELL);
+    // Doorstep-to-doorstep alone artificially shortens a household's centre-based commute:
+    // account for the access legs on both ends, without ever routing through the solid building.
+    const distance = routeDistance
+      + (fromBuilding ? Math.hypot(from.x - origin.x, from.y - origin.y) : 0)
+      + (toBuilding ? Math.hypot(to.x - destination.x, to.y - destination.y) : 0);
     const speed = commuteWalkSpeed(walkSpeed, WORK_COMMUTE_RUSH) * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;
     return { status: 'priced', travelHours: distance / speed / TICKS_PER_HOUR,
       leadHours: commuteLeadHoursFor(distance, walkSpeed), costTiles: distance / PATH_CELL };
