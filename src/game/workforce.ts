@@ -602,18 +602,17 @@ export function assignWorkerInPlace(
       : buildingById?.get(candidate.residenceBuildingId)
         ?? buildings.find((site) => site.id === candidate.residenceBuildingId);
     const origin = home ?? candidate;
-    const route = quoteBuildingCommute(origin, building, SPECIES_CONFIG[EntityType.Human].speed);
-    const dx = origin.x - buildingX;
-    const dy = origin.y - buildingY;
-    const distance = route.status === 'priced'
-      ? route.travelHours : dx * dx + dy * dy;
-    // This bound can only EXCLUDE impossible commutes; the actual route remains the authoritative
-    // eligibility check, so distant applicants do not spend A* budget.
+    // Exclude geometrically impossible commutes before spending an A* search allowance.
     if (straightLineCommuteLowerBoundHours(origin, building, SPECIES_CONFIG[EntityType.Human].speed)
       > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
     if (!isWithinAssignableCommute(
       candidate, building, buildings, SPECIES_CONFIG[EntityType.Human].speed, buildingById,
     )) continue;
+    const route = quoteBuildingCommute(origin, building, SPECIES_CONFIG[EntityType.Human].speed);
+    const dx = origin.x - buildingX;
+    const dy = origin.y - buildingY;
+    const distance = route.status === 'priced'
+      ? route.travelHours : dx * dx + dy * dy;
     const skill = readSkill(candidate, job);
     if (worker && (distance > bestDistance || (distance === bestDistance && skill < bestSkill))) continue;
     if (worker && distance === bestDistance && skill === bestSkill) {
