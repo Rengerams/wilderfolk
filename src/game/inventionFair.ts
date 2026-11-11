@@ -339,10 +339,10 @@ function getModernInventionFairChoiceEligibility(
     if (!project) return { ok: false, blockReason: 'This project is not offered' };
     const cost = INVENTION_FAIR_PROJECTS[project];
     if (state.resources.wood < cost.wood) {
-      return { ok: false, blockReason: \`Requires \${cost.wood} wood (\${state.resources.wood} available)\` };
+      return { ok: false, blockReason: `Requires ${cost.wood} wood (${state.resources.wood} available)` };
     }
     if (state.resources.gold < cost.gold) {
-      return { ok: false, blockReason: \`Requires \${cost.gold} gold (\${state.resources.gold} available)\` };
+      return { ok: false, blockReason: `Requires ${cost.gold} gold (${state.resources.gold} available)` };
     }
     return { ok: true };
   }
@@ -359,7 +359,7 @@ function getModernInventionFairChoiceEligibility(
     }
   }
   if (choiceId === 'reward' && state.resources.gold < 10) {
-    return { ok: false, blockReason: \`Requires 10 gold (\${state.resources.gold} available)\` };
+    return { ok: false, blockReason: `Requires 10 gold (${state.resources.gold} available)` };
   }
   return { ok: true };
 }
@@ -371,7 +371,7 @@ function endModernInventionFair(state: WorldState, choice: string): void {
     [FLAG_RESOLVED]: Math.max(1, state.tick),
     [AUTHORED_STORY_COOLDOWN_FLAG]: getColonyDay(state) + AUTHORED_STORY_COOLDOWN_DAYS,
   });
-  logEvent(state, 'event', \`The Invention Fair concluded (\${choice}).\`);
+  logEvent(state, 'event', `The Invention Fair concluded (${choice}).`);
 }
 
 function resolveModernInventionFair(state: WorldState, choiceId: string, eventId?: string): boolean {
@@ -392,7 +392,7 @@ function resolveModernInventionFair(state: WorldState, choiceId: string, eventId
     fair.expiresAtTick = 0;
     fair.readyDay = getColonyDay(state) + 4
       + Math.floor(seededRoll(state.worldMap?.seed ?? 1, hashSalt('invention-demo-delay')) * 3);
-    logEvent(state, 'event', \`The apprentice received \${cost.wood} wood and \${cost.gold} gold for the \${project} experiment.\`);
+    logEvent(state, 'event', `The apprentice received ${cost.wood} wood and ${cost.gold} gold for the ${project} experiment.`);
     addNotification(state, '⚙️ Experiment funded', 'Preparation takes a few days. The demonstration will run for 24 game hours.', 'info');
     return true;
   }
@@ -404,14 +404,14 @@ function resolveModernInventionFair(state: WorldState, choiceId: string, eventId
     const committed = INVENTION_FAIR_PROJECTS[fair.project!].wood;
     const fraction = choiceId === 'salvage' ? 0.25 : 0.5;
     const recovered = addCappedResource(state, 'wood', Math.floor(committed * fraction));
-    logEvent(state, 'event', \`The apprentice recovered \${recovered} wood from the apparatus.\`);
+    logEvent(state, 'event', `The apprentice recovered ${recovered} wood from the apparatus.`);
   } else if (choiceId === 'repair') {
     if (!consumeResources(state, { wood: 15, gold: 5 })) return false;
     const site = state.buildings.find((b) => b.id === fair.siteBuildingId && b.completed);
     if (site) site.health = Math.min(site.maxHealth, site.health + fair.damagedHealth);
   }
   endModernInventionFair(state, choiceId);
-  addBigNews(state, '⚙️ Invention Fair concluded', \`The council chose to \${choiceId} after the public demonstration.\`, 'neutral');
+  addBigNews(state, '⚙️ Invention Fair concluded', `The council chose to ${choiceId} after the public demonstration.`, 'neutral');
   return true;
 }
 
@@ -499,13 +499,13 @@ export function tickInventionFairRealtime(state: WorldState): void {
       }
     }
     bumpVillageReputation(state, -10);
-    logEvent(state, 'event', \`The prototype ruptured: \${lostWood} wood and \${lostGold} gold lost, \${fair.damagedHealth} building health damaged.\`);
+    logEvent(state, 'event', `The prototype ruptured: ${lostWood} wood and ${lostGold} gold lost, ${fair.damagedHealth} building health damaged.`);
   }
   const reactions = fair.spectatorSlots.reduce((total, slot) =>
     total + Number(personDayRoll(slot.humanId, state.tick, 808) > 0.4), 0);
-  logEvent(state, 'event', \`Invention Fair outcome: \${outcome}; \${reactions} spectators react with applause or astonishment.\`);
+  logEvent(state, 'event', `Invention Fair outcome: ${outcome}; ${reactions} spectators react with applause or astonishment.`);
   fair.stage = 'resolution';
-  fair.activeEventId = \`invention_resolution_\${state.tick}\`;
+  fair.activeEventId = `invention_resolution_${state.tick}`;
   fair.expiresAtTick = state.tick + TICKS_PER_DAY * CARD_DURATION_DAYS;
   pushStoryCard(state, {
     id: fair.activeEventId,
@@ -528,5 +528,5 @@ export function tickInventionFairRealtime(state: WorldState): void {
     createdAtTick: state.tick,
     expiresAtTick: fair.expiresAtTick,
   });
-  addBigNews(state, '⚙️ The invention fair concludes', \`The experiment ended with a \${outcome}.\`, outcome === 'dangerous' ? 'negative' : 'neutral');
+  addBigNews(state, '⚙️ The invention fair concludes', `The experiment ended with a ${outcome}.`, outcome === 'dangerous' ? 'negative' : 'neutral');
 }
