@@ -21,6 +21,7 @@ import {
   WILDKIN_SETTLEMENT_RANGE_WU,
 } from '../src/game/wildkinChronicle';
 import { createEntity } from '../src/game/entityFactory';
+import { tickWildlife } from '../src/game/tickLayerSystems';
 
 function world(seed = 7): WorldState {
   const state = initGame({ villageName: 'Testholm', size: 'medium', seed });
@@ -84,6 +85,38 @@ describe('the Wildkin sits at the top of the ladder', () => {
     // Same shape as the wolf's: prey keys, positive values, no forage key.
     expect(Object.keys(wildkinConfig.energyGain).sort()).toEqual(['deer', 'rabbit']);
     expect(wolfConfig.energyGain.grass).toBeUndefined();
+  });
+
+  it('hunts deer without grazing or poisoning its energy', () => {
+    const state = world();
+    const hunter = wildkin(200, 200, 700);
+    const deer = createEntity(EntityType.Deer, 201, 200, 701);
+    const grass = createEntity(EntityType.Grass, 200, 200, 702);
+    grass.energy = 50;
+    state.entities = [hunter, deer, grass];
+    const ctx = ctxFor(state, state.entities);
+
+    tickWildlife(state, ctx);
+
+    expect(deer.alive).toBe(false);
+    expect(hunter.alive).toBe(true);
+    expect(Number.isFinite(hunter.energy)).toBe(true);
+    expect(hunter.energy).toBeGreaterThan(SPECIES_CONFIG[EntityType.Wildkin].spawnEnergy);
+    expect(grass.energy).toBe(50);
+  });
+
+  it('retires an already corrupted Wildkin through the normal death path', () => {
+    const state = world();
+    const hunter = wildkin(200, 200, 703);
+    hunter.energy = Number.NaN;
+    state.entities = [hunter];
+    const ctx = ctxFor(state, state.entities);
+
+    tickWildlife(state, ctx);
+
+    expect(hunter.alive).toBe(false);
+    expect(ctx.entityById.has(hunter.id)).toBe(false);
+    expect(state.eventLog.some((entry) => entry.type === 'death' && entry.message.includes('Wildkin'))).toBe(true);
   });
 
   it('does not flee and does hunt, like the wolf and unlike the grazers', () => {
