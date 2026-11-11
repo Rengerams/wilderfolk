@@ -9,6 +9,7 @@ import {
   estimatedCommuteHours,
   isWithinAssignableCommute,
   MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS,
+  wereCommuteRouteChecksDeferred,
 } from '../src/game/commuteReach';
 import { findRouteCost, getCurrentPathGrid, resetPathGridCaches, setCurrentPathMap } from '../src/game/pathfinding';
 import {
@@ -163,7 +164,7 @@ describe('estimatedCommuteHours route pricing', () => {
     expect(second.searches).toBe(1);
   });
 
-  it('stops searching once the sweep budget is spent and prices the rest straight-line', () => {
+  it('defers unsolved legs when the search budget is spent, never approving a direct-line shortcut', () => {
     setCurrentPathMap(riverMap(), []);
     const home = onTile(1, BuildingType.House, 10, 20);
     const destinations: Building[] = [];
@@ -176,9 +177,8 @@ describe('estimatedCommuteHours route pricing', () => {
     const values = destinations.map((destination) =>
       estimatedCommuteHours(home, destination, [], WALK_SPEED),
     );
-    const last = destinations[destinations.length - 1]!;
-
     expect(values[0]).toBeGreaterThan(straightHours(home, destinations[0]!));
-    expect(values[values.length - 1]).toBe(straightHours(home, last));
+    expect(values[values.length - 1]).toBe(Infinity);
+    expect(wereCommuteRouteChecksDeferred()).toBe(true);
   });
 });
