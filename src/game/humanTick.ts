@@ -127,6 +127,7 @@ import {
 import {
   AFFAIR_SPOUSE_BLOCK_RADIUS,
   bindCourtship,
+  canAdvanceCourtship,
   canPursueSecretAffair,
   courtshipRatePerHour,
   findCourtshipPartner,
@@ -303,6 +304,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       humanIds.add(born.id);
     }
   }
+
+  // Sleep and shift observations become available as each settler is ticked. A pair can
+  // interact when its second member is processed; neither person's unobserved sleep
+  // state may be guessed from the clock or from whether the other one is awake.
+  const courtshipReadiness = new Map<number, {
+    sleeping: boolean;
+    onDuty: boolean;
+    workplaceId: number | undefined;
+    atWorkplace: boolean;
+  }>();
+  const advancedCourtshipIds = new Set<number>();
 
   const workersByWorkplace = new Map<number, Entity[]>();
   const workerIndexById = new Map<number, number>();
@@ -769,6 +781,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       hotels: hotelLodging.hotels, buildingById, entityById, tick: state.tick,
     });
     const sleepingForNeeds = sleep.sleeping;
+    const courtshipPresence = {
+      sleeping: sleepingForNeeds,
+      onDuty: onJobShift || onOfficialShift || onPriestShift,
+      workplaceId: workplace?.id,
+      atWorkplace: atPost || wasInsideWorkplace,
+    };
+    courtshipReadiness.set(entity.id, courtshipPresence);
     let ateMeal = false;
     if (isPlayerHuman(entity)) {
       advanceHumanNeeds(entity, {
@@ -1300,8 +1319,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Courtship
-    if (!onJobShift && socialTime && isEligibleToCourt(entity) && entity.gender && entity.energy > config.reproductionEnergyThreshold * 0.6) {
+    // Courtship: only two observed, awake people may interact. An on-duty pair may
+    // progress only if both are actually at their *same* workplace and within 10 px.
+    // Other workers do not abandon their jobs to chase dates.
+    if (!sleepingForNeeds && (socialTime || courtshipPresence.onDuty) &&
+      isEligibleToCourt(entity) && entity.gender &&
+      entity.energy > config.reproductionEnergyThreshold * 0.6) {
       const courtRange = atHome ? 120 : 80;
       const closest = findCourtshipPartner(
         entity,
@@ -1315,32 +1338,42 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         state.tick,
       );
 
-      if (closest) {
+      // A candidate that has not been ticked yet may still be asleep. Wait for
+      // that person's own sleep observation, instead of inventing one here.
+      const otherPresence = closest && courtshipReadiness.get(closest.id);
+      if (closest && otherPresence && !otherPresence.sleeping) {
         const dx = closest.x - entity.x;
         const dy = closest.y - entity.y;
-        const dist = Math.hypot(dx, dy) || 1;
+        const dist = Math.hypot(dx, dy);
         const livingTogether = atHome && shareResidence(entity, closest);
-        const closeEnough = dist <= 10 || livingTogether;
+        const closeEnough = dist <= 10;
 
         if (!closeEnough) {
-          const chaseSpeed = atHome ? 0.35 : 0.45;
-          steerHumanToward(entity, closest.x, closest.y, config.speed, chaseSpeed,
-            `courtship_${entity.id}_${closest.id}`);
-          suppressIdle = true;
-        } else {
+          if (!courtshipPresence.onDuty && !otherPresence.onDuty && socialTime) {
+            const chaseSpeed = atHome ? 0.35 : 0.45;
+            steerHumanToward(entity, closest.x, closest.y, config.speed, chaseSpeed,
+              `courtship_${entity.id}_${closest.id}`);
+            suppressIdle = true;
+          }
+        } else if (canAdvanceCourtship(courtshipPresence, otherPresence, dist, socialTime)) {
           entity.vx *= 0.6;
           entity.vy *= 0.6;
           suppressIdle = true;
           // The relationship owner decides how a pair is bound (new partner → progress starts at zero).
           bindCourtship(entity, closest);
 
-          if (seededRandomForRun(`chat-court1:${entity.id}:${state.tick}`) < 0.4 * PER_TICK_RATE_SCALE) {
-            settlerPairChat(entity, closest, 'courtship', 0.85);
-          } else if (seededRandomForRun(`chat-court2:${entity.id}:${state.tick}`) < 0.5 * PER_TICK_RATE_SCALE) {
-            settlerPairChat(entity, closest, 'courtship', 0.1);
-          }
+          // Either partner may be processed second. Credit this pair at most once
+          // this tick, irrespective of entity iteration order or ID.
+          if (!advancedCourtshipIds.has(entity.id) && !advancedCourtshipIds.has(closest.id)) {
+            advancedCourtshipIds.add(entity.id);
+            advancedCourtshipIds.add(closest.id);
 
-          if (entity.id < closest.id) {
+            if (seededRandomForRun(`chat-court1:${entity.id}:${state.tick}`) < 0.4 * PER_TICK_RATE_SCALE) {
+              settlerPairChat(entity, closest, 'courtship', 0.85);
+            } else if (seededRandomForRun(`chat-court2:${entity.id}:${state.tick}`) < 0.5 * PER_TICK_RATE_SCALE) {
+              settlerPairChat(entity, closest, 'courtship', 0.1);
+            }
+
             const hasPerformers = state.visitorGroups.some((g) => g.kind === 'performers' && g.daysLeft > 0);
             // Symmetric pair rule: both people's courtship aptitudes average into one rate.
             const courtshipFactor = combinePairFactors(
@@ -1357,22 +1390,21 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
             entity.courtshipProgress = Math.min(100, (entity.courtshipProgress || 0) + courtRate);
             closest.courtshipProgress = Math.min(100, (closest.courtshipProgress || 0) + courtRate);
-          }
 
-          if (getSimRng('humanTick')() < 0.08 * PER_TICK_RATE_SCALE) {
-            state.deathParticles.push({
-              x: entity.x + (getSimRng('humanTick')() - 0.5) * 15,
-              y: entity.y - 8,
-              vx: (getSimRng('humanTick')() - 0.5) * 0.3,
-              vy: -0.8 - getSimRng('humanTick')() * 0.5,
-              life: 25,
-              maxLife: 25,
-              color: '#ff69b4',
-              size: 2 + getSimRng('humanTick')() * 1.5,
-              type: 'heart',
-            });
+            if (getSimRng('humanTick')() < 0.08 * PER_TICK_RATE_SCALE) {
+              state.deathParticles.push({
+                x: entity.x + (getSimRng('humanTick')() - 0.5) * 15,
+                y: entity.y - 8,
+                vx: (getSimRng('humanTick')() - 0.5) * 0.3,
+                vy: -0.8 - getSimRng('humanTick')() * 0.5,
+                life: 25,
+                maxLife: 25,
+                color: '#ff69b4',
+                size: 2 + getSimRng('humanTick')() * 1.5,
+                type: 'heart',
+              });
+            }
           }
-
           tryCompleteCourtshipMarriage(
             state,
             entity,
