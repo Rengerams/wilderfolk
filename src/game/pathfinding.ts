@@ -807,7 +807,7 @@ export function findRouteCostOutcome(
 }
 
 /** Tile path → world-coordinate waypoints (tile centers). */
-export function pathWaypoints(path: { x: number; y: number }[]): { x: number; y: number }[] {
+export function pathWaypoints(path: readonly Readonly<{ x: number; y: number }>[]): { x: number; y: number }[] {
   const half = PATH_CELL / 2;
   return path.map((p) => ({ x: p.x * PATH_CELL + half, y: p.y * PATH_CELL + half }));
 }
