@@ -3,7 +3,7 @@
  * routes cached per walker; no route means stop rather than walk through a barrier.
  */
 import type { Building, Entity, WorldMap } from './gameTypes';
-import { BuildingType, PATH_CELL } from './gameTypes';
+import { BUILDING_CONFIGS, BuildingType, PATH_CELL } from './gameTypes';
 import {
   Walkability,
   getTerrainRevision,
@@ -55,6 +55,7 @@ const WALKABLE_BUILDING_TYPES = new Set<Building['type']>([
 function isWalkingObstacle(b: Building): boolean {
   if (!b.completed) return false;
   if (b.type === BuildingType.WallGate) return b.gateClosed === true;
+  if (BUILDING_CONFIGS[b.type].decor) return false;
   return !WALKABLE_BUILDING_TYPES.has(b.type);
 }
 
@@ -170,7 +171,7 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
       if (!t) continue;
       elevation[i] = t.elevation;
       blocked[i] = hasPathGrid
-        ? (map.pathGrid![i] !== Walkability.Open ? 1 : 0)
+        ? (map.pathGrid![i] === Walkability.Water ? 1 : 0)
         : (isWalkableTerrainType(t.type) ? 0 : 1);
     }
   }
