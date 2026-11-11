@@ -283,7 +283,7 @@ export function quoteBuildingCommute(
     || a.to.x - b.to.x || a.to.y - b.to.y);
   const speed = commuteWalkSpeed(walkSpeed, WORK_COMMUTE_RUSH) * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;
   let bestDistance = Infinity;
-  let pendingCanBeatBest = false;
+  let cheapestPendingBound = Infinity;
   for (const { from, to, distance: straightDistance } of pairs) {
     // Every road discount is bounded by ROAD_SPEED_MULT: this is a safe geometric
     // lower bound, used for pruning only after a confirmed route is priced.
@@ -291,7 +291,7 @@ export function quoteBuildingCommute(
     if (lowerBound >= bestDistance) continue;
     const costTiles = routeCommuteCost(from.x, from.y, to.x, to.y, gridOverride);
     if (costTiles === null) {
-      pendingCanBeatBest = true;
+      cheapestPendingBound = Math.min(cheapestPendingBound, lowerBound);
       continue;
     }
     if (costTiles === Infinity) continue;
@@ -307,7 +307,7 @@ export function quoteBuildingCommute(
     bestDistance = Math.min(bestDistance, Math.max(centreDistance, routeDistance));
   }
   // A pending pair with a lower possible cost prevents a confirmed optimal quote.
-  if (pendingCanBeatBest) return { status: 'pending', reason: 'search-budget' };
+  if (cheapestPendingBound < bestDistance) return { status: 'pending', reason: 'search-budget' };
   if (!Number.isFinite(bestDistance)) return { status: 'unreachable' };
   return { status: 'priced', travelHours: bestDistance / speed / TICKS_PER_HOUR,
     leadHours: commuteLeadHoursFor(bestDistance, walkSpeed),
