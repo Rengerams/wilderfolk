@@ -10,7 +10,6 @@ import {
   resolveInventionFair,
   tickInventionFair,
   tickInventionFairRealtime,
-  getInventionFairChoiceEligibility,
 } from '../src/game/inventionFair';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { createSeededRng } from '../src/game/simRng';
