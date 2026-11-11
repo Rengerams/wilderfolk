@@ -2,6 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026, PR #136 follow-up):** Patrol destinations remain stable inside a path tile to reuse cached routes; commuters test accessible alternate facades before stopping, and mixed-sign diagonals terminate at exact raster corners.
+- **Changed (11 Nov 2026, PR #136 follow-up):** Registered tickHumanLeisure with its realtime caller, write permissions and regression coverage in the simulation decision registry.
+
 - **Changed (8 Nov 2026):** Civic systems now use a shared completed-building lookup for Town Hall staffing, elections, notifications and festivals, replacing the Town Hall-only lookup.
 - **Fixed (8 Nov 2026):** Pregnancy integration keeps one individual-term hospital threshold while retaining staffed-ward routing, actual admission labels, birth-key genetics and normal duty-hour accounting.
 - **Fixed (8 November 2026, PR #133):** Immigration now uses recurring meal demand rather than one-off food spending, avoids counting population growth twice, and admits only affordable groups with real vacant beds.
