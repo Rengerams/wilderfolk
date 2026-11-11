@@ -81,7 +81,6 @@ export function grazerGrassEnergyDemandPerDay(
 export const GRAZER_METABOLISM = {
   deer: { energyLossPerTick: 4.2 * PER_TICK_RATE_SCALE, grassEnergyGain: 55 },
   rabbit: { energyLossPerTick: 2.5 * PER_TICK_RATE_SCALE, grassEnergyGain: 25 },
-  wildkin: { energyLossPerTick: 3.0 * PER_TICK_RATE_SCALE, grassEnergyGain: 45 },
 } as const;
 
 export type GrazerType = keyof typeof GRAZER_METABOLISM;
