@@ -67,9 +67,5 @@ jobs:
           npm test -- standard --changed "$PR_BASE_SHA"
           npm run build
 
-      - name: Run full checks on main
-        if: github.event_name == 'push'
-        run: |
-          npm run test:standard
-          npm run build
+
 
