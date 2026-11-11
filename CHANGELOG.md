@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026, supplementary simulation audit):** `scripts/sim-invariants.ts` now passes the requested `SIM_SEED` directly into the world generator, avoiding its captured native-random seed fallback. The worker/main parity test now covers two canonical 288-tick days with an explicit crossing assertion instead of mislabeling 240 ticks as five days. Audit recorded in `docs/plans/simulation-audit-2026-11-11.md`.
+
 - **Fixed (11 Nov 2026):** The blueberry world-generation regression now uses a deterministic seed and accepts terrain-limited spawn counts up to the documented per-map cap instead of assuming every map can place the maximum.
 
 - **Fixed (11 Nov 2026):** CI now runs standard checks and the production build on both PRs and `main` pushes; PRs retain affected-test selection, while `main` runs the full standard suite. Standard tests no longer rewrite the semantic-duplicate baseline.
