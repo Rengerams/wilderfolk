@@ -1,9 +1,6 @@
 /**
- * Weather consequences (Phase 3.4) — weather stops being info-only:
- *  - Drought cuts farm yields, Rain boosts them (getWeatherFarmMultiplier).
- *  - Storm days slowly damage player buildings (recoverable via Repair),
- *    halved by Fortification research (disaster_resist), never destroying
- *    a building (health floor), and announced once when it bites.
+ * Weather is not info-only: drought cuts farm yields, rain boosts them, and storm days slowly damage
+ * player buildings down to a health floor.
  */
 import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -97,12 +94,8 @@ describe('applyDailyWeatherEffects', () => {
   });
 
   /**
-   * These two assert that a storm *announces* itself, which only happens while
-   * `HOSTILE_WEATHER_ENABLED` is on: the switch is enforced inside `applyDailyWeatherEffects`, and the
-   * owner ruling recorded in the roadmap (`Roadmap_V0_6.4.1.MD`, F6 / the climate note) keeps it off —
-   * "weather still rolls visually, it just does no harm". Skipping rather than deleting keeps the
-   * assertions ready for the day the switch flips, and the damage-only tests above still run at full
-   * strength because `applyStormDamageToBuildings` is deliberately not gated.
+   * A storm announces itself only while `HOSTILE_WEATHER_ENABLED` is on; the damage-only tests above
+   * stay ungated because `applyStormDamageToBuildings` is not gated.
    */
   it.skipIf(!HOSTILE_WEATHER_ENABLED)('notifies + logs once when a storm damages buildings', () => {
     const state = initGame({ villageName: 'W', size: 'medium' });
@@ -141,13 +134,8 @@ describe('applyDailyWeatherEffects', () => {
 
 describe('farm yield responds to weather (integration)', () => {
   function farmWorld(weather: WeatherType): WorldState {
-    // The map seed is pinned because this fixture puts a completed farm at a **fixed** coordinate
-    // (400, 300) and then measures what the *weather* does to its yield. `initGame` otherwise seeds the
-    // map from `nativeRandom()`, so the fixture silently depended on what the terrain happened to be
-    // there: the 2026-09-24 hydrology carve made some seeds put that spot on a river bed, and the whole
-    // assertion (`clear` production > 0) then failed in a full-suite run while passing in isolation.
-    // Pinning the seed makes the map — and therefore the fixture — reproducible; the weather rule under
-    // test is untouched.
+    // The map seed is pinned because this fixture puts a completed farm at a fixed coordinate and
+    // measures what the weather does to its yield.
     const state = initGame({ villageName: 'W', size: 'medium', seed: 20260924 });
     state.weather = weather;
     state.resources.food = 0;
@@ -196,9 +184,8 @@ describe('farm yield responds to weather (integration)', () => {
 });
 
 /**
- * The Teraforge weather registry (ported 2026-09-24): every state resolves to an effect, and every
- * effect survives a frame against a real 2D context surface. The registry is what `drawWeather` looks up
- * per frame, so a `WeatherType` with no plugin would silently paint nothing.
+ * The Teraforge weather registry: every `WeatherType` resolves to an effect, and every effect survives
+ * a frame against a real 2D context surface.
  */
 describe('Teraforge weather registry', () => {
   const frame: WeatherFrame = { width: 640, height: 480, zoom: 1.45, camX: 1200, camY: 900, time: 12.5, dt: 0.016 };

@@ -1,21 +1,6 @@
 /**
- * The daily council — a **window**, not the screen.
- *
- * Owner reports that shaped this: *"there is a villageoverview but its not wired … i want a new icon
- * in the header to open it and not full screen"*. The data was never the problem; the shell was. It
- * used to be a `fixed inset-0` dialog with hand-rolled chrome (its own title bar, its own close
- * control, its own `useModalFocus` trap) that covered the whole game while it was open. It now renders
- * into `GameWindow` — the one window shell every subject renders into — so it is a floating window with
- * the map still visible around it, and the shell owns the title bar, the close control and the focus
- * trap.
- *
- * It surfaces big, readable data over the play screen (instead of the corner inspector): resource
- * levels, food produced today by source, population/wildlife trend from populationHistory, and a
- * per-settler work table (job + hours worked today). Close with the window's ✕ or Escape — the Escape
- * half is this file's own (`useOverlayKeyboard`), because Escape is not part of the shell's contract:
- * an anchored window beside a panel is not dismissible that way.
- *
- * Read-only — it only projects state and never mutates simulation state.
+ * The daily council: a read-only floating window (via `GameWindow`) over the still-visible map.
+ * Surfaces resources, food sources, population/wildlife trends and per-settler work.
  */
 import { useState } from 'react';
 import type { WorldState } from '../../game/gameTypes';
@@ -29,12 +14,7 @@ import type { GameEventLog } from '../../game/gameTypes';
 import type { LogSubTab } from '../../hooks/useGameShellState';
 import GameWindow from '../GameWindow';
 
-/**
- * Food-source labels come from the ledger's own map. This file used to keep a second copy, and it had
- * drifted: `spoilage`, `greenhouse`, `medicine` and `chronicle` were missing, so those rows rendered
- * their raw keys — including spoilage, the largest sink in a mid-game larder
- * (`LIVE-FINDINGS-STATUS.md`, F2).
- */
+/** Food-source labels come from the ledger's own map; see `ECONOMY_SOURCE_LABELS`. */
 function sourceLabel(key: string): string {
   return ECONOMY_SOURCE_LABELS[key] ?? key;
 }
@@ -60,9 +40,7 @@ export interface ConcernLogNav {
 
 /**
  * Concerns whose history the log already holds, so the concern can hand the player the exact category.
- *
- * Only where the concern's own events live: a raid is a `combat` line, and a Moon Howler's nights are
- * logged as `event` lines. A concern with no matching category keeps its single "Go" button.
+ * A concern with no matching category keeps its single "Go" button.
  */
 const CONCERN_LOG_NAV: Record<string, ConcernLogNav | undefined> = {
   raid: { subTab: 'combat', filter: 'combat' },
@@ -235,8 +213,7 @@ function LineChart({ data }: { data: DashboardData['history'] }) {
           />
         ))}
       </svg>
-      {/* Colour was the only meaning of these five lines: with no legend, Deer / Rabbits / Wolves
-          were indistinguishable (2026-09-17 UI audit, R10). The labels come from SERIES itself. */}
+      {/* Legend: one labelled swatch per series, so colour is never the only meaning. */}
       <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-stone-400">
         {SERIES.map((s) => (
           <span key={s.key} style={{ color: s.color }}>● {s.label}</span>
@@ -305,11 +282,8 @@ function SettlersTable({
             <tr
               key={s.id}
               onClick={onSelect ? () => onSelect(s.id) : undefined}
-              // The row is the only way to open the "Why this settler…" panel, and it was mouse-only:
-              // no role, no tab stop and no key handler, so the panel was unreachable by keyboard or
-              // assistive tech. `role="button"` + `tabIndex` + Enter/Space is the shape the mini-map
-              // already uses for its own click-only canvas. The label is
-              // explicit because a row's accessible name would otherwise be every cell concatenated.
+              // Click and keyboard both open "Why this settler…"; `role`/`tabIndex` plus an
+              // explicit label keep the row reachable and named for assistive tech.
               role={onSelect ? 'button' : undefined}
               tabIndex={onSelect ? 0 : undefined}
               aria-label={onSelect ? `Settler ${citizenGivenName(s)} — open details` : undefined}
@@ -496,9 +470,7 @@ export default function GameDashboard({
   const data = collectDashboard(state);
   const [openTab, setOpenTab] = useState<DashboardTab>('settlers');
   const [selectedSettlerId, setSelectedSettlerId] = useState<number | null>(null);
-  // The keyboard half of the overlay contract: the dashboard owns the keyboard while it is open and
-  // handles Escape itself, in one place shared with the other three overlays.
-  // The focus half moved to `GameWindow`, which owns the element the trap must be attached to.
+  // The dashboard handles its own Escape while open; `GameWindow` owns the focus trap.
   useOverlayKeyboard('dashboard', onClose);
 
   return (
@@ -509,13 +481,8 @@ export default function GameDashboard({
       // date and the population sit under the title instead of in a second bar of their own.
       subtitle={`Year ${displayYear(data.year)} · Day ${data.dayInYear} · ${data.season} · ${data.population.humans} settlers`}
       onClose={onClose}
-      /*
-       * A window, not the screen (owner: *"not full screen"*). Centred over the backdrop the shell
-       * already provides, and wider than the shell's chat-sized default because this subject carries a
-       * five-column resource row, two charts and a settler table — which is *why* it used to hand-roll
-       * a full-screen dialog: the shell had no size for it. `maxBodyClassName` keeps the body inside
-       * 70vh so the game stays visible above and below and the content scrolls instead.
-       */
+      /* A window, not the screen. Wider than the shell default for the five-column row, two charts
+         and a settler table; the body stays inside 70vh so the map shows above and below. */
       centered
       widthClassName="w-[min(58rem,calc(100vw-3rem))] max-w-[calc(100vw-3rem)]"
       maxBodyClassName="max-h-[70vh]"
@@ -617,9 +584,7 @@ export default function GameDashboard({
             <FoodTrendChart days={data.foodDays} />
           </section>
 
-          {/* Net food flow today — the one card that owns today's ledger balance. The produced total
-              used to be printed a second time in a card of its own (and a third time in the council),
-              which made one balance read as several claims (`LIVE-FINDINGS-STATUS.md`, F2). */}
+          {/* Net food flow today — the one card that owns today's ledger balance. */}
           <section className="rounded-xl border border-stone-800 bg-stone-900/50 p-3">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-300">
               Net food flow today
@@ -700,10 +665,8 @@ export default function GameDashboard({
                 key={tab.id}
                 type="button"
                 onClick={() => setOpenTab(tab.id)}
-                /* The selected panel was stated by background colour alone. These do not form a
-                   real `tablist` — the panel below carries no id/`aria-labelledby` and there is no
-                   roving tabindex — so the honest minimum is the pressed state rather than roles the
-                   markup cannot back (2026-09-20 audit, A6). */
+                /* Not a real `tablist` (no ids or roving tabindex), so the pressed state is the
+                   honest minimum; colour alone is not. */
                 aria-pressed={openTab === tab.id}
                 className={`rounded-t-lg px-3 py-1.5 text-xs font-semibold ${
                   openTab === tab.id
@@ -744,9 +707,7 @@ export default function GameDashboard({
                 </button>
               </div>
               <dl className="space-y-1 text-[11px]">
-                {/* Keyed by label *and* position: the owner keeps these labels unique, but a duplicate
-                    key silently drops a row, so the view does not depend on that
-                    (`LIVE-FINDINGS-STATUS.md`, F25). */}
+                {/* Keyed by label *and* position so a duplicate label cannot silently drop a row. */}
                 {explainSettler(state, selectedSettlerId).map((line, index) => (
                   <div
                     key={`${line.label}-${index}`}

@@ -111,8 +111,8 @@ export class ScentGrid implements ScentGridRuntime {
   }
 
   cellCoords(x: number, y: number): { col: number; row: number } {
-    // The world→cell clamp is `spatialGrid.gridCellAxis`'s rule, not a second copy: entity lookups and
-    // odour deposits must agree about which cell a world position belongs to (duplication-deadcode A12).
+    // The world→cell clamp is `spatialGrid.gridCellAxis`'s rule, not a second copy: entity lookups
+    // and odour deposits must agree about which cell a world position belongs to.
     return {
       col: gridCellAxis(x, this.cellSize, this.cols),
       row: gridCellAxis(y, this.cellSize, this.rows),

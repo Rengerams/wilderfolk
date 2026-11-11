@@ -3,8 +3,8 @@ import { useModalFocus } from '../hooks/useModalFocus';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 
 const QUICK_START_STEPS = [
-  { icon: '🏠', title: 'Build a House before night', detail: `Press B to open Build, pick Housing → House (or press 1), click the map, then assign workers. Night starts at 20:00 on day one.` },
-  { icon: '👆', title: 'Click the map to manage', detail: 'Select people, buildings, or visitor camps — actions appear in the right panel. Assign workers with + Worker on finished buildings.' },
+  { icon: '🏠', title: 'Build a House before night', detail: `Press B to open Build, pick Housing → House (or press 1), click the map — the builder crew joins automatically. Night starts at 20:00 on day one.` },
+  { icon: '👆', title: 'Click the map to manage', detail: 'Select people, buildings, or visitor camps — actions appear in the right panel. Staffing is automatic; a building panel lists its crew.' },
   { icon: '💡', title: 'Tips appear as you play', detail: 'When something new happens — traders, rivals, winter, raids — a tip card appears on the map. Alerts under the header jump to urgent issues. Press ? for shortcuts.' },
 ];
 
@@ -24,17 +24,11 @@ export default function TutorialOverlay({
   onDisableAll,
 }: TutorialOverlayProps) {
   // The first-run quick-start is a full-screen click-catcher, so it must announce itself and behave
-  // like the other modals (`ShortcutsOverlay`, the Valley overview): focus moves in, Tab stays
-  // inside, and Escape dismisses it. It is mounted for the whole session, so the shared trap is
-  // driven by `showTutorial` rather than by mount.
+  // like the other modals: focus moves in, Tab stays inside, Escape dismisses it.
   const dialogRef = useModalFocus<HTMLDivElement>(showTutorial);
 
-  // …and it must own the keyboard while it is shown, not merely the focus trap: the game's
-  // window-capture hotkey handler runs *before* this overlay's own handler, so without the claim
-  // digits 1–9 armed a build type and opened the build panel, V/F/N/P/L/M opened the Valley overview
-  // on top of the tutorial, Space toggled pause, and one Escape both finished the tutorial and fell
-  // through to clear the map selection. Mounted for the whole session, so both halves of the contract
-  // are keyed on `showTutorial`.
+  // It must also own the keyboard while shown: the game's window-capture hotkey handler runs before
+  // this overlay's, so the claim is what stops gameplay hotkeys firing behind it.
   useOverlayKeyboard('tutorial-overlay', onFinish, showTutorial);
 
   if (!showTutorial) return null;

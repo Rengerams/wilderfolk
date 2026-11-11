@@ -10,7 +10,7 @@ import {
   recordAffairTrystSite,
   wouldWalkInOnAffair,
 } from '../src/game/simulation/humanRelationships';
-import { affairTrystEntry } from '../src/game/simulation/humanMovement';
+import { buildingAccessPoint } from '../src/game/buildingAccess';
 
 const MARITAL_HOME_ID = 10;
 const PARAMOUR_HOME_ID = 20;
@@ -69,9 +69,8 @@ function settler(id: number, gender: 'male' | 'female', overrides: Partial<Entit
 }
 
 /**
- * Cheater + spouse in one house, a single paramour with their own house, and both cheater and
- * paramour standing away from the marital home (so `isAtMaritalHome` is false unless a test moves
- * people).
+ * Cheater and spouse share one house; the paramour has their own, and both stand away from the
+ * marital home unless a test moves them.
  */
 function fixture(): {
   cheater: Entity;
@@ -120,7 +119,7 @@ describe('affair rendezvous belongs to the lovers, not random houses', () => {
 
   it('sends both lovers to a doorstep outside the chosen home, never its blocked centre', () => {
     const home = house(MARITAL_HOME_ID);
-    const door = affairTrystEntry(home);
+    const door = buildingAccessPoint(home);
     const halfW = home.width / 2;
     const halfH = home.height / 2;
 

@@ -1,6 +1,7 @@
 import { personDayRoll } from './simRng';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, WeatherType } from './gameTypes';
+import { isMarriedOrExpecting } from './relationships';
 import {
   DAYS_PER_YEAR,
   EVENING_START,
@@ -15,14 +16,9 @@ import { hasResidenceAssignment, hasWorkAssignment } from './housingModel';
 import { isDialogueBusy } from './humanChat';
 import { requestDialogue, type DialogueEventKey } from './dialogueTrees';
 import { isOnWorkScheduleShift } from './workSchedule';
-import { isMarriedOrExpecting } from './civilStatus';
-import { evaluateTraitInfluence } from './personality/traitEvaluation';
-import type { ExactTraitContext } from './personality/traitEffectCatalog';
+import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 
-/** The catalog context behind work-shift banter between coworkers. */
-const BANTER_CONTEXT = { kind: 'social', activity: 'workplaceBanter' } as const satisfies ExactTraitContext;
-
-/** Ordinary banter chance; the catalog may declare a trait-specific replacement. */
+/** Ordinary banter chance before the company activity's bounded modifier. */
 const BANTER_BASE_CHANCE = 0.08;
 
 export type SocialMotive =
@@ -130,7 +126,7 @@ function isExhausted(entity: Entity): boolean {
 }
 
 function isElder(entity: Entity): boolean {
-  return !entity.isJuvenile && entity.age >= HUMAN_VENERABLE_AGE;
+  return entity.age >= HUMAN_VENERABLE_AGE;
 }
 
 function isMedicallyVulnerable(entity: Entity): boolean {
@@ -393,14 +389,8 @@ export function pickSocialImpulse(
   // `nearbyKids` is intentionally unused here; kid_play is dispatched by the caller.
   void nearbyKids;
 
-  // Day Out — a settler with nowhere to be had no anchor in this list at all. `sunday_service` is
-  // `weekday === 6` only (Sun 09:00–13:00), and every other motive is a low-probability personal
-  // errand, so they fell straight through to `none`: `tickAdultLeisureMotive` does nothing with
-  // `none`, no target was set, and the village sat indoors. Measured on the shipped tick over 60
-  // days (09:00–15:00): **nine of every ten adult settler-samples had no work assignment at all**,
-  // and an idle settler's only reachable destination was home — which is why the owner saw the same
-  // thing on workdays and weekends. Resting at home is the *fallback*, not the plan. Sick, grieving
-  // and storm-bound settlers never reach here, because those branches return above.
+  // Day Out — a settler with nowhere to be needs an anchor in this list; without it an idle
+  // settler's only destination is home. Resting at home is the fallback, not the plan.
   const idle = !hasWorkAssignment(entity);
   if ((!isWorkDay(tick) || idle) && hour >= 9 && hour < EVENING_START) {
     const haunt = pickSocialBuilding(
@@ -432,7 +422,7 @@ export function tryWorkplaceBanter(
   if (!Number.isFinite(hour) || hour < 11 || hour > 13) return;
   if (isDialogueBusy(entity)) return;
 
-  const banterChance = evaluateTraitInfluence(entity, BANTER_CONTEXT).exact.chanceOverride ?? BANTER_BASE_CHANCE;
+  const banterChance = Math.min(1, BANTER_BASE_CHANCE * evaluateAptitudeInfluence(entity, 'company').factor);
   if (personDayRoll(entity.id, tick, 720) > banterChance) return;
 
   const mate = coworkers.find((c) => c.id !== entity.id && c.alive && !isDialogueBusy(c));

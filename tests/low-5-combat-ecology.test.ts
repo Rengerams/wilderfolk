@@ -1,9 +1,6 @@
 /**
- * Low-severity simulation-audit fixes (2026-09-13) — combat, disasters, ecology,
- * the daily economy ledger and yearly statistics.
- *
- * See BUG_REPORTS/2026-09-13-simulation-logic-audit.md: L17, L18, L19, L20, L26, L27,
- * L56, L57, L69, L79 and the two cross-cutting frontierCombat items.
+ * Low-severity simulation fixes across combat, disasters, ecology, the daily
+ * economy ledger and yearly statistics.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -125,7 +122,7 @@ describe('frontierCombat raid spoils (L26, cross-cutting storage-cap clamps)', (
 
     const after = respondToOutgoingRaidEvent(state, event.id, 'accept_payoff');
 
-    // Over-cap stock is left untouched (the old Math.min(room, spoils) removed it)…
+    // Over-cap stock is left untouched — spoils never clamp a store down…
     expect(after.resources.food).toBe(overCapFood);
     // …while a capped store still takes only the headroom that exists.
     expect(after.resources.wood).toBe(after.storageMax.wood);

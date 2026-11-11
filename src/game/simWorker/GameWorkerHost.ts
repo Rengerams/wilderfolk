@@ -47,18 +47,12 @@ export type CommandResultHandler = (
 export type WorkerFaultHandler = (
   source: 'tick' | 'command' | 'export' | 'general',
   message: string,
+  lastAppliedCommandId?: number,
 ) => void;
 
 /**
- * The player-authored slice of UI state that a patch may carry.
- *
- * **Only fields the player authors belong here.** `bigNews`, `floatingTexts` and `activeEvent` were
- * removed: the *tick* authors those on the worker side, and `applyWorkerUiPatch`
- * deliberately never adopted them — so shipping them cloned the whole news list and every live floating
- * text into every patch, and `protocol.ts` advertised a transfer that did not happen. Because a patch is
- * composed from the host's snapshot it can be up to `MAX_PIPELINE_DEPTH` ticks behind, which is exactly
- * why adopting them used to rewind the worker and destroy events the player had not seen yet
- * (`BUG_REPORTS/2026-09-16-ui-patch-rewinds-worker-authored-big-news.md`).
+ * The player-authored slice of UI state a patch may carry. Only fields the player authors belong
+ * here; tick-authored fields would rewind the worker from a stale host snapshot.
  */
 export type WorkerUiPatch = Pick<
   WorldState,
@@ -71,14 +65,8 @@ export type WorkerUiPatch = Pick<
 >;
 
 /**
- * Max ticks in flight — reserve one pool slot for the display buffer held on main.
- *
- * The command render refresh takes a slot of its own as well, and it is *not* covered by this
- * subtraction: one slot is the display buffer, this many are ticks, and the command's arrives when
- * the pool is already at its limit. `canPipelineTick` therefore also refuses to start a tick while a
- * command is outstanding, which is what actually keeps the accounting closed. Reducing this to
- * `POOL - 2` would be the other way to reserve the slot, at the cost of a pipeline stage on every
- * tick rather than only around a player command.
+ * Max ticks in flight, reserving one pool slot for the display buffer held on main. A command's
+ * render refresh takes its own slot, so `canPipelineTick` also refuses ticks while one is pending.
  */
 export const MAX_PIPELINE_DEPTH = Math.max(0, RENDER_BUFFER_POOL_SIZE - 1);
 
@@ -96,9 +84,8 @@ const EXPORT_REPLY_DEADLINE_MS = 30000;
 const PROFILING_STOP_REPLY_DEADLINE_MS = 30000;
 
 /**
- * How long a command may wait for its reply. This is the freeze guard: `canPipelineTick()` refuses
- * every tick while a command is pending, and the stall watchdog needs a tick in flight to fire — so a
- * reply that never came stopped the simulation for good with the renderer still drawing at full rate.
+ * How long a command may wait for its reply: the freeze guard, since `canPipelineTick()` refuses
+ * every tick while a command is pending.
  */
 const COMMAND_REPLY_DEADLINE_MS = 30000;
 
@@ -125,6 +112,8 @@ export class GameWorkerHost {
   private onTickResult: TickResultHandler | null = null;
   private onCommandResult: CommandResultHandler | null = null;
   private onWorkerFault: WorkerFaultHandler | null = null;
+  /** Highest command id the worker has acknowledged; used when a crash cannot report its own. */
+  private lastAppliedCommandId = 0;
   private worldRef: WorldState | null = null;
   private pendingCommand: {
     resolve: (delta: SimTickDelta) => void;
@@ -157,12 +146,8 @@ export class GameWorkerHost {
     if (RENDER_BUFFER_POOL_SIZE < 2) {
       throw new Error(`RENDER_BUFFER_POOL_SIZE must be >= 2, got ${RENDER_BUFFER_POOL_SIZE}`);
     }
-    // Refuse a re-init rather than silently orphaning the running worker. `dispose()` below tears the
-    // old one down, but only for a host that reaches it — a second `init()` on a host that is mid-handshake
-    // or already used would otherwise `terminate()` a worker whose ticks nobody has unsubscribed, and the
-    // caller would see a resolved promise for a session that is gone. Every in-tree caller constructs a
-    // fresh host per boot (`GameLoop`'s constructor and `attemptWorkerRecovery`), so this is a guard, not
-    // a supported path.
+    // Refuse a re-init rather than silently orphaning the running worker; every in-tree caller
+    // constructs a fresh host per boot, so this is a guard, not a supported path.
     if (this.worker != null || this.ready) {
       throw new Error('GameWorkerHost.init() called on a host that is already initialized');
     }
@@ -201,7 +186,7 @@ export class GameWorkerHost {
           return;
         }
         this.rejectInFlight(err, { resetAllTicks: true });
-        this.onWorkerFault?.('general', err.message);
+        this.onWorkerFault?.('general', err.message, this.lastAppliedCommandId);
       };
 
       const onMessage = (event: MessageEvent<WorkerResponse>) => {
@@ -293,6 +278,7 @@ export class GameWorkerHost {
     this.ready = false;
     this.ticksInFlight = 0;
     this.tickRequestTimes = [];
+    this.lastAppliedCommandId = 0;
     this.lastCompletedTickLatencyMs = null;
     this.pendingFocus = undefined;
     this.uploadBarrier = false;
@@ -332,23 +318,8 @@ export class GameWorkerHost {
   }
 
   /**
-   * Whether another tick may be posted right now.
-   *
-   * Two conditions, and the second is not cosmetic:
-   *
-   * 1. **A free render-buffer slot.** `MAX_PIPELINE_DEPTH` reserves one slot for the buffer held on
-   *    main for drawing; each tick in flight holds another. Exceeding the pool is not a soft failure —
-   *    the worker rolls the tick back and posts a `tick`-sourced error, which the host treats as fatal
-   *    and answers with `fallbackFromWorker`, so the sim worker is torn down mid-session.
-   * 2. **No command in flight.** A command result carries its own render refresh, and the worker
-   *    acquires a pool slot for it (`gameWorker.ts`, the `command` case). That slot is *additional* to
-   *    the reserved display buffer and to every tick in flight, so with `MAX_PIPELINE_DEPTH` ticks
-   *    outstanding (the pool held exactly at its limit) a command takes the pool to its size and any
-   *    further tick finds nothing free — the fatal case above. Counting the command here makes the
-   *    host stop posting ticks while one is outstanding, which is why the accounting closes.
-   *
-   * The command is never dropped for this: `GameLoop.applyCommand` queues it on its own chain and
-   * posts it as soon as this returns true.
+   * Whether another tick may be posted right now: no upload barrier, at most one authoritative tick
+   * outstanding, and no command result in flight (it takes its own render-buffer slot).
    */
   canPipelineTick(): boolean {
     // Keep a single authoritative tick outstanding. A multi-tick backlog delays player
@@ -372,10 +343,8 @@ export class GameWorkerHost {
   }
 
   /**
-   * Resolves once the worker handshake has completed; resolves immediately when already ready.
-   * Callers that must not poll `GameLoop.workerBooting` (the import chain clears that flag itself)
-   * wait here instead — polling a flag the caller owns deadlocked every in-game load
-   * (`BUG_REPORTS/2026-09-16-loading-a-save-freezes-the-sim-worker.md`).
+   * Resolves once the worker handshake has completed, or immediately when already ready; callers
+   * that must not poll `GameLoop.workerBooting` wait here instead.
    */
   whenReady(): Promise<void> {
     if (this.isReady()) return Promise.resolve();
@@ -446,6 +415,7 @@ export class GameWorkerHost {
         // Old tick results have now drained. Only now adopt the imported world,
         // so no old-world delta can be applied to the new settlement.
         this.worldRef = hydrateWorldRuntimeCaches(world);
+        this.lastAppliedCommandId = 0;
         this.lastPausedSent = world.paused;
         this.lastSpeedSent = world.speed;
 
@@ -540,10 +510,8 @@ export class GameWorkerHost {
   }
 
   /**
-   * Post a fire-and-forget control message. `postMessage` throws synchronously (DataCloneError) for
-   * a non-cloneable payload; without this the exception escaped into the caller — a React event
-   * handler — instead of degrading to a worker fault.
-   * Returns whether the message was posted.
+   * Post a fire-and-forget control message; `postMessage` throws synchronously for a non-cloneable
+   * payload, so degrade that to a worker fault instead of escaping into the caller.
    */
   private postControl(msg: WorkerRequest): boolean {
     try {
@@ -596,7 +564,7 @@ export class GameWorkerHost {
         }, COMMAND_REPLY_DEADLINE_MS),
       };
       this.pendingCommand = entry;
-      const msg: WorkerRequest = { type: 'command', proto: WORKER_PROTO, cmd };
+      const msg: WorkerRequest = { type: 'command', proto: WORKER_PROTO, cmd, commandId: (cmd as { commandId?: number }).commandId };
       try {
         this.worker!.postMessage(msg);
       } catch (err) {
@@ -797,6 +765,9 @@ export class GameWorkerHost {
 
     if (msg.type === 'error') {
       this.logWorkerFault(msg.message);
+      if (typeof msg.lastAppliedCommandId === 'number') {
+        this.lastAppliedCommandId = Math.max(this.lastAppliedCommandId, msg.lastAppliedCommandId);
+      }
       if (msg.source === 'tick') {
         this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
         this.tickRequestTimes.shift();
@@ -809,7 +780,7 @@ export class GameWorkerHost {
       this.settleProfilingStop((pending) => pending.reject(new Error(msg.message)));
       this.settleUpload((pending) => pending.reject(new Error(msg.message)));
       this.resolveIdleWaiters();
-      this.onWorkerFault?.(msg.source ?? 'general', msg.message);
+      this.onWorkerFault?.(msg.source ?? 'general', msg.message, this.lastAppliedCommandId);
       return;
     }
 
@@ -821,6 +792,9 @@ export class GameWorkerHost {
     }
 
     if (msg.type === 'commandResult') {
+      if (typeof msg.commandId === 'number') {
+        this.lastAppliedCommandId = Math.max(this.lastAppliedCommandId, msg.commandId);
+      }
       // Validate the envelope before touching bookkeeping: an unusable reply must still settle its
       // promise and ask the loop to recover, not leave a stale replica marked ready.
       if (!isSimTickDelta(msg.delta)) {
@@ -898,9 +872,8 @@ export class GameWorkerHost {
     }
     if (msg.performanceSnapshot) this.latestPerformanceSnapshot = msg.performanceSnapshot;
 
-    // The counter drops whether or not the delta can be applied. A tick result that arrived with no
-    // world attached used to leave a tick in flight for good — the stall detector then fired on a
-    // worker that was answering, and fell the whole game back to the main thread.
+    // The counter drops whether or not the delta can be applied, so a result with no world attached
+    // cannot leave a tick in flight and trip the stall detector.
     this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
     const requestedAt = this.tickRequestTimes.shift();
     this.lastCompletedTickLatencyMs = requestedAt === undefined ? null : Math.max(0, performance.now() - requestedAt);

@@ -1,7 +1,6 @@
 /**
- * The close-friend cap (`MAX_CLOSE_FRIENDS_PER_SETTLER`) must hold for new play and for saves that
- * predate it: a long-running save carried up to 31 close friends per settler, and a unilateral bond
- * could survive one over the cap. Reconcile clamps to the strongest six mutual bonds on load.
+ * The close-friend cap (`MAX_CLOSE_FRIENDS_PER_SETTLER`) holds for new play and for saves that
+ * predate it: load clamps to the strongest mutual bonds, and the cap holds over a long social run.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/gameEngine';

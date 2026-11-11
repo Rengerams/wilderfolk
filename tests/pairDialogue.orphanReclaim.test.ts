@@ -1,17 +1,6 @@
 /**
- * Paired-dialogue orphan reclaim — regression for the 2026-09-20 audit findings F-chat-1 / F-chat-2.
- *
- * The state that was broken: `showDialogueStep` hands the visible line to one half of a pair and
- * `clearEntityChat`s the other, so the **idle half** has `chatTicks === 0` while still holding
- * `chatDialogueSessionKey`. `isDialogueBusy` reads the key, so that half is busy — but `tickHumanChat`
- * used to return on the counter before it looked at the session, and `resetDialogueSessions()` (called
- * by `resetRendererCaches()` on boot and on every session swap / save load) empties the session map.
- * The idle half was then stranded as dialogue-busy forever: excluded from greetings, workplace banter
- * and ambient pairing, with no path back.
- *
- * `tests/low-6-care-chat.test.ts:198-232` only covers the self-healing direction (a forced phrase while
- * the partner still has `chatTicks > 0`, released when that line expires). These cases cover the
- * direction that was broken, plus the counterpart release that a resolver now performs immediately.
+ * Paired dialogue frees both halves: a resolver releases the counterpart immediately, a death does it
+ * as part of the cleanup, and an idle half reclaims itself on its next tick.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
@@ -149,16 +138,8 @@ describe('paired dialogue — idle half reclaim (F-chat-1)', () => {
   });
 
   /**
-   * The residual the hoisted reclaim could not reach, and the reason it needs a different instrument.
-   *
-   * A live entry is invisible to a map-presence reclaim, and the idle half can never advance it. So
-   * when the *active* half stops being ticked, the pair froze for as long as that lasted. The
-   * production trigger is the Moon Howler: `transformToWerewolfForm` sets `type = Werewolf`, and
-   * `tickHumanChat`'s only two callers are inside the `byType[EntityType.Human]` loop.
-   *
-   * Releasing at the moment the entity leaves the population is the only correct fix here: a stall
-   * bound cannot be tightened below the longest legitimate line (`ticksForDialogueLine` reaches ~35
-   * ticks for a full three-line bubble) without cutting real conversations, and a night is only ~30.
+   * A pair also has to be freed when the speaking half leaves the human population, as the Moon
+   * Howler transform does: from then on no tick runs for it, so the pair would freeze.
    */
   it('releases the pair when the speaking half transforms into a Moon Howler', () => {
     resetDialogueSessions();
@@ -177,9 +158,7 @@ describe('paired dialogue — idle half reclaim (F-chat-1)', () => {
     expect(speaking.type).toBe(EntityType.Werewolf);
     expect(speaking.chatDialogueSessionKey).toBeUndefined();
 
-    // The idle half's own next tick is what frees it — its session entry is gone, which is the one
-    // condition the hoisted reclaim can act on. Before the fix the entry was live, so this changed
-    // nothing and the settler stayed dialogue-busy.
+    // The idle half's own next tick frees it now that its session entry is gone.
     tickHumanChat(idle, resolveIdle);
 
     expect(idle.chatDialogueSessionKey).toBeUndefined();

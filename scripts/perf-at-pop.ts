@@ -1,27 +1,6 @@
 /**
- * Tick cost vs player-human count (instant seed, no logging).
- * Run: npx tsx scripts/perf-at-pop.ts
- *
- * One axis, one code path: every tier is the **city fixture** (`simCityProfile`) seeded at a
- * different `playerHumans` target, and the same targets are handed to the maintainer each tick. The
- * earlier version seeded extra humans and then let `maintainCityBenchmarkState` pull the colony back
- * to `DEFAULT_CITY_TARGETS`, so all six tiers measured the same 300-human city and the "curve" was
- * flat by construction.
- *
- * A **real save** can be measured instead of the fixture (`PERF_SAVE=<save.json>`): it is loaded
- * through the game's own restore path, ticked as it stands, and **not** maintained or restocked —
- * a saved colony is the one measurement the fixture cannot stand in for (jobs, homes and a real
- * relationship graph).
- *
- * Env:
- *   PERF_RELOCATION=1   daily housing sweep only; PERF_RELOCATION_REFERENCE=1 compares the original loop
- *   PERF_TICKS=300        post-warmup ticks per tier
- *   PERF_POPS=250,750,1800,3000   tiers to measure
- *   PERF_PROFILE=1      include bounded stage timing summaries
- *   PERF_ROUNDTRIP=1    measure save/reload and verify population retention
- *   PERF_SEED=12345     reproducible generated colony seed
- *   PERF_SAVE=<path>      bench this save instead of the tiers
- *   SIM_FULL_SIM=1        disable the viewport focus throttle (the game's worker ticks *with* it)
+ * Tick cost vs player-human count: city fixture tiers, or a real save via `PERF_SAVE`. Env: PERF_TICKS,
+ * PERF_POPS, PERF_PROFILE, PERF_ROUNDTRIP, PERF_SEED, PERF_RELOCATION, SIM_FULL_SIM. Run: `npx tsx scripts/perf-at-pop.ts`.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -197,7 +176,7 @@ function bench(
     if (old) showComparison(report, old);
     else console.log(`  No matching baseline label for ${report.label}`);
   }
-  return { avg, p95 };
+  return report;
 }
 
 function loadSave(path: string): ReturnType<typeof initGame> {
@@ -309,7 +288,7 @@ async function main() {
     console.log(
       `Ticks=${TICKS} warmup=${WARMUP} | focus=${fullSim ? 'OFF (full sim)' : 'ON (viewport throttle)'} | save=${basename(savePath)} tick=${state.tick}`,
     );
-    bench(
+    const report = bench(
       state,
       `Save ${basename(savePath)}`,
       fullSim ? undefined : getSimFocus(state),
@@ -320,7 +299,7 @@ async function main() {
       console.error(`day-boundary ceiling exceeded: ${report.maxMs.toFixed(0)} ms`);
       process.exitCode = 1;
     }
-  if (REPORT) writeFileSync(REPORT, JSON.stringify({ version: 2, node: process.version, platform: process.platform, arch: process.arch, seed: SEED, fullSim, profiling: PROFILE, createdAt: new Date().toISOString(), save: basename(savePath), reports: benchmarkReports }, null, 2) + '\n');
+    if (REPORT) writeFileSync(REPORT, JSON.stringify({ version: 2, node: process.version, platform: process.platform, arch: process.arch, seed: SEED, fullSim, profiling: PROFILE, createdAt: new Date().toISOString(), save: basename(savePath), reports: benchmarkReports }, null, 2) + '\n');
     return;
   }
 

@@ -1,51 +1,14 @@
 /**
- * Wilderfolk — seeded long-run colony gate (roadmap O4 / P1 "Seeded Colony Health Scenario").
- *
- * One seeded settlement, one JSONL run log under `docs/log/`, invariant-gated at checkpoints, and a
- * combined health report for **food, housing, workforce, relationships, stories, elections, animals
- * and deltas**.
- *
- * Two scenarios, named on every run so a reader can never mistake one for the other:
- *
- *   --scenario=restocked  (default) the pre-existing gate: no producers, and food/wood are refilled
- *                         to `storageMax` at every checkpoint.
- *   --scenario=producers  the coverage gap closed (roadmap O4, measured): producers are built and
- *                         staffed, and **nothing is restocked after day 0**, so production, spoilage
- *                         and consumption economics are inside the gate.
- *
- * Run:
- *   npx tsx scripts/run-full-year.mts                              # 1 year, restocked (the old gate)
- *   npx tsx scripts/run-full-year.mts --years=2
- *   npx tsx scripts/run-full-year.mts --scenario=producers --days=100
- *   npx tsx scripts/run-full-year.mts --scenario=producers --days=100 --verbose
- *   npx tsx scripts/run-full-year.mts --scenario=producers --days=720 --bot
- *
- * Options:
- *   --years=N       1..10 (default 1); ignored when --days is given
- *   --days=N        explicit length, 1..3600; the P1 scenario command uses --days=100
- *   --scenario=     restocked | producers (default restocked)
- *   --seed=N        world/colony seed (default 12345); review a run by seed and checkpoint
- *   --bot           drive the colony with the virtual player instead of ticking it passively
- *   --verbose       print the full per-checkpoint health record to stdout (default: one summary line)
- *
- * `--bot` runs the auto-play ladder on its own cadence (`shouldVirtualPlayerAct`) through the command
- * door the game uses. Every run writes the final `eventLog` beside its JSONL record, for tracing.
- *
- * A finished run is also judged on whether the colony still works: `assessColonyStall` reads the
- * recorded health and reports `healthy` or a `stalled(...)` verdict, which fails the run. Only
- * `--bot` raises buildings, so on a passive run `raised=0` is expected and the stall rules rest on
- * housing, food and wood instead.
- *
- * Normal mode is deliberately bounded: one line per checkpoint on stdout, with the complete record
- * written to the JSONL log. Nothing here changes a simulation rule; see `scripts/colonyHealth.ts`.
+ * Seeded long-run colony gate: one settlement, a JSONL run log, invariant checkpoints, a health report
+ * and a stall verdict. Options: `--years` | `--days`, `--scenario`, `--seed`, `--bot`, `--movement`, `--verbose`.
  */
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gameTick } from '../src/game/gameEngine';
 import { DAYS_PER_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
-import { EntityType, MapSize, BuildingType } from '../src/game/gameTypes';
-import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
+import { EntityType, MapSize } from '../src/game/gameTypes';
+import { decideVirtualPlayerAction, FOOD_PRODUCER_TYPES } from '../src/game/virtualPlayer';
 import type { WorldState } from '../src/game/gameTypes';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
@@ -109,6 +72,7 @@ interface RunOptions {
   verbose: boolean;
   /** True when the virtual player drives the run; false leaves the world ticking passively. */
   bot: boolean;
+  movement: boolean;
 }
 
 function readPositiveIntegerOption(args: readonly string[], name: string): number | null {
@@ -153,6 +117,7 @@ function readRunOptions(args: readonly string[]): RunOptions {
     seed,
     verbose: args.includes('--verbose'),
     bot: args.includes('--bot'),
+    movement: args.includes('--movement'),
   };
 }
 
@@ -367,9 +332,17 @@ function writeCheckpoint(
   health: ColonyHealthReport,
   stall: ColonyStallVerdict,
 ): void {
+  // Read-only A1 regression metric alongside the existing food/population checkpoint:
+  // completed trade skill points over living player settlers (no separate harness).
+  const skillPoints = Math.round(world.entities.reduce((total, person) => {
+    if (!person.alive || !isPlayerHuman(person)) return total;
+    return total + Object.values(person.skills ?? {}).reduce((sum, value) =>
+      sum + (typeof value === 'number' && Number.isFinite(value) ? value : 0), 0);
+  }, 0) * 1000) / 1000;
   writeLog(
     {
       kind: 'full-year-checkpoint',
+      skillPoints,
       scenario: options.scenario,
       restocksAtCheckpoint: SCENARIOS[options.scenario].restocksAtCheckpoint,
       day,
@@ -482,6 +455,7 @@ function run(): void {
   for (let tick = 1; tick <= TOTAL_TICKS; tick += 1) {
     const tickStartedAt = performance.now();
     gameTick(world);
+    if (options.movement) observer.sampleMovement();
     if (performance.now() - tickStartedAt > PACING_TICK_BUDGET_MS) counters.stalledTicks += 1;
 
     // The bot's own cadence rule, read from the hook that drives it in the game rather than copied.
@@ -538,8 +512,7 @@ function run(): void {
     writeCheckpoint(day, world, startedAt, health, provisional);
     if (options.verbose && options.bot && options.scenario === 'producers') {
       const proposed = decideVirtualPlayerAction(world);
-      const foodSites = world.buildings.filter((building) =>
-        [BuildingType.Farm, BuildingType.FishingSpot, BuildingType.HuntingSpot, BuildingType.Greenhouse].includes(building.type));
+      const foodSites = world.buildings.filter((building) => FOOD_PRODUCER_TYPES.includes(building.type));
       writeLog({
         kind: 'producer-bot-decision-audit', day, population: health.food.consumedToday,
         proposed: proposed == null ? null : { command: proposed.command, reason: proposed.reason },
@@ -594,11 +567,8 @@ function run(): void {
 
   const finalDelta = sampleDelta(world);
   const finalHealth = observer.observe(TOTAL_DAYS, finalDelta, finalInvariantErrors);
-  // Domains the simulation invariant collector does not cover, checked here on the same run:
-  //   - housing: the housing owner's own consistency verdict (over-capacity, orphaned references,
-  //     occupant-list mismatches) — capacity pressure is reported separately as `housingPressure`.
-  //   - animals: every wildlife count stays a finite non-negative number and the valley is not empty,
-  //     and the animal-care owner reports one of its three states.
+  // Domains the invariant collector does not cover: the housing owner's consistency verdict
+  // (capacity pressure is reported separately) and finite, non-empty wildlife counts.
   assert(
     finalHealth.housing.healthy,
     `housing diagnostics reported an inconsistent colony (${describeHousingFailure(world, finalHealth.housing)}; `

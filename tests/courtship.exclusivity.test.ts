@@ -1,16 +1,6 @@
 /**
- * Lifecycle/social audit F5 — courtship links were neither exclusive nor cleaned up.
- *
- * Three defects, one pair bond. `isCourtshipCandidate` had no exclusivity test, so a third settler
- * could be pointed at someone already in a mutual courtship while `humanTick` overwrote that
- * target's link — orphaning the previous partner's half, which then failed the mutuality test in
- * `findCourtshipPartner` and was never repaired. `courtshipProgress` is a per-settler field, so the
- * orphan's progress (and the renderer's 💕 badge) survived a courtship that no longer existed, and a
- * *new* pair inherited the abandoned pair's progress. Nothing cleared a link or its progress when a
- * courtship ended without marriage — death cleanup, divorce and the orphan path all left it behind.
- *
- * Ruling: a courtship is a mutual pair bond, so the first mutual pair is locked until marriage or a
- * repair — the same one-route-at-a-time rule youth love, affairs and marriage already follow.
+ * A courtship is a mutual pair bond: the first mutual pair is locked until marriage or a repair, and
+ * ending one clears both partners' links and progress.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType, JobType } from '../src/game/gameTypes';

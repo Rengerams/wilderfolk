@@ -1,10 +1,6 @@
 /**
- * The worker handshake guards themselves — not restatements of them.
- *
- * The previous version of this file asserted on its own local literals (and compared two
- * compile-time constants TS proves cannot be equal), so no production function was ever called and
- * nothing here could fail. `src/game/simWorker/protocol.ts` does have real behaviour to test: the
- * three exported guards plus the two message shapes the host and worker exchange.
+ * Pins the worker handshake guards in `simWorker/protocol.ts`: proto matching, mismatch text, and the
+ * feature assertion the host and worker exchange at init/ready.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

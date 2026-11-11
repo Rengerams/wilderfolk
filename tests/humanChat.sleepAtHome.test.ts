@@ -1,18 +1,6 @@
 /**
- * Sleepers keep their mouth shut (2026-09-16).
- *
- * Reported from play: settlers kept talking, with a speech bubble over them, while they
- * were sleeping at home. There is no `sleeping` flag in the simulation — "asleep" is
- * *at home during the night*, composed from the two rules that already own it:
- * `isNightHour` (the schedule owner's night window, 23:00–06:00) and `isNearResidence`
- * (the residency owner's 55 px proximity rule). The night routine is what puts them
- * there: `socialLife` sets `stayHome` for rest motives and `humanLeisureBehavior`
- * commutes them to their house.
- *
- * Two behaviours hang off that predicate: the ambient-chatter gate in `humanTick` and
- * the sleeper cull in `renderer/humans.ts` (they are indoors, so they are not drawn).
- * The scripted dialogue sessions are deliberately exempt — they are owned by the
- * dialogue tree, and ending one here would cut a story beat mid-line.
+ * "Asleep" is `isAsleepAtHome` — at home during the `isNightHour` night window — and it gates ambient
+ * chatter and the renderer cull; scripted dialogue sessions are exempt.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
@@ -31,7 +19,7 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import { initGame } from '../src/game/worldGen';
 import { SOCIAL_STAGGER } from '../src/game/adaptiveSpatialQuery';
 import { tickHumans } from '../src/game/humanTick';
-import { commuteHumanToBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { commuteHumanToBuilding, enterHumanBuilding, homeStandPosition } from '../src/game/simulation/humanMovement';
 
 const TEST_SEED = 20_260_916;
 const AMBIENT_CHANCE = 0.036 * PER_TICK_RATE_SCALE;
@@ -143,9 +131,8 @@ function nightAmbientTick(id: number): number {
       const hour = getHourOfDay(tick);
       if (!(hour >= 23 || hour < 6)) continue;
       if (seededRandomForRun(`chat-ambient:${id}:${tick}`) > AMBIENT_CHANCE) continue;
-      // The random roll is only one gate: shifts and context can also prevent
-      // a conversation. Find a night tick where the real away-from-home control
-      // actually speaks, then compare the same tick at home.
+      // The roll is one gate only: find a night tick where the away-from-home control speaks,
+      // then compare the same tick at home.
       resetDialogueSessions();
       const control = newWorld();
       control.tick = tick;
@@ -231,12 +218,13 @@ describe('ambient chatter at home after dark', () => {
     const home = house(1, { occupants: [1] });
     homeWorld.buildings = [home];
     const sleeping = settler(1, {
-      ...humanBuildingTarget(home, 1, true),
+      ...homeStandPosition(home, 1),
       residenceBuildingId: home.id,
     });
-    const homePeer = settler(2, humanBuildingTarget(home, 2, true));
+    const homePeer = settler(2, homeStandPosition(home, 2));
     homeWorld.entities = [sleeping, homePeer];
-    expect(commuteHumanToBuilding(sleeping, home, 2, true)).toBe(true);
+    expect(commuteHumanToBuilding(sleeping, home, 2)).toBe(true);
+    enterHumanBuilding(sleeping, home);
     expect(sleeping.indoorBuildingId).toBe(home.id);
     setSimSeed(TEST_SEED);
     tickHumans(homeWorld, contextFor(homeWorld, [sleeping, homePeer]));
@@ -252,14 +240,15 @@ describe('ambient chatter at home after dark', () => {
     const home = house(1, { occupants: [1] });
     state.buildings = [home];
     const talker = settler(1, {
-      ...humanBuildingTarget(home, 1, true),
+      ...homeStandPosition(home, 1),
       residenceBuildingId: home.id,
       chatPhrase: 'Still talking.',
       chatTicks: 6,
     });
     state.entities = [talker];
 
-    expect(commuteHumanToBuilding(talker, home, 2, true)).toBe(true);
+    expect(commuteHumanToBuilding(talker, home, 2)).toBe(true);
+    enterHumanBuilding(talker, home);
     expect(talker.indoorBuildingId).toBe(home.id);
     tickHumans(state, contextFor(state, [talker]));
 

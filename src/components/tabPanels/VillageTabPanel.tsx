@@ -1,4 +1,5 @@
-import { memo, Suspense, lazy, useState } from 'react';
+import { memo, Suspense, useState } from 'react';
+import { lazyWithRetry } from '../lazyWithRetry';
 import { BuildingType } from '../../game/gameTypes';
 import { getForgeOrder } from '../../game/forge';
 import { getHumanArmamentLabel, getArmamentSteps, hasTech } from '../../game/gameEngine';
@@ -18,9 +19,9 @@ import { getHourOfDay } from '../../game/dayCycle';
 import { largestBloodlines, largestExtendedFamilies } from '../../game/genealogyRegistry';
 import { REPUTATION_FRIENDLY_MIN, REPUTATION_HARSH_MAX } from '../../game/simHelpers';
 
-const FocusPanel = lazy(() => import('../../game/FocusPanel'));
-const VillageLeadershipPanel = lazy(() => import('../../game/VillageLeadershipPanel'));
-const PopulationPanel = lazy(() => import('../../game/PopulationPanel'));
+const FocusPanel = lazyWithRetry(() => import('../../game/FocusPanel'));
+const VillageLeadershipPanel = lazyWithRetry(() => import('../../game/VillageLeadershipPanel'));
+const PopulationPanel = lazyWithRetry(() => import('../../game/PopulationPanel'));
 
 interface StatBadgeProps {
   label: string;
@@ -85,8 +86,7 @@ const HousingDiagnostics = memo(function HousingDiagnostics({ state }: { state: 
 
 /** Today's food production vs consumption — "why is my food low?" at a glance. */
 const FoodLedger = memo(function FoodLedger({ state }: { state: WorldState }) {
-  // Summed by the ledger owner, not here: the view renders numbers, it does not calculate them
-  // (`LIVE-FINDINGS-STATUS.md`, F2 — "food can't be calculated at the UX").
+  // Summed by the ledger owner; this view renders numbers and computes none of them.
   const summary = summarizeFoodLedger(state);
   if (summary.produced.length === 0 && summary.consumed.length === 0) {
     return (
@@ -174,14 +174,10 @@ export default function VillageTabPanel({
   onHintAction,
   suppressHintIds = [],
 }: VillageTabPanelProps) {
-  // The price and the gate come from the recruitment owner (`settlerInteractionActions`), the same
-  // rule the command and the auto-play bot obey. The view used to restate that price threshold and
-  // print the price a second time, and its only explanation for a disabled button was a `title`
-  // on a disabled control — inert in the browsers where the label is the only affordance
+  // The price and gate come from the recruitment owner, the same rule the command and auto-play obey.
   const recruitEligibility = getRecruitSettlerEligibility(state);
   const canRecruit = recruitEligibility.ok;
-  // The immigration cap's owner — six sites used to read the raw `maxHumanPopulation` field while the
-  // owner derived a fallback for a save without it.
+  // The immigration cap's owner resolves the cap, including the fallback for a save without one.
   const popCap = resolvePopulationCap(state);
   /** Which subject window is open, if any — the same index-plus-windows shape the building panel uses. */
   const [openSubject, setOpenSubject] = useState<'population' | 'food' | 'leadership' | 'roster' | 'schooling' | 'armament' | 'reputation' | 'genealogy' | null>(null);
@@ -189,12 +185,6 @@ export default function VillageTabPanel({
 
   return (
     <div className="space-y-4">
-      {/* The "Village overview" block that used to sit here restated the People screen's own stat
-          cards (people / work / home / life / food / mood) and the Population disclosure below it, so
-          one screen carried the same population, work, bed and reputation figures three times. The
-          cards above are the survivor: always visible, zero clicks, and composed from the owners
-          (2026-09-22 stats-panel audit, P1). */}
-
       <Suspense fallback={<p className="text-[13px] text-stone-300">Loading focus…</p>}>
         <FocusPanel
           state={state}
@@ -206,12 +196,8 @@ export default function VillageTabPanel({
       </Suspense>
 
       {/*
-        The index — this panel is a list of subjects, not a page of sections.
-        Owner ruling, 2026-09-29: *"each subject should just have its own window not stacking up"*
-        and *"i dont want any thing stacked"*. The seven `CollapsibleSection`s that used to scroll
-        here are now one button each, opening that subject in its own window (`SubjectWindow`, the
-        shared shell). The hint lines are visible text, not a `title` alone, for the same reason the
-        rest of this panel states its refusals in words.
+        The index — this panel is a list of subjects, not a page of sections, each opening in its
+        own `SubjectWindow`.
       */}
       <div className="space-y-1">
         {([
@@ -283,10 +269,8 @@ export default function VillageTabPanel({
             </div>
           </div>
         </div>
-        {/* The working / idle / jailed / children tiles that used to sit here are the People screen's
-            Work and Life cards, four lines above this disclosure (2026-09-22 audit, P1). */}
-        {/* No count in the label on purpose: the staffing owner decides who is assignable, and a
-            locally recomputed "idle" total contradicted it before (F7). */}
+        {/* No count in the label: the staffing owner decides who is assignable,
+            so this view never recomputes an "idle" total. */}
         <button
           type="button"
           onClick={onAutoStaffAll}
@@ -315,9 +299,7 @@ export default function VillageTabPanel({
           📯 Recruit Settler ({RECRUITMENT_COST.food}🍖 {RECRUITMENT_COST.gold}💰)
           {recruitEligibility.ok ? '' : ` — ${recruitEligibility.blockReason ?? 'unavailable'}`}
         </button>
-        {/* Housing is this subject's business, so its diagnostics ride in this window rather than
-            sitting between two others in the old stack. Its own collapsible inside the window is
-            fine — the plan allows progressive disclosure *inside* a subject's window. */}
+        {/* Housing diagnostics ride in this window; the plan allows progressive disclosure inside a subject's window. */}
         <HousingDiagnostics state={state} />
       </SubjectWindow>
 
@@ -378,16 +360,6 @@ export default function VillageTabPanel({
           <p className="text-[13px] text-stone-300">The genealogy registry begins tracking this colony on the next simulation day. Earlier records can only be reconstructed where family links survive.</p>
         )}
       </SubjectWindow>
-
-      {/* The "Family tree" section that stood here is **removed**, on the owner's report:
-          *"family three is not a family thee"*. It rendered `FamiliesTreePanel`, which is a flat
-          alphabetical list of surnames with 1-2 adults under each (Musson, Mace, Wing, Andersen...),
-          was `defaultOpen`, and therefore dominated the Village tab — so it was both mislabelled and
-          part of the stacking the owner rejected ("i dont want any thing stacked").
-
-          A real tree lives in its own window (`FamilyTreeWindow`), opened from a selected settler:
-          parents above, the settler and spouse in the middle, children below. Nothing here should be
-          called a family tree until it draws one. */}
 
       <SubjectWindow
         windowKey="village-roster"
@@ -484,9 +456,7 @@ export default function VillageTabPanel({
             : 'roads (+rep after Urban Planning research)'}
           .
         </p>
-        {/* The band names, not the numbers: `simHelpers` owns both thresholds — visitor caravans
-            price their trade by band (`getVisitorTradePriceMult`), so the panel asks the owner
-            rather than restating them. */}
+        {/* Band names, not numbers: `simHelpers` owns both thresholds and prices caravan trade by band. */}
         <p className="mt-1 text-[13px] leading-relaxed text-stone-300">
           It also sets what caravans charge: at{' '}
           <strong className="text-emerald-300">{REPUTATION_FRIENDLY_MIN}+</strong> they offer friendly prices,

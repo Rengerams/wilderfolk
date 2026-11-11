@@ -3,7 +3,7 @@ import { getSpriteFrame, isHumanSpritesReady, type SpriteFrame } from './spriteL
 import { Social } from './gameConstants';
 
 export const HUMAN_WALK_FRAMES = 4;
-/** Male class ladder length: Poor Labourer … Aristocrat (10 classes, V2 art 2026-09-16). */
+/** Male class ladder length: Poor Labourer … Aristocrat (10 classes). */
 export const HUMAN_MALE_CLASS_COUNT = 10;
 /** Female class ladder length: Mudlark … Aristocrat (10 classes). */
 export const HUMAN_FEMALE_CLASS_COUNT = 10;
@@ -15,16 +15,9 @@ export const HUMAN_BASE_SPRITES: Record<HumanGender, string> = {
   female: '/sprites/human_female.png',
 };
 
-/**
- * Adult class ladders — the ten characters of each gender's set, lowest class first.
- *
- * The former `USE_NEW_SETTLER_ART_PREVIEW` switch (hard-coded `true`) and its unreachable legacy
- * `human_*_v0…v7` sheet list were removed with the false arm it selected: the flag could never be
- * `false`, so it advertised a rollback that did not exist. `spriteLoader.ts` still preloads those
- * 16 legacy PNGs — see the X-4 follow-up in the 2026-09-20 fix campaign.
- */
+/** Adult class ladders — the ten characters of each gender's set, lowest class first. */
 export const WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> = {
-  // Male class ladder (2026-09-16): Poor Labourer → Aristocrat, 10 classes, in order.
+  // Male class ladder: Poor Labourer → Aristocrat, 10 classes, in order.
   male: [
     '/sprites/new_male_set/male_poor_labourer.png',
     '/sprites/new_male_set/male_farmhand.png',
@@ -37,7 +30,7 @@ export const WALK_SHEET_PATHS: Record<HumanGender, readonly string[]> = {
     '/sprites/new_male_set/male_wealthy_gentry.png',
     '/sprites/new_male_set/male_aristocrat.png',
   ],
-  // Female class ladder (2026-09-10): Mudlark → Aristocrat, 10 classes, in order.
+  // Female class ladder: Mudlark → Aristocrat, 10 classes, in order.
   female: [
     '/sprites/new_female_set_v2/cut/female_mudlark.png',
     '/sprites/new_female_set_v2/cut/female_factory_hand.png',
@@ -65,18 +58,8 @@ export const JUVENILE_SPRITE_PATHS: Record<HumanGender, readonly string[]> = {
 } as const;
 
 /**
- * Painted figure height as a fraction of each child sprite's canvas, per
- * {@link JUVENILE_SPRITE_PATHS} entry, measured from the PNG's alpha bounding box.
- *
- * The four exports carry different transparent top padding (0 %–12 %), so one shared `spriteH` drew
- * their figures at up to 14 % different apparent height — `spriteH` is the *canvas* height, and the
- * figure inside it is only `fraction` of that. `getHumanSpriteMetrics` keeps returning the figure
- * height (`spriteH`), and the draw site multiplies the box by {@link getJuvenileFigureScale}
- * (`1 / fraction`) so the painted figure comes out at exactly `spriteH`.
- *
- * That also puts `headY = footY - spriteH` on the top of the figure rather than `(1 − fraction)`
- * of a sprite height above it, which is where the speech bubble and status badge are placed. Adults
- * are untouched. Re-measure these if the art is re-cut.
+ * Painted figure height as a fraction of each child sprite's canvas, per {@link JUVENILE_SPRITE_PATHS}
+ * entry (PNG alpha bounding box). The draw site scales the box by `1 / fraction` so figures match.
  */
 const JUVENILE_FIGURE_FRACTIONS: Record<HumanGender, readonly number[]> = {
   male: [0.918, 0.880], // child_boy_bakersboy, child_boy_merchantson
@@ -90,11 +73,8 @@ function juvenileSpriteIndex(gender: HumanGender, variant: number): number {
 }
 
 /**
- * `spriteH` multiplier for the **drawn box** of a child's sprite: the box is grown by `1 / fraction`
- * so that the painted figure inside it (box × fraction) comes out at the shared `spriteH` height.
- * Applied at the draw site (`humans.ts`), not in {@link getHumanSpriteMetrics}, so `spriteH` — and
- * with it `headY`, the contact shadow and the selection ring — stays figure-sized for every child.
- * Only meaningful for juveniles; the fractions exist only for `JUVENILE_SPRITE_PATHS`.
+ * `spriteH` multiplier for the drawn box of a child's sprite: grown by `1 / fraction` so the painted
+ * figure comes out at the shared `spriteH`. Applied at the draw site, keeping metrics figure-sized.
  */
 export function getJuvenileFigureScale(human: Entity): number {
   const gender = (human.gender ?? 'male') as HumanGender;
@@ -135,9 +115,8 @@ export const PIONEER_FRAME_W = 40;
 export const PIONEER_FRAME_H = 56;
 
 /**
- * Human scale is tied to building footprints, not collision size.
- * A house footprint is 40wu tall; settlers target ~50% of that on screen
- * (readable in top-down view without towering over buildings).
+ * Human scale is tied to building footprints, not collision size: a house footprint is 40wu tall and
+ * settlers target ~50% of that on screen, readable in top-down view without towering over buildings.
  */
 const HOUSE_REFERENCE_HEIGHT = 40;
 /** Screen height as fraction of a house's displayed height (at any zoom). */
@@ -152,10 +131,7 @@ export const HUMAN_MIN_SCREEN_PX = 30;
 export const HUMAN_SPRITE_ASPECT = 27 / 72;
 /**
  * The clickable floor for a settler, in screen pixels: the smallest box a pointer can reliably hit.
- *
- * The drawn sprite is much smaller than this at ordinary zoom, and it shrinks further in world
- * terms as the camera zooms in, which made picking one settler out of a crowd the hardest click on
- * the map. Applied as a screen-space minimum in `getHumanSelectionBounds`.
+ * Applied as a screen-space minimum in `getHumanSelectionBounds`, so tolerance stays constant.
  */
 export const HUMAN_MIN_HIT_WIDTH_PX = 26;
 export const HUMAN_MIN_HIT_HEIGHT_PX = 34;
@@ -169,10 +145,8 @@ export interface HumanSpriteMetrics {
 export function getHumanSpriteMetrics(human: Entity, camZoom: number): HumanSpriteMetrics {
   const cfgSize = human.size || 10;
   const baseSize = human.isJuvenile ? cfgSize * 0.7 : cfgSize;
-  // `spriteH` is the height of the **figure**, for every settler. A child's canvas carries padding
-  // around its figure, so the drawn box is grown at the draw site by `getJuvenileFigureScale`
-  // (see `JUVENILE_FIGURE_FRACTIONS`) — keeping this value figure-sized means headY, the contact
-  // shadow and the selection ring are all measured against the figure, not the padded canvas.
+  // `spriteH` is the height of the figure, for every settler. A child's canvas carries padding around
+  // its figure and the draw site grows the box instead, keeping headY and the shadow figure-sized.
   const worldH = human.isJuvenile ? HUMAN_WORLD_HEIGHT * 0.72 : HUMAN_WORLD_HEIGHT;
   const spriteH = Math.max(HUMAN_MIN_SCREEN_PX, worldH * camZoom);
   const size = baseSize * HUMAN_DRAW_SCALE * camZoom;
@@ -187,13 +161,8 @@ export function getHumanSpritePath(human: Entity): string {
 }
 
 /**
- * A sprite's clickable box, in world units, for the current zoom.
- *
- * The ellipse is the drawn sprite, but a drawn sprite is a fraction of the size a pointer can
- * reliably hit: at the default zoom the box is about 11 × 29 CSS px, and because it was world-space
- * it kept shrinking as the player zoomed *in* to pick someone out of a crowd. The bounds are
- * therefore clamped to a floor measured in **screen** pixels and converted back to world units, so
- * tolerance is constant on screen however far the camera is in.
+ * A sprite's clickable box, in world units, for the current zoom. The bounds are clamped to a floor
+ * measured in screen pixels and converted back, so tolerance stays constant however far the camera is in.
  */
 export function getHumanSelectionBounds(
   human: Entity,
@@ -326,10 +295,8 @@ export function drawPioneerAt(
 }
 
 /**
- * Pick a sprite variant (social class) for a new settler. Both the male and the
- * female ladder are weighted draws over `Social.CLASS_LADDER_WEIGHTS`, so the lower
- * classes are common and the gentry/aristocracy rare. Deterministic from the entity
- * id (with a per-gender salt) so spawn, save-load and rendering always agree.
+ * Pick a sprite variant (social class) for a new settler: a weighted draw over
+ * `Social.CLASS_LADDER_WEIGHTS` per gender, deterministic from the entity id so every path agrees.
  */
 export function pickHumanVariant(entityId: number, gender: HumanGender): number {
   const genderSalt = gender === 'female' ? 1013904223 : 0;
@@ -359,10 +326,8 @@ export function getHumanVariantLabel(gender: HumanGender | undefined, variant: n
 }
 
 /**
- * Slice one walk frame out of a human sheet. Landscape sheets (wider than
- * ~1.5× tall) are treated as HUMAN_WALK_FRAMES frames side by side — the
- * animator's format; portrait art (like the current 27×72 placeholders) is a
- * single frame and returned as-is.
+ * Slice one walk frame out of a human sheet. Landscape sheets (wider than ~1.5× tall) are
+ * HUMAN_WALK_FRAMES frames side by side; portrait art is a single frame and returned as-is.
  */
 export function sliceWalkFrame(frame: SpriteFrame, walkFrame: number): SpriteFrame {
   const w = frame.sw;
@@ -405,14 +370,8 @@ export function getJuvenileSpriteFrame(gender: HumanGender | undefined, variant 
 export const HUMAN_WALK_SPEED_THRESHOLD = 0.12;
 
 /**
- * At overview zoom, crowds use markers while small colonies retain full sprites.
- *
- * Chosen between the zoom presets (`CAMERA_ZOOM_PRESETS`: 0.5 / 0.75 / 1.0 / 1.25 / …)
- * so each preset is unambiguous: crowded far presets show dots, 1.25×
- * and closer show people. Above `HUMAN_MIN_SCREEN_PX` (30 px) the sprite path stops
- * shrinking, so at village-wide zoom every settler used to claim 30 px of screen — the
- * "crazy mess" at 200+ citizens. A marker costs one small arc and skips the sprite
- * lookup, walk frame, contact shadow, bob, status badge, speech bubble and name plate.
+ * At overview zoom, crowds use markers while small colonies retain full sprites. The threshold sits
+ * between zoom presets so each is unambiguous, and a marker skips the whole sprite draw path.
  */
 export const HUMAN_SPRITE_MIN_ZOOM = 1.15;
 const HUMAN_OVERVIEW_SPRITE_LIMIT = 12;

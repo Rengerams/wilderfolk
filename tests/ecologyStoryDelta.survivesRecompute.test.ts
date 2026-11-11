@@ -1,24 +1,7 @@
 import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 /**
- * D-1 — a story-layer ecology adjustment must survive the daily recompute.
- *
- * `ecosystemHealth` and `pollutionLevel` are **derived**: `tickEcosystemMetrics` recomputes both from
- * buildings, pollution and wildlife once per day and assigns them outright. Twelve story call sites
- * used to write the field directly — `setEcosystemHealth(state, getEcosystemHealth(state) + 6)` and
- * `state.pollutionLevel + 0.5` — and every one of them ran *earlier in the same daily tick* than that
- * recompute, so the value was overwritten before anything could read it. The Deer Parliament card
- * promised "Ecology +6 now" and the valley never moved.
- *
- * These cases pin the contract that replaced it: a story module queues a delta
- * (`adjustEcosystemHealth` / `adjustPollutionLevel`), and the metrics owner applies and clears it.
- *
- * ## Why the fixtures build industry
- *
- * `setEcosystemHealth` clamps to 0–100 and a **pristine** world scores at the ceiling: no industry, no
- * pollution, wildlife at the ideal ratio. A `+6` assertion against a 100 baseline reads `100 → 100`
- * whether or not the delta was applied, which is exactly the vacuous-test trap this audit kept
- * finding. So the fixture never asserts a delta against the ceiling — it takes the baseline the owner
- * actually computes for a valley with a town in it, and asserts against that.
+ * `ecosystemHealth` and `pollutionLevel` are derived, so a story adjustment must be queued via
+ * `adjustEcosystemHealth` / `adjustPollutionLevel` for `tickEcosystemMetrics` to apply and clear.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame, createBuilding } from '../src/game/worldGen';
@@ -97,8 +80,7 @@ describe('story ecology adjustments survive the daily recompute (D-1)', () => {
     tickEcosystemMetrics(world, counts, world.buildings);
 
     expect(getEcosystemHealth(world)).toBe(baseline + 5);
-    // And specifically not "only the first" or "only the last", which is what a last-writer-wins
-    // field would have produced before the fix.
+    // And specifically not "only the first" or "only the last": the queue accumulates every delta.
     expect(getEcosystemHealth(world)).not.toBe(baseline + 6);
     expect(getEcosystemHealth(world)).not.toBe(baseline - 3);
   });
@@ -112,10 +94,8 @@ describe('story ecology adjustments survive the daily recompute (D-1)', () => {
     // One-shot: the queue is empty the moment it has been applied.
     expect(world.pendingEcosystemHealthDelta ?? 0).toBe(0);
 
-    // The next day recomputes the *derived* score and applies nothing, so the story's +6 is gone —
-    // which is the design: the score tracks the valley, and a story beat is a one-day adjustment to it
-    // rather than a permanent edit. What must NOT happen is the +6 being applied a second time (which
-    // would read `baseline + 12` on the following days) or leaking into the recompute as a new floor.
+    // The next day recomputes the derived score and applies no delta, so the +6 is gone: a story
+    // beat adjusts one day, and must never be applied twice or become a new floor.
     tickEcosystemMetrics(world, counts, world.buildings);
     expect(getEcosystemHealth(world)).toBe(baseline);
     expect(getEcosystemHealth(world)).not.toBe(baseline + 12);
@@ -158,10 +138,8 @@ describe('story ecology adjustments survive the daily recompute (D-1)', () => {
   });
 
   it('changes the score across a real daily tick, not only when called directly', () => {
-    // The strongest form of the regression: two identical worlds, one daily tick each, differing only
-    // by a story adjustment queued before the boundary. Before the fix the two ended up equal — the
-    // recompute made the adjustment invisible — which is exactly what the Deer Parliament's "Ecology
-    // +6 now" promised and never delivered.
+    // Two identical worlds, one daily tick each, differing only by a queued delta: the delta must
+    // be visible after the real daily boundary, not only when the metrics owner is called directly.
     const build = (seed: number) => {
       const world = settledWorld(seed).world;
       world.tick = tickAtDailyPhase(1, 'worldEvents') - 1;

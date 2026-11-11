@@ -1,17 +1,6 @@
 /**
- * Sprite-sheet cutter/analyser for Wilderfolk character sets.
- *
- * Reads a full-body character sheet, finds each figure as a connected blob of
- * non-transparent pixels, reports transparency/geometry, and (in `--write` mode)
- * writes one tightly cropped RGBA PNG per figure, in reading order.
- *
- * Verified against the art this repo actually ships:
- *   - public/sprites/new_female_set_v2/Spritesheet_Females.png  (10 females)
- *   - public/sprites/new_male_set/V2/Spritesheet_V2_10_males.png (10 males)
- *
- * Usage:
- *   node scripts/cut-sprite-sheet.mjs <sheet.png> [--analyze] [--write <dir> --names a,b,c]
- *   node scripts/cut-sprite-sheet.mjs <sheet.png> --compare <dir>
+ * Sprite-sheet cutter/analyser: one tightly cropped RGBA PNG per figure found as a connected blob of
+ * non-transparent pixels. Usage: `<sheet.png> [--analyze] [--write <dir> --names a,b,c] | --compare <dir>`.
  */
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { inflateSync, deflateSync } from 'node:zlib';
@@ -186,13 +175,8 @@ function alphaStats(img) {
 }
 
 /**
- * Figures on these sheets are laid out loosely in columns (5) and rows (2); the art is
- * not aligned to a pixel grid, and one column's two figures can sit within a few pixels
- * of each other. Detection therefore uses projection profiles: maximal runs of columns
- * that contain any opaque pixel are column bands, and within each band maximal runs of
- * rows that contain any opaque pixel are the figures. That is stable even when a hat or
- * a tool is detached, and it splits vertically close neighbours a bounding-box merge
- * would fuse.
+ * Detection uses projection profiles: opaque column bands, then opaque row runs inside each band, so
+ * a detached hat or tool still groups with its figure and vertically close neighbours stay split.
  */
 function findFigures(img) {
   const { width: W, height: H, data } = img;

@@ -1,10 +1,6 @@
 /**
- * Teraforge river generation — rivers carve real `River` tiles, follow a real drainage network, and are
- * deterministic per seed. Replaces the deleted old-engine river test.
- *
- * The hydrology cases below were added with the SIGGRAPH 2013 carve: they pin the two invariants that
- * change broke while it was being written (a flow network with dead ends, and a cycle that made every
- * river walk the full grid), so neither can come back silently.
+ * Teraforge rivers carve real `River` tiles, follow a real drainage network, and are deterministic per
+ * seed — the drainage network never has a dead end or a cycle.
  */
 import { describe, expect, it } from 'vitest';
 import { generateWorldMap } from '../src/game/terrainGen';
@@ -107,8 +103,7 @@ describe('Teraforge river generation', () => {
       const net = networkOf(map);
 
       // A river that flows into a lake reaches the sea only if that lake drains there, so the drawn
-      // polyline is traced through the drainage network, not measured against the border. No length
-      // or count floor here: a river is not a requirement, and a short or absent one is acceptable.
+      // polyline is traced through the drainage network, not measured against the border.
       for (const river of map.rivers) {
         const outlet = river[river.length - 1]!;
         expect(
@@ -147,10 +142,8 @@ describe('drainage network (SIGGRAPH 2013 hydrology carve)', () => {
   const { downstream, accumulation } = computeFlow(filled, cols, rows);
 
   it('routes every interior cell to an outlet, with no cycles', () => {
-    // A cell that cannot drain is a stub river; a cycle is a river that never reaches the sea. Both were
-    // real while this pass was being written: the fill alone left 14–27 % of cells with no lower
-    // neighbour (longest path ~30 cells), and an inverted uphill guard closed a loop that made every walk
-    // traverse the whole grid.
+    // A cell that cannot drain is a stub river; a cycle is a river that never reaches the sea. Every
+    // interior cell must reach an outlet and every walk must terminate inside the grid.
     const n = cols * rows;
     let interiorDeadEnds = 0;
     for (let y = 1; y < rows - 1; y++) {

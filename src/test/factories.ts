@@ -1,35 +1,14 @@
 /**
- * Shared test fixture factories.
- *
- * Why this file exists (`docs/private/audits/2026-09-16/duplication-deadcode.md` G4, evidence in
- * `_test-helper-duplication.md` §2): before it, 11 test files each carried a byte-identical
- * `human()` factory, 12 carried a `building()` factory that had already split into two
- * `constructionProgress` variants, and `byType()`/`stubHuman()` were copied 5 and 3 times. Every
- * copy ended in `as Entity` / `as Building`, so the type checker could not see that the fixtures
- * omit required fields — a new required `Entity` field would read as `undefined` in 30+ files with
- * no compiler error.
- *
- * Location: `src/test/` (not `tests/`) on purpose. `vitest.config.ts:16` collects only
- * `tests/**\/*.test.ts`, so this plain module is never executed as a suite, and
- * `tsconfig.vitest.json:18` includes `src/test/**\/*.ts` so these literals **are** type-checked —
- * which is what makes `as Entity` removable. `tsconfig.app.json:44` excludes `src/test/**` from the
- * production build.
- *
- * The literals are typed as complete `Entity`/`Building` values rather than cast. They are
- * deliberately *not* built through `createEntity`/`createBuilding`: those consume the sim RNG and
- * populate name/gender/traits/sprite fields, which would change what the existing tests exercise.
- * The two required fields the old copies silently omitted (`maxAge`, `reproductionCooldown`) are
- * set once here from their owners.
+ * Shared test fixture factories. The literals are complete `Entity`/`Building` values, typed rather
+ * than cast, so a new required field fails to compile here instead of reading as `undefined`.
  */
 import type { Building, BuildingType, Entity } from '../game/gameTypes';
 import { EntityType, JobType } from '../game/gameTypes';
 import { SPECIES_CONFIG } from '../game/speciesConfig';
 
 /**
- * The fields every hand-built settler fixture in the suite shares.
- *
- * `maxAge` mirrors what `createEntity` assigns a human (`SPECIES_CONFIG[EntityType.Human].maxAge`);
- * the pre-extraction copies left it (and `reproductionCooldown`) absent behind an `as Entity` cast.
+ * The fields every hand-built settler fixture in the suite shares. `maxAge` mirrors what `createEntity`
+ * assigns a human; `reproductionCooldown` completes the pair a cast would silently omit.
  */
 function settlerBase(id: number): Entity {
   return {
@@ -80,13 +59,7 @@ export function stubHuman(id: number, overrides: Partial<Entity> = {}): Entity {
   };
 }
 
-/**
- * A completed test building.
- *
- * `constructionProgress: 1` is the value eight files used. The four files that used `100` call
- * {@link finishedBuilding} instead, so the divergence is recorded once here rather than hidden
- * across twelve copies.
- */
+/** A completed test building at `constructionProgress: 1`; the `100` variant is {@link finishedBuilding}. */
 export function building(
   id: number,
   type: BuildingType,
@@ -112,9 +85,7 @@ export function building(
 }
 
 /**
- * The same completed test building at `constructionProgress: 100` — the second of the two values
- * the twelve hand-copied `building()` factories had already split into. Passing
- * `constructionProgress` in `overrides` still wins.
+ * The same completed test building at `constructionProgress: 100`. Passing it in `overrides` still wins.
  */
 export function finishedBuilding(
   id: number,

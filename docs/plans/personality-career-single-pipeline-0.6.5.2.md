@@ -1,5 +1,7 @@
 # Wilderfolk 0.6.5.2 — DNA, personality and career progression: one trait pipeline
 
+> **Superseded (6 November 2026):** the fourteen-dimension genome in [Genetic aptitudes and personality overhaul](genetic-aptitudes-personality-overhaul-2026-11-02.md) replaces the three-of-fourteen trait model below. This document is retained as design history; the live implementation follows the newer plan.
+
 **Implementation status (28 October 2026):** PR A and PR B are merged; **PR C is implemented and merged through [#97](https://github.com/Rengerams/wilderfolk/pull/97)**, while PR D (career history/progression/fit) and PR E (inspector) remain unimplemented. This is the authoritative architecture, not executable code. Historical AS-IS code examples below describe their original baselines; always verify live code before implementing PR D.
 
 **Codebot: start with [the executable PR tickets and gates](personality-career-codebot-tasks-0.6.5.2.md).** They define exact files, stage ordering, mandatory updates to **both** `OWNERSHIP_OVERVIEW.md` **and** `src/game/simulation/decisionRegistry.ts` in **every** implementation PR, focused tests, stop conditions and required bug reporting using `docs/bug_report/readme.md` (including the single historical index). The present document defines the architecture and design decisions; the linked task sheet defines the work.

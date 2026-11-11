@@ -1,16 +1,6 @@
 /**
- * F20 — five different "food is low" thresholds, with the owner helper bypassed
- * (`docs/private/audits/2026-09-16/ui-logic.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * The surfaces disagreed because each re-derived the rule: `humans * 3` in the dashboard,
- * `max(20, pop × 2)` in the focus hints and the citizen mood, `max(15, pop × 1.5)` in the alert strip and
- * the low-food tip, and `isFoodLow`/`isFoodCritical` in the owner. At 2 settlers with 18 food the header
- * badge warned and the Focus panel said "Feed the village" while the alert strip said nothing.
- *
- * There are still **two bands** — the owner's `isFoodLow` floor ("low") and its per-settler rule
- * ("critical", `max(15, pop × 1.5)`) — and which band a surface reacts to is a deliberate UX choice, now
- * stated per site instead of being an accident of arithmetic. What is pinned here is that the *numbers*
- * have one definition and that no site re-derives them.
+ * The food-low numbers have one definition and no surface re-derives them; "low" and "critical" stay
+ * two bands by design, and which band a surface reacts to is a per-site UX choice.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -38,7 +28,7 @@ describe('the food-low rule has one owner', () => {
   });
 
   it('keeps "low" and "critical" as two bands, which is why the sites differ on purpose', () => {
-    // The audit's example: 2 settlers, 18 food.
+    // 2 settlers, 18 food: above the critical floor, below the low threshold.
     expect(isFoodAlert(world(18, 2)), 'the badge/hint/mood band reacts here').toBe(true);
     expect(isFoodCritical(world(18, 2)), 'the strip/concern band does not').toBe(false);
     expect(isFoodAlertAmount(18, 2)).toBe(true);
@@ -57,9 +47,7 @@ describe('the food-low rule has one owner', () => {
       ['src/game/focusHints.ts', /Math\.max\(20,/],
       ['src/game/citizenOverview.ts', /Math\.max\(20,/],
       ['src/game/dashboardData.ts', /humans \* 3/],
-      // The sixth site, missed by the F20 sweep and fixed as R6 of the 2026-09-17 UI audit: the
-      // Valley overview's Food card computed `max(20, pop × 2)` itself, so at 20 settlers with 35
-      // food it showed red beside the owner's green "Thriving" mood.
+      // A component, not a domain module: the same no-own-threshold rule applies to the screen.
       ['src/components/CitizenOverviewScreen.tsx', /Math\.max\(20,/],
     ];
     for (const [file, restated] of files) {

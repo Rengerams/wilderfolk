@@ -2,6 +2,7 @@ import type { Entity, WorldState } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycle';
 import { getWorkSchedule } from './workSchedule';
 import { isPlayerHuman } from './playerHuman';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 
 export const MAX_SCHEDULE_FATIGUE = 100;
 /** The worst output a fully fatigued crew can fall to — the floor of the penalty, not a % of energy. */
@@ -26,7 +27,7 @@ export function getScheduleProductivityMultiplier(entity: Pick<Entity, 'schedule
  * does not evaluate every tick can still record the ticks it covered (see `humanTick`).
  */
 export function recordScheduleWorkTick(entity: Entity, step = 1): void {
-  if (!entity.alive || entity.isJuvenile || !isPlayerHuman(entity)) return;
+  if (!entity.alive || entity.age < HUMAN_ADULT_MIN_AGE || !isPlayerHuman(entity)) return;
   // A jailed settler keeps the reserved post but earns no attendance: a cell is not a shift.
   if (entity.prisonBuildingId != null) return;
   if (!Number.isFinite(step) || step <= 0) return;
@@ -44,7 +45,7 @@ export function recordScheduleWorkTick(entity: Entity, step = 1): void {
 
 /** Credit only a tick the settler actually spent at the post. */
 export function recordPresentWorkTick(entity: Entity, step = 1): void {
-  if (!entity.alive || entity.isJuvenile || !isPlayerHuman(entity)) return;
+  if (!entity.alive || entity.age < HUMAN_ADULT_MIN_AGE || !isPlayerHuman(entity)) return;
   if (entity.prisonBuildingId != null) return;
   if (!Number.isFinite(step) || step <= 0) return;
   const priorTicks = entity.schedulePresentTicksToday ?? 0;
@@ -55,21 +56,12 @@ export function recordPresentWorkTick(entity: Entity, step = 1): void {
 }
 
 /**
- * Resolve a settler's fatigue for the day.
- *
- * Takes only the two fields it actually touches, matching its siblings `getScheduleFatigue` and
- * `getScheduleProductivityMultiplier` above. It deliberately does **not** narrow on `alive`, `isJuvenile`
- * or `faction` the way `recordScheduleWorkTick` does — this is the end-of-day settle, and it must run
- * for every settler who accrued hours, so a full `Entity` is not required to answer it (2026-09-20
- * audit: the narrower parameter is what lets the fixture call this without casting a partial entity).
+ * Resolve a settler's fatigue for the day. This is the end-of-day settle, so it does not narrow on
+ * `alive`, age or `faction` the way the per-tick recorders do.
  */
 /**
  * The standard work window's length, capped at the neutral day — the loop-invariant half of
- * `resolveDailyScheduleFatigue` below.
- *
- * Exported so a pass that resolves many settlers can derive it once instead of paying
- * `getWorkSchedule` (which normalizes and allocates a fresh `{startHour, endHour}`) twice per
- * settler. `state.workSchedule` is written only at the worker boundary (`simPrep`, `simDelta`).
+ * `resolveDailyScheduleFatigue`. Exported so a pass resolving many settlers derives it once.
  */
 export function getScheduleTargetHours(state: Pick<WorldState, 'workSchedule'>): number {
   const schedule = getWorkSchedule(state);
@@ -107,10 +99,8 @@ export function resolveDailyScheduleFatigue(
 }
 
 /**
- * The schedule-only hours a settler spent on shift across the last settled day.
- *
- * Used by career history and workshop estimates. Production uses
- * `schedulePresentTicksToday`, which requires the settler to be at the post.
+ * The schedule-only hours a settler spent on shift across the last settled day, used by career history
+ * and workshop estimates. Production uses `schedulePresentTicksToday`, which requires presence.
  */
 export function getScheduleLastWorkedHours(entity: Pick<Entity, 'scheduleLastWorkedHours'>): number {
   const hours = entity.scheduleLastWorkedHours ?? 0;
@@ -118,17 +108,8 @@ export function getScheduleLastWorkedHours(entity: Pick<Entity, 'scheduleLastWor
 }
 
 /**
- * The share of a workplace's configured window its crew actually put in — the single rule both real
- * production (`dailyBuildingEconomy.tickBuildingProduction`) and the workshop estimate
- * (`workshopEconomy.estimateWorkshopGold`) apply, so a preview cannot drift from the output.
- *
- * `workedHours` is the mean hours one settler really worked; `assigned` is how many settlers the
- * building holds. A crew that works its whole window scores 1 and keeps exactly the output the
- * window alone used to give; a crew that does half scores 0.5; a crew with nobody present scores 0,
- * which is the owner's "the person who is working there should be measured".
- *
- * No attendance credit means no production, including the first day of a new
- * village. A workplace must earn production from the worker's actual shifts.
+ * The share of a workplace's configured window its crew actually put in — the single rule behind both
+ * real production and the workshop estimate. No attendance credit means no production.
  */
 export function getWorkplacePresenceShare(
   workedHours: number,

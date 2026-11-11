@@ -1,8 +1,6 @@
 /**
- * Blueberry Foraging & Bush Lifecycle Module
- *
- * Owns rare blueberry tree spawning, daily regrowth, and settler
- * opportunistic picking AI.
+ * Blueberry Foraging & Bush Lifecycle Module — rare tree spawning, daily regrowth
+ * and settler opportunistic picking.
  */
 
 import { addResource } from './economy';
@@ -18,6 +16,7 @@ import { findClosestEntityInRadius } from './simQueries';
 import type { TickContext } from './simulation/simulationTypes';
 import { createEntity } from './entityFactory';
 import { indexLivingEntity } from './entityIndex';
+import { awardRareWindfallMark } from './personalMarks';
 import { getSimRng } from './simRng';
 
 export const BLUEBERRY_MAX_YIELD = 6;
@@ -204,6 +203,8 @@ export function tryTickBlueberryForaging(
   if (target.blueberryNextRegrowthDay == null || target.blueberryNextRegrowthDay <= currentDay) {
     target.blueberryNextRegrowthDay = currentDay + BLUEBERRY_REGROWTH_DAYS;
   }
+  // Emptied a rare bush: the one small windfall the world already hands out.
+  if (target.blueberryYield === 0) awardRareWindfallMark(settler, currentDay);
 
   // The gathering recovery belongs to stamina, not the derived human energy projection.
   // The food reaches the shared larder below and can fund an ordinary nutrition meal.

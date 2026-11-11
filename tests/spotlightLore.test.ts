@@ -10,6 +10,7 @@ import { getPathGrid, lineCrossesBlocked, resetPathGridCaches } from '../src/gam
 import { rebuildEntityByIdMap } from '../src/game/entityIndex';
 import { canPursueSecretAffair, hasAffairPartner } from '../src/game/simulation/humanRelationships';
 import { getSettlerWorkReason } from '../src/game/workAbsence';
+import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
 import { createBuilding, initGame } from '../src/game/worldGen';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -164,8 +165,10 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     });
     world.buildings = [tavern];
     innkeeper.workerBuildingId = tavern.id;
+    // At his own post: the attendance projection no longer calls distance from it travel.
+    Object.assign(innkeeper, humanBuildingTarget(tavern, innkeeper.id));
     world.tick = pickEligibleTick(world);
-    expect(getSettlerWorkReason(world, innkeeper).code).toMatch(/^(working|walking-to-work)$/);
+    expect(getSettlerWorkReason(world, innkeeper).code).toBe('working');
     expect(maybeStartSpotlightLore(world)).toBe(true);
     expect(world.spotlightLore?.performerIds).toHaveLength(7);
     expect(world.spotlightLore?.performerIds).not.toContain(innkeeper.id);
@@ -381,7 +384,7 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
 
   it('idempotently completes once and abandons missing/dead actors without rewards', () => {
     const { world, girl, adults } = makeFixture();
-    world.tick = 72 * 200;
+    world.tick = TICKS_PER_DAY * 200;
     const scene = readyScene(world, girl, adults);
     world.spotlightLore = scene;
     const startResources = structuredClone(world.resources);
@@ -409,10 +412,8 @@ describe('spotlight lore — ordinary human movement must not steal actors', () 
       { name: `Audience${i}`, gender: 'male', ageYears: 28, colonyDay: 96 },
     ));
     world.entities = [girl, ...adults];
-    // initGame already populated its tick-persistent ID/type caches with the
-    // founder and wildlife entities. Replacing its entire population in a test
-    // must also rebuild the authoritative lookup, otherwise the real tick
-    // treats the new heroine as missing and aborts this otherwise valid scene.
+    // Replacing the whole population must rebuild the tick-persistent ID/type caches, or the real
+    // tick treats the new heroine as missing and aborts this otherwise valid scene.
     rebuildEntityByIdMap(world);
     invalidateCachedEntityByType(world);
     // 19:00 on a weekend; find a deterministic actor who prefers home.
@@ -442,9 +443,8 @@ describe('spotlight lore — ordinary human movement must not steal actors', () 
     actor.residenceBuildingId = home.id;
     // Home is far to the right; the spotlight slot is to the left.
     const beforeX = actor.x;
-    // A ready scene has already gathered: every actor must actually be on stage.
-    // Keep this actor 10 units from its slot (inside the 11-unit ready tolerance,
-    // but outside the 9-unit steering stop), so a home-commute override is observable.
+    // A ready scene has already gathered: place this actor 10 units from its slot, inside the
+    // 11-unit ready tolerance but outside the 9-unit steering stop.
     const slots = adults.map((person, i) => {
       const isActor = person.id === actor.id;
       return {

@@ -11,13 +11,8 @@ export function isFoodLow(resources: Pick<WorldState['resources'], 'food'>): boo
 }
 
 /**
- * The absolute store level below which `population` settlers count as critical.
- *
- * Exported because five surfaces used to re-derive "food is low" and four of them disagreed — a 3× rule
- * in the dashboard, `max(20, pop × 2)` in the focus hints and the citizen mood, and `max(15, pop × 1.5)`
- * in the alert strip and the low-food tip — so at 2 settlers with 18 food the header warned, the Focus
- * panel said "Feed the village", and the alert strip said nothing at all
- * (`LIVE-FINDINGS-STATUS.md`, F20). This is the one definition; the sites now call it.
+ * The absolute store level below which `population` settlers count as critical: the single
+ * definition every low-food surface calls.
  */
 export function getFoodCriticalThreshold(population: number): number {
   return Math.max(FOOD_CRITICAL_BASE, population * FOOD_CRITICAL_PER_PERSON);
@@ -68,9 +63,8 @@ export function addCappedResource(state: WorldState, type: keyof Resources, amou
   const add = Math.min(amount, headroom);
 
   state.resources[type] = current + add;
-  // The lifetime gathering record reads this return value, so every gain in the game — production,
-  // foraging, hunting, fishing, trade, rewards and refunds — is counted exactly once, at the one
-  // place storage accepts it.
+  // The lifetime gathering record reads this return value, so every gain is counted exactly
+  // once, where storage accepts it.
   recordResourcesGathered(state, type, add);
   return add;
 }

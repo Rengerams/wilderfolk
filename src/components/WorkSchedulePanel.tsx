@@ -51,23 +51,20 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
   const [endHour, setEndHour] = useState(current.endHour);
 
   // `current` is rebuilt every render (the WorldState prop is mutated in place), so this is
-  // derived each render rather than memoized on a value React cannot track — the same rule the
-  // window preview below follows.
+  // derived each render rather than memoized on a value React cannot track.
   const validation = validateWorkSchedule(startHour, endHour, {
     startHour: current.startHour,
     endHour: current.endHour,
   });
   const currentHours = getWorkScheduleHours(current);
   
-  // The mean and its band are the fatigue owner's (`readVillageFatigue`): the panel used to average
-  // `scheduleFatigue` and band it at 60/25 itself, so the thresholds were tunable only in this view.
+  // The mean and its band come from the fatigue owner (`readVillageFatigue`); the panel only displays them.
   const fatigue = readVillageFatigue(state);
   const fatigueLabel = fatigue.label;
   const outputMultiplier = fatigue.outputShare;
   
-  // Preview the impact of the currently chosen window. The WorldState prop is
-  // mutated in place by the sim, so the preview is derived each render instead
-  // of memoized on a mutable object.
+  // Preview the impact of the chosen window; derived each render because the
+  // WorldState prop is mutated in place and cannot key a memo.
   const previewHours = validation.ok ? getWorkScheduleHours(validation.schedule) : currentHours;
   const preview = getScheduleImpactPreview(state, 'ordinary', currentHours, previewHours);
 

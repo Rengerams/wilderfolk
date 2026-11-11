@@ -1,16 +1,6 @@
 /**
- * E-2 (`docs/private/audits/2026-09-20/`): moving food in a visitor trade reached the store but not
- * the economy ledger.
- *
- * `groupEvents.tradeWithVisitors` paid with `consumeResources(state, effectivePay)` and was paid with
- * `addCappedResource(state, key, amount)`; neither told the ledger. Selling 30 food to a passing
- * caravan therefore left the dashboard's "Net food flow" untouched, so it could read a positive net
- * on a day the larder fell. The correct sibling is `tradeCaravans.deductExports`, which spends
- * through `spendFood(state, 'trade', …)`.
- *
- * Both sides are asserted: the sink on the way out (`sell_food`), and what storage actually accepted
- * on the way in (`buy_food`) — the M5 rule, where the nominal amount must not be recorded in place of
- * the accepted one.
+ * Moving food in a visitor trade must reach the economy ledger: the spend goes through
+ * `spendFood(state, 'trade', …)` and the store records what storage actually accepted.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -53,7 +43,7 @@ describe('E-2 — visitor-trade food reaches the ledger', () => {
     const next = tradeWithVisitors(state, TRADER_ID, 'sell_food');
 
     expect(next.resources.food).toBe(100 - sold);
-    // Pre-fix this was `[]`: the store fell and the ledger never heard about it.
+    // The sale records its food as a `trade` sink, so the store and ledger agree.
     expect(summarizeFoodLedger(next).consumed).toEqual([{ source: 'trade', amount: sold }]);
     expect(summarizeFoodLedger(next).net).toBe(-sold);
   });

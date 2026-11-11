@@ -34,12 +34,8 @@ export function computeMiniMapViewportRect(
 }
 
 /**
- * Mini-map terrain tints come from the canonical terrain palette
- * (`terrainAtlas.terrainPaletteHex`) rather than a third hand-written table.
- *
- * The local table is why the minimap could never match the map it navigates
- * (audit `visuals-looks.md` D12), and it also needed a `?? default` for types it missed —
- * the palette is exhaustive by construction.
+ * Mini-map terrain tints come from the canonical terrain palette (`terrainAtlas.terrainPaletteHex`),
+ * which is exhaustive by construction — no local table.
  */
 
 export default function MiniMap({
@@ -53,9 +49,8 @@ export default function MiniMap({
   /** Click-to-navigate: jump the camera to a world coordinate. */
   onNavigate?: (worldX: number, worldY: number) => void;
   /**
-   * The live map canvas, so the viewport rectangle can be sized from what is **actually on screen**
-   * rather than from the world's dimensions. Without it the box is `minimapWidth / (2 × zoom)`
-   * whatever the window size, so it lies about the visible area at every zoom and ignores a resize.
+   * The live map canvas, so the viewport rectangle is sized from what is actually on screen rather
+   * than from the world's dimensions, which ignore window size and zoom.
    */
   mapCanvasRef?: RefObject<HTMLCanvasElement | null>;
 }) {
@@ -194,12 +189,8 @@ export default function MiniMap({
   }, [worldRef, viewRef, mapCanvasRef]);
 
   /**
-   * The keyboard equivalent of "click to go": jump the camera to the village. Leader first (the
-   * `villageLeaderId` owner field), otherwise the centroid of the living settlers — the same target
-   * the `H` hotkey centres on, so the two agree.
-   *
-   * The canvas was click-only: no role, no name, no tab stop, so a keyboard user had no way to use
-   * the one navigation control on the map.
+   * The keyboard equivalent of "click to go": jump the camera to the village leader, else the
+   * centroid of the living settlers — the same target the `H` hotkey centres on.
    */
   const navigateToVillage = useCallback(() => {
     const world = worldRef.current;

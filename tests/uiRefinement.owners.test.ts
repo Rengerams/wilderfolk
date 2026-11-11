@@ -1,27 +1,6 @@
 /**
- * Guards for the 2026-09-17 UI refinement campaign
- * (`docs/private/audits/2026-09-16/UI_REFINEMENT_AND_DUPLICATION_2026-09-17.md`, section B).
- *
- * Each row here is the *risk* side of a Tier-1/Tier-2 refinement whose fix is otherwise pure
- * presentation, so it is pinned the way the campaign pins its other owner reads: a behavioural
- * assertion where the rule is arithmetic, and a narrow source guard where the risk is a panel
- * re-deriving a rule or a label it does not own.
- *
- * - **R1** `useGamePersistence`'s unmount save ran with `loopRef.current === null` under
- *   `StrictMode`, and `persistGame` falls back to the `viewRef` seeded by `initGame()`, so a
- *   development page load wrote a brand-new empty colony over the single save slot.
- * - **R4** an inactive but *establishable* trade route was labelled "Unavailable" above its own
- *   enabled "Establish Route" button, while the Trade badge counted it.
- * - **R8** Growing Village, Century Mark and Great City had no progress row at all, because the
- *   owner's `switch` covered five ids and returned `null` for the rest.
- * - **R22** the raid forecast printed `Math.round(ratio × 100)` while the outcome tiers band on
- *   `>= 1.35 / 0.95 / 0.65`, so 1.345 read "135%" beside a "Costly win" badge.
- * - **R24** the leadership panel promised a "3 months" vacancy election as prose while the owner
- *   holds `VACANCY_ELECTION_DELAY_YEARS`.
- * - **R25** the recruitment price and gate were typed twice and the owner's `blockReason` was
- *   surfaced only in a `title` on a disabled button.
- * - **R29** the household panel read the raw `workingSettlers` / `idleSettlers` tick fields and
- *   counted the Leader's House beds as assignable housing.
+ * UI refinement guards: each panel reads the rule it displays from its owner instead
+ * of re-deriving a label, price, ratio, delay or count.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -54,18 +33,18 @@ describe('R1 — the unmount save never writes a colony no loop owns', () => {
       /useEffect\(\(\) => \{\s*return \(\) => \{([\s\S]*?)\};\s*\}, \[loopRef\]\);/,
     );
     expect(effect, 'fixture premise: the unmount-save effect exists').not.toBeNull();
-    // BRITTLE-TEST: the cleanup reads the live ref into a local and gates the exit save on it; the
-    // guard's meaning is what matters — return before saving when no loop owns a colony (StrictMode
-    // runs the mount effect twice and would overwrite the slot with an empty world).
+    // The cleanup reads the loop ref into a local and gates the exit save on it: return
+    // before saving when no loop owns a colony (StrictMode mounts twice).
     const body = effect?.[1] ?? '';
     expect(body, 'the cleanup reads the loop ref into a local').toContain('const loop = loopRef.current;');
+    const guard = body.match(/if\s*\(\s*!loop\s*\|\|\s*isCrashRecoveryActive\(\)\s*\)\s*return;/);
     expect(
-      body,
-      'the unmount cleanup saves without a loop again (StrictMode overwrites the save slot)',
-    ).toMatch(/if \(!loop\) return;/);
+      guard,
+      'unmount must skip saving without a loop or during crash recovery',
+    ).not.toBeNull();
     expect(
-      body.indexOf('if (!loop) return;'),
-      'the unmount cleanup saves before it checks for a loop',
+      guard?.index ?? Infinity,
+      'the unmount cleanup saves before its loop/crash guard',
     ).toBeLessThan(body.indexOf('persistCurrentGameRef'));
   });
 });
@@ -146,10 +125,8 @@ describe('R29 — the household panel reads the village aggregation and assignab
   it('takes its counts and beds from computeVillageStats, and re-derives neither', () => {
     const panel = read('src/game/PopulationPanel.tsx');
     expect(panel).toContain('computeVillageStats(state)');
-    // Beds come from the same aggregation (`uiSimSummary.computeVillageStats` → the growth owner's
-    // `getTotalBeds`), not from a local sum of `building.occupants`. The panel stopped printing an
-    // open-bed figure of its own — that figure is the People screen's stat card — so the guard here
-    // is that it reads the owner's bed count rather than recomputing one.
+    // Beds come from `computeVillageStats` → the growth owner's `getTotalBeds`, not a local
+    // sum of `building.occupants`; this guard pins that read.
     expect(panel).toContain('villageStats.beds');
     expect(panel, 'the raw tick counters are back').not.toMatch(/state\.workingSettlers|state\.idleSettlers/);
     expect(panel, 'the housing label counts unassignable beds again').not.toMatch(/getOpenBeds\(/);

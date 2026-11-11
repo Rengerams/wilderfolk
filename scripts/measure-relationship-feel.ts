@@ -1,13 +1,6 @@
 /**
- * Relationship-feel measurement (Objective 9 validation).
- *
- * Seeds a small valley with married couples + single paramours + houses and
- * workplaces, runs MEASURE_DAYS colony days, captures the daily relationship
- * diagnostics snapshots (interval + active counters) and per-tick timings,
- * then reports event rates/day and tick p50/p95.
- *
- * Run: npx tsx scripts/measure-relationship-feel.ts
- *      MEASURE_DAYS=90 npx tsx scripts/measure-relationship-feel.ts
+ * Relationship-feel measurement: seeds couples, paramours, houses and workplaces, runs MEASURE_DAYS
+ * colony days and reports event rates/day plus tick p50/p95 from the diagnostics snapshots.
  */
 import { gameTick, initGame } from '../src/game/gameEngine';
 import { BuildingType, EntityType, MapSize } from '../src/game/gameTypes';

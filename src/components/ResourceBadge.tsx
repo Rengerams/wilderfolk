@@ -27,9 +27,8 @@ interface Props {
   className?: string;
   alert?: boolean;
   /**
-   * The store is at its cap, so production of this resource is being discarded (see
-   * `dailyBuildingEconomy.addProductionOutput` / `resourceUtils.isResourceCapped`). A capped producer
-   * used to be indistinguishable from an idle one.
+   * The store is at its cap, so production of this resource is discarded
+   * (`dailyBuildingEconomy.addProductionOutput` / `resourceUtils.isResourceCapped`).
    */
   full?: boolean;
 }

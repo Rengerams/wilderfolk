@@ -1,18 +1,7 @@
 import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycycleconstants';
 /**
- * Workforce authority — SIMULATION_AUTHORITY.md §3 workforce row + Objective 4.
- *
- * workforce.ts owns assignment: `workerBuildingId`, workplace `occupants`,
- * `occupation`, and `job` must agree after every assignment, no living human
- * may occupy two workplaces, and the leader may work without losing office
- * status or manor residency.
- *
- * These tests exercise the named transitions (assignWorkerTransition /
- * removeWorkerTransition / transferWorkerBetweenBuildings / addToConstructionCrew)
- * and the compatibility command surface (removeWorkerFromBuilding),
- * verifying duplicate prevention, leader auto-assignment, reassignment,
- * removal, idle-worker counts, and that the
- * Objective 1 invariants hold after every transition.
+ * `workforce.ts` owns assignment: `workerBuildingId`, workplace `occupants`, `occupation` and `job`
+ * must agree after every transition, no living human may hold two workplaces, and a leader keeps office.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -320,8 +309,7 @@ describe('workforce named transitions', () => {
   });
 
   it('auto-staffs an idle leader like any other settler', () => {
-    // Authority §5 (2026-08-20): the leader participates in normal workforce
-    // assignment — auto-staff may assign an idle leader.
+    // The leader is a normal assignment candidate: auto-staff may assign an idle leader.
     const leader = human(1, { occupation: LEADER_OCCUPATION });
     const farm = building(2, BuildingType.Farm);
 

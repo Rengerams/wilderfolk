@@ -6,26 +6,13 @@ import { TICKS_PER_DAY, DAYS_PER_YEAR, getCalendarDay } from '../src/game/dayCyc
 import type { WorldState } from '../src/game/gameTypes';
 
 /**
- * `gameWorker.ts` wraps `gameTick` in `try { gameTick(world) } catch { applySimPrep(world, extractSimPrep(world)) }`
- * so that a failed tick is rolled back and then re-executed on the main thread
- * after `fallbackFromWorker`. That contract only holds while every field
- * `gameTick` advances is present in `SimPrepKeys` — a missing field is advanced
- * twice for the same tick.
- *
- * Regression: `populationHistory`, `yearlyStats` and `lifetimeStats` were absent
- * from the prep payload. `gameTick` pushes a year-rollover entry
- * (`gameTick.ts` "if (yearRollover)") and samples `populationHistory` every
- * `STATS_SAMPLE_INTERVAL_TICKS`; both survived the rollback, so the re-executed
- * tick produced a duplicate year entry and double-counted
- * `lifetimeStats.totalMarriages` / `totalBuildingsUpgraded`
- * (`stats.ts updateLifetimeStats` uses `+=` for those two).
+ * `gameWorker` rolls a failed `gameTick` back with `applySimPrep`, so every field the tick
+ * advances must be in `SimPrepKeys`; a missing field is advanced twice for the same tick.
  */
 describe('worker prep rollback closure', () => {
   /**
-   * The year boundary is `getCalendarDay` wrapping `DAYS_PER_YEAR` (360), not
-   * `dayInYear` reaching `TICKS_PER_DAY`: `gameTick` requires
-   * `dayInYear === 0 && getCalendarDay(tick - 1) > 0`, which is only true at the
-   * start of absolute day 360 (tick 25920).
+   * The year boundary is `getCalendarDay(tick - 1) > 0` with `dayInYear === 0`, i.e. the start of
+   * absolute day 360 (tick 25920).
    */
   function worldAtYearBoundary(): WorldState {
     const world = initGame({ skipTerrain: true });
@@ -66,10 +53,8 @@ describe('worker prep rollback closure', () => {
 
   it('restores populationHistory, yearlyStats and lifetimeStats after a real year-rollover tick', () => {
     const world = worldAtYearBoundary();
-    // Seeded deliberately: TICKS_PER_DAY (72) is not a multiple of
-    // STATS_SAMPLE_INTERVAL_TICKS (10), so this rollover tick does not sample on
-    // its own — the sentinel proves the pre-tick sample is restored rather than
-    // left behind, which is the reported symptom.
+    // Seeded deliberately: TICKS_PER_DAY is not a multiple of STATS_SAMPLE_INTERVAL_TICKS, so this
+    // rollover does not sample on its own and the sentinel proves the pre-tick entry is restored.
     world.populationHistory.push({
       tick: world.tick,
       year: world.year,

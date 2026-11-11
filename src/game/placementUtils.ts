@@ -165,22 +165,8 @@ export function stripCrossingIsTheOnlyOverlap(
 }
 
 /**
- * Renderer-only spatial index over building footprints.
- *
- * `canPlaceBuildingSnapshot` runs once per candidate cell on the build grid — a ~2 200-cell lattice at
- * high zoom — and each call used to do an O(buildings) `overlapsAnyBuilding` scan, so a 300-building
- * village paid hundreds of thousands of footprint comparisons per repaint *while panning in build
- * mode*. The index answers "does anything overlap this rect" against only the
- * buildings in the cells the rect touches.
- *
- * Equivalence: a building is inserted into **every** cell its footprint touches, a query visits
- * **every** cell its footprint touches, and both use the same `floor(left / cell)` indexing — so a
- * building and a query that overlap share at least one cell, and the exact strict-inequality test
- * then gives the same answer as the linear scan. False positives are filtered by that test; false
- * negatives are impossible. Keyed on the buildings array identity plus the map dimensions, because a
- * placed building's footprint is immutable (`completed` flips but every state blocks placement, so it
- * is irrelevant to the index). The authoritative `overlapsAnyBuilding` stays a plain linear scan —
- * it is a single call, not a lattice.
+ * Renderer-only spatial index over building footprints; a query visits only touched cells and
+ * returns the same strict-inequality answer as the linear scan. Keyed on array identity + map size.
  */
 const OCCUPANCY_CELL_SIZE = 64;
 
@@ -270,11 +256,8 @@ function overlapsAnyBuildingIndexed(
 }
 
 /**
- * The `building.x/y` centre convention now lives in the leaf module `buildingGeometry`, which exists
- * precisely so `buildingRotation` and this file can both read it without importing each other (the
- * old arrangement closed a runtime cycle). Re-exported here because this module
- * is where the rest of the codebase already looks for footprint geometry — one definition, two import
- * paths, and no second source of truth.
+ * `building.x/y` centre convention comes from the leaf `buildingGeometry`, re-exported here
+ * for the codebase's existing import path — one definition, no second source.
  */
 export { getBuildingCenter, getBuildingFootprintRect } from './buildingGeometry';
 

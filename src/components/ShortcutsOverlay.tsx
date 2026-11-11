@@ -40,10 +40,8 @@ interface Props {
 }
 
 export default function ShortcutsOverlay({ onClose }: Props) {
-  // Focus in, Tab contained, and — the half this overlay was missing — focus returned to the control
-  // that opened it on close. The house owner does all three, so the local focus-on-mount effect and
-  // the hand-rolled Tab trap (and its private first/last ordering) are gone; `data-autofocus` marks
-  // the close button the old effect focused explicitly.
+  // Focus in, Tab contained, and focus restored to the opener on close all come from the shared
+  // modal-focus owner; `data-autofocus` marks the close button it focuses.
   const dialogRef = useModalFocus<HTMLDivElement>();
   useOverlayKeyboard('shortcuts-overlay', onClose);
 

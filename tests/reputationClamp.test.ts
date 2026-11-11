@@ -1,14 +1,6 @@
 /**
- * Reputation cannot exceed its ceiling, whichever writer moves it.
- *
- * Regression for audit L5 (`docs/private/audits/2026-09-16/sim-economy-leadership-combat.md`, tracked
- * in `LIVE-FINDINGS-STATUS.md`): the owner `simHelpers.addReputation` clamps **both** ends
- * (`Math.max(0, Math.min(100, …))` — the documented 0..100 contract), but three callers re-stated the
- * rule with only the floor, so a positive delta ran past 100: `storyHelpers.bumpVillageReputation`,
- * the private `storyEvents.bumpRep`, and the election-promise judgement inline in
- * `electionPromises.tickElectionPromises`. The two copies reachable through a public surface are
- * exercised here; the third (`storyEvents.bumpRep`) had no callers outside its own file and was
- * deleted outright, with its ten call sites now calling the owner directly.
+ * Reputation cannot exceed its ceiling whichever writer moves it: `simHelpers.addReputation` clamps
+ * both ends, and every caller goes through that owner.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';

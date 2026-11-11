@@ -23,11 +23,8 @@ import { VIRTUAL_PLAYER_TOOLTIP_LIMIT } from '../hooks/useVirtualPlayer';
 import { OVERVIEW_SUBJECTS, type OverviewNavId } from '../hooks/useGameShellState';
 
 /**
- * The overview's subjects whose door is a *new* icon in this bar.
- *
- * The People subject is not in this list: its door is the population chip beside it, which has
- * opened that subject since before the ruling and already shows the number the subject is about. All
- * six subjects therefore have a door here, without the bar carrying two glyphs for one thing.
+ * The overview subjects whose door is a new icon in this bar. People is excluded: its door is the
+ * population chip beside them, so no subject needs two glyphs here.
  */
 const HEADER_SUBJECT_ICONS: OverviewNavId[] = ['frontier', 'nature', 'progress', 'chronicle', 'help'];
 
@@ -90,6 +87,7 @@ export default function GameHeader({
   muted,
   volumePreset,
   hasSavedGame,
+  hasImportedSave,
 tutorialsEnabled,
   juiceEffectsEnabled,
   showSimTick,
@@ -105,6 +103,7 @@ tutorialsEnabled,
   onOpenTrade,
   onSave,
   onLoad,
+  onLoadImported,
   onLoadFromFile,
   onReplayIntro,
   onToggleAutoSave,
@@ -132,10 +131,8 @@ tutorialsEnabled,
   // Defaulted: an unexpected weather value must read as weather rather than throw the bar.
   const weather = WEATHER_CONFIGS[world.weather] ?? WEATHER_CONFIGS[WeatherType.Clear];
   const seasonLabel = SEASON_LABELS[world.season];
-  // The band and the cap are the growth owner's (`POPULATION_NEAR_CAP_RATIO` /
-  // `resolvePopulationCap`); this view only paints the answer. The open-bed
-  // figure is the assignable one: the chip's "N open" means "a settler could sleep here", not
-  // "some bed in the valley is empty".
+  // Band and cap come from the growth owner; this view only paints them. "Open" beds are the
+  // assignable ones: "a settler could sleep here", not "some bed in the valley is empty".
   const popNearCap = isPopulationNearCap(world);
   const popCap = resolvePopulationCap(world);
   const beds = getTotalBeds(world);
@@ -309,6 +306,7 @@ tutorialsEnabled,
             onClick={onOpenTrade}
             className="flex items-center gap-0.5 rounded-md bg-violet-900/35 px-1.5 py-1 text-[13px] text-violet-200 hover:bg-violet-800/45"
             title={`Reputation ${world.villageReputation} — click for trade routes`}
+            aria-label={`Reputation ${world.villageReputation} — open trade routes`}
           >
             <span>⭐</span>
             <span className="font-mono font-bold">{world.villageReputation}</span>
@@ -332,16 +330,8 @@ tutorialsEnabled,
           </button>
 
           {/*
-            One icon per overview subject, icon only (owner: *"just a icon not a name with it in the
-            ehader"*). Each opens **that subject's window** — the six full-screen panels the owner
-            reported (*"the 6 panel stacked now that opens full screen should be each subject a own
-            icon the header and open a window for that subject not full screen"*). The glyph, name and
-            hint all come from `OVERVIEW_SUBJECTS`, so a door cannot disagree with the window it opens.
-
-            Deliberately the tightest control in the bar — `p-1`, no ring of its own, 12 px glyphs. The
-            owner's report of the first version was *"the header is now quite large 3rows"*: five doors
-            at the size of the stat chips above them cost ~170 px and pushed the bar's third group onto
-            a row of its own. They are one nav strip, so they read as one strip.
+            One icon per overview subject, icon only; glyph, name and hint come from
+            `OVERVIEW_SUBJECTS`. Kept minimal (`p-1`, 12 px) so the bar's groups stay on one row.
           */}
           {onOpenSubject && (
             <div className="flex items-center gap-0 rounded-md bg-stone-950/40 p-px">
@@ -353,10 +343,8 @@ tutorialsEnabled,
                     key={id}
                     type="button"
                     onClick={() => onOpenSubject(id)}
-                    // `aria-current`, not `aria-pressed`: the doors are a navigation set, and which
-                    // subject is open must be *stated*, not only painted — the contract
-                    // this nav strip was built on
-                    // (`tests/keyboardGuards.contract.test.ts`).
+                    // `aria-current`, not `aria-pressed`: the doors are a navigation set, so which
+                    // subject is open is stated, not only painted.
                     aria-current={open}
                     className={`rounded p-0.5 text-[11px] leading-none transition-colors ${
                       open ? 'bg-emerald-800/70 text-emerald-100' : 'hover:bg-stone-700/70'
@@ -428,6 +416,7 @@ tutorialsEnabled,
           gamePhase={gamePhase}
           gameSubtitle={gameSubtitle}
           hasSavedGame={hasSavedGame}
+          hasImportedSave={hasImportedSave}
           autoSave={world.autoSave}
           tutorialsEnabled={tutorialsEnabled}
           juiceEffectsEnabled={juiceEffectsEnabled}
@@ -438,6 +427,7 @@ tutorialsEnabled,
           volumePreset={volumePreset}
           onSave={onSave}
           onLoad={onLoad}
+          onLoadImported={onLoadImported}
           onLoadFromFile={onLoadFromFile}
           onReplayIntro={onReplayIntro}
           onToggleAutoSave={onToggleAutoSave}

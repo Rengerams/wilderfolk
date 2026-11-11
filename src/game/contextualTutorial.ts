@@ -5,6 +5,8 @@ import type { FocusHintAction } from './focusHints';
 import { NIGHT_START, TICKS_PER_DAY, getHourOfDay } from './dayCycle';
 import { displayYear } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
+import { isMarriedOrExpecting } from './relationships';
 import { ELECTION_INTERVAL_YEARS } from './villageLeadership';
 import { isFoodCritical } from './resourceUtils';
 import { getEcosystemHealth } from './dailyEcology';
@@ -53,14 +55,14 @@ export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutori
     id: 'shelter_night',
     icon: '🌙',
     title: 'Night is approaching',
-    detail: 'Build a House (key 1), click the map, then assign pioneers as workers. Settlers need shelter before nightfall on day one.',
+    detail: 'Build a House (key 1), click the map — builders join the site automatically. Settlers need shelter before nightfall on day one.',
     action: { label: 'Place house', id: 'build_house' },
   },
   first_building_done: {
     id: 'first_building_done',
     icon: '🏗️',
     title: 'Building finished',
-    detail: 'Select the building on the map and press + Fill workers to staff it. Lumber mills, farms, and wells only produce when workers are assigned.',
+    detail: 'Workers are assigned automatically: lumber mills, farms, and wells produce only while staffed. The building panel lists its crew.',
   },
   first_worker_assigned: {
     id: 'first_worker_assigned',
@@ -271,18 +273,8 @@ function staffedBuildings(state: WorldState): number {
 }
 
 /**
- * Every first-time tutorial whose mechanic is **already true in this world**, derived from the current
- * state alone.
- *
- * This is the single definition of "this has happened": `seedTutorialSeenForExistingState` seeds a
- * loaded save from it so tips do not replay, and `detectContextualTutorials` reads the same derivation
- * for live play, so the two can never disagree about what counts as a first time.
- *
- * It must stay a pure function of the current world. The game loop mutates one `WorldState` in place
- * (`GameLoop.frame` calls `gameTick(this.world)`, the worker host hands back its single `worldRef`), so
- * any "since the previous tick" comparison is between an object and itself and is always false — that
- * is the defect that made no contextual tip ever appear
- * (`BUG_REPORTS/2026-09-17-contextual-tips-never-fire.md`).
+ * Every first-time tutorial whose mechanic is already true in this world, derived from the current
+ * state alone and shared by save seeding and live detection. Must stay pure: the loop mutates in place.
  */
 function derivedSeenIds(state: WorldState): Set<string> {
   const seen = new Set<string>();
@@ -313,10 +305,10 @@ function derivedSeenIds(state: WorldState): Set<string> {
   if ((state.valleyStage ?? 'stable') !== 'stable') seen.add('valley_strained');
   const hasRecordedBirth = state.yearlyStats.some((ys) => ys.births.humans > 0);
   const hasBornChild = state.entities.some(
-    (e) => e.alive && isPlayerHuman(e) && e.isJuvenile && (e.motherId != null || (e.generation ?? 0) > 1),
+    (e) => e.alive && isPlayerHuman(e) && e.age < HUMAN_ADULT_MIN_AGE && (e.motherId != null || (e.generation ?? 0) > 1),
   );
   if (hasRecordedBirth || hasBornChild) seen.add('first_birth');
-  if (state.entities.some((e) => e.alive && isPlayerHuman(e) && e.relationshipStatus === 'married')) {
+  if (state.entities.some((e) => e.alive && isPlayerHuman(e) && isMarriedOrExpecting(e))) {
     seen.add('first_marriage');
   }
   if (state.festival?.active) seen.add('festival_started');
@@ -343,9 +335,8 @@ export function detectContextualTutorials(world: WorldState): ContextualTutorial
   const hasHouse = world.buildings.some(
     (b) => b.type === BuildingType.House && b.faction !== 'rival',
   );
-  // Warn from late afternoon on day one (hour >= 16) until first house. Deliberately not part of
-  // `derivedSeenIds`: it is a day-one nudge about something that has *not* happened, not a mechanic
-  // that is already true, so a loaded save must not be seeded with it.
+  // From late afternoon on day one (hour >= 16) until first house. Not in `derivedSeenIds`: it
+  // nudges about something that has not happened, so a loaded save must not be seeded with it.
   const hour = getHourOfDay(world.tick);
   if (world.tick < TICKS_PER_DAY && hour >= Math.max(0, NIGHT_START - 4) && !hasHouse) {
     queue('shelter_night');

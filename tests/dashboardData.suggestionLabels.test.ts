@@ -1,11 +1,6 @@
 /**
- * F25 — duplicate React key `'Suggested'` can drop a row
- * (`docs/private/audits/2026-09-16/ui-logic.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * `explainSettler` pushed `label: 'Suggested'` from two independent branches — no workplace and no
- * residence — while the dashboard keys those rows by label, so a settler who is jobless *and* homeless
- * produced a duplicate key and one of the two suggestions could be dropped on re-render. The labels are
- * distinct now, and the view no longer depends on label uniqueness either.
+ * Settler explanation suggestions carry distinct labels, and the dashboard keys those
+ * rows by label plus position, never by label alone.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

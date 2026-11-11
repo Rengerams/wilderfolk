@@ -22,21 +22,13 @@ export interface RivalReveal {
 
 /**
  * The reveal rule — the one place "this rival band is now visible to the player" is written:
- * `hiddenFromPlayer` is cleared, `detectedByPatrol` is set, and the caller learns whether this was
- * the *first* reveal so it can log and announce exactly once per band.
- *
- * Callers pass the band's members themselves rather than a whole human list, because that is the
- * difference between the two reveal paths: `detectRaidersFromWatchtowers` below walks all humans to
- * find who is in range of a tower, while `humanPatrolBehavior` already holds a per-tick
- * groupId → members index. Both then reveal through this function, so the three-line rule exists
- * once.
+ * `hiddenFromPlayer` is cleared, `detectedByPatrol` is set, and the first reveal is reported.
  */
 export function revealRivalGroup(
   members: Iterable<Entity>,
   /**
-   * Optional per-member gate. Omitted reveals the whole band, which is what a soldier patrol does —
-   * spotting one raider reveals the war-band. A caller that only wants the members it can actually
-   * see passes a predicate instead.
+   * Optional per-member gate. Omitted reveals the whole band, which is what a soldier patrol does;
+   * a caller that only wants members it can see passes a predicate instead.
    */
   canSee?: (rival: Entity) => boolean,
 ): RivalReveal {
@@ -64,11 +56,8 @@ export function detectRaidersFromWatchtowers(state: WorldState, humans: readonly
   );
   if (towers.length === 0) return;
 
-  // Marching bands and their members, resolved ONCE instead of once per (tower × human).
-  // `isRaidMarchingForRival` is still the only test used for "is this band marching" — it is simply
-  // asked once per distinct `groupId` rather than for every tower/rival pair. On a day with no raid
-  // marching this loop is the whole function: the tower sweep below used to walk every living entity
-  // once per tower, grass and trees included, because the caller passes `allAlive`.
+  // Marching bands and their members, resolved once instead of once per (tower × human);
+  // `isRaidMarchingForRival` is asked once per distinct `groupId`.
   const marchingGroups = new Set<string>();
   const marchingRivals: Entity[] = [];
   for (const rival of humans) {
@@ -95,9 +84,8 @@ export function detectRaidersFromWatchtowers(state: WorldState, humans: readonly
   }
 
   for (const groupId of detected) {
-    // `marchingRivals` already satisfies every guard `revealRivalGroup` applies and every member of
-    // a marching band is in it, so the revealed set is unchanged while the ~900-wide rescan per
-    // detected band is gone.
+    // `marchingRivals` already satisfies every guard `revealRivalGroup` applies, so this reveals
+    // the same set the old full rescan did.
     const { newlyDetected, spotX, spotY } = revealRivalGroup(
       marchingRivals,
       (rival) => rival.groupId === groupId,

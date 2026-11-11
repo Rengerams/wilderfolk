@@ -1,23 +1,6 @@
 /**
- * L3 decor props: baked per ground chunk, once, with the brightness variation carried by the prop's own
- * colours rather than a canvas `filter`.
- *
- * Three costs are pinned here.
- *
- * **The props are static.** `terragen.placeDecorations` writes them at generation and nothing mutates
- * them since, so they are baked once with the chunk that holds them instead of being re-drawn every
- * frame — a CPU profile of a built session (drag pan, dev build) put `drawProp`, `tinted` and the
- * transforms plus most of the `stroke`/`fill`/`arc`/`ellipse` time at **~35 % of main-thread work**,
- * over 6,220 props on a Medium map and 36,110 on Huge.
- *
- * **They are baked per viewport chunk**, not onto one full-map surface: a whole-map decor canvas is
- * 4.3 MB at 1200×900 but **113 MB at the 6144×4608 spec size** the renderer is built for, and only the
- * chunks the camera plans (visible rect plus one chunk of margin) are ever baked — props off screen cost
- * nothing.
- *
- * **And the variation is not a canvas `filter`.** `brightness(…)` per prop makes each 2D draw its own
- * software-composited pass — measured in one live session at **p50 6,288 ms** per frame against
- * **p50 109 ms** with the filter writes dropped. That is the 0 FPS stall reported from play.
+ * Decor props are static, so they bake once per viewport chunk with brightness carried by the prop's
+ * own colours rather than a canvas `filter`.
  */
 import { describe, expect, it } from 'vitest';
 import { bakeDecorInRect } from '../src/game/renderer/decor';
@@ -132,8 +115,7 @@ describe('L3 decor props — baked per chunk, tinted by shading, never by a canv
     expect(log.filters.filter((f) => f !== 'none')).toEqual([]);
     expect(log.fills.length).toBeGreaterThan(1);
 
-    // The prop's own colours carry the variation — a 1.18× brightness at tint = 1, matching the
-    // `brightness(1 + tint * 0.18)` the retired filter applied.
+    // The prop's own colours carry the variation: 1.18× brightness at tint = 1, from `1 + tint * 0.18`.
     const layer = log.fills.map(rgbOf).find((c) => Math.abs(c.g - BUSH_LAYER.g * 1.18) <= 1);
     expect(layer, `no shaded bush green among ${JSON.stringify(log.fills)}`).toBeDefined();
     expect(layer!.r).toBeGreaterThanOrEqual(Math.round(BUSH_LAYER.r * 1.18) - 1);

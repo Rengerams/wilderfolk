@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyHumanWalkStep, commuteHumanToBuilding, commutePathCacheKey, crowdGatherPosition, homeStandPosition, nearestActiveMoonHowler, venueGatherPosition } from '../src/game/simulation/humanMovement';
+import { applyHumanWalkStep, commuteHumanToBuilding, commutePathCacheKey, crowdGatherPosition, enterHumanBuilding, homeStandPosition, nearestActiveMoonHowler, venueGatherPosition } from '../src/game/simulation/humanMovement';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import { isActiveMoonHowler } from '../src/game/moonHowler';
@@ -27,26 +27,25 @@ function werewolf(id: number, x: number, y: number, active: boolean): Entity {
 
 describe('human movement helpers', () => {
   it('keeps commute cache keys stable only when both endpoint tiles match', () => {
-    const first = commutePathCacheKey(building.id, false, 101, 81, 200, 120);
-    const sameTiles = commutePathCacheKey(building.id, false, 109, 89, 207, 127);
-    const nextStartTile = commutePathCacheKey(building.id, false, 111, 81, 200, 120);
-    const nextTargetTile = commutePathCacheKey(building.id, false, 101, 81, 216, 120);
+    const first = commutePathCacheKey(building.id, 101, 81, 200, 120);
+    const sameTiles = commutePathCacheKey(building.id, 109, 89, 207, 127);
+    const nextStartTile = commutePathCacheKey(building.id, 111, 81, 200, 120);
+    const nextTargetTile = commutePathCacheKey(building.id, 101, 81, 216, 120);
 
     expect(first).toBe(sameTiles);
     expect(nextStartTile).not.toBe(first);
     expect(nextTargetTile).not.toBe(first);
-    expect(commutePathCacheKey(building.id, true, 101, 81, 200, 120)).not.toBe(first);
   });
 
-  it('keeps a blocked commuter moving so the stuck detector can recover', () => {
+  it('stops a blocked commuter instead of repeatedly walking into a wall', () => {
     const map = testWorldMap({ tilesX: 40, tilesY: 30 });
-    const wall = { ...building, id: 8, type: BuildingType.Wall, x: 100, y: 150, width: 10, height: 300 } as Building;
+    const wall = { ...building, id: 8, type: BuildingType.Wall, x: 100, y: 150, width: 10, height: 300, completed: true } as Building;
     const target = { ...building, id: 9, type: BuildingType.House, x: 200, y: 150, width: 20, height: 20 } as Building;
     const person = { id: 1, type: EntityType.Human, x: 50, y: 150, alive: true, vx: 0, vy: 0 } as Entity;
     setCurrentPathMap(map, [wall]);
 
-    expect(commuteHumanToBuilding(person, target, 2, false)).toBe(false);
-    expect(Math.hypot(person.vx, person.vy)).toBeGreaterThan(0);
+    expect(commuteHumanToBuilding(person, target, 2)).toBe(false);
+    expect([person.vx, person.vy]).toEqual([0, 0]);
 
     setCurrentPathMap(null);
   });
@@ -93,7 +92,7 @@ describe('human movement helpers', () => {
     setCurrentPathMap(null);
     try {
       for (let tick = 0; tick < 150 && tomika.indoorBuildingId !== leaderHouse.id; tick++) {
-        commuteHumanToBuilding(tomika, leaderHouse, 3, true);
+        if (commuteHumanToBuilding(tomika, leaderHouse, 3)) enterHumanBuilding(tomika, leaderHouse);
         applyHumanWalkStep(tomika, 1);
       }
       expect(tomika.indoorBuildingId).toBe(leaderHouse.id);
@@ -102,13 +101,6 @@ describe('human movement helpers', () => {
     }
   });
 
-  /**
-   * The owner reported this clump twice — *"why are they all standing at side of the village?"* and
-   * later, with no event running at all, *"they again in a circle"*. The leisure crowd was sent to one
-   * coordinate on the venue (`b.x + b.width / 2`, `b.y + b.height * 0.92`) and stopped within 20 px of
-   * it, so a village's day-off crowd stacked into a ring around a single pixel. A venue is a place with
-   * room in it.
-   */
   it('gives each settler their own place in a venue crowd, in front of the building', () => {
     const venue = { ...building, x: 400, y: 300, width: 60, height: 40 };
 
@@ -132,11 +124,6 @@ describe('human movement helpers', () => {
     }
   });
 
-  /**
-   * The festival branch used to place its crowd on 35 repeating slots (`id % 7` × `floor(id / 7) % 5`),
-   * so a whole village stacked tens deep on those few points — the owner's *"they again in a circle"*,
-   * with no election running. A crowd needs places, not a lattice that repeats.
-   */
   it('spreads a festival crowd over many places instead of repeating a small lattice', () => {
     expect(crowdGatherPosition(500, 400, 3)).toEqual(crowdGatherPosition(500, 400, 3));
 

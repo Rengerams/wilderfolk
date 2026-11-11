@@ -1,16 +1,4 @@
-/**
- * Medium-tier persistence and cadence fixes (audit report, 2026-09-13).
- *
- * - M21 — the rare Moon Howler replacement roll was attempted on every tick of the nightfall
- *   hour, turning a 15% per-moon event into ~39%.
- * - M24 — `migrateTickTimeline` scaled `pregnancyProgress` but not the due threshold it is
- *   compared against, nor the pending story-card deadlines.
- * - M26 — Big News ids were re-minted from a module counter, so a realm that received a world
- *   (or a world whose log had been trimmed) could re-issue an id the player had dismissed, and
- *   the UI then hid the new card.
- * - M20/M25/M34 — Moon Howler rite cooldowns, `villageHappiness` and `chronicleChapters` were
- *   written by the simulation but missing from the save allow-list and/or the worker transport.
- */
+/** Persistence regressions: the per-moon Moon Howler roll, Big News ids, save round-trips and timeline scaling. */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { EntityType, JobType } from '../src/game/gameTypes';

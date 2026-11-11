@@ -1,15 +1,13 @@
 /**
- * F1 of the 2026-09-16 lifecycle/social audit (`docs/private/audits/2026-09-16/sim-lifecycle-social.md`):
- * `creditChildSchoolDay` compared the `schoolTicksToday` **tick** counter against a **hours**
- * threshold (`WORK_HOURS_PER_DAY * 0.5` = 5.5), so a child who sat in class for ~1.7 in-game hours
- * was credited a whole school day and `schoolDays` accrued ~3.3× too fast.
+ * `creditChildSchoolDay` must compare the `schoolTicksToday` tick counter against a tick threshold,
+ * not an hours value, or `schoolDays` accrues far too fast.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
 import { SCHOOL_DAY_MIN_HOURS, SCHOOL_DAY_MIN_TICKS, SCHOOL_HOURS_PER_DAY, isSchoolTime, creditChildSchoolDay, recordChildSchoolTick } from '../src/game/education';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
-import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { buildingAccessPoint } from '../src/game/buildingAccess';
 
 function child(overrides: Partial<Entity> = {}): Entity {
   return {
@@ -59,11 +57,7 @@ describe('school-day credit threshold (F1)', () => {
   });
 });
 
-/**
- * 2026-10-22: a school day needs the teacher in the classroom as well as the
- * pupil — the credit is gated on a teacher standing at the school, not only on
- * a staffed building the child happens to be at.
- */
+/** A school day needs a teacher at the school, not only a staffed building the child is at. */
 describe('school-day credit needs the teacher there', () => {
   /** A workday tick inside class hours, found through the owner's own rule. */
   function classTick(): number {
@@ -89,7 +83,7 @@ describe('school-day credit needs the teacher there', () => {
 
   /** A pupil standing exactly where the tick sends them at this school. */
   function pupilAt(target: Building): Entity {
-    const spot = humanBuildingTarget(target, 1, false);
+    const spot = buildingAccessPoint(target);
     return child({ x: spot.x, y: spot.y });
   }
 

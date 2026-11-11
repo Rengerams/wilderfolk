@@ -1,9 +1,6 @@
 /**
- * F-RND-19 — gender must not be carried by the name plate's colour alone.
- *
- * The plate colour is the only gender cue a player gets on the map, and it is unavailable to a
- * colour-blind player, invisible in a screenshot and lost in greyscale. The plate text now carries
- * the ♂/♀ glyph the inspector already uses.
+ * Gender is not carried by the name plate's colour alone: the plate text also carries the ♂/♀ glyph
+ * the inspector uses.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -53,7 +50,7 @@ describe('F-RND-19 — the name plate states gender in text', () => {
       'utf8',
     );
     expect(humans).toContain('formatHumanNameLabel(');
-    // The painter used to compose the plate inline; these literals are the expression that moved.
+    // The painter must render the plate through the formatter, not inline these literals.
     expect(humans).not.toContain('· Head');
     expect(humans).not.toContain('Village head');
   });

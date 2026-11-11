@@ -1,7 +1,6 @@
 /**
- * Regressions for two player-visible Canvas layout defects:
- * - atypically framed building art must retain its catalog display geometry;
- * - name plates are laid out at readable zoom and bubbles stack clear of them.
+ * Atypically framed building art keeps its catalog display geometry, and name plates lay out at
+ * readable zoom with bubbles stacked clear of them.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -32,11 +31,8 @@ describe('building sprite presentation geometry', () => {
     expect(leaderConfig.spriteDisplayScale).toBeGreaterThan(1.15);
     expect(tuned.drawW).toBeGreaterThan(generic.drawW);
     expect(tuned.drawH).toBeGreaterThan(generic.drawH);
-    // BUG 2026-08-28-leader-house-render-anchor: house_leader.png has an
-    // ~86px transparent band under the painted base (base ≈ 0.916 of the
-    // frame). Anchoring by the image bottom (0.97) floated the visible house;
-    // the tuned anchor must sit BELOW the generic 0.92 so the painted base
-    // (not the transparent image bottom) meets the ground line.
+    // house_leader.png has a ~86px transparent band under the painted base (base ≈ 0.916 of the
+    // frame), so the tuned anchor must sit below the generic 0.92 to meet the ground line.
     expect(tuned.anchorY).toBeLessThan(0.92);
   });
 });

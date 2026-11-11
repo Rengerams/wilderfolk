@@ -3,13 +3,13 @@ import type { Entity, WorldState } from './gameTypes';
 import type { TickContext } from './simulation/simulationTypes';
 import { EntityType, JobType } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { getHumanHuntRange } from './combat';
 import { addResource } from './economy';
 import { recordFoodProduced } from './economyLedger';
 import { addFloatingText, createDeathParticles, impulseScreenShake } from './simEffects';
 import { addHuntVisual } from './huntvisuals';
-import { evaluateTraitInfluence } from './personality/traitEvaluation';
-import type { TraitContext } from './personality/traitEffectCatalog';
+import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { valleyStageIndex } from './ecologyStage';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { steerEntityToward } from './simulation/movementSteering';
@@ -26,10 +26,6 @@ import { findClosestInEntityGrid } from './simQueries';
 import { isPlayerHuman } from './playerHuman';
 
 const HUNTER_WORK_STAMINA_THRESHOLD = 85;
-
-/** The catalog contexts this file reads: reach for game, and closing speed on it. */
-const HUNT_CONTEXT = { kind: 'danger', activity: 'hunting' } as const satisfies TraitContext;
-const PURSUIT_CONTEXT = { kind: 'danger', activity: 'pursuit' } as const satisfies TraitContext;
 
 const NORMAL_PREY_TYPES: ReadonlySet<EntityType> = new Set<EntityType>([
   EntityType.Deer,
@@ -62,9 +58,8 @@ export function tickHumanHunting(
   // Free-roam hunting — player settlers only (visitors/rivals do not farm the valley).
   const isJobHunter = entity.job === JobType.Hunter;
 
-  // Assigned hunters free-hunt as their job. Ordinary settlers only go out to
-  // hunt when the colony has no food to feed them (famine) — a fed village
-  // doesn't send settlers off to thin the wild herd for sport.
+  // Assigned hunters free-hunt as their job. Ordinary settlers only go out when the colony has no
+  // food to feed them (famine); a fed village does not thin the wild herd for sport.
   const famine = (state.resources?.food ?? 0) <= 0;
   // Assigned hunters retain their stamina-based job cadence; emergency hunting
   // is triggered by nutrition, never by the unrelated stamina projection.
@@ -88,7 +83,7 @@ export function tickHumanHunting(
     (allowFreeRoam || famine) &&
     isPlayerHuman(entity) &&
     !ateMeal &&
-    !entity.isJuvenile &&
+    entity.age >= HUMAN_ADULT_MIN_AGE &&
     freeHuntHungry
   ) {
     const preyTypes = famine ? FAMINE_PREY_TYPES : NORMAL_PREY_TYPES;
@@ -96,7 +91,7 @@ export function tickHumanHunting(
     // Assigned hunters range farther; everyone else is opportunistic
     const huntRange = getHumanHuntRange(
       state,
-      config.huntRange * (isJobHunter ? 1.2 : 0.75) * evaluateTraitInfluence(entity, HUNT_CONTEXT).factor,
+      config.huntRange * (isJobHunter ? 1.2 : 0.75) * evaluateAptitudeInfluence(entity, 'hunting').factor,
     );
 
     const deerBucket = byType[EntityType.Deer] ?? [];
@@ -187,7 +182,7 @@ export function tickHumanHunting(
     } else if (closestPrey?.alive) {
       entity.huntTargetId = closestPrey.id;
       // Hunters pursue faster; casual foragers jog; hunting-favoured settlers push harder
-      const chaseMult = (isJobHunter ? 0.72 : 0.5) * evaluateTraitInfluence(entity, PURSUIT_CONTEXT).factor;
+      const chaseMult = (isJobHunter ? 0.72 : 0.5) * evaluateAptitudeInfluence(entity, 'pursuit').factor;
       steerEntityToward(entity, closestPrey.x, closestPrey.y, config.speed, chaseMult);
       suppressIdle = true;
 
@@ -213,7 +208,7 @@ export function tickHumanHunting(
     !allowFreeRoam ||
     ateMeal ||
     !isPlayerHuman(entity) ||
-    entity.isJuvenile ||
+    entity.age < HUMAN_ADULT_MIN_AGE ||
     !freeHuntHungry
   ) {
     entity.huntTargetId = undefined;

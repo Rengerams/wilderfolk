@@ -2,6 +2,7 @@ import { personDayRoll } from './simRng';
 import type { WorldState, Building, Entity } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
 import { ticksForDays, TICKS_PER_DAY, getHourOfDay } from './dayCycle';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isWorkScheduleHour } from './workSchedule';
 import { getWorkSchedule } from './workSchedule';
 import { readSkill, rewardProductionSkills, gainSkill } from './skills';
@@ -10,7 +11,7 @@ import { spendFood } from './economyLedger';
 import { addFloatingText, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { getVillageLeader } from './villageLeadership';
-import { findPlayerTownHall } from './playerTownHall';
+import { findCompletedBuilding } from './buildings';
 import { isDialogueBusy } from './humanChat';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { isPlayerHuman } from './playerHuman';
@@ -23,7 +24,7 @@ export const TOWN_HALL_FESTIVAL_COST = { food: 25, gold: 20 };
 export const TOWN_HALL_FESTIVAL_DAYS = 14;
 
 export function isTownHallStaffed(buildings: Building[]): boolean {
-  const hall = findPlayerTownHall(buildings);
+  const hall = findCompletedBuilding(buildings, BuildingType.TownHall);
   return !!hall && hall.occupants.length > 0;
 }
 
@@ -42,7 +43,7 @@ export function getTownHallOfficialSkillAvg(state: WorldState, hall: Building): 
 
 /** Active trade routes yield more when civic clerks keep ledgers. */
 export function getTownHallTradeMultiplier(state: WorldState, buildings: Building[]): number {
-  const hall = findPlayerTownHall(buildings);
+  const hall = findCompletedBuilding(buildings, BuildingType.TownHall);
   if (!hall || hall.occupants.length === 0) return 1;
   const skill = getTownHallOfficialSkillAvg(state, hall);
   return 1 + Math.min(0.3, hall.occupants.length * 0.06 + skill * 0.0015);
@@ -55,7 +56,7 @@ export function getTownHallImmigrationMultiplier(buildings: Building[]): number 
 
 /** Village-wide production efficiency when officials govern. */
 export function getTownHallGovernanceEfficiency(state: WorldState, buildings: Building[]): number {
-  const hall = findPlayerTownHall(buildings);
+  const hall = findCompletedBuilding(buildings, BuildingType.TownHall);
   if (!hall || hall.occupants.length === 0) return 1;
   let mult = 1.05 + hall.occupants.length * 0.02;
   const leader = getVillageLeader(state);
@@ -157,7 +158,7 @@ export function isOfficialAtHall(
 
 /** Settler wants civic attention (dispute, aid, gossip, leader). */
 export function wantsCivicAudience(entity: Entity, state: WorldState): boolean {
-  if (!isPlayerHuman(entity) || entity.isJuvenile) return false;
+  if (!isPlayerHuman(entity) || entity.age < HUMAN_ADULT_MIN_AGE) return false;
   if (entity.job === JobType.Official) return false;
   if ((entity.griefUntilTick ?? 0) > state.tick) return true;
   if (state.resources.food < Math.max(40, state.humanPopulation * 2)
@@ -185,7 +186,7 @@ export function resolveCivicPetition(
   hall: Building,
 ): CivicPetitionResult {
   if (!hall.completed || hall.occupants.length === 0) return { kind: 'none' };
-  if (!isPlayerHuman(petitioner) || petitioner.isJuvenile) return { kind: 'none' };
+  if (!isPlayerHuman(petitioner) || petitioner.age < HUMAN_ADULT_MIN_AGE) return { kind: 'none' };
 
   const hx = hall.x + hall.width / 2;
   const hy = hall.y + hall.height * 0.9;
@@ -239,11 +240,8 @@ export function resolveCivicPetition(
     return { kind: 'heard' };
   }
 
-  // Leader audience. Both lines are gated on `isDialogueBusy`: the petitioner's line had no gate at
-  // all (it could abandon any pair the petitioner was mid-way through), and the leader's used a raw
-  // `chatTicks` counter that reads the idle half of a live session as free (2026-09-20 audit,
-  // F-chat-2). Same rule as `hotelStay`/`hospitalCare`. The gates wrap the *lines* only — the
-  // audience itself still happens and still grants its reputation.
+  // Leader audience. Both lines are gated on `isDialogueBusy` so neither abandons a pair mid-way; the
+  // gates wrap the lines only — the audience still happens and still grants its reputation.
   if (leaderHere && personDayRoll(petitioner.id, state.tick, 824) < 0.35) {
     if (!isDialogueBusy(petitioner)) {
       requestDialogue({ eventKey: 'townHall.audience.petitioner', speaker: petitioner, tick: state.tick, selectionRoll: personDayRoll(petitioner.id, state.tick, 833), durationHours: dialogueHoursFromNominalTicks(48) });
@@ -295,7 +293,7 @@ export function officialHandlePetitioners(
       v.id !== official.id
       && v.alive
       && isPlayerHuman(v)
-      && !v.isJuvenile
+      && v.age >= HUMAN_ADULT_MIN_AGE
       && Math.hypot(v.x - hx, v.y - hy) < 55
       && wantsCivicAudience(v, state),
   );
@@ -317,7 +315,7 @@ export function tickTownHallAudiences(
 ): void {
   if (!hall.completed || hall.occupants.length === 0) return;
   let handled = 0;
-  const adults = playerHumans.filter((h) => h.alive && !h.isJuvenile);
+  const adults = playerHumans.filter((h) => h.alive && h.age >= HUMAN_ADULT_MIN_AGE);
   for (const h of adults) {
     if (handled >= 2) break;
     if (!wantsCivicAudience(h, state)) continue;

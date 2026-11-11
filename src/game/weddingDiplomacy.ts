@@ -1,15 +1,16 @@
 /**
- * S3 — The Wedding That Nearly Started a War (roadmap v0.6.3).
- * Full three-stage chain per docs/archive/story/STORY_WEDDING_THAT_STARTED_A_WAR.md:
- * invitation gift → delayed rival response → feast/delegation/fortify → outcome.
+ * The Wedding That Nearly Started a War: invitation gift → delayed rival response →
+ * feast/delegation/fortify → outcome.
  */
 import type { Entity, StoryEvent, WorldState } from './gameTypes';
 import { BuildingType, EntityType } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard, AUTHORED_STORY_COOLDOWN_FLAG } from './storyHelpers';
 import { spendFood } from './economyLedger';
+import { RIVAL_RELATIONSHIP_STEPS, shiftRivalRelationship } from './rivalDiplomacy';
 
 export const STORY_KEY = 'wedding_diplomacy';
 export const AUTHORED_STORY_COOLDOWN_DAYS = 28;
@@ -70,21 +71,18 @@ function rivalName(state: WorldState): string {
 }
 
 function relationshipIndex(state: WorldState): number {
-  const order: string[] = ['tense', 'competitive', 'neutral', 'friendly'];
   const rivalIndex = storyFlag(state, FLAG_RIVAL);
   const rival = state.rivalSettlements[rivalIndex] ?? state.rivalSettlements[0];
-  const idx = rival ? order.indexOf(rival.relationship) : 1;
+  const idx = rival ? RIVAL_RELATIONSHIP_STEPS.indexOf(rival.relationship) : 1;
   return idx < 0 ? 1 : idx;
 }
 
 function shiftRelationship(state: WorldState, steps: number): void {
-  const order: string[] = ['tense', 'competitive', 'neutral', 'friendly'];
   const rivalIndex = storyFlag(state, FLAG_RIVAL);
   const rival = state.rivalSettlements[rivalIndex] ?? state.rivalSettlements[0];
   if (!rival) return;
-  const idx = order.indexOf(rival.relationship);
-  const next = Math.max(0, Math.min(order.length - 1, (idx < 0 ? 1 : idx) + steps));
-  rival.relationship = order[next] as typeof rival.relationship;
+  const current = RIVAL_RELATIONSHIP_STEPS.includes(rival.relationship) ? rival.relationship : 'competitive';
+  rival.relationship = shiftRivalRelationship(current, steps);
 }
 
 export function maybeOfferWeddingDiplomacy(state: WorldState): void {
@@ -107,7 +105,7 @@ export function maybeOfferWeddingDiplomacy(state: WorldState): void {
   });
 
   const envoyAvailable = state.entities.some(
-    (e) => e.alive && e.type === EntityType.Human && !e.isJuvenile && e.faction !== 'rival',
+    (e) => e.alive && e.type === EntityType.Human && e.age >= HUMAN_ADULT_MIN_AGE && e.faction !== 'rival',
   );
   const event: StoryEvent = {
     id: `wedding_stage1_${state.tick}`,
@@ -146,17 +144,13 @@ export function maybeOfferWeddingDiplomacy(state: WorldState): void {
 /** The adult settler who can carry the colony's answer to the wedding, if any. */
 function findWeddingEnvoy(state: WorldState): Entity | undefined {
   return state.entities.find(
-    (e) => e.alive && e.type === EntityType.Human && !e.isJuvenile && e.faction !== 'rival',
+    (e) => e.alive && e.type === EntityType.Human && e.age >= HUMAN_ADULT_MIN_AGE && e.faction !== 'rival',
   );
 }
 
 /**
- * Whether `resolveWeddingDiplomacy` would accept this answer right now.
- *
- * Mirrors every gift, envoy, feast, and delegation gate the resolver applies, so
- * a consumer (the auto-play bot) can tell an answer that lands from one that is
- * refused and leaves the card open. `decline`, `stay_home_fortify`, and every
- * unlisted answer are always accepted.
+ * Whether `resolveWeddingDiplomacy` would accept this answer now. Mirrors every gift, envoy, feast and
+ * delegation gate; `decline`, `stay_home_fortify` and unlisted answers are always accepted.
  */
 export function getWeddingDiplomacyChoiceEligibility(
   state: WorldState,

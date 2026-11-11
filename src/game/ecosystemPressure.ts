@@ -54,20 +54,15 @@ export function getGrazingPressureReport(state: WorldState): GrazingPressureRepo
   const grassCount = counts.grass;
   const growingGrassCount = countGrowingGrass(state);
   const grassMult = getGrassGrowthMultiplier(state.season, state.weather);
-  // A full meadow regrows when grazed — treat a mostly-maxed pasture as having
-  // at least 30% regrow potential, or the ratio explodes the moment grass fills
-  // up and reads as a false "overgrazed" crisis with zero player action.
+  // A full meadow regrows when grazed — treat a mostly-maxed pasture as having at least 30% regrow
+  // potential, or the ratio reads as a false "overgrazed" crisis.
   const regrowBase = growingGrassCount >= grassCount * 0.3
     ? growingGrassCount
     : grassCount * 0.3;
   const grassRecoveryPerDay = regrowBase * GRASS_GROWTH_PER_TICK * grassMult * TICKS_PER_DAY;
 
-  // Demand is per grazer species through the owner of the daily-demand rule, so the seasonal
-  // (winter) energy penalty applies here too. The audit's L30: this report called the low-level
-  // helper with `winterPenalty = 0`, which made `getGrazerDailyDemand` — the only place the
-  // penalty is applied to demand — unreachable and understated winter grazing pressure.
-  // Grazers only. The Wildkin is an apex predator with a meat diet (`speciesConfig`), so it takes no
-  // grass bite and must not be counted here; the counts it contributes stay in the report below.
+  // Demand is per grazer species through the owner of the daily-demand rule, so the seasonal penalty
+  // applies here. Grazers only: the Wildkin eats meat and takes no grass bite.
   const grazingDemandPerDay =
     getGrazerDailyDemand('deer', state.season) * deerCount
     + getGrazerDailyDemand('rabbit', state.season) * rabbitCount;

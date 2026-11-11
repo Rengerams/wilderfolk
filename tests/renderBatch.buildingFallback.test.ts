@@ -1,10 +1,6 @@
 /**
- * F-RND-15 — a completed building with no loaded frame must still read as that building.
- *
- * No sprite frame is available before the preload finishes (and none at all for a type whose art is
- * missing), so this is the picture every player sees for the first frames of a session. The fallback
- * draws the building's own footprint pad in its own category colour, so a farm, a church and a
- * prison do not all read as one blank white box.
+ * A completed building with no loaded frame must still read as that building: the fallback draws its
+ * own footprint pad in its category colour, so a farm, church and prison do not all read as one box.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { BUILDING_CONFIGS, BuildingType, type Building } from '../src/game/buildings';

@@ -1,10 +1,6 @@
 /**
- * Every residence writer respects capacity, not only the daily assign pass.
- *
- * Measured on the 360-day gate (seed 12345, `--trace-housing`): 424 residence writes crossed
- * `getResidenceCapacity`, 399 of them from `syncPartnerResidence`'s couple-only fallback and 25 from
- * the divorce path. Both wrote the whole household into a home picked for the couple alone, and the
- * birth path inherited the mother's bed unconditionally — the "7 of 6" the gate samples.
+ * Every residence writer — partner sync, divorce, birth, rebalance — respects `getResidenceCapacity`,
+ * not only the daily assign pass. A residence never holds more settlers than it has beds.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';

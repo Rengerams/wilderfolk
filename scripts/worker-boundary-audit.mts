@@ -1,14 +1,6 @@
 /**
- * Worker-boundary audit probe — Wilderfolk.
- *
- * Answers one question mechanically: does every piece of state the simulation
- * needs actually cross the host <-> worker boundary, and does it survive?
- *
- * The probe mimics `GameWorkerHost`/`gameWorker.ts` exactly, including the
- * `postMessage` serialization step (structuredClone) and the
- * invalidate/hydrate calls each side performs, then diffs the two worlds.
- *
- * Run: npx tsx scripts/worker-boundary-audit.mts
+ * Worker-boundary audit: mimic `GameWorkerHost`/`gameWorker.ts` (structuredClone + invalidate/
+ * hydrate), tick, and diff host vs worker worlds. Run: `npx tsx scripts/worker-boundary-audit.mts`.
  */
 import { initGame } from '../src/game/worldGen';
 import fs from 'node:fs';
@@ -41,7 +33,7 @@ import { getVenueSchedule } from '../src/game/venueSchedule';
 import type { WorldState } from '../src/game/gameTypes';
 
 const SEED = 12345;
-const TICK_COUNT = 2880; // 60 colony days — crosses day, week, season and social cadences
+const TICK_COUNT = 2880; // 10 colony days at 288 ticks/day — crosses day and social cadences.
 
 /** Keys whose value is a class instance / runtime cache, not plain JSON state. */
 const CLASS_CACHE_KEYS = [
@@ -60,10 +52,8 @@ const CLASS_CACHE_KEYS = [
 ];
 
 /**
- * Keys the worker never ships on purpose — the player authors them on the main
- * thread (`speed`, `paused`) and pushes the presentation slices back through
- * `patchUi`, while the schedule/preference fields are read locally. Documented
- * in `worldRuntimeCaches.carryPresentationControls`.
+ * Keys the worker never ships: the player authors `speed`/`paused` on the main thread and pushes
+ * presentation slices through `patchUi`; schedule/preference fields are read locally.
  */
 const HOST_AUTHORED_KEYS = [
   'speed',
@@ -129,9 +119,8 @@ function record(section: string, key: string, kind: string, a: string, b: string
 }
 
 /**
- * Effective value of a key. Several slices are intentionally materialized by the
- * receiving side (`applySimTickDelta` writes the owner default when the delta
- * carries none), so an absent key and its owner default are the same information.
+ * Effective value of a key: several slices are materialized by the receiving side (`applySimTickDelta`
+ * writes the owner default), so an absent key and its default are the same information.
  */
 function semanticValue(world: WorldState, key: string): unknown {
   const raw = (world as unknown as Record<string, unknown>)[key];
@@ -217,9 +206,8 @@ function entityFieldDiff(a: WorldState, b: WorldState, section: string): void {
       `${b.entities.length} target (${onlyInB} extra)${orderDiffers ? ' · different order' : ''}`,
     );
   }
-  // Key-presence-only differences are invisible to a per-field value compare, so
-  // report them explicitly (a `{x: undefined}` vs `{}` difference is not data loss,
-  // but it must be named rather than hidden).
+  // Key-presence-only differences are invisible to a per-field compare, so report them explicitly:
+  // `{x: undefined}` vs `{}` is not data loss, but it must be named rather than hidden.
   const presence = new Map<string, number>();
   for (const entity of a.entities) {
     const other = bById.get(entity.id);
@@ -605,10 +593,8 @@ function saveLoadSurvival(display: WorldState): void {
 /* 8. Host-side writers of world state                                 */
 /* ------------------------------------------------------------------ */
 /**
- * Every host-side assignment to a WorldState field must have a path into the
- * worker: the command channel, `patchUi`, `setPaused`/`setSpeed`, or a full
- * world hand-off. Anything else makes the worker's authority drift from the
- * screen without a transport error.
+ * Every host-side assignment to a WorldState field must have a path into the worker: the command
+ * channel, `patchUi`, `setPaused`/`setSpeed`, or a full hand-off. Otherwise authority drifts silently.
  */
 function hostWriters(worldKeys: string[]): void {
   section('8. host-side writers of world state (do they reach the worker?)');
@@ -689,10 +675,8 @@ if (!args.has('--skip-ticks')) {
 
 section('findings');
 /**
- * Triage table. The probe is deliberately strict — it flags any key that is not
- * identical — so each measured difference is classified here with the reason it
- * carries no information loss; anything that does not match a known reason stays
- * UNEXPLAINED and fails the run.
+ * Triage table: the probe flags any non-identical key, so each measured difference is classified here
+ * with why it carries no information loss; anything unmatched stays UNEXPLAINED and fails.
  */
 function classify(finding: Finding): string {
   if (finding.key === 'simRng') {

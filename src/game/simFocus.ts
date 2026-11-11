@@ -17,9 +17,8 @@ export interface SimulationFocus {
 const FOCUS_MARGIN = 120;
 
 /**
- * How often off-screen humans run full AI (every N ticks).
- * At 12 ticks/hour, 24 ticks span two clock hours; this is a presentation-focus throttle.
- * Do not import dayCycle here — avoids circular init (simFocus ↔ dayCycle).
+ * How often off-screen humans run full AI, in ticks (24 = two clock hours at 12 ticks/hour): a
+ * presentation-focus throttle. `dayCycle` is not imported here to avoid a circular init.
  */
 export const OFFSCREEN_HUMAN_THROTTLE = 24;
 

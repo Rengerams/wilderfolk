@@ -9,12 +9,12 @@ import {
   WEREWOLF_TAME_LINES,
 } from './gameTypes';
 import {
+  HUMAN_ADULT_MIN_AGE,
   isFullMoonDay,
   isFullMoonNight,
   NIGHT_END,
   MOON_HOWLER_NIGHT_START,
 } from './daycycleconstants';
-import { isAdult } from './housingModel';
 import {
   isStartOfClockHour,
   killHuman,
@@ -40,17 +40,8 @@ import type { RevertToHumanFormOptions } from './moonHowlerForm';
 import { releaseDialogueSession } from './humanChat';
 
 /**
- * Night exorcism — only if a Church is **staffed** (priest on duty).
- * No church / unstaffed church → nothing stops the howler: they hunt all night
- * and return next full moon still cursed.
- *
- * One roll, three mutually exclusive outcomes (weights sum to 1):
- *   1. Cured + priest lives
- *   2. Not cured + priest dies
- *   3. Not cured + priest flees (lives)
- *
- * Failed cures (2 & 3) leave moonHowlerCursed = true → transforms again next full moon.
- * Howler may still kill other settlers via wildlife AI while active.
+ * Night exorcism — only if a Church is staffed (priest on duty); otherwise nothing stops the howler.
+ * One roll with three mutually exclusive outcomes; a failed cure leaves the curse for the next full moon.
  */
 /** Base weights with 1 priest (sum = 1). */
 export const MOON_HOWLER_OUTCOME_CURE = 0.35;
@@ -79,11 +70,8 @@ export const MOON_HOWLER_GUARD_PROTECT_RANGE = 220;
 export const MOON_HOWLER_GUARD_SAVE_CHANCE = 0.5;
 
 /**
- * Chance that a full moon with NO active curse creates a REPLACEMENT Howler.
- * SIMULATION_AUTHORITY §5: "A replacement Howler appears only through a rare
- * replacement roll" — a full moon must NOT guarantee a new Howler. Survivor
- * returns are handled by the return path; only a quiet moon after a kill/cure
- * reaches this roll (~1-2 replacements per year, down from every full moon).
+ * Chance that a full moon with no active curse creates a replacement Howler: a full moon must not
+ * guarantee one, so only a quiet moon after a kill or cure reaches this roll.
  */
 export const MOON_HOWLER_REPLACEMENT_CHANCE = 0.15;
 
@@ -183,15 +171,14 @@ export function isMoonHowlerCureWindow(colonyDay: number, hourOfDay: number): bo
 }
 
 export function isMoonHowlerEligible(entity: Entity): boolean {
-  return !entity.isJuvenile && isAdult(entity);
+  return entity.age >= HUMAN_ADULT_MIN_AGE;
 }
 
 export function canMoonHowlerCurse(entity: Entity): boolean {
   return (
     entity.alive
     && isPlayerHuman(entity)
-    && !entity.isJuvenile
-    && isAdult(entity)
+    && entity.age >= HUMAN_ADULT_MIN_AGE
     && !entity.moonHowlerCursed
   );
 }
@@ -235,9 +222,8 @@ export function forceMoonHowlerOutside(
     entity.prisonSentenceCrime = undefined;
   }
 
-  // Draws from the injected stream, not the module's global one — the scatter has to be reproducible
-  // from whatever stream the caller owns, which is what `saveLoad` restores before this can run
-  // (`LIVE-FINDINGS-STATUS.md`, L13).
+  // Draws from the injected stream, not the module's global one: the scatter must be reproducible from
+  // whatever stream the caller owns, which `saveLoad` restores before this can run.
   const angle = rng() * Math.PI * 2;
   const dist = 40 + rng() * 50;
   entity.x = Math.max(24, Math.min(mapWidth - 24, entity.x + Math.cos(angle) * dist));
@@ -279,11 +265,8 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
     pregnantById: human.pregnantById,
     pregnancyFromYouthLove: human.pregnancyFromYouthLove,
     pregnancyProgress: human.pregnancyProgress,
-    // Declared in the saved-form key list and scaled by `saveLoad`, but never written here and never
-    // restored by `revertToHumanForm` — so the field was in the contract and not in the code. It is
-    // latent rather than live today (the transform does not clear the live pregnancy fields, so the
-    // value survives anyway), but the invariant check pairs `pregnant` with `pregnancyDueProgress`, and
-    // a form that starts parking the pregnancy fields would have restored the first without the second
+    // In the saved-form key list and scaled by `saveLoad`, but never written here; latent today because
+    // the transform leaves the live pregnancy fields intact.
     pregnancyDueProgress: human.pregnancyDueProgress,
     huntTargetId: human.huntTargetId,
     combatTicks: human.combatTicks,
@@ -298,8 +281,7 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
   detachEntityFromBuildingOccupants(buildings, livePrisonId, human.id);
 
   // Leaving the Human population ends this settler's dialogue session: `tickHumanChat` runs only for
-  // `byType[EntityType.Human]`, so a wolf can no longer advance a session it holds, and the partner
-  // would stay dialogue-busy on a live entry that the orphan reclaim cannot see (F-chat-1 residual).
+  // `byType[EntityType.Human]`, so a wolf cannot advance it and its partner would stay dialogue-busy.
   releaseDialogueSession(human);
 
   human.type = EntityType.Werewolf;
@@ -632,16 +614,11 @@ export function syncMoonHowlerForms(
   const transformTick = isMoonHowlerTransformTick(colonyDay, hourOfDay);
   const transformed: Entity[] = [];
   const reverted: Entity[] = [];
-  // The human snapshot is read only by the revert branch (`revertToHumanForm` sizes the prison/job/
-  // residence restores from it), so it is built on the first revert instead of every tick.
-  // Deferring it is safe: a revert requires `!wantWerewolf` while the transform branch — the only
-  // other writer of `entity.type` — requires `wantWerewolf`, so the two are mutually exclusive
-  // within one call and no type can have changed by the time the snapshot is taken.
+  // The human snapshot is read only by the revert branch, so it is built on the first revert instead
+  // of every tick. The two branches are mutually exclusive within one call, so no type can have changed.
   let revertHumans: Entity[] | undefined;
-  // `huntingTonight` used to be a second full scan (`entities.some(isActiveMoonHowler)`), now fused
-  // into this walk. It is read after each entity's form change so it observes the same state
-  // the trailing `some` did: `isActiveMoonHowler` reads only `alive`/`type`/`moonHowlerCursed`, and
-  // those are written only by the branch for that same entity.
+  // Fused into this walk instead of a second scan, and read after each entity's form change so it
+  // observes the form the entity ends the pass with.
   let huntingTonight = false;
 
   for (const entity of entities) {
@@ -716,10 +693,8 @@ export function tickMoonHowlerCycle(
         aliveEntities,
         state.tick,
       );
-      // `state`, not just `buildings`: `worldSlices` is what supplies the player's workforce preset and
-      // the venue auto-staff targets. Without it the pass ran under `DEFAULT_WORKFORCE_POLICY`
-      // ('survival') and sized venues from the default window, so a reverted settler could be pushed
-      // into a second innkeeper slot the player never asked for.
+      // `state`, not just `buildings`: `worldSlices` supplies the player's workforce preset and venue
+      // auto-staff targets, so omitting it would size venues from the survival defaults.
       syncLeaderHouseResidency(state);
       assignMissingWorkers(villagers, buildings, state);
     }
@@ -743,8 +718,7 @@ export function tickMoonHowlerCycle(
     for (const were of aliveEntities) {
       if (!isActiveMoonHowler(were)) continue;
       // The owner helper, not a second axis-aligned test: it pads the footprint, and a howler within
-      // that margin is indoors too — the local copy missed those and the sweep never forced them out
-      // (`LIVE-FINDINGS-STATUS.md`, L16).
+      // that margin is indoors too.
       const inside = isInsideCompletedBuilding(state, were.x, were.y);
       if (inside) {
         forceMoonHowlerOutside(were, buildings, state.width, state.height, rng);

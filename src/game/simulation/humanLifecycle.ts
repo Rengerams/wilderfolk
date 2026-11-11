@@ -8,8 +8,9 @@ import {
   ticksForDays,
   getColonyDay,
 } from '../dayCycle';
+import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 import { resolveChildSurname, getRandomName } from '../nameLoader';
-import { inheritSettlerTraits } from '../settlerTraits';
+import { genomeOf, inheritGenome } from '../settlerTraits';
 import { createEntity } from '../entityFactory';
 import { pushNewEntity, allLivingHumans } from './simulationEntities';
 import { recordGenealogyBirth } from '../genealogyRegistry';
@@ -23,7 +24,7 @@ import { dampScandalReputationLoss } from '../townHall';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 import { adjustHumanStaminaFromEnergy } from './humanPhysiology';
 import { isPlayerHuman } from '../playerHuman';
-import { seededRandomForRun } from '../simRng';
+import { seededRandomForRun, seededStreamForRun } from '../simRng';
 import { addReputation } from '../simHelpers';
 import { isResidenceBuilding, isLeaderHouseResidence, residenceRoomFor } from '../housingModel';
 
@@ -35,7 +36,7 @@ const BIRTH_TALENT_JOBS = [
 ] as const;
 
 export function grantRareBirthTalent(child: Entity, birthKey: string): void {
-  if (child.type !== EntityType.Human || !child.isJuvenile) return;
+  if (child.type !== EntityType.Human || child.age >= HUMAN_ADULT_MIN_AGE) return;
   const chance = seededRandomForRun(`${birthKey}:talent-chance`);
   if (chance >= 0.01) return;
   const roll = seededRandomForRun(`${birthKey}:talent-job`);
@@ -58,7 +59,20 @@ export const LIFECYCLE_CONFIG = {
   MATERNAL_ENERGY_MIN_RATIO: 0.18,
   STILLBORN_GRIEF_DAYS: 3,
   SCANDAL_BASE_REP_LOSS: -3,
+  HOSPITAL_THRESHOLD_RATIO: 0.85,
 } as const;
+
+/** Authoritative progress toward this mother's individual due date (±15% term variation). */
+export function getPregnancyProgressFraction(
+  mother: Pick<Entity, 'pregnancyProgress' | 'pregnancyDueProgress'>,
+): number {
+  const due = mother.pregnancyDueProgress;
+  const term = typeof due === 'number' && Number.isFinite(due) && due > 0
+    ? due : PREGNANCY_TICKS;
+  const elapsed = mother.pregnancyProgress;
+  const progress = typeof elapsed === 'number' && Number.isFinite(elapsed) ? elapsed : 0;
+  return Math.min(1, Math.max(0, progress / term));
+}
 
 function safeAddChildId(parent: Entity, childId: number): void {
   parent.childrenIds ??= [];
@@ -72,6 +86,14 @@ function clearExpectingStatus(human?: Entity): void {
   if (human.relationshipStatus === 'expecting') {
     human.relationshipStatus = human.partnerId != null ? 'married' : 'single';
   }
+}
+
+/** The one pregnancy hospital threshold: 85% of this mother's individual term. */
+export function isPregnancyHospitalDue(
+  entity: Pick<Entity, 'pregnant' | 'pregnancyProgress' | 'pregnancyDueProgress'>,
+): boolean {
+  return entity.pregnant === true
+    && getPregnancyProgressFraction(entity) >= LIFECYCLE_CONFIG.HOSPITAL_THRESHOLD_RATIO;
 }
 
 /**
@@ -174,7 +196,11 @@ export function tickPregnancyAndBirth(
 
   const babyGen = (entity.generation ?? 0) + 1;
   const childGender: 'male' | 'female' = seededRandomForRun(`${birthKey}:gender`) > 0.5 ? 'male' : 'female';
-  const inheritedTraits = inheritSettlerTraits(entity, biologicalFather);
+  const inheritedGenome = inheritGenome(
+    genomeOf(entity),
+    genomeOf(biologicalFather),
+    seededStreamForRun(`${birthKey}:genome`),
+  );
 
   const child = createEntity(EntityType.Human, nx, ny, state.nextEntityId++, 80, true, {
     gender: childGender,
@@ -186,7 +212,7 @@ export function tickPregnancyAndBirth(
     surname: babySurname,
     isBastard,
     spriteVariant: entity.spriteVariant ?? pickHumanVariant(entity.id, childGender),
-    inheritedTraits,
+    inheritedGenome,
   });
 
   child.name = getRandomName(childGender);
@@ -209,10 +235,8 @@ export function tickPregnancyAndBirth(
   }
   pushNewEntity(state, ctx, child);
 
-  // The assign layer rebuilds residence occupants from `ctx.byType`, which cannot see a
-  // same-tick newborn (pushNewEntity only fills ctx.newEntities). Register the child in the
-  // live Human bucket so the residence it was born into lists it before the daily invariant
-  // collector runs (SIMULATION_AUTHORITY §5: residenceBuildingId ↔ occupants agree).
+  // The assign layer rebuilds occupants from `ctx.byType`, which misses a same-tick newborn
+  // (`pushNewEntity` only fills `ctx.newEntities`), so add the child to the live Human bucket.
   const newbornBucket = byType[EntityType.Human];
   if (newbornBucket && !newbornBucket.includes(child)) {
     newbornBucket.push(child);

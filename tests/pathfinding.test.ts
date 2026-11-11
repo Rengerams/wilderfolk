@@ -1,10 +1,6 @@
 /**
- * Pathfinding routes around water/mountains instead of walking straight
- * through them (fixes settlers stuck at map edges on blocked lines).
- *
- * The fixtures are real maps built through the production tile model: a tile's type comes from
- * the projection, and the passability grid is rebaked from it, so these cases exercise the same
- * agreement between "what the tile is" and "what the pathfinder thinks" that ships.
+ * Pathfinding routes around water and mountains instead of walking through them, over real maps
+ * whose passability grid is rebaked from the production tile projection.
  */
 import { describe, expect, it } from 'vitest';
 import { findPath, getPathGrid, lineCrossesBlocked } from '../src/game/pathfinding';
@@ -22,6 +18,26 @@ function makeMap(width: number, height: number, seed: number, blocker: (x: numbe
 }
 
 describe('pathfinding', () => {
+  it('detects a thin completed building along a long straight line', () => {
+    // The former 128 samples were ~39 pixels apart and could skip a one-tile footprint.
+    const map = makeMap(500, 12, 73, () => false);
+    const blocker: Building = {
+      id: 101, type: BuildingType.House, x: 1250, y: 55,
+      width: 10, height: 10, occupants: [], level: 1,
+      constructionProgress: 100, completed: true,
+      health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
+    };
+    const grid = getPathGrid(map, [blocker]);
+    expect(grid.blocked[5 * grid.cols + 125]).toBe(1);
+    expect(lineCrossesBlocked(grid, 25, 55, 4975, 55)).toBe(true);
+  });
+
+  it('blocks an exactly diagonal line between two solid corner neighbours', () => {
+    const map = makeMap(8, 8, 74, (x, y) => (x === 3 && y === 2) || (x === 2 && y === 3));
+    const grid = getPathGrid(map);
+    expect(lineCrossesBlocked(grid, 25, 25, 45, 45)).toBe(true);
+  });
+
   it('finds a straight path when nothing blocks', () => {
     const grid = getPathGrid(makeMap(10, 10, 1, () => false));
     const path = findPath(grid, 0, 5, 9, 5);
@@ -241,9 +257,7 @@ describe('pathfinding', () => {
     expect(findPath(bare, 0, 5, 9, 5)).toBeNull();
 
     // `isWalkableRoad` calls a completed bridge walkable, so its footprint must clear the blocked
-    // water it spans. Stamping only the road mask left the deck a cost discount on a tile the
-    // router still refused: no route was found and the walk fell back to the straight line, so a
-    // settler waded the river the bridge was built across.
+    // water it spans — a walkable deck the router still refuses connects nothing.
     const grid = getPathGrid(map, [bridge]);
     expect(grid.road?.[5 * grid.cols + 5]).toBe(1);
     expect(grid.blocked[5 * grid.cols + 5], 'the deck tile is still water to the router').toBe(0);

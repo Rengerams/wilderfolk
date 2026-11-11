@@ -1,14 +1,7 @@
 import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 /**
- * S-1/S-2 of the 2026-09-20 audit: daily-layer spawns that bypass the canonical spawn primitive.
- *
- * `gameTick` builds the tick's authoritative entity list *before* the daily layer runs and only
- * drains `ctx.newEntities` into it afterwards, so a daily spawn that hand-rolls
- * `state.entities.push(...)` / `allAlive.push(...)` stays invisible to the spatial grids (and to the
- * worker delta) for the rest of the tick. The daily immigrant path and the wildlife replenisher
- * already route through `pushNewEntity`; these tests pin the autumn herd (S-1b, fixed), the
- * emergency grass patches (S-2, fixed) and the yearly world events still owned by the `groupEvents`
- * lane (S-1a, expected red until that lane lands).
+ * Daily-layer spawns must route through `pushNewEntity`, or they stay invisible to the spatial grids
+ * for the tick; the yearly world-event case remains red until its lane migrates.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { EntityType, MapSize, TerrainType } from '../src/game/gameTypes';
@@ -38,7 +31,7 @@ afterEach(() => {
 /** The membership assertion `tests/dailyImmigration.gridSync.test.ts` uses. */
 function gridContains(grid: EntitySpatialGrid, entity: Entity): boolean {
   const found: number[] = [];
-  grid.forEachInRadius(entity.x, entity.y, 8, (candidate) => found.push(candidate.id));
+  grid.forEachInRadius(entity.x, entity.y, 8, (candidate) => { found.push(candidate.id); });
   return found.includes(entity.id);
 }
 
@@ -53,9 +46,8 @@ function ids(list: Entity[]): number[] {
 }
 
 /**
- * Minimal daily-layer fixture. `state.entities` and `allAlive` are the same array, exactly as
- * `gameTick` hands them to the daily layer, and there is no `worldMap`, so the shared wildlife
- * passability predicate accepts every edge position (the herd places without nudging).
+ * Minimal daily-layer fixture: `state.entities` and `allAlive` are the same array, and the absent
+ * `worldMap` makes every herd edge position passable.
  */
 function herdFixture(): {
   state: WorldState;
@@ -97,10 +89,6 @@ function herdFixture(): {
 /** One real tick forced onto the yearly world-event roll (year 2, even, not rolled yet). */
 function tickWithYearlyWorldEvent(seed: number): { world: WorldState; before: Set<number> } {
   setSimSeed(seed);
-  // `MapSize` has no `Small` member (`gameTypes.MapSize` is Medium | Large | Huge), so asking for one
-  // passed `undefined` and `initGame`'s default silently built a **Medium** 1200×900 world — the
-  // fixture read as a small map and never was one (2026-09-20 audit, T-1 root cause 1). Name what it
-  // actually builds.
   const world = initGame({ size: MapSize.Medium, seed });
   setSimSeed(seed);
   // `gameTick` derives `dayInYear` from the tick and only advances `year` on a day-0 rollover, so
@@ -139,10 +127,8 @@ describe('daily spawns and the spatial grids (S-1/S-2)', () => {
 
   it('S-2: every emergency grass patch reaches the onSpawn hook and ctx.newEntities', () => {
     const world = initGame({ size: MapSize.Medium, seed: 33 });
-    // All-grassland tiles so all seven patch centres can place, plus a depleted denormalized grass
-    // count and a healthy prey base so the replenisher takes the emergency-grass branch only.
-    // Teraforge keeps no per-tile grid, so "grassland everywhere" is one override per tile — the
-    // fields stay as generated and the overrides outrank them.
+    // All-grassland overrides so all seven patch centres can place; the depleted grass count and
+    // healthy prey base make the replenisher take the emergency-grass branch only.
     if (world.worldMap) {
       const map = world.worldMap;
       for (let ty = 0; ty < map.height; ty++) {
@@ -187,15 +173,6 @@ describe('daily spawns and the spatial grids (S-1/S-2)', () => {
     expect(ids(ctx.newEntities.filter((entity) => entity.type === EntityType.Grass))).toEqual(ids(spawnedGrass));
   });
 
-  // EXPECTED RED until the `groupEvents` lane routes its world-event spawns through the canonical
-  // spawn path: `rollYearlyWorldEvent` still does `allAlive.push(x); indexLivingEntity(state, x);`,
-  // so wolves/deer/grass/trees never reach `ctx.newEntities` or a grid in the tick they appear.
-  //
-  // The spawned types are asserted against their own grid (`mobileGrid` for wolves/deer, `grassGrid`
-  // for grass, `treeGrid` for trees). Note for whoever lands that lane: `pushNewEntity` routes only
-  // grass and mobile types, so trees additionally need the tree grid to be synced mid-tick
-  // (`tickLayerRealtime` reconciles `treeGrid` from `byType` once per tick) — the tree assertion
-  // below stays red until that is handled.
   it('S-1a: yearly world-event spawns reach the spatial grids (groupEvents lane)', () => {
     let fixture: { world: WorldState; before: Set<number> } | undefined;
     let eventId = '';

@@ -1,19 +1,7 @@
 import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
 /**
- * An orphan must never end up in the Leader's House.
- *
- * The orphan-**housing** rule says so out loud: `pickOrphanResidence` skips any Leader's House
- * (`housingPipeline.ts` — `if (isLeaderHouseResidence(residence)) continue;`). Adoption is a
- * separate path that never consults it:
- *
- *   `ensureOrphanAdoption` → `pickRandomAdoptiveCouple` offers **every** player couple, the leader's
- *   included → the orphan is recorded as the leader's and the spouse's child and appended to both
- *   `childrenIds` → `collectMinorHousehold` then counts the orphan as a dependent of the leader →
- *   `syncLeaderHouseResidency` force-moves every household member into the manor the housing rule
- *   had just refused.
- *
- * Reported from play 2026-09-20: "in leadership house i noticed orphans are now adopted that should
- * not be possible". See `BUG_REPORTS/2026-09-20-orphans-adopted-into-the-leaders-house.md`.
+ * An orphan must never end up in the Leader's House: adoption's guardian pool excludes manor
+ * residents, and `syncLeaderHouseResidency` must not pull the child in afterwards.
  */
 import { describe, expect, it } from 'vitest';
 import { ensureOrphanAdoption } from '../src/game/housingPipeline';
@@ -63,12 +51,8 @@ function residence(id: number, type: BuildingType): Building {
 }
 
 /**
- * A married pair plus a parentless minor — the minimum an adoption decision needs.
- *
- * The leader carries `LEADER_OCCUPATION`, which is what `leaderHouse.applyLeaderOccupation` writes in
- * a real world, and deliberately **starts unhoused**: the exploit this file guards fired *before*
- * `syncLeaderHouseResidency` ever moved the couple into the manor, so a fixture that pre-houses them
- * would pass a residence-only check and miss the defect.
+ * A married pair plus a parentless minor. The leader carries `LEADER_OCCUPATION` and starts
+ * unhoused, as in a real world before `syncLeaderHouseResidency` moves the couple in.
  */
 function village(): { leader: Entity; spouse: Entity; orphan: Entity; humans: Entity[] } {
   const leader = human(LEADER_ID, {

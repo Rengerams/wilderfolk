@@ -1,9 +1,6 @@
 /**
  * The prison roster: three nine-hour shifts with a one-hour handover, covering all 24 hours.
- *
- * The building's own `WorkSchedule` cannot express this — it is a single window and may not wrap
- * through midnight — so the roster owns the windows. A guard's shift is derived from their position in
- * the crew and the calendar week, which rotates the crew weekly without any saved state.
+ * `WorkSchedule` cannot wrap midnight, so shifts derive from crew position and calendar week here.
  */
 import { getAbsoluteCalendarDay } from './dayCycleClock';
 
@@ -97,11 +94,8 @@ export function shiftForCrewIndex(crewIndex: number, weekIndex: number): PrisonS
 }
 
 /**
- * The guards on duty this week, in crew order.
- *
- * A crew larger than the three shifts takes turns resting by week. Keeping the same crew on duty for
- * a full week keeps each guard on one shift long enough to complete a long commute; changing the crew
- * every day repeatedly sent guards toward a new post just as their previous assignment changed.
+ * The guards on duty this week, in crew order. A larger crew takes turns resting by week, so each
+ * guard holds one shift long enough to complete a long commute.
  */
 export function prisonOnDutyGuards(guardIds: readonly number[], tick: number): number[] {
   // `prisonGuardIds` orders a legacy overstaffed crew by proximity to its post. Preserve that order:

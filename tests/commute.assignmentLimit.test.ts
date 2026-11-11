@@ -1,11 +1,6 @@
 /**
- * The two-hour rule for offering a settler a post.
- *
- * A post more than two hours' walk from a settler's home is not offered to them. Work assignment
- * sorts candidates by distance and takes the nearest, which without this rule meant a settler housed
- * across the map could be handed a job they could never reach in time.
- *
- * The hours judged use the same bounded work-commute pace as the movement loop.
+ * A post more than two hours' walk from a settler's home is not offered to them; the commute
+ * estimate uses the same bounded work pace as the movement loop.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { initGame, createBuilding } from '../src/game/worldGen';

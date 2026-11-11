@@ -95,11 +95,8 @@ export function maybeOfferDeerParliament(state: WorldState): void {
 }
 
 /**
- * Whether `resolveDeerParliament` would accept this answer right now.
- *
- * Mirrors the two gated answers the resolver applies (`preserve`,
- * `symbolic_treaty`), so a consumer can tell an answer that lands from one that
- * is refused and leaves the card open. `reduce_hunting` and `ignore` are free.
+ * Whether `resolveDeerParliament` would accept this answer now. Mirrors its two gated answers
+ * (`preserve`, `symbolic_treaty`); `reduce_hunting` and `ignore` are always free.
  */
 export function getDeerParliamentChoiceEligibility(
   state: WorldState,

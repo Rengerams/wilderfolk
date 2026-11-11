@@ -2,15 +2,7 @@ import { BuildingType } from './gameTypes';
 
 /**
  * The sidebar / focused-view vocabulary — one definition, here with the hotkeys that produce it.
- *
- * `useGameShellState` used to declare a second, same-named union with an extra `'schedule'` member,
- * while `useKeyboardControls` typed its `openTab` with this one. The two disagreed by a member, so
- * `'schedule'` was a branch no hotkey or rail button could reach and the hook's own switch was
- * unreachable behind the type mismatch. The type now lives in one
- * place and the hook imports it.
- *
- * `'schedule'` is kept as the declared-but-unproduced id for the Work Schedule view, which now
- * renders inside the People section (`CitizenOverviewScreen`) rather than as its own rail tab.
+ * `'schedule'` is declared but unproduced: the Work Schedule view renders inside People.
  */
 export type SidebarTab = 'village' | 'schedule' | 'frontier' | 'nature' | 'progress' | 'log' | 'more';
 
@@ -54,10 +46,8 @@ for (const [key, val] of Object.entries(HOTKEY_BUILDINGS)) {
 }
 
 /**
- * F4 logistics overlay toggle — one definition, read by the keyboard owner and the UI hint.
- *
- * `X` for "eXamine the network": taken letters are the sidebar tabs (V/F/N/P/L/M), the citizen
- * overview (O), the village overview (C), and the build/grid/rotate/center actions (B/G/R/H).
+ * F4 logistics overlay toggle — `X` for "eXamine the network"; `isLogisticsHotkey` is the one
+ * keydown test. The other letters belong to the sidebar tabs and actions.
  */
 export const LOGISTICS_HOTKEY = 'x';
 export const LOGISTICS_HOTKEY_CODE = 'KeyX';
@@ -70,9 +60,7 @@ export function isLogisticsHotkey(e: KeyboardEvent): boolean {
 
 /**
  * Village overview toggle — `C` for the council, which is what the window's own heading says.
- *
- * Its door is one unlabelled 🏘️ among six in the header, so the letter is the route that cannot be
- * missed rather than a shortcut for the mouse.
+ * Its door is one unlabelled 🏘️ among six, so the letter is the route that cannot be missed.
  */
 export const COUNCIL_HOTKEY = 'c';
 export const COUNCIL_HOTKEY_CODE = 'KeyC';
@@ -98,11 +86,8 @@ export function resolveSidebarTabFromKey(e: KeyboardEvent): SidebarTab | null {
 }
 
 /**
- * True when the target is a control that Space and Enter activate natively.
- *
- * `isEditableTarget` deliberately excludes buttons so gameplay hotkeys keep working while
- * a HUD button holds focus; Space is the exception, because swallowing it pauses the game
- * instead of pressing the focused button.
+ * True when the target is a control that Space and Enter activate natively. `isEditableTarget`
+ * excludes buttons so gameplay hotkeys work while a HUD button holds focus.
  */
 export function isActivatableTarget(target: EventTarget | null): boolean {
   const el = (target instanceof HTMLElement ? target : null)

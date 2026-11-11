@@ -1,30 +1,7 @@
 import { weatherVisualEnabled } from '../weatherVisualPreferences';
 /**
- * Weather effects — Teraforge's `weather.ts` registry, ported.
- *
- * Teraforge models weather as **plugins**: `registerWeather({ id, label, icon, create })`, where each
- * effect owns `tint(frame)`, `update(dt, frame)` and `draw(g, frame)` and paints in **screen space**
- * against a camera-aware `WeatherFrame`. This module is that architecture, with Wilderfolk's rules
- * applied to it — three deviations, each deliberate:
- *
- * 1. **Randomness comes from the seeded presentation stream.** Teraforge draws from `Math.random`;
- *    `src/` may not (the `raw Math.random guard` in `tests/simRng.test.ts` scans every source file), so
- *    every random here goes through `getPresentationRng('weatherFx')` — the stream the previous
- *    particle code already used, which keeps weather deterministic per seed and out of the simulation's
- *    streams (`docs/SIM_RNG_GUIDELINES.md`).
- * 2. **`WEATHER_CONFIGS` stays the owner of the numbers.** Colour, overlay alpha and particle count per
- *    state are read from `gameTypes.WEATHER_CONFIGS`; Teraforge's hard-coded tints and counts would be
- *    a second source of truth for the same thing (`AGENTS.md` §5.2).
- * 3. **Two states differ from Teraforge's list.** Teraforge registers `clouds`; Wilderfolk has no such
- *    `WeatherType`, so its puff layer is *composed* into the states that have clouds rather than
- *    registered as an unreachable plugin. Teraforge has no `drought`; Wilderfolk does, so one is
- *    authored in the same idiom.
- *
- * Teraforge's `daylightTint` is ported, and only its **daylight temperature cast** is applied here:
- * Wilderfolk's day/night *cycle* lighting is a deliberately disabled overlay (`renderer/overlay.ts`),
- * and this module does not re-enable it.
- *
- * The weather **state** is the simulation's (`worldEvents.updateWeather`); this module only paints it.
+ * Weather effects — Teraforge's plugin-style `weather.ts` registry, ported. The simulation owns
+ * the weather state; this module only paints it.
  */
 import { PATH_CELL, WeatherType, Season } from '../gameTypes';
 import { WEATHER_CONFIGS } from '../gameTypes';
@@ -137,8 +114,7 @@ function getCloudPuffBlob(color: string): HTMLCanvasElement | null {
 
 /**
  * Teraforge's cloud puffs: soft dark blobs drifting with the camera, drawn with `multiply` so they
- * read as cloud shadow rather than as grey discs. It is a *layer* here, not a plugin, because
- * Wilderfolk has no `Clouds` weather state to select it.
+ * read as cloud shadow. A layer here, not a plugin, because Wilderfolk has no `Clouds` state.
  */
 function makeCloudLayer(count: number, color: string, alpha: number): {
   update: (dt: number, f: WeatherFrame) => void;
@@ -446,11 +422,8 @@ registerWeather({
 /* ========================= DAYLIGHT (Teraforge) ========================= */
 
 /**
- * Teraforge's hour-based daylight tint, ported verbatim.
- *
- * **Only the daylight branch is applied by this module** (see {@link drawWeather}): the dusk and night
- * terms belong to Wilderfolk's day/night cycle, whose lighting overlay is disabled on purpose
- * (`renderer/overlay.ts`), and re-enabling it is an owner decision, not a side effect of a weather port.
+ * Teraforge's hour-based daylight tint, ported verbatim; only the daylight branch is applied here,
+ * because Wilderfolk's day/night lighting overlay is disabled on purpose.
  */
 export function daylightTint(hour: number, tempShift = 0): WeatherTint | null {
   const h = hour;
@@ -468,9 +441,8 @@ export function daylightTint(hour: number, tempShift = 0): WeatherTint | null {
 }
 
 /**
- * The temperature cast a weather state contributes to {@link daylightTint}. Wilderfolk's simulation
- * carries no temperature anomaly, so this is the presentation mapping: a drought reads as heat, snow as
- * cold, everything else as neutral.
+ * The temperature cast a weather state contributes to {@link daylightTint}: drought reads as heat,
+ * snow as cold, everything else neutral.
  */
 function weatherTemperatureShift(w: WeatherType): number {
   if (w === WeatherType.Drought) return 1;

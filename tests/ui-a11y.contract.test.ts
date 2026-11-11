@@ -1,9 +1,6 @@
 /**
- * D-9 of the 2026-09-21 audit — the accessibility and keyboard-contract defects the UI pass found.
- *
- * Each case names the pre-fix expression, so reverting a fix fails here instead of silently restoring
- * the defect. The house pattern is a source guard for the shape plus an assertion that the guard is
- * non-vacuous (see `tests/keyboardGuards.contract.test.ts` and `tests/tradeRouteRewards.copy.test.ts`).
+ * Accessibility and keyboard-contract guards: a moment card that claims the keyboard, stacked
+ * authored-decision cards, intro controls, and icon-only or role-carrying controls.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -18,9 +15,7 @@ describe('the moment title card claims the keyboard while it covers the screen',
 
   it('uses the shared overlay-keyboard hook', () => {
     // `useKeyboardControls` listens on `window` in the capture phase and returns while any claim is
-    // held. Without one, the card's ~4.8 s of full-screen cover let every gameplay hotkey act on the
-    // game behind it and made Escape run the game handler's own chain (clearing the map selection)
-    // instead of skipping the card. The card is not focusable, so its own `onKeyDown` caught nothing.
+    // held, so the card must own a claim while it covers the screen.
     expect(card).toMatch(/useOverlayKeyboard\(\s*'moment-title-card'/);
     expect(card).toContain("from '../hooks/useOverlayKeyboard'");
   });
@@ -45,11 +40,8 @@ describe('the story and diplomacy cards stack instead of overlapping', () => {
   const DIPLOMACY = 'pendingDiplomacy.length > 0 && (';
 
   it('renders both cards inside that one column, in DOM order', () => {
-    // Ordering, not regex nesting: this guard is itself a correction. Its first version asserted that
-    // `GameOverlays` was a flex column whose flow children would stack — but the cards render in the
-    // map stage's own `absolute inset-0 z-10` overlay, which is **not** a flex container. So when the
-    // cards lost their `absolute left-1/2 -translate-x-1/2`, they landed in that box's top-left
-    // corner and this guard stayed green: it proved a class string, not the parent it named.
+    // Both cards render inside the one anchored column, in DOM order; the map stage's overlay is not
+    // a flex container, so neither card may position itself.
     const column = app.indexOf(COLUMN);
     const story = app.indexOf(STORY);
     const diplomacy = app.indexOf(DIPLOMACY);
@@ -73,9 +65,8 @@ describe('the story and diplomacy cards stack instead of overlapping', () => {
   });
 
   it('does not pad the container that does not hold them', () => {
-    // The parent the first version of this guard named. `GameOverlays` is `fixed inset-0 z-50`, its
-    // children are all `absolute`, and the two authored-decision cards are not among them — so a
-    // `pt-4` there offsets nothing and left the real defect in place.
+    // `GameOverlays` is `fixed inset-0 z-50` and holds neither authored-decision card, so padding it
+    // would offset nothing.
     const overlays = read('src/components/GameOverlays.tsx');
     expect(overlays, 'GameOverlays is being padded for cards it does not contain').not.toMatch(
       /justify-start overflow-hidden pt-4/,
@@ -87,9 +78,8 @@ describe('the intro does not continue while one of its controls has focus', () =
   const intro = read('src/game/IntroScreen.tsx');
 
   it('skips an activatable target and the intro-control group', () => {
-    // The window-level "press any key" handler had no target check at all while the click handler
-    // skipped `.intro-control`. Tab reaches the 🔊/🔇 button, so Enter or Space there ran
-    // `handleContinue` and unmounted the intro (and the button) before its own activation landed.
+    // The window-level "press any key" handler must skip activatable targets and `.intro-control`,
+    // or Enter/Space on the sound button unmounts the intro before the activation lands.
     expect(intro).toContain('isActivatableTarget(event.target)');
     expect(intro).toContain("closest?.('.intro-control')");
     expect(intro).toContain("from './hotkeys'");
@@ -112,10 +102,8 @@ describe('icon-only and role-carrying controls keep their semantics', () => {
 
   it('does not let role="status" erase the big-news dismiss button', () => {
     const banner = read('src/components/BigNewsBanner.tsx');
-    // An explicit role overrides the native one, so the card was announced as a status region and the
-    // click-to-dismiss affordance was never exposed. The check is on the button's **own** attribute
-    // list, not on the text between its tags: the live region legitimately lives on an inner element,
-    // and a `[\s\S]*?` guard would flag that correct shape (it did).
+    // An explicit role overrides the native one, so the dismiss button keeps its own attributes free
+    // of `role="status"`; the live region lives on the inner content wrapper.
     const buttonOpenTag = /<button\b[^>]*>/.exec(banner)?.[0] ?? '';
     expect(buttonOpenTag, 'no button tag found in BigNewsBanner').not.toBe('');
     expect(buttonOpenTag, 'the dismiss button carries role="status" again').not.toContain('role="status"');

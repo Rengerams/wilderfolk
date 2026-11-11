@@ -1,9 +1,6 @@
 /**
- * Prison guard duty.
- *
- * Two cadences: `tickPrisonPresence` samples every clock hour whether the shift's guard actually
- * stood on the post, and the daily `tickPrisonGuardDuty` rolls one escape chance per hour that nobody
- * did. An "escape" frees one prisoner early — the settler stays in the colony (no removal/cleanup).
+ * Prison guard duty, on two cadences: hourly presence sampling and a daily escape roll per hour nobody
+ * stood on the post. An escape frees one prisoner early; the settler stays in the colony.
  */
 import { departWarPrisoner } from './warPrisonerCustody';
 import { restoreWorkerRosterAfterCustody } from './workforce';
@@ -16,7 +13,7 @@ import { addFloatingText, addNotification } from './simEffects';
 import { humanDisplayName } from './citizenId';
 import { Prison } from './gameConstants';
 import { getHourOfDay, isStartOfClockHour } from './dayCycleClock';
-import { isNearBuilding } from './simulation/humanRelationships';
+import { isAtBuildingReach } from './buildingAccess';
 import { getSimRng, randomBool, randomChoice } from './simRng';
 import {
   PRISON_GUARDS_FOR_FULL_COVERAGE,
@@ -41,11 +38,8 @@ function heldPrisoners(state: WorldState, prisonId: number): Entity[] {
 }
 
 /**
- * The living entity for an id.
- *
- * Reads the canonical id → living-entity map and falls back to a scan, because the map can miss an
- * entity that was added without reindexing (`hotelStay`'s precedent). The `alive` test is kept either
- * way — the map can also hold an entity whose `alive` was cleared without unindexing.
+ * The living entity for an id: canonical map first, scan fallback for unindexed spawns, `alive` tested
+ * either way because the map can hold an entity whose `alive` was cleared.
  */
 function livingById(
   state: WorldState,
@@ -68,10 +62,8 @@ export function prisonGuardIds(state: WorldState, occupants: number[]): number[]
   );
   if (!prison || ids.length <= PRISON_GUARDS_MAX) return ids.slice(0, PRISON_GUARDS_MAX);
 
-  // Saves from older builds can contain more guards than the current four posts allow. For an
-  // overfull legacy roster, use the three closest as the stable watch crew: adding a distant fourth
-  // guard to the weekly rest rotation would pull coverage away from the post for a whole week. A
-  // legal four-guard crew still rotates its rest week normally.
+  // A legacy overfull roster (more guards than today's four posts) keeps its three closest as the watch
+  // crew; adding a distant fourth to the rest rotation would strip the post for a week.
   const postX = prison.x + prison.width / 2;
   const postY = prison.y + prison.height / 2;
   return ids
@@ -114,13 +106,13 @@ export function tickPrisonPresence(state: WorldState): void {
     if (heldPrisoners(state, prison.id).length === 0) continue;
 
     const guardIds = prisonGuardIds(state, prison.occupants ?? []);
-    // Any guard on the post covers the hour. The roster says who is *expected*, not who is allowed: a
-    // relief or the fourth guard of a three-shift crew standing there is a guard on the post. Counting
-    // only the named one logged the hour as open while guards were on it, and every open hour carries
-    // an escape roll — which is how a fully-staffed prison still freed prisoners.
+    // Any guard on the post covers the hour: the roster says who is expected, not who is allowed, and
+    // every open hour carries an escape roll.
     const posted = guardIds.some((id) => {
       const guard = livingById(state, entityById, id);
-      return guard != null && isNearBuilding(guard, prison);
+      // A staffed post is reached at the walkable facade, not an arbitrary distance from the centre.
+      // The movement owner already admits guards at this boundary and marks them indoors.
+      return guard != null && (guard.indoorBuildingId === prison.id || isAtBuildingReach(guard, prison));
     });
     if (posted) continue;
 
@@ -163,9 +155,8 @@ export function tickPrisonGuardDuty(state: WorldState): void {
       escapee.prisonBuildingId = undefined;
       escapee.prisonerUntilTick = undefined;
       escapee.prisonSentenceCrime = undefined;
-      // Release clears the ownership field, so the prison's occupant list must drop the id in the same
-      // step — the §5 invariant is "an occupant is a prisoner (prisonBuildingId) or a guard
-      // (workerBuildingId)", and the next assign pulse is up to 18 ticks away.
+      // Release clears the ownership field, so the occupant list must drop the id in the same step:
+      // an occupant is a prisoner or a guard, and the next assign pulse is hours away.
       if (escapee.workerBuildingId !== prison.id) {
         prison.occupants = (prison.occupants ?? []).filter((id) => id !== escapee.id);
       }

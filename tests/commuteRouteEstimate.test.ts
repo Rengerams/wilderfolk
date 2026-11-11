@@ -1,7 +1,6 @@
 /**
- * The housing commute estimate prices the walkable route, so a home across a river is scored by the
- * detour it forces instead of the straight line through the water — with a cache and a per-sweep
- * search budget, and the straight line as the fallback whenever no route is priced.
+ * The housing commute estimate prices the walkable route, not the straight line: crossings are paid as
+ * detours, a per-sweep search budget caps searches, and straight-line hours are the fallback.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import {

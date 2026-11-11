@@ -1,16 +1,6 @@
 /**
- * Compact save world maps (2026-09-16) — the "savegame failed loading" report.
- *
- * A save stores the valley compactly: `seed`, `preset`, `size` and the map's dimensions,
- * and the terrain is regenerated on load (deterministic from seed + size + preset). The
- * stored dimensions are **tiles** (`WorldMap.width/height` are the tile grid, see
- * `terrainGen`'s return), while `generateWorldMap(width, height, …)` takes **pixels**.
- * The tile counts were passed straight through, so a 1600x1200 px colony reloaded as a
- * 160x120 px valley — 1% of the area, with 1197 of 1202 entities outside the map. It
- * looked like a failed load; it was a silent hundred-fold shrink.
- *
- * These cases pin the dimensions, the regenerated terrain grid, the regenerated terrain,
- * and the symptom that mattered: every entity inside the map.
+ * A save stores the valley compactly and regenerates the terrain from `seed`/`preset`/`size`: the
+ * stored dimensions are tiles, while `generateWorldMap` takes pixels.
  */
 import { describe, it, expect } from 'vitest';
 import { MapSize, PATH_CELL } from '../src/game/gameTypes';
@@ -40,13 +30,10 @@ function expectMapPreserved(world: ReturnType<typeof initGame>): void {
   expect(loaded.world.width).toBe(world.width);
   expect(loaded.world.height).toBe(world.height);
 
-  // The tile grid is the size the world implies — this is the assertion the bug broke
-  // (it came back as ceil(160/10) x ceil(120/10) = 16x12 instead of 160x120).
+  // The tile grid sizes from the world's pixels / PATH_CELL, not a coarse ceil over a tile count.
   expect(restored.width).toBe(Math.ceil(world.width / PATH_CELL));
   expect(restored.height).toBe(Math.ceil(world.height / PATH_CELL));
-  // The old assertion was `restored.tiles.length` / `[0].length`, which was exactly this
-  // rectangle. Teraforge keeps no per-tile grid, so the row/column shape it claimed is pinned
-  // on the regenerated tile dimensions plus the L0 path grid and L2 continuous-field arrays.
+  // The save pins the regenerated tile dimensions plus the L0 path grid and L2 continuous-field arrays.
   expect(restored.width).toBe(original.width);
   expect(restored.height).toBe(original.height);
   expect(restored.pCols).toBe(original.pCols);

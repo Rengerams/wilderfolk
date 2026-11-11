@@ -2,10 +2,8 @@ import type { Entity } from './gameTypes';
 import { EntityType } from './gameTypes';
 
 /**
- * Every faction the entity union can represent, classified: `true` means the group is not the
- * player's. Typing this as a `Record` keyed by `Entity['faction']` is the point — adding a faction
- * to `gameTypes.Entity['faction']` stops compiling here until someone classifies it, which is the
- * drift the hand-copied `!e.faction` tests allowed (duplication finding A3).
+ * Every faction the entity union can represent, classified: `true` means it is not the player's.
+ * The `Record` key makes a new faction fail to compile until someone classifies it.
  */
 const FACTION_IS_FOREIGN: Record<NonNullable<Entity['faction']>, boolean> = {
   visitor: true,
@@ -13,36 +11,28 @@ const FACTION_IS_FOREIGN: Record<NonNullable<Entity['faction']>, boolean> = {
   trade_caravan: true,
 };
 
+/** Whether a faction marker means "not the player's"; a missing marker is player-owned. */
+export function isForeignFaction(faction: Entity['faction']): boolean {
+  return faction !== undefined && FACTION_IS_FOREIGN[faction] === true;
+}
+
 /**
- * Evaluates whether an entity is a settler belonging to the player's village: a Human that is not
- * a member of a foreign faction.
- *
- * Only factions *classified as foreign above* are excluded: an entity with no faction — or with a
- * marker the union does not name, such as the `'player'` value the test fixtures and
- * `scripts/balance-militia.ts` write — is player-owned. Deciding by the union rather than by
- * "any faction means not ours" keeps that explicit player marker working, and the `Record` above
- * is what stops a newly added faction from silently joining the colony.
- *
- * `Entity` is a single flat interface, so this is a plain predicate: callers that need the
- * specific faction check `e.faction` themselves afterwards.
+ * Whether an entity is a settler of the player's village: a Human that is not in a foreign faction.
+ * A missing or unnamed faction marker still counts as player-owned.
  */
 export function isPlayerHuman(e: Entity): boolean {
-  return e.type === EntityType.Human && (!e.faction || !FACTION_IS_FOREIGN[e.faction]);
+  return e.type === EntityType.Human && !isForeignFaction(e.faction);
 }
 
 /** A player's witnessed human shift still belongs to them during a temporary Moon Howler form. */
 export function isPlayerHumanShiftOwner(e: Entity): boolean {
   return isPlayerHuman(e) || (e.type === EntityType.Werewolf && !!e.moonHowlerCursed
-    && !!e.moonHowlerSaved && (!e.faction || !FACTION_IS_FOREIGN[e.faction]));
+    && !!e.moonHowlerSaved && !isForeignFaction(e.faction));
 }
 
 /**
- * The living player-owned settlers in `entities` — the list form of the `alive && isPlayerHuman`
- * pair `playerHumanCount` above counts, in input order.
- *
- * Exported as the single home for that list: `relationships` and `apprenticeships` each carried a
- * private copy of the same filter, and the daily layer needs the identical list for both of them in
- * one pass. Deriving it once per pass there is what stops the second full scan of `allAlive`.
+ * The living player-owned settlers in `entities`, in input order — the one home for that list, reused
+ * by `relationships`, `apprenticeships` and the daily layer.
  */
 export function playerHumansFrom(entities: readonly Entity[]): Entity[] {
   const people: Entity[] = [];
@@ -54,11 +44,8 @@ export function playerHumansFrom(entities: readonly Entity[]): Entity[] {
 }
 
 /**
- * **Every** player-owned settler in `entities`, dead included — deliberately not {@link playerHumansFrom}.
- *
- * `assignMissingResidences` clears the bed of each dead settler it is handed, so a reconciliation pass
- * that wants the living list is asking a different question from the one this answers. Five command
- * modules carried a private copy of this filter; this is its one owner.
+ * **Every** player-owned settler in `entities`, dead included — deliberately not {@link playerHumansFrom},
+ * which `assignMissingResidences` needs to clear the beds of the dead.
  */
 export function allPlayerHumans(entities: readonly Entity[]): Entity[] {
   return entities.filter(isPlayerHuman);

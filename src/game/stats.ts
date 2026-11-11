@@ -1,17 +1,14 @@
-import type { WorldState } from './gameTypes';
+import type { Entity, WorldState } from './gameTypes';
 import { EntityType as ET } from './gameTypes';
-import { isPlayerHuman } from './playerHuman';
+import { isPlayerHuman, isPlayerHumanShiftOwner } from './playerHuman';
 import { citizenFullName } from './citizenId';
-import { isMarriedOrExpecting } from './civilStatus';
-import { bondCensus, type BondCensus } from './relationships';
+import { bondCensus, isMarriedOrExpecting, type BondCensus } from './relationships';
 import { getEcosystemHealth } from './dailyEcology';
 import type { ResourceKey } from './resourceTypes';
 
 /**
- * The four resources the yearly and lifetime records account for.
- *
- * Iron is deliberately outside this record: `Resources` carries it, but these two statistics
- * predate the mine and every stored world reads the four-key shape.
+ * The four resources the yearly and lifetime records account for. Iron sits outside this record:
+ * `Resources` carries it, but the four-key shape is what every stored world reads.
  */
 export type GatheredResources = Record<Exclude<ResourceKey, 'iron'>, number>;
 
@@ -40,10 +37,8 @@ export interface YearlyStats {
   resources: GatheredResources;
   ecosystem: { health: number; pollution: number; biodiversity: number };
   /**
-   * How friendships stood at year end, with the year's growth.
-   *
-   * Optional so saves written before this field still load: readers default rather
-   * than migrate, the same way `marriedCount` and `upgradedTotal` are read.
+   * How friendships stood at year end, with the year's growth. Optional so older saves still load:
+   * readers default rather than migrate, like `marriedCount` and `upgradedTotal`.
    */
   social?: BondCensus & { bondsFormed?: number };
   events: string[];
@@ -133,11 +128,8 @@ export function normalizeLifetimeStats(value: unknown): LifetimeStats {
 }
 
 /**
- * The single writer of `lifetimeStats.totalResourcesGathered`: adds the amount storage accepted.
- *
- * `addCappedResource` calls this with its own return value, so the record counts what actually
- * entered storage and not what a capped or partial deposit tried to add. Iron is ignored — see
- * {@link GatheredResources}. A world loaded before this field was written simply starts from zero.
+ * The single writer of `lifetimeStats.totalResourcesGathered`: adds the amount storage accepted, so a
+ * capped or partial deposit records only what entered. Iron is ignored.
  */
 export function recordResourcesGathered(state: WorldState, type: ResourceKey, accepted: number): void {
   if (!(accepted > 0) || type === 'iron') return;
@@ -145,6 +137,37 @@ export function recordResourcesGathered(state: WorldState, type: ResourceKey, ac
   const gathered = state.lifetimeStats.totalResourcesGathered as GatheredResources | undefined;
   if (!gathered) return;
   gathered[type] = (gathered[type] ?? 0) + accepted;
+}
+
+/**
+ * Record a settler's age at the moment the death commits. The year-end scan sees only the living,
+ * so an elder who died in June never reached the record.
+ */
+export function recordHumanDeath(state: WorldState, entity: Entity): void {
+  if (!entity.name || !(entity.age > state.lifetimeStats.longestLivingHuman.age)) return;
+  state.lifetimeStats.longestLivingHuman = { name: citizenFullName(entity), age: entity.age };
+}
+
+/**
+ * Tally the entities alive at tick start that are not now. Ownership decides before the visual type,
+ * so a cursed settler dying in wolf form counts as a human and a foreign human counts as neither.
+ */
+export function tallyTickDeaths(state: WorldState, aliveAtTickStart: readonly Entity[]): void {
+  let deadHumans = 0;
+  let deadAnimals = 0;
+  for (const entity of aliveAtTickStart) {
+    if (entity.alive) continue;
+    if (isPlayerHumanShiftOwner(entity)) {
+      deadHumans++;
+      recordHumanDeath(state, entity);
+    } else if (entity.type !== ET.Human && entity.type !== ET.Tree && entity.type !== ET.Grass) {
+      deadAnimals++;
+    }
+  }
+  if (deadHumans === 0 && deadAnimals === 0) return;
+  const tally = state.deathsThisYear ?? (state.deathsThisYear = { humans: 0, animals: 0 });
+  tally.humans += deadHumans;
+  tally.animals += deadAnimals;
 }
 
 export function recordYearlyStats(state: WorldState, forYear?: number): YearlyStats {
@@ -158,10 +181,8 @@ export function recordYearlyStats(state: WorldState, forYear?: number): YearlySt
   // Humans born during this calendar year (birthYear set at birth in `humanLifecycle`)
   const humanBirths = humans.filter((h) => h.birthYear === statsYear).length;
 
-  // Active marriages, not `=== 'married'`: conception moves both partners to `'expecting'` for the
-  // pregnancy, so the narrow test made a married couple disappear from this count and
-  // `floor(delta / 2)` below then read their marriage as never having happened
-  // (`civilStatus.isMarriedOrExpecting`).
+  // Active marriages, not `=== 'married'`: conception moves both partners to `'expecting'`, so the
+  // narrow test lost the couple and `floor(delta / 2)` read the marriage as never having happened.
   const marriedHumans = humans.filter(isMarriedOrExpecting).length;
   const prevMarried = prevYearStats?.marriedCount ?? 0;
   const marriagesThisYear = Math.max(0, Math.floor((marriedHumans - prevMarried) / 2));
@@ -177,18 +198,13 @@ export function recordYearlyStats(state: WorldState, forYear?: number): YearlySt
     (sum, b) => sum + (b.level > 1 ? b.level - 1 : 0),
     0,
   );
-  // `upgradedTotal` is the cumulative baseline; `buildings.upgraded` is only this year's delta,
-  // so comparing the cumulative count against last year's delta reported phantom upgrades in
-  // any year that followed an upgrade-free year (2 standing upgrades, no work for two years →
-  // 0 then 2 again).
+  // `upgradedTotal` is the cumulative baseline and `buildings.upgraded` only this year's delta, so
+  // comparing the cumulative count against the delta reported phantom upgrades.
   const prevUpgrades = prevYearStats?.buildings.upgradedTotal ?? 0;
   const upgradesThisYear = Math.max(0, currentUpgrades - prevUpgrades);
 
-  // Friendships, reported once a year. `bondsFormed` needs a baseline, and there are
-  // three cases: a fresh world's first year has none, and every standing bond really
-  // did form that year; a save written before this field existed has a previous year
-  // with no social block, so the growth is genuinely UNKNOWN and is omitted rather
-  // than printed as a wrong number; otherwise it is the difference.
+  // Friendships, reported once a year: `bondsFormed` needs a baseline. A fresh world's first year has
+  // none, an older save's growth is unknown (omitted, never wrong), otherwise it is the difference.
   const census = bondCensus(humans);
   const prevSocial = prevYearStats?.social;
   const social: BondCensus & { bondsFormed?: number } = {

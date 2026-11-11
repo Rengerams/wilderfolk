@@ -1,10 +1,6 @@
 /**
- * F24 — the council "Notices" row could never render
- * (`docs/private/audits/2026-09-16/ui-logic.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * `collectDashboard`'s council loop read `(e as { title?: string }).title` while `GameEventLog` carries
- * **`message`** (`eventLog.ts` is the only writer) — the cast silenced the compiler, so the "Notices" row
- * pushed below it was dead code and the last three things that happened never reached the panel.
+ * The council "Notices" row reads `message` — the field `eventLog` writes — and renders the
+ * last events of the previous day; it stays absent on a quiet day.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

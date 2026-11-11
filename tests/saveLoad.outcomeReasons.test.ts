@@ -1,12 +1,6 @@
 /**
- * F19 — "Load saved game" on the new-settlement screen did nothing at all
- * (`docs/private/audits/2026-09-16/ui-logic.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * That entry point called `loadGame()`, which collapsed every cause into `null`: a clear slot, blocked
- * storage, a save from another build, and a payload that parsed but could not be restored all looked
- * identical to the player — no toast, no navigation, nothing on the console they would see — while the
- * button stayed enabled because the payload still parses. `loadGameOutcome` is now the owner of the
- * attempt and `describeSaveLoadOutcome` the one place its message lives; both App load paths read it.
+ * A load attempt always says why it failed: `loadGameOutcome` owns the attempt and
+ * `describeSaveLoadOutcome` is the one place its message lives; both App load paths read it.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -64,9 +58,8 @@ describe('a load attempt always says why it failed', () => {
   });
 
   it('blames the payload, not storage, when the slot holds a non-save value (P-1)', () => {
-    // `readSavePayload` wraps `parseSaveJson`, so the `TypeError` a `null` payload used to throw was
-    // caught there and reported as `unreadable` — "storage unavailable or blocked" for a slot that
-    // read perfectly well and simply held something that is not a save.
+    // `readSavePayload` wraps `parseSaveJson`, which rejects a `null` payload as not-a-save rather
+    // than letting its `TypeError` read as unreadable storage.
     stubSlot('null');
     const outcome = loadGameOutcome();
     expect(outcome.ok).toBe(false);
@@ -76,10 +69,8 @@ describe('a load attempt always says why it failed', () => {
   });
 
   it('names the field that made a version-matching save unrestorable (P-1)', () => {
-    // This payload survives the version gate but carries no `resources`. The restore reads
-    // `resources.iron` with no default, so it used to throw a `TypeError` from deep inside
-    // `loadGameFromParsed`, which the catch-all flattened into a bare `unrestorable` with the real
-    // cause left in the console.
+    // This payload survives the version gate but carries no `resources`; the restore reads
+    // `resources.iron` with no default, so the outcome names `resources` in its detail.
     const payload = { _version: GAME_VERSION, entities: [], tick: 3 };
     const outcome = loadGameFromParsedOutcome(payload);
 
@@ -100,9 +91,8 @@ describe('a load attempt always says why it failed', () => {
     expect(hasSave()).toBe(false);
     expect(loadGameOutcome().ok).toBe(false);
 
-    // ... while the slot is plainly occupied. Gating the Load action on `hasSave()` disabled the
-    // button and claimed "No browser save" after an update, which is the opposite of the truth:
-    // the colony is still there, and the load path can now name the real cause.
+    // ... while the slot is plainly occupied: `hasSaveSlot()` is true, so Load stays enabled and the
+    // load path names the real cause.
     expect(hasSaveSlot()).toBe(true);
 
     stubSlot(null);
@@ -111,10 +101,8 @@ describe('a load attempt always says why it failed', () => {
 
   it('routes both App load paths through the owner, with no second copy of the message', () => {
     const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
-    // One slot loader, two entry points (2026-09-20 audit, W-3): `loadFromSlot` reads the owner and
-    // names the cause exactly once, and the menu and the map-setup screen both go through it. This
-    // replaces a count of `loadGameOutcome()` call sites, which the shared path legitimately reduces to
-    // one — the invariant is now stronger, not weaker: two callers cannot each grow their own wording.
+    // One slot loader, two entry points: `loadFromSlot` reads the owner and names the cause exactly
+    // once, and the menu and the map-setup screen both go through it.
     expect(app, 'the shared slot loader is gone').toContain('const loadFromSlot = useCallback(');
     expect(
       app.match(/loadGameOutcome\(\)/g)?.length ?? 0,

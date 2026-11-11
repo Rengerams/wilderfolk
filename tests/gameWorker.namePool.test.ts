@@ -1,24 +1,6 @@
 /**
- * The simulation worker must name settlers from the **same pool** the host does.
- *
- * `nameLoader` installs a ~60-name embedded pool synchronously at module import and swaps in the full
- * census when its async load lands; `pickFrom` indexes whichever pool is installed *at that instant*.
- * The worker used to start that load without awaiting it, so a name drawn before the swap mapped the
- * same seeded draw to a different element — one seed, two worlds, and the name is saved state
- * (`saveSchema.ts`, `entities`). `App.tsx` already awaits the load before `initGame`; the worker did
- * not, which made the divergence depend on chunk timing.
- *
- * Two notes on how this is proven, because the obvious version of this test passes either way:
- *
- * 1. V8 caches dynamically imported modules for the process, so `vi.resetModules()` gives the "second
- *    realm" the *same* `nameLoader` instance — a realm that is supposed to be fresh already reads the
- *    census. `resetNamePoolForTest()` exists for exactly that (see its doc comment).
- * 2. The draw has to happen while the load is in flight, which is the only window the contract is
- *    about, so the case reaches the worker's gate and reads the pool **without awaiting** it — the
- *    embedded state a real worker is in at boot.
- *
- * The worker module registers itself on `self` at import, so the tiny `self` shim the other worker
- * cases use is installed before it is imported.
+ * The simulation worker must name settlers from the same pool the host does: the
+ * message gate settles `nameLoader` before any draw.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -65,9 +47,8 @@ describe('the worker draws names from a settled pool', () => {
     const { ensureNamePoolSettled } = await import('../src/game/simWorker/gameWorker');
     resetNamePoolForTest();
 
-    // The gate is called on every message (the worker's `self.onmessage`) and hands back the concrete
-    // promise the handler awaits. Reading it without awaiting reproduces the pre-fix window exactly:
-    // a message is being handled and the load has not landed.
+    // The gate runs on every message and returns the load promise the handler awaits;
+    // without awaiting, the draw happens before the load lands.
     const settling = ensureNamePoolSettled();
     expect(settling, 'the gate must hand back a promise the handler can await').toBeInstanceOf(Promise);
     expect(areNamesLoaded(), 'the load cannot have landed synchronously').toBe(false);

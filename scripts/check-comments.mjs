@@ -1,27 +1,7 @@
 #!/usr/bin/env node
 /**
- * Ratchet: a NEWLY ADDED code comment must not carry history.
- *
- * The harm is not dead text, it is false authority. A comment reading
- * "(2026-09-20 audit, A8)" tells the next reader - human or agent - that a fact
- * holds, and the audit it cites lives in `docs/private/audits/`, which is
- * gitignored and has zero tracked files. Nobody but the machine it was written
- * on can look it up. A comment is the most-read document in a repository and the
- * least verified, so a stale one actively biases the next change.
- *
- * A comment describes the PRESENT code: why this constraint, what breaks
- * otherwise, what the contract is. If the reason matters, state the reason. The
- * story - dates, audit IDs, "this used to be", measurements of a past incident -
- * belongs in CHANGELOG.md or a handover.
- *
- * This is a RATCHET, deliberately: it inspects only lines added in the working
- * tree, so the 173 audit citations and 123 history lines already committed stay
- * untouched and this guard never fires on existing code. No noise, no mass
- * rewrite, and nothing for a reader to remember.
- *
- * Honest limitation: it sees uncommitted work plus untracked files. Commit first
- * and the guard has nothing to look at - so run the gate before committing, which
- * is the order every other step here assumes anyway.
+ * Ratchet: only NEWLY ADDED code comments are checked for history (dates, audit IDs, file:line,
+ * "used to be"). Run before committing; already committed comments are not revisited.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';

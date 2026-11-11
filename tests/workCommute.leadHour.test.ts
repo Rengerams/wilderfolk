@@ -1,15 +1,6 @@
 /**
- * Work-commute departure window.
- *
- * The schedule names when a settler must be *at* work, not when they set off. The hour before the
- * shift start is therefore the commute window (`workSchedule.isOnWorkCommuteHours`), so a worker
- * is standing at their workplace when the bell rings instead of walking through the first hours of
- * the shift. Owner spec (2026-09-14): "they should arrive at begin time at work, they have an hour
- * to commute".
- *
- * The measured reality this depends on is worth keeping in view: at 3 ticks per hour an in-game
- * hour is only ~30 px of walking at the commute rate, so a home→work walk of several hundred px
- * still needs hours — see `scripts/probe-day-budget.mts` and `scripts/probe-commute.mts`.
+ * Work-commute departure window: the schedule names when a settler must be at work, so the hour
+ * before shift start is the commute window (`workSchedule.isOnWorkCommuteHours`).
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -51,7 +42,7 @@ function workerAtHome(state: WorldState): { person: Entity; mill: Building; stan
   const offsets = [[240, 120], [160, 80], [120, 0], [80, 0], [60, 0], [0, 60], [-60, 0], [0, -60]];
   for (const [dx, dy] of offsets) {
     const mill = workplace(state, person.x + dx, person.y + dy);
-    const stand = humanBuildingTarget(mill, person.id, false);
+    const stand = humanBuildingTarget(mill, person.id);
     if (lineCrossesBlocked(grid, person.x, person.y, stand.x, stand.y)) {
       state.buildings.pop();
       state.nextBuildingId--;

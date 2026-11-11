@@ -1,9 +1,6 @@
 /**
- * Movement regression probe (local, gitignored): run a bare colony for N colony days and report
- * every living player settler's displacement, velocity and energy, so a "citizens don't walk"
- * report can be reproduced or ruled out in one command.
- *
- *   npx tsx scripts/probe-movement.mts [days]
+ * Run a bare colony for N days and print every living player settler's displacement, velocity and
+ * energy. Run: `npx tsx scripts/probe-movement.mts [days]`.
  */
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';

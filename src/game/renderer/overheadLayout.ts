@@ -227,9 +227,7 @@ const TAIL_PLATE_GAP_PX = 3;
 
 /**
  * How far down a bubble's tail may reach: the speaker's head, but never into reserved overhead text.
- *
- * A lifted bubble sits above the name plate that pushed it up, so a tail drawn straight to the head
- * slices through that plate's letters.
+ * A lifted bubble sits above the name plate that pushed it up, so a straight tail would cross it.
  */
 export function clampSpeechBubbleTailY(
   bubbleBottomY: number,

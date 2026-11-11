@@ -1,6 +1,6 @@
 /**
- * Regression: event logs are stored newest-first. Worker deltas must therefore
- * ship the newest bounded prefix and merge it ahead of the main-thread history.
+ * Event logs are stored newest-first: worker deltas ship the newest bounded prefix and merge it
+ * ahead of main-thread history.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/gameEngine';

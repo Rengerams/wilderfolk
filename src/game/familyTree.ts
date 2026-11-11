@@ -6,8 +6,10 @@
 import { citizenGivenName, humanDisplayName } from './citizenId';
 import { EntityType, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
-import { isMarriedOrExpecting } from './civilStatus';
-import { isAdult } from './housingModel';
+import { isMarriedOrExpecting } from './relationships';
+import { findFamilyGroupRoot } from './genealogyRegistry';
+import type { GenealogyRegistry } from './genealogyTypes';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isWithinRemarriageBar } from './simulation/humanRelationships';
 
 export type KinRelation =
@@ -219,8 +221,8 @@ function missingLinks(focus: Entity, known: ReadonlyMap<number, Entity>): Family
   return gaps;
 }
 
-function livingHumans(all: readonly Entity[]): Entity[] {
-  return all.filter((e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e));
+function familyHumans(all: readonly Entity[], includeDeceased: boolean): Entity[] {
+  return all.filter((e) => (includeDeceased || e.alive) && e.type === EntityType.Human && isPlayerHuman(e));
 }
 
 function byId(all: readonly Entity[], id: number | undefined): Entity | undefined {
@@ -249,7 +251,7 @@ function otherParentIdOfChild(child: Entity, parentId: number): number | undefin
 function childRelation(child: Entity): KinRelation {
   if (child.isBastard) return 'bastard_child';
   // Age, not `isJuvenile`: the household owner's adult rule is the one boundary.
-  return isAdult(child) ? 'adult_child' : 'child';
+  return child.age >= HUMAN_ADULT_MIN_AGE ? 'adult_child' : 'child';
 }
 
 function iconFor(relation: KinRelation, gender?: 'male' | 'female'): string {
@@ -331,7 +333,7 @@ export function buildFamilyTree(
   allEntities: readonly Entity[],
   tick?: number,
 ): FamilyTree {
-  const people = livingHumans(allEntities);
+  const people = familyHumans(allEntities, false);
   const members: KinMember[] = [];
   const seen = new Set<number>();
 
@@ -483,7 +485,7 @@ export function buildFamilyTree(
 
 /** Living player humans grouped by surname for the Families browser. */
 export function groupFamiliesBySurname(allEntities: readonly Entity[]): FamilySurnameGroup[] {
-  const people = livingHumans(allEntities);
+  const people = familyHumans(allEntities, false);
   const bySurname = new Map<string, Entity[]>();
   for (const person of people) {
     const key = (person.surname ?? 'Unknown').trim() || 'Unknown';
@@ -499,8 +501,8 @@ export function groupFamiliesBySurname(allEntities: readonly Entity[]): FamilySu
         (a.generation ?? 1) - (b.generation ?? 1)
         || humanDisplayName(a).localeCompare(humanDisplayName(b))
       ),
-      adults: members.filter((m) => !m.isJuvenile).length,
-      children: members.filter((m) => !!m.isJuvenile).length,
+      adults: members.filter((m) => m.age >= HUMAN_ADULT_MIN_AGE).length,
+      children: members.filter((m) => m.age < HUMAN_ADULT_MIN_AGE).length,
       generations: new Set(members.map((m) => m.generation ?? 1)).size,
     });
   }
@@ -508,11 +510,8 @@ export function groupFamiliesBySurname(allEntities: readonly Entity[]): FamilySu
 }
 
 /**
- * One family line: everyone descending from the same settler who has no recorded parent.
- *
- * Descent, not a surname. A surname is a label the sim also gives out by marriage, by adoption and
- * from a random pool, so two unrelated settlers can share one; a parent link cannot be acquired by
- * accident. The root is a founding household, or the household a later arrival came as.
+ * One family line: everyone descending from the same settler with no recorded parent. Descent, not a
+ * surname — a surname is also given by marriage, adoption and a random pool, so two lines can share one.
  */
 export interface FamilyLineageGroup {
   /** The parentless settler heading this line, or the lower id of a founding couple. */
@@ -577,7 +576,7 @@ export function groupFamiliesByLineage(allEntities: readonly Entity[]): FamilyLi
   };
 
   const byRoot = new Map<number, Entity[]>();
-  for (const person of livingHumans(allEntities)) {
+  for (const person of familyHumans(allEntities, false)) {
     const root = rootOf(person.id);
     const list = byRoot.get(root);
     if (list) list.push(person);
@@ -597,8 +596,8 @@ export function groupFamiliesByLineage(allEntities: readonly Entity[]): FamilyLi
         || b.age - a.age
         || humanDisplayName(a).localeCompare(humanDisplayName(b))
       ),
-      adults: members.filter((m) => !m.isJuvenile).length,
-      children: members.filter((m) => !!m.isJuvenile).length,
+      adults: members.filter((m) => m.age >= HUMAN_ADULT_MIN_AGE).length,
+      children: members.filter((m) => m.age < HUMAN_ADULT_MIN_AGE).length,
       generations: new Set(members.map((m) => m.generation ?? 1)).size,
     });
   }
@@ -655,6 +654,14 @@ export interface FamilyTreeRow {
   delta: number;
   label: string;
   members: FamilyTreePerson[];
+}
+
+/** Toggles for the full-tree walk; the plain tree stays a living-relative view by default. */
+export interface FamilyTreeOptions {
+  /** Draw dead settlers the caller still holds (the window adds registry history to the roster). */
+  includeDeceased?: boolean;
+  /** Saved partner history, kept separate from active marriages and divorce cooldown ticks. */
+  historicalRegistry?: GenealogyRegistry;
 }
 
 /** The whole connected family of one settler, oldest generation first. */
@@ -745,7 +752,7 @@ function childLabel(person: Entity): string {
   const relation = childRelation(person);
   if (relation === 'child') return RELATION_LABEL.child;
   if (relation === 'adult_child') return RELATION_LABEL.adult_child;
-  return isAdult(person) ? 'Adult child · outside wedlock' : 'Child · outside wedlock';
+  return person.age >= HUMAN_ADULT_MIN_AGE ? 'Adult child · outside wedlock' : 'Child · outside wedlock';
 }
 
 /** The small portrait glyph for one person on the tree, from their own life stage. */
@@ -807,16 +814,14 @@ function relationLabelOf(focus: Entity, person: Entity, delta: number, flags: Re
   if (delta === 0) {
     if (flags.isPartner) return 'Spouse';
     if (flags.isSibling) return 'Sibling';
-    // A bond is a relation of its own, and must not read as a kin word it is not: a sweetheart is
-    // neither an in-law nor a co-parent, and an affair is not a marriage. A live courtship outranks a
-    // past marriage — it is what the settler is doing now, and `Former spouse` rides along as a bond.
+    // A bond is a relation of its own and must not read as a kin word it is not: a sweetheart is
+    // neither in-law nor co-parent, an affair is not a marriage, and a live courtship outranks a past one.
     if (flags.isCourting) return RELATION_LABEL.courting;
     if (flags.isSweetheart) return RELATION_LABEL.sweetheart;
     if (flags.isLover) return RELATION_LABEL.affair;
     if (flags.isFormerPartner) return RELATION_LABEL.former_spouse;
-    // A divorce clears both `partnerId` links, so a former spouse arrives here as a co-parent: the
-    // children they share are what still ties them to the focus. Blood keeps its own word — a relative
-    // who raised the child is still a relative.
+    // A divorce clears both `partnerId` links, so a former spouse arrives here as a co-parent. Blood
+    // keeps its own word — a relative who raised the child is still a relative.
     if (flags.isCoParent && !flags.isBlood) return flags.wasSpouse ? 'Former spouse' : 'Co-parent';
     return flags.isBlood ? 'Cousin' : 'In-law';
   }
@@ -847,19 +852,16 @@ function familyRowLabel(delta: number): string {
 }
 
 /**
- * One settler's kin as generation rows, **anchored on that settler**: ancestors up, descendants down, a
- * spouse on their own row. A marriage links two branches, so an unbounded walk crosses into every
- * in-law in the colony and the tree stops being about the settler it was opened on.
- *
- * `tick` decides the remarriage-bar label; without it a former marriage is named but the bar it
- * holds cannot be stated.
+ * One settler's kin as generation rows anchored on that settler: ancestors up, descendants down, a
+ * spouse on their own row. `tick` decides the remarriage-bar label and is needed to state that bar.
  */
 export function buildFullFamilyTree(
   focus: Entity,
   allEntities: readonly Entity[],
   tick?: number,
+  options?: FamilyTreeOptions,
 ): FullFamilyTree {
-  const people = livingHumans(allEntities);
+  const people = familyHumans(allEntities, options?.includeDeceased === true);
   const byId = new Map<number, Entity>();
   for (const person of people) byId.set(person.id, person);
   // The focus is normally one of `people`; drawing its tree anyway beats an empty window.
@@ -929,14 +931,14 @@ export function buildFullFamilyTree(
   }
 
   // Bonds the kin walk cannot reach — a courtship, a sweetheart, an affair, a former marriage — are
-  // drawn on the focus's own row, and for the focus only: seeding a bond's own family would cross into
-  // every in-law, which is the walk this tree bounds.
+  // drawn on the focus's own row. Seeding a bond's own family would cross into every in-law.
   const bondIds: number[] = [];
   for (const rawId of [
     focus.courtshipPartnerId,
     focus.youthLovePartnerId,
     focus.affairPartnerId,
     ...Object.keys(focus.pastPartnerTicks ?? {}).map(Number),
+    ...(options?.historicalRegistry?.people[String(focus.id)]?.partners ?? []),
   ]) {
     if (rawId == null || rawId === focus.id || !byId.has(rawId)) continue;
     if (seen.has(rawId) || bondIds.includes(rawId)) continue;
@@ -951,25 +953,9 @@ export function buildFullFamilyTree(
   // Partners share one group, so a couple sits on one row wherever their own lines sit.
   const groupParent = new Map<number, number>();
   for (const id of seen) groupParent.set(id, id);
-  const groupOf = (id: number): number => {
-    let root = id;
-    let parent = groupParent.get(root);
-    while (parent !== undefined && parent !== root) {
-      root = parent;
-      parent = groupParent.get(root);
-    }
-    let walk = id;
-    while (walk !== root) {
-      const next = groupParent.get(walk);
-      if (next === undefined) break;
-      groupParent.set(walk, root);
-      walk = next;
-    }
-    return root;
-  };
   const mergeGroups = (a: number, b: number): void => {
-    const rootA = groupOf(a);
-    const rootB = groupOf(b);
+    const rootA = findFamilyGroupRoot(groupParent, a);
+    const rootB = findFamilyGroupRoot(groupParent, b);
     if (rootA !== rootB) groupParent.set(rootB, rootA);
   };
   for (const [id, partners] of partnerLinks) {
@@ -982,13 +968,13 @@ export function buildFullFamilyTree(
   // Longest descent path from the oldest recorded generation; Kahn's order ranks each group once.
   const childGroups = new Map<number, number[]>();
   const groupInDegree = new Map<number, number>();
-  for (const id of seen) groupInDegree.set(groupOf(id), 0);
+  for (const id of seen) groupInDegree.set(findFamilyGroupRoot(groupParent, id), 0);
   for (const [childId, parentIds] of parentLinks) {
     if (!seen.has(childId)) continue;
-    const childGroup = groupOf(childId);
+    const childGroup = findFamilyGroupRoot(groupParent, childId);
     for (const parentId of parentIds) {
       if (!seen.has(parentId)) continue;
-      const parentGroup = groupOf(parentId);
+      const parentGroup = findFamilyGroupRoot(groupParent, parentId);
       // Partners who are also parent and child share one row; that edge would be a cycle of its own.
       if (parentGroup === childGroup) continue;
       const childrenOfGroup = childGroups.get(parentGroup);
@@ -1036,7 +1022,7 @@ export function buildFullFamilyTree(
   }
 
   const rowOf = new Map<number, number>();
-  for (const id of seen) rowOf.set(id, groupRank.get(groupOf(id)) ?? 0);
+  for (const id of seen) rowOf.set(id, groupRank.get(findFamilyGroupRoot(groupParent, id)) ?? 0);
   const focusRow = rowOf.get(focus.id) ?? 0;
   // A bond partner is drawn beside the focus whichever branch their own descent ranked them on.
   for (const id of bondIds) rowOf.set(id, focusRow);
@@ -1047,6 +1033,9 @@ export function buildFullFamilyTree(
   // ancestor, which is what keeps a married-in spouse an in-law rather than a cousin.
   const bloodLine = closureOf([focus.id, ...ancestorsOfFocus], (id) => childLinks.get(id) ?? []);
   const partnersOfFocus = new Set<number>(partnerLinks.get(focus.id) ?? []);
+  const historicalPartnersOfFocus = new Set<number>(
+    options?.historicalRegistry?.people[String(focus.id)]?.partners ?? [],
+  );
   const parentsOfFocus = parentIdSet(focus);
   // A parent's spouse is the focus's step-parent: a married-in relation, but not the generic in-law
   // a sibling's or uncle's spouse is, and the difference is the word on their row.
@@ -1100,8 +1089,7 @@ export function buildFullFamilyTree(
   };
 
   // The other parent of one of the focus's children. A divorced couple keeps no link to each other, so
-  // this shared child is the only remaining trace of the marriage — and whether that child was born in
-  // wedlock is what says the marriage existed before it ended.
+  // this shared child is the only remaining trace of the marriage.
   const coParentIds = new Set<number>();
   const marriedCoParentIds = new Set<number>();
   for (const person of people) {
@@ -1141,7 +1129,7 @@ export function buildFullFamilyTree(
           const relation = isFocus
             ? ''
             : relationLabelOf(focus, person, delta, {
-              isPartner: partnersOfFocus.has(person.id),
+              isPartner: focus.alive && person.alive && partnersOfFocus.has(person.id),
               isSibling: siblingsOfFocus.has(person.id),
               isAncestor: ancestorsOfFocus.has(person.id),
               isDescendant: descendantsOfFocus.has(person.id),
@@ -1149,7 +1137,9 @@ export function buildFullFamilyTree(
               isParentSpouse: parentSpouseIds.has(person.id),
               isCoParent: coParentIds.has(person.id),
               wasSpouse: marriedCoParentIds.has(person.id),
-              isFormerPartner: focus.pastPartnerTicks?.[person.id] != null,
+              isFormerPartner: focus.pastPartnerTicks?.[person.id] != null
+                || (historicalPartnersOfFocus.has(person.id)
+                  && !(focus.alive && person.alive && partnersOfFocus.has(person.id))),
               isCourting: courting,
               isSweetheart: sweetheart,
               isLover: lover,

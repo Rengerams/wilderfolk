@@ -1,23 +1,6 @@
 /**
- * The Hunting/Fishing Spot ledger records what storage accepted, not the nominal catch.
- *
- * Regression for audit M5 (`docs/private/audits/2026-09-16/sim-economy-leadership-combat.md`,
- * tracked in `LIVE-FINDINGS-STATUS.md`): both branches called `addResource(state, 'food', amount)`
- * for its return value and then discarded it, recording the *nominal* catch in the ledger and in the
- * float/chronicle lines. `addResource` clamps to `storageMax` and returns what it added, and the
- * ledger's contract is "food that actually entered storage" (`economyLedger.ts`).
- *
- * The assertion is **differential** on purpose. A single run's food total is also moved by spoilage
- * (earlier in the same daily pass) and by a second, *unrecorded* food gain this fixture does not own
- * (a fresh medium world adds ~79 food on a hunting day without a ledger entry — a separate defect,
- * out of scope here), so "food gained == ledger" is not a stable identity. "A store with no room
- * records less than the same catch with room" is stable, and it is exactly the contract that was
- * broken: before the fix both runs recorded the identical nominal amount.
- *
- * The tight run is therefore **calibrated against the fixture**, not hard-coded: it starts the store
- * one below the cap *minus* whatever that unrecorded gain turns out to be, which leaves a single unit
- * of headroom plus whatever spoilage opens — an order of magnitude below the nominal catch of an
- * eight-strong crew (≈81 meat, ≈40 fish).
+ * The Hunting/Fishing Spot ledger records what `addResource` accepted, not the nominal catch, so
+ * a store with no room records less than the same catch with room.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
@@ -52,10 +35,8 @@ const INTERVAL: Record<SpotKind, number> = {
 };
 
 /**
- * `maxAge` and `reproductionCooldown` are load-bearing for the real `gameTick` below:
- * `tickWildlife` reads `entity.age >= entity.maxAge` for old-age death and
- * `Math.max(0, entity.reproductionCooldown - step)` every pulse — an absent cooldown is `NaN`,
- * which makes every downstream comparison false. Values match `SPECIES_CONFIG`.
+ * `maxAge` and `reproductionCooldown` are required by the real `gameTick`: an absent cooldown is
+ * `NaN`, which makes every downstream comparison false.
  */
 function human(id: number): Entity {
   return {
@@ -70,10 +51,8 @@ function human(id: number): Entity {
 
 function deer(id: number): Entity {
   return {
-    // Beside the crew (all at 100,100) on purpose: the spot now only takes an animal it is standing
-    // next to (`huntingSpot.huntingKillReach` — the owner's *"120 px is way to far, its 1800's they dont
-    // have guns"*), and the walking that closes the distance in game is `humanTick`'s job, not this
-    // fixture's.
+    // Beside the crew (all at 100,100) on purpose: the spot only takes an animal within
+    // `huntingSpot.huntingKillReach`, and the closing walk is `humanTick`'s job.
     id, type: EntityType.Deer, x: 112, y: 100, energy: 500, maxEnergy: 500, age: 10, maxAge: 4380,
     birthYear: 0, birthMonth: 0, birthDay: 0,
     alive: true, size: 12, speed: 1, vx: 0, vy: 0, flash: 0, animFrame: 0, spriteAngle: 0,
@@ -100,18 +79,8 @@ function harvest(tick: number, food: number, type: SpotKind): Harvest {
   state.tick = tick - 1; // `gameTick` increments first, so the shot key uses `tick`
   state.entities = [...Array.from({ length: CREW }, (_, i) => human(i + 1)), deer(PREY_ID)];
   /**
-   * Re-index after replacing `entities` wholesale, or the spot has no crew and produces nothing.
-   *
-   * `ensureEntityByIdMap` deliberately trusts only the map that was built **for this world object**
-   * (`entityIndex.ts:29-33`), so the map `initGame` built for the generated world survives the
-   * replacement and the spot's `occupants` (ids 1..8) resolve against settlers that are no longer in
-   * `state.entities`. Production now resolves its hunter through that map
-   * (`dailyBuildingEconomy.findLiveAssignedWorker`), so this test failed with
-   * `{ hasHunter: false, occupants: 8, deer: 1, staffed: true }` once the Hunting Spot stopped
-   * hunting without a hunter — the old code only used the hunter to *draw* the projectile and fired
-   * anyway, which was the defect (`BUG_REPORTS/2026-09-30-hunting-yield-unbounded.md`). The fix is to
-   * staff the fixture honestly, not to relax the no-hunter rule: `rebuildEntityByIdMap` is documented
-   * for exactly this caller ("Full rebuild from alive entities — load recovery, init, and tests only").
+   * Re-index after replacing `entities` wholesale: `ensureEntityByIdMap` trusts only the map built
+   * for this world object, so the spot's crew would otherwise resolve to absent settlers.
    */
   rebuildEntityByIdMap(state);
   state.buildings = [spot(type)];
@@ -143,12 +112,10 @@ function assertPartialCatch(type: SpotKind): void {
   const tight = harvest(tick, cap - unrecorded - 1, type);
 
   expect(tight.recorded, 'the tight run recorded nothing — the store rejected the whole catch').toBeGreaterThan(0);
-  // Before the fix both runs record the nominal catch, which is the same number in both.
+  // A nominal-catch ledger would record the same number for both runs.
   expect(tight.recorded).toBeLessThan(roomy.recorded);
-  // The float echoes the same number as the ledger, not the nominal catch. It is matched by prefix, not
-  // by equality, because a *partially* clamped catch now also says so (F6): the Fishing Spot appends
-  // " (store full)" to its own line, while the Hunting Spot raises the shared "Stores full!" float at the
-  // building and keeps `+N meat` over the prey.
+  // The float echoes the ledger's number, not the nominal catch; matched by prefix because a
+  // partially clamped catch appends its own note.
   const echoed = tight.state.floatingTexts.find((t) => t.text.startsWith(`+${tight.recorded} ${UNIT[type]}`));
   expect(echoed, 'no float echoed the accepted count').toBeTruthy();
   expect(

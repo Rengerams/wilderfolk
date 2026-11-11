@@ -2,12 +2,12 @@ import type { WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
 import { friendshipScore, feudScore } from './relationships';
 import { isPlayerHuman } from './playerHuman';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { seededRandomForRun } from './simRng';
 
 /**
- * Election vote-support (Phase 7) — every adult settler casts a ballot.
- * A bounded election-wide swing moves expected merit support; personal bonds then
- * weight each ballot without making every voter choose the same candidate.
+ * Election vote-support: eligible adult settlers may cast a ballot (seeded turnout 65–98%), moved by a bounded election-wide
+ * swing and weighted by personal bonds.
  */
 
 /** A structurally-minimal candidate — villageLeadership's score breakdown fits this. */
@@ -48,7 +48,7 @@ export function simulateElectionVotes(
   for (const c of candidates) tally.set(c.entityId, 0);
 
   const voters = state.entities.filter(
-    (e) => e.alive && isPlayerHuman(e) && !e.isJuvenile,
+    (e) => e.alive && isPlayerHuman(e) && e.age >= HUMAN_ADULT_MIN_AGE,
   );
   const peopleById = new Map(state.entities.map((person) => [person.id, person]));
   const foodNeed = (state.resources?.food ?? 0) / Math.max(1, state.humanPopulation ?? 1) < 10;

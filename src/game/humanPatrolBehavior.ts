@@ -13,13 +13,8 @@ export interface PatrolRaider {
 }
 
 /**
- * The per-tick patrol-reveal lookup: which rivals are marching, and who shares each group.
- *
- * The reveal rule reads only `state.pendingRaidEvents` (through `isRaidMarchingForRival`) and the
- * rival list, so it is a property of the tick rather than of the guard looking. `tickHumans` builds
- * this once and every barracks guard on shift reuses it; the reveal used to walk the entire human
- * list twice *per guard per tick* for ~10 hours of every day.
- * Both fields keep human-list order, so which group is revealed first is unchanged.
+ * The per-tick patrol-reveal lookup: which rivals are marching, and who shares each group, built
+ * once and reused by every barracks guard on shift.
  */
 export interface PatrolRevealIndex {
   readonly marchingRaiders: readonly PatrolRaider[];
@@ -42,10 +37,8 @@ export function buildPatrolRevealIndex(state: WorldState, humans: readonly Entit
 }
 
 /**
- * Reveal marching rival raiders when a player soldier comes within patrol range.
- *
- * One log line per group, once: the first guard to spot a group clears `hiddenFromPlayer` and the
- * `newlyDetected` test keeps every later guard in the same tick silent.
+ * Reveal marching rival raiders when a player soldier comes within patrol range; one log line per
+ * group, once.
  */
 export function detectRaidersForPatrol(
   state: WorldState,
@@ -59,10 +52,8 @@ export function detectRaidersForPatrol(
     detectedGroups.add(groupId);
   }
   for (const groupId of detectedGroups) {
-    // The reveal rule itself lives in `watchtowerDetection.revealRivalGroup` — this path and the
-    // watchtower path both end in "clear `hiddenFromPlayer`, set `detectedByPatrol`, announce once per
-    // band", so it is written once. A soldier who spots one raider reveals the
-    // whole band, so no per-member gate is passed.
+    // The reveal rule lives in `watchtowerDetection.revealRivalGroup`; spotting one raider reveals
+    // the whole band, so no per-member gate is passed.
     const { newlyDetected } = revealRivalGroup(index.membersByGroup.get(groupId) ?? []);
     if (newlyDetected) {
       logEvent(state, 'event', `Soldier patrol spotted hostile raiders from ${groupId}`, groupId);

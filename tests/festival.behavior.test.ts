@@ -12,12 +12,8 @@ import { repairStaleFestivalOnLoad } from '../src/game/dailyWorldEvents';
 import { isFestivalGatheringHour } from '../src/game/humanSchedule';
 
 /**
- * These settlers are ticked by the real `gameTick`, so `maxAge` and `reproductionCooldown` are
- * load-bearing: absent, `tickWildlife`'s `entity.age >= entity.maxAge` old-age death is dead code
- * and `Math.max(0, entity.reproductionCooldown - step)` is `NaN` (every later comparison false).
- * The `faction: 'player'` marker is dropped rather than cast around: `Entity['faction']` does not
- * name it, and `isPlayerHuman` classifies an unnamed marker and no faction identically — both
- * player-owned — so absence is the same fixture.
+ * Ticked by the real `gameTick`: `maxAge` and `reproductionCooldown` must be present or old-age
+ * death and the cooldown decrement break; `isPlayerHuman` treats a missing faction as player-owned.
  */
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
   return {
@@ -77,8 +73,7 @@ function building(
 function makeState(festivalActive: boolean): { state: WorldState; worker: Entity; idler: Entity } {
   const worker = human(1, { job: JobType.Farmer, workerBuildingId: 10 });
   const official = human(2, { x: 330, y: 210, job: JobType.Official, workerBuildingId: 20 });
-  // A child is genuinely ineligible for automatic employment and can join
-  // festival gathering without relying on removed manual staffing flags.
+  // A child is ineligible for automatic employment; with no shift, the festival may gather it.
   const idler = human(3, { age: 12, isJuvenile: true });
   const farm = building(10, BuildingType.Farm, 30, 40, [worker.id]);
   const hall = building(20, BuildingType.TownHall, 320, 190, [official.id]);

@@ -85,11 +85,8 @@ export function addNotification(
 let nextBigNewsId = 1;
 
 /**
- * Highest `bn_<seq>` this world has already used.
- *
- * `bigNews` is capped at 50 entries and the oldest are shifted away, so the array alone is not
- * enough: the ids a player dismissed live on in `dismissedBigNewsIds`, and re-issuing one of
- * those makes the UI hide the new card as dismissed.
+ * Highest `bn_<seq>` this world has already used — the array is capped at 50 entries, but the ids
+ * a player dismissed outlive it.
  */
 function highestBigNewsSeq(state: Pick<WorldState, 'bigNews' | 'dismissedBigNewsIds'>): number {
   let maxSeq = 0;
@@ -115,9 +112,8 @@ export function addBigNews(
   message: string,
   type: 'positive' | 'negative' | 'neutral' = 'neutral',
 ) {
-  // The counter is module state and a realm that receives a world (worker, or the main thread's
-  // optimistic copy) starts it at 1 while the world already carries ids — and dismissal ids
-  // outlive the 50-entry cap. Never mint an id this world already uses.
+  // Never mint an id this world already uses: the counter is module state while the world carries
+  // its own ids.
   const seq = Math.max(nextBigNewsId, highestBigNewsSeq(state) + 1);
   nextBigNewsId = seq + 1;
   state.bigNews.push({

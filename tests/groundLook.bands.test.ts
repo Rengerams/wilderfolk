@@ -1,16 +1,6 @@
 /**
- * The ground bake has to paint the landscape the classifier describes.
- *
- * `terrainGrid.classifyTile` is the owner of where the hills, rock, mountains and snow begin, and it
- * measures height as a fraction of the **land range** (`(e - seaLevel) / (1 - seaLevel)`). The bake
- * coloured land on **absolute** elevation above sea instead, which on any preset with
- * `seaLevel ≥ 0.12` puts the whole alpine half of its ramp out of reach: measured on a 2560×1920
- * scandinavia map the field tops out at 1.077 while the old ramp only turned white at 1.176, so
- * **0.0 % of its land could paint snow** while 1.0 % of its tiles were `Snow` — and its `Rocky` /
- * `Mountains` tiles were painted lawn green.
- *
- * The bake only ever calls `createImageData` / `putImageData`, so a capture stub is enough here — no
- * canvas dependency, no browser.
+ * The ground bake paints the landscape the classifier describes: `terrainGrid.classifyTile` owns the
+ * bands, measured as a fraction of the land range. A capture stub replaces canvas here.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { generateRawTerrain } from '../src/game/terrain/terragen';
@@ -106,13 +96,8 @@ describe('the ground bake paints the classification it is drawn under', () => {
       let sampled = 0;
       let sumGreenMinusRed = 0;
       let lawn = 0;
-      // Sample each **tile** at its own centre rather than each pixel at its nearest tile. The two are
-      // only equivalent on flat ground: a carved river valley steps sharply in elevation, and the bake's
-      // colour ramp (16 px cells) is smoother than the tile grid (10 px), so a per-pixel match reads the
-      // far side of a valley wall while the tile it names sits on the near side. That produced a
-      // measurement *of the seam*, not of the paint — which is why the number moved when the river
-      // network changed even though the colour ramp did not. Sampling the tile's own footprint measures
-      // what this case exists for: is the ground under an alpine tile painted as stone or as lawn.
+      // Sample each tile's own footprint, not each pixel at its nearest tile: the colour ramp is
+      // coarser than the tile grid, so a per-pixel match can read the far side of a valley wall.
       const TILE = 10;
       for (let ty = 0; ty < map.height; ty++) {
         for (let tx = 0; tx < map.width; tx++) {
@@ -137,17 +122,12 @@ describe('the ground bake paints the classification it is drawn under', () => {
         }
       }
       expect(sampled, `${preset}: alpine pixels sampled`).toBeGreaterThan(500);
-      // Before the fix this mean was ~45 for every preset: the alpine half of the ramp was
-      // unreachable, so a `Rocky` tile was painted with the `h < 0.58` woodland band. Measured now:
-      // 0.58 / 1.03 / 0.79 for scandinavia / highland / continental.
+      // Alpine ground must read as stone, not lawn: the woodland band is green-dominant by ~45, so
+      // the mean green-minus-red over alpine tiles stays under 12.
       const mean = sumGreenMinusRed / sampled;
       expect(mean, `${preset}: mean green-minus-red over alpine tiles`).toBeLessThan(12);
-      // A carved river valley steps sharply in elevation, and the 10 px tile grid can sample the far side
-      // of that step from the 16 px colour ramp — measured at 0.03–0.08 % of alpine pixels across these
-      // presets before the hydrology carve and 0.28 % on highland after it, because that carve gives a
-      // valley walls at up to `BANK_SLOPE_MAX` per cell and so widens the seam. The ceiling stays tight
-      // enough that the defect this case exists for — alpine ground painted with the woodland ramp, which
-      // measured ~100 % before the fix — cannot pass.
+      // The ceiling is the sampling seam, not the ramp: the 10 px tile grid can read the 16 px colour
+      // ramp's far side at a carved valley step, so the lawn share stays under 0.5 %.
       expect(lawn / sampled, `${preset}: alpine pixels painted as lawn`).toBeLessThan(0.005);
     }
   }, 120_000);
@@ -174,14 +154,8 @@ describe('the ground bake paints the classification it is drawn under', () => {
   });
 
   it('paints every water tile as water, and each preset as its own landscape', async () => {
-    // Two player-visible invariants, measured on the real bake.
-    //
-    // 1. A tile `classifyTile` calls water must not be painted as walkable ground — the "settlers walk
-    //    over water" reading. Blue-dominance (`b > g`) separates the bathymetric ramp (`[104,182,206]`
-    //    down to `[13,46,88]`) and the river ramp (`[86,168,196]` → `[34,98,148]`) from every land
-    //    swatch on the chart, the greenest of which is `[49,122,34]`.
-    // 2. Ten presets must not bake one landscape. The mean colour of each bake is printed so a collapse
-    //    to a single palette is visible as collapsed numbers, and the closest pair is asserted apart.
+    // Two player-visible invariants on the real bake: a tile the classifier calls water must not be
+    // painted as walkable ground, and the presets must not collapse onto one palette.
     const TILE = 10;
     const waterTypes = new Set<TerrainType>([
       TerrainType.DeepWater,
@@ -228,9 +202,8 @@ describe('the ground bake paints the classification it is drawn under', () => {
       );
 
       if (waterTiles === 0) continue;
-      // The ceiling is the shoreline seam, not the ramp: the bake reads a 3×3-smoothed height for the
-      // waterline while classification reads the raw field, so a tile whose own cell is water can sit
-      // just above the line. Measured 1.5–2.9 % over these presets; a map painted as land reads 100 %.
+      // The ceiling is the shoreline seam, not the ramp: the bake smooths the height it draws the
+      // waterline from while classification reads the raw field, so the share stays under 6 %.
       expect(
         landPainted / sampled,
         `${preset}: share of water tiles painted as land`,
@@ -253,9 +226,8 @@ describe('the ground bake paints the classification it is drawn under', () => {
   }, 120_000);
 
   it('is deterministic, and a viewport bake matches the same crop of the whole map', async () => {
-    // Both claims are load-bearing: determinism is the terrain contract, and the viewport identity is
-    // what the chunked bake builds on (`renderer/terrain.ts` bakes one canvas per visible 256 px
-    // chunk, at the world step the camera zoom asks for).
+    // Determinism is the terrain contract, and the viewport identity is what the chunked bake builds
+    // on: one canvas per visible 256 px chunk at the world step the zoom asks for.
     const whole = await bake(MapPreset.Continental);
     const again = await bake(MapPreset.Continental, undefined, true);
     expect(hashPixels(again.img.data)).toBe(hashPixels(whole.img.data));
@@ -287,11 +259,8 @@ describe('the ground bake paints the classification it is drawn under', () => {
   });
 
   it('keeps the map-wide fields origin-free and deterministic', async () => {
-    // The cast-shadow and water-proximity fields are cell-resolution and do not depend on the
-    // viewport, which is what lets the renderer build them once per map and share them across every
-    // chunk. If that stopped being true, chunks baked with their own fields would show seams.
-    // (Folded in from `whittakerTerrain.chunkEquivalence.test.ts`, whose other case is the
-    // viewport-identity case above.)
+    // The cast-shadow and water-proximity fields are cell-resolution and viewport-independent, so the
+    // renderer builds them once per map and shares them across every chunk.
     const { buildWhittakerFields } = await import('../src/game/renderer/whittakerTerrain');
     const map = generateRawTerrain(WORLD_W, WORLD_H, SEED, MapSize.Medium, MapPreset.Continental);
     const a = buildWhittakerFields(map);
@@ -330,11 +299,8 @@ describe('the ground bake paints the classification it is drawn under', () => {
   });
 
   it('tiles exactly from chunks at a coarser world step — the overview case', async () => {
-    // `groundWorldStepForZoom` bakes 2 world px per canvas px at anything below 1× zoom, and the
-    // renderer stitches 256 px chunks of it. Two things have to hold for that to be seamless: a chunk
-    // must sample the same world lattice a whole-map bake would (so the chunk origins stay aligned to
-    // the step), and it must be drawn at its *world* span rather than its canvas size. Both are
-    // asserted here, because a seam or a half-size chunk is invisible in a unit test until it is.
+    // At a coarser world step a chunk must sample the same world lattice a whole-map bake does and be
+    // drawn at its world span rather than its canvas size, or the stitches show seams.
     const map = generateRawTerrain(WORLD_W, WORLD_H, SEED, MapSize.Medium, MapPreset.Continental);
     const step = 2;
     const whole = await bakeMap(map, undefined, step);
@@ -368,14 +334,8 @@ describe('the ground bake paints the classification it is drawn under', () => {
   });
 
   it('carries each material\'s roughness in the band the eye reads it in', async () => {
-    // Padilla (2008) fits an optimised band-pass over the psychophysics of 1/f^β noise surfaces and
-    // lands on 1.53–4.58 cycles per degree; on the display that was calibrated for it (0.255 mm
-    // pixel pitch at 87.7 cm, 60 px/degree) that is ~13–39 px per cycle. Detail finer than the band
-    // barely changes perceived roughness, so an octave authored *below* it is wasted art budget —
-    // before this the stone material had every octave below the band and a 1:1 crop of it was a
-    // uniform grey speckle with no bedding in it. This guards the two halves of the fix: every
-    // material owns at least one octave inside the band, and that octave is authored in canvas px so
-    // a coarser bake step re-samples it instead of pushing it out of the band.
+    // Perceived roughness lives in a band-pass of ~13–39 px per cycle (1.53–4.58 cycles per degree);
+    // every material owns an octave inside `ROUGHNESS_BAND_PX`, authored in canvas px.
     const { ROUGHNESS_BAND_PX, ROUGHNESS_OCTAVE_PX, bandDetail } = await import(
       '../src/game/renderer/whittakerTerrain'
     );
@@ -390,9 +350,8 @@ describe('the ground bake paints the classification it is drawn under', () => {
       }
     }
 
-    // A detail octave authored in canvas px: doubling the world step doubles the world coordinate a
-    // canvas pixel stands for, and the sampled value is unchanged — the octave keeps its period on
-    // screen. (A world-fixed octave would halve its period instead, i.e. leave the band.)
+    // A detail octave authored in canvas px keeps its period on screen when the world step doubles;
+    // a world-fixed octave would halve its period and leave the band.
     expect(bandDetail(202, 110, 7, 22, 2)).toBeCloseTo(bandDetail(101, 55, 7, 22, 1), 12);
   });
 });
@@ -404,10 +363,8 @@ describe('the ground bake reads relief from its fields', () => {
   }
 
   it('casts the shadow away from the light instead of onto the lit flank', async () => {
-    // The trace used to walk *down-light*, so the cell it darkened was the one the hillshade was
-    // busy lighting: measured on a 1280×960 highland bake, the cells the shadow field darkened came
-    // out 42.6 luma **brighter** than the rest (scandinavia 47.8). The light is up-and-left
-    // (`LIGHT_TOWARD_X/Y`), so a north-south wall shadows the ground to its east and nothing else.
+    // The trace walks up-light: with the light up-and-left (`LIGHT_TOWARD_X/Y`), a north-south wall
+    // shadows the ground to its east and nothing else.
     const { buildWhittakerFields } = await import('../src/game/renderer/whittakerTerrain');
     const map = flatMap();
     const cols = map.cols!;
@@ -427,10 +384,8 @@ describe('the ground bake reads relief from its fields', () => {
   });
 
   it('measures a ridge as high ground and a hollow as low ground', async () => {
-    // The slope fields describe a cell's *tilt*, which is zero on a valley floor: before this term a
-    // flat hollow was exactly as bright as a flat plain, and the mean luma of the highest quartile of
-    // hilly ground sat 0.5 luma from the lowest on scandinavia. `relief` is the height against a
-    // blurred neighbourhood, so its sign is the cue the hillshade cannot carry.
+    // The slope fields describe a cell's tilt, which is zero on a valley floor, so `relief` — height
+    // against a blurred neighbourhood — is the sign cue the hillshade cannot carry.
     const { buildWhittakerFields } = await import('../src/game/renderer/whittakerTerrain');
     const map = flatMap();
     const cols = map.cols!;

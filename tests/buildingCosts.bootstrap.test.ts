@@ -1,17 +1,6 @@
 /**
- * Bootstrap invariant for building costs.
- *
- * A building that is the colony's *only* source of a material must never charge that
- * material — nor gold — or a colony at 0 of it can never build its way back. The reported
- * cases: a **Store** whose own description is "Generates gold." costing 15 gold, a **Mine**
- * that can dig the gold seam costing 15 gold, a **Lumber Mill** costing 35 wood, and a
- * **Quarry** costing 10 stone.
- *
- * Where the production lives: `dailyBuildingEconomy.ts` has one branch per producer, each
- * paying out its own resource (`addResource(state, 'gold'|'food'|'wood'|'stone'|'iron')`),
- * and `PRODUCTION_INTERVAL` lists every producing building. Market and Town Hall are
- * *additional* gold sources, gated behind `trade_1` / `architecture_2`, so they may charge
- * gold — the Store alone closes the dead end.
+ * Bootstrap invariant for building costs: a building that is the colony's only source
+ * of a material never charges that material or gold.
  */
 import { describe, expect, it } from 'vitest';
 import { BUILDING_CONFIGS, BuildingType, MapSize } from '../src/game/gameTypes';
@@ -21,13 +10,8 @@ import { initGame } from '../src/game/gameEngine';
 type Resource = 'wood' | 'stone' | 'food' | 'gold' | 'iron';
 
 /**
- * `BuildingCost` (`src/game/buildings.ts`) is `{ wood; stone; gold; iron? }` — it has **no** `food`
- * key, and no config sets one. The "never charges a producer the material it produces" invariant
- * therefore held *by construction* for the four food producers, which is what made the old
- * `cost[produces] ?? 0` a check that could never fail: `cost['food']` was always `undefined → 0`.
- *
- * This type-level guard is the fix for that: if `BuildingCost` ever gains a `food` key it stops
- * compiling, so the assumption becomes a guarded one instead of an invisible one.
+ * `BuildingCost` has no `food` key. If one is ever added this guard stops compiling,
+ * keeping the no-food-charge invariant explicit.
  */
 const BUILDING_COST_HAS_NO_FOOD_KEY: 'food' extends keyof BuildingCost ? false : true = true;
 

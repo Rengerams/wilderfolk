@@ -1,17 +1,7 @@
 import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycycleconstants';
 /**
- * Low-tier simulation/geometry batch — one focused regression per finding fixed here.
- *
- *   L43  huntingSpots        prey-id guard must not accept Object.prototype keys
- *   L44  mapBounds           NaN positions must not survive the clamp
- *   L47  militiaBalance      wall-cap label must match the cap the forge grants
- *   L21/L22 entityFactory    the auto-detected juvenile flag must use the childhood floor
- *   L54  housingPipeline  the unreachable duplicate family scorer is gone
- *   L55  housingPipeline  housing audit must ignore rival/leader housing
- *   L63  simulationEntities  mid-tick hunters must lose a dangling prey target
- *   L71  stripJunction       the lone-crossing coercion contract (dead guard removed)
- *   X1/X2 tickLayerRealtime  owner rng forwarded; occupants rewrite gated
- *   L28  gameLoop            the render-snapshot dirty key includes the multi-selection
+ * Low-tier simulation/geometry regressions: prey-id guards, position clamping, wall-cap labels,
+ * juvenile detection, housing filtering, dangling prey targets, junction crossing and tick-layer gating.
  */
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -235,8 +225,8 @@ describe('L55 housing-sharing audit', () => {
     const rivalHouse = building(2, BuildingType.House, { faction: 'rival' });
     const leaderHouse = building(3, BuildingType.LeaderHouse);
 
-    // Pre-fix the rival and leader houses made emptyCount 2, so the settler sharing the
-    // family home was reported as "sharing while empty houses are available".
+    // Rival-camp and leader housing are not empty housing, so the settler sharing the family home
+    // is not flagged.
     expect(auditHousingSharingIssues(humans, [sharedHouse, rivalHouse, leaderHouse])).toEqual([]);
 
     // A genuinely empty player house is still reported.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, type Building, type Entity } from '../src/game/gameTypes';
 import { findNearestStaffedSchool, isChildAtSchool } from '../src/game/education';
-import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { buildingAccessPoint } from '../src/game/buildingAccess';
 
 const school = (id: number, x: number, y: number): Building => ({
   id, type: BuildingType.School, x, y, width: 60, height: 40,
@@ -13,10 +13,10 @@ const child = (x: number, y: number): Entity => ({
 } as Entity);
 
 describe('school yard geometry', () => {
-  it('recognizes a pupil standing at their own yard slot as attending class', () => {
+  it('recognizes a pupil standing at the school doorway as attending class', () => {
     const building = school(5, 100, 100);
     const pupil = child(100, 100);
-    const target = humanBuildingTarget(building, pupil.id, false);
+    const target = buildingAccessPoint(building);
     pupil.x = target.x;
     pupil.y = target.y;
     expect(isChildAtSchool(pupil, building)).toBe(true);

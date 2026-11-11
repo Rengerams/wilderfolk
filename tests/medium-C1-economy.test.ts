@@ -1,14 +1,6 @@
 /**
- * Medium-severity simulation audit fixes — batch C1.
- *
- * Regression tests for three confirmed findings of
- * `BUG_REPORTS/2026-09-13-simulation-logic-audit.md`:
- *  - M5  greenhouse food production is recorded in the economy ledger
- *  - M10 Irrigation's `drought_resist` effect is consumed by the drought farm penalty
- *  - M19 autumn herd deer spawn on passable terrain
- *
- * These drive the real owners (`gameTick` → daily economy, `tickMigration`,
- * `getWeatherFarmMultiplier`) on real `initGame` worlds — no mocks.
+ * Medium-severity economy regressions: greenhouse output in the ledger, Irrigation's drought
+ * resistance, and autumn herd deer spawning on passable ground.
  */
 import { describe, it, expect } from 'vitest';
 import { initGame, gameTick } from '../src/game/gameEngine';
@@ -24,9 +16,8 @@ import { BuildingType, EntityType, JobType, MapPreset, WeatherType } from '../sr
 import type { Building, WorldState } from '../src/game/gameTypes';
 
 /**
- * A controlled village: one adult settler alone with one completed producer, so
- * the daily economy has exactly one staffed building and nothing to reassign
- * the worker to. Day 1 (Tuesday) is a workday production tick.
+ * A controlled village: one adult settler, one completed producer, so the daily economy has
+ * exactly one staffed building; day 1 is a workday production tick.
  */
 function loneProducerVillage(
   type: BuildingType,
@@ -65,16 +56,14 @@ function loneProducerVillage(
   building.occupants = [worker.id];
 
   state.resources.food = 0;
-  // gameTick advances the clock first, so this lands on tick 72: day 1
-  // (a workday) at the start of day — the calendar-aligned production tick.
+  // gameTick advances the clock first, so this lands on day 1 at 18:00 — the production phase.
   state.tick = tickAtDailyPhase(1, 'production') - 1;
   return { state, building };
 }
 
 function herdDeer(state: WorldState, herdYear: number) {
-  // The fallback spawn path can leave the same entity in `state.entities` twice when the herd's
-  // edge strip is water (the test passes `state.entities` as the tick's `allAlive` list), so dedupe
-  // by id before counting — the herd's size is its *unique* deer.
+  // The fallback spawn path can duplicate a herd entity when the edge strip is water, so dedupe
+  // by id: the herd's size is its unique deer.
   const seen = new Set<number>();
   return state.entities.filter((e) => {
     if (e.type !== EntityType.Deer || e.migrationTag !== herdYear || seen.has(e.id)) return false;
@@ -91,8 +80,7 @@ describe('M5 greenhouse food production reaches the economy ledger', () => {
     expect(state.resources.food, 'the greenhouse actually produced food').toBeGreaterThan(0);
     const ledger = state.economyLedger;
     expect(ledger, 'a production day creates a ledger').toBeDefined();
-    // Before the fix the greenhouse row was absent, so the ledger showed +0
-    // while food rose. The row must exist and cover the food that entered storage.
+    // The greenhouse row must exist and account for the food that reached storage.
     expect(ledger?.produced.greenhouse ?? 0, 'greenhouse ledger row').toBeGreaterThan(0);
     expect(ledger?.produced.greenhouse ?? 0).toBeGreaterThanOrEqual(state.resources.food);
   });
@@ -135,7 +123,7 @@ describe('M10 Irrigation drought_resist is consumed by the drought farm penalty'
     gameTick(irrigated.state);
 
     expect(plain.state.resources.food, 'the drought farm still produced food').toBeGreaterThan(0);
-    // Before the fix the node changed nothing, so both harvests were identical.
+    // Irrigation must raise the drought harvest above the unresearched farm's.
     expect(irrigated.state.resources.food).toBeGreaterThan(plain.state.resources.food);
   });
 });

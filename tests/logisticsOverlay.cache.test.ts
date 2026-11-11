@@ -1,17 +1,6 @@
 /**
- * D-1 of the 2026-09-21 audit — the logistics projection's per-frame recomputation.
- *
- * `buildRenderSnapshot` calls `computeLogisticsOverlay` once per snapshot, and the snapshot cache key
- * in `gameLoop.snapshotDirtyKey()` includes the camera, which `updateView` lerps every frame. With the
- * overlay on, panning therefore re-ran the whole projection — road graph, bucket grid, and one
- * `classifyCommute` (4–128 grid samples) per settler — at frame rate instead of once per tick.
- *
- * The memo is keyed on world **identity** plus the tick, so it also survives the case the audit could
- * not fix by keying on the tick alone: a handler that mutates the current world while paused, where
- * the tick does not move. Identity catches that.
- *
- * Every case here asserts equality with the uncached function first, so a cache that returns the wrong
- * projection fails rather than merely counting calls.
+ * The logistics projection is memoised per world revision: the cache is keyed on world identity plus
+ * tick, so camera lerps and paused-world mutations do not re-run it per frame.
  */
 import { describe, expect, it } from 'vitest';
 import {

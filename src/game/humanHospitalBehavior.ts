@@ -1,11 +1,14 @@
-import { personDayRoll } from './simRng';
+import { PERSON_DAY_ROLL_SALTS, personDayRoll } from './simRng';
 import type { Building, Entity, WorldState } from './gameTypes';
-import { JobType } from './gameTypes';
+import { BuildingType, JobType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
-import { PREGNANCY_TICKS, TICKS_PER_DAY, getTickOfDay } from './dayCycle';
+import { TICKS_PER_DAY, getTickOfDay } from './dayCycle';
 import { doctorHospitalShift, HOSPITAL_SHIFT_HOURS } from './hospitalShifts';
 import { TICKS_PER_HOUR } from './dayCycleClock';
-import { enterHumanBuilding, homeEntryPosition, steerHumanToward } from './simulation/humanMovement';
+import { isPregnancyHospitalDue } from './simulation/humanLifecycle';
+import { enterHumanBuilding, steerHumanToward } from './simulation/humanMovement';
+import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
+import { getBuildingCenter } from './buildingGeometry';
 import {
   doctorTreatNearby,
   isDoctorAtHospital,
@@ -15,24 +18,29 @@ import {
 } from './hospitalCare';
 
 const PATIENT_CENTRE_RADIUS_PX = 36;
-const PATIENT_ENTRY_RADIUS_PX = 16;
-/** A doctor past this share of a pregnancy is a patient, not a carer. */
-const DOCTOR_PREGNANCY_OFF_DUTY_RATIO = 0.8;
-const HOSPITAL_TREATMENT_ROLL_SALT = 840;
 const HOSPITAL_TREATMENT_DAILY_CHANCE = 0.2;
 
-/** A patient is at the ward inside its centre radius or at its nearest entrance; walls block the rest. */
+/** A patient is at the ward inside its centre radius or at its one entrance; walls block the rest. */
 function isAtHospital(entity: Entity, hospital: Building): boolean {
-  const centreX = hospital.x + hospital.width / 2;
-  const centreY = hospital.y + hospital.height / 2;
-  if (Math.hypot(entity.x - centreX, entity.y - centreY) < PATIENT_CENTRE_RADIUS_PX) return true;
-  const entrance = homeEntryPosition(hospital, entity.x, entity.y);
-  return Math.hypot(entity.x - entrance.x, entity.y - entrance.y) < PATIENT_ENTRY_RADIUS_PX;
+  const centre = getBuildingCenter(hospital);
+  if (Math.hypot(entity.x - centre.x, entity.y - centre.y) < PATIENT_CENTRE_RADIUS_PX) return true;
+  return isAtBuildingReach(entity, hospital);
 }
 
-/** Near-term doctors give birth, they do not run a ward round. */
-export function doctorMayServe(entity: Entity): boolean {
-  return (entity.pregnancyProgress ?? 0) <= PREGNANCY_TICKS * DOCTOR_PREGNANCY_OFF_DUTY_RATIO;
+/** A staffed ward: completed, player-owned and with someone on its roster. */
+export function isStaffedHospital(building: Building): boolean {
+  return building.type === BuildingType.Hospital
+    && building.completed
+    && building.faction !== 'rival'
+    && building.occupants.length > 0;
+}
+
+/**
+ * Pregnancy hospital priority: the lifecycle owns the 85% threshold, this module the staffed ward.
+ * Below both, pregnancy is no different from any other medical need and never bars ordinary work.
+ */
+export function isPregnancyHospitalPriority(entity: Entity, hasStaffedHospital: boolean): boolean {
+  return hasStaffedHospital && isPlayerHuman(entity) && isPregnancyHospitalDue(entity);
 }
 
 export type HospitalRuntimeContext = {
@@ -42,20 +50,8 @@ export type HospitalRuntimeContext = {
   updatedBuildings: Building[];
   staffedHospitals: Building[];
   onHospitalShift: boolean;
-  onJobShift: boolean;
   speed: number;
 };
-
-export function shouldRoutePregnantSettlerToHospital(
-  entity: Entity,
-  onJobShift: boolean,
-  hasStaffedHospital: boolean,
-): boolean {
-  return !!entity.pregnant
-    && isPlayerHuman(entity)
-    && hasStaffedHospital
-    && (!onJobShift || (entity.pregnancyProgress ?? 0) > PREGNANCY_TICKS * 0.85);
-}
 
 export function shouldAttemptHospitalTreatment(
   entity: Entity,
@@ -73,10 +69,12 @@ export function tickHumanDoctorHospitalService({
   entity,
   allHumans,
   updatedBuildings,
+  staffedHospitals,
   onHospitalShift,
-}: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'allHumans' | 'updatedBuildings' | 'onHospitalShift'>): void {
+}: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'allHumans' | 'updatedBuildings' | 'staffedHospitals' | 'onHospitalShift'>): void {
   if (!onHospitalShift || !isPlayerHuman(entity) || entity.job !== JobType.Doctor) return;
-  if (!doctorMayServe(entity)) return;
+  // At the pregnancy threshold a doctor with a ward to go to is a patient, not a carer.
+  if (isPregnancyHospitalPriority(entity, staffedHospitals.length > 0)) return;
   const ward = isDoctorAtHospital(entity, updatedBuildings);
   const shift = ward ? doctorHospitalShift(ward, state.tick, entity.id) : undefined;
   if (!ward || !shift) return;
@@ -89,12 +87,8 @@ export function tickHumanDoctorHospitalService({
 }
 
 /**
- * One hospital treatment attempt per settler per colony day.
- *
- * `personDayRoll` is stable for a whole colony day, so re-evaluating it every tick
- * repeated the full treatment (heal + doctor skill + medicine food) on every tick of
- * a qualifying day. Pinning the attempt to a single, settler-staggered tick restores
- * the intended daily cadence without adding per-entity state.
+ * One treatment attempt per settler per colony day, pinned to a settler-staggered tick so the
+ * daily cadence needs no per-entity state.
  */
 function isHospitalTreatmentTick(entityId: number, tick: number): boolean {
   return getTickOfDay(tick) === entityId % TICKS_PER_DAY;
@@ -108,18 +102,17 @@ export function tickHumanHospitalPatientCare({
   state,
   entity,
   staffedHospitals,
-  onJobShift,
   speed,
-}: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'staffedHospitals' | 'onJobShift' | 'speed'>): void {
-  if (shouldRoutePregnantSettlerToHospital(entity, onJobShift, staffedHospitals.length > 0)) {
+}: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'staffedHospitals' | 'speed'>): void {
+  if (isPregnancyHospitalPriority(entity, staffedHospitals.length > 0)) {
     const best = staffedHospitals.find((hospital) => isAtHospital(entity, hospital))
       ?? pickHospitalWalkTarget(entity, staffedHospitals);
     if (best) {
       if (isAtHospital(entity, best)) enterHumanBuilding(entity, best);
       else {
         entity.indoorBuildingId = undefined;
-        const entrance = homeEntryPosition(best, entity.x, entity.y);
-        steerHumanToward(entity, entrance.x, entrance.y, speed, 0.55, `hospital_${best.id}`);
+        const entrance = buildingAccessPoint(best);
+        steerHumanToward(entity, entrance.x, entrance.y, speed, 0.55, `hospital_${best.id}_${entity.id}`);
       }
     }
   }
@@ -130,7 +123,7 @@ export function tickHumanHospitalPatientCare({
     if (
       hospital
       && isHospitalTreatmentTick(entity.id, state.tick)
-      && personDayRoll(entity.id, state.tick, HOSPITAL_TREATMENT_ROLL_SALT) < HOSPITAL_TREATMENT_DAILY_CHANCE
+      && personDayRoll(entity.id, state.tick, PERSON_DAY_ROLL_SALTS.hospitalTreatment) < HOSPITAL_TREATMENT_DAILY_CHANCE
     ) {
       treatPatientAtHospital(state, entity, hospital);
     }

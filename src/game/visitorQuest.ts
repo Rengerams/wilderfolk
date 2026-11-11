@@ -1,10 +1,6 @@
 /**
- * Visitor quest chain — one small deliverable quest at a time.
- *
- * v0.5.2: the traveling smith arrives with a trader camp and asks for 20 wood
- * in exchange for gold + reputation. A quest card shows the goal; the player
- * delivers from the card (deducts from storage). Quests expire after a few
- * days if ignored, and never stack (one active quest at a time).
+ * Visitor quest chain — one small deliverable quest at a time: the smith asks for 20 wood for gold and
+ * reputation, quests expire after a few days and never stack.
  */
 import type { WorldState, VisitorQuest } from './gameTypes';
 import { getAbsoluteCalendarDay } from './dayCycle';
@@ -61,8 +57,8 @@ export function deliverVisitorQuest(state: WorldState): boolean {
   state.resources[q.goalResource] = (have - q.goalAmount) as never;
   q.progress = q.goalAmount;
   q.status = 'completed';
-  // Reward through the resource owner: `Math.min(storageMax, gold + reward)` used to *lower* a purse
-  // that was already over the cap, deleting the surplus while the card announced a gain.
+  // Reward through the resource owner: `Math.min(storageMax, gold + reward)` would *lower* a purse
+  // already over the cap, deleting the surplus while the card announced a gain.
   addCappedResource(state, 'gold', q.rewardGold);
   addReputation(state, q.rewardReputation);
   return true;

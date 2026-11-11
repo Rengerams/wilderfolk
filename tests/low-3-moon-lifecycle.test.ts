@@ -1,21 +1,6 @@
 /**
- * Low-severity batch 3 — Moon Howler lifecycle, one-Howler ownership, birth residence
- * consistency, and youth-love death cleanup.
- *
- * Regression coverage for:
- *   - `transformToWerewolfForm` must detach the cursed settler from the building
- *     occupants lists it clears the ids from (L48 / the debug-command route);
- *   - the debug curse command is a curse route and must obey §5's one-Howler colony gate
- *     (no second living cursed Moon Howler, no second spawn path);
- *   - `tickMoonHowlerCycle`'s injectable rng must reach the Church rite (L49);
- *   - the hour-granular full-moon gate must fire the nightfall card once per moon, not on
- *     all TICKS_PER_HOUR ticks of hour 20, and the replacement roll once per moon;
- *   - a newborn gets `residenceBuildingId`, so it must be visible to the assign layer
- *     before the daily invariant collector runs;
- *   - death cleanup must not leave a one-sided youth-love link (§5).
- *
- * Moon Howler fixtures follow tests/moonHowler.test.ts; the birth fixture follows
- * tests/humanLifecycle.test.ts (the birth rolls are seeded, so the tick is picked by search).
+ * Moon Howler lifecycle, one-Howler ownership, birth residence consistency, and youth-love death
+ * cleanup.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -284,8 +269,8 @@ describe('birth vs the residence invariant', () => {
     expect(child).toBeDefined();
     expect(child?.residenceBuildingId).toBe(HOUSE_ID);
 
-    // The assign layer runs later the same tick on every daily boundary (72 % 18 === 0) and is
-    // the residence-occupants owner; it must see the newborn it has to list.
+    // Exercise the residence-occupants owner directly here: assignment is normally scheduled
+    // at 03:00, 09:00, 15:00 and 21:00, not on the daily layer's midnight boundary.
     tickLayerAssign(state, ctx);
 
     expect(house.occupants).toContain(child?.id);

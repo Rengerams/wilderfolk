@@ -1,15 +1,6 @@
 /**
- * A Valley Chronicle chapter's food reward reaches the food ledger.
- *
- * Found while fixing audit M5 (`LIVE-FINDINGS-STATUS.md`): the M5 defect *over*-recorded a catch,
- * this one *under*-records a grant — `advanceValleyChronicle` credited chapter rewards through
- * `addCappedResource` and never told the ledger, so food really did enter storage while the
- * "why is my food low?" panel and the 30-day `foodHistory` could not see it. Three chapters reward
- * food: `first_harvest` +100, `the_hunt` +80, `the_river` +80.
- *
- * The chapter is driven directly rather than through a tick so the fixture contains no other
- * producer, no spoilage and no cap pressure: the assertion is exactly "the store gained 80 and the
- * ledger says 80".
+ * A Valley Chronicle chapter's food reward reaches the food ledger, so "why is my food low?" and the
+ * 30-day `foodHistory` see the grant that actually entered storage.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
@@ -48,7 +39,7 @@ describe('a Chronicle chapter food reward is recorded as produced', () => {
 
     expect(unlocked).toContain(CHAPTER_ID);
     expect(state.resources.food).toBe(REWARD_FOOD);
-    // The pre-fix ledger has no entry at all: the food is in the store and nothing explains it.
+    // The grant must land in the food ledger so the store total is explained.
     expect(state.economyLedger?.produced.chronicle).toBe(REWARD_FOOD);
   });
 });

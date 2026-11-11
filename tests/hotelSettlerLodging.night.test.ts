@@ -29,11 +29,7 @@ import { tickHumans } from '../src/game/humanTick';
 const TEST_SEED = 20_261_010;
 /** 23:00 — deep night, so `stayIn` is unconditional and the old hourly home snap would fire. */
 const LATE_NIGHT_OFFSET = 23 * TICKS_PER_HOUR;
-/**
- * A walkable land point on this seed, with land to its west and east. The cases below used
- * `width * 0.78`, which on this map is open sea several tiles from any shore — they passed only
- * while a settler could walk over water.
- */
+/** A walkable land point on this seed, with land to its west and east. */
 const WALKER_X = 1280;
 const WALKER_Y = 672;
 
@@ -168,8 +164,8 @@ describe('settler lodging overnight', () => {
     const walkerX = WALKER_X;
     const walkerY = WALKER_Y;
     const home = house(1, Math.round(state.width * 0.06), walkerY);
-    // ~45 px from the walker's centre, inside the walk's direct (non-pathing) branch.
-    const inn = hotel(2, walkerX + 45, walkerY);
+    // Far enough that the walker is not already within the hotel's arrival reach.
+    const inn = hotel(2, walkerX + 90, walkerY);
     const walker = settler(1, { x: walkerX, y: walkerY, residenceBuildingId: home.id });
     state.buildings = [home, inn];
     state.entities = [walker];

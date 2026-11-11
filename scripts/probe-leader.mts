@@ -1,8 +1,6 @@
 /**
- * Leader-work probe (local, gitignored): what does the village head actually do?
- * Prints the leader's office/job/workplace/residence beside a normal settler's, per day.
- *
- *   npx tsx scripts/probe-leader.mts [days]
+ * Print the village head's office/job/workplace/residence beside a normal settler's, per day.
+ * Run: `npx tsx scripts/probe-leader.mts [days]`.
  */
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';

@@ -1,10 +1,6 @@
 /**
- * The Wildkin's place on the wildlife ladder, and the chronicle lines that make it findable.
- *
- * Owner's ruling: the Wildkin is meant to be the apex creature ("well it was ment to be at top of the
- * ladder") and half human, born to a settler mother — so its diet cannot be grass, it cannot be
- * counted as a grazer's grass demand, and a player must be able to learn where it is when it is born
- * and when it dies. See BUG_REPORTS/2026-10-09-wildkin-apex-role-and-chronicle.md.
+ * The Wildkin is the apex creature and half human: it eats meat, is not counted as grazer grass
+ * demand, and the chronicle names its place at birth, death and a settlement sighting.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

@@ -1,19 +1,6 @@
 /**
- * The parts of a colony a compact save has to carry beyond its seed, and the fields a payload must
- * not be allowed to choose for itself.
- *
- * - **Terrain overrides.** A compact save regenerates the ground from its seed, and the sparse
- *   per-tile overrides are the only record of terrain the player changed (placing a building clears
- *   the forest under its footprint). Without them every building's cleared ground came back as
- *   forest on load.
- * - **Dangling references.** A relationship id that resolves to nobody is not a crash — lookups are
- *   guarded — it is a settler whose status says `married` with no spouse, who therefore never
- *   widows and is excluded from courtship by the id it cannot resolve, permanently.
- * - **Chosen dimensions and tick resolution.** Both are read from an untrusted payload before
- *   anything allocates or scales.
- *
- * The fixture is a real payload from `buildSaveData`, so a green case proves the load keeps a world
- * it produced rather than merely tolerating a hand-written one.
+ * What a compact save has to carry beyond its seed — the sparse terrain overrides — and the fields a
+ * payload must not choose for itself: dangling references, dimensions and tick resolution.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

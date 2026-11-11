@@ -1,9 +1,6 @@
 /*
- * Dialogue-busy predicate regression — BUG 2026-08-20-dialogue-busy-predicate-missing.
- *
- * Social selection must treat both a visible chat line and an active paired
- * dialogue session as busy. This protects the shared availability contract used
- * by ambient, workplace, and neighbour social behavior.
+ * Social selection is busy when a visible chat line or an active paired dialogue session is live;
+ * this is the shared availability contract for ambient, workplace and neighbour social behaviour.
  */
 import { describe, expect, it } from 'vitest';
 import { isDialogueBusy } from '../src/game/humanChat';

@@ -1,17 +1,6 @@
 /**
- * E-3 (`docs/private/audits/2026-09-20/`): the economy ledger and the rolling food history did not
- * survive a save.
- *
- * Both are carried by the tick delta (`simDelta`) and by the worker rollback payload, so the save
- * seam was the only one that dropped them — and nothing rebuilds them: `foodHistory` is a 30-day
- * archive (`FOOD_HISTORY_MAX_DAYS`) that the next day's production cannot rewrite, and
- * `getEconomyLedger` returns null until the ledger's own `day` matches today. With the ~30 s
- * auto-save, a reload blanked the dashboard's "Food, last finished day" row and the village panel's
- * food card.
- *
- * Both shapes are plain JSON — numbers and `Record<string, number>` maps
- * (`gameTypes.DailyEconomyLedger`, `gameTypes.FoodDaySample`), no Map/Set/class instance — so the
- * allow-list carries them with no reconstruction step.
+ * The economy ledger and rolling food history survive a save: both are plain JSON
+ * (`DailyEconomyLedger`, `FoodDaySample`) carried by the save allow-list, and nothing rebuilds them.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

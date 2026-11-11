@@ -1,7 +1,6 @@
 /**
- * Boot uses synthetic markers absent from the census files; after loadNames()
- * the full data files replace those markers (and one-time legacy boot names
- * like Whitaker that overlapped the census lists).
+ * Boot uses synthetic name markers absent from the census files; `loadNames()` replaces them with
+ * the full pools, and the one-time legacy upgrade must not then rewrite a real census name.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
@@ -41,9 +40,8 @@ function stubHuman(overrides: Partial<Entity> = {}): Entity {
 
 describe('nameLoader pool upgrade', () => {
   it('loads the full data-file pools and upgrades boot + legacy defaults', async () => {
-    // The loader starts its own load on import, so the "boot pool is still small"
-    // state is not observable from a shared module instance — take a fresh one and
-    // assert the contract that matters: census names in, boot markers upgraded.
+    // The loader starts its own load on import, so boot state is not observable from a shared
+    // module instance — take a fresh one and assert the contract.
     vi.resetModules();
     const fresh = await import('../src/game/nameLoader');
 
@@ -100,9 +98,8 @@ describe('nameLoader pool upgrade', () => {
   });
 
   it('boots quietly: a healthy census load warns about nothing', async () => {
-    // Installing the embedded fallback is a normal, transient boot step, so it must not warn
-    // (owner: "if all is loaded correctly i dont need to see it"). The only warn left is a real
-    // load failure — which used to be silent, the opposite of useful.
+    // Installing the embedded fallback is a normal, transient boot step, so it must not warn; the
+    // only warn left is a real load failure.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
     try {

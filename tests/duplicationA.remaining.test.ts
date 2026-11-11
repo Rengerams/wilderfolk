@@ -1,12 +1,6 @@
 /**
- * Duplication family, last open rows — **A12**, **A14** and the **A17–A22** intra-file clone triage
- * (`docs/private/audits/2026-09-16/duplication-deadcode.md`; triage verdicts in
- * `_clone-triage-internal.md`; status in `LIVE-FINDINGS-STATUS.md`).
- *
- * Every source guard names the pre-fix expression, so reverting a fix fails the case instead of
- * silently re-introducing a second owner (house pattern: `tests/tradeRouteRewards.copy.test.ts`).
- * Behavioural cases pin the extracted owners against the inline code they replaced — a refactor may
- * not move a value.
+ * Duplication guards: source checks pin each one-owner expression, and behavioural cases pin
+ * each extracted owner's exact output against an inline reference.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -198,8 +192,7 @@ describe('A19 — the raid deadline is read through its owner on both paths', ()
 describe('A20 — closed by other work (evidence, no fix here)', () => {
   it('has no duplicated catalog upsert left to de-duplicate', () => {
     const source = read('src/game/entityCatalog.ts');
-    // `EntityCatalog.applyTickDelta` (the two `catalogEntities` / `newEntities` loops) was deleted by
-    // the worker-boundary pass (`simBuffers/simDelta.ts:233`); `rebuild` is the only upsert left.
+    // `rebuild` is the only catalog upsert left; there is no `applyTickDelta` path.
     expect(source, 'applyTickDelta came back').not.toContain('applyTickDelta');
     expect(source.match(/this\.byId\.set\(/g) ?? []).toHaveLength(1);
   });
@@ -209,7 +202,7 @@ describe('A21 — renffrStar builds on the simRng Mulberry32 step', () => {
   it('still draws the exact values the inline generator produced', () => {
     const seed = 20240917;
     const owner = 'a21-probe';
-    // The pre-fix stream body, verbatim: seed expression + pre-mix (unchanged) + the inline step.
+    // Inline reference the owner must reproduce: seed expression + pre-mix + the Mulberry32 step.
     let s = (((seed >>> 0) ^ hashSalt(owner)) + 0x6d2b79f5) >>> 0;
     s = (s + 0x6d2b79f5) >>> 0;
     let t = s;
@@ -234,7 +227,7 @@ describe('A21 — renffrStar builds on the simRng Mulberry32 step', () => {
   it('exposes the step to closure-free callers without changing it', () => {
     let s = 12345;
     const fromOwner = mulberry32Draw(mulberry32Advance(s));
-    // Pre-fix inline step, verbatim.
+    // Inline reference for the step `mulberry32Advance`/`mulberry32Draw` must reproduce.
     s = (s + 0x6d2b79f5) >>> 0;
     let t = s;
     t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -257,7 +250,7 @@ describe('A21 — renffrStar builds on the simRng Mulberry32 step', () => {
 });
 
 describe('A22 — the gestation jitter formula is rolled once', () => {
-  it('keeps the three conception paths on rollPregnancyDueProgress', () => {
+  it('keeps all three conception paths on one pregnancy writer', () => {
     const source = read('src/game/simulation/humanRelationships.ts');
     expect(
       source.match(/`pregnancy-due:\$\{entity\.id\}:\$\{/g) ?? [],
@@ -266,10 +259,19 @@ describe('A22 — the gestation jitter formula is rolled once', () => {
     expect(
       source.match(/rollPregnancyDueProgress\(/g) ?? [],
       'the jitter helper is gone',
-    ).toHaveLength(4);
+    ).toHaveLength(2);
     expect(
       source.match(/Math\.round\(PREGNANCY_TICKS \* \(0\.85 \+/g) ?? [],
       'the jitter formula is restated outside the helper',
+    ).toHaveLength(1);
+    // Married, youth and affair all start through the one writer; no per-path duplicate is left.
+    expect(
+      source.match(/beginPregnancy\(state, entity, /g) ?? [],
+      'a conception path bypasses the one pregnancy writer',
+    ).toHaveLength(3);
+    expect(
+      source.match(/function beginPregnancy\(/g) ?? [],
+      'a second pregnancy writer exists',
     ).toHaveLength(1);
   });
 });

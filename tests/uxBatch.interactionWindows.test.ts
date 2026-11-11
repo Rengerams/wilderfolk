@@ -1,8 +1,6 @@
 /**
- * Source guards for the interaction findings: the overlay keyboard contract in the two windows that
- * lacked it, and the drag guard on the map click path. Each case names the shipped expression it
- * replaces, so reverting a fix fails here instead of silently restoring the defect
- * (`tests/ui-a11y.contract.test.ts` is the house pattern).
+ * Source guards for the interaction fixes: the overlay keyboard contract on the map windows and
+ * the drag guard on the click path; each pins the shipped expression.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -13,9 +11,8 @@ function read(relativePath: string): string {
 }
 
 describe('every window that opens over the map claims the keyboard', () => {
-  // `GameWindow` owns the focus trap only; the keyboard half is the caller's, which is why
-  // `SubjectWindow` carries it. These two render `GameWindow` directly and had no claim, so the map's
-  // hotkeys stayed live behind them and Escape ran the game's own chain instead of closing the window.
+  // `GameWindow` owns only the focus trap, so each caller must claim the keyboard; these two render
+  // it directly and would otherwise leave the map's hotkeys and Escape chain live behind them.
   const claimers = [
     { file: 'src/components/WorkHoursWindow.tsx', owner: 'work-hours-window' },
     { file: 'src/components/FamilyTreeWindow.tsx', owner: 'family-tree-window' },
@@ -33,6 +30,15 @@ describe('every window that opens over the map claims the keyboard', () => {
     const hook = read('src/hooks/useOverlayKeyboard.ts');
     expect(hook).toContain('claimKeyboard(owner)');
     expect("useOverlayKeyboard('family-tree-window', onClose)").not.toContain('claimKeyboard');
+  });
+});
+
+describe('bulk strip demolition is armed', () => {
+  const interactions = read('src/hooks/useCanvasInteractions.ts');
+
+  it('queues the collected ids instead of applying the command on mouse up', () => {
+    expect(interactions).toContain('setPendingStripDemolition(buildingIds)');
+    expect(interactions).toContain('confirmStripDemolition');
   });
 });
 

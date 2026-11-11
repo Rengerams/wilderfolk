@@ -1,167 +1,104 @@
 import { describe, expect, it } from 'vitest';
-import type { SettlerTrait } from '../src/game/settlerTraits';
-import type { TraitContext } from '../src/game/personality/traitEffectCatalog';
-import { JobType } from '../src/game/gameTypes';
-import { snapshotSimRng } from '../src/game/simRng';
-import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
+import {
+  combinePairFactors,
+  evaluateAllAptitudeActivities,
+  evaluateAptitudeInfluence,
+} from '../src/game/personality/traitEvaluation';
+import { APTITUDE_ACTIVITIES } from '../src/game/personality/activityAptitudes';
+import { APTITUDE_IDS, rollFounderGenome } from '../src/game/settlerTraits';
+import { createSeededRng } from '../src/game/simRng';
+import { genomeFrom } from './helpers/genome';
 
-describe('pure personality influence evaluation', () => {
-  const defense = { kind: 'danger', activity: 'defense' } as const;
+const DEFENSE = 'defense' as const;
 
-  it('handles absent, empty and invalid legacy trait arrays without allocating explanations', () => {
-    expect(evaluateTraitInfluence({}, defense)).toEqual({ factor: 1, tendency: 0 });
-    expect(evaluateTraitInfluence({ traits: [] }, defense)).toEqual({ factor: 1, tendency: 0 });
-    expect(evaluateTraitInfluence({ traits: null }, defense, { includeReasons: true }))
-      .toEqual({ factor: 1, tendency: 0, reasons: [] });
-    expect(evaluateTraitInfluence({ traits: ['not_a_trait', '__proto__'] as unknown as SettlerTrait[] }, defense))
-      .toEqual({ factor: 1, tendency: 0 });
-    expect(evaluateTraitInfluence({ traits: ['toString'] as unknown as SettlerTrait[] }, defense))
-      .toEqual({ factor: 1, tendency: 0 });
-    expect(evaluateTraitInfluence({ traits: ['fierce'] }, defense)).not.toHaveProperty('reasons');
-    const unsafe = { toString(): never { throw new Error('invalid DNA must not be coerced'); } };
-    const withMalformedElement = { traits: [unsafe, 'fierce', null] as unknown as SettlerTrait[] };
-    expect(evaluateTraitInfluence(withMalformedElement, defense)).toEqual(
-      evaluateTraitInfluence({ traits: ['fierce'] }, defense),
-    );
+function expectsInCap(activity: keyof typeof APTITUDE_ACTIVITIES, factor: number): void {
+  const cap = APTITUDE_ACTIVITIES[activity].cap;
+  expect(factor).toBeGreaterThanOrEqual(1 - cap - 1e-12);
+  expect(factor).toBeLessThanOrEqual(1 + cap + 1e-12);
+}
+
+describe('evaluateAptitudeInfluence — neutral and bounded contract', () => {
+  it('returns a neutral result without a genome, explained or not', () => {
+    expect(evaluateAptitudeInfluence({}, DEFENSE)).toEqual({ factor: 1, score: 0 });
+    expect(evaluateAptitudeInfluence(undefined, DEFENSE)).toEqual({ factor: 1, score: 0 });
+    expect(evaluateAptitudeInfluence({ genomeV2: null }, DEFENSE, { includeReasons: true }))
+      .toEqual({ factor: 1, score: 0, reasons: [] });
   });
 
-  it('does not multiply duplicate traits or process beyond the canonical three slots', () => {
-    const one = evaluateTraitInfluence({ traits: ['fierce'] }, defense);
-    expect(evaluateTraitInfluence({ traits: ['fierce', 'fierce', 'fierce'] }, defense)).toEqual(one);
-    expect(evaluateTraitInfluence({ traits: ['fierce', 'fierce', 'fierce', 'chivalrous'] }, defense))
-      .toEqual(one);
+  it('treats a genome with no personal spread as neutral (no universal best settler)', () => {
+    const flat = genomeFrom();
+    expect(evaluateAptitudeInfluence({ genomeV2: flat }, 'friendship')).toEqual({ factor: 1, score: 0 });
+    const allHigh = { version: 2 as const, aptitudeAlleles: APTITUDE_IDS.map(() => [80, 80] as const) };
+    expect(evaluateAptitudeInfluence({ genomeV2: allHigh }, 'hunting').factor).toBe(1);
   });
 
-  it('is order-independent with diminishing returns and bounded factors', () => {
-    const first = evaluateTraitInfluence({ traits: ['fierce'] }, defense);
-    const second = evaluateTraitInfluence({ traits: ['chivalrous'] }, defense);
-    const combined = evaluateTraitInfluence({ traits: ['fierce', 'chivalrous'] }, defense);
-    const reversed = evaluateTraitInfluence({ traits: ['chivalrous', 'fierce'] }, defense);
-    expect(combined).toEqual(reversed);
-    expect(combined.factor).toBeGreaterThan(first.factor);
-    expect(combined.factor - 1).toBeLessThan((first.factor - 1) + (second.factor - 1));
-    for (const item of [first, second, combined]) {
-      expect(Number.isFinite(item.factor)).toBe(true);
-      expect(Number.isFinite(item.tendency)).toBe(true);
-      expect(item.factor).toBeGreaterThanOrEqual(0.85);
-      expect(item.factor).toBeLessThanOrEqual(1.15);
-      expect(item.tendency).toBeGreaterThanOrEqual(-0.5);
-      expect(item.tendency).toBeLessThanOrEqual(0.5);
+  it('keeps every activity inside its declared cap', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const genome = rollFounderGenome(createSeededRng(seed, 'evaluatorTest'));
+      for (const result of evaluateAllAptitudeActivities({ genomeV2: genome })) {
+        expectsInCap(result.activity, result.factor);
+        expect(Math.abs(result.score)).toBeLessThanOrEqual(1);
+      }
     }
   });
 
-  it('handles three-trait trade-offs without amplifying opposite modifiers', () => {
-    const context = { kind: 'social', activity: 'reconciliation' } as const;
-    const group = { traits: ['stoic', 'chivalrous', 'fierce'] as const };
-    const result = evaluateTraitInfluence(group, context);
-    expect(Number.isFinite(result.factor)).toBe(true);
-    expect(result.factor).toBeGreaterThanOrEqual(0.85);
-    expect(result.factor).toBeLessThan(1);
-    expect(result.tendency).toBeLessThan(0);
-    const permutations = [
-      ['stoic', 'fierce', 'chivalrous'],
-      ['fierce', 'stoic', 'chivalrous'],
-      ['fierce', 'chivalrous', 'stoic'],
-      ['chivalrous', 'fierce', 'stoic'],
-      ['chivalrous', 'stoic', 'fierce'],
-    ] as const;
-    for (const traits of permutations) {
-      expect(evaluateTraitInfluence({ traits }, context)).toEqual(result);
-      expect(evaluateTraitInfluence({ traits }, context, { includeReasons: true })).toEqual(
-        evaluateTraitInfluence(group, context, { includeReasons: true }),
-      );
-    }
+  it('is deterministic and leaves the genome untouched', () => {
+    const genome = genomeFrom({ patience: 88, reasoning: 20 });
+    const before = JSON.stringify(genome);
+    const first = evaluateAptitudeInfluence({ genomeV2: genome }, 'hunting', { includeReasons: true });
+    const second = evaluateAptitudeInfluence({ genomeV2: genome }, 'hunting', { includeReasons: true });
+    expect(second).toEqual(first);
+    expect(JSON.stringify(genome)).toBe(before);
+  });
+});
 
-    const mixed = evaluateTraitInfluence({ traits: ['hardy', 'graceful'] }, { kind: 'physiology', activity: 'labor' });
-    expect(mixed.factor).toBeGreaterThan(0.85);
-    expect(mixed.factor).toBeLessThan(1.15);
+describe('evaluateAptitudeInfluence — signed directions', () => {
+  it('helps where the weight is positive and hurts where it is negative', () => {
+    const highSociability = genomeFrom({ sociability: 90 });
+    const lowSociability = genomeFrom({ sociability: 10 });
+    expect(evaluateAptitudeInfluence({ genomeV2: highSociability }, 'friendship').factor).toBeGreaterThan(1);
+    expect(evaluateAptitudeInfluence({ genomeV2: lowSociability }, 'friendship').factor).toBeLessThan(1);
+    // The same dimension is a drawback in routine work.
+    expect(evaluateAptitudeInfluence({ genomeV2: highSociability }, 'routineWork').factor).toBeLessThan(1);
+    expect(evaluateAptitudeInfluence({ genomeV2: lowSociability }, 'routineWork').factor).toBeGreaterThan(1);
   });
 
-  it('leaves nested subject and context untouched and freezes opt-in explanations', () => {
-    const traits = Object.freeze(['chivalrous', 'fierce'] as const);
-    const subject = Object.freeze({ traits });
-    const result = evaluateTraitInfluence(subject, Object.freeze(defense), { includeReasons: true });
-    expect(result.reasons).toEqual([
-      { trait: 'chivalrous', effectId: 'chivalrous.protection', direction: 'benefit' },
-      { trait: 'fierce', effectId: 'fierce.resolve', direction: 'benefit' },
-    ]);
-    expect(Object.isFrozen(result)).toBe(true);
-    expect(Object.isFrozen(result.reasons)).toBe(true);
-    expect(result.reasons?.every((reason) => Object.isFrozen(reason))).toBe(true);
-    expect(subject.traits).toEqual(['chivalrous', 'fierce']);
-    expect(evaluateTraitInfluence(subject, defense, { includeReasons: true })).toEqual(result);
+  it('treats conflict as a cost activity: cooperation lowers it, risk-taking raises it', () => {
+    const cooperative = evaluateAptitudeInfluence({ genomeV2: genomeFrom({ cooperation: 90 }) }, 'conflict', { includeReasons: true });
+    const risky = evaluateAptitudeInfluence({ genomeV2: genomeFrom({ riskTaking: 90 }) }, 'conflict', { includeReasons: true });
+    expect(cooperative.factor).toBeLessThan(1);
+    expect(risky.factor).toBeGreaterThan(1);
+    // Above-average cooperation is a benefit in a cost activity; above-average risk-taking is a drawback.
+    expect(cooperative.reasons?.find((reason) => reason.aptitude === 'cooperation')?.direction).toBe('benefit');
+    expect(risky.reasons?.find((reason) => reason.aptitude === 'riskTaking')?.direction).toBe('drawback');
   });
 
-  it('answers every discrete context exactly and neutrally without DNA', () => {
-    expect(evaluateTraitInfluence({}, { kind: 'social', activity: 'courtshipProgress' }).exact)
-      .toEqual({ activity: 'courtshipProgress', orderedFactors: [1, 1, 1] });
-    expect(evaluateTraitInfluence({ traits: [] }, { kind: 'family', activity: 'conception' }).exact)
-      .toEqual({ activity: 'conception', multiplier: 1 });
-    expect(evaluateTraitInfluence({ traits: null }, { kind: 'social', activity: 'workplaceBanter' }).exact)
-      .toEqual({ activity: 'workplaceBanter', chanceOverride: undefined });
-    expect(evaluateTraitInfluence({}, { kind: 'family', activity: 'spousalBereavement' }).exact)
-      .toEqual({ activity: 'spousalBereavement', durationDaysOverride: undefined });
-    expect(evaluateTraitInfluence({ traits: [] }, { kind: 'civic', activity: 'communityReaction' }).exact)
-      .toEqual({ activity: 'communityReaction', restraintVoice: 0, severityVoice: 0 });
-    expect(evaluateTraitInfluence({}, { kind: 'social', activity: 'feudClash', other: {} }).exact)
-      .toEqual({ activity: 'feudClash', clashCount: 0 });
-    for (const result of [
-      evaluateTraitInfluence({}, { kind: 'social', activity: 'courtshipProgress' }),
-      evaluateTraitInfluence({}, { kind: 'family', activity: 'conception' }),
-      evaluateTraitInfluence({}, { kind: 'civic', activity: 'communityReaction' }),
-    ]) {
-      expect(result.factor).toBe(1);
-      expect(result.tendency).toBe(0);
+  it('explains only dimensions above the personal-neutral threshold, and only on request', () => {
+    const genome = genomeFrom({ perception: 0 });
+    const plain = evaluateAptitudeInfluence({ genomeV2: genome }, 'hunting');
+    expect(plain).not.toHaveProperty('reasons');
+    const explained = evaluateAptitudeInfluence({ genomeV2: genome }, 'hunting', { includeReasons: true });
+    expect(explained.reasons?.length).toBeGreaterThan(0);
+    for (const reason of explained.reasons ?? []) {
+      expect(reason.effectId).toBe(`hunting.${reason.aptitude}`);
+      expect(reason.weight).not.toBe(0);
     }
   });
 
-  it('dispatches one mode only: no bounded factor leaks into an exact context', () => {
-    const exact = evaluateTraitInfluence({ traits: ['timid', 'graceful'] }, { kind: 'social', activity: 'courtshipProgress' });
-    expect(exact.factor).toBe(1);
-    expect(exact.exact).toEqual({ activity: 'courtshipProgress', orderedFactors: [1, 0.7, 1.2] });
-    const ordinary = evaluateTraitInfluence({ traits: ['timid'] }, { kind: 'social', activity: 'courtship' });
-    expect(ordinary.exact).toBeUndefined();
-    expect(ordinary.factor).toBeLessThan(1);
+  it('breaks an exactly-zero weighted sum from the first relevant declared dimension', () => {
+    // friendship weights: sociability +0.32, sensitivity +0.24, cooperation +0.30, composure -0.14.
+    // These offsets keep the personal mean at 50 and cancel the weighted sum exactly.
+    const genome = genomeFrom({ sociability: 64, composure: 82, curiosity: 4 });
+    const result = evaluateAptitudeInfluence({ genomeV2: genome }, 'friendship');
+    expect(result.factor).toBeCloseTo(1.005, 10);
+    expect(result.score).toBeCloseTo(0.005 / APTITUDE_ACTIVITIES.friendship.cap, 10);
   });
+});
 
-  it('treats malformed exact DNA as neutral instead of throwing', () => {
-    const malformed = { traits: ['not_a_trait', null, 'lucky'] as unknown as SettlerTrait[] };
-    expect(evaluateTraitInfluence(malformed, { kind: 'family', activity: 'conception' }).exact)
-      .toEqual({ activity: 'conception', multiplier: 1.15 });
-    expect(evaluateTraitInfluence(malformed, { kind: 'social', activity: 'workplaceBanter' }).exact)
-      .toEqual({ activity: 'workplaceBanter', chanceOverride: undefined });
-    expect(evaluateTraitInfluence({ traits: ['lucky'] }, { kind: 'social', activity: 'feudClash', other: {} }).exact)
-      .toEqual({ activity: 'feudClash', clashCount: 0 });
-  });
-
-  it('never reads, creates or advances a simulation RNG stream', () => {
-    const snapshot = snapshotSimRng();
-    evaluateTraitInfluence({ traits: ['lucky', 'brave', 'greenthumb'] }, { kind: 'danger', activity: 'hunting' });
-    evaluateTraitInfluence({ traits: ['fierce'] }, defense, { includeReasons: true });
-    evaluateTraitInfluence({ traits: ['lucky', 'gregarious'] }, { kind: 'family', activity: 'conception' });
-    evaluateTraitInfluence({ traits: ['brave'] }, { kind: 'social', activity: 'feudClash', other: { traits: ['timid'] } });
-    expect(snapshotSimRng()).toEqual(snapshot);
-  });
-
-  it('keeps the ordinary PR B contexts bounded while the exact contexts stay discrete', () => {
-    const prBContexts: TraitContext[] = [
-      { kind: 'work', job: JobType.Builder, action: 'construction' },
-      { kind: 'work', job: JobType.Farmer, action: 'production' },
-      { kind: 'school', activity: 'research' },
-      { kind: 'danger', activity: 'defense' },
-      { kind: 'physiology', activity: 'labor' },
-      { kind: 'social', activity: 'courtship' },
-      { kind: 'family', activity: 'bereavement' },
-    ];
-    const dna: SettlerTrait[] = ['resourceful', 'chivalrous', 'insightful'];
-    for (const context of prBContexts) {
-      const influence = evaluateTraitInfluence({ traits: dna }, context);
-      expect(influence.factor, JSON.stringify(context)).toBeGreaterThanOrEqual(0.85);
-      expect(influence.factor, JSON.stringify(context)).toBeLessThanOrEqual(1.15);
-      expect(influence.tendency, JSON.stringify(context)).toBeGreaterThanOrEqual(-0.5);
-      expect(influence.tendency, JSON.stringify(context)).toBeLessThanOrEqual(0.5);
-      expect(influence.exact, JSON.stringify(context)).toBeUndefined();
-    }
-    expect(evaluateTraitInfluence({ traits: ['resourceful'] }, prBContexts[0]).factor).toBeGreaterThan(1);
+describe('combinePairFactors', () => {
+  it('averages two individual modifiers symmetrically', () => {
+    expect(combinePairFactors(1.1, 0.9)).toBeCloseTo(1, 10);
+    expect(combinePairFactors(0.9, 1.1)).toBeCloseTo(1, 10);
+    expect(combinePairFactors(1.15, 0.85)).toBeCloseTo(1, 10);
   });
 });

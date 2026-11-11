@@ -1,16 +1,6 @@
 /**
- * A settler on a shift keeps the post his work commute gave him.
- *
- * Regression, from the owner's live Y3 D3 colony: "ok there 8 guards but still all prisoners escape".
- * A Prison is not an `ordinaryWorkplace`, so `socialBlockedByJob` is false there and `socialTime` is
- * true on a prison guard's own shift. The free-time "Married couples proximity" walk then overwrote
- * the velocity the work commute had just set, and sent the on-duty guard off to his wife: he walked
- * away from the prison, `tickPrisonPresence` found nobody on the post, and every such hour carried an
- * escape roll. 16 of the 28 prison guards in the owner's save are married and every one of them was
- * more than 15 px from their partner — so this fired for the whole watch, on every shift.
- *
- * This is an integration witness on purpose: the defect is the *order* of two velocity writers inside
- * one `gameTick`, so a unit test of either writer alone cannot see it.
+ * A settler on a shift keeps the post his work commute gave him: the free-time marriage walk must not
+ * overwrite the on-duty guard's velocity, so a prison guard stays within reach of the prison.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
@@ -84,9 +74,8 @@ function worldState(entities: Entity[], buildings: Building[], tick: number): Wo
   state.paused = false;
   // This test isolates the guard's competing velocity writers, not terrain relocation.
   state.worldMap = null;
-  // `initGame` indexed its own settlers; replacing `entities` outright leaves that map stale, and a
-  // stale map reads as "no living guard" to `prisonGuardIds` (the roster then comes back empty and
-  // there is no shift to defend). `rebuildEntityByIdMap` is the documented test hook for this.
+  // Replacing `entities` leaves `initGame`'s entity map stale, and `prisonGuardIds` would read an
+  // empty roster; `rebuildEntityByIdMap` is the documented test hook.
   invalidateEntityByIdMap(state);
   rebuildEntityByIdMap(state);
   return state;
@@ -98,9 +87,8 @@ afterEach(() => {
 
 describe('an on-duty prison guard is not walked off his post by his marriage', () => {
   it('walks toward his post, not toward his absent wife', () => {
-    // 09:00 — two hours into the morning shift (07:00-16:00), so the guard is on duty *now* and still
-    // walking in. That is the window the defect lives in: the work commute sets his velocity every
-    // tick and the free-time marriage walk overwrote it in the same tick.
+    // 09:00 — two hours into the 07:00-16:00 shift, so the guard is on duty now and still walking in,
+    // which is where the work commute and the free-time walk compete for his velocity.
     const tick = 9 * (TICKS_PER_DAY / 24);
     // The post stands east of him and the wife stands west, so the two walks point opposite ways.
     const guard = human(GUARD_ID, {
@@ -110,10 +98,8 @@ describe('an on-duty prison guard is not walked off his post by his marriage', (
       x: PRISON_X - 90,
       y: PRISON_Y + 20,
       gender: 'female',
-      // Every condition of the marriage-proximity walk, which is what makes this a real repro:
-      // married, not pregnant, off reproduction cooldown, and more than 15 px from the partner.
-      // `gender: 'female'` is load-bearing: the walk only ever moves a female settler, which is
-      // exactly the owner's colony — 16 of its 28 prison guards are married and nearly all are women.
+      // Every condition of the marriage-proximity walk: married, not pregnant, off reproduction
+      // cooldown, over 15 px from the partner, and female — the only gender the walk moves.
       relationshipStatus: 'married',
       partnerId: WIFE_ID,
       reproductionCooldown: 0,
@@ -131,7 +117,7 @@ describe('an on-duty prison guard is not walked off his post by his marriage', (
 
     expect(getHourOfDay(tick), 'the guard should be inside his morning shift').toBe(9);
 
-    const post = humanBuildingTarget(prison, GUARD_ID, false);
+    const post = humanBuildingTarget(prison, GUARD_ID);
     const before = Math.hypot(post.x - guard.x, post.y - guard.y);
     const wifeBefore = Math.hypot(wife.x - guard.x, wife.y - guard.y);
 
@@ -139,9 +125,8 @@ describe('an on-duty prison guard is not walked off his post by his marriage', (
 
     const after = Math.hypot(post.x - guard.x, post.y - guard.y);
     const wifeAfter = Math.hypot(wife.x - guard.x, wife.y - guard.y);
-    // The witness is the walk's *direction*: while he is on duty his distance to the post must close,
-    // and it must not close to his wife instead. Before the fix he drifted away from the post and
-    // toward her on the same tick (measured 66.91 -> 66.87 px to the post, 310.00 -> 309.68 to her).
+    // The witness is direction: on duty, his distance to the post must close and must not close to
+    // his wife instead.
     expect(
       after,
       `the on-duty guard did not close on his post (${before.toFixed(2)} px -> ${after.toFixed(2)} px); `
@@ -167,7 +152,7 @@ describe('an on-duty prison guard is not walked off his post by his marriage', (
     const house = building(21, BuildingType.House, 60, PRISON_Y, []);
     const prison = building(PRISON_ID, BuildingType.Prison, PRISON_X, PRISON_Y, [GUARD_ID]);
     const state = worldState([guard], [house, prison], tick);
-    const post = humanBuildingTarget(prison, GUARD_ID, false);
+    const post = humanBuildingTarget(prison, GUARD_ID);
     const before = Math.hypot(post.x - guard.x, post.y - guard.y);
 
     gameTick(state, { minX: 5_000, maxX: 6_000, minY: 5_000, maxY: 6_000 });

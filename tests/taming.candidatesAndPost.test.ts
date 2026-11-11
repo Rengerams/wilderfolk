@@ -1,17 +1,6 @@
 /**
- * F16 and F17 — the taming panel listed the wrong settlers, and measured the post's reach its own way
- * (`docs/private/audits/2026-09-16/ui-logic.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * **F16:** the list was every adult human in `state.entities`, which includes `faction: 'visitor'` and
- * `'rival'` humans, while the command refuses those silently (`isPlayerHuman`) — so picking a visitor's
- * name did nothing at all, ever, and the four-slot cap let foreign adults crowd out eligible settlers.
- * **F17:** the panel measured from the footprint **corner** (`b.x`) and the command from its **centre**
- * (`b.x + width/2`), and only the panel accepted a rival-owned post. Both now come from the owner.
- *
- * Note for whoever reads this next: the two circles disagree because the repo carries two conventions for
- * `building.x/y` (the renderer and `isEntityOnBuilding` treat it as the corner; `isFootprintOnBuildable
- * Terrain` treats it as the centre). This file pins *agreement*, not which convention is correct — that
- * question is recorded in the tracker's "Other" table, because answering it would re-place every building.
+ * The taming panel must list candidates and measure the post's reach through the owners, so the
+ * list agrees with the command that refuses foreign settlers and rival posts.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -82,8 +71,7 @@ describe('taming candidates and post reach', () => {
     expect(offered).not.toContain(child.id);
     expect(offered.length, 'fixture premise: the colony has adult settlers').toBeGreaterThan(0);
 
-    // The pre-fix filter, verbatim from the panel — so this guard cannot be vacuous: it *did* offer the
-    // visitor, which is the button that could never do anything (F16).
+    // The naive filter with no faction gate offers the visitor, so this guard cannot be vacuous.
     const preFixFilter = state.entities
       .filter((e) => e.type === EntityType.Human && e.alive && !e.isJuvenile)
       .map((human) => human.id);
@@ -107,9 +95,8 @@ describe('taming candidates and post reach', () => {
     expect(hasNearbyPlayerTamingPost(state, creatureAt(state, 230, 100))).toBe(true);
     expect(hasNearbyPlayerTamingPost(state, creatureAt(state, 250, 100))).toBe(false);
 
-    // The two pre-fix rules, verbatim, evaluated at the creature 250 px out — so the guard cannot be
-    // vacuous: the *owner* reached it (its circle sat half a footprint to the right) while the panel's
-    // plain `b.x` correctly did not. That is F17's disagreement, in the direction the audit stated.
+    // At 250 px out the centre-based reach succeeds and a corner-based rule fails, so the guard
+    // is not vacuous.
     const preFixOwnerReach = Math.hypot(POST.x + POST.width / 2 - 250, POST.y + POST.height / 2 - 100) < 140;
     const preFixPanelReach = Math.hypot(POST.x - 250, POST.y - 100) < 140;
     expect(preFixOwnerReach, 'the pre-fix owner circle disagreed here').toBe(true);

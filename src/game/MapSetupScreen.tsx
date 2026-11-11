@@ -131,6 +131,8 @@ interface MapSetupScreenProps {
   onPresetChange: (preset: MapPreset) => void;
   onStart: (villageName: string) => void;
   onLoad?: () => void;
+  onLoadImported?: () => void;
+  hasImportedSave?: boolean;
   onLoadFromFile?: (jsonText: string) => void;
   onBack?: () => void;
   backLabel?: string;
@@ -149,6 +151,8 @@ export default function MapSetupScreen({
   onPresetChange,
   onStart,
   onLoad,
+  onLoadImported,
+  hasImportedSave,
   onLoadFromFile,
   onBack,
   backLabel = '← Back to intro',
@@ -184,11 +188,8 @@ export default function MapSetupScreen({
   };
 
   /**
-   * Starting a settlement deletes the browser save (`beginNewGameSession` → `deleteSave`), so when a
-   * save exists the first activation only arms the confirmation — the shape
-   * `SelectedBuildingPanel`'s demolish step already uses for a destructive action. Enter in the name
-   * field routes through here too: it used to call `handleStart` directly, so one keystroke while
-   * typing a name destroyed a saved colony with no warning.
+   * Starting a settlement deletes the browser save, so when a save exists the first activation only
+   * arms the confirmation — the same destructive-action shape the demolish step uses.
    */
   const [confirmStartArmed, setConfirmStartArmed] = useState(false);
   const requestStart = () => {
@@ -226,10 +227,8 @@ export default function MapSetupScreen({
       </header>
 
       <main className="mx-auto my-4 flex w-full max-w-3xl flex-1 flex-col gap-4 overflow-y-auto border border-stone-700/70 bg-stone-900/40 px-4 py-5 sm:gap-5 sm:px-6 sm:py-6">
-        {/* The chooser reads as one framed panel (owner request, 2026-09-29): a square border around
-            the column, so the preset grid, the size selector and the tips sit inside a visible box
-            instead of floating on the full-bleed gradient. The cards inside keep their own rounded
-            borders — this frame is the panel's, not theirs. */}
+        {/* The chooser reads as one framed panel: a square border around the column, so the preset
+            grid, size selector and tips sit in a visible box instead of on the gradient. */}
         {/* Settlement name — slim signpost */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -315,8 +314,8 @@ export default function MapSetupScreen({
                     key={size}
                     type="button"
                     onClick={() => onSizeChange(size)}
-                    /* The chosen size was stated by background/ring colour alone — unlike the preset
-                       cards above, this control carries no visible tick (2026-09-20 audit, A6). */
+                    /* Selection shows only by background/ring colour here (the preset cards carry a
+                       tick), so expose the state through `aria-pressed`. */
                     aria-pressed={selected}
                     className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-all ${
                       selected
@@ -435,6 +434,15 @@ export default function MapSetupScreen({
                   }}
                 />
               </>
+            )}
+            {hasImportedSave && onLoadImported && (
+              <button
+                type="button"
+                onClick={onLoadImported}
+                className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-5 py-2.5 text-sm font-semibold text-amber-300 transition-all hover:bg-amber-500/20"
+              >
+                Load imported colony
+              </button>
             )}
             {hasSave && onLoad && (
               <button

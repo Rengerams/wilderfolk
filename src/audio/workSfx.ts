@@ -1,10 +1,6 @@
 /**
- * Work & footstep ambience (Phase 3.3) — quiet, surface-aware procedural sounds.
- *
- * Footsteps: one soft tick per call, pitched by the terrain family under the
- * settler's feet. Work: a single short burst per call, rotated by the active
- * staffed production building. Both are meant to be called throttled from the
- * audio hook (every ~8–10 ticks) so they read as ambience, not noise.
+ * Surface-aware procedural ambience: footsteps are one soft tick per call, work one short burst per
+ * call. The audio hook throttles both to roughly every 8–10 ticks so they read as ambience.
  */
 import { scheduleTone } from './scheduler';
 import { TerrainType } from '../game/gameTypes';

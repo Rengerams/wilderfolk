@@ -1,5 +1,103 @@
 # Bug report summary — one line per report
 
+**2026-11-08 — [Pregnancy merge introduced competing hospital thresholds](../bug_report/2026-11-08-pregnancy-individual-term-merge.md):** resolved; targeted regressions pass.
+
+**2026-11-08 — [Immigration treats one-off food spending as recurring demand](../bug_report/2026-11-08-immigration-recurring-demand-and-beds.md):** resolved; targeted regressions pass.
+
+
+**2026-11-08 — [Selected doorstep cannot satisfy arrival](../bug_report/2026-11-08-doorstep-arrival-predicate.md):** resolved. Require isAtBuildingReach for every candidate and guard zero-distance blocked fallback steering.
+
+**2026-11-08 — [Worker roster removal silences settler death audio](../bug_report/2026-11-08-worker-roster-death-audio.md):** resolved. Consume transported player death tally increments, accounting for year rollover and session replacement.
+
+**2026-11-08 — [Regional ground rebakes retain stale clearing fields](../bug_report/2026-11-08-terrain-clearing-fields-stale.md):** resolved. Key fields separately by terrain revision while retaining regional chunk keys.
+
+**2026-11-08 — [Standalone probes bypass normal movement integration](../bug_report/2026-11-08-standalone-movement-probes.md):** resolved. Remove the three scripts; add --movement observation after normal gameTick in the existing full-year harness. Reports use actual positions, canonical reach, configured shift and loop pacing.
+
+**2026-11-08 — [Build duplicate-code gate references an untracked baseline](../bug_report/2026-11-08-build-duplicate-baseline-missing.md):** open. Open: restore or deliberately review the baseline separately; do not accept current duplicates automatically to make this review pass.
+
+
+**2026-11-08 — [Settlers walked straight into a building wall instead of routing around it](../bug_report/2026-11-08-settlers-walk-into-building-walls.md):** free-time walks toward a building frontage (and a prisoner's walk to the cell) set raw velocity with no route, so a destination on the far side of a footprint became endless wall-sliding. Status: resolved — every building-named walk goes through the path owner, and arrival from all four sides, around a building and around a wall is covered by regressions.
+
+**2026-11-08 — [Houses had two different entrances and admitted settlers through any wall](../bug_report/2026-11-08-two-house-entrances-and-any-wall-entry.md):** the home commute picked the nearest wall to the settler, entry accepted any facade within 24 px, and the porch was fixed to the south, so a settler could vanish into a back or side wall while the porch and dashboard described another door. Status: resolved — one access point outside the footprint on the first clear side now serves route, movement, arrival, frontage and the dashboard; four-sided and walled-front regressions pass.
+
+**2026-11-08 — [Automatic staffing left every workplace at a single worker](../bug_report/2026-11-08-automatic-staffing-left-open-posts.md):** the rebalance targeted each building's protected minimum coverage instead of its capacity, so with no idle adults a workshop showing "1 of 2 filled" never received the second hand while another workplace held a surplus. Status: resolved — a capacity pass fills open posts from a workplace holding at least two more workers, coverage still runs first, and 5 new cases plus the staffing suites pass.
+
+**2026-11-08 — [The blocked-ground repair scanned its whole ring square and called `Math.hypot` per candidate](../bug_report/2026-11-08-blocked-settler-scan-hypot-ring.md):** every blocked settler's repair walked the full `(2r+1)²` square, filtered it by Chebyshev distance and measured each candidate with `Math.hypot`, which cost 353 of 6,699 profile samples (5.3 %, 6.5 % of the tick) at 1,800 settlers. Status: resolved — only the ring perimeter is visited, in the same order, and squared distances rank the candidates; the same profile reads 153 samples (2.3 %), a micro-benchmark reads 3.12 → 1.62 µs/call, a 610-sample old-vs-new comparison found 0 differences, and 5 new pathfinding cases plus 19 targeted tests pass.
+
+**2026-11-07 — [The hourly child playmate refresh scanned the whole neighbourhood in one tick](../bug_report/2026-11-07-hourly-child-playmate-scan-quadratic.md):** the refresh keyed on the global hourly bucket, and each child collected every other child within 96 px, so the 3,000-settler tier spent 1.5–2.5 s on every hour boundary (profile: 80.8 % of self time in that scan, 7.7 M candidates). Status: resolved — the shared spatial walk stops on a `false` callback and the candidate list is capped at 32; the same tier now averages 105.9 ms with a 150.1 ms p95 and no hourly spike, and the targeted suites pass.
+
+**2026-11-07 — [Ambient chat scanned the neighbourhood before its chatter roll](../bug_report/2026-11-07-ambient-chat-neighbor-scan-eager.md):** Every eligible settler built and sorted the full nearby-settler list, and every child scanned for playmates, before the seeded roll that rejects ~96% and ~28% of them. Status: resolved — the neighbour read is deferred until the roll fires and a non-playing child skips the scan; the 1,800-settler average tick fell from 624.9 to 106.2 ms with an identical simulation hash, and the targeted suites pass, including a new case for the deferred read.
+
+**2026-11-07 — [A settler dying in wolf form was counted as an animal death](../bug_report/2026-11-07-werewolf-form-death-counted-as-animal.md):** The tick death scan tested the visual type first, so a Moon Howler settler who died transformed raised the animal tally. Status: resolved — ownership decides before the type; 5 death-accounting tests pass.
+
+**2026-11-07 — [The longest-lived settler record missed anyone who died mid-year](../bug_report/2026-11-07-longest-life-missed-midyear-deaths.md):** The lifetime record was refreshed from year-end survivors. Status: resolved — the age is recorded when the death commits; 5 tests pass.
+
+**2026-11-07 — [Winter heating spent wood and changed nothing](../bug_report/2026-11-07-winter-heating-had-no-effect.md):** The heat flag only flashed a settler; the schema claimed a 1.5x cold penalty. Status: resolved — an unheated day multiplies nutrition loss by 1.5; 1 test passes.
+
+**2026-11-07 — [Pollution pinned every mid-size colony at 100](../bug_report/2026-11-07-pollution-pinned-at-cap.md):** `humans / 3` saturated the 0-100 scale at 300 settlers. Status: resolved — 300/1,000/2,500 now read 12/40/100 and preserves damp the score; 2 tests pass.
+
+**2026-11-07 — [A settler death played two cues, and foreign deaths played one](../bug_report/2026-11-07-player-death-sound-doubled.md):** The interaction pass and the population-drop effect both fired, and visitors triggered the settler cue. Status: resolved — one ownership-gated cue; 6 tests pass.
+
+**2026-11-07 — [An unstaffed farm satisfied the auto-player's food step](../bug_report/2026-11-07-unstaffed-farm-satisfied-food-step.md):** The producer predicate counted by building type alone. Status: resolved — a completed producer needs a crew, an unfinished site still counts; 4 tests pass.
+
+**2026-11-07 — [Every unpaused frame forced a layout read and allocated a position per mover](../bug_report/2026-11-07-per-frame-layout-read-and-position-allocation.md):** The loop read `offsetWidth` per frame and the motion pass copied every entity. Status: resolved — cached layout size and entity reuse for unsmeared movers; 10 tests pass.
+
+**2026-11-07 — [Foreign humans received genomes and born marks](../bug_report/2026-11-07-foreign-humans-get-dna-and-born-marks.md):** Visitors and caravan carriers were created as full genetic settlers and showed aptitude chips, against the doc's foreign-neutral contract. Status: resolved — creation and the load backfill gate on the faction predicate; 50 DNA tests pass.
+
+**2026-11-07 — [Personal mark provenance accepted impossible pairs](../bug_report/2026-11-07-mark-provenance-unvalidated.md):** A born-only mark could claim an earned source and vice versa. Status: resolved — one per-mark allowed-source table validates the pair in both writers; 21 mark tests pass.
+
+**2026-11-07 — [The human render pass rescanned buildings and re-sampled ground height every frame](../bug_report/2026-11-07-per-frame-human-rescans.md):** The sleeper cull walked the building list per settler, the status-icon context rebuilt on every repaint, and every mover re-read the elevation field. Status: resolved — 80 sleepers fell from 8,600 to 560 building reads per frame and shared height vertices are sampled once; 6/6 tests pass.
+
+**2026-11-07 — [Every settler re-scanned buildings and faction lists each tick](../bug_report/2026-11-07-per-settler-building-and-camp-scans.md):** Camp, war-band, performer, festival-square and hotel lookups sat inside the per-settler loop. Status: resolved — per-tick indexes cut a 20→80 goer run from 1,638→4,368 building reads to 798→1,008; 3/3 tests pass.
+
+**2026-11-07 — [Population was counted twice per tick](../bug_report/2026-11-07-population-counted-twice-per-tick.md):** The post-daily scan recomputed the roster the pre-daily scan had already counted on three ticks in four. Status: resolved — the pre-daily counts are reused when nothing changed after the snapshot; parity suites pass.
+
+**2026-11-07 — [A single terrain change re-baked every ground chunk](../bug_report/2026-11-07-terrain-change-rebakes-every-chunk.md):** One global revision sat in every chunk key, so a road or a clearing disposed all baked ground and left a dark frame. Status: resolved — per-cell dirty revisions re-bake only the footprint; 4/4 tests pass.
+
+**2026-11-07 — [Trees south of a building disappeared behind it](../bug_report/2026-11-07-trees-lost-behind-southern-buildings.md):** Fixed tree-then-building passes could not honour feet depth. Status: resolved — trees and buildings share one depth-sorted occluder pass; screenshot matrix not run.
+
+**2026-11-07 — [Paused view ignored the logistics overlay and juice toggles](../bug_report/2026-11-07-paused-snapshot-ignores-overlay-toggles.md):** The snapshot key omitted both preferences, so a paused view reused the old snapshot. Status: resolved — the key carries both; 2/2 tests pass.
+
+**2026-11-07 — [Terrain caches survived map identity and override changes](../bug_report/2026-11-07-terrain-cache-keys-omit-runtime-identity.md):** The chunk key omitted terrain seed and generation version; the path grid key omitted runtime overrides, leaving stale walkability. Status: resolved — both keys carry the missing identity; 5/5 tests pass.
+
+**2026-11-07 — [Interaction audio rescanned the whole roster for every death](../bug_report/2026-11-07-audio-death-scan-quadratic.md):** The death pass searched the current roster per previous entity; it now resolves deaths through an id map built once per call. Status: resolved — 2,009,004 roster reads fell below 12,006 in the regression, 4/4 tests pass.
+
+**2026-11-07 — [A1 residual calendar fixture and festival-load double repair](../bug_report/2026-11-07-a1-residual-calendar-fixtures-festival-double-repair.md):** SIM-14 called its festival repair twice, and live fixtures used obsolete 72-tick day math. The historical README release record must retain 72/day. Status: repair/fixtures updated; valid and stale festival outcomes plus current and synthetic legacy Year-0 election saves tested in A1 PR #132; final CI is required before closure.
+
+**2026-11-07 — [A5 CB-02 React crash without recovery export](../bug_report/2026-11-07-react-render-crash-no-recovery-export.md):** Root error boundary and file-only last-known-colony export; no crash-unmount autosave. Status: source fixed, CI/browser verification pending.
+
+**2026-11-07 — [A5 CB-13 unused desktop shell capability](../bug_report/2026-11-07-tauri-unused-shell-capability.md):** Remove unused Tauri shell permission/plugin and direct dependency. Status: source fixed, native build pending.
+
+**2026-11-07 — [A5 UX-13/14 destructive bulk strip gesture](../bug_report/2026-11-07-alt-drag-bulk-demolition-without-confirmation.md):** Alt-drag road/wall demolition now requests confirmation before issuing the existing command. Status: source fixed, browser verification pending.
+
+**2026-11-07 — [A5 CB-01 stopped RAF chain and old renderer caches](../bug_report/2026-11-07-game-loop-raf-retains-stopped-session.md):** RAF reschedules after stop, risking an abandoned world frame chain. Status: resolved — lifecycle tests and CI passed.
+
+**2026-11-07 — [A5 UX-01 loading replaces the active colony and quick-save](../bug_report/2026-11-07-load-replaces-colony-overwrites-browser-save.md):** Browser/file loads lacked confirmation; file import silently overwrote quick-save. Status: source fixed, browser QA pending.
+
+**2026-11-07 — [A5 UX-03/04 war modals leak focus and hotkeys](../bug_report/2026-11-07-war-overlays-leak-keyboard-and-focus.md):** Battle, terminal and prisoner dialogs lacked shared focus/keyboard ownership. Status: source fixed, browser QA pending.
+
+**2026-11-07 — [A2 required calendar scheduler missing from PR CI](../bug_report/2026-11-07-calendar-regressions-not-required-in-pr-ci.md):** Affected-only tests can pass without exercising the midnight scheduler; adding a dedicated fast gameTick boundary CI job. Status: resolved — required scheduler workflow passed 11/11.
+
+**2026-11-07 — [A2 calendar-owner coverage has no enforced floor](../bug_report/2026-11-07-calendar-regression-coverage-ungated.md):** The standard suite does not enforce coverage; adding a narrowly scoped V8 threshold in the required calendar job. Status: resolved — scoped coverage thresholds passed.
+
+**2026-11-07 — [SIM-01: term elections never fire](../bug_report/2026-11-07-term-election-skipped-at-1800.md):** Year-boundary scheduler was gated at 18:00; moved to 00:00. Status: resolved — the `gameTick` regression passed in Node.js CI.
+
+**2026-11-07 — [SIM-02: idle skills never decay](../bug_report/2026-11-07-idle-skill-decay-never-runs.md):** Midnight-only skill decay was called from the 18:00 world-events pass; moved to midnight. Status: resolved — exact decay passed in Node.js CI.
+
+**2026-11-07 — [TEST-16: visitor groups never age or depart](../bug_report/2026-11-07-visitor-groups-never-depart.md):** Visitor lifecycle now runs at 00:00 so gift/counter/departure decisions fire. Status: resolved — the multi-day regression passed in Node.js CI.
+
+**2026-11-07 — [Full-year test demanded a marriage a one-couple start cannot produce](../bug_report/2026-11-07-full-year-marriage-guard-one-couple-start.md):** The 360-day scenario started with one married couple in a full two-bed house, so no eligible pair or immigrant could exist and the marriage guard failed; the scaffold now seeds four eligible neighbours with homes plus two Silos (spoilage 0). The file and the full suite pass.
+
+**2026-11-07 — [Raid-scaling test became flaky after personal marks entered defence](../bug_report/2026-11-07-raid-scaling-test-flaky-after-marks.md):** The test built each village size from a random map seed, so personal marks (now a defence input) and the juvenile count differed between sizes and the ratio spread passed 0.01 in ~40% of runs. The fixture now seeds the world and normalises marks and juvenile status; 20/20 isolated runs and the full suite pass.
+
+**2026-11-07 — [Day-boundary performance gate read an out-of-scope report](../bug_report/2026-11-07-day-boundary-gate-undefined-report.md):** The ceiling check added to the save benchmark compared a `report` that only exists inside `bench`, so enabling it threw a ReferenceError and the harness type check was red. `bench` now returns its report and the check reads it; types, lint, build and a boundary-enabled smoke run pass.
+
+**2026-11-07 — [Full-year food-site audit broke the harness type check](../bug_report/2026-11-07-full-year-food-site-narrowing.md):** An untyped four-member array literal made `includes(building.type)` reject the wider `BuildingType` union and duplicated the auto-player's food-producer set. The harness now imports the auto-player's typed set; types, lint and build pass.
+
+**2026-11-06 — [Trade caravan merchants can stand stuck at a river and appear as children](../bug_report/2026-11-06-trade-caravan-stuck-and-child.md):** The carrier used direct steering, spawned at a solid hub centre and started at age zero. It now uses the path owner from a walkable hub door, is created adult, and is promoted to adult on load. Source fixed; runtime unverified.
+
+**2026-11-06 — [Settlers meeting friends at a building press into its wall](../bug_report/2026-11-06-settlers-bump-into-building-frontage.md):** A corner-form meeting point could sit inside the now-solid footprint, and route cache keys were shared by every settler at that building. It now uses the walkable venue frontage and per-settler route keys. Source fixed; runtime unverified.
+
 **2026-11-06 — [Settlers walk through completed buildings instead of around them](../bug_report/2026-11-06-settlers-walk-through-buildings.md):** Only walls blocked the path grid, so farms, houses and other completed structures were walkable and settlers cut across their footprints. Completed structures are now solid, with roads, bridges, the square and reinforced ground kept open; targeted pathfinding and movement suites pass.
 
 **2026-11-06 — [Lovers walk into the tryst house wall instead of using its doorstep](../bug_report/2026-11-06-affair-tryst-centre-target.md):** The tryst target was the blocked footprint centre and the approach used a straight-line velocity, so partners could stall on opposite walls. Both now route to one walkable doorstep; targeted affair, indoor and type checks pass.
@@ -83,7 +181,7 @@ This sweep records the current tree; the individual report headers were delibera
 
 **2026-11-02 — [Failed fallback tick loses accumulated time](../bug_report/2026-11-02-fallback-tick-consumes-time-on-failure.md):** A failed rollback-safe local tick still consumed tick time. Clock debit now occurs only after success; the rollback regression proves retained debt and no extra retry.
 
-**2026-11-02 — [Render stress harness consumes all worker leases](../bug_report/2026-11-02-worker-stress-harness-exhausts-render-buffers.md):** Tick and command render leases were never returned. Harness now transfers leases back, tracks counts and confirms save exports; 5,000 render ticks returned all 5,007 leases with no exhaustion.
+**2026-11-02 — [Render stress harness consumes all worker leases](../bug_report/2026-11-02-worker-stress-harness-exhausts-render-buffers.md):** Tick and command render leases were never returned. Harness now transfers leases back, tracks counts and confirms save exports; 5,000 render ticks returned all 5,007 leases with no exhaustion. The later lease protocol left the harness returning no lease, exhausting the pool again after five ticks; on 2026-11-07 it echoes the lease and a 200-tick run returned 200/200.
 
 **2026-11-02 — [Render pool accepts oversized returns](../bug_report/2026-11-02-render-buffer-pool-accepts-oversize.md):** A larger-than-schema buffer silently entered the fixed-size pool. Exact-length checks and the 200,000-cycle capacity regression now pass.
 
@@ -2216,3 +2314,35 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 ## 2026-11-03 — War-band
 
 - **Deployed soldiers were drawn standing in the village — resolved:** the tick froze them but the village layer kept drawing their last position and the inspector said "Walking home to sleep"; both render paths now skip deployed settlers and the projection reports "Away with the war-band". [Report](../bug_report/2026-11-03-deployed-soldiers-drawn-in-village.md).
+
+## 2026-11-07 — Audit A3 data integrity
+
+- **A 72-tick save left persisted cooldown, remarriage, spotlight, grave and event ticks unscaled — resolved:** one typed tick-field table now scales every persisted group, and the event log shares the festival repair's time base. [Report](../bug_report/2026-11-07-save-tick-migration-leaves-fields-unscaled.md).
+- **A worker fault replayed commands the worker had already applied — resolved:** commands carry a monotonic id and the worker echoes the last applied id, so recovery replays only unproven work. [Report](../bug_report/2026-11-07-worker-fault-replays-applied-commands.md).
+- **Election promise records were missing from the tick delta and rollback — resolved:** the records now round-trip and roll back like the other election state. [Report](../bug_report/2026-11-07-election-promise-records-missing-from-tick-delta.md).
+- **The first gazette issue labelled week 0 as days 1–7 — resolved:** the header now reports the zero-based range 0–6. [Report](../bug_report/2026-11-07-gazette-week-label-off-by-one.md).
+- **A birth genome did not derive from its birth key — resolved:** the delivery seeds genome inheritance from the same key as its other rolls. [Report](../bug_report/2026-11-07-birth-genome-not-keyed-on-birth-key.md).
+- **Rival growth cadence followed array position — resolved:** the cadence now hashes the stable rival id. [Report](../bug_report/2026-11-07-rival-growth-cadence-tied-to-array-index.md).
+- **A valid flat genome was rewritten on load — resolved:** validation keeps a legal genome as written; creation still enforces spread. [Report](../bug_report/2026-11-07-dna-flat-genome-rewritten-on-load.md).
+- **Two renderer hex parsers disagreed on short colours — resolved:** the shade path now uses the documented parser and its fallback. [Report](../bug_report/2026-11-07-renderer-two-hex-parsers-disagree.md).
+
+## 2026-11-07 — Audit A4 lifecycle and data loss
+
+- **A stopped GameLoop kept scheduling frames and retained its colony — resolved:** the frame chain now reschedules only while running, and a stop/start regression pins the contract. [Report](../bug_report/2026-11-07-game-loop-raf-chain-never-stops.md).
+- **A render throw blanked the game with no save path — resolved:** one top-level boundary offers a live-save export and reload. [Report](../bug_report/2026-11-07-no-react-error-boundary.md).
+- **Loading replaced the colony unconfirmed and a file load overwrote the quick-save — resolved:** both loads are armed, and a file load leaves the browser quick-save untouched. [Report](../bug_report/2026-11-07-load-overwrites-colony-and-quicksave.md).
+- **Raid report and warfare dialogs left gameplay hotkeys active — resolved:** both use the shared focus trap and keyboard claim, and execution copy states permanence. [Report](../bug_report/2026-11-07-raid-warfare-dialogs-leak-keyboard.md).
+- **Alt+drag strip demolition removed segments unconfirmed — resolved:** the eraser now arms a counted confirmation. [Report](../bug_report/2026-11-07-strip-demolition-unconfirmed.md).
+- **The desktop shell granted an unused Tauri shell capability — resolved:** the plugin, permission and unused direct dependencies are gone. [Report](../bug_report/2026-11-07-tauri-shell-capability-unused.md).
+
+## 2026-11-07 — Audit A6 render cache
+
+- **The static entity layer repainted every simulation tick — resolved:** the layer key now carries a static-world revision, the tick joins it only while a building is under construction, and the marriage links moved to the per-frame pass that follows the settlers. [Report](../bug_report/2026-11-07-static-entity-layer-repaints-every-tick.md).
+- **Terrain chunks rebaked the whole map on any change — resolved:** chunk keys carry the region revision and a change rebakes only its dirty 256-px region. [Report](../bug_report/2026-11-07-terrain-change-rebakes-every-chunk.md).
+- **Trees drew behind southern buildings — resolved:** trees and buildings share one depth-sorted static pass. [Report](../bug_report/2026-11-07-trees-lost-behind-southern-buildings.md).
+- **A paused view ignored the F4 logistics and juice toggles — resolved:** the snapshot key carries both preferences. [Report](../bug_report/2026-11-07-paused-snapshot-ignores-overlay-toggles.md).
+- **Terrain cache keys omitted runtime identity — resolved:** keys carry seed, terrain seed, generation version and map size, and the path grid keys the same revision. [Report](../bug_report/2026-11-07-terrain-cache-keys-omit-runtime-identity.md).
+
+## 2026-11-07 — Audit A7 performance hot paths
+
+- **The human render pass rescanned buildings and re-sampled ground height every frame — resolved:** the sleeper cull uses one id map per tick, the status context is memoised per snapshot, and height-mesh vertices are sampled once per map. [Report](../bug_report/2026-11-07-per-frame-human-rescans.md).

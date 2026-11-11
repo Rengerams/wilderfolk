@@ -1,15 +1,6 @@
 /**
- * The value layer of the load boundary, and the two globals a refused load used to leave changed.
- *
- * `saveLoad.elementShape.test.ts` guards element *shape*; this covers the consequences of trusting
- * values that are the right type but the wrong content: an id allocator that is missing or rewound,
- * duplicate ids, a festival whose `daysLeft` is not a number, and the clock fields a date is derived
- * from. It also pins the contract the load
- * path declares — "the session, or the reason" — for the RNG and the auto-save preference, which the
- * restore adopts part-way through and used to leave adopted after a refusal.
- *
- * The fixture is a **real** payload from `buildSaveData` with one field corrupted, so a green case
- * proves the guard refuses the corruption without refusing the world it came from.
+ * Value checks at the load boundary: an id allocator that is missing or rewound, duplicate ids, bad
+ * festival days and clock fields must be refused as "the session, or the reason".
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -47,8 +38,8 @@ describe('a refused load leaves the running session exactly as it was', () => {
     const payload = realPayload();
     setSimSeed(777);
     const before = getSimSeed();
-    // Missing resources is a genuine invalid save. Missing researchNodes is now
-    // an intentionally supported legacy-save case and must not be used to force refusal.
+    // Missing resources is a genuine invalid save; missing researchNodes is a supported
+    // legacy-save case.
     delete payload.resources;
 
     const outcome = loadGameFromParsedOutcome(payload);

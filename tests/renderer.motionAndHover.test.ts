@@ -76,7 +76,11 @@ describe('per-frame motion samples', () => {
     entity.x = 4000;
     beginMotionFrame(2, 0.5, [entity]);
 
-    expect(presentationPosition(entity)).toEqual({ x: 4000, y: 0 });
+    const position = presentationPosition(entity);
+    expect(position.x).toBe(4000);
+    expect(position.y).toBe(0);
+    // Not interpolated: the entity itself is returned, so an unsmeared mover allocates nothing.
+    expect(position).toBe(entity);
   });
 });
 

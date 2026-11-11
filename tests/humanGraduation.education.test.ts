@@ -1,18 +1,7 @@
 import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycycleconstants';
 /**
- * A child graduates into adulthood exactly once, and keeps the education payoff.
- *
- * The daily age sync (`syncHumanAgeFromCalendar`) used to write `isJuvenile` itself.
- * `humanTick` calls that sync and then, later in the *same* tick, `tryGraduateHumanChild`,
- * whose guard is `isJuvenile && age >= HUMAN_CHILDHOOD_YEARS`. The sync therefore cleared
- * the flag on precisely the tick when the age crossed 18, so graduation was unsatisfiable:
- * `entity.size`/`speed` were never promoted to adult values and `applyEducationGraduation`
- * — the only writer of `entity.educated`, and the source of the graduation skill and
- * max-energy bonus — never ran for any settler.
- *
- * SCOPE — writer-level tests in the same call order `humanTick` uses (age sync first, then
- * the graduation transition with the callback humanTick passes), which is exactly the
- * ordering the defect lived in.
+ * A child graduates into adulthood exactly once and keeps the education payoff: the daily age sync
+ * leaves `isJuvenile` for `tryGraduateHumanChild`, which runs later in the same tick.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

@@ -30,13 +30,8 @@ export function drawAnimals(
     const cfg = SPECIES_CONFIG[e.type];
     const { spriteH, shadowW, shadowY } = getAnimalSpriteMetrics(e, cam.zoom);
     const frame = getSpriteFrame(cfg.sprite);
-    // The sprite is drawn at anchor (0.5, ANIMAL_SPRITE_ANCHOR_Y), so its body extends
-    // `spriteH * ANIMAL_SPRITE_ANCHOR_Y` upward and `spriteH * (1 - ANIMAL_SPRITE_ANCHOR_Y)` downward,
-    // and `spriteH * aspect / 2` sideways. The old symmetric `spriteH * 0.75` pad was *smaller* than the
-    // 0.88 upward extent, so a quadruped whose body was still on-screen by up to ~0.13·spriteH popped out
-    // at the bottom edge instead of sliding in. Per-axis pads cull on the actual
-    // bounds; the decorations above (🐾, 👑, the moon-howler ring) were never covered by the pad either,
-    // so they keep their existing, slightly earlier pop.
+    // The sprite draws at anchor (0.5, ANIMAL_SPRITE_ANCHOR_Y), extending `spriteH * anchor`
+    // upward and the rest downward, so cull on the actual bounds with per-axis pads.
     const aspect = frame && isDrawableSpriteFrame(frame) ? frame.sw / frame.sh : 1;
     const padX = (spriteH * aspect) / 2;
     const padUp = spriteH * ANIMAL_SPRITE_ANCHOR_Y;

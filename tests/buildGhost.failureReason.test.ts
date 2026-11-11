@@ -1,18 +1,6 @@
 /**
- * F5 — the placement ghost names **why** a spot is refused
- * (`docs/private/audits/2026-09-16/playability-gamefeel.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * The reason was always decided by the owner (`getPlaceBuildingFailureReason`), but the view stored
- * only the owner's boolean (`ViewState.buildGhost.valid`) and the renderer printed one fixed
- * `'✗ Blocked'` for every refusal. That reads as "the game will not let me build here" for the two
- * buildings whose rule is about the **whole footprint** — a Bridge must span actual river water and a
- * Fishing Spot must cover a water tile (`placementUtils.isFootprintOnBuildableTerrain`), so dragging
- * them along a dry bank gave no hint that water inside the footprint is the requirement.
- *
- * The split under test: the ghost carries the owner's *reason*, and the game layer turns a reason
- * into player-facing wording (`buildingPlacementLabels`). The canvas (`renderer/buildPreview.ts`) only
- * draws that string; vitest runs `environment: 'node'`, so the last test pins the three seams by
- * source instead of rendering them.
+ * The placement ghost carries the owner's refusal reason, which the game layer words
+ * (`buildingPlacementLabels`) and the canvas draws; the wiring is pinned by source.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

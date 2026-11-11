@@ -4,6 +4,7 @@
  */
 
 import type { Entity, WorldState } from './gameTypes';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import {
   hasIronShields,
   hasIronSpears,
@@ -24,11 +25,9 @@ import {
 import { BuildingType, JobType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned } from './housingModel';
-import { evaluateTraitInfluence } from './personality/traitEvaluation';
-import type { TraitContext } from './personality/traitEffectCatalog';
+import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 
-/** Each already-mustered soldier's own defensive DNA, applied to that soldier's base only. */
-const DEFENSE_CONTEXT: TraitContext = { kind: 'danger', activity: 'defense' };
+/** Each already-mustered soldier's own defensive aptitude, applied to that soldier's base only. */
 
 /** Weapon tier used for militia multiplier (legacy name kept for call sites). */
 export type MilitiaSpearTier = 'none' | 'stone' | 'iron' | 'sword';
@@ -96,16 +95,10 @@ export function getMilitiaArmamentLabel(state: WorldState): string | null {
 
 /**
  * An adult settler who may be mustered for the village's defence — the one definition the militia
- * count, the raid fighter pool and the raid casualty pool all share.
- *
- * Imprisonment is the exclusion those three used to disagree on: `isImprisoned` guards every
- * staffing rule (`workforce`, `buildingStaffingActions`) and both election paths, but the militia
- * paths counted a prisoner as a full adult — so a jailed settler added militia strength, was drawn
- * as a barricade fighter, and could be killed "defending the village"
- * (`docs/private/audits/2026-09-16/LIVE-FINDINGS-STATUS.md`, M1).
+ * count, the raid fighter pool and the raid casualty pool share. Imprisonment excludes.
  */
 export function canBeMustered(entity: Entity): boolean {
-  return entity.alive && isPlayerHuman(entity) && !entity.isJuvenile && !isImprisoned(entity) && entity.job === JobType.Soldier && !entity.raidDeploymentId;
+  return entity.alive && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE && !isImprisoned(entity) && entity.job === JobType.Soldier && !entity.raidDeploymentId;
 }
 
 export function computeMilitiaBreakdown(
@@ -162,11 +155,11 @@ export function computeMilitiaBreakdown(
   const plainBase = adultCount * MILITIA_BALANCE.basePerAdult;
   let base = 0;
   for (const soldier of mustered) {
-    base += MILITIA_BALANCE.basePerAdult * evaluateTraitInfluence(soldier, DEFENSE_CONTEXT).factor;
+    base += MILITIA_BALANCE.basePerAdult * evaluateAptitudeInfluence(soldier, 'defense').factor;
   }
   lines.push(`${adultCount} adults × ${MILITIA_BALANCE.basePerAdult} = ${Math.round(base)}`);
   if (base !== plainBase) {
-    lines.push(`defender traits (per-soldier DNA) → ${Math.round(base)}`);
+    lines.push(`defender aptitudes (per-soldier) → ${Math.round(base)}`);
   }
 
   let rawTotal = base * spearMultiplier;

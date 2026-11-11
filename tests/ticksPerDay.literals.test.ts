@@ -1,24 +1,6 @@
 /**
- * G3 — `TICKS_PER_DAY` (= 72) must not be a bare literal in the test tier
- * (`docs/private/audits/2026-09-16/duplication-deadcode.md` G3, evidence
- * `_test-helper-duplication.md` §4.1, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * Before this pass, tests that wanted a day boundary wrote `72` (or a derived spelling such as
- * `72 * 5`, `5 * 72`, `state.tick = 72`, `tick: 72`). The clock owner is
- * `src/game/dayCycleClock.ts` (`TICKS_PER_DAY`, `ticksForDays`, `getAbsoluteCalendarDay`), re-exported
- * by `src/game/dayCycle.ts`. Every value below is identical **by definition** (72 = 24 × 3), so this
- * was a pure "same number, second definition" sweep — but retune `gameConstants.Time.HOURS_PER_DAY`
- * or `Time.TICKS_PER_HOUR` and the literal sites would keep driving the simulation to ticks that are
- * no longer day boundaries while still asserting day-boundary behaviour.
- *
- * Two assertions per file, so the guard cannot pass vacuously:
- *   1. the pre-fix expression is gone (the guard's reason to exist), and
- *   2. the file still names the owner (`TICKS_PER_DAY` / `ticksForDays`) — a "fix" that merely
- *      deleted the boundary probe would fail this half.
- *
- * Deliberately exempt, and asserted nowhere here: `tests/gameTick.layerOrder.test.ts`'s
- * `expect(TICKS_PER_DAY).toBe(72)` pin (`:131`), which is a *deliberate* pin of the constant, and
- * `tests/dayLength.owner.test.ts`'s matching pin (that one guards A8, the source-side definition).
+ * No test may spell a day boundary as a bare literal: each case asserts the literal spelling is gone
+ * and that the file still names the owner (`TICKS_PER_DAY` / `ticksForDays`).
  */
 
 import { describe, expect, it } from 'vitest';
@@ -26,15 +8,19 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 interface LiteralSite {
-  /** Test file that used a bare day length. */
+  /** Test file guarded against a bare day length. */
   file: string;
-  /** The pre-fix spelling — the exact expression this sweep removed. */
+  /** The banned literal spelling; the guarded file must not match it. */
   preFix: RegExp;
   /** Human-readable name of that spelling, for the failure message. */
   spelling: string;
 }
 
 const SITES: LiteralSite[] = [
+  { file: 'tests/displayYear.oneBased.test.ts', preFix: /90\s*\*\s*72/, spelling: '90 * 72 calendar day fixture' },
+  { file: 'tests/spotlightLore.test.ts', preFix: /72\s*\*\s*200/, spelling: '72 * 200 day-200 fixture' },
+  { file: 'tests/dayCycle.cadence.test.ts', preFix: /TICKS_PER_DAY=72|72 TPD/, spelling: '72-tick active clock description' },
+  { file: 'tests/visitorSpawn.gridSync.test.ts', preFix: /tick:\s*72,/, spelling: 'tick: 72 visitor spawn time' },
   { file: 'tests/autoStaff.notify.test.ts', preFix: /72 \* 5/, spelling: '72 * 5' },
   { file: 'tests/demolish.roundtrip.test.ts', preFix: /3 \* 72/, spelling: '3 * 72' },
   { file: 'tests/dayCycle.tavern.test.ts', preFix: /72 \* 10/, spelling: '72 * 10' },
@@ -88,7 +74,7 @@ describe('G3 — the test tier reads the day length from the clock owner', () =>
       expect(
         source,
         `${file} no longer names the clock owner at all — the literal was removed without using it`,
-      ).toMatch(/TICKS_PER_DAY|ticksForDays/);
+      ).toMatch(/TICKS_PER_DAY|ticksForDays|tickAtDailyPhase/);
     });
   }
 });

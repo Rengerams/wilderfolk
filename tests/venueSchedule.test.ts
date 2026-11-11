@@ -49,11 +49,8 @@ describe('independent venue schedules', () => {
   });
 
   it('has no length restriction — the owner chooses how long a venue stays open', () => {
-    // Owner, 2026-09-29: "i choose how long the tavern should be open",
-    // "if want them to work 12 hrs the system shouldnt stop", and
-    // "they should be no restrictrion for normal work or hotel or cafe".
-    // The old 18-hour cap refused the 19-hour (04:00-23:00) tavern from the owner's
-    // screenshot, and the old 4-hour floor refused a short evening. Both are gone.
+    // The owner chooses how long a venue stays open: there is no length cap or floor, only a
+    // non-wrapping window of whole hours.
     expect(validateVenueSchedule(4, 23)).toEqual({
       ok: true,
       status: 'accepted',
@@ -71,9 +68,8 @@ describe('independent venue schedules', () => {
   });
 
   it('round-trips a long window through getVenueSchedule rather than reverting to the default', () => {
-    // A regression guard for the silent-fallback path: `getVenueSchedule` returns the
-    // canonical default whenever the stored value fails validation, so a cap that
-    // rejected long windows also made a saved long window read back as 17:00-23:00.
+    // `getVenueSchedule` falls back to the canonical default whenever the stored value fails
+    // validation, so a validated long window must read back as stored.
     const stored = { tick: 0, tavernSchedule: { startHour: 4, endHour: 23 }, hotelSchedule: undefined };
     expect(getVenueSchedule(stored, 'tavern')).toEqual({ startHour: 4, endHour: 23 });
   });
@@ -110,9 +106,8 @@ describe('independent venue schedules', () => {
   });
 
   it('adds an extra settler only past the 9-hour window the owner set', () => {
-    // Owner: "if its goes over 8 hrrs a extra person should go work at the place",
-    // then "well 9 hrs also fin" — so 9 hours is still one settler and 10 is the
-    // first window that needs a second. A venue open all day is staffed, not refused.
+    // A 9-hour window still needs one settler; 10 hours is the first that adds a second. A venue
+    // open all day is staffed, not refused, and the building's own crew cap still wins.
     const withTavern = (startHour: number, endHour: number) => ({
       ...base,
       tavernSchedule: { startHour, endHour },

@@ -1,5 +1,5 @@
 /**
- * PERF1 completion: profile fields (skills, traits, career, childhood bonds) are read by the display
+ * PERF1 completion: profile fields (skills, genome, career, childhood bonds) are read by the display
  * but written rarely, so they ship on change with a bounded refresh — never every tick.
  */
 import { describe, expect, it } from 'vitest';
@@ -22,7 +22,6 @@ function fixture(): { world: WorldState; people: Entity[] } {
     createEntity(EntityType.Human, 1000 + i * 8, 1000, 100 + i, 300));
   for (const person of people) {
     person.alive = true;
-    person.traits = [];
   }
   world.entities = people;
   return { world, people };
@@ -41,13 +40,13 @@ describe('entity profile payload', () => {
     const first = extractSimTickDelta(world, world.entities.filter((e) => e.alive));
     stripUnchangedProfile(first, revisions(world), sent, 1);
     expect(first.aliveEntities.every((entity) => entity.skills !== undefined)).toBe(true);
-    expect(first.aliveEntities.every((entity) => entity.traits !== undefined)).toBe(true);
+    expect(first.aliveEntities.every((entity) => entity.genomeV2 !== undefined)).toBe(true);
     applySimTickDelta(replica, first);
 
     const second = extractSimTickDelta(world, world.entities.filter((e) => e.alive));
     stripUnchangedProfile(second, revisions(world), sent, 2);
     expect(second.aliveEntities.every((entity) => entity.skills === undefined)).toBe(true);
-    expect(second.aliveEntities.every((entity) => entity.traits === undefined)).toBe(true);
+    expect(second.aliveEntities.every((entity) => entity.genomeV2 === undefined)).toBe(true);
     applySimTickDelta(replica, second);
 
     writableEntitySkills(people[1])[JobType.Farmer] = 12;
@@ -59,7 +58,7 @@ describe('entity profile payload', () => {
     for (const person of people) {
       const mirror = replica.entities.find((entity) => entity.id === person.id);
       expect(mirror?.skills).toEqual(person.skills);
-      expect(mirror?.traits).toEqual(person.traits);
+      expect(mirror?.genomeV2).toEqual(person.genomeV2);
     }
 
     const refreshed = extractSimTickDelta(world, world.entities.filter((e) => e.alive));

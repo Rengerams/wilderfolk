@@ -13,9 +13,8 @@ import { VALLEY_CHAPTERS } from '../game/valleyChronicle';
 
 export const BIG_NEWS_DISPLAY_MS = 8_000;
 /**
- * Wall-clock lifetime of an ordinary notification toast. Big News already had a
- * timer; notifications had none, so they only ever left the screen when the player
- * clicked the ✕ and otherwise piled up.
+ * Wall-clock lifetime of an ordinary notification toast; without a timer, notifications left only
+ * when clicked and otherwise piled up.
  */
 export const NOTIFICATION_DISPLAY_MS = 12_000;
 const BIG_NEWS_DISMISS_AFTER_TICKS = 360;
@@ -23,31 +22,14 @@ const BIG_NEWS_REMOVE_AFTER_TICKS = 600;
 const BIG_NEWS_CLEANUP_INTERVAL_MS = 1_000;
 const NOTIFICATION_CLEANUP_INTERVAL_MS = 2_000;
 /**
- * Cap on the persisted dismissal ledger. Every notification the player ever sees lands here once
- * (an explicit ✕ or the 12 s auto-dismiss timer below both route through `dismissNotification`),
- * and the ledger is the filter that keeps a dismissed toast from reappearing on the next worker
- * delta (`simDelta.preserveNotificationDismissals`). It is also copied into every UI patch and
- * diffed per tick, so it must stay bounded — but it may only drop ids whose notification can no
- * longer arrive: the simulation's own `notifications` list holds at most 20 entries
- * (`simEffects.addNotification` shifts past 20), so a tail cap above 20 can never let one back in.
- * 50 is that window with margin; lowering it below the simulation's 20 would resurrect old toasts.
+ * Cap on the persisted dismissal ledger: it is copied into every UI patch and diffed per tick, so
+ * it must stay bounded — but a tail cap above the simulation's 20-toast window can never resurrect one.
  */
 const MAX_DISMISSED_NOTIFICATION_IDS = 50;
 
 /**
- * Cap on the persisted Big News / active-event dismissal ledgers.
- *
- * The two sibling ledgers had **no** cap while the notification one above did, so they grew for the life
- * of a colony: every dismissal paid an O(n) `Array.from(set)`, the whole array was re-scanned by
- * `simEffects.highestBigNewsSeq` on **every** `addBigNews`, copied into every UI patch (`extractUiPatch`)
- * and diffed per tick (`idsPatchChanged`), and written into every save — and `bigNews` itself is capped at
- * 50 (`simEffects.addBigNews` shifts past 50) while its dismissal ledger was not (2026-09-20 audit,
- * F-misc-1).
- *
- * A tail cap is safe here for the same reason it is safe above: the ledger's only job is to suppress a
- * card that is still *live*, and `dismissedBigNewsIds` additionally exists to stop `addBigNews` re-minting
- * a sequence. 50 matches the live `bigNews` window with margin, so an id can only be dropped long after
- * its card has left the list.
+ * Cap on the persisted Big News / active-event dismissal ledgers — the same tail cap as the
+ * notification ledger, above the 50-entry live window, so a dropped id is long gone.
  */
 const MAX_DISMISSED_BIG_NEWS_IDS = 50;
 const MAX_DISMISSED_ACTIVE_EVENT_IDS = 50;
@@ -111,25 +93,15 @@ export function hasExpiredNotifications(
 }
 
 /**
- * Removes notifications that have exceeded the wall-clock display lifetime, **recording their ids**.
- *
- * The ledger write is the whole point, not bookkeeping: this sweep mutates the *display* world, which is
- * rebuilt from the worker on the next tick, and `simDelta.preserveNotificationDismissals` drops only ids
- * the ledger knows. Without it the sweep and the 12 s per-toast timer fought each other — the sweep
- * removed an expired toast, the next delta restored it (its id was never recorded), the reconciliation
- * effect cancelled the restored toast's timer, a fresh 12 s timer was armed, and 2 s later the sweep
- * removed it again. The player saw the card blink out and back every two seconds and never leave on its
- * own, which is what `NOTIFICATION_DISPLAY_MS` was added to fix. Every
- * removal now routes through the same ledger the comment on `MAX_DISMISSED_NOTIFICATION_IDS` claims.
+ * Removes notifications past the wall-clock display lifetime, **recording their ids** so the next
+ * worker delta cannot restore a toast the player already saw leave.
  */
 export function expireNotifications(
   world: Pick<WorldState, 'notifications' | 'dismissedNotificationIds'>,
   now = Date.now(),
 ): void {
   if (!world.notifications || world.notifications.length === 0) return;
-  // One lifetime, one name: the sweeper cutoff and the per-toast timer both read
-  // `NOTIFICATION_DISPLAY_MS`. They were two 12_000 constants, so lowering the sweeper's copy
-  // below the timer's restored the blink loop.
+  // One lifetime, one name: the sweeper cutoff and the per-toast timer both read `NOTIFICATION_DISPLAY_MS`.
   const cutoff = now - NOTIFICATION_DISPLAY_MS;
   const expired = world.notifications.filter((notification) => notification.createdAt <= cutoff);
   if (expired.length === 0) return;
@@ -218,9 +190,6 @@ export function useTransientGameFeedback({
 
   /**
    * The card on screen is the pending chapter, so dismissal is the chapter's own ledger write.
-   *
-   * The second card slot this hook carried — a free-standing moment — had no producer and no reader
-   * beyond its own dismissal, so it is gone rather than left as a branch no state could reach.
    */
   const dismissChapterCard = useCallback(() => {
     if (pendingChapterCard) {
@@ -277,8 +246,8 @@ export function useTransientGameFeedback({
     dismissNotificationRef.current = dismissNotification;
   }, [dismissNotification]);
 
-  // Reconcile auto-dismissal timeouts when notifications change, so a toast the
-  // player never clicks still leaves the screen (it used to stay until dismissed).
+  // Reconcile auto-dismissal timeouts when notifications change, so every toast leaves the
+  // screen even if the player never clicks it.
   useEffect(() => {
     const liveIds = new Set((world.notifications ?? []).map((notification) => notification.id));
 

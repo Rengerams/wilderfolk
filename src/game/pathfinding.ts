@@ -1,20 +1,12 @@
 /**
- * Grid pathfinding over the terrain map — settlers/visitors stop walking in
- * straight lines through rivers and mountains.
- *
- * Design: the map's cached walkability grid owns walls, gates, roads and bridges.
- * Bounded A* routes around obstacles and chooses profitable road detours. Routes
- * are cached by walker; no route means stop rather than walk through a barrier.
- *
- * Occupancy and slope both come from Teraforge's four-layer model: the L0 path
- * grid decides what blocks a step, and the tile's projected elevation decides
- * what a step costs (`CLIFF_STEP` retires the old "water only" rule, which could
- * not express an unclimbable cliff).
+ * Grid pathfinding over the terrain map — bounded A* over the cached walkability grid, with
+ * routes cached per walker; no route means stop rather than walk through a barrier.
  */
 import type { Building, Entity, WorldMap } from './gameTypes';
 import { BuildingType, PATH_CELL } from './gameTypes';
 import {
   Walkability,
+  getTerrainRevision,
   isWalkableTerrainType,
   tileAt,
 } from './terrain/terrainGrid';
@@ -57,7 +49,7 @@ const WALKABLE_BUILDING_TYPES = new Set<Building['type']>([
 ]);
 
 /**
- * Completed structures are solid to walkers; a closed gate and a legacy wall block as before.
+ * Completed structures are solid to walkers; a closed gate and a legacy wall block.
  * An open gate, roads, bridges, the square and reinforced ground remain walkable.
  */
 function isWalkingObstacle(b: Building): boolean {
@@ -148,15 +140,14 @@ let gridCacheSeed = '';
 let gridCacheMap: WorldMap | null = null;
 
 /**
- * The passability grid's cache identity. The seed alone does not identify the tiles: two maps can
- * share a seed and size while a different preset produces different terrain, and buildings that
- * block or cheapen a step change the grid too — so the signature carries all of them.
+ * The passability grid's cache identity: seed alone does not identify the tiles, so preset,
+ * blocking/cheapening buildings, size and runtime terrain overrides are all part of it.
  */
 function pathGridCacheKey(map: WorldMap, buildings?: Building[]): string {
   const seed = typeof map.seed === 'number' ? map.seed : 1;
   const obstacles = buildingSignature(buildings, isWalkingObstacle);
   const roads = buildingSignature(buildings, isWalkableRoad);
-  return `${seed}|${map.preset}|${obstacles}|${roads}|${map.width}x${map.height}`;
+  return `${seed}|${map.preset}|${obstacles}|${roads}|${map.width}x${map.height}|t${getTerrainRevision()}`;
 }
 
 /**
@@ -169,10 +160,8 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
   const blocked = new Uint8Array(cols * rows);
   const elevation = new Float32Array(cols * rows);
 
-  // Teraforge's L0 path grid is the authoritative occupancy layer for a generated map:
-  // water from the tile classification plus any cell the L3 decor pass reserved. Maps
-  // without one (test fixtures, hand-built maps) fall back to the tile owner, so both
-  // representations answer "can a walker stand here?" through one rule.
+  // Teraforge's L0 path grid is the authoritative occupancy layer; maps without one fall back to
+  // the tile owner, so both answer "can a walker stand here?" through one rule.
   const hasPathGrid = !!map.pathGrid && map.pCols === cols && map.pRows === rows;
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
@@ -231,17 +220,8 @@ export function getPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
 }
 
 /**
- * A **second**, independent cache of the same grid for consumers that must not disturb the
- * simulation — today the logistics overlay's blocked-path classification.
- *
- * Why this exists rather than reusing {@link getPathGrid}: `setCurrentPathMap` treats a change of
- * the shared grid's *identity* as a new map and calls `pathCache.clear()`. The logistics overlay is
- * recomputed on every render snapshot, and it passes its own `buildings` array, so a projection
- * calling `getPathGrid` would flip the identity back and forth and clear the simulation's waypoint
- * cache from the render path — a simulation side-effect produced by a read-only projection, which
- * the architecture forbids ("the renderer decides nothing"). This accessor therefore touches
- * neither `gridCache` nor `gridCacheSeed`, and additionally skips {@link recordGridRebuild} so the
- * pathfinder metric keeps counting *simulation* grid builds only.
+ * A second, independent grid cache for read-only consumers (the logistics overlay) that must not
+ * clear the simulation's waypoint cache or its grid-build metric.
  */
 let readOnlyGridCache: PathGrid | null = null;
 let readOnlyGridCacheSeed = '';
@@ -259,10 +239,8 @@ export function getReadOnlyPathGrid(map: WorldMap, buildings?: Building[]): Path
 }
 
 /**
- * Find the closest world-space stand point for an entity restored onto blocked ground.
- *
- * The same grid used by movement is authoritative here: water, reserved decor and completed walls
- * are all rejected, while a bridge or road can make its covered cells valid again.
+ * Find the closest world-space stand point for an entity restored onto blocked ground — the
+ * movement grid is authoritative, with bridges and roads making their cells valid again.
  */
 export function nearestWalkableWorldPoint(
   map: WorldMap,
@@ -277,21 +255,33 @@ export function nearestWalkableWorldPoint(
   if (grid.blocked[startIndex] === 0) return { x, y };
   const maxRadius = Math.max(grid.cols, grid.rows);
   for (let radius = 1; radius <= maxRadius; radius++) {
-    let best: { x: number; y: number; distance: number } | null = null;
     const minX = Math.max(0, startX - radius);
     const maxX = Math.min(grid.cols - 1, startX + radius);
     const minY = Math.max(0, startY - radius);
     const maxY = Math.min(grid.rows - 1, startY + radius);
+    // Only the ring's perimeter holds radius cells; squared distances rank candidates as `Math.hypot` did.
+    let found = false;
+    let bestX = 0;
+    let bestY = 0;
+    let bestDistanceSq = 0;
     for (let ty = minY; ty <= maxY; ty++) {
+      const onEdgeRow = ty === minY || ty === maxY;
       for (let tx = minX; tx <= maxX; tx++) {
-        if (Math.max(Math.abs(tx - startX), Math.abs(ty - startY)) !== radius) continue;
+        if (!onEdgeRow && tx !== minX && tx !== maxX) continue;
         if (grid.blocked[ty * grid.cols + tx] !== 0) continue;
-        const point = { x: tx * PATH_CELL + PATH_CELL / 2, y: ty * PATH_CELL + PATH_CELL / 2 };
-        const distance = Math.hypot(point.x - x, point.y - y);
-        if (!best || distance < best.distance) best = { ...point, distance };
+        const pointX = tx * PATH_CELL + PATH_CELL / 2;
+        const pointY = ty * PATH_CELL + PATH_CELL / 2;
+        const dx = pointX - x;
+        const dy = pointY - y;
+        const distanceSq = dx * dx + dy * dy;
+        if (found && distanceSq >= bestDistanceSq) continue;
+        found = true;
+        bestX = pointX;
+        bestY = pointY;
+        bestDistanceSq = distanceSq;
       }
     }
-    if (best) return { x: best.x, y: best.y };
+    if (found) return { x: bestX, y: bestY };
   }
   return null;
 }
@@ -506,7 +496,6 @@ function hasLineOfSight(grid: PathGrid, x0: number, y0: number, x1: number, y1: 
   return true;
 }
 
-/** The A* core: the cheapest route's tile path (start..goal inclusive) and its cost, or null. */
 /** A route search's verdict; `hitNodeCap` separates a spent node budget from a finished no-route search. */
 interface RouteSearchResult {
   path: { x: number; y: number }[] | null;
@@ -514,6 +503,7 @@ interface RouteSearchResult {
   hitNodeCap: boolean;
 }
 
+/** The A* core: the cheapest route's tile path (start..goal inclusive) and its cost, or null. */
 function searchRoute(
   grid: PathGrid,
   sx: number,
@@ -692,7 +682,6 @@ export function findPath(
   return walkRoute(grid, sx, sy, tx, ty, maxNodes).path;
 }
 
-
 export type NavigationQuote =
   | { readonly status: 'priced'; readonly costTiles: number;
       readonly tiles: readonly Readonly<{ x: number; y: number }>[] }
@@ -833,7 +822,11 @@ function collapseStraightWaypoints(points: { x: number; y: number }[]): { x: num
   return result;
 }
 
-/** True when the straight line from (x0,y0) to (x1,y1) crosses a blocked tile. */
+/**
+ * True when a direct walk crosses a blocked tile, including a diagonal corner.
+ * Exact grid traversal avoids skipping narrow buildings on long walks. Previously a 128-sample
+ * ceiling missed thin walls and reported a blocked distant destination as a clear straight line.
+ */
 export function lineCrossesBlocked(
   grid: PathGrid,
   x0: number,
@@ -842,31 +835,59 @@ export function lineCrossesBlocked(
   y1: number,
 ): boolean {
   recordLineCheck();
-  const span = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
-  // Sub-tile sampling steps prevent tunneling through 1-tile diagonal obstacles
-  const steps = Math.max(4, Math.min(128, Math.ceil(span / (PATH_CELL * 0.5))));
-  const startTx = Math.floor(x0 / PATH_CELL);
-  const startTy = Math.floor(y0 / PATH_CELL);
-  let prevElev: number | null = grid.elevation && startTx >= 0 && startTy >= 0
-    && startTx < grid.cols && startTy < grid.rows
-    ? grid.elevation[startTy * grid.cols + startTx] : null;
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-    const px = x0 + (x1 - x0) * t;
-    const py = y0 + (y1 - y0) * t;
-    const tx = Math.floor(px / PATH_CELL);
-    const ty = Math.floor(py / PATH_CELL);
-    if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) continue;
-    const idx = ty * grid.cols + tx;
-    if (grid.blocked[idx]) return true;
-    // A cliff step along the line also forces a detour, matching the A* cliff rule.
-    if (grid.elevation) {
-      const e = grid.elevation[idx];
-      if (prevElev !== null && Math.abs(e - prevElev) > CLIFF_STEP) return true;
-      prevElev = e;
+  if (![x0, y0, x1, y1].every(Number.isFinite)) return true;
+
+  const { cols, rows, blocked, elevation } = grid;
+  let tx = Math.floor(x0 / PATH_CELL);
+  let ty = Math.floor(y0 / PATH_CELL);
+  const goalX = Math.floor(x1 / PATH_CELL);
+  const goalY = Math.floor(y1 / PATH_CELL);
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const stepX = Math.sign(dx);
+  const stepY = Math.sign(dy);
+  const deltaX = dx === 0 ? Infinity : PATH_CELL / Math.abs(dx);
+  const deltaY = dy === 0 ? Infinity : PATH_CELL / Math.abs(dy);
+  let nextX = stepX > 0 ? ((tx + 1) * PATH_CELL - x0) / dx
+    : stepX < 0 ? (tx * PATH_CELL - x0) / dx : Infinity;
+  let nextY = stepY > 0 ? ((ty + 1) * PATH_CELL - y0) / dy
+    : stepY < 0 ? (ty * PATH_CELL - y0) / dy : Infinity;
+  let lastElevation: number | null = null;
+
+  const isBlocked = (cellX: number, cellY: number, fromElevation: number | null): boolean => {
+    if (cellX < 0 || cellY < 0 || cellX >= cols || cellY >= rows) return false;
+    const index = cellY * cols + cellX;
+    if (blocked[index]) return true;
+    return !!elevation && fromElevation !== null
+      && Math.abs(elevation[index] - fromElevation) > CLIFF_STEP;
+  };
+
+  // Each transition moves across a tile boundary, even when the line is thousands of pixels long.
+  const maxTransitions = Math.abs(goalX - tx) + Math.abs(goalY - ty);
+  for (let crossed = 0; crossed <= maxTransitions; crossed++) {
+    if (isBlocked(tx, ty, lastElevation)) return true;
+    if (elevation && tx >= 0 && ty >= 0 && tx < cols && ty < rows) {
+      lastElevation = elevation[ty * cols + tx];
+    }
+    if (tx === goalX && ty === goalY) return false;
+
+    if (nextX < nextY) {
+      tx += stepX;
+      nextX += deltaX;
+    } else if (nextY < nextX) {
+      ty += stepY;
+      nextY += deltaY;
+    } else {
+      // Neither of the two orthogonal cells may be solid at a diagonal grid corner.
+      if (isBlocked(tx + stepX, ty, lastElevation)
+        || isBlocked(tx, ty + stepY, lastElevation)) return true;
+      tx += stepX;
+      ty += stepY;
+      nextX += deltaX;
+      nextY += deltaY;
     }
   }
-  return false;
+  return true;
 }
 
 /** Module-level "current map" for pathing — set once per tick by the sim. */
@@ -877,11 +898,8 @@ let currentGrid: PathGrid | null = null;
 const PATH_CACHE_OFF_ROUTE_TOLERANCE = PATH_CELL * 2;
 
 /**
- * How close a walker must come to a waypoint before the route advances to the next one.
- *
- * Half a tile, so a corner is **reached** and not passed at a tile's distance. The old 14 px radius
- * let a walker cut a one-tile gap diagonally: the step into the water was refused, and it then
- * crawled along the bank toward the next waypoint on the far side.
+ * How close a walker must come to a waypoint before the route advances — half a tile, so a
+ * corner is **reached** and not passed at a tile's distance.
  */
 const PATH_WAYPOINT_REACHED_PX = PATH_CELL * 0.5;
 
@@ -898,6 +916,8 @@ function distanceToSegment(px: number, py: number, ax: number, ay: number, bx: n
 const PATH_CACHE_LIMIT = 4096;
 
 interface CachedPath {
+  /** The mover that owns this entry, regardless of the activity-specific cache key. */
+  walkerId: number;
   targetX: number;
   targetY: number;
   startTileX: number;
@@ -911,11 +931,10 @@ interface CachedPath {
 
 const pathCache = new Map<string, CachedPath>();
 
-/** Discard a walker's stale commute routes after its movement step repeatedly fails. */
+/** Discard every route for a stuck walker, including leisure and social destinations. */
 export function invalidateCommutePathsForWalker(entityId: number): void {
-  const prefix = `c_${entityId}_`;
-  for (const key of pathCache.keys()) {
-    if (key.startsWith(prefix)) pathCache.delete(key);
+  for (const [key, route] of pathCache) {
+    if (route.walkerId === entityId) pathCache.delete(key);
   }
 }
 
@@ -943,14 +962,8 @@ export type RouteObstruction =
   | 'blocked';
 
 /**
- * Read-only twin of {@link steerWithPath}: reports what the path owner would do for this leg without
- * writing velocity, position, or the steering cache. The inspector renders this so a blocked commute
- * is legible instead of looking like a settler walking into a river.
- *
- * Uses the map's cached grid (`getPathGrid`) rather than the per-tick `currentGrid`, because the
- * projection is also evaluated outside the sim tick — on the render side of a worker-mode session,
- * where `currentGrid` has never been set. A missing map reports `clear`: no obstacle is known, which
- * is different from "the way is known to be open" but is the honest answer when there is no grid.
+ * Read-only twin of {@link steerWithPath}: reports what the path owner would do for this leg
+ * without writing velocity, position or the steering cache.
  */
 export function getRouteObstruction(
   map: WorldMap | null,
@@ -973,15 +986,8 @@ export function getRouteObstruction(
 }
 
 /**
- * Steer an entity toward a target, routing around obstacles when the direct line
- * is blocked. Returns how the caller should proceed:
- * - 'arrived': entity is close enough, stopped.
- * - 'path': velocity is set along the route and **the caller applies this tick's step** (the
- *   commute leaves it to the human loop, the hotel walk moves the visitor itself). The stepper
- *   never writes a position: doing that *and* letting the caller move advanced entities twice per
- *   tick, which is the 2026-09-13 movement regression.
- * - 'direct': the direct leg is traversable — caller does its usual straight move.
- * - 'blocked': no safe route exists; caller must not advance.
+ * Steer an entity toward a target, routing around obstacles when the direct line is blocked.
+ * Returns how the caller should proceed; the stepper never writes a position.
  */
 export function steerWithPath(
   entity: Entity,
@@ -1055,6 +1061,7 @@ export function steerWithPath(
         waypoints = [{ x: entity.x, y: entity.y }, ...waypoints];
       }
       cached = {
+        walkerId: entity.id,
         waypoints, nextIndex: waypoints && waypoints.length > 1 ? 1 : 0,
         targetX, targetY, startTileX: startTx, startTileY: startTy,
         directDetourRejected: !directBlocked && !savesTime,
@@ -1096,15 +1103,8 @@ export function steerWithPath(
 }
 
 /**
- * Whether a walker may move between two world points, by the grid's own rule.
- *
- * The integration asks this every tick. `steerWithPath` only routes the leg a caller hands it, so
- * movement no steerer saw — idle drift, a leisure walk, or the last stretch of a leg whose line is
- * blocked — entered water and walls freely.
- *
- * The cell the walker already stands in is not an obstacle to leaving it. A settler can end up on a
- * blocked tile (shoved by a neighbour, snapped to a doorstep, or restored from an older save that
- * waded), and testing the whole step instead of the ground ahead would freeze it there for good.
+ * Whether a walker may move between two world points, by the grid's own rule; a walker already on
+ * a blocked cell may still leave it.
  */
 export function isWalkStepAllowed(fromX: number, fromY: number, toX: number, toY: number): boolean {
   const grid = currentGrid;
@@ -1140,12 +1140,7 @@ export function isWalkStepAllowed(fromX: number, fromY: number, toX: number, toY
 
 /**
  * Whether a walker may **stand** on the ground at a world point — the grid's verdict with no step
- * exemption.
- *
- * A destination has to be a cell a walker can occupy, not merely one it can reach from where it
- * already is. This is what lets a stand point (a workplace row, a home arc, a hotel doorstep) move
- * off water, a reserved decor cell or a completed wall's footprint instead of leaving a settler
- * hovering at its edge. Out-of-bounds reads as open, the tolerance the step rule takes.
+ * exemption, so a stand point can move off water, reserved decor or a wall footprint.
  */
 export function isGroundWalkableAt(x: number, y: number): boolean {
   const grid = currentGrid;

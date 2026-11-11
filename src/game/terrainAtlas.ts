@@ -1,16 +1,7 @@
 
 /**
- * Painted terrain atlas — "grass biome" 16×16 tileset (2.5D Painted Relief).
- *
- * Source art: TilesetGrass/overworld_tileset_grass.ase (Aseprite) +
- * grass_biome.tsx (Tiled). Runtime copy: /sprites/tileset_grass.png.
- * The tileset encodes Tiled corner terrains (TL,TR,BL,BR): 0=grass, 1=water,
- * 2=forest, 3=swampgrass, 4=swamp — we consume the grass↔water corner set
- * (16 combos) and complete the 6 missing pieces with mirror flips of the
- * authored tiles (the art is symmetric pixel work, flips are invisible).
- *
- * Also carries the elevation→raise curve used by the relief bake and by the
- * renderer so entities/buildings/props ride the terrain.
+ * Painted terrain atlas — "grass biome" 16×16 tileset from TilesetGrass/overworld_tileset_grass.ase
+ * (Aseprite) + grass_biome.tsx (Tiled); runtime copy /sprites/tileset_grass.png.
  */
 import { TerrainType, PATH_CELL, type TerrainTile, type WorldMap } from './gameTypes';
 import { DEFAULT_SEA_LEVEL, TERRAIN_CELL, sampleElev, tileAt, worldToTile } from './terrain/terrainGrid';
@@ -59,10 +50,8 @@ const GRASS: AtlasFamily = 0;
 const WATER: AtlasFamily = 1;
 
 /**
- * Map a game terrain type to an atlas family, or null when the atlas has no
- * art. Forest/DarkForest count as grass — their cells render painted grass
- * (the forest look comes from the dark tint + tree entities on top), so
- * grass↔forest and forest↔water boundaries stay painted too.
+ * Map a game terrain type to an atlas family, or null when the atlas has no art. Forest/DarkForest
+ * count as grass — their cells render painted grass with the forest look from tint and tree entities.
  */
 export function atlasFamily(type: TerrainType): AtlasFamily | null {
   switch (type) {
@@ -70,9 +59,8 @@ export function atlasFamily(type: TerrainType): AtlasFamily | null {
     case TerrainType.Forest:
     case TerrainType.DarkForest:
     case TerrainType.RiverBank:
-    // Desert has no authored atlas art either, and it is dry *land*: counting it as grass keeps an
-    // arid cell's neighbours paintable. Returning null here would have made `pickAtlasTile` refuse
-    // every tile touching a desert — the whole shoreline of an Arabian map would stop being painted.
+    // Desert has no authored atlas art either, and it is dry land: counting it as grass keeps an arid
+    // cell's neighbours paintable — null here would stop every tile touching a desert from painting.
     case TerrainType.Desert:
       return GRASS;
     case TerrainType.ShallowWater:
@@ -104,9 +92,8 @@ interface AtlasTileRef {
 }
 
 /**
- * Corner combos → authored tile. Bits: 8=TL, 4=TR, 2=BL, 1=BR (1 = water).
- * Derived from grass_biome.tsx terrain tags. The two diagonal checkerboards
- * (0110, 1001) have no authored tile — substitute the nearest straight edge.
+ * Corner combos → authored tile. Bits: 8=TL, 4=TR, 2=BL, 1=BR (1 = water). The two diagonal
+ * checkerboards (0110, 1001) have no authored tile, so each takes the nearest straight edge.
  */
 const ATLAS_TILES: Partial<Record<number, AtlasTileRef>> = {
   [0b0001]: { id: 72, flipV: true }, // single water corner, BR
@@ -139,10 +126,8 @@ function isOpaqueFamily(f: AtlasFamily | null): f is AtlasFamily {
 }
 
 /**
- * Corner family at (dx,dy) ∈ {−1,0}² from the tile centre — the union rule:
- * a corner is water when ANY of the four tiles touching that point is water.
- * Out-of-map neighbours count as grass (island rims read as coastline).
- * Returns null when a touching tile is out-of-family (e.g. mountains).
+ * Corner family at (dx,dy) ∈ {−1,0}² from the tile centre: a corner is water when ANY touching tile
+ * is water, out-of-map counts as grass, and an out-of-family tile returns null.
  */
 function cornerFamily(map: WorldMap, tx: number, ty: number, dx: number, dy: number): AtlasFamily | null {
   let water = false;
@@ -159,11 +144,8 @@ function cornerFamily(map: WorldMap, tx: number, ty: number, dx: number, dy: num
 }
 
 /**
- * Pick the painted tile for a cell, or null when the atlas can't paint it.
- *
- * `selfTile` lets a caller that already holds the projected tile skip the
- * per-tile field sampling — the terrain bake reads each tile once and then asks
- * the atlas four neighbour questions about it.
+ * Pick the painted tile for a cell, or null when the atlas can't paint it. `selfTile` lets a caller
+ * that already holds the projected tile skip the per-tile sampling.
  */
 export function pickAtlasTile(map: WorldMap, tx: number, ty: number, selfTile?: TerrainTile): AtlasPick | null {
   const self = selfTile ?? tileAt(map, tx, ty);
@@ -256,13 +238,8 @@ export function elevationAt(map: WorldMap | null, x: number, y: number): number 
 }
 
 /**
- * Fixed 32-world-pixel height-mesh lattice. The existing 16px altitude field supplies its vertices,
- * and the same two triangles interpolate the height of **every** object/selection point. This keeps
- * feet on the textured terrain, with no second, drifting definition of "ground level".
- *
- * A 28px maximum rise across a 32px mesh edge also makes the y projection monotone: the
- * interactive screen-to-world inverse can converge instead of facing folded-over mountain faces.
- * These values are rendering-only, not world generation settings or simulation physics.
+ * Fixed 32-world-pixel height-mesh lattice, its vertices from the 16px altitude field: one definition
+ * of "ground level", and a 28px maximum rise keeps the y projection monotone for screen-to-world.
  */
 export const TERRAIN_HEIGHT_MESH_STEP = 32;
 export const TERRAIN_HEIGHT_MESH_MAX_RISE = 28;
@@ -282,20 +259,51 @@ function meshVertexRise(map: WorldMap, x: number, y: number): number {
   return uplift * TERRAIN_HEIGHT_MESH_MAX_RISE;
 }
 
+/** Lattice vertices per map: the elevation field is generated once and never patched afterwards. */
+const MESH_VERTEX_CACHE_LIMIT = 4096;
+const MESH_VERTEX_KEY_OFFSET = 32768;
+let meshVertexCacheMap: WorldMap | null = null;
+let meshVertexCache = new Map<number, number>();
+
+function meshVertexKey(cellX: number, cellY: number): number {
+  return (cellX + MESH_VERTEX_KEY_OFFSET) * 65536 + (cellY + MESH_VERTEX_KEY_OFFSET);
+}
+
+/** Movers share lattice vertices every frame, and a bake sweeps them — sample each vertex once. */
+function cachedMeshVertexRise(map: WorldMap, cellX: number, cellY: number): number {
+  if (meshVertexCacheMap !== map) {
+    meshVertexCacheMap = map;
+    meshVertexCache = new Map();
+  }
+  const key = meshVertexKey(cellX, cellY);
+  const cached = meshVertexCache.get(key);
+  if (cached !== undefined) return cached;
+  const rise = meshVertexRise(map, cellX * TERRAIN_HEIGHT_MESH_STEP, cellY * TERRAIN_HEIGHT_MESH_STEP);
+  if (meshVertexCache.size >= MESH_VERTEX_CACHE_LIMIT) meshVertexCache.clear();
+  meshVertexCache.set(key, rise);
+  return rise;
+}
+
+/** Drop sampled vertices when a session or save swaps the world. */
+export function resetTerrainRiseCache(): void {
+  meshVertexCacheMap = null;
+  meshVertexCache = new Map();
+}
+
 /** Shared triangulated mesh height — continuous across chunk edges and independent of zoom. */
 export function terrainRiseAt(map: WorldMap | null, x: number, y: number): number {
   if (!map) return 0;
   if (supportsTerrainHeightMesh(map)) {
     const s = TERRAIN_HEIGHT_MESH_STEP;
-    const x0 = Math.floor(x / s) * s, y0 = Math.floor(y / s) * s;
-    const fx = (x - x0) / s, fy = (y - y0) / s;
-    const z00 = meshVertexRise(map, x0, y0);
-    const z10 = meshVertexRise(map, x0 + s, y0);
-    const z01 = meshVertexRise(map, x0, y0 + s);
+    const cellX = Math.floor(x / s), cellY = Math.floor(y / s);
+    const fx = x / s - cellX, fy = y / s - cellY;
+    const z00 = cachedMeshVertexRise(map, cellX, cellY);
+    const z10 = cachedMeshVertexRise(map, cellX + 1, cellY);
+    const z01 = cachedMeshVertexRise(map, cellX, cellY + 1);
     if (fx + fy <= 1) {
       return z00 * (1 - fx - fy) + z10 * fx + z01 * fy;
     }
-    const z11 = meshVertexRise(map, x0 + s, y0 + s);
+    const z11 = cachedMeshVertexRise(map, cellX + 1, cellY + 1);
     return z11 * (fx + fy - 1) + z10 * (1 - fy) + z01 * (1 - fx);
   }
   // Keep the original small relief curve on legacy worlds, whose historical surface is flat.

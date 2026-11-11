@@ -1,7 +1,5 @@
 /**
- * S5 — The Rumour Ledger (roadmap v0.6.3).
- * Full chain per docs/archive/story/STORY_RUMOUR_LEDGER.md:
- * recent event → one rumour → response → delayed social resolution.
+ * The Rumour Ledger: recent event → one rumour → response → delayed social resolution.
  */
 import type { WorldState, StoryEvent } from './gameTypes';
 import { BuildingType } from './gameTypes';
@@ -78,10 +76,8 @@ export function rumourLedgerEligibleDay(mapSeed: number | undefined): number {
 }
 
 /**
- * Scans the event log for the most recent matching event category.
- *
- * `state.eventLog` is newest-first (`logEvent` unshifts), so the newest entries are at the
- * start of the array: the scan walks index 0 forward and stops at the first match.
+ * The most recent matching event category, or null. `eventLog` is newest-first (`logEvent` unshifts),
+ * so the scan walks index 0 forward and stops at the first match.
  */
 function recentSourceEvent(state: WorldState): { kind: SourceKind; eventId: number } | null {
   const log = state.eventLog;

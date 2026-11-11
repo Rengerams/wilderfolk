@@ -1,9 +1,6 @@
 /**
- * A leadership vacancy is not terminal: once the campaign falls due the colony elects a
- * successor, so a run cannot end permanently headless while an eligible settler exists.
- *
- * Drives the real daily/realtime owners in the order the layers call them, fast-forwarding
- * the calendar instead of ticking a full vacancy campaign of simulation.
+ * A leadership vacancy is not terminal: once the campaign falls due the colony elects a successor,
+ * so a run cannot end permanently headless while an eligible settler exists.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

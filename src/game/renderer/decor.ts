@@ -9,19 +9,11 @@ import { RETIRED_V4_DECOR_TYPES } from '../terrain/biomes';
 import { getSpriteFrame } from '../spriteLoader';
 
 /**
- * Per-prop brightness variation, applied to the prop's own colours.
- *
- * Teraforge varies every prop's brightness so a dense field of one shape does not read as a stamped
- * pattern. That used to be done with a canvas filter (`ctx.filter = 'brightness(…)'`) set **per prop**,
- * which is a frame killer: the browser renders a filtered 2D draw as its own software-composited pass,
- * and this pass runs every frame over every prop in view. Measured on the built game, camera still, a
- * Medium map in a 1600×900 window: `decorations` holds 6 220 props, **4 283** of them in view, and
- * `terragen.placeDecorations` gives every one a non-zero tint — frames measured **p50 6 288 ms** as
- * shipped against **p50 109 ms** with the filter writes dropped in the same session. Shading the colour
- * itself costs one memoised lookup and keeps the vector art crisp at every zoom.
+ * Per-prop brightness variation, applied to the prop's own colours — cheaper than a per-prop
+ * canvas filter, which forced a software-composited pass over every prop in view every frame.
  */
 const TINT_LEVELS = 9;
-/** Peak brightness swing at |tint| = 1 — the `1 ± 0.18` the retired filter applied. */
+/** Peak brightness swing at |tint| = 1. */
 const TINT_STRENGTH = 0.18;
 const TINT_STEP = TINT_STRENGTH / TINT_LEVELS;
 
@@ -53,9 +45,8 @@ function parseColor(color: string): { r: number; g: number; b: number; a: string
 }
 
 /**
- * `color` at one tint level. Memoised per (level, colour): the palette is a few dozen literals and
- * `TINT_LEVELS * 2 + 1` levels, so the table settles after the first frame and every later lookup is a
- * map hit — no per-prop allocation, no compositor pass.
+ * `color` at one tint level, memoised per (level, colour): the palette is small, so the table
+ * settles after the first frame.
  */
 const tintedCache = new Map<string, string>();
 
@@ -75,12 +66,8 @@ function tinted(color: string, level: number): string {
 }
 
 /**
- * Authored scenery for version-4 worlds. The atlas sprites are cropped from
- * transparent CC0 PNGs; the other frames are the game's existing painted PNGs.
- * No Canvas strokes or procedural polygon "sprites" are rendered in V4.
- *
- * The variants share a few textures on purpose until higher-quality species-
- * specific sheets can replace them; a rock never borrows a tree sprite.
+ * Authored scenery for version-4 worlds: atlas sprites cropped from CC0 PNGs and painted PNGs,
+ * with no Canvas strokes or procedural polygon sprites.
  */
 interface DecorArtwork {
   sprite: string;
@@ -107,9 +94,8 @@ function drawPropArtwork(ctx: CanvasRenderingContext2D, d: TerrainDecoration): v
   const frame = getSpriteFrame(art.sprite);
   if (!frame) return; // loaded by preloadAllSprites before the terrain cache is created
   const source = art.crop ?? [frame.sx, frame.sy, frame.sw, frame.sh];
-  // Isometric white stone cubes previously overwhelmed mountains in the first
-  // real-browser screenshots. Keep their gameplay position/occupancy unchanged;
-  // adjust the *rendered* material size and value only in new worlds.
+  // Isometric white stone cubes overwhelmed mountains: adjust only the rendered material size
+  // and value, never gameplay position or occupancy.
   const isRock = d.type === 'rock_small' || d.type === 'rock_big';
   const scale = d.scale * (isRock ? 0.72 : 1);
   const w = art.width * scale, h = art.height * scale;
@@ -276,12 +262,8 @@ function drawProp(ctx: CanvasRenderingContext2D, d: TerrainDecoration, s: number
 const DECOR_INDEX_CELL = 256;
 
 /**
- * The props, bucketed by the ground-chunk cell they stand in, **built once per map**.
- *
- * The bake is per viewport chunk now (see {@link bakeDecorInRect}), and walking all 6,220 props on a
- * Medium map — 36,110 on Huge, and hundreds of thousands at the spec sizes — for every one of the
- * ~50 chunks a viewport holds would put the per-frame prop cost straight back. A `WeakMap` keyed on the
- * map means a new game or a loaded save drops its index with the world it belongs to.
+ * The props, bucketed by the ground-chunk cell they stand in — built once per map, so a new game
+ * or loaded save drops the index with the world it belongs to.
  */
 const decorIndexCache = new WeakMap<WorldMap, Map<string, TerrainDecoration[]>>();
 
@@ -300,18 +282,8 @@ function decorIndexFor(map: WorldMap): Map<string, TerrainDecoration[]> {
 }
 
 /**
- * Bake one chunk's decor — the river courses then the L3 props standing in `rect` — into `ctx`.
- *
- * `rect` is the chunk's world rect **already widened by the overhang margin**, and `ctx` maps that rect
- * at `scale` canvas px per world px, so a prop translated to `(d.x - rect.x) * scale` lands exactly
- * where the world puts it. The margin is the point: a prop's art reaches ~24 world px from its origin,
- * and drawing it into a canvas that stopped at the chunk edge would slice it along a visible grid.
- *
- * The props are static for the life of a world — `terragen.placeDecorations` writes them at generation
- * and nothing mutates them since — so this runs once per chunk, not once per frame. Drawing them per
- * frame was the largest single cost in the frame: a CPU profile of one built session (drag pan, dev
- * build) put `drawProp`, `tinted` and the transforms plus most of the `stroke`/`fill`/`arc`/`ellipse`
- * time at **~35 % of main-thread work**. Returns how many props were baked.
+ * Bake one chunk's props standing in `rect` into `ctx`, with `rect` widened by the overhang
+ * margin so art near a chunk edge is not sliced. Returns the count.
  */
 export function bakeDecorInRect(
   ctx: CanvasRenderingContext2D,
@@ -346,10 +318,8 @@ export function bakeDecorInRect(
         // snapshot: don't draw a deprecated shape even if such data survives.
         if ((map.generationVersion ?? 0) >= 4 && RETIRED_V4_DECOR_TYPES.has(d.type)) continue;
         ctx.save();
-        // Same shape as the live draw this replaces — translate to the prop, scale the canvas, draw
-        // around the origin — so a scale of 1 bakes the art the frame used to draw directly.
-        // Decorative props are vertical sprites, not flattened terrain decals: raise their
-        // roots rather than distorting their shapes with the ground mesh.
+        // Translate to the prop, scale the canvas and draw around the origin; raise roots rather
+        // than flattening the vertical sprites.
         const rise = supportsTerrainHeightMesh(map) ? terrainRiseAt(map, d.x, d.y) : 0;
         ctx.translate((d.x - rect.x) * scale, (d.y - rect.y - rise) * scale);
         ctx.scale(scale, scale);

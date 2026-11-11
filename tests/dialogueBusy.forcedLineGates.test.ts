@@ -1,18 +1,6 @@
 /**
- * Forced-line busy gates — regression for the F-chat-2 class outside `humanChat.ts`.
- *
- * F-chat-2 was: a guard tests the raw `chatTicks` **visible-line counter** where the pinned contract is
- * `isDialogueBusy` (line **or** live paired session). `showDialogueStep` clears the idle half's counter
- * while keeping its session key, so the idle half of a live pair reads as *free* to a raw-counter test.
- * A forced line then takes that settler over, abandoning the pair.
- *
- * `humanChat.ts` was converted first; the same shape survived in the modules that speak forced lines at
- * hoteliers, patients, doctors, leaders, officials and petitioners. This pins the one of those that is
- * directly callable with a hand-built state.
- *
- * Red-before: with the pre-fix `if ((hotelier.chatTicks ?? 0) > 0) return;` the busy case below speaks,
- * because the idle half's counter is 0. The free case is the control — it must speak either way, so a
- * gate that simply never speaks cannot pass this file.
+ * Forced-line busy gates must use `isDialogueBusy` (visible line or live paired session),
+ * never the raw `chatTicks` visible-line counter.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
@@ -53,7 +41,7 @@ function hotelWorld(): { state: WorldState; hotelier: WorldState['entities'][num
   return { state, hotelier: hotelier! };
 }
 
-/** Search a full 24-hour day at the authoritative 12 ticks/hour, not the retired 72-tick day. */
+/** Search a full 24-hour day at the authoritative 12 ticks/hour (`TICKS_PER_DAY`). */
 function firstSpeakingTick(state: WorldState, hotelier: WorldState['entities'][number]): number | null {
   const hotel = state.buildings.find((b) => b.id === HOTEL_ID)!;
   for (let tick = 0; tick < TICKS_PER_DAY; tick++) {
@@ -89,7 +77,7 @@ describe('forced-line gates use the owner predicate, not the visible-line counte
 
     hotelierGreetGuests(state, hotelier, state.buildings.find((b) => b.id === HOTEL_ID)!);
 
-    // Pre-fix this spoke, because `chatTicks === 0` read as free.
+    // A zero `chatTicks` is not free while the paired session is live.
     expect(hotelier.chatPhrase, 'the paired hotelier must not be interrupted').toBeUndefined();
   });
 

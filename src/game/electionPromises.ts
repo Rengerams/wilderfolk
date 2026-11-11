@@ -1,11 +1,6 @@
 /**
- * E1 — Election promises (roadmap v0.6.3).
- * Campaign promises are recorded at the election ceremony; after the evaluation
- * window the village either rewards kept promises or punishes broken ones.
- *
- * Each election deterministically selects TWO promises from three options
- * using the world seed + election year. Thresholds are deliberately a bit
- * higher so promises feel like real commitments.
+ * Campaign promises recorded at the election ceremony; after the evaluation window the village
+ * rewards kept promises or punishes broken ones. Each election picks the two addressing the worst needs.
  */
 import type { WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
@@ -28,7 +23,7 @@ export type PromiseCode = (typeof PROMISE_CODES)[keyof typeof PROMISE_CODES];
 
 export const EVAL_DAY_OFFSET = 180;
 
-// Higher thresholds (2026-08-25 dev request): promises should feel meaningful.
+// Higher thresholds so promises feel like real commitments.
 export const GRANARY_FOOD_REQUIREMENT = 400;
 export const WALLS_REQUIREMENT = 5;
 export const FORGE_ORDERS_REQUIREMENT = 3;
@@ -124,11 +119,7 @@ export interface PromiseDetail {
   current: number;
   target: number;
   fulfilled: boolean;
-  /**
-   * Progress toward the target, 0–100, computed here so the panel renders a number instead of doing
-   * arithmetic on game values (`LIVE-FINDINGS-STATUS.md`, F4 / the owner's "food can't be calculated
-   * at the UX" principle).
-   */
+  /** Progress toward the target, 0–100, computed here so the panel renders a number, not arithmetic. */
   pct: number;
 }
 
@@ -226,13 +217,8 @@ export function recordElectionPromises(state: WorldState, year: number): void {
     [promiseKey(year, 0)]: first,
     [promiseKey(year, 1)]: second,
     [evalDayKey(year)]: colonyDay + EVAL_DAY_OFFSET,
-    // A second election in the same calendar year — a mid-year succession after the term election —
-    // re-records the promises under the *same* year keys, so the previous election's "already
-    // judged" marker must be cleared with them. Leaving it set made the new promises inert forever:
-    // `tickElectionPromises` and `getActiveElectionPromises` both early-return on it, so the
-    // reputation swing never happened and the panel showed nothing (LIVE-FINDINGS-STATUS.md, M7).
-    // Each election therefore gets its own evaluation window; the codes and the window are
-    // overwritten in the same call, so no promise is ever judged twice.
+    // A second election in the same calendar year re-records under the same year keys, so the
+    // "already judged" marker is cleared here; each election gets its own evaluation window.
     [evaluatedKey(year)]: 0,
   });
 

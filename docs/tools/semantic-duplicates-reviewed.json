@@ -1,0 +1,50 @@
+{
+  "groups": [
+    {
+      "hash": "42031f903aee973dd4f4e6ffc84744e0e650696f",
+      "status": "distinct",
+      "reason": "ConfirmActionDialog is a destructive-action confirmation with its own cancel-first focus and explicit affirmative step; SubjectWindow is a read-only subject panel using a GameWindow shell. Their only shared call in this lexical gate is the keyboard claim, not duplicated decision authority.",
+      "tests": [
+        "tests/keyboardGuards.contract.test.ts"
+      ]
+    },
+    {
+      "hash": "1851cc11fd6dabdc22d7ed4f1f45377fc2557558",
+      "status": "distinct",
+      "reason": "The same Map.get/set lexical signature masks different behavior. Genealogy has one shared findFamilyGroupRoot path-compression implementation used by familyTree and genealogyRegistry for temporary family-group maps; simDelta.relationshipFieldCoverage instead tracks which relationship payload revisions were sent to the worker replica. Different data ownership and contracts; no remaining duplicate union-find implementation.",
+      "tests": [
+        "tests/familyTree.test.ts",
+        "tests/genealogyRegistry.test.ts",
+        "tests/simDelta.fieldCoverage.test.ts"
+      ]
+    },
+    {
+      "hash": "9eb13c4dfb970c45873602a0675d3ebd580955b4",
+      "status": "distinct",
+      "reason": "resolveSessionSpeaker resolves a specific dialogue participant by identity and returns that participant or null. humanSocial.byId is a numerical sort comparator that orders neighboring settlers by id. The gate sees only the shared id property read, not a common decision or implementation.",
+      "tests": [
+        "tests/pairDialogue.orphanReclaim.test.ts",
+        "tests/humanChat.ambientPairing.test.ts"
+      ]
+    },
+    {
+      "hash": "8cfab2163e8a09d61e9ca03d92ed7f336b88f6da",
+      "status": "distinct",
+      "reason": "relationships.pushToGroup builds sampled Entity groups used by the relationship simulation, whereas workforce.pushId builds numeric occupant-ID arrays for staffing snapshots. Their small Map append idiom is the same but their domain-owned data, element types, and ordering contracts differ; coupling the owners would introduce a cross-subsystem dependency for a trivial operation.",
+      "tests": [
+        "tests/relationships.sharedHomeFriendship.test.ts",
+        "tests/workforce.transitions.test.ts"
+      ]
+    },
+    {
+      "hash": "a4c60a4aaacc578968006a339af5d4869514c707",
+      "status": "distinct",
+      "reason": "pathfinding.lineCrossesBlocked's local isBlocked checks each traversed grid cell for obstruction and cliff elevation differences; stripBuild.inferStripRotation uses the absolute drag delta to choose a horizontal (0 degree) or vertical (90 degree) segment. Both happen to call Math.abs, the only shared lexical feature. They have separate inputs, outputs, owners, and no common behavior to refactor; coupling them would corrupt navigation or strip geometry.",
+      "tests": [
+        "tests/pathfinding.test.ts",
+        "tests/pathfinding.cliffCorners.test.ts",
+        "tests/stripTopology.connections.test.ts"
+      ]
+    }
+  ]
+}

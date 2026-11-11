@@ -1,16 +1,6 @@
 /**
- * Audit F2 (`docs/private/audits/2026-09-16/playability-gamefeel.md`, tracked in
- * `LIVE-FINDINGS-STATUS.md`): *"The dashboard's 'Net food flow today' omits spoilage and contradicts
- * another line in the same panel."*
- *
- * Two halves, and they landed in different changes. The **headline** is
- * `netFoodToday: foodProducedToday - foodConsumedToday` (`dashboardData.ts`), so it was only ever
- * wrong because spoilage was never written to the ledger's consumed side — fixed as economy **L8**
- * (spoilage now records its loss under a `spoilage` key). The **labels** were a second defect: the
- * dashboard carried its own `SOURCE_LABELS` copy, missing `spoilage`, `greenhouse`, `medicine` and
- * `chronicle`, so those rows printed raw keys. It now reads the ledger owner's map.
- *
- * These cases cover both, from the projection outwards.
+ * Dashboard food balance: `netFoodToday` derives from the ledger and its labels come from the ledger
+ * owner's map, so spoilage is listed and no row prints a raw source key.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

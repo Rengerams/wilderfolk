@@ -10,9 +10,7 @@ interface Props {
 }
 
 /**
- * Current values and lifetime records only. Historical lines deliberately stay
- * out of the player menu; the simulation can retain its internal statistics
- * without rendering continuously updating charts.
+ * Current values and lifetime records only; historical lines stay out of the player menu.
  */
 export default function StatisticsPanel({ state }: Props) {
   const lifetime = state.lifetimeStats;

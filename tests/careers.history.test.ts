@@ -158,7 +158,7 @@ describe('observed career history', () => {
     };
     resolveDailyVillageScheduleFatigue(world, [h], context.buildingById);
     expect(h.careerHistory?.farmer).toEqual({ days: 1, lastDay: 1 });
-    // Noon still produces food, but no longer owns delayed career history writes.
+    // Noon still produces food, but must not write career history.
     world.tick += 12 * TICKS_PER_HOUR;
     tickDailyBuildingEconomy(world, context, [h]);
     tickDailyBuildingEconomy(world, context, [h]);

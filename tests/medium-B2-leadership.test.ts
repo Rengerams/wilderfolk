@@ -1,12 +1,6 @@
 /**
- * Medium-severity simulation-audit regressions (BUG_REPORTS/2026-09-13-simulation-logic-audit.md):
- *
- *   M18 — the leader's household must contain only *dependent* children, so grown
- *         children are not dragged into the manor (and re-logged) every colony day.
- *   M35 — a zero-candidate election reveal must step the office down and schedule a
- *         successor election instead of leaving the colony with no path to a head.
- *   M37 — removing a settler from a job must not strip them out of their residence's
- *         occupants list (SIMULATION_AUTHORITY.md §5 residence ↔ occupants).
+ * Leadership regressions: the leader's household holds only dependent children, a zero-candidate
+ * election reveal steps the office down and schedules a successor, and job removal keeps residency.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, LEADER_OCCUPATION } from '../src/game/gameTypes';
@@ -17,8 +11,7 @@ import {
   tickElectionCeremony,
   tickLeaderVacancy,
 } from '../src/game/villageLeadership';
-// `DAYS_PER_YEAR` is owned by the clock (`dayCycle` → `dayCycleClock` → `gameConstants.Time`);
-// `villageLeadership` no longer re-declares it (audit cross-cutting: second calendar definition).
+// `DAYS_PER_YEAR` is owned by the clock (`dayCycle` → `dayCycleClock` → `gameConstants.Time`).
 import { DAYS_PER_YEAR } from '../src/game/dayCycle';
 import { removeWorkerTransition } from '../src/game/workforce';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';

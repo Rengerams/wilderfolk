@@ -5,9 +5,8 @@ import { addReputation } from './simHelpers';
 export { hashSalt } from './simRng';
 
 /**
- * One shared cooldown slot for all authored (one-time) stories: when any
- * authored story fires it stamps this flag with its expiry colony day, and no
- * other authored story may start before then. Single owner of the flag key.
+ * One shared cooldown slot for all authored (one-time) stories: firing any of them stamps its expiry
+ * colony day, and no other authored story may start before then.
  */
 export const AUTHORED_STORY_COOLDOWN_FLAG = 'authored_story_cd_until';
 
@@ -21,12 +20,8 @@ export function setStoryFlags(state: WorldState, patch: Record<string, number>):
 }
 
 /**
- * Story-side reputation gain.
- *
- * Delegates to the reputation owner so the 0..100 clamp has **one** definition. This used to re-state
- * the rule with only the floor (`Math.max(0, …)`), so a story reward could push reputation past 100 —
- * the owner clamps both ends (`simHelpers.addReputation`), which is the documented contract
- * (`LIVE-FINDINGS-STATUS.md`, L5).
+ * Story-side reputation gain, delegated to the reputation owner so the 0..100 clamp has one definition
+ * for both ends.
  */
 export function bumpVillageReputation(state: WorldState, amount: number): void {
   addReputation(state, amount);

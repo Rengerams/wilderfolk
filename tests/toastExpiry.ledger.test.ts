@@ -1,15 +1,6 @@
 /**
- * F22 — toasts could never auto-expire (`docs/private/audits/2026-09-16/ui-logic.md`, tracked in
- * `LIVE-FINDINGS-STATUS.md`; the audit filed it as SUSPECTED — reading the reconciliation makes it
- * confirmed).
- *
- * Two mechanisms expire a toast: the 2 s sweep (`expireNotifications`, `NOTIFICATION_LIFETIME_MS`) and a
- * per-toast 12 s timer that calls `dismissNotification`. Only `dismissNotification` recorded the id, and
- * the display world is rebuilt from the worker every tick with
- * `simDelta.preserveNotificationDismissals`, which filters on that ledger alone — so the sweep's removal
- * was undone by the very next delta, the reconciliation effect then cancelled the restored toast's timer,
- * a fresh timer was armed, and the sweep removed it again. The observable defect is a toast that blinks
- * out and back every ~2 s and never leaves by itself.
+ * An expired toast must be recorded in `dismissedNotificationIds`, so the next worker
+ * delta cannot restore it.
  */
 import { describe, expect, it } from 'vitest';
 import {

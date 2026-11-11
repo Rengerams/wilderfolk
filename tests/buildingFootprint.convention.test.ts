@@ -1,21 +1,6 @@
 /**
- * The `building.x/y` convention, pinned where the player can see it.
- *
- * The decisive question (`LIVE-FINDINGS-STATUS.md`, "Other" — the two-families row) is whether the
- * stored point is the footprint's **centre** or its **top-left corner**. The player-visible family
- * answers "centre" and all of its seams agree: the pad and sprite are drawn from `x - w/2`
- * (`spriteDrawing.drawBuildingPad` / `drawBuildingSprite` → `drawSpriteFrame(anchorX = 0.5)`), every
- * strip is filled from `translate(sx, sy)` into `[-w/2, +w/2]` (`stripRender.beginRotatedStripFrame`),
- * the placement ghost's footprint rectangle is stroked around the ghost point
- * (`renderer/buildPreview.ts`), and the bounds / terrain / overlap checks all validate `x ± w/2`
- * (`isFootprintWithinMapBounds`, `isFootprintOnBuildableTerrain`, `overlapsAnyBuilding`).
- *
- * `clearTreesUnderFootprint` was the one seam that read the *corner* — it cleared
- * `x … x + width` / `y … y + height` — so the ground it cleared was a rectangle moved half a
- * footprint to the south-east of the pad that is drawn: a tree standing inside the pad survived
- * (inside the building), while a tree beside the building was felled for no reason. This test places
- * a real building at a known point through `startBuilding` and asserts the cleared ground is exactly
- * the drawn pad.
+ * `building.x/y` is the footprint centre, and `clearTreesUnderFootprint` clears exactly
+ * the drawn pad, not a corner-anchored rectangle.
  */
 import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -49,7 +34,7 @@ type Rect = { left: number; right: number; top: number; bottom: number };
 const contains = (rect: Rect, px: number, py: number): boolean =>
   px >= rect.left && px < rect.right && py >= rect.top && py < rect.bottom;
 
-/** The rectangle `clearTreesUnderFootprint` read before the fix: corner-anchored. */
+/** Corner-anchored rectangle, kept only as the legacy comparison fixture. */
 function cornerRect(x: number, y: number, width: number, height: number): Rect {
   return { left: x, right: x + width, top: y, bottom: y + height };
 }
@@ -97,9 +82,8 @@ describe('building.x/y is the footprint centre — the cleared ground is the dra
     const { x, y } = findSpot(world);
     const footprint = getBuildingFootprintForType(BuildingType.Farm, 0);
 
-    // Probes, chosen so the two candidate rectangles disagree about them:
-    //   insideOffset  ∈ drawn pad (|−20| < w/2 = 26.5), OUTSIDE the old corner rect (west of x)
-    //   outsideOffset ∈ outside the drawn pad (40 > 26.5), INSIDE the old corner rect (40 < 53)
+    // Probes where the pad and the corner rectangle disagree: −20 is pad-inside,
+    // 40 is pad-outside but corner-rect-inside.
     const insideOffset = -20;
     const outsideOffset = 40;
 
@@ -145,8 +129,8 @@ describe('building.x/y is the footprint centre — the cleared ground is the dra
       bottom: y + footprint.height / 2,
     });
 
-    // Pre-fix, the cleared rectangle was the corner rect: it could not have covered `treeInside`
-    // and it did cover `treeOutside`. Pinning both keeps this test discriminating.
+    // The corner rect misses `treeInside` and covers `treeOutside`, so both assertions keep
+    // this test discriminating.
     const legacy = cornerRect(x, y, footprint.width, footprint.height);
     expect(contains(legacy, treeInside.x, treeInside.y), 'old rect missed the tree in the pad').toBe(false);
     expect(contains(legacy, treeOutside.x, treeOutside.y), 'old rect covered the tree beside it').toBe(true);
@@ -206,14 +190,8 @@ function farmAt(x: number, y: number): Building {
 }
 
 /**
- * X-6 / PARKED-1 — `isEntityOnBuilding` was the last reader on the corner convention.
- *
- * It tested `x - margin … x + width + margin`, which for a Farm at `(X, Y)` accepted
- * `[X−12, X+65] × [Y−12, Y+58]` while the pad the player sees is `[X−26.5, X+26.5] × [Y−23, Y+23]`:
- * it believed ground up to 13.5 px *outside* the pad was inside it and missed the whole west/north
- * half. That is how a settler could be spawned inside a house (`isValidHumanSpawnPosition` →
- * `isInsideCompletedBuilding` → here). The function now reads `placementUtils.getBuildingFootprintRect`,
- * the owner of the convention, padded outwards by `margin`.
+ * `isEntityOnBuilding` reads `placementUtils.getBuildingFootprintRect`, the owner of the
+ * centre convention, padded outwards by `margin`.
  */
 describe('X-6 — isEntityOnBuilding reads the footprint centre, not the corner', () => {
   const X = 400;
@@ -233,13 +211,12 @@ describe('X-6 — isEntityOnBuilding reads the footprint centre, not the corner'
       bottom: Y + halfHeight,
     });
     expect(isEntityOnBuilding(X, Y, farm)).toBe(true);
-    // 20 px west of the stored point is inside the pad (|−20| < 26.5) and outside the corner rect —
-    // the probe that was false before the fix.
+    // 20 px west of the stored point is inside the pad (|−20| < 26.5) and outside the corner rect.
     expect(isEntityOnBuilding(X - 20, Y, farm)).toBe(true);
   });
 
   it('rejects ground south-east of the pad that the corner rect wrongly accepted', () => {
-    // 40 px south-east of the centre: outside the pad (40 > 26.5), inside the old corner rect.
+    // 40 px south-east of the centre: outside the pad (40 > 26.5), inside the corner rect.
     expect(isEntityOnBuilding(X + 40, Y + 40, farm)).toBe(false);
   });
 
@@ -248,7 +225,7 @@ describe('X-6 — isEntityOnBuilding reads the footprint centre, not the corner'
     expect(isEntityOnBuilding(X - halfWidth - 11, Y - halfHeight - 11, farm)).toBe(true);
     // 13 px beyond it is not.
     expect(isEntityOnBuilding(X - halfWidth - 13, Y - halfHeight - 13, farm)).toBe(false);
-    // The padded edge stays inclusive, exactly as the corner form's `>=`/`<=` were.
+    // The padded edge stays inclusive.
     expect(isEntityOnBuilding(rect.right + 12, Y, farm)).toBe(true);
     expect(isEntityOnBuilding(rect.right + 12.5, Y, farm)).toBe(false);
     // A caller-supplied margin is still an outward pad, not a replacement footprint.
@@ -258,13 +235,8 @@ describe('X-6 — isEntityOnBuilding reads the footprint centre, not the corner'
 });
 
 /**
- * N-1 — `clearHuntersTargetingPrey` used to sweep *every* living entity per kill (grass and trees
- * included). It now sweeps the four hunter-capable buckets the caller hands it. The guarantee that
- * motivated the sweep must survive: the index is built once at tick start, so a hunter that acquires
- * this prey **later in the same tick** is absent from it and would otherwise keep a `huntTargetId`
- * pointing at a removed entity.
- *
- * It lives in this file because this lane owns it; the hunting-suite files belong to other lanes.
+ * `clearHuntersTargetingPrey` sweeps the four hunter-capable buckets the caller passes, so
+ * a hunter that acquires the prey mid-tick still drops its dangling target.
  */
 describe('N-1 — a hunter that acquired the prey mid-pulse still drops a dangling target', () => {
   it('clears a hunter absent from the tick-start index but present in the tick buckets', () => {

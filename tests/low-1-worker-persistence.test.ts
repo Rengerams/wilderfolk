@@ -1,21 +1,6 @@
 /**
- * Audit 2026-09-13, low-tier batch "low-1" — worker persistence and cache transport.
- *
- * Regression coverage for the findings fixed in this batch:
- * - L65: the worker prep/rollback snapshot carries the economy ledger, the rolling food
- *   history and the food spoilage rate. A tick that is rolled back after writing them used
- *   to keep the entries it produced before failing, so the retried/lost tick double-counted
- *   the Food ledger and its 30-day history.
- * - L66: the prep snapshot owns the nested entity state and object-array elements the tick
- *   mutates in place (`skills`, `childrenIds`, friendships/feuds, the Moon Howler snapshot,
- *   trade-route/disaster fields), so `applySimPrep` really restores them.
- * - L59: `huntVisuals` — produced and pruned only inside the worker — rides the tick delta
- *   like the neighbouring transient presentation arrays, so hunt arrows draw in worker mode.
- * - X5: the workforce/mood HUD counters (`workingSettlers`, `idleSettlers`,
- *   `villageHappiness`, `villageCanHeat`) reach the main-thread display world.
- * - L67: a reused tree grid is reconciled, so trees added or chopped after the first build
- *   are indexed/evicted instead of frozen at their create-time snapshot.
- * - X4: the same for the reusable grass render grid, whose renderer draws straight from it.
+ * Regression coverage for worker persistence and cache transport: prep/rollback snapshots restore
+ * nested entity state and ledger/history fields, transient visuals ride the delta, and reused grids reconcile.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -70,16 +55,7 @@ function grassAt(id: number, x: number, y: number): Entity {
   return { id, type: EntityType.Grass, x, y, alive: true, size: 8 } as Entity;
 }
 
-/**
- * The map every fixture in this suite is built on.
- *
- * These six fixtures used to pass `MapSize.Small`, which does not exist — `MapSize` is
- * `Medium | Large | Huge` (`src/game/gameTypes.ts`). The value was `undefined`, so `initGame`'s
- * `size = MapSize.Medium` destructuring default fired and every fixture was a 1200x900 **Medium**
- * map already. Naming the real size keeps the round-trip payload byte-identical and the intent
- * honest. A genuinely *small* map would need a new production `MapSize` member, which is a
- * production decision this suite must not make on its own.
- */
+/** The map every fixture in this suite is built on: a plain Medium world. */
 function mediumWorld(seed: number): WorldState {
   return initGame({ size: MapSize.Medium, seed });
 }
@@ -132,7 +108,7 @@ describe('worker persistence + cache transport (audit low-1)', () => {
 
     const prep = extractSimPrep(world);
 
-    // In-place writes of the failed attempt — the exact writers the audit names.
+    // In-place writes of the failed attempt — the writers the rollback must undo.
     settler.skills![JobType.Farmer] = 99;
     settler.childrenIds!.push(9);
     settler.childhoodFriendsIds!.push(10);

@@ -6,10 +6,6 @@ import { fitCanvasToDpr } from './canvasLayer';
 import { INTRO_DURATION_MS, INTRO_TIMELINE_MS } from './introTimeline';
 import { isActivatableTarget } from './hotkeys';
 
-// ---------------------------------------------------------------------------
-// Types & constants
-// ---------------------------------------------------------------------------
-
 type IntroPhase = 'opening' | 'ready';
 
 interface IntroScreenProps {
@@ -65,9 +61,7 @@ const PARTICLE_COLORS: Record<ParticleType, string[]> = {
   dust: ['#a8a29e', '#d6d3d1', '#78716c', '#f5f5f4'],
 };
 
-// ---------------------------------------------------------------------------
 // Particle helpers
-// ---------------------------------------------------------------------------
 
 function pickParticleType(): ParticleType {
   const types: ParticleType[] = ['ember', 'spark', 'leaf', 'dust'];
@@ -168,10 +162,6 @@ function isParticleAlive(particle: Particle, width: number, height: number): boo
 function scheduleIntroBeat(ms: number, fn: () => void): ReturnType<typeof setTimeout> {
   return setTimeout(fn, ms);
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export default function IntroScreen({ onContinue }: IntroScreenProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -339,12 +329,8 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
       // beside the call to action must stay reachable, so only a bare key press continues the intro.
       if (event.key === 'Escape' || event.key === 'Tab') return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
-      // …and once that control *is* focused, Enter and Space belong to it. Tab reaches the mute
-      // button, and this handler was listening on `window` with no target check at all — so pressing
-      // Enter or Space to toggle mute ran `handleContinue` and unmounted the intro (and the button)
-      // before its own activation could land. The click handler below already skips the same control;
-      // a key press has to be skipped for the same reason, and `isActivatableTarget` is the shared
-      // "Space and Enter activate this natively" rule.
+      // Once the mute control is focused, Enter and Space belong to it: `isActivatableTarget` is the
+      // shared "these keys activate natively" rule, and without it the intro unmounted instead.
       if (isActivatableTarget(event.target)) return;
       if ((event.target as HTMLElement | null)?.closest?.('.intro-control')) return;
       handleContinue();

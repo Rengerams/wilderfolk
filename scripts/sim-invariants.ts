@@ -1,26 +1,24 @@
 /**
- * Invariant long-sim — runs the sim for N years asserting world sanity every tick.
- * Catches the silent-corruption class (NaN, negative resources, orphaned bonds,
- * cache divergence) that unit tests never reach.
- *
- * Run: npx tsx scripts/sim-invariants.ts        (3 years default)
- *      SIM_YEARS=5 npx tsx scripts/sim-invariants.ts
- *      SIM_BUILD=1  auto-place a house + staff it every few days (population growth)
- *      SIM_SEED=12345  use an explicit deterministic simulation seed
- * Exit code 1 on the first violation.
+ * Invariant long-sim: runs for N years asserting world sanity every tick. Env: `SIM_YEARS`,
+ * `SIM_SEED`. For a fast Year-2 check, set `SIM_START_DAY=720 SIM_DAYS=3`.
+ * Run: `npx tsx scripts/sim-invariants.ts`; exits 1 on the first violation.
  */
 import { gameTick, initGame } from '../src/game/gameEngine';
 import { EntityType, MapSize } from '../src/game/gameTypes';
+import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { getSimFocus } from './simFocus';
 import { preloadDialogueBank } from '../src/game/dialogueTrees';
 import { createEntity } from '../src/game/worldGen';
 import { assertSimInvariants } from '../src/game/simulation/simInvariants';
 
 const YEARS = Number(process.env.SIM_YEARS ?? 3);
-const BUILD = process.env.SIM_BUILD === '1';
 const SEED = Number(process.env.SIM_SEED ?? 12345);
-const TICKS_PER_YEAR = 72 * 360; // 72 ticks/day, 360 days/year
-const TARGET = YEARS * TICKS_PER_YEAR;
+const TICKS_PER_YEAR = TICKS_PER_DAY * DAYS_PER_YEAR;
+const DAYS = process.env.SIM_DAYS == null ? null : Number(process.env.SIM_DAYS);
+const START_DAY = Number(process.env.SIM_START_DAY ?? 0);
+if (DAYS !== null && (!Number.isSafeInteger(DAYS) || DAYS < 1)) throw new Error('SIM_DAYS must be positive whole days');
+if (!Number.isSafeInteger(START_DAY) || START_DAY < 0) throw new Error('SIM_START_DAY must be non-negative whole days');
+const TARGET = DAYS === null ? YEARS * TICKS_PER_YEAR : DAYS * TICKS_PER_DAY;
 
 function createSeededRandom(seed: number): () => number {
   let value = (Number.isFinite(seed) ? Math.trunc(seed) : 12345) >>> 0;
@@ -61,18 +59,45 @@ async function main(): Promise<void> {
       state.entities.push(h);
     }
 
+    // Boundary mode starts one tick before a target day; each step still runs the real game.
+    // This short run cannot be counted as 720 consecutive simulated days.
+    if (START_DAY > 0) {
+      state.tick = START_DAY * TICKS_PER_DAY - 1;
+      state.year = Math.floor((START_DAY - 1) / DAYS_PER_YEAR);
+      state.dayInYear = (START_DAY - 1) % DAYS_PER_YEAR;
+      state.lastProcessedCalendarDay = START_DAY - 1;
+    }
+
     const focus = getSimFocus(state);
     const t0 = performance.now();
     for (let tick = 1; tick <= TARGET; tick++) {
-      if (BUILD && tick % 4320 === 0) {
-        // try to keep the village growing — place a house near the center
-        state = gameTick(state, focus);
-        continue;
-      }
       state = gameTick(state, focus);
+      if (START_DAY === 2 * DAYS_PER_YEAR && tick === 1 && state.electionCeremony?.reason !== 'term') {
+        throw new Error('Year-2 midnight did not schedule a term election through gameTick');
+      }
+      // A1 parity: use the EXISTING invariant harness for the same seeded
+      // 7/30/360-day measurement before #129 and after #132. No separate probe.
+      if (process.env.SIM_A1_CHECKPOINTS === '1'
+          && START_DAY === 0
+          && tick % TICKS_PER_DAY === 0
+          && [7, 30, DAYS_PER_YEAR].includes(tick / TICKS_PER_DAY)) {
+        const playerHumans = state.entities.filter((entity) =>
+          entity.alive && entity.type === EntityType.Human && entity.faction !== 'rival');
+        const skillPoints = playerHumans.reduce((sum, human) =>
+          sum + Object.values(human.skills ?? {}).reduce((total, value) =>
+            total + (typeof value === 'number' && Number.isFinite(value) ? value : 0), 0), 0);
+        console.log('A1_SNAPSHOT ' + JSON.stringify({
+          elapsedDays: tick / TICKS_PER_DAY,
+          food: state.resources.food,
+          population: state.humanPopulation,
+          livingHumans: playerHumans.length,
+          totalSkillPoints: Math.round(skillPoints * 1000) / 1000,
+          tick: state.tick,
+        }));
+      }
       const violations = assertSimInvariants(state);
       if (violations.length > 0) {
-        console.error(`INVARIANT VIOLATION at tick ${state.tick} (day ${Math.floor(state.tick / 72)}; seed ${SEED}):`);
+        console.error(`INVARIANT VIOLATION at tick ${state.tick} (day ${Math.floor(state.tick / TICKS_PER_DAY)}; seed ${SEED}):`);
         for (const v of violations.slice(0, 8)) console.error('  -', v);
         process.exitCode = 1;
         return;
@@ -80,7 +105,7 @@ async function main(): Promise<void> {
     }
     const secs = ((performance.now() - t0) / 1000).toFixed(1);
     console.log(
-      `OK — ${YEARS}y (${TARGET} ticks; seed ${SEED}) sim clean, 0 invariant violations in ${secs}s; population ${state.humanPopulation}`,
+      `OK — ${DAYS === null ? `${YEARS}y` : `${DAYS}d from day ${START_DAY}`} (${TARGET} ticks; seed ${SEED}) sim clean, 0 invariant violations in ${secs}s; population ${state.humanPopulation}`,
     );
   } finally {
     Math.random = originalRandom;

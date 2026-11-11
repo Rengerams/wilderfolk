@@ -1,9 +1,6 @@
 /**
- * Map-variety guards, with the measured tables as their evidence.
- *
- * The owner's ruling: one seed at Medium, Large and Huge must be three different countries, the ten
- * presets must each read as the biome they name, and two seeds must differ. `generateRawTerrain` is
- * measured directly, so the camp/forest clearing `generateWorldMap` applies never enters these numbers.
+ * Map-variety guards: one seed at Medium, Large and Huge must give three different countries, each
+ * preset must read as the biome it names, two seeds must differ — measured on `generateRawTerrain`.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -190,15 +187,14 @@ describe('map variety: the three shipped sizes', () => {
         );
         expect(tvd(hists.get(a)!, hists.get(b)!), `${a}/${b} histogram distance`).toBeGreaterThan(0.08);
         expect(biomeAgreement(ma, mb), `${a}/${b} shared-rect biome agreement`).toBeLessThan(0.3);
-        // The pre-offset field shared ~96 % of its relief order; unrelated fields sit near chance.
+        // Unrelated fields agree near chance; a shared field would sit far above this bound.
         expect(reliefOrderAgreement(ma, mb), `${a}/${b} relief-order agreement`).toBeLessThan(0.55);
         expect(shared, `${a}/${b} identical river outlets`)
           .toBeLessThan(Math.max(1, Math.min(outs.get(a)!.length, outs.get(b)!.length)));
       }
     }
 
-    // Positive control for the relief-order metric: one fixed size key makes every map size a window
-    // into one identical field, which is the pre-offset configuration this ruling removed.
+    // Positive control: one fixed size key makes every map size a window into one identical field.
     const keys: [number, number, MapSize][] = [
       [2560, 1920, MapSize.Large], [4096, 3072, MapSize.Large],
       [2560, 1920, MapSize.Huge], [6144, 4608, MapSize.Huge],

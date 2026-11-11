@@ -2,7 +2,8 @@ import { EntityType, LEADER_OCCUPATION, BuildingType } from './gameTypes';
 import type { Building, Entity } from './gameTypes';
 import type { GenealogyRegistry } from './genealogyTypes';
 import type { ResidenceOccupancy } from './housingModel';
-import { findLivingHuman, collectFamilyMembers, collectMinorHousehold, collectOwnHousehold, indexFamilyRelations, isAdult, isMinorChild, isAdultChildAtHome, getChildCustodian, unitIsKinOf, unitKinIndex, type UnitKinIndex } from './housingModel';
+import { findLivingHuman, collectFamilyMembers, collectMinorHousehold, collectOwnHousehold, indexFamilyRelations, isAdultChildAtHome, getChildCustodian, unitIsKinOf, unitKinIndex, type UnitKinIndex } from './housingModel';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, buildPlayerResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity, residenceRoomFor, countResidentsInBuilding, isAssignableHome } from './housingModel';
 import { beginCommuteRoutePass, estimatedCommuteHours, MAX_ASSIGNABLE_COMMUTE_HOURS, straightLineCommuteLowerBoundHours } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
@@ -113,7 +114,7 @@ export function isHousingUnitProtected(ledger: HousingLedger, unit: readonly Ent
 /** Whole-household guard: a minor never lands anywhere their living custodian is not. */
 function custodianTravelsAlong(unit: readonly Entity[], toId: number | undefined, humans: Entity[], residences: Building[]): boolean {
   for (const member of unit) {
-    if (!isMinorChild(member)) continue;
+    if (member.age >= HUMAN_ADULT_MIN_AGE || member.partnerId != null) continue;
     const custodian = getChildCustodian(member, humans);
     if (!custodian || unit.some((other) => other.id === custodian.id)) continue;
     if (custodian.residenceBuildingId === toId) continue;
@@ -434,7 +435,7 @@ function destinationRefusedByWriter(
 /** Custody repair: the minor moves to the custodian's bed; not gated on the current fit. */
 function planCustodian(unit: readonly Entity[], context: HousingMoveContext): RelocationPlan {
   const members = [...unit];
-  const child = members.find((member) => isMinorChild(member));
+  const child = members.find((member) => member.age < HUMAN_ADULT_MIN_AGE && member.partnerId == null);
   if (!child) return { move: false, settled: true, reason: 'guardian', why: 'no minor' };
   const homeId = pickResidenceFromChildCustodian(child, context.alive, context.residences, context.occupancy);
   if (homeId === undefined) return { move: false, reason: 'guardian', why: 'no custodian bed' };
@@ -600,11 +601,13 @@ function selectSurplusMembers(
 ): Entity[] | undefined {
   const custodians = new Set<number>();
   for (const member of group) {
-    if (!isMinorChild(member)) continue;
+    if (member.age >= HUMAN_ADULT_MIN_AGE || member.partnerId != null) continue;
     const custodian = getChildCustodian(member, humans);
     if (custodian) custodians.add(custodian.id);
   }
-  const candidates = group.filter((member) => !isMinorChild(member) && !custodians.has(member.id));
+  const candidates = group.filter(
+    (member) => (member.age >= HUMAN_ADULT_MIN_AGE || member.partnerId != null) && !custodians.has(member.id),
+  );
   if (candidates.length < count) return undefined;
   const partnered = new Set<number>();
   for (const member of candidates) {
@@ -643,8 +646,9 @@ export function rebalanceOvercrowdedResidences(
     const alternatives = targets.filter((home) => home.id !== residence.id);
     const occupants = [...(traits.get(residence.id)?.occupants.values() ?? [])]
       .filter((member) => !isImprisoned(member));
-    const dependentUnit = units.filter((unit) => unit.some((member) => isMinorChild(member)
-      && member.residenceBuildingId === residence.id)).sort((a, b) => b.length - a.length)[0];
+    const dependentUnit = units.filter((unit) => unit.some((member) => member.age < HUMAN_ADULT_MIN_AGE
+      && member.partnerId == null && member.residenceBuildingId === residence.id))
+      .sort((a, b) => b.length - a.length)[0];
     if (dependentUnit) {
       const familyIds = new Set(dependentUnit.map((member) => member.id));
       for (const outsider of occupants.filter((member) => !familyIds.has(member.id))) {
@@ -698,13 +702,8 @@ export function rebalanceOvercrowdedResidences(
 
 
 /**
- * Keep house/mansion occupants in sync with residenceBuildingId for the UI.
- *
- * One forward pass over `humans` buckets occupant ids by residence instead of re-scanning the
- * whole array once per residence. The occupant id **order** is unchanged: the per-building
- * `.filter().map()` this replaces emitted ids in `humans` order, and appending to a building's
- * bucket during the single forward pass emits exactly that order
- * (`tests/housingPipeline.occupantOrder.test.ts` pins it).
+ * Keep house/mansion occupants in sync with `residenceBuildingId` for the UI: one forward pass over
+ * `humans` buckets ids by residence, preserving `humans` order.
  */
 export function syncResidenceOccupants(humans: Entity[], buildings: Building[]): void {
   const occupantsByResidenceId = new Map<number, number[]>();
@@ -748,7 +747,7 @@ function assignFamilyToResidence(
   if (relocateFamily(family, alive, residences, phase, context)) return;
 
   const dependentGroups = new Map<number, Entity[]>();
-  for (const child of family.filter(isMinorChild)) {
+  for (const child of family.filter((member) => member.age < HUMAN_ADULT_MIN_AGE && member.partnerId == null)) {
     const custodian = getChildCustodian(child, allHumans);
     if (!custodian || !family.includes(custodian)) continue;
     const group = dependentGroups.get(custodian.id) ?? [custodian];
@@ -758,7 +757,7 @@ function assignFamilyToResidence(
   if (dependentGroups.size > 0) {
     const dependentIds = new Set([...dependentGroups.values()].flatMap((group) => group.map((member) => member.id)));
     for (const adult of family) {
-      if (isMinorChild(adult) || dependentIds.has(adult.id)) continue;
+      if ((adult.age < HUMAN_ADULT_MIN_AGE && adult.partnerId == null) || dependentIds.has(adult.id)) continue;
       if ([...dependentGroups.values()].some((group) => adult.residenceBuildingId != null
         && adult.residenceBuildingId === group[0].residenceBuildingId)) {
         relocateHousehold([adult], undefined, phase, 'family', context);
@@ -772,7 +771,7 @@ function assignFamilyToResidence(
       relocateHousehold(group, homeId, phase, 'family', context);
     }
     for (const adult of family) {
-      if (isMinorChild(adult) || dependentIds.has(adult.id) || hasResidenceAssignment(adult)) continue;
+      if ((adult.age < HUMAN_ADULT_MIN_AGE && adult.partnerId == null) || dependentIds.has(adult.id) || hasResidenceAssignment(adult)) continue;
       const homeId = pickResidenceForHuman(adult, alive, residences, occupancy, traits);
       if (homeId !== undefined) relocateHousehold([adult], homeId, phase, 'family', context);
     }
@@ -807,12 +806,8 @@ function fillHomelessAfterEviction(
 }
 
 /**
- * Sweep buckets per day — one per assignment pulse.
- *
- * `assignMissingResidences` with a tick sweeps only the units whose bucket that pulse owns, so a day
- * of reassignment work is spread across the day instead of landing whole on the day boundary. It must
- * equal the assignment layer's pulses per day (`TICKS_PER_DAY / LAYER_ASSIGN_INTERVAL`, 72 / 18 = 4)
- * or a bucket would never come round; the guard test pins that coupling.
+ * Sweep buckets per day — one per assignment pulse, so a day's reassignment work is spread rather
+ * than landing on the day boundary. Must equal the assignment layer's pulses per day (test-pinned).
  */
 export const RESIDENCE_SWEEP_BUCKETS = 4;
 
@@ -823,15 +818,8 @@ function activeSweepBucket(tick: number): number {
 }
 
 /**
- * Seat every settler who has no residence, repair every housing unit that is wrongly placed.
- *
- * `allHumansForGenealogy` widens the family pool and the bed count beyond the settlers being seated:
- * a settler who may not move still occupies a bed. With no `sweepTick`
- * the whole colony converges at once — a load, a player command or an event must not wait for a
- * bucket to come round. With one, only that pulse's bucket of already-housed units is swept; the
- * eviction rebalance and the homeless fill below stay global on every call, so a settler who loses a
- * bed is never left outside until the next cycle. `leaderPhase` supplies the manor hold's decision, run
- * as the first phase on this run's ledger so housing stays one ordered process.
+ * Seat every settler with no residence and repair wrongly placed units; `allHumansForGenealogy` widens
+ * the pool and bed count. A `sweepTick` limits the sweep to its bucket; the fill stays global.
  */
 export function assignMissingResidences(
   humans: Entity[],
@@ -880,7 +868,9 @@ export function assignMissingResidences(
   // Phase 3 — guardianship: a dependent child is placed with a custodian before any optimisation.
   runHousingPhase(ledger, 'guardianship', alive, () => {
     for (const human of alive) {
-      if (isMinorChild(human)) ensureOrphanAdoption(human, genealogyPool, residences, undefined, undefined, genealogy, ledger);
+      if (human.age < HUMAN_ADULT_MIN_AGE && human.partnerId == null) {
+        ensureOrphanAdoption(human, genealogyPool, residences, undefined, undefined, genealogy, ledger);
+      }
     }
   });
 
@@ -902,8 +892,8 @@ export function assignMissingResidences(
     for (let pass = 0; pass < 24; pass++) {
       ledger.report.stats.passes += 1;
       let reassigned = 0;
-      // One occupancy scan per pass — O(H) then O(1) counts (EK-E2) — and one trait walk beside it,
-      // threaded through every pick below instead of rebuilt per pick (F-SIM-9).
+      // One occupancy scan per pass — O(H) then O(1) counts — and one trait walk beside it, threaded
+      // through every pick below instead of rebuilt per pick.
       const occupancy = buildResidenceOccupancy(residents);
       const playerOccupancy = buildPlayerResidenceOccupancy(alive);
       const traits = buildResidenceTraits(residents);
@@ -933,9 +923,8 @@ export function assignMissingResidences(
       if (reassigned === 0 && !evicted) break;
     }
   } else {
-    // A pulse visits only its own quarter of the housing units. Several units
-    // can depend on the same available house, so re-evaluate this bucket after
-    // the first round rather than postponing a newly feasible move for a day.
+    // A pulse visits only its own quarter of the housing units. Several units can depend on the same
+    // available house, so re-evaluate this bucket rather than postponing a feasible move by a day.
     const bucket = activeSweepBucket(sweepTick);
     const sweepUnits = housingUnitsBase.filter(
       (unit) => housingUnitBucket(unit, RESIDENCE_SWEEP_BUCKETS) === bucket,
@@ -963,10 +952,8 @@ export function assignMissingResidences(
       fillHomelessAfterEviction(alive, residences, afterEvict, traitsAfterEvict, ledger);
     }
 
-    // Earlier buckets can acquire a newly available house only after later
-    // buckets release it. At the final daily pulse, revisit those units once
-    // against the now-current occupancy. This removes the one-day delay without
-    // re-running the expensive 24-pass unsplit allocator every tick.
+    // Earlier buckets can only acquire a house after later buckets release it, so the final daily
+    // pulse revisits every unit against the now-current occupancy — no one-day delay.
     if (bucket === RESIDENCE_SWEEP_BUCKETS - 1) {
       ledger.report.stats.passes += 1;
       const occupancy = buildResidenceOccupancy(residents);
@@ -1031,7 +1018,7 @@ function collectHousingInvariantViolations(
     if (count > getResidenceCapacity(residence)) violations.push(`home #${residence.id} holds ${count} over ${getResidenceCapacity(residence)} beds`);
   }
   for (const child of residents) {
-    if (!isMinorChild(child)) continue;
+    if (child.age >= HUMAN_ADULT_MIN_AGE || child.partnerId != null) continue;
     const custodian = getChildCustodian(child, alive);
     if (!custodian || child.residenceBuildingId == null) continue;
     if (custodian.residenceBuildingId !== child.residenceBuildingId
@@ -1096,11 +1083,11 @@ export function syncPartnerResidence(
 ): void {
   if (residences.length === 0) return;
 
-  // Couple + housing-minor kids only — adult children who moved out stay put (EK-E5).
+  // Couple + housing-minor kids only — adult children who moved out stay put.
   const household: Entity[] = [human, partner];
   for (const member of collectOwnHousehold(human, humans)) {
     if (member.id === human.id || member.id === partner.id) continue;
-    if (!isMinorChild(member)) continue;
+    if (member.age >= HUMAN_ADULT_MIN_AGE || member.partnerId != null) continue;
     household.push(member);
   }
 
@@ -1134,7 +1121,7 @@ export function restoreCustodyAfterRelease(parent: Entity, humans: Entity[]): En
   if (parent.prisonBuildingId != null) return [];
   const returned: Entity[] = [];
   for (const child of humans) {
-    if (!child.alive || !isMinorChild(child)) continue;
+    if (!child.alive || child.age >= HUMAN_ADULT_MIN_AGE || child.partnerId != null) continue;
     if (child.motherId !== parent.id && child.fatherId !== parent.id) continue;
     // Only reverse a temporary guardian assignment; never sweep children already
     // living with their natural custodian into the released parent's housing bucket.
@@ -1183,8 +1170,7 @@ function listVillageSingleAdults(humans: Entity[]): Entity[] {
     (h) =>
       h.alive
       && isPlayerHuman(h)
-      && !h.isJuvenile
-      && isAdult(h)
+      && h.age >= HUMAN_ADULT_MIN_AGE
       && !isImprisoned(h)
       && h.occupation !== LEADER_OCCUPATION,
   );
@@ -1234,7 +1220,7 @@ export function ensureOrphanAdoption(
   genealogy?: GenealogyRegistry,
   ledger?: HousingLedger,
 ): boolean {
-  if (!child.alive || child.faction || !isMinorChild(child)) return false;
+  if (!child.alive || child.faction || child.age >= HUMAN_ADULT_MIN_AGE || child.partnerId != null) return false;
   const parent = [child.motherId, child.fatherId].map((id) => freeParent(humans, id)).find(Boolean);
   if (parent) {
     child.adoptiveMotherId = undefined;
@@ -1242,7 +1228,8 @@ export function ensureOrphanAdoption(
     return false;
   }
   if (livingAdoptiveCustodian(child, humans)) return false;
-  const siblings = humans.filter((sibling) => sibling.alive && isPlayerHuman(sibling) && isMinorChild(sibling)
+  const siblings = humans.filter((sibling) => sibling.alive && isPlayerHuman(sibling)
+    && sibling.age < HUMAN_ADULT_MIN_AGE && sibling.partnerId == null
     && (sibling.id === child.id || (child.motherId != null && sibling.motherId === child.motherId)
       || (child.fatherId != null && sibling.fatherId === child.fatherId))
     && ![sibling.motherId, sibling.fatherId].some((id) => freeParent(humans, id)))
@@ -1391,12 +1378,13 @@ export function reassignDivorcedResidences(
   const formerHome = keeper.residenceBuildingId == null
     ? undefined : residences.find((home) => home.id === keeper.residenceBuildingId);
   // A betrayed keeper keeps the children; an amicable split follows the custody hash.
-  const dependentChildren = villagers.filter((child) => child.alive && isMinorChild(child)
+  const dependentChildren = villagers.filter((child) => child.alive
+    && child.age < HUMAN_ADULT_MIN_AGE && child.partnerId == null
     && getChildCustodian(child, villagers)?.id === leaver.id
     && [child.motherId, child.fatherId, child.adoptiveMotherId, child.adoptiveFatherId].includes(leaver.id));
   const leavingUnit = preferredCustodian ? [leaver] : [leaver, ...dependentChildren];
   const keeperChildren = villagers.filter((child) =>
-    child.alive && isMinorChild(child)
+    child.alive && child.age < HUMAN_ADULT_MIN_AGE && child.partnerId == null
     && getChildCustodian(child, villagers)?.id === keeper.id
     && [child.motherId, child.fatherId, child.adoptiveMotherId, child.adoptiveFatherId].includes(keeper.id),
   );
@@ -1529,7 +1517,7 @@ export function buildHousingUnits(humans: Entity[]): Entity[][] {
   const childrenByCustodian = new Map<number, Entity[]>();
 
   for (const child of alive) {
-    if (!isMinorChild(child)) continue;
+    if (child.age >= HUMAN_ADULT_MIN_AGE || child.partnerId != null) continue;
     const custodian = getChildCustodian(child, humans);
     if (!custodian) continue;
     const bucket = childrenByCustodian.get(custodian.id) ?? [];
@@ -1537,13 +1525,8 @@ export function buildHousingUnits(humans: Entity[]): Entity[][] {
     childrenByCustodian.set(custodian.id, bucket);
   }
 
-  // A settler may appear in exactly one unit. Custodians are visited in bucket order, and a
-  // settler can be the custodian of one bucket *and* the partner (or a member) of another —
-  // for example a widower adding his late partner's child, and his new partner adding hers.
-  // The old loop had no guard, so the second bucket re-added the already-visited settler and
-  // produced two units claiming one person: each unit's reassignment invalidated the other,
-  // `reassigned` never reached 0 and the convergence loop burned all its passes 4×/day,
-  // leaving that settler housed away from one half of the family.
+  // A settler may appear in exactly one unit: a custodian can also be the partner or member of another
+  // bucket, which would produce two units claiming one person. `unitByMember` enforces one home.
   const unitByMember = new Map<number, Entity[]>();
   const claim = (unit: Entity[], member: Entity) => {
     unit.push(member);
@@ -1572,11 +1555,8 @@ export function buildHousingUnits(humans: Entity[]): Entity[][] {
 
   for (const human of alive.sort((a, b) => a.id - b.id)) {
     if (visited.has(human.id)) continue;
-    // The fallback unit is the settler, a living partner and their *minor* children.
-    // `collectOwnHousehold` also walks `childrenIds` with no age filter, so a parent whose
-    // children had all grown up formed a unit spanning two houses; `isFamilyHousingValid`
-    // then failed and the convergence loop re-homed the whole unit together, silently
-    // undoing the adult-child move-out on every pass (it could never persist).
+    // The fallback unit is the settler, a living partner and their *minor* children: `collectOwnHousehold`
+    // has no age filter, so a unit spanning two houses would undo the adult-child move-out every pass.
     const unit = collectMinorHousehold(human, alive).filter((member) => !visited.has(member.id));
     if (unit.length === 0) continue;
     for (const member of unit) visited.add(member.id);
@@ -1605,7 +1585,7 @@ export function familyFitsInResidence(
 
 function isLoneSettler(family: Entity[], humans: Entity[]): boolean {
   if (family.length !== 1) return false;
-  if (family[0].isJuvenile) return false;
+  if (family[0].age < HUMAN_ADULT_MIN_AGE) return false;
   return !findLivingHuman(humans, family[0].partnerId);
 }
 
@@ -1677,13 +1657,8 @@ function lowestMemberId(unit: readonly Entity[]): number {
 }
 
 /**
- * Deterministic CURRENT sweep bucket, not a persisted household identity. When the
- * lowest-ID member leaves or dies, the remaining unit can move to another bucket.
- * That is safe: each day's four pulses cover all buckets, and the final pulse
- * revisits every housing unit against current occupancy. Mandatory homelessness,
- * custody and capacity repairs are also handled independently of this hash.
- * Persisting a separate household ID would create save/migration state without
- * fixing any missed relocation in the existing bounded daily sweep.
+ * Deterministic CURRENT sweep bucket, not a persisted household identity: a unit can move bucket when
+ * its lowest-ID member leaves, which the day's four pulses and the final revisit cover.
  */
 export function housingUnitBucket(unit: Entity[], buckets: number): number {
   return lowestMemberId(unit) % buckets;
@@ -1702,9 +1677,12 @@ function unitNeedsMove(
   const home = residences.find((residence) => residence.id === homeId);
   if (home && isLeaderHouseResidence(home) && unit.every((member) => member.residenceBuildingId === homeId)) return false;
   if (!isFamilyHousingValid(unit, residences, alive, occupancy)) {
-    const child = unit.find(isMinorChild);
+    const child = unit.find((member) => member.age < HUMAN_ADULT_MIN_AGE && member.partnerId == null);
     const guardian = child ? getChildCustodian(child, alive) : undefined;
-    const core = guardian ? unit.filter((member) => member.id === guardian.id || isMinorChild(member)) : [];
+    const core = guardian
+      ? unit.filter((member) => member.id === guardian.id
+        || (member.age < HUMAN_ADULT_MIN_AGE && member.partnerId == null))
+      : [];
     const coreTogether = core.length > 1 && core.every((member) => member.residenceBuildingId === guardian?.residenceBuildingId);
     const guardianKeepsBed = guardian?.residenceBuildingId != null;
     // The core is anchored when its guardian has a bed, or when no home can take the core.
@@ -1749,7 +1727,9 @@ export function collectFamilyHousingShortages(humans: Entity[], buildings: Build
   const alive = humans.filter((human) => human.alive && isPlayerHuman(human) && !isImprisoned(human));
   const residences = listPlayerResidences(buildings);
   const occupancy = buildResidenceOccupancy(alive);
-  return buildHousingUnits(alive).filter((unit) => unit.some(isMinorChild)
+  return buildHousingUnits(alive).filter((unit) => unit.some(
+    (member) => member.age < HUMAN_ADULT_MIN_AGE && member.partnerId == null,
+  )
     && !unit.some((member) => residences.some((home) => isLeaderHouseResidence(home) && home.id === member.residenceBuildingId))
     && !isFamilyHousingValid(unit, residences, alive, occupancy));
 }
@@ -1766,9 +1746,8 @@ function isUnnecessarilySharingHousing(
 
 export function auditHousingSharingIssues(humans: Entity[], buildings: Building[]): string[] {
   const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
-  // Player housing only, and never the Leader's House: rival-camp houses count 0 *player*
-  // residents and the manor is never a placement target, so counting either as an "empty
-  // house available" reported sharing that no picker could actually resolve.
+  // Player housing only, and never the Leader's House: rival-camp houses count 0 *player* residents
+  // and the manor is never a placement target.
   const residences = buildings.filter(
     (b) => isAssignableHome(b) && !isLeaderHouseResidence(b),
   );
@@ -2105,9 +2084,8 @@ function relocateCommuteSwaps(
 }
 
 /**
- * Per-residence facts the pickers ask about, built in **one** walk over `humans` and then kept
- * current by `residenceTraitMove` beside every occupancy move — threading it through is what makes
- * a pick O(residences) instead of O(residences × humans).
+ * Per-residence facts the pickers ask about, built in one walk and kept current by `residenceTraitMove`
+ * beside every occupancy move, which makes a pick O(residences) rather than O(residences × humans).
  */
 export interface ResidenceTraits {
   adults: number;
@@ -2125,8 +2103,8 @@ function addResidenceOccupant(traits: ResidenceTraitsById, residenceId: number, 
     traits.set(residenceId, entry);
   }
   entry.occupants.set(human.id, human);
-  if (!human.isJuvenile) entry.adults += 1;
-  if (isMinorChild(human)) entry.minors += 1;
+  if (human.age >= HUMAN_ADULT_MIN_AGE) entry.adults += 1;
+  if (human.age < HUMAN_ADULT_MIN_AGE && human.partnerId == null) entry.minors += 1;
   if (human.partnerId != null && entry.occupants.has(human.partnerId)) entry.pairs += 1;
 }
 
@@ -2134,8 +2112,8 @@ function removeResidenceOccupant(traits: ResidenceTraitsById, residenceId: numbe
   const entry = traits.get(residenceId);
   if (!entry) return;
   entry.occupants.delete(human.id);
-  if (!human.isJuvenile) entry.adults -= 1;
-  if (isMinorChild(human)) entry.minors -= 1;
+  if (human.age >= HUMAN_ADULT_MIN_AGE) entry.adults -= 1;
+  if (human.age < HUMAN_ADULT_MIN_AGE && human.partnerId == null) entry.minors -= 1;
   if (human.partnerId != null && entry.occupants.has(human.partnerId)) entry.pairs -= 1;
   if (entry.occupants.size === 0) traits.delete(residenceId);
 }
@@ -2153,9 +2131,8 @@ export function buildResidenceTraits(humans: readonly Entity[]): ResidenceTraits
 }
 
 /**
- * Applies one move to a threaded trait map, exactly as a fresh `buildResidenceTraits` would read it
- * at that moment. Every residence write inside an assignment pass must call this beside
- * `occupancyMove`, or the threaded map drifts from the live world.
+ * Applies one move to a threaded trait map, exactly as a fresh `buildResidenceTraits` would read it.
+ * Every residence write in an assignment pass must call this beside `occupancyMove`.
  */
 export function residenceTraitMove(
   traits: ResidenceTraitsById,
@@ -2271,7 +2248,7 @@ export function pickResidenceForFamily(
   if (residences.length === 0 || family.length === 0) return undefined;
 
   const loneSingle = isLoneSettler(family, humans);
-  const hasMinor = family.some((m) => isMinorChild(m));
+  const hasMinor = family.some((m) => m.age < HUMAN_ADULT_MIN_AGE && m.partnerId == null);
   
   // A threaded map is the pass's own; without one, one walk over the colony answers every
   // per-residence question below by lookup.
@@ -2387,7 +2364,9 @@ export function pickResidenceForHuman(
 ): number | undefined {
   if (residences.length === 0) return undefined;
 
-  const household = isMinorChild(human) ? [human] : collectOwnHousehold(human, humans);
+  // Housing policy, not age: a partnered minor rooms alone but is still a minor everywhere else.
+  const dependentMinor = human.age < HUMAN_ADULT_MIN_AGE && human.partnerId == null;
+  const household = dependentMinor ? [human] : collectOwnHousehold(human, humans);
   const familyHouse = pickResidenceForFamily(household, humans, residences, occupancy, traits);
   if (familyHouse !== undefined) return familyHouse;
 
@@ -2401,11 +2380,11 @@ export function pickResidenceForHuman(
     }
   }
 
-  if (isMinorChild(human)) {
+  if (dependentMinor) {
     const custodianHome = pickResidenceFromChildCustodian(human, humans, residences, occupancy);
     if (custodianHome !== undefined) return custodianHome;
   }
 
-  const crowdOpts: PickResidenceOptions = isMinorChild(human) ? { forbidSinglesOnly: true } : {};
+  const crowdOpts: PickResidenceOptions = dependentMinor ? { forbidSinglesOnly: true } : {};
   return pickLeastCrowdedResidence(humans, residences, 1, crowdOpts, occupancy, [], traits);
 }

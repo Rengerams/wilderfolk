@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { GameLoop } from '../game/gameLoop';
 import type { WorldState, BuildingType, Building, Entity } from '../game/gameEngine';
 import type { EntityCatalog } from '../game/entityCatalog';
@@ -49,11 +49,7 @@ export interface UseCanvasInteractionsOptions {
 
 /**
  * The `placeStripChain` command for a drag preview, or null when there is nothing to commit.
- *
- * The click path and the drag-release path each built this command identically, so a change to strip
- * placement had to be made twice in the input hot path. Validity is deliberately **not** re-checked
- * here: the placement owner paves the segments it accepts, reports what it refused and why, and stops
- * when the resources run out — a stroke that crosses one bad tile is normal, not a refusal.
+ * Validity is not re-checked here: the placement owner accepts or refuses each segment itself.
  */
 function stripChainCommand(
   preview: ReturnType<typeof buildStripPreview>,
@@ -70,11 +66,8 @@ function stripChainCommand(
 }
 
 /**
- * The topmost building at a given world coordinate — the map's one building hit test.
- *
- * Exported because the keyboard cursor's screen-reader description has to name the same building a
- * click here would select (`useMapKeyboardCursor.describeMapCursor`); a second copy of the
- * containment rule would be a second answer to "what is under this point".
+ * The topmost building at a given world coordinate — the map's one building hit test. Exported so
+ * the keyboard cursor's screen-reader description names the same building a click would select.
  */
 export function findBuildingAt(buildings: readonly Building[], worldX: number, worldY: number): Building | null {
   for (let i = buildings.length - 1; i >= 0; i--) {
@@ -114,14 +107,11 @@ export function useCanvasInteractions({
   // Suppresses subsequent onClick handling if strip build was already committed on mouseUp
   const stripPlacedOnMouseUpRef = useRef(false);
   const stripDemolitionGestureRef = useRef(false);
+  const [pendingStripDemolition, setPendingStripDemolition] = useState<number[] | null>(null);
   const stripStrokeRef = useRef<{ x: number; y: number }[]>([]);
   /**
    * Did the gesture that just ended move the pointer far enough to be a pan rather than a click?
-   *
-   * The click event arrives **after** `mouseup`, which clears `clickOriginRef`, so the distance guard
-   * in `handleCanvasClick` had nothing left to measure and every pan fell through to the deselect
-   * branch — the most frequent map action threw the selection away. The verdict is taken in `mouseup`,
-   * while the origin still exists, and read by the click that follows.
+   * Taken in `mouseup` while `clickOriginRef` still exists, then read by the click that follows.
    */
   const pointerMovedRef = useRef(false);
 
@@ -465,9 +455,8 @@ export function useCanvasInteractions({
             worldY,
             rotation,
           );
-          // The owner's *reason*, not just its boolean: the ghost names the blocker
-          // (`buildingPlacementLabels`) so a dry-bank Bridge reads as "must span river water" instead
-          // of "Blocked" (`LIVE-FINDINGS-STATUS.md` F5).
+          // Use the owner's reason, not just its boolean, so the ghost names the actual blocker
+          // (`buildingPlacementLabels`).
           const reason = getPlaceBuildingFailureReason(
             liveWorld,
             selectedBuildingType,
@@ -567,10 +556,7 @@ export function useCanvasInteractions({
             end?.worldX ?? start.x, end?.worldY ?? start.y,
           );
           stripPlacedOnMouseUpRef.current = true;
-          if (buildingIds.length > 0) {
-            applyGameAction({ proto: 1, op: 'demolishStripBuildings', buildingIds });
-            playClickSound();
-          }
+          if (buildingIds.length > 0) setPendingStripDemolition(buildingIds);
           loop?.patchView({ buildStripPreview: null });
         } else {
           const end = e ? getEventWorldCoords(e.clientX, e.clientY) : null;
@@ -612,8 +598,7 @@ export function useCanvasInteractions({
       }
 
       // Record the gesture's travel before the origin is dropped — the click that follows reads it.
-      // `clickOriginRef` is only ever set on a real press, so a missing origin means there is no
-      // gesture to measure.
+      // A missing origin means there is no gesture to measure.
       const origin = clickOriginRef.current;
       if (origin && e) {
         const dx = e.clientX - origin.x;
@@ -666,9 +651,8 @@ export function useCanvasInteractions({
     e.preventDefault();
   }, []);
 
-  // Alt-tabbing (or a cancelled pointer) mid-drag never delivers mouseup/mouseleave to the
-  // canvas, so the drag refs would stay set and the camera would follow the cursor with no
-  // button pressed. Reset on focus loss on the same terms as leaving the canvas.
+  // Alt-tabbing or a cancelled pointer mid-drag delivers no mouseup/mouseleave, so reset the drag
+  // refs on focus loss just as leaving the canvas does.
   useEffect(() => {
     const resetDrag = () => handleMouseLeave();
     window.addEventListener('blur', resetDrag);
@@ -681,6 +665,14 @@ export function useCanvasInteractions({
     };
   }, [handleMouseLeave]);
 
+  const confirmStripDemolition = useCallback(() => {
+    const ids = pendingStripDemolition;
+    setPendingStripDemolition(null);
+    if (!ids?.length) return;
+    applyGameAction({ proto: 1, op: 'demolishStripBuildings', buildingIds: ids });
+    playClickSound();
+  }, [applyGameAction, pendingStripDemolition]);
+
   return {
     handleCanvasClick,
     handleMouseMove,
@@ -688,5 +680,8 @@ export function useCanvasInteractions({
     handleMouseUp,
     handleMouseLeave,
     handleContextMenu,
+    pendingStripDemolition,
+    confirmStripDemolition,
+    cancelStripDemolition: () => setPendingStripDemolition(null),
   };
 }

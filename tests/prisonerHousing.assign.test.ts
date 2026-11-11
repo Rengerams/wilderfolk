@@ -1,9 +1,6 @@
 /**
- * The assign pulse must not re-house a jailed settler.
- *
- * Arrest clears `residenceBuildingId` on purpose. `assignMissingResidences` used to treat every
- * living player human as a housing candidate, so the next assignment pulse put the prisoner back
- * in a bed (and folded a jailed spouse into the free partner's unit).
+ * The assign pulse must not re-house a jailed settler: arrest clears `residenceBuildingId` on
+ * purpose, so `assignMissingResidences` must treat prisoners as non-candidates.
  */
 import { describe, expect, it } from 'vitest';
 import { assignMissingResidences } from '../src/game/housingPipeline';

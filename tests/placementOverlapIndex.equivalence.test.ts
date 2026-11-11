@@ -1,12 +1,6 @@
 /**
- * R-7 of the 2026-09-21 audit — the build-grid overlap index.
- *
- * `canPlaceBuildingSnapshot` runs once per candidate cell on the build lattice, and each call used to
- * scan every building (`overlapsAnyBuilding`) — O(cells × buildings) per repaint while panning in build
- * mode. It now checks overlap against a cached spatial index. That is only safe if the index is
- * exactly equivalent to the linear scan, so this file asserts the two agree across a lattice of
- * candidate placements around a densely populated village, including placements that touch building
- * edges and cell boundaries.
+ * The build-grid overlap index must agree exactly with the linear building scan
+ * across candidate placements, including edge and cell-boundary touches.
  */
 import { describe, expect, it } from 'vitest';
 import {

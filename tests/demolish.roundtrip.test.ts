@@ -1,14 +1,6 @@
 /**
- * Demolition round trip — SIMULATION_AUTHORITY.md §5 ("Demolishing a building
- * removes it from authoritative state, cleans its assignments, and clears
- * stale selection") + Objective 7.
- *
- * Traces the Demolish command through the shared `applyWorkerCommand` domain
- * implementation (used by both the worker and the main-thread fallback):
- * authoritative building removal, occupant/assignment cleanup, delta-merge
- * survivability (proven by running real sim ticks afterwards — the building
- * must not reappear), and the completed-building counter staying consistent
- * with the load-time recompute.
+ * Demolition round trip: the Demolish command removes the building from authoritative state, cleans
+ * its assignments and stale selection, and later real ticks never bring it back.
  */
 import { describe, expect, it } from 'vitest';
 import {

@@ -1,4 +1,5 @@
-import { Suspense, lazy, useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
+import { lazyWithRetry } from '../lazyWithRetry';
 import { ResearchType } from '../../game/gameTypes';
 import type { WorldState } from '../../game/gameEngine';
 import { canEstablishTradeRoute, hasCompletedMarket, summarizeTradeRouteBlocks } from '../../game/tradeCaravans';
@@ -6,17 +7,16 @@ import { canStartResearch, getResearchBlockReason } from '../../game/research';
 import { computeVillagePortrait } from '../../game/villagePortrait';
 import { formatResourceAmounts } from '../../game/resourceTypes';
 import SubjectWindow from '../SubjectWindow';
-// The sub-tab union is owned by the shell hook. A member added there compiled fine against this
-// file's private copy and was then unreachable, because nothing here could name it.
+// The sub-tab union is owned by the shell hook; import it rather than redeclaring a copy.
 import type { ProgressSubTab } from '../../hooks/useGameShellState';
 
-const ChallengesPanel = lazy(() => import('../ChallengesPanel'));
-const StatisticsPanel = lazy(() => import('../../game/StatisticsPanel'));
-const ValleyChroniclePanel = lazy(() => import('./ValleyChroniclePanel'));
-const DynastyPanel = lazy(() => import('./DynastyPanel'));
+const ChallengesPanel = lazyWithRetry(() => import('../ChallengesPanel'));
+const StatisticsPanel = lazyWithRetry(() => import('../../game/StatisticsPanel'));
+const ValleyChroniclePanel = lazyWithRetry(() => import('./ValleyChroniclePanel'));
+const DynastyPanel = lazyWithRetry(() => import('./DynastyPanel'));
 
 /**
- * The six subjects of the Goals sub-tab — one owner for the index buttons and for the windows they
+ * The five subjects of the Goals sub-tab — one owner for the index buttons and for the windows they
  * open, so a subject cannot be listed without a window behind it.
  */
 type ProgressSubjectId = 'path' | 'challenges' | 'statistics' | 'chronicle' | 'dynasty';
@@ -49,7 +49,7 @@ export interface ProgressTabPanelProps {
   onEstablishTradeRoute: (routeId: string) => void;
 }
 
-/** How you play — not a win screen. Its four subjects render as windows, opened from the Goals index. */
+/** How you play — not a win screen. Its three subjects render as windows, opened from the Goals index. */
 function GoalsPortraitPanel({
   state,
   openSubject,
@@ -146,15 +146,7 @@ export default function ProgressTabPanel({
   onStartResearch,
   onEstablishTradeRoute,
 }: ProgressTabPanelProps) {
-  /**
-   * Which goals subject's window is open, if any.
-   *
-   * The owner's ruling reaches this panel too — *"each subject should just have its own window not
-   * stacking up"* — so the six `CollapsibleSection`s that used to scroll here (four inside
-   * `GoalsPortraitPanel`, two in the goals branch) are one **index** and one window each. The
-   * Research/Trade branches keep their existing inline lists: they were never the measured stack, and
-   * the sub-nav above still selects between the three groups.
-   */
+  /** Which goals subject's window is open, if any: one index plus one window per subject. */
   const [openSubject, setOpenSubject] = useState<ProgressSubjectId | null>(null);
   // The trade owner's village-level answer: counts per reason, not a second reading of its rule.
   const tradeBlocks = summarizeTradeRouteBlocks(state);
@@ -217,11 +209,7 @@ export default function ProgressTabPanel({
                 </div>
                 <div className="space-y-1.5">
                   {nodes.map(node => {
-                    /**
-                     * The research owner's gate, not a second copy of it: the local test dropped
-                     * `node.prerequisites`, so the panel offered a Research button for a node whose
-                     * prerequisites were unmet and the command refused it.
-                     */
+                    /** The research owner's gate (`canStartResearch`), never a local copy of its rule. */
                     const canResearch = canStartResearch(state, node.id);
                     // A disabled choice prints the owner's own refusal, never a bare greyed button.
                     const blockReason = canResearch ? null : getResearchBlockReason(state, node.id);
@@ -296,10 +284,8 @@ export default function ProgressTabPanel({
 
             <div className="space-y-2">
               {state.tradeRoutes.map(route => {
-                // Eligibility comes from the trade owner, never from a copy of its rule: the
-                // owner exempts the coin→materials rescue routes from the Market requirement, and
-                // a locally restated Market-and-reputation check used to disable exactly those
-                // three (`BUG_REPORTS/2026-09-16-material-purchase-trade-routes-unreachable.md`).
+                // Eligibility comes from the trade owner (`canEstablishTradeRoute`); it exempts the
+                // coin→materials rescue routes from the Market requirement.
                 const eligibility = canEstablishTradeRoute(state, route.id);
                 const canEstablish = eligibility.ok;
                 return (
@@ -309,8 +295,7 @@ export default function ProgressTabPanel({
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-bold text-stone-200">{route.targetName}</span>
                     <span className={`text-right ${route.active ? 'text-emerald-400' : 'text-stone-400'}`}>
-                      {/* An establishable inactive route must not read "Unavailable" above its own
-                          enabled button (2026-09-17 UI audit, R4). */}
+                      {/* An establishable inactive route shows "Ready to establish", never "Unavailable". */}
                       {route.active
                         ? 'Active'
                         : eligibility.ok
@@ -397,8 +382,8 @@ export default function ProgressTabPanel({
             </Suspense>
           </SubjectWindow>
 
-          {/* Its four subjects are windows too; the buttons for them are in the index above, so this
-              component owns only the bodies and the portrait computation they share. */}
+          {/* Its three subjects are windows too; the index above owns their buttons, so this component
+              owns only the bodies and the portrait computation they share. */}
           <GoalsPortraitPanel
             state={state}
             openSubject={openSubject}

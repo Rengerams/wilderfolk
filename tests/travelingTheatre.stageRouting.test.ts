@@ -1,18 +1,6 @@
 /**
- * Every travelling-theatre stage answers the card it belongs to.
- *
- * `resolveTravelingTheatre` dispatched on `FLAG_STATUS` alone, but the Opening Night card
- * is pushed by `tickTravelingTheatre` without advancing that flag (it only stamps
- * `FLAG_STAGE3`), so stage-3 answers arrived while the flag still read `preparing` and were
- * routed into `resolveStage2`. Its switch has no case for `correct_story` /
- * `let_legend_grow` / `interrupt`, so they fell through to `case 'cancel_show': default:`
- * — **every** opening-night answer cancelled the show, emitted "the troupe leaves
- * offended", and made `resolveStage3` (the +2/+3 "living legend", +1 "honest history", and
- * the -1 interruption) unreachable.
- *
- * The tests drive the real sequence: `maybeOfferTravelingTheatre` (stage-1 card) →
- * script answer → support answer → `tickTravelingTheatre` (opening-night card) → stage-3
- * answer, which is exactly the order the daily layer and the UI use.
+ * Every travelling-theatre stage answers the card it belongs to: the Opening Night card is pushed
+ * without advancing `FLAG_STATUS`, so stage-3 answers must not be routed into `resolveStage2`.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

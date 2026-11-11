@@ -17,15 +17,8 @@ const loadingPromises = new Map<string, Promise<SpriteFrame>>();
 let humanSpritesReady = false;
 
 /**
- * Kept in sync with humanSprites path constants (no import — avoids circular dep).
- * Exported so `tests/humanSprites.test.ts` can assert the sync: a ladder
- * path missing from this set is neither preloaded nor bottom-anchored.
- *
- * The 16 legacy `human_male_v0…v7` / `human_female_v0…v7` walk sheets used to be listed here and were
- * fetched on every boot, although nothing had referenced them since the class-ladder art landed
- * (`humanSprites.WALK_SHEET_PATHS` is the only reader of a human walk sheet). Their PNGs stay in
- * `public/sprites/` for rollback; re-adding a path here is only correct together with a ladder entry
- * that can return it, because this set decides both preloading and the feet-down anchor
+ * Kept in sync with humanSprites path constants (no import — avoids a circular dep); this set
+ * decides both preloading and the feet-down anchor. Exported for `tests/humanSprites.test.ts`.
  */
 export const HUMAN_SPRITE_PATHS = new Set<string>([
   '/sprites/human_male.png',
@@ -148,7 +141,7 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/roads/road_corner_3.png',
     '/sprites/roads/road_corner_4.png',
     '/sprites/ground_soil.png',
-    // Leader's manor — not yet wired to a BuildingType, preloaded explicitly.
+    // Leader's manor — BUILDING_CONFIGS[LeaderHouse] declares this sprite too.
     '/sprites/house_leader.png',
     '/sprites/human_male.png',
     '/sprites/human_female.png',
@@ -166,7 +159,7 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/terrain/cethiel/Dirt_02.png',
     '/sprites/terrain/cethiel/Dirt_04.png',
     // CC0 50 Free Textures 5 (rubberduck / para), 512px reduced albedos.
-    // Load only the seven materials the v4 ground shader actually samples.
+    // Load only the seven materials the v4 Whittaker ground bake actually samples.
     '/sprites/terrain/rubberduck/246.jpg', // sand
     '/sprites/terrain/rubberduck/206.jpg', // soil
     '/sprites/terrain/rubberduck/217.jpg', // dry earth
@@ -181,10 +174,8 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/terrain/water_deep_fill.png',
     '/sprites/terrain/snow.png',
     '/sprites/terrain/mountain.png',
-    // The optional transparent 4×4 sand-bank/water mask sheet
-    // (`SAND_WATER_OVERLAY_PATH`) is omitted until `public/sprites/terrain/sand_water_overlay.png`
-    // ships: the retired tile bake reads it only when the sprite is present, and preloading a missing
-    // file spams boot errors. See `BUG_REPORTS/2026-09-16-sand-water-overlay-sprite-missing.md`.
+    // The optional transparent 4×4 sand-bank/water mask sheet (`SAND_WATER_OVERLAY_PATH`) is
+    // omitted until the sprite ships; preloading a missing file spams boot errors.
   ];
   // Decor buildings draw procedurally — they declare no sprite at all.
   const buildingSprites = Object.values(BUILDING_CONFIGS)

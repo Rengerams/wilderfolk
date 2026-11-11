@@ -1,7 +1,6 @@
 /**
- * S2 — The Traveling Theatre Company (roadmap v0.6.3).
- * Full chain per docs/archive/story/STORY_TRAVELING_THEATRE_COMPANY.md:
- * script selection from real history → support package → opening night response.
+ * The Traveling Theatre Company — script selection from real history, support package, then
+ * opening night response.
  */
 import type { WorldState, StoryEvent } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
@@ -46,10 +45,7 @@ const SCRIPT_TITLES: Record<number, string> = {
 };
 
 /**
- * The play the colony chose at stage 1, resolved from `FLAG_SCRIPT`.
- *
- * Stage 1 stored the choice and nothing ever read it back, so every opening
- * night described the same anonymous performance.
+ * The play the colony chose at stage 1, resolved from `FLAG_SCRIPT`; opening night names it.
  */
 function stagedScriptTitle(state: WorldState): string {
   return SCRIPT_TITLES[storyFlag(state, FLAG_SCRIPT)] ?? 'The First Winter';
@@ -144,14 +140,8 @@ export function maybeOfferTravelingTheatre(state: WorldState): void {
 }
 
 /**
- * Whether `resolveTravelingTheatre` would accept this answer right now.
- *
- * Mirrors the stage-2 support gates the resolver applies — the same contract
- * `getDiplomacyChoiceEligibility` provides for diplomacy cards — so a consumer
- * (the auto-play bot) can tell an answer the troupe takes from one it refuses.
- * A refused answer leaves the card open, so a consumer that cannot tell the
- * difference would re-propose it forever; the card always offers free
- * alternatives (`support_improvise`, `cancel_show`).
+ * Whether `resolveTravelingTheatre` would accept this answer right now; a refused answer leaves the
+ * card open, so a cadence-driven consumer must be able to tell.
  */
 export function getTravelingTheatreChoiceEligibility(
   state: WorldState,
@@ -170,12 +160,8 @@ export function getTravelingTheatreChoiceEligibility(
 const STAGE3_CHOICES: readonly Stage3Choice[] = ['correct_story', 'let_legend_grow', 'interrupt'];
 
 export function resolveTravelingTheatre(state: WorldState, choiceId: string): boolean {
-  // Dispatch on the answer itself first. The Opening Night card is pushed by
-  // `tickTravelingTheatre` without advancing `FLAG_STATUS`, so stage-3 answers arrived
-  // while the flag still read `preparing`: they were fed to `resolveStage2`, whose switch
-  // has no matching case, and fell through to `case 'cancel_show': default:` — every
-  // opening-night answer cancelled the show and emitted "the troupe leaves offended",
-  // making `resolveStage3` (and its reputation outcomes) unreachable.
+  // Dispatch on the answer itself first: the Opening Night card leaves `FLAG_STATUS` at `preparing`,
+  // so its answers must not be routed through the stage-2 switch.
   if (STAGE3_CHOICES.includes(choiceId as Stage3Choice)) {
     return resolveStage3(state, choiceId as Stage3Choice);
   }

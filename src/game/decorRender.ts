@@ -1,7 +1,6 @@
 /**
- * Procedural decor rendering (Phase 3.2) — gardens, statues, lamps draw with
- * canvas shapes so the feature ships without new art. Fences draw through the
- * strip path (stripRender.drawProceduralFence).
+ * Procedural decor rendering — gardens, statues, lamps draw with canvas shapes.
+ * Fences draw through the strip path (`stripRender.drawProceduralFence`).
  */
 import type { BuildingType } from './buildings';
 import { BuildingType as BT } from './buildings';
@@ -93,7 +92,7 @@ function drawStatue(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   ctx.fill();
 }
 
-/** One constant appearance: the lamp no longer lights up at night. */
+/** One constant appearance; the lamp does not light at night. */
 function drawLamp(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const hh = h / 2;
   // Post

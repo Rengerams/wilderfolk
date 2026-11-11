@@ -1,7 +1,6 @@
 /**
- * S4 — The Apprentice's Terrible Invention Fair (roadmap v0.6.3).
- * Full chain per docs/archive/story/STORY_APPRENTICE_INVENTION_FAIR.md:
- * three inventions → fund/redesign → delayed demonstration → keep/improve/dismantle.
+ * The Apprentice's Terrible Invention Fair: three inventions → fund/redesign → delayed
+ * demonstration → keep/improve/dismantle.
  */
 import type { WorldState, StoryEvent } from './gameTypes';
 import { BuildingType } from './gameTypes';
@@ -121,12 +120,8 @@ export function maybeOfferInventionFair(state: WorldState): void {
 }
 
 /**
- * Whether `resolveInventionFair` would accept this answer right now.
- *
- * Mirrors the resolver's only gate — the wood a funding answer (stage 1) or an
- * upgrade (stage 2) charges — so a consumer (the auto-play bot) can tell an
- * answer that lands from one that is refused and leaves the card open.
- * `reject`, `keep`, and `dismantle` are free.
+ * Whether `resolveInventionFair` would accept this answer right now: only funding (stage 1) and
+ * upgrade (stage 2) charge wood. `reject`, `keep`, and `dismantle` are free.
  */
 export function getInventionFairChoiceEligibility(
   state: WorldState,
@@ -140,8 +135,7 @@ export function getInventionFairChoiceEligibility(
 }
 
 export function resolveInventionFair(state: WorldState, choiceId: string): boolean {
-  // The chain is answered once. Stale duplicate cards (e.g. from a save written
-  // before the one-shot demonstration flag existed) must not re-run stage 2.
+  // The chain is answered once; a stale duplicate card must not re-run stage 2.
   if (storyFlag(state, FLAG_RESOLVED) > 0) return true;
   const status = storyFlag(state, FLAG_STATUS);
   if (status === STATUS.offered) return resolveStage1(state, choiceId as Stage1Choice);
@@ -204,8 +198,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
 export function tickInventionFair(state: WorldState): void {
   if (storyFlag(state, FLAG_RESOLVED) > 0) return;
   if (storyFlag(state, FLAG_STATUS) !== STATUS.funded) return;
-  // The Demonstration is a one-shot card; without this it was re-pushed with a
-  // fresh id every colony day, and each duplicate paid out again on answer.
+  // One-shot card: a second push would pay out again on every answer.
   if (storyFlag(state, FLAG_DEMO_OFFERED) > 0) return;
   const colonyDay = getColonyDay(state);
   const resolveDay = storyFlag(state, FLAG_RESOLVE_DAY);
@@ -253,8 +246,8 @@ function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
     bumpVillageReputation(state, 1);
     addBigNews(state, '⚙️ The invention stays', 'It works well enough to keep around.', 'positive');
   } else {
-    // The recovered timber obeys the storage cap like every other gain (`LIVE-FINDINGS-STATUS.md`, L1);
-    // a raw `+=` pushed wood past `storageMax` and made the cap non-authoritative.
+    // Recovered timber goes through the capped writer like every other gain; a raw `+=` would
+    // push wood past `storageMax`.
     addCappedResource(state, 'wood', 4);
     addBigNews(state, '⚙️ Dismantled', 'The device is taken apart; part of the wood is recovered.', 'neutral');
   }

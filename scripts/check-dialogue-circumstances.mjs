@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 /**
- * Review aid: do the lines attached to an event key actually fit that event?
- *
- * Hard failures: unknown event keys, unreadable source, a pair scene where only
- * one role ever speaks, or a tagged line missing its required circumstance cue.
- * `--strict` turns the per-line warnings into failures for a deliberate review.
+ * Review aid: do the lines attached to an event key fit that event? `--strict` turns per-line warnings
+ * into the same failures as unknown keys, unreadable source, one-sided pair scenes and missing cues.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';

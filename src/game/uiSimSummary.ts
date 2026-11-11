@@ -1,8 +1,6 @@
 /**
- * Village Simulation Summary & Demographics
- *
- * Fast aggregation of colony population, employment metrics,
- * and housing capacity for top-bar HUD and overview panels.
+ * Village simulation summary & demographics: fast aggregation of population, employment and
+ * housing capacity for the top-bar HUD and overview panels.
  */
 
 import type { EntityCatalog } from './entityCatalog';
@@ -20,17 +18,15 @@ export interface VillageStatsSummary {
   imprisoned: number;
   beds: number;
   /**
-   * Beds a settler may actually be assigned (`populationGrowth.getOpenPlayerBeds`), not
-   * `beds − total`: the Leader's House beds are reserved for the leader's household, so counting them
-   * made this figure read "housing available" while every settler was in fact unhoused
+   * Beds a settler may actually be assigned (`getOpenPlayerBeds`), not `beds − total`: the Leader's
+   * House beds are reserved for the leader's household.
    */
   openBeds: number;
 }
 
 /**
- * IDs of the settlers stationed on an incomplete player building — a construction crew member has
- * no workplace assignment of their own, so every caller that classifies "working vs idle" must ask
- * this scan (the dashboard's per-settler `noWork` flag does; the counters use it below).
+ * IDs of settlers stationed on an incomplete player building: a construction crew member has no
+ * workplace assignment, so "working vs idle" callers must include this scan.
  */
 export function getActiveConstructionWorkers(world: WorldState): Set<number> {
   const workers = new Set<number>();
@@ -45,12 +41,8 @@ export function getActiveConstructionWorkers(world: WorldState): Set<number> {
 }
 
 /**
- * Computes demographic and labor summary for the colony.
- * Uses catalog if provided, falling back to direct state scan.
- *
- * This is the single aggregation of the village's labour counters: the top-bar HUD, the People
- * screen (`citizenOverview.computeCitizenOverview`) and the dashboard (`dashboardData`) all read
- * these numbers rather than re-deriving what "working" and "idle" mean.
+ * Computes the colony's demographic and labour summary, using the catalog when provided.
+ * The single aggregation of the labour counters the HUD, People screen and dashboard all read.
  */
 export function computeVillageStats(
   world: WorldState,

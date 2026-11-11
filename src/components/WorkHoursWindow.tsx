@@ -1,18 +1,6 @@
 /**
  * Work & venue hours — its own window, not a section of the overview stack.
- *
- * Owner ruling, 2026-09-29: *"each subject should just have its own window not stacking up"*. These
- * editors used to live inside `CitizenOverviewScreen`, reachable only through Overview → Village,
- * below the Village panel's own content — so the owner's report *"i cannot change work times the
- * butotn to apply doesn work"* was filed against a control that was hard to reach in the first place.
- *
- * The three editors are unchanged owner-owned panels (`WorkSchedulePanel`, `VenueSchedulePanel`,
- * `WorkforcePolicyPanel`); this window only gives them somewhere to live. It adds no rule and no
- * second copy of one — routing it into a `GameWindow` is the whole change, which is why the Apply
- * button's behaviour is identical to before and the `GameWindow` shell is what gets reused.
- *
- * The body is an index plus the one editor it names, not the three editors stacked: the same
- * index-and-subject shape `SelectedEntityPanel` and `VillageTabPanel` use.
+ * The body is an index plus the one editor it names; the editors and `GameWindow` are reused as-is.
  */
 import { useState } from 'react';
 import type { WorldState } from '../game/gameTypes';
@@ -28,9 +16,8 @@ import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 type WorkHoursSubjectId = 'work' | 'venue' | 'workforce';
 
 /**
- * The index, in the shape `SelectedEntityPanel` renders: one entry per subject, carrying the glyph
- * for its editor and the line that says what that editor answers. The entry and the editor behind it
- * cannot drift, because the same id selects the entry and the body.
+ * The index, in the shape `SelectedEntityPanel` renders: one entry per subject, carrying
+ * the glyph and hint for its editor, with the same id selecting the entry and the body.
  */
 const WORK_HOURS_SUBJECTS: ReadonlyArray<{
   id: WorkHoursSubjectId;
@@ -59,9 +46,7 @@ export default function WorkHoursWindow({
   onClose,
 }: WorkHoursWindowProps) {
   const [subject, setSubject] = useState<WorkHoursSubjectId>('work');
-  // `GameWindow` owns the focus half of the overlay contract; the keyboard half is the caller's, and
-  // it was missing here — the map's hotkeys stayed live behind these windows and Escape ran the game's
-  // own chain instead of closing them.
+  // `GameWindow` owns the focus half of the overlay contract; this hook supplies the keyboard half.
   useOverlayKeyboard('work-hours-window', onClose);
 
   return (
@@ -88,9 +73,8 @@ export default function WorkHoursWindow({
         ))}
       </div>
       {/*
-        All three editors stay mounted, as they were when they were stacked, and the hidden ones are
-        `hidden` rather than absent: an editor's hour selects hold a pending choice, and switching
-        subject must not silently discard it. Only the selected editor is visible.
+        All three editors stay mounted with `hidden` rather than absent, so a pending hour
+        choice in an unselected editor is not silently discarded.
       */}
       <div className="mt-3">
         <div className={subject === 'work' ? 'block' : 'hidden'}>

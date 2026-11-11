@@ -1,58 +1,22 @@
 /**
- * The terrain data model's single reader: the four-layer grid.
- *
- * Teraforge bakes the world into flat typed arrays and keeps **no** `TerrainTile[][]`
- * (roadmap v0.6.5, Theme 1). This module is the one place that projects a
- * per-tile `TerrainTile` back out of them, and the one place that owns the
- * sparse override layer, the L0 path grid and the L1 build grid:
- *
- * ```text
- * L1 build grid  20 px   buildGrid  (0 buildable · 1 water · 2 hard · 3 mixed)
- * L0 path grid   10 px   pathGrid   (0 walkable · 1 water · 2 hard decor)
- * L2 continuous   16 px   elevation · moisture · temperature · terrain · riverDist
- * L3 decor               map.decorations
- *
- * Names, units and owners for every layer: docs/TILE_LATTICE_GUIDELINES.md
- * ```
- *
- * Consumers read tiles through {@link tileAt} / {@link tileTypeAt} — there is no `map.tiles` array —
- * so the representation can change without touching call sites. `WorldMap.overrides` (camp and
- * forest clearing) is applied on read and {@link rebakeTerrainGrids} keeps the two grids consistent.
- *
- * Ids are raw 0/1/2 values because these arrays are written by hand in hot
- * loops; {@link Walkability} and {@link Buildability} are the named owners of
- * their meaning.
+ * The terrain data model's single reader: the four-layer grid (L1 build, L0 path, L2 continuous
+ * fields, L3 decorations). Consumers go through `tileAt`/`tileTypeAt`; there is no `map.tiles`.
  */
 import { TerrainType, PATH_CELL, type TerrainTile, type WorldMap } from '../gameTypes';
 import { clamp, lerp, valueNoise, hashString } from './noise';
-// The unbuildable-terrain rule lives in a leaf module (`terrainTraits`) precisely so this file can
-// read it without importing `placementUtils`, which imports `tileAt` from here — that pair was a
-// runtime cycle.
+// The unbuildable-terrain rule lives in the leaf `terrainTraits` so this file can read it without
+// importing `placementUtils`, which imports `tileAt` from here (a cycle).
 import { isUnbuildableTerrainType } from './terrainTraits';
 
 /**
- * L2 cell edge (px) — the biome / continuous-field resolution.
- *
- * This is the model's sharpest visual limit: a biome boundary lands on this lattice, so the
- * constant sets how coarse a climate edge is. It is one number because the generator, the L0 grid,
- * the tile projection and the per-pixel bake must all agree on it — a second copy anywhere would
- * let terrain and the ground art disagree about where a cell ends.
- *
- * Keep it in step with `WATER_CELL` and the other layers: changing it reclassifies every tile and
- * breaks tests that pin terrain-dependent outcomes.
+ * L2 cell edge (px) — the biome / continuous-field resolution. One number because the generator,
+ * the L0 grid, the tile projection and the per-pixel bake must agree; changing it reclassifies tiles.
  */
 export const TERRAIN_CELL = 16;
 
 /**
- * Water mask edge (px). Deliberately **not** the biome cell size.
- *
- * One resolution cannot serve both layers: the climate/biome field is smooth and happy at 64 px,
- * while the water mask is where the eye sees structure — a coastline, a river bank — and at 64 px
- * a channel and its banks are whole cells, so the waterline is a staircase. Real map generators
- * give the water layer its own finer resolution, and so does this: rivers and the shoreline are
- * rasterised at 16 px, which is the smallest step the 10 px path grid can represent without
- * aliasing, and the biome field is left exactly where it was. That is what makes this change safe
- * — not one tile reclassifies, so no fixture and no determinism check moves.
+ * Water mask edge (px), sampled in the map's own water dimensions (`waterCols`/`waterRows`), so a
+ * finer shoreline does not force the climate field to the same resolution.
  */
 export const WATER_CELL = 16;
 
@@ -88,23 +52,8 @@ export function sampleElev(
 }
 
 /**
- * The 12 Wilderfolk terrain types, projected from the continuous fields.
- *
- * Owner of the biome-band thresholds: the L0 path grid and every `tileAt` call
- * read this one function, so a tile can never be `River` for the renderer and
- * walkable for the pathfinder.
- *
- * The land rules follow the biome chart the overhaul is modelled on — precipitation against
- * temperature — where **grassland is the dry-temperate biome**, not a catch-all: open grass
- * sits in the middle of the moisture range, forest above it, desert at the hot-and-dry
- * corner, and tundra/taiga wherever the air is cold. The first version of this used grassland
- * as the fallback for every unmatched cell, which is why a generated map came out either
- * 40 % grass with 1 % forest or 1 % grass with 47 % forest depending on one threshold.
- *
- * The moisture cuts are supplied by the generator from each map's own precipitation
- * distribution (`WorldMap.moistureForestThreshold`). Absolute constants cannot work: the
- * tile-level field runs 0.47 at p50 on an arid preset and 0.73 on a wet one, so a fixed cut
- * paints one map entirely grass and the next entirely canopy.
+ * The 13 Wilderfolk terrain types, projected from the continuous fields. Owner of the biome-band
+ * thresholds: the L0 path grid and every `tileAt` call read this, so tile type cannot disagree.
  */
 export const DEFAULT_MOISTURE_FOREST = 0.6;
 const DEFAULT_MOISTURE_DARK_FOREST = 0.72;
@@ -112,38 +61,22 @@ const DEFAULT_MOISTURE_DARK_FOREST = 0.72;
  *  itself because the ground bake decides grass-versus-dirt on the same two numbers. */
 export const MOISTURE_DRY_BELOW_FOREST = 0.14;
 /**
- * 0–1 temperature below which the land is cold enough to be boreal rather than temperate — and,
- * above the snow line, cold enough for snow rather than bare rock.
- *
- * Exported because the ground bake gates its snow the same way: a `Mountains` tile that the air is
- * too warm to cap must not be painted white.
+ * 0–1 temperature below which the land is boreal rather than temperate, and cold enough for snow on
+ * the high ground. Exported because the ground bake gates its snow the same way.
  */
 export const COLD_TEMPERATURE = 0.3;
 /** Hot enough, and dry enough, to be desert rather than steppe. */
 const DESERT_TEMPERATURE = 0.58;
 const DESERT_MOISTURE_DEFICIT = 0.05;
 /**
- * Shore band as a fraction of the land range. Teraforge's `seaLevel + 0.04` is in *absolute*
- * elevation units and covers 5.6 % of the land range at sea 0.28 — but a low-sea preset has a
- * far wider land range, so the same literal painted 14 % of a `rivers` map as beach. Scaling
- * it by the land range keeps one beach width across presets.
- *
- * Exported so the ground bake's sand ends exactly where the `Beach` tile ends: an absolute sand
- * ramp bled its pale band onto the first grass tiles of every shore.
+ * Shore band as a fraction of the land range, so beach width stays constant across presets.
+ * Exported so the ground bake's sand ends exactly where the `Beach` tile ends.
  */
 export const BEACH_BAND_OF_LAND_RANGE = 0.045;
 
 /**
- * Where each relief band begins, as a fraction of the **land range** (0 = the waterline, 1 = the
- * highest land on the map) — `classifyTile`'s own axis, and the reason it is exported.
- *
- * The per-pixel ground bake colours land on absolute elevation above sea level, which on a preset
- * with `seaLevel ≥ 0.12` puts `snow` (0.88 absolute) beyond the map's maximum height: measured on a
- * 2560×1920 scandinavia map the field tops out at 1.077 while the ramp only turned white at 1.176,
- * so **0.0 % of the land could ever paint snow** while 1.0 % of its tiles were `Snow` — and the same
- * map's 2.9 % `Rocky` / 1.2 % `Mountains` tiles were painted lawn green. These numbers are the
- * classification's, so the ground art and the tile a settler walks on cannot disagree about where
- * the mountains start.
+ * Where each relief band begins, as a fraction of the land range (0 = waterline, 1 = highest land);
+ * `classifyTile`'s own axis. Exported so the ground bake and the walkable tile agree.
  */
 export const LAND_BANDS = {
   hills: 0.5,
@@ -154,10 +87,8 @@ export const LAND_BANDS = {
 
 
 /**
- * Biome-boundary dither, in band units. A coherent zero-mean value shifts every threshold at
- * once, so two biomes interlock along a ragged edge instead of meeting on a lattice line — the
- * standard way a precipitation × temperature classifier stops looking like a Voronoi diagram.
- * It moves *where* a boundary falls, never which biomes exist or in what proportion.
+ * Biome-boundary dither, in band units: a coherent zero-mean shift moves where a boundary falls,
+ * never which biomes exist, so edges interlock instead of meeting on a lattice line.
  */
 export const BIOME_EDGE_DITHER = 0.055;
 
@@ -167,9 +98,8 @@ export function biomeEdgeDither(e: number, seaLevel: number): number {
 }
 
 /**
- * `dither` shifts every band at once. Callers pass a coherent zero-mean noise sample
- * (`terrainGrid` uses the cell's own elevation, which is already a smooth field at exactly the
- * scale a boundary should wander at) so neighbouring cells agree on which way to lean.
+ * `dither` shifts every band at once. Callers pass a coherent zero-mean sample (the cell's own
+ * elevation) so neighbouring cells agree on which way to lean.
  */
 export function classifyTile(
   e: number,
@@ -192,10 +122,8 @@ export function classifyTile(
   const h = (e - seaLevel) / landRange;
   const dryCut = moistureForest - MOISTURE_DRY_BELOW_FOREST;
 
-  // Elevation is the outer gate. Below the alpine line, climate decides what grows; above it
-  // there is rock, and then snow wherever the air is actually cold enough for it. Order
-  // matters: the first version tested moisture before height, so a forested highland never
-  // reached the rock bands at all and generated 66 % forest with 0 % mountain.
+  // Elevation is the outer gate: below the alpine line climate decides what grows, above it rock
+  // and then snow wherever the air is cold enough.
   if (h >= LAND_BANDS.snow + dither) return te < COLD_TEMPERATURE ? TerrainType.Snow : TerrainType.Mountains;
   if (h >= LAND_BANDS.mountains + dither) return TerrainType.Mountains;
   if (h >= LAND_BANDS.rocky + dither) return TerrainType.Rocky;
@@ -203,11 +131,8 @@ export function classifyTile(
 
   // Cold ground: temperature, not height, is what makes taiga out of a forest.
   if (te < COLD_TEMPERATURE + dither) return TerrainType.DarkForest;
-  // Hot + dry corner of the chart — sand and scrub, which Wilderfolk reads as grassland.
-  // Hot + dry corner of the chart — real desert, not grassland. It classifies as its own type so the
-  // minimap, the footstep surface and the fallback tile bake can all tell arid ground from pasture;
-  // before this the corner returned `Grassland` and an Arabian map read as grass to every one of them
-  // while the per-pixel bake painted it sand.
+  // Hot + dry corner of the chart — real desert, not grassland, so the minimap, footstep surface
+  // and fallback tile bake can tell arid ground from pasture.
   if (te > DESERT_TEMPERATURE + dither && mo < dryCut + DESERT_MOISTURE_DEFICIT) return TerrainType.Desert;
   if (mo > moistureDarkForest + dither) return TerrainType.DarkForest;
   if (mo > moistureForest + dither) return TerrainType.Forest;
@@ -237,10 +162,8 @@ export function worldToTile(worldX: number, worldY: number): { tx: number; ty: n
 /* ===== Tile projection ===== */
 
 /**
- * Cached projections, one `Map` per world keyed by tile index. Held on a
- * `WeakMap` so a discarded world (new game, loaded save) takes its entries with
- * it; the rendered/queried tiles are a small fraction of a Huge map, so this
- * costs far less than materialising the whole grid.
+ * Cached projections, one `Map` per world keyed by tile index, held on a `WeakMap` so a discarded
+ * world takes its entries with it.
  */
 const projectionCache = new WeakMap<WorldMap, Map<number, TerrainTile>>();
 
@@ -256,10 +179,8 @@ export function isInsideTileGrid(map: WorldMap, tx: number, ty: number): boolean
 }
 
 /**
- * The `TerrainTile` at (tx, ty), or `undefined` when the coordinate is off-map
- * or the map has no continuous fields (a map stored by an older build).
- *
- * This is the replacement for `map.tiles[ty][tx]`.
+ * The `TerrainTile` at (tx, ty), or `undefined` when the coordinate is off-map or the map has no
+ * continuous fields.
  */
 export function tileAt(map: WorldMap, tx: number, ty: number): TerrainTile | undefined {
   if (!isInsideTileGrid(map, tx, ty)) return undefined;
@@ -313,11 +234,8 @@ function projectTile(map: WorldMap, tx: number, ty: number): TerrainTile | undef
   const rd = sampleElev(riverDist, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
   const seaLevel = map.seaLevel ?? DEFAULT_SEA_LEVEL;
 
-  // The cell's own elevation is a smooth field already sitting in cache, so it doubles as the
-  // coherent zero-mean source for the boundary dither — no second noise evaluation, and it
-  // varies across the cell grid rather than per tile, which is what keeps an edge ragged
-  // instead of noisy. Underwater cells keep a straight shoreline: a dithered coast reads as a
-  // ragged delta at low zoom, and the water/land boundary is the one a player navigates by.
+  // The cell's own elevation is the coherent zero-mean dither source: no second noise pass, and it
+  // varies per cell grid, keeping edges ragged rather than noisy. Underwater keeps a straight coast.
   const dither = biomeEdgeDither(e, seaLevel);
 
   return {
@@ -331,6 +249,55 @@ function projectTile(map: WorldMap, tx: number, ty: number): TerrainTile | undef
     moisture: mo * 100,
     variation: valueNoise(wx * 0.032, wy * 0.032, hashString(String(map.seed)) + 7777),
   };
+}
+
+/* ===== Render invalidation ===== */
+
+/** Invalidation cell (world px): the smallest ground chunk, so a footprint dirties only its own. */
+export const TERRAIN_RENDER_CELL = 256;
+
+export interface TerrainDirtyRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+let terrainRevision = 0;
+const dirtyCells = new Map<string, number>();
+
+/** Visit every render cell a world rect covers; an empty rect visits none. */
+function forEachDirtyCell(rect: TerrainDirtyRect, visit: (key: string) => void): void {
+  if (rect.right <= rect.left || rect.bottom <= rect.top) return;
+  const x0 = Math.floor(rect.left / TERRAIN_RENDER_CELL);
+  const x1 = Math.floor((rect.right - 1) / TERRAIN_RENDER_CELL);
+  const y0 = Math.floor(rect.top / TERRAIN_RENDER_CELL);
+  const y1 = Math.floor((rect.bottom - 1) / TERRAIN_RENDER_CELL);
+  for (let cy = y0; cy <= y1; cy++) {
+    for (let cx = x0; cx <= x1; cx++) visit(`${cx},${cy}`);
+  }
+}
+
+/**
+ * Bump the terrain revision. Passing the changed world rect invalidates only the render cells it
+ * covers, so a forest-clearing footprint does not dispose every other ground chunk.
+ */
+export function bumpTerrainRevision(rect?: TerrainDirtyRect): void {
+  terrainRevision++;
+  if (!rect) return;
+  forEachDirtyCell(rect, (key) => dirtyCells.set(key, (dirtyCells.get(key) ?? 0) + 1));
+}
+
+/** Monotonic whole-terrain revision — the path grid keys on it. */
+export function getTerrainRevision(): number {
+  return terrainRevision;
+}
+
+/** Exact per-cell revision identity for one ground-chunk rect. */
+export function terrainRegionRevision(rect: TerrainDirtyRect): string {
+  const parts: string[] = [];
+  forEachDirtyCell(rect, (key) => parts.push(String(dirtyCells.get(key) ?? 0)));
+  return parts.length > 0 ? parts.join(',') : '0';
 }
 
 /* ===== Overrides ===== */
@@ -406,8 +373,7 @@ export function isWalkableTerrainType(type: TerrainType): boolean {
 
 /**
  * Whether the terrain behind a 10px cell accepts a structure. Reads the same
- * `isUnbuildableTerrainType` owner the placement rules use (`terrainTraits`), so the L1 grid and
- * the build-mode blocker can never disagree about what "hard ground" means.
+ * `isUnbuildableTerrainType` owner as the placement rules, so the two cannot disagree.
  */
 export function isTileBuildable(map: WorldMap, tx: number, ty: number): boolean {
   const tile = tileAt(map, tx, ty);
@@ -460,13 +426,8 @@ function rebakeBuildCell(map: WorldMap, bx: number, by: number): void {
 }
 
 /**
- * Re-derive the L0 path grid and the L1 build grid over a tile rectangle after
- * terrain edits. Worldgen clears the camp area **after** the bake, so without
- * this the cleared tiles would still be flagged un-walkable and un-buildable —
- * the pioneer clearing would be invisible to the pathfinder and to build mode.
- *
- * `margin` widens the refresh by whole tiles because the L1 grid and the
- * neighbour-sensitive classification read one tile further out.
+ * Re-derive the L0 path grid and the L1 build grid over a tile rectangle after terrain edits;
+ * worldgen clears the camp area after the bake. `margin` widens the refresh by whole tiles.
  */
 export function rebakeTerrainGrids(
   map: WorldMap,

@@ -1,7 +1,5 @@
-// The canonical resource key union and emoji/label metadata live in the game layer
-// (`game/resourceTypes.ts`). This module owns only the components-layer label map; the type is
-// re-exported (not re-declared) so there is exactly one `ResourceKey` definition, and it stays the
-// import path already used by the components in this folder.
+// Components-layer label map only: the key union and metadata live in `game/resourceTypes.ts`, and
+// `ResourceKey` is re-exported from here rather than re-declared.
 import type { ResourceKey } from '../game/resourceTypes';
 
 export type { ResourceKey };

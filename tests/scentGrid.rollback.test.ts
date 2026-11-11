@@ -1,14 +1,6 @@
 /**
- * Scent-grid rollback and save-time persistence — worker-boundary audit F-1/F-2/F-3.
- *
- * `scentGrid` is simulation state, not a derived index: `tickLayerRealtime` decays it and deposits
- * predator odour in place, `tickLayerSystems` samples it so grazers flee, and `saveLoad` treats it
- * as transient (`stripRuntimeWorldFields` drops it, `loadGameFromParsed` recreates it). It shares a
- * slot family with the derived caches, which is why two paths dropped it by accident.
- *
- * `tests/simPrep.rollbackFields.test.ts` and `tests/simPrep.rollbackClosure.test.ts` cannot see
- * these: they enumerate the payload's keys and assert it round-trips, which a *reference* to the
- * live grid satisfies. These cases drive the real paths and assert the field's values instead.
+ * `scentGrid` is simulation state, not a derived index: realtime decays it, systems samples it, and
+ * save-load treats it as transient; these cases drive the real paths and assert its values.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

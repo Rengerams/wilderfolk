@@ -1,10 +1,6 @@
 /**
- * Regression for `BUG_REPORTS/2026-08-28-worker-demolition-adjacency-hydration.md`.
- *
- * A world that arrives from a save/snapshot carries `adjacency` as a plain
- * serialized object, not the live index. Demolishing through the worker command
- * door (and building the optimistic display world) must not call a method on that
- * plain object — it must rebuild the index, clean it, and leave a usable world.
+ * A world from a save/snapshot carries `adjacency` as a plain serialized object, so demolition
+ * through the worker command door must rebuild the index, not call a method on it.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/gameEngine';
@@ -37,7 +33,7 @@ function placeableWorld(seed: number): WorldState {
   return { ...base, tick: 0, paused: false, buildings: [...base.buildings, building] };
 }
 
-/** What a save/worker snapshot looks like: `adjacency` is no longer the live index. */
+/** A save/worker snapshot carries `adjacency` as a plain serialized object, not the live index. */
 function withSerializedAdjacency(world: WorldState): WorldState {
   (world as { adjacency?: unknown }).adjacency = { cells: [], version: 1 };
   return world;

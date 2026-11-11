@@ -1,12 +1,6 @@
 /**
- * F-UX-8 / F-UX-27 — two adjacent header doors both answered to "Village overview": the population
- * chip's accessible name said "people overview" while the window it opens was titled "Village", and
- * the 🏘️ door opened a window titled "Village overview".
- *
- * The shipped Guide and shortcut sheet already name these two surfaces "People" and "Daily council",
- * so the doors and window titles now read their names from the same vocabulary. The last case pins
- * the other half: one window carries one heading, because the dialog's accessible name is the visible
- * title rather than a second copy of it.
+ * Two adjacent header doors both read "Village overview": the doors and window titles must take
+ * their names from the shared vocabulary, and one window carries one heading.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

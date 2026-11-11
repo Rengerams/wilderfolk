@@ -49,12 +49,8 @@ export function getNearestCameraZoomPreset(cameraTargetZoom: number): number {
 }
 
 /**
- * Presentation-only map surface. Canvas interaction policy remains in
- * useCanvasInteractions; this component passes handlers to the DOM canvas
- * and renders HUD overlay controls.
- *
- * The one policy it owns is the *keyboard* cursor (`useMapKeyboardCursor`): the canvas had a name
- * and a tab stop but no way to act on the map without a pointer.
+ * Presentation-only map surface: interaction policy stays in `useCanvasInteractions`. Its own policy is
+ * the keyboard cursor; everything else passes handlers to the DOM canvas and renders HUD controls.
  */
 export default function GameMapStage({
   canvasRef,
@@ -83,17 +79,8 @@ export default function GameMapStage({
 
   return (
     <>
-      {/* The map is a bare rendered canvas: with no role, no name and no tab stop it was invisible
-          to a screen reader and unreachable by Tab, so the app's main surface could not be reached
-          without a mouse at all. `role="img"` + `aria-label` give it a text alternative and
-          `tabIndex={0}` makes it focusable; neither touches the pointer handlers below, and the
-          canvas keeps panning/zooming from the global hotkeys (WASD/arrows, +/−, H) once focused.
-
-          The keyboard cursor closes the other half (bug 55 / OPEN-6): arrows move a cursor, Enter
-          places the armed building or selects what is under it, Escape clears it, and the canvas
-          describes the cursor through `aria-describedby` + a live region. Placement and selection
-          go through the same handlers the mouse uses, and an overlay that owns the keyboard stops
-          the whole thing (`useMapKeyboardCursor`). (2026-09-20 audit, A2) */}
+      {/* `role="img"` + `aria-label` give the map a text alternative and `tabIndex={0}` makes it
+          focusable; arrows/Enter/Escape then act through `useMapKeyboardCursor`. */}
       <canvas
         ref={canvasRef}
         role="img"
@@ -121,10 +108,8 @@ export default function GameMapStage({
         }}
       />
 
-      {/* The keyboard cursor's position, in the canvas's screen space. The marker only marks where
-          the cursor is: what would be placed or selected there is the pointer's own visual, drawn by
-          the canvas from the events `useMapKeyboardCursor` dispatches. `invisible` until the first
-          paint places it — otherwise it renders one frame in the parent's top-left corner. */}
+      {/* The keyboard cursor's position in canvas screen space; the marker only marks where the
+          cursor is, and stays `invisible` until the first paint places it. */}
       {keyboardCursor.active && (
         <div
           ref={cursorMarkerRef}
@@ -137,9 +122,8 @@ export default function GameMapStage({
         </div>
       )}
 
-      {/* Cursor state for a screen reader: what is under it and whether a placement is legal, in the
-          placement owner's wording. `aria-live` (not just `aria-describedby`) because the cursor moves
-          without focus ever leaving the canvas. */}
+      {/* Cursor state for a screen reader, in the placement owner's wording. `aria-live` as well as
+          `aria-describedby` because the cursor moves without focus leaving the canvas. */}
       <div id="map-keyboard-cursor-status" className="sr-only" aria-live="polite">
         {keyboardCursor.announcement}
       </div>
@@ -188,9 +172,7 @@ export default function GameMapStage({
         <label className="sr-only" htmlFor="camera-zoom-preset">
           Zoom level
         </label>
-        {/* The panel stacked the snapped preset % above the live zoom % with no visible
-            label, so after one `+` the player saw "145%" over "160%" and no way to tell which was
-            which without hovering. Both now say what they are. */}
+        {/* Label the preset % so it cannot be confused with the live zoom % below it. */}
         <span className="text-center text-[9px] font-semibold uppercase tracking-wider text-stone-500">
           Set
         </span>

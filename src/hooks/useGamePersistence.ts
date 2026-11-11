@@ -11,6 +11,7 @@ import { saveGame, saveGameToSlot, describeFileSaveReason } from '../game/gameEn
 import type { WorldState } from '../game/gameEngine';
 import { downloadChronicleLog, loadExportChronicleOnSave } from '../game/eventLogExport';
 import { GameLoop } from '../game/gameLoop';
+import { isCrashRecoveryActive } from '../components/GameErrorBoundary';
 import type { ViewState } from '../game/viewState';
 
 /**
@@ -61,21 +62,8 @@ export interface UseGamePersistenceOptions {
 }
 
 /**
- * The save currently running, if any.
- *
- * Two saves can overlap in practice: the exit save and a Ctrl+S or menu save, both of which resume
- * from the same idle wake. Without this, the second call reached `GameWorkerHost.exportSave()`, which
- * refuses a second export while one is in flight (`'Export already in flight'`) —
- * `GameLoop.exportAuthoritativeWorld` caught that, warned, and fell back to `this.world`, **the
- * display shadow**, so the save recorded a world up to `MAX_PIPELINE_DEPTH` ticks behind the worker
- * *while toasting "Game saved successfully"*
- *
- * Coalescing is the right resolution rather than queueing: both callers want the same thing — the
- * most recent authoritative snapshot written to the same slot — so the second one waits for the first
- * and reports its result. Serialising them would only write the same state twice.
- *
- * Module scope, not a hook ref, so the keyboard handler and the unmount cleanup all see it;
- * `persistGame` is a module function, not a hook.
+ * The save currently running, if any. Two saves can overlap (exit save plus Ctrl+S/menu save);
+ * the second joins the first instead of both writing or falling back to the display shadow.
  */
 let saveInFlight: Promise<boolean> | null = null;
 
@@ -116,9 +104,8 @@ async function persistGameOnce(
   let worldToSave = accessors.getWorld();
   if (loop) {
     worldToSave = await loop.exportAuthoritativeWorld();
-    // Never overwrite a valid save with the potentially stale display shadow.
-    // An unacknowledged building upgrade may exist only in the worker or only
-    // optimistically on screen; neither is a trustworthy persisted snapshot.
+    // Never overwrite a valid save with the stale display shadow: an unacknowledged upgrade
+    // may exist only in the worker or only on screen, and neither is authoritative.
     if (loop.lastExportWasDegraded?.()) {
       if (feedback) callbacks.showToast({
         message: 'Save not written — simulation worker did not confirm the current world. Please retry.',
@@ -257,20 +244,14 @@ export function useGamePersistence({
     persistCurrentGameRef.current = persistCurrentGame;
   }, [persistCurrentGame]);
 
-  // Best-effort save on component unmount. Delegates to the latest persist
-  // closure, which lazily reads loopRef/worldRef/viewRef at call time, so no
-  // stale ref values are captured when the cleanup runs.
+  // Best-effort save on unmount, through the latest persist closure: it reads loopRef/worldRef/
+  // viewRef at call time, so no stale ref values are captured.
   useEffect(() => {
     return () => {
-      // No loop means no colony to save: under StrictMode the mount effect runs twice and an
-      // unguarded unmount save would overwrite the real slot with an empty world.
-      //
-      // The rule's remedy (capture `.current` at effect setup) would delete that guard: this effect
-      // runs on mount, when no loop exists yet, so a captured value is always null and the save never
-      // happens on a real teardown. Reading the live ref is the point.
+      // No loop means no colony to save: StrictMode would otherwise overwrite the real slot.
       // eslint-disable-next-line react-hooks/exhaustive-deps
       const loop = loopRef.current;
-      if (!loop) return;
+      if (!loop || isCrashRecoveryActive()) return;
       // The auto-save preference now means "save when you leave"; with it off, exit writes nothing.
       if (!loop.getWorld().autoSave) return;
       void persistCurrentGameRef.current({ chronicle: false, feedback: false, background: true });

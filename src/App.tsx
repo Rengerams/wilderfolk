@@ -1,6 +1,6 @@
 import { getBattleProgressPercent, RAID_BATTLE_HOURS } from './game/frontierCombat';
 import { isStripBuildType } from './game/stripBuild';
-import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, lazy, Suspense } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, Suspense } from 'react';
 import {
   initGame,
   initTradeRoutes,
@@ -8,7 +8,8 @@ import {
 
   GAME_TITLE, GAME_VERSION, GAME_PHASE, GAME_SUBTITLE,
 
-  saveGameToSlot, loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave,
+  loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave,
+  saveImportedFileToSlot, loadImportedGameOutcome, hasImportedSave,
   loadGameFromFileTextOutcome,
   getVisitorLeaderTalkMeta,
   ensureFullTradeRoutes,
@@ -64,9 +65,10 @@ import { discardSpotlightReturn, takeSpotlightReturn } from './components/spotli
 import { isPlayerHuman } from './game/playerHuman';
 import { areNamesLoaded, loadNames, fixDefaultNames } from './game/nameLoader';
 import { ensureDialogueBankFromBundle, preloadDialogueBank } from './game/dialogueTrees';
-const IntroScreen = lazy(() => import('./game/IntroScreen'));
-const MapSetupScreen = lazy(() => import('./game/MapSetupScreen'));
-const CombatPreviewPanel = lazy(() => import('./game/CombatPreviewPanel'));
+import { lazyWithRetry } from './components/lazyWithRetry';
+const IntroScreen = lazyWithRetry(() => import('./game/IntroScreen'));
+const MapSetupScreen = lazyWithRetry(() => import('./game/MapSetupScreen'));
+const CombatPreviewPanel = lazyWithRetry(() => import('./game/CombatPreviewPanel'));
 import ActiveEventBanner from './components/ActiveEventBanner';
 import VillageRequestCard from './components/VillageRequestCard';
 import BigNewsBanner from './components/BigNewsBanner';
@@ -77,7 +79,7 @@ import SelectedEntityPanel from './components/SelectedEntityPanel';
 import FamilyTreeWindow from './components/FamilyTreeWindow';
 import WorkHoursWindow from './components/WorkHoursWindow';
 const SimulationDiagnosticsPanel = import.meta.env.DEV
-  ? lazy(() => import('./components/SimulationDiagnosticsPanel'))
+  ? lazyWithRetry(() => import('./components/SimulationDiagnosticsPanel'))
   : null;
 import { setRelationshipDiagnosticsConsoleLoggingEnabled } from './game/relationshipDiagnostics';
 import GamePlayLayout from './components/GamePlayLayout';
@@ -85,8 +87,10 @@ import GameInspector from './components/GameInspector';
 import GameOverlays from './components/GameOverlays';
 import WarfareStatus from './components/WarfareStatus';
 import BattleReportScreen from './components/BattleReportScreen';
-import { downloadSaveFile } from './game/saveLoad';
+import { saveGame } from './game/saveLoad';
+import ConfirmActionDialog from './components/ConfirmActionDialog';
 import { downloadChronicleLog } from './game/eventLogExport';
+import { registerLiveSessionSave } from './game/liveSessionSave';
 
 import GameBuildRail from './components/GameBuildRail';
 
@@ -94,6 +98,7 @@ import GameBuildRail from './components/GameBuildRail';
 import { useGamePersistence, type SaveToast } from './hooks/useGamePersistence';
 import { useTransientGameFeedback } from './hooks/useTransientGameFeedback';
 import { useGameSession } from './hooks/useGameSession';
+import { registerCrashRecoverySource } from './components/GameErrorBoundary';
 import {
   TUTORIAL_DONE_STORAGE_KEY,
   overviewNavFromState,
@@ -142,11 +147,7 @@ const SPOTLIGHT_STAGE_ZOOM = 2.5;
 
 /**
  * The save/load feedback banner, rendered by both session states.
- *
- * It used to exist only in the game shell, so a refused load on the new-settlement screen — where
- * "Load saved game" lives — set a message that was never drawn and expired before the player could
- * reach the game. `className` carries the z-index because that screen is
- * a `fixed inset-0 z-50` overlay and the banner has to sit above it.
+ * `className` carries the z-index so it can sit above the full-screen setup overlay.
  */
 function SaveToastBanner({
   toast,
@@ -170,20 +171,24 @@ function SaveToastBanner({
             : 'border-rose-500/40 bg-rose-950/90 text-rose-200'
       }`}
     >
-      {toast.type === 'success' ? '💾 ' : '⚠️ '}{toast.message}
+      <span role="status" aria-live="polite">
+        {toast.type === 'success' ? '💾 ' : '⚠️ '}{toast.message}
+      </span>
     </button>
   );
 }
+
+type PendingLoad =
+  | { source: 'slot'; closeSetup?: boolean; successToast?: string }
+  | { source: 'file'; jsonText: string }
+  | { source: 'imported' };
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const debugMode = import.meta.env.DEV && typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('debug') === '1';
-  // Roadmap U5 — "normal play stays quiet". Diagnostics *collection* is always on (the drawer and
-  // the cumulative history need it), but the once-per-colony-day console snapshot is a debug tool.
-  // Nothing used to switch it off, so every session printed a full snapshot each in-game day and
-  // the test tier had to silence it by hand. `?debug=1` opts in; the drawer's debug section is the
-  // reader for the history this keeps.
+  // Diagnostics collection is always on; the once-per-colony-day console snapshot is a debug
+  // tool switched by `?debug=1`. The drawer's debug section reads the retained history.
   useEffect(() => {
     setRelationshipDiagnosticsConsoleLoggingEnabled(debugMode);
   }, [debugMode]);
@@ -263,26 +268,17 @@ export default function App() {
   const [spritesLoaded, setSpritesLoaded] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [hudNotificationsEnabled, setHudNotificationsEnabled] = useState(loadHudNotificationsEnabled);
-  /**
-   * The citizen whose family tree is open, if any. The tree gets its own window rather than a
-   * section of the inspector: laid out by generation it is legible, and inlined it was part of what
-   * made the selected-citizen card one long stack.
-   */
+  /** The citizen whose family tree window is open, if any. */
   const [familyTreeFor, setFamilyTreeFor] = useState<number | null>(null);
   /** Work & venue hours as its own window (owner: one window per subject). */
   const [workHoursOpen, setWorkHoursOpen] = useState(false);
-  // Reading the save slot touches localStorage and JSON-parses the whole save, so it must never
-  // run from the render body (the game view re-renders every tick). The slot is read once on
-  // mount, then only from the events that can change it: another tab writing to it (the `storage`
-  // event) or this session creating/deleting it (beside each `setHasSavedGame` call).
-  // `saveSlotPresent` is slot *presence* (raw `localStorage`), `hasSavedGame` is "this build can load
-  // it". They were both seeded from `hasSave()`, which is the second meaning — so a slot holding a save
-  // from a different build read as "No browser save", the Load action was disabled, and
-  // `describeSaveReadFailure`'s "Save is from a different build … Start a new settlement" was
-  // unreachable from this screen. Keeping the two apart is what lets the Load
-  // affordance stay enabled and the refusal message be the thing the player reads.
+  // Reading the save slot touches localStorage and JSON-parses the save, so it never runs in the
+  // render body. `saveSlotPresent` is raw slot presence; `hasSavedGame` is "this build can load it".
   const [saveSlotPresent, setSaveSlotPresent] = useState(hasSaveSlot);
   const [hasSavedGame, setHasSavedGame] = useState(hasSave);
+  const [pendingLoad, setPendingLoad] = useState<PendingLoad | null>(null);
+  const loadConfirmInFlightRef = useRef(false);
+  const [hasImportedGame, setHasImportedGame] = useState(hasImportedSave);
   useEffect(() => {
     const refreshSaveSlot = () => setSaveSlotPresent(hasSaveSlot());
     window.addEventListener('storage', refreshSaveSlot);
@@ -314,10 +310,14 @@ export default function App() {
     setCatalog,
     setHasPlacedHouse,
   });
+  useLayoutEffect(() => registerCrashRecoverySource({
+    getWorld: () => loopRef.current?.getWorld() ?? worldRef.current,
+    getView: () => loopRef.current?.getView() ?? viewRef.current,
+  }), [loopRef, worldRef, viewRef]);
   const autoPlayer = useVirtualPlayer({ world, applyGameAction });
   const fps = useFpsMeter(showFps || autoPlayer.enabled);
   const gameplayActive = !showIntro && !showMapSetup && spritesLoaded;
-  const { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset } = useGameAudio(world, gameplayActive);
+  const { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset } = useGameAudio(world, gameplayActive, sessionRevision);
 
   useEffect(() => {
     if (showIntro) {
@@ -332,6 +332,11 @@ export default function App() {
     if (!gameplayActive) return;
     void beginAudio();
   }, [gameplayActive]);
+
+  useEffect(
+    () => registerLiveSessionSave(() => loopRef.current?.getWorldAndView() ?? null),
+    [loopRef],
+  );
   const { active: contextualTip, dismissActive: dismissContextualTip, markSeen: markContextualTipSeen } = useContextualTutorial(
     world,
     gameplayActive && tutorialsEnabled && !showTutorial,
@@ -445,9 +450,7 @@ export default function App() {
     const loop = loopRef.current;
     if (!loop || loop.getWorld().spotlightLore?.phase === 'ready') return;
     loop.mutateWorld((w) => { w.paused = !w.paused; });
-    // Resuming is only a resume. It used to also fire `autoStaffWorkers`, so pressing Space handed
-    // every idle settler a job with no confirmation and undid a player's deliberate unstaffing. The
-    // labelled "Auto-assign all workers" control owns that decision.
+    // Resuming only resumes; the labelled "Auto-assign all workers" control owns staffing.
   }, [loopRef]);
 
   const spotlightReturnRef = useRef<{
@@ -595,9 +598,7 @@ export default function App() {
     setTutorialChoice(enabled);
   }, [setTutorialChoice]);
 
-  // Current first-spring guide step — advances automatically as the player plays.
-  // (When every step is complete, currentCampaignStep returns null and the banner
-  // simply stops rendering; campaignActive can stay true harmlessly for the session.)
+  // Current first-spring guide step, advancing as the player plays; null once every step is done.
   const campaignStep = useMemo(() => {
     if (!campaignActive || !world) return null;
     return currentCampaignStep(world);
@@ -642,9 +643,8 @@ export default function App() {
   }, [loopRef]);
 
   /**
-   * F4 — logistics overlay toggle. Presentation only: it flips a `ViewState` flag and nothing
-   * else, so no simulation state, save field or command is touched. The projection itself is
-   * built in `buildRenderSnapshot` while the flag is on.
+   * F4 — logistics overlay toggle. Presentation only: it flips a `ViewState` flag, never simulation
+   * state, save data or a command. `buildRenderSnapshot` builds the projection while the flag is on.
    */
   const toggleLogistics = useCallback(() => {
     const loop = loopRef.current;
@@ -653,9 +653,6 @@ export default function App() {
     loop.patchView({ showLogistics: next });
   }, [loopRef]);
 
-  // The "Click map repeatedly to place more" hint shows for the first-ever
-  // (Placement how-to was removed with the build banner — the ghost on the
-  // map is the only placement indicator; Esc / right-click exits.)
   const cancelBuildMode = useCallback(() => {
     setSelectedBuildingType(null);
     stripDragStartRef.current = null;
@@ -668,8 +665,8 @@ export default function App() {
     const view = loop.getView();
     const nextRotation = toggleBuildingRotation(view.buildRotation);
     const ghost = view.buildGhost;
-    // Rotation swaps the footprint, so the verdict is re-derived from the owner — reason included,
-    // so the ghost's label follows the rotation (F5).
+    // Rotation swaps the footprint, so the verdict is re-derived from the owner; the ghost's label
+    // follows the rotation, reason included.
     loop.patchView({
       buildRotation: nextRotation,
       ...(ghost
@@ -1065,6 +1062,9 @@ export default function App() {
     handleMouseUp,
     handleMouseLeave,
     handleContextMenu,
+    pendingStripDemolition,
+    confirmStripDemolition,
+    cancelStripDemolition,
   } = useCanvasInteractions({
     canvasRef,
     loopRef,
@@ -1106,9 +1106,8 @@ export default function App() {
       deleteSave();
       const s = initGame({ size: selectedMapSize, preset: selectedMapPreset, villageName });
       fixDefaultNames(s);
-      // Only pause when the quick-start overlay will actually show — otherwise the sim stays frozen.
-      // Respect the done flag too: a player who already skipped/completed the tutorial must not
-      // get the "how to place buildings" overlay again on a new game.
+      // Pause only when the quick-start overlay will actually show, and never for a player who
+      // already finished or skipped the tutorial.
       let tutorialDone = false;
       try {
         tutorialDone = localStorage.getItem(TUTORIAL_DONE_STORAGE_KEY) === '1';
@@ -1172,61 +1171,105 @@ export default function App() {
     // snapshot into the new GameLoop session, even when gameplayActive is unchanged.
     discardSpotlightReturn(spotlightReturnRef);
     replaceSession(loaded.world, loaded.view);
-    // A loaded colony is already past the quick-start flow. Leaving the old tutorial state in place
-    // let the pause effect run again after the session swap, so the loaded world appeared frozen until
-    // Space was pressed.
+    // A loaded colony is past the quick-start flow: clear the tutorial state so the pause effect
+    // cannot freeze it after the session swap.
     setShowTutorial(false);
     setTutorialStep(0);
-    setHasSavedGame(true);
   }, [replaceSession, synchronizeTransientFeedbackFromWorld, setShowTutorial, setTutorialStep]);
 
-  /**
-   * The one browser-slot load path. Both entry points — the game menu and the new-settlement screen —
-   * go through it, because they used to repeat the refusal block *verbatim* (jscpd clone; 2026-09-20
-   * audit, W-3) and had already drifted once: the setup path called a reason-discarding loader, so a
-   * slot that could not be read *or* restored made "Load saved game" do nothing, silently, on every
-   * retry (`LIVE-FINDINGS-STATUS.md`, F19).
-   *
-   * Read first so a refusal names its real cause (empty / unreadable / malformed / another build /
-   * parsed-but-unrestorable) instead of guessing "corrupted" or "different build".
-   */
+  /** Every slot load arms here; only `confirmPendingLoad` replaces the running colony. */
+  /** The one browser-slot load path, shared by the menu and new-settlement screen. */
   const loadFromSlot = useCallback((options?: { closeSetup?: boolean; successToast?: string }) => {
-    const outcome = loadGameOutcome();
-    if (!outcome.ok) {
-      setHasSavedGame(outcome.reason === 'unrestorable' ? hasSave() : false);
-      showSaveToast({ message: describeSaveLoadOutcome(outcome), type: 'error' });
-      return;
-    }
-    applyLoadedSession(outcome);
-    setHasSavedGame(true);
-    if (options?.closeSetup) setShowMapSetup(false);
-    if (options?.successToast) showSaveToast({ message: options.successToast, type: 'success' });
-  }, [applyLoadedSession, showSaveToast, setShowMapSetup]);
+    setPendingLoad({ source: 'slot', ...options });
+  }, []);
 
   const handleLoad = useCallback(() => {
     loadFromSlot({ successToast: 'Game loaded' });
   }, [loadFromSlot]);
 
   const handleLoadFromFile = useCallback((jsonText: string) => {
-    // One owner for the refusal detail, so a file load names the field that broke exactly as the
-    // slot path does.
-    const outcome = loadGameFromFileTextOutcome(jsonText);
-    if (!outcome.ok) {
-      showSaveToast({ message: describeSaveLoadOutcome(outcome), type: 'error' });
+    if (!jsonText.trim()) {
+      showSaveToast({ message: 'That save file is empty.', type: 'error' });
       return;
     }
-    applyLoadedSession(outcome);
-    setShowMapSetup(false);
-    // Keep the browser slot in step with the file just loaded — the slot only, never a download.
-    // A valley the slot cannot hold leaves it untouched, so Load follows the slot's real contents.
-    saveGameToSlot(outcome.world, outcome.view);
-    setHasSavedGame(hasSave());
-    showSaveToast({ message: 'Colony loaded from file', type: 'success' });
-  }, [applyLoadedSession, showSaveToast, setShowMapSetup]);
+    setPendingLoad({ source: 'file', jsonText });
+  }, [showSaveToast]);
+
+  const confirmPendingLoad = useCallback(() => {
+    const pending = pendingLoad;
+    if (!pending || loadConfirmInFlightRef.current) return;
+    loadConfirmInFlightRef.current = true;
+    setPendingLoad(null);
+    try {
+      if (pending.source === 'slot') {
+        const outcome = loadGameOutcome();
+        if (!outcome.ok) {
+          setHasSavedGame(outcome.reason === 'unrestorable' ? hasSave() : false);
+          showSaveToast({ message: describeSaveLoadOutcome(outcome), type: 'error' });
+          return;
+        }
+        applyLoadedSession(outcome);
+        setHasSavedGame(true);
+        if (pending.closeSetup) setShowMapSetup(false);
+        if (pending.successToast) showSaveToast({ message: pending.successToast, type: 'success' });
+        return;
+      }
+
+      if (pending.source === 'imported') {
+        const outcome = loadImportedGameOutcome();
+        if (!outcome.ok) {
+          setHasImportedGame(hasImportedSave());
+          showSaveToast({ message: describeSaveLoadOutcome(outcome), type: 'error' });
+          return;
+        }
+        applyLoadedSession(outcome);
+        setShowMapSetup(false);
+        setHasSavedGame(hasSave());
+        setSaveSlotPresent(hasSaveSlot());
+        showSaveToast({ message: 'Imported colony restored; original quick-save preserved', type: 'success' });
+        return;
+      }
+
+      const outcome = loadGameFromFileTextOutcome(pending.jsonText);
+      if (!outcome.ok) {
+        showSaveToast({ message: describeSaveLoadOutcome(outcome), type: 'error' });
+        return;
+      }
+      // Imported files use their own backup slot; the browser quick-save must survive.
+      const imported = saveImportedFileToSlot(pending.jsonText, outcome.world);
+      applyLoadedSession(outcome);
+      setShowMapSetup(false);
+      setHasSavedGame(hasSave());
+      setSaveSlotPresent(hasSaveSlot());
+      setHasImportedGame(hasImportedSave());
+      showSaveToast(imported.success
+        ? { message: 'Colony loaded from file; original quick-save preserved', type: 'success' }
+        : { message: `Colony loaded; import backup unavailable: ${imported.error}`, type: 'error' });
+    } finally {
+      loadConfirmInFlightRef.current = false;
+    }
+  }, [applyLoadedSession, pendingLoad, showSaveToast, setShowMapSetup]);
+
+  const handleLoadImported = useCallback(() => {
+    setPendingLoad({ source: 'imported' });
+  }, []);
 
   const handleLoadFromSetup = useCallback(() => {
     loadFromSlot({ closeSetup: true });
   }, [loadFromSlot]);
+
+  const loadConfirmation = pendingLoad ? (
+    <ConfirmActionDialog
+      owner="load-confirmation"
+      title={pendingLoad.source === 'file' ? 'Load this save file?' : pendingLoad.source === 'imported' ? 'Load the imported colony?' : 'Load the browser quick-save?'}
+      message={pendingLoad.source !== 'slot'
+        ? 'Loading replaces the colony you are playing — unsaved progress is lost. Your browser quick-save stays untouched.'
+        : 'Loading replaces the colony you are playing — unsaved progress is lost.'}
+      confirmLabel="Load colony"
+      onConfirm={confirmPendingLoad}
+      onCancel={() => setPendingLoad(null)}
+    />
+  ) : null;
 
   useLayoutEffect(() => {
     dismissBigNewsRef.current = dismissBigNewsItem;
@@ -1249,10 +1292,8 @@ export default function App() {
   ]);
 
   const priorityAlerts = getPriorityAlerts(world);
-  // Ask the trade owner instead of restating its rule: the Market requirement exempts the
-  // coin→materials rescue routes (`isMaterialPurchaseRoute`), which a local `marketOk` check
-  // dropped — the HUD then read "nothing available" for a colony that could still buy wood
-  // (`BUG_REPORTS/2026-09-16-material-purchase-trade-routes-unreachable.md`).
+  // Ask the trade owner for readiness rather than restating its Market rule, which exempts the
+  // coin→materials rescue routes.
   const tradeReadyCount = useMemo(
     () => world.tradeRoutes.filter((r) => canEstablishTradeRoute(world, r.id).ok).length,
     [world],
@@ -1264,8 +1305,6 @@ export default function App() {
     const selected = new Set(army.soldierIds ?? []);
     return world.entities.reduce((count, person) => count + Number(selected.has(person.id) && person.alive && person.raidDeploymentId === army.id), 0);
   }, [world, battleReport]);
-  // `progressTabAlert` was removed with the sidebar's Village button — that badge was its only
-  // consumer. `tradeReadyCount` above is still used (the header icon set), so it stays.
   const foodAlert = isFoodAlert(world);
 
   if (showIntro) {
@@ -1285,6 +1324,7 @@ export default function App() {
 
   if (showMapSetup) {
     return (
+      <>
       <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-stone-950 text-stone-400">Loading…</div>}>
       <MapSetupScreen
         selectedSize={selectedMapSize}
@@ -1309,6 +1349,8 @@ export default function App() {
           handleLoadFromFile(jsonText);
         }}
         hasSave={canLoadSavedGame}
+        hasImportedSave={hasImportedGame}
+        onLoadImported={handleLoadImported}
         tutorialsEnabled={tutorialsEnabled}
         onTutorialsChange={(enabled) => {
           saveTutorialsEnabled(enabled);
@@ -1328,6 +1370,8 @@ export default function App() {
           it — this is the screen whose "Load saved game" button produces the refusal. */}
       {saveToast && <SaveToastBanner toast={saveToast} onDismiss={dismissSaveToast} className="z-[60]" />}
       </Suspense>
+      {loadConfirmation}
+      </>
     );
   }
 
@@ -1368,8 +1412,6 @@ export default function App() {
     && pendingRaids.length === 0
   );
 
-  // `frontierAlertCount` was removed with the sidebar's Village button — its badge was the only
-  // consumer. The header icons compute their own alert counts.
   const selectedVisitorCamp = view.selectedCampKey?.startsWith('visitor:')
     ? world.visitorGroups.find((g) => g.id === view.selectedCampKey!.slice(8)) ?? null
     : null;
@@ -1381,6 +1423,7 @@ export default function App() {
       : 'default';
 
   return (
+    <>
     <GamePlayLayout
       header={(
         <GameHeader
@@ -1395,14 +1438,15 @@ export default function App() {
           muted={muted}
           volumePreset={volumePreset}
           hasSavedGame={canLoadSavedGame}
+          hasImportedSave={hasImportedGame}
+          onLoadImported={handleLoadImported}
           speedOptions={SPEED_OPTIONS}
           onTogglePause={togglePause}
           onSetSpeed={setSpeed}
           onOpenTrade={handleOpenTrade}
           onOpenDashboard={() => setShowDashboard(true)}
-          // One header icon per overview subject; each opens that subject's own window. The rail id is
-          // asked for rather than re-listed (`sidebarTabForOverviewNav`), so a new subject cannot be
-          // reachable from the keyboard but missing from the header.
+          // One header icon per overview subject; the rail id comes from
+          // `sidebarTabForOverviewNav`, so a subject cannot be keyboard-reachable but missing here.
           onOpenSubject={(subject) => {
             playClickSound();
             openTab(sidebarTabForOverviewNav(subject));
@@ -1522,9 +1566,8 @@ export default function App() {
               aria-live="polite"
             >
             {hudNotificationsEnabled && (world.notifications ?? []).slice(-4).map((n) => {
-              // Acting on a notification must not destroy it: the body jumps to the subject and the
-              // × dismisses. One shared button for both meant the only way to act on a warning was
-              // to lose the text being read.
+              // Acting on a notification must not destroy it: the body jumps to the subject, the ×
+              // dismisses.
               const openSubject = () => {
                 if (n.focus) {
                   focusWorldCamera(n.focus.x, n.focus.y, 1.5);
@@ -1684,13 +1727,8 @@ export default function App() {
                       </div>
                       <div className="mt-2 grid grid-cols-1 gap-1">
                         {evt.choices.map((choice) => {
-                          // Ask the raid owner instead of re-deriving its gate (roadmap U2/O2, the
-                          // same shape as the story card two blocks down). The inline version tested
-                          // `hasIronSpears || hasStoneSpears` while the owner tests
-                          // `hasMilitiaWeapons` = spears **or swords**, so a sword-armed colony was
-                          // shown a disabled Defend button reading "Stone or iron spears required"
-                          // where the owner refuses with "Need weapons (spears or swords)" — copy
-                          // that had already drifted from the rule it described.
+                          // Ask the raid owner for its gate rather than re-deriving it; the owner
+                          // accepts spears or swords.
                           const eligibility = getRaidChoiceEligibility(world, evt, choice.id);
                           const blocked = !eligibility.ok;
                           const blockReason = eligibility.blockReason;
@@ -1743,12 +1781,8 @@ export default function App() {
             </div>
           )}
 
-          {/* The two authored-decision cards share one anchored, centred column. Both used to carry
-              `absolute left-1/2 top-4 z-10 w-full max-w-lg -translate-x-1/2`, and diplomacy comes
-              later in the DOM, so a pending diplomacy card painted over a story card's title and first
-              choice. They are flow children of this column now, which stacks them — and the column is
-              the anchor, because this overlay is a plain `absolute inset-0` box rather than a flex
-              container, so a bare flow child would land in its top-left corner. */}
+          {/* Story and diplomacy cards share one anchored, centred flow column so they stack
+              instead of painting over each other. */}
           <div className="pointer-events-none absolute left-1/2 top-4 z-10 flex w-full max-w-lg -translate-x-1/2 flex-col">
           {/* Signature story cards — authored choices with real sim consequences */}
           {world.pendingStoryEvents && world.pendingStoryEvents.length > 0 && (
@@ -1762,10 +1796,8 @@ export default function App() {
                       <p className="mt-0.5 text-[13px] leading-relaxed text-emerald-200/80">{evt.description}</p>
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {evt.choices.map((choice) => {
-                          // Ask the story owner instead of guessing (roadmap U2/O2). A refused
-                          // answer is re-queued by `respondToStoryEvent`, so the card already stays
-                          // open — what was missing is the reason: an unaffordable choice used to
-                          // look clickable and refuse in silence.
+                          // Ask the story owner for eligibility; a refused answer is re-queued, so
+                          // the card stays open and shows the owner's reason.
                           const outcome = actionOutcomeFromGate(
                             getStoryChoiceEligibility(world, evt, choice.id),
                             storyChoiceReasonCode(evt.storyKey, choice.id),
@@ -1965,11 +1997,7 @@ export default function App() {
       inspector={(
         <aside
           className={`side-panel flex flex-col border-l border-stone-700/80 ${
-            // Wide only when there is something to inspect. With nothing selected this column used to
-            // hold the diagnostics drawer across the full 18.5rem — an empty box the owner reported as
-            // *"now the right panel no need to be that big anymore"*. Nothing selected = the narrow
-            // rail, and the map keeps the width (the same narrowing the collapsed branch already does
-            // for the same reason).
+            // Wide only when there is something to inspect; with nothing selected the map keeps the width.
             hasInspectorSelection && !inspectorCollapsed ? 'w-[18.5rem]' : 'w-12'
           }`}
         >
@@ -2063,7 +2091,6 @@ export default function App() {
                 key={selectedBuilding.id}
                 building={selectedBuilding}
                 state={world}
-                onAssign={() => applyGameAction({ proto: 1, op: 'assignWorker', buildingId: selectedBuilding.id })}
                 onRepair={() => applyGameAction({ proto: 1, op: 'repairBuilding', buildingId: selectedBuilding.id })}
                 onUpgrade={() => applyGameAction({ proto: 1, op: 'upgradeBuilding', buildingId: selectedBuilding.id })}
                 onDemolish={() => applyGameAction({ proto: 1, op: 'demolishBuilding', buildingId: selectedBuilding.id })}
@@ -2107,25 +2134,17 @@ export default function App() {
           <WarfareStatus world={world}
             onRepair={(buildingId) => applyGameAction({ proto: 1, op: 'repairBuilding', buildingId })}
             onPrisonerDecision={(entityId, choiceId) => applyGameAction({ proto: 1, op: 'resolveWarPrisoner', entityId, choiceId })}
-            onExport={() => { downloadSaveFile(world, view); }}
+            onExport={() => { saveGame(world, view); }}
             onChronicle={() => { downloadChronicleLog(world.eventLog, { villageName: world.villageName, year: world.year, day: world.dayInYear, tick: world.tick, population: world.humanPopulation }); }}
             onNewVillage={startNewGame} onMainMenu={() => setShowIntro(true)} />
       {/*
-        The authored decision cards below stack in one flow column instead of each pinning itself to
-        `top-4`. The story card and the diplomacy card were both `absolute left-1/2 top-4 z-10 w-full
-        max-w-lg -translate-x-1/2`, and diplomacy comes later in the DOM, so with a story card and a
-        pending diplomacy card up at once the diplomacy card painted over the story card's title and
-        first choice — an authored decision the player could not read or answer.
-        `storyHelpers.pushStoryEvent` only avoids other *story* events, so the pair is reachable.
+        The authored decision cards below stack in one flow column; pinning each to `top-4` let a
+        later diplomacy card paint over a story card's title and choices.
       */}
       {showVillageRequest && activeVillageRequest && (
         <VillageRequestCard
           request={activeVillageRequest}
-          // Why Accept would be refused, from the owner that actually refuses it. Without this the
-          // card's `disabled` gate was always false (the prop was never passed), so an unaffordable
-          // offer rendered as an enabled button carrying the *positive* "Pay 15 gold → receive 30
-          // food" detail, and the real refusal only appeared as a toast after the click — the
-          // fail-open affordance the raid and diplomacy cards had already stopped doing.
+          // The owner's refusal reason, so an unaffordable offer renders disabled instead of failing open.
           acceptBlockedReason={
             getVillageRequestEligibility(world, activeVillageRequest, 'accept').blockReason ?? null
           }
@@ -2332,18 +2351,26 @@ export default function App() {
         </GameOverlays>
       )}
     />
+    {loadConfirmation}
+    {pendingStripDemolition && (
+      <ConfirmActionDialog
+        owner="strip-demolition"
+        title="Remove these segments?"
+        message={`This permanently removes ${pendingStripDemolition.length} road, wall or reinforcement segment${pendingStripDemolition.length === 1 ? '' : 's'}. This cannot be undone.`}
+        confirmLabel={`Remove ${pendingStripDemolition.length}`}
+        onConfirm={confirmStripDemolition}
+        onCancel={cancelStripDemolition}
+      />
+    )}
+    </>
   );
 }
 
 // ============ SUB-COMPONENTS ============
 
 /**
- * An authored event choice that the owning gate may refuse: the label, the owner's explanation as
- * visible text (not only a tooltip), and the refusal disabling the control.
- *
- * The story card and the diplomacy card rendered this control byte-for-byte identically except for
- * their colours and their command op — jscpd's remaining `.tsx` clone in this file. `RaidChoiceButtons`
- * in `SelectedBuildingPanel` is the same shape for the raid cards.
+ * An authored event choice the owning gate may refuse: the owner's explanation is visible text,
+ * not only a tooltip, and refusal disables the control.
  */
 function GatedChoiceButton({
   label,

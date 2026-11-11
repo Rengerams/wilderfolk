@@ -1,15 +1,6 @@
 /**
- * The food-spend sweep (audit **F2**'s real scope — `docs/private/audits/2026-09-16/playability-gamefeel.md`,
- * tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * The ledger recorded three sinks (meals, medicine, spoilage) while food was deducted directly at
- * **28 sites**. The store fell in real time — the owner's *"if you spend something it should go down"* —
- * but the ledger never heard about it, so the dashboard's `Net food flow` and the village panel's food
- * card could read positive while the larder dropped.
- *
- * `spendFood(state, sink, amount)` is the single call that deducts **and** records. This file pins the
- * helper's contract and guards the files that have been converted, so a raw deduction cannot come back
- * to one of them.
+ * `spendFood(state, sink, amount)` deducts and records in one call; this file pins that contract and
+ * guards the converted files against a raw food deduction returning.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

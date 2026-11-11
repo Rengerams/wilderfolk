@@ -1,15 +1,6 @@
 /**
- * The dashboard's two 2026-09-17 owner rulings, pinned.
- *
- * **F9 — a prisoner is neither homeless nor idle.** An arrest deliberately clears `workerBuildingId`
- * and `residenceBuildingId` (`humanRelationships`), so the projection must not read that absence as a
- * player-actionable gap in any of its three surfaces: the council concerns, the settler table's
- * `noHome`/`noWork` flags, and the per-settler explanation's suggestion.
- *
- * **F10 — "vs yesterday" must compare a real previous day.** `populationHistory` is sampled every
- * `STATS_SAMPLE_INTERVAL_TICKS` (10 ticks ≈ 3.3 in-game hours), so the previous entry is not yesterday.
- *
- * Both reports recorded "Regression test: Not written"; these are those tests.
+ * A prisoner is neither homeless nor idle — an arrest clears both placements — and "vs yesterday"
+ * compares a day-old sample, not the previous `populationHistory` entry.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

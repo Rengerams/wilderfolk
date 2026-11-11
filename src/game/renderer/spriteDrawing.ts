@@ -79,11 +79,8 @@ export function drawSpriteFrame(
 }
 
 /**
- * Step squash for the walk cycle — contact poses stay neutral, passing poses squash and stretch.
- *
- * The shipped human art is one portrait frame per class (`humanSprites.sliceWalkFrame` returns every
- * sheet untouched for frames 0…3), so the step has to come from the draw transform. Amplitude is ~6 %
- * so it survives `drawSpriteFrame`'s logical-pixel rounding at the shipped sprite heights.
+ * Step squash for the walk cycle: contact poses stay neutral, passing poses squash and stretch;
+ * amplitude is ~6 % so it survives logical-pixel rounding at shipped sprite heights.
  */
 const WALK_STEP_SQUASH: readonly { scaleX: number; scaleY: number }[] = [
   { scaleX: 1, scaleY: 1 },        // 0 — contact, weight down
@@ -127,10 +124,8 @@ function walkBobAt(walkFrame: number, speed: number, camZoom: number): number {
 }
 
 /**
- * Walk-cycle position on the render clock, in squash-table units.
- *
- * The simulation advances `animFrame` once per tick, so a tick-keyed pose arrived in one-second
- * jumps; the step is sampled from the frame clock instead, at a cadence that follows the speed.
+ * Walk-cycle position on the render clock, in squash-table units, sampled at a speed-following
+ * cadence instead of the once-per-tick `animFrame`.
  */
 export function walkFrameOnClock(clockSeconds: number, speed: number, entityId: number): number {
   const stride = Math.min(1, speed / WALK_STRIDE_SPEED);
@@ -202,17 +197,8 @@ export function drawBuildingSprite(
 }
 
 /**
- * A pre-rasterized soft ambient-occlusion blob, or `null` when the environment has no DOM.
- *
- * `drawGroundAO` runs once per grounded tree and once per completed building on every repaint, and
- * the old body called `ctx.createRadialGradient` + a radial `fill` each time — a fresh gradient
- * object and a radial rasterisation per entity per repaint. A radial gradient is a radial gradient,
- * so a single cached bitmap, scaled to the caller's radius and composited at its strength, is
- * pixel-identical and turns the per-entity cost into one `drawImage`.
- *
- * The blob is a plain bitmap, so it is context-independent and needs no reset on session change;
- * it is created lazily and falls back to the gradient path in a non-DOM environment (the node test
- * runner).
+ * A pre-rasterized soft ambient-occlusion blob, or `null` when the environment has no DOM. One
+ * cached bitmap replaces a fresh radial gradient per grounded entity per repaint.
  */
 let aoRadialBlob: HTMLCanvasElement | null | undefined;
 function getAORadialBlob(): HTMLCanvasElement | null {
@@ -270,10 +256,8 @@ export function drawGroundAO(
 }
 
 /**
- * Shared 2.5D grounding cue. It draws a compact foot shadow plus a subtle
- * south-east cast tail, matching the established north-west light direction.
- * Call only after viewport culling; `enhanced` respects the existing reduced
- * cosmetic-effects preference without changing any simulation or hit geometry.
+ * Shared 2.5D grounding cue: a compact foot shadow plus a subtle south-east cast tail. Call only
+ * after viewport culling; `enhanced` follows the reduced-effects preference.
  */
 export function drawContactShadow(
   ctx: CanvasRenderingContext2D,
@@ -317,9 +301,8 @@ export function drawContactShadow(
 }
 
 /**
- * Procedural level upgrades (no new art) — an upgraded building reads at a
- * glance: Lv2 gets a warm fresh roof + a chimney, Lv3 a stronger roof and a
- * soft gold rim. Overlays the footprint rect, safe for every sprite shape.
+ * Procedural level upgrades (no new art): Lv2 gets a fresh roof and chimney, Lv3 a stronger roof and
+ * soft gold rim; overlays the footprint rect.
  */
 export function drawBuildingLevelUpgrades(
   ctx: CanvasRenderingContext2D,

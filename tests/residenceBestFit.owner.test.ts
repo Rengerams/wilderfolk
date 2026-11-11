@@ -1,14 +1,6 @@
 /**
- * A2 — "least-occupied residence, lowest id breaks ties" was implemented twice
- * (`docs/private/audits/2026-09-16/duplication-deadcode.md`; row A2 in `LIVE-FINDINGS-STATUS.md`).
- *
- * `housingPipeline.pickSharedResidence` carried its own copy of the selection loop. The rule
- * now lives only in `housingPipeline.pickLeastCrowdedResidence`, which takes the movers as
- * `movingTogether` so the shared-move discount (a home one mover already lives in counts them once)
- * is expressed through the owner instead of beside it.
- *
- * The behavioural cases are deliberate equivalence pins: they describe what the *old* copy did, so a
- * generalization that changes the shared-move outcome fails here rather than in a 360-day run.
+ * The least-crowded-residence rule lives only in `pickLeastCrowdedResidence`, with
+ * movers passed as `movingTogether` so the shared-move discount uses the owner.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -76,7 +68,7 @@ describe('the least-crowded residence rule has one owner', () => {
     expect(source, 'the shared-residence caller no longer delegates to the plan').toContain(
       "planRelocation(household, 'couple'",
     );
-    // The pre-fix copy opened with `const needed = 2;` and carried its own best-fit comparison.
+    // No local `const needed = 2;` copy: the selection loop lives once, in the owner.
     expect(source, 'the duplicated selection loop is back').not.toContain('const needed = 2;');
   });
 });

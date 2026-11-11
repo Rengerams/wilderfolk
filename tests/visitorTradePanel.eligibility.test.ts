@@ -1,15 +1,6 @@
 /**
- * F18 — the visitor trade buttons stayed enabled for trades that must fail
- * (`docs/private/audits/2026-09-16/ui-logic.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * `VisitorCampPanel` re-derived the price multipliers and gated on its own arithmetic, while the owning
- * eligibility (`groupEvents.getVisitorTradeEligibility`) additionally rejects a **leaving caravan**
- * (`daysLeft <= 0`), a group that is **out of gold**, and — the reachable case the panel missed —
- * **insufficient storage for what the trade receives**: with gold at its cap, "Sell food · 30🍖 → 25💰"
- * stayed enabled, and clicking it consumed nothing and pushed a floating text at the camp, far from the
- * panel the player was reading. Prices were a second implementation of
- * `VISITOR_TRADE_COSTS × getVisitorTradeTerms`, so any balance change desynchronised the quote from the
- * charge. Both now come from the owner.
+ * The visitor trade buttons must be gated by the owner `groupEvents.getVisitorTradeEligibility`, which
+ * also rejects a leaving caravan, a group out of gold, and insufficient storage for what it receives.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -78,7 +69,7 @@ describe('visitor trade eligibility is the panel\'s source of truth', () => {
     expect(getVisitorTradeTerms(state, 'sell_food').effectiveReceive.gold).toBe(28); // floor(25 × 1.15)
     expect(getVisitorTradeTerms(state, 'sell_wood').effectivePay.wood).toBe(40);
 
-    // The catalogue the owner reads is the one the panel used to re-derive.
+    // The catalogue the owner reads is the one the panel must not re-derive.
     expect(VISITOR_TRADE_COSTS.buy_food.pay.gold).toBe(25);
     expect(VISITOR_TRADE_COSTS.sell_food.pay.food).toBe(30);
     expect(VISITOR_TRADE_COSTS.buy_iron.receive.iron).toBe(12);
@@ -115,11 +106,8 @@ describe('visitor trade eligibility is the panel\'s source of truth', () => {
 });
 
 /**
- * R5 of the 2026-09-17 UI audit: the same defect class as F18, one block lower in the same panel.
- * The refugee buttons gated on hand-written literals (`food < 40` / `food < 20` plus a raw
- * population-cap comparison) and carried no reason, so a retune left them enabled while the
- * refusal surfaced as a floating text at the camp — and "need 40🍖" was indistinguishable from
- * "population cap reached" on a greyed-out button.
+ * Refugee choice buttons read `getRefugeeChoiceEligibility` for both price and reason, so a refusal
+ * names which gate failed instead of surfacing as a floating text at the camp.
  */
 describe('refugee choice eligibility is the panel\'s source of truth (R5)', () => {
   it('prices each offer from the owner and names the reason it refuses', () => {

@@ -1,145 +1,255 @@
 /**
- * Settler traits — assignment, inheritance, and modifier helpers.
- *
- * The feature: each settler gets 1–2 personality traits at creation (children
- * inherit a chance of each parent trait, DNA-style), shown in the inspector
- * and feeding subtle behavioral multipliers (energy, hunting, courtship,
- * conception, research, child maturation).
+ * The genome owner — founder allocation, inheritance, validation, expression and old-save backfill.
+ * Every genome carries fourteen continuous inherited aptitude dimensions.
  */
 import { describe, it, expect } from 'vitest';
+import { createSeededRng, resetSimRng } from '../src/game/simRng';
 import { initGame } from '../src/game/worldGen';
+import { createInitialView } from '../src/game/viewState';
+import { buildSaveData, loadGameFromParsedOutcome, parseSaveJson } from '../src/game/saveLoad';
 import { createEntity } from '../src/game/entityFactory';
 import { EntityType } from '../src/game/gameTypes';
 import {
-  rollSettlerTraits,
-  inheritSettlerTraits,
-  TRAIT_DEFS,
-  hasTrait,
+  ALLELE_MAX,
+  ALLELE_MIN,
+  APTITUDE_COUNT,
+  APTITUDE_DEFS,
+  APTITUDE_IDS,
+  MIN_EXPRESSION_SPREAD,
+  expressAptitudes,
+  genomeFromSeed,
+  inheritGenome,
+  normalizeGenome,
+  rollFounderGenome,
+  type GenomeV2,
 } from '../src/game/settlerTraits';
+import { genomeFrom } from './helpers/genome';
 
-describe('rollSettlerTraits', () => {
-  it('assigns 3 traits to a fresh settler', () => {
-    const traits = rollSettlerTraits();
-    expect(traits).toHaveLength(3);
-    for (const t of traits) {
-      expect(TRAIT_DEFS[t]).toBeDefined();
-    }
-  });
+function spread(genome: GenomeV2): number {
+  const raw = expressAptitudes(genome).raw;
+  return Math.max(...raw) - Math.min(...raw);
+}
 
-  it('never assigns mutually exclusive opposites', () => {
-    // brave and timid are opposites — brave must never pair with timid.
-    for (let i = 0; i < 200; i++) {
-      const traits = rollSettlerTraits(['brave']);
-      expect(traits.includes('timid')).toBe(false);
-    }
-  });
-
-  it('keeps inherited traits and fills the rest', () => {
-    const traits = rollSettlerTraits(['lucky']);
-    expect(traits[0]).toBe('lucky');
-    expect(traits).toHaveLength(3);
-  });
-
-  it('women draw female-leaning traits more often than men (soft bias)', () => {
-    const FEMALE_SET = ['nurturing', 'insightful', 'gregarious', 'lucky', 'graceful', 'intuitive', 'fierce'];
-    let femaleLeaningForWomen = 0;
-    let femaleLeaningForMen = 0;
-    const N = 400;
-    for (let i = 0; i < N; i++) {
-      femaleLeaningForWomen += rollSettlerTraits([], 'female').filter((t) => FEMALE_SET.includes(t)).length;
-      femaleLeaningForMen += rollSettlerTraits([], 'male').filter((t) => FEMALE_SET.includes(t)).length;
-    }
-    expect(femaleLeaningForWomen).toBeGreaterThan(femaleLeaningForMen);
-    expect(femaleLeaningForMen).toBeGreaterThan(0);
-  });
-
-  it('men draw male-leaning traits more often than women (soft bias)', () => {
-    const MALE_SET = ['hardy', 'brave', 'greenthumb', 'chivalrous', 'resourceful', 'stoic'];
-    let maleLeaningForMen = 0;
-    let maleLeaningForWomen = 0;
-    const N = 400;
-    for (let i = 0; i < N; i++) {
-      maleLeaningForMen += rollSettlerTraits([], 'male').filter((t) => MALE_SET.includes(t)).length;
-      maleLeaningForWomen += rollSettlerTraits([], 'female').filter((t) => MALE_SET.includes(t)).length;
-    }
-    expect(maleLeaningForMen).toBeGreaterThan(maleLeaningForWomen);
-    expect(maleLeaningForWomen).toBeGreaterThan(0);
-  });
-});
-
-describe('inheritSettlerTraits (DNA-like)', () => {
-  it('can pass a parent trait to the child (chance, not guaranteed)', () => {
-    const mother = createEntity(EntityType.Human, 0, 0, 101, 100, false, {
-      gender: 'female',
-      inheritedTraits: ['nurturing'],
-    });
-    const father = createEntity(EntityType.Human, 0, 0, 102, 100, false, {
-      gender: 'male',
-      inheritedTraits: [],
-    });
-    let inheritedNurturing = 0;
-    const N = 300;
-    for (let i = 0; i < N; i++) {
-      const childTraits = inheritSettlerTraits(mother, father);
-      if (childTraits.includes('nurturing')) inheritedNurturing++;
-    }
-    // ~50% chance each roll — must sometimes inherit, sometimes not.
-    expect(inheritedNurturing).toBeGreaterThan(0);
-    expect(inheritedNurturing).toBeLessThan(N);
-  });
-
-  it('never exceeds the inherited cap of 3 traits', () => {
-    const mother = createEntity(EntityType.Human, 0, 0, 201, 100, false, {
-      gender: 'female',
-      inheritedTraits: ['nurturing', 'lucky'],
-    });
-    const father = createEntity(EntityType.Human, 0, 0, 202, 100, false, {
-      gender: 'male',
-      inheritedTraits: ['hardy', 'brave'],
-    });
-    for (let i = 0; i < 200; i++) {
-      const inherited = inheritSettlerTraits(mother, father);
-      expect(inherited.length).toBeLessThanOrEqual(3);
+describe('aptitude catalog', () => {
+  it('declares exactly fourteen unique ordered IDs with wording for each', () => {
+    expect(APTITUDE_IDS).toHaveLength(14);
+    expect(new Set(APTITUDE_IDS).size).toBe(14);
+    expect(APTITUDE_COUNT).toBe(14);
+    for (const id of APTITUDE_IDS) {
+      expect(APTITUDE_DEFS[id].id).toBe(id);
+      expect(APTITUDE_DEFS[id].label.length).toBeGreaterThan(0);
+      expect(APTITUDE_DEFS[id].high.length).toBeGreaterThan(0);
+      expect(APTITUDE_DEFS[id].low.length).toBeGreaterThan(0);
     }
   });
 });
 
-describe('createEntity traits', () => {
-  it('gives settlers traits at creation', () => {
+describe('rollFounderGenome', () => {
+  it('draws fourteen bounded integer allele pairs with a meaningful personal spread', () => {
+    for (let seed = 1; seed <= 50; seed++) {
+      const genome = rollFounderGenome(createSeededRng(seed, 'founderTest'));
+      expect(genome.version).toBe(2);
+      expect(genome.aptitudeAlleles).toHaveLength(APTITUDE_COUNT);
+      for (const [a, b] of genome.aptitudeAlleles) {
+        for (const allele of [a, b]) {
+          expect(Number.isSafeInteger(allele)).toBe(true);
+          expect(allele).toBeGreaterThanOrEqual(ALLELE_MIN);
+          expect(allele).toBeLessThanOrEqual(ALLELE_MAX);
+        }
+      }
+      expect(spread(genome), `seed ${seed}`).toBeGreaterThanOrEqual(MIN_EXPRESSION_SPREAD);
+    }
+  });
+
+  it('is reproducible for a seeded stream and different across seeds', () => {
+    const first = rollFounderGenome(createSeededRng(123, 'founderTest'));
+    const again = rollFounderGenome(createSeededRng(123, 'founderTest'));
+    const other = rollFounderGenome(createSeededRng(124, 'founderTest'));
+    expect(again).toEqual(first);
+    expect(other).not.toEqual(first);
+  });
+
+  it('never has a universal best genome: every founder has a high and a low dimension', () => {
+    for (let seed = 1; seed <= 100; seed++) {
+      const { relative } = expressAptitudes(rollFounderGenome(createSeededRng(seed, 'founderTest')));
+      expect(Math.max(...relative), `seed ${seed}`).toBeGreaterThan(0);
+      expect(Math.min(...relative), `seed ${seed}`).toBeLessThan(0);
+    }
+  });
+});
+
+describe('inheritGenome', () => {
+  it('takes one documented allele from each biological parent per dimension', () => {
+    const mother: GenomeV2 = {
+      version: 2,
+      aptitudeAlleles: APTITUDE_IDS.map((_, i) => [10 + i, 20 + i] as const),
+    };
+    const father: GenomeV2 = {
+      version: 2,
+      aptitudeAlleles: APTITUDE_IDS.map((_, i) => [30 + i, 40 + i] as const),
+    };
+    // 0.99 chooses index 1 from each parent and never rolls a mutation.
+    const child = inheritGenome(mother, father, () => 0.99);
+    APTITUDE_IDS.forEach((_, i) => {
+      expect(child.aptitudeAlleles[i]).toEqual([20 + i, 40 + i]);
+    });
+  });
+
+  it('applies a bounded rare mutation without breaking allele bounds', () => {
+    const lower: GenomeV2 = { version: 2, aptitudeAlleles: APTITUDE_IDS.map(() => [0, 0] as const) };
+    const upper: GenomeV2 = { version: 2, aptitudeAlleles: APTITUDE_IDS.map(() => [100, 100] as const) };
+    // 0 forces a mutation and negative direction on every inherited allele.
+    const child = inheritGenome(lower, upper, () => 0);
+    for (const [a, b] of child.aptitudeAlleles) {
+      for (const allele of [a, b]) {
+        expect(allele).toBeGreaterThanOrEqual(ALLELE_MIN);
+        expect(allele).toBeLessThanOrEqual(ALLELE_MAX);
+      }
+    }
+    // At least one side must show the mutation rather than the untouched parent allele.
+    expect(child.aptitudeAlleles.some(([a, b]) => a !== ALLELE_MIN || b !== ALLELE_MAX)).toBe(true);
+  });
+
+  it('guarantees a diverse profile even when two neutral parents would be flat', () => {
+    const child = inheritGenome(genomeFrom(), genomeFrom(), () => 0.99);
+    const raw = expressAptitudes(child).raw;
+    expect(Math.max(...raw) - Math.min(...raw)).toBeGreaterThanOrEqual(MIN_EXPRESSION_SPREAD);
+  });
+
+  it('falls back to a neutral allele when a parent has no genome', () => {
+    const mother = genomeFrom({ sociability: 80 });
+    const child = inheritGenome(mother, undefined, () => 0.99);
+    expect(child.aptitudeAlleles[0]).toEqual([80, 50]);
+  });
+});
+
+describe('normalizeGenome', () => {
+  it('accepts a valid version-2 genome and re-freezes it', () => {
+    const valid = genomeFrom({ curiosity: 70 });
+    expect(normalizeGenome(valid)?.aptitudeAlleles[3]).toEqual([70, 70]);
+  });
+
+  it('rejects a wrong version, wrong length, malformed pair, out-of-bounds or extra key', () => {
+    const valid = genomeFrom();
+    const record = valid as unknown as Record<string, unknown>;
+    expect(normalizeGenome({ ...record, version: 1 })).toBeUndefined();
+    expect(normalizeGenome({ version: 2, aptitudeAlleles: valid.aptitudeAlleles.slice(1) })).toBeUndefined();
+    expect(normalizeGenome({ version: 2, aptitudeAlleles: valid.aptitudeAlleles.map(() => [1] as unknown as readonly [number, number]) })).toBeUndefined();
+    expect(normalizeGenome({ version: 2, aptitudeAlleles: valid.aptitudeAlleles.map(() => [1.5, 2] as const) })).toBeUndefined();
+    expect(normalizeGenome({ version: 2, aptitudeAlleles: valid.aptitudeAlleles.map(() => [-1, 2] as const) })).toBeUndefined();
+    expect(normalizeGenome({ ...record, extra: true })).toBeUndefined();
+    expect(normalizeGenome(null)).toBeUndefined();
+    expect(normalizeGenome([])).toBeUndefined();
+  });
+
+  it('keeps a valid flat genome exactly as written', () => {
+    const flat = {
+      version: 2,
+      aptitudeAlleles: Array.from({ length: 14 }, () => [50, 50] as const),
+    };
+    expect(normalizeGenome(flat)?.aptitudeAlleles).toEqual(flat.aptitudeAlleles);
+  });
+
+  it('never rerolls a valid saved genome (double-load idempotence)', () => {
+    const saved = genomeFrom({ sociability: 81, composure: 19 });
+    const first = normalizeGenome(JSON.parse(JSON.stringify(saved)));
+    const second = normalizeGenome(JSON.parse(JSON.stringify(first)));
+    expect(first).toEqual(saved);
+    expect(second).toEqual(first);
+  });
+});
+
+describe('genomeFromSeed (old-save backfill)', () => {
+  it('is deterministic per colony seed and citizen id and consumes no live stream', () => {
+    const first = genomeFromSeed(4242, 17);
+    const again = genomeFromSeed(4242, 17);
+    const otherCitizen = genomeFromSeed(4242, 18);
+    expect(again).toEqual(first);
+    expect(otherCitizen).not.toEqual(first);
+    expect(spread(first)).toBeGreaterThanOrEqual(MIN_EXPRESSION_SPREAD);
+  });
+});
+
+describe('expressAptitudes', () => {
+  it('uses the mean of the two alleles and centers relative values on the personal mean', () => {
+    const genome: GenomeV2 = { version: 2, aptitudeAlleles: APTITUDE_IDS.map(() => [40, 60] as const) };
+    const expression = expressAptitudes(genome);
+    expect(expression.raw.every((value) => value === 50)).toBe(true);
+    expect(expression.mean).toBe(50);
+    expect(expression.relative.every((value) => value === 0)).toBe(true);
+
+    const uneven = expressAptitudes(genomeFrom({ sociability: 90 }));
+    expect(uneven.relative[0]).toBeGreaterThan(0);
+    const sum = uneven.relative.reduce((total, value) => total + value, 0);
+    expect(sum).toBeCloseTo(0, 10);
+  });
+});
+
+describe('entity creation', () => {
+  it('gives every settler one fourteen-dimension genome', () => {
     const entity = createEntity(EntityType.Human, 0, 0, 1, 100, false, { gender: 'male' });
-    expect(entity.traits?.length).toBe(3);
+    expect(entity.genomeV2?.aptitudeAlleles).toHaveLength(14);
   });
 
-  it('does not give traits to non-humans', () => {
-    const rabbit = createEntity(EntityType.Rabbit, 0, 0, 2, 100);
-    expect(rabbit.traits).toBeUndefined();
+  it('uses the inherited genome for a newborn', () => {
+    const inherited = genomeFrom({ patience: 88 });
+    const child = createEntity(EntityType.Human, 0, 0, 2, 100, true, { gender: 'female', inheritedGenome: inherited });
+    expect(child.genomeV2).toBe(inherited);
+  });
+
+  it('does not give a genome to non-humans', () => {
+    const rabbit = createEntity(EntityType.Rabbit, 0, 0, 3, 100);
+    expect(rabbit.genomeV2).toBeUndefined();
+  });
+
+  it('leaves a foreign human neutral: no genome and no born marks', () => {
+    for (const faction of ['visitor', 'trade_caravan'] as const) {
+      const foreigner = createEntity(EntityType.Human, 0, 0, 4, 100, false, { faction });
+      expect(foreigner.faction).toBe(faction);
+      expect(foreigner.genomeV2).toBeUndefined();
+      expect(foreigner.marks).toBeUndefined();
+    }
+    const settler = createEntity(EntityType.Human, 0, 0, 5, 100, false, { gender: 'male' });
+    expect(settler.genomeV2?.aptitudeAlleles).toHaveLength(14);
   });
 
   it('survives the full game init (worldGen path)', () => {
     const state = initGame();
-    const settlers = state.entities.filter(
-      (e) => e.type === EntityType.Human && e.alive,
-    );
+    const settlers = state.entities.filter((entity) => entity.type === EntityType.Human && entity.alive);
     expect(settlers.length).toBeGreaterThan(0);
-    for (const s of settlers) {
-      expect(s.traits?.length).toBe(3);
+    for (const settler of settlers) {
+      expect(settler.genomeV2?.aptitudeAlleles).toHaveLength(14);
     }
   });
 });
 
-describe('hasTrait', () => {
-  it('reports a trait only when it is present', () => {
-    const brave = createEntity(EntityType.Human, 0, 0, 3, 100, false, {
-      gender: 'male',
-      inheritedTraits: ['brave'],
+describe('foreign humans stay neutral across the load boundary', () => {
+  it('keeps a player genome and strips a saved foreign genome and marks', () => {
+    resetSimRng();
+    const world = initGame({ skipTerrain: true, villageName: 'DNA', size: 'medium', seed: 20_261_109 });
+    const settler = world.entities.find((entity) => entity.type === EntityType.Human && entity.alive);
+    if (!settler) throw new Error('fixture premise: the colony has a living settler');
+    settler.marks = [{ id: 'pretty', day: 0, source: 'born' }];
+    const visitor = createEntity(EntityType.Human, 300, 300, world.nextEntityId++, 100, false, {
+      name: 'Old Visitor',
+      ageYears: 30,
+      faction: 'visitor',
     });
-    const plain = createEntity(EntityType.Human, 0, 0, 4, 100, false, {
-      gender: 'male',
-      inheritedTraits: [],
-    });
-    // Force plain to carry no traits so the presence check is deterministic.
-    plain.traits = [];
-    expect(hasTrait(brave, 'brave')).toBe(true);
-    expect(hasTrait(plain, 'brave')).toBe(false);
+    // A save written before the contract existed still carries foreign DNA.
+    visitor.genomeV2 = genomeFrom();
+    visitor.marks = [{ id: 'lucky', day: 4, source: 'raidVictory' }];
+    world.entities.push(visitor);
+
+    const raw = JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height)));
+    const parsed = parseSaveJson(raw);
+    if (!parsed.valid || !parsed.parsed) throw new Error('fixture save invalid');
+    const loaded = loadGameFromParsedOutcome(parsed.parsed);
+    if (!loaded.ok) throw new Error(`payload refused: ${loaded.reason}`);
+    const afterVisitor = loaded.world.entities.find((entity) => entity.id === visitor.id);
+    expect(afterVisitor?.genomeV2).toBeUndefined();
+    expect(afterVisitor?.marks).toBeUndefined();
+    const afterSettler = loaded.world.entities.find((entity) => entity.id === settler.id);
+    expect(afterSettler?.genomeV2?.aptitudeAlleles).toHaveLength(14);
+    expect(afterSettler?.marks).toEqual([{ id: 'pretty', day: 0, source: 'born' }]);
   });
 });

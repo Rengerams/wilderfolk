@@ -4,25 +4,22 @@ import { moveResident } from './housingPipeline';
 import type { Building, Entity, WorldState } from './gameTypes';
 import type { GenealogyRegistry } from './genealogyTypes';
 import { EntityType } from './gameTypes';
+import { isMarriedOrExpecting } from './relationships';
 import { logEvent } from './eventLog';
 import { recordGenealogyDeath } from './genealogyRegistry';
 import { finalizeMoonHowlerDeath, isSettlerRelationshipEntity } from './moonHowlerForm';
 import { cleanupEntityDialogueState } from './humanChat';
 import { TICKS_PER_DAY } from './dayCycleClock';
-import { isMinorChild } from './housingModel';
 import { hasResidenceAssignment } from './housingModel';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { clearWorkerAssignment } from './workforce';
 import { syncResidenceOccupants } from './housingPipeline';
 import { isResidenceOccupantEntity } from './housingModel';
 
 import { listPlayerResidences } from './housingPipeline';
-import { evaluateTraitInfluence } from './personality/traitEvaluation';
-import type { ExactTraitContext } from './personality/traitEffectCatalog';
+import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 
-/** The catalog context behind a widow's mourning window. */
-const SPOUSAL_BEREAVEMENT_CONTEXT = { kind: 'family', activity: 'spousalBereavement' } as const satisfies ExactTraitContext;
-
-/** Ordinary spousal mourning; the catalog may declare a shorter trait-specific window. */
+/** Ordinary spousal mourning before the bereavement activity's bounded modifier. */
 const SPOUSAL_GRIEF_DAYS = 7;
 
 /** Player settler eligible for human death cleanup (human or cursed full-moon werewolf form). */
@@ -53,16 +50,13 @@ export function finalizeHumanDeath(
   entity: Entity,
   buildings: Building[],
   entityById?: ReadonlyMap<number, Entity>,
-  /** Current world tick — used to set partner grief window. */
+  /** World tick for the partner grief window. */
   tick?: number,
 ): void {
   const partnerId = entity.partnerId;
   const affairPartnerId = entity.affairPartnerId;
-  // A dying settler can be mid-dialogue. The live-entity lookup the rest of this function already uses
-  // is exactly what `cleanupEntityDialogueState` needs to release the other half of the pair *with* the
-  // death, instead of leaving it holding a session key nobody owns until its own tick reclaims it.
-  // Present only when the caller passes the entity index, which is why the resolver stays optional in
-  // `humanChat`.
+  // A dying settler can be mid-dialogue: pass the live-entity lookup so the other half of the pair is
+  // released with the death instead of holding an orphaned session key. Optional in `humanChat`.
   const resolveDialoguePartner = entityById
     ? (id: number): Entity | undefined => entityById.get(id)
     : undefined;
@@ -74,7 +68,7 @@ export function finalizeHumanDeath(
   entity.prisonerUntilTick = undefined;
   entity.prisonSentenceCrime = undefined;
 
-  if (entity.relationshipStatus === 'married') {
+  if (isMarriedOrExpecting(entity)) {
     entity.relationshipStatus = statusAfterMarriageEnd(entity);
   }
   entity.partnerId = undefined;
@@ -100,13 +94,12 @@ export function finalizeHumanDeath(
         partner.partnerId = undefined;
         // A father's `'expecting'` is the dead partner's pregnancy — nothing will ever clear it, and
         // courtship refuses anything but `'single'`, so the widow or widower would never marry again.
-        if (partner.relationshipStatus === 'married' || partner.relationshipStatus === 'expecting') {
+        if (isMarriedOrExpecting(partner)) {
           partner.relationshipStatus = statusAfterMarriageEnd(partner);
         }
-        // About a week of mourning when we know the tick — stoic settlers recover sooner.
+        // About a week of mourning when we know the tick — a faster recovery shortens it.
         if (tick != null) {
-          const griefDays = evaluateTraitInfluence(partner, SPOUSAL_BEREAVEMENT_CONTEXT).exact.durationDaysOverride
-            ?? SPOUSAL_GRIEF_DAYS;
+          const griefDays = SPOUSAL_GRIEF_DAYS / evaluateAptitudeInfluence(partner, 'bereavement').factor;
           partner.griefUntilTick = Math.max(partner.griefUntilTick ?? 0, tick + TICKS_PER_DAY * griefDays);
         }
         if (partner.moonHowlerSaved?.partnerId === entity.id) {
@@ -139,7 +132,7 @@ export function finalizeHumanDeath(
 
 /**
  * After a settler dies, immediately adopt/place minor dependents so they are not
- * stuck under a dead custodian until the next housing assign pass (EK-E9).
+ * stuck under a dead custodian until the next housing assign pass.
  */
 function reassignOrphansAfterDeath(
   dead: Entity,
@@ -151,16 +144,15 @@ function reassignOrphansAfterDeath(
   if (residences.length === 0) return;
 
   const humans = [...entityById.values(), dead].filter(
-    // The residence-mirror owner's predicate, not a local rule: a cursed settler temporarily in
-    // Moon Howler form is still a residence occupant, and filtering them out here would wipe the
-    // residence they hold when this sync rebuilds the lists.
+    // The residence-mirror owner's predicate: a cursed settler temporarily in Moon Howler form is
+    // still a residence occupant, and filtering them out would wipe the residence they hold.
     (h) => h === dead || isResidenceOccupantEntity(h),
   );
   const deadId = dead.id;
   let touched = false;
 
   for (const child of humans) {
-    if (!isMinorChild(child)) continue;
+    if (child.age >= HUMAN_ADULT_MIN_AGE || child.partnerId != null) continue;
     const related =
       child.motherId === deadId
       || child.fatherId === deadId
@@ -169,9 +161,8 @@ function reassignOrphansAfterDeath(
       || (dead.childrenIds?.includes(child.id) ?? false);
     if (!related) continue;
 
-    // A deceased village leader's family retains the official residence until
-    // the succession is settled. Do not let orphan adoption relocate a minor
-    // who already lives there; general housing reconciliation also protects it.
+    // A deceased village leader's family retains the official residence until succession settles;
+    // orphan adoption must not relocate a minor who already lives there.
     const livesInLeaderHouse = residences.some(
       (residence) => residence.id === child.residenceBuildingId && residence.type === 'leaderHouse',
     );
@@ -197,7 +188,7 @@ export function reconcileFamilyReferencesAfterRemoval(
     if (!survivor.alive) continue;
     if (survivor.partnerId === removedId) {
       survivor.partnerId = undefined;
-      if (survivor.relationshipStatus === 'married' || survivor.relationshipStatus === 'expecting') {
+      if (isMarriedOrExpecting(survivor)) {
         survivor.relationshipStatus = statusAfterMarriageEnd(survivor);
       }
     }
@@ -215,17 +206,15 @@ export function reconcileFamilyReferencesAfterRemoval(
       survivor.courtshipProgress = 0;
     }
     if (survivor.pregnantById === removedId) survivor.pregnantById = undefined;
-    // A youth-love link joins two living settlers (§5). The daily youth-love reconciliation
-    // runs before most daily deaths, so the survivor's half must be cleared here or the
-    // collector reports a one-sided link to a pruned settler until the next day.
+    // A youth-love link joins two living settlers. Reconciliation runs before most daily deaths, so
+    // the survivor's half must be cleared here or it points at a pruned settler until the next day.
     if (survivor.youthLovePartnerId === removedId) {
       survivor.youthLovePartnerId = undefined;
       survivor.youthLoveProgress = undefined;
       survivor.youthLoveStartedDay = undefined;
     }
-    // Release a tamed animal whose owner just died: nothing else clears `tamedBy` on death and
-    // `isValidHuntPrey` refuses tamed prey, so the orphan stayed on the daily ration list forever
-    // and could never be hunted.
+    // Release a tamed animal whose owner died: nothing else clears `tamedBy`, and `isValidHuntPrey`
+    // refuses tamed prey, so the orphan would stay on the daily ration list forever.
     if (survivor.tamedBy === removedId) {
       survivor.tamedBy = undefined;
       if (state) {
@@ -265,17 +254,13 @@ export function killHuman(
 }
 
 /**
- * Clear marriage links when the partner row was removed from the alive list.
- * Runs after dead entities are pruned — safety net when widow cleanup missed a death path.
- * The "a cursed settler in Moon Howler form still counts as a partner" rule is owned by
- * `moonHowler.isSettlerRelationshipEntity`; this module reuses it instead of redefining it.
+ * Clear marriage links when the partner row was removed from the alive list. Runs after dead entities
+ * are pruned — the safety net when widow cleanup missed a death path.
  */
 export function reconcileOrphanedMarriages(entities: readonly Entity[]): void {
   const byId = new Map<number, Entity>();
-  // Index only the entities that can be somebody's partner. `isSettlerRelationshipEntity` is false
-  // for every other type, so below a miss and a hit on grass/tree/wildlife answer identically —
-  // while indexing them all built a ~900-entry Map on every tick (gameTick calls this with
-  // `allAlive`, grass and trees included) to look up a handful of partner ids.
+  // Index only entities that can be somebody's partner: `isSettlerRelationshipEntity` is false for
+  // every other type, and indexing them all built a ~900-entry Map each tick to look up a few ids.
   for (const entity of entities) {
     if (isSettlerRelationshipEntity(entity)) byId.set(entity.id, entity);
   }
@@ -283,7 +268,7 @@ export function reconcileOrphanedMarriages(entities: readonly Entity[]): void {
     if (!human.alive || human.type !== EntityType.Human) continue;
     // A status that names a marriage cannot outlive the partner it names — including a father's
     // `'expecting'`, which only his partner's pregnancy clears, so nothing would ever free him.
-    if (human.relationshipStatus !== 'married' && human.relationshipStatus !== 'expecting') continue;
+    if (!isMarriedOrExpecting(human)) continue;
     const partner = human.partnerId != null ? byId.get(human.partnerId) : undefined;
     if (isSettlerRelationshipEntity(partner)) continue;
     human.partnerId = undefined;

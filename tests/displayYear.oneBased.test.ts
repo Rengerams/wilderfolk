@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { displayYear } from '../src/game/dayCycleClock';
+import { displayYear, TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { buildSaveFilename } from '../src/game/saveLoad';
 import { ELECTION_INTERVAL_YEARS, getElectionCeremonyStatus } from '../src/game/villageLeadership';
 import type { WorldState } from '../src/game/gameTypes';
 
 /**
  * `WorldState.year` counts closed calendar years from 0, but every player-facing surface reads the
- * first year as "Year 1". `displayYear` is the one conversion; these tests pin the boundary case the
- * owner reported and the interval/absolute-year split it must not blur.
+ * first year as "Year 1"; `displayYear` is the one conversion, including for term intervals.
  */
 describe('displayYear formats a stored year for the player', () => {
   it('reads the stored first year as Year 1', () => {
@@ -27,7 +26,7 @@ describe('displayYear formats a stored year for the player', () => {
       electionCeremony: null,
       year: 0,
       dayInYear: 90,
-      tick: 90 * 72,
+      tick: 90 * TICKS_PER_DAY,
     } as unknown as WorldState;
 
     expect(getElectionCeremonyStatus(state)).toContain('(Year 1)');

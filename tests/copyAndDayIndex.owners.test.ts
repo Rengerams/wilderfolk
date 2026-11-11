@@ -1,19 +1,6 @@
 /**
- * Two "the rule already has an owner" guards from the 2026-09-16 economy audit.
- *
- * Tracked in `LIVE-FINDINGS-STATUS.md`. Both are the same shape as M1/M5/L5: a second expression of a
- * rule that already had one definition.
- *
- * - **L2** — the wall cap and watchtower bonus were restated in the build catalogue's player-visible
- *   copy (`buildings.ts` descriptions) while the owners are `defenseStructures.getWallSegmentCap`
- *   (a cap that wall plates raise) and the ballista forge bonus (which raises the tower's strength).
- *   The static numbers were a third definition that no upgrade could update, so they are gone.
- * - **L7** — the day index was written as `year * 360 + dayInYear` in two places, duplicating
- *   `DAYS_PER_YEAR`; `getColonyDay` is the owner. (`temperature.ts` carried the same expression and
- *   was fixed with it.)
- *
- * Source-level guards, deliberately narrow: the first fails if a stale barricade number returns to the
- * catalogue copy, the second if the literal day index returns to either file.
+ * Source-level guards that two rules keep their single owner: the build catalogue's copy states no
+ * static barricade numbers, and the day index comes from `getColonyDay` rather than a restated 360.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

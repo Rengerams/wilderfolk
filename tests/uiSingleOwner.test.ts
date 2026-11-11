@@ -1,11 +1,6 @@
 /**
- * UI single-owner guards — audit C2 (semantic duplicates) and the triaged C1 clones.
- *
- * Source: `docs/private/audits/2026-09-16/UI_REFINEMENT_AND_DUPLICATION_2026-09-17.md` §C. Each test
- * names the pre-fix expression it replaces, so a regression that restores the view-side copy fails
- * here with that expression in the message (the `tests/tradeRouteRewards.copy.test.ts` house
- * pattern). The behavioural tests prove the view **follows the owner**: change the owner's input and
- * the derived value moves with it.
+ * UI single-owner guards: each test names the view-side copy it replaces, and the behavioural tests
+ * prove the view follows the owner — change the owner's input and the derived value moves.
  */
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -27,9 +22,7 @@ import {
 import { REPUTATION_FRIENDLY_MIN, REPUTATION_HARSH_MAX, getReputationBand } from '../src/game/simHelpers';
 
 function read(relativePath: string): string {
-  // `UI_SINGLE_OWNER_ROOT` lets the red-before proof run these same guards against a mirrored
-  // pre-fix tree (`tmp/red-before`) without touching `src/`. Unset — the normal run — reads the
-  // real working tree.
+  // `UI_SINGLE_OWNER_ROOT` overrides the tree the guards read; unset, they read the working tree.
   const root = process.env.UI_SINGLE_OWNER_ROOT ?? process.cwd();
   return readFileSync(resolve(root, relativePath), 'utf8');
 }
@@ -40,7 +33,7 @@ function count(haystack: string, needle: string): number {
 
 describe('C2 — the view reads the owner instead of re-deriving the rule', () => {
   it('dynasty definition: the panel filters with the chronicle reward gate (familyLegacy.isDynasty)', () => {
-    // Pre-fix, DynastyPanel.tsx:7 was `dynasties.filter((d) => d.generationsAlive >= 2)`.
+    // A two-generation filter is not a dynasty; the panel reads the chronicle predicate.
     const panel = read('src/components/tabPanels/DynastyPanel.tsx');
     expect(panel, 'the two-generation filter is back').not.toContain('generationsAlive >= 2');
     expect(panel, 'the panel no longer reads the owner').toContain('filter(isDynasty)');
@@ -60,22 +53,21 @@ describe('C2 — the view reads the owner instead of re-deriving the rule', () =
   });
 
   it('ecosystem health: the Nature bar reads getEcosystemHealth, not the raw field', () => {
-    // Pre-fix, NatureTabPanel.tsx:230 was `{Math.round(state.ecosystemHealth)}%`.
+    // The bar reads `getEcosystemHealth`; rendering the raw field is the regression.
     const panel = read('src/components/tabPanels/NatureTabPanel.tsx');
     expect(panel).toContain('const ecosystemHealth = getEcosystemHealth(state);');
     expect(panel, 'the raw field is back in the bar').not.toContain('Math.round(state.ecosystemHealth)');
   });
 
   it('research gate: the panel asks canStartResearch, prerequisites included', () => {
-    // Pre-fix, ProgressTabPanel.tsx:192-195 re-derived the gate without `node.prerequisites`.
+    // The panel asks `canStartResearch`; a local cost gate would drop `node.prerequisites`.
     const panel = read('src/components/tabPanels/ProgressTabPanel.tsx');
     expect(panel).toContain('canStartResearch(state, node.id)');
     expect(panel, 'the local wood/stone/gold gate is back').not.toContain('state.resources.wood >= node.cost.wood');
   });
 
   it('resource fill %: the dashboard bar follows dashboardData.resourceFillPercent', () => {
-    // Pre-fix, dashboard/GameDashboard.tsx:114 was
-    // `const pct = r.cap > 0 ? Math.min(100, Math.round((r.amount / r.cap) * 100)) : 0;`
+    // The bar reads `resourceFillPercent`; a local amount/cap formula is the regression.
     const dashboard = read('src/components/dashboard/GameDashboard.tsx');
     expect(dashboard).toContain('resourceFillPercent(r)');
     expect(dashboard, 'the local fill formula is back').not.toContain('(r.amount / r.cap)');
@@ -89,15 +81,14 @@ describe('C2 — the view reads the owner instead of re-deriving the rule', () =
   });
 
   it('toast lifetime: one constant for the sweeper cutoff and the per-toast timer', () => {
-    // Pre-fix, useTransientGameFeedback.ts:24 declared `NOTIFICATION_LIFETIME_MS = 12_000` beside
-    // `NOTIFICATION_DISPLAY_MS = 12_000` and the sweeper read the former.
+    // One lifetime constant feeds both the sweeper cutoff and the per-toast timer.
     const hook = read('src/hooks/useTransientGameFeedback.ts');
     expect(hook, 'the duplicate lifetime constant is back').not.toContain('NOTIFICATION_LIFETIME_MS');
     expect(hook).toContain('const cutoff = now - NOTIFICATION_DISPLAY_MS;');
   });
 
   it('SidebarTab: one union, owned by hotkeys, imported by the shell hook', () => {
-    // Pre-fix, useGameShellState.ts:12 declared a second union that added the unreachable 'schedule'.
+    // `SidebarTab` is declared once in hotkeys; the shell imports it.
     const hotkeys = read('src/game/hotkeys.ts');
     const shell = read('src/hooks/useGameShellState.ts');
     expect(count(hotkeys, 'export type SidebarTab =')).toBe(1);
@@ -106,15 +97,8 @@ describe('C2 — the view reads the owner instead of re-deriving the rule', () =
   });
 
   it('overlay focus: one focusable query shared by all three traps', () => {
-    // Pre-fix: ShortcutsOverlay.tsx:60 `'button, [href], input, select, textarea, ...'` (which
-    // admitted disabled buttons) and GameMenu.tsx:227 `'button:not([disabled]), input:not(...)'`.
-    //
-    // 2026-09-20 audit A5 moved `ShortcutsOverlay`'s hand-rolled Tab trap onto the shared hook, so the
-    // overlay no longer *names* the query at all — it delegates. The two assertions below pin both
-    // halves of the invariant, older and newer: the owner still reaches the one focusable query, and
-    // the overlay reaches it only *through* the owner. Asserting the delegation instead of the old
-    // literal is a strengthening, not a relaxation — the previous form could not tell "the overlay
-    // calls the shared query" from "the overlay calls it and also keeps a private trap beside it".
+    // The invariant: the owner (`useModalFocus`) holds the one focusable query, and the overlay
+    // reaches it only through the hook while the menu calls it directly.
     const shortcuts = read('src/components/ShortcutsOverlay.tsx');
     const menu = read('src/components/GameMenu.tsx');
     const focus = read('src/hooks/useModalFocus.ts');
@@ -149,21 +133,19 @@ describe('C2 — the view reads the owner instead of re-deriving the rule', () =
   });
 
   it('day length in copy comes from the owner, and the exit-save toggle no longer names a cadence', () => {
-    // Pre-fix, GameMenu.tsx:399 `hint="Raw tick + absolute day on the clock bar (72 ticks = 1 day)"`
-    // and the auto-save toggle claimed "Every 30 seconds when enabled".
+    // The clock hint interpolates `TICKS_PER_DAY`; the exit-save toggle names no interval.
     const menu = read('src/components/GameMenu.tsx');
     expect(menu).toContain('${TICKS_PER_DAY} ticks = 1 day');
     expect(menu, 'the hand-typed day length is back').not.toContain('(72 ticks = 1 day)');
     expect(menu, 'the hand-typed auto-save interval is back').not.toContain('Every 30 seconds when enabled');
-    // The toggle now means "save when you leave", not a periodic cadence.
+    // The toggle means "save when you leave", not a periodic cadence.
     expect(menu).toContain('Save on exit');
   });
 });
 
 describe('C2 — building output copy is built from the owners, not typed as prose', () => {
   it('wall / watchtower / smith / mill / barn / storage hints read their owners', () => {
-    // Pre-fix, SelectedBuildingPanel.tsx:67-69,52-53,63 typed "+8 … (max +72 …)", "+15 …",
-    // "+25% per worker", "+25%", "+35%", "+600 food storage", "+800 wood storage" as prose.
+    // The hints interpolate their owners: wall cap, watchtower, smith, mill, barn, silo and storehouse.
     const panel = read('src/components/SelectedBuildingPanel.tsx');
     expect(panel).toContain('function ownerOutputHint(building: Building, state: WorldState): string | null {');
     expect(panel).toContain('getWallSegmentCap(state)');
@@ -175,8 +157,7 @@ describe('C2 — building output copy is built from the owners, not typed as pro
   });
 
   it('wall cap follows the forge owner; the base bonuses match the maths they feed', () => {
-    // No forge state: the base cap. With Wall Plates forged the owner raises it — the exact drift
-    // that made the inspector say "+72" while the forge panel said "+96".
+    // No forge: the base cap; with Wall Plates forged the owner raises it.
     const noForge = { villageForge: undefined };
     const wallPlatesForged = {
       villageForge: { activeOrder: null, progress: 0, completed: { wall_plates: true } },
@@ -193,8 +174,7 @@ describe('C2 — building output copy is built from the owners, not typed as pro
   });
 
   it('the worker-skill line reads the skills owner (Resourceful included)', () => {
-    // Pre-fix, SelectedBuildingPanel.tsx:653 `(+{Math.round(avgSkill * 2)}% output)` omitted
-    // `resourcefulMult` from `getWorkerSkillMultiplier`.
+    // The skill line reads `getWorkerSkillMultiplier`, so `resourcefulMult` is included.
     const panel = read('src/components/SelectedBuildingPanel.tsx');
     expect(panel).toContain('getWorkerSkillMultiplier(state, building)');
     expect(panel, 'the view-side 0.02 coefficient is back').not.toContain('Math.round(avgSkill * 2)');
@@ -228,8 +208,7 @@ describe('C1 — mechanical clones de-duplicated in components and hooks', () =>
   });
 
   it('clone 3: the header and the menu share one settings-callback contract', () => {
-    // Pre-fix, GameHeader.tsx:52-64 and GameMenu.tsx:22-34 declared the same save/settings callback
-    // tail twice, with the pass-through between them.
+    // Header and menu share one settings-callback contract.
     const header = read('src/components/GameHeader.tsx');
     const menu = read('src/components/GameMenu.tsx');
     expect(menu).toContain('export interface GameMenuSettingsCallbacks {');
@@ -239,8 +218,7 @@ describe('C1 — mechanical clones de-duplicated in components and hooks', () =>
   });
 
   it('clone 4: one raid-choice button block for both raid cards', () => {
-    // Pre-fix, SelectedBuildingPanel.tsx:196-203 and :221-229 were the same button block twice,
-    // differing only by the command op.
+    // Both raid cards share one `RaidChoiceButtons` block.
     const panel = read('src/components/SelectedBuildingPanel.tsx');
     expect(count(panel, '<RaidChoiceButtons')).toBe(2);
     expect(count(panel, 'text-[10px] font-bold ${colorClass}')).toBe(1);
@@ -267,9 +245,8 @@ describe('C1 — mechanical clones de-duplicated in components and hooks', () =>
 
 describe('C2 — the remaining semantic duplicates read their owners (2026-09-20 sweep)', () => {
   it('settler name fallback: no view re-types its own fallback string', () => {
-    // The earlier guard checked two named expressions, so three sites in the *same* panel kept
-    // drifting: `SelectedEntityPanel` read `entity.name || 'Unnamed'` and two `… || 'Settler'`
-    // sites while its family list already used `citizenGivenName`.
+    // The guard scans every view, not two named expressions: a panel can drift on one site while its
+    // family list already uses `citizenGivenName`.
     const views = [
       'src/components/SelectedEntityPanel.tsx',
       'src/components/SelectedBuildingPanel.tsx',
@@ -284,8 +261,7 @@ describe('C2 — the remaining semantic duplicates read their owners (2026-09-20
   });
 
   it('"many adults idle" is one rule, and the overview screen reads it', () => {
-    // Pre-fix the Work card computed `idle > max(2, adults × 0.35)` itself, so retuning the owner
-    // left the card green while the header mood said "Under pressure" on the same screen.
+    // The card reads `hasManyAdultsIdle`; a local idle threshold is the regression.
     expect(hasManyAdultsIdle({ idle: 3, adults: 10 })).toBe(false); // 3 > max(2, 3.5)
     expect(hasManyAdultsIdle({ idle: 4, adults: 10 })).toBe(true); // 4 > 3.5
     expect(hasManyAdultsIdle({ idle: 3, adults: 2 })).toBe(true); // 3 > max(2, 0.7)
@@ -310,10 +286,8 @@ describe('C2 — the remaining semantic duplicates read their owners (2026-09-20
     expect(read('src/components/tabPanels/VillageTabPanel.tsx')).toContain('REPUTATION_FRIENDLY_MIN');
   });
 
-  // The bands are consumed by two *different* owners — visitor trade prices by them and
-  // `frontierCombat` decides its raid odds by them — so a guard on the consumers alone could not
-  // have caught the copy that started this: `frontierCombat` was free to hand-write `>= 80` again
-  // while every consumer-side assertion still passed. This pins the boundary at the source.
+  // Two different owners consume the bands — visitor trade prices and `frontierCombat`'s raid odds —
+  // so the boundary is pinned at the defining source, not at one consumer.
   it('no module re-hardcodes the reputation band boundaries', () => {
     const owner = read('src/game/simHelpers.ts');
     // Defined exactly once, and the classifier reads those names.
@@ -345,8 +319,7 @@ describe('C2 — the remaining semantic duplicates read their owners (2026-09-20
 
 describe('U-2/U-3/U-4 — the 2026-09-20 inspector copy guards (building panel)', () => {
   it('the Mill rule is rendered once, by the owner-derived hint', () => {
-    // U-2: the panel had a second, hardcoded mill line ("boosts all food +25%") beside the
-    // `MILL_FOOD_PRODUCTION_MULT` hint, so a balance pass left the two disagreeing.
+    // The mill rule is rendered once, from `MILL_FOOD_PRODUCTION_MULT`.
     const panel = read('src/components/SelectedBuildingPanel.tsx');
     expect(panel).toContain('MILL_FOOD_PRODUCTION_MULT');
     expect(panel, 'the hardcoded mill rule is back beside the owner-derived hint').not.toContain(
@@ -355,8 +328,7 @@ describe('U-2/U-3/U-4 — the 2026-09-20 inspector copy guards (building panel)'
   });
 
   it('the Farm hint counts the workers the build catalogue actually allows', () => {
-    // U-4: the panel promised "up to 3" while the staffing command's cap is `maxOccupants` — the
-    // third farmer could never be assigned, so the panel was simply wrong.
+    // The farm hint counts `getBuildingConfig(type).maxOccupants`, not a typed cap.
     expect(BUILDING_CONFIGS[BuildingType.Farm].maxOccupants).toBe(2);
     const panel = read('src/components/SelectedBuildingPanel.tsx');
     expect(panel).toContain('(up to ${getBuildingConfig(type).maxOccupants})');
@@ -382,9 +354,8 @@ describe('U-2/U-3/U-4 — the 2026-09-20 inspector copy guards (building panel)'
   });
 
   it('the upgrade ceiling is asked of the upgrade owner, not retyped as a level test', () => {
-    // U-3: `MAX_BUILDING_LEVEL` is module-private to `buildingMaintenanceActions`, and the panel's
-    // own `level < 3` copies meant a raised ceiling was unreachable while a lowered one offered a
-    // button whose command is refused.
+    // The ceiling belongs to `buildingMaintenanceActions`; a local `level < 3` would let a raised
+    // ceiling stay unreachable and offer a button whose command is refused.
     const panel = read('src/components/SelectedBuildingPanel.tsx');
     expect(panel).toContain('getBuildingUpgradeEligibility(state, building.id)');
     expect(panel, 'a local level ceiling is back').not.toMatch(/building\.level\s*<\s*3/);
@@ -392,7 +363,7 @@ describe('U-2/U-3/U-4 — the 2026-09-20 inspector copy guards (building panel)'
   });
 
   it('the guide shows the build version once, from GAME_VERSION', () => {
-    // U-6: a stale "v0.4 is a playtest" sat under a header rendering the real `GAME_VERSION`.
+    // The guide interpolates `GAME_VERSION`; a hand-typed version is the regression.
     const guide = read('src/components/tabPanels/MoreTabPanel.tsx');
     expect(guide).toContain('v{GAME_VERSION}');
     expect(guide, 'a hand-typed version is back in the guide sentence').not.toContain(
@@ -402,9 +373,8 @@ describe('U-2/U-3/U-4 — the 2026-09-20 inspector copy guards (building panel)'
 });
 
 /**
- * The 2026-09-20 UI/UX owner audit (O-1…O-8, W-1…W-3): rules that were still being computed inside a
- * view. Each guard names the owner the view must read, and scans **every** `.tsx` so a new view cannot
- * opt out by not being listed — the failure mode the earlier per-file guards had.
+ * No domain rule is computed inside a view: each guard names the owner the view must read and scans
+ * every `.tsx`, so a new view cannot opt out by not being listed.
  */
 describe('O — no domain rule is computed inside a view', () => {
   function viewSources(): string[] {
@@ -476,8 +446,7 @@ describe('O — no domain rule is computed inside a view', () => {
   });
 
   it('O-1: the cockpit cannot count idle workers it was not given by the staffing owner', () => {
-    // `App` hand-rolled the eligibility rule (dropping the owner's `imprisoned`/`already-assigned`
-    // gates) to label a button the owner's own list had just emptied.
+    // The cockpit's idle count comes from the staffing owner, with all its gates.
     expect(read('src/App.tsx'), 'the local idle-worker count is back').not.toContain(
       'selectedBuildingIdleWorkerCount',
     );

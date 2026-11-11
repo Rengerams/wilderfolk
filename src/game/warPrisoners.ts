@@ -13,12 +13,13 @@ import { clearWorkerAssignment } from './workforce';
 import { moveResident, assignMissingResidences } from './housingPipeline';
 import { applyLeaderHousePhase } from './leaderHouse';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
-import { isAdult } from './housingModel';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { rememberRivalDisposition } from './raidAftermath';
 import { getOpenPlayerBeds } from './populationGrowth';
 import { initialHumanNeeds } from './simulation/humanPhysiology';
-import { evaluateTraitInfluence } from './personality/traitEvaluation';
-import type { ExactTraitContext } from './personality/traitEffectCatalog';
+import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
+import { rollFounderGenome } from './settlerTraits';
+import { rollBornMarks } from './personalMarks';
 
 const RECRUIT_COOLDOWN_DAYS = 7;
 const RECRUIT_BASE_CHANCE = 0.2;
@@ -28,15 +29,15 @@ const TRUST_RECRUIT_SCALE = 200;
 const MAX_CUSTODY_OPINION_MERIT = 5;
 const CUSTODY_LEADERSHIP_LIMIT = 100;
 
-/** The catalog context behind a villager's voice on a prisoner fate decision. */
-const COMMUNITY_REACTION_CONTEXT = { kind: 'civic', activity: 'communityReaction' } as const satisfies ExactTraitContext;
+/** A villager whose civic score clears this band adds a real restraint or severity voice. */
+const CIVIC_VOICE_THRESHOLD = 0.04;
 
 /** Only surviving, identifiable adult combatants can occupy a real prison cell. */
 export function captureRaidPrisoners(state: WorldState, rival: RivalSettlement, raidId: string, escorts: number): void {
   let availableEscorts = escorts;
   const candidates = state.entities.filter((person) => person.alive && person.faction === 'rival'
-    && person.type === EntityType.Human && person.job === JobType.Soldier && !person.isJuvenile
-    && isAdult(person) && rival.entityIds.includes(person.id) && !person.warCaptive);
+    && person.type === EntityType.Human && person.job === JobType.Soldier
+    && person.age >= HUMAN_ADULT_MIN_AGE && rival.entityIds.includes(person.id) && !person.warCaptive);
   for (const person of candidates) {
     if (availableEscorts <= 0 || rival.population <= 1) break;
     const prison = state.buildings.find((building) => building.type === BuildingType.Prison && building.completed
@@ -57,9 +58,8 @@ export function captureRaidPrisoners(state: WorldState, rival: RivalSettlement, 
 }
 
 /**
- * Warfare decisions are political, not a fixed morality score. Villagers respond
- * to their own traits and recent threats. External rival diplomacy is independent.
- * Called once by the authoritative prisoner or settled-raid transition.
+ * Warfare decisions are political, not a fixed morality score: villagers respond to their own traits
+ * and recent threats. Called once by the authoritative prisoner or settled-raid transition.
  */
 export function applyWarCommunityReaction(state: WorldState,
   choice: 'release' | 'execution' | 'mercy' | 'tribute' | 'raze', rivalId: string,
@@ -68,9 +68,9 @@ export function applyWarCommunityReaction(state: WorldState,
   let empathetic = 0;
   let fierce = 0;
   for (const villager of villagers) {
-    const voices = evaluateTraitInfluence(villager, COMMUNITY_REACTION_CONTEXT).exact;
-    empathetic += voices.restraintVoice;
-    fierce += voices.severityVoice;
+    const civic = evaluateAptitudeInfluence(villager, 'communityReaction').factor;
+    if (civic >= 1 + CIVIC_VOICE_THRESHOLD) empathetic++;
+    else if (civic <= 1 - CIVIC_VOICE_THRESHOLD) fierce++;
   }
   const activeWar = state.rivalSettlements.some((rival) => rival.id === rivalId && rival.atWarWithPlayer);
   const recentAttack = state.raidBattleReports?.some((report) => report.rivalId === rivalId && report.side === 'defense'
@@ -136,6 +136,15 @@ export function resolveWarPrisoner(original: WorldState, entityId: number, choic
     person.prisonSentenceCrime = undefined;
     person.faction = undefined;
     person.groupId = undefined;
+    // Foreign humans start neutral; citizenship must establish their permanent DNA before any activity.
+    person.genomeV2 ??= rollFounderGenome();
+    const bornMarks = rollBornMarks();
+    if (bornMarks.length > 0) {
+      const existingMarks = person.marks ?? [];
+      person.marks = [...existingMarks, ...bornMarks.filter(
+        (mark) => !existingMarks.some((existing) => existing.id === mark.id),
+      )];
+    }
     person.job = JobType.Settler;
     person.occupation = undefined;
     person.warCaptive = undefined;

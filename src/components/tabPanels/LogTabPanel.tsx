@@ -1,14 +1,13 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyWithRetry } from '../lazyWithRetry';
 import type { WorldState } from '../../game/gameEngine';
 import type { ChronicleExportMeta } from '../../game/eventLogExport';
-// `LogSubTab` is owned by `useGameShellState`. This file used to
-// declare a second, same-named union: the copies were contravariant-compatible, so a member added to
-// the owner compiled here and was simply unreachable — the identical drift `hotkeys.ts` documents
-// for `SidebarTab`.
+// `LogSubTab` is owned by `useGameShellState`; declaring a second same-named union here would
+// make added members unreachable.
 import type { LogFilter, LogSubTab } from '../../hooks/useGameShellState';
 
-const EventLogPanel = lazy(() => import('../../game/EventLogPanel'));
-const CombatLogPanel = lazy(() => import('../CombatLogPanel'));
+const EventLogPanel = lazyWithRetry(() => import('../../game/EventLogPanel'));
+const CombatLogPanel = lazyWithRetry(() => import('../CombatLogPanel'));
 
 export interface LogTabPanelProps {
   state: WorldState;
@@ -26,10 +25,7 @@ export default function LogTabPanel({
   logFilter,
   setLogFilter,
 }: LogTabPanelProps) {
-  /**
-   * One export header for both logs. The identical object used to be built inline in each branch,
-   * so adding a field meant two edits and a chance the two logs exported different headers
-   */
+  /** One export header for both logs, so a new field cannot make the two exports disagree. */
   const logMeta: ChronicleExportMeta = {
     villageName: state.villageName,
     year: state.year,
@@ -45,8 +41,7 @@ export default function LogTabPanel({
             key={id}
             type="button"
             data-active={logSubTab === id}
-            /* The selected sub-tab was conveyed by colour alone (`data-active` + CSS); the same
-               `aria-pressed` pattern `ProgressTabPanel` uses for its strip (2026-09-20 audit, A6). */
+            /* Selection is conveyed by `aria-pressed`, matching the `ProgressTabPanel` strip. */
             aria-pressed={logSubTab === id}
             onClick={() => setLogSubTab(id)}
           >

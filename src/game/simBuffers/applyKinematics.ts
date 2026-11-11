@@ -4,13 +4,8 @@ import type { EntityRenderMeta } from './entityRenderMeta';
 import type { RenderSoAReaderV1 } from './renderSoAReader';
 
 /**
- * Syncs catalog animation frames, sprite attitude and speech bubbles from the render SoA buffer.
- *
- * Position and velocity are deliberately **not** written here. `catalog` holds the live world's own
- * `Entity` objects (`entityCatalog.rebuild` stores the references), so this was a second writer of
- * `x`/`y`/`vx`/`vy` beside the tick delta — and a render buffer is a snapshot of a past tick, so it
- * dragged the display world back to where the mover stood a buffer ago. The canvas does not read
- * those fields from the catalog either; it draws the render shims.
+ * Syncs catalog animation frames, sprite attitude and speech bubbles from the render SoA buffer;
+ * position and velocity stay unwritten, since the catalog holds live references to a past-tick snapshot.
  */
 export function patchCatalogKinematicsFromRenderSoA(
   catalog: EntityCatalog,

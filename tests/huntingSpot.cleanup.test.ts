@@ -1,9 +1,6 @@
 /*
- * Hunting Spot cleanup regression — BUG 2026-08-21-hunting-spot-bypasses-wildlife-cleanup.
- *
- * Daily Hunting Spot production must not duplicate a partial wildlife death
- * path. A successful kill must invoke the shared death and reverse-hunt-target
- * transitions, which keep tick-local indexes and spatial queries coherent.
+ * Hunting Spot daily production must use the shared wildlife death and
+ * reverse-hunt-target transitions, not a partial death path.
  */
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -39,10 +36,8 @@ import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { DAILY_PHASE_HOURS, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
 /**
- * These fixtures are ticked by the real `gameTick`, so `maxAge` and `reproductionCooldown` are
- * load-bearing: `tickWildlife` reads `entity.age >= entity.maxAge` for old-age death and
- * `Math.max(0, entity.reproductionCooldown - step)` every pulse — an absent cooldown is `NaN`,
- * which makes every downstream `<= 0` comparison false. Values match `SPECIES_CONFIG`.
+ * These fixtures are ticked by the real `gameTick`: `tickWildlife` reads `maxAge` for
+ * old-age death, and an absent `reproductionCooldown` is `NaN`, so both stay load-bearing.
  */
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
   return {
@@ -79,10 +74,8 @@ function deer(id: number): Entity {
   return {
     id,
     type: EntityType.Deer,
-    // Beside the hunter (100,100) on purpose. The spot's reach is now bodies touching — the owner's
-    // ruling, *"120 px is way to far, its 1800's they dont have guns"* — so a deer 30 px away is
-    // correctly *not* shot; in game the hunter walks to the animal (`huntingSpot.huntingSpotChaseTarget`,
-    // applied in `humanTick`), which this fixture does not run.
+    // Beside the hunter (100,100) on purpose: the spot's reach is bodies touching, so a
+    // deer 30 px away is not shot; in game the hunter walks to the animal.
     x: 112,
     y: 100,
     energy: 500,
@@ -129,12 +122,11 @@ function huntingSpot(occupants: number[]): Building {
 
 function makeState(): WorldState {
   const hunter = human(1, { workerBuildingId: 10, huntTargetId: 2 });
-  // The spot is staffed and the hunter is standing at it (occupant 1, at the building's centre). Both
-  // are needed now: the hunt is anchored on the *hunter's* position rather than the building's, and a
-  // spot whose worker is elsewhere does nothing (owner: a spot is a work location, not a turret).
+  // The spot is staffed and the hunter stands at it: the hunt is anchored on the
+  // hunter's position, and a spot whose worker is elsewhere does nothing.
   const prey = deer(2);
   return {
-    // gameTick increments first: 71 -> 72 is the shared systems/assign/daily boundary.
+    // gameTick increments first: 107 -> 108 is a systems + 09:00 assignment boundary.
     tick: 107,
     paused: false,
     speed: 1,
@@ -237,10 +229,8 @@ describe('Hunting Spot wildlife cleanup', () => {
         // death passes through (wildkinChronicle.logWildkinDeath).
         state,
       );
-      // The fourth argument is the tick's `byType` buckets: passing them scopes the reverse-hunt sweep
-      // to HUNTER_TYPES instead of every living entity (`simulationEntities.clearHuntersTargetingPrey`,
-      // audit H-1). Asserting it here is what stops the call site silently dropping back to the
-      // full-entity scan.
+      // The fourth argument is the tick's `byType` buckets: passing them scopes the
+      // reverse-hunt sweep to HUNTER_TYPES instead of every living entity.
       expect(cleanupSpies.clearHuntersTargetingPrey).toHaveBeenCalledWith(
         2,
         expect.any(Map),

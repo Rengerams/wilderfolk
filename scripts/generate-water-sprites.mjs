@@ -1,13 +1,6 @@
 /**
- * Generate our own seamless water fill sprites (no external art):
- *   water_shallow_fill.png — light teal-blue, gentle wave bands + sparkles
- *   water_deep_fill.png   — deeper blue, stronger current bands, fewer sparkles
- *
- * Both are 128×128 seamless: horizontal sine wave bands with wavelengths that
- * divide the tile size (and phase-aligned at the wrap), so the baker's per-tile
- * hash-offset stamping keeps the whole map looking like one body of water.
- *
- * Run: node scripts/generate-water-sprites.mjs
+ * Generate our own seamless 128×128 water fills: sine wave bands whose wavelengths divide the tile and
+ * phase-align at the wrap, so per-tile hash-offset stamping still reads as one body of water.
  */
 import { deflateSync } from 'zlib';
 import { writeFileSync } from 'fs';
@@ -144,9 +137,8 @@ function encodePng(W, H, px) {
 
 const shallow = buildTile(11, [126, 200, 217], 3, 9, 6, 0.2);
 const deep = buildTile(23, [63, 127, 166], 4, 13, 3, 0.15);
-// Ocean — saturated azure so water reads as clearly blue even under the
-// spring season wash (which tints the whole map green and drowned the old
-// light-cyan fills). Rivers/coast stamp this texture.
+// Ocean — saturated azure so water reads blue even under the green spring season wash.
+// Rivers/coast stamp this texture.
 const ocean = buildTile(7, [40, 110, 195], 3, 10, 6, 0.2);
 
 writeFileSync('public/sprites/terrain/water_shallow_fill.png', encodePng(SIZE, SIZE, shallow));

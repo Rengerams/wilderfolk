@@ -1,18 +1,7 @@
 import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 /**
- * Low-severity simulation/data audit fixes (2026-09-13).
- *
- * See BUG_REPORTS/2026-09-13-simulation-logic-audit.md:
- *   L9/L10 — Town Hall no longer generates taxes (retired mechanic)
- *   L29    — Hunting Spot read the undefined research key `hunt_yield`
- *   L45    — autumn herd deer bypassed the canonical entity-id index
- *   L46    — every herd loss was reported and remembered as a hunt
- *   L50    — the path-grid cache key omitted the map preset
- *   L64    — the Moon Howler invariant scan carried dead accounting
- *
- * L30 (getGrazerDailyDemand never wired into the live grazing-demand report) is not
- * covered here: its owner `ecosystemPressure.getGrazingPressureReport` is outside the
- * files this task may touch, so no behaviour changed.
+ * Low-severity simulation/data guards: no Town Hall tax, the hunt_food research key, the entity-id
+ * index, herd loss reporting, the path-grid cache key and the Moon Howler scan.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -56,10 +45,8 @@ function seedRun(): void {
 // ==================== hand-built worlds (mirrors tests/huntingSpot.cleanup.test.ts) ====================
 
 /**
- * `maxAge` and `reproductionCooldown` are load-bearing: these fixtures are ticked by the real
- * `gameTick`, where `tickWildlife` reads `entity.age >= entity.maxAge` for old-age death and
- * `Math.max(0, entity.reproductionCooldown - step)`. An absent cooldown is `NaN`, so every
- * downstream comparison (`<= 0`) would be false. Values match `SPECIES_CONFIG`.
+ * `maxAge` and `reproductionCooldown` are load-bearing under the real `gameTick`: an absent cooldown
+ * is `NaN`, which fails every `<= 0` check, and `tickWildlife` compares age to `maxAge` for death.
  */
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
   return {
@@ -94,9 +81,8 @@ function deer(id: number): Entity {
   return {
     id,
     type: EntityType.Deer,
-    // Beside the hunter at (100,100): the spot's reach is now bodies touching (`huntingSpot.huntingKillReach`
-    // — the owner's *"120 px is way to far, its 1800's they dont have guns"*), and the walking that closes
-    // the distance in game belongs to `humanTick`, which this fixture does not run.
+    // Beside the hunter at (100,100): the spot's reach is bodies touching (`huntingSpot.huntingKillReach`),
+    // and the walking that closes distance belongs to `humanTick`, which this fixture does not run.
     x: 112,
     y: 100,
     energy: 500,
@@ -226,8 +212,6 @@ function meatAmount(text: string): number {
   return Number(MEAT_TEXT.exec(text)![1]);
 }
 
-// ==================== L9 / L10 ====================
-
 describe('Town Hall civic pulse (no tax mechanic)', () => {
   it('does not create tax income or tax notifications', () => {
     const official = human(1, { workerBuildingId: 10, x: 100, y: 100 });
@@ -242,8 +226,6 @@ describe('Town Hall civic pulse (no tax mechanic)', () => {
     expect(floatingTexts(state).some((text) => /taxes/i.test(text))).toBe(false);
   });
 });
-
-// ==================== L29 ====================
 
 describe('Hunting Spot research multiplier (L29)', () => {
   function huntWorld(day: number, withStoneSpears: boolean): WorldState {
@@ -293,13 +275,10 @@ describe('Hunting Spot research multiplier (L29)', () => {
 
     expect(plain).toBeDefined();
     expect(withSpears).toBeDefined();
-    // defense_2 (Stone Spears) declares hunt_food x1.25; the Hunting Spot used to read the
-    // undefined key `hunt_yield` and therefore never received it.
+    // defense_2 (Stone Spears) declares hunt_food x1.25; the Hunting Spot must scale its meat by it.
     expect(meatAmount(withSpears!)).toBeGreaterThan(meatAmount(plain!));
   });
 });
-
-// ==================== L45 / L46 ====================
 
 describe('autumn herd bookkeeping (L45, L46)', () => {
   function herdGame() {
@@ -334,9 +313,8 @@ describe('autumn herd bookkeeping (L45, L46)', () => {
 
   it('L46 — reports and remembers herd losses as losses, not as a hunt', () => {
     const { state, arrival, herd } = herdGame();
-    // Wolves thin the herd; the player never hunts. The yearly memory is still keyed on the
-    // number of losses (the locked contract in tests/migration.herds.test.ts), but the
-    // player-facing text must not claim a hunt that never happened.
+    // The yearly memory is keyed on the number of losses, but the player-facing text must not
+    // claim a hunt that never happened.
     for (let i = 0; i < 3; i++) herd[i].alive = false;
 
     state.tick = (arrival + MIGRATION_WINDOW_DAYS) * TICKS_PER_DAY;
@@ -350,8 +328,6 @@ describe('autumn herd bookkeeping (L45, L46)', () => {
     expect(log).not.toContain('hunted');
   });
 });
-
-// ==================== L50 ====================
 
 describe('path grid cache identity (L50)', () => {
   function makeMap(
@@ -391,8 +367,6 @@ describe('path grid cache identity (L50)', () => {
     expect(Array.from(getPathGrid(river).blocked).some((v) => v === 1)).toBe(true);
   });
 });
-
-// ==================== L64 ====================
 
 describe('Moon Howler invariant scan (L64)', () => {
   function cursed(id: number, overrides: Partial<Entity> = {}): Entity {

@@ -1,5 +1,5 @@
 /** A cursed Moon Howler keeps the manor claim their family's beds depend on.
- * Guards the Y4 D121 churn: one relocation at dusk and one move-in at dawn, every full moon. */
+ * The form switch must not trigger a relocation at dusk or a move-in at dawn. */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
@@ -7,7 +7,7 @@ import { collectLeaderHousehold, syncLeaderHouseResidency } from '../src/game/le
 import { building, human } from '../src/test/factories';
 
 /** The manor at dusk: the leader home, the infant home, and a cursed spouse whose bed the form
- * switch has already cleared — the state the nightly relocation was triggered from. */
+ * switch has already cleared. */
 function cursedHousehold(): { state: WorldState; manor: Building; infant: Entity; spouse: Entity } {
   const leader = human(1, { partnerId: 2, residenceBuildingId: 0 });
   const spouse = human(2, {

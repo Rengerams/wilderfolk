@@ -1,24 +1,11 @@
 /**
- * Shared seeded-scenario and colony-health observation for the two long-run harnesses:
- *
- *  - `scripts/run-full-year.mts` — roadmap **P1** "Seeded Colony Health Scenario" (100-day seeded
- *    run through the existing invariant gate, one scenario with producers and no restock).
- *  - `scripts/perf-seeded-year.mts` — roadmap **P2** "Seeded One-Year Performance Run" (Huge-map
- *    metric set: tick p50/p95/max, path calls, delta size, memory trend, fallback count, console
- *    volume).
- *
- * Why this module exists (roadmap O4, measured coverage gap): `run-full-year.mts` gave its
- * settlement no producers and refilled food and wood to `storageMax` at every checkpoint, so
- * production, spoilage and consumption economics sat outside the gate. The scenario plans and the
- * health projection therefore live here **once**, so the restocked run and the producers run cannot
- * drift apart, every report says plainly which one restocks, and the P2 run measures the same
- * settlement shape. Without this, each harness would carry its own copy of the settlement.
- *
- * Observes only: nothing here changes a simulation rule. Every write is setup the game performs
- * itself when a player raises those buildings (`createBuilding` + `updateStorageCaps`) or assigns a
- * worker (`assignWorkerTransition`), or is the harness's own initial provisioning, which is why
- * `SCENARIOS` names it explicitly.
+ * Shared seeded scenarios and colony-health observation for the long-run harnesses, so they cannot
+ * drift apart. Writes are only setup the game performs itself when a player builds and staffs.
  */
+import { buildingAccessPoint, isAtBuildingReach } from '../src/game/buildingAccess';
+import { isPlayerHuman } from '../src/game/playerHuman';
+import { getHourOfDay, getTickOfDay, TICKS_PER_DAY } from '../src/game/dayCycle';
+import { getWorkSchedule, isWorkScheduleHour } from '../src/game/workSchedule';
 import { createHash } from 'node:crypto';
 import { serialize } from 'node:v8';
 import { initGame } from '../src/game/gameEngine';
@@ -77,10 +64,8 @@ export function applyColonyBotAction(world: WorldState): string | null {
 }
 
 /**
- * One in-game tick's real-time budget at 1× speed, taken from the loop's own pacing constant rather
- * than copied (`tests/gameLoop.test.ts` exists because a copy of that rate drifted).
- * A tick slower than this cannot hold the baseline pace, which is what the harness counts as a
- * stalled tick.
+ * One in-game tick's real-time budget at 1× speed, derived from the loop's own pacing constant. A tick
+ * slower than this cannot hold the baseline pace and counts as stalled.
  */
 export const PACING_TICK_BUDGET_MS = 1000 / BASE_TICKS_PER_SECOND;
 
@@ -90,7 +75,6 @@ export const SERIALIZATION_SPIKE_MS = 50;
 /** Worker stall watchdog window for the harness's own transport sample, mirroring `gameLoop`. */
 export const WORKER_STALL_TIMEOUT_MS = 10_000;
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Scenario plans
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -160,13 +144,8 @@ export function createCompletedBuilding(
 }
 
 /**
- * The seeded harness must create navigable, non-overlapping starter structures;
- * some are provisioned before the player unlocks their building technology. Hard-coded offsets previously put all four starter Farms in a river
- * on seed 12345, so new farmhands were correctly refused by the commute owner.
- *
- * Search bounded rings around the scenario's preferred coordinates, using the
- * production placement and commute owners. Never paint passable terrain into the
- * map or bypass the two-hour work limit just to make the health test pass.
+ * Place a starter building in bounded rings around the preferred coordinates, using the production
+ * placement and commute owners — never paint passable terrain or bypass the commute limit to pass.
  */
 function placeLegalStarterBuilding(
   world: WorldState,
@@ -184,10 +163,8 @@ function placeLegalStarterBuilding(
       for (let dy = -ring; dy <= ring; dy++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
         const spot = snapBuildingCenter(type, preferred.x + dx * step, preferred.y + dy * step, 0);
-        // These are already-built test fixtures, including a locked Prison. The real
-        // placement owner can reject an otherwise walkable pad for research or slope;
-        // those are not navigation barriers. Preserve the physical constraints that
-        // caused the regression: a walkable destination and no building overlaps.
+        // Already-built fixtures bypass the placement owner (research/slope gates are not navigation
+        // barriers), but must stay walkable and overlap-free.
         const footprint = getBuildingFootprintForType(type, 0);
         if (!isFootprintWithinMapBounds(footprint.width, footprint.height,
           spot.x, spot.y, world.width, world.height)
@@ -232,15 +209,8 @@ function placeStarterHousing(world: WorldState, anchor: { x: number; y: number }
 }
 
 /**
- * Storage is owned by the buildings (`updateStorageCaps` recomputes `storageMax` and
- * `foodSpoilageRate` from completed Barns/Silos/Storehouses/Stores), so the harness can no longer
- * declare a larder the buildings do not provide. Both scenarios therefore *build* their storage and
- * then fill only up to the cap the owner computes.
- *
- * The producers scenario deliberately carries **one** Silo: `foodSpoilageRate` is
- * `0.02 − silos × 0.012`, so one Silo leaves 0.8 %/day of spoilage in the gate while the restocked
- * gate's four Silos zero it out. That difference is why the two plans are named here rather than
- * shared.
+ * Buildings own storage: `updateStorageCaps` recomputes `storageMax` and `foodSpoilageRate`, so each
+ * scenario builds its storage and fills only up to the cap the owner computes.
  */
 function spoilageRateForSilos(silos: number): number {
   return Math.max(0, 0.02 - silos * 0.012);
@@ -277,10 +247,8 @@ function placeStorage(world: WorldState, anchor: { x: number; y: number }, scena
 }
 
 /**
- * Place food producers ahead of the Lumber Mill in the scenario's initial staffing order.
- * With only a few adult founders, assigning the first worker to wood production
- * leaves the farm output behind growing food consumption. The buildings themselves
- * stay identical; only their initial worker priority changes.
+ * Place food producers ahead of the Lumber Mill so scarce founders staff farms before wood; the
+ * buildings are unchanged, only initial worker priority.
  */
 function placeProducers(world: WorldState, anchor: { x: number; y: number }): Building[] {
   const producers: Building[] = [];
@@ -303,9 +271,8 @@ function placeProducers(world: WorldState, anchor: { x: number; y: number }): Bu
 }
 
 /**
- * Build one seeded colony and provision it exactly as the named scenario says. The settlement
- * skeleton (housing, tavern, prison, an initially unstaffed Prison) is identical in both scenarios; only
- * the producers, the storage mix and the initial larder differ.
+ * Build one seeded colony and provision it exactly as the named scenario says: the settlement skeleton
+ * is identical in both scenarios; only producers, storage mix and the initial larder differ.
  */
 export function prepareColonyWorld(options: ColonyScenarioOptions): ColonyScenario {
   const { size, seed, scenario } = options;
@@ -336,9 +303,8 @@ export function prepareColonyWorld(options: ColonyScenarioOptions): ColonyScenar
 
   assignMissingResidences(founders, world.buildings, world.entities);
 
-  // No prisoners exist in the starter settlement, so a prison guard would consume a scarce
-  // founder without providing a benefit. Staff production first; prison staffing may follow
-  // later when the settlement can spare workers.
+  // No prisoners exist in the starter settlement, so a guard would waste a scarce founder: staff
+  // production first and leave prison staffing to later.
   let staffedProducers = 0;
   if (plan.producers) {
     const spareAdults = founders.filter((founder) => !founder.isJuvenile);
@@ -378,8 +344,7 @@ export function prepareColonyWorld(options: ColonyScenarioOptions): ColonyScenar
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Population / relationship summaries (moved here from run-full-year.mts so P2 shares them)
+// Population / relationship summaries (shared with the performance harness)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function livingHumans(world: WorldState): Entity[] {
@@ -427,8 +392,7 @@ export function countRelationships(world: WorldState): Record<string, number> {
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Exact event totals (counted from new log ids, so the 2 000-entry log cap cannot truncate them)
+// Exact event totals (counted from new log ids, so the log cap cannot truncate them)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ColonyEventTotals {
@@ -451,8 +415,7 @@ export interface ColonyEventTotals {
   electionsPostponed: number;
   leadershipVacancies: number;
   /** Event-log entries whose message names a village head — the ballot owner's own wording. The
-   * founding appointment logs "leads the founding colony until the first merit election", so it is
-   * deliberately *not* counted here; the founding head is visible in `elections.leaderId`. */
+   * founding appointment uses different wording, so it is not counted; see `elections.leaderId`. */
   electionEntries: number;
 }
 
@@ -480,19 +443,8 @@ function emptyEventTotals(): ColonyEventTotals {
 }
 
 /**
- * Counts event-log entries exactly once as the run proceeds. `eventLog` is newest-first and bounded
- * at `EVENT_LOG_MAX_ENTRIES`, so a year-long run cannot total it after the fact; ids are monotonic
- * per log, which makes "everything newer than the last id I saw" the exact increment.
- *
- * The log is walked **oldest → newest** (i.e. backwards) on purpose: the watermark advances as
- * entries are counted, so walking newest-first would count the newest entry and then skip every
- * older-but-still-new one. That defect was live in the first version of this counter and reported
- * 0 conceptions / 0 births for a run that had both.
- *
- * Every matcher here is the wording its owner writes, never a guess: `rumorScandals` counted
- * `'rumor'` while the affair owner writes "Whispers spread about …", so it read 0 for a year that
- * had 145 of them, and `divorces` counted any message containing "divorc" across all three divorce
- * lines. Both are why this counter is the place a reachability question gets answered.
+ * Counts event-log entries exactly once: `eventLog` is newest-first and bounded at
+ * `EVENT_LOG_MAX_ENTRIES`, so the log is walked oldest → newest against a monotonic-id watermark.
  */
 export interface EventCounter {
   observe(world: WorldState): ColonyEventTotals;
@@ -538,7 +490,6 @@ export function createEventCounter(): EventCounter {
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Delta size (the worker port's serializer, sampled rather than per tick)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -549,24 +500,15 @@ export interface DeltaSample {
   /** `v8.serialize` duration in ms; the per-tick serialization cost the worker pays. */
   serializeMs: number;
   /**
-   * Short SHA-256 of the delta's JSON — the delta fingerprint a review can compare by seed and
-   * checkpoint.
-   *
-   * It is expected to **differ between two runs of the same seed** even though every health number in
-   * this report agrees: the delta embeds wall-clock presentation data (`huntVisuals[].startedAtMs`
-   * comes from `Date.now()`), which JSON.stringify hides from the byte count because a 13-digit
-   * timestamp has a constant width. Measured 2026-09-20 on the 100-day producers scenario: the JSON
-   * length was identical at days 30/60/90/100 (564 312 / 695 099 / 821 002 / 864 085) while these
-   * hashes differed at every checkpoint, and `v8Bytes` differed at two of them.
+   * Short SHA-256 of the delta's JSON, for comparing a seed and checkpoint across reviews. It differs
+   * between runs of one seed: the delta embeds `Date.now()` presentation data of constant width.
    */
   jsonHash: string;
 }
 
 /**
- * Size one tick's `SimTickDelta`. Serializing costs ~10–25 ms for the ~1 MB Huge-map delta, so the
- * harnesses sample this at checkpoint/day granularity instead of every tick — a per-tick sample
- * would dominate the very tick time being measured (measured 2026-09-20: 16 ms/tick JSON on Huge
- * against a ~2 ms median tick).
+ * Size one tick's `SimTickDelta`. Serializing is expensive relative to a tick, so harnesses sample this
+ * at checkpoint/day granularity, never every tick.
  */
 export function sampleDelta(world: WorldState): DeltaSample {
   const delta = simTickDeltaFromWorld(world);
@@ -581,7 +523,6 @@ export function sampleDelta(world: WorldState): DeltaSample {
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Console volume
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -597,9 +538,8 @@ export interface ConsoleVolume {
 const CONSOLE_SAMPLE_LIMIT = 12;
 
 /**
- * Count what the simulation writes to the console without hiding it: every call is forwarded to the
- * original method, so a real warning is still visible, and the volume is reported as data. The
- * harness's own report lines use `process.stdout.write`, so they are never counted.
+ * Count what the simulation writes to the console without hiding it: every call still reaches the
+ * original method, so a real warning stays visible. Harness output uses `process.stdout.write`.
  */
 export function captureConsoleVolume(): { volume(): ConsoleVolume; restore(): void } {
   const originals = {
@@ -651,11 +591,24 @@ function safeInspect(value: unknown): string {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // The eight health domains, projected together
 // ─────────────────────────────────────────────────────────────────────────────
 
+export interface ColonyMovementSample {
+  id: number;
+  workplaceId?: number;
+  travelling: number;
+  atWork: number;
+  atHome: number;
+  idle: number;
+  walked: number;
+  distanceToAccess: number | null;
+  closestApproach: number | null;
+  firstShiftArrivalTick: number | null;
+}
+
 export interface ColonyHealthReport {
+  movement: { dayStart: number; secondsPerDayAt1x: number; settlers: ColonyMovementSample[] };
   day: number;
   tick: number;
   year: number;
@@ -685,9 +638,8 @@ export interface ColonyHealthReport {
     assignedFarmWorkers: number;
   };
   /**
-   * The four lifecycle numbers the roadmap requires to stay distinct: a conception is a pregnancy
-   * that started (event log), an active pregnancy is a living pregnant settler right now, a birth is
-   * a delivery, a death is a removal.
+   * Four distinct lifecycle numbers: conceptions (pregnancy started, from the log), active pregnancies
+   * (living settlers now), births (deliveries), deaths (removals).
    */
   lifecycle: {
     conceptionsLogged: number;
@@ -776,6 +728,7 @@ function countChanged(previous: Map<number, string>, next: Map<number, string>):
 }
 
 export interface ColonyObserver {
+  sampleMovement(): void;
   /** Snapshot the eight domains for `day`, plus the transitions since the previous call. */
   observe(day: number, deltas: DeltaSample, invariantErrors: readonly string[]): ColonyHealthReport;
   /** Exact cumulative event totals since the observer was created. */
@@ -783,12 +736,63 @@ export interface ColonyObserver {
 }
 
 /**
- * One observer per run. It holds only observations (previous transition keys, the exact event
- * counter, the diagnostics history watermark) and reads the authoritative world every time; it
- * never writes to it.
+ * One observer per run: holds only observations (transition keys, event counter, diagnostics
+ * watermark), reads the authoritative world every call, never writes to it.
  */
 export function createColonyObserver(world: WorldState): ColonyObserver {
   const counter = createEventCounter();
+  let movementDayStart = world.tick - getTickOfDay(world.tick);
+  const movement = new Map<number, ColonyMovementSample>();
+  const previousPositions = new Map(world.entities.map((entity) => [entity.id, { x: entity.x, y: entity.y }]));
+  const sampleMovement = (): void => {
+    const sampledTick = Math.max(0, world.tick - 1);
+    const dayStart = sampledTick - getTickOfDay(sampledTick);
+    if (dayStart !== movementDayStart) {
+      movement.clear();
+      movementDayStart = dayStart;
+    }
+    const buildings = new Map(world.buildings.map((building) => [building.id, building]));
+    const schedule = getWorkSchedule(world);
+    const livingIds = new Set<number>();
+    for (const entity of world.entities) {
+      if (!entity.alive || !isPlayerHuman(entity)) continue;
+      livingIds.add(entity.id);
+      const previous = previousPositions.get(entity.id);
+      const walked = previous ? Math.hypot(entity.x - previous.x, entity.y - previous.y) : 0;
+      previousPositions.set(entity.id, { x: entity.x, y: entity.y });
+      let sample = movement.get(entity.id);
+      if (!sample) {
+        sample = { id: entity.id, travelling: 0, atWork: 0, atHome: 0, idle: 0, walked: 0,
+          distanceToAccess: null, closestApproach: null, firstShiftArrivalTick: null };
+        movement.set(entity.id, sample);
+      }
+      if (sample.workplaceId !== entity.workerBuildingId) {
+        sample.workplaceId = entity.workerBuildingId;
+        sample.closestApproach = null;
+        sample.firstShiftArrivalTick = null;
+      }
+      const workplace = buildings.get(entity.workerBuildingId ?? -1);
+      const home = buildings.get(entity.residenceBuildingId ?? -1);
+      const atWork = !!workplace?.completed && (entity.indoorBuildingId === workplace.id || isAtBuildingReach(entity, workplace));
+      const atHome = !!home && (entity.indoorBuildingId === home.id || isAtBuildingReach(entity, home));
+      const access = workplace?.completed ? buildingAccessPoint(workplace) : null;
+      sample.distanceToAccess = access ? Math.hypot(access.x - entity.x, access.y - entity.y) : null;
+      if (sample.distanceToAccess != null) {
+        sample.closestApproach = Math.min(sample.closestApproach ?? Infinity, sample.distanceToAccess);
+      }
+      sample.walked += walked;
+      if (walked > 0) sample.travelling++;
+      else if (atWork) sample.atWork++;
+      else if (atHome) sample.atHome++;
+      else sample.idle++;
+      if (atWork && sample.firstShiftArrivalTick == null && isWorkScheduleHour(schedule, getHourOfDay(world.tick))) {
+        sample.firstShiftArrivalTick = getTickOfDay(world.tick);
+      }
+    }
+    for (const id of previousPositions.keys()) {
+      if (!livingIds.has(id)) previousPositions.delete(id);
+    }
+  };
   let previousKeys: TransitionKeys | null = null;
   let previousDiagnostics = 0;
   let previousLeaderId = world.villageLeaderId;
@@ -855,6 +859,8 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
     const wildlifeTotal = Object.values(wildlife).reduce((total, value) => total + value, 0);
 
     return {
+      movement: { dayStart: movementDayStart, secondsPerDayAt1x: TICKS_PER_DAY / BASE_TICKS_PER_SECOND,
+        settlers: [...movement.values()].map((sample) => ({ ...sample })) },
       day,
       tick: world.tick,
       year: world.year,
@@ -957,6 +963,7 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
   };
 
   return {
+    sampleMovement,
     observe,
     events(): ColonyEventTotals {
       return counter.observe(world);
@@ -969,19 +976,12 @@ export function collectInvariantErrors(world: WorldState): string[] {
   return collectSimulationInvariantErrors(world);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Non-vacuity: a world with no invariant left to break can still be a dead colony
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Why a settled colony is not growing, named one cause per verdict.
- *
- * Every rule below compares numbers the observer already records, so a verdict is a statement about
- * the recorded run rather than a second measurement. Only states the growth path has already failed
- * to correct qualify: beds full with settlers outside them and no building raised to fix it, a
- * larder spent to nothing while the day still eats more than it grows, or a woodpile never once
- * above nothing with an empty building queue. A settlement with more adults than posts is left
- * alone on purpose — that is a preset, not a stall, and the idle still forage.
+ * Why a settled colony is not growing, one cause per verdict — only states the growth path failed to
+ * correct, read from numbers the observer records (a preset like spare adults is not a stall).
  */
 export type ColonyStallReason =
   | 'housing-full'
@@ -1006,9 +1006,8 @@ export function assertColonyNotStalled(verdict: ColonyStallVerdict, label: strin
 }
 
 /**
- * What the non-vacuity rules may read: the recorded health snapshots plus the world's own counters.
- * Counting only `newBuildingsAtEnd` as construction keeps this a read of state the run already has,
- * so a caller cannot soften a verdict by describing the run differently.
+ * What the non-vacuity rules may read: recorded health snapshots plus the world's own counters, so a
+ * caller cannot soften a verdict by describing the run differently.
  */
 export interface ColonyStallInput {
   world: WorldState;

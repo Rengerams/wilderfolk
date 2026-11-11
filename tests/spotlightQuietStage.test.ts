@@ -1,7 +1,6 @@
 /**
- * A running Spotlight performance owns the frame: name plates, status badges and the gold
- * building level frames, pennants and level text are gameplay markers, and they were burying
- * the cast.
+ * A running Spotlight performance hides the gameplay markers — name plates, status badges,
+ * building level frames, pennants and level text — for its duration.
  */
 import { describe, expect, it } from 'vitest';
 import { createBuilding } from '../src/game/worldGen';

@@ -1,15 +1,6 @@
 /**
- * A wolf's bite could not kill anything.
- *
- * The fight-back branch (`dailyBuildingEconomy`) only ever subtracted
- * `HUNTING_FIGHT_BACK_BITE_ENERGY` from the hunter's energy, set a flash and logged a line — there was
- * no damage and no death path in it at all. The owner read two years of one colony's chronicle and
- * found thousands of "A wild wolf fought back … and bit <name>" events and not one death, and ruled:
- * *"wolfs should kill sometimes a human like a 5% change and 11% change for hurting a human"*.
- *
- * So the bite now resolves to one of three fates on a single roll, and the bands are the owner's
- * numbers. The bands are a pure function (`huntingFightBackFate`) because the roll itself comes from a
- * stateless hash keyed on the shot, which is not something a test should have to steer.
+ * A wolf's bite resolves to one of three fates on a single roll, banded by the owner's kill and
+ * injury chances; `huntingFightBackFate` is the pure band function.
  */
 import { describe, expect, it } from 'vitest';
 import {

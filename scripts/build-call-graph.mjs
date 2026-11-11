@@ -1,18 +1,6 @@
 /**
- * Call-graph and ownership explorer generator.
- *
- * Reads `src/**\/*.{ts,tsx}` plus the two authoritative ownership sources
- * (`src/game/simulation/decisionRegistry.ts` and `OWNERSHIP_OVERVIEW.md`) and writes:
- *
- *   docs/tools/call-graph.json   machine-readable: functions, call edges, owners, decisions
- *   docs/tools/call-graph.html   self-contained interactive viewer (no server, no CDN)
- *
- * Fidelity: static, regex/lexer-level. A call edge means "this function's body contains
- * `name(` resolved through the file's own imports". Dynamic dispatch, re-exports used as
- * namespaces, and same-name collisions that no import disambiguates are reported as
- * `ambiguous` rather than guessed.
- *
- * Usage: node scripts/build-call-graph.mjs [--json-only]
+ * Call-graph/ownership explorer: reads `src/**\/*.{ts,tsx}` plus the decision registry and
+ * OWNERSHIP_OVERVIEW.md, writes `docs/tools/call-graph.json` and `.html`. Usage: `node scripts/build-call-graph.mjs`.
  */
 import { readdirSync, readFileSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -29,9 +17,7 @@ const KEYWORDS = new Set([
   'constructor', 'get', 'set', 'import', 'export', 'default', 'extends', 'implements',
 ]);
 
-// ---------------------------------------------------------------------------------------------
-// Lexing
-// ---------------------------------------------------------------------------------------------
+// ------------------------------------- Lexing -------------------------------------
 
 function collectSources(directory, out = []) {
   for (const entry of readdirSync(directory)) {
@@ -43,9 +29,8 @@ function collectSources(directory, out = []) {
 }
 
 /**
- * Walk a source file once, tracking comments and string literals so braces, definitions and call
- * sites inside them are ignored. Returns the code with literals replaced by spaces (same length,
- * so line numbers stay right) plus the raw text for import extraction.
+ * Walk a source file once, blanking comments and string literals so braces, definitions and call
+ * sites inside them are ignored; same length keeps line numbers right.
  */
 export function stripLiteralsAndComments(text) {  const out = text.split('');
   let i = 0;
@@ -197,16 +182,14 @@ const DEFINITION_PATTERNS = [
   { kind: 'const-function', re: /(?:^|\n)[ \t]*(export\s+)?const\s+([A-Za-z_$][\w$]*)\s*(?::[^=]*)?=\s*(?:async\s+)?function\s*\(/g },
   // Class methods and object-literal methods: `private async frame(...) {`, `  foo(a, b): T {`.
   { kind: 'method', re: /(?:^|\n)[ \t]+(export\s+)?(?:(?:public|private|protected|static|readonly|async|override|get|set)\s+)*([A-Za-z_$][\w$]*)\s*\([^;{}]*\)\s*(?::[^{;=]*)?\{/g, blockBody: true },
-  // Assigned handlers: `self.onmessage = async (event) => {`, `private frame = () => {`.
-  // A block body is required here, so a property *type* such as
-  // `private getCanvas: () => HTMLCanvasElement | null;` is not mistaken for a function.
+  // Assigned handlers: `self.onmessage = async (event) => {`, `private frame = () => {`. A block
+  // body is required, so a property *type* such as `getCanvas: () => X` is not a definition.
   { kind: 'handler', re: /(?:^|\n)[ \t]*(export\s+)?(?:(?:public|private|protected|static|readonly|async)\s+)*(?:[A-Za-z_$][\w$.]*\.)?([A-Za-z_$][\w$]*)\s*[:=]\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*(?::[^=;{]*)?=>/g, blockBody: true },
 ];
 
 /**
- * Index of the `{` that opens a block body, or -1 when the statement has none (a signature, a
- * property type, or a concise arrow). Bounded and terminated by `;`, `}` or a blank line so a
- * bodyless declaration cannot adopt the *next* function's braces.
+ * Index of the `{` that opens a block body, or -1 when the statement has none; bounded so a
+ * bodyless declaration cannot adopt the next function's braces.
  */
 function findBodyBrace(code, from, startsInParams = false) {
   const limit = Math.min(code.length, from + 400);
@@ -356,16 +339,14 @@ export function extractDefinitions(code, raw, file, classes = []) {
 }
 
 /**
- * Calls with their optional receiver. `this.foo(` → receiver `this`; `X.foo(` → receiver `X`;
- * `foo(` → receiver null. The receiver is what lets the resolver tell a class method from a
- * same-named free function, and a built-in (`array.push`) from an internal one.
+ * Calls with optional receiver: `this.foo(` → `this`, `X.foo(` → `X`, `foo(` → null. The receiver
+ * tells a class method from a same-named free function and a built-in from an internal one.
  */
 function extractCalls(code, file) {
   const calls = [];
   const filePath = path.relative(ROOT, file).replaceAll('\\', '/');
-  // Receiver forms: `X.foo(` (identifier), and member expressions — `x.get(id)?.add(`,
-  // `allAlive?.push(`, `byType[k].push(` — recorded as an anonymous receiver (`?`) because no
-  // internal definition can be tied to them.
+  // Receiver forms: `X.foo(` (identifier) and member expressions (`x.get(id)?.add(`, `allAlive?.push(`,
+  // `byType[k].push(`) are recorded as an anonymous receiver (`?`) — no internal definition fits them.
   const re = /(?:([A-Za-z_$][\w$]*)\s*\.\s*|([A-Za-z_$][\w$]*)\s*\?\.\s*|([)\]])\s*\??\.\s*)?([A-Za-z_$][\w$]*)\s*\(/g;
   for (const match of code.matchAll(re)) {
     const name = match[4];
@@ -382,9 +363,7 @@ function extractCalls(code, file) {
   return calls;
 }
 
-// ---------------------------------------------------------------------------------------------
-// Ownership sources
-// ---------------------------------------------------------------------------------------------
+// ----------------------------------- Ownership sources -----------------------------------
 
 function parseDecisionRegistry(file) {
   const raw = readFileSync(file, 'utf8');
@@ -449,9 +428,7 @@ function modulesIn(text) {
   return [...found];
 }
 
-// ---------------------------------------------------------------------------------------------
-// Assembly
-// ---------------------------------------------------------------------------------------------
+// --------------------------------------- Assembly ---------------------------------------
 
 function main() {
   const jsonOnly = process.argv.includes('--json-only');
@@ -770,9 +747,7 @@ function main() {
   console.log(`wrote docs/tools/call-graph.json${jsonOnly ? '' : ' and call-graph.html'}`);
 }
 
-// ---------------------------------------------------------------------------------------------
-// HTML viewer (self-contained; no network, no dependencies)
-// ---------------------------------------------------------------------------------------------
+// ------------------------ HTML viewer (self-contained; no network, no deps) ------------------------
 
 function renderHtml(payload) {
   return `<!doctype html>

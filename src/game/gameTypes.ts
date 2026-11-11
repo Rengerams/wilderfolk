@@ -10,7 +10,8 @@ import { BuildingType } from './buildings';
 import type { Building } from './buildings';
 import type { Challenge } from './challenges';
 import type { SimRngSnapshot } from './simRng';
-import type { SettlerTrait } from './settlerTraits';
+import type { GenomeV2 } from './settlerTraits';
+import type { PersonalMark } from './personalMarks';
 import type { CareerHistory } from './careers/careerHistory';
 import type { CareerMilestones } from './careers/careerProgression';
 
@@ -301,7 +302,10 @@ export interface Entity {
   scheduleLastWorkedJob?: JobType | null;
   scheduleFatigue?: number;
   educated?: boolean;
-  traits?: SettlerTrait[];
+  /** The one inherited genotype; absent only in a pre-migration/dead/foreign subject. */
+  genomeV2?: GenomeV2;
+  /** Born or earned personal marks; never inherited and never part of the genome. */
+  marks?: PersonalMark[];
   pregnant?: boolean;
   pregnancyProgress?: number;
   pregnancyDueProgress?: number;
@@ -1092,12 +1096,12 @@ export function createInitialResearchNodes(): ResearchNode[] {
     { id: 'architecture_3', type: ResearchType.Architecture, name: 'Better Housing', description: 'Unlocks Villa housing for 14 residents', cost: { wood: 120, stone: 90, food: 0, gold: 100, iron: 0 }, unlocked: false, researched: false, prerequisites: ['architecture_1'], effects: [], icon: '🏡', tier: 2, completionNotify: { title: 'Villa unlocked', message: 'Open Build (B) → Housing → Villa 🏡', level: 'success' } },
     { id: 'architecture_2', type: ResearchType.Architecture, name: 'Urban Planning', description: 'Unlocks Town Hall (+ reputation from roads)', cost: { wood: 100, stone: 80, food: 0, gold: 100, iron: 0 }, unlocked: false, researched: false, prerequisites: ['architecture_1'], effects: [{ target: 'road_bonus', multiplier: 1.5 }], icon: '🏛️', tier: 2, completionNotify: { title: 'Town Hall unlocked', message: 'Open Build (B) → Community → Town Hall 🏰', level: 'success' } },
     { id: 'medicine_1', type: ResearchType.Medicine, name: 'Herbal Medicine', description: 'Unlocks Hospital', cost: { wood: 50, stone: 40, food: 0, gold: 60, iron: 0 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'human_lifespan', multiplier: 1.2 }], icon: '🌿', tier: 1 },
-    { id: 'medicine_2', type: ResearchType.Medicine, name: 'Plague Resistance', description: 'Immune to plague disasters', cost: { wood: 60, stone: 50, food: 0, gold: 90, iron: 0 }, unlocked: false, researched: false, prerequisites: ['medicine_1'], effects: [{ target: 'plague_immunity', add: 1 }], icon: '💉', tier: 2 },
+    { id: 'medicine_2', type: ResearchType.Medicine, name: 'Plague Resistance', description: 'Immunity to plague outbreaks', cost: { wood: 60, stone: 50, food: 0, gold: 90, iron: 0 }, unlocked: false, researched: false, prerequisites: ['medicine_1'], effects: [{ target: 'plague_immunity', add: 1 }], icon: '💉', tier: 2 },
     { id: 'trade_1', type: ResearchType.Trade, name: 'Commerce', description: 'Unlocks Market and Hotel', cost: { wood: 60, stone: 30, food: 0, gold: 50, iron: 0 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'gold_production', multiplier: 1.2 }], icon: '💰', tier: 1 },
     { id: 'trade_2', type: ResearchType.Trade, name: 'Trade Routes', description: 'Enables trade routes', cost: { wood: 80, stone: 40, food: 0, gold: 100, iron: 0 }, unlocked: false, researched: false, prerequisites: ['trade_1'], effects: [{ target: 'trade_bonus', multiplier: 1.5 }], icon: '🚢', tier: 2 },
     { id: 'education_1', type: ResearchType.Education, name: 'Scholarship', description: 'Unlocks School', cost: { wood: 70, stone: 50, food: 0, gold: 40, iron: 0 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'research_speed', multiplier: 1.3 }], icon: '📚', tier: 1 },
     { id: 'education_2', type: ResearchType.Education, name: 'Advanced Learning', description: 'All buildings 20% more efficient', cost: { wood: 90, stone: 70, food: 0, gold: 120, iron: 0 }, unlocked: false, researched: false, prerequisites: ['education_1'], effects: [{ target: 'global_efficiency', multiplier: 1.2 }], icon: '🎓', tier: 2 },
-    { id: 'defense_1', type: ResearchType.Defense, name: 'Fortification', description: 'Unlocks walls & watchtower · buildings take 50% less disaster damage', cost: { wood: 100, stone: 80, food: 0, gold: 70, iron: 0 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'disaster_resist', multiplier: 0.5 }], icon: '🛡️', tier: 1 },
+    { id: 'defense_1', type: ResearchType.Defense, name: 'Fortification', description: 'Unlocks walls & watchtower · buildings withstand damage better', cost: { wood: 100, stone: 80, food: 0, gold: 70, iron: 0 }, unlocked: true, researched: false, prerequisites: [], effects: [{ target: 'disaster_resist', multiplier: 0.5 }], icon: '🛡️', tier: 1 },
     { id: 'defense_2', type: ResearchType.Defense, name: 'Stone Spears', description: 'Unlocks Barracks · settlers hunt farther (+20% range) and bring home more meat (+25% food)', cost: { wood: 40, stone: 25, food: 0, gold: 20, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_1'], effects: [{ target: 'hunt_range', multiplier: 1.2 }, { target: 'hunt_food', multiplier: 1.25 }], icon: '🏹', tier: 2 },
     { id: 'defense_3', type: ResearchType.Defense, name: 'Wooden Shields', description: 'Settlers block 35% of Moon Howler strikes and flee faster', cost: { wood: 60, stone: 20, food: 0, gold: 35, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_1'], effects: [{ target: 'predator_block', add: 0.35 }, { target: 'flee_speed', multiplier: 1.2 }], icon: '🛡️', tier: 2 },
     { id: 'defense_4', type: ResearchType.Defense, name: 'Iron Spears', description: 'Unlocks iron spear forge order at Blacksmith — +40% hunt range, fight back vs wolves', cost: { wood: 70, stone: 50, food: 0, gold: 80, iron: 0 }, unlocked: false, researched: false, prerequisites: ['defense_2', 'mining_1'], effects: [{ target: 'hunt_range', multiplier: 1.4 }, { target: 'hunt_food', multiplier: 1.3 }, { target: 'counter_attack', add: 0.45 }], icon: '⚔️', tier: 3, forgeUnlockNotify: true },
@@ -1191,23 +1195,19 @@ export interface WorldMap {
   /** Teraforge continuous fields (L2). */
   cols?: number;
   rows?: number;
-  /** 0–1 per 64px cell. */
+  /** 0–1 per L2 cell (16 px). */
   elevation?: Float32Array;
   moisture?: Float32Array;
   /**
-   * 0–1 per 64px cell, and **latitude-parameterized**: the map's y axis is its latitude, so this
-   * field is warmest along the middle row (the equator) and cools toward both edges (the poles),
-   * on top of the preset's own climate. Both readers of it — `terrainGrid.classifyTile` and the
-   * per-pixel ground bake — therefore place biome zones by position for free.
+   * 0–1 per L2 cell, latitude-parameterized: warmest along the middle row, cooling toward both
+   * edges, so its readers place biome zones by position.
    */
   temperature?: Float32Array;
-  /** 15-biome index per 64px cell (see `terrain/biomes.ts` BIOME_IDS order). */
+  /** 15-biome index per L2 cell (see `terrain/biomes.ts` BIOME_IDS order). */
   terrain?: Uint8Array;
   /**
-   * Fine water-coverage field on its **own** lattice (`WATER_CELL`, 16 px), not the 64 px biome
-   * cell grid: `waterCols` × `waterRows`. Its own resolution is what keeps a coastline and a
-   * river bank smooth, because at the biome resolution a channel and its banks are whole cells
-   * and the waterline becomes a staircase.
+   * Fine water-coverage field on its own lattice (`WATER_CELL`, 16 px) and `waterCols` ×
+   * `waterRows`: at the 16 px L2 resolution a coastline would be a staircase.
    */
   riverDist?: Float32Array;
   waterCols?: number;
@@ -1228,20 +1228,15 @@ export interface WorldMap {
   seaLevel?: number;
   moistureBias?: number;
   /**
-   * The noise seed this ground was generated from.
-   *
-   * A compact save regenerates its whole valley from seed/preset/size, so the resolved seed has to
-   * travel with it — tuning the per-size offset otherwise repainted every existing settlement.
+   * The noise seed this ground was generated from; a compact save regenerates its whole valley from
+   * seed/preset/size, so the resolved seed travels with it.
    */
   terrainSeed?: number;
   /** Versioned procedural recipes keep compact saves visually identical across upgrades. */
   generationVersion?: 1 | 2 | 3 | 4;
   /**
-   * Per-map biome cuts for the moisture field, derived by the generator from that map's own
-   * distribution. Absolute constants cannot work: the tile-level moisture field runs 0.47 at
-   * p50 on an arid preset and 0.73 on a wet one, so a fixed cut paints one map entirely
-   * grassland and the next entirely canopy. A map without them falls back to the defaults in
-   * `terrain/terrainGrid`.
+   * Per-map biome cuts for the moisture field, derived from that map's own distribution: a fixed cut
+   * paints an arid map entirely grassland and a wet one entirely canopy. Defaults live in `terrainGrid`.
    */
   moistureForestThreshold?: number;
   moistureDarkForestThreshold?: number;
@@ -1251,9 +1246,8 @@ export interface WorldMap {
 
 export const GRID_SIZE = 20;
 /**
- * The world's L0 tile edge (px) — one tile of the map that the renderer, the pathfinder, placement,
- * saves and the generator all project onto. Named for that grid, not for the generator's biome field,
- * whose cell edge is a different number (`terrain/terrainGrid.TERRAIN_CELL`, 16 px).
+ * The world's L0 tile edge (px) — one tile the renderer, pathfinder, placement, saves and generator
+ * all project onto. Named for that grid, not the generator's 16 px biome cell.
  */
 export const PATH_CELL = 10;
 export const GRID_SNAP = true;

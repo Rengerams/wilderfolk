@@ -3,18 +3,16 @@ import { GAME_PHASE, GAME_VERSION } from '../../game/gameEngine';
 import { searchGuideHelp } from '../../game/guideHelp';
 import { HEADER_DOORS } from '../../game/hotkeys';
 import { describeHospitalReputation } from '../../game/hospitalCare';
-// Interpolated, not typed: this card said "every 5 years" long after the owner's term was shortened
-// (10 → 5 → 2, `villageLeadership.ts:24-27`), while two other surfaces already rendered the constant.
-// The Guide was the only hardcoded copy.
+// Interpolated from the owner, not typed: the leadership term lives in `villageLeadership`, so a
+// literal in Guide copy would drift when the term changes.
 import { ELECTION_INTERVAL_YEARS } from '../../game/villageLeadership';
 import { displayYear } from '../../game/dayCycleClock';
 import GuidedCampaignPanel from '../GuidedCampaignPanel';
 import type { WorldState } from '../../game/gameTypes';
 import { OVERVIEW_SUBJECTS, overviewSubjectForTab, type MoreSubTab } from '../../hooks/useGameShellState';
 
-// The sub-tab union is owned by the shell (`useGameShellState`). It used to be re-declared here, which
-// meant a new member compiled in the shell but was unreachable in this panel — the panel's own copy
-// simply did not have it.
+// The sub-tab union is owned by the shell (`useGameShellState`); a local copy here would compile in
+// the shell but stay unreachable in this panel.
 
 export interface MoreTabPanelProps {
   moreSubTab: MoreSubTab;
@@ -106,8 +104,7 @@ export default function MoreTabPanel({
               <p>• <strong className="text-stone-200">Living drama</strong> — marriages, scandals, babies, moon howlers (Log / .txt chronicle).</p>
               <p>• <strong className="text-stone-200">The wider world</strong> — pilgrims, performers, rival camps appear as you grow.</p>
               <p>• <strong className="text-stone-200">Trade &amp; reputation</strong> — become a known township, link routes, unlock gold.</p>
-              {/* The version is rendered once, by the build card above (`GAME_VERSION`); this
-                  sentence used to pin a stale `v0.4` beside it (U-6). */}
+              {/* The build card above is the only place the version is rendered. */}
               <p className="text-stone-300 italic">This build is a playtest — more scripted story and rivals are planned. For now, pick one legacy and watch your chronicle unfold.</p>
             </div>
           </div>
@@ -234,9 +231,8 @@ export default function MoreTabPanel({
             </p>
           </div>
 
-          {/* Debug-only tooling, gated on `?debug=1` (bug 45). This card used to ship to every
-              player, and an earlier report recorded it as gated when it was not — so the gate is
-              asserted by `tests/debugGate.guide.test.ts` rather than trusted to this comment. */}
+          {/* Debug-only tooling, gated on `?debug=1`; the gate is asserted by
+              `tests/debugGate.guide.test.ts` rather than trusted to this comment. */}
           {debugMode && (
             <div className="rounded-xl border border-dashed border-violet-700/40 bg-violet-950/20 p-3">
               <h3 className="mb-2 text-sm font-bold text-violet-300">🧪 Testing</h3>
@@ -260,9 +256,8 @@ export default function MoreTabPanel({
 
           <div className="rounded-xl bg-stone-700/50 p-3">
             <h3 className="mb-2 text-sm font-bold text-blue-300">🎮 Controls</h3>
-            {/* This grid used to be a hand-written second copy of `ShortcutsOverlay`'s list, and the
-                two had already drifted: it omitted X, O, R and ?, and described ESC differently
-                (U-9). The overlay owns the list, so the guide points at it instead of restating it. */}
+            {/* The overlay owns the shortcut list; this card points at it rather than restating it,
+                so the two cannot drift. */}
             <p className="text-stone-300">
               Press <strong className="text-stone-200">?</strong> for the full keyboard-shortcut list —
               camera panning and zoom, quick-build, overlays, rotating roads and walls, and closing

@@ -1,314 +1,239 @@
 /**
- * Settler personality traits — a trait catalog that makes each villager
- * feel like an individual. Traits are assigned at creation (1–3 per settler),
- * inherited partly from parents, and every gameplay effect is read through the
- * personality evaluator.
+ * The single owner of genetic identity: fourteen inherited aptitude dimensions, allocation,
+ * inheritance, validation and the deterministic old-save backfill.
  */
-import { createSeededRng, getSimRng, type RngStream } from './simRng';
+import { createSeededRng, getSimRng, randomInt, type RngStream } from './simRng';
 
-/** Single owner of the 14 saved settler DNA trait IDs. */
-export type SettlerTrait =
-  | 'hardy'
-  | 'brave'
-  | 'gregarious'
-  | 'timid'
-  | 'greenthumb'
-  | 'lucky'
-  | 'nurturing'
-  | 'insightful'
-  | 'chivalrous'
-  | 'resourceful'
-  | 'stoic'
-  | 'graceful'
-  | 'intuitive'
-  | 'fierce';
-
-/** Structural read-only input avoids a gameTypes → settlerTraits → gameTypes type cycle. */
-interface TraitCarrier {
-  readonly traits?: readonly SettlerTrait[] | null;
-}
-
-export interface TraitDef {
-  readonly id: SettlerTrait;
-  readonly label: string;
-  readonly emoji: string;
-  /** Short player-facing description shown in the inspector. */
-  readonly description: string;
-}
-
-export const TRAIT_DEFS: Readonly<Record<SettlerTrait, TraitDef>> = {
-  hardy: {
-    id: 'hardy',
-    label: 'Hardy',
-    emoji: '💪',
-    description: 'Tires more slowly on hard work — endures the longest shifts.',
-  },
-  brave: {
-    id: 'brave',
-    label: 'Brave',
-    emoji: '🛡️',
-    description: 'Ranges farther and chases game harder while hunting.',
-  },
-  gregarious: {
-    id: 'gregarious',
-    label: 'Gregarious',
-    emoji: '🗣️',
-    description: 'Courts faster and chats more around the village.',
-  },
-  timid: {
-    id: 'timid',
-    label: 'Timid',
-    emoji: '🐇',
-    description: 'Courts slower and flees sooner from predators.',
-  },
-  greenthumb: {
-    id: 'greenthumb',
-    label: 'Greenthumb',
-    emoji: '🌿',
-    description: 'A patient hand with crops — farms yield more.',
-  },
-  lucky: {
-    id: 'lucky',
-    label: 'Lucky',
-    emoji: '🍀',
-    description: 'Better hunt luck and a bit more likely to conceive.',
-  },
-  nurturing: {
-    id: 'nurturing',
-    label: 'Nurturing',
-    emoji: '💗',
-    description: 'Soft-hearted — speaks for mercy when a captive is judged.',
-  },
-  insightful: {
-    id: 'insightful',
-    label: 'Insightful',
-    emoji: '🔮',
-    description: 'A sharp mind — the village researches a little faster.',
-  },
-  chivalrous: {
-    id: 'chivalrous',
-    label: 'Chivalrous',
-    emoji: '🦁',
-    description: 'Gallant and protective — adds militia strength in a raid.',
-  },
-  resourceful: {
-    id: 'resourceful',
-    label: 'Resourceful',
-    emoji: '🔨',
-    description: 'Solves practical problems fast — builds quicker on site.',
-  },
-  stoic: {
-    id: 'stoic',
-    label: 'Stoic',
-    emoji: '🏔️',
-    description: 'Calm and steady — mourns loss and recovers sooner.',
-  },
-  graceful: {
-    id: 'graceful',
-    label: 'Graceful',
-    emoji: '✨',
-    description: 'Poised and elegant — courts and charms a little faster.',
-  },
-  intuitive: {
-    id: 'intuitive',
-    label: 'Intuitive',
-    emoji: '🦉',
-    description: 'Sharp instincts and empathy — chats up coworkers more.',
-  },
-  fierce: {
-    id: 'fierce',
-    label: 'Fierce',
-    emoji: '🔥',
-    description: 'Hot-blooded — presses for severity over a captive and quarrels easily.',
-  },
-};
-
-export const TRAIT_POOL: readonly SettlerTrait[] = [
-  'hardy',
-  'brave',
-  'gregarious',
-  'timid',
-  'greenthumb',
-  'lucky',
-  'nurturing',
-  'insightful',
-  'chivalrous',
-  'resourceful',
-  'stoic',
-  'graceful',
-  'intuitive',
-  'fierce',
+/**
+ * The canonical ordered aptitude IDs. Index == genome slot; every table below derives from it.
+ * Order is part of the saved genome contract — append only with a version bump.
+ */
+export const APTITUDE_IDS = [
+  'sociability',
+  'sensitivity',
+  'cooperation',
+  'curiosity',
+  'persistence',
+  'flexibility',
+  'patience',
+  'riskTaking',
+  'perception',
+  'initiative',
+  'composure',
+  'discipline',
+  'reasoning',
+  'creativity',
 ] as const;
 
-/** Traits drawn more often by women (community & wisdom leaning). */
-const FEMALE_LEANING: ReadonlySet<SettlerTrait> = new Set<SettlerTrait>([
-  'nurturing',
-  'insightful',
-  'gregarious',
-  'lucky',
-  'graceful',
-  'intuitive',
-  'fierce',
-]);
+export type GeneticAptitude = (typeof APTITUDE_IDS)[number];
 
-/** Traits drawn more often by men (frontier & physical leaning). */
-const MALE_LEANING: ReadonlySet<SettlerTrait> = new Set<SettlerTrait>([
-  'hardy',
-  'brave',
-  'greenthumb',
-  'chivalrous',
-  'resourceful',
-  'stoic',
-]);
+/** Number of inherited dimensions; the genome length is fixed by the ID list. */
+export const APTITUDE_COUNT = APTITUDE_IDS.length;
 
-/** Bias strength when the trait matches the settler's gender (1.0 = neutral). */
-const GENDER_BIAS = 1.6;
-/** Neutral weight for every trait regardless of gender. */
-const BASE_WEIGHT = 1.0;
-
-/** Mutually exclusive pairs — a settler can't carry both. */
-const TRAIT_OPPOSITES: ReadonlyArray<readonly [SettlerTrait, SettlerTrait]> = [
-  ['brave', 'timid'],
-  ['gregarious', 'timid'],
-];
-
-/** Standard trait allocation count per settler. */
-const TRAIT_COUNT = 3;
-
-/** Checks if a candidate trait conflicts with an existing set of traits. */
-function conflictsWith(trait: SettlerTrait, existing: readonly SettlerTrait[]): boolean {
-  for (let i = 0; i < TRAIT_OPPOSITES.length; i++) {
-    const [a, b] = TRAIT_OPPOSITES[i];
-    if (trait === a && existing.includes(b)) return true;
-    if (trait === b && existing.includes(a)) return true;
-  }
-  return false;
+export interface AptitudeDef {
+  readonly id: GeneticAptitude;
+  readonly label: string;
+  /** What a high expression looks like; the downside lives in the activity registry. */
+  readonly high: string;
+  /** What a low expression looks like. */
+  readonly low: string;
 }
 
-/**
- * Roll a single random trait weighted by gender that doesn't conflict.
- *
- * `stream` is the injected-RNG seam: the live allocation path passes nothing and draws the colony's
- * `settlerTraits` stream, while save-load backfill passes its own derived stream.
- */
-function pickTrait(
-  existing: SettlerTrait[],
-  gender?: 'male' | 'female',
-  stream?: RngStream,
-): SettlerTrait {
-  const pool: SettlerTrait[] = [];
-  for (let i = 0; i < TRAIT_POOL.length; i++) {
-    const t = TRAIT_POOL[i];
-    if (!existing.includes(t) && !conflictsWith(t, existing)) {
-      pool.push(t);
+/** Player-facing wording only; gameplay names and weights live in the activity registry. */
+export const APTITUDE_DEFS: Readonly<Record<GeneticAptitude, AptitudeDef>> = {
+  sociability: { id: 'sociability', label: 'Sociability', high: 'Seeks contact and starts conversations', low: 'Content with solitude' },
+  sensitivity: { id: 'sensitivity', label: 'Sensitivity', high: 'Notices and shares feelings', low: 'Hard to ruffle' },
+  cooperation: { id: 'cooperation', label: 'Cooperation', high: 'Works toward common ground', low: 'Goes their own way' },
+  curiosity: { id: 'curiosity', label: 'Curiosity', high: 'Explores and learns new things', low: 'Prefers the familiar' },
+  persistence: { id: 'persistence', label: 'Persistence', high: 'Keeps going despite setbacks', low: 'Changes course early' },
+  flexibility: { id: 'flexibility', label: 'Flexibility', high: 'Adapts plans readily', low: 'Sticks to the plan' },
+  patience: { id: 'patience', label: 'Patience', high: 'Waits and works carefully', low: 'Acts quickly' },
+  riskTaking: { id: 'riskTaking', label: 'Risk-taking', high: 'Acts despite uncertainty', low: 'Avoids unnecessary risk' },
+  perception: { id: 'perception', label: 'Perception', high: 'Notices fine details and cues', low: 'Ignores background noise' },
+  initiative: { id: 'initiative', label: 'Initiative', high: 'Starts action independently', low: 'Waits to be asked' },
+  composure: { id: 'composure', label: 'Composure', high: 'Stays calm under stress', low: 'Wears feelings openly' },
+  discipline: { id: 'discipline', label: 'Discipline', high: 'Keeps routines and obligations', low: 'Improvises as they go' },
+  reasoning: { id: 'reasoning', label: 'Reasoning', high: 'Analyzes patterns and problems', low: 'Trusts instinct' },
+  creativity: { id: 'creativity', label: 'Creativity', high: 'Finds unconventional solutions', low: 'Follows proven methods' },
+};
+
+/** A single inherited allele value, a validated finite integer in `[0, 100]`. */
+export type AptitudeAllele = number;
+
+/** One dimension's maternal and paternal allele, in that documented order. */
+export type AllelePair = readonly [AptitudeAllele, AptitudeAllele];
+
+/** The one authoritative genotype. The pair order is exactly `APTITUDE_IDS`. */
+export interface GenomeV2 {
+  readonly version: 2;
+  readonly aptitudeAlleles: readonly AllelePair[];
+}
+
+export const GENOME_VERSION = 2 as const;
+export const ALLELE_MIN = 0;
+export const ALLELE_MAX = 100;
+
+/** Founder alleles are drawn inside this band so no settler starts at a flat extreme. */
+const FOUNDER_ALLELE_MIN = 20;
+const FOUNDER_ALLELE_MAX = 80;
+/** Backfilled old-save alleles stay near the middle; the colony still gets variety. */
+const BACKFILL_ALLELE_MIN = 35;
+const BACKFILL_ALLELE_MAX = 65;
+/** A genome must show at least this many points between its highest and lowest expression. */
+export const MIN_EXPRESSION_SPREAD = 10;
+/** Rare birth mutation: per-allele chance and maximum bounded step. */
+const BIRTH_MUTATION_CHANCE = 0.02;
+const BIRTH_MUTATION_STEP = 4;
+
+export interface AptitudeExpression {
+  /** Mean of the two alleles per dimension, in `APTITUDE_IDS` order. */
+  readonly raw: readonly number[];
+  /** Mean of the fourteen raw values — the personal baseline. */
+  readonly mean: number;
+  /** `raw[i] - mean`; positive means above this person's own average. */
+  readonly relative: readonly number[];
+}
+
+function clampAllele(value: number): AptitudeAllele {
+  if (!Number.isFinite(value)) return ALLELE_MIN;
+  const rounded = Math.round(value);
+  return Math.max(ALLELE_MIN, Math.min(ALLELE_MAX, rounded));
+}
+
+function meanOfPair(pair: AllelePair): number {
+  return (pair[0] + pair[1]) / 2;
+}
+
+/** Shared draw for founders and deterministic backfill; the caller owns only the allele band. */
+function drawGenome(rng: RngStream, min: number, max: number): GenomeV2 {
+  const pairs: AllelePair[] = [];
+  for (let i = 0; i < APTITUDE_COUNT; i++) {
+    pairs.push([randomInt(rng, min, max), randomInt(rng, min, max)]);
+  }
+  return buildGenome(ensureSpread(pairs));
+}
+
+/** Mean of the fourteen expressed values; the shared personal baseline for relative scoring. */
+export function aptitudeMean(genome: GenomeV2): number {
+  let sum = 0;
+  for (const pair of genome.aptitudeAlleles) sum += meanOfPair(pair);
+  return sum / genome.aptitudeAlleles.length;
+}
+
+/** Read-only raw/mean/relative projection for the inspector and tests. */
+export function expressAptitudes(genome: GenomeV2): AptitudeExpression {
+  const raw: number[] = [];
+  let sum = 0;
+  for (const pair of genome.aptitudeAlleles) {
+    const value = meanOfPair(pair);
+    raw.push(value);
+    sum += value;
+  }
+  const mean = sum / raw.length;
+  const relative = raw.map((value) => value - mean);
+  return Object.freeze({ raw: Object.freeze(raw), mean, relative: Object.freeze(relative) });
+}
+
+/** Push the lowest and highest dimensions apart until the profile spans the minimum spread. */
+function ensureSpread(pairs: AllelePair[]): AllelePair[] {
+  let lowIndex = 0;
+  let highIndex = 0;
+  let low = Number.POSITIVE_INFINITY;
+  let high = Number.NEGATIVE_INFINITY;
+  for (let i = 0; i < pairs.length; i++) {
+    const value = meanOfPair(pairs[i]);
+    if (value < low) { low = value; lowIndex = i; }
+    if (value > high) { high = value; highIndex = i; }
+  }
+  const deficit = MIN_EXPRESSION_SPREAD - (high - low);
+  if (deficit <= 0) return pairs;
+
+  // A flat profile has one index at both ends, so the push must use two different dimensions.
+  if (lowIndex === highIndex) {
+    const otherIndex = (highIndex + 1) % pairs.length;
+    const highPair = pairs[highIndex];
+    const otherPair = pairs[otherIndex];
+    pairs[highIndex] = [clampAllele(highPair[0] + deficit), clampAllele(highPair[1] + deficit)];
+    pairs[otherIndex] = [clampAllele(otherPair[0] - deficit), clampAllele(otherPair[1] - deficit)];
+    return pairs;
+  }
+
+  const highPair = pairs[highIndex];
+  const lowPair = pairs[lowIndex];
+  // Moving both ends by the full deficit clears the target even when one end sits at a bound.
+  pairs[highIndex] = [clampAllele(highPair[0] + deficit), clampAllele(highPair[1] + deficit)];
+  pairs[lowIndex] = [clampAllele(lowPair[0] - deficit), clampAllele(lowPair[1] - deficit)];
+  return pairs;
+}
+
+function buildGenome(pairs: AllelePair[]): GenomeV2 {
+  const frozen = pairs.map((pair) => Object.freeze([pair[0], pair[1]] as const));
+  return Object.freeze({ version: GENOME_VERSION, aptitudeAlleles: Object.freeze(frozen) });
+}
+
+/** The one founder allocation; `stream` is the injected-RNG seam for tests and deterministic loads. */
+export function rollFounderGenome(stream?: RngStream): GenomeV2 {
+  return drawGenome(stream ?? getSimRng('settlerGenetics'), FOUNDER_ALLELE_MIN, FOUNDER_ALLELE_MAX);
+}
+
+/** Deterministic per-citizen backfill: stable for a save file and never draws from a live stream. */
+export function genomeFromSeed(colonySeed: number, entityId: number): GenomeV2 {
+  return drawGenome(createSeededRng(colonySeed, `settlerGenome:${entityId}`), BACKFILL_ALLELE_MIN, BACKFILL_ALLELE_MAX);
+}
+
+/** Validate an untrusted saved genome: version 2, exactly fourteen bounded pairs, no extra keys. */
+export function normalizeGenome(value: unknown): GenomeV2 | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  if (keys.length !== 2 || !keys.includes('version') || !keys.includes('aptitudeAlleles')) return undefined;
+  if (record.version !== GENOME_VERSION) return undefined;
+  const saved = record.aptitudeAlleles;
+  if (!Array.isArray(saved) || saved.length !== APTITUDE_COUNT) return undefined;
+  const pairs: AllelePair[] = [];
+  for (const entry of saved) {
+    if (!Array.isArray(entry) || entry.length !== 2) return undefined;
+    for (const allele of entry) {
+      if (typeof allele !== 'number' || !Number.isSafeInteger(allele)
+        || allele < ALLELE_MIN || allele > ALLELE_MAX) return undefined;
     }
+    pairs.push([entry[0], entry[1]]);
   }
-
-  if (pool.length === 0) {
-    return existing[0] ?? 'hardy';
-  }
-
-  const leaningSet = gender === 'female' ? FEMALE_LEANING : MALE_LEANING;
-  const weights = pool.map((t) => (leaningSet.has(t) ? GENDER_BIAS : BASE_WEIGHT));
-  const total = weights.reduce((s, w) => s + w, 0);
-
-  let roll = (stream ?? getSimRng('settlerTraits'))() * total;
-  for (let i = 0; i < pool.length; i++) {
-    roll -= weights[i];
-    if (roll <= 0) return pool[i];
-  }
-
-  return pool[pool.length - 1];
+  return buildGenome(pairs);
 }
 
-/**
- * Assign random traits for a new settler (gender-weighted and non-conflicting).
- *
- * One allocation rule for both paths: `stream` is the only difference between a live roll and the
- * legacy save-load backfill, which injects a stream of its own so it cannot consume live draws.
- */
-export function rollSettlerTraits(
-  existing: SettlerTrait[] = [],
-  gender?: 'male' | 'female',
+function mutated(allele: AptitudeAllele, rng: RngStream): AptitudeAllele {
+  if (rng() >= BIRTH_MUTATION_CHANCE) return allele;
+  const step = 1 + Math.floor(rng() * BIRTH_MUTATION_STEP);
+  const direction = rng() < 0.5 ? -1 : 1;
+  return clampAllele(allele + direction * step);
+}
+
+/** Biological inheritance: one allele per parent per dimension, plus a rare bounded mutation. */
+export function inheritGenome(
+  mother?: GenomeV2 | null,
+  father?: GenomeV2 | null,
   stream?: RngStream,
-): SettlerTrait[] {
-  const traits = [...existing];
-  while (traits.length < TRAIT_COUNT) {
-    traits.push(pickTrait(traits, gender, stream));
+): GenomeV2 {
+  const rng = stream ?? getSimRng('settlerGenetics');
+  const pairs: AllelePair[] = [];
+  for (let i = 0; i < APTITUDE_COUNT; i++) {
+    // A missing parent genome falls back to a neutral 50 allele, never a second source.
+    const motherPair = mother?.aptitudeAlleles[i];
+    const fatherPair = father?.aptitudeAlleles[i];
+    const maternal = motherPair ? motherPair[rng() < 0.5 ? 0 : 1] : 50;
+    const paternal = fatherPair ? fatherPair[rng() < 0.5 ? 0 : 1] : 50;
+    pairs.push([mutated(maternal, rng), mutated(paternal, rng)]);
   }
-  return traits;
+  return buildGenome(ensureSpread(pairs));
 }
 
-/**
- * Canonical baseline DNA for a settler saved before traits existed.
- *
- * Derived from the colony seed and the citizen's own id, so the fill is stable for a save file, uses
- * the canonical allocation rule above, and never draws from — or perturbs — a live RNG stream.
- */
-export function rollLegacySettlerTraits(
-  colonySeed: number,
-  entityId: number,
-  gender?: 'male' | 'female',
-): SettlerTrait[] {
-  return rollSettlerTraits([], gender, createSeededRng(colonySeed, `legacySettlerTraits:${entityId}`));
+/** A genome carrier as far as genetics rules are concerned: never the whole entity or world. */
+export interface GenomeCarrier {
+  readonly genomeV2?: GenomeV2 | null;
 }
 
-/**
- * The recognized traits a saved array may keep, in the order it wrote them.
- *
- * Non-arrays, unknown ids, duplicates, mutually exclusive pairs and anything past the three
- * canonical slots are dropped; an existing nonempty valid set is never extended.
- */
-export function validSettlerTraits(saved: unknown): SettlerTrait[] {
-  if (!Array.isArray(saved)) return [];
-  const kept: SettlerTrait[] = [];
-  for (const value of saved) {
-    if (typeof value !== 'string' || !TRAIT_POOL.includes(value as SettlerTrait)) continue;
-    const trait = value as SettlerTrait;
-    if (kept.includes(trait) || conflictsWith(trait, kept)) continue;
-    if (kept.length >= TRAIT_COUNT) break;
-    kept.push(trait);
-  }
-  return kept;
-}
-
-/** Per-trait chance a parent passes personality to a child. */
-const INHERIT_CHANCE = 0.5;
-/** Hard cap on how many traits a child can inherit from parents. */
-const MAX_INHERITED = 3;
-
-/**
- * DNA-like inheritance: each parent trait has a 50% chance to pass to the
- * child, drawing from both parents and rejecting mutually exclusive traits.
- */
-export function inheritSettlerTraits(
-  mother?: TraitCarrier,
-  father?: TraitCarrier,
-): SettlerTrait[] {
-  const inherited: SettlerTrait[] = [];
-  const parents = [mother, father];
-  const rng = getSimRng('settlerTraits');
-
-  for (let p = 0; p < parents.length; p++) {
-    const parentTraits = parents[p]?.traits ?? [];
-    for (let t = 0; t < parentTraits.length; t++) {
-      const trait = parentTraits[t];
-      if (inherited.length >= MAX_INHERITED) break;
-      if (
-        rng() < INHERIT_CHANCE &&
-        !inherited.includes(trait) &&
-        !conflictsWith(trait, inherited)
-      ) {
-        inherited.push(trait);
-      }
-    }
-  }
-
-  return inherited;
-}
-
-
-/** True when the entity carries the given trait. */
-export function hasTrait(entity: TraitCarrier, trait: SettlerTrait): boolean {
-  return entity.traits?.includes(trait) ?? false;
+/** The carrier's genome, or `undefined` for a pre-migration/dead/foreign subject. */
+export function genomeOf(carrier: GenomeCarrier | null | undefined): GenomeV2 | undefined {
+  return carrier?.genomeV2 ?? undefined;
 }

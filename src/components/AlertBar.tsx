@@ -17,9 +17,8 @@ const ALERT_LIST_ID = 'alert-bar-list';
 const CRITICAL_MARKER = { glyph: '!', name: 'Critical' } as const;
 
 /**
- * The chips the strip shows: every `critical` alert, then the first `VISIBLE_LIMIT` of the rest. A
- * critical alert is never collapsed — the owner returns at most four, so one behind "+N more" is a
- * missed raid.
+ * The chips the strip shows: every `critical` alert, then the first `VISIBLE_LIMIT` of the rest.
+ * A critical alert is never collapsed — one behind "+N more" is a missed raid.
  */
 export function visibleAlertChips(alerts: readonly PriorityAlert[], expanded: boolean): PriorityAlert[] {
   if (expanded) return [...alerts];
@@ -52,10 +51,8 @@ export default function AlertBar({ alerts, onAlert }: Props) {
 
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-stone-700/80 bg-stone-900/60 px-3 py-1">
-      {/* `display: contents` so the disclosure target can carry an id without adding a flex item —
-          the chip row's layout is unchanged. Both toggles below state the state they set and name
-          the element they change, the `aria-expanded` + `aria-controls` pairing
-          `SimulationDiagnosticsPanel.tsx` uses (2026-09-20 audit, A7). */}
+      {/* `display: contents` lets the disclosure target carry an id without adding a flex item.
+          Both toggles pair `aria-expanded` with `aria-controls` naming this element. */}
       <div id={ALERT_LIST_ID} className="contents">
         {visible.map((alert) => (
           <button

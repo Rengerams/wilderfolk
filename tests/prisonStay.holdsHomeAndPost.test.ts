@@ -1,8 +1,6 @@
 /**
- * A prison sentence holds the settler's bed and their post.
- *
- * While a settler is jailed only attendance stops: the residence link, the home's roster entry and
- * the workplace all stay put, so nobody is rehoused and no post is refilled behind them.
+ * A prison sentence holds the settler's bed and post: only attendance stops, so the
+ * residence link, the home's roster entry and the workplace stay put.
  */
 import { describe, expect, it } from 'vitest';
 import { createBuilding, initGame } from '../src/game/worldGen';
@@ -28,9 +26,8 @@ function completed(type: BuildingType, x: number, y: number, id: number) {
 }
 
 /**
- * The world the affair path needs: a guarded prison, and a housed, employed, married pair that is
- * caught. Neither spouse is in the world, so the caught affair cannot divorce and rehouse anyone —
- * the arrest is then the only thing that could change a link.
+ * The world the affair path needs: a guarded prison and a housed, employed, married
+ * pair that is caught; neither spouse is in the world, so no link can change.
  */
 function scandalWorld(): { state: WorldState; cheater: Entity; paramour: Entity; house: { occupants: number[] } } {
   const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });

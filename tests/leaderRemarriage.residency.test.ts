@@ -1,12 +1,6 @@
 /**
- * Leader remarriage residency regression — BUG 2026-08-28-leader-remarriage-residency.
- *
- * Scenario: the leader divorces and remarries. The marriage/divorce residence
- * owners deliberately exclude the Leader's House (they place couples in general
- * housing), so after a remarriage the new spouse would NOT join the manor. The
- * fix: `tickLayerDaily` now runs `syncLeaderHouseResidency` every colony day
- * after relationship reconciliation, which idempotently moves the current
- * leader household into the manor and evicts former members.
+ * `syncLeaderHouseResidency` runs every colony day after relationship reconciliation: it moves the
+ * leader's household into the Leader's House and evicts former members, idempotently.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
@@ -71,7 +65,7 @@ describe('leader remarriage residency', () => {
     });
     const newSpouse = human(5, { partnerId: 1, relationshipStatus: 'married', residenceBuildingId: 11, childrenIds: [3] });
     const formerSpouse = human(2, { residenceBuildingId: 10 }); // divorced earlier, still squatting in manor
-    const child = human(3, { motherId: 5, isJuvenile: true });
+    const child = human(3, { motherId: 5, age: 8, isJuvenile: true });
     const manor = building(10, BuildingType.LeaderHouse, { occupants: [1, 2, 3] });
     const normalHouse = building(11, BuildingType.House, { occupants: [5] });
     const state = {
@@ -81,14 +75,14 @@ describe('leader remarriage residency', () => {
       eventLog: [],
     } as unknown as WorldState;
 
-    syncLeaderHouseResidency(state); // the daily call the daily layer now performs
+    syncLeaderHouseResidency(state); // the daily call the daily layer performs
 
     // New spouse joins the leader household in the manor.
     expect(leader.residenceBuildingId).toBe(10);
     expect(newSpouse.residenceBuildingId).toBe(10);
     expect(child.residenceBuildingId).toBe(10);
     expect(manor.occupants).toEqual([1, 5, 3]);
-    // Former spouse (no longer part of the leader household) is evicted to general housing.
+    // Former spouse outside the leader household is evicted to general housing.
     expect(formerSpouse.residenceBuildingId).not.toBe(10);
     expect(formerSpouse.residenceBuildingId).toBe(11);
     expect(manor.occupants).not.toContain(2);

@@ -1,9 +1,6 @@
 /**
- * Sprite wiring: what the boot preload fetches and what the renderer can actually draw.
- *
- * A path in `BUILDING_CONFIGS` that has no file behind it is not harmless — the build catalogue and
- * the inspector put it straight into an `<img src>`, and a build with no loaded frame falls back to
- * a footprint pad on the map. A path in the preload list with no reader is a fetch nothing draws.
+ * Sprite wiring: every path in `BUILDING_CONFIGS` and the preload list must have a real file, and
+ * every preloaded file must have a reader, or the renderer falls back to a footprint pad.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';

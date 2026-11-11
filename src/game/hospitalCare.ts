@@ -13,6 +13,7 @@ import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
 import { spendFood } from './economyLedger';
 import { adjustHumanStaminaFromEnergy, getHumanStaminaRatio } from './simulation/humanPhysiology';
+import { getPregnancyProgressFraction, isPregnancyHospitalDue } from './simulation/humanLifecycle';
 
 /** Flat reputation a staffed hospital grants on each production interval. */
 export const HOSPITAL_REPUTATION_PER_INTERVAL = 2;
@@ -28,9 +29,7 @@ export const HOSPITAL_WARD_RADIUS_PX = 70;
 
 /**
  * The hospital's whole reputation grant for one production interval: the flat staffed grant plus
- * the ward round's own grant for the patients it treats. `dailyBuildingEconomy` decides *when* the
- * interval fires and no longer adds reputation itself, so the amount a hospital produces is
- * readable from this module alone.
+ * the ward round's grant. `dailyBuildingEconomy` only decides when the interval fires.
  */
 export function grantHospitalIntervalReputation(
   state: WorldState,
@@ -42,9 +41,8 @@ export function grantHospitalIntervalReputation(
 }
 
 /**
- * The single player-facing description of the hospital reputation rule. The build tooltip
- * (`SelectedBuildingPanel`) and the More-tab guide both render this, so the advertised amount
- * cannot drift from what the ward pays.
+ * The single player-facing description of the hospital reputation rule, rendered by both the
+ * build tooltip and the More-tab guide so the advertised amount cannot drift.
  */
 export function describeHospitalReputation(): string {
   return `Staffed: +${HOSPITAL_REPUTATION_PER_INTERVAL} reputation every ${HOSPITAL_REPUTATION_INTERVAL_DAYS} days,`
@@ -62,14 +60,12 @@ export function isDoctorAtHospital(
 }
 
 /**
- * Whether this settler should seek medical care.
- *
- * `tick` is required because the grief window is an absolute deadline: comparing it with `0`
- * made every settler who had *ever* grieved a permanent walk-in candidate.
+ * Whether this settler should seek medical care. `tick` is required: the grief window is an
+ * absolute deadline, not something to compare with `0`.
  */
 export function needsMedicalCare(entity: Entity, tick: number): boolean {
   if (!entity.alive || entity.isJuvenile === undefined) return false;
-  if (entity.pregnant) return true;
+  if (isPregnancyHospitalDue(entity)) return true;
   const stamina = getHumanStaminaRatio(entity);
   if (stamina < 0.42) return true;
   if ((entity.griefUntilTick ?? 0) > tick && stamina < 0.7) return true;
@@ -95,10 +91,8 @@ export function isRestingHospitalPatient(
 
 /** How urgently this settler should seek the hospital (0–1). */
 export function medicalUrgency(entity: Entity): number {
-  // pregnancyProgress runs ~0..PREGNANCY_TICKS (~24 days); scale urgency over the term
-  if (entity.pregnant) {
-    const term = Math.max(1, entity.pregnancyProgress ?? 0);
-    return 0.55 + Math.min(0.4, term / 1800);
+  if (isPregnancyHospitalDue(entity)) {
+    return 0.55 + 0.4 * getPregnancyProgressFraction(entity);
   }
   const stamina = getHumanStaminaRatio(entity);
   if (stamina < 0.28) return 0.85;
@@ -110,7 +104,7 @@ export function medicalUrgency(entity: Entity): number {
 /** The owner's own reason this settler needs care, or `null` — the roster renders it verbatim. */
 export function medicalCareReason(entity: Entity, tick: number): string | null {
   if (!needsMedicalCare(entity, tick)) return null;
-  if (entity.pregnant) return 'expecting';
+  if (isPregnancyHospitalDue(entity)) return 'expecting';
   if (getHumanStaminaRatio(entity) < 0.42) return 'exhausted';
   return 'grieving';
 }
@@ -127,18 +121,17 @@ export interface HospitalRosterEntry {
   patients: HospitalPatientEntry[];
 }
 
-/** Who is in the ward, each with the owner's reason — the same reach the ward round treats by. */
+/** Who is in the ward: verified admissions only, each with the owner's reason for being there. */
 export function getHospitalRoster(
   hospital: Building,
   entities: readonly Entity[],
   tick: number,
 ): HospitalRosterEntry {
-  const hx = hospital.x + hospital.width / 2;
-  const hy = hospital.y + hospital.height / 2;
   const patients: HospitalPatientEntry[] = [];
   for (const e of entities) {
     if (!e.alive || !isPlayerHuman(e)) continue;
-    if (Math.hypot(e.x - hx, e.y - hy) > HOSPITAL_WARD_RADIUS_PX) continue;
+    // Admission, not proximity: the same verified-ward test that grants hospital rest.
+    if (!isRestingHospitalPatient(e, hospital, tick, e.indoorBuildingId)) continue;
     const reason = medicalCareReason(e, tick);
     if (reason) patients.push({ entity: e, reason });
   }

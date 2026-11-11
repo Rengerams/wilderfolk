@@ -1,15 +1,6 @@
 /**
- * Bundled Moon Howler suite: the nine `tests/moonHowler.*.test.ts` files merged into one, one
- * `describe('<original file name>')` per source file.
- *
- * Every `it(...)` case is carried over verbatim — same title, same body, same assertions, same
- * comments. Each source file's own doc comment sits directly above its `describe`. The per-file
- * constants and helpers live inside that file's `describe` (rule 3's "the body verbatim"), which is
- * also what keeps the two different `FIXTURE_SEED` values and the three different `FULL_MOON_DAY`
- * expressions from colliding.
- *
- * The Moon Howler start hour is imported directly from its true owner,
- * independently of the village's ordinary night start.
+ * Bundled Moon Howler suite: one `describe('<original file name>')` per source file, with each
+ * file's constants and helpers scoped inside it.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
@@ -90,13 +81,8 @@ describe('Moon Howler restored physiology clock', () => {
 });
 
 /**
- * Regression: tickMoonHowlerCycle must reuse the caller's byType index instead
- * of rebuilding it every tick (perf — one full O(n) bucket rebuild per tick
- * was wasted when nothing transformed).
- *
- * Bug: `buildEntityByType(aliveEntities)` ran unconditionally at the top of
- * every tick, even on ordinary days with no moon-form changes. gameTick
- * already built the identical index and passed it via ctx.byType.
+ * `tickMoonHowlerCycle` must reuse the caller's `byType` index and rebuild it only when a form
+ * actually changes.
  */
 describe('moonHowler.byTypeReuse.test.ts', () => {
   describe('tickMoonHowlerCycle byType reuse', () => {
@@ -168,15 +154,8 @@ describe('moonHowler.cureChance.test.ts', () => {
 });
 
 /**
- * Regression: the Moon Howler curse can only be broken during the full-moon
- * NIGHT (22:00 → before 06:00), while the cursed settler is still in 🌝 form —
- * never at 7am work start.
- *
- * The sim has gated the Church exorcism to the night window since 3854df70,
- * but nothing locked it in: the tutorial/help copy still told players "dawn
- * (7am)", and the 0.5.0 changelog described a 7am cure. At 6am the cursed
- * settler has already reverted to human form, so a 7am cure would be both
- * wrong in lore and impossible in the sim.
+ * The Moon Howler curse can be broken only during the full-moon night (22:00 → before 06:00),
+ * while the cursed settler is still in werewolf form.
  */
 describe('moonHowler.cureWindow.test.ts', () => {
   describe('Moon Howler cure window — night only, not 7am', () => {
@@ -232,12 +211,8 @@ describe('moonHowler.cureWindow.test.ts', () => {
 });
 
 /**
- * Regression: the Moon Howler exorcism overhaul —
- *   • churches hold up to 4 priests (cure 35% → 71%)
- *   • the rite needs the priest within MOON_HOWLER_EXORCISM_RANGE of the howler
- *   • Barracks guards nearby roll (extra roll, not guaranteed) to save the priest
- *   • a fallen priest scares the survivors (flee window), and breaking a curse
- *     earns the priest the "Howlerbane" title
+ * The exorcism rite scales its cure with up to four priests, needs the priest in range, lets a
+ * Barracks guard save them, and scares survivors when a priest falls.
  */
 describe('moonHowler.exorcism.test.ts', () => {
   /** Staffed church + priest + cursed howler fixture. Returns a fresh setup each call. */
@@ -438,17 +413,8 @@ describe('moonHowler.exorcism.test.ts', () => {
 });
 
 /**
- * The Moon Howler cure-window sweep uses the owner's padded "indoors" test.
- *
- * Regression for audit L16 (`docs/private/audits/2026-09-16/sim-economy-leadership-combat.md`, tracked
- * in `LIVE-FINDINGS-STATUS.md`): the sweep re-implemented "inside a completed building" as a bare
- * axis-aligned bounds check with no margin, while the owner
- * `terrainSystems.isInsideCompletedBuilding` pads the footprint by 10 px — the same padding
- * `buildingRotation.isEntityOnBuilding` gives every other consumer. A howler within that margin
- * therefore counted as outdoors and the sweep never forced it away.
- *
- * Driven through the real owner (`tickMoonHowlerCycle` at a full-moon `MOON_HOWLER_NIGHT_START`, which is the cure
- * window) rather than by calling the helper, so the test fails if the sweep stops delegating.
+ * The cure-window sweep must use the owner's padded "indoors" test, so a howler within the
+ * footprint margin counts as inside and is forced out.
  */
 describe('moonHowler.indoorsPad.test.ts', () => {
   const FIXTURE_SEED = 20_260_917;
@@ -497,8 +463,7 @@ describe('moonHowler.indoorsPad.test.ts', () => {
     it('forces a howler out of the pad margin, not only out of the bare rectangle', () => {
       const { state, howler, building } = howlerWorld();
 
-      // The fixture's premise, stated as the owner sees it: indoors by the padded rule, outdoors by the
-      // bare rectangle the sweep used to apply.
+      // The fixture's premise: indoors by the padded rule, outdoors by the bare rectangle alone.
       expect(isInsideCompletedBuilding(state, howler.x, howler.y)).toBe(true);
       expect(howler.x >= building.x && howler.x <= building.x + building.width).toBe(false);
 
@@ -519,19 +484,8 @@ describe('moonHowler.indoorsPad.test.ts', () => {
 });
 
 /**
- * Moon Howler rarity — SIMULATION_AUTHORITY.md §5 + Objective 10.
- *
- * The curse path must be a RARE replacement event, not a guaranteed
- * every-full-moon spawn:
- *   - a surviving cursed Howler makes later full moons quiet (it returns
- *     instead — never a second curse);
- *   - after a kill/cure, full moons may be quiet;
- *   - a replacement appears only through MOON_HOWLER_REPLACEMENT_CHANCE;
- *   - a full moon never guarantees a new Howler.
- *
- * RNG is injectable (`rng` param on shouldApplyNewMoonHowlerCurse /
- * tickMoonHowlerCycle) so quiet moons, survivor returns, and rare
- * replacements are deterministic.
+ * The curse is a rare replacement event, never a guaranteed full-moon spawn: a surviving howler
+ * makes later moons quiet, and a new one appears only through `MOON_HOWLER_REPLACEMENT_CHANCE`.
  */
 describe('moonHowler.rare.test.ts', () => {
   const FULL_MOON_NIGHTFALL = { colonyDay: DAYS_PER_MOON_CYCLE, hourOfDay: MOON_HOWLER_NIGHT_START };
@@ -635,13 +589,8 @@ describe('moonHowler.rare.test.ts', () => {
   }
 
   /**
-   * The curse cards the real producers posted — `addBigNews(state, '🌝 Moon Howler Curse!', …)`
-   * (`moonHowler.ts`), plus the matching `⛪ Curse Broken!` cure card.
-   *
-   * `BigNewsItem` has `title`/`message`, **not** `text` (`gameTypes.ts`), so the old
-   * `n.text.includes('Curse')` inspected nothing: on the quiet-moon control the list is empty and the
-   * callback never ran, and had a card ever been posted it would have thrown a `TypeError` instead.
-   * The positive control in the replacement-roll test below proves this predicate can go true.
+   * The curse cards the real producers post: `BigNewsItem` carries `title`/`message`, so the filter
+   * matches either (never `text`).
    */
   function curseNews(state: WorldState): BigNewsItem[] {
     return state.bigNews.filter((item) => item.title.includes('Curse') || item.message.includes('Curse'));
@@ -749,19 +698,11 @@ describe('moonHowler.rare.test.ts', () => {
 });
 
 /**
- * Audit L13 (`docs/private/audits/2026-09-16/sim-economy-leadership-combat.md`, tracked in
- * `LIVE-FINDINGS-STATUS.md`) — two halves, one contract: the Moon Howler's random draws come from the
- * stream its caller owns.
- *
- * 1. `forceMoonHowlerOutside` scattered a transforming settler with `getSimRng('moonHowler')()`
- *    directly, ignoring the `rng` the tick had been handed; the flavour-line picks did the same.
- * 2. `saveLoad` ran the load-time form sync (which transforms, and therefore scatters) *before*
- *    `adoptSimSeedFromWorld`/`restoreSimRng`, so those draws came from the pre-load stream (seed 1)
- *    and a load could not reproduce the positions its own save implied.
+ * The Moon Howler's random draws must come from the stream its caller owns, so a load reproduces
+ * its own scatter instead of drawing from the pre-load stream.
  */
 describe('moonHowler.rngThreading.test.ts', () => {
-  // This file imported `TICKS_PER_DAY` from `../src/game/dayCycleClock`; `dayCycle` re-exports the very
-  // same const, so this re-bind keeps the original path meaningful and the bodies verbatim.
+  // `TICKS_PER_DAY` alias of the clock owner; `dayCycle` re-exports the same const.
   const TICKS_PER_DAY = TICKS_PER_DAY_FROM_CLOCK;
   const FIXTURE_SEED = 20_260_917;
   const START_X = 500;
@@ -792,7 +733,7 @@ describe('moonHowler.rngThreading.test.ts', () => {
 
       forceMoonHowlerOutside(entity, [], 1200, 900, ZERO_RNG);
 
-      // Exact, so the assertion cannot pass by accident: pre-fix the angle came from the global stream.
+      // Exact, so the assertion cannot pass by accident: the angle must come from the injected stream.
       expect([entity.x, entity.y]).toEqual(EXPECTED);
     });
 
@@ -835,28 +776,15 @@ describe('moonHowler.rngThreading.test.ts', () => {
         return [were!.x, were!.y];
       };
 
-      // Pre-fix these two differ: the scatter drew from whichever stream the realm happened to be on,
-      // because the snapshot was restored after the form sync rather than before it.
+      // Both realms must scatter identically: the load uses the payload's stream, not the realm's.
       expect(scatterAfterLoad(999)).toEqual(scatterAfterLoad(12345));
     });
   });
 });
 
 /**
- * Follow-up exposed by audit M18 (2026-09-13): a stale `moonHowlerSaved.occupation`.
- *
- * The village office is not a building slot, so the earlier leader-occupation fix restored it
- * unconditionally at dawn — correct while the reverting settler still holds the office, wrong
- * once the office has moved on. An election can complete during the night: a transformed leader
- * is not an eligible candidate (`isEligibleForLeadership` requires a Human-typed entity), so a
- * successor can be elected while the incumbent hunts in Moon Howler form, and the revert then
- * handed the `village_leader` label back to a settler who no longer holds it.
- *
- * `RevertToHumanFormOptions.villageLeaderId` carries the owner's answer (`villageLeadership`
- * owns the office). An **absent** option still means "the caller cannot say", which leaves the
- * previous behaviour intact — but an explicit `null` is not that: `villageLeaderId` is
- * `number | null` and `null` is exactly how the office is spelled when it is *vacant* (`worldGen`
- * starts it at `null`), so it must not restore the `village_leader` occupation label (M8).
+ * The revert restores `LEADER_OCCUPATION` only when the settler still holds the office: an
+ * explicit `null` means vacant, while an absent option means the caller cannot say.
  */
 describe('moonHowler.staleLeaderOccupation.test.ts', () => {
   function setup(): { state: WorldState; leader: Entity; other: Entity } {
@@ -918,8 +846,7 @@ describe('moonHowler.staleLeaderOccupation.test.ts', () => {
 
     it('does not restore the office label when the office is explicitly vacant', () => {
       const { state, leader } = setup();
-      // `null` is the vacancy spelling, not a missing answer: a leader who was deposed or whose term
-      // ended while they hunted in Moon Howler form must come back a settler (M8).
+      // `null` is the vacancy spelling: a leader deposed while in Moon Howler form returns a settler.
       state.villageLeaderId = null;
 
       revert(state, leader, state.villageLeaderId);
@@ -930,25 +857,8 @@ describe('moonHowler.staleLeaderOccupation.test.ts', () => {
 });
 
 /**
- * N-6 (`src/game/moonHowler.ts`, `syncMoonHowlerForms`) — differential equivalence.
- *
- * The realtime call `tickLayerRealtime` → `tickMoonHowlerCycle` → `syncMoonHowlerForms` runs on
- * **every** tick, and its registry row claims the work is "gated internally to full-moon ticks"
- * (`simulation/decisionRegistry.ts`). It was not: each call built an array of every living human
- * (used only by the revert branch), walked the whole world once, and then walked it a **second**
- * time for `huntingTonight`. The refactor defers the human snapshot to the first revert and fuses
- * `huntingTonight` into the single walk.
- *
- * The trap this file exists to catch: `wantWerewolf` gates the transform *and* the revert, so an
- * "early return when not a full moon" would strand cursed settlers as werewolves for the rest of
- * their lives. Case `NIGHT_END` below fails under that change.
- *
- * Every case is a **differential** run over two identical worlds: one is handed to
- * {@link referenceSyncMoonHowlerForms} (the pre-N-6 body, kept verbatim below as the reference
- * implementation) and one to the real function, with independent but identical rng streams. The two
- * worlds must agree on the returned `transformed`/`reverted`/`nightFall` and on every mutated field
- * of every entity and building. Each case then also pins the outcome with hard-coded expectations,
- * so the file does not depend on the reference agreeing with itself.
+ * `syncMoonHowlerForms` runs every tick, so it must defer the human snapshot and walk the world
+ * once; each case diffs the real function against the reference implementation below.
  */
 describe('moonHowler.syncFormsEquivalence.test.ts', () => {
   const FIXTURE_SEED = 20_260_920;
@@ -983,9 +893,8 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
   const DEAD_PLAIN_ID = 21;
 
   /**
-   * REFERENCE IMPLEMENTATION — the pre-N-6 body of `syncMoonHowlerForms`, verbatim, calling the same
-   * production primitives. This is not production code and must not be "fixed": its only job is to be
-   * the old behaviour that the real function is diffed against.
+   * Reference implementation of `syncMoonHowlerForms`, kept verbatim as the baseline the real
+   * function is diffed against. Not production code and must not be "fixed".
    */
   function referenceSyncMoonHowlerForms(
     entities: Entity[],
@@ -1054,10 +963,8 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
   }
 
   /**
-   * A settlement with every branch of the walk represented, on a real `WorldState` from `initGame`:
-   * one cursed settler still in human form, cursed settlers already abroad, a cursed prisoner, a
-   * plain werewolf, dead and juvenile cursed settlers, a rival camp, a construction site, and a
-   * mansion/farm that are one slot short of full so the revert branch's capacity tests bite.
+   * A settlement covering every branch of the walk: cursed settlers in both forms, a cursed
+   * prisoner, a plain werewolf, dead/juvenile cursed settlers, a rival camp, and full-ish houses.
    */
   function buildSettlementWorld(opts: { cursedSettlerAlreadyTransformed?: boolean } = {}): WorldState {
     setSimSeed(FIXTURE_SEED);
@@ -1101,9 +1008,8 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
     juvenileCursed.residenceBuildingId = HOUSE_ID;
     curseMoonHowler(juvenileCursed);
 
-    // Two cursed settlers abroad whose saved home is the farm (cap 2) and saved residence the mansion
-    // (cap 8 — seven of its eight slots are taken below). Both would fit if the reverted settler were
-    // not pushed back into the human snapshot, so this pair pins that push.
+    // Two cursed settlers abroad whose saved home is the farm (cap 2) and residence the mansion
+    // (cap 8, seven slots taken): this pair pins the push into the human snapshot.
     const revertA = settler(REVERT_A_ID, { ageYears: 38 });
     revertA.workerBuildingId = FARM_ID;
     revertA.residenceBuildingId = MANSION_ID;
@@ -1181,9 +1087,8 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
   }
 
   /**
-   * Both runs get their own clone of the entities and buildings — the only things `syncMoonHowlerForms`
-   * touches — so neither can observe the other's mutations. The rest of the `WorldState` (map, clock,
-   * resources) is immutable during the call and is shared.
+   * Each run gets its own clone of the entities and buildings — the only things the sync touches —
+   * so neither can observe the other's mutations.
    */
   function cloneWorld(state: WorldState): WorldState {
     return {
@@ -1323,9 +1228,8 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
 
       const { actual, world } = differential(source, FULL_MOON_DAY, NIGHT_END);
 
-      // Every cursed werewolf reverts, in `entities` order — the cursed settler that transformed
-      // earlier in the night and the one already abroad included. An "only run this on a full moon"
-      // gate would strand all five of them as werewolves.
+      // Every cursed werewolf reverts, in `entities` order; a full-moon-only gate would strand all
+      // five as werewolves.
       expect(actual.revertedIds).toEqual([
         CURSED_SETTLER_ID, ACTIVE_HOWLER_ID, REVERT_A_ID, REVERT_B_ID, REVERT_PRISONER_ID,
       ]);
@@ -1334,14 +1238,8 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
         expect(entityById(world, id).type, `entity ${id} reverted to human form`).toBe(EntityType.Human);
         expect(entityById(world, id).moonHowlerCursed, `entity ${id} keeps the curse`).toBe(true);
       }
-      // Farm cap 2 with one worker, mansion cap 8 with seven residents: the settler who reverts first
-      // is pushed into the human snapshot the capacity test reads, so the second is refused.
-      // Measured, not assumed. Farm cap 2 with one worker: the settler who reverts first is pushed into
-      // the human snapshot the capacity test reads, so it takes the last free farm slot and the second
-      // is refused. The mansion (cap 8, seven residents) has **no** free slot for either of them — an
-      // earlier draft of this pin assumed the first revert would take a residence slot too and was wrong;
-      // the differential above agreed with the reference throughout, so the pin was corrected rather
-      // than the production code.
+      // Farm cap 2 with one worker: the first revert takes the last free slot, so the second is
+      // refused. The mansion (cap 8, seven residents) has no free slot for either.
       expect(entityById(world, REVERT_A_ID).workerBuildingId).toBe(FARM_ID);
       expect(entityById(world, REVERT_A_ID).residenceBuildingId).toBeUndefined();
       expect(entityById(world, REVERT_B_ID).workerBuildingId).toBeUndefined();

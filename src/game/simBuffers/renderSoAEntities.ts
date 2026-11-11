@@ -24,12 +24,8 @@ export interface RenderSoABuckets {
 let cachedTick = UNCACHED_RENDER_TICK;
 let cachedMetaBySlot: EntityRenderMeta[] | undefined;
 /**
- * The render buffer the buckets were built from.
- *
- * A tick counter alone is not a sufficient key: a command result carries its own render refresh, so
- * the same tick can arrive twice with a **different** buffer. Keyed on the tick alone, the second
- * call took the "nothing changed" branch and served the previous buffer's shims — so the drawn
- * position lagged a buffer behind the world on every command.
+ * The render buffer the buckets were built from. Keyed with the tick because a command result
+ * carries its own refresh, so the same tick can arrive twice with a different buffer.
  */
 let cachedReader: RenderSoAReaderV1 | null = null;
 /**

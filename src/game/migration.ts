@@ -37,11 +37,8 @@ const HERD_SPAWN_NUDGE_STEP = 12;
 const HERD_SPAWN_NUDGE_MAP_SHARE = 0.5;
 
 /**
- * Nearest passable point to a herd's edge arrival point: the nominal point
- * first, then successive steps inland off that edge. Returns null when the
- * whole strip is blocked. Passability is the shared wildlife predicate, so
- * herds obey the same `UNPASSABLE_WILDLIFE_TERRAIN` rule as every other spawn
- * path (deep/shallow water, river and bank, mountains, snow).
+ * Nearest passable point to a herd's edge arrival point: the nominal point, then successive steps
+ * inland. Returns null when the whole strip is blocked; uses the shared wildlife passability predicate.
  */
 function findPassableHerdSpawn(
   state: WorldState,
@@ -61,17 +58,8 @@ function findPassableHerdSpawn(
 }
 
 /**
- * Register a herd deer on every same-tick bookkeeping path.
- *
- * The daily layer runs *after* `gameTick` snapshots the living entities and *before* it assigns
- * `state.entities = allAlive`, so `state.entities` is not the list the tick ends with. Routing the
- * spawn through the canonical `pushNewEntity` is what makes the deer visible to `ctx.newEntities`
- * (the worker delta) and to `ctx.mobileGrid` in the tick they arrive — the same repair the daily
- * immigrant path took (`dailyPopulation.ts`).
- *
- * `ctx` is optional only for direct owner-level callers that drive the herd without a tick context
- * (tests). Without it the spawn falls back to the entity list and the id index, which is the
- * pre-existing behaviour.
+ * Register a herd deer on every same-tick bookkeeping path: the daily layer runs before `gameTick`
+ * assigns `state.entities`, so a spawn must go through `pushNewEntity` to reach the delta and grids.
  */
 function registerHerdDeer(state: WorldState, ctx: TickContext | undefined, deer: Entity): void {
   if (!state.entities.includes(deer)) {
@@ -137,11 +125,8 @@ function spawnHerdAtEdge(
 }
 
 /**
- * Daily migration step: arrive on the autumn window, depart at its end and
- * remember how many deer the herd lost. Call once per calendar day (tickLayerDaily).
- *
- * `ctx` carries the tick's spawn bookkeeping (newEntities + spatial grids). It is optional so
- * owner-level callers without a tick context keep working; the daily layer always passes it.
+ * Daily migration step: arrive on the autumn window, depart at its end and remember how many deer the
+ * herd lost. `ctx` carries the tick's spawn bookkeeping and is optional for owner-level callers.
  */
 export function tickMigration(state: WorldState, allAlive: Entity[], ctx?: TickContext): void {
   const day = getAbsoluteCalendarDay(state.tick);

@@ -194,10 +194,7 @@ class BackgroundMusicPlayer {
     this.usingHtmlAudio = false;
   }
 
-  /**
-   * Day/night used to swap tracks and restart the bed (annoying).
-   * Keep one continuous loop — mood is only filter/ambience elsewhere if needed.
-   */
+  /** Continuous music — no track swap or restart on the day/night transition. */
   async setNightMode(_isNight: boolean) {
     /* no-op: continuous gameplay music */
   }

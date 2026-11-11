@@ -1,12 +1,6 @@
 /**
- * Immigration is a **once-per-colony-day** decision.
- *
- * `tickImmigration` rolls the `dailyPopulation` stream against `immigrationChance`; that is only a
- * daily decision because `gameTick` calls `tickLayerDaily` solely on `tick % TICKS_PER_DAY === 0`,
- * and the daily layer is the single caller. Nothing structurally prevents a second call in the same
- * day — and a second call would roll again and admit a second family — so this test pins the
- * cadence: at most one arrival per day, with the gate tuned so arrivals actually happen (otherwise
- * the assertion would pass vacuously).
+ * Immigration is a once-per-colony-day decision: `tickImmigration` runs from `tickDailyPopulation`
+ * in the daily layer's 18:00 `worldEvents` phase. Pins at most one arrival per day.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

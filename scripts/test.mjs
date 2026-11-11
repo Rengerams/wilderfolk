@@ -1,28 +1,7 @@
 #!/usr/bin/env node
 /**
- * The one entry point for every check in this repository.
- *
- *   npm test                     the standard gate (default)
- *   npm test -- all              the same steps as standard
- *   npm test -- full             standard + the full-year vitest file + the 360-day run
- *   npm test -- unit <pattern>   vitest only, optionally filtered
- *   npm test -- help             the full menu
- *
- * Why a runner instead of seventeen package.json scripts: the *composition* of
- * each gate lived spread across npm's `&&` chains, so "what does `test:all`
- * actually run" meant reading package.json and following three indirections.
- * One file answers that, and the npm scripts stay as thin aliases so nothing
- * that already calls them breaks.
- *
- * Two rules this file exists to keep:
- *
- *   1. NEVER call `npm run <alias>` for anything that aliases back to this
- *      runner - that is infinite recursion. Steps run the underlying tool
- *      directly, and `build` is the one exception because package.json owns it
- *      and it does not route through here.
- *   2. NEVER capture a step's output. `stdio: 'inherit'` keeps the child
- *      attached to this terminal. A runner that pipes a child's stdout can
- *      truncate it, and one that swallows an exit code is worse than no runner.
+ * The one entry point for every check in this repository (`npm test`; `npm test -- help` prints the
+ * menu). Steps run tools directly, never an alias back to this runner, and output is never captured.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -38,49 +17,26 @@ const CHILD_ENV = {
   PATH: existsSync(BIN) ? `${BIN}${path.delimiter}${process.env.PATH ?? ''}` : process.env.PATH,
 };
 
-/** Every underlying command, in one place. Shell strings keep behaviour
- *  identical to the npm scripts this replaces - in particular the quoted jscpd
- *  ignore globs, which must reach jscpd literally. */
+/** Every underlying command, in one place. Each string runs through a shell, so keep it literal. */
 const STEP = {
   /**
-   * One step, two scripts, on purpose. The docs guards must not become another
-   * command an agent has to learn, remember or forget, and they cost
-   * milliseconds - the owner's constraint is that the gate stays cheap, because
-   * an agent should be improving the game rather than running gates. So they
-   * ride inside the step `npm test` already runs.
+   * Docs guards ride inside the step `npm test` already runs: they cost milliseconds and must not
+   * become another command an agent has to remember.
    */
   check: 'node scripts/check-source-shadow-files.mjs && node scripts/check-dialogue-ownership.mjs && node scripts/check-dialogue-circumstances.mjs && node scripts/check-docs.mjs && node scripts/check-comments.mjs',
   dup: 'node scripts/check-duplicate-code.mjs',
   unit: 'vitest run --exclude tests/fullYear.integration.test.ts --exclude tests/longRunColony.integration.test.ts',
   unitAll: 'vitest run',
   invariantTest: 'vitest run tests/fullYear.integration.test.ts',
+  /** Required in PR/main: real gameTick at selected day/year boundaries, not 720 simulated days. */
+  calendarScheduler: 'vitest run tests/calendarPhase.auditRegressions.test.ts tests/simulation.decisionRegistry.test.ts --coverage',
   colonyIntegrationTest: 'vitest run tests/longRunColony.integration.test.ts',
   /** Both year-long gates are independent processes; running them together halves the wall time. */
   integrationTests: 'vitest run tests/fullYear.integration.test.ts tests/longRunColony.integration.test.ts',
-  types: 'tsc -p tsconfig.vitest.json --noEmit',
+  types: 'tsc -p tsconfig.vitest.json --noEmit && tsc -p tsconfig.scripts.json --noEmit && tsc -p tsconfig.app.json --noEmit',
   /**
-   * `scripts/` is deliberately NOT a lint target here, and the narrowing is
-   * worth knowing about rather than inheriting silently.
-   *
-   * The command used to name `scripts`, but oxlint honours `.gitignore` and
-   * `scripts/` was ignored - so the gate reported 0/0 while never actually
-   * reading the directory. Tracking `scripts/` on 2026-09-30 made oxlint read it
-   * for the first time and surfaced 134 pre-existing errors across 40 files
-   * (22 in `inspect-save.mts`, 16 in `perf-seeded-year.mts`, and 6 each in the
-   * fully wired `run-full-year.mts` and `browser-smoke.mjs`).
-   *
-   * Most are `typescript(TS2591): Cannot find name 'process' / 'node:fs'`: the
-   * type-aware check has no node types for files outside the tsconfig include,
-   * so this configuration could not have passed on the tooling tree no matter
-   * how clean the code was. Making it real means a tsconfig for `scripts/` wired
-   * into oxlint - and the remaining genuine findings sit mostly in one-off
-   * probes that the scripts/ cleanup is going to delete.
-   *
-   * Until that happens the gate states its actual scope instead of sitting red
-   * on a directory it was never able to check.
-   *
-   * `scripts/` now has its own two steps below (`scripts-lint`, `scripts-types`),
-   * gated separately so the `src` lint above is neither widened nor weakened.
+   * `scripts/` is not a lint target here: it has its own `scripts-lint` / `scripts-types` steps below,
+   * which use the scripts tsconfig project.
    */
   lint: 'oxlint --type-aware --type-check src vite.config.ts vitest.config.ts',
   lintFix: 'oxlint --type-aware --type-check --fix src vite.config.ts vitest.config.ts',
@@ -89,16 +45,8 @@ const STEP = {
   scriptsLint: 'oxlint --type-aware --tsconfig tsconfig.scripts.json scripts',
   scriptsTypes: 'tsc -p tsconfig.scripts.json --noEmit',
   /**
-   * knip can CRASH rather than report on this machine: oxc-parser's
-   * `createBuffer()` reserves a single ~6 GiB ArrayBuffer ("6 GiB of *virtual*
-   * memory", per its own comment), and with little free RAM that allocation
-   * fails as `RangeError: Array buffer allocation failed`, which Windows
-   * surfaces as 0xC0000409 (fail-fast). Observed 2026-09-30 with 2.4 GB free of
-   * 15.4 GB; the same command had completed earlier in the same session.
-   *
-   * So a nonzero `knip` here does NOT necessarily mean "findings". Read the
-   * output: a real report lists `Unused files (n)`. If you see a RangeError, it
-   * is memory - close heavy processes and re-run, do not go hunting for dead code.
+   * A nonzero `knip` is not necessarily findings: oxc-parser reserves a ~6 GiB virtual buffer, and a
+   * `RangeError: Array buffer allocation failed` means memory. A real report lists unused files.
    */
   knip: 'knip',
   cycles: 'node scripts/check-import-cycles.mjs',
@@ -115,14 +63,11 @@ const STEP = {
   watch: 'vitest',
 };
 
-/**
- * Gates, as ordered step lists. Fail-fast: the first failing step stops the
- * gate, which is what the `&&` chains these replace did.
- */
+/** Gates, as ordered step lists: fail-fast, so the first failing step stops the gate. */
 const GATE = {
-  standard: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
+  standard: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'scriptsTypes', 'lint', 'unit'],
   all: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
-  full: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'integrationTests', 'invariants'],
+  full: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'integrationTests', 'invariants', 'scriptsTypes', 'dup', 'knip', 'Build'],
   audit: ['knip', 'owners', 'cycles'],
   accept: ['build', 'browser'],
 };
@@ -142,6 +87,7 @@ const ALIAS = {
   'semantic-dup': ['owners', 'semantic', 'semanticDup'],
   invariants: ['invariants'],
   'invariant-test': ['invariantTest'],
+  'calendar-scheduler': ['calendarScheduler'],
   'colony-integration': ['colonyIntegrationTest'],
   browser: ['browser'],
   build: ['build'],
@@ -161,6 +107,7 @@ wilderfolk test runner - one entry point, choose with args
   npm test -- unit [<pattern>]    vitest only; <pattern> filters by name/path
   npm test -- unit-all            vitest including the full-year integration file
   npm test -- invariant-test      just tests/fullYear.integration.test.ts
+  npm test -- calendar-scheduler  required quick day/year boundary + registry/invariant coverage gate
   npm test -- colony-integration  dedicated 90-day producer regression
   npm test -- invariants          the 360-day run (docs/log/full-year-*.jsonl)
   npm test -- types               tsc on the vitest project
@@ -242,9 +189,8 @@ for (let i = 0; i < steps.length; i += 1) {
   const label = steps.length > 1 ? `[${i + 1}/${steps.length}] ${name}` : name;
   const { status, abnormal } = run(label, steps[i]);
   if (status !== 0) {
-    // Distinguish a crash from a finding. An abnormal exit reported as a plain
-    // "exit 1" reads like "the check found problems" and sends the reader
-    // looking for problems that may not exist.
+    // Distinguish a crash from a finding: an abnormal exit reported as a plain "exit 1" reads like
+    // "the check found problems".
     const why = abnormal
       ? `ABNORMAL TERMINATION (exit ${status} / 0x${(status >>> 0).toString(16)}) - this is a crash or OOM, not a finding`
       : `exit ${status}`;

@@ -1,11 +1,6 @@
 /**
- * Per-day economy ledger — "why is my food low?" transparency.
- *
- * Lives on WorldState (economyLedger) so it works in both sim modes (worker
- * syncs the whole world via structuredClone). The day key resets the counters at
- * day rollover; the daily layer calls `rollEconomyLedgerForDay` so the raw
- * `state.economyLedger` field is never a day behind for readers that bypass
- * `getEconomyLedger`.
+ * Per-day economy ledger — "why is my food low?" transparency. Lives on WorldState so it works in
+ * both sim modes; the daily layer rolls the day so the raw field is never a day behind.
  */
 import type { WorldState, DailyEconomyLedger } from './gameTypes';
 import { getAbsoluteCalendarDay } from './dayCycleClock';
@@ -24,9 +19,7 @@ export const ECONOMY_SOURCE_LABELS: Record<string, string> = {
   meals: 'Meals',
   medicine: 'Medicine',
   spoilage: 'Spoilage',
-  // Deliberate spends. These were 25 separate `resources.food -= …` lines that never told the ledger,
-  // so the panel could show a positive `Net` while the larder fell
-  // (`LIVE-FINDINGS-STATUS.md`, F2 sweep).
+  // Deliberate spends, each with a named sink so the ledger and the larder cannot disagree.
   trade: 'Trade routes',
   tribute: 'Tribute',
   gift: 'Gifts',
@@ -66,12 +59,8 @@ function pushCompletedDayToHistory(state: WorldState, prev: DailyEconomyLedger):
 }
 
 /**
- * Roll the ledger onto the current calendar day, archiving the finished day.
- *
- * Reading the ledger is not enough to keep `state.economyLedger` fresh: consumers that read
- * the raw field (dashboardData) would otherwise see yesterday's totals until the new day's
- * first record arrived. This is idempotent, so the daily layer can call it every day and the
- * record functions can keep calling it lazily.
+ * Roll the ledger onto the current calendar day, archiving the finished day. Idempotent, so the
+ * daily layer and the record functions can both call it.
  */
 export function rollEconomyLedgerForDay(state: WorldState): DailyEconomyLedger {
   const day = getAbsoluteCalendarDay(state.tick);
@@ -101,11 +90,8 @@ export function recordFoodConsumed(state: WorldState, source: string, amount: nu
 }
 
 /**
- * Recompute the day's totals from its entries, and store them.
- *
- * Called by the daily economy tick (`tickDailyBuildingEconomy`), which is where the day's balance is
- * owned: it makes the stored totals authoritative after the day's production, and heals a save written
- * before the totals existed, or one restored mid-day. The record functions keep them live in between.
+ * Recompute the day's totals from its entries and store them; the daily economy tick owns the
+ * day's balance and heals saves restored mid-day.
  */
 export function refreshFoodLedgerTotals(state: WorldState): DailyEconomyLedger | null {
   const ledger = state.economyLedger;
@@ -115,10 +101,11 @@ export function refreshFoodLedgerTotals(state: WorldState): DailyEconomyLedger |
   return ledger;
 }
 
-/** Continuous completed-day food flow; missing history is unknown, not zero. */
+/** Completed-day food flow. 'all' includes every food expense for reporting; 'meals' measures recurring demand for growth decisions. */
 export function getRecentFoodFlow(
   state: Pick<WorldState, 'foodHistory' | 'tick'>,
   maxDays = 7,
+  consumption: 'all' | 'meals' = 'all',
 ): { days: number; producedPerDay: number; consumedPerDay: number; netPerDay: number } | null {
   const samples = state.foodHistory ?? [];
   let expectedDay = getAbsoluteCalendarDay(state.tick) - 1;
@@ -129,7 +116,9 @@ export function getRecentFoodFlow(
     const sample = samples[i];
     if (sample.day !== expectedDay) break;
     const dailyProduced = Object.values(sample.produced).reduce((sum, amount) => sum + amount, 0);
-    const dailyConsumed = Object.values(sample.consumed).reduce((sum, amount) => sum + amount, 0);
+    const dailyConsumed = consumption === 'meals'
+      ? (sample.consumed.meals ?? 0)
+      : Object.values(sample.consumed).reduce((sum, amount) => sum + amount, 0);
     if (!Number.isFinite(dailyProduced) || !Number.isFinite(dailyConsumed)) return null;
     produced += dailyProduced;
     consumed += dailyConsumed;
@@ -146,44 +135,42 @@ export function getRecentFoodFlow(
   };
 }
 
-/** A verified negative production trend, with monthly persistence across a brief good week. */
+/** Verified recurring meal deficit, with monthly persistence. One-time recruitment/trade costs affect stores, not meal demand. */
 export function isMeasuredFoodDeficit(state: Pick<WorldState, 'foodHistory' | 'tick'>, toleranceRatio: number): boolean {
-  const recent = getRecentFoodFlow(state);
+  const recent = getRecentFoodFlow(state, 7, 'meals');
   if (!recent) return false;
   if (recent.consumedPerDay > 0 && recent.netPerDay < -recent.consumedPerDay * toleranceRatio) return true;
-  const month = getRecentFoodFlow(state, 30);
+  const month = getRecentFoodFlow(state, 30, 'meals');
   return month != null && month.days >= 14 && month.consumedPerDay > 0
     && month.netPerDay < -month.consumedPerDay * toleranceRatio;
 }
 
 /**
- * Seven-day production outlook. Uses real harvested/stored food, observed meal
- * consumption and its recent upward slope, plus today's population demand.
- * This warns before the *current* balance turns negative; it does not infer
- * production from a building count or a theoretical full-attendance yield.
- * Sparse or interrupted history remains unknown (the bot uses bootstrap rules).
+ * Seven-day production outlook from real harvested/stored food and observed meal consumption plus
+ * its recent upward slope; sparse history stays unknown rather than inferring from building counts.
  */
 export function getProjectedFoodSupply(
   state: Pick<WorldState, 'foodHistory' | 'tick'>,
   currentDailyNeed: number,
   horizonDays = 7,
 ): { producedPerDay: number; projectedNeedPerDay: number; days: number } | null {
-  const flow = getRecentFoodFlow(state);
+  const flow = getRecentFoodFlow(state, 7, 'meals');
   if (!flow || !Number.isFinite(currentDailyNeed) || currentDailyNeed < 0) return null;
   const samples = (state.foodHistory ?? []).slice(-flow.days);
   const size = Math.floor(flow.days / 2);
   let slope = 0;
   if (size >= 2) {
-    const dailyConsumption = (sample: typeof samples[number]): number =>
-      Object.values(sample.consumed).reduce((sum, amount) => sum + amount, 0);
+    const dailyConsumption = (sample: typeof samples[number]): number => sample.consumed.meals ?? 0;
     const first = samples.slice(0, size).reduce((sum, entry) => sum + dailyConsumption(entry), 0) / size;
     const last = samples.slice(-size).reduce((sum, entry) => sum + dailyConsumption(entry), 0) / size;
     slope = Math.max(0, (last - first) / Math.max(1, flow.days - size));
   }
   return {
     producedPerDay: flow.producedPerDay,
-    projectedNeedPerDay: Math.max(currentDailyNeed, flow.consumedPerDay)
-      + slope * Math.max(0, horizonDays),
+    // Current population-plus-newcomers demand and measured consumption trend are alternative
+    // forecasts, not additive costs. Adding both would count population growth twice.
+    projectedNeedPerDay: Math.max(currentDailyNeed,
+      flow.consumedPerDay + slope * Math.max(0, horizonDays)),
     days: flow.days,
   };
 }
@@ -246,15 +233,8 @@ export type FoodSink =
   | 'disaster';
 
 /**
- * Spend food from the colony store and record it against a named sink — one call, so a spend cannot
- * reach the store without reaching the ledger.
- *
- * This replaces 25 scattered `state.resources.food -= …` lines. They deducted correctly (the store did
- * fall in real time) but told the ledger nothing, which is why the "why is my food low?" panel and the
- * dashboard's `Net food flow` could read positive while the larder dropped
- * (`LIVE-FINDINGS-STATUS.md`, F2 sweep — the owner's *"if you spend something it should go down"*).
- * `deductResource` floors at zero and returns what was actually taken, so the ledger records the real
- * spend even where a caller asks for more than is in store.
+ * Spend food from the colony store and record it against a named sink in one call, so a spend
+ * cannot reach the store without reaching the ledger; `deductResource` returns what was taken.
  */
 export function spendFood(state: WorldState, source: FoodSink, amount: number): number {
   const spent = deductResource(state, 'food', amount);
@@ -263,15 +243,8 @@ export function spendFood(state: WorldState, source: FoodSink, amount: number): 
 }
 
 /**
- * The current day's food balance, for readers.
- *
- * The totals are the ledger's own fields — maintained as entries are recorded and recomputed by the
- * daily economy tick — so this function **reads** them rather than adding anything up. Both the
- * dashboard projection and the village panel's food card render it; each used to sum the entries
- * itself, which put a food calculation in the view *and* created a second definition of one balance
- * (`LIVE-FINDINGS-STATUS.md`, F2 — "food can't be calculated at the UX", owner: "it should be in
- * dailytick"). The `?? sum` fallbacks exist only for a save loaded mid-day before the next daily tick
- * has refreshed it, and are the single place the old behaviour can still happen.
+ * The current day's food balance, read from the ledger's own maintained totals. The `?? sum`
+ * fallbacks cover only a save loaded mid-day before the next daily tick refreshes them.
  */
 export function summarizeFoodLedger(state: WorldState): FoodLedgerToday {
   const ledger = getEconomyLedger(state);

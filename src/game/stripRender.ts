@@ -20,9 +20,8 @@ const ROAD_TEE = ['/sprites/roads/road_tee_1.png', '/sprites/roads/road_tee_2.pn
 const ROAD_CORNER = ['/sprites/roads/road_corner_1.png', '/sprites/roads/road_corner_2.png', '/sprites/roads/road_corner_3.png', '/sprites/roads/road_corner_4.png'] as const;
 
 /**
- * Tile the seamless pavement texture across a strip rect (rotation already
- * applied by the caller's frame). Returns false when the tile isn't loaded,
- * so callers fall back to flat fills.
+ * Tile the seamless pavement texture across a strip rect (rotation already applied by the caller's
+ * frame); returns false when the tile isn't loaded so callers fall back to flat fills.
  */
 function paintPavementPattern(
   ctx: CanvasRenderingContext2D,
@@ -239,16 +238,8 @@ export function drawProceduralRoad(
 
 
 /**
- * Palisade wall / gate segment, drawn along the strip's own axis.
- *
- * The wall used to draw `/sprites/wall_isometric.png` — a 45° isometric face — once per piece. The
- * world→screen transform is a plain scale+translate with no isometric skew (`viewState.worldToScreen`),
- * so a horizontal run is a horizontal screen line, and every piece drew that same diagonal face at the
- * same rotation, offset by exactly the strip pitch: a periodic sawtooth of offset slabs, never a wall.
- * Corner pieces do not exist — a corner is an H run and a V run overlapping — so the only thing a
- * segment has to do is lie along its own axis, which this path already did (`beginRotatedStripFrame`
- * rotates the frame, not the art). The isometric PNGs stay as the build-menu icons in
- * `BUILDING_CONFIGS`; only the map drawing changed.
+ * Palisade wall / gate segment, drawn along the strip's own axis: corners are overlapping H and V
+ * runs, so a segment only has to lie along its own axis.
  */
 export function drawProceduralWall(
   ctx: CanvasRenderingContext2D,

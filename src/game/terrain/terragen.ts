@@ -1,13 +1,6 @@
 /**
- * Teraforge generation engine, ported for Wilderfolk.
- *
- * Runs the Teraforge pipeline (domain-warped fBm + ridged mountains, gradient-
- * walker rivers, Whittaker biomes) at 64px cells, then bakes it into Wilderfolk's
- * 10px `TerrainTile[][]` plus the additive continuous fields and the L0/L1
- * occupancy grids. Same numeric seed = identical world.
- *
- * `generateRawTerrain` intentionally does **not** clear a camp site; `terrainGen`
- * applies the camp clearing on top so the start area stays buildable.
+ * Teraforge generation engine: domain-warped fBm + ridged mountains, drainage rivers and Whittaker
+ * biomes baked into Wilderfolk's 10px tiles and L0/L1 grids. Same seed, same world; camp clearing stays upstream.
  */
 import {
   MapPreset,
@@ -49,24 +42,8 @@ import {
 const DECOR_DENSITY = 1.2;
 
 /**
- * Land relief contrast, expressed as percentiles of the raw height field.
- *
- * Teraforge normalises the height field by **min/max**, but the field it normalises is an fBm
- * sum — an average of octaves — so it clusters hard around its own mean. Min/max scaling then
- * stretches two outliers across the whole 0–1 range and leaves the bulk of the map inside a
- * narrow band: a measured continental map put 95 % of its land in `h ∈ [0.07, 0.32]`, where
- * `h` is the land height above sea level.
- *
- * The biome bands are absolute thresholds — `rock` starts at 75 % of the land range and `snow`
- * at 88 % — so with that distribution they were **unreachable**: the same map measured 0.1 %
- * rock and 0 % snow, and the valley rendered as an unbroken mid-tone plain with no ridgelines
- * to read at all.
- *
- * Spreading `[p0.5, p99.5]` across 0–1 restores the range the bands were designed against. It
- * is monotone (no terrain is reordered) and it is **water-preserving**: `newSeaLevel` is the
- * quantile that the old sea level sat at, so land keeps exactly the same share of the map. A
- * curve on top of min/max normalisation cannot do this — no monotone map can create range the
- * data does not have.
+ * Land relief contrast, as percentiles of the raw height field: Teraforge's min/max normalisation
+ * leaves the fBm bulk in a narrow band, so p0.5–p99.5 spreads it across 0–1 while keeping the water quantile.
  */
 const HEIGHT_SPREAD_LOW_PCT = 0.005;
 const HEIGHT_SPREAD_HIGH_PCT = 0.995;
@@ -75,17 +52,8 @@ const HEIGHT_SPREAD_HIGH_PCT = 0.995;
 // distribution **and** the preset's own `forest` want — see the note there.
 
 /**
- * Moisture field shape. `fbm` returns a mean-of-octaves, so it clusters near 0.5 within a
- * narrow band; remapping that by `* 1.06 + 0.06` (as Teraforge does) leaves almost every cell
- * between 0.49 and 0.83, which is a single climate, not a landscape: a measured map painted
- * 67 % of its land above the grass→forest cut and 0 % below the dry cut, so the arid presets
- * could never produce desert and every preset looked like one damp green field.
- *
- * `MOISTURE_SPREAD` amplifies the raw deviation into distinct wet and dry regions. The
- * warped 4-octave fBm it amplifies spans only about 0.42 → 0.65 at its quartiles (measured),
- * so the multiplier is sized against *that*, not against a 0–1 range: at 1.35 the field
- * covers roughly 0.29 → 0.77 over the 5th–95th percentile and still stops short of the clamp
- * on the wettest preset. Set to 1 for Teraforge's original narrow field.
+ * Moisture field shape: `fbm` clusters near 0.5, so this amplifies the raw deviation into distinct wet
+ * and dry regions. Set to 1 for Teraforge's original narrow field.
  */
 const MOISTURE_SPREAD = 1.35;
 /** Field centre. `fbm`'s mean lands near 0.53 for this call (measured), so this is set below
@@ -95,30 +63,8 @@ const MOISTURE_BASE = 0.42;
 const MOISTURE_ALTITUDE_PENALTY = 0.28;
 
 /**
- * Latitude → biome parameterization.
- *
- * The map's **y axis is its latitude**, so the terrain is a pole-to-pole slice with the equator
- * on the map's middle row. This is the parameterization the paper uses to make biome placement
- * follow position rather than one per-map climate: the temperature offset is a **triangular
- * wave** — 0 at the equator, 1 at both poles — so the cool zones are symmetric about the middle
- * and every row's offset is a pure function of `row` and `rows`.
- *
- * Two properties matter. It is **additive**: latitude cools the air and never warms it, so the
- * equator row keeps exactly the temperature the preset was tuned for and a world is still
- * recognisably `arabia` or `scandinavia` rather than being shifted wholesale toward one pole.
- * And the **span** is the parameter: a wide span puts cold ground inside the map, a narrow one
- * keeps the whole map in one climate.
- *
- * The band edge is offset by coherent noise before it is read, for the reason the paper gives for
- * adding detail to otherwise smooth cell borders: a raw triangular wave draws perfectly straight
- * horizontal climate lines, which read as an artefact rather than a landscape. `hash2` is used
- * rather than a value-noise lattice so the offset has no lattice of its own to show through.
- *
- * **Not ported:** the paper's wrapping `mod(2S)` zone cycle (its infinite terrain has no pole, so
- * it revisits the same zones after the last one). Wilderfolk's maps are finite and bounded by
- * design — `WorldMap` is an explicit `width` × `height`, and `buildHeight` already fades an
- * island preset at the edge — so there is no "last zone" to wrap from, and a map that ended
- * tropical immediately after an arctic band would be the artefact the paper's own §5 warns about.
+ * Latitude → biome parameterization: the map's y axis is its latitude, so the temperature offset is a
+ * noise-wobbled triangular wave — 0 at the equator, 1 at both poles — and it is additive, never warming.
  */
 /** Softness of the equator→pole transition: a triangular wave raised to this power, so the warm
  *  tropical band is wide and the cold bands widen across the middle latitudes. */
@@ -130,15 +76,8 @@ const LATITUDE_EDGE_FREQ = 0.03;
 const LATITUDE_SEED_OFFSET = 15331;
 
 /**
- * Latitude cooling at cell (`x`, `y`) of a `rows`-tall grid, in temperature units and always ≥ 0.
- *
- * `span` — the pole-to-equator drop — is **per preset**, because these presets are Age of Empires II
- * map archetypes and an AoE2 map is a **region**, not a hemisphere. Arabia is open semi-arid land,
- * Oasis is desert with a pool, Black Forest is a temperate tree wall: none of them has a cold rim,
- * because none of them is a pole-to-pole slice of a planet. One global span put cold edges on every
- * map, which is what grew tundra on `arabia` and turned `meadows` — a "flat European lowland" — into
- * 26 % taiga. Not every preset should contain every biome; the span says which ones vary with latitude
- * and which are one climate throughout.
+ * Latitude cooling at cell (`x`, `y`), always ≥ 0. `span` is per preset: an AoE2 map is a region, not a
+ * hemisphere, so 0 is the default intent and only a couple of presets keep a pole-to-equator gradient.
  */
 function latitudeCooling(x: number, y: number, rows: number, seed: number, span: number): number {
   if (span <= 0) return 0;
@@ -169,9 +108,8 @@ function spreadHeights(raw: Float32Array, seaLevel: number): { heights: Float32A
 }
 
 /**
- * The two biome cuts for a finished moisture field — a quantile of that map's own distribution, the
- * preset's `forest` want choosing which quantile. An absolute cut cannot work: 0.47 at p50 on one
- * preset, 0.73 on the next — so the cut is always a quantile, never a fixed value.
+ * The two biome cuts for a finished moisture field: a quantile of that map's own distribution, with the
+ * preset's `forest` want choosing which quantile — an absolute cut cannot work across presets.
  */
 const MOISTURE_FOREST_QUANTILE_MIN = 0.05;
 const MOISTURE_FOREST_QUANTILE_MAX = 0.97;
@@ -198,21 +136,8 @@ function moistureCuts(
 const PATH_WATER = new Set<TerrainType>([TerrainType.DeepWater, TerrainType.ShallowWater, TerrainType.River]);
 
 /**
- * Per-preset Teraforge tuning — one fixed landscape recipe per Wilderfolk preset.
- *
- * `temperature` is the **equator's** air temperature, which is what the latitude parameterization
- * made it mean: `latitudeCooling` subtracts from this and never adds, so the middle row reads
- * exactly this value and both edges are colder. That makes it the knob that decides whether a
- * preset has any zonation at all, and it has to clear `COLD_TEMPERATURE` (0.3) *after* the
- * elevation penalty of 0.7 per unit above sea level — otherwise the classifier calls the entire
- * map cold, `classifyTile` returns dark forest in every direction, and latitude has no warm core
- * left to contrast against.
- *
- * Measured against that rule: `scandinavia` was tuned to 0.18 when temperature was a uniform
- * per-map constant, which put its whole map below the threshold (0 % grass, 0 % forest, 29–41 %
- * dark forest, and latitude changed nothing). The cool presets are therefore raised so their
- * equator is genuinely temperate — a boreal `scandinavia` keeps its cold character from the
- * latitude bands and its own `moisture`, not from being frozen at every row.
+ * Per-preset Teraforge tuning — one fixed landscape recipe per Wilderfolk preset. `temperature` is the
+ * equator's air temperature, and the middle row reads exactly it because latitude only subtracts.
  */
 interface TerrainSettings {
   seaLevel: number;
@@ -221,9 +146,8 @@ interface TerrainSettings {
   moisture: number;
   temperature: number;
   /**
-   * Pole-to-equator temperature drop for this preset, in temperature units. **0 means one climate
-   * across the whole map** — which is what an AoE2 regional archetype wants — and is the default
-   * intent; a positive value gives the map latitude zones. See {@link latitudeCooling}.
+   * Pole-to-equator temperature drop. **0 means one climate across the whole map** — the default intent
+   * for an AoE2 regional archetype; a positive value gives the map latitude zones.
    */
   latitude: number;
   rivers: number;
@@ -234,12 +158,8 @@ interface TerrainSettings {
 }
 
 const PRESET_SETTINGS: Record<MapPreset, TerrainSettings> = {
-  // `latitude: 0` on every regional archetype. Arabia is open semi-arid land and Oasis is desert —
-  // both are meant to be one climate edge to edge, so they take the whole map at the preset's own
-  // temperature instead of freezing at their north and south rim.
-  // `forest` is now the composition knob it reads as: it sets which moisture quantile becomes woodland,
-  // so Arabia (desert, sparse woodlines) and Oasis (desert with a pool) are authored low rather than
-  // inheriting a canopy share from every other map.
+  // `latitude: 0` on every regional archetype: Arabia and Oasis are one climate edge to edge, and
+  // `forest` sets which moisture quantile becomes woodland rather than a canopy share.
   arabia:       { seaLevel: 0.15, mountains: 0.15, roughness: 0.35, moisture: -0.12, temperature: 0.82, latitude: 0,   rivers: 1, riverWidth: 1.2, lakes: 0.1,  forest: 0.08, islands: 0 },
   black_forest: { seaLevel: 0.18, mountains: 0.3,  roughness: 0.45, moisture: 0.28,  temperature: 0.66, latitude: 0,   rivers: 2, riverWidth: 1.3, lakes: 0.2,  forest: 0.98, islands: 0 },
   coastal:      { seaLevel: 0.38, mountains: 0.4,  roughness: 0.45, moisture: 0.1,   temperature: 0.7,  latitude: 0,   rivers: 3, riverWidth: 1.5, lakes: 0.25, forest: 0.55, islands: 0.5 },
@@ -496,16 +416,8 @@ const CHANNEL_DEPTH_MAX = 0.09;
 /** How far the banks run out from the channel edge, in channel half-widths. */
 const BANK_RUN_OF_WIDTH = 3.2;
 /**
- * How much of the channel's depth the bank is allowed to take, at the channel edge, before the profile
- * fades to nothing at {@link BANK_RUN_OF_WIDTH}.
- *
- * **The paper's crest term is not used here, deliberately.** Its `q_z = max(a_z, b_z, c_z) + λ·d` (§5.1)
- * *generates* ground that rises away from a river at a slope λ. Applied as an upper bound on ground that
- * already exists, the same formula cuts a bench into any hillside the river crosses: at λ = 0.22 a cell
- * two cells from the channel is forced down to bed + 0.44, and the cut widens with distance. Measured, it
- * smeared a wide flat valley across every ridge a river touched. The channel is carved to a depth that
- * scales with the river's own width, and the bank takes a decreasing share of that depth instead — so the
- * incision is bounded by the channel, and the hill's own relief survives.
+ * How much of the channel's depth the bank may take at the channel edge, fading to nothing at
+ * {@link BANK_RUN_OF_WIDTH}. The paper's crest term would cut a bench into any hillside a river crosses.
  */
 const BANK_INCISION_OF_DEPTH = 0.55;
 function carveRivers(
@@ -524,16 +436,8 @@ function carveRivers(
   let maxAccumulation = 1;
   for (let i = 0; i < accumulation.length; i++) if (accumulation[i] > maxAccumulation) maxAccumulation = accumulation[i];
 
-  // **Which cells a river follows is decided by drainage, not by scattering springs.** The network
-  // still comes from `computeFlow` — that part was always hydrological — but the *selection* was the
-  // bug: N springs were picked for being far apart and each was walked downhill, so a map grew N short
-  // disconnected squiggles that never joined and often never reached the sea.
-  //
-  // Three things have to be right together, and getting any one wrong is why this is not a one-liner:
-  // a candidate must be a genuine **headwater** (rank by drainage area alone picks the map's *outlet*,
-  // whose walk is one cell long), the walk must then run **downhill** from it to the sea, and the cells
-  // it claims must stop later candidates from redrawing the same channel — which is what makes the
-  // result one trunk with tributaries.
+  // Which cells a river follows is decided by drainage, not by scattering springs: a genuine
+  // headwater ranked by the river it feeds, walked downhill, its cells claimed so branches form one trunk.
   const upstreamOf = new Int32Array(cols * rows).fill(-1);
   for (let i = 0; i < downstream.length; i++) {
     const d = downstream[i]!;
@@ -601,9 +505,8 @@ function carveRivers(
     const path: RiverPoint[] = [];
     let cell = sources[r]!.head;
 
-    // Follow the drainage network. Every step moves to a strictly lower cell, so the walk cannot loop
-    // and does not need the old stagnation bail-out; it ends at the sea, at an outlet, or at a pit the
-    // flood could not resolve.
+    // Follow the drainage network: every step moves to a strictly lower cell, so it cannot loop and
+    // ends at the sea, an outlet, or a pit the flood could not resolve.
     for (let step = 0; step < cols * rows; step++) {
       const x = cell % cols;
       const y = (cell / cols) | 0;
@@ -644,12 +547,8 @@ function carveRivers(
       }
     }
 
-    // Cut the channel into the height field only. The *water mask* is built separately at a
-    // finer resolution (see `buildWaterField`), so that a river edge is not quantised to this
-    // coarse biome lattice.
-    //
-    // Bed sits below the river's own surface (not sea level) and banks run out to terrain as the
-    // replace weight reaches zero — a hard ring or flat plate would terrace the river edge.
+    // Cut the channel into the height field only — the water mask is built separately at a finer
+    // resolution (`buildWaterField`). The bed sits below the river's surface and banks fade to terrain.
     for (const p of path) {
       const bedSurface = sampleElev(elevation, cols, rows, p.x, p.y);
       const halfWidth = p.w;
@@ -673,12 +572,8 @@ function carveRivers(
             const weight = t * t;
             elevation[i] = Math.min(elevation[i], elevation[i] * (1 - weight) + bed * weight);
           } else {
-            // Banks: the channel profile fades out over the run, and the bank gives up a **bounded** share
-            // of the channel's depth — never more. Blending toward the bed instead pulls a bank cell all
-            // the way down to a bed that sits far below an uphill bank, which cuts a bench as wide as the
-            // run into every slope a river crosses; measured, that swallowed ridgelines and even starved
-            // the tiles a farm fixture relies on. A bounded subtraction leaves the hill's own relief as the
-            // valley wall.
+            // Banks: the bank gives up a **bounded** share of the channel depth, never more. Blending
+            // toward the bed would cut a bench as wide as the run into every slope a river crosses.
             const t = 1 - (d - halfWidth) / (run - halfWidth);
             const weight = t * t;
             const carved = elevation[i] - depth * BANK_INCISION_OF_DEPTH * weight;
@@ -692,13 +587,8 @@ function carveRivers(
 }
 
 /**
- * Rasterise the water layer at {@link WATER_CELL}, onto its own lattice.
- *
- * `rivers` carry widths in 64 px biome-cell units, so they are converted to world pixels here
- * and the falloff is computed in world space. The result is a **coverage** value per fine cell — the
- * field the tile projection, the biome pass and the per-pixel bake all read, so the waterline is
- * smooth at 16 px while the climate below it stays at 64 px. It is not a distance: 1 is the centre of
- * a channel and 0 is dry, which is why nothing here takes a square root of it.
+ * Rasterise the water layer at {@link WATER_CELL} onto its own lattice: rivers' 64px widths converted to
+ * world pixels, giving a per-cell coverage value (1 = channel centre, 0 = dry), not a distance.
  */
 function buildWaterField(
   rivers: RiverPoint[][], cols: number, rows: number, generationVersion: 1 | 2 | 3 | 4,
@@ -959,10 +849,8 @@ function placeDecorations(
         targetDensity = forestDensity * (0.62 - climate.forest * 0.22)
           * climate.alpineFade * (1 - climate.dry * 0.4);
       }
-      // The 2.5D rock/height surface already has a textured relief: stamping
-      // a separate bright boulder on every nearby cell turns mountains into
-      // white rubble fields. Keep sparse natural talus while relying on the
-      // actual height mesh and rock albedo for continuous mountain structure.
+      // The 2.5D height surface already carries the relief, so stamping a bright boulder on every
+      // nearby cell turns mountains into rubble; keep sparse talus and let the mesh and albedo work.
       if (generationVersion === 4 && (def.id === 'rock' || def.id === 'snow')) {
         targetDensity *= 0.42;
       }
@@ -1030,9 +918,8 @@ export function legacyTerrainSeed(seed: number): number {
 }
 
 /**
- * The terrain noise seed for a world. `terrainSeed` states the seed a save was generated with and
- * wins outright: a compact save regenerates its whole valley, so any tuning of the offset (or of
- * `hashString`, or of the size table) would otherwise repaint every existing settlement.
+ * The terrain noise seed for a world. A save's own `terrainSeed` wins outright, so retuning the offset
+ * (or `hashString`, or the size table) cannot repaint an existing valley.
  */
 export function terrainSeedFor(
   seed: number,
@@ -1091,9 +978,8 @@ export function generateRawTerrain(
     for (let x = 0; x < cols; x++) {
       const i = idx(x, y, cols);
       const [wx, wy] = warp(x * mScale, y * mScale, tseed + 991, 0.9, 0.5);
-      // `s.moisture` is the preset's climate bias (desert dry, forest wet) and must reach this field.
-      // `MOISTURE_SPREAD` widens the fBm mean into wet/dry regions; the altitude penalty dries high
-      // ground; `rainShadow` dries the leeward flank only.
+      // The preset's climate bias reaches the field; `MOISTURE_SPREAD` widens the fBm mean, the altitude
+      // penalty dries high ground, and `rainShadow` dries the leeward flank only.
       let mo = fbm(wx, wy, tseed + 2503, { octaves: 4 });
       mo = clamp(
         MOISTURE_BASE + (mo - 0.5) * MOISTURE_SPREAD + s.moisture
@@ -1118,10 +1004,8 @@ export function generateRawTerrain(
         mo = clamp(mo + 0.65 * Math.exp(-Math.pow(distance / 0.20, 4)), 0, 1);
       }
       moisture[i] = mo;
-      // `s.temperature` keeps its long-standing `× 1.1` amplifier, and latitude is removed
-      // *before* it so the equator row is exactly the temperature this preset had before the
-      // parameterization existed. Applying the anchor after the amplifier instead would push
-      // every warm preset past the `clamp` and leave the hot half of the map a flat 1.0.
+      // Latitude is removed before the long-standing `× 1.1` amplifier, so the equator row keeps the
+      // preset's exact temperature; anchoring after it would push warm presets past the clamp.
       const t = (s.temperature - latitudeCooling(x, y, rows, tseed, s.latitude)) * 1.1
         - Math.max(0, elevation[i] - seaLevel) * 0.7
         + (fbm(x * mScale * 0.7, y * mScale * 0.7, tseed + 7331, { octaves: 3 }) - 0.5) * 0.3;
@@ -1130,9 +1014,8 @@ export function generateRawTerrain(
 
   const { paths: rivers, waterfalls } = carveRivers(s, tseed, cols, rows, elevation, seaLevel);
 
-  // The water layer lives on its own, finer lattice. Everything downstream that cares about
-  // *where the water is* reads this field; the coarse `riverFlag` below only decides which
-  // biome cells the river turns to swamp and meadow.
+  // The water layer lives on its own finer lattice and is what everything downstream reads; the coarse
+  // `riverFlag` only decides which biome cells turn to swamp and meadow.
   const { coverage: riverDist, wCols, wRows } = buildWaterField(rivers, cols, rows, generationVersion);
   const riverFlag = flagRiverCells(riverDist, wCols, wRows, cols, rows);
 
@@ -1166,17 +1049,14 @@ export function generateRawTerrain(
 
   const terrain = assignBiomes(s, cols, rows, elevation, moisture, temperature, riverFlag, seaLevel);
 
-  // L0 path grid (10px) — derived from the tile classification, so a tile can never be
-  // `River` for the renderer and walkable for the pathfinder. The grid covers exactly the
-  // same tile rectangle `terrainGrid.tileAt` projects (`ceil(width / PATH_CELL)`), which is
-  // also the rectangle the L3 decor pass reserves cells in.
+  // L0 path grid (10px) — derived from the tile classification, so a tile cannot be `River` for the
+  // renderer and walkable for the pathfinder. It covers the same rectangle `tileAt` projects.
   const pCols = tileW;
   const pRows = tileH;
   const pathGrid = new Uint8Array(pCols * pRows);
 
-  // The biome cuts come from this map's own finished moisture distribution — see
-  // `MOISTURE_FOREST_QUANTILE`. Computed after the river moisture boost, because that is the
-  // field every tile projection reads.
+  // The biome cuts come from this map's own finished moisture distribution (see `moistureCuts`),
+  // computed after the river moisture boost because that is the field every tile projection reads.
   const cuts = moistureCuts(moisture, s.forest);
 
   /** The projected tile type holding L0 cell (x, y). One shared projection for both grids, so
@@ -1215,9 +1095,8 @@ export function generateRawTerrain(
     } : undefined,
   );
 
-  // L1 build grid (20px) — 0=buildable, 1=water, 2=hard, 3=mixed. The hard-ground test reads
-  // the same projection `terrainGrid.isTileBuildable` uses, so the L1 grid and
-  // `placementUtils` cannot disagree about what blocks a footprint.
+  // L1 build grid (20px) — 0=buildable, 1=water, 2=hard, 3=mixed. The hard-ground test reads the same
+  // projection `terrainGrid.isTileBuildable` uses, so the grid and placement cannot disagree.
   const bCols = Math.ceil(width / BUILD_CELL);
   const bRows = Math.ceil(height / BUILD_CELL);
   const buildGrid = new Uint8Array(bCols * bRows);

@@ -1,16 +1,6 @@
 /**
- * A trade-caravan carrier survives the tick that creates it.
- *
- * `spawnCaravan` pushed the carrier into `state.entities` and indexed it, but nothing
- * registered it in `ctx.newEntities` — and `gameTick` finishes every tick by replacing
- * `state.entities` with the `allAlive` snapshot it built from the pre-tick entity list
- * plus `ctx.newEntities`. A carrier created in the systems layer was therefore discarded
- * in the same tick it departed, `hasActiveCarrier` saw no carrier again, and the route
- * restarted instead of walking: caravans could never travel (and the export goods were
- * already deducted at departure, so they were simply lost).
- *
- * The canonical spawn path for entities created during a tick is
- * `pushNewEntity(state, ctx, entity)`.
+ * A trade-caravan carrier must survive the tick that creates it: entities spawned during a tick go
+ * through `pushNewEntity(state, ctx, entity)`, or `gameTick` drops them from the new entity list.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -20,6 +10,7 @@ import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { tickTradeCaravans } from '../src/game/tradeCaravans';
 import { initTradeRoutes } from '../src/game/economy';
 import { LAYER_SYSTEMS_INTERVAL } from '../src/game/tickLayerSystems';
+import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
 import { byType } from '../src/test/factories';
 
 const FIXTURE_SEED = 20240913;
@@ -73,6 +64,8 @@ describe('a caravan carrier leaves through the tick spawn path', () => {
     expect(spawned).toHaveLength(1);
     expect(state.tradeRoutes[0].caravanCarrierId).toBe(spawned[0].id);
     expect(spawned[0].job).toBe('merchant');
+    expect(spawned[0].isJuvenile).toBe(false);
+    expect(spawned[0].age).toBeGreaterThanOrEqual(HUMAN_ADULT_MIN_AGE);
     expect(ctx.entityById.get(spawned[0].id)).toBe(spawned[0]);
   });
 

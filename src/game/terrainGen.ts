@@ -10,17 +10,8 @@ import {
 } from './terrain/terrainGrid';
 
 /**
- * Wilderfolk's world-generation entry point.
- *
- * Teraforge owns the landscape (`terrain/terragen`) and the four-layer tile model
- * (`terrain/terrainGrid`); this module is only the thin Wilderfolk-specific shell on
- * top: it picks dimensions and a preset, carves a buildable camp clearing, and strips
- * the start-area forest so the founding pioneers have usable ground.
- *
- * **Every read and write here goes through `terrainGrid`.** The 10px
- * `TerrainTile[][]` grid no longer exists — a tile is projected from the L2
- * continuous fields on demand and cleared tiles are held in the sparse
- * `WorldMap.overrides` layer (roadmap v0.6.5, Theme 1).
+ * Wilderfolk's world-generation entry point — a thin shell over Teraforge: dimensions/preset, camp
+ * clearing and start-area forest. Every terrain read and write goes through `terrainGrid`.
  */
 
 /** Water-heavy presets need a beach ring + wider camp clearing near the centre. */
@@ -138,9 +129,8 @@ function clearStartAreaForest(map: WorldMap, worldX: number, worldY: number, rad
 }
 
 /**
- * Resolve a footprint-sized camp site near `preferredX/preferredY`, widening the search
- * until buildable ground is found. Returns the preferred point when the map offers
- * nothing better (the caller's own placement rules then report the failure).
+ * Resolve a footprint-sized camp site near `preferredX/preferredY`, widening the search until
+ * buildable ground is found. Returns the preferred point when nothing better exists.
  */
 export function findCampSite(
   map: WorldMap,
@@ -254,12 +244,11 @@ export function generateWorldMap(
     }
   }
 
-  // Teraforge engine: 64px cells → 10px tiles + continuous fields + L0/L1 grids.
+  // Teraforge engine: 16 px L2 cells → 10 px tiles + continuous fields + L0/L1 grids.
   const map = generateRawTerrain(width, height, seed, size, preset, terrainSeedArg, generationVersion);
 
-  // Carve a buildable camp clearing and strip the start-area forest so the founding pioneers and
-  // first buildings have usable ground. The camp follows buildable ground, not the map centre —
-  // on a coastal map the centre can be open sea. `initGame` reads the site back off the map.
+  // Carve a buildable camp clearing and strip the start-area forest for the founding pioneers and
+  // first buildings. The camp follows buildable ground, not the map centre: a coastal centre is sea.
   const houseFootprint = { w: 46, h: 40 };
   const camp = findCampSite(
     map,

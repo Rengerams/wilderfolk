@@ -91,14 +91,14 @@ sequenceDiagram
 
 ## Simulation: four tick layers
 
-Work is split so not everything runs every tick (`TICKS_PER_DAY = 72`).
+Work is split so not everything runs every tick (`TICKS_PER_DAY = 288`, 12 ticks per hour).
 
 ```mermaid
 flowchart LR
   Tick["tick++"] --> RT["Realtime"]
   Tick --> SYS["Systems<br/>every ~4 ticks"]
   Tick --> ASG["Assign<br/>cadence"]
-  Tick --> DAY["Daily<br/>calendar day"]
+  Tick --> DAY["Daily phases<br/>00 / 06 / 12 / 18"]
 
   RT --> Chat["chat · courtship · move"]
   SYS --> Wild["wildlife · weather · research · caravans"]
@@ -111,7 +111,7 @@ flowchart LR
 | **Realtime** | `tickLayerRealtime.ts` | Humans move, social, meals, combat chase |
 | **Systems** | `tickLayerSystems.ts` | Wildlife AI, weather, research progress, trade walkers |
 | **Assign** | `tickLayerAssign.ts` | Fill jobs/homes (not every frame) |
-| **Daily** | `tickLayerDaily.ts` | Day boundary: raids expire, visitors, forge day, immigration, wildlife soft refill |
+| **Daily** | `tickLayerDaily.ts` | 00:00 visitors, idle skills, year rollover and fatigue; 06:00 relationships; 12:00 empty; 18:00 production, ecology, immigration and other world events |
 
 Domain logic lives in modules, not one mega-file:
 
@@ -125,6 +125,11 @@ Domain logic lives in modules, not one mega-file:
 | `forge.ts` + `combat.ts` | Blacksmith orders → village gear **tiers** |
 | `ecologyStage.ts` | Valley stable → strained → … |
 | `worldGen.ts` | New map, entities, wildlife spawn/replenish |
+| `settlerTraits.ts` | One genome per settler: fourteen inherited allele pairs, founder draw, birth inheritance, deterministic old-save backfill |
+| `personalMarks.ts` | Born or earned personal marks (`lucky`, `pretty`, `scarred`, `sickly`) — never inherited, never rerolled |
+| `personality/` | The one signed activity table and the one bounded evaluator |
+
+**Genetics and marks — one pipeline.** A settler's genotype is `GenomeV2`; marks are separate personal state, not alleles. `activityAptitudes.ts` is the only weight table: every typed activity lists signed aptitude weights and may list signed mark weights. `evaluateAptitudeInfluence` combines the settler's deviation from their own fourteen-dimension mean with any carried mark weight, clamps once and caps once (`1 ± cap`). Every consumer — work, school, danger, social, civic, physiology, conception — multiplies that single factor into its own baseline and keeps sole write authority. No owner keeps a private weight table, the evaluator draws no RNG, and the inspector reads the same result. Conception carries no aptitude weights, so only an acquired `lucky` mark can move it.
 
 **World truth** = `WorldState` in `gameTypes.ts` (entities, buildings, resources, events, …).
 
@@ -237,6 +242,9 @@ src/
     gameTick.ts           tick orchestrator
     tickLayer*.ts         four layers
     humanTick.ts          people & beasts
+    settlerTraits.ts      inherited aptitudes (one genome)
+    personalMarks.ts      born/earned marks (not inherited)
+    personality/          activity weights + one evaluator
     renderer.ts           Canvas draw
     saveLoad.ts           persist
     frontierCombat.ts     war abstract
@@ -244,6 +252,8 @@ src/
     simWorker/            optional off-main sim
     simBuffers/           render packing
 ```
+
+Genetics detail: [DNA aptitudes architecture](docs/DNA_APTITUDES_ARCHITECTURE.md).
 
 ---
 

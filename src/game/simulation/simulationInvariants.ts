@@ -1,36 +1,6 @@
 /**
- * Simulation governance invariants — the hard "always true" state contract from
- * SIMULATION_AUTHORITY.md §5, implemented as a read-only collector (§10).
- *
- * Unlike `simInvariants.ts` (runtime sanity: NaN positions, negative resources,
- * orphaned bonds), this module checks the *ownership* invariants:
- *
- *   - a living human appears in at most one workplace/crew occupants list
- *   - `workerBuildingId` ↔ workplace occupants agree in both directions, except
- *     a prisoner's post, which is reserved while the workplace roster omits them
- *   - `residenceBuildingId` ↔ residence occupants agree in both directions
- *   - no stale references to demolished/missing buildings or entities
- *   - pregnancy state has a valid `pregnancyDueProgress` (and non-pregnant
- *     humans carry no pregnancy parent/progress state)
- *   - at most one living cursed Moon Howler
- *   - the elected leader is an acting village head retaining the leader
- *     occupation and residing in the Leader's House when a completed manor exists
- *
- * IMPORTANT — occupants is role-overloaded (buildings.ts):
- *   - workplaces (completed BUILDING_JOB_TYPES): workers via `workerBuildingId`
- *   - residences (completed House/Mansion/LeaderHouse): residents via
- *     `residenceBuildingId` (synced by dayCycle.syncResidenceOccupants)
- *   - construction crews (incomplete buildings): builders, no `workerBuildingId`
- *   - prison (completed): guards via `workerBuildingId` + prisoners via
- *     `prisonBuildingId`
- *   - no-occupant buildings (roads, walls, wells, barns, decor): must be empty
- *
- * A settler legitimately appears in TWO occupants lists at once (one residence +
- * one workplace), so duplicate detection is per-role, never global.
- *
- * This module only detects and reports. The owning transition performs repairs.
- * It never mutates state — safe to run after worker command results and after
- * daily transitions in development mode and tests.
+ * Simulation governance invariants — a read-only collector for the ownership contract: occupants lists
+ * agree both ways, references are live, pregnancy is consistent, one cursed Moon Howler, valid leader.
  */
 import type { Building, Entity, WorldState } from '../gameTypes';
 import { BuildingType, BUILDING_JOB_TYPES, LEADER_OCCUPATION } from '../gameTypes';
@@ -243,9 +213,8 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
     }
   }
 
-  // Moon Howler invariant — at most one living cursed entity (SIMULATION_AUTHORITY §5).
-  // `countActiveMoonHowlerCurses` owns the colony-level rule; this collector only reports a
-  // violation, and only on that path does it enumerate the offending ids for the message.
+  // Moon Howler invariant — at most one living cursed entity. `countActiveMoonHowlerCurses` owns the
+  // colony-level rule; this collector only reports, enumerating ids for the message.
   const howlerCount = countActiveMoonHowlerCurses(state.entities);
   if (howlerCount > 1) {
     const howlerIds = state.entities.filter((e) => e.alive && e.moonHowlerCursed).map((e) => e.id);
@@ -268,10 +237,8 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
       const manor = state.buildings.find(
         (b) => b.type === BuildingType.LeaderHouse && b.completed && b.faction !== 'rival',
       );
-      // A cursed leader hunting in Moon Howler form has `residenceBuildingId` parked in
-      // `moonHowlerSaved` for the duration of the form (`transformToWerewolfForm` clears the live
-      // ids), so the manor check must exempt the form — the same exemption `isActingVillageHead`
-      // applies to the office. The owner predicate is `moonHowler.isActiveMoonHowler`.
+      // A cursed leader in Moon Howler form has `residenceBuildingId` parked in `moonHowlerSaved`, so
+      // the manor check must exempt the form, as `isActingVillageHead` does for the office.
       if (
         manor
         && leader.prisonBuildingId == null
@@ -287,9 +254,8 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
 }
 
 /**
- * Development assertion wrapper — throws on the first violation with the full
- * error list. Keep the collector available to tests and diagnostics; only call
- * the assertion from development harnesses (never repair state here).
+ * Development assertion wrapper — throws on the first violation with the full error list. Only call it
+ * from development harnesses; the collector itself stays available to tests and diagnostics.
  */
 export function assertSimulationInvariants(state: WorldState): void {
   const errors = collectSimulationInvariantErrors(state);

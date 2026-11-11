@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
 import { getBuildingFootprintForType } from '../src/game/buildingRotation';
+import { inferStripRotation } from '../src/game/stripBuild';
 import { buildStripPlanFromDrag, buildStripPlanFromStroke, collectStripDemolitionIds, resolveRoadStripPlan, resolveWallStripPlan, snapStripDragEndpoints } from '../src/game/stripTopology';
 
 function strip(type: typeof BuildingType.Road | typeof BuildingType.Wall, rotation: 0 | 90): Building {
@@ -17,6 +18,15 @@ const stateWith = (building: Building): WorldState => ({ buildings: [building] }
 const origin = [{ x: 0, y: 0 }];
 
 describe('connected strip planning', () => {
+  it('infers strip rotation from drag orientation, not path obstructions', () => {
+    expect(inferStripRotation(0, 0, 100, 20)).toBe(0);
+    expect(inferStripRotation(0, 0, 20, 100)).toBe(90);
+    expect(inferStripRotation(100, 20, 0, 0)).toBe(0);
+    expect(inferStripRotation(20, 100, 0, 0)).toBe(90);
+    // Exactly diagonal drags deliberately default to horizontal strips.
+    expect(inferStripRotation(0, 0, 30, 30)).toBe(0);
+  });
+
   it('does not place a duplicate road when the player retraces an existing piece', () => {
     expect(resolveRoadStripPlan(stateWith(strip(BuildingType.Road, 0)), origin, 0)).toEqual([]);
   });

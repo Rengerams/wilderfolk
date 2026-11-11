@@ -56,12 +56,7 @@ for (const name of rootConfigTwins) {
   }
 }
 
-// --- artifact hygiene -------------------------------------------------------------------------
-// The `.js`-shadowing rule above cannot see the other class of stray file the 2026-09-16 audits
-// found inside `src/`: ZIP archives of live sources behind `.zip`/`.txt` names, and files left
-// empty by a mistyped shell redirect. Two cheap rules catch both
-// (`BUG_REPORTS/2026-09-16-stale-source-archives-hidden-in-src.md`,
-// `…-stray-duplicate-artifacts.md`).
+// --- artifact hygiene: source archives under `.zip`/`.txt` names, and zero-byte redirect leftovers
 const ARCHIVE_SIGNATURES = [
   { name: 'ZIP', bytes: [0x50, 0x4b, 0x03, 0x04] },
   { name: 'gzip', bytes: [0x1f, 0x8b] },

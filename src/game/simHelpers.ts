@@ -15,9 +15,8 @@ export function getSeason(dayInYear: number): Season {
 }
 
 /**
- * Season transition lerp — within `blendDays` of a season boundary the terrain
- * bake fades from the outgoing season's palette into the incoming one instead
- * of swapping instantly. Returns null far from a boundary.
+ * Season transition lerp — within `blendDays` of a boundary the terrain bake fades between seasons'
+ * palettes instead of swapping instantly; null far from a boundary.
  */
 export function seasonBlendForDay(
   dayInYear: number,

@@ -16,6 +16,7 @@ import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, RivalSettlement, WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
+import { genomeFrom } from './helpers/genome';
 
 afterEach(() => {
   resetSimRng();
@@ -48,15 +49,23 @@ describe('getRaidGrowthScale', () => {
   });
 });
 
+/** One world for every village size; only the number of mustered adults may differ. */
+const FIXTURE_SEED = 11;
+
 /** A settler colony of `adults` and one tense camp in reach — the raid gates need a real village. */
 function raidFixture(adults: number): { state: WorldState; rival: RivalSettlement } {
-  const state = initGame({ skipTerrain: true });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const template = state.entities.find((e) => e.alive && e.type === EntityType.Human);
   if (!template) throw new Error('the fixture world has no settler to clone');
-  // `initGame` rolls traits without the sim seed, so the fixture normalises them: only the count may
-  // differ between two sizes of the same village, or a chivalrous settler would decide the ratio.
+  // `initGame` draws a random map seed, so normalise every per-person defence input: genome, marks
+  // and juvenile status. Only the count may differ between two sizes of the same village.
   for (const entity of state.entities) {
-    if (entity.alive && entity.type === EntityType.Human) { entity.traits = []; entity.job = JobType.Soldier; }
+    if (entity.alive && entity.type === EntityType.Human) {
+      entity.genomeV2 = genomeFrom();
+      entity.marks = [];
+      entity.isJuvenile = false;
+      entity.job = JobType.Soldier;
+    }
   }
   let id = 500_000;
   while (state.entities.filter((e) => e.alive && e.type === EntityType.Human).length < adults) {
@@ -124,7 +133,7 @@ describe('a raid scales with the village it is aimed at', () => {
     const pressure = (adults: number): number => {
       // Same seed ⇒ the same settlers and traits at every size, so only population changes.
       resetSimRng();
-      setSimSeed(11);
+      setSimSeed(FIXTURE_SEED);
       const { state, rival } = raidFixture(adults);
       const defence = computeMilitiaBreakdown(state, state.entities).militiaStrength;
       const attack = Math.round(getRivalRaidStrength(rival) * getRaidGrowthScale(adults));

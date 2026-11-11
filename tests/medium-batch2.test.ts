@@ -1,15 +1,6 @@
 /**
- * Medium-tier fixes, batch 2 (audit report, 2026-09-13).
- *
- * - M31 — the off-screen wildlife throttle counted raw ticks although `tickWildlife` only runs on
- *   wildlife-layer ticks, so the gate had no solution for most entity ids and ~75% of off-screen
- *   fauna never ran an AI step.
- * - M7 — `resolveCombatLogKind` classified any chronicle line, so an ordinary event mentioning a
- *   raid was counted as a raid or a defence.
- * - M11 — `needsMedicalCare` compared the grief deadline with 0, making grief permanent.
- * - M23 — the residence pickers accepted rival-camp houses as free player housing.
- * - M38 — storm damage "healed" a building that was already below the 20 HP floor.
- * - M1 — a continued food shortage re-notified the player every colony day.
+ * Regression cases for the off-screen wildlife throttle, combat-log classification, the grief
+ * deadline, residence picking, storm damage and food-shortage notices.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

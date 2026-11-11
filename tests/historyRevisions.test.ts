@@ -1,9 +1,6 @@
 /**
- * PERF6 — history families ship by owner revision, not by a per-tick JSON fingerprint.
- *
- * The delta omits a history the worker already shipped unless its owner bumped the revision. A writer
- * that changes a history without bumping would silently freeze that panel in the display world, so the
- * last case audits a real seeded run: every content change must be visible as a revision change.
+ * History families ship by owner revision, not by a per-tick fingerprint: a writer that changes a
+ * history without bumping its revision would freeze that panel in the display world.
  */
 import { describe, expect, it } from 'vitest';
 import { gameTick, initGame } from '../src/game/gameEngine';

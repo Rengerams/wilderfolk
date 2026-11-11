@@ -2,7 +2,7 @@ import { EntityType, JobType } from './gameTypes';
 import type { Entity, WorldState } from './gameTypes';
 
 import { HUMAN_ADULT_MIN_AGE,HUMAN_VENERABLE_AGE } from './daycycleconstants';
-import { hasWorkAssignment, isAdult, isMinor } from './housingModel';
+import { hasWorkAssignment } from './housingModel';
 import { clearWorkerAssignment } from './workforce';
 import {
   DAYS_PER_YEAR,
@@ -74,7 +74,7 @@ export function tryGraduateHumanChild(
   adultSpeed: number,
   onGraduate?: (entity: Entity) => void,
 ): boolean {
-  if (!entity.isJuvenile || isMinor(entity)) return false;
+  if (!entity.isJuvenile || entity.age < HUMAN_ADULT_MIN_AGE) return false;
   entity.isJuvenile = false;
   entity.size = adultSize;
   entity.speed = adultSpeed;
@@ -83,13 +83,8 @@ export function tryGraduateHumanChild(
 }
 
 /**
- * Female fertility window. Fertility begins at the youth threshold that also opens
- * youth love (`YOUTH_LOVE_MIN_AGE` = 12 in `simulation/humanRelationships.ts`).
- *
- * Ages 12–17 may only conceive through the youth-love gate in
- * `tryDailyConception`: marriage requires `HUMAN_ADULT_MIN_AGE` (18) and an
- * affair requires `Relationship.AFFAIR_MIN_AGE` (18) on both sides, so below 18
- * this window is reachable exclusively through an existing mutual youth-love pair.
+ * Female fertility window. It starts at the youth-love threshold (`YOUTH_LOVE_MIN_AGE`), so ages
+ * 12–17 conceive only through `tryDailyConception`'s youth-love gate — marriage and affairs need 18.
  */
 export const HUMAN_FERTILITY_START = 12;
 export const HUMAN_YOUTH_FERTILITY_END = 18;
@@ -187,25 +182,19 @@ export function syncHumanAgeFromCalendar(
 ): void {
   if (entity.type !== EntityType.Human) return;
   entity.age = computeHumanAgeYears(entity, getColonyDay(state));
-  // Deliberately does NOT write `isJuvenile`: the graduation transition owns that flag.
-  // Setting it here made `tryGraduateHumanChild` — called every tick from humanTick.ts
-  // *after* this sync — unsatisfiable, because it requires `isJuvenile && age >=
-  // HUMAN_ADULT_MIN_AGE` and the sync had just cleared the flag on exactly that tick.
-  // No human ever graduated, so `entity.size`/`speed` stayed at child values and
-  // `applyEducationGraduation` (the only writer of `educated`) never ran.
+  // Deliberately does NOT write `isJuvenile`: the graduation transition owns that flag, and clearing
+  // it here would make `tryGraduateHumanChild` unsatisfiable.
   entity.maxAge = HUMAN_MAX_LIFESPAN_YEARS;
 }
 
 /**
- * Load repair: `isJuvenile` is derived once at spawn and graduation only ever clears it, so a save
- * carrying a child flagged as an adult keeps a child in an adult's posting — and barred from school,
- * which keys off this same flag. Promote only: ageing past the threshold belongs to the graduation
- * transition, which also owns `size`, `speed` and `educated`.
+ * Load repair: `isJuvenile` is derived once at spawn, so a save carrying a child flagged as an adult
+ * is promoted here. Promote only — ageing past the threshold belongs to the graduation transition.
  */
 export function repairJuvenileAssignmentsOnLoad(world: WorldState): void {
   for (const entity of world.entities ?? []) {
     if (entity.type !== EntityType.Human) continue;
-    if (isAdult(entity)) continue;
+    if (entity.age >= HUMAN_ADULT_MIN_AGE) continue;
     entity.isJuvenile = true;
     // Children cannot retain work attendance or fatigue from invalid legacy assignments.
     entity.scheduleWorkedTicksToday = 0;
@@ -373,7 +362,7 @@ export function migrateHumanAges(
       human.maxAge = HUMAN_MAX_LIFESPAN_YEARS;
       human.age = ageYears;
     }
-    if (human.isJuvenile && isAdult(human)) {
+    if (human.isJuvenile && human.age >= HUMAN_ADULT_MIN_AGE) {
       human.isJuvenile = false;
     }
   }

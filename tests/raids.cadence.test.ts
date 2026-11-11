@@ -1,10 +1,6 @@
 /**
- * Incoming raids are rolled every day, not only on a rival's major-action day.
- *
- * `maybeQueueRaid` carries the raid's whole cadence — its own cooldown, the relationship-scaled
- * chance roll, the population and structure gates — and `groupEvents`/`storyEvents` both use
- * `raidCooldownDays` as the only raid switch. Sitting under the action-timer gate meant the roll
- * was asked once per 45–90 days, so a colony could go a whole game without being raided.
+ * Incoming raids are rolled every day: `maybeQueueRaid` carries the whole cadence — cooldown,
+ * relationship-scaled chance, population and structure gates — and `raidCooldownDays` is its switch.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, JobType, Season, WeatherType } from '../src/game/gameTypes';

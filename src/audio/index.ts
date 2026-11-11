@@ -1,13 +1,6 @@
 /**
- * Wilderfolk audio system — modular procedural audio via Web Audio API.
- *
- * Modules:
- *   graph.ts           — shared context & buses (music / sfx / ambient)
- *   introMusic.ts      — intro screen theme
- *   backgroundMusic.ts — gameplay melody loop
- *   ambient.ts         — nature ambience
- *   sfx.ts             — one-shot game sounds
- *   director.ts        — public orchestration API
+ * Wilderfolk audio entry — modular procedural audio via Web Audio API; re-exports the director,
+ * sfx, tracks and volume controls that the rest of the app calls.
  */
 
 import { ambientNature } from './ambient';

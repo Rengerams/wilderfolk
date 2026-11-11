@@ -1,21 +1,6 @@
 /**
- * The village anchor — one rule, two readers.
- *
- * The simulation steers war-bands, barracks guards and visitor proximity by `getPlayerCampCenter`,
- * and the renderer draws the raid march lines out of the same point. Those two readers used to hold
- * separate copies of the rule, and the copies disagreed: the renderer's version, finding no completed
- * player Town Hall and no House, returned the *first completed player building*, while the simulation
- * fell through to the living settlers' mean. On a colony whose only finished structure was, say, a
- * Barracks, the drawn march line and the simulated raid therefore ended in two different places.
- *
- * The split into `…FromBuildings` (a pure function of the building list) and
- * `getPlayerSettlerCenter` (which reads positions the human loop moves) is deliberate, not
- * incidental: `tickHumans` caches the building half for a whole tick and re-asks the entity half at
- * every call site. This module keeps that split at the leaf so neither reader has to restate
- * it.
- *
- * Leaf on purpose: the only imports are types, so a renderer may depend on it without pulling in a
- * simulation domain module.
+ * The village anchor — one rule, two readers: the simulation's camp centre and the renderer's raid
+ * march lines. Leaf on purpose: the only imports are types.
  */
 import type { Building, WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
@@ -29,10 +14,7 @@ export interface VillageAnchor {
 
 /**
  * The building half of the anchor: the first completed player Town Hall, else the first completed
- * player House, else `null`.
- *
- * Rival faction structures and unfinished ones never anchor the village. `null` does not mean "no
- * anchor" — it means "the buildings cannot answer, ask the settlers".
+ * player House, else `null` — rival and unfinished structures never anchor the village.
  */
 export function getPlayerCampCenterFromBuildings(buildings: readonly Building[]): VillageAnchor | null {
   let house: Building | undefined;
@@ -48,10 +30,8 @@ export function getPlayerCampCenterFromBuildings(buildings: readonly Building[])
 }
 
 /**
- * The entity half: the mean position of the living player settlers, else the map centre.
- *
- * Reads live settler positions, which the human loop itself moves and can empty by killing one, so
- * it must never be cached across iterations of that loop.
+ * The entity half: the mean position of the living player settlers, else the map centre. Never
+ * cached — the human loop moves these positions itself.
  */
 export function getPlayerSettlerCenter(
   state: Pick<WorldState, 'entities' | 'width' | 'height'>,
@@ -71,9 +51,7 @@ export function getPlayerSettlerCenter(
 
 /**
  * The complete anchor: Town Hall, else House, else the living settlers' mean, else the map centre.
- *
- * `buildings` is passed rather than read off `state` because `tickHumans` holds the tick's own
- * building list and the renderer holds a snapshot's.
+ * `buildings` is passed because the human tick and the renderer each hold their own list.
  */
 export function getPlayerCampCenter(
   state: Pick<WorldState, 'entities' | 'width' | 'height'>,

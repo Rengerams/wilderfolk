@@ -1,8 +1,6 @@
 /**
- * Daily construction, repair, and production owners called by tickLayerDaily.
- *
- * Grass ecology (growth/spread), static bookkeeping, building production,
- * frontier systems, and daily-gated world events. Trees have no sim tick.
+ * Daily building economy: construction, repair, storage/bookkeeping, production and regrowth,
+ * called by `tickLayerDaily` once per colony day.
  */
 import type { WorldState, Entity, Building } from './gameTypes';
 import { mineOreForMode } from './buildings';
@@ -50,20 +48,6 @@ import {
   isHuntingStrikeLive,
 } from './huntingSpot';
 import { humanDisplayName } from './citizenId';
-
-/**
- * How close the hunter must be to take the shot, in world pixels (~10 m at the measured 11.76 px/m).
- *
- * Owner: *"to kil it you have stand ne xt to it"*, with looking allowed to 350 (*"the range can be 350
- * where is looking"*). This is the former, and it is deliberately not "bodies touching".
- *
- * The first attempt used the free-roam rule verbatim — `hunter.size + prey.size` ≈ 22 px — and it
- * **stopped the spot producing food at all**: prey wanders, so by the time the production tick runs the
- * animal has drifted out of a 22 px reach (measured directly: a fixture deer was at 30 px, moved to
- * 34.5 px on the tick, against a 22 px reach). A strict adjacency gate is only survivable if the hunter
- * *walks to the animal* — which it now does: see `huntingSpot.ts`, and the pursuit applied in
- * `humanTick`'s work branch. That note predicted this change in as many words.
- */
 
 import {
   syncEntityGrids,
@@ -126,19 +110,8 @@ import {
 import { getSimRng, seededRandomForRun } from './simRng';
 
 /**
- * Adds a building's daily output and makes a **clamped** gain visible, returning what storage took.
- *
- * `addResource` caps at `storageMax` and returns the accepted amount, and every producer below used to
- * throw that return away — so a store sitting at its cap deleted the output in silence and a capped
- * Lumber Mill was indistinguishable from an idle one. Measured: wood sat at exactly 800 (the cap) from
- * ~day 60 to day 290 of `probe-winter.mts` while a staffed mill kept running (`LIVE-FINDINGS-STATUS.md`,
- * F6; the helper that answers "is this store full?", `resourceUtils.isResourceCapped`, had no consumer).
- * A **partial** clamp (5 of 30 accepted) was silent even where a total one was announced, so the float
- * fires whenever any of the output was refused, not only when all of it was.
- *
- * The Fishing Spot and Workshop are deliberately not callers: both already float their own success line
- * at the same (x, y), so they fold the refusal into that message instead of stacking a second float on
- * top of it.
+ * Adds a building's daily output, returns what storage accepted, and floats "Stores full!"
+ * when any was refused (`addResource` clamps at `storageMax`); Fishing Spot and Workshop do not call it.
  */
 function addProductionOutput(
   state: WorldState,
@@ -173,7 +146,7 @@ export function tickWinterHeating(
     state.villageCanHeat = true;
     return true;
   }
-  // Same colony day after morning burn: reuse stored flag
+  // Same colony day after the day-start burn: reuse stored flag
   if (state.tick > 0 && state.tick % TICKS_PER_DAY !== 0) {
     return state.villageCanHeat !== false;
   }
@@ -195,12 +168,7 @@ export function tickWinterHeating(
 const isPassiveBuild = (type: BuildingType): boolean =>
   type === BuildingType.House || type === BuildingType.Road || type === BuildingType.Well;
 
-/**
- * Food-production multiplier one completed Mill gives the whole village.
- *
- * Exported because the inspector's Mill hint typed "+25%" as prose ("Building output/tuning
- * copy"): the tunable number lives here, and the hint reads it.
- */
+/** Food-production multiplier one completed Mill gives the whole village; the inspector's Mill hint reads it. */
 export const MILL_FOOD_PRODUCTION_MULT = 1.25;
 
 /**
@@ -261,9 +229,8 @@ function tickBuildingProgress(state: WorldState): void {
       if (workers > 0) {
         const job = getJobForBuilding(building.type) ?? JobType.Builder;
         for (let o = 0; o < building.occupants.length; o++) {
-          // `entityById` is the map this function already built above and already passes to
-          // `getWorkerSkillMultiplier`; without it `gainSkill` (skills.ts) falls back to
-          // `state.entities.find(…)`, a linear scan of every living entity per occupant.
+          // `entityById` is the map this function already built and passes to
+          // `getWorkerSkillMultiplier`; without it `gainSkill` scans every living entity per occupant.
           gainSkill(state, building.occupants[o], job, 0.15, entityById);
           // The crew also earns the standard worked shift for the trade it is raising, so a Builder
           // on a house site learns Building; the site's own job is what the roster records.
@@ -345,15 +312,8 @@ function tickBuildingProgress(state: WorldState): void {
 // ==================== STATIC / DAILY BOOKKEEPING ====================
 
 function tickStaticDaily(state: WorldState, season: Season): void {
-  // Storage caps and spoilage are derived from the standing buildings, so they are
-  // recomputed once per colony day, before spoilage is applied. `tickBuildingProgress`
-  // has already run in this same daily pass, so a Barn/Silo finished today counts today.
-  // This call is what makes `updateStorageCaps` live: it previously had no caller at all,
-  // so every Barn/Silo/Wood Storehouse/Store bonus and the Silo spoilage cut never reached
-  // play (the economy-audit test passed only because it invoked the function by hand).
-  // Roll the day ledger to today *before* anything records into it, so consumers that read the
-  // raw `state.economyLedger` (dashboardData) never see yesterday's totals, and archive the day
-  // that just finished. Idempotent, so the record helpers may still roll lazily.
+  // Recompute storage caps before spoilage; they derive from standing buildings, and today's
+  // Barn already counts. Roll the ledger to today before anything records into it.
   rollEconomyLedgerForDay(state);
   updateStorageCaps(state);
   applyFoodSpoilage(state, season);
@@ -371,18 +331,12 @@ export function tickDailyBuildingEconomy(
   tickStaticDaily(state, ctx.season);
   tickBlueberryRegrowth(state);
   tickBuildingProduction(state, ctx, allAlive);
-  // The day's food balance is this tick's to own: recompute the ledger's totals now that the day's
-  // production has run, so the dashboard and the village panel read stored numbers instead of adding
-  // the maps up themselves (`LIVE-FINDINGS-STATUS.md`, F2 — "it should be in dailytick").
+  // Recompute the ledger's food totals now that the day's production has run, so views read
+  // stored numbers instead of adding the maps up themselves.
   refreshFoodLedgerTotals(state);
 }
 
 // ==================== FRONTIER SYSTEMS ====================
-
-/**
- * The living player settler working this building, if any — now owned by `huntingSpot.ts`, which the
- * hunter's movement also reads so the settler who shoots is the settler who walks out.
- */
 
 function tickBuildingProduction(
   state: WorldState,
@@ -403,30 +357,19 @@ function tickBuildingProduction(
 
   const playerWorkers = allAlive.filter(isPlayerHuman);
 
-  // The Town Hall branches below need the *living* settlers: `isPlayerHuman` does not test `alive`,
-  // and the daily social pass that runs before this layer can kill (so `playerWorkers`, taken from
-  // this tick's `allAlive`, may hold a corpse). This was re-filtered once per completed Town Hall
-  // inside the building loop; it is now computed on first use and reused, because the branch only
-  // runs on a Town Hall production tick (~every 3 days) and hoisting it unconditionally would pay
-  // the filter on days the old code paid nothing. The value is loop-invariant: nothing in the loop
-  // can kill a settler — the only death path reachable from it is `markWildlifeDead` on the Hunting
-  // Spot's `targetPrey`, which is confined to the Deer/Rabbit/Wolf pools.
+  // Town Hall branches below need living settlers: a daily social pass can kill, so
+  // `playerWorkers` (from this tick's `allAlive`) may hold a corpse. Computed lazily and reused.
   let livingPlayerWorkers: Entity[] | undefined;
 
   // Single-pass building worker count, schedule fatigue, and attendance aggregation.
-  //
-  // `workedHoursSum` / `workedCount` are the attendance half: today's verified work
-  // (`scheduleWorkedTicksToday`), read after the work window so the day pays for itself.
-  // A settler parked at home, asleep, or walking the map contributes 0.
+  // A settler parked at home, asleep, or walking the map contributes 0 worked hours.
   const buildingWorkerStats = new Map<
     number,
     { count: number; fatigueSum: number; workedHoursSum: number; workedCount: number }
   >();
   for (let i = 0; i < playerWorkers.length; i++) {
     const h = playerWorkers[i];
-    // `playerWorkers` is already the colony-human owner's answer — re-testing `h.faction` here
-    // was a second definition of the rule (and it disagreed with the owner on the `'player'`
-    // marker the fixtures use). `LIVE-FINDINGS-STATUS.md`, duplication A3.
+    // `playerWorkers` already applies the colony-human owner's rule; do not re-test `h.faction`.
     if (!h.alive) continue;
     // A jailed settler keeps the reserved post but feeds no crew: they neither work nor attend.
     if (isImprisoned(h)) continue;
@@ -478,10 +421,8 @@ function tickBuildingProduction(
     const stats = buildingWorkerStats.get(building.id);
     const workers = BUILDING_JOB_TYPES[building.type] && stats ? stats.count : 0;
     const fatigueMult = workers > 0 && stats ? stats.fatigueSum / workers : 1.0;
-    // The configured window still sets the ceiling — a long day is still worth more, which is the
-    // owner's "if you need for short time more production". Attendance decides how much of that
-    // ceiling is earned. One rule, shared with the workshop estimate through
-    // `getWorkplacePresenceShare`, so a preview cannot drift from real output.
+    // The configured window sets the ceiling; attendance decides how much of it is earned.
+    // Shared with the workshop estimate through `getWorkplacePresenceShare`.
     const scheduleHours = getWorkScheduleHours(getWorkSchedule(state));
     const presenceMult = getWorkplacePresenceShare(
       workers > 0 && stats ? stats.workedHoursSum / workers : 0,
@@ -554,37 +495,14 @@ function tickBuildingProduction(
       isProductionTick(productionDayTick, PRODUCTION_INTERVAL.huntingSpot)
     ) {
       /**
-       * **The hunter hunts, not the building** — owner (2026-09-30): *"the hunung spot cannot hunt its
-       * just a spot from where they hunt but they free to walk the people who work there they just
-       * should hunt its not a tower that can fire"*.
-       *
-       * This block used to search for prey around the **building** (`building.x + width/2`, with a
-       * hardcoded 320 px reach) and only check afterwards that someone was assigned, so a Hunting Spot
-       * killed whatever wandered near the *structure* no matter where its hunter actually stood — the
-       * shots the owner saw landing "all over the map" (`BUG_REPORTS/2026-09-30-hunting-yield-unbounded.md`
-       * and the earlier `2026-08-28-hunting-projectile-visual.md`). The comment further down already
-       * stated the intent ("a work location, not an automatic attack tower") but the targeting did not
-       * implement it.
-       *
-       * Now the **assigned hunter's own position and reach** do the targeting, which is the same rule
-       * the free-roam path in `humanHuntingBehavior.ts` applies to a settler hunting for themselves. So
-       * a spot with nobody on site hunts nothing, and a hunter who has walked out to the herd is the
-       * one who shoots at it. The `1.2` is the assigned-hunter bonus that path already grants.
+       * The hunter hunts, not the building: target from the assigned hunter's position and reach,
+       * as the free-roam path does. An unstaffed spot hunts nothing.
        */
       const hunter = findLiveAssignedWorker(building, entityById);
       if (hunter) {
       /**
-       * Looking and killing are two different distances, and the killer is now the *hunter's* to walk.
-       *
-       * The owner split them explicitly: *"the range can be 350 where is looking but to kil it you have
-       * stand ne xt to it"*, and then ruled out the 120 px that stood in for the second half —
-       * *"120 px is way to far, its 1800's they dont have guns"*. So the eyes are 350 px
-       * (`HUNTING_SPOT_SEARCH_RADIUS_PX`) and the reach is bodies touching (`huntingKillReach`).
-       *
-       * A contact reach is only survivable **because the hunter now walks to the animal**
-       * (`huntingSpotChaseTarget`, applied in `humanTick`'s work branch). The previous attempt at
-       * adjacency was abandoned for exactly that missing half — a standing hunter against wandering prey
-       * produced no food at all, and the note left behind said the honest fix was the chase. This is it.
+       * Looking and killing use different distances: eyes reach 350 px, the kill reach is
+       * bodies touching (`huntingKillReach`), which works because the hunter walks to the prey.
        */
       const targetPrey = huntingSpotTarget(building, hunter, entityById, byType);
       // The spot owns the decision, so it records it: the hunter's walk reads the same commitment.
@@ -597,24 +515,16 @@ function tickBuildingProduction(
         const huntKey = `hunt:${building.id}:${state.tick}:${targetPrey.id}`;
         const foughtBack = isWolf && seededRandomForRun(`${huntKey}:fight`) < HUNTING_FIGHT_BACK_CHANCE;
         /**
-         * The reach: bodies touching, both radii.
-         *
-         * The owner's ruling replaced the 120 px stand-in — *"120 px is way to far, its 1800's they dont
-         * have guns"* — so the gate is the same one `humanHuntingBehavior.ts` applies to a settler
-         * hunting for themselves (`hunter.size + prey.size`): ~21 px against a deer, ~17 px against a
-         * rabbit, roughly 1.5–1.8 m. Inside it the 85 % accuracy roll still decides hit or miss;
-         * outside it there is no shot to make, and the hunter is walking there to change that.
+         * The reach: bodies touching, both radii, the same gate the free-roam hunt applies;
+         * inside it the 85 % accuracy roll still decides hit or miss.
          */
         const preyDistance = Math.hypot(targetPrey.x - hunter.x, targetPrey.y - hunter.y);
-        // Standing beside the animal *now*, or having been beside it moments ago: the pass samples an
-        // instant, and the hunter stalks a wandering animal across many ticks. See
-        // `HUNTING_SPOT_STRIKE_GRACE_TICKS` for the measurement that forced this.
+        // Standing beside the animal now, or moments ago: the pass samples an instant while the
+        // hunter stalks across ticks.
         const inReach = preyDistance <= huntingKillReach(hunter, targetPrey) || isHuntingStrikeLive(building, state.tick);
         const success = inReach && !foughtBack && seededRandomForRun(`${huntKey}:success`) < 0.85;
 
-        // The shot is already known to have a live hunter: the targeting above only runs when one is
-        // found, and this uses that same settler. It used to re-look-up the worker here and silently
-        // skip the projectile when none was found, which is now unreachable.
+        // The targeting above only runs with a live hunter, so this uses that same settler.
         addHuntVisual(state, {
           id: `hunt_${state.tick}_${Math.floor(getSimRng('dailyBuildingEconomy')() * 1000)}`,
           hunterId: hunter.id,
@@ -631,16 +541,15 @@ function tickBuildingProduction(
 
         if (foughtBack) {
           /**
-           * The wolf turns on the **hunter**, not the building; one roll decides how badly it goes, and
-           * the hunter's own trade skill narrows the fatal band (`huntingSpot` owns both and why).
+           * The wolf turns on the hunter, not the building; one roll decides how badly it goes,
+           * and the hunter's own trade skill narrows the fatal band (`huntingSpot` owns both).
            */
           const fate = huntingFightBackFate(seededRandomForRun(`${huntKey}:fate`), {
             skill: readSkill(hunter, JobType.Hunter),
           });
           if (fate === 'killed') {
-            // A settler's health is its energy, but a mauling is not what kills here: the wolf does,
-            // so the death goes through the one owner every other death uses, which also runs the
-            // family, residence and workplace cleanup.
+            // A settler's health is its energy, but the wolf kills here, so death goes through
+            // the one owner every other death uses, which also runs family/residence/workplace cleanup.
             const killedById = ensureEntityByIdMap(state);
             killHuman(hunter, updatedBuildings, killedById, state.tick, state);
             // The post keeps its roster truthful in the same tick: the dead hunter is not at work.
@@ -679,8 +588,8 @@ function tickBuildingProduction(
             humanDisplayName(hunter),
           );
         } else if (success) {
-          // `hunt_food` is the key the hunting research nodes actually declare (defense_2/4/8);
-          // the previous `hunt_yield` lookup matched no node and was a permanent 1.
+          // `hunt_food` is the key the hunting research nodes declare (defense_2/4/8);
+          // never look it up as `hunt_yield`.
           const huntMult = getHuntFoodMultiplier(state);
           const valleyHunt = getValleyHuntYieldMultiplier(state);
           const carcass =
@@ -693,9 +602,8 @@ function tickBuildingProduction(
             (12 + workers * 6) * carcass * totalMult * huntMult * globalEff * valleyHunt,
           );
 
-          // Record what storage actually accepted, not the nominal catch: the ledger's contract is "food
-          // that actually entered storage" (`economyLedger.ts`), and `addProductionOutput` both returns
-          // that amount and raises the "Stores full!" float when any of the catch was refused.
+          // Record what storage actually accepted, not the nominal catch: the ledger's contract is
+          // "food that actually entered storage", and `addProductionOutput` returns that amount.
           const added = addProductionOutput(state, building, 'food', amount);
 
           if (added > 0) {
@@ -703,11 +611,8 @@ function tickBuildingProduction(
             const preyId = targetPrey.id;
             targetPrey.energy = 0;
             markWildlifeDead(ctx, targetPrey, undefined, state.tick, state);
-            // The 4th argument is the tick's `byType` buckets. `clearHuntersTargetingPrey` sweeps
-            // only HUNTER_TYPES when it is given them (simulationEntities.ts), which is the same
-            // hunter-bucket scoping the three systems-layer call sites already use; without it this
-            // call walked every living entity (`entityById.values()`, ~700-900 incl. grass and
-            // trees) once per successful shot.
+            // `byType` scopes `clearHuntersTargetingPrey` to HUNTER_TYPES; without it the call
+            // walks every living entity once per successful shot.
             clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId, byType);
             syncEntityGrids(ctx, targetPrey);
             rewardProductionSkills(state, building, 0.2, entityById);
@@ -728,10 +633,8 @@ function tickBuildingProduction(
             logEvent(state, 'event', `Hunting Spot bagged a ${preyName} (+${added} meat)`);
           }
         } else if (!inReach) {
-          // Prey was spotted but the hunter is not beside it. Distinct from a miss so the player can
-          // tell "nothing out there" from "the animal is over there and nobody has walked to it" —
-          // the two read identically before, which is part of why the old behaviour looked like a
-          // turret firing at range.
+          // Prey was spotted but the hunter is not beside it: distinct from a miss, so the player
+          // can tell "nothing out there" from "the animal is over there".
           addFloatingText(state, hunter.x, hunter.y - 14, 'Too far to shoot', '#94a3b8', 'brief');
         } else {
           addFloatingText(state, targetPrey.x, targetPrey.y - 12, 'Missed shot!', '#94a3b8', 'brief');
@@ -765,9 +668,8 @@ function tickBuildingProduction(
               ? 0.9
               : 1.0;
       const amount = Math.floor((8 + workers * 4) * totalMult * seasonFish * globalEff);
-      // Same contract as the Hunting Spot above: the ledger and the player-facing lines carry what
-      // storage accepted, not the nominal catch (LIVE-FINDINGS-STATUS.md, M5). This site floats its own
-      // line, so a refused part is named in it rather than by `addProductionOutput`.
+      // As the Hunting Spot above: the ledger and the player-facing line carry what storage
+      // accepted, not the nominal catch.
       const added = addResource(state, 'food', amount);
       if (added <= 0) {
         addFloatingText(
@@ -910,9 +812,8 @@ function tickBuildingProduction(
           valleyFarm *
           weatherFarm,
       );
-      // Mirror the farm path: the ledger row is the food that actually entered
-      // storage (`added`), not the nominal harvest, so a full store cannot make
-      // the ledger disagree with the resources.
+      // Mirror the farm path: the ledger row is the food that actually entered storage
+      // (`added`), not the nominal harvest.
       const added = addProductionOutput(state, building, 'food', amount);
       if (added > 0) {
         recordFoodProduced(state, 'greenhouse', added);
@@ -978,17 +879,11 @@ function tickBuildingProduction(
 
         if (canAffordWorkshopRecipe(state.resources, recipe)) {
           const amount = Math.max(1, Math.floor(recipe.baseGold * outputMult));
-          // The cycle is all-or-nothing, and the headroom is tested *before* crediting. The recipe's
-          // full inputs pay for `amount` gold, so a partial credit would take the whole recipe for a
-          // fraction of its output and still announce a whole cycle; and `addResource` cannot be
-          // called first to find out, because the part it did accept would stay in the store with
-          // nothing consumed — free gold. At gold 19 999 of 20 000 a `furniture` cycle used to deduct
-          // 10 wood + 2 stone for 1 gold and report "+1 gold · Furniture (store full)"
-          // (`LIVE-FINDINGS-STATUS.md`, E-4). Refusing the whole cycle keeps every announced string
-          // honest: `+N gold · <recipe>` always means one full recipe.
+          // The cycle is all-or-nothing: test headroom before crediting, because a partial credit
+          // would keep accepted gold with nothing consumed. A full cycle always reports `+N gold`.
           if (getAvailableStorageHeadroom(state, 'gold') < amount) {
-            // Gold store at its cap: the recipe inputs are deliberately not consumed, so the workshop
-            // must say why it produced nothing — this used to be a completely silent no-op.
+            // Gold store at its cap: the recipe inputs are deliberately not consumed, so the
+            // workshop must say why it produced nothing.
             addFloatingText(
               state,
               building.x + building.width / 2,
@@ -1041,8 +936,8 @@ function tickBuildingProduction(
       building.type === BuildingType.Hospital &&
       isProductionTick(productionDayTick, PRODUCTION_INTERVAL.hospital)
     ) {
-      // The whole grant — the flat staffed amount and the ward round's own — is owned by
-      // `hospitalCare` (`LIVE-FINDINGS-STATUS.md`, A15); this layer only decides when it fires.
+      // The whole grant — flat staffed and ward-round — is owned by `hospitalCare`; this layer
+      // only decides when it fires.
       grantHospitalIntervalReputation(state, building, playerWorkers);
     }
 

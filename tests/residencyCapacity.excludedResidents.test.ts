@@ -1,7 +1,6 @@
 /**
- * Beds are counted from every resident, not only from the settlers a pass may move: an excluded
- * settler still sleeps in the house, and leaving their bed out of the count seats a newcomer into
- * a house that is already full (the day-90 overflow the long-run harness reports).
+ * Beds are counted from every resident, not only from settlers a pass may move: an excluded
+ * resident still sleeps there, so leaving them out would seat a newcomer in a full house.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';

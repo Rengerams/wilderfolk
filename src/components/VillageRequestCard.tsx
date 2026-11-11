@@ -8,13 +8,8 @@ export default function VillageRequestCard({
 }: {
   request: VillageRequest;
   onResolve: (requestId: string, choice: VillageRequestChoice['id']) => void;
-  /**
-   * Why Accept would be refused, straight from the owner
-   * (`getVillageRequestEligibility(state, request, 'accept').blockReason`). Without it an unaffordable
-   * offer looked like a dead button: the card stayed and the explanation arrived as a 12-second toast
-   * somewhere else. The raid and diplomacy cards already refuse by omitting the click
-   * (`LIVE-FINDINGS-STATUS.md`, F13).
-   */
+  /** Why Accept would be refused, straight from the owner's eligibility check, so a blocked offer
+   * is not a dead button. */
   acceptBlockedReason?: string | null;
 }) {
   const accept = request.choices.find((choice) => choice.id === 'accept');

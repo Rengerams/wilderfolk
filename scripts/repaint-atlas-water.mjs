@@ -1,24 +1,6 @@
 /**
- * Repaint the remaining green-teal atlas water tiles to the blue water family.
- *
- * Background (bug: rivers invisible on the main canvas, visible on the minimap):
- * The terrain bake stamps atlas water tiles for River/ShallowWater/DeepWater.
- * A full river channel interior is "all water" corners -> ATLAS_TILES[0b1111] =
- * tile id 61, which was a flat green-teal rgb(83,120,111) — nearly the same hue
- * family as the grass tiles, so rivers read as land while the minimap (which
- * colors River tiles #3b82a8 directly) showed blue rivers.
- *
- * An earlier fix (e2ed5df) repainted tiles 60/72/73/74/97 but missed 61/62/84/85/96.
- * This script finishes the job with the same per-color swap, preserving the
- * shading structure and the sand/grass shore pixels:
- *
- *   rgb(83,120,111) -> rgb(73,85,126)   base water
- *   rgb(54,99,101)  -> rgb(39,50,106)   darker water
- *   rgb(42,78,79)   -> rgb(30,39,82)    darkest water
- *   rgb(94,143,121) -> rgb(42,104,154)  teal shimmer -> blue shimmer
- *
- * Usage: node scripts/repaint-atlas-water.mjs
- * (PNG decode/re-encode is zlib-only, no dependencies.)
+ * Repaint the green-teal atlas water tiles (ids 61, 62, 84, 85, 96) to the blue water family with a
+ * per-colour swap, preserving shading and shore pixels. Run: `node scripts/repaint-atlas-water.mjs`.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import zlib from 'node:zlib';

@@ -25,14 +25,12 @@ import { building, human } from '../src/test/factories';
 import { isSchoolTime } from '../src/game/education';
 
 /**
- * Regression: schoolyard bonds — kids at school befriend classmates, and those
- * childhood bonds follow them into adulthood, nudging who they court (a friend
- * counts as half the distance). Bonds are mutual, capped at 3, and form on
- * school-day milestones.
+ * Schoolyard bonds: kids at school befriend classmates, those bonds follow them into
+ * adulthood and nudge courtship (a friend counts as half the distance).
  */
 describe('school.bonds.test.ts', () => {
   function stubHuman(id: number, overrides: Partial<Entity> = {}): Entity {
-    return {
+    const entity = {
       id,
       type: EntityType.Human,
       x: 0,
@@ -60,6 +58,9 @@ describe('school.bonds.test.ts', () => {
       relationshipStatus: 'single',
       ...overrides,
     } as Entity;
+    // A child fixture keeps a child's age, so the one age rule sees the same person the flag does.
+    if (entity.isJuvenile && overrides.age === undefined) entity.age = 10;
+    return entity;
   }
 
   function bondState(children: Entity[]) {
@@ -131,10 +132,8 @@ describe('school.bonds.test.ts', () => {
 });
 
 /**
- * Regression: each school seats ten pupils per assigned teacher, up to the
- * two-teacher building's twenty — the 11th child at a one-teacher school finds
- * no seat, so class sizes stay sane and a second teacher or school becomes a
- * real decision. A School auto-fills a teacher by default and can be set manual.
+ * Each school seats ten pupils per assigned teacher, up to twenty for a two-teacher
+ * building; a School auto-fills a teacher by default and can be set manual.
  */
 describe('school.capacity.test.ts', () => {
   function schoolFixture(): { child: Entity; school: Building } {
@@ -144,6 +143,7 @@ describe('school.capacity.test.ts', () => {
       id: 9000,
       name: 'Little',
       surname: 'One',
+      age: 10,
       isJuvenile: true,
       x: 100,
       y: 100,
@@ -228,14 +228,12 @@ describe('school.capacity.test.ts', () => {
 });
 
 /**
- * Regression: kids are gossip couriers — a child enrolled in school whose
- * parent carries an established affair may let it slip, exposing the affair
- * as a rumor (the schoolyard does the church's gossip work). One slip per
- * child per day; early flings are not worth blabbing about.
+ * Kids are gossip couriers: an enrolled child whose parent carries an established affair
+ * may expose it as a rumor — one slip per child per day, early flings excluded.
  */
 describe('school.gossip.test.ts', () => {
   function stubHuman(id: number, overrides: Partial<Entity> = {}): Entity {
-    return {
+    const entity = {
       id,
       type: EntityType.Human,
       x: 0,
@@ -262,6 +260,9 @@ describe('school.gossip.test.ts', () => {
       isJuvenile: false,
       ...overrides,
     } as Entity;
+    // A child fixture keeps a child's age, so the one age rule sees the same person the flag does.
+    if (entity.isJuvenile && overrides.age === undefined) entity.age = 10;
+    return entity;
   }
 
   function gossipFixture(parentProgress: number) {
@@ -326,18 +327,8 @@ describe('school.gossip.test.ts', () => {
 });
 
 /**
- * School rosters (2026-09-16) — the school inspector's pupil list.
- *
- * The simulation does not store attendance anywhere: every tick each player child is
- * sent to the nearest **staffed** school with a free seat, and seats are handed out in
- * world order through a per-tick reservation map (`humanTick`'s `schoolReserved`). The
- * inspector therefore has to ask the same owner function, which is what
- * `buildSchoolRosters` / `getSchoolRoster` expose — a second, hand-rolled answer would
- * inevitably disagree with where the children actually walk.
- *
- * These cases pin the parts a player would notice as wrong: a roster over capacity, a
- * child listed at a school with no teacher, the wrong children credited after an
- * overflow, and “in class” claimed at midnight.
+ * School rosters: the simulation stores no attendance, so the inspector asks the same
+ * owner (`buildSchoolRosters` / `getSchoolRoster`) that assigns children to schools.
  */
 describe('school.roster.test.ts', () => {
   /** One generated world, shared by the fixtures — generating one per entity is slow. */
@@ -377,6 +368,7 @@ describe('school.roster.test.ts', () => {
       id,
       name: `Child${id}`,
       surname: 'Test',
+      age: 10,
       isJuvenile: true,
       alive: true,
       faction: undefined,
@@ -388,8 +380,8 @@ describe('school.roster.test.ts', () => {
 
   /** A teacher on the school's staff, standing on the school's own worker row. */
   function teacherAt(school: Building, id: number): Entity {
-    const spot = humanBuildingTarget(school, id, false);
-    return { ...child(id, spot.x, spot.y), isJuvenile: false, workerBuildingId: school.id };
+    const spot = humanBuildingTarget(school, id);
+    return { ...child(id, spot.x, spot.y), age: 30, isJuvenile: false, workerBuildingId: school.id };
   }
 
   describe('school rosters', () => {
@@ -447,7 +439,7 @@ describe('school.roster.test.ts', () => {
 
     it('enrols only living player children', () => {
       const staffed = school(8000, 100, 100);
-      const grownUp = child(9000, 110, 100, { isJuvenile: false });
+      const grownUp = child(9000, 110, 100, { isJuvenile: false, age: 30 });
       const rivalChild = child(9001, 110, 100, { faction: 'rival' });
       const deadChild = child(9002, 110, 100, { alive: false });
       const realChild = child(9003, 110, 100);

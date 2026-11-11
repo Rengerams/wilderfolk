@@ -1,16 +1,6 @@
 /**
- * Death statistics report real numbers.
- *
- * `recordYearlyStats` counted deaths by filtering `!e.alive` out of `state.entities`, but
- * `gameTick` has already rebuilt that array from the living entities by the time the year
- * closes — so `YearlyStats.deaths.humans/animals` and `lifetimeStats.totalHumansDied` (the
- * "Humans Died" row in the Statistics panel) were permanently **0**. The old code also
- * subtracted the previous year's *per-year* count from that cumulative-looking total, a unit
- * mismatch that was masked by both sides being zero.
- *
- * Deaths are now tallied per tick by `gameTick`, from the entities that were alive at the start
- * of the tick and are not alive at the end of it: exact, and independent of when the array is
- * rebuilt. The tally accumulates for the year and is read by `recordYearlyStats`.
+ * Deaths are tallied per tick from entities alive at the start and dead at the end, because
+ * `gameTick` rebuilds `state.entities` before the year closes.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

@@ -26,37 +26,8 @@ const ALL_DISASTER_TYPES: readonly DisasterType[] = [
 ];
 
 /**
- * **Temporary owner switch (2026-09-17): hostile weather is OFF.**
- *
- * While `false`, both harmful weather paths return immediately:
- *
- * - `updateDisasters` — every disaster (fire, flood, plague, tornado, earthquake): the spawn, the
- *   notification, the screen shake, the building damage and the entity deaths;
- * - `applyDailyWeatherEffects` — storm building damage.
- *
- * Enforced *inside* those two functions rather than at their call sites, so no future caller can
- * bypass it by accident. The functions this file exports below them (`applyStormDamageToBuildings`,
- * `applyEarthquakeDamageToBuildings`) are deliberately **not** gated: they stay callable and their
- * existing tests keep their full strength, and they are what to fix when this is switched back on
- * (see the heal-floor class recorded in `docs/private/audits/2026-09-16/LIVE-FINDINGS-STATUS.md`, M6).
- *
- * Scope note: weather **itself** still rolls — rain, fog, snow and drought, their visuals, and the
- * farm multiplier in `grassEcology.getWeatherFarmMultiplier` are untouched. This removes the harm,
- * not the sky. Set to `true` to restore everything; it is one line, and it also re-runs the storm
- * tests that are conditionally skipped while it is off (`tests/weatherConsequences.test.ts`).
- *
- * **Owner ruling, recorded because the sentence above invites the opposite conclusion.** This switch is
- * not waiting on a bug fix. Weather was turned off because it was *"more annoying than a nice feature"*,
- * and a **new weather system is planned**. So "set it to `true` to restore everything" restores the
- * system that was rejected on feel — and this dormant code plus its player-facing copy (the Guide's
- * "Disasters & Seasons" card, the Nature panel's "Active Disasters" block, `defense_1`'s disaster-damage
- * text) is **scheduled for replacement, not for repair**: do not extend it, do not fix its wording, and
- * do not report it as missing. Kept rather than deleted so the damage model and its two conditionally
- * skipped tests stay usable as a reference the replacement can be measured against.
- *
- * Annotated `boolean` rather than left as the literal `false`: it is a switch a human flips, and the
- * literal type would make the storm tests' `skipIf(!HOSTILE_WEATHER_ENABLED)` a compile-time constant
- * (and therefore a TS "unreachable" diagnostic when they are skipped).
+ * Hostile weather is OFF: the two harmful paths return immediately, gated inside them so no caller can
+ * bypass it. Weather still rolls; the dormant system is slated for replacement, so do not extend it.
  */
 export const HOSTILE_WEATHER_ENABLED: boolean = false;
 
@@ -159,9 +130,8 @@ export function applyStormDamageToBuildings(
     if (!b.completed || b.faction === 'rival') continue;
     const dmg = Math.max(1, Math.round(damagePerDay * resistMult));
     const before = b.health ?? b.maxHealth;
-    // A building already at or below the weather floor must not be touched: the old
-    // `Math.max(20, before - dmg)` raised a 15 HP building back to 20 (storm "healing" it) and
-    // the `health < before` test then hid that from the damage report.
+    // A building already at or below the weather floor must not be touched: clamping `before - dmg`
+    // would raise a 15 HP building back to the floor, and the damage report hid that.
     if (before <= STORM_DAMAGE_HEALTH_FLOOR) continue;
     b.health = Math.max(STORM_DAMAGE_HEALTH_FLOOR, before - dmg);
     if (b.health < before) damaged.push(b);
@@ -170,9 +140,8 @@ export function applyStormDamageToBuildings(
 }
 
 /**
- * Earthquake damage per affected building: completed player buildings inside the quake's own
- * radius only. The branch previously damaged every building on the map regardless of distance,
- * completion or owner, so the x/y/radius rolled for the quake had no effect.
+ * Earthquake damage per affected building: completed player buildings inside the quake's own radius
+ * only, so the rolled x/y/radius decide who is hit.
  */
 export function applyEarthquakeDamageToBuildings(
   buildings: readonly Building[],
@@ -374,8 +343,7 @@ export function updateDisasters(state: WorldState): void {
         }
       }
       // The plague takes 15 % of the stores. Deduct the amount that actually left, through the owner,
-      // so the food ledger can name the loss instead of the panel silently disagreeing with the larder
-      // (`LIVE-FINDINGS-STATUS.md`, F2 sweep).
+      // so the food ledger can name the loss instead of the panel disagreeing with the larder.
       spendFood(
         state,
         'disaster',

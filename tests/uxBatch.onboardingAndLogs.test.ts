@@ -1,7 +1,6 @@
 /**
  * Source guards for the UX batch: each case names the shipped expression it replaces, so reverting a
- * fix fails here instead of silently restoring the defect. The house pattern is a source guard plus an
- * assertion that the guard is non-vacuous (`tests/ui-a11y.contract.test.ts`).
+ * fix fails here instead of silently restoring the defect.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

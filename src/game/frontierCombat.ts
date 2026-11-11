@@ -1,6 +1,8 @@
 import type { Building, Entity, RivalSettlement, WorldState, RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
 import { EntityType, JobType, PATH_CELL } from './gameTypes';
-import { TICKS_PER_DAY, TICKS_PER_HOUR, killHuman } from './dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR, getAbsoluteCalendarDay, killHuman } from './dayCycle';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
+import { awardRaidSurvivalMark } from './personalMarks';
 import { ensureEntityByIdMap } from './entityIndex';
 import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
 import { formatCitizenName, formatDeathLog } from './citizenId';
@@ -20,7 +22,7 @@ import { isSettlementDestroyed, beginRaidRecovery, rememberRivalDisposition } fr
 import { normalizeRivalProfile } from './rivalProfiles';
 export { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter };
 import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } from './resourceCost';
-import { getSimRng } from './simRng';
+import { getSimRng, hashSalt } from './simRng';
 import { addCappedResource } from './resourceUtils';
 import { spendFood } from './economyLedger';
 import { addBigNews, addFloatingText } from './simEffects';
@@ -112,9 +114,8 @@ export function formatRaidDeadline(evt: Pick<RaidEvent, 'expiresAtTick' | 'creat
   return `${days} day${days === 1 ? '' : 's'} left`;
 }
 
-/** Food is packed for the outward AND return march; deployed soldiers cannot
- * resupply at home en route. One ration per soldier per game day.
- * The fixed pack cost includes wagons and losses during travel.
+/** Food is packed for the outward and return march: deployed soldiers cannot resupply at home en
+ * route. One ration per soldier per game day, plus a fixed pack cost for wagons and travel losses.
  */
 export function getOutgoingRaidFoodCost(distancePixels: number, soldierCount = 0): number {
   const tiles = getCampDistanceTiles(distancePixels);
@@ -222,8 +223,17 @@ export function getOutgoingRaidFoodCostForRival(state: WorldState, rival: RivalS
   );
 }
 
+/** Incoming war-bands keyed by rival id; build once per tick instead of scanning per settler. */
+export function buildIncomingRaidIndex(state: WorldState): Map<string, RaidEvent> {
+  const byRival = new Map<string, RaidEvent>();
+  for (const raid of state.pendingRaidEvents ?? []) {
+    if (!byRival.has(raid.rivalId)) byRival.set(raid.rivalId, raid);
+  }
+  return byRival;
+}
+
 export function isRaidMarchingForRival(state: WorldState, groupId: string): boolean {
-  return (state.pendingRaidEvents ?? []).some((r) => r.rivalId === groupId);
+  return buildIncomingRaidIndex(state).has(groupId);
 }
 
 /** True when that rival has an incoming war-band — your strike back is a counter-raid, not a first strike. */
@@ -409,9 +419,9 @@ export function canRivalCampGrow(rival: RivalSettlement): boolean {
     && profile.ledger.recovery >= RIVAL_GROWTH_MIN_RECOVERY;
 }
 
-/** Which day of the cadence this camp takes stock on — staggered so camps do not all roll together. */
-export function isRivalGrowthDay(rivalIndex: number, colonyDay: number): boolean {
-  return (colonyDay + rivalIndex * 3) % RIVAL_GROWTH_INTERVAL_DAYS === 0;
+/** Which day of the cadence this camp takes stock on — staggered by stable identity, not list order. */
+export function isRivalGrowthDay(rivalId: string, colonyDay: number): boolean {
+  return (colonyDay + (hashSalt(rivalId) % RIVAL_GROWTH_INTERVAL_DAYS)) % RIVAL_GROWTH_INTERVAL_DAYS === 0;
 }
 
 export function getCombatPreview(
@@ -666,12 +676,8 @@ function rewardRaidParticipants(
 
   const repBonus = leaderInFight ? (RAID_LEADER_REP_BONUS[tier] ?? 0) : 0;
   if (repBonus > 0 && isRaidVictoryTier(tier)) {
-    // The applied delta, not the requested one. `addReputation` clamps at the ceiling, so this is 0
-    // for a victory that lands on a full bar — and the banner below promises "reputation rises", so it
-    // must not fire when the clamp delivered nothing. The old guard (`reputation > before`) got the
-    // full-bar case right but retired the announcement for *every* later victory too, because at 100
-    // the delta is always 0; `reputation < MAX` would swing the other way and announce a rise the
-    // clamp refused. The granted amount is the only value that answers the question asked.
+    // The applied delta, not the requested one: `addReputation` clamps at the ceiling, so a victory on
+    // a full bar grants 0 and the "reputation rises" banner must not fire.
     const granted = addReputation(state, repBonus);
     const leader = participants.find((p) => p.id === leaderId);
     if (leader) {
@@ -878,8 +884,7 @@ function applyRaidLootTaken(state: WorldState, loot: RaidLootBundle, fraction = 
   const target = scaleRaidLoot(raiseRaidLootToFloor(loot, state), fraction);
   const taken: RaidLootBundle = { food: 0, wood: 0, stone: 0, gold: 0 };
   if (target.food > 0) {
-    // `spendFood` returns what was actually taken, which is exactly the `min(food, target)` this used
-    // to compute by hand — and it records the loss against the raid sink.
+    // `spendFood` returns what was actually taken and records the loss against the raid sink.
     taken.food = spendFood(state, 'raid', target.food);
   }
   if (target.wood > 0) {
@@ -1260,6 +1265,11 @@ function resolveIncomingRaidCasualties(state: WorldState, event: RaidEvent, enti
   applyRaidCasualties(state, entities, tier, event.rivalName, 'defending', selected);
   event.battleCasualtiesApplied = true;
   event.battlePlayerCasualties = before.filter((person) => !person.alive).map(formatCitizenName);
+  // Surviving is the achievement: a clean win leaves luck, a mauling that was survived leaves a scar.
+  const survivalDay = getAbsoluteCalendarDay(state.tick);
+  for (const person of before) {
+    if (person.alive) awardRaidSurvivalMark(person, tier, survivalDay);
+  }
 }
 
 export function respondToRaidEvent(originalState: WorldState, eventId: string, choiceId: string): WorldState {
@@ -1468,9 +1478,8 @@ function resolveIncomingRaidInPlace(state: WorldState, eventId: string, choiceId
 }
 
 /**
- * An assault can permanently reduce a rival's manpower. An overwhelmingly superior
- * force may destroy the settlement outright; remove its physical presence and
- * queued events as well, otherwise it could keep raiding after being destroyed.
+ * An assault can permanently reduce a rival's manpower, and an overwhelmingly superior force may
+ * destroy the settlement outright — removing its presence and queued events too.
  */
 function recordIncomingRivalLosses(state: WorldState, event: RaidEvent, outcome: RaidOutcomeTier,
   strength: number): { deaths: number; fallen: string[] } {
@@ -1490,10 +1499,9 @@ function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, stren
   const lossFraction = strengthRatio >= 4 ? 0.85 : strengthRatio >= 2 ? 0.6 : 0.25;
   const losses = Math.min(Math.max(0, rival.population - 1), Math.max(1, Math.ceil(rival.population * lossFraction)));
   rival.population -= losses;
-  // Rivals can have a larger simulated population than their visible character roster.
-  // Kill only living members, record named deaths when available, and count any
-  // remaining losses as off-map casualties instead of inventing character names.
-  const livingRivals = state.entities.filter((entity) => entity.alive && !entity.warCaptive && !entity.isJuvenile
+  // Rivals can have a larger simulated population than their visible character roster: kill living
+  // members and count remaining losses as off-map casualties instead of inventing names.
+  const livingRivals = state.entities.filter((entity) => entity.alive && !entity.warCaptive && entity.age >= HUMAN_ADULT_MIN_AGE
     && entity.job === JobType.Soldier && rival.entityIds.includes(entity.id));
   const victims = livingRivals.slice(0, losses);
   const casualties = new Set(victims.map((entity) => entity.id));
@@ -2012,9 +2020,8 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
       if (neighbor.relationship === 'friendly') neighbor.relationship = 'neutral';
       else if (neighbor.relationship === 'neutral') neighbor.relationship = 'competitive';
       else if (neighbor.relationship === 'competitive') neighbor.relationship = 'tense';
-      // The settlements that witnessed the razing remember the threat. Hostile
-      // neighbors prepare their next move sooner; peaceful witnesses become wary
-      // and hold off immediate engagement. Both use persistent rival timers.
+      // Witnesses remember the razing: hostile neighbours prepare sooner, wary ones hold off, both
+      // through persistent rival timers.
       if (neighbor.relationship === 'tense') {
         neighbor.daysUntilAction = Math.min(neighbor.daysUntilAction, 10);
       } else {

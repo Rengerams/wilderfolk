@@ -1,11 +1,6 @@
 /**
- * Terrain biome definitions for the Teraforge generator, ported from
- * `src/lib/terrain.ts` (including the L3 decor tables).
- *
- * `isWater` and `buildable` are the single source of truth for the L0 path grid
- * and the L1 build grid. `density` + `decor` drive the L3 decor layer. Trees
- * (oak/pine/palm/fruit_tree/dead_tree) are listed here for parity with Teraforge
- * but are **not** baked as decor — Wilderfolk spawns trees as chop-able entities.
+ * Terrain biome definitions for the Teraforge generator, including the L3 decor tables.
+ * `isWater`/`buildable` drive the L0 path and L1 build grids; trees are entities, not decor.
  */
 
 export type BiomeId =
@@ -43,13 +38,8 @@ export type SpriteType =
   | 'fruit_tree' | 'scrub' | 'dirt_patch';
 
 /**
- * Small L3 decorations explicitly retired from new (v4) worlds.
- *
- * Keep their SpriteType names and the original BIOMES tables unchanged: compact
- * v1–v3 saves regenerate from those historical tables, and their saved decor can
- * still be rendered. This filter is only applied by the v4 placement/renderer.
- *
- * 'berries' is a visual ground prop, NOT a harvestable blueberry tree entity.
+ * Small L3 decorations retired from new (v4) worlds — keep their SpriteType names and the original
+ * BIOMES tables so v1–v3 saves still regenerate and render.
  */
 export const RETIRED_V4_DECOR_TYPES: ReadonlySet<SpriteType> = new Set<SpriteType>([
   'mushroom',

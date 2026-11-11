@@ -1,4 +1,4 @@
-import { isMarriedOrExpecting } from '../civilStatus';
+import { isMarriedOrExpecting } from '../relationships';
 import type { Camera, Entity, EntityByType } from '../gameTypes';
 import { EntityType as EntityTypeEnum, UNCACHED_RENDER_TICK } from '../gameTypes';
 import type { RenderSnapshot } from '../renderSnapshot';
@@ -18,19 +18,8 @@ const ENTITY_VIEWPORT_KEY_ZOOM_DIGITS = 3;
 
 let _cachedEntityTick = UNCACHED_RENDER_TICK;
 /**
- * The render buffer the draw buckets were built from.
- *
- * A tick counter alone is not a sufficient key. The `tick` only advances inside `gameTick`, so a
- * **command** that changes what the render SoA shows produces a fresh buffer at an unchanged tick —
- * a spawned entity, cleared `chatTicks`, changed residence or hidden flags. Keyed on the tick alone,
- * `updateCachedEntitiesFromSoA` took the "nothing changed" branch and the canvas kept drawing the
- * previous buffer's shims while `GameLoop` had already adopted the new reader and patched the
- * inspector from it. While the game is **paused** — the natural moment to issue such a command — no
- * tick ever arrives, so the change was invisible until the player unpaused.
- *
- * `GameWorkerHost.buildRender` creates a new `RenderSoAReaderV1` per message, so its identity is the
- * buffer's identity and a command refresh is detected as a change. `useRef`-style identity compares
- * are exact here: two messages never share a reader.
+ * The render buffer the draw buckets were built from. A tick counter alone is not enough: a command
+ * refresh produces a new reader at an unchanged tick, so buffer identity is the real key.
  */
 let _cachedRenderReader: RenderSnapshot['renderSoA'] = null;
 let _cachedEntityViewportKey = '';
@@ -100,10 +89,8 @@ function syncDrawCacheTick(tick: number): boolean {
 }
 
 /**
- * Whether the draw buckets must be rebuilt for this snapshot — a new tick **or** a new render buffer.
- *
- * The two are different events: a command refresh replaces the buffer without advancing the tick (see
- * `_cachedRenderReader`), and both must invalidate the tick-keyed grass and entity viewport caches.
+ * Whether the draw buckets must be rebuilt: a new tick or a new render buffer, since a command
+ * refresh replaces the buffer without advancing the tick.
  */
 function syncDrawCacheSource(snapshot: RenderSnapshot): boolean {
   const tickChanged = syncDrawCacheTick(snapshot.tick);
@@ -161,12 +148,8 @@ export interface ViewportChunk {
 }
 
 /**
- * A tick list cut into contiguous chunks, each labelled by the y range it covers.
- *
- * A camera pan rebuilds the viewport lists every frame, and the previous code re-tested every tree,
- * animal and settler in the world to do it. Chunks are contiguous slices, so a query returns entities
- * in the list's own depth order; the y range is a *conservative* box around each chunk, so a list that
- * is not y-sorted widens a chunk's range instead of hiding an entity from the query.
+ * A tick list cut into contiguous chunks, each labelled by a conservative y range, so a camera pan
+ * queries only nearby chunks while keeping the list's own depth order.
  */
 export interface ViewportBands {
   readonly chunks: readonly ViewportChunk[];
@@ -325,12 +308,8 @@ export function updateCachedEntitiesFromSoA(state: RenderSnapshot, cw: number, c
     _tickAnimals = entitiesFromSoASlots(_renderSoABuckets.animalSlots, _renderSoABuckets.shimBySlot);
     _tickHumans = entitiesFromSoASlots(_renderSoABuckets.humanSlots, _renderSoABuckets.shimBySlot);
     rebuildViewportBands();
-    // The fallback list is the SoA path's own shims, not `[]`. `syncGrassRenderGridFromSoA` returns
-    // `undefined` when the spatial grid is switched off (`VITE_USE_SPATIAL_GRID=0`), and
-    // `collectGrassInViewport` then falls back to a linear scan of the array it is handed — so a
-    // hard-coded empty array drew **no grass at all** on the worker path while the main-thread path
-    // still drew it, which is exactly the A/B comparison the switch exists to make. It is rebuilt
-    // with the buckets, not per frame: a pan used to re-materialise every grass shim each frame.
+    // The fallback list is the SoA path's own shims, not `[]`: a hard-coded empty array would draw
+    // no grass on the worker path when the spatial grid is switched off.
     _soaGrassFallback = entitiesFromSoASlots(_renderSoABuckets.grassSlots, _renderSoABuckets.shimBySlot);
   } else if (!_renderSoABuckets || !_treeBands) {
     _renderSoABuckets = updateRenderSoABuckets(

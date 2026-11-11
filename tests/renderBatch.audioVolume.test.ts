@@ -1,9 +1,6 @@
 /**
- * F-RND-30 — the volume preset has to reach the HTMLAudio fallback.
- *
- * The gameplay and intro themes play through an `HTMLAudioElement` first, which sits outside the
- * Web Audio bus chain: `audioGraph` scales its own buses, so the only way the preset reaches the
- * element is the sync in `htmlAudioSync`.
+ * The intro and gameplay themes play through an `HTMLAudioElement`, outside the Web Audio bus chain,
+ * so the volume preset must reach it through `htmlAudioVolumeForPreset`.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { VOLUME_PRESETS, levelsForPreset } from '../src/audio/preferences';

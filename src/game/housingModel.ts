@@ -60,17 +60,8 @@ export function isImprisoned(human: Entity): boolean {
 }
 
 /**
- * A living player settler with no bed — the one definition of "homeless".
- *
- * Two rules meet here, and four surfaces used to disagree about them:
- *
- *  - **A prisoner is not homeless.** Imprisonment deliberately clears `residenceBuildingId`
- *    (`humanLifecycleCleanup`), so a naive `residenceBuildingId == null` count reports every jailed
- *    settler as unhoused — the mistake `LIVE-FINDINGS-STATUS.md` F10 recorded for the council report
- *    and the priority strip, and that `housingDiagnostics.unassignedPlayerHumans` still made.
- *  - **A child without a bed is homeless.** The People screen's Home card excluded juveniles, so a
- *    child sleeping rough was counted by the dashboard and the alert strip but not by the card whose
- * tone and "Housing is tight" mood depend on it.
+ * A living player settler with no bed — the one definition of "homeless". A prisoner is not
+ * homeless (imprisonment clears the residence); a child without a bed is.
  */
 export function isHomelessSettler(entity: Entity): boolean {
   return entity.alive
@@ -158,20 +149,6 @@ export function residenceRoomFor(human: Entity, residence: Building, humans: Ent
 
 // ——— Households, custody and kin ———
 
-/** The age rule alone: an 18-year-old is adult even if a stale flag says otherwise. */
-export function isMinor(human: Entity): boolean {
-  return human.age < HUMAN_ADULT_MIN_AGE;
-}
-
-export function isAdult(human: Entity): boolean {
-  return !isMinor(human);
-}
-
-export function isMinorChild(child: Entity): boolean {
-  if (child.partnerId != null) return false;
-  return child.isJuvenile || isMinor(child);
-}
-
 /** One adult-led home: settler + spouse + their children, not parents or siblings. */
 export function collectOwnHousehold(seed: Entity, humans: Entity[]): Entity[] {
   const household: Entity[] = [];
@@ -196,8 +173,10 @@ export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Enti
 /** The same household, dependent children only: an adult child is its own housing unit. */
 export function collectMinorHousehold(seed: Entity, humans: Entity[]): Entity[] {
   const partnerId = seed.partnerId;
+  // A partnered minor is its own housing unit; age alone still makes them a minor elsewhere.
   return collectOwnHousehold(seed, humans).filter(
-    (member) => member.id === seed.id || member.id === partnerId || isMinorChild(member),
+    (member) => member.id === seed.id || member.id === partnerId
+      || (member.age < HUMAN_ADULT_MIN_AGE && member.partnerId == null),
   );
 }
 
@@ -320,14 +299,13 @@ export function isAdultChildAtHome(
   human: Entity,
   humans: Entity[],
   /**
-   * Pre-built `id → entity` index for a caller testing many candidates against one list. Without it
-   * each call scans `humans` twice (mother, father), which is O(humans²) when the caller is itself a
-   * `humans.filter`.
+   * Pre-built `id → entity` index for a caller testing many candidates against one list; without it
+   * each call scans `humans` twice.
    */
   byId?: ReadonlyMap<number, Entity>,
 ): boolean {
-  if (!human.alive || !isPlayerHuman(human) || human.isJuvenile) return false;
-  if (isMinor(human) || !hasResidenceAssignment(human)) return false;
+  if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE) return false;
+  if (!hasResidenceAssignment(human)) return false;
   const findLivingParent = (id: number | undefined): Entity | undefined => {
     if (byId) {
       const found = id == null ? undefined : byId.get(id);

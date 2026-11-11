@@ -1,16 +1,6 @@
 /**
- * Compact saves and the valley they came from.
- *
- * A compact save is a reference: it stores `seed`, `preset`, `size` and the dimensions, and the whole
- * valley is regenerated on load. That reference was incomplete — it recorded no terrain noise seed —
- * so a change to how the seed is derived repainted every existing settlement. The owner's played
- * valley became a different one, and its own water-dependent placements are the proof: a Fishing Spot
- * may only be placed where its footprint holds water, and 13 of 13 were left standing on dry land.
- *
- * These cases pin all three halves of the repair: a save that records the seed regenerates exactly
- * that valley; a save written before the seed was recorded falls back to the pre-change noise seed
- * when its own completed fishing dock proves the current rule is wrong; and a save with no such
- * witness pays for one worldgen only.
+ * A compact save is a reference — `seed`, `preset`, `size` and dimensions regenerate the valley — so
+ * it must also record the terrain noise seed, or a derivation change repaints every existing settlement.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, MAP_SIZE_DIMENSIONS, MapPreset, MapSize, PATH_CELL, type WorldMap } from '../src/game/gameTypes';
@@ -29,10 +19,8 @@ const SEED: number = 6422;
 const DIMENSIONS = MAP_SIZE_DIMENSIONS[SIZE];
 
 /**
- * A completed Fishing Spot centred on a water cell of `map`, with the shipped footprint.
- *
- * Only a preset/size pair whose two seed rules disagree is worth using: the first water cell of the
- * legacy map is a dock whose own placement rule holds under one rule and not the other.
+ * A completed Fishing Spot centred on a water cell of `map`, with the shipped footprint; only a
+ * preset/size pair whose two seed rules disagree makes a useful witness.
  */
 function fishingSpotOnWater(map: WorldMap, id: number): Record<string, unknown> {
   for (let ty = 1; ty < map.height - 1; ty++) {
@@ -61,10 +49,8 @@ function fishingSpotOnWater(map: WorldMap, id: number): Record<string, unknown> 
 }
 
 /**
- * A save built from a real generated world, with its compact map record overridden.
- *
- * `terrainSeed: null` drops the recorded seed, which is exactly what a save written before it was
- * recorded looks like on the wire.
+ * A save built from a real generated world with its compact map record overridden; `terrainSeed:
+ * null` drops the recorded seed, matching a save written before it was recorded.
  */
 function syntheticSave(options: {
   terrainSeed: number | null;

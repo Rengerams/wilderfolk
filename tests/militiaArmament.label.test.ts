@@ -1,13 +1,6 @@
 /**
- * F15 — "Militia 132 · 🏹 Unarmed adults" on the same card
- * (`docs/private/audits/2026-09-16/ui-logic.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * `FrontierPanel` restated the armament tiers by hand and knew only two of them
- * (`hasIronSpears ? 'Iron spears' : hasStoneSpears ? 'Stone spears' : 'Unarmed adults'`), while the
- * owner — `militiaBalance.getMilitiaArmamentLabel` — also covers iron swords and the three shield
- * tiers, and those multipliers are exactly what `computeMilitiaBreakdown` adds up for the strength
- * printed two rows above. A village with iron swords, or with shields but no spear tech (reachable:
- * `iron_shields` has no forge prerequisite), therefore read "Unarmed adults" next to a real strength.
+ * The militia card must print `getMilitiaArmamentLabel`'s tier — the one `computeMilitiaBreakdown`
+ * accounts for — rather than restating a shorter tier list by hand.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

@@ -72,16 +72,8 @@ export default function MomentTitleCard({ moment, onDone }: Props) {
     }
   };
 
-  // The card is a full-screen click-catcher that holds the map for ~4.8 s, so it must also be
-  // dismissable from the keyboard: Enter/Space activate it, Escape skips it
-  //
-  // It must also **claim** the keyboard while it is up, which is the other half of the same contract
-  // and was missing: `useKeyboardControls` listens on `window` in the capture phase and returns
-  // immediately while any claim is held, so without one every gameplay hotkey fired at the game behind
-  // the card and Escape ran the game handler's own chain — clearing the player's map selection instead
-  // of skipping the card. The card is not focusable by default, so the focused-element `onKeyDown`
-  // below could not catch those either (`useOverlayKeyboard`, the same pair the dashboard, Valley
-  // overview, game menu and quick-start use).
+  // The card is a full-screen click-catcher, so it must be dismissable from the keyboard and must
+  // claim the keyboard while up (`useOverlayKeyboard`), or hotkeys fire on the game behind it.
   useOverlayKeyboard('moment-title-card', handleSkip, Boolean(moment));
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {

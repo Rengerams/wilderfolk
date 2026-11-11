@@ -1,15 +1,6 @@
 /**
- * The map canvas's keyboard cursor — the last half of bug 55 / OPEN-6 (2026-09-20 audit, A-2).
- *
- * `GameMapStage`'s canvas has carried `role="img"`, a name and `tabIndex={0}` since A-2, so a screen
- * reader could reach it and read its name — but every *action* on the map was pointer-only: there
- * was no cursor to move, therefore nothing to place a building on and nothing to select. The cursor
- * maths and the key → intent mapping live in the hook so they can be pinned here, without a browser:
- * this tier is `environment: 'node'` (`vitest.config.ts`), so the hook cannot be mounted and the
- * canvas cannot be rendered. What these tests own is the arithmetic (where a key sequence puts the
- * cursor, and where its clamp stops) and the mapping (which key means what, and what it does while
- * an overlay owns the keyboard); the canvas wiring is pinned by source in
- * `tests/keyboardGuards.contract.test.ts`.
+ * The map canvas's keyboard cursor: the hook owns the cursor arithmetic and the key → intent mapping
+ * so both can be pinned here without a browser; the canvas wiring is pinned by source elsewhere.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -95,8 +86,7 @@ describe('arrow keys step the cursor across the map', () => {
 
   it('reveals the cursor in the middle of what the player is looking at', () => {
     // `screenToWorld` at the viewport centre IS the camera target, so the first press cannot put the
-    // cursor somewhere the player cannot see. Snapped to the placement lattice, so every later step
-    // stays on it.
+    // cursor where the player cannot see it; snapped to the placement lattice.
     const camera = cameraAt(1000, 800, 2);
     const start = initialMapCursorPoint(camera, 800, 600);
     expect(start).toEqual({ x: 1000, y: 800 });
@@ -178,11 +168,8 @@ describe('key → intent', () => {
   });
 
   it('leaves every other key to its owner — including Space, which is the pause key', () => {
-    // Space is deliberately not an activation key here: `useKeyboardControls` binds it to pause on
-    // `window` in the capture phase (`isActivatableTarget` is false for a `role="img"` canvas), so it
-    // runs before any handler on the canvas and cannot be preempted from this file. Binding Space
-    // would pause the game on every placement. `MiniMap` gets Space for free only because its canvas
-    // is a `role="button"`, which is exactly the target `isActivatableTarget` looks for.
+    // Space pauses via `useKeyboardControls` on `window` in the capture phase and cannot be
+    // preempted from the canvas, so binding it here would pause on every placement.
     for (const key of ['w', 'b', 'r', 'x', 'h', 'v', 'f', 'n', 'p', 'l', 'm', '1', '9', '?', ' ', 'Tab', 'Shift', 'a']) {
       expect(resolveMapCursorIntent(key, context), key).toEqual({ type: 'none' });
     }
@@ -210,9 +197,8 @@ describe('key → intent', () => {
 
 describe('Enter acts where the cursor is', () => {
   it('maps the cursor to the client point the pointer path reads back as the same world point', () => {
-    // The activation dispatches the same DOM event a click is, at the cursor's screen position, and
-    // the pointer path converts it back with `useCanvasInteractions.getEventWorldCoords`. This is
-    // that conversion, so the two directions are pinned against each other.
+    // Enter dispatches the same DOM event a click is, at the cursor's screen position; this pins the
+    // pointer path's `getEventWorldCoords` conversion against it.
     const camera = cameraAt(500, 400, 2);
     const canvasWidth = 800;
     const canvasHeight = 600;
@@ -239,9 +225,8 @@ describe('Enter acts where the cursor is', () => {
 
 describe('the cursor says what is under it', () => {
   /**
-   * Flat, building-free ground the game's own placement rule accepts — on the `GRID_SIZE` lattice,
-   * which is the lattice `snapBuildingCenter` snaps a cursor to, so the spot the fixture verifies is
-   * the spot the description asks about.
+   * Flat, building-free ground the game's placement rule accepts, on the `GRID_SIZE` lattice
+   * `snapBuildingCenter` snaps a cursor to.
    */
   function findLegalSpot(world: WorldState, type: BuildingType): MapCursorPoint {
     const map = world.worldMap;

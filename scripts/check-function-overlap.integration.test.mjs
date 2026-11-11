@@ -42,6 +42,8 @@ function runCase(t, candidate) {
   writeGraph([original]);
   const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' });
   git('init', '-q');
+  // The fixture repo must not inherit a machine-wide core.autocrlf and warn about its own LF files.
+  git('config', 'core.autocrlf', 'false');
   git('config', 'user.email', 'semantic-gate@example.invalid');
   git('config', 'user.name', 'Wilderfolk E2E');
   git('add', '.');

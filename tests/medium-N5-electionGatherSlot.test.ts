@@ -1,16 +1,6 @@
 /**
- * Audit N-5 — the election gather slot without rebuilding the attendee list.
- *
- * `getElectionGatherTarget` ran once per settler per tick while a ceremony is live, and each call
- * rebuilt `state.entities.filter(isEligibleForLeadership).sort(byId)` just to find one index. It now
- * takes that index in a single pass.
- *
- * The attendee set deliberately stays live: `isEligibleForLeadership` reads `alive`, and the very
- * loop that calls this kills settlers between two calls (`killFromExhaustion` on the exhaustion and
- * daily-mortality paths — humanTick.ts:323, 368, 1516). A per-tick memo would therefore hand later
- * settlers the slot of a smaller ring than the one they are walking to. `legacyGetElectionGatherTarget`
- * below is the pre-fix body, kept as the oracle: every case asserts the new pass agrees with it,
- * including across a mid-loop death.
+ * `getElectionGatherTarget` takes the attendee index in one pass instead of rebuilding and sorting
+ * the eligible list per settler, but the attendee set stays live because the same loop kills settlers.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType, MapSize } from '../src/game/gameTypes';
@@ -58,9 +48,8 @@ function legacyGetElectionGatherTarget(state: WorldState, entityId: number): { x
 }
 
 /**
- * A settlers line-up with every eligibility shape the predicate knows: adults, a child, a
- * seventeen-year-old below the adult floor, a prisoner, a foreign rival, and a corpse. Ids are
- * deliberately out of array order so an id-sorted slot cannot accidentally coincide with it.
+ * A settler line-up covering every eligibility shape: adults, a child, a sub-adult, a prisoner, a
+ * foreign rival and a corpse, with ids out of array order so an id-sorted slot cannot coincide.
  */
 function gatherWorld(): WorldState {
   const world = initGame({ villageName: 'Gather', size: MapSize.Medium, seed: FIXTURE_SEED });

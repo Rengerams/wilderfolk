@@ -1,66 +1,7 @@
 #!/usr/bin/env node
 /**
- * Wilderfolk browser smoke — the one tier that sees the real game.
- *
- * WHY THIS EXISTS
- * ---------------
- * Every other gate in this repository runs in Node: `vitest` (environment `node`), `tsc`, `oxlint`.
- * None of them can see the two things the roadmap keeps asking for evidence about, because those only
- * exist in a browser: the real canvas renderer with real fonts and a real viewport, and the *rendered*
- * result of the valley. Several recorded defects were pure presentation defects — a child sprite with no
- * alpha channel, a hunting arrow emitted from a building, a map that renders as a void — and no Node
- * assertion can see any of them. A pixel check can.
- *
- * So this harness drives the **built** game in a real browser, walks the real player path
- * (boot → intro → settle → live valley), and gates on what the page actually did: is the ground
- * painted, is the simulation ticking, do the zoom controls work, and was the console quiet.
- *
- * WHAT IT DELIBERATELY DOES NOT DO
- * --------------------------------
- * It does not replace `vitest`. Simulation truth, ownership, cadence, worker deltas and saves stay in
- * the Node tier, where they are fast and isolated. This tier answers one question: *does the real game
- * boot, render, live, and stay quiet in a real browser?*
- *
- * It also does not carry the P6 viewport/DPI matrix, the panel pass, the settler walk-through, the
- * acceptance checklist or the in-app autoplay pass. The 2026-09-21 reconstruction of the previous
- * harness had those as **uncalled** code (its own header said so), and they depend on authoring work
- * rather than recovery — `docs/plans/browser-testing-evaluation.md` holds the design, and
- * `scripts/autoplay-browser-probe.mjs` is where the bot pass lives. What is here is the part that can
- * gate a commit today.
- *
- * A NOTE ON THE REWRITE (2026-09-24)
- * ---------------------------------
- * The previous file was a partial reconstruction of a harness destroyed by the 2026-09-20 tree revert,
- * and it had been failing on its own flow rather than on the game: it clicked the intro at ~1.2 s, when
- * the intro is a **timed cinematic whose call-to-action is not yet enabled**, and it treated "found a
- * button" as "clicked a button". Every downstream failure in its report — *HUD never appeared*, *no
- * `#camera-zoom-preset` control*, *the simulation is not ticking* — was a cascade of that one step.
- * This version waits for an **enabled** control, and it proves each step from the page rather than
- * assuming it.
- *
- * USAGE
- * -----
- *   node scripts/browser-smoke.mjs                      # serve dist/ on a spare port
- *   node scripts/browser-smoke.mjs --url http://127.0.0.1:4320   # reuse a running server
- *   node scripts/browser-smoke.mjs --headful             # watch it happen
- *   node scripts/browser-smoke.mjs --out tmp/shots       # artifact directory
- *   node scripts/browser-smoke.mjs --baseline <png>      # compare the valley against a baseline
- *   node scripts/browser-smoke.mjs --channel msedge      # a different installed browser
- *   node scripts/browser-smoke.mjs --viewport 1600x900   # the wide pass (slower, see below)
- *
- * **Why the default viewport is 900×600.** A headless browser on a machine with no usable GPU
- * soft-rasterises every canvas path, and this game draws thousands of decor and sprite paths per frame.
- * A CPU profile of one valley frame at 1600×900 put **92 % of main-thread self time in native
- * `fill`/`stroke`/`restore`** — the rasteriser, not JS — with individual frames of 5–6 s, and at that
- * viewport the simulation's own tick counter did not advance inside a 21 s window even with the world
- * resumed. At 900×600 the same build ticks normally (measured: tick 24 → 27 and the HUD clock
- * 08:00 → 09:00 in 21 s). The harness therefore runs where the *game* can be observed, and records the
- * measured frame time so an unusually slow environment is visible in the report instead of looking like
- * a frozen simulation. Per-frame performance is a different tier's job (`npm run test:full-year`,
- * `scripts/perf-seeded-year.mts`); this one asks whether the game boots, renders, lives and stays quiet.
- *
- * Exits 0 only when every gate passed. `report.json` and the screenshots are written to `--out`.
- * The browser is the one already on the machine (`playwright-core`, no bundled download).
+ * Wilderfolk browser smoke: drives the built game in a real browser through boot → intro → settle →
+ * live valley, gating on painted ground, a ticking simulation and a quiet console. See `--help`.
  */
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -105,11 +46,8 @@ function parseArgs(argv) {
 }
 
 /**
- * Render gates, measured on a passing run of this build (2026-09-24, 1600×900, Chrome, the boot view at
- * 145%). The margins are deliberately wide: they are there to catch "the ground never painted" — a black
- * canvas, a void, a frozen frame — not to freeze the art direction. `distinctColors` was 23 671 and
- * `meanLuma` 88.6 when measured, and the 50% view read 11 068 / 42.1 with 63.8% void around the map slab,
- * which is why the far-zoom gate counts *non-void* pixels instead of brightness.
+ * Render gates: wide margins that catch "the ground never painted" — a black canvas, a void, a frozen
+ * frame — not freeze the art direction. Far zoom counts non-void pixels, not brightness.
  */
 const GATES = {
   minDistinctColors: 4000,
@@ -183,11 +121,8 @@ function stopServer() {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Click the first **enabled** button whose text matches, from inside the page.
- *
- * Enabled matters: the intro is a timed cinematic and its call-to-action exists in the DOM before it can
- * be used, so a raw `element.click()` on it is a silent no-op. Returns what it clicked, or the buttons it
- * saw, so a failure names the real state of the screen.
+ * Click the first enabled button whose text matches; the intro's call-to-action is in the DOM before it
+ * can be used. Returns what it clicked, or the buttons it saw, so a failure names the screen's state.
  */
 async function clickEnabledButton(page, pattern) {
   return page.evaluate((source) => {
@@ -244,14 +179,8 @@ async function screenshot(page, name, outDir) {
 }
 
 /**
- * The HUD's own word for whether the simulation is running: the play/pause control is labelled
- * `Resume simulation` exactly while the world is paused. The guided first-spring overlay pauses the
- * world on purpose, so a liveness check that does not resume is measuring the overlay, not the game.
- *
- * Space is the shipped shortcut ("Pause / speed — Space toggles pause", `GameHeader`), and it is the
- * reliable one: the HUD button's own `aria-label` flipped to "running" while the simulation worker's
- * diagnostics still reported `Paused`, whereas a Space press resumed the world for real (measured:
- * tick 24 → 27).
+ * `Resume simulation` means the world is paused. Resume with Space — the reliable path — and re-read the
+ * label; the guided first-spring overlay pauses the world on purpose, so liveness must resume first.
  */
 async function resumeIfPaused(page) {
   const label = () => page.evaluate(() => (document.querySelector('[aria-label="Resume simulation"]') ? 'paused' : 'running'));
@@ -408,9 +337,8 @@ async function main() {
   report.browser = { channel: args.channel, headless: !args.headful, version: browser.version() };
   const page = await browser.newPage({ viewport: args.viewport });
 
-  // Frame-time recorder, installed before the valley exists so the report can show how fast this
-  // environment is actually painting (see the header: a GPU-less headless browser is slow, and a slow
-  // environment must not be mistaken for a frozen game).
+  // Frame-time recorder, installed before the valley exists: a slow environment must not be mistaken
+  // for a frozen game.
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: args.timeoutMs });
   await page.evaluate(() => {
     window.__frames = [];
@@ -487,10 +415,8 @@ async function main() {
   await screenshot(page, 'valley-frozen', outDir);
   if (!ready) return;
 
-  // The guided first-spring overlay freezes the sim on purpose, so the liveness step below is
-  // meaningless until the card is dismissed *and* the world is actually running. The guide can take a
-  // moment to appear, and the resume can land before the simulation worker is ready to accept it — both
-  // were observed as a frozen clock — so wait for the card, then settle the run state with retries.
+  // The guided first-spring card freezes the sim on purpose, and it may not be up yet, so wait for the
+  // card, then settle the run state with retries.
   let tutorial = { clicked: false, label: null };
   for (let attempt = 0; attempt < 10 && !tutorial.clicked; attempt++) {
     tutorial = await clickEnabledButton(page, /^(got it|skip)( →)?$/);
@@ -516,11 +442,8 @@ async function main() {
   record('render', painted, bootSample ? JSON.stringify(bootSample) : 'no 2d canvas to sample');
   report.render = bootSample;
 
-  // 5. Is the simulation running? The HUD clock is the player's own evidence, and the window is generous
-  // on purpose: a soft-rasterising headless browser paints this valley slowly, so a clock that has not
-  // moved in a few seconds is not proof of a frozen world (measured: 6 s was too short, 21 s was not).
-  // Two windows are allowed, with a fresh resume between them, because the first resume can land before
-  // the simulation worker is ready — observed as "HUD says running, clock never moves".
+  // 5. Is the simulation running? The HUD clock is the player's own evidence; a soft-rasterising headless
+  // browser is slow, so allow two windows with a fresh resume between them.
   const waitForClock = async (windowMs) => {
     const from = await headerText(page);
     let to = from;

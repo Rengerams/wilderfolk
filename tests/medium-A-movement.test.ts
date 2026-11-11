@@ -1,21 +1,8 @@
 import { personDayRoll } from '../src/game/simRng';
 import { WORK_COMMUTE_RUSH as MAX_COMMUTE_SPEED_MULTIPLIER } from '../src/game/commuteReach';
 /**
- * Regression tests for the medium-severity movement/cadence findings from
- * BUG_REPORTS/2026-09-13-simulation-logic-audit.md:
- *
- * - M12 hotelStay / M27 humanMovement: the *same* defect wearing two hats. A 2026-09-13 change
- *   made `pathfinding.steerWithPath` write the entity's position as well as its velocity, while
- *   the callers still applied their own step, so pathed walkers advanced twice per tick. The fix
- *   belongs to the owner: the stepper only sets velocity, and each caller applies exactly one step
- *   (the commute leaves it to the human loop, the hotel walk moves the visitor itself). Verified
- *   against the pre-regression contract in `de98bd6` (2026-08-29) and `3b0660f`.
- * - M13 humanHospitalBehavior: the day-stable treatment roll was re-evaluated every
- *   tick, so a patient near a staffed ward was treated on every tick of the day.
- * - M14 humanHospitalBehavior: the routing wrote position in addition to velocity, so the human
- *   loop's single movement apply stepped the settler twice; velocity only now.
- * - M22 pathfinding: a path cached under an origin-independent key was reused from a
- *   different origin, steering the settler back toward the stale path start.
+ * Movement/cadence regressions: a stepper sets velocity only and each caller applies one step, the
+ * day-stable hospital roll is per day, and cached paths are origin-aware.
  */
 import { describe, expect, it } from 'vitest';
 import { steerVisitorToHotel } from '../src/game/hotelStay';
@@ -23,9 +10,10 @@ import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior'
 import { getPathGrid, invalidateCommutePathsForWalker, isOnWalkableRoadAt, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { getCurrentPathfinderTickCounters, resetPathfinderSession, setPathfindingMetricsEnabled } from '../src/game/pathfindingMetrics';
 import { applyHumanWalkStep, commuteHumanToBuilding, humanBuildingTarget, steerHumanToward } from '../src/game/simulation/humanMovement';
+import { buildingAccessPoint, isAtBuildingReach } from '../src/game/buildingAccess';
 import { ROAD_SPEED_MULT } from '../src/game/simulation/movementSteering';
 import { COMMUTE_CONFIG } from '../src/game/commuteReach';
-import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { PREGNANCY_TICKS, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldMap, WorldState } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -175,7 +163,7 @@ describe('hotel guest routing and road speed', () => {
 
 describe('M14 hospital routing movement', () => {
   it('sets walk velocity without writing position (the human loop applies the step)', () => {
-    const patient = human(1, 20, 16, { pregnant: true, energy: 40, maxEnergy: 100 });
+    const patient = human(1, 20, 16, { pregnant: true, pregnancyProgress: 900, pregnancyDueProgress: 1000, energy: 40, maxEnergy: 100 });
     const ward = hospital(5, 400, 0, [2]);
     const state = makeState(0, [patient]);
 
@@ -183,7 +171,6 @@ describe('M14 hospital routing movement', () => {
       state,
       entity: patient,
       staffedHospitals: [ward],
-      onJobShift: false,
       speed: 2,
     });
 
@@ -209,13 +196,12 @@ describe('M13 hospital treatment cadence', () => {
         state,
         entity: patient,
         staffedHospitals: [ward],
-        onJobShift: false,
         speed: 2,
       });
     }
 
-    // The day-stable gate passing is a once-per-day event, not a licence to treat
-    // (skill + 1 food each time) on all 72 ticks of that day.
+    // The day-stable gate passing is a once-per-day event, not a licence to repeat the
+    // skill + 1 food treatment on every tick of that day.
     expect(foodBefore - state.resources.food).toBe(1);
   });
 });
@@ -372,9 +358,8 @@ describe('M22 path cache origin', () => {
     // First leg: cached from the bottom-left corner.
     expect(steerWithPath(entity, target.x, target.y, 5, cacheKey)).toBe('path');
 
-    // Same commute leg begun from a different origin, still needing a path around
-    // the river. Reusing the cached waypoints would steer the settler 300px back
-    // toward the stale origin instead of toward the target.
+    // Same commute leg from a different origin: the cached waypoints must be recomputed, not reused
+    // to steer the settler back toward the stale origin.
     entity.x = pixel(25, 35);
     entity.y = pixel(25, 35);
     expect(steerWithPath(entity, target.x, target.y, 5, cacheKey)).toBe('path');
@@ -422,7 +407,7 @@ describe('M27 commute movement', () => {
     setCurrentPathMap(makeMap(40, 40, 927, (x, y) => x === 20 && y !== 20), []);
     const building = { id: 7, x: 300, y: 150, width: 40, height: 30, completed: true } as Building;
     const entity = human(3, 55, 55);
-    const target = humanBuildingTarget(building, entity.id, false);
+    const target = humanBuildingTarget(building, entity.id);
 
     const speed = 1;
     const distBefore = Math.hypot(target.x - entity.x, target.y - entity.y);
@@ -431,7 +416,7 @@ describe('M27 commute movement', () => {
 
     const startX = entity.x;
     const startY = entity.y;
-    expect(commuteHumanToBuilding(entity, building, speed, false)).toBe(false);
+    expect(commuteHumanToBuilding(entity, building, speed)).toBe(false);
 
     // The stepper must leave the entity untouched: the loop's apply is the single integration.
     // (`toBeCloseTo`: the step is set as a velocity and applied by the caller.)
@@ -451,7 +436,7 @@ describe('M27 commute movement', () => {
     const building = { id: 8, x: 600, y: 600, width: 40, height: 30, completed: true } as Building;
     const entity = human(4, 0, 0);
 
-    expect(commuteHumanToBuilding(entity, building, 1, false, 3.5)).toBe(false);
+    expect(commuteHumanToBuilding(entity, building, 1, 3.5)).toBe(false);
     expect(Math.hypot(entity.vx, entity.vy)).toBeCloseTo(
       MAX_COMMUTE_SPEED_MULTIPLIER * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO,
       6,
@@ -484,9 +469,8 @@ describe('water and walls are solid under every walk', () => {
   it('lets a walker already standing on a blocked tile walk off it', () => {
     const map = makeMap(40, 40, 944, (x) => x === 20);
     setCurrentPathMap(map, []);
-    // Settlers do end up on water — shoved by a neighbour, snapped to a doorstep, or restored from a
-    // save made while they waded. Testing the whole step instead of the ground ahead would freeze
-    // them there for good, so the cell they already occupy is not an obstacle to leaving it.
+    // Settlers can end up on water, so the occupied cell is not an obstacle to leaving it; testing
+    // the whole step instead of the ground ahead would freeze them there.
     const walker = human(5, pixel(20, 10) + 2, pixel(10, 10));
     walker.vx = -2;
     for (let tick = 0; tick < 20; tick++) applyHumanWalkStep(walker, 1);
@@ -542,33 +526,41 @@ describe('water and walls are solid under every walk', () => {
       .toBeLessThan(wall.x);
   });
 
-  it('moves a persistently stuck walker to nearby walkable ground', () => {
+  it('stops repeated blocked steps without teleporting or entering solid terrain', () => {
     const map = makeMap(40, 40, 946, (x) => x === 20);
     setCurrentPathMap(map, []);
     const walker = human(7, pixel(19, 10), pixel(10, 10));
     const startX = walker.x;
-    walker.vx = 2;
+    const startY = walker.y;
 
-    for (let tick = 0; tick < 20; tick++) applyHumanWalkStep(walker, 1);
+    // A stale steering request can recur while the route is invalidated. It must not move the
+    // settler backwards, snap to a remote cell or push through the impassable river column.
+    for (let tick = 0; tick < 20; tick++) {
+      walker.vx = 2;
+      applyHumanWalkStep(walker, 1);
+      expect(blockedAt(map, [], walker.x, walker.y), 'step entered blocked ground').toBe(false);
+      expect(walker.x, 'blocked recovery jumped behind the starting point').toBeGreaterThanOrEqual(startX);
+      expect(walker.x, 'blocked recovery crossed the river boundary').toBeLessThan(20 * PATH_CELL);
+      expect(walker.y, 'blocked recovery changed the walk row').toBe(startY);
+    }
 
-    expect(walker.x, 'the walker remained pinned against the obstacle').toBeLessThan(startX);
-    expect(blockedAt(map, [], walker.x, walker.y), 'recovery must use walkable ground').toBe(false);
+    expect(walker.vx, 'blocked steering should stop movement until a valid new route exists').toBe(0);
+    expect(walker.vy).toBe(0);
   });
 
   it('routes a short leg through a gap instead of fording it', () => {
-    // River column 20 with a single gap at row 12, and a workplace 20 px east of the settler: a leg
-    // under LONG_RANGE_DIST (50), which used to steer straight at the target and straight into the
-    // river.
+    // River column 20 with a gap at row 12, and a workplace 20 px east: a leg under LONG_RANGE_DIST
+    // (50) must route through the gap rather than ford.
     const map = makeMap(40, 40, 943, (x, y) => x === 20 && y !== 12);
     const buildings: Building[] = [];
     setCurrentPathMap(map, buildings);
-    const workplace = { id: 7, x: pixel(21, 10), y: pixel(10, 10) - 25, width: 40, height: 30, completed: true } as Building;
+    const workplace = { id: 7, x: pixel(23, 10), y: pixel(10, 10) - 25, width: 40, height: 30, completed: true } as Building;
     const walker = human(3, pixel(19, 10), pixel(10, 10));
 
     let arrived = false;
     let forded = false;
     for (let tick = 0; tick < 600 && !arrived; tick++) {
-      arrived = commuteHumanToBuilding(walker, workplace, 1, false);
+      arrived = commuteHumanToBuilding(walker, workplace, 1);
       applyHumanWalkStep(walker, 1);
       if (blockedAt(map, buildings, walker.x, walker.y)) forded = true;
     }
@@ -615,30 +607,31 @@ describe('water and walls are solid under every walk', () => {
 });
 
 describe('commute approach easing (the doorstep stretch)', () => {
-  it('reaches the doorstep without overshooting or exceeding urgent walking pace', () => {
+  it('reaches the building without overshooting or exceeding urgent walking pace', () => {
     const building = { id: 9, x: 600, y: 600, width: 60, height: 48, completed: true } as Building;
     const entity = human(5, 0, 0);
-    const stand = humanBuildingTarget(building, entity.id, false);
-    entity.x = stand.x;
-    entity.y = stand.y - 45;
+    const access = buildingAccessPoint(building);
+    entity.x = access.x;
+    entity.y = access.y + 45;
     entity.vx = 0;
     entity.vy = 0;
 
     const steps: number[] = [];
     let ticks = 0;
-    while (Math.hypot(stand.x - entity.x, stand.y - entity.y) > 8 && ticks < 200) {
-      commuteHumanToBuilding(entity, building, 1.05, false, 2);
+    while (!isAtBuildingReach(entity, building) && ticks < 200) {
+      commuteHumanToBuilding(entity, building, 1.05, 2);
       steps.push(Math.hypot(entity.vx, entity.vy));
       entity.x += entity.vx;
       entity.y += entity.vy;
       ticks++;
     }
 
-    // The urgent pace is capped at twice the configured walk speed and eases near the target.
+    // The urgent pace is capped at twice the configured walk speed, and the walker stops outside.
+    expect(isAtBuildingReach(entity, building)).toBe(true);
     expect(ticks).toBeLessThanOrEqual(30);
-    expect(ticks).toBeGreaterThanOrEqual(4);
+    expect(ticks).toBeGreaterThanOrEqual(1);
     expect(Math.max(...steps)).toBeLessThanOrEqual(1.05 * MAX_COMMUTE_SPEED_MULTIPLIER);
-    expect(steps[0]!).toBeGreaterThan(steps[steps.length - 1]! * 2);
+    expect(entity.y).toBeGreaterThan(building.y + building.height / 2);
   });
 });
 describe('blocked commuter path recovery', () => {

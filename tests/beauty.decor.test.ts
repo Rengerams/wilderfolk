@@ -1,7 +1,6 @@
 /**
- * Phase 3.2 — decorations & beauty. Decor buildings stamp a neighborhood
- * beauty grid, settlers drift toward pretty spots, and village happiness
- * reads out from beauty under settlers.
+ * Decor buildings stamp a neighborhood beauty grid, settlers drift toward pretty
+ * spots, and village happiness reads out from the beauty under settlers.
  */
 import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';

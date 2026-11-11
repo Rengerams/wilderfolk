@@ -11,6 +11,7 @@ import { snapshotSimRng, resetSimRng } from '../src/game/simRng';
 import { transformToWerewolfForm } from '../src/game/moonHowler';
 import { revertToHumanForm } from '../src/game/moonHowlerForm';
 import type { WorldState } from '../src/game/gameTypes';
+import { genomeFrom } from './helpers/genome';
 
 function oldPayload(): Record<string, unknown> {
   const world = initGame({ skipTerrain: true, seed: 4242 });
@@ -35,18 +36,18 @@ function load(payload: Record<string, unknown>): WorldState {
 }
 
 describe('PR D compact old-save migration', () => {
-  it('does not invent shifts or milestones from pre-existing skills, occupations or DNA', () => {
+  it('does not invent shifts or milestones from pre-existing skills, occupations or genetics', () => {
     resetSimRng();
     const payload = oldPayload();
     const before = (payload.entities as Record<string, unknown>[]).find((e) => e.type === EntityType.Human)!;
     before.skills = { farmer: 90 };
-    before.traits = ['hardy'];
+    before.genomeV2 = genomeFrom({ discipline: 88 });
     before.job = JobType.Farmer;
     const snapshot = structuredClone(before);
     const world = load(payload);
     const person = world.entities.find((e) => e.id === before.id)!;
     expect(person.skills?.farmer).toBe(90);
-    expect(person.traits).toEqual(['hardy']);
+    expect(person.genomeV2).toEqual(genomeFrom({ discipline: 88 }));
     expect(person.careerHistory).toBeUndefined();
     expect(person.careerMilestones).toBeUndefined();
     expect(before).toEqual(snapshot);
@@ -125,12 +126,12 @@ describe('PR D compact old-save migration', () => {
     expect(snapshotSimRng()).toEqual(expected);
   });
 
-  it('retains legacy absent DNA behavior without inventing career experience', () => {
+  it('retains legacy absent-genome behavior without inventing career experience', () => {
     const payload = oldPayload();
     const first = (payload.entities as Record<string, unknown>[]).find((e) => e.type === EntityType.Human)!;
-    delete first.traits;
+    delete first.genomeV2;
     const restored = load(payload).entities.find((e) => e.id === first.id)!;
-    expect(restored.traits?.length).toBeGreaterThan(0);
+    expect(restored.genomeV2?.aptitudeAlleles).toHaveLength(14);
     expect(restored.careerHistory).toBeUndefined();
     expect(restored.careerMilestones).toBeUndefined();
   });

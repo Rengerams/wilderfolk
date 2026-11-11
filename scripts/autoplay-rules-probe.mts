@@ -1,10 +1,6 @@
 /**
- * Temporary probe (local-only, gitignored, safe to delete).
- *
- * WHY: the reported rule gaps are "it ignores iron at 0" and "it does not build houses".
- * This drives the REAL decision engine on real `initGame` worlds whose stores are set to
- * the state being asked about, and prints what the bot answers for each — including
- * "nothing", which is the interesting case.
+ * Drive the real decision engine on real `initGame` worlds whose stores are set to the state being
+ * asked about, and print the bot's answer for each (including "nothing").
  */
 import { initGame } from '../src/game/gameEngine';
 import { BuildingType, MapSize } from '../src/game/gameTypes';

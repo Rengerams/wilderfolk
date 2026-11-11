@@ -1,13 +1,6 @@
 /**
- * Generate a seamless top-down wooden bridge deck sprite (our own art, no
- * external assets): 96×32, 3:1 — matches the Bridge building footprint
- * (64×22 drawn at 1.05×) so 'contain' fills the segment exactly.
- *
- * Design: vertical deck planks (perpendicular to travel) + railing with posts
- * on the two long edges. Vertical plank pattern → left/right edges are
- * naturally seamless, so a chain of bridge segments reads as one bridge.
- *
- * Run: node scripts/generate-bridge-sprite.mjs
+ * Generate the seamless 96×32 wooden bridge deck sprite, 3:1 like the Bridge footprint: vertical
+ * planks and long-edge railings, so a chain reads as one bridge. Run: `node scripts/generate-bridge-sprite.mjs`.
  */
 import { deflateSync } from 'zlib';
 import { writeFileSync } from 'fs';

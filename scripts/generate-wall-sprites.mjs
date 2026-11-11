@@ -1,24 +1,6 @@
 /**
- * Generate the axis-aligned medieval stone wall segments (our own art, no external assets).
- *
- * WHY THESE EXIST. A wall run is **axis-aligned** — `BuildingRotation` is `0 | 90` and the world→screen
- * transform is a plain scale+translate with no isometric skew (`viewState.worldToScreen`) — but the old
- * art (`wall_isometric.png`) is a 45° isometric face, so drawing it once per 60 px piece produced a
- * sawtooth and the procedural palisade that replaced it read as a flat blue bar. A wall needs *height*
- * (or it is indistinguishable from `road.png`, which is a flat cobble band) and it needs masonry.
- *
- * So: a real ashlar wall in the same 3/4 "camera looking from the south, slightly above" view as
- * `house.png`, drawn in the direction the run actually goes.
- *
- *   wall_h.png  east–west run: crenellated battlement over staggered ashlar courses.
- *               Tiles seamlessly left↔right — every pattern period divides the width and no border
- *               is drawn on the left/right edges, so N pieces read as one wall.
- *   wall_v.png  north–south run: the same wall seen edge-on down the run. Tiles seamlessly top↕bottom.
- *
- * The renderer draws these at exactly the strip pitch (`along` = 60 world px) so consecutive pieces
- * abut, anchored on the wall's BASE so the height rises off the footprint.
- *
- * Run: node scripts/generate-wall-sprites.mjs
+ * Generate the axis-aligned stone wall strips `wall_h.png` (east–west) and `wall_v.png`
+ * (north–south), seamless at the 60 px pitch. Run: `node scripts/generate-wall-sprites.mjs`.
  */
 import { deflateSync } from 'zlib';
 import { writeFileSync } from 'fs';

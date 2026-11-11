@@ -1,5 +1,6 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BUILDING_JOB_TYPES } from './gameTypes';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { addFloatingText, addNotification } from './simEffects';
 import {
   addToConstructionCrew,
@@ -35,17 +36,8 @@ export function pickAdultSettler(
 }
 
 /**
- * Why the staffing owner refuses **one settler at one building** — `null` when it accepts them.
- *
- * The per-settler twin of {@link canAssignWorkerToBuilding}, and the vocabulary the inspector shows.
- * `canAssignWorkerToBuilding` answers "can anybody be assigned here?"; this answers "why not *this*
- * settler?", which is the question the player asks when the panel offers them nobody.
- *
- * Each gate is the same predicate the command path uses, in the same order, so the inspector cannot
- * tell the player something `assignWorkerTransition` / `addToConstructionCrew` would contradict. The
- * one deliberate divergence is the job-type gate below, which is reported before the capacity gate:
- * a Mill has no worker job *and* a capacity of 0, and "this building takes no workers" is the true
- * reason where "every slot is full" would be nonsense.
+ * Why the staffing owner refuses one settler at one building — `null` when it accepts them; the
+ * vocabulary the inspector shows, gated in the same order as the command path.
  */
 export type WorkerAssignmentRefusal =
   | 'unknown-building'
@@ -69,7 +61,7 @@ export type WorkerAssignmentRefusal =
 function staffCandidateRefusal(entity: Entity): WorkerAssignmentRefusal | null {
   if (!isPlayerHuman(entity)) return 'not-a-settler';
   if (!entity.alive) return 'settler-dead';
-  if (entity.isJuvenile) return 'juvenile';
+  if (entity.age < HUMAN_ADULT_MIN_AGE) return 'juvenile';
   if (hasWorkAssignment(entity)) return 'already-assigned';
   if (isImprisoned(entity)) return 'imprisoned';
   return null;
@@ -80,11 +72,8 @@ function isEligibleStaffCandidate(entity: Entity): boolean {
 }
 
 /**
- * A settler who may be assigned as a builder on `building` (duplication-deadcode A18): the shared
- * core, minus anyone already living in the structure and minus anyone already on another structure's
- * crew. The command (`_applyBuilderAssignmentMut`) and the affordance/preview
- * (`canAssignWorkerToBuilding`) must agree, or the button proposes an assignment the command refuses —
- * the no-op re-proposal loop documented in `virtualPlayer.ts:376-383`.
+ * A settler who may be assigned as a builder on `building`: the shared core, minus residents and
+ * anyone already on another structure's crew.
  */
 function isEligibleBuilderForBuilding(
   state: WorldState,
@@ -191,9 +180,8 @@ export function fillBuildingWorkers(
   preferredHumanId?: number,
 ): WorldState {
   const preview = originalState.buildings.find((building) => building.id === buildingId);
-  // Bulk worker selection is only for unfinished construction crews.
-  // Completed workplaces use automatic reconciliation; a retired manual
-  // command must not clone the world or report a phantom state change.
+  // Bulk selection only applies to unfinished construction crews; completed workplaces are
+  // staffed by automatic reconciliation.
   if (!preview || preview.faction === 'rival' || preview.completed) return originalState;
 
   const cap = BUILDING_CONFIGS[preview.type].maxOccupants;
@@ -271,10 +259,8 @@ export function removeStaffWorkerFromBuilding(
   if (!building || !human) return state;
   if (building.completed && isResidenceBuildingType(building.type)) return state;
 
-  // `removeWorkerTransition` releases the settler from every workplace and crew, so a
-  // removal aimed at another building would silently free their real job. Refuse unless
-  // the settler actually works here — the workplace link (`workerBuildingId`) or the
-  // construction-crew occupant list is the assignment this action removes.
+  // `removeWorkerTransition` clears the settler's real job and crew, so refuse unless this
+  // building owns the assignment (workplace link or construction-crew roster).
   if (human.workerBuildingId !== buildingId && !building.occupants.includes(humanId)) return state;
 
   removeWorkerTransition(human, state.buildings);
@@ -298,11 +284,8 @@ export function canAssignWorkerToBuilding(state: WorldState, buildingId: number)
 }
 
 /**
- * The owner's answer to player assignment requests. Job posts are automatic; builders may be assigned. Read-only: nothing here mutates state, so the inspectors can ask it every frame.
- *
- * Gate order follows the construction command; completed workplaces are automatic. One
- * exception noted on {@link WorkerAssignmentRefusal}. A settler already on this building's roster or
- * crew is *accepted* (the command is idempotent), so they are reported as `null`, not refused.
+ * The owner's answer to a player assignment request, read-only. Job posts are automatic; builders
+ * may be assigned; a settler already on this building is accepted (`null`).
  */
 export function getWorkerAssignmentRefusal(
   state: WorldState,

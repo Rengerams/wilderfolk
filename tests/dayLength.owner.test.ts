@@ -1,15 +1,6 @@
 /**
- * A8 — the calendar day length was defined twice and one definition was dead
- * (`docs/private/audits/2026-09-16/duplication-deadcode.md`, tracked in `LIVE-FINDINGS-STATUS.md`).
- *
- * `gameConstants.Time` declared `TICKS_PER_DAY: 72` — zero references anywhere — while the live clock
- * derived its own `TICKS_PER_DAY` in `dayCycleClock.ts` from a second local literal, `TICKS_PER_HOUR = 3`.
- * Two definitions of one rule, already different in kind (literal vs derived): if `HOURS_PER_DAY` were
- * retuned to 20 the runtime day would become 60 ticks while `Time.TICKS_PER_DAY` still claimed 72.
- *
- * The owner is now `gameConstants.Time`; the clock derives `TICKS_PER_DAY` from `Time.TICKS_PER_HOUR`
- * and `Time.HOURS_PER_DAY` and reads `Time.DAYS_PER_YEAR` without re-hard-coding a `?? 360` fallback.
- * The existing `tests/gameTick.layerOrder.test.ts` pin (72) is deliberately untouched.
+ * The calendar day length has one owner: `gameConstants.Time`. The clock derives TICKS_PER_DAY from
+ * `Time.TICKS_PER_HOUR * Time.HOURS_PER_DAY` and reads `Time.DAYS_PER_YEAR` directly.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

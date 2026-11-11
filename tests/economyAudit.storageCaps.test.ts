@@ -1,7 +1,6 @@
 /**
- * Economy audit regression tests — storage caps, gold cap, spoilage, and the
- * Wood Storehouse building fix the audit's winter-banking / snowball findings
- * (see docs/private/ECONOMY_AUDIT_2026-08-17.md).
+ * Economy regression tests: `updateStorageCaps` caps, gold cap, spoilage, and the
+ * Storehouse/Silo upgrade tiers granted through `buildingTypeHasLevelBenefit`.
  */
 import { describe, it, expect } from 'vitest';
 import { updateStorageCaps } from '../src/game/economy';

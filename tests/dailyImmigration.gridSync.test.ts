@@ -1,10 +1,6 @@
 /**
- * F6 of the 2026-09-16 lifecycle/social audit (`docs/private/audits/2026-09-16/sim-lifecycle-social.md`):
- * the daily immigration spawn pushed the newcomer into `state.entities` / `allAlive` and only updated
- * the id maps, never `mobileGrid`. The daily layer runs **after** the tick's
- * `assertSpatialGridInvariants`, so the newcomer stayed invisible to social/hunt grid queries for the
- * rest of the tick (it self-heals on the next tick's reconcile). The spawn now goes through the
- * canonical `pushNewEntity` path, exactly as births do.
+ * The daily immigration spawn must index its newcomer in `mobileGrid` and `ctx.newEntities` in the
+ * same tick, not wait for the next tick's reconcile.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
@@ -13,6 +9,8 @@ import type { PopulationCounts } from '../src/game/entityCounts';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { EntitySpatialGrid } from '../src/game/spatialGrid';
 import { tickDailyPopulation } from '../src/game/dailyPopulation';
+import { getOpenPlayerBeds } from '../src/game/populationGrowth';
+import { getResidenceCapacity } from '../src/game/housingModel';
 import { getSimRng, resetSimRng, setSimSeed } from '../src/game/simRng';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 
@@ -122,6 +120,27 @@ afterEach(() => {
 });
 
 describe('daily immigration and the spatial grid (F6)', () => {
+  it('does not admit anyone when the population cap has room but all assignable beds are occupied', () => {
+    const { state, ctx, allAlive, counts } = fixture();
+    const home = state.buildings[0];
+    const capacity = getResidenceCapacity(home);
+    for (let id = 3; id <= capacity; id++) {
+      const resident = settler(id, home.x, home.y);
+      allAlive.push(resident);
+      state.entities.push(resident);
+      ctx.entityById.set(id, resident);
+      counts.humans++;
+    }
+    home.occupants = allAlive.map((human) => human.id);
+    expect(getOpenPlayerBeds(state)).toBe(0);
+
+    setSimSeed(seedAdmittingSettler());
+    tickDailyPopulation(state, ctx, allAlive, counts);
+
+    expect(state.maxHumanPopulation).toBeGreaterThan(counts.humans);
+    expect(ctx.newEntities).toHaveLength(0);
+    expect(state.eventLog.some((event) => event.type === 'migration')).toBe(false);
+  });
   it('indexes an admitted settler in mobileGrid during the same tick', () => {
     const { state, ctx, allAlive, counts, mobileGrid, before } = fixture();
 
@@ -132,7 +151,7 @@ describe('daily immigration and the spatial grid (F6)', () => {
     expect(newcomer).toBeDefined();
 
     const foundInGrid: number[] = [];
-    mobileGrid.forEachInRadius(newcomer!.x, newcomer!.y, 8, (e) => foundInGrid.push(e.id));
+    mobileGrid.forEachInRadius(newcomer!.x, newcomer!.y, 8, (e) => { foundInGrid.push(e.id); });
     expect(foundInGrid).toContain(newcomer!.id);
     expect(ctx.newEntities).toContain(newcomer);
   });

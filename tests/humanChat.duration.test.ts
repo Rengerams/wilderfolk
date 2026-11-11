@@ -1,7 +1,6 @@
 /*
- * BUG 2026-08-21-dialogue-bubbles-use-unscaled-legacy-ticks.
- * Dialogue text must not remain over a citizen for most of an in-game day after
- * the production cadence changed from one to three ticks per clock hour.
+ * Dialogue durations are game hours, not nominal legacy ticks: a line must not sit over a citizen for
+ * most of an in-game day at the production cadence.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -58,9 +57,8 @@ describe('human chat duration at production cadence', () => {
   });
 
   it('preserves actual legacy speech tick lifetimes for migrated domain captions', () => {
-    // Before the JSON cutover, these were passed to sayHumanChatPhrase in nominal
-    // ticks and scaled by the current simulation clock. The new request must
-    // preserve that effective duration, not treat nominal ticks as game hours.
+    // These captions carry legacy nominal ticks; the request must keep their effective duration
+    // rather than read nominal ticks as game hours.
     const cases = [
       { eventKey: 'hospital.patient.other', nominalTicks: 48 },
       { eventKey: 'hospital.doctor', nominalTicks: 44 },

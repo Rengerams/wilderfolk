@@ -1,22 +1,7 @@
 #!/usr/bin/env node
 /**
- * Housekeeping: empty `tmp/` and drop browser-automation leftovers.
- *
- * Dry run by default; pass --apply to actually delete.
- *
- * POLICY (owner, 2026-09-30): `tmp/` is session scratch and is emptied wholesale.
- * Nothing durable belongs there — if it is worth keeping, it lives in its
- * documented home (`docs/`, `scripts/`, `tests/`), not in `tmp/`. That is why
- * this script has NO keep-list for `tmp/`: an exception list quietly turns
- * scratch into storage, which is how 391 MB accumulated.
- *
- * It also removes the throwaway browser profiles automation leaves in the OS
- * temp dir, because those are the same kind of thing: one-run scratch that
- * nothing cleans up when a run is killed.
- *
- * It never touches, and refuses to touch: `node_modules`, `.git`, `docs/`,
- * `src/`, `tests/`, the pnpm store (the DSH harness itself lives there), the uv
- * cache (the Godot AI plugin's Python envs), or the Recycle Bin.
+ * Housekeeping: empty `tmp/` and drop browser-automation leftovers — dry run unless `--apply`. It never
+ * touches `node_modules`, `.git`, `docs/`, `src/`, `tests/`, the pnpm store, the uv cache or the Recycle Bin.
  */
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import os from 'node:os';
@@ -32,9 +17,8 @@ const REPO_TREES = ['dist'];
 const SCRATCH_DIR = 'tmp';
 
 /**
- * Browser profiles automation leaves in the OS temp dir, matched by EXACT
- * prefix and only as a direct child of the temp root. No recursive glob, so
- * nothing unrelated can be caught by accident.
+ * Browser profiles automation leaves in the OS temp dir, matched by exact prefix and only as a direct
+ * child of the temp root — never a recursive glob.
  */
 const TEMP_PREFIXES = [
   'playwright_chromiumdev_profile-',
@@ -80,11 +64,8 @@ function collectTargets() {
     if (existsSync(full)) targets.push({ path: full, why: 'build output' });
   }
 
-  // Scratch is expanded PER ENTRY on purpose. A whole-tree `rmSync` aborts on the
-  // first locked file and leaves the entire tree behind: the first real run hit a
-  // single EPERM and silently kept 390 MB. Per entry, one locked file costs one
-  // entry. The `tmp/` directory itself is left in place — scripts resolve paths
-  // under it and should not have to recreate their own parent.
+  // Scratch is expanded per entry: a whole-tree `rmSync` aborts on the first locked file and leaves
+  // everything behind. `tmp/` itself stays — scripts resolve paths under it.
   const scratch = path.join(REPO, SCRATCH_DIR);
   if (existsSync(scratch)) {
     for (const entry of readdirSync(scratch)) {

@@ -1,8 +1,6 @@
 /**
- * Guards for the overhead status badge, the bubble/name-plate layout, and the asset register.
- *
- * Each block covers one measured defect: a font-dependent status mark, a bubbling layout that
- * ignored name plates, and a register that did not reconcile against `public/sprites/`.
+ * Guards the overhead status badge (shapes, not font glyphs) and the speech-bubble layout that must
+ * clear the name plates.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';

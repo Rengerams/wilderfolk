@@ -1,7 +1,6 @@
 /**
- * Phase 3.3 — work & footstep detection is pure logic (no audio side effects):
- * staffed production buildings pick the work sound during work hours, and a
- * moving settler's surface is sampled from the terrain map for the footstep.
+ * Work & footstep detection is pure logic: staffed production buildings pick the work sound during
+ * work hours, and a moving settler's surface is sampled from the terrain map.
  */
 import { describe, it, expect } from 'vitest';
 import { BuildingType, EntityType, MapPreset, MapSize, TerrainType } from '../src/game/gameTypes';
@@ -15,11 +14,8 @@ import { DEFAULT_WORK_SCHEDULE, isWorkScheduleHour } from '../src/game/workSched
 import { setTileOverride } from '../src/game/terrain/terrainGrid';
 
 /**
- * A flat map whose every 10px tile projects to the same terrain type. Teraforge keeps no
- * per-tile grid: the tile type is decided by the L2 continuous fields, so a uniform field
- * value is how a fixture states "this whole valley is X".
- *
- * `elevation` 0.3 → Grassland at the default 0.24 sea level, 0 → DeepWater.
+ * A flat map whose every tile projects to the same terrain type: no per-tile grid, so a uniform
+ * field value states "the whole valley is X". `elevation` 0.3 → Grassland at 0.24 sea level, 0 → DeepWater.
  */
 function uniformMap(width: number, height: number, elevation: number): WorldMap {
   const cols = Math.ceil(width / 64);

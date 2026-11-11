@@ -5,35 +5,16 @@ import { isPlayerHuman } from './playerHuman';
 import { MAX_SKILL } from './skills';
 
 /**
- * The Hunting Spot's own rules: who works it, which animal it is after, how far it can *see*, and how
- * close the hunter must be to take the animal.
- *
- * Owner, 2026-09-30, asking why the hunter never went to the prey and then ruling on the reach:
- * *"120 px is way to far, its 1800's they dont have guns"*. Both halves are this module's job:
- *
- *  - **Seeing is not killing.** `HUNTING_SPOT_SEARCH_RADIUS_PX` is how far out an animal is *noticed* —
- *    the owner's own 350 px (*"the range can be 350 where is looking"*), which is also the wolf's
- *    `huntRange` in `speciesConfig`.
- *  - **Killing means standing next to it.** `huntingKillReach` is bodies touching, exactly the rule
- *    `humanHuntingBehavior.ts` already applies to a settler hunting for themselves (`config.size +
- *    prey.size`) and the same one the wolf uses when it mauls its catch (`tickLayerSystems`). A
- *    120 px reach was a gunshot: ~10 m at this scale (~11.76 px/m).
- *  - **And therefore the hunter has to walk.** With a contact reach, a hunter who stands at the post
- *    would never take anything, so `huntingSpotChaseTarget` is the move-to-prey order — the same thing
- *    the wolf does every tick in `tickLayerSystems` (`targetVx = (dx/dist) × speed`) and the free-roam
- *    hunter does in `humanHuntingBehavior` (`steerEntityToward`). The selection rule lives here and is
- *    read by *both* the shot (daily, `dailyBuildingEconomy`) and the walk (realtime, `humanTick`), so
- *    the hunter always walks toward the animal the spot is actually going to shoot.
+ * The Hunting Spot's own rules: who works it, which animal it is after and how close the hunter must
+ * be to take it. Seeing (350 px) is not killing — the reach is bodies touching, so the hunter walks.
  */
 
 /** How far an assigned hunter notices prey, in px — the owner's 350. */
 export const HUNTING_SPOT_SEARCH_RADIUS_PX = 350;
 
 /**
- * The settler a building sends out — its first living, player-owned occupant.
- *
- * `occupants` is the assignment list, but a building constructed outside the normal path (tests, saves
- * from before a field existed) can reach here without one, so this reads it defensively.
+ * The settler a building sends out — its first living, player-owned occupant; `occupants` is read
+ * defensively because a test- or save-built building can lack one.
  */
 export function findLiveAssignedWorker(
   building: Building,
@@ -59,11 +40,8 @@ export function isHuntingSpotHunter(
 }
 
 /**
- * How close the hunter must be for the shot to have a chance: bodies touching, both radii.
- *
- * This is deliberately the *same expression* the free-roam rule uses in `humanHuntingBehavior.ts` —
- * `config.size + prey.size`, the hunter's radius from the species table and the prey's own radius off
- * the entity — rather than a second formula that would drift from it.
+ * How close the hunter must be for the shot to have a chance: bodies touching, both radii — the same
+ * expression the free-roam hunter and the wolf use, not a second formula that would drift.
  */
 export function huntingKillReach(hunter: Entity, prey: Entity): number {
   const hunterSize = SPECIES_CONFIG[hunter.type]?.size ?? hunter.size;
@@ -85,11 +63,8 @@ export function huntingSpotPreyTypes(preyTarget: HuntingSpotPrey | undefined): E
 }
 
 /**
- * The animal this spot is after right now, or null when there is nothing inside its eyes.
- *
- * The building's own prey setting (`huntingSpotPrey`) decides the candidate types; a tamed animal is
- * never a target. A wolf carries a +160 px penalty so a spot only picks one when nothing safer is
- * closer — walking up to a wolf is how hunters get bitten.
+ * The animal this spot is after right now, or null when nothing is inside its eyes. A tamed animal is
+ * never targeted; a wolf carries a +160 px penalty so one is picked only when nothing safer is closer.
  */
 export function pickHuntingSpotPrey(
   building: Building,
@@ -119,14 +94,7 @@ export function pickHuntingSpotPrey(
 
 /**
  * How far a committed animal may stray before the spot gives it up, in px — the eyes' radius plus the
- * length of the pursuit.
- *
- * A commitment that lapsed the moment the animal crossed `HUNTING_SPOT_SEARCH_RADIUS_PX` made the hunter
- * start over constantly: with a valley of deer around, the nearest fresh animal is always ~150–300 px
- * away, so the settler walked toward one target after another and was never beside any of them when the
- * shot was sampled (measured: 162 "Too far to shoot" floats over twelve colony days, no catch, and the
- * hunter ranging 306 px from its post). Being *seen* and being *hunted* are different distances, exactly
- * as looking and killing are.
+ * length of the pursuit, so being seen and being hunted are different distances.
  */
 const HUNTING_SPOT_ABANDON_RADIUS_PX = HUNTING_SPOT_SEARCH_RADIUS_PX * 2;
 
@@ -153,17 +121,7 @@ function mayKeepHuntingSpotTarget(building: Building, hunter: Entity, prey: Enti
 
 /**
  * The animal this spot is after: the one it is **committed** to while the pursuit still makes sense,
- * otherwise the nearest it can see.
- *
- * The commitment is what makes a chase possible, and its two radii are deliberately different. Picking
- * the nearest candidate fresh every tick meant a hunter in a herd changed its mind continuously and
- * converged on nothing — measured with the real workforce assignment and 21 deer in the world: the pick
- * cycled #357 → #431 → #452 within one day and the hunter never got closer than ~150 px. Dropping the
- * commitment at the *eyes'* radius was just as bad in the other direction: the animal stepped outside
- * 350 px, the spot picked a fresh one 200 px away, and the settler spent its life walking between them
- * (162 "Too far to shoot" floats, no catch). So a commitment survives out to
- * `HUNTING_SPOT_ABANDON_RADIUS_PX` — seeing is 350 px, hunting what you have already chosen lasts
- * longer.
+ * otherwise the nearest it can see. The commitment survives out to the abandon radius.
  */
 export function huntingSpotTarget(
   building: Building,
@@ -186,14 +144,7 @@ export function commitHuntingSpotTarget(building: Building, prey: Entity | null)
 
 /**
  * The animal this hunter should be walking to right now, or null when there is nothing to walk to —
- * either no prey is in sight, or the hunter is already close enough to take it.
- *
- * "Close enough to walk no further" is deliberately **tighter** than the kill reach
- * (`HUNTING_PURSUIT_CLOSE_FRACTION`): the hunter closes to well inside the gate and holds there, so an
- * animal wandering a few px per tick does not open the gate before the spot's production tick samples
- * it. That sampling is exactly what defeated the first attempt at a contact reach — with a standing
- * hunter, a fixture deer drifted from 30 px to 34.5 px against a 22 px reach and the spot stopped
- * producing food altogether (`dailyBuildingEconomy`'s old comment recorded it).
+ * no prey in sight, or already inside the tighter hold distance (kill reach × the close fraction).
  */
 export function huntingSpotChaseTarget(
   building: Building,
@@ -210,42 +161,20 @@ export function huntingSpotChaseTarget(
 }
 
 /**
- * How fast the hunter closes, as a multiple of their walk.
- *
- * Not because prey flee — they do not; the only `flee` in the simulation is a human's, from an active
- * Moon Howler (`combat.ts:106`) — but because they **wander faster than a working settler walks**. The
- * measured species speeds are rabbit 3.5, deer 3.0, wolf 4.0 and human 3.0 px/tick (`speciesConfig`),
- * and a settler on the job has their walk damped to 0.85 of it (`humanTick`: `if (!allowFreeRoam &&
- * onSchedule) { vx *= 0.85; vy *= 0.85; }`), i.e. **2.55 px/tick** — slower than every animal a spot
- * hunts. That is measurable, not theoretical: with the plain walk the hunter chased for four colony days
- * and never got closer than 91 px, taking nothing. 1.4 puts a working hunter at ~3.6 px/tick, just above
- * the fastest prey it is allowed to pick and still below the wolf (4.0) it is told to leave alone.
+ * How fast the hunter closes, as a multiple of their walk. Prey do not flee, but they wander faster
+ * than a working settler's damped 2.55 px/tick; 1.4 clears the deer and rabbit and stays under the wolf.
  */
 export const HUNTING_PURSUIT_SPEED_MULT = 1.4;
 
 /**
  * How many ticks ahead of the animal the hunter aims — the difference between a chase that closes and
- * one that treadmills.
- *
- * Steering at the animal's *current* position means every px it wanders away is chased from behind, and
- * with prey at 3.0–3.5 px/tick against a damped working walk that cancels most of the closing (measured:
- * four colony days, closest 65 px, nothing taken). Aiming where it is *going* removes the radial part of
- * its motion, which is the part that fights the hunter. `3` is roughly how long a settler's step takes to
- * matter at this scale — enough lead to cut the corner, not so much that the hunter overshoots a turn.
+ * one that treadmills, since steering at its current position fights its radial motion.
  */
 export const HUNTING_LEAD_TICKS = 3;
 
 /**
- * How long a hunter's contact with an animal stays good for, in ticks.
- *
- * The spot resolves its shot on its own production pass, which samples a single instant; the hunter is
- * beside a wandering animal for a stretch of ticks and back at its post for others, and those instants
- * simply never coincided — measured, 162 "Too far to shoot" decisions over twelve colony days, every one
- * of them in the small hours with the hunter at its post, and not one catch despite the hunter having
- * closed to 10 px during the day. A contact is therefore *recorded* when it happens
- * (`huntingSpotInReachTick`) and the pass accepts a recent one. 12 ticks is about four in-game hours
- * (`TICKS_PER_HOUR` is 3): long enough to bridge the walk home and back, short enough that an animal
- * which has genuinely gone is not shot at.
+ * How long a hunter's contact with an animal stays good for, in ticks: the spot samples the shot on its
+ * own production pass, so a recently recorded contact (`huntingSpotInReachTick`) is accepted.
  */
 export const HUNTING_SPOT_STRIKE_GRACE_TICKS = 12;
 
@@ -256,10 +185,7 @@ export function isHuntingStrikeLive(building: Building, tick: number): boolean {
 }
 
 /**
- * Where the hunter should actually steer: the animal's position, led by its own velocity.
- *
- * The animal's own `vx`/`vy` are the sim's record of its heading (`tickLayerSystems` writes them for
- * every mobile entity), so this reads the heading rather than predicting anything.
+ * Where the hunter should steer: the animal's position led by its own `vx`/`vy` heading, not a prediction.
  */
 export function huntingPursuitPoint(prey: Entity): { x: number; y: number } {
   return {
@@ -279,24 +205,15 @@ export const HUNTING_FIGHT_BACK_CHANCE = 0.1;
 export const HUNTING_FIGHT_BACK_BITE_ENERGY = 140;
 
 /**
- * What a fight-back can do to the hunter, rolled per bite on the same stateless per-shot key as the
- * fight-back roll itself.
- *
- * Owner's numbers: *"wolfs should kill sometimes a human like a 5% change and 11% change for hurting
- * a human"*. They are read as floor-to-ceiling bands on one roll — under the kill band the hunter is
- * killed, under kill + 11 % they are mauled, and above that the bite costs only energy. Rolling them
- * as two separate draws would make the real kill chance 5 % of the 11 % band rather than 5 % of bites.
- *
- * This is the untrained band: `huntingFightBackKillChance` narrows it with the hunter's own skill, so
- * at the 10 % fight-back chance an untrained hunter dies in ~0.5 % of wolf hunts and a master in ~0.1 %.
+ * What a fight-back can do to the hunter, rolled once per bite on the same key as the fight-back roll:
+ * kill band, then injury band, then an ordinary bite. `huntingFightBackKillChance` narrows the kill band by skill.
  */
 export const HUNTING_FIGHT_BACK_KILL_CHANCE = 0.05;
 /** 0.11 = the band above the kill band, so a mauling is ~11 % of bites and ~1.1 % of wolf hunts. */
 export const HUNTING_FIGHT_BACK_INJURY_CHANCE = 0.11;
 /**
- * 260 = the extra energy a mauling costs on top of the ordinary bite (140), which is well over half a
- * settler's 500-point bar. A settler's health *is* its energy (see above), so this is what "hurt"
- * means: a hunter who survives a mauling is out of the day, not merely nicked.
+ * 260 = the mauling's extra energy on top of the ordinary 140 bite, well over half a settler's 500-point
+ * bar; health *is* energy, so surviving it costs the day.
  */
 export const HUNTING_FIGHT_BACK_MAUL_ENERGY = 260;
 

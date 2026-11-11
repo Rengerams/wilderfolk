@@ -1,19 +1,6 @@
 /**
- * Lifecycle/social audit F3 — the youth-love → courtship handoff was unreachable for any real age gap.
- *
- * Ages advance in whole in-game years, so a pair whose birthdays fall in different years reaches
- * (19, 18) on the day the younger partner turns 18. `reconcileYouthLove` cleared the link as soon as
- * the older partner was past 18 (`Math.max(age) > HUMAN_MOVE_OUT_MIN_AGE`), and `advanceYouthLove`
- * runs that reconciliation before the promotion loop — so `promoteYouthLoveToCourtship` fired only for
- * pairs whose 18th birthdays fell inside the same year and every other pair was dropped silently, with
- * no "grew apart" event and no progress carried into adult courtship.
- *
- * The governing feature document (`docs/archive/YOUTH_LOVE_FEATURE.md`) says otherwise: "One is 18 and
- * one is 17 → Keep the valid youth link temporarily. The pair can wait for the younger partner to
- * reach 18" and "Both reach 18 → Hand off to adult courtship." A retained link is therefore bounded by
- * the same age gap that let the pair form, since the younger partner is at most
- * `YOUTH_LOVE_MAX_AGE_GAP` years from the adult floor — and the handoff gate in `advanceYouthLove`
- * promotes the pair on the first pass where both are adults.
+ * A youth-love link survives until the younger partner reaches the adult floor and is then handed off
+ * to adult courtship, within the same age gap that let the pair form.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType, JobType } from '../src/game/gameTypes';

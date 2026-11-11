@@ -1,12 +1,6 @@
 /**
- * Temporary probe (local-only, gitignored, safe to delete).
- *
- * WHY: the reported illogic is "it researches Advanced Farming but never builds
- * a Farm". `decideFood` only fires when stores drop below
- * `VirtualPlayer.FOOD_BUFFER_DAYS` (2 days of settler need), so a colony with a
- * comfortable larder and no producer at all may research farm technology before
- * it ever owns a farm. This probe shows what the real ladder does over a long run
- * and how the food economy actually evolves.
+ * Food-ladder probe: `decideFood` fires only below `VirtualPlayer.FOOD_BUFFER_DAYS`, so this shows
+ * whether a producer is built before farm research.
  */
 import { initGame, gameTick } from '../src/game/gameEngine';
 import { BuildingType, MapSize } from '../src/game/gameTypes';
@@ -27,7 +21,7 @@ import { getOpenPlayerBeds, getTotalBeds } from '../src/game/populationGrowth';
 import { computeCitizenOverview } from '../src/game/citizenOverview';
 import { AFFAIR_ESTABLISHED_LOG_PHRASE } from '../src/game/simulation/humanRelationships';
 
-/** Same rule as the bot's private helper (`virtualPlayer.ts:188`). */
+/** Mirrors the economy ledger's `dailyFoodNeedForSettlers`: settlers × daily ration. */
 const foodNeedPerDay = (settlers: number): number => settlers * Human.DAILY_FOOD_CONSUMPTION;
 
 const FOOD_TYPES = [
@@ -106,15 +100,13 @@ console.log(`final: tick=${world.tick} food=${world.resources.food} wood=${world
 console.log(`food producers (completed): ${producers(world, true)}`);
 console.log(`food producers (incl. sites): ${producers(world, false)}`);
 console.log(`research done: ${world.researchNodes.filter((n) => n.researched).map((n) => n.name).join(', ') || '(none)'}`);
-// `activeResearch` is a research *id*, not a node — `?.name` on it printed "(none)" even while a
-// research was running. Resolve the node the way every other reader does.
+// `activeResearch` holds a research id, not a node: resolve the node before reading its name.
 console.log(`research active: ${world.researchNodes.find((n) => n.id === world.activeResearch)?.name ?? world.activeResearch ?? '(none)'}`);
 console.log('first 8 acts:');
 for (const act of acts.slice(0, 8)) console.log(`  - ${act}`);
 
-// The Mine is the only early gold income and the game gives it no research gate,
-// so when the bot never builds it the owner must be saying why. Ask the placement
-// owner directly rather than guessing.
+// The Mine has no research gate, so a bot that never builds it is being blocked by
+// the placement owner — ask that owner directly instead of guessing.
 const mineCost = BUILDING_CONFIGS[BuildingType.Mine].cost;
 const affordable = (['wood', 'stone', 'gold', 'iron'] as const).every(
   (key) => (world.resources[key] ?? 0) >= (mineCost[key] ?? 0),
@@ -210,11 +202,7 @@ function botPlacementSearch(w: typeof world): string {
 console.log(`bot's own search result: ${botPlacementSearch(world)}`);
 
 // ── relationships at whatever scale the BOT reached ──────────────────────────────────────────────
-//
-// The repo's engine gate only reaches ~70 settlers in a year because its scenario fixes 8 houses and
-// immigration follows free beds; the owner's New Frontier reached 453 by day 279. The bot builds its
-// own housing, so this reports the relationship state at the population the bot actually reaches, and
-// checks the People screen's year counter against the log's 2000-entry cap at that scale.
+// The bot builds its own housing, so report relationship state at the population it actually reaches.
 const ppl = world.entities.filter((e) => e.alive && isPlayerHuman(e));
 const half = (field: 'affairPartnerId' | 'youthLovePartnerId'): number =>
   ppl.filter((e) => e[field] != null && e.id < (e[field] as number)).length;

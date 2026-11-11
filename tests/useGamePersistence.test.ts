@@ -179,9 +179,8 @@ describe('persistGame', () => {
   });
 
   /**
-   * D-7 of the 2026-09-21 audit. The worker allows one export in flight; a second save used to reach
-   * it, be rejected, and fall back to the **display shadow** — writing a world up to
-   * `MAX_PIPELINE_DEPTH` ticks behind while reporting success. The second save now joins the first.
+   * The worker allows one export in flight; a second save joins the first instead of
+   * falling back to the display shadow.
    */
   it('coalesces a second save onto the one already in flight', async () => {
     const world = initGame({ skipTerrain: true, villageName: 'Coalesced' });
@@ -224,6 +223,47 @@ describe('persistGame', () => {
     // One export, one write: the second caller waited for the first instead of asking again.
     expect(exportAuthoritativeWorld).toHaveBeenCalledOnce();
     expect(saveGameMock).toHaveBeenCalledOnce();
+  });
+
+  it('joins a failed overlapping export, then allows one clean retry (COV-B-02)', async () => {
+    const world = initGame({ skipTerrain: true, villageName: 'Failed overlap' });
+    const view = createInitialView(world.width, world.height);
+    const showToast = vi.fn();
+    const markGameSaved = vi.fn();
+    let releaseExport = (): void => {};
+    const gate = new Promise<void>((resolve) => { releaseExport = resolve; });
+    const exportAuthoritativeWorld = vi.fn(async () => {
+      await gate;
+      return world;
+    });
+    const loop = {
+      exportAuthoritativeWorld,
+      getView: () => view,
+      getWorld: () => world,
+      mutateWorld: (_mutator: (world: WorldState) => void) => undefined,
+    };
+    const accessors = {
+      getLoop: () => loop,
+      getWorld: () => world,
+      getView: () => view,
+    };
+    const callbacks = { markGameSaved, showToast };
+    saveGameMock.mockReturnValueOnce({ success: false, error: 'Quota exceeded' });
+    saveGameMock.mockReturnValueOnce({ success: true });
+
+    const first = persistGame(accessors, callbacks);
+    const joined = persistGame(accessors, callbacks, { background: true });
+    releaseExport();
+    expect(await Promise.all([first, joined])).toEqual([false, false]);
+    expect(exportAuthoritativeWorld).toHaveBeenCalledTimes(1);
+    expect(saveGameMock).toHaveBeenCalledTimes(1);
+    expect(saveGameToSlotMock).not.toHaveBeenCalled();
+    expect(markGameSaved).not.toHaveBeenCalled();
+
+    expect(await persistGame(accessors, callbacks)).toBe(true);
+    expect(exportAuthoritativeWorld).toHaveBeenCalledTimes(2);
+    expect(saveGameMock).toHaveBeenCalledTimes(2);
+    expect(markGameSaved).toHaveBeenCalledTimes(1);
   });
 
   it('allows a later save after the in-flight one settles', async () => {

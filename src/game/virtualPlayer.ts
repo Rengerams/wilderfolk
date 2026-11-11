@@ -17,6 +17,7 @@ import { isBuildingTechUnlocked } from './placementUtils';
 import { PLACEMENT_FAILURE_LABELS, getPlaceBuildingFailureLabel } from './buildingPlacementLabels';
 import { countHomelessSettlers, isResidenceBuilding } from './housingModel';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { getEcosystemHealth } from './dailyEcology';
 import { computeVillageStats } from './uiSimSummary';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
@@ -33,7 +34,7 @@ import { getWorkforcePolicy } from './workforcePolicy';
 import { readSkill } from './skills';
 import { getOpenPlayerBeds } from './populationGrowth';
 import { canHostTownFestival } from './townHall';
-import { findPlayerTownHall } from './playerTownHall';
+import { findCompletedBuilding } from './buildings';
 import { canStartResearch } from './research';
 import { getRefugeeChoiceEligibility, getVisitorLeaderTalkMeta, getVisitorTradeEligibility, getVillageRequestEligibility, type RefugeeChoice, type VisitorTradeAction } from './groupEvents';
 import { getDiplomacyChoiceEligibility, getPeaceTreatyEligibility, getRivalGiftEligibility, getRivalTradePactEligibility, getShowStrengthEligibility } from './rivalDiplomacy';
@@ -86,7 +87,8 @@ export interface VirtualPlayerDecision {
   reason: string;
 }
 
-const FOOD_PRODUCER_TYPES: readonly BuildingType[] = [
+/** Building types the auto-player counts as food producers (see `decideFood`). */
+export const FOOD_PRODUCER_TYPES: readonly BuildingType[] = [
   BuildingType.Farm,
   BuildingType.Greenhouse,
   BuildingType.FishingSpot,
@@ -161,9 +163,8 @@ function pickEligibleStoryChoice(state: WorldState, event: StoryEvent): CardChoi
 
 
 /**
- * True when the larder covers at least `days` of the colony's daily food need.
- * One definition of the bot's "there is food to spare" policy, used by every
- * optional step (recruiting, taming, visitor trades, rival gifts and truces).
+ * True when the larder covers at least `days` of the colony's daily food need: one definition of the
+ * bot's "there is food to spare" policy, used by every optional step.
  */
 function hasFoodMargin(state: WorldState, days: number): boolean {
   const settlers = playerHumanCount(state.entities);
@@ -179,9 +180,8 @@ function spareBedReserve(state: WorldState): number {
   );
 }
 
-/** Bootstrap crop-footprint heuristic for colonies without measured food history.
- * This is NOT a yield equivalence formula, and fishing/hunting do not count as crop capacity.
- * Industry continues to use the adult workforce, not all mouths.
+/** Bootstrap crop-footprint heuristic for colonies without measured food history: not a yield
+ * equivalence, and fishing/hunting do not count as crop capacity. Industry uses adult labour.
  */
 function wantedBootstrapCropSiteCount(state: WorldState, settlersPerCropSite: number): number {
   return Math.max(1, Math.ceil(playerHumanCount(state.entities) / settlersPerCropSite));
@@ -251,10 +251,8 @@ function findPlacementSpot(
 }
 
 /**
- * Whether a spot could take safe quarry — deer or rabbits, never a wolf. The hunting owner's own
- * rule says why: a wolf is only chosen over safer game when nothing else is near, *"walking up to a
- * wolf is how hunters get bitten"*, and a hunter can die. So a site that can only reach wolves is a
- * site the bot does not raise. It reads the same prey list and the same sight radius as the hunt.
+ * Whether a spot could take safe quarry — deer or rabbits, never a wolf: a site that can only reach
+ * wolves is one the bot does not raise, per the hunting owner's own prey rule.
  */
 function huntingSpotHasSafePrey(state: WorldState, spot: { x: number; y: number }): boolean {
   const safePrey = new Set<EntityType>(
@@ -285,28 +283,15 @@ function isUnderConstruction(state: WorldState, type: BuildingType): boolean {
 }
 
 /**
- * True when the player already has a food producer, built or under construction.
- *
- * **Known gap, measured 2026-09-29 and NOT yet fixed.** This counts a building by `type` alone — it
- * does not require `completed`, and it does not require anyone to be working it. So an unfinished or
- * **unstaffed** farm satisfies "the colony has a food producer", `decideFood` then returns null every
- * hour, and the bot's status line can read *"no action needed — colony looks healthy"* while that
- * farm produces nothing. That is the owner's report *"there is no food"* next to a healthy status.
- *
- * It is the same assignment-versus-reality distinction as `countWorkersAtBuilding` (which counts
- * `workerBuildingId`, an assignment, not attendance) and as the daily-production fix.
- *
- * **Why it is not fixed here.** Narrowing the predicate to "completed AND staffed" was tried and
- * measured: it broke **22 of the 68** cases in `tests/virtualPlayer.test.ts`, because those fixtures
- * give a food producer `occupants` but never set `workerBuildingId`, so `countWorkersAtBuilding`
- * reports 0 for a farm the fixture considers staffed. Fixing this properly therefore means deciding
- * the basis (assignment vs. presence) *and* migrating the fixtures to model it — a deliberate change,
- * not a drive-by. The guard was also tried without the predicate change and broke 1 case by letting
- * the ladder fall through to the Mine during a shortage.
+ * True when a food producer is standing with a crew or is going up. An unstaffed building produces
+ * nothing, so it does not satisfy the ladder's food step.
  */
-function hasFoodProducer(state: WorldState): boolean {
+export function hasProductiveFoodProducer(state: WorldState): boolean {
   return state.buildings.some(
-    (building) => building.faction !== 'rival' && FOOD_PRODUCER_TYPES.includes(building.type),
+    (building) =>
+      building.faction !== 'rival'
+      && FOOD_PRODUCER_TYPES.includes(building.type)
+      && (!building.completed || building.occupants.length > 0),
   );
 }
 
@@ -417,9 +402,8 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
   const openBeds = getOpenPlayerBeds(state);
 
   if (homeless > 0) {
-    // Spare beds mean an assignment was missed, not that beds are short — but the
-    // Leader's House beds belong to the leader's household, so they are not spare
-    // housing for anyone else (`getOpenPlayerBeds` excludes them).
+    // Spare beds mean an assignment was missed, not that beds are short — but the Leader's House
+    // beds belong to the leader's household, so they are not spare housing (`getOpenPlayerBeds` excludes them).
     if (openBeds > 0) return null;
   } else {
     if (openBeds >= spareBedReserve(state)) return null;
@@ -542,16 +526,14 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     (total, type) => total + completedProducerCount(state, type),
     0,
   );
-  // The ledger observes REAL output, including weather, worker attendance,
-  // hunting success and prey availability. Never count a Fishing/Hunting Spot
-  // as a Farm-equivalent unit merely because both are food buildings.
+  // The ledger observes real output, including weather, attendance, hunting success and prey
+  // availability: never count a Fishing/Hunting Spot as a Farm-equivalent unit.
   const measuredFlow = getRecentFoodFlow(state);
   const measuredDeficit = isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO);
   const forecastRisk = isProjectedFoodShortfall(state, needPerDay,
     VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO);
-  // No production history yet: use only crop sites for the conservative
-  // bootstrap footprint target. Once measured history exists, this guess
-  // yields to observed production versus actual consumption.
+  // No production history yet: use only crop sites for the conservative bootstrap footprint target.
+  // Once measured history exists, this guess yields to observed production versus consumption.
   const cropSites = completedProducerCount(state, BuildingType.Farm)
     + completedProducerCount(state, BuildingType.Greenhouse);
   // Consider staff-free output improvements even when the workforce cannot
@@ -562,10 +544,8 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   const target = wantedBootstrapCropSiteCount(state, VirtualPlayer.SETTLERS_PER_FOOD_PRODUCER);
   const wantMore = measuredFlow === null && cropSites < target;
 
-  // Raise output from the existing workforce as soon as the forecast warns,
-  // not only when the ledger already reports a deficit. Level
-  // multiplies actual farm production in dailyBuildingEconomy, and the normal
-  // upgrade command retains ownership of costs, caps and validation.
+  // Raise output from the existing workforce as soon as the forecast warns, not only on a measured
+  // deficit: the upgrade command keeps ownership of costs, caps and validation.
   if (measuredDeficit || forecastRisk) {
     const farm = state.buildings
       .filter((building) => building.type === BuildingType.Farm
@@ -588,9 +568,8 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     }
   }
 
-  // Fix a structural food deficit with multipliers before adding more workplaces.
-  // The Mill is a passive boost to *all* food producers. Its tech, materials
-  // and placement still go through the respective game owners.
+  // Fix a structural food deficit with multipliers before adding more workplaces: the Mill is a
+  // passive boost to all food producers, and its tech, materials and placement go through the owners.
   if ((measuredDeficit || forecastRisk) && built > 0 && !ownsBuildingOfType(state, BuildingType.Mill)
     && isBuildingTechUnlocked(
       BUILDING_CONFIGS[BuildingType.Mill].unlockRequirement!,
@@ -621,11 +600,10 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     }
   }
 
-  // Real harvested output determines whether the colony needs expansion, but
-  // forecast growth can request it BEFORE today's food balance turns negative.
-  // A productive Fishery may already cover the forecast; an empty Hunting Spot cannot.
+  // Real harvested output decides whether the colony needs expansion, but forecast growth can request
+  // it before today's balance turns negative: a productive Fishery may already cover the forecast.
   if (measuredFlow !== null && !shortOnFood && !measuredDeficit && !forecastRisk) return null;
-  if (measuredFlow === null && !shortOnFood && hasFoodProducer(state) && !wantMore) return null;
+  if (measuredFlow === null && !shortOnFood && hasProductiveFoodProducer(state) && !wantMore) return null;
   // The bootstrap count is a temporary ceiling, NOT a hard ceiling during a
   // verified deficit. Actual production, not site count, determines shortage.
   if (measuredFlow === null && cropSites >= target && !shortOnFood) return null;
@@ -637,13 +615,12 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   ).length;
   if (measuredDeficit ? goingUp >= 2 : goingUp > 0) return null;
   if (unstaffedFoodProducer && !measuredDeficit && !forecastRisk) return null;
-  // A new producer needs a verifiably reachable farmhand. That can be an
-  // unemployed adult or a transferable surplus worker from a noncritical post;
-  // neither merely having food stock nor nominal site capacity is enough.
+  // A new producer needs a verifiably reachable farmhand: an unemployed adult or a transferable surplus
+  // worker from a noncritical post. Food stock or nominal site capacity is not enough.
   const constructionCrew = new Set(state.buildings.filter((b) => !b.completed)
     .flatMap((b) => b.occupants));
   const idleAdults = state.entities.filter((person) => person.alive && isPlayerHuman(person)
-    && !person.isJuvenile && person.workerBuildingId == null && person.prisonBuildingId == null
+    && person.age >= HUMAN_ADULT_MIN_AGE && person.workerBuildingId == null && person.prisonBuildingId == null
     && !constructionCrew.has(person.id));
   // Each listed donor remains above its protected minimum after ONE transfer.
   // It is a real staffing resource even when all adults currently have jobs.
@@ -727,7 +704,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
       command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type, x: spot.x, y: spot.y, rotation: 0 },
       reason: shortOnFood
         ? `build a ${BUILDING_CONFIGS[type].label} — ${daysLeft} day${daysLeft === 1 ? '' : 's'} of food left`
-        : !hasFoodProducer(state)
+        : !hasProductiveFoodProducer(state)
           ? `build a ${BUILDING_CONFIGS[type].label} — the colony has no food producer`
           : measuredDeficit
             ? `build a ${BUILDING_CONFIGS[type].label} — actual food production trails consumption`
@@ -791,7 +768,7 @@ function decideResearch(state: WorldState): VirtualPlayerDecision | null {
 
 /** 8 — a staffed, stocked Town Hall whose festival cooldown has elapsed. */
 function decideFestival(state: WorldState): VirtualPlayerDecision | null {
-  const hall = findPlayerTownHall(state.buildings);
+  const hall = findCompletedBuilding(state.buildings, BuildingType.TownHall);
   if (!hall) return null;
   // The festival owner also requires an assigned official, stores, and no
   // running festival; checking first avoids an hourly rejected command.
@@ -867,9 +844,8 @@ function decideUnstaffedProducer(state: WorldState): VirtualPlayerDecision | nul
   return null;
 }
 
-/** Stores expand wood/stone/iron capacity, never gold. Derive capacities only
- * from completed buildings: the once-daily storageMax snapshot can be stale
- * after placing, demolishing or importing a building.
+/** Stores expand wood/stone/iron capacity, never gold. Derive capacities from completed buildings:
+ * the once-daily storageMax snapshot can be stale after placing or importing one.
  */
 export function needsAdditionalStore(state: WorldState): boolean {
   const limits = computeStorageMax(state.buildings);
@@ -921,9 +897,8 @@ function decideIndustry(state: WorldState, storeOnly = false): VirtualPlayerDeci
 
 
 function decideRepairs(state: WorldState): VirtualPlayerDecision | null {
-  // A long road consists of individual buildings. Repairing one per in-game hour
-  // starves both the road and the rest of the bot's decision ladder. The worker
-  // accepts one batch command and clones the world only once.
+  // A long road consists of individual buildings, so repairing one per in-game hour starves both the
+  // road and the rest of the ladder. The worker accepts one batch command and clones the world once.
   const affordable = Math.min(
     Math.floor(state.resources.wood / REPAIR_COST.wood),
     Math.floor(state.resources.stone / REPAIR_COST.stone),
@@ -962,19 +937,14 @@ function decideRepairs(state: WorldState): VirtualPlayerDecision | null {
 }
 
 /**
- * Bot policy: the forge orders the bot will spend iron on, in preference order.
- * Straight combat and quarry gear first — the tier-5 orders need their own
- * research and an earlier forge orders anyway.
+ * Bot policy: the forge orders the bot will spend iron on, in preference order. Straight combat and
+ * quarry gear first — the tier-5 orders need their own research and an earlier order anyway.
  */
 const FORGE_ORDER_PRIORITY: readonly ForgeOrderId[] = ['iron_spears', 'iron_shields', 'iron_pickaxes'];
 
 /**
- * 11 — queue the most valuable forge order a staffed Blacksmith can start.
- *
- * `getForgeBlockReason` is the whole eligibility test: research, the forge
- * prerequisite chain, a busy smith, a completed order, an unstaffed Blacksmith,
- * and the input cost all live there, so the bot cannot disagree with the panel.
- * An order already active or already forged simply has no acceptable target left.
+ * 11 — queue the most valuable forge order a staffed Blacksmith can start. `getForgeBlockReason` is the
+ * whole eligibility test, so the bot cannot disagree with the panel.
  */
 function decideForgeOrders(state: WorldState): VirtualPlayerDecision | null {
   if (state.villageForge?.activeOrder) return null;
@@ -1015,14 +985,8 @@ function bestAffordableWorkshopRecipe(state: WorldState): WorkshopRecipe | null 
 }
 
 /**
- * 12 — building tuning: what the Mine digs, what the Hunting Spot hunts, which
- * recipe the Workshop runs.
- *
- * Each change is proposed only when it differs from what the building is already
- * set to, so an accepted command retires its own step. The owners do the
- * validating (`setMineMode`, `setHuntingSpotPrey`, `setWorkshopRecipe` accept
- * only a player-owned building of their own type with a known setting), and the
- * recipe price is priced by `canAffordWorkshopRecipe`.
+ * 12 — building tuning: what the Mine digs, what the Hunting Spot hunts, which recipe the Workshop runs.
+ * Each change is proposed only when it differs from the current setting; the owners validate.
  */
 function decideBuildingTuning(state: WorldState): VirtualPlayerDecision | null {
   for (const building of state.buildings) {
@@ -1031,10 +995,8 @@ function decideBuildingTuning(state: WorldState): VirtualPlayerDecision | null {
     if (building.type === BuildingType.Mine) {
       const iron = state.resources.iron ?? 0;
       const gold = state.resources.gold ?? 0;
-      // Iron is the one resource only the Mine produces, so an iron shortage outranks
-      // the treasury rule: the previous "dig gold whenever the treasury is low" policy
-      // left a colony with 0 iron digging gold indefinitely. Both thresholds are the
-      // colony's own shortage lines, shared with the industry step above.
+      // Iron is the one resource only the Mine produces, so an iron shortage outranks the treasury
+      // rule: both thresholds are the colony's shortage lines, shared with the industry step.
       let desired: MineMode;
       let reason: string;
       if (iron < LOW_IRON_STOCK) {
@@ -1103,10 +1065,8 @@ function decideRecruitment(state: WorldState): VirtualPlayerDecision | null {
 }
 
 /**
- * Bot policy: what the bot wants from a visitor trade, in order. Feed a real
- * shortage, then top up any industry resource below its shelf — wood, then stone
- * (which the caravan only began offering once `buy_stone`/`sell_stone` were added),
- * then iron — and only then sell food the colony has far more of than it can eat.
+ * Bot policy: what the bot wants from a visitor trade, in order — feed a real shortage, top up any
+ * industry resource below its shelf (wood, stone, iron), then sell food the colony cannot eat.
  */
 function chooseVisitorTrade(state: WorldState, group: VisitorGroup): VisitorTradeAction | null {
   const wanted: VisitorTradeAction[] = [];
@@ -1123,17 +1083,8 @@ function chooseVisitorTrade(state: WorldState, group: VisitorGroup): VisitorTrad
 }
 
 /**
- * 14 — visitors: speak with the leader, finish the smith's quest, then trade.
- *
- * Every branch is owner-gated: `talkToVisitorLeader` takes one audience per visit
- * (`getVisitorLeaderTalkMeta` reports whether one is still on offer),
- * `deliverVisitorQuest` needs the goods actually in store,
- * `getVisitorTradeEligibility` prices the whole deal, and
- * `getRefugeeChoiceEligibility` prices a refugee offer — the bot never spends an
- * hour on a visitor action the owner would refuse. A refugee camp is never
- * *talked* to (that only opens the negotiation) and its families are never turned
- * away on the bot's initiative: it welcomes them from a deep larder with beds
- * free, screens them from a shallower one, and otherwise leaves them be.
+ * 14 — visitors: speak with the leader, finish the smith's quest, then trade. Every branch is
+ * owner-gated, so the bot never spends an hour on an action the owner would refuse.
  */
 function decideVisitorRelations(state: WorldState): VirtualPlayerDecision | null {
   const group = state.visitorGroups?.[0];
@@ -1185,9 +1136,8 @@ function decideVisitorRelations(state: WorldState): VirtualPlayerDecision | null
 }
 
 /**
- * What the bot would ask a refugee camp for: welcome a group the colony can feed
- * and bed, screen one it can merely afford, and never turn families away on its
- * own initiative. `getRefugeeChoiceEligibility` still prices each offer.
+ * What the bot would ask a refugee camp for: welcome a group the colony can feed and bed, screen one
+ * it can merely afford, and never turn families away on its own initiative.
  */
 function chooseRefugeeChoice(state: WorldState, group: VisitorGroup): RefugeeChoice | null {
   if (isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)
@@ -1211,13 +1161,8 @@ function chooseRefugeeChoice(state: WorldState, group: VisitorGroup): RefugeeCho
 }
 
 /**
- * 17 — keep the colony work day on the owner's standard window.
- *
- * `getWorkSchedule` falls back to `DEFAULT_WORK_SCHEDULE` (07:00–16:00), so a
- * fresh game already matches and nothing is proposed; the step fires only when the
- * schedule differs from that window, and the owner's own `validateWorkSchedule`
- * still has the last word. No season rule is invented here — the owner models no
- * season-dependent hours.
+ * 17 — keep the colony work day on the owner's standard window. `getWorkSchedule` falls back to
+ * `DEFAULT_WORK_SCHEDULE` (07:00–16:00), so this fires only when the schedule differs from it.
  */
 function decideWorkSchedule(state: WorldState): VirtualPlayerDecision | null {
   const current = getWorkSchedule(state);
@@ -1242,9 +1187,8 @@ function decideWorkSchedule(state: WorldState): VirtualPlayerDecision | null {
 }
 
 /**
- * 18 — venues keep the owner's default service windows (tavern in the evening,
- * hotel through the day), and only a venue that actually stands is scheduled.
- * Like the work day, the owner's defaults mean a fresh game already matches.
+ * 18 — venues keep the owner's default service windows (tavern in the evening, hotel through the day),
+ * and only a venue that actually stands is scheduled, so a fresh game already matches.
  */
 const VENUE_SCHEDULE_ORDER: readonly {
   kind: VenueScheduleKind;
@@ -1282,17 +1226,13 @@ function decideVenueSchedules(state: WorldState): VirtualPlayerDecision | null {
 }
 
 /**
- * 19 — trim a genuine overstaffing surplus down to the building's crew cap.
- *
- * Only a workplace holding more settlers than `BUILDING_CONFIGS[type].maxOccupants`
- * is touched (a state auto-staffing never creates but a player or a demotion can),
- * and the least skilled of them is released, so the crew keeps its best hands.
- * One release per act leaves the building exactly at its cap, retiring the step.
+ * 19 — trim a genuine overstaffing surplus down to the building's crew cap. Only a workplace holding
+ * more settlers than `maxOccupants` is touched, and the least skilled is released so the crew keeps its best.
  */
 function decideSurplusWorkers(state: WorldState): VirtualPlayerDecision | null {
   const crewsByBuilding = new Map<number, WorldState['entities']>();
   for (const human of state.entities) {
-    if (!human.alive || !isPlayerHuman(human) || human.isJuvenile || human.workerBuildingId == null) continue;
+    if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE || human.workerBuildingId == null) continue;
     const crew = crewsByBuilding.get(human.workerBuildingId);
     if (crew) crew.push(human);
     else crewsByBuilding.set(human.workerBuildingId, [human]);
@@ -1383,11 +1323,8 @@ function corridorCorners(path: readonly { x: number; y: number }[]): { x: number
 }
 
 /**
- * Walk the corridor from the camp to the target with the game's own pathfinding
- * (which already treats buildings as blocked), then let the placement owner build
- * and validate each straight leg of the route. Only segments the owner marks
- * `valid` are kept, so a road can never be routed through a building, and a full
- * chain that would be too long is cut to `ROAD_MAX_SEGMENTS_PER_ACT`.
+ * Walk the corridor from the camp to the target with the game's own pathfinding (which already treats
+ * buildings as blocked), then let the placement owner build and validate each straight leg of the route.
  */
 function buildRoadChain(
   state: WorldState,
@@ -1433,14 +1370,8 @@ function buildRoadChain(
 }
 
 /**
- * 20 — lay one short road chain from the village centre to a production building
- * that stands a real walk away and has no road yet.
- *
- * The route is the game's own A* corridor (`getPathGrid`/`findPath`, which treats
- * buildings as blocked) and every tile is validated by the placement owner's
- * `buildStripPreview`; invalid segments are dropped rather than forced. One chain
- * per act, capped at `ROAD_MAX_SEGMENTS_PER_ACT`, and the wood shelf is left above
- * `ROAD_MIN_WOOD` so paving never outranks the colony's real needs.
+ * 20 — lay one short road chain from the village centre to a production building that stands a real walk
+ * away and has no road yet. The route is the game's own A* corridor and the placement owner validates tiles.
  */
 function decideRoads(state: WorldState): VirtualPlayerDecision | null {
   if (!hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS)) return null;
@@ -1460,28 +1391,18 @@ function decideRoads(state: WorldState): VirtualPlayerDecision | null {
 }
 
 /**
- * 22 — upkeep and agency, only where the owner accepts and the gain is real.
- *
- *  - `upgradeBuilding` only as a last resort: settlers are homeless, no bed is
- *    free, and there is no legal plot left to build another house on.
- *  - `tameEntity` only from a deep larder, for a creature a Taming Post can
- *    actually reach.
- *
- * Moving a grown child into their own home is not a step: housing is fully
- * automatic. `assignMissingResidences` (the residency owner, run every day)
- * already rebalances adult children out of the family home whenever an empty
- * house is free, so the bot proposes nothing here.
+ * 22 — upkeep and agency, only where the owner accepts and the gain is real: `upgradeBuilding` only as a
+ * last resort for homeless settlers, and `tameEntity` only from a deep larder. Housing is fully automatic.
  */
 function decideUpkeep(state: WorldState): VirtualPlayerDecision | null {
-  // Taming is discretionary: a stocked larder alone is not a food surplus.
-  // A sustained production deficit forbids spending down the initial reserve,
-  // even when the village still has several days of food in storage.
+  // Taming is discretionary: a stocked larder alone is not a food surplus, and a sustained production
+  // deficit forbids spending down the initial reserve.
   if (!isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)
     && (state.ecosystemHealth == null
       || getEcosystemHealth(state) >= VirtualPlayer.ECOLOGY_HEALTHY_THRESHOLD)
     && hasFoodMargin(state, VirtualPlayer.TAME_FOOD_RESERVE_DAYS)) {
     const humans = state.entities.filter(isPlayerHuman);
-    const tamer = humans.find((human) => !human.isJuvenile);
+    const tamer = humans.find((human) => human.age >= HUMAN_ADULT_MIN_AGE);
     if (tamer) {
       for (const entity of state.entities) {
         if (!getTameEntityEligibility(state, entity.id, tamer.id).ok) continue;
@@ -1497,24 +1418,14 @@ function decideUpkeep(state: WorldState): VirtualPlayerDecision | null {
     }
   }
 
-  // A general upgrade is *not* proposed here: like a community building it is the most
-  // postponable thing the bot spends on, so it lives at the end of the ladder
-  // (`decideUpgrades`) where it cannot shadow defence, diplomacy or expansion. The housing
-  // expansion above stays, because a homeless colony has no more urgent building to raise.
+  // A general upgrade is not proposed here: like a community building it is the most postponable spend,
+  // so it lives at the end of the ladder where it cannot shadow defence, diplomacy or expansion.
   return null;
 }
 
 /**
- * 25 — the last hour of the ladder: raise a completed building a level.
- *
- * The whole test is the owner's (`getBuildingUpgradeEligibility`) plus the reserve policy
- * (`canAffordUpgradeWithReserve`), so the bot can never spend an hour on an upgrade the owner
- * would refuse. `buildingTypeHasLevelBenefit` keeps it off the 16 types whose level nothing
- * reads, where the upgrade is offered to nobody — the same derivation the panel uses to hide
- * the button.
- *
- * Last on purpose, beside `decideCommunity`: an upgrade competes with nothing, so it takes the
- * hour only when food, housing, repair, defence and services all have nothing to do.
+ * 25 — the last hour of the ladder: raise a completed building a level. The whole test is the owner's
+ * plus the reserve policy, and `buildingTypeHasLevelBenefit` keeps it off types whose level nothing reads.
  */
 function decideUpgrades(state: WorldState): VirtualPlayerDecision | null {
   // An idle settler is work the colony has not placed yet, and placing one is worth more than a
@@ -1523,6 +1434,7 @@ function decideUpgrades(state: WorldState): VirtualPlayerDecision | null {
 
   for (const building of state.buildings) {
     if (!building.completed || building.faction === 'rival') continue;
+    if (BUILDING_CONFIGS[building.type].decor) continue;
     if (!buildingTypeHasLevelBenefit(building.type)) continue;
     if (!getBuildingUpgradeEligibility(state, building.id).ok) continue;
     if (!canAffordUpgradeWithReserve(state, building)) continue;
@@ -1556,13 +1468,8 @@ function findRedundantOutbuilding(state: WorldState): Building | null {
 }
 
 /**
- * 21 — clear room by demolishing a redundant outbuilding, but only at a genuine
- * housing dead end: settlers are homeless, not one bed is free, no plot is left
- * for another home, and none is already on the way. Even then only a complete,
- * empty, non-residence, non-unique building that duplicates a type the colony
- * already has twice over is touched, and one act removes one building — so the
- * step retires as the duplicates run out. Clearing space this way outranks
- * expanding a home (step 22), because a freed plot fits a whole house.
+ * 21 — clear room by demolishing a redundant outbuilding, but only at a genuine housing dead end:
+ * settlers homeless, no free bed, no plot left for another home, none already on the way.
  */
 function decideDemolish(state: WorldState): VirtualPlayerDecision | null {
   if (countHomelessSettlers(state) === 0) return null;
@@ -1581,9 +1488,8 @@ function decideDemolish(state: WorldState): VirtualPlayerDecision | null {
 }
 
 /**
- * One community building the bot will raise, with the condition that makes it worth its hour.
- * `needed` is a *want* only: whether the colony may actually build it is still decided by
- * `canPlaceBuilding` (research gate, cost, terrain), so no rule is restated here.
+ * One community building the bot will raise, with the condition that makes it worth its hour. `needed`
+ * is a want only: `canPlaceBuilding` still decides whether the colony may actually build it.
  */
 interface ServiceBuildOption {
   type: BuildingType;
@@ -1607,14 +1513,14 @@ function hasCompletedBuildingOfType(state: WorldState, type: BuildingType): bool
 function adultSettlerCount(state: WorldState): number {
   let adults = 0;
   for (const entity of state.entities) {
-    if (!entity.alive || !isPlayerHuman(entity) || entity.isJuvenile) continue;
+    if (!entity.alive || !isPlayerHuman(entity) || entity.age < HUMAN_ADULT_MIN_AGE) continue;
     adults++;
   }
   return adults;
 }
 
 function hasJuvenileSettler(state: WorldState): boolean {
-  return state.entities.some((entity) => entity.alive && isPlayerHuman(entity) && entity.isJuvenile);
+  return state.entities.some((entity) => entity.alive && isPlayerHuman(entity) && entity.age < HUMAN_ADULT_MIN_AGE);
 }
 
 /** The `state.resources.storageMax` key a storage building extends. */
@@ -1632,25 +1538,8 @@ function storageNearlyFull(state: WorldState, key: StorageResourceKey, ratio = S
 }
 
 /**
- * 22 — the community services: the buildings a settlement raises once it is a
- * settlement, and the ones no earlier step ever proposed.
- *
- * Order is the order of need. Each entry's `needed` is grounded in the mechanic
- * that building owns, so none of them is a wish: the well answers a village too
- * big to walk for water, the tavern a population that needs somewhere to unwind,
- * the school children who exist, the church the scandal pressure `churchStrength`
- * actually modifies, storage the shelf that is nearly full, and the preserve
- * ground an ecosystem under strain needs back.
- *
- * Whether any of it may be *placed* is not restated: `canPlaceBuilding` refuses a
- * locked research, an unaffordable price and a blocked site, so `findPlacementSpot`
- * returns no spot and the step simply waits its turn — the same contract
- * `decideCivic` documents.
- *
- * Deliberately behind food, housing, repair and demolition, and behind a real food
- * reserve: a community building is the first thing a colony should be able to
- * postpone. Storage comes before the services that merely want building, so the
- * colony widens its shelves before it spends on comfort.
+ * 22 — the community services: the buildings a settlement raises once it is a settlement, in order of
+ * need. Each `needed` is grounded in the mechanic that building owns; `canPlaceBuilding` decides placement.
  */
 function decideCommunity(state: WorldState): VirtualPlayerDecision | null {
   if (adultSettlerCount(state) < VirtualPlayer.COMMUNITY_MIN_SETTLERS) return null;
@@ -1658,6 +1547,7 @@ function decideCommunity(state: WorldState): VirtualPlayerDecision | null {
   for (const { type, needed, foodReserveDays } of COMMUNITY_BUILD_ORDER) {
     // The reserve is per entry: a comfort building waits for the strict community reserve, while a
     // storehouse for a shelf that is already full only clears the general food buffer.
+    if (BUILDING_CONFIGS[type].decor) continue; // The bot never spends resources or plots on decoration.
     if (!hasFoodMargin(state, foodReserveDays ?? VirtualPlayer.COMMUNITY_FOOD_RESERVE_DAYS)) continue;
     if (needed(state) && canAfford(state, BUILDING_CONFIGS[type].cost)) {
       const spot = findPlacementSpot(state, type, 0);
@@ -1674,9 +1564,8 @@ function decideCommunity(state: WorldState): VirtualPlayerDecision | null {
 }
 
 /**
- * The community buildings, in the order the bot wants them, with the condition that
- * justifies each. Repair and expansion are not here — they are `decideRepairs` and
- * the upgrade half of `decideUpkeep`.
+ * The community buildings, in the order the bot wants them, with the condition that justifies each.
+ * Repair and expansion live in `decideRepairs` and the upgrade half of `decideUpkeep`.
  */
 const COMMUNITY_BUILD_ORDER: readonly ServiceBuildOption[] = [
   {
@@ -1738,12 +1627,7 @@ const COMMUNITY_BUILD_ORDER: readonly ServiceBuildOption[] = [
       !ownsBuildingOfType(state, BuildingType.WildlifePreserve)
       && getEcosystemHealth(state) < VirtualPlayer.ECOLOGY_HEALTHY_THRESHOLD,
   },
-  // Everything else the catalogue offers, one of each, appended after the list that already had a
-  // rule — the owner's *"all buildings should be buildable by the bot"*. Each is priced, gated and
-  // sited by its own owners (research, `canPlaceBuilding`), and the
-  // ladder position keeps them behind food, housing, defence and diplomacy. The functional ones
-  // clear the general food buffer rather than the comfort reserve, because a Market, a Hospital or a
-  // prison is not a comfort spend; comfort and decor stay last and strict.
+  // Functional settlement services, not decoration. Each is priced and gated by its owner.
   {
     type: BuildingType.Market,
     needed: (state) => !ownsBuildingOfType(state, BuildingType.Market),
@@ -1763,29 +1647,11 @@ const COMMUNITY_BUILD_ORDER: readonly ServiceBuildOption[] = [
     type: BuildingType.Mansion,
     needed: (state) => !ownsBuildingOfType(state, BuildingType.Mansion),
   },
-  {
-    type: BuildingType.Garden,
-    needed: (state) => !ownsBuildingOfType(state, BuildingType.Garden),
-  },
-  {
-    type: BuildingType.Statue,
-    needed: (state) => !ownsBuildingOfType(state, BuildingType.Statue),
-  },
-  {
-    type: BuildingType.Lamp,
-    needed: (state) => !ownsBuildingOfType(state, BuildingType.Lamp),
-  },
 ];
 
 /**
- * Whether the colony can pay an upgrade **and keep an upgrade's worth in reserve**.
- *
- * `getBuildingUpgradeEligibility` already answers "can we pay this" — the upgrade half of
- * `decideUpkeep` asks the stricter question, because a level is the most postponable thing the
- * bot spends on: raising one out of the shelf that the next house or farm needs is how a colony
- * starves with a fine set of level-3 buildings. Food is the shared reserve policy
- * (`hasFoodMargin`), and the materials must clear `UPGRADE_COST_RESERVE_MULT` times their own
- * price, so the reserve scales with the level being bought.
+ * Whether the colony can pay an upgrade and keep an upgrade's worth in reserve: food clears the shared
+ * reserve policy and materials clear `UPGRADE_COST_RESERVE_MULT` times their own price.
  */
 function canAffordUpgradeWithReserve(state: WorldState, building: Building): boolean {
   if (!hasFoodMargin(state, VirtualPlayer.UPGRADE_FOOD_RESERVE_DAYS)) return false;
@@ -1799,11 +1665,8 @@ function canAffordUpgradeWithReserve(state: WorldState, building: Building): boo
 }
 
 /**
- * 23 — rival relations, peaceful first: a gift to a tense neighbour, a show of
- * strength when there is nothing to give, a truce, a trade pact, a trade route,
- * and only then a raid — and a raid solely against an already-tense rival with
- * three times the march provisions in store. The bot is a settler, not a
- * warmonger.
+ * 23 — rival relations, peaceful first: a gift to a tense neighbour, a show of strength when there is
+ * nothing to give, a truce, a trade pact, a route, and only then a raid against an already-tense rival.
  */
 function decideRivalRelations(state: WorldState): VirtualPlayerDecision | null {
   const rivals = state.rivalSettlements ?? [];
@@ -1872,14 +1735,8 @@ function decideRivalRelations(state: WorldState): VirtualPlayerDecision | null {
 }
 
 /**
- * 26 — the defence a village raises once words have failed: a watchtower, a barracks, then a wall,
- * its gate and a fence.
- *
- * Walls, gates and fences are strip types (`STRIP_BUILD_TYPES`), so they are placed with the same
- * placement owner preview the road step uses, one short run per act — a designed enclosure stays the
- * player's. It runs before the gift step because a wall is a standing answer, and it waits for
- * `giftsGiven`: the colony tries the cheap answer first and only fortifies a neighbour it has
- * already paid and who is still hostile.
+ * 26 — the defence a village raises once words have failed: a watchtower, a barracks, then a wall
+ * and its gate. Decorative fences are player-only; walls/gates use the owner preview.
  */
 const DEFENCE_BUILD_ORDER: readonly BuildingType[] = [
   BuildingType.Watchtower,
@@ -1889,7 +1746,6 @@ const DEFENCE_BUILD_ORDER: readonly BuildingType[] = [
 const PERIMETER_ORDER: readonly BuildingType[] = [
   BuildingType.Wall,
   BuildingType.WallGate,
-  BuildingType.Fence,
 ];
 
 /** Tiles one perimeter act may lay, so a wall appears a piece at a time. */
@@ -1938,7 +1794,7 @@ function decidePerimeter(state: WorldState): VirtualPlayerDecision | null {
   }
 
   for (const type of PERIMETER_ORDER) {
-    if (ownsBuildingOfType(state, type)) continue;
+    if (BUILDING_CONFIGS[type].decor || ownsBuildingOfType(state, type)) continue;
     // A gate joins a wall; it is not the first thing a colony puts up.
     if (type === BuildingType.WallGate && !ownsBuildingOfType(state, BuildingType.Wall)) continue;
     if (!canAffordKeepingRepair(state, BUILDING_CONFIGS[type].cost)) continue;
@@ -1959,6 +1815,9 @@ function decidePerimeter(state: WorldState): VirtualPlayerDecision | null {
  * needs nothing the bot knows how to fix. Pure: it never writes to `state`.
  */
 export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecision | null {
+  // Zero (or too few) spare beds is housing pressure even before someone is homeless.
+  // Essential production and civic decisions remain available; optional spending must wait.
+  const housingReserveShortage = getOpenPlayerBeds(state) < spareBedReserve(state);
   return (
     answerOpenCard(state)
     ?? decideLeaderHouse(state)
@@ -1982,21 +1841,20 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
     ?? decideDemolish(state)
     ?? decideUpkeep(state)
     // Defence of the village outranks one more gift: fortifying waits until gifting has failed.
-    ?? decidePerimeter(state)
+    ?? (housingReserveShortage ? null : decidePerimeter(state))
     ?? decideRivalRelations(state)
     // Last two on purpose: a community building and a building upgrade are the only proposals
     // that may spend an hour nothing else wanted, so neither can shadow defence or diplomacy.
-    ?? decideCommunity(state)
+    ?? (housingReserveShortage ? null : decideCommunity(state))
     // Storage growth is desirable, but cannot starve research, repairs or recruiting.
-    ?? decideIndustry(state, true)
-    ?? decideUpgrades(state)
+    ?? (housingReserveShortage ? null : decideIndustry(state, true))
+    ?? (housingReserveShortage ? null : decideUpgrades(state))
   );
 }
 
 /**
- * The owner's own wording for a building the colony wants and cannot raise yet: the research it
- * waits on, the price it has not saved, or the plot the placement owner refuses. `withReserve` asks
- * the same stricter affordability an ahead-of-need build uses, so the reason names the real refusal.
+ * The owner's own wording for a building the colony wants and cannot raise yet: the research it waits
+ * on, the price it has not saved, or the plot the placement owner refuses.
  */
 function buildingBlockReason(state: WorldState, type: BuildingType, withReserve = false): string {
   const label = BUILDING_CONFIGS[type].label;
@@ -2014,13 +1872,8 @@ function buildingBlockReason(state: WorldState, type: BuildingType, withReserve 
 }
 
 /**
- * Why the ladder stopped: the larder, the beds or the shelf it cannot serve yet, said with the
- * owners' own reasons. `null` only when every need the ladder acts on is met, which is the one case
- * the status line may call healthy. Pure, and read-only like the ladder.
- *
- * It reads the ladder's own tables (`INDUSTRY_BUILD_ORDER`, `FOOD_PRODUCER_TYPES`, the spare-bed
- * reserve), so it can only name a need some step really serves — never a second policy of its own.
- * Famine comes first: a spare bed is headroom, an empty larder is settlers dying.
+ * Why the ladder stopped: the larder, the beds or the shelf it cannot serve yet, said with the owners'
+ * own reasons. `null` only when every need the ladder acts on is met. Pure and read-only like the ladder.
  */
 export function virtualPlayerWaitingReason(state: WorldState): string | null {
   const settlers = playerHumanCount(state.entities);

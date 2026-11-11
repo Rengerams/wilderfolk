@@ -1,56 +1,6 @@
 /**
- * Wilderfolk — seeded one-year performance run (roadmap O4 / P2 "Seeded One-Year Performance Run").
- *
- * Reports one metric set for a seeded colony, with every counter the roadmap asks to keep separate:
- *
- *   tick time p50/p95/p99/max   · path calls (real A* counters + spatial-query call counts)
- *   delta size (JSON + V8 bytes) · serialization spikes
- *   memory trend (heap/RSS per day) · worker fallbacks · stalled ticks
- *   console volume · invariant violations
- *
- * **On "path calls":** two distinct counters are published, because they measure different things and
- * were previously conflated under one name.
- *
- *   `pathCalls`  — *spatial searches* (`src/game/spatialQueryMetrics.ts`): graze/flee/hunt/social/road
- *                  queries, their candidate checks and grid cells. Kept under its historical name for
- *                  record compatibility.
- *   `pathfinder` — the *real A\* counters* (`src/game/pathfindingMetrics.ts`): `findPath` invocations,
- *                  nodes expanded, found/failed/node-cap outcomes, the cheap `lineCrossesBlocked` gate,
- *                  passability-grid rebuilds, and waypoint-cache hit/miss. Read **this** block when the
- *                  roadmap asks for "path calls".
- *
- * Two phases, because the repository can only observe them separately:
- *
- *   1. **in-process metric run** (default one year, `--days`) on the seeded settlement — the only
- *      place `spatialQueryMetrics` call counts (the sim's own path/query instrumentation), the delta
- *      serializer and the daily invariant collector are reachable.
- *   2. **worker transport sample** (`--worker-days`, default 1 day) through the REAL headless worker
- *      (`simWorker/gameWorker.node.ts`, the same module the browser worker runs, driven over
- *      `worker_threads` exactly as `scripts/repro-worker-stall.mts` does). That is where a worker
- *      fallback and a stalled tick can actually be counted; on a fault the harness falls back to
- *      main-thread ticks for the rest of the sample, mirroring `GameLoop.fallbackFromWorker`.
- *
- * Why the worker sample is bounded rather than a full year: one Huge-map tick ships a ~1 MB
- * `SimTickDelta` over the port (measured below), so a 25 920-tick worker run moves tens of GB. The
- * in-process run is the one-year measurement; pass `--worker-days=360` if you want the worker to
- * carry the whole year and can wait for it.
- *
- * Run:
- *   npx tsx scripts/perf-seeded-year.mts                             # one year, Huge, producers
- *   npx tsx scripts/perf-seeded-year.mts --days=90 --worker-days=1   # a bounded review run
- *   node --expose-gc --import tsx scripts/perf-seeded-year.mts       # forced-GC memory trend
- *
- * Options:
- *   --days=N            in-process run length (default 360, max 3600)
- *   --seed=N            seed (default 12345)
- *   --scenario=         producers | restocked (default producers)
- *   --map=              huge | large | medium (default huge)
- *   --delta-sample-days=N   serialize one delta every N days (default 1; 0 disables)
- *   --memory-sample-days=N  sample heap/RSS every N days (default 1)
- *   --worker-days=N     worker transport sample length (default 1; 0 skips the worker)
- *
- * The bounded text report goes to stdout; the complete record (including every sample) goes to one
- * JSONL file under `docs/log/`. Normal mode never prints a line per tick.
+ * Seeded one-year performance run: in-process metrics plus a bounded worker transport sample.
+ * Options: `--days`, `--seed`, `--scenario`, `--map`, `--worker-days`…; run with `npx tsx scripts/perf-seeded-year.mts`.
  */
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -282,10 +232,8 @@ interface WorkerSampleReport {
   ticksRequested: number;
   ticksCompleted: number;
   /**
-   * Ticks finished on the main thread after a worker fault, mirroring `GameLoop.fallbackFromWorker`.
-   * The main thread holds its own copy of the seeded world (the worker was handed a clone), so these
-   * measure main-thread tick cost from the start of the sample, not a continuation of the worker's
-   * calendar.
+   * Ticks finished on the main thread after a worker fault. The main thread holds its own copy of
+   * the seeded world, so these measure from the start of the sample.
    */
   ticksOnMainThreadAfterFallback: number;
   fallbackCount: number;

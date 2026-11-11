@@ -1,14 +1,6 @@
 /**
- * Low-severity audit batch (groupEvents / defenseStructures / prisonGuardDuty).
- *
- * Covers the findings that live in those three modules:
- *   - L31 the first-week visitor window its comment now documents
- *   - L32 visitor trades never pay for goods they cannot receive
- *   - L33 the diplomacy resolver answers through `getDiplomacyChoiceEligibility`
- *   - L34 recurring events carry instance-unique ids (dismissal is id-keyed)
- *   - the cross-cutting economy-ownership item in groupEvents (resourceUtils owner)
- *   - L15 barracks occupancy repair is owned by the assignment/death transitions
- *   - L51 a prison escape re-syncs `prison.occupants` in the same step
+ * Low-severity regression guards for `groupEvents`, `defenseStructures` and `prisonGuardDuty`:
+ * visitor trades, diplomacy eligibility, instance-unique event ids, barracks occupancy, prison escape.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -202,8 +194,7 @@ function yearlyEventAt(tick: number): GameEvent | null {
 describe('groupEvents visitor trade uses the economy owners', () => {
   it('refuses a trade priced in a resource the world does not hold instead of writing NaN', () => {
     const state = worldWithTrader();
-    // The private helper read `undefined < cost` as affordable and then deducted
-    // NaN into the purse; `canAfford` treats a missing key as 0.
+    // A missing resource key must count as 0 and never put NaN into the purse.
     (state.resources as unknown as Record<string, number | undefined>).gold = undefined;
 
     const next = tradeWithVisitors(state, 'trader-1', 'buy_food');
@@ -379,7 +370,7 @@ describe('L51 — a prison escape re-syncs the prison occupant list', () => {
 
   it('is the exact state the prison invariant rejects when the list is left stale', () => {
     const { world, prisoner, prison } = prisonWorld();
-    // Pre-fix escape end state: ownership cleared, occupant id left behind.
+    // Stale escape end state: ownership cleared but the occupant id left behind.
     prisoner.prisonBuildingId = undefined;
     prisoner.prisonerUntilTick = undefined;
 
@@ -403,8 +394,8 @@ function staffedPrison(guardCount: number): { world: WorldState; prisoner: Entit
 
 describe('prison coverage — the crew the shifts require has to fit in the building', () => {
   it('seats a full guard crew and still has room for a prisoner', () => {
-    // The roster needs one guard per shift for 24 h coverage. A building that cannot seat them makes
-    // the leak certain: that is how every prisoner in a live save came to escape.
+    // The roster needs one guard per shift for 24 h coverage; a building that cannot seat them cannot
+    // hold a prisoner.
     expect(BUILDING_CONFIGS[BuildingType.Prison].maxOccupants).toBeGreaterThanOrEqual(
       PRISON_GUARDS_FOR_FULL_COVERAGE + 1,
     );
@@ -454,10 +445,8 @@ describe('prison coverage is presence, not the roster', () => {
   });
 
   it('sees a stationed guard even with the cells full and the guards seated last', () => {
-    // The reported leak: a full roster whose guards stood exactly where the movement owner puts them,
-    // and the post still read as empty. `prison.occupants` is guards ∪ prisoners, so the row was laid
-    // out across both — with the cells filled and the guards last in the list, the outer guards stood
-    // further from the centre than the 55 px `tickPrisonPresence` samples.
+    // `prison.occupants` is guards ∪ prisoners, so presence must be sampled per guard rather than
+    // from list order; with the cells full and the guards last, every hour is still covered.
     const { world, prisoner, prison } = prisonWorld();
     const guards: Entity[] = [];
     for (let i = 0; i < PRISON_GUARDS_FOR_FULL_COVERAGE; i++) {
@@ -474,7 +463,7 @@ describe('prison coverage is presence, not the roster', () => {
     prison.occupants = [...cellmates, ...guards.map((guard) => guard.id)];
 
     for (const guard of guards) {
-      const stand = humanBuildingTarget(prison, guard.id, false);
+      const stand = humanBuildingTarget(prison, guard.id);
       const posted = { ...guard, x: stand.x, y: stand.y };
       expect(isNearBuilding(posted, prison)).toBe(true);
     }
@@ -539,8 +528,7 @@ describe('prison coverage is presence, not the roster', () => {
 });
 
 /**
- * The frontier opens on a milestone, not on the weighted `rival_settlement` draw — a camp is the
- * only source of raids and diplomacy, so a run without one has no raid system at all.
+ * The frontier opens on a milestone; a camp is the only source of raids and diplomacy.
  */
 describe('legacy frontier rival settlement spawning is retired', () => {
   function colonyFixture(humans: number, withHouse: boolean): { state: WorldState; allAlive: Entity[] } {

@@ -1,20 +1,6 @@
 /**
- * Headless repro for "game worker background is stalling".
- * Drives the REAL worker entry (gameWorker.node.ts) via worker_threads,
- * mimicking GameLoop: pipelined tick requests (MAX_PIPELINE_DEPTH=4),
- * periodic player commands, and a stall watchdog.
- *
- * The watchdog question is about the **gap** between worker results, not the mean tick: a colony can
- * tick at 10 ms p50 and still trip `GameLoop`'s watchdog if one tick or one GC pause is long enough
- * (the live report was `Worker silent 105837ms`). So this reports max/p99 inter-result gap and the
- * heap high-water mark beside the tick distribution, and it can be pointed at a **real save**:
- *
- *   PERF_SAVE=<save.json> TICKS=2000 npx tsx scripts/repro-worker-stall.mts
- *
- * Env:
- *   PERF_SAVE=<path>       drive this save instead of the synthetic 120-settler colony
- *   TICKS=<n>              ticks to request (default 6000 synthetic / 2000 with a save)
- *   STALL_MS=<n>           gap that counts as a stall (default 2500; GameLoop's floor is 10000)
+ * Headless repro for "game worker background is stalling": drives the REAL worker entry through
+ * `worker_threads` with a stall watchdog, reporting max/p99 inter-result gap and heap high-water mark.
  */
 import { readFileSync } from 'node:fs';
 import { serialize as v8Serialize } from 'node:v8';
@@ -144,13 +130,13 @@ async function main(): Promise<void> {
       return;
     }
     if ((msg.type === 'tickResult' || msg.type === 'commandResult')
-        && msg.renderBuffer && msg.bufferIndex !== undefined) {
+        && msg.renderBuffer && msg.bufferIndex !== undefined && msg.bufferLease !== undefined) {
       buffersReceived++;
       maxOutstandingBuffers = Math.max(maxOutstandingBuffers, buffersReceived - buffersReturned);
       try {
         worker.postMessage({
           type: 'returnBuffer', proto: WORKER_PROTO,
-          bufferIndex: msg.bufferIndex, buffer: msg.renderBuffer,
+          bufferIndex: msg.bufferIndex, bufferLease: msg.bufferLease, buffer: msg.renderBuffer,
         } satisfies WorkerRequest, [msg.renderBuffer]);
         buffersReturned++;
       } catch (err) {

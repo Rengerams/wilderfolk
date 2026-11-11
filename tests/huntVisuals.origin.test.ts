@@ -1,11 +1,6 @@
 /**
- * Regression for `BUG_REPORTS/2026-08-28-hunting-projectile-visual.md`.
- *
- * A staffed Hunting Spot resolves its kill in the daily economy layer, and that
- * used to emit the hunt visual from `building.x` / `building.y` with
- * `hunterId: building.id` — so the shot read as an automatic tower firing. The
- * shot must leave the live assigned hunter instead, and an unstaffed Hunting Spot
- * must not look like it fired at all.
+ * A staffed Hunting Spot's kill emits its visual from the live assigned hunter, not from the
+ * building, and an unstaffed spot never looks like it fired.
  */
 import { describe, expect, it } from 'vitest';
 import { gameTick, initGame } from '../src/game/gameEngine';
@@ -61,12 +56,8 @@ function deer(id: number): Entity {
   return {
     id,
     type: EntityType.Deer,
-    // Beside the *hunter*, not the building. This fixture used to park the prey 120 px from the spot's
-    // centre and assert a shot anyway, which encoded the old rule that the structure did the killing at
-    // range. A hunter now has to be next to the animal to take it (owner: *"to kil it you have stand
-    // ne xt to it"*), so the prey is placed where the hunter actually is. The distance from the
-    // **building** stays large, which is the whole point of the test: the shot originates at the
-    // hunter, not at the spot.
+    // Beside the *hunter*, not the building: a hunter must stand next to the animal to take it, so
+    // the prey sits where the hunter is — far from the spot, which is the point of the test.
     x: HUNTER_X + 20,
     y: HUNTER_Y,
     energy: 100,

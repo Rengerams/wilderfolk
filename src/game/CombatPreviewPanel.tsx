@@ -32,9 +32,8 @@ function OutcomeBadge({ tier, kind }: { tier: RaidOutcomeTier | CounterRaidTier;
 
 function ratioPct(ratio: number | null): string {
   if (ratio == null) return '—';
-  // Floor, never round: the outcome tiers band on `>= 1.35 / 0.95 / 0.65`, so rounding let a 1.345
-  // ratio print "135%" beside a "Costly win" badge while the hint below it says 135% is decisive
-  // (mirror case at 0.945 → "95%"). 2026-09-17 UI audit, R22.
+  // Floor, never round: the outcome tiers band on `>= 1.35 / 0.95 / 0.65`, so a rounded 1.345 would
+  // print "135%" beside a "Costly win" badge the hint calls decisive.
   return `${Math.floor(ratio * 100)}%`;
 }
 

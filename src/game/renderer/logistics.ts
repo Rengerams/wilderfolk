@@ -1,16 +1,6 @@
 /**
- * F4 — Infrastructure and Logistics Overlay: the per-frame draw pass.
- *
- * This painter **decides nothing**. Connectivity, poor-connection classification and commute
- * severity are all computed in `logisticsOverlayData` and arrive on the snapshot; the renderer
- * only maps world coordinates to the screen and strokes what it was handed. Every constant in this
- * file is a drawing concern (line widths, marker radii, culling padding, colours).
- *
- * It lives in the per-frame overlay pass (`renderer/overlay.ts`), **not** in the tick-keyed entity
- * layer: the projection is a live read of the world and the toggle is live view state, so baking
- * it into a bitmap that only repaints on a sim tick would freeze the overlay between ticks and
- * leave it stale while paused — the same bug class as the hunt arrows and the leader aura
- * (`tests/visualsAudit.renderWiring.test.ts` D5/D19).
+ * F4 — Infrastructure and Logistics Overlay: the per-frame draw pass. This painter decides nothing —
+ * connectivity and commute severity arrive on the snapshot — and every constant is a drawing concern.
  */
 import { worldToScreen } from '../viewState';
 import { viewportFromCamera, type WorldViewport } from '../spatialGrid';
@@ -52,11 +42,8 @@ function isOutsideWorld(vp: WorldViewport, x: number, y: number): boolean {
 }
 
 /**
- * Draws the logistics overlay.
- *
- * Culling happens in **world** space against `viewportFromCamera`, before any coordinate is
- * converted; only visible items reach `worldToScreen`. The pass allocates no arrays of its own —
- * it walks the projection's arrays and reuses the module-level style constants.
+ * Draws the logistics overlay. Culling happens in world space against `viewportFromCamera`, before
+ * any coordinate is converted; only visible items reach `worldToScreen`, and no arrays are allocated.
  */
 export function drawLogisticsOverlay(
   ctx: CanvasRenderingContext2D,

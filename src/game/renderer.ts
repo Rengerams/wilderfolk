@@ -12,6 +12,7 @@ import {
   _tickHumans,
 } from './renderer/entityCache';
 import { resetWeatherCaches } from './renderer/weather';
+import { resetHumanRenderCaches } from './renderer/humans';
 import { compositeCachedEntityLayer, paintMovingEntities } from './renderer/entityComposite';
 import { drawGameOverlay } from './renderer/overlay';
 import { beginMotionFrame, resetMotionInterpolation, setSpotlightPresentationFrame, type SpotlightPresentation } from './renderer/motionInterpolation';
@@ -27,20 +28,17 @@ export function resetRendererCaches(): void {
   disposeEntityLayerCache();
   resetDialogueSessions();
   resetWeatherCaches();
+  resetHumanRenderCaches();
   resetRenderClock();
   resetMotionInterpolation();
-  // The logistics projection memo is keyed on world identity, and a new session, a loaded save or a
-  // `setWorld` all replace that object — but the key also has a cached *reference* to it, so dropping
-  // it here keeps the cache from pinning a dead world alive and makes the invalidation explicit.
+  // The logistics projection memo is keyed on world identity and caches a reference to it, so dropping
+  // it here keeps a replaced world from being pinned alive.
   resetLogisticsOverlayCache();
 }
 
 /**
- * Read-only render pass — camera/screenShake must be pre-interpolated in the snapshot.
- *
- * `tickFraction` is how far the accumulator has advanced through the fixed step: movers are drawn
- * blended between the previous and current tick by it, and `1` (the paused value) draws the exact
- * tick state.
+ * Read-only render pass — camera/screenShake must be pre-interpolated in the snapshot. `tickFraction`
+ * is how far the accumulator advanced through the fixed step; `1` (paused) draws the exact tick state.
  */
 export function renderGame(
   ctx: CanvasRenderingContext2D,

@@ -15,12 +15,8 @@ export const ENTITY_TYPE_CODE: Record<EntityTypeName, number> = {
 };
 
 /**
- * Reverse map, derived from the forward one so the two can never drift.
- *
- * Spelling it out by hand let a new `EntityType` compile while having no wire code — the forward
- * map is `Record<EntityTypeName, number>` and therefore exhaustive, but a hand-written reverse map
- * silently missed the new member and `entityTypeToCode` would emit `UNKNOWN_ENTITY_TYPE_CODE`,
- * making every entity of that species invisible.
+ * Reverse map, derived from the forward one so the two can never drift: a hand-written map silently
+ * missed a new `EntityType`, and every entity of that species became invisible.
  */
 export const ENTITY_CODE_TO_TYPE: Record<number, EntityTypeName> = Object.fromEntries(
   Object.entries(ENTITY_TYPE_CODE).map(([type, code]) => [code, type as EntityTypeName]),

@@ -1,12 +1,6 @@
 /**
- * The People screen's sweetheart counter — `citizenOverview.computeCitizenOverview().youthLove`.
- *
- * Youth love is a real mutual pair bond in the simulation (`humanRelationships.advanceYouthLove`,
- * run daily from `tickLayerDaily`) that had no counter anywhere outside the opt-in console
- * diagnostics, so the People screen's Life card could only ever read zero while a save held
- * sweethearts. These tests pin the rule the new counter has to obey: **one pair counts once**, the
- * same one-half-only convention `affairs` and `humanTick`'s `activeYouthLovePairs` already use — so
- * they fail if the counter is ever rewritten as "settlers with a partner id", which reports two.
+ * `citizenOverview.computeCitizenOverview().youthLove` counts each mutual pair once, matching
+ * the half-only convention of `affairs` and `humanTick`'s `activeYouthLovePairs`.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType, Season, WeatherType } from '../src/game/gameTypes';

@@ -15,10 +15,8 @@ export let renderTime = 0;
 /** Seconds since the previous frame, clamped — the one delta every per-frame motion integrates. */
 export let renderDelta = 0;
 /**
- * Oscillator clock in seconds — the same clock, held still while the OS asks for reduced motion.
- *
- * Pulses, bobs, sparkle and sway read this instead of {@link renderTime}, so honouring the
- * preference freezes decoration without stopping motion integration (weather drift, particles).
+ * Oscillator clock in seconds — held still while the OS asks for reduced motion, so decoration
+ * freezes without stopping motion integration (weather drift, particles).
  */
 export let motionTime = 0;
 
@@ -70,8 +68,7 @@ export function tickRenderClock(now: number): number {
 
 // ============ COLOR UTILITIES ============
 export function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const n = parseInt(hex.replace('#', ''), 16);
-  return { r: (n >> 16) & 0xff, g: (n >> 8) & 0xff, b: n & 0xff };
+  return parseHexRgb(hex);
 }
 
 export function rgbToHex(r: number, g: number, b: number): string {

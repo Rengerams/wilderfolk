@@ -2,15 +2,8 @@ import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
 import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycycleconstants';
 import { HUMAN_ADULT_MIN_AGE as HUMAN_MOVE_OUT_MIN_AGE } from '../src/game/daycycleconstants';
 /**
- * The adult floor is 18 (fixed 2026-09-16; it was 16).
- *
- * `HUMAN_ADULT_MIN_AGE` gates courtship, leadership, adoption guardianship, recruit ages and the
- * legacy age clamp. The repository's age ladder has always *documented* 18 —
- * `docs/archive/FERTILITY_AGE14_F1.md` ("The adult marriage threshold remains **18**"),
- * `docs/archive/YOUTH_LOVE_FEATURE.md` ("18 = Adult transition") and the CHANGELOG ("affairs 18+") —
- * while the constant said 16, so a 16–17 year old could court, lead, be recruited as an adult and be
- * offered housing of their own. See
- * `BUG_REPORTS/2026-09-16-adult-floor-was-16-against-the-documented-18.md`.
+ * `HUMAN_ADULT_MIN_AGE` is 18: it gates courtship, leadership, adoption guardianship, recruit ages
+ * and the legacy age clamp.
  */
 import { describe, expect, it } from 'vitest';
 

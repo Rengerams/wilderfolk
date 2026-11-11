@@ -1,8 +1,6 @@
 /**
- * The rollback snapshot shares an entity's `friendships` / `feuds` / `feudPeaks` records instead of
- * cloning them every tick (they are large; the clone was the bulk of the rollback cost). That is only
- * sound while every writer replaces the record (copy-on-write). This case proves the snapshot object
- * is not mutated by the real social paths, and that a rollback restores the pre-tick records.
+ * The rollback snapshot shares each entity's `friendships` / `feuds` / `feudPeaks` records rather
+ * than cloning them, which is sound only while every writer uses copy-on-write.
  */
 import { describe, expect, it } from 'vitest';
 import { gameTick, initGame } from '../src/game/gameEngine';

@@ -1,9 +1,9 @@
 import type { Entity, WorldState, Building } from './gameTypes';
 import { BuildingType, BUILDING_JOB_TYPES, EntityType, JOB_LABELS, JobType } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycleClock';
-import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
+import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { PROFILE_REVISION, bumpRevision } from './entityRevision';
-import type { TraitContext } from './personality/traitEffectCatalog';
 
 export function getOccupationForBuilding(type: BuildingType): string {
   const job = BUILDING_JOB_TYPES[type];
@@ -45,9 +45,7 @@ export const SKILL_CREDIT_INTERVAL_TICKS = TICKS_PER_DAY;
 
 /**
  * Every profession credited for the shift it works: each staffing post the game assigns a job to.
- *
- * Derived from `BUILDING_JOB_TYPES`, not a hand-kept list, so a workplace added there teaches its
- * trade without a second edit. A site with no job of its own (a construction crew) is paid separately.
+ * Derived from `BUILDING_JOB_TYPES`, so a new workplace teaches its trade without a second edit.
  */
 export const WORK_SKILL_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingType>(
   Object.keys(BUILDING_JOB_TYPES) as BuildingType[],
@@ -62,14 +60,14 @@ export function gainSkill(
 ) {
   // A supplied index is authoritative: an id it lacks is a stale slot, not a cue to scan the world.
   const human = entityById ? entityById.get(humanId) : state.entities.find((e) => e.id === humanId);
-  if (!human || human.type !== EntityType.Human || human.isJuvenile || !human.alive) return;
+  if (!human || human.type !== EntityType.Human || human.age < HUMAN_ADULT_MIN_AGE || !human.alive) return;
   const skills = writableEntitySkills(human);
   skills[job] = Math.min(MAX_SKILL, (skills[job] ?? 0) + amount);
 }
 
 /** Apply a small decay to non-active job skills on calendar day rollover. */
 export function decayIdleSkills(entity: Entity, activeJob?: JobType, amount = SKILL_IDLE_DECAY_PER_DAY): void {
-  if (entity.type !== EntityType.Human || !entity.alive || entity.isJuvenile) return;
+  if (entity.type !== EntityType.Human || !entity.alive || entity.age < HUMAN_ADULT_MIN_AGE) return;
   const skills = writableEntitySkills(entity);
   for (const job of Object.values(JobType)) {
     if (job === activeJob) continue;
@@ -91,11 +89,8 @@ export function rewardProductionSkills(
 }
 
 /**
- * Credit a production crew for the shift it worked, on the building's production tick.
- *
- * Separate from `rewardProductionSkills` on purpose: that one is paid for *output* and so stops the
- * day stores fill, which strands every trade whose good has a full store (iron, gold, stone) at its
- * entry skill. This credit is paid for the shift, so a refused harvest still teaches the trade.
+ * Credit a production crew for the shift it worked, on the building's production tick. Separate from
+ * `rewardProductionSkills` on purpose: that one is paid for output, so a refused harvest would not teach.
  */
 export function rewardBuildingWork(
   state: WorldState,
@@ -113,10 +108,8 @@ export function rewardBuildingWork(
 export type WorkAction = 'production' | 'construction';
 
 /**
- * The crew's skill and the catalog's DNA factor for the work it is doing, as one multiplier.
- *
- * The context is the site's own trade for production and `work`/builder/construction for a build
- * crew, so a trait irrelevant to the work is neutral and each trait is priced exactly once.
+ * The crew's skill and the catalog's DNA factor for the work it is doing, as one multiplier: the
+ * activity is construction or routine production, so each dimension is priced exactly once.
  */
 export function getWorkerSkillMultiplier(
   state: WorldState,
@@ -130,9 +123,7 @@ export function getWorkerSkillMultiplier(
   // no production job, yet the crew raising it still earns — and is priced by — Building.
   const skillJob = action === 'construction' ? siteJob ?? JobType.Builder : siteJob;
   if (!skillJob) return 1;
-  const workContext: TraitContext = action === 'construction'
-    ? { kind: 'work', job: JobType.Builder, action: 'construction' }
-    : { kind: 'work', job: skillJob, action: 'production' };
+  const workActivity = action === 'construction' ? 'construction' as const : 'routineWork' as const;
   let total = 0;
   let traitFactorSum = 0;
   for (const id of building.occupants) {
@@ -144,7 +135,7 @@ export function getWorkerSkillMultiplier(
       continue;
     }
     total += readSkill(h, skillJob);
-    traitFactorSum += evaluateTraitInfluence(h, workContext).factor;
+    traitFactorSum += evaluateAptitudeInfluence(h, workActivity).factor;
   }
   const avg = total / building.occupants.length;
   const traitMult = traitFactorSum / building.occupants.length;

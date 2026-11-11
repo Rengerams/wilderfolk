@@ -1,16 +1,6 @@
 /**
- * Affair cadence authority — SIMULATION_AUTHORITY.md §3/§4 + Objective 9 +
- * BUG 2026-08-20-affair-establishment-dual-cadence.
- *
- * The staggered-social (realtime) path may advance tryst progress and fire
- * flirt/heart feedback, and progress may begin before establishment — but it
- * must NEVER write affairPartnerId (establishment) and must never roll a
- * scandal for an unestablished pair. Establishment, gossip, and scandal
- * decisions belong to the new-calendar-day owner (tryDailyAffairEncounter).
- *
- * The golden test runs REAL sim ticks inside the first day (no day boundary):
- * a couple at 95 tryst progress completes to 100 in the staggered path without
- * ever establishing, then the daily owner establishes on its own roll.
+ * Affair cadence: the staggered realtime path may advance tryst progress and fire flirt/heart
+ * feedback, but only the daily owner (`tryDailyAffairEncounter`) establishes or rolls scandal.
  */
 import { personDayRoll } from '../src/game/simRng';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -172,9 +162,8 @@ describe('affair cadence (Objective 9)', () => {
     const { wife, husband, paramour, state } = affairFixture();
     const entityById = new Map([[wife.id, wife], [husband.id, husband], [paramour.id, paramour]]);
 
-    // The daily gate is a stateless roll per settler and *day*
-    // (`personDayRoll(id, tick, 610)`), so the day is chosen rather than stubbing
-    // `Math.random`, which no longer reaches it.
+    // The daily gate is a stateless per-settler, per-day roll (`personDayRoll(id, tick, 610)`),
+    // so this loop picks the first day whose roll fires.
     const tickOnDay = (day: number): number => day * TICKS_PER_DAY;
     let day = 1;
     while (day <= 5000 && personDayRoll(wife.id, tickOnDay(day), 610) >= 0.001) day++;

@@ -1,15 +1,6 @@
 /**
- * Presentation-only smoothing of `building.constructionProgress`.
- *
- * The completeness value is decided **once per colony day** (`tickBuildingProgress`, daily
- * cadence — see `simulation/decisionRegistry.ts`), so a bar drawn straight from it is frozen for a
- * whole game day and then jumps: at 1x a day is 72 real seconds, and a one-day build steps ~45% in
- * one frame. Owner report: "when they building the % is not going up for completeness".
- *
- * This module does not touch the simulation. It remembers the previous authoritative value per
- * building and ramps the *displayed* number across the day, landing exactly on the authoritative
- * value as the next daily step arrives. Consumers: the canvas progress bar/number
- * (`renderer/buildings.ts`) and the building inspector's "Progress" line.
+ * Presentation-only smoothing of `building.constructionProgress`, which advances once per colony day.
+ * Ramps the displayed value across the day onto the authoritative value; never mutates the sim.
  */
 import type { Building } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycle';
@@ -26,10 +17,8 @@ interface ProgressSample {
 const samples = new Map<number, ProgressSample>();
 
 /**
- * Upper bound on remembered buildings. A finished building drops its sample (see
- * {@link displayedConstructionProgress}), so in normal play this only ever holds builds in flight;
- * the cap covers sites demolished before they finished, whose entry nothing else would ever
- * reclaim. Same eviction shape as `shared.ts`'s `NAME_WIDTH_CACHE_MAX`.
+ * Upper bound on remembered buildings; the cap covers sites demolished before finishing, whose
+ * sample nothing else reclaims.
  */
 const MAX_PROGRESS_SAMPLES = 512;
 
@@ -37,9 +26,7 @@ const MAX_PROGRESS_SAMPLES = 512;
 export function displayedConstructionProgress(building: Building, tick: number): number {
   const value = building.constructionProgress;
 
-  // Finished: there is nothing left to ramp (the ramp landed on the authoritative value), and
-  // holding the sample would leak one entry per building id ever displayed — ids are not reused,
-  // so a demolished or completed site was never reclaimed for the life of the session.
+  // Finished: drop the sample, or one entry leaks per building id ever displayed.
   if (value >= 100) {
     samples.delete(building.id);
     return 100;

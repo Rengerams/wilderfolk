@@ -1,15 +1,6 @@
 /**
- * Contextual-tutorial detection is a function of the current world alone.
- *
- * Regression for the defect where detection compared the world against a "previous"
- * world that was in fact the same object: the game loop mutates one `WorldState` in
- * place (`GameLoop.frame` calls `gameTick(this.world)`, the worker host hands back its
- * single `worldRef`), so every `prev` vs `curr` transition check was false and no tip
- * ever appeared (`BUG_REPORTS/2026-09-17-contextual-tips-never-fire.md`).
- *
- * Every test here mutates the world **in place** — no new object identity — and still
- * requires the tip to be reported. If detection ever goes back to holding a previous
- * world reference, these tests fail.
+ * Contextual-tutorial detection reads only the current world: the loop mutates one `WorldState` in
+ * place, so these tests mutate in place and still require the tip.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

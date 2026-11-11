@@ -1,7 +1,5 @@
 /*
- * BUG 2026-08-21-ambient-dialogue-often-becomes-leader-monologue.
- * Nearby eligible settlers must join an ambient exchange rather than being
- * randomly discarded into a solo speech line.
+ * An ambient exchange pairs the leader with a nearby eligible settler, never a solo speech line.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -27,11 +25,22 @@ describe('ambient dialogue pairing', () => {
     setSimSeed(11);
     // Chance 1 guarantees the ambient gate; seeded context/partner rolls are
     // controlled by the simulation RNG, not Math.random.
-    tryAmbientRandomDialogue(leader, [ordinarySettler], 0, 1);
+    tryAmbientRandomDialogue(leader, () => [ordinarySettler], 0, 1);
 
     expect(leader.chatPartnerId).toBe(ordinarySettler.id);
     expect(ordinarySettler.chatPartnerId).toBe(leader.id);
     expect(leader.chatDialogueSessionKey).toBe(ordinarySettler.chatDialogueSessionKey);
+  });
+
+  it('does not read the neighbourhood when the ambient chance roll fails', () => {
+    const leader: ChatSpeaker = { id: 3 };
+    let reads = 0;
+    tryAmbientRandomDialogue(leader, () => {
+      reads++;
+      return [];
+    }, 0, -1);
+
+    expect(reads).toBe(0);
   });
 
   it('hands the next visible line to the ordinary conversation partner', () => {

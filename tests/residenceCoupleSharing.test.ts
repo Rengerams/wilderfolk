@@ -1,7 +1,6 @@
 /**
- * A couple does not live with another, unrelated couple. With no home of its own free, it stays with
- * its own family instead, and a lone settler keeps to a singles' house. Capacity, shortage and manor
- * rules are pinned elsewhere; only the pairing preference is asserted here.
+ * A couple does not live with another, unrelated couple: with no free home of its own it stays with
+ * its family, and a lone settler keeps to a singles' house.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';

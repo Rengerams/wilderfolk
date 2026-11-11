@@ -5,10 +5,14 @@ import { terrainRiseAt } from '../terrainAtlas';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { motionTime } from './shared';
 import { presentationPosition } from './motionInterpolation';
-import { _cachedAnimals, _cachedHumans } from './entityCache';
+import { _cachedAnimals, _cachedHumans, _cachedTrees } from './entityCache';
 import { worldToScreenX, worldToScreenY } from '../viewState';
 import { drawAnimals } from './animals';
-import { drawBuildings } from './buildings';
+import {
+  depthSortedBuildings,
+  drawBuildingGroundwork,
+  drawDepthSortedBuilding,
+} from './buildings';
 import { drawBuildZoneOverlay, drawGrid } from './grid';
 import { drawGrass } from './grass';
 import { drawHumans, drawHuntChaseLines, drawTradeRouteLines } from './humans';
@@ -16,7 +20,8 @@ import { shouldDrawSpotlightHuman } from './overheadLayout';
 import { drawCampMarkers, drawEcoConnections, drawFloatingTexts } from './markers';
 import { drawParticles } from './particles';
 import { drawScentOverlay } from './scent';
-import { drawTrees } from './trees';
+import { drawTree, sortedTrees } from './trees';
+import type { Building, Entity } from '../gameTypes';
 import {
   beginEntityLayerPaint,
   buildEntityLayerKey,
@@ -27,6 +32,34 @@ import {
   paintEntityLayerTo,
 } from '../entityLayer';
 
+/** Trees and buildings interleaved by feet depth, so a trunk south of a building draws in front. */
+function drawStaticOccluders(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+): void {
+  const trees = _cachedTrees ? sortedTrees(_cachedTrees) : [];
+  const buildings = depthSortedBuildings(state.buildings);
+  let treeIndex = 0;
+  let buildingIndex = 0;
+  while (true) {
+    const tree: Entity | undefined = treeIndex < trees.length ? trees[treeIndex] : undefined;
+    const building: Building | undefined = buildingIndex < buildings.length ? buildings[buildingIndex] : undefined;
+    if (!tree && !building) return;
+    const buildingDepth = building ? building.y + building.height / 2 : Infinity;
+    if (tree && tree.y <= buildingDepth) {
+      drawTree(ctx, state, tree, cw, ch);
+      treeIndex++;
+    } else if (building) {
+      drawDepthSortedBuilding(ctx, state, building, cw, ch);
+      buildingIndex++;
+    } else {
+      return;
+    }
+  }
+}
+
 function paintWorldEntityLayer(ctx: CanvasContext2d, state: RenderSnapshot, cw: number, ch: number): void {
   // OffscreenCanvas 2d contexts are API-compatible with CanvasRenderingContext2D for draw passes.
   const drawCtx = ctx as CanvasRenderingContext2D;
@@ -34,16 +67,14 @@ function paintWorldEntityLayer(ctx: CanvasContext2d, state: RenderSnapshot, cw: 
   drawBuildZoneOverlay(drawCtx, state, cw, ch);
   drawGrid(drawCtx, state, cw, ch);
   drawGrass(drawCtx, state, cw, ch);
-  drawTrees(drawCtx, state, cw, ch);
-  drawBuildings(drawCtx, state, cw, ch);
+  drawBuildingGroundwork(drawCtx, state, cw, ch);
+  drawStaticOccluders(drawCtx, state, cw, ch);
   drawCampMarkers(drawCtx, state, cw, ch);
-  drawEcoConnections(drawCtx, state, state.camera, cw, ch);
 }
 
 /**
- * Per-frame pass for everything that moves between simulation ticks — settlers, wildlife, trail
- * lines, notices and particles. It draws into the frame from the live camera, so positions can be
- * blended by the tick fraction; the tick-keyed bitmap cannot show motion between its repaints.
+ * Per-frame pass for what moves between simulation ticks — settlers, wildlife, trail lines, notices,
+ * particles. It draws from the live camera so positions can blend by the tick fraction.
  */
 export function paintMovingEntities(
   ctx: CanvasRenderingContext2D,
@@ -54,6 +85,8 @@ export function paintMovingEntities(
   const drawCtx = ctx;
   // Build ghost is drawn live in renderGame (animated bob / brackets)
   // Hunt arrows stay in the overlay pass (`overlay.ts`) — they advance on a millisecond clock.
+  // Marriage links follow the settlers, so they belong to the moving pass, not the static layer.
+  drawEcoConnections(drawCtx, state, state.camera, cw, ch);
   drawAnimals(drawCtx, state, cw, ch, true);
   drawTradeRouteLines(drawCtx, state, cw, ch);
   drawHuntChaseLines(drawCtx, state, cw, ch);

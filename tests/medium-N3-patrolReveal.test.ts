@@ -1,10 +1,6 @@
 /**
- * Audit N-3 — the patrol reveal is a property of the tick, not of the guard looking.
- *
- * `tickHumans` used to call `detectRaidersForPatrol` once per barracks guard on shift, and each call
- * walked the whole human list twice. It now builds `buildPatrolRevealIndex` once and passes it to
- * every guard. These cases pin the observable result of that change: the same groups are revealed and
- * each group is announced exactly once, whichever guard spots it and however many guards are on duty.
+ * The patrol reveal is a property of the tick: `buildPatrolRevealIndex` is built once and passed to
+ * every guard, so each group is revealed and announced exactly once.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

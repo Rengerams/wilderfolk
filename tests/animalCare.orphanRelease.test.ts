@@ -1,13 +1,6 @@
 /**
- * Audit L2 (2026-09-13): "Tamed animals whose owner died keep eating rations
- * forever and can never be hunted."
- *
- * The fix belongs to the removal owner, not to the ration counter:
- * `humanLifecycleCleanup.reconcileFamilyReferencesAfterRemoval` clears the dead
- * owner's `tamedBy`, so the animal returns to the wild — it stops drawing the
- * daily ration AND `isValidHuntPrey` accepts it again. Counting only pets with a
- * living owner (the first attempt) would have hidden the animal from the ration
- * list while `isValidHuntPrey` still refused it, i.e. neither fed nor huntable.
+ * A pet whose owner dies is released by `reconcileFamilyReferencesAfterRemoval`, so it
+ * stops drawing rations and `isValidHuntPrey` accepts it again.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

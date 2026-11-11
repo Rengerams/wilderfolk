@@ -1,12 +1,6 @@
 /**
- * Simulation invariants — sanity checks run on the whole world every tick.
- *
- * The unit suite tests ~20 ticks of a clean world; this catches the silent
- * corruption class (NaN positions, negative resources, orphaned bonds, cache
- * divergence) that only surfaces after thousands of ticks of accumulated state
- * (the ER-1 byType staleness, ER-3 discarded herd, ER-6 double-drain bugs).
- *
- * Returns a list of violation strings — empty means the world is sane.
+ * Simulation invariants — sanity checks on the whole world each tick, catching the silent corruption
+ * (NaN positions, negative resources, orphaned bonds, cache divergence). Empty list means sane.
  */
 import type { WorldState } from '../gameTypes';
 import { EntityType } from '../gameTypes';
@@ -44,9 +38,8 @@ export function assertSimInvariants(state: WorldState): string[] {
     seen.add(e.id);
   }
 
-  // 4. childrenIds / partnerId / pregnantById must reference an entity that EXISTS
-  // (dead is fine: widowed spouses, fathers who died mid-pregnancy — the birth
-  // logic handles those as bastards. Only truly missing ids are corruption).
+  // 4. childrenIds / partnerId / pregnantById must reference an entity that EXISTS (dead is fine:
+  // widowed spouses, fathers who died mid-pregnancy; only truly missing ids are corruption).
   const allIds = new Set(state.entities.map((e) => e.id));
   for (const e of alive) {
     if (e.partnerId != null && !allIds.has(e.partnerId)) {

@@ -1,21 +1,6 @@
 /**
- * O3 — seeded worker-versus-main-thread parity.
- *
- * `workerBoundary.closure.test.ts` proves that state *crosses* the host <-> worker boundary and
- * survives a save. This case proves the other half of roadmap O3's acceptance: that a **seeded run**
- * produces the same colony whether the ticks execute in the simulation worker or on the main thread.
- *
- * Why the two sides must live in separate module registries: in one registry the worker module and
- * the main thread share a single `simRng` instance, so the assertion would compare a computation with
- * itself and would pass even if the worker's session hand-off were broken. The real host sends the
- * world plus its stream positions — `GameWorkerHost` stamps `world.simRng = snapshotSimRng()` at
- * hand-off — and `gameWorker.resetWorkerSession` adopts the world seed and then restores those
- * positions (`gameWorker.ts:119-126`). This test reproduces exactly that payload in a second registry
- * (`vi.resetModules()`), so dropping the position restore makes the two colonies diverge.
- *
- * The name pool is per-registry module state too (`nameLoader.ts`), so both sides load it explicitly:
- * otherwise one side could name settlers from the full census and the other from the embedded
- * fallback, and a name difference would read as a simulation divergence.
+ * A seeded run must persist the same colony whether the ticks ran in the simulation worker or on the
+ * main thread. `vi.resetModules()` gives the worker its own registry, so the two `simRng` are distinct.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -58,9 +43,7 @@ describe('seeded worker versus main-thread parity', () => {
     await loadNames().catch(() => {});
     resetSimRng();
     const mainThread = initGame({ skipTerrain: true, seed: SEED });
-    // Both execution engines must begin with the very same generated world,
-    // just as a real GameWorkerHost upload does. Generating a second map in a
-    // fresh module realm tests world generation twice, not worker tick parity.
+    // Both engines must start from the very same generated world, as a real host upload does.
     const initialWorld = structuredClone(mainThread);
     initialWorld.simRng = snapshotSimRng();
     for (let i = 0; i < TICKS; i++) gameTick(mainThread);
@@ -115,9 +98,8 @@ describe('seeded worker versus main-thread parity', () => {
     ) as Record<string, unknown>;
     delete mainThreadPayload._savedAt;
     delete workerPayload._savedAt;
-    // Saves cross a JSON boundary in production. Compare their actual persisted
-    // representation rather than in-memory object identity/undefined properties.
-    // This still catches every difference a loaded save can observe.
+    // Saves cross a JSON boundary in production, so compare the persisted representation rather
+    // than in-memory object identity.
     const workerSaved = JSON.parse(JSON.stringify(workerPayload)) as Record<string, unknown>;
     const mainSaved = JSON.parse(JSON.stringify(mainThreadPayload)) as Record<string, unknown>;
     // Report the first concrete divergent field instead of allowing Vitest to

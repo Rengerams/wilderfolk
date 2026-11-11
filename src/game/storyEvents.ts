@@ -19,10 +19,8 @@ import { addReputation } from './simHelpers';
 import { adjustEcosystemHealth } from './dailyEcology';
 
 /**
- * Authored cross-system stories (v0.6.1+ "signature stories") — visible choices
- * that make existing systems remember, interpret, and react to one another.
- * A story is a short player choice with real sim consequences: ecology, food,
- * reputation, and a Chronicle-style entry. The valley keeps history.
+ * Authored cross-system stories: short player choices with real sim consequences and a chronicle
+ * entry, so existing systems remember and react to one another.
  */
 
 /** Add a story event to the pending queue (no duplicate id). */
@@ -157,15 +155,8 @@ export function tickPendingStoryEvents(state: WorldState): void {
  * and applies the chosen outcome plus a Chronicle-style memory.
  */
 /**
- * Whether `respondToStoryEvent` would accept this answer right now.
- *
- * A refused story answer is **re-queued** by the resolver, so the card stays open
- * for the player to choose again. That makes an unanswerable choice a trap for a
- * consumer that acts on a cadence: the auto-play bot would re-propose the same
- * refused answer every in-game hour and never reach the colony ladder at all.
- * This is the story-side counterpart of `getDiplomacyChoiceEligibility` and
- * `getRaidChoiceEligibility`; each gated story keeps its own rule and is asked
- * here, and a story key with no gate always answers `ok`.
+ * Whether `respondToStoryEvent` would accept this answer right now. A refused answer is re-queued,
+ * so a cadence-driven consumer would re-propose it forever; ungated stories always answer `ok`.
  */
 export function getStoryChoiceEligibility(
   state: WorldState,
@@ -271,13 +262,10 @@ export function respondToStoryEvent(
   return state;
 }
 
-// ---------------------------------------------------------------------------
 // Story 0 — Ten children at the gate
-// ---------------------------------------------------------------------------
 
 /**
- * One-time request after colony day 10. The rival consequence is deliberately
- * not disclosed in the choices; it resolves only after five shelter days.
+ * One-time request after colony day 10; the rival consequence resolves only after five shelter days.
  */
 export function maybeOfferChildrenShelter(state: WorldState): void {
   if ((state.storyFlags?.children_shelter_offered ?? 0) > 0) return;
@@ -323,14 +311,11 @@ function resolveChildrenShelter(state: WorldState, choiceId: string): boolean {
   return true;
 }
 
-// ---------------------------------------------------------------------------
 // Story 1 — The pack watches (first-session ecological choice)
-// ---------------------------------------------------------------------------
 
 /**
- * Offer once, as a gentle invitation: waits for the player to settle in (a
- * house plus a first practical job — the ~6–10 minute window), and guarantees
- * the moment by the end of the first two months (day 60) no matter what.
+ * Offer once, as a gentle invitation: waits for a house plus a first practical job, and guarantees
+ * the moment by day 60.
  */
 export function maybeOfferWolfChoice(state: WorldState): void {
   if ((state.storyFlags?.wolf_choice ?? 0) > 0) return;
@@ -405,18 +390,10 @@ function resolveWolfChoice(state: WorldState, choiceId: string): void {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Story 2 — The valley wakes (first-session welcome beat, day 0)
-// ---------------------------------------------------------------------------
 
 /**
- * Offer once, at the first day boundary a live game reaches — sets the tone and the first course.
- *
- * The gate used to be `dayInYear === 0`, which no reachable tick satisfies: a world starts at tick 24,
- * the daily layer runs only on day boundaries, and `gameTick` has already incremented `year` by the
- * time it runs — so the beat never fired in play (`LIVE-FINDINGS-STATUS.md`, M4). `dayInYear > 1`
- * accepts day 1, where the first daily tick of a new colony lands; the `welcome` flag still makes it
- * once-only.
+ * Offer once at the first day boundary a live game reaches — sets the tone and the first course.
  */
 export function maybeOfferWelcome(state: WorldState): void {
   if ((state.storyFlags?.welcome ?? 0) > 0) return;
@@ -450,9 +427,7 @@ function resolveWelcome(state: WorldState, choiceId: string): void {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Story 3 — The old ranger (remembers the wolf choice)
-// ---------------------------------------------------------------------------
 
 /** Offer a few days after the wolf choice resolves — the valley keeps memory. */
 export function maybeOfferRangerVisit(state: WorldState): void {
@@ -494,9 +469,7 @@ function resolveRangerVisit(state: WorldState, choiceId: string): void {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Story 4 — Old Kaia's winter test (first-year course-setting quest)
-// ---------------------------------------------------------------------------
 
 /** Offer mid first year: a goal with a real deadline — the first freeze. */
 export function maybeOfferWinterPrep(state: WorldState): void {
@@ -520,14 +493,8 @@ export function maybeOfferWinterPrep(state: WorldState): void {
 }
 
 /**
- * Check the pact at the first freeze (day 270) — the valley remembers the result.
- *
- * 270 is the season owner's answer, not a preference: `getSeason` (`simHelpers.ts:9-13`) returns Fall
- * for `dayInYear < DAYS_PER_SEASON * 3` and Winter at or above it, with `DAYS_PER_SEASON = 90`
- * (`gameConstants.ts:95`) — so the first freeze is day **270**, at the start of the winter quarter. This card, this check and its two cases in `tests/storyEvents.test.ts` all said
- * **260**, which is ten days inside autumn, where nothing freezes — temperature reads only
- * `SEASON_BASE_C[season]` (`temperature.ts:50`). The copy, the check and those cases moved together:
- * changing any one alone desyncs the card from what the valley actually does.
+ * Check the pact at the first freeze (day 270) — the valley remembers the result; 270 is the season
+ * owner's boundary, not a preference.
  */
 export function tickWinterFreezeCheck(state: WorldState): void {
   if (state.year > 0 || state.dayInYear !== 270) return;
@@ -546,9 +513,7 @@ export function tickWinterFreezeCheck(state: WorldState): void {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Story 5 — A household mourns (grief surfaces as a consequence)
-// ---------------------------------------------------------------------------
 
 /** Offer once in the first year, after a player settler with family is grieving. */
 export function maybeOfferGriefBeat(state: WorldState): void {
@@ -593,9 +558,7 @@ function resolveGriefBeat(state: WorldState, choiceId: string): void {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Story 6 — The ranger's tale (Moon Howlers introduced as a rumor)
-// ---------------------------------------------------------------------------
 
 /** Offer late in the first year, after the ranger visited — the pack mystery deepens. */
 export function maybeOfferHowlerRumor(state: WorldState): void {
@@ -631,9 +594,7 @@ function resolveHowlerRumor(state: WorldState, choiceId: string): void {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Story 7 — The valley's future (philosophical election debate)
-// ---------------------------------------------------------------------------
 
 /** Offer once per election season when candidates genuinely disagree. */
 export function maybeOfferValleyDebate(state: WorldState, candidateNames: string[]): void {

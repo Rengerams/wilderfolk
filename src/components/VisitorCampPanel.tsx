@@ -36,24 +36,17 @@ export default function VisitorCampPanel({
   onFocusCamp: () => void;
 }) {
   const emoji = VISITOR_KIND_EMOJI[group.kind];
-  // Storage headroom comes from its owner (`resourceUtils`), which is what the trade owner itself
-  // calls; the panel's local `max(0, cap - current)` dropped the owner's non-finite-cap branch, so
-  // the "(N space)" hint could lie.
+  // Storage headroom comes from its owner (`resourceUtils`), as the trade owner does;
+  // a local `max(0, cap - current)` would drop the owner's non-finite-cap branch.
   const foodRoom = getAvailableStorageHeadroom(state, 'food');
   const woodRoom = getAvailableStorageHeadroom(state, 'wood');
   const stoneRoom = getAvailableStorageHeadroom(state, 'stone');
   const ironRoom = getAvailableStorageHeadroom(state, 'iron');
-  // The band is classified by the reputation owner (`getReputationBand`), so the banner
-  // cannot advertise terms the owner no longer applies (audit "Reputation 80/30 bands"). It asks
-  // for the *band*, not the price multiplier: pricing stays in the trade owner.
+  // The band comes from the reputation owner (`getReputationBand`); pricing stays in the trade owner.
   const repBand = getReputationBand(state.villageReputation);
   const canTradeKind = group.kind === 'traders' || group.kind === 'nomads' || group.kind === 'hunters';
-  // Prices **and** gates come from the trade owner (`groupEvents`). The panel used to re-derive the
-  // multiplier arithmetic itself and gate on that arithmetic, so a button stayed enabled for a caravan
-  // that was leaving, a group with no gold, and — the reachable case — insufficient storage for what the
-  // trade *receives*: clicking then consumed nothing and pushed its message at the camp, far from the
-  // panel being read (`LIVE-FINDINGS-STATUS.md`, F18). Prices as a second implementation also meant a
-  // balance change would desynchronise the quote from the charge.
+  // Prices and gates come from the trade owner (`groupEvents`), never re-derived here:
+  // a second implementation would desynchronise the quote from the charge.
   const termsFor = (action: VisitorTradeAction) => getVisitorTradeTerms(state, action);
   const gateFor = (action: VisitorTradeAction) => getVisitorTradeEligibility(state, group.id, action);
   const buyFoodGate = gateFor('buy_food');
@@ -82,16 +75,12 @@ export default function VisitorCampPanel({
   const sellIronReward = termsFor('sell_iron').effectiveReceive.gold ?? 0;
   const refusal = (gate: { ok: boolean; blockReason?: string }) =>
     gate.ok ? '' : ` — ${gate.blockReason ?? 'unavailable'}`;
-  // Refugee prices and gates come from the refugee owner (`groupEvents`), exactly as the trade
-  // buttons above do. The panel used to hand-write `food < 40 / 20` and the population-cap test,
-  // so both buttons greyed out with no visible reason and a retuned price left them enabled while
-  // the refusal surfaced as a floating text at the camp.
+  // Refugee prices and gates come from the refugee owner (`groupEvents`), as the trade
+  // buttons above do; the panel does not test prices or the population cap itself.
   const welcomeGate = getRefugeeChoiceEligibility(state, group.id, 'welcome');
   const screenGate = getRefugeeChoiceEligibility(state, group.id, 'screen');
-  // How many settlers a full welcome admits is `2 + getRefugeeWelcomeBonus(state.buildings)`
-  // (`groupEvents.negotiateRefugees`): the base 2 is that owner's inline literal, the bonus is
-  // `townHall`'s. The label used to hardcode "up to 2 settlers", so a village with a staffed Town
-  // Hall advertised one fewer settler than the owner actually admits.
+  // A full welcome admits `2 + getRefugeeWelcomeBonus(state.buildings)`, the refugee
+  // owner's formula; the label must not hardcode a capacity it does not own.
   const welcomeCapacity = 2 + getRefugeeWelcomeBonus(state.buildings);
 
   return (

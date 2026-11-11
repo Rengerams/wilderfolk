@@ -2,6 +2,7 @@ import { COMMUTE_CONFIG, commuteWalkSpeed } from '../commuteReach';
 import { PATH_CELL } from '../gameTypes';
 import { BuildingType } from '../buildings';
 import type { Building, Entity } from '../gameTypes';
+import { buildingAccessPoint, isAtBuildingReach } from '../buildingAccess';
 import { PRISON_GUARDS_MAX } from '../prisonShifts';
 import { isActiveMoonHowler } from '../moonHowler';
 import { invalidateCommutePathsForWalker, isGroundWalkableAt, isWalkStepAllowed, steerWithPath } from '../pathfinding';
@@ -17,6 +18,18 @@ const OUTDOOR_BUILDINGS = new Set<Building['type']>([
   BuildingType.Lamp, BuildingType.Fence,
 ]);
 
+/** The sim's own walk threshold: below this a settler is standing still, not travelling. */
+const WALKING_MIN_SPEED_PX = 0.1;
+
+/**
+ * Read-only evidence of travel: the settler is moving this tick and closing on this point. Reports
+ * only what the movement owners already steered — it never plans a route.
+ */
+export function isWalkingToward(entity: Entity, point: { x: number; y: number }): boolean {
+  if (Math.hypot(entity.vx, entity.vy) <= WALKING_MIN_SPEED_PX) return false;
+  return (point.x - entity.x) * entity.vx + (point.y - entity.y) * entity.vy > 0;
+}
+
 /** Arrival changes presentation only; the settler remains in the simulation and building roster. */
 export function enterHumanBuilding(entity: Entity, building: Building): void {
   if (!building.completed || OUTDOOR_BUILDINGS.has(building.type)) return;
@@ -26,9 +39,8 @@ export function enterHumanBuilding(entity: Entity, building: Building): void {
 }
 
 /**
- * Steer toward a fixed place, taking the path owner's route when the direct line is blocked.
- * Short chases and follow-the-neighbour walks stay on `movementSteering`; this is for doorways,
- * work rows and venue spots a settler must reach rather than press against.
+ * Steer toward a fixed place, taking the path owner's route when the direct line is blocked — for
+ * doorways, work rows and venue spots a settler must reach rather than press against.
  */
 export function steerHumanToward(
   entity: Entity,
@@ -44,51 +56,6 @@ export function steerHumanToward(
   }
 }
 
-/** A settler already at any wall counts as home, whatever direction they approached from. */
-const HOME_ENTRY_MARGIN_PX = 24;
-
-function isAtBuildingEdge(entity: Entity, building: Building, margin = HOME_ENTRY_MARGIN_PX): boolean {
-  const halfW = building.width / 2;
-  const halfH = building.height / 2;
-  const nearestX = Math.max(building.x - halfW, Math.min(building.x + halfW, entity.x));
-  const nearestY = Math.max(building.y - halfH, Math.min(building.y + halfH, entity.y));
-  return Math.hypot(entity.x - nearestX, entity.y - nearestY) <= margin;
-}
-
-/** Nearest walkable side of a residence; entry must not assume a south-only porch. */
-export function homeEntryPosition(
-  building: Building,
-  fromX: number,
-  fromY: number,
-): { x: number; y: number } {
-  const midX = building.x;
-  const midY = building.y;
-  const halfW = building.width / 2;
-  const halfH = building.height / 2;
-  const candidates = [
-    { x: midX, y: midY + halfH + 12 },
-    { x: midX, y: midY - halfH - 12 },
-    { x: midX + halfW + 12, y: midY },
-    { x: midX - halfW - 12, y: midY },
-  ];
-  let best = walkableStandPoint(candidates[0].x, candidates[0].y);
-  let bestDistance = Math.hypot(best.x - fromX, best.y - fromY);
-  for (const candidate of candidates.slice(1)) {
-    const point = walkableStandPoint(candidate.x, candidate.y);
-    const distance = Math.hypot(point.x - fromX, point.y - fromY);
-    if (distance < bestDistance) {
-      best = point;
-      bestDistance = distance;
-    }
-  }
-  return best;
-}
-
-/** Both lovers approach the same outdoor doorstep; the footprint centre itself is unwalkable. */
-export function affairTrystEntry(building: Building): { x: number; y: number } {
-  return homeEntryPosition(building, building.x, building.y);
-}
-
 // ============ COMMUTE HELPERS ============
 
 /** Cells probed for a blocked stand point, nearest ring first and south before north. */
@@ -97,13 +64,8 @@ const STAND_POINT_FALLBACK_OFFSETS: readonly (readonly [number, number])[] = [
 ];
 
 /**
- * Moves a stand point onto ground a walker can occupy.
- *
- * A workplace row, a home arc and a crowd slot are geometry, not terrain: they land on water, on a
- * decor cell the L3 pass reserved, or under a completed wall. The owner's own save had two soldiers
- * standing in a pond and ten settlers inside walls — all of them simply standing where the row put
- * them, and a walk that cannot occupy its destination hovers at the edge of it instead of arriving.
- * The grid owns "can a walker stand here", so the point moves to the nearest cell it allows.
+ * Moves a stand point onto ground a walker can occupy: rows, arcs and crowd slots are geometry, not
+ * terrain, and the grid owns "can a walker stand here", so the point moves to the nearest allowed cell.
  */
 function walkableStandPoint(x: number, y: number): { x: number; y: number } {
   if (isGroundWalkableAt(x, y)) return { x, y };
@@ -118,14 +80,8 @@ function walkableStandPoint(x: number, y: number): { x: number; y: number } {
 }
 
 /**
- * A place in a crowd gathered around a point — a festival at the performers' camp or the hall front.
- *
- * Owner, 2026-09-30: *"they again in a circle"*, with no election running and five taverns in the
- * village. The festival branch of `humanTick` placed its crowd with `((id % 7) - 3) * 11` and
- * `((Math.floor(id / 7) % 5) - 2) * 9`: **35 slots total**, repeating, so a village's festival-goers
- * stacked tens deep on each one and the whole gathering read as a single dense, chatting ring. Twelve
- * staggered rings of sixteen slots give 192 distinct places spread over a few hundred px, so a crowd
- * looks like a crowd. Deterministic per settler — no RNG.
+ * A place in a crowd gathered around a point: 12 staggered rings of 16 slots (192 places) so a
+ * festival crowd spreads instead of stacking on the same slots. Deterministic per settler, no RNG.
  */
 export function crowdGatherPosition(cx: number, cy: number, entityId: number): { x: number; y: number } {
   const seed = Math.abs(entityId * 17 + 13);
@@ -149,19 +105,8 @@ const CROWD_GATHER_INNER_PX = 34;
 const CROWD_GATHER_RING_GAP_PX = 14;
 
 /**
- * A place of one's own at a venue — the arc in front of a tavern, market, hall or church.
- *
- * Owner, 2026-09-30, looking at a clump of dozens of settlers mid-village with no event running:
- * *"they again in a circle"*. Nothing was gathering them there: `humanLeisureBehavior`'s day-off /
- * Sunday-service / market / grief impulse sent **every** settler to a single point on the venue —
- * `b.x + b.width / 2, b.y + b.height * 0.92` — and each stopped within 20 px of it, so a village's
- * leisure crowd stacked into a ring around one coordinate. (That point is also the corner form applied
- * to a value that already is the footprint centre, `buildingGeometry`; see `humanBuildingTarget`.)
- *
- * This gives every settler a deterministic slot on three shallow arcs across the venue's front, using
- * the same stable hash idea as `homeStandPosition` and the same south-facing bias, so a crowd reads as a
- * crowd around the entrance rather than a circle around a pixel. No RNG: the same settler at the same
- * venue always stands in the same place.
+ * A place of one's own at a venue — a deterministic slot on three shallow arcs across the venue's
+ * front, so a leisure crowd reads as a crowd around the entrance, not a circle around one pixel.
  */
 export function venueGatherPosition(building: Building, entityId: number): { x: number; y: number } {
   const seed = Math.abs(entityId * 17 + building.id * 31);
@@ -186,18 +131,23 @@ const VENUE_GATHER_STANDOFF_PX = 18;
 const VENUE_GATHER_ARC_GAP_PX = 10;
 
 /**
- * Calculates a deterministic, dispersed standing position in the front yard of a home residence
- * so family members and roommates do not overlap sprites or get hidden behind the roof.
+ * A deterministic, dispersed spot in the frontage of a home's one doorway, so family members and
+ * roommates do not overlap sprites or get hidden behind the roof.
  */
 export function homeStandPosition(building: Building, entityId: number): { x: number; y: number } {
+  const access = buildingAccessPoint(building);
   const seed = Math.abs(entityId * 17 + building.id * 31);
   const lateralSlot = seed % 7 - 3;
   const porchRow = Math.floor(seed / 7) % 3;
+  const alongX = access.side === 'south' || access.side === 'north';
+  const lateral = lateralSlot * Math.min(6, (alongX ? building.width : building.height) / 7);
+  const depth = porchRow * 4;
 
-  // The approach must stay south of the entire footprint, including a large Leader's House.
+  if (access.side === 'east') return walkableStandPoint(access.x + depth, access.y + lateral);
+  if (access.side === 'west') return walkableStandPoint(access.x - depth, access.y + lateral);
   return walkableStandPoint(
-    building.x + lateralSlot * Math.min(6, building.width / 7),
-    building.y + building.height / 2 + 12 + porchRow * 4,
+    access.x + lateral,
+    access.y + (access.side === 'south' ? depth : -depth),
   );
 }
 
@@ -207,48 +157,20 @@ export const WORKER_STAND_SPACING_PX = 16;
 /** How far south of the footprint's edge the worker row stands, in px — in front of it, never on it. */
 export const WORKER_STAND_STANDOFF_PX = 10;
 
-/**
- * Returns the exact destination coordinates for a human heading to home or workplace.
- */
-export function humanBuildingTarget(
-  building: Building,
-  entityId: number,
-  arrivingHome: boolean,
-): { x: number; y: number } {
-  if (arrivingHome) {
-    return homeStandPosition(building, entityId);
-  }
+/** The work-post stand point in front of a building; placement only, never a navigation target. */
+export function humanBuildingTarget(building: Building, entityId: number): { x: number; y: number } {
   if (building.type === BuildingType.School && !building.occupants.includes(entityId)) {
     // A pupil's place is a yard slot, not the footprint centre: the centre is unwalkable and every
     // pupil snapped to the same neighbouring cell, stacking the whole class on one pixel.
     return venueGatherPosition(building, entityId);
   }
   /**
-   * A real slot per worker, in a row across the building's front.
-   *
-   * Owner, 2026-09-30, looking at the crew of a Hunting Spot: *"why are they all standing at side of
-   * the village?"*, then *"but why all at the same palce not logic"*. Both halves of that were true
-   * here, and both are fixed by this one expression:
-   *
-   *  - the point was built in the **corner form** — `building.x + building.width / 2` — on a value
-   *    that already *is* the footprint centre (`buildingGeometry`), so a crew stood half a footprint to
-   *    the right of its own workplace. That is the "at the side of it" the owner saw, and it is the
-   *    same mistake the camera-focus callers made.
-   *  - the only dispersion was `((seed % 7) - 3) * 6` from a hash of the entity id: **seven** possible
-   *    x positions in a ±18 px band, an **identical y for everyone**, and past seven workers the hash
-   *    collides so two settlers stand on the exact same pixel.
-   *
-   * The slot now comes from the list that owns the crew (`building.occupants`, with the `?? []` its
-   * other save-boundary readers use), and the row is centred on the footprint. Deterministic — no RNG,
-   * so the same world and crew always give the same positions.
+   * A real slot per worker, in a row across the building's front, taken from `building.occupants` and
+   * centred on the footprint. Deterministic, so the same crew always stands in the same places.
    */
   const crew = building.occupants ?? [];
-  // A Prison's row holds its *guards*, but the only list the building carries is `occupants` — guards
-  // ∪ prisoners (`workforce.syncJobBuildingOccupants`). Folding the occupant index into the post count
-  // keeps the row the width of the posts, which is what the presence check can see: `prisonGuardDuty`
-  // samples within 55 px of the centre and this row stands 33 px south of it, leaving 44 px sideways.
-  // Five posts span ±32 px and fit; the nine occupants they were spread across spanned ±64 px and did
-  // not, so a guard on his post could read as away from it.
+  // A Prison's row holds its guards, but the building only carries `occupants` (guards ∪ prisoners), so
+  // the occupant index folds into the post count to keep the row within the presence check's width.
   const isPrison = building.type === BuildingType.Prison;
   const rawSlot = Math.max(0, crew.indexOf(entityId));
   const slot = isPrison ? rawSlot % PRISON_GUARDS_MAX : rawSlot;
@@ -266,24 +188,22 @@ function buildingCommutePoint(building: Building): { x: number; y: number } {
   return { x: building.x, y: building.y };
 }
 
-export function commuteDistanceToBuilding(
-  entity: Entity,
-  building: Building,
-  arrivingHome: boolean,
-): number {
-  const target = arrivingHome ? humanBuildingTarget(building, entity.id, true) : buildingCommutePoint(building);
+export function commuteDistanceToBuilding(entity: Entity, building: Building): number {
+  const target = buildingAccessPoint(building);
   return Math.hypot(target.x - entity.x, target.y - entity.y);
 }
 
-/** Commute distance from the actual home standing point to the destination. */
+/** Commute distance from the home's doorway to the destination. */
 export function commuteDistanceFromResidence(
   entity: Entity,
   residence: Building | undefined,
   destination: Building,
 ): number {
-  const origin = residence ? homeStandPosition(residence, entity.id) : entity;
+  const origin = residence ? buildingAccessPoint(residence) : entity;
   const target = buildingCommutePoint(destination);
-  return Math.hypot(target.x - origin.x, target.y - origin.y);
+  const dx = origin.x - target.x;
+  const dy = origin.y - target.y;
+  return Math.hypot(dx, dy);
 }
 
 /**
@@ -291,7 +211,6 @@ export function commuteDistanceFromResidence(
  */
 export function commutePathCacheKey(
   buildingId: number,
-  arrivingHome: boolean,
   startX: number,
   startY: number,
   targetX: number,
@@ -301,7 +220,7 @@ export function commutePathCacheKey(
   // A known entity identifies the commute on its own: the key must stay stable
   // while that settler crosses tiles, or A* would rerun on every step.
   if (entityId != null) {
-    return `c_${entityId}_${buildingId}_${arrivingHome ? 'h' : 'w'}`;
+    return `c_${entityId}_${buildingId}`;
   }
   // Without an entity there is nothing else to name the commute, so both
   // endpoint tiles are part of the key.
@@ -309,23 +228,16 @@ export function commutePathCacheKey(
   const startTileY = Math.floor(startY / PATH_CELL);
   const targetTileX = Math.floor(targetX / PATH_CELL);
   const targetTileY = Math.floor(targetY / PATH_CELL);
-  return `c_${buildingId}_${arrivingHome ? 'h' : 'w'}_${startTileX}_${startTileY}_${targetTileX}_${targetTileY}`;
+  return `c_${buildingId}_${startTileX}_${startTileY}_${targetTileX}_${targetTileY}`;
 }
 
-const STUCK_WALK_RECOVERY_TICKS = 12;
+/** Minimum genuine progress in a tick before a blocked walk is considered stuck. */
 const STUCK_WALK_MIN_PROGRESS_PX = 0.05;
 const stuckWalkers = new WeakMap<Entity, { x: number; y: number; ticks: number }>();
 
 /**
- * Applies one tick's walk step, refusing the tiles the path grid blocks.
- *
- * Every walk ends here, which is where "a wall is solid and water is not ground" has to hold: the
- * steerers only set a velocity, and none of them is obliged to check what it points into. A step
- * into a blocked tile becomes its axis-separated halves, so a walker pressed against a wall or bank
- * slides along its face instead of passing through it or stopping dead in the open.
- *
- * Velocity is left exactly as the steering owner set it — this only decides how far of it is walked,
- * because the blend the caller reads back (`vx`/`vy` after the tick) is that owner's contract.
+ * Apply only collision-valid displacement. Replan a blocked route after repeated failed steps.
+ * Never snap to another tile: that caused a visible move/backtrack loop against walls.
  */
 export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
   const stepX = entity.vx * roadMult;
@@ -337,7 +249,7 @@ export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
 
   const startX = entity.x;
   const startY = entity.y;
-  if (isWalkStepAllowed(entity.x, entity.y, entity.x + stepX, entity.y + stepY)) {
+  if (isWalkStepAllowed(startX, startY, startX + stepX, startY + stepY)) {
     entity.x += stepX;
     entity.y += stepY;
   } else {
@@ -360,79 +272,46 @@ export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
     ? previous.ticks + 1
     : 1;
   stuckWalkers.set(entity, { x: entity.x, y: entity.y, ticks });
-  // Recalculate a stale route early; don't let a blocked waypoint hold a commuter
-  // stationary until the emergency stand-point relocation after twelve ticks.
-  if (ticks === 3) invalidateCommutePathsForWalker(entity.id);
-  if (ticks < STUCK_WALK_RECOVERY_TICKS) return;
-
-  const tileX = Math.floor(entity.x / PATH_CELL);
-  const tileY = Math.floor(entity.y / PATH_CELL);
-  const directionX = Math.sign(stepX);
-  const directionY = Math.sign(stepY);
-  const recoveryOffsets: readonly (readonly [number, number])[] = [
-    [-directionX, -directionY],
-    [-directionX, 0],
-    [0, -directionY],
-    ...STAND_POINT_FALLBACK_OFFSETS,
-  ];
-  for (let ring = 1; ring <= 3; ring++) {
-    for (const [dx, dy] of recoveryOffsets) {
-      if (dx === 0 && dy === 0) continue;
-      const recoveryX = (tileX + dx * ring + 0.5) * PATH_CELL;
-      const recoveryY = (tileY + dy * ring + 0.5) * PATH_CELL;
-      if (!isGroundWalkableAt(recoveryX, recoveryY)) continue;
-      // Recovery may not teleport across a wall or river to a disconnected stand point.
-      if (!isWalkStepAllowed(entity.x, entity.y, recoveryX, recoveryY)) continue;
-      entity.x = recoveryX;
-      entity.y = recoveryY;
-      entity.vx = 0;
-      entity.vy = 0;
-      stuckWalkers.delete(entity);
-      return;
-    }
-  }
+  // Invalidate all destination-specific routes, not merely the commute cache. Retries are
+  // bounded to every third failed step; an unreachable walk remains stationary instead of teleporting.
+  if (ticks % 3 === 0) invalidateCommutePathsForWalker(entity.id);
+  entity.vx = 0;
+  entity.vy = 0;
 }
 
 /**
- * Steers a human entity towards their target building.
- * Returns `true` if the entity has arrived within destination radius, `false` otherwise.
+ * Walks a settler to a building's one access and reports whether the building is reached. Arrival
+ * never writes indoor state: the caller's activity decides whether the settler goes inside.
  */
 export function commuteHumanToBuilding(
   entity: Entity,
   building: Building,
   speed: number,
-  arrivingHome: boolean,
   rush = 1,
 ): boolean {
-  entity.indoorBuildingId = undefined;
-  if (arrivingHome && isAtBuildingEdge(entity, building)) {
-    enterHumanBuilding(entity, building);
-    return true;
-  }
-  const target = arrivingHome
-    ? homeEntryPosition(building, entity.x, entity.y)
-    : humanBuildingTarget(building, entity.id, false);
+  const target = buildingAccessPoint(building);
   const dx = target.x - entity.x;
   const dy = target.y - entity.y;
   const dist = Math.hypot(dx, dy);
 
-  // Arrived at destination
-  if (dist <= COMMUTE_CONFIG.ARRIVAL_DIST) {
+  if (isAtBuildingReach(entity, building)) {
     entity.vx = 0;
     entity.vy = 0;
-    enterHumanBuilding(entity, building);
     return true;
+  }
+
+  if (dist === 0) {
+    entity.vx = 0;
+    entity.vy = 0;
+    return false;
   }
 
   const moveSpeed = commuteWalkSpeed(speed, rush);
 
-  // The path owner is asked at **every** distance. This used to run only beyond LONG_RANGE_DIST
-  // (50 px), so a shorter leg — and the last 50 px of every leg — steered straight at the target,
-  // straight across a river or a wall. `steerWithPath` answers 'direct' when the line is clear,
-  // which is what leaves the direct and pathed movement on the same integration path.
+  // The path owner is asked at every distance: asking only beyond 50 px sent short legs and every final
+  // approach straight across a river or wall. `steerWithPath` answers 'direct' when the line is clear.
   const cacheKey = commutePathCacheKey(
     building.id,
-    arrivingHome,
     entity.x,
     entity.y,
     target.x,
@@ -450,16 +329,10 @@ export function commuteHumanToBuilding(
   // 'path' only sets the velocity along the route; the human loop's movement apply at the end of
   // the tick is the single integration (the stepper must not move the entity as well).
   if (handled === 'path') return false;
-  if (handled === 'arrived') {
-    enterHumanBuilding(entity, building);
-    return true;
-  }
   if (handled === 'blocked') {
-    // Keep a wall-sliding velocity so the stuck detector can recover instead of freezing here.
-    const escapeSpeed = moveSpeed * 0.5;
-    entity.vx = (dx / dist) * escapeSpeed;
-    entity.vy = (dy / dist) * escapeSpeed;
-    faceVelocity(entity);
+    // No path exists. Wall-sliding toward the inaccessible door cannot create a route.
+    entity.vx = 0;
+    entity.vy = 0;
     return false;
   }
 

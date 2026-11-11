@@ -1,13 +1,6 @@
 /**
- * The one-year remarriage bar must survive a save and a load.
- *
- * The bar is enforced on entering courtship and on completing a marriage, and the divorce owner
- * stamps `pastPartnerTicks` when a marriage ends. These cases pin that the stamp really does
- * round-trip: the restore rebuilds each entity from `{ …defaults, …saved }` before it copies the
- * `ENTITY_PERSISTED_FIELDS` list, so a present field survives — and this guard is what fails if that
- * ever stops being true, which is how a divorced pair would end up free to remarry the day after a
- * load. A save written before the stamp existed carries no record of the divorce at all; no rule can
- * bar a marriage that was never recorded.
+ * The one-year remarriage bar must survive a save and a load: `pastPartnerTicks`
+ * round-trips through the restored entity.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

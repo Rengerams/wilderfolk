@@ -1,8 +1,6 @@
 /**
- * The Passing Herds — autumn deer migration. The herd arrives on a
- * deterministic late-autumn day, grazes/hunts like normal deer, and leaves
- * after a week; the valley remembers how many were taken and sizes next
- * year's herd accordingly (feast now = thinner herds later).
+ * Autumn deer migration: the herd arrives on a deterministic late-autumn day, behaves like normal
+ * deer, leaves after a week, and next year's size follows how many were taken.
  */
 import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';

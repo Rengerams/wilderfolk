@@ -2,7 +2,7 @@ import { pruneHuntVisuals } from './huntvisuals';
 import type {
   WorldState, PopulationHistoryEntry, Entity,
 } from './gameTypes';
-import { EntityType, FLOATING_TEXT_FADE_TICKS } from './gameTypes';
+import { BuildingType, EntityType, FLOATING_TEXT_FADE_TICKS } from './gameTypes';
 import {
   USE_SPATIAL_GRID,
   syncMobileSimGrid,
@@ -34,14 +34,15 @@ import { isPlayerHuman } from './playerHuman';
 import { getSimRng } from './simRng';
 import { tickHotelLodging } from './hotelStay';
 import { tickElectionCeremony } from './villageLeadership';
-import { findPlayerTownHall } from './playerTownHall';
+import { findCompletedBuilding } from './buildings';
 import { addBigNews, addNotification, impulseScreenShake } from './simEffects';
 import { getEcosystemHealth } from './dailyEcology';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 
 /** How often we sample world metrics into populationHistory. */
 export const STATS_SAMPLE_INTERVAL_TICKS = 10;
 
-/** Rolling buffer length — 300 samples × STATS_SAMPLE_INTERVAL_TICKS (≈42 game days at 72 ticks/day). */
+/** Rolling buffer length — 300 samples × STATS_SAMPLE_INTERVAL_TICKS (≈10 game days at 288 ticks/day). */
 export const POPULATION_HISTORY_MAX = 300;
 
 /** Zero-allocation array building instead of spread operator concatenation. */
@@ -60,7 +61,7 @@ function rebuildPredators(byType: TickContext['byType'], playerHumans?: readonly
 
   const settlers = playerHumans ?? (byType[EntityType.Human]?.filter(isPlayerHuman) ?? []);
   for (const h of settlers) {
-    if (h.alive && !h.isJuvenile) out.push(h);
+    if (h.alive && h.age >= HUMAN_ADULT_MIN_AGE) out.push(h);
   }
   
   const humans = byType[EntityType.Human] ?? [];
@@ -83,7 +84,7 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     const electionReveal = tickElectionCeremony(state, state.year);
     if (electionReveal) {
       addBigNews(state, electionReveal.title, electionReveal.message, 'positive');
-      const hall = findPlayerTownHall(state.buildings);
+      const hall = findCompletedBuilding(state.buildings, BuildingType.TownHall);
       addNotification(
         state,
         electionReveal.title,

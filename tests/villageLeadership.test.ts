@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycle';
+import { DAYS_PER_YEAR, TICKS_PER_DAY, getColonyDay, setHumanBirthFromAge } from '../src/game/dayCycle';
+import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
 import {
   BuildingType,
   EntityType,
@@ -30,8 +31,8 @@ import { initGame } from '../src/game/worldGen';
 import { friendCount } from '../src/game/relationships';
 
 /**
- * Village head must stay resolvable while in temporary Moon Howler form (EJ-10).
- * Vacancy must not fire just because type flipped to Werewolf.
+ * Village head must stay resolvable while in temporary Moon Howler form, so a Werewolf-form
+ * incumbent does not fire a vacancy.
  */
 describe('villageLeadership.actingHead.test.ts', () => {
   function stubHuman(id: number, overrides: Partial<Entity> = {}): Entity {
@@ -118,23 +119,12 @@ describe('villageLeadership.actingHead.test.ts', () => {
 });
 
 /**
- * Two election-scheduling defects from the 2026-09-16 economy audit (tracked in
- * `LIVE-FINDINGS-STATUS.md`), both in `villageLeadership`'s two ceremony starters.
- *
- * - **L11** — `tryStartVacancyElectionCeremony` derived the ceremony's *reason* from the calendar year
- *   (`year % ELECTION_INTERVAL_YEARS === 0 ? 'term' : 'succession'`), although it only ever runs
- *   because a vacancy armed `pendingElectionYear`. A death that resolved in Year 2, 4 or 6 was
- *   therefore announced and logged as "elected/re-elected village head" and stamped `lastElectionYear`
- *   — consuming that year's term slot for a mid-term handover. It now says `'succession'`, which is
- *   what it is.
- * - **L3** — a *term* election that finds no eligible candidate returned `false` and simply logged
- *   "postponed", scheduling nothing. Its gate only opens on `dayInYear === 0 && year % 2 === 0`, so
- *   the colony went without any election for two more years. It now arms the same
- *   `pendingElectionYear` delay the death path uses, so the retry runs in a quarter-year.
+ * The two ceremony starters: a vacancy election reports `'succession'` (it is never a term election),
+ * and a term election with no eligible candidate arms the same `pendingElectionYear` retry delay.
  */
 describe('villageLeadership.electionGaps.test.ts', () => {
   const FIXTURE_SEED = 20_260_917;
-  /** A term year (`ELECTION_INTERVAL_YEARS` is 2), so the old year-derived label would say `'term'`. */
+  /** A term year (`ELECTION_INTERVAL_YEARS` is 2): the vacancy must still report `'succession'`. */
   const TERM_YEAR = 2;
 
   function world(): WorldState {
@@ -151,8 +141,11 @@ describe('villageLeadership.electionGaps.test.ts', () => {
 
   /** No eligible candidate: `isEligibleForLeadership` requires a non-juvenile, un-imprisoned adult. */
   function makeEveryoneIneligible(state: WorldState): void {
+    const colonyDay = getColonyDay(state);
     for (const entity of state.entities) {
-      if (entity.type === EntityType.Human && entity.faction == null) entity.isJuvenile = true;
+      if (entity.type === EntityType.Human && entity.faction == null) {
+        setHumanBirthFromAge(entity, HUMAN_ADULT_MIN_AGE - 1, colonyDay);
+      }
     }
   }
 
@@ -164,11 +157,8 @@ describe('villageLeadership.electionGaps.test.ts', () => {
 
       expect(tryStartVacancyElectionCeremony(state, TERM_YEAR, 0)).toBe(true);
 
-      // The label is the fix, and it carries the date consequence with it: the reveal stamps
-      // `lastElectionYear` only for `'term'`/`'founding'` (`villageLeadership.ts`), so pre-fix this
-      // mid-term handover took Year 2's term slot as well as announcing itself as a re-election. The
-      // stamping itself happens at the reveal, which this test does not drive — the reason it is reached
-      // with is the whole difference.
+      // The label carries the date consequence: the reveal stamps `lastElectionYear` only for
+      // `'term'`/`'founding'`, so a mid-term handover must report `'succession'`.
       expect(state.electionCeremony?.reason).toBe('succession');
     });
 
@@ -204,12 +194,15 @@ describe('villageLeadership.electionGaps.test.ts', () => {
       makeEveryoneIneligible(state);
 
       expect(tryStartTermElectionCeremony(state, TERM_YEAR, 0), 'the term election should not start').toBe(false);
-      // Pre-fix nothing was armed: the next gate opening is Year 4's day 0, two years later.
+      // The failed term election arms the vacancy delay instead of waiting for the next term gate.
       expect(state.pendingElectionYear).toBeCloseTo(TERM_YEAR + VACANCY_ELECTION_DELAY_YEARS, 10);
 
       // And the retry really runs: restore adults and land on the armed day.
+      const colonyDay = getColonyDay(state);
       for (const entity of state.entities) {
-        if (entity.type === EntityType.Human && entity.faction == null) entity.isJuvenile = false;
+        if (entity.type === EntityType.Human && entity.faction == null) {
+          setHumanBirthFromAge(entity, HUMAN_ADULT_MIN_AGE + 10, colonyDay);
+        }
       }
       const due = state.pendingElectionYear ?? 0;
       const dueYear = Math.floor(due);
@@ -229,14 +222,15 @@ describe('villageLeadership.electionGaps.test.ts', () => {
       state.pendingElectionYear = TERM_YEAR;
 
       expect(tryStartVacancyElectionCeremony(state, TERM_YEAR, 0), 'the ceremony should not start').toBe(false);
-      // Pre-fix the past-due date stayed where it was, so the office was re-attempted — and the
-      // postponement logged — every single day until a settler came of age. The office is now
-      // re-contested on the vacancy rhythm instead.
+      // The office is re-contested on the vacancy rhythm, not re-attempted and logged every day.
       expect(state.pendingElectionYear).toBeCloseTo(TERM_YEAR + VACANCY_ELECTION_DELAY_YEARS, 10);
 
       // And the retry really runs once an adult is eligible again.
+      const colonyDay = getColonyDay(state);
       for (const entity of state.entities) {
-        if (entity.type === EntityType.Human && entity.faction == null) entity.isJuvenile = false;
+        if (entity.type === EntityType.Human && entity.faction == null) {
+          setHumanBirthFromAge(entity, HUMAN_ADULT_MIN_AGE + 10, colonyDay);
+        }
       }
       const due = state.pendingElectionYear ?? 0;
       const dueYear = Math.floor(due);
@@ -251,13 +245,8 @@ describe('villageLeadership.electionGaps.test.ts', () => {
 });
 
 /**
- * Legacy save compatibility for the scheduled-election token.
- *
- * The scheduled election was stored as `reason: 'decennial'` — a name from the
- * original 10-year term, kept through the 5-year era. Terms are now
- * ELECTION_INTERVAL_YEARS (2) years and the token is `'term'`. Saves written
- * before the rename must keep working, so `validateVillageLeaderOnLoad`
- * rewrites the old value on load.
+ * A save whose ceremony carries the legacy `'decennial'` reason loads as `'term'`; the rest of the
+ * ceremony is untouched.
  */
 describe('villageLeadership.legacyElectionToken.test.ts', () => {
   function ceremony(reason: string): ElectionCeremonyState {
@@ -307,10 +296,8 @@ describe('villageLeadership.legacyElectionToken.test.ts', () => {
 });
 
 /**
- * Regression: earned titles (Moonslayer, Howlerbane) grant an election merit
- * bonus — deeds speak in the vote. Two otherwise-identical candidates must be
- * separated by the title, and the title must show in the score breakdown and
- * the candidate's name.
+ * Earned titles (Moonslayer, Howlerbane) grant an election merit bonus, so two otherwise-identical
+ * candidates are separated by the title in the score breakdown and in the candidate's name.
  */
 describe('villageLeadership.titlePoints.test.ts', () => {
   function stubHuman(id: number, overrides: Partial<Entity> = {}): Entity {
@@ -364,13 +351,8 @@ describe('villageLeadership.titlePoints.test.ts', () => {
   }
 
   /**
-   * A deliberately partial `WorldState`: it carries only the fields the leadership owners read —
-   * `entities`, `villageLeaderId`, `leaderSinceYear`, `year`, `dayInYear`, `tick`, `buildings`,
-   * `resources`, `storageMax`, `tradeRoutes`, `villageReputation` and `humanPopulation`. Everything
-   * else (`disasters`, `festival`, …) is absent because title scoring never touches it:
-   * `getLeadershipScoreBreakdown` and `isEligibleForLeadership` are the only owners exercised, and
-   * neither reads past the list above plus the incumbent-record inputs (`eventLog`, `disasters`,
-   * `ecosystemHealth`) that a sitting leader's `recordPoints` needs.
+   * A deliberately partial `WorldState` carrying only the fields the leadership owners read; title
+   * scoring never touches the rest.
    */
   function stubState(entities: Entity[]): WorldState {
     return {
@@ -425,7 +407,7 @@ describe('villageLeadership.titlePoints.test.ts', () => {
   });
 
   /**
-   * A single capped trade no longer outweighs a lifetime of service, community standing and experience;
+   * A single capped skill cannot outweigh a lifetime of service, community standing and experience;
    * broad expertise is useful but capped, and incumbent penalties stay bounded.
    */
   describe('merit weighs a career, not only a capped skill', () => {
@@ -551,18 +533,8 @@ describe('villageLeadership.titlePoints.test.ts', () => {
 });
 
 /**
- * A pending vacancy date must never outlive the seat it was scheduled for.
- *
- * Regression for audit H2 (`docs/private/audits/2026-09-16/sim-economy-leadership-combat.md`,
- * tracked in `LIVE-FINDINGS-STATUS.md`): a leader who dies or is imprisoned while a term ceremony
- * is running leaves behind the successor date that `tickLeaderVacancy` set for them. The ceremony
- * then fills the office with that date still armed — the panel announces a vacancy nobody has, and
- * `tryStartVacancyElectionCeremony` runs a *second* full ceremony for the filled seat. Worse, while
- * the stale date sits there `tickLeaderVacancy` early-returns (`:933`), so the next **real** vacancy
- * would never be scheduled at all.
- *
- * Three nodes are pinned, because the fix has three: the reveal that fills the office, the panel
- * status string, and the load-time repair for saves written by the buggy build.
+ * A pending vacancy date never outlives the seat it was scheduled for: the reveal that installs a
+ * head clears it, the panel stops announcing a vacancy, and the load repair drops a stale one.
  */
 describe('villageLeadership.vacancy.test.ts', () => {
   function human(id: number, overrides: Partial<Entity> = {}): Entity {
@@ -679,12 +651,12 @@ describe('villageLeadership.vacancy.test.ts', () => {
       const deadLeader = human(2, { age: 40, alive: false });
       const settler = human(3, { age: 40 });
 
-      // What the buggy build left behind: the office is empty, and no vacancy can ever be scheduled.
+      // A stale date with an empty office: no vacancy can be scheduled while it stands.
       const blocked = makeWorld([deadLeader, settler], [], 2, { pendingElectionYear: PENDING });
       expect(tickLeaderVacancy(blocked)).toBeNull();
       expect(blocked.pendingElectionYear).toBe(PENDING);
 
-      // Cleared — as the reveal and the load repair now do — the vacancy is scheduled again.
+      // Once cleared, the vacancy is scheduled again.
       const healed = makeWorld([deadLeader, settler], [], 2, { pendingElectionYear: null });
       const notice = tickLeaderVacancy(healed);
       expect(notice).not.toBeNull();
@@ -695,9 +667,8 @@ describe('villageLeadership.vacancy.test.ts', () => {
 
   describe('a vacant seat on load goes to an election', () => {
     it('arms the four-month by-election instead of appointing a pioneer', () => {
-      // Year 0 is the founding stamp and a succession never rewrites it, so `lastElectionYear` stays 0
-      // for the whole founding era. That is a real year, not "never elected": a vacant seat must be
-      // decided by the scheduled election, not handed back to a pioneer with no vote.
+      // Year 0 is the founding stamp, so `lastElectionYear` stays 0 through the founding era: a
+      // vacant seat is still decided by the scheduled election, not handed to a pioneer.
       const deadHead = human(2, { age: 40, alive: false });
       const adult = human(3, { age: 40 });
       const state = makeWorld([deadHead, adult], [], 2, {

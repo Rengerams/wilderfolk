@@ -1,22 +1,6 @@
 /**
- * P7 — family reference coverage after permanent removal (`Roadmap_V0_6.4.1.MD` line 29):
- * "dedicated coverage verifies parent, child, partner, affair, and pregnancy references after
- * permanent removal."
- *
- * The removal path is driven, not simulated by hand: `killHuman`
- * (`humanLifecycleCleanup.ts`, re-exported by `dayCycle.ts:403`) owns the death cleanup, and the
- * tick calls it with a living `entityById` map (`tickLayerSystems.ts:450`, `worldEvents.ts:69`).
- * Two owners run alongside it and are called here for the same reason the tick calls them:
- *
- *   - `clearHuntersTargetingPrey` — `tickLayerSystems.ts:450-460` clears hunter targets right after
- *     `killHuman`, so no survivor keeps `huntTargetId` at the settler that just left the world.
- *   - recompacting `state.entities` to the living — the tick's own post-pass (`gameTick.ts:209-255`
- *     assigns `state.entities = allAlive`).
- *
- * Nothing in this file clears a reference by hand; every reference is cleared by the code that owns
- * it. `collectSimulationInvariantErrors` (`simulationInvariants.ts`) is reused for the invariants it
- * already owns (residence/workplace mirrors, pregnancy progress, leadership) and
- * {@link collectRemovalReferenceLeaks} covers the family/social/pet/hunt references it does not.
+ * Family reference coverage after permanent removal: the death cleanup owns every clear, and this
+ * file drives the real removal path rather than clearing references by hand.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
@@ -58,12 +42,8 @@ function deer(id: number, overrides: Partial<Entity> = {}): Entity {
 }
 
 /**
- * The references a permanently removed settler must stop appearing in.
- *
- * These are the fields `collectSimulationInvariantErrors` does not check: it validates the
- * building mirrors (`workerBuildingId`/`residenceBuildingId`/`prisonBuildingId`), pregnancy
- * *progress*, youth-love mutuality and the leader's residency — not whether a surviving settler
- * still points at an id that is gone from the world.
+ * The references a permanently removed settler must stop appearing in — the fields
+ * `collectSimulationInvariantErrors` does not check.
  */
 const REMOVAL_REFERENCE_FIELDS = [
   'partnerId',
@@ -109,9 +89,8 @@ interface RemovalFixture {
 }
 
 /**
- * One world holding every survivor kind the P7 row names — a spouse, a parent of a minor child, a
- * pregnant partner, an affair partner — plus a pet and a hunter that point at the settler who dies,
- * and an unrelated household as the negative control.
+ * One world holding every survivor kind — spouse, parent of a minor, pregnant partner, affair partner
+ * — plus a pet and hunter pointing at the settler who dies, and an unrelated household as control.
  */
 function buildRemovalFixture(): RemovalFixture {
   const removed = human(REMOVED_ID, {
@@ -236,9 +215,9 @@ function buildRemovalFixture(): RemovalFixture {
 function runRemovalPath(fixture: RemovalFixture): void {
   const { state, removed, entityById } = fixture;
   killHuman(removed, state.buildings, entityById, state.tick);
-  // The tick's other half of a death: `tickLayerSystems.ts:450-460`.
+  // The tick's other half of a death: clear any hunter still targeting the prey.
   clearHuntersTargetingPrey(removed.id, entityById);
-  // The tick's post-pass: `state.entities = allAlive` (`gameTick.ts:209-255`).
+  // The tick's post-pass: keep only the living in `state.entities`.
   state.entities = state.entities.filter((entity) => entity.alive);
 }
 

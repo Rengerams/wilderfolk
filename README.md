@@ -89,16 +89,17 @@ Watch your village come together for the moments that shape its future.
 
 Choosing a village leader should be something you can actually witness.
 
-Election ceremonies have been extended, giving villagers more time to arrive, discuss the candidates, and await the outcome.
+An election ceremony takes roughly one in-game day; its phases have a fixed simulation duration.
 
-| Election Phase | Previous | New |
-|---|---:|---:|
-| Gathering | 12 hours | 24 hours |
-| Discussions | 10 hours | 20 hours |
-| Final decision | 1 hour | 8 hours |
-| **Total** | **23 hours** | **52 hours** |
+| Election phase | Duration |
+|---|---:|
+| Gathering | 8 in-game hours |
+| Discussions | 10 in-game hours |
+| Final deliberation | 6 in-game hours |
+| Result reveal | 1 simulation tick |
+| **Total** | **24 hours + 1 tick** |
 
-At normal **1× speed**, a full 52-hour election takes only **2 minutes 36 seconds in real time**: one in-game day is 72 ticks, each tick is one second, so 52 × (72 ÷ 24) = **156 seconds**. Pausing or changing simulation speed changes the real-time duration.
+A full calendar day is **288 simulation ticks** (12 ticks per hour). Real-time duration depends on the selected simulation speed and pauses.
 
 The three leading candidates now take their places at the center of the gathering while the villagers assemble around them.
 
@@ -591,13 +592,13 @@ Wilderfolk is gradually moving toward its **first proper release**, so ease of a
 | 🌄 **Grounded 2.5D depth** | Humans, wildlife, trees, and buildings now share contact shadows with a gentle south-east cast direction, so the settlement sits in the valley instead of on top of it. Reduced cosmetic effects keep a compact shadow but remove the extra tail and heavier ambient darkening. |
 | 🫐 **Rare blueberry trees** | New settlements receive only **1–3** visible blueberry trees, depending on map size. Hungry free-time settlers can walk to a nearby ripe tree for a small food-and-energy boost; portions regrow slowly outside winter, so berries help but never replace farms or hunting. |
 | 🛠️ **A village that responds** | Worker assignments, priest selection, demolition, repairs, upgrades, and building modes now reach the authoritative simulation immediately. The leader can hold a normal job, and the Leader’s House builds in **two** work-days instead of leaving the founding household outside for nearly a week. |
-| 🎉 **Festivals feel alive** | From **15:00–21:59** on festival days, settlers leave ordinary work, school, patrols, and free hunting to gather at the green, Town Hall, or performer camp. The tavern stays open; ordinary routines return afterward. |
+| 🎉 **Festivals feel alive** | From **15:00–22:59** on festival days, settlers leave ordinary work, school, patrols, and free hunting to gather at the green, Town Hall, or performer camp. The tavern stays open; ordinary routines return afterward. |
 | 💗 **First loves and family life** | From age **12**, nearby teens may become school-influenced sweethearts. Shared school days and childhood friendships help; some relationships fade naturally, while lasting pairs enter adult courtship at **18**. Fertility begins at 12 through a mutual, nearby youth-love pair at a deliberately lower chance; marriage, homes, work, and affairs remain adult-only (**18+**). |
 | 💬 **A chattier frontier** | The seven-category dialogue bank adds oddball village banter, and nearby settlers now reliably join conversations instead of turning every exchange into a leader monologue. Speech bubbles have readable game-hour lifetimes, sit above speakers, and stack cleanly. |
 | 📜 **A Chronicle that keeps up** | Worker-generated events now arrive newest-first, without duplicate merges, and the Chronicle includes a dedicated **Milestones** filter. |
 | 🏹 **Sharper movement and hunts** | Deterministic heap-backed A* improves route finding; commute caches respect each settler’s target tile. Hunting Spots use shared wildlife cleanup, while arrow visuals expire by their actual wall-clock lifetime. |
 | 🎨 **Clearer frontier presentation** | Building art supports per-building scale and ground anchors, so the Leader’s House reads properly in previews and in the world. Live right-side charts were removed to keep the menu focused on village decisions. |
-| 🚀 **Performance retained** | The worker-safe social grid, adaptive spatial queries, and fixed 72-tick day preserve active social life and reliable player commands without surrendering the performance gains. |
+| 🚀 **Performance retained** | The worker-safe social grid, adaptive spatial queries, and fixed 24-hour day preserve active social life and reliable player commands without surrendering the performance gains. |
 
 **Performance**
 
@@ -690,7 +691,7 @@ Wilderfolk is gradually moving toward its **first proper release**, so ease of a
 - **🤝 Relationships (Phase 7: relationship webs)** — settlers build **friendships** from shared work, shared homes and childhood school bonds (become friends at 60); **feuds** start when a spouse catches a cheater with a paramour, drain energy daily, and slowly heal. Friends lift each other's energy; the chronicle log tells both stories
 - **🎓 Apprenticeships (Phase 7: skills pass on)** — a master (skill ≥ 40) at a staffed production building takes on the nearest juvenile; the apprentice learns fast under a good master and **graduates at skill 50** into the trade. Building panels show who is teaching whom
 - **👑 Dynasties (Phase 7: family legacy)** — the Goals tab lists **living dynasties** (surnames across generations), and a true **three-generation dynasty unlocks a Valley Chronicle chapter** ("A Dynasty", +200 gold)
-- **🗳️ Elections are real ballots (Phase 7: vote-support)** — every adult settler votes; **merit stays the strongest force** (a candidate ahead by >15 points wins every ballot), while **friendships boost and feuds can cancel a vote** — bonds only tip close races. Results log as "X of Y ballots", and the announcement reads "Elected by ballot"
+- **🗳️ Elections are real ballots (Phase 7: vote-support)** — eligible adults vote with variable turnout; **merit stays the strongest force** (a candidate ahead by >15 points wins every ballot), while **friendships boost and feuds can cancel a vote** — bonds only tip close races. Results log as "X of Y ballots", and the announcement reads "Elected by ballot"
 - **🍞 Food keeps longer** — spoilage drops **3% → 2%/day** and the base food cap rises to 800 (silos still cut further); banking food for winter is now viable
 - **💰 Gold has a cap** — 20,000 (was uncapped); the late-game snowball stops and the header shows the cap
 - **🌾 Farms reward workers** — farm output now scales `12 + 5×workers` (was a flat 22), so a fully-staffed farm out-produces an empty one

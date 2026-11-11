@@ -15,10 +15,8 @@ export function syncHtmlAudioMute(
 }
 
 /**
- * Element volume for one track under a preset — `levels.master × levels.music` folded in.
- *
- * An HTMLAudioElement sits outside the Web Audio bus chain, so the preset reaches it only here.
- * The result is clamped: `element.volume` throws above 1.
+ * Element volume for one track under a preset: `levels.master × levels.music`, clamped to 0–1
+ * because `element.volume` throws above 1. An HTMLAudioElement sits outside the Web Audio bus chain.
  */
 export function htmlAudioVolumeForPreset(trackVolume: number, levels: AudioLevels): number {
   return Math.min(1, Math.max(0, trackVolume * levels.master * levels.music));

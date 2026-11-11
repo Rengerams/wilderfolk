@@ -1,10 +1,6 @@
 /**
- * In-app virtual player ("auto-play") — the PURE decision engine.
- *
- * The engine only *proposes* real `WorkerCommand` objects. These tests pin the
- * priority order (cards → staffing → housing → food → research → festival), the
- * card answers, affordability, purity, and the "one action per world" rule: a
- * proposal must not repeat itself once it has actually been applied.
+ * In-app virtual player ("auto-play"), the pure decision engine: it proposes real `WorkerCommand`
+ * objects and must not repeat a proposal once applied.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -119,10 +115,8 @@ function researchNode(overrides: Partial<ResearchNode> = {}): ResearchNode {
 }
 
 /**
- * All-grassland map so placement validity depends only on the rules under test.
- *
- * Teraforge keeps no per-tile grid, so the terrain is stated as the L2 continuous fields the
- * tile projection reads: every cell at the same elevation/moisture classifies to Grassland.
+ * All-grassland map so placement depends only on the rules under test: Teraforge has no per-tile
+ * grid, so the L2 continuous fields are stated as uniform elevation and moisture.
  */
 function buildableWorldMap(): WorldMap {
   const cols = Math.ceil(MAP_WIDTH / 64);
@@ -149,28 +143,14 @@ const LEADER_HOUSE_ID = 90;
 /** Id of the farm a settled fixture starts with, worked by its own settlers. */
 const FARM_ID = 92;
 /**
- * How far a fixture's farm stands from the camp anchor when the fixture has no
- * House to sit beside. Closer than `VirtualPlayer.ROAD_MIN_LINK_DISTANCE` (260), so
- * the road step has nothing to pave, and far enough not to occupy the anchor's own
- * build ring.
+ * How far a fixture's farm stands from the camp anchor when it has no House to sit beside: closer
+ * than `VirtualPlayer.ROAD_MIN_LINK_DISTANCE` (260), and off the anchor's build ring.
  */
 const FARM_STANDOFF_FROM_CAMP = 200;
 
 /**
- * Minimal stand-in for the authoritative world. The engine only reads these
- * fields, and the real command owners run against the same stub when a test
- * applies a proposal.
- *
- * World generation never places a Leader's House, and the bot's first colony act
- * is that free build — so a fixture that is about any later priority starts with
- * one already standing. Tests that are about the Leader's House itself pass
- * `{ leaderHouse: false }`.
- *
- * The same reasoning applies to food: world generation places no food producer
- * either, and step 5 now builds one whenever the colony owns none, so a fixture
- * that reaches any later step has to own one — otherwise it models a colony the
- * ladder can never be in. Tests about food production itself pass
- * `{ foodProducer: false }`.
+ * Minimal stand-in for the authoritative world: the engine reads only these fields. Fixtures start
+ * with a Leader's House and a staffed farm, since later steps assume the colony already has both.
  */
 function makeWorld(
   entities: Entity[],
@@ -181,9 +161,7 @@ function makeWorld(
   const leaderHouse = options.leaderHouse === false
     ? []
     : [building(LEADER_HOUSE_ID, BuildingType.LeaderHouse, { x: 100, y: 100 })];
-  // Staffed, so it is not an open workplace that step 2 would want to fill first:
-  // the first settlers without a job work it, exactly as they would in a colony
-  // that has been running for an hour.
+  // Staffed, so step 2 does not treat it as an open workplace: the first jobless settlers work it.
   const farmPosts = BUILDING_CONFIGS[BuildingType.Farm].maxOccupants;
   // Crewed from the *end* of the settler list: a fixture's first settler is the one
   // its assertions name, so it stays free for the step under test.
@@ -194,12 +172,8 @@ function makeWorld(
   const worldEntities = entities.map((entity) =>
     crewIds.has(entity.id) ? { ...entity, workerBuildingId: FARM_ID } : entity,
   );
-  // And it stands *in* the village — beside the houses, or a short walk from the
-  // camp when the fixture has none. `getPlayerCampCenter` reads exactly those two,
-  // and a farm planted away from them would make step 21 lay a road to it, which is
-  // not what a fixture about research, forging or recruiting is asking about.
-  // The standoff keeps it off the camp anchor's own build ring, because the
-  // placement tests read the first spot that ring finds.
+  // It stands *in* the village — beside the houses or the camp — or step 21 would lay a road to it;
+  // the standoff also keeps it off the build ring the placement tests read.
   const farmConfig = BUILDING_CONFIGS[BuildingType.Farm];
   const house = buildings.find((b) => b.completed && b.type === BuildingType.House);
   const farmX = house ? house.x : CAMP_X - farmConfig.width / 2;
@@ -215,11 +189,8 @@ function makeWorld(
     speed: 1,
     width: MAP_WIDTH,
     height: MAP_HEIGHT,
-    // A supplied colony: step 9 answers any resource above its own shortage line,
-    // so the default world holds enough iron (the Mine's current line is 120) and tests
-    // that care about a shortage set their own stores.
-    // A settled baseline, not a storage-pressure test: stay below 85% of the
-    // authoritative 300-stone cap (500 stone falsely demands a Store first).
+    // A supplied colony above every shortage line, so only tests that care about a shortage set their
+    // own stores; also below 85% of the stone cap, which would otherwise demand a Store first.
     resources: { wood: 500, stone: 200, food: 500, gold: 500, iron: 150 },
     storageMax: { wood: 1000, stone: 1000, food: 1000, gold: 1000, iron: 300 },
     season: Season.Spring,
@@ -437,15 +408,8 @@ function tunableVillage(overrides: Partial<WorldState> = {}): WorldState {
 }
 
 /**
- * The bot's *terminal* state: it has nothing left for the colony to do, so the only thing it may
- * still propose is raising a building a level.
- *
- * `decideVirtualPlayerAction` ends with two postponable steps — a community building and a building
- * upgrade — which by design only ever fire when every earlier step passed. So a fixture that used to
- * assert `toBeNull()` ("nothing to fix") now correctly gets an upgrade on its own completed House or
- * Farm, because those fixtures hand the colony full stores and no idle settler. This helper keeps
- * those assertions meaningful: the decision must be `null` or that upgrade, and never a step that
- * should have fired earlier.
+ * A colony with nothing left to do may only be offered the postponable upgrade step, or `null`;
+ * any step that should have fired earlier is a failure.
  */
 function expectNothingLeftButUpgrades(decision: ReturnType<typeof decideVirtualPlayerAction>): void {
   if (decision === null) return;
@@ -456,6 +420,34 @@ function expectNothingLeftButUpgrades(decision: ReturnType<typeof decideVirtualP
 }
 
 describe('virtual player decision engine', () => {
+  it('never auto-builds or upgrades decorative objects, whether housed or homeless', () => {
+    const completedHouse = building(1, BuildingType.House, { occupants: [1, 2, 3] });
+    const fixtures = [
+      makeWorld([human(1), human(2), human(3)], []),
+      makeWorld([human(1), human(2), human(3)], [
+        building(2, BuildingType.House, { completed: false, constructionProgress: 20 }),
+      ]),
+      settledVillage(3),
+      makeWorld(
+        [human(1, { residenceBuildingId: 1 }), human(2, { residenceBuildingId: 1 }),
+          human(3, { residenceBuildingId: 1 })],
+        [completedHouse, building(45, BuildingType.Garden), building(46, BuildingType.Statue),
+          building(47, BuildingType.Lamp), building(48, BuildingType.Fence)],
+      ),
+    ];
+    for (const state of fixtures) {
+      const action = decideVirtualPlayerAction(state)?.command;
+      if (!action) continue;
+      if (action.op === 'startBuilding' || action.op === 'placeStripChain') {
+        expect(BUILDING_CONFIGS[action.type].decor, JSON.stringify(action)).not.toBe(true);
+      }
+      if (action.op === 'upgradeBuilding') {
+        const site = state.buildings.find((entry) => entry.id === action.buildingId);
+        expect(site && BUILDING_CONFIGS[site.type].decor, JSON.stringify(action)).not.toBe(true);
+      }
+    }
+  });
+
   it('proposes a House when a settler is homeless and placement is legal', () => {
     const world = makeWorld([human(1), human(2), human(3)], []);
 
@@ -516,9 +508,8 @@ describe('virtual player decision engine', () => {
   });
 
   it("keeps housing the homeless while only the Leader's House has free beds", () => {
-    // The Leader's House has 12 beds, but they belong to the leader's household:
-    // `leaderHouse.syncLeaderHouseResidency` evicts anyone else and re-homes them.
-    // Spare beds there must not read as "this settler was simply never assigned".
+    // The Leader's House beds belong to the leader's household — `syncLeaderHouseResidency`
+    // evicts anyone else — so spare beds there are not assignable housing.
     const world = makeWorld([human(1), human(2), human(3)], []);
 
     const decision = decideVirtualPlayerAction(world);
@@ -530,9 +521,8 @@ describe('virtual player decision engine', () => {
   });
 
   it('answer an open story card with an answer the story owner accepts', () => {
-    // The Traveling Theatre's stage-2 card leads with a 20-food hospitality offer.
-    // This colony has no food, so the resolver would refuse it and re-queue the
-    // card — the bot must pick an answer that actually lands.
+    // The card leads with a 20-food offer this colony cannot afford, so the bot must pick an
+    // answer the resolver actually accepts.
     const world = makeWorld([human(1, { residenceBuildingId: 1 })], [], {
       pendingStoryEvents: [{
         id: 'story_theatre',
@@ -603,9 +593,8 @@ describe('virtual player decision engine', () => {
 
     expect(decision).not.toBeNull();
     expect(decision!.command.op).toBe('respondToRaidEvent');
-    // `defend` is the preferred reading of this card, but the stub colony has no
-    // spears, so the real raid owner would refuse it and leave the card open.
-    // The tribute is affordable (the card asks 10 food), so the bot pays instead.
+    // `defend` is preferred but the colony has no spears, so the raid owner would refuse it;
+    // the affordable tribute lands instead.
     expect(decision!.command).toMatchObject({
       op: 'respondToRaidEvent',
       eventId: 'raid_42',
@@ -786,23 +775,16 @@ describe('virtual player decision engine', () => {
   });
 
   it('proposes no auto-staffing when only a transfer could fill a post', () => {
-    // The reported defect as a world: every job building stands non-empty, one has an
-    // open post, and the only settler without a job is pregnant — so no *idle* settler
-    // can be placed. `canAssignWorkerToBuilding` still answers "yes" here, because it
-    // asks the *manual* path's question (a transfer out of the overstaffed Lumber Mill
-    // could free one up), while `autoStaffWorkers` places idle settlers and only ever
-    // rebalances into an *empty* building. Pairing those two made the bot re-propose
-    // the same no-op command every in-game hour, with every later step waiting behind it.
+    // Every job building stands non-empty, one has an open post, and no idle settler exists, so
+    // only a transfer could fill it; `autoStaffWorkers` places idle settlers and must not re-propose.
     const world = makeWorld(
       [
         human(1, { residenceBuildingId: 1, workerBuildingId: 2 }),
         human(2, { residenceBuildingId: 1, workerBuildingId: 2 }),
         human(3, { residenceBuildingId: 1, workerBuildingId: 3 }),
         human(4, { residenceBuildingId: 1, workerBuildingId: 4 }),
-        // Employed, so nobody is idle: pregnancy stopped being an exclusion on 2026-09-17 (owner
-        // ruling, `LIVE-FINDINGS-STATUS.md` L4), so the previous "a pregnant settler is not a worker"
-        // fixture no longer leaves the colony without an assignable settler. The point of this case is
-        // the transfer path, and employment is what makes a transfer the only way to fill the post.
+        // Employed, so nobody is idle: the point of this case is the transfer path, and employment
+        // is what makes a transfer the only way to fill the post.
         human(5, { residenceBuildingId: 1, workerBuildingId: 4 }),
       ],
       [
@@ -883,9 +865,8 @@ describe('virtual player decision engine', () => {
   });
 
   it('researches the node that unlocks the building it wants, not the first one listed', () => {
-    // The game's own node order opens with the Agriculture chain, so "first acceptable node"
-    // ground `agriculture_1 → _2 → …` and never reached `forestry_1` — the Blacksmith's gate,
-    // which the civic step above keeps asking for (and the colony's only route to the forge).
+    // The bot must research the node that unlocks the building it wants: the Agriculture chain
+    // comes first in the game's order and would never reach the Blacksmith's `forestry_1` gate.
     const world = settledVillage(2, {
       researchNodes: [
         researchNode({ id: 'agriculture_1', type: ResearchType.Agriculture, name: 'Advanced Farming' }),
@@ -979,9 +960,8 @@ describe('virtual player decision engine', () => {
   });
 
   it('mines iron without waiting for a Blacksmith — the Mine has no unlock requirement', () => {
-    // The owner data is the authority: `BUILDING_CONFIGS.Mine` carries no
-    // `unlockRequirement` (the game lets a Mine dig gold as well as iron), so the
-    // old "wait for a smith" precondition was a bot rule the game does not have.
+    // The owner data is the authority: `BUILDING_CONFIGS.Mine` carries no `unlockRequirement`, so
+    // the bot must not impose a smith precondition the game does not have.
     expect(BUILDING_CONFIGS[BuildingType.Mine].unlockRequirement).toBeUndefined();
 
     const world = makeWorld([human(1, { residenceBuildingId: 1 })], [], {
@@ -1199,8 +1179,7 @@ describe('virtual player remaining action surface', () => {
   });
 
   it('digs iron when the colony is short of it, even with a low treasury', () => {
-    // The reported defect: with 0 iron the mine dug gold because the treasury was low,
-    // so iron never rose and nothing in the colony addressed the shortage.
+    // Iron is the shortage even with a healthy treasury: the mine must dig iron, not gold.
     const world = tunableVillage({
       resources: { wood: 500, stone: 500, food: 500, gold: 40, iron: 0 },
     });
@@ -1422,10 +1401,8 @@ describe('virtual player remaining action surface', () => {
   });
 
   it('never proposes an upgrade for a building whose level does nothing', () => {
-    // A Church is a staffed workplace and was upgradeable under the old "has a job" rule, but no
-    // code reads its level: it has no production block, so the button charged real resources for a
-    // number that affected nothing. `buildingTypeHasLevelBenefit` is the single rule for that, and
-    // the same one the panel uses to hide the button — so the bot must not buy it either.
+    // A Church has no level benefit — no production block reads its level — so
+    // `buildingTypeHasLevelBenefit` hides the upgrade and the bot must not buy it.
     const world = makeWorld(
       [human(1, { residenceBuildingId: 1 }), human(2, { workerBuildingId: 3 })],
       [
@@ -1559,10 +1536,8 @@ describe('virtual player remaining action surface', () => {
 
   it('raids a tense rival only with provisions to spare, and prefers peace when rich', () => {
     const ids = Array.from({ length: 12 }, (_, index) => index + 1);
-    // Everyone is at home rather than at a workplace: this fixture is about rival
-    // policy, and no job building means no crew or road work can preempt it. It owns the
-    // Farms a dozen settlers plan for the food step (`SETTLERS_PER_FOOD_PRODUCER`), and
-    // adding one is food work, not rival policy.
+    // Everyone is at home rather than at a workplace, so no crew or road work can preempt rival
+    // policy, and the colony already owns the Farms the food step plans for.
     const crowded = (food: number) => makeWorld(
       [
         ...ids.slice(0, 6).map((id) => human(id, { residenceBuildingId: 1, workerBuildingId: 1, job: JobType.Soldier })),
@@ -1901,9 +1876,8 @@ describe('virtual player remaining action surface', () => {
 });
 
 describe('virtual player opening on a real colony', () => {
-  // `readonly BuildingType[]`, not the inferred four-member literal union: the question below
-  // ("is this building a food producer?") is meaningful for every `BuildingType`, and the
-  // building being tested comes from a world, so its `type` is the full union.
+  // `readonly BuildingType[]`, not the inferred literal union: the food-producer question is
+  // meaningful for every `BuildingType`, and the tested building's type is the full union.
   const FOOD_TYPES: readonly BuildingType[] = [
     BuildingType.Farm,
     BuildingType.Greenhouse,
@@ -1912,16 +1886,12 @@ describe('virtual player opening on a real colony', () => {
   ];
 
   /**
-   * The reported illogic, on the real world rather than a fixture: a fresh
-   * settlement has a large larder and no producer at all, so a buffer-only food
-   * rule let the ladder research "Advanced Farming" — `farm_yield ×1.2`, and the
-   * Greenhouse unlock — with no farm for the research to improve, and then only
-   * react to hunger at two days of food, i.e. after a three-day build.
+   * A fresh settlement has a large larder and no food producer, so the ladder must build a producer
+   * before researching farm yield, and react to hunger before the larder empties.
    */
   it('starts a new colony with enough iron for a first forge order', () => {
-    // Iron is the one material nothing a colony builds costs (the buildings' own configs
-    // carry no iron), and only the Mine makes it — so a new colony is handed a first
-    // order's worth (`worldGen.initGame`) instead of waiting days for the Mine.
+    // Nothing a colony builds costs iron and only the Mine makes it, so a new colony is handed a
+    // first order's worth instead of waiting days for the Mine.
     const world = initGame({ size: MapSize.Medium, seed: 4242 });
 
     expect(world.resources.iron).toBe(30);
@@ -1982,14 +1952,8 @@ describe('virtual player cadence gate', () => {
   });
 
   it('keeps opening hour after hour on a world the loop mutates in place', () => {
-    // The game loop mutates ONE `WorldState` object (`GameLoop.frame` on the main
-    // thread, the worker host's `worldRef` in worker mode), so App's `world` state
-    // keeps the same identity for the whole session. An effect keyed on that object
-    // alone therefore never re-runs after the click that enabled auto-play — the
-    // "Auto-play does nothing" regression — which is why `useVirtualPlayer` keys its
-    // act effect on `world.tick` / `world.paused` as well. This pins the contract
-    // those keys rely on: the gate opens again on every in-game hour of a stable
-    // object, so the tick alone is a usable "new hour arrived" signal.
+    // The game loop mutates one `WorldState` object, so the act effect keys on `world.tick` and
+    // `world.paused` as well; the gate must reopen on every in-game hour of a stable object.
     const world = { paused: false, tick: TICKS_PER_HOUR * 4 };
     const sameObject = world;
     let lastActedTick: number | null = null;

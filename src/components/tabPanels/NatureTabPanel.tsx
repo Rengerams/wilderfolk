@@ -91,8 +91,7 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
     state.season,
     state.weather,
   ]);
-  // Computed here (not in App) so these scans only run while this tab is open —
-  // getGrazingPressureReport walks every entity for growing-grass counts.
+  // Computed here so these scans only run while this tab is open; it walks every entity.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const grazingPressure = useMemo(() => getGrazingPressureReport(state), [
     state.wildlifeCounts,
@@ -112,14 +111,11 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
   ]);
   const stage = valley.stage;
   /**
-   * The health bar reads the ecology owner, not the raw field. `getEcosystemHealth` supplies the
-   * documented midpoint for a world with no recorded score, so a legacy save no longer renders
-   * "NaN %" in this bar beside a breakdown total of 50.
+   * The health bar reads the ecology owner, whose documented midpoint covers a world with no
+   * recorded score.
    */
   const ecosystemHealth = getEcosystemHealth(state);
-  // One percentage for the label *and* the bar, from the fill owner: the two used to be computed
-  // separately (`Math.round(x)` above a `Math.max(0, x)` width), so a value out of range moved the bar
-  // and not the number.
+  // One percentage for the label *and* the bar, so an out-of-range value cannot move only one.
   const healthFill = resourceFillPercent({ amount: ecosystemHealth, cap: 100 });
   const pollutionFill = resourceFillPercent({ amount: state.pollutionLevel, cap: 100 });
   const biodiversityFill = resourceFillPercent({

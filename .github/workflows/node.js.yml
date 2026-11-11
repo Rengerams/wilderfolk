@@ -1,51 +1,71 @@
 name: Node.js CI
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+
 permissions:
   contents: read
-# New commits supersede outdated runs of the same branch.
+
 concurrency:
   group: node-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+
     steps:
-      - uses: actions/checkout@v4.4.0
+      - name: Checkout repository
+        uses: actions/checkout@v4.4.0
         with:
           fetch-depth: 0
-      - name: Use Node.js 26.12.1 (with npm cache)
-        uses: actions/setup-node@v4.4.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4.1.0
         with:
           node-version: '26.12.1'
           cache: npm
+
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Build semantic-duplicate baseline from the preceding revision
+
+      - name: Build semantic-duplicate baseline
         env:
           CHECK_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: |
+          set -e
           base_dir="$RUNNER_TEMP/wilderfolk-semantic-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          
+          # Zorg voor een schone afronding bij fouten of succes
           trap 'git worktree remove --force "$base_dir" >/dev/null 2>&1 || true' EXIT
+          
+          # Bereid de git worktree en symlink voor
           git worktree add --detach "$base_dir" "$CHECK_BASE_SHA"
           ln -s "$GITHUB_WORKSPACE/node_modules" "$base_dir/node_modules"
-          (
-            cd "$base_dir"
-            node scripts/build-call-graph.mjs --json-only
-            node scripts/check-semantic-duplicates.mjs --update-baseline
-            node scripts/check-duplicate-code.mjs --update-baseline
-          )
+          
+          # Genereer de baselines in de tijdelijke worktree
+          cd "$base_dir"
+          node scripts/build-call-graph.mjs --json-only
+          node scripts/check-semantic-duplicates.mjs --update-baseline
+          node scripts/check-duplicate-code.mjs --update-baseline
+          
+          # Kopieer de gegenereerde baselines terug naar de workspace
+          cd "$GITHUB_WORKSPACE"
           cp "$base_dir/docs/tools/semantic-duplicates-baseline.json" docs/tools/semantic-duplicates-baseline.json
           cp "$base_dir/docs/tools/duplicate-code-baseline.json" docs/tools/duplicate-code-baseline.json
+
       - name: Run PR checks and affected tests
         if: github.event_name == 'pull_request'
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: npm test -- standard --changed "$PR_BASE_SHA" && npm run build
+        run: |
+          npm test -- standard --changed "$PR_BASE_SHA"
+          npm run build
+
       - name: Run full checks on main
         if: github.event_name == 'push'
         run: |

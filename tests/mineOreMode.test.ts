@@ -1,8 +1,6 @@
 /**
- * Mine ore modes — a Mine extracts **iron or gold** (chosen per mine) and stone
- * belongs to the Quarry, and the Mine is buildable from the first day (no
- * research gate). Both hazards are pinned here: a legacy save that stored the
- * removed `stone` mode, and a command that still sends it.
+ * A Mine extracts iron or gold (chosen per mine) and stone belongs to the Quarry; the Mine is
+ * buildable from day one. A save or command carrying a `stone` mode is pinned too.
  */
 import { describe, expect, it } from 'vitest';
 import { BUILDING_CONFIGS, MINE_ORES, mineOreForMode } from '../src/game/buildings';
@@ -19,7 +17,7 @@ describe('mine ore modes', () => {
     expect(mineOreForMode(undefined)).toBe('iron');
     expect(mineOreForMode('iron')).toBe('iron');
     expect(mineOreForMode('gold')).toBe('gold');
-    // Saves written while the Mine still had a `stone` mode must not mint gold.
+    // A save carrying `stone` must normalise to iron, never gold.
     expect(mineOreForMode('stone')).toBe('iron');
   });
 

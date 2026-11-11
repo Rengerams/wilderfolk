@@ -1,8 +1,6 @@
 /**
- * Noise & PRNG primitives for the procedural map generator.
- *
- * Ported verbatim from Teraforge (`src/lib/noise.ts`) so the two generators share
- * one deterministic engine — same seed + settings = same terrain in both projects.
+ * Noise & PRNG primitives for the procedural map generator, ported verbatim from Teraforge
+ * (`src/lib/noise.ts`) so both generators share one deterministic engine.
  */
 
 export function hashString(str: string): number {

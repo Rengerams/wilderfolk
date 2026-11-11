@@ -8,6 +8,8 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, setHumanBirthFromAge } from '../src/game/dayCycle';
 import { homeStandPosition } from '../src/game/simulation/humanMovement';
+import { isAtBuildingReach } from '../src/game/buildingAccess';
+import { tickPrisonPresence } from '../src/game/prisonGuardDuty';
 import { getHourOfDay } from '../src/game/dayCycleClock';
 import { getVenueSchedule, getVenueScheduleHours, isFestivalOverrideActive, isVenueServiceHour } from '../src/game/venueSchedule';
 import { getHumanActivityStatus } from '../src/game/humanStatus';
@@ -18,7 +20,7 @@ const PRISON_X = 600;
 const PRISON_Y = 40;
 
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
-  return {
+  const entity: Entity = {
     id,
     type: EntityType.Human,
     x: 150,
@@ -45,6 +47,9 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
     job: JobType.Settler,
     ...overrides,
   };
+  // The birth date follows the age, so a midnight sync cannot reset an adult fixture to zero.
+  setHumanBirthFromAge(entity, entity.age, 0);
+  return entity;
 }
 
 function building(
@@ -175,9 +180,8 @@ function festivalWorkWorld(): { state: WorldState; farmer: Entity; innkeeper: En
   const house = building(20, BuildingType.House, 400, 200, [1, 2]);
   const farm = building(10, BuildingType.Farm, 30, 40, [1]);
   const tavern = building(30, BuildingType.Tavern, 250, 40, [2]);
-  // Auto staffing is authoritative: the 15:00 assignment pulse may give any
-  // eligible unemployed adult a job. Use a minor as the genuinely off-duty
-  // festival participant rather than relying on the removed manual mode.
+  // Auto staffing is authoritative: the 15:00 assignment pulse may give any eligible unemployed
+  // adult a job, so a minor is the genuinely off-duty festival participant.
   const farmer = human(1, { job: JobType.Farmer, workerBuildingId: 10, residenceBuildingId: 20, x: 54, y: 61 });
   const innkeeper = human(2, { job: JobType.Innkeeper, workerBuildingId: 30, residenceBuildingId: 20, x: 274, y: 61 });
   const idler = human(3, { age: 12, isJuvenile: true });
@@ -192,6 +196,18 @@ function festivalWorkWorld(): { state: WorldState; farmer: Entity; innkeeper: En
 }
 
 describe('a prison is open 24 hours', () => {
+  it('counts a guard at the valid facade as present even outside the old centre-radius cutoff', () => {
+    const { state, prison, nightGuard } = prisonWorld();
+    // This is within the 24px reachable facade, but >55px from the building centre.
+    nightGuard.x = PRISON_X - 44;
+    nightGuard.y = PRISON_Y + 34;
+    expect(isAtBuildingReach(nightGuard, prison)).toBe(true);
+    expect(Math.hypot(nightGuard.x - prison.x, nightGuard.y - prison.y)).toBeGreaterThan(55);
+    // The remaining guards are far away; only the legitimately posted night guard covers the hour.
+    tickPrisonPresence(state);
+    expect(prison.uncoveredPrisonHours ?? []).toEqual([]);
+  });
+
   it('holds the post at 02:00 — an hour inside the night shift, outside the work window', () => {
     const { state, prison, nightGuard } = prisonWorld();
     // From the top of the day, so the whole rotation is walked and every clock hour is sampled.
@@ -236,7 +252,15 @@ describe('a prison is open 24 hours', () => {
         gameTick(state);
         // Read before the day boundary's pulse clears the list, or the day's own hours are invisible.
         if (t === TICKS_PER_DAY - 1) {
-          expect(prison.uncoveredPrisonHours ?? [], `day ${day} hours with nobody on the post`).toEqual([]);
+          const uncovered = prison.uncoveredPrisonHours ?? [];
+          const guardStatus = guards.map((guard) => ({
+            id: guard.id, alive: guard.alive, job: guard.job,
+            workerBuildingId: guard.workerBuildingId, at: [Math.round(guard.x), Math.round(guard.y)],
+            indoorBuildingId: guard.indoorBuildingId, stamina: guard.needs?.stamina,
+          }));
+          expect(uncovered,
+            `day ${day} hours without a guard; occupants=${JSON.stringify(prison.occupants)}, guards=${JSON.stringify(guardStatus)}`,
+          ).toEqual([]);
         }
       }
     }
@@ -250,8 +274,11 @@ describe('settlers keep working during a festival', () => {
 
     // Attendance is the job: the schedule owner credits every tick spent on shift.
     expect(farmer.scheduleWorkedTicksToday ?? 0).toBeGreaterThan(0);
-    // The farm is left of him; the festival crowd is not where he went.
-    expect(farmer.vx).toBeLessThan(0);
+    // The worker starts inside his farm's footprint, so a stationary worker is not a failure.
+    // Test the actual activity and workplace reach, not the sign of a velocity that may be zero.
+    const farm = state.buildings.find((site) => site.id === farmer.workerBuildingId)!;
+    expect(isAtBuildingReach(farmer, farm) || farmer.indoorBuildingId === farm.id).toBe(true);
+    expect(getHumanActivityStatus(state, farmer)).not.toBe('Gathering at festival');
   });
 
   it('labels the settler on shift as working and the free one as gathering', () => {

@@ -1,14 +1,6 @@
 /**
- * Save inspector — what is in this `.json`, and why does it load (or not)?
- *
- * Written for the 2026-09-16 “savegame failed loading” report: the game collapses every
- * load failure into a player-facing guess, so a sent-in save has to be run through the
- * real path outside the browser to see the failing step.
- *
- * Usage: npx tsx scripts/inspect-save.mts <save.json> [--days=N] [--shifts]
- *
- * `--days=N` walks the sim forward on the walkability grid; `--shifts` censuses one week of
- * attendance per trade. Both unpause the loaded world first.
+ * Save inspector: why does this `.json` load or not, and what is in it? `--days=N` walks the sim on
+ * the walkability grid; `--shifts` censuses a week of trade attendance.
  */
 import { readFileSync } from 'node:fs';
 import { describeSaveReadFailure, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
@@ -121,10 +113,8 @@ if (!loadedMap) {
 }
 
 /**
- * Where the colony stands on the walkability grid, and — with `--days=N` — whether it walks onto
- * ground the grid blocks. The owner's "they just walk over water … and over walls" arrives as a
- * save, so this is the read-only half of that report: water, reserved decor and a completed wall's
- * footprint all read as blocked by the same owner the movement path asks.
+ * Where the colony stands on the walkability grid, and with `--days=N` whether it walks onto blocked
+ * ground: water, reserved decor and a complete wall's footprint all block via the movement owner.
  */
 function reportGroundAudit(world: WorldState, map: NonNullable<WorldState['worldMap']>): void {
   const grid: PathGrid = getPathGrid(map, world.buildings);
@@ -143,12 +133,8 @@ function reportGroundAudit(world: WorldState, map: NonNullable<WorldState['world
     world.entities.filter((entity) => entity.alive && isPlayerHuman(entity));
 
   /**
-   * Does the regenerated ground still fit what the save placed on it?
-   *
-   * A compact save regenerates the whole valley from seed/preset/size and re-applies only the sparse
-   * overrides, so a change to the generator moves every river and coast in an existing save. The
-   * save's own placements are the witnesses: a Fishing Spot's rule requires water inside its
-   * footprint, and no building may be placed on water at all.
+   * Does the regenerated ground still fit what the save placed on it? A compact save rebuilds the
+   * valley from seed/preset/size, so placements are the witnesses: water under a no-water building.
    */
   const waterAt = (x: number, y: number): boolean => {
     const tx = Math.floor(x / PATH_CELL);
@@ -250,9 +236,8 @@ function reportGroundAudit(world: WorldState, map: NonNullable<WorldState['world
   const days = daysArg ? Number(daysArg.slice('--days='.length)) : 0;
   if (!Number.isFinite(days) || days <= 0) return;
 
-  // A load deliberately restores the world paused (`saveLoad`: `paused: true`), and `gameTick` returns
-  // immediately on that flag — so a run that does not clear it measures a frozen colony and reports a
-  // clean zero. Say so, then unpause.
+  // A load restores the world paused and `gameTick` returns immediately on that flag, so measured
+  // results would be a clean zero: say so, then unpause.
   if (world.paused) console.log('  (the load restores the world paused — unpausing to run)');
   world.paused = false;
 
@@ -314,12 +299,8 @@ const CENSUS_TRADES: ReadonlyArray<{ job: JobType; window: string }> = [
 ];
 
 /**
- * `--shifts`: one week of the loaded colony, sampled at 23:00 — does each trade record attendance?
- *
- * `scheduleWorkedTicksToday` is the live accumulator the day boundary settles into
- * `scheduleLastWorkedHours`, so a trade that reads zero at every sample never recorded a shift.
- * The load restores `paused: true` and `gameTick` returns immediately on that flag, so the flag is
- * cleared first: without that the whole week reads a clean zero and proves nothing.
+ * `--shifts`: one week sampled at 23:00 — does each trade record attendance? `scheduleWorkedTicksToday`
+ * is the live accumulator, so the paused flag must be cleared first or the week reads a clean zero.
  */
 function reportShiftAttendanceCensus(world: WorldState): void {
   if (world.paused) {
@@ -443,10 +424,8 @@ function imprisonForWatch(world: WorldState, prison: Building, settler: Entity):
 }
 
 /**
- * `--prison=DAYS`: runs the loaded colony forward and reports what the escape rule actually does.
- *
- * A load has no prisoners, so the watch lends each staffed Prison one prisoner per day — the arrest
- * path's own shape — which is the state the roll needs to be measurable at all.
+ * `--prison=DAYS`: reports what the escape rule actually does. A load has no prisoners, so the watch
+ * lends each staffed Prison one prisoner per day — the arrest path's own shape.
  */
 function reportPrisonEscapeWatch(world: WorldState, days: number): void {
   if (world.paused) {

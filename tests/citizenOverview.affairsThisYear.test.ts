@@ -1,16 +1,6 @@
 /**
- * The People screen's "affairs this year" counter — `citizenOverview.computeCitizenOverview()`.
- *
- * Why a year total exists at all: the live affair count is a snapshot of a deliberately short-lived
- * state. Measured on the repo's own engine gate (`npm run test:full-year`, seed 12345, 360 days,
- * ~70 settlers) the instantaneous count averages **0.2 per day** and is non-zero on only **35 of
- * 360** days of a year that established **93** affairs, so the snapshot reads zero almost always and
- * the feature looked absent from play ("there are zero affairs").
- *
- * The risk this guards is the two ways the count can lie: counting a *different* year's affairs, and
- * counting a scandal line that is not an establishment (a rumour, or a caught-in-the-act). Both are
- * message-classified against the affair owner's own phrase constant, so the writer and this reader
- * cannot drift apart.
+ * The People screen's year total of affairs (`citizenOverview.computeCitizenOverview()`), classified
+ * by the affair owner's phrase constant so only establishments in the current year count.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType, Season, WeatherType } from '../src/game/gameTypes';

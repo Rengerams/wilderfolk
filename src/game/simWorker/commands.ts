@@ -2,7 +2,8 @@ import { resolveWarPrisoner } from '../warPrisoners';
 import { demolishBuildingInPlace, demolishStripBuildingsInPlace, toggleWallGate } from '../buildingMaintenanceActions';
 
 import type { WorldState, ForgeOrderId } from '../gameTypes';
-import { BuildingType } from '../gameTypes';
+import type { BuildingType } from '../gameTypes';
+import { isBuildingType, isFiniteNumber } from '../inputGuards';
 import type { HuntingSpotPrey } from '../gameTypes';
 import { isValidHuntingSpotPrey } from '../huntingSpots';
 import type { BuildingRotation } from '../buildingRotation';
@@ -40,6 +41,9 @@ import {
 } from '../simBuffers/simDelta';
 
 export const WORKER_CMD_PROTO = 1;
+
+/** A dispatched command with the host's monotonic id, so a fault can replay only unapplied work. */
+export type StampedWorkerCommand = WorkerCommand & { commandId?: number };
 
 /** Versioned main → worker command channel (Rule 6). */
 export type WorkerCommand =
@@ -145,17 +149,7 @@ type MissingOps = Exclude<WorkerCommand['op'], (typeof WORKER_COMMAND_OPS)[numbe
 const _EXHAUSTIVE_OPS_CHECK: MissingOps extends never ? true : false = true;
 void _EXHAUSTIVE_OPS_CHECK;
 
-// Lazy safe resolvers to prevent circular module evaluation crashes
-let buildingTypeValuesSet: Set<string> | null = null;
-function getBuildingTypeValues(): Set<string> {
-  if (!buildingTypeValuesSet) {
-    buildingTypeValuesSet = new Set<string>(
-      BuildingType && typeof BuildingType === 'object' ? Object.values(BuildingType) : [],
-    );
-  }
-  return buildingTypeValuesSet;
-}
-
+// Lazy resolver to avoid eagerly evaluating command-related module dependencies.
 let forgeOrderIdsSet: Set<string> | null = null;
 function getForgeOrderIds(): Set<string> {
   if (!forgeOrderIdsSet) {
@@ -179,16 +173,8 @@ function getVisitorTradeActions(): Set<string> {
 const REFUGEE_CHOICES = new Set<string>(['welcome', 'screen', 'turn_away']);
 const VILLAGE_REQUEST_CHOICES = new Set<string>(['accept', 'decline']);
 
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
-}
-
-function isBuildingType(value: unknown): value is BuildingType {
-  return typeof value === 'string' && getBuildingTypeValues().has(value);
 }
 
 function isBuildingRotation(value: unknown): value is BuildingRotation {

@@ -1,9 +1,6 @@
 /**
- * Regression: loading a save must not rewrite a settler's birth date.
- *
- * The load path re-derived `birthYear`/`birthMonth`/`birthDay` from a whole-year age, so a
- * settler's exact birthday moved forward every time a save was opened, even though the saved date
- * is the authoritative record and the age is only a projection of it.
+ * Loading a save must not rewrite a settler's birth date: the saved date is authoritative and
+ * the age is only a projection of it.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';

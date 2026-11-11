@@ -1,15 +1,6 @@
 /**
- * F3 and F5 of the 2026-09-16 worker-boundary audit (`docs/private/audits/2026-09-16/game-worker.md`):
- *
- * - **F3:** `activeEvent` is written by the daily layer inside `gameTick`, and the delta shipped it,
- *   but it was missing from the prep rollback payload — the one `WorldState` field with that
- *   asymmetry, so a failed tick could leave an event latched.
- * - **F5:** `applySimPrep` ended with `invalidateWorldRuntimeCaches`, which drops `scentGrid` — a
- *   simulation field (wolf scent trails), not a derived index — so every rollback zeroed the trail.
- *
- * The blanket payload round-trip is already asserted by `tests/simPrep.rollbackClosure.test.ts`
- * ("round-trips every field the prep payload claims to own"); these cases pin the two behaviours that
- * test cannot express.
+ * The prep rollback covers what the tick writes: `activeEvent` is restored, and `applySimPrep`
+ * keeps the live `scentGrid` rather than invalidating it.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -44,6 +35,19 @@ describe('prep rollback covers what the tick writes (F3/F5)', () => {
     applySimPrep(world, prep);
 
     expect(world.activeEvent?.id).toBe('raid_before');
+  });
+
+  it('restores election promise records written by the tick', () => {
+    const world = initGame();
+    world.electionPromiseRecords = [];
+    const prep = extractSimPrep(world);
+
+    world.electionPromiseRecords = [{
+      electionId: 1, leaderId: 2, year: 2, dueDay: 700, codes: [1], evaluated: false,
+    }];
+    applySimPrep(world, prep);
+
+    expect(world.electionPromiseRecords).toEqual([]);
   });
 
   it('keeps the live scent grid across a rollback', () => {

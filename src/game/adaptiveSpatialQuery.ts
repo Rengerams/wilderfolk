@@ -38,13 +38,14 @@ export interface AdaptiveQueryDecision {
 
 /**
  * Fast, allocation-free radial scan over a contiguous entity array.
+ * A callback that returns `false` stops the walk.
  */
 export function forEachInArrayRadius(
   entities: readonly Entity[],
   x: number,
   y: number,
   radius: number,
-  callback: (entity: Entity, distSq: number) => void,
+  callback: (entity: Entity, distSq: number) => boolean | void,
   predicate?: (entity: Entity) => boolean,
 ): void {
   const radiusSq = radius * radius;
@@ -62,7 +63,7 @@ export function forEachInArrayRadius(
     if (dSq > radiusSq) continue;
     if (metrics) recordSpatialCandidate();
 
-    callback(entity, dSq);
+    if (callback(entity, dSq) === false) return;
   }
 }
 
@@ -116,7 +117,7 @@ export function forEachAdaptiveInRadius(
   x: number,
   y: number,
   radius: number,
-  callback: (entity: Entity, distSq: number) => void,
+  callback: (entity: Entity, distSq: number) => boolean | void,
   options: AdaptiveRadiusOptions,
   predicate?: (entity: Entity) => boolean,
 ): 'grid' | 'naive' {
@@ -128,12 +129,10 @@ export function forEachAdaptiveInRadius(
         radius,
         (entity, distSq) => {
           if (predicate && !predicate(entity)) return;
-          // Count the candidate *after* the predicate, exactly like the naive branch below and
-          // like findClosestInRadius, so the opt-in benchmark report is comparable across modes.
-          // The grid's own counter (default `recordCandidates = true`) counted every in-radius
-          // entity before the predicate.
+          // Count the candidate *after* the predicate, matching the naive branch and
+          // findClosestInRadius, so benchmark reports are comparable across modes.
           if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate();
-          callback(entity, distSq);
+          return callback(entity, distSq) === false ? false : undefined;
         },
         false,
       ),

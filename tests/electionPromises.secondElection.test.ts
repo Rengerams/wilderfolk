@@ -1,15 +1,6 @@
 /**
- * A second election in the same year gets its promises judged.
- *
- * Regression for audit M7 (`docs/private/audits/2026-09-16/sim-economy-leadership-combat.md`,
- * tracked in `LIVE-FINDINGS-STATUS.md`): every promise flag is keyed by *calendar year*
- * (`election_promises_<year>_0/1`, `…_eval_day`, `…_active_year`) **except** the "already judged"
- * marker `…_<year>_evaluated`. A mid-year succession — the leader dies after that year's term
- * election, so the reveal at `villageLeadership.ts:755` calls `recordElectionPromises` again with the
- * same year — overwrote the codes and the evaluation day while that marker stayed set. Both
- * `tickElectionPromises` and `getActiveElectionPromises` early-return on it, so the new promises were
- * permanently inert: no reputation swing, no panel. `recordElectionPromises` now clears the marker
- * with the promises it replaces, so each election carries its own evaluation window.
+ * A second election in the same year gets its promises judged: `recordElectionPromises` clears the
+ * evaluated marker, so each election carries its own evaluation window.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -56,7 +47,7 @@ describe('election promises survive a second election in the same year (M7)', ()
     // The leader dies and the succession reveal records promises for the same year again.
     recordElectionPromises(state, YEAR);
     const active = getActiveElectionPromises(state);
-    // Before the fix this is null: the stale `evaluated` marker suppresses the new window entirely.
+    // A new election clears the stale marker, so the succession window opens fresh.
     expect(active, 'the succession promises are inert — no window, so no panel and no judgement').not.toBeNull();
     expect(active?.daysRemaining, 'the succession window is not a fresh one').toBe(EVAL_DAY_OFFSET);
 
@@ -105,7 +96,7 @@ describe('election promises survive a second election in the same year (M7)', ()
 
     recordElectionPromises(state, 0);
     const active = getActiveElectionPromises(state);
-    // Pre-fix this is null — no panel, and the promises were never judged.
+    // The founding year still gets a real window and a judgement.
     expect(active, 'the founding-year promises are inert').not.toBeNull();
     expect(active?.year).toBe(0);
 

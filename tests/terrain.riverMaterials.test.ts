@@ -26,9 +26,8 @@ afterAll(() => {
 
 describe('generation-v3+ river surface details', () => {
   it('keeps river wave phase stable when a bank cell has no assigned flow', () => {
-    // A long channel can already have traveled 1,200px. The unassigned cell next
-    // to it has phase zero; sampling the phase directly would drop to ~778px at
-    // x=0.4, bending and compressing the waves toward the bank.
+    // The cell next to a long channel (already past 1,200px) is unassigned with phase zero;
+    // sampling it directly would bend and compress the waves toward the bank.
     const phase = new Float32Array([1200, 0, 1204, 0]);
     const assigned = new Float32Array([1, 0, 1, 0]);
     expect(sampleRiverPhase(phase, assigned, 2, 2, 0.4, 0.5)).toBeCloseTo(1202, 5);

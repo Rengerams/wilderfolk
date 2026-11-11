@@ -1,22 +1,13 @@
 /**
- * A zoom must re-bake the visible ground **in place**, at the camera's target step, one chunk a frame.
- *
- * The fixed 1:1 bake made the Teraforge overviews unaffordable: at 50 % the whole view is re-baked at
- * a resolution the monitor cannot show, and at the spec map sizes that is millions of useless pixels
- * per view. The bake step therefore follows the camera again (`targetGroundStep`), but the chunk grid
- * and the cache key do **not** — the step lives on the chunk (`bakedStep`) and a chunk that is off its
- * target step swaps its old canvas in as a stand-in, refills the new one under the existing pixel
- * budget, and disposes the stand-in once whole. This case pins that the swap happens at the target
- * step, that it can never re-bake more than one chunk in a frame, and that a settled view re-bakes
- * nothing at all.
- *
- * The bake only calls `createImageData` / `putImageData`, so the capture stub below is enough — no
- * canvas dependency, no browser (same harness as `groundChunk.bands.test.ts`).
+ * A zoom re-bakes the visible ground in place, at the camera's `targetGroundStep`, one chunk a frame;
+ * chunk identity and the cache key stay put, and a settled view re-bakes nothing.
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import * as whittaker from '../src/game/renderer/whittakerTerrain';
+import { setTileOverride, bumpTerrainRevision } from '../src/game/terrain/terrainGrid';
 import { generateRawTerrain } from '../src/game/terrain/terragen';
 import { drawGround, GROUND_BAKE_PIXEL_BUDGET, resetTerrainCaches, targetGroundStep } from '../src/game/renderer/terrain';
-import { MapSize, Season } from '../src/game/gameTypes';
+import { MapSize, Season, TerrainType } from '../src/game/gameTypes';
 import type { RenderSnapshot } from '../src/game/renderSnapshot';
 
 interface CapturedImage {
@@ -129,6 +120,37 @@ const VIEW_H = 1100;
 const CHUNK = 256;
 
 describe('a zoom re-bakes the ground chunk by chunk, in place', () => {
+  it('refreshes the clearing fields without discarding unaffected chunk surfaces', () => {
+    const map = generateRawTerrain(WORLD_W, WORLD_H, SEED, MapSize.Medium, 'continental');
+    map.decorations = [];
+    const snapshot = {
+      worldMap: map, width: WORLD_W, height: WORLD_H,
+      camera: { x: WORLD_W / 2, y: WORLD_H / 2, zoom: 0.5 },
+      season: Season.Spring, dayInYear: 100, showGrid: false, showPaths: false,
+    } as unknown as RenderSnapshot;
+    const fields = vi.spyOn(whittaker, 'buildWhittakerFields');
+    const destination = destinationContext();
+    resetTerrainCaches();
+    try {
+      for (let frame = 0; frame < 400; frame++) {
+        counts.paintedPixels = 0;
+        drawGround(destination, snapshot, VIEW_W, VIEW_H);
+        if (counts.paintedPixels === 0) break;
+      }
+      const index = 30 * map.width + 30;
+      expect(fields.mock.results.at(-1)?.value.clearingMask?.[index] ?? 0).toBe(0);
+      setTileOverride(map, 30, 30, { type: TerrainType.Grassland, elevation: 48, moisture: 45, variation: 0.5 });
+      bumpTerrainRevision({ left: 300, top: 300, right: 310, bottom: 310 });
+      counts.created = [];
+      drawGround(destination, snapshot, VIEW_W, VIEW_H);
+      expect(fields.mock.results.at(-1)?.value.clearingMask?.[index]).toBe(1);
+      expect(counts.created.filter((surface) => surface.width === 0 || surface.height === 0).length).toBeLessThanOrEqual(2);
+    } finally {
+      fields.mockRestore();
+      resetTerrainCaches();
+    }
+  });
+
   it('rounds the camera step to a capped power of two', () => {
     expect(targetGroundStep(1)).toBe(1);
     expect(targetGroundStep(2)).toBe(1);

@@ -1,10 +1,6 @@
 /**
- * Map boundary rule — one owner for "a moving entity stays inside the map".
- *
- * Both the human tick and the systems layer advance entity positions, so the
- * clamp lives here instead of being restated per layer. The rule is a hard
- * spatial invariant, not a per-species behavior: an entity that leaves the map
- * can never be reached by pathfinding, selection, or rendering again.
+ * Map boundary rule — one owner for "a moving entity stays inside the map", shared by every layer
+ * that advances positions; an entity off the map can never be reached by selection or rendering.
  */
 import type { Entity } from './gameTypes';
 

@@ -1,10 +1,6 @@
 /**
- * Ground reinforcement is a terrain operation, so its result has to reach the display world.
- *
- * `startBuilding(GroundReinforcement)` patches the authoritative worker map to Rocky + `reinforced`;
- * placement validation and the soil sprite read the *display* world's map (`canPlaceBuilding`,
- * `drawReinforcedSoil`). The command delta therefore has to carry the patched tiles — otherwise the
- * ground still reads as mountains/snow on the client and the next building is refused.
+ * Ground reinforcement patches the authoritative map, so its command delta must carry the tiles —
+ * placement validation and the soil sprite read the display world, not the worker's.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/gameEngine';
