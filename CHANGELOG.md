@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026, PR #127):** Individual shift workers now head home for seven hours of sleep before travel to early, night, prison, hospital and venue duties; commute/departure wins over sleep.
+
 - **Fixed (11 Nov 2026, PR #127):** Patrol destinations reuse cached paths per tile; mixed-sign line-of-sight routes stop at exact raster corners. Added a north-only reachable house regression without replacing shared multi-facade pricing.
 - **Changed (11 Nov 2026, PR #127):** Registered the realtime tickHumanLeisure entrypoint and its owner, caller and permitted movement writes in the simulation decision registry.
 
