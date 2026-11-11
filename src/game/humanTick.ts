@@ -645,7 +645,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // week's morning guard depart on Sunday. Quoted detours use the same commute owner
     // as work/school, rather than planning an unrealistically short straight-line walk.
     const previousPrisonCommute = prisonGuardCommuteStarted.get(entity);
-    const alreadyDeparted = previousPrisonCommute?.prisonId === workplace?.id
+    const alreadyDeparted = previousPrisonCommute != null
+      && previousPrisonCommute.prisonId === workplace?.id
       && previousPrisonCommute.shiftStartTick === prisonDuty?.startTick;
     const prisonRoute = workplace && prisonDuty && !onPrisonShift && !alreadyDeparted
       ? quoteBuildingCommute(entity, workplace, config.speed) : null;
