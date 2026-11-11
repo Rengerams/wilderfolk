@@ -31,7 +31,6 @@ export const SCENT_FLEE_MIN = 1.4;
 
 export const RABBIT_SCENT_SENSITIVITY = 1.25;
 export const DEER_SCENT_SENSITIVITY = 0.75;
-export const WILDKIN_SCENT_SENSITIVITY = 0.55;
 
 function isScentGridDisabled(): boolean {
   if (typeof import.meta !== 'undefined' && envFlagDisabled(import.meta.env?.VITE_USE_SCENT_GRID)) {
