@@ -55,7 +55,7 @@ const WALKABLE_BUILDING_TYPES = new Set<Building['type']>([
 function isWalkingObstacle(b: Building): boolean {
   if (!b.completed) return false;
   if (b.type === BuildingType.WallGate) return b.gateClosed === true;
-  if (BUILDING_CONFIGS[b.type].decor) return false;
+  if (BUILDING_CONFIGS[b.type]?.decor) return false;
   return !WALKABLE_BUILDING_TYPES.has(b.type);
 }
 
@@ -1114,8 +1114,7 @@ export function steerWithPath(
  * Whether a walker may move between two world points, by the grid's own rule; a walker already on
  * a blocked cell may still leave it.
  */
-export function isWalkStepAllowed(fromX: number, fromY: number, toX: number, toY: number): boolean {
-  const grid = currentGrid;
+export function isWalkStepAllowed(fromX: number, fromY: number, toX: number, toY: number, grid: PathGrid | null = currentGrid): boolean {
   if (!grid) return true;
   const startTx = Math.floor(fromX / PATH_CELL);
   const startTy = Math.floor(fromY / PATH_CELL);
@@ -1150,8 +1149,7 @@ export function isWalkStepAllowed(fromX: number, fromY: number, toX: number, toY
  * Whether a walker may **stand** on the ground at a world point — the grid's verdict with no step
  * exemption, so a stand point can move off water, reserved decor or a wall footprint.
  */
-export function isGroundWalkableAt(x: number, y: number): boolean {
-  const grid = currentGrid;
+export function isGroundWalkableAt(x: number, y: number, grid: PathGrid | null = currentGrid): boolean {
   if (!grid) return true;
   const tx = Math.floor(x / PATH_CELL);
   const ty = Math.floor(y / PATH_CELL);
