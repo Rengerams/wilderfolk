@@ -41,6 +41,7 @@ const REQUIRED_DECISIONS = [
   'construction',
   'production',
   'villageRequests',
+  'inventionFair',
   'visitorLifecycle',
   'idleSkillDecay',
   'socialFeedback',
