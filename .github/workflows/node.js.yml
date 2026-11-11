@@ -20,12 +20,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.4.0
+        uses: actions/actions/checkout@v4.4.0
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4.1.0
+        uses: actions/actions/setup-node@v4.1.0
         with:
           node-version: '26.12.1'
           cache: npm
@@ -61,11 +61,8 @@ jobs:
       - name: Run PR checks and affected tests
         if: github.event_name == 'pull_request'
         env:
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: |
           npm run check:source
           npm test -- standard --changed "$PR_BASE_SHA"
           npm run build
-
-
-
