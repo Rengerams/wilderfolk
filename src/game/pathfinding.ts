@@ -807,7 +807,7 @@ export function findRouteCostOutcome(
 }
 
 /** Tile path → world-coordinate waypoints (tile centers). */
-export function pathWaypoints(path: readonly Readonly<{ x: number; y: number }>[]): { x: number; y: number }[] {
+export function pathWaypoints(path: { x: number; y: number }[]): { x: number; y: number }[] {
   const half = PATH_CELL / 2;
   return path.map((p) => ({ x: p.x * PATH_CELL + half, y: p.y * PATH_CELL + half }));
 }
@@ -1075,7 +1075,8 @@ export function steerWithPath(
           ? searchRoute(currentGrid, startTx, startTy, goalTx, goalTy, PATH_MAX_SEARCH_NODES, false, true)
           : null;
       const routeCost = shared?.status === 'priced' ? shared.costTiles : fallback?.cost ?? null;
-      const routeTiles = shared?.status === 'priced' ? shared.tiles : fallback?.path ?? null;
+      const routeTiles = shared?.status === 'priced'
+        ? shared.tiles.map((tile) => ({ x: tile.x, y: tile.y })) : fallback?.path ?? null;
       const routePending = shared?.status === 'pending' && (!fallback || fallback.hitNodeCap);
       const savesTime = routeCost !== null && routeCost * PATH_CELL < dist;
       let waypoints = routeTiles && (directBlocked || savesTime)
