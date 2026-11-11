@@ -14,6 +14,7 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { getSimRng, personDayRoll } from './simRng';
 import { crowdGatherPosition } from './simulation/humanMovement';
+import { isGroundWalkableAt } from './pathfinding';
 
 export const STORY_KEY = 'invention_fair';
 export const AUTHORED_STORY_COOLDOWN_DAYS = 14;
@@ -446,6 +447,7 @@ function tickModernInventionFairDaily(state: WorldState): void {
   for (const spectator of audience) {
     for (let slot = 0; slot < 192; slot++) {
       const position = crowdGatherPosition(cx, cy, slot);
+      if (!isGroundWalkableAt(position.x, position.y)) continue;
       if (occupied.some((other) => Math.hypot(position.x - other.x, position.y - other.y) < 10)) continue;
       occupied.push(position);
       fair.spectatorSlots.push({ humanId: spectator.id, x: position.x, y: position.y });
