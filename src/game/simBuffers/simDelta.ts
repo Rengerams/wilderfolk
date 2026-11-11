@@ -180,6 +180,7 @@ export interface SimTickDelta {
   lastProcessedCalendarDay: number;
   lastWildlifeReplenishLogDay: number;
   storyFlags: WorldState['storyFlags'];
+  inventionFair?: WorldState['inventionFair'];
   pendingStoryEvents: NonNullable<WorldState['pendingStoryEvents']>;
   guidedCampaign: WorldState['guidedCampaign'];
   activeMigration?: WorldState['activeMigration'];
@@ -435,6 +436,7 @@ export function extractSimTickDelta(
     lastProcessedCalendarDay: world.lastProcessedCalendarDay ?? 0,
     lastWildlifeReplenishLogDay: world.lastWildlifeReplenishLogDay ?? 0,
     storyFlags: deltaClone(world.storyFlags ?? {}, cloneMode),
+    inventionFair: deltaCloneOptional(world.inventionFair, cloneMode),
     pendingStoryEvents: deltaClone(world.pendingStoryEvents ?? [], cloneMode),
     guidedCampaign: deltaCloneOptional(world.guidedCampaign, cloneMode) ?? undefined,
     activeMigration: deltaCloneOptional(world.activeMigration, cloneMode) ?? undefined,
@@ -781,6 +783,7 @@ export function applySimTickDelta(
   world.lastProcessedCalendarDay = delta.lastProcessedCalendarDay;
   world.lastWildlifeReplenishLogDay = delta.lastWildlifeReplenishLogDay;
   world.storyFlags = deltaClone(delta.storyFlags, cloneMode);
+  world.inventionFair = deltaCloneOptional(delta.inventionFair, cloneMode);
   world.pendingStoryEvents = deltaClone(delta.pendingStoryEvents, cloneMode);
   world.guidedCampaign = deltaCloneOptional(delta.guidedCampaign, cloneMode) ?? undefined;
   world.activeMigration = deltaCloneOptional(delta.activeMigration, cloneMode) ?? undefined;
