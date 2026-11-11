@@ -53,7 +53,7 @@ describe('shared navigation decisions use the same real walkable map', () => {
     expect(child.schoolBuildingId).toBeUndefined();
   });
 
-  it('keeps a current seat when the current school route is pending', () => {
+  it('keeps a valid incumbent school seat on the daily review', () => {
     const map = testWorldMap({ tilesX: 35, tilesY: 35, seed: 4002 });
     const home = building(30, BuildingType.House, { x: 100, y: 200 });
     const school = building(31, BuildingType.School, {
@@ -62,11 +62,36 @@ describe('shared navigation decisions use the same real walkable map', () => {
     const child = human(32, { x: 100, y: 200, age: 10,
       residenceBuildingId: home.id, schoolBuildingId: school.id });
     setCurrentPathMap(map, [home, school]);
-    // Exhaust this pulse's quota with distinct search keys; a pending route must not
-    // release a school seat as though a route failure had been proven.
-    // A second successful pass can still validate the same school.
+    // A completed short commute retains its existing seat during a transfer review.
     expect(findSchoolForChild(child, [home, school], new Map(), true, 8)?.id)
       .toBe(school.id);
+  });
+
+  it('keeps the real road discount when approving a 700-pixel commute', () => {
+    const map = testWorldMap({ tilesX: 110, tilesY: 45, seed: 4003 });
+    const home = building(40, BuildingType.House, { x: 100, y: 200 });
+    const workplace = building(41, BuildingType.Farm, { x: 800, y: 200 });
+    const road = building(42, BuildingType.Road, {
+      x: 450, y: 235, width: 720, height: 10, completed: true,
+    });
+    const worker = human(43, {
+      x: home.x, y: home.y, residenceBuildingId: home.id,
+    });
+    setCurrentPathMap(map, [home, workplace]);
+    const unpaved = quoteBuildingCommute(home, workplace, 8);
+    expect(unpaved.status).toBe('priced');
+    if (unpaved.status !== 'priced') return;
+    expect(unpaved.leadHours).toBeGreaterThan(2);
+    expect(isWithinAssignableCommute(worker, workplace, [home, workplace], 8)).toBe(false);
+
+    setCurrentPathMap(map, [home, workplace, road]);
+    beginCommuteRoutePass();
+    const paved = quoteBuildingCommute(home, workplace, 8);
+    expect(paved.status).toBe('priced');
+    if (paved.status !== 'priced') return;
+    expect(paved.leadHours).toBeLessThanOrEqual(2);
+    expect(paved.travelHours).toBeLessThan(unpaved.travelHours);
+    expect(isWithinAssignableCommute(worker, workplace, [home, workplace, road], 8)).toBe(true);
   });
 
   it('refuses a new workforce commute across a river while accepting a priced same-bank job', () => {
