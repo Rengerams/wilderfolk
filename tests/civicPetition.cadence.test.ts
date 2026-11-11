@@ -137,7 +137,8 @@ describe('civic petitions resolve at the daily cadence only', () => {
     expect(petitioner.needs.stamina).toBeGreaterThan(before);
     const credited = petitioner.needs.stamina;
     advanceHumanNeeds(petitioner, { tick: state.tick + 1, sleeping: false, working: false, moving: false });
-    expect(petitioner.needs.stamina).toBeGreaterThanOrEqual(credited);
+    expect(petitioner.needs.stamina).toBeLessThan(credited);
+    expect(petitioner.needs.stamina).toBeGreaterThan(before);
   });
   it('an official standing at the hall applies no petition effect per tick', () => {
     const { state, hall, official, petitioner } = makeWorld();
