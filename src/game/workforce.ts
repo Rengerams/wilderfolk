@@ -12,7 +12,7 @@ import { getOccupationForBuilding, ensureEntitySkills, readSkill } from './skill
 import { SPECIES_CONFIG } from './speciesConfig';
 import {
   beginCommuteRoutePass, isWithinAssignableCommute, wereCommuteRouteChecksDeferred,
-  straightLineCommuteLowerBoundHours, MAX_ASSIGNABLE_COMMUTE_HOURS,
+  straightLineCommuteLowerBoundHours, MAX_ASSIGNABLE_COMMUTE_HOURS, quoteBuildingCommute,
 } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
 import { humanDisplayName } from './citizenId';
@@ -327,11 +327,13 @@ export function pickWorkerToTransfer(
 
     const aHome = buildings.find((site) => site.id === a.residenceBuildingId) ?? a;
     const bHome = buildings.find((site) => site.id === b.residenceBuildingId) ?? b;
-    const dxa = aHome.x - toX;
-    const dya = aHome.y - toY;
-    const dxb = bHome.x - toX;
-    const dyb = bHome.y - toY;
-    return dxa * dxa + dya * dya - (dxb * dxb + dyb * dyb) || a.id - b.id;
+    const aRoute = quoteBuildingCommute(aHome, toBuilding, SPECIES_CONFIG[EntityType.Human].speed);
+    const bRoute = quoteBuildingCommute(bHome, toBuilding, SPECIES_CONFIG[EntityType.Human].speed);
+    const aDistance = aRoute.status === 'priced' ? aRoute.travelHours
+      : Math.hypot(aHome.x - toX, aHome.y - toY);
+    const bDistance = bRoute.status === 'priced' ? bRoute.travelHours
+      : Math.hypot(bHome.x - toX, bHome.y - toY);
+    return aDistance - bDistance || a.id - b.id;
   });
 
   return workers[0];
@@ -600,9 +602,11 @@ export function assignWorkerInPlace(
       : buildingById?.get(candidate.residenceBuildingId)
         ?? buildings.find((site) => site.id === candidate.residenceBuildingId);
     const origin = home ?? candidate;
+    const route = quoteBuildingCommute(origin, building, SPECIES_CONFIG[EntityType.Human].speed);
     const dx = origin.x - buildingX;
     const dy = origin.y - buildingY;
-    const distance = dx * dx + dy * dy;
+    const distance = route.status === 'priced'
+      ? route.travelHours : dx * dx + dy * dy;
     // This bound can only EXCLUDE impossible commutes; the actual route remains the authoritative
     // eligibility check, so distant applicants do not spend A* budget.
     if (straightLineCommuteLowerBoundHours(origin, building, SPECIES_CONFIG[EntityType.Human].speed)
