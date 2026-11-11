@@ -126,6 +126,8 @@ export interface PathGrid {
   cols: number;
   rows: number;
   blocked: Uint8Array;
+  /** Terrain and bridge passability before completed solid-building footprints are applied. */
+  terrainBlocked?: Uint8Array;
   /** Per-tile elevation (0–100) for slope-aware A*. Absent on legacy maps. */
   elevation?: Float32Array;
   /** 1 on every tile a completed road or bridge covers. Absent when the map has none. */
@@ -159,6 +161,7 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
   const cols = map.width;
   const rows = map.height;
   const blocked = new Uint8Array(cols * rows);
+  const terrainBlocked = new Uint8Array(cols * rows);
   const elevation = new Float32Array(cols * rows);
 
   // Teraforge's L0 path grid is the authoritative occupancy layer; maps without one fall back to
@@ -173,6 +176,7 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
       blocked[i] = hasPathGrid
         ? (map.pathGrid![i] === Walkability.Water ? 1 : 0)
         : (isWalkableTerrainType(t.type) ? 0 : 1);
+      terrainBlocked[i] = blocked[i];
     }
   }
   let road: Uint8Array | null = null;
@@ -183,7 +187,10 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
       if (!isWalkableRoad(b)) continue;
       road ??= new Uint8Array(cols * rows);
       stampBuildingFootprint(road, cols, rows, b, 1, roadSurfaces);
-      if (b.type === BuildingType.Bridge) stampBuildingFootprint(blocked, cols, rows, b, 0);
+      if (b.type === BuildingType.Bridge) {
+        stampBuildingFootprint(blocked, cols, rows, b, 0);
+        stampBuildingFootprint(terrainBlocked, cols, rows, b, 0);
+      }
     }
     for (const b of buildings) {
       if (isWalkingObstacle(b)) stampBuildingFootprint(blocked, cols, rows, b);
@@ -203,8 +210,8 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
       }
     }
   }
-  return road ? { cols, rows, blocked, elevation, road, roadCost, roadSurfaces }
-    : { cols, rows, blocked, elevation };
+  return road ? { cols, rows, blocked, terrainBlocked, elevation, road, roadCost, roadSurfaces }
+    : { cols, rows, blocked, terrainBlocked, elevation };
 }
 
 /** The simulation's grid. `setCurrentPathMap` swaps `currentGrid` and clears the waypoint cache. */
