@@ -398,10 +398,11 @@ export function commuteHumanToBuilding(
     return false;
   }
 
-  // Final approach is capped by the same bounded pace and never overshoots the doorstep.
+  // The final approach retains the commute rush: the lead-time estimate already prices that pace.
+  // Keep easing near the facade, but never overshoot the doorstep.
   const approachSpeed = Math.min(
     moveSpeed,
-    Math.max(speed * COMMUTE_CONFIG.APPROACH_MIN_SPEED_RATIO, dist * COMMUTE_CONFIG.APPROACH_RATE_PER_TICK),
+    Math.max(moveSpeed * COMMUTE_CONFIG.APPROACH_MIN_SPEED_RATIO, dist * COMMUTE_CONFIG.APPROACH_RATE_PER_TICK),
   );
   const step = Math.min(dist, approachSpeed);
   entity.vx = (dx / dist) * step;
