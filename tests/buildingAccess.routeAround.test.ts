@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { building, human } from '../src/test/factories';
-import { BuildingType } from '../src/game/gameTypes';
+import { BuildingType, TerrainType } from '../src/game/gameTypes';
 import { applyHumanWalkStep, commuteHumanToBuilding, enterHumanBuilding, homeStandPosition, steerHumanToward } from '../src/game/simulation/humanMovement';
-import { buildingAccessPoint, isAtBuildingReach } from '../src/game/buildingAccess';
+import { buildingAccessPoint, buildingAccessPoints, isAtBuildingReach } from '../src/game/buildingAccess';
 import { getBuildingFootprintRect } from '../src/game/buildingGeometry';
 import { setCurrentPathMap } from '../src/game/pathfinding';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -73,6 +73,46 @@ describe('a settler reaches a building from every side', () => {
       const person = human(1, { x: 300, y: 420, residenceBuildingId: home.id });
       expect(walkHome(person, home, 900)).toBe(true);
       expect(Number.isFinite(person.x + person.y + person.vx + person.vy)).toBe(true);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('never treats an entrance beyond a river immediately outside the facade as reachable', () => {
+    const map = testWorldMap({
+      tilesX: 40, tilesY: 40,
+      tileType: (x, y) => x >= 29 && x <= 31 && y >= 29 && y <= 31
+        && !(x === 30 && y === 30) ? TerrainType.River : undefined,
+    });
+    const house = building(11, BuildingType.House, {
+      x: 305, y: 305, width: 20, height: 20,
+    });
+    setCurrentPathMap(map, [house]);
+    try {
+      expect(buildingAccessPoints(house)).toHaveLength(0);
+      const person = human(1, { x: 255, y: 305 });
+      expect(commuteHumanToBuilding(person, house, 3)).toBe(false);
+      expect(person.vx).toBe(0);
+      expect(person.vy).toBe(0);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('keeps the south facade closed while allowing an approach from an unobstructed side', () => {
+    const map = testWorldMap({ tilesX: 60, tilesY: 60 });
+    const home = building(12, BuildingType.House, {
+      x: 300, y: 300, width: 60, height: 60, occupants: [1],
+    });
+    const southWall = building(13, BuildingType.Wall, {
+      x: 300, y: 340, width: 60, height: 20,
+    });
+    setCurrentPathMap(map, [home, southWall]);
+    try {
+      expect(buildingAccessPoints(home).map((point) => point.side)).not.toContain('south');
+      const person = human(1, { x: 300, y: 410, residenceBuildingId: home.id });
+      expect(walkHome(person, home, 900)).toBe(true);
+      expect(person.indoorBuildingId).toBe(home.id);
     } finally {
       setCurrentPathMap(null);
     }
