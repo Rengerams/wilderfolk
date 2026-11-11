@@ -302,9 +302,9 @@ function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
 
 // One canonical new-event project table; legacy funded events use the original flag-based path above.
 export const INVENTION_FAIR_PROJECTS = {
-  low_budget: { wood: 10, gold: 0, odds: [0.10, 0.40, 0.50, 0] },
-  standard: { wood: 25, gold: 10, odds: [0.20, 0.40, 0.30, 0.10] },
-  high_risk: { wood: 50, gold: 25, odds: [0.35, 0.15, 0.20, 0.30] },
+  low_budget: { wood: 10, gold: 0, odds: [10, 40, 50, 0] },
+  standard: { wood: 25, gold: 10, odds: [20, 40, 30, 10] },
+  high_risk: { wood: 50, gold: 25, odds: [35, 15, 20, 30] },
 } as const satisfies Record<InventionFairProject, { wood: number; gold: number; odds: readonly [number, number, number, number] }>;
 
 const PROJECT_BY_CHOICE: Record<string, InventionFairProject> = {
@@ -319,9 +319,10 @@ const SPECTATOR_LIMIT = 24;
 
 export function rollInventionFairOutcome(project: InventionFairProject, roll: number): InventionFairOutcome {
   const [success, failure, comic] = INVENTION_FAIR_PROJECTS[project].odds;
-  if (roll < success) return 'success';
-  if (roll < success + failure) return 'failure';
-  if (roll < success + failure + comic) return 'malfunction';
+  const rollPercent = roll * 100;
+  if (rollPercent < success) return 'success';
+  if (rollPercent < success + failure) return 'failure';
+  if (rollPercent < success + failure + comic) return 'malfunction';
   return 'dangerous';
 }
 

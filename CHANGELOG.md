@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026, PR #142):** Invention Fair outcome tiers now accumulate integer percentage weights, preventing floating-point error at the standard project's exact 60% boundary. Added tests for both sides of the outcome cutoffs.
+
 - **Added (11 Nov 2026):** Invention Fair sponsorship now leads to a 24-game-hour demonstration, with four seeded result tiers, spectators, settlement consequences and recovery choices.
 - **Changed (11 Nov 2026):** New fairs persist across save, worker and rollback boundaries; existing fairs in old saves retain their former choices and costs.
 

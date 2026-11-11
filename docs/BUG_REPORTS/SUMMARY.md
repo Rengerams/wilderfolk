@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-11 — [Invention Fair probability cutoff misclassifies exactly 60%](../bug_report/2026-11-11-invention-fair-boundary-floating-point.md):** investigating; integer-percent thresholds and boundary regression tests committed in PR #142; CI pending.
+
 **2026-11-11 — [Invention Fair unknown choices reject or refund the story](../bug_report/2026-11-11-invention-fair-unknown-choice-side-effects.md):** investigating; guarded stage-specific answers and regression tests in the Invention Fair audit PR; CI pending.
 
 **2026-11-11 — [Scenery reservations blocked ordinary walking](../bug_report/2026-11-11-scenery-reservations-blocked-walking.md):** investigating; source fix in PR #127 ignores non-solid scenery and decorative footprints, with collision and removal regression coverage; CI pending.

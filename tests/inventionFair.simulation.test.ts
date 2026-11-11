@@ -129,6 +129,17 @@ describe('The Apprentice’s Terrible Invention Fair — canonical simulation co
     }
   });
 
+  it('places exact cumulative boundaries in the next band without floating-point drift', () => {
+    expect(rollInventionFairOutcome('standard', 0.599999)).toBe('failure');
+    expect(rollInventionFairOutcome('standard', 0.6)).toBe('malfunction');
+    expect(rollInventionFairOutcome('standard', 0.899999)).toBe('malfunction');
+    expect(rollInventionFairOutcome('standard', 0.9)).toBe('dangerous');
+    expect(rollInventionFairOutcome('high_risk', 0.499999)).toBe('failure');
+    expect(rollInventionFairOutcome('high_risk', 0.5)).toBe('malfunction');
+    expect(rollInventionFairOutcome('high_risk', 0.699999)).toBe('malfunction');
+    expect(rollInventionFairOutcome('high_risk', 0.7)).toBe('dangerous');
+  });
+
   it('advances the three eight-hour phases and resolves once after 288 ticks', () => {
     const state = world();
     const start = fundAndStart(state, 'fund_standard');
