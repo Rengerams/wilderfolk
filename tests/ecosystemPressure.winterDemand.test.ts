@@ -36,8 +36,5 @@ describe('L30 — grazing demand reaches the winter penalty', () => {
 
     expect(winter.grazingDemandPerDay).toBe(Math.round(expected));
     expect(winter.wildkinCount).toBe(2);
-    expect(winter.grazingDemandPerDay).toBeLessThan(
-      Math.round(expected + getGrazerDailyDemand('wildkin', Season.Winter) * 2),
-    );
   });
 });
