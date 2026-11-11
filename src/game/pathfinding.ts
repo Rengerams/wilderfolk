@@ -1041,19 +1041,26 @@ export function steerWithPath(
     }
     if (cached === undefined) {
       recordPathCacheMiss();
-      const route = walkRoute(
-        currentGrid,
-        Math.floor(entity.x / PATH_CELL),
-        Math.floor(entity.y / PATH_CELL),
-        Math.floor(targetX / PATH_CELL),
-        Math.floor(targetY / PATH_CELL),
-        PATH_MAX_SEARCH_NODES,
-      );
-      const savesTime = route.cost !== null && route.cost * PATH_CELL < dist;
-      let waypoints = route.path && (directBlocked || savesTime)
-        ? collapseStraightWaypoints(pathWaypoints(route.path)) : null;
       const startTx = Math.floor(entity.x / PATH_CELL);
       const startTy = Math.floor(entity.y / PATH_CELL);
+      const goalTx = Math.floor(targetX / PATH_CELL);
+      const goalTy = Math.floor(targetY / PATH_CELL);
+      const startBlocked = startTx < 0 || startTy < 0 || startTx >= currentGrid.cols
+        || startTy >= currentGrid.rows || currentGrid.blocked[startTy * currentGrid.cols + startTx] !== 0;
+      const goalBlocked = goalTx < 0 || goalTy < 0 || goalTx >= currentGrid.cols
+        || goalTy >= currentGrid.rows || currentGrid.blocked[goalTy * currentGrid.cols + goalTx] !== 0;
+      // Legacy obstacle recovery can snap invalid endpoints; ordinary walkers share exact route quotes.
+      const fallback = startBlocked || goalBlocked
+        ? walkRoute(currentGrid, startTx, startTy, goalTx, goalTy, PATH_MAX_SEARCH_NODES)
+        : null;
+      const shared = fallback ? null : getNavigationQuote(currentGrid,
+        { x: startTx, y: startTy }, { x: goalTx, y: goalTy }, { maxNodes: PATH_MAX_SEARCH_NODES });
+      const routeCost = fallback ? fallback.cost : shared?.status === 'priced' ? shared.costTiles : null;
+      const routeTiles = fallback?.path
+        ?? (shared?.status === 'priced' ? shared.tiles.map((tile) => ({ x: tile.x, y: tile.y })) : null);
+      const savesTime = routeCost !== null && routeCost * PATH_CELL < dist;
+      let waypoints = routeTiles && (directBlocked || savesTime)
+        ? collapseStraightWaypoints(pathWaypoints(routeTiles)) : null;
       const startIsBlocked = startTx >= 0 && startTy >= 0
         && startTx < currentGrid.cols && startTy < currentGrid.rows
         && currentGrid.blocked[startTy * currentGrid.cols + startTx] === 1;
