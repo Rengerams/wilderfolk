@@ -1,5 +1,5 @@
 import type { WorldState, Entity, Building } from './gameTypes';
-import { BuildingType, EntityType, JobType } from './gameTypes';
+import { BuildingType, EntityType, JobType, PATH_CELL } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycle';
 import { isWorkDay } from './dayCycleClock';
 import { SCHOOL_MIN_AGE } from './gameConstants';
@@ -11,7 +11,6 @@ import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
-import { commuteDistanceFromResidence } from './simulation/humanMovement';
 import { isAtBuildingReach } from './buildingAccess';
 import { quoteBuildingCommute, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
@@ -108,9 +107,9 @@ export function findSchoolForChild(
       continue;
     }
     if (route.status !== 'priced') continue;
-    if (current?.id === school.id) currentCost = route.costTiles * 10;
+    if (current?.id === school.id) currentCost = route.costTiles * PATH_CELL;
     if (route.leadHours > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
-    const cost = route.costTiles * 10;
+    const cost = route.costTiles * PATH_CELL;
     if (cost < bestCost) {
       best = school;
       bestCost = cost;
