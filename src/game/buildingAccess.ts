@@ -24,7 +24,7 @@ const BUILDING_ACCESS_MAX_OUTWARD_STEPS = 1;
 /** Cells of open ground the doorstep must have in front of it to count as a way in. */
 const BUILDING_ACCESS_OPEN_CELLS = 2;
 
-/** Fixed side order: the south facade is a building's front, the others only stand in when blocked. */
+/** Deterministic enumeration only; any side may be entered when its approach is actually clear. */
 const BUILDING_ACCESS_SIDES = [
   { side: 'south', normalX: 0, normalY: 1 },
   { side: 'east', normalX: 1, normalY: 0 },
@@ -32,13 +32,39 @@ const BUILDING_ACCESS_SIDES = [
   { side: 'north', normalX: 0, normalY: -1 },
 ] as const satisfies readonly { side: BuildingAccessSide; normalX: number; normalY: number }[];
 
-/** A doorstep is usable when a walker can stand on it and step away from the wall. */
-function isOpenDoorstep(x: number, y: number, normalX: number, normalY: number, grid: PathGrid | null): boolean {
+/**
+ * Check every cell from the actual facade to the proposed stand point. A stand point beyond
+ * an immediate river or wall must not count as an entrance, even if its own tile is dry.
+ * The terrain-only mask distinguishes a building's overlapping footprint from a water cell.
+ */
+function isOpenDoorstep(
+  building: Building, edgeX: number, edgeY: number,
+  x: number, y: number, normalX: number, normalY: number, grid: PathGrid | null,
+): boolean {
   if (!isGroundWalkableAt(x, y, grid)) return false;
   const reach = PATH_CELL * BUILDING_ACCESS_OPEN_CELLS;
   const outX = x + normalX * reach;
   const outY = y + normalY * reach;
-  return isGroundWalkableAt(outX, outY, grid) && isWalkStepAllowed(x, y, outX, outY, grid);
+  if (!isGroundWalkableAt(outX, outY, grid) || !isWalkStepAllowed(x, y, outX, outY, grid)) return false;
+  if (!grid) return true;
+  const rect = getBuildingFootprintRect(building);
+  const length = Math.hypot(x - edgeX, y - edgeY);
+  for (let distance = PATH_CELL / 4; distance <= length; distance += PATH_CELL / 4) {
+    const px = edgeX + normalX * distance;
+    const py = edgeY + normalY * distance;
+    const tx = Math.floor(px / PATH_CELL);
+    const ty = Math.floor(py / PATH_CELL);
+    if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) return false;
+    const index = ty * grid.cols + tx;
+    if (grid.terrainBlocked?.[index]) return false;
+    // A blocked tile whose centre belongs to this building is not an exterior wall.
+    const cx = (tx + 0.5) * PATH_CELL;
+    const cy = (ty + 0.5) * PATH_CELL;
+    const inOwnFootprint = cx >= rect.left && cx <= rect.right
+      && cy >= rect.top && cy <= rect.bottom;
+    if (grid.blocked[index] && !inOwnFootprint) return false;
+  }
+  return true;
 }
 
 /**
@@ -57,7 +83,8 @@ export function buildingAccessPoints(building: Building, grid: PathGrid | null =
     for (let step = 0; step <= BUILDING_ACCESS_MAX_OUTWARD_STEPS; step++) {
       const x = baseX + normalX * PATH_CELL * step;
       const y = baseY + normalY * PATH_CELL * step;
-      if (isOpenDoorstep(x, y, normalX, normalY, grid) && isAtBuildingReach({ x, y }, building, grid)) {
+      if (isOpenDoorstep(building, edgeX, edgeY, x, y, normalX, normalY, grid)
+        && Math.hypot(x - edgeX, y - edgeY) <= BUILDING_REACH_RADIUS_PX) {
         points.push({ x, y, side });
         break;
       }
@@ -85,12 +112,12 @@ export function buildingAccessPoint(building: Building, grid: PathGrid | null = 
  * side they can actually walk to counts and no caller needs its own distance rule.
  */
 export function isAtBuildingReach(entity: Pick<Entity, 'x' | 'y'>, building: Building, grid: PathGrid | null = getCurrentPathGrid()): boolean {
+  if (!isGroundWalkableAt(entity.x, entity.y, grid)) return false;
   const rect = getBuildingFootprintRect(building);
   const nearestX = Math.max(rect.left, Math.min(rect.right, entity.x));
   const nearestY = Math.max(rect.top, Math.min(rect.bottom, entity.y));
   if (Math.hypot(entity.x - nearestX, entity.y - nearestY) > BUILDING_REACH_RADIUS_PX) return false;
-  // Halfway ground must be walkable too, or a river/wall between the settler and the facade would
-  // count as reach without ever crossing.
-  return isGroundWalkableAt(entity.x, entity.y, grid)
-    && isGroundWalkableAt((entity.x + nearestX) / 2, (entity.y + nearestY) / 2, grid);
+  return buildingAccessPoints(building, grid).some((point) =>
+    Math.hypot(point.x - entity.x, point.y - entity.y) <= BUILDING_REACH_RADIUS_PX
+    && isWalkStepAllowed(entity.x, entity.y, point.x, point.y, grid));
 }
