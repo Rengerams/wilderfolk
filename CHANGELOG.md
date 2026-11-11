@@ -2,6 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Added (11 Nov 2026):** Invention Fair sponsorship now leads to a 24-game-hour demonstration, with four seeded result tiers, spectators, settlement consequences and recovery choices.
+- **Changed (11 Nov 2026):** New fairs persist across save, worker and rollback boundaries; existing fairs in old saves retain their former choices and costs.
+
 - **Fixed (11 Nov 2026):** The Invention Fair now rejects unsupported and stale-stage story choices instead of treating them as rejection or awarding free dismantle wood. An accompanying design audit separates current mechanics from proposed features.
 
 - **Changed (11 Nov 2026, PR #140):** Rebalanced stamina to ~30% at bedtime after 9h work and 8h leisure. Work costs 6/h, awake idle 2/h, walking 5/h; only actual breaks recover 5/h. Seven hours of sleep still restore 100%. Existing schedule-fatigue penalties stay separate.
