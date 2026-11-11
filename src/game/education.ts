@@ -13,7 +13,7 @@ import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { commuteDistanceFromResidence } from './simulation/humanMovement';
 import { isAtBuildingReach } from './buildingAccess';
-import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
+import { quoteBuildingCommute, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
 
 /** School days for basic graduation perks. */
@@ -97,19 +97,30 @@ export function findSchoolForChild(
   if (current && !reviewTransfer && (reserved?.get(current.id) ?? 0) < schoolCapacity(current)) return current;
 
   let best: Building | undefined;
-  let bestDistance = Infinity;
+  let bestCost = Infinity;
+  let currentCost = Infinity;
+  let pending = false;
   for (const school of schools) {
     if ((reserved?.get(school.id) ?? 0) >= schoolCapacity(school)) continue;
-    const distance = commuteDistanceFromResidence(child, home, school);
-    if (commuteLeadHoursFor(distance, walkSpeed) > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
-    if (distance < bestDistance) {
+    const route = quoteBuildingCommute(home ?? child, school, walkSpeed);
+    if (route.status === 'pending') {
+      pending = true;
+      continue;
+    }
+    if (route.status !== 'priced') continue;
+    if (current?.id === school.id) currentCost = route.costTiles * 10;
+    if (route.leadHours > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
+    const cost = route.costTiles * 10;
+    if (cost < bestCost) {
       best = school;
-      bestDistance = distance;
+      bestCost = cost;
     }
   }
-  if (!current || !best || current.id === best.id) return best;
-  const distance = commuteDistanceFromResidence(child, home, current);
-  if (distance - bestDistance < 12 || bestDistance > distance * 0.75) return current;
+  // A scheduled review may improve a priced route, but cannot evict an incumbent on missing evidence.
+  if (current && (pending || !best || current.id === best.id)) return current;
+  if (!current) return best;
+  if (currentCost === Infinity) return best;
+  if (currentCost - bestCost < 12 || bestCost > currentCost * 0.75) return current;
   return best;
 }
 
