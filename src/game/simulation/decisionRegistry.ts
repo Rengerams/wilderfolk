@@ -88,7 +88,7 @@ export type DecisionKey =
 
 export const SIMULATION_DECISIONS = {
   navigation: {
-    owner: 'pathfinding.ts — getNavigationQuote, searchRoute, sharedRouteCaches, getPathGrid, getReadOnlyPathGrid, resetPathGridCaches; commuteReach.ts — quoteCommute converts weighted route cost to travel hours',
+    owner: 'pathfinding.ts — getNavigationQuote, searchRoute, sharedRouteCaches, getPathGrid, getReadOnlyPathGrid, resetPathGridCaches; commuteReach.ts — routeCommuteCost (internal budget verdict), quoteCommute (point-leg price), quoteBuildingCommute (validated facade-to-facade price)',
     cadence: 'on-demand',
     cadenceNote: 'No independent scheduler or saved writes. Strict shared quotes validate walkable endpoint tiles, cache only complete directed results and preserve node exhaustion as pending; generator decor reservations and decorative building footprints do not obstruct walking. Workforce, education, relocation, bot preview and walker steering consume shared map-scoped route evidence. Policy owners retain their individual writes and scheduled cadence.',
     writes: [],
@@ -184,9 +184,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/humanLeisureBehavior.test.ts, tests/simulation.decisionRegistry.test.ts',
   },
   buildingAccess: {
-    owner: 'buildingAccess.ts — buildingAccessPoint (the one doorstep), isOpenDoorstep, isAtBuildingReach (the one arrival rule)',
+    owner: 'buildingAccess.ts — buildingAccessPoints (validated facades), buildingAccessPoint (canonical UI frontage), isOpenDoorstep (facade corridor), isAtBuildingReach (the one arrival rule)',
     cadence: 'on-demand',
-    cadenceNote: 'Pure read-only geometry: one access per building from its footprint and the walk grid, accepting a candidate only when it also satisfies isAtBuildingReach; zero-distance blocked fallback targets stop without reporting arrival, and one arrival test that counts walkable ground within reach of any facade while rejecting a blocked half-way tile. No tick, no scheduler, no RNG and no writes; the commuter targets the access and the activity enterHumanBuilding call decides entry.',
+    cadenceNote: 'Pure read-only geometry: buildingAccessPoints validates every traversable facade against the current grid; buildingAccessPoint selects the canonical first frontage for presentation, and isAtBuildingReach accepts only walkable reachable sides. No extra state or scheduler. No tick, no scheduler, no RNG and no writes; the commuter targets the access and the activity enterHumanBuilding call decides entry.',
     writes: [],
     scheduledFrom: 'humanMovement.commuteHumanToBuilding (navigation target and arrival), humanTick attendance, workAbsence, humanStatus, education, humanHospitalBehavior, hotelStay, logisticsOverlayData',
     testFile: 'tests/homeEntry.geometry.test.ts, tests/buildingAccess.routeAround.test.ts, tests/settlers.indoors.test.ts, tests/education.centerGeometry.test.ts',
@@ -249,7 +249,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/humanNeeds.mealRule.test.ts, tests/personality.captiveEnergyIntegration.test.ts, tests/warfare.lifecycle.test.ts, tests/humanNeeds.calibration.test.ts',
   },
   workSchedule: {
-    owner: 'workSchedule.ts — validateWorkSchedule, normalizeWorkSchedule, getWorkSchedule, setWorkSchedule, isWorkScheduleHour, isOnWorkScheduleShift; humanSchedule.ts — home/night/festival policy (shouldBeAtHomeFor, prefersHomeTonightFor, allowSocialLifeFor)',
+    owner: 'workSchedule.ts — validateWorkSchedule, normalizeWorkSchedule, getWorkSchedule, setWorkSchedule, isWorkScheduleHour, isOnWorkScheduleShift; humanSchedule.ts — home/night/festival/shift-aligned sleep policy (shouldBeAtHomeFor, prefersHomeTonightFor, preShiftSleepPlan, allowSocialLifeFor); prisonShifts.ts — prisonDutyForGuard (absolute watch owner, internal holds predicate)',
     cadence: 'player-command',
     cadenceNote: 'The shipped window is 07–16; the player may set any non-wrapping whole-hour window. The command writes only world.workSchedule. Renderer status, work audio, town-hall hours, home preference and shift checks read that configured window hourly instead of a hard-coded legacy 07–18 default.',
     writes: ['workSchedule'],
