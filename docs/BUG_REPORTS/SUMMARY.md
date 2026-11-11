@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-11 — [Blueberry generation test assumes exact count on random terrain](../bug_report/2026-11-11-blueberry-worldgen-test-assumes-exact-random-count.md):** investigating; deterministic seed and valid bounded spawn assertions in PR #141; CI pending.
+
 **2026-11-11 — [Main pushes skip standard CI and production build](../bug_report/2026-11-11-main-push-skips-standard-ci.md):** investigating; patch runs standard tests and build for PRs and main pushes; post-merge push verification pending.
 
 **2026-11-11 — [Standard tests overwrite semantic-duplicate baseline](../bug_report/2026-11-11-standard-gate-rebases-semantic-duplicates.md):** investigating; patched test script checks the existing baseline without updating it; CI pending.
