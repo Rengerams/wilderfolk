@@ -63,6 +63,7 @@ jobs:
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
+          npm run check:source
           npm test -- standard --changed "$PR_BASE_SHA"
           npm run build
 
