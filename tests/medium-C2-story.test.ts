@@ -9,7 +9,7 @@ import { EntityType, MapSize } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
 import { calculateEcosystemMetrics, tickEcosystemMetrics } from '../src/game/dailyEcology';
 import { getEcosystemBreakdown } from '../src/game/ecoBreakdown';
-import { inventionFairEligibleDay, maybeOfferInventionFair, resolveInventionFair, tickInventionFair } from '../src/game/inventionFair';
+import { inventionFairEligibleDay, maybeOfferInventionFair, resolveInventionFair, tickInventionFair, tickInventionFairRealtime } from '../src/game/inventionFair';
 import { canPlaceBuilding, buildStripPreview, placeStripChain } from '../src/game/buildingPlacementActions';
 import { resolveWallStripPlan } from '../src/game/stripTopology';
 import { snapBuildingCenter } from '../src/game/buildingRotation';
@@ -81,7 +81,7 @@ describe('M6 — the Nature-tab breakdown shares the ecosystem-health owner', ()
 
 describe('M17 — the Demonstration card is offered once and pays out once', () => {
   function demoCount(state: WorldState): number {
-    return (state.pendingStoryEvents ?? []).filter((event) => event.id.startsWith('invention_stage2_')).length;
+    return (state.pendingStoryEvents ?? []).filter((event) => event.id.startsWith('invention_resolution_')).length;
   }
 
   function advanceDays(state: WorldState, days: number): void {
@@ -96,14 +96,17 @@ describe('M17 — the Demonstration card is offered once and pays out once', () 
     state.year = 0;
     state.dayInYear = inventionFairEligibleDay(state.worldMap?.seed) + 1;
     state.tick = state.dayInYear * TICKS_PER_DAY;
-    state.buildings = [building(1, BuildingType.Workshop, 100, 100)];
+    state.buildings = [building(1, BuildingType.TownHall, 100, 100)];
     state.resources.wood = 100;
     const apprentice = state.entities.find((entity) => entity.alive && entity.type === EntityType.Human);
     if (!apprentice) throw new Error('fixture has no settler');
     apprentice.apprenticeOfId = 1;
 
+    state.nextEntityId = Math.max(state.nextEntityId, ...state.entities.map((entity) => entity.id + 1));
+    let population = state.entities.filter((entity) => entity.alive && entity.type === EntityType.Human).length;
+    while (population++ < 15) state.entities.push({ ...structuredClone(apprentice), id: state.nextEntityId++, apprenticeOfId: undefined });
     maybeOfferInventionFair(state);
-    if (!resolveInventionFair(state, 'fund_gate')) throw new Error('funding the gate was refused');
+    if (!resolveInventionFair(state, 'fund_low_budget')) throw new Error('funding the rig was refused');
     return state;
   }
 
@@ -112,6 +115,8 @@ describe('M17 — the Demonstration card is offered once and pays out once', () 
 
     advanceDays(state, 10);
     tickInventionFair(state);
+    state.tick += TICKS_PER_DAY;
+    tickInventionFairRealtime(state);
     expect(demoCount(state)).toBe(1);
 
     // Next colony day, card still unanswered: it must not be re-offered with a fresh id.
@@ -124,6 +129,8 @@ describe('M17 — the Demonstration card is offered once and pays out once', () 
     const state = fundedInventionFair();
     advanceDays(state, 10);
     tickInventionFair(state);
+    state.tick += TICKS_PER_DAY;
+    tickInventionFairRealtime(state);
 
     expect(resolveInventionFair(state, 'dismantle')).toBe(true);
     const woodAfterResolve = state.resources.wood;
