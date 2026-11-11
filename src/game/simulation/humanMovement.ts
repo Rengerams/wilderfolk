@@ -2,7 +2,7 @@ import { COMMUTE_CONFIG, commuteWalkSpeed } from '../commuteReach';
 import { PATH_CELL } from '../gameTypes';
 import { BuildingType } from '../buildings';
 import type { Building, Entity } from '../gameTypes';
-import { buildingAccessPoint, isAtBuildingReach } from '../buildingAccess';
+import { buildingAccessPoint, buildingAccessPoints, isAtBuildingReach } from '../buildingAccess';
 import { PRISON_GUARDS_MAX } from '../prisonShifts';
 import { isActiveMoonHowler } from '../moonHowler';
 import { invalidateCommutePathsForWalker, isGroundWalkableAt, isWalkStepAllowed, steerWithPath } from '../pathfinding';
@@ -280,8 +280,8 @@ export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
 }
 
 /**
- * Walks a settler to a building's one access and reports whether the building is reached. Arrival
- * never writes indoor state: the caller's activity decides whether the settler goes inside.
+ * Walks a settler to a reachable facade, trying other validated entrances when one route is blocked.
+ * Only the activity caller decides whether the settler enters the building.
  */
 export function commuteHumanToBuilding(
   entity: Entity,
@@ -289,75 +289,59 @@ export function commuteHumanToBuilding(
   speed: number,
   rush = 1,
 ): boolean {
-  const target = buildingAccessPoint(building);
-  const dx = target.x - entity.x;
-  const dy = target.y - entity.y;
-  const dist = Math.hypot(dx, dy);
-
   if (isAtBuildingReach(entity, building)) {
     entity.vx = 0;
     entity.vy = 0;
     return true;
   }
 
-  if (dist === 0) {
-    entity.vx = 0;
-    entity.vy = 0;
-    return false;
-  }
-
   const moveSpeed = commuteWalkSpeed(speed, rush);
+  for (const target of buildingAccessPoints(building)) {
+    const dx = target.x - entity.x;
+    const dy = target.y - entity.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist === 0) continue;
 
-  // The path owner is asked at every distance: asking only beyond 50 px sent short legs and every final
-  // approach straight across a river or wall. `steerWithPath` answers 'direct' when the line is clear.
-  const cacheKey = commutePathCacheKey(
-    building.id,
-    entity.x,
-    entity.y,
-    target.x,
-    target.y,
-    entity.id,
-  );
-  const handled = steerWithPath(
-    entity,
-    target.x,
-    target.y,
-    moveSpeed * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO,
-    cacheKey,
-  );
+    const cacheKey = commutePathCacheKey(
+      building.id,
+      entity.x,
+      entity.y,
+      target.x,
+      target.y,
+      entity.id,
+    );
+    const handled = steerWithPath(
+      entity,
+      target.x,
+      target.y,
+      moveSpeed * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO,
+      cacheKey,
+    );
+    if (handled === 'blocked') continue;
+    if (handled === 'path') return false;
 
-  // 'path' only sets the velocity along the route; the human loop's movement apply at the end of
-  // the tick is the single integration (the stepper must not move the entity as well).
-  if (handled === 'path') return false;
-  if (handled === 'blocked') {
-    // No path exists. Wall-sliding toward the inaccessible door cannot create a route.
-    entity.vx = 0;
-    entity.vy = 0;
-    return false;
-  }
+    if (dist > COMMUTE_CONFIG.LONG_RANGE_DIST
+      || (building.type === BuildingType.School && !building.occupants.includes(entity.id))) {
+      const step = Math.min(dist, moveSpeed * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO);
+      entity.vx = (dx / dist) * step;
+      entity.vy = (dy / dist) * step;
+      faceVelocity(entity);
+      return false;
+    }
 
-  if (dist > COMMUTE_CONFIG.LONG_RANGE_DIST
-    || (building.type === BuildingType.School && !building.occupants.includes(entity.id))) {
-    const step = Math.min(dist, moveSpeed * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO);
+    const approachSpeed = Math.min(
+      moveSpeed,
+      Math.max(speed * COMMUTE_CONFIG.APPROACH_MIN_SPEED_RATIO, dist * COMMUTE_CONFIG.APPROACH_RATE_PER_TICK),
+    );
+    const step = Math.min(dist, approachSpeed);
     entity.vx = (dx / dist) * step;
     entity.vy = (dy / dist) * step;
-    faceVelocity(entity);
+    if (Math.abs(entity.vx) > 0.001 || Math.abs(entity.vy) > 0.001) faceVelocity(entity);
     return false;
   }
 
-  // Final approach is capped by the same bounded pace and never overshoots the doorstep.
-  const approachSpeed = Math.min(
-    moveSpeed,
-    Math.max(speed * COMMUTE_CONFIG.APPROACH_MIN_SPEED_RATIO, dist * COMMUTE_CONFIG.APPROACH_RATE_PER_TICK),
-  );
-  const step = Math.min(dist, approachSpeed);
-  entity.vx = (dx / dist) * step;
-  entity.vy = (dy / dist) * step;
-
-  if (Math.abs(entity.vx) > 0.001 || Math.abs(entity.vy) > 0.001) {
-    faceVelocity(entity);
-  }
-
+  entity.vx = 0;
+  entity.vy = 0;
   return false;
 }
 
