@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-11 — [Scenery reservations blocked ordinary walking](../bug_report/2026-11-11-scenery-reservations-blocked-walking.md):** investigating; source fix in PR #127 ignores non-solid scenery and decorative footprints, with collision and removal regression coverage; CI pending.
+
 **2026-11-08 — [Pregnancy merge introduced competing hospital thresholds](../bug_report/2026-11-08-pregnancy-individual-term-merge.md):** resolved; targeted regressions pass.
 
 **2026-11-08 — [Immigration treats one-off food spending as recurring demand](../bug_report/2026-11-08-immigration-recurring-demand-and-beds.md):** resolved; targeted regressions pass.
