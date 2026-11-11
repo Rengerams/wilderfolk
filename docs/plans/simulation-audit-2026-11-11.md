@@ -19,15 +19,15 @@
 
 | ID | Severity | Finding | Change in PR #141 | Validation |
 |---|---|---|---|---|
-| SIM-AUD-01 | P1 (test reliability) | The `SIM_SEED` harness argument did not seed `initGame`. The initializer used `nativeRandom()`, which captures the original `Math.random` before the harness override. This invalidated seed-based reproducibility claims. | Pass `seed: SEED` to `initGame` in `scripts/sim-invariants.ts`. [Bug report](../bug_report/2026-11-11-invariant-harness-ignores-sim-seed.md) | Source-confirmed; re-run required |
-| SIM-AUD-02 | P2 (coverage) | Worker/main parity advertised five days but ran only 240 ticks (20 hours at the canonical 288 ticks/day). | Run two actual days (`TICKS_PER_DAY * 2`) and explicitly assert two calendar-day crossings before payload/RNG parity checks. [Bug report](../bug_report/2026-11-11-worker-parity-covers-only-20-hours.md) | Source-confirmed; re-run required |
+| SIM-AUD-01 | P1 (test reliability) | The `SIM_SEED` harness argument did not seed `initGame`. The initializer used `nativeRandom()`, which captures the original `Math.random` before the harness override. This invalidated seed-based reproducibility claims. | Pass `seed: SEED` to `initGame` in `scripts/sim-invariants.ts`. [Bug report](../bug_report/2026-11-11-invariant-harness-ignores-sim-seed.md) | PASS: required calendar scheduler [43005607966](https://github.com/Rengerams/wilderfolk/actions/runs/43005607966) |
+| SIM-AUD-02 | P2 (coverage) | Worker/main parity advertised five days but ran only 240 ticks (20 hours at the canonical 288 ticks/day). | Run two actual days (`TICKS_PER_DAY * 2`) and explicitly assert two calendar-day crossings before payload/RNG parity checks. [Bug report](../bug_report/2026-11-11-worker-parity-covers-only-20-hours.md) | PASS: worker parity on 576 ticks in [Node.js CI 43005608136](https://github.com/Rengerams/wilderfolk/actions/runs/43005608136) |
 
 Neither correction changes gameplay, migration, persisted data, domain decision owners or simulation balance.
 
 ## Existing CI evidence available at audit time
 
-- [Node.js CI for PR #141](https://github.com/Rengerams/wilderfolk/actions/runs/42998430757): **success** on the preceding head before the two SIM-AUD corrections: 505 test files passed, 3,276 tests passed, 2 skipped, followed by a successful production Vite build. This result does **not** validate the new expanded parity test.
-- [Required calendar scheduler](https://github.com/Rengerams/wilderfolk/actions/runs/42998430812): **success**, including the real `gameTick` calendar-boundary checks and `SIM_START_DAY=720 SIM_DAYS=3`. This is a three-day simulation *starting near* Year-2, not 720 consecutive days.
+- [Node.js CI for the amended audit head](https://github.com/Rengerams/wilderfolk/actions/runs/43005608136): **success**, including the expanded two-day worker/main parity test (1/1, 2.146 s), 505 test files passed, 3,276 tests passed, 2 skipped, and successful production build.
+- [Required calendar scheduler with explicit seed](https://github.com/Rengerams/wilderfolk/actions/runs/43005607966): **success**, including real `gameTick` boundaries and `SIM_START_DAY=720 SIM_DAYS=3`. This is three days *near* Year-2, not 720 consecutive days.
 - [120-day producer simulation](https://github.com/Rengerams/wilderfolk/actions/runs/42998430770): **success**, seed 12345, 34,560 ticks, 0 reported invariant violations and 0 stalled ticks; final count 89 settlers. This runner uses the main-thread simulation: its `workerFallbacks: 0` does **not** establish worker transport health.
 - The 250, 750 and 1,800-settler [population-performance CI workflows](https://github.com/Rengerams/wilderfolk/actions) passed on that same preceding PR head. These are bounded scenarios and cannot establish multi-year survival at 2,500 population.
 
@@ -48,4 +48,4 @@ npm test -- calendar-scheduler
 npm test -- standard
 ```
 
-**Exit criteria for this audit amendment:** (1) canonical seed passes into world generation; (2) worker parity crosses two real midnights and compares RNG/save payloads; (3) full PR CI succeeds on the amended head. Any failed check stays a confirmed follow-up and may not be marked green by this document.
+**Audit amendment validation:** all three specified exit criteria passed in Actions runs 43005607966 and 43005608136. Longer continuous simulation and real-terrain worker parity remain explicitly outside this verification.
