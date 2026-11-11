@@ -32,6 +32,18 @@ describe('pathfinding', () => {
     expect(lineCrossesBlocked(grid, 25, 55, 4975, 55)).toBe(true);
   });
 
+  it('stops at exact corner endpoints in both mixed-sign directions', () => {
+    const grid = getPathGrid(makeMap(8, 8, 749, () => false));
+    for (const [x0, y0, x1, y1] of [
+      [5, 35, 20, 20],
+      [20, 20, 5, 35],
+      [35, 5, 20, 20],
+      [20, 20, 35, 5],
+    ]) {
+      expect(lineCrossesBlocked(grid, x0, y0, x1, y1)).toBe(false);
+    }
+  });
+
   it('blocks an exactly diagonal line between two solid corner neighbours', () => {
     const map = makeMap(8, 8, 74, (x, y) => (x === 3 && y === 2) || (x === 2 && y === 3));
     const grid = getPathGrid(map);
