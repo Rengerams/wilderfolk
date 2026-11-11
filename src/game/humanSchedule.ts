@@ -3,9 +3,9 @@ import {
   getAbsoluteCalendarDay,
   getHourOfDay,
   isWeekend,
+  TICKS_PER_HOUR,
 } from './dayCycleClock';
 import { personDayRoll } from './simRng';
-import { TICKS_PER_HOUR } from './dayCycleClock';
 import { HUMAN_NEEDS } from './simulation/humanPhysiology';
 import { isNearResidence } from './housingModel';
 import {
@@ -69,11 +69,7 @@ export function isOnMoonHowlerNightShift(tick: number, hour?: number): boolean {
   return isFullMoonNight(getAbsoluteCalendarDay(tick), currentHour);
 }
 
-/**
- * Schedule-aware: should this settler be "home" right now? True at night, before
- * the configured shift start, or from the configured shift end onward.
- */
-/** A scheduled shift replaces the ordinary bedtime while it is less than a day away. */
+/** A scheduled shift replaces ordinary bedtime when it starts within one day. */
 export function preShiftSleepPlan(
   tick: number,
   nextShiftStartTick: number | null,
@@ -94,6 +90,7 @@ export function preShiftSleepPlan(
   };
 }
 
+/** Home window for the colony work schedule, independent of individual shift sleep. */
 export function shouldBeAtHomeFor(schedule: WorkSchedule | undefined, hour: number): boolean {
   const s = schedule ?? DEFAULT_WORK_SCHEDULE;
   return isNightHour(hour) || hour < s.startHour || hour >= s.endHour;
