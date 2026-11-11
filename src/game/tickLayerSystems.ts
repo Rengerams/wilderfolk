@@ -49,7 +49,6 @@ import {
   USE_SCENT_GRID,
   RABBIT_SCENT_SENSITIVITY,
   DEER_SCENT_SENSITIVITY,
-  WILDKIN_SCENT_SENSITIVITY,
 } from './scentGrid';
 import {
   pushNewEntity,
@@ -84,6 +83,7 @@ function isWildlifePredator(entity: Entity): boolean {
   return (
     entity.alive &&
     (entity.type === EntityType.Wolf ||
+      entity.type === EntityType.Wildkin ||
       entity.type === EntityType.Fox ||
       entity.type === EntityType.Werewolf ||
       (entity.type === EntityType.Human &&
@@ -96,16 +96,18 @@ function isWildlifePredator(entity: Entity): boolean {
  * What a predator hunts depends only on its kind — a fox, an active Moon Howler, or any other canid —
  * so the prey filter and its grid fallback are built once per pulse. Array order is load-bearing.
  */
-type HuntPreyKind = 'fox' | 'moonHowler' | 'canid';
+type HuntPreyKind = 'fox' | 'moonHowler' | 'canid' | 'wildkin';
 
 const HUNT_PREY_TYPES: Record<HuntPreyKind, readonly EntityType[]> = {
   fox: [EntityType.Rabbit],
   moonHowler: [EntityType.Human, EntityType.Deer, EntityType.Rabbit],
   canid: [EntityType.Deer, EntityType.Rabbit, EntityType.Fox],
+  wildkin: [EntityType.Deer, EntityType.Rabbit],
 };
 
 function huntPreyKind(type: EntityType, moonHowlerHunter: boolean): HuntPreyKind {
   if (type === EntityType.Fox) return 'fox';
+  if (type === EntityType.Wildkin) return 'wildkin';
   return moonHowlerHunter ? 'moonHowler' : 'canid';
 }
 
@@ -281,13 +283,12 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       // 4. Metabolic consumption
       const grazerEase =
         entity.type === EntityType.Rabbit ||
-        entity.type === EntityType.Deer ||
-        entity.type === EntityType.Wildkin
+        entity.type === EntityType.Deer
           ? 0.82
           : 1.0;
       entity.energy -= (config.energyLossPerTick * grazerEase + winterPenalty) * step;
 
-      if (entity.energy <= 0) {
+      if (!Number.isFinite(entity.energy) || entity.energy <= 0) {
         markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick, state);
         createDeathParticles(state, entity.x, entity.y, '#8a2a2a', 8);
         syncEntityGrids(ctx, entity);
@@ -313,8 +314,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       // (wolves and Moon Howlers), so a fox flees those but stays a predator of rabbits.
       const isGrazer =
         entity.type === EntityType.Rabbit ||
-        entity.type === EntityType.Deer ||
-        entity.type === EntityType.Wildkin;
+        entity.type === EntityType.Deer;
       const isFox = entity.type === EntityType.Fox;
       if (isGrazer || isFox) {
         const sensesThreat = isGrazer ? SENSES_WILDLIFE_PREDATOR : SENSES_CANID_PREDATOR;
@@ -349,9 +349,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           const sensitivity =
             entity.type === EntityType.Rabbit
               ? RABBIT_SCENT_SENSITIVITY
-              : entity.type === EntityType.Deer
-                ? DEER_SCENT_SENSITIVITY
-                : WILDKIN_SCENT_SENSITIVITY;
+              : DEER_SCENT_SENSITIVITY;
           const sample = scentGrid.sampleFleeGradient(entity.x, entity.y, sensitivity);
           if (sample.strength > 0) {
             targetVx = sample.awayX * config.speed * 1.25;
@@ -366,11 +364,11 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         isHungry &&
         (entity.type === EntityType.Wolf ||
           entity.type === EntityType.Fox ||
-          entity.type === EntityType.Werewolf)
+          entity.type === EntityType.Werewolf ||
+          entity.type === EntityType.Wildkin)
       ) {
         const moonHowlerHunter = entity.type === EntityType.Werewolf && isActiveMoonHowler(entity);
-        // Wolves are apex predators — they hunt deer and rabbits and also take
-        // competing foxes (intraguild predation). Foxes keep hunting rabbits.
+        // Wolves also hunt competing foxes; Wildkin hunt deer and rabbits only.
         const { preyTypeSet, fallback: huntPreyFallback } = huntPreyLookup(
           huntPreyKind(entity.type, moonHowlerHunter),
         );
@@ -540,7 +538,9 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
                     ? 'Fox'
                     : entity.type === EntityType.Wolf
                       ? 'Wolf'
-                      : 'Moon Howler';
+                      : entity.type === EntityType.Wildkin
+                        ? 'Wildkin'
+                        : 'Moon Howler';
                 addFloatingText(
                   state,
                   caughtPrey.x,
@@ -574,8 +574,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       if (
         needsFood &&
         (entity.type === EntityType.Rabbit ||
-          entity.type === EntityType.Deer ||
-          entity.type === EntityType.Wildkin) &&
+          entity.type === EntityType.Deer) &&
         targetVx === 0 &&
         targetVy === 0
       ) {
