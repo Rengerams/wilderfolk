@@ -65,6 +65,7 @@ export type DecisionKey =
   | 'construction'
   | 'production'
   | 'villageRequests'
+  | 'inventionFair'
   | 'visitorLifecycle'
   | 'idleSkillDecay'
   | 'socialFeedback'
@@ -325,6 +326,14 @@ export const SIMULATION_DECISIONS = {
     ],
     scheduledFrom: 'tickLayerDaily',
     testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts, tests/workSkillAttribution.accrual.test.ts',
+  },
+  inventionFair: {
+    owner: 'inventionFair.ts — maybeOfferInventionFair, getInventionFairChoiceEligibility, resolveInventionFair, tickInventionFair and private resolveStage1/resolveStage2; storyEvents.ts delegates card answers without deciding their consequences',
+    cadence: 'daily',
+    cadenceNote: 'Authored one-time story: daily offer and demonstration card on 18:00 world-events pulse; player-command choices use the same owner, guarded by stage and the shared resource-cost table.',
+    writes: ['storyFlags', 'pendingStoryEvents', 'resources.wood', 'villageReputation', 'eventLog', 'bigNews', 'notifications'],
+    scheduledFrom: 'tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → maybeOfferInventionFair/tickInventionFair; simWorker.commands respondToStoryEvent → storyEvents.respondToStoryEvent → inventionFair.resolveInventionFair',
+    testFile: 'tests/medium-C2-story.test.ts, tests/inventionFair.storageCap.test.ts, tests/inventionFair.invalidChoices.test.ts, tests/actionOutcome.test.ts',
   },
   villageRequests: {
     owner: 'groupEvents.ts — tickVillageRequests, resolveVillageRequest (ONLY request generation, expiry, and resolution owner)',
