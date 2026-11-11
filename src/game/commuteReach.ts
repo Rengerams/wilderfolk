@@ -171,17 +171,16 @@ export function wereCommuteRouteChecksDeferred(): boolean {
   return commuteRouteChecksDeferred;
 }
 
-/** Route hours home → destination over the sim's current grid, or null when no route is priced. */
-function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: number, toWorldY: number, walkSpeed: number, gridOverride?: PathGrid): number | null {
+/** Weighted tile cost over the sim grid; null means pending and Infinity means disconnected. */
+function routeCommuteCost(fromWorldX: number, fromWorldY: number, toWorldX: number, toWorldY: number, gridOverride?: PathGrid): number | null {
   const grid = gridOverride ?? getCurrentPathGrid();
   if (!grid) return null;
   const fromX = Math.floor(fromWorldX / PATH_CELL);
   const fromY = Math.floor(fromWorldY / PATH_CELL);
   const toX = Math.floor(toWorldX / PATH_CELL);
   const toY = Math.floor(toWorldY / PATH_CELL);
-  // Co-located buildings are the straight line's case, not the search's.
-  if (fromX === toX && fromY === toY) return null;
-  const key = `${walkSpeed}|${fromX},${fromY}>${toX},${toY}`;
+  if (fromX === toX && fromY === toY) return 0;
+  const key = `${fromX},${fromY}>${toX},${toY}`;
   let cache = routeCostCache.get(grid);
   if (!cache) {
     cache = new Map<string, number>();
@@ -193,11 +192,10 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
     // Read-only preview never consumes the live search budget or caches timed-out routes.
     const preview = findRouteCostOutcome(grid, fromX, fromY, toX, toY, MAX_COMMUTE_ROUTE_SEARCH_NODES);
     if (preview.budgetExhausted) return null;
-    const hours = preview.cost == null ? Infinity
-      : commuteLeadHoursFor(preview.cost * PATH_CELL, walkSpeed);
+    const cost = preview.cost ?? Infinity;
     if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
-    cache.set(key, hours);
-    return hours;
+    cache.set(key, cost);
+    return cost;
   }
   // A bounded terminal timeout never becomes an authoritative no-route verdict.
   if (terminalRouteBudgets.get(grid)?.has(key)) {
@@ -254,11 +252,9 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
     return Infinity;
   }
   retries?.delete(key);
-  // A* steps are tile units, so the walk distance is the route's step cost in world px.
-  const hours = commuteLeadHoursFor(search.cost * PATH_CELL, walkSpeed);
   if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
-  cache.set(key, hours);
-  return hours;
+  cache.set(key, search.cost);
+  return search.cost;
 }
 
 
@@ -284,12 +280,19 @@ export function quoteBuildingCommute(
     || a.to.x - b.to.x || a.to.y - b.to.y);
   let pending = false;
   for (const { from, to } of pairs) {
-    const hours = routeCommuteHours(from.x, from.y, to.x, to.y, walkSpeed, gridOverride);
-    if (hours === null) { pending = true; continue; }
-    if (hours === Infinity) continue;
-    const leadHours = Math.max(1, hours);
-    return { status: 'priced', travelHours: hours, leadHours,
-      costTiles: Math.hypot(to.x - from.x, to.y - from.y) / PATH_CELL };
+    const costTiles = routeCommuteCost(from.x, from.y, to.x, to.y, gridOverride);
+    if (costTiles === null) { pending = true; continue; }
+    if (costTiles === Infinity) continue;
+    const start = { x: Math.floor(from.x / PATH_CELL), y: Math.floor(from.y / PATH_CELL) };
+    const goal = { x: Math.floor(to.x / PATH_CELL), y: Math.floor(to.y / PATH_CELL) };
+    const distance = start.x === goal.x && start.y === goal.y
+      ? Math.hypot(to.x - from.x, to.y - from.y)
+      : costTiles * PATH_CELL
+        + Math.hypot(from.x - (start.x + 0.5) * PATH_CELL, from.y - (start.y + 0.5) * PATH_CELL)
+        + Math.hypot(to.x - (goal.x + 0.5) * PATH_CELL, to.y - (goal.y + 0.5) * PATH_CELL);
+    const speed = commuteWalkSpeed(walkSpeed, WORK_COMMUTE_RUSH) * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;
+    return { status: 'priced', travelHours: distance / speed / TICKS_PER_HOUR,
+      leadHours: commuteLeadHoursFor(distance, walkSpeed), costTiles: distance / PATH_CELL };
   }
   return pending ? { status: 'pending', reason: 'search-budget' } : { status: 'unreachable' };
 }
