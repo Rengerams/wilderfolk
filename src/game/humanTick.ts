@@ -100,7 +100,7 @@ import { doctorHospitalShift } from './hospitalShifts';
 import { getVenueWorkerServiceWindow } from './venueSchedule';
 
 import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
-import { crowdGatherPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
+import { crowdGatherPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
@@ -706,7 +706,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const residenceForSleep = entity.residenceBuildingId == null
       ? undefined : buildingById.get(entity.residenceBuildingId);
     const distanceFromHome = workplace
-      ? commuteDistanceToBuilding(residenceForSleep ?? entity, workplace) : 0;
+      ? commuteDistanceFromResidence(entity, residenceForSleep, workplace) : 0;
     const scheduledCommuteHours = workplace
       ? Math.min(MAX_ASSIGNABLE_COMMUTE_HOURS,
         Math.max(commuteLeadHoursFor(distanceFromHome, config.speed),
