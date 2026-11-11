@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026):** The Invention Fair now rejects unsupported and stale-stage story choices instead of treating them as rejection or awarding free dismantle wood. An accompanying design audit separates current mechanics from proposed features.
+
 - **Changed (11 Nov 2026, PR #140):** Rebalanced stamina to ~30% at bedtime after 9h work and 8h leisure. Work costs 6/h, awake idle 2/h, walking 5/h; only actual breaks recover 5/h. Seven hours of sleep still restore 100%. Existing schedule-fatigue penalties stay separate.
 
 - **Fixed (11 Nov 2026, PR #140):** Courtship now needs two awake settlers within 10 px; on-shift courtship is possible only when both actually work together at the same post. Each pair advances at most once per tick, and the selected-settler panel names the mutual courtship partner and percentage.
