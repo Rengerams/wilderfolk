@@ -243,7 +243,7 @@ export function respondToStoryEvent(
       break;
     }
     case 'invention_fair': {
-      const accepted = resolveInventionFair(state, choiceId);
+      const accepted = resolveInventionFair(state, choiceId, event.id);
       if (!accepted) {
         state.pendingStoryEvents ??= [];
         state.pendingStoryEvents.push(event);
