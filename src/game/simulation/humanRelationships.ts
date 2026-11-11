@@ -1220,6 +1220,31 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
 
 // ============ SOCIAL COURTSHIP ============
 
+/** An observed courtship participant; shift presence is sampled by the human-tick owner. */
+interface CourtshipPresence {
+  sleeping: boolean;
+  onDuty: boolean;
+  workplaceId: number | undefined;
+  atWorkplace: boolean;
+}
+
+/** Only an awake, physically close pair may advance; duty is allowed solely at a shared post. */
+export function canAdvanceCourtship(
+  first: CourtshipPresence,
+  second: CourtshipPresence,
+  distancePx: number,
+  socialTime: boolean,
+): boolean {
+  if (first.sleeping || second.sleeping || !Number.isFinite(distancePx) || distancePx > 10) return false;
+  if (first.onDuty || second.onDuty) {
+    return first.onDuty && second.onDuty
+      && first.workplaceId != null
+      && first.workplaceId === second.workplaceId
+      && first.atWorkplace && second.atWorkplace;
+  }
+  return socialTime;
+}
+
 /** Per-hour courtship pace: full rate in social life, heavily cut on a work shift. */
 export function courtshipRatePerHour(socialTime: boolean): number {
   return Relationship.COURTSHIP_BASE_RATE_PER_HOUR
