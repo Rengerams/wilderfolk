@@ -13,6 +13,7 @@ import {
 import { USE_SCENT_GRID, ensureScentGrid, tickScentGrid } from './scentGrid';
 import { computePopulationCounts } from './entityCounts';
 import { tickHumans } from './humanTick';
+import { tickInventionFairRealtime } from './inventionFair';
 import { maybeStartSpotlightLore, tickSpotlightGathering } from './spotlightLore';
 import { profileStart, profileEnd } from './performanceProfiler';
 import type { TickContext } from './simulation/simulationTypes';
@@ -173,6 +174,7 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
   ctx.scentGrid = scentGrid;
 
   maybeStartSpotlightLore(state);
+  tickInventionFairRealtime(state);
 
   // Human AI
   const humansStart = profileStart();
