@@ -1,7 +1,7 @@
 # Worker/main parity test claims five days but simulates only 20 hours
 
 - Bug: Worker/main parity test claims five days but simulates only 20 hours.
-- Status: investigating — correction committed to PR #141; CI verification pending
+- Status: resolved — two-day worker/main parity and full CI passed
 - Severity: medium
 - Date discovered: 2026-11-11
 - Version/build: V.0.6.5.2 development, main 926eb5f
@@ -11,7 +11,8 @@
 - Related PR: https://github.com/Rengerams/wilderfolk/pull/141
 
 ## Status history
-- 2026-11-11 — investigating: source-level contract mismatch confirmed; minimal test/harness correction committed, runtime validation pending.
+- 2026-11-11 — investigating: source-level contract mismatch confirmed; minimal test/harness correction committed.
+- 2026-11-11 — resolved: worker/main parity passed on the expanded 576-tick fixture in Node.js CI 43005608136.
 
 ## Observed behavior
 The test declares `TICKS=240` with a comment claiming five colony days, but the canonical `TICKS_PER_DAY=288` (12 ticks/hour × 24h). Starting at 08:00, 240 ticks cover only 20 hours and a single midnight; several daily social/production cycles and repeated midnight transitions are untested by this parity fixture.
@@ -37,4 +38,4 @@ Set `TICKS = TICKS_PER_DAY * 2`, import the canonical constant, and assert a two
 None. Only test/harness logic changes; no gameplay state, persisted schema, or user-facing balance changes.
 
 ## Verification result
-Source trace confirmed; expanded seeded parity test is committed to PR #141 but runtime result pending.
+PASS: Node.js CI [43005608136](https://github.com/Rengerams/wilderfolk/actions/runs/43005608136), `tests/workerMainThread.parity.test.ts` (1/1, 2.146 seconds), including the two-day boundary assertion and RNG/save comparisons. Full standard gate: 505 files passed, 3,276 tests passed, 2 skipped; production build passed.
