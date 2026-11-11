@@ -40,6 +40,7 @@ export interface DecisionOwner {
  */
 export type DecisionKey =
   | 'navigation'
+  | 'wildlife'
   | 'workerMotionPresentation'
   | 'virtualPlayer'
   | 'chronicleProseNames'
@@ -89,6 +90,14 @@ export type DecisionKey =
   | 'commands';
 
 export const SIMULATION_DECISIONS = {
+  wildlife: {
+    owner: 'tickLayerSystems.ts — tickWildlife, isWildlifePredator, huntPreyKind; simulation/simulationEntities.ts — markWildlifeDead, buildHuntTargetByPreyIndex, clearHuntersTargetingPrey',
+    cadence: 'systems',
+    cadenceNote: 'Every wildlife systems pulse drains energy and resolves predation or grazing through one simulation owner. Rabbit and deer alone eat grass; Wildkin hunt deer and rabbits, never consume grass, and nonfinite-energy fauna retire through the standard death transition. Off-screen focus throttles movement and hunting, not metabolism or age.',
+    writes: ['entity.energy', 'entity.alive (through markWildlifeDead)', 'entity.huntTargetId', 'entity.vx', 'entity.vy', 'entity.x', 'entity.y', 'entity.age', 'entity.reproductionCooldown', 'entityById (through simulationEntities)', 'eventLog (through Wildkin chronicle)'],
+    scheduledFrom: 'gameTick.ts → tickLayerSystems.tickLayerSystems → tickWildlife; gameTick builds predator buckets and huntTargetByPreyId through simulationEntities',
+    testFile: 'tests/wildkin.apexRole.test.ts, tests/ecosystemPressure.winterDemand.test.ts',
+  },
   navigation: {
     owner: 'pathfinding.ts — getNavigationQuote, searchRoute, sharedRouteCaches, getPathGrid, getReadOnlyPathGrid, resetPathGridCaches; commuteReach.ts — routeCommuteCost (internal budget verdict), quoteCommute (point-leg price), quoteBuildingCommute (validated facade-to-facade price)',
     cadence: 'on-demand',
