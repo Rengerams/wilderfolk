@@ -33,6 +33,7 @@ const REQUIRED_DECISIONS = [
   'immigration',
   'school',
   'buildingAccess',
+  'humanLeisure',
   'settlerDeathAudio',
   'terrainClearingFields',
   'colonyMovementObservation',
@@ -85,6 +86,15 @@ const READ_ONLY_DECISIONS = new Set<string>([
 const RENDER_ONLY_DECISIONS = new Set<string>(['terrainRiverSurface', 'workerMotionPresentation', 'settlerDeathAudio', 'terrainClearingFields']);
 
 describe('simulation decision registry', () => {
+  it('registers the free-time entrypoint under its realtime tick owner', () => {
+    const leisure = SIMULATION_DECISIONS.humanLeisure;
+    expect(leisure.owner).toContain('tickHumanLeisure');
+    expect(leisure.cadence).toBe('realtime');
+    expect(leisure.scheduledFrom).toContain('humanTick.tickHumans');
+    expect(leisure.writes).toContain('human.vx');
+    expect(leisure.testFile).toContain('humanLeisureBehavior.test.ts');
+  });
+
   it('contains exactly the required decision keys', () => {
     expect(DECISION_KEYS.sort()).toEqual([...REQUIRED_DECISIONS].sort());
   });
