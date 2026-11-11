@@ -12,8 +12,11 @@ export const HUMAN_NEEDS = {
   EAT_COOLDOWN_SIM_HOURS: 2,
   REST_LOSS_AWAKE_PER_SIM_HOUR: 4,
   SLEEP_RECOVERY_PER_SIM_HOUR: 100 / (24 - NIGHT_START + NIGHT_END),
-  STAMINA_WORK_LOSS_PER_SIM_HOUR: 9,
+  // A 17-hour waking day (9h work + 8h leisure) uses 70 stamina;
+  // shorter player-configured shifts use less, longer shifts use more.
+  STAMINA_WORK_LOSS_PER_SIM_HOUR: 6,
   STAMINA_WALK_LOSS_PER_SIM_HOUR: 5,
+  STAMINA_AWAKE_LOSS_PER_SIM_HOUR: 2,
   STAMINA_IDLE_RECOVERY_PER_SIM_HOUR: 5,
   WELL_STAMINA_DRAIN_MULTIPLIER: 0.8,
   WELL_RADIUS_PX: 400,
@@ -77,6 +80,8 @@ export interface HumanNeedsObservation {
   /** Observed scheduled duty at night; drives a later daytime sleep plan. */
   nightDuty?: boolean;
   moving: boolean;
+  /** Genuine stationary needs break; ordinary off-duty idling is not a recovery break. */
+  resting?: boolean;
   hasWell?: boolean;
   hasHospital?: boolean;
   /** Winter with the fire unlit: cold raises the calorie burn. */
@@ -102,7 +107,8 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
   let staminaRate = obs.sleeping ? HUMAN_NEEDS.SLEEP_RECOVERY_PER_SIM_HOUR
     : obs.working ? -HUMAN_NEEDS.STAMINA_WORK_LOSS_PER_SIM_HOUR
       : obs.moving ? -HUMAN_NEEDS.STAMINA_WALK_LOSS_PER_SIM_HOUR
-        : HUMAN_NEEDS.STAMINA_IDLE_RECOVERY_PER_SIM_HOUR;
+        : obs.resting ? HUMAN_NEEDS.STAMINA_IDLE_RECOVERY_PER_SIM_HOUR
+          : -HUMAN_NEEDS.STAMINA_AWAKE_LOSS_PER_SIM_HOUR;
   // Only a patient actually sleeping in a staffed hospital gets its 10% care bonus.
   if (obs.sleeping && obs.hasHospital) {
     staminaRate *= HUMAN_NEEDS.HOSPITAL_STAMINA_RECOVERY_MULTIPLIER;
