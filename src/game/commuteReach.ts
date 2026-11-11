@@ -267,9 +267,11 @@ export function quoteBuildingCommute(
 ): CommuteVerdict {
   const grid = gridOverride ?? getCurrentPathGrid();
   if (!grid) return { status: 'pending', reason: 'no-grid' };
-  const fromPoints = 'type' in origin && 'width' in origin && 'height' in origin
+  // A lightweight test-only grid without its blocked mask cannot validate facade points.
+  const hasBlockedMask = grid.blocked?.length === grid.cols * grid.rows;
+  const fromPoints = hasBlockedMask && 'type' in origin && 'width' in origin && 'height' in origin
     ? buildingAccessPoints(origin as Building, grid) : [origin];
-  const toPoints = 'type' in destination && 'width' in destination && 'height' in destination
+  const toPoints = hasBlockedMask && 'type' in destination && 'width' in destination && 'height' in destination
     ? buildingAccessPoints(destination as Building, grid) : [destination];
   if (fromPoints.length === 0 || toPoints.length === 0) return { status: 'unreachable' };
 
