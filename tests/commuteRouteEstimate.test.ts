@@ -7,6 +7,7 @@ import {
   beginCommuteRoutePass,
   commuteLeadHoursFor,
   estimatedCommuteHours,
+  quoteBuildingCommute,
   isWithinAssignableCommute,
   MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS,
   wereCommuteRouteChecksDeferred,
@@ -126,6 +127,34 @@ describe('estimatedCommuteHours route pricing', () => {
     // has priced the slower route and would misjudge a household's commute.
     expect(paved).not.toBeNull();
     expect(paved!).toBeLessThan(20);
+  });
+
+  it('accepts a paved 700 px commute even when unpaved travel exceeds two hours', () => {
+    const map = testWorldMap({ tilesX: 95, tilesY: 40, seed: 7 });
+    const home = building(1, BuildingType.House, { x: 105, y: 205 });
+    const workplace = building(2, BuildingType.Quarry, { x: 805, y: 205 });
+    const road = building(3, BuildingType.Road, {
+      x: 455, y: 205, width: 660, height: PATH_CELL, completed: true,
+    });
+    const worker = human(4, { x: home.x, y: home.y, residenceBuildingId: home.id });
+    const walkSpeed = 8;
+
+    setCurrentPathMap(map, [home, workplace]);
+    const unpaved = quoteBuildingCommute(home, workplace, walkSpeed);
+    expect(unpaved.status).toBe('priced');
+    if (unpaved.status !== 'priced') return;
+    expect(unpaved.travelHours).toBeGreaterThan(2);
+    expect(isWithinAssignableCommute(worker, workplace, [home, workplace], walkSpeed)).toBe(false);
+
+    setCurrentPathMap(map, [home, workplace, road]);
+    beginCommuteRoutePass();
+    const paved = quoteBuildingCommute(home, workplace, walkSpeed);
+    expect(paved.status).toBe('priced');
+    if (paved.status !== 'priced') return;
+    expect(paved.travelHours).toBeLessThan(2);
+    expect(paved.travelHours).toBeLessThan(unpaved.travelHours);
+    expect(paved.costTiles).toBeLessThan(unpaved.costTiles);
+    expect(isWithinAssignableCommute(worker, workplace, [home, workplace, road], walkSpeed)).toBe(true);
   });
 
   it('food placement previews use the supplied map, not a prior walkable colony grid', () => {
