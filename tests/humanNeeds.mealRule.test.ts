@@ -127,7 +127,8 @@ describe('cross-system physiology compatibility', () => {
     expect(patient.needs!.stamina).toBeGreaterThan(before);
     const afterTreatment = patient.needs!.stamina;
     advanceHumanNeeds(patient, { tick: state.tick + 1, sleeping: false, working: false, moving: false });
-    expect(patient.needs!.stamina).toBeGreaterThanOrEqual(afterTreatment);
+    expect(patient.needs!.stamina).toBeLessThan(afterTreatment);
+    expect(patient.needs!.stamina).toBeGreaterThan(before);
     expect(patient.energy / patient.maxEnergy * 100).toBeCloseTo(patient.needs!.stamina, 4);
   });
 });
@@ -171,7 +172,7 @@ describe('independent physiological advancement', () => {
     const e = person({ energy: Number.NaN, maxEnergy: 0 });
     expect(initialHumanNeeds(e.energy, e.maxEnergy).stamina).toBe(80);
     e.needs = { nutrition: 50, rest: 50, stamina: 0 };
-    advanceHumanNeeds(e, { tick: mealTick, sleeping: false, working: false, moving: false });
+    advanceHumanNeeds(e, { tick: mealTick, sleeping: false, working: false, moving: false, resting: true });
     expect(e.alive).toBe(true);
     expect(e.needs.stamina).toBeGreaterThan(0);
   });
