@@ -101,6 +101,14 @@
         "tests/simDelta.relationshipPayload.test.ts",
         "tests/simDelta.entityProfile.test.ts"
       ]
+    },
+    {
+      "key": "src/game/beautyGrid.ts:55:beautyAt@91ae92df477cc2bea49f05612e84a63c0940a69e0beed69fecd68ace135f17f0 <-> src/game/pathfinding.ts:1152:isGroundWalkableAt@93720e5c13b21152067e3a5f83fe6c6366d0ebc9b5d667924913511599790b35",
+      "reason": "These are domain-distinct grid projections despite identical integer tile indexing. beautyAt reads decorative visual influence and returns a numeric score (0 off-map); isGroundWalkableAt reads physical collision occupancy and returns a boolean, treating absent/off-map grids as non-blocking for legacy movement recovery and allowing non-solid scenery. Neither mutates game state. Combining them would make ambient beauty a collision authority or force a generic grid value abstraction, violating their separate owners. Tests cover beauty scoring and path obstruction separately.",
+      "tests": [
+        "tests/beauty.decor.test.ts",
+        "tests/pathfinding.test.ts"
+      ]
     }
   ]
 }
