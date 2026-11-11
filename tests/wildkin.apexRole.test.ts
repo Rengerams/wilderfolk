@@ -91,6 +91,7 @@ describe('the Wildkin sits at the top of the ladder', () => {
     const state = world();
     const hunter = wildkin(200, 200, 700);
     const deer = createEntity(EntityType.Deer, 201, 200, 701);
+    deer.energy = deer.maxEnergy;
     const grass = createEntity(EntityType.Grass, 200, 200, 702);
     grass.energy = 50;
     state.entities = [hunter, deer, grass];
