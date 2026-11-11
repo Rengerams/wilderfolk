@@ -10,6 +10,7 @@ import { isPlayerHuman } from './playerHuman';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { recordHousingRelocation } from './housingRelocationMonitor';
+import { getCurrentPathGrid } from './pathfinding';
 
 export type ResidenceMoveReason = 'assignment' | 'family' | 'guardian' | 'commute' | 'leader'
   | 'departure' | 'birth' | 'death' | 'demolition' | 'load' | 'moon-form' | 'divorce' | 'prison' | 'player';
@@ -1896,11 +1897,13 @@ function cachedCommuteHours(
   const key = `${home.id}:${destination.id}`;
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
-  // An unresolved leg is NaN in this transient numeric scoring cache: no optional move can use it.
-  const quote = quoteBuildingCommute(home, destination, walkSpeed);
-  const hours = quote.status === 'priced' ? quote.travelHours
-    : quote.status === 'unreachable' ? Infinity
-      : buildingsById === undefined ? estimatedCommuteHours(home, destination, buildings, walkSpeed) : NaN;
+  // Bare fixture/bootstrap calls have no current map: the legacy centre estimate is their
+  // deterministic policy, indexed or not. A live grid requires priced route evidence instead.
+  const grid = getCurrentPathGrid();
+  const quote = grid ? quoteBuildingCommute(home, destination, walkSpeed) : null;
+  const hours = !quote ? estimatedCommuteHours(home, destination, buildings, walkSpeed)
+    : quote.status === 'priced' ? quote.leadHours
+      : quote.status === 'unreachable' ? Infinity : NaN;
   cache.set(key, hours);
   return hours;
 }
