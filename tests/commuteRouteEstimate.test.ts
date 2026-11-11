@@ -162,8 +162,11 @@ describe('estimatedCommuteHours route pricing', () => {
     setPathfindingMetricsEnabled(false);
 
     expect(first.value).toBe(second.value);
-    expect(first.searches).toBe(1);
-    expect(second.searches).toBe(1);
+    // A four-sided building can price up to sixteen facade pairs. A repeated
+    // quote must reuse them all without incrementing the search count.
+    expect(first.searches).toBeGreaterThanOrEqual(1);
+    expect(first.searches).toBeLessThanOrEqual(16);
+    expect(second.searches).toBe(first.searches);
   });
 
   it('defers unsolved legs when the search budget is spent, never approving a direct-line shortcut', () => {

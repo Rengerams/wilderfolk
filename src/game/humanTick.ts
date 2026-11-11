@@ -154,6 +154,10 @@ import { recordPresentWorkTick, recordScheduleWorkTick } from './scheduleFatigue
 
 import { syncEntityGrids } from './simulation/simulationEntities';
 
+/** A departure is sticky until the watch begins: recalculating lead time from the
+ * shrinking remaining distance otherwise switches a guard's commute off mid-journey. */
+const prisonGuardCommuteStarted = new WeakMap<Entity, { prisonId: number; shiftStartHour: number }>();
+
 /** Live on-screen intimate tryst distance. */
 const AFFAIR_INTIMATE_RADIUS = 22;
 
@@ -638,11 +642,21 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const prisonCommuteLeadHours = isPrisonGuardAtPost && prisonShift != null && workplace
       ? commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace), config.speed)
       : 0;
-    // Prison watches run every day, including weekends. Start walking before the shift even when the
-    // ordinary evening routine would otherwise keep a guard at home.
+    // Prison watches run every day, including weekends. Once the early commute starts,
+    // shrinking distance must not move the departure threshold ahead of the walking guard.
+    const previousPrisonCommute = prisonGuardCommuteStarted.get(entity);
     const prisonCommuteDue = isPrisonGuardAtPost && prisonShift != null && (
       onPrisonShift || isWithinWorkCommuteLead(state.tick, prisonShiftStartHour, prisonCommuteLeadHours)
+      || (previousPrisonCommute?.prisonId === workplace.id
+        && previousPrisonCommute.shiftStartHour === prisonShiftStartHour)
     );
+    if (!prisonCommuteDue || onPrisonShift || prisonShift == null) {
+      prisonGuardCommuteStarted.delete(entity);
+    } else if (workplace) {
+      prisonGuardCommuteStarted.set(entity, {
+        prisonId: workplace.id, shiftStartHour: prisonShiftStartHour,
+      });
+    }
 
     // Attendance is a schedule fact, not a viewport one: crediting it above the off-screen throttle
     // is what stops a workplace's output from tracking where the camera happens to be.

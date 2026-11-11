@@ -3,7 +3,7 @@ import { PATH_CELL } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycleClock';
 import { findRouteCostOutcome, getNavigationQuote, getCurrentPathGrid, getReadOnlyPathGrid, isWalkableRoad, type PathGrid } from './pathfinding';
 import { ROAD_SPEED_MULT } from './simulation/movementSteering';
-import { buildingAccessPoints } from './buildingAccess';
+import { BUILDING_REACH_RADIUS_PX, buildingAccessPoints } from './buildingAccess';
 
 /** Commute reach, lead hours and walk pacing, shared by the movement loop and work assignment. */
 export const COMMUTE_CONFIG = {
@@ -322,7 +322,16 @@ export function straightLineCommuteLowerBoundHours(
   to: { x: number; y: number },
   walkSpeed: number,
 ): number {
-  const distance = Math.hypot(to.x - from.x, to.y - from.y);
+  // A building is entered at a walkable facade, never at its solid centre.
+  // Subtract each footprint's enclosing radius plus permitted arrival standoff:
+  // this cannot overstate the minimum possible routed distance.
+  const fromRadius = 'width' in from && 'height' in from
+    && typeof from.width === 'number' && typeof from.height === 'number'
+    ? Math.hypot(from.width / 2, from.height / 2) + BUILDING_REACH_RADIUS_PX : 0;
+  const toRadius = 'width' in to && 'height' in to
+    && typeof to.width === 'number' && typeof to.height === 'number'
+    ? Math.hypot(to.width / 2, to.height / 2) + BUILDING_REACH_RADIUS_PX : 0;
+  const distance = Math.max(0, Math.hypot(to.x - from.x, to.y - from.y) - fromRadius - toRadius);
   const perTick = commuteWalkSpeed(walkSpeed, WORK_COMMUTE_RUSH)
     * ROAD_SPEED_MULT
     * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;

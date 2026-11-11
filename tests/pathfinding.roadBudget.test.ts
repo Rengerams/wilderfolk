@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findPath, findRouteCost, getCurrentPathGrid, getNavigationQuote, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
+import { findPath, findRouteCost, getCurrentPathGrid, getNavigationQuote, resetPathGridCaches, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { BuildingType, PATH_CELL } from '../src/game/gameTypes';
 import { building, human } from '../src/test/factories';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -30,6 +30,9 @@ describe('road-aware search budgets', () => {
     expect(path?.at(-1)).toEqual({ x: TARGET_X, y: TARGET_Y });
     expect(path?.some(({ x, y }) => x === OBSTACLE_X && y === OBSTACLE_Y)).toBe(false);
     expect(findRouteCost(grid, START_X, START_Y, TARGET_X, TARGET_Y, 30_000)).not.toBeNull();
+    // A successful 30k-node quote must not mask the independent 6k-node
+    // budget check via the generation-scoped shared route cache.
+    resetPathGridCaches();
     // The shared optimal route may exhaust the very same bounded search that
     // the pre-existing stronger movement heuristic can safely recover.
     expect(getNavigationQuote(grid, { x: START_X, y: START_Y },

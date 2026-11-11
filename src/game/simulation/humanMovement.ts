@@ -314,6 +314,7 @@ export function commuteHumanToBuilding(
     ? candidates.find((point) => point.x === saved.x && point.y === saved.y) : undefined;
   if (!target) {
     let bestCost = Infinity;
+    let pendingPoint: (typeof candidates)[number] | undefined;
     for (const point of candidates) {
       let cost = Math.hypot(point.x - entity.x, point.y - entity.y);
       if (grid && lineCrossesBlocked(grid, entity.x, entity.y, point.x, point.y)) {
@@ -321,7 +322,15 @@ export function commuteHumanToBuilding(
           { x: Math.floor(entity.x / PATH_CELL), y: Math.floor(entity.y / PATH_CELL) },
           { x: Math.floor(point.x / PATH_CELL), y: Math.floor(point.y / PATH_CELL) },
           { maxNodes: 6000 });
-        if (quote.status !== 'priced') continue;
+        if (quote.status !== 'priced') {
+          // A pending shared quote does not prove this facade is unreachable.
+          // Select it only if no confirmed route wins, so steerWithPath can try
+          // its bounded non-road heuristic and safely reject a real obstruction.
+          if (quote.status === 'pending' || !isGroundWalkableAt(entity.x, entity.y, grid)) {
+            pendingPoint ??= point;
+          }
+          continue;
+        }
         cost = quote.costTiles * PATH_CELL;
       }
       if (cost < bestCost) {
@@ -329,6 +338,7 @@ export function commuteHumanToBuilding(
         target = point;
       }
     }
+    target ??= pendingPoint;
     if (target) walkerBuildingAccess.set(entity, {
       buildingId: building.id, grid, x: target.x, y: target.y,
     });

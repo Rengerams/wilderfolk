@@ -608,6 +608,9 @@ describe('water and walls are solid under every walk', () => {
 
 describe('commute approach easing (the doorstep stretch)', () => {
   it('reaches the building without overshooting or exceeding urgent walking pace', () => {
+    // This fixture explicitly has no terrain map. A preceding movement test may
+    // leave another map active; it must not turn these 600px positions into obstacles.
+    setCurrentPathMap(null);
     const building = { id: 9, x: 600, y: 600, width: 60, height: 48, completed: true } as Building;
     const entity = human(5, 0, 0);
     const access = buildingAccessPoint(building);

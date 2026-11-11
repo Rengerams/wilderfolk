@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026, PR #127):** Routed facade fallback, disconnection-aware housing moves, safe building-frontage commute bounds, sticky prison-guard departures and independent cache regressions.
+
 - **Changed (11 Nov 2026, PR #127):** Jobs, schools, housing, bot previews and settler steering now share walkable route evidence. Pending routes cannot authorize a new job or optional move; waypoint progress remains per walker. CI and large-colony verification are pending.
 
 - **Fixed (11 Nov 2026, PR #127):** Walkability ignores non-solid scenery reservations and decorative building footprints, while completed solid structures still block and their removal rebuilds the grid.

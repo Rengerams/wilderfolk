@@ -1946,11 +1946,12 @@ export function pickCommuteRelocation(
   if (!home || isLeaderHouseResidence(home)) return undefined;
 
   const current = householdCommuteHours(unit, home, commuteBuildings, walkSpeed, cache, buildingsById);
-  if (!Number.isFinite(current) || current <= 0) return undefined;
+  // NaN means an unpriced route, but Infinity is a proven disconnection we must repair.
+  if (Number.isNaN(current) || current <= 0) return undefined;
 
   // A household total can improve while one member's own day worsens; no candidate may do that.
   const before = unit.map((member) => memberCommuteHours(member, home, commuteBuildings, walkSpeed, cache, buildingsById));
-  if (before.some((hours) => !Number.isFinite(hours))) return undefined;
+  if (before.some((hours) => Number.isNaN(hours))) return undefined;
   let best: Building | undefined;
   let bestHours = current;
   for (const residence of candidates) {
@@ -1993,7 +1994,7 @@ function commuteSwapIsWorthwhile(
   const commuteBuildings = index.roads;
   const beforeA = householdCommuteHours(a, homeA, commuteBuildings, walkSpeed, cache, index.buildingsById);
   const beforeB = householdCommuteHours(b, homeB, commuteBuildings, walkSpeed, cache, index.buildingsById);
-  if (!Number.isFinite(beforeA) || !Number.isFinite(beforeB) || beforeA <= 0 || beforeB <= 0) return false;
+  if (Number.isNaN(beforeA) || Number.isNaN(beforeB) || beforeA <= 0 || beforeB <= 0) return false;
   if (householdCommuteLowerBound(a, homeB, walkSpeed, index.buildingsById) >= beforeA) return false;
   if (householdCommuteLowerBound(b, homeA, walkSpeed, index.buildingsById) >= beforeB) return false;
   if (!pupilsKeepSchoolReach(a, homeB, commuteBuildings, walkSpeed, cache, index.buildingsById)) return false;
@@ -2016,7 +2017,7 @@ function commuteSwapIsWorthwhile(
     ...a.map((member) => memberCommuteHours(member, homeB, commuteBuildings, walkSpeed, cache, index.buildingsById)),
     ...b.map((member) => memberCommuteHours(member, homeA, commuteBuildings, walkSpeed, cache, index.buildingsById)),
   ];
-  return beforeMembers.every(Number.isFinite)
+  return beforeMembers.every((hours) => !Number.isNaN(hours))
     && afterMembers.every((hours, i) => Number.isFinite(hours)
       && hours - beforeMembers[i] <= RELOCATION_MAX_MEMBER_REGRESSION_HOURS);
 }

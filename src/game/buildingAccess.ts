@@ -18,7 +18,7 @@ export interface BuildingAccessPoint {
 /** Clearance between the foundation and the doorstep, in world px. */
 const BUILDING_ACCESS_STANDOFF_PX = 12;
 /** How close to the footprint perimeter counts as reaching the building, in world px. */
-const BUILDING_REACH_RADIUS_PX = 24;
+export const BUILDING_REACH_RADIUS_PX = 24;
 /** Outward cells a doorstep may move to leave a neighbouring footprint's tile behind. */
 const BUILDING_ACCESS_MAX_OUTWARD_STEPS = 1;
 /** Cells of open ground the doorstep must have in front of it to count as a way in. */
