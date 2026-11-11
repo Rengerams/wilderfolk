@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026):** Wildkin now hunt deer and rabbits instead of eating grass, register as predators and cannot remain alive with nonfinite energy; corrupted creatures follow the normal death log.
+
 - **Changed (11 Nov 2026):** Engineering rules now prioritize coherent solutions over tiny patches, require single owners and complete function registration, encourage proactive design advice, and avoid unnecessary test proliferation.
 
 - **Fixed (11 Nov 2026, PR #142):** Invention Fair outcome tiers now accumulate integer percentage weights, preventing floating-point error at the standard project's exact 60% boundary. Added tests for both sides of the outcome cutoffs.
