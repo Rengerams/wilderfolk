@@ -1,5 +1,9 @@
 # Bug report summary — one line per report
 
+**2026-11-11 — [Invariant harness did not use SIM_SEED for world generation](../bug_report/2026-11-11-invariant-harness-ignores-sim-seed.md):** investigating; explicit seed committed, amended CI pending.
+
+**2026-11-11 — [Worker parity fixture ran 20 hours rather than the documented five days](../bug_report/2026-11-11-worker-parity-covers-only-20-hours.md):** investigating; two full days and boundary assertion committed, amended CI pending.
+
 **2026-11-11 — [Blueberry generation test assumes exact count on random terrain](../bug_report/2026-11-11-blueberry-worldgen-test-assumes-exact-random-count.md):** investigating; deterministic seed and valid bounded spawn assertions in PR #141; CI pending.
 
 **2026-11-11 — [Main pushes skip standard CI and production build](../bug_report/2026-11-11-main-push-skips-standard-ci.md):** investigating; patch runs standard tests and build for PRs and main pushes; post-merge push verification pending.
