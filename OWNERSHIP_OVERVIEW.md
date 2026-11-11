@@ -10,6 +10,8 @@ Genetics layers, activity registry, evaluator contract and change recipes: [DNA 
 
 | Responsibility | Sole owner | Invocation |
 |---|---|---|
+| Deterministic invariant harness | `scripts/sim-invariants.ts` — `main`, `createSeededRandom` | `SIM_SEED` passed directly to `initGame`; optional `SIM_START_DAY` boundary jump then real `gameTick` and `assertSimInvariants`, without an additional game scheduler |
+| Worker/main save and RNG parity fixture | `tests/workerMainThread.parity.test.ts` — `installWorkerSelf`, test-local `differences` | 2 × 288 ticks with two midnight crossings; existing worker protocol, saved-state and stream comparison; fixture uses `skipTerrain: true` |
 | Required real-calendar CI gate | `scripts/test.mjs` — `calendarScheduler` (test runner), `.github/workflows/calendar-scheduler.yml` (mandatory PR/main job), `vitest.config.ts` (scoped coverage) | `npm test -- calendar-scheduler`: selected day/year boundaries, no 720-day continuous loop or `--passWithNoTests` |
 | Calendar-phase test world fixture | `tests/calendarPhase.auditRegressions.test.ts` — `worldBeforeDay` | test-only: derive previous day from the canonical clock |
 | CI and standard/slow gate routing | `scripts/test.mjs` — `run` | `npm run test:standard`; PRs pass `--changed <base SHA>` for affected unit tests; main pushes run the full standard suite and the production build, and neither `npm test` nor `npm run test:standard` rewrites duplicate baselines. Static gates and build remain project-wide. `npm test -- colony-integration`, `npm test -- full` retain their separate slow gates. |
