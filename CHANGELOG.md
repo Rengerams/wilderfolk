@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026):** Removed unused `liveSessionSave` export and registration; `GameErrorBoundary` remains the sole crash snapshot owner. Knip now includes CSS imports in its project scope.
+
 - **Fixed (11 Nov 2026):** `npm run test:standard` rebuilds the call graph before updating the semantic-duplicates baseline, preventing deleted modules from causing ENOENT.
 
 - **Fixed (11 Nov 2026, PR #127):** Added a 700px paved-commute regression: road-weighted time must preserve the two-hour job eligibility discount, without an unweighted Euclidean floor.
