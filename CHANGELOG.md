@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026, PR #140):** Courtship now needs two awake settlers within 10 px; on-shift courtship is possible only when both actually work together at the same post. Each pair advances at most once per tick, and the selected-settler panel names the mutual courtship partner and percentage.
+
 - **Fixed (11 Nov 2026):** Removed unused `liveSessionSave` export and registration; `GameErrorBoundary` remains the sole crash snapshot owner. Knip now includes CSS imports in its project scope.
 
 - **Fixed (11 Nov 2026):** `npm run test:standard` rebuilds the call graph before updating the semantic-duplicates baseline, preventing deleted modules from causing ENOENT.
