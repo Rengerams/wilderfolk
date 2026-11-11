@@ -653,9 +653,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const estimatedPrisonHours = prisonRoute?.status === 'priced'
       ? prisonRoute.leadHours
       : workplace ? commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace), config.speed) : 0;
-    // Half an hour of travel reserve means the one-hour handover is a real overlap,
-    // not the only thing keeping the prison covered while the replacement arrives.
-    const prisonCommuteLeadHours = Math.min(MAX_COMMUTE_LEAD_HOURS, estimatedPrisonHours + 0.5);
+    // The route quote assumes full rush speed, but the final building approach eases
+    // to a walking pace. Leave two hours for that approach and minor route detours:
+    // the replacement must reach the post before its own start, not rely on overlap.
+    const prisonCommuteLeadHours = Math.min(MAX_COMMUTE_LEAD_HOURS, estimatedPrisonHours + 2);
     const prisonCommuteDue = prisonDuty != null && (
       onPrisonShift || alreadyDeparted
       || (state.tick < prisonDuty.startTick
