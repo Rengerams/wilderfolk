@@ -2,7 +2,7 @@
  * The Apprentice's Terrible Invention Fair: three inventions → fund/redesign → delayed
  * demonstration → keep/improve/dismantle.
  */
-import type { WorldState, StoryEvent, InventionFairProject, InventionFairOutcome, InventionFairState } from './gameTypes';
+import type { WorldState, StoryEvent, InventionFairProject, InventionFairOutcome } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
