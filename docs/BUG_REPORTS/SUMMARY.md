@@ -1,5 +1,13 @@
 # Bug report summary — one line per report
 
+**2026-11-11 — [Main pushes skip standard CI and production build](../bug_report/2026-11-11-main-push-skips-standard-ci.md):** investigating; patch runs standard tests and build for PRs and main pushes; post-merge push verification pending.
+
+**2026-11-11 — [Standard tests overwrite semantic-duplicate baseline](../bug_report/2026-11-11-standard-gate-rebases-semantic-duplicates.md):** investigating; patched test script checks the existing baseline without updating it; CI pending.
+
+**2026-11-11 — [Full test gate references nonexistent Build step](../bug_report/2026-11-11-full-test-gate-unknown-build-step.md):** investigating; corrected case-sensitive runner key; long full-suite execution pending.
+
+**2026-11-11 — [Historical producer parity check is unreachable and invalid](../bug_report/2026-11-11-producer-parity-workflow-unreachable-and-invalid.md):** investigating; opt-in manual dispatch, valid comparison iteration and Bash pipefail; 360-day workflow not yet run.
+
 **2026-11-11 — [Scenery reservations blocked ordinary walking](../bug_report/2026-11-11-scenery-reservations-blocked-walking.md):** investigating; source fix in PR #127 ignores non-solid scenery and decorative footprints, with collision and removal regression coverage; CI pending.
 
 **2026-11-08 — [Pregnancy merge introduced competing hospital thresholds](../bug_report/2026-11-08-pregnancy-individual-term-merge.md):** resolved; targeted regressions pass.
