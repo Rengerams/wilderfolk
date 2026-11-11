@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026):** The blueberry world-generation regression now uses a deterministic seed and accepts terrain-limited spawn counts up to the documented per-map cap instead of assuming every map can place the maximum.
+
 - **Fixed (11 Nov 2026):** CI now runs standard checks and the production build on both PRs and `main` pushes; PRs retain affected-test selection, while `main` runs the full standard suite. Standard tests no longer rewrite the semantic-duplicate baseline.
 - **Fixed (11 Nov 2026):** `npm test -- full` reaches its real `build` step, and the optional manual historical producer-parity workflow has a valid 7/30/360-day comparison loop and failure-safe Bash pipelines.
 
