@@ -126,7 +126,17 @@ export function maybeOfferInventionFair(state: WorldState): void {
 export function getInventionFairChoiceEligibility(
   state: WorldState,
   choiceId: string,
+  eventId?: string,
 ): { ok: boolean; blockReason?: string } {
+  const stage1 = ['fund_granary', 'fund_gate', 'fund_bell', 'safer_redesign', 'reject'].includes(choiceId);
+  const stage2 = ['keep', 'improve', 'dismantle'].includes(choiceId);
+  if (!stage1 && !stage2) return { ok: false, blockReason: 'Unknown invention fair choice' };
+  if (eventId?.startsWith('invention_stage1_') && (!stage1 || storyFlag(state, FLAG_STATUS) !== STATUS.offered)) {
+    return { ok: false, blockReason: 'The funding decision has already passed' };
+  }
+  if (eventId?.startsWith('invention_stage2_') && (!stage2 || storyFlag(state, FLAG_STATUS) !== STATUS.funded)) {
+    return { ok: false, blockReason: 'The demonstration is not awaiting that decision' };
+  }
   const cost = FUNDING_WOOD_COST[choiceId];
   if (cost !== undefined && state.resources.wood < cost) {
     return { ok: false, blockReason: `Need ${cost}🪵` };
@@ -138,9 +148,15 @@ export function resolveInventionFair(state: WorldState, choiceId: string): boole
   // The chain is answered once; a stale duplicate card must not re-run stage 2.
   if (storyFlag(state, FLAG_RESOLVED) > 0) return true;
   const status = storyFlag(state, FLAG_STATUS);
-  if (status === STATUS.offered) return resolveStage1(state, choiceId as Stage1Choice);
-  if (status === STATUS.funded) return resolveStage2(state, choiceId as Stage2Choice);
-  return true;
+  if (status === STATUS.offered) {
+    if (!['fund_granary', 'fund_gate', 'fund_bell', 'reject', 'safer_redesign'].includes(choiceId)) return false;
+    return resolveStage1(state, choiceId as Stage1Choice);
+  }
+  if (status === STATUS.funded) {
+    if (!['keep', 'improve', 'dismantle'].includes(choiceId)) return false;
+    return resolveStage2(state, choiceId as Stage2Choice);
+  }
+  return false;
 }
 
 function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
