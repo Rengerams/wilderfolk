@@ -292,11 +292,12 @@ export function quoteBuildingCommute(
       : costTiles * PATH_CELL
         + Math.hypot(from.x - (start.x + 0.5) * PATH_CELL, from.y - (start.y + 0.5) * PATH_CELL)
         + Math.hypot(to.x - (goal.x + 0.5) * PATH_CELL, to.y - (goal.y + 0.5) * PATH_CELL);
-    // Doorstep-to-doorstep alone artificially shortens a household's centre-based commute:
-    // account for the access legs on both ends, without ever routing through the solid building.
-    const distance = routeDistance
-      + (fromBuilding ? Math.hypot(from.x - origin.x, from.y - origin.y) : 0)
-      + (toBuilding ? Math.hypot(to.x - destination.x, to.y - destination.y) : 0);
+    // Centre distance is a conservative lower bound; do not add fictional traversal through
+    // solid interiors, which would incorrectly reject nearby reachable placements.
+    const distance = Math.max(
+      Math.hypot(destination.x - origin.x, destination.y - origin.y),
+      routeDistance,
+    );
     const speed = commuteWalkSpeed(walkSpeed, WORK_COMMUTE_RUSH) * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;
     return { status: 'priced', travelHours: distance / speed / TICKS_PER_HOUR,
       leadHours: commuteLeadHoursFor(distance, walkSpeed), costTiles: distance / PATH_CELL };

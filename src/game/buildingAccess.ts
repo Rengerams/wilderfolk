@@ -116,6 +116,9 @@ export function isAtBuildingReach(entity: Pick<Entity, 'x' | 'y'>, building: Bui
   const nearestX = Math.max(rect.left, Math.min(rect.right, entity.x));
   const nearestY = Math.max(rect.top, Math.min(rect.bottom, entity.y));
   if (Math.hypot(entity.x - nearestX, entity.y - nearestY) > BUILDING_REACH_RADIUS_PX) return false;
+  // Bare-world fixtures have no obstacle map: use the established all-facade reach contract.
+  // With a map, the selected facade must also be a validated approach, never a blocked wall.
+  if (!grid) return true;
   return buildingAccessPoints(building, grid).some((point) =>
     Math.hypot(point.x - entity.x, point.y - entity.y) <= BUILDING_REACH_RADIUS_PX
     && isWalkStepAllowed(entity.x, entity.y, point.x, point.y, grid));

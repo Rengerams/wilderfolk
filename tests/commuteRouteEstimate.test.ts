@@ -168,12 +168,14 @@ describe('estimatedCommuteHours route pricing', () => {
     setCurrentPathMap(riverMap(), []);
     const home = onTile(1, BuildingType.House, 10, 20);
     const destinations: Building[] = [];
-    for (let y = 1; y <= 40 && destinations.length <= MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS; y++) {
-      for (let x = 25; x <= 35 && destinations.length <= MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS; x++) {
+    for (let y = 1; y < 40 && destinations.length <= MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS + 120; y++) {
+      for (let x = 25; x <= 35 && destinations.length <= MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS + 120; x++) {
         destinations.push(onTile(100 + destinations.length, BuildingType.Quarry, x, y));
       }
     }
 
+    // Adjacent buildings can share the same exterior doorstep tile; cover enough distinct
+    // endpoints to exhaust the *actual A* budget*, not just the number of candidate buildings.
     const values = destinations.map((destination) =>
       estimatedCommuteHours(home, destination, [], WALK_SPEED),
     );
