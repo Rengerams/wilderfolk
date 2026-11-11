@@ -1173,7 +1173,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    if (!inSpotlightGathering && !allowFreeRoam && onSchedule && !huntingWere) {
+    // A prison watch is paced by commuteLeadHoursFor using the full WORK_COMMUTE_RUSH.
+    // Damping the scheduled velocity by 15% *after* planning silently makes that
+    // prediction too optimistic and leaves the night post empty at handover.
+    if (!inSpotlightGathering && !allowFreeRoam && onSchedule && !huntingWere && !prisonCommuteDue) {
       entity.vx *= 0.85;
       entity.vy *= 0.85;
     }
