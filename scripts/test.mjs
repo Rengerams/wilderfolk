@@ -67,7 +67,7 @@ const STEP = {
 const GATE = {
   standard: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'scriptsTypes', 'lint', 'unit'],
   all: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
-  full: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'integrationTests', 'invariants', 'scriptsTypes', 'dup', 'knip', 'Build'],
+  full: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'integrationTests', 'invariants', 'scriptsTypes', 'dup', 'knip', 'build'],
   audit: ['knip', 'owners', 'cycles'],
   accept: ['build', 'browser'],
 };
