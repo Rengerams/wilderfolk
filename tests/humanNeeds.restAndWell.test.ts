@@ -59,6 +59,51 @@ describe('seven-hour ordinary sleep', () => {
   });
 });
 
+describe('24-hour stamina budget with configurable working hours', () => {
+  it('arrives at bedtime near 30% after nine hours of work and eight hours awake', () => {
+    const p = resident();
+    p.needs!.stamina = 100;
+    for (let hour = 0; hour < 17; hour++) {
+      advanceHumanNeeds(p, {
+        tick: hour, elapsedTicks: TICKS_PER_HOUR, sleeping: false,
+        working: hour >= 1 && hour < 10, moving: false,
+      });
+    }
+    expect(p.needs!.stamina).toBeCloseTo(30, 6);
+    for (let hour = 17; hour < 24; hour++) {
+      advanceHumanNeeds(p, { tick: hour, elapsedTicks: TICKS_PER_HOUR,
+        sleeping: true, working: false, moving: false });
+    }
+    expect(p.needs!.stamina).toBeCloseTo(100, 6);
+  });
+
+  it('uses actual shift hours: shorter work leaves more stamina, longer work less', () => {
+    for (const [workHours, bedtimeStamina] of [[8, 34], [9, 30], [10, 26]]) {
+      const p = resident();
+      p.needs!.stamina = 100;
+      for (let hour = 0; hour < 17; hour++) {
+        advanceHumanNeeds(p, { tick: hour, elapsedTicks: TICKS_PER_HOUR,
+          sleeping: false, working: hour < workHours, moving: false });
+      }
+      expect(p.needs!.stamina, `${workHours} work hours`).toBeCloseTo(bedtimeStamina, 6);
+    }
+  });
+
+  it('spends stamina while awake but recovers during a deliberate stationary needs break', () => {
+    const p = resident();
+    p.needs!.stamina = 50;
+    advanceHumanNeeds(p, { tick: 0, elapsedTicks: TICKS_PER_HOUR,
+      sleeping: false, working: false, moving: false });
+    expect(p.needs!.stamina).toBe(48);
+    advanceHumanNeeds(p, { tick: 1, elapsedTicks: TICKS_PER_HOUR,
+      sleeping: false, working: false, moving: false, resting: true });
+    expect(p.needs!.stamina).toBe(53);
+    advanceHumanNeeds(p, { tick: 2, elapsedTicks: TICKS_PER_HOUR,
+      sleeping: false, working: false, moving: true, resting: true });
+    expect(p.needs!.stamina).toBe(48);
+  });
+});
+
 describe('hospital admission versus mere proximity', () => {
   const ward = { id: 9, type: BuildingType.Hospital, completed: true,
     x: 0, y: 0, width: 40, height: 40, occupants: [111] } as Building;
