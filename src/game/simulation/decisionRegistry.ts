@@ -50,6 +50,7 @@ export type DecisionKey =
   | 'careerProgression'
   | 'workerFit'
   | 'completedBuildingLookup'
+  | 'inputGuards'
   | 'buildingAccess'
   | 'humanLeisure'
   | 'settlerDeathAudio'
@@ -174,6 +175,14 @@ export const SIMULATION_DECISIONS = {
     writes: [],
     scheduledFrom: 'townHall.isTownHallStaffed / getTownHallTradeMultiplier / getTownHallGovernanceEfficiency, villageLeadership election site, tickLayerRealtime election notification, virtualPlayer.decideFestival',
     testFile: 'tests/buildings.lookup.test.ts',
+  },
+  inputGuards: {
+    owner: 'inputGuards.ts — isFiniteNumber, isBuildingType',
+    cadence: 'on-demand',
+    cadenceNote: 'Pure read-only validation of untrusted values shared by save import, view-state hydration and worker-command parsing. BuildingType membership is initialized lazily to tolerate circular module initialization; no tick, scheduler, game-state mutation or RNG.',
+    writes: [],
+    scheduledFrom: 'saveLoad.ts — save validation; viewState.ts — view-state parsing; simWorker/commands.ts — worker command shape validation',
+    testFile: 'tests/inputGuards.test.ts, tests/commands.validation.test.ts',
   },
   humanLeisure: {
     owner: 'humanLeisureBehavior.ts — tickHumanLeisure (single free-time entry), tickHumanChildLeisure, tickAdultLeisureMotive',

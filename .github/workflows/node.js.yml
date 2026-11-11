@@ -58,11 +58,14 @@ jobs:
           cp "$base_dir/docs/tools/semantic-duplicates-baseline.json" docs/tools/semantic-duplicates-baseline.json
           cp "$base_dir/docs/tools/duplicate-code-baseline.json" docs/tools/duplicate-code-baseline.json
 
-      - name: Run PR checks and affected tests
-        if: github.event_name == 'pull_request'
+      - name: Run standard checks and build on PRs and main
         env:
-          PR_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           npm run check:source
-          npm test -- standard --changed "$PR_BASE_SHA"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            npm test -- standard --changed "$PR_BASE_SHA"
+          else
+            npm test -- standard
+          fi
           npm run build
