@@ -26,6 +26,7 @@ const REQUIRED_DECISIONS = [
   'careerProgression',
   'workerFit',
   'completedBuildingLookup',
+  'inputGuards',
   'humanPhysiology',
   'humanMeals',
   'workSchedule',
@@ -74,6 +75,7 @@ const READ_ONLY_DECISIONS = new Set<string>([
   'traitInfluence',
   'workerFit',
   'completedBuildingLookup',
+  'inputGuards',
   'raidTerminalPresentation',
   'crashRecovery',
   'chronicleProseNames',
@@ -93,6 +95,22 @@ describe('simulation decision registry', () => {
     expect(leisure.scheduledFrom).toContain('humanTick.tickHumans');
     expect(leisure.writes).toContain('human.vx');
     expect(leisure.testFile).toContain('humanLeisureBehavior.test.ts');
+  });
+
+  it('registers the shared untrusted-input guard owner with its real call sites', () => {
+    const guard = SIMULATION_DECISIONS.inputGuards;
+    expect(guard.owner).toContain('isFiniteNumber');
+    expect(guard.owner).toContain('isBuildingType');
+    expect(guard.cadence).toBe('on-demand');
+    expect(guard.writes).toEqual([]);
+    expect(guard.scheduledFrom).toContain('saveLoad.ts');
+    expect(guard.scheduledFrom).toContain('viewState.ts');
+    expect(guard.scheduledFrom).toContain('simWorker/commands.ts');
+    expect(guard.testFile).toContain('tests/inputGuards.test.ts');
+    const overview = readFileSync(resolve(process.cwd(), 'OWNERSHIP_OVERVIEW.md'), 'utf8');
+    expect(overview).toContain('src/game/inputGuards.ts');
+    expect(overview).toContain('isFiniteNumber');
+    expect(overview).toContain('isBuildingType');
   });
 
   it('contains exactly the required decision keys', () => {
