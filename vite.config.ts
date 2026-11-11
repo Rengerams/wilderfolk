@@ -1,3 +1,4 @@
+
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 import { defineConfig } from "vite"
@@ -52,7 +53,7 @@ export default defineConfig({
     },
   },
   build: {
-    chunkSizeWarningLimit: 800,
+    chunkSizeWarningLimit: 1000,
     // Rolldown specifieke configuratie voor Vite
     rolldownOptions: {
       output: {
@@ -75,6 +76,17 @@ export default defineConfig({
               name: 'router',
               test: /node_modules\/react-router\//,
               priority: 90
+            },
+            // Splits de zware opstartschermen af van elkaar om de individuele chunks onder de limiet te krijgen
+            {
+              name: 'game-ui-intro',
+              test: /src\/(components|game)\/IntroScreen/,
+              priority: 86
+            },
+            {
+              name: 'game-ui-mapsetup',
+              test: /src\/(components|game)\/MapSetupScreen/,
+              priority: 85
             },
             {
               name: 'game-ui',

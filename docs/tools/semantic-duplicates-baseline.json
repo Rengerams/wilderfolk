@@ -1,36 +1,6 @@
 {
-  "generatedAt": "2026-11-08T09:08:31.276Z",
+  "generatedAt": "2026-11-11T07:38:31.121Z",
   "groups": [
-    {
-      "hash": "e750683642063b6fd9219c05eaa28be1149d811f",
-      "count": 2,
-      "functions": [
-        {
-          "id": "src/App.tsx:refreshSaveSlot",
-          "file": "src/App.tsx",
-          "name": "refreshSaveSlot",
-          "tokens": 12,
-          "calls": [
-            "useState"
-          ],
-          "members": [],
-          "writes": [],
-          "callers": []
-        },
-        {
-          "id": "src/components/GameMenu.tsx:exitGame",
-          "file": "src/components/GameMenu.tsx",
-          "name": "exitGame",
-          "tokens": 12,
-          "calls": [
-            "useState"
-          ],
-          "members": [],
-          "writes": [],
-          "callers": []
-        }
-      ]
-    },
     {
       "hash": "7016380f050a7a8752564f84f32092fdfd270292",
       "count": 2,
@@ -146,7 +116,7 @@
           "writes": [],
           "callers": [
             "src/game/IntroScreen.tsx:187",
-            "src/game/MapSetupScreen.tsx:165"
+            "src/game/MapSetupScreen.tsx:169"
           ]
         }
       ]
@@ -184,8 +154,41 @@
           ],
           "writes": [],
           "callers": [
-            "src/hooks/useGameAudio.ts:35"
+            "src/hooks/useGameAudio.ts:33"
           ]
+        }
+      ]
+    },
+    {
+      "hash": "42031f903aee973dd4f4e6ffc84744e0e650696f",
+      "count": 2,
+      "functions": [
+        {
+          "id": "src/components/ConfirmActionDialog.tsx:ConfirmActionDialog",
+          "file": "src/components/ConfirmActionDialog.tsx",
+          "name": "ConfirmActionDialog",
+          "tokens": 146,
+          "calls": [
+            "return",
+            "useOverlayKeyboard"
+          ],
+          "members": [],
+          "writes": [],
+          "callers": []
+        },
+        {
+          "id": "src/components/SubjectWindow.tsx:SubjectWindow",
+          "file": "src/components/SubjectWindow.tsx",
+          "name": "SubjectWindow",
+          "tokens": 61,
+          "calls": [
+            "if",
+            "return",
+            "useOverlayKeyboard"
+          ],
+          "members": [],
+          "writes": [],
+          "callers": []
         }
       ]
     },
@@ -222,7 +225,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/gameLoop.ts:1027",
+            "src/game/gameLoop.ts:1039",
             "src/game/simFocus.ts:112"
           ]
         },
@@ -241,8 +244,8 @@
           "callers": [
             "src/components/useMapKeyboardCursor.ts:143",
             "src/components/useMapKeyboardCursor.ts:160",
-            "src/game/renderer/terrain.ts:247",
-            "src/hooks/useCanvasInteractions.ts:130"
+            "src/game/renderer/terrain.ts:255",
+            "src/hooks/useCanvasInteractions.ts:131"
           ]
         }
       ]
@@ -264,8 +267,8 @@
             "current"
           ],
           "callers": [
-            "src/App.tsx:446",
-            "src/App.tsx:1095"
+            "src/App.tsx:470",
+            "src/App.tsx:1122"
           ]
         },
         {
@@ -281,7 +284,7 @@
             "current"
           ],
           "callers": [
-            "src/App.tsx:450"
+            "src/App.tsx:474"
           ]
         }
       ]
@@ -304,11 +307,15 @@
           ],
           "writes": [],
           "callers": [
+            "src/game/buildingAccess.ts:50",
+            "src/game/buildingAccess.ts:75",
+            "src/game/buildingAccess.ts:101",
+            "src/game/buildingAccess.ts:115",
             "src/game/buildingPlacementActions.ts:106",
             "src/game/buildingRotation.ts:100",
             "src/game/logisticsOverlayData.ts:253",
-            "src/game/renderer/buildings.ts:60",
-            "src/game/renderer/buildings.ts:84"
+            "src/game/renderer/buildings.ts:61",
+            "src/game/renderer/buildings.ts:85"
           ]
         },
         {
@@ -329,41 +336,6 @@
           "writes": [],
           "callers": [
             "src/game/buildingPlacementActions.ts:94"
-          ]
-        }
-      ]
-    },
-    {
-      "hash": "47d5aea31431b371960f2a569a85ac6affbe4014",
-      "count": 2,
-      "functions": [
-        {
-          "id": "src/game/buildingStaffingActions.ts:countAssigned",
-          "file": "src/game/buildingStaffingActions.ts",
-          "name": "countAssigned",
-          "tokens": 14,
-          "calls": [
-            "structuredClone"
-          ],
-          "members": [],
-          "writes": [],
-          "callers": [
-            "src/game/buildingStaffingActions.ts:220"
-          ]
-        },
-        {
-          "id": "src/game/simBuffers/simDelta.ts:deltaCloneOptional",
-          "file": "src/game/simBuffers/simDelta.ts",
-          "name": "deltaCloneOptional",
-          "tokens": 30,
-          "calls": [
-            "structuredClone"
-          ],
-          "members": [],
-          "writes": [],
-          "callers": [
-            "src/game/simBuffers/simDelta.ts:332",
-            "src/game/simBuffers/simDelta.ts:609"
           ]
         }
       ]
@@ -418,7 +390,7 @@
           "id": "src/game/entityFactory.ts:simRandom",
           "file": "src/game/entityFactory.ts",
           "name": "simRandom",
-          "tokens": 29,
+          "tokens": 16,
           "calls": [
             "getSimRng",
             "simRandom"
@@ -426,8 +398,8 @@
           "members": [],
           "writes": [],
           "callers": [
-            "src/game/entityFactory.ts:76",
-            "src/game/entityFactory.ts:209"
+            "src/game/entityFactory.ts:79",
+            "src/game/entityFactory.ts:215"
           ]
         },
         {
@@ -453,7 +425,7 @@
     },
     {
       "hash": "5fe6969798fc4eebc26f1a9c797695ba55d41207",
-      "count": 5,
+      "count": 4,
       "functions": [
         {
           "id": "src/game/grassEcology.ts:grazerGrassEnergyDemandPerDay",
@@ -488,24 +460,10 @@
           ]
         },
         {
-          "id": "src/game/saveLoad.ts:normalizeBigNewsItem",
-          "file": "src/game/saveLoad.ts",
-          "name": "normalizeBigNewsItem",
-          "tokens": 74,
-          "calls": [
-            "max"
-          ],
-          "members": [
-            "max"
-          ],
-          "writes": [],
-          "callers": []
-        },
-        {
           "id": "src/game/spatialGrid.ts:viewportFromCamera",
           "file": "src/game/spatialGrid.ts",
           "name": "viewportFromCamera",
-          "tokens": 85,
+          "tokens": 82,
           "calls": [
             "max"
           ],
@@ -516,7 +474,7 @@
           "callers": [
             "src/game/renderer/entityCache.ts:240",
             "src/game/renderer/logistics.ts:59",
-            "src/game/spatialGrid.ts:514"
+            "src/game/spatialGrid.ts:515"
           ]
         },
         {
@@ -540,58 +498,6 @@
       ]
     },
     {
-      "hash": "92d84d635b23705663e59cfee86f4566b56b488e",
-      "count": 3,
-      "functions": [
-        {
-          "id": "src/game/groupEvents.ts:getVisitorTradePriceMult",
-          "file": "src/game/groupEvents.ts",
-          "name": "getVisitorTradePriceMult",
-          "tokens": 24,
-          "calls": [
-            "getReputationBand"
-          ],
-          "members": [],
-          "writes": [],
-          "callers": [
-            "src/game/groupEvents.ts:595"
-          ]
-        },
-        {
-          "id": "src/game/groupEvents.ts:getVisitorTradeRewardMult",
-          "file": "src/game/groupEvents.ts",
-          "name": "getVisitorTradeRewardMult",
-          "tokens": 13,
-          "calls": [
-            "getReputationBand"
-          ],
-          "members": [],
-          "writes": [],
-          "callers": [
-            "src/game/groupEvents.ts:596"
-          ]
-        },
-        {
-          "id": "src/game/simHelpers.ts:getReputationBand",
-          "file": "src/game/simHelpers.ts",
-          "name": "getReputationBand",
-          "tokens": 35,
-          "calls": [
-            "getReputationBand",
-            "if"
-          ],
-          "members": [],
-          "writes": [],
-          "callers": [
-            "src/components/VisitorCampPanel.tsx:46",
-            "src/game/frontierCombat.ts:1061",
-            "src/game/groupEvents.ts:559",
-            "src/game/groupEvents.ts:564"
-          ]
-        }
-      ]
-    },
-    {
       "hash": "0a4bb94351114e180b0f41ceeef025a2873354d3",
       "count": 3,
       "functions": [
@@ -599,7 +505,7 @@
           "id": "src/game/hotelStay.ts:buildingFrom",
           "file": "src/game/hotelStay.ts",
           "name": "buildingFrom",
-          "tokens": 53,
+          "tokens": 50,
           "calls": [
             "find",
             "get"
@@ -611,16 +517,17 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/hotelStay.ts:86",
-            "src/game/hotelStay.ts:109",
-            "src/game/hotelStay.ts:235",
-            "src/game/hotelStay.ts:480"
+            "src/game/hotelStay.ts:87",
+            "src/game/hotelStay.ts:110",
+            "src/game/hotelStay.ts:239",
+            "src/game/hotelStay.ts:484",
+            "src/game/hotelStay.ts:557"
           ]
         },
         {
-          "id": "src/game/hotelStay.ts:isLiveVisitor",
+          "id": "src/game/hotelStay.ts:findGuest",
           "file": "src/game/hotelStay.ts",
-          "name": "isLiveVisitor",
+          "name": "findGuest",
           "tokens": 31,
           "calls": [
             "find",
@@ -633,18 +540,15 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/hotelStay.ts:315",
-            "src/game/hotelStay.ts:328",
-            "src/game/hotelStay.ts:337",
-            "src/game/hotelStay.ts:355",
-            "src/game/hotelStay.ts:633"
+            "src/game/hotelStay.ts:319",
+            "src/game/hotelStay.ts:332"
           ]
         },
         {
-          "id": "src/game/housingModel.ts:livingHuman",
+          "id": "src/game/housingModel.ts:humanById",
           "file": "src/game/housingModel.ts",
-          "name": "livingHuman",
-          "tokens": 73,
+          "name": "humanById",
+          "tokens": 44,
           "calls": [
             "find",
             "get",
@@ -657,94 +561,42 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/housingModel.ts:230",
-            "src/game/housingModel.ts:326"
+            "src/game/housingModel.ts:231"
           ]
         }
       ]
     },
     {
-      "hash": "3c97c8d3bcf55e2e13abd864f2ead946e598a2ad",
+      "hash": "9eb13c4dfb970c45873602a0675d3ebd580955b4",
       "count": 2,
       "functions": [
         {
-          "id": "src/game/housingPipeline.ts:housingUnitBucket",
-          "file": "src/game/housingPipeline.ts",
-          "name": "housingUnitBucket",
-          "tokens": 13,
-          "calls": [
-            "isFinite"
-          ],
-          "members": [
-            "isFinite"
-          ],
-          "writes": [],
-          "callers": [
-            "src/game/housingPipeline.ts:924"
-          ]
-        },
-        {
-          "id": "src/game/simWorker/commands.ts:isNonEmptyString",
-          "file": "src/game/simWorker/commands.ts",
-          "name": "isNonEmptyString",
-          "tokens": 14,
-          "calls": [
-            "isFinite"
-          ],
-          "members": [
-            "isFinite"
-          ],
-          "writes": [],
-          "callers": [
-            "src/game/simWorker/commands.ts:247"
-          ]
-        }
-      ]
-    },
-    {
-      "hash": "f1f79e199dcc818961f295e74947b20fd2aea5b6",
-      "count": 2,
-      "functions": [
-        {
-          "id": "src/game/humanChat.ts:clearEntityChat",
+          "id": "src/game/humanChat.ts:resolveSessionSpeaker",
           "file": "src/game/humanChat.ts",
-          "name": "clearEntityChat",
-          "tokens": 28,
+          "name": "resolveSessionSpeaker",
+          "tokens": 33,
           "calls": [
-            "max",
-            "min"
+            "if"
           ],
           "members": [
-            "max",
-            "min"
+            "id"
           ],
           "writes": [],
           "callers": [
-            "src/game/humanChat.ts:169",
-            "src/game/humanChat.ts:211",
-            "src/game/humanChat.ts:333",
-            "src/game/humanChat.ts:346",
-            "src/game/humanChat.ts:384",
-            "src/game/humanChat.ts:427"
+            "src/game/humanChat.ts:301"
           ]
         },
         {
-          "id": "src/game/worldGen.ts:maxRingRadiusFromCenter",
-          "file": "src/game/worldGen.ts",
-          "name": "maxRingRadiusFromCenter",
-          "tokens": 39,
-          "calls": [
-            "max",
-            "min"
-          ],
+          "id": "src/game/simulation/humanSocial.ts:byId",
+          "file": "src/game/simulation/humanSocial.ts",
+          "name": "byId",
+          "tokens": 23,
+          "calls": [],
           "members": [
-            "max",
-            "min"
+            "id"
           ],
           "writes": [],
-          "callers": [
-            "src/game/worldGen.ts:306"
-          ]
+          "callers": []
         }
       ]
     },
@@ -763,9 +615,9 @@
           "members": [],
           "writes": [],
           "callers": [
-            "src/game/humanStatus.ts:72",
-            "src/game/humanTick.ts:641",
-            "src/game/workAbsence.ts:210"
+            "src/game/humanStatus.ts:80",
+            "src/game/humanTick.ts:722",
+            "src/game/workAbsence.ts:244"
           ]
         },
         {
@@ -779,7 +631,48 @@
           "members": [],
           "writes": [],
           "callers": [
-            "src/game/humanSchedule.ts:55"
+            "src/game/humanSchedule.ts:57"
+          ]
+        }
+      ]
+    },
+    {
+      "hash": "a4c60a4aaacc578968006a339af5d4869514c707",
+      "count": 2,
+      "functions": [
+        {
+          "id": "src/game/pathfinding.ts:isBlocked",
+          "file": "src/game/pathfinding.ts",
+          "name": "isBlocked",
+          "tokens": 89,
+          "calls": [
+            "abs",
+            "if"
+          ],
+          "members": [
+            "abs"
+          ],
+          "writes": [],
+          "callers": [
+            "src/game/pathfinding.ts:876"
+          ]
+        },
+        {
+          "id": "src/game/stripBuild.ts:inferStripRotation",
+          "file": "src/game/stripBuild.ts",
+          "name": "inferStripRotation",
+          "tokens": 39,
+          "calls": [
+            "abs"
+          ],
+          "members": [
+            "abs"
+          ],
+          "writes": [],
+          "callers": [
+            "src/game/virtualPlayer.ts:1359",
+            "src/game/virtualPlayer.ts:1769",
+            "src/hooks/useCanvasInteractions.ts:412"
           ]
         }
       ]
@@ -825,7 +718,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/spatialGrid.ts:772"
+            "src/game/spatialGrid.ts:773"
           ]
         },
         {
@@ -846,40 +739,6 @@
           "writes": [],
           "callers": [
             "src/game/spatialQueryMetrics.ts:58"
-          ]
-        }
-      ]
-    },
-    {
-      "hash": "a17ddb07afde37e8fc3077029a6f402c4113c6f1",
-      "count": 2,
-      "functions": [
-        {
-          "id": "src/game/personality/traitEvaluation.ts:APTITUDE_INDEX",
-          "file": "src/game/personality/traitEvaluation.ts",
-          "name": "APTITUDE_INDEX",
-          "tokens": 65,
-          "calls": [
-            "for"
-          ],
-          "members": [
-            "length"
-          ],
-          "writes": [],
-          "callers": []
-        },
-        {
-          "id": "src/game/simWorker/commands.ts:isBuildingType",
-          "file": "src/game/simWorker/commands.ts",
-          "name": "isBuildingType",
-          "tokens": 13,
-          "calls": [],
-          "members": [
-            "length"
-          ],
-          "writes": [],
-          "callers": [
-            "src/game/simWorker/commands.ts:211"
           ]
         }
       ]
@@ -924,6 +783,54 @@
           "writes": [],
           "callers": [
             "src/game/stripTopology.ts:376"
+          ]
+        }
+      ]
+    },
+    {
+      "hash": "8cfab2163e8a09d61e9ca03d92ed7f336b88f6da",
+      "count": 2,
+      "functions": [
+        {
+          "id": "src/game/relationships.ts:pushToGroup",
+          "file": "src/game/relationships.ts",
+          "name": "pushToGroup",
+          "tokens": 62,
+          "calls": [
+            "get",
+            "if",
+            "push",
+            "set"
+          ],
+          "members": [
+            "get",
+            "push",
+            "set"
+          ],
+          "writes": [],
+          "callers": [
+            "src/game/relationships.ts:251"
+          ]
+        },
+        {
+          "id": "src/game/workforce.ts:pushId",
+          "file": "src/game/workforce.ts",
+          "name": "pushId",
+          "tokens": 62,
+          "calls": [
+            "get",
+            "if",
+            "push",
+            "set"
+          ],
+          "members": [
+            "get",
+            "push",
+            "set"
+          ],
+          "writes": [],
+          "callers": [
+            "src/game/workforce.ts:536"
           ]
         }
       ]
@@ -1033,43 +940,38 @@
       ]
     },
     {
-      "hash": "65a74ab2558f53c40b41a744895ff95afb5bfa07",
+      "hash": "47d5aea31431b371960f2a569a85ac6affbe4014",
       "count": 2,
       "functions": [
         {
-          "id": "src/game/simWorker/commands.ts:getBuildingTypeValues",
-          "file": "src/game/simWorker/commands.ts",
-          "name": "getBuildingTypeValues",
-          "tokens": 66,
+          "id": "src/game/simBuffers/simDelta.ts:deltaClone",
+          "file": "src/game/simBuffers/simDelta.ts",
+          "name": "deltaClone",
+          "tokens": 30,
           "calls": [
-            "getBuildingTypeValues",
-            "if",
-            "values"
+            "structuredClone"
           ],
-          "members": [
-            "values"
-          ],
+          "members": [],
           "writes": [],
           "callers": [
-            "src/game/simWorker/commands.ts:191"
+            "src/game/simBuffers/simDelta.ts:370",
+            "src/game/simBuffers/simDelta.ts:676"
           ]
         },
         {
-          "id": "src/game/viewState.ts:getBuildingTypeValues",
-          "file": "src/game/viewState.ts",
-          "name": "getBuildingTypeValues",
-          "tokens": 48,
+          "id": "src/game/simBuffers/simDelta.ts:deltaCloneOptional",
+          "file": "src/game/simBuffers/simDelta.ts",
+          "name": "deltaCloneOptional",
+          "tokens": 47,
           "calls": [
-            "getBuildingTypeValues",
             "if",
-            "values"
+            "structuredClone"
           ],
-          "members": [
-            "values"
-          ],
+          "members": [],
           "writes": [],
           "callers": [
-            "src/game/viewState.ts:162"
+            "src/game/simBuffers/simDelta.ts:376",
+            "src/game/simBuffers/simDelta.ts:683"
           ]
         }
       ]
@@ -1082,7 +984,7 @@
           "id": "src/game/skills.ts:rewardBuildingWork",
           "file": "src/game/skills.ts",
           "name": "rewardBuildingWork",
-          "tokens": 60,
+          "tokens": 51,
           "calls": [
             "for",
             "gainSkill",
@@ -1102,7 +1004,7 @@
           "id": "src/game/skills.ts:rewardProductionSkills",
           "file": "src/game/skills.ts",
           "name": "rewardProductionSkills",
-          "tokens": 53,
+          "tokens": 44,
           "calls": [
             "for",
             "gainSkill",
@@ -1116,7 +1018,7 @@
           "writes": [],
           "callers": [
             "src/game/dailyBuildingEconomy.ts:618",
-            "src/game/townHall.ts:87"
+            "src/game/townHall.ts:88"
           ]
         }
       ]
@@ -1141,15 +1043,15 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/spatialGrid.ts:520",
-            "src/game/spatialGrid.ts:621"
+            "src/game/spatialGrid.ts:521",
+            "src/game/spatialGrid.ts:622"
           ]
         },
         {
           "id": "src/game/spatialGrid.ts:RoadAvoidanceIndex.matchesLayout",
           "file": "src/game/spatialGrid.ts",
           "name": "matchesLayout",
-          "tokens": 34,
+          "tokens": 35,
           "calls": [
             "matchesLayout",
             "return"
@@ -1172,7 +1074,7 @@
           "id": "src/game/spatialGrid.ts:syncGrassRenderGrid",
           "file": "src/game/spatialGrid.ts",
           "name": "syncGrassRenderGrid",
-          "tokens": 95,
+          "tokens": 89,
           "calls": [
             "if",
             "rebuild",
@@ -1187,14 +1089,14 @@
           "writes": [],
           "callers": [
             "src/game/simBuffers/renderSoAEntities.ts:179",
-            "src/game/tickLayerRealtime.ts:159"
+            "src/game/tickLayerRealtime.ts:160"
           ]
         },
         {
           "id": "src/game/spatialGrid.ts:syncTreeGrid",
           "file": "src/game/spatialGrid.ts",
           "name": "syncTreeGrid",
-          "tokens": 96,
+          "tokens": 90,
           "calls": [
             "if",
             "rebuild",
@@ -1208,7 +1110,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/tickLayerRealtime.ts:165"
+            "src/game/tickLayerRealtime.ts:166"
           ]
         }
       ]
@@ -1221,7 +1123,7 @@
           "id": "src/game/spatialGrid.ts:syncHumanSocialGrid",
           "file": "src/game/spatialGrid.ts",
           "name": "syncHumanSocialGrid",
-          "tokens": 63,
+          "tokens": 57,
           "calls": [
             "if",
             "rebuild",
@@ -1234,14 +1136,14 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/tickLayerRealtime.ts:153"
+            "src/game/tickLayerRealtime.ts:154"
           ]
         },
         {
           "id": "src/game/spatialGrid.ts:syncMobileSimGrid",
           "file": "src/game/spatialGrid.ts",
           "name": "syncMobileSimGrid",
-          "tokens": 63,
+          "tokens": 57,
           "calls": [
             "if",
             "rebuild",
@@ -1254,7 +1156,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/tickLayerRealtime.ts:147"
+            "src/game/tickLayerRealtime.ts:148"
           ]
         }
       ]
@@ -1303,63 +1205,6 @@
           ],
           "writes": [],
           "callers": []
-        }
-      ]
-    },
-    {
-      "hash": "329632559f5f8de769974423b4fba7b5feab0bc6",
-      "count": 2,
-      "functions": [
-        {
-          "id": "src/game/villageLeadership.ts:getVillageLeader",
-          "file": "src/game/villageLeadership.ts",
-          "name": "getVillageLeader",
-          "tokens": 53,
-          "calls": [
-            "find",
-            "if",
-            "isActingVillageHead"
-          ],
-          "members": [
-            "entities",
-            "find",
-            "id",
-            "villageLeaderId"
-          ],
-          "writes": [],
-          "callers": [
-            "src/game/focusHints.ts:114",
-            "src/game/townHall.ts:61",
-            "src/game/townHall.ts:197",
-            "src/game/villageLeadership.ts:359",
-            "src/game/villageLeadership.ts:637",
-            "src/game/villageLeadership.ts:672",
-            "src/game/villageLeadership.ts:712",
-            "src/game/villageLeadership.ts:777",
-            "src/game/villageLeadership.ts:1252",
-            "src/game/VillageLeadershipPanel.tsx:18"
-          ]
-        },
-        {
-          "id": "src/game/villageLeadership.ts:isVillageLeader",
-          "file": "src/game/villageLeadership.ts",
-          "name": "isVillageLeader",
-          "tokens": 44,
-          "calls": [
-            "find",
-            "if",
-            "isActingVillageHead"
-          ],
-          "members": [
-            "entities",
-            "find",
-            "id",
-            "villageLeaderId"
-          ],
-          "writes": [],
-          "callers": [
-            "src/game/PopulationPanel.tsx:38"
-          ]
         }
       ]
     }
