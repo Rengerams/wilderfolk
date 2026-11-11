@@ -886,13 +886,13 @@ export function lineCrossesBlocked(
       ty += stepY;
       nextY += deltaY;
     } else {
-      // Neither of the two orthogonal cells may be solid at a diagonal grid corner.
-      if (isBlocked(tx + stepX, ty, lastElevation)
-        || isBlocked(tx, ty + stepY, lastElevation)) return true;
-      tx += stepX;
-      ty += stepY;
-      nextX += deltaX;
-      nextY += deltaY;
+      // Do not cross an axis already in its destination cell at an exact grid corner.
+      const crossX = tx !== goalX;
+      const crossY = ty !== goalY;
+      if (crossX && crossY && (isBlocked(tx + stepX, ty, lastElevation)
+        || isBlocked(tx, ty + stepY, lastElevation))) return true;
+      if (crossX) { tx += stepX; nextX += deltaX; }
+      if (crossY) { ty += stepY; nextY += deltaY; }
     }
   }
   return true;
