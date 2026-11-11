@@ -11,6 +11,7 @@ import { APTITUDE_DEFS, APTITUDE_IDS } from '../src/game/settlerTraits';
 import { CAREER_TIER_LABELS } from '../src/game/careers/careerProgression';
 import { EntityType, JOB_LABELS, JobType } from '../src/game/gameTypes';
 import { PREGNANCY_TICKS } from '../src/game/dayCycle';
+import { citizenFullName } from '../src/game/citizenId';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { initGame } from '../src/game/worldGen';
@@ -150,5 +151,39 @@ describe('personality and career inspector', () => {
 
     const visitor = human(777, { faction: 'visitor', genomeV2: genomeFrom() });
     expect(renderPanel(visitor, state)).not.toContain('Personality and career');
+  });
+});
+
+describe('the selected settler reveals the mutual courtship partner', () => {
+  it('shows the full partner name even at 0% and the shared progress percentage', () => {
+    const state = initGame({ skipTerrain: true, seed: 20261111 });
+    const first = human(1201, {
+      name: 'Ari', surname: 'Vale', relationshipStatus: 'single',
+      courtshipPartnerId: 1202, courtshipProgress: 0,
+    });
+    const second = human(1202, {
+      name: 'Morgan', surname: 'River', relationshipStatus: 'single',
+      courtshipPartnerId: 1201, courtshipProgress: 0,
+    });
+    state.entities = [first, second];
+    expect(renderPanel(first, state)).toContain(`Courting ${citizenFullName(second)} (0%)`);
+
+    first.courtshipProgress = 45.75;
+    second.courtshipProgress = 45.75;
+    expect(renderPanel(first, state)).toContain(`Courting ${citizenFullName(second)} (46%)`);
+  });
+
+  it('does not show a former or missing partner as a live courtship', () => {
+    const state = initGame({ skipTerrain: true, seed: 20261111 });
+    const first = human(1201, {
+      name: 'Ari', surname: 'Vale', relationshipStatus: 'single',
+      courtshipPartnerId: 1202, courtshipProgress: 38,
+    });
+    const second = human(1202, {
+      name: 'Morgan', surname: 'River', relationshipStatus: 'single',
+      courtshipPartnerId: undefined, courtshipProgress: 0,
+    });
+    state.entities = [first, second];
+    expect(renderPanel(first, state)).not.toContain('Courting ');
   });
 });
