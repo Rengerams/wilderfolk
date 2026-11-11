@@ -1,6 +1,6 @@
 import { MAX_ASSIGNABLE_COMMUTE_HOURS, WORK_COMMUTE_RUSH } from './commuteReach';
 import type { WorldState, Entity, Building, VisitorGroup, RivalSettlement } from './gameTypes';
-import { EntityType, BuildingType, JobType, Season } from './gameTypes';
+import { EntityType, BuildingType, JobType, Season, PATH_CELL } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
@@ -1048,7 +1048,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const angle = state.tick * 0.028 * PER_TICK_RATE_SCALE + entity.id * 2.1;
         const tx = anchor.x + Math.cos(angle) * radius;
         const ty = anchor.y + Math.sin(angle) * radius * 0.55;
-        steerHumanToward(entity, tx, ty, config.speed, 0.65, `patrol_${entity.id}`);
+        steerHumanToward(entity,
+          (Math.floor(tx / PATH_CELL) + 0.5) * PATH_CELL,
+          (Math.floor(ty / PATH_CELL) + 0.5) * PATH_CELL,
+          config.speed, 0.65, `patrol_${entity.id}`);
         onSchedule = true;
         suppressIdle = true;
       } else if (workplace) {
