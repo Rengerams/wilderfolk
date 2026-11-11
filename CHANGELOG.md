@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Changed (11 Nov 2026, PR #140):** Stamina now targets approximately 30% at bedtime after a 17-hour waking day with nine actual work hours. Ordinary awake leisure spends 2/h, work 6/h, walking 5/h, and real off-duty needs breaks recover 5/h; seven hours of sleep still refill to 100%. Configurable shift lengths retain their existing independent schedule-fatigue production scaling.
+- **Changed (11 Nov 2026, PR #140):** Rebalanced stamina to ~30% at bedtime after 9h work and 8h leisure. Work costs 6/h, awake idle 2/h, walking 5/h; only actual breaks recover 5/h. Seven hours of sleep still restore 100%. Existing schedule-fatigue penalties stay separate.
 
 - **Fixed (11 Nov 2026, PR #140):** Courtship now needs two awake settlers within 10 px; on-shift courtship is possible only when both actually work together at the same post. Each pair advances at most once per tick, and the selected-settler panel names the mutual courtship partner and percentage.
 
