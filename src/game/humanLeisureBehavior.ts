@@ -307,6 +307,23 @@ export function tickHumanLeisure(args: {
   } = args;
   let suppressIdle = args.suppressIdleInitial;
 
+  const fair = state.inventionFair;
+  if (fair?.stage === 'demonstration' && allowFreeRoam && !onSchedule && !inSpotlightGathering &&
+      !suppressIdle && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE &&
+      hourOfDay >= 7 && hourOfDay < 21 && !entity.raidDeploymentId && entity.prisonBuildingId == null) {
+    const stand = fair.spectatorSlots.find((slot) => slot.humanId === entity.id);
+    if (stand) {
+      entity.indoorBuildingId = undefined;
+      if (Math.hypot(stand.x - entity.x, stand.y - entity.y) > 12) {
+        steerHumanToward(entity, stand.x, stand.y, speed, 0.7, `invention_fair_${entity.id}`);
+      } else {
+        entity.vx = 0;
+        entity.vy = 0;
+      }
+      return true;
+    }
+  }
+
     // Free time & leisure
     if (
       !inSpotlightGathering && tickHumanChildLeisure({
