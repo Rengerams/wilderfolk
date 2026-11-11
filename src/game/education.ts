@@ -12,7 +12,9 @@ import { isPlayerHuman } from './playerHuman';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { isAtBuildingReach } from './buildingAccess';
-import { quoteBuildingCommute, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
+import { commuteDistanceFromResidence } from './simulation/humanMovement';
+import { getCurrentPathGrid } from './pathfinding';
+import { quoteBuildingCommute, commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
 
 /** School days for basic graduation perks. */
@@ -95,21 +97,26 @@ export function findSchoolForChild(
   const current = schools.find((b) => b.id === child.schoolBuildingId);
   if (current && !reviewTransfer && (reserved?.get(current.id) ?? 0) < schoolCapacity(current)) return current;
 
+  const gridReady = !!getCurrentPathGrid();
   let best: Building | undefined;
   let bestCost = Infinity;
   let currentCost = Infinity;
   let pending = false;
   for (const school of schools) {
     if ((reserved?.get(school.id) ?? 0) >= schoolCapacity(school)) continue;
-    const route = quoteBuildingCommute(home ?? child, school, walkSpeed);
-    if (route.status === 'pending') {
+    const route = gridReady ? quoteBuildingCommute(home ?? child, school, walkSpeed) : null;
+    if (route?.status === 'pending') {
       pending = true;
       continue;
     }
-    if (route.status !== 'priced') continue;
-    if (current?.id === school.id) currentCost = route.costTiles * PATH_CELL;
-    if (route.leadHours > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
-    const cost = route.costTiles * PATH_CELL;
+    if (route?.status === 'unreachable') continue;
+    const distance = route?.status === 'priced'
+      ? route.costTiles * PATH_CELL : commuteDistanceFromResidence(child, home, school);
+    const hours = route?.status === 'priced'
+      ? route.leadHours : commuteLeadHoursFor(distance, walkSpeed);
+    if (current?.id === school.id) currentCost = distance;
+    if (hours > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
+    const cost = distance;
     if (cost < bestCost) {
       best = school;
       bestCost = cost;
