@@ -21,16 +21,21 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4.4.0
+
       - uses: actions/setup-node@v4.4.0
         with:
           node-version: '26.12.1'
           cache: npm
+
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
+
       - name: Real gameTick calendar boundaries, invariants and minimum owner coverage
         run: npm test -- calendar-scheduler
+
       - name: Non-DEV invariants through Year-2 midnight
         run: SIM_START_DAY=720 SIM_DAYS=3 npx tsx scripts/sim-invariants.ts
+
   producer-parity:
     if: github.event.pull_request.head.ref == 'fix/a1-calendar-restpunten-20261107'
     runs-on: ubuntu-24.04
@@ -40,36 +45,46 @@ jobs:
         uses: actions/checkout@v4.4.0
         with:
           path: after
+
       - name: Checkout pre-A1 baseline
         uses: actions/checkout@v4.4.0
         with:
           ref: 2a0acd8ac18ee5adb1393ef9b564e75cb44773f4
           path: before
+
       - uses: actions/setup-node@v4.4.0
         with:
           node-version: '26.12.1'
           cache: npm
           cache-dependency-path: after/package-lock.json
+
       - name: Install baseline dependencies
         working-directory: before
         run: npm ci --prefer-offline --no-audit --no-fund
+
       - name: Install final dependencies
         working-directory: after
         run: npm ci --prefer-offline --no-audit --no-fund
+
       - name: Use identical existing producer harness for both revisions
         run: cp after/scripts/run-full-year.mts before/scripts/run-full-year.mts
+
       - name: Seven-day producer baseline
         working-directory: before
         run: npx tsx scripts/run-full-year.mts --scenario=producers --days=7 --bot --verbose | tee ../a1-producer-7-before.log
+
       - name: Seven-day producer A1
         working-directory: after
         run: npx tsx scripts/run-full-year.mts --scenario=producers --days=7 --bot --verbose | tee ../a1-producer-7-after.log
+
       - name: 360-day producer baseline with 30-day checkpoints
         working-directory: before
         run: npx tsx scripts/run-full-year.mts --scenario=producers --days=360 --bot --verbose | tee ../a1-producer-360-before.log
+
       - name: 360-day producer A1 with 30-day checkpoints
         working-directory: after
         run: npx tsx scripts/run-full-year.mts --scenario=producers --days=360 --bot --verbose | tee ../a1-producer-360-after.log
+
       - name: Compare working-colony food, skill and population at days 7, 30 and 360
         run: |
           node --input-type=commonjs <<'NODE'
@@ -80,7 +95,7 @@ jobs:
               .map((line) => JSON.parse(line))
               .find((item) => item.kind === 'full-year-checkpoint' && item.day === day);
           };
-          for (const day of [7, 30, 360]) {
+          for (const day of) {
             const horizon = day === 7 ? 7 : 360;
             const before = read('a1-producer-' + horizon + '-before.log', day);
             const after = read('a1-producer-' + horizon + '-after.log', day);

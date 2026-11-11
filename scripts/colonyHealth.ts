@@ -2,7 +2,7 @@
  * Shared seeded scenarios and colony-health observation for the long-run harnesses, so they cannot
  * drift apart. Writes are only setup the game performs itself when a player builds and staffs.
  */
-import { buildingAccessPoint, isAtBuildingReach } from '../src/game/buildingAccess';
+import { buildingAccessPoint, buildingAccessPoints, isAtBuildingReach } from '../src/game/buildingAccess';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { getHourOfDay, getTickOfDay, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { getWorkSchedule, isWorkScheduleHour } from '../src/game/workSchedule';
@@ -177,9 +177,12 @@ function placeLegalStarterBuilding(
           if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows
             || grid.blocked[row * grid.cols + col]) continue;
         }
+        const candidate = createBuilding(type, spot.x, spot.y, -1);
+        // The first seed house must itself have an accessible facade. A legal centre on an
+        // isolated rock/river tile is not a traversable home and would strand the whole colony.
+        if (type === BuildingType.House && grid && buildingAccessPoints(candidate, grid).length === 0) continue;
         if (fromHomes.length > 0) {
           beginCommuteRoutePass();
-          const candidate = createBuilding(type, spot.x, spot.y, -1);
           const reachable = fromHomes.every((home) =>
             isWithinAssignableCommute(
               { ...commuter!, residenceBuildingId: home.id },

@@ -2,6 +2,21 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026, PR #127):** Added a 700px paved-commute regression: road-weighted time must preserve the two-hour job eligibility discount, without an unweighted Euclidean floor.
+
+- **Fixed (11 Nov 2026, PR #127):** Individual shift workers now head home for seven hours of sleep before travel to early, night, prison, hospital and venue duties; commute/departure wins over sleep.
+
+- **Fixed (11 Nov 2026, PR #127):** Patrol destinations reuse cached paths per tile; mixed-sign line-of-sight routes stop at exact raster corners. Added a north-only reachable house regression without replacing shared multi-facade pricing.
+- **Changed (11 Nov 2026, PR #127):** Registered the realtime tickHumanLeisure entrypoint and its owner, caller and permitted movement writes in the simulation decision registry.
+
+- **Fixed (11 Nov 2026, PR #127):** Routed facade fallback, disconnection-aware housing moves, safe building-frontage commute bounds, sticky prison-guard departures and independent cache regressions.
+
+- **Changed (11 Nov 2026, PR #127):** Jobs, schools, housing, bot previews and settler steering now share walkable route evidence. Pending routes cannot authorize a new job or optional move; waypoint progress remains per walker. CI and large-colony verification are pending.
+
+- **Fixed (11 Nov 2026, PR #127):** Walkability ignores non-solid scenery reservations and decorative building footprints, while completed solid structures still block and their removal rebuilds the grid.
+
+- **Changed (11 Nov 2026, PR #127):** Integrated the existing shared-navigation checkpoint-A foundation with current main; directed immutable route quotes and three-way commute pricing are available for the domain cutover.
+
 - **Changed (8 Nov 2026):** Civic systems now use a shared completed-building lookup for Town Hall staffing, elections, notifications and festivals, replacing the Town Hall-only lookup.
 - **Fixed (8 Nov 2026):** Pregnancy integration keeps one individual-term hospital threshold while retaining staffed-ward routing, actual admission labels, birth-key genetics and normal duty-hour accounting.
 - **Fixed (8 November 2026, PR #133):** Immigration now uses recurring meal demand rather than one-off food spending, avoids counting population growth twice, and admits only affordable groups with real vacant beds.

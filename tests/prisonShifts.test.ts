@@ -16,6 +16,7 @@ import {
   prisonOnDutyGuards,
   prisonPrisonerCapacity,
   prisonRoster,
+  prisonDutyForGuard,
   prisonShiftsAtHour,
   prisonWeekIndex,
   shiftHours,
@@ -83,6 +84,30 @@ describe('the roster covers the day', () => {
 
   it('leaves the whole day open with no crew at all', () => {
     expect(unguardedPrisonHours(prisonRoster([], 0))).toHaveLength(24);
+  });
+
+  it('keeps a started overnight watch across midnight and schedules next-week relief early', () => {
+    const crew = [11, 22, 33, 44];
+    const lastSunday = 7 * TICKS_PER_DAY - 1;
+    const mondayMidnight = 7 * TICKS_PER_DAY;
+    const lastSundayNightStart = 6 * TICKS_PER_DAY + 23 * (TICKS_PER_DAY / 24);
+
+    // The guard who took Sunday night's 23:00 shift remains responsible at 00:00
+    // Monday, even though the nominal weekly roster has already rotated.
+    const sundayNight = prisonDutyForGuard(33, crew, lastSunday);
+    const mondayNight = prisonDutyForGuard(33, crew, mondayMidnight);
+    expect(sundayNight).toEqual({
+      shift: PRISON_SHIFTS[2], startTick: lastSundayNightStart, onShift: true,
+    });
+    expect(mondayNight).toEqual(sundayNight);
+
+    // Monday's new morning guard can depart on Sunday, not only at 00:00.
+    const mondayMorning = prisonDutyForGuard(44, crew, lastSunday);
+    expect(mondayMorning).toEqual({
+      shift: PRISON_SHIFTS[0],
+      startTick: mondayMidnight + 7 * (TICKS_PER_DAY / 24), onShift: false,
+    });
+    expect(prisonDutyForGuard(44, crew, mondayMidnight)?.startTick).toBe(mondayMorning?.startTick);
   });
 
   it('starts a new week where the game clock does', () => {

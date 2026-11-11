@@ -7,8 +7,10 @@ import {
   beginCommuteRoutePass,
   commuteLeadHoursFor,
   estimatedCommuteHours,
+  quoteBuildingCommute,
   isWithinAssignableCommute,
   MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS,
+  wereCommuteRouteChecksDeferred,
 } from '../src/game/commuteReach';
 import { findRouteCost, getCurrentPathGrid, resetPathGridCaches, setCurrentPathMap } from '../src/game/pathfinding';
 import {
@@ -92,13 +94,15 @@ describe('estimatedCommuteHours route pricing', () => {
     expect(estimatedCommuteHours(home, island, [], WALK_SPEED)).toBe(Infinity);
   });
 
-  it('agrees with the straight line when the route is unobstructed', () => {
+  it('prices the reachable facades rather than assuming a full centre-to-centre walk', () => {
     setCurrentPathMap(riverMap(), []);
     const home = onTile(1, BuildingType.House, 5, 5);
     const sameSide = onTile(2, BuildingType.Quarry, 15, 5);
 
     const routed = estimatedCommuteHours(home, sameSide, [], WALK_SPEED);
-    expect(routed).toBeGreaterThanOrEqual(straightHours(home, sameSide));
+    // A walker enters from the nearest open facade; building centres are not walkable
+    // destinations, so their separation cannot be imposed as a hard minimum.
+    expect(routed).toBeGreaterThanOrEqual(straightHours(home, sameSide) / 1.5 * 0.7);
     expect(routed).toBeLessThan(straightHours(home, sameSide) * 1.2);
   });
 
@@ -123,6 +127,34 @@ describe('estimatedCommuteHours route pricing', () => {
     // has priced the slower route and would misjudge a household's commute.
     expect(paved).not.toBeNull();
     expect(paved!).toBeLessThan(20);
+  });
+
+  it('accepts a paved 700 px commute even when unpaved travel exceeds two hours', () => {
+    const map = testWorldMap({ tilesX: 95, tilesY: 40, seed: 7 });
+    const home = building(1, BuildingType.House, { x: 105, y: 205 });
+    const workplace = building(2, BuildingType.Quarry, { x: 805, y: 205 });
+    const road = building(3, BuildingType.Road, {
+      x: 455, y: 205, width: 660, height: PATH_CELL, completed: true,
+    });
+    const worker = human(4, { x: home.x, y: home.y, residenceBuildingId: home.id });
+    const walkSpeed = 8;
+
+    setCurrentPathMap(map, [home, workplace]);
+    const unpaved = quoteBuildingCommute(home, workplace, walkSpeed);
+    expect(unpaved.status).toBe('priced');
+    if (unpaved.status !== 'priced') return;
+    expect(unpaved.travelHours).toBeGreaterThan(2);
+    expect(isWithinAssignableCommute(worker, workplace, [home, workplace], walkSpeed)).toBe(false);
+
+    setCurrentPathMap(map, [home, workplace, road]);
+    beginCommuteRoutePass();
+    const paved = quoteBuildingCommute(home, workplace, walkSpeed);
+    expect(paved.status).toBe('priced');
+    if (paved.status !== 'priced') return;
+    expect(paved.travelHours).toBeLessThan(2);
+    expect(paved.travelHours).toBeLessThan(unpaved.travelHours);
+    expect(paved.costTiles).toBeLessThan(unpaved.costTiles);
+    expect(isWithinAssignableCommute(worker, workplace, [home, workplace, road], walkSpeed)).toBe(true);
   });
 
   it('food placement previews use the supplied map, not a prior walkable colony grid', () => {
@@ -159,26 +191,30 @@ describe('estimatedCommuteHours route pricing', () => {
     setPathfindingMetricsEnabled(false);
 
     expect(first.value).toBe(second.value);
-    expect(first.searches).toBe(1);
-    expect(second.searches).toBe(1);
+    // A four-sided building can price up to sixteen facade pairs. A repeated
+    // quote must reuse them all without incrementing the search count.
+    expect(first.searches).toBeGreaterThanOrEqual(1);
+    expect(first.searches).toBeLessThanOrEqual(16);
+    expect(second.searches).toBe(first.searches);
   });
 
-  it('stops searching once the sweep budget is spent and prices the rest straight-line', () => {
+  it('defers unsolved legs when the search budget is spent, never approving a direct-line shortcut', () => {
     setCurrentPathMap(riverMap(), []);
     const home = onTile(1, BuildingType.House, 10, 20);
     const destinations: Building[] = [];
-    for (let y = 1; y <= 40 && destinations.length <= MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS; y++) {
-      for (let x = 25; x <= 35 && destinations.length <= MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS; x++) {
+    for (let y = 1; y < 40 && destinations.length <= MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS + 120; y++) {
+      for (let x = 25; x <= 35 && destinations.length <= MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS + 120; x++) {
         destinations.push(onTile(100 + destinations.length, BuildingType.Quarry, x, y));
       }
     }
 
+    // Adjacent buildings can share the same exterior doorstep tile; cover enough distinct
+    // endpoints to exhaust the *actual A* budget*, not just the number of candidate buildings.
     const values = destinations.map((destination) =>
       estimatedCommuteHours(home, destination, [], WALK_SPEED),
     );
-    const last = destinations[destinations.length - 1]!;
-
     expect(values[0]).toBeGreaterThan(straightHours(home, destinations[0]!));
-    expect(values[values.length - 1]).toBe(straightHours(home, last));
+    expect(values[values.length - 1]).toBe(Infinity);
+    expect(wereCommuteRouteChecksDeferred()).toBe(true);
   });
 });

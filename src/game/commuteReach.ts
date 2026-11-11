@@ -1,8 +1,9 @@
 import type { Building, Entity, WorldMap } from './gameTypes';
 import { PATH_CELL } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycleClock';
-import { findRouteCostOutcome, getCurrentPathGrid, getReadOnlyPathGrid, isWalkableRoad, type PathGrid } from './pathfinding';
+import { findRouteCostOutcome, getNavigationQuote, getCurrentPathGrid, getReadOnlyPathGrid, isWalkableRoad, type PathGrid } from './pathfinding';
 import { ROAD_SPEED_MULT } from './simulation/movementSteering';
+import { BUILDING_REACH_RADIUS_PX, buildingAccessPoints } from './buildingAccess';
 
 /** Commute reach, lead hours and walk pacing, shared by the movement loop and work assignment. */
 export const COMMUTE_CONFIG = {
@@ -23,6 +24,41 @@ export const WORK_COMMUTE_RUSH = 3.5;
 
 /** Owner rule: a settler who cannot reach a post inside two hours is not a candidate for it. */
 export const MAX_ASSIGNABLE_COMMUTE_HOURS = 2;
+
+export type CommuteVerdict =
+  | { readonly status: 'priced'; readonly travelHours: number;
+      readonly leadHours: number; readonly costTiles: number }
+  | { readonly status: 'unreachable' }
+  | { readonly status: 'pending'; readonly reason: 'search-budget' | 'node-budget' | 'complexity-cap' | 'no-grid' };
+
+/** Price a real walkable-point leg without accepting an unresolved route as a commute. */
+export function quoteCommute(
+  origin: Readonly<{ x: number; y: number }>,
+  destination: Readonly<{ x: number; y: number }>,
+  walkSpeed: number,
+  grid: PathGrid | null,
+): CommuteVerdict {
+  if (![origin.x, origin.y, destination.x, destination.y].every(Number.isFinite)) {
+    return { status: 'unreachable' };
+  }
+  const start = { x: Math.floor(origin.x / PATH_CELL), y: Math.floor(origin.y / PATH_CELL) };
+  const goal = { x: Math.floor(destination.x / PATH_CELL), y: Math.floor(destination.y / PATH_CELL) };
+  const route = getNavigationQuote(grid, start, goal, { maxNodes: MAX_COMMUTE_ROUTE_SEARCH_NODES });
+  if (route.status !== 'priced') return route;
+  const distance = start.x === goal.x && start.y === goal.y
+    ? Math.hypot(destination.x - origin.x, destination.y - origin.y)
+    : route.costTiles * PATH_CELL
+      + Math.hypot((start.x + 0.5) * PATH_CELL - origin.x,
+        (start.y + 0.5) * PATH_CELL - origin.y)
+      + Math.hypot((goal.x + 0.5) * PATH_CELL - destination.x,
+        (goal.y + 0.5) * PATH_CELL - destination.y);
+  const speed = commuteWalkSpeed(walkSpeed, WORK_COMMUTE_RUSH)
+    * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;
+  return { status: 'priced',
+    travelHours: distance / speed / TICKS_PER_HOUR,
+    leadHours: commuteLeadHoursFor(distance, walkSpeed),
+    costTiles: distance / PATH_CELL };
+}
 
 /** Route searches one housing sweep may run before legs fall back to the straight line. */
 export const MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS = 256;
@@ -119,6 +155,8 @@ let attemptedRoutesThisPass = new WeakMap<PathGrid, Set<string>>();
 const routeCostCache = new WeakMap<PathGrid, Map<string, number>>();
 /** Next A* node limit per unresolved leg; scoped to its grid generation and bounded in size. */
 const pendingNodeBudgets = new WeakMap<PathGrid, Map<string, number>>();
+/** Terminal budget exhaustion stays unknown, not a proven disconnected route. */
+const terminalRouteBudgets = new WeakMap<PathGrid, Set<string>>();
 
 /** Opens a housing sweep's route-search budget. */
 export function beginCommuteRoutePass(): void {
@@ -133,17 +171,16 @@ export function wereCommuteRouteChecksDeferred(): boolean {
   return commuteRouteChecksDeferred;
 }
 
-/** Route hours home → destination over the sim's current grid, or null when no route is priced. */
-function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: number, toWorldY: number, walkSpeed: number, gridOverride?: PathGrid): number | null {
+/** Weighted tile cost over the sim grid; null means pending and Infinity means disconnected. */
+function routeCommuteCost(fromWorldX: number, fromWorldY: number, toWorldX: number, toWorldY: number, gridOverride?: PathGrid): number | null {
   const grid = gridOverride ?? getCurrentPathGrid();
   if (!grid) return null;
   const fromX = Math.floor(fromWorldX / PATH_CELL);
   const fromY = Math.floor(fromWorldY / PATH_CELL);
   const toX = Math.floor(toWorldX / PATH_CELL);
   const toY = Math.floor(toWorldY / PATH_CELL);
-  // Co-located buildings are the straight line's case, not the search's.
-  if (fromX === toX && fromY === toY) return null;
-  const key = `${walkSpeed}|${fromX},${fromY}>${toX},${toY}`;
+  if (fromX === toX && fromY === toY) return 0;
+  const key = `${fromX},${fromY}>${toX},${toY}`;
   let cache = routeCostCache.get(grid);
   if (!cache) {
     cache = new Map<string, number>();
@@ -152,17 +189,19 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
   if (gridOverride) {
-    // Read-only planner: never consume or reset the assignment sweep's global
-    // search budget, and never treat a speculative placement as a real job.
+    // Read-only preview never consumes the live search budget or caches timed-out routes.
     const preview = findRouteCostOutcome(grid, fromX, fromY, toX, toY, MAX_COMMUTE_ROUTE_SEARCH_NODES);
-    const hours = preview.cost == null ? Infinity
-      : commuteLeadHoursFor(preview.cost * PATH_CELL, walkSpeed);
+    if (preview.budgetExhausted) return null;
+    const cost = preview.cost ?? Infinity;
     if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
-    cache.set(key, hours);
-    return hours;
+    cache.set(key, cost);
+    return cost;
   }
-  // A food-priority prepass and the job pass may request the same unresolved commute; retry it
-  // with a larger A* node limit on the next staffing pulse, not within this one.
+  // A bounded terminal timeout never becomes an authoritative no-route verdict.
+  if (terminalRouteBudgets.get(grid)?.has(key)) {
+    commuteRouteChecksDeferred = true;
+    return null;
+  }
   const attempted = attemptedRoutesThisPass.get(grid);
   if (attempted?.has(key)) {
     commuteRouteChecksDeferred = true;
@@ -197,8 +236,15 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
         commuteRouteChecksDeferred = true;
         return null;
       }
-      // An unpriced, overly complex commute is not an acceptable new job; cache the refusal
-      // instead of searching without bound.
+      let terminal = terminalRouteBudgets.get(grid);
+      if (!terminal) {
+        terminal = new Set<string>();
+        terminalRouteBudgets.set(grid, terminal);
+      }
+      if (terminal.size >= COMMUTE_ROUTE_CACHE_LIMIT) terminal.clear();
+      terminal.add(key);
+      commuteRouteChecksDeferred = true;
+      return null;
     }
     retries?.delete(key);
     if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
@@ -206,11 +252,65 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
     return Infinity;
   }
   retries?.delete(key);
-  // A* steps are tile units, so the walk distance is the route's step cost in world px.
-  const hours = commuteLeadHoursFor(search.cost * PATH_CELL, walkSpeed);
   if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
-  cache.set(key, hours);
-  return hours;
+  cache.set(key, search.cost);
+  return search.cost;
+}
+
+
+/** Same walkable entrances and routed travel evidence for work, school, housing and bot previews. */
+export function quoteBuildingCommute(
+  origin: Readonly<{ x: number; y: number }> | Building,
+  destination: Readonly<{ x: number; y: number }> | Building,
+  walkSpeed: number,
+  gridOverride?: PathGrid,
+): CommuteVerdict {
+  const grid = gridOverride ?? getCurrentPathGrid();
+  if (!grid) return { status: 'pending', reason: 'no-grid' };
+  // A lightweight test-only grid without its blocked mask cannot validate facade points.
+  const hasBlockedMask = grid.blocked?.length === grid.cols * grid.rows;
+  const fromBuilding = hasBlockedMask && 'type' in origin && 'width' in origin && 'height' in origin;
+  const toBuilding = hasBlockedMask && 'type' in destination && 'width' in destination && 'height' in destination;
+  const fromPoints = fromBuilding ? buildingAccessPoints(origin as Building, grid) : [origin];
+  const toPoints = toBuilding ? buildingAccessPoints(destination as Building, grid) : [destination];
+  if (fromPoints.length === 0 || toPoints.length === 0) return { status: 'unreachable' };
+
+  const pairs = fromPoints.flatMap((from) => toPoints.map((to) => ({
+    from, to, distance: Math.hypot(to.x - from.x, to.y - from.y),
+  }))).sort((a, b) => a.distance - b.distance
+    || a.from.x - b.from.x || a.from.y - b.from.y
+    || a.to.x - b.to.x || a.to.y - b.to.y);
+  const speed = commuteWalkSpeed(walkSpeed, WORK_COMMUTE_RUSH) * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;
+  let bestDistance = Infinity;
+  let cheapestPendingBound = Infinity;
+  for (const { from, to, distance: straightDistance } of pairs) {
+    // Every road discount is bounded by ROAD_SPEED_MULT: this is a safe geometric
+    // lower bound, used for pruning only after a confirmed route is priced.
+    const lowerBound = straightDistance / (ROAD_SPEED_MULT + 0.001);
+    if (lowerBound >= bestDistance) continue;
+    const costTiles = routeCommuteCost(from.x, from.y, to.x, to.y, gridOverride);
+    if (costTiles === null) {
+      cheapestPendingBound = Math.min(cheapestPendingBound, lowerBound);
+      continue;
+    }
+    if (costTiles === Infinity) continue;
+    const start = { x: Math.floor(from.x / PATH_CELL), y: Math.floor(from.y / PATH_CELL) };
+    const goal = { x: Math.floor(to.x / PATH_CELL), y: Math.floor(to.y / PATH_CELL) };
+    const routeDistance = start.x === goal.x && start.y === goal.y
+      ? Math.hypot(to.x - from.x, to.y - from.y)
+      : costTiles * PATH_CELL
+        + Math.hypot(from.x - (start.x + 0.5) * PATH_CELL, from.y - (start.y + 0.5) * PATH_CELL)
+        + Math.hypot(to.x - (goal.x + 0.5) * PATH_CELL, to.y - (goal.y + 0.5) * PATH_CELL);
+    // Doorstep-to-doorstep weighted cost is the effective commute. An unpaved
+    // building-centre floor would erase real road discounts and reject legal jobs.
+    bestDistance = Math.min(bestDistance, routeDistance);
+  }
+  // A pending pair with a lower possible cost prevents a confirmed optimal quote.
+  if (cheapestPendingBound < bestDistance) return { status: 'pending', reason: 'search-budget' };
+  if (!Number.isFinite(bestDistance)) return { status: 'unreachable' };
+  return { status: 'priced', travelHours: bestDistance / speed / TICKS_PER_HOUR,
+    leadHours: commuteLeadHoursFor(bestDistance, walkSpeed),
+    costTiles: bestDistance / PATH_CELL };
 }
 
 /**
@@ -222,7 +322,16 @@ export function straightLineCommuteLowerBoundHours(
   to: { x: number; y: number },
   walkSpeed: number,
 ): number {
-  const distance = Math.hypot(to.x - from.x, to.y - from.y);
+  // A building is entered at a walkable facade, never at its solid centre.
+  // Subtract each footprint's enclosing radius plus permitted arrival standoff:
+  // this cannot overstate the minimum possible routed distance.
+  const fromRadius = 'width' in from && 'height' in from
+    && typeof from.width === 'number' && typeof from.height === 'number'
+    ? Math.hypot(from.width / 2, from.height / 2) + BUILDING_REACH_RADIUS_PX : 0;
+  const toRadius = 'width' in to && 'height' in to
+    && typeof to.width === 'number' && typeof to.height === 'number'
+    ? Math.hypot(to.width / 2, to.height / 2) + BUILDING_REACH_RADIUS_PX : 0;
+  const distance = Math.max(0, Math.hypot(to.x - from.x, to.y - from.y) - fromRadius - toRadius);
   const perTick = commuteWalkSpeed(walkSpeed, WORK_COMMUTE_RUSH)
     * ROAD_SPEED_MULT
     * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;
@@ -240,9 +349,10 @@ export function estimatedCommuteHours(
   buildings: readonly Building[],
   walkSpeed: number,
 ): number {
-  const routed = routeCommuteHours(home.x, home.y, destination.x, destination.y, walkSpeed);
-  if (routed === Infinity) return Infinity;
-  if (routed !== null) return routed;
+  const routed = quoteBuildingCommute(home, destination, walkSpeed);
+  if (routed.status === 'unreachable') return Infinity;
+  if (routed.status === 'priced') return routed.leadHours;
+  if (getCurrentPathGrid()) return Infinity;
   return commuteLeadHoursFor(straightRouteCost(home.x, home.y, destination.x, destination.y, buildings), walkSpeed);
 }
 
@@ -265,25 +375,18 @@ export function isWithinAssignableCommute(
     : buildingById?.get(entity.residenceBuildingId)
       ?? buildings.find((candidate) => candidate.id === entity.residenceBuildingId);
   const from = home ?? entity;
-  // Same path cell is handled locally by the route owner: it needs no A* search.
-  if (Math.floor(from.x / PATH_CELL) === Math.floor(building.x / PATH_CELL)
-    && Math.floor(from.y / PATH_CELL) === Math.floor(building.y / PATH_CELL)) return true;
-  // Bot placement may pass its own read-only map; reuse the same cost rule without mutating the
-  // live grid. The proposed destination is not built yet, so it must not block its own approach.
+  // Speculative placements use their own map; the unfinished plot is not a solid footprint yet.
   const previewBuildings = worldMap
-    ? buildings.filter((candidate) => candidate !== building)
-    : buildings;
-  const previewGrid = worldMap ? getReadOnlyPathGrid(worldMap, previewBuildings as Building[]) : null;
+    ? buildings.filter((candidate) => candidate !== building) as Building[]
+    : undefined;
+  const previewGrid = worldMap ? getReadOnlyPathGrid(worldMap, previewBuildings) : undefined;
   const grid = previewGrid ?? getCurrentPathGrid();
-  // Only bot previews pass a grid override. Actual staffing MUST use the
-  // live bounded/retryable route budget, not the preview-only fast path.
-  const routed = routeCommuteHours(from.x, from.y, building.x, building.y, walkSpeed,
-    previewGrid ?? undefined);
-  if (routed !== null) return routed <= MAX_ASSIGNABLE_COMMUTE_HOURS;
+  const routed = quoteBuildingCommute(from, building, walkSpeed, previewGrid);
+  if (routed.status === 'priced') return routed.leadHours <= MAX_ASSIGNABLE_COMMUTE_HOURS;
+  if (routed.status === 'unreachable' || grid) return false;
 
   // A failed or budget-exhausted search is unknown, not a passable road: defer new jobs. Only a
   // bootstrap with no map falls back to the straight-road estimate.
-  if (grid) return false;
   return commuteLeadHoursFor(
     straightRouteCost(from.x, from.y, building.x, building.y, buildings),
     walkSpeed,

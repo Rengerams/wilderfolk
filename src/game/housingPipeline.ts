@@ -5,11 +5,12 @@ import type { ResidenceOccupancy } from './housingModel';
 import { findLivingHuman, collectFamilyMembers, collectMinorHousehold, collectOwnHousehold, indexFamilyRelations, isAdultChildAtHome, getChildCustodian, unitIsKinOf, unitKinIndex, type UnitKinIndex } from './housingModel';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, buildPlayerResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity, residenceRoomFor, countResidentsInBuilding, isAssignableHome } from './housingModel';
-import { beginCommuteRoutePass, estimatedCommuteHours, MAX_ASSIGNABLE_COMMUTE_HOURS, straightLineCommuteLowerBoundHours } from './commuteReach';
+import { beginCommuteRoutePass, estimatedCommuteHours, quoteBuildingCommute, MAX_ASSIGNABLE_COMMUTE_HOURS, straightLineCommuteLowerBoundHours } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { recordHousingRelocation } from './housingRelocationMonitor';
+import { getCurrentPathGrid } from './pathfinding';
 
 export type ResidenceMoveReason = 'assignment' | 'family' | 'guardian' | 'commute' | 'leader'
   | 'departure' | 'birth' | 'death' | 'demolition' | 'load' | 'moon-form' | 'divorce' | 'prison' | 'player';
@@ -1896,7 +1897,13 @@ function cachedCommuteHours(
   const key = `${home.id}:${destination.id}`;
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
-  const hours = estimatedCommuteHours(home, destination, buildings, walkSpeed);
+  // Bare fixture/bootstrap calls have no current map: the legacy centre estimate is their
+  // deterministic policy, indexed or not. A live grid requires priced route evidence instead.
+  const grid = getCurrentPathGrid();
+  const quote = grid ? quoteBuildingCommute(home, destination, walkSpeed) : null;
+  const hours = !quote ? estimatedCommuteHours(home, destination, buildings, walkSpeed)
+    : quote.status === 'priced' ? quote.leadHours
+      : quote.status === 'unreachable' ? Infinity : NaN;
   cache.set(key, hours);
   return hours;
 }
@@ -1913,7 +1920,7 @@ function pupilsKeepSchoolReach(
   for (const member of unit) {
     if (member.schoolBuildingId == null) continue;
     const hours = cachedCommuteHours(home, member.schoolBuildingId, buildings, walkSpeed, cache, buildingsById);
-    if (hours > MAX_ASSIGNABLE_COMMUTE_HOURS) return false;
+    if (!Number.isFinite(hours) || hours > MAX_ASSIGNABLE_COMMUTE_HOURS) return false;
   }
   return true;
 }
@@ -1939,10 +1946,12 @@ export function pickCommuteRelocation(
   if (!home || isLeaderHouseResidence(home)) return undefined;
 
   const current = householdCommuteHours(unit, home, commuteBuildings, walkSpeed, cache, buildingsById);
-  if (current <= 0) return undefined;
+  // NaN means an unpriced route, but Infinity is a proven disconnection we must repair.
+  if (Number.isNaN(current) || current <= 0) return undefined;
 
   // A household total can improve while one member's own day worsens; no candidate may do that.
   const before = unit.map((member) => memberCommuteHours(member, home, commuteBuildings, walkSpeed, cache, buildingsById));
+  if (before.some((hours) => Number.isNaN(hours))) return undefined;
   let best: Building | undefined;
   let bestHours = current;
   for (const residence of candidates) {
@@ -1952,9 +1961,11 @@ export function pickCommuteRelocation(
     if (householdCommuteLowerBound(unit, residence, walkSpeed, buildingsById) >= bestHours) continue;
     if (!pupilsKeepSchoolReach(unit, residence, commuteBuildings, walkSpeed, cache, buildingsById)) continue;
     const hours = householdCommuteHours(unit, residence, commuteBuildings, walkSpeed, cache, buildingsById);
-    if (hours > bestHours || (hours === bestHours && (best === undefined || residence.id >= best.id))) continue;
+    if (!Number.isFinite(hours) || hours > bestHours
+      || (hours === bestHours && (best === undefined || residence.id >= best.id))) continue;
     const after = unit.map((member) => memberCommuteHours(member, residence, commuteBuildings, walkSpeed, cache, buildingsById));
-    if (after.some((memberHours, index) => memberHours - before[index] > RELOCATION_MAX_MEMBER_REGRESSION_HOURS)) continue;
+    if (after.some((memberHours, index) => !Number.isFinite(memberHours)
+      || memberHours - before[index] > RELOCATION_MAX_MEMBER_REGRESSION_HOURS)) continue;
     bestHours = hours;
     best = residence;
   }
@@ -1983,7 +1994,7 @@ function commuteSwapIsWorthwhile(
   const commuteBuildings = index.roads;
   const beforeA = householdCommuteHours(a, homeA, commuteBuildings, walkSpeed, cache, index.buildingsById);
   const beforeB = householdCommuteHours(b, homeB, commuteBuildings, walkSpeed, cache, index.buildingsById);
-  if (beforeA <= 0 || beforeB <= 0) return false;
+  if (Number.isNaN(beforeA) || Number.isNaN(beforeB) || beforeA <= 0 || beforeB <= 0) return false;
   if (householdCommuteLowerBound(a, homeB, walkSpeed, index.buildingsById) >= beforeA) return false;
   if (householdCommuteLowerBound(b, homeA, walkSpeed, index.buildingsById) >= beforeB) return false;
   if (!pupilsKeepSchoolReach(a, homeB, commuteBuildings, walkSpeed, cache, index.buildingsById)) return false;
@@ -1991,7 +2002,8 @@ function commuteSwapIsWorthwhile(
 
   const afterA = householdCommuteHours(a, homeB, commuteBuildings, walkSpeed, cache, index.buildingsById);
   const afterB = householdCommuteHours(b, homeA, commuteBuildings, walkSpeed, cache, index.buildingsById);
-  if (afterA >= beforeA || afterB >= beforeB) return false;
+  if (!Number.isFinite(afterA) || !Number.isFinite(afterB)
+    || afterA >= beforeA || afterB >= beforeB) return false;
   const totalBefore = beforeA + beforeB;
   const totalSaved = totalBefore - afterA - afterB;
   if (totalSaved < RELOCATION_MIN_SAVED_HOURS) return false;
@@ -2005,7 +2017,9 @@ function commuteSwapIsWorthwhile(
     ...a.map((member) => memberCommuteHours(member, homeB, commuteBuildings, walkSpeed, cache, index.buildingsById)),
     ...b.map((member) => memberCommuteHours(member, homeA, commuteBuildings, walkSpeed, cache, index.buildingsById)),
   ];
-  return afterMembers.every((hours, i) => hours - beforeMembers[i] <= RELOCATION_MAX_MEMBER_REGRESSION_HOURS);
+  return beforeMembers.every((hours) => !Number.isNaN(hours))
+    && afterMembers.every((hours, i) => Number.isFinite(hours)
+      && hours - beforeMembers[i] <= RELOCATION_MAX_MEMBER_REGRESSION_HOURS);
 }
 
 /** Writes both halves of a validated swap and logs each household where it landed. */

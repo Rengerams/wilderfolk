@@ -2,10 +2,10 @@ import { COMMUTE_CONFIG, commuteWalkSpeed } from '../commuteReach';
 import { PATH_CELL } from '../gameTypes';
 import { BuildingType } from '../buildings';
 import type { Building, Entity } from '../gameTypes';
-import { buildingAccessPoint, isAtBuildingReach } from '../buildingAccess';
+import { buildingAccessPoint, buildingAccessPoints, isAtBuildingReach } from '../buildingAccess';
 import { PRISON_GUARDS_MAX } from '../prisonShifts';
 import { isActiveMoonHowler } from '../moonHowler';
-import { invalidateCommutePathsForWalker, isGroundWalkableAt, isWalkStepAllowed, steerWithPath } from '../pathfinding';
+import { getCurrentPathGrid, getNavigationQuote, invalidateCommutePathsForWalker, isGroundWalkableAt, isWalkStepAllowed, lineCrossesBlocked, steerWithPath } from '../pathfinding';
 import { faceVelocity, steerEntityToward } from './movementSteering';
 
 /** Outdoor sites have no interior; construction crews stay visible until completion. */
@@ -279,9 +279,15 @@ export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
   entity.vy = 0;
 }
 
+/** Selected frontage belongs to the walker, never to the building or its saved roster. */
+const walkerBuildingAccess = new WeakMap<Entity, {
+  buildingId: number; grid: ReturnType<typeof getCurrentPathGrid>; x: number; y: number;
+}>();
+
 /**
- * Walks a settler to a building's one access and reports whether the building is reached. Arrival
- * never writes indoor state: the caller's activity decides whether the settler goes inside.
+ * Walk to any reachable facade, not a fixed southern entrance. An obstructed approach cannot
+ * authorize arrival; keep the chosen facade while walking so the route does not oscillate.
+ * Arrival never writes indoor state: the caller's activity decides whether to enter.
  */
 export function commuteHumanToBuilding(
   entity: Entity,
@@ -289,16 +295,62 @@ export function commuteHumanToBuilding(
   speed: number,
   rush = 1,
 ): boolean {
-  const target = buildingAccessPoint(building);
-  const dx = target.x - entity.x;
-  const dy = target.y - entity.y;
-  const dist = Math.hypot(dx, dy);
-
   if (isAtBuildingReach(entity, building)) {
     entity.vx = 0;
     entity.vy = 0;
+    walkerBuildingAccess.delete(entity);
     return true;
   }
+  const grid = getCurrentPathGrid();
+  const candidates = buildingAccessPoints(building, grid);
+  if (candidates.length === 0) {
+    entity.vx = 0;
+    entity.vy = 0;
+    walkerBuildingAccess.delete(entity);
+    return false;
+  }
+  const saved = walkerBuildingAccess.get(entity);
+  let target = saved?.buildingId === building.id && saved.grid === grid
+    ? candidates.find((point) => point.x === saved.x && point.y === saved.y) : undefined;
+  if (!target) {
+    let bestCost = Infinity;
+    let pendingPoint: (typeof candidates)[number] | undefined;
+    for (const point of candidates) {
+      let cost = Math.hypot(point.x - entity.x, point.y - entity.y);
+      if (grid && lineCrossesBlocked(grid, entity.x, entity.y, point.x, point.y)) {
+        const quote = getNavigationQuote(grid,
+          { x: Math.floor(entity.x / PATH_CELL), y: Math.floor(entity.y / PATH_CELL) },
+          { x: Math.floor(point.x / PATH_CELL), y: Math.floor(point.y / PATH_CELL) },
+          { maxNodes: 6000 });
+        if (quote.status !== 'priced') {
+          // A pending shared quote does not prove this facade is unreachable.
+          // Select it only if no confirmed route wins, so steerWithPath can try
+          // its bounded non-road heuristic and safely reject a real obstruction.
+          if (quote.status === 'pending' || !isGroundWalkableAt(entity.x, entity.y, grid)) {
+            pendingPoint ??= point;
+          }
+          continue;
+        }
+        cost = quote.costTiles * PATH_CELL;
+      }
+      if (cost < bestCost) {
+        bestCost = cost;
+        target = point;
+      }
+    }
+    target ??= pendingPoint;
+    if (target) walkerBuildingAccess.set(entity, {
+      buildingId: building.id, grid, x: target.x, y: target.y,
+    });
+  }
+  if (!target) {
+    entity.vx = 0;
+    entity.vy = 0;
+    return false;
+  }
+  const dx = target.x - entity.x;
+  const dy = target.y - entity.y;
+  const dist = Math.hypot(dx, dy);
 
   if (dist === 0) {
     entity.vx = 0;
@@ -330,7 +382,8 @@ export function commuteHumanToBuilding(
   // the tick is the single integration (the stepper must not move the entity as well).
   if (handled === 'path') return false;
   if (handled === 'blocked') {
-    // No path exists. Wall-sliding toward the inaccessible door cannot create a route.
+    // A changed obstacle may invalidate this side; re-evaluate all usable facades next tick.
+    walkerBuildingAccess.delete(entity);
     entity.vx = 0;
     entity.vy = 0;
     return false;
@@ -345,10 +398,11 @@ export function commuteHumanToBuilding(
     return false;
   }
 
-  // Final approach is capped by the same bounded pace and never overshoots the doorstep.
+  // The final approach retains the commute rush: the lead-time estimate already prices that pace.
+  // Keep easing near the facade, but never overshoot the doorstep.
   const approachSpeed = Math.min(
     moveSpeed,
-    Math.max(speed * COMMUTE_CONFIG.APPROACH_MIN_SPEED_RATIO, dist * COMMUTE_CONFIG.APPROACH_RATE_PER_TICK),
+    Math.max(moveSpeed * COMMUTE_CONFIG.APPROACH_MIN_SPEED_RATIO, dist * COMMUTE_CONFIG.APPROACH_RATE_PER_TICK),
   );
   const step = Math.min(dist, approachSpeed);
   entity.vx = (dx / dist) * step;

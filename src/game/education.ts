@@ -1,5 +1,5 @@
 import type { WorldState, Entity, Building } from './gameTypes';
-import { BuildingType, EntityType, JobType } from './gameTypes';
+import { BuildingType, EntityType, JobType, PATH_CELL } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycle';
 import { isWorkDay } from './dayCycleClock';
 import { SCHOOL_MIN_AGE } from './gameConstants';
@@ -11,9 +11,10 @@ import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
-import { commuteDistanceFromResidence } from './simulation/humanMovement';
 import { isAtBuildingReach } from './buildingAccess';
-import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
+import { commuteDistanceFromResidence } from './simulation/humanMovement';
+import { getCurrentPathGrid } from './pathfinding';
+import { quoteBuildingCommute, commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
 
 /** School days for basic graduation perks. */
@@ -96,20 +97,42 @@ export function findSchoolForChild(
   const current = schools.find((b) => b.id === child.schoolBuildingId);
   if (current && !reviewTransfer && (reserved?.get(current.id) ?? 0) < schoolCapacity(current)) return current;
 
+  const gridReady = !!getCurrentPathGrid();
   let best: Building | undefined;
-  let bestDistance = Infinity;
+  let bestCost = Infinity;
+  let currentCost = Infinity;
+  let currentEligible = false;
+  let currentPending = false;
+  let pending = false;
   for (const school of schools) {
     if ((reserved?.get(school.id) ?? 0) >= schoolCapacity(school)) continue;
-    const distance = commuteDistanceFromResidence(child, home, school);
-    if (commuteLeadHoursFor(distance, walkSpeed) > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
-    if (distance < bestDistance) {
+    const route = gridReady ? quoteBuildingCommute(home ?? child, school, walkSpeed) : null;
+    if (route?.status === 'pending') {
+      pending = true;
+      if (current?.id === school.id) currentPending = true;
+      continue;
+    }
+    if (route?.status === 'unreachable') continue;
+    const distance = route?.status === 'priced'
+      ? route.costTiles * PATH_CELL : commuteDistanceFromResidence(child, home, school);
+    const hours = route?.status === 'priced'
+      ? route.leadHours : commuteLeadHoursFor(distance, walkSpeed);
+    if (current?.id === school.id) currentCost = distance;
+    if (hours > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
+    if (current?.id === school.id) currentEligible = true;
+    const cost = distance;
+    if (cost < bestCost) {
       best = school;
-      bestDistance = distance;
+      bestCost = cost;
     }
   }
-  if (!current || !best || current.id === best.id) return best;
-  const distance = commuteDistanceFromResidence(child, home, current);
-  if (distance - bestDistance < 12 || bestDistance > distance * 0.75) return current;
+  // The current seat survives missing route evidence, not a completed over-limit or
+  // unreachable verdict. Free an ineligible seat even when no alternative is available.
+  if (!current) return best;
+  if (currentPending) return current;
+  if (!currentEligible) return best;
+  if (pending || !best || current.id === best.id) return current;
+  if (currentCost - bestCost < 12 || bestCost > currentCost * 0.75) return current;
   return best;
 }
 

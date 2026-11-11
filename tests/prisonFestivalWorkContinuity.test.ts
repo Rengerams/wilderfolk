@@ -230,6 +230,34 @@ describe('a prison is open 24 hours', () => {
     expect(prison.uncoveredPrisonHours ?? []).toEqual([]);
   });
 
+  it('posts the new-week morning guard by 07:00, not merely someone from the overlapping watch', () => {
+    const house = building(20, BuildingType.House, 350, 60, [4]);
+    const prison = building(PRISON_ID, BuildingType.Prison, PRISON_X, PRISON_Y, [1, 2, 3, 4, 9]);
+    // The three incumbent guards are already close. The incoming Monday watch lives
+    // across town: seeing any guard at the prison would hide a late relief.
+    const guards = [1, 2, 3].map((id) =>
+      human(id, { job: JobType.PrisonGuard, workerBuildingId: PRISON_ID, x: 608, y: 71 }),
+    );
+    const incoming = human(4, {
+      job: JobType.PrisonGuard, workerBuildingId: PRISON_ID,
+      residenceBuildingId: 20, x: 350, y: 60,
+    });
+    const prisoner = human(9, {
+      prisonBuildingId: PRISON_ID, prisonerUntilTick: 10000,
+      prisonSentenceCrime: 'scandal', x: 608, y: 71,
+    });
+    const state = worldState([...guards, incoming, prisoner], [house, prison], null);
+    // Week 1 starts Monday. In the rotating four-person crew guard 4 holds the 07:00 watch.
+    state.tick = 6 * TICKS_PER_DAY + 16 * TICKS_PER_HOUR;
+    const mondayStart = 7 * TICKS_PER_DAY + 7 * TICKS_PER_HOUR;
+    while (state.tick < mondayStart) gameTick(state);
+    expect(isAtBuildingReach(incoming, prison) || incoming.indoorBuildingId === prison.id,
+      `incoming morning guard late: at=(${incoming.x.toFixed(1)},${incoming.y.toFixed(1)}), `
+        + `post=(${prison.x},${prison.y}), job=${incoming.job}, `
+        + `workerBuilding=${incoming.workerBuildingId}, stamina=${incoming.needs?.stamina}`,
+    ).toBe(true);
+  });
+
   it('holds every clock hour with a crew larger than the watch, which rests a guard each day', () => {
     // The owner's report was "prisoners escape with 8 guards on the roster". The shift rows name three
     // of the crew and list the rest as off duty, so the risk is a rotation that leaves an hour open.

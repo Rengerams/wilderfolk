@@ -1,0 +1,117 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { BuildingType, EntityType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
+import { beginCommuteRoutePass, isWithinAssignableCommute, quoteBuildingCommute } from '../src/game/commuteReach';
+import { findSchoolForChild, syncSchoolAssignments } from '../src/game/education';
+import { resetPathGridCaches, setCurrentPathMap } from '../src/game/pathfinding';
+import { building, human } from '../src/test/factories';
+import { testWorldMap } from '../src/test/worldMapFixtures';
+
+describe('shared navigation decisions use the same real walkable map', () => {
+  beforeEach(() => {
+    resetPathGridCaches();
+    beginCommuteRoutePass();
+  });
+  afterEach(() => setCurrentPathMap(null));
+
+  it('enrolls at a reachable school rather than a geographically nearer one across a river', () => {
+    const map = testWorldMap({
+      tilesX: 40, tilesY: 40, seed: 3001,
+      tileType: (x) => x === 20 ? TerrainType.River : undefined,
+    });
+    const nearbyAcrossRiver = building(2, BuildingType.School, {
+      x: 25 * PATH_CELL, y: 15 * PATH_CELL, completed: true, occupants: [100],
+    });
+    const reachable = building(3, BuildingType.School, {
+      x: 10 * PATH_CELL, y: 15 * PATH_CELL, completed: true, occupants: [101],
+    });
+    const child = human(7, {
+      type: EntityType.Human, x: 19 * PATH_CELL, y: 15 * PATH_CELL, age: 10,
+      schoolBuildingId: undefined,
+    });
+    setCurrentPathMap(map, [reachable, nearbyAcrossRiver]);
+    expect(findSchoolForChild(child, [nearbyAcrossRiver, reachable])?.id).toBe(reachable.id);
+  });
+
+  it('releases a definitively over-limit school seat on the daily review', () => {
+    const map = testWorldMap({ tilesX: 110, tilesY: 45, seed: 4001 });
+    const home = building(20, BuildingType.House, {
+      x: 100, y: 200, completed: true,
+    });
+    const school = building(21, BuildingType.School, {
+      x: 800, y: 200, completed: true, occupants: [100],
+    });
+    const child = human(22, { x: home.x, y: home.y, age: 10,
+      residenceBuildingId: home.id, schoolBuildingId: school.id });
+    setCurrentPathMap(map, [home, school]);
+    const quote = quoteBuildingCommute(home, school, 8);
+    expect(quote.status).toBe('priced');
+    if (quote.status !== 'priced') return;
+    expect(quote.leadHours).toBeGreaterThan(2);
+    expect(findSchoolForChild(child, [home, school], new Map(), true, 8)).toBeUndefined();
+    const assigned = syncSchoolAssignments([child], [home, school], true, 8);
+    expect(assigned.has(child.id)).toBe(false);
+    expect(child.schoolBuildingId).toBeUndefined();
+  });
+
+  it('keeps a valid incumbent school seat on the daily review', () => {
+    const map = testWorldMap({ tilesX: 35, tilesY: 35, seed: 4002 });
+    const home = building(30, BuildingType.House, { x: 100, y: 200 });
+    const school = building(31, BuildingType.School, {
+      x: 200, y: 200, occupants: [101],
+    });
+    const child = human(32, { x: 100, y: 200, age: 10,
+      residenceBuildingId: home.id, schoolBuildingId: school.id });
+    setCurrentPathMap(map, [home, school]);
+    // A completed short commute retains its existing seat during a transfer review.
+    expect(findSchoolForChild(child, [home, school], new Map(), true, 8)?.id)
+      .toBe(school.id);
+  });
+
+  it('keeps the real road discount when approving a 700-pixel commute', () => {
+    const map = testWorldMap({ tilesX: 110, tilesY: 45, seed: 4003 });
+    const home = building(40, BuildingType.House, { x: 100, y: 200 });
+    const workplace = building(41, BuildingType.Farm, { x: 800, y: 200 });
+    const road = building(42, BuildingType.Road, {
+      x: 450, y: 235, width: 720, height: 10, completed: true,
+    });
+    const worker = human(43, {
+      x: home.x, y: home.y, residenceBuildingId: home.id,
+    });
+    setCurrentPathMap(map, [home, workplace]);
+    const unpaved = quoteBuildingCommute(home, workplace, 8);
+    expect(unpaved.status).toBe('priced');
+    if (unpaved.status !== 'priced') return;
+    expect(unpaved.leadHours).toBeGreaterThan(2);
+    expect(isWithinAssignableCommute(worker, workplace, [home, workplace], 8)).toBe(false);
+
+    setCurrentPathMap(map, [home, workplace, road]);
+    beginCommuteRoutePass();
+    const paved = quoteBuildingCommute(home, workplace, 8);
+    expect(paved.status).toBe('priced');
+    if (paved.status !== 'priced') return;
+    expect(paved.leadHours).toBeLessThanOrEqual(2);
+    expect(paved.travelHours).toBeLessThan(unpaved.travelHours);
+    expect(isWithinAssignableCommute(worker, workplace, [home, workplace, road], 8)).toBe(true);
+  });
+
+  it('refuses a new workforce commute across a river while accepting a priced same-bank job', () => {
+    const map = testWorldMap({
+      tilesX: 40, tilesY: 40, seed: 3002,
+      tileType: (x) => x === 20 ? TerrainType.River : undefined,
+    });
+    const home = building(1, BuildingType.House, {
+      x: 12 * PATH_CELL, y: 15 * PATH_CELL, completed: true,
+    });
+    const across = building(2, BuildingType.Farm, {
+      x: 30 * PATH_CELL, y: 15 * PATH_CELL, completed: true,
+    });
+    const local = building(3, BuildingType.Farm, {
+      x: 16 * PATH_CELL, y: 15 * PATH_CELL, completed: true,
+    });
+    const worker = human(11, { x: home.x, y: home.y, residenceBuildingId: home.id });
+    const buildings = [home, across, local];
+    setCurrentPathMap(map, buildings);
+    expect(isWithinAssignableCommute(worker, across, buildings, 6.4)).toBe(false);
+    expect(isWithinAssignableCommute(worker, local, buildings, 6.4)).toBe(true);
+  });
+});

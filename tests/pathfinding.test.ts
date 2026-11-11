@@ -32,6 +32,18 @@ describe('pathfinding', () => {
     expect(lineCrossesBlocked(grid, 25, 55, 4975, 55)).toBe(true);
   });
 
+  it('stops mixed-sign diagonal traversal at exact corner endpoints', () => {
+    const grid = getPathGrid(makeMap(8, 8, 749, () => false));
+    for (const [x0, y0, x1, y1] of [
+      [5, 35, 20, 20],
+      [20, 20, 5, 35],
+      [35, 5, 20, 20],
+      [20, 20, 35, 5],
+    ]) {
+      expect(lineCrossesBlocked(grid, x0, y0, x1, y1)).toBe(false);
+    }
+  });
+
   it('blocks an exactly diagonal line between two solid corner neighbours', () => {
     const map = makeMap(8, 8, 74, (x, y) => (x === 3 && y === 2) || (x === 2 && y === 3));
     const grid = getPathGrid(map);
@@ -185,6 +197,39 @@ describe('pathfinding', () => {
     expect(grid.blocked[4 * grid.cols + 6], 'the farm centre is still walkable').toBe(1);
     expect(path, 'there is still a route around the farm').not.toBeNull();
     expect(path!.some((tile) => tile.x >= 4 && tile.x <= 9 && tile.y >= 3 && tile.y <= 5)).toBe(false);
+  });
+
+  it('ignores reserved scenery and decorative structures on ordinary land', () => {
+    const map = makeMap(12, 8, 2031, () => false);
+    const at = 3 * map.width + 6;
+    map.pathGrid![at] = 2;
+    const decor: Building = {
+      id: 901, type: BuildingType.Garden, x: 6.5 * PATH_CELL, y: 3.5 * PATH_CELL,
+      width: PATH_CELL, height: PATH_CELL,
+      occupants: [], level: 1, constructionProgress: 100, completed: true,
+      health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
+    };
+    const grid = getPathGrid(map, [decor]);
+    expect(grid.blocked[at], 'scenery and non-solid decor cannot block walkers').toBe(0);
+    expect(findPath(grid, 1, 3, 10, 3)).not.toBeNull();
+    expect(lineCrossesBlocked(grid, 15, 35, 105, 35)).toBe(false);
+  });
+
+  it('rebuilds the route when a completed solid structure is removed', () => {
+    const map = makeMap(12, 8, 2032, () => false);
+    const wall: Building = {
+      id: 902, type: BuildingType.Wall, x: 6.5 * PATH_CELL, y: 3.5 * PATH_CELL,
+      width: PATH_CELL, height: PATH_CELL,
+      occupants: [], level: 1, constructionProgress: 100, completed: true,
+      health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
+    };
+    const blocked = getPathGrid(map, [wall]);
+    expect(blocked.blocked[3 * blocked.cols + 6]).toBe(1);
+    expect(lineCrossesBlocked(blocked, 15, 35, 105, 35)).toBe(true);
+    const clear = getPathGrid(map, []);
+    expect(clear).not.toBe(blocked);
+    expect(clear.blocked[3 * clear.cols + 6]).toBe(0);
+    expect(lineCrossesBlocked(clear, 15, 35, 105, 35)).toBe(false);
   });
 
   it('keeps roads, squares and unfinished buildings walkable', () => {

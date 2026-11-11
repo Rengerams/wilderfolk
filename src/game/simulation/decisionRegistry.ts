@@ -39,6 +39,7 @@ export interface DecisionOwner {
  * Stable decision keys representing each distinct simulation subsystem.
  */
 export type DecisionKey =
+  | 'navigation'
   | 'workerMotionPresentation'
   | 'virtualPlayer'
   | 'chronicleProseNames'
@@ -50,6 +51,7 @@ export type DecisionKey =
   | 'workerFit'
   | 'completedBuildingLookup'
   | 'buildingAccess'
+  | 'humanLeisure'
   | 'settlerDeathAudio'
   | 'terrainClearingFields'
   | 'colonyMovementObservation'
@@ -85,6 +87,14 @@ export type DecisionKey =
   | 'commands';
 
 export const SIMULATION_DECISIONS = {
+  navigation: {
+    owner: 'pathfinding.ts — getNavigationQuote, searchRoute, sharedRouteCaches, getPathGrid, getReadOnlyPathGrid, resetPathGridCaches; commuteReach.ts — routeCommuteCost (internal budget verdict), quoteCommute (point-leg price), quoteBuildingCommute (validated facade-to-facade price)',
+    cadence: 'on-demand',
+    cadenceNote: 'No independent scheduler or saved writes. Strict shared quotes validate walkable endpoint tiles, cache only complete directed results and preserve node exhaustion as pending; generator decor reservations and decorative building footprints do not obstruct walking. Workforce, education, relocation, bot preview and walker steering consume shared map-scoped route evidence. Policy owners retain their individual writes and scheduled cadence.',
+    writes: [],
+    scheduledFrom: 'pathfinding.findRouteCostOutcome for valid tile endpoints; commuteReach.quoteCommute on demand',
+    testFile: 'tests/navigation.sharedRoutes.test.ts, tests/commuteRouteEstimate.test.ts',
+  },
   virtualPlayer: {
     owner: 'virtualPlayer.ts — decideVirtualPlayerAction, decideFood, decideUnstaffedFoodProducer, firstUnstaffedFoodProducer, wantedBootstrapCropSiteCount, needsAdditionalStore, decideIndustry, chooseRefugeeChoice (read-only policy proposals); economyLedger.isMeasuredFoodDeficit owns measured trend, getProjectedFoodSupply/isProjectedFoodShortfall own proactive demand risk',
     cadence: 'on-demand',
@@ -165,10 +175,18 @@ export const SIMULATION_DECISIONS = {
     scheduledFrom: 'townHall.isTownHallStaffed / getTownHallTradeMultiplier / getTownHallGovernanceEfficiency, villageLeadership election site, tickLayerRealtime election notification, virtualPlayer.decideFestival',
     testFile: 'tests/buildings.lookup.test.ts',
   },
+  humanLeisure: {
+    owner: 'humanLeisureBehavior.ts — tickHumanLeisure (single free-time entry), tickHumanChildLeisure, tickAdultLeisureMotive',
+    cadence: 'realtime',
+    cadenceNote: 'Called once per eligible humanTick free-time tick. Chooses child/adult activities and steering intent; humanTick owns the final movement step, and delegated physiology and social owners retain their writes.',
+    writes: ['human.vx', 'human.vy', 'human.indoorBuildingId'],
+    scheduledFrom: 'humanTick.tickHumans → humanLeisureBehavior.tickHumanLeisure',
+    testFile: 'tests/humanLeisureBehavior.test.ts, tests/simulation.decisionRegistry.test.ts',
+  },
   buildingAccess: {
-    owner: 'buildingAccess.ts — buildingAccessPoint (the one doorstep), isOpenDoorstep, isAtBuildingReach (the one arrival rule)',
+    owner: 'buildingAccess.ts — buildingAccessPoints (validated facades), buildingAccessPoint (canonical UI frontage), isOpenDoorstep (facade corridor), isAtBuildingReach (the one arrival rule)',
     cadence: 'on-demand',
-    cadenceNote: 'Pure read-only geometry: one access per building from its footprint and the walk grid, accepting a candidate only when it also satisfies isAtBuildingReach; zero-distance blocked fallback targets stop without reporting arrival, and one arrival test that counts walkable ground within reach of any facade while rejecting a blocked half-way tile. No tick, no scheduler, no RNG and no writes; the commuter targets the access and the activity enterHumanBuilding call decides entry.',
+    cadenceNote: 'Pure read-only geometry: buildingAccessPoints validates every traversable facade against the current grid; buildingAccessPoint selects the canonical first frontage for presentation, and isAtBuildingReach accepts only walkable reachable sides. No extra state or scheduler. No tick, no scheduler, no RNG and no writes; the commuter targets the access and the activity enterHumanBuilding call decides entry.',
     writes: [],
     scheduledFrom: 'humanMovement.commuteHumanToBuilding (navigation target and arrival), humanTick attendance, workAbsence, humanStatus, education, humanHospitalBehavior, hotelStay, logisticsOverlayData',
     testFile: 'tests/homeEntry.geometry.test.ts, tests/buildingAccess.routeAround.test.ts, tests/settlers.indoors.test.ts, tests/education.centerGeometry.test.ts',
@@ -231,12 +249,12 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/humanNeeds.mealRule.test.ts, tests/personality.captiveEnergyIntegration.test.ts, tests/warfare.lifecycle.test.ts, tests/humanNeeds.calibration.test.ts',
   },
   workSchedule: {
-    owner: 'workSchedule.ts — validateWorkSchedule, normalizeWorkSchedule, getWorkSchedule, setWorkSchedule, isWorkScheduleHour, isOnWorkScheduleShift; humanSchedule.ts — home/night/festival policy (shouldBeAtHomeFor, prefersHomeTonightFor, allowSocialLifeFor)',
+    owner: 'workSchedule.ts — validateWorkSchedule, normalizeWorkSchedule, getWorkSchedule, setWorkSchedule, isWorkScheduleHour, isOnWorkScheduleShift; humanSchedule.ts — home/night/festival/shift-aligned sleep policy (shouldBeAtHomeFor, prefersHomeTonightFor, preShiftSleepPlan, allowSocialLifeFor); prisonShifts.ts — prisonDutyForGuard (absolute watch owner, internal holds predicate)',
     cadence: 'player-command',
-    cadenceNote: 'The shipped window is 07–16; the player may set any non-wrapping whole-hour window. The command writes only world.workSchedule. Renderer status, work audio, town-hall hours, home preference and shift checks read that configured window hourly instead of a hard-coded legacy 07–18 default.',
+    cadenceNote: 'The shipped window is 07–16; the player may set any non-wrapping whole-hour window. The command writes only world.workSchedule. `humanSchedule.preShiftSleepPlan` reads upcoming prison, hospital, venue or day shift and home-to-work commute; `humanTick.observeHumanSleep` honors the planned rest after confirmed arrival home, and the realtime tick gives departure priority over sleep. The sleep policy is read-only; physiology remains the sole writer of needs.',
     writes: ['workSchedule'],
     scheduledFrom: 'simWorker/commands.ts "setWorkSchedule"; renderer/humans, hooks/useGameAudio, townHall and humanStatus read getWorkSchedule',
-    testFile: 'tests/workSchedule.bounds.test.ts, tests/humanSchedule.defaultWindow.test.ts, tests/audio.workDetect.test.ts',
+    testFile: 'tests/workSchedule.bounds.test.ts, tests/humanSchedule.defaultWindow.test.ts, tests/prisonFestivalWorkContinuity.test.ts, tests/audio.workDetect.test.ts',
   },
   school: {
     owner: 'education.ts — syncSchoolAssignments, findSchoolForChild, schoolCapacity, isSchoolTime (weekday 09–15), buildSchoolRosters, recordChildSchoolTick, creditChildSchoolDay, applyEducationGraduation',

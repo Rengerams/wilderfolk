@@ -5,7 +5,7 @@
 import { PATH_CELL } from './gameTypes';
 import type { Building, Entity } from './gameTypes';
 import { getBuildingFootprintRect } from './buildingGeometry';
-import { isGroundWalkableAt, isWalkStepAllowed } from './pathfinding';
+import { getCurrentPathGrid, isGroundWalkableAt, isWalkStepAllowed, type PathGrid } from './pathfinding';
 
 export type BuildingAccessSide = 'south' | 'east' | 'west' | 'north';
 
@@ -18,13 +18,13 @@ export interface BuildingAccessPoint {
 /** Clearance between the foundation and the doorstep, in world px. */
 const BUILDING_ACCESS_STANDOFF_PX = 12;
 /** How close to the footprint perimeter counts as reaching the building, in world px. */
-const BUILDING_REACH_RADIUS_PX = 24;
+export const BUILDING_REACH_RADIUS_PX = 24;
 /** Outward cells a doorstep may move to leave a neighbouring footprint's tile behind. */
 const BUILDING_ACCESS_MAX_OUTWARD_STEPS = 1;
 /** Cells of open ground the doorstep must have in front of it to count as a way in. */
 const BUILDING_ACCESS_OPEN_CELLS = 2;
 
-/** Fixed side order: the south facade is a building's front, the others only stand in when blocked. */
+/** Deterministic enumeration only; any side may be entered when its approach is actually clear. */
 const BUILDING_ACCESS_SIDES = [
   { side: 'south', normalX: 0, normalY: 1 },
   { side: 'east', normalX: 1, normalY: 0 },
@@ -32,13 +32,38 @@ const BUILDING_ACCESS_SIDES = [
   { side: 'north', normalX: 0, normalY: -1 },
 ] as const satisfies readonly { side: BuildingAccessSide; normalX: number; normalY: number }[];
 
-/** A doorstep is usable when a walker can stand on it and step away from the wall. */
-function isOpenDoorstep(x: number, y: number, normalX: number, normalY: number): boolean {
-  if (!isGroundWalkableAt(x, y)) return false;
+/**
+ * Check every cell from the actual facade to the proposed stand point. A stand point beyond
+ * an immediate river or wall must not count as an entrance, even if its own tile is dry.
+ * The terrain-only mask distinguishes a building's overlapping footprint from a water cell.
+ */
+function isOpenDoorstep(
+  building: Building, edgeX: number, edgeY: number,
+  x: number, y: number, normalX: number, normalY: number, grid: PathGrid | null,
+): boolean {
+  if (!isGroundWalkableAt(x, y, grid)) return false;
   const reach = PATH_CELL * BUILDING_ACCESS_OPEN_CELLS;
   const outX = x + normalX * reach;
   const outY = y + normalY * reach;
-  return isGroundWalkableAt(outX, outY) && isWalkStepAllowed(x, y, outX, outY);
+  if (!isGroundWalkableAt(outX, outY, grid) || !isWalkStepAllowed(x, y, outX, outY, grid)) return false;
+  if (!grid) return true;
+  const rect = getBuildingFootprintRect(building);
+  const length = Math.hypot(x - edgeX, y - edgeY);
+  for (let distance = PATH_CELL / 4; distance <= length; distance += PATH_CELL / 4) {
+    const px = edgeX + normalX * distance;
+    const py = edgeY + normalY * distance;
+    const tx = Math.floor(px / PATH_CELL);
+    const ty = Math.floor(py / PATH_CELL);
+    if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) return false;
+    const index = ty * grid.cols + tx;
+    if (grid.terrainBlocked?.[index]) return false;
+    // Footprint stamping marks every touched cell, even when its centre lies just outside
+    // the wall. Exempt those partial edge cells from the building's own collision mask.
+    const overlapsOwnFootprint = (tx + 1) * PATH_CELL > rect.left && tx * PATH_CELL < rect.right
+      && (ty + 1) * PATH_CELL > rect.top && ty * PATH_CELL < rect.bottom;
+    if (grid.blocked[index] && !overlapsOwnFootprint) return false;
+  }
+  return true;
 }
 
 /**
@@ -46,7 +71,7 @@ function isOpenDoorstep(x: number, y: number, normalX: number, normalY: number):
  * presentation: the first entry remains the canonical south-first frontage used by UI consumers.
  * Movement can choose another entry when arriving from another side or when a wall blocks one side.
  */
-export function buildingAccessPoints(building: Building): BuildingAccessPoint[] {
+export function buildingAccessPoints(building: Building, grid: PathGrid | null = getCurrentPathGrid()): BuildingAccessPoint[] {
   const rect = getBuildingFootprintRect(building);
   const points: BuildingAccessPoint[] = [];
   for (const { side, normalX, normalY } of BUILDING_ACCESS_SIDES) {
@@ -57,7 +82,8 @@ export function buildingAccessPoints(building: Building): BuildingAccessPoint[] 
     for (let step = 0; step <= BUILDING_ACCESS_MAX_OUTWARD_STEPS; step++) {
       const x = baseX + normalX * PATH_CELL * step;
       const y = baseY + normalY * PATH_CELL * step;
-      if (isOpenDoorstep(x, y, normalX, normalY) && isAtBuildingReach({ x, y }, building)) {
+      if (isOpenDoorstep(building, edgeX, edgeY, x, y, normalX, normalY, grid)
+        && Math.hypot(x - edgeX, y - edgeY) <= BUILDING_REACH_RADIUS_PX) {
         points.push({ x, y, side });
         break;
       }
@@ -71,9 +97,9 @@ export function buildingAccessPoints(building: Building): BuildingAccessPoint[] 
  * A fully enclosed building retains its south marker, but movement only selects the
  * validated candidates from buildingAccessPoints and never walks toward this fallback.
  */
-export function buildingAccessPoint(building: Building): BuildingAccessPoint {
+export function buildingAccessPoint(building: Building, grid: PathGrid | null = getCurrentPathGrid()): BuildingAccessPoint {
   const rect = getBuildingFootprintRect(building);
-  return buildingAccessPoints(building)[0] ?? {
+  return buildingAccessPoints(building, grid)[0] ?? {
     x: building.x,
     y: rect.bottom + BUILDING_ACCESS_STANDOFF_PX,
     side: 'south',
@@ -84,13 +110,16 @@ export function buildingAccessPoint(building: Building): BuildingAccessPoint {
  * The one arrival test: the settler stands on walkable ground within reach of any facade, so every
  * side they can actually walk to counts and no caller needs its own distance rule.
  */
-export function isAtBuildingReach(entity: Pick<Entity, 'x' | 'y'>, building: Building): boolean {
+export function isAtBuildingReach(entity: Pick<Entity, 'x' | 'y'>, building: Building, grid: PathGrid | null = getCurrentPathGrid()): boolean {
+  if (!isGroundWalkableAt(entity.x, entity.y, grid)) return false;
   const rect = getBuildingFootprintRect(building);
   const nearestX = Math.max(rect.left, Math.min(rect.right, entity.x));
   const nearestY = Math.max(rect.top, Math.min(rect.bottom, entity.y));
   if (Math.hypot(entity.x - nearestX, entity.y - nearestY) > BUILDING_REACH_RADIUS_PX) return false;
-  // Halfway ground must be walkable too, or a river/wall between the settler and the facade would
-  // count as reach without ever crossing.
-  return isGroundWalkableAt(entity.x, entity.y)
-    && isGroundWalkableAt((entity.x + nearestX) / 2, (entity.y + nearestY) / 2);
+  // Bare-world fixtures have no obstacle map: use the established all-facade reach contract.
+  // With a map, the selected facade must also be a validated approach, never a blocked wall.
+  if (!grid) return true;
+  return buildingAccessPoints(building, grid).some((point) =>
+    Math.hypot(point.x - entity.x, point.y - entity.y) <= BUILDING_REACH_RADIUS_PX
+    && isWalkStepAllowed(entity.x, entity.y, point.x, point.y, grid));
 }
