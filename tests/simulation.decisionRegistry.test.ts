@@ -16,6 +16,7 @@ import {
 /** The decision keys the ownership contract requires, including housing. */
 const REQUIRED_DECISIONS = [
   'navigation',
+  'wildlife',
   'workerMotionPresentation',
   'virtualPlayer',
   'chronicleProseNames',
