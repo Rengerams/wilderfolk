@@ -1346,7 +1346,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       // A candidate that has not been ticked yet may still be asleep. Wait for
       // that person's own sleep observation, instead of inventing one here.
       const otherPresence = closest && courtshipReadiness.get(closest.id);
-      if (closest && otherPresence && !otherPresence.sleeping) {
+      // Eligibility must be symmetric: a well-rested caller cannot advance a tired partner.
+      if (closest && otherPresence && !otherPresence.sleeping &&
+        closest.energy > config.reproductionEnergyThreshold * 0.6) {
         const dx = closest.x - entity.x;
         const dy = closest.y - entity.y;
         const dist = Math.hypot(dx, dy);
