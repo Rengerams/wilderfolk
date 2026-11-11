@@ -2,7 +2,7 @@
  * The prison roster: three nine-hour shifts with a one-hour handover, covering all 24 hours.
  * `WorkSchedule` cannot wrap midnight, so shifts derive from crew position and calendar week here.
  */
-import { getAbsoluteCalendarDay } from './dayCycleClock';
+import { getAbsoluteCalendarDay, TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycleClock';
 
 export type PrisonShiftKey = 'morning' | 'afternoon' | 'night';
 
@@ -133,13 +133,39 @@ export function prisonRoster(guardIds: readonly number[], tick: number): PrisonR
   return roster;
 }
 
-/** The shift this guard holds, or `null` when he is not on the roster. */
-export function prisonShiftForGuard(
+/**
+ * A shift belongs to the crew selected at its actual start tick. In particular, the
+ * 23:00 night shift keeps yesterday's guard across midnight and a weekly rotation.
+ * The next shift is also visible before it starts, including departures the day before
+ * a 07:00 shift. This is a projection only: no second scheduler or saved state.
+ */
+export function prisonDutyForGuard(
   guardId: number,
   guardIds: readonly number[],
   tick: number,
-): PrisonShift | null {
-  return prisonRoster(guardIds, tick).find((entry) => entry.guardId === guardId)?.shift ?? null;
+): { shift: PrisonShift; startTick: number; onShift: boolean } | null {
+  let active: { shift: PrisonShift; startTick: number; onShift: boolean } | null = null;
+  let upcoming: { shift: PrisonShift; startTick: number; onShift: boolean } | null = null;
+  const dayStart = Math.floor(tick / TICKS_PER_DAY) * TICKS_PER_DAY;
+  for (const shift of PRISON_SHIFTS) {
+    const todayStart = dayStart + shift.startHour * TICKS_PER_HOUR;
+    const lastStart = Math.max(0, tick >= todayStart ? todayStart : todayStart - TICKS_PER_DAY);
+    const nextStart = tick < todayStart ? todayStart : todayStart + TICKS_PER_DAY;
+    const holds = (startTick: number): boolean => {
+      const week = prisonWeekIndex(startTick);
+      return prisonOnDutyGuards(guardIds, startTick).some(
+        (id, index) => id === guardId && shiftForCrewIndex(index, week).key === shift.key,
+      );
+    };
+    if (tick >= lastStart && tick < lastStart + 9 * TICKS_PER_HOUR && holds(lastStart)) {
+      // The earlier overlapping shift remains the guard's current duty until it ends.
+      if (!active || lastStart < active.startTick) active = { shift, startTick: lastStart, onShift: true };
+    }
+    if (holds(nextStart) && (!upcoming || nextStart < upcoming.startTick)) {
+      upcoming = { shift, startTick: nextStart, onShift: false };
+    }
+  }
+  return active ?? upcoming;
 }
 
 /** Every hour with no guard holding a shift that covers it. */
