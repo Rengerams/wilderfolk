@@ -1,4 +1,4 @@
-import { MAX_ASSIGNABLE_COMMUTE_HOURS, WORK_COMMUTE_RUSH } from './commuteReach';
+import { MAX_ASSIGNABLE_COMMUTE_HOURS, WORK_COMMUTE_RUSH, quoteBuildingCommute } from './commuteReach';
 import type { WorldState, Entity, Building, VisitorGroup, RivalSettlement } from './gameTypes';
 import { EntityType, BuildingType, JobType, Season } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
@@ -96,7 +96,7 @@ import {
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
-import { crowdGatherPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
+import { crowdGatherPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
@@ -576,12 +576,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const onSchoolShift = schoolTarget != null && isSchoolTime(state.tick, hourOfDay);
     const schoolResidence = entity.residenceBuildingId == null
       ? undefined : buildingById.get(entity.residenceBuildingId);
-    const schoolLeadHours = schoolTarget
-      ? Math.min(MAX_ASSIGNABLE_COMMUTE_HOURS, Math.ceil(commuteLeadHoursFor(
-        commuteDistanceFromResidence(entity, schoolResidence, schoolTarget),
-        config.speed,
-      )))
-      : 0;
+    const schoolQuote = schoolTarget
+      ? quoteBuildingCommute(schoolResidence ?? entity, schoolTarget, config.speed)
+      : null;
+    // Existing pupils depart conservatively while new route evidence is pending.
+    const schoolLeadHours = schoolQuote?.status === 'priced'
+      ? Math.min(MAX_ASSIGNABLE_COMMUTE_HOURS, Math.ceil(schoolQuote.leadHours))
+      : schoolTarget ? MAX_ASSIGNABLE_COMMUTE_HOURS : 0;
     const schoolCommuteDue = schoolTarget != null && isWorkDay(state.tick)
       && hourOfDay >= SCHOOL_START_HOUR - schoolLeadHours && hourOfDay < SCHOOL_START_HOUR;
     const onDayJobShift =
