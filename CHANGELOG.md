@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026, PR #127):** Walkability ignores non-solid scenery reservations and decorative building footprints, while completed solid structures still block and their removal rebuilds the grid.
+
 - **Changed (11 Nov 2026, PR #127):** Integrated the existing shared-navigation checkpoint-A foundation with current main; directed immutable route quotes and three-way commute pricing are available for the domain cutover.
 
 - **Changed (8 Nov 2026):** Civic systems now use a shared completed-building lookup for Town Hall staffing, elections, notifications and festivals, replacing the Town Hall-only lookup.
