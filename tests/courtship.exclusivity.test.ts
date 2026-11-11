@@ -9,6 +9,7 @@ import { initGame } from '../src/game/worldGen';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import {
   bindCourtship,
+  canAdvanceCourtship,
   findCourtshipPartner,
   isEligibleToCourt,
   reconcileCourtships,
@@ -65,6 +66,36 @@ function fixture(entities: Entity[]): { state: WorldState; entityById: Map<numbe
 function context(entityById: Map<number, Entity>, entities: Entity[]): Parameters<typeof reconcileCourtships>[0] {
   return { entityById, playerHumans: entities };
 }
+
+describe('courtship requires awake nearby participants and real workplace overlap', () => {
+  const idle = { sleeping: false, onDuty: false, workplaceId: undefined, atWorkplace: false };
+  const working = { sleeping: false, onDuty: true, workplaceId: 42, atWorkplace: true };
+
+  it('allows two off-shift awake settlers in social time but not outside it', () => {
+    expect(canAdvanceCourtship(idle, idle, 8, true)).toBe(true);
+    expect(canAdvanceCourtship(idle, idle, 8, false)).toBe(false);
+  });
+
+  it('freezes progress if either partner is asleep, including co-located lovers', () => {
+    const sleeping = { ...idle, sleeping: true };
+    expect(canAdvanceCourtship(sleeping, idle, 0, true)).toBe(false);
+    expect(canAdvanceCourtship(idle, sleeping, 0, true)).toBe(false);
+    expect(canAdvanceCourtship({ ...working, sleeping: true }, working, 0, false)).toBe(false);
+  });
+
+  it('requires actual proximity rather than just a shared home or workplace', () => {
+    expect(canAdvanceCourtship(idle, idle, 10, true)).toBe(true);
+    expect(canAdvanceCourtship(idle, idle, 10.01, true)).toBe(false);
+    expect(canAdvanceCourtship(working, working, 75, false)).toBe(false);
+  });
+
+  it('permits duty only when both workers serve together at the same physical post', () => {
+    expect(canAdvanceCourtship(working, working, 5, false)).toBe(true);
+    expect(canAdvanceCourtship(working, idle, 5, true)).toBe(false);
+    expect(canAdvanceCourtship(working, { ...working, workplaceId: 77 }, 5, true)).toBe(false);
+    expect(canAdvanceCourtship(working, { ...working, atWorkplace: false }, 5, true)).toBe(false);
+  });
+});
 
 describe('courtship exclusivity and cleanup (audit F5)', () => {
   it('does not offer a settler who is already in a mutual courtship to a third settler', () => {

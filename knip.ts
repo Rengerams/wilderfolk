@@ -88,7 +88,7 @@ const config: KnipConfig = {
     'src/game/groupEvents.ts',
   ],
   project: [
-    'src/**/*.{ts,tsx}',
+    'src/**/*.{ts,tsx,css}',
     'config/**/*.ts',
   ],
   ignoreExportsUsedInFile: true,

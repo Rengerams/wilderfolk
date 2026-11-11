@@ -111,7 +111,7 @@ All numbers below come from `HUMAN_NEEDS` (simulation-hour units) rather than fr
 | nutrition restored per food unit | 10 |
 | eat when below / cooldown | 70 / 2 hours |
 | rest: awake loss / verified sleep gain per hour | 4 / 12 |
-| stamina: work loss / walk loss / idle gain / sleep gain per hour | 9 / 5 / 5 / 13 |
+| stamina: work loss / walk loss / ordinary awake loss / actual rest-break gain / sleep gain per hour | 6 / 5 / 2 / 5 / 100÷7 |
 | critical rest / recovery target | 20 / 85 |
 | stamina break begins below / ends at | 15 / 50 |
 | starving nutrition threshold / fatal duration | 8 / 48 hours |
@@ -121,7 +121,7 @@ Juvenile nutrition-cost factor: 0.85. Well/hospital modifiers lower negative sta
 
 ## 5. Work, sleep and imprisonment
 
-The work observation covers normal jobs, staffed venues, hospital shifts, prison watches, Town Hall officials, daytime priests and Moon-priest duty. Real nighttime or daytime sleep requires an eligible residence, hotel lodging, or actual nighttime cell position. Overnight work sets a pending recovery state and permits daytime recovery while off duty. Low stamina latches a break until meaningful recovery without discarding existing duty/emergency restrictions.
+The 24-hour baseline is 17 hours awake and seven hours of sleep: nine hours of work at −6/h plus eight hours of ordinary awake time at −2/h leave 30 stamina at bedtime; eight work hours leave 34, ten leave 26. Player-configured shift lengths are observed directly; existing `scheduleFatigue` separately owns the longer-shift production penalty and is not multiplied into physiological drain. A real stationary needs break recovers 5/h and ordinary leisure does not count as one. Seven actual sleep hours restore the reserve to 100.\n\nThe work observation covers normal jobs, staffed venues, hospital shifts, prison watches, Town Hall officials, daytime priests and Moon-priest duty. Real nighttime or daytime sleep requires an eligible residence, hotel lodging, or actual nighttime cell position. Overnight work sets a pending recovery state and permits daytime recovery while off duty. Low stamina latches a break until meaningful recovery without discarding existing duty/emergency restrictions.
 
 During imprisonment, a settler's bed and workplace pointer remain reserved, while ordinary active rosters exclude the jailed employee. `workforce.restoreWorkerRosterAfterCustody` restores the previously reserved workplace membership immediately on release/escape, including when the jail and workplace differ. A prison guard who works in their own prison retains their unique roster entry.
 

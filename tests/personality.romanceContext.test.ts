@@ -72,6 +72,7 @@ interface CourtFrame {
   readonly progressA: number;
   readonly progressB: number;
   readonly speedA: number;
+  readonly speedB: number;
 }
 
 /** One settled midday frame of the real owner; the pair stands together unless moved apart. */
@@ -84,6 +85,7 @@ function courtFrame(
     spouse?: boolean;
     partnerGender?: 'female' | 'male';
     energy?: number;
+    partnerEnergy?: number;
   } = {},
 ): CourtFrame {
   const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
@@ -91,7 +93,9 @@ function courtFrame(
     energy: options.energy ?? 200,
     ...(options.spouse ? { partnerId: PARTNER_ID, relationshipStatus: 'married' as const } : {}),
   });
-  const b = settler(PARTNER_ID, options.partnerGender ?? 'male', genomeFrom(), { x: 300 + (options.distance ?? 0) });
+  const b = settler(PARTNER_ID, options.partnerGender ?? 'male', genomeFrom(), {
+    x: 300 + (options.distance ?? 0), energy: options.partnerEnergy ?? 200,
+  });
   state.entities = [a, b];
   state.tick = 12;
   if (options.festival) state.festival = { active: true, name: 'Harvest feast', daysLeft: 1 };
@@ -136,6 +140,7 @@ function courtFrame(
     progressA: a.courtshipProgress ?? 0,
     progressB: b.courtshipProgress ?? 0,
     speedA: Math.hypot(a.vx, a.vy),
+    speedB: Math.hypot(b.vx, b.vy),
   };
 }
 
@@ -174,12 +179,13 @@ describe('courtship progress at the real owner boundary', () => {
 
   it('keeps the courtship gates: ineligible, absent or distant partners make no progress', () => {
     expect(courtFrame(genomeFrom(), { spouse: true }).progressA, 'a married settler does not court').toBe(0);
-    expect(courtFrame(genomeFrom(), { energy: 1 }).progressA, 'the energy gate still holds').toBe(0);
+    expect(courtFrame(genomeFrom(), { energy: 1 }).progressA, 'a tired initiator cannot court').toBe(0);
+    expect(courtFrame(genomeFrom(), { partnerEnergy: 1 }).progressA, 'a tired partner cannot be courted').toBe(0);
     expect(courtFrame(genomeFrom(), { partnerGender: 'female' }).progressA, 'no same-gender pair').toBe(0);
 
     const distant = courtFrame(genomeFrom(), { distance: 50 });
     expect(distant.progressA, 'out of talking range: no shared progress').toBe(0);
-    expect(distant.speedA, 'the settler closes the distance instead').toBeGreaterThan(0);
+    expect(Math.max(distant.speedA, distant.speedB), 'one awake partner closes the distance instead').toBeGreaterThan(0);
   });
 });
 

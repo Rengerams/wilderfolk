@@ -90,7 +90,6 @@ import BattleReportScreen from './components/BattleReportScreen';
 import { saveGame } from './game/saveLoad';
 import ConfirmActionDialog from './components/ConfirmActionDialog';
 import { downloadChronicleLog } from './game/eventLogExport';
-import { registerLiveSessionSave } from './game/liveSessionSave';
 
 import GameBuildRail from './components/GameBuildRail';
 
@@ -333,10 +332,6 @@ export default function App() {
     void beginAudio();
   }, [gameplayActive]);
 
-  useEffect(
-    () => registerLiveSessionSave(() => loopRef.current?.getWorldAndView() ?? null),
-    [loopRef],
-  );
   const { active: contextualTip, dismissActive: dismissContextualTip, markSeen: markContextualTipSeen } = useContextualTutorial(
     world,
     gameplayActive && tutorialsEnabled && !showTutorial,

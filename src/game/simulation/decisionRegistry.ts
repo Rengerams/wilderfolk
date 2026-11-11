@@ -218,7 +218,7 @@ export const SIMULATION_DECISIONS = {
   humanPhysiology: {
     owner: 'simulation/humanPhysiology.ts — initialHumanNeeds, normalizeHumanNeeds, advanceHumanNeeds, resolveHumanNeedsIntent, getHumanNeedsWorkMultiplier, hasFatalStarvation, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy, getHumanStaminaRatio, rebaseHumanNeedsClockAfterFormRestore, hasNearbyWell',
     cadence: 'realtime',
-    cadenceNote: 'Player humans advance once per tick before offscreen throttling. Creation, load migration and form restoration initialize or restore saved needs. Resolve intent and work effects as read-only queries. The legacy human energy field is a one-way stamina projection. The sole seven-hour-night recovery rate is shared by rest and stamina, and humanTick.observeHumanSleep observes eligible homes, hotels, wards, cells and lover visits before the single physiology write. Sleep requires a confirmed indoor arrival from the movement owner: buildingAccess.buildingAccessPoint is the one navigation target, buildingAccess.isAtBuildingReach is the one arrival rule, and only the activity enterHumanBuilding call writes indoor state; humanMovement.homeStandPosition fronts the doorstep, with home leisure using the same porch; this decision does not own navigation. Work-shift stamina loss is divided by the catalog physiology/labor factor, so endurance DNA reaches the player work drain; walking keeps its base drain. An unheated winter day multiplies the nutrition loss by 1.5, so daily heating wood buys a real reserve.',
+    cadenceNote: 'Player humans advance once per tick before offscreen throttling. Creation, load migration and form restoration initialize or restore saved needs. Resolve intent and work effects as read-only queries. The legacy human energy field is a one-way stamina projection. The sole seven-hour-night recovery rate is shared by rest and stamina, and humanTick.observeHumanSleep observes eligible homes, hotels, wards, cells and lover visits before the single physiology write. Sleep requires a confirmed indoor arrival from the movement owner: buildingAccess.buildingAccessPoint is the one navigation target, buildingAccess.isAtBuildingReach is the one arrival rule, and only the activity enterHumanBuilding call writes indoor state; humanMovement.homeStandPosition fronts the doorstep, with home leisure using the same porch; this decision does not own navigation. Work-shift stamina costs 6/h (scaled once by labor aptitude), ordinary awake leisure costs 2/h, walking costs 5/h, and only an observed off-duty stationary needs break restores 5/h. Nine worked hours and eight waking leisure hours target 30% stamina at bedtime, followed by seven hours to refill; real configured shift lengths affect total work drain directly. The independent scheduleFatigue productivity multiplier is not reapplied to stamina. An unheated winter day multiplies the nutrition loss by 1.5, so daily heating wood buys a real reserve.',
     writes: [
       'human.needs',
       'human.needs.nutrition',
@@ -390,16 +390,16 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/spotlightLore.test.ts, tests/spotlightQuietStage.test.ts, tests/renderer.presentationLayout.test.ts, tests/spotlightChoreography.test.ts, tests/spotlightApplause.test.ts, tests/spotlightAudioRace.test.ts',
   },
   courtship: {
-    owner: 'humanRelationships.ts — findCourtshipPartner, isEligibleToCourt, tryCompleteCourtshipMarriage; progress advance executes from humanTick.ts',
+    owner: 'humanRelationships.ts — findCourtshipPartner, isEligibleToCourt, canAdvanceCourtship, tryCompleteCourtshipMarriage; progress advance executes from humanTick.ts',
     cadence: 'realtime',
-    cadenceNote: 'authority declares social/daily; the encounter path and the progress advance actually run every realtime tick for every eligible settler with NO stagger (humanTick findCourtshipPartner + bindCourtship). A SOCIAL_STAGGER gate exists in the same function but is deliberately not applied to the partner query: positions are rewritten every tick, so querying one tick in six would pair a different closest partner. Marriage finalization is owned by humanRelationships',
+    cadenceNote: 'Realtime: humanTick observes each participant’s actual shift/sleep state before interactions; canAdvanceCourtship requires both awake and physically within 10px, off-duty social time or both actually present at the same workplace during an overlapping shift. Because the partner’s sleep observation must be known, the later processed partner may advance the pair; a per-tick pair guard prevents duplicate credit. No stagger is applied to courtship partner selection. Marriage finalization remains owned by humanRelationships.',
     writes: [
       'human.courtshipPartnerId',
       'human.courtshipProgress',
       'human.relationshipStatus',
       'human.partnerId',
     ],
-    scheduledFrom: 'humanTick.ts (per realtime tick, socialTime gate) → humanRelationships.findCourtshipPartner / tryCompleteCourtshipMarriage',
+    scheduledFrom: 'humanTick.ts (per realtime tick, observed pair sleep, distance and shared-duty gates) → humanRelationships.findCourtshipPartner / canAdvanceCourtship / tryCompleteCourtshipMarriage',
     testFile: 'tests/phase7.social.test.ts',
   },
   affairs: {

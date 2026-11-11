@@ -363,9 +363,16 @@ export default function SelectedEntityPanel({
                 </p>
               );
             })()}
-            {entity.courtshipProgress && entity.courtshipProgress > 0 && entity.relationshipStatus === 'single' && (
-              <p className="text-pink-300">💕 Courting... {entity.courtshipProgress}%</p>
-            )}
+            {entity.courtshipPartnerId != null && entity.relationshipStatus === 'single' && (() => {
+              const courtshipPartner = allEntities.find((candidate) =>
+                candidate.id === entity.courtshipPartnerId && candidate.alive
+                && candidate.courtshipPartnerId === entity.id);
+              return courtshipPartner ? (
+                <p className="text-pink-300">
+                  💕 Courting {citizenFullName(courtshipPartner)} ({Math.round(entity.courtshipProgress ?? 0)}%)
+                </p>
+              ) : null;
+            })()}
           </>
         )}
       </div>

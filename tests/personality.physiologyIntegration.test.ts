@@ -79,7 +79,7 @@ describe('a player settler\'s work drain follows its own aptitudes', () => {
   it('leaves a neutral settler on the documented base drain', () => {
     const drained = worker(genomeFrom()).needs!.stamina - staminaAfterWork(genomeFrom(), 2);
     expect(drained).toBeGreaterThan(0);
-    expect(staminaAfterWork(genomeFrom(), 2)).toBeCloseTo(80 - 18, 6);
+    expect(staminaAfterWork(genomeFrom(), 2)).toBeCloseTo(80 - 12, 6);
   });
 });
 
