@@ -57,12 +57,11 @@ function isOpenDoorstep(
     if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) return false;
     const index = ty * grid.cols + tx;
     if (grid.terrainBlocked?.[index]) return false;
-    // A blocked tile whose centre belongs to this building is not an exterior wall.
-    const cx = (tx + 0.5) * PATH_CELL;
-    const cy = (ty + 0.5) * PATH_CELL;
-    const inOwnFootprint = cx >= rect.left && cx <= rect.right
-      && cy >= rect.top && cy <= rect.bottom;
-    if (grid.blocked[index] && !inOwnFootprint) return false;
+    // Footprint stamping marks every touched cell, even when its centre lies just outside
+    // the wall. Exempt those partial edge cells from the building's own collision mask.
+    const overlapsOwnFootprint = (tx + 1) * PATH_CELL > rect.left && tx * PATH_CELL < rect.right
+      && (ty + 1) * PATH_CELL > rect.top && ty * PATH_CELL < rect.bottom;
+    if (grid.blocked[index] && !overlapsOwnFootprint) return false;
   }
   return true;
 }
