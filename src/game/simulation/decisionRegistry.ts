@@ -51,6 +51,7 @@ export type DecisionKey =
   | 'workerFit'
   | 'completedBuildingLookup'
   | 'buildingAccess'
+  | 'humanLeisure'
   | 'settlerDeathAudio'
   | 'terrainClearingFields'
   | 'colonyMovementObservation'
@@ -173,6 +174,14 @@ export const SIMULATION_DECISIONS = {
     writes: [],
     scheduledFrom: 'townHall.isTownHallStaffed / getTownHallTradeMultiplier / getTownHallGovernanceEfficiency, villageLeadership election site, tickLayerRealtime election notification, virtualPlayer.decideFestival',
     testFile: 'tests/buildings.lookup.test.ts',
+  },
+  humanLeisure: {
+    owner: 'humanLeisureBehavior.ts — tickHumanLeisure (single free-time entry), tickHumanChildLeisure, tickAdultLeisureMotive',
+    cadence: 'realtime',
+    cadenceNote: 'Called once per eligible humanTick free-time tick. Chooses child/adult activities and steering intent; humanTick owns the final movement step, and delegated physiology and social owners retain their writes.',
+    writes: ['human.vx', 'human.vy', 'human.indoorBuildingId'],
+    scheduledFrom: 'humanTick.tickHumans → humanLeisureBehavior.tickHumanLeisure',
+    testFile: 'tests/humanLeisureBehavior.test.ts, tests/simulation.decisionRegistry.test.ts',
   },
   buildingAccess: {
     owner: 'buildingAccess.ts — buildingAccessPoint (the one doorstep), isOpenDoorstep, isAtBuildingReach (the one arrival rule)',
