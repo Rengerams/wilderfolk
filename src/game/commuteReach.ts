@@ -275,15 +275,25 @@ export function quoteBuildingCommute(
   const toPoints = toBuilding ? buildingAccessPoints(destination as Building, grid) : [destination];
   if (fromPoints.length === 0 || toPoints.length === 0) return { status: 'unreachable' };
 
+  const centreDistance = Math.hypot(destination.x - origin.x, destination.y - origin.y);
   const pairs = fromPoints.flatMap((from) => toPoints.map((to) => ({
     from, to, distance: Math.hypot(to.x - from.x, to.y - from.y),
   }))).sort((a, b) => a.distance - b.distance
     || a.from.x - b.from.x || a.from.y - b.from.y
     || a.to.x - b.to.x || a.to.y - b.to.y);
-  let pending = false;
-  for (const { from, to } of pairs) {
+  const speed = commuteWalkSpeed(walkSpeed, WORK_COMMUTE_RUSH) * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;
+  let bestDistance = Infinity;
+  let pendingCanBeatBest = false;
+  for (const { from, to, distance: straightDistance } of pairs) {
+    // Every road discount is bounded by ROAD_SPEED_MULT: this is a safe geometric
+    // lower bound, used for pruning only after a confirmed route is priced.
+    const lowerBound = Math.max(centreDistance, straightDistance / (ROAD_SPEED_MULT + 0.001));
+    if (lowerBound >= bestDistance) continue;
     const costTiles = routeCommuteCost(from.x, from.y, to.x, to.y, gridOverride);
-    if (costTiles === null) { pending = true; continue; }
+    if (costTiles === null) {
+      pendingCanBeatBest = true;
+      continue;
+    }
     if (costTiles === Infinity) continue;
     const start = { x: Math.floor(from.x / PATH_CELL), y: Math.floor(from.y / PATH_CELL) };
     const goal = { x: Math.floor(to.x / PATH_CELL), y: Math.floor(to.y / PATH_CELL) };
@@ -292,17 +302,16 @@ export function quoteBuildingCommute(
       : costTiles * PATH_CELL
         + Math.hypot(from.x - (start.x + 0.5) * PATH_CELL, from.y - (start.y + 0.5) * PATH_CELL)
         + Math.hypot(to.x - (goal.x + 0.5) * PATH_CELL, to.y - (goal.y + 0.5) * PATH_CELL);
-    // Centre distance is a conservative lower bound; do not add fictional traversal through
-    // solid interiors, which would incorrectly reject nearby reachable placements.
-    const distance = Math.max(
-      Math.hypot(destination.x - origin.x, destination.y - origin.y),
-      routeDistance,
-    );
-    const speed = commuteWalkSpeed(walkSpeed, WORK_COMMUTE_RUSH) * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;
-    return { status: 'priced', travelHours: distance / speed / TICKS_PER_HOUR,
-      leadHours: commuteLeadHoursFor(distance, walkSpeed), costTiles: distance / PATH_CELL };
+    // Do not invent walking through a solid interior; use centre distance only
+    // as the pre-existing conservative floor for a scored doorstep-to-doorstep route.
+    bestDistance = Math.min(bestDistance, Math.max(centreDistance, routeDistance));
   }
-  return pending ? { status: 'pending', reason: 'search-budget' } : { status: 'unreachable' };
+  // A pending pair with a lower possible cost prevents a confirmed optimal quote.
+  if (pendingCanBeatBest) return { status: 'pending', reason: 'search-budget' };
+  if (!Number.isFinite(bestDistance)) return { status: 'unreachable' };
+  return { status: 'priced', travelHours: bestDistance / speed / TICKS_PER_HOUR,
+    leadHours: commuteLeadHoursFor(bestDistance, walkSpeed),
+    costTiles: bestDistance / PATH_CELL };
 }
 
 /**
