@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (11 Nov 2026, PR #127):** Staffing eligibility and travel ranking, school enrollment/departure, housing moves and bot placement preview now consult the shared walkable route authority; pending routes cannot authorize an optional move or new job. Settler steering reuses immutable route geometry, retaining individual progress and save-compatible transient caches. CI and large-colony verification remain pending.
+
 - **Fixed (11 Nov 2026, PR #127):** Walkability ignores non-solid scenery reservations and decorative building footprints, while completed solid structures still block and their removal rebuilds the grid.
 
 - **Changed (11 Nov 2026, PR #127):** Integrated the existing shared-navigation checkpoint-A foundation with current main; directed immutable route quotes and three-way commute pricing are available for the domain cutover.
