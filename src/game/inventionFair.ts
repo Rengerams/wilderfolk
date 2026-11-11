@@ -63,6 +63,11 @@ const FUNDING_WOOD_COST: Record<string, number> = {
 type Stage1Choice = 'fund_granary' | 'fund_gate' | 'fund_bell' | 'reject' | 'safer_redesign';
 type Stage2Choice = 'keep' | 'improve' | 'dismantle';
 
+const STAGE1_CHOICES: ReadonlySet<string> = new Set<Stage1Choice>([
+  'fund_granary', 'fund_gate', 'fund_bell', 'reject', 'safer_redesign',
+]);
+const STAGE2_CHOICES: ReadonlySet<string> = new Set<Stage2Choice>(['keep', 'improve', 'dismantle']);
+
 export function inventionFairEligibleDay(mapSeed: number | undefined): number {
   return eligibleDayForStory(mapSeed, STORY_KEY, MIN_DAY, WINDOW_DAYS);
 }
@@ -128,8 +133,8 @@ export function getInventionFairChoiceEligibility(
   choiceId: string,
   eventId?: string,
 ): { ok: boolean; blockReason?: string } {
-  const stage1 = ['fund_granary', 'fund_gate', 'fund_bell', 'safer_redesign', 'reject'].includes(choiceId);
-  const stage2 = ['keep', 'improve', 'dismantle'].includes(choiceId);
+  const stage1 = STAGE1_CHOICES.has(choiceId);
+  const stage2 = STAGE2_CHOICES.has(choiceId);
   if (!stage1 && !stage2) return { ok: false, blockReason: 'Unknown invention fair choice' };
   if (eventId?.startsWith('invention_stage1_') && (!stage1 || storyFlag(state, FLAG_STATUS) !== STATUS.offered)) {
     return { ok: false, blockReason: 'The funding decision has already passed' };
@@ -149,11 +154,11 @@ export function resolveInventionFair(state: WorldState, choiceId: string): boole
   if (storyFlag(state, FLAG_RESOLVED) > 0) return true;
   const status = storyFlag(state, FLAG_STATUS);
   if (status === STATUS.offered) {
-    if (!['fund_granary', 'fund_gate', 'fund_bell', 'reject', 'safer_redesign'].includes(choiceId)) return false;
+    if (!STAGE1_CHOICES.has(choiceId)) return false;
     return resolveStage1(state, choiceId as Stage1Choice);
   }
   if (status === STATUS.funded) {
-    if (!['keep', 'improve', 'dismantle'].includes(choiceId)) return false;
+    if (!STAGE2_CHOICES.has(choiceId)) return false;
     return resolveStage2(state, choiceId as Stage2Choice);
   }
   return false;
