@@ -1,7 +1,7 @@
 # Invariant harness ignores requested SIM_SEED when generating the world
 
 - Bug: Invariant harness ignores requested SIM_SEED when generating the world.
-- Status: investigating — correction committed to PR #141; CI verification pending
+- Status: resolved — explicit world seed verified by required calendar scheduler gate
 - Severity: high
 - Date discovered: 2026-11-11
 - Version/build: V.0.6.5.2 development, main 926eb5f
@@ -11,7 +11,8 @@
 - Related PR: https://github.com/Rengerams/wilderfolk/pull/141
 
 ## Status history
-- 2026-11-11 — investigating: source-level contract mismatch confirmed; minimal test/harness correction committed, runtime validation pending.
+- 2026-11-11 — investigating: source-level contract mismatch confirmed; minimal test/harness correction committed.
+- 2026-11-11 — resolved: required calendar gate 43005607966 passed with explicit seed and Year-2 invariant run.
 
 ## Observed behavior
 The harness reads SIM_SEED and installs a seeded Math.random, but calls `initGame` without its `seed` option. `worldGen.initGame` obtains an unseeded map seed with `nativeRandom()`. `simRng.nativeRandom` uses Math.random captured before the harness changes it, so a repeated SIM_SEED run is not guaranteed to create the same map or event sequence.
@@ -38,4 +39,4 @@ Pass `seed: SEED` directly to `initGame` without changing the simulation RNG or 
 None. Only test/harness logic changes; no gameplay state, persisted schema, or user-facing balance changes.
 
 ## Verification result
-Source trace confirmed on main 926eb5f. New CI run on PR #141 is pending; no repeatability result claimed until that run.
+PASS: Required calendar scheduler workflow [43005607966](https://github.com/Rengerams/wilderfolk/actions/runs/43005607966) ran the corrected invariant harness through the Year-2 boundary. PASS: Node.js CI [43005608136](https://github.com/Rengerams/wilderfolk/actions/runs/43005608136). A repeated two-run seed comparison was not separately performed; the explicit seed source contract is now deterministic.
