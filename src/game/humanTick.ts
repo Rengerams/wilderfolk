@@ -795,6 +795,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         working: (onJobShift || onOfficialShift || onPriestShift) && entity.workerBuildingId != null,
         nightDuty: (onJobShift || onOfficialShift || onPriestShift) && isNightHour(hourOfDay),
         moving: Math.hypot(entity.vx, entity.vy) > 0.1,
+        // The needs break is a real off-duty stationary pause, not all idle leisure.
+        resting: entity.needs?.breakUntilRecovered === true
+          && !onDutyForSleep && !goingToHospital && !inSpotlightGathering
+          && !inElectionCeremony && !festivalGathering && !entity.raidDeploymentId
+          && Math.hypot(entity.vx, entity.vy) <= 0.1,
         hasWell: hasNearbyWell(entity, nearbyWells),
         hasHospital: sleep.hasHospital,
         unheatedWinter: isWinter && !canHeat,
