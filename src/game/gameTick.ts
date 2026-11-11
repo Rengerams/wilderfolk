@@ -180,6 +180,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // Predators — reuse playerHumans (already filtered); one pass for rivals
   const predators: Entity[] = [
     ...byType[EntityType.Wolf],
+    ...byType[EntityType.Wildkin],
     ...byType[EntityType.Fox],
     ...byType[EntityType.Werewolf],
   ];
