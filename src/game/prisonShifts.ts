@@ -149,11 +149,12 @@ export function prisonDutyForGuard(
   const dayStart = Math.floor(tick / TICKS_PER_DAY) * TICKS_PER_DAY;
   for (const shift of PRISON_SHIFTS) {
     const todayStart = dayStart + shift.startHour * TICKS_PER_HOUR;
-    const lastStart = Math.max(0, tick >= todayStart ? todayStart : todayStart - TICKS_PER_DAY);
+    const lastStart = tick >= todayStart ? todayStart : todayStart - TICKS_PER_DAY;
     const nextStart = tick < todayStart ? todayStart : todayStart + TICKS_PER_DAY;
     const holds = (startTick: number): boolean => {
-      const week = prisonWeekIndex(startTick);
-      return prisonOnDutyGuards(guardIds, startTick).some(
+      // The first simulated night was already underway at tick 0; use week 0 for its owner.
+      const week = prisonWeekIndex(Math.max(0, startTick));
+      return prisonOnDutyGuards(guardIds, Math.max(0, startTick)).some(
         (id, index) => id === guardId && shiftForCrewIndex(index, week).key === shift.key,
       );
     };
