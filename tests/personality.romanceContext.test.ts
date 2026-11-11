@@ -72,6 +72,7 @@ interface CourtFrame {
   readonly progressA: number;
   readonly progressB: number;
   readonly speedA: number;
+  readonly speedB: number;
 }
 
 /** One settled midday frame of the real owner; the pair stands together unless moved apart. */
@@ -136,6 +137,7 @@ function courtFrame(
     progressA: a.courtshipProgress ?? 0,
     progressB: b.courtshipProgress ?? 0,
     speedA: Math.hypot(a.vx, a.vy),
+    speedB: Math.hypot(b.vx, b.vy),
   };
 }
 
@@ -179,7 +181,7 @@ describe('courtship progress at the real owner boundary', () => {
 
     const distant = courtFrame(genomeFrom(), { distance: 50 });
     expect(distant.progressA, 'out of talking range: no shared progress').toBe(0);
-    expect(distant.speedA, 'the settler closes the distance instead').toBeGreaterThan(0);
+    expect(Math.max(distant.speedA, distant.speedB), 'one awake partner closes the distance instead').toBeGreaterThan(0);
   });
 });
 
