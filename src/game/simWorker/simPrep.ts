@@ -117,6 +117,7 @@ type SimPrepKeys =
   | 'lastProcessedCalendarDay'
   | 'lastWildlifeReplenishLogDay'
   | 'storyFlags'
+  | 'inventionFair'
   | 'pendingStoryEvents'
   | 'guidedCampaign'
   | 'workSchedule'
@@ -288,6 +289,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     lastProcessedCalendarDay: state.lastProcessedCalendarDay ?? 0,
     lastWildlifeReplenishLogDay: state.lastWildlifeReplenishLogDay ?? 0,
     storyFlags: { ...(state.storyFlags ?? {}) },
+    inventionFair: state.inventionFair ? structuredClone(state.inventionFair) : null,
     pendingStoryEvents: structuredClone(state.pendingStoryEvents ?? []),
     guidedCampaign: state.guidedCampaign ? structuredClone(state.guidedCampaign) : undefined,
     workSchedule: getWorkSchedule(state),
@@ -416,6 +418,7 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.lastProcessedCalendarDay = prep.lastProcessedCalendarDay;
   world.lastWildlifeReplenishLogDay = prep.lastWildlifeReplenishLogDay;
   world.storyFlags = prep.storyFlags;
+  world.inventionFair = prep.inventionFair;
   world.pendingStoryEvents = prep.pendingStoryEvents;
   world.guidedCampaign = prep.guidedCampaign;
   world.workSchedule = prep.workSchedule;

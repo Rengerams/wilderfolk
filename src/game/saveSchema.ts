@@ -31,7 +31,7 @@ export const WORLD_STATE_SAVE_KEYS = [
   'bigNews',
   'dismissedNotificationIds', 'lastWildlifeReplenishLogDay', 'eventsThisYear',
   'appliedSaveMigrations',
-  'storyFlags', 'pendingStoryEvents', 'guidedCampaign',
+  'storyFlags', 'pendingStoryEvents', 'inventionFair', 'guidedCampaign',
   // The traveling-smith quest is created and expired only inside the simulation, so it
   // must round-trip with the world it belongs to.
   'visitorQuest',

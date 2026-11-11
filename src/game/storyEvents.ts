@@ -171,7 +171,7 @@ export function getStoryChoiceEligibility(
     case 'wedding_diplomacy':
       return getWeddingDiplomacyChoiceEligibility(state, choiceId);
     case 'invention_fair':
-      return getInventionFairChoiceEligibility(state, choiceId);
+      return getInventionFairChoiceEligibility(state, choiceId, event.id);
     default:
       return { ok: true };
   }
@@ -243,7 +243,7 @@ export function respondToStoryEvent(
       break;
     }
     case 'invention_fair': {
-      const accepted = resolveInventionFair(state, choiceId);
+      const accepted = resolveInventionFair(state, choiceId, event.id);
       if (!accepted) {
         state.pendingStoryEvents ??= [];
         state.pendingStoryEvents.push(event);

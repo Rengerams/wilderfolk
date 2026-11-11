@@ -2,6 +2,13 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026, PR #142):** Invention Fair outcome tiers now accumulate integer percentage weights, preventing floating-point error at the standard project's exact 60% boundary. Added tests for both sides of the outcome cutoffs.
+
+- **Added (11 Nov 2026):** Invention Fair sponsorship now leads to a 24-game-hour demonstration, with four seeded result tiers, spectators, settlement consequences and recovery choices.
+- **Changed (11 Nov 2026):** New fairs persist across save, worker and rollback boundaries; existing fairs in old saves retain their former choices and costs.
+
+- **Fixed (11 Nov 2026):** The Invention Fair now rejects unsupported and stale-stage story choices instead of treating them as rejection or awarding free dismantle wood. An accompanying design audit separates current mechanics from proposed features.
+
 - **Fixed (11 Nov 2026, PR #141 / review #135):** Registered the shared `inputGuards` boundary in the simulation decision registry with on-demand, read-only ownership, real save/view/worker callers and enforced registry test coverage.
 
 - **Fixed (11 Nov 2026):** The invariant harness now uses the requested seed, and worker/main parity covers two full game days. See the supplementary simulation audit.

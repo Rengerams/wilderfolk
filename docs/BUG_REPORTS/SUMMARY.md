@@ -1,5 +1,9 @@
 # Bug report summary — one line per report
 
+**2026-11-11 — [Invention Fair probability cutoff misclassifies exactly 60%](../bug_report/2026-11-11-invention-fair-boundary-floating-point.md):** investigating; integer-percent thresholds and boundary regression tests committed in PR #142; CI pending.
+
+**2026-11-11 — [Invention Fair unknown choices reject or refund the story](../bug_report/2026-11-11-invention-fair-unknown-choice-side-effects.md):** investigating; guarded stage-specific answers and regression tests in the Invention Fair audit PR; CI pending.
+
 **2026-11-11 — [Invariant harness did not use SIM_SEED for world generation](../bug_report/2026-11-11-invariant-harness-ignores-sim-seed.md):** resolved; explicit seed verified by calendar-scheduler run 43005607966.
 
 **2026-11-11 — [Worker parity fixture ran 20 hours rather than the documented five days](../bug_report/2026-11-11-worker-parity-covers-only-20-hours.md):** resolved; two-day worker/main parity passed in Node.js CI 43005608136.

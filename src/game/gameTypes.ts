@@ -791,7 +791,28 @@ export interface SpotlightLoreState {
   slots: Array<{ humanId: number; x: number; y: number }>;
 }
 
+export type InventionFairProject = 'low_budget' | 'standard' | 'high_risk';
+export type InventionFairOutcome = 'success' | 'failure' | 'malfunction' | 'dangerous';
+
+export interface InventionFairState {
+  stage: 'selection' | 'preparation' | 'demonstration' | 'resolution';
+  apprenticeId: number;
+  siteBuildingId: number;
+  project: InventionFairProject | null;
+  offeredAtTick: number;
+  activeEventId: string;
+  expiresAtTick: number;
+  readyDay: number;
+  startedAtTick: number;
+  lastPhase: number;
+  outcome: InventionFairOutcome | null;
+  outcomeApplied: boolean;
+  damagedHealth: number;
+  spectatorSlots: Array<{ humanId: number; x: number; y: number }>;
+}
+
 export interface WorldState {
+  inventionFair?: InventionFairState | null;
   spotlightLore?: SpotlightLoreState | null;
   spotlightLoreLastDay?: number;
   /** Up to fifty memorial records per completed player graveyard. */

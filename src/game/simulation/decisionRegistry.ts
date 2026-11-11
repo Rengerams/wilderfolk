@@ -66,6 +66,7 @@ export type DecisionKey =
   | 'construction'
   | 'production'
   | 'villageRequests'
+  | 'inventionFair'
   | 'visitorLifecycle'
   | 'idleSkillDecay'
   | 'socialFeedback'
@@ -334,6 +335,14 @@ export const SIMULATION_DECISIONS = {
     ],
     scheduledFrom: 'tickLayerDaily',
     testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts, tests/workSkillAttribution.accrual.test.ts',
+  },
+  inventionFair: {
+    owner: 'inventionFair.ts — maybeOfferInventionFair, tickInventionFair, tickInventionFairRealtime, getInventionFairChoiceEligibility, resolveInventionFair, rollInventionFairOutcome, private stage and outcome lifecycle; storyEvents delegates player choices only',
+    cadence: 'daily',
+    cadenceNote: '18:00 daily gating offers and schedules the 24-in-game-hour event; one realtime advance owns the 288-tick three-phase demonstration. Modern state is saved in WorldState, worker delta and rollback. Player story commands use the same owner; old flag-based saves continue resolving the legacy path.',
+    writes: ['storyFlags', 'inventionFair', 'pendingStoryEvents', 'resources.wood', 'resources.gold', 'villageReputation', 'building.health', 'human.energy', 'human.needs.stamina', 'eventLog', 'bigNews', 'notifications'],
+    scheduledFrom: 'tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → maybeOfferInventionFair/tickInventionFair; tickLayerRealtime → tickInventionFairRealtime; simWorker.commands respondToStoryEvent → storyEvents.respondToStoryEvent → inventionFair.resolveInventionFair',
+    testFile: 'tests/medium-C2-story.test.ts, tests/inventionFair.simulation.test.ts, tests/inventionFair.storageCap.test.ts, tests/inventionFair.invalidChoices.test.ts, tests/actionOutcome.test.ts',
   },
   villageRequests: {
     owner: 'groupEvents.ts — tickVillageRequests, resolveVillageRequest (ONLY request generation, expiry, and resolution owner)',
