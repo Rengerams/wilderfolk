@@ -252,7 +252,9 @@ describe('a prison is open 24 hours', () => {
     const mondayStart = 7 * TICKS_PER_DAY + 7 * TICKS_PER_HOUR;
     while (state.tick < mondayStart) gameTick(state);
     expect(isAtBuildingReach(incoming, prison) || incoming.indoorBuildingId === prison.id,
-      'incoming morning guard was late although the previous watch still covered the post',
+      `incoming morning guard late: at=(${incoming.x.toFixed(1)},${incoming.y.toFixed(1)}), `
+        + `post=(${prison.x},${prison.y}), job=${incoming.job}, `
+        + `workerBuilding=${incoming.workerBuildingId}, stamina=${incoming.needs?.stamina}`,
     ).toBe(true);
   });
 
