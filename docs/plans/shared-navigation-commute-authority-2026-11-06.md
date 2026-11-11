@@ -1,7 +1,7 @@
 # Wilderfolk — Shared Navigation and Authoritative Commute Decisions
 
 **Document type:** Wilderfolk feature/function architecture and executable Codebot plan (completed from `CODEBOT_FEATURE_TEMPLATE.md`)  
-**Status:** IN PROGRESS — Part A foundation source committed but **NOT ACCEPTED / NOT VERIFIED**; Parts B/C not implemented and **NOT ACCEPTED**; PR #127 remains Draft  
+**Status:** IN PROGRESS — Part A rebased and B/C integrations committed (staffing, school, housing, bot preview and walking), **NOT ACCEPTED / NOT VERIFIED** pending CI, simulation, route-search benchmarks and final review. PR #127 remains Draft  
 **Proposed repository path:** `docs/plans/shared-navigation-commute-authority-2026-11-06.md`  
 **Repository evidence:** `Rengerams/wilderfolk`, `main` at `2547a4d4165f81993113b095f67f27b710dcd405`, inspected 2026-11-06. PR #126 was **merged** when this plan was prepared. Re-check HEAD before any coding.  
 **Authority:** `AGENTS.md`, `docs/command.md`, `OWNERSHIP_OVERVIEW.md` and `src/game/simulation/decisionRegistry.ts` take precedence.  
