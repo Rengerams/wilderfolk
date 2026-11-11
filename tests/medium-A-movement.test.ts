@@ -106,6 +106,37 @@ function findQualifyingTreatmentDay(entityId: number): number {
   throw new Error(`no qualifying hospital-treatment day for settler ${entityId}`);
 }
 
+describe('patrol route reuse', () => {
+  it('reuses one planned route while a patrol target moves within one tile', () => {
+    const road = {
+      id: 812, type: BuildingType.Road, x: 300, y: 55,
+      width: 90, height: 10, completed: true,
+    } as Building;
+    setCurrentPathMap(makeMap(60, 20, 891, () => false), [road]);
+    setPathfindingMetricsEnabled(true);
+    resetPathfinderSession();
+    try {
+      const guard = human(13, 25, 55);
+      for (let tick = 0; tick < 12; tick++) {
+        const tx = 245 + tick * 0.1;
+        const ty = 55 + tick * 0.1;
+        steerHumanToward(guard,
+          (Math.floor(tx / PATH_CELL) + 0.5) * PATH_CELL,
+          (Math.floor(ty / PATH_CELL) + 0.5) * PATH_CELL,
+          2, 0.65, `patrol_${guard.id}`);
+        applyHumanWalkStep(guard, 1);
+      }
+      const counters = getCurrentPathfinderTickCounters();
+      expect(counters.cacheMisses).toBe(1);
+      expect(counters.cacheHits).toBeGreaterThan(0);
+    } finally {
+      setCurrentPathMap(null);
+      setPathfindingMetricsEnabled(false);
+      resetPathfinderSession();
+    }
+  });
+});
+
 describe('M12 hotel visitor movement', () => {
   it('applies exactly one steered step per tick when routing around blocked terrain', () => {
     // Vertical river at tile column 20 with a single gap at row 20.
