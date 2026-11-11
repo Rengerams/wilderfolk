@@ -20,7 +20,7 @@ import {
   isVenueServiceHour,
   isVenueWorkerServiceHour,
 } from './venueSchedule';
-import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
+import { prisonDutyForGuard } from './prisonShifts';
 import { prisonGuardIds } from './prisonGuardDuty';
 import { isBarracksGuard } from './defenseStructures';
 import { isCeremonyAttendee } from './villageLeadership';
@@ -150,15 +150,15 @@ function resolveShift(
   }
 
   if (isPrisonGuardAtPost) {
-    const prisonShift = prisonShiftForGuard(
+    const prisonDuty = prisonDutyForGuard(
       entity.id,
       prisonGuardIds(state, workplace?.occupants ?? []),
       state.tick,
     );
-    if (prisonShift) {
+    if (prisonDuty) {
       return {
-        onShift: shiftCoversHour(prisonShift, hour),
-        next: { hour: prisonShift.startHour, kind: 'prison' },
+        onShift: prisonDuty.onShift,
+        next: { hour: prisonDuty.shift.startHour, kind: 'prison' },
       };
     }
     return { onShift: false, next: { hour: schedule.startHour, kind: 'prison' } };
