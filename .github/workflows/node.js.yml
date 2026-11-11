@@ -20,12 +20,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/actions/checkout@v4.4.0
+        uses: actions/checkout@v4.4.0
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/actions/setup-node@v4.1.0
+        uses: actions/setup-node@v4.1.0
         with:
           node-version: '26.12.1'
           cache: npm
