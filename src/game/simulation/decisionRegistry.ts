@@ -390,16 +390,16 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/spotlightLore.test.ts, tests/spotlightQuietStage.test.ts, tests/renderer.presentationLayout.test.ts, tests/spotlightChoreography.test.ts, tests/spotlightApplause.test.ts, tests/spotlightAudioRace.test.ts',
   },
   courtship: {
-    owner: 'humanRelationships.ts — findCourtshipPartner, isEligibleToCourt, tryCompleteCourtshipMarriage; progress advance executes from humanTick.ts',
+    owner: 'humanRelationships.ts — findCourtshipPartner, isEligibleToCourt, canAdvanceCourtship, tryCompleteCourtshipMarriage; progress advance executes from humanTick.ts',
     cadence: 'realtime',
-    cadenceNote: 'authority declares social/daily; the encounter path and the progress advance actually run every realtime tick for every eligible settler with NO stagger (humanTick findCourtshipPartner + bindCourtship). A SOCIAL_STAGGER gate exists in the same function but is deliberately not applied to the partner query: positions are rewritten every tick, so querying one tick in six would pair a different closest partner. Marriage finalization is owned by humanRelationships',
+    cadenceNote: 'Realtime: humanTick observes each participant’s actual shift/sleep state before interactions; canAdvanceCourtship requires both awake and physically within 10px, off-duty social time or both actually present at the same workplace during an overlapping shift. Because the partner’s sleep observation must be known, the later processed partner may advance the pair; a per-tick pair guard prevents duplicate credit. No stagger is applied to courtship partner selection. Marriage finalization remains owned by humanRelationships.',
     writes: [
       'human.courtshipPartnerId',
       'human.courtshipProgress',
       'human.relationshipStatus',
       'human.partnerId',
     ],
-    scheduledFrom: 'humanTick.ts (per realtime tick, socialTime gate) → humanRelationships.findCourtshipPartner / tryCompleteCourtshipMarriage',
+    scheduledFrom: 'humanTick.ts (per realtime tick, observed pair sleep, distance and shared-duty gates) → humanRelationships.findCourtshipPartner / canAdvanceCourtship / tryCompleteCourtshipMarriage',
     testFile: 'tests/phase7.social.test.ts',
   },
   affairs: {
