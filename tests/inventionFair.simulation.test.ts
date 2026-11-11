@@ -14,6 +14,9 @@ import {
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { createSeededRng } from '../src/game/simRng';
 import { pickWorldFieldsForSave } from '../src/game/saveSchema';
+import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
+import { createInitialView } from '../src/game/viewState';
+import { extractSimPrep, applySimPrep } from '../src/game/simWorker/simPrep';
 import { extractSimTickDelta, applySimTickDelta } from '../src/game/simBuffers/simDelta';
 import { getStoryChoiceEligibility, respondToStoryEvent } from '../src/game/storyEvents';
 
@@ -208,6 +211,21 @@ describe('The Apprentice’s Terrible Invention Fair — canonical simulation co
     applySimTickDelta(target, delta, { cloneMode: 'isolated' });
     expect(target.inventionFair).toEqual(fair);
     expect(target.inventionFair).not.toBe(state.inventionFair);
+
+    const prep = extractSimPrep(state);
+    state.inventionFair!.spectatorSlots.length = 0;
+    state.inventionFair!.lastPhase = 999;
+    applySimPrep(state, prep);
+    expect(state.inventionFair).toEqual(fair);
+
+    const loaded = loadGameFromParsedOutcome(
+      buildSaveData(state, createInitialView(state.width, state.height)),
+    );
+    expect(loaded.ok).toBe(true);
+    if (loaded.ok) {
+      expect(loaded.world.inventionFair).toEqual(fair);
+      expect(loaded.world.inventionFair?.startedAtTick).toBe(start);
+    }
   });
 
   it('resolves or expires each stage once and retains campaign completion flag', () => {
