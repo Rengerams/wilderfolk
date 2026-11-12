@@ -39,7 +39,11 @@ const StatBadge = memo(function StatBadge({ label, value, icon, title }: StatBad
   );
 });
 
-const HousingDiagnostics = memo(function HousingDiagnostics({ state }: { state: WorldState }) {
+/**
+ * The three subject bodies below are plain functions, not `memo`: the simulation reuses one world
+ * object per tick, so a reference-equal `state` would freeze them while their window stays open.
+ */
+function HousingDiagnostics({ state }: { state: WorldState }) {
   const housing = collectHousingDiagnostics(state);
   const healthy = isHousingDiagnosticsHealthy(housing);
   return (
@@ -82,10 +86,10 @@ const HousingDiagnostics = memo(function HousingDiagnostics({ state }: { state: 
       </div>
     </CollapsibleSection>
   );
-});
+}
 
 /** Today's food production vs consumption — "why is my food low?" at a glance. */
-const FoodLedger = memo(function FoodLedger({ state }: { state: WorldState }) {
+function FoodLedger({ state }: { state: WorldState }) {
   // Summed by the ledger owner; this view renders numbers and computes none of them.
   const summary = summarizeFoodLedger(state);
   if (summary.produced.length === 0 && summary.consumed.length === 0) {
@@ -117,13 +121,13 @@ const FoodLedger = memo(function FoodLedger({ state }: { state: WorldState }) {
       </div>
     </div>
   );
-});
+}
 
 /**
  * "Why is nobody in school?" at village scale — the seats actually taken, then every school-age
  * child the seat rule leaves out, counted under the schooling owner's own reason.
  */
-const SchoolingBreakdown = memo(function SchoolingBreakdown({ state }: { state: WorldState }) {
+function SchoolingBreakdown({ state }: { state: WorldState }) {
   const attendance = summarizeSchooling(state, state.tick, getHourOfDay(state.tick));
   const summary = describeSchoolingSummary(attendance);
   return (
@@ -142,7 +146,7 @@ const SchoolingBreakdown = memo(function SchoolingBreakdown({ state }: { state: 
       ))}
     </div>
   );
-});
+}
 
 export interface VillageTabPanelProps {
   state: WorldState;

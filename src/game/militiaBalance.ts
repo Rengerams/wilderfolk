@@ -163,6 +163,7 @@ export function computeMilitiaBreakdown(
   }
 
   let rawTotal = base * spearMultiplier;
+  let plainTotal = plainBase * spearMultiplier;
 
   if (spearTier === 'sword') {
     lines.push(`× ${MILITIA_BALANCE.ironSwordMult} iron swords (replaces spears) → ${Math.round(rawTotal)}`);
@@ -177,14 +178,17 @@ export function computeMilitiaBreakdown(
   if (shieldTier === 'scale') {
     const add = adultCount * MILITIA_BALANCE.scaleMailPerAdult;
     rawTotal += add;
+    plainTotal += add;
     lines.push(`+ ${add} scale mail (replaces shields)`);
   } else if (shieldTier === 'iron') {
     const add = adultCount * MILITIA_BALANCE.ironShieldPerAdult;
     rawTotal += add;
+    plainTotal += add;
     lines.push(`+ ${add} iron shields (replaces wooden)`);
   } else if (shieldTier === 'wooden') {
     const add = adultCount * MILITIA_BALANCE.woodenShieldPerAdult;
     rawTotal += add;
+    plainTotal += add;
     lines.push(`+ ${add} wooden shields`);
   } else {
     lines.push('No armor equipped');
@@ -193,6 +197,7 @@ export function computeMilitiaBreakdown(
   if (guardCount > 0) {
     const guardBonus = staffedGuards > 0 ? getBarracksGuardBonus(state, state.buildings) * guardCount / staffedGuards : 0;
     rawTotal += guardBonus;
+    plainTotal += guardBonus;
     const perGuard = guardBonus / guardCount;
     // Show 1 decimal to avoid misleading integer rounding (e.g. 14.0, 14.5)
     lines.push(`+ ${guardBonus} barracks guards (${guardCount} staffed × ${perGuard.toFixed(1)})`);
@@ -206,10 +211,10 @@ export function computeMilitiaBreakdown(
   const towerBonus = includeStructures ? getWatchtowerBonus(state.buildings, state) : 0;
   const structureBonus = wallBonus + towerBonus;
 
-  // Barricade requires at least some militia to man it
+  // Barricade requires at least some militia to man it; per-soldier DNA prices the militia only.
   const barricadeStrength = militiaStrength > 0
     ? Math.round(
-        militiaStrength * MILITIA_BALANCE.barricadeMilitiaFactor
+        plainTotal * MILITIA_BALANCE.barricadeMilitiaFactor
         + MILITIA_BALANCE.barricadeFlatBonus
         + structureBonus,
       )

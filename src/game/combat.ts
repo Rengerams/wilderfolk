@@ -12,6 +12,7 @@ import type { ForgeOrderId, VillageForgeState } from './gameTypes';
 import { hasCompletedBlacksmith, isForgeOrderComplete } from './forge';
 import { COMBAT_TECH } from './combatTech';
 import { hasTech, resolveResearchEffect } from './simHelpers';
+import { seededRandomForRun } from './simRng';
 
 export const EMPTY_FORGE: VillageForgeState = {
   activeOrder: null,
@@ -107,6 +108,14 @@ export function getCounterAttackChance(state: WorldState): number {
   return hasIronSwords(state) ? 0.55 : 0.45;
 }
 
+/**
+ * One combat roll per entity and tick, drawn from the run-seeded `combat` stream. The salt carries
+ * the caller's per-entity seed, so the value never depends on stream cursors or on entity order.
+ */
+function combatRoll(kind: 'predator-block' | 'counter-attack', ...keys: number[]): number {
+  return seededRandomForRun(`combat:${kind}:${keys.join(':')}`);
+}
+
 export function rollPredatorBlock(
   state: WorldState,
   humanId: number,
@@ -115,7 +124,7 @@ export function rollPredatorBlock(
 ): boolean {
   const chance = getPredatorBlockChance(state);
   if (chance <= 0) return false;
-  const roll = (((humanId * 1103515245 + tick * 12345 + combatRollSeed) >>> 0) % 1000) / 1000;
+  const roll = combatRoll('predator-block', humanId, tick, combatRollSeed);
   return roll < chance;
 }
 
@@ -128,8 +137,7 @@ export function rollCounterAttack(
 ): boolean {
   const chance = getCounterAttackChance(state);
   if (chance <= 0) return false;
-  const roll =
-    (((humanId * 2654435761 + predatorId * 1597334677 + tick + combatRollSeed) >>> 0) % 1000) / 1000;
+  const roll = combatRoll('counter-attack', humanId, predatorId, tick, combatRollSeed);
   return roll < chance;
 }
 

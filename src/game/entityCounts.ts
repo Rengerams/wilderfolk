@@ -1,6 +1,6 @@
 import type { Entity, WildlifeCounts } from './gameTypes';
 import { EntityType } from './gameTypes';
-import { isPlayerHuman } from './playerHuman';
+import { isPlayerHumanShiftOwner } from './playerHuman';
 
 export type PopulationCounts = WildlifeCounts & {
   /** Village settlers (player humans). Matches `WorldState.humanPopulation`. */
@@ -50,9 +50,9 @@ function wildlifeCountBucket(e: Entity): keyof WildlifeCounts | null {
     case EntityType.Fox:
       return 'foxes';
     case EntityType.Werewolf:
-      // Always count Werewolf-type entities as werewolves.
-      // If a cursed human is in Human form, its type should be Human (restored via moonHowlerSaved).
-      return 'werewolves';
+      // A cursed settler's temporary wolf form is the settler, not wildlife: `isPlayerHumanShiftOwner`
+      // owns that classification and the caller counts them as human instead.
+      return isPlayerHumanShiftOwner(e) ? null : 'werewolves';
     case EntityType.Wildkin:
       return 'wildkin';
     case EntityType.Human:
@@ -68,7 +68,7 @@ function wildlifeCountBucket(e: Entity): keyof WildlifeCounts | null {
 export function computeWildlifeCounts(entities: Entity[]): WildlifeCounts {
   const counts = emptyWildlifeCounts();
   for (const e of entities) {
-    if (!e.alive) continue;
+    if (!e.alive || isPlayerHumanShiftOwner(e)) continue;
     const bucket = wildlifeCountBucket(e);
     if (bucket) counts[bucket]++;
   }
@@ -86,9 +86,13 @@ export function computePopulationCounts(entities: Entity[]): PopulationCounts {
   const counts = emptyPopulationCounts();
   for (const e of entities) {
     if (!e.alive) continue;
+    // A cursed settler in Moon Howler form stays in the human census; only its outward type changes.
+    if (isPlayerHumanShiftOwner(e)) {
+      counts.humans++;
+      continue;
+    }
     if (e.type === EntityType.Human) {
-      if (isPlayerHuman(e)) counts.humans++;
-      else if (e.faction === 'visitor' || e.faction === 'trade_caravan') counts.visitorHumans++;
+      if (e.faction === 'visitor' || e.faction === 'trade_caravan') counts.visitorHumans++;
       else if (e.faction === 'rival') counts.rivalHumans++;
       continue;
     }

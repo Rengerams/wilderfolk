@@ -16,6 +16,11 @@ export interface VillageStatsSummary {
   working: number;
   idle: number;
   imprisoned: number;
+  /**
+   * Adults who can hold a work post (`adults − imprisoned`). `working` and `idle` partition this
+   * pool, so it is the denominator for the "working / workforce" ratio.
+   */
+  workforce: number;
   beds: number;
   /**
    * Beds a settler may actually be assigned (`getOpenPlayerBeds`), not `beds − total`: the Leader's
@@ -60,6 +65,7 @@ export function computeVillageStats(
   let working = 0;
   let idle = 0;
   let imprisoned = 0;
+  let workforce = 0;
 
   for (const e of humans) {
     if (!e.alive || !isPlayerHuman(e)) continue;
@@ -78,6 +84,8 @@ export function computeVillageStats(
       continue;
     }
 
+    workforce++;
+
     if (hasWorkAssignment(e) || constructionWorkers.has(e.id)) {
       working++;
     } else {
@@ -94,6 +102,7 @@ export function computeVillageStats(
     working,
     idle,
     imprisoned,
+    workforce,
     beds,
     openBeds: getOpenPlayerBeds(world),
   };

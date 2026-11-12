@@ -1,4 +1,3 @@
-import { memo } from 'react';
 import type { OutgoingRaidEvent, RivalSettlement, WorldState } from '../game/gameTypes';
 import { getPlayerCampCenter } from '../game/villageAnchor';
 import { formatCampDistance, getCampDistancePixels, getRaidParticipants } from '../game/frontierCombat';
@@ -29,8 +28,11 @@ function rivalInk(rival: RivalSettlement): string {
   return NEUTRAL_INK;
 }
 
-/** This is an illustrated strategic view; simulation positions remain authoritative. */
-function StrategicWorldMap({ state, selectedRivalId, onSelectRival }: Props) {
+/**
+ * An illustrated strategic view; simulation positions remain authoritative. Not memoised: the
+ * reused world object makes a reference comparison always equal and freezes the live counts.
+ */
+export default function StrategicWorldMap({ state, selectedRivalId, onSelectRival }: Props) {
   const village = getPlayerCampCenter(state, state.buildings);
   const settlements = state.rivalSettlements;
   const positions = new Map<string, StrategicMapPoint>(
@@ -177,5 +179,3 @@ function StrategicWorldMap({ state, selectedRivalId, onSelectRival }: Props) {
     </section>
   );
 }
-
-export default memo(StrategicWorldMap);

@@ -3,7 +3,6 @@ import type { Entity, WorldState } from '../gameTypes';
 import { EntityType, JobType } from '../gameTypes';
 import type { TickContext } from './simulationTypes';
 import {
-  PREGNANCY_TICKS,
   REPRODUCTION_COOLDOWN_TICKS,
   ticksForDays,
   getColonyDay,
@@ -12,6 +11,8 @@ import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 import { resolveChildSurname, getRandomName } from '../nameLoader';
 import { genomeOf, inheritGenome } from '../settlerTraits';
 import { createEntity } from '../entityFactory';
+import { getPregnancyProgressFraction, normalizePregnancyDueProgress } from '../pregnancy';
+import { SPECIES_CONFIG } from '../speciesConfig';
 import { pushNewEntity, allLivingHumans } from './simulationEntities';
 import { recordGenealogyBirth } from '../genealogyRegistry';
 import { pickHumanVariant } from '../humanSprites';
@@ -62,18 +63,6 @@ export const LIFECYCLE_CONFIG = {
   HOSPITAL_THRESHOLD_RATIO: 0.85,
 } as const;
 
-/** Authoritative progress toward this mother's individual due date (±15% term variation). */
-export function getPregnancyProgressFraction(
-  mother: Pick<Entity, 'pregnancyProgress' | 'pregnancyDueProgress'>,
-): number {
-  const due = mother.pregnancyDueProgress;
-  const term = typeof due === 'number' && Number.isFinite(due) && due > 0
-    ? due : PREGNANCY_TICKS;
-  const elapsed = mother.pregnancyProgress;
-  const progress = typeof elapsed === 'number' && Number.isFinite(elapsed) ? elapsed : 0;
-  return Math.min(1, Math.max(0, progress / term));
-}
-
 function safeAddChildId(parent: Entity, childId: number): void {
   parent.childrenIds ??= [];
   if (!parent.childrenIds.includes(childId)) {
@@ -109,7 +98,7 @@ export function tickPregnancyAndBirth(
   const { livingHumanAt } = opts;
 
   entity.pregnancyProgress = (entity.pregnancyProgress ?? 0) + 1;
-  const dueProgress = entity.pregnancyDueProgress ?? PREGNANCY_TICKS;
+  const dueProgress = normalizePregnancyDueProgress(entity.pregnancyDueProgress);
 
   if (entity.pregnancyProgress < dueProgress) {
     return;
@@ -159,7 +148,13 @@ export function tickPregnancyAndBirth(
 
   // --- OUTCOME BRANCH 1: WILDKIN BIRTH ---
   if (wildkinBirth) {
-    const wildkin = createEntity(EntityType.Wildkin, nx, ny, state.nextEntityId++, 250);
+    const wildkin = createEntity(
+      EntityType.Wildkin,
+      nx,
+      ny,
+      state.nextEntityId++,
+      SPECIES_CONFIG[EntityType.Wildkin].spawnEnergy,
+    );
     pushNewEntity(state, ctx, wildkin);
     addBigNews(
       state,

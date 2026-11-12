@@ -229,6 +229,18 @@ describe('the reason a settler is not at their post', () => {
     expect(getSettlerWorkReason(state, worker)).toEqual({ code: 'ill', label: 'Ill — exhausted' });
   });
 
+  it('says working for an exhausted settler who is visibly at the post', () => {
+    const farm = building(1, BuildingType.Farm, { occupants: [1] });
+    const stand = humanBuildingTarget(farm, 1);
+    const worker = postedFarmer(farm, { x: stand.x, y: stand.y, energy: 30 });
+    const state = world(workdayTick(10), { entities: [worker], buildings: [farm] });
+
+    expect(getSettlerWorkReason(state, worker)).toEqual({
+      code: 'working',
+      label: 'Working at Farm',
+    });
+  });
+
   it('says working for a pregnant settler who is actually at her post', () => {
     const farm = building(1, BuildingType.Farm, { occupants: [1] });
     const stand = humanBuildingTarget(farm, 1);

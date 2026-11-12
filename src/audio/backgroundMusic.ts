@@ -66,7 +66,7 @@ class BackgroundMusicPlayer {
 
   /** Re-apply the volume preset to the HTML element this player falls back to. */
   syncVolume() {
-    syncHtmlAudioVolume(this.htmlAudio, this.currentTrack().vol, audioGraph.getLevels());
+    syncHtmlAudioVolume(this.htmlAudio, this.currentTrack().vol, audioGraph.musicPathGain());
   }
 
   /** Start or recover gameplay music after unlock, unmute, or entering the map. */
@@ -108,7 +108,7 @@ class BackgroundMusicPlayer {
   private async tryHtmlPlayback(url: string, volume: number, isCurrent: () => boolean): Promise<boolean> {
     if (audioGraph.isMuted) return false;
     const el = this.ensureHtmlAudio(url);
-    syncHtmlAudioVolume(el, volume, audioGraph.getLevels());
+    syncHtmlAudioVolume(el, volume, audioGraph.musicPathGain());
     try {
       await el.play();
       if (!isCurrent()) {

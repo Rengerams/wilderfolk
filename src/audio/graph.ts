@@ -99,10 +99,13 @@ class AudioGraph {
     return this.volumePreset;
   }
 
-  /** Current preset levels — what the HTMLAudio fallback needs to scale its element. */
-  getLevels(): AudioLevels {
+  /**
+   * Linear gain a music track at unit amplitude emerges at after master × music. `HTMLAudioElement`
+   * playback bypasses the buses, so it must scale its element by this same owner value.
+   */
+  musicPathGain(): number {
     this.ensure();
-    return { ...this.levels };
+    return this.effectiveMasterGain() * this.effectiveMusicGain();
   }
 
   setVolumePreset(preset: VolumePreset) {

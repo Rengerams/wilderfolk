@@ -221,7 +221,7 @@ export function packRenderSoA(
       ? (entity.residenceBuildingId >>> 0)
       : RESIDENCE_BUILDING_NONE;
     u32[base + RENDER_FIELD.chatTicks] = (entity.chatTicks ?? 0) >>> 0;
-    u32[base + RENDER_FIELD.reserved0] = 0;
+    f32[base + RENDER_FIELD.energy] = safeF32(entity.energy);
     u32[base + RENDER_FIELD.reserved1] = 0;
   }
 

@@ -7,6 +7,7 @@ import type { GenomeV2 } from '../src/game/settlerTraits';
 import { APTITUDE_IDS } from '../src/game/settlerTraits';
 import { EntityType, JobType, Season } from '../src/game/gameTypes';
 import { combinePairFactors, evaluateAptitudeInfluence } from '../src/game/personality/traitEvaluation';
+import { grantMark } from '../src/game/personalMarks';
 import { initGame } from '../src/game/worldGen';
 import { tickHumans } from '../src/game/humanTick';
 import { tickPregnancyAndBirth } from '../src/game/simulation/humanLifecycle';
@@ -371,5 +372,20 @@ describe('conception is deliberately non-genetic', () => {
     const formerLuckyBand = dayInBand(605, chance, chance * 1.15);
     expect(conceptionFrame(affairPair(genomeFrom({ initiative: 95 })), formerLuckyBand).conceived).toBe(false);
     expect(conceptionFrame(affairPair(genomeFrom()), dayBelow(605, chance)).conceived).toBe(true);
+  });
+
+  it('applies the conception activity factor to the affair roll', () => {
+    const chance = HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE;
+    const carrier = {} as Entity;
+    expect(grantMark(carrier, 'lucky', 1, 'raidVictory')).toBe(true);
+    const luckyFactor = evaluateAptitudeInfluence(carrier, 'conception').factor;
+    expect(luckyFactor).toBeGreaterThan(1);
+
+    const band = dayInBand(605, chance, chance * luckyFactor);
+    expect(conceptionFrame(affairPair(genomeFrom()), band).conceived).toBe(false);
+
+    const pair = affairPair(genomeFrom());
+    expect(grantMark(pair[0]!, 'lucky', 1, 'raidVictory')).toBe(true);
+    expect(conceptionFrame(pair, band).conceived).toBe(true);
   });
 });

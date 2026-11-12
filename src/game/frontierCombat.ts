@@ -24,7 +24,7 @@ export { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettler
 import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } from './resourceCost';
 import { getSimRng, hashSalt } from './simRng';
 import { addCappedResource } from './resourceUtils';
-import { spendFood } from './economyLedger';
+import { spendFood, recordFoodProduced } from './economyLedger';
 import { addBigNews, addFloatingText } from './simEffects';
 import { addReputation, getReputationBand } from './simHelpers';
 export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
@@ -912,7 +912,11 @@ export function clampRaidGoldGain(currentGold: number, spoilsGold: number, softC
 
 function grantRaidSpoils(state: WorldState, spoils: RaidLootBundle): RaidLootBundle {
   const gained: RaidLootBundle = { food: 0, wood: 0, stone: 0, gold: 0 };
-  if (spoils.food > 0) gained.food = addCappedResource(state, 'food', spoils.food);
+  // Spoils enter the store like any other incoming food; only what storage accepted is recorded.
+  if (spoils.food > 0) {
+    gained.food = addCappedResource(state, 'food', spoils.food);
+    recordFoodProduced(state, 'raid', gained.food);
+  }
   if (spoils.wood > 0) gained.wood = addCappedResource(state, 'wood', spoils.wood);
   if (spoils.stone > 0) gained.stone = addCappedResource(state, 'stone', spoils.stone);
   if (spoils.gold > 0) {

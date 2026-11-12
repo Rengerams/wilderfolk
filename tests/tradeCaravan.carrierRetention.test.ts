@@ -69,6 +69,34 @@ describe('a caravan carrier leaves through the tick spawn path', () => {
     expect(ctx.entityById.get(spawned[0].id)).toBe(spawned[0]);
   });
 
+  it('resolves a caravan that cannot finish at its trip deadline and returns the reserved exports', () => {
+    const state = makeDepartingWorld(LAYER_SYSTEMS_INTERVAL);
+    const ctx = makeCtx(state);
+    const route = state.tradeRoutes[0];
+    const before = { ...state.resources };
+
+    tickTradeCaravans(state, ctx, LAYER_SYSTEMS_INTERVAL);
+    expect(route.caravanCarrierId).toBeDefined();
+    expect(route.nextDepartureTick, 'the trip carries a bounded deadline').toBeGreaterThan(state.tick);
+    // The exports left the store with the carrier.
+    expect(state.resources.wood).toBe(before.wood - route.resourcesGiven.wood);
+    expect(state.resources.food).toBe(before.food - route.resourcesGiven.food);
+
+    // The end-of-tick rebuild adopts the spawned carrier; the next systems pass reads it in the world.
+    state.entities.push(...ctx.newEntities.filter(isCarrier));
+
+    // The carrier never reaches the partner: the deadline is the one resolution owner.
+    state.tick = route.nextDepartureTick!;
+    tickTradeCaravans(state, ctx, LAYER_SYSTEMS_INTERVAL);
+
+    expect(route.caravanCarrierId).toBeUndefined();
+    expect(route.caravanLeg).toBeUndefined();
+    expect(state.entities.some(isCarrier), 'the lost carrier leaves the world').toBe(false);
+    expect(state.resources.wood, 'reserved wood returned').toBe(before.wood);
+    expect(state.resources.food, 'reserved food returned').toBe(before.food);
+    expect(route.nextDepartureTick).toBeGreaterThan(state.tick);
+  });
+
   it('the carrier is still in the world after a full gameTick', () => {
     const tick = LAYER_SYSTEMS_INTERVAL * 3;
     const state = makeDepartingWorld(tick);

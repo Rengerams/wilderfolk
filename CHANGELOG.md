@@ -2,6 +2,35 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (11 Nov 2026):** Placement validity markers and the strip hint follow the ghost every frame, and the static entity and terrain layers stop rebuilding while nothing they draw has changed.
+- **Fixed (11 Nov 2026):** Grass on the worker path renders its real energy, and render code no longer writes simulation fields.
+- **Fixed (11 Nov 2026):** Loading a colony clears the previous colony's build mode and windows; startup no longer generates a Huge world before the player chooses one.
+- **Fixed (11 Nov 2026):** A hung worker command or a failing recovery no longer freezes the colony for 30–74 seconds; the main thread keeps ticking inside a bounded budget.
+- **Fixed (11 Nov 2026):** The intro theme resumes instead of rewinding on a click, and HTML and Web Audio playback share one gain.
+- **Fixed (11 Nov 2026):** A custodian household is never split by the over-capacity repair, the weekly housing audit reports a housed custodian with a homeless minor, and the growth report counts only assignable beds.
+- **Fixed (11 Nov 2026):** A welcomed refugee has a permanent genome and born marks from the moment of citizenship.
+- **Fixed (11 Nov 2026):** An unstaffed Hotel lodges nobody; a blocked trade caravan resolves and refunds instead of stalling; rival-owned buildings cannot be repaired, upgraded or demolished.
+- **Fixed (11 Nov 2026):** Challenge progress, the strategic map and the village sections update while open in worker mode.
+- **Fixed (11 Nov 2026):** Social scenes play at most once per person per colony day, lifetime totals no longer shrink, the election tally credits only eligible ballots, and a wedding outcome cannot retarget another rival.
+- **Fixed (11 Nov 2026):** A spouse id naming a pruned settler is cleared whatever the relationship status says, so a removed partner cannot leave an orphan bond.
+- **Fixed (11 Nov 2026):** Yearly wildlife events spawn on passable ground, poaching goes through the wildlife-death owner, a hotel-bound guest reaches the door off camera, and visitor camps avoid rival camps.
+- **Fixed (11 Nov 2026):** Terrain overrides survive a failed delta post, marks reach the replica on the next tick, and a rollback no longer keeps a dialogue cooldown.
+- **Fixed (11 Nov 2026):** Gates that could not fail now can: the year harness asserts living settlers, the vacuous perf and scratch gates are gone, docs and comment checks fail loudly, and the ownership index has coverage floors.
+- **Fixed (11 Nov 2026):** Off-screen settlers now keep their commanded walk and cover the same distance per game time as focused settlers; the 1-in-24 decision throttle remains.
+- **Fixed (11 Nov 2026):** Production now pays only witnessed attendance: a crew that never reaches its post earns no output, while a settled all-zero or legacy day still uses its recorded hours.
+- **Fixed (11 Nov 2026):** Buildings no crew can occupy (Wall, Gate, Watchtower, Barn, Silo, Storehouse, Mill, Square, Bridge, Preserve, decor) finish on their advertised days instead of 4.55×.
+- **Fixed (11 Nov 2026):** The Defense preset now raises Barracks and Prison guards before the trades.
+- **Fixed (11 Nov 2026):** An oversized custodian group is seated across homes when beds exist (custodian and youngest together), instead of staying homeless beside free beds.
+- **Fixed (11 Nov 2026):** Expired story cards now resolve their chain with an explicit fate; a lapsed ranger gives a traveller's howler tale instead of falsely returning, and the guided campaign can still reach 5/5.
+- **Fixed (11 Nov 2026):** A long terrain clear no longer drops patches; the village anchor, Town Hall service and visitor camp sites use the footprint centre and validated ground.
+- **Changed (11 Nov 2026):** Pregnancy start, term jitter and due-date validation now have one owner; arriving and conceived pregnancies produce the same state.
+
+- **Fixed (11 Nov 2026):** Village forge orders now advance on the same midnight production-day anchor as every other interval producer, so a queued order completes instead of consuming its inputs forever.
+- **Fixed (11 Nov 2026):** The Wildkin is a real apex predator: it hunts deer and rabbit, pays full carnivore metabolism, deposits scent grazers flee, and spawns with its configured energy instead of becoming NaN on grass.
+- **Fixed (11 Nov 2026):** Leaving a colony now saves it: the session stop saves before the loop is cleared, a pagehide write covers tab close, and starting a new settlement waits for that save before deleting the slot.
+- **Fixed (11 Nov 2026):** Imported saves are hardened: malformed transient entries are dropped, non-finite entity energy and oversized building/map dimensions are refused, preventing a permanent freeze or loader hang.
+- **Fixed (11 Nov 2026):** Loading or leaving a colony clears its pending demolition, family-tree and battle-report windows and stops its audio, so stale UI and silence no longer cross a session.
+
 - **Changed (11 Nov 2026):** Engineering rules now prioritize coherent solutions over tiny patches, require single owners and complete function registration, encourage proactive design advice, and avoid unnecessary test proliferation.
 
 - **Fixed (11 Nov 2026, PR #142):** Invention Fair outcome tiers now accumulate integer percentage weights, preventing floating-point error at the standard project's exact 60% boundary. Added tests for both sides of the outcome cutoffs.

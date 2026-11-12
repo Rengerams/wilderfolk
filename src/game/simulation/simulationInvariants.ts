@@ -5,11 +5,13 @@
 import type { Building, Entity, WorldState } from '../gameTypes';
 import { BuildingType, BUILDING_JOB_TYPES, LEADER_OCCUPATION } from '../gameTypes';
 import { isActingVillageHead } from '../villageLeadership';
+import { isPlayerHuman } from '../playerHuman';
 import { countActiveMoonHowlerCurses, isActiveMoonHowler } from '../moonHowler';
 import { isSettlerRelationshipEntity } from '../moonHowlerForm';
 import { isResidenceOccupantEntity, isResidenceBuildingType } from '../housingModel';
 
 import { BUILDING_CONFIGS } from '../buildings';
+import { isValidPregnancyDueProgress } from '../pregnancy';
 
 type BuildingRole = 'prison' | 'residence' | 'workplace' | 'crew' | 'none';
 
@@ -199,8 +201,7 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
 
     // Pregnancy invariants (humanLifecycle clears these fields at birth).
     if (entity.pregnant) {
-      const due = entity.pregnancyDueProgress;
-      if (due == null || !Number.isFinite(due) || due <= 0) {
+      if (!isValidPregnancyDueProgress(entity.pregnancyDueProgress)) {
         errors.push(`human ${id} is pregnant without a valid pregnancyDueProgress`);
       }
     } else {
@@ -248,14 +249,31 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
         errors.push(`leader ${leader.id} not residing in the Leader's House (#${manor.id})`);
       }
     }
+  } else {
+    // A vacant office must leave no leader-only trace behind: no settler may keep the office label,
+    // and the manor's entitlement hold needs a scheduled succession to end it.
+    for (const entity of state.entities) {
+      if (entity.alive && isPlayerHuman(entity) && entity.occupation === LEADER_OCCUPATION) {
+        errors.push(
+          `villageLeaderId is unset but human ${entity.id} still holds the "${LEADER_OCCUPATION}" occupation`,
+        );
+      }
+    }
+    if (
+      state.pendingLeaderHouseResidentIds != null
+      && state.pendingElectionYear == null
+      && state.electionCeremony == null
+    ) {
+      errors.push("Leader's House resident hold persists with no pending succession election");
+    }
   }
 
   return errors;
 }
 
 /**
- * Development assertion wrapper — throws on the first violation with the full error list. Only call it
- * from development harnesses; the collector itself stays available to tests and diagnostics.
+ * Development assertion wrapper — collects every violation and throws once with the full list. The
+ * dev/test tick and development harnesses call it; the collector itself stays available to tests and diagnostics.
  */
 export function assertSimulationInvariants(state: WorldState): void {
   const errors = collectSimulationInvariantErrors(state);

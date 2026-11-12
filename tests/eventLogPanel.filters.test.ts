@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { EVENT_LOG_FILTER_OPTIONS, getEventLogFilterLabel } from '../src/game/eventLogFilters';
 import type { GameEventLog } from '../src/game/gameTypes';
+
+const panelSource = (): string =>
+  readFileSync(resolve(process.cwd(), 'src/game/EventLogPanel.tsx'), 'utf8');
 
 /**
  * Every event type the game can write, declared once as a `Record` keyed by the union, so a new
@@ -41,5 +46,21 @@ describe('Chronicle filter options', () => {
     expect(getEventLogFilterLabel('prison')).toMatch(/imprison/i);
     expect(getEventLogFilterLabel('prison')).not.toBe(getEventLogFilterLabel('event'));
     expect(getEventLogFilterLabel('prison')).not.toBe(getEventLogFilterLabel('scandal'));
+  });
+});
+
+describe('a shell handover reaches the open log window', () => {
+  it('adopts a changed initialFilter while the window stays mounted', () => {
+    const source = panelSource();
+    expect(source).toContain('filterChoice.handedOver === initialFilter');
+    expect(source).not.toContain('useEffect');
+  });
+
+  it('downloads the stored Chronicle the footer promises, not the active category', () => {
+    const source = panelSource();
+    for (const format of ['downloadChronicleLog', 'downloadChronicleJSON', 'downloadChronicleCSV']) {
+      expect(source, `${format} still exports the filtered list`).not.toContain(`${format}(allFiltered, meta)`);
+      expect(source).toContain(`${format}(events, meta)`);
+    }
   });
 });

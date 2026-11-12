@@ -109,6 +109,182 @@
         "tests/beauty.decor.test.ts",
         "tests/pathfinding.test.ts"
       ]
+    },
+    {
+      "key": "src/game/buildingPlacementActions.ts:53:canPlaceBuilding@a727662dace1e118b3ddb8b16df2978eca82f0f8fea15ccb41676991b37e7252 <-> src/game/placementUtils.ts:334:canPlaceBuildingSnapshot@78861c2371132c438fc17ade65936f18f33e3914cb33fe9720c5279b0c664b72",
+      "reason": "Thin adapters over the one placement decision owner getPlaceBuildingFailureReason: canPlaceBuilding returns its boolean for the command path, canPlaceBuildingSnapshot returns the same verdict for the renderer. They delegate to the single decision and exist only to keep the boolean surface; merging them into the owner would duplicate the boolean rule.",
+      "tests": [
+        "tests/buildGhost.failureReason.test.ts",
+        "tests/placementOverlapIndex.equivalence.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/renderSoAReader.ts:115:RenderSoAReaderV1.x@fdda04d2d906a99da77c80c75cf8e4c1f1f8094bdb410b6aac431d437d1bd535 <-> src/game/simBuffers/renderSoAReader.ts:180:RenderSoAReaderV1.energy@2590b5d6fdefdaf43953c0429c0a511fee79e1be0ee2bbb6323a3d8125d4ff74",
+      "reason": "Fixed-layout render-buffer accessors generated from one row contract: each reads a distinct word of the same slot (id, type code, position, velocity, sprite fields, flags, hunt slot, residence id, energy). The typed reader exists so no caller re-derives offsets; collapsing them would remove that single offset owner. Regressions exercise the packed buffer through the real worker boundary.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/renderer.soaPositionOwnership.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/renderSoAReader.ts:120:RenderSoAReaderV1.y@6dfa61a7c7ae201b576dfdcd61d1616362fba29f3922f95d3c9b93ccfc87c7c6 <-> src/game/simBuffers/renderSoAReader.ts:180:RenderSoAReaderV1.energy@2590b5d6fdefdaf43953c0429c0a511fee79e1be0ee2bbb6323a3d8125d4ff74",
+      "reason": "Fixed-layout render-buffer accessors generated from one row contract: each reads a distinct word of the same slot (id, type code, position, velocity, sprite fields, flags, hunt slot, residence id, energy). The typed reader exists so no caller re-derives offsets; collapsing them would remove that single offset owner. Regressions exercise the packed buffer through the real worker boundary.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/renderer.soaPositionOwnership.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/renderSoAReader.ts:125:RenderSoAReaderV1.vx@36879582c08c66f676138c3641fcec27ffcbfe4afd6e2ac4726e84b9da73f349 <-> src/game/simBuffers/renderSoAReader.ts:180:RenderSoAReaderV1.energy@2590b5d6fdefdaf43953c0429c0a511fee79e1be0ee2bbb6323a3d8125d4ff74",
+      "reason": "Fixed-layout render-buffer accessors generated from one row contract: each reads a distinct word of the same slot (id, type code, position, velocity, sprite fields, flags, hunt slot, residence id, energy). The typed reader exists so no caller re-derives offsets; collapsing them would remove that single offset owner. Regressions exercise the packed buffer through the real worker boundary.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/renderer.soaPositionOwnership.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/renderSoAReader.ts:130:RenderSoAReaderV1.vy@ddbecb48799458bacc7ede5a3f0a95eac13f36b7d91afb2775ba980649719efa <-> src/game/simBuffers/renderSoAReader.ts:180:RenderSoAReaderV1.energy@2590b5d6fdefdaf43953c0429c0a511fee79e1be0ee2bbb6323a3d8125d4ff74",
+      "reason": "Fixed-layout render-buffer accessors generated from one row contract: each reads a distinct word of the same slot (id, type code, position, velocity, sprite fields, flags, hunt slot, residence id, energy). The typed reader exists so no caller re-derives offsets; collapsing them would remove that single offset owner. Regressions exercise the packed buffer through the real worker boundary.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/renderer.soaPositionOwnership.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/renderSoAReader.ts:135:RenderSoAReaderV1.spriteAngle@60f6fa8f2a8e7b2643557471e814c7546587f6814a1b3b4698f98b1da998f463 <-> src/game/simBuffers/renderSoAReader.ts:180:RenderSoAReaderV1.energy@2590b5d6fdefdaf43953c0429c0a511fee79e1be0ee2bbb6323a3d8125d4ff74",
+      "reason": "Fixed-layout render-buffer accessors generated from one row contract: each reads a distinct word of the same slot (id, type code, position, velocity, sprite fields, flags, hunt slot, residence id, energy). The typed reader exists so no caller re-derives offsets; collapsing them would remove that single offset owner. Regressions exercise the packed buffer through the real worker boundary.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/renderer.soaPositionOwnership.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/renderSoAReader.ts:140:RenderSoAReaderV1.animFrame@83992437854bdb84b8794900299bb9a1bebd802211970728c5e966b29edbcbe7 <-> src/game/simBuffers/renderSoAReader.ts:180:RenderSoAReaderV1.energy@2590b5d6fdefdaf43953c0429c0a511fee79e1be0ee2bbb6323a3d8125d4ff74",
+      "reason": "Fixed-layout render-buffer accessors generated from one row contract: each reads a distinct word of the same slot (id, type code, position, velocity, sprite fields, flags, hunt slot, residence id, energy). The typed reader exists so no caller re-derives offsets; collapsing them would remove that single offset owner. Regressions exercise the packed buffer through the real worker boundary.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/renderer.soaPositionOwnership.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/renderSoAReader.ts:145:RenderSoAReaderV1.size@5fed6764e9e87db5d3a7908a55440631c0ded9fdde2bb7c572670b53e2ff4e8f <-> src/game/simBuffers/renderSoAReader.ts:180:RenderSoAReaderV1.energy@2590b5d6fdefdaf43953c0429c0a511fee79e1be0ee2bbb6323a3d8125d4ff74",
+      "reason": "Fixed-layout render-buffer accessors generated from one row contract: each reads a distinct word of the same slot (id, type code, position, velocity, sprite fields, flags, hunt slot, residence id, energy). The typed reader exists so no caller re-derives offsets; collapsing them would remove that single offset owner. Regressions exercise the packed buffer through the real worker boundary.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/renderer.soaPositionOwnership.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/renderSoAReader.ts:150:RenderSoAReaderV1.flash@7f3aeadde34576cbb6660d3b816c05c310cd222c384f30df58755db342f25b29 <-> src/game/simBuffers/renderSoAReader.ts:180:RenderSoAReaderV1.energy@2590b5d6fdefdaf43953c0429c0a511fee79e1be0ee2bbb6323a3d8125d4ff74",
+      "reason": "Fixed-layout render-buffer accessors generated from one row contract: each reads a distinct word of the same slot (id, type code, position, velocity, sprite fields, flags, hunt slot, residence id, energy). The typed reader exists so no caller re-derives offsets; collapsing them would remove that single offset owner. Regressions exercise the packed buffer through the real worker boundary.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/renderer.soaPositionOwnership.test.ts"
+      ]
+    },
+    {
+      "key": "src/audio/introMusic.ts:56:IntroMusicPlayer.start@70729670afd261ab99a19479383fb5e93f86849f77f65345a386d996f66aac9e <-> src/audio/introMusic.ts:59:IntroMusicPlayer.attempt@f41f303388dd50e6deab51b127395f87bd2baaf3efe19befcb76b0f0bc622f1c",
+      "reason": "Re-entrancy wrapper versus the attempt body: start() coalesces concurrent callers and owns the startPromise lifecycle, while the local async body performs unlock/play/fallback with a generation guard. Folding them would either lose the re-entrancy contract or duplicate the generation checks.",
+      "tests": [
+        "tests/audio.introResume.test.ts",
+        "tests/audio.introDismiss.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/groupEvents.ts:1017:pickWildlifeSpawnPoint@7e8eb7cdd0947513a40bde78ef92b5f2c650cb08f70dc9dbf8bd686340a7ea26 <-> src/game/wildkinChronicle.ts:20:settlementAnchor@5b73649767acf51e1624a67d0db57f84c23f5788e536473ae07d2bd45a969f03",
+      "reason": "Unrelated loops that both scan a bounded number of candidate points: the wildlife spawner draws passable ground from the yearly-event stream, the chronicle anchor resolves a settlement centre. No shared rule, data or owner; the similarity is the loop shape only.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/medium-C1-economy.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/hotelStay.ts:286:findStaffedHotels@89a3bf7bc03679ed67eac6c03cc8f4fe2c6fa76f3103b172658c9406b4dbcf1f <-> src/game/housingPipeline.ts:1756:listPlayerResidences@926c1ccea7d979eb91a514cbcd9eb62491ad15d410be648bf16fc7a3a425dce8",
+      "reason": "Distinct predicates for distinct building classes: findStaffedHotels returns completed player Hotels with a posted hotelier (lodging capacity), listPlayerResidences returns completed player residences (bed accounting). They share only the completed-player filter and are consumed by different services; merging them would put a staffing rule inside the housing census.",
+      "tests": [
+        "tests/hotelSettlerLodging.night.test.ts",
+        "tests/hotelStay.checkout.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/renderSoAReader.ts:100:RenderSoAReaderV1.typeCode@19f50055b171800b44d1d2cd3f391757f4a17d7be56eccba3d71f81525f43c1f <-> src/game/simBuffers/renderSoAReader.ts:180:RenderSoAReaderV1.energy@2590b5d6fdefdaf43953c0429c0a511fee79e1be0ee2bbb6323a3d8125d4ff74",
+      "reason": "Fixed-layout render-buffer accessors generated from one row contract: each reads a distinct word of the same slot (id, type code, position, velocity, sprite fields, flags, hunt slot, residence id, energy). The typed reader exists so no caller re-derives offsets; collapsing them would remove that single offset owner. Regressions exercise the packed buffer through the real worker boundary.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/renderer.soaPositionOwnership.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/renderSoAReader.ts:155:RenderSoAReaderV1.flags@224bd8effa400b79be4e1c87e868aeb51eb4e61d1cd40ebb0f241cdd7fb95c5d <-> src/game/simBuffers/renderSoAReader.ts:180:RenderSoAReaderV1.energy@2590b5d6fdefdaf43953c0429c0a511fee79e1be0ee2bbb6323a3d8125d4ff74",
+      "reason": "Fixed-layout render-buffer accessors generated from one row contract: each reads a distinct word of the same slot (id, type code, position, velocity, sprite fields, flags, hunt slot, residence id, energy). The typed reader exists so no caller re-derives offsets; collapsing them would remove that single offset owner. Regressions exercise the packed buffer through the real worker boundary.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/renderer.soaPositionOwnership.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/renderSoAReader.ts:174:RenderSoAReaderV1.chatTicks@c1ad9270b8434baa515cddfd45c1fe4897034cb35dc56a43513ddfe8727d01b0 <-> src/game/simBuffers/renderSoAReader.ts:180:RenderSoAReaderV1.energy@2590b5d6fdefdaf43953c0429c0a511fee79e1be0ee2bbb6323a3d8125d4ff74",
+      "reason": "Fixed-layout render-buffer accessors generated from one row contract: each reads a distinct word of the same slot (id, type code, position, velocity, sprite fields, flags, hunt slot, residence id, energy). The typed reader exists so no caller re-derives offsets; collapsing them would remove that single offset owner. Regressions exercise the packed buffer through the real worker boundary.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/renderer.soaPositionOwnership.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/renderSoAReader.ts:180:RenderSoAReaderV1.energy@2590b5d6fdefdaf43953c0429c0a511fee79e1be0ee2bbb6323a3d8125d4ff74 <-> src/game/simBuffers/renderSoAReader.ts:95:RenderSoAReaderV1.id@488e8719e0f80c5e32f38180d4e82472dac9c7847c03c244ab609f14f76fc8f3",
+      "reason": "Fixed-layout render-buffer accessors generated from one row contract: each reads a distinct word of the same slot (id, type code, position, velocity, sprite fields, flags, hunt slot, residence id, energy). The typed reader exists so no caller re-derives offsets; collapsing them would remove that single offset owner. Regressions exercise the packed buffer through the real worker boundary.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/renderer.soaPositionOwnership.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/hotelStay.ts:106:isStaffedHotel@b43fc577975284dad042f2fd85ef9bf3c67395a63df4f1da55c774695f3c9382 <-> src/game/humanHospitalBehavior.ts:31:isStaffedHospital@65458444ecc09240ea81fd7694b757c7f188f5a42d7e3624b65c534f000520d6",
+      "reason": "Parallel but separate staffing rules: a Hotel needs its hotelier posted to lodge guests, a Hospital needs a doctor on shift to treat patients. Different job types, different service owners. The shared shape is the completed-player-building check, already delegated to the building owner.",
+      "tests": [
+        "tests/hotelSettlerLodging.night.test.ts",
+        "tests/hospitalCare.stamina.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/EventLogPanel.tsx:145:downloadLogFile@f62ca08ad026db9a20abfd8a9b1d18d9b942a2fcb231b9b990c7632de65f8a63 <-> src/game/EventLogPanel.tsx:150:downloadLogJSON@d885e6851237dd0b610cb032c936b5ffcb812032a5ff7ece1280a22b95c9a7b9",
+      "reason": "One shared download helper plus three format writers (JSON, CSV, text). The formats differ in MIME type, escaping and column layout; the shared helper owns the anchor/blob/revoke lifecycle. Collapsing the three would lose the player-facing format choice, which the log panel now exports over the full stored set.",
+      "tests": [
+        "tests/eventLogPanel.filters.test.ts",
+        "tests/uxBatch.onboardingAndLogs.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/EventLogPanel.tsx:145:downloadLogFile@f62ca08ad026db9a20abfd8a9b1d18d9b942a2fcb231b9b990c7632de65f8a63 <-> src/game/EventLogPanel.tsx:155:downloadLogCSV@92d40762678bdc4efb4161b0a52f8b61ff38a5ab776d735e1387d524590fae36",
+      "reason": "One shared download helper plus three format writers (JSON, CSV, text). The formats differ in MIME type, escaping and column layout; the shared helper owns the anchor/blob/revoke lifecycle. Collapsing the three would lose the player-facing format choice, which the log panel now exports over the full stored set.",
+      "tests": [
+        "tests/eventLogPanel.filters.test.ts",
+        "tests/uxBatch.onboardingAndLogs.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/EventLogPanel.tsx:150:downloadLogJSON@d885e6851237dd0b610cb032c936b5ffcb812032a5ff7ece1280a22b95c9a7b9 <-> src/game/EventLogPanel.tsx:155:downloadLogCSV@92d40762678bdc4efb4161b0a52f8b61ff38a5ab776d735e1387d524590fae36",
+      "reason": "One shared download helper plus three format writers (JSON, CSV, text). The formats differ in MIME type, escaping and column layout; the shared helper owns the anchor/blob/revoke lifecycle. Collapsing the three would lose the player-facing format choice, which the log panel now exports over the full stored set.",
+      "tests": [
+        "tests/eventLogPanel.filters.test.ts",
+        "tests/uxBatch.onboardingAndLogs.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/renderSoAReader.ts:160:RenderSoAReaderV1.huntTargetSlot@d313fe247935f432e933d0005c753ed688da7dbbe5dfa4afd0895aa402beb5a2 <-> src/game/simBuffers/renderSoAReader.ts:180:RenderSoAReaderV1.energy@2590b5d6fdefdaf43953c0429c0a511fee79e1be0ee2bbb6323a3d8125d4ff74",
+      "reason": "Fixed-layout render-buffer accessors generated from one row contract: each reads a distinct word of the same slot (id, type code, position, velocity, sprite fields, flags, hunt slot, residence id, energy). The typed reader exists so no caller re-derives offsets; collapsing them would remove that single offset owner. Regressions exercise the packed buffer through the real worker boundary.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/renderer.soaPositionOwnership.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simBuffers/renderSoAReader.ts:169:RenderSoAReaderV1.residenceBuildingId@0dfe240672466b619fd86de4924a108c0504cb80144252cab8f24d2a89135e06 <-> src/game/simBuffers/renderSoAReader.ts:180:RenderSoAReaderV1.energy@2590b5d6fdefdaf43953c0429c0a511fee79e1be0ee2bbb6323a3d8125d4ff74",
+      "reason": "Fixed-layout render-buffer accessors generated from one row contract: each reads a distinct word of the same slot (id, type code, position, velocity, sprite fields, flags, hunt slot, residence id, energy). The typed reader exists so no caller re-derives offsets; collapsing them would remove that single offset owner. Regressions exercise the packed buffer through the real worker boundary.",
+      "tests": [
+        "tests/workerBoundary.closure.test.ts",
+        "tests/renderer.soaPositionOwnership.test.ts"
+      ]
     }
   ]
 }

@@ -259,21 +259,26 @@ export function recordYearlyStats(state: WorldState, forYear?: number): YearlySt
 export function updateLifetimeStats(state: WorldState, stats: LifetimeStats): LifetimeStats {
   const s = { ...stats };
 
-  s.totalHumansBorn = state.yearlyStats.reduce((sum, y) => sum + y.births.humans, 0);
-  // Summed from the yearly records, like births above, so a legacy save (whose yearly entries
-  // predate the per-tick tally) simply starts accumulating from here instead of reading 0.
-  s.totalHumansDied = state.yearlyStats.reduce((sum, y) => sum + (y.deaths?.humans ?? 0), 0);
+  // The yearly window is capped at 50 records, so summing it shrinks after year 50. Carry the
+  // latest record forward instead: the first reconciliation still adopts the whole stored window.
+  const latestYear = state.yearlyStats[state.yearlyStats.length - 1];
+  const windowBirths = state.yearlyStats.reduce((sum, y) => sum + y.births.humans, 0);
+  const windowDeaths = state.yearlyStats.reduce((sum, y) => sum + (y.deaths?.humans ?? 0), 0);
+  s.totalHumansBorn = Math.max(windowBirths, stats.totalHumansBorn + (latestYear?.births.humans ?? 0));
+  s.totalHumansDied = Math.max(
+    windowDeaths,
+    stats.totalHumansDied + (latestYear?.deaths?.humans ?? 0),
+  );
   s.totalBuildings = state.totalBuildingsCompleted;
   s.technologiesResearched = state.unlockedTechs.length;
-  const latestYear = state.yearlyStats[state.yearlyStats.length - 1];
   if (latestYear) {
     s.totalMarriages += latestYear.marriages;
     s.totalBuildingsUpgraded += latestYear.buildings.upgraded;
   }
   // tradeRoutesEstablished incremented in establishTradeRoute; disastersSurvived in worldEvents.ts
 
-  // Find longest living human
-  const allHumans = state.entities.filter(e => e.type === ET.Human);
+  // Find longest living human — the player's own settlers only, never a rival or visitor.
+  const allHumans = state.entities.filter(isPlayerHumanShiftOwner);
   for (const h of allHumans) {
     if (h.age > s.longestLivingHuman.age && h.name) {
       s.longestLivingHuman = { name: citizenFullName(h), age: h.age };

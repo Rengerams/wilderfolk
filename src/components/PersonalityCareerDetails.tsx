@@ -6,6 +6,7 @@ import { JOB_LABELS, JobType, type Entity } from '../game/gameTypes';
 import { APTITUDE_DEFS, APTITUDE_IDS, expressAptitudes, type GeneticAptitude } from '../game/settlerTraits';
 import { PERSONAL_MARK_DEFS, marksOf } from '../game/personalMarks';
 import { evaluateAllAptitudeActivities } from '../game/personality/traitEvaluation';
+import { APTITUDE_ACTIVITIES } from '../game/personality/activityAptitudes';
 import { CAREER_TIER_DAYS, CAREER_TIER_LABELS } from '../game/careers/careerProgression';
 import { evaluateWorkerFit } from '../game/careers/workerFit';
 import { isPlayerHuman } from '../game/playerHuman';
@@ -93,7 +94,8 @@ export default function PersonalityCareerDetails({ entity }: { entity: Entity })
             {activities.length > 0 ? (
               <ul className="space-y-0.5">
                 {activities.map((result) => {
-                  const cost = result.activity === 'conflict';
+                  // The activity registry decides whether a factor multiplies an unwanted chance.
+                  const cost = APTITUDE_ACTIVITIES[result.activity].cost === true;
                   const good = cost ? result.factor < 1 : result.factor > 1;
                   const pct = Math.round((result.factor - 1) * 100);
                   return (

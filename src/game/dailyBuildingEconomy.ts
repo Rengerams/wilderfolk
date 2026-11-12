@@ -3,7 +3,7 @@
  * called by `tickLayerDaily` once per colony day.
  */
 import type { WorldState, Entity, Building } from './gameTypes';
-import { mineOreForMode } from './buildings';
+import { mineOreForMode, isCompletedPlayerBuilding } from './buildings';
 import {
   BuildingType,
   BUILDING_CONFIGS,
@@ -87,6 +87,7 @@ import { adjustHumanStaminaFromEnergy, getHumanNeedsWorkMultiplier } from './sim
 import { grantHospitalIntervalReputation } from './hospitalCare';
 import {
   getScheduleProductivityMultiplier,
+  getWorkdayAttendance,
   getWorkplacePresenceShare,
 } from './scheduleFatigue';
 import {
@@ -165,8 +166,13 @@ export function tickWinterHeating(
   return canHeat;
 }
 
+/**
+ * A site with no construction-crew slots: either a home, which must raise itself between crews, or a
+ * structure (wall, barn, mill, decor…) the crew filter can never post anyone to. Its `buildTime` is
+ * therefore its real, unhelped pace — the placement advert states days, and these are those days.
+ */
 const isPassiveBuild = (type: BuildingType): boolean =>
-  type === BuildingType.House || type === BuildingType.Road || type === BuildingType.Well;
+  type === BuildingType.House || BUILDING_CONFIGS[type].maxOccupants === 0;
 
 /** Food-production multiplier one completed Mill gives the whole village; the inspector's Mill hint reads it. */
 export const MILL_FOOD_PRODUCTION_MULT = 1.25;
@@ -212,14 +218,20 @@ function tickBuildingProgress(state: WorldState): void {
     const building = state.buildings[b];
 
     if (!building.completed && building.constructionProgress < 100) {
-      const workers = building.occupants.length;
+      // A corpse's id can survive in the crew roster; only living hands are on site.
+      const livingCrew: number[] = [];
+      for (let o = 0; o < building.occupants.length; o++) {
+        if (entityById.get(building.occupants[o])?.alive) livingCrew.push(building.occupants[o]);
+      }
+      const workers = livingCrew.length;
       const buildDays = BUILDING_CONFIGS[building.type].buildTime;
       const totalWorkHours = Math.max(ordinaryWorkHours, Math.round(buildDays * ordinaryWorkHours));
       const baseRate = 100 / totalWorkHours;
 
-      // Unstaffed production buildings crawl; houses/roads/wells still self-build slowly.
+      // A crewed site speeds up with every hand; a site no crew can be posted to is its own builder,
+      // so its advertised days are the real pace; a staffable site left empty still crawls.
       const buildMultiplier =
-        workers > 0 ? 1 + workers * 0.35 : isPassiveBuild(building.type) ? 0.55 : 0.22;
+        workers > 0 ? 1 + workers * 0.35 : isPassiveBuild(building.type) ? 1 : 0.22;
       const skillMult = getWorkerSkillMultiplier(state, building, entityById, 'construction');
 
       building.constructionProgress +=
@@ -228,13 +240,13 @@ function tickBuildingProgress(state: WorldState): void {
 
       if (workers > 0) {
         const job = getJobForBuilding(building.type) ?? JobType.Builder;
-        for (let o = 0; o < building.occupants.length; o++) {
+        for (const occupantId of livingCrew) {
           // `entityById` is the map this function already built and passes to
           // `getWorkerSkillMultiplier`; without it `gainSkill` scans every living entity per occupant.
-          gainSkill(state, building.occupants[o], job, 0.15, entityById);
+          gainSkill(state, occupantId, job, 0.15, entityById);
           // The crew also earns the standard worked shift for the trade it is raising, so a Builder
           // on a house site learns Building; the site's own job is what the roster records.
-          gainSkill(state, building.occupants[o], job, WORK_SKILL_PER_SHIFT, entityById);
+          gainSkill(state, occupantId, job, WORK_SKILL_PER_SHIFT, entityById);
         }
       }
 
@@ -348,7 +360,10 @@ function tickBuildingProduction(
   // Align to the same calendar day's start to preserve weekdays and interval cadence.
   const productionDayTick = state.tick - (state.tick % TICKS_PER_DAY);
 
-  const hasMill = updatedBuildings.some((b) => b.type === BuildingType.Mill && b.completed);
+  // The Mill bonus is the player's: a rival settlement's Mill feeds nobody here.
+  const hasMill = updatedBuildings.some(
+    (b) => b.type === BuildingType.Mill && isCompletedPlayerBuilding(b),
+  );
   const millBonus = hasMill ? MILL_FOOD_PRODUCTION_MULT : 1.0;
   const globalEff =
     getMultiplier(state, 'global_efficiency') *
@@ -374,26 +389,14 @@ function tickBuildingProduction(
     // A jailed settler keeps the reserved post but feeds no crew: they neither work nor attend.
     if (isImprisoned(h)) continue;
     const siteBuilding = h.workerBuildingId == null ? undefined : ctx.buildingById.get(h.workerBuildingId);
-    // Hunters are mobile: their shift is the work, not a fixed post.
-    const huntingSpot = siteBuilding?.type === BuildingType.HuntingSpot;
-    const presentTicks = huntingSpot
-      ? (h.scheduleWorkedTicksToday ?? h.schedulePresentTicksToday)
-      : (h.schedulePresentTicksToday != null && h.schedulePresentTicksToday > 0
-        ? h.schedulePresentTicksToday
-        : undefined);
-    const workedTicks = presentTicks
-      ?? h.scheduleWorkedTicksToday
-      ?? ((h.scheduleLastWorkedHours ?? 0) * TICKS_PER_HOUR);
-    const lastWorkedHours = workedTicks / TICKS_PER_HOUR;
+    // Hunters are mobile: their shift is the work, not a fixed post. Every other trade is paid for
+    // the ticks it was verified at its post — an unsampled day's schedule credit pays nothing.
+    const attendance = getWorkdayAttendance(h, siteBuilding?.type === BuildingType.HuntingSpot);
+    const lastWorkedHours = attendance.ticks / TICKS_PER_HOUR;
     if (lastWorkedHours <= 0) continue;
     // Attribute the verified hours to the site they were worked at. `-1` means the
     // settler changed sites; crediting that to the current building would be a guess.
-    const workedSiteId = huntingSpot
-      ? h.scheduleWorkedSiteIdToday
-      : (presentTicks != null
-        ? h.schedulePresentSiteIdToday
-        : (h.scheduleWorkedSiteIdToday ?? h.scheduleLastWorkedSiteId));
-    const siteId = workedSiteId == null ? h.workerBuildingId : workedSiteId;
+    const siteId = attendance.siteId ?? h.workerBuildingId;
     if (siteId == null || siteId < 0) continue;
 
     const current = buildingWorkerStats.get(siteId)
@@ -444,13 +447,14 @@ function tickBuildingProduction(
     const staffed = !BUILDING_JOB_TYPES[building.type] || workers > 0;
 
     // Work is what teaches: a completed production workplace pays its crew trade skill once per
-    // standard cadence, whatever the store accepted. `rewardBuildingWork` still reads the shift.
+    // standard cadence, whatever the store accepted. The shift paid for is the attendance share, so
+    // a crew that never reached the post learns nothing either.
     if (
       building.completed &&
       WORK_SKILL_BUILDING_TYPES.has(building.type) &&
       isProductionTick(productionDayTick, SKILL_CREDIT_INTERVAL_TICKS)
     ) {
-      rewardBuildingWork(state, building, 1, WORK_SKILL_PER_SHIFT, entityById);
+      rewardBuildingWork(state, building, presenceMult, WORK_SKILL_PER_SHIFT, entityById);
     }
 
     // --- Farm ---
@@ -958,7 +962,7 @@ function tickBuildingProduction(
     // Silos are storage, not food producers; their food branch multiplied by zero workers.
   }
 
-  tickVillageForge(state, updatedBuildings);
+  tickVillageForge(state, updatedBuildings, productionDayTick);
 
   // Urban Planning: completed roads passively generate reputation (road_bonus research)
   const roadRepMult = getMultiplier(state, 'road_bonus');

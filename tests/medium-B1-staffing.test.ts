@@ -23,6 +23,7 @@ import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { buildingAccessPoint } from '../src/game/buildingAccess';
 
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
   return {
@@ -207,18 +208,21 @@ describe('M16 — on-duty official reaches officialHandlePetitioners', () => {
 
   function townHallWorld(): WorldState {
     const state = initGame({ size: MapSize.Medium, seed: 7 });
+    // The hall stands on the generated camp clearing, so its doorstep is open, walkable ground.
+    const site = state.worldMap?.campSite ?? { x: 300, y: 300 };
     const hall = building(900, BuildingType.TownHall, {
-      x: 300,
-      y: 300,
+      x: site.x,
+      y: site.y,
       width: 60,
       height: 50,
       occupants: [officialId],
     });
-    const hx = hall.x + hall.width / 2;
-    const hy = hall.y + hall.height * 0.9;
+    // `building.x/y` is the footprint centre; the official works at the hall's canonical south
+    // doorstep (bare-grid frontage), not at the old corner + 0.9 height reference.
+    const doorstep = buildingAccessPoint(hall, null);
     const official = human(officialId, {
-      x: hx,
-      y: hy,
+      x: doorstep.x,
+      y: doorstep.y,
       workerBuildingId: 900,
       job: JobType.Official,
       occupation: 'official',
@@ -228,8 +232,8 @@ describe('M16 — on-duty official reaches officialHandlePetitioners', () => {
     });
     // A grieving settler next to the hall always wants a civic audience.
     const petitioner = human(petitionerId, {
-      x: hx + 4,
-      y: hy + 4,
+      x: doorstep.x + 4,
+      y: doorstep.y + 4,
       griefUntilTick: dayJobTick + 1000,
       energy: 500,
       maxEnergy: 500,

@@ -6,7 +6,7 @@ import { createEntity } from './entityFactory';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { addBigNews } from './simEffects';
 import { logEvent } from './eventLog';
-import { getSimRng } from './simRng';
+import { getSimRng, getSimSeed } from './simRng';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
 import type { TickContext } from './simulation/simulationTypes';
 import { clearHuntersTargetingPrey, pushNewEntity } from './simulation/simulationEntities';
@@ -75,7 +75,7 @@ function spawnHerdAtEdge(
   count: number,
   herdYear: number,
   ctx?: TickContext,
-): void {
+): number {
   const { width, height } = state;
   const edge = Math.floor(getSimRng('migration')() * 4);
   let edgeX = width / 2;
@@ -88,6 +88,7 @@ function spawnHerdAtEdge(
   else { edgeX = width / 2; edgeY = height - 40; inwardX = 0; inwardY = -1; }
 
   let unplaced = 0;
+  let placed = 0;
   for (let i = 0; i < count; i++) {
     const spread = (i - (count - 1) / 2) * 30;
     const x = edgeX + (inwardX === 0 ? spread : 0);
@@ -108,6 +109,7 @@ function spawnHerdAtEdge(
     deer.migrationTag = herdYear;
     out.push(deer);
     registerHerdDeer(state, ctx, deer);
+    placed++;
   }
 
   // A fully blocked edge strip falls back to the shared passability-retry ring spawner
@@ -119,14 +121,17 @@ function spawnHerdAtEdge(
         // only when it is a separate snapshot (owner-level test callers pass `state.entities`).
         if (out !== state.entities) out.push(deer);
         registerHerdDeer(state, ctx, deer);
+        placed++;
       },
     });
   }
+  return placed;
 }
 
 /**
- * Daily migration step: arrive on the autumn window, depart at its end and remember how many deer the
- * herd lost. `ctx` carries the tick's spawn bookkeeping and is optional for owner-level callers.
+ * Daily migration step: arrive on the autumn window, depart at its end and remember the herd's real
+ * losses. A loss shrinks next year's herd; an unharmed autumn recovers one deer toward the base size.
+ * `ctx` carries the tick's spawn bookkeeping and is optional for owner-level callers.
  */
 export function tickMigration(state: WorldState, allAlive: Entity[], ctx?: TickContext): void {
   const day = getAbsoluteCalendarDay(state.tick);
@@ -157,9 +162,10 @@ export function tickMigration(state: WorldState, allAlive: Entity[], ctx?: TickC
     }
 
     const lost = active.spawned - alive;
+    const remembered = Math.min(HERD_MAX_SIZE, state.migrationNextHerdSize ?? HERD_BASE_SIZE);
     if (lost > 0) {
-      const base = state.migrationNextHerdSize ?? HERD_BASE_SIZE;
-      state.migrationNextHerdSize = Math.max(HERD_MIN_SIZE, Math.min(HERD_MAX_SIZE, base - lost));
+      const base = Math.min(HERD_BASE_SIZE, remembered);
+      state.migrationNextHerdSize = Math.max(HERD_MIN_SIZE, base - lost);
       addBigNews(
         state,
         '🦌 The herds remember',
@@ -167,22 +173,26 @@ export function tickMigration(state: WorldState, allAlive: Entity[], ctx?: TickC
         'negative',
       );
       logEvent(state, 'event', `Autumn migration: ${lost} herd deer lost from the passing herd; next herd ${state.migrationNextHerdSize}.`);
+    } else if (active.spawned > 0 && remembered !== HERD_BASE_SIZE) {
+      // One unharmed autumn restores one deer of a shrunk memory, never past the documented base.
+      state.migrationNextHerdSize = Math.min(HERD_BASE_SIZE, remembered + 1);
+      logEvent(state, 'event', `Autumn migration: the herd passed unharmed; next herd recovers to ${state.migrationNextHerdSize}.`);
     }
     state.activeMigration = undefined;
     return;
   }
 
   // Arrival: no active herd + it is the arrival day for this seed → the herd comes.
-  if (!active && dayInYear === migrationArrivalDay(state.worldMap?.seed, DAYS_PER_YEAR)) {
-    const count = state.migrationNextHerdSize ?? HERD_BASE_SIZE;
-    spawnHerdAtEdge(state, allAlive, count, year, ctx);
-    state.activeMigration = { herdYear: year, endDay: day + MIGRATION_WINDOW_DAYS, spawned: count };
+  if (!active && dayInYear === migrationArrivalDay(getSimSeed(), DAYS_PER_YEAR)) {
+    const count = Math.min(HERD_MAX_SIZE, state.migrationNextHerdSize ?? HERD_BASE_SIZE);
+    const spawned = spawnHerdAtEdge(state, allAlive, count, year, ctx);
+    state.activeMigration = { herdYear: year, endDay: day + MIGRATION_WINDOW_DAYS, spawned };
     addBigNews(
       state,
       '🦌 The autumn herds arrive',
-      `A herd of ${count} deer crosses the valley, fat on autumn grass. Hunt them for meat — or let them pass.`,
+      `A herd of ${spawned} deer crosses the valley, fat on autumn grass. Hunt them for meat — or let them pass.`,
       'neutral',
     );
-    logEvent(state, 'event', `Autumn migration: a herd of ${count} deer arrived.`);
+    logEvent(state, 'event', `Autumn migration: a herd of ${spawned} deer arrived.`);
   }
 }

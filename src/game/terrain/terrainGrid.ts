@@ -317,14 +317,32 @@ export interface TerrainTilePatch {
   tile: TerrainTile;
 }
 
-const MAX_PENDING_TERRAIN_PATCHES = 256;
+/**
+ * The batch the most recent delta carried. There is no delivery ack across the worker port and a delta
+ * can be lost after the drain (a throwing pack/post, a rolled-back tick), so the batch rides one more
+ * extraction; applying a tile patch is idempotent.
+ */
+const previousTerrainPatches = new WeakMap<WorldMap, TerrainTilePatch[]>();
 
 /** Take the patches recorded on this map since the last call, so a command result can carry them. */
 export function takeTerrainPatches(map: WorldMap | null | undefined): TerrainTilePatch[] {
-  if (!map?.pendingTerrainPatches) return [];
-  const patches = map.pendingTerrainPatches.splice(0);
+  if (!map) return [];
+  const pending = map.pendingTerrainPatches;
+  const previous = previousTerrainPatches.get(map);
+  if (!pending || pending.size === 0) {
+    if (!previous) return [];
+    previousTerrainPatches.delete(map);
+    return previous;
+  }
   delete map.pendingTerrainPatches;
-  return patches;
+  const fresh = [...pending.values()];
+  previousTerrainPatches.set(map, fresh);
+  if (!previous || previous.length === 0) return fresh;
+  // Older batch first, so a newer write to the same tile is the one that lands.
+  const merged = new Map<number, TerrainTilePatch>();
+  for (const patch of previous) merged.set(patch.ty * map.width + patch.tx, patch);
+  for (const patch of fresh) merged.set(patch.ty * map.width + patch.tx, patch);
+  return [...merged.values()];
 }
 
 /** Patch one field of a tile in place (e.g. clear forest → grassland). */
@@ -333,9 +351,10 @@ export function patchTile(map: WorldMap, tx: number, ty: number, patch: Partial<
   if (!cur) return;
   const tile = { ...cur, ...patch };
   setTileOverride(map, tx, ty, tile);
-  const pending = map.pendingTerrainPatches ?? (map.pendingTerrainPatches = []);
-  if (pending.length >= MAX_PENDING_TERRAIN_PATCHES) pending.shift();
-  pending.push({ tx, ty, tile });
+  // One entry per tile: a long strip clear must reach the replica whole, so a repeat write replaces
+  // its tile instead of growing the queue and never evicts an earlier tile.
+  const pending = map.pendingTerrainPatches ?? (map.pendingTerrainPatches = new Map());
+  pending.set(ty * map.width + tx, { tx, ty, tile });
 }
 
 /* ===== L0 / L1 occupancy ===== */

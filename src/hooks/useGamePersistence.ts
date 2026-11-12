@@ -41,7 +41,16 @@ type PersistenceLoop = Pick<
 > & {
   /** Optional so a test double that only exports a world still satisfies the contract. */
   lastExportWasDegraded?: () => boolean;
+  /** Optional so a test double need not model worker mode. */
+  isUsingSimWorker?: () => boolean;
 };
+
+/** What a page-exit write managed to persist, and whether it was the authoritative world. */
+export interface PageHideSaveOutcome {
+  written: boolean;
+  /** False when a worker owned the newest state, so only the main-thread shadow could be written. */
+  authoritative: boolean;
+}
 
 export interface GamePersistenceAccessors {
   getLoop: () => PersistenceLoop | null;
@@ -62,10 +71,24 @@ export interface UseGamePersistenceOptions {
 }
 
 /**
- * The save currently running, if any. Two saves can overlap (exit save plus Ctrl+S/menu save);
- * the second joins the first instead of both writing or falling back to the display shadow.
+ * The save currently running, if any. Saves serialize because the worker has one export slot; a
+ * background save joins an in-flight one, while a manual save always runs its own write.
  */
 let saveInFlight: Promise<boolean> | null = null;
+
+/** Largest imported save this build reads — beyond it the file is refused before it is loaded. */
+export const MAX_SAVE_IMPORT_BYTES = 64 * 1024 * 1024;
+
+/**
+ * The refusal for an imported save too large to read safely, or null when it may be read. Text plus
+ * its parsed copy multiply in memory, so the size is checked before the file is loaded.
+ */
+export function saveImportSizeRefusal(sizeBytes: number): string | null {
+  if (!Number.isFinite(sizeBytes) || sizeBytes <= MAX_SAVE_IMPORT_BYTES) return null;
+  const megabytes = (sizeBytes / (1024 * 1024)).toFixed(1);
+  const limit = MAX_SAVE_IMPORT_BYTES / (1024 * 1024);
+  return `That save file is ${megabytes} MB — Wilderfolk imports saves up to ${limit} MB. Load a save this build exported.`;
+}
 
 /**
  * Persists the authoritative game snapshot.
@@ -76,18 +99,53 @@ export async function persistGame(
   callbacks: PersistGameCallbacks,
   options?: PersistCurrentGameOptions,
 ): Promise<boolean> {
-  // A second save joins the one already running instead of racing it for the worker's single export
-  // slot — see `saveInFlight`.
-  if (saveInFlight) return saveInFlight;
+  // A background save may share an in-flight write; a manual save owes the player its own download
+  // and toast, so it queues behind the in-flight save instead of joining it.
+  if (saveInFlight && (options?.background ?? false)) return saveInFlight;
 
-  const run = persistGameOnce(accessors, callbacks, options);
+  const previous = saveInFlight ?? Promise.resolve(true);
+  const run = previous
+    .catch(() => false)
+    .then(() => persistGameOnce(accessors, callbacks, options));
   saveInFlight = run;
   try {
     return await run;
   } finally {
-    // Cleared whether the save succeeded or not, so a failure can still be retried.
-    saveInFlight = null;
+    // Only the newest queued save clears the guard, so a queue of manual saves stays serialized.
+    if (saveInFlight === run) saveInFlight = null;
   }
+}
+
+/**
+ * Waits for the save already running, so a caller that replaces or deletes the slot can order
+ * itself after it instead of racing it.
+ */
+export function waitForPendingSave(): Promise<void> {
+  if (!saveInFlight) return Promise.resolve();
+  return saveInFlight.then(
+    () => undefined,
+    () => undefined,
+  );
+}
+
+/**
+ * Synchronous page-exit write. A worker export cannot complete before the page dies, so this uses
+ * the loop's current world and reports that write as best-effort when a worker owns the newest state.
+ */
+export function persistGameOnPageHide(
+  accessors: GamePersistenceAccessors,
+): PageHideSaveOutcome {
+  const loop = accessors.getLoop();
+  if (!loop || isCrashRecoveryActive() || !loop.getWorld().autoSave) {
+    return { written: false, authoritative: true };
+  }
+  const view = loop.getView();
+  if (!view) return { written: false, authoritative: true };
+  const result = saveGameToSlot(loop.getWorld(), view);
+  return {
+    written: result.success,
+    authoritative: result.success && !(loop.isUsingSimWorker?.() ?? false),
+  };
 }
 
 async function persistGameOnce(
@@ -206,6 +264,8 @@ export function useGamePersistence({
   const persistCurrentGameRef = useRef<
     (options?: PersistCurrentGameOptions) => Promise<boolean>
   >(async () => false);
+  /** Set once the synchronous page-exit write has run, so teardown does not save a second time. */
+  const pageHideSaveWrittenRef = useRef(false);
 
   const showSaveToast = useCallback((toast: SaveToast) => {
     setSaveToast(toast);
@@ -234,6 +294,41 @@ export function useGamePersistence({
     [persistenceAccessors, onGameSaved, showSaveToast],
   );
 
+  /**
+   * The one save a colony exit runs: page exit, menu return and React teardown all share it.
+   * The auto-save preference means "save when you leave"; off means exit writes nothing.
+   */
+  const persistOnSessionStop = useCallback((): Promise<boolean> => {
+    if (pageHideSaveWrittenRef.current) return Promise.resolve(true);
+    const loop = loopRef.current;
+    if (!loop || isCrashRecoveryActive() || !loop.getWorld().autoSave) return Promise.resolve(false);
+    return persistCurrentGame({ chronicle: false, feedback: false, background: true });
+  }, [loopRef, persistCurrentGame]);
+
+  // The page can die between the last render and React teardown, where an async worker export has
+  // no time to finish. This is the synchronous best-effort save for that exit.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    /** One handler for both transitions: pagehide writes, pageshow re-arms the bfcache session. */
+    const onPageLifecycle = (event: PageTransitionEvent) => {
+      if (event.type === 'pageshow') {
+        pageHideSaveWrittenRef.current = false;
+        return;
+      }
+      if (pageHideSaveWrittenRef.current) return;
+      const outcome = persistGameOnPageHide(persistenceAccessors);
+      // Only a completed, authoritative write may suppress the later session-stop save. A worker
+      // replica write is best-effort and must let the authoritative export still run.
+      pageHideSaveWrittenRef.current = outcome.written && outcome.authoritative;
+    };
+    window.addEventListener('pagehide', onPageLifecycle);
+    window.addEventListener('pageshow', onPageLifecycle);
+    return () => {
+      window.removeEventListener('pagehide', onPageLifecycle);
+      window.removeEventListener('pageshow', onPageLifecycle);
+    };
+  }, [persistenceAccessors]);
+
   useEffect(() => {
     if (!saveToast) return;
     const timer = setTimeout(dismissSaveToast, 4000);
@@ -244,24 +339,19 @@ export function useGamePersistence({
     persistCurrentGameRef.current = persistCurrentGame;
   }, [persistCurrentGame]);
 
-  // Best-effort save on unmount, through the latest persist closure: it reads loopRef/worldRef/
-  // viewRef at call time, so no stale ref values are captured.
+  // Last-resort teardown save. The session hook normally calls `persistOnSessionStop` first, while
+  // loopRef is still live; this branch only matters when no session stop preceded the unmount.
   useEffect(() => {
     return () => {
-      // No loop means no colony to save: StrictMode would otherwise overwrite the real slot.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      const loop = loopRef.current;
-      if (!loop || isCrashRecoveryActive()) return;
-      // The auto-save preference now means "save when you leave"; with it off, exit writes nothing.
-      if (!loop.getWorld().autoSave) return;
-      void persistCurrentGameRef.current({ chronicle: false, feedback: false, background: true });
+      void persistOnSessionStop();
     };
-  }, [loopRef]);
+  }, [persistOnSessionStop]);
 
   return {
     dismissSaveToast,
     persistCurrentGame,
     persistCurrentGameRef,
+    persistOnSessionStop,
     saveToast,
     showSaveToast,
   };

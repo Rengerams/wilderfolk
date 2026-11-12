@@ -327,7 +327,7 @@ describe('systems introduced through consequences', () => {
     expect(mourner.needs?.stamina).toBeGreaterThan(human.needs.stamina);
   });
 
-  it('howler rumor: only after the ranger visit, late in the first year', () => {
+  it('howler rumor: the ranger variant is offered late in the first year after his visit', () => {
     const state = initGame({ skipTerrain: true, villageName: 'Emergence4', size: MapSize.Medium });
     state.year = 0;
     state.storyFlags = { ranger_visit: 10 };
@@ -338,14 +338,19 @@ describe('systems introduced through consequences', () => {
     maybeOfferHowlerRumor(state);
     expect(state.pendingStoryEvents?.length).toBe(1);
     expect(state.pendingStoryEvents![0].storyKey).toBe('howler_rumor');
+    expect(state.pendingStoryEvents![0].title).toBe("The ranger's tale");
+    expect(state.storyFlags?.howler_rumor_variant).toBe(1);
   });
 
-  it('howler rumor: not offered before the ranger visited', () => {
+  it('howler rumor: a traveller carries the warning when no ranger visit resolved', () => {
     const state = initGame({ skipTerrain: true, villageName: 'Emergence5', size: MapSize.Medium });
     state.year = 0;
     state.dayInYear = 200;
     maybeOfferHowlerRumor(state);
-    expect(state.pendingStoryEvents?.length ?? 0).toBe(0);
+    expect(state.pendingStoryEvents?.length).toBe(1);
+    expect(state.pendingStoryEvents![0].storyKey).toBe('howler_rumor');
+    expect(state.pendingStoryEvents![0].title).toBe("A traveller's tale");
+    expect(state.storyFlags?.howler_rumor_variant).toBe(2);
   });
 
   it('howler rumor: heeding the warning raises reputation', () => {

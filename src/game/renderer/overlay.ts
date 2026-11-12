@@ -5,12 +5,13 @@ import type { RenderSnapshot } from '../renderSnapshot';
 import { motionTime } from './shared';
 import {
   drawBuildingHighlightRing,
+  drawConstructionProgressOverlay,
   drawHoveredBuildingTint,
   getBuildingFootprintScreenRect,
   isHighlightableBuilding,
 } from './buildings';
 import { drawBuildPreview } from './buildPreview';
-import { drawGridTopOverlay } from './grid';
+import { drawBuildSnapOverlay, drawBuildStripPreviewOverlay, drawGridTopOverlay } from './grid';
 import { drawBuildingActiveEffects } from './nightEffects';
 import { drawSeasonParticles, drawWaterShimmer, drawWeather } from './weather';
 import { drawEntityFlashOverlay } from './entityComposite';
@@ -30,6 +31,12 @@ export function drawGameOverlay(
   drawBuildingActiveEffects(ctx, state, cw, ch);
   drawHoveredBuildingTint(ctx, state, cw, ch);
   drawHoveredBuildingRing(ctx, state, cw, ch);
+  // Construction progress ramps with the colony clock, so its bar and percentage stay live too.
+  drawConstructionProgressOverlay(ctx, state, cw, ch);
+  // Placement verdicts and the strip-gesture footprint follow the pointer, so they are live draws:
+  // baking them into the tick-keyed layer froze them around the tile they were baked on.
+  drawBuildSnapOverlay(ctx, state, cw, ch);
+  drawBuildStripPreviewOverlay(ctx, state, cw, ch);
   drawBuildPreview(ctx, state, cw, ch);
   drawEntityFlashOverlay(ctx, state, cw, ch);
   // Hunt arrows live here, not in the tick-keyed entity layer: `huntAnimProgress` is a millisecond

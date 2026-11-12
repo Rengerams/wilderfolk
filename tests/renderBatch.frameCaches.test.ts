@@ -102,9 +102,11 @@ describe('F-RND-4 — the entity-layer key is not rebuilt while its fields hold'
   it('changes the key for every field it keys', () => {
     const base = snapshot();
     const key = buildEntityLayerKey(base, 800, 600);
+    // `hourOfDay` is deliberately absent: the static layer has no hour-dependent painter, so a bare
+    // hour change must not re-bake it (the night grid tint lives in the per-frame overlay pass).
+    expect(buildEntityLayerKey(snapshot({ hourOfDay: 4 }), 800, 600)).toBe(key);
     const variants: RenderSnapshot[] = [
       snapshot({ staticLayerRevision: 'changed-layer' }),
-      snapshot({ hourOfDay: 4 }),
       snapshot({ showGrid: true }),
       snapshot({ showPaths: true }),
       snapshot({ selectedEntity: { id: 3 } as RenderSnapshot['selectedEntity'] }),

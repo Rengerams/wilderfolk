@@ -5,6 +5,7 @@ import { personDayRoll } from './simRng';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
 import { PRODUCTION_INTERVAL, TICKS_PER_DAY } from './dayCycle';
+import { getAbsoluteCalendarDay } from './dayCycleClock';
 import { addFloatingText } from './simEffects';
 import { addReputation } from './simHelpers';
 import { isDialogueBusy } from './humanChat';
@@ -13,7 +14,10 @@ import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
 import { spendFood } from './economyLedger';
 import { adjustHumanStaminaFromEnergy, getHumanStaminaRatio } from './simulation/humanPhysiology';
-import { getPregnancyProgressFraction, isPregnancyHospitalDue } from './simulation/humanLifecycle';
+import { getPregnancyProgressFraction } from './pregnancy';
+import { isPregnancyHospitalDue } from './simulation/humanLifecycle';
+import { getBuildingCenter } from './buildingGeometry';
+import { isAtBuildingReach } from './buildingAccess';
 
 /** Flat reputation a staffed hospital grants on each production interval. */
 export const HOSPITAL_REPUTATION_PER_INTERVAL = 2;
@@ -84,8 +88,9 @@ export function isRestingHospitalPatient(
     || previousIndoorBuildingId !== hospital.id || !isPlayerHuman(patient)
     || !needsMedicalCare(patient, tick)) return false;
   // buildingGeometry: x/y are the footprint centre, not the top-left corner.
-  const dx = patient.x - hospital.x;
-  const dy = patient.y - hospital.y;
+  const centre = getBuildingCenter(hospital);
+  const dx = patient.x - centre.x;
+  const dy = patient.y - centre.y;
   return dx * dx + dy * dy <= HOSPITAL_WARD_RADIUS_PX ** 2;
 }
 
@@ -162,14 +167,15 @@ export function pickHospitalWalkTarget(
   let best: Building | undefined;
   let bestD = Infinity;
   for (const h of hospitals) {
-    const d = Math.hypot(entity.x - (h.x + h.width / 2), entity.y - (h.y + h.height / 2));
+    const centre = getBuildingCenter(h);
+    const d = Math.hypot(entity.x - centre.x, entity.y - centre.y);
     if (d < bestD) {
       bestD = d;
       best = h;
     }
   }
-  // Already at the ward (<= 28px) or no staffed hospital at all — stay put.
-  return best && bestD > 28 ? best : undefined;
+  // Already at the ward (a walkable frontage is in reach) or no staffed hospital at all — stay put.
+  return best && !isAtBuildingReach(entity, best) ? best : undefined;
 }
 
 /**
@@ -187,7 +193,7 @@ export function treatPatientAtHospital(
 
   const doctorOnSite = opts?.doctorPresent ?? hospital.occupants.some((id) => {
     const d = state.entities.find((e) => e.id === id && e.alive);
-    return !!d && Math.hypot(d.x - (hospital.x + hospital.width / 2), d.y - (hospital.y + hospital.height / 2)) < 48;
+    return !!d && isAtBuildingReach(d, hospital);
   });
 
   const strength = 0.55 + hospital.occupants.length * 0.2 + (doctorOnSite ? 0.35 : 0);
@@ -235,16 +241,17 @@ export function doctorTreatNearby(
   hospital: Building,
   patients: readonly Entity[],
 ): boolean {
-  const hx = hospital.x + hospital.width / 2;
-  const hy = hospital.y + hospital.height * 0.9;
-  // Doctor should be near the hospital
-  if (Math.hypot(doctor.x - hx, doctor.y - hy) > 55) return false;
+  const centre = getBuildingCenter(hospital);
+  // Doctor on site: at a reachable frontage of this ward, never a shifted footprint point.
+  if (!isAtBuildingReach(doctor, hospital)) return false;
 
   let best: Entity | null = null;
   let bestU = 0;
   for (const p of patients) {
     if (p.id === doctor.id || !p.alive || !isPlayerHuman(p)) continue;
-    if (Math.hypot(p.x - hx, p.y - hy) > 60) continue;
+    const near = isAtBuildingReach(p, hospital)
+      || Math.hypot(p.x - centre.x, p.y - centre.y) < HOSPITAL_WARD_RADIUS_PX;
+    if (!near) continue;
     const u = medicalUrgency(p);
     if (u > bestU) {
       bestU = u;
@@ -272,8 +279,7 @@ export function tickHospitalDailyCare(
 ): void {
   if (!hospital.completed || hospital.occupants.length === 0) return;
 
-  const hx = hospital.x + hospital.width / 2;
-  const hy = hospital.y + hospital.height / 2;
+  const centre = getBuildingCenter(hospital);
   const patients = humans
     .filter((h) => h.alive && isPlayerHuman(h) && needsMedicalCare(h, state.tick))
     .sort((a, b) => medicalUrgency(b) - medicalUrgency(a));
@@ -281,7 +287,8 @@ export function tickHospitalDailyCare(
   let treated = 0;
   for (const p of patients) {
     if (treated >= 2 + hospital.occupants.length) break;
-    const near = Math.hypot(p.x - hx, p.y - hy) < HOSPITAL_WARD_RADIUS_PX;
+    const near = isAtBuildingReach(p, hospital)
+      || Math.hypot(p.x - centre.x, p.y - centre.y) < HOSPITAL_WARD_RADIUS_PX;
     // Urgent cases farther away still get a small passive "clinic" benefit if staffed
     if (!near && medicalUrgency(p) < 0.7) continue;
     // Doctor presence is the ward's own occupant scan — a patient standing near the
@@ -298,11 +305,14 @@ export function tickHospitalDailyCare(
 }
 
 function logWardNote(state: WorldState, hospital: Building, n: number): void {
-  if (state.tick % (TICKS_PER_DAY * 3) !== 0) return;
+  // The daily ward pass runs at 18:00, so a `tick % 864` test could never be true; key the note to
+  // the colony day instead, once every third day.
+  if (getAbsoluteCalendarDay(state.tick) % 3 !== 0) return;
+  const centre = getBuildingCenter(hospital);
   addFloatingText(
     state,
-    hospital.x + hospital.width / 2,
-    hospital.y - 14,
+    centre.x,
+    centre.y - 14,
     `🏥 ${n} treated`,
     '#f9a8d4',
     'brief',

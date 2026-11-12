@@ -31,7 +31,7 @@ import { shouldVirtualPlayerAct, virtualPlayerStatusText } from '../src/hooks/us
 import { applyWorkerCommand, WORKER_CMD_PROTO } from '../src/game/simWorker/commands';
 import { canLaunchRaidOnRival, getRaidChoiceEligibility } from '../src/game/frontierCombat';
 import { getOpenBeds, getOpenPlayerBeds } from '../src/game/populationGrowth';
-import { canPlaceBuilding } from '../src/game/buildingPlacementActions';
+import { canPlaceBuilding } from '../src/game/placementUtils';
 import { canAssignWorkerToBuilding } from '../src/game/buildingStaffingActions';
 import { assignMissingWorkers } from '../src/game/workforce';
 import { getRepairBuildingEligibility, buildingTypeHasLevelBenefit } from '../src/game/buildingMaintenanceActions';

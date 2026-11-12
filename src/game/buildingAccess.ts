@@ -5,6 +5,7 @@
 import { PATH_CELL } from './gameTypes';
 import type { Building, Entity } from './gameTypes';
 import { getBuildingFootprintRect } from './buildingGeometry';
+import { getTerrainRevision } from './terrain/terrainGrid';
 import { getCurrentPathGrid, isGroundWalkableAt, isWalkStepAllowed, type PathGrid } from './pathfinding';
 
 export type BuildingAccessSide = 'south' | 'east' | 'west' | 'north';
@@ -67,11 +68,19 @@ function isOpenDoorstep(
 }
 
 /**
- * Every facade that has a walkable, reachable access point. Order is deterministic for stable
- * presentation: the first entry remains the canonical south-first frontage used by UI consumers.
- * Movement can choose another entry when arriving from another side or when a wall blocks one side.
+ * Cached facade validation: one probe per building per path-grid generation, not per settler per
+ * tick. The grid object identity changes whenever terrain or footprints are rebaked.
  */
-export function buildingAccessPoints(building: Building, grid: PathGrid | null = getCurrentPathGrid()): BuildingAccessPoint[] {
+interface AccessPointsMemo {
+  grid: PathGrid | null;
+  terrainRevision: number;
+  footprint: string;
+  points: BuildingAccessPoint[];
+}
+
+const accessPointsMemo = new WeakMap<Building, AccessPointsMemo>();
+
+function computeBuildingAccessPoints(building: Building, grid: PathGrid | null): BuildingAccessPoint[] {
   const rect = getBuildingFootprintRect(building);
   const points: BuildingAccessPoint[] = [];
   for (const { side, normalX, normalY } of BUILDING_ACCESS_SIDES) {
@@ -89,6 +98,24 @@ export function buildingAccessPoints(building: Building, grid: PathGrid | null =
       }
     }
   }
+  return points;
+}
+
+/**
+ * Every facade that has a walkable, reachable access point. Order is deterministic for stable
+ * presentation: the first entry remains the canonical south-first frontage used by UI consumers.
+ * Movement can choose another entry when arriving from another side or when a wall blocks one side.
+ */
+export function buildingAccessPoints(building: Building, grid: PathGrid | null = getCurrentPathGrid()): BuildingAccessPoint[] {
+  const terrainRevision = getTerrainRevision();
+  const footprint = `${building.x}|${building.y}|${building.width}|${building.height}`;
+  const memo = accessPointsMemo.get(building);
+  if (memo && memo.grid === grid && memo.terrainRevision === terrainRevision
+    && memo.footprint === footprint) {
+    return memo.points;
+  }
+  const points = computeBuildingAccessPoints(building, grid);
+  accessPointsMemo.set(building, { grid, terrainRevision, footprint, points });
   return points;
 }
 

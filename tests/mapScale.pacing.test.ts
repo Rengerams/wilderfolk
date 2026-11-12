@@ -77,11 +77,12 @@ describe('the forge declares its two-day pace', () => {
     }
 
     const onCadence = forgeWorld(FORGE_PACE_INTERVAL_TICKS);
-    tickVillageForge(onCadence, onCadence.buildings);
+    // At midnight the production-day anchor is the tick itself; the daily 18:00 pass passes it ahead.
+    tickVillageForge(onCadence, onCadence.buildings, onCadence.tick);
     expect(onCadence.villageForge?.progress).toBe(FORGE_PROGRESS_PER_TWO_DAY_TICK.iron_spears);
 
     const offCadence = forgeWorld(FORGE_PACE_INTERVAL_TICKS / 2);
-    tickVillageForge(offCadence, offCadence.buildings);
+    tickVillageForge(offCadence, offCadence.buildings, offCadence.tick);
     expect(offCadence.villageForge?.progress).toBe(0);
   });
 });

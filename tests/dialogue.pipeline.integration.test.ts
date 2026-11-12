@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { personDayRoll } from '../src/game/simRng';
 import { getHourOfDay, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { DEFAULT_WORK_SCHEDULE, isWorkScheduleHour } from '../src/game/workSchedule';
-import { BuildingType, EntityType, JobType, type Building } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType, WeatherType, type Building } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { resolveCivicPetition } from '../src/game/townHall';
 import { initGame } from '../src/game/worldGen';
-import { requestDialogue, canonicalDialogueBank } from '../src/game/dialogueTrees';
+import { canonicalDialogueBank, maybeDialogueChat, pickRandomChatContext, requestDialogue } from '../src/game/dialogueTrees';
 import { formatChatLine, resetDialogueSessions, tickHumanChat, type ChatSpeaker } from '../src/game/humanChat';
 import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
@@ -146,5 +146,41 @@ describe('chat pipeline — trigger, session, line memory', () => {
     expect(requestDialogue({ eventKey: 'marriage.accepted', speaker: b, partner: a, tick: 51 })).toBe(false);
     expect(b.chatPartnerId).toBeUndefined();
     expect(b.chatDialogueSessionKey).toBeUndefined();
+  });
+});
+
+describe('dialogue request boundaries', () => {
+  it('ignores a non-finite caller selection roll instead of throwing mid-tick', () => {
+    for (const selectionRoll of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      resetDialogueSessions();
+      const a: ChatSpeaker = { id: 99501 };
+      const b: ChatSpeaker = { id: 99502 };
+      expect(() => requestDialogue({
+        eventKey: 'neighbor.greeting', speaker: a, partner: b, tick: 2000, selectionRoll,
+      })).not.toThrow();
+      expect(a.chatDialogueSessionKey).toBeDefined();
+    }
+  });
+
+  it('bounds a settler line history that a silent settler would otherwise keep for ever', () => {
+    const speaker: ChatSpeaker = { id: 99301, dialogueRecentLines: {} };
+    for (let index = 0; index < 60; index++) speaker.dialogueRecentLines![`stale_${index}`] = 1;
+
+    expect(requestDialogue({ eventKey: 'social.impulse.grief.home', speaker, tick: 10 })).toBe(true);
+
+    expect(Object.keys(speaker.dialogueRecentLines!).length).toBeLessThanOrEqual(48);
+  });
+
+  it('uses the dedicated weather scenes for ambient rain instead of winter lines', () => {
+    const contexts = new Set<string>();
+    for (let tick = 0; tick < 400; tick++) {
+      contexts.add(pickRandomChatContext({ id: 5 }, tick * 7, { weather: WeatherType.Rain }));
+    }
+    expect(contexts.has('winter')).toBe(false);
+    expect(contexts.has('bad_weather')).toBe(true);
+
+    const speaker: ChatSpeaker = { id: 99401 };
+    maybeDialogueChat(speaker, null, 'bad_weather', 30, 1, { weather: WeatherType.Storm });
+    expect(speaker.chatPhrase).toContain('Awful storm');
   });
 });

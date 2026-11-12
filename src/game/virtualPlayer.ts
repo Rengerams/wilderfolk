@@ -5,7 +5,8 @@ import { canBuildLeaderHouse } from './leaderHouseExpansion';
 import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, GRID_SIZE, PATH_CELL } from './gameTypes';
 import type { ForgeOrderId } from './gameTypes';
 import { WORKER_CMD_PROTO, type WorkerCommand } from './simWorker/commands';
-import { buildStripPreview, canPlaceBuilding } from './buildingPlacementActions';
+import { buildStripPreview } from './buildingPlacementActions';
+import { canPlaceBuilding } from './placementUtils';
 import {
   getBuildingFootprintForType,
   snapBuildingCenter,

@@ -17,6 +17,7 @@ import {
   getHotelRoster,
   hotelHasVacancy,
   isSettlerLodgingAtHotel,
+  isStaffedHotel,
   tickHotelLodging,
   lodgingHotelFor,
   needsHotelBed,
@@ -94,7 +95,8 @@ function hotel(id: number, centreX: number, centreY: number, overrides: Partial<
     type: BuildingType.Hotel,
     completed: true,
     faction: undefined,
-    occupants: [],
+    // A completed hotel with a posted hotelier; an unstaffed one takes no guests.
+    occupants: [99],
     x: centreX - 30,
     y: centreY - 26,
     width: 60,
@@ -191,6 +193,24 @@ describe('settler lodging overnight', () => {
     expect(control.vx, 'without a hotel the settler still walks home').toBeLessThan(0);
     expect(distanceTo(control, home.x + home.width / 2, home.y + home.height / 2))
       .toBeGreaterThan(200);
+  });
+
+  it('takes no settler at an unstaffed hotel while the staffed one next door does', () => {
+    const state = newWorld();
+    const home = house(1, Math.round(state.width * 0.06), WALKER_Y);
+    const unstaffed = hotel(2, WALKER_X + 90, WALKER_Y, { occupants: [] });
+    const staffed = hotel(3, WALKER_X + 130, WALKER_Y);
+    const walker = settler(1, { x: WALKER_X, y: WALKER_Y, residenceBuildingId: home.id });
+    state.buildings = [home, unstaffed, staffed];
+    state.entities = [walker];
+
+    expect(isStaffedHotel(unstaffed)).toBe(false);
+    expect(isStaffedHotel(staffed)).toBe(true);
+    expect(
+      lodgingHotelFor(walker, [home, unstaffed], [walker], state.tick),
+      'a completed hotel with no hotelier lodges nobody',
+    ).toBeUndefined();
+    expect(lodgingHotelFor(walker, state.buildings, state.entities, state.tick)).toBe(staffed);
   });
 
   it('reserves the last bed before walking and prevents a second departure', () => {

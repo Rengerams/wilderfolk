@@ -7,6 +7,7 @@ import { PRISON_GUARDS_MAX } from '../prisonShifts';
 import { isActiveMoonHowler } from '../moonHowler';
 import { getCurrentPathGrid, getNavigationQuote, invalidateCommutePathsForWalker, isGroundWalkableAt, isWalkStepAllowed, lineCrossesBlocked, steerWithPath } from '../pathfinding';
 import { faceVelocity, steerEntityToward } from './movementSteering';
+import { HUMAN_WALK_FRAMES, HUMAN_WALK_SPEED_THRESHOLD } from '../humanSprites';
 
 /** Outdoor sites have no interior; construction crews stay visible until completion. */
 const OUTDOOR_BUILDINGS = new Set<Building['type']>([
@@ -20,6 +21,64 @@ const OUTDOOR_BUILDINGS = new Set<Building['type']>([
 
 /** The sim's own walk threshold: below this a settler is standing still, not travelling. */
 const WALKING_MIN_SPEED_PX = 0.1;
+
+/**
+ * The walk the movement owners last commanded for a settler: its destination, its route key and the
+ * pace the last integrated step used. The off-screen throttle rests decisions, not travel, so it
+ * re-issues this walk instead of inventing one. Transient, never persisted.
+ */
+interface HumanWalkTarget {
+  x: number;
+  y: number;
+  cacheKey: string;
+  /** Pixels per tick the step actually used: the tick's own damping is already folded in. */
+  pace: number;
+}
+
+const humanWalkTargets = new WeakMap<Entity, HumanWalkTarget>();
+
+/**
+ * Forget the commanded walk. A decision tick that does not steer a walk must not leave an older one
+ * behind for the throttle to resume — a fleeing settler must keep fleeing, not walk home.
+ */
+export function clearHumanWalkTarget(entity: Entity): void {
+  humanWalkTargets.delete(entity);
+}
+
+/**
+ * Record the walk a movement owner just commanded so an off-screen tick can re-issue it. The integer
+ * step replaces the pace with the one it actually applied.
+ */
+export function rememberHumanWalkTarget(
+  entity: Entity,
+  x: number,
+  y: number,
+  pace: number,
+  cacheKey: string,
+): void {
+  humanWalkTargets.set(entity, { x, y, cacheKey, pace });
+}
+
+/**
+ * Re-issue the walk this settler was already commanded to make — same destination, same route, same
+ * pace — without a new decision. A settler at rest stays at rest: the decision owner stopped it.
+ */
+export function resumeHumanWalk(entity: Entity): void {
+  const walk = humanWalkTargets.get(entity);
+  if (!walk) return;
+  if (Math.hypot(entity.vx, entity.vy) <= WALKING_MIN_SPEED_PX) return;
+  const remaining = Math.hypot(walk.x - entity.x, walk.y - entity.y);
+  if (remaining <= WALKING_MIN_SPEED_PX) {
+    entity.vx = 0;
+    entity.vy = 0;
+    return;
+  }
+  // The route owner advances the same cached waypoints; a clear line is steered at the walk's own
+  // pace, clamped to the ground still to cover so a resumed walk lands instead of overshooting.
+  const route = steerWithPath(entity, walk.x, walk.y, walk.pace, walk.cacheKey);
+  if (route !== 'direct') return;
+  steerEntityToward(entity, walk.x, walk.y, Math.min(walk.pace, remaining));
+}
 
 /**
  * Read-only evidence of travel: the settler is moving this tick and closing on this point. Reports
@@ -50,7 +109,10 @@ export function steerHumanToward(
   approachFactor = 1,
   cacheKey = `local_${entity.id}`,
 ): void {
-  const route = steerWithPath(entity, targetX, targetY, speed * approachFactor, cacheKey);
+  const walkSpeed = speed * approachFactor;
+  // Recorded before steering: the integrator replaces the pace with the one it actually applied.
+  rememberHumanWalkTarget(entity, targetX, targetY, walkSpeed, cacheKey);
+  const route = steerWithPath(entity, targetX, targetY, walkSpeed, cacheKey);
   if (route === 'direct') {
     steerEntityToward(entity, targetX, targetY, speed, approachFactor);
   }
@@ -120,7 +182,7 @@ export function venueGatherPosition(building: Building, entityId: number): { x: 
     building.x + Math.cos(angle) * radius,
     // Cleared of the wall by a standoff at every angle — the flatter the arc, the closer the apex came to
     // the footprint, which put settlers inside the building they came to visit.
-    building.y + building.height + VENUE_GATHER_STANDOFF_PX + Math.sin(angle) * radius * 0.5,
+    building.y + building.height / 2 + VENUE_GATHER_STANDOFF_PX + Math.sin(angle) * radius * 0.5,
   );
 }
 
@@ -247,6 +309,11 @@ export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
     return;
   }
 
+  // The pace a walk is integrated at is the tick's own (damping included), so the throttle can
+  // resume it exactly rather than re-deriving a speed the walk never used.
+  const walk = humanWalkTargets.get(entity);
+  if (walk) walk.pace = Math.hypot(entity.vx, entity.vy);
+
   const startX = entity.x;
   const startY = entity.y;
   if (isWalkStepAllowed(startX, startY, startX + stepX, startY + stepY)) {
@@ -277,6 +344,27 @@ export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
   if (ticks % 3 === 0) invalidateCommutePathsForWalker(entity.id);
   entity.vx = 0;
   entity.vy = 0;
+}
+
+/**
+ * Advances the settler's walk-animation phase. This is simulation state: the tick that integrates
+ * the walk owns it, and the renderer only reads the phase it leaves behind.
+ */
+export function advanceHumanWalkAnim(human: Entity): void {
+  let frame = human.animFrame ?? 0;
+  const speed = Math.hypot(human.vx, human.vy);
+  if (speed > HUMAN_WALK_SPEED_THRESHOLD) {
+    frame += speed * 0.28;
+    if (frame >= HUMAN_WALK_FRAMES * 8) {
+      frame %= HUMAN_WALK_FRAMES;
+    }
+  } else if ((human.chatTicks ?? 0) > 0) {
+    frame += 0.12;
+  } else {
+    frame *= 0.55;
+    if (frame < 0.04) frame = 0;
+  }
+  human.animFrame = frame;
 }
 
 /** Selected frontage belongs to the walker, never to the building or its saved roster. */
@@ -370,6 +458,13 @@ export function commuteHumanToBuilding(
     target.y,
     entity.id,
   );
+  // This facade is the walk's destination: an off-screen tick resumes exactly this leg.
+  humanWalkTargets.set(entity, {
+    x: target.x,
+    y: target.y,
+    cacheKey,
+    pace: moveSpeed * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO,
+  });
   const handled = steerWithPath(
     entity,
     target.x,

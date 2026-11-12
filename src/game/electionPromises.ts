@@ -10,6 +10,7 @@ import { addBigNews } from './simEffects';
 import { logEvent } from './eventLog';
 import { storyFlag, setStoryFlags } from './storyHelpers';
 import { addReputation } from './simHelpers';
+import { getSimSeed } from './simRng';
 
 export const PROMISE_CODES = {
   fill_granary: 1,
@@ -97,7 +98,7 @@ function selectPromiseCodes(state: WorldState, year: number): number[] {
 
   needs.sort((a, b) => {
     if (b.need !== a.need) return b.need - a.need;
-    return tieBreak(a.code, state.worldMap?.seed, year) - tieBreak(b.code, state.worldMap?.seed, year);
+    return tieBreak(a.code, getSimSeed(), year) - tieBreak(b.code, getSimSeed(), year);
   });
 
   return [needs[0].code, needs[1].code];

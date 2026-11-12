@@ -16,12 +16,15 @@ import type { WorkerCommand } from './commands';
 import {
   assertWorkerFeatures,
   isWorkerProto,
+  isWorkerSimVersion,
   WORKER_PROTO,
   workerProtoMismatch,
+  workerSimVersionMismatch,
   type WorkerFeature,
   type WorkerRequest,
   type WorkerResponse,
 } from './protocol';
+import { GAME_VERSION } from '../version';
 
 export interface WorkerTickRender {
   reader: RenderSoAReaderV1;
@@ -65,10 +68,10 @@ export type WorkerUiPatch = Pick<
 >;
 
 /**
- * Max ticks in flight, reserving one pool slot for the display buffer held on main. A command's
- * render refresh takes its own slot, so `canPipelineTick` also refuses ticks while one is pending.
+ * Max ticks in flight. One keeps command latency and the stale-state window bounded; the render pool
+ * keeps a slot each for the display buffer and a command's render refresh.
  */
-export const MAX_PIPELINE_DEPTH = Math.max(0, RENDER_BUFFER_POOL_SIZE - 1);
+export const MAX_PIPELINE_DEPTH = 1;
 
 /** A requested export, and the timer that frees the host if its reply never arrives. */
 type PendingExport = {
@@ -85,9 +88,9 @@ const PROFILING_STOP_REPLY_DEADLINE_MS = 30000;
 
 /**
  * How long a command may wait for its reply: the freeze guard, since `canPipelineTick()` refuses
- * every tick while a command is pending.
+ * every tick while a command is pending. Must not exceed the loop's stall ceiling.
  */
-const COMMAND_REPLY_DEADLINE_MS = 30000;
+export const COMMAND_REPLY_DEADLINE_MS = 15000;
 
 /** Identical worker faults inside this window are counted, not re-logged. */
 const WORKER_ERROR_LOG_REPEAT_WINDOW_MS = 5000;
@@ -200,6 +203,15 @@ export class GameWorkerHost {
                 settled = true;
                 if (timeout) globalThis.clearTimeout(timeout);
                 reject(new Error(workerProtoMismatch(msg.proto)));
+              }
+              return;
+            }
+            // A worker built from another version can speak the protocol but not run this world.
+            if (!isWorkerSimVersion(msg.simVersion, GAME_VERSION)) {
+              if (!settled) {
+                settled = true;
+                if (timeout) globalThis.clearTimeout(timeout);
+                reject(new Error(workerSimVersionMismatch(GAME_VERSION, msg.simVersion)));
               }
               return;
             }
@@ -324,7 +336,7 @@ export class GameWorkerHost {
   canPipelineTick(): boolean {
     // Keep a single authoritative tick outstanding. A multi-tick backlog delays player
     // commands and increases the stale-state window during worker recovery.
-    return !this.uploadBarrier && this.ticksInFlight < Math.min(1, MAX_PIPELINE_DEPTH) && this.pendingCommand == null;
+    return !this.uploadBarrier && this.ticksInFlight < MAX_PIPELINE_DEPTH && this.pendingCommand == null;
   }
 
   hasCommandInFlight(): boolean {
@@ -412,13 +424,10 @@ export class GameWorkerHost {
         this.releaseHeldRenderBuffer();
         const worker = this.worker;
         if (!worker) return;
-        // Old tick results have now drained. Only now adopt the imported world,
-        // so no old-world delta can be applied to the new settlement.
-        this.worldRef = hydrateWorldRuntimeCaches(world);
-        this.lastAppliedCommandId = 0;
-        this.lastPausedSent = world.paused;
-        this.lastSpeedSent = world.speed;
-
+        // Old tick results have now drained. Stage the import without adopting it: the replica stays
+        // on the previous world until the worker acknowledges the upload.
+        const previousWorldRef = this.worldRef;
+        const uploadedWorld = hydrateWorldRuntimeCaches(world);
         invalidateWorldRuntimeCaches(world);
         world.simRng = snapshotSimRng();
         const uploadId = ++this.nextUploadId;
@@ -441,22 +450,39 @@ export class GameWorkerHost {
             catch (error) {
               clearTimeout(entry.deadline);
               this.pendingUpload = null;
-              reject(error);
+              const postError = error instanceof Error ? error : new Error(String(error));
+              this.onWorkerFault?.('general', `${kind} upload failed: ${postError.message}`);
+              reject(postError);
             }
           });
+          if (uploadGen !== this.generation) return;
+          // Only an acknowledged upload becomes the replica, so deltas can never be applied to a
+          // world the worker refused.
+          this.worldRef = uploadedWorld;
+          this.lastAppliedCommandId = 0;
+          this.lastPausedSent = world.paused;
+          this.lastSpeedSent = world.speed;
+        } catch (error) {
+          if (uploadGen === this.generation) this.worldRef = previousWorldRef;
+          throw error;
         } finally {
           if (this.worldRef) hydrateWorldRuntimeCaches(this.worldRef);
+          if (this.worldRef !== world) hydrateWorldRuntimeCaches(world);
         }
       });
 
-    this.commandChain = upload.catch((err: unknown) => {
-      if (uploadGen === this.generation) console.warn(`[GameWorker] ${kind} upload failed`, err);
-    }).finally(() => {
-      if (uploadGen === this.generation) {
-        this.queuedUploads = Math.max(0, this.queuedUploads - 1);
-        this.uploadBarrier = this.queuedUploads > 0;
-      }
-    });
+    this.commandChain = upload
+      .catch((err: unknown) => {
+        // Every failure that needs recovery already reports through `onWorkerFault`; this keeps the
+        // chain alive so a later upload can still run.
+        if (uploadGen === this.generation) console.warn(`[GameWorker] ${kind} upload failed`, err);
+      })
+      .finally(() => {
+        if (uploadGen === this.generation) {
+          this.queuedUploads = Math.max(0, this.queuedUploads - 1);
+          this.uploadBarrier = this.queuedUploads > 0;
+        }
+      });
     return upload;
   }
 

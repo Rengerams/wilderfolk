@@ -31,7 +31,7 @@ Today there is exactly one of each thing that matters:
 | **What was already decided this run** | `HousingLedger` — one per run |
 | **How a decision is applied** | `relocateHousehold` for a household, `moveResident` for one settler |
 | **Which home a settler should get (pure scoring)** | `housingPipeline.ts` |
-| **One residence write** | `moveResident` |
+| **One residence write** | `writeResidence` — reached through `moveResident` for one settler and `relocateHousehold` for a household |
 
 No phase function is exported as a scheduler. `tryMoveOutOfFamilyHome`,
 `rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable`, `rebalanceOvercrowdedResidences` and
@@ -130,11 +130,13 @@ can never be packed into a house that was already too full. The implemented shor
 3. when no home fits the whole group, only the excess is shed — `selectSurplusMembers` picks
    `occupancy − capacity` members, adults before partners, singles before partners, never a minor and never
    the custodian a remaining minor still needs — and plans that subset (capacity, then surplus);
-4. surplus (unhousing) is reached only when no destination exists; a settler who can be rehoused is not
-   unhoused, and the homeless phase seats the excess when a bed frees.
+4. unhousing is reached only when no destination exists; a settler who can be rehoused is not unhoused,
+   and the homeless phase seats the excess when a bed frees. When shedding the excess cannot resolve the
+   home, the dependent household leaves together: the whole family becomes homeless as one unit rather
+   than overfilling the home or splitting across free beds.
 
-The rebalance never evicts a whole family for an undersized home, obeys residence eligibility and the
-per-run ledger, and never counts an imprisoned settler's reserved bed as free.
+The rebalance never evicts a whole family while a residence can hold it; it obeys residence eligibility,
+the per-run ledger, and never counts an imprisoned settler's reserved bed as free.
 
 **Not implemented — owner-confirmed target, open design question.** Moving the adult male partner first,
 reshuffling whole families across homes, and the automatic reunion are **not** the code today; the
@@ -187,8 +189,9 @@ would otherwise be moved for the household's benefit.
 
 ### Closing steps
 
-After the six sweep phases: one final `fillHomelessAfterEviction`, one `syncResidenceOccupants` (the roster is
-derived from the links once, at the end — never maintained by hand mid-pass), then the invariant audit.
+After the six sweep phases: one final `fillHomelessAfterEviction`, one `syncResidenceOccupants` (every
+`writeResidence` keeps the roster in step during the pass; this sync re-derives it from the links), then
+the invariant audit.
 
 ---
 
@@ -352,10 +355,18 @@ with what the boundary promised and did not deliver:
 
 * a settler referencing a home that is not in the residence set;
 * a non-manor home holding more settlers than its beds;
-* a minor living apart from their custodian, when both have a home.
+* a minor with no home while their custodian is housed;
+* a minor living apart from their custodian, when a single residence could hold the custodian group
+  (a necessary legal split is not a violation; a younger sibling left behind is).
 
-The audit reports; it never silently repairs. Callers and tests read `violations`, so a broken invariant
-surfaces as a named failure with the settler or home id in it, not as a household that quietly moved.
+Custodians are resolved over **every resident**, not only the settlers this pass may move, so the manor's
+protected household is audited like any other. The manor's own bed count is deliberately not a capacity
+invariant: the hold may exceed its 20 beds by design (§2 phase 1). The audit reports; it never silently
+repairs.
+
+`tickLayerAssign` is the production observer: on the weekly safety sweep it reads `report.violations` and
+writes the findings to the chronicle (and the console), so a broken invariant is visible in play and not
+only in tests.
 
 ---
 
@@ -367,7 +378,7 @@ surfaces as a named failure with the settler or home id in it, not as a househol
 | Save load | `saveLoad.ts`, no tick | full convergence |
 | Player command (assign, evict) | `buildingResidencyActions.ts` / `settlerInteractionActions.ts` | full convergence |
 | Building placed, upgraded, demolished | `buildingPlacementActions.ts` / `buildingMaintenanceActions.ts` | full convergence |
-| Births, arrivals | `dailyPopulation.ts` (with tick) | newcomers are homeless, so the global fill seats them now |
+| Births, arrivals | `dailyPopulation.ts` (with tick), and the assignment pulse | arrivals are seated in the daily call that admits them; a newborn joins the assignment pass running in its birth tick, so a birth the home could not hold is seated then. A birth on another tick self-seats with the mother when she has a free bed, otherwise it waits for the next pulse (the layer's four-a-day cadence). |
 | Divorce, marriage, leadership, arrest, release, moon-form | their owner modules | full convergence after the event's own write |
 | Leader elected, dies, or reverts from Moon Howler form | `leaderHouse.syncLeaderHouseResidency` | the `leader` phase alone moves the entitled household, then a convergence seats the evicted |
 
@@ -454,12 +465,12 @@ Statuses: **DONE** · **DONE (guidance)** · **PARTIAL** · **OPEN** · **BLOCKE
 | 2 | Permanent citizen ids | **DONE** — `entity.id`; id retirement policy in `saveLoad.ts` (`floorIdAllocators`) |
 | 3 | Permanent building ids | **DONE** — one numeric id per building; stale rival-camp buildings retired on load and by the rival pulse |
 | 4 | `workerBuildingId` rename | **DONE** — save boundary translates the old field once, nested Moon Howler forms included |
-| 5 | One authoritative reference, derived rosters | **DONE** — `syncResidenceOccupants` is the only roster writer; `workforce.ts` holds both workplace doors (`clearWorkerAssignment`, `detachWorkplaceReference`), with four stated modules allowed to write the pointer |
+| 5 | One authoritative reference, derived rosters | **DONE** — `writeResidence` is the only write to `residenceBuildingId`; it keeps the home roster in step with the move. The birth owner mirrors a newborn into the mother's home roster before the next sync, and the Moon Howler form owner restores a home roster entry; `syncResidenceOccupants` re-derives every residence roster from the links at the end of each run and tick. `workforce.ts` holds both workplace doors (`clearWorkerAssignment`, `detachWorkplaceReference`), with four stated modules allowed to write the pointer |
 | 6 | Find the Leader's House by type | **DONE** — `findLeaderHouse` matches type, completed, player faction |
 | 7 | Manor exclusivity and succession | **DONE** — see §9 |
 | 8 | Families stay together | **DONE** — the exact shortage order in §2 phase 4 |
 | 9 | Adult children at 18 | **VERIFIED** — adult children may split from parents; only parents/custodians plus minors are inseparable dependent units. See §14. |
-| 10 | Singles, capacity, no homeless while beds exist | **DONE** — `getResidenceCapacity`, `fillHomelessAfterEviction`, `tests/housingUnits.composition.test.ts` |
+| 10 | Singles, capacity, assignable beds | **DONE for assignable beds** — every settler the homes can seat is seated, an oversized custodian group is split across homes, the Leader's House beds stay reserved for the leader's household, and a shortage with no assignable bed stays a named shortage (`getResidenceCapacity`, `fillHomelessAfterEviction`, `collectFamilyHousingShortages`, `getOpenPlayerBeds`). The growth report reads the same assignable count and states the reservation. |
 | 11 | Children without parents | **DONE** — §2 phase 3 |
 | 12 | Meaningful commute moves | **DONE — measured and optimized** — identical assignment hashes, warm median at 2,400 settlers 684.6 → 66.1 ms (table below) |
 | 13 | Event triggers | **DONE** — §6, §7 |
@@ -515,7 +526,8 @@ docker compose -f docker-compose.base44.yml exec -T -e PERF_RELOCATION=1 -e PERF
 * **Leader entitlement** (who the manor admits) — `leaderHouse.ts`, which applies it through the `leader`
   phase of this pipeline rather than writing residence ids itself.
 * **Pure scoring** (which home fits, which trade is worth it) — `housingPipeline.ts`.
-* **Derived rosters for views** — `syncResidenceOccupants`, called once at the end of a run.
+* **Derived rosters for views** — `syncResidenceOccupants` re-derives them from the links at the end of
+  each run and tick; `writeResidence` and the birth/Moon Howler form mirrors keep them in step during a run.
 * **Family structure** — `housingModel.ts` / `genealogyTypes.ts`.
 
 A rule belongs in exactly one of these. If a housing rule appears in a caller, it is in the wrong place.
@@ -603,8 +615,10 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
 * **Oversized households — DONE as excess-only; the male-partner-first target is an unimplemented proposal.**
   The code keeps the parent-and-minor family in place and sheds only the excess (`selectSurplusMembers`:
   adults before partners, never a minor or a remaining minor's custodian), rehousing through
-  `planRelocation` and unhousing only with no destination — see §4. The male-partner-first reshuffle and
-  the automatic reunion are not implemented; they remain an open design question, not a rule.
+  `planRelocation` and unhousing only with no destination. When the shedable excess cannot resolve the
+  home, the dependent household leaves together rather than splitting around free beds — see §4. The
+  male-partner-first reshuffle and the automatic reunion are not implemented; they remain an open design
+  question, not a rule.
 * **Blended and guardian households — regression verification required.** Build dependent groups around
   each minor's actual custodians, not the first child's mother or an arbitrary shared parent. If a blended
   family exceeds the largest home, do not strand any minor by moving their custodian into a different

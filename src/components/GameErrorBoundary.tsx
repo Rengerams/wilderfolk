@@ -15,6 +15,16 @@ export function isCrashRecoveryActive(): boolean {
   return recoveringFromCrash;
 }
 
+/**
+ * The retry after a crash: reloading re-runs the app and the lazy chunk that failed. The browser
+ * quick-save is untouched, so the player can load the last saved colony.
+ */
+export function reloadGamePage(): void {
+  if (typeof window !== 'undefined' && typeof window.location?.reload === 'function') {
+    window.location.reload();
+  }
+}
+
 /** Keep only the active game's read-only refs; the boundary snapshots them before React unmounts App. */
 export function registerCrashRecoverySource(source: RecoverySource): () => void {
   recoverySource = source;
@@ -64,15 +74,25 @@ export default class GameErrorBoundary extends Component<{ children: ReactNode }
           <p>The game interface stopped unexpectedly. Your existing browser quick-save has not been replaced by this recovery screen.</p>
           {this.state.snapshot ? (
             <>
-              <p>You can export the last available colony snapshot before refreshing. Recent simulation-worker actions may not yet be included.</p>
+              <p>You can export the last available colony snapshot before reloading. Recent simulation-worker actions may not yet be included.</p>
               <button type="button" onClick={this.exportSnapshot} className="rounded-lg bg-amber-700 px-4 py-2 font-semibold text-white hover:bg-amber-600">
                 Download recovery snapshot (.json)
               </button>
             </>
           ) : (
-            <p>No active colony snapshot is available. You can restart and try loading your previous save.</p>
+            <p>No active colony snapshot is available. Reload and load your previous save.</p>
           )}
           {this.state.exportMessage && <p role="status">{this.state.exportMessage}</p>}
+          <button
+            type="button"
+            onClick={reloadGamePage}
+            className="rounded-lg bg-emerald-700 px-4 py-2 font-semibold text-white hover:bg-emerald-600"
+          >
+            Reload game
+          </button>
+          <p className="text-xs text-stone-400">
+            Reloading restarts the interface; your last saved colony stays in the browser quick-save.
+          </p>
         </section>
       </main>
     );

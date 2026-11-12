@@ -36,7 +36,7 @@ class SoundDirector {
     await preloadAllSamples();
     if (this.gameplayActive || !isIntroAudioAllowed()) return;
     if (introMusic.isRunning) {
-      introMusic.restartPadIfNeeded();
+      introMusic.resumeIfNeeded();
     } else {
       await introMusic.start();
     }
@@ -86,7 +86,7 @@ class SoundDirector {
       return;
     }
     if (isIntroAudioAllowed() && introMusic.isRunning) {
-      introMusic.restartPadIfNeeded();
+      introMusic.resumeIfNeeded();
     }
   }
 

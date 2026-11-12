@@ -1,5 +1,5 @@
 import type { Building, WorldState } from './gameTypes';
-import { canBuildLeaderHouse, leaderHouseBuildings } from './leaderHouseExpansion';
+import { leaderHouseBuildings } from './leaderHouseExpansion';
 import {
   BuildingType,
   BUILDING_CONFIGS,
@@ -10,29 +10,26 @@ import {
 import { addFloatingText, createDeathParticles, impulseScreenShake } from './simEffects';
 import { bumpTerrainRevision } from './terrain/terrainGrid';
 import { assignMissingWorkers } from './workforce';
+import { getBuildingConfig } from './buildingConfig';
 import { refundBuildingCost, removeBuildingFromState } from './buildingMaintenanceActions';
 import { assignMissingResidences } from './housingPipeline';
 import { allPlayerHumans } from './playerHuman';
 import { notifyBuildingLocked } from './research';
-import {
-  getBuildingFootprintForType,
-  placementRotationFor,
-  type BuildingRotation,
-} from './buildingRotation';
+import { placementRotationFor, type BuildingRotation } from './buildingRotation';
 import { isStripBuildType, type StripBuildPreview, type StripSegment } from './stripBuild';
 import { getPlaceBuildingFailureLabel } from './buildingPlacementLabels';
 import { buildStripPlanFromDrag, buildStripPlanFromStroke } from './stripTopology';
 import { createBuilding } from './worldGen';
 import {
   getBuildingFootprintRect,
+  getPlaceBuildingFailureReason,
   isBuildingTechUnlocked,
-  isFootprintOnBuildableTerrain,
-  isFootprintWithinMapBounds,
-  overlapsAnyBuilding,
-  stripCrossingIsTheOnlyOverlap,
+  isUniqueBuildingAlreadyBuilt,
 } from './placementUtils';
 import { patchTile, rebakeTerrainGrids, tileAt } from './terrain/terrainGrid';
 import { logEvent } from './eventLog';
+
+export { getPlaceBuildingFailureReason, isUniqueBuildingAlreadyBuilt };
 
 // The unbuildable-terrain rule has one owner: `terrain/terrainTraits.isUnbuildableTerrainType`, a
 // leaf module so `terrainGrid` can read it without importing `placementUtils` back. Do not restate it.
@@ -51,50 +48,6 @@ function isStripSegmentTechUnlocked(
     if (!isBuildingTechUnlocked(requirement, state.unlockedTechs, state.researchNodes)) return false;
   }
   return true;
-}
-
-export function canPlaceBuilding(
-  state: WorldState,
-  type: BuildingType,
-  x: number,
-  y: number,
-  rotation: BuildingRotation = 0,
-): boolean {
-  return getPlaceBuildingFailureReason(state, type, x, y, rotation) == null;
-}
-
-/**
- * The `unique` gate's own statement: true when `type` is a one-per-village building
- * and one already stands; the player-facing wording lives in `buildingPlacementLabels`.
- */
-export function isUniqueBuildingAlreadyBuilt(state: WorldState, type: BuildingType): boolean {
-  if (type === BuildingType.LeaderHouse) return !canBuildLeaderHouse(state.buildings);
-  const config = BUILDING_CONFIGS[type];
-  return !!config.unique && state.buildings.some((building) => building.type === type);
-}
-
-export function getPlaceBuildingFailureReason(
-  state: WorldState,
-  type: BuildingType,
-  x: number,
-  y: number,
-  rotation: BuildingRotation = 0,
-): 'terrain' | 'blocked' | 'research' | 'unique' | null {
-  const config = BUILDING_CONFIGS[type];
-  const { width, height } = getBuildingFootprintForType(type, rotation);
-  if (!isFootprintWithinMapBounds(width, height, x, y, state.width, state.height)) return 'blocked';
-  if (
-    config.unlockRequirement
-    && !isBuildingTechUnlocked(config.unlockRequirement, state.unlockedTechs, state.researchNodes)
-  ) {
-    return 'research';
-  }
-  if (isUniqueBuildingAlreadyBuilt(state, type)) return 'unique';
-  if (!isFootprintOnBuildableTerrain(state, width, height, x, y, type)) return 'terrain';
-  if (overlapsAnyBuilding(state.buildings, width, height, x, y)
-    && !((type === BuildingType.Road || type === BuildingType.Wall)
-      && stripCrossingIsTheOnlyOverlap(state.buildings, x, y, width, height, type))) return 'blocked';
-  return null;
 }
 
 function clearTreesUnderFootprint(
@@ -152,7 +105,7 @@ export function startBuilding(
   free = false,
 ): WorldState {
   const state = structuredClone(originalState);
-  const config = BUILDING_CONFIGS[type];
+  const config = getBuildingConfig(type);
 
   const placeFailure = getPlaceBuildingFailureReason(state, type, x, y, rotation);
   if (placeFailure && !(free && placeFailure === 'research')) {
@@ -161,11 +114,7 @@ export function startBuilding(
       state,
       x,
       y,
-      placeFailure === 'unique'
-        ? `Only one ${config.label} per village`
-        : placeFailure === 'terrain'
-          ? 'Cannot build on water/terrain'
-          : 'Cannot build here',
+      getPlaceBuildingFailureLabel(type, placeFailure, state.researchNodes),
       '#ef4444',
     );
     return state;

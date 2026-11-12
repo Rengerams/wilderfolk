@@ -18,6 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.4.0
+        with:
+          # `check-comments` diffs against the push base; a shallow clone would inspect nothing.
+          fetch-depth: 0
       - uses: actions/setup-node@v4.4.0
         with:
           node-version: '26.12.1'
@@ -37,6 +40,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.4.0
+        with:
+          # `check-comments` diffs against the push base; a shallow clone would inspect nothing.
+          fetch-depth: 0
       - uses: actions/setup-node@v4.4.0
         with:
           node-version: '26.12.1'

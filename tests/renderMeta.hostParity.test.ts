@@ -4,10 +4,11 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { initGame } from '../src/game/gameEngine';
-import { MapSize } from '../src/game/gameTypes';
+import { EntityType, MapSize, type Entity, type WorldState } from '../src/game/gameTypes';
 import { hydrateWorldRuntimeCaches } from '../src/game/worldRuntimeCaches';
 import { applySimTickDelta, type SimTickDelta } from '../src/game/simBuffers/simDelta';
 import {
+  buildRenderEntityShim,
   packEntityRenderMeta,
   packRenderMetaForSlots,
 } from '../src/game/simBuffers/entityRenderMeta';
@@ -27,6 +28,40 @@ describe('render metadata is rebuilt on the host from the packed buffer', () => 
 
     expect(hostMeta).toEqual(pack.packedEntities.map(packEntityRenderMeta));
     expect(hostMeta).toHaveLength(reader.aliveCount);
+  });
+
+  it('packs the authoritative energy into the display row the grass painter reads', () => {
+    const grass = {
+      id: 77,
+      type: EntityType.Grass,
+      x: 40,
+      y: 40,
+      vx: 0,
+      vy: 0,
+      size: 4,
+      energy: 42,
+      maxEnergy: 100,
+      alive: true,
+    } as Entity;
+    const world = {
+      entities: [grass],
+      tick: 5,
+      width: 200,
+      height: 200,
+      buildings: [],
+    } as unknown as WorldState;
+
+    const pack = packRenderSoA(world);
+    const reader = createRenderSoAReader(pack.buffer);
+    if (!reader) throw new Error('the packed buffer is not a valid render SoA');
+    let slot = -1;
+    for (let i = 0; i < reader.aliveCount; i++) {
+      if (reader.id(i) === 77) slot = i;
+    }
+    expect(slot).toBeGreaterThanOrEqual(0);
+    // The shim is the worker path's only entity object; the grass painter divides its energy.
+    expect(reader.energy(slot)).toBe(42);
+    expect(buildRenderEntityShim(reader, slot)?.energy).toBe(42);
   });
 
   it('covers every slot of a priority-thinned overflow buffer', () => {

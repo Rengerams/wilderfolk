@@ -7,6 +7,7 @@ import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard, AUTHORED_STORY_COOLDOWN_FLAG } from './storyHelpers';
+import { getSimSeed } from './simRng';
 import { spendFood } from './economyLedger';
 
 export const STORY_KEY = 'traveling_theatre';
@@ -98,7 +99,7 @@ function availableScripts(state: WorldState): Stage1Choice[] {
 export function maybeOfferTravelingTheatre(state: WorldState): void {
   if (storyFlag(state, FLAG_OFFERED) > 0) return;
   const colonyDay = getColonyDay(state);
-  if (colonyDay < travelingTheatreEligibleDay(state.worldMap?.seed)) return;
+  if (colonyDay < travelingTheatreEligibleDay(getSimSeed())) return;
   if (storyFlag(state, AUTHORED_STORY_COOLDOWN_FLAG) > colonyDay) return;
   if ((state.pendingStoryEvents ?? []).length > 0) return;
   if (!hasPerformerGroup(state)) return;
@@ -160,6 +161,8 @@ export function getTravelingTheatreChoiceEligibility(
 const STAGE3_CHOICES: readonly Stage3Choice[] = ['correct_story', 'let_legend_grow', 'interrupt'];
 
 export function resolveTravelingTheatre(state: WorldState, choiceId: string): boolean {
+  // A resolved visit leaves FLAG_STATUS at its last stage, so a stale card must not replay it.
+  if (storyFlag(state, FLAG_RESOLVED) > 0) return true;
   // Dispatch on the answer itself first: the Opening Night card leaves `FLAG_STATUS` at `preparing`,
   // so its answers must not be routed through the stage-2 switch.
   if (STAGE3_CHOICES.includes(choiceId as Stage3Choice)) {
@@ -176,7 +179,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
   setStoryFlags(state, {
     [FLAG_STATUS]: STATUS.preparing,
     [FLAG_SCRIPT]: SCRIPTS[choice] ?? SCRIPTS.first_winter,
-    [FLAG_PERFORMANCE_DAY]: colonyDay + 3 + Math.floor(seededRoll(state.worldMap?.seed ?? 1, hashSalt('theatre-performance')) * 3),
+    [FLAG_PERFORMANCE_DAY]: colonyDay + 3 + Math.floor(seededRoll(getSimSeed(), hashSalt('theatre-performance')) * 3),
   });
 
   const event: StoryEvent = {
@@ -263,6 +266,42 @@ export function tickTravelingTheatre(state: WorldState): void {
   };
   pushStoryCard(state, event);
   addNotification(state, '🎭 Opening night', 'The play is about to begin.', 'info');
+}
+
+/**
+ * Unanswered cards each have one fate: end the visit, improvise the support, or close opening night
+ * without awarding a verdict. None of them invents a reward.
+ */
+export function expireTravelingTheatre(state: WorldState): void {
+  if (storyFlag(state, FLAG_RESOLVED) > 0) return;
+  const status = storyFlag(state, FLAG_STATUS);
+
+  if (status === STATUS.script_selected) {
+    setStoryFlags(state, {
+      [FLAG_RESOLVED]: state.tick,
+      [AUTHORED_STORY_COOLDOWN_FLAG]: getColonyDay(state) + AUTHORED_STORY_COOLDOWN_DAYS,
+    });
+    addBigNews(state, '🎭 The troupe gives up waiting', 'No play was chosen; the company folds its canvas and leaves the valley.', 'neutral');
+    logEvent(state, 'event', 'The Traveling Theatre left unanswered — no play was chosen.');
+    return;
+  }
+
+  if (status !== STATUS.preparing) return;
+
+  if (storyFlag(state, FLAG_STAGE3) > 0) {
+    setStoryFlags(state, {
+      [FLAG_RESOLVED]: state.tick,
+      [AUTHORED_STORY_COOLDOWN_FLAG]: getColonyDay(state) + AUTHORED_STORY_COOLDOWN_DAYS,
+    });
+    addBigNews(state, '🎭 The play closes without a verdict', 'Opening night passed and no one spoke for the story; the valley keeps no official memory of it.', 'neutral');
+    logEvent(state, 'event', 'The Traveling Theatre opening night passed unanswered.');
+    return;
+  }
+
+  // Opening night is still ahead: the free no-support answer keeps the production moving.
+  if (storyFlag(state, FLAG_SUPPORT) > 0) return;
+  setStoryFlags(state, { [FLAG_SUPPORT]: SUPPORT.improvise });
+  addNotification(state, '🎭 The troupe improvises', 'No support package was chosen; the company makes do with what it has.', 'info');
 }
 
 function resolveStage3(state: WorldState, choice: Stage3Choice): boolean {

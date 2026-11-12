@@ -42,6 +42,30 @@ describe('bulk strip demolition is armed', () => {
   });
 });
 
+describe('windows opened from a dialog stay above it', () => {
+  it('opens the hours editor as a window modal when the citizen overview launches it', () => {
+    expect(read('src/components/WorkHoursWindow.tsx')).toContain('onClose={onClose} centered');
+  });
+
+  it('keeps the shortcuts sheet above the dialog layer', () => {
+    expect(read('src/components/ShortcutsOverlay.tsx')).toContain('z-[60]');
+  });
+});
+
+describe('the family-tree generation selector matches the owner bound', () => {
+  const treeWindow = read('src/components/FamilyTreeWindow.tsx');
+
+  it('offers only generations the walk can draw', () => {
+    expect(treeWindow).toContain('Math.max(1, ...tree.rows.map((row) => Math.abs(row.delta)))');
+    expect(treeWindow).not.toContain('[2, 3, 4, 5, 6]');
+  });
+
+  it('counts the people in the rows it actually draws', () => {
+    expect(treeWindow).toContain('visibleRows.reduce');
+    expect(treeWindow).not.toContain('${tree.memberCount} people drawn');
+  });
+});
+
 describe('a camera pan does not throw the selection away', () => {
   const interactions = read('src/hooks/useCanvasInteractions.ts');
 
@@ -58,8 +82,11 @@ describe('a camera pan does not throw the selection away', () => {
     expect(interactions).toMatch(
       /if \(pointerMovedRef\.current\) \{\n\s*pointerMovedRef\.current = false;\n\s*return;\n\s*\}/,
     );
-    // A fresh gesture starts as a click, so a stale verdict cannot swallow the next real click.
-    expect(interactions).toMatch(/pointerMovedRef\.current = false;\n\s*if \(gameplayActive && e\.button === 0\)/);
+    // A fresh gesture starts as a click, so neither a stale pan verdict nor a pending strip click
+    // suppression (whose click was lost to a release outside the canvas) can swallow the next click.
+    expect(interactions).toMatch(
+      /pointerMovedRef\.current = false;\n\s*stripPlacedOnMouseUpRef\.current = false;\n\s*if \(gameplayActive && e\.button === 0\)/,
+    );
   });
 });
 

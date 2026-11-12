@@ -10,6 +10,8 @@ import { adoptSimSeedFromWorld, restoreSimRng, stampWorldSimRng } from '../simRn
 import { snapshotHistoryRevisions, type HistoryRevisions } from '../historyRevisions';
 import { areNamesLoaded, loadNames } from '../nameLoader';
 import { repairJuvenileAssignmentsOnLoad } from '../dayCycle';
+import { clearAllFactionWanderStates } from '../factionWander';
+import { resetDialogueSessions } from '../humanChat';
 
 installDialogueBankPayload(canonicalDialogueBank);
 
@@ -195,6 +197,10 @@ function resetWorkerSession(nextWorld: WorldState): void {
   // World uploads can bypass saveLoad's migration (worker init/sync/import).
   // Repair legacy child work state at every full-world boundary as well.
   repairJuvenileAssignmentsOnLoad(nextWorld);
+  // A reused visitor/rival id must not inherit the previous session's camp target.
+  clearAllFactionWanderStates();
+  // Scripted dialogue sessions hold direct entity references; a reused id must not reclaim a scene.
+  resetDialogueSessions();
   hydrateWorldRuntimeCaches(nextWorld);
   adoptSimSeedFromWorld(nextWorld);
   restoreSimRng(nextWorld.simRng);

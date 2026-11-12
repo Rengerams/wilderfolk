@@ -1,9 +1,10 @@
 /**
- * Player-facing wording for a refused building placement; `buildingPlacementActions` decides why a
- * spot is refused, this module decides how to say it, and the canvas only draws the string.
+ * Player-facing wording for a refused building placement; `placementUtils` decides why a spot is
+ * refused, this module decides how to say it, and every caller only draws the string.
  */
-import { BUILDING_CONFIGS, BuildingType, type ResearchNode } from './gameTypes';
-import type { getPlaceBuildingFailureReason } from './buildingPlacementActions';
+import { BuildingType, type ResearchNode } from './gameTypes';
+import { getBuildingConfig } from './buildingConfig';
+import type { getPlaceBuildingFailureReason } from './placementUtils';
 
 /**
  * The reason vocabulary, derived from its owner so a reason added there becomes a missing entry in
@@ -12,7 +13,7 @@ import type { getPlaceBuildingFailureReason } from './buildingPlacementActions';
 export type PlaceBuildingFailureReason = NonNullable<ReturnType<typeof getPlaceBuildingFailureReason>>;
 
 /**
- * Fallback label per reason; `terrain` and `research` are refined per building by
+ * Fallback label per reason; `terrain`, `research` and `unique` are refined per building by
  * {@link getPlaceBuildingFailureLabel}.
  */
 export const PLACEMENT_FAILURE_LABELS: Record<PlaceBuildingFailureReason, string> = {
@@ -40,11 +41,14 @@ export function getPlaceBuildingFailureLabel(
     return FOOTPRINT_WATER_LABELS[type] ?? PLACEMENT_FAILURE_LABELS.terrain;
   }
   if (reason === 'research') {
-    const requirement = BUILDING_CONFIGS[type].unlockRequirement;
+    const requirement = getBuildingConfig(type).unlockRequirement;
     const node = requirement
       ? researchNodes?.find((candidate) => candidate.id === requirement)
       : undefined;
     return node ? `Research ${node.name}` : PLACEMENT_FAILURE_LABELS.research;
+  }
+  if (reason === 'unique') {
+    return `Only one ${getBuildingConfig(type).label} per village`;
   }
   return PLACEMENT_FAILURE_LABELS[reason];
 }

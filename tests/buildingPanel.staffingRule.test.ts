@@ -5,6 +5,8 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import SelectedBuildingPanel from '../src/components/SelectedBuildingPanel';
 import { BuildingType, JobType } from '../src/game/gameTypes';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
@@ -13,8 +15,10 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import {
   assignStaffWorkerToBuilding,
   canAssignWorkerToBuilding,
+  getWorkerAssignmentRefusal,
 } from '../src/game/buildingStaffingActions';
 import { getBuildingConfig } from '../src/game/buildingConfig';
+import { GRAVEYARD_CAPACITY_PER_YARD } from '../src/game/eventLog';
 import { staffingCapFor } from '../src/game/workforce';
 import { building, human } from '../src/test/factories';
 
@@ -119,6 +123,38 @@ describe('reserved posts remain occupied during imprisonment', () => {
     expect(next.entities.find((entity) => entity.id === idle.id)?.workerBuildingId).toBeUndefined();
     expect(next.entities.filter((entity) => entity.workerBuildingId === farm.id)).toHaveLength(cap);
   });
+
+  it('reports the counted workers the hiring pass uses, not stale occupant slots', () => {
+    const farm = building(36, BuildingType.Farm, { occupants: [1, 2] });
+    const hired = human(1, { workerBuildingId: farm.id, job: JobType.Farmer });
+    const state = makeWorld([hired], [farm]);
+
+    expect(staffingCapFor(farm, state.entities).staffed).toBe(1);
+  });
+});
+
+describe('the assignment refusal answers for the settler the owner accepted', () => {
+  it('accepts a settler already on a completed workplace roster', () => {
+    const farm = building(37, BuildingType.Farm, { occupants: [1] });
+    const posted = human(1, { workerBuildingId: farm.id, job: JobType.Farmer });
+    const applicant = human(2);
+    const state = makeWorld([posted, applicant], [farm]);
+
+    expect(getWorkerAssignmentRefusal(state, farm.id, 1)).toBeNull();
+    expect(getWorkerAssignmentRefusal(state, farm.id, 2)).toBe('automatic-job');
+  });
+
+  it('refuses a building type it does not know instead of throwing', () => {
+    const unknownType = 'not_a_building' as BuildingType;
+    const unknown = building(38, unknownType, { completed: false, occupants: [] });
+    const applicant = human(1);
+    const state = makeWorld([applicant], [unknown]);
+
+    expect(() => canAssignWorkerToBuilding(state, unknown.id)).not.toThrow();
+    expect(canAssignWorkerToBuilding(state, unknown.id)).toBe(false);
+    expect(getWorkerAssignmentRefusal(state, unknown.id, applicant.id)).toBe('building-full');
+    expect(() => assignStaffWorkerToBuilding(state, unknown.id, applicant.id)).not.toThrow();
+  });
 });
 
 describe('individual job selection is unavailable', () => {
@@ -193,5 +229,68 @@ describe('assigned workers vs actual presence', () => {
     expect(html).toContain('2 open');
     expect(html).toContain('not necessarily here right now');
     expect(html).toContain('Off duty');
+  });
+});
+
+describe('the repair button follows the repair owner', () => {
+  it("is disabled and states the owner's bill when the colony cannot pay", () => {
+    const farm = building(40, BuildingType.Farm, { health: 50 });
+    const html = renderPanel(farm, makeWorld([], [farm]));
+
+    const repairButton = html.match(/<button[^>]*>🔧 Repair[^<]*<\/button>/)?.[0] ?? '';
+    expect(repairButton).toContain('disabled=""');
+    expect(html).toContain('Cannot repair yet — Need 10w 5s');
+  });
+
+  it('is enabled and priced when the owner would run the repair', () => {
+    const farm = building(40, BuildingType.Farm, { health: 50 });
+    const state = makeWorld([], [farm]);
+    state.resources = { ...state.resources, wood: 10, stone: 5 };
+    const html = renderPanel(farm, state);
+
+    const repairButton = html.match(/<button[^>]*>🔧 Repair[^<]*<\/button>/)?.[0] ?? '';
+    expect(repairButton).toContain('🔧 Repair (10w 5s)');
+    expect(repairButton).not.toContain('disabled=""');
+    expect(html).not.toContain('Cannot repair');
+  });
+});
+
+describe('workshop affordability belongs to the recipe owner', () => {
+  it('asks `canAffordWorkshopRecipe` instead of keeping a local input loop', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/SelectedBuildingPanel.tsx'), 'utf8');
+    expect(source).toContain('canAffordWorkshopRecipe(state.resources');
+    expect(source).not.toContain('function canAffordRecipe');
+  });
+});
+
+describe('a completed post that stands empty explains itself', () => {  it("renders the staffing owner's refusals for a completed workplace, not only for construction", () => {
+    const farm = building(41, BuildingType.Farm, { occupants: [2] });
+    const idle = human(1, { name: 'IdleUnique' });
+    const assigned = human(2, { name: 'AssignedUnique', workerBuildingId: farm.id });
+    const html = renderPanel(farm, makeWorld([idle, assigned], [farm]));
+
+    expect(html).toContain('Unavailable');
+    expect(html).toContain('IdleUnique — Employment is automatic; individual worker selection is unavailable.');
+    // The assigned worker is the post holder, not an unavailable candidate.
+    expect(html).not.toContain('AssignedUnique — Employment is automatic');
+  });
+});
+
+describe("the graveyard memorial reads the burial owner's capacity", () => {
+  it("counts only linked player graves and states the owner's cap", () => {
+    const graveyard = building(42, BuildingType.Graveyard);
+    const state = makeWorld([], [graveyard]);
+    state.graveRecords = [{ name: 'OldUnique', faction: 'player', tick: 0, graveyardId: graveyard.id }];
+
+    const html = renderPanel(graveyard, state);
+    expect(html).toContain(`Graves: 1 / ${GRAVEYARD_CAPACITY_PER_YARD}`);
+    expect(html).toContain('Village — OldUnique');
+    expect(html).not.toContain('Enemy —');
+  });
+
+  it('does not keep its own capacity literal', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/SelectedBuildingPanel.tsx'), 'utf8');
+    expect(source).toContain('GRAVEYARD_CAPACITY_PER_YARD');
+    expect(source).not.toMatch(/\/ 50 · One gravekeeper/);
   });
 });

@@ -43,7 +43,7 @@ export interface TickContext {
   /** Fast $O(1)$ building lookup map by building id. */
   buildingById: Map<number, Building>;
 
-  /** Active predators (wolves, foxes, active werewolves, hostile humans). */
+  /** Active predators (wolves, foxes, active werewolves, Wildkin, hostile humans). */
   predators: Entity[];
 
   // ── Spatial Grids (Partitioned for query performance) ──

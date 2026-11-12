@@ -4,13 +4,18 @@ import type { EntityRenderMeta } from './entityRenderMeta';
 import type { RenderSoAReaderV1 } from './renderSoAReader';
 
 /**
- * Syncs catalog animation frames, sprite attitude and speech bubbles from the render SoA buffer;
- * position and velocity stay unwritten, since the catalog holds live references to a past-tick snapshot.
+ * Mirrors the presentation-only kinematics (sprite attitude, walk phase, hit flash) from the render
+ * SoA buffer onto the display catalogue. Simulation fields — `size`, `huntTargetId`, `chatTicks`,
+ * `chatPhrase` — are owned by their tick writers and already arrive with the tick delta, so they are
+ * never rewritten here. Position and velocity also stay unwritten, since the catalogue holds live
+ * references to a past-tick snapshot.
+ *
+ * `_metaBySlot` remains part of the caller boundary; this pass no longer reads the sidecar.
  */
 export function patchCatalogKinematicsFromRenderSoA(
   catalog: EntityCatalog,
   reader: RenderSoAReaderV1,
-  metaBySlot?: readonly EntityRenderMeta[] | null,
+  _metaBySlot?: readonly EntityRenderMeta[] | null,
 ): void {
   reader.forEachSlot((slot) => {
     const id = reader.id(slot);
@@ -19,26 +24,6 @@ export function patchCatalogKinematicsFromRenderSoA(
 
     entity.spriteAngle = reader.spriteAngle(slot);
     entity.animFrame = reader.animFrame(slot);
-    entity.size = reader.size(slot);
     entity.flash = reader.flash(slot);
-
-    const chatTicks = reader.chatTicks(slot);
-    entity.chatTicks = chatTicks > 0 ? chatTicks : undefined;
-
-    // Chat phrases are stored in the sidecar metadata array
-    if (metaBySlot) {
-      const meta = metaBySlot[slot];
-      if (chatTicks > 0 && meta?.chatPhrase) {
-        entity.chatPhrase = meta.chatPhrase;
-      } else {
-        entity.chatPhrase = undefined;
-      }
-    } else if (chatTicks <= 0) {
-      entity.chatPhrase = undefined;
-    }
-
-    const huntTargetId = reader.huntTargetId(slot);
-    entity.huntTargetId = huntTargetId ?? undefined;
-
   });
 }

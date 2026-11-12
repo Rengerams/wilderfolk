@@ -425,6 +425,10 @@ function run(): void {
     world.entities.filter((entity) => entity.alive && isPlayerHuman(entity)).map((entity) => [entity.id, entity.residenceBuildingId]),
   );
   let previousMovers = new Set<number>();
+  // The collector runs on every tick, not only at checkpoints, so a transient violation — one the
+  // next tick repairs — still reaches the health report and fails the run.
+  const invariantErrorsSeen = new Set<string>();
+  let invariantErrorsSinceCheckpoint: string[] = [];
   const checkpoints = new Set(
     Array.from(
       { length: Math.ceil(TOTAL_DAYS / CHECKPOINT_INTERVAL_DAYS) },
@@ -455,6 +459,11 @@ function run(): void {
   for (let tick = 1; tick <= TOTAL_TICKS; tick += 1) {
     const tickStartedAt = performance.now();
     gameTick(world);
+    for (const error of collectInvariantErrors(world)) {
+      if (invariantErrorsSeen.has(error)) continue;
+      invariantErrorsSeen.add(error);
+      invariantErrorsSinceCheckpoint.push(error);
+    }
     if (options.movement) observer.sampleMovement();
     if (performance.now() - tickStartedAt > PACING_TICK_BUDGET_MS) counters.stalledTicks += 1;
 
@@ -477,9 +486,9 @@ function run(): void {
     }
 
     const day = tick / TICKS_PER_DAY;
-    const invariantErrors = collectInvariantErrors(world);
+    const invariantErrors = invariantErrorsSinceCheckpoint;
+    invariantErrorsSinceCheckpoint = [];
     counters.invariantViolations += invariantErrors.length;
-    assert(invariantErrors.length === 0, `Simulation invariants failed at day ${day}: ${invariantErrors.join('; ')}`);
     // Sampled at every checkpoint, not only at the end, so a housing break is dated rather than
     // dumped at year end with no clue which part of the run produced it.
     const housingSnapshot = collectHousingDiagnostics(world);
@@ -496,6 +505,7 @@ function run(): void {
     const deltas = sampleDelta(world);
     if (deltas.serializeMs > SERIALIZATION_SPIKE_MS) counters.serializationSpikes += 1;
     const health = observer.observe(day, deltas, invariantErrors);
+    assert(invariantErrors.length === 0, `Simulation invariants failed at day ${day}: ${invariantErrors.join('; ')}`);
     counters.homelessDays += health.housing.homelessPlayerHumans * CHECKPOINT_INTERVAL_DAYS;
     healthObserved.push(health);
     // Evaluated from the observations so far, so a stalled colony is named at the checkpoint it
@@ -546,7 +556,10 @@ function run(): void {
     assert(world.dayInYear === 0, 'calendar did not return to day zero');
   }
 
-  assert(world.entities.length > 0, 'the colony became extinct');
+  assert(
+    world.entities.some((entity) => entity.alive && isPlayerHuman(entity)),
+    'the colony became extinct',
+  );
   assert(world.entities.length < POPULATION_SANITY_LIMIT, 'population exceeded the sanity limit');
 
   for (const [resource, value] of Object.entries(world.resources ?? {})) {
@@ -561,9 +574,12 @@ function run(): void {
     assert(typeof event.storyKey === 'string' && event.storyKey.length > 0, 'story event has no key');
   }
 
-  const finalInvariantErrors = collectInvariantErrors(world);
+  const finalInvariantErrors = invariantErrorsSinceCheckpoint;
   counters.invariantViolations += finalInvariantErrors.length;
-  assert(finalInvariantErrors.length === 0, `Final simulation invariants failed: ${finalInvariantErrors.join('; ')}`);
+  assert(
+    invariantErrorsSeen.size === 0,
+    `Final simulation invariants failed: ${[...invariantErrorsSeen].join('; ')}`,
+  );
 
   const finalDelta = sampleDelta(world);
   const finalHealth = observer.observe(TOTAL_DAYS, finalDelta, finalInvariantErrors);

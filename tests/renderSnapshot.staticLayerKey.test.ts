@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildRenderSnapshot } from '../src/game/renderSnapshot';
 import { buildEntityLayerKey } from '../src/game/entityLayer';
+import { getHourOfDay } from '../src/game/dayCycle';
 import { Season, type WorldState } from '../src/game/gameTypes';
 import { BuildingType, type Building } from '../src/game/buildings';
 import type { ViewState } from '../src/game/viewState';
@@ -75,11 +76,25 @@ describe('static entity layer cache identity', () => {
     expect(layerKey(testWorld({ ...settled, tick: 101 }))).toBe(layerKey(settled));
   });
 
-  it('repaints while a building is under construction', () => {
+  it('keeps the layer while only the hour advances', () => {
+    // 12 ticks per hour, so these two ticks are in different hours.
+    expect(getHourOfDay(100)).not.toBe(getHourOfDay(112));
+    expect(layerKey(testWorld({ tick: 112 }))).toBe(layerKey(testWorld({ tick: 100 })));
+  });
+
+  it('keeps the layer on a bare tick even while a construction site exists', () => {
     const site = staticBuilding({ completed: false, constructionProgress: 40 });
 
     expect(layerKey(testWorld({ tick: 101, buildings: [site] })))
-      .not.toBe(layerKey(testWorld({ tick: 100, buildings: [site] })));
+      .toBe(layerKey(testWorld({ tick: 100, buildings: [site] })));
+  });
+
+  it('repaints once when a construction site actually gains progress', () => {
+    const site = staticBuilding({ completed: false, constructionProgress: 40 });
+    const before = layerKey(testWorld({ buildings: [site] }));
+
+    expect(layerKey(testWorld({ buildings: [staticBuilding({ completed: false, constructionProgress: 41 })] })))
+      .not.toBe(before);
   });
 
   it('repaints when a building finishes or its workers change', () => {
@@ -100,5 +115,30 @@ describe('static entity layer cache identity', () => {
     });
 
     expect(layerKey(tomorrow)).not.toBe(layerKey(today));
+  });
+
+  it('reuses the built static revision for a camera-only snapshot rebuild', () => {
+    const buildings = [staticBuilding()];
+    let indexReads = 0;
+    const tracked = new Proxy(buildings, {
+      get(target, property, receiver) {
+        if (typeof property === 'string' && /^\d+$/.test(property)) indexReads++;
+        return Reflect.get(target, property, receiver);
+      },
+    });
+    const world = testWorld({ buildings: tracked as unknown as Building[] });
+    const view = testView();
+
+    const first = buildRenderSnapshot(world, view);
+    expect(indexReads).toBeGreaterThan(0);
+    const readsAfterFirst = indexReads;
+
+    // A camera move rebuilds the snapshot, not the world: the revision must not be enumerated again.
+    const moved = buildRenderSnapshot(
+      world,
+      { ...view, camera: { x: 140, y: 100, zoom: 1 } } as ViewState,
+    );
+    expect(moved.staticLayerRevision).toBe(first.staticLayerRevision);
+    expect(indexReads).toBe(readsAfterFirst);
   });
 });

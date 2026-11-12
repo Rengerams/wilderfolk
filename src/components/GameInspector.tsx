@@ -24,7 +24,7 @@ export default function GameInspector({
   // width, so a collapsed inspector with a selection does not render it.
   if (hasSelection && collapsed) {
     return (
-      <div className="flex flex-col items-center gap-1 px-1 py-1.5" aria-label="Inspector (collapsed)">
+      <div role="region" aria-label="Inspector (collapsed)" className="flex flex-col items-center gap-1 px-1 py-1.5">
         <button
           type="button"
           onClick={onToggleCollapsed}
@@ -52,14 +52,14 @@ export default function GameInspector({
   // belongs to the session, not to the selection.
   if (!hasSelection) {
     return (
-      <div className="flex flex-col" aria-label="Inspector (nothing selected)">
+      <div role="region" aria-label="Inspector (nothing selected)" className="flex flex-col">
         {diagnostics}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col" aria-label="Inspector">
+    <div role="region" aria-label="Inspector" className="flex flex-col">
       {diagnostics}
       <section
         className="shrink-0 border-b border-stone-700 bg-stone-900/50"

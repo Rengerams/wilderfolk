@@ -1,5 +1,7 @@
 import type { WorldState } from './gameTypes';
+import { Season } from './gameTypes';
 import { BuildingType } from './buildings';
+import { getSeason } from './simHelpers';
 
 /**
  * First-spring tutorial campaign — a living guide that auto-advances as the player builds and plays.
@@ -61,16 +63,15 @@ export const TUTORIAL_CAMPAIGN: TutorialCampaignStep[] = [
     icon: '❄️',
     title: 'Prepare for winter',
     detail: 'Settlers burn wood to heat homes each winter day (1 per 5 people). Stockpile wood and keep food production running — a hungry village is a dying village.',
-    // `dayInYear` wraps every year, so the predicate must stay monotonic: once the colony reaches
-    // year 2 the step is finished for good instead of regressing on each new year's day 0.
-    isComplete: (w) => w.year >= 2 || w.dayInYear >= 250,
+    // Winter begins on day 270; the year check keeps the step finished on every later winter.
+    isComplete: (w) => w.year >= 1 || getSeason(w.dayInYear) === Season.Winter,
   },
   {
     id: 'year_two',
     icon: '🎉',
     title: 'Your valley lives on',
-    detail: 'You made it through the first year. Focus hints live in the Daily council, the roster is in People, and the village portrait is in the Progress window. The wild is watching.',
-    isComplete: (w) => w.year >= 2,
+    detail: 'Survive to day 360, when the first year turns. Focus hints live in the Daily council, the roster is in People, and the village portrait is in the Progress window. The wild is watching.',
+    isComplete: (w) => w.year >= 1,
   },
 ];
 

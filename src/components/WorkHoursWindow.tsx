@@ -50,7 +50,9 @@ export default function WorkHoursWindow({
   useOverlayKeyboard('work-hours-window', onClose);
 
   return (
-    <GameWindow title="Work & venue hours" icon="🕰️" onClose={onClose} maxBodyClassName="max-h-[70vh]">
+    // Modal, not an anchored side panel: it opens from the citizen overview dialog, and a window under
+    // that dialog's backdrop is unreachable. `GameWindow` owns the stack and focus for that mode.
+    <GameWindow title="Work & venue hours" icon="🕰️" onClose={onClose} centered maxBodyClassName="max-h-[70vh]">
       <div className="space-y-1">
         {WORK_HOURS_SUBJECTS.map((entry) => (
           <button

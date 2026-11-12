@@ -17,12 +17,6 @@ export interface GuidedCampaignChapter {
   memoryTags: readonly string[];
 }
 
-export interface GuidedCampaignChoiceRecord {
-  chapterId: GuidedCampaignChapterId;
-  choiceId: string;
-  tick: number;
-}
-
 export interface GuidedCampaignState {
   /** Separate mode switch; sandbox stories continue regardless of this value. */
   active: boolean;
@@ -31,7 +25,6 @@ export interface GuidedCampaignState {
   unlockedChapterIds: GuidedCampaignChapterId[];
   completedChapterIds: GuidedCampaignChapterId[];
   memoryTags: string[];
-  choices: GuidedCampaignChoiceRecord[];
   startedAtTick: number | null;
   lastTransitionTick: number | null;
 }
@@ -82,7 +75,6 @@ export function createGuidedCampaignState(): GuidedCampaignState {
     unlockedChapterIds: [],
     completedChapterIds: [],
     memoryTags: [],
-    choices: [],
     startedAtTick: null,
     lastTransitionTick: null,
   };
@@ -116,19 +108,6 @@ export function startGuidedCampaign(world: WorldState): void {
   if (first) addUnique(campaign.unlockedChapterIds, first.id);
 }
 
-/** Record a campaign choice without applying simulation effects in the UI layer. */
-export function recordGuidedCampaignChoice(
-  world: WorldState,
-  chapterId: GuidedCampaignChapterId,
-  choiceId: string,
-): void {
-  const campaign = ensureState(world);
-  if (!campaign.active || campaign.completed) return;
-  if (!GUIDED_CAMPAIGN_CHAPTERS.some((chapter) => chapter.id === chapterId)) return;
-  if (!campaign.unlockedChapterIds.includes(chapterId)) return;
-  campaign.choices.push({ chapterId, choiceId, tick: world.tick });
-}
-
 /**
  * Daily-boundary director. It only observes existing story flags and advances the
  * campaign journal; individual story systems remain responsible for all effects.
@@ -139,7 +118,9 @@ export function tickGuidedCampaign(world: WorldState): void {
 
   for (let index = 0; index < GUIDED_CAMPAIGN_CHAPTERS.length; index += 1) {
     const chapter = GUIDED_CAMPAIGN_CHAPTERS[index];
-    if (!chapter || !chapterIsCompleted(world, chapter)) continue;
+    // The journal is sequential: a later chapter becomes Remembered only after it is unlocked.
+    if (!chapter || !campaign.unlockedChapterIds.includes(chapter.id)) continue;
+    if (!chapterIsCompleted(world, chapter)) continue;
     addUnique(campaign.completedChapterIds, chapter.id);
     for (const tag of chapter.memoryTags) addUnique(campaign.memoryTags, tag);
     const next = GUIDED_CAMPAIGN_CHAPTERS[index + 1];

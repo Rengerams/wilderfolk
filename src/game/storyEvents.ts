@@ -10,11 +10,11 @@ import { isPlayerHuman } from './playerHuman';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { logEvent } from './eventLog';
 import { Human } from './gameConstants';
-import { getDeerParliamentChoiceEligibility, resolveDeerParliament } from './deerParliament';
-import { getTravelingTheatreChoiceEligibility, resolveTravelingTheatre } from './travelingTheatre';
-import { getWeddingDiplomacyChoiceEligibility, resolveWeddingDiplomacy } from './weddingDiplomacy';
+import { expireDeerParliament, getDeerParliamentChoiceEligibility, resolveDeerParliament } from './deerParliament';
+import { expireTravelingTheatre, getTravelingTheatreChoiceEligibility, resolveTravelingTheatre } from './travelingTheatre';
+import { expireWeddingDiplomacy, getWeddingDiplomacyChoiceEligibility, resolveWeddingDiplomacy } from './weddingDiplomacy';
 import { getInventionFairChoiceEligibility, resolveInventionFair } from './inventionFair';
-import { resolveRumourLedger } from './rumourLedger';
+import { expireRumourLedger, resolveRumourLedger } from './rumourLedger';
 import { addReputation } from './simHelpers';
 import { adjustEcosystemHealth } from './dailyEcology';
 
@@ -30,7 +30,6 @@ export function offerStoryEvent(state: WorldState, event: StoryEvent): void {
   state.pendingStoryEvents.push(event);
 }
 
-/** Drop expired unanswered stories — the moment passes quietly. */
 const CHILDREN_SHELTER_CHILDREN = 10;
 /** Children consume the canonical daily human ration. */
 const CHILDREN_SHELTER_FOOD_PER_DAY = CHILDREN_SHELTER_CHILDREN * Human.DAILY_FOOD_CONSUMPTION;
@@ -143,11 +142,36 @@ export function tickChildrenShelter(state: WorldState): void {
   }
 }
 
+/**
+ * Drops expired unanswered stories through one contract: the story that offered the card must resolve
+ * its own chain, so a lapsed offer can never strand a later stage or the guided campaign.
+ */
+export type StoryExpiryResolver = (state: WorldState) => void;
+
+/**
+ * Keyed dispatch from the card queue to each story's owner-supplied resolver; the resolver and the
+ * flags it writes stay in the owning module. Chainless cards (welcome, grief, debate, howler) pass.
+ */
+const STORY_EXPIRY_RESOLVERS: Partial<Record<StoryEvent['storyKey'], StoryExpiryResolver>> = {
+  children_shelter: expireChildrenShelter,
+  winter_prep: expireWinterPrep,
+  wolf_choice: expireWolfChoice,
+  ranger_visit: expireRangerVisit,
+  deer_parliament: expireDeerParliament,
+  traveling_theatre: expireTravelingTheatre,
+  wedding_diplomacy: expireWeddingDiplomacy,
+  rumour_ledger: expireRumourLedger,
+};
+
 export function tickPendingStoryEvents(state: WorldState): void {
   if (!state.pendingStoryEvents?.length) return;
-  state.pendingStoryEvents = state.pendingStoryEvents.filter(
-    (e) => state.tick < e.expiresAtTick,
-  );
+  const expired = state.pendingStoryEvents.filter((event) => state.tick >= event.expiresAtTick);
+  if (expired.length === 0) return;
+  // Drop first so a resolver can never resurrect the card it is closing.
+  state.pendingStoryEvents = state.pendingStoryEvents.filter((event) => state.tick < event.expiresAtTick);
+  for (const event of expired) {
+    STORY_EXPIRY_RESOLVERS[event.storyKey]?.(state);
+  }
 }
 
 /**
@@ -311,7 +335,23 @@ function resolveChildrenShelter(state: WorldState, choiceId: string): boolean {
   return true;
 }
 
+/**
+ * An unanswered request means the children were turned away. Start the same five-day chain as an
+ * explicit refusal so the rival consequence still resolves; never the friendly outcome.
+ */
+function expireChildrenShelter(state: WorldState): void {
+  if ((state.storyFlags?.children_shelter_resolved ?? 0) > 0) return;
+  if ((state.storyFlags?.children_shelter_started ?? 0) > 0) return;
+  if ((state.storyFlags?.children_shelter_offered ?? 0) <= 0) return;
+  resolveChildrenShelter(state, 'refuse');
+}
+
 // Story 1 — The pack watches (first-session ecological choice)
+
+/** Stored fate of the wolf choice; 3 means the card lapsed without an answer. */
+const WOLF_FATE_THINNED = 1;
+const WOLF_FATE_SPARED = 2;
+const WOLF_FATE_UNDECIDED = 3;
 
 /**
  * Offer once, as a gentle invitation: waits for a house plus a first practical job, and guarantees
@@ -350,10 +390,11 @@ export function maybeOfferWolfChoice(state: WorldState): void {
 }
 
 function resolveWolfChoice(state: WorldState, choiceId: string): void {
+  if ((state.storyFlags?.wolf_resolved ?? 0) > 0) return;
   // The valley remembers — the ranger story reads this choice.
   state.storyFlags = {
     ...state.storyFlags,
-    wolf_resolved: choiceId === 'thin_pack' ? 1 : 2,
+    wolf_resolved: choiceId === 'thin_pack' ? WOLF_FATE_THINNED : WOLF_FATE_SPARED,
     wolf_resolvedTick: state.tick,
   };
   if (choiceId === 'thin_pack') {
@@ -388,6 +429,21 @@ function resolveWolfChoice(state: WorldState, choiceId: string): void {
       undefined,
     );
   }
+}
+
+/**
+ * The pack question lapsed: record an undecided fate so the ranger visit does not invent an answer,
+ * and do not grant either pack outcome's ecology or reputation.
+ */
+function expireWolfChoice(state: WorldState): void {
+  if ((state.storyFlags?.wolf_resolved ?? 0) > 0) return;
+  if ((state.storyFlags?.wolf_choice ?? 0) <= 0) return;
+  state.storyFlags = {
+    ...state.storyFlags,
+    wolf_resolved: WOLF_FATE_UNDECIDED,
+    wolf_resolvedTick: state.tick,
+  };
+  addNotification(state, '🐺 The pack moves on', 'The moment to answer the elders passed; the valley made no choice.', 'info');
 }
 
 // Story 2 — The valley wakes (first-session welcome beat, day 0)
@@ -434,9 +490,11 @@ export function maybeOfferRangerVisit(state: WorldState): void {
   if ((state.storyFlags?.ranger_visit ?? 0) > 0) return;
   const resolved = state.storyFlags?.wolf_resolved;
   const resolvedTick = state.storyFlags?.wolf_resolvedTick ?? 0;
-  if (resolved == null || state.tick < resolvedTick + TICKS_PER_DAY * 3) return;
+  // Only a real answer remembers a pack; an expired card (undecided) has no visit to remember.
+  if (resolved !== WOLF_FATE_THINNED && resolved !== WOLF_FATE_SPARED) return;
+  if (state.tick < resolvedTick + TICKS_PER_DAY * 3) return;
   state.storyFlags = { ...state.storyFlags, ranger_visit: state.tick };
-  const thin = resolved === 1;
+  const thin = resolved === WOLF_FATE_THINNED;
   offerStoryEvent(state, {
     id: `ranger_${state.tick}`,
     emoji: '🧙',
@@ -454,7 +512,11 @@ export function maybeOfferRangerVisit(state: WorldState): void {
 }
 
 function resolveRangerVisit(state: WorldState, choiceId: string): void {
-  const thin = (state.storyFlags?.wolf_resolved ?? 0) === 1;
+  if ((state.storyFlags?.ranger_visit_resolved ?? 0) > 0) return;
+  if ((state.storyFlags?.ranger_visit_lapsed ?? 0) > 0) return;
+  const thin = (state.storyFlags?.wolf_resolved ?? 0) === WOLF_FATE_THINNED;
+  // Any answer ends the visit; an unknown id must not leave the ranger chain open.
+  state.storyFlags = { ...state.storyFlags, ranger_visit_resolved: state.tick };
   if (choiceId === 'acknowledge') {
     if (thin) {
       adjustEcosystemHealth(state, +1); // a gesture toward the debt
@@ -467,6 +529,15 @@ function resolveRangerVisit(state: WorldState, choiceId: string): void {
       logEvent(state, 'event', `The ranger honored ${state.villageName} for sparing the pack — the old way holds.`);
     }
   }
+}
+
+/** The ranger waited and left unanswered: a terminal fate, never the acknowledgment beat. */
+function expireRangerVisit(state: WorldState): void {
+  if ((state.storyFlags?.ranger_visit_resolved ?? 0) > 0) return;
+  if ((state.storyFlags?.ranger_visit_lapsed ?? 0) > 0) return;
+  if ((state.storyFlags?.ranger_visit ?? 0) <= 0) return;
+  state.storyFlags = { ...state.storyFlags, ranger_visit_lapsed: state.tick };
+  addNotification(state, '🧙 The ranger moves on', 'The old ranger waited at the gate, then left without a word.', 'info');
 }
 
 // Story 4 — Old Kaia's winter test (first-year course-setting quest)
@@ -493,6 +564,19 @@ export function maybeOfferWinterPrep(state: WorldState): void {
 }
 
 /**
+ * The offer lapsed before an answer: remember that the pact was never accepted so the day-270 freeze
+ * check can close the quest visibly instead of leaving winter_prep as a dead flag.
+ */
+function expireWinterPrep(state: WorldState): void {
+  if ((state.storyFlags?.winter_resolved ?? 0) > 0) return;
+  if ((state.storyFlags?.winter_prep_lapsed ?? 0) > 0) return;
+  if ((state.storyFlags?.winter_accepted ?? 0) > 0) return;
+  if ((state.storyFlags?.winter_prep ?? 0) <= 0) return;
+  state.storyFlags = { ...state.storyFlags, winter_prep_lapsed: state.tick };
+  addNotification(state, '❄️ Old Kaia’s test goes unanswered', 'The offer of a winter pact lapsed. The first freeze will decide what the valley remembers.', 'info');
+}
+
+/**
  * Check the pact at the first freeze (day 270) — the valley remembers the result; 270 is the season
  * owner's boundary, not a preference.
  */
@@ -501,6 +585,7 @@ export function tickWinterFreezeCheck(state: WorldState): void {
   if ((state.storyFlags?.winter_resolved ?? 0) > 0) return;
   const pact = state.storyFlags?.winter_prep ?? 0;
   const accepted = pact > 0 && (state.storyFlags?.winter_accepted ?? 0) > 0;
+  const lapsed = pact > 0 && (state.storyFlags?.winter_prep_lapsed ?? 0) > 0;
   state.storyFlags = { ...state.storyFlags, winter_resolved: state.tick };
   if (accepted && state.resources.wood >= 120 && state.resources.food >= 180) {
     addReputation(state, 2);
@@ -510,6 +595,9 @@ export function tickWinterFreezeCheck(state: WorldState): void {
     addReputation(state, -1);
     addBigNews(state, '❄️ A lean first freeze', 'The first freeze came early and the larder thin. Old Kaia says nothing — the valley remembers.', 'negative');
     logEvent(state, 'event', `${state.villageName} failed Old Kaia's first winter test — a lean freeze the valley remembers.`);
+  } else if (lapsed) {
+    addBigNews(state, '❄️ Old Kaia’s test went unanswered', 'The first freeze came and the pact was never accepted. Old Kaia says nothing — the valley remembers the silence.', 'neutral');
+    logEvent(state, 'event', `${state.villageName} let Old Kaia's winter test go unanswered — the first freeze passed without a pact.`);
   }
 }
 
@@ -560,20 +648,40 @@ function resolveGriefBeat(state: WorldState, choiceId: string): void {
 
 // Story 6 — The ranger's tale (Moon Howlers introduced as a rumor)
 
-/** Offer late in the first year, after the ranger visited — the pack mystery deepens. */
+/** Which framing the howler card carries: the ranger's own tale or a traveller's warning. */
+const HOWLER_VARIANT_RANGER = 1;
+const HOWLER_VARIANT_TRAVELLER = 2;
+
+/**
+ * Offer late in the first year. A resolved ranger tells his own tale; otherwise a traveller carries
+ * the same warning, so an unanswered ranger card never hides the Moon Howler telegraph.
+ */
 export function maybeOfferHowlerRumor(state: WorldState): void {
   if ((state.storyFlags?.howler_rumor ?? 0) > 0) return;
   if (state.year > 0) return;
-  if ((state.storyFlags?.ranger_visit ?? 0) === 0) return;
   if (state.dayInYear < 180) return;
-  state.storyFlags = { ...state.storyFlags, howler_rumor: state.tick };
+  // A pending ranger card can still become the ranger's tale; wait for the answer or the lapse.
+  if ((state.pendingStoryEvents ?? []).some((event) => event.storyKey === 'ranger_visit')) return;
+
+  const resolved = (state.storyFlags?.ranger_visit_resolved ?? 0) > 0;
+  // Legacy saves predate the resolution flag; a dropped card there proves the visit happened.
+  const legacyVisit = (state.storyFlags?.ranger_visit ?? 0) > 0
+    && (state.storyFlags?.ranger_visit_lapsed ?? 0) === 0;
+  const rangerTale = resolved || legacyVisit;
+
+  state.storyFlags = {
+    ...state.storyFlags,
+    howler_rumor: state.tick,
+    howler_rumor_variant: rangerTale ? HOWLER_VARIANT_RANGER : HOWLER_VARIANT_TRAVELLER,
+  };
   offerStoryEvent(state, {
     id: `howler_${state.tick}`,
     emoji: '🌕',
     storyKey: 'howler_rumor',
-    title: "The ranger's tale",
-    description:
-      'The ranger returns with a strange tale: on full-moon nights, something walks the treeline on two legs and howls like a wolf. “Keep a priest near, and trust the moon less.”',
+    title: rangerTale ? "The ranger's tale" : "A traveller's tale",
+    description: rangerTale
+      ? 'The ranger returns with a strange tale: on full-moon nights, something walks the treeline on two legs and howls like a wolf. “Keep a priest near, and trust the moon less.”'
+      : 'A traveller passing through the valley speaks of full-moon nights: something walks the treeline on two legs and howls like a wolf. “Keep a priest near, and trust the moon less.”',
     choices: [
       { id: 'heed', label: 'Heed the warning', detail: 'The full moon will be watched — the Church gains weight in the village.' },
       { id: 'dismiss', label: "A hunter's tall tale", detail: 'Old stories — the village goes about its business.' },
@@ -584,13 +692,41 @@ export function maybeOfferHowlerRumor(state: WorldState): void {
 }
 
 function resolveHowlerRumor(state: WorldState, choiceId: string): void {
+  const rangerTale = (state.storyFlags?.howler_rumor_variant ?? HOWLER_VARIANT_RANGER)
+    === HOWLER_VARIANT_RANGER;
   if (choiceId === 'heed') {
     addReputation(state, 1);
-    addBigNews(state, '🌕 The moon is watched', 'The village heeds the ranger — priests keep watch on full-moon nights, and the treeline feels less certain.', 'neutral');
-    logEvent(state, 'event', `${state.villageName} heeded the ranger's tale — the full moon will be watched.`);
+    addBigNews(
+      state,
+      '🌕 The moon is watched',
+      rangerTale
+        ? 'The village heeds the ranger — priests keep watch on full-moon nights, and the treeline feels less certain.'
+        : 'The village heeds the traveller’s warning — priests keep watch on full-moon nights, and the treeline feels less certain.',
+      'neutral',
+    );
+    logEvent(
+      state,
+      'event',
+      rangerTale
+        ? `${state.villageName} heeded the ranger's tale — the full moon will be watched.`
+        : `${state.villageName} heeded a traveller's warning — the full moon will be watched.`,
+    );
   } else {
-    addNotification(state, "A hunter's tale", 'The village shrugs off the ranger’s story — old tales for old folks.', 'info');
-    logEvent(state, 'event', `${state.villageName} dismissed the ranger's tale — old stories for old folks.`);
+    addNotification(
+      state,
+      rangerTale ? "A hunter's tale" : "A traveller's tale",
+      rangerTale
+        ? 'The village shrugs off the ranger’s story — old tales for old folks.'
+        : 'The village shrugs off the traveller’s story — old tales for old folks.',
+      'info',
+    );
+    logEvent(
+      state,
+      'event',
+      rangerTale
+        ? `${state.villageName} dismissed the ranger's tale — old stories for old folks.`
+        : `${state.villageName} dismissed a traveller's tale — old stories for old folks.`,
+    );
   }
 }
 

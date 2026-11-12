@@ -73,33 +73,73 @@ afterEach(() => {
 });
 
 describe('main-thread fallback tick rollback (P-3)', () => {
-  it('holds simulation off the UI thread while worker recovery is scheduled', async () => {
+  it('holds the first worker boot but keeps ticking while recovery is scheduled', async () => {
     vi.resetModules();
     const { GameLoop } = await import('../src/game/gameLoop');
     const { gameTick } = await import('../src/game/gameEngine');
     const loop = new GameLoop(makeWorld(), createInitialView(400, 300), () => null);
     const internals = loop as unknown as {
-      running: boolean; tickAccumulator: number; workerRecoveryTimer: ReturnType<typeof setTimeout> | null;
+      running: boolean; tickAccumulator: number; workerBooting: boolean;
+      workerRecoveryTimer: ReturnType<typeof setTimeout> | null;
       frameBody: (time: number) => void;
     };
     internals.running = true;
-    internals.tickAccumulator = 1000;
-    const timer = setTimeout(() => {}, 60_000);
-    internals.workerRecoveryTimer = timer;
     vi.mocked(gameTick).mockClear();
     vi.mocked(gameTick).mockImplementation((world) => { world.tick++; return world; });
+
+    // The very first worker boot owns the clock: there is no fallback authority yet.
+    internals.workerBooting = true;
+    internals.tickAccumulator = 1000;
+    internals.frameBody(1000);
+    expect(vi.mocked(gameTick)).not.toHaveBeenCalled();
+    expect(loop.getWorld().tick).toBe(0);
+
+    // A pending recovery retry is different: the colony keeps advancing on the bounded main-thread
+    // catch-up while the worker is unavailable.
+    internals.workerBooting = false;
+    const timer = setTimeout(() => {}, 60_000);
+    internals.workerRecoveryTimer = timer;
+    internals.tickAccumulator = 1000;
     try {
-      internals.frameBody(1000);
-      expect(vi.mocked(gameTick)).not.toHaveBeenCalled();
-      expect(loop.getWorld().tick).toBe(0);
+      internals.frameBody(2000);
+      expect(vi.mocked(gameTick)).toHaveBeenCalledTimes(1);
+      expect(loop.getWorld().tick).toBe(1);
       clearTimeout(timer);
       internals.workerRecoveryTimer = null;
-      internals.frameBody(2000);
-      expect(loop.getWorld().tick).toBe(1);
+      internals.tickAccumulator = 1000;
+      internals.frameBody(3000);
+      expect(loop.getWorld().tick).toBe(2);
     } finally {
       clearTimeout(timer);
       internals.workerRecoveryTimer = null;
     }
+  });
+
+  it('abandons a recovery that outlives the budget and keeps ticking on the main thread', async () => {
+    vi.resetModules();
+    const { GameLoop } = await import('../src/game/gameLoop');
+    const { gameTick } = await import('../src/game/gameEngine');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const loop = new GameLoop(makeWorld(), createInitialView(400, 300), () => null);
+    const internals = loop as unknown as {
+      running: boolean; tickAccumulator: number; workerBooting: boolean;
+      workerRecoveryStartedAt: number | null; workerRecoveryDisabled: boolean;
+      frameBody: (time: number) => void;
+    };
+    internals.running = true;
+    internals.workerBooting = true;
+    internals.workerRecoveryStartedAt = performance.now() - 60_000;
+    internals.tickAccumulator = 1000;
+    vi.mocked(gameTick).mockClear();
+    vi.mocked(gameTick).mockImplementation((world) => { world.tick++; return world; });
+
+    internals.frameBody(1000);
+
+    expect(internals.workerRecoveryDisabled).toBe(true);
+    expect(internals.workerRecoveryStartedAt).toBeNull();
+    expect(vi.mocked(gameTick)).toHaveBeenCalledTimes(1);
+    expect(loop.getWorld().tick).toBe(1);
+    loop.stop();
   });
 
   it('restores the pre-tick world and stops retrying when a fallback tick throws', async () => {
@@ -140,8 +180,8 @@ describe('main-thread fallback tick rollback (P-3)', () => {
     frameBody(3000);
     expect(internals.tickAccumulator).toBe(heldTime);
 
-    // One attempt per frame — never the same accumulated tick retried up to MAX_CATCHUP_STEPS
-    // times — and the partial tick it applied is gone.
+    // One attempt per frame — a failed tick is never retried up to MAX_CATCHUP_STEPS times — and the
+    // partial tick it applied is gone.
     expect(vi.mocked(gameTick)).toHaveBeenCalledTimes(3);
     expect(loop.getWorld().tick).toBe(before.tick);
     expect(loop.getWorld().resources).toEqual(before.resources);
@@ -157,8 +197,9 @@ describe('main-thread fallback tick rollback (P-3)', () => {
       world.tick += 1;
       return world;
     });
+    // Once ticks work again the fallback drains the bounded backlog in one frame, like the worker path.
     frameBody(4000);
-    expect(loop.getWorld().tick).toBe(before.tick + 1);
-    expect(internals.tickAccumulator).toBe(heldTime - 1000);
+    expect(loop.getWorld().tick).toBe(before.tick + 4);
+    expect(internals.tickAccumulator).toBe(0);
   });
 });

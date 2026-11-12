@@ -25,13 +25,13 @@ export const SCENT_DECAY_PER_TICK = 0.965;
 export const WOLF_SCENT_DEPOSIT = 6;
 export const FOX_SCENT_DEPOSIT = 3;
 export const WEREWOLF_SCENT_DEPOSIT = 11;
+export const WILDKIN_SCENT_DEPOSIT = 8;
 
 /** Minimum neighborhood scent before grazers react. */
 export const SCENT_FLEE_MIN = 1.4;
 
 export const RABBIT_SCENT_SENSITIVITY = 1.25;
 export const DEER_SCENT_SENSITIVITY = 0.75;
-export const WILDKIN_SCENT_SENSITIVITY = 0.55;
 
 function isScentGridDisabled(): boolean {
   if (typeof import.meta !== 'undefined' && envFlagDisabled(import.meta.env?.VITE_USE_SCENT_GRID)) {
@@ -133,7 +133,7 @@ export class ScentGrid implements ScentGridRuntime {
     this.values[idx] = Math.min(255, this.values[idx] + amount);
   }
 
-  /** Stain cells where mobile predators stood this tick (wolf / fox / active werewolf only). */
+  /** Stain cells where mobile predators stood this tick (wolf / fox / active werewolf / wildkin). */
   depositPredatorScent(entities: Iterable<Entity>): void {
     for (const entity of entities) {
       if (!entity.alive) continue;
@@ -141,13 +141,15 @@ export class ScentGrid implements ScentGridRuntime {
       if (
         type !== EntityType.Wolf &&
         type !== EntityType.Fox &&
-        type !== EntityType.Werewolf
+        type !== EntityType.Werewolf &&
+        type !== EntityType.Wildkin
       ) {
         continue;
       }
       let amount = 0;
       if (type === EntityType.Wolf) amount = WOLF_SCENT_DEPOSIT;
       else if (type === EntityType.Fox) amount = FOX_SCENT_DEPOSIT;
+      else if (type === EntityType.Wildkin) amount = WILDKIN_SCENT_DEPOSIT;
       else if (type === EntityType.Werewolf && isActiveMoonHowler(entity)) {
         amount = WEREWOLF_SCENT_DEPOSIT;
       } else {

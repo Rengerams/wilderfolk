@@ -12,6 +12,7 @@ import { isRoadStripType } from './stripTopology';
 import { WORK_COMMUTE_LEAD_HOURS } from './workSchedule';
 import { getReadOnlyPathGrid, lineCrossesBlocked, type PathGrid } from './pathfinding';
 import { buildingAccessPoint } from './buildingAccess';
+import { getTerrainRevision } from './terrain/terrainGrid';
 
 // ============ TUNABLE THRESHOLDS ============
 
@@ -481,29 +482,91 @@ export function computeLogisticsOverlay(world: WorldState): LogisticsOverlayData
 }
 
 /**
- * Memoised front for {@link computeLogisticsOverlay}: the projection is expensive and the
- * snapshot cache is camera-keyed. Key is world identity plus tick; reset clears it.
+ * Memoised front for {@link computeLogisticsOverlay}: the projection is expensive, while a tick, a
+ * camera move or any other unrelated mutation leaves every input it reads unchanged. The key is the
+ * world identity plus an exact vector of those inputs.
  */
-let cachedOverlayWorld: WorldState | null = null;
-let cachedOverlayTick = -1;
+let cachedOverlayMap: WorldState['worldMap'] | null = null;
 let cachedOverlay: LogisticsOverlayData | null = null;
 
-/** The overlay for this world, recomputed after a new world, a tick change or an explicit reset. */
+/** Building types seen this session, numbered once so the input vector stays numeric and exact. */
+const buildingTypeCodes = new Map<string, number>();
+/** Scratch and snapshot of the numeric inputs; both are reused, so a cache hit allocates nothing. */
+const overlayInputScratch: number[] = [];
+let cachedOverlayInputs: number[] = [];
+
+/**
+ * Writes every value `computeLogisticsOverlay` reads into {@link overlayInputScratch} and reports
+ * whether the vector differs from the cached one: building geometry/faction, settler home↔work
+ * links and the terrain revision behind the walk grid.
+ */
+function logisticsInputsChanged(world: WorldState): boolean {
+  const scratch = overlayInputScratch;
+  let index = 0;
+
+  const buildings = world.buildings ?? [];
+  for (let i = 0; i < buildings.length; i++) {
+    const b = buildings[i];
+    let typeCode = buildingTypeCodes.get(b.type);
+    if (typeCode === undefined) {
+      typeCode = buildingTypeCodes.size + 1;
+      buildingTypeCodes.set(b.type, typeCode);
+    }
+    scratch[index++] = b.id;
+    scratch[index++] = typeCode;
+    scratch[index++] = b.x;
+    scratch[index++] = b.y;
+    scratch[index++] = b.width;
+    scratch[index++] = b.height;
+    scratch[index++] = b.rotation ?? 0;
+    scratch[index++] = b.completed ? 1 : 0;
+    scratch[index++] = b.faction === 'rival' ? 1 : 0;
+  }
+
+  const entities = world.entities ?? [];
+  for (let i = 0; i < entities.length; i++) {
+    const e = entities[i];
+    if (!e.alive || !isPlayerHuman(e)) continue;
+    if (e.workerBuildingId == null || e.residenceBuildingId == null) continue;
+    scratch[index++] = e.id;
+    scratch[index++] = e.workerBuildingId;
+    scratch[index++] = e.residenceBuildingId;
+    scratch[index++] = Number.isFinite(e.speed) ? e.speed : SETTLER_WALK_SPEED;
+  }
+  scratch[index++] = getTerrainRevision();
+
+  const cached = cachedOverlayInputs;
+  if (cached.length === index) {
+    let same = true;
+    for (let i = 0; i < index; i++) {
+      if (cached[i] !== scratch[i]) {
+        same = false;
+        break;
+      }
+    }
+    if (same) return false;
+  }
+  cachedOverlayInputs = scratch.slice(0, index);
+  return true;
+}
+
+/** The overlay for this world, recomputed only when an input it reads changes. */
 export function computeLogisticsOverlayCached(world: WorldState): LogisticsOverlayData {
-  if (cachedOverlay !== null && cachedOverlayWorld === world && cachedOverlayTick === world.tick) {
+  const inputsChanged = logisticsInputsChanged(world);
+  if (!inputsChanged && cachedOverlay !== null && cachedOverlayMap === world.worldMap) {
     return cachedOverlay;
   }
   cachedOverlay = computeLogisticsOverlay(world);
-  cachedOverlayWorld = world;
-  cachedOverlayTick = world.tick;
+  cachedOverlayMap = world.worldMap;
   return cachedOverlay;
 }
 
 /** Drop the memo. Called by the renderer reset and by tests that swap worlds. */
 export function resetLogisticsOverlayCache(): void {
-  cachedOverlayWorld = null;
-  cachedOverlayTick = -1;
+  cachedOverlayMap = null;
   cachedOverlay = null;
+  cachedOverlayInputs = [];
+  overlayInputScratch.length = 0;
 }
 
 /**

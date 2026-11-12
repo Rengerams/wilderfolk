@@ -18,6 +18,7 @@ import { patchCatalogKinematicsFromRenderSoA } from './simBuffers/applyKinematic
 import type { EntityRenderMeta } from './simBuffers/entityRenderMeta';
 import type { RenderSoAReaderV1 } from './simBuffers/renderSoAReader';
 import { clearAllFactionWanderStates } from './factionWander';
+import { retainDialogueSessionsForWorld } from './humanChat';
 import { GameWorkerHost, isGameWorkerEnabled, type WorkerUiPatch } from './simWorker/GameWorkerHost';
 import { applySimPrep, extractSimPrep } from './simWorker/simPrep';
 import type { StampedWorkerCommand, WorkerCommand } from './simWorker/commands';
@@ -64,12 +65,14 @@ function pageHidden(): boolean {
   return typeof document !== 'undefined' && document.hidden;
 }
 
-const WORKER_STALL_TIMEOUT_MS = 10000;
+export const WORKER_STALL_TIMEOUT_MS = 10000;
 const WORKER_EXPORT_MARGIN_MS = 5000;
-const WORKER_STALL_CEILING_MS = 15000;
+export const WORKER_STALL_CEILING_MS = 15000;
 const WORKER_RECOVERY_INITIAL_DELAY_MS = 2000;
 const WORKER_RECOVERY_MAX_DELAY_MS = 30000;
 const WORKER_RECOVERY_MAX_FAILURES = 3;
+/** Total time available for worker recovery before the loop settles on bounded main-thread ticks. */
+export const WORKER_RECOVERY_BUDGET_MS = 20000;
 
 export type { WorkerCommand } from './simWorker/commands';
 
@@ -162,6 +165,8 @@ export class GameLoop {
   private workerTickChanged = false;
   private lastWorkerActivity = 0;
   private lastWorkerTickRequest = 0;
+  /** When the newest command was handed to the worker; a hung command ages from here. */
+  private lastWorkerCommandRequest = 0;
   private lastDailyBoundaryTick = 0;
   private workerTickLatencyMs = 0;
   private exportDegraded = false;
@@ -171,6 +176,10 @@ export class GameLoop {
   private workerRecoveryInFlight = false;
   private workerRecoveryFailures = 0;
   private workerRecoveryDisabled = false;
+  /** A full-world import is being posted; main-thread ticks pause so the upload cannot lose one. */
+  private workerImportInFlight = false;
+  /** First recovery attempt in the current outage; null while the worker is healthy or booting. */
+  private workerRecoveryStartedAt: number | null = null;
   private spotlightPresentation: SpotlightPresentation | null = null;
   private renderSoA: RenderSoAReaderV1 | null = null;
   private renderMetaBySlot: EntityRenderMeta[] | null = null;
@@ -195,6 +204,7 @@ export class GameLoop {
 
   constructor(world: WorldState, view: ViewState, getCanvas: () => HTMLCanvasElement | null) {
     resetRendererCaches();
+    retainDialogueSessionsForWorld(world);
     this.world = world;
     this.view = view;
     this.getCanvas = getCanvas;
@@ -249,16 +259,21 @@ export class GameLoop {
 
   private async importLatestWorldForWorker(workerHost: GameWorkerHost): Promise<number | null> {
     let importedGen: number;
-    do {
-      if (this.workerHost !== workerHost || !workerHost.isReady()) return null;
-      importedGen = this.sessionGen;
-      await workerHost.importSave(this.world);
-    } while (
-      this.workerHost === workerHost &&
-      workerHost.isReady() &&
-      importedGen !== this.sessionGen
-    );
-    return this.workerHost === workerHost && workerHost.isReady() ? importedGen : null;
+    this.workerImportInFlight = true;
+    try {
+      do {
+        if (this.workerHost !== workerHost || !workerHost.isReady()) return null;
+        importedGen = this.sessionGen;
+        await workerHost.importSave(this.world);
+      } while (
+        this.workerHost === workerHost &&
+        workerHost.isReady() &&
+        importedGen !== this.sessionGen
+      );
+      return this.workerHost === workerHost && workerHost.isReady() ? importedGen : null;
+    } finally {
+      this.workerImportInFlight = false;
+    }
   }
 
   private flushDeferredWorkerCommands(): void {
@@ -301,6 +316,7 @@ export class GameLoop {
 
     const recoveryGen = this.sessionGen;
     const recoveryHost = new GameWorkerHost();
+    if (this.workerRecoveryStartedAt === null) this.workerRecoveryStartedAt = performance.now();
     this.workerRecoveryInFlight = true;
     this.workerBooting = true;
     this.workerHost = recoveryHost;
@@ -328,6 +344,7 @@ export class GameLoop {
         this.workerEnabled = true;
         this.workerBooting = false;
         this.workerRecoveryInFlight = false;
+        this.workerRecoveryStartedAt = null;
         this.workerRecoveryDelayMs = WORKER_RECOVERY_INITIAL_DELAY_MS;
         this.workerRecoveryFailures = 0;
         this.lastWorkerActivity = performance.now();
@@ -356,6 +373,7 @@ export class GameLoop {
           this.workerRecoveryFailures++;
           if (this.workerRecoveryFailures >= WORKER_RECOVERY_MAX_FAILURES) {
             this.workerRecoveryDisabled = true;
+            this.workerRecoveryStartedAt = null;
             console.error('[GameLoop] Worker recovery failed repeatedly; continuing with bounded main-thread simulation', err);
             this.flushDeferredWorkerCommands();
           } else {
@@ -364,6 +382,29 @@ export class GameLoop {
           }
         }
       });
+  }
+
+  /**
+   * Stops spending time on worker recovery and keeps the colony running on bounded main-thread
+   * ticks. The recovery budget bounds the visible freeze even when every init hangs.
+   */
+  private abandonWorkerRecovery(reason: string): void {
+    if (this.workerRecoveryTimer) {
+      clearTimeout(this.workerRecoveryTimer);
+      this.workerRecoveryTimer = null;
+    }
+    this.workerHost?.dispose();
+    this.workerHost = null;
+    this.workerEnabled = false;
+    this.workerBooting = false;
+    this.workerRecoveryInFlight = false;
+    this.workerRecoveryDisabled = true;
+    this.workerRecoveryStartedAt = null;
+    this.renderSoA = null;
+    this.renderMetaBySlot = null;
+    this.scentReader = null;
+    console.error(`[GameLoop] Worker recovery abandoned — ${reason}; continuing with bounded main-thread simulation`);
+    this.flushDeferredWorkerCommands();
   }
 
   private registerWorkerHandlers(_initGen?: number): void {
@@ -482,7 +523,9 @@ export class GameLoop {
     this.optimisticCommands = [];
     this.optimisticCommandIds = [];
     this.deferredWorkerCommands.unshift(...retryCommands.map((cmd) => ({ cmd, sessionGen: this.sessionGen })));
-    this.syncAfterWorkerMutation();
+    // While a full-world import is in flight the loop's world is the session being installed; the
+    // host may still hold the departing colony's replica, so it must not replace the new session.
+    if (!this.workerImportInFlight) this.syncAfterWorkerMutation();
     this.catalog.rebuild(this.world.entities);
     this.catalogDirtyFromDeferredTick = false;
     this.pruneStaleSelection();
@@ -597,6 +640,7 @@ export class GameLoop {
 
     clearAllFactionWanderStates();
     resetRendererCaches();
+    retainDialogueSessionsForWorld(world);
 
     this.world = world;
     this.view = this.coverViewCamera(world, view);
@@ -642,7 +686,19 @@ export class GameLoop {
           this.renderSoA = null;
           this.renderMetaBySlot = null;
           this.scentReader = null;
-          await host.importSave(world);
+          this.workerImportInFlight = true;
+          try {
+            await host.importSave(world);
+          } catch (err) {
+            // The loop's world is the session being installed, so recover without adopting the
+            // departing colony's replica that the host keeps on a refused upload.
+            if (sessionGen === this.sessionGen && this.workerHost === host) {
+              console.warn('[GameLoop] Worker importSave failed', err);
+              this.fallbackFromWorker('Worker importSave failed');
+            }
+          } finally {
+            this.workerImportInFlight = false;
+          }
 
           if (sessionGen !== this.sessionGen || this.workerHost !== host) return;
           this.workerBooting = false;
@@ -722,6 +778,7 @@ export class GameLoop {
           if (cmdGen !== this.sessionGen || commandEpoch !== this.workerCommandEpoch || !this.running || !host?.isReady()) return;
           return host.whenIdle().then(() => {
             if (cmdGen !== this.sessionGen || commandEpoch !== this.workerCommandEpoch || !this.running || this.workerHost !== host || !host.isReady()) return;
+            this.lastWorkerCommandRequest = performance.now();
             return host.sendCommand(stamped).then(() => undefined);
           });
         })
@@ -826,24 +883,23 @@ export class GameLoop {
 
     const exportGen = this.sessionGen;
     this.saveExportPending = true;
+    // One deadline covers the whole export: waiting for idle and the reply share one budget, so a
+    // degraded save cannot take twice the budget.
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      deadlineTimer = setTimeout(() => reject(new Error('Worker export timed out')), timeoutMs);
+    });
     try {
       await Promise.race([
         this.commandChain.then(() => host.whenIdle()),
-        new Promise<void>((_, reject) => {
-          setTimeout(() => reject(new Error('Worker idle wait timed out')), timeoutMs);
-        }),
+        deadline,
       ]);
       if (exportGen !== this.sessionGen || this.workerHost !== host || !host.isReady()) {
         this.exportDegraded = true;
         return this.world;
       }
 
-      const exported = await Promise.race([
-        host.exportSave(timeoutMs),
-        new Promise<WorldState>((_, reject) => {
-          setTimeout(() => reject(new Error('Worker export timed out')), timeoutMs);
-        }),
-      ]);
+      const exported = await Promise.race([host.exportSave(timeoutMs), deadline]);
       if (exportGen !== this.sessionGen || this.workerHost !== host) {
         this.exportDegraded = true;
         return this.world;
@@ -855,6 +911,7 @@ export class GameLoop {
       console.warn('[GameLoop] exportSave failed — using main shadow', err);
       this.exportDegraded = true;
     } finally {
+      if (deadlineTimer !== undefined) clearTimeout(deadlineTimer);
       this.saveExportPending = false;
     }
     return this.world;
@@ -916,6 +973,8 @@ export class GameLoop {
       this.workerRecoveryTimer = null;
     }
     this.workerRecoveryInFlight = false;
+    this.workerRecoveryStartedAt = null;
+    this.workerImportInFlight = false;
     this.commandChain = Promise.resolve();
     this.optimisticCommands = [];
     this.optimisticCommandIds = [];
@@ -1022,6 +1081,13 @@ export class GameLoop {
     let ticksThisFrame = 0;
 
     if (!this.world.paused) {
+      if (
+        this.workerRecoveryStartedAt !== null
+        && !this.workerEnabled
+        && performance.now() - this.workerRecoveryStartedAt > WORKER_RECOVERY_BUDGET_MS
+      ) {
+        this.abandonWorkerRecovery(`recovery budget of ${WORKER_RECOVERY_BUDGET_MS}ms exceeded`);
+      }
       if (this.workerHost && this.lastPausedSentToWorker !== false) {
         this.workerHost.setPaused(false);
         this.lastPausedSentToWorker = false;
@@ -1042,16 +1108,20 @@ export class GameLoop {
       if (this.workerBooting) {
         // Hold accumulator until worker is authoritative
       } else if (this.workerEnabled && this.workerHost) {
+        const now = performance.now();
         const stallMs = this.workerStallThresholdMs();
-        const silenceMs =
-          performance.now() - Math.max(this.lastWorkerActivity, this.lastWorkerTickRequest);
-        const stalled = this.workerHost.hasTickInFlight() && silenceMs > stallMs;
+        const silenceMs = now - Math.max(this.lastWorkerActivity, this.lastWorkerTickRequest);
+        const tickStalled = this.workerHost.hasTickInFlight() && silenceMs > stallMs;
+        // A pending command blocks every tick, so it needs its own watchdog; otherwise a hung
+        // command freezes the colony until the host's reply deadline.
+        const commandStalled = (this.workerHost.hasCommandInFlight?.() ?? false)
+          && now - this.lastWorkerCommandRequest > stallMs;
 
-        if (stalled) {
+        if (tickStalled || commandStalled) {
           console.warn(
             `[GameLoop] Worker silent ${silenceMs.toFixed(0)}ms with ${this.workerHost.getTicksInFlight?.() ?? 'unknown'} tick(s) in flight (threshold ${stallMs.toFixed(0)}ms, last measured tick latency ${this.workerTickLatencyMs.toFixed(0)}ms, command in flight=${this.workerHost.hasCommandInFlight?.() ? 'yes' : 'no'}, hidden=${pageHidden()})`,
           );
-          this.fallbackFromWorker('Worker tick stalled');
+          this.fallbackFromWorker(commandStalled ? 'Worker command stalled' : 'Worker tick stalled');
         } else {
           while (
             this.tickAccumulator >= msPerTick &&
@@ -1076,9 +1146,14 @@ export class GameLoop {
         }
       }
 
-      if (!this.workerEnabled && !this.workerBooting && this.workerRecoveryTimer === null && !this.workerRecoveryInFlight) {
-        // Worker recovery holds the simulation; unsupported runtimes retain bounded local ticks.
-        while (this.tickAccumulator >= msPerTick && steps < 1) {
+      if (
+        !this.workerEnabled
+        && !this.workerImportInFlight
+        && !(this.workerBooting && this.workerRecoveryStartedAt === null)
+      ) {
+        // Only the first worker boot holds the clock. During recovery and its retry delays the
+        // colony keeps advancing on one bounded main-thread catch-up, the same budget the worker drains.
+        while (this.tickAccumulator >= msPerTick && steps < catchUpBudget) {
           const advanced = this.stepFallbackTick(focus);
           if (!advanced) break;
           this.tickAccumulator -= msPerTick;

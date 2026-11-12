@@ -2,9 +2,9 @@ name: Housing 90-day targeted regression
 
 on:
   workflow_dispatch:
-  pull_request:
+  push:
     branches: ["main"]
-    paths:
+    paths: &colony-paths
       - "tests/longRunStallVerdict.test.ts"
       - "tests/longRunColony.integration.test.ts"
       - "src/game/virtualPlayer.ts"
@@ -13,11 +13,19 @@ on:
       - "src/game/gameTick.ts"
       - "src/game/gameEngine.ts"
       - "src/game/dailyBuildingEconomy.ts"
+      - "src/game/humanTick.ts"
+      - "src/game/workforce.ts"
+      - "src/game/saveLoad.ts"
+      - "src/game/simRng.ts"
+      - "src/game/tickLayerDaily.ts"
       - "src/game/simulation/humanNeeds.ts"
       - "src/game/residencySelection.ts"
       - "src/game/residencyReconciliation.ts"
       - "src/game/residencyOccupancy.ts"
       - ".github/workflows/housing-90-day-targeted.yml"
+  pull_request:
+    branches: ["main"]
+    paths: *colony-paths
 
 jobs:
   housing-90-day:

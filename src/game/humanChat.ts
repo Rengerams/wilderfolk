@@ -18,6 +18,7 @@ export type HumanChatContext =
   | 'renffr'
   | 'fear'
   | 'winter'
+  | 'bad_weather'
   | 'festival'
   | 'guard'
   | 'food'
@@ -82,6 +83,18 @@ interface DialogueSession {
 }
 
 const dialogueSessions = new Map<string, DialogueSession>();
+/** The world the live sessions belong to; a re-opened colony keeps its scenes, a replaced world drops them. */
+let dialogueSessionsWorld: object | null = null;
+
+/**
+ * Keep a re-opened colony's live scenes; a replaced world drops every session so none pins it alive or
+ * masks a reused entity id.
+ */
+export function retainDialogueSessionsForWorld(world: object): void {
+  if (dialogueSessionsWorld === world) return;
+  dialogueSessionsWorld = world;
+  dialogueSessions.clear();
+}
 
 export function chatHintsFromWorld(world: ChatWorldHints): ChatPickOptions {
   return {
@@ -420,6 +433,7 @@ export function getChatBubbleText(
 
 export function resetDialogueSessions(): void {
   dialogueSessions.clear();
+  dialogueSessionsWorld = null;
 }
 
 /**

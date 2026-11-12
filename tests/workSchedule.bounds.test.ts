@@ -45,4 +45,19 @@ describe('ordinary work window has no length restriction', () => {
       schedule: { startHour: 7, endHour: 16 },
     });
   });
+
+  it('answers the per-tick read from one normalized schedule until the hours change', () => {
+    const configured = { workSchedule: { startHour: 6, endHour: 15 } };
+    const first = getWorkSchedule(configured);
+
+    // The scheduler and every per-settler caller read the same object for the same hours, even when
+    // the worker delta hands them a fresh container each tick.
+    expect(getWorkSchedule(configured)).toBe(first);
+    expect(getWorkSchedule({ workSchedule: { ...configured.workSchedule } })).toBe(first);
+    expect(first).toEqual({ startHour: 6, endHour: 15 });
+
+    const changed = getWorkSchedule({ workSchedule: { startHour: 8, endHour: 17 } });
+    expect(changed).not.toBe(first);
+    expect(changed).toEqual({ startHour: 8, endHour: 17 });
+  });
 });

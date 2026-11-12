@@ -4,7 +4,7 @@ import { normalizeCareerHistory } from './careers/careerHistory';
 import { normalizeCareerMilestones } from './careers/careerProgression';
 import { applyLeaderHousePhase } from './leaderHouse';
 import { assignMissingResidences, moveResident, rebuildChildrenIds } from './housingPipeline';
-import type { WorldState, Entity, TerrainTile } from './gameTypes';
+import type { WorldState, Entity, TerrainTile, Building } from './gameTypes';
 import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, MapSize, PATH_CELL, createInitialResearchNodes } from './gameTypes';
 import { isWalkableTerrainType, setTileOverride, tileAt, Walkability } from './terrain/terrainGrid';
 import { INITIAL_CHALLENGES } from './challenges';
@@ -635,7 +635,7 @@ export function migrateLegacySecurityRoles(world: WorldState): void {
 }
 
 /**
- * Scale absolute tick values when the save's day length differs from `TICKS_PER_DAY`
+ * Scale absolute and elapsed tick values when the save's day length differs from `TICKS_PER_DAY`
  * (legacy 24- and 72-tick days); current-resolution saves need no scaling.
  */
 const WORLD_TICK_FIELDS = [
@@ -654,12 +654,19 @@ const ENTITY_TICK_FIELDS = [
   'pregnancyProgress',
   'pregnancyDueProgress',
   'lastAutoJobTransferTick',
+  'chatTicks',
+  'combatTicks',
+  // Today's accumulators are tick counts too, and every reader converts them at TICKS_PER_HOUR.
+  'schoolTicksToday',
+  'scheduleWorkedTicksToday',
+  'schedulePresentTicksToday',
 ] as const satisfies readonly (keyof Entity)[];
 
 const NEEDS_TICK_FIELDS = [
   'lastMealTick',
   'lastAdvancedTick',
   'sleepRecoveryUntilTick',
+  'severeHungerTicks',
 ] as const satisfies readonly (keyof NonNullable<Entity['needs']>)[];
 
 const MOON_HOWLER_TICK_FIELDS = [
@@ -667,7 +674,12 @@ const MOON_HOWLER_TICK_FIELDS = [
   'pregnancyDueProgress',
   'lastAutoJobTransferTick',
   'prisonerUntilTick',
+  'combatTicks',
 ] as const satisfies readonly (keyof NonNullable<Entity['moonHowlerSaved']>)[];
+
+const BUILDING_TICK_FIELDS = [
+  'huntingSpotInReachTick',
+] as const satisfies readonly (keyof Building)[];
 
 const SPOTLIGHT_TICK_FIELDS = [
   'startedAtTick',
@@ -690,7 +702,7 @@ function scaleTickRecord(record: Record<string | number, number> | undefined, sc
 }
 
 /**
- * Scale absolute tick values when the save's day length differs from `TICKS_PER_DAY`
+ * Scale absolute and elapsed tick values when the save's day length differs from `TICKS_PER_DAY`
  * (legacy 24- and 72-tick days); current-resolution saves need no scaling.
  */
 function migrateTickTimeline(
@@ -731,6 +743,10 @@ function migrateTickTimeline(
   for (const route of world.tradeRoutes ?? []) {
     scaleTickField(route, 'nextDepartureTick', scale);
     scaleTickField(route, 'caravanWaitTicks', scale);
+  }
+
+  for (const building of world.buildings ?? []) {
+    for (const key of BUILDING_TICK_FIELDS) scaleTickField(building, key, scale);
   }
 
   if (world.electionCeremony) {
@@ -887,6 +903,16 @@ function findUnrestorableField(parsed: Record<string, unknown>): string | null {
   // Present values must satisfy their own rule; absent ones are defaulted by the load path.
   for (const { field, isValid } of worldScalarRules()) {
     if (parsed[field] !== undefined && !isValid(parsed[field])) return field;
+  }
+  // A compact map falls back to its preset when its tile dimensions are unusable; a non-compact map is
+  // restored as written, so those dimensions become the pathfinding allocation and need the same bound.
+  const savedMap = parsed.worldMap;
+  if (savedMap !== undefined && savedMap !== null) {
+    if (!isSaveObject(savedMap)) return 'worldMap';
+    if (savedMap._compact !== true) {
+      if (!isUsableMapTileCount(savedMap.width)) return 'worldMap.width';
+      if (!isUsableMapTileCount(savedMap.height)) return 'worldMap.height';
+    }
   }
   return findUnrestorableEntityField(parsed) ?? findUnrestorableContainerField(parsed);
 }
@@ -1165,6 +1191,10 @@ function entityFieldRules(width: number, height: number): readonly ElementFieldR
     { field: 'y', isValid: isFiniteWithin(height) },
     { field: 'age', isValid: isFiniteNumber },
     { field: 'job', isValid: isMemberOf(JOB_TYPE_VALUES) },
+    // Absent in legacy saves; a present one must survive the metabolism that reads it — a JSON
+    // round-trip turns the `NaN` that silently killed an animal into `null`.
+    { field: 'energy', isValid: isFiniteNumber },
+    { field: 'maxEnergy', isValid: isFiniteNumber },
     ...elementIdRules(),
   ];
 }
@@ -1175,9 +1205,19 @@ function buildingFieldRules(width: number, height: number): readonly ElementFiel
     { field: 'type', isValid: isMemberOf(BUILDING_TYPE_VALUES) },
     { field: 'x', isValid: isFiniteWithin(width) },
     { field: 'y', isValid: isFiniteWithin(height) },
+    // A footprint is sampled (Fishing Spot water check) and stamped into the path grid by its own
+    // dimensions; a save may not choose a size no map can hold. Zero falls back in the sampler.
+    { field: 'width', isValid: isFiniteWithin(width) },
+    { field: 'height', isValid: isFiniteWithin(height) },
     ...elementIdRules(),
   ];
 }
+
+/**
+ * The speed ladder the loop is driven at. `App.SPEED_OPTIONS` renders these values; anything else —
+ * `0`, a negative or `NaN` — pins `1000 / speed` so the colony never ticks again.
+ */
+const PLAYABLE_SPEEDS: ReadonlySet<unknown> = new Set([0.5, 1, 2, 3, 5, 10]);
 
 /**
  * The world's top-level scalars, each with the rule a present value must satisfy. `tick` and
@@ -1186,6 +1226,8 @@ function buildingFieldRules(width: number, height: number): readonly ElementFiel
 function worldScalarRules(): readonly ElementFieldRule[] {
   return [
     { field: 'tick', isValid: isSafeIntegerWithin(MAX_USABLE_TICK) },
+    // Absence keeps `initGame`'s 1× default; a present speed must be one the loop can run.
+    { field: 'speed', isValid: isMemberOf(PLAYABLE_SPEEDS) },
     { field: 'lastProcessedCalendarDay', isValid: isSafeIntegerWithin(MAX_USABLE_CALENDAR_DAY) },
     // The two axes are bounded separately, from the largest map the game offers: a pair where one axis
     // exceeds its own maximum is refused by name instead of allocating a surface no map has.
@@ -1421,6 +1463,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       // Loading is already an explicit player action, so do not leave the colony frozen until the
       // player finds the separate play control; the saved pause state is presentation, not progress.
       paused: false,
+      // A payload without a speed predates the field; the loop runs at the fresh-colony default.
+      speed: typeof worldData.speed === 'number' ? worldData.speed : 1,
       ...transient,
       bigNews: (worldData.bigNews ?? []).map(normalizeBigNewsItem),
       screenShakeImpulse: 0,

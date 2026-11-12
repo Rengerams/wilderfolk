@@ -83,6 +83,9 @@ type SimPrepKeys =
   | 'festival'
   | 'townHallFestivalCooldownUntilTick'
   | 'villageLeaderId'
+  | 'pendingLeaderHouseResidentIds'
+  | 'nextElectionId'
+  | 'lastElectionResult'
   | 'leaderSinceYear'
   | 'lastElectionYear'
   | 'pendingElectionYear'
@@ -164,6 +167,12 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
       friendships: e.friendships,
       feuds: e.feuds,
       feudPeaks: e.feudPeaks,
+      // The dialogue owner writes these maps in place, so a shared container would leak a cooldown
+      // recorded in a rolled-back tick into the restored world.
+      dialogueRecentScenes: e.dialogueRecentScenes
+        ? Object.fromEntries(Object.entries(e.dialogueRecentScenes).map(([key, scene]) => [key, { ...scene }]))
+        : e.dialogueRecentScenes,
+      dialogueRecentLines: e.dialogueRecentLines ? { ...e.dialogueRecentLines } : e.dialogueRecentLines,
       ...(e.needs !== undefined ? { needs: { ...e.needs } } : {}),
       ...(e.moonHowlerSaved !== undefined ? {
         moonHowlerSaved: {
@@ -252,6 +261,13 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     festival: state.festival ? { ...state.festival } : null,
     townHallFestivalCooldownUntilTick: state.townHallFestivalCooldownUntilTick ?? 0,
     villageLeaderId: state.villageLeaderId,
+    pendingLeaderHouseResidentIds: state.pendingLeaderHouseResidentIds
+      ? [...state.pendingLeaderHouseResidentIds]
+      : undefined,
+    nextElectionId: state.nextElectionId,
+    lastElectionResult: state.lastElectionResult
+      ? structuredClone(state.lastElectionResult)
+      : undefined,
     leaderSinceYear: state.leaderSinceYear,
     lastElectionYear: state.lastElectionYear,
     pendingElectionYear: state.pendingElectionYear,
@@ -383,6 +399,9 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.festival = prep.festival;
   world.townHallFestivalCooldownUntilTick = prep.townHallFestivalCooldownUntilTick;
   world.villageLeaderId = prep.villageLeaderId;
+  world.pendingLeaderHouseResidentIds = prep.pendingLeaderHouseResidentIds;
+  world.nextElectionId = prep.nextElectionId;
+  world.lastElectionResult = prep.lastElectionResult;
   world.leaderSinceYear = prep.leaderSinceYear;
   world.lastElectionYear = prep.lastElectionYear;
   world.pendingElectionYear = prep.pendingElectionYear;

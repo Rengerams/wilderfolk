@@ -1,6 +1,5 @@
 import type { RenderSnapshot } from './renderSnapshot';
 import { profileEnd, profileRenderedFrame, profileStart } from './performanceProfiler';
-import { resetDialogueSessions } from './humanChat';
 import { disposeEntityLayerCache } from './entityLayer';
 import { effectiveScreenShake, resetRenderClock, tickRenderClock } from './renderer/shared';
 import { drawGround, resetTerrainCaches } from './renderer/terrain';
@@ -26,7 +25,6 @@ export function resetRendererCaches(): void {
   resetTerrainCaches();
   resetEntityCaches();
   disposeEntityLayerCache();
-  resetDialogueSessions();
   resetWeatherCaches();
   resetHumanRenderCaches();
   resetRenderClock();

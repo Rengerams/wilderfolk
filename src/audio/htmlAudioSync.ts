@@ -1,5 +1,3 @@
-import type { AudioLevels } from './preferences';
-
 /** Pause or resume an HTMLAudioElement when global mute toggles. */
 export function syncHtmlAudioMute(
   htmlAudio: HTMLAudioElement | null,
@@ -15,19 +13,19 @@ export function syncHtmlAudioMute(
 }
 
 /**
- * Element volume for one track under a preset: `levels.master × levels.music`, clamped to 0–1
- * because `element.volume` throws above 1. An HTMLAudioElement sits outside the Web Audio bus chain.
+ * Element volume for one track outside the Web Audio buses: its own track gain times the music path
+ * gain, clamped to 0–1 because `element.volume` throws above 1.
  */
-export function htmlAudioVolumeForPreset(trackVolume: number, levels: AudioLevels): number {
-  return Math.min(1, Math.max(0, trackVolume * levels.master * levels.music));
+export function htmlAudioVolumeForPath(trackVolume: number, musicPathGain: number): number {
+  return Math.min(1, Math.max(0, trackVolume * musicPathGain));
 }
 
-/** Apply {@link htmlAudioVolumeForPreset} to a live element. */
+/** Apply {@link htmlAudioVolumeForPath} to a live element. */
 export function syncHtmlAudioVolume(
   htmlAudio: HTMLAudioElement | null,
   trackVolume: number,
-  levels: AudioLevels,
+  musicPathGain: number,
 ): void {
   if (!htmlAudio) return;
-  htmlAudio.volume = htmlAudioVolumeForPreset(trackVolume, levels);
+  htmlAudio.volume = htmlAudioVolumeForPath(trackVolume, musicPathGain);
 }

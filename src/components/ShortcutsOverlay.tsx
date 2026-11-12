@@ -51,7 +51,9 @@ export default function ShortcutsOverlay({ onClose }: Props) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="shortcuts-title"
-      className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+      // Above `GameWindow` dialogs (`z-50`): the sheet can be opened from the citizen overview and
+      // must paint over it, not under its backdrop.
+      className="pointer-events-auto fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div

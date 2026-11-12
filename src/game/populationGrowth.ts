@@ -1,12 +1,14 @@
 import { BuildingType, BUILDING_CONFIGS, type Building, type WorldState } from './gameTypes';
-import { buildResidenceOccupancy, getResidenceCapacity, isLeaderHouseResidence, isAssignableHome } from './housingModel';
-import { isPlayerHuman } from './playerHuman';
+import { buildResidenceOccupancy, countHomelessSettlers, getResidenceCapacity, isLeaderHouseResidence, isAssignableHome } from './housingModel';
+import { isPlayerHumanShiftOwner } from './playerHuman';
 
 export interface PopulationSnapshot {
   pop: number;
   beds: number;
   houseCount: number;
   mansionCount: number;
+  /** Beds inside the Leader's House complex: held for the leader's household, never assignable. */
+  leaderHouseBeds: number;
 }
 
 interface PopulationSnapshotCacheEntry {
@@ -33,24 +35,27 @@ function computePopulationSnapshot(state: WorldState): PopulationSnapshot {
   let beds = 0;
   let houseCount = 0;
   let mansionCount = 0;
+  let leaderHouseBeds = 0;
 
   const entities = state.entities ?? [];
   const buildings = state.buildings ?? [];
 
   for (let i = 0; i < entities.length; i++) {
     const entity = entities[i];
-    if (entity.alive && isPlayerHuman(entity)) pop += 1;
+    // A cursed settler in Moon Howler form still sleeps in the manor and still counts toward `pop`.
+    if (entity.alive && isPlayerHumanShiftOwner(entity)) pop += 1;
   }
 
   for (let i = 0; i < buildings.length; i++) {
     const building = buildings[i];
     if (!isAssignableHome(building)) continue;
     beds += getResidenceCapacity(building);
+    if (isLeaderHouseResidence(building)) leaderHouseBeds += getResidenceCapacity(building);
     if (building.type === BuildingType.House) houseCount += 1;
     else if (building.type === BuildingType.Mansion || building.type === BuildingType.Villa) mansionCount += 1;
   }
 
-  return { pop, beds, houseCount, mansionCount };
+  return { pop, beds, houseCount, mansionCount, leaderHouseBeds };
 }
 
 /** Everything a bed projection depends on — level, type, ownership and completion. */
@@ -156,6 +161,8 @@ function formatHousingCapReason(
 function buildGrowthDetail(options: {
   paused: boolean;
   overcrowded: boolean;
+  homeless: number;
+  leaderHouseBeds: number;
   hasFoodWarning: boolean;
   food: number;
   pop: number;
@@ -169,6 +176,11 @@ function buildGrowthDetail(options: {
   }
   if (options.overcrowded) {
     parts.push(`${options.pop} settlers in ${options.beds} beds — housing is the bottleneck.`);
+  } else if (options.homeless > 0) {
+    const reserved = options.leaderHouseBeds > 0
+      ? ` — ${options.leaderHouseBeds} Leader's House beds are reserved for the leader's household`
+      : '';
+    parts.push(`${options.homeless} settler${options.homeless === 1 ? '' : 's'} without a bed${reserved}.`);
   }
   if (options.hasFoodWarning) {
     parts.push(`Low food (${options.food}🍖) — newcomers are unlikely while stores are thin.`);
@@ -244,19 +256,23 @@ export interface PopulationGrowthReport {
 }
 
 export function getPopulationGrowthReport(state: WorldState): PopulationGrowthReport {
-  const { pop, beds, houseCount, mansionCount } = snapshotPopulation(state);
+  const { pop, beds, houseCount, mansionCount, leaderHouseBeds } = snapshotPopulation(state);
   const reputation = resolveReputation(state);
 
   const cap = resolvePopulationCap(state);
 
   const openSlots = openCapSlots(cap, pop);
-  // The inclusive bed count, from its own owner — this line reports spare capacity, not assignable
-  // housing, so it reads `getOpenBeds` rather than summing `beds - pop` here.
-  const openBeds = getOpenBeds(state);
+  // Immigration and placement read assignable beds (`getOpenPlayerBeds`), so the report never offers
+  // a reserved manor bed as spare housing and names the reservation instead.
+  const openPlayerBeds = getOpenPlayerBeds(state);
+  const homeless = countHomelessSettlers(state);
   const overcrowded = isOvercrowded(state);
   const food = getFoodAmount(state);
   const reasons: string[] = [];
   const hasFoodWarning = food < 40;
+  const reservedBedsReason = leaderHouseBeds > 0
+    ? `${leaderHouseBeds} Leader's House bed${leaderHouseBeds === 1 ? '' : 's'} reserved for the leader's household`
+    : 'no assignable bed is free';
 
   if (state.paused) {
     reasons.push('Game is paused — immigration and births resume when time flows.');
@@ -266,6 +282,9 @@ export function getPopulationGrowthReport(state: WorldState): PopulationGrowthRe
     reasons.push(`At population cap (${pop}/${cap}).`);
     reasons.push(formatHousingCapReason(houseCount, mansionCount, beds, pop));
     reasons.push(`⭐ Reputation adds cap (+1 per 10 rep, now ${reputation}).`);
+    if (homeless > 0) {
+      reasons.push(`${homeless} settler${homeless === 1 ? '' : 's'} without a bed — ${reservedBedsReason}.`);
+    }
     return {
       tone: 'blocked',
       headline: 'Population cap reached',
@@ -284,8 +303,10 @@ export function getPopulationGrowthReport(state: WorldState): PopulationGrowthRe
   }
   if (overcrowded) {
     reasons.push(`${pop} settlers sharing ${beds} beds — build houses or mansions now.`);
-  } else if (openBeds > 4 && openSlots > 4) {
-    reasons.push(`${openBeds} empty beds and ${openSlots} cap slots available now.`);
+  } else if (homeless > 0) {
+    reasons.push(`${homeless} settler${homeless === 1 ? '' : 's'} without a bed — ${reservedBedsReason}.`);
+  } else if (openPlayerBeds > 4 && openSlots > 4) {
+    reasons.push(`${openPlayerBeds} empty beds and ${openSlots} cap slots available now.`);
   }
   if (!state.festival?.active && reputation < 60) {
     reasons.push('Festivals, a staffed Town Hall, and more housing speed immigration checks.');
@@ -303,17 +324,21 @@ export function getPopulationGrowthReport(state: WorldState): PopulationGrowthRe
     };
   }
 
-  const tone: PopulationGrowthTone = state.paused || overcrowded || hasFoodWarning ? 'warn' : 'good';
+  const tone: PopulationGrowthTone = state.paused || overcrowded || homeless > 0 || hasFoodWarning ? 'warn' : 'good';
   const headline = state.paused
     ? 'Time paused — growth on hold'
     : overcrowded
       ? 'Overcrowded — build housing'
-      : openSlots <= 8
-        ? 'Growth slowing'
-        : 'Growing steadily';
+      : homeless > 0
+        ? 'Housing shortage — build housing'
+        : openSlots <= 8
+          ? 'Growth slowing'
+          : 'Growing steadily';
   const detail = buildGrowthDetail({
     paused: !!state.paused,
     overcrowded,
+    homeless,
+    leaderHouseBeds,
     hasFoodWarning,
     food,
     pop,

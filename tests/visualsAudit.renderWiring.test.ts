@@ -5,11 +5,14 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { MapPreset, TerrainType, type Entity } from '../src/game/gameTypes';
+import { MapPreset, TerrainType, BuildingType, type Entity } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import { getHumanSpriteMetrics, getJuvenileFigureScale, HUMAN_WORLD_HEIGHT } from '../src/game/humanSprites';
 import { buildEntityLayerKey } from '../src/game/entityLayer';
-import type { RenderSnapshot } from '../src/game/renderSnapshot';
+import { buildRenderSnapshot, type RenderSnapshot } from '../src/game/renderSnapshot';
+import { drawBuildSnapOverlay } from '../src/game/renderer/grid';
+import { initGame } from '../src/game/worldGen';
+import { createBuildGhost, createInitialView, type ViewState } from '../src/game/viewState';
 import {
   pickAtlasTile,
   pickSandWaterOverlay,
@@ -42,6 +45,76 @@ const UNGUARDED_LEADER_AURA = /if \(isLeader && cam\.zoom > 0\.22\) \{/;
 const AURA_FROM_LAYER_PAINTER = /drawLeaderAura\(ctx, human/;
 const AURA_OWNER = /export function drawLeaderAuraOverlay/;
 const AURA_IN_LIVE_PASS = /drawLeaderAuraOverlay\(ctx, state, cw, ch\)/;
+
+describe('W-06 — placement verdict markers follow the live ghost', () => {
+  /** Records each diamond's first point, which is one marker per candidate cell. */
+  function recordingContext() {
+    const markers: { x: number; y: number }[] = [];
+    const ctx = {
+      save() {},
+      restore() {},
+      beginPath() {},
+      moveTo(x: number, y: number) { markers.push({ x, y }); },
+      lineTo() {},
+      closePath() {},
+      fill() {},
+      stroke() {},
+      ellipse() {},
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+    };
+    return { ctx: ctx as unknown as CanvasRenderingContext2D, markers };
+  }
+
+  it('re-centres the verdict cloud when the ghost moves, with no cache-key term', () => {
+    const world = initGame({ villageName: 'Ghost', seed: 20261111 });
+    const view = createInitialView(world.width, world.height) as ViewState;
+    const atGhost = (dx: number) => {
+      const snapshot = buildRenderSnapshot(world, {
+        ...view,
+        buildMode: BuildingType.House,
+        buildGhost: createBuildGhost(view.camera.x + dx, view.camera.y, null),
+      });
+      const { ctx, markers } = recordingContext();
+      drawBuildSnapOverlay(ctx, snapshot, 800, 600);
+      return markers.map((marker) => marker.x);
+    };
+
+    const left = atGhost(-100);
+    const right = atGhost(100);
+    expect(left.length).toBeGreaterThan(0);
+    expect(Math.max(...right) - Math.max(...left)).toBeGreaterThan(100);
+    expect(Math.min(...right) - Math.min(...left)).toBeGreaterThan(100);
+  });
+
+  it('is painted by the per-frame overlay, never by the cached static layer', () => {
+    expect(readSrc('game/renderer/entityComposite.ts')).not.toMatch(/drawBuildSnapOverlay|drawBuildStripPreviewOverlay/);
+    expect(readSrc('game/renderer/overlay.ts')).toMatch(/drawBuildSnapOverlay\(ctx, state, cw, ch\)/);
+    expect(readSrc('game/renderer/overlay.ts')).toMatch(/drawBuildStripPreviewOverlay\(ctx, state, cw, ch\)/);
+  });
+});
+
+describe('W-24/W-22/W-26 — time- and render-owned state stays out of the wrong owner', () => {
+  it('paints the ramped construction bar per frame instead of baking it', () => {
+    expect(readSrc('game/renderer/overlay.ts')).toMatch(/drawConstructionProgressOverlay\(ctx, state, cw, ch\)/);
+    expect(readSrc('game/renderer/entityComposite.ts')).not.toMatch(/drawConstructionProgressOverlay/);
+    // The baked figure keys on the authoritative daily value; only the live bar reads the ramp.
+    expect(readSrc('game/renderer/buildings.ts')).not.toMatch(/displayedConstructionProgress\(building, state\.tick\)/);
+  });
+
+  it('the render patch writes presentation kinematics only', () => {
+    const src = readSrc('game/simBuffers/applyKinematics.ts');
+    for (const field of ['size', 'huntTargetId', 'chatTicks', 'chatPhrase']) {
+      expect(src).not.toMatch(new RegExp(`entity\\.${field}\\s*=`));
+    }
+  });
+
+  it('the walk owner advances the walk phase, not the sprite module', () => {
+    expect(readSrc('game/humanSprites.ts')).not.toMatch(/human\.animFrame\s*=/);
+    expect(readSrc('game/simulation/humanMovement.ts')).toMatch(/export function advanceHumanWalkAnim/);
+  });
+});
 
 describe('D5 — hunt arrows draw in the per-frame overlay', () => {
   it('is not painted into the tick-keyed entity layer', () => {

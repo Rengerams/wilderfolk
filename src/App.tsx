@@ -87,16 +87,20 @@ import GameInspector from './components/GameInspector';
 import GameOverlays from './components/GameOverlays';
 import WarfareStatus from './components/WarfareStatus';
 import BattleReportScreen from './components/BattleReportScreen';
-import { saveGame } from './game/saveLoad';
 import ConfirmActionDialog from './components/ConfirmActionDialog';
 import { downloadChronicleLog } from './game/eventLogExport';
+import { MapSize } from './game/gameTypes';
 
 import GameBuildRail from './components/GameBuildRail';
 
 
-import { useGamePersistence, type SaveToast } from './hooks/useGamePersistence';
+import { useGamePersistence, waitForPendingSave, saveImportSizeRefusal, type SaveToast } from './hooks/useGamePersistence';
 import { useTransientGameFeedback } from './hooks/useTransientGameFeedback';
-import { useGameSession } from './hooks/useGameSession';
+import {
+  clearColonySessionState,
+  useGameSession,
+  type ColonyBattleReport,
+} from './hooks/useGameSession';
 import { registerCrashRecoverySource } from './components/GameErrorBoundary';
 import {
   TUTORIAL_DONE_STORAGE_KEY,
@@ -104,7 +108,7 @@ import {
   sidebarTabForOverviewNav,
   useGameShellState,
 } from './hooks/useGameShellState';
-import { beginAudio, beginIntroAudio, primeAudioUnlock, playClickSound, stopIntroSong } from './audio';
+import { beginAudio, beginIntroAudio, primeAudioUnlock, playClickSound, stopAllAudio, stopIntroSong } from './audio';
 import { useGameAudio } from './hooks/useGameAudio';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { useCanvasInteractions } from './hooks/useCanvasInteractions';
@@ -192,12 +196,14 @@ export default function App() {
     setRelationshipDiagnosticsConsoleLoggingEnabled(debugMode);
   }, [debugMode]);
   const [world, setWorld] = useState<WorldState>(() => {
-    const s = initGame();
+    // The intro needs a world, but the colony is generated only when the player starts one; this
+    // placeholder is the real default size without terrain and is replaced on session start.
+    const s = initGame({ size: MapSize.Medium, skipTerrain: true });
     s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
     return s;
   });
   // The dialog follows authoritative combat events rather than a fake countdown.
-  const [battleReport, setBattleReport] = useState<{ rivalName: string; raidId?: string; baselineId: number; incoming?: boolean } | null>(null);
+  const [battleReport, setBattleReport] = useState<ColonyBattleReport | null>(null);
   const [view, setView] = useState<ViewState>(() => createInitialViewForWorld(world));
   const [villageStats, setVillageStats] = useState<VillageStatsSummary>(() =>
     computeVillageStats(world),
@@ -288,6 +294,8 @@ export default function App() {
     };
   }, []);
   const canLoadSavedGame = hasSavedGame || saveSlotPresent;
+  /** Bridges the persistence hook (declared below) into the session stop, which runs first. */
+  const sessionStopRef = useRef<() => Promise<boolean>>(() => Promise.resolve(false));
   const {
     applyGameAction,
     catalogRef,
@@ -308,6 +316,7 @@ export default function App() {
     setVillageStats,
     setCatalog,
     setHasPlacedHouse,
+    onBeforeStop: () => sessionStopRef.current(),
   });
   useLayoutEffect(() => registerCrashRecoverySource({
     getWorld: () => loopRef.current?.getWorld() ?? worldRef.current,
@@ -328,9 +337,12 @@ export default function App() {
   }, [showIntro]);
 
   useEffect(() => {
-    if (!gameplayActive) return;
+    // Setup/intro own the soundscape; returning to a running colony must restart its audio too.
+    if (!gameplayActive || showMapSetup || showIntro) return;
+    // A new or loaded colony resets the director (via `clearColonySessionState`), so restart its
+    // soundscape even though gameplay stayed active across the session swap.
     void beginAudio();
-  }, [gameplayActive]);
+  }, [gameplayActive, sessionRevision, showIntro, showMapSetup]);
 
   const { active: contextualTip, dismissActive: dismissContextualTip, markSeen: markContextualTipSeen } = useContextualTutorial(
     world,
@@ -344,6 +356,7 @@ export default function App() {
     dismissSaveToast,
     persistCurrentGame,
     persistCurrentGameRef,
+    persistOnSessionStop,
     saveToast,
     showSaveToast,
   } = useGamePersistence({
@@ -352,6 +365,9 @@ export default function App() {
     viewRef,
     onGameSaved: markGameSaved,
   });
+  useLayoutEffect(() => {
+    sessionStopRef.current = persistOnSessionStop;
+  }, [persistOnSessionStop]);
   const archivedTerminalRaid = useRef<string | null>(null);
   useEffect(() => {
     const terminal = world.raidRecovery;
@@ -1094,12 +1110,71 @@ export default function App() {
     openTab('more');
     setMoreSubTab('guide');
   }, [openTab, setMoreSubTab]);
+
+  /**
+   * The one colony-exit boundary: clear the departed colony's UI and soundscape, then show the intro.
+   * The session stop itself saves the colony through `persistOnSessionStop`.
+   */
+  const leaveColony = useCallback(() => {
+    clearColonySessionState({
+      cancelStripDemolition,
+      setBattleReport,
+      setCampaignActive,
+      setFamilyTreeFor,
+      setHasPlacedHouse,
+      setSelectedBuildingType,
+      setWorkHoursOpen,
+    });
+    setShowIntro(true);
+  }, [
+    cancelStripDemolition,
+    setBattleReport,
+    setCampaignActive,
+    setFamilyTreeFor,
+    setHasPlacedHouse,
+    setSelectedBuildingType,
+    setShowIntro,
+    setWorkHoursOpen,
+  ]);
+
+  /**
+   * The one colony-entry boundary: nothing a previous colony left in the shell may survive a load or
+   * a new settlement. `hasPlacedHouse` then reflects the entering colony, not the departed one.
+   */
+  const enterColony = useCallback((nextWorld: WorldState) => {
+    clearColonySessionState({
+      cancelStripDemolition,
+      setBattleReport,
+      setCampaignActive,
+      setFamilyTreeFor,
+      setHasPlacedHouse,
+      setSelectedBuildingType,
+      setWorkHoursOpen,
+    });
+    setHasPlacedHouse(nextWorld.buildings.some(
+      (building) => building.type === BuildingType.House
+        && (building.completed || building.constructionProgress > 0),
+    ));
+  }, [
+    cancelStripDemolition,
+    setBattleReport,
+    setCampaignActive,
+    setFamilyTreeFor,
+    setHasPlacedHouse,
+    setSelectedBuildingType,
+    setWorkHoursOpen,
+  ]);
   const beginNewGameSession = useCallback((villageName: string) => {
     const start = async () => {
       // Founders must be named from the census files, not the boot markers.
       if (!areNamesLoaded()) await loadNames();
-      deleteSave();
+      // The exit save that started when this screen opened must settle before the new colony
+      // deletes the slot, or it could rewrite the old colony after the delete.
+      await waitForPendingSave();
       const s = initGame({ size: selectedMapSize, preset: selectedMapPreset, villageName });
+      // Only drop the old slot once the new world exists; a worldgen throw must not leave the
+      // player with neither the old colony nor a new one.
+      deleteSave();
       fixDefaultNames(s);
       // Pause only when the quick-start overlay will actually show, and never for a player who
       // already finished or skipped the tutorial.
@@ -1116,7 +1191,7 @@ export default function App() {
       // Otherwise the next render could restore it into this brand-new session.
       discardSpotlightReturn(spotlightReturnRef);
       replaceSession(s, nextView);
-      setSelectedBuildingType(null);
+      enterColony(s);
       setHasSavedGame(false);
       setFirstNightWarningDismissed(false);
       saveFirstNightWarningDismissed(false);
@@ -1125,7 +1200,9 @@ export default function App() {
       setCampaignActive(tutorialChoice);
       setShowMapSetup(false);
     };
-    void start();
+    void start().catch((error) => {
+      console.error('[App] New colony failed to initialize', error);
+    });
   }, [
     selectedMapSize,
     selectedMapPreset,
@@ -1133,6 +1210,7 @@ export default function App() {
     tutorialChoice,
     resetTransientFeedbackForNewSession,
     replaceSession,
+    enterColony,
     setCampaignActive,
     setFirstNightWarningDismissed,
     setShowTutorial,
@@ -1141,6 +1219,8 @@ export default function App() {
   ]);
 
   const startNewGame = useCallback(() => {
+    // Leaving gameplay for the setup screen hands the soundscape back to the intro theme.
+    stopAllAudio();
     setMapSetupSource('game');
     setShowMapSetup(true);
   }, [setShowMapSetup, setMapSetupSource]);
@@ -1166,11 +1246,12 @@ export default function App() {
     // snapshot into the new GameLoop session, even when gameplayActive is unchanged.
     discardSpotlightReturn(spotlightReturnRef);
     replaceSession(loaded.world, loaded.view);
+    enterColony(loaded.world);
     // A loaded colony is past the quick-start flow: clear the tutorial state so the pause effect
     // cannot freeze it after the session swap.
     setShowTutorial(false);
     setTutorialStep(0);
-  }, [replaceSession, synchronizeTransientFeedbackFromWorld, setShowTutorial, setTutorialStep]);
+  }, [replaceSession, enterColony, synchronizeTransientFeedbackFromWorld, setShowTutorial, setTutorialStep]);
 
   /** Every slot load arms here; only `confirmPendingLoad` replaces the running colony. */
   /** The one browser-slot load path, shared by the menu and new-settlement screen. */
@@ -1182,12 +1263,26 @@ export default function App() {
     loadFromSlot({ successToast: 'Game loaded' });
   }, [loadFromSlot]);
 
-  const handleLoadFromFile = useCallback((jsonText: string) => {
-    if (!jsonText.trim()) {
-      showSaveToast({ message: 'That save file is empty.', type: 'error' });
+  /**
+   * The one imported-save boundary: the file is size-checked and read here, before any caller can
+   * turn it into a string and a parsed copy. Refusals surface through the save toast.
+   */
+  const handleLoadFromFile = useCallback((file: File) => {
+    const refusal = saveImportSizeRefusal(file.size);
+    if (refusal) {
+      showSaveToast({ message: refusal, type: 'error' });
       return;
     }
-    setPendingLoad({ source: 'file', jsonText });
+    void file.text().then((jsonText) => {
+      if (!jsonText.trim()) {
+        showSaveToast({ message: 'That save file is empty.', type: 'error' });
+        return;
+      }
+      setPendingLoad({ source: 'file', jsonText });
+    }).catch((error: unknown) => {
+      console.error('[App] Failed to read saved JSON', error);
+      showSaveToast({ message: 'Could not read that save file — try exporting it again.', type: 'error' });
+    });
   }, [showSaveToast]);
 
   const confirmPendingLoad = useCallback(() => {
@@ -1339,11 +1434,12 @@ export default function App() {
           primeAudioUnlock();
           handleLoadFromSetup();
         }}
-        onLoadFromFile={(jsonText) => {
+        onLoadFromFile={(file) => {
           primeAudioUnlock();
-          handleLoadFromFile(jsonText);
+          handleLoadFromFile(file);
         }}
         hasSave={canLoadSavedGame}
+        hasRunningColony={mapSetupSource === 'game'}
         hasImportedSave={hasImportedGame}
         onLoadImported={handleLoadImported}
         tutorialsEnabled={tutorialsEnabled}
@@ -1470,7 +1566,7 @@ export default function App() {
           onOpenGuide={handleOpenGuide}
           onStartNewGame={startNewGame}
           onStartSpotlightDebug={startSpotlightDebug}
-          onReplayIntro={() => setShowIntro(true)}
+          onReplayIntro={leaveColony}
           onOpenCitizenOverview={openCitizenOverview}
           onFocusLeader={() => {
             const leaderId = world.villageLeaderId;
@@ -2129,9 +2225,9 @@ export default function App() {
           <WarfareStatus world={world}
             onRepair={(buildingId) => applyGameAction({ proto: 1, op: 'repairBuilding', buildingId })}
             onPrisonerDecision={(entityId, choiceId) => applyGameAction({ proto: 1, op: 'resolveWarPrisoner', entityId, choiceId })}
-            onExport={() => { saveGame(world, view); }}
+            onExport={() => { void persistCurrentGame({ chronicle: false, feedback: true }); }}
             onChronicle={() => { downloadChronicleLog(world.eventLog, { villageName: world.villageName, year: world.year, day: world.dayInYear, tick: world.tick, population: world.humanPopulation }); }}
-            onNewVillage={startNewGame} onMainMenu={() => setShowIntro(true)} />
+            onNewVillage={startNewGame} onMainMenu={leaveColony} />
       {/*
         The authored decision cards below stack in one flow column; pinning each to `top-4` let a
         later diplomacy card paint over a story card's title and choices.

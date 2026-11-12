@@ -255,6 +255,16 @@ function getIncumbentRecordPoints(state: WorldState, entity: Entity): number {
   return getIncumbentRecordAssessment(state, leader).totalPoints;
 }
 
+/**
+ * The electorate: every living adult player settler. One definition for the recorded tally and the
+ * panel's turnout copy, so the two cannot drift.
+ */
+export function countEligibleVoters(state: Pick<WorldState, 'entities'>): number {
+  return state.entities.filter(
+    (person) => person.alive && isPlayerHuman(person) && person.age >= HUMAN_ADULT_MIN_AGE,
+  ).length;
+}
+
 export function isEligibleForLeadership(
   entity: Entity,
   state?: Pick<WorldState, 'year' | 'dayInYear' | 'tick'>,
@@ -846,7 +856,8 @@ export function tickElectionBuildup(
 function refreshCeremonyPendingLeader(state: WorldState, ceremony: ElectionCeremonyState): void {
   const nominee = state.entities.find((candidate) => candidate.id === ceremony.pendingLeaderId);
   if (nominee && isEligibleForLeadership(nominee, state)) return;
-  const eligible = (ceremony.finalistIds ?? []).map((id) => state.entities.find((candidate) => candidate.id === id))
+  const eligible = Object.keys(ceremony.ballotTally ?? {})
+    .map((id) => state.entities.find((candidate) => candidate.id === Number(id)))
     .filter((candidate): candidate is Entity => !!candidate && isEligibleForLeadership(candidate, state));
   eligible.sort((a, b) => (ceremony.ballotTally?.[String(b.id)] ?? 0) - (ceremony.ballotTally?.[String(a.id)] ?? 0));
   const successor = eligible[0];
@@ -951,6 +962,35 @@ export function tickElectionCeremony(state: WorldState, year: number): ElectionA
   return null;
 }
 
+/**
+ * The reveal counts only the ballots still credited to an eligible nominee. A nominee who died or
+ * became ineligible since the gathering keeps none, and the highest credited nominee leads the result.
+ */
+function creditedCeremonyBallot(
+  ceremony: ElectionCeremonyState,
+  ranked: LeadershipScoreBreakdown[],
+): { winnerId: number; winnerVotes: number; totalVotes: number; tally: Map<number, number> } {
+  const eligibleIds = new Set(ranked.map((candidate) => candidate.entityId));
+  const tally = new Map<number, number>();
+  let totalVotes = 0;
+  for (const [idText, count] of Object.entries(ceremony.ballotTally ?? {})) {
+    const id = Number(idText);
+    if (!eligibleIds.has(id)) continue;
+    tally.set(id, count);
+    totalVotes += count;
+  }
+  let winnerId = ranked[0]!.entityId;
+  let winnerVotes = 0;
+  for (const candidate of ranked) {
+    const votes = tally.get(candidate.entityId) ?? 0;
+    if (votes > winnerVotes) {
+      winnerId = candidate.entityId;
+      winnerVotes = votes;
+    }
+  }
+  return { winnerId, winnerVotes, totalVotes, tally };
+}
+
 export function runVillageElection(
   state: WorldState,
   year: number,
@@ -995,7 +1035,7 @@ export function runVillageElection(
 
   const ceremony = state.electionCeremony;
   const vote = ceremony?.ballotCast && ceremony.ballotTally
-    ? { winnerId: ceremony.pendingLeaderId, winnerVotes: ceremony.ballotTally[String(ceremony.pendingLeaderId)] ?? 0, totalVotes: ceremony.ballotTotal ?? 0, tally: new Map(Object.entries(ceremony.ballotTally).map(([id, count]) => [Number(id), count])) }
+    ? creditedCeremonyBallot(ceremony, ranked)
     : simulateElectionVotes(state, ranked, state.nextElectionId ?? 0);
   const winner = ranked.find((b) => b.entityId === vote.winnerId) ?? ranked[0];
   const prevId = state.villageLeaderId;
@@ -1006,7 +1046,7 @@ export function runVillageElection(
     winnerId: winner.entityId,
     ballots: vote.totalVotes,
     tally: Object.fromEntries(vote.tally),
-    eligibleVoters: state.entities.filter((person) => person.alive && isPlayerHuman(person) && person.age >= HUMAN_ADULT_MIN_AGE).length,
+    eligibleVoters: countEligibleVoters(state),
     turnout: vote.totalVotes,
   };
   state.villageLeaderId = winner.entityId;

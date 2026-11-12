@@ -13,7 +13,9 @@ import {
   formatRaidLootSummary, raidEventLoot,
   formatRivalPopulationLabel,
 } from '../game/gameEngine';
-import { getBuildingUpgradeCost, getBuildingUpgradeEligibility } from '../game/buildingMaintenanceActions';
+import { getBuildingUpgradeCost, getBuildingUpgradeEligibility, getRepairBuildingEligibility, REPAIR_COST } from '../game/buildingMaintenanceActions';
+import { canAffordWorkshopRecipe } from '../game/workshops';
+import { GRAVEYARD_CAPACITY_PER_YARD } from '../game/eventLog';
 import { estimateWorkshopGold } from '../game/workshopEconomy';
 import { getDiplomacyChoiceEligibility, getRivalGiftEligibility, getRivalTradePactEligibility, getShowStrengthEligibility, getPeaceTreatyEligibility, getDiplomacyExpiresAtTick, RIVAL_GIFT_FOOD_COST, RIVAL_TRADE_PACT_GOLD_COST, PEACE_TREATY_GOLD_COST, PEACE_TREATY_FOOD_COST } from '../game/rivalDiplomacy';
 import { moonHowlerRiteWeights, countStaffedPriests } from '../game/moonHowler';
@@ -150,14 +152,6 @@ const MINE_ORE_TITLES: Record<MineMode, string> = {
   iron: 'Mine extracts iron ore for the Blacksmith forge',
   gold: 'Mine extracts gold for the treasury',
 };
-
-function canAffordRecipe(resources: WorldState['resources'], recipe: ReturnType<typeof getWorkshopRecipe>): boolean {
-  for (const key of Object.keys(recipe.inputs) as (keyof WorldState['resources'])[]) {
-    const needed = recipe.inputs[key] ?? 0;
-    if (needed > 0 && resources[key] < needed) return false;
-  }
-  return true;
-}
 
 export interface SelectedBuildingPanelProps {
   building: Building;
@@ -410,6 +404,8 @@ export default function SelectedBuildingPanel({
     building.id,
   ).ok;
   const upgradeCost = building.completed && upgradePossible ? getBuildingUpgradeCost(building) : null;
+  /** The repair owner's verdict for this building — the same gate and price `repairBuilding` applies. */
+  const repairEligibility = getRepairBuildingEligibility(state, building.id);
   // The residence rule is the owner's: `isResidenceOccupantEntity` excludes foreign-faction entities
   // and includes a cursed settler in werewolf form. Same predicate `syncResidenceOccupants` uses.
   const residents = isHousing
@@ -417,6 +413,11 @@ export default function SelectedBuildingPanel({
     : [];
   const prisoners = building.type === BuildingType.Prison
     ? state.entities.filter((e) => e.alive && e.type === EntityType.Human && e.prisonBuildingId === building.id)
+    : [];
+  // Only player burials are ever linked to a player graveyard (`assignPendingGraves` clears enemy links),
+  // so the memorial lists that one set.
+  const graves = building.type === BuildingType.Graveyard
+    ? (state.graveRecords ?? []).filter((grave) => grave.faction === 'player' && grave.graveyardId === building.id)
     : [];
   const staffRosterIds = building.type === BuildingType.Prison
     ? prisonGuardIds(state, building.occupants ?? [])
@@ -429,7 +430,10 @@ export default function SelectedBuildingPanel({
   const staffRefusals = (building.completed ? BUILDING_JOB_TYPES[building.type] !== undefined : config.maxOccupants > 0)
     && !canAssignWorker
     && staffedWorkers < staffingCap
-    ? explainBuildingStaffing(state, building.id, playerHumansFrom(state.entities).map((entity) => entity.id)).refusals
+    ? explainBuildingStaffing(state, building.id, playerHumansFrom(state.entities).map((entity) => entity.id))
+      .refusals
+      // The roster beside this list already names the people who hold the post; never call them unavailable.
+      .filter((refusal) => !staffRosterIds.includes(refusal.settlerId))
     : [];
   const terrainMult = getTerrainEfficiencyMultiplier(state, building);
   const adjacencyMult = getAdjacencyMultiplier(state, building);
@@ -439,14 +443,14 @@ export default function SelectedBuildingPanel({
       {building.type === BuildingType.Graveyard && (
         <section className="mb-3 rounded-lg border border-stone-600 bg-stone-900/70 p-3">
           <h3 className="text-sm font-bold text-stone-100">Graveyard memorial</h3>
-          <p className="mt-1 text-xs text-stone-400">Graves: {(state.graveRecords ?? []).filter((grave) => grave.faction === 'player' && grave.graveyardId === building.id).length} / 50 · One gravekeeper per graveyard</p>
+          <p className="mt-1 text-xs text-stone-400">Graves: {graves.length} / {GRAVEYARD_CAPACITY_PER_YARD} · One gravekeeper per graveyard</p>
           <div className="mt-2 max-h-60 space-y-1 overflow-y-auto">
-            {(state.graveRecords ?? []).filter((grave) => grave.faction === 'player' && grave.graveyardId === building.id).slice(0, 50).map((grave, index) => (
-              <p key={index} className={`text-xs ${grave.faction === 'enemy' ? 'text-red-400' : 'text-green-400'}`}>
-                {grave.faction === 'enemy' ? 'Enemy' : 'Village'} — {grave.name}
+            {graves.slice(0, GRAVEYARD_CAPACITY_PER_YARD).map((grave, index) => (
+              <p key={index} className="text-xs text-green-400">
+                Village — {grave.name}
               </p>
             ))}
-            {!(state.graveRecords ?? []).some((grave) => grave.faction === 'player' && grave.graveyardId === building.id) && <p className="text-xs text-stone-500">No burials recorded in this graveyard.</p>}
+            {graves.length === 0 && <p className="text-xs text-stone-500">No burials recorded in this graveyard.</p>}
           </div>
         </section>
       )}
@@ -836,7 +840,6 @@ export default function SelectedBuildingPanel({
           <Suspense fallback={<p className="text-[11px] text-stone-300">Loading forge…</p>}>
             <BlacksmithForgePanel
               state={state}
-              buildingId={building.id}
               onQueueForge={onQueueForge}
             />
           </Suspense>
@@ -846,7 +849,7 @@ export default function SelectedBuildingPanel({
           if (!recipe) return null;
           const workers = building.occupants.length;
           const estGold = estimateWorkshopGold(state, building);
-          const stocked = canAffordRecipe(state.resources, recipe);
+          const stocked = canAffordWorkshopRecipe(state.resources, recipe);
           return (
             <div className="mt-2 space-y-1.5 rounded-lg border border-orange-700/40 bg-orange-950/30 p-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-300">Crafting recipe</p>
@@ -864,7 +867,7 @@ export default function SelectedBuildingPanel({
                 <div className="grid grid-cols-2 gap-1">
                   {WORKSHOP_RECIPES.map((r) => {
                     const active = r.id === recipe.id;
-                    const affordable = canAffordRecipe(state.resources, r);
+                    const affordable = canAffordWorkshopRecipe(state.resources, r);
                     return (
                       <button
                         key={r.id}
@@ -975,11 +978,11 @@ export default function SelectedBuildingPanel({
           {building.completed && BUILDING_JOB_TYPES[building.type] && (
             <p className="col-span-2 text-[11px] text-sky-300">Employment is automatic; existing jobs are retained.</p>
           )}
-          {!building.completed && !canAssignWorker && staffedWorkers < staffingCap && (
+          {!canAssignWorker && staffedWorkers < staffingCap && (!building.completed || staffRefusals.length > 0) && (
             <div className="col-span-2 space-y-0.5">
-              <p className="text-[11px] text-stone-300">
-                No idle settlers — recruit or free up workers.
-              </p>
+              {!building.completed && (
+                <p className="text-[11px] text-stone-300">No idle settlers — recruit or free up workers.</p>
+              )}
               {staffRefusals.length > 0 && (
                 <>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Unavailable</p>
@@ -1002,10 +1005,22 @@ export default function SelectedBuildingPanel({
       )}
       <CollapsibleSection title="Building actions" defaultOpen storageKey={`building-actions-${building.id}`}>
         <div className="grid grid-cols-2 gap-1">
-          {building.health < building.maxHealth && (
-            <button onClick={onRepair} className="rounded bg-amber-700 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-600">
-              🔧 Repair
-            </button>
+          {building.completed && building.health < building.maxHealth && (
+            <>
+              <button
+                onClick={onRepair}
+                disabled={!repairEligibility.ok}
+                title={repairEligibility.blockReason ?? `Repairs for ${REPAIR_COST.wood}w ${REPAIR_COST.stone}s`}
+                className="rounded bg-amber-700 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                🔧 Repair ({REPAIR_COST.wood}w {REPAIR_COST.stone}s)
+              </button>
+              {!repairEligibility.ok && (
+                <p className="col-span-2 text-[11px] text-amber-400">
+                  ⚠️ Cannot repair yet — {repairEligibility.blockReason ?? 'unavailable'}.
+                </p>
+              )}
+            </>
           )}
           {building.completed && upgradeCost && (
             <button onClick={onUpgrade} className="rounded bg-purple-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-purple-500"

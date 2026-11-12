@@ -4,7 +4,6 @@ import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import {
   createGuidedCampaignState,
   getGuidedCampaignProgress,
-  recordGuidedCampaignChoice,
   startGuidedCampaign,
   tickGuidedCampaign,
 } from '../src/game/guidedCampaign';
@@ -39,12 +38,14 @@ describe('Guided Campaign director', () => {
     expect(getGuidedCampaignProgress(world).current?.id).toBe('traveling_theatre');
   });
 
-  it('accepts choices only for unlocked chapters and completes after all chapter flags resolve', () => {
+  it('remembers chapters in order and completes after every chapter flag resolves', () => {
     const world = freshWorld();
     startGuidedCampaign(world);
-    recordGuidedCampaignChoice(world, 'deer_parliament', 'protect-clearing');
-    recordGuidedCampaignChoice(world, 'traveling_theatre', 'invalid-before-unlock');
-    expect(world.guidedCampaign?.choices).toHaveLength(1);
+    // A later sandbox story resolves first: the journal is sequential, so it stays Locked and unremembered.
+    world.storyFlags = { guided_wedding_diplomacy_resolved: 1 };
+    tickGuidedCampaign(world);
+    expect(world.guidedCampaign?.completedChapterIds).toEqual([]);
+    expect(world.guidedCampaign?.unlockedChapterIds).toEqual(['deer_parliament']);
 
     world.storyFlags = {
       guided_deer_parliament_resolved: 1,

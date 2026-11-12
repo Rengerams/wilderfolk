@@ -2,10 +2,11 @@ import { Season, WeatherType } from './gameTypes';
 import { PER_TICK_RATE_SCALE, TICKS_PER_DAY } from './dayCycle';
 
 /**
- * Per-tick grass growth rate. Daily batch applies
- * `GRASS_GROWTH_PER_TICK * grassMult * TICKS_PER_DAY` in `tickGrassDaily`.
+ * Grass energy one blade regains per colony day at multiplier 1. This is the old per-tick rate
+ * applied once per day — the defect was multiplying it by `TICKS_PER_DAY`, not the rate itself.
+ * `tickGrassDaily` and `getGrazingPressureReport` both read this one rule.
  */
-export const GRASS_GROWTH_PER_TICK = 2.5;
+export const GRASS_GROWTH_PER_DAY = 2.5;
 
 /** Matches graze bite size when fauna nibble grass. */
 export const GRAZE_BITE_ENERGY = 8;
@@ -77,11 +78,13 @@ export function grazerGrassEnergyDemandPerDay(
   return bitesPerDay * GRAZE_BITE_ENERGY;
 }
 
-/** Metabolism values mirrored from `SPECIES_CONFIG` grazers (already PER_TICK_RATE_SCALE). */
+/**
+ * Metabolism values mirrored from `SPECIES_CONFIG` grazers (already PER_TICK_RATE_SCALE).
+ * The Wildkin is an apex predator, not a grazer: only species that take a grass bite belong here.
+ */
 export const GRAZER_METABOLISM = {
   deer: { energyLossPerTick: 4.2 * PER_TICK_RATE_SCALE, grassEnergyGain: 55 },
   rabbit: { energyLossPerTick: 2.5 * PER_TICK_RATE_SCALE, grassEnergyGain: 25 },
-  wildkin: { energyLossPerTick: 3.0 * PER_TICK_RATE_SCALE, grassEnergyGain: 45 },
 } as const;
 
 export type GrazerType = keyof typeof GRAZER_METABOLISM;

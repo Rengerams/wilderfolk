@@ -1250,6 +1250,23 @@ describe('gameLoop.sessionSwapWorker.test.ts', () => {
       expect(internals.workerBooting).toBe(false);
     });
 
+    it('keeps the entering session when the worker refuses the import', async () => {
+      const host = fakeHost();
+      const departingReplica = makeWorldSessionSwap();
+      (host as unknown as { getAuthoritativeWorld: () => WorldState }).getAuthoritativeWorld =
+        () => departingReplica;
+      host.importSave.mockImplementation(() => Promise.reject(new Error('refused')));
+      const loop = liveLoop(host);
+      const entering = makeWorldSessionSwap();
+      entering.villageName = 'Entering colony';
+
+      loop.setSession(entering, createInitialView(400, 300));
+      await vi.waitFor(() => expect(host.dispose).toHaveBeenCalled());
+
+      // The refused upload left the departing colony on the host; it must not replace the new one.
+      expect(loop.getWorld()).toBe(entering);
+    });
+
     it('still waits for a booting worker before importing the new session', async () => {
       const host = fakeHost(false);
       const loop = liveLoop(host);

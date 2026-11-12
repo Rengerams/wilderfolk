@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Documentation guards: tracked-document markdown links must resolve, and the newest changelog
- * section's entries stay short. Read-only, no network, no git index.
+ * Documentation guards: required documents exist, their markdown links resolve, and the newest
+ * changelog section's entries stay short. Read-only, no network, no git index.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -13,11 +13,11 @@ const REPO = process.cwd();
 const LINK_DOCS = [
   'README.md',
   'AGENTS.md',
-  'command.md',
+  'docs/command.md',
   'OWNERSHIP_OVERVIEW.md',
   'ASSET_REGISTER.md',
   'THIRD_PARTY_NOTICES.md',
-  'BUG_REPORTS/Readme.md',
+  'docs/bug_report/readme.md',
 ];
 
 /** Cap for one newest-section changelog entry: 300 characters. */
@@ -32,7 +32,10 @@ const problems = [];
 /* --- 1. markdown links resolve ------------------------------------------- */
 
 for (const doc of LINK_DOCS) {
-  if (!existsSync(doc)) continue;
+  if (!existsSync(doc)) {
+    problems.push(`${doc}  required document is missing`);
+    continue;
+  }
   const text = readFileSync(doc, 'utf8');
   const docDir = path.dirname(doc);
 
@@ -52,7 +55,9 @@ for (const doc of LINK_DOCS) {
 /* --- 2. the newest changelog section stays concise ------------------------ */
 
 const CHANGELOG = 'CHANGELOG.md';
-if (existsSync(CHANGELOG)) {
+if (!existsSync(CHANGELOG)) {
+  problems.push(`${CHANGELOG}  required document is missing`);
+} else {
   const lines = readFileSync(CHANGELOG, 'utf8').split('\n');
   const start = lines.findIndex((line) => /^##\s/.test(line));
   if (start === -1) {
@@ -86,6 +91,6 @@ if (problems.length === 0) {
 console.error(`Docs check failed (${problems.length}):\n`);
 for (const problem of problems) console.error(`  ${problem}`);
 console.error(
-  '\nA link must resolve, and a changelog entry is an index line — an essay belongs in docs/HANDOVER-*.md or docs/plans/*.md.',
+  '\nA link must resolve, a required document must exist, and a changelog entry is an index line — an essay belongs in docs/HANDOVER-*.md or docs/plans/*.md.',
 );
 process.exit(1);

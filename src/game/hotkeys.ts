@@ -71,13 +71,27 @@ export function isCouncilHotkey(e: KeyboardEvent): boolean {
   return e.key.toLowerCase() === COUNCIL_HOTKEY || e.code === COUNCIL_HOTKEY_CODE;
 }
 
+/** Input types that accept typed text; every other input is a pointer/toggle control. */
+const TEXT_INPUT_TYPES = new Set([
+  'text', 'search', 'email', 'password', 'url', 'tel', 'number',
+  'date', 'time', 'datetime-local', 'month', 'week',
+]);
+
+/**
+ * True when the target accepts typed text, where every key belongs to the field. Checkboxes,
+ * selects and buttons do not block hotkeys.
+ */
 export function isEditableTarget(target: EventTarget | null): boolean {
   const el = (target instanceof HTMLElement ? target : null)
     ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
   if (!el) return false;
   const tag = el.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (tag === 'TEXTAREA') return true;
   if (el.isContentEditable) return true;
+  if (tag === 'INPUT') {
+    const type = (el as HTMLInputElement).type?.toLowerCase() || 'text';
+    return TEXT_INPUT_TYPES.has(type);
+  }
   return el.getAttribute('role') === 'textbox' || el.getAttribute('role') === 'combobox';
 }
 
@@ -87,13 +101,17 @@ export function resolveSidebarTabFromKey(e: KeyboardEvent): SidebarTab | null {
 
 /**
  * True when the target is a control that Space and Enter activate natively. `isEditableTarget`
- * excludes buttons so gameplay hotkeys work while a HUD button holds focus.
+ * excludes these controls so gameplay hotkeys still work while they hold focus.
  */
 export function isActivatableTarget(target: EventTarget | null): boolean {
   const el = (target instanceof HTMLElement ? target : null)
     ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
   if (!el) return false;
-  if (el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'SUMMARY') return true;
+  if (
+    el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'SUMMARY'
+    || el.tagName === 'SELECT' || el.tagName === 'INPUT'
+  ) return true;
   const role = el.getAttribute('role');
-  return role === 'button' || role === 'switch' || role === 'menuitem' || role === 'tab';
+  return role === 'button' || role === 'switch' || role === 'menuitem' || role === 'tab'
+    || role === 'checkbox' || role === 'radio' || role === 'combobox';
 }

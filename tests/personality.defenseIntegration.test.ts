@@ -107,6 +107,18 @@ describe('the militia prices each defender\'s own aptitudes', () => {
     expect(militia(state, [...own, soldier(96, DEFENSIVE_GENOME, { prisonBuildingId: 9 })])).toBe(base);
   });
 
+  it('does not let per-soldier defence DNA price the barricade', () => {
+    const { state, own } = militiaWorld();
+    const plain = computeMilitiaBreakdown(state, own);
+    const proficient = computeMilitiaBreakdown(
+      state,
+      own.map((entity) => soldier(entity.id, DEFENSIVE_GENOME)),
+    );
+
+    expect(proficient.militiaStrength).toBeGreaterThan(plain.militiaStrength);
+    expect(proficient.barricadeStrength).toBe(plain.barricadeStrength);
+  });
+
   it('states the per-soldier aptitude term and no retired global percentage', () => {
     const { state, own } = militiaWorld();
     const lines = computeMilitiaBreakdown(state, [...own, soldier(99, DEFENSIVE_GENOME)], {

@@ -22,6 +22,7 @@ import {
   isVillageLeader,
   rankLeadershipCandidates,
   runVillageElection,
+  tickElectionCeremony,
   tickLeaderVacancy,
   tryStartTermElectionCeremony,
   tryStartVacancyElectionCeremony,
@@ -178,6 +179,46 @@ describe('villageLeadership.electionGaps.test.ts', () => {
       expect(state.lastElectionResult?.tally).toEqual(tally);
       expect(state.lastElectionResult?.ballots).toBe(ballots);
       expect(state.lastElectionResult?.winnerId).toBe(result.leaderId);
+    });
+
+    it('credits only eligible ballots when every finalist became ineligible before the reveal', () => {
+      const state = world();
+      // Keep enough eligible adults that the race still has a lawful winner after the finalists fall.
+      const template = state.entities.find((entity) => entity.type === EntityType.Human && !entity.faction);
+      expect(template).toBeDefined();
+      for (let index = 0; index < 6; index++) {
+        const clone = structuredClone(template!);
+        clone.id = state.nextEntityId++;
+        clone.name = `Extra ${index}`;
+        clone.surname = 'Vale';
+        clone.age = 30 + index;
+        clone.partnerId = undefined;
+        state.entities.push(clone);
+      }
+
+      expect(tryStartTermElectionCeremony(state, TERM_YEAR, 0)).toBe(true);
+      const ceremony = state.electionCeremony!;
+      const finalists = ceremony.finalistIds ?? [];
+      expect(finalists.length).toBeGreaterThan(0);
+      for (const id of finalists) {
+        const candidate = state.entities.find((entity) => entity.id === id);
+        if (candidate) candidate.alive = false;
+      }
+      ceremony.phase = 'reveal';
+      ceremony.phaseTicksLeft = 1;
+
+      tickElectionCeremony(state, TERM_YEAR);
+
+      const result = state.lastElectionResult!;
+      expect(result).toBeDefined();
+      expect(result.winnerId).not.toBeNull();
+      expect(finalists).not.toContain(result.winnerId);
+      // The displayed count is the sum of ballots still credited to an eligible nominee.
+      expect(result.ballots).toBe(
+        Object.values(result.tally).reduce((sum, count) => sum + count, 0),
+      );
+      expect(result.ballots).toBeGreaterThan(0);
+      expect(Object.keys(result.tally).some((id) => finalists.includes(Number(id)))).toBe(false);
     });
 
     it('still schedules a term election as a term, and arms no retry', () => {

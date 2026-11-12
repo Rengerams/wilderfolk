@@ -14,6 +14,12 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { applyWorkerCommand, WORKER_CMD_PROTO, type WorkerCommand } from '../src/game/simWorker/commands';
 import { gameTick } from '../src/game/gameTick';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
+import {
+  getBuildingUpgradeEligibility,
+  getRepairBuildingEligibility,
+  repairBuilding,
+  upgradeBuilding,
+} from '../src/game/buildingMaintenanceActions';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
@@ -291,6 +297,42 @@ describe('demolition round trip', () => {
     const next = applyWorkerCommand(world, demolish(2));
 
     expect(next.buildings.some((b) => b.id === 2)).toBe(false);
+    expect(next.totalBuildingsCompleted).toBe(0);
+  });
+});
+
+describe('a rival settlement structure is not the player’s to maintain', () => {
+  /** A damaged, completed Farm owned by a rival camp. */
+  function rivalFarmWorld(): WorldState {
+    const rivalFarm = building(2, BuildingType.Farm, {
+      faction: 'rival',
+      health: 40,
+      occupants: [],
+    });
+    return makeWorld([human(1)], [rivalFarm], { totalBuildingsCompleted: 0 });
+  }
+
+  it('refuses repair and keeps the materials', () => {
+    const world = rivalFarmWorld();
+    expect(getRepairBuildingEligibility(world, 2).ok).toBe(false);
+
+    const after = repairBuilding(world, 2);
+    expect(after.buildings.find((item) => item.id === 2)?.health).toBe(40);
+    expect(after.resources.wood).toBe(world.resources.wood);
+    expect(after.resources.stone).toBe(world.resources.stone);
+  });
+
+  it('refuses upgrade and keeps the level', () => {
+    const world = rivalFarmWorld();
+    expect(getBuildingUpgradeEligibility(world, 2).ok).toBe(false);
+    expect(upgradeBuilding(world, 2).buildings.find((item) => item.id === 2)?.level).toBe(1);
+  });
+
+  it('refuses demolition through the command path', () => {
+    const world = rivalFarmWorld();
+    const next = applyWorkerCommand(world, demolish(2));
+
+    expect(next.buildings.some((b) => b.id === 2)).toBe(true);
     expect(next.totalBuildingsCompleted).toBe(0);
   });
 });

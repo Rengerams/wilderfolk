@@ -9,10 +9,11 @@ import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { createBuilding, initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
 import { syncPartnerResidence } from '../src/game/housingPipeline';
+import { moveResident } from '../src/game/housingPipeline';
 import { pickLeastCrowdedResidence } from '../src/game/housingPipeline';
 import { rebalanceOvercrowdedResidences } from '../src/game/housingPipeline';
 import { tryDailyAmicableDivorce } from '../src/game/simulation/humanRelationships';
-import { getResidenceCapacity, isResidenceBuilding } from '../src/game/housingModel';
+import { buildResidenceOccupancy, getResidenceCapacity, isResidenceBuilding } from '../src/game/housingModel';
 import { LIFECYCLE_CONFIG, tickPregnancyAndBirth } from '../src/game/simulation/humanLifecycle';
 import { seededRandomForRun } from '../src/game/simRng';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
@@ -63,6 +64,36 @@ function expectWithinCapacity(residences: Building[], humans: Entity[]): void {
     );
   }
 }
+
+describe('the residence writer refuses an overfill on its own', () => {
+  it('does not seat a settler in a home with no free bed', () => {
+    const house = residence(1);
+    const occupants = Array.from({ length: getResidenceCapacity(house) }, (_, index) =>
+      settler(10 + index, { residenceBuildingId: house.id }));
+    const outsider = settler(99);
+    const humans = [...occupants, outsider];
+    const occupancy = buildResidenceOccupancy(humans);
+
+    moveResident(outsider, house.id, 'player', { buildings: [house], occupancy });
+
+    expect(outsider.residenceBuildingId).toBeUndefined();
+    expect(heldByResidence(humans).get(house.id)).toBe(getResidenceCapacity(house));
+  });
+
+  it('seats a settler in the last free bed', () => {
+    const house = residence(1);
+    const occupants = Array.from({ length: getResidenceCapacity(house) - 1 }, (_, index) =>
+      settler(10 + index, { residenceBuildingId: house.id }));
+    const outsider = settler(99);
+    const humans = [...occupants, outsider];
+    const occupancy = buildResidenceOccupancy(humans);
+
+    moveResident(outsider, house.id, 'player', { buildings: [house], occupancy });
+
+    expect(outsider.residenceBuildingId).toBe(house.id);
+    expect(heldByResidence(humans).get(house.id)).toBe(getResidenceCapacity(house));
+  });
+});
 
 describe('a residence never holds more settlers than it has beds', () => {
   it('pins the fixture premise: a level-1 House has six beds', () => {

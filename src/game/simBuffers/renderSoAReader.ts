@@ -176,6 +176,12 @@ export class RenderSoAReaderV1 {
     return this.u32[this.base(slot) + RENDER_FIELD.chatTicks];
   }
 
+  /** Authoritative energy packed from the simulation world for this display row. */
+  energy(slot: number): number {
+    if (!this.slotInRange(slot)) return 0;
+    return this.f32[this.base(slot) + RENDER_FIELD.energy];
+  }
+
   /** Resolve hunt line target entity id from slot table. */
   huntTargetId(slot: number): number | undefined {
     const targetSlot = this.huntTargetSlot(slot);

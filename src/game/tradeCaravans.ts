@@ -6,7 +6,7 @@ import { getPlayerSettlerCenter } from './villageAnchor';
 import { addFloatingText, addNotification } from './simEffects';
 import { getMultiplier } from './simHelpers';
 import { addResource } from './resourceUtils';
-import { spendFood } from './economyLedger';
+import { spendFood, recordFoodProduced } from './economyLedger';
 import { getTownHallTradeMultiplier } from './townHall';
 import { logEvent } from './eventLog';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
@@ -14,6 +14,7 @@ import { ensureEntityByIdMap, unindexEntityFromState } from './entityIndex';
 import { clearWorkerAssignment } from './workforce';
 import { pushNewEntity } from './simulation/simulationEntities';
 import { buildingAccessPoint } from './buildingAccess';
+import { SPECIES_CONFIG } from './speciesConfig';
 import type { TickContext } from './simulation/simulationTypes';
 
 /** Long-range trade routes require a completed player Market (EC-4). */
@@ -30,6 +31,16 @@ function getPartnerWaitTicks(): number {
 function getFirstCaravanDelay(): number {
   return ticksForDays(2);
 }
+
+/** Merchant pace on each leg, as a fraction of a settler's walk speed. */
+const CARAVAN_OUTBOUND_SPEED_MULT = 0.48;
+const CARAVAN_INBOUND_SPEED_MULT = 0.52;
+/** Straight-line travel slack that covers path detours so a legal trip is never cut short. */
+const CARAVAN_TRIP_DETOUR_ALLOWANCE = 2.5;
+/** Slack after both legs and the partner's unloading wait, in days, before a trip is abandoned. */
+const CARAVAN_TRIP_SLACK_DAYS = 3;
+/** Partner-side grace after the unloading wait, in days, before a blocked cargo returns home. */
+const CARAVAN_CARGO_GRACE_DAYS = 3;
 
 export type TradeCaravanLeg = 'outbound' | 'at_partner' | 'inbound';
 
@@ -112,6 +123,30 @@ function deductExports(state: WorldState, route: TradeRoute): void {
   }
 }
 
+/** Return a departed caravan's reserved exports through the storage-cap owner. */
+function refundExports(state: WorldState, route: TradeRoute): void {
+  const given = route.resourcesGiven;
+  if (given.wood > 0) addResource(state, 'wood', given.wood);
+  if (given.stone > 0) addResource(state, 'stone', given.stone);
+  if (given.gold > 0) addResource(state, 'gold', given.gold);
+  if ((given.iron ?? 0) > 0) addResource(state, 'iron', given.iron);
+  // A returned cargo is a trade inflow: the ledger records what storage actually accepted.
+  if (given.food > 0) recordFoodProduced(state, 'trade', addResource(state, 'food', given.food));
+}
+
+/** How many ticks this trip may take before the route abandons it: both legs plus dock slack. */
+function caravanTripDeadlineTicks(state: WorldState, route: TradeRoute): number {
+  const hub = getTradeHubCenter(state);
+  const distance = Math.hypot(
+    (route.partnerX ?? hub.x) - hub.x,
+    (route.partnerY ?? hub.y) - hub.y,
+  );
+  const speed = SPECIES_CONFIG[EntityType.Human].speed * CARAVAN_OUTBOUND_SPEED_MULT;
+  const travelTicks = speed > 0 ? distance / speed : 0;
+  return Math.ceil(travelTicks * CARAVAN_TRIP_DETOUR_ALLOWANCE) + ticksForDays(CARAVAN_TRIP_SLACK_DAYS);
+}
+
+
 function applyImports(state: WorldState, route: TradeRoute, mult: number): number {
   let goldGained = 0;
   const recvWood = Math.floor(route.resourcesReceived.wood * mult);
@@ -124,7 +159,9 @@ function applyImports(state: WorldState, route: TradeRoute, mult: number): numbe
 
   if (recvWood > 0) addResource(state, 'wood', recvWood);
   if (recvStone > 0) addResource(state, 'stone', recvStone);
-  if (recvFood > 0) addResource(state, 'food', recvFood);
+  // Imported food is stored food like a harvest: the ledger must see what storage accepted or the
+  // daily deficit/immigration verdict reads a full larder as zero production.
+  if (recvFood > 0) recordFoodProduced(state, 'trade', addResource(state, 'food', recvFood));
   if (recvGold > 0) goldGained = addResource(state, 'gold', recvGold);
   if (recvIron > 0) addResource(state, 'iron', recvIron);
   return goldGained;
@@ -140,6 +177,40 @@ function removeCarrier(state: WorldState, route: TradeRoute, entity: Entity): vo
   route.caravanCarrierId = undefined;
   route.caravanLeg = undefined;
   route.caravanWaitTicks = undefined;
+}
+
+/**
+ * The bounded resolution for a caravan that cannot finish: return its reserved exports, despawn the
+ * carrier and put the route back on its normal departure cadence.
+ */
+function abandonCaravan(state: WorldState, route: TradeRoute): void {
+  const carrierId = route.caravanCarrierId;
+  const carrier = carrierId == null
+    ? undefined
+    : ensureEntityByIdMap(state).get(carrierId)
+      ?? state.entities.find((entity) => entity.alive && entity.id === carrierId);
+  refundExports(state, route);
+  if (carrier) {
+    addFloatingText(
+      state,
+      carrier.x,
+      carrier.y - 20,
+      `↩ ${route.targetName} caravan turned back — goods returned`,
+      '#f59e0b',
+    );
+    removeCarrier(state, route, carrier);
+  } else {
+    route.caravanCarrierId = undefined;
+    route.caravanLeg = undefined;
+    route.caravanWaitTicks = undefined;
+  }
+  scheduleTradeRouteDeparture(state, route);
+  logEvent(
+    state,
+    'trade',
+    `Caravan to ${route.targetName} turned back before the deadline; reserved goods returned`,
+    route.targetName,
+  );
 }
 
 export function scheduleTradeRouteDeparture(
@@ -283,6 +354,9 @@ function spawnCaravan(state: WorldState, route: TradeRoute, ctx: TickContext): b
   route.caravanCarrierId = carrier.id;
   route.caravanLeg = 'outbound';
   route.caravanWaitTicks = 0;
+  // The route timer bounds this trip: a carrier that cannot reach the partner (or unload) resolves at
+  // the deadline, returning its reserved exports rather than holding them.
+  route.nextDepartureTick = state.tick + caravanTripDeadlineTicks(state, route);
   addFloatingText(state, hub.x, hub.y - 24, `🚚 → ${route.targetName}`, '#fbbf24');
   logEvent(state, 'trade', `Caravan departed for ${route.targetName}`, carrier.name);
   return true;
@@ -330,6 +404,8 @@ export function tickTradeCaravans(
     enrichTradeRoute(route, state, i);
 
     if (!hasActiveCarrier(state, route)) {
+      // A carrier that vanished mid-trip must not keep the trip deadline as its departure gate.
+      if (route.caravanCarrierId != null) route.nextDepartureTick = undefined;
       route.caravanCarrierId = undefined;
       route.caravanLeg = undefined;
       route.caravanWaitTicks = undefined;
@@ -337,10 +413,15 @@ export function tickTradeCaravans(
         scheduleTradeRouteDeparture(state, route);
       }
       if (state.tick >= (route.nextDepartureTick ?? 0)) {
-        if (spawnCaravan(state, route, ctx)) {
-          route.nextDepartureTick = undefined;
-        }
+        spawnCaravan(state, route, ctx);
       }
+      continue;
+    }
+
+    // Bounded resolution: a trip past its deadline returns the reserved exports and frees the route.
+    route.nextDepartureTick ??= state.tick + caravanTripDeadlineTicks(state, route);
+    if (state.tick >= route.nextDepartureTick) {
+      abandonCaravan(state, route);
       continue;
     }
 
@@ -357,10 +438,10 @@ export function getCaravanMoveTarget(
 
   const leg = route.caravanLeg ?? 'outbound';
   if (leg === 'outbound' || leg === 'at_partner') {
-    return { x: route.partnerX, y: route.partnerY, speedMult: 0.48 };
+    return { x: route.partnerX, y: route.partnerY, speedMult: CARAVAN_OUTBOUND_SPEED_MULT };
   }
   const hub = getTradeHubCenter(state);
-  return { x: hub.x, y: hub.y, speedMult: 0.52 };
+  return { x: hub.x, y: hub.y, speedMult: CARAVAN_INBOUND_SPEED_MULT };
 }
 
 export function tryAdvanceCaravanLeg(state: WorldState, entity: Entity): void {
@@ -376,6 +457,11 @@ export function tryAdvanceCaravanLeg(state: WorldState, entity: Entity): void {
     if (dist > TRADE_CARAVAN_ARRIVAL_DIST) return;
     route.caravanLeg = 'at_partner';
     route.caravanWaitTicks = getPartnerWaitTicks();
+    // Docked: the cargo decision gets the unload wait plus a short grace, never the whole trip budget.
+    route.nextDepartureTick = Math.min(
+      route.nextDepartureTick ?? Infinity,
+      state.tick + getPartnerWaitTicks() + ticksForDays(CARAVAN_CARGO_GRACE_DAYS),
+    );
     addFloatingText(state, entity.x, entity.y - 20, `📦 At ${route.targetName}`, '#fbbf24');
     return;
   }
@@ -392,6 +478,8 @@ export function tryAdvanceCaravanLeg(state: WorldState, entity: Entity): void {
 
     route.caravanLeg = 'inbound';
     route.caravanWaitTicks = 0;
+    // The return leg gets its own bounded window instead of inheriting the dock's cargo deadline.
+    route.nextDepartureTick = state.tick + caravanTripDeadlineTicks(state, route);
     addFloatingText(state, entity.x, entity.y - 20, '🚚 Returning home…', '#a3e635');
     return;
   }

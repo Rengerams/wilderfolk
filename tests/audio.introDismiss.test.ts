@@ -63,9 +63,9 @@ vi.mock('../src/audio/graph', () => {
       primeUnlock: vi.fn(),
       setMusicBrightness: vi.fn(),
       ensure: vi.fn(),
-      // The HTMLAudio players scale their element by the preset levels, and the procedural fallback
+      // The HTMLAudio players scale their element by the music-chain gain, and the procedural fallback
       // asks for a bus; a null bus makes `scheduleTone` a no-op.
-      getLevels: () => ({ master: 1, music: 1, sfx: 1 }),
+      musicPathGain: () => 0.232,
       bus: vi.fn(() => null),
     },
   };

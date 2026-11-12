@@ -26,8 +26,9 @@ export const RENDER_FIELD = {
   huntTargetSlot: 11,
   residenceBuildingId: 12,
   chatTicks: 13,
+  /** Authoritative energy — grass density/tint needs it on the worker display row. */
+  energy: 14,
   /** Reserved for future fields — scentLevel, packBonus, etc. */
-  reserved0: 14,
   reserved1: 15,
 } as const;
 

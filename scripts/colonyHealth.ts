@@ -984,12 +984,14 @@ export function collectInvariantErrors(world: WorldState): string[] {
 
 /**
  * Why a settled colony is not growing, one cause per verdict — only states the growth path failed to
- * correct, read from numbers the observer records (a preset like spare adults is not a stall).
+ * correct, read from numbers the observer records (a preset like spare adults is not a stall). An
+ * invariant violation reported anywhere in the run is its own reason, never folded into a growth cause.
  */
 export type ColonyStallReason =
   | 'housing-full'
   | 'food-exhausted'
-  | 'wood-pinned';
+  | 'wood-pinned'
+  | 'invariant-violation';
 
 /** Runs long enough that a demand the colony never meets stops being a settling-in period. */
 export const STALL_SETTLING_DAYS = 30;
@@ -1026,8 +1028,22 @@ export function assessColonyStall(input: ColonyStallInput): ColonyStallVerdict {
   const reasons: ColonyStallReason[] = [];
   const evidence: string[] = [];
 
+  // Corruption outranks growth: an invariant violation anywhere in the run fails the gate even when
+  // the colony later repaired the state or the run is shorter than the settling period.
+  const invariantViolations = [...snapshots, final]
+    .reduce((total, snapshot) => total + (snapshot.invariants?.violations ?? 0), 0);
+  if (invariantViolations > 0) {
+    const sample = [...snapshots, final]
+      .flatMap((snapshot) => snapshot.invariants?.sample ?? [])
+      .find((text) => text.length > 0);
+    reasons.push('invariant-violation');
+    evidence.push(
+      `invariant-violation: ${invariantViolations} simulation invariant error(s) reported; first: ${sample ?? 'no sample'}`,
+    );
+  }
+
   // A run shorter than the settling period is a settling-in period, not a verdict.
-  if (final.day < STALL_SETTLING_DAYS) return { stalled: false, reasons, evidence };
+  if (final.day < STALL_SETTLING_DAYS) return { stalled: reasons.length > 0, reasons, evidence };
 
   const observations = snapshots.length;
   const housing = final.housing;

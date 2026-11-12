@@ -8,7 +8,8 @@ import {
   hitTestCamp,
   EntityType,
 } from '../game/gameEngine';
-import { canPlaceBuilding, buildStripPreview, getPlaceBuildingFailureReason } from '../game/buildingPlacementActions';
+import { buildStripPreview, getPlaceBuildingFailureReason } from '../game/buildingPlacementActions';
+import { canPlaceBuilding } from '../game/placementUtils';
 import {
   screenToWorld,
   focusCameraOn,
@@ -492,8 +493,10 @@ export function useCanvasInteractions({
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      // A fresh gesture starts as a click; `mouseup` decides whether it was a pan.
+      // A fresh gesture starts as a click; `mouseup` decides whether it was a pan. Click-suppression
+      // belongs to the gesture that ended, so a release whose click never arrived cannot eat this one.
       pointerMovedRef.current = false;
+      stripPlacedOnMouseUpRef.current = false;
       if (gameplayActive && e.button === 0) {
         onPrimeAudioUnlock();
         audioStartedRef.current = true;

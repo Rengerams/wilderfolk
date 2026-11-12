@@ -740,9 +740,31 @@ function main() {
   if (!jsonOnly) writeFileSync(path.join(OUT_DIR, 'call-graph.html'), renderHtml(payload));
 
   console.log(JSON.stringify(payload.stats, null, 2));
-  if (process.argv.includes('--verify-owners') && payload.unregistered.length) {
-    console.error('Unregistered functions:', payload.unregistered.slice(0, 100));
-    process.exitCode = 1;
+  if (process.argv.includes('--verify-owners')) {
+    // Floors keep a parser regression from passing as "0 unowned": an empty or truncated index would
+    // otherwise satisfy every per-function check vacuously.
+    const OWNERSHIP_FLOORS = { files: 380, functions: 3200, explicitEntries: 1400 };
+    const failures = [];
+    if (payload.unregistered.length) {
+      console.error('Unregistered functions:', payload.unregistered.slice(0, 100));
+      failures.push(`${payload.unregistered.length} function(s) without any recorded owner`);
+    }
+    if (payload.stats.files < OWNERSHIP_FLOORS.files) {
+      failures.push(`indexed ${payload.stats.files} files (floor ${OWNERSHIP_FLOORS.files})`);
+    }
+    if (payload.stats.functions < OWNERSHIP_FLOORS.functions) {
+      failures.push(`indexed ${payload.stats.functions} functions (floor ${OWNERSHIP_FLOORS.functions})`);
+    }
+    if (payload.stats.withExplicitEntry < OWNERSHIP_FLOORS.explicitEntries) {
+      failures.push(
+        `only ${payload.stats.withExplicitEntry} functions have an explicit owner entry (floor ${OWNERSHIP_FLOORS.explicitEntries})`,
+      );
+    }
+    if (failures.length) {
+      console.error('Ownership verification failed:');
+      for (const failure of failures) console.error(`  - ${failure}`);
+      process.exitCode = 1;
+    }
   }
   console.log(`wrote docs/tools/call-graph.json${jsonOnly ? '' : ' and call-graph.html'}`);
 }

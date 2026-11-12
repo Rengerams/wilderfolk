@@ -33,6 +33,7 @@ import { getSettlerWorkReason } from './workAbsence';
 import { buildSchoolRosters, isSchoolTime } from './education';
 import { SCHOOL_MIN_AGE } from './gameConstants';
 import { pickSocialImpulse } from './socialLife';
+import { socialImpulseNearbyAdults } from './humanLeisureBehavior';
 import { getRouteObstruction } from './pathfinding';
 import type { WorkerAssignmentRefusal } from './buildingStaffingActions';
 import {
@@ -945,7 +946,16 @@ function resolveLegIndex(
 function settlerVenue(state: WorldState, settler: Entity): Building | undefined {
   if (settler.isJuvenile) return undefined;
   if (isOnWorkScheduleShift(state, getHourOfDay(state.tick))) return undefined;
-  return pickSocialImpulse(settler, state, state.buildings, [], []).building;
+  const nearbyAdults = socialImpulseNearbyAdults({
+    state,
+    entity: settler,
+    allHumans: state.entities,
+    humanSocialGrid: undefined,
+    width: state.width,
+    height: state.height,
+    livingHumanAt: (id) => (id == null ? undefined : state.entities.find((entity) => entity.id === id)),
+  });
+  return pickSocialImpulse(settler, state, state.buildings, nearbyAdults, []).building;
 }
 
 /**

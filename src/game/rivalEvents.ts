@@ -12,6 +12,8 @@ import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
 import { adjustPollutionLevel } from './dailyEcology';
 import { maybeFoundRivalSettlement } from './rivalSettlements';
+import { clearHuntersTargetingPrey, markWildlifeDead, retireWildlifeInState } from './simulation/simulationEntities';
+import type { TickContext } from './simulation/simulationTypes';
 
 /** Reputation all tense camps together may drain per day, however many roll. */
 const MAX_TENSE_REP_DRAIN_PER_DAY = 2;
@@ -22,17 +24,25 @@ export interface RivalEventCallbacks {
   logEvent: (state: WorldState, type: GameEventLog['type'], message: string, subject?: string) => void;
   tickPendingDiplomacyEvents: (state: WorldState) => void;
   queueDiplomacyEvent: (state: WorldState, rival: RivalSettlement) => void;
-  killWildGameForPoach: (state: WorldState, animal: Entity) => void;
+  killWildGameForPoach: (state: WorldState, animal: Entity, ctx?: TickContext) => void;
 }
 
-/** Retire a poached animal and clear any active hunter targeting it. */
-export function killWildGameForPoach(state: WorldState, animal: Entity): void {
+/**
+ * Retire a poached animal through the wildlife-death owner. A tick context lets the owner splice its
+ * byType bucket and record the tick death set; the tournament-style callers without one fall back to
+ * the state-level retirement and clear hunter links through the shared index helper.
+ */
+export function killWildGameForPoach(state: WorldState, animal: Entity, ctx?: TickContext): void {
   if (!animal.alive) return;
-  animal.alive = false;
-  unindexEntityFromState(state, animal.id);
-  for (const entity of state.entities) {
-    if (entity.huntTargetId === animal.id) entity.huntTargetId = undefined;
+  if (ctx) {
+    markWildlifeDead(ctx, animal, undefined, state.tick, state);
+    return;
   }
+  retireWildlifeInState(state, animal);
+  clearHuntersTargetingPrey(
+    animal.id,
+    state.entityById ?? new Map(state.entities.map((entity) => [entity.id, entity])),
+  );
 }
 
 /** Hands out the deer alive at pulse start, stepping past any a poach killed meanwhile. */
@@ -82,6 +92,16 @@ function releaseRetiredStructureReferences(
   }
 }
 
+/**
+ * Retire a rival-faction entity that leaves the map alive: a departure, never a death, so it gets no
+ * grave, death log or death tally — only the shared departure marker and removal from the live index.
+ */
+function departRivalEntity(state: WorldState, entity: Entity): void {
+  entity.alive = false;
+  entity.departedAlive = true;
+  unindexEntityFromState(state, entity.id);
+}
+
 /** Drops rival-faction ghosts whose camp no longer exists; they are not deaths. */
 export function pruneOrphanRivalEntities(state: WorldState): number {
   const camps = new Set(state.rivalSettlements.map((rival) => rival.id));
@@ -89,9 +109,7 @@ export function pruneOrphanRivalEntities(state: WorldState): number {
   for (const entity of state.entities ?? []) {
     if (!entity.alive || entity.faction !== 'rival' || entity.warCaptive) continue;
     if (entity.groupId != null && camps.has(entity.groupId)) continue;
-    entity.alive = false;
-    entity.departedAlive = true;
-    unindexEntityFromState(state, entity.id);
+    departRivalEntity(state, entity);
     pruned++;
   }
   if (pruned > 0) state.entities = state.entities.filter((entity) => !(entity.departedAlive && entity.faction === 'rival'));
@@ -112,11 +130,17 @@ export function tickRivalSettlements(
   const retiredStructures = retireLegacyCampStructures(state.buildings);
   const campMembers = new Map<string, Set<number>>();
   for (const rival of state.rivalSettlements) campMembers.set(rival.id, new Set(rival.entityIds));
+  const staleRoster: Entity[] = [];
   for (const entity of allAlive) {
     releaseRetiredStructureReferences(entity, retiredStructures, state.buildings);
     if (entity.faction !== 'rival' || entity.warCaptive) continue;
     const camp = entity.groupId == null ? undefined : campMembers.get(entity.groupId);
-    if (camp?.has(entity.id)) entity.alive = false;
+    // The roster is legacy state: anyone it still lists is a departed camp member, not a corpse.
+    if (camp?.has(entity.id)) staleRoster.push(entity);
+  }
+  for (const entity of staleRoster) departRivalEntity(state, entity);
+  if (staleRoster.length > 0) {
+    state.entities = state.entities.filter((entity) => !(entity.departedAlive && entity.faction === 'rival'));
   }
   for (const rival of state.rivalSettlements) {
     rival.entityIds = [];

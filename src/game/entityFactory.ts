@@ -6,7 +6,6 @@ import { EntityType, JobType } from './gameTypes';
 import { isForeignFaction } from './playerHuman';
 import {
   getColonyDay,
-  PREGNANCY_TICKS,
   setHumanBirthFromAge,
 } from './dayCycle';
 
@@ -15,6 +14,7 @@ import { getRandomName, getRandomSurname } from './nameLoader';
 import { pickHumanVariant } from './humanSprites';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng } from './simRng';
+import { startPregnancy } from './pregnancy';
 
 /** Deterministic simulation RNG stream for entity factory creation. */
 function simRandom(): number {
@@ -189,15 +189,12 @@ export function createEntity(
     entity.age = ageYears;
 
     if (opts?.pregnant && entGender === 'female') {
-      entity.pregnant = true;
-      entity.pregnancyProgress = opts.pregnancyProgress ?? 0;
-      entity.pregnancyDueProgress = Math.round(PREGNANCY_TICKS * (0.85 + simRandom() * 0.3));
-
-      const fatherId = opts.pregnantById ?? opts.fatherId ?? opts.partnerId;
-      if (fatherId != null) {
-        entity.pregnantById = fatherId;
-      }
-      entity.relationshipStatus = opts.partnerId != null ? 'married' : 'expecting';
+      startPregnancy(entity, {
+        origin: 'existing',
+        fatherId: opts.pregnantById ?? opts.fatherId ?? opts.partnerId,
+        pregnancyProgress: opts.pregnancyProgress ?? 0,
+        startDay: opts.colonyDay ?? 0,
+      });
     }
   }
 

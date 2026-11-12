@@ -56,7 +56,7 @@ class IntroMusicPlayer {
   async start() {
     if (this.startPromise) return this.startPromise;
     const generation = this.startGeneration;
-    this.startPromise = (async () => {
+    const attempt = (async () => {
       if (generation !== this.startGeneration) return;
       if (this.running || audioGraph.isMuted) return;
 
@@ -103,10 +103,12 @@ class IntroMusicPlayer {
       this.usingHtmlAudio = false;
       this.startProceduralFallback();
     })();
+    this.startPromise = attempt;
     try {
-      await this.startPromise;
+      await attempt;
     } finally {
-      if (this.startPromise) this.startPromise = null;
+      // stop() + start() may have installed a replacement attempt; only clear this one's slot.
+      if (this.startPromise === attempt) this.startPromise = null;
     }
   }
   stop() {
@@ -126,21 +128,25 @@ class IntroMusicPlayer {
     this.usingHtmlAudio = false;
   }
 
-  stopPadOnly() {
-    /* legacy — sample-based intro has no separate pad */
-  }
-
-  restartPadIfNeeded() {
+  /**
+   * Resume the running theme after a gesture without rewinding it. A live loop needs nothing; only a
+   * paused element or a stopped loop restarts.
+   */
+  resumeIfNeeded() {
     if (!this.running || audioGraph.isMuted) return;
+    // A start is already deciding which path plays; resuming now would double-start it.
+    if (this.startPromise) return;
     if (this.usingHtmlAudio) {
-      this.tryAutoplay();
+      if (this.htmlAudio?.paused) void this.htmlAudio.play().catch(() => undefined);
       return;
     }
-    if (!this.usingSamples) {
-      this.startProceduralFallback();
-    } else {
-      void musicPlayer.playLoop(TRACKS.intro, 'music', TRACK_VOLUMES.intro, 0.6);
+    if (this.usingSamples) {
+      if (musicPlayer.currentUrl !== TRACKS.intro) {
+        void musicPlayer.playLoop(TRACKS.intro, 'music', TRACK_VOLUMES.intro, 0.6);
+      }
+      return;
     }
+    if (!this.fallbackTimeout) this.startProceduralFallback();
   }
 
   private ensureHtmlAudio(): HTMLAudioElement {
@@ -154,7 +160,7 @@ class IntroMusicPlayer {
   }
 
   private applyHtmlVolume() {
-    syncHtmlAudioVolume(this.htmlAudio, TRACK_VOLUMES.intro, audioGraph.getLevels());
+    syncHtmlAudioVolume(this.htmlAudio, TRACK_VOLUMES.intro, audioGraph.musicPathGain());
   }
 
   private stopHtmlAudio() {

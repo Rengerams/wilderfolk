@@ -18,8 +18,7 @@ import { rememberRivalDisposition } from './raidAftermath';
 import { getOpenPlayerBeds } from './populationGrowth';
 import { initialHumanNeeds } from './simulation/humanPhysiology';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
-import { rollFounderGenome } from './settlerTraits';
-import { rollBornMarks } from './personalMarks';
+import { establishCitizenIdentity } from './settlerTraits';
 
 const RECRUIT_COOLDOWN_DAYS = 7;
 const RECRUIT_BASE_CHANCE = 0.2;
@@ -136,15 +135,8 @@ export function resolveWarPrisoner(original: WorldState, entityId: number, choic
     person.prisonSentenceCrime = undefined;
     person.faction = undefined;
     person.groupId = undefined;
-    // Foreign humans start neutral; citizenship must establish their permanent DNA before any activity.
-    person.genomeV2 ??= rollFounderGenome();
-    const bornMarks = rollBornMarks();
-    if (bornMarks.length > 0) {
-      const existingMarks = person.marks ?? [];
-      person.marks = [...existingMarks, ...bornMarks.filter(
-        (mark) => !existingMarks.some((existing) => existing.id === mark.id),
-      )];
-    }
+    // Foreign humans start neutral; citizenship establishes their permanent identity before any activity.
+    establishCitizenIdentity(person);
     person.job = JobType.Settler;
     person.occupation = undefined;
     person.warCaptive = undefined;

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import type { VisitorGroup, WorldState } from '../src/game/gameTypes';
 import { getAbsoluteCalendarDay } from '../src/game/dayCycle';
+import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import {
   resolveVillageRequest,
   tickVillageRequests,
@@ -114,6 +115,25 @@ describe('Village Requests — Caravan Provisions Offer', () => {
     expect(afterFull.activeVillageRequest?.id).toBe(fullRequest);
     expect(afterFull.resources.food).toBe(full.resources.food);
     expect(afterFull.villageRequestHistory).toEqual([]);
+  });
+
+  it('expires on its configured expiry day instead of outliving it by one', () => {
+    const state = offerWorld();
+    const request = state.activeVillageRequest!;
+    const expiresDay = request.expiresDay;
+
+    // The last day the offer is open.
+    state.tick = (expiresDay - 1) * TICKS_PER_DAY;
+    expect(getAbsoluteCalendarDay(state.tick)).toBe(expiresDay - 1);
+    tickVillageRequests(state);
+    expect(state.activeVillageRequest?.id).toBe(request.id);
+
+    // The configured expiry day itself closes it.
+    state.tick = expiresDay * TICKS_PER_DAY;
+    expect(getAbsoluteCalendarDay(state.tick)).toBe(expiresDay);
+    tickVillageRequests(state);
+    expect(state.activeVillageRequest).toBeUndefined();
+    expect(state.villageRequestHistory).toMatchObject([{ outcome: 'expired', resolvedDay: expiresDay }]);
   });
 
   it('declines once, rejects a repeated stale command as a no-op, and expires an offer whose caravan leaves', () => {

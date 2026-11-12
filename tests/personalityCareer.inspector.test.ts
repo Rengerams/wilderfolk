@@ -5,6 +5,8 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import PersonalityCareerDetails from '../src/components/PersonalityCareerDetails';
 import SelectedEntityPanel from '../src/components/SelectedEntityPanel';
 import { APTITUDE_DEFS, APTITUDE_IDS } from '../src/game/settlerTraits';
@@ -185,5 +187,16 @@ describe('the selected settler reveals the mutual courtship partner', () => {
     });
     state.entities = [first, second];
     expect(renderPanel(first, state)).not.toContain('Courting ');
+  });
+});
+
+describe('the activity sign comes from the aptitude registry', () => {
+  it('reads the registry cost flag instead of naming one activity', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/components/PersonalityCareerDetails.tsx'),
+      'utf8',
+    );
+    expect(source).toContain('APTITUDE_ACTIVITIES[result.activity].cost');
+    expect(source).not.toContain("result.activity === 'conflict'");
   });
 });

@@ -14,12 +14,27 @@ import {
 } from './dayCycle';
 import { hasResidenceAssignment, hasWorkAssignment } from './housingModel';
 import { isDialogueBusy } from './humanChat';
-import { requestDialogue, type DialogueEventKey } from './dialogueTrees';
+import { hasDialogueSceneOnDay, requestDialogue, type DialogueEventKey } from './dialogueTrees';
 import { isOnWorkScheduleShift } from './workSchedule';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
+import { isFoodAlert } from './resourceUtils';
+import { SOCIAL_STAGGER } from './adaptiveSpatialQuery';
 
 /** Ordinary banter chance before the company activity's bounded modifier. */
 const BANTER_BASE_CHANCE = 0.08;
+
+const WORKPLACE_SCENE_KEYS = ['workplace.banter', 'workplace.banter.solo'] as const;
+const GREETING_SCENE_KEYS = ['neighbor.greeting'] as const;
+
+/** The one per-person social cadence bucket every ambient scan and social scene gate reads. */
+export function isSocialStaggerTick(entity: Pick<Entity, 'id'>, tick: number): boolean {
+  return (tick + entity.id) % SOCIAL_STAGGER === 0;
+}
+
+/** The one early-morning doorstep window; the caller and the scene owner must agree on it. */
+export function isGreetingHour(hour: number): boolean {
+  return Number.isFinite(hour) && hour >= 6 && hour <= 9;
+}
 
 export type SocialMotive =
   | 'sick_day'
@@ -153,13 +168,6 @@ function isBirthdayToday(entity: Entity, dayInYear: number): boolean {
 function absDaySalt(tick: number): number {
   if (!Number.isFinite(tick)) return 0;
   return Math.floor(tick / TICKS_PER_DAY) * 17;
-}
-
-/** Shared food-aid threshold so the two checks in `civic_petition` agree. */
-function needsFoodAid(state: WorldState): boolean {
-  const pop = Math.max(0, state.humanPopulation ?? 0);
-  const threshold = Math.max(50, pop * 2.5);
-  return (state.resources?.food ?? 0) < threshold;
 }
 
 /**
@@ -305,7 +313,7 @@ export function pickSocialImpulse(
     hour < 18 &&
     personDayRoll(entity.id, tick, 730) < 0.32
   ) {
-    const foodAid = needsFoodAid(state);
+    const foodAid = isFoodAlert(state);
     const needAid =
       foodAid ||
       isGrieving(entity, tick) ||
@@ -421,11 +429,14 @@ export function tryWorkplaceBanter(
   if (!entity.alive || !onDayShift) return;
   if (!Number.isFinite(hour) || hour < 11 || hour > 13) return;
   if (isDialogueBusy(entity)) return;
+  if (hasDialogueSceneOnDay(entity, tick, WORKPLACE_SCENE_KEYS)) return;
 
   const banterChance = Math.min(1, BANTER_BASE_CHANCE * evaluateAptitudeInfluence(entity, 'company').factor);
   if (personDayRoll(entity.id, tick, 720) > banterChance) return;
 
-  const mate = coworkers.find((c) => c.id !== entity.id && c.alive && !isDialogueBusy(c));
+  const mate = coworkers.find((c) =>
+    c.id !== entity.id && c.alive && !isDialogueBusy(c)
+    && !hasDialogueSceneOnDay(c, tick, WORKPLACE_SCENE_KEYS));
   if (!mate) {
     requestDialogue({
       eventKey: 'workplace.banter.solo', speaker: entity, tick,
@@ -454,8 +465,10 @@ export function tryNeighborGreeting(
   hour: number,
 ): void {
   if (!entity.alive || !other || !other.alive || other.id === entity.id) return;
-  if (!Number.isFinite(hour) || hour < 6 || hour > 9) return;
+  if (!isGreetingHour(hour)) return;
   if (isDialogueBusy(entity) || isDialogueBusy(other)) return;
+  if (hasDialogueSceneOnDay(entity, tick, GREETING_SCENE_KEYS)
+    || hasDialogueSceneOnDay(other, tick, GREETING_SCENE_KEYS)) return;
   if (personDayRoll(entity.id, tick, 724 + Math.abs(other.id)) > 0.12) return;
 
   const dx = entity.x - other.x;

@@ -133,10 +133,12 @@ interface MapSetupScreenProps {
   onLoad?: () => void;
   onLoadImported?: () => void;
   hasImportedSave?: boolean;
-  onLoadFromFile?: (jsonText: string) => void;
+  onLoadFromFile?: (file: File) => void;
   onBack?: () => void;
   backLabel?: string;
   hasSave?: boolean;
+  /** A colony is running in this session even if no browser slot exists for it yet. */
+  hasRunningColony?: boolean;
   tutorialsEnabled?: boolean;
   onTutorialsChange?: (enabled: boolean) => void;
   /** Per-new-game choice — play the first-spring guide or start free. */
@@ -157,6 +159,7 @@ export default function MapSetupScreen({
   onBack,
   backLabel = '← Back to intro',
   hasSave,
+  hasRunningColony,
   tutorialsEnabled,
   onTutorialsChange,
   tutorialChoice,
@@ -188,12 +191,17 @@ export default function MapSetupScreen({
   };
 
   /**
-   * Starting a settlement deletes the browser save, so when a save exists the first activation only
-   * arms the confirmation — the same destructive-action shape the demolish step uses.
+   * Starting a settlement deletes the browser save and abandons any running colony, so the first
+   * activation only arms the confirmation — the same destructive-action shape the demolish step uses.
    */
   const [confirmStartArmed, setConfirmStartArmed] = useState(false);
   const requestStart = () => {
     if (hasSave && !confirmStartArmed) {
+      setConfirmStartArmed(true);
+      return;
+    }
+    // A running colony can replace an unsaved one, so it needs the same confirmation.
+    if (hasRunningColony && !confirmStartArmed) {
       setConfirmStartArmed(true);
       return;
     }
@@ -427,10 +435,7 @@ export default function MapSetupScreen({
                   onChange={(event) => {
                     const file = event.currentTarget.files?.[0];
                     event.currentTarget.value = '';
-                    if (!file) return;
-                    void file.text().then(onLoadFromFile).catch((error: unknown) => {
-                      console.error('[MapSetupScreen] Failed to read saved JSON', error);
-                    });
+                    if (file) onLoadFromFile(file);
                   }}
                 />
               </>
@@ -456,8 +461,11 @@ export default function MapSetupScreen({
             {confirmStartArmed ? (
               <div className="rounded-lg border border-rose-500/40 bg-rose-950/40 p-2">
                 <p className="text-[11px] font-semibold text-rose-200">
-                  Starting a new settlement deletes your saved colony in this browser. Save it to a
-                  file first if you want to keep it — this cannot be undone.
+                  {hasRunningColony
+                    ? hasSave
+                      ? 'Starting a new settlement deletes your saved colony and abandons the one you are running. Save it to a file first if you want to keep it — this cannot be undone.'
+                      : 'Starting a new settlement abandons the colony you are running, and it has not been saved in this browser. Save it to a file first if you want to keep it — this cannot be undone.'
+                    : 'Starting a new settlement deletes your saved colony in this browser. Save it to a file first if you want to keep it — this cannot be undone.'}
                 </p>
                 <div className="mt-1.5 grid grid-cols-2 gap-1">
                   <button

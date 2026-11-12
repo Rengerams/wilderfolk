@@ -112,10 +112,26 @@ export function isHousingUnitProtected(ledger: HousingLedger, unit: readonly Ent
   return false;
 }
 
+/**
+ * A move may skip the custodian guard only for the split placement the housing owner planned:
+ * an oversized custodian unit whose older children take a bed in a second residence.
+ */
+interface HouseholdMoveOptions {
+  allowCustodianSplit?: boolean;
+}
+
 /** Whole-household guard: a minor never lands anywhere their living custodian is not. */
-function custodianTravelsAlong(unit: readonly Entity[], toId: number | undefined, humans: Entity[], residences: Building[]): boolean {
+function custodianTravelsAlong(
+  unit: readonly Entity[],
+  toId: number | undefined,
+  humans: Entity[],
+  residences: Building[],
+  allowCustodianSplit = false,
+): boolean {
   for (const member of unit) {
     if (member.age >= HUMAN_ADULT_MIN_AGE || member.partnerId != null) continue;
+    // A settler already at the destination is not moving apart, so the guard has nothing to refuse.
+    if (member.residenceBuildingId === toId) continue;
     const custodian = getChildCustodian(member, humans);
     if (!custodian || unit.some((other) => other.id === custodian.id)) continue;
     if (custodian.residenceBuildingId === toId) continue;
@@ -123,6 +139,7 @@ function custodianTravelsAlong(unit: readonly Entity[], toId: number | undefined
     const custodianHome = residences.find((building) => building.id === custodian.residenceBuildingId);
     if (destination && custodianHome && isLeaderHouseResidence(destination)
       && isLeaderHouseResidence(custodianHome)) continue;
+    if (allowCustodianSplit) continue;
     return false;
   }
   return true;
@@ -205,17 +222,21 @@ function householdMayMove(
   toId: number | undefined,
   reason: ResidenceMoveReason,
   context: HousingMoveContext,
+  options?: HouseholdMoveOptions,
 ): boolean {
   if (toId !== undefined) {
     const target = context.residences.find((residence) => residence.id === toId);
     if (!target || !isAssignableHome(target)) return false;
     if (isLeaderHouseResidence(target) && !MANOR_MOVE_REASONS.has(reason)) return false;
     if (unit.some((member) => context.ledger.visited.get(member.id)?.has(toId))) return false;
+    // A unit already at the destination writes nothing; its current fit is an audit question.
+    const alreadyThere = unit.every((member) => member.residenceBuildingId === toId);
     // The manor hold is unconditional: like the capacity rebalance, it never counts the bed cap.
     const manorHold = reason === 'leader' && isLeaderHouseResidence(target);
-    if (!manorHold && !familyFitsInResidence([...unit], target, context.alive, context.occupancy)) return false;
+    if (!manorHold && !alreadyThere
+      && !familyFitsInResidence([...unit], target, context.alive, context.occupancy)) return false;
   }
-  return custodianTravelsAlong(unit, toId, context.alive, context.residences);
+  return custodianTravelsAlong(unit, toId, context.alive, context.residences, options?.allowCustodianSplit);
 }
 
 /** Applies one validated household move through the sole residence write. */
@@ -236,13 +257,14 @@ export function relocateHousehold(
   phase: HousingPhase,
   reason: ResidenceMoveReason,
   context: HousingMoveContext,
+  options?: HouseholdMoveOptions,
 ): boolean {
   if (unit.length === 0) return false;
   if (isHousingUnitProtected(context.ledger, unit, phase)) {
     context.ledger.report.protectedUnits += 1;
     return false;
   }
-  if (!householdMayMove(unit, toId, reason, context)) return false;
+  if (!householdMayMove(unit, toId, reason, context, options)) return false;
   // All-or-nothing: one member the write would refuse cancels the move before anyone leaves.
   if (unit.some((member) => residenceMoveRefused(member, toId, reason, context.buildings))) return false;
   const relocated = unit.some((member) => member.residenceBuildingId !== toId);
@@ -514,7 +536,24 @@ function endHousingPhase(ledger: HousingLedger, phase: HousingPhase, alive: read
   }
 }
 
-/** Unchecked residence write: keeps the occupancy index, traits and occupant rosters consistent. */
+/**
+ * The writer's bed-capacity gate. The manor hold is exempt for the same reason the capacity phase
+ * never touches it; a legal custodian split passes because the whole household is checked first.
+ */
+function residenceCapacityRefused(
+  human: Entity,
+  toId: number | undefined,
+  context: { occupancy?: ResidenceOccupancy; buildings?: Building[] },
+): boolean {
+  if (toId === undefined || human.residenceBuildingId === toId) return false;
+  if (!isResidenceOccupantEntity(human)) return false;
+  const target = context.buildings?.find((building) => building.id === toId);
+  if (!target || !isResidenceBuilding(target) || isLeaderHouseResidence(target)) return false;
+  const residents = context.occupancy?.get(toId) ?? target.occupants.length;
+  return residents >= getResidenceCapacity(target);
+}
+
+/** The one residence write: keeps the occupancy index, traits, occupant rosters and bed cap in step. */
 function writeResidence(
   human: Entity,
   toId: number | undefined,
@@ -528,6 +567,9 @@ function writeResidence(
 ): void {
   const fromId = human.residenceBuildingId;
   if (fromId === toId) return;
+  // Every writer passes the same bed gate, so a caller that forgets its own capacity check cannot
+  // seat a settler beyond the home's beds.
+  if (residenceCapacityRefused(human, toId, context)) return;
   const previous = context.buildings?.find((building) => building.id === fromId);
   const target = context.buildings?.find((building) => building.id === toId);
   if (context.occupancy) occupancyMove(context.occupancy, fromId, toId);
@@ -545,7 +587,7 @@ function writeResidence(
   context.onMove?.();
 }
 
-/** The sole residence write for one settler; refuses what the leader-house and rival rules forbid. */
+/** The sole residence write for one settler; refuses what the leader-house, rival and bed-cap rules forbid. */
 export function moveResident(
   human: Entity,
   toId: number | undefined,
@@ -619,7 +661,222 @@ function selectSurplusMembers(
     .slice(0, count);
 }
 
-/** Repair a shortage in order: unrelated residents, whole household, then the father elsewhere. */
+/** One placement of a custodian group: the home and the members who take its beds. */
+interface CustodianGroupPlacement {
+  readonly homeId: number;
+  readonly members: Entity[];
+}
+
+/** One group per custodian in the unit: the custodian and the minors who depend on them. */
+function custodianGroupsInUnit(unit: readonly Entity[], humans: Entity[]): Entity[][] {
+  const byCustodian = new Map<number, Entity[]>();
+  for (const member of unit) {
+    if (member.age >= HUMAN_ADULT_MIN_AGE || member.partnerId != null) continue;
+    const custodian = getChildCustodian(member, humans);
+    if (!custodian || !unit.some((candidate) => candidate.id === custodian.id)) continue;
+    const group = byCustodian.get(custodian.id) ?? [custodian];
+    group.push(member);
+    byCustodian.set(custodian.id, group);
+  }
+  return [...byCustodian.values()];
+}
+
+/** The whole custodial group of one custodian, wherever its members currently live. */
+function custodianGroupFor(
+  custodian: Entity,
+  humans: Entity[],
+  byId?: ReadonlyMap<number, Entity>,
+): Entity[] {
+  const group = [custodian];
+  for (const child of humans) {
+    if (child.age >= HUMAN_ADULT_MIN_AGE || child.partnerId != null) continue;
+    if (getChildCustodian(child, humans, byId)?.id === custodian.id) group.push(child);
+  }
+  return group;
+}
+
+/** In a necessary split the custodian keeps the youngest children; a younger child left out is a violation. */
+function custodianSplitKeepsYoungest(group: Entity[], custodian: Entity): boolean {
+  const homeId = custodian.residenceBuildingId;
+  if (homeId == null) return true;
+  const children = group.filter((child) => child.id !== custodian.id)
+    .sort((a, b) => a.age - b.age || a.id - b.id);
+  if (children.some((child) => child.residenceBuildingId == null)) return true;
+  const kept = children.filter((child) => child.residenceBuildingId === homeId).length;
+  return children.every((child, index) => (child.residenceBuildingId === homeId) === (index < kept));
+}
+
+/** Bed slots each home offers the group, counting the group's own current beds as freed. */
+function custodianGroupSlots(
+  group: readonly Entity[],
+  humans: Entity[],
+  residences: Building[],
+  occupancy: ResidenceOccupancy,
+): Map<number, number> {
+  const slots = new Map<number, number>();
+  for (const home of residences) {
+    if (!isAssignableHome(home) || isLeaderHouseResidence(home)) continue;
+    const count = countResidentsInBuilding(humans, home.id, occupancy);
+    let alreadyHere = 0;
+    for (const member of group) if (member.residenceBuildingId === home.id) alreadyHere += 1;
+    slots.set(home.id, Math.max(0, getResidenceCapacity(home) - (count - alreadyHere)));
+  }
+  return slots;
+}
+
+/** Place the older children a split leaves over; the sibling group shares a home when one fits. */
+function placeOverflowChildren(
+  children: readonly Entity[],
+  candidates: Building[],
+  slots: Map<number, number>,
+): CustodianGroupPlacement[] | undefined {
+  const remaining = [...children];
+  if (remaining.length === 0) return [];
+  const whole = candidates.find((home) => (slots.get(home.id) ?? 0) >= remaining.length);
+  if (whole) {
+    slots.set(whole.id, (slots.get(whole.id) ?? 0) - remaining.length);
+    return [{ homeId: whole.id, members: remaining }];
+  }
+  const ordered = [...candidates].sort((a, b) =>
+    (slots.get(b.id) ?? 0) - (slots.get(a.id) ?? 0) || a.id - b.id);
+  const placements: CustodianGroupPlacement[] = [];
+  for (const home of ordered) {
+    const free = slots.get(home.id) ?? 0;
+    if (free <= 0) continue;
+    const chunk = remaining.splice(0, free);
+    if (chunk.length === 0) break;
+    placements.push({ homeId: home.id, members: chunk });
+    slots.set(home.id, free - chunk.length);
+    if (remaining.length === 0) return placements;
+  }
+  return undefined;
+}
+
+/**
+ * The one split plan for a custodian group no single home can hold: the custodian keeps the
+ * youngest children and the older ones take beds in other residences. Undefined when not every
+ * member can be seated — a partial split would strand a child, so it is never planned.
+ */
+function planCustodianGroupPlacement(
+  group: readonly Entity[],
+  humans: Entity[],
+  residences: Building[],
+  occupancy: ResidenceOccupancy,
+  traits?: ResidenceTraitsById,
+): CustodianGroupPlacement[] | undefined {
+  const members = [...group];
+  if (members.length === 0) return undefined;
+  const currentId = unitResidenceId(members);
+  const current = currentId == null ? undefined : residences.find((home) => home.id === currentId);
+  if (current && isAssignableHome(current) && !isLeaderHouseResidence(current)
+    && familyFitsInResidence(members, current, humans, occupancy)) {
+    return [{ homeId: current.id, members }];
+  }
+  const whole = pickResidenceForFamily(members, humans, residences, occupancy, traits);
+  if (whole !== undefined) return [{ homeId: whole, members }];
+
+  const children = members.slice(1).sort((a, b) => a.age - b.age || a.id - b.id);
+  if (children.length === 0) return undefined;
+  const candidates = residences.filter((home) => isAssignableHome(home) && !isLeaderHouseResidence(home));
+  const slots = custodianGroupSlots(members, humans, residences, occupancy);
+  let best: { preferred: boolean; kept: number; id: number; placements: CustodianGroupPlacement[] } | undefined;
+  for (const primary of candidates) {
+    const free = slots.get(primary.id) ?? 0;
+    const keep = Math.min(children.length, free - 1);
+    if (keep < 1) continue;
+    const kept = children.slice(0, keep);
+    const overflow = children.slice(keep).reverse();
+    const rest = placeOverflowChildren(
+      overflow,
+      candidates.filter((home) => home.id !== primary.id),
+      new Map(slots),
+    );
+    if (!rest) continue;
+    const preferred = primary.id === currentId;
+    if (!best || (preferred && !best.preferred)
+      || (preferred === best.preferred
+        && (keep > best.kept || (keep === best.kept && primary.id < best.id)))) {
+      best = {
+        preferred,
+        kept: keep,
+        id: primary.id,
+        placements: [{ homeId: primary.id, members: [members[0], ...kept] }, ...rest],
+      };
+    }
+  }
+  return best?.placements;
+}
+
+/** True when every member is seated, the split is necessary, and no member's home is overfull. */
+function isCustodianGroupPlaced(
+  group: readonly Entity[],
+  humans: Entity[],
+  residences: Building[],
+  occupancy: ResidenceOccupancy,
+  traits?: ResidenceTraitsById,
+): boolean {
+  if (!group.every(hasResidenceAssignment)) return false;
+  const members = [...group];
+  const together = unitResidenceId(members);
+  if (together === undefined
+    && pickResidenceForFamily(members, humans, residences, occupancy, traits) !== undefined) return false;
+  for (const member of members) {
+    const home = residences.find((residence) => residence.id === member.residenceBuildingId);
+    if (!home || (occupancy.get(home.id) ?? 0) > getResidenceCapacity(home)) return false;
+  }
+  return true;
+}
+
+/** Cheap necessary condition for a legal split: enough beds exist for every group member. */
+function canSeatCustodianGroup(
+  group: readonly Entity[],
+  humans: Entity[],
+  residences: Building[],
+  occupancy: ResidenceOccupancy,
+): boolean {
+  let free = 0;
+  for (const slots of custodianGroupSlots(group, humans, residences, occupancy).values()) free += slots;
+  return free >= group.length;
+}
+
+/**
+ * Seats one custodian group through the canonical writer. A group no home can hold is split across
+ * residences; when not every member can be seated nobody moves, so the shortage stays visible.
+ */
+function placeCustodianGroup(
+  group: readonly Entity[],
+  humans: Entity[],
+  residences: Building[],
+  phase: HousingPhase,
+  context: HousingMoveContext,
+): boolean {
+  const members = [...group];
+  if (members.length === 0) return false;
+  if (isCustodianGroupPlaced(members, humans, residences, context.occupancy, context.traits)) return false;
+  const placementPlan = planCustodianGroupPlacement(members, humans, residences, context.occupancy, context.traits);
+  if (!placementPlan) return false;
+  const custodianId = members[0].id;
+  // Free the beds the older children leave before the custodian group takes its home, so a
+  // temporarily overfull residence cannot refuse the legal placement.
+  const ordered = [
+    ...placementPlan.filter((placement) => !placement.members.some((member) => member.id === custodianId)),
+    ...placementPlan.filter((placement) => placement.members.some((member) => member.id === custodianId)),
+  ];
+  let moved = false;
+  for (const placement of ordered) {
+    if (placement.members.length === 0) continue;
+    const homes = placement.members.map((member) => member.residenceBuildingId);
+    // Only the older children's second residence leaves the custodian behind, and only here.
+    const allowCustodianSplit = !placement.members.some((member) => member.id === custodianId);
+    if (!relocateHousehold(placement.members, placement.homeId, phase, 'family', context, { allowCustodianSplit })) {
+      continue;
+    }
+    if (placement.members.some((member, index) => member.residenceBuildingId !== homes[index])) moved = true;
+  }
+  return moved;
+}
+
+/** Repair a shortage in order: unrelated residents, whole household, a legal split, then the excess. */
 export function rebalanceOvercrowdedResidences(
   humans: Entity[],
   residences: Building[],
@@ -674,9 +931,27 @@ export function rebalanceOvercrowdedResidences(
           || movePlanned(leaving, 'surplus', alternatives)) moved = true;
         if ((occupancy.get(residence.id) ?? 0) <= cap) break;
       }
-      const before = dependentUnit.map((member) => member.residenceBuildingId);
-      assignFamilyToResidence(dependentUnit, humans, targets, humans, 'capacity', context);
-      moved ||= dependentUnit.some((member, index) => member.residenceBuildingId !== before[index]);
+      if ((occupancy.get(residence.id) ?? 0) <= cap) continue;
+      // The legal alternative to evicting the group: keep each custodian group together in a home
+      // that fits, or split it across homes when no one home can hold it. Never unhouses here.
+      const custodianGroups = custodianGroupsInUnit(dependentUnit, humans);
+      for (const group of custodianGroups) {
+        if (placeCustodianGroup(group, humans, residences, 'capacity', context)) moved = true;
+      }
+      if ((occupancy.get(residence.id) ?? 0) <= cap) continue;
+      // Still short: shed only the excess, adults first, never a minor or the custodian they need.
+      const surplusNow = dependentUnit.filter((member) => member.residenceBuildingId === residence.id);
+      const excessNow = Math.max(1, (occupancy.get(residence.id) ?? 0) - cap);
+      const leavingNow = selectSurplusMembers(surplusNow, excessNow, humans);
+      if (leavingNow && (movePlanned(leavingNow, 'capacity', alternatives)
+        || movePlanned(leavingNow, 'surplus', alternatives))) moved = true;
+      if ((occupancy.get(residence.id) ?? 0) <= cap) continue;
+      // No bed exists at all: the dependent household leaves together rather than overfilling the
+      // home or leaving one adult alone in a half-empty one.
+      const unhouse = dependentUnit.filter((member) => member.residenceBuildingId === residence.id);
+      if (unhouse.length === 0) continue;
+      if ((occupancy.get(residence.id) ?? 0) - unhouse.length > cap) continue;
+      if (relocateHousehold(unhouse, undefined, 'capacity', 'family', context)) moved = true;
       continue;
     }
     const visited = new Set<number>();
@@ -735,7 +1010,10 @@ function relocateFamily(
   return picked !== undefined && relocateHousehold(family, picked, phase, 'assignment', context);
 }
 
-/** Place a family — keeps children with custodian; only splits when no home fits everyone. */
+/**
+ * Place a family — keeps children with their custodian, splits an oversized custodian group across
+ * homes, and never unhouses anyone: a member with no bed simply stays where they are.
+ */
 function assignFamilyToResidence(
   family: Entity[],
   alive: Entity[],
@@ -747,40 +1025,26 @@ function assignFamilyToResidence(
   const { occupancy, traits } = context;
   if (relocateFamily(family, alive, residences, phase, context)) return;
 
-  const dependentGroups = new Map<number, Entity[]>();
-  for (const child of family.filter((member) => member.age < HUMAN_ADULT_MIN_AGE && member.partnerId == null)) {
-    const custodian = getChildCustodian(child, allHumans);
-    if (!custodian || !family.includes(custodian)) continue;
-    const group = dependentGroups.get(custodian.id) ?? [custodian];
-    group.push(child);
-    dependentGroups.set(custodian.id, group);
-  }
-  if (dependentGroups.size > 0) {
-    const dependentIds = new Set([...dependentGroups.values()].flatMap((group) => group.map((member) => member.id)));
-    for (const adult of family) {
-      if ((adult.age < HUMAN_ADULT_MIN_AGE && adult.partnerId == null) || dependentIds.has(adult.id)) continue;
-      if ([...dependentGroups.values()].some((group) => adult.residenceBuildingId != null
-        && adult.residenceBuildingId === group[0].residenceBuildingId)) {
-        relocateHousehold([adult], undefined, phase, 'family', context);
-      }
+  const dependentGroups = custodianGroupsInUnit(family, allHumans);
+  if (dependentGroups.length > 0) {
+    const dependentIds = new Set(dependentGroups.flatMap((group) => group.map((member) => member.id)));
+    for (const group of dependentGroups) {
+      placeCustodianGroup(group, alive, residences, phase, context);
     }
-    for (const group of dependentGroups.values()) {
-      const custodian = group[0];
-      const existing = residences.find((home) => home.id === custodian.residenceBuildingId && !isLeaderHouseResidence(home));
-      const homeId = (existing && familyFitsInResidence(group, existing, alive, occupancy) ? existing.id : undefined)
-        ?? pickResidenceForFamily(group, alive, residences, occupancy, traits);
-      relocateHousehold(group, homeId, phase, 'family', context);
-    }
+    // A dependent household that still has no bed stays one unit; seating another adult alone
+    // would split the family across a half-empty home and the street.
+    if (dependentGroups.some((group) => group.some((member) => !hasResidenceAssignment(member)))) return;
     for (const adult of family) {
-      if ((adult.age < HUMAN_ADULT_MIN_AGE && adult.partnerId == null) || dependentIds.has(adult.id) || hasResidenceAssignment(adult)) continue;
+      if ((adult.age < HUMAN_ADULT_MIN_AGE && adult.partnerId == null) || dependentIds.has(adult.id)
+        || hasResidenceAssignment(adult)) continue;
       const homeId = pickResidenceForHuman(adult, alive, residences, occupancy, traits);
       if (homeId !== undefined) relocateHousehold([adult], homeId, phase, 'family', context);
     }
     return;
   }
   for (const member of family) {
-    relocateHousehold([member], pickResidenceForHuman(member, alive, residences, occupancy, traits),
-      phase, 'family', context);
+    const homeId = pickResidenceForHuman(member, alive, residences, occupancy, traits);
+    if (homeId !== undefined) relocateHousehold([member], homeId, phase, 'family', context);
   }
 }
 
@@ -996,13 +1260,12 @@ export function assignMissingResidences(
     buildings,
   );
 
-  ledger.report.violations = collectHousingInvariantViolations(alive, residents, residences);
+  ledger.report.violations = collectHousingInvariantViolations(residents, residences);
   return ledger.report;
 }
 
 /** Post-pass invariant audit: what the authoritative boundary promises, checked on its own output. */
 function collectHousingInvariantViolations(
-  alive: Entity[],
   residents: Entity[],
   residences: Building[],
 ): string[] {
@@ -1018,14 +1281,47 @@ function collectHousingInvariantViolations(
     const count = occupancy.get(residence.id) ?? 0;
     if (count > getResidenceCapacity(residence)) violations.push(`home #${residence.id} holds ${count} over ${getResidenceCapacity(residence)} beds`);
   }
+  // Custodians are resolved over every resident: the movable list omits the protected manor
+  // household, and a manor family must be audited for separated minors like any other.
+  const byId = new Map(residents.map((human) => [human.id, human]));
+  const custodianGroups = new Map<number, Entity[]>();
+  const groupFor = (custodian: Entity): Entity[] => {
+    const cached = custodianGroups.get(custodian.id);
+    if (cached) return cached;
+    const group = custodianGroupFor(custodian, residents, byId);
+    custodianGroups.set(custodian.id, group);
+    return group;
+  };
+  const splitAllowed = new Map<number, boolean>();
   for (const child of residents) {
-    if (child.age >= HUMAN_ADULT_MIN_AGE || child.partnerId != null) continue;
-    const custodian = getChildCustodian(child, alive);
-    if (!custodian || child.residenceBuildingId == null) continue;
-    if (custodian.residenceBuildingId !== child.residenceBuildingId
-      && !(residences.some((building) => building.id === custodian.residenceBuildingId && isLeaderHouseResidence(building))
-        && residences.some((building) => building.id === child.residenceBuildingId && isLeaderHouseResidence(building)))) {
+    if (child.type !== EntityType.Human) continue;
+    if (child.age >= HUMAN_ADULT_MIN_AGE || child.partnerId != null || isImprisoned(child)) continue;
+    const custodian = getChildCustodian(child, residents, byId);
+    // A Moon Howler form is away with its bed cleared, so it is not a separated custodian.
+    if (!custodian || custodian.type !== EntityType.Human) continue;
+    if (child.residenceBuildingId === custodian.residenceBuildingId) continue;
+    // A housed custodian with an unhoused minor is a split, never a legal placement.
+    if (child.residenceBuildingId == null) {
+      if (custodian.residenceBuildingId != null) {
+        violations.push(`child #${child.id} has no home while custodian #${custodian.id} is housed`);
+      }
+      continue;
+    }
+    if (residences.some((building) => building.id === custodian.residenceBuildingId && isLeaderHouseResidence(building))
+      && residences.some((building) => building.id === child.residenceBuildingId && isLeaderHouseResidence(building))) {
+      continue;
+    }
+    // A child may live apart only when no home can hold the whole custodian group; a split that
+    // a larger home would not require is still a violation.
+    let allowed = splitAllowed.get(custodian.id);
+    if (allowed === undefined) {
+      allowed = pickResidenceForFamily(groupFor(custodian), residents, residences, occupancy) === undefined;
+      splitAllowed.set(custodian.id, allowed);
+    }
+    if (!allowed) {
       violations.push(`child #${child.id} lives apart from custodian #${custodian.id}`);
+    } else if (!custodianSplitKeepsYoungest(groupFor(custodian), custodian)) {
+      violations.push(`child #${child.id} lives apart from custodian #${custodian.id} while a younger sibling stays`);
     }
   }
   return violations;
@@ -1678,21 +1974,15 @@ function unitNeedsMove(
   const home = residences.find((residence) => residence.id === homeId);
   if (home && isLeaderHouseResidence(home) && unit.every((member) => member.residenceBuildingId === homeId)) return false;
   if (!isFamilyHousingValid(unit, residences, alive, occupancy)) {
-    const child = unit.find((member) => member.age < HUMAN_ADULT_MIN_AGE && member.partnerId == null);
-    const guardian = child ? getChildCustodian(child, alive) : undefined;
-    const core = guardian
-      ? unit.filter((member) => member.id === guardian.id
-        || (member.age < HUMAN_ADULT_MIN_AGE && member.partnerId == null))
-      : [];
-    const coreTogether = core.length > 1 && core.every((member) => member.residenceBuildingId === guardian?.residenceBuildingId);
-    const guardianKeepsBed = guardian?.residenceBuildingId != null;
-    // The core is anchored when its guardian has a bed, or when no home can take the core.
-    const coreHasNoAlternative = !guardianKeepsBed
-      && pickResidenceForFamily(core, alive, residences, occupancy, traits) === undefined;
-    const coreIsAnchored = guardianKeepsBed || coreHasNoAlternative;
-    const stableShortage = coreTogether && coreIsAnchored
-      && pickResidenceForFamily(unit, alive, residences, occupancy, traits) === undefined;
-    return !stableShortage;
+    // A single home can still reunite the whole unit.
+    if (pickResidenceForFamily(unit, alive, residences, occupancy, traits) !== undefined) return true;
+    const groups = custodianGroupsInUnit(unit, alive);
+    if (groups.length === 0) return true;
+    const currentOccupancy = occupancy ?? buildResidenceOccupancy(alive);
+    // A group that is not legally seated needs a move only when the colony has beds for it; a
+    // shortage with no beds stays named instead of being retried as if a destination existed.
+    return groups.some((group) => !isCustodianGroupPlaced(group, alive, residences, currentOccupancy, traits)
+      && canSeatCustodianGroup(group, alive, residences, currentOccupancy));
   }
   if (homeId == null) return true;
 

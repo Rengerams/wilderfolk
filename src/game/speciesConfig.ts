@@ -218,11 +218,13 @@ export function getSpeciesConfig(type: EntityType): SpeciesConfig {
 
 /**
  * Resolves the nutritional energy value gained when a predator consumes a specific prey type.
+ * `fallback` preserves a caller's diet-gap value instead of returning zero.
  */
 export function getPreyEnergyGain(
   predatorType: EntityType,
   preyKey: string,
+  fallback = 0,
 ): number {
   const config = SPECIES_CONFIG[predatorType];
-  return config?.energyGain[preyKey] ?? 0;
+  return config?.energyGain[preyKey] ?? fallback;
 }

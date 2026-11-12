@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { addResource } from '../src/game/resourceUtils';
 import { recordYearlyStats, updateLifetimeStats } from '../src/game/stats';
+import { EntityType } from '../src/game/gameTypes';
+import { isPlayerHuman } from '../src/game/playerHuman';
 
 const FIXTURE_SEED = 20_260_929;
 
@@ -71,5 +73,57 @@ describe('the most productive year is settled at the year boundary', () => {
     const lifetime = updateLifetimeStats(state, state.lifetimeStats);
 
     expect(lifetime.mostProductiveYear).toEqual({ year: 0, buildings: 0 });
+  });
+});
+
+describe('lifetime births and deaths stay monotonic past the 50-year window', () => {
+  it('carries the newest year forward instead of re-deriving a shrinking window', () => {
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
+    const yearStat = (year: number) => ({
+      ...recordYearlyStats(state, year),
+      year,
+      births: { humans: 2, animals: 0 },
+      deaths: { humans: 1, animals: 0 },
+    });
+    state.yearlyStats = Array.from({ length: 50 }, (_, year) => yearStat(year));
+
+    const before = updateLifetimeStats(state, state.lifetimeStats);
+    expect(before.totalHumansBorn).toBe(100);
+    expect(before.totalHumansDied).toBe(50);
+
+    // The year rollover pushes the closing year, then `gameTick` drops the oldest of the 50.
+    state.yearlyStats.push(yearStat(50));
+    if (state.yearlyStats.length > 50) state.yearlyStats.shift();
+    const after = updateLifetimeStats(state, before);
+
+    expect(after.totalHumansBorn).toBe(102);
+    expect(after.totalHumansDied).toBe(51);
+  });
+});
+
+describe('the longest life belongs to a player settler', () => {
+  it('never credits a rival human with more years', () => {
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
+    for (const entity of state.entities) {
+      if (entity.type === EntityType.Human && isPlayerHuman(entity)) entity.age = 30;
+    }
+    const player = state.entities.find((entity) => entity.type === EntityType.Human && isPlayerHuman(entity))!;
+    player.age = 40;
+    player.name = 'Mara';
+    player.surname = 'Vale';
+    state.entities.push({
+      ...player,
+      id: state.nextEntityId++,
+      age: 99,
+      name: 'Rival',
+      surname: 'Camp',
+      faction: 'rival',
+      alive: true,
+    });
+
+    const lifetime = updateLifetimeStats(state, state.lifetimeStats);
+
+    expect(lifetime.longestLivingHuman.age).toBe(40);
+    expect(lifetime.longestLivingHuman.name).not.toContain('Rival');
   });
 });

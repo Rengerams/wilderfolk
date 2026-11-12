@@ -1,6 +1,7 @@
 /**
  * The Wildkin is the apex creature and half human: it eats meat, is not counted as grazer grass
- * demand, and the chronicle names its place at birth, death and a settlement sighting.
+ * demand, hunts valid prey in the wildlife tick, and the chronicle names its place at birth, death
+ * and a settlement sighting.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -16,11 +17,12 @@ import {
   describeWildkinPlace,
   isWildkinNearSettlement,
   logWildkinBirth,
-  logWildkinDeath,
   tickWildkinChronicle,
   WILDKIN_SETTLEMENT_RANGE_WU,
 } from '../src/game/wildkinChronicle';
 import { createEntity } from '../src/game/entityFactory';
+import { tickWildlife } from '../src/game/tickLayerSystems';
+import { rebuildPredators } from '../src/game/tickLayerRealtime';
 
 function world(seed = 7): WorldState {
   const state = initGame({ villageName: 'Testholm', size: 'medium', seed });
@@ -118,6 +120,78 @@ describe('the Wildkin is not a grazer in the ecology totals', () => {
   });
 });
 
+describe('the Wildkin hunts as an apex predator in the wildlife tick', () => {
+  // One world for the block: `tickWildlife` only needs map bounds and a calendar reading.
+  const state = world();
+
+  it('is on the tick predator roster', () => {
+    const hunter = wildkin(500, 500, 700);
+    expect(rebuildPredators(ctxFor(state, [hunter]).byType)).toContain(hunter);
+  });
+
+  it('does not graze: a hungry Wildkin beside grass loses energy and leaves the grass untouched', () => {
+    const hunter = wildkin(500, 500, 701);
+    hunter.energy = 100;
+    const grass = createEntity(EntityType.Grass, 506, 500, 702, 80);
+    const ctx = ctxFor(state, [hunter, grass]);
+    ctx.predators = [hunter];
+
+    let lastEnergy = hunter.energy;
+    for (let i = 0; i < 5; i++) {
+      tickWildlife(state, ctx);
+      expect(Number.isFinite(hunter.energy)).toBe(true);
+      expect(hunter.energy).toBeLessThan(lastEnergy);
+      lastEnergy = hunter.energy;
+    }
+
+    expect(grass.energy).toBe(80);
+  });
+
+  it('starves to death beside grass instead of becoming an immortal NaN', () => {
+    const hunter = wildkin(500, 500, 707);
+    hunter.energy = 2;
+    const grass = createEntity(EntityType.Grass, 502, 500, 708, 80);
+    const ctx = ctxFor(state, [hunter, grass]);
+    ctx.predators = [hunter];
+
+    tickWildlife(state, ctx);
+    expect(Number.isFinite(hunter.energy)).toBe(true);
+    expect(hunter.alive).toBe(true);
+
+    tickWildlife(state, ctx);
+    expect(Number.isFinite(hunter.energy)).toBe(true);
+    expect(hunter.alive).toBe(false);
+  });
+
+  it('acquires a valid prey target within its hunt range', () => {
+    const hunter = wildkin(500, 500, 703);
+    hunter.energy = 100;
+    const rabbit = createEntity(EntityType.Rabbit, 560, 500, 704);
+    const ctx = ctxFor(state, [hunter, rabbit]);
+    ctx.predators = [hunter];
+
+    tickWildlife(state, ctx);
+
+    expect(hunter.huntTargetId).toBe(rabbit.id);
+    expect(Number.isFinite(hunter.energy)).toBe(true);
+  });
+
+  it('gains finite energy when it catches valid prey', () => {
+    const hunter = wildkin(500, 500, 705);
+    hunter.energy = 100;
+    const rabbit = createEntity(EntityType.Rabbit, 502, 500, 706);
+    const ctx = ctxFor(state, [hunter, rabbit]);
+    ctx.predators = [hunter];
+
+    tickWildlife(state, ctx);
+
+    expect(rabbit.alive).toBe(false);
+    expect(hunter.energy).toBeGreaterThan(100);
+    expect(Number.isFinite(hunter.energy)).toBe(true);
+    expect(hunter.energy).toBeLessThanOrEqual(hunter.maxEnergy);
+  });
+});
+
 describe('the Wildkin is half human, so the chronicle says where it is', () => {
   // One world for the whole block: `initGame` costs seconds, and every case below only needs the
   // settlement anchor and a clean chronicle, both reset here.
@@ -180,6 +254,21 @@ describe('the Wildkin is half human, so the chronicle says where it is', () => {
     );
     expect(sightings).toHaveLength(1);
     expect(sightings[0]?.message).toContain('in the ');
+  });
+
+  it('keeps a sighting announced when a story command clones the world', () => {
+    const near = wildkin(128 + WILDKIN_SETTLEMENT_RANGE_WU - 1, 96, 607);
+    const settler = createEntity(EntityType.Human, 128, 96, 608, 100);
+    state.entities = [near, settler];
+    tickWildkinChronicle(state, {});
+
+    const milestones = (world: WorldState) =>
+      world.eventLog.filter((event) => event.type === 'milestone' && event.message.includes('Wildkin'));
+    expect(milestones(state)).toHaveLength(1);
+
+    const cloned = structuredClone(state);
+    tickWildkinChronicle(cloned, {});
+    expect(milestones(cloned)).toHaveLength(1);
   });
 
   it('stays silent for a Wildkin that keeps to the wilds', () => {

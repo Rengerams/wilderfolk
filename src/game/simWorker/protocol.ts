@@ -19,6 +19,19 @@ export function workerProtoMismatch(got: unknown): string {
   return `Worker protocol mismatch: expected ${WORKER_PROTO}, got ${String(got)}`;
 }
 
+/**
+ * Checks the build version the worker reported against the host's. A worker from another build can
+ * speak the protocol but not restore this world, so the handshake refuses it by name.
+ */
+export function isWorkerSimVersion(got: unknown, expected: string): got is string {
+  return got === expected;
+}
+
+/** Named refusal for the version half of the handshake. */
+export function workerSimVersionMismatch(expected: string, got: unknown): string {
+  return `Worker simulation version mismatch: expected ${expected}, got ${String(got)}`;
+}
+
 /** Viewport region receiving full simulation this tick – extracted here so the contract stays pure. */
 export interface SimulationFocus {
   minX: number;

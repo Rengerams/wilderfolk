@@ -9,6 +9,7 @@ import type { PopulationCounts } from '../src/game/entityCounts';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { EntitySpatialGrid } from '../src/game/spatialGrid';
 import { tickDailyPopulation } from '../src/game/dailyPopulation';
+import { buildingAccessPoint } from '../src/game/buildingAccess';
 import { getOpenPlayerBeds } from '../src/game/populationGrowth';
 import { getResidenceCapacity } from '../src/game/housingModel';
 import { getSimRng, resetSimRng, setSimSeed } from '../src/game/simRng';
@@ -167,5 +168,22 @@ describe('daily immigration and the spatial grid (F6)', () => {
     expect(state.entities).toContain(newcomer);
     expect(ctx.entityById.get(newcomer!.id)).toBe(newcomer);
     expect(state.eventLog.some((e) => e.message.includes('arrived'))).toBe(true);
+  });
+
+  it('announces the newcomer at the home doorway, not half a footprint south-east', () => {
+    const { state, ctx, allAlive, counts } = fixture();
+    const home = state.buildings[0];
+
+    setSimSeed(seedAdmittingSettler());
+    tickDailyPopulation(state, ctx, allAlive, counts);
+
+    const door = buildingAccessPoint(home, null);
+    const pin = state.floatingTexts.at(-1)!;
+    // `home.x/y` is the footprint centre, so the old `x + width/2, y + height/2` arrival pin sat on
+    // the south-east corner instead of the frontage the settler walks to.
+    expect({ x: pin.x, y: pin.y }).toEqual({ x: door.x, y: door.y - 18 });
+    expect(state.notifications.at(-1)?.focus).toEqual({ x: door.x, y: door.y });
+    expect(door.x).toBe(home.x);
+    expect(door.y).toBeGreaterThan(home.y);
   });
 });

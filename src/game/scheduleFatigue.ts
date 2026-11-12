@@ -108,6 +108,48 @@ export function getScheduleLastWorkedHours(entity: Pick<Entity, 'scheduleLastWor
 }
 
 /**
+ * What a settled day earned one worker: the ticks a production pass may pay for, and the site they
+ * belong to (`-1` when the settler changed sites mid-day, `undefined` when none was recorded).
+ */
+export interface WorkdayAttendance {
+  ticks: number;
+  siteId: number | undefined;
+}
+
+/**
+ * The attendance a shift really earned today — the single rule a production pass reads.
+ *
+ * A positive rota tick means presence was sampled on it (`humanTick` credits both in the same
+ * branch), so a scheduled crew is paid for its witnessed ticks even when that number is zero: a
+ * settler who never reached the post earns nothing. Schedule hours only stand in for a shift no
+ * fixed post can witness (a mobile hunter, whose work is the field) or for a day with no positive
+ * rota/presence sample at all (a legacy save, a non-workday, or a shift that has not started yet).
+ */
+export function getWorkdayAttendance(
+  worker: Pick<Entity, 'schedulePresentTicksToday' | 'schedulePresentSiteIdToday'
+    | 'scheduleWorkedTicksToday' | 'scheduleWorkedSiteIdToday'
+    | 'scheduleLastWorkedSiteId' | 'scheduleLastWorkedHours'>,
+  /** A mobile shift is never witnessed at a fixed post, so its schedule hours are its attendance. */
+  mobileShift = false,
+): WorkdayAttendance {
+  const worked = worker.scheduleWorkedTicksToday;
+  const present = worker.schedulePresentTicksToday;
+  if (mobileShift) {
+    if (worked != null) return { ticks: worked, siteId: worker.scheduleWorkedSiteIdToday };
+    if (present != null) {
+      return { ticks: present, siteId: present > 0 ? worker.schedulePresentSiteIdToday : undefined };
+    }
+  } else if ((worked ?? 0) > 0 || (present ?? 0) > 0) {
+    const ticks = present ?? 0;
+    return { ticks, siteId: ticks > 0 ? worker.schedulePresentSiteIdToday : undefined };
+  }
+  return {
+    ticks: (worker.scheduleLastWorkedHours ?? 0) * TICKS_PER_HOUR,
+    siteId: worker.scheduleLastWorkedSiteId,
+  };
+}
+
+/**
  * The share of a workplace's configured window its crew actually put in — the single rule behind both
  * real production and the workshop estimate. No attendance credit means no production.
  */

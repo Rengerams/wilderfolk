@@ -27,17 +27,18 @@ describe('L30 — grazing demand reaches the winter penalty', () => {
   });
 
   it('uses the owner rule per species instead of an inline metabolism sum', () => {
-    const winter = getGrazingPressureReport(worldWithGrazers(Season.Winter));
-    // Grazers only: the Wildkin eats meat (`speciesConfig`), so its 2 must not appear in the
-    // pasture's demand — its count still travels on the report.
+    const state = worldWithGrazers(Season.Winter);
+    const winter = getGrazingPressureReport(state);
+    // Grazers only: the Wildkin eats meat (`speciesConfig`), so its count travels on the report but
+    // never enters the pasture's demand.
     const expected =
       getGrazerDailyDemand('deer', Season.Winter) * 6 +
       getGrazerDailyDemand('rabbit', Season.Winter) * 4;
 
     expect(winter.grazingDemandPerDay).toBe(Math.round(expected));
     expect(winter.wildkinCount).toBe(2);
-    expect(winter.grazingDemandPerDay).toBeLessThan(
-      Math.round(expected + getGrazerDailyDemand('wildkin', Season.Winter) * 2),
-    );
+
+    state.wildlifeCounts.wildkin = 20;
+    expect(getGrazingPressureReport(state).grazingDemandPerDay).toBe(Math.round(expected));
   });
 });

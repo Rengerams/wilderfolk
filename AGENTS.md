@@ -55,7 +55,7 @@ This is an aid to judgment, **not** a requirement to choose the fewest changes.
 
 ### 3.1 Mandatory discovery before adding or changing a function
 
-1. Search `OWNERSHIP_OVERVIEW.md` for the function, owning module and responsibility.
+1. Search `OWNERSHIP_OVERVIEW.md` for the function, owning module and responsibility. (D:\wilderfolk\ownership_overview.md)
 2. Search the repository by behavior, synonyms, related types, call sites and known entrypoints (`rg`/`grep` when available).
 3. Inspect `src/game/simulation/decisionRegistry.ts` for gameplay decision authority and permitted writes.
 4. Trace the current path from caller to owner and from the owner to state and UI.
@@ -244,7 +244,7 @@ Ownership: named functions checked/registered; decision registry changed or not 
 Verification: exact commands/results; pending/blocked checks clearly marked.
 Bug reports: new N; updated existing N; links or none.
 Other findings: real risks, better alternatives, or issues outside this change.
-Cleanup: temporary files and local changes created/removed, or none.
+Cleanup: temporary files and local changes created/removed, or none. leave nothing behind on the computer.
 ~~~
 
 Do not claim implementation, merging or CI success before it happened. Do not hide blockers; do not bury the useful design insight behind a long test log.
@@ -256,5 +256,7 @@ Do not claim implementation, merging or CI success before it happened. Do not hi
 Be curious, candid and inventive. Treat Wilderfolk as a complete simulation, not a collection of disconnected files. The owner wants a partner who notices when the architecture can be better, explains what will make the game stronger and has the confidence to recommend it.
 
 **Do not aim for the smallest solution. Aim for the right solution—with one owner, one source of truth, one coherent pipeline and just enough verification to trust it.**
+
+**Tell me always the truth**
 
 — The developer

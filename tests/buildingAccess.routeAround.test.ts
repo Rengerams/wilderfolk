@@ -113,6 +113,27 @@ describe('a settler reaches a building from every side', () => {
     }
   });
 
+  it('probes one building once per grid generation and re-probes when the grid changes', () => {
+    const map = testWorldMap({ tilesX: 60, tilesY: 60 });
+    const home = building(12, BuildingType.House, {
+      x: 300, y: 300, width: 60, height: 60, occupants: [1],
+    });
+    setCurrentPathMap(map, [home]);
+    try {
+      const first = buildingAccessPoints(home);
+      expect(buildingAccessPoints(home), 'the per-tick read reuses the probe').toBe(first);
+
+      // A wall changes the passability grid, so the owner must probe again and close the south side.
+      const southWall = building(13, BuildingType.Wall, { x: 300, y: 340, width: 60, height: 20 });
+      setCurrentPathMap(map, [home, southWall]);
+      const afterWall = buildingAccessPoints(home);
+      expect(afterWall).not.toBe(first);
+      expect(afterWall.map((point) => point.side)).not.toContain('south');
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
   it('keeps the south facade closed while allowing an approach from an unobstructed side', () => {
     const map = testWorldMap({ tilesX: 60, tilesY: 60 });
     const home = building(12, BuildingType.House, {

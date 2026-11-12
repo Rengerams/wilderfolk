@@ -31,7 +31,7 @@ export interface GameMenuSettingsCallbacks {
   onSave: () => void;
   onLoad: () => void;
   onLoadImported: () => void;
-  onLoadFromFile: (jsonText: string) => void;
+  onLoadFromFile: (file: File) => void;
   onReplayIntro: () => void;
   onToggleAutoSave: () => void;
   onToggleTutorials: () => void;
@@ -254,27 +254,28 @@ export default function GameMenu({
   }, [view, close]);
   useOverlayKeyboard('game-menu', handleEscape, open);
 
-  // Keyboard navigation: the Focus Trap (Escape is the hook's job, above).
+  // Keyboard navigation: the Focus Trap (Escape is the hook's job, above). The query is the
+  // canonical focusable list, so every control Tab can reach is also a wrap point.
   useEffect(() => {
     if (!open) return;
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Tab' && panelRef.current) {
-        const focusable = panelRef.current.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusable.length === 0) return;
+      const panel = panelRef.current;
+      if (e.key !== 'Tab' || !panel) return;
+      if (!panel.contains(document.activeElement)) return;
 
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
+      const focusable = getFocusableElements(panel);
+      if (focusable.length === 0) return;
 
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     };
 
@@ -290,7 +291,7 @@ export default function GameMenu({
       <div
         ref={panelRef}
         role="dialog"
-        aria-modal="false"
+        aria-modal="true"
         aria-label="Game menu"
         className={`fixed z-[200] ${panelWidth} flex max-h-[min(75vh,560px)] flex-col overflow-hidden rounded-xl border border-stone-600 bg-stone-900 shadow-2xl`}
         style={{ top: anchor.top, right: anchor.right }}
@@ -327,7 +328,7 @@ export default function GameMenu({
                 <MenuAction
                   icon="💾"
                   label="Save game"
-                  hint="Download .json — your saves live outside the browser"
+                  hint="Download .json and update the browser quick-save"
                   onClick={() => { onSave(); close(); }}
                 />
                 <MenuAction
@@ -366,19 +367,8 @@ export default function GameMenu({
                     const file = e.target.files?.[0];
                     e.target.value = '';
                     if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      const text = typeof reader.result === 'string' ? reader.result : '';
-                      if (text.trim()) {
-                        onLoadFromFile(text);
-                        close();
-                      }
-                    };
-                    reader.onerror = () => {
-                      console.error('Failed to read save file');
-                      close();
-                    };
-                    reader.readAsText(file);
+                    onLoadFromFile(file);
+                    close();
                   }}
                 />
                 {showDesktopExit && (

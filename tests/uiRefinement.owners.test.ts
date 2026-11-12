@@ -27,25 +27,27 @@ function completedPlayerHouse(id: number): Building {
 }
 
 describe('R1 — the unmount save never writes a colony no loop owns', () => {
-  it('guards the unmount cleanup on the loop ref', () => {
+  it('routes the unmount cleanup through the guarded session-stop save', () => {
     const src = read('src/hooks/useGamePersistence.ts');
+    // The teardown owner is now `persistOnSessionStop`; the cleanup must call that one owner.
     const effect = src.match(
-      /useEffect\(\(\) => \{\s*return \(\) => \{([\s\S]*?)\};\s*\}, \[loopRef\]\);/,
+      /useEffect\(\(\) => \{\s*return \(\) => \{\s*void persistOnSessionStop\(\);\s*\};\s*\}, \[persistOnSessionStop\]\);/,
     );
-    expect(effect, 'fixture premise: the unmount-save effect exists').not.toBeNull();
-    // The cleanup reads the loop ref into a local and gates the exit save on it: return
-    // before saving when no loop owns a colony (StrictMode mounts twice).
-    const body = effect?.[1] ?? '';
-    expect(body, 'the cleanup reads the loop ref into a local').toContain('const loop = loopRef.current;');
-    const guard = body.match(/if\s*\(\s*!loop\s*\|\|\s*isCrashRecoveryActive\(\)\s*\)\s*return;/);
-    expect(
-      guard,
-      'unmount must skip saving without a loop or during crash recovery',
-    ).not.toBeNull();
+    expect(effect, 'fixture premise: the unmount-save effect calls the guarded owner').not.toBeNull();
+
+    // The guard moved into the owner, which still reads the loop ref and skips without one.
+    const owner = src.match(
+      /const persistOnSessionStop = useCallback\(\(\): Promise<boolean> => \{([\s\S]*?)\n  \}, \[loopRef, persistCurrentGame\]\);/,
+    );
+    expect(owner, 'the guarded session-stop owner exists').not.toBeNull();
+    const body = owner?.[1] ?? '';
+    expect(body, 'the owner reads the loop ref into a local').toContain('const loop = loopRef.current;');
+    const guard = body.match(/if\s*\(\s*!loop[\s\S]*?\)\s*return Promise\.resolve\(false\);/);
+    expect(guard, 'the owner skips saving without a loop or during crash recovery').not.toBeNull();
     expect(
       guard?.index ?? Infinity,
-      'the unmount cleanup saves before its loop/crash guard',
-    ).toBeLessThan(body.indexOf('persistCurrentGameRef'));
+      'the owner guards before it persists',
+    ).toBeLessThan(body.indexOf('persistCurrentGame('));
   });
 });
 

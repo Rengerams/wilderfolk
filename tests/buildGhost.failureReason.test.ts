@@ -6,7 +6,11 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { initGame } from '../src/game/worldGen';
-import { getPlaceBuildingFailureReason, startBuilding } from '../src/game/buildingPlacementActions';
+import {
+  getPlaceBuildingFailureReason,
+  isUniqueBuildingAlreadyBuilt,
+  startBuilding,
+} from '../src/game/buildingPlacementActions';
 import { getBuildingFootprintForType } from '../src/game/buildingRotation';
 import { createBuildGhost, createInitialView } from '../src/game/viewState';
 import {
@@ -14,6 +18,7 @@ import {
   getPlaceBuildingFailureLabel,
   type PlaceBuildingFailureReason,
 } from '../src/game/buildingPlacementLabels';
+import { canPlaceBuilding } from '../src/game/placementUtils';
 import { buildRenderSnapshot } from '../src/game/renderSnapshot';
 import { rebakeTerrainGrids, setTileOverride, tileAt, worldToTile } from '../src/game/terrain/terrainGrid';
 import {
@@ -22,6 +27,7 @@ import {
   MapSize,
   PATH_CELL,
   TerrainType,
+  type Building,
   type WorldState,
 } from '../src/game/gameTypes';
 
@@ -77,6 +83,32 @@ function unlock(world: WorldState, type: BuildingType): void {
   for (const node of world.researchNodes) {
     if (node.id === requirement) node.researched = true;
   }
+}
+
+/** A standing building of `type`, optionally owned by a rival camp. */
+function standingBuilding(
+  id: number,
+  type: BuildingType,
+  faction: Building['faction'] = undefined,
+): Building {
+  const config = BUILDING_CONFIGS[type];
+  return {
+    id,
+    type,
+    x: 120,
+    y: 120,
+    width: config.width,
+    height: config.height,
+    occupants: [],
+    level: 1,
+    constructionProgress: 100,
+    completed: true,
+    health: 100,
+    maxHealth: 100,
+    spriteScale: 1,
+    buildAnimTimer: 0,
+    faction,
+  } as Building;
 }
 
 describe('F5 — the ghost carries the owner reason', () => {
@@ -187,6 +219,66 @@ describe('F5 — the game layer words each reason', () => {
     expect(node, 'the fixture must know the tech the bridge waits on').toBeDefined();
     expect(getPlaceBuildingFailureLabel(BuildingType.Bridge, reason!, world.researchNodes))
       .toContain(node!.name);
+  });
+});
+
+describe('F5 — one placement decision and one label owner', () => {
+  it('does not let a rival structure hold the player’s one-per-village slot', () => {
+    const world = initGame({ size: MapSize.Medium });
+    world.buildings.push(standingBuilding(901, BuildingType.Church, 'rival'));
+    expect(isUniqueBuildingAlreadyBuilt(world, BuildingType.Church)).toBe(false);
+    expect(getPlaceBuildingFailureReason(world, BuildingType.Church, 1200, 900, 0)).not.toBe('unique');
+
+    world.buildings.push(standingBuilding(902, BuildingType.Church));
+    expect(isUniqueBuildingAlreadyBuilt(world, BuildingType.Church)).toBe(true);
+  });
+
+  it('words a commit refusal through the label owner', () => {
+    const world = initGame({ size: MapSize.Medium });
+    unlock(world, BuildingType.Bridge);
+    // A dry flat spot refuses the bridge on its terrain rule; the floating text is the owner's word.
+    const spot = findSpot(world, BuildingType.Farm);
+    const before = world.floatingTexts.length;
+    const after = startBuilding(world, BuildingType.Bridge, spot.x, spot.y, 0);
+
+    const reason = getPlaceBuildingFailureReason(world, BuildingType.Bridge, spot.x, spot.y, 0);
+    expect(reason).toBe('terrain');
+    const label = getPlaceBuildingFailureLabel(BuildingType.Bridge, reason!, after.researchNodes);
+    expect(label).toBe('Must span river water');
+    expect(after.floatingTexts.length, 'the refusal is shown').toBeGreaterThan(before);
+    expect(after.floatingTexts[after.floatingTexts.length - 1]?.text).toBe(label);
+  });
+
+  it('the renderer snapshot asks the same owner for the same answer', () => {
+    const world = initGame({ size: MapSize.Medium });
+    const spot = findSpot(world, BuildingType.Farm);
+    const view = createInitialView(world.width, world.height);
+
+    const agrees = (state: WorldState, type: BuildingType, x: number, y: number): boolean => {
+      const accepted = getPlaceBuildingFailureReason(state, type, x, y, 0) === null;
+      return canPlaceBuilding(buildRenderSnapshot(state, view), type, x, y, 0) === accepted;
+    };
+
+    expect(agrees(world, BuildingType.Farm, spot.x, spot.y)).toBe(true);
+    // Dry ground refuses the dock for the same reason the owner names.
+    expect(agrees(world, BuildingType.FishingSpot, spot.x, spot.y)).toBe(true);
+    // The map edge is out of bounds for both.
+    expect(agrees(world, BuildingType.Farm, 2, 2)).toBe(true);
+    const placed = startBuilding(world, BuildingType.Farm, spot.x, spot.y, 0);
+    // The placed farm now overlaps the same spot for both.
+    expect(agrees(placed, BuildingType.Farm, spot.x, spot.y)).toBe(true);
+  });
+
+  it('refuses an unknown building type instead of throwing', () => {
+    const unknown = 'not_a_building' as BuildingType;
+    const world = initGame({ size: MapSize.Medium });
+    const snapshot = buildRenderSnapshot(world, createInitialView(world.width, world.height));
+
+    expect(() => getBuildingFootprintForType(unknown)).not.toThrow();
+    expect(getBuildingFootprintForType(unknown)).toEqual({ width: 32, height: 32 });
+    expect(getPlaceBuildingFailureLabel(unknown, 'research')).toBe(PLACEMENT_FAILURE_LABELS.research);
+    expect(() => canPlaceBuilding(snapshot, unknown, 400, 400, 0)).not.toThrow();
+    expect(getPlaceBuildingFailureReason(world, unknown, 400, 400, 0)).not.toBe('unique');
   });
 });
 

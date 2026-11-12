@@ -3,6 +3,8 @@
  * Marks are never inherited, never rerolled and never a second genetics source.
  */
 import { getSimRng, type RngStream } from './simRng';
+import type { Entity } from './gameTypes';
+import { PROFILE_REVISION, bumpRevision } from './entityRevision';
 
 export const PERSONAL_MARK_IDS = ['lucky', 'pretty', 'scarred', 'sickly'] as const;
 
@@ -73,7 +75,7 @@ export function hasMark(carrier: MarkCarrier | null | undefined, id: PersonalMar
  * a repeated event can never stack or duplicate a settler's marks.
  */
 export function grantMark(
-  carrier: MarkCarrier,
+  carrier: Entity,
   id: PersonalMarkId,
   day: number,
   source: PersonalMarkSource,
@@ -83,6 +85,8 @@ export function grantMark(
   const existing = marksOf(carrier);
   if (existing.some((mark) => mark.id === id)) return false;
   carrier.marks = [...existing, Object.freeze({ id, day, source })];
+  // `marks` is a profile field the delta omits until its revision changes.
+  bumpRevision(carrier, PROFILE_REVISION);
   return true;
 }
 
@@ -121,12 +125,12 @@ export function normalizeMarks(value: unknown): PersonalMark[] | undefined {
 export type SurvivalOutcome = 'victory' | 'costly' | 'moderate' | 'heavy';
 
 /** A repelled raid blesses every survivor; being mauled and living leaves a scar. */
-export function awardRaidSurvivalMark(carrier: MarkCarrier, outcome: SurvivalOutcome, day: number): void {
+export function awardRaidSurvivalMark(carrier: Entity, outcome: SurvivalOutcome, day: number): void {
   if (outcome === 'victory') grantMark(carrier, 'lucky', day, 'raidVictory');
   else if (outcome === 'costly' || outcome === 'heavy') grantMark(carrier, 'scarred', day, 'raidWound');
 }
 
 /** Emptied a rare bush: the one small windfall the world already hands out. */
-export function awardRareWindfallMark(carrier: MarkCarrier, day: number): void {
+export function awardRareWindfallMark(carrier: Entity, day: number): void {
   grantMark(carrier, 'lucky', day, 'rareWindfall');
 }

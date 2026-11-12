@@ -1,6 +1,5 @@
 import ambientDialogueJson from './data/dialogue/ambient.json' with { type: 'json' };
 import spotlightPresentationJson from './data/dialogue/spotlight-lore.json' with { type: 'json' };
-import { readUtf8RelativeToModule } from './nodeRuntime';
 
 import { seededRandomForRun } from './simRng';
 import { PER_TICK_RATE_SCALE, TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycleClock';
@@ -153,10 +152,6 @@ const DIALOGUE_SOURCE_FILES: readonly DialogueSourceFile[] = [
   ambientDialogueJson as unknown as DialogueSourceFile,
 ];
 
-const DIALOGUE_SOURCE_FILE_NAMES = [
-  'dialogue/ambient.json',
-] as const;
-
 function isDialogueCategory(value: string): value is DialogueCategory {
   return (DIALOGUE_CATEGORIES as readonly string[]).includes(value);
 }
@@ -215,24 +210,6 @@ export const canonicalDialogueBank = buildCanonicalDialogueBank(DIALOGUE_SOURCE_
 let bank: DialogueBankFile | null = null;
 let treesById = new Map<string, DialogueTree>();
 let treesByEvent = new Map<string, readonly DialogueTree[]>();
-let loadPromise: Promise<void> | null = null;
-
-/** Headless sims/tests can read the same split sources from disk if imports are unavailable. */
-async function loadDialogueFromDisk(): Promise<boolean> {
-  try {
-    const rawSources = await Promise.all(
-      DIALOGUE_SOURCE_FILE_NAMES.map((fileName) => readUtf8RelativeToModule(import.meta.url, 'data', fileName)),
-    );
-    if (rawSources.some((source) => !source)) return false;
-    const parsedSources = rawSources.map((source) => JSON.parse(source!) as DialogueSourceFile);
-    indexDialogueBank(buildCanonicalDialogueBank(parsedSources));
-    return true;
-  } catch {
-    // 🛡️ ROBUSTNESS: Gracefully fail and fall back to bundled JSON if disk reading 
-    // throws (e.g., in browser environments where readUtf8RelativeToModule is unavailable).
-    return false;
-  }
-}
 
 function indexDialogueBank(next: DialogueBankFile): void {
   if (next.version !== DIALOGUE_SCHEMA_VERSION) {
@@ -297,20 +274,10 @@ export function installDialogueBankPayload(payload: DialogueBankFile): void {
   indexDialogueBank(payload);
 }
 
-/** Load the canonical split dialogue bank on demand. */
+/** Await the bundled dialogue bank; the static bundle is the only content source. */
 export async function preloadDialogueBank(): Promise<void> {
-  if (isDialogueBankReady()) return;
-  if (await loadDialogueFromDisk()) return;
-  
-  if (!loadPromise) {
-    loadPromise = Promise.resolve().then(() => {
-      indexDialogueBank(canonicalDialogueBank);
-    });
-  }
-  await loadPromise;
-  
-  if (!isDialogueBankReady()) {
-    throw new Error('Dialogue bank failed to load from split category files');
+  if (!ensureDialogueBankFromBundle()) {
+    throw new Error('Dialogue bank failed to install from the bundled split sources');
   }
 }
 
@@ -542,6 +509,20 @@ export interface DialogueRequest {
   roles?: readonly string[];
 }
 
+/** A settler keeps only this many distinct recent lines, so a silent settler's history stays bounded. */
+const MAX_DIALOGUE_RECENT_LINES = 48;
+
+function rememberDialogueLine(who: ChatSpeaker, key: string, tick: number): void {
+  const recent = (who.dialogueRecentLines ??= {});
+  recent[key] = tick;
+  const keys = Object.keys(recent);
+  if (keys.length <= MAX_DIALOGUE_RECENT_LINES) return;
+  keys.sort((a, b) => (recent[a] ?? 0) - (recent[b] ?? 0));
+  for (let index = 0; index < keys.length - MAX_DIALOGUE_RECENT_LINES; index++) {
+    delete recent[keys[index]!];
+  }
+}
+
 export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
   const { eventKey, speaker, tick } = request;
   const partner = request.partner ?? null;
@@ -601,8 +582,10 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
     && tick - last.tick < TICKS_PER_DAY * 3;
   if (!explicit && choices.length === 1 && request.priority !== 'scripted'
     && recentlySpoken) return false;
-  const roll = request.selectionRoll ?? (request.treeId ? 0
-    : seededRandomForRun('dialogue-content:' + eventKey + ':' + speaker.id + ':' + (partner?.id ?? 0) + ':' + tick));
+  const suppliedRoll = request.selectionRoll;
+  const roll = typeof suppliedRoll === 'number' && Number.isFinite(suppliedRoll) ? suppliedRoll
+    : (request.treeId ? 0
+      : seededRandomForRun('dialogue-content:' + eventKey + ':' + speaker.id + ':' + (partner?.id ?? 0) + ':' + tick));
   const initialIndex = Math.max(0, Math.min(selectionPool.length - 1, Math.floor(roll * selectionPool.length)));
   const selected = explicit ?? selectionPool[lastIndex >= 0 && selectionPool.length > 1
     ? (lastIndex + 1) % selectionPool.length : initialIndex]!;
@@ -619,14 +602,33 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
   startDialogueTreeChat(swapped ? partner! : speaker, swapped ? speaker : partner,
     tree, mode === 'solo', request.durationHours);
   if (!request.treeId) {
-    (speaker.dialogueRecentScenes ??= {})[historyKey] = { id: selected.id, tick };
+    const scene = { id: selected.id, tick };
+    (speaker.dialogueRecentScenes ??= {})[historyKey] = scene;
+    // The partner owns the same scene, so a per-person per-day scene gate must see it too.
+    if (partner) (partner.dialogueRecentScenes ??= {})[historyKey] = scene;
   }
   for (const line of selected.lines) {
     const who = whoSays(selected, line);
     if (!who) continue;
-    (who.dialogueRecentLines ??= {})[lineKey(line.text)] = tick;
+    rememberDialogueLine(who, lineKey(line.text), tick);
   }
   return true;
+}
+
+/** Whether `who` already owns a scene from one of these event families on the colony day of `tick`. */
+export function hasDialogueSceneOnDay(
+  who: ChatSpeaker,
+  tick: number,
+  eventKeys: readonly DialogueEventKey[],
+): boolean {
+  const scenes = who.dialogueRecentScenes;
+  if (!scenes) return false;
+  const day = Math.floor(tick / TICKS_PER_DAY);
+  for (const [key, scene] of Object.entries(scenes)) {
+    if (Math.floor(scene.tick / TICKS_PER_DAY) !== day) continue;
+    if (eventKeys.some((eventKey) => key.startsWith(eventKey + ':'))) return true;
+  }
+  return false;
 }
 
 /** Pick an existing event context; use a specific scene only when its role requirements are met. */
@@ -660,6 +662,14 @@ function contextualAmbientScene(
   }
   if (context === 'food' && options.foodLow) {
     return { eventKey: 'famine.hunger' };
+  }
+  if (context === 'bad_weather') {
+    // The weather scenes are authored solo; a companion falls back to ordinary social lines.
+    if (partner) return { eventKey: 'ambient.social' };
+    const kind = options.weather === 'storm' ? 'storm'
+      : options.weather === 'snow' ? 'snow'
+        : options.weather === 'drought' ? 'drought' : 'rain';
+    return { eventKey: `social.impulse.bad_weather.${kind}` as const };
   }
   if (context === 'home') {
     if (partner && entity.childrenIds?.includes(partner.id)) {
@@ -733,7 +743,7 @@ export function pickRandomChatContext(
   if (extra?.renffr) pool.push('renffr', 'renffr');
   if (extra?.workHour) pool.push('work', 'work');
   if (extra?.night) pool.push('home', 'sleep', 'sleep');
-  if (options.weather === 'rain' || options.weather === 'storm') pool.push('winter');
+  if (options.weather === 'rain' || options.weather === 'storm') pool.push('bad_weather');
   return pool[Math.floor(seededRandomForRun(`chat-context:${entity.id}:${tick}`) * pool.length)]!;
 }
 

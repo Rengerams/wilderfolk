@@ -227,8 +227,8 @@ export default function CitizenOverviewScreen({
             <StatusCard
               icon="⚒️"
               label="Work"
-              value={`${overview.working}/${overview.adults || 0}`}
-              detail={`${overview.idle} idle`}
+              value={`${villageStats.working}/${villageStats.workforce || 0}`}
+              detail={`${villageStats.idle} idle`}
               tone={hasManyAdultsIdle(overview) ? 'warn' : 'good'}
             />
             <StatusCard

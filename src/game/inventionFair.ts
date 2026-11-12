@@ -12,7 +12,7 @@ import { addCappedResource, consumeResources, deductResource, canAfford } from '
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
-import { getSimRng, personDayRoll } from './simRng';
+import { getSimRng, getSimSeed, personDayRoll } from './simRng';
 import { crowdGatherPosition } from './simulation/humanMovement';
 import { isGroundWalkableAt } from './pathfinding';
 
@@ -87,7 +87,7 @@ function findApprentice(state: WorldState): { id: number; name: string } | null 
 export function maybeOfferInventionFair(state: WorldState): void {
   if (storyFlag(state, FLAG_OFFERED) > 0 || state.inventionFair) return;
   const colonyDay = getColonyDay(state);
-  if (colonyDay < inventionFairEligibleDay(state.worldMap?.seed)) return;
+  if (colonyDay < inventionFairEligibleDay(getSimSeed())) return;
   if (storyFlag(state, AUTHORED_STORY_COOLDOWN_FLAG) > colonyDay) return;
   if ((state.pendingStoryEvents ?? []).length > 0) return;
   if (state.resources.wood < 30) return;
@@ -225,7 +225,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
     [FLAG_STATUS]: STATUS.funded,
     [FLAG_INVENTION]: hashSalt(`invention-${inventionId}`) % 1000,
     [FLAG_RISK]: riskMode,
-    [FLAG_RESOLVE_DAY]: colonyDay + 4 + Math.floor(seededRoll(state.worldMap?.seed ?? 1, hashSalt('invention-demo-delay')) * 3),
+    [FLAG_RESOLVE_DAY]: colonyDay + 4 + Math.floor(seededRoll(getSimSeed(), hashSalt('invention-demo-delay')) * 3),
   });
   addNotification(state, '⚙️ Experiment funded', 'The apprentice gets to work. The demonstration is in a few days.', 'info');
   return true;
@@ -248,7 +248,7 @@ export function tickInventionFair(state: WorldState): void {
   const apprentice = state.entities.find((e) => e.id === apprenticeId);
   const name = apprentice?.name ?? 'the apprentice';
   const safe = storyFlag(state, FLAG_RISK) === RISK.safe;
-  const success = seededRoll(state.worldMap?.seed ?? 1, hashSalt(safe ? 'invention-safe-demo' : 'invention-demo')) > (safe ? 0.25 : 0.45);
+  const success = seededRoll(getSimSeed(), hashSalt(safe ? 'invention-safe-demo' : 'invention-demo')) > (safe ? 0.25 : 0.45);
 
   const event: StoryEvent = {
     id: `invention_stage2_${state.tick}`,
@@ -393,7 +393,7 @@ function resolveModernInventionFair(state: WorldState, choiceId: string, eventId
     fair.activeEventId = '';
     fair.expiresAtTick = 0;
     fair.readyDay = getColonyDay(state) + 4
-      + Math.floor(seededRoll(state.worldMap?.seed ?? 1, hashSalt('invention-demo-delay')) * 3);
+      + Math.floor(seededRoll(getSimSeed(), hashSalt('invention-demo-delay')) * 3);
     logEvent(state, 'event', `The apprentice received ${cost.wood} wood and ${cost.gold} gold for the ${project} experiment.`);
     addNotification(state, '⚙️ Experiment funded', 'Preparation takes a few days. The demonstration will run for 24 game hours.', 'info');
     return true;

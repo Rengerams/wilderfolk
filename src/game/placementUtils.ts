@@ -1,8 +1,9 @@
 import { canBuildLeaderHouse } from './leaderHouseExpansion';
 import { type BuildingRotation, getBuildingFootprintForType } from './buildingRotation';
-import { BUILDING_CONFIGS, BuildingType, PATH_CELL, TerrainType, type Building } from './gameTypes';
+import { BuildingType, PATH_CELL, TerrainType, type Building } from './gameTypes';
 import type { ResearchNode } from './gameTypes';
 import type { RenderSnapshot } from './renderSnapshot';
+import { getBuildingConfig } from './buildingConfig';
 import { isWalkableTerrainType, tileAt, Walkability } from './terrain/terrainGrid';
 // The "what a terrain type is" pair moved to a leaf so `terrainGrid` can read it without importing
 // this module back — that edge was a runtime cycle.
@@ -272,30 +273,70 @@ export function isBuildingTechUnlocked(
   return node?.researched ?? false;
 }
 
-/** Read-only placement check for the renderer (matches gameEngine rules). */
-export function canPlaceBuildingSnapshot(
-  snapshot: RenderSnapshot,
+/** Read-only world shape the placement rule needs; `WorldState` and `RenderSnapshot` both satisfy it. */
+export interface PlacementCheckWorld {
+  readonly buildings: readonly Building[];
+  readonly width: number;
+  readonly height: number;
+  readonly worldMap: RenderSnapshot['worldMap'];
+  readonly unlockedTechs: readonly string[];
+  readonly researchNodes?: readonly ResearchNode[];
+}
+
+/**
+ * The `unique` gate: true when this type is one-per-village and the player already owns a copy that
+ * is complete or under construction. Rival structures never hold the player's slot.
+ */
+export function isUniqueBuildingAlreadyBuilt(
+  world: Pick<PlacementCheckWorld, 'buildings'>,
+  type: BuildingType,
+): boolean {
+  // The Leader's House owns an expansion rule rather than a plain one-per-village count.
+  if (type === BuildingType.LeaderHouse) return !canBuildLeaderHouse(world.buildings);
+  if (!getBuildingConfig(type).unique) return false;
+  return world.buildings.some(
+    (building) => building.type === type && building.faction !== 'rival',
+  );
+}
+
+/**
+ * The one placement decision: the first rule that refuses this spot, in the canvas's order, or
+ * `null` when the spot is legal. Preview (`canPlaceBuilding`) and commit both call it.
+ */
+export function getPlaceBuildingFailureReason(
+  world: PlacementCheckWorld,
+  type: BuildingType,
+  x: number,
+  y: number,
+  rotation: BuildingRotation = 0,
+): 'terrain' | 'blocked' | 'research' | 'unique' | null {
+  const config = getBuildingConfig(type);
+  const { width, height } = getBuildingFootprintForType(type, rotation);
+  if (!isFootprintWithinMapBounds(width, height, x, y, world.width, world.height)) return 'blocked';
+  if (
+    config.unlockRequirement
+    && !isBuildingTechUnlocked(config.unlockRequirement, world.unlockedTechs, world.researchNodes)
+  ) {
+    return 'research';
+  }
+  if (isUniqueBuildingAlreadyBuilt(world, type)) return 'unique';
+  if (!isFootprintOnBuildableTerrain(world, width, height, x, y, type)) return 'terrain';
+  // The renderer lattice calls this per candidate cell, so the overlap check goes through the cached
+  // spatial index; it returns the same answer as `overlapsAnyBuilding`.
+  if (overlapsAnyBuildingIndexed(world.buildings, world.width, world.height, width, height, x, y)
+    && !stripCrossingIsTheOnlyOverlap(world.buildings, x, y, width, height, type)) {
+    return 'blocked';
+  }
+  return null;
+}
+
+/** Read-only placement check for the renderer — the owner's decision, nothing else. */
+export function canPlaceBuilding(
+  snapshot: PlacementCheckWorld,
   type: BuildingType,
   x: number,
   y: number,
   rotation: BuildingRotation = 0,
 ): boolean {
-  const config = BUILDING_CONFIGS[type];
-  const { width, height } = getBuildingFootprintForType(type, rotation);
-  if (!isFootprintWithinMapBounds(width, height, x, y, snapshot.width, snapshot.height)) return false;
-  if (
-    config.unlockRequirement
-    && !isBuildingTechUnlocked(config.unlockRequirement, snapshot.unlockedTechs, snapshot.researchNodes)
-  ) {
-    return false;
-  }
-  if (type === BuildingType.LeaderHouse ? !canBuildLeaderHouse(snapshot.buildings) : config.unique && snapshot.buildings.some((b) => b.type === type)) return false;
-  if (!isFootprintOnBuildableTerrain(snapshot, width, height, x, y, type)) return false;
-  // The renderer lattice calls this per candidate cell, so the overlap check goes through the cached
-  // spatial index; `overlapsAnyBuilding` (the authoritative, single-call path) is the exact same rule.
-  if (overlapsAnyBuildingIndexed(snapshot.buildings, snapshot.width, snapshot.height, width, height, x, y)
-    && !stripCrossingIsTheOnlyOverlap(snapshot.buildings, x, y, width, height, type)) {
-    return false;
-  }
-  return true;
+  return getPlaceBuildingFailureReason(snapshot, type, x, y, rotation) == null;
 }

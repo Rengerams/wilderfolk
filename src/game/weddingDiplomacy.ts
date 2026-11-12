@@ -2,13 +2,14 @@
  * The Wedding That Nearly Started a War: invitation gift → delayed rival response →
  * feast/delegation/fortify → outcome.
  */
-import type { Entity, StoryEvent, WorldState } from './gameTypes';
+import type { Entity, RivalSettlement, StoryEvent, WorldState } from './gameTypes';
 import { BuildingType, EntityType } from './gameTypes';
 import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, seededRoll, hashSalt, pushStoryCard, AUTHORED_STORY_COOLDOWN_FLAG } from './storyHelpers';
+import { getSimSeed } from './simRng';
 import { spendFood } from './economyLedger';
 import { RIVAL_RELATIONSHIP_STEPS, shiftRivalRelationship } from './rivalDiplomacy';
 
@@ -64,22 +65,30 @@ function hasCompletedResidenceAndStaffedProduction(state: WorldState): boolean {
   return hasResidence && hasStaffedProduction;
 }
 
+/** The story-flag record holds numbers; a rival's id is hashed once so the camp is stable across removal. */
+function rivalFlagValue(id: string): number {
+  return hashSalt('wedding-rival:' + id) || 1;
+}
+
+/** The rival this wedding belongs to; a removed camp leaves no rival rather than retargeting another. */
+function weddingRival(state: WorldState): RivalSettlement | undefined {
+  const stored = storyFlag(state, FLAG_RIVAL);
+  if (stored <= 0) return undefined;
+  return state.rivalSettlements.find((rival) => rivalFlagValue(rival.id) === stored);
+}
+
 function rivalName(state: WorldState): string {
-  const rivalIndex = storyFlag(state, FLAG_RIVAL);
-  const rival = state.rivalSettlements[rivalIndex] ?? state.rivalSettlements[0];
-  return rival?.name ?? 'the rival settlement';
+  return weddingRival(state)?.name ?? 'the rival settlement';
 }
 
 function relationshipIndex(state: WorldState): number {
-  const rivalIndex = storyFlag(state, FLAG_RIVAL);
-  const rival = state.rivalSettlements[rivalIndex] ?? state.rivalSettlements[0];
+  const rival = weddingRival(state);
   const idx = rival ? RIVAL_RELATIONSHIP_STEPS.indexOf(rival.relationship) : 1;
   return idx < 0 ? 1 : idx;
 }
 
 function shiftRelationship(state: WorldState, steps: number): void {
-  const rivalIndex = storyFlag(state, FLAG_RIVAL);
-  const rival = state.rivalSettlements[rivalIndex] ?? state.rivalSettlements[0];
+  const rival = weddingRival(state);
   if (!rival) return;
   const current = RIVAL_RELATIONSHIP_STEPS.includes(rival.relationship) ? rival.relationship : 'competitive';
   rival.relationship = shiftRivalRelationship(current, steps);
@@ -88,18 +97,17 @@ function shiftRelationship(state: WorldState, steps: number): void {
 export function maybeOfferWeddingDiplomacy(state: WorldState): void {
   if (storyFlag(state, FLAG_OFFERED) > 0) return;
   const colonyDay = getColonyDay(state);
-  if (colonyDay < weddingDiplomacyEligibleDay(state.worldMap?.seed)) return;
+  if (colonyDay < weddingDiplomacyEligibleDay(getSimSeed())) return;
   if (storyFlag(state, AUTHORED_STORY_COOLDOWN_FLAG) > colonyDay) return;
   if ((state.pendingStoryEvents ?? []).length > 0) return;
   if (!hasCompletedResidenceAndStaffedProduction(state)) return;
   if (state.rivalSettlements.length === 0) return;
 
   const rival = state.rivalSettlements[0];
-  const rivalIndex = state.rivalSettlements.indexOf(rival);
   setStoryFlags(state, {
     [FLAG_OFFERED]: state.tick,
     [FLAG_STATUS]: STATUS.offered,
-    [FLAG_RIVAL]: rivalIndex,
+    [FLAG_RIVAL]: rivalFlagValue(rival.id),
     [FLAG_STARTED_DAY]: colonyDay,
     [AUTHORED_STORY_COOLDOWN_FLAG]: colonyDay + AUTHORED_STORY_COOLDOWN_DAYS,
   });
@@ -177,6 +185,8 @@ export function getWeddingDiplomacyChoiceEligibility(
 }
 
 export function resolveWeddingDiplomacy(state: WorldState, choiceId: string): boolean {
+  // A resolved wedding leaves FLAG_STATUS at declined/gift_sent, so a stale card must not replay it.
+  if (storyFlag(state, FLAG_RESOLVED) > 0) return true;
   const status = storyFlag(state, FLAG_STATUS);
 
   if (status === STATUS.offered) {
@@ -201,7 +211,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
       setStoryFlags(state, {
         [FLAG_STATUS]: STATUS.gift_sent,
         [FLAG_GIFT]: GIFT.practical,
-        [FLAG_RESOLVE_DAY]: colonyDay + 2 + Math.floor(seededRoll(state.worldMap?.seed ?? 1, hashSalt('wedding-delay')) * 3),
+        [FLAG_RESOLVE_DAY]: colonyDay + 2 + Math.floor(seededRoll(getSimSeed(), hashSalt('wedding-delay')) * 3),
       });
       addNotification(state, '💒 Gift sent', 'The practical gift crosses the river.', 'info');
       return true;
@@ -215,7 +225,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
       setStoryFlags(state, {
         [FLAG_STATUS]: STATUS.gift_sent,
         [FLAG_GIFT]: GIFT.impressive,
-        [FLAG_RESOLVE_DAY]: colonyDay + 2 + Math.floor(seededRoll(state.worldMap?.seed ?? 1, hashSalt('wedding-delay-impressive')) * 3),
+        [FLAG_RESOLVE_DAY]: colonyDay + 2 + Math.floor(seededRoll(getSimSeed(), hashSalt('wedding-delay-impressive')) * 3),
       });
       addNotification(state, '💒 Impressive gift sent', 'The rival chief will notice this.', 'info');
       return true;
@@ -230,7 +240,7 @@ function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
         [FLAG_STATUS]: STATUS.gift_sent,
         [FLAG_GIFT]: GIFT.none,
         [FLAG_ENVOY]: envoy.id,
-        [FLAG_RESOLVE_DAY]: colonyDay + 2 + Math.floor(seededRoll(state.worldMap?.seed ?? 1, hashSalt('wedding-delay-envoy')) * 3),
+        [FLAG_RESOLVE_DAY]: colonyDay + 2 + Math.floor(seededRoll(getSimSeed(), hashSalt('wedding-delay-envoy')) * 3),
       });
       addNotification(state, '💒 Envoy sent', `${envoy.name ?? 'A settler'} travels to the wedding.`, 'info');
       return true;
@@ -279,6 +289,26 @@ export function tickWeddingDiplomacy(state: WorldState): void {
   };
   pushStoryCard(state, event);
   addNotification(state, '💒 The wedding approaches', 'The rival chief awaits a final decision.', 'info');
+}
+
+/**
+ * Unanswered cards follow their stage's default: a missed invitation becomes a polite decline (the
+ * rival's response still arrives), and a missed final decision stays home and fortifies. Neither
+ * awards a gift or a feast, and the chain resolves exactly once.
+ */
+export function expireWeddingDiplomacy(state: WorldState): void {
+  if (storyFlag(state, FLAG_RESOLVED) > 0) return;
+  const status = storyFlag(state, FLAG_STATUS);
+
+  if (status === STATUS.offered) {
+    addNotification(state, '💒 The invitation goes unanswered', 'The wedding passes without a gift or a word from the colony.', 'info');
+    resolveStage1(state, 'decline');
+    return;
+  }
+
+  if ((status === STATUS.gift_sent || status === STATUS.declined) && storyFlag(state, FLAG_STAGE2) > 0) {
+    resolveStage2(state, 'stay_home_fortify');
+  }
 }
 
 function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {

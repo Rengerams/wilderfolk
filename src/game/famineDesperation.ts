@@ -65,7 +65,8 @@ export function tickFamineDesperation(state: WorldState, allAlive: readonly Enti
   if (!victim || victim.id === attacker.id) return;
 
   const success = randomBool(rng, Famine.BITE_SUCCESS_CHANCE);
-  hurtFriendship(attacker, victim, success ? Famine.BITE_FRIENDSHIP_HIT_SUCCESS : Famine.BITE_FRIENDSHIP_HIT_MISS);
+  // A landed bite's feud already charges the friendship; a failed lunge charges the miss only.
+  if (!success) hurtFriendship(attacker, victim, Famine.BITE_FRIENDSHIP_HIT_MISS);
 
   const attackerName = citizenFullName(attacker);
   const victimName = citizenFullName(victim);

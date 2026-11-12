@@ -1,7 +1,6 @@
 import { EntityType, WeatherType, type WorldState } from './gameTypes';
-import { TICKS_PER_DAY } from './dayCycle';
 import {
-  GRASS_GROWTH_PER_TICK,
+  GRASS_GROWTH_PER_DAY,
   GRASS_MAX_ENERGY,
   getGrassGrowthMultiplier,
   getGrazerDailyDemand,
@@ -59,7 +58,7 @@ export function getGrazingPressureReport(state: WorldState): GrazingPressureRepo
   const regrowBase = growingGrassCount >= grassCount * 0.3
     ? growingGrassCount
     : grassCount * 0.3;
-  const grassRecoveryPerDay = regrowBase * GRASS_GROWTH_PER_TICK * grassMult * TICKS_PER_DAY;
+  const grassRecoveryPerDay = regrowBase * GRASS_GROWTH_PER_DAY * grassMult;
 
   // Demand is per grazer species through the owner of the daily-demand rule, so the seasonal penalty
   // applies here. Grazers only: the Wildkin eats meat and takes no grass bite.
@@ -67,7 +66,7 @@ export function getGrazingPressureReport(state: WorldState): GrazingPressureRepo
     getGrazerDailyDemand('deer', state.season) * deerCount
     + getGrazerDailyDemand('rabbit', state.season) * rabbitCount;
 
-  const pressureRatio = grazingDemandPerDay / Math.max(grassRecoveryPerDay, GRASS_GROWTH_PER_TICK * TICKS_PER_DAY);
+  const pressureRatio = grazingDemandPerDay / Math.max(grassRecoveryPerDay, GRASS_GROWTH_PER_DAY);
 
   const deerGrassRatio = deerCount / Math.max(grassCount, 1);
   const pastureTight = deerGrassRatio > DEER_GRASS_CAUTION_RATIO;

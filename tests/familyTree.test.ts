@@ -126,6 +126,20 @@ describe('familyTree', () => {
     expect(tree.counts.nephewsNieces).toBe(1);
   });
 
+  it('names the adoptive parent when a jailed birth parent shares custody', () => {
+    const birthMother = human({ id: 11, name: 'Birth', gender: 'female', prisonBuildingId: 9 });
+    const adoptiveMother = human({ id: 12, name: 'Adoptive', gender: 'female' });
+    const child = human({
+      id: 13, name: 'Child', gender: 'female', age: 8, isJuvenile: true,
+      motherId: birthMother.id, adoptiveMotherId: adoptiveMother.id,
+    });
+
+    const tree = buildFamilyTree(child, [birthMother, adoptiveMother, child]);
+
+    expect(tree.members.find((member) => member.id === adoptiveMother.id)?.relationLabel).toBe('Mother');
+    expect(tree.members.some((member) => member.id === birthMother.id)).toBe(false);
+  });
+
   it('groups living settlers by surname with child counts', () => {
     const people = [
       human({ id: 1, name: 'Ada', surname: 'Bell', gender: 'female' }),

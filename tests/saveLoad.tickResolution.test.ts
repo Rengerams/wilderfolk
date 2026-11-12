@@ -3,7 +3,8 @@ import { initGame } from '../src/game/worldGen';
 import { buildSaveData, loadGameFromParsed } from '../src/game/saveLoad';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { createInitialView } from '../src/game/viewState';
-import { EntityType, MapSize } from '../src/game/gameTypes';
+import { EntityType, MapSize, BuildingType } from '../src/game/gameTypes';
+import { building } from '../src/test/factories';
 
 describe('save tick-resolution migration', () => {
   it('preserves the calendar day and clock hour of an existing 72-tick/day save', () => {
@@ -35,10 +36,18 @@ describe('save tick-resolution migration', () => {
     human.lastAutoJobTransferTick = 9 * oldDay;
     human.pastPartnerTicks = { 7: 10 * oldDay };
     human.dialogueRecentScenes = { greeting: { id: 'greeting', tick: 11 * oldDay } };
+    human.chatTicks = 5;
+    human.combatTicks = 6;
+    human.schoolTicksToday = 12;
+    human.scheduleWorkedTicksToday = 18;
+    human.schedulePresentTicksToday = 15;
     human.needs = {
       nutrition: 80, rest: 80, stamina: 80,
       lastMealTick: 12 * oldDay, lastAdvancedTick: 13 * oldDay, sleepRecoveryUntilTick: 14 * oldDay,
+      severeHungerTicks: 20,
     };
+    const huntingSpot = world.buildings[0] ?? (world.buildings.push(building(9001, BuildingType.House)), world.buildings[0]);
+    huntingSpot.huntingSpotInReachTick = 21 * oldDay;
 
     const payload = buildSaveData(world, createInitialView(world.width, world.height));
     payload._ticksPerDay = oldDay;
@@ -60,6 +69,14 @@ describe('save tick-resolution migration', () => {
     expect(loadedHuman.needs?.lastMealTick).toBe(12 * oldDay * scale);
     expect(loadedHuman.needs?.lastAdvancedTick).toBe(13 * oldDay * scale);
     expect(loadedHuman.needs?.sleepRecoveryUntilTick).toBe(14 * oldDay * scale);
+    expect(loadedHuman.chatTicks).toBe(5 * scale);
+    expect(loadedHuman.combatTicks).toBe(6 * scale);
+    expect(loadedHuman.schoolTicksToday).toBe(12 * scale);
+    expect(loadedHuman.scheduleWorkedTicksToday).toBe(18 * scale);
+    expect(loadedHuman.schedulePresentTicksToday).toBe(15 * scale);
+    expect(loadedHuman.needs?.severeHungerTicks).toBe(20 * scale);
+    expect(scaled.buildings.find((entry) => entry.id === huntingSpot.id)?.huntingSpotInReachTick)
+      .toBe(21 * oldDay * scale);
   });
 
   it('keeps a live festival when the event-log tick is scaled with it', () => {

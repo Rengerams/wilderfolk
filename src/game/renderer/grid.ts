@@ -1,7 +1,7 @@
 import { GRID_SIZE, PATH_CELL, snapToGrid } from '../gameTypes';
 import { isNightHour } from '../dayCycle';
 import { snapBuildingCenter } from '../buildingRotation';
-import { canPlaceBuildingSnapshot } from '../placementUtils';
+import { canPlaceBuilding } from '../placementUtils';
 import { isUnbuildableTerrainType, isWaterTerrainType } from '../terrain/terrainTraits';
 import { tileTypeAt } from '../terrain/terrainGrid';
 import { worldToScreen as w2s, worldToScreenX, worldToScreenY } from '../viewState';
@@ -138,7 +138,7 @@ export function drawIsoCellMarker(
 }
 
 
-/** Terrain blockers + focused valid snap points while placing a building. */
+/** Unbuildable-terrain blockers while placing — terrain-derived, so they belong to the cached layer. */
 export function drawBuildZoneOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (!state.buildMode || !state.worldMap) return;
   const cam = state.camera;
@@ -189,10 +189,26 @@ export function drawBuildZoneOverlay(ctx: CanvasRenderingContext2D, state: Rende
       ctx.fill();
     }
   }
+}
 
+/**
+ * Validity markers around the live ghost. They follow the pointer, so they are painted every frame
+ * and never baked into the tick-keyed layer (a baked copy froze around the old ghost tile).
+ */
+export function drawBuildSnapOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+  if (!state.buildMode || !state.worldMap) return;
+  const cam = state.camera;
+  const map = state.worldMap;
   if (cam.zoom < 0.45) return;
 
-  // 2. Focused Snap Markers (Restricted to a radius around the cursor/ghost to protect 60 FPS)
+  const halfW = (cw / 2) / cam.zoom;
+  const halfH = (ch / 2) / cam.zoom;
+  const wl = cam.x - halfW;
+  const wr = cam.x + halfW;
+  const wt = cam.y - halfH;
+  const wb = cam.y + halfH;
+
+  // Focused Snap Markers (Restricted to a radius around the cursor/ghost to protect 60 FPS)
   const gs = GRID_SIZE;
   const placeType = state.buildMode;
   const focusX = state.buildGhost?.x ?? cam.x;
@@ -216,7 +232,7 @@ export function drawBuildZoneOverlay(ctx: CanvasRenderingContext2D, state: Rende
       if (dx * dx + dy * dy > focusRadiusSq) continue;
 
       const { x: snapX, y: snapY } = snapBuildingCenter(placeType, wx, wy, state.buildRotation);
-      const valid = canPlaceBuildingSnapshot(state, placeType, snapX, snapY, state.buildRotation);
+      const valid = canPlaceBuilding(state, placeType, snapX, snapY, state.buildRotation);
       const px = worldToScreenX(snapX, cam, cw);
       const py = worldToScreenY(snapY, cam, ch) - terrainRiseAt(map, snapX, snapY) * cam.zoom;
 
@@ -262,7 +278,7 @@ export function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, c
         const { x: cx, y: cy } = state.buildMode
           ? snapBuildingCenter(state.buildMode, rawX, rawY, state.buildRotation)
           : { x: snapToGrid(rawX, gs), y: snapToGrid(rawY, gs) };
-        // Plate and verdict share one centre — the snapped centre `canPlaceBuildingSnapshot` is
+        // Plate and verdict share one centre — the snapped centre `canPlaceBuilding` is
         // asked about, matching `drawBuildZoneOverlay` below.
         const px = worldToScreenX(cx, cam, cw);
         // Ride the 2.5D relief the same way the ghost does, so a plate and the building that lands
@@ -270,7 +286,7 @@ export function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, c
         const py = worldToScreenY(cy, cam, ch)
           - terrainRiseAt(state.worldMap, cx, cy) * cam.zoom;
         if (px + halfW < 0 || px - halfW > cw || py + halfH < 0 || py - halfH > ch) continue;
-        const valid = canPlaceBuildingSnapshot(state, state.buildMode, cx, cy, state.buildRotation);
+        const valid = canPlaceBuilding(state, state.buildMode, cx, cy, state.buildRotation);
         drawIsoCellMarker(
           ctx, px, py, halfW, halfH,
           valid ? 'rgba(16, 185, 129, 0.16)' : 'rgba(127, 29, 29, 0.2)',
@@ -297,25 +313,29 @@ export function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, c
     }
   }
 
-  // Enclosed area hint while drawing walls
-  if (state.buildStripPreview?.enclosedAreas?.length) {
-    for (const area of state.buildStripPreview.enclosedAreas) {
-      const [ax, ayBase] = w2s(area.x, area.y, cam, cw, ch);
-      const ay = ayBase - terrainRiseAt(state.worldMap, area.x, area.y) * cam.zoom;
-      const aw = area.w * cam.zoom;
-      const ah = area.h * cam.zoom;
-      ctx.fillStyle = 'rgba(34, 197, 94, 0.1)';
-      ctx.strokeStyle = 'rgba(34, 197, 94, 0.35)';
-      ctx.lineWidth = Math.max(1, 1.5 / cam.zoom);
-      ctx.setLineDash([6 / cam.zoom, 4 / cam.zoom]);
-      ctx.fillRect(ax, ay, aw, ah);
-      ctx.strokeRect(ax, ay, aw, ah);
-      ctx.setLineDash([]);
-    }
-  }
+  // The build ghost plate and the strip-gesture hint follow the pointer and are drawn per frame in
+  // the overlay pass (`overlay.ts`), so neither invalidates this tick-keyed bitmap.
+}
 
-  // The build ghost plate follows the pointer and is drawn per frame in the overlay pass
-  // (`overlay.ts`), so it does not invalidate this tick-keyed bitmap.
+/** Enclosed-area hint for the live strip gesture — gesture-derived, so it is painted per frame. */
+export function drawBuildStripPreviewOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+  if (!state.showGrid || !state.buildMode) return;
+  const areas = state.buildStripPreview?.enclosedAreas;
+  if (!areas?.length) return;
+  const cam = state.camera;
+  for (const area of areas) {
+    const [ax, ayBase] = w2s(area.x, area.y, cam, cw, ch);
+    const ay = ayBase - terrainRiseAt(state.worldMap, area.x, area.y) * cam.zoom;
+    const aw = area.w * cam.zoom;
+    const ah = area.h * cam.zoom;
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.1)';
+    ctx.strokeStyle = 'rgba(34, 197, 94, 0.35)';
+    ctx.lineWidth = Math.max(1, 1.5 / cam.zoom);
+    ctx.setLineDash([6 / cam.zoom, 4 / cam.zoom]);
+    ctx.fillRect(ax, ay, aw, ah);
+    ctx.strokeRect(ax, ay, aw, ah);
+    ctx.setLineDash([]);
+  }
 }
 
 /** Placement grid on top of sprites — major lines only during play; full grid in build mode. */

@@ -5,6 +5,7 @@ import { recordWildlifeBirth, recordGrassBirth, recordGrassDeath } from '../simQ
 import { syncSpatialGridEntity } from '../spatialGrid';
 import { killHuman, isKillableSettlerEntity } from '../dayCycle';
 import { logWildkinDeath } from '../wildkinChronicle';
+import { unindexEntityFromState } from '../entityIndex';
 
 /** Medium map reference area for grass population cap scaling. */
 const GRASS_CAP_REFERENCE_AREA = 1200 * 900;
@@ -76,6 +77,9 @@ export function isValidHuntPrey(
   if (preyType === EntityType.Human) {
     if (prey.moonHowlerCursed) return false;
     if (prey.faction === 'visitor' || prey.faction === 'rival') return false;
+    // Indoors is safe — the full-moon banner promises shelter, and indoorBuildingId is the sim's
+    // arrival record. Sleepers on the porch still carry it, so a hunter cannot take them at the door.
+    if (prey.indoorBuildingId != null) return false;
   }
 
   return true;
@@ -92,10 +96,13 @@ export function markWildlifeDead(
 
   if (isKillableSettlerEntity(entity)) {
     killHuman(entity, ctx.updatedBuildings, ctx.entityById, tick);
+  } else if (state) {
+    retireWildlifeInState(state, entity);
+    ctx.entityById.delete(entity.id);
+    wildlifeDeathsThisTick?.add(entity.id);
   } else {
     // The Wildkin's death is chronicled from here because this is the one place every wildlife death
     // passes through. Nothing else needs `state`, so it stays optional.
-    if (state && entity.type === EntityType.Wildkin) logWildkinDeath(state, entity);
     entity.alive = false;
     ctx.entityById.delete(entity.id);
     wildlifeDeathsThisTick?.add(entity.id);
@@ -107,6 +114,18 @@ export function markWildlifeDead(
     const idx = bucket.indexOf(entity);
     if (idx >= 0) bucket.splice(idx, 1);
   }
+}
+
+/**
+ * The state-level half of a wildlife death: the one retirement every non-settler death path shares,
+ * including poaching outside a tick context. Context-less callers clear hunter links separately.
+ */
+export function retireWildlifeInState(state: WorldState, entity: Entity): void {
+  if (!entity.alive) return;
+  if (entity.type === EntityType.Wildkin) logWildkinDeath(state, entity);
+  entity.alive = false;
+  state.entityById?.delete(entity.id);
+  unindexEntityFromState(state, entity.id);
 }
 
 export function syncEntityGrids(ctx: TickContext, entity: Entity): void {
@@ -140,19 +159,24 @@ export function allLivingHumans(
   return Array.from(byId.values());
 }
 
+/**
+ * The only types that can hold a `huntTargetId` — one list for the index and the same-tick sweep.
+ */
+const HUNTER_TYPES: readonly EntityType[] = [
+  EntityType.Wolf,
+  EntityType.Fox,
+  EntityType.Werewolf,
+  EntityType.Wildkin,
+  EntityType.Human,
+];
+
 export function buildHuntTargetByPreyIndex(
   byType: Partial<Record<EntityType, Entity[]>>,
 ): Map<number, Set<number>> {
   const index = new Map<number, Set<number>>();
-  const hunterTypes = [
-    EntityType.Wolf,
-    EntityType.Fox,
-    EntityType.Werewolf,
-    EntityType.Human,
-  ] as const;
 
-  for (let t = 0; t < hunterTypes.length; t++) {
-    const type = hunterTypes[t];
+  for (let t = 0; t < HUNTER_TYPES.length; t++) {
+    const type = HUNTER_TYPES[t];
     const bucket = byType[type];
     if (!bucket) continue;
 
@@ -172,17 +196,6 @@ export function buildHuntTargetByPreyIndex(
 
   return index;
 }
-
-/**
- * The only types that can hold a `huntTargetId` — the same set
- * `buildHuntTargetByPreyIndex` indexes.
- */
-const HUNTER_TYPES: readonly EntityType[] = [
-  EntityType.Wolf,
-  EntityType.Fox,
-  EntityType.Werewolf,
-  EntityType.Human,
-];
 
 export function clearHuntersTargetingPrey(
   preyId: number,

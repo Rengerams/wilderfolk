@@ -1,5 +1,23 @@
 # Bug report summary — one line per report
 
+**2026-11-11 — [Audit remediation: simulation hand-off, invariants and schedule](../bug_report/2026-11-11-audit-remediation-simulation.md):** resolved; election/beauty/paused hand-off, invariant gate that can fail, attendance-only pay, harvest/grass/herd/ledger/shelter/commute rules.
+
+**2026-11-11 — [Audit remediation: renderer and presentation](../bug_report/2026-11-11-audit-remediation-renderer.md):** resolved; live placement markers, real grass energy, no render writes to simulation fields, static-layer and terrain keys, cached static revision.
+
+**2026-11-11 — [Audit remediation: housing, genetics and identity](../bug_report/2026-11-11-audit-remediation-housing.md):** resolved; custodian split repair, observed housing audit, assignable-bed reporting, writer capacity gate, refugee identity at citizenship.
+
+**2026-11-11 — [Audit remediation: audio lifecycle and mix](../bug_report/2026-11-11-audit-remediation-audio.md):** resolved; intro resume without rewind, one music-path gain, storm gate asserted instead of skipped.
+
+**2026-11-11 — [Audit remediation: verification gates](../bug_report/2026-11-11-audit-remediation-gates.md):** resolved; living-settler extinction assertion, deleted vacuous perf/scratch gates, docs and comment gates can fail, ownership coverage floors, Node tsconfig in `types`.
+
+**2026-11-11 — [Audit remediation: save, rollback and migration edges](../bug_report/2026-11-11-audit-remediation-save-rollback.md):** resolved; terrain patches survive a failed post, profile marks reach the replica, rollback deep-copies dialogue history, legacy tick timers scale, doorway arrivals and accepted hunt rewards.
+
+**2026-11-11 — [Audit remediation: shell, persistence and worker host](../bug_report/2026-11-11-audit-remediation-shell.md):** resolved; per-colony shell reset, authoritative export, import size guard, serialized manual saves, adopt-after-ack upload, command/recovery budgets, reload action, keyboard/ARIA fixes.
+
+**2026-11-11 — [Audit remediation: social, story, leadership and stats](../bug_report/2026-11-11-audit-remediation-social-story.md):** resolved; one social scene per person per day, monotonic lifetime totals, credited election ballots, stable wedding rival, removed dead campaign choice, bounded dialogue history.
+
+**2026-11-11 — [Audit remediation Phase 0 — 11 fixed defects and open backlog](../bug_report/2026-11-11-audit-remediation-phase0.md):** fixed; forge cadence, leave/save, Wildkin apex behaviour, malformed-save freeze/validation, stale demolition and session UI/audio; targeted suites green, standard gate running.
+
 **2026-11-11 — [Invention Fair probability cutoff misclassifies exactly 60%](../bug_report/2026-11-11-invention-fair-boundary-floating-point.md):** investigating; integer-percent thresholds and boundary regression tests committed in PR #142; CI pending.
 
 **2026-11-11 — [Invention Fair unknown choices reject or refund the story](../bug_report/2026-11-11-invention-fair-unknown-choice-side-effects.md):** investigating; guarded stage-specific answers and regression tests in the Invention Fair audit PR; CI pending.

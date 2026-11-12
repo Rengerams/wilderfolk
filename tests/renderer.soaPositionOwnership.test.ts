@@ -56,6 +56,36 @@ describe('a render-SoA snapshot never writes the live world', () => {
     expect(catalog.getAny(7)).toBe(live);
     expect(live.x).toBe(110);
   });
+
+  it('mirrors presentation kinematics without overwriting simulation-owned fields', () => {
+    const live = {
+      ...mover(7, 100, 400),
+      size: 12,
+      chatTicks: 5,
+      chatPhrase: 'live line',
+      huntTargetId: 9,
+      spriteAngle: 3,
+      animFrame: 2,
+      flash: 6,
+    } as Entity;
+    const catalog = new EntityCatalog();
+    catalog.rebuild([live, mover(9, 120, 400)]);
+
+    // A render buffer from a tick where the settler was small, silent and idle.
+    const reader = readerFor([mover(7, 100, 400), mover(9, 120, 400)], 41);
+
+    patchCatalogKinematicsFromRenderSoA(catalog, reader, undefined);
+
+    // Presentation state follows the buffer…
+    expect(live.spriteAngle).toBe(0);
+    expect(live.animFrame).toBe(0);
+    expect(live.flash).toBe(0);
+    // …while size, speech and hunting stay with their simulation owners.
+    expect(live.size).toBe(12);
+    expect(live.chatTicks).toBe(5);
+    expect(live.chatPhrase).toBe('live line');
+    expect(live.huntTargetId).toBe(9);
+  });
 });
 
 describe('the render bucket cache is keyed on the buffer, not only the tick', () => {

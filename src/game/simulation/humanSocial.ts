@@ -9,10 +9,10 @@ import {
   type ChatPickOptions,
 } from '../humanChat';
 import { maybeDialogueChat } from '../dialogueTrees';
+import { isSocialStaggerTick } from '../socialLife';
 import {
   forEachAdaptiveInRadius,
   socialAdaptiveOptions,
-  SOCIAL_STAGGER,
   SOCIAL_BANTER_RADIUS,
 } from '../adaptiveSpatialQuery';
 import type { EntitySpatialGrid } from '../spatialGrid';
@@ -50,7 +50,7 @@ export function simAmbientChatNeighbors(
   if (!self.alive || self.prisonBuildingId != null || isDialogueBusy(self)) {
     return [];
   }
-  if ((tick + self.id) % SOCIAL_STAGGER !== 0) {
+  if (!isSocialStaggerTick(self, tick)) {
     return [];
   }
 

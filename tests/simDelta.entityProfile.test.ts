@@ -8,6 +8,7 @@ import { EntityType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { createEntity } from '../src/game/worldGen';
 import { writableEntitySkills } from '../src/game/skills';
+import { grantMark } from '../src/game/personalMarks';
 import { PROFILE_REVISION, revisionOf } from '../src/game/entityRevision';
 import {
   PROFILE_REFRESH_TICKS,
@@ -64,5 +65,26 @@ describe('entity profile payload', () => {
     const refreshed = extractSimTickDelta(world, world.entities.filter((e) => e.alive));
     stripUnchangedProfile(refreshed, revisions(world), sent, 3 + PROFILE_REFRESH_TICKS);
     expect(refreshed.aliveEntities.every((entity) => entity.skills !== undefined)).toBe(true);
+  });
+
+  it('ships a mark granted between deltas instead of hiding it until the refresh window', () => {
+    const { world, people } = fixture();
+    const replica = structuredClone(world);
+    const sent = new Map<number, { revision: number; tick: number }>();
+
+    const first = extractSimTickDelta(world, world.entities.filter((e) => e.alive));
+    stripUnchangedProfile(first, revisions(world), sent, 1);
+    applySimTickDelta(replica, structuredClone(first), { cloneMode: 'transfer' });
+
+    // A raid-survival or windfall mark is granted by the mark owner, between two worker deltas.
+    expect(grantMark(people[0], 'lucky', 12, 'raidVictory')).toBe(true);
+    const next = extractSimTickDelta(world, world.entities.filter((e) => e.alive));
+    stripUnchangedProfile(next, revisions(world), sent, 2);
+    const withMarks = next.aliveEntities.filter((entity) => entity.marks !== undefined);
+    expect(withMarks.map((entity) => entity.id)).toEqual([people[0].id]);
+
+    applySimTickDelta(replica, structuredClone(next), { cloneMode: 'transfer' });
+    const mirror = replica.entities.find((entity) => entity.id === people[0].id);
+    expect(mirror?.marks).toEqual([{ id: 'lucky', day: 12, source: 'raidVictory' }]);
   });
 });

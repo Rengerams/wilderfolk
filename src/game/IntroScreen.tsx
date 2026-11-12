@@ -168,6 +168,8 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
   const particlesRef = useRef<Particle[]>([]);
   const animRef = useRef<number>(0);
   const startedAtRef = useRef(0);
+  /** Read by the once-mounted particle loop; the aurora beat only changes the spawn rate. */
+  const auroraVisibleRef = useRef(false);
 
   const [phase, setPhase] = useState<IntroPhase>('opening');
   const [auroraVisible, setAuroraVisible] = useState(false);
@@ -261,6 +263,10 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
     return () => clearInterval(interval);
   }, [subtitleVisible]);
 
+  useEffect(() => {
+    auroraVisibleRef.current = auroraVisible;
+  }, [auroraVisible]);
+
   // Ambient particles — calmer spawn rate.
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -285,6 +291,8 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
     resize();
     window.addEventListener('resize', resize);
 
+    // Reseed once: the effect mounts a single animation loop for the life of the screen.
+    particlesRef.current = [];
     for (let i = 0; i < 60; i++) {
       const particle = spawnParticle(width, height);
       particle.y = getPresentationRng('introScreen')() * height;
@@ -295,7 +303,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
     const loop = () => {
       ctx.clearRect(0, 0, width, height);
 
-      const spawnChance = auroraVisible ? 0.35 : 0.12;
+      const spawnChance = auroraVisibleRef.current ? 0.35 : 0.12;
       if (getPresentationRng('introScreen')() < spawnChance) {
         particlesRef.current.push(spawnParticle(width, height));
       }
@@ -319,7 +327,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
       cancelAnimationFrame(animRef.current);
       window.removeEventListener('resize', resize);
     };
-  }, [auroraVisible]);
+  }, []);
 
   useEffect(() => {
     if (phase !== 'ready') return;
@@ -623,6 +631,9 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
             transitionDuration: '1600ms',
           }}
           aria-hidden={!readyVisible}
+          /* Zero-height until the ready beat: keep the call to action out of the tab order and the
+             accessibility tree until it is actually visible. */
+          inert={!readyVisible}
         >
           <button
             type="button"

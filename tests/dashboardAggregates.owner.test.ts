@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
-import { BuildingType, EntityType, Season, WeatherType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
 import { UNKNOWN_ECOSYSTEM_HEALTH } from '../src/game/dailyEcology';
 import { collectDashboard } from '../src/game/dashboardData';
 import { computeVillageStats } from '../src/game/uiSimSummary';
@@ -133,6 +133,20 @@ describe('A7 — the village labour counters have one aggregator', () => {
     ).toBeUndefined();
     // The per-settler row follows the same rule as the counters it sits next to.
     expect(dashboard.settlers[0]?.noWork).toBe(false);
+  });
+
+  it('reports a workforce denominator that prisoners do not dilute', () => {
+    const worker = settler(1, { job: JobType.Farmer, workerBuildingId: 7 } as Partial<Entity>);
+    const prisoner = settler(2, { prisonBuildingId: 9 } as Partial<Entity>);
+    const state = world({ entities: [worker, prisoner], humanPopulation: 2 });
+
+    const stats = computeVillageStats(state);
+    expect(stats.adults).toBe(2);
+    expect(stats.imprisoned).toBe(1);
+    expect(stats.workforce).toBe(1);
+    // Working and idle partition the workforce, so a fully employed free colony reads 100%.
+    expect(stats.working + stats.idle).toBe(stats.workforce);
+    expect(Math.round((stats.working / stats.workforce) * 100)).toBe(100);
   });
 
   it('leaves no second aggregation of the counters', () => {

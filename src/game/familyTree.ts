@@ -11,6 +11,7 @@ import { findFamilyGroupRoot } from './genealogyRegistry';
 import type { GenealogyRegistry } from './genealogyTypes';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isWithinRemarriageBar } from './simulation/humanRelationships';
+import { getChildCustodian, isImprisoned } from './housingModel';
 
 export type KinRelation =
   | 'grandmother'
@@ -355,8 +356,19 @@ export function buildFamilyTree(
     });
   };
 
-  const mother = byId(people, focus.motherId) ?? byId(people, focus.adoptiveMotherId);
-  const father = byId(people, focus.fatherId) ?? byId(people, focus.adoptiveFatherId);
+  // Both ids can be present when a jail sentence lends custody: prefer the parent the housing
+  // custodian resolver credits, so the window names the person actually raising the child.
+  const custodian = getChildCustodian(focus, people);
+  const parentFor = (birthId: number | undefined, adoptiveId: number | undefined): Entity | undefined => {
+    const birth = byId(people, birthId);
+    const adoptive = byId(people, adoptiveId);
+    if (!birth || !adoptive) return birth ?? adoptive;
+    if (custodian?.id === adoptive.id) return adoptive;
+    if (custodian?.id === birth.id) return birth;
+    return isImprisoned(birth) && !isImprisoned(adoptive) ? adoptive : birth;
+  };
+  const mother = parentFor(focus.motherId, focus.adoptiveMotherId);
+  const father = parentFor(focus.fatherId, focus.adoptiveFatherId);
   add(mother, 'mother');
   add(father, 'father');
 

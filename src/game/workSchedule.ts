@@ -73,8 +73,23 @@ export function normalizeWorkSchedule(value: unknown): WorkSchedule {
   return result.ok ? result.schedule : { ...DEFAULT_WORK_SCHEDULE };
 }
 
+/**
+ * The last raw hours pair and the schedule it normalized to. The normalized schedule depends only on
+ * `startHour`/`endHour`, so a value key is exact; the cache keeps the per-tick read allocation-free.
+ */
+let cachedStart: unknown;
+let cachedEnd: unknown;
+let cachedSchedule: WorkSchedule = { ...DEFAULT_WORK_SCHEDULE };
+
 export function getWorkSchedule(state: Pick<WorldState, 'workSchedule'>): WorkSchedule {
-  return normalizeWorkSchedule(state.workSchedule);
+  const raw = state.workSchedule;
+  const start = raw?.startHour;
+  const end = raw?.endHour;
+  if (Object.is(start, cachedStart) && Object.is(end, cachedEnd)) return cachedSchedule;
+  cachedStart = start;
+  cachedEnd = end;
+  cachedSchedule = normalizeWorkSchedule(raw);
+  return cachedSchedule;
 }
 
 export function getWorkScheduleHours(schedule: WorkSchedule): number {

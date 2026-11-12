@@ -79,10 +79,16 @@ describe('clearing a selection keeps the diagnostics drawer', () => {
   it('renders the drawer in the nothing-selected branch', () => {
     const nothingSelected = inspector.slice(
       inspector.indexOf('if (!hasSelection)'),
-      inspector.indexOf('return (\n    <div className="flex flex-col" aria-label="Inspector">'),
+      inspector.indexOf('return (\n    <div role="region" aria-label="Inspector" className="flex flex-col">'),
     );
     expect(nothingSelected, 'the nothing-selected branch is gone').not.toBe('');
     expect(nothingSelected).toContain('{diagnostics}');
+  });
+
+  it('gives each inspector state a labelled region instead of a labelled div', () => {
+    expect(inspector).toContain('role="region" aria-label="Inspector (collapsed)"');
+    expect(inspector).toContain('role="region" aria-label="Inspector (nothing selected)"');
+    expect(inspector).toContain('role="region" aria-label="Inspector"');
   });
 });
 

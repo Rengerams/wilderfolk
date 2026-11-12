@@ -5,7 +5,7 @@ import { ensureRivalProfile } from './rivalProfiles';
 import { addReputation } from './simHelpers';
 import { addBigNews, addFloatingText } from './simEffects';
 import { logEvent } from './eventLog';
-import { spendFood } from './economyLedger';
+import { spendFood, recordFoodProduced } from './economyLedger';
 import { addCappedResource } from './resourceUtils';
 import { TICKS_PER_DAY } from './dayCycle';
 
@@ -504,6 +504,7 @@ export function respondToDiplomacyEvent(
         rival.peaceTreatyDays = PEACE_TREATY_TRIBUTE_DAYS;
         applyTruceToRival(state, rival.id, PEACE_TREATY_TRIBUTE_DAYS);
         const tributeFood = addCappedResource(state, 'food', DIPLOMACY_PEACE_TRIBUTE_FOOD);
+        recordFoodProduced(state, 'tribute', tributeFood);
         if (tributeFood < DIPLOMACY_PEACE_TRIBUTE_FOOD) {
           addFloatingText(state, rival.campX, rival.campY - 20, `+${tributeFood}🍖 (storage full)`, '#f97316');
         } else {

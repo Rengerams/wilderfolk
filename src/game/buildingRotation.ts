@@ -1,5 +1,6 @@
-import { BUILDING_CONFIGS, BuildingType, GRID_SIZE, snapToGrid, type Building, type BuildingConfig } from './gameTypes';
+import { BuildingType, GRID_SIZE, snapToGrid, type Building, type BuildingConfig } from './gameTypes';
 import { getBuildingFootprintRect } from './buildingGeometry';
+import { getBuildingConfig } from './buildingConfig';
 
 /** Degrees — 0 (horizontal) and 90 (vertical) for straight strips. */
 export type BuildingRotation = 0 | 90;
@@ -70,7 +71,7 @@ export function getBuildingFootprintForType(
   type: BuildingType,
   rotation: BuildingRotation | CornerRotation = 0,
 ): { width: number; height: number } {
-  return getBuildingFootprint(BUILDING_CONFIGS[type], rotation);
+  return getBuildingFootprint(getBuildingConfig(type), rotation);
 }
 
 export function snapBuildingCenter(

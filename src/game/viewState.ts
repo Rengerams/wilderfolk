@@ -59,7 +59,7 @@ export const CAMERA_ZOOM_PRESETS: readonly number[] = [0.25, 0.5, 0.75, 1.0, 1.2
 
 const CAMERA_EPS = 1e-3;
 const CAMERA_LERP = 0.12;
-const CAMP_KEY_PATTERN = /^(rival|visitor):/;
+const CAMP_KEY_PATTERN = /^(visitor:\d+|rival:[\w-]+)$/;
 
 /** A new session's opening view: the standard camera, placed on the camp the map cleared. */
 export function createInitialViewForWorld(world: WorldState): ViewState {
@@ -136,6 +136,15 @@ function parseBoolean(value: unknown, fallback: boolean): boolean {
 function parseCampKey(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   return CAMP_KEY_PATTERN.test(value) ? value : null;
+}
+
+/** A restored camp selection must name a camp that still exists, or the save carries dead state. */
+function resolveCampKey(world: WorldState, key: string | null): string | null {
+  if (key == null) return null;
+  if (key.startsWith('visitor:')) {
+    return world.visitorGroups?.some((group) => key === `visitor:${group.id}`) ? key : null;
+  }
+  return world.rivalSettlements?.some((settlement) => key === `rival:${settlement.id}`) ? key : null;
 }
 
 export function parseBuildRotation(value: unknown): 0 | 90 {
@@ -279,8 +288,8 @@ export function createViewFromSave(
     showPaths: parseBoolean(data.showPaths, false),
     showTechTree: parseBoolean(data.showTechTree, false),
     showLogistics: parseBoolean(data.showLogistics, false),
-    highlightedCampKey: parseCampKey(data.highlightedCampKey),
-    selectedCampKey: parseCampKey(data.selectedCampKey),
+    highlightedCampKey: resolveCampKey(world, parseCampKey(data.highlightedCampKey)),
+    selectedCampKey: resolveCampKey(world, parseCampKey(data.selectedCampKey)),
     favoriteEntityId: (() => {
       const id = parseEntityId(data.favoriteEntityId);
       return id != null && resolveEntity(world, id) ? id : null;
@@ -346,16 +355,50 @@ export function pickTransientWorldFieldsForSave(world: WorldState): Record<strin
 export function restoreTransientWorldFieldsFromSave(
   parsed: Record<string, unknown>,
 ): Pick<WorldState, 'deathParticles' | 'floatingTexts' | 'notifications' | 'disasters'> {
+  // These pools are mutated in place every realtime/systems tick, so an element each tick dereferences
+  // is validated here; dropping one malformed element keeps the rest of the pool.
   return {
     deathParticles: Array.isArray(parsed.deathParticles)
-      ? (parsed.deathParticles as WorldState['deathParticles'])
+      ? parsed.deathParticles.filter((entry): entry is WorldState['deathParticles'][number] => {
+          if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) return false;
+          const particle = entry as Partial<WorldState['deathParticles'][number]>;
+          return isFiniteNumber(particle.x)
+            && isFiniteNumber(particle.y)
+            && isFiniteNumber(particle.vx)
+            && isFiniteNumber(particle.vy)
+            && isFiniteNumber(particle.life)
+            && isFiniteNumber(particle.maxLife)
+            && isFiniteNumber(particle.size)
+            && typeof particle.color === 'string'
+            && typeof particle.type === 'string';
+        })
       : [],
     floatingTexts: Array.isArray(parsed.floatingTexts)
-      ? (parsed.floatingTexts as WorldState['floatingTexts'])
+      ? parsed.floatingTexts.filter((entry): entry is WorldState['floatingTexts'][number] => {
+          if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) return false;
+          const text = entry as Partial<WorldState['floatingTexts'][number]>;
+          return isFiniteNumber(text.id)
+            && isFiniteNumber(text.x)
+            && isFiniteNumber(text.y)
+            && isFiniteNumber(text.life)
+            && isFiniteNumber(text.maxLife)
+            && isFiniteNumber(text.scale)
+            && typeof text.text === 'string'
+            && typeof text.color === 'string';
+        })
       : [],
     notifications: [],
     disasters: Array.isArray(parsed.disasters)
-      ? (parsed.disasters as WorldState['disasters'])
+      ? parsed.disasters.filter((entry): entry is WorldState['disasters'][number] => {
+          if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) return false;
+          const disaster = entry as Partial<WorldState['disasters'][number]>;
+          return typeof disaster.type === 'string'
+            && isFiniteNumber(disaster.x)
+            && isFiniteNumber(disaster.y)
+            && isFiniteNumber(disaster.radius)
+            && isFiniteNumber(disaster.duration)
+            && isFiniteNumber(disaster.progress);
+        })
       : [],
   };
 }
@@ -541,25 +584,6 @@ export function nudgeCameraToward(
     cam.targetZoom = Math.min(1.15, cam.targetZoom + 0.04);
   }
   return { ...view, camera: clampCameraTarget(cam, world.width, world.height, viewportW, viewportH) };
-}
-
-export function followFavoriteEntity(view: ViewState, world: WorldState): ViewState {
-  if (view.favoriteEntityId == null) return view;
-  const entity = resolveEntity(world, view.favoriteEntityId);
-  if (!entity) {
-    return { ...view, favoriteEntityId: null };
-  }
-  if (Math.abs(view.camera.targetX - entity.x) < CAMERA_EPS && Math.abs(view.camera.targetY - entity.y) < CAMERA_EPS) {
-    return view;
-  }
-  return {
-    ...view,
-    camera: {
-      ...view.camera,
-      targetX: entity.x,
-      targetY: entity.y,
-    },
-  };
 }
 
 export function syncScreenShakeFromWorld(view: ViewState, world: WorldState): ViewState {

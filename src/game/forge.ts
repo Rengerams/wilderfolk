@@ -290,7 +290,7 @@ export function queueForgeOrder(
     'Staff the Blacksmith — progress shows on the forge panel until finished.',
     'info',
   );
-  logEvent(state, 'event', `Blacksmith began forging ${order.label}`, building.campLabel ?? 'Blacksmith');
+  logEvent(state, 'event', `Blacksmith began forging ${order.label}`, 'Blacksmith');
   return state;
 }
 
@@ -314,7 +314,11 @@ export function migrateVillageForgeOnLoad(state: WorldState): void {
   state.villageForge = normalizeForgeState(state.villageForge);
 }
 
-export function tickVillageForge(state: WorldState, buildings: Building[]): void {
+/**
+ * Advances the active order once per forge production day. `productionDayTick` is the midnight
+ * anchor the daily production pass owns, so the 18:00 phase gates on its own calendar day.
+ */
+export function tickVillageForge(state: WorldState, buildings: Building[], productionDayTick: number): void {
   if (!state?.villageForge) return;
   state.villageForge = normalizeForgeState(state.villageForge);
   const forge = state.villageForge;
@@ -331,7 +335,7 @@ export function tickVillageForge(state: WorldState, buildings: Building[]): void
   );
   if (!smith) return;
 
-  if (!isProductionTick(state.tick, FORGE_PACE_INTERVAL_TICKS)) return;
+  if (!isProductionTick(productionDayTick, FORGE_PACE_INTERVAL_TICKS)) return;
 
   // Extra staffed smiths speed the run (soft cap so 2–3 workers feel better than 1).
   const crew = Math.max(1, Math.min(3, smith.occupants?.length ?? 1));

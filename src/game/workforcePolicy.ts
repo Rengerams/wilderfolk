@@ -129,6 +129,10 @@ const PRESET_BUILDING_ORDER: Readonly<Record<WorkforcePreset, readonly BuildingT
     jobBuildingId('church'),
   ],
   defense: [
+    // "Barracks and watch first": the guard posts outrank every trade, including the ones that
+    // arm them — a preset that staffed the tavern before the barracks inverted its own headline.
+    jobBuildingId('barracks'),
+    jobBuildingId('prison'),
     jobBuildingId('mine'),
     jobBuildingId('blacksmith'),
     jobBuildingId('workshop'),
@@ -146,10 +150,6 @@ const PRESET_BUILDING_ORDER: Readonly<Record<WorkforcePreset, readonly BuildingT
     jobBuildingId('tavern'),
     jobBuildingId('hotel'),
     jobBuildingId('church'),
-    // Listed so the preset states the intended order out loud rather than leaving the two
-    // defense workplaces unranked. They auto-fill like every other workplace unless set manual.
-    jobBuildingId('barracks'),
-    jobBuildingId('prison'),
   ],
   comfort: [
     jobBuildingId('tavern'),

@@ -8,6 +8,7 @@ import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
 import { addBigNews, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, pushStoryCard, AUTHORED_STORY_COOLDOWN_FLAG } from './storyHelpers';
+import { getSimSeed } from './simRng';
 import { spendFood } from './economyLedger';
 import { adjustEcosystemHealth, getEcosystemHealth } from './dailyEcology';
 
@@ -61,7 +62,7 @@ function hasHuntingPressure(state: WorldState): boolean {
 export function maybeOfferDeerParliament(state: WorldState): void {
   if (storyFlag(state, FLAG_OFFERED) > 0) return;
   const colonyDay = getColonyDay(state);
-  if (colonyDay < deerParliamentEligibleDay(state.worldMap?.seed)) return;
+  if (colonyDay < deerParliamentEligibleDay(getSimSeed())) return;
   if (storyFlag(state, AUTHORED_STORY_COOLDOWN_FLAG) > colonyDay) return;
   if ((state.pendingStoryEvents ?? []).length > 0) return;
   if (countAliveDeer(state) < MIN_DEER_FOR_PARLIAMENT) return;
@@ -154,6 +155,17 @@ export function resolveDeerParliament(state: WorldState, choiceId: string): bool
   setStoryFlags(state, baseFlags);
   logEvent(state, 'event', `The Deer Parliament resolved (${choiceId}).`, undefined);
   return true;
+}
+
+/**
+ * An unanswered card is the same fate as ignoring the delegation: the deer leave, the scheduled
+ * follow-up still plays, and the chapter resolves instead of blocking the guided campaign.
+ */
+export function expireDeerParliament(state: WorldState): void {
+  if (storyFlag(state, FLAG_RESOLVED) > 0) return;
+  if (storyFlag(state, FLAG_OFFERED) <= 0) return;
+  addNotification(state, '🦌 The delegation disperses', 'The Deer Parliament went unanswered — the deer took note.', 'info');
+  resolveDeerParliament(state, 'ignore');
 }
 
 export function tickDeerParliament(state: WorldState): void {

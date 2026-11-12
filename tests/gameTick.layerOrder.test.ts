@@ -10,11 +10,18 @@ import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
 const callLog = vi.hoisted(() => ({ calls: [] as string[] }));
 
-vi.mock('../src/game/tickLayerRealtime', () => ({
-  tickLayerRealtime: vi.fn((state: { tick: number }) => {
-    callLog.calls.push(`realtime@${state.tick}`);
-  }),
-}));
+vi.mock('../src/game/tickLayerRealtime', async () => {
+  // Keep the real predator-roster owner; only the layer entry point is traced.
+  const actual = await vi.importActual<typeof import('../src/game/tickLayerRealtime')>(
+    '../src/game/tickLayerRealtime',
+  );
+  return {
+    ...actual,
+    tickLayerRealtime: vi.fn((state: { tick: number }) => {
+      callLog.calls.push(`realtime@${state.tick}`);
+    }),
+  };
+});
 
 vi.mock('../src/game/tickLayerSystems', async () => {
   // The interval must come from the owner, not a literal: a mock that hardcodes it lets the real

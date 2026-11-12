@@ -8,6 +8,8 @@ import { EntityType, BuildingType, JobType } from './gameTypes';
 import { getAbsoluteCalendarDay, getColonyDay, HUMAN_MAX_LIFESPAN_YEARS, isNewCalendarDayTick, TICKS_PER_DAY } from './dayCycle';
 import { assignMissingResidences, syncResidenceOccupants } from './housingPipeline';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
+import { establishCitizenIdentity } from './settlerTraits';
+import { isPassableWildlifePosition } from './worldGen';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
 import { pushNewEntity } from './simulation/simulationEntities';
 import type { TickContext } from './simulation/simulationTypes';
@@ -23,7 +25,7 @@ import { bumpHistoryRevision } from './historyRevisions';
 import { getRandomSurname } from './nameLoader';
 import { maybeStartVisitorQuest } from './visitorQuest';
 import { logEvent } from './eventLog';
-import { getPlayerCampCenter } from './frontierCombat';
+import { getPlayerCampCenter } from './villageAnchor';
 import { clearFactionWanderState } from './factionWander';
 import { getRefugeeWelcomeBonus } from './townHall';
 import { addBigNews, addFloatingText, addNotification } from './simEffects';
@@ -85,7 +87,7 @@ export function tickVillageRequests(state: WorldState): void {
   const day = getAbsoluteCalendarDay(state.tick);
   const active = state.activeVillageRequest;
   if (active) {
-    if (day > active.expiresDay || !findLiveRequestSource(state, active)) {
+    if (day >= active.expiresDay || !findLiveRequestSource(state, active)) {
       expireVillageRequest(state, active, day);
     }
     return;
@@ -154,7 +156,7 @@ export function resolveVillageRequest(
   if (!request || request.id !== requestId) return state;
   const day = getAbsoluteCalendarDay(state.tick);
   const source = findLiveRequestSource(state, request);
-  if (day > request.expiresDay || !source) {
+  if (day >= request.expiresDay || !source) {
     expireVillageRequest(state, request, day);
     return state;
   }
@@ -264,6 +266,7 @@ export function spawnVisitorGroup(
   const center = getPlayerCampCenter(state, buildings);
   const avoid = [
     ...state.visitorGroups.map((v) => ({ x: v.campX, y: v.campY })),
+    ...state.rivalSettlements.map((r) => ({ x: r.campX, y: r.campY })),
   ];
   const site = pickSite(state, center, 70, 160, avoid);
   const memberCount = template.members[0] + Math.floor(getSimRng('groupEvents')() * (template.members[1] - template.members[0] + 1));
@@ -332,7 +335,7 @@ export function spawnVisitorGroup(
   };
 }
 
-export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
+export function tickVisitorGroups(state: WorldState, allAlive: Entity[], ctx?: TickContext): void {
   // Early return keeps an empty visitor list from building the two indexes; this function never
   // spawns a group, and `state.visitorGroups` is only reassigned at the end.
   if (state.visitorGroups.length === 0) return;
@@ -356,8 +359,9 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
           group.gold = (group.gold ?? 0) - gold;
           const food = 10 + Math.floor(getSimRng('groupEvents')() * 20);
           addCappedResource(state, 'gold', gold);
-          addCappedResource(state, 'food', food);
-          addFloatingText(state, group.campX, group.campY - 20, `+${gold}g +${food}f`, '#eab308');
+          const giftFood = addCappedResource(state, 'food', food);
+          recordFoodProduced(state, 'gift', giftFood);
+          addFloatingText(state, group.campX, group.campY - 20, `+${gold}g +${giftFood}f`, '#eab308');
           group.giftsGiven++;
           break;
         }
@@ -395,7 +399,7 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
           const deer = nextDeer();
           const poachChance = group.leaderTalked ? 0.1 : 0.25;
           if (deer && seededRandomForRun(`poach:${group.id}:${state.tick}`) < poachChance) {
-            killWildGameForPoach(state, deer);
+            killWildGameForPoach(state, deer, ctx);
             addFloatingText(state, deer.x, deer.y - 15, 'Hunted', '#f97316');
           }
           break;
@@ -834,6 +838,8 @@ function admitRefugees(
     ent.occupation = 'settler';
     ent.job = JobType.Settler;
     ent.reproductionCooldown = 0;
+    // Citizenship is the boundary that establishes permanent identity: a visitor arrives neutral.
+    establishCitizenIdentity(ent);
     finalizeSettlerAge(ent, state);
     joined++;
   }
@@ -905,7 +911,8 @@ export function rollYearlyWorldEvent(
    * Register one spawned entity through the canonical owner when a context is available. The
    * no-context fallback is the pre-existing behaviour and is never taken in play.
    */
-  const register = (entity: Entity): void => {
+  const register = (entity: Entity | null): void => {
+    if (!entity) return;
     if (ctx) pushNewEntity(state, ctx, entity);
     else {
       allAlive.push(entity);
@@ -916,7 +923,7 @@ export function rollYearlyWorldEvent(
   const humans = playerHumanCount(allAlive);
   const pool = WORLD_EVENTS.filter((e) => {
     if (e.minHumans && humans < e.minHumans) return false;
-    if (e.requiresNoVisitors && state.visitorGroups.length > 0) return false;
+    if (e.requiresNoVisitors && !canOfferVisitorCamp(state)) return false;
     return true;
   });
   const totalWeight = pool.reduce((s, e) => s + e.weight, 0);
@@ -935,7 +942,7 @@ export function rollYearlyWorldEvent(
   switch (picked.id) {
     case 'wolf_migration': {
       for (let i = 0; i < 3; i++) {
-        register(spawnWolf(width, height, nextEntityId()));
+        register(spawnWildlife(state, EntityType.Wolf, nextEntityId()));
       }
       return {
         event: { id: `wolf_migration_${state.tick}`, title: 'Wolf Pack Migration', description: 'A pack of wolves has migrated into the valley!', emoji: '🐺', effect: '+3 Wolves', type: 'negative' },
@@ -957,10 +964,10 @@ export function rollYearlyWorldEvent(
       };
     case 'nature_boom':
       for (let i = 0; i < 15; i++) {
-        register(spawnTree(width, height, nextEntityId()));
+        register(spawnWildlife(state, EntityType.Tree, nextEntityId()));
       }
       for (let i = 0; i < 30; i++) {
-        register(spawnGrass(width, height, nextEntityId()));
+        register(spawnWildlife(state, EntityType.Grass, nextEntityId()));
       }
       return {
         event: { id: `nature_boom_${state.tick}`, title: 'Ecological Super-Bloom', description: 'Natural energy revitalizes the valley flora!', emoji: '🌿', effect: '+15 Trees, +30 Grass', type: 'positive' },
@@ -986,14 +993,14 @@ export function rollYearlyWorldEvent(
       };
     case 'deer_migration':
       for (let i = 0; i < 4; i++) {
-        register(spawnDeer(width, height, nextEntityId()));
+        register(spawnWildlife(state, EntityType.Deer, nextEntityId()));
       }
       return {
         event: { id: `deer_migration_${state.tick}`, title: 'Deer Migration', description: 'A herd of deer wandered into the valley!', emoji: '🦌', effect: '+4 Deer', type: 'positive' },
         bountifulHarvest,
       };
     case 'generous_neighbors':
-      addCappedResource(state, 'food', 40);
+      recordFoodProduced(state, 'foraging', addCappedResource(state, 'food', 40));
       return {
         event: { id: `generous_neighbors_${state.tick}`, title: 'Forest Bounty', description: 'Foragers returned with an unusually rich harvest.', emoji: '🍄', effect: '+40 Food', type: 'positive' },
         bountifulHarvest,
@@ -1003,44 +1010,28 @@ export function rollYearlyWorldEvent(
   }
 }
 
-function spawnWolf(width: number, height: number, id: number): Entity {
-  return createEntity(
-    EntityType.Wolf,
-    getSimRng('groupEvents')() * width,
-    getSimRng('groupEvents')() * height,
-    id,
-    SPECIES_CONFIG[EntityType.Wolf].spawnEnergy,
-  );
+/**
+ * Draw from the yearly-event stream until the point is passable wildlife ground. The canonical
+ * wildlife-passability owner decides; a fully blocked map spawns nothing rather than an animal in a lake.
+ */
+function pickWildlifeSpawnPoint(state: WorldState): { x: number; y: number } | null {
+  for (let attempt = 0; attempt < 16; attempt++) {
+    const x = getSimRng('groupEvents')() * state.width;
+    const y = getSimRng('groupEvents')() * state.height;
+    if (isPassableWildlifePosition(state, x, y)) return { x, y };
+  }
+  return null;
 }
 
-function spawnDeer(width: number, height: number, id: number): Entity {
-  return createEntity(
-    EntityType.Deer,
-    getSimRng('groupEvents')() * width,
-    getSimRng('groupEvents')() * height,
-    id,
-    SPECIES_CONFIG[EntityType.Deer].spawnEnergy,
-  );
+function spawnWildlife(state: WorldState, type: EntityType, id: number): Entity | null {
+  const point = pickWildlifeSpawnPoint(state);
+  if (!point) return null;
+  return createEntity(type, point.x, point.y, id, SPECIES_CONFIG[type].spawnEnergy);
 }
 
-function spawnTree(width: number, height: number, id: number): Entity {
-  return createEntity(
-    EntityType.Tree,
-    getSimRng('groupEvents')() * width,
-    getSimRng('groupEvents')() * height,
-    id,
-    SPECIES_CONFIG[EntityType.Tree].spawnEnergy,
-  );
-}
-
-function spawnGrass(width: number, height: number, id: number): Entity {
-  return createEntity(
-    EntityType.Grass,
-    getSimRng('groupEvents')() * width,
-    getSimRng('groupEvents')() * height,
-    id,
-    SPECIES_CONFIG[EntityType.Grass].spawnEnergy,
-  );
+/** One visitor camp at a time — the single gate every visitor-camp offer reads. */
+export function canOfferVisitorCamp(state: Pick<WorldState, 'visitorGroups'>): boolean {
+  return state.visitorGroups.length === 0;
 }
 
 export function tryMidYearVisitorEvent(
@@ -1049,7 +1040,7 @@ export function tryMidYearVisitorEvent(
   buildings: Building[],
   ctx?: TickContext,
 ): GameEvent | null {
-  if (state.visitorGroups.length > 0) return null;
+  if (!canOfferVisitorCamp(state)) return null;
   if (playerHumanCount(allAlive) < 4) return null;
   if (seededRandomForRun(`mid-year-visitors:${state.tick}`) > 0.22) return null;
   const kinds: VisitorKind[] = ['traders', 'pilgrims', 'performers', 'nomads', 'scholars'];
@@ -1064,6 +1055,7 @@ export function tryFirstWeekVisitor(
   ctx?: TickContext,
 ): GameEvent | null {
   if (state.firstWeekVisitorSpawned) return null;
+  if (!canOfferVisitorCamp(state)) return null;
   if (state.tick < 7 * TICKS_PER_DAY || state.tick >= 14 * TICKS_PER_DAY) return null;
 
   const hasPlayerHouse = buildings.some(

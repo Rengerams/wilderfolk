@@ -371,8 +371,10 @@ describe('one definition of the village anchor', () => {
       id: 3, type: BuildingType.Barracks, completed: true, x: 900, y: 900, width: 40, height: 40,
     } as never;
 
-    expect(getPlayerCampCenterFromBuildings([hall, house])).toEqual({ x: 120, y: 120 });
-    expect(getPlayerCampCenterFromBuildings([house])).toEqual({ x: 210, y: 210 });
+    // `building.x/y` is the canonical footprint centre (buildingGeometry), so the anchor is that
+    // point itself; adding half a footprint would put the camp ~2 tiles south-east of the hall.
+    expect(getPlayerCampCenterFromBuildings([hall, house])).toEqual({ x: 100, y: 100 });
+    expect(getPlayerCampCenterFromBuildings([house])).toEqual({ x: 200, y: 200 });
     // No hall and no house: the building half must decline, which is what lets the settler mean answer.
     expect(getPlayerCampCenterFromBuildings([barracks])).toBeNull();
 

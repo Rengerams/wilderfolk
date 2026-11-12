@@ -49,7 +49,7 @@ export default function BigNewsBanner({
       }}
       // The live region is the inner content wrapper, so the announcement survives while this
       // card keeps its native button role and click-to-dismiss affordance (the ✕ is aria-hidden).
-      className={`pointer-events-auto fixed left-1/2 ${displaced ? 'top-48' : 'top-24'} z-[200] w-[min(100%-1.5rem,22rem)] -translate-x-1/2 cursor-pointer rounded-lg border p-2.5 pr-8 text-left shadow-lg backdrop-blur hover:brightness-110 ${
+      className={`pointer-events-auto fixed left-1/2 ${displaced ? 'top-48' : 'top-24'} z-[200] w-[min(100%_-_1.5rem,22rem)] -translate-x-1/2 cursor-pointer rounded-lg border p-2.5 pr-8 text-left shadow-lg backdrop-blur hover:brightness-110 ${
         item.type === 'positive' ? 'border-emerald-400/50 bg-emerald-950/90' :
         item.type === 'negative' ? 'border-rose-400/50 bg-rose-950/90' :
         'border-amber-400/50 bg-amber-950/90'

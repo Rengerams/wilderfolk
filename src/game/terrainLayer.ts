@@ -251,7 +251,8 @@ export interface TerrainLayerCache {
 /**
  * Cache key for one baked terrain chunk. Every input the bake reads must be here: `tile.type` is not
  * stable (placement clears forest), so the chunk's own dirty region is in the key and only that
- * chunk re-bakes.
+ * chunk re-bakes. Material readiness is keyed too: a chunk baked before the atlas or shoreline
+ * overlay loaded must not survive, or the painted replacement could never appear.
  */
 export function terrainChunkCacheKeyFor(
   map: Pick<WorldMap, 'seed' | 'terrainSeed' | 'generationVersion' | 'preset' | 'width' | 'height'>,
@@ -260,8 +261,12 @@ export function terrainChunkCacheKeyFor(
   rect: TerrainDirtyRect,
   blendT?: number,
 ): string {
+  const fills = terrainFillSpritesReady() ? 1 : 0;
+  const atlas = terrainAtlasReady() ? 1 : 0;
+  const overlay = sandWaterOverlayReady() ? TERRAIN_MATERIAL_ATLAS_REVISION : 0;
   return `${map.seed}|${map.terrainSeed ?? ''}|v${map.generationVersion ?? 1}|${map.preset}`
-    + `|${map.width}x${map.height}|${season}|${lod}|${blendT ?? ''}|${terrainRegionRevision(rect)}`;
+    + `|${map.width}x${map.height}|${season}|${lod}|${blendT ?? ''}`
+    + `|m${fills}${atlas}${overlay}|${terrainRegionRevision(rect)}`;
 }
 
 export function terrainFillSpritesReady(): boolean {

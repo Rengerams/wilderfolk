@@ -184,6 +184,21 @@ describe('typing into a field keeps every key', () => {
   });
 });
 
+describe('a held key is one gesture', () => {
+  it('ignores OS key repeat before pause and build toggles, after held movement keys are recorded', () => {
+    // The node tier cannot dispatch keydowns, so this pins the guard order in the keyboard owner.
+    const movementCapture = hookSource.indexOf('keysRef.current.add(');
+    const repeatGuard = hookSource.indexOf('if (e.repeat) return;');
+    const pause = hookSource.indexOf('togglePauseRef.current();');
+    const buildRail = hookSource.indexOf('setBuildPanelOpen((open) => !open);');
+
+    expect(repeatGuard, 'the repeat guard is gone').toBeGreaterThan(-1);
+    expect(repeatGuard).toBeGreaterThan(movementCapture);
+    expect(repeatGuard).toBeLessThan(pause);
+    expect(repeatGuard).toBeLessThan(buildRail);
+  });
+});
+
 describe('a selection strip states its selection instead of only painting it', () => {
   it('A-6: the overview nav marks the current subject (aria-current)', () => {
     // `aria-current`, not `aria-pressed`: the header's subject doors are a navigation set, and the

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
-import { persistGame } from '../src/hooks/useGamePersistence';
+import { persistGame, saveImportSizeRefusal, MAX_SAVE_IMPORT_BYTES } from '../src/hooks/useGamePersistence';
 import { createInitialView } from '../src/game/viewState';
 
 const { saveGameMock, saveGameToSlotMock } = vi.hoisted(() => ({
@@ -179,15 +179,16 @@ describe('persistGame', () => {
   });
 
   /**
-   * The worker allows one export in flight; a second save joins the first instead of
-   * falling back to the display shadow.
+   * The worker allows one export in flight, but a manual save still owes the player a download and a
+   * toast: it queues behind the background save instead of being answered by it.
    */
-  it('coalesces a second save onto the one already in flight', async () => {
-    const world = initGame({ skipTerrain: true, villageName: 'Coalesced' });
+  it('queues a manual save behind a background save so it still downloads and toasts', async () => {
+    const world = initGame({ skipTerrain: true, villageName: 'Queued manual save' });
     const view = createInitialView(world.width, world.height);
     const showToast = vi.fn();
     const markGameSaved = vi.fn();
     saveGameMock.mockReturnValue({ success: true });
+    saveGameToSlotMock.mockReturnValue({ success: true });
 
     // Hold the export open so the overlap is real rather than a race the test hopes to win.
     let releaseExport = (): void => {};
@@ -211,18 +212,45 @@ describe('persistGame', () => {
       getView: () => view,
     };
 
-    const first = persistGame(accessors, { markGameSaved, showToast });
-    // Started while the first is still exporting: the autosave + Ctrl+S shape.
-    const second = persistGame(accessors, { markGameSaved, showToast });
+    const background = persistGame(
+      accessors,
+      { markGameSaved, showToast },
+      { background: true, feedback: false },
+    );
+    // Started while the background save is still exporting: the exit-save + Ctrl+S shape.
+    const manual = persistGame(accessors, { markGameSaved, showToast }, { feedback: true });
 
     releaseExport();
-    const [firstResult, secondResult] = await Promise.all([first, second]);
+    const [backgroundResult, manualResult] = await Promise.all([background, manual]);
 
-    expect(firstResult).toBe(true);
-    expect(secondResult).toBe(true);
-    // One export, one write: the second caller waited for the first instead of asking again.
+    expect(backgroundResult).toBe(true);
+    expect(manualResult).toBe(true);
+    expect(exportAuthoritativeWorld).toHaveBeenCalledTimes(2);
+    expect(saveGameToSlotMock).toHaveBeenCalledOnce();
+    expect(saveGameMock).toHaveBeenCalledOnce();
+    expect(showToast).toHaveBeenCalledWith({ message: 'Game saved successfully', type: 'success' });
+  });
+
+  it('lets a background save share the in-flight manual save', async () => {
+    const world = initGame({ skipTerrain: true, villageName: 'Shared save' });
+    const view = createInitialView(world.width, world.height);
+    saveGameMock.mockReturnValue({ success: true });
+    const exportAuthoritativeWorld = vi.fn(async () => world);
+    const loop = {
+      exportAuthoritativeWorld,
+      getView: () => view,
+      getWorld: () => world,
+      mutateWorld: (mutator: (w: WorldState) => void) => mutator(world),
+    };
+    const accessors = { getLoop: () => loop, getWorld: () => world, getView: () => view };
+    const callbacks = { markGameSaved: vi.fn(), showToast: vi.fn() };
+
+    const manual = persistGame(accessors, callbacks);
+    const background = persistGame(accessors, callbacks, { background: true, feedback: false });
+    expect(await Promise.all([manual, background])).toEqual([true, true]);
     expect(exportAuthoritativeWorld).toHaveBeenCalledOnce();
     expect(saveGameMock).toHaveBeenCalledOnce();
+    expect(saveGameToSlotMock).not.toHaveBeenCalled();
   });
 
   it('joins a failed overlapping export, then allows one clean retry (COV-B-02)', async () => {
@@ -311,5 +339,13 @@ describe('persistGame', () => {
 
     expect(failed).toBe(false);
     expect(retried).toBe(true);
+  });
+
+  it('refuses an imported save that is over the size cap before it is read', () => {
+    // The cap is a memory guard for the file read plus its parsed copy, not a save-content rule.
+    expect(saveImportSizeRefusal(MAX_SAVE_IMPORT_BYTES)).toBeNull();
+    const refusal = saveImportSizeRefusal(MAX_SAVE_IMPORT_BYTES + 1);
+    expect(refusal).toContain('64 MB');
+    expect(refusal).toContain('imports saves up to');
   });
 });

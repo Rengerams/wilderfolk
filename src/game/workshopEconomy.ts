@@ -7,10 +7,11 @@ import { getMultiplier } from './simHelpers';
 import { isPlayerHuman } from './playerHuman';
 import { getHumanNeedsWorkMultiplier } from './simulation/humanPhysiology';
 import {
-  getScheduleLastWorkedHours,
   getScheduleProductivityMultiplier,
+  getWorkdayAttendance,
   getWorkplacePresenceShare,
 } from './scheduleFatigue';
+import { TICKS_PER_HOUR } from './dayCycle';
 import {
   getWorkHourProductionMultiplier,
   getWorkSchedule,
@@ -50,12 +51,15 @@ export function estimateWorkshopGold(
     return 0;
   }
 
-  // Production counts a workshop's workers by live work assignment, not occupancy, so the estimate
-  // must use the same rule or it predicts output for a workshop standing idle.
+  // Production counts a workshop's crew by live work assignment and pays only the attendance it
+  // verified, so the estimate reads the same owner for the same day.
   const assignedWorkers = state.entities.filter(
     (entity) => entity.alive && isPlayerHuman(entity) && entity.workerBuildingId === building.id,
   );
-  const actualWorkers = assignedWorkers.length;
+  const attendingWorkers = assignedWorkers
+    .map((worker) => ({ worker, hours: getWorkdayAttendance(worker).ticks / TICKS_PER_HOUR }))
+    .filter((entry) => entry.hours > 0);
+  const actualWorkers = attendingWorkers.length;
   if (actualWorkers === 0 && !options.previewUnstaffed) {
     return 0;
   }
@@ -74,20 +78,20 @@ export function estimateWorkshopGold(
   // The three terms production applies every cycle that the estimate must also apply: schedule
   // fatigue, attendance share, and the Town Hall's governance efficiency.
   const fatigueMultiplier = actualWorkers > 0
-    ? assignedWorkers.reduce((sum, worker) => sum + Math.min(
-        getScheduleProductivityMultiplier(worker), getHumanNeedsWorkMultiplier(worker)), 0) / actualWorkers
+    ? attendingWorkers.reduce((sum, entry) => sum + Math.min(
+        getScheduleProductivityMultiplier(entry.worker), getHumanNeedsWorkMultiplier(entry.worker)), 0) / actualWorkers
     : 1.0;
   // Attendance through the same `getWorkplacePresenceShare` rule production uses, so the estimate
   // cannot drift from real output; an unstaffed preview and a world with no settled day report a full shift.
   const schedule = getWorkSchedule(state);
   const workedHours = actualWorkers > 0
-    ? assignedWorkers.reduce((sum, worker) => sum + getScheduleLastWorkedHours(worker), 0) / actualWorkers
+    ? attendingWorkers.reduce((sum, entry) => sum + entry.hours, 0) / actualWorkers
     : 0;
   const presenceMultiplier = getWorkplacePresenceShare(
     workedHours,
     actualWorkers,
     getWorkScheduleHours(schedule),
-    options.previewUnstaffed === true || assignedWorkers.some((worker) => worker.scheduleLastWorkedHours != null),
+    options.previewUnstaffed === true || actualWorkers > 0,
   );
   const workHourMultiplier = getWorkHourProductionMultiplier(getWorkScheduleHours(schedule));
   const governanceMultiplier = getTownHallGovernanceEfficiency(state, state.buildings);

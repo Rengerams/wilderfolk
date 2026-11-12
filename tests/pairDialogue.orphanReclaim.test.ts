@@ -8,6 +8,7 @@ import type { Entity } from '../src/game/gameTypes';
 import {
   isDialogueBusy,
   resetDialogueSessions,
+  retainDialogueSessionsForWorld,
   startDialogueTreeChat,
   tickHumanChat,
 } from '../src/game/humanChat';
@@ -67,6 +68,29 @@ afterEach(() => {
 });
 
 describe('paired dialogue — idle half reclaim (F-chat-1)', () => {
+  it('keeps a live pair across a colony re-open but drops it for a replaced world', () => {
+    resetDialogueSessions();
+    const idle = human(81);
+    const speaking = human(82);
+    const world = {};
+    retainDialogueSessionsForWorld(world);
+
+    advanceToHandOff(idle, speaking);
+    expect(speaking.chatDialogueSessionKey).toBe('81:82');
+    expect(isDialogueBusy(idle)).toBe(true);
+
+    // A re-opened colony hands the same world back: the pair keeps its scene.
+    retainDialogueSessionsForWorld(world);
+    expect(speaking.chatDialogueSessionKey).toBe('81:82');
+    expect(isDialogueBusy(idle)).toBe(true);
+
+    // A replaced world drops the scene; the idle half reclaims itself on its next tick.
+    retainDialogueSessionsForWorld({});
+    tickHumanChat(idle);
+    expect(idle.chatDialogueSessionKey).toBeUndefined();
+    expect(isDialogueBusy(idle)).toBe(false);
+  });
+
   it('releases the idle half when a session swap drops its session map entry', () => {
     resetDialogueSessions();
     const idle = human(41);

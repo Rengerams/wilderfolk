@@ -14,7 +14,7 @@ import {
 } from '../terrain/terrainGrid';
 import { snapshotSimRng, restoreSimRng, type SimRngSnapshot } from '../simRng';
 
-export const SIM_DELTA_PROTO = 6;
+export const SIM_DELTA_PROTO = 7;
 
 /** Boundary guard for a delta that crossed the worker port; cheap enough to run before bookkeeping. */
 export function isSimTickDelta(value: unknown): value is SimTickDelta {
@@ -77,6 +77,8 @@ export interface SimTickDelta {
   season: WorldState['season'];
   weather: WorldState['weather'];
   weatherTimer: number;
+  /** Set when the simulation paused itself (raid aftermath, spotlight preview); the host owns resume. */
+  paused: boolean;
   resources: WorldState['resources'];
   storageMax: WorldState['storageMax'];
   foodSpoilageRate: WorldState['foodSpoilageRate'];
@@ -141,6 +143,9 @@ export interface SimTickDelta {
   raidPrisonerHistory?: WorldState['raidPrisonerHistory'];
   pendingDiplomacyEvents: WorldState['pendingDiplomacyEvents'];
   villageLeaderId: number | null;
+  pendingLeaderHouseResidentIds: WorldState['pendingLeaderHouseResidentIds'];
+  nextElectionId: WorldState['nextElectionId'];
+  lastElectionResult: WorldState['lastElectionResult'];
   leaderSinceYear: number;
   lastElectionYear: number;
   pendingElectionYear: number | null;
@@ -342,6 +347,7 @@ export function extractSimTickDelta(
     season: world.season,
     weather: world.weather,
     weatherTimer: world.weatherTimer,
+    paused: world.paused,
     resources: { ...world.resources },
     storageMax: { ...world.storageMax },
     foodSpoilageRate: world.foodSpoilageRate,
@@ -393,6 +399,11 @@ export function extractSimTickDelta(
     raidPrisonerHistory: world.raidPrisonerHistory === undefined ? undefined : deltaClone(world.raidPrisonerHistory, cloneMode),
     pendingDiplomacyEvents: deltaClone(world.pendingDiplomacyEvents ?? [], cloneMode),
     villageLeaderId: world.villageLeaderId,
+    pendingLeaderHouseResidentIds: world.pendingLeaderHouseResidentIds === undefined
+      ? undefined
+      : deltaClone(world.pendingLeaderHouseResidentIds, cloneMode),
+    nextElectionId: world.nextElectionId,
+    lastElectionResult: deltaCloneOptional(world.lastElectionResult, cloneMode) ?? undefined,
     leaderSinceYear: world.leaderSinceYear,
     lastElectionYear: world.lastElectionYear,
     pendingElectionYear: world.pendingElectionYear,
@@ -649,6 +660,9 @@ export function applySimTickDelta(
   world.season = delta.season;
   world.weather = delta.weather;
   world.weatherTimer = delta.weatherTimer;
+  // One-way: only the simulation pauses itself; a stale in-flight result must never resume a
+  // pause the host has already adopted.
+  if (delta.paused) world.paused = true;
   world.resources = { ...delta.resources };
   world.storageMax = { ...delta.storageMax };
   world.foodSpoilageRate = delta.foodSpoilageRate;
@@ -731,6 +745,10 @@ export function applySimTickDelta(
   else world.raidPrisonerHistory = deltaClone(delta.raidPrisonerHistory, cloneMode);
   world.pendingDiplomacyEvents = deltaClone(delta.pendingDiplomacyEvents, cloneMode);
   world.villageLeaderId = delta.villageLeaderId;
+  if (delta.pendingLeaderHouseResidentIds === undefined) delete world.pendingLeaderHouseResidentIds;
+  else world.pendingLeaderHouseResidentIds = deltaClone(delta.pendingLeaderHouseResidentIds, cloneMode);
+  world.nextElectionId = delta.nextElectionId;
+  world.lastElectionResult = deltaCloneOptional(delta.lastElectionResult, cloneMode) ?? undefined;
   world.leaderSinceYear = delta.leaderSinceYear;
   world.lastElectionYear = delta.lastElectionYear;
   world.pendingElectionYear = delta.pendingElectionYear;

@@ -1,6 +1,7 @@
 import type { WorldState } from './gameTypes';
 import { invalidateEntityByIdMap, rebuildEntityByIdMap } from './entityIndex';
 import { invalidateCachedEntityByType } from './entityTypeCache';
+import { rebuildBeautyGridFromWorld } from './beautyGrid';
 
 
 export function invalidateWorldRuntimeCaches(world: WorldState): void {
@@ -38,6 +39,9 @@ export function hydrateWorldRuntimeCaches(world: WorldState, preserveGeometry = 
     world.adjacency = adjacency;
     world.beautyGrid = beautyGrid;
   }
+  // Beauty is a simulation input, so every hand-off must leave a grid behind even when the caller
+  // had none to preserve (worker import, rollback, replica hydrate); a missing grid shifts humanTick.
+  if (world.beautyGrid == null) rebuildBeautyGridFromWorld(world);
 
   return world;
 }

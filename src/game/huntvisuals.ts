@@ -3,22 +3,30 @@ import type { EntityType, HuntVisual, WorldState } from './gameTypes';
 export type { HuntVisual };
 
 /**
- * An arrow's flight is animated against the wall clock: `startedAtMs` owns retention and progress so a
- * 1 s animation still finishes at speed, while `startedAtTick` is the reproducible simulation reading.
+ * An arrow's flight is animated against the render clock: `startedAtMs` is a presentation-only stamp
+ * (never read by a decision), while `startedAtTick` is the simulation reading that owns retention.
  */
 export const HUNT_ANIM_MS = 1000;
 
+/**
+ * Retention in simulation ticks. At speed 1 a tick is one second, so this keeps the arrow for the
+ * flight plus a tick of margin — the wall clock can never prune or preserve it inside the tick.
+ */
+export const HUNT_ANIM_LIFETIME_TICKS = 2;
+
+/** Flight progress for the renderer, read against the render clock (`nowMs`), never by the simulation. */
 export function huntAnimProgress(visual: HuntVisual, nowMs = Date.now()): number {
   const elapsed = nowMs - visual.startedAtMs;
   if (elapsed <= 0) return 0;
   return Math.min(1, elapsed / HUNT_ANIM_MS);
 }
 
-export function isHuntVisualActive(visual: HuntVisual, nowMs = Date.now()): boolean {
-  return nowMs - visual.startedAtMs < HUNT_ANIM_MS + 400;
+/** Whether the arrow is still inside its retention window, measured in simulation ticks. */
+export function isHuntVisualActive(visual: HuntVisual, nowTick: number): boolean {
+  return nowTick - visual.startedAtTick < HUNT_ANIM_LIFETIME_TICKS;
 }
 
-export function pruneHuntVisuals(state: WorldState, nowMs = Date.now()): void {
+export function pruneHuntVisuals(state: WorldState, nowTick = state.tick): void {
   const visuals = state.huntVisuals;
   
   // Early exit if undefined or empty
@@ -30,7 +38,7 @@ export function pruneHuntVisuals(state: WorldState, nowMs = Date.now()): void {
   // 🚀 OPTIMIZED: Zero-allocation in-place filtering
   let writeIdx = 0;
   for (let i = 0; i < visuals.length; i++) {
-    if (isHuntVisualActive(visuals[i], nowMs)) {
+    if (isHuntVisualActive(visuals[i], nowTick)) {
       visuals[writeIdx++] = visuals[i];
     }
   }

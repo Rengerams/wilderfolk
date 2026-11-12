@@ -2,6 +2,7 @@
 import type { WorldState, Entity, Building, VisitorKind, VisitorGroup } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { isCompletedPlayerBuilding } from './buildings';
+import { getBuildingCenter } from './buildingGeometry';
 import { getPlayerCampCenter } from './frontierCombat';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay, isNightHour } from './dayCycle';
 import { requestDialogue, type DialogueEventKey } from './dialogueTrees';
@@ -30,10 +31,6 @@ function jitter(n: number, amount: number): number {
   return n + (getSimRng('factionWander')() - 0.5) * amount;
 }
 
-function buildingCenter(b: Building): { x: number; y: number } {
-  return { x: b.x + b.width / 2, y: b.y + b.height * 0.85 };
-}
-
 function findBuilding(
   buildings: Building[],
   types: BuildingType[],
@@ -54,7 +51,7 @@ function pickPoiForKind(
   const tryTypes = (types: BuildingType[], label: string) => {
     const b = findBuilding(buildings, types);
     if (!b) return null;
-    const c = buildingCenter(b);
+    const c = getBuildingCenter(b);
     return { x: jitter(c.x, 18), y: jitter(c.y, 14), label };
   };
 
@@ -86,7 +83,7 @@ function pickPoiForKind(
       if (getSimRng('factionWander')() < 0.45) {
         const spot = findBuilding(buildings, [BuildingType.HuntingSpot, BuildingType.TamingPost]);
         if (spot) {
-          const c = buildingCenter(spot);
+          const c = getBuildingCenter(spot);
           return { x: jitter(c.x, 22), y: jitter(c.y, 22), label: 'hunt' };
         }
       }

@@ -123,7 +123,7 @@ export function tickHumanHunting(
 
     if (closestPrey?.alive && closestDist < config.size + closestPrey.size) {
       const preyId = closestPrey.id;
-      markWildlifeDead(ctx, closestPrey);
+      markWildlifeDead(ctx, closestPrey, undefined, state.tick, state);
       clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId);
       createDeathParticles(state, closestPrey.x, closestPrey.y, '#8a2a2a', 10);
       syncEntityGrids(ctx, closestPrey);
@@ -156,6 +156,7 @@ export function tickHumanHunting(
       entity.huntTargetId = undefined;
 
       const foodGain = freeHuntFoodGain(closestPrey.type, state);
+      // Storage caps the deposit, so the reward reports what the larder actually took.
       const addedFood = addResource(state, 'food', foodGain);
       recordFoodProduced(state, 'hunting', addedFood);
 
@@ -172,7 +173,7 @@ export function tickHumanHunting(
         state,
         closestPrey.x,
         closestPrey.y - 14,
-        `Hunted ${preyLabel}! +${foodGain}`,
+        `Hunted ${preyLabel}! +${addedFood}`,
         '#f97316',
       );
 

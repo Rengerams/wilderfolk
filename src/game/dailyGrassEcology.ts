@@ -2,7 +2,7 @@ import type { Entity, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import type { TickContext } from './simulation/simulationTypes';
 import { TICKS_PER_DAY } from './dayCycle';
-import { GRASS_GROWTH_PER_TICK } from './grassEcology';
+import { GRASS_GROWTH_PER_DAY } from './grassEcology';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { buildGrassPopulationSnapshot, grassPopulationTotal } from './simQueries';
 import { createEntity } from './entityFactory';
@@ -24,7 +24,9 @@ export function tickGrassDaily(
   }
 
   const grassConfig = SPECIES_CONFIG[EntityType.Grass];
-  const growth = GRASS_GROWTH_PER_TICK * grassMult * TICKS_PER_DAY;
+  // One day's regrowth, not a per-tick rate multiplied by the day: the old `× TICKS_PER_DAY` sent
+  // every season past `maxEnergy`, so pasture never thinned and the pressure estimate was fiction.
+  const growth = GRASS_GROWTH_PER_DAY * grassMult;
   // Approximate former per-tick spawn chance over a full day.
   const dailyReproChance = Math.min(
     1,

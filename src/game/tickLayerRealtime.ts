@@ -46,8 +46,11 @@ export const STATS_SAMPLE_INTERVAL_TICKS = 10;
 /** Rolling buffer length — 300 samples × STATS_SAMPLE_INTERVAL_TICKS (≈10 game days at 288 ticks/day). */
 export const POPULATION_HISTORY_MAX = 300;
 
-/** Zero-allocation array building instead of spread operator concatenation. */
-function rebuildPredators(byType: TickContext['byType'], playerHumans?: readonly Entity[]): Entity[] {
+/**
+ * The tick's predator roster: every hunting wildlife species plus hostile/adult settlers.
+ * Shared by the initial `TickContext` and the Moon Howler form change so both agree on Wildkin.
+ */
+export function rebuildPredators(byType: TickContext['byType'], playerHumans?: readonly Entity[]): Entity[] {
   const out: Entity[] = [];
   
   const pushType = (entities: Entity[] | undefined) => {
@@ -59,6 +62,7 @@ function rebuildPredators(byType: TickContext['byType'], playerHumans?: readonly
   pushType(byType[EntityType.Wolf]);
   pushType(byType[EntityType.Fox]);
   pushType(byType[EntityType.Werewolf]);
+  pushType(byType[EntityType.Wildkin]);
 
   const settlers = playerHumans ?? (byType[EntityType.Human]?.filter(isPlayerHuman) ?? []);
   for (const h of settlers) {

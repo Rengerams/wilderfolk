@@ -266,12 +266,12 @@ export function reconcileOrphanedMarriages(entities: readonly Entity[]): void {
   }
   for (const human of entities) {
     if (!human.alive || human.type !== EntityType.Human) continue;
-    // A status that names a marriage cannot outlive the partner it names — including a father's
-    // `'expecting'`, which only his partner's pregnancy clears, so nothing would ever free him.
-    if (!isMarriedOrExpecting(human)) continue;
+    // Any spouse id naming a pruned entity is corruption, whatever the status says; a status that
+    // names a marriage cannot outlive the partner it names either (a father's `'expecting'` is
+    // cleared only by his partner's pregnancy, so nothing else would ever free him).
     const partner = human.partnerId != null ? byId.get(human.partnerId) : undefined;
-    if (isSettlerRelationshipEntity(partner)) continue;
-    human.partnerId = undefined;
-    human.relationshipStatus = statusAfterMarriageEnd(human);
+    if (partner?.alive && isSettlerRelationshipEntity(partner)) continue;
+    if (human.partnerId != null) human.partnerId = undefined;
+    if (isMarriedOrExpecting(human)) human.relationshipStatus = statusAfterMarriageEnd(human);
   }
 }

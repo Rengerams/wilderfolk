@@ -85,11 +85,24 @@ const LogRow = memo(function LogRow({ evt }: { evt: GameEventLog }) {
   );
 });
 
+type LogFilter = NonNullable<Props['initialFilter']>;
+
 export default function EventLogPanel({ events, meta, initialFilter = 'all', onFilterChange }: Props) {
   const [editionView, setEditionView] = useState<'gazette' | 'chronicle'>('chronicle');
   const [chosenWeek, setChosenWeek] = useState<number | null>(null);
-  const [filter, setFilter] = useState<'all' | GameEventLog['type']>(initialFilter);
-  const [visibleCount, setVisibleCount] = useState(IN_GAME_LOG_PAGE);
+  /**
+   * The filter the shell last handed over, with the player's own choice since then. A new handover
+   * ("Log →" from a concern) wins over that choice, so a mounted window lands on the asked subject.
+   */
+  const [filterChoice, setFilterChoice] = useState<{ handedOver: LogFilter; value: LogFilter }>(
+    { handedOver: initialFilter, value: initialFilter },
+  );
+  const filter = filterChoice.handedOver === initialFilter ? filterChoice.value : initialFilter;
+  /** Rows requested for one filter; a different filter starts its own list at the first page. */
+  const [page, setPage] = useState<{ filter: LogFilter; count: number }>(
+    { filter: initialFilter, count: IN_GAME_LOG_PAGE },
+  );
+  const visibleCount = page.filter === filter ? page.count : IN_GAME_LOG_PAGE;
   const [copied, setCopied] = useState(false);
   const [downloadedFormat, setDownloadedFormat] = useState<'txt' | 'json' | 'csv' | null>(null);
   const [exportOnSave, setExportOnSave] = useState(loadExportChronicleOnSave);
@@ -107,10 +120,8 @@ export default function EventLogPanel({ events, meta, initialFilter = 'all', onF
   const allFiltered = filter === 'all' ? events : events.filter((e) => e.type === filter);
   const filtered = allFiltered.slice(0, visibleCount);
 
-  /** A new filter starts its own list at the first page. */
-  const chooseFilter = (next: 'all' | GameEventLog['type']) => {
-    setFilter(next);
-    setVisibleCount(IN_GAME_LOG_PAGE);
+  const chooseFilter = (next: LogFilter) => {
+    setFilterChoice({ handedOver: initialFilter, value: next });
     onFilterChange?.(next);
   };
 
@@ -130,18 +141,19 @@ export default function EventLogPanel({ events, meta, initialFilter = 'all', onF
     window.setTimeout(() => setDownloadedFormat(null), 2000);
   };
 
+  /** Downloads carry the whole stored Chronicle, as the footer promises; the filter only narrows the list. */
   const downloadLogFile = () => {
-    downloadChronicleLog(allFiltered, meta);
+    downloadChronicleLog(events, meta);
     markDownloaded('txt');
   };
 
   const downloadLogJSON = () => {
-    downloadChronicleJSON(allFiltered, meta);
+    downloadChronicleJSON(events, meta);
     markDownloaded('json');
   };
 
   const downloadLogCSV = () => {
-    downloadChronicleCSV(allFiltered, meta);
+    downloadChronicleCSV(events, meta);
     markDownloaded('csv');
   };
 
@@ -332,7 +344,7 @@ export default function EventLogPanel({ events, meta, initialFilter = 'all', onF
         {allFiltered.length > visibleCount && (
           <button
             type="button"
-            onClick={() => setVisibleCount(allFiltered.length)}
+            onClick={() => setPage({ filter, count: allFiltered.length })}
             className="mt-1 w-full rounded-lg bg-stone-800 px-2 py-1.5 text-[11px] font-semibold text-stone-300 transition-colors hover:bg-stone-700 hover:text-white"
           >
             Show all {(allFiltered.length - visibleCount).toLocaleString()} more

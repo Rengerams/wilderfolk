@@ -1,9 +1,12 @@
-import { memo } from 'react';
 import { getActiveChallengeId, getChallengeProgress } from '../game/challenges';
 import { resourceFillPercent } from '../game/dashboardData';
 import type { WorldState } from '../game/gameTypes';
 
-function ChallengesPanel({ state }: { state: WorldState }) {
+/**
+ * Not memoised: the worker and the fallback loop reuse the same world object, so a reference
+ * comparison cannot tell a new tick from the last one and the progress bars would freeze.
+ */
+export default function ChallengesPanel({ state }: { state: WorldState }) {
   const activeId = getActiveChallengeId(state.challenges);
 
   return (
@@ -61,5 +64,3 @@ function ChallengesPanel({ state }: { state: WorldState }) {
     </div>
   );
 }
-
-export default memo(ChallengesPanel);

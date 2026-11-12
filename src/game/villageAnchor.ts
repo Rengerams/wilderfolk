@@ -1,9 +1,10 @@
 /**
  * The village anchor — one rule, two readers: the simulation's camp centre and the renderer's raid
- * march lines. Leaf on purpose: the only imports are types.
+ * march lines. Leaf on purpose: types plus the footprint-geometry leaf.
  */
 import type { Building, WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
+import { getBuildingCenter } from './buildingGeometry';
 import { isPlayerHuman } from './playerHuman';
 
 /** A point in world coordinates. */
@@ -20,12 +21,10 @@ export function getPlayerCampCenterFromBuildings(buildings: readonly Building[])
   let house: Building | undefined;
   for (const building of buildings) {
     if (!building.completed || building.faction === 'rival') continue;
-    if (building.type === BuildingType.TownHall) {
-      return { x: building.x + building.width / 2, y: building.y + building.height / 2 };
-    }
+    if (building.type === BuildingType.TownHall) return getBuildingCenter(building);
     if (house === undefined && building.type === BuildingType.House) house = building;
   }
-  if (house) return { x: house.x + house.width / 2, y: house.y + house.height / 2 };
+  if (house) return getBuildingCenter(house);
   return null;
 }
 

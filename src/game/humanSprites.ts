@@ -366,7 +366,7 @@ export function getJuvenileSpriteFrame(gender: HumanGender | undefined, variant 
   return getSpriteFrame(JUVENILE_SPRITE_PATHS[g][juvenileSpriteIndex(g, variant)]);
 }
 
-/** Match renderer HUMAN_WALK_SPEED_THRESHOLD — idle settlers must not advance walk frames. */
+/** Walk pace below which a settler counts as standing still — read by the walk owner and the renderer. */
 export const HUMAN_WALK_SPEED_THRESHOLD = 0.12;
 
 /**
@@ -402,23 +402,6 @@ export function getHumanMarkerColors(
 export function getHumanWalkFrameIndex(animFrame: number, speed: number): number {
   if (speed < HUMAN_WALK_SPEED_THRESHOLD) return 0;
   return Math.floor(animFrame) % HUMAN_WALK_FRAMES;
-}
-
-export function advanceHumanWalkAnim(human: Entity): void {
-  let frame = human.animFrame ?? 0;
-  const speed = Math.hypot(human.vx, human.vy);
-  if (speed > HUMAN_WALK_SPEED_THRESHOLD) {
-    frame += speed * 0.28;
-    if (frame >= HUMAN_WALK_FRAMES * 8) {
-      frame %= HUMAN_WALK_FRAMES;
-    }
-  } else if ((human.chatTicks ?? 0) > 0) {
-    frame += 0.12;
-  } else {
-    frame *= 0.55;
-    if (frame < 0.04) frame = 0;
-  }
-  human.animFrame = frame;
 }
 
 export function getHumanWalkBob(frame: number, speed: number, camZoom: number): number {

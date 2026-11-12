@@ -25,7 +25,6 @@ import {
 } from './dayCycle';
 import { syncResidenceOccupants } from './housingPipeline';
 import { displayYear } from './dayCycleClock';
-import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { getEcosystemHealth } from './dailyEcology';
 import { buildEntityByType, type SimulationFocus } from './simFocus';
 import {
@@ -41,7 +40,7 @@ import { countWorkingAndIdleSettlers } from './workforce';
 import { isPlayerHuman } from './playerHuman';
 import type { TickContext } from './simulation/simulationTypes';
 import { buildHuntTargetByPreyIndex } from './simulation/simulationEntities';
-import { tickLayerRealtime } from './tickLayerRealtime';
+import { tickLayerRealtime, rebuildPredators } from './tickLayerRealtime';
 import { tickLayerSystems, LAYER_SYSTEMS_INTERVAL } from './tickLayerSystems';
 import { tickLayerAssign, LAYER_ASSIGN_INTERVAL, LAYER_ASSIGN_PHASE_TICK } from './tickLayerAssign';
 import { tickLayerDaily } from './tickLayerDaily';
@@ -72,7 +71,7 @@ import {
   resetPathfinderTickMetrics,
 } from './pathfindingMetrics';
 import { assertSimInvariants } from './simulation/simInvariants';
-import { collectSimulationInvariantErrors } from './simulation/simulationInvariants';
+import { assertSimulationInvariants } from './simulation/simulationInvariants';
 import { profileEnd, profileSimulationTick, profileStart } from './performanceProfiler';
 import { stampHousingRelocationClock } from './housingRelocationMonitor';
 
@@ -177,18 +176,8 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     else if (b.type === BuildingType.Hospital && b.faction !== 'rival') hasHospital = true;
   }
 
-  // Predators — reuse playerHumans (already filtered); one pass for rivals
-  const predators: Entity[] = [
-    ...byType[EntityType.Wolf],
-    ...byType[EntityType.Fox],
-    ...byType[EntityType.Werewolf],
-  ];
-  for (const h of playerHumans) {
-    if (h.age >= HUMAN_ADULT_MIN_AGE) predators.push(h);
-  }
-  for (const h of byType[EntityType.Human]) {
-    if (h.alive && h.faction === 'rival') predators.push(h);
-  }
+  // Predators — one roster owner shared with the Moon Howler form change.
+  const predators = rebuildPredators(byType, playerHumans);
 
   const roadStamp = computeRoadLayoutStamp(roadBuildings);
   if (
@@ -384,18 +373,16 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   if (isSpatialQueryMetricsEnabled()) flushSpatialQueryTickToSession();
   if (isPathfindingMetricsEnabled()) flushPathfinderTickToSession();
 
-  // Dev-only invariant pulse on each daily-layer pass — never repairs state. `import.meta.env`
-  // needs the guard: it does not exist under the headless tsx runner.
+  // Dev/test invariant pulse on each daily-layer pass — never repairs state. A violation fails the
+  // dev/test build; the headless harnesses collect the same collectors per tick instead.
+  // `import.meta.env` needs the guard: it does not exist under the headless tsx runner.
   const isDevBuild = typeof import.meta !== 'undefined' && import.meta.env?.DEV === true;
   if (isDevBuild && dailyLayerRan) {
     const sanity = assertSimInvariants(state);
     if (sanity.length > 0) {
-      console.warn('[simInvariants]', sanity.slice(0, 8));
+      throw new Error(`Simulation sanity invariants violated (${sanity.length}):\n${sanity.join('\n')}`);
     }
-    const ownership = collectSimulationInvariantErrors(state);
-    if (ownership.length > 0) {
-      console.warn('[simulationInvariants]', ownership.slice(0, 8).map((error) => typeof error === 'string' ? error : JSON.stringify(error)).join('\n'));
-    }
+    assertSimulationInvariants(state);
   }
 
   profileEnd('sim.totalTick', tickProfileStart);

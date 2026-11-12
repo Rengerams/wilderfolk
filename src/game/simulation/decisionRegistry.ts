@@ -65,8 +65,15 @@ export type DecisionKey =
   | 'housing'
   | 'construction'
   | 'production'
+  | 'humanWalk'
+  | 'yearlyWorldEvents'
+  | 'grassRegrowth'
+  | 'foodLedger'
+  | 'herdMemory'
+  | 'wildlifePredation'
   | 'villageRequests'
   | 'inventionFair'
+  | 'authoredStoryExpiry'
   | 'visitorLifecycle'
   | 'idleSkillDecay'
   | 'socialFeedback'
@@ -108,10 +115,10 @@ export const SIMULATION_DECISIONS = {
   workerMotionPresentation: {
     owner: 'gameLoop.ts — isLightweightWorkerCommand, canPreviewWorkerCommand, registerWorkerHandlers, scheduleFrame, frameBody, stepFallbackTick, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
     cadence: 'render',
-    cadenceNote: 'Worker message admission awaits the shared census-name gate. Failed fallback ticks retain accumulator time; each command carries a host monotonic id and the worker echoes the last applied id so recovery replays only unproven work. Buffer pooling and delta packing remain transport-only, and display caches are hydrated once. On acknowledged ticks, blend only confirmed positions. Top-level schedule/policy commands use shallow previews and skip unnecessary catalog rebuilding unless a tick completed while commands were pending; the next acknowledgement reconciles entities and stale selections. Read-only schedule impact indexes roster IDs once per render. On save, halt new ticks while earlier commands settle. No gameplay writes.',
+    cadenceNote: 'Worker message admission awaits the shared census-name gate. Failed fallback ticks retain accumulator time; each command carries a host monotonic id and the worker echoes the last applied id so recovery replays only unproven work. Buffer pooling and delta packing remain transport-only, and display caches are hydrated once. On acknowledged ticks, blend only confirmed positions. Top-level schedule/policy commands use shallow previews and skip unnecessary catalog rebuilding unless a tick completed while commands were pending; the next acknowledgement reconciles entities and stale selections. Read-only schedule impact indexes roster IDs once per render. On save, halt new ticks while earlier commands settle. The tick result carries the simulation-authored pause and the replica adopts it one-way; host resume stays authoritative. No gameplay writes.',
     writes: [],
     scheduledFrom: 'GameWorkerHost tick acknowledgement and requestAnimationFrame → GameLoop.frameBody; useGamePersistence.persistGame → GameLoop.exportAuthoritativeWorld (on-demand)',
-    testFile: 'tests/gameLoop.test.ts, tests/gameLoop.lifecycle.test.ts, tests/gameLoop.fallbackTickRollback.test.ts, tests/renderer.motionAndHover.test.ts',
+    testFile: 'tests/gameLoop.test.ts, tests/gameLoop.lifecycle.test.ts, tests/gameLoop.fallbackTickRollback.test.ts, tests/renderer.motionAndHover.test.ts, tests/workerHandoff.state.test.ts',
   },
   chronicleProseNames: {
     owner: 'citizenId.ts — citizenFullName, formatDeathLog',
@@ -188,7 +195,7 @@ export const SIMULATION_DECISIONS = {
   humanLeisure: {
     owner: 'humanLeisureBehavior.ts — tickHumanLeisure (single free-time entry), tickHumanChildLeisure, tickAdultLeisureMotive',
     cadence: 'realtime',
-    cadenceNote: 'Called once per eligible humanTick free-time tick. Chooses child/adult activities and steering intent; humanTick owns the final movement step, and delegated physiology and social owners retain their writes.',
+    cadenceNote: 'Called once per eligible humanTick free-time tick. Chooses child/adult activities and steering intent; humanTick owns the final movement step. The companion beat draws both humanTick rolls unconditionally and branches identically for a null/zero beauty grid, so a missing cache cannot shift the stream.',
     writes: ['human.vx', 'human.vy', 'human.indoorBuildingId'],
     scheduledFrom: 'humanTick.tickHumans → humanLeisureBehavior.tickHumanLeisure',
     testFile: 'tests/humanLeisureBehavior.test.ts, tests/simulation.decisionRegistry.test.ts',
@@ -277,7 +284,7 @@ export const SIMULATION_DECISIONS = {
   workforce: {
     owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, staffFoodJobsBeforeConstruction, workforceSignature, isAcuteFoodStaffingEmergency, hasFoodStaffingPressure, prospectiveFoodTransferDonors, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command assignWorker limited to construction/residency',
     cadence: 'assignment',
-    cadenceNote: 'Under the survival preset, idle adults first fill reachable food vacancies before being claimed by construction even while the larder is full; other presets retain normal construction-first order. The idle-only assignWorkerInPlace choice uses the canonical two-hour home-to-work route gate; transfers use the same reachability owner. Existing jobs persist despite blocked routes. Automatic staffing completes reachable minimum-coverage transfers, then tops the open posts of each workplace up to capacity by moving a hand only from a workplace holding at least two more workers, and tries alternate donors before caching its O(player humans+buildings) fingerprint; only fully priced passes cache completion. The signature also tracks current 60-day transfer eligibility, acute measured food emergency status, and unhoused applicant path cells, so expiry, shortages and movement retry on the next pulse. Under a measured or forecasted food shortfall, only food-post transfers bypass cooldown and no protected minimum crew or commute eligibility is sacrificed. Route-budget deferrals clear the cache; node-budget deferrals progress under a bounded escalating A* limit (one advanced search per pass, terminal conservative rejection), so unchanged pulses only skip when outcomes are resolved, with a weekly repair run. Explicit autoStaffWorkers requests force reconciliation.  Legacy manual flags normalize to auto without dropping jobs; career/DNA fit breaks exact ties without changing transfer cooldown. Command/assignment phase: tickLayerAssign and dailyBuildingEconomy still call the shared owner, but unchanged input signatures return without expensive staffing. Only a forced or changed event triggers re-matching. releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
+    cadenceNote: 'The Defense preset\'s order is Barracks, Prison, Mine, Blacksmith, Workshop, Quarry, Lumber Mill, Hospital, then food/services (workforcePolicy.PRESET_BUILDING_ORDER.defense). Under the survival preset, idle adults first fill reachable food vacancies before being claimed by construction even while the larder is full; other presets retain normal construction-first order. The idle-only assignWorkerInPlace choice uses the canonical two-hour home-to-work route gate; transfers use the same reachability owner. Existing jobs persist despite blocked routes. Automatic staffing completes reachable minimum-coverage transfers, then tops the open posts of each workplace up to capacity by moving a hand only from a workplace holding at least two more workers, and tries alternate donors before caching its O(player humans+buildings) fingerprint; only fully priced passes cache completion. The signature also tracks current 60-day transfer eligibility, acute measured food emergency status, and unhoused applicant path cells, so expiry, shortages and movement retry on the next pulse. Under a measured or forecasted food shortfall, only food-post transfers bypass cooldown and no protected minimum crew or commute eligibility is sacrificed. Route-budget deferrals clear the cache; node-budget deferrals progress under a bounded escalating A* limit (one advanced search per pass, terminal conservative rejection), so unchanged pulses only skip when outcomes are resolved, with a weekly repair run. Explicit autoStaffWorkers requests force reconciliation.  Legacy manual flags normalize to auto without dropping jobs; career/DNA fit breaks exact ties without changing transfer cooldown. Command/assignment phase: tickLayerAssign and dailyBuildingEconomy still call the shared owner, but unchanged input signatures return without expensive staffing. Only a forced or changed event triggers re-matching. releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
     writes: [
       'building.staffingMode',
       'building.occupants',
@@ -299,7 +306,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/dailyPopulation.foodAdmission.test.ts, tests/dailyImmigration.gridSync.test.ts, tests/immigration.composition.test.ts',
   },
   housing: {
-    owner: 'housingPipeline.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, planRelocation answers move-or-stay for homeless, custody, custodian, capacity, surplus, leave-home, commute and couple, and applyRelocation writes a plan; the commute phase also swaps two occupied homes when both households improve; manor seating is event-driven (start/election) and never a housing-phase decision; relocateHousehold applies a whole-household decision; relocateFamily retries a destination the writer refused with the next-best home; moveResident stays the sole write; HousingReport carries the run stats; assignMissingResidences accepts an optional resume ledger; ranking lives in the same module; facts: housingModel.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
+    owner: 'housingPipeline.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, planRelocation answers move-or-stay for homeless, custody, custodian, capacity, surplus, leave-home, commute and couple, and applyRelocation writes a plan; assignFamilyToResidence seats every custodian group whole or legally split (custodian + youngest children together, older children in a second residence) and never unhouses on assignment; rebalanceOvercrowdedResidences tries the legal group placement/split before shedding excess; the commute phase also swaps two occupied homes when both households improve; manor seating is event-driven (start/election) and never a housing-phase decision; relocateHousehold applies a whole-household decision; relocateFamily retries a destination the writer refused with the next-best home; moveResident stays the sole write; HousingReport carries the run stats; assignMissingResidences accepts an optional resume ledger; ranking lives in the same module; facts: housingModel.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
     cadence: 'assignment',
     cadenceNote: 'Scheduled housing sweeps run four times per day, the last pulse revisits all units, and housingUnitBucket is only a deterministic hash of CURRENT member IDs (not stable through departures); demolition reconciles displaced households immediately using the bounded tick sweep, while removals without displaced residents skip the housing pipeline; other events request immediate reconciliation or a reasoned residence transition. assignMissingResidences schedules; planRelocation answers move-or-stay for each household and applyRelocation writes; the commute phase can swap two occupied homes when both improve, and its straight-line floor skips impossible route candidates; the capacity rebalance plans through it too, and the homeless repair pass still seats every partially housed unit. A mandatory phase settles a household for the run, so the optional adult-child and commute phases cannot undo it. Reconciliation owns reference and resident-roster writes; selection and leader entitlement provide rules. Worker transport applies authoritative snapshots, never new housing decisions.',
     writes: [
@@ -308,33 +315,59 @@ export const SIMULATION_DECISIONS = {
       'household membership (couple + minor children)',
     ],
     scheduledFrom: 'gameTick tick boundary + tickLayerAssign.syncResidenceOccupants (mirror); tickLayerAssign.assignMissingResidences (assignment); commands.ts "assignResidentToBuilding"',
-    testFile: 'tests/housingPlanner.contract.test.ts, tests/housingAuthority.pipeline.test.ts, tests/housingPipeline.invariants.test.ts, tests/housingDiagnostics.test.ts, tests/adultChild.moveOutTarget.test.ts, tests/residenceCommuteRelocation.test.ts, tests/divorceHousing.custody.test.ts, tests/leaderHouse.successionHousehold.test.ts, tests/simulation.invariants.test.ts, tests/longRunColony.integration.test.ts, tests/residencyCapacity.writers.test.ts',
+    testFile: 'tests/housingPlanner.contract.test.ts, tests/housingAuthority.pipeline.test.ts, tests/housingPipeline.invariants.test.ts, tests/housingDiagnostics.test.ts, tests/adultChild.moveOutTarget.test.ts, tests/residenceCommuteRelocation.test.ts, tests/divorceHousing.custody.test.ts, tests/leaderHouse.successionHousehold.test.ts, tests/simulation.invariants.test.ts, tests/longRunColony.integration.test.ts, tests/residencyCapacity.writers.test.ts, tests/housing.custodianSplit.test.ts',
   },
   construction: {
-    owner: 'buildingStaffingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); tickLayerDaily.tickBuildingProgress (progress advance)',
+    owner: 'buildingStaffingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); dailyBuildingEconomy.tickBuildingProgress (progress advance at the 18:00 production pass)',
     cadence: 'work',
-    cadenceNote: 'progress advances once per colony day in tickLayerDaily; crew membership changes on command/assignment phase. the crew multiplier is called with the construction action, so site progress reads only the catalog\'s work/builder/construction factor and no production-context DNA reaches it; that holds for a site with no production job too, since the crew\'s skill baseline falls back to Builder',
+    cadenceNote: 'progress advances once per colony day in tickLayerDaily; crew membership changes on command/assignment phase. `isPassiveBuild` treats House and every zero-`maxOccupants` type as passive: they advance at the advertised pace without a crew, while a staffable but empty site still pays 0.22×. The crew multiplier is called with the construction action, so site progress reads only the catalog\'s work/builder/construction factor and no production-context DNA reaches it; that holds for a site with no production job too, since the crew\'s skill baseline falls back to Builder',
     writes: [
       'building.constructionProgress',
       'building.occupants (construction crew)',
       'building.buildAnimTimer',
     ],
-    scheduledFrom: 'tickLayerDaily.tickBuildingProgress (progress); assign layer + commands (crew membership)',
-    testFile: 'tests/commands.validation.test.ts, tests/demolish.roundtrip.test.ts, tests/personality.workIntegration.test.ts',
+    scheduledFrom: 'dailyBuildingEconomy.tickBuildingProduction (progress); assign layer + commands (crew membership)',
+    testFile: 'tests/commands.validation.test.ts, tests/demolish.roundtrip.test.ts, tests/personality.workIntegration.test.ts, tests/production.attendancePacing.test.ts',
   },
   production: {
-    owner: 'dailyBuildingEconomy.tickBuildingProduction; economy.ts — addResource, applyFoodSpoilage, updateStorageCaps, computeStorageMax; the crew term this decision multiplies is skills.getWorkerSkillMultiplier',
+    owner: 'dailyBuildingEconomy.tickBuildingProduction; scheduleFatigue.getWorkdayAttendance (the one presence verdict); forge.tickVillageForge (forge orders, gated on the production-day anchor); economy.ts — addResource, applyFoodSpoilage, updateStorageCaps, computeStorageMax; the crew term this decision multiplies is skills.getWorkerSkillMultiplier',
     cadence: 'daily',
-    cadenceNote: 'system/daily at 18:00, after the work window, and before the same-hour ecology/world-event tail — the per-player-worker pass prefers verified on-post ticks (schedulePresentTicksToday) and the site actually worked; a changed site (-1) is excluded rather than guessed, and scheduled hours are the fallback only when no presence sample exists. Farms/hunt/smith production and spoilage are daily ledger work. Day-interval producers are additionally gated on isWorkDay, so they run 5 days in 7; the 2/3/5-day interval buildings (store, market, workshop, townHall, hospital) skip that work-day test. Silos are storage-only. The crew\'s trade DNA (personality traitInfluence, `work`/production context) enters through getWorkerSkillMultiplier, which reads `building.occupants` only; the workshop estimate reads the same function so the preview cannot drift. An occupant id that resolves to nobody contributes neutral DNA to that average instead of diluting it',
+    cadenceNote: 'system/daily at 18:00, after the work window, and before the same-hour ecology/world-event tail — getWorkdayAttendance is the one presence verdict: a positive rota or present tick is the sample, so zero presence pays no output; an all-zero resolved day or a legacy save without the counters reads the last worked hours. A changed site (-1) is excluded rather than guessed. Farms/hunt/smith production and spoilage are daily ledger work. Day-interval producers are additionally gated on isWorkDay, so they run 5 days in 7; the 2/3/5-day interval buildings (store, market, workshop, townHall, hospital, forge) skip that work-day test and read the same midnight production-day anchor. Silos are storage-only. The crew\'s trade DNA (personality traitInfluence, `work`/production context) enters through getWorkerSkillMultiplier, which reads `building.occupants` only; the workshop estimate reads the same function so the preview cannot drift. An occupant id that resolves to nobody contributes neutral DNA to that average instead of diluting it',
     writes: [
       'resources',
       'economyLedger.produced',
       'foodSpoilageRate',
       'human.skills (gainSkill)',
       'storageMax',
+      'villageForge.progress',
+      'villageForge.activeOrder',
+      'villageForge.completed',
     ],
     scheduledFrom: 'tickLayerDaily',
-    testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts, tests/workSkillAttribution.accrual.test.ts',
+    testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts, tests/workSkillAttribution.accrual.test.ts, tests/forge.cadence.test.ts, tests/production.attendancePacing.test.ts',
+  },
+  wildlifePredation: {
+    owner: 'tickLayerSystems.tickWildlife — the sole wildlife AI owner (hunt target, catch, metabolism, grazing, reproduction); rebuildPredators owns the roster; speciesConfig.getPreyEnergyGain owns prey energy; GRAZER_METABOLISM owns grazer metabolism',
+    cadence: 'systems',
+    cadenceNote: 'WILDLIFE_LAYER_INTERVAL = 4 systems pulses; out-of-focus wildlife runs every 8th pulse. Hungry Wildkin hunts deer/rabbit only and pays apex metabolism; it is never prey and never grazes. Wildkin is on the predator roster that grazers scent-flee. No human prey for Wildkin.',
+    writes: [
+      'entity.energy',
+      'entity.huntTargetId',
+      'entity.alive (prey death)',
+      'entity.x',
+      'entity.y',
+      'entity.vx',
+      'entity.vy',
+      'entity.age',
+      'entity.flash',
+      'entity.combatTicks',
+      'entity.reproductionCooldown',
+      'grass.energy (grazers only)',
+      'eventLog',
+      'floatingTexts',
+    ],
+    scheduledFrom: 'gameTick → tickLayerSystems.tickLayerSystems → tickWildlife',
+    testFile: 'tests/wildkin.apexRole.test.ts, tests/ecosystemPressure.winterDemand.test.ts',
   },
   inventionFair: {
     owner: 'inventionFair.ts — maybeOfferInventionFair, tickInventionFair, tickInventionFairRealtime, getInventionFairChoiceEligibility, resolveInventionFair, rollInventionFairOutcome, private stage and outcome lifecycle; storyEvents delegates player choices only',
@@ -343,6 +376,94 @@ export const SIMULATION_DECISIONS = {
     writes: ['storyFlags', 'inventionFair', 'pendingStoryEvents', 'resources.wood', 'resources.gold', 'villageReputation', 'building.health', 'human.energy', 'human.needs.stamina', 'eventLog', 'bigNews', 'notifications'],
     scheduledFrom: 'tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → maybeOfferInventionFair/tickInventionFair; tickLayerRealtime → tickInventionFairRealtime; simWorker.commands respondToStoryEvent → storyEvents.respondToStoryEvent → inventionFair.resolveInventionFair',
     testFile: 'tests/medium-C2-story.test.ts, tests/inventionFair.simulation.test.ts, tests/inventionFair.storageCap.test.ts, tests/inventionFair.invalidChoices.test.ts, tests/actionOutcome.test.ts',
+  },
+  authoredStoryExpiry: {
+    owner: 'storyEvents.ts — tickPendingStoryEvents and the expire* resolvers; deerParliament/travelingTheatre/weddingDiplomacy/rumourLedger own their own resolved flags',
+    cadence: 'new-calendar-day',
+    cadenceNote: 'The 18:00 daily pass drops expired cards first, then asks each story owner to resolve its chain once with an explicit fate: theatre/deer/wedding/rumour resolve, Winter Prep records a visible lapse, Children Shelter starts the refuse chain, and a lapsed Ranger blocks the Howler instead of inventing the visit. Chainless cards pass quietly. No unearned reward is granted.',
+    writes: [
+      'pendingStoryEvents',
+      'storyFlags',
+      'eventLog',
+      'bigNews',
+      'notifications',
+      'villageReputation',
+      'ecosystemHealth',
+      'rivalSettlements.relationship',
+      'resources.food',
+      'resources.wood',
+      'resources.gold',
+    ],
+    scheduledFrom: 'tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → storyEvents.tickPendingStoryEvents',
+    testFile: 'tests/story.expiryResolvers.test.ts, tests/storyEvents.test.ts, tests/guidedCampaign.test.ts',
+  },
+  humanWalk: {
+    owner: 'humanTick.tickHumans → humanMovement.resumeHumanWalk + applyHumanWalkStep (one integration for focused and throttled ticks)',
+    cadence: 'realtime',
+    cadenceNote: 'Decisions still run once per 24 ticks for out-of-focus settlers, but the already commanded walk is re-issued and integrated every tick, so travel distance per game time matches focus and arrival/collision stay per-step. Ordinary work commutes open at shift minus the existing commute lead and are exempt from the 0.85 planning damping; prison keeps its sticky departure. The walk target is a transient WeakMap, never saved.',
+    writes: [
+      'human.x',
+      'human.y',
+      'human.vx',
+      'human.vy',
+      'human.animFrame',
+      'human.indoorBuildingId',
+    ],
+    scheduledFrom: 'tickHumans',
+    testFile: 'tests/production.attendancePacing.test.ts, tests/simBatch.offscreenThrottle.test.ts, tests/medium-A-movement.test.ts',
+  },
+  yearlyWorldEvents: {
+    owner: 'dailyWorldEvents.ts — tickYearBoundaryWorldEvents and tickDailyWorldEvents; groupEvents.ts — rollYearlyWorldEvent',
+    cadence: 'daily',
+    cadenceNote: 'The 00:00 year boundary clears the previous year\'s bountifulHarvest before that day\'s production; the first 18:00 daily pass of the new year rolls the yearly event and may grant it for days 1–359. No odd/even parity reset.',
+    writes: [
+      'activeEvent',
+      'lastEventYear',
+      'bountifulHarvest',
+      'eventLog',
+      'notifications',
+    ],
+    scheduledFrom: 'tickLayerDaily.tickYearBoundaryWorldEvents (00:00); dailyWorldEvents.tickDailyWorldEvents (18:00) → rollYearlyWorldEvent',
+    testFile: 'tests/dailyEconomy.ledgerEcology.test.ts, tests/medium-C2-story.test.ts',
+  },
+  grassRegrowth: {
+    owner: 'dailyGrassEcology.ts — tickGrassDaily; grassEcology.ts — GRASS_GROWTH_PER_DAY, getGrassGrowthMultiplier; ecosystemPressure.ts — getGrazingPressureReport (read-only estimate)',
+    cadence: 'daily',
+    cadenceNote: 'One per-colony-day regrowth: GRASS_GROWTH_PER_DAY * season/weather multiplier, applied at 00:00 and priced by the pressure report with the same rule. This is not a per-tick value.',
+    writes: [
+      'grass.energy',
+      'grass.age',
+      'entities (new grass via simulationEntities)',
+      'nextEntityId',
+    ],
+    scheduledFrom: 'tickLayerDaily.tickGrassDaily',
+    testFile: 'tests/dailyEconomy.ledgerEcology.test.ts, tests/ecosystemPressure.winterDemand.test.ts',
+  },
+  foodLedger: {
+    owner: 'economyLedger.ts — recordFoodProduced, recordFoodConsumed, spendFood, rollEconomyLedgerForDay; every stored-food inflow delegates here',
+    cadence: 'on-demand',
+    cadenceNote: 'One ledger owner for produced/consumed flows; trade, gift, foraging, raid spoils, tribute and all production sources record the accepted amount with a source label. The day roll archives the finished day; no caller keeps a parallel produced counter.',
+    writes: [
+      'economyLedger',
+      'foodHistory',
+      'resources.food (via spendFood/import callers)',
+    ],
+    scheduledFrom: 'production/trade/gift/raid/tribute/foraging owners → recordFoodProduced; tickLayerDaily → rollEconomyLedgerForDay',
+    testFile: 'tests/dailyEconomy.ledgerEcology.test.ts, tests/foodLedger.acceptedCatch.test.ts',
+  },
+  herdMemory: {
+    owner: 'migration.ts — tickMigration, migrationArrivalDay, spawnHerdAtEdge',
+    cadence: 'new-calendar-day',
+    cadenceNote: 'Arrival places the remembered count (spawnHerdAtEdge returns the placed count); departure shrinks only by the real losses and recovers +1 after an unharmed autumn, capped at HERD_BASE_SIZE. A zero-placement year is neutral. Unharmed means zero total losses; player-hunted-only recovery needs a kill-source marker.',
+    writes: [
+      'activeMigration',
+      'migrationNextHerdSize',
+      'entities (herd deer spawn/removal)',
+      'bigNews',
+      'eventLog',
+    ],
+    scheduledFrom: 'tickLayerDaily → migration.tickMigration',
+    testFile: 'tests/migration.herds.test.ts, tests/invariants.commute.herd.test.ts',
   },
   villageRequests: {
     owner: 'groupEvents.ts — tickVillageRequests, resolveVillageRequest (ONLY request generation, expiry, and resolution owner)',
@@ -438,7 +559,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/phase7.social.test.ts, tests/electionGossip.dedup.test.ts, tests/affairTrystSite.walkIn.test.ts, tests/settlers.indoors.test.ts',
   },
   conception: {
-    owner: 'humanRelationships.ts — tryDailyConception (ONLY conception owner)',
+    owner: 'humanRelationships.ts — tryDailyConception (ONLY conception decision/roll owner); pregnancy.ts — startPregnancy (sole pregnancy-start writer, called by beginPregnancy)',
     cadence: 'new-calendar-day',
     cadenceNote: 'One roll per settler per colony day through salted personDayRoll; married-near, youth-pair and affair trysts use separate salts. Conception is deliberately non-genetic: the `conception` activity carries no aptitude weights and reads no allele, so only the acquired lucky mark can move the married/youth chance; the retired inherited Lucky ×1.15 is gone and no replacement roll exists. The youth route follows the retained youth link: while one partner is 18 and the other is still a minor it may conceive in either direction; once both are 18 (or the older is beyond 18) the route closes and the handoff/adult path applies.',
     writes: [
@@ -449,11 +570,11 @@ export const SIMULATION_DECISIONS = {
       'human.pregnancyDueProgress',
       'human.relationshipStatus (expecting)',
     ],
-    scheduledFrom: 'humanTick.ts (isNewCalendarDay gate)',
-    testFile: 'tests/phase7.social.test.ts, tests/conceptionEvent.labelling.test.ts, tests/youthConception.ageFloor.test.ts',
+    scheduledFrom: 'humanTick.ts (isNewCalendarDay gate) → tryDailyConception → beginPregnancy → pregnancy.startPregnancy',
+    testFile: 'tests/phase7.social.test.ts, tests/conceptionEvent.labelling.test.ts, tests/youthConception.ageFloor.test.ts, tests/humanLifecycle.test.ts',
   },
   pregnancyBirth: {
-    owner: 'humanLifecycle.ts — tickPregnancyAndBirth, getPregnancyProgressFraction, isPregnancyHospitalDue (ONLY pregnancy-progress and due-date threshold owner; never starts a second pregnancy path); settlerTraits.ts — inheritGenome is the only birth genetics rule',
+    owner: 'pregnancy.ts — startPregnancy (sole start writer), rollPregnancyDueProgress (only term formula), normalizePregnancyDueProgress (only invalid-due rule), isValidPregnancyDueProgress (validity), getPregnancyProgressFraction; humanLifecycle.ts — tickPregnancyAndBirth and isPregnancyHospitalDue (progress/delivery/threshold consumers); settlerTraits.ts — inheritGenome is the only birth genetics rule',
     cadence: 'pregnancy-progress',
     cadenceNote: 'A single 85%-of-individual-due-date gate in humanLifecycle is read by humanHospitalBehavior doctor duty/admission and hospitalCare needs/reason. SelectedEntityPanel displays the nominal 24-day percentage without capping it: late deliveries can exceed 100%. HumanTick schedules progress and uses humanHospitalBehavior hospital priority to protect the route and stop crediting work presence when a staffed ward is available; duty hours and assigned jobs remain intact. No second pregnancy rule exists.',
     writes: [
@@ -464,8 +585,8 @@ export const SIMULATION_DECISIONS = {
       'new child human.genomeV2 (one allele per biological parent per dimension; parents are read-only)',
       'eventLog/bigNews/floatingTexts',
     ],
-    scheduledFrom: 'humanTick.ts pregnancy gate → humanLifecycle.tickPregnancyAndBirth → settlerTraits.inheritGenome (birth-key seeded stream)',
-    testFile: 'tests/humanLifecycle.test.ts, tests/hospitalWalk.regression.test.ts, tests/pregnancyHospitalWork.test.ts, tests/settlers.indoors.test.ts, tests/workAbsence.reasons.test.ts, tests/conceptionEvent.labelling.test.ts, tests/personality.romanceContext.test.ts, tests/settlerTraits.test.ts',
+    scheduledFrom: 'humanTick.ts pregnancy gate → humanLifecycle.tickPregnancyAndBirth → settlerTraits.inheritGenome (birth-key seeded stream); entityFactory.createEntity(opts.pregnant) → pregnancy.startPregnancy (arrival spawns)',
+    testFile: 'tests/humanLifecycle.test.ts, tests/hospitalWalk.regression.test.ts, tests/pregnancyHospitalWork.test.ts, tests/settlers.indoors.test.ts, tests/workAbsence.reasons.test.ts, tests/conceptionEvent.labelling.test.ts, tests/personality.romanceContext.test.ts, tests/settlerTraits.test.ts, tests/duplicationA.remaining.test.ts',
   },
   moonHowler: {
     owner: 'moonHowler.ts + moonHowlerForm.ts — tickMoonHowlerCycle, curseMoonHowler, transformToWerewolfForm, revertToHumanForm, cureMoonHowler, finalizeMoonHowlerDeath, isSettlerRelationshipEntity; night window owned by daycycleconstants.ts',
@@ -494,6 +615,9 @@ export const SIMULATION_DECISIONS = {
       'electionCeremony',
       'pendingElectionYear',
       'electionBuildupNotifiedYear',
+      'lastElectionResult',
+      'nextElectionId',
+      'pendingLeaderHouseResidentIds',
       'eventLog',
       'notifications/bigNews',
     ],
@@ -512,7 +636,7 @@ export const SIMULATION_DECISIONS = {
     owner: 'raidAftermath.ts — beginRaidRecovery, tickRaidRecovery, isSettlementDestroyed, rememberRivalDisposition',
     cadence: 'realtime',
     cadenceNote: 'Recovery starts at actual raid resolution and advances on subsequent game ticks; remembered settlement-fate diplomacy executes only on the relevant command. isSettlementDestroyed is read-only.',
-    writes: ['raidRecovery', 'building.health (through building removal owner)', 'rivalSettlements.diplomacyMemory', 'eventLog (through logEvent)'],
+    writes: ['raidRecovery', 'paused (settlement destruction)', 'building.health (through building removal owner)', 'rivalSettlements.diplomacyMemory', 'eventLog (through logEvent)'],
     scheduledFrom: 'frontierCombat.ts → beginRaidRecovery/rememberRivalDisposition; gameTick.ts → tickRaidRecovery; captivity decisions → rememberRivalDisposition',
     testFile: 'tests/warfare.lifecycle.test.ts',
   },

@@ -90,6 +90,22 @@ describe('the intro does not continue while one of its controls has focus', () =
   });
 });
 
+describe('the game menu states the modality it actually enforces', () => {
+  const menu = read('src/components/GameMenu.tsx');
+
+  it('is a modal dialog while its backdrop blocks the map', () => {
+    // The panel traps Tab and its scrim swallows pointer input, so `aria-modal="false"` let assistive
+    // tech walk straight into the covered map.
+    expect(menu).toContain('aria-modal="true"');
+    expect(menu).not.toContain('aria-modal="false"');
+  });
+
+  it('wraps Tab over the canonical focusable list, not a private query', () => {
+    expect(menu).toContain('getFocusableElements(panel)');
+    expect(menu).not.toContain("'button:not([disabled]), input:not([disabled]), [tabindex]");
+  });
+});
+
 describe('icon-only and role-carrying controls keep their semantics', () => {
   it('names every icon-only build-rail button', () => {
     const rail = read('src/components/GameBuildRail.tsx');

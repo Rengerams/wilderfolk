@@ -88,24 +88,37 @@ describe('tutorial campaign', () => {
     expect(stepId(w)).toBe('winter_watch');
   });
 
-  it('winter (dayInYear >= 250) advances to year_two', () => {
+  it('winter onset (dayInYear >= 270) advances to year_two', () => {
     const w = addBuilding(makeWorld(), BuildingType.House);
     addBuilding(w, BuildingType.Farm);
     w.buildings.find((b) => b.type === BuildingType.Farm)!.occupants = [1];
     addBuilding(w, BuildingType.HuntingSpot);
     addBuilding(w, BuildingType.Store);
-    w.dayInYear = 260;
+    w.dayInYear = 269;
+    expect(stepId(w)).toBe('winter_watch');
+    w.dayInYear = 270;
     expect(stepId(w)).toBe('year_two');
   });
 
-  it('reaching year 2 completes the campaign (null step)', () => {
+  it('reaching year 1 completes the campaign (null step)', () => {
     const w = addBuilding(makeWorld(), BuildingType.House);
     addBuilding(w, BuildingType.Farm);
     w.buildings.find((b) => b.type === BuildingType.Farm)!.occupants = [1];
     addBuilding(w, BuildingType.HuntingSpot);
     addBuilding(w, BuildingType.Store);
-    w.dayInYear = 260;
-    w.year = 2;
+    w.dayInYear = 300;
+    w.year = 1;
+    expect(currentCampaignStep(w)).toBeNull();
+  });
+
+  it('does not regress at the start of a later year', () => {
+    const w = addBuilding(makeWorld(), BuildingType.House);
+    addBuilding(w, BuildingType.Farm);
+    w.buildings.find((b) => b.type === BuildingType.Farm)!.occupants = [1];
+    addBuilding(w, BuildingType.HuntingSpot);
+    addBuilding(w, BuildingType.Store);
+    w.year = 3;
+    w.dayInYear = 0;
     expect(currentCampaignStep(w)).toBeNull();
   });
 

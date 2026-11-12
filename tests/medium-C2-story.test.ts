@@ -10,7 +10,8 @@ import type { Building, WorldState } from '../src/game/gameTypes';
 import { calculateEcosystemMetrics, tickEcosystemMetrics } from '../src/game/dailyEcology';
 import { getEcosystemBreakdown } from '../src/game/ecoBreakdown';
 import { inventionFairEligibleDay, maybeOfferInventionFair, resolveInventionFair, tickInventionFair, tickInventionFairRealtime } from '../src/game/inventionFair';
-import { canPlaceBuilding, buildStripPreview, placeStripChain } from '../src/game/buildingPlacementActions';
+import { canPlaceBuilding } from '../src/game/placementUtils';
+import { buildStripPreview, placeStripChain } from '../src/game/buildingPlacementActions';
 import { resolveWallStripPlan } from '../src/game/stripTopology';
 import { snapBuildingCenter } from '../src/game/buildingRotation';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
@@ -243,8 +244,9 @@ describe('M33 — the first-spring guide finishes instead of regressing every ye
   it('still completes the winter step during the first winter', () => {
     const state = guidedWorld();
     state.year = 0;
-    state.dayInYear = 260;
-
+    state.dayInYear = 269;
+    expect(currentCampaignStep(state)?.id).toBe('winter_watch');
+    state.dayInYear = 270;
     expect(currentCampaignStep(state)?.id).toBe('year_two');
   });
 });

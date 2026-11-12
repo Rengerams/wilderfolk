@@ -59,7 +59,7 @@ export default function StatisticsPanel({ state }: Props) {
               <span className="text-[10px] uppercase tracking-wider text-stone-400">Longest Life</span>
               <div className="text-[13px]">
                 <strong className="text-amber-300">{lifetime.longestLivingHuman.name}</strong>
-                <span className="text-stone-400"> ({lifetime.longestLivingHuman.age} days)</span>
+                <span className="text-stone-400"> ({lifetime.longestLivingHuman.age} years)</span>
               </div>
             </div>
           </div>

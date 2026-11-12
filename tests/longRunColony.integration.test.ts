@@ -11,7 +11,7 @@ import type { Entity } from '../src/game/gameTypes';
 import { resetRelationshipDiagnostics, setRelationshipDiagnosticsEnabled } from '../src/game/relationshipDiagnostics';
 import { resetSimRng } from '../src/game/simRng';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
-import { applyColonyBotAction, assessColonyStall, captureConsoleVolume, createColonyObserver, formatColonyStallVerdict, livingHumans, prepareColonyWorld, sampleDelta, type ColonyHealthReport } from '../scripts/colonyHealth';
+import { applyColonyBotAction, assessColonyStall, captureConsoleVolume, collectInvariantErrors, createColonyObserver, formatColonyStallVerdict, livingHumans, prepareColonyWorld, sampleDelta, type ColonyHealthReport } from '../scripts/colonyHealth';
 
 const SEED = 12345;
 const CHECKPOINT_DAYS = 30;
@@ -27,6 +27,8 @@ interface ObservedRun {
   snapshots: ColonyHealthReport[];
   final: ColonyHealthReport;
   newBuildings: number;
+  /** Every distinct invariant error the collector reported on any tick, oldest first. */
+  invariantErrors: string[];
 }
 
 function observeRun(world: WorldState, days: number): ObservedRun {
@@ -38,6 +40,8 @@ function observeRun(world: WorldState, days: number): ObservedRun {
   );
 
   const snapshots: ColonyHealthReport[] = [];
+  const invariantErrors: string[] = [];
+  let invariantErrorsSinceCheckpoint: string[] = [];
   let lastBotActedTick: number | null = null;
 
   const checkpoints = new Set(
@@ -51,6 +55,13 @@ function observeRun(world: WorldState, days: number): ObservedRun {
 
   for (let tick = 1; tick <= days * TICKS_PER_DAY; tick++) {
     gameTick(world);
+    // Collected per tick, not only at checkpoints: a short-lived violation is still a violation, and
+    // the health report must carry it even if the next tick repairs the state.
+    for (const error of collectInvariantErrors(world)) {
+      if (invariantErrors.includes(error)) continue;
+      invariantErrors.push(error);
+      invariantErrorsSinceCheckpoint.push(error);
+    }
     if (shouldVirtualPlayerAct(true, { paused: world.paused, tick: world.tick }, lastBotActedTick)) {
       lastBotActedTick = world.tick;
       applyColonyBotAction(world);
@@ -62,9 +73,10 @@ function observeRun(world: WorldState, days: number): ObservedRun {
       observer.observe(
         tick / TICKS_PER_DAY,
         sampleDelta(world),
-        [],
+        invariantErrorsSinceCheckpoint,
       ),
     );
+    invariantErrorsSinceCheckpoint = [];
   }
 
   return {
@@ -73,11 +85,12 @@ function observeRun(world: WorldState, days: number): ObservedRun {
     final: observer.observe(
       days,
       sampleDelta(world),
-      [],
+      invariantErrorsSinceCheckpoint,
     ),
     newBuildings: world.buildings.filter(
       (building) => !initialBuildingIds.has(building.id),
     ).length,
+    invariantErrors,
   };
 }
 
@@ -146,6 +159,10 @@ describe('90-day producer colony integration', () => {
         )}; staffing=${JSON.stringify(finalStaffing)}`,
       ).toBe('healthy');
       expect(verdict.reasons).toEqual([]);
+      expect(
+        run.invariantErrors,
+        'the 90-day run must report no simulation invariant violations',
+      ).toEqual([]);
       const settlers =
         run.final.housing.occupiedBeds +
         run.final.housing.homelessPlayerHumans;

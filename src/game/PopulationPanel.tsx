@@ -110,13 +110,20 @@ export default function PopulationPanel({
   const beds = villageStats.beds;
 
   const familyGroups = buildFamilyGroups(playerHumans);
+  const searchQuery = search.trim();
   const filteredFamilies = useMemo(() => {
-    const q = search.trim();
-    if (!q) return familyGroups;
+    if (!searchQuery) return familyGroups;
     return familyGroups.filter((family) =>
-      family.some((member) => matchesCitizenSearch(member, q)),
+      family.some((member) => matchesCitizenSearch(member, searchQuery)),
     );
-  }, [familyGroups, search]);
+  }, [familyGroups, searchQuery]);
+  /** Count the members the filter actually draws, not every member of a matching household. */
+  const matchingMembers = searchQuery
+    ? filteredFamilies.reduce(
+      (count, family) => count + family.filter((member) => matchesCitizenSearch(member, searchQuery)).length,
+      0,
+    )
+    : 0;
 
   const growth = getPopulationGrowthReport(state);
   const growthToneClass = growth.tone === 'blocked'
@@ -151,9 +158,9 @@ export default function PopulationPanel({
           placeholder="Find citizen — #12 or name…"
           className="w-full rounded-lg border border-stone-600/50 bg-stone-800/80 px-2.5 py-1.5 text-[13px] text-stone-100 placeholder:text-stone-500 focus:border-amber-500/50 focus:outline-none"
         />
-        {search.trim() && (
+        {searchQuery && (
           <p className="mt-1 text-[13px] text-stone-300">
-            {filteredFamilies.reduce((n, f) => n + f.length, 0)} match{filteredFamilies.reduce((n, f) => n + f.length, 0) === 1 ? '' : 'es'}
+            {matchingMembers} match{matchingMembers === 1 ? '' : 'es'}
             {onFocusCitizen ? ' · click a name to locate on map' : ''}
           </p>
         )}

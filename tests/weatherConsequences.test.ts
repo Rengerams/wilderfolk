@@ -1,6 +1,6 @@
 /**
- * Weather is not info-only: drought cuts farm yields, rain boosts them, and storm days slowly damage
- * player buildings down to a health floor.
+ * Weather is not info-only: drought cuts farm yields while rain boosts them. Storm damage and its
+ * feedback exist but hostile weather is switched off, so the suite also pins that production gate.
  */
 import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -94,41 +94,27 @@ describe('applyDailyWeatherEffects', () => {
   });
 
   /**
-   * A storm announces itself only while `HOSTILE_WEATHER_ENABLED` is on; the damage-only tests above
-   * stay ungated because `applyStormDamageToBuildings` is not gated.
+   * The storm notification + per-building FX block is dormant: `HOSTILE_WEATHER_ENABLED` is false, so
+   * `applyDailyWeatherEffects` returns before it. This pins the gate that keeps it off.
    */
-  it.skipIf(!HOSTILE_WEATHER_ENABLED)('notifies + logs once when a storm damages buildings', () => {
-    const state = initGame({ villageName: 'W', size: 'medium' });
-    state.weather = WeatherType.Storm;
-    state.buildings.push(playerHouse(1, 100));
-    const beforeNotifs = state.notifications.length;
-    applyDailyWeatherEffects(state);
-    const newNotifs = state.notifications.slice(beforeNotifs);
-    expect(newNotifs.some((n) => n.title.includes('Storm'))).toBe(true);
-    expect(state.eventLog.some((e) => e.message.includes('storm'))).toBe(true);
-    expect((state.buildings[0] as Building).health).toBe(94);
-  });
-
-  it('stays silent when the storm damages nothing (all rival/skeleton)', () => {
-    const state = initGame({ villageName: 'W', size: 'medium' });
-    state.weather = WeatherType.Storm;
-    state.buildings.push({ ...playerHouse(1, 100), faction: 'rival' as never });
-    const beforeNotifs = state.notifications.length;
-    applyDailyWeatherEffects(state);
-    expect(state.notifications.slice(beforeNotifs).length).toBe(0);
-  });
-
-  it.skipIf(!HOSTILE_WEATHER_ENABLED)('shows storm-damage feedback on each battered building (FX)', () => {
+  it('keeps storm damage and feedback gated off while hostile weather is disabled', () => {
+    expect(HOSTILE_WEATHER_ENABLED).toBe(false);
     const state = initGame({ villageName: 'W', size: 'medium' });
     state.weather = WeatherType.Storm;
     state.buildings.push(playerHouse(1, 100), playerHouse(2, 100));
+    const beforeNotifs = state.notifications.length;
+    const beforeTexts = state.floatingTexts.length;
     const beforeParticles = state.deathParticles.length;
+    const beforeLogs = state.eventLog.length;
+
     applyDailyWeatherEffects(state);
-    // One floating-text warning per damaged building.
-    const stormTexts = state.floatingTexts.filter((ft) => ft.text.includes('Storm'));
-    expect(stormTexts.length).toBe(2);
-    // Wind-blown debris particles spawned at the battered buildings.
-    expect(state.deathParticles.length).toBeGreaterThan(beforeParticles);
+
+    expect(state.notifications).toHaveLength(beforeNotifs);
+    expect(state.floatingTexts).toHaveLength(beforeTexts);
+    expect(state.deathParticles).toHaveLength(beforeParticles);
+    expect(state.eventLog.slice(beforeLogs).some((e) => e.message.includes('storm'))).toBe(false);
+    expect((state.buildings[0] as Building).health).toBe(100);
+    expect((state.buildings[1] as Building).health).toBe(100);
   });
 });
 

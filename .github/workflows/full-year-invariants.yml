@@ -1,0 +1,33 @@
+name: Weekly full-year simulation invariants
+
+# The year-long integration test is excluded from the standard suite (it is minutes, not seconds),
+# so it needs its own schedule to stay a real gate instead of a local-only file.
+on:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-year-invariants
+  cancel-in-progress: true
+
+jobs:
+  full-year:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4.4.0
+
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '26.12.1'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Real 360-day colony with per-tick invariant collection
+        run: npm run test:full-year:test

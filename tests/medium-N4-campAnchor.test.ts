@@ -28,18 +28,21 @@ const HALL = { x: 400, y: 300, width: 40, height: 40 };
 const BARRACKS = { x: 200, y: 200, width: 30, height: 30 };
 /** Neither a Town Hall nor a House, so it never becomes the anchor — it only gives the settlers a commute. */
 const FARM = { x: 1080, y: 820, width: 40, height: 40 };
-const HALL_ANCHOR = { x: HALL.x + HALL.width / 2, y: HALL.y + HALL.height / 2 };
+const HALL_ANCHOR = { x: HALL.x, y: HALL.y };
 
-/** The pre-N-4 body, kept as the oracle: the split must be a pure extraction of it. */
-function legacyCampCenter(state: WorldState, buildings: Building[]): { x: number; y: number } {
+/**
+ * The branch rule as an oracle: `building.x/y` is the canonical footprint centre, so the anchor is
+ * the building point itself. The split must stay a pure extraction of this rule.
+ */
+function canonicalCampCenter(state: WorldState, buildings: Building[]): { x: number; y: number } {
   const playerBuildings = buildings.filter((b) => b.completed && b.faction !== 'rival');
   const townHall = playerBuildings.find((b) => b.type === BuildingType.TownHall);
   if (townHall) {
-    return { x: townHall.x + townHall.width / 2, y: townHall.y + townHall.height / 2 };
+    return { x: townHall.x, y: townHall.y };
   }
   const house = playerBuildings.find((b) => b.type === BuildingType.House);
   if (house) {
-    return { x: house.x + house.width / 2, y: house.y + house.height / 2 };
+    return { x: house.x, y: house.y };
   }
   const players = state.entities.filter((e) => e.alive && isPlayerHuman(e));
   if (players.length > 0) {
@@ -244,7 +247,7 @@ function runTick(fixture: Fixture): void {
 }
 
 describe('camp anchor split (N-4)', () => {
-  it('reproduces the pre-fix anchor in every branch', () => {
+  it('matches the canonical centre in every branch', () => {
     const { world, hall, barracks } = anchorFixture(true);
     const house = building(103, BuildingType.House, { x: 60, y: 60, width: 20, height: 20 });
     const rivalHall = building(104, BuildingType.TownHall, { x: 900, y: 900, width: 40, height: 40 }, {
@@ -263,7 +266,7 @@ describe('camp anchor split (N-4)', () => {
     ];
 
     for (const c of cases) {
-      expect(getPlayerCampCenter(world, c.buildings), c.name).toEqual(legacyCampCenter(world, c.buildings));
+      expect(getPlayerCampCenter(world, c.buildings), c.name).toEqual(canonicalCampCenter(world, c.buildings));
       expect(getPlayerCampCenter(world, c.buildings), c.name).toEqual(
         getPlayerCampCenterFromBuildings(c.buildings) ?? getPlayerSettlerCenter(world),
       );
@@ -271,7 +274,7 @@ describe('camp anchor split (N-4)', () => {
 
     // Pinned answers, so the branches themselves are under test and not just the agreement.
     expect(getPlayerCampCenterFromBuildings([hall!, house])).toEqual(HALL_ANCHOR);
-    expect(getPlayerCampCenterFromBuildings([house])).toEqual({ x: 70, y: 70 });
+    expect(getPlayerCampCenterFromBuildings([house])).toEqual({ x: 60, y: 60 });
     expect(getPlayerCampCenterFromBuildings([rivalHall, unfinishedHall])).toBeNull();
     expect(getPlayerCampCenterFromBuildings([])).toBeNull();
     expect(getPlayerCampCenter(world, [])).toEqual(getPlayerSettlerCenter(world));
@@ -297,7 +300,10 @@ describe('camp anchor inside the human loop (N-4)', () => {
     // The war-band follows the anchored camp; the guard keeps his barracks patrol post.
     expect(raider.x).toBeLessThan(640);
     expect(raider.x).toBeGreaterThan(620);
-    expect(raider.y).toBeCloseTo(320, 5);
+    // The canonical hall centre (400,300) is slightly north of the old corner anchor (420,320), so the
+    // march also drifts north instead of holding y = 320 exactly.
+    expect(raider.y).toBeLessThan(320);
+    expect(raider.y).toBeGreaterThan(300);
     expect(Math.hypot(guard.x - 215, guard.y - 215)).toBeLessThan(30);
 
     // The visitor's anchor read only feeds `nearVillage`, which scales chat chance rather than

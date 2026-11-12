@@ -2,7 +2,7 @@ import type { Entity, RenffrLetter, RenffrOmen, WorldState } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycle';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { isPlayerHuman } from './playerHuman';
-import { mulberry32Advance, mulberry32Draw } from './simRng';
+import { getSimSeed, mulberry32Advance, mulberry32Draw } from './simRng';
 
 const RENFFR_OMEN_SPEAKER_COUNT = 4;
 
@@ -52,8 +52,8 @@ function renffrRoll(state: WorldState, salt: number): number {
 
 /** `[world seed, tick, salt]` mixed into the stream's starting state — shared by both entry points. */
 function renffrSeed(state: WorldState, salt: number): number {
-  const mapSeed = state.worldMap?.seed ?? state.tick;
-  return (mapSeed ^ (state.tick * 2654435761) ^ salt) >>> 0;
+  const runSeed = getSimSeed();
+  return (runSeed ^ (state.tick * 2654435761) ^ salt) >>> 0;
 }
 
 function shuffleArray<T>(items: T[], rng: () => number): T[] {

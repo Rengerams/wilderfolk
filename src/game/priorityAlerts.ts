@@ -4,6 +4,7 @@ import { countHomelessSettlers } from './housingModel';
 import { collectFamilyHousingShortages } from './housingPipeline';
 import { isFoodCritical } from './resourceUtils';
 import { getBuildingCenter } from './placementUtils';
+import { isCompletedPlayerBuilding } from './buildings';
 import {
   findCompletedBlacksmith,
   formatForgeInputs,
@@ -48,7 +49,7 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
   const alerts: PriorityAlert[] = [];
   const humans = state.humanPopulation;
   const houses = state.buildings.filter(
-    (b) => b.completed && (b.type === BuildingType.House || b.type === BuildingType.Mansion),
+    (b) => isCompletedPlayerBuilding(b) && (b.type === BuildingType.House || b.type === BuildingType.Mansion),
   ).length;
 
   for (const evt of state.pendingRaidEvents ?? []) {

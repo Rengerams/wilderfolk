@@ -38,7 +38,6 @@ import {
   type HumanChatContext,
 } from './humanChat';
 import { maybeDialogueChat, tickDialogue, tryAmbientRandomDialogue } from './dialogueTrees';
-import { advanceHumanWalkAnim } from './humanSprites';
 
 import { isRenffrGossipActive } from './renffrStar';
 import { getHumanFleeSpeedMultiplier } from './combat';
@@ -73,6 +72,8 @@ import {
 import { getCaravanMoveTarget, tryAdvanceCaravanLeg } from './tradeCaravans';
 import { tickFactionCampWander } from './factionWander';
 import {
+  isGreetingHour,
+  isSocialStaggerTick,
   tryNeighborGreeting,
   tryWorkplaceBanter,
   type SocialBuildingPicker,
@@ -100,7 +101,7 @@ import { doctorHospitalShift } from './hospitalShifts';
 import { getVenueWorkerServiceWindow } from './venueSchedule';
 
 import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
-import { crowdGatherPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
+import { crowdGatherPosition, enterHumanBuilding, applyHumanWalkStep, advanceHumanWalkAnim, clearHumanWalkTarget, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, resumeHumanWalk, steerHumanToward } from './simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
@@ -120,7 +121,6 @@ import type { TickContext } from './simulation/simulationTypes';
 import {
   findClosestAdaptiveInRadius,
   socialAdaptiveOptions,
-  SOCIAL_STAGGER,
   SOCIAL_GREETING_RADIUS,
   SOCIAL_COURTSHIP_RADIUS,
 } from './adaptiveSpatialQuery';
@@ -201,6 +201,23 @@ function steerAffairApproach(
     entity.vy = (dy / dist) * speed;
     faceVelocity(entity);
   }
+}
+
+/**
+ * The human loop's single position integration: road pace, the indoor arrest, the collision-checked
+ * walk step, map bounds and the walk animation. Both the full-AI tick and the throttled continuation
+ * go through it, so a settler can never be moved by two different rules.
+ */
+function integrateHumanWalk(entity: Entity, width: number, height: number): void {
+  // Use the same completed-road tiles the route planner prices, not proximity to a road.
+  const roadMult = isOnWalkableRoadAt(entity.x, entity.y) ? ROAD_SPEED_MULT : 1.0;
+  if (entity.indoorBuildingId != null) {
+    entity.vx = 0;
+    entity.vy = 0;
+  }
+  applyHumanWalkStep(entity, roadMult);
+  clampToMapBounds(entity, width, height);
+  advanceHumanWalkAnim(entity);
 }
 
 /** Sole tick-level sleep observation; physiology alone owns rest and stamina recovery. */
@@ -859,7 +876,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       isPlayerHuman(entity) &&
       !entity.faction &&
       (entity.chatTicks ?? 0) <= 0 &&
-      (state.tick + entity.id) % SOCIAL_STAGGER === 0
+      isSocialStaggerTick(entity, state.tick)
     ) {
       const expectantSpouse = entity.partnerId == null ? null : resolveChatPartner(entity.partnerId);
       tryAmbientRandomDialogue(
@@ -882,9 +899,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (previousIndoorBuildingId != null && buildingById.get(previousIndoorBuildingId)?.completed) {
         entity.indoorBuildingId = previousIndoorBuildingId;
       }
+      // The throttle rests the decisions, not the walk: the route the settler was already commanded
+      // to take carries them at the same pace, so camera focus cannot change travel time.
+      resumeHumanWalk(entity);
+      integrateHumanWalk(entity, width, height);
       syncEntityGrids(ctx, entity);
       continue;
     }
+
+    // A decision tick starts with no commanded walk: whatever it steers records the one walk a
+    // throttled tick may resume, and a tick that only flees or stops leaves none behind.
+    clearHumanWalkTarget(entity);
 
     // Trade-route merchants
     if (entity.faction === 'trade_caravan') {
@@ -952,6 +977,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     let suppressIdle = false;
     let onSchedule = false;
+    // A walk to work is priced at the undamped commute pace by `commuteLeadHoursFor`.
+    let commuting = false;
 
 
     // A crew larger than three shifts takes days off in turn; a resting guard is off the colony work
@@ -1234,36 +1261,27 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !inSpotlightGathering &&
       !festivalGathering &&
       !offDutyPrisonGuard &&
-      (goWorkTime || onWorkCommuteHours || prisonShift != null) &&
+      (workCommuteDue || prisonShift != null) &&
       !isInnkeeper &&
       !isHospitalDoctor &&
       workplace
     ) {
-      // Leave early enough to arrive at work when the shift starts; the lead grows with the settler's
-      // own commute distance.
-      const commuteLeadHours = commuteLeadHoursFor(
-        commuteDistanceToBuilding(entity, workplace),
-        config.speed,
-      );
-      const needsToLeaveForWork = isPrisonGuardAtPost
-        ? prisonCommuteDue
-        : isWorkDay(state.tick) && isWithinWorkCommuteLead(state.tick, prisonShiftStartHour, commuteLeadHours);
       // A prison guard works his roster shift and nothing else: the colony window is not his day, so
       // `goWorkTime` must not put a resting guard back on the post he is taking the day off from.
       const wantsToWork = isPrisonGuardAtPost
-        ? prisonShift != null && (onPrisonShift || needsToLeaveForWork)
-        : goWorkTime || onWorkCommuteHours || needsToLeaveForWork;
+        ? prisonShift != null && (onPrisonShift || prisonCommuteDue)
+        : workCommuteDue;
       if (wantsToWork) {
         if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
+        commuting = true;
         onSchedule = true;
         suppressIdle = true;
       }
     }
 
-    // A prison watch is paced by commuteLeadHoursFor using the full WORK_COMMUTE_RUSH.
-    // Damping the scheduled velocity by 15% *after* planning silently makes that
-    // prediction too optimistic and leaves the night post empty at handover.
-    if (!inSpotlightGathering && !allowFreeRoam && onSchedule && !huntingWere && !prisonCommuteDue) {
+    // A commute is paced by `commuteLeadHoursFor` at the full WORK_COMMUTE_RUSH; damping it after
+    // planning makes that prediction optimistic and leaves the post empty at shift start.
+    if (!commuting && !inSpotlightGathering && !allowFreeRoam && onSchedule && !huntingWere && !prisonCommuteDue) {
       entity.vx *= 0.85;
       entity.vy *= 0.85;
     }
@@ -1584,7 +1602,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Midday coworker banter
     if (onDayJobShift && workplace && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE && entity.job !== JobType.Innkeeper) {
       const workplaceWorkers = workersByWorkplace.get(entity.workerBuildingId ?? -1) ?? [];
-      tryWorkplaceBanter(entity, workplaceWorkers, state.tick, hourOfDay, true);
+      tryWorkplaceBanter(entity, workplaceWorkers, state.tick, hourOfDay, onDayJobShift);
     }
 
     tickHumanDoctorHospitalService({
@@ -1618,8 +1636,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (entity.indoorBuildingId != null) suppressIdle = true;
 
     // Morning greetings
-    if (allowFreeRoam && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE && hourOfDay >= 6 && hourOfDay <= 9) {
-      if ((state.tick + entity.id) % SOCIAL_STAGGER === 0) {
+    if (allowFreeRoam && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE && isGreetingHour(hourOfDay)) {
+      if (isSocialStaggerTick(entity, state.tick)) {
         const passer = findClosestAdaptiveInRadius(
           humanSocialGrid,
           allHumans,
@@ -1684,20 +1702,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.vy = 0;
     }
 
-    // Use the same completed-road tiles the route planner prices, not proximity to a road.
-    const roadMult = isOnWalkableRoadAt(entity.x, entity.y) ? ROAD_SPEED_MULT : 1.0;
-
     // The single integration for every walk, and the only place water and walls are enforced: the
     // steerers set a velocity without checking what it points into (see `applyHumanWalkStep`).
-    if (entity.indoorBuildingId != null) {
-      entity.vx = 0;
-      entity.vy = 0;
-    }
-    applyHumanWalkStep(entity, roadMult);
-
-    clampToMapBounds(entity, width, height);
-
-    advanceHumanWalkAnim(entity);
+    integrateHumanWalk(entity, width, height);
 
     syncEntityGrids(ctx, entity);
   }

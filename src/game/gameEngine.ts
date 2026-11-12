@@ -238,8 +238,8 @@ export {
   readSavePayload,
   describeSaveReadFailure,
 } from './saveLoad';
-export { isFootprintOnBuildableTerrain } from './placementUtils';
-export { canPlaceBuilding, getPlaceBuildingFailureReason, startBuilding, buildStripPreview, placeStripChain } from './buildingPlacementActions';
+export { isFootprintOnBuildableTerrain, canPlaceBuilding } from './placementUtils';
+export { getPlaceBuildingFailureReason, startBuilding, buildStripPreview, placeStripChain } from './buildingPlacementActions';
 export { isOnConstructionCrew } from './workforce';
 export { pickAdultSettler, assignBuilderToBuilding, fillBuildingWorkers, autoStaffAllWorkers, canAssignWorkerToBuilding } from './buildingStaffingActions';
 export { assignResidentToBuilding, removeResidentFromBuilding } from './buildingResidencyActions';

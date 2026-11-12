@@ -8,6 +8,7 @@ import { TERRAIN_CELL } from './terrain/terrainGrid';
 import { gridCellAxis } from './spatialGrid';
 import { isPlayerHuman } from './playerHuman';
 import { logEvent } from './eventLog';
+import { setStoryFlags, storyFlag } from './storyHelpers';
 
 /**
  * How near the settlement the creature must come before its arrival is chronicled, in world units:
@@ -81,23 +82,18 @@ export function isWildkinNearSettlement(state: WorldState, entity: Entity): bool
   return false;
 }
 
-/**
- * Which Wildkin have already been announced, per world. Deliberately not a saved field: the flag
- * decides whether one line is written, so losing it to a reload can at worst repeat that line once.
- */
-const announcedSightings = new WeakMap<WorldState, Set<number>>();
+/** The sighting flag lives in the persisted story flags, so a cloned story state keeps it too. */
+function sightingFlagKey(id: number): string {
+  return `wildkin_sighted_${id}`;
+}
 
 function hasAnnouncedSighting(state: WorldState, id: number): boolean {
-  return announcedSightings.get(state)?.has(id) ?? false;
+  return storyFlag(state, sightingFlagKey(id)) > 0;
 }
 
 function markSightingAnnounced(state: WorldState, id: number): void {
-  let seen = announcedSightings.get(state);
-  if (!seen) {
-    seen = new Set<number>();
-    announcedSightings.set(state, seen);
-  }
-  seen.add(id);
+  // Story flags are truthy numbers, so the very first colony tick still has to mark a positive day.
+  setStoryFlags(state, { [sightingFlagKey(id)]: Math.max(1, state.tick) });
 }
 
 /** Birth chronicle line for the human-mother path, carrying the place it was born. */

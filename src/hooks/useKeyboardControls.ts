@@ -104,6 +104,7 @@ export function useKeyboardControls({
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        if (e.repeat) return;
         e.preventDefault();
         void persistCurrentGameRef.current({ chronicle: true, feedback: true });
         return;
@@ -111,6 +112,9 @@ export function useKeyboardControls({
 
       // From here on the player is typing into a field, so no hotkey may take the key.
       if (inFormControl) return;
+
+      // A held key is one gesture: OS key repeat must not re-toggle pause/build/windows.
+      if (e.repeat) return;
 
       if (
         !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat

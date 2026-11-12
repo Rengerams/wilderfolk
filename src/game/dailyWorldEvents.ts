@@ -170,7 +170,7 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   tickGuidedCampaign(state);
   // Watchtowers reveal marching raiders earlier than patrols (daily, bounded).
   detectRaidersFromWatchtowers(state, allAlive);
-  tickWorldRivalSettlements(state, allAlive);
+  tickWorldRivalSettlements(state, allAlive, ctx);
 
   // Population cleanup and immigration remain in tickLayerDaily.
   tickFestivals(state, counts);
@@ -248,11 +248,6 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
     }
   }
 
-  // Bountiful harvest reset on odd years
-  if (state.year > 0 && state.year % 2 !== 0) {
-    state.bountifulHarvest = false;
-  }
-
   // Vacancies can mature on any calendar day; year-boundary elections are midnight-only.
   if (tryStartVacancyElectionCeremony(state, state.year, state.dayInYear)) {
     announceElectionCeremony(state);
@@ -278,6 +273,10 @@ function announceElectionCeremony(state: WorldState): void {
 export function tickYearBoundaryWorldEvents(state: WorldState): void {
   if (!isNewCalendarDayTick(state) || state.dayInYear !== 0 || state.year <= 0) return;
   if (getCalendarDay(state.tick - 1) === 0) return;
+
+  // A harvest grant lasts exactly the year it was rolled for. Clearing at the midnight boundary —
+  // before the new year's production and its roll — stops a grant bleeding one day forward.
+  state.bountifulHarvest = false;
 
   const buildupNews = tickElectionBuildup(state, state.year, true);
   if (buildupNews) {

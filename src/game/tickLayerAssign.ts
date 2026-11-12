@@ -6,6 +6,8 @@ import { isPlayerHuman } from './playerHuman';
 import type { TickContext } from './simulation/simulationTypes';
 import { TICKS_PER_HOUR } from './dayCycle';
 import { assignMissingResidences, syncResidenceOccupants } from './housingPipeline';
+import type { HousingReport } from './housingPipeline';
+import { logEvent } from './eventLog';
 import { assignMissingWorkers } from './workforce';
 import { applyLeaderHousePhase, collectLeaderHousehold, findLeaderHouse } from './leaderHouse';
 import { profileStart, profileEnd } from './performanceProfiler';
@@ -98,9 +100,12 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
       ...(world.villageLeaderId == null ? world.pendingLeaderHouseResidentIds ?? [] : []),
     ])
     : new Set<number>();
+  // This tick's arrivals and newborns reach the pulse through ctx.newEntities, so they must join the
+  // movable list as well as the occupancy pool; otherwise they wait for the next pulse.
+  const playerSettlers = allHumans.filter((human) => human.alive && isPlayerHuman(human));
   const eligibleForHousing = protectedIds.size === 0
-    ? playerHumans
-    : playerHumans.filter((person) => !protectedIds.has(person.id));
+    ? playerSettlers
+    : playerSettlers.filter((person) => !protectedIds.has(person.id));
   const signatureBefore = housingSignature(world, allHumans);
   const housingChanged = lastHousingSignature.get(world) !== signatureBefore;
   if (housingChanged) housingChangedThisDay.set(world, true);
@@ -109,14 +114,23 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
   // A stable colony does not need the full guardianship/family/commute pipeline every day.
   // Revisit the final bucket after changes earlier today; keep a weekly defensive full sweep.
   const safetyAudit = finalDailySweep && Math.floor(world.tick / (LAYER_ASSIGN_INTERVAL * 4)) % 7 === 0;
+  let auditReport: HousingReport | undefined;
   if (housingChanged || (finalDailySweep && housingChangedThisDay.get(world)) || safetyAudit) {
     // The manor hold is the sweep's first phase: one run, one ledger, one write path.
-    assignMissingResidences(
+    const report = assignMissingResidences(
       eligibleForHousing, updatedBuildings, allHumans, world.tick, world.genealogyRegistry,
       (ledger) => applyLeaderHousePhase(world, ledger),
     );
+    if (safetyAudit) auditReport = report;
     lastHousingSignature.set(world, housingSignature(world, allHumans));
     if (finalDailySweep) housingChangedThisDay.set(world, false);
+  }
+  // The weekly audit is the production observer of the pipeline's own invariant report.
+  if (auditReport && auditReport.violations.length > 0) {
+    const count = auditReport.violations.length;
+    const sample = auditReport.violations.slice(0, 3).join('; ');
+    console.warn(`[housing audit] ${count} violation(s): ${sample}`);
+    logEvent(world, 'event', `Housing audit found ${count} unresolved housing issue${count === 1 ? '' : 's'}: ${sample}`);
   }
   profileEnd('assign.assignMissingResidences', startedassignMissingResidences);
   checkLeader('assignMissingResidences');

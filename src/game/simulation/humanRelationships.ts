@@ -29,7 +29,6 @@ import {
   getFemaleFertility,
   getOldAgeDeathChance,
   ticksForDays,
-  PREGNANCY_TICKS,
   isStartOfClockHour,
 } from '../dayCycle';
 import { hasResidenceAssignment, hasWorkAssignment, isNearResidence, isResidenceBuilding, shareResidence } from '../housingModel';
@@ -52,6 +51,7 @@ import { requestDialogue, dialogueHoursFromNominalTicks } from '../dialogueTrees
 import { Relationship } from '../gameConstants';
 import { prisonPrisonerCapacity } from '../prisonShifts';
 import { getSimRng, seededRandomForRun, personDayRoll } from '../simRng';
+import { startPregnancy } from '../pregnancy';
 
 import { addReputation } from '../simHelpers';
 
@@ -657,30 +657,23 @@ function clearAffairPair(a: Entity, b: Entity): void {
   b.affairProgress = 0;
 }
 
-/**
- * When this pregnancy is due: `PREGNANCY_TICKS` jittered by ±15 % on a key of the settler and the
- * tick. One definition for all three conception paths (married, youth love, affair).
- */
-function rollPregnancyDueProgress(entity: Entity, tick: number): number {
-  return Math.round(PREGNANCY_TICKS * (0.85 + seededRandomForRun(`pregnancy-due:${entity.id}:${tick}`) * 0.3));
-}
-
 type ConceptionKind = 'married' | 'youth' | 'affair';
 
-/** Per-kind presentation: who is recorded as the father, the pulse colour and the hearts. */
+/** Per-kind presentation: pulse strength, colour and hearts. */
 const CONCEPTION_LOOK: Readonly<Record<ConceptionKind, {
-  readonly recordsFather: boolean;
-  readonly youthLove: boolean;
   readonly flash: number;
   readonly color: string;
   readonly count: number;
 }>> = {
-  married: { recordsFather: false, youthLove: false, flash: 15, color: '#ffb6c1', count: 10 },
-  youth: { recordsFather: true, youthLove: true, flash: 12, color: '#f9a8d4', count: 7 },
-  affair: { recordsFather: true, youthLove: false, flash: 14, color: '#f472b6', count: 8 },
+  married: { flash: 15, color: '#ffb6c1', count: 10 },
+  youth: { flash: 12, color: '#f9a8d4', count: 7 },
+  affair: { flash: 14, color: '#f472b6', count: 8 },
 };
 
-/** One writer for all three conception paths; the kind only changes the record and the wording. */
+/**
+ * Conception presentation and chronicle around `humanLifecycle.startPregnancy`, the one writer that
+ * owns pregnancy state. The kind only changes the wording and the pulse.
+ */
 function beginPregnancy(
   state: WorldState,
   entity: Entity,
@@ -688,25 +681,19 @@ function beginPregnancy(
   kind: ConceptionKind,
 ): void {
   const look = CONCEPTION_LOOK[kind];
-  entity.pregnant = true;
-  entity.pregnantById = look.recordsFather ? partner.id : undefined;
-  entity.pregnancyFromYouthLove = look.youthLove ? true : undefined;
-  entity.pregnancyProgress = 0;
-  entity.pregnancyDueProgress = rollPregnancyDueProgress(entity, state.tick);
+  startPregnancy(entity, {
+    origin: kind,
+    fatherId: partner.id,
+    partner,
+    startDay: getColonyDay(state),
+  });
   entity.flash = look.flash;
   partner.flash = look.flash;
   createDeathParticles(state, entity.x, entity.y - 8, look.color, look.count, 'heart');
 
   if (kind === 'affair') {
-    entity.relationshipStatus = entity.partnerId != null ? 'married' : 'expecting';
     addFloatingText(state, entity.x, entity.y - 18, 'Secret…', '#c084fc', 'brief');
   } else {
-    if (kind === 'married') {
-      entity.relationshipStatus = 'expecting';
-      if (isMarriedOrExpecting(partner) || partner.partnerId === entity.id) {
-        partner.relationshipStatus = 'expecting';
-      }
-    }
     addFloatingText(state, entity.x, entity.y - 20, 'Expecting!', '#ff69b4');
   }
 
@@ -840,7 +827,8 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
       const tryst = isValidAffairConceptionSite(entity, lover, ctx.entityById, ctx.buildingById, AFFAIR_BUILDING_NEAR_RADIUS);
       const fertility = getFemaleFertility(entity.age);
       if (tryst && fertility > 0) {
-        if (personDayRoll(entity.id, state.tick, 605) < HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE * fertility) {
+        const conceptionFactor = evaluateAptitudeInfluence(entity, 'conception').factor;
+        if (personDayRoll(entity.id, state.tick, 605) < HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE * fertility * conceptionFactor) {
           beginPregnancy(state, entity, lover, 'affair');
           recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
           return true;

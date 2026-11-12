@@ -25,7 +25,6 @@ import { tileAt } from './terrain/terrainGrid';
 import { treeEcotoneAt } from './terrain/ecotones';
 import { valueNoise } from './terrain/noise';
 import {
-  enableSeededGlobalRandom,
   getSimRng,
   nativeRandom,
   setSimSeed,
@@ -58,7 +57,7 @@ import { getBuildingFootprint } from './buildingRotation';
 import { createEmptyLifetimeStats } from './stats';
 import { createGuidedCampaignState } from './guidedCampaign';
 import { spawnBlueberryTrees } from './blueberryForaging';
-import { computeStorageMax } from './economy';
+import { computeStorageMax, updateStorageCaps } from './economy';
 
 export { createEntity } from './entityFactory';
 
@@ -584,7 +583,6 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   const mapSeed = seed ?? Math.floor(nativeRandom() * 1_000_000);
   setSimSeed(mapSeed);
-  enableSeededGlobalRandom();
 
   const dims = MAP_SIZE_DIMENSIONS[size] ?? MAP_SIZE_DIMENSIONS[MapSize.Huge];
   const width = options.width ?? dims.width;
@@ -631,7 +629,8 @@ export function initGame(options: InitGameOptions = {}): WorldState {
       iron: Math.min(30, storageMax.iron),
     },
     storageMax,
-    foodSpoilageRate: 0.03,
+    // The economy owner writes the base rate (and the caps) below; a fresh colony must not pick its own.
+    foodSpoilageRate: 0,
     ecosystemHealth: 100,
     biodiversityIndex: 1.0,
     pollutionLevel: 0,
@@ -697,6 +696,8 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     deathsThisYear: { humans: 0, animals: 0 },
   };
 
+  // The storage caps and the base spoilage rate are the economy owner's numbers, not a second literal.
+  updateStorageCaps(state);
   syncEventLogIdFromState(state);
 
   // 2. Procedural World Map Generation (passing explicit width & height)

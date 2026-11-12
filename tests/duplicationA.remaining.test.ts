@@ -249,29 +249,65 @@ describe('A21 — renffrStar builds on the simRng Mulberry32 step', () => {
   });
 });
 
-describe('A22 — the gestation jitter formula is rolled once', () => {
-  it('keeps all three conception paths on one pregnancy writer', () => {
-    const source = read('src/game/simulation/humanRelationships.ts');
+describe('A22 — the gestation term and pregnancy start each have one owner', () => {
+  const OWNER = 'src/game/pregnancy.ts';
+  const DUE_FORMULA = /Math\.round\(PREGNANCY_TICKS \* \(0\.85 \+/;
+  const DUE_FORMULA_ALL = /Math\.round\(PREGNANCY_TICKS \* \(0\.85 \+/g;
+  const START_DEFINITION = /function startPregnancy\(/;
+  const START_DEFINITION_ALL = /function startPregnancy\(/g;
+
+  it('keeps the term formula and the start writer in the pregnancy owner only', () => {
+    const gameFiles = srcFiles(resolve(process.cwd(), 'src/game'));
     expect(
-      source.match(/`pregnancy-due:\$\{entity\.id\}:\$\{/g) ?? [],
-      'the keyed draw is copied again',
-    ).toHaveLength(1);
+      gameFiles.filter((file) => DUE_FORMULA.test(read(file))),
+      'the ±15% term formula is restated outside its owner',
+    ).toEqual([OWNER]);
     expect(
-      source.match(/rollPregnancyDueProgress\(/g) ?? [],
-      'the jitter helper is gone',
-    ).toHaveLength(2);
+      gameFiles.filter((file) => START_DEFINITION.test(read(file))),
+      'a second pregnancy-start writer exists',
+    ).toEqual([OWNER]);
+
+    const ownerSource = read(OWNER);
+    expect(ownerSource.match(DUE_FORMULA_ALL) ?? [], 'the owner restates its own formula').toHaveLength(1);
+    expect(ownerSource.match(START_DEFINITION_ALL) ?? [], 'the owner has two start writers').toHaveLength(1);
+    expect(ownerSource.match(/`pregnancy-due:/g) ?? [], 'the keyed term draw is duplicated').toHaveLength(1);
+
+    const relationshipsSource = read('src/game/simulation/humanRelationships.ts');
+    expect(relationshipsSource, 'the term formula is back in the conception owner').not.toMatch(DUE_FORMULA);
+    expect(relationshipsSource, 'the duplicate term helper is back').not.toContain('rollPregnancyDueProgress');
     expect(
-      source.match(/Math\.round\(PREGNANCY_TICKS \* \(0\.85 \+/g) ?? [],
-      'the jitter formula is restated outside the helper',
-    ).toHaveLength(1);
-    // Married, youth and affair all start through the one writer; no per-path duplicate is left.
-    expect(
-      source.match(/beginPregnancy\(state, entity, /g) ?? [],
+      relationshipsSource.match(/beginPregnancy\(/g) ?? [],
       'a conception path bypasses the one pregnancy writer',
-    ).toHaveLength(3);
+    ).toHaveLength(4);
     expect(
-      source.match(/function beginPregnancy\(/g) ?? [],
-      'a second pregnancy writer exists',
+      relationshipsSource.match(/startPregnancy\(/g) ?? [],
+      'the conception owner no longer calls the start writer',
     ).toHaveLength(1);
+    const conceptionWriter = relationshipsSource.slice(
+      relationshipsSource.indexOf('function beginPregnancy('),
+      relationshipsSource.indexOf('type ConceptionGateOutcome'),
+    );
+    expect(conceptionWriter, 'beginPregnancy stopped delegating to the start writer').toContain(
+      'startPregnancy(',
+    );
+    expect(conceptionWriter, 'beginPregnancy writes pregnancy state again').not.toMatch(
+      /pregnancyDueProgress\s*=|pregnancyProgress\s*=|pregnantById\s*=|pregnancyFromYouthLove\s*=|\.pregnant\s*=/,
+    );
+
+    const factorySource = read('src/game/entityFactory.ts');
+    expect(factorySource.match(/startPregnancy\(/g) ?? [], 'createEntity bypasses the start writer').toHaveLength(1);
+    expect(factorySource, 'the due formula is copied into the constructor').not.toMatch(DUE_FORMULA);
+  });
+
+  it('fails the same scan when a second term formula or start writer is reintroduced', () => {
+    const ownerSource = read(OWNER);
+    const countFormula = (source: string): number => source.match(DUE_FORMULA_ALL)?.length ?? 0;
+    const countStartDefinitions = (source: string): number =>
+      source.match(START_DEFINITION_ALL)?.length ?? 0;
+
+    expect(countFormula(ownerSource)).toBe(1);
+    expect(countFormula(`${ownerSource}\nconst second = Math.round(PREGNANCY_TICKS * (0.85 + 0.1));`)).toBe(2);
+    expect(countStartDefinitions(ownerSource)).toBe(1);
+    expect(countStartDefinitions(`${ownerSource}\nfunction startPregnancy() {}`)).toBe(2);
   });
 });

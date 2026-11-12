@@ -176,7 +176,7 @@ export function buildRenderEntityShim(
     forageKind: meta?.forageKind,
     blueberryYield: meta?.blueberryYield,
     alive: !!(flags & RENDER_FLAG_ALIVE),
-    energy: 0,
+    energy: reader.energy(slot),
     maxEnergy: 1,
     age: 0,
     birthYear: 0,

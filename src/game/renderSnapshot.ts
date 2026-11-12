@@ -13,6 +13,7 @@ import type { ViewState } from './viewState';
 import { resolveBuilding, resolveEntity } from './viewState';
 import { computeLogisticsOverlayCached, type LogisticsOverlayData } from './logisticsOverlayData';
 import { getEcosystemHealth } from './dailyEcology';
+import { getTerrainRevision } from './terrain/terrainGrid';
 
 /**
  * A shared, frozen by-type table for the SoA render path, which never reads `snapshot.entityByType`;
@@ -150,8 +151,8 @@ export interface RenderSnapshot {
 }
 
 /**
- * Identity of everything the cached static entity layer paints. Only a live build folds in the
- * tick, so a settled world stops repainting its trees, grass and buildings every tick.
+ * Identity of everything the cached static entity layer paints. Nothing time-only belongs here: a
+ * construction-site ramp and the hour are drawn in the per-frame overlay pass.
  */
 function staticEntityLayerRevision(world: WorldState): string {
   const buildings = world.buildings ?? [];
@@ -163,8 +164,8 @@ function staticEntityLayerRevision(world: WorldState): string {
     world.dayInYear,
     world.entities.length,
     buildings.length,
+    getTerrainRevision(),
   ];
-  let buildingAnimates = false;
   for (const b of buildings) {
     parts.push(
       b.id,
@@ -177,14 +178,47 @@ function staticEntityLayerRevision(world: WorldState): string {
       b.gateClosed ? 1 : 0,
       b.health,
       b.occupants.length,
+      // An incomplete site's baked figure scales with its authoritative progress; the smoothed bar
+      // is painted per frame, so only the day's real step may re-bake the layer.
+      b.completed ? 0 : b.constructionProgress,
     );
-    if (!b.completed) buildingAnimates = true;
   }
   for (const group of world.visitorGroups ?? []) {
     parts.push(group.id, group.campX, group.campY, group.daysLeft);
   }
-  parts.push(buildingAnimates ? world.tick : 0);
   return parts.join('|');
+}
+
+/**
+ * The last built static revision. The snapshot rebuilds for every camera move; every simulation
+ * hand-off either replaces these arrays (worker delta, isolated command) or advances the tick, so a
+ * matching identity means nothing the static layer paints can have changed.
+ */
+let staticRevisionCache: {
+  world: WorldState;
+  tick: number;
+  buildings: readonly Building[];
+  entities: readonly Entity[];
+  revision: string;
+} | null = null;
+
+/** Static-layer identity for this world revision, reused between camera-only snapshot rebuilds. */
+function cachedStaticEntityLayerRevision(world: WorldState): string {
+  const cached = staticRevisionCache;
+  const buildings = world.buildings ?? [];
+  const entities = world.entities ?? [];
+  if (
+    cached
+    && cached.world === world
+    && cached.tick === world.tick
+    && cached.buildings === buildings
+    && cached.entities === entities
+  ) {
+    return cached.revision;
+  }
+  const revision = staticEntityLayerRevision(world);
+  staticRevisionCache = { world, tick: world.tick, buildings, entities, revision };
+  return revision;
 }
 
 /** Last colony-wide blacksmith scan — this runs per frame, and the camera alone rebuilds the snapshot. */
@@ -250,7 +284,7 @@ export function buildRenderSnapshot(
     floatingTexts: world.floatingTexts ?? [],
     huntVisuals: world.huntVisuals ?? [],
     tick: world.tick,
-    staticLayerRevision: staticEntityLayerRevision(world),
+    staticLayerRevision: cachedStaticEntityLayerRevision(world),
     hourOfDay: getHourOfDay(world.tick),
     workSchedule: getWorkSchedule(world),
     season: world.season,

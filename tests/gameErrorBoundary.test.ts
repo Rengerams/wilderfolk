@@ -1,12 +1,13 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import GameErrorBoundary, { isCrashRecoveryActive, registerCrashRecoverySource } from '../src/components/GameErrorBoundary';
+import GameErrorBoundary, { isCrashRecoveryActive, registerCrashRecoverySource, reloadGamePage } from '../src/components/GameErrorBoundary';
 import { initGame } from '../src/game/worldGen';
 import { createInitialView } from '../src/game/viewState';
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('CB-02: root crash recovery', () => {
@@ -42,6 +43,17 @@ describe('CB-02: root crash recovery', () => {
 
     boundary.state = { crashed: true, snapshot: null, exportMessage: null };
     expect(renderToStaticMarkup(boundary.render())).not.toContain('Download recovery snapshot');
+  });
+
+  it('offers a reload action on every crash and reloads the page', () => {
+    const boundary = new GameErrorBoundary({ children: createElement('p', null, 'Game') });
+    boundary.state = { crashed: true, snapshot: null, exportMessage: null };
+    expect(renderToStaticMarkup(boundary.render())).toContain('Reload game');
+
+    const reload = vi.fn();
+    vi.stubGlobal('window', { location: { reload } });
+    reloadGamePage();
+    expect(reload).toHaveBeenCalledOnce();
   });
 
   it('keeps the fallback usable even when snapshot access itself fails', () => {

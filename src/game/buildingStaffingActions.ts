@@ -1,5 +1,6 @@
 import type { Building, Entity, WorldState } from './gameTypes';
-import { BUILDING_CONFIGS, BUILDING_JOB_TYPES } from './gameTypes';
+import { BUILDING_JOB_TYPES } from './gameTypes';
+import { getBuildingConfig } from './buildingConfig';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { addFloatingText, addNotification } from './simEffects';
 import {
@@ -105,7 +106,7 @@ function _applyBuilderAssignmentMut(
   const building = findPlayerBuilding(state, buildingId);
   if (!building || building.completed) return state;
 
-  const config = BUILDING_CONFIGS[building.type];
+  const config = getBuildingConfig(building.type);
   if (building.occupants.length >= config.maxOccupants) return state;
 
   const builder = pickAdultSettler(
@@ -184,7 +185,7 @@ export function fillBuildingWorkers(
   // staffed by automatic reconciliation.
   if (!preview || preview.faction === 'rival' || preview.completed) return originalState;
 
-  const cap = BUILDING_CONFIGS[preview.type].maxOccupants;
+  const cap = getBuildingConfig(preview.type).maxOccupants;
   
   // Keep one clone for the entire construction-crew operation.
   let state = structuredClone(originalState);
@@ -205,7 +206,7 @@ export function fillBuildingWorkers(
     preferredHumanId = undefined; // Only prefer the first one, then fill with anyone
   }
   if (assigned > 0) {
-    const label = BUILDING_CONFIGS[preview.type].label;
+    const label = getBuildingConfig(preview.type).label;
     addFloatingText(state, preview.x, preview.y - 10, `✓ ${assigned} assigned`, '#22c55e', 'brief');
     addNotification(state, 'Workers Assigned', `${assigned} settler${assigned === 1 ? '' : 's'} assigned to ${label}`, 'success');
   }
@@ -273,7 +274,7 @@ export function canAssignWorkerToBuilding(state: WorldState, buildingId: number)
   if (!building || building.faction === 'rival') return false;
 
   if (!building.completed) {
-    const cap = BUILDING_CONFIGS[building.type].maxOccupants;
+    const cap = getBuildingConfig(building.type).maxOccupants;
     return building.occupants.length < cap && state.entities.some(
       (entity) => isEligibleBuilderForBuilding(state, entity, building),
     );
@@ -299,12 +300,14 @@ export function getWorkerAssignmentRefusal(
   const entity = state.entities.find((candidate) => candidate.id === humanId);
   if (!entity) return 'unknown-settler';
 
+  // A settler already on this building's roster is accepted before any "who may staff it" gate, or
+  // the inspector reports a refusal for the person the assignment actually selected.
+  if (building.occupants.includes(entity.id)) return null;
   if (building.completed && isResidenceBuildingType(building.type)) return 'residence-building';
   if (building.completed && BUILDING_JOB_TYPES[building.type]) return 'automatic-job';
-  if (building.occupants.includes(entity.id)) return null;
 
   if (!building.completed) {
-    if (building.occupants.length >= BUILDING_CONFIGS[building.type].maxOccupants) return 'building-full';
+    if (building.occupants.length >= getBuildingConfig(building.type).maxOccupants) return 'building-full';
     const core = staffCandidateRefusal(entity);
     if (core) return core;
     if (isOnConstructionCrew(state.buildings, humanId, building.id)) return 'on-another-crew';

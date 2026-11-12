@@ -10,6 +10,9 @@ let nextEventLogId = 1;
 /** Rolling window of the most recent chronicle entries; everything older is dropped. */
 export const EVENT_LOG_MAX_ENTRIES = 20000;
 
+/** Burials one completed player graveyard can hold; the panel reads this instead of a second 50. */
+export const GRAVEYARD_CAPACITY_PER_YARD = 50;
+
 /** Load repair: unique ids, and no more entries than the writers' own cap keeps. */
 export function repairEventLogOnLoad(state: Pick<WorldState, 'eventLog'>): void {
   const seen = new Set<unknown>();
@@ -98,7 +101,7 @@ export function assignPendingGraves(state: WorldState): void {
   const capacity = new Map<number, number>();
   for (const building of state.buildings) {
     if (building.completed && building.type === BuildingType.Graveyard && building.faction !== 'rival') {
-      capacity.set(building.id, 50);
+      capacity.set(building.id, GRAVEYARD_CAPACITY_PER_YARD);
     }
   }
   if (capacity.size === 0) return;

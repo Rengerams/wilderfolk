@@ -81,6 +81,10 @@ export function createSeededRng(seed: number, owner: string): RngStream {
  */
 export const PERSON_DAY_ROLL_SALTS = {
   hospitalTreatment: 840,
+  /** `humanLeisureBehavior.idleDestination`'s home/venue/tree choice. */
+  leisureIdleDestination: 839,
+  /** The weekend leisure-kind swap; the schedule's free-day roll keeps 201 for itself. */
+  leisureWeekendKind: 841,
 } as const;
 
 /** Stable 0..1 roll for one person on one colony day. */
@@ -238,11 +242,10 @@ export function restoreSimRng(snapshot: unknown): boolean {
     streamStates.get(stream)?.set(state);
   }
 
-  if (parsed.global != null) {
-    enableSeededGlobalRandom();
-    const global = seededGlobalStream;
-    if (global) streamStates.get(global)?.set(parsed.global);
-  }
+  // The seeded global override is a harness hook: a save cursor may rewind an override this realm
+  // already installed, but a payload never installs one over the host's own `Math.random`.
+  const global = seededGlobalStream;
+  if (parsed.global != null && global) streamStates.get(global)?.set(parsed.global);
   return true;
 }
 
@@ -252,7 +255,6 @@ export function restoreSimRng(snapshot: unknown): boolean {
 export function adoptSimSeedFromWorld(world: { worldMap?: { seed?: number } | null }): number {
   const seed = world.worldMap?.seed ?? 1;
   setSimSeed(seed);
-  enableSeededGlobalRandom();
   return seed;
 }
 
@@ -320,8 +322,9 @@ export function randomBool(rng: RngStream, chance = 0.5): boolean {
 // ============ GLOBAL HOOKS & TEST HELPERS ============
 
 /**
- * Installs a seeded global `Math.random` override for headless testing.
- * Preserves test framework spies if Math.random was already mocked.
+ * Installs a seeded global `Math.random` override for headless harnesses. Production never installs
+ * it: no source module calls `Math.random` (a guard test enforces that), so only tests and scripts
+ * opt in. Preserves test framework spies if `Math.random` was already mocked.
  */
 export function enableSeededGlobalRandom(): void {
   if (installedSeededGlobal || Math.random !== NATIVE_MATH_RANDOM) return;

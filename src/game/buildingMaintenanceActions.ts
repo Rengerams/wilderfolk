@@ -2,8 +2,10 @@ import { departWarPrisoner } from './warPrisonerCustody';
 import { moveResident } from './housingPipeline';
 import { isStripBuildType, MAX_STRIP_SEGMENTS } from './stripBuild';
 import type { Building, WorldState } from './gameTypes';
-import { BUILDING_CONFIGS, BuildingType, LEVEL_BENEFIT_BUILDING_TYPES } from './gameTypes';
+import { BuildingType, LEVEL_BENEFIT_BUILDING_TYPES } from './gameTypes';
+import { getBuildingConfig } from './buildingConfig';
 import { addResource, updateStorageCaps } from './economy';
+import { getBuildingCenter } from './buildingGeometry';
 import { addFloatingText, addNotification, createDeathParticles, impulseScreenShake } from './simEffects';
 import { assignMissingWorkers, removeWorkerTransition } from './workforce';
 import { unindexAdjacency } from './adjacencyIndex';
@@ -31,9 +33,20 @@ export function buildingTypeHasLevelBenefit(type: BuildingType): boolean {
   return LEVEL_BENEFIT_BUILDING_TYPES.has(type);
 }
 
+/** Reason returned for a rival settlement's structure: the player owns no maintenance on it. */
+export const NOT_PLAYER_OWNED_REASON = 'Not your building';
+
+/**
+ * The shared ownership gate: rival structures are never the player's to repair, upgrade or demolish.
+ * `buildings.isCompletedPlayerBuilding` adds the completed half of the same boundary.
+ */
+export function isPlayerOwnedBuilding(building: Building): boolean {
+  return building.faction !== 'rival';
+}
+
 /**
  * Whether `repairBuilding` would actually restore this building: it exists, stands complete,
- * is damaged, and its fixed cost is affordable. Single definition of the repair rule.
+ * is player-owned, is damaged, and its fixed cost is affordable. Single definition of the repair rule.
  */
 export function getRepairBuildingEligibility(
   state: WorldState,
@@ -48,6 +61,7 @@ export function getRepairBuildingEligibilityFor(
   building: Building | undefined,
 ): { ok: boolean; blockReason?: string } {
   if (!building) return { ok: false, blockReason: 'No such building' };
+  if (!isPlayerOwnedBuilding(building)) return { ok: false, blockReason: NOT_PLAYER_OWNED_REASON };
   if (!building.completed) return { ok: false, blockReason: 'Still under construction' };
   if (building.health >= building.maxHealth) return { ok: false, blockReason: 'Already at full health' };
   if (state.resources.wood < REPAIR_COST.wood || state.resources.stone < REPAIR_COST.stone) {
@@ -64,14 +78,16 @@ export function repairBuilding(originalState: WorldState, buildingId: number): W
 
   const eligibility = getRepairBuildingEligibility(originalState, buildingId);
   if (!eligibility.ok) {
-    // A building that is unfinished or already whole stays silent (the UI never
+    // A building that is unfinished, already whole or not the player's stays silent (the UI never
     // offers the button); a real repair the colony cannot pay for shows the cost.
-    const structural = !building.completed || building.health >= building.maxHealth;
+    const structural = !building.completed || building.health >= building.maxHealth
+      || !isPlayerOwnedBuilding(building);
     if (!structural) {
+      const centre = getBuildingCenter(building);
       addFloatingText(
         state,
-        building.x + building.width / 2,
-        building.y,
+        centre.x,
+        centre.y,
         eligibility.blockReason ?? 'Cannot repair',
         '#ef4444',
       );
@@ -133,6 +149,7 @@ export function getBuildingUpgradeEligibility(
 ): { ok: boolean; blockReason?: string } {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
   if (!building) return { ok: false, blockReason: 'No such building' };
+  if (!isPlayerOwnedBuilding(building)) return { ok: false, blockReason: NOT_PLAYER_OWNED_REASON };
   if (!building.completed) return { ok: false, blockReason: 'Still under construction' };
   if (building.level >= MAX_BUILDING_LEVEL) {
     return { ok: false, blockReason: `Already level ${MAX_BUILDING_LEVEL}` };
@@ -156,7 +173,7 @@ export function upgradeBuilding(
   ownership: 'isolated' | 'owned' = 'isolated',
 ): WorldState {
   const originalBuilding = originalState.buildings.find((candidate) => candidate.id === buildingId);
-  if (!originalBuilding) return originalState;
+  if (!originalBuilding || !isPlayerOwnedBuilding(originalBuilding)) return originalState;
 
   const eligibility = getBuildingUpgradeEligibility(originalState, buildingId);
   const structural = !originalBuilding.completed
@@ -168,10 +185,11 @@ export function upgradeBuilding(
   const state = ownership === 'owned' ? originalState : structuredClone(originalState);
   const building = state.buildings.find((candidate) => candidate.id === buildingId)!;
   if (!eligibility.ok) {
+    const centre = getBuildingCenter(building);
     addFloatingText(
       state,
-      building.x + building.width / 2,
-      building.y,
+      centre.x,
+      centre.y,
       eligibility.blockReason ?? 'Cannot upgrade',
       '#ef4444',
     );
@@ -197,7 +215,7 @@ export function upgradeBuilding(
     addNotification(
       state,
       'Home expanded',
-      `${BUILDING_CONFIGS[building.type].label} now holds ${capacity} family members.`,
+      `${getBuildingConfig(building.type).label} now holds ${capacity} family members.`,
       'success',
     );
   } else {
@@ -271,7 +289,7 @@ export function refundBuildingCost(
   state: WorldState,
   type: BuildingType,
 ): { wood: number; stone: number; gold: number } {
-  const config = BUILDING_CONFIGS[type];
+  const config = getBuildingConfig(type);
   const refundWood = Math.floor(config.cost.wood * BUILDING_REFUND_RATIO);
   const refundStone = Math.floor(config.cost.stone * BUILDING_REFUND_RATIO);
   const refundGold = Math.floor(config.cost.gold * BUILDING_REFUND_RATIO);
@@ -285,7 +303,7 @@ export function refundBuildingCost(
 /** A completed player gate toggles between an open passage and a solid obstacle. */
 export function toggleWallGate(originalState: WorldState, buildingId: number): WorldState {
   const gate = originalState.buildings.find((building) => building.id === buildingId);
-  if (!gate || gate.type !== BuildingType.WallGate || gate.faction === 'rival' || !gate.completed) {
+  if (!gate || gate.type !== BuildingType.WallGate || !isPlayerOwnedBuilding(gate) || !gate.completed) {
     return originalState;
   }
   const state = structuredClone(originalState);
@@ -302,7 +320,9 @@ export function demolishBuildingInPlace(state: WorldState, buildingId: number, c
 export function demolishBuildingsInPlace(state: WorldState, buildingIds: readonly number[], cause: 'demolition' | 'raid' = 'demolition'): WorldState {
   if (buildingIds.length === 0) return state;
   const requested = new Set(buildingIds);
-  const buildings = state.buildings.filter((building) => requested.has(building.id));
+  const buildings = state.buildings.filter(
+    (building) => requested.has(building.id) && isPlayerOwnedBuilding(building),
+  );
   if (buildings.length === 0) return state;
   const affected = clearAssignmentsForDemolishedBuilding(state, new Set(buildings.map((building) => building.id)));
   for (const [index, building] of buildings.entries()) {
@@ -342,6 +362,6 @@ export function demolishStripBuildingsInPlace(state: WorldState, buildingIds: re
   const wanted = new Set(buildingIds);
   if (wanted.size !== buildingIds.length) return state;
   const selected = state.buildings.filter((building) => wanted.has(building.id)
-    && building.faction !== 'rival' && isStripBuildType(building.type));
+    && isPlayerOwnedBuilding(building) && isStripBuildType(building.type));
   return demolishBuildingsInPlace(state, selected.map((building) => building.id));
 }

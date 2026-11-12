@@ -41,7 +41,14 @@ export function drawCampHighlightRings(ctx: CanvasRenderingContext2D, state: Ren
   const cam = state.camera;
   if (cam.zoom < 0.35 || !state.highlightedCampKey) return;
   const key = state.highlightedCampKey;
-  const camp = state.visitorGroups.find(group => key === `visitor:${group.id}`);
+  // Both camp owners produce highlight keys: visitor groups and strategic rival settlements.
+  const visitor = key.startsWith('visitor:')
+    ? state.visitorGroups.find((group) => key === `visitor:${group.id}`)
+    : undefined;
+  const rival = key.startsWith('rival:')
+    ? state.rivalSettlements.find((settlement) => key === `rival:${settlement.id}`)
+    : undefined;
+  const camp = visitor ?? rival;
   if (!camp) return;
   const sx = (camp.campX - cam.x) * cam.zoom + cw / 2;
   const sy = (camp.campY - cam.y) * cam.zoom + ch / 2;

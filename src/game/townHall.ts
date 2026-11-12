@@ -12,6 +12,8 @@ import { addFloatingText, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { getVillageLeader } from './villageLeadership';
 import { findCompletedBuilding } from './buildings';
+import { getBuildingCenter } from './buildingGeometry';
+import { isAtBuildingReach } from './buildingAccess';
 import { isDialogueBusy } from './humanChat';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { isPlayerHuman } from './playerHuman';
@@ -177,8 +179,16 @@ export type CivicPetitionResult =
   | { kind: 'none' };
 
 /**
+ * "At the hall" is one rule for the petitioner, the leader and the official: inside it, or within
+ * reach of a walkable frontage. The building's own indoor state is the simulation's arrival record.
+ */
+function isAtHall(entity: Entity, hall: Building): boolean {
+  return entity.indoorBuildingId === hall.id || isAtBuildingReach(entity, hall);
+}
+
+/**
  * Settler petitions a staffed town hall — small aid, comfort, or leader audience.
- * Call when the settler is near the hall during free time or civic hours.
+ * Call when the settler is at the hall during free time or civic hours.
  */
 export function resolveCivicPetition(
   state: WorldState,
@@ -188,18 +198,15 @@ export function resolveCivicPetition(
   if (!hall.completed || hall.occupants.length === 0) return { kind: 'none' };
   if (!isPlayerHuman(petitioner) || petitioner.age < HUMAN_ADULT_MIN_AGE) return { kind: 'none' };
 
-  const hx = hall.x + hall.width / 2;
-  const hy = hall.y + hall.height * 0.9;
-  if (Math.hypot(petitioner.x - hx, petitioner.y - hy) > 52) return { kind: 'none' };
+  if (!isAtHall(petitioner, hall)) return { kind: 'none' };
 
   const day = Math.floor(state.tick / TICKS_PER_DAY);
   if (personDayRoll(petitioner.id, state.tick, 821 + day) > 0.4) return { kind: 'none' };
 
   const leader = getVillageLeader(state);
-  const leaderHere =
-    leader
+  const leaderHere = leader
     && hall.occupants.includes(leader.id)
-    && Math.hypot(leader.x - hx, leader.y - hy) < 50;
+    && isAtHall(leader, hall);
 
   const hour = getHourOfDay(state.tick);
   const openHours = isWorkScheduleHour(getWorkSchedule(state), hour) || (hour >= 16 && hour < 19);
@@ -235,7 +242,8 @@ export function resolveCivicPetition(
   ) {
     adjustHumanStaminaFromEnergy(petitioner, 6);
     requestDialogue({ eventKey: 'townHall.heard', speaker: petitioner, tick: state.tick, selectionRoll: personDayRoll(petitioner.id, state.tick, 832), durationHours: dialogueHoursFromNominalTicks(52), priority: 'scripted' });
-    addFloatingText(state, hall.x + hall.width / 2, hall.y - 10, '📜 Petition heard', '#93c5fd', 'brief');
+    const hallCentre = getBuildingCenter(hall);
+    addFloatingText(state, hallCentre.x, hallCentre.y - 10, '📜 Petition heard', '#93c5fd', 'brief');
     addReputation(state, 1);
     return { kind: 'heard' };
   }
@@ -284,9 +292,7 @@ export function officialHandlePetitioners(
   hall: Building,
   villagers: readonly Entity[],
 ): boolean {
-  const hx = hall.x + hall.width / 2;
-  const hy = hall.y + hall.height * 0.9;
-  if (Math.hypot(official.x - hx, official.y - hy) > 48) return false;
+  if (!isAtHall(official, hall)) return false;
 
   const petitioners = villagers.filter(
     (v) =>
@@ -294,7 +300,7 @@ export function officialHandlePetitioners(
       && v.alive
       && isPlayerHuman(v)
       && v.age >= HUMAN_ADULT_MIN_AGE
-      && Math.hypot(v.x - hx, v.y - hy) < 55
+      && isAtHall(v, hall)
       && wantsCivicAudience(v, state),
   );
   if (petitioners.length === 0) return false;

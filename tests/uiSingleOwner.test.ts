@@ -472,4 +472,12 @@ describe('O — no domain rule is computed inside a view', () => {
     );
     expect(owner, 'the label form lost the owner constant').toContain('SETTLER_LABEL_FALLBACK');
   });
+
+  it('the terminal export goes through the authoritative save owner, not the display shadow', () => {
+    const app = read('src/App.tsx');
+    expect(app).toContain('onExport={() => { void persistCurrentGame(');
+    expect(app, 'the display shadow is written directly again').not.toMatch(
+      /onExport=\{\(\) => \{ saveGame\(/,
+    );
+  });
 });

@@ -1,10 +1,11 @@
 /**
- * The intro and gameplay themes play through an `HTMLAudioElement`, outside the Web Audio bus chain,
- * so the volume preset must reach it through `htmlAudioVolumeForPreset`.
+ * The intro and gameplay themes can play through an `HTMLAudioElement`, outside the Web Audio bus
+ * chain, so that path must apply the same music-chain gain the buses apply.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { VOLUME_PRESETS, levelsForPreset } from '../src/audio/preferences';
-import { htmlAudioVolumeForPreset } from '../src/audio/htmlAudioSync';
+import { VOLUMES } from '../src/audio/constants';
+import { levelsForPreset } from '../src/audio/preferences';
+import { htmlAudioVolumeForPath } from '../src/audio/htmlAudioSync';
 import { TRACK_VOLUMES } from '../src/audio/tracks';
 
 class FakeAudio {
@@ -20,6 +21,49 @@ class FakeAudio {
     this.paused = true;
   });
 }
+
+class FakeParam {
+  value = 0;
+  setValueAtTime = vi.fn();
+  setTargetAtTime = vi.fn();
+  cancelScheduledValues = vi.fn();
+  exponentialRampToValueAtTime = vi.fn();
+}
+
+class FakeNode {
+  connect = vi.fn();
+}
+
+class FakeGain extends FakeNode {
+  gain = new FakeParam();
+}
+
+class FakeCompressor extends FakeNode {
+  threshold = new FakeParam();
+  knee = new FakeParam();
+  ratio = new FakeParam();
+  attack = new FakeParam();
+  release = new FakeParam();
+}
+
+class FakeFilter extends FakeNode {
+  type = '';
+  Q = new FakeParam();
+  frequency = new FakeParam();
+}
+
+class FakeAudioContext {
+  state = 'running';
+  currentTime = 0;
+  destination = new FakeNode();
+  createGain = (): FakeGain => new FakeGain();
+  createDynamicsCompressor = (): FakeCompressor => new FakeCompressor();
+  createBiquadFilter = (): FakeFilter => new FakeFilter();
+  resume = vi.fn(async () => undefined);
+  decodeAudioData = vi.fn(async () => ({}));
+}
+
+vi.mock('../src/audio/scheduler', () => ({ scheduleTone: vi.fn() }));
 
 vi.mock('../src/audio/sampleLoader', () => ({
   preloadAllSamples: vi.fn(async () => undefined),
@@ -39,48 +83,29 @@ vi.mock('../src/audio/ambient', () => ({
   },
 }));
 
-const graphState = vi.hoisted(() => ({ preset: 'normal' }));
+import { audioGraph } from '../src/audio/graph';
+import { backgroundMusic } from '../src/audio/backgroundMusic';
+import { introMusic } from '../src/audio/introMusic';
+import { soundDirector } from '../src/audio/director';
 
-vi.mock('../src/audio/graph', async () => {
-  const { levelsForPreset: levels } = await import('../src/audio/preferences');
-  return {
-    audioGraph: {
-      isMuted: false,
-      isUnlocked: true,
-      ensure: vi.fn(),
-      getLevels: () => levels(graphState.preset as 'soft' | 'normal' | 'loud'),
-      getVolumePreset: () => graphState.preset,
-      setVolumePreset: (preset: string) => {
-        graphState.preset = preset;
-      },
-      primeUnlock: vi.fn(),
-      unlock: vi.fn(async () => true),
-      setMusicBrightness: vi.fn(),
-      // The procedural fallback asks for a bus; a null bus makes `scheduleTone` a no-op.
-      bus: vi.fn(() => null),
-    },
-  };
-});
-
-describe('F-RND-30 — the preset reaches the element the fallback plays through', () => {
-  it('scales the element volume by master × music, and clamps at 1', () => {
-    const base = 0.4;
-    expect(htmlAudioVolumeForPreset(base, levelsForPreset('normal'))).toBeCloseTo(base, 6);
-    expect(htmlAudioVolumeForPreset(base, levelsForPreset('soft')))
-      .toBeCloseTo(base * VOLUME_PRESETS.soft.master * VOLUME_PRESETS.soft.music, 6);
-    expect(htmlAudioVolumeForPreset(base, levelsForPreset('loud')))
-      .toBeGreaterThan(htmlAudioVolumeForPreset(base, levelsForPreset('normal')));
-    expect(htmlAudioVolumeForPreset(1, levelsForPreset('loud'))).toBe(1);
+describe('F-RND-30 — the HTMLAudio element path matches the Web Audio music chain', () => {
+  it('scales by the music path gain the buses apply, not just the preset', () => {
+    vi.stubGlobal('AudioContext', FakeAudioContext);
+    audioGraph.setVolumePreset('normal');
+    const normal = levelsForPreset('normal');
+    expect(audioGraph.musicPathGain())
+      .toBeCloseTo(VOLUMES.master * VOLUMES.music * normal.master * normal.music, 10);
+    // The element path reaches the same chain gain as bus playback; scaling by the preset alone is 4.3× louder.
+    expect(htmlAudioVolumeForPath(TRACK_VOLUMES.intro, audioGraph.musicPathGain()))
+      .toBeCloseTo(TRACK_VOLUMES.intro * VOLUMES.master * VOLUMES.music, 10);
+    expect(htmlAudioVolumeForPath(TRACK_VOLUMES.intro, audioGraph.musicPathGain()))
+      .toBeLessThan(TRACK_VOLUMES.intro);
   });
 
-  it('re-applies it to both players when the preset changes', async () => {
+  it('re-applies the path gain to both players when the preset changes', async () => {
+    vi.stubGlobal('AudioContext', FakeAudioContext);
     vi.stubGlobal('Audio', FakeAudio);
-    vi.resetModules();
-    graphState.preset = 'normal';
-
-    const { backgroundMusic } = await import('../src/audio/backgroundMusic');
-    const { introMusic } = await import('../src/audio/introMusic');
-    const { soundDirector } = await import('../src/audio/director');
+    audioGraph.setVolumePreset('normal');
 
     // Both players take the HTML path: the sample player returns false in the mock.
     await backgroundMusic.start();
@@ -91,21 +116,19 @@ describe('F-RND-30 — the preset reaches the element the fallback plays through
     expect(gameplayEl).not.toBeNull();
     expect(introEl).not.toBeNull();
 
-    const expected = (trackVolume: number, preset: keyof typeof VOLUME_PRESETS): number =>
-      htmlAudioVolumeForPreset(trackVolume, levelsForPreset(preset));
-
-    expect(gameplayEl.volume).toBeCloseTo(expected(TRACK_VOLUMES.gameplay, 'normal'), 6);
-    expect(introEl.volume).toBeCloseTo(expected(TRACK_VOLUMES.intro, 'normal'), 6);
-
-    soundDirector.setVolumePreset('loud');
-    expect(gameplayEl.volume).toBeCloseTo(expected(TRACK_VOLUMES.gameplay, 'loud'), 6);
-    expect(introEl.volume).toBeCloseTo(expected(TRACK_VOLUMES.intro, 'loud'), 6);
-
-    soundDirector.setVolumePreset('soft');
-    expect(gameplayEl.volume).toBeCloseTo(expected(TRACK_VOLUMES.gameplay, 'soft'), 6);
-    expect(introEl.volume).toBeCloseTo(expected(TRACK_VOLUMES.intro, 'soft'), 6);
+    for (const preset of ['normal', 'loud', 'soft'] as const) {
+      soundDirector.setVolumePreset(preset);
+      expect(gameplayEl.volume).toBeCloseTo(TRACK_VOLUMES.gameplay * audioGraph.musicPathGain(), 6);
+      expect(introEl.volume).toBeCloseTo(TRACK_VOLUMES.intro * audioGraph.musicPathGain(), 6);
+    }
 
     backgroundMusic.stop();
     introMusic.stop();
+  });
+
+  it('clamps the element volume into the 0–1 range', () => {
+    expect(htmlAudioVolumeForPath(0.5, 0.5)).toBeCloseTo(0.25, 10);
+    expect(htmlAudioVolumeForPath(4, 1)).toBe(1);
+    expect(htmlAudioVolumeForPath(-1, 1)).toBe(0);
   });
 });

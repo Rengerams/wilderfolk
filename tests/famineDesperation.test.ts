@@ -206,5 +206,8 @@ describe('famine desperation bite (joke)', () => {
     expect(state.eventLog[0].message).toContain('took a bite');
     expect(feudScore(victim, attacker.id)).toBe(Famine.BITE_FEUD_AMOUNT);
     expect(feudScore(attacker, victim.id)).toBe(Famine.BITE_FEUD_AMOUNT);
+    // The feud's built-in friendship charge is the only one a landed bite pays.
+    expect(friendshipScore(attacker, victim.id)).toBe(60 - Famine.BITE_FEUD_AMOUNT);
+    expect(friendshipScore(victim, attacker.id)).toBe(60 - Famine.BITE_FEUD_AMOUNT);
   });
 });

@@ -1,13 +1,31 @@
 #!/usr/bin/env node
 /**
  * Ratchet: only NEWLY ADDED code comments are checked for history (dates, audit IDs, file:line,
- * "used to be"). Run before committing; already committed comments are not revisited.
+ * "used to be"). The diff base is the CI base ref when one is exported, else the working tree vs HEAD.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const REPO = process.cwd();
+
+/**
+ * The comparison ref CI exports: PR base (workflow or runner payload) or the pre-push commit.
+ * A clean checkout has no working-tree diff, so without one the ratchet inspects nothing.
+ */
+function configuredBaseRef() {
+  const explicit = process.env.COMMENTS_BASE_REF?.trim() || process.env.PR_BASE_SHA?.trim();
+  if (explicit) return explicit;
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  if (!eventPath || !existsSync(eventPath)) return null;
+  try {
+    const payload = JSON.parse(readFileSync(eventPath, 'utf8'));
+    const sha = payload.pull_request?.base?.sha ?? payload.before;
+    return typeof sha === 'string' && !/^0+$/.test(sha) ? sha : null;
+  } catch {
+    return null;
+  }
+}
 
 /** History that does not belong in a comment about the current code. */
 const HISTORY_LIKE = [
@@ -34,9 +52,39 @@ function inspect(where, text, found) {
 
 const problems = [];
 
+/* --- choose the diff range ------------------------------------------------- */
+let diffBase = 'HEAD';
+const requestedBase = configuredBaseRef();
+if (requestedBase) {
+  let commit;
+  try {
+    commit = execFileSync('git', ['rev-parse', '--verify', '--quiet', `${requestedBase}^{commit}`], {
+      cwd: REPO,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    console.error(`comments check: the comparison base "${requestedBase}" does not resolve to a commit.`);
+    console.error('Pass a fetched COMMENTS_BASE_REF=<ref> or a full SHA, or omit it to diff the working tree.');
+    process.exit(1);
+  }
+  // A PR base is the target tip; its merge-base is the fork point, so only this branch's work counts.
+  try {
+    diffBase = execFileSync('git', ['merge-base', commit, 'HEAD'], { cwd: REPO, encoding: 'utf8' }).trim() || commit;
+  } catch {
+    diffBase = commit;
+  }
+}
+// CI checking a clean checkout has nothing in the working-tree diff; passing here would be vacuous.
+if (diffBase === 'HEAD' && process.env.GITHUB_ACTIONS === 'true') {
+  console.error('comments check: CI exported no comparison base, so there is no diff to inspect.');
+  console.error('Export COMMENTS_BASE_REF/PR_BASE_SHA or fetch the base commit in the checkout.');
+  process.exit(1);
+}
+
 /* --- added or modified lines, tracked files ------------------------------- */
 try {
-  const diff = execFileSync('git', ['diff', 'HEAD', '-U0', '--no-color'], {
+  const diff = execFileSync('git', ['diff', diffBase, '-U0', '--no-color'], {
     cwd: REPO,
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
@@ -85,7 +133,8 @@ try {
 }
 
 if (problems.length === 0) {
-  console.log('Comments check passed: no newly added comment carries history.');
+  const range = diffBase === 'HEAD' ? 'the working tree' : `changes since ${diffBase}`;
+  console.log(`Comments check passed: no newly added comment carries history in ${range}.`);
   process.exit(0);
 }
 

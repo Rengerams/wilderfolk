@@ -2,16 +2,18 @@
  * Lifecycle golden contracts — the birth owner must leave valid pregnancy,
  * lineage, event, and same-tick index state on every outcome.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import { tickPregnancyAndBirth, LIFECYCLE_CONFIG, getPregnancyProgressFraction, isPregnancyHospitalDue } from '../src/game/simulation/humanLifecycle';
-import { seededRandomForRun } from '../src/game/simRng';
+import { tickPregnancyAndBirth, LIFECYCLE_CONFIG, isPregnancyHospitalDue } from '../src/game/simulation/humanLifecycle';
+import { getPregnancyProgressFraction } from '../src/game/pregnancy';
+import { createEntity } from '../src/game/entityFactory';
+import { tryDailyConception } from '../src/game/simulation/humanRelationships';
+import { personDayRoll, resetSimRng, seededRandomForRun } from '../src/game/simRng';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
-import { createEntity } from '../src/game/entityFactory';
-import { PREGNANCY_TICKS, TICKS_PER_DAY } from '../src/game/dayCycle';
+import { PREGNANCY_TICKS, TICKS_PER_DAY, getColonyDay, ticksForDays } from '../src/game/dayCycle';
 import { genomeFrom, heterozygous, NEUTRAL_VALUE } from './helpers/genome';
 import { APTITUDE_IDS } from '../src/game/settlerTraits';
 import type { AllelePair, GenomeV2 } from '../src/game/settlerTraits';
@@ -132,8 +134,30 @@ function runBirth(state: WorldState, ctx: TickContext, mother: Entity): void {
   });
 }
 
+/** The one term rule, stated independently of the implementation for the assertions below. */
+function expectedDue(settlerId: number, colonyDay: number): number {
+  return Math.round(
+    PREGNANCY_TICKS * (0.85 + seededRandomForRun(`pregnancy-due:${settlerId}:${colonyDay}`) * 0.3),
+  );
+}
+
+/** Move a fixture to a colony day without relying on the daily tick to advance the calendar. */
+function setColonyDay(state: WorldState, day: number): void {
+  state.year = 0;
+  state.dayInYear = day;
+  state.tick = ticksForDays(day);
+}
+
+/** A day whose salted conception roll is far below any real chance product. */
+function conceptionDay(salt: number): number {
+  for (let day = 1; day <= 5000; day++) {
+    if (personDayRoll(MATERNAL_ID, ticksForDays(day), salt) < 0.001) return day;
+  }
+  throw new Error('no day produces the wanted conception roll');
+}
+
 afterEach(() => {
-  vi.restoreAllMocks();
+  resetSimRng();
 });
 
 describe('human lifecycle golden contracts', () => {
@@ -419,17 +443,141 @@ describe('human lifecycle golden contracts', () => {
     expect(state.eventLog.some((event) => event.type === 'scandal' && event.message.includes('may not be'))).toBe(true);
   });
 
-  it('gives a spawned pregnant immigrant a finite due progress above current progress', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+  it('gives married, youth-love and affair conceptions the same keyed term rule', () => {
+    const marriedDay = conceptionDay(603);
+    const husband = human(FATHER_ID, { energy: 200, maxEnergy: 200, partnerId: MATERNAL_ID, relationshipStatus: 'married' });
+    const marriedMother = human(MATERNAL_ID, { energy: 200, maxEnergy: 200, partnerId: FATHER_ID, relationshipStatus: 'married' });
+    const married = makeFixture([marriedMother, husband]);
+    setColonyDay(married.state, marriedDay);
+
+    expect(tryDailyConception(married.state, married.ctx, marriedMother)).toBe(true);
+    expect(marriedMother.pregnancyProgress).toBe(0);
+    expect(marriedMother.pregnancyDueProgress).toBe(expectedDue(MATERNAL_ID, marriedDay));
+    expect(marriedMother.pregnantById).toBeUndefined();
+    expect(marriedMother.relationshipStatus).toBe('expecting');
+    expect(husband.relationshipStatus).toBe('expecting');
+
+    const youthDay = conceptionDay(604);
+    const youthFather = human(FATHER_ID, {
+      energy: 200,
+      maxEnergy: 200,
+      age: 16,
+      isJuvenile: true,
+      relationshipStatus: 'single',
+      youthLovePartnerId: MATERNAL_ID,
+    });
+    const youthMother = human(MATERNAL_ID, {
+      energy: 200,
+      maxEnergy: 200,
+      age: 16,
+      isJuvenile: true,
+      relationshipStatus: 'single',
+      youthLovePartnerId: FATHER_ID,
+    });
+    const youth = makeFixture([youthMother, youthFather]);
+    setColonyDay(youth.state, youthDay);
+
+    expect(tryDailyConception(youth.state, youth.ctx, youthMother)).toBe(true);
+    expect(youthMother.pregnancyDueProgress).toBe(expectedDue(MATERNAL_ID, youthDay));
+    expect(youthMother.pregnantById).toBe(FATHER_ID);
+    expect(youthMother.pregnancyFromYouthLove).toBe(true);
+    expect(youthMother.relationshipStatus).toBe('single');
+
+    const affairDay = conceptionDay(605);
+    const lover = human(FATHER_ID, { energy: 200, maxEnergy: 200, relationshipStatus: 'single', affairPartnerId: MATERNAL_ID });
+    const affairMother = human(MATERNAL_ID, { energy: 200, maxEnergy: 200, relationshipStatus: 'single', affairPartnerId: FATHER_ID });
+    const affair = makeFixture([affairMother, lover]);
+    setColonyDay(affair.state, affairDay);
+
+    expect(tryDailyConception(affair.state, affair.ctx, affairMother)).toBe(true);
+    expect(affairMother.pregnancyDueProgress).toBe(expectedDue(MATERNAL_ID, affairDay));
+    expect(affairMother.pregnantById).toBe(FATHER_ID);
+    expect(affairMother.pregnancyFromYouthLove).toBeUndefined();
+    expect(affairMother.relationshipStatus).toBe('expecting');
+  });
+
+  it('gives an arriving pregnant immigrant and a colony conception the same pregnancy state', () => {
+    const day = conceptionDay(603);
+    const husband = human(FATHER_ID, { energy: 200, maxEnergy: 200, partnerId: MATERNAL_ID, relationshipStatus: 'married' });
+    const mother = human(MATERNAL_ID, { energy: 200, maxEnergy: 200, partnerId: FATHER_ID, relationshipStatus: 'married' });
+    const { state, ctx } = makeFixture([mother, husband]);
+    setColonyDay(state, day);
+    expect(tryDailyConception(state, ctx, mother)).toBe(true);
+
+    const immigrant = createEntity(EntityType.Human, 10, 10, MATERNAL_ID, 100, false, {
+      gender: 'female',
+      partnerId: FATHER_ID,
+      pregnant: true,
+      pregnantById: FATHER_ID,
+      pregnancyProgress: 0,
+      colonyDay: day,
+    });
+
+    expect(immigrant.pregnant).toBe(mother.pregnant);
+    expect(immigrant.pregnancyProgress).toBe(mother.pregnancyProgress);
+    expect(immigrant.pregnancyDueProgress).toBe(mother.pregnancyDueProgress);
+    expect(immigrant.pregnantById).toBe(mother.pregnantById);
+    expect(immigrant.pregnancyFromYouthLove).toBe(mother.pregnancyFromYouthLove);
+    expect(immigrant.pregnancyDueProgress).toBe(expectedDue(MATERNAL_ID, day));
+  });
+
+  it('normalizes an absent, zero or non-finite due to a full term instead of an instant birth', () => {
+    for (const due of [undefined, 0, Number.NaN]) {
+      const mother = human(MATERNAL_ID, {
+        pregnant: true,
+        pregnancyProgress: 0,
+        pregnancyDueProgress: due,
+      });
+      const { state, ctx } = makeFixture([mother]);
+      state.tick = liveBirthTick();
+
+      runBirth(state, ctx, mother);
+
+      expect(mother.pregnant, `due ${String(due)} must not deliver on the first tick`).toBe(true);
+      expect(mother.pregnancyProgress).toBe(1);
+      expect(ctx.newEntities).toEqual([]);
+      expect(getPregnancyProgressFraction(mother)).toBeCloseTo(1 / PREGNANCY_TICKS);
+      expect(
+        isPregnancyHospitalDue({
+          ...mother,
+          pregnancyProgress: PREGNANCY_TICKS * LIFECYCLE_CONFIG.HOSPITAL_THRESHOLD_RATIO,
+        }),
+      ).toBe(true);
+      expect(
+        collectSimulationInvariantErrors({ ...state, entities: [mother] }).some((error) =>
+          error.includes(`human ${MATERNAL_ID} is pregnant without a valid pregnancyDueProgress`),
+        ),
+      ).toBe(true);
+    }
+
+    // The same invalid value at full term still delivers, so the fallback is a real full term.
+    const fullTermMother = human(MATERNAL_ID, {
+      pregnant: true,
+      pregnancyProgress: PREGNANCY_TICKS - 1,
+      pregnancyDueProgress: 0,
+    });
+    const { state, ctx } = makeFixture([fullTermMother]);
+    state.tick = liveBirthTick();
+    runBirth(state, ctx, fullTermMother);
+    expect(fullTermMother.pregnant).toBe(false);
+  });
+
+  it('gives a spawned pregnant immigrant a due from the one keyed term rule', () => {
+    const { state } = makeFixture([human(MATERNAL_ID)]);
+    const colonyDay = getColonyDay(state);
+    // Unrelated constructor draws first: the due date must not come from that stream.
+    createEntity(EntityType.Human, 0, 0, 39, 100, false, { gender: 'male', ageYears: 30 });
     const immigrant = createEntity(EntityType.Human, 10, 10, 40, 100, false, {
       gender: 'female',
       partnerId: 41,
       pregnant: true,
       pregnantById: 41,
       pregnancyProgress: 15,
+      colonyDay,
     });
 
     expect(immigrant.pregnant).toBe(true);
+    expect(immigrant.pregnancyDueProgress).toBe(expectedDue(40, colonyDay));
     expect(immigrant.pregnancyDueProgress).toBeGreaterThan(immigrant.pregnancyProgress ?? 0);
     expect(Number.isFinite(immigrant.pregnancyDueProgress)).toBe(true);
     // The invariant collector reads only `entities`, `buildings` and `villageLeaderId`; this case

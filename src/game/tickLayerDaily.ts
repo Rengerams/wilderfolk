@@ -46,7 +46,7 @@ export function tickLayerDaily(
 
   // 00:00 — day-boundary owners, then the new day's weather and grass.
   if (hour === DAILY_PHASE_HOURS.fatigue) {
-    tickVisitorGroups(state, allAlive);
+    tickVisitorGroups(state, allAlive, ctx);
     for (const human of ctx.playerHumans) {
       if (human.alive && human.age >= HUMAN_ADULT_MIN_AGE) decayIdleSkills(human, human.job);
     }

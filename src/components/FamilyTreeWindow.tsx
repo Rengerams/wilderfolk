@@ -91,12 +91,19 @@ export default function FamilyTreeWindow({
     [focusEntity, roster, tick, showDeceased, genealogyRegistry],
   );
 
+  // The tree owner bounds the walk, so the selector offers only generations it can actually draw;
+  // deriving the bound from the built rows keeps the control from advertising dead options.
+  const maxGenerations = Math.max(1, ...tree.rows.map((row) => Math.abs(row.delta)));
+  const shownGenerations = Math.min(depth, maxGenerations);
+
   const visibleRows = tree.rows.filter((row) => {
-    if (Math.abs(row.delta) > depth) return false;
+    if (Math.abs(row.delta) > shownGenerations) return false;
     if (mode === 'ancestors') return row.delta <= 0;
     if (mode === 'descendants') return row.delta >= 0;
     return true;
   });
+  /** Members in the rows actually drawn — the same reduction the rows render, so the header cannot overcount. */
+  const visibleMemberCount = visibleRows.reduce((count, row) => count + row.members.length, 0);
 
   const selectPerson = (person: FamilyTreePerson) => {
     if (person.id === focusId) return;
@@ -139,7 +146,7 @@ export default function FamilyTreeWindow({
     <GameWindow
       title={`Family tree · ${tree.focusName || humanDisplayName(entity)}`}
       icon="🌳"
-      subtitle={`${tree.memberCount} people drawn · ${visibleRows.length} generations shown`}
+      subtitle={`${visibleMemberCount} people drawn · ${visibleRows.length} generations shown`}
       onClose={onClose}
       centered
       widthClassName="w-[56rem] max-w-[95vw]"
@@ -156,9 +163,9 @@ export default function FamilyTreeWindow({
               </button>
             ))}
           <label className="ml-2 text-xs">Generations
-            <select value={depth} onChange={(event) => setDepth(Number(event.target.value))}
+            <select value={shownGenerations} onChange={(event) => setDepth(Number(event.target.value))}
               className="ml-2 rounded border border-stone-600 bg-stone-900 p-1">
-              {[2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n}</option>)}
+              {Array.from({ length: maxGenerations }, (_, index) => index + 1).map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </label>
           {historicalFocusId != null && historicalFocusId !== entity.id && (

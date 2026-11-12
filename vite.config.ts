@@ -24,9 +24,6 @@ export default defineConfig({
   // 1. Worker configuratie toegevoegd voor native ES-module support in WebView2 (Windows)
   worker: {
     format: 'es',
-    plugins: () => [
-      react() // Zorgt dat de worker TypeScript en gedeelde game-logica correct compileert
-    ]
   },
   optimizeDeps: {
     // react-router imports cookie's old CJS `parse`/`serialize`; prebundled, cookie exposes them.

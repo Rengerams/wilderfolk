@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useModalFocus } from '../hooks/useModalFocus';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 import type { WorldState } from '../game/gameTypes';
@@ -22,9 +22,11 @@ export default function WarfareStatus({ world, onPrisonerDecision, onRepair, onE
   const [showCaptives, setShowCaptives] = useState(false);
   const [confirmExecution, setConfirmExecution] = useState<number | null>(null);
   const recovery = world.raidRecovery;
-  const prisoners = useMemo(() => recovery?.status === 'destroyed' ? [] : world.entities.filter((person) => person.alive && person.warCaptive && person.prisonBuildingId != null), [world, recovery?.status]);
-  const openBeds = useMemo(() => prisoners.length ? getOpenPlayerBeds(world) : 0, [world, prisoners.length]);
-  const buildingById = useMemo(() => new Map((recovery?.status === 'recovering' ? world.buildings : []).map((home) => [home.id, home])), [world, recovery?.status]);
+  // The world object is reused and mutated in place, so these read from it every render: memoising
+  // on its reference would keep a released/executed captive's row and buttons on screen.
+  const prisoners = recovery?.status === 'destroyed' ? [] : world.entities.filter((person) => person.alive && person.warCaptive && person.prisonBuildingId != null);
+  const openBeds = prisoners.length ? getOpenPlayerBeds(world) : 0;
+  const buildingById = new Map((recovery?.status === 'recovering' ? world.buildings : []).map((home) => [home.id, home]));
   const terminal = recovery?.status === 'destroyed' ? buildRaidTerminalReport(world) : null;
   const closeCaptives = useCallback(() => {
     setShowCaptives(false);

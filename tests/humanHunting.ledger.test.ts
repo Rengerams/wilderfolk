@@ -6,6 +6,7 @@ import type { Entity, WorldState } from '../src/game/gameTypes';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { tickHumanHunting } from '../src/game/humanHuntingBehavior';
+import { tallyTickDeaths } from '../src/game/stats';
 
 function contextFor(state: WorldState): TickContext {
   const byType = emptyEntityByType();
@@ -74,5 +75,53 @@ describe('free-roaming hunting food flow', () => {
     const added = state.resources.food - foodBefore;
     expect(added).toBeGreaterThan(0);
     expect(state.economyLedger?.produced.hunting).toBe(added);
+  });
+
+  it('reports the storage-accepted food in the reward text when the larder is nearly full', () => {
+    const { state, ctx, hunter, deer } = huntFixture();
+    // Only seven units fit, so the nominal deer yield must not be the promised number.
+    state.storageMax.food = state.resources.food + 7;
+
+    tickHumanHunting(
+      state,
+      ctx,
+      hunter,
+      SPECIES_CONFIG[EntityType.Human],
+      true,
+      false,
+      false,
+      false,
+      ctx.byType,
+      ctx.mobileGrid,
+      ctx.entityById,
+      false,
+    );
+
+    expect(state.resources.food).toBe(7);
+    expect(state.floatingTexts.at(-1)?.text).toBe('Hunted Deer! +7');
+  });
+
+  it('counts the free-roam kill in the tick death tally', () => {
+    const { state, ctx, hunter } = huntFixture();
+    const aliveAtTickStart = state.entities.filter((entity) => entity.alive);
+
+    tickHumanHunting(
+      state,
+      ctx,
+      hunter,
+      SPECIES_CONFIG[EntityType.Human],
+      true,
+      false,
+      false,
+      false,
+      ctx.byType,
+      ctx.mobileGrid,
+      ctx.entityById,
+      false,
+    );
+    // The tick closes with the same tally owner gameTick uses on its tick-start roster.
+    tallyTickDeaths(state, aliveAtTickStart);
+
+    expect(state.deathsThisYear?.animals).toBe(1);
   });
 });

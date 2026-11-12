@@ -13,6 +13,7 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { assignMissingResidences } from './housingPipeline';
 import { createImmigrantSettler } from './worldGen';
 import { findHumanSpawnNear } from './terrainSystems';
+import { buildingAccessPoint } from './buildingAccess';
 import { isPlayerHuman } from './playerHuman';
 import { getTownHallImmigrationMultiplier } from './townHall';
 import { addFloatingText, addNotification } from './simEffects';
@@ -112,8 +113,10 @@ function tickImmigration(
 
     if (homes.length > 0) {
       const home = homes[Math.floor(rng() * homes.length)];
-      spawnX = home.x + home.width / 2;
-      spawnY = home.y + home.height / 2;
+      // `home.x/y` is the footprint centre; arrivals belong at its canonical doorway.
+      const door = buildingAccessPoint(home);
+      spawnX = door.x;
+      spawnY = door.y;
     }
 
     const rawSpawnX = spawnX + (rng() - 0.5) * 40;

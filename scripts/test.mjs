@@ -33,7 +33,7 @@ const STEP = {
   colonyIntegrationTest: 'vitest run tests/longRunColony.integration.test.ts',
   /** Both year-long gates are independent processes; running them together halves the wall time. */
   integrationTests: 'vitest run tests/fullYear.integration.test.ts tests/longRunColony.integration.test.ts',
-  types: 'tsc -p tsconfig.vitest.json --noEmit && tsc -p tsconfig.scripts.json --noEmit && tsc -p tsconfig.app.json --noEmit',
+  types: 'tsc -p tsconfig.vitest.json --noEmit && tsc -p tsconfig.scripts.json --noEmit && tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit',
   /**
    * `scripts/` is not a lint target here: it has its own `scripts-lint` / `scripts-types` steps below,
    * which use the scripts tsconfig project.
@@ -48,7 +48,7 @@ const STEP = {
    * A nonzero `knip` is not necessarily findings: oxc-parser reserves a ~6 GiB virtual buffer, and a
    * `RangeError: Array buffer allocation failed` means memory. A real report lists unused files.
    */
-  knip: 'knip',
+  knip: 'node scripts/check-knip.mjs',
   cycles: 'node scripts/check-import-cycles.mjs',
   /** Strict twin of `cycles`: a runtime import cycle exits 1 instead of warning. */
   cyclesStrict: 'node scripts/check-import-cycles.mjs --strict',
@@ -58,6 +58,7 @@ const STEP = {
   invariants: 'tsx scripts/run-full-year.mts',
   browser: 'node scripts/browser-smoke.mjs',
   build: 'npm run build',
+  workerBoundary: 'tsx scripts/worker-boundary-audit.mts',
   clean: 'node scripts/clean.mjs',
   cleanApply: 'node scripts/clean.mjs --apply',
   watch: 'vitest',
@@ -66,8 +67,10 @@ const STEP = {
 /** Gates, as ordered step lists: fail-fast, so the first failing step stops the gate. */
 const GATE = {
   standard: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'scriptsTypes', 'lint', 'unit'],
-  all: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
-  full: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'integrationTests', 'invariants', 'scriptsTypes', 'dup', 'knip', 'build'],
+  // Same steps as `standard`: the menu has always promised that, so the order must match too.
+  all: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'scriptsTypes', 'lint', 'unit'],
+  // `build` runs its own duplicate scan, so `dup` appears once here.
+  full: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'scriptsTypes', 'lint', 'unit', 'integrationTests', 'invariants', 'workerBoundary', 'knip', 'build'],
   audit: ['knip', 'owners', 'cycles'],
   accept: ['build', 'browser'],
 };
@@ -86,9 +89,11 @@ const ALIAS = {
   semantic: ['owners', 'semantic'],
   'semantic-dup': ['owners', 'semantic', 'semanticDup'],
   invariants: ['invariants'],
+  'unit-all': ['unitAll'],
   'invariant-test': ['invariantTest'],
   'calendar-scheduler': ['calendarScheduler'],
   'colony-integration': ['colonyIntegrationTest'],
+  'worker-boundary': ['workerBoundary'],
   browser: ['browser'],
   build: ['build'],
   watch: ['watch'],
@@ -101,7 +106,7 @@ wilderfolk test runner - one entry point, choose with args
   npm test -- standard            same as above
   npm test -- standard --changed <sha>  standard checks; only affected unit tests
   npm test -- all                 same steps as standard
-  npm test -- full                standard + the two year/colony integration files (together) + invariants
+  npm test -- full                standard + both year/colony integration files + invariants + worker boundary + knip + build
   npm test -- accept              build + the real-browser gate
 
   npm test -- unit [<pattern>]    vitest only; <pattern> filters by name/path
@@ -110,7 +115,7 @@ wilderfolk test runner - one entry point, choose with args
   npm test -- calendar-scheduler  required quick day/year boundary + registry/invariant coverage gate
   npm test -- colony-integration  dedicated 90-day producer regression
   npm test -- invariants          the 360-day run (docs/log/full-year-*.jsonl)
-  npm test -- types               tsc on the vitest project
+  npm test -- types               tsc on the vitest, scripts, app and node projects
   npm test -- lint [--fix]        oxlint, type-aware
   npm test -- scripts-lint        oxlint, type-aware, over scripts/
   npm test -- scripts-types       tsc on the scripts project

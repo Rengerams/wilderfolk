@@ -3,6 +3,7 @@
  * Lodging is free: the hotelier gains work experience for tending guests.
  */
 import { enterHumanBuilding } from './simulation/humanMovement';
+import { clearHumanWalkTarget, rememberHumanWalkTarget } from './simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import type { Building, Entity, WorldState } from './gameTypes';
 import {
@@ -98,7 +99,18 @@ function isReachableHotel(entity: Entity, hotel: Building, homeHours: number): b
   return hours <= MAX_ASSIGNABLE_COMMUTE_HOURS && hours <= homeHours;
 }
 
-/** Completed player hotels this settler could reach tonight and that are no further than home, nearest first. */
+/**
+ * The one hotel staffing gate: a completed player hotel with a hotelier posted takes guests, so an
+ * unstaffed building cannot lodge visitors or settlers for free.
+ */
+export function isStaffedHotel(building: Building): boolean {
+  return building.completed
+    && building.type === BuildingType.Hotel
+    && building.faction !== 'rival'
+    && building.occupants.length > 0;
+}
+
+/** Staffed player hotels this settler could reach tonight and that are no further than home, nearest first. */
 export function lodgingHotelsFor(
   entity: Entity,
   buildings: readonly Building[],
@@ -113,7 +125,7 @@ export function lodgingHotelsFor(
     : 0;
   const hotels: Building[] = [];
   for (const b of options?.hotels ?? buildings) {
-    if (!isReachableHotel(entity, b, homeHours)) continue;
+    if (!isReachableHotel(entity, b, homeHours) || !isStaffedHotel(b)) continue;
     hotels.push(b);
   }
   hotels.sort((a, b) => centreDistance(entity, a) - centreDistance(entity, b));
@@ -272,13 +284,7 @@ export function restAtHotel(entity: Entity): void {
 }
 
 export function findStaffedHotels(buildings: readonly Building[]): Building[] {
-  return buildings.filter(
-    (b) =>
-      b.completed
-      && b.type === BuildingType.Hotel
-      && b.faction !== 'rival'
-      && b.occupants.length > 0,
-  );
+  return buildings.filter(isStaffedHotel);
 }
 
 export function isHotelierAtHotel(
@@ -416,7 +422,7 @@ export function checkInVisitor(
   settlerLodgers = countHotelSettlerLodgers(hotel, state.entities),
 ): boolean {
   if (visitor.faction !== 'visitor' || !visitor.alive) return false;
-  if (!hotel.completed || hotel.occupants.length === 0) return false;
+  if (!isStaffedHotel(hotel)) return false;
   // This hotel alone: prune its guest list, then repair the stay pointers that no longer match it.
   const byId = ensureEntityByIdMap(state);
   pruneHotelGuests(hotel, state.entities, byId);
@@ -556,6 +562,7 @@ export function steerVisitorToHotel(
   if (visitor.hotelStayBuildingId == null) return false;
   const hotel = buildingFrom(buildings, visitor.hotelStayBuildingId);
   if (!hotel?.completed) {
+    clearHumanWalkTarget(visitor);
     checkoutVisitor(visitor);
     return false;
   }
@@ -568,7 +575,11 @@ export function steerVisitorToHotel(
   if (!isAtBuildingReach(visitor, hotel)) {
     // Route around water/mountains on the camp→hotel walk. Key on the visitor, not the moving
     // position: a position key changes every step, so A* re-ran per tick and the shared cache churned.
-    const handled = steerWithPath(visitor, tx, ty, speed * 0.7, `h_${hotel.id}_${visitor.id}`);
+    const cacheKey = `h_${hotel.id}_${visitor.id}`;
+    // Recorded so the off-screen throttle re-issues this same walk every tick: arrival cannot be
+    // decided only on the visitor's 1-in-24 decision tick, or a guest can pass the door unseen.
+    rememberHumanWalkTarget(visitor, tx, ty, speed * 0.7, cacheKey);
+    const handled = steerWithPath(visitor, tx, ty, speed * 0.7, cacheKey);
     // The hotel owns this visitor's movement step: humanTick must not apply another one.
     // Road route pricing and actual motion both use the same completed-road footprint.
     if (handled === 'path') {
@@ -578,9 +589,11 @@ export function steerVisitorToHotel(
     if (handled === 'blocked') {
       visitor.vx = 0;
       visitor.vy = 0;
+      clearHumanWalkTarget(visitor);
       return true;
     }
     if (handled === 'arrived') {
+      clearHumanWalkTarget(visitor);
       enterHumanBuilding(visitor, hotel);
       return true;
     }
@@ -591,6 +604,7 @@ export function steerVisitorToHotel(
   } else {
     visitor.vx = 0;
     visitor.vy = 0;
+    clearHumanWalkTarget(visitor);
     enterHumanBuilding(visitor, hotel);
     restAtHotel(visitor);
   }

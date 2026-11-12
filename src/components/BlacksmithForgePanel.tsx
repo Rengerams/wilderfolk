@@ -2,6 +2,7 @@ import {
   FORGE_ORDERS,
   getForgeBlockReason,
   getForgeOrder,
+  isBlacksmithStaffed,
   isForgeOrderComplete,
 } from '../game/forge';
 import type { ForgeOrderId } from '../game/gameTypes';
@@ -11,16 +12,14 @@ import type { WorldState } from '../game/gameTypes';
 
 interface Props {
   state: WorldState;
-  buildingId: number;
   onQueueForge: (orderId: ForgeOrderId) => void;
 }
 
-export default function BlacksmithForgePanel({ state, buildingId, onQueueForge }: Props) {
+export default function BlacksmithForgePanel({ state, onQueueForge }: Props) {
   const forge = state.villageForge;
   if (!forge) return null;
-  const staffed = state.buildings.some(
-    (b) => b.id === buildingId && b.completed && (b.occupants?.length ?? 0) > 0,
-  );
+  // The forge owner treats the village as staffed when *any* completed Blacksmith has occupants.
+  const staffed = isBlacksmithStaffed(state);
   const activeOrder = forge.activeOrder ? getForgeOrder(forge.activeOrder) : undefined;
   const anyReady = FORGE_ORDERS.some((order) => isForgeOrderComplete(forge, order.id));
 

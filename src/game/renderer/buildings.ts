@@ -159,18 +159,17 @@ function drawStripBuilding(
 
 function drawConstructionBody(
   ctx: CanvasRenderingContext2D,
-  state: RenderSnapshot,
   building: Building,
   rect: { sx: number; sy: number; w: number; h: number },
   hover: boolean,
 ): void {
-  const cam = state.camera;
   const { sx, sy, w, h } = rect;
   const cfg = BUILDING_CONFIGS[building.type];
   const tint = cfg.backgroundColor;
   const border = darkerColor(tint, 0.35);
   const dash = categoryBorderDashForType(building.type);
-  const shownProgress = displayedConstructionProgress(building, state.tick);
+  // The baked figure uses the authoritative daily progress; the smoothed bar is per-frame.
+  const shownProgress = building.constructionProgress;
   drawBuildingPad(
     ctx, cfg.padShape, sx, sy, w, h, tint, border,
     hover ? CONSTRUCTION_HOVER_PAD_ALPHA : CONSTRUCTION_PAD_ALPHA, dash, 1.5,
@@ -193,15 +192,39 @@ function drawConstructionBody(
       );
     }
   }
+}
 
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.fillRect(sx - w / 2, sy + h / 2 - 4, w, 4);
-  ctx.fillStyle = '#22c55e';
-  ctx.fillRect(sx - w / 2, sy + h / 2 - 4, w * (shownProgress / 100), 4);
-  ctx.fillStyle = '#44403c';
-  ctx.font = `${Math.max(8, 10 * cam.zoom)}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.fillText(`${Math.floor(shownProgress)}%`, sx, sy + 3);
+/**
+ * Live progress bars for construction sites. The bar ramps across the colony day, so it is painted
+ * in the per-frame overlay pass and never baked into the static entity layer.
+ */
+export function drawConstructionProgressOverlay(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+): void {
+  const cam = state.camera;
+  let saved = false;
+  for (const b of state.buildings) {
+    if (b.completed) continue;
+    const { sx, sy, w, h } = getBuildingScreenRect(b, state, cam, cw, ch);
+    if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
+    if (!saved) {
+      ctx.save();
+      saved = true;
+    }
+    const shownProgress = displayedConstructionProgress(b, state.tick);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(sx - w / 2, sy + h / 2 - 4, w, 4);
+    ctx.fillStyle = '#22c55e';
+    ctx.fillRect(sx - w / 2, sy + h / 2 - 4, w * (shownProgress / 100), 4);
+    ctx.fillStyle = '#44403c';
+    ctx.font = `${Math.max(8, 10 * cam.zoom)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.floor(shownProgress)}%`, sx, sy + 3);
+  }
+  if (saved) ctx.restore();
 }
 
 export function drawHoveredBuildingTint(
@@ -223,7 +246,7 @@ export function drawHoveredBuildingTint(
     ctx.restore();
     return;
   }
-  drawConstructionBody(ctx, state, hovered, rect, true);
+  drawConstructionBody(ctx, hovered, rect, true);
 }
 
 /** Roads, walls and construction pads: flat groundwork below the y-sorted static occluders. */
@@ -260,7 +283,7 @@ export function drawBuildingGroundwork(
     const rect = getBuildingScreenRect(b, state, cam, cw, ch);
     if (rect.sx + rect.w < -20 || rect.sx - rect.w > cw + 20) continue;
     if (rect.sy + rect.h < -20 || rect.sy - rect.h > ch + 20) continue;
-    drawConstructionBody(ctx, state, b, rect, false);
+    drawConstructionBody(ctx, b, rect, false);
   }
 }
 

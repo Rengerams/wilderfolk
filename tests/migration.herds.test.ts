@@ -14,6 +14,8 @@ import {
   tickMigration,
 } from '../src/game/migration';
 import { DAYS_PER_YEAR, TICKS_PER_DAY, getAbsoluteCalendarDay } from '../src/game/dayCycle';
+import { TerrainType } from '../src/game/gameTypes';
+import { testWorldMap } from '../src/test/worldMapFixtures';
 
 type Game = ReturnType<typeof initGame>;
 
@@ -140,5 +142,24 @@ describe('autumn deer migration', () => {
     const state = makeGame();
     setDay(state, 260);
     expect(getAbsoluteCalendarDay(state.tick)).toBe(260);
+  });
+
+  it('remembers the deer it actually placed, not the requested herd size', () => {
+    const state = makeGame();
+    // Every tile is deep water, so neither the edge strip nor the ring fallback can place a deer.
+    state.worldMap = testWorldMap({
+      tilesX: 128, tilesY: 96, seed: 42, tileType: () => TerrainType.DeepWater,
+    });
+    const arrival = migrationArrivalDay(state.worldMap.seed);
+    setDay(state, arrival);
+    tickMigration(state, state.entities);
+
+    expect(state.activeMigration?.spawned, 'the requested herd was recorded').toBe(0);
+    expect(herdDeer(state, 0).length).toBe(0);
+
+    // No deer existed, so no deer were lost: the memory must not shrink toward the minimum.
+    setDay(state, arrival + MIGRATION_WINDOW_DAYS);
+    tickMigration(state, state.entities);
+    expect(state.migrationNextHerdSize).toBeUndefined();
   });
 });

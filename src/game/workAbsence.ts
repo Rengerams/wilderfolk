@@ -229,19 +229,28 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
     return { code: 'sleeping', label: 'Sleeping' };
   }
 
+  // The same three cases `humanTick` credits as verified work: at the building, inside it, or in
+  // the field for a hunter holding prey.
+  const { onShift, next } = resolveShift(state, entity, workplace, hour);
+  const atWork = workplace != null
+    && (isAtBuildingReach(entity, workplace)
+      || entity.indoorBuildingId === workplace.id
+      || (entity.job === JobType.Hunter && entity.huntTargetId != null));
+
   // The hospital owner's own word for why this settler needs care, verbatim. Pregnancy alone is
-  // not an absence: `expecting` is a clinical reason, not evidence that no work happened.
+  // not an absence: `expecting` is a clinical reason, not evidence that no work happened. Visible
+  // attendance outranks it, or a worker at their post would read absent while the shift is credited.
   const care = medicalCareReason(entity, state.tick);
-  if (care && care !== 'expecting') return { code: 'ill', label: `Ill — ${care}` };
+  if (care && care !== 'expecting' && !(onShift && atWork)) {
+    return { code: 'ill', label: `Ill — ${care}` };
+  }
 
   // `humanTick` holds a ceremony's attendees before its festival gatherers; keep that order.
   if (state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id)) {
     return { code: 'at-election', label: 'At the election' };
   }
   const isInnkeeper = entity.job === JobType.Innkeeper && workplace?.type === BuildingType.Tavern;
-  const onShiftNow =
-    workplace != null && resolveShift(state, entity, workplace, hour).onShift;
-  if (isFestivalGatherer(hour, state.festival?.active, onShiftNow, isInnkeeper)) {
+  if (isFestivalGatherer(hour, state.festival?.active, onShift, isInnkeeper)) {
     return { code: 'at-festival', label: 'At the festival' };
   }
 
@@ -254,14 +263,8 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
     return { code: 'post-unstaffed', label: `Post has no roster — ${labelFor(workplace)}` };
   }
 
-  const { onShift, next } = resolveShift(state, entity, workplace, hour);
   const label = labelFor(workplace);
   const point = buildingAccessPoint(workplace);
-  // The same three cases `humanTick` credits as verified work: at the building, inside it, or in
-  // the field for a hunter holding prey.
-  const atWork = isAtBuildingReach(entity, workplace)
-    || entity.indoorBuildingId === workplace.id
-    || (entity.job === JobType.Hunter && entity.huntTargetId != null);
   if (onShift && atWork) return { code: 'working', label: `Working at ${label}` };
   // The hospital roster owns its own commute window, which opens before the ward duty does.
   if (doctorCommuteDue) return { code: 'walking-to-work', label: `Walking to work — ${label}` };

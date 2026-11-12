@@ -53,13 +53,13 @@ export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: numbe
     state.staticLayerRevision,
     cw,
     ch,
-    state.hourOfDay,
     state.showGrid ? 1 : 0,
     state.showPaths ? 1 : 0,
     state.selectedEntity?.id ?? '',
   );
-  // Painters read the whole selection and the juice-effects preference, so both are keyed. The
-  // season is not: `gameTick` moves `tick` and `season` together, and `tick` is already keyed.
+  // Painters read the whole selection and the juice-effects preference, so both are keyed. Time-only
+  // state is not: no static painter reads `hourOfDay`, and the season already arrives via the
+  // static revision. `drawGridTopOverlay` reads the hour in the per-frame overlay pass.
   for (const id of state.selectedEntityIds ?? []) parts.push(id);
   parts.push(
     state.juiceEffectsEnabled ? 1 : 0,

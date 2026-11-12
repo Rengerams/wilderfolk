@@ -16,6 +16,7 @@ import {
   pushStoryCard,
   AUTHORED_STORY_COOLDOWN_FLAG,
 } from './storyHelpers';
+import { getSimSeed } from './simRng';
 
 export const STORY_KEY = 'rumour_ledger';
 export const AUTHORED_STORY_COOLDOWN_DAYS = 14;
@@ -105,7 +106,7 @@ export function maybeOfferRumourLedger(state: WorldState): void {
   if (storyFlag(state, FLAG_OFFERED) > 0) return;
 
   const colonyDay = getColonyDay(state);
-  if (colonyDay < rumourLedgerEligibleDay(state.worldMap?.seed)) return;
+  if (colonyDay < rumourLedgerEligibleDay(getSimSeed())) return;
   if (storyFlag(state, AUTHORED_STORY_COOLDOWN_FLAG) > colonyDay) return;
   if ((state.pendingStoryEvents ?? []).length > 0) return;
   if (!hasTownHall(state)) return;
@@ -114,7 +115,7 @@ export function maybeOfferRumourLedger(state: WorldState): void {
   if (!source) return;
   const sourceKind = source.kind;
 
-  const seed = state.worldMap?.seed ?? 1;
+  const seed = getSimSeed();
   const truthRoll = seededRoll(seed, hashSalt(`rumour-truth-${colonyDay}`));
   const truth = truthRoll < 0.3 ? TRUTH.true : truthRoll < 0.7 ? TRUTH.exaggerated : TRUTH.false;
 
@@ -176,10 +177,21 @@ export function resolveRumourLedger(state: WorldState, choiceId: string): boolea
   return resolveStage1(state, safeChoice);
 }
 
+/**
+ * An unanswered offer is the existing `ignore` answer: the village never responded, so the rumour
+ * runs its normal delayed course (including the ignore consequence) and the chapter resolves.
+ */
+export function expireRumourLedger(state: WorldState): void {
+  if (storyFlag(state, FLAG_RESOLVED) > 0) return;
+  if (storyFlag(state, FLAG_STATUS) !== STATUS.offered) return;
+  addNotification(state, '📜 The Ledger goes unanswered', 'No one addressed the rumour; the village lets it run its course.', 'info');
+  resolveRumourLedger(state, 'ignore');
+}
+
 function resolveStage1(state: WorldState, choice: Stage1Choice): boolean {
   const colonyDay = getColonyDay(state);
   const truth = storyFlag(state, FLAG_TRUTH);
-  const seed = state.worldMap?.seed ?? 1;
+  const seed = getSimSeed();
 
   if (choice === 'investigate') {
     const truthText =

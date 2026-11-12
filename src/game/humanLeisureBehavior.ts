@@ -3,11 +3,12 @@ import { EntityType } from './gameTypes';
 import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition, crowdGatherPosition, homeStandPosition, steerHumanToward } from './simulation/humanMovement';
 import { faceVelocity } from './simulation/movementSteering';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
+import { getBuildingCenter } from './buildingGeometry';
 import { getChildCustodian, hasResidenceAssignment } from './housingModel';
 import { getWorkSchedule, isOnWorkScheduleShift } from './workSchedule';
 import { getHourOfDay, getAbsoluteCalendarDay } from './dayCycleClock';
 import { BuildingType } from './buildings';
-import { pickSocialImpulse, type SocialBuildingPicker } from './socialLife';
+import { pickSocialImpulse, isSocialStaggerTick, type SocialBuildingPicker } from './socialLife';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
@@ -15,8 +16,8 @@ import { requestDialogue } from './dialogueTrees';
 import { isDialogueBusy } from './humanChat';
 import { prefersHomeTonightFor } from './humanSchedule';
 import type { TickContext } from './simulation/simulationTypes';
-import { findClosestAdaptiveInRadius, forEachAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_STAGGER, SOCIAL_FRIENDSHIP_RADIUS } from './adaptiveSpatialQuery';
-import { seededRandomForRun, personDayRoll, getSimRng } from './simRng';
+import { findClosestAdaptiveInRadius, forEachAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_FRIENDSHIP_RADIUS } from './adaptiveSpatialQuery';
+import { seededRandomForRun, personDayRoll, getSimRng, PERSON_DAY_ROLL_SALTS } from './simRng';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
 import { addFloatingText } from './simEffects';
 import { isGroundWalkableAt, nearestWalkableWorldPoint, steerWithPath } from './pathfinding';
@@ -29,7 +30,50 @@ const KID_PLAY_CHANCE = 0.72;
 const CHILD_PLAYMATE_REFRESH_TICKS = TICKS_PER_HOUR;
 /** Enough playmates to choose from; stops a crowded colony paying a quadratic hourly scan. */
 export const CHILD_PLAYMATE_CANDIDATE_LIMIT = 32;
-const childPlaymateByWorld = new WeakMap<WorldState, WeakMap<Entity, { tickBucket: number; mate?: Entity }>>();
+/**
+ * The chosen playmate is cached by id for the hour, never by entity reference: a rollback restores a
+ * different roster, and a reference would keep steering toward the discarded timeline's child.
+ */
+const childPlaymateByWorld = new WeakMap<WorldState, WeakMap<Entity, { tickBucket: number; mateId?: number }>>();
+
+/** 80 in-game hours: one free-time activity holds for several days, not one tick. */
+const LEISURE_SLOT_TICKS = 80 * TICKS_PER_HOUR;
+
+/**
+ * Sine replacement in [-1, 1]. `Math.sin`/`Math.cos` are only implementation-approximated, so a
+ * velocity derived from them can differ by an ulp between engines and drift a saved coordinate.
+ */
+function deterministicWave(phase: number): number {
+  const t = phase - Math.floor(phase);
+  return t < 0.5 ? 4 * t - 1 : 3 - 4 * t;
+}
+
+function leisureSlotFor(tick: number, entityId: number): number {
+  return Math.floor(tick / LEISURE_SLOT_TICKS + entityId * 3);
+}
+
+/**
+ * The 12-way free-time activity for one settler in one leisure slot. Seeded from the run seed and
+ * stateless, so `setSimSeed` changes free time without leaving a cache a rollback could inherit.
+ */
+export function leisureKindFor(entityId: number, tick: number, weekend: boolean): number {
+  const absDay = getAbsoluteCalendarDay(tick);
+  const leisureSlot = leisureSlotFor(tick, entityId);
+  const daySpice = Math.floor(seededRandomForRun(`leisure-kind:${entityId}:${leisureSlot}`) * 12);
+  const quietBias = personDayRoll(entityId, tick, 202) < 0.35;
+  let leisureKind = (leisureSlot * 17 + entityId * 31 + absDay * 13 + daySpice) % 12;
+  if (quietBias && personDayRoll(entityId, tick, 403 + leisureSlot) < 0.45) {
+    leisureKind = leisureKind < 6 ? 10 + (leisureKind % 2) : leisureKind;
+  }
+  if (
+    weekend
+    && personDayRoll(entityId, tick, PERSON_DAY_ROLL_SALTS.leisureWeekendKind) > 0.55
+    && leisureKind >= 8
+  ) {
+    leisureKind = (entityId + leisureSlot + absDay) % 7;
+  }
+  return leisureKind;
+}
 
 export function tickHumanChildLeisure(args: {
   state: WorldState;
@@ -58,7 +102,7 @@ export function tickHumanChildLeisure(args: {
   const tickBucket = Math.floor(state.tick / CHILD_PLAYMATE_REFRESH_TICKS);
   let cached = childCache.get(entity);
   if (!cached || cached.tickBucket !== tickBucket) {
-    let mate: Entity | undefined;
+    let mateId: number | undefined;
     // The play roll is stateless, so a child who will not play never pays for the scan.
     if (personDayRoll(entity.id, state.tick, 718 + tickBucket) < KID_PLAY_CHANCE) {
       const playmates: Entity[] = [];
@@ -76,12 +120,14 @@ export function tickHumanChildLeisure(args: {
         },
         socialAdaptiveOptions('social', allHumans.length, width, height),
       );
-      if (playmates.length > 0) mate = playmates[(entity.id + tickBucket) % playmates.length];
+      if (playmates.length > 0) mateId = playmates[(entity.id + tickBucket) % playmates.length].id;
     }
-    cached = { tickBucket, mate };
+    cached = { tickBucket, mateId };
     childCache.set(entity, cached);
   }
-  const mate = cached.mate;
+  const mate = cached.mateId == null
+    ? undefined
+    : allHumans.find((human) => human.id === cached!.mateId && human.alive);
   const impulse = pickSocialImpulse(entity, state, updatedBuildings, [], [], args.pickSocialBuilding);
 
   if (!impulse.stayHome) {
@@ -90,8 +136,8 @@ export function tickHumanChildLeisure(args: {
       if (pdist > 16) {
         steerHumanToward(entity, mate.x, mate.y, speed, 0.7, `child_play_${entity.id}_${mate.id}`);
       } else {
-        entity.vx = Math.sin(state.tick * 0.2 + entity.id) * speed * 0.45;
-        entity.vy = Math.cos(state.tick * 0.18 + mate.id) * speed * 0.45;
+        entity.vx = deterministicWave(state.tick * 0.2 + entity.id) * speed * 0.45;
+        entity.vy = deterministicWave(state.tick * 0.18 + mate.id + 0.5) * speed * 0.45;
         if (seededRandomForRun(`chat-kid:${entity.id}:${state.tick}`) < 0.06 * PER_TICK_RATE_SCALE) {
           requestDialogue({
             eventKey: 'child.play', speaker: entity, tick: state.tick,
@@ -134,7 +180,8 @@ export function idleDestination(
   venues: readonly Building[],
   buildingById: ReadonlyMap<number, Building>,
 ): { x: number; y: number } {
-  const roll = personDayRoll(entity.id, state.tick, 812);
+  // Its own salt: sharing the scarce-hunt dialogue's 812 made the two decisions coincide exactly.
+  const roll = personDayRoll(entity.id, state.tick, PERSON_DAY_ROLL_SALTS.leisureIdleDestination);
 
   if (roll < 0.34 && hasResidenceAssignment(entity)) {
     const home = buildingById.get(entity.residenceBuildingId!);
@@ -158,6 +205,31 @@ export function idleDestination(
   // "Go to a tree": the prettiest ground near them, spread so neighbours do not overlap.
   const pretty = pickBeautySpot(state.beautyGrid ?? null, entity.x, entity.y, 6);
   return crowdGatherPosition(pretty.x, pretty.y, entity.id);
+}
+
+/**
+ * The exact nearby-adult input `pickSocialImpulse` sees: the staggered grid scan plus the spouse,
+ * who may stand outside the scan radius. The movement inspector reads this owner too.
+ */
+export function socialImpulseNearbyAdults(args: {
+  state: WorldState;
+  entity: Entity;
+  allHumans: readonly Entity[];
+  humanSocialGrid: TickContext['humanSocialGrid'];
+  width: number;
+  height: number;
+  livingHumanAt: (id: number | null | undefined) => Entity | undefined;
+}): Entity[] {
+  const { state, entity, allHumans, humanSocialGrid, width, height, livingHumanAt } = args;
+  const nearbyAdults: Entity[] = [];
+  if (isSocialStaggerTick(entity, state.tick)) {
+    forEachAdaptiveInRadius(humanSocialGrid, allHumans, entity.x, entity.y, SOCIAL_FRIENDSHIP_RADIUS, (h) => {
+      if (h.alive && isPlayerHuman(h) && h.age >= HUMAN_ADULT_MIN_AGE) nearbyAdults.push(h);
+    }, socialAdaptiveOptions('social', allHumans.length, width, height));
+  }
+  const spouse = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;
+  if (spouse?.alive && !nearbyAdults.some((h) => h.id === spouse.id)) nearbyAdults.push(spouse);
+  return nearbyAdults;
 }
 
 export function tickAdultLeisureMotive(args: {
@@ -200,14 +272,10 @@ export function tickAdultLeisureMotive(args: {
       }
     }
   }
-  const nearbyAdults: Entity[] = [];
-  if ((state.tick + entity.id) % SOCIAL_STAGGER === 0) {
-    forEachAdaptiveInRadius(humanSocialGrid, allHumans, entity.x, entity.y, SOCIAL_FRIENDSHIP_RADIUS, (h) => {
-      if (h.alive && isPlayerHuman(h) && h.age >= HUMAN_ADULT_MIN_AGE) nearbyAdults.push(h);
-    }, socialAdaptiveOptions('social', allHumans.length, width, height));
-  }
+  const nearbyAdults = socialImpulseNearbyAdults({
+    state, entity, allHumans, humanSocialGrid, width, height, livingHumanAt,
+  });
   const spouseEarly = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;
-  if (spouseEarly?.alive && !nearbyAdults.some((h) => h.id === spouseEarly.id)) nearbyAdults.push(spouseEarly);
   const impulse = pickSocialImpulse(entity, state, updatedBuildings, nearbyAdults, [], args.pickSocialBuilding);
   let suppressIdle = args.suppressIdleInitial;
   if (impulse.motive !== 'none') {
@@ -348,17 +416,8 @@ export function tickHumanLeisure(args: {
     } else if (allowFreeRoam && !suppressIdle && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE) {
       const tick = state.tick;
       const absDay = getAbsoluteCalendarDay(tick);
-      const leisureSlotPeriod = 80 * TICKS_PER_HOUR;
-      const leisureSlot = Math.floor(tick / leisureSlotPeriod + entity.id * 3);
-      const daySpice = Math.floor(personDayRoll(entity.id, tick, 401 + leisureSlot) * 12);
-      const quietBias = personDayRoll(entity.id, tick, 202) < 0.35;
-      let leisureKind = (leisureSlot * 17 + entity.id * 31 + absDay * 13 + daySpice) % 12;
-      if (quietBias && personDayRoll(entity.id, tick, 403 + leisureSlot) < 0.45) {
-        leisureKind = leisureKind < 6 ? 10 + (leisureKind % 2) : leisureKind;
-      }
-      if (weekend && personDayRoll(entity.id, tick, 201) > 0.55 && leisureKind >= 8) {
-        leisureKind = (entity.id + leisureSlot + absDay) % 7;
-      }
+      const leisureSlot = leisureSlotFor(tick, entity.id);
+      const leisureKind = leisureKindFor(entity.id, tick, weekend);
       const phase = entity.id * 0x9e3779b9 + leisureSlot * 0x85ebca6b + absDay;
       let idleVx = 0;
       let idleVy = 0;
@@ -378,8 +437,8 @@ export function tickHumanLeisure(args: {
         const dist = Math.hypot(walkX - entity.x, walkY - entity.y);
         if (dist <= arrive) {
           if (destination) enterHumanBuilding(entity, destination);
-          idleVx = Math.sin(tick * 0.04 + entity.id) * speed * 0.08;
-          idleVy = Math.cos(tick * 0.035 + entity.id) * speed * 0.08;
+          idleVx = deterministicWave(tick * 0.04 + entity.id) * speed * 0.08;
+          idleVy = deterministicWave(tick * 0.035 + entity.id + 0.5) * speed * 0.08;
           return true;
         }
         // Keep the original once-per-tick idle blend when the direct line is clear.
@@ -481,15 +540,20 @@ export function tickHumanLeisure(args: {
             idleVx = -(sdx / sdist) * speed * 0.1;
             idleVy = -(sdy / sdist) * speed * 0.1;
           } else {
-            if (state.beautyGrid != null && getSimRng('humanTick')() < 0.35) {
+            // Both rolls and the branch itself are independent of the grid: an absent field and an
+            // all-zero one decide alike, so a missing runtime cache cannot shift the humanTick stream.
+            const prettyRoll = getSimRng('humanTick')();
+            const gardenRoll = getSimRng('humanTick')();
+            const beautyGrid = state.beautyGrid ?? null;
+            if (prettyRoll < 0.35) {
               const pretty = pickBeautySpot(
-                state.beautyGrid,
+                beautyGrid,
                 (entity.x + company.x) / 2,
                 (entity.y + company.y) / 2,
                 5,
               );
               steerTo(pretty.x, pretty.y, 0.42, 14);
-              if (beautyAt(state.beautyGrid, entity.x, entity.y) >= 3 && getSimRng('humanTick')() < 0.04 * PER_TICK_RATE_SCALE) {
+              if (beautyAt(beautyGrid, entity.x, entity.y) >= 3 && gardenRoll < 0.04 * PER_TICK_RATE_SCALE) {
                 adjustHumanStaminaFromEnergy(entity, 0.4 * PER_TICK_RATE_SCALE);
                 addFloatingText(state, entity.x, entity.y - 26, '💐', '#f9a8d4', 'brief');
               }
@@ -499,7 +563,7 @@ export function tickHumanLeisure(args: {
                 if (shop) {
                   const spot = venueGatherPosition(shop, entity.id);
                   steerTo(spot.x, spot.y, 0.42, 20, shop);
-                } else idleVx = Math.sin(tick * 0.03 + entity.id) * speed * 0.1;
+                } else idleVx = deterministicWave(tick * 0.03 + entity.id) * speed * 0.1;
               };
 
               const shared = (Math.min(entity.id, company.id) * 31 + leisureSlot * 17 + absDay) % 6;
@@ -516,7 +580,8 @@ export function tickHumanLeisure(args: {
               } else if (shared === 3) {
                 const well = pickCompleted([BuildingType.Well]);
                 if (well) {
-                  const spot = crowdGatherPosition(well.x + well.width / 2, well.y + well.height / 2, entity.id);
+                  const wellCentre = getBuildingCenter(well);
+                  const spot = crowdGatherPosition(wellCentre.x, wellCentre.y, entity.id);
                   steerTo(spot.x, spot.y, 0.4, 12);
                 }
               } else if (shared === 4) {
@@ -526,8 +591,8 @@ export function tickHumanLeisure(args: {
                   steerTo(spot.x, spot.y, 0.42, 22, hall);
                 }
               } else {
-                idleVx = Math.sin(tick * 0.025 + entity.id) * speed * 0.12;
-                idleVy = Math.cos(tick * 0.02 + company.id) * speed * 0.12;
+                idleVx = deterministicWave(tick * 0.025 + entity.id) * speed * 0.12;
+                idleVy = deterministicWave(tick * 0.02 + company.id + 0.5) * speed * 0.12;
               }
             }
 
@@ -565,7 +630,8 @@ export function tickHumanLeisure(args: {
         } else if (leisureKind === 3) {
           const well = pickCompleted([BuildingType.Well]);
           if (well) {
-            const spot = crowdGatherPosition(well.x + well.width / 2, well.y + well.height / 2, entity.id);
+            const wellCentre = getBuildingCenter(well);
+            const spot = crowdGatherPosition(wellCentre.x, wellCentre.y, entity.id);
             const arrived = steerTo(spot.x, spot.y, 0.45, 12);
             if (arrived) {
               adjustHumanStaminaFromEnergy(entity, 0.35 * PER_TICK_RATE_SCALE);
@@ -598,7 +664,7 @@ export function tickHumanLeisure(args: {
           if (!friend && coworker && personDayRoll(entity.id, tick, 530) < 0.55) {
             friend = coworker;
           }
-          if (!friend && (state.tick + entity.id) % SOCIAL_STAGGER === 0) {
+          if (!friend && isSocialStaggerTick(entity, state.tick)) {
             friend =
               findClosestAdaptiveInRadius(
                 humanSocialGrid,
@@ -629,8 +695,8 @@ export function tickHumanLeisure(args: {
               if (friend.id === entity.partnerId) settlerPairChat(entity, friend, 'home', 0.1);
               else settlerPairChat(entity, friend, 'social', 0.08);
             } else {
-              idleVx = Math.sin(tick * 0.03 + entity.id) * speed * 0.1;
-              idleVy = Math.cos(tick * 0.025 + entity.id) * speed * 0.1;
+              idleVx = deterministicWave(tick * 0.03 + entity.id) * speed * 0.1;
+              idleVy = deterministicWave(tick * 0.025 + entity.id + 0.5) * speed * 0.1;
             }
           } else {
             // As above: a destination, not the map centre.
@@ -643,8 +709,9 @@ export function tickHumanLeisure(args: {
           if (state.festival?.active) {
             const hall = pickCompleted([BuildingType.TownHall]);
             if (hall) {
-              gx = hall.x + hall.width / 2;
-              gy = hall.y + hall.height + 20;
+              const hallCentre = getBuildingCenter(hall);
+              gx = hallCentre.x;
+              gy = hallCentre.y + hall.height / 2 + 20;
             }
           }
           const performers = festivalPerformers;

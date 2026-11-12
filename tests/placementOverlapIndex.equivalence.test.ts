@@ -13,7 +13,7 @@ import { initGame } from '../src/game/worldGen';
 import { buildRenderSnapshot } from '../src/game/renderSnapshot';
 import { createInitialView } from '../src/game/viewState';
 import {
-  canPlaceBuildingSnapshot,
+  canPlaceBuilding,
   isBuildingTechUnlocked,
   isFootprintOnBuildableTerrain,
   isFootprintWithinMapBounds,
@@ -23,7 +23,7 @@ import { getBuildingFootprintForType } from '../src/game/buildingRotation';
 import type { RenderSnapshot } from '../src/game/renderSnapshot';
 import { finishedBuilding } from '../src/test/factories';
 
-/** A deterministic reference for `canPlaceBuildingSnapshot` with the overlap check done linearly. */
+/** A deterministic reference for `canPlaceBuilding` with the overlap check done linearly. */
 function canPlaceReference(
   snapshot: RenderSnapshot,
   type: BuildingType,
@@ -78,7 +78,7 @@ describe('the build-grid overlap index agrees with the linear scan (R-7)', () =>
     let comparisons = 0;
     for (let x = 150; x < 620; x += 7) {
       for (let y = 150; y < 620; y += 7) {
-        const indexed = canPlaceBuildingSnapshot(snapshot, BuildingType.Farm, x, y, 0);
+        const indexed = canPlaceBuilding(snapshot, BuildingType.Farm, x, y, 0);
         const reference = canPlaceReference(snapshot, BuildingType.Farm, x, y, 0);
         expect(indexed, `index mismatch at (${x}, ${y})`).toBe(reference);
         comparisons++;
@@ -94,11 +94,11 @@ describe('the build-grid overlap index agrees with the linear scan (R-7)', () =>
 
     // A farm whose left edge exactly meets the house's right edge does NOT overlap.
     const touchingX = house.x + house.width / 2 + farm.width / 2;
-    expect(canPlaceBuildingSnapshot(snapshot, BuildingType.Farm, touchingX, house.y, 0)).toBe(
+    expect(canPlaceBuilding(snapshot, BuildingType.Farm, touchingX, house.y, 0)).toBe(
       canPlaceReference(snapshot, BuildingType.Farm, touchingX, house.y, 0),
     );
     // A hair inside does.
-    expect(canPlaceBuildingSnapshot(snapshot, BuildingType.Farm, touchingX - 0.5, house.y, 0)).toBe(
+    expect(canPlaceBuilding(snapshot, BuildingType.Farm, touchingX - 0.5, house.y, 0)).toBe(
       canPlaceReference(snapshot, BuildingType.Farm, touchingX - 0.5, house.y, 0),
     );
   });
@@ -111,7 +111,7 @@ describe('the build-grid overlap index agrees with the linear scan (R-7)', () =>
         // Placement rotation is only 0/90 (`buildingRotation.BuildingRotation`); 180/270 are the
         // strip-corner orientation in `buildings.ts`, a different axis.
         for (const rot of [0, 90] as const) {
-          expect(canPlaceBuildingSnapshot(snapshot, BuildingType.Workshop, x, y, rot)).toBe(
+          expect(canPlaceBuilding(snapshot, BuildingType.Workshop, x, y, rot)).toBe(
             canPlaceReference(snapshot, BuildingType.Workshop, x, y, rot),
           );
         }
