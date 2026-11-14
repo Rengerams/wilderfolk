@@ -14,7 +14,7 @@ import {
   normalizeGenome,
   type GenomeV2,
 } from '../src/game/settlerTraits';
-import { resetSimRng, snapshotSimRng, type SimRngSnapshot } from '../src/game/simRng';
+import { createSeededRng, resetSimRng, snapshotSimRng, type SimRngSnapshot } from '../src/game/simRng';
 import { transformToWerewolfForm } from '../src/game/moonHowler';
 import { revertToHumanForm } from '../src/game/moonHowlerForm';
 import { human } from '../src/test/factories';
