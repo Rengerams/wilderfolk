@@ -33,7 +33,7 @@ import {
 } from './workforce';
 import { getWorkforcePolicy } from './workforcePolicy';
 import { readSkill } from './skills';
-import { getOpenPlayerBeds } from './populationGrowth';
+import { getEffectiveBedCapacity, getOpenPlayerBeds, getLivePlayerPopulation } from './populationGrowth';
 import { canHostTownFestival } from './townHall';
 import { findCompletedBuilding } from './buildings';
 import { canStartResearch } from './research';
@@ -454,7 +454,7 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
     command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type, x: spot.x, y: spot.y, rotation: 0 },
     reason: homeless > 0
       ? `build a House — ${homeless} settler${homeless === 1 ? '' : 's'} homeless`
-      : `build a House — ${openBeds} spare bed${openBeds === 1 ? '' : 's'} left for ${adultSettlerCount(state)} settlers`,
+      : `build a House — ${getLivePlayerPopulation(state)}/${getEffectiveBedCapacity(state)} housed, ${openBeds} spare bed${openBeds === 1 ? '' : 's'} (the reserve target is higher)`,
   };
 }
 
@@ -1903,7 +1903,7 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
     if (isUnderConstruction(state, BuildingType.House) || isUnderConstruction(state, BuildingType.Mansion)) {
       return `${openBeds} spare bed${openBeds === 1 ? '' : 's'} left — the next House is still going up`;
     }
-    return `${openBeds} spare bed${openBeds === 1 ? '' : 's'} for ${adultSettlerCount(state)} settlers — ${buildingBlockReason(state, BuildingType.House)}`;
+    return `${getLivePlayerPopulation(state)}/${getEffectiveBedCapacity(state)} housed · ${openBeds} spare bed${openBeds === 1 ? '' : 's'} available — ${buildingBlockReason(state, BuildingType.House)}`;
   }
 
   const buildingNow = INDUSTRY_BUILD_ORDER
