@@ -415,11 +415,11 @@ A sentence is not a housing decision. `prisonBuildingId` is set; `residenceBuild
 * The prisoner keeps their bed: `isImprisoned` keeps them out of every movable set (`alive` and the capacity
   rebalance's own units), so no automatic move takes it and nobody is seated in a bed that is still theirs.
 * The prisoner still counts for capacity — the bed is reserved, not free.
-* The post is held: the colony does not refill a job that still has an owner, and the prisoner produces
-  nothing while jailed.
+* The worker assignment pointer remains recorded for release, but imprisonment does not count
+  toward active staffing; an idle worker may temporarily backfill the post.
 * A prisoner is not on a construction crew, so a building site never counts them as a builder.
-* The reserved post is not a staffing gap: the workplace roster omits a prisoner, and the simulation
-  invariant exempts that settler instead of reporting a missing worker.
+* The active workplace roster omits prisoners. On release, the prior assignment is restored only when
+  capacity permits; otherwise the returning settler becomes unassigned instead of overfilling the job.
 * Minor children are the exception to "no housing event": while both parents serve, custody is a stand-in
   (§2 phase 3) and release returns it.
 * Release is uneventful: the settler walks home to the house that never changed.

@@ -174,9 +174,12 @@ describe('L37 — dialogue session reclamation', () => {
     for (let i = 0; i < 4; i++) tickHumanChat(speaker);
     expect(speaker.chatPhrase).toBeUndefined();
 
-    maybeDialogueChat(speaker, null, 'social', 1, 1);
+    // The forced social scene still counts today, even though the session is no longer busy.
+    maybeDialogueChat(speaker, null, 'social', 5, 1);
+    expect(speaker.chatDialogueSessionKey).toBeUndefined();
+    maybeDialogueChat(speaker, null, 'social', 4 * TICKS_PER_DAY + 1, 1);
 
-    // A reclaimed forced phrase frees `solo:41`, so the tree line starts again.
+    // After the daily and line cooldowns, the released slot can start a fresh tree.
     expect(speaker.chatDialogueSessionKey).toBe('solo:41');
     expect(typeof speaker.chatPhrase).toBe('string');
     expect((speaker.chatPhrase ?? '').length).toBeGreaterThan(0);

@@ -19,7 +19,7 @@ import {
 } from '../src/game/buildingStaffingActions';
 import { getBuildingConfig } from '../src/game/buildingConfig';
 import { GRAVEYARD_CAPACITY_PER_YARD } from '../src/game/eventLog';
-import { staffingCapFor } from '../src/game/workforce';
+import { assignWorkerInPlace, staffingCapFor } from '../src/game/workforce';
 import { building, human } from '../src/test/factories';
 
 function makeWorld(entities: Entity[], buildings: Building[]): WorldState {
@@ -109,8 +109,8 @@ describe("the inspector measures a Prison by the owner's guard posts", () => {
   });
 });
 
-describe('reserved posts remain occupied during imprisonment', () => {
-  it('blocks manual assignments when jailed workers still hold every post', () => {
+describe('jailed assignments leave active staffing vacancies', () => {
+  it('backfills an active vacancy while keeping the jailed workers linked for release', () => {
     const farm = building(35, BuildingType.Farm, { occupants: [] });
     const cap = getBuildingConfig(BuildingType.Farm).maxOccupants;
     const prisoners = Array.from({ length: cap }, (_, index) =>
@@ -118,10 +118,11 @@ describe('reserved posts remain occupied during imprisonment', () => {
     const idle = human(999);
     const state = makeWorld([...prisoners, idle], [farm]);
 
-    expect(staffingCapFor(farm, state.entities)).toEqual({ cap, staffed: cap });
-    const next = assignStaffWorkerToBuilding(state, farm.id, idle.id);
-    expect(next.entities.find((entity) => entity.id === idle.id)?.workerBuildingId).toBeUndefined();
-    expect(next.entities.filter((entity) => entity.workerBuildingId === farm.id)).toHaveLength(cap);
+    expect(staffingCapFor(farm, state.entities)).toEqual({ cap, staffed: 0 });
+    expect(assignWorkerInPlace(farm, state.entities, state.buildings)).toBe(true);
+    expect(idle.workerBuildingId).toBe(farm.id);
+    expect(staffingCapFor(farm, state.entities)).toEqual({ cap, staffed: 1 });
+    expect(prisoners.every((prisoner) => prisoner.workerBuildingId === farm.id)).toBe(true);
   });
 
   it('reports the counted workers the hiring pass uses, not stale occupant slots', () => {
