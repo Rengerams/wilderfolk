@@ -43,8 +43,8 @@ import { normalizeVenueSchedule } from './venueSchedule';
 import { normalizeFestivalState, repairStaleFestivalOnLoad } from './dailyWorldEvents';
 
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
-import { adoptSimSeedFromWorld, getSimSeed, restoreSimRng, snapshotSimRng, worldSimRngSnapshot } from './simRng';
-import { genomeFromSeed, normalizeGenome } from './settlerTraits';
+import { adoptSimSeedFromWorld, restoreSimRng, seededStreamForRun, snapshotSimRng, worldSimRngSnapshot } from './simRng';
+import { backfillLegacyGenome, normalizeGenome } from './settlerTraits';
 import { normalizeMarks } from './personalMarks';
 import { syncResearchUnlocks } from './research';
 import { assignMissingWorkers, restoreWorkerRosterAfterCustody } from './workforce';
@@ -117,7 +117,7 @@ const COMPATIBLE_SAVE_VERSIONS = new Set([GAME_VERSION, '0.6.5.0']);
  * The one genotype load boundary: keep a valid saved genome, backfill an old player settler
  * deterministically, and drop the retired categorical traits field.
  */
-function backfillLegacySettlerDNA(entities: Entity[], colonySeed: number): number {
+function backfillLegacySettlerDNA(entities: Entity[]): number {
   let filled = 0;
   for (const entity of entities) {
     if (entity.type !== EntityType.Human && entity.type !== EntityType.Werewolf) continue;
@@ -130,7 +130,7 @@ function backfillLegacySettlerDNA(entities: Entity[], colonySeed: number): numbe
       entity.genomeV2 = saved;
       continue;
     }
-    entity.genomeV2 = genomeFromSeed(colonySeed, entity.id);
+    entity.genomeV2 = backfillLegacyGenome(seededStreamForRun(`settlerGenome:${entity.id}`));
     filled++;
   }
   return filled;
@@ -1597,7 +1597,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     restoreSimRng(source.simRng);
     // Runs here because the seed it derives from is now the loaded colony's own (`worldMap.seed`,
     // with a valid saved `simRng.seed` winning), and it never draws from a live stream.
-    backfillLegacySettlerDNA(world.entities, getSimSeed());
+    backfillLegacySettlerDNA(world.entities);
     // Personal marks are not genetics: validate or drop them without ever drawing a new one.
     for (const entity of world.entities) {
       if (entity.type !== EntityType.Human && entity.type !== EntityType.Werewolf) continue;
