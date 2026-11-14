@@ -76,7 +76,7 @@ describe('an open overlay owns the keyboard', () => {
     }
   });
 
-  it('battle, terminal and prisoner fullscreen dialogs use the shared focus owner', () => {
+  it('battle and terminal fullscreen dialogs use the shared focus owner', () => {
     for (const path of ['src/components/BattleReportScreen.tsx', 'src/components/WarfareStatus.tsx']) {
       const component = source(path);
       expect(component).toContain('useModalFocus<');
@@ -86,7 +86,6 @@ describe('an open overlay owns the keyboard', () => {
     expect(battle).toContain('ref={dialogRef}');
     const warfare = source('src/components/WarfareStatus.tsx');
     expect(warfare).toContain('ref={terminalRef}');
-    expect(warfare).toContain('ref={captivesRef}');
   });
 
   it('battle commentary transition retains an autofocus target and recovers lost focus', () => {

@@ -1,6 +1,6 @@
 {
  "generatedFrom": "src/**/*.{ts,tsx} + decisionRegistry.ts + OWNERSHIP_OVERVIEW.md",
- "generatedAt": "2026-11-14T01:25:44.062Z",
+ "generatedAt": "2026-11-14T01:32:57.814Z",
  "stats": {
   "files": 398,
   "functions": 3470,
