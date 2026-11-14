@@ -31,7 +31,7 @@ describe('single human meal transaction', () => {
     expect(eater.needs!.rest).toBe(before.rest);
     expect(eater.needs!.stamina).toBe(before.stamina);
     expect(eater.energy).toBe(300);
-    expect(tryEatColonyMeal(eater, state, 9)).toBe(false);
+    expect(tryEatColonyMeal(eater, state)).toBe(false);
     expect(state.resources.food).toBe(9);
   });
 
@@ -63,7 +63,7 @@ describe('single human meal transaction', () => {
     const state = world(1);
     const eater = person({ needs: { nutrition: 0, rest: 60, stamina: 40,
       severeHungerTicks: 100000 } });
-    expect(tryEatColonyMeal(eater, state, 9)).toBe(true);
+    expect(tryEatColonyMeal(eater, state)).toBe(true);
     expect(eater.needs!.nutrition).toBe(10);
     expect(eater.needs!.severeHungerTicks).toBe(0);
   });
@@ -79,7 +79,7 @@ describe('single human meal transaction', () => {
     state.tick += TICKS_PER_HOUR;
     expect(tryEatColonyMeal(eater, state)).toBe(false);
     state.tick += TICKS_PER_HOUR;
-    expect(tryEatColonyMeal(eater, state, 9)).toBe(true);
+    expect(tryEatColonyMeal(eater, state)).toBe(true);
   });
 });
 
