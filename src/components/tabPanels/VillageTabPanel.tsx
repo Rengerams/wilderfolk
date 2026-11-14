@@ -256,7 +256,7 @@ export default function VillageTabPanel({
           <div>
             <div className="flex items-end justify-between gap-1">
               <p className="text-2xl font-black leading-none text-sky-300">
-                {villageStats.beds}
+                {villageStats.effectiveBeds}
                 <span className="text-sm font-bold text-stone-400"> beds</span>
               </p>
               <p className="text-[13px] text-stone-300" title="Empty housing slots for assignment">
@@ -265,7 +265,7 @@ export default function VillageTabPanel({
             </div>
             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-600">
               <div className="h-full rounded-full bg-sky-500 transition-all"
-                style={{ width: `${resourceFillPercent({ amount: villageStats.total, cap: villageStats.beds })}%` }} />
+                style={{ width: `${resourceFillPercent({ amount: villageStats.total, cap: villageStats.effectiveBeds })}%` }} />
             </div>
           </div>
         </div>
