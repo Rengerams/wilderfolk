@@ -996,16 +996,16 @@ function decideBuildingTuning(state: WorldState): VirtualPlayerDecision | null {
     if (building.type === BuildingType.Mine) {
       const iron = state.resources.iron ?? 0;
       const gold = state.resources.gold ?? 0;
-      // Iron is the one resource only the Mine produces, so an iron shortage outranks the treasury
-      // rule: both thresholds are the colony's shortage lines, shared with the industry step.
+      // A treasury shortage must not be indefinitely shadowed by an empty iron shelf.
+      // Mine gold until the treasury reserve is restored, then meet iron demand.
       let desired: MineMode;
       let reason: string;
-      if (iron < LOW_IRON_STOCK) {
-        desired = 'iron';
-        reason = `mine iron — only ${Math.floor(iron)} iron in store`;
-      } else if (gold < VirtualPlayer.MINE_GOLD_TREASURY_GOLD) {
+      if (gold < VirtualPlayer.MINE_GOLD_TREASURY_GOLD) {
         desired = 'gold';
         reason = `mine gold — only ${Math.floor(gold)} gold in the treasury`;
+      } else if (iron < LOW_IRON_STOCK) {
+        desired = 'iron';
+        reason = `mine iron — only ${Math.floor(iron)} iron in store`;
       } else {
         desired = 'iron';
         reason = 'mine iron — the treasury can spare the gold seam';
