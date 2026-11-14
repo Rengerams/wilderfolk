@@ -1,5 +1,26 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-14 — early-colony playable behaviour fixes (function-level change register)
+
+These entries describe changed named functions at their existing sole owners. They do not create parallel decision implementations.
+
+| Function(s) changed or added | Sole owning source | Responsibility / validation |
+|---|---|---|
+| `assignWorkerTransition`, `canAutoChangeWorkplace` | `src/game/workforce.ts` | First appointments have no automatic transfer cooldown; actual job transfers retain a short three-day stability period; `tests/workforce.autoTransferCooldown.test.ts` |
+| `getEffectiveBedCapacity` (added) | `src/game/populationGrowth.ts` | Shared population/bed projection: general housing capacity plus occupied Leader's House beds, excluding unassignable reserved vacancy |
+| `computeVillageStats` | `src/game/uiSimSummary.ts` | Expose effective beds beside total beds and assignable vacancies, with no housing-policy duplication |
+| `GameHeader` | `src/components/GameHeader.tsx` | Present usable housing capacity in population/beds summary, not total manor reserved beds |
+| `VillageTabPanel` | `src/components/tabPanels/VillageTabPanel.tsx` | Show effective usable housing and remove the redundant manual Auto-assign entrypoint |
+| `App` | `src/App.tsx` | Remove obsolete onAutoStaffAll prop, preserve scheduled workforce assignment |
+| `decideHousing`, `decideBuildingTuning`, `virtualPlayerWaitingReason` | `src/game/virtualPlayer.ts` | Report actual usable beds and prioritize gold mining when the treasury is depleted |
+| `huntingSpotPreyTypes` | `src/game/huntingSpot.ts` | Offer fox as valid Hunting Spot prey through the existing prey decision owner |
+| `tickWildlife` | `src/game/tickLayerSystems.ts` | Respect shared path-grid walkable barriers when moving wildlife; no alternate obstacle planner |
+| `ticksForDialogueLine` | `src/game/humanChat.ts` | Short readable dialogue bubble lifetimes, rather than multiple game hours per line |
+| `tickHumans` | `src/game/humanTick.ts` | Restrict excessive affair-chat initiation frequency while preserving relationship simulation |
+| `makeWorld` (existing test fixture; referenced, unchanged) | `tests/virtualPlayer.staffingAndRepairBatch.test.ts` | Test scheduled workforce owner rather than a manual auto-assign command |
+| Existing tests (inline, no new named functions) | `tests/workforce.autoTransferCooldown.test.ts`, `tests/virtualPlayer.test.ts`, `tests/virtualPlayer.staffingAndRepairBatch.test.ts` | Validate Quarry/Mine redistribution, revised cooldown semantics, and treasury-mode decisions |
+
+
 Authority: `AGENTS.md` + `src/game/simulation/decisionRegistry.ts`  
 Purpose: one decision → one owner module → one definition of each function.
 
