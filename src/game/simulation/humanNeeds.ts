@@ -2,7 +2,7 @@ import type { Building, Entity, WorldState } from '../gameTypes';
 import { EntityType } from '../gameTypes';
 import { getValleyHuntYieldMultiplier } from '../ecologyStage';
 import { getHuntFoodMultiplier } from '../combat';
-import { isStartOfClockHour, killHuman } from '../dayCycle';
+import { killHuman } from '../dayCycle';
 import { createDeathParticles } from '../simEffects';
 import { logDeath } from '../eventLog';
 import { formatCitizenName, formatDeathLog } from '../citizenId';
@@ -22,14 +22,13 @@ const HUNT_DEFAULT_BASE_YIELD = 18;
  * The one colony-larder meal rule, read without eating: every gate {@link tryEatColonyMeal}
  * applies before it drains a unit of food.
  */
-export function canEatColonyMeal(state: WorldState, entity: Entity, _hourOfDay: number): boolean {
+export function canEatColonyMeal(state: WorldState, entity: Entity): boolean {
   if (!entity.alive || state.resources.food <= 0) return false;
-  if (!isStartOfClockHour(state.tick)) return false;
   return isPlayerHuman(entity) && resolveHumanNeedsIntent(entity, state.tick, false) === 'eat';
 }
 
-export function tryEatColonyMeal(entity: Entity, state: WorldState, hourOfDay: number): boolean {
-  if (!canEatColonyMeal(state, entity, hourOfDay)) return false;
+export function tryEatColonyMeal(entity: Entity, state: WorldState): boolean {
+  if (!canEatColonyMeal(state, entity)) return false;
   const amount = spendFood(state, 'meals', Math.min(1, state.resources.food));
   if (amount <= 0) return false;
   creditHumanNutritionFromFood(entity, amount);
