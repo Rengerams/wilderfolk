@@ -103,6 +103,18 @@ function postedFarmer(farm: Building, overrides: Partial<Entity> = {}): Entity {
 }
 
 describe('the reason a settler is not at their post', () => {
+  it('reports Eating only when a meal actually occurred, never merely because hunger permits one', () => {
+    const farm = building(1, BuildingType.Farm, { occupants: [1] });
+    const worker = postedFarmer(farm, {
+      needs: { nutrition: 20, rest: 65, stamina: 60 },
+    });
+    const state = world(workdayTick(10), { entities: [worker], buildings: [farm] });
+
+    expect(getSettlerWorkReason(state, worker).code).not.toBe('eating');
+    worker.needs!.lastMealTick = state.tick;
+    expect(getSettlerWorkReason(state, worker)).toEqual({ code: 'eating', label: 'Eating' });
+  });
+
   it('says off shift, with the hour the next shift starts', () => {
     const farm = building(1, BuildingType.Farm, { occupants: [1] });
     const worker = postedFarmer(farm);
