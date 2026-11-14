@@ -17,7 +17,7 @@ import {
   APTITUDE_IDS,
   MIN_EXPRESSION_SPREAD,
   expressAptitudes,
-  genomeFromSeed,
+  backfillLegacyGenome,
   inheritGenome,
   normalizeGenome,
   rollFounderGenome,
@@ -159,11 +159,11 @@ describe('normalizeGenome', () => {
   });
 });
 
-describe('genomeFromSeed (old-save backfill)', () => {
+describe('backfillLegacyGenome (old-save backfill)', () => {
   it('is deterministic per colony seed and citizen id and consumes no live stream', () => {
-    const first = genomeFromSeed(4242, 17);
-    const again = genomeFromSeed(4242, 17);
-    const otherCitizen = genomeFromSeed(4242, 18);
+    const first = backfillLegacyGenome(createSeededRng(4242, 'settlerGenome:17'));
+    const again = backfillLegacyGenome(createSeededRng(4242, 'settlerGenome:17'));
+    const otherCitizen = backfillLegacyGenome(createSeededRng(4242, 'settlerGenome:18'));
     expect(again).toEqual(first);
     expect(otherCitizen).not.toEqual(first);
     expect(spread(first)).toBeGreaterThanOrEqual(MIN_EXPRESSION_SPREAD);
