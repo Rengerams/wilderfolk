@@ -292,8 +292,8 @@ export function tickHospitalDailyCare(
     if (treated >= 2 + hospital.occupants.length) break;
     const near = isAtBuildingReach(p, hospital)
       || Math.hypot(p.x - centre.x, p.y - centre.y) < HOSPITAL_WARD_RADIUS_PX;
-    // Urgent cases farther away still get a small passive "clinic" benefit if staffed
-    if (!near && medicalUrgency(p) < 0.7) continue;
+    // The ward only treats patients who are actually at it; no remote/teleport-free contradiction.
+    if (!near) continue;
     // Doctor presence is the ward's own occupant scan — a patient standing near the
     // building is not evidence that a doctor is on site.
     if (treatPatientAtHospital(state, p, hospital)) {

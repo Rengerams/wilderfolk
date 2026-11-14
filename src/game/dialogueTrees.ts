@@ -526,6 +526,9 @@ function rememberDialogueLine(who: ChatSpeaker, key: string, tick: number): void
 export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
   const { eventKey, speaker, tick } = request;
   const partner = request.partner ?? null;
+  if (request.priority !== 'scripted' && isSocialSceneKey(eventKey)
+    && (hasDialogueSceneOnDay(speaker, tick, undefined, SOCIAL_SCENE_PREFIXES)
+      || (partner != null && hasDialogueSceneOnDay(partner, tick, undefined, SOCIAL_SCENE_PREFIXES)))) return false;
   if (request.priority !== 'scripted' && (isDialogueBusy(speaker) || (partner && isDialogueBusy(partner)))) return false;
   if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
   const mode = partner ? 'pair' : 'solo';
@@ -615,22 +618,36 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
   return true;
 }
 
-/** Whether `who` already owns a scene from one of these event families on the colony day of `tick`. */
 /**
  * Whether this speaker already had a scene today. `eventKeys` narrows the check to one event family;
- * omitted, any scene counts — a person gets one scene per colony day across every family.
+ * `scenePrefixes` narrows it to a class such as ordinary social scenes; both omitted, any scene counts.
  */
+const SOCIAL_SCENE_PREFIXES = [
+  'workplace.banter',
+  'neighbor.greeting',
+  'child.play',
+  'social.impulse',
+  'ambient.',
+] as const;
+
+/** Whether this event is an ordinary social scene, as opposed to a story/election/faith scene. */
+function isSocialSceneKey(eventKey: string): boolean {
+  return SOCIAL_SCENE_PREFIXES.some((prefix) => eventKey.startsWith(prefix));
+}
+
 export function hasDialogueSceneOnDay(
   who: ChatSpeaker,
   tick: number,
   eventKeys?: readonly DialogueEventKey[],
+  scenePrefixes?: readonly string[],
 ): boolean {
   const scenes = who.dialogueRecentScenes;
   if (!scenes) return false;
   const day = Math.floor(tick / TICKS_PER_DAY);
   for (const [key, scene] of Object.entries(scenes)) {
     if (Math.floor(scene.tick / TICKS_PER_DAY) !== day) continue;
-    if (eventKeys == null || eventKeys.some((eventKey) => key.startsWith(eventKey + ':'))) return true;
+    if (eventKeys?.some((eventKey) => key.startsWith(eventKey + ':'))) return true;
+    if (scenePrefixes?.some((prefix) => key.startsWith(prefix))) return true;
   }
   return false;
 }

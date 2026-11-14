@@ -109,13 +109,13 @@ export function staffingCapFor(
   if (!BUILDING_JOB_TYPES[building.type]) return { cap: 0, staffed: 0 };
   if (building.type === BuildingType.Prison) {
     const cap = prisonGuardCapacity(configured);
-    return { cap, staffed: staffed ?? Math.min(cap, countWorkersAtBuilding(humans, building.id)) };
+    return { cap, staffed: staffed ?? Math.min(cap, countActiveWorkersAtBuilding(humans, building.id)) };
   }
   return {
     cap: configured,
-    // A jailed holder reserves its slot (so manual assignment is blocked), but a substitute already
-    // covering the post must not add a second fill: clamp the counted pointers to the configured cap.
-    staffed: staffed ?? Math.min(configured, countWorkersAtBuilding(humans, building.id)),
+    // Only workers who can actually work the post count as filled; a jailed holder reserves the
+    // slot for release but does not make the post staffed.
+    staffed: staffed ?? Math.min(configured, countActiveWorkersAtBuilding(humans, building.id)),
   };
 }
 
@@ -226,7 +226,8 @@ function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number, f
     if (!human.alive || !isPlayerHuman(human)) continue;
     const id = human.workerBuildingId;
     if (id == null) continue;
-    counts.set(id, (counts.get(id) ?? 0) + 1);
+    // Jailed holders reserve the post for release, but they are not coverage for a staffing decision.
+    if (!isImprisoned(human)) counts.set(id, (counts.get(id) ?? 0) + 1);
     if (human.age >= HUMAN_ADULT_MIN_AGE && canAutoChangeWorkplace(human, currentTick, foodEmergency)) {
       movable.set(id, (movable.get(id) ?? 0) + 1);
     }

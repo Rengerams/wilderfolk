@@ -8,6 +8,7 @@ import { buildGrassPopulationSnapshot, grassPopulationTotal } from './simQueries
 import { createEntity } from './entityFactory';
 import { getGrassPopulationCap, markGrassDead, pushNewEntity, syncEntityGrids } from './simulation/simulationEntities';
 import { seededRandomForRun } from './simRng';
+import { deterministicCos, deterministicSin } from './simTrig';
 
 export function tickGrassDaily(
   state: WorldState,
@@ -58,8 +59,8 @@ export function tickGrassDaily(
     ) {
       const angle = seededRandomForRun(`${blade}:angle`) * Math.PI * 2;
       const dist = 8 + seededRandomForRun(`${blade}:dist`) * grassConfig.wanderRadius;
-      const nx = Math.min(width, Math.max(0, grass.x + Math.cos(angle) * dist));
-      const ny = Math.min(height, Math.max(0, grass.y + Math.sin(angle) * dist));
+      const nx = Math.min(width, Math.max(0, grass.x + deterministicCos(angle) * dist));
+      const ny = Math.min(height, Math.max(0, grass.y + deterministicSin(angle) * dist));
       const patch = createEntity(
         EntityType.Grass,
         nx,

@@ -47,7 +47,7 @@ import { adoptSimSeedFromWorld, getSimSeed, restoreSimRng, snapshotSimRng, world
 import { genomeFromSeed, normalizeGenome } from './settlerTraits';
 import { normalizeMarks } from './personalMarks';
 import { syncResearchUnlocks } from './research';
-import { assignMissingWorkers } from './workforce';
+import { assignMissingWorkers, restoreWorkerRosterAfterCustody } from './workforce';
 import { syncBigNewsIdFromState } from './simEffects';
 import { rebuildEntityByIdMap } from './entityIndex';
 import {
@@ -1383,6 +1383,7 @@ function reconcileDanglingReferencesOnLoad(world: WorldState): void {
     }
     if (entity.prisonBuildingId != null && !buildingIds.has(entity.prisonBuildingId)) {
       entity.prisonBuildingId = undefined;
+      restoreWorkerRosterAfterCustody(entity, world.buildings);
     }
   }
   for (const building of world.buildings ?? []) {

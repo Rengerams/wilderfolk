@@ -24,7 +24,7 @@ import { computeVillageStats } from './uiSimSummary';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
 import { HUNTING_SPOT_SEARCH_RADIUS_PX, huntingSpotPreyTypes } from './huntingSpot';
 import {
-  countWorkersAtBuilding,
+  countActiveWorkersAtBuilding,
   findOverstaffedDonorBuilding,
   pickWorkerToTransfer,
   isAcuteFoodStaffingEmergency,
@@ -465,7 +465,7 @@ function firstUnstaffedFoodProducer(state: WorldState): Building | undefined {
   return state.buildings.find((building) =>
     building.completed && building.faction !== 'rival'
     && FOOD_PRODUCER_TYPES.includes(building.type)
-    && countWorkersAtBuilding(state.entities, building.id) < BUILDING_CONFIGS[building.type].maxOccupants,
+    && countActiveWorkersAtBuilding(state.entities, building.id) < BUILDING_CONFIGS[building.type].maxOccupants,
   );
 }
 
@@ -552,7 +552,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
       .filter((building) => building.type === BuildingType.Farm
         && building.completed && building.faction !== 'rival')
       .map((building) => ({
-        building, workers: countWorkersAtBuilding(state.entities, building.id),
+        building, workers: countActiveWorkersAtBuilding(state.entities, building.id),
       }))
       .filter(({ building, workers }) => workers > 0
         && getBuildingUpgradeEligibility(state, building.id).ok
@@ -832,7 +832,7 @@ function decideUnstaffedProducer(state: WorldState): VirtualPlayerDecision | nul
     const producer = state.buildings.find((building) =>
       building.completed && building.type === entry.type
       && building.faction !== 'rival'
-      && countWorkersAtBuilding(state.entities, building.id) === 0,
+      && countActiveWorkersAtBuilding(state.entities, building.id) === 0,
     );
     if (!producer) continue;
     const donor = findOverstaffedDonorBuilding(workplaces, humans, producer.id, state.tick, true);
@@ -1925,7 +1925,7 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
         building.type === entry.type &&
         building.faction !== 'rival' &&
         building.completed &&
-        countWorkersAtBuilding(state.entities, building.id) === 0,
+        countActiveWorkersAtBuilding(state.entities, building.id) === 0,
     );
     if (unmanned) {
       return `${BUILDING_CONFIGS[entry.type].label} stands unmanned — ${stock} ${entry.stock} left and no settler free to work it`;

@@ -17,6 +17,7 @@ import { isAtBuildingReach } from './buildingAccess';
 import { isDialogueBusy } from './humanChat';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { isPlayerHuman } from './playerHuman';
+import { isFoodAlert } from './resourceUtils';
 import { HUMAN_NEEDS, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 
 export function getTownHallFestivalCooldownTicks(): number {
@@ -165,7 +166,7 @@ export function wantsCivicAudience(entity: Entity, state: WorldState): boolean {
   if (!isPlayerHuman(entity) || entity.age < HUMAN_ADULT_MIN_AGE) return false;
   if (entity.job === JobType.Official) return false;
   if ((entity.griefUntilTick ?? 0) > state.tick) return true;
-  if (state.resources.food < Math.max(40, state.humanPopulation * 2)
+  if (isFoodAlert(state)
     && (entity.needs?.nutrition ?? 100) < HUMAN_NEEDS.EAT_ENTER_NUTRITION) {
     return true;
   }

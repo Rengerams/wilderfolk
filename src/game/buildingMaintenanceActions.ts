@@ -6,7 +6,7 @@ import { getBuildingConfig } from './buildingConfig';
 import { addResource, updateStorageCaps } from './economy';
 import { getBuildingCenter } from './buildingGeometry';
 import { addFloatingText, addNotification, createDeathParticles, impulseScreenShake } from './simEffects';
-import { assignMissingWorkers, removeWorkerTransition } from './workforce';
+import { assignMissingWorkers, removeWorkerTransition, restoreWorkerRosterAfterCustody } from './workforce';
 import { unindexAdjacency } from './adjacencyIndex';
 import { allPlayerHumans } from './playerHuman';
 import { getResidenceCapacity, isResidenceBuildingType } from './housingModel';
@@ -245,6 +245,8 @@ function clearAssignmentsForDemolishedBuilding(
       entity.prisonBuildingId = undefined;
       entity.prisonerUntilTick = undefined;
       entity.prisonSentenceCrime = undefined;
+      // The post may have been backfilled while jailed; never leave an over-cap pointer behind.
+      restoreWorkerRosterAfterCustody(entity, state.buildings);
       affected.residents.add(entity.id);
       affected.workforce = true;
     }

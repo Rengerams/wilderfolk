@@ -7,7 +7,7 @@ import { canRivalCampGrow, getRivalGrowthFoodCost, isRivalGrowthDay, maybeQueueR
 import { isRivalAtPeace } from './rivalPeace';
 import { applyRivalDailyAction, ensureRivalProfile, selectRivalDailyAction } from './rivalProfiles';
 import { getSimRng } from './simRng';
-import { clearWorkerAssignment } from './workforce';
+import { clearWorkerAssignment, restoreWorkerRosterAfterCustody } from './workforce';
 import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
 import { adjustPollutionLevel } from './dailyEcology';
@@ -71,6 +71,7 @@ function releaseRetiredStructureReferences(
     entity.prisonBuildingId = undefined;
     entity.prisonerUntilTick = undefined;
     entity.prisonSentenceCrime = undefined;
+    restoreWorkerRosterAfterCustody(entity, buildings);
   }
 }
 
@@ -88,7 +89,7 @@ function departRivalEntity(state: WorldState, entity: Entity): void {
 export function pruneOrphanRivalEntities(state: WorldState): number {
   let pruned = 0;
   for (const entity of state.entities ?? []) {
-    if (!entity.alive || entity.faction !== 'rival') continue;
+    if (entity.faction !== 'rival') continue;
     departRivalEntity(state, entity);
     pruned++;
   }

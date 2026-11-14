@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-14T01:32:41.809Z",
+  "generatedAt": "2026-11-14T10:01:05.158Z",
   "groups": [
     {
       "hash": "7016380f050a7a8752564f84f32092fdfd270292",
@@ -335,7 +335,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/worldEventSites.ts:13"
+            "src/game/worldEventSites.ts:14"
           ]
         }
       ]
@@ -830,7 +830,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/workforce.ts:684"
+            "src/game/workforce.ts:685"
           ]
         }
       ]

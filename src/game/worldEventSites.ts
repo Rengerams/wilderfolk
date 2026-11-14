@@ -2,6 +2,7 @@ import type { WorldState } from './gameTypes';
 import { PATH_CELL } from './gameTypes';
 import { isFootprintOnBuildableTerrain, overlapsAnyBuilding } from './placementUtils';
 import { getSimRng } from './simRng';
+import { deterministicCos, deterministicSin } from './simTrig';
 
 /** Ground a camp's tents and fire occupy, so a site is validated like a small footprint. */
 const EVENT_SITE_FOOTPRINT_PX = 32;
@@ -47,8 +48,8 @@ export function pickSite(
   for (let attempt = 0; attempt < attempts; attempt++) {
     const angle = getSimRng('groupEvents')() * Math.PI * 2;
     const dist = minDist + getSimRng('groupEvents')() * (maxDist - minDist);
-    const x = Math.max(margin, Math.min(state.width - margin, anchor.x + Math.cos(angle) * dist));
-    const y = Math.max(margin, Math.min(state.height - margin, anchor.y + Math.sin(angle) * dist));
+    const x = Math.max(margin, Math.min(state.width - margin, anchor.x + deterministicCos(angle) * dist));
+    const y = Math.max(margin, Math.min(state.height - margin, anchor.y + deterministicSin(angle) * dist));
     if (!isLegalCampSite(state, x, y)) continue;
     const nearest = avoid.reduce((closest, p) => Math.min(closest, Math.hypot(p.x - x, p.y - y)), Infinity);
     if (nearest >= separation) return { x, y };

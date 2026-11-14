@@ -110,7 +110,13 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
     were.job = saved.job ?? JobType.Settler;
     were.occupation = restoredOccupation;
     were.workerBuildingId = saved.workerBuildingId;
-    moveResident(were, saved.residenceBuildingId, 'moon-form');
+    // Without the building roster there is no bed-cap context; let the housing pass seat them
+    // rather than restoring a possibly-retaken bed through the writer.
+    if (!buildings) {
+      were.residenceBuildingId = undefined;
+      return;
+    }
+    moveResident(were, saved.residenceBuildingId, 'moon-form', { buildings });
     return;
   }
 

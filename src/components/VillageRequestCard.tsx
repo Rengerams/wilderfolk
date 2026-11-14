@@ -17,7 +17,7 @@ export default function VillageRequestCard({
 
   return (
     <section
-      className="pointer-events-auto fixed left-1/2 top-14 z-[201] w-[min(100%-1.5rem,24rem)] -translate-x-1/2 rounded-lg border border-amber-500/45 bg-stone-950/95 p-3 shadow-lg backdrop-blur"
+      className="pointer-events-auto fixed left-1/2 top-14 z-[201] w-[min(100%_-_1.5rem,24rem)] -translate-x-1/2 rounded-lg border border-amber-500/45 bg-stone-950/95 p-3 shadow-lg backdrop-blur"
       aria-label={request.title}
     >
       <div className="flex items-start gap-2">

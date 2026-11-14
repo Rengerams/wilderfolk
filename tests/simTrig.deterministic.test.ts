@@ -40,6 +40,8 @@ const TICK_POSITION_MODULES = [
   'src/game/villageLeadership.ts',
   'src/game/simulation/humanMovement.ts',
   'src/game/simulation/humanLifecycle.ts',
+  'src/game/worldEventSites.ts',
+  'src/game/dailyGrassEcology.ts',
 ];
 
 describe('tick-position modules', () => {
