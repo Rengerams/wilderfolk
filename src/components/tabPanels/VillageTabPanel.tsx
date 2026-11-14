@@ -153,9 +153,6 @@ export interface VillageTabPanelProps {
   villageStats: VillageStatsSummary;
   favoriteEntityId?: number | null;
   onRecruitSettler: () => void;
-  /** Village-wide staffing action. Deliberately here rather than in the building panel: the
-   *  per-building fill/auto-fill belongs on that building, and "assign all" is a village decision. */
-  onAutoStaffAll: () => void;
   onFocusBuilding: (buildingId: number, cx: number, cy: number) => void;
   onFocusCitizen: (entity: Entity) => void;
   onToggleFavoriteCitizen?: (entityId: number) => void;
@@ -170,7 +167,6 @@ export default function VillageTabPanel({
   villageStats,
   favoriteEntityId,
   onRecruitSettler,
-  onAutoStaffAll,
   onFocusBuilding,
   onFocusCitizen,
   onToggleFavoriteCitizen,
@@ -273,15 +269,6 @@ export default function VillageTabPanel({
             </div>
           </div>
         </div>
-        {/* No count in the label: the staffing owner decides who is assignable,
-            so this view never recomputes an "idle" total. */}
-        <button
-          type="button"
-          onClick={onAutoStaffAll}
-          className="mb-2 w-full rounded bg-sky-800/60 px-2 py-1.5 text-[13px] font-bold text-sky-100 transition-colors hover:bg-sky-700/70"
-        >
-          ⚒️ Auto-assign all workers
-        </button>
         <CollapsibleSection
           title="Details"
           defaultOpen={false}
