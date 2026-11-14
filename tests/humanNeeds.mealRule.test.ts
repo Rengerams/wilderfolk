@@ -24,7 +24,7 @@ describe('single human meal transaction', () => {
     const state = world(10);
     const eater = person();
     const before = { ...eater.needs! };
-    expect(tryEatColonyMeal(eater, state, 9)).toBe(true);
+    expect(tryEatColonyMeal(eater, state)).toBe(true);
     expect(state.resources.food).toBe(9);
     expect(state.economyLedger?.consumed.meals).toBe(1);
     expect(eater.needs!.nutrition).toBe(70);
@@ -35,20 +35,28 @@ describe('single human meal transaction', () => {
     expect(state.resources.food).toBe(9);
   });
 
-  it('prevents visitors, mid-hour, well-fed, and unfunded meals', () => {
+  it('prevents visitors, well-fed and unfunded meals without owning the scheduler cadence', () => {
     const cases: Array<[Entity, WorldState]> = [
       [person({ faction: 'visitor' }), world(10)],
-      [person(), { ...world(10), tick: mealTick + 1 }],
       [person({ needs: { nutrition: 85, rest: 20, stamina: 5 } }), world(10)],
       [person(), world(0)],
     ];
     for (const [e, state] of cases) {
       const food = state.resources.food;
       const nutrition = e.needs!.nutrition;
-      expect(tryEatColonyMeal(e, state, 8)).toBe(false);
+      expect(tryEatColonyMeal(e, state)).toBe(false);
       expect(state.resources.food).toBe(food);
       expect(e.needs!.nutrition).toBe(nutrition);
     }
+  });
+
+  it('does not decide clock-hour cadence inside the meal transaction', () => {
+    const state = { ...world(3), tick: mealTick + 1 };
+    const eater = person();
+    // Normally humanTick calls this only at the top of the hour.
+    expect(tryEatColonyMeal(eater, state)).toBe(true);
+    expect(state.resources.food).toBe(2);
+    expect(tryEatColonyMeal(eater, state)).toBe(false);
   });
 
   it('cancels accumulated fatal hunger when food restores nutrition above the severe threshold', () => {
@@ -63,13 +71,13 @@ describe('single human meal transaction', () => {
   it('accounts accurately for fractional food and meal cooldown', () => {
     const state = world(0.5);
     const eater = person();
-    expect(tryEatColonyMeal(eater, state, 7)).toBe(true);
+    expect(tryEatColonyMeal(eater, state)).toBe(true);
     expect(state.resources.food).toBe(0);
     expect(state.economyLedger?.consumed.meals).toBe(0.5);
     expect(eater.needs!.nutrition).toBe(65);
     state.resources.food = 10;
     state.tick += TICKS_PER_HOUR;
-    expect(tryEatColonyMeal(eater, state, 8)).toBe(false);
+    expect(tryEatColonyMeal(eater, state)).toBe(false);
     state.tick += TICKS_PER_HOUR;
     expect(tryEatColonyMeal(eater, state, 9)).toBe(true);
   });
