@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { requestDialogue, tickDialogue } from '../src/game/dialogueTrees';
 import { isDialogueBusy, resetDialogueSessions, type ChatSpeaker } from '../src/game/humanChat';
-import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
 const actor = (id: number): ChatSpeaker => ({ id, name: 'Actor ' + id });
 beforeEach(resetDialogueSessions);
@@ -54,7 +54,9 @@ describe('solo, paired and forced dialogue sessions', () => {
     expect(b.chatPartnerId).toBeUndefined();
     expect(isDialogueBusy(a)).toBe(false);
     expect(isDialogueBusy(b)).toBe(false);
-    expect(requestDialogue({ eventKey: 'ambient.social', speaker: a, tick: 13 })).toBe(true);
+    // An interrupted social scene still spends today's allowance; the session itself was freed.
+    expect(requestDialogue({ eventKey: 'ambient.social', speaker: a, tick: 13 })).toBe(false);
+    expect(requestDialogue({ eventKey: 'ambient.social', speaker: a, tick: 4 * TICKS_PER_DAY + 13 })).toBe(true);
   });
 
   it('scripted speech interrupts and releases a paired session through the real resolver', () => {
@@ -90,8 +92,9 @@ describe('solo, paired and forced dialogue sessions', () => {
     expect(b.chatPartnerId).toBeUndefined();
     expect(b.chatPhrase).toBeUndefined();
     expect(isDialogueBusy(b)).toBe(false);
+    expect(requestDialogue({ eventKey: 'ambient.social', speaker: b, tick: 9 })).toBe(false);
     expect(requestDialogue({
-      eventKey: 'ambient.social', speaker: b, tick: 9,
+      eventKey: 'ambient.social', speaker: b, tick: 4 * TICKS_PER_DAY + 9,
       durationHours: 4 / TICKS_PER_HOUR,
     })).toBe(true);
   });

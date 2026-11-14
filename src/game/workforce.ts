@@ -75,8 +75,8 @@ export function countWorkersAtBuilding(humans: Entity[], buildingId: number): nu
 }
 
 /**
- * Posted workers who can work the post today. A jailed settler keeps the post reserved (the panel
- * counts it), so staffing measures the post separately and may backfill it with an idle hand.
+ * Workers who currently fill a post. A jailed settler retains workerBuildingId for eventual release,
+ * but the panel and staffing capacity exclude them; an idle worker may backfill the active vacancy.
  */
 export function countActiveWorkersAtBuilding(humans: Entity[], buildingId: number): number {
   let count = 0;

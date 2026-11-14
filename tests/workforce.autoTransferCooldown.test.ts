@@ -219,7 +219,27 @@ describe('two-month automatic job stability', () => {
 });
 
 describe('a prisoner keeps the reserved post', () => {
-  it('is never the worker a rebalance moves, though the post still counts as crew', () => {
+  it('transfers active surplus but never the jailed holder', () => {
+    const lumber = building(10, BuildingType.LumberMill, { occupants: [1, 2, 3] });
+    const quarry = building(11, BuildingType.Quarry, { occupants: [] });
+    const free = human(1, { workerBuildingId: 10 });
+    const jailed = human(2, { workerBuildingId: 10, prisonBuildingId: 90, prisonerUntilTick: 10_000 });
+    const remaining = human(3, { workerBuildingId: 10 });
+    const workers = [free, jailed, remaining];
+    const tick = 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS * 2;
+
+    expect(canAutoChangeWorkplace(jailed, tick)).toBe(false);
+    // Two active workers make a donor; the jailed assignment supplies no coverage or movable worker.
+    expect(findOverstaffedDonorBuilding([lumber, quarry], workers, 11, tick)?.id).toBe(10);
+    expect(pickWorkerToTransfer(workers, lumber, quarry, tick)).toBe(free);
+
+    rebalanceJobWorkers(workers, [lumber, quarry], undefined, tick);
+    expect(quarry.occupants).toEqual([1]);
+    expect(jailed.workerBuildingId).toBe(10);
+    expect(remaining.workerBuildingId).toBe(10);
+  });
+
+  it('does not donate the only active worker behind a jailed assignment', () => {
     const lumber = building(10, BuildingType.LumberMill, { occupants: [1, 2] });
     const quarry = building(11, BuildingType.Quarry, { occupants: [] });
     const free = human(1, { workerBuildingId: 10 });
@@ -227,13 +247,10 @@ describe('a prisoner keeps the reserved post', () => {
     const workers = [free, jailed];
     const tick = 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS * 2;
 
-    expect(canAutoChangeWorkplace(jailed, tick)).toBe(false);
-    // Two assigned settlers make the farm a donor; only the settler who can attend may leave it.
-    expect(findOverstaffedDonorBuilding([lumber, quarry], workers, 11, tick)?.id).toBe(10);
-    expect(pickWorkerToTransfer(workers, lumber, quarry, tick)).toBe(free);
-
+    expect(findOverstaffedDonorBuilding([lumber, quarry], workers, 11, tick)).toBeUndefined();
     rebalanceJobWorkers(workers, [lumber, quarry], undefined, tick);
-    expect(quarry.occupants).toEqual([1]);
+    expect(quarry.occupants).toEqual([]);
+    expect(free.workerBuildingId).toBe(10);
     expect(jailed.workerBuildingId).toBe(10);
   });
 
