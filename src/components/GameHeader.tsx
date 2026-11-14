@@ -9,7 +9,7 @@ import { WEATHER_CONFIGS, WeatherType } from '../game/gameTypes';
 import { isNightHour, getHourOfDay, getWeekdayLabel, isWeekend, getAbsoluteCalendarDay, TICKS_PER_DAY } from '../game/dayCycle';
 import { displayYear } from '../game/dayCycleClock';
 import { DEFAULT_WORK_SCHEDULE, getWorkSchedule, getWorkScheduleLabel } from '../game/workSchedule';
-import { getOpenPlayerBeds, getTotalBeds, isPopulationNearCap, resolvePopulationCap } from '../game/populationGrowth';
+import { getEffectiveBedCapacity, getOpenPlayerBeds, getTotalBeds, resolvePopulationCap } from '../game/populationGrowth';
 import { isResourceCapped } from '../game/resourceUtils';
 import { formatSettlerName, getVillageLeader } from '../game/villageLeadership';
 import {
@@ -133,10 +133,11 @@ tutorialsEnabled,
   const seasonLabel = SEASON_LABELS[world.season];
   // Band and cap come from the growth owner; this view only paints them. "Open" beds are the
   // assignable ones: "a settler could sleep here", not "some bed in the valley is empty".
-  const popNearCap = isPopulationNearCap(world);
   const popCap = resolvePopulationCap(world);
   const beds = getTotalBeds(world);
+  const effectiveBeds = getEffectiveBedCapacity(world);
   const openBeds = getOpenPlayerBeds(world);
+  const popNearCap = openBeds <= 1;
   const absoluteDay = getAbsoluteCalendarDay(world.tick);
   const workSchedule = getWorkSchedule(world);
   // The window that decides whether production happens at all was
@@ -321,12 +322,12 @@ tutorialsEnabled,
             } hover:brightness-110 disabled:cursor-default`}
             /* The door names the subject window it opens, read from the one table that titles it, so
                a screen reader cannot hear the same name from two adjacent doors. */
-            title={`${OVERVIEW_SUBJECTS.people.label} — ${OVERVIEW_SUBJECTS.people.hint} (O) · ${population} settlers · cap ${popCap} · 🛏️ ${beds} beds (${openBeds} open)`}
+            title={`${OVERVIEW_SUBJECTS.people.label} — ${OVERVIEW_SUBJECTS.people.hint} (O) · ${population} settlers · immigration cap ${popCap} · 🛏️ ${effectiveBeds} usable places (${openBeds} open; ${beds} total including reserved Leader's House beds)`}
             aria-label={`Open ${OVERVIEW_SUBJECTS.people.label.toLowerCase()} window`}
           >
             <span>👥</span>
-            <span className="font-mono font-bold">{population}/{popCap}</span>
-            <span className="text-[11px] opacity-75" title={`${beds} beds total`}>🛏️{beds}</span>
+            <span className="font-mono font-bold">{population}/{effectiveBeds}</span>
+            <span className="text-[11px] opacity-75" title={`${effectiveBeds} usable housing places; ${beds} total beds including reserved Leader's House capacity`}>🛏️{effectiveBeds}</span>
           </button>
 
           {/*
