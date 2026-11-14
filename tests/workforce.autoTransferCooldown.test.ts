@@ -12,7 +12,7 @@ import {
 } from '../src/game/workforce';
 import { building, human } from '../src/test/factories';
 
-describe('two-month automatic job stability', () => {
+describe('automatic job stability without blocking new colonies', () => {
   it('does not drain the critical food crew while staffing a guard post', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2, 3] });
     const barracks = building(11, BuildingType.Barracks, { occupants: [] });
@@ -142,7 +142,7 @@ describe('two-month automatic job stability', () => {
     expect(workers.map((worker) => worker.workerBuildingId)).toEqual(settled);
   });
 
-  it('does not move recently assigned workers, but allows transfers again after 60 days', () => {
+  it('does not move recently assigned workers, but allows transfers again after three days', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2] });
     const quarry = building(11, BuildingType.Quarry, { occupants: [] });
     const workers = [
@@ -151,7 +151,7 @@ describe('two-month automatic job stability', () => {
     ];
     const jobs = [farm, quarry];
 
-    expect(AUTO_JOB_TRANSFER_COOLDOWN_TICKS).toBe(60 * TICKS_PER_DAY);
+    expect(AUTO_JOB_TRANSFER_COOLDOWN_TICKS).toBe(3 * TICKS_PER_DAY);
     expect(canAutoChangeWorkplace(workers[0], 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS - 1)).toBe(false);
     expect(findOverstaffedDonorBuilding(jobs, workers, 11, 101)).toBeUndefined();
     expect(pickWorkerToTransfer(workers, farm, quarry, 101)).toBeUndefined();
@@ -165,6 +165,18 @@ describe('two-month automatic job stability', () => {
     expect(eligible?.workerBuildingId).toBe(11);
     expect(eligible?.lastAutoJobTransferTick).toBe(eligibleTick);
     expect(pickWorkerToTransfer(workers, quarry, farm, eligibleTick + 1)).toBeUndefined();
+  });
+
+  it('balances an existing Quarry 3 / Mine 1 roster without an idle settler or a manual button', () => {
+    const quarry = building(4, BuildingType.Quarry, { occupants: [1, 2, 3] });
+    const mine = building(5, BuildingType.Mine, { occupants: [4] });
+    const workers = [1, 2, 3].map((id) => human(id, { workerBuildingId: 4 }));
+    workers.push(human(4, { workerBuildingId: 5 }));
+
+    rebalanceJobWorkers(workers, [quarry, mine], undefined, 24 * TICKS_PER_DAY);
+    expect(quarry.occupants).toHaveLength(2);
+    expect(mine.occupants).toHaveLength(2);
+    expect(workers.filter((worker) => worker.workerBuildingId === 5)).toHaveLength(2);
   });
 
   it('chooses the smallest eligible donor, preserving source order for ties', () => {
@@ -214,7 +226,7 @@ describe('two-month automatic job stability', () => {
       workforcePolicy: undefined,
     });
     expect(adults[0].workerBuildingId).toBe(3);
-    expect(adults[0].lastAutoJobTransferTick).toBe(2000);
+    expect(adults[0].lastAutoJobTransferTick).toBeUndefined();
   });
 });
 
