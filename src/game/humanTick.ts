@@ -1507,7 +1507,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           suppressIdle = true;
 
           if (shouldLeadAffairPair(entity, paramour)) {
-            settlerPairChat(entity, paramour, 'affair', 0.18);
+            // Rare ambient speech, not a near-guaranteed affair bubble every eligible tick.
+            settlerPairChat(entity, paramour, 'affair', 0.01);
 
             const churchPenalty = churchStrength > 0 ? 0.72 + (1 - churchStrength) * 0.28 : 1;
             const affairRate = (churchStrength > 0 ? 5 : 8) * (state.festival?.active ? 1.4 : 1) * churchPenalty * PER_TICK_RATE_SCALE;
