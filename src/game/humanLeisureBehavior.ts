@@ -53,15 +53,14 @@ function leisureSlotFor(tick: number, entityId: number): number {
 }
 
 /**
- * The 12-way free-time activity for one settler in one leisure slot. Seeded from the run seed and
- * stateless, so `setSimSeed` changes free time without leaving a cache a rollback could inherit.
+ * The 12-way free-time activity for one settler in one leisure slot. Every branch is a run-seeded
+ * stateless draw, so `setSimSeed` changes free time and a rollback cannot inherit a cached choice.
  */
 export function leisureKindFor(entityId: number, tick: number, weekend: boolean): number {
-  const absDay = getAbsoluteCalendarDay(tick);
   const leisureSlot = leisureSlotFor(tick, entityId);
-  const daySpice = Math.floor(seededRandomForRun(`leisure-kind:${entityId}:${leisureSlot}`) * 12);
+  // The kind itself is the seeded draw; id/day arithmetic would only shift one fixed layout.
+  let leisureKind = Math.floor(seededRandomForRun(`leisure-kind:${entityId}:${leisureSlot}`) * 12);
   const quietBias = personDayRoll(entityId, tick, 202) < 0.35;
-  let leisureKind = (leisureSlot * 17 + entityId * 31 + absDay * 13 + daySpice) % 12;
   if (quietBias && personDayRoll(entityId, tick, 403 + leisureSlot) < 0.45) {
     leisureKind = leisureKind < 6 ? 10 + (leisureKind % 2) : leisureKind;
   }
@@ -70,7 +69,7 @@ export function leisureKindFor(entityId: number, tick: number, weekend: boolean)
     && personDayRoll(entityId, tick, PERSON_DAY_ROLL_SALTS.leisureWeekendKind) > 0.55
     && leisureKind >= 8
   ) {
-    leisureKind = (entityId + leisureSlot + absDay) % 7;
+    leisureKind = Math.floor(seededRandomForRun(`leisure-weekend:${entityId}:${leisureSlot}`) * 7);
   }
   return leisureKind;
 }

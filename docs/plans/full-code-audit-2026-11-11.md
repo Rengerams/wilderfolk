@@ -5,7 +5,7 @@
 - **Revision:** `f4564527` on `main` (working tree also carried a pre-existing `AGENTS.md` edit)
 - **Scope:** the whole `src/` tree — 398 TypeScript/TSX files, ~96,400 lines — plus the test, script and CI contracts that are supposed to guard it
 - **Method:** read-only. 20 independent audits (9 simulation slices, 8 whole-code areas, 3 closure batches for the remaining screens and utilities), 5 adversarial verification passes that tried to refute the high findings, and a parent review of every critical/high claim. No source, test or doc file was modified.
-- **Status of this document:** findings + plan. Nothing below is fixed yet.
+- **Status of this document:** findings + plan. Remediation status is recorded in §0.3 (authoritative for the current build); the per-area bug reports and the remediation log carry the evidence.
 - **How to read:** owner/PM → §0 and §9; engineer picking up work → §3, §4, §5, §5.1; QA/CI → §4.6 and §4.7; reviewer → §10. Every finding has an ID (`S-…` simulation, `W-…` whole-code), evidence with `file:line`, impact, and a fix owner.
 
 ---
@@ -32,19 +32,6 @@ P3  economy/ecology/services ........... 3-4 days (ledger, grass, harvest, hospi
 P4  auto-staff + world systems ......... 3-4 days (defense preset, jailed/swap, herd, shelter, caravans)
 P5  contracts + gates .................. 2-3 days (invariants, registry, harness assertions, CI scripts)
 ```
-
-### Start here — the first five working days
-
-| Day | Work | Files | Proof it is done |
-|---|---|---|---|
-| 1 | Forge cadence (S-01) | `forge.ts`, `dailyBuildingEconomy.ts` | New test: queue an order, run **real `gameTick`** 2 days, order completes. Fails before the fix |
-| 1 | Wildkin: remove the four grazer leftovers + safe energy access (S-02) | `tickLayerSystems.ts`, `grassEcology.ts`, `speciesConfig.ts`, `scentGrid.ts` | Wildlife-layer test: finite energy, it hunts, it can die; no `energyGain['grass']` access |
-| 2 | Leave/save lifecycle (S-03 + W-01) | `App.tsx`, `useGamePersistence.ts`, `useGameSession.ts`, `MapSetupScreen.tsx` | `pagehide` test writes the slot; menu/new-game persists once; no `deleteSave()` before a replacement exists |
-| 2–3 | Malformed-import hardening (W-02/03/04) | `viewState.ts`, `saveLoad.ts` | Fixtures: `null` particle dropped; `1e9` footprint refused; non-compact 60k map refused; no tick-loop crash |
-| 3–5 | Rollback/hand-off set (B1) | `worldRuntimeCaches.ts`, `simPrep.ts`, `simDelta.ts`, `humanLeisureBehavior.ts` | 7-day same-seed world equal across main-thread, worker, save/reload and one forced rollback; election fields present |
-
-Each day ends with `node scripts/test.mjs standard` plus the new focused test. Do not start Phase 3 before the Phase 1 parity day is green.
-
 ---
 
 ## 0.1 Fix status — Phase 0 (2026-11-11)
@@ -82,6 +69,39 @@ Each day ends with `node scripts/test.mjs standard` plus the new focused test. D
 | Pregnancy duplication | Dedicated `src/game/pregnancy.ts` owns start, due roll, invalid-due rule, validity and fraction; `entityFactory` and `humanRelationships` delegate; A22 scans all of `src/game` | `tests/humanLifecycle.test.ts`, `dupA` 16, cycle gate |
 
 **Still open:** S-10 hospital corner geometry; faction camp/hotel/march off-screen paths (player-human walk is fixed); S-08/S-09, W-104, W-107/W-108 and the rest of §11.1. Accepted trade-offs: pagehide can write the worker display shadow (flagged non-authoritative, no slot marker), and the transient walk target is lost across a reload for at most one throttle interval.
+
+### 0.3 Fix status — whole-code remediation (2026-11-12, supersedes 0.2's "still open")
+
+**All findings in §3, §4.5, §11 and the second tier named outside the ID list (§4.2 determinism, §4.3 economy/services, §4.4 robustness, §5 auto-staffing) now have a fix in the tree.** The work is committed as `a946d5be` plus the final workforce corrections. One consolidated report per area lives in `docs/bug_report/2026-11-11-audit-remediation-*.md`, indexed in `docs/BUG_REPORTS/SUMMARY.md`.
+
+| Area | Fixed here | Proof |
+|---|---|---|
+| Simulation hand-off, invariants, schedule | S-04/S-05/S-11/S-12/S-13/S-14/S-15/S-16/S-07/S-08/S-09; orphaned-spouse invariant | `workerHandoff.state`, `invariants.commute.herd`, `dailyEconomy.ledgerEcology`, `workCommute.leadHour`, `hospital.howler.geometry` |
+| Renderer / presentation | W-06, W-21–W-26, W-142 | 177 renderer/terrain/logistics/snapshot tests |
+| Shell, persistence, worker host | W-08, W-13–W-20, W-107–W-110, W-114, W-117, W-141, W-143, W-144 | 190 shell/persistence tests, `gameWorker.uploadWatchdog`, `vite build` |
+| Panels | W-28–W-34, W-57–W-63, W-80, W-115, W-130–W-135, W-30 | panel + a11y tests |
+| Buildings, workforce, services | W-35–W-40, W-88–W-92, W-97–W-100, W-140, W-109 | building/workforce batches |
+| Social, story, leadership, stats | W-41–W-47, W-65–W-69, W-78–W-80, W-101–W-106 | 156 social/dialogue + cadence tests |
+| Housing, genetics, identity | W-70–W-75, W-77 | 207 housing/howler tests + refugee identity |
+| Save, rollback, migration | W-126–W-129, W-137–W-139, W-146, W-147 | 181 save/rollback/worker/rival tests |
+| Audio | W-48, W-49, W-52 | 38 audio/weather tests |
+| Frontier / legacy world | W-81–W-87, W-93–W-96, W-118–W-122 | frontier/visitor/camp tests |
+| Determinism (§4.2) | one run-seed accessor routed through stories/elections/omens, combat rolls on `simRng`, seeded leisure, salt registry, rollback-safe playmate cache, no wall clock in the tick, harness-only global override | `simRng`, `determinism`, leisure/cadence tests |
+| Economy/services (§4.3) | player-only Mill bonus, one spoilage default, workshop preview = production attendance, hospital ward note reachable, null-leader invariant | economy/health tests |
+| Robustness (§4.4) | save `speed` validation, worker `simVersion` handshake, bounded fallback catch-up, relocation-counter reset, Moon Howler population count | save/worker tests |
+| Auto-staffing (§5) | jailed-post backfill, Taming Post slots, food-site seeding, construction crew bound, bounded swap pass, captive roster, barracks assertion | workforce batches |
+| Gates (W-10–W-12, W-50–W-55, §4.7) | living-settler extinction assertion, deleted vacuous perf/scratch gates, docs/comment/owner gates fail loudly, ownership floors, Node tsconfig, weekly full-year workflow, 90-day gate on `main` | `check`, `owners`, `types`, workflow files |
+
+**Verification (2026-11-12, final):**
+
+- `node scripts/test.mjs standard`: **PASS** — 533 files / 3,544 tests / 10 steps / 211.5 s (final tree).
+- `node scripts/test.mjs calendar-scheduler`: **PASS** — 18 tests / 11.9 s (final tree).
+- `node scripts/test.mjs colony-integration`: **PASS** — real 90-day colony with the per-tick invariant collector, 222.6 s (final tree).
+- Full-year harness: **RED** — `births were delivered during the year: expected 0 to be greater than 0`; a replicated fixture does conceive and give birth, so the scaffold year (Moon Howler + RavenCreek raid) is the context, not a proven conception bug. Not claimed as verified; tracked in the remediation log.
+- `npx vite build`: **PASS**; documents/comment/ownership gates: **PASS**.
+- Registers: `decisionRegistry.ts` carries the changed decisions (housing sole write, personal-mark revision, social one-scene rule, dialogue scene history, conception factor, credited ballots); `OWNERSHIP_OVERVIEW.md` has the whole-code registration table for this batch.
+
+**Known partials, not claimed as fixed:** function-level ownership duplicate/stale-name enforcement (coverage floors added only), `--changed` still tolerates zero selected tests, `check-dialogue-circumstances` still runs without `--strict`. `W-95` was refuted and `W-96` unproven by the verifiers; `W-43` is legacy-save-only. `W-83`/`W-85`/`W-87` were corrected against the strategic-map design: camp keys are visitor-only, rival focus opens the strategic map, the rival-camp overlap check and `Building.campLabel` were removed as dead legacy state.
 
 ## 1. How the audit was done, and what “full code” means
 

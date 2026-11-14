@@ -1,4 +1,4 @@
-import { personDayRoll } from '../src/game/simRng';
+import { PERSON_DAY_ROLL_SALTS, personDayRoll, personPairDayRoll } from '../src/game/simRng';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { tryNeighborGreeting, tryWorkplaceBanter } from '../src/game/socialLife';
 import { isDialogueBusy, resetDialogueSessions } from '../src/game/humanChat';
@@ -46,7 +46,9 @@ describe('social events use the one JSON dialogue session path', () => {
   it('keeps doorstep greeting distance and early-morning gates', () => {
     const a = settler(401, 10, 10);
     const b = settler(402, 20, 10);
-    const tick = eligibleTick(a.id, 724 + Math.abs(b.id), 0.12);
+    // The greeting gate rolls the PAIR (both ids in their own hash lanes), not an id-added salt.
+    let tick = 1;
+    while (personPairDayRoll(a.id, b.id, tick, PERSON_DAY_ROLL_SALTS.socialGreeting) > 0.12) tick++;
     tryNeighborGreeting(a, b, tick, 12);
     expect(a.chatPhrase).toBeUndefined();
     b.x = 100;

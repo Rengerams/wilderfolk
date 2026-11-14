@@ -68,7 +68,6 @@ function traderWorld(resources: Partial<WorldState['resources']> = {}): WorldSta
       gold: 500,
       campX: 100,
       campY: 100,
-      entityIds: [],
       tradesCompleted: 0,
       giftsGiven: 0,
     } as unknown as WorldState['visitorGroups'][number],
@@ -172,7 +171,6 @@ describe('the leader-honored announcement survives a maxed reputation', () => {
     const rival = {
       id: 'rival_1',
       population: 8,
-      entityIds: [],
       foundedYear: 0,
       name: 'Ravenhold',
       campX: 900,

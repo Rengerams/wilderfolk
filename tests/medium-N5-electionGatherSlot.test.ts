@@ -8,6 +8,7 @@ import type { Entity, WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { getColonyDay, killHuman, setHumanBirthFromAge } from '../src/game/dayCycle';
 import { getElectionGatherSite, getElectionGatherTarget, isEligibleForLeadership } from '../src/game/villageLeadership';
+import { deterministicCos, deterministicSin } from '../src/game/simTrig';
 
 const FIXTURE_SEED = 20_260_921;
 const GATHER_X = 600;
@@ -31,8 +32,8 @@ function legacyGetElectionGatherTarget(state: WorldState, entityId: number): { x
     const angle = ((entityId * 17) % 360) * (Math.PI / 180);
     const ringRadius = RING_0_RADIUS + outerRing * RING_STEP + 28;
     return {
-      x: c.gatherX + Math.cos(angle) * ringRadius,
-      y: c.gatherY + Math.sin(angle) * ringRadius,
+      x: c.gatherX + deterministicCos(angle) * ringRadius,
+      y: c.gatherY + deterministicSin(angle) * ringRadius,
     };
   }
 
@@ -42,8 +43,8 @@ function legacyGetElectionGatherTarget(state: WorldState, entityId: number): { x
   const ringRadius = RING_0_RADIUS + ring * RING_STEP;
 
   return {
-    x: c.gatherX + Math.cos(angle) * ringRadius,
-    y: c.gatherY + Math.sin(angle) * ringRadius,
+    x: c.gatherX + deterministicCos(angle) * ringRadius,
+    y: c.gatherY + deterministicSin(angle) * ringRadius,
   };
 }
 
@@ -128,16 +129,16 @@ describe('election gather slot (N-5)', () => {
     expect(attendees.indexOf(19)).toBe(4);
     expect(attendees.indexOf(13)).toBe(3);
     expect(getElectionGatherTarget(state, 13)).toEqual({
-      x: GATHER_X + RING_0_RADIUS * Math.cos((3 / SLOTS_PER_RING) * Math.PI * 2),
-      y: GATHER_Y + RING_0_RADIUS * Math.sin((3 / SLOTS_PER_RING) * Math.PI * 2),
+      x: GATHER_X + RING_0_RADIUS * deterministicCos((3 / SLOTS_PER_RING) * Math.PI * 2),
+      y: GATHER_Y + RING_0_RADIUS * deterministicSin((3 / SLOTS_PER_RING) * Math.PI * 2),
     });
     // Slot 12 is the first seat of ring 1 — the boundary the ring maths turns on.
     expect(attendees.indexOf(61)).toBe(11);
     expect(attendees.indexOf(67)).toBe(12);
     expect(getElectionGatherTarget(state, 67)).toEqual({ x: GATHER_X + RING_0_RADIUS + RING_STEP, y: GATHER_Y });
     expect(getElectionGatherTarget(state, 73)).toEqual({
-      x: GATHER_X + (RING_0_RADIUS + RING_STEP) * Math.cos((2 / SLOTS_PER_RING) * Math.PI * 2),
-      y: GATHER_Y + (RING_0_RADIUS + RING_STEP) * Math.sin((2 / SLOTS_PER_RING) * Math.PI * 2),
+      x: GATHER_X + (RING_0_RADIUS + RING_STEP) * deterministicCos((2 / SLOTS_PER_RING) * Math.PI * 2),
+      y: GATHER_Y + (RING_0_RADIUS + RING_STEP) * deterministicSin((2 / SLOTS_PER_RING) * Math.PI * 2),
     });
   });
 
@@ -161,8 +162,8 @@ describe('election gather slot (N-5)', () => {
   it('follows the attendee set when a settler dies between two calls', () => {
     const state = gatherWorld();
     const seat = (slot: number): { x: number; y: number } => ({
-      x: GATHER_X + RING_0_RADIUS * Math.cos((slot / SLOTS_PER_RING) * Math.PI * 2),
-      y: GATHER_Y + RING_0_RADIUS * Math.sin((slot / SLOTS_PER_RING) * Math.PI * 2),
+      x: GATHER_X + RING_0_RADIUS * deterministicCos((slot / SLOTS_PER_RING) * Math.PI * 2),
+      y: GATHER_Y + RING_0_RADIUS * deterministicSin((slot / SLOTS_PER_RING) * Math.PI * 2),
     });
     const before = getElectionGatherTarget(state, 53);
     expect(before).toEqual(seat(9));
@@ -195,8 +196,8 @@ describe('election gather slot (N-5)', () => {
     const ringRadius = RING_0_RADIUS + outerRing * RING_STEP + 28;
     const angle37 = ((37 * 17) % 360) * (Math.PI / 180);
     expect(getElectionGatherTarget(state, 37)).toEqual({
-      x: GATHER_X + Math.cos(angle37) * ringRadius,
-      y: GATHER_Y + Math.sin(angle37) * ringRadius,
+      x: GATHER_X + deterministicCos(angle37) * ringRadius,
+      y: GATHER_Y + deterministicSin(angle37) * ringRadius,
     });
     expect(getElectionGatherTarget(state, 41)).toEqual(legacyGetElectionGatherTarget(state, 41));
 

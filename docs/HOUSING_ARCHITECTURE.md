@@ -6,9 +6,11 @@ The single reference for how the colony decides **who sleeps where**: the model,
 relocation rules, the decisions the owner confirmed, and what is still open.
 Owner module: `src/game/housingPipeline.ts`.
 
-**Status (2026-11-02):** the plan/apply pipeline is finished and verified (P0a–P7, T0–T4). The only
-open item is the relocation-churn investigation; the oversized-household male-partner-first target is
-recorded in §4/§14 as an unimplemented proposal, not a rule. F6 stays accepted by design.
+**Status (2026-11-12):** the plan/apply pipeline is finished and verified (P0a–P7, T0–T4). The
+residence-capacity writer gate and the weekly housing invariant audit (including minor/manor
+coverage) are in place; relocation churn is bounded by the same-tick arrival budget rather than an
+open investigation. The oversized-household male-partner-first target and whole-family reshuffle are
+recorded in §4/§14 as unimplemented proposals, not rules. F6 stays accepted by design.
 
 This document describes the code as it stands after the 2026-10-25 consolidation. If the two disagree, the
 code is right and this file is a bug.

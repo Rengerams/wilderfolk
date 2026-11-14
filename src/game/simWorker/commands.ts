@@ -1,4 +1,3 @@
-import { resolveWarPrisoner } from '../warPrisoners';
 import { demolishBuildingInPlace, demolishStripBuildingsInPlace, toggleWallGate } from '../buildingMaintenanceActions';
 
 import type { WorldState, ForgeOrderId } from '../gameTypes';
@@ -66,7 +65,6 @@ export type WorkerCommand =
   | { proto: 1; op: 'recruitSettler' }
   | { proto: 1; op: 'tameEntity'; entityId: number; humanId: number }
   | { proto: 1; op: 'notifyBuildingLocked'; type: BuildingType }
-  | { proto: 1; op: 'resolveWarPrisoner'; entityId: number; choiceId: string }
   | { proto: 1; op: 'respondToRaidEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'respondToOutgoingRaidEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'resolveRaidVictory'; eventId: string; choiceId: string }
@@ -115,7 +113,7 @@ const WORKER_COMMAND_OPS = [
   'recruitSettler',
   'tameEntity',
   'notifyBuildingLocked',
-  'respondToRaidEvent', 'resolveWarPrisoner',
+  'respondToRaidEvent',
   'respondToOutgoingRaidEvent',
   'resolveRaidVictory',
   'respondToDiplomacyEvent',
@@ -190,8 +188,6 @@ function isStripSegment(value: unknown): boolean {
 /** Validate main → worker command shape before dispatch. */
 function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<string, unknown>): boolean {
   switch (cmd.op) {
-    case 'resolveWarPrisoner':
-      return isFiniteNumber(cmd.entityId) && ['keep', 'release', 'recruit', 'execute_confirmed'].includes(String(cmd.choiceId));
     case 'startBuilding':
       return (
         isBuildingType(cmd.type) &&
@@ -317,8 +313,6 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand, owners
   }
 
   switch (cmd.op) {
-    case 'resolveWarPrisoner':
-      return resolveWarPrisoner(world, cmd.entityId, cmd.choiceId);
     case 'startBuilding':
       return startBuilding(world, cmd.type, cmd.x, cmd.y, cmd.rotation ?? 0);
     case 'placeStripChain':

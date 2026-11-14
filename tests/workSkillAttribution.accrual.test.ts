@@ -1,6 +1,6 @@
 /**
- * Every profession learns the trade it works on one shift cadence: `skills.rewardBuildingWork` pays
- * `WORK_SKILL_PER_SHIFT` whether or not `addResource` accepted the output.
+ * Every profession learns the trade it works on one shift cadence: `skills.rewardProductionSkills`
+ * pays `WORK_SKILL_PER_SHIFT` whether or not `addResource` accepted the output.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -11,7 +11,7 @@ import type { Entity, WorldState } from '../src/game/gameTypes';
 import { PRODUCTION_INTERVAL, TICKS_PER_DAY, isProductionTick } from '../src/game/dayCycle';
 import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { isPlayerHuman } from '../src/game/playerHuman';
-import { readSkill, rewardBuildingWork, WORK_SKILL_BUILDING_TYPES, WORK_SKILL_PER_SHIFT } from '../src/game/skills';
+import { readSkill, rewardProductionSkills, WORK_SKILL_BUILDING_TYPES, WORK_SKILL_PER_SHIFT } from '../src/game/skills';
 import { getScheduleTargetHours } from '../src/game/scheduleFatigue';
 
 const FIXTURE_SEED = 20_261_009;
@@ -165,7 +165,7 @@ describe('a supplied crew index is authoritative for the shift credit', () => {
     const before = skillIn(state, worker.id, JobType.Lumberjack);
 
     // The worker exists in the world but not in the index: that is a stale crew slot.
-    rewardBuildingWork(state, site, 1, WORK_SKILL_PER_SHIFT, new Map());
+    rewardProductionSkills(state, site, WORK_SKILL_PER_SHIFT, new Map());
 
     expect(skillIn(state, worker.id, JobType.Lumberjack)).toBe(before);
   });
@@ -174,7 +174,7 @@ describe('a supplied crew index is authoritative for the shift credit', () => {
     const { state, worker } = staffedWorld(BuildingType.LumberMill, JobType.Lumberjack);
     const site = state.buildings.find((b) => b.id === SITE_ID)!;
 
-    rewardBuildingWork(state, site, 1, WORK_SKILL_PER_SHIFT, new Map([[worker.id, worker]]));
+    rewardProductionSkills(state, site, WORK_SKILL_PER_SHIFT, new Map([[worker.id, worker]]));
 
     expect(skillIn(state, worker.id, JobType.Lumberjack)).toBeCloseTo(WORK_SKILL_PER_SHIFT, 6);
   });

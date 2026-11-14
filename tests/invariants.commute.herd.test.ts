@@ -307,6 +307,8 @@ describe('autumn herd memory (S-15)', () => {
       tileType: () => TerrainType.River,
     });
     state.migrationNextHerdSize = 7;
+    // The run seed is the one authority for the arrival day.
+    setSimSeed(7);
     state.tick = migrationArrivalDay(7) * TICKS_PER_DAY;
     tickMigration(state, state.entities);
 

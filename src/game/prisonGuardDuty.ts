@@ -2,7 +2,6 @@
  * Prison guard duty, on two cadences: hourly presence sampling and a daily escape roll per hour nobody
  * stood on the post. An escape frees one prisoner early; the settler stays in the colony.
  */
-import { departWarPrisoner } from './warPrisonerCustody';
 import { restoreWorkerRosterAfterCustody } from './workforce';
 import type { Entity, WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
@@ -32,7 +31,7 @@ const RNG_OWNER = 'prison-guard-duty';
 function heldPrisoners(state: WorldState, prisonId: number): Entity[] {
   const out: Entity[] = [];
   for (const e of state.entities) {
-    if (e.alive && e.prisonBuildingId === prisonId && (isPlayerHuman(e) || e.warCaptive != null)) out.push(e);
+    if (e.alive && e.prisonBuildingId === prisonId && isPlayerHuman(e)) out.push(e);
   }
   return out;
 }
@@ -151,7 +150,6 @@ export function tickPrisonGuardDuty(state: WorldState): void {
       const escapee = randomChoice(rng, pool);
       if (!escapee) break;
       pool.splice(pool.indexOf(escapee), 1);
-      if (escapee.warCaptive) departWarPrisoner(state, escapee, 'escaped');
       escapee.prisonBuildingId = undefined;
       escapee.prisonerUntilTick = undefined;
       escapee.prisonSentenceCrime = undefined;

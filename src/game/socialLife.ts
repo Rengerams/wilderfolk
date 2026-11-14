@@ -1,4 +1,4 @@
-import { personDayRoll } from './simRng';
+import { PERSON_DAY_ROLL_SALTS, personDayRoll, personPairDayRoll } from './simRng';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, WeatherType } from './gameTypes';
 import { isMarriedOrExpecting } from './relationships';
@@ -22,9 +22,6 @@ import { SOCIAL_STAGGER } from './adaptiveSpatialQuery';
 
 /** Ordinary banter chance before the company activity's bounded modifier. */
 const BANTER_BASE_CHANCE = 0.08;
-
-const WORKPLACE_SCENE_KEYS = ['workplace.banter', 'workplace.banter.solo'] as const;
-const GREETING_SCENE_KEYS = ['neighbor.greeting'] as const;
 
 /** The one per-person social cadence bucket every ambient scan and social scene gate reads. */
 export function isSocialStaggerTick(entity: Pick<Entity, 'id'>, tick: number): boolean {
@@ -383,7 +380,7 @@ export function pickSocialImpulse(
       h.alive &&
       h.prisonBuildingId == null &&
       h.energy < h.maxEnergy * SOCIAL_IMPULSE_CONFIG.WEARY_ENERGY_RATIO &&
-      personDayRoll(entity.id, tick, 715 + Math.abs(h.id)) < 0.5,
+      personPairDayRoll(entity.id, h.id, tick, PERSON_DAY_ROLL_SALTS.socialWearyComfort) < 0.5,
   );
   if (weary && personDayRoll(entity.id, tick, 716) < 0.22) {
     return {
@@ -429,14 +426,14 @@ export function tryWorkplaceBanter(
   if (!entity.alive || !onDayShift) return;
   if (!Number.isFinite(hour) || hour < 11 || hour > 13) return;
   if (isDialogueBusy(entity)) return;
-  if (hasDialogueSceneOnDay(entity, tick, WORKPLACE_SCENE_KEYS)) return;
+  if (hasDialogueSceneOnDay(entity, tick)) return;
 
   const banterChance = Math.min(1, BANTER_BASE_CHANCE * evaluateAptitudeInfluence(entity, 'company').factor);
   if (personDayRoll(entity.id, tick, 720) > banterChance) return;
 
   const mate = coworkers.find((c) =>
     c.id !== entity.id && c.alive && !isDialogueBusy(c)
-    && !hasDialogueSceneOnDay(c, tick, WORKPLACE_SCENE_KEYS));
+    && !hasDialogueSceneOnDay(c, tick));
   if (!mate) {
     requestDialogue({
       eventKey: 'workplace.banter.solo', speaker: entity, tick,
@@ -467,9 +464,9 @@ export function tryNeighborGreeting(
   if (!entity.alive || !other || !other.alive || other.id === entity.id) return;
   if (!isGreetingHour(hour)) return;
   if (isDialogueBusy(entity) || isDialogueBusy(other)) return;
-  if (hasDialogueSceneOnDay(entity, tick, GREETING_SCENE_KEYS)
-    || hasDialogueSceneOnDay(other, tick, GREETING_SCENE_KEYS)) return;
-  if (personDayRoll(entity.id, tick, 724 + Math.abs(other.id)) > 0.12) return;
+  if (hasDialogueSceneOnDay(entity, tick)
+    || hasDialogueSceneOnDay(other, tick)) return;
+  if (personPairDayRoll(entity.id, other.id, tick, PERSON_DAY_ROLL_SALTS.socialGreeting) > 0.12) return;
 
   const dx = entity.x - other.x;
   const dy = entity.y - other.y;

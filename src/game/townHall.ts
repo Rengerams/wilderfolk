@@ -83,11 +83,13 @@ export function tickTownHallCivic(
   state: WorldState,
   building: Building,
   _playerHumans: Entity[],
+  /** The officials who attended this shift; absent roster members earn no civic XP. */
+  workedIds?: ReadonlySet<number>,
 ): void {
   const officials = building.occupants.length;
   addReputation(state, 3 + Math.max(0, officials - 1));
 
-  rewardProductionSkills(state, building, 0.25);
+  rewardProductionSkills(state, building, 0.25, undefined, workedIds);
 }
 
 export function canHostTownFestival(
@@ -214,6 +216,9 @@ export function resolveCivicPetition(
   if (!openHours && !leaderHere) return { kind: 'none' };
 
   for (const id of hall.occupants) {
+    const official = state.entities.find((entity) => entity.id === id);
+    // Only an official standing at the hall did the civic work; the roster alone is not attendance.
+    if (!official || !isAtHall(official, hall)) continue;
     gainSkill(state, id, JobType.Official, 0.06);
   }
 

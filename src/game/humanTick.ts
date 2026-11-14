@@ -9,6 +9,7 @@ import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import { getChurchStrength, findHumanWorkplace, buildConstructionCrewIndex } from './workforce';
 
 import { isPlayerHuman } from './playerHuman';
+import { deterministicCos, deterministicSin } from './simTrig';
 import { isSettlerRelationshipEntity } from './moonHowlerForm';
 import { buildCeremonySeatIndex, getElectionGatherTarget, isCeremonyAttendee } from './villageLeadership';
 import { getSpotlightGatherTarget } from './spotlightLore';
@@ -831,11 +832,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Imprisoned foreigners do not work or roam: no fictional metabolism/exhaustion.
-    if (entity.warCaptive && !isPlayerHuman(entity)) {
-      tryEatColonyMeal(entity, state, hourOfDay);
-    }
-
     if (isPrisoner) {
       entity.vx = 0;
       entity.vy = 0;
@@ -1127,8 +1123,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         steerHumanToward(entity, stand.x, stand.y, config.speed, 0.72,
           `festival_${entity.id}`);
       } else {
-        entity.vx = Math.sin(state.tick * 0.04 + entity.id) * config.speed * 0.12;
-        entity.vy = Math.cos(state.tick * 0.035 + entity.id) * config.speed * 0.12;
+        entity.vx = deterministicSin(state.tick * 0.04 + entity.id) * config.speed * 0.12;
+        entity.vy = deterministicCos(state.tick * 0.035 + entity.id) * config.speed * 0.12;
         settlerChat(entity, 'social', 0.12 * PER_TICK_RATE_SCALE);
       }
       suppressIdle = true;
@@ -1172,8 +1168,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         detectRaidersForPatrol(state, entity, patrolRevealIndex);
         const radius = 95 + (entity.id % 6) * 10;
         const angle = state.tick * 0.028 * PER_TICK_RATE_SCALE + entity.id * 2.1;
-        const tx = anchor.x + Math.cos(angle) * radius;
-        const ty = anchor.y + Math.sin(angle) * radius * 0.55;
+        const tx = anchor.x + deterministicCos(angle) * radius;
+        const ty = anchor.y + deterministicSin(angle) * radius * 0.55;
         steerHumanToward(entity,
           (Math.floor(tx / PATH_CELL) + 0.5) * PATH_CELL,
           (Math.floor(ty / PATH_CELL) + 0.5) * PATH_CELL,

@@ -120,14 +120,15 @@ The raid overhaul is an implemented **aggregate simulation**, not a tactical bat
 - [ ] Additional off-duty/leisure choices, fidelity and parenting behaviours, life-event reactions and personal-memory features beyond the current activity portfolio need their own future implementation and tests.
 - [ ] Acquired career experience continues to combine with aptitudes without permanently locking professions.
 
-## 12. Raid prisoners — implemented
+## 12. Raid prisoners — removed
 
-- [x] **12.1 Taking captives:** only identifiable eligible adult enemy combatants; capture depends on real survivors, escort availability and prison capacity.
-- [x] **12.2 Prisoner decisions:** keep imprisoned, release, offer voluntary recruitment or execute after confirmation. Recruitment may be refused and has a cooldown.
-- [x] **12.3 Community consequences:** situational reactions to prisoner treatment; enemy casualties and executions never create player graves.
-- [x] **12.4 Valley consequences:** persistent trust, fear, grievance and relationship changes, witnessed in context.
-- [x] **12.5 Prisoner interaction:** separate prisoner-of-war interface, identity, custody, availability and confirmation for execution.
-- [x] **12.6 Simulation integration:** guards, food, cell capacity, custody outcomes, safe departures, citizenship on recruitment and save/load state reuse existing game systems.
+- [x] **12.1 Enemy captivity removed:** the enemy war-captive subsystem (`captureRaidPrisoners`, POW
+  decisions, custody records and their save fields) was deleted because capture was unreachable: no
+  rival-faction humans are ever spawned. Abstract off-map losses still never invent prisoners or names.
+- [x] **12.2 Player imprisonment retained:** jailing for scandals, prison guards, sentences, escapes and
+  release continue through the existing player prison owner.
+- [x] **12.3 Civic consequences retained:** mercy, tribute and razing still drive situational community
+  reactions through `raidAftermath.applyWarCommunityReaction`; no execution/release choice exists.
 
 ## 13. Roads, walls and towers — implemented core
 
@@ -197,7 +198,7 @@ This roadmap records **feature availability only**. Specifications and implement
 | Area | Merged and accepted PRs | Added/changed behavior in current code | Primary references |
 | --- | --- | --- | --- |
 | Housing and families | [#40](https://github.com/Rengerams/wilderfolk/pull/40), [#56](https://github.com/Rengerams/wilderfolk/pull/56) | Ordered housing ledger and phase pipeline; protected prisoner beds; 20-bed leader home and one linked annex; adult-child independence, deterministic divorce custody and distance-aware family relocation | [Housing architecture](docs/HOUSING_ARCHITECTURE.md), `residencyReconciliation.ts`, `leaderHouseExpansion.ts` |
-| Raids, strategic rivals, prisoners | [#58](https://github.com/Rengerams/wilderfolk/pull/58) | Up to six strategic-only rivals, six-hour incoming/outgoing battles, durable casualties, victory choice/mercy/tribute/razing, settlement recovery/destruction, captive outcomes, diplomatic memory and bounded leadership merit | `frontierCombat.ts`, `raidAftermath.ts`, `rivalSettlements.ts`, `warPrisoners.ts` |
+| Raids, strategic rivals | [#58](https://github.com/Rengerams/wilderfolk/pull/58) | Up to six strategic-only rivals, six-hour incoming/outgoing battles, durable casualties, victory choice/mercy/tribute/razing, settlement recovery/destruction, diplomatic memory and bounded leadership merit | `frontierCombat.ts`, `raidAftermath.ts`, `rivalSettlements.ts` |
 | Illustrated strategic world map | [#84](https://github.com/Rengerams/wilderfolk/pull/84) | Illustrated New Frontier background, stable rival marker projection, interactive rival selection and visible marching routes | `src/components/StrategicWorldMap.tsx`, `src/game/strategicMapProjection.ts` |
 | Roads, walls, gates and navigation | [#59](https://github.com/Rengerams/wilderfolk/pull/59), [#65](https://github.com/Rengerams/wilderfolk/pull/65), [#66](https://github.com/Rengerams/wilderfolk/pull/66) | Drag road/wall build and demolition, geometry-aware joins and building-entrance snapping, gate open/close and collision, A* road-cost preference and speed only on real road surfaces; corrected previews and legacy save tests | [Brief](docs/plans/roads-walls-navigation-overhaul.md), [Architecture](docs/ROADS_WALLS_NAVIGATION_ARCHITECTURE.md), `stripTopology.ts`, `pathfinding.ts` |
 | Existing Watchtowers — passive simulation | Existing `BuildingType.Watchtower` system | Buildable and Virtual Player-buildable; +15 passive barricade strength each or +27 with forged Tower Ballistae; early warning at 260 world units; no active firing or real-time combat | `src/game/defenseStructures.ts`, `src/game/watchtowerDetection.ts`, `src/game/virtualPlayer.ts` |

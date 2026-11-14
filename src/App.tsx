@@ -35,6 +35,7 @@ import { getStoryChoiceEligibility } from './game/storyEvents';
 import { getVillageRequestEligibility } from './game/groupEvents';
 import { getDiplomacyChoiceEligibility } from './game/rivalDiplomacy';
 import type { WorldState } from './game/gameEngine';
+import { PLAYABLE_SPEEDS } from './game/gameConstants';
 
 import type { EntityCatalog } from './game/entityCatalog';
 import { formatCitizenName } from './game/citizenId';
@@ -143,7 +144,7 @@ import TutorialCampaignBanner from './components/TutorialCampaignBanner';
 import MomentTitleCard from './components/MomentTitleCard';
 import { currentCampaignStep, TUTORIAL_CAMPAIGN } from './game/tutorialCampaign';
 
-const SPEED_OPTIONS = [0.5, 1, 2, 3, 5, 10];
+const SPEED_OPTIONS: readonly number[] = PLAYABLE_SPEEDS;
 
 /** The Spotlight stage fills the frame: close enough to read the girl and her ring, never clipped. */
 const SPOTLIGHT_STAGE_ZOOM = 2.5;
@@ -708,10 +709,10 @@ export default function App() {
     });
   }, [loopRef.current]);
 
-  const focusCampOnMap = useCallback((kind: 'rival' | 'visitor', id: string, x: number, y: number) => {
+  const focusCampOnMap = useCallback((id: string, x: number, y: number) => {
     const loop = loopRef.current;
     if (!loop) return;
-    const campKey = `${kind}:${id}`;
+    const campKey = `visitor:${id}`;
     const nextView = focusCameraOn(loop.getView(), x, y, 1.5);
     loop.patchView({
       ...nextView,
@@ -719,10 +720,16 @@ export default function App() {
       selectedEntityIds: [],
       selectedBuildingId: null,
       highlightedCampKey: campKey,
-      selectedCampKey: kind === 'visitor' ? campKey : null,
+      selectedCampKey: campKey,
     });
     setInspectorCollapsed(false);
   }, [setInspectorCollapsed, loopRef]);
+
+  /** Rival settlements are strategic records: focus opens the strategic map, never the colony camera. */
+  const focusRivalOnStrategicMap = useCallback(() => {
+    openTab('frontier');
+    setInspectorCollapsed(false);
+  }, [openTab, setInspectorCollapsed]);
 
   const focusBuildingOnMap = useCallback((buildingId: number, x: number, y: number) => {
     const loop = loopRef.current;
@@ -868,14 +875,14 @@ export default function App() {
       case 'focus_visitor':
         if (action.visitorId != null && action.visitorX != null && action.visitorY != null) {
           openTab('frontier');
-          focusCampOnMap('visitor', action.visitorId, action.visitorX, action.visitorY);
+          focusCampOnMap(action.visitorId, action.visitorX, action.visitorY);
           setInspectorCollapsed(false);
         }
         break;
       case 'focus_rival':
         if (action.rivalId != null && action.rivalX != null && action.rivalY != null) {
           openTab('frontier');
-          focusCampOnMap('rival', action.rivalId, action.rivalX, action.rivalY);
+          focusRivalOnStrategicMap();
           setInspectorCollapsed(false);
         }
         break;
@@ -890,7 +897,7 @@ export default function App() {
         setBuildPanelOpen(true);
         break;
     }
-  }, [selectBuildingType, focusCampOnMap, focusBuildingOnMap, openTab, setProgressSubTab, setInspectorCollapsed, setBuildPanelOpen]);
+  }, [selectBuildingType, focusCampOnMap, focusRivalOnStrategicMap, focusBuildingOnMap, openTab, setProgressSubTab, setInspectorCollapsed, setBuildPanelOpen]);
 
   const handlePriorityAlert = useCallback((alert: PriorityAlert) => {
     playClickSound();
@@ -906,19 +913,19 @@ export default function App() {
         break;
       case 'focus_rival':
         openTab('frontier');
-        focusCampOnMap('rival', action.rivalId, action.x, action.y);
+        focusRivalOnStrategicMap();
         setInspectorCollapsed(false);
         break;
       case 'focus_visitor':
         openTab('frontier');
-        focusCampOnMap('visitor', action.groupId, action.x, action.y);
+        focusCampOnMap(action.groupId, action.x, action.y);
         setInspectorCollapsed(false);
         break;
       case 'focus_building':
         focusBuildingOnMap(action.buildingId, action.x, action.y);
         break;
     }
-  }, [selectBuildingType, focusCampOnMap, focusBuildingOnMap, openTab, setProgressSubTab, setInspectorCollapsed, setBuildPanelOpen]);
+  }, [selectBuildingType, focusCampOnMap, focusRivalOnStrategicMap, focusBuildingOnMap, openTab, setProgressSubTab, setInspectorCollapsed, setBuildPanelOpen]);
 
   const getViewCamera = useCallback(() => {
     return loopRef.current?.getView().camera ?? viewRef.current.camera;
@@ -1770,7 +1777,7 @@ export default function App() {
                         type="button"
                         onClick={() => {
                           const rival = world.rivalSettlements.find((r) => r.id === evt.rivalId);
-                          if (rival) focusCampOnMap('rival', rival.id, rival.campX, rival.campY);
+                          if (rival) focusRivalOnStrategicMap();
                         }}
                         className="mt-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300"
                       >
@@ -1862,7 +1869,7 @@ export default function App() {
                         world={world}
                         rivalId={evt.rivalId}
                         label="Watch war-band on map"
-                        onFocus={(rival) => focusCampOnMap('rival', rival.id, rival.campX, rival.campY)}
+                        onFocus={() => focusRivalOnStrategicMap()}
                       />
                     </div>
                   </div>
@@ -1948,7 +1955,7 @@ export default function App() {
                         world={world}
                         rivalId={evt.rivalId}
                         label="Show camp on map"
-                        onFocus={(rival) => focusCampOnMap('rival', rival.id, rival.campX, rival.campY)}
+                        onFocus={() => focusRivalOnStrategicMap()}
                       />
                     </div>
                   </div>
@@ -2122,7 +2129,7 @@ export default function App() {
                   playClickSound();
                   applyGameAction({ proto: 1, op: 'negotiateRefugees', groupId: selectedVisitorCamp.id, choice });
                 }}
-                onFocusCamp={() => focusCampOnMap('visitor', selectedVisitorCamp.id, selectedVisitorCamp.campX, selectedVisitorCamp.campY)}
+                onFocusCamp={() => focusCampOnMap(selectedVisitorCamp.id, selectedVisitorCamp.campX, selectedVisitorCamp.campY)}
               />
             ) : selectedEntity ? (
               <>
@@ -2144,7 +2151,7 @@ export default function App() {
                     const entityId = selectedEntity.id;
                     applyGameAction({ proto: 1, op: 'tameEntity', entityId, humanId });
                   }}
-                  onOpenVisitorCamp={(group) => focusCampOnMap('visitor', group.id, group.campX, group.campY)}
+                  onOpenVisitorCamp={(group) => focusCampOnMap(group.id, group.campX, group.campY)}
                   onOpenFamilyTree={() => {
                     playClickSound();
                     setFamilyTreeFor(selectedEntity.id);
@@ -2207,11 +2214,6 @@ export default function App() {
                   applyGameAction(cmd);
                 }}
                 canAssignWorker={canAssignWorkerToBuilding(world, selectedBuilding.id)}
-                onDiplomacyAction={(cmd) => {
-                  playClickSound();
-                  applyGameAction(cmd);
-                }}
-                onFocusCamp={(rival) => focusCampOnMap('rival', rival.id, rival.campX, rival.campY)}
               />
               </>
             ) : null}
@@ -2224,7 +2226,6 @@ export default function App() {
         <GameOverlays>
           <WarfareStatus world={world}
             onRepair={(buildingId) => applyGameAction({ proto: 1, op: 'repairBuilding', buildingId })}
-            onPrisonerDecision={(entityId, choiceId) => applyGameAction({ proto: 1, op: 'resolveWarPrisoner', entityId, choiceId })}
             onExport={() => { void persistCurrentGame({ chronicle: false, feedback: true }); }}
             onChronicle={() => { downloadChronicleLog(world.eventLog, { villageName: world.villageName, year: world.year, day: world.dayInYear, tick: world.tick, population: world.humanPopulation }); }}
             onNewVillage={startNewGame} onMainMenu={leaveColony} />
@@ -2339,8 +2340,8 @@ export default function App() {
             playClickSound();
             setWorkHoursOpen(true);
           }}
-          onFocusVisitor={(id, x, y) => focusCampOnMap('visitor', id, x, y)}
-          onFocusRival={(id, x, y) => focusCampOnMap('rival', id, x, y)}
+          onFocusVisitor={(id, x, y) => focusCampOnMap(id, x, y)}
+          onFocusRival={() => focusRivalOnStrategicMap()}
           onLaunchRaid={(rivalId) => {
             playClickSound();
             applyGameAction({ proto: 1, op: 'launchRaidOnRival', rivalId });

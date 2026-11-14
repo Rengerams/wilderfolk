@@ -42,6 +42,7 @@ const REQUIRED_DECISIONS = [
   'construction',
   'production',
   'humanWalk',
+  'dailyRelationships',
   'yearlyWorldEvents',
   'grassRegrowth',
   'foodLedger',
@@ -64,7 +65,6 @@ const REQUIRED_DECISIONS = [
   'leadership',
   'raidCombat',
   'raidRecovery',
-  'raidCaptivity',
   'raidTerminalPresentation',
   'crashRecovery',
   'valleyChronicle',
@@ -119,6 +119,18 @@ describe('simulation decision registry', () => {
     expect(overview).toContain('src/game/inputGuards.ts');
     expect(overview).toContain('isFiniteNumber');
     expect(overview).toContain('isBuildingType');
+  });
+
+  it('registers the 06:00 social pass as its own daily decision', () => {
+    const daily = SIMULATION_DECISIONS.dailyRelationships;
+    expect(daily.owner).toContain('advanceSocialRelationships');
+    expect(daily.owner).toContain('advanceYouthLove');
+    expect(daily.owner).toContain('reconcileCourtships');
+    expect(daily.owner).toContain('advanceApprenticeships');
+    expect(daily.cadence).toBe('daily');
+    expect(daily.scheduledFrom).toContain('DAILY_PHASE_HOURS.relationships');
+    expect(daily.writes).toContain('human.friendships');
+    expect(daily.writes).toContain('human.courtshipCooldownDays');
   });
 
   it('contains exactly the required decision keys', () => {
@@ -212,7 +224,6 @@ describe('simulation decision registry', () => {
     expect(isPropertyWritePermitted('production', 'building.occupants')).toBe(false);
     expect(isPropertyWritePermitted('raidCombat', 'raidBattleReports')).toBe(true);
     expect(isPropertyWritePermitted('raidRecovery', 'raidRecovery')).toBe(true);
-    expect(isPropertyWritePermitted('raidCaptivity', 'raidPrisonerHistory')).toBe(true);
     expect(isPropertyWritePermitted('valleyChronicle', 'chronicleChapters')).toBe(true);
     expect(isPropertyWritePermitted('terrainRiverSurface', 'worldMap.riverDist')).toBe(false);
     expect(isPropertyWritePermitted('dialogueContent', 'chatPhrase')).toBe(false);

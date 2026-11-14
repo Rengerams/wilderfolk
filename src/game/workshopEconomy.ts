@@ -69,7 +69,11 @@ export function estimateWorkshopGold(
   const levelMultiplier = Math.max(1, building.level || 1);
   const terrainMultiplier = getTerrainEfficiencyMultiplier(state, building);
   const adjacencyMultiplier = getAdjacencyMultiplierFromIndex(ensureAdjacencyIndex(state), building);
-  const skillMultiplier = actualWorkers > 0 ? getWorkerSkillMultiplier(state, building) : 1.0;
+  // Same rule as production: only the workers who attended this shift price the crew's skill.
+  const workedIds = new Set(attendingWorkers.map((entry) => entry.worker.id));
+  const skillMultiplier = actualWorkers > 0
+    ? getWorkerSkillMultiplier(state, building, undefined, 'production', workedIds)
+    : 1.0;
   const festivalMultiplier = state.festival?.active
     ? WORKSHOP_ECONOMY_CONFIG.FESTIVAL_OUTPUT_MULTIPLIER
     : 1.0;

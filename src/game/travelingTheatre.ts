@@ -245,6 +245,9 @@ export function tickTravelingTheatre(state: WorldState): void {
   if (storyFlag(state, FLAG_RESOLVED) > 0) return;
   if (storyFlag(state, FLAG_STATUS) !== STATUS.preparing) return;
   if (storyFlag(state, FLAG_STAGE3) > 0) return;
+  // Opening night only after the support decision (chosen or improvised on lapse): offering it beside
+  // a pending support card would let that card's lapse resolve a show that never opened.
+  if (storyFlag(state, FLAG_SUPPORT) <= 0) return;
   const colonyDay = getColonyDay(state);
   const performanceDay = storyFlag(state, FLAG_PERFORMANCE_DAY);
   if (performanceDay <= 0 || colonyDay < performanceDay) return;

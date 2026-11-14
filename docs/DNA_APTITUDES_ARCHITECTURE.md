@@ -111,8 +111,8 @@ No recurring genome roll exists. RNG draws happen only at founder creation, birt
 | `courtship` | 15% | — | `humanTick.tickHumans` | Courtship progress rate (pair average) |
 | `company` | 12% | — | `socialLife.tryWorkplaceBanter` | Coworker banter chance |
 | `bereavement` | 15% | — | `humanLifecycleCleanup.finalizeHumanDeath` | Grief recovery speed (day divisor) |
-| `communityReaction` | 15% | — | `warPrisoners.applyWarCommunityReaction` | Civic restraint / severity voice band |
-| `conception` | 10% | — | `humanRelationships.tryDailyConception` | Married/youth conception chance — no aptitude weights |
+| `communityReaction` | 15% | — | `raidAftermath.applyWarCommunityReaction` | Civic restraint / severity voice band |
+| `conception` | 10% | — | `humanRelationships.tryDailyConception` | Married/youth/affair conception chance — no aptitude weights; the activity`s mark factor applies on all three routes |
 
 `APTITUDE_ACTIVITY_OWNERS` names the one source file each activity is wired through; the coverage test reads those files and fails if an activity id disappears from its owner.
 
@@ -219,7 +219,7 @@ Every new production function has one owning module in [OWNERSHIP_OVERVIEW.md](.
 
 | Module | Public entry points | Internal helpers (same owner only) |
 | --- | --- | --- |
-| `settlerTraits.ts` | `rollFounderGenome`, `inheritGenome`, `genomeFromSeed`, `normalizeGenome`, `expressAptitudes`, `aptitudeMean`, `genomeOf` | `clampAllele`, `meanOfPair`, `drawGenome`, `ensureSpread`, `buildGenome`, `mutated` |
+| `settlerTraits.ts` | `rollFounderGenome`, `inheritGenome`, `genomeFromSeed`, `establishCitizenIdentity`, `normalizeGenome`, `expressAptitudes`, `aptitudeMean`, `genomeOf` | `clampAllele`, `meanOfPair`, `drawGenome`, `ensureSpread`, `buildGenome`, `mutated` |
 | `personality/activityAptitudes.ts` | data: `APTITUDE_ACTIVITIES`, `APTITUDE_ACTIVITY_IDS`, `APTITUDE_ACTIVITY_OWNERS` | — |
 | `personalMarks.ts` | `rollBornMarks`, `grantMark`, `normalizeMarks`, `marksOf`, `hasMark`, `isPersonalMarkId`, `awardRaidSurvivalMark`, `awardRareWindfallMark`, data: `PERSONAL_MARK_IDS`, `PERSONAL_MARK_DEFS` | — |
 | `personality/traitEvaluation.ts` | `evaluateAptitudeInfluence`, `combinePairFactors`, `evaluateAllAptitudeActivities` | `relativeOf`, `markScoreOf`, `directionOf` |

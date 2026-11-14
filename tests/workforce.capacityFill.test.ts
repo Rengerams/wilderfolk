@@ -34,6 +34,7 @@ describe('automatic staffing — capacity fill', () => {
 
     rebalanceJobWorkers(workers, [market, workshop]);
 
+    // One hand ahead is not a surplus: taking it would only recreate the same imbalance reversed.
     expect(countWorkersAtBuilding(workers, 11)).toBe(1);
     expect(countWorkersAtBuilding(workers, 10)).toBe(2);
   });

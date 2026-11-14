@@ -32,6 +32,7 @@ import { migrateLegacyMoonHowler, syncMoonHowlerForms } from './moonHowler';
 import { reconcileFamilyReferencesAfterRemoval } from './humanLifecycleCleanup';
 import { isForeignFaction, isPlayerHuman } from './playerHuman';
 import { clampCloseFriendships } from './relationships';
+import { PLAYABLE_SPEEDS } from './gameConstants';
 import { GAME_VERSION } from './version';
 import { ensureEntitySkills } from './skills';
 import { TICKED_SPECIES } from './entityFactory';
@@ -55,10 +56,11 @@ import {
   getIncomingRaidExpireTicks,
 } from './frontierCombat';
 import { computeWildlifeCounts } from './entityCounts';
-import { BASE_IRON_STORAGE, computeStorageMax, ensureFullTradeRoutes } from './economy';
+import { BASE_IRON_STORAGE, computeStorageMax, ensureFullTradeRoutes, updateStorageCaps } from './economy';
 import { enrichTradeRoute, scheduleTradeRouteDeparture } from './tradeCaravans';
 import { clearAllFactionWanderStates } from './factionWander';
 import { rebuildBeautyGridFromWorld } from './beautyGrid';
+import { ScentGrid, isScentGridRuntime } from './scentGrid';
 import { validateVillageLeaderOnLoad } from './villageLeadership';
 import { normalizeSpotlightLoreOnLoad } from './spotlightLore';
 import { syncGenealogyRegistry } from './genealogyRegistry';
@@ -306,6 +308,9 @@ export function buildSaveData(world: WorldState, view: ViewState): Record<string
   const persistable = stripRuntimeWorldFields(world);
   return {
     ...mergeForSave(persistable, view),
+    // Shipped beside the world rather than inside the runtime-key allow-list: it is rebuilt into a
+    // `ScentGrid` on load, so the JSON carries a plain cell array, never a live typed array.
+    scentGrid: serializeScentGridForSave(world.scentGrid),
     simRng: worldSimRngSnapshot(world),
     worldMap: compactWorldMapForSave(persistable.worldMap),
     _savedAt: Date.now(),
@@ -593,6 +598,49 @@ function terrainHasWaterAt(map: NonNullable<WorldState['worldMap']>, worldX: num
   return !!tile && !isWalkableTerrainType(tile.type);
 }
 
+/**
+ * The predator-scent sidecar, as JSON. A short-lived derived field, but reloading with an empty field
+ * lets prey stand beside a wolf until it is re-scented; the grid is only a few hundred cells.
+ */
+function serializeScentGridForSave(
+  grid: WorldState['scentGrid'],
+): { cols: number; rows: number; cellSize: number; values: number[] } | undefined {
+  if (!isScentGridRuntime(grid)) return undefined;
+  return {
+    cols: grid.cols,
+    rows: grid.rows,
+    cellSize: grid.cellSize,
+    values: Array.from(grid.values),
+  };
+}
+
+/** The highest cell count a restored sidecar may allocate; a Huge map needs a few hundred. */
+const MAX_SCENT_CELLS = 65_536;
+
+/**
+ * A saved sidecar is read only when it matches the map's own cell layout and carries finite values.
+ * A malformed one is dropped like the other derived caches, never refused as a save.
+ */
+function restoreScentGridFromSave(
+  saved: unknown,
+  width: number,
+  height: number,
+): ScentGrid | undefined {
+  if (!isSaveObject(saved)) return undefined;
+  const { cols, rows, cellSize, values } = saved as Record<string, unknown>;
+  if (!isFiniteNumber(cellSize) || cellSize <= 0 || cellSize > 512) return undefined;
+  if (!isFiniteNumber(cols) || !isFiniteNumber(rows)) return undefined;
+  const expectedCols = Math.max(1, Math.ceil(width / cellSize));
+  const expectedRows = Math.max(1, Math.ceil(height / cellSize));
+  if (cols !== expectedCols || rows !== expectedRows) return undefined;
+  if (expectedCols * expectedRows > MAX_SCENT_CELLS) return undefined;
+  if (!Array.isArray(values) || values.length !== expectedCols * expectedRows) return undefined;
+  if (!values.every((value) => isFiniteNumber(value) && value >= 0 && value <= 255)) return undefined;
+  const grid = new ScentGrid(width, height, cellSize);
+  grid.values.set(values as number[]);
+  return grid;
+}
+
 /** Strip per-tick runtime indexes before persistence (not in WORLD_STATE_SAVE_KEYS). */
 function stripRuntimeWorldFields(world: WorldState): WorldState {
   const {
@@ -722,10 +770,6 @@ function migrateTickTimeline(
     if (entity.needs) {
       for (const key of NEEDS_TICK_FIELDS) scaleTickField(entity.needs, key, scale);
     }
-    if (entity.warCaptive) {
-      scaleTickField(entity.warCaptive, 'capturedAtTick', scale);
-      scaleTickField(entity.warCaptive, 'recruitAfterTick', scale);
-    }
     scaleTickRecord(entity.battleLeadershipAwards, scale);
     scaleTickRecord(entity.pastPartnerTicks, scale);
     scaleTickRecord(entity.dialogueRecentLines, scale);
@@ -772,7 +816,6 @@ function migrateTickTimeline(
     scaleTickField(world.raidRecovery, 'protectedUntilTick', scale);
   }
   for (const report of world.raidBattleReports ?? []) scaleTickField(report, 'resolvedAtTick', scale);
-  for (const record of world.raidPrisonerHistory ?? []) scaleTickField(record, 'tick', scale);
   for (const rival of world.rivalSettlements ?? []) scaleTickField(rival, 'lastDispositionRewardTick', scale);
   for (const evt of world.pendingDiplomacyEvents ?? []) {
     scaleTickField(evt, 'createdAtTick', scale);
@@ -1089,7 +1132,6 @@ const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>>
   ]),
   graveRecords: containerArrayRule(isAnyArray, [{ field: 'name', isValid: isStringId }]),
   scoredRaidIds: containerArrayRule(isAnyArray, null),
-  raidPrisonerHistory: containerArrayRule(isAnyArray, [{ field: 'entityId', isValid: isPersistedId }]),
   tutorialSeen: containerArrayRule(isAnyArray, null),
   eventsThisYear: containerArrayRule(isAnyArray, null),
   appliedSaveMigrations: containerArrayRule(isAnyArray, null),
@@ -1125,17 +1167,6 @@ function findInvalidWarfareState(parsed: Record<string, unknown>): string | null
   }
   if (parsed.scoredRaidIds !== undefined && (!Array.isArray(parsed.scoredRaidIds)
     || !parsed.scoredRaidIds.every(isStringId))) return 'scoredRaidIds';
-  if (Array.isArray(parsed.entities)) {
-    for (const person of parsed.entities) {
-      if (!isSaveObject(person) || person.warCaptive === undefined) continue;
-      const captive = person.warCaptive;
-      if (!isSaveObject(captive) || !isStringId(captive.raidId) || !isStringId(captive.originRivalId)
-        || !isFiniteNumber(captive.capturedAtTick) || !isFiniteNumber(captive.recruitAfterTick)
-        || !isFiniteNumber(captive.attempts)
-        || (captive.lastRationDay !== undefined && (typeof captive.lastRationDay !== 'number'
-          || !Number.isSafeInteger(captive.lastRationDay) || captive.lastRationDay < 0))) return 'entities.warCaptive';
-    }
-  }
   return null;
 }
 
@@ -1217,7 +1248,7 @@ function buildingFieldRules(width: number, height: number): readonly ElementFiel
  * The speed ladder the loop is driven at. `App.SPEED_OPTIONS` renders these values; anything else —
  * `0`, a negative or `NaN` — pins `1000 / speed` so the colony never ticks again.
  */
-const PLAYABLE_SPEEDS: ReadonlySet<unknown> = new Set([0.5, 1, 2, 3, 5, 10]);
+const PLAYABLE_SPEED_VALUES: ReadonlySet<unknown> = new Set(PLAYABLE_SPEEDS);
 
 /**
  * The world's top-level scalars, each with the rule a present value must satisfy. `tick` and
@@ -1227,7 +1258,7 @@ function worldScalarRules(): readonly ElementFieldRule[] {
   return [
     { field: 'tick', isValid: isSafeIntegerWithin(MAX_USABLE_TICK) },
     // Absence keeps `initGame`'s 1× default; a present speed must be one the loop can run.
-    { field: 'speed', isValid: isMemberOf(PLAYABLE_SPEEDS) },
+    { field: 'speed', isValid: isMemberOf(PLAYABLE_SPEED_VALUES) },
     { field: 'lastProcessedCalendarDay', isValid: isSafeIntegerWithin(MAX_USABLE_CALENDAR_DAY) },
     // The two axes are bounded separately, from the largest map the game offers: a pair where one axis
     // exceeds its own maximum is refused by name instead of allocating a surface no map has.
@@ -1473,7 +1504,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       // A save written before `storageMax` existed falls back to the owner's cap rule
       // (`computeStorageMax`) rather than a copy; a save that carries its own numbers keeps them.
       storageMax: worldData.storageMax || computeStorageMax(worldData.buildings ?? []),
-      foodSpoilageRate: worldData.foodSpoilageRate ?? 0.03,
+      // A payload that predates the rate takes it from the same owner after its buildings are read.
+      foodSpoilageRate: worldData.foodSpoilageRate ?? 0,
       eventLog: worldData.eventLog || [],
       worldMap: restoreWorldMapFromSave(source),
       ecoHealthYearsAbove80: worldData.ecoHealthYearsAbove80 ?? 0,
@@ -1501,7 +1533,6 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       graveRecords: worldData.graveRecords,
       raidRecovery: worldData.raidRecovery,
       scoredRaidIds: worldData.scoredRaidIds,
-      raidPrisonerHistory: worldData.raidPrisonerHistory,
       entities: (worldData.entities || []).map((saved: Partial<Entity> & { traits?: unknown }) => {
         // Required fields (`vx`, `vy`, `alive`, `flash`, `birthYear`, `birthMonth`, `birthDay`) are
         // repaired for every element here; `...e` still wins over every default the payload carries.
@@ -1617,6 +1648,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         ? { ...b, workshopRecipeId: DEFAULT_WORKSHOP_RECIPE_ID }
         : b,
     );
+    // A payload written before the spoilage field existed takes its rate from the one economy owner.
+    if (worldData.foodSpoilageRate == null) updateStorageCaps(world);
     const applySaveMigration = (id: string, message: string) => {
       if (!world.appliedSaveMigrations) world.appliedSaveMigrations = [];
       if (world.appliedSaveMigrations.includes(id)) return;
@@ -1728,6 +1761,9 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     // `beautyGrid` is a runtime cache, rebuilt here because the daily layer is the only other rebuilder
     // and a loaded colony must not spend a day with no beauty field. `villageHappiness` stays as saved.
     rebuildBeautyGridFromWorld(world);
+    // The predator-scent field cannot be re-derived from positions (it is a decaying trail), so a
+    // save carries it; a legacy or malformed sidecar simply starts cold.
+    world.scentGrid = restoreScentGridFromSave(parsed.scentGrid, world.width, world.height);
     const view = createViewFromSave(parsed, world);
     // The restored map, not the previous session's navigation grid, decides new job reachability.
     setCurrentPathMap(world.worldMap, world.buildings);

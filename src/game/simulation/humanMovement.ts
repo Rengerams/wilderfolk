@@ -8,6 +8,8 @@ import { isActiveMoonHowler } from '../moonHowler';
 import { getCurrentPathGrid, getNavigationQuote, invalidateCommutePathsForWalker, isGroundWalkableAt, isWalkStepAllowed, lineCrossesBlocked, steerWithPath } from '../pathfinding';
 import { faceVelocity, steerEntityToward } from './movementSteering';
 import { HUMAN_WALK_FRAMES, HUMAN_WALK_SPEED_THRESHOLD } from '../humanSprites';
+import { deterministicCos, deterministicSin } from '../simTrig';
+
 
 /** Outdoor sites have no interior; construction crews stay visible until completion. */
 const OUTDOOR_BUILDINGS = new Set<Building['type']>([
@@ -154,9 +156,9 @@ export function crowdGatherPosition(cx: number, cy: number, entityId: number): {
   const radius = CROWD_GATHER_INNER_PX + ring * CROWD_GATHER_RING_GAP_PX;
 
   return walkableStandPoint(
-    cx + Math.cos(angle) * radius,
+    cx + deterministicCos(angle) * radius,
     // Flattened, so the crowd occupies ground rather than forming a perfect circle.
-    cy + Math.sin(angle) * radius * 0.7,
+    cy + deterministicSin(angle) * radius * 0.7,
   );
 }
 
@@ -179,10 +181,10 @@ export function venueGatherPosition(building: Building, entityId: number): { x: 
   const radius = building.width / 2 + VENUE_GATHER_STANDOFF_PX + arc * VENUE_GATHER_ARC_GAP_PX;
 
   return walkableStandPoint(
-    building.x + Math.cos(angle) * radius,
+    building.x + deterministicCos(angle) * radius,
     // Cleared of the wall by a standoff at every angle — the flatter the arc, the closer the apex came to
     // the footprint, which put settlers inside the building they came to visit.
-    building.y + building.height / 2 + VENUE_GATHER_STANDOFF_PX + Math.sin(angle) * radius * 0.5,
+    building.y + building.height / 2 + VENUE_GATHER_STANDOFF_PX + deterministicSin(angle) * radius * 0.5,
   );
 }
 

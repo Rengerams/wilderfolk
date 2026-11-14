@@ -40,13 +40,13 @@ describe('A16 — one raid-deadline renderer for both cards', () => {
     expect(formatRaidDeadline(undated, 0)).toBe('deadline unknown');
   });
 
-  it('leaves both raid cards on the owner, with no wrapper module left', () => {
+  it('leaves the live raid card on the owner, with no wrapper module left', () => {
     const app = readSrc('src/App.tsx');
     const panel = readSrc('src/components/SelectedBuildingPanel.tsx');
     expect(app, 'the outgoing raid card still uses the divergent wrapper').not.toContain('formatRaidDeadlineSafe');
-    expect(panel, 'the building panel still uses the divergent wrapper').not.toContain('formatRaidDeadlineSafe');
     expect(app).toContain('formatRaidDeadline(evt, world.tick)');
-    expect(panel).toContain('formatRaidDeadline(evt, state.tick)');
+    // Rival settlements are strategic records, so the building inspector no longer renders a raid card.
+    expect(panel, 'the dead rival-building raid card came back').not.toContain('formatRaidDeadline(');
     expect(
       existsSync(resolve(process.cwd(), 'src/game/raidUtils.ts')),
       'the raidUtils wrapper module still exists',
@@ -63,7 +63,6 @@ describe('v0.6.6.0 — explicit post-battle settlement fate', () => {
       campX: 100,
       campY: 100,
       population: 7,
-      entityIds: [],
       relationship: 'tense',
       foundedYear: 1,
       daysUntilAction: 0,

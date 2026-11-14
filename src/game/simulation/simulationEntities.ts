@@ -128,8 +128,27 @@ export function retireWildlifeInState(state: WorldState, entity: Entity): void {
   unindexEntityFromState(state, entity.id);
 }
 
-export function syncEntityGrids(ctx: TickContext, entity: Entity): void {
-  syncSpatialGridEntity(entity, ctx.grassGrid, ctx.mobileGrid, ctx.treeGrid);
+/**
+ * Retire a poached animal through the wildlife-death owner. The context path lets the owner splice
+ * its byType bucket and record the tick death set; a context-less caller retires state-level and
+ * clears hunter links through the maintained index, never a fresh O(entities) map when one exists.
+ */
+export function killWildGameForPoach(state: WorldState, animal: Entity, ctx?: TickContext): void {
+  if (!animal.alive) return;
+  if (ctx) {
+    markWildlifeDead(ctx, animal, undefined, state.tick, state);
+    // The death owner splices the buckets; the hunter's target pointer is this boundary's job, or a
+    // same-tick hunter keeps chasing a prey that no longer exists.
+    clearHuntersTargetingPrey(animal.id, ctx.entityById, ctx.huntTargetByPreyId, ctx.byType);
+    return;
+  }
+  retireWildlifeInState(state, animal);
+  const entityById = state.entityById
+    ?? new Map(state.entities.map((entity) => [entity.id, entity]));
+  clearHuntersTargetingPrey(animal.id, entityById);
+}
+
+export function syncEntityGrids(ctx: TickContext, entity: Entity): void {  syncSpatialGridEntity(entity, ctx.grassGrid, ctx.mobileGrid, ctx.treeGrid);
 }
 
 /** Living player humans — includes same-tick newborns from newEntities and entityById. */

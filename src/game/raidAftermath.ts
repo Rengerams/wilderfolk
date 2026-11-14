@@ -6,6 +6,8 @@ import { isResidenceBuilding } from './housingModel';
 import { demolishBuildingsInPlace } from './buildingMaintenanceActions';
 import { JobType } from './gameTypes';
 import { logEvent } from './eventLog';
+import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
+import { addReputation } from './simHelpers';
 
 const RECOVERY_PROTECTION_DAYS = 7;
 const RECOVERY_FOOD_DAYS = 3;
@@ -14,6 +16,10 @@ const OVERWHELMING_BREACH_RATIO = 6;
 const DEVASTATION_BUILDING_DAMAGE = 80;
 const DIPLOMACY_MEMORY_LIMIT = 100;
 const WITNESS_DISTANCE = 750;
+const MAX_CUSTODY_OPINION_MERIT = 5;
+const CUSTODY_LEADERSHIP_LIMIT = 100;
+/** A villager whose civic score clears this band adds a real restraint or severity voice. */
+const CIVIC_VOICE_THRESHOLD = 0.04;
 const DIPLOMACY_MEMORY_EFFECTS = {
   mercy: { trust: 10, fear: 0, grievance: -10 }, tribute: { trust: -5, fear: 5, grievance: 10 },
   raze: { trust: -25, fear: 25, grievance: 25 }, release: { trust: 5, fear: 0, grievance: -5 },
@@ -105,4 +111,41 @@ export function rememberRivalDisposition(state: WorldState, target: RivalSettlem
     memory.grievance = Math.max(0, Math.min(DIPLOMACY_MEMORY_LIMIT,
       memory.grievance + effect.grievance));
   }
+}
+
+/**
+ * Warfare decisions are political, not a fixed morality score: villagers respond to their own traits
+ * and recent threats. Called once by the authoritative settled-raid transition.
+ */
+export function applyWarCommunityReaction(state: WorldState,
+  choice: 'release' | 'execution' | 'mercy' | 'tribute' | 'raze', rivalId: string,
+  context?: { brokeTreaty?: boolean }): void {
+  const villagers = state.entities.filter((person) => person.alive && isPlayerHuman(person));
+  let empathetic = 0;
+  let fierce = 0;
+  for (const villager of villagers) {
+    const civic = evaluateAptitudeInfluence(villager, 'communityReaction').factor;
+    if (civic >= 1 + CIVIC_VOICE_THRESHOLD) empathetic++;
+    else if (civic <= 1 - CIVIC_VOICE_THRESHOLD) fierce++;
+  }
+  const activeWar = state.rivalSettlements.some((rival) => rival.id === rivalId && rival.atWarWithPlayer);
+  const recentAttack = state.raidBattleReports?.some((report) => report.rivalId === rivalId && report.side === 'defense'
+    && report.resolvedAtTick <= state.tick && report.resolvedAtTick >= state.tick - 30 * TICKS_PER_DAY) ?? false;
+  const underThreat = activeWar || recentAttack;
+  const threatVoices = underThreat ? Math.ceil(villagers.length / 4) : 0;
+  // A war started by breaking a peace treaty lacks the public's "they threatened us" support.
+  const brokenPactVoices = context?.brokeTreaty ? Math.ceil(villagers.length / 3) : 0;
+  const coercive = choice === 'execution' || choice === 'tribute' || choice === 'raze';
+  const sentiment = coercive
+    ? fierce + threatVoices - empathetic - brokenPactVoices
+    : empathetic - fierce - threatVoices + brokenPactVoices;
+  const intensity = choice === 'tribute' ? 0.5 : 1;
+  const opinion = sentiment === 0 ? 0 : Math.sign(sentiment) * Math.min(MAX_CUSTODY_OPINION_MERIT,
+    Math.max(1, Math.round(MAX_CUSTODY_OPINION_MERIT * intensity * Math.abs(sentiment) / Math.max(1, villagers.length))));
+  const leader = villagers.find((person) => person.id === state.villageLeaderId);
+  if (leader && opinion !== 0) leader.battleLeadershipMerit = Math.max(-CUSTODY_LEADERSHIP_LIMIT,
+    Math.min(CUSTODY_LEADERSHIP_LIMIT, (leader.battleLeadershipMerit ?? 0) + opinion));
+  if (opinion !== 0) addReputation(state, opinion);
+  logEvent(state, choice === 'release' || choice === 'execution' ? 'prison' : 'combat',
+    `Community reaction to ${choice}: ${empathetic} favor restraint, ${fierce} favor severity; ${underThreat ? 'recent attack or active war' : 'no recent attack or active war'}${context?.brokeTreaty ? '; the war began by breaking a peace treaty' : ''}; leadership standing ${opinion > 0 ? '+' : ''}${opinion}.`);
 }

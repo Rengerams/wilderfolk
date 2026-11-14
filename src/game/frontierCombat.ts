@@ -1,7 +1,6 @@
 import type { Building, Entity, RivalSettlement, WorldState, RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
 import { EntityType, JobType, PATH_CELL } from './gameTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, getAbsoluteCalendarDay, killHuman } from './dayCycle';
-import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { awardRaidSurvivalMark } from './personalMarks';
 import { ensureEntityByIdMap } from './entityIndex';
 import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
@@ -17,8 +16,7 @@ import {
 } from './militiaBalance';
 import { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter } from './villageAnchor';
 import { unindexEntityFromState } from './entityIndex';
-import { applyWarCommunityReaction, captureRaidPrisoners } from './warPrisoners';
-import { isSettlementDestroyed, beginRaidRecovery, rememberRivalDisposition } from './raidAftermath';
+import { isSettlementDestroyed, beginRaidRecovery, rememberRivalDisposition, applyWarCommunityReaction } from './raidAftermath';
 import { normalizeRivalProfile } from './rivalProfiles';
 export { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter };
 import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } from './resourceCost';
@@ -1490,12 +1488,8 @@ function recordIncomingRivalLosses(state: WorldState, event: RaidEvent, outcome:
   const rival = state.rivalSettlements.find((entry) => entry.id === event.rivalId);
   if (!rival || outcome === 'defeat') return { deaths: 0, fallen: [] };
   const population = rival.population;
-  const fighters = state.entities.filter((person) => person.alive && rival.entityIds.includes(person.id));
   applyRivalBattleLosses(state, rival, strength / Math.max(1, event.attackerStrength), 'incoming_raid');
-  const losses = { deaths: population - rival.population, fallen: fighters.filter((person) => !person.alive).map(formatCitizenName) };
-  if (outcome === 'decisive' || outcome === 'narrow') captureRaidPrisoners(state, rival, event.id,
-    state.entities.filter((person) => person.alive && !person.faction && person.type === EntityType.Human && event.soldierIds?.includes(person.id)).length);
-  return losses;
+  return { deaths: population - rival.population, fallen: [] };
 }
 
 function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, strengthRatio: number, kind: 'incoming_raid' | 'outgoing_raid' = 'outgoing_raid'): void {
@@ -1503,29 +1497,11 @@ function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, stren
   const lossFraction = strengthRatio >= 4 ? 0.85 : strengthRatio >= 2 ? 0.6 : 0.25;
   const losses = Math.min(Math.max(0, rival.population - 1), Math.max(1, Math.ceil(rival.population * lossFraction)));
   rival.population -= losses;
-  // Rivals can have a larger simulated population than their visible character roster: kill living
-  // members and count remaining losses as off-map casualties instead of inventing names.
-  const livingRivals = state.entities.filter((entity) => entity.alive && !entity.warCaptive && entity.age >= HUMAN_ADULT_MIN_AGE
-    && entity.job === JobType.Soldier && rival.entityIds.includes(entity.id));
-  const victims = livingRivals.slice(0, losses);
-  const casualties = new Set(victims.map((entity) => entity.id));
-  for (const victim of victims) {
-    killHuman(victim, state.buildings, ensureEntityByIdMap(state), state.tick, state);
-    logDeath(
-      state,
-      formatDeathLog(victim, kind === 'incoming_raid' ? `fell attacking ${state.villageName}` : `fell defending ${rival.name} against our war-band`),
-      formatCitizenName(victim),
-      { x: victim.x, y: victim.y },
-      'enemy',
-    );
-    logEvent(state, 'combat', `Enemy killed: ${formatCitizenName(victim)} — ${kind === 'incoming_raid' ? 'attacking the village' : `defending ${rival.name}`}`, rival.name, kind, 'casualties');
-  }
-  rival.entityIds = rival.entityIds.filter((id) => !casualties.has(id));
-  const offMapDeaths = losses - victims.length;
+  // Rival settlements are strategic records: casualties are off-map population, never on-map people.
   logEvent(
     state,
     'combat',
-    `${rival.name} lost ${losses} combatants ${kind === 'incoming_raid' ? 'attacking the village' : 'defending their settlement'} (${victims.length} named casualties${offMapDeaths > 0 ? `, ${offMapDeaths} off-map` : ''}); ${rival.population} survive`,
+    `${rival.name} lost ${losses} combatants ${kind === 'incoming_raid' ? 'attacking the village' : 'defending their settlement'}; ${rival.population} survive`,
     rival.name,
     'outgoing_raid',
     'casualties',
@@ -1570,10 +1546,8 @@ function resolveOutgoingRaidCombat(
     );
     addReputation(state, -5);
     const defendersBefore = rival.population;
-    const livingEnemyBefore = state.entities.filter((person) => person.alive && rival.entityIds.includes(person.id));
     applyRivalBattleLosses(state, rival, event.attackerStrength / Math.max(1, event.defenderStrength));
     const enemyDeaths = defendersBefore - rival.population;
-    captureRaidPrisoners(state, rival, event.id, warBand.filter((person) => person.alive).length);
     const playerCasualties = [...new Set([...confirmedCasualties, ...allRaidSoldiers.filter((fighter) => !fighter.alive).map(formatCitizenName)])];
     const playerDeaths = playerCasualties.length;
     // Record a distinct, persistent post-victory decision. Battle deaths are already
@@ -1589,7 +1563,7 @@ function resolveOutgoingRaidCombat(
         enemyDead: enemyDeaths,
         enemySurvivors: rival.population,
         playerCasualties,
-        enemyCasualties: livingEnemyBefore.filter((person) => !person.alive).map((person) => formatCitizenName(person)),
+        enemyCasualties: [],
       }];
     }
     addBigNews(state, '⚖️ Rival settlement surrendered', `Decide whether to spare, demand terms from, or exterminate ${rival.name}. ${rival.population} people remain.`, 'positive');
@@ -2032,11 +2006,9 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
         neighbor.raidCooldownDays = Math.max(neighbor.raidCooldownDays, 20);
       }
     }
-    const personIds = new Set(rival.entityIds);
-    // A camp's roster can be empty in a new save; its linked people are still removed with it.
-    for (const person of state.entities) {
-      if (person.faction === 'rival' && person.groupId === rival.id && !person.warCaptive) personIds.add(person.id);
-    }
+    const personIds = new Set(state.entities
+      .filter((person) => person.faction === 'rival' && person.groupId === rival.id)
+      .map((person) => person.id));
     const killed = Math.max(0, rival.population);
     for (const person of state.entities) if (personIds.has(person.id)) {
       person.alive = false;

@@ -9,6 +9,7 @@ import { requestDialogue, type DialogueEventKey } from './dialogueTrees';
 import { getSimRng } from './simRng';
 import { faceVelocity } from './simulation/movementSteering';
 import { applyHumanWalkStep } from './simulation/humanMovement';
+import { deterministicCos, deterministicSin } from './simTrig';
 
 type VisitPhase = 'idle_camp' | 'walk_poi' | 'loiter_poi' | 'return_camp' | 'wander_edge';
 
@@ -90,8 +91,8 @@ function pickPoiForKind(
       const angle = getSimRng('factionWander')() * Math.PI * 2;
       const r = 90 + getSimRng('factionWander')() * 70;
       return {
-        x: clamp(village.x + Math.cos(angle) * r, 20, state.width - 20),
-        y: clamp(village.y + Math.sin(angle) * r, 20, state.height - 20),
+        x: clamp(village.x + deterministicCos(angle) * r, 20, state.width - 20),
+        y: clamp(village.y + deterministicSin(angle) * r, 20, state.height - 20),
         label: 'trail',
       };
     }
@@ -123,7 +124,7 @@ function pickPoiForKind(
 function campLoiter(campX: number, campY: number, radius = 28): { x: number; y: number } {
   const angle = getSimRng('factionWander')() * Math.PI * 2;
   const r = 6 + getSimRng('factionWander')() * radius;
-  return { x: campX + Math.cos(angle) * r, y: campY + Math.sin(angle) * r };
+  return { x: campX + deterministicCos(angle) * r, y: campY + deterministicSin(angle) * r };
 }
 
 function shouldLeaveCamp(
@@ -239,8 +240,8 @@ function pickRivalWander(
   const angle = getSimRng('factionWander')() * Math.PI * 2;
   const radius = 10 + getSimRng('factionWander')() * 38;
   return {
-    x: campX + Math.cos(angle) * radius,
-    y: campY + Math.sin(angle) * radius,
+    x: campX + deterministicCos(angle) * radius,
+    y: campY + deterministicSin(angle) * radius,
   };
 }
 

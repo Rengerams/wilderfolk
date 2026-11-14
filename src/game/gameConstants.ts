@@ -216,3 +216,6 @@ export const VirtualPlayer = {
    */
   SETTLERS_PER_INDUSTRY_PRODUCER: 12,
 } as const;
+
+/** The one playback-speed ladder a save may carry and the UI offers; both sides import this list. */
+export const PLAYABLE_SPEEDS = [0.5, 1, 2, 3, 5, 10] as const;

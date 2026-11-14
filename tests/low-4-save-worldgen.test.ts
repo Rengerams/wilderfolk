@@ -2,6 +2,7 @@ import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { describe, expect, it } from 'vitest';
 import { gameTick, initGame } from '../src/game/gameEngine';
 import {
+  BuildingType,
   EntityType,
   MapPreset,
   MapSize,
@@ -10,7 +11,7 @@ import {
 } from '../src/game/gameTypes';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
-import { createImmigrantSettler, replenishDepletedWildlife } from '../src/game/worldGen';
+import { createBuilding, createImmigrantSettler, replenishDepletedWildlife } from '../src/game/worldGen';
 import { generateWorldMap } from '../src/game/terrainGen';
 import { rebakeTerrainGrids, setTileOverride, tileTypeAt } from '../src/game/terrain/terrainGrid';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
@@ -34,6 +35,23 @@ describe('saveLoad cross-cutting items', () => {
     // A forged `v0.4` save keeps its own `foodSpoilageRate`; no migration id is stamped.
     expect(loaded!.world.foodSpoilageRate).toBe(0.5);
     expect(loaded!.world.appliedSaveMigrations ?? []).not.toContain('v0.4');
+  });
+
+  it('takes a missing spoilage rate from the economy owner, not a second literal', () => {
+    const world = initGame({ seed: 21, size: MapSize.Medium });
+    const silo = createBuilding(BuildingType.Silo, 100, 100, 900);
+    silo.completed = true;
+    silo.constructionProgress = 100;
+    world.buildings.push(silo);
+    const saved = buildSaveData(world, createInitialView(world.width, world.height));
+    const trimmed = JSON.parse(JSON.stringify(saved)) as Record<string, unknown>;
+    delete trimmed.foodSpoilageRate;
+
+    const loaded = loadGameFromParsed(trimmed);
+
+    expect(loaded).not.toBeNull();
+    // The Silo's cut is part of the owner's rule, so a fixed 2% fallback would read 0.02 here.
+    expect(loaded!.world.foodSpoilageRate).toBeCloseTo(0.008);
   });
 
   it('treats a same-version save without _ticksPerDay as the current day length', () => {

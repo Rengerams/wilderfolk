@@ -11,7 +11,8 @@ import { playerHumanCount, isPlayerHuman } from '../src/game/playerHuman';
 import { Human } from '../src/game/gameConstants';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { BUILDING_JOB_TYPES } from '../src/game/gameTypes';
-import { canPlaceBuilding, getPlaceBuildingFailureReason } from '../src/game/buildingPlacementActions';
+import { getPlaceBuildingFailureReason } from '../src/game/buildingPlacementActions'
+import { canPlaceBuilding } from '../src/game/placementUtils';
 import { getBuildingFootprintForType, snapBuildingCenter } from '../src/game/buildingRotation';
 import { getPlayerCampCenter } from '../src/game/frontierCombat';
 import { VirtualPlayer } from '../src/game/gameConstants';

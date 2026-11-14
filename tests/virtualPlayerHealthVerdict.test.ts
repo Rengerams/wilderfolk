@@ -361,7 +361,7 @@ describe('the health verdict at the owner numbers', () => {
     expect(world.buildings.find((site) => site.id === 78)?.occupants).not.toContain(3);
   });
 
-  it('preserves construction-first staffing for the growth workforce preset', () => {
+  it('seeds an empty job building before construction for the growth preset', () => {
     const world = ownerColony(3, {
       tick: 4 * TICKS_PER_DAY,
       workforcePolicy: 'growth',
@@ -377,8 +377,10 @@ describe('the health verdict at the owner numbers', () => {
 
     assignMissingWorkers(world.entities, world.buildings, world, true);
 
-    expect(world.buildings.find((site) => site.id === 78)?.occupants).toContain(3);
-    expect(world.entities.find((person) => person.id === 3)?.workerBuildingId).toBeUndefined();
+    // Finding 10: a non-survival preset seeds every empty job building with one hand before the
+    // construction crew, so a builder cannot consume the only available worker.
+    expect(world.buildings.find((site) => site.id === 77)?.occupants).toContain(3);
+    expect(world.entities.find((person) => person.id === 3)?.workerBuildingId).toBe(77);
   });
 
   it('bypasses only the cooldown for an acute, measured food staffing emergency', () => {
@@ -460,7 +462,10 @@ describe('the health verdict at the owner numbers', () => {
     assignMissingWorkers(world.entities, world.buildings, world, true);
     expect(world.entities.find((entity) => entity.id === 3)?.workerBuildingId).toBe(78);
     expect(world.buildings.find((building) => building.id === 78)?.staffingMode).toBe('auto');
-    expect(world.entities.filter((entity) => entity.workerBuildingId === 77)).toHaveLength(0);
+    // The mill's last hand is protected, but a full food site seeds the empty second farm: two
+    // half-crewed farms out-produce one full farm beside an idle one.
+    expect(world.entities.filter((entity) => entity.workerBuildingId === 77)).toHaveLength(1);
+    expect(world.entities.filter((entity) => entity.workerBuildingId === 300)).toHaveLength(1);
   });
 
   it('upgrades staffed farm production instead of constructing unstaffable farms when food flow is negative', () => {

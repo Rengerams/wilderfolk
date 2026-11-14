@@ -85,20 +85,38 @@ export const PERSON_DAY_ROLL_SALTS = {
   leisureIdleDestination: 839,
   /** The weekend leisure-kind swap; the schedule's free-day roll keeps 201 for itself. */
   leisureWeekendKind: 841,
+  /** Pair roll: a weary settler's comfort visit; the partner id is hashed, never added. */
+  socialWearyComfort: 715,
+  /** Pair roll: a doorstep greeting; the partner id is hashed, never added. */
+  socialGreeting: 724,
 } as const;
 
-/** Stable 0..1 roll for one person on one colony day. */
-export function personDayRoll(entityId: number, tick: number, salt = 0): number {
-  const day = getAbsoluteCalendarDay(tick);
-  let hash = (
-    Math.imul(entityId | 0, 374761393)
-    ^ Math.imul(day | 0, 668265263)
-    ^ Math.imul(salt | 0, 1274126177)
-  ) >>> 0;
+/** Lane primes keep existing single-person rolls byte-stable; the pair uses its own lane layout. */
+const SINGLE_DAY_PRIMES = [374761393, 668265263, 1274126177] as const;
+const PAIR_DAY_PRIMES = [374761393, 2654435761, 668265263, 1274126177] as const;
+
+function mixDayRoll(lanes: readonly number[], primes: readonly number[], extraAvalanche = false): number {
+  let hash = 0;
+  for (let index = 0; index < lanes.length; index++) {
+    hash ^= Math.imul(lanes[index]! | 0, primes[index]!);
+  }
   hash = Math.imul(hash ^ (hash >>> 16), 2246822519) >>> 0;
+  if (extraAvalanche) hash = Math.imul(hash ^ (hash >>> 13), 3266489917) >>> 0;
   return (hash % 10000) / 10000;
 }
 
+/** Stable 0..1 roll for one person on one colony day. */
+export function personDayRoll(entityId: number, tick: number, salt = 0): number {
+  return mixDayRoll([entityId, getAbsoluteCalendarDay(tick), salt], SINGLE_DAY_PRIMES);
+}
+
+/**
+ * Stable 0..1 roll for a PAIR on one colony day. Both ids get their own lane, so a pair decision
+ * can never collide with a fixed single-person salt (the old `salt + id` arithmetic did).
+ */
+export function personPairDayRoll(aId: number, bId: number, tick: number, salt = 0): number {
+  return mixDayRoll([aId, bId, getAbsoluteCalendarDay(tick), salt], PAIR_DAY_PRIMES, true);
+}
 /**
  * Stateless context roll: [seed + salt] always returns the exact same float in [0, 1).
  */

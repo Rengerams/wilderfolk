@@ -9,9 +9,10 @@ import { getAbsoluteCalendarDay, getColonyDay, HUMAN_MAX_LIFESPAN_YEARS, isNewCa
 import { assignMissingResidences, syncResidenceOccupants } from './housingPipeline';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { establishCitizenIdentity } from './settlerTraits';
-import { isPassableWildlifePosition } from './worldGen';
+import { randomPassableWildlifePoint } from './worldGen';
+import { randomLegalPropPoint } from './worldEventSites';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
-import { pushNewEntity } from './simulation/simulationEntities';
+import { killWildGameForPoach, pushNewEntity } from './simulation/simulationEntities';
 import type { TickContext } from './simulation/simulationTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
 import {
@@ -29,7 +30,7 @@ import { getPlayerCampCenter } from './villageAnchor';
 import { clearFactionWanderState } from './factionWander';
 import { getRefugeeWelcomeBonus } from './townHall';
 import { addBigNews, addFloatingText, addNotification } from './simEffects';
-import { killWildGameForPoach, makeNextAliveDeer } from './rivalEvents';
+import { makeNextAliveDeer } from './rivalEvents';
 import { addReputation, getReputationBand } from './simHelpers';
 import { grantResearchProgress } from './research';
 import { formatResourceAmounts, RESOURCE_METAS, type ResourceKey } from './resourceTypes';
@@ -264,10 +265,8 @@ export function spawnVisitorGroup(
   const template = VISITOR_TEMPLATES[kind];
   const name = template.names[Math.floor(getSimRng('groupEvents')() * template.names.length)];
   const center = getPlayerCampCenter(state, buildings);
-  const avoid = [
-    ...state.visitorGroups.map((v) => ({ x: v.campX, y: v.campY })),
-    ...state.rivalSettlements.map((r) => ({ x: r.campX, y: r.campY })),
-  ];
+  // Visitor camps are the only on-map camps; rival settlements are strategic records with no footprint.
+  const avoid = state.visitorGroups.map((v) => ({ x: v.campX, y: v.campY }));
   const site = pickSite(state, center, 70, 160, avoid);
   const memberCount = template.members[0] + Math.floor(getSimRng('groupEvents')() * (template.members[1] - template.members[0] + 1));
   const daysLeft = template.days[0] + Math.floor(getSimRng('groupEvents')() * (template.days[1] - template.days[0] + 1));
@@ -1010,21 +1009,15 @@ export function rollYearlyWorldEvent(
   }
 }
 
-/**
- * Draw from the yearly-event stream until the point is passable wildlife ground. The canonical
- * wildlife-passability owner decides; a fully blocked map spawns nothing rather than an animal in a lake.
- */
-function pickWildlifeSpawnPoint(state: WorldState): { x: number; y: number } | null {
-  for (let attempt = 0; attempt < 16; attempt++) {
-    const x = getSimRng('groupEvents')() * state.width;
-    const y = getSimRng('groupEvents')() * state.height;
-    if (isPassableWildlifePosition(state, x, y)) return { x, y };
-  }
-  return null;
-}
+/** Ground a yearly tree or grass patch occupies, validated like any other 32-px prop. */
+const YEARLY_PROP_FOOTPRINT_PX = 32;
 
+/** Off-cycle spawns delegate to the canonical point owners; a fully blocked map spawns nothing. */
 function spawnWildlife(state: WorldState, type: EntityType, id: number): Entity | null {
-  const point = pickWildlifeSpawnPoint(state);
+  const random = getSimRng('groupEvents');
+  const point = type === EntityType.Tree || type === EntityType.Grass
+    ? randomLegalPropPoint(state, random, YEARLY_PROP_FOOTPRINT_PX)
+    : randomPassableWildlifePoint(state, random);
   if (!point) return null;
   return createEntity(type, point.x, point.y, id, SPECIES_CONFIG[type].spawnEnergy);
 }

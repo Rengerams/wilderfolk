@@ -59,7 +59,7 @@ The persisted needs schema includes numerical `nutrition`, `rest`, `stamina` (al
 
 Need decisions use a hunger threshold of 70, a two-hour meal cooldown, a critical rest threshold of 20, a critical stamina threshold of 15 and a break-recovery threshold of 50. Night work records a pending daytime-recovery need. `getHumanNeedsWorkMultiplier` bounds needs-related output reduction (minimum 0.55); existing schedule overload is kept separate.
 
-`Human.DAILY_FOOD_CONSUMPTION` in `gameConstants.ts` remains a *planning estimate* for the virtual player, not a second consumption transaction. The legacy `Human.MEAL_CHECK_INTERVAL_HOURS`, `Human.HUNGER_MEAL_THRESHOLD` and `Human.MEAL_ENERGY_RESTORE` parameters are only used by foreign war captives; the former forwarding aliases in `humanNeeds.ts` are not part of the API.
+`Human.DAILY_FOOD_CONSUMPTION` in `gameConstants.ts` remains a *planning estimate* for the virtual player, not a second consumption transaction. The legacy `Human.MEAL_CHECK_INTERVAL_HOURS`, `Human.HUNGER_MEAL_THRESHOLD` and `Human.MEAL_ENERGY_RESTORE` parameters had no player-human caller after the foreign-captive path was removed; the former forwarding aliases in `humanNeeds.ts` are not part of the API.
 
 ## 5. Function ownership and registration
 

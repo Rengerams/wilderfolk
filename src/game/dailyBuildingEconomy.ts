@@ -74,7 +74,6 @@ import {
   getJobForBuilding,
   readSkill,
   rewardProductionSkills,
-  rewardBuildingWork,
   getWorkerSkillMultiplier,
   SKILL_CREDIT_INTERVAL_TICKS,
   WORK_SKILL_BUILDING_TYPES,
@@ -380,7 +379,14 @@ function tickBuildingProduction(
   // A settler parked at home, asleep, or walking the map contributes 0 worked hours.
   const buildingWorkerStats = new Map<
     number,
-    { count: number; fatigueSum: number; workedHoursSum: number; workedCount: number }
+    {
+      count: number;
+      fatigueSum: number;
+      workedHoursSum: number;
+      workedCount: number;
+      /** Exactly the workers counted as attending; skill and its bonus are paid only to them. */
+      workedIds: Set<number>;
+    }
   >();
   for (let i = 0; i < playerWorkers.length; i++) {
     const h = playerWorkers[i];
@@ -400,11 +406,12 @@ function tickBuildingProduction(
     if (siteId == null || siteId < 0) continue;
 
     const current = buildingWorkerStats.get(siteId)
-      ?? { count: 0, fatigueSum: 0, workedHoursSum: 0, workedCount: 0 };
+      ?? { count: 0, fatigueSum: 0, workedHoursSum: 0, workedCount: 0, workedIds: new Set<number>() };
     current.count += 1;
     current.fatigueSum += Math.min(getScheduleProductivityMultiplier(h), getHumanNeedsWorkMultiplier(h));
     current.workedHoursSum += lastWorkedHours;
-    if (lastWorkedHours > 0) current.workedCount += 1;
+    current.workedCount += 1;
+    current.workedIds.add(h.id);
     buildingWorkerStats.set(siteId, current);
   }
 
@@ -418,11 +425,14 @@ function tickBuildingProduction(
     const adjacencyMult = buildingUsesAdjacency(building)
       ? getAdjacencyMultiplierFromIndex(adjacencyIndex, building)
       : 1.0;
-    const skillMult = getWorkerSkillMultiplier(state, building, entityById);
-    const productionJob = getJobForBuilding(building.type);
-
     const stats = buildingWorkerStats.get(building.id);
     const workers = BUILDING_JOB_TYPES[building.type] && stats ? stats.count : 0;
+    // Only the hands that actually attended are priced and taught; an assigned worker who never
+    // reached the post contributes neither the crew's skill factor nor its trade XP.
+    const workedIds = stats?.workedIds;
+    const skillMult = getWorkerSkillMultiplier(state, building, entityById, 'production', workedIds);
+    const productionJob = getJobForBuilding(building.type);
+
     const fatigueMult = workers > 0 && stats ? stats.fatigueSum / workers : 1.0;
     // The configured window sets the ceiling; attendance decides how much of it is earned.
     // Shared with the workshop estimate through `getWorkplacePresenceShare`.
@@ -454,7 +464,12 @@ function tickBuildingProduction(
       WORK_SKILL_BUILDING_TYPES.has(building.type) &&
       isProductionTick(productionDayTick, SKILL_CREDIT_INTERVAL_TICKS)
     ) {
-      rewardBuildingWork(state, building, presenceMult, WORK_SKILL_PER_SHIFT, entityById);
+      // The shift itself is paid even when the store refused the output; absence earns nothing.
+      if (presenceMult > 0) {
+        rewardProductionSkills(
+          state, building, WORK_SKILL_PER_SHIFT * presenceMult, entityById, workedIds,
+        );
+      }
     }
 
     // --- Farm ---
@@ -484,6 +499,7 @@ function tickBuildingProduction(
       recordFoodProduced(state, 'farms', added);
       if (added > 0 && productionJob) {
         for (let o = 0; o < building.occupants.length; o++) {
+          if (workedIds && !workedIds.has(building.occupants[o])) continue;
           // Same contract as the construction-crew site above: pass the tick's id map so
           // `gainSkill` does not fall back to a `state.entities.find` per occupant.
           gainSkill(state, building.occupants[o], productionJob, 0.2, entityById);
@@ -619,7 +635,7 @@ function tickBuildingProduction(
             // walks every living entity once per successful shot.
             clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId, byType);
             syncEntityGrids(ctx, targetPrey);
-            rewardProductionSkills(state, building, 0.2, entityById);
+            rewardProductionSkills(state, building, 0.2, entityById, workedIds);
             addFloatingText(
               state,
               targetPrey.x,
@@ -686,7 +702,7 @@ function tickBuildingProduction(
         );
       } else {
         recordFoodProduced(state, 'fishing', added);
-        rewardProductionSkills(state, building, 0.2, entityById);
+        rewardProductionSkills(state, building, 0.2, entityById, workedIds);
         addFloatingText(
           state,
           building.x + building.width / 2,
@@ -709,7 +725,7 @@ function tickBuildingProduction(
       const goldMult = getMultiplier(state, 'gold_production');
       const amount = Math.floor(5 * totalMult * goldMult * globalEff);
       if (addProductionOutput(state, building, 'gold', amount) > 0) {
-        rewardProductionSkills(state, building, 0.2, entityById);
+        rewardProductionSkills(state, building, 0.2, entityById, workedIds);
       }
     }
 
@@ -725,7 +741,7 @@ function tickBuildingProduction(
         (12 + workers * 4) * totalMult * smithBonus * lumberMult * globalEff,
       );
       if (addProductionOutput(state, building, 'wood', amount) > 0) {
-        rewardProductionSkills(state, building, 0.2, entityById);
+        rewardProductionSkills(state, building, 0.2, entityById, workedIds);
       }
       for (let i = 0; i < 3; i++) {
         state.deathParticles.push({
@@ -752,7 +768,7 @@ function tickBuildingProduction(
       const stoneMult = getMultiplier(state, 'quarry_yield') * getForgeQuarryMultiplier(state);
       const amount = Math.floor((8 + workers * 3) * totalMult * smithBonus * stoneMult * globalEff);
       if (addProductionOutput(state, building, 'stone', amount) > 0) {
-        rewardProductionSkills(state, building, 0.2, entityById);
+        rewardProductionSkills(state, building, 0.2, entityById, workedIds);
       }
       state.deathParticles.push({
         x: building.x + getSimRng('dailyBuildingEconomy')() * building.width,
@@ -779,7 +795,7 @@ function tickBuildingProduction(
       // Ores only — stone is the Quarry's job. Gold is the premium vein, so it
       // is extracted only when the player picked it; see `mineOreForMode`.
       const ore = mineOreForMode(building.mineMode);
-      if (addProductionOutput(state, building, ore, amount) > 0) rewardProductionSkills(state, building, 0.2, entityById);
+      if (addProductionOutput(state, building, ore, amount) > 0) rewardProductionSkills(state, building, 0.2, entityById, workedIds);
       state.deathParticles.push({
         x: building.x + getSimRng('dailyBuildingEconomy')() * building.width,
         y: building.y + getSimRng('dailyBuildingEconomy')() * building.height,
@@ -821,7 +837,7 @@ function tickBuildingProduction(
       const added = addProductionOutput(state, building, 'food', amount);
       if (added > 0) {
         recordFoodProduced(state, 'greenhouse', added);
-        rewardProductionSkills(state, building, 0.2, entityById);
+        rewardProductionSkills(state, building, 0.2, entityById, workedIds);
       }
       state.deathParticles.push({
         x: building.x + getSimRng('dailyBuildingEconomy')() * building.width,
@@ -846,7 +862,7 @@ function tickBuildingProduction(
       const goldMult = getMultiplier(state, 'gold_production');
       const amount = Math.floor((8 + workers * 3) * totalMult * goldMult * globalEff);
       if (addProductionOutput(state, building, 'gold', amount) > 0) {
-        rewardProductionSkills(state, building, 0.2, entityById);
+        rewardProductionSkills(state, building, 0.2, entityById, workedIds);
       }
       state.deathParticles.push({
         x: building.x + getSimRng('dailyBuildingEconomy')() * building.width,
@@ -899,7 +915,7 @@ function tickBuildingProduction(
           } else {
             const added = addResource(state, 'gold', amount);
             consumeWorkshopRecipeInputs(state, recipe);
-            rewardProductionSkills(state, building, 0.2, entityById);
+            rewardProductionSkills(state, building, 0.2, entityById, workedIds);
             addFloatingText(
               state,
               building.x + building.width / 2,
@@ -955,7 +971,7 @@ function tickBuildingProduction(
       // See `livingPlayerWorkers` above: the alive re-check the daily social pass requires is done
       // once per pass, not once per Town Hall.
       livingPlayerWorkers ??= playerWorkers.filter((e) => e.alive);
-      tickTownHallCivic(state, building, livingPlayerWorkers);
+      tickTownHallCivic(state, building, livingPlayerWorkers, workedIds);
       tickTownHallAudiences(state, building, livingPlayerWorkers);
     }
 

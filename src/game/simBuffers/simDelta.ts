@@ -140,7 +140,6 @@ export interface SimTickDelta {
   raidBattleReports?: WorldState['raidBattleReports'];
   raidRecovery?: WorldState['raidRecovery'];
   scoredRaidIds?: WorldState['scoredRaidIds'];
-  raidPrisonerHistory?: WorldState['raidPrisonerHistory'];
   pendingDiplomacyEvents: WorldState['pendingDiplomacyEvents'];
   villageLeaderId: number | null;
   pendingLeaderHouseResidentIds: WorldState['pendingLeaderHouseResidentIds'];
@@ -228,7 +227,7 @@ function deltaCloneOptional<T>(value: T | null | undefined, mode: SimDeltaCloneM
 export const BUILDING_FINGERPRINT_FIELDS = [
   'id', 'type', 'siteTerrain', 'x', 'y', 'width', 'height', 'occupants', 'staffingMode', 'level',
   'constructionProgress', 'completed', 'health', 'maxHealth', 'spriteScale', 'buildAnimTimer',
-  'faction', 'groupId', 'campLabel', 'workshopRecipeId', 'rotation', 'gateClosed', 'hotelGuestIds',
+  'faction', 'groupId', 'workshopRecipeId', 'rotation', 'gateClosed', 'hotelGuestIds',
   'huntingSpotPrey', 'huntingSpotTargetId', 'huntingSpotInReachTick', 'uncoveredPrisonHours', 'mineMode',
 ] as const satisfies readonly (keyof Building)[];
 
@@ -396,7 +395,6 @@ export function extractSimTickDelta(
     raidBattleReports: world.raidBattleReports === undefined ? undefined : deltaClone(world.raidBattleReports, cloneMode),
     raidRecovery: world.raidRecovery === undefined ? undefined : deltaClone(world.raidRecovery, cloneMode),
     scoredRaidIds: world.scoredRaidIds === undefined ? undefined : deltaClone(world.scoredRaidIds, cloneMode),
-    raidPrisonerHistory: world.raidPrisonerHistory === undefined ? undefined : deltaClone(world.raidPrisonerHistory, cloneMode),
     pendingDiplomacyEvents: deltaClone(world.pendingDiplomacyEvents ?? [], cloneMode),
     villageLeaderId: world.villageLeaderId,
     pendingLeaderHouseResidentIds: world.pendingLeaderHouseResidentIds === undefined
@@ -741,8 +739,6 @@ export function applySimTickDelta(
   else world.raidRecovery = deltaClone(delta.raidRecovery, cloneMode);
   if (delta.scoredRaidIds === undefined) delete world.scoredRaidIds;
   else world.scoredRaidIds = deltaClone(delta.scoredRaidIds, cloneMode);
-  if (delta.raidPrisonerHistory === undefined) delete world.raidPrisonerHistory;
-  else world.raidPrisonerHistory = deltaClone(delta.raidPrisonerHistory, cloneMode);
   world.pendingDiplomacyEvents = deltaClone(delta.pendingDiplomacyEvents, cloneMode);
   world.villageLeaderId = delta.villageLeaderId;
   if (delta.pendingLeaderHouseResidentIds === undefined) delete world.pendingLeaderHouseResidentIds;

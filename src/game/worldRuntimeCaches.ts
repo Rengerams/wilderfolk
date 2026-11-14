@@ -31,6 +31,9 @@ export function hydrateWorldRuntimeCaches(world: WorldState, preserveGeometry = 
   const roadAvoidanceStamp = preserveGeometry ? world.roadAvoidanceStamp : undefined;
   const adjacency = preserveGeometry ? world.adjacency : undefined;
   const beautyGrid = preserveGeometry ? world.beautyGrid : undefined;
+  // Scent is saved simulation state, not a rebuildable cache: a hand-off that drops it starts prey
+  // flee cold, so every hydrate carries it across unless the incoming world has none.
+  const preservedSimulation = captureSimulationState(world);
   invalidateWorldRuntimeCaches(world);
   rebuildEntityByIdMap(world);
   if (preserveGeometry) {
@@ -39,6 +42,7 @@ export function hydrateWorldRuntimeCaches(world: WorldState, preserveGeometry = 
     world.adjacency = adjacency;
     world.beautyGrid = beautyGrid;
   }
+  restoreSimulationState(world, preservedSimulation);
   // Beauty is a simulation input, so every hand-off must leave a grid behind even when the caller
   // had none to preserve (worker import, rollback, replica hydrate); a missing grid shifts humanTick.
   if (world.beautyGrid == null) rebuildBeautyGridFromWorld(world);

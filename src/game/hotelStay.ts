@@ -439,7 +439,10 @@ export function checkInVisitor(
   visitor.hotelStayBuildingId = hotel.id;
   visitor.hotelStayUntilTick = hotelCheckoutTick(state.tick);
 
+  // A hotelier learns the trade by tending the desk, not by being on the roster somewhere else.
   for (const id of hotel.occupants) {
+    const hotelier = byId.get(id);
+    if (!hotelier?.alive || !isAtBuildingReach(hotelier, hotel)) continue;
     gainSkill(state, id, JobType.Hotelier, 0.12);
   }
 

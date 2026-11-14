@@ -59,7 +59,7 @@ tutorialsEnabled: boolean;
   /** Most recent auto-play acts — shown in the toggle's tooltip. */
   autoPlayHistory: VirtualPlayerAct[];
   onToggleAutoPlay: () => void;
-  speedOptions: number[];
+  speedOptions: readonly number[];
   onTogglePause: () => void;
   onSetSpeed: (speed: number) => void;
   onOpenTrade: () => void;

@@ -408,7 +408,6 @@ describe('ten children shelter quest', () => {
       campX: 700,
       campY: 500,
       population: 8,
-      entityIds: [],
       relationship: 'neutral',
       foundedYear: 0,
       daysUntilAction: 20,

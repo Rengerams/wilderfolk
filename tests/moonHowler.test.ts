@@ -22,6 +22,8 @@ import {
   MOON_HOWLER_NIGHT_START,
 } from '../src/game/daycycleconstants';
 import { createBuilding, initGame } from '../src/game/worldGen';
+import { gameTick } from '../src/game/gameEngine';
+import { isPlayerHumanShiftOwner } from '../src/game/playerHuman';
 import { createEntity } from '../src/game/entityFactory';
 import {
   MOON_HOWLER_CURE_CHANCE_MAX,
@@ -1298,5 +1300,27 @@ describe('moon-form construction ownership', () => {
     revertToHumanForm(settler, { buildings: state.buildings, humans: state.entities, tick: 1000 });
     expect(settler.type).toBe(EntityType.Human);
     expect(construction.occupants).toEqual([]);
+  });
+});
+
+describe('Moon Howler night census', () => {
+  it('keeps the cursed settler in the human population for the whole night', () => {
+    // The 22:00 tick of a full-moon day: the cursed settler is a Werewolf for the whole tick.
+    const nightTick = DAYS_PER_MOON_CYCLE * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR - 1;
+    const state = initGame({ size: MapSize.Medium, seed: 20261111 });
+    setSimSeed(20261111);
+    const settler = state.entities.find((entity) => entity.alive && entity.type === EntityType.Human)!;
+    curseMoonHowler(settler);
+    transformToWerewolfForm(settler, state.buildings);
+    state.tick = nightTick;
+
+    gameTick(state);
+
+    const cursed = state.entities.find((entity) => entity.id === settler.id)!;
+    expect(cursed.type).toBe(EntityType.Werewolf);
+    const roster = state.entities.filter((entity) => entity.alive && isPlayerHumanShiftOwner(entity)).length;
+    // The HUD count is the settler roster: the wolf form is the same settler, not a loss.
+    expect(state.humanPopulation).toBe(roster);
+    expect(roster).toBeGreaterThan(1);
   });
 });

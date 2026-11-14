@@ -12,7 +12,9 @@ import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/sa
 import { applySimPrep, extractSimPrep } from '../src/game/simWorker/simPrep';
 import { applySimTickDelta, extractSimTickDelta } from '../src/game/simBuffers/simDelta';
 import {
+  adoptSimSeedFromWorld,
   createSeededRng,
+  enableSeededGlobalRandom,
   getPresentationRng,
   getSimRng,
   getSimSeed,
@@ -424,5 +426,44 @@ describe('simRng.snapshot.test.ts', () => {
       });
       expect(filtered).toEqual({ seed: 5, global: null, owners: [['kept', 7]] });
     });
+  });
+});
+
+/**
+ * The seeded `Math.random` override is a headless harness hook: no source module calls `Math.random`,
+ * so world creation, seed adoption and save restore must leave the host function alone.
+ */
+describe('seeded global Math.random is a harness opt-in', () => {
+  it('is not installed by world creation, seed adoption or a save restore', () => {
+    resetSimRng();
+    const native = Math.random;
+
+    initGame({ size: MapSize.Medium, seed: 5, skipTerrain: true });
+    expect(Math.random).toBe(native);
+
+    adoptSimSeedFromWorld({ worldMap: { seed: 9 } });
+    expect(Math.random).toBe(native);
+
+    // A legacy payload carries a `global` cursor; that alone must not replace the host function.
+    expect(restoreSimRng({ seed: 3, global: 123, owners: [] })).toBe(true);
+    expect(Math.random).toBe(native);
+    expect(snapshotSimRng().global).toBeNull();
+    resetSimRng();
+  });
+
+  it('rewinds an override a harness installed itself', () => {
+    resetSimRng();
+    setSimSeed(5);
+    enableSeededGlobalRandom();
+    try {
+      const snapshot = snapshotSimRng();
+      const replayed = Math.random();
+      Math.random();
+
+      expect(restoreSimRng(snapshot)).toBe(true);
+      expect(Math.random()).toBe(replayed);
+    } finally {
+      resetSimRng();
+    }
   });
 });

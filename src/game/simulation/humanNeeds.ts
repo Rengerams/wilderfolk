@@ -3,7 +3,6 @@ import { EntityType } from '../gameTypes';
 import { getValleyHuntYieldMultiplier } from '../ecologyStage';
 import { getHuntFoodMultiplier } from '../combat';
 import { isStartOfClockHour, killHuman } from '../dayCycle';
-import { getAbsoluteCalendarDay } from '../dayCycleClock';
 import { createDeathParticles } from '../simEffects';
 import { logDeath } from '../eventLog';
 import { formatCitizenName, formatDeathLog } from '../citizenId';
@@ -23,13 +22,9 @@ const HUNT_DEFAULT_BASE_YIELD = 18;
  * The one colony-larder meal rule, read without eating: every gate {@link tryEatColonyMeal}
  * applies before it drains a unit of food.
  */
-export function canEatColonyMeal(state: WorldState, entity: Entity, hourOfDay: number): boolean {
+export function canEatColonyMeal(state: WorldState, entity: Entity, _hourOfDay: number): boolean {
   if (!entity.alive || state.resources.food <= 0) return false;
   if (!isStartOfClockHour(state.tick)) return false;
-  if (entity.warCaptive && !isPlayerHuman(entity)) {
-    // One ration per captive per calendar day, without player physiology.
-    return hourOfDay === 8 && entity.warCaptive.lastRationDay !== getAbsoluteCalendarDay(state.tick);
-  }
   return isPlayerHuman(entity) && resolveHumanNeedsIntent(entity, state.tick, false) === 'eat';
 }
 
@@ -37,10 +32,6 @@ export function tryEatColonyMeal(entity: Entity, state: WorldState, hourOfDay: n
   if (!canEatColonyMeal(state, entity, hourOfDay)) return false;
   const amount = spendFood(state, 'meals', Math.min(1, state.resources.food));
   if (amount <= 0) return false;
-  if (entity.warCaptive && !isPlayerHuman(entity)) {
-    entity.warCaptive.lastRationDay = getAbsoluteCalendarDay(state.tick);
-    return true;
-  }
   creditHumanNutritionFromFood(entity, amount);
   entity.needs!.lastMealTick = state.tick;
   return true;

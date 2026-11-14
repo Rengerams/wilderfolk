@@ -15,11 +15,11 @@ function visitorGroup(): VisitorGroup {
     id: 'visitor_traders_1',
     name: 'The Fairweather Caravan',
     kind: 'traders',
+    entityIds: [],
     campX: 300,
     campY: 300,
     daysLeft: 4,
     spawnedAtCalendarDay: 2,
-    entityIds: [],
     giftsGiven: 0,
     tradesCompleted: 0,
     gold: 40,
@@ -208,6 +208,47 @@ describe('a provisions card the shell cannot render is refused by name', () => {
     expect(outcome.ok).toBe(false);
     if (outcome.ok) return;
     expect(outcome.detail).toContain('activeVillageRequest');
+  });
+});
+
+describe('the saved simulation speed must be one the loop can run', () => {
+  it('refuses speed 0 by name, which would stop the clock for good', () => {
+    const payload = realPayload();
+    payload.speed = 0;
+
+    const outcome = loadGameFromParsedOutcome(payload);
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.reason).toBe('unrestorable');
+    expect(outcome.detail).toContain('speed');
+  });
+
+  it('refuses a NaN speed, which JSON serializes as null', () => {
+    const payload = realPayload();
+    payload.speed = Number.NaN;
+    const text = JSON.stringify(payload);
+    expect(text).toContain('"speed":null');
+    const parsed = parseSaveJson(text);
+    expect(parsed.valid).toBe(true);
+    if (!parsed.valid) return;
+
+    const outcome = loadGameFromParsedOutcome(parsed.parsed);
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.detail).toContain('speed');
+  });
+
+  it('keeps the default speed when the payload carries none', () => {
+    const payload = realPayload();
+    delete payload.speed;
+
+    const outcome = loadGameFromParsedOutcome(payload);
+
+    expect(outcome.ok, outcome.ok ? '' : outcome.detail).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.world.speed).toBe(1);
   });
 });
 

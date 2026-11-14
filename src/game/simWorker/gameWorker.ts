@@ -33,7 +33,7 @@ import {
 import { PROFILE_REVISION, RELATIONSHIP_REVISION, revisionOf } from '../entityRevision';
 import { getPerformanceSnapshot, maybeWorkerPerformanceSnapshot, profileEnd, profileStart, setPerformanceProfilingEnabled, type PerformanceSnapshot } from '../performanceProfiler';
 import { getPathfinderReport, resetPathfinderSession, setPathfindingMetricsEnabled } from '../pathfindingMetrics';
-import { ensureScentGrid, USE_SCENT_GRID } from '../scentGrid';
+import { ensureScentGrid, isScentGridRuntime, ScentGrid, USE_SCENT_GRID } from '../scentGrid';
 
 /* Worker-side command logic */
 import {
@@ -307,7 +307,12 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         // Only copy the shell: never strip caches or stamp RNG on the live simulation world, so a
         // save — including a failed serialization — cannot change runtime state.
         const exportWorld = { ...world };
+        // Scent is simulation state and is saved, so the export cannot drop it with the runtime caches.
+        const scent = isScentGridRuntime(world.scentGrid)
+          ? ScentGrid.fromRuntime(world.scentGrid)
+          : undefined;
         invalidateWorldRuntimeCaches(exportWorld);
+        exportWorld.scentGrid = scent;
         stampWorldSimRng(exportWorld);
         const response: WorkerResponse = {
           type: 'exportSaveResult',

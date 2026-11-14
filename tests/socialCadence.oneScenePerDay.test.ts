@@ -3,7 +3,8 @@
  * inspector reads the same social inputs as the simulation, and one stagger predicate is shared.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { personDayRoll } from '../src/game/simRng';
+import { PERSON_DAY_ROLL_SALTS, personDayRoll, personPairDayRoll } from '../src/game/simRng';
+import { readFileSync } from 'node:fs';
 import {
   isGreetingHour,
   isSocialStaggerTick,
@@ -43,6 +44,14 @@ function eligibleTick(id: number, salt: number, chance: number): number {
   throw new Error('Expected an eligible deterministic social roll');
 }
 
+/** The greeting gate rolls the PAIR, so eligibility needs both ids and the fixed greeting salt. */
+function eligiblePairTick(a: number, b: number, salt: number, chance: number): number {
+  for (let tick = 1; tick < 20_000; tick++) {
+    if (personPairDayRoll(a, b, tick, salt) <= chance) return tick;
+  }
+  throw new Error('Expected an eligible deterministic pair roll');
+}
+
 describe('one social scene per person per colony day (W-104)', () => {
   it('does not replay coworker banter after the first scene of the day', () => {
     const a = settler(301);
@@ -60,10 +69,42 @@ describe('one social scene per person per colony day (W-104)', () => {
     expect(b.chatDialogueSessionKey).toBeUndefined();
   });
 
+  it('does not mix a doorstep greeting and workplace banter on the same day', () => {
+    const a = settler(501, 10, 10);
+    const neighbor = settler(502, 20, 10);
+    const mate = settler(503, 30, 30);
+
+    // Find one colony day on which both the greeting and the banter rolls pass.
+    const greetingSalt = 724 + Math.abs(neighbor.id);
+    let greetTick = -1;
+    let banterTick = -1;
+    for (let day = 1; day < 400 && greetTick < 0; day++) {
+      const start = day * TICKS_PER_DAY;
+      const end = start + TICKS_PER_DAY;
+      let g = -1;
+      let b = -1;
+      for (let tick = start; tick < end; tick++) {
+        if (g < 0 && personPairDayRoll(a.id, neighbor.id, tick, PERSON_DAY_ROLL_SALTS.socialGreeting) <= 0.12) g = tick;
+        if (b < 0 && personDayRoll(a.id, tick, 720) <= 0.08) b = tick;
+      }
+      if (g >= 0 && b >= 0) { greetTick = g; banterTick = b; }
+    }
+    expect(greetTick, 'no day has both eligible rolls').toBeGreaterThan(0);
+
+    tryNeighborGreeting(a, neighbor, greetTick, 8);
+    expect(a.chatDialogueSessionKey, 'the greeting did not fire').toBeDefined();
+    endScene(a, neighbor);
+
+    // Same person, same colony day, different event family: the day is already spent.
+    tryWorkplaceBanter(a, [mate], banterTick, 12, true);
+    expect(a.chatDialogueSessionKey).toBeUndefined();
+    expect(mate.chatDialogueSessionKey).toBeUndefined();
+  });
+
   it('does not replay a doorstep greeting after the first scene of the day', () => {
     const a = settler(401, 10, 10);
     const b = settler(402, 20, 10);
-    const tick = eligibleTick(a.id, 724 + Math.abs(b.id), 0.12);
+    const tick = eligiblePairTick(a.id, b.id, PERSON_DAY_ROLL_SALTS.socialGreeting, 0.12);
 
     tryNeighborGreeting(a, b, tick, 8);
     expect(a.chatDialogueSessionKey).toBeDefined();
@@ -75,6 +116,21 @@ describe('one social scene per person per colony day (W-104)', () => {
 });
 
 describe('one shared social predicate (W-106)', () => {
+  it('hashes both ids so a pair decision cannot reuse a fixed single-person salt (F-2)', () => {
+    const tick = 6 * TICKS_PER_DAY;
+    const greeting = new Set<number>();
+    const comfort = new Set<number>();
+    for (let other = 1; other <= 200; other++) {
+      greeting.add(personPairDayRoll(9, other, tick, PERSON_DAY_ROLL_SALTS.socialGreeting));
+      comfort.add(personPairDayRoll(9, other, tick, PERSON_DAY_ROLL_SALTS.socialWearyComfort));
+    }
+    // The old `salt + id` arithmetic collided with the fixed greeting/comfort salts for ids 1-2.
+    expect(greeting.size, 'greeting pair rolls collapse across partner ids').toBeGreaterThan(190);
+    expect(comfort.size, 'comfort pair rolls collapse across partner ids').toBeGreaterThan(190);
+    const source = readFileSync('src/game/socialLife.ts', 'utf8');
+    expect(source, 'an id-added salt came back').not.toMatch(/personDayRoll\([^)]*\+ Math\.abs/);
+  });
+
   it('exposes one stagger bucket and one greeting window', () => {
     const a = settler(401);
     const bucketTick = 6 - (a.id % 6);

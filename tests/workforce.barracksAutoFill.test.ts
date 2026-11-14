@@ -24,7 +24,7 @@ describe('automatic Barracks staffing', () => {
     const barracks = createBuilding(BuildingType.Barracks, 100, 100, 7);
     barracks.completed = true;
     barracks.staffingMode = 'auto';
-    const donor = createBuilding(BuildingType.Farm, 140, 100, 8);
+    const donor = createBuilding(BuildingType.Quarry, 140, 100, 8);
     donor.completed = true;
     donor.staffingMode = 'auto';
     const needed = BUILDING_CONFIGS[BuildingType.Barracks].maxOccupants;
@@ -34,9 +34,10 @@ describe('automatic Barracks staffing', () => {
     ));
     settlers[0].workerBuildingId = barracks.id;
     for (const worker of settlers.slice(1)) worker.workerBuildingId = donor.id;
-    // A guard transfer must not drain the last worker from the source.
+    // Every guard post must fill from the surplus; the donor keeps a legal floor rather than being drained.
     assignMissingWorkers(settlers, [donor, barracks], { tick: 100 });
-    expect(countWorkersAtBuilding(settlers, barracks.id)).toBeGreaterThan(1);
+    expect(countWorkersAtBuilding(settlers, barracks.id)).toBe(needed);
+    expect(barracks.occupants).toHaveLength(needed);
     expect(countWorkersAtBuilding(settlers, donor.id)).toBeGreaterThanOrEqual(1);
     expect(settlers.filter((h) => h.workerBuildingId === barracks.id && h.lastAutoJobTransferTick === 100).length).toBeGreaterThan(0);
   });

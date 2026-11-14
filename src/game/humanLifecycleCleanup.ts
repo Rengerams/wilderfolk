@@ -1,4 +1,3 @@
-import { recordWarPrisonerOutcome } from './warPrisonerCustody';
 import { ensureOrphanAdoption, placeOrphanInHouse, relocateChildToCustodian } from './housingPipeline';
 import { moveResident } from './housingPipeline';
 import type { Building, Entity, WorldState } from './gameTypes';
@@ -238,9 +237,6 @@ export function killHuman(
   if (!entity.alive || !isKillableSettlerEntity(entity)) return;
   if (state) {
     recordGenealogyDeath(state, entity);
-    if (entity.warCaptive && !state.raidPrisonerHistory?.some((record) => record.entityId === entity.id && record.status === 'executed')) {
-      recordWarPrisonerOutcome(state, entity, 'died');
-    }
   }
   entity.alive = false;
   // The office is vacant on death; the manor keeps the family until the election.

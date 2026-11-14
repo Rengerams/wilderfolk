@@ -4,20 +4,11 @@ import { lazyWithRetry } from './lazyWithRetry';
 import {
   BuildingType, EntityType, BUILDING_JOB_TYPES, WORKSHOP_RECIPES, getWorkshopRecipe, formatRecipeInputs,
   getTerrainEfficiencyMultiplier, getAdjacencyMultiplier,
-  isRivalAtPeace,
-  getRivalRaidStrength, getCombatPreview,
-  canLaunchRaidOnRival,
-  canProvokeRival,
-  getOutgoingRaidActionLabel,
-  getOutgoingRaidFoodCostForRival, formatCampDistance, getCampDistancePixels,
-  formatRaidLootSummary, raidEventLoot,
-  formatRivalPopulationLabel,
 } from '../game/gameEngine';
 import { getBuildingUpgradeCost, getBuildingUpgradeEligibility, getRepairBuildingEligibility, REPAIR_COST } from '../game/buildingMaintenanceActions';
 import { canAffordWorkshopRecipe } from '../game/workshops';
 import { GRAVEYARD_CAPACITY_PER_YARD } from '../game/eventLog';
 import { estimateWorkshopGold } from '../game/workshopEconomy';
-import { getDiplomacyChoiceEligibility, getRivalGiftEligibility, getRivalTradePactEligibility, getShowStrengthEligibility, getPeaceTreatyEligibility, getDiplomacyExpiresAtTick, RIVAL_GIFT_FOOD_COST, RIVAL_TRADE_PACT_GOLD_COST, PEACE_TREATY_GOLD_COST, PEACE_TREATY_FOOD_COST } from '../game/rivalDiplomacy';
 import { moonHowlerRiteWeights, countStaffedPriests } from '../game/moonHowler';
 import { ensureEntityByIdMap } from '../game/entityIndex';
 import {
@@ -41,7 +32,6 @@ import { HUNTING_SPOT_PREY_OPTIONS } from '../game/gameTypes';
 import type { HuntingSpotPrey } from '../game/gameTypes';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { getWorkSchedule, getWorkScheduleLabel } from '../game/workSchedule';
-import { formatRaidDeadline } from '../game/frontierCombat';
 import { staffingCapFor, SMITH_BONUS_PER_WORKER, SMITH_BONUS_CAP } from '../game/workforce';
 import { explainBuildingStaffing } from '../game/dashboardData';
 import { getSettlerWorkReason, getUnstaffedPostNote, workplaceDutyLabel } from '../game/workAbsence';
@@ -54,50 +44,14 @@ import { PRESERVE_HEALTH_BONUS } from '../game/dailyEcology';
 import { BARN_ADJACENCY_BONUS } from '../game/adjacencyIndex';
 import { siloFoodStorageForLevel, storehouseStorageForLevel } from '../game/economy';
 import type { Building, WorldState } from '../game/gameEngine';
-import type { ForgeOrderId, RaidChoice } from '../game/gameTypes';
-import type { RivalSettlement } from '../game/gameTypes';
+import type { ForgeOrderId } from '../game/gameTypes';
 import type { WorkerCommand } from '../game/simWorker/commands';
 
-const CombatPreviewPanel = lazyWithRetry(() => import('../game/CombatPreviewPanel'));
 const BlacksmithForgePanel = lazyWithRetry(() => import('./BlacksmithForgePanel'));
 
 /** Settlers named under the empty worker picker before the rest are only counted. */
 const STAFFING_REFUSAL_LIMIT = 4;
 
-/**
- * The raid-card choice buttons. The incoming and outgoing cards render this same control, differing
- * only by command op and colour, so raid-choice rendering lives in one place.
- */
-function RaidChoiceButtons({
-  choices,
-  colorClass,
-  onChoose,
-}: {
-  choices: RaidChoice[];
-  colorClass: string;
-  onChoose: (choiceId: string) => void;
-}) {
-  return (
-    <div className="mt-1.5 grid grid-cols-1 gap-1">
-      {choices.map((choice) => (
-        <button
-          key={choice.id}
-          type="button"
-          title={choice.hint}
-          onClick={() => onChoose(choice.id)}
-          className={`rounded px-2 py-1 text-[10px] font-bold ${colorClass}`}
-        >
-          {choice.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/**
- * Hints whose numbers are owned by a rule module: each is built from the owner at render time, so a
- * tuning constant cannot leave the prose behind. Returns null for buildings with no tuning numbers.
- */
 function ownerOutputHint(building: Building, state: WorldState): string | null {
   const type = building.type;
   switch (type) {
@@ -165,219 +119,16 @@ export interface SelectedBuildingPanelProps {
   onSetMineMode?: (mode: MineMode) => void;
   onQueueForge?: (orderId: ForgeOrderId) => void;
   canAssignWorker: boolean;
-  onDiplomacyAction?: (cmd: WorkerCommand) => void;
   onTownHallAction?: (cmd: WorkerCommand) => void;
-  onFocusCamp?: (rival: RivalSettlement) => void;
 }
 
 export default function SelectedBuildingPanel({
-  building, state, onRepair, onUpgrade, onDemolish, onToggleGate, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onQueueForge, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
+  building, state, onRepair, onUpgrade, onDemolish, onToggleGate, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onQueueForge, canAssignWorker, onTownHallAction,
 }: SelectedBuildingPanelProps) {
   // Demolish confirmation is armed for the current building only, so switching
   // to another building automatically resets it (no effect required).
   const [demolishArmId, setDemolishArmId] = useState<number | null>(null);
   const confirmDemolish = demolishArmId === building.id;
-  if (building.faction === 'rival') {
-    const rival = state.rivalSettlements.find((r) => r.id === building.groupId);
-    const config = getBuildingConfig(building.type);
-    const pendingForRival = (state.pendingDiplomacyEvents ?? []).filter((e) => e.rivalId === rival?.id);
-    const raidsForRival = (state.pendingRaidEvents ?? []).filter((e) => e.rivalId === rival?.id);
-    const outgoingRaidsForRival = (state.pendingOutgoingRaidEvents ?? []).filter((e) => e.rivalId === rival?.id);
-    const rivalStr = rival ? getRivalRaidStrength(rival) : 0;
-    const raidFoodCost = rival ? getOutgoingRaidFoodCostForRival(state, rival) : 0;
-    const atPeace = rival ? isRivalAtPeace(rival) : false;
-    const raidEligibility = rival ? canLaunchRaidOnRival(state, rival) : { ok: false, foodCost: 0, blockReason: 'Unknown rival' };
-    const canLaunchRaid = raidEligibility.ok;
-    const provokeGate = rival ? canProvokeRival(state, rival) : null;
-    const outgoingRaidAction = rival ? getOutgoingRaidActionLabel(state, rival.id) : null;
-    const isCounterRaid = raidsForRival.length > 0;
-    // The four rival-action gates are the owners' verdicts plus their refusal text, so a button
-    // cannot disagree with the command it guards.
-    const giftGate = rival ? getRivalGiftEligibility(state, rival.id) : null;
-    const pactGate = rival ? getRivalTradePactEligibility(state, rival.id) : null;
-    const showForceGate = rival ? getShowStrengthEligibility(state, rival.id) : null;
-    const peaceGate = rival ? getPeaceTreatyEligibility(state, rival.id) : null;
-    const refusal = (gate: { ok: boolean; blockReason?: string } | null) =>
-      gate && !gate.ok ? ` — ${gate.blockReason ?? 'unavailable'}` : '';
-    return (
-      <div className="rounded-xl border border-indigo-600/40 bg-indigo-950/30 p-3">
-        <div className="mb-2 flex items-center gap-2">
-          {config.sprite ? (
-            <img src={config.sprite} alt={config.label} className="h-8 w-8 object-contain opacity-90" />
-          ) : (
-            <span className="text-xl leading-none opacity-90">{config.emoji}</span>
-          )}
-          <div>
-            <h3 className="text-sm font-bold text-indigo-200">{rival?.name ?? building.campLabel ?? 'Rival Camp'}</h3>
-            <p className="text-[11px] text-indigo-300/70">Type #{BUILDING_TYPE_CODES[building.type]} · Building ID: {building.id}</p>
-            <p className="text-[11px] text-indigo-300/80">
-              {config.label} · {rival ? formatRivalPopulationLabel(rival) : '?'} · <span className="capitalize">{rival?.relationship ?? 'unknown'}</span>
-              {rival && (
-                <>
-                  {' '}· {formatCampDistance(getCampDistancePixels(state, state.buildings, rival))} away
-                  {atPeace && <span className="text-cyan-300"> · 🕊️ peace {rival.peaceTreatyDays}d</span>}
-                </>
-              )}
-            </p>
-          </div>
-        </div>
-        {rival && onFocusCamp && (
-          <button
-            type="button"
-            onClick={() => onFocusCamp(rival)}
-            className="mb-2 w-full rounded bg-amber-900/50 px-2 py-1 text-[11px] font-bold text-amber-100 hover:bg-amber-800/50"
-          >
-            📍 Ping camp on map
-          </button>
-        )}
-        {rival && (
-          <div className="mb-2">
-            <Suspense fallback={<p className="text-[11px] text-stone-300">Loading preview…</p>}>
-              <CombatPreviewPanel
-                compact
-                showOutgoingRaid
-                outgoingRaidIsCounter={isCounterRaid}
-                preview={getCombatPreview(state, {
-                  rival,
-                  attackerStrength: raidsForRival[0]?.attackerStrength ?? rivalStr,
-                  incomingPayoffFood: raidsForRival[0]?.lootFood,
-                })}
-                title={`vs ${rival.name} — ${formatCampDistance(getCampDistancePixels(state, state.buildings, rival))} · raid ${raidFoodCost}🍖`}
-              />
-            </Suspense>
-          </div>
-        )}
-        {raidsForRival.map((evt) => (
-          <div key={evt.id} className="mb-2 rounded-lg border border-rose-600/40 bg-rose-950/40 p-2">
-            <p className="text-xs font-bold text-rose-200">{evt.emoji} {evt.title}</p>
-            <p className="text-[11px] text-stone-300">{evt.description}</p>
-            <RaidChoiceButtons
-              choices={evt.choices}
-              colorClass="bg-rose-950 text-rose-100 hover:bg-rose-900"
-              onChoose={(choiceId) => onDiplomacyAction?.({ proto: 1, op: 'respondToRaidEvent', eventId: evt.id, choiceId })}
-            />
-          </div>
-        ))}
-        {outgoingRaidsForRival.map((evt) => (
-          <div key={evt.id} className="mb-2 rounded-lg border border-orange-600/40 bg-orange-950/40 p-2">
-            <p className="text-xs font-bold text-orange-200">{evt.emoji} {evt.title}</p>
-            <p className="text-[11px] text-stone-300">{evt.description}</p>
-            <p className="mt-1 text-[10px] text-orange-300/90">
-              {formatRaidDeadline(evt, state.tick)}
-              {evt.rivalResponse === 'payoff_offer' && (
-                <span> · offer {formatRaidLootSummary(raidEventLoot(evt))}</span>
-              )}
-            </p>
-            <RaidChoiceButtons
-              choices={evt.choices}
-              colorClass="bg-orange-950 text-orange-100 hover:bg-orange-900"
-              onChoose={(choiceId) => onDiplomacyAction?.({
-                proto: 1,
-                op: 'respondToOutgoingRaidEvent',
-                eventId: evt.id,
-                choiceId,
-              })}
-            />
-          </div>
-        ))}
-        {pendingForRival.map((evt) => {
-          const daysRemaining = daysUntilTick(state.tick, getDiplomacyExpiresAtTick(evt));
-          return (
-          <div key={evt.id} className="mb-2 rounded-lg border border-amber-600/30 bg-amber-950/30 p-2">
-            <p className="text-xs font-bold text-amber-200">{evt.emoji} {evt.title}</p>
-            <p className="text-[11px] text-stone-300">{evt.description}</p>
-            <p className="text-[10px] text-amber-300/80">Expires in {daysRemaining} day{daysRemaining === 1 ? '' : 's'} · choose a response to apply the shown cost and consequence.</p>
-            <div className="mt-1.5 grid grid-cols-1 gap-1">
-              {evt.choices.map((choice) => {
-                const eligibility = getDiplomacyChoiceEligibility(state, evt, choice.id);
-                return (
-                <button
-                  key={choice.id}
-                  type="button"
-                  disabled={!eligibility.ok}
-                  title={eligibility.blockReason ?? choice.hint}
-                  onClick={() => {
-                    if (!eligibility.ok) return;
-                    onDiplomacyAction?.({ proto: 1, op: 'respondToDiplomacyEvent', eventId: evt.id, choiceId: choice.id });
-                  }}
-                  className="rounded bg-stone-800 px-2 py-1 text-[10px] font-bold text-stone-200 hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {choice.label}{refusal(eligibility)}
-                </button>
-                );
-              })}
-            </div>
-          </div>
-          );
-        })}
-        {rival && onDiplomacyAction && (
-          <div className="grid grid-cols-1 gap-1">
-            <button
-              type="button"
-              disabled={!giftGate?.ok}
-              onClick={() => onDiplomacyAction({ proto: 1, op: 'sendRivalGift', rivalId: rival.id })}
-              className="rounded bg-stone-700 px-2 py-1 text-[10px] font-bold text-stone-200 hover:bg-stone-600 disabled:opacity-40"
-            >
-              🎁 Send food gift ({RIVAL_GIFT_FOOD_COST}🍖){refusal(giftGate)}
-            </button>
-            <button
-              type="button"
-              disabled={!pactGate?.ok}
-              onClick={() => onDiplomacyAction({ proto: 1, op: 'establishRivalTradePact', rivalId: rival.id })}
-              className="rounded bg-cyan-900 px-2 py-1 text-[10px] font-bold text-cyan-100 hover:bg-cyan-800 disabled:opacity-40"
-            >
-              🤝 Trade pact ({RIVAL_TRADE_PACT_GOLD_COST}💰){refusal(pactGate)}
-            </button>
-            <button
-              type="button"
-              disabled={!showForceGate?.ok}
-              onClick={() => onDiplomacyAction({ proto: 1, op: 'showStrengthToRival', rivalId: rival.id })}
-              className="rounded bg-rose-900 px-2 py-1 text-[10px] font-bold text-rose-100 hover:bg-rose-800 disabled:opacity-40"
-            >
-              ⚔️ Show militia (parade){refusal(showForceGate)}
-            </button>
-            <button
-              type="button"
-              disabled={!peaceGate?.ok}
-              onClick={() => onDiplomacyAction({ proto: 1, op: 'signPeaceTreaty', rivalId: rival.id })}
-              className="rounded bg-cyan-900 px-2 py-1 text-[10px] font-bold text-cyan-100 hover:bg-cyan-800 disabled:opacity-40"
-              title="60 days without raids · needs neutral+ relations (not tense)"
-            >
-              🕊️ Sign peace ({PEACE_TREATY_GOLD_COST}💰 + {PEACE_TREATY_FOOD_COST}🍖){refusal(peaceGate)}
-            </button>
-            <button
-              type="button"
-              disabled={!provokeGate?.ok}
-              onClick={() => onDiplomacyAction({ proto: 1, op: 'provokeRival', rivalId: rival.id })}
-              className="rounded bg-rose-950 px-2 py-1 text-[10px] font-bold text-rose-100 hover:bg-rose-900 disabled:opacity-40"
-              title={provokeGate?.ok
-                ? 'Declare hostility — relations turn tense (reputation -6) so you can raid them'
-                : (provokeGate?.blockReason ?? 'Cannot provoke')}
-            >
-              🗡️ Declare hostility{refusal(provokeGate)}
-            </button>
-            <button
-              type="button"
-              disabled={!canLaunchRaid}
-              onClick={() => onDiplomacyAction({ proto: 1, op: 'launchRaidOnRival', rivalId: rival.id })}
-              className="rounded bg-orange-950 px-2 py-1 text-[10px] font-bold text-orange-100 hover:bg-orange-900 disabled:opacity-40"
-              title={canLaunchRaid
-                ? (atPeace
-                  ? `Breaks the peace treaty · costs ${raidFoodCost} food (march rations)`
-                  : `Costs ${raidFoodCost} food (march rations) · worsens relations`)
-                : (raidEligibility.blockReason ?? 'Cannot raid')}
-            >
-              🏹 {outgoingRaidAction?.buttonLabel ?? 'Raid their camp'} ({raidFoodCost}🍖)
-              {!canLaunchRaid ? refusal(raidEligibility) : ''}
-            </button>
-            {atPeace && canLaunchRaid && (
-              <p className="w-full text-[10px] text-cyan-300">Attacking now will break the peace treaty.</p>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
 
   const config = getBuildingConfig(building.type);
   const isHousing = isResidenceBuildingType(building.type);
@@ -929,7 +680,7 @@ export default function SelectedBuildingPanel({
               const daysLeft = p.prisonerUntilTick ? daysUntilTick(state.tick, p.prisonerUntilTick) : 0;
               return (
                 <p key={p.id} className="text-[11px] text-slate-300">
-                  ⛓️ {citizenFullName(p)} · {p.warCaptive ? 'Enemy captive — awaiting a prisoner decision' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
+                  ⛓️ {citizenFullName(p)} · {daysLeft} day{daysLeft === 1 ? '' : 's'} left
                 </p>
               );
             })}

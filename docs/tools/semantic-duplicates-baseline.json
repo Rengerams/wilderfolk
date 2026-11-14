@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-11T07:38:31.121Z",
+  "generatedAt": "2026-11-14T01:25:25.531Z",
   "groups": [
     {
       "hash": "7016380f050a7a8752564f84f32092fdfd270292",
@@ -115,8 +115,8 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/IntroScreen.tsx:187",
-            "src/game/MapSetupScreen.tsx:169"
+            "src/game/IntroScreen.tsx:189",
+            "src/game/MapSetupScreen.tsx:172"
           ]
         }
       ]
@@ -225,7 +225,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/gameLoop.ts:1039",
+            "src/game/gameLoop.ts:1105",
             "src/game/simFocus.ts:112"
           ]
         },
@@ -245,7 +245,7 @@
             "src/components/useMapKeyboardCursor.ts:143",
             "src/components/useMapKeyboardCursor.ts:160",
             "src/game/renderer/terrain.ts:255",
-            "src/hooks/useCanvasInteractions.ts:131"
+            "src/hooks/useCanvasInteractions.ts:132"
           ]
         }
       ]
@@ -267,8 +267,8 @@
             "current"
           ],
           "callers": [
-            "src/App.tsx:470",
-            "src/App.tsx:1122"
+            "src/App.tsx:482",
+            "src/App.tsx:1199"
           ]
         },
         {
@@ -284,7 +284,7 @@
             "current"
           ],
           "callers": [
-            "src/App.tsx:474"
+            "src/App.tsx:486"
           ]
         }
       ]
@@ -307,13 +307,13 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/buildingAccess.ts:50",
-            "src/game/buildingAccess.ts:75",
-            "src/game/buildingAccess.ts:101",
-            "src/game/buildingAccess.ts:115",
-            "src/game/buildingPlacementActions.ts:106",
-            "src/game/buildingRotation.ts:100",
-            "src/game/logisticsOverlayData.ts:253",
+            "src/game/buildingAccess.ts:51",
+            "src/game/buildingAccess.ts:84",
+            "src/game/buildingAccess.ts:128",
+            "src/game/buildingAccess.ts:142",
+            "src/game/buildingPlacementActions.ts:59",
+            "src/game/buildingRotation.ts:101",
+            "src/game/logisticsOverlayData.ts:254",
             "src/game/renderer/buildings.ts:61",
             "src/game/renderer/buildings.ts:85"
           ]
@@ -335,7 +335,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/buildingPlacementActions.ts:94"
+            "src/game/worldEventSites.ts:13"
           ]
         }
       ]
@@ -359,7 +359,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/storyEvents.ts:170"
+            "src/game/storyEvents.ts:194"
           ]
         },
         {
@@ -377,7 +377,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/storyEvents.ts:168"
+            "src/game/storyEvents.ts:192"
           ]
         }
       ]
@@ -399,7 +399,7 @@
           "writes": [],
           "callers": [
             "src/game/entityFactory.ts:79",
-            "src/game/entityFactory.ts:215"
+            "src/game/entityFactory.ts:212"
           ]
         },
         {
@@ -414,11 +414,11 @@
           "members": [],
           "writes": [],
           "callers": [
-            "src/game/worldGen.ts:77",
-            "src/game/worldGen.ts:176",
-            "src/game/worldGen.ts:265",
-            "src/game/worldGen.ts:322",
-            "src/game/worldGen.ts:708"
+            "src/game/worldGen.ts:76",
+            "src/game/worldGen.ts:193",
+            "src/game/worldGen.ts:282",
+            "src/game/worldGen.ts:339",
+            "src/game/worldGen.ts:728"
           ]
         }
       ]
@@ -440,7 +440,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/grassEcology.ts:93"
+            "src/game/grassEcology.ts:96"
           ]
         },
         {
@@ -517,11 +517,11 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/hotelStay.ts:87",
-            "src/game/hotelStay.ts:110",
-            "src/game/hotelStay.ts:239",
-            "src/game/hotelStay.ts:484",
-            "src/game/hotelStay.ts:557"
+            "src/game/hotelStay.ts:88",
+            "src/game/hotelStay.ts:122",
+            "src/game/hotelStay.ts:251",
+            "src/game/hotelStay.ts:493",
+            "src/game/hotelStay.ts:566"
           ]
         },
         {
@@ -540,8 +540,8 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/hotelStay.ts:319",
-            "src/game/hotelStay.ts:332"
+            "src/game/hotelStay.ts:325",
+            "src/game/hotelStay.ts:338"
           ]
         },
         {
@@ -583,7 +583,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/humanChat.ts:301"
+            "src/game/humanChat.ts:314"
           ]
         },
         {
@@ -616,8 +616,8 @@
           "writes": [],
           "callers": [
             "src/game/humanStatus.ts:80",
-            "src/game/humanTick.ts:722",
-            "src/game/workAbsence.ts:244"
+            "src/game/humanTick.ts:752",
+            "src/game/workAbsence.ts:253"
           ]
         },
         {
@@ -670,9 +670,9 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/virtualPlayer.ts:1359",
-            "src/game/virtualPlayer.ts:1769",
-            "src/hooks/useCanvasInteractions.ts:412"
+            "src/game/virtualPlayer.ts:1360",
+            "src/game/virtualPlayer.ts:1770",
+            "src/hooks/useCanvasInteractions.ts:413"
           ]
         }
       ]
@@ -762,7 +762,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/placementUtils.ts:69"
+            "src/game/placementUtils.ts:70"
           ]
         },
         {
@@ -830,7 +830,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/workforce.ts:536"
+            "src/game/workforce.ts:684"
           ]
         }
       ]
@@ -885,8 +885,8 @@
           "writes": [],
           "callers": [
             "src/game/scentGrid.ts:131",
-            "src/game/scentGrid.ts:161",
-            "src/game/scentGrid.ts:174"
+            "src/game/scentGrid.ts:163",
+            "src/game/scentGrid.ts:176"
           ]
         },
         {
@@ -954,8 +954,8 @@
           "members": [],
           "writes": [],
           "callers": [
-            "src/game/simBuffers/simDelta.ts:370",
-            "src/game/simBuffers/simDelta.ts:676"
+            "src/game/simBuffers/simDelta.ts:376",
+            "src/game/simBuffers/simDelta.ts:690"
           ]
         },
         {
@@ -970,55 +970,8 @@
           "members": [],
           "writes": [],
           "callers": [
-            "src/game/simBuffers/simDelta.ts:376",
-            "src/game/simBuffers/simDelta.ts:683"
-          ]
-        }
-      ]
-    },
-    {
-      "hash": "d7ad5ec9297bd6414bcf5b9a250a18f8d9e3ed18",
-      "count": 2,
-      "functions": [
-        {
-          "id": "src/game/skills.ts:rewardBuildingWork",
-          "file": "src/game/skills.ts",
-          "name": "rewardBuildingWork",
-          "tokens": 51,
-          "calls": [
-            "for",
-            "gainSkill",
-            "getJobForBuilding",
-            "if"
-          ],
-          "members": [
-            "occupants",
-            "type"
-          ],
-          "writes": [],
-          "callers": [
-            "src/game/dailyBuildingEconomy.ts:453"
-          ]
-        },
-        {
-          "id": "src/game/skills.ts:rewardProductionSkills",
-          "file": "src/game/skills.ts",
-          "name": "rewardProductionSkills",
-          "tokens": 44,
-          "calls": [
-            "for",
-            "gainSkill",
-            "getJobForBuilding",
-            "if"
-          ],
-          "members": [
-            "occupants",
-            "type"
-          ],
-          "writes": [],
-          "callers": [
-            "src/game/dailyBuildingEconomy.ts:618",
-            "src/game/townHall.ts:88"
+            "src/game/simBuffers/simDelta.ts:382",
+            "src/game/simBuffers/simDelta.ts:697"
           ]
         }
       ]
@@ -1089,7 +1042,7 @@
           "writes": [],
           "callers": [
             "src/game/simBuffers/renderSoAEntities.ts:179",
-            "src/game/tickLayerRealtime.ts:160"
+            "src/game/tickLayerRealtime.ts:165"
           ]
         },
         {
@@ -1110,7 +1063,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/tickLayerRealtime.ts:166"
+            "src/game/tickLayerRealtime.ts:171"
           ]
         }
       ]
@@ -1136,7 +1089,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/tickLayerRealtime.ts:154"
+            "src/game/tickLayerRealtime.ts:159"
           ]
         },
         {
@@ -1156,7 +1109,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/tickLayerRealtime.ts:148"
+            "src/game/tickLayerRealtime.ts:153"
           ]
         }
       ]

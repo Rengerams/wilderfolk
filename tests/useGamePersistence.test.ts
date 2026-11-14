@@ -51,7 +51,9 @@ describe('persistGame', () => {
     expect(saved).toBe(true);
     expect(saveGameMock).toHaveBeenCalledWith(authoritativeWorld, view);
     expect(markGameSaved).toHaveBeenCalledOnce();
-    expect(authoritativeWorld.floatingTexts).toContainEqual(expect.objectContaining({ text: 'Game Saved! 💾' }));
+    // Feedback is UI-owned: no simulation floating text is authored for a save, so a worker delta
+    // cannot erase it and the saved world is not mutated for presentation.
+    expect(authoritativeWorld.floatingTexts).toHaveLength(0);
     expect(displayWorld.floatingTexts).toHaveLength(0);
     expect(showToast).toHaveBeenCalledWith({ message: 'Game saved successfully', type: 'success' });
   });

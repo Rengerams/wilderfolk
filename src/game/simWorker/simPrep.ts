@@ -74,7 +74,6 @@ type SimPrepKeys =
   | 'raidRecovery'
   | 'scoredRaidIds'
   | 'graveRecords'
-  | 'raidPrisonerHistory'
   | 'pendingDiplomacyEvents'
   | 'tradeRoutes'
   | 'disasters'
@@ -152,7 +151,6 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     entities: profileSection('rollback.entities', () => (state.entities ?? []).map((e) => ({
       ...e,
       battleLeadershipAwards: e.battleLeadershipAwards ? { ...e.battleLeadershipAwards } : undefined,
-      warCaptive: e.warCaptive ? { ...e.warCaptive } : undefined,
       skills: e.skills ? { ...e.skills } : e.skills,
       careerHistory: e.careerHistory
         ? Object.fromEntries(Object.entries(e.careerHistory).map(([job, row]) => [job, { ...row }]))
@@ -252,7 +250,6 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     raidRecovery: state.raidRecovery === undefined ? undefined : structuredClone(state.raidRecovery),
     scoredRaidIds: state.scoredRaidIds === undefined ? undefined : structuredClone(state.scoredRaidIds),
     graveRecords: profileSection('rollback.graves', () => (state.graveRecords === undefined ? undefined : structuredClone(state.graveRecords))),
-    raidPrisonerHistory: state.raidPrisonerHistory === undefined ? undefined : structuredClone(state.raidPrisonerHistory),
     pendingDiplomacyEvents: [...(state.pendingDiplomacyEvents ?? [])],
     tradeRoutes: structuredClone(state.tradeRoutes ?? []),
     disasters: structuredClone(state.disasters ?? []),
@@ -389,8 +386,6 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   else world.scoredRaidIds = prep.scoredRaidIds;
   if (prep.graveRecords === undefined) delete world.graveRecords;
   else world.graveRecords = prep.graveRecords;
-  if (prep.raidPrisonerHistory === undefined) delete world.raidPrisonerHistory;
-  else world.raidPrisonerHistory = prep.raidPrisonerHistory;
   world.pendingDiplomacyEvents = prep.pendingDiplomacyEvents;
   world.tradeRoutes = prep.tradeRoutes;
   world.disasters = prep.disasters;

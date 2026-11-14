@@ -616,17 +616,21 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
 }
 
 /** Whether `who` already owns a scene from one of these event families on the colony day of `tick`. */
+/**
+ * Whether this speaker already had a scene today. `eventKeys` narrows the check to one event family;
+ * omitted, any scene counts — a person gets one scene per colony day across every family.
+ */
 export function hasDialogueSceneOnDay(
   who: ChatSpeaker,
   tick: number,
-  eventKeys: readonly DialogueEventKey[],
+  eventKeys?: readonly DialogueEventKey[],
 ): boolean {
   const scenes = who.dialogueRecentScenes;
   if (!scenes) return false;
   const day = Math.floor(tick / TICKS_PER_DAY);
   for (const [key, scene] of Object.entries(scenes)) {
     if (Math.floor(scene.tick / TICKS_PER_DAY) !== day) continue;
-    if (eventKeys.some((eventKey) => key.startsWith(eventKey + ':'))) return true;
+    if (eventKeys == null || eventKeys.some((eventKey) => key.startsWith(eventKey + ':'))) return true;
   }
   return false;
 }

@@ -1,4 +1,3 @@
-import { departWarPrisoner } from './warPrisonerCustody';
 import { moveResident } from './housingPipeline';
 import { isStripBuildType, MAX_STRIP_SEGMENTS } from './stripBuild';
 import type { Building, WorldState } from './gameTypes';
@@ -243,10 +242,6 @@ function clearAssignmentsForDemolishedBuilding(
       affected.residents.add(entity.id);
     }
     if (entity.prisonBuildingId != null && buildingIds.has(entity.prisonBuildingId)) {
-      if (entity.alive && entity.warCaptive) {
-        departWarPrisoner(state, entity, 'escaped');
-        continue;
-      }
       entity.prisonBuildingId = undefined;
       entity.prisonerUntilTick = undefined;
       entity.prisonSentenceCrime = undefined;

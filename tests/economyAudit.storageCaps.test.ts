@@ -4,6 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { updateStorageCaps } from '../src/game/economy';
+import { initGame } from '../src/game/worldGen';
 import { buildingTypeHasLevelBenefit, getBuildingUpgradeEligibility } from '../src/game/buildingMaintenanceActions';
 import { BUILDING_CONFIGS, BuildingType } from '../src/game/buildings';
 import type { WorldState } from '../src/game/gameTypes';
@@ -51,6 +52,15 @@ describe('economy audit fixes', () => {
     const w = makeWorld();
     updateStorageCaps(w);
     expect(w.foodSpoilageRate).toBeCloseTo(0.02);
+  });
+
+  it('a fresh colony starts at the daily owner\'s spoilage rate', () => {
+    const world = initGame({ skipTerrain: true, villageName: 'Fresh', seed: 20_261_112 });
+    const ownerWorld = makeWorld();
+    updateStorageCaps(ownerWorld);
+
+    expect(world.foodSpoilageRate).toBe(ownerWorld.foodSpoilageRate);
+    expect(world.foodSpoilageRate).toBeCloseTo(0.02);
   });
 
   it('one Storehouse adds +800 capacity for all non-food resources', () => {

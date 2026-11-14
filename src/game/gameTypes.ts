@@ -285,6 +285,10 @@ export interface Entity {
   alive: boolean;
   flash: number;
   gender?: 'male' | 'female';
+  /**
+   * Persisted child flag: derived from age at spawn, cleared once by graduation. Eligibility rules
+   * read `age < HUMAN_ADULT_MIN_AGE`; only display/lifecycle transitions read this flag.
+   */
   isJuvenile: boolean;
   schoolDays?: number;
   schoolTicksToday?: number;
@@ -327,7 +331,6 @@ export interface Entity {
   raidDeploymentId?: string;
   departedAlive?: boolean;
   battleLeadershipAwards?: Record<string, number>;
-  warCaptive?: { raidId: string; originRivalId: string; capturedAtTick: number; recruitAfterTick: number; attempts: number; lastRationDay?: number };
   promiseLeadershipMerit?: number;
   relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
   partnerId?: number;
@@ -470,7 +473,8 @@ export interface RivalSettlement {
   campX: number;
   campY: number;
   population: number;
-  entityIds: number[];
+  /** Legacy on-map roster; always empty in current games while the strategic rival system is the only one. */
+  entityIds?: number[];
   relationship: RivalRelationship;
   foundedYear: number;
   daysUntilAction: number;
@@ -823,8 +827,6 @@ export interface WorldState {
     repairs: Array<{ buildingId: number; health: number }>; foodTarget: number;
   };
   scoredRaidIds?: string[];
-  raidPrisonerHistory?: Array<{ entityId: number; name: string; raidId: string; originRivalId: string;
-    status: 'captured' | 'released' | 'recruited' | 'escaped' | 'executed' | 'died'; tick: number }>;
   /** Permanent genealogy of living and deceased villagers. */
   genealogyRegistry?: import('./genealogyTypes').GenealogyRegistry;
   entities: Entity[];

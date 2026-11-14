@@ -7,10 +7,28 @@ import { getSimRng } from './simRng';
 const EVENT_SITE_FOOTPRINT_PX = 32;
 
 /** The placement owner's own rule: buildable ground, clear of every structure. */
-function isLegalCampSite(state: WorldState, x: number, y: number): boolean {
+function isLegalCampSite(state: WorldState, x: number, y: number, footprintPx = EVENT_SITE_FOOTPRINT_PX): boolean {
   if (state.worldMap
-    && !isFootprintOnBuildableTerrain(state, EVENT_SITE_FOOTPRINT_PX, EVENT_SITE_FOOTPRINT_PX, x, y)) return false;
-  return !overlapsAnyBuilding(state.buildings, EVENT_SITE_FOOTPRINT_PX, EVENT_SITE_FOOTPRINT_PX, x, y);
+    && !isFootprintOnBuildableTerrain(state, footprintPx, footprintPx, x, y)) return false;
+  return !overlapsAnyBuilding(state.buildings, footprintPx, footprintPx, x, y);
+}
+
+/**
+ * The one legal-prop-point owner for off-cycle spawns (yearly events): buildable ground, clear of
+ * every structure. Callers supply their own seeded stream so the draw stays in their sequence.
+ */
+export function randomLegalPropPoint(
+  state: WorldState,
+  random: () => number,
+  footprintPx = EVENT_SITE_FOOTPRINT_PX,
+  attempts = 16,
+): { x: number; y: number } | null {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const x = random() * state.width;
+    const y = random() * state.height;
+    if (isLegalCampSite(state, x, y, footprintPx)) return { x, y };
+  }
+  return null;
 }
 
 export function pickSite(

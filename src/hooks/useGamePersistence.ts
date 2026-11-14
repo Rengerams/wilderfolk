@@ -37,7 +37,7 @@ export interface PersistCurrentGameOptions {
 
 type PersistenceLoop = Pick<
   GameLoop,
-  'exportAuthoritativeWorld' | 'getView' | 'getWorld' | 'mutateWorld'
+  'exportAuthoritativeWorld' | 'getView' | 'getWorld'
 > & {
   /** Optional so a test double that only exports a world still satisfies the contract. */
   lastExportWasDegraded?: () => boolean;
@@ -206,22 +206,6 @@ async function persistGameOnce(
     } catch {
       /* Storage save succeeded, export download failed gracefully */
     }
-  }
-
-  if (feedback) {
-    accessors.getLoop()?.mutateWorld((world) => {
-      const id = world.nextFloatingTextId++;
-      world.floatingTexts.push({
-        id,
-        x: world.width / 2,
-        y: world.height / 2 - 50,
-        text: 'Game Saved! 💾',
-        color: '#22c55e',
-        life: 60,
-        maxLife: 60,
-        scale: 1.5,
-      });
-    });
   }
 
   if (result.fileReason) {

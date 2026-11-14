@@ -6,7 +6,7 @@ import type { Entity, WorldState } from '../src/game/gameTypes';
 import type { GenomeV2 } from '../src/game/settlerTraits';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { evaluateAptitudeInfluence } from '../src/game/personality/traitEvaluation';
-import { applyWarCommunityReaction } from '../src/game/warPrisoners';
+import { applyWarCommunityReaction } from '../src/game/raidAftermath';
 import { genomeFrom } from './helpers/genome';
 
 const FIXTURE_SEED = 20_261_028;

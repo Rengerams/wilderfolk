@@ -1,15 +1,11 @@
-import { useCallback, useState } from 'react';
 import { useModalFocus } from '../hooks/useModalFocus';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 import type { WorldState } from '../game/gameTypes';
-import { formatCitizenName } from '../game/citizenId';
-import { getOpenPlayerBeds } from '../game/populationGrowth';
 import { daysUntilTick } from '../game/dayCycleClock';
 import { buildRaidTerminalReport } from '../game/raidTerminalReport';
 
 interface WarfareStatusProps {
   world: WorldState;
-  onPrisonerDecision: (entityId: number, choice: string) => void;
   onRepair: (buildingId: number) => void;
   onExport: () => void;
   onChronicle: () => void;
@@ -17,29 +13,13 @@ interface WarfareStatusProps {
   onMainMenu: () => void;
 }
 
-/** Durable recovery, terminal reports and real captive choices read authoritative simulation state. */
-export default function WarfareStatus({ world, onPrisonerDecision, onRepair, onExport, onChronicle, onNewVillage, onMainMenu }: WarfareStatusProps) {
-  const [showCaptives, setShowCaptives] = useState(false);
-  const [confirmExecution, setConfirmExecution] = useState<number | null>(null);
+/** Durable recovery and terminal reports read authoritative simulation state. */
+export default function WarfareStatus({ world, onRepair, onExport, onChronicle, onNewVillage, onMainMenu }: WarfareStatusProps) {
   const recovery = world.raidRecovery;
-  // The world object is reused and mutated in place, so these read from it every render: memoising
-  // on its reference would keep a released/executed captive's row and buttons on screen.
-  const prisoners = recovery?.status === 'destroyed' ? [] : world.entities.filter((person) => person.alive && person.warCaptive && person.prisonBuildingId != null);
-  const openBeds = prisoners.length ? getOpenPlayerBeds(world) : 0;
   const buildingById = new Map((recovery?.status === 'recovering' ? world.buildings : []).map((home) => [home.id, home]));
   const terminal = recovery?.status === 'destroyed' ? buildRaidTerminalReport(world) : null;
-  const closeCaptives = useCallback(() => {
-    setShowCaptives(false);
-    setConfirmExecution(null);
-  }, []);
-  const captivesActive = showCaptives && !terminal;
   const terminalRef = useModalFocus<HTMLDivElement>(!!terminal);
-  const captivesRef = useModalFocus<HTMLDivElement>(!!captivesActive);
   useOverlayKeyboard('warfare-terminal', onMainMenu, !!terminal);
-  useOverlayKeyboard('warfare-prisoners', () => {
-    if (confirmExecution != null) setConfirmExecution(null);
-    else closeCaptives();
-  }, !!captivesActive);
 
   if (terminal && recovery) {
     return <div ref={terminalRef} role="dialog" aria-modal="true" aria-label="Settlement fallen" className="pointer-events-auto fixed inset-0 z-[1200] flex items-center justify-center bg-black/95 p-3 text-stone-100 sm:p-6">
@@ -107,31 +87,5 @@ export default function WarfareStatus({ world, onPrisonerDecision, onRepair, onE
       })}
       <p>{daysUntilTick(world.tick, recovery.protectedUntilTick)} days before new raids can be raised.</p>
     </aside>}
-    {prisoners.length > 0 && <button onClick={() => setShowCaptives(true)} className="pointer-events-auto fixed bottom-3 right-3 z-50 rounded border border-slate-500 bg-stone-950 p-3 text-stone-100">Prisoners of war ({prisoners.length})</button>}
-    {showCaptives && <div ref={captivesRef} role="dialog" aria-modal="true" aria-label="Prisoners of war" className="pointer-events-auto fixed inset-0 z-[1100] flex items-center justify-center bg-black/90 p-6 text-stone-100">
-      <section className="max-h-[85vh] w-full max-w-2xl space-y-4 overflow-auto rounded-xl border border-stone-600 bg-stone-950 p-6">
-        <h2 className="text-2xl font-bold">Prisoners of war</h2>
-        <p>Only real enemy combatants are held. Captives consume food and guarded prison space. Recruitment is voluntary and may be refused.</p>
-        {prisoners.map((person) => <div key={person.id} className="space-y-2 rounded border border-slate-600 p-3">
-          <h3 className="font-bold text-rose-300">Enemy captive: {formatCitizenName(person)}</h3>
-          <p>Origin: {world.rivalSettlements.find((rival) => rival.id === person.warCaptive!.originRivalId)?.name ?? 'Former settlement'} · prison #{person.prisonBuildingId}</p>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => onPrisonerDecision(person.id, 'keep')} className="rounded bg-stone-700 p-2">Keep imprisoned</button>
-            <button onClick={() => onPrisonerDecision(person.id, 'release')} className="rounded bg-stone-700 p-2">Release</button>
-            <button disabled={world.tick < person.warCaptive!.recruitAfterTick || openBeds <= 0} onClick={() => onPrisonerDecision(person.id, 'recruit')} className="rounded bg-amber-900 p-2 disabled:opacity-40">Offer to join</button>
-            <button onClick={() => setConfirmExecution(person.id)} className="rounded bg-stone-700 p-2">Execute</button>
-          </div>
-          {openBeds <= 0 && <p>No free village housing is available for a recruit.</p>}
-          {world.tick < person.warCaptive!.recruitAfterTick && <p>Another recruitment offer is available in {daysUntilTick(world.tick, person.warCaptive!.recruitAfterTick)} days.</p>}
-          {confirmExecution === person.id && <div className="rounded border border-stone-600 p-3">
-            <p>Execute {formatCitizenName(person)}? This is permanent and cannot be undone.</p>
-            <button onClick={() => { onPrisonerDecision(person.id, 'execute_confirmed'); setConfirmExecution(null); }} className="mr-3 rounded bg-stone-700 p-2">Confirm</button>
-            <button onClick={() => setConfirmExecution(null)}>Cancel</button>
-          </div>}
-        </div>)}
-        {prisoners.length === 0 && <p>No identifiable combatants remain in captivity.</p>}
-        <button onClick={closeCaptives} className="rounded bg-stone-700 p-2">Return to village</button>
-      </section>
-    </div>}
   </>;
 }

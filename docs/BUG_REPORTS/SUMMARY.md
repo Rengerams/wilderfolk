@@ -16,6 +16,10 @@
 
 **2026-11-11 — [Audit remediation: social, story, leadership and stats](../bug_report/2026-11-11-audit-remediation-social-story.md):** resolved; one social scene per person per day, monotonic lifetime totals, credited election ballots, stable wedding rival, removed dead campaign choice, bounded dialogue history.
 
+**2026-11-11 — [Audit remediation: economy, buildings and workforce](../bug_report/2026-11-11-audit-remediation-economy-buildings.md):** resolved; staffed-hotel lodging, bounded caravans with refunds, player-owned maintenance gate, one placement decision, living construction crews, travel-hour staffing.
+
+**2026-11-12 — [Audit remediation: determinism and state residue](../bug_report/2026-11-12-audit-remediation-determinism.md):** resolved; one run seed, named combat/leisure streams, tick-based arrow retention, rollback-safe playmate cache, Moon Howler population count, session relocation reset.
+
 **2026-11-11 — [Audit remediation Phase 0 — 11 fixed defects and open backlog](../bug_report/2026-11-11-audit-remediation-phase0.md):** fixed; forge cadence, leave/save, Wildkin apex behaviour, malformed-save freeze/validation, stale demolition and session UI/audio; targeted suites green, standard gate running.
 
 **2026-11-11 — [Invention Fair probability cutoff misclassifies exactly 60%](../bug_report/2026-11-11-invention-fair-boundary-floating-point.md):** investigating; integer-percent thresholds and boundary regression tests committed in PR #142; CI pending.
@@ -2384,3 +2388,5 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 ## 2026-11-07 — Audit A7 performance hot paths
 
 - **The human render pass rescanned buildings and re-sampled ground height every frame — resolved:** the sleeper cull uses one id map per tick, the status context is memoised per snapshot, and height-mesh vertices are sampled once per map. [Report](../bug_report/2026-11-07-per-frame-human-rescans.md).
+
+- [2026-11-12-audit-reconciliation-workforce-save.md](../bug_report/2026-11-12-audit-reconciliation-workforce-save.md) — 13 unnumbered §4.3/§4.4/§5 findings (save speed/simVersion/fallback, farm mill bonus, spoilage owner, workshop preview, barracks fill, jailed posts, Taming Post, food seeding, construction pre-seed, swap pass, captive roster); all fixed with tests.

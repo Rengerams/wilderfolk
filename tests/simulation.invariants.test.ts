@@ -328,6 +328,30 @@ describe('leader residency invariants', () => {
   });
 });
 
+describe('vacant office invariants', () => {
+  it('reports a stale leader occupation while the office is vacant', () => {
+    const stale = human(7, { occupation: LEADER_OCCUPATION });
+    const errors = collectSimulationInvariantErrors(state([stale], [], null));
+    expect(errors.some((error) => error.includes('still holds the'))).toBe(true);
+  });
+
+  it("reports a Leader's House hold with no succession scheduled", () => {
+    const held = state([], [], null);
+    held.pendingLeaderHouseResidentIds = [7];
+    expect(
+      collectSimulationInvariantErrors(held).some((error) => error.includes('no pending succession')),
+    ).toBe(true);
+
+    // A scheduled succession owns the hold, so it is legal again.
+    held.pendingElectionYear = held.year + 0.1;
+    expect(collectSimulationInvariantErrors(held)).toEqual([]);
+  });
+
+  it('accepts a vacant office with no leader-only residue', () => {
+    expect(collectSimulationInvariantErrors(state([human(3)], [], null))).toEqual([]);
+  });
+});
+
 describe('assertion wrapper and purity', () => {
   it('assertSimulationInvariants throws with the error list on violation', () => {
     const a = human(1, { moonHowlerCursed: true });

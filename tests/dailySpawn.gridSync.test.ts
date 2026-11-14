@@ -110,7 +110,8 @@ describe('daily spawns and the spatial grids (S-1/S-2)', () => {
     const { state, ctx, allAlive, mobileGrid } = herdFixture();
 
     setSimSeed(HERD_SEED);
-    const arrivalDay = migrationArrivalDay(state.worldMap?.seed, DAYS_PER_YEAR);
+    // The run seed is the one authority for the arrival day (a save can adopt a new seed).
+    const arrivalDay = migrationArrivalDay(HERD_SEED, DAYS_PER_YEAR);
     state.tick = arrivalDay * TICKS_PER_DAY;
     state.dayInYear = arrivalDay % DAYS_PER_YEAR;
 

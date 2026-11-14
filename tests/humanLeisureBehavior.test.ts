@@ -1,10 +1,16 @@
-import { personDayRoll } from '../src/game/simRng';
-import { describe, expect, it } from 'vitest';
-import { WeatherType, type Entity } from '../src/game/gameTypes';
-import { CHILD_PLAYMATE_CANDIDATE_LIMIT, tickHumanChildLeisure } from '../src/game/humanLeisureBehavior';
+import { PERSON_DAY_ROLL_SALTS, personDayRoll, resetSimRng, setSimSeed } from '../src/game/simRng';
+import { describe, expect, it, afterEach } from 'vitest';
+import { BuildingType, WeatherType, type Building, type Entity, type WorldState } from '../src/game/gameTypes';
+import {
+  CHILD_PLAYMATE_CANDIDATE_LIMIT,
+  idleDestination,
+  leisureKindFor,
+  tickHumanChildLeisure,
+} from '../src/game/humanLeisureBehavior';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { initGame } from '../src/game/worldGen';
+import { homeStandPosition } from '../src/game/simulation/humanMovement';
 
 function playerChild(prototype: Entity, id: number, overrides: Partial<Entity> = {}): Entity {
   return Object.assign(structuredClone(prototype), {
@@ -130,5 +136,119 @@ describe('tickHumanChildLeisure', () => {
     expect(tickChild(state, child, [child, nearby], nextCheck)).toBe(true);
     expect(child.vx).toBeGreaterThan(0);
     expect(tickChild(state, child, [child, nearby], nextCheck + 1)).toBe(true);
+  });
+
+  it('drops a cached playmate that a rollback removed from the roster', () => {
+    const { state, child } = childFixture();
+    const nearby = playerChild(child, 11, { x: 120, y: 100 });
+    const tick = playTickInsideOneHour(child);
+
+    expect(tickChild(state, child, [child, nearby], tick)).toBe(true);
+    expect(child.vx).toBeGreaterThan(0);
+
+    // The rollback restores a roster without the extra child, inside the same cached hour.
+    child.vx = 0;
+    child.vy = 0;
+    expect(tickChild(state, child, [child], tick + 1)).toBe(false);
+    expect(child.vx).toBe(0);
+  });
+});
+
+/** A play tick that is not the last of its hour bucket, so `tick + 1` stays in the cached window. */
+function playTickInsideOneHour(child: Entity): number {
+  for (let tick = 1; tick < 500; tick++) {
+    if (tick % TICKS_PER_HOUR === TICKS_PER_HOUR - 1) continue;
+    const tickBucket = Math.floor(tick / TICKS_PER_HOUR);
+    if (personDayRoll(child.id, tick, 718 + tickBucket) < 0.72) return tick;
+  }
+  throw new Error('could not find a child play tick inside one hour');
+}
+
+describe('seeded free-time selection', () => {
+  afterEach(() => {
+    resetSimRng();
+  });
+
+  it('changes the 12-way leisure activity with the run seed', () => {
+    const kindsFor = (seed: number): number[] => {
+      resetSimRng();
+      setSimSeed(seed);
+      // A slot per sample, so a seed moves the spice of every slot independently.
+      return Array.from({ length: 12 }, (_, index) => leisureKindFor(7, 3000 + index * 1000, false));
+    };
+
+    const first = kindsFor(1);
+    expect(kindsFor(1)).toEqual(first);
+    expect(kindsFor(2)).not.toEqual(first);
+  });
+
+  it('holds one activity for the whole leisure slot instead of shifting with the calendar day', () => {
+    resetSimRng();
+    setSimSeed(77);
+    // A leisure slot is 80 hours, so it spans several colony days; a day term in the choice made the
+    // activity change every midnight even though the slot (and the UI's promise) says it holds.
+    const slot = 3;
+    const slotTicks = 80 * TICKS_PER_HOUR;
+    const kinds = [0, 1, 2].map((dayOffset) =>
+      leisureKindFor(0, slot * slotTicks + dayOffset * 288 + 10, false));
+
+    expect(new Set(kinds).size).toBe(1);
+  });
+
+  it('never reuses a registered decision salt, so idle choices cannot correlate', () => {
+    const salts = Object.values(PERSON_DAY_ROLL_SALTS);
+    expect(new Set(salts).size).toBe(salts.length);
+    // 812 is the scarce-hunt dialogue's salt; 201 is the schedule's weekend free-day roll.
+    expect(salts).not.toContain(812);
+    expect(salts).not.toContain(201);
+  });
+
+  it('does not send a settler home on the scarce-hunt dialogue roll', () => {
+    const entityId = 10;
+    // A day where the old shared 812 roll says "go home" but the leisure salt does not.
+    let tick = -1;
+    for (let day = 0; day < 2000; day++) {
+      const candidate = day * 288;
+      if (
+        personDayRoll(entityId, candidate, 812) < 0.34
+        && personDayRoll(entityId, candidate, PERSON_DAY_ROLL_SALTS.leisureIdleDestination) >= 0.34
+      ) {
+        tick = candidate;
+        break;
+      }
+    }
+    expect(tick).toBeGreaterThanOrEqual(0);
+
+    const home = {
+      id: 50,
+      type: BuildingType.House,
+      x: 400,
+      y: 400,
+      width: 40,
+      height: 40,
+      occupants: [entityId],
+      level: 1,
+      constructionProgress: 100,
+      completed: true,
+      health: 100,
+      maxHealth: 100,
+      spriteScale: 1,
+      buildAnimTimer: 0,
+    } as unknown as Building;
+    const settler = {
+      id: entityId,
+      type: 'human',
+      alive: true,
+      age: 30,
+      x: 100,
+      y: 100,
+      residenceBuildingId: home.id,
+    } as unknown as Entity;
+    const state = { tick, beautyGrid: undefined } as unknown as WorldState;
+
+    const destination = idleDestination(state, settler, [], new Map([[home.id, home]]));
+    const porch = homeStandPosition(home, entityId);
+
+    expect(destination).not.toEqual(porch);
   });
 });

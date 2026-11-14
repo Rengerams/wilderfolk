@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { BuildingType, EntityType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
+import { ensureEntitySkills } from '../src/game/skills';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
@@ -175,6 +176,39 @@ function worldWithWorkshop(): { state: WorldState; workshop: Building } {
  * The workshop inspector must not advertise "~0 gold / 2 days" on a completed but unstaffed shop:
  * `estimateWorkshopGold` returns 0 unless the caller asks for the one-worker preview.
  */
+describe('the estimate reads the attendance the production owner pays', () => {
+  it('does not price a second assigned worker who never attended', () => {
+    const { state, shop } = world();
+    const baseline = estimateWorkshopGold(state, shop);
+    expect(baseline).toBeGreaterThan(0);
+
+    const master = createEntity(EntityType.Human, 300, 300, 2, 100, false, { name: 'Master' });
+    master.alive = true;
+    master.isJuvenile = false;
+    master.age = 40;
+    master.workerBuildingId = shop.id;
+    // A master on the roster with no attendance sample: assigned, never at the post today.
+    ensureEntitySkills(master).blacksmith = 100;
+    state.entities.push(master);
+
+    expect(estimateWorkshopGold(state, shop)).toBe(baseline);
+  });
+
+  it('pays nothing for a rest day, matching the production pass', () => {
+    const state = workshopWorld(1_000);
+    const worker = state.entities[0];
+    // The rota credited a full scheduled shift, but no tick at the post was witnessed today.
+    worker.scheduleWorkedTicksToday = 9 * 12;
+    worker.schedulePresentTicksToday = 0;
+    worker.scheduleLastWorkedHours = 9;
+
+    expect(estimateWorkshopGold(state, state.buildings[0])).toBe(0);
+
+    tickOnce(state);
+    expect(state.resources.gold).toBe(1_000);
+  });
+});
+
 describe('estimateWorkshopGold unstaffed preview', () => {
   it('returns 0 for an unstaffed workshop unless the preview is requested', () => {
     const { state, workshop } = worldWithWorkshop();

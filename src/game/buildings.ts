@@ -157,7 +157,6 @@ export interface Building {
   /** Rival settlement structures — not player-owned */
   faction?: 'rival';
   groupId?: string;
-  campLabel?: string;
   /** Workshop only — which goods this building crafts */
   workshopRecipeId?: string;
   /** Strip orientation — 0/90 straight; 0/90/180/270 for wall corners. */

@@ -55,7 +55,6 @@ describe('legacy rival camp structures', () => {
       campX: 300,
       campY: 300,
       population: 5,
-      entityIds: [],
       relationship: 'neutral',
       foundedYear: 1,
       daysUntilAction: 30,
@@ -66,7 +65,6 @@ describe('legacy rival camp structures', () => {
     state.buildings.push(building(9001, BuildingType.House, {
       faction: 'rival',
       groupId: camp.id,
-      campLabel: camp.name,
     }));
 
     const loaded = roundTrip(state);

@@ -59,7 +59,7 @@ export const CAMERA_ZOOM_PRESETS: readonly number[] = [0.25, 0.5, 0.75, 1.0, 1.2
 
 const CAMERA_EPS = 1e-3;
 const CAMERA_LERP = 0.12;
-const CAMP_KEY_PATTERN = /^(visitor:\d+|rival:[\w-]+)$/;
+const CAMP_KEY_PATTERN = /^visitor:[\w-]+$/;
 
 /** A new session's opening view: the standard camera, placed on the camp the map cleared. */
 export function createInitialViewForWorld(world: WorldState): ViewState {
@@ -138,13 +138,10 @@ function parseCampKey(value: unknown): string | null {
   return CAMP_KEY_PATTERN.test(value) ? value : null;
 }
 
-/** A restored camp selection must name a camp that still exists, or the save carries dead state. */
+/** A restored camp selection must name a live visitor camp; rival settlements are strategic-only. */
 function resolveCampKey(world: WorldState, key: string | null): string | null {
   if (key == null) return null;
-  if (key.startsWith('visitor:')) {
-    return world.visitorGroups?.some((group) => key === `visitor:${group.id}`) ? key : null;
-  }
-  return world.rivalSettlements?.some((settlement) => key === `rival:${settlement.id}`) ? key : null;
+  return world.visitorGroups?.some((group) => key === `visitor:${group.id}`) ? key : null;
 }
 
 export function parseBuildRotation(value: unknown): 0 | 90 {

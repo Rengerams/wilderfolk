@@ -77,7 +77,6 @@ function rival(): RivalSettlement {
     campX: 50,
     campY: 50,
     population: 6,
-    entityIds: [],
     relationship: 'neutral',
     foundedYear: 0,
     daysUntilAction: 10,

@@ -27,6 +27,7 @@ import { adjustHumanStaminaFromEnergy } from './humanPhysiology';
 import { isPlayerHuman } from '../playerHuman';
 import { seededRandomForRun, seededStreamForRun } from '../simRng';
 import { addReputation } from '../simHelpers';
+import { deterministicCos, deterministicSin } from '../simTrig';
 import { isResidenceBuilding, isLeaderHouseResidence, residenceRoomFor } from '../housingModel';
 
 const BIRTH_TALENT_JOBS = [
@@ -110,8 +111,8 @@ export function tickPregnancyAndBirth(
   // child's gender are all world state, so the same seed must reproduce the same child.
   const birthKey = `birth:${entity.id}:${state.tick}`;
   const angle = seededRandomForRun(`${birthKey}:angle`) * Math.PI * 2;
-  const nx = Math.min(width, Math.max(0, entity.x + Math.cos(angle) * 10));
-  const ny = Math.min(height, Math.max(0, entity.y + Math.sin(angle) * 10));
+  const nx = Math.min(width, Math.max(0, entity.x + deterministicCos(angle) * 10));
+  const ny = Math.min(height, Math.max(0, entity.y + deterministicSin(angle) * 10));
 
   const nearDeer = byType[EntityType.Deer].some(
     (d) => d.alive && Math.hypot(d.x - entity.x, d.y - entity.y) < LIFECYCLE_CONFIG.DEER_PROXIMITY_RADIUS,

@@ -186,15 +186,16 @@ export function treatPatientAtHospital(
   state: WorldState,
   patient: Entity,
   hospital: Building,
-  opts?: { doctorPresent?: boolean },
+  opts?: { doctorPresent?: boolean; doctorId?: number },
 ): boolean {
   if (!patient.alive || !isPlayerHuman(patient)) return false;
   if (hospital.occupants.length === 0) return false;
 
-  const doctorOnSite = opts?.doctorPresent ?? hospital.occupants.some((id) => {
+  const onSiteDoctorIds = hospital.occupants.filter((id) => {
     const d = state.entities.find((e) => e.id === id && e.alive);
     return !!d && isAtBuildingReach(d, hospital);
   });
+  const doctorOnSite = opts?.doctorPresent ?? onSiteDoctorIds.length > 0;
 
   const strength = 0.55 + hospital.occupants.length * 0.2 + (doctorOnSite ? 0.35 : 0);
   const heal = Math.min(
@@ -214,7 +215,9 @@ export function treatPatientAtHospital(
   adjustHumanStaminaFromEnergy(patient, heal);
   // Pregnancy progress is owned only by humanLifecycle.tickPregnancyAndBirth.
 
-  for (const id of hospital.occupants) {
+  // Only a doctor who actually treated the patient learns medicine; the roster alone is not work.
+  const creditedDoctorIds = opts?.doctorId != null ? [opts.doctorId] : onSiteDoctorIds;
+  for (const id of creditedDoctorIds) {
     gainSkill(state, id, JobType.Doctor, 0.08);
   }
 
@@ -261,7 +264,7 @@ export function doctorTreatNearby(
   if (!best || bestU < 0.2) return false;
   if (personDayRoll(doctor.id, state.tick, 901 + best.id) > 0.35) return false;
 
-  const ok = treatPatientAtHospital(state, best, hospital, { doctorPresent: true });
+  const ok = treatPatientAtHospital(state, best, hospital, { doctorPresent: true, doctorId: doctor.id });
   if (ok && !isDialogueBusy(doctor) && personDayRoll(doctor.id, state.tick, 906) < 0.3) {
     requestDialogue({ eventKey: 'hospital.doctor', speaker: doctor, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(44), selectionRoll: personDayRoll(doctor.id, state.tick, 907) });
   }

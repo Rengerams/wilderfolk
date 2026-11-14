@@ -7,9 +7,11 @@ import { DAYS_PER_YEAR, getAgeInYears, TICKS_PER_HOUR } from './dayCycle';
 import { isImprisoned } from './housingModel';
 import { displayYear } from './dayCycleClock';
 import { logEvent } from './eventLog';
+import { deterministicCos, deterministicSin } from './simTrig';
 import { addNotification } from './simEffects';
 import { isPlayerHuman } from './playerHuman';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
+
 import { ensureEntitySkills } from './skills';
 import { simulateElectionVotes } from './electionVotes';
 import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
@@ -588,8 +590,8 @@ export function getElectionGatherTarget(
     const angle = ((entityId * 17) % 360) * (Math.PI / 180);
     const ringRadius = Math.min(22 + Math.ceil(attendeeCount / GATHER_SLOTS_PER_RING) * 14 + 28, MAX_GATHER_RADIUS_PX + 12);
     return {
-      x: c.gatherX + Math.cos(angle) * ringRadius,
-      y: c.gatherY + Math.sin(angle) * ringRadius,
+      x: c.gatherX + deterministicCos(angle) * ringRadius,
+      y: c.gatherY + deterministicSin(angle) * ringRadius,
     };
   }
 
@@ -600,8 +602,8 @@ export function getElectionGatherTarget(
     // — the crowd grows denser instead of the circle growing wider.
     const angle = ((entityId * 17) % 360) * (Math.PI / 180);
     return {
-      x: c.gatherX + Math.cos(angle) * MAX_GATHER_RADIUS_PX,
-      y: c.gatherY + Math.sin(angle) * MAX_GATHER_RADIUS_PX,
+      x: c.gatherX + deterministicCos(angle) * MAX_GATHER_RADIUS_PX,
+      y: c.gatherY + deterministicSin(angle) * MAX_GATHER_RADIUS_PX,
     };
   }
 
@@ -610,8 +612,8 @@ export function getElectionGatherTarget(
   const ringRadius = 22 + ring * 14;
 
   return {
-    x: c.gatherX + Math.cos(angle) * ringRadius,
-    y: c.gatherY + Math.sin(angle) * ringRadius,
+    x: c.gatherX + deterministicCos(angle) * ringRadius,
+    y: c.gatherY + deterministicSin(angle) * ringRadius,
   };
 }
 

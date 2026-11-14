@@ -30,6 +30,7 @@ import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 import { jobBuildingPriorityForPolicy } from '../src/game/workforcePolicy';
 import { getWorkdayAttendance } from '../src/game/scheduleFatigue';
+import { ensureEntitySkills, readSkill } from '../src/game/skills';
 
 const TEST_SEED = 20_261_112;
 const SETTLER_ID = 9001;
@@ -239,6 +240,50 @@ describe('production pays only witnessed attendance (W-136)', () => {
     const absentFood = absent.state.economyLedger?.produced.farms ?? 0;
     expect(onPostFood, 'the on-post crew produced food').toBeGreaterThan(0);
     expect(absentFood, 'rota credit is not presence').toBe(0);
+  });
+
+  it('prices and teaches only the workers who attended, never an absent roster member', () => {
+    /** One production tick with the rota already settled: the fixture states attendance directly. */
+    const runProduction = (withAbsentMaster: boolean) => {
+      resetSimRng();
+      const fixture = farmDay(false);
+      fixture.worker.scheduleWorkedTicksToday = 108;
+      fixture.worker.schedulePresentTicksToday = 108;
+      fixture.worker.schedulePresentSiteIdToday = fixture.farm.id;
+      let master: Entity | undefined;
+      if (withAbsentMaster) {
+        // Assigned and credited on the rota, but never witnessed at the post: the absent master.
+        master = createEntity(EntityType.Human, 350, 500, SETTLER_ID + 1, 400, false, {
+          gender: 'male', name: 'Master', surname: 'Reed', ageYears: 55, colonyDay: 0,
+        });
+        master.job = JobType.Farmer;
+        master.occupation = 'farmer';
+        master.workerBuildingId = fixture.farm.id;
+        master.scheduleWorkedTicksToday = 108;
+        master.schedulePresentTicksToday = 0;
+        ensureEntitySkills(master).farmer = 50;
+        fixture.farm.occupants.push(master.id);
+        fixture.state.entities.push(master);
+        rebuildEntityByIdMap(fixture.state);
+        invalidateCachedEntityByType(fixture.state);
+      }
+      fixture.state.tick = tickAtDailyPhase(1, 'production') - 1;
+      gameTick(fixture.state, ON_SCREEN);
+      return {
+        produced: fixture.state.economyLedger?.produced.farms ?? 0,
+        attendingSkill: readSkill(fixture.worker, JobType.Farmer),
+        masterSkill: master ? readSkill(master, JobType.Farmer) : undefined,
+      };
+    };
+
+    const control = runProduction(false);
+    const withMaster = runProduction(true);
+
+    // The absent master's skill must not raise the crew's output multiplier...
+    expect(withMaster.produced).toBe(control.produced);
+    // ...and must not earn trade XP for a shift they never worked.
+    expect(withMaster.masterSkill, 'absent roster member kept their old skill').toBe(50);
+    expect(control.attendingSkill, 'the attending farmer learned the trade').toBeGreaterThan(0);
   });
 });
 

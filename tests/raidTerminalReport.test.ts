@@ -97,7 +97,6 @@ describe('terminal raid presentation and backward-compatible saves', () => {
     const world = fallenVillage();
     const html = renderToStaticMarkup(createElement(WarfareStatus, {
       world,
-      onPrisonerDecision: () => undefined,
       onRepair: () => undefined,
       onExport: () => undefined,
       onChronicle: () => undefined,
@@ -129,7 +128,6 @@ describe('terminal raid presentation and backward-compatible saves', () => {
     expect(report?.chapters).toEqual([]);
     const html = renderToStaticMarkup(createElement(WarfareStatus, {
       world: loaded,
-      onPrisonerDecision: () => undefined,
       onRepair: () => undefined,
       onExport: () => undefined,
       onChronicle: () => undefined,

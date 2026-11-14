@@ -2,6 +2,20 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Removed (12 Nov 2026):** The unreachable enemy war-captive subsystem (capture, POW decisions, custody history and their save fields) was deleted; player imprisonment and raid mercy/tribute/raze reactions remain.
+- **Fixed (12 Nov 2026):** Trade skill and the crew skill bonus are paid only for witnessed work; an assigned but absent settler no longer raises output or earns XP, including town-hall, hospital and hotel service.
+- **Fixed (12 Nov 2026):** A free-time activity is drawn from the run seed for its whole leisure slot, so changing the seed changes free time and the activity no longer shifts at midnight.
+- **Fixed (12 Nov 2026):** Predator scent survives a save and load instead of restarting cold, so prey do not stand beside a wolf after reloading.
+- **Fixed (12 Nov 2026):** Patrol, crowd, birth and camp-wander positions use arithmetic sine and cosine, so browser and headless runs keep identical coordinates.
+- **Fixed (12 Nov 2026):** Save feedback is the UI toast; the save no longer injects a floating text that the next worker tick erased.
+- **Changed (12 Nov 2026):** The 06:00 social pass has its own decision-registry entry, and the write-permission query is documented as contract-test support.
+- **Fixed (12 Nov 2026):** Neighbour and greeting rolls hash both settlers, so a low id can no longer share a salt with another social decision; greeting and workplace banter also share one per-person daily gate, and the rival-building inspector no longer carries a duplicate raid card.
+- **Fixed (12 Nov 2026):** A full food site can seed an empty second food site, while the last essential worker and a donor's own coverage stay protected.
+- **Fixed (12 Nov 2026):** Opening night waits for the support decision, so a lapsed support card no longer closes a show that never opened.
+- **Fixed (12 Nov 2026):** Arrow retention is measured in simulation ticks instead of the wall clock.
+- **Fixed (12 Nov 2026):** Stories, elections, omens and migration read one run seed, and combat and leisure rolls come from named seeded streams.
+- **Fixed (12 Nov 2026):** Rival focus opens the strategic map instead of panning the colony camera; camp highlight keys are visitor-only and the legacy rival-building label is gone.
+
 - **Fixed (11 Nov 2026):** Placement validity markers and the strip hint follow the ghost every frame, and the static entity and terrain layers stop rebuilding while nothing they draw has changed.
 - **Fixed (11 Nov 2026):** Grass on the worker path renders its real energy, and render code no longer writes simulation fields.
 - **Fixed (11 Nov 2026):** Loading a colony clears the previous colony's build mode and windows; startup no longer generates a Huge world before the player chooses one.
@@ -2962,3 +2976,5 @@ Verified in codebase — all shipped before **v0.4.1** (2026-07-04). Verbose dev
 - [x] **Simulation upgrade** — storage caps, food spoilage, terrain/adjacency efficiency, wolf pack bonuses (`economy.ts`, `gameEngine.ts`, `lifeSimulation.ts`)
 - [x] **Werewolf + Wildkin + Big News** — moon howler, wildkin births, dismissible banner (`moonHowler.ts`, `lifeSimulation.ts`, `gameEngine.ts`)
 - [x] **Taming, visitors, festivals** — Taming Post, caravans, `festival` state, economic rebalance (`buildingActions.ts`, `groupEvents.ts`, `worldGen.ts`)
+- **Fixed (12 Nov 2026):** Non-survival workforce presets seed every empty job building before hiring builders, guard posts fill from surplus while food crews keep their floor, and playback speed has one shared ladder.
+- **Fixed (12 Nov 2026):** Releasing a jailed settler no longer overfills a post a substitute already holds, and a jailed priest no longer counts as church staff.

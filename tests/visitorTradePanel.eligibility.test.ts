@@ -34,7 +34,6 @@ function worldWithTrader(options: { gold?: number; daysLeft?: number; groupGold?
       gold: groupGold,
       campX: 100,
       campY: 100,
-      entityIds: [],
     } as never,
   ];
   return state;
@@ -54,7 +53,6 @@ function worldWithRefugees(options: { food?: number; maxPopulation?: number } = 
       gold: 0,
       campX: 100,
       campY: 100,
-      entityIds: [],
     } as never,
   ];
   return state;

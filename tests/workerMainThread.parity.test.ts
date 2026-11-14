@@ -106,6 +106,10 @@ describe('seeded worker versus main-thread parity', () => {
     // than in-memory object identity.
     const workerSaved = JSON.parse(JSON.stringify(workerPayload)) as Record<string, unknown>;
     const mainSaved = JSON.parse(JSON.stringify(mainThreadPayload)) as Record<string, unknown>;
+    // The predator-scent sidecar is a derived AI cache shipped to the worker on its own transferable
+    // buffer; it is not colony state. Compare the colony, like the other rebuilt runtime caches.
+    delete workerSaved.scentGrid;
+    delete mainSaved.scentGrid;
     // Report the first concrete divergent field instead of allowing Vitest to
     // truncate a 2,500-entity object into "no visual difference".
     function differences(a: unknown, b: unknown, path = '$', found: string[] = []): string[] {

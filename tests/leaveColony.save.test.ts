@@ -10,6 +10,12 @@ import {
 import { clearColonySessionState, clearTransientBuildView } from '../src/hooks/useGameSession';
 import { BuildingType } from '../src/game/gameTypes';
 import { soundDirector } from '../src/audio';
+import {
+  getHousingRelocationSnapshot,
+  recordHousingRelocation,
+  setHousingRelocationMonitorEnabled,
+  stampHousingRelocationClock,
+} from '../src/game/housingRelocationMonitor';
 
 const { saveGameMock, saveGameToSlotMock } = vi.hoisted(() => ({
   saveGameMock: vi.fn(),
@@ -154,6 +160,31 @@ describe('leaving a colony persists and resets its session', () => {
     // Clears state only: the exit save stays with the session-stop owner, not a second scheduler.
     expect(saveGameMock).not.toHaveBeenCalled();
     expect(saveGameToSlotMock).not.toHaveBeenCalled();
+  });
+
+  it('a new colony clears the housing-relocation counters', () => {
+    setHousingRelocationMonitorEnabled(true);
+    stampHousingRelocationClock(42, 2, 7);
+    recordHousingRelocation({ phase: 'capacity', reason: 'family', members: [{ id: 1 }], to: 10 });
+    expect(getHousingRelocationSnapshot().totalMoves).toBe(1);
+
+    clearColonySessionState({
+      cancelStripDemolition: vi.fn(),
+      setBattleReport: vi.fn(),
+      setCampaignActive: vi.fn(),
+      setFamilyTreeFor: vi.fn(),
+      setHasPlacedHouse: vi.fn(),
+      setSelectedBuildingType: vi.fn(),
+      setWorkHoursOpen: vi.fn(),
+    });
+
+    // Process-wide churn state must not outlive the colony that produced it.
+    const snapshot = getHousingRelocationSnapshot();
+    expect(snapshot.totalMoves).toBe(0);
+    expect(snapshot.repeatMoves).toBe(0);
+    expect(snapshot.distinctHouseholds).toBe(0);
+    expect(snapshot.recent).toEqual([]);
+    setHousingRelocationMonitorEnabled(false);
   });
 
   it('an entering session starts with no build mode', () => {

@@ -1,7 +1,8 @@
 import type { WorldState, Entity } from './gameTypes';
 import { addBigNews, addFloatingText } from './simEffects';
 import { logEvent } from './eventLog';
-import { killWildGameForPoach, tickRivalSettlements } from './rivalEvents';
+import { tickRivalSettlements } from './rivalEvents';
+import { killWildGameForPoach } from './simulation/simulationEntities';
 import { tickPendingDiplomacyEvents, maybeQueueDiplomacyEvent } from './rivalDiplomacy';
 import type { TickContext } from './simulation/simulationTypes';
 

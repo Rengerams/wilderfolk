@@ -29,7 +29,7 @@ function squareStagePoint(square: Building): { x: number; y: number } {
 function availableSpotlightActor(entity: Entity): boolean {
   return entity.alive && entity.type === EntityType.Human && isPlayerHuman(entity) &&
     !entity.prisonBuildingId && !entity.raidDeploymentId && !entity.indoorBuildingId &&
-    !entity.departedAlive && !entity.warCaptive && !entity.huntTargetId;
+    !entity.departedAlive && !entity.huntTargetId;
 }
 
 function eligibleGirl(entity: Entity): boolean {
@@ -168,13 +168,13 @@ export function startSpotlightLoreDebug(state: WorldState): boolean {
     entity.gender === 'female' &&
     entity.age >= 12 && entity.age < 18 &&
     !entity.prisonBuildingId && !entity.raidDeploymentId &&
-    !entity.warCaptive && !entity.departedAlive
+    !entity.departedAlive
   ).sort((a, b) => a.id - b.id)[0];
   const men = state.entities.filter((entity) =>
     entity.alive && entity.type === EntityType.Human && isPlayerHuman(entity) &&
     entity.gender === 'male' && entity.age >= 18 &&
     !entity.prisonBuildingId && !entity.raidDeploymentId &&
-    !entity.warCaptive && !entity.departedAlive
+    !entity.departedAlive
   );
   if (!girl || men.length < SPOTLIGHT_MIN_CHORUS) {
     logEvent(state, 'event', 'Spotlight preview needs a 12–17 girl and six adult men.');

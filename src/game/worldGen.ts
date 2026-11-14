@@ -93,6 +93,24 @@ function getTileAtWorld(state: WorldState, x: number, y: number) {
   return tileAt(state.worldMap, tx, ty) ?? null;
 }
 
+/**
+ * The one random-point owner for off-cycle wildlife spawns: passable ground with the map margin.
+ * Callers supply their own seeded stream so the draw stays in their sequence.
+ */
+export function randomPassableWildlifePoint(
+  state: WorldState,
+  random: () => number,
+  margin = 16,
+  attempts = 16,
+): { x: number; y: number } | null {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const x = random() * state.width;
+    const y = random() * state.height;
+    if (isPassableWildlifePosition(state, x, y, margin)) return { x, y };
+  }
+  return null;
+}
+
 export function isPassableWildlifePosition(state: WorldState, x: number, y: number, margin = 8): boolean {
   if (x < margin || y < margin || x > state.width - margin || y > state.height - margin) {
     return false;

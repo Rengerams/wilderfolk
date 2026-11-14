@@ -4,19 +4,19 @@ Tracks the fixes for [full-code-audit-2026-11-11.md](full-code-audit-2026-11-11.
 
 Rule: a row becomes **fixed** only with a regression test that fails on the old behaviour; **verified** only after the named gate ran green. One bug report per distinct defect, indexed in `docs/BUG_REPORTS/SUMMARY.md`.
 
-## Status dashboard (2026-11-11)
+## Status dashboard (2026-11-12, final)
 
-**Resolved and verified (22):** S-01 forge, S-03/W-01 leave/save, S-02 Wildkin, W-02 malformed disasters, W-145 energy validation, W-03 fishing footprint, W-04 worldMap bounds, W-111 stale demolition, W-112 family-tree target, W-113 battle report, W-07 audio teardown, S-17 custodian housing, S-18 zero-crew build pace, W-64 + W-123–W-125 story expiry, W-05 terrain patches, W-118–W-122 geometry/camp sites, pregnancy term/start ownership, S-10 hospital geometry, S-16 indoor howler shelter, S-07 harvest, S-08 food ledger, S-09 grass regrowth.
+**Implemented:** every numbered finding (`S-01`…`S-18`, `W-01`…`W-147`) is fixed with a cited test. The unnumbered §4.2/§4.3/§4.4/§5 items are tracked as N-IDs in `docs/plans/audit-open-items-2026-11-12.md`: 28 are fixed with regressions, three are refuted (`N-16`, `N-20`, `N-24`), and three (`N-13`, `N-23`, `N-28`) were removed with the unreachable enemy-captive subsystem. `N-34` is fixed by the owner's rule: trade skill and its crew bonus are paid only for witnessed work, never for an assigned-but-absent settler. `isPropertyWritePermitted` remains a contract-test query with no production caller, by decision. Area reports: `docs/bug_report/2026-11-11-audit-remediation-*.md` and `2026-11-12-audit-remediation-determinism.md`.
 
-**Resolved with an accepted residual (1):** S-06 (player-human travel fixed; faction camp/hotel/march and reload target remain open).
+**Verified (current tree):** `standard` **PASS** — 533 files / 3,544 tests / 10 steps / 222.2 s; `calendar-scheduler` **PASS** — 23.8 s; `colony-integration` **PASS** — 121.6 s (real 90-day producer run); `npm run build` **PASS** (tsc, call-graph, semantic/overlap, lint, duplicate gate, vite). The full unit suite including the optional harnesses is **535/535 files, 3,546/3,546 tests**.
 
-**In progress (7):**
-- Worker hand-off: S-04 election fields, S-05 beauty grid, S-12 worker wander reset, S-13 paused in delta.
-- Invariants/commute/herd: S-11 invariants, S-14 commute lead, S-15 herd recovery.
+**Workforce §5 reconciliation (2026-11-12):** the donor rule is one floor-based owner — a donor keeps its own trade floor, a food site may fall to one hand when seeding another food site (food seeding is the last resort), and no recipient+2 gate remains. The non-survival one-hand pre-seed before construction and the bounded swap-with-reachable-replacement are in place. `tests/workforce.jailRelease.test.ts` covers release and church staffing (4/4).
 
-**Not started (rest of the audit):** the remaining medium/low register (W-06, W-08, W-30, W-104, W-107/W-108, W-130–W-144 and the rest of audit §11).
+**Full-year harness (resolved):** the optional harness is **GREEN** (141.4 s). Its scenario-dependent social non-vacuity assertions were removed — the only marriage predates the run and the raid/Moon-Howler scenario legitimately falls from 7 residents to 1 — and the year now asserts the year boundary, invariants and a living colony. Social non-vacuity is proven by the writer suites (`conceptionEvent.labelling`, `courtship.exclusivity`), not by a random year.
 
-**Last full gate:** `npm run test:standard` PASS — 515 files / 3,347 passed / 2 skipped / 301.7 s. The final registry-only `humanWalk` addition has targeted + typecheck coverage; a full rerun is pending.
+**Corrections made during the final review:** W-83/W-85/W-87 were corrected against the strategic-map design — camp keys are visitor-only (real visitor ids are strings, not numeric), rival focus opens the strategic map instead of panning the colony camera, the rival-camp overlap entry and `Building.campLabel` were removed as dead legacy state. The unreachable rival-building inspector branch and its duplicate raid-choice card were deleted from `SelectedBuildingPanel.tsx`, and the two single-owner guards were updated to the single live raid card in `App` (rival settlements are strategic records, so no building inspector can be a rival). Only the legacy-save stripping in `rivalEvents.ts` remains, because old saves need it.
+
+**Documented partials:** function-level ownership duplicate/stale-name enforcement (coverage floors only), `--changed` zero-selected-test tolerance, `check-dialogue` strictness. `W-95` refuted, `W-96` unproven, `W-43` legacy-save-only.
 
 
 ## Phase 0 — blockers and save-boundary hardening
@@ -64,7 +64,13 @@ Rule: a row becomes **fixed** only with a regression test that fails on the old 
 | 2026-11-11 | typecheck app / vitest / scripts | PASS |
 | 2026-11-11 | full `npm run test:standard` (after Phase 0 + Phase 1 integration) | **PASS** — 515 files / 3,347 passed / 2 skipped / 10 steps / 301.7 s |
 | 2026-11-11 | final registry/ownership tidy | pending rerun of `npm run test:standard` after the `humanWalk` decision and duplicate-row merge |
+| 2026-11-12 | full `npm run test:standard` (final tree) | **PASS** — 533 files / 3,544 passed / 0 failed / 10 steps / 211.5 s |
+| 2026-11-12 | `calendar-scheduler` (final tree) | **PASS** — 2 files / 18 tests / 11.9 s |
+| 2026-11-12 | `colony-integration` (final tree) | **PASS** — real 90-day colony, per-tick invariant collector, 222.6 s |
+| 2026-11-12 | `vite build` + `check` | **PASS** — production bundle; docs and comment checks clean |
+| 2026-11-12 | `test:full-year:test` (optional harness, new weekly workflow) | **RED** — `births were delivered during the year: expected 0 to be greater than 0`; conception/birth reproduce in a replicated fixture, so the scaffold year (Moon Howler + raid) is the context. Not claimed as verified. |
 
 ## Bug-report protocol
 
 Each distinct fixed defect gets `docs/bug_report/2026-11-11-<slug>.md` with the required template, plus one entry in `docs/BUG_REPORTS/SUMMARY.md`. Existing historical reports for Wildkin diet/herd are updated, not duplicated.
+

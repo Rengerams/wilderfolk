@@ -25,7 +25,7 @@ const FOOD_TYPES: readonly BuildingType[] = [
   BuildingType.Farm, BuildingType.Greenhouse, BuildingType.FishingSpot, BuildingType.HuntingSpot,
 ];
 
-import { canPlaceBuilding } from '../src/game/buildingPlacementActions';
+import { canPlaceBuilding } from '../src/game/placementUtils';
 import { getBuildingFootprintForType, snapBuildingCenter } from '../src/game/buildingRotation';
 import { getPlayerCampCenter } from '../src/game/frontierCombat';
 import { GRID_SIZE } from '../src/game/gameTypes';

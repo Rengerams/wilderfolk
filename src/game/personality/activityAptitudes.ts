@@ -262,6 +262,6 @@ export const APTITUDE_ACTIVITY_OWNERS: Readonly<Record<AptitudeActivityId, strin
   courtship: 'src/game/humanTick.ts',
   company: 'src/game/socialLife.ts',
   bereavement: 'src/game/humanLifecycleCleanup.ts',
-  communityReaction: 'src/game/warPrisoners.ts',
+  communityReaction: 'src/game/raidAftermath.ts',
   conception: 'src/game/simulation/humanRelationships.ts',
 };

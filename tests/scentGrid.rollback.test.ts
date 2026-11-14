@@ -79,9 +79,10 @@ describe('scent field rollback and save persistence (F-1/F-2/F-3)', () => {
 
     const result = posted.find((message) => message.type === 'exportSaveResult');
     expect(result).toBeDefined();
-    // The save payload carries no runtime caches — the same set `stripRuntimeWorldFields` drops,
-    // so the transient trail is not shipped to disk either.
-    expect((result as { world: WorldState }).world.scentGrid).toBeUndefined();
+    // Scent is simulation state, not a rebuildable cache: the exported world keeps the trail so a
+    // worker-written save reloads without a cold prey-flee field. Other runtime caches are dropped.
+    expect((result as { world: WorldState }).world.scentGrid).toBeDefined();
+    expect(Array.from((result as { world: WorldState }).world.scentGrid?.values ?? [])).toEqual(Array.from(laidDown));
     expect((result as { world: WorldState }).world).not.toBe(world);
     expect((result as { world: WorldState }).world.simRng?.seed).toBe(31);
     // ...while the live worker keeps its runtime cache identity, RNG stamp

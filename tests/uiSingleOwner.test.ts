@@ -217,11 +217,14 @@ describe('C1 — mechanical clones de-duplicated in components and hooks', () =>
     expect(count(menu, 'onToggleJuiceEffects: () => void;')).toBe(1);
   });
 
-  it('clone 4: one raid-choice button block for both raid cards', () => {
-    // Both raid cards share one `RaidChoiceButtons` block.
+  it('clone 4: one raid-choice button block for the single live raid card', () => {
+    // Rival settlements are strategic records: the only live raid card is App's; the building
+    // inspector's dead rival-camp branch (and its duplicate card) is gone.
+    const app = read('src/App.tsx');
     const panel = read('src/components/SelectedBuildingPanel.tsx');
-    expect(count(panel, '<RaidChoiceButtons')).toBe(2);
-    expect(count(panel, 'text-[10px] font-bold ${colorClass}')).toBe(1);
+    expect(count(app, 'respondToRaidEvent')).toBe(1);
+    expect(count(panel, '<RaidChoiceButtons')).toBe(0);
+    expect(count(panel, 'text-[10px] font-bold ${colorClass}')).toBe(0);
   });
 
   it('clone 2: the frontier wrapper forwards the child contract instead of restating it', () => {

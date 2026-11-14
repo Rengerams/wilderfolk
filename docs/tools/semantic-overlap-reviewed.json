@@ -285,6 +285,182 @@
         "tests/workerBoundary.closure.test.ts",
         "tests/renderer.soaPositionOwnership.test.ts"
       ]
+    },
+    {
+      "key": "src/game/migration.ts:43:findPassableHerdSpawn@57672743435c829c2ad49f4e0ef526bb9ea13f71afe45da80dc01a567dc90e57 <-> src/game/worldEventSites.ts:20:randomLegalPropPoint@cc64e8173cdcfe31034d8afcb99bcf9bdc2c4363425c12ff2cbefc22a7c4f071",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/migration.ts:43:findPassableHerdSpawn@57672743435c829c2ad49f4e0ef526bb9ea13f71afe45da80dc01a567dc90e57 <-> src/game/worldGen.ts:100:randomPassableWildlifePoint@6a1e8f7365caab490ff0496b657d4fda170a0bd120fb7af44192fd91b5d10361",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/pathfinding.ts:253:nearestWalkableWorldPoint@686c9a4aaa350d6ca42188efdbaffe6d1759c58d99d7a823b266d1a892c73bea <-> src/game/worldEventSites.ts:20:randomLegalPropPoint@cc64e8173cdcfe31034d8afcb99bcf9bdc2c4363425c12ff2cbefc22a7c4f071",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/pathfinding.ts:253:nearestWalkableWorldPoint@686c9a4aaa350d6ca42188efdbaffe6d1759c58d99d7a823b266d1a892c73bea <-> src/game/worldGen.ts:100:randomPassableWildlifePoint@6a1e8f7365caab490ff0496b657d4fda170a0bd120fb7af44192fd91b5d10361",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/stripTopology.ts:87:nearestSnapPoint@eabeb6c922ccf41025412d800bcae01c54c7a419051199fa6f566612d43d2337 <-> src/game/worldEventSites.ts:20:randomLegalPropPoint@cc64e8173cdcfe31034d8afcb99bcf9bdc2c4363425c12ff2cbefc22a7c4f071",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/stripTopology.ts:87:nearestSnapPoint@eabeb6c922ccf41025412d800bcae01c54c7a419051199fa6f566612d43d2337 <-> src/game/worldGen.ts:100:randomPassableWildlifePoint@6a1e8f7365caab490ff0496b657d4fda170a0bd120fb7af44192fd91b5d10361",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/virtualPlayer.ts:228:findPlacementSpot@8161b84b64f51367470f7cb558472b44e67b2498e7be4a03221dff821dac7db3 <-> src/game/worldEventSites.ts:20:randomLegalPropPoint@cc64e8173cdcfe31034d8afcb99bcf9bdc2c4363425c12ff2cbefc22a7c4f071",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/virtualPlayer.ts:228:findPlacementSpot@8161b84b64f51367470f7cb558472b44e67b2498e7be4a03221dff821dac7db3 <-> src/game/worldGen.ts:100:randomPassableWildlifePoint@6a1e8f7365caab490ff0496b657d4fda170a0bd120fb7af44192fd91b5d10361",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/worldEventSites.ts:20:randomLegalPropPoint@cc64e8173cdcfe31034d8afcb99bcf9bdc2c4363425c12ff2cbefc22a7c4f071 <-> src/game/worldGen.ts:100:randomPassableWildlifePoint@6a1e8f7365caab490ff0496b657d4fda170a0bd120fb7af44192fd91b5d10361",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/pathfinding.ts:682:findPath@ca4005c90e78707e37b6c66b2c8a16c7f52a739dbf4c522b716a98b85a6587db <-> src/game/worldEventSites.ts:20:randomLegalPropPoint@cc64e8173cdcfe31034d8afcb99bcf9bdc2c4363425c12ff2cbefc22a7c4f071",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/pathfinding.ts:682:findPath@ca4005c90e78707e37b6c66b2c8a16c7f52a739dbf4c522b716a98b85a6587db <-> src/game/worldGen.ts:100:randomPassableWildlifePoint@6a1e8f7365caab490ff0496b657d4fda170a0bd120fb7af44192fd91b5d10361",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/tradeCaravans.ts:432:getCaravanMoveTarget@755deed4d0ff0d3005c1a32fad2a490adf693b9193c7fe913c100e72322a5c2c <-> src/game/worldEventSites.ts:20:randomLegalPropPoint@cc64e8173cdcfe31034d8afcb99bcf9bdc2c4363425c12ff2cbefc22a7c4f071",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/tradeCaravans.ts:432:getCaravanMoveTarget@755deed4d0ff0d3005c1a32fad2a490adf693b9193c7fe913c100e72322a5c2c <-> src/game/worldGen.ts:100:randomPassableWildlifePoint@6a1e8f7365caab490ff0496b657d4fda170a0bd120fb7af44192fd91b5d10361",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/factionWander.ts:44:pickPoiForKind@13e7201b9231e9b806a72eaf5d5a4b574082d873f560cc15c652c6a19acb8f28 <-> src/game/worldEventSites.ts:20:randomLegalPropPoint@cc64e8173cdcfe31034d8afcb99bcf9bdc2c4363425c12ff2cbefc22a7c4f071",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/factionWander.ts:44:pickPoiForKind@13e7201b9231e9b806a72eaf5d5a4b574082d873f560cc15c652c6a19acb8f28 <-> src/game/worldGen.ts:100:randomPassableWildlifePoint@6a1e8f7365caab490ff0496b657d4fda170a0bd120fb7af44192fd91b5d10361",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/renderer/terrain.ts:144:planGroundChunks@e65e74f4252207511c163ff52b36ca50d482b02c2e4ccc1260918e2c526c0aa0 <-> src/game/worldEventSites.ts:20:randomLegalPropPoint@cc64e8173cdcfe31034d8afcb99bcf9bdc2c4363425c12ff2cbefc22a7c4f071",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/renderer/terrain.ts:144:planGroundChunks@e65e74f4252207511c163ff52b36ca50d482b02c2e4ccc1260918e2c526c0aa0 <-> src/game/worldGen.ts:100:randomPassableWildlifePoint@6a1e8f7365caab490ff0496b657d4fda170a0bd120fb7af44192fd91b5d10361",
+      "reason": "Two domain-specific point samplers: randomPassableWildlifePoint rejects water and impassable terrain for animals; randomLegalPropPoint rejects unbuildable ground and building overlaps for flora and event props. Each delegates legality to its own canonical owner predicate and only the bounded random-retry shape is shared; merging them would let animals spawn on buildable-only rules or props spawn in lakes. Both are covered by the yearly-spawn regressions.",
+      "tests": [
+        "tests/frontier.legacyEvents.test.ts",
+        "tests/geometry.footprintCentre.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simRng.ts:109:personDayRoll@f8a808728bd3f33c875d3d2e11f15274762963526542fad7df44b3f376ce97e1 <-> src/game/simRng.ts:117:personPairDayRoll@6ffd5ceb0ebe77d701be1c00898f04d05008c4ddcf9b324eb7bb75ae341c89e2",
+      "reason": "The single-person roll must stay byte-stable for every existing save and test, while the pair roll hashes a second settler id in its own lane and adds a fourth avalanche lane so a pair decision cannot collide with a fixed single-person salt. Both delegate to the shared mixDayRoll; unifying them would silently change every existing personDayRoll value.",
+      "tests": [
+        "tests/socialCadence.oneScenePerDay.test.ts",
+        "tests/personDayRoll.simRng.test.ts",
+        "tests/simRng.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/factionWander.ts:45:pickPoiForKind@13e7201b9231e9b806a72eaf5d5a4b574082d873f560cc15c652c6a19acb8f28 <-> src/game/worldEventSites.ts:20:randomLegalPropPoint@cc64e8173cdcfe31034d8afcb99bcf9bdc2c4363425c12ff2cbefc22a7c4f071",
+      "reason": "pickPoiForKind picks a faction destination from that faction's known POIs; randomLegalPropPoint samples a random buildable prop point. Both are bounded retry loops but use different legality predicates and different callers; merging them would let faction AI spawn props or yearly props pick faction POIs.",
+      "tests": [
+        "tests/factionTravel.offscreen.test.ts",
+        "tests/frontier.legacyEvents.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/factionWander.ts:45:pickPoiForKind@13e7201b9231e9b806a72eaf5d5a4b574082d873f560cc15c652c6a19acb8f28 <-> src/game/worldGen.ts:100:randomPassableWildlifePoint@6a1e8f7365caab490ff0496b657d4fda170a0bd120fb7af44192fd91b5d10361",
+      "reason": "pickPoiForKind chooses among faction POIs; randomPassableWildlifePoint samples passable wildlife ground. The shared shape is only the bounded retry loop; the predicates and domains are distinct, and the wildlife point must stay inside worldGen's passability owner.",
+      "tests": [
+        "tests/factionTravel.offscreen.test.ts",
+        "tests/frontier.legacyEvents.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/factionWander.ts:124:campLoiter@44fa5d3287055740faec1d88827b7ef9f07f650e876af705b2fbfb9f7f0a20f3 <-> src/game/factionWander.ts:236:pickRivalWander@fb0c5743e8d90f56e57f59b55a02be34be4b20e531866e277d71f66a85fa2586",
+      "reason": "campLoiter is the short-range idle drift around a faction camp; pickRivalWander chooses the next long-range wander target for a rival group. Different ranges, different owners and different tests; sharing one would couple camp idle motion to rival pathing.",
+      "tests": [
+        "tests/factionTravel.offscreen.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/simWorker/gameWorker.ts:245:installWorkerMessageHandlers@38bd288f44fc6ec202a55cbf80948ab8920483d95407ce8271f2b5d2fce47610 <-> src/game/simWorker/gameWorker.ts:258:onmessage@8aa354f484df1af12c0db46a5051853c13f6ae03e45684a122970c582cf3e6dd",
+      "reason": "installWorkerMessageHandlers binds every worker message port and owns the shared dispatch table; onmessage is one entry point among those handlers (the host-to-worker command channel). They share the switch shape, not a responsibility; merging them would fold the bootstrap installer into a single message callback.",
+      "tests": [
+        "tests/gameWorker.uploadWatchdog.test.ts",
+        "tests/gameWorker.transport.test.ts"
+      ]
     }
   ]
 }

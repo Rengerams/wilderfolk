@@ -5,7 +5,7 @@
 import { gameTick } from '../src/game/gameEngine';
 import { BUILDING_CONFIGS, BuildingType, MapSize } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
-import { canPlaceBuilding } from '../src/game/buildingPlacementActions';
+import { canPlaceBuilding } from '../src/game/placementUtils';
 import { applyWorkerCommand, WORKER_CMD_PROTO, type WorkerCommand } from '../src/game/simWorker/commands';
 import { getChurchStrength } from '../src/game/workforce';
 import { isPlayerHuman } from '../src/game/playerHuman';

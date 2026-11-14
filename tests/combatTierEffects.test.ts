@@ -2,11 +2,17 @@
  * Tiered combat research replaces lower tiers instead of summing them: the strongest
  * researched tier sets counter-attack and predator-block chance.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, afterEach } from 'vitest';
 import { createInitialResearchNodes, BuildingType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
-import { getCounterAttackChance, getPredatorBlockChance, rollCounterAttack } from '../src/game/combat';
+import {
+  getCounterAttackChance,
+  getPredatorBlockChance,
+  rollCounterAttack,
+  rollPredatorBlock,
+} from '../src/game/combat';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
+import { resetSimRng, restoreSimRng, setSimSeed, snapshotSimRng } from '../src/game/simRng';
 
 /** A world with only the fields the combat tech readers touch. */
 function makeState(researched: string[], forgeCompleted: Record<string, boolean>): WorldState {
@@ -63,5 +69,54 @@ describe('tiered combat research does not stack', () => {
     const state = makeState(['defense_3', 'defense_5', 'defense_9'], {});
     // 0.35 + 0.6 + 0.72 would have been 1.67 (capped to 0.85); the scale-mail tier is 0.72.
     expect(getPredatorBlockChance(state)).toBeCloseTo(0.72);
+  });
+});
+
+/**
+ * Combat rolls are seeded decisions: they follow the run seed, and a snapshot/restore replays them
+ * exactly (the bespoke tick/id hash could do neither).
+ */
+describe('combat rolls draw from the run-seeded stream', () => {
+  const rollsFor = (seed: number): boolean[] => {
+    const state = makeState(['defense_3', 'defense_4', 'defense_8'], { iron_spears: true, iron_swords: true });
+    resetSimRng();
+    setSimSeed(seed);
+    const rolls: boolean[] = [];
+    for (let id = 1; id <= 80; id++) {
+      // Both defender and attacker decisions, across ticks and per-entity seeds.
+      rolls.push(rollPredatorBlock(state, id, 100 + id, id * 7919));
+      rolls.push(rollCounterAttack(state, id, id + 500, 100 + id, id * 104_729));
+    }
+    return rolls;
+  };
+
+  afterEach(() => {
+    resetSimRng();
+  });
+
+  it('two run seeds resolve the same combat differently', () => {
+    expect(rollsFor(1)).not.toEqual(rollsFor(2));
+  });
+
+  it('snapshot then restore replays the same rolls', () => {
+    const state = makeState(['defense_3', 'defense_4', 'defense_8'], { iron_spears: true, iron_swords: true });
+    resetSimRng();
+    setSimSeed(4242);
+    const snapshot = snapshotSimRng();
+    const draw = (): boolean[] => {
+      const rolls: boolean[] = [];
+      for (let id = 1; id <= 40; id++) {
+        rolls.push(rollPredatorBlock(state, id, 300 + id, id * 7919));
+        rolls.push(rollCounterAttack(state, id, id + 900, 300 + id, id * 104_729));
+      }
+      return rolls;
+    };
+    const before = draw();
+
+    // Move the realm on, then resume the snapshot as a rollback would.
+    setSimSeed(777);
+    expect(restoreSimRng(snapshot)).toBe(true);
+
+    expect(draw()).toEqual(before);
   });
 });

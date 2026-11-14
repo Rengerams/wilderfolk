@@ -1,3 +1,5 @@
+> **Superseded (2026-11-12).** The retired `traitEffectCatalog` / `evaluateTraitInfluence` pipeline described below no longer exists in the code. The live pipeline is `personality/activityAptitudes.ts` + `personality/traitEvaluation.ts`, documented in `docs/DNA_APTITUDES_ARCHITECTURE.md`. Keep this plan as history.
+
 # Wilderfolk 0.6.5.2 — DNA, personality and career progression: one trait pipeline
 
 > **Superseded (6 November 2026):** the fourteen-dimension genome in [Genetic aptitudes and personality overhaul](genetic-aptitudes-personality-overhaul-2026-11-02.md) replaces the three-of-fourteen trait model below. This document is retained as design history; the live implementation follows the newer plan.

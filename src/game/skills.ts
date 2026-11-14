@@ -77,31 +77,35 @@ export function decayIdleSkills(entity: Entity, activeJob?: JobType, amount = SK
   }
 }
 
+/**
+ * The one trade-XP loop behind both payers: credit only attested workers of `building` for its job.
+ * `amount` is already the final per-worker credit; the callers own when and how much is earned.
+ */
+function creditAttendedTradeSkill(
+  state: WorldState,
+  building: Building,
+  amount: number,
+  entityById?: Map<number, Entity>,
+  workedIds?: ReadonlySet<number>,
+): void {
+  const job = getJobForBuilding(building.type);
+  if (!job || amount <= 0) return;
+  for (const id of building.occupants) {
+    if (workedIds && !workedIds.has(id)) continue;
+    gainSkill(state, id, job, amount, entityById);
+  }
+}
+
+/** Pay a crew for the trade work it did. Callers own when and how much; a refused harvest never calls. */
 export function rewardProductionSkills(
   state: WorldState,
   building: Building,
   amount = 0.2,
   entityById?: Map<number, Entity>,
+  /** The workers who actually attended this shift; absent roster members earn nothing. */
+  workedIds?: ReadonlySet<number>,
 ): void {
-  const job = getJobForBuilding(building.type);
-  if (!job) return;
-  for (const id of building.occupants) gainSkill(state, id, job, amount, entityById);
-}
-
-/**
- * Credit a production crew for the shift it worked, on the building's production tick. Separate from
- * `rewardProductionSkills` on purpose: that one is paid for output, so a refused harvest would not teach.
- */
-export function rewardBuildingWork(
-  state: WorldState,
-  building: Building,
-  presenceShare: number,
-  amount: number,
-  entityById?: Map<number, Entity>,
-): void {
-  const job = getJobForBuilding(building.type);
-  if (!job || presenceShare <= 0) return;
-  for (const id of building.occupants) gainSkill(state, id, job, amount * presenceShare, entityById);
+  creditAttendedTradeSkill(state, building, amount, entityById, workedIds);
 }
 
 /** Which of the work catalog's contexts this crew is working in. */
@@ -116,8 +120,13 @@ export function getWorkerSkillMultiplier(
   building: Building,
   entityById?: Map<number, Entity>,
   action: WorkAction = 'production',
+  /** The workers who actually attended this shift. Omitted means the whole roster (construction). */
+  workedIds?: ReadonlySet<number>,
 ): number {
-  if (building.occupants.length === 0) return 1;
+  const participants = workedIds
+    ? building.occupants.filter((id) => workedIds.has(id))
+    : building.occupants;
+  if (participants.length === 0) return 1;
   const siteJob = getJobForBuilding(building.type);
   // A build crew is paid the site's own trade when it has one, else Builder: a house or wall has
   // no production job, yet the crew raising it still earns — and is priced by — Building.
@@ -126,7 +135,7 @@ export function getWorkerSkillMultiplier(
   const workActivity = action === 'construction' ? 'construction' as const : 'routineWork' as const;
   let total = 0;
   let traitFactorSum = 0;
-  for (const id of building.occupants) {
+  for (const id of participants) {
     // A supplied index is authoritative: an id it lacks is a stale slot, not a cue to scan the world.
     const h = entityById ? entityById.get(id) : state.entities.find((e) => e.id === id);
     if (!h || !h.alive) {
@@ -137,8 +146,8 @@ export function getWorkerSkillMultiplier(
     total += readSkill(h, skillJob);
     traitFactorSum += evaluateAptitudeInfluence(h, workActivity).factor;
   }
-  const avg = total / building.occupants.length;
-  const traitMult = traitFactorSum / building.occupants.length;
+  const avg = total / participants.length;
+  const traitMult = traitFactorSum / participants.length;
   return (1 + avg * 0.02) * traitMult; // up to 3x at skill 100
 }
 

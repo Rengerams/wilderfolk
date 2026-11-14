@@ -38,6 +38,7 @@ import { getSimRng } from './simRng';
 import { HUMAN_FORM, revertToHumanForm } from './moonHowlerForm';
 import type { RevertToHumanFormOptions } from './moonHowlerForm';
 import { releaseDialogueSession } from './humanChat';
+import { deterministicCos, deterministicSin } from './simTrig';
 
 /**
  * Night exorcism — only if a Church is staffed (priest on duty); otherwise nothing stops the howler.
@@ -226,10 +227,10 @@ export function forceMoonHowlerOutside(
   // whatever stream the caller owns, which `saveLoad` restores before this can run.
   const angle = rng() * Math.PI * 2;
   const dist = 40 + rng() * 50;
-  entity.x = Math.max(24, Math.min(mapWidth - 24, entity.x + Math.cos(angle) * dist));
-  entity.y = Math.max(24, Math.min(mapHeight - 24, entity.y + Math.sin(angle) * dist));
-  entity.vx = Math.cos(angle) * 1.2;
-  entity.vy = Math.sin(angle) * 1.2;
+  entity.x = Math.max(24, Math.min(mapWidth - 24, entity.x + deterministicCos(angle) * dist));
+  entity.y = Math.max(24, Math.min(mapHeight - 24, entity.y + deterministicSin(angle) * dist));
+  entity.vx = deterministicCos(angle) * 1.2;
+  entity.vy = deterministicSin(angle) * 1.2;
   entity.spriteAngle = angle;
 }
 

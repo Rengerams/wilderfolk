@@ -85,6 +85,8 @@ function makeWorld(entities: Entity[], buildings: Building[]): WorldState {
     entities,
     buildings,
     tick: 0,
+    year: 0,
+    dayInYear: 0,
     notifications: [],
     floatingTexts: [],
     nextFloatingTextId: 1,
@@ -297,6 +299,8 @@ describe('workforce named transitions', () => {
     const manor = building(9, BuildingType.LeaderHouse, { occupants: [1] });
     const farm = building(2, BuildingType.Farm);
     const world = makeWorld([leader], [manor, farm]);
+    // A living leader-occupation settler requires the office: the invariant rejects the label alone.
+    world.villageLeaderId = 1;
 
     assignMissingWorkers(world.entities, world.buildings, world);
 

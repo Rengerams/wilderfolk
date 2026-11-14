@@ -36,6 +36,7 @@ import { isActiveMoonHowler } from './moonHowler';
 import { logDeath, logEvent } from './eventLog';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { clampToMapBounds } from './mapBounds';
+import { deterministicCos, deterministicSin } from './simTrig';
 import {
   buildGrassPopulationSnapshot,
   buildWildlifePopulationSnapshot,
@@ -621,8 +622,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       if (targetVx === 0 && targetVy === 0) {
         if (getSimRng('tickLayerSystems')() < 1.0 - Math.pow(1.0 - 0.05, step)) {
           const angle = getSimRng('tickLayerSystems')() * Math.PI * 2;
-          entity.vx = Math.cos(angle) * config.speed * 0.4;
-          entity.vy = Math.sin(angle) * config.speed * 0.4;
+          entity.vx = deterministicCos(angle) * config.speed * 0.4;
+          entity.vy = deterministicSin(angle) * config.speed * 0.4;
         }
         targetVx = entity.vx;
         targetVy = entity.vy;
@@ -765,8 +766,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           if (mate) {
             const breedAngle = getSimRng('tickLayerSystems')() * Math.PI * 2;
             const breedDist = 15;
-            const nx = Math.min(width, Math.max(0, entity.x + Math.cos(breedAngle) * breedDist));
-            const ny = Math.min(height, Math.max(0, entity.y + Math.sin(breedAngle) * breedDist));
+            const nx = Math.min(width, Math.max(0, entity.x + deterministicCos(breedAngle) * breedDist));
+            const ny = Math.min(height, Math.max(0, entity.y + deterministicSin(breedAngle) * breedDist));
             const offspring = createEntity(entity.type, nx, ny, state.nextEntityId++, config.spawnEnergy);
 
             if (!ctx.wildlifeSpawnParent) {

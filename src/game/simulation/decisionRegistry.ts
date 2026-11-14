@@ -66,6 +66,7 @@ export type DecisionKey =
   | 'construction'
   | 'production'
   | 'humanWalk'
+  | 'dailyRelationships'
   | 'yearlyWorldEvents'
   | 'grassRegrowth'
   | 'foodLedger'
@@ -88,7 +89,6 @@ export type DecisionKey =
   | 'leadership'
   | 'raidCombat'
   | 'raidRecovery'
-  | 'raidCaptivity'
   | 'raidTerminalPresentation'
   | 'crashRecovery'
   | 'valleyChronicle'
@@ -139,9 +139,9 @@ export const SIMULATION_DECISIONS = {
   traitInfluence: {
     owner: 'personality/traitEvaluation.ts — evaluateAptitudeInfluence, combinePairFactors and evaluateAllAptitudeActivities: the single pure entry point that reads the signed weights in personality/activityAptitudes.ts against the one GenomeV2 owned by settlerTraits.ts',
     cadence: 'on-demand',
-    cadenceNote: 'Pure data projection with no tick, no scheduler, no RNG and no mutation authority. One validated GenomeV2 per living settler holds fourteen allele pairs; expression is each pair\'s mean and the activity score is relative to that settler\'s own fourteen-dimension mean. The evaluator returns one bounded factor per activity (`1 + cap*score`, cap 5–20%) plus stable reasons on request, and never a second genetics source, cached modifier or extra roll. Signed weights give every one of the fourteen dimensions at least one upward and one downward live activity, so no genome is universally best and every settler has both strengths and weaknesses. Costs: the crew multiplier (skills.ts routineWork/construction), school credit and research (education.ts learning/research), apprenticeship training (apprenticeships.ts), per-soldier militia defence (militiaBalance.ts), hunting reach and pursuit (humanHuntingBehavior.ts), flight speed (humanTick.ts escape), labour drain (humanPhysiology.ts), friendship gain, reconciliation decay and pair feud drift (relationships.ts), courtship rate (humanTick.ts), workplace banter (socialLife.ts), grief recovery (humanLifecycleCleanup.ts), civic voices (warPrisoners.ts) and the advisory worker-fit tie-break (careers/workerFit.ts). A carried personal mark adds that activity\'s signed mark weight to the same score before the one clamp and one cap; the `conception` activity has no aptitude weights, so only the acquired lucky mark can move it.',
+    cadenceNote: 'Pure data projection with no tick, no scheduler, no RNG and no mutation authority. One validated GenomeV2 per living settler holds fourteen allele pairs; expression is each pair\'s mean and the activity score is relative to that settler\'s own fourteen-dimension mean. The evaluator returns one bounded factor per activity (`1 + cap*score`, cap 5–20%) plus stable reasons on request, and never a second genetics source, cached modifier or extra roll. Signed weights give every one of the fourteen dimensions at least one upward and one downward live activity, so no genome is universally best and every settler has both strengths and weaknesses. Costs: the crew multiplier (skills.ts routineWork/construction), school credit and research (education.ts learning/research), apprenticeship training (apprenticeships.ts), per-soldier militia defence (militiaBalance.ts), hunting reach and pursuit (humanHuntingBehavior.ts), flight speed (humanTick.ts escape), labour drain (humanPhysiology.ts), friendship gain, reconciliation decay and pair feud drift (relationships.ts), courtship rate (humanTick.ts), workplace banter (socialLife.ts), grief recovery (humanLifecycleCleanup.ts), civic voices (raidAftermath.ts) and the advisory worker-fit tie-break (careers/workerFit.ts). A carried personal mark adds that activity\'s signed mark weight to the same score before the one clamp and one cap; the `conception` activity has no aptitude weights, so only the acquired lucky mark can move it.',
     writes: [],
-    scheduledFrom: 'On-demand direct caller: skills.getWorkerSkillMultiplier (called by dailyBuildingEconomy production and construction and by workshopEconomy), education.creditChildSchoolDay / getEducationResearchMultiplier, apprenticeships.teach, militiaBalance.computeMilitiaBreakdown (defense per mustered soldier), humanHuntingBehavior.tickHumanHunting (hunting and pursuit), humanTick.tickHumans (escape and courtship), humanPhysiology.advanceHumanNeeds (labor drain), socialLife.tryWorkplaceBanter, humanLifecycleCleanup.finalizeHumanDeath, warPrisoners.applyWarCommunityReaction, relationships.advanceSocialRelationships, careers.workerFit.evaluateWorkerFit (pure projection in workforce exact ties and the selected-settler inspector)',
+    scheduledFrom: 'On-demand direct caller: skills.getWorkerSkillMultiplier (called by dailyBuildingEconomy production and construction and by workshopEconomy), education.creditChildSchoolDay / getEducationResearchMultiplier, apprenticeships.teach, militiaBalance.computeMilitiaBreakdown (defense per mustered soldier), humanHuntingBehavior.tickHumanHunting (hunting and pursuit), humanTick.tickHumans (escape and courtship), humanPhysiology.advanceHumanNeeds (labor drain), socialLife.tryWorkplaceBanter, humanLifecycleCleanup.finalizeHumanDeath, raidAftermath.applyWarCommunityReaction, relationships.advanceSocialRelationships, careers.workerFit.evaluateWorkerFit (pure projection in workforce exact ties and the selected-settler inspector)',
     testFile: 'tests/personality.activityAptitudes.test.ts, tests/personality.traitEvaluation.test.ts, tests/settlerTraits.test.ts, tests/personality.workIntegration.test.ts, tests/personality.educationIntegration.test.ts, tests/personality.defenseIntegration.test.ts, tests/personality.physiologyIntegration.test.ts, tests/personality.legacyDNA.test.ts, tests/personality.romanceContext.test.ts, tests/personality.socialCompatibility.test.ts, tests/personality.familyContext.test.ts, tests/personality.civicContext.test.ts, tests/personalityCareer.inspector.test.ts, tests/personalityCareer.oldSaveMigration.test.ts',
   },
   personalMarks: {
@@ -254,16 +254,15 @@ export const SIMULATION_DECISIONS = {
   humanMeals: {
     owner: 'simulation/humanNeeds.ts — canEatColonyMeal, tryEatColonyMeal, killFromStarvation, fract, freeHuntFoodGain',
     cadence: 'realtime',
-    cadenceNote: 'Only tryEatColonyMeal debits the colony food ledger. Successful player meals delegate nutrition credit to humanPhysiology; foreign captives consume at most one ledger-debited 08:00 ration per calendar day; the persisted custody stamp prevents duplicate charges across calls and reload without creating stamina or energy needs. Free-roam hunting records the food storage actually accepted against the hunting source, matching Hunting Spot production. Death actions are delegated to the existing human lifecycle/death owner. Foreign captive metabolism and exhaustion deaths are retired: prisoners do not work or roam. Player settlers read the catalog labor factor in humanPhysiology on their own needs state, never this one.',
+    cadenceNote: 'Only tryEatColonyMeal debits the colony food ledger. Successful player meals delegate nutrition credit to humanPhysiology; the persisted last-meal stamp prevents duplicate charges across calls and reload without creating stamina or energy needs. Free-roam hunting records the food storage actually accepted against the hunting source, matching Hunting Spot production. Death actions are delegated to the existing human lifecycle/death owner. Player settlers read the catalog labor factor in humanPhysiology on their own needs state, never this one.',
     writes: [
       'resources.food',
       'economyLedger.consumed.meals',
       'human.needs.lastMealTick',
-      'human.warCaptive.lastRationDay',
       'human.alive (via delegated death action)',
     ],
     scheduledFrom: 'humanTick.ts → tryEatColonyMeal / killFromStarvation; workAbsence.ts → canEatColonyMeal; humanHuntingBehavior.ts → freeHuntFoodGain and recordFoodProduced',
-    testFile: 'tests/humanNeeds.mealRule.test.ts, tests/personality.captiveEnergyIntegration.test.ts, tests/warfare.lifecycle.test.ts, tests/humanNeeds.calibration.test.ts',
+    testFile: 'tests/humanNeeds.mealRule.test.ts, tests/humanNeeds.calibration.test.ts',
   },
   workSchedule: {
     owner: 'workSchedule.ts — validateWorkSchedule, normalizeWorkSchedule, getWorkSchedule, setWorkSchedule, isWorkScheduleHour, isOnWorkScheduleShift; humanSchedule.ts — home/night/festival/shift-aligned sleep policy (shouldBeAtHomeFor, prefersHomeTonightFor, preShiftSleepPlan, allowSocialLifeFor); prisonShifts.ts — prisonDutyForGuard (absolute watch owner, internal holds predicate)',
@@ -282,7 +281,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/school.test.ts, tests/schooling.explains.test.ts, tests/dashboardData.prisonAndCouncil.test.ts',
   },
   workforce: {
-    owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, staffFoodJobsBeforeConstruction, workforceSignature, isAcuteFoodStaffingEmergency, hasFoodStaffingPressure, prospectiveFoodTransferDonors, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command assignWorker limited to construction/residency',
+    owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, staffJobsBeforeConstruction, workforceSignature, isAcuteFoodStaffingEmergency, hasFoodStaffingPressure, prospectiveFoodTransferDonors, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command assignWorker limited to construction/residency',
     cadence: 'assignment',
     cadenceNote: 'The Defense preset\'s order is Barracks, Prison, Mine, Blacksmith, Workshop, Quarry, Lumber Mill, Hospital, then food/services (workforcePolicy.PRESET_BUILDING_ORDER.defense). Under the survival preset, idle adults first fill reachable food vacancies before being claimed by construction even while the larder is full; other presets retain normal construction-first order. The idle-only assignWorkerInPlace choice uses the canonical two-hour home-to-work route gate; transfers use the same reachability owner. Existing jobs persist despite blocked routes. Automatic staffing completes reachable minimum-coverage transfers, then tops the open posts of each workplace up to capacity by moving a hand only from a workplace holding at least two more workers, and tries alternate donors before caching its O(player humans+buildings) fingerprint; only fully priced passes cache completion. The signature also tracks current 60-day transfer eligibility, acute measured food emergency status, and unhoused applicant path cells, so expiry, shortages and movement retry on the next pulse. Under a measured or forecasted food shortfall, only food-post transfers bypass cooldown and no protected minimum crew or commute eligibility is sacrificed. Route-budget deferrals clear the cache; node-budget deferrals progress under a bounded escalating A* limit (one advanced search per pass, terminal conservative rejection), so unchanged pulses only skip when outcomes are resolved, with a weekly repair run. Explicit autoStaffWorkers requests force reconciliation.  Legacy manual flags normalize to auto without dropping jobs; career/DNA fit breaks exact ties without changing transfer cooldown. Command/assignment phase: tickLayerAssign and dailyBuildingEconomy still call the shared owner, but unchanged input signatures return without expensive staffing. Only a forced or changed event triggers re-matching. releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
     writes: [
@@ -306,16 +305,16 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/dailyPopulation.foodAdmission.test.ts, tests/dailyImmigration.gridSync.test.ts, tests/immigration.composition.test.ts',
   },
   housing: {
-    owner: 'housingPipeline.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, planRelocation answers move-or-stay for homeless, custody, custodian, capacity, surplus, leave-home, commute and couple, and applyRelocation writes a plan; assignFamilyToResidence seats every custodian group whole or legally split (custodian + youngest children together, older children in a second residence) and never unhouses on assignment; rebalanceOvercrowdedResidences tries the legal group placement/split before shedding excess; the commute phase also swaps two occupied homes when both households improve; manor seating is event-driven (start/election) and never a housing-phase decision; relocateHousehold applies a whole-household decision; relocateFamily retries a destination the writer refused with the next-best home; moveResident stays the sole write; HousingReport carries the run stats; assignMissingResidences accepts an optional resume ledger; ranking lives in the same module; facts: housingModel.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
+    owner: 'housingPipeline.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, planRelocation answers move-or-stay for homeless, custody, custodian, capacity, surplus, leave-home, commute and couple, and applyRelocation writes a plan; assignFamilyToResidence seats every custodian group whole or legally split (custodian + youngest children together, older children in a second residence) and never unhouses on assignment; rebalanceOvercrowdedResidences tries the legal group placement/split before shedding excess; the commute phase also swaps two occupied homes when both households improve; manor seating is event-driven (start/election) and never a housing-phase decision; relocateHousehold applies a whole-household decision; relocateFamily retries a destination the writer refused with the next-best home; writeResidence is the sole residence write and enforces the bed capacity (manor hold exempt, legal split checked first); HousingReport carries the run stats; assignMissingResidences accepts an optional resume ledger; ranking lives in the same module; facts: housingModel.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
     cadence: 'assignment',
-    cadenceNote: 'Scheduled housing sweeps run four times per day, the last pulse revisits all units, and housingUnitBucket is only a deterministic hash of CURRENT member IDs (not stable through departures); demolition reconciles displaced households immediately using the bounded tick sweep, while removals without displaced residents skip the housing pipeline; other events request immediate reconciliation or a reasoned residence transition. assignMissingResidences schedules; planRelocation answers move-or-stay for each household and applyRelocation writes; the commute phase can swap two occupied homes when both improve, and its straight-line floor skips impossible route candidates; the capacity rebalance plans through it too, and the homeless repair pass still seats every partially housed unit. A mandatory phase settles a household for the run, so the optional adult-child and commute phases cannot undo it. Reconciliation owns reference and resident-roster writes; selection and leader entitlement provide rules. Worker transport applies authoritative snapshots, never new housing decisions.',
+    cadenceNote: 'Scheduled housing sweeps run four times per day, the last pulse revisits all units, and housingUnitBucket is only a deterministic hash of CURRENT member IDs (not stable through departures); demolition reconciles displaced households immediately using the bounded tick sweep, while removals without displaced residents skip the housing pipeline; other events request immediate reconciliation or a reasoned residence transition. assignMissingResidences schedules; planRelocation answers move-or-stay for each household and applyRelocation writes; the commute phase can swap two occupied homes when both improve, and its straight-line floor skips impossible route candidates; the capacity rebalance plans through it too, and the homeless repair pass still seats every partially housed unit. A mandatory phase settles a household for the run, so the optional adult-child and commute phases cannot undo it. Reconciliation owns reference and resident-roster writes; selection and leader entitlement provide rules. The weekly safety sweep also reads the audit report violations and records a housed-custodian/homeless-minor split in the chronicle. Worker transport applies authoritative snapshots, never new housing decisions.',
     writes: [
       'human.residenceBuildingId',
       'residence building.occupants',
       'household membership (couple + minor children)',
     ],
     scheduledFrom: 'gameTick tick boundary + tickLayerAssign.syncResidenceOccupants (mirror); tickLayerAssign.assignMissingResidences (assignment); commands.ts "assignResidentToBuilding"',
-    testFile: 'tests/housingPlanner.contract.test.ts, tests/housingAuthority.pipeline.test.ts, tests/housingPipeline.invariants.test.ts, tests/housingDiagnostics.test.ts, tests/adultChild.moveOutTarget.test.ts, tests/residenceCommuteRelocation.test.ts, tests/divorceHousing.custody.test.ts, tests/leaderHouse.successionHousehold.test.ts, tests/simulation.invariants.test.ts, tests/longRunColony.integration.test.ts, tests/residencyCapacity.writers.test.ts, tests/housing.custodianSplit.test.ts',
+    testFile: 'tests/housingPlanner.contract.test.ts, tests/housingAuthority.pipeline.test.ts, tests/housingPipeline.invariants.test.ts, tests/housingDiagnostics.test.ts, tests/adultChild.moveOutTarget.test.ts, tests/residenceCommuteRelocation.test.ts, tests/divorceHousing.custody.test.ts, tests/leaderHouse.successionHousehold.test.ts, tests/simulation.invariants.test.ts, tests/longRunColony.integration.test.ts, tests/residencyCapacity.writers.test.ts, tests/housing.custodianSplit.test.ts, tests/housingPulse.audit.test.ts',
   },
   construction: {
     owner: 'buildingStaffingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); dailyBuildingEconomy.tickBuildingProgress (progress advance at the 18:00 production pass)',
@@ -412,6 +411,26 @@ export const SIMULATION_DECISIONS = {
     scheduledFrom: 'tickHumans',
     testFile: 'tests/production.attendancePacing.test.ts, tests/simBatch.offscreenThrottle.test.ts, tests/medium-A-movement.test.ts',
   },
+  dailyRelationships: {
+    owner: 'tickLayerDaily at 06:00 — relationships.advanceSocialRelationships (friendships/feuds), simulation/humanRelationships.advanceYouthLove and reconcileCourtships, apprenticeships.advanceApprenticeships, then leaderHouse.syncLeaderHouseResidency (delegated to the housing owner)',
+    cadence: 'daily',
+    cadenceNote: 'One social/relationship pass per colony day at DAILY_PHASE_HOURS.relationships (06:00), reading the day\'s living list so a later arrival is not retroactively befriended. Friendship/feud scores, youth love, courtship cooldowns and apprenticeships are written here; the leader-house residency call delegates its residence writes to the housing decision and does not own them.',
+    writes: [
+      'human.friendships',
+      'human.feuds',
+      'human.feudPeaks',
+      'human.courtshipPartnerId',
+      'human.courtshipProgress',
+      'human.courtshipCooldownDays',
+      'human.youthLovePartnerId',
+      'human.youthLoveProgress',
+      'human.youthLoveStartedDay',
+      'human.apprenticeOfId',
+      'human.apprenticeId',
+    ],
+    scheduledFrom: 'tickLayerDaily — hour === DAILY_PHASE_HOURS.relationships',
+    testFile: 'tests/phase7.social.test.ts, tests/relationshipDiagnostics.test.ts, tests/villageLeadership.test.ts',
+  },
   yearlyWorldEvents: {
     owner: 'dailyWorldEvents.ts — tickYearBoundaryWorldEvents and tickDailyWorldEvents; groupEvents.ts — rollYearlyWorldEvent',
     cadence: 'daily',
@@ -497,23 +516,23 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/calendarPhase.auditRegressions.test.ts',
   },
   socialFeedback: {
-    owner: 'humanSocial.ts — simAmbientChatNeighbors, simSettlerPairChat; socialLife.ts — pickSocialImpulse, tryWorkplaceBanter, tryNeighborGreeting',
+    owner: 'humanSocial.ts — simAmbientChatNeighbors, simSettlerPairChat; socialLife.ts — pickSocialImpulse, tryWorkplaceBanter, tryNeighborGreeting, isSocialStaggerTick, isGreetingHour',
     cadence: 'realtime',
-    cadenceNote: 'Human-social owner only selects real nearby eligible participants and social motives at existing work/morning/stagger gates; the dialogue router selects text and humanChat executes sessions. The spatial query is adaptive and may legitimately use a bounded linear candidate scan.',
+    cadenceNote: 'Human-social owner only selects real nearby eligible participants and social motives at the shared work/morning/stagger gates. A scene is requested at most once per person per colony day across every event family (hasDialogueSceneOnDay counts greeting, banter and solo scenes together), even though the gate itself is evaluated per tick; the dialogue router selects text and humanChat executes sessions. The spatial query is adaptive and may legitimately use a bounded linear candidate scan.',
     writes: ['floatingTexts (hearts)', 'small courtship progress'],
     scheduledFrom: 'humanTick.ts realtime social/leisure path, with SOCIAL_STAGGER on neighbour selection',
     testFile: 'tests/phase7.social.test.ts, tests/socialLife.dialogueBusy.test.ts, tests/humanChat.ambientPairing.test.ts',
   },
   dialogueContent: {
-    owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, dialogueHoursFromNominalTicks, tickDialogue, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, readPresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
+    owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, hasDialogueSceneOnDay, rememberDialogueLine, dialogueHoursFromNominalTicks, tickDialogue, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, readPresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
     cadence: 'on-demand',
-    cadenceNote: 'One centralized ambient source (data/dialogue/ambient.json, one neutral dialogue category); eventKey+mode lookup matches real participant roles, cycles eligible variants and applies a per-settler three-day line cooldown before repeating. Singleton ambient scenes cool down for three calendar days; per-entity scene and line history survive save/load. This owner writes human.dialogueRecentScenes and human.dialogueRecentLines; scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.',
+    cadenceNote: 'One centralized ambient source (data/dialogue/ambient.json, one neutral dialogue category); eventKey+mode lookup matches real participant roles, cycles eligible variants and applies a per-settler three-day line cooldown before repeating. Singleton ambient scenes cool down for three calendar days; per-entity scene and line history survive save/load; line history is capped at the newest 48 entries so a silent settler keeps a bounded map. This owner writes human.dialogueRecentScenes and human.dialogueRecentLines; scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.',
     writes: ['human.dialogueRecentScenes', 'human.dialogueRecentLines'],
     scheduledFrom: 'humanTick.ts, socialLife.ts, humanLeisureBehavior.ts, factionWander.ts and existing domain event owners; Spotlight overlay later uses read-only group adapter',
     testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.variety.test.ts, tests/dialogue.lineRepeat.test.ts, tests/dialogue.pipeline.integration.test.ts',
   },
   dialogueSessions: {
-    owner: 'humanChat.ts — startDialogueTreeChat, tickHumanChat, endAmbientHumanChat, prepareScriptedDialogue, releaseDialogueSession, cleanupEntityDialogueState, resetDialogueSessions',
+    owner: 'humanChat.ts — startDialogueTreeChat, tickHumanChat, endAmbientHumanChat, prepareScriptedDialogue, releaseDialogueSession, cleanupEntityDialogueState, resetDialogueSessions, retainDialogueSessionsForWorld',
     cadence: 'realtime',
     cadenceNote: 'Sole simulation writer of chatPhrase, chatTicks, chatPartnerId and chatDialogueSessionKey. Paired sessions are held with live participant references and release both sides immediately on interruption; saved orphan keys are reclaimed on their existing ticks; missing counterparts and cleared keys are ignored safely. The render-buffer boundary mirrors fields but does not originate speech.',
     writes: ['human.chatPhrase', 'human.chatTicks', 'human.chatPartnerId', 'human.chatDialogueSessionKey'],
@@ -559,7 +578,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/phase7.social.test.ts, tests/electionGossip.dedup.test.ts, tests/affairTrystSite.walkIn.test.ts, tests/settlers.indoors.test.ts',
   },
   conception: {
-    owner: 'humanRelationships.ts — tryDailyConception (ONLY conception decision/roll owner); pregnancy.ts — startPregnancy (sole pregnancy-start writer, called by beginPregnancy)',
+    owner: 'humanRelationships.ts — tryDailyConception (ONLY conception decision/roll owner; the married, youth and affair routes all apply the same conception activity factor); pregnancy.ts — startPregnancy (sole pregnancy-start writer, called by beginPregnancy)',
     cadence: 'new-calendar-day',
     cadenceNote: 'One roll per settler per colony day through salted personDayRoll; married-near, youth-pair and affair trysts use separate salts. Conception is deliberately non-genetic: the `conception` activity carries no aptitude weights and reads no allele, so only the acquired lucky mark can move the married/youth chance; the retired inherited Lucky ×1.15 is gone and no replacement roll exists. The youth route follows the retained youth link: while one partner is 18 and the other is still a minor it may conceive in either direction; once both are 18 (or the older is beyond 18) the route closes and the handoff/adult path applies.',
     writes: [
@@ -602,7 +621,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/moonHowler.test.ts, tests/low-3-moon-lifecycle.test.ts, tests/medium-persistence.test.ts',
   },
   leadership: {
-    owner: 'leaderHouse.ts — syncLeaderHouseResidency, applyLeaderOccupation; election: villageLeadership.ts — tickElectionBuildup, tryStartTermElectionCeremony, tryStartVacancyElectionCeremony, tickElectionCeremony, tickElectionGossip; dailyWorldEvents.ts — tickYearBoundaryWorldEvents (midnight scheduling), tickDailyWorldEvents (18:00 vacancy scheduling); ceremony attendance: villageLeadership.ts — isCeremonyAttendee, getElectionGatherTarget (read-only)',
+    owner: 'leaderHouse.ts — syncLeaderHouseResidency, applyLeaderOccupation; election: villageLeadership.ts — tickElectionBuildup, tryStartTermElectionCeremony, tryStartVacancyElectionCeremony, tickElectionCeremony, tickElectionGossip, creditedCeremonyBallot (the credited-ballot tally: only currently eligible nominees count); dailyWorldEvents.ts — tickYearBoundaryWorldEvents (midnight scheduling), tickDailyWorldEvents (18:00 vacancy scheduling); ceremony attendance: villageLeadership.ts — isCeremonyAttendee, getElectionGatherTarget (read-only)',
     cadence: 'daily',
     cadenceNote: 'Term elections and buildup run at 00:00 on year rollover, vacancies and one campaign-promise evaluation pass run at 18:00 through dailyWorldEvents, ceremony progression in realtime; residency remains idempotent. Required CI: calendar-scheduler tests Year-2 midnight via gameTick.',
     writes: [
@@ -630,23 +649,15 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: 'Incoming and outgoing battles progress on game ticks across six game hours. Raid dispatch, responses and settlement-fate choices also enter through player commands; treaties may be broken at a reputation cost, extermination kills every remaining inhabitant, and events are written through the ordinary Chronicle owner. Awarded spoils—gold included—enter through addCappedResource, so the configured storage cap and the common resource accounting apply. Rival camp growth is staggered by the stable rival id, never by list position.',
     writes: ['pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports', 'scoredRaidIds', 'human.raidDeploymentId', 'human.battleLeadershipMerit', 'rivalSettlements', 'resources (through economy owner)', 'eventLog (through logEvent)'],
     scheduledFrom: 'gameTick.ts → tickPendingRaidEvents/tickPendingOutgoingRaidEvents; simWorker/commands.ts → raid and victory commands; humanTick.ts builds buildIncomingRaidIndex once per tick for its rival wanderers',
-    testFile: 'tests/warfare.lifecycle.test.ts, tests/raidChronicle.lifecycle.test.ts, tests/raidDeadline.owner.test.ts, tests/humanTick.hotPathIndexes.test.ts',
+    testFile: 'tests/raidChronicle.lifecycle.test.ts, tests/raidDeadline.owner.test.ts, tests/humanTick.hotPathIndexes.test.ts',
   },
   raidRecovery: {
-    owner: 'raidAftermath.ts — beginRaidRecovery, tickRaidRecovery, isSettlementDestroyed, rememberRivalDisposition',
+    owner: 'raidAftermath.ts — beginRaidRecovery, tickRaidRecovery, isSettlementDestroyed, rememberRivalDisposition, applyWarCommunityReaction',
     cadence: 'realtime',
-    cadenceNote: 'Recovery starts at actual raid resolution and advances on subsequent game ticks; remembered settlement-fate diplomacy executes only on the relevant command. isSettlementDestroyed is read-only.',
+    cadenceNote: 'Recovery starts at actual raid resolution and advances on subsequent game ticks; remembered settlement-fate diplomacy and its civic reaction execute only on the relevant command. isSettlementDestroyed is read-only.',
     writes: ['raidRecovery', 'paused (settlement destruction)', 'building.health (through building removal owner)', 'rivalSettlements.diplomacyMemory', 'eventLog (through logEvent)'],
-    scheduledFrom: 'frontierCombat.ts → beginRaidRecovery/rememberRivalDisposition; gameTick.ts → tickRaidRecovery; captivity decisions → rememberRivalDisposition',
-    testFile: 'tests/warfare.lifecycle.test.ts',
-  },
-  raidCaptivity: {
-    owner: 'warPrisoners.ts — captureRaidPrisoners, resolveWarPrisoner, applyWarCommunityReaction; warPrisonerCustody.ts — recordWarPrisonerOutcome, departWarPrisoner',
-    cadence: 'player-command',
-    cadenceNote: 'Capture occurs after resolved combat, custody outcomes via commands, and escape/release cleanup through existing prison paths; no duplicate custody loop.',
-    writes: ['human.warCaptive', 'human.prisonBuildingId', 'raidPrisonerHistory', 'rivalSettlements.population', 'building.occupants (through prison owner)', 'eventLog (through logEvent)'],
-    scheduledFrom: 'frontierCombat.ts → captureRaidPrisoners; simWorker/commands.ts → resolveWarPrisoner; prison escape/removal owners → departWarPrisoner',
-    testFile: 'tests/warfare.lifecycle.test.ts',
+    scheduledFrom: 'frontierCombat.ts → beginRaidRecovery/rememberRivalDisposition/applyWarCommunityReaction; gameTick.ts → tickRaidRecovery',
+    testFile: 'tests/raidTerminalReport.test.ts, tests/raidChronicle.lifecycle.test.ts',
   },
   raidTerminalPresentation: {
     owner: 'raidTerminalReport.ts — buildRaidTerminalReport (pure read-only projection); components/WarfareStatus.tsx, components/BattleReportScreen.tsx and components/RazeConfirmation.tsx own display only, including modal keyboard/focus',

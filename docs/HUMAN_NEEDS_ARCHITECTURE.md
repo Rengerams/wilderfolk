@@ -6,7 +6,7 @@
 
 `Entity.energy` / `maxEnergy` are **not** part of `HumanNeedsState`. They remain for four distinct reasons, only one of which is a migration concern:
 
-- **Intentional current users:** foreign war captives (no `needs` state) and nonhuman creatures (their own energy pool).
+- **Intentional current users:** nonhuman creatures (their own energy pool).
 - **Form bridge:** a Moon Howler form saves/restores `energy` alongside `needs`.
 - **Old-save fallback:** a human saved before `needs` existed seeds `stamina` from `energy` in `normalizeHumanNeeds`.
 - **Unfinished player-human migration:** old readers/writers still use the mirror.
@@ -24,23 +24,22 @@ Remaining player-human `energy` paths (the actual acceptance list):
 | `hotelStay.ts` | direct `energy +=` rest | `adjustHumanStaminaFromEnergy` |
 | `simulation/humanLifecycle.ts` | maternal energy cost and birth recovery | stamina |
 | `animalCare.ts` | tamer owner energy bonus | `adjustHumanStaminaFromEnergy` |
-| `warPrisoners.ts` | recruited captive seeds needs from energy | one-time transition conversion |
 | `humanHuntingBehavior.ts` | no-`needs` fallback | keep the fallback only |
-| `humanEnergy` display/worker metadata | read-only projection | read `needs` for settlers, energy only for captives/nonhumans |
+| `humanEnergy` display/worker metadata | read-only projection | read `needs` for settlers, energy only for nonhumans |
 
 Rules for new code:
 
 1. Player-human decisions read `needs.stamina` / `needs.rest` (or `getHumanStaminaRatio`), never `Entity.energy`.
 2. Legacy-sized effects write through `adjustHumanStaminaFromEnergy`; do not assign `Entity.energy` directly.
 3. `energy` is never a second authority for a rule that stamina already owns.
-4. Captives and nonhuman creatures remain excluded from this rule; their energy is their own model.
+4. Nonhuman creatures remain excluded from this rule; their energy is their own model.
 
 There is no source gate yet. The table above is the migration checklist; a future `*.legacyEnergyAudit.test.ts` should fail when a player-human module adds a new `energy` read outside the allowlist.
 
 
 ## 1. Purpose and invariants
 
-Replace the single human energy bar with independent, serialized **nutrition**, **rest**, and **stamina**, and enforce **one owner per rule and function**. Human `energy` is a derived compatibility projection from stamina, not a second mutable needs state. Nonhuman creatures and foreign enemy captives deliberately retain their legacy energy semantics.
+Replace the single human energy bar with independent, serialized **nutrition**, **rest**, and **stamina**, and enforce **one owner per rule and function**. Human `energy` is a derived compatibility projection from stamina, not a second mutable needs state. Nonhuman creatures deliberately retain their legacy energy semantics.
 
 - The physiology owner advances reserves exactly once per tick, before camera/off-screen throttling; `lastAdvancedTick` prevents duplicates.
 - No meal or food relief credits nutrition without a successful, ledger-recorded debit.
@@ -70,7 +69,7 @@ Replace the single human energy bar with independent, serialized **nutrition**, 
 | Owner | Responsibilities |
 | --- | --- |
 | `humanTick.ts` | Observe actual duty/sleep/movement; call physiology; route meal and starvation actions |
-| `simulation/humanNeeds.ts` | `canEatColonyMeal`, `tryEatColonyMeal`, foreign captive exhaustion, starvation mortality |
+| `simulation/humanNeeds.ts` | `canEatColonyMeal`, `tryEatColonyMeal`, starvation mortality |
 | `economyLedger.ts` | Atomic food debit and consumption categories |
 | `workforce.ts` | Jobs and roster restoration after imprisonment/release |
 | `townHall.ts` | Petitions; only credit nourishment after `spendFood('petition')` |
@@ -133,21 +132,21 @@ The Virtual Player now checks for a **completed, auto-managed food producer with
 
 Older saves are normalized with `normalizeHumanNeeds`. `saveSchema.ENTITY_PERSISTED_FIELDS` stores `needs`. Moon Howler form transitions preserve nested saved human needs; reverting rebases `lastAdvancedTick` to the tick preceding restoration, so the seven-hour nonhuman interval cannot be replayed as human hunger, sleep loss or stamina drain. `simWorker/simPrep.ts` deep-copies state (including nested saved needs), while `simBuffers/entityRenderMeta.ts` copies reserve values for display without owning or mutating them.
 
-Foreign `warCaptive` feeding intentionally remains on legacy energy and canonical `gameConstants.Human` constants. Visitor/rival humans without custody do not use colony food. Other human legacy-energy consumers remain an explicit migration audit area.
+The foreign war-captive feeding path was removed with the enemy-captive subsystem. Visitor/rival humans without a player household do not use colony food. Other human legacy-energy consumers remain an explicit migration audit area.
 
 ## 7. Removed redundant aliases
 
 - Dropped the pass-through `creditHumanStaminaFromEnergy`; callers use `adjustHumanStaminaFromEnergy` directly.
 - Removed `asleepAtHome = sleepingForNeeds`: it misnamed hotel/cell sleep as sleeping at home.
-- Removed local meal-interval and hunger-threshold aliases from `humanNeeds.ts`; foreign-captive logic reads `gameConstants.Human` directly.
-- Retained meaningful boundaries: source needs versus derived energy, player nutrition versus captive energy, and roster fatigue versus sleep rest.
+- Removed local meal-interval and hunger-threshold aliases from `humanNeeds.ts`; the removed foreign-captive path read `gameConstants.Human` directly.
+- Retained meaningful boundaries: source needs versus derived energy, player nutrition versus nonhuman energy, and roster fatigue versus sleep rest.
 
 ## 8. Verification and merge policy
 
 | Gate | Test or evidence | Current status |
 | --- | --- | --- |
 | New symbol ownership and alias cleanup | `OWNERSHIP_OVERVIEW.md` + targeted source audit | Updated; repo-wide completeness still requires check |
-| Nutrition/meal/captive behaviors | `tests/humanNeeds.mealRule.test.ts` | Tests authored; final-head result needed |
+| Nutrition/meal behaviors | `tests/humanNeeds.mealRule.test.ts` | Tests authored; final-head result needed |
 | 7/30/360-day physiology scenarios | `tests/humanNeeds.calibration.test.ts` | Tests authored; final-head result needed |
 | Civic aid, famine desperation and prison release | `tests/civicPetition.cadence.test.ts`, `tests/famineDesperation.test.ts`, `tests/prisonStay.holdsHomeAndPost.test.ts`, `tests/simBatch.prisonEscapes.test.ts` | Regression coverage authored |
 | Camera-focus vs off-screen equivalence and worker delta | seeded A/B observables | Not yet accepted |
