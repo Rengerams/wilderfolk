@@ -182,8 +182,8 @@ export function completedJobBuildings(
     });
 }
 
-/** Two 30-day in-game months. Existing saves with no timestamp stay eligible. */
-export const AUTO_JOB_TRANSFER_COOLDOWN_TICKS = 60 * TICKS_PER_DAY;
+/** Prevent job cycling for three in-game days after an actual transfer. Initial hiring is unrestricted. */
+export const AUTO_JOB_TRANSFER_COOLDOWN_TICKS = 3 * TICKS_PER_DAY;
 
 export function canAutoChangeWorkplace(human: Entity, currentTick?: number, foodEmergency = false): boolean {
   // A prisoner's post is reserved, not vacant: no automatic transfer may move it while they serve.
@@ -414,7 +414,7 @@ export function assignWorkerTransition(human: Entity, building: Building, curren
   const keepOffice = human.occupation === LEADER_OCCUPATION;
   if (!alreadyListed) building.occupants.push(human.id);
   human.workerBuildingId = building.id;
-  if (currentTick != null) human.lastAutoJobTransferTick = currentTick;
+  // First employment is not a transfer: do not lock the new employee out of balancing.
   human.occupation = keepOffice ? LEADER_OCCUPATION : getOccupationForBuilding(building.type);
   human.job = job;
   ensureEntitySkills(human)[job] = readSkill(human, job);
