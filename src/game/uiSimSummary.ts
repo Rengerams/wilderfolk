@@ -6,7 +6,7 @@
 import type { EntityCatalog } from './entityCatalog';
 import type { WorldState, Entity } from './gameTypes';
 import { hasWorkAssignment, isImprisoned } from './housingModel';
-import { getOpenPlayerBeds, getTotalBeds } from './populationGrowth';
+import { getEffectiveBedCapacity, getOpenPlayerBeds, getTotalBeds } from './populationGrowth';
 import { isPlayerHuman } from './playerHuman';
 
 export interface VillageStatsSummary {
@@ -22,6 +22,8 @@ export interface VillageStatsSummary {
    */
   workforce: number;
   beds: number;
+  /** Beds actually usable, excluding unoccupied reserved Leader's House beds. */
+  effectiveBeds: number;
   /**
    * Beds a settler may actually be assigned (`getOpenPlayerBeds`), not `beds − total`: the Leader's
    * House beds are reserved for the leader's household.
@@ -104,6 +106,7 @@ export function computeVillageStats(
     imprisoned,
     workforce,
     beds,
+    effectiveBeds: getEffectiveBedCapacity(world),
     openBeds: getOpenPlayerBeds(world),
   };
 }
