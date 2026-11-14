@@ -10,7 +10,7 @@ import { EntityType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import {
   APTITUDE_COUNT,
-  genomeFromSeed,
+  backfillLegacyGenome,
   normalizeGenome,
   type GenomeV2,
 } from '../src/game/settlerTraits';
@@ -177,13 +177,13 @@ describe('the deterministic fill rule', () => {
   it('derives a valid genome per citizen id and never touches a stream', () => {
     resetSimRng();
     const before = snapshotSimRng();
-    const genomes = Array.from({ length: 8 }, (_, i) => genomeFromSeed(4242, i + 1));
+    const genomes = Array.from({ length: 8 }, (_, i) => backfillLegacyGenome(createSeededRng(4242, `settlerGenome:${i + 1}`)));
 
     for (const genome of genomes) {
       expect(genome.aptitudeAlleles).toHaveLength(APTITUDE_COUNT);
       expect(normalizeGenome(genome)).toEqual(genome);
     }
-    expect(genomes[0]).toEqual(genomeFromSeed(4242, 1));
+    expect(genomes[0]).toEqual(backfillLegacyGenome(createSeededRng(4242, 'settlerGenome:1')));
     expect(new Set(genomes.map((genome) => JSON.stringify(genome))).size).toBeGreaterThan(1);
     expect(snapshotSimRng(), 'deriving the fill must not touch any stream').toEqual(before);
   });
