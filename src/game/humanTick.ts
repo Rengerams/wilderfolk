@@ -822,8 +822,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         hasHospital: sleep.hasHospital,
         unheatedWinter: isWinter && !canHeat,
       });
-      if (resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds && !sleep.hasHospital) === 'eat') {
-        ateMeal = tryEatColonyMeal(entity, state, hourOfDay);
+      // Only the scheduled clock-hour pulse attempts a meal; the meal owner owns eligibility.
+      if (isStartOfClockHour(state.tick) && (!sleepingForNeeds || sleep.hasHospital)) {
+        ateMeal = tryEatColonyMeal(entity, state);
       }
       if (hasFatalStarvation(entity)) {
         killFromStarvation(entity, state, updatedBuildings, entityById);
@@ -985,7 +986,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // On-duty and emergency movement remain owned by their existing systems.
     const takingNeedsBreak = isPlayerHuman(entity) && !onJobShift &&
       !onOfficialShift && !onPriestShift && !schoolCommuteDue &&
-      resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds) === 'takeBreak';
+      resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds, false) === 'takeBreak';
 
     const commuteStartHour = isPrisonGuardAtPost ? prisonShiftStartHour : workSchedule.startHour;
     const commuteLeadHours = workplace
