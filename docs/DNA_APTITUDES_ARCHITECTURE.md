@@ -60,7 +60,7 @@ interface GenomeV2 {
 | Storage | `Entity.genomeV2`, persisted in `ENTITY_PERSISTED_FIELDS` |
 | Personal marks | `Entity.marks`: born or earned once, never inherited, validated on load |
 
-`normalizeGenome` is the only untrusted-input boundary. A valid saved genome is kept as written; an invalid or absent one is replaced by `genomeFromSeed(colonySeed, entityId)`, which never draws from a live stream. The retired categorical `traits` field is deleted on load and is never read by gameplay.
+`normalizeGenome` is the only untrusted-input boundary. A valid saved genome is kept as written; an invalid or absent one is replaced by `backfillLegacyGenome(seededStreamForRun('settlerGenome:' + entityId))` at the save-load boundary. The RNG owner (`simRng.ts`) derives the stream from the adopted colony seed; `settlerTraits.ts` receives only the stream and never chooses a seed. Independent backfill streams do not advance persisted live streams. The retired categorical `traits` field is deleted on load and is never read by gameplay.
 
 ### Expression
 
