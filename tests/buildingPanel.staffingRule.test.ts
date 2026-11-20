@@ -177,6 +177,7 @@ describe('building worker roster shows work duty, not private activities', () =>
     const state = makeWorld([present, commuter], [barracks]);
     state.tick = 10 * TICKS_PER_HOUR;
     expect(commuteHumanToBuilding(commuter, barracks, 2)).toBe(false);
+    expect(Math.hypot(commuter.vx, commuter.vy)).toBeGreaterThan(0);
     const html = renderPanel(barracks, state);
     expect(html).toContain('Working');
     expect(html).toContain('Walking to work');
