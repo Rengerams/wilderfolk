@@ -400,7 +400,7 @@ export function pickWorkerToTransfer(
  * Named assignment transition — assign ONE living adult settler to a completed workplace.
  * Single write path for `workerBuildingId`, workplace `occupants`, and `job`/`occupation` properties.
  */
-export function assignWorkerTransition(human: Entity, building: Building, currentTick?: number): boolean {
+export function assignWorkerTransition(human: Entity, building: Building): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
   if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE) return false;
