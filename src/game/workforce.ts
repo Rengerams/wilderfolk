@@ -708,7 +708,7 @@ export function assignWorkerInPlace(
   building: Building,
   humans: Entity[],
   buildings: Building[],
-  venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'> & Partial<Pick<WorldState, 'tick'>>,
+  _venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'> & Partial<Pick<WorldState, 'tick'>>,
   constructionWorkerIds?: Set<number>,
   buildingById?: ReadonlyMap<number, Building>,
   workerCounts?: Map<number, number>,
