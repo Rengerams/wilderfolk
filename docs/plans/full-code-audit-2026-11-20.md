@@ -195,3 +195,28 @@ fixes; none of these were player-visible defects, so no bug report was filed.
 Gate state after remediation: `check`, `owners`, `semantic`, `semanticDup`, `cycles --strict`, `dup`,
 `types`, `scriptsTypes`, `lint`, `unit` (528 files / 3,480 tests), `worker-boundary`, `knip`, `audit`
 and `build` all pass. F-10 stays a watch item.
+
+## Verification re-run (2026-11-20, branch head `3e0f2b97`)
+
+Every gate was re-run from a clean checkout of the committed branch head, in the sandbox dev
+container, to confirm the remediation holds and nothing regressed.
+
+| Gate | Result |
+|---|---|
+| `npm run audit` | **PASS** — cycles → knip → owners, 3/3 steps (F-02 order) |
+| `npm run test -- semantic` | **PASS** — 476 modified functions / 3,470 indexed / 0 unresolved matches |
+| `npm run test -- worker-boundary` | **PASS** — 8 measured differences / 0 unexplained (F-04) |
+| `npm run lint` | **PASS** — 0 warnings, 0 errors, 399 files (F-06) |
+| `npm run build` | **PASS** — tsc app + node, overlap gate, lint, dup, `vite build` in 2.5 s (F-01) |
+| `npm run test:unit` | **PASS** — 528 files |
+| `npm run test -- types` / `dup` / `check` / `owners` / `cycles` | **PASS** |
+| `npm run test:full-year:test` | **PASS** — 360 days / 103,680 ticks, seed 12345, no invariant violations (the weekly gate the first pass did not run) |
+
+Environment note: this sandbox clone has no `origin/main`, so the overlap gate's default base ref
+cannot resolve (`git merge-base HEAD origin/main`). It was run against the local `main` ref —
+`SEMANTIC_BASE_REF=main npm run test -- semantic` and `npm run build` — which resolves to the same
+merge-base CI computes. No source change is needed; CI keeps the default.
+
+The year-long gate is a raid/howling year over four scaffolded settlers, so it proves invariants and
+a live colony rather than population growth; the 30-day bot colony run above remains the growth
+evidence. F-10 stays a watch item.
