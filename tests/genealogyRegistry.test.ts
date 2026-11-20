@@ -36,6 +36,21 @@ describe('persistent genealogy registry', () => {
     expect(largestBloodlines(restored, 1)[0].ancestor.id).toBe(1);
   });
 
+  it('preserves the prior registry through birth, death and census updates for tick rollback', () => {
+    const state = world();
+    const mother = human(1);
+    state.entities = [mother];
+    const checkpoint = syncGenealogyRegistry(state);
+    const original = structuredClone(checkpoint);
+    recordGenealogyBirth(state, human(2, { motherId: 1 }));
+    recordGenealogyDeath(state, mother);
+    state.entities = [];
+    syncGenealogyRegistry(state);
+    expect(state.genealogyRegistry!.people['1'].alive).toBe(false);
+    expect(state.genealogyRegistry!.people['1'].childrenIds).toEqual([2]);
+    expect(checkpoint).toEqual(original);
+  });
+
   it('counts marriage-connected families without calling spouses blood descendants', () => {
     const state = world();
     const a = human(1, { name: 'A', surname: 'Catron', partnerId: 2 });

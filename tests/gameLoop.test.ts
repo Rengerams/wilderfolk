@@ -196,6 +196,7 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       expect(loop.getWorld().workSchedule).toEqual({ startHour: 6, endHour: 14 });
       expect(loop.getWorld().entities).toBe(authoritative.entities);
       expect(loop.getWorld().buildings).toBe(authoritative.buildings);
+      expect(loop.getExitSaveWorld()).toBe(authoritative);
       expect(authoritative.workSchedule).not.toEqual({ startHour: 6, endHour: 14 });
       loop.stop();
     });

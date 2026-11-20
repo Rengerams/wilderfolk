@@ -275,7 +275,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     // Written by the daily layer, so the tick must be able to roll it back.
     activeEvent: state.activeEvent ? structuredClone(state.activeEvent) : null,
     eventLog: [...(state.eventLog ?? [])],
-    genealogyRegistry: profileSection('rollback.genealogy', () => (state.genealogyRegistry ? { people: Object.fromEntries(Object.entries(state.genealogyRegistry.people).map(([id, person]) => [id, { ...person, partners: [...person.partners], childrenIds: [...person.childrenIds] }])) } : undefined)),
+    genealogyRegistry: state.genealogyRegistry,
     eventsThisYear: [...(state.eventsThisYear ?? [])],
     lastEventYear: state.lastEventYear,
     bountifulHarvest: state.bountifulHarvest,

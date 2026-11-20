@@ -2,12 +2,11 @@
  * PERF-04: camp, war-band and festival lookups are tick-stable, so `tickHumans` indexes them once
  * instead of scanning for every settler. The read counter proves the per-settler scan is gone.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, MapSize, Season, emptyEntityByType } from '../src/game/gameTypes';
 import type { Building, Entity, VisitorGroup, WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { tickHumans } from '../src/game/humanTick';
-import { clearAllFactionWanderStates } from '../src/game/factionWander';
 import { getCalendarDay, getColonyDay, setHumanBirthFromAge, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -153,7 +152,6 @@ function countedBuildings(buildings: Building[], counter: { reads: number }): Bu
 }
 
 function runTick(fixture: Fixture, counter?: { reads: number }): void {
-  clearAllFactionWanderStates();
   const context = simContext(fixture.world, fixture.world.entities);
   if (counter) {
     const counted = countedBuildings(fixture.world.buildings, counter);
@@ -162,10 +160,6 @@ function runTick(fixture: Fixture, counter?: { reads: number }): void {
   }
   tickHumans(fixture.world, context);
 }
-
-beforeEach(() => {
-  clearAllFactionWanderStates();
-});
 
 describe('humanTick per-settler lookups', () => {
   it('single building scan does not grow with the number of festival goers', () => {

@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (20 Nov 2026):** Closing a colony saves its acknowledged state, visiting factions resume their activity after loading, and tick rollback shares unchanged family history.
+
 - **Removed (12 Nov 2026):** The unreachable enemy war-captive subsystem (capture, POW decisions, custody history and their save fields) was deleted; player imprisonment and raid mercy/tribute/raze reactions remain.
 - **Fixed (12 Nov 2026):** Trade skill and the crew skill bonus are paid only for witnessed work; an assigned but absent settler no longer raises output or earns XP, including town-hall, hospital and hotel service.
 - **Fixed (12 Nov 2026):** A free-time activity is drawn from the run seed for its whole leisure slot, so changing the seed changes free time and the activity no longer shifts at midnight.

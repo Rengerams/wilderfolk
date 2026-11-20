@@ -10,11 +10,18 @@ function recordedHuman(entity: Entity): boolean {
   return entity.type === EntityType.Human && isPlayerHuman(entity);
 }
 
+/** Publish a new genealogy version on mutation so tick rollback can retain its prior reference. */
+function editGenealogyRegistry(state: WorldState): GenealogyRegistry {
+  const registry = { people: { ...state.genealogyRegistry?.people } };
+  state.genealogyRegistry = registry;
+  return registry;
+}
+
 /** Idempotent census: track new births, new relationships and disappearances.
  * Call from a daily simulation boundary and before serialization. Never scan per tick.
  */
 export function syncGenealogyRegistry(state: WorldState): GenealogyRegistry {
-  const registry = state.genealogyRegistry ??= { people: {} };
+  const registry = editGenealogyRegistry(state);
   const aliveIds = new Set<number>();
   for (const e of state.entities) {
     if (!recordedHuman(e)) continue;
@@ -46,9 +53,7 @@ export function syncGenealogyRegistry(state: WorldState): GenealogyRegistry {
   }
   for (const person of Object.values(registry.people)) {
     if (!aliveIds.has(person.id) && person.alive) {
-      person.alive = false;
-      person.diedYear ??= state.year;
-      person.diedDay ??= state.dayInYear;
+      registry.people[String(person.id)] = { ...person, alive: false, diedYear: person.diedYear ?? state.year, diedDay: person.diedDay ?? state.dayInYear };
     }
   }
   // Child parent links take priority over older, potentially incomplete childrenIds.
@@ -56,7 +61,9 @@ export function syncGenealogyRegistry(state: WorldState): GenealogyRegistry {
     for (const parentId of [child.motherId, child.fatherId, child.adoptiveMotherId, child.adoptiveFatherId]) {
       if (parentId == null || parentId === child.id) continue;
       const parent = registry.people[String(parentId)];
-      if (parent && !parent.childrenIds.includes(child.id)) parent.childrenIds.push(child.id);
+      if (parent && !parent.childrenIds.includes(child.id)) {
+        registry.people[String(parent.id)] = { ...parent, childrenIds: [...parent.childrenIds, child.id] };
+      }
     }
   }
   bumpHistoryRevision(state, 'genealogyRegistry');
@@ -92,9 +99,9 @@ export function largestBloodlines(registry: GenealogyRegistry, limit = 10): Arra
 
 /** Record a newborn before its entity is merged into the main world array. */
 export function recordGenealogyBirth(state: WorldState, child: Entity): void {
-  const registry = state.genealogyRegistry ??= { people: {} };
   const key = String(child.id);
-  if (registry.people[key]) return;
+  if (state.genealogyRegistry?.people[key]) return;
+  const registry = editGenealogyRegistry(state);
   registry.people[key] = {
     id: child.id,
     name: child.name ?? 'Unknown settler',
@@ -113,7 +120,9 @@ export function recordGenealogyBirth(state: WorldState, child: Entity): void {
   };
   for (const parentId of [child.motherId, child.fatherId, child.adoptiveMotherId, child.adoptiveFatherId]) {
     const parent = parentId == null ? undefined : registry.people[String(parentId)];
-    if (parent && !parent.childrenIds.includes(child.id)) parent.childrenIds.push(child.id);
+    if (parent && !parent.childrenIds.includes(child.id)) {
+      registry.people[String(parent.id)] = { ...parent, childrenIds: [...parent.childrenIds, child.id] };
+    }
   }
   bumpHistoryRevision(state, 'genealogyRegistry');
 }
@@ -121,7 +130,7 @@ export function recordGenealogyBirth(state: WorldState, child: Entity): void {
 /** Capture a death while the entity still has its identity and family links. */
 export function recordGenealogyDeath(state: WorldState, entity: Entity): void {
   if (!recordedHuman(entity)) return;
-  const registry = state.genealogyRegistry ??= { people: {} };
+  const registry = editGenealogyRegistry(state);
   if (!registry.people[String(entity.id)]) {
     registry.people[String(entity.id)] = {
       id: entity.id, name: entity.name ?? 'Unknown settler',
@@ -134,9 +143,7 @@ export function recordGenealogyDeath(state: WorldState, entity: Entity): void {
     };
   }
   const person = registry.people[String(entity.id)];
-  person.alive = false;
-  person.diedYear ??= state.year;
-  person.diedDay ??= state.dayInYear;
+  registry.people[String(entity.id)] = { ...person, alive: false, diedYear: person.diedYear ?? state.year, diedDay: person.diedDay ?? state.dayInYear };
   bumpHistoryRevision(state, 'genealogyRegistry');
 }
 

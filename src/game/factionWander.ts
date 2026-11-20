@@ -1,5 +1,5 @@
 /** Camp wander / visitor village activities: visitors pick POIs by kind, loiter, and return to camp. */
-import type { WorldState, Entity, Building, VisitorKind, VisitorGroup } from './gameTypes';
+import type { WorldState, Entity, Building, VisitorKind, VisitorGroup, VisitPhase, FactionWanderState } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { isCompletedPlayerBuilding } from './buildings';
 import { getBuildingCenter } from './buildingGeometry';
@@ -10,19 +10,6 @@ import { getSimRng } from './simRng';
 import { faceVelocity } from './simulation/movementSteering';
 import { applyHumanWalkStep } from './simulation/humanMovement';
 import { deterministicCos, deterministicSin } from './simTrig';
-
-type VisitPhase = 'idle_camp' | 'walk_poi' | 'loiter_poi' | 'return_camp' | 'wander_edge';
-
-interface WanderState {
-  targetX: number;
-  targetY: number;
-  idleUntilTick: number;
-  phase: VisitPhase;
-  /** Optional chat / flavor when arriving at a POI */
-  poiLabel?: string;
-}
-
-const wanderByEntity = new Map<number, WanderState>();
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
@@ -178,8 +165,8 @@ function nextVisitorActivity(
   campX: number,
   campY: number,
   buildings: Building[],
-  prev: WanderState | null,
-): WanderState {
+  prev: FactionWanderState | null,
+): FactionWanderState {
   const hour = getHourOfDay(state.tick);
   const kind = group.kind;
 
@@ -251,14 +238,14 @@ function ensureWanderState(
   campX: number,
   campY: number,
   buildings: Building[],
-): WanderState {
-  let wander = wanderByEntity.get(entity.id);
+): FactionWanderState {
+  let wander = entity.factionWander;
   if (!wander) {
     if (entity.faction === 'visitor') {
       const group = state.visitorGroups.find((g) => g.id === entity.groupId);
       if (group) {
         wander = nextVisitorActivity(state, entity, group, campX, campY, buildings, null);
-        wanderByEntity.set(entity.id, wander);
+        entity.factionWander = wander;
         return wander;
       }
     }
@@ -269,7 +256,7 @@ function ensureWanderState(
       targetY: t.y,
       idleUntilTick: state.tick + Math.floor(getSimRng('factionWander')() * TICKS_PER_DAY * 0.15),
     };
-    wanderByEntity.set(entity.id, wander);
+    entity.factionWander = wander;
   }
   return wander;
 }
@@ -343,11 +330,10 @@ export function tickFactionCampWander(
   if (dist < arrive) {
     // Arrived
     if (wander.phase === 'walk_poi') {
-      wander.phase = 'loiter_poi';
-      wander.idleUntilTick = state.tick + idleTicksFor(
-        'loiter_poi',
-        visitorGroup?.kind ?? 'nomads',
-      );
+      entity.factionWander = {
+        ...wander, phase: 'loiter_poi',
+        idleUntilTick: state.tick + idleTicksFor('loiter_poi', visitorGroup?.kind ?? 'nomads'),
+      };
       maybeArriveFlavor(entity, 'loiter_poi', state.tick, wander.poiLabel);
       entity.vx = 0;
       entity.vy = 0;
@@ -355,8 +341,10 @@ export function tickFactionCampWander(
     }
 
     if (wander.phase === 'return_camp') {
-      wander.phase = 'idle_camp';
-      wander.idleUntilTick = state.tick + idleTicksFor('idle_camp', visitorGroup?.kind ?? 'nomads');
+      entity.factionWander = {
+        ...wander, phase: 'idle_camp',
+        idleUntilTick: state.tick + idleTicksFor('idle_camp', visitorGroup?.kind ?? 'nomads'),
+      };
       entity.vx = 0;
       entity.vy = 0;
       return;
@@ -364,7 +352,7 @@ export function tickFactionCampWander(
 
     // Pick next activity
     if (visitorGroup) {
-      const next = nextVisitorActivity(
+      entity.factionWander = nextVisitorActivity(
         state,
         entity,
         visitorGroup,
@@ -373,17 +361,12 @@ export function tickFactionCampWander(
         buildings,
         wander,
       );
-      wander.phase = next.phase;
-      wander.targetX = next.targetX;
-      wander.targetY = next.targetY;
-      wander.idleUntilTick = next.idleUntilTick;
-      wander.poiLabel = next.poiLabel;
     } else {
       const t = pickRivalWander(campX, campY);
-      wander.targetX = t.x;
-      wander.targetY = t.y;
-      wander.phase = 'idle_camp';
-      wander.idleUntilTick = state.tick + Math.floor(TICKS_PER_DAY * (0.08 + getSimRng('factionWander')() * 0.35));
+      entity.factionWander = {
+        targetX: t.x, targetY: t.y, phase: 'idle_camp',
+        idleUntilTick: state.tick + Math.floor(TICKS_PER_DAY * (0.08 + getSimRng('factionWander')() * 0.35)),
+      };
     }
     entity.vx = 0;
     entity.vy = 0;
@@ -399,21 +382,4 @@ export function tickFactionCampWander(
   entity.vy = (dy / dist) * moveSpeed * rush;
   applyHumanWalkStep(entity, 1);
   faceVelocity(entity);
-}
-
-export function clearFactionWanderState(entityId: number): void {
-  wanderByEntity.delete(entityId);
-}
-
-/** Reset all wander AI — call on new game, load, or session reset. */
-export function clearAllFactionWanderStates(): void {
-  wanderByEntity.clear();
-}
-
-/** Drop wander AI for entities that are no longer alive. */
-export function pruneFactionWanderStates(livingEntityIds: Iterable<number>): void {
-  const living = new Set(livingEntityIds);
-  for (const id of wanderByEntity.keys()) {
-    if (!living.has(id)) wanderByEntity.delete(id);
-  }
 }

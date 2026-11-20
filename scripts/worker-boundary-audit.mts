@@ -103,7 +103,8 @@ function stable(value: unknown): string {
     const out: Record<string, unknown> = {};
     if (cls) out.__class = cls;
     for (const key of Object.keys(obj).sort()) {
-      out[key] = walk((obj as Record<string, unknown>)[key]);
+      const field = (obj as Record<string, unknown>)[key];
+      if (field !== undefined) out[key] = walk(field);
     }
     return out;
   };
@@ -131,6 +132,7 @@ function semanticValue(world: WorldState, key: string): unknown {
       return getVenueSchedule(world, 'tavern');
     case 'hotelSchedule':
       return getVenueSchedule(world, 'hotel');
+    case 'graveRecords':
     case 'huntVisuals':
     case 'chronicleChapters':
     case 'pendingStoryEvents':
@@ -682,25 +684,25 @@ function classify(finding: Finding): string {
   if (finding.key === 'simRng') {
     return 'benign: host-owned RNG snapshot — the display world is strictly richer';
   }
-  if (finding.key === 'entities' && finding.section.includes('delta')) {
+  if (finding.key === 'entities' && finding.kind === 'different' && finding.section.endsWith(':delta')) {
     return 'benign: property presence only — no entity field value differs';
   }
-  if (finding.key === 'entities' && finding.section.startsWith('prep')) {
+  if (finding.key === 'entities' && finding.kind === 'different' && finding.section === 'prep:rollback') {
     return 'benign: property presence only — prep materializes optional keys as undefined';
   }
   if (
-    finding.section.startsWith('save') &&
+    finding.section === 'save' && finding.kind === 'changed-on-load' &&
     ['paused', 'tradeRoutes', 'tutorialSeen', 'entities', 'eventLog'].includes(finding.key)
   ) {
     return 'benign: documented load-time normalization (starts paused, route merge, tutorial seed, migrateHumanAges)';
   }
   if (
-    finding.section.startsWith('save') &&
+    finding.section === 'save' && finding.kind === 'entity-field-diverged' &&
     ['entity.birthDay', 'entity.birthMonth'].includes(finding.key)
   ) {
     return 'benign: migrateHumanAges backfills the calendar birth date the worker left at 0 (age and every persisted field survive)';
   }
-  if (finding.section === 'host-writers') {
+  if (finding.section === 'host-writers' && finding.key === 'world.notifications') {
     return 'observation: host-side presentation cleanup; the durable dismissal travels via patchUi.dismissedNotificationIds';
   }
   return 'UNEXPLAINED';

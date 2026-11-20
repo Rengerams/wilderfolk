@@ -19,7 +19,6 @@ import { getTownHallImmigrationMultiplier } from './townHall';
 import { addFloatingText, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import type { TickContext } from './simulation/simulationTypes';
-import { pruneFactionWanderStates } from './factionWander';
 import { getSimRng } from './simRng';
 import { Human, Immigration, VirtualPlayer } from './gameConstants';
 import { getProjectedFoodSupply, isMeasuredFoodDeficit, isProjectedFoodShortfall } from './economyLedger';
@@ -177,12 +176,6 @@ export function tickDailyPopulation(
       allAlive.splice(i, 1);
     }
   }
-
-  const livingIds: number[] = new Array(allAlive.length);
-  for (let i = 0; i < allAlive.length; i++) {
-    livingIds[i] = allAlive[i].id;
-  }
-  pruneFactionWanderStates(livingIds);
 
   tickImmigration(state, ctx, allAlive, counts);
 }

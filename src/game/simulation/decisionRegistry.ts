@@ -76,6 +76,7 @@ export type DecisionKey =
   | 'inventionFair'
   | 'authoredStoryExpiry'
   | 'visitorLifecycle'
+  | 'factionWander'
   | 'idleSkillDecay'
   | 'socialFeedback'
   | 'dialogueContent'
@@ -498,6 +499,13 @@ export const SIMULATION_DECISIONS = {
     ],
     scheduledFrom: 'tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → groupEvents.tickVillageRequests; commands.ts "resolveVillageRequest" → groupEvents.resolveVillageRequest',
     testFile: 'tests/villageRequests.test.ts, tests/workerCommand.roundtrip.test.ts, tests/gameWorker.transport.test.ts',
+  },
+  factionWander: {
+    owner: 'factionWander.ts — tickFactionCampWander, ensureWanderState, nextVisitorActivity',
+    cadence: 'realtime',
+    writes: ['human.factionWander', 'human.vx', 'human.vy', 'human.spriteAngle'],
+    scheduledFrom: 'humanTick.ts → tickFactionCampWander for eligible foreign camp actors',
+    testFile: 'tests/workerHandoff.state.test.ts, tests/factionTravel.offscreen.test.ts',
   },
   visitorLifecycle: {
     owner: 'groupEvents.ts — tickVisitorGroups; sole visitor stay, gift, and departure owner',

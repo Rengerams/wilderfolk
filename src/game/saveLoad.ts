@@ -5,7 +5,7 @@ import { normalizeCareerMilestones } from './careers/careerProgression';
 import { applyLeaderHousePhase } from './leaderHouse';
 import { assignMissingResidences, moveResident, rebuildChildrenIds } from './housingPipeline';
 import type { WorldState, Entity, TerrainTile, Building } from './gameTypes';
-import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, MapSize, PATH_CELL, createInitialResearchNodes } from './gameTypes';
+import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, FACTION_WANDER_PHASES, MapSize, PATH_CELL, createInitialResearchNodes } from './gameTypes';
 import { isWalkableTerrainType, setTileOverride, tileAt, Walkability } from './terrain/terrainGrid';
 import { INITIAL_CHALLENGES } from './challenges';
 import { normalizeLifetimeStats } from './stats';
@@ -58,7 +58,6 @@ import {
 import { computeWildlifeCounts } from './entityCounts';
 import { BASE_IRON_STORAGE, computeStorageMax, ensureFullTradeRoutes, updateStorageCaps } from './economy';
 import { enrichTradeRoute, scheduleTradeRouteDeparture } from './tradeCaravans';
-import { clearAllFactionWanderStates } from './factionWander';
 import { rebuildBeautyGridFromWorld } from './beautyGrid';
 import { ScentGrid, isScentGridRuntime } from './scentGrid';
 import { validateVillageLeaderOnLoad } from './villageLeadership';
@@ -144,6 +143,14 @@ function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): v
       (entity as unknown as Record<string, unknown>)[key] = value;
     }
   }
+  const wander = entity.factionWander;
+  if (wander !== undefined && (
+    !wander || !isForeignFaction(entity.faction)
+    || !Number.isFinite(wander.targetX) || !Number.isFinite(wander.targetY)
+    || !Number.isSafeInteger(wander.idleUntilTick)
+    || !FACTION_WANDER_PHASES.includes(wander.phase)
+    || (wander.poiLabel !== undefined && typeof wander.poiLabel !== 'string')
+  )) delete entity.factionWander;
   for (const assignment of [entity, entity.moonHowlerSaved]) {
     if (!assignment) continue;
     const legacy = assignment as typeof assignment & { homeBuildingId?: unknown };
@@ -767,6 +774,10 @@ function migrateTickTimeline(
 
   for (const entity of world.entities ?? []) {
     for (const key of ENTITY_TICK_FIELDS) scaleTickField(entity, key, scale);
+    if (entity.factionWander) {
+      const wander = entity.factionWander;
+      entity.factionWander = { ...wander, idleUntilTick: Math.round(wander.idleUntilTick * scale) };
+    }
     if (entity.needs) {
       for (const key of NEEDS_TICK_FIELDS) scaleTickField(entity.needs, key, scale);
     }
@@ -849,6 +860,9 @@ export function saveGame(world: WorldState, view: ViewState, writeBrowserSlot = 
 
 /** Save to the browser slot only — the path a save with no user gesture may take. */
 export function saveGameToSlot(world: WorldState, view: ViewState): SaveResult {
+  if (world.worldMap && FILE_ONLY_MAP_SIZES.includes(world.worldMap.size)) {
+    return { success: false, fileReason: 'map-too-large', error: describeCadenceFileSave('map-too-large') };
+  }
   let json: string;
   try {
     json = JSON.stringify(buildSaveData(world, view));
@@ -1415,7 +1429,9 @@ function floorIdAllocators(world: WorldState): void {
     if (isPersistedId(building.id) && building.id > highestBuilding) highestBuilding = building.id;
   }
   world.nextEntityId = floorFor(world.nextEntityId, highestEntity);
-  world.nextBuildingId = floorFor(world.nextBuildingId, highestBuilding);
+  if (world.nextBuildingId !== 0 || world.buildings.length > 0) {
+    world.nextBuildingId = floorFor(world.nextBuildingId, highestBuilding);
+  }
   world.nextFloatingTextId = floorFor(world.nextFloatingTextId, 0);
 }
 
@@ -1758,7 +1774,6 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       ...world,
       tutorialSeen: (parsed.tutorialSeen as string[] | undefined) ?? [],
     });
-    clearAllFactionWanderStates();
     // `beautyGrid` is a runtime cache, rebuilt here because the daily layer is the only other rebuilder
     // and a loaded colony must not spend a day with no beauty field. `villageHappiness` stays as saved.
     rebuildBeautyGridFromWorld(world);

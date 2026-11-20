@@ -7,7 +7,6 @@ import { BuildingType, EntityType, JobType, MapSize, Season, emptyEntityByType }
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { tickHumans } from '../src/game/humanTick';
-import { clearAllFactionWanderStates } from '../src/game/factionWander';
 import { getColonyDay, setHumanBirthFromAge, PREGNANCY_TICKS, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
@@ -136,7 +135,6 @@ function runTicks(world: WorldState, ticks: number): void {
     hasHospital: true,
   } as TickContext;
   for (let i = 0; i < ticks; i++) {
-    clearAllFactionWanderStates();
     tickHumans(world, context);
   }
 }
