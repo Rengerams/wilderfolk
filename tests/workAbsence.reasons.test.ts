@@ -10,7 +10,7 @@ import { setCurrentPathMap } from '../src/game/pathfinding';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import { prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { getWorkSchedule } from '../src/game/workSchedule';
-import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { commuteHumanToBuilding, humanBuildingTarget, steerHumanToward } from '../src/game/simulation/humanMovement';
 import { hospitalDoctorRoster } from '../src/game/hospitalShifts';
 import { collectDashboard, explainSettler } from '../src/game/dashboardData';
 import { getHumanActivityProjection } from '../src/game/humanStatus';
@@ -128,8 +128,10 @@ describe('the reason a settler is not at their post', () => {
 
   it('says walking to work while the movement owner is actually walking them there', () => {
     const farm = building(1, BuildingType.Farm, { occupants: [1] });
-    const worker = postedFarmer(farm, { vx: -6, vy: -6 });
+    const worker = postedFarmer(farm, { x: 240, y: 230 });
     const state = world(workdayTick(10), { entities: [worker], buildings: [farm] });
+    // Only the movement owner's actual command counts, not arbitrary heading/speed.
+    expect(commuteHumanToBuilding(worker, farm, 2)).toBe(false);
 
     expect(getSettlerWorkReason(state, worker)).toEqual({
       code: 'walking-to-work',
@@ -146,17 +148,28 @@ describe('the reason a settler is not at their post', () => {
       x: 235, y: 300, width: 60, height: 80,
     });
     const worker = postedFarmer(greenhouse, {
-      x: 155, y: 300, vx: 0, vy: -3,
+      x: 155, y: 300,
     });
     const state = world(workdayTick(10), {
       entities: [worker], buildings: [greenhouse, mine], worldMap: map,
     });
     setCurrentPathMap(map, state.buildings);
     try {
+      // The route owner commands the real detour around the mine.
+      expect(commuteHumanToBuilding(worker, greenhouse, 2)).toBe(false);
+      expect(Math.hypot(worker.vx, worker.vy)).toBeGreaterThan(0);
       expect(getSettlerWorkReason(state, worker)).toEqual({
         code: 'walking-to-work', label: 'Walking to work — Greenhouse',
       });
       expect(getHumanActivityProjection(state, worker).activity).toBe('Commuting to Greenhouse');
+
+      // Taking over the same walking settler for an escape must retire commute evidence,
+      // even when a route around the mine still exists.
+      steerHumanToward(worker, worker.x, worker.y - 80, 2, 1, 'escape_from_howler');
+      expect(getSettlerWorkReason(state, worker)).toEqual({
+        code: 'unknown', label: 'Unexplained absence — Greenhouse',
+      });
+      expect(getHumanActivityProjection(state, worker).activity).toBe('Away from Greenhouse');
     } finally {
       setCurrentPathMap(null);
     }

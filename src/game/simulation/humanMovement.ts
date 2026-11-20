@@ -378,6 +378,16 @@ const walkerBuildingAccess = new WeakMap<Entity, {
   buildingId: number; grid: ReturnType<typeof getCurrentPathGrid>; x: number; y: number;
 }>();
 
+/** Only a currently commanded walk to the selected workplace facade proves a commute.
+ * This includes route detours without confusing fleeing or hunting with going to work. */
+export function isCommutingToBuilding(entity: Entity, building: Building): boolean {
+  const walk = humanWalkTargets.get(entity);
+  const frontage = walkerBuildingAccess.get(entity);
+  return walk != null && frontage != null && frontage.buildingId === building.id
+    && frontage.x === walk.x && frontage.y === walk.y
+    && Math.hypot(entity.vx, entity.vy) > WALKING_MIN_SPEED_PX;
+}
+
 /**
  * Walk to any reachable facade, not a fixed southern entrance. An obstructed approach cannot
  * authorize arrival; keep the chosen facade while walking so the route does not oscillate.

@@ -10,6 +10,7 @@ import { packEntityRenderMeta, buildRenderEntityShim } from '../src/game/simBuff
 import { packRenderSoA } from '../src/game/simBuffers/packRenderSoA';
 import { createRenderSoAReader } from '../src/game/simBuffers/renderSoAReader';
 import { gameTick } from '../src/game/gameTick';
+import { createEntity } from '../src/game/entityFactory';
 import { buildSaveData } from '../src/game/saveLoad';
 import { initGame } from '../src/game/worldGen';
 import { buildRenderSnapshot } from '../src/game/renderSnapshot';
@@ -81,6 +82,31 @@ describe('settlers inside buildings', () => {
     expect(worker.indoorBuildingId).toBeUndefined();
     expect(worker.job).toBe(JobType.Farmer);
     expect(worker.workerBuildingId).toBe(farm.id);
+  });
+
+  it('lets an on-duty farmer hunt emergency food instead of freezing the pursuit indoors', () => {
+    const world = initGame({ skipTerrain: true, seed: 629 });
+    world.worldMap = null;
+    const farm = building(10, BuildingType.Farm, { x: 300, y: 300, occupants: [1] });
+    const worker = human(1, {
+      ...buildingAccessPoint(farm), job: JobType.Farmer, workerBuildingId: farm.id,
+      needs: { nutrition: 10, rest: 100, stamina: 100 },
+    });
+    const deer = createEntity(EntityType.Deer, worker.x + 60, worker.y, 2);
+    world.entities = [worker, deer];
+    world.buildings = [farm];
+    world.resources.food = 0;
+    world.entityByType = undefined;
+    world.entityById = undefined;
+    world.paused = false;
+    world.tick = 10 * TICKS_PER_HOUR + 1;
+    world.lastProcessedCalendarDay = 0;
+
+    const startX = worker.x;
+    gameTick(world);
+    expect(worker.huntTargetId).toBe(deer.id);
+    expect(worker.indoorBuildingId).toBeUndefined();
+    expect(worker.x).toBeGreaterThan(startX);
   });
 
   it('keeps construction crews outside', () => {
