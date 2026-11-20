@@ -426,6 +426,7 @@ describe('O — no domain rule is computed inside a view', () => {
   it('O-2: the header reads the population owner instead of its own near-cap band', () => {
     const header = read('src/components/GameHeader.tsx');
     expect(header).toContain('isPopulationNearCap(world)');
+    expect(header).toContain('isAssignableHousingNearFull(openBeds)');
     expect(header, 'the hand-typed 90 % band is back').not.toContain('>= 0.9');
     // The band and the cap it divides are named once, in the growth owner.
     const growth = read('src/game/populationGrowth.ts');
