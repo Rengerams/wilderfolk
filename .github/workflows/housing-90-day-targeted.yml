@@ -23,4 +23,4 @@ jobs:
 
       - run: npm install
 
-      - run: vitest run tests/longRunColony.integration.test.ts
+      - run: npx vitest run tests/longRunColony.integration.test.ts
