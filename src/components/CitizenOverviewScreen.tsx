@@ -57,7 +57,6 @@ export interface CitizenOverviewScreenProps {
   tutorialsEnabled: boolean;
   onClose: () => void;
   onRecruitSettler: () => void;
-  onAutoStaffAll: () => void;
   onFocusBuilding: (buildingId: number, cx: number, cy: number) => void;
   onFocusCitizen: (entity: Entity) => void;
   onToggleFavoriteCitizen?: (entityId: number) => void;
@@ -151,7 +150,6 @@ export default function CitizenOverviewScreen({
   tutorialsEnabled,
   onClose,
   onRecruitSettler,
-  onAutoStaffAll,
   onFocusBuilding,
   onFocusCitizen,
   onToggleFavoriteCitizen,
@@ -272,7 +270,6 @@ export default function CitizenOverviewScreen({
                   villageStats={villageStats}
                   favoriteEntityId={favoriteEntityId}
                   onRecruitSettler={onRecruitSettler}
-                  onAutoStaffAll={onAutoStaffAll}
                   onFocusBuilding={onFocusBuilding}
                   onFocusCitizen={(entity) => {
                     onFocusCitizen(entity);
