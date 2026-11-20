@@ -24,6 +24,7 @@ import {
 } from '../src/game/groupEvents';
 import { getRaidChoiceEligibility, queueRaidDefense, respondToRaidEvent, tickPendingRaidEvents } from '../src/game/frontierCombat';
 import { TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { setSimSeed } from '../src/game/simRng';
 import { REPUTATION_MAX, addReputation } from '../src/game/simHelpers';
 import { humanDisplayName } from '../src/game/citizenId';
 import { isMarriedOrExpecting } from '../src/game/relationships';
@@ -214,8 +215,13 @@ describe('the leader-honored announcement survives a maxed reputation', () => {
     const started = queueRaidDefense(world, eventId, 'defend');
     const event = started.pendingRaidEvents.find((entry) => entry.id === eventId);
     expect(event?.phase).toBe('fighting');
+    // The two-person defense must take its casualty without killing the test's leader:
+    // seed 5 rolls one casualty, choosing the other soldier. This verifies actual timed
+    // combat while keeping the reputation-clamp assertions about a surviving leader.
+    setSimSeed(5);
     started.tick = (event?.battleStartedAtTick ?? started.tick) + 6 * TICKS_PER_HOUR;
     tickPendingRaidEvents(started, started.entities);
+    expect(started.entities.find((person) => person.id === 1)?.alive).toBe(true);
     return started;
   }
 
