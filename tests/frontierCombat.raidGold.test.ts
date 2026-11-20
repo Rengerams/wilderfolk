@@ -1,6 +1,6 @@
 /**
  * Raid pressure is a property of the village, not of the camp: the war-band and its prize grow with
- * the adults that can be mustered against them, so growth never turns a raid into a walkover.
+ * the adult population rather than currently available soldiers. Loot has an independent cap.
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import {
@@ -49,7 +49,7 @@ describe('getRaidGrowthScale', () => {
   });
 });
 
-/** One world for every village size; only the number of mustered adults may differ. */
+/** One world for every village size; only the number of adult residents may differ. */
 const FIXTURE_SEED = 11;
 
 /** A settler colony of `adults` and one tense camp in reach — the raid gates need a real village. */
@@ -101,10 +101,11 @@ function raidFixture(adults: number): { state: WorldState; rival: RivalSettlemen
 }
 
 /** The first seed whose chance roll queues the raid — the same seed is used for every village size. */
-function queuedRaid(adults: number): RaidEvent | null {
+function queuedRaid(adults: number, editWorld?: (state: WorldState) => void): RaidEvent | null {
   // A failed chance roll has no gameplay side effects; reuse this immutable-size fixture
   // rather than regenerating a terrain world (and 800 adults) up to forty times.
   const { state, rival } = raidFixture(adults);
+  editWorld?.(state);
   for (let seed = 1; seed <= 40; seed++) {
     resetSimRng();
     setSimSeed(seed);
@@ -116,16 +117,36 @@ function queuedRaid(adults: number): RaidEvent | null {
 }
 
 describe('a raid scales with the village it is aimed at', () => {
-  it('sends a war-band and a prize in proportion to the adults that can be mustered', () => {
+  it('scales the war-band with all adults while capping the raid loot', () => {
     const small = queuedRaid(RAID_GROWTH_BASE_ADULTS);
     const grown = queuedRaid(RAID_GROWTH_BASE_ADULTS * 100);
     expect(small, 'no seed queued the raid').not.toBeNull();
     expect(grown).not.toBeNull();
 
-    // 100× the adults, the same camp: 100× the war-band and ~100× the loot it is after.
+    // An unprotected large settlement still faces the full population-based threat,
+    // but the band cannot haul 100× more loot when the prize ceiling is 3.5×.
     expect(grown!.attackerStrength / small!.attackerStrength).toBeCloseTo(100, 0);
-    expect(grown!.lootWood).toBeGreaterThan(small!.lootWood * 50);
-    expect(grown!.lootStone).toBeGreaterThan(small!.lootStone * 50);
+    expect(grown!.lootWood / small!.lootWood).toBeGreaterThan(2);
+    expect(grown!.lootWood / small!.lootWood).toBeLessThanOrEqual(4);
+    expect(grown!.lootStone / small!.lootStone).toBeLessThanOrEqual(4);
+  });
+
+  it('does not shrink a rival war-band when defenders are assigned elsewhere or to civilian work', () => {
+    const base = queuedRaid(80);
+    const away = queuedRaid(80, (world) => {
+      for (const person of world.entities) {
+        if (person.alive && person.type === EntityType.Human) person.raidDeploymentId = 'away_on_campaign';
+      }
+    });
+    const civilians = queuedRaid(80, (world) => {
+      for (const person of world.entities) {
+        if (person.alive && person.type === EntityType.Human) person.job = JobType.Farmer;
+      }
+    });
+    expect(base).not.toBeNull();
+    expect(away?.attackerStrength).toBe(base?.attackerStrength);
+    expect(civilians?.attackerStrength).toBe(base?.attackerStrength);
+    expect(away?.lootWood).toBe(base?.lootWood);
   });
 
   it('keeps the defence-to-attack ratio flat, so growth never turns a raid into a walkover', () => {
