@@ -91,9 +91,13 @@ export function isWalkingToward(entity: Entity, point: { x: number; y: number })
   return (point.x - entity.x) * entity.vx + (point.y - entity.y) * entity.vy > 0;
 }
 
-/** Arrival changes presentation only; the settler remains in the simulation and building roster. */
-export function enterHumanBuilding(entity: Entity, building: Building): void {
-  if (!building.completed || OUTDOOR_BUILDINGS.has(building.type)) return;
+/**
+ * Arrival changes presentation only; the settler remains in the simulation and building roster.
+ * An on-duty worker can be hidden at an outdoor production site as well. Non-work visits to
+ * outdoor places and unfinished construction sites still have no interior.
+ */
+export function enterHumanBuilding(entity: Entity, building: Building, onDuty = false): void {
+  if (!building.completed || (!onDuty && OUTDOOR_BUILDINGS.has(building.type))) return;
   entity.indoorBuildingId = building.id;
   entity.vx = 0;
   entity.vy = 0;
@@ -403,32 +407,36 @@ export function commuteHumanToBuilding(
   let target = saved?.buildingId === building.id && saved.grid === grid
     ? candidates.find((point) => point.x === saved.x && point.y === saved.y) : undefined;
   if (!target) {
-    let bestCost = Infinity;
-    let pendingPoint: (typeof candidates)[number] | undefined;
-    for (const point of candidates) {
-      let cost = Math.hypot(point.x - entity.x, point.y - entity.y);
-      if (grid && lineCrossesBlocked(grid, entity.x, entity.y, point.x, point.y)) {
+    // Choose the nearest *reachable* stretch of any facade, not a fixed door.
+    // Checking all unobstructed approaches first avoids one expensive A* quote for every
+    // perimeter sample of a large farm or greenhouse.
+    const ranked = candidates.map((point) => ({
+      point, distance: Math.hypot(point.x - entity.x, point.y - entity.y),
+    })).sort((a, b) => a.distance - b.distance);
+    for (const { point } of ranked) {
+      if (!grid || !lineCrossesBlocked(grid, entity.x, entity.y, point.x, point.y)) {
+        target = point;
+        break;
+      }
+    }
+    if (!target && grid) {
+      let pendingPoint: (typeof candidates)[number] | undefined;
+      for (const { point } of ranked) {
         const quote = getNavigationQuote(grid,
           { x: Math.floor(entity.x / PATH_CELL), y: Math.floor(entity.y / PATH_CELL) },
           { x: Math.floor(point.x / PATH_CELL), y: Math.floor(point.y / PATH_CELL) },
           { maxNodes: 6000 });
-        if (quote.status !== 'priced') {
-          // A pending shared quote does not prove this facade is unreachable.
-          // Select it only if no confirmed route wins, so steerWithPath can try
-          // its bounded non-road heuristic and safely reject a real obstruction.
-          if (quote.status === 'pending' || !isGroundWalkableAt(entity.x, entity.y, grid)) {
-            pendingPoint ??= point;
-          }
-          continue;
+        if (quote.status === 'priced') {
+          target = point;
+          break;
         }
-        cost = quote.costTiles * PATH_CELL;
+        // A pending shared quote is unknown, not an impassable building side.
+        if (quote.status === 'pending' || !isGroundWalkableAt(entity.x, entity.y, grid)) {
+          pendingPoint ??= point;
+        }
       }
-      if (cost < bestCost) {
-        bestCost = cost;
-        target = point;
-      }
+      target ??= pendingPoint;
     }
-    target ??= pendingPoint;
     if (target) walkerBuildingAccess.set(entity, {
       buildingId: building.id, grid, x: target.x, y: target.y,
     });

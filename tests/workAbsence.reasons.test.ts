@@ -137,6 +137,31 @@ describe('the reason a settler is not at their post', () => {
     });
   });
 
+  it('credits a real detour around a mine as a greenhouse commute, not unexplained absence', () => {
+    const map = testWorldMap({ tilesX: 60, tilesY: 60 });
+    const greenhouse = building(1, BuildingType.Greenhouse, {
+      x: 320, y: 300, width: 60, height: 60, occupants: [1],
+    });
+    const mine = building(2, BuildingType.Mine, {
+      x: 235, y: 300, width: 60, height: 80,
+    });
+    const worker = postedFarmer(greenhouse, {
+      x: 155, y: 300, vx: 0, vy: -3,
+    });
+    const state = world(workdayTick(10), {
+      entities: [worker], buildings: [greenhouse, mine], worldMap: map,
+    });
+    setCurrentPathMap(map, state.buildings);
+    try {
+      expect(getSettlerWorkReason(state, worker)).toEqual({
+        code: 'walking-to-work', label: 'Walking to work — Greenhouse',
+      });
+      expect(getHumanActivityProjection(state, worker).activity).toBe('Commuting to Greenhouse');
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
   it('does not call distance from the post travel', () => {
     const farm = building(1, BuildingType.Farm, { occupants: [1] });
     const worker = postedFarmer(farm);

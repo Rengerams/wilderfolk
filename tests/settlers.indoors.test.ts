@@ -42,10 +42,45 @@ describe('settlers inside buildings', () => {
   });
 
   it.each([BuildingType.Farm, BuildingType.Quarry, BuildingType.HuntingSpot, BuildingType.FishingSpot,
-    BuildingType.Market, BuildingType.Graveyard, BuildingType.Well, BuildingType.Watchtower])('keeps outdoor %s workers visible', (type) => {
+    BuildingType.Market, BuildingType.Graveyard, BuildingType.Well, BuildingType.Watchtower])('keeps non-work visits to outdoor %s visible', (type) => {
     const person = human(1);
     enterHumanBuilding(person, building(1, type));
     expect(person.indoorBuildingId).toBeUndefined();
+  });
+
+  it.each([BuildingType.Farm, BuildingType.Quarry, BuildingType.Market, BuildingType.Graveyard,
+    BuildingType.HuntingSpot, BuildingType.FishingSpot])('hides an on-duty worker at %s after arrival', (type) => {
+    const person = human(1);
+    enterHumanBuilding(person, building(1, type), true);
+    expect(person.indoorBuildingId).toBe(1);
+  });
+
+  it('hides an outdoor farm worker while working and releases them at the end of the shift', () => {
+    const world = initGame({ skipTerrain: true, seed: 628 });
+    world.worldMap = null;
+    const farm = building(10, BuildingType.Farm, { x: 300, y: 300, occupants: [1] });
+    const worker = human(1, {
+      ...buildingAccessPoint(farm), job: JobType.Farmer, workerBuildingId: farm.id,
+    });
+    world.entities = [worker];
+    world.buildings = [farm];
+    world.entityByType = undefined;
+    world.entityById = undefined;
+    world.paused = false;
+    world.tick = 10 * TICKS_PER_HOUR;
+    world.lastProcessedCalendarDay = 0;
+
+    gameTick(world);
+    expect(worker.indoorBuildingId).toBe(farm.id);
+    expect(worker.schedulePresentTicksToday ?? 0).toBeGreaterThan(0);
+    gameTick(world);
+    expect(worker.indoorBuildingId).toBe(farm.id);
+
+    world.tick = 16 * TICKS_PER_HOUR;
+    gameTick(world);
+    expect(worker.indoorBuildingId).toBeUndefined();
+    expect(worker.job).toBe(JobType.Farmer);
+    expect(worker.workerBuildingId).toBe(farm.id);
   });
 
   it('keeps construction crews outside', () => {

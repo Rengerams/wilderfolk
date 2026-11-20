@@ -770,9 +770,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     const recoveringSleep = (entity.needs?.sleepRecoveryUntilTick ?? 0) > state.tick;
     const inFocus = !focus || isInFocus(entity, focus);
+    // An off-screen employee must leave the interior at shift end immediately, not wait
+    // up to a full decision-throttle interval before appearing outside again.
+    const leavingWork = previousIndoorBuildingId === workplace?.id
+      && !onJobShift && !onOfficialShift && !onPriestShift;
     const active =
       !isPrisoner &&
-      (spotlightActorIds?.has(entity.id) || inFocus ||
+      (spotlightActorIds?.has(entity.id) || inFocus || leavingWork ||
         (recoveringSleep && !onJobShift) ||
         (entity.needs?.breakUntilRecovered === true && !onJobShift) ||
         hospitalCommuteDue ||
@@ -1269,7 +1273,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         ? prisonShift != null && (onPrisonShift || prisonCommuteDue)
         : workCommuteDue;
       if (wantsToWork) {
-        if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
+        if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) {
+          // Reuse the indoor flag already carried through saves, workers and rendering.
+          // This hides stationary farm/quarry/market workers too, but only during their
+          // actual shift; outdoor hunters and patrolling soldiers keep moving visibly.
+          enterHumanBuilding(entity, workplace, onJobShift || onOfficialShift || onPriestShift);
+        }
         commuting = true;
         onSchedule = true;
         suppressIdle = true;

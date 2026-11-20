@@ -272,8 +272,13 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
     if (isWalkingToward(entity, point)) {
       return { code: 'walking-to-work', label: `Walking to work — ${label}` };
     }
-    // Only the navigation owner's own verdict may explain a walk that is not happening.
-    if (getRouteObstruction(state.worldMap, state.buildings, entity, point) === 'blocked') {
+    const obstruction = getRouteObstruction(state.worldMap, state.buildings, entity, point);
+    // A real detour can point away from the canonical facade marker to reach another open side.
+    // Only ask the path owner after the cheap direct-motion check fails.
+    if (obstruction === 'rerouting' && Math.hypot(entity.vx, entity.vy) > 0.1) {
+      return { code: 'walking-to-work', label: `Walking to work — ${label}` };
+    }
+    if (obstruction === 'blocked') {
       return { code: 'unreachable', label: `Route failure — cannot reach ${label}` };
     }
     return { code: 'unknown', label: `Unexplained absence — ${label}` };

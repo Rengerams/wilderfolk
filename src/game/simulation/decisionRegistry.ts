@@ -204,10 +204,10 @@ export const SIMULATION_DECISIONS = {
   buildingAccess: {
     owner: 'buildingAccess.ts — buildingAccessPoints (validated facades), buildingAccessPoint (canonical UI frontage), isOpenDoorstep (facade corridor), isAtBuildingReach (the one arrival rule)',
     cadence: 'on-demand',
-    cadenceNote: 'Pure read-only geometry: buildingAccessPoints validates every traversable facade against the current grid; buildingAccessPoint selects the canonical first frontage for presentation, and isAtBuildingReach accepts only walkable reachable sides. No extra state or scheduler. No tick, no scheduler, no RNG and no writes; the commuter targets the access and the activity enterHumanBuilding call decides entry.',
+    cadenceNote: 'Pure read-only geometry: buildingAccessPoints samples the full accessible perimeter at path-cell intervals and validates each frontage against the current grid; buildingAccessPoint selects a canonical first frontage for presentation, while isAtBuildingReach accepts any nearby reachable side. No extra state or scheduler. No tick, no scheduler, no RNG and no writes; the commuter targets the access and the activity enterHumanBuilding call decides entry.',
     writes: [],
     scheduledFrom: 'humanMovement.commuteHumanToBuilding (navigation target and arrival), humanTick attendance, workAbsence, humanStatus, education, humanHospitalBehavior, hotelStay, logisticsOverlayData',
-    testFile: 'tests/homeEntry.geometry.test.ts, tests/buildingAccess.routeAround.test.ts, tests/settlers.indoors.test.ts, tests/education.centerGeometry.test.ts',
+    testFile: 'tests/homeEntry.geometry.test.ts, tests/buildingAccess.routeAround.test.ts, tests/settlers.indoors.test.ts, tests/workAbsence.reasons.test.ts, tests/education.centerGeometry.test.ts',
   },
   settlerDeathAudio: {
     owner: 'audio/interactionDetect.ts — detectInteractionSounds; hooks/useGameAudio.ts — useGameAudio holds the observed annual death count, year and session revision',
@@ -400,7 +400,7 @@ export const SIMULATION_DECISIONS = {
   humanWalk: {
     owner: 'humanTick.tickHumans → humanMovement.resumeHumanWalk + applyHumanWalkStep (one integration for focused and throttled ticks)',
     cadence: 'realtime',
-    cadenceNote: 'Decisions still run once per 24 ticks for out-of-focus settlers, but the already commanded walk is re-issued and integrated every tick, so travel distance per game time matches focus and arrival/collision stay per-step. Ordinary work commutes open at shift minus the existing commute lead and are exempt from the 0.85 planning damping; prison keeps its sticky departure. The walk target is a transient WeakMap, never saved.',
+    cadenceNote: 'Decisions still run once per 24 ticks for out-of-focus settlers, but the already commanded walk is re-issued and integrated every tick, so travel distance per game time matches focus and arrival/collision stay per-step. Ordinary work commutes open at shift minus the existing commute lead and are exempt from the 0.85 planning damping; prison keeps its sticky departure. The walk target is a transient WeakMap, never saved. On-shift workers enter the existing indoor presentation on verified arrival even at outdoor job sites (hunters pursuing prey and patrolling soldiers remain in motion); indoor workplace presence is released immediately when their shift ends.',
     writes: [
       'human.x',
       'human.y',
