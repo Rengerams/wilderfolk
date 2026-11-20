@@ -32,7 +32,7 @@ const SLOPE_DOWN_COST = 0.004;
 const CLIFF_STEP = 32;
 /** A road tile costs this fraction of a normal step — exactly the travel time the road speed saves. */
 const ROAD_STEP_COST = 1 / ROAD_SPEED_MULT;
-const PATH_MAX_SEARCH_NODES = 6000;
+const PATH_MAX_SEARCH_NODES = 12000;
 const PATH_ARRIVAL_DISTANCE_PX = 8;
 const ROAD_DETOUR_RECHECK_TILES = 20;
 const BUILDING_SIGNATURE_WIDTH_FACTOR = 19;
