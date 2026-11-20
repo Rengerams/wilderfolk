@@ -33,7 +33,6 @@ export default defineConfig({
     port: 5173,
     host: '127.0.0.1',
     strictPort: false,
-    open: true,
     watch: {
       ignored: ['**/src-tauri/target/**', '**/tmp/**', '**/*.tmpdir/**', '**/*.tmp'],
     },

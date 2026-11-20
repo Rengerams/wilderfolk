@@ -5,7 +5,7 @@ import type { RivalSettlement } from '../src/game/gameTypes';
 
 const rival = (profile?: RivalSettlement['profile']): RivalSettlement => ({
   id: 'rival-one', name: 'North Camp', campX: 10, campY: 10, population: 6,
-  entityIds: [], relationship: 'neutral', foundedYear: 0,
+  relationship: 'neutral', foundedYear: 0,
   daysUntilAction: 10, raidCooldownDays: 10, peaceTreatyDays: 0, profile,
 });
 

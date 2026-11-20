@@ -115,7 +115,6 @@ const config: KnipConfig = {
     'src/game/humanSprites.ts': ['exports'], // [A] getHumanSpritePath (1) — named in OWNERSHIP_OVERVIEW.md
     'src/game/huntingSpots.ts': ['exports'], // [A] getHuntingSpotPreyOption | [C] DEFAULT_HUNTING_SPOT_PREY (2)
     'src/game/juiceEffects.ts': ['exports'], // [C] LIGHT_POOL_TYPES, getNightGlowIntensity (2)
-    'src/game/militiaBalance.ts': ['exports'], // [C] getMilitiaStrengthFromBreakdown, getBarricadeStrengthFromBreakdown (2)
     // [C] MOON_HOWLER_PRIEST_KILL_CHANCE (1). `MoonHowlerSavedState` used to be here; the shape moved to
     // `gameTypes.ts` (which owns `Entity`) so the saved form has one declaration instead of two that
     // disagreed — see bug 38 in `docs/private/audits/2026-09-20/BUG-REGISTER.md`.
@@ -148,8 +147,12 @@ const config: KnipConfig = {
     'src/game/worldGen.ts': ['exports'], // [A] generateWorldMap, finalizeSettlerAge (2)
     'src/test/factories.ts': ['exports'], // [B] stubHuman (1) — test-factory surface
   },
+  /**
+   * Only CLIs invoked by name from `scripts/test.mjs` are listed: knip cannot follow the shell
+   * strings. `tailwindcss` and `tw-animate-css` are consumed from `src/index.css`, which knip's
+   * CSS follower resolves, so both are declared dependencies rather than ignored here.
+   */
   ignoreDependencies: [
-    // CLIs invoked by name from scripts/test.mjs; knip cannot follow the shell strings.
     'jscpd',
     'oxlint',
     'oxlint-tsgolint',

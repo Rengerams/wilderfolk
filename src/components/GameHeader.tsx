@@ -9,7 +9,7 @@ import { WEATHER_CONFIGS, WeatherType } from '../game/gameTypes';
 import { isNightHour, getHourOfDay, getWeekdayLabel, isWeekend, getAbsoluteCalendarDay, TICKS_PER_DAY } from '../game/dayCycle';
 import { displayYear } from '../game/dayCycleClock';
 import { DEFAULT_WORK_SCHEDULE, getWorkSchedule, getWorkScheduleLabel } from '../game/workSchedule';
-import { getEffectiveBedCapacity, getOpenPlayerBeds, getTotalBeds, resolvePopulationCap } from '../game/populationGrowth';
+import { getEffectiveBedCapacity, getOpenPlayerBeds, getTotalBeds, isPopulationNearCap, resolvePopulationCap } from '../game/populationGrowth';
 import { isResourceCapped } from '../game/resourceUtils';
 import { formatSettlerName, getVillageLeader } from '../game/villageLeadership';
 import {
@@ -137,7 +137,7 @@ tutorialsEnabled,
   const beds = getTotalBeds(world);
   const effectiveBeds = getEffectiveBedCapacity(world);
   const openBeds = getOpenPlayerBeds(world);
-  const popNearCap = openBeds <= 1;
+  const popNearCap = isPopulationNearCap(world);
   const absoluteDay = getAbsoluteCalendarDay(world.tick);
   const workSchedule = getWorkSchedule(world);
   // The window that decides whether production happens at all was

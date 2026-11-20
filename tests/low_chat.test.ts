@@ -262,6 +262,7 @@ describe('L23 — combat classification guard', () => {
     const incoming: GameEventLog = {
       ...truce,
       type: 'combat',
+      combatKind: 'incoming_raid',
       message: 'The Ridge Camp launched a raid on the village',
     };
     expect(resolveCombatLogKind(incoming)).toBe('incoming_raid');

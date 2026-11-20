@@ -15,7 +15,6 @@ import {
   getMilitiaArmamentLabel,
 } from './militiaBalance';
 import { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter } from './villageAnchor';
-import { unindexEntityFromState } from './entityIndex';
 import { isSettlementDestroyed, beginRaidRecovery, rememberRivalDisposition, applyWarCommunityReaction } from './raidAftermath';
 import { normalizeRivalProfile } from './rivalProfiles';
 export { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter };
@@ -33,10 +32,6 @@ const RIVAL_MEMORY_RAID_CHANCE_FLOOR = 0.25;
 const RIVAL_MEMORY_RAID_SCALE = 200;
 const RAID_RESPONSE_MIN_DAYS = 2;
 const RAID_RESPONSE_MAX_DAYS = 6;
-/** Legacy fixed window for saves/events missing `expiresAtTick`. */
-function getRaidExpireTicksLegacy(): number {
-  return 3 * TICKS_PER_DAY;
-}
 const RAID_FOOD_MIN = 40;
 /** Home-turf bonus when you attack a rival camp (harder than meeting them at your gate). */
 const OUTGOING_RAID_DEFENSE_MULT = 1.25;
@@ -89,23 +84,21 @@ export function getIncomingRaidExpireTicks(distancePixels: number): number {
   return getIncomingRaidResponseDays(getCampDistanceTiles(distancePixels)) * TICKS_PER_DAY;
 }
 
-export function getRaidExpiresAtTick(evt: Pick<RaidEvent, 'expiresAtTick' | 'createdAtTick'>): number {
-  if (evt.expiresAtTick != null) return evt.expiresAtTick;
-  if (evt.createdAtTick == null) return Number.NaN;
-  return evt.createdAtTick + getRaidExpireTicksLegacy();
+export function getRaidExpiresAtTick(evt: Pick<RaidEvent, 'expiresAtTick'>): number {
+  return evt.expiresAtTick;
 }
 
-export function getRaidTicksRemaining(evt: Pick<RaidEvent, 'expiresAtTick' | 'createdAtTick'>, currentTick: number): number {
+export function getRaidTicksRemaining(evt: Pick<RaidEvent, 'expiresAtTick'>, currentTick: number): number {
   return Math.max(0, getRaidExpiresAtTick(evt) - currentTick);
 }
 
-export function getRaidDaysRemaining(evt: Pick<RaidEvent, 'expiresAtTick' | 'createdAtTick'>, currentTick: number): number {
+export function getRaidDaysRemaining(evt: Pick<RaidEvent, 'expiresAtTick'>, currentTick: number): number {
   return Math.max(0, Math.ceil(getRaidTicksRemaining(evt, currentTick) / TICKS_PER_DAY));
 }
 
-export function formatRaidDeadline(evt: Pick<RaidEvent, 'expiresAtTick' | 'createdAtTick'>, currentTick: number): string {
-  // An unknown deadline must not read as "arriving now": `Math.max(0, NaN)` is NaN, and the old
-  // `days <= 0` test let `NaN` fall through to `NaN days left`.
+export function formatRaidDeadline(evt: Pick<RaidEvent, 'expiresAtTick'>, currentTick: number): string {
+  // A corrupt deadline must not read as "arriving now": `Math.max(0, NaN)` is NaN, and a `days <= 0`
+  // test would let `NaN` fall through to `NaN days left`.
   if (!Number.isFinite(getRaidExpiresAtTick(evt))) return 'deadline unknown';
   const days = getRaidDaysRemaining(evt, currentTick);
   if (days <= 0) return 'arriving now';
@@ -2006,16 +1999,7 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
         neighbor.raidCooldownDays = Math.max(neighbor.raidCooldownDays, 20);
       }
     }
-    const personIds = new Set(state.entities
-      .filter((person) => person.faction === 'rival' && person.groupId === rival.id)
-      .map((person) => person.id));
     const killed = Math.max(0, rival.population);
-    for (const person of state.entities) if (personIds.has(person.id)) {
-      person.alive = false;
-      person.departedAlive = false;
-      unindexEntityFromState(state, person.id);
-    }
-    state.entities = state.entities.filter((person) => !personIds.has(person.id));
     rival.population = 0;
     if (report) {
       report.refugees = 0;

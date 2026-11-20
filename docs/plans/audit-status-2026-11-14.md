@@ -1,5 +1,11 @@
 # Audit status — 2026-11-14
 
+> **Historical record (superseded 2026-11-20).** The gate status and "no open findings" answer below
+> describe the 2026-11-14 tree only. The 2026-11-20 audit found the `standard`/`build` gates red on
+> the semantic-overlap check and `audit` red on knip; see
+> [full-code-audit-2026-11-20.md](./full-code-audit-2026-11-20.md) for the current state and the
+> remediation. Kept unedited as the record of that pass.
+
 **Short answer: every known finding is resolved or explicitly closed as not-a-bug.** The current tree
 passes the full `standard` gate. This is the entry point; the detailed registers are linked below.
 

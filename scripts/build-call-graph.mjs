@@ -188,12 +188,20 @@ const DEFINITION_PATTERNS = [
 ];
 
 /**
- * Index of the `{` that opens a block body, or -1 when the statement has none; bounded so a
- * bodyless declaration cannot adopt the next function's braces.
+ * A return-type literal such as `): { x: number } | null {` closes into one of these, so the brace
+ * before it is a type and the body still follows; anything else means the brace *is* the body.
  */
-function findBodyBrace(code, from, startsInParams = false) {
-  const limit = Math.min(code.length, from + 400);
+const TYPE_CONTINUATION_CHARS = new Set(['|', '&', '>', ']', '[']);
+
+/**
+ * Index of the `{` that opens a block body, or -1 when the statement has none; bounded so a
+ * bodyless declaration cannot adopt the next function's braces. The window must clear a
+ * destructured parameter list of a hundred props, hence the generous bound.
+ */
+export function findBodyBrace(code, from, startsInParams = false) {
+  const limit = Math.min(code.length, from + 4000);
   let depth = startsInParams ? 1 : 0;
+  let brackets = 0;
   for (let i = from; i < limit; i++) {
     const ch = code[i];
     if (ch === '(') {
@@ -204,10 +212,17 @@ function findBodyBrace(code, from, startsInParams = false) {
       if (depth > 0) depth--;
       continue;
     }
+    if (ch === '[') {
+      brackets++;
+      continue;
+    }
+    if (ch === ']') {
+      if (brackets > 0) brackets--;
+      continue;
+    }
     if (ch === '{') {
-      // Braces inside the parameter list are types or default values; braces after it are the
-      // return type (when followed by `{`) or the body.
-      if (depth > 0) {
+      // Braces inside the parameter list, or inside a tuple type, are types or default values.
+      if (depth > 0 || brackets > 0) {
         i = matchBrace(code, i);
         continue;
       }
@@ -215,12 +230,30 @@ function findBodyBrace(code, from, startsInParams = false) {
       let next = close + 1;
       while (next < limit && /\s/.test(code[next])) next++;
       if (code[next] === '{') return next;
+      if (TYPE_CONTINUATION_CHARS.has(code[next])) {
+        i = close;
+        continue;
+      }
       return i;
     }
     if (ch === ';' || ch === '}') return -1;
-    if (ch === '\n' && /^\s*\n/.test(code.slice(i + 1, i + 3))) return -1;
+    // A blank line ends a declaration without a block body, but a stripped multi-line comment
+    // leaves blank lines inside an unfinished parameter list, where the body is still ahead.
+    if (ch === '\n' && depth === 0 && brackets === 0
+      && /^[^\S\n]*\n/.test(code.slice(i + 1, i + 80))) return -1;
   }
   return -1;
+}
+
+/**
+ * The trailing `{` a definition pattern matched is the body unless it opens a return-type literal
+ * (`foo(): { a: 1 } {`); then the body is the first block brace after that type.
+ */
+function bodyAfterSignatureBrace(code, braceIndex) {
+  let before = braceIndex - 1;
+  while (before >= 0 && /\s/.test(code[before])) before--;
+  if (before < 0 || !':[,|&<'.includes(code[before])) return braceIndex;
+  return findBodyBrace(code, matchBrace(code, braceIndex) + 1);
 }
 
 /** `class Name extends Base {` ranges, so a method can be attributed to its class. */
@@ -310,7 +343,7 @@ export function extractDefinitions(code, raw, file, classes = []) {
       if (seen.has(dedupeKey)) continue;
 
       const braceIndex = match[0].endsWith('{')
-        ? matchStart + match[0].length - 1
+        ? bodyAfterSignatureBrace(code, matchStart + match[0].length - 1)
         : findBodyBrace(code, matchStart + match[0].length, match[0].endsWith('('));
       if (blockBody && braceIndex === -1) continue;
       seen.add(dedupeKey);

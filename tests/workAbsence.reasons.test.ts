@@ -227,10 +227,12 @@ describe('the reason a settler is not at their post', () => {
     expect(getSettlerWorkReason(state, doctor).code).toBe('sleeping');
   });
 
-  it('says eating when nutrition is low, independently of the health/combat energy projection', () => {
+  it('says eating for an observed meal, not for a low nutrition reading alone', () => {
     const worker = settler(1, { needs: { nutrition: 60, rest: 80, stamina: 90 } });
     const state = world(workdayTick(8), { entities: [worker] });
 
+    expect(getSettlerWorkReason(state, worker).code).not.toBe('eating');
+    worker.needs!.lastMealTick = state.tick;
     expect(getSettlerWorkReason(state, worker)).toEqual({ code: 'eating', label: 'Eating' });
   });
 

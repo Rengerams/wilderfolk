@@ -177,7 +177,7 @@ export {
   type PopulationGrowthTone,
   type PopulationSnapshot,
 } from './populationGrowth';
-export { formatRivalPopulationLabel, formatRivalRelationshipLabel } from './rivalDisplay';
+export { formatRivalPopulationLabel } from './rivalDisplay';
 export {
   getArmamentSteps,
   getHumanArmamentLabel,

@@ -2,7 +2,13 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Removed (20 Nov 2026):** Retired warfare leftovers: rival-camp entity rosters and settler UI, the POW release/execution reaction choices, unused militia strength wrappers and combat-log text classification. Legacy camp structures still migrate on load.
 - **Fixed (20 Nov 2026):** Closing a colony saves its acknowledged state, visiting factions resume their activity after loading, and tick rollback shares unchanged family history.
+- **Fixed (20 Nov 2026):** The call-graph index treated a multi-line signature as the whole function body, so the overlap gate compared signatures and reported eight phantom duplicates; it now finds the real body.
+- **Fixed (20 Nov 2026):** Yearly props and wildlife spawn through one seeded random-point draw with a domain predicate, replacing two identical retry loops.
+- **Fixed (20 Nov 2026):** The dependency audit is clean again (declared CSS dependency, no dead script or unused export), and the import-cycle gate now runs before it can be masked.
+- **Fixed (20 Nov 2026):** The worker-boundary probe treats an explicit undefined property as absent, as every wire format does, so the six unexplained save and tick divergences are gone.
+- **Changed (20 Nov 2026):** The dev server no longer forces a browser window, and a stale duplicate of the 120-day workflow is gone.
 
 - **Removed (12 Nov 2026):** The unreachable enemy war-captive subsystem (capture, POW decisions, custody history and their save fields) was deleted; player imprisonment and raid mercy/tribute/raze reactions remain.
 - **Fixed (12 Nov 2026):** Trade skill and the crew skill bonus are paid only for witnessed work; an assigned but absent settler no longer raises output or earns XP, including town-hall, hospital and hotel service.

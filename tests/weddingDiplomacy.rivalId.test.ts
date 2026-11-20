@@ -32,12 +32,12 @@ function weddingWorld(): WorldState {
   world.rivalSettlements.push(
     {
       id: 'rival-wedding-target', name: 'Target Camp', campX: 700, campY: 500,
-      population: 8, entityIds: [], relationship: 'neutral', foundedYear: 0,
+      population: 8, relationship: 'neutral', foundedYear: 0,
       daysUntilAction: 200, raidCooldownDays: 200, peaceTreatyDays: 0,
     },
     {
       id: 'rival-other-camp', name: 'Other Camp', campX: 900, campY: 700,
-      population: 6, entityIds: [], relationship: 'neutral', foundedYear: 0,
+      population: 6, relationship: 'neutral', foundedYear: 0,
       daysUntilAction: 200, raidCooldownDays: 200, peaceTreatyDays: 0,
     },
   );

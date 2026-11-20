@@ -50,3 +50,60 @@ test('unchanged legacy functions do not fail the incremental PR gate', () => {
   const left = fact('src/old.ts', 'return state.energy * 2;');
   assert.deepEqual(checkOverlaps([left], [], []), []);
 });
+
+test('a multi-line signature is not mistaken for the function body', async () => {
+  process.env.CALLGRAPH_LIB = '1';
+  const { extractDefinitions, stripLiteralsAndComments } = await import('./build-call-graph.mjs');
+  const defs = (source) => extractDefinitions(source, source, '/x.ts', []);
+  // The parser reads stripped code, where a block comment leaves whitespace-only lines behind.
+  const stripped = (source) => extractDefinitions(source, stripLiteralsAndComments(source), '/x.ts', []);
+
+  // `): { x: number; y: number } | null {` — the return-type literal is not the body.
+  const fn = defs([
+    'export function pick(',
+    '  a: number,',
+    '): { x: number; y: number } | null {',
+    '  return null;',
+    '}',
+  ].join('\n'))[0];
+  assert.equal(fn.bodyStart, 3);
+  assert.equal(fn.bodyEnd, 5);
+
+  // The same shape on a class method, where the pattern matches the trailing `{` itself.
+  const method = defs([
+    'class Track {',
+    '  private currentTrack(): { url: string; vol: number } {',
+    '    return null;',
+    '  }',
+    '}',
+  ].join('\n')).find((def) => def.name === 'currentTrack');
+  assert.equal(method.bodyStart, 2);
+  assert.equal(method.bodyEnd, 4);
+
+  // A destructured parameter list longer than the scan window still finds its body.
+  const props = Array.from({ length: 40 }, (_, i) => `  prop${i},`).join('\n');
+  const header = defs([
+    'export default function Header({',
+    props,
+    '}: Props) {',
+    '  return null;',
+    '}',
+  ].join('\n'))[0];
+  assert.equal(header.bodyStart, 42);
+  assert.equal(header.bodyEnd, 44);
+
+  // A multi-line parameter comment is stripped to blank lines; the body is still ahead of them.
+  const commented = stripped([
+    'export function teach(',
+    '  state: WorldState,',
+    '  /**',
+    '   * Why this list is passed a second time in one pass.',
+    '   */',
+    '  people?: Entity[],',
+    '): void {',
+    '  return undefined;',
+    '}',
+  ].join('\n'))[0];
+  assert.equal(commented.bodyStart, 7);
+  assert.equal(commented.bodyEnd, 9);
+});

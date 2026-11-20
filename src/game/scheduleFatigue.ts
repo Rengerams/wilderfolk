@@ -99,8 +99,8 @@ export function resolveDailyScheduleFatigue(
 }
 
 /**
- * The schedule-only hours a settler spent on shift across the last settled day, used by career history
- * and workshop estimates. Production uses `schedulePresentTicksToday`, which requires presence.
+ * The schedule-only hours a settled day bills when it left no witnessed sample — the fallback
+ * `getWorkdayAttendance` reads. Clamped so a corrupt save cannot bill negative or non-finite hours.
  */
 export function getScheduleLastWorkedHours(entity: Pick<Entity, 'scheduleLastWorkedHours'>): number {
   const hours = entity.scheduleLastWorkedHours ?? 0;

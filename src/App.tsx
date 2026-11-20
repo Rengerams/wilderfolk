@@ -554,7 +554,7 @@ export default function App() {
       });
     }
     loop.mutateWorld((session) => { session.paused = false; });
-  }, [loopRef, catalogRef.current]);
+  }, [loopRef, catalogRef]);
 
   const acknowledgeContextualTip = useCallback(() => {
     if (!contextualTip) return;
@@ -564,7 +564,7 @@ export default function App() {
     loopRef.current?.mutateWorld((w) => {
       w.tutorialSeen = [...new Set([...(w.tutorialSeen ?? []), tipId])];
     });
-  }, [contextualTip, dismissContextualTip, markContextualTipSeen, loopRef.current]);
+  }, [contextualTip, dismissContextualTip, markContextualTipSeen, loopRef]);
 
   // Auto-acknowledge a tip after a short grace — a card can never nag forever
   // or re-appear if the player ignores it (also persists it into the save).
@@ -669,7 +669,7 @@ export default function App() {
     setSelectedBuildingType(null);
     stripDragStartRef.current = null;
     loopRef.current?.patchView({ buildMode: null, buildGhost: null, buildStripPreview: null, buildRotation: 0 });
-  }, [loopRef.current]);
+  }, [loopRef]);
 
   const rotateBuildPlacement = useCallback(() => {
     const loop = loopRef.current;
@@ -707,7 +707,7 @@ export default function App() {
       highlightedCampKey: null,
       selectedCampKey: null,
     });
-  }, [loopRef.current]);
+  }, [loopRef]);
 
   const focusCampOnMap = useCallback((id: string, x: number, y: number) => {
     const loop = loopRef.current;
@@ -791,7 +791,7 @@ export default function App() {
     }
     loop.patchView({ favoriteEntityId: null });
     setView(loop.getView());
-  }, [loopRef, setInspectorCollapsed, catalogRef.current]);
+  }, [loopRef, setInspectorCollapsed, catalogRef]);
 
   // Keep camera on favorite citizen each sim tick
   useEffect(() => {
@@ -832,7 +832,7 @@ export default function App() {
       selectedEntityId: null,
       selectedEntityIds: [],
     });
-  }, [clearSelection, setBuildPanelOpen, loopRef.current]);
+  }, [clearSelection, setBuildPanelOpen, loopRef]);
 
   const handleHintAction = useCallback((action: FocusHintAction) => {
     playClickSound();
@@ -929,7 +929,7 @@ export default function App() {
 
   const getViewCamera = useCallback(() => {
     return loopRef.current?.getView().camera ?? viewRef.current.camera;
-  }, [loopRef.current, viewRef.current.camera]);
+  }, [loopRef, viewRef]);
 
   const togglePauseRef = useRef(togglePause);
   const selectBuildingTypeRef = useRef(selectBuildingType);
@@ -1106,7 +1106,7 @@ export default function App() {
 
   const setSpeed = useCallback((speed: number) => {
     loopRef.current?.mutateWorld((w) => { w.speed = speed; });
-  }, [loopRef.current]);
+  }, [loopRef]);
 
   const handleOpenTrade = useCallback(() => {
     openTab('progress');
@@ -1237,7 +1237,7 @@ export default function App() {
       w.autoSave = !w.autoSave;
       saveAutoSavePreference(w.autoSave);
     });
-  }, [loopRef.current]);
+  }, [loopRef]);
 
   const handleSave = useCallback(() => {
     void persistCurrentGame({ chronicle: true, feedback: true });

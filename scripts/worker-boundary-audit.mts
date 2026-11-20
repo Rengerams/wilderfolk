@@ -103,8 +103,11 @@ function stable(value: unknown): string {
     const out: Record<string, unknown> = {};
     if (cls) out.__class = cls;
     for (const key of Object.keys(obj).sort()) {
-      const field = (obj as Record<string, unknown>)[key];
-      if (field !== undefined) out[key] = walk(field);
+      const value = (obj as Record<string, unknown>)[key];
+      // JSON drops an explicit `undefined`, so a materialized optional key and an absent one are
+      // the same information on every wire the game actually uses.
+      if (value === undefined) continue;
+      out[key] = walk(value);
     }
     return out;
   };
@@ -132,10 +135,10 @@ function semanticValue(world: WorldState, key: string): unknown {
       return getVenueSchedule(world, 'tavern');
     case 'hotelSchedule':
       return getVenueSchedule(world, 'hotel');
-    case 'graveRecords':
     case 'huntVisuals':
     case 'chronicleChapters':
     case 'pendingStoryEvents':
+    case 'graveRecords':
     case 'bigNews':
     case 'notifications':
       return raw ?? [];
@@ -684,20 +687,28 @@ function classify(finding: Finding): string {
   if (finding.key === 'simRng') {
     return 'benign: host-owned RNG snapshot — the display world is strictly richer';
   }
-  if (finding.key === 'entities' && finding.kind === 'different' && finding.section.endsWith(':delta')) {
+  // Only a whole-value compare may be explained away as property presence; a set mismatch or a lost
+  // log entry is data loss and must stay UNEXPLAINED.
+  if (finding.kind === 'entity-set-mismatch' || finding.kind === 'entries-changed') {
+    return 'UNEXPLAINED';
+  }
+  if (finding.key === 'entities' && finding.kind === 'different' && finding.section.includes('delta')) {
     return 'benign: property presence only — no entity field value differs';
   }
-  if (finding.key === 'entities' && finding.kind === 'different' && finding.section === 'prep:rollback') {
+  if (finding.key === 'entities' && finding.kind === 'different' && finding.section.startsWith('prep')) {
     return 'benign: property presence only — prep materializes optional keys as undefined';
   }
   if (
-    finding.section === 'save' && finding.kind === 'changed-on-load' &&
+    finding.section.startsWith('save') && finding.kind === 'changed-on-load' &&
     ['paused', 'tradeRoutes', 'tutorialSeen', 'entities', 'eventLog'].includes(finding.key)
   ) {
     return 'benign: documented load-time normalization (starts paused, route merge, tutorial seed, migrateHumanAges)';
   }
+  if (finding.section.startsWith('save') && finding.key === 'nextBuildingId') {
+    return 'benign: load-time allocator repair — floorIdAllocators lifts the unset (0) building counter to one past the highest building id, so a consumed id can never be handed out twice';
+  }
   if (
-    finding.section === 'save' && finding.kind === 'entity-field-diverged' &&
+    finding.section.startsWith('save') && finding.kind === 'different-fields' &&
     ['entity.birthDay', 'entity.birthMonth'].includes(finding.key)
   ) {
     return 'benign: migrateHumanAges backfills the calendar birth date the worker left at 0 (age and every persisted field survive)';

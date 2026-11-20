@@ -1,6 +1,6 @@
 /**
- * Both raid cards call the owner `frontierCombat.formatRaidDeadline`, which resolves a missing
- * `expiresAtTick` through `getRaidExpiresAtTick`; the unknown case is expressed inside the owner.
+ * Both raid cards call the owner `frontierCombat.formatRaidDeadline`, which reads `expiresAtTick`
+ * through `getRaidExpiresAtTick`; the unknown case is expressed inside the owner.
  */
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
@@ -8,7 +8,6 @@ import { resolve } from 'node:path';
 import { formatRaidDeadline, getRaidExpiresAtTick, resolveRaidVictory, provokeRival } from '../src/game/frontierCombat';
 import { initGame } from '../src/game/worldGen';
 import { human } from '../src/test/factories';
-import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import type { RaidEvent } from '../src/game/gameTypes';
 import { genomeFrom } from './helpers/genome';
 
@@ -20,21 +19,14 @@ function readSrc(relative: string): string {
   return readFileSync(resolve(process.cwd(), relative), 'utf8');
 }
 
-/** Legacy save shape: the tick fields the owner's fallback exists for are absent. */
-function legacyRaid(createdAtTick: number | undefined, expiresAtTick: number | undefined): RaidEvent {
+/** Corrupt save shape: a payload whose deadline did not survive validation. */
+function undatedRaid(createdAtTick: number | undefined, expiresAtTick: number | undefined): RaidEvent {
   return { id: 'raid', createdAtTick, expiresAtTick } as unknown as RaidEvent;
 }
 
 describe('A16 — one raid-deadline renderer for both cards', () => {
-  it('renders a legacy event from the owner’s own fallback window', () => {
-    const legacy = legacyRaid(100, undefined);
-    // 3 in-game days from the creation tick — the owner's `getRaidExpireTicksLegacy`.
-    expect(getRaidExpiresAtTick(legacy)).toBe(100 + 3 * TICKS_PER_DAY);
-    expect(formatRaidDeadline(legacy, 100)).toBe('3 days left');
-  });
-
   it('expresses the genuinely unknown deadline inside the owner', () => {
-    const undated = legacyRaid(undefined, undefined);
+    const undated = undatedRaid(undefined, undefined);
     expect(Number.isFinite(getRaidExpiresAtTick(undated))).toBe(false);
     // An undated raid renders `deadline unknown`, never `NaN days left`.
     expect(formatRaidDeadline(undated, 0)).toBe('deadline unknown');

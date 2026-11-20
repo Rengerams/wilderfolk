@@ -71,7 +71,6 @@ export function spawnRivalSettlement(
     campX: site.x,
     campY: site.y,
     population: pop,
-    entityIds: [],
     relationship,
     foundedYear: state.year,
     daysUntilAction: 30 + Math.floor(getSimRng('groupEvents')() * 30),

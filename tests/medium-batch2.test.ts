@@ -107,13 +107,10 @@ describe('M7 — only combat entries are classified', () => {
     expect(resolveCombatLogKind(event({ type: 'scandal', message: 'A raid story spread through the tavern' }))).toBeNull();
   });
 
-  it('still classifies combat entries, with and without a stored kind', () => {
+  it('classifies combat entries from their stored kind', () => {
     expect(resolveCombatLogKind(event({ type: 'combat', combatKind: 'repelled', message: 'x' }))).toBe('repelled');
     expect(
-      resolveCombatLogKind(event({ type: 'combat', message: 'Barricade repelled the raid' })),
-    ).toBe('repelled');
-    expect(
-      resolveCombatLogKind(event({ type: 'combat', message: 'Northgate launched a raid on the village' })),
+      resolveCombatLogKind(event({ type: 'combat', combatKind: 'incoming_raid', message: 'x' })),
     ).toBe('incoming_raid');
   });
 });

@@ -22,8 +22,7 @@ const CUSTODY_LEADERSHIP_LIMIT = 100;
 const CIVIC_VOICE_THRESHOLD = 0.04;
 const DIPLOMACY_MEMORY_EFFECTS = {
   mercy: { trust: 10, fear: 0, grievance: -10 }, tribute: { trust: -5, fear: 5, grievance: 10 },
-  raze: { trust: -25, fear: 25, grievance: 25 }, release: { trust: 5, fear: 0, grievance: -5 },
-  execution: { trust: -20, fear: 15, grievance: 20 }, recruitment: { trust: 5, fear: 0, grievance: 5 },
+  raze: { trust: -25, fear: 25, grievance: 25 },
 } as const;
 
 /** Terminal settlement status is independent of pause or playback controls. */
@@ -118,7 +117,7 @@ export function rememberRivalDisposition(state: WorldState, target: RivalSettlem
  * and recent threats. Called once by the authoritative settled-raid transition.
  */
 export function applyWarCommunityReaction(state: WorldState,
-  choice: 'release' | 'execution' | 'mercy' | 'tribute' | 'raze', rivalId: string,
+  choice: 'mercy' | 'tribute' | 'raze', rivalId: string,
   context?: { brokeTreaty?: boolean }): void {
   const villagers = state.entities.filter((person) => person.alive && isPlayerHuman(person));
   let empathetic = 0;
@@ -135,7 +134,7 @@ export function applyWarCommunityReaction(state: WorldState,
   const threatVoices = underThreat ? Math.ceil(villagers.length / 4) : 0;
   // A war started by breaking a peace treaty lacks the public's "they threatened us" support.
   const brokenPactVoices = context?.brokeTreaty ? Math.ceil(villagers.length / 3) : 0;
-  const coercive = choice === 'execution' || choice === 'tribute' || choice === 'raze';
+  const coercive = choice === 'tribute' || choice === 'raze';
   const sentiment = coercive
     ? fierce + threatVoices - empathetic - brokenPactVoices
     : empathetic - fierce - threatVoices + brokenPactVoices;
@@ -146,6 +145,6 @@ export function applyWarCommunityReaction(state: WorldState,
   if (leader && opinion !== 0) leader.battleLeadershipMerit = Math.max(-CUSTODY_LEADERSHIP_LIMIT,
     Math.min(CUSTODY_LEADERSHIP_LIMIT, (leader.battleLeadershipMerit ?? 0) + opinion));
   if (opinion !== 0) addReputation(state, opinion);
-  logEvent(state, choice === 'release' || choice === 'execution' ? 'prison' : 'combat',
+  logEvent(state, 'combat',
     `Community reaction to ${choice}: ${empathetic} favor restraint, ${fierce} favor severity; ${underThreat ? 'recent attack or active war' : 'no recent attack or active war'}${context?.brokeTreaty ? '; the war began by breaking a peace treaty' : ''}; leadership standing ${opinion > 0 ? '+' : ''}${opinion}.`);
 }

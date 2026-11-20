@@ -1,4 +1,3 @@
-import { moveResident } from './housingPipeline';
 import { unindexEntityFromState } from './entityIndex';
 import type { Building, Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
@@ -7,7 +6,6 @@ import { canRivalCampGrow, getRivalGrowthFoodCost, isRivalGrowthDay, maybeQueueR
 import { isRivalAtPeace } from './rivalPeace';
 import { applyRivalDailyAction, ensureRivalProfile, selectRivalDailyAction } from './rivalProfiles';
 import { getSimRng } from './simRng';
-import { clearWorkerAssignment, restoreWorkerRosterAfterCustody } from './workforce';
 import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
 import { adjustPollutionLevel } from './dailyEcology';
@@ -43,7 +41,10 @@ export function makeNextAliveDeer(allAlive: Entity[]): () => Entity | undefined 
   };
 }
 
-/** Retires every rival-faction camp building in place; returns the ids that left the map. */
+/**
+ * Retires every rival-faction camp building in place; returns the ids that left the map. The save
+ * migration is its only caller: 0.6.5.0/0.6.5.1 saves can still carry the retired village camps.
+ */
 export function retireLegacyCampStructures(buildings: Building[]): Set<number> {
   const retired = new Set<number>();
   for (let index = buildings.length - 1; index >= 0; index--) {
@@ -53,26 +54,6 @@ export function retireLegacyCampStructures(buildings: Building[]): Set<number> {
     buildings.splice(index, 1);
   }
   return retired;
-}
-
-/** Drops residence, workplace and prison pointers into structures the retirement removed. */
-function releaseRetiredStructureReferences(
-  entity: Entity,
-  retired: Set<number>,
-  buildings: Building[],
-): void {
-  if (entity.workerBuildingId != null && retired.has(entity.workerBuildingId)) {
-    clearWorkerAssignment(entity, buildings);
-  }
-  if (entity.residenceBuildingId != null && retired.has(entity.residenceBuildingId)) {
-    moveResident(entity, undefined, 'demolition', { buildings });
-  }
-  if (entity.prisonBuildingId != null && retired.has(entity.prisonBuildingId)) {
-    entity.prisonBuildingId = undefined;
-    entity.prisonerUntilTick = undefined;
-    entity.prisonSentenceCrime = undefined;
-    restoreWorkerRosterAfterCustody(entity, buildings);
-  }
 }
 
 /**
@@ -85,7 +66,10 @@ function departRivalEntity(state: WorldState, entity: Entity): void {
   unindexEntityFromState(state, entity.id);
 }
 
-/** Drops every legacy rival-faction entity; rival settlements are strategic records, not on-map people. */
+/**
+ * Load-only migration: drops every legacy rival-faction entity. Rival settlements are strategic
+ * records, never on-map people, so no current build spawns one; 0.6.5.0/0.6.5.1 saves still can.
+ */
 export function pruneOrphanRivalEntities(state: WorldState): number {
   let pruned = 0;
   for (const entity of state.entities ?? []) {
@@ -105,13 +89,6 @@ export function tickRivalSettlements(
   // Runs once a day from `tickDailyWorldEvents`, in the 18:00 world-events phase.
   callbacks.tickPendingDiplomacyEvents(state);
   maybeFoundRivalSettlement(state, allAlive);
-  pruneOrphanRivalEntities(state);
-
-  // Camp structures never stand on the player's map; older saves may still carry them.
-  const retiredStructures = retireLegacyCampStructures(state.buildings);
-  for (const entity of allAlive) {
-    releaseRetiredStructureReferences(entity, retiredStructures, state.buildings);
-  }
   const nextDeer = makeNextAliveDeer(allAlive);
   let tenseRepDrainToday = 0;
 

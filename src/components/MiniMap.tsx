@@ -127,7 +127,7 @@ export default function MiniMap({
                     ctx.fillRect(sx - 1, sy - 1, isLeader ? 3 : 2, isLeader ? 3 : 2);
                   }
                 } else {
-                  ctx.fillStyle = e.faction === 'rival' ? '#fb923c' : e.faction === 'visitor' ? '#22d3ee' : isLeader ? '#fde047' : '#fbbf24';
+                  ctx.fillStyle = e.faction === 'visitor' ? '#22d3ee' : isLeader ? '#fde047' : '#fbbf24';
                   ctx.fillRect(sx - 1, sy - 1, isLeader ? 3 : 2, isLeader ? 3 : 2);
                 }
               } else {
@@ -157,7 +157,7 @@ export default function MiniMap({
               if (!buildingCfg) continue;
               const sx = b.x * scaleX;
               const sy = b.y * scaleY;
-              ctx.fillStyle = b.faction === 'rival' ? '#6366f1' : buildingCfg.backgroundColor;
+              ctx.fillStyle = buildingCfg.backgroundColor;
               ctx.fillRect(sx - 2, sy - 2, 4, 3);
             }
 

@@ -71,7 +71,8 @@ const GATE = {
   all: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'scriptsTypes', 'lint', 'unit'],
   // `build` runs its own duplicate scan, so `dup` appears once here.
   full: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'scriptsTypes', 'lint', 'unit', 'integrationTests', 'invariants', 'workerBoundary', 'knip', 'build'],
-  audit: ['knip', 'owners', 'cycles'],
+  // The load-bearing cycle gate runs first: a knip finding must never mask it (see knip.ts).
+  audit: ['cycles', 'owners', 'knip'],
   accept: ['build', 'browser'],
 };
 

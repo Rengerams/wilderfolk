@@ -1,3 +1,4 @@
+/** Web package version. The desktop shells carry the semver prerelease form (`0.6.5-1`). */
 export const GAME_VERSION = '0.6.5.1';
 export const GAME_PHASE = 'Beta';
 export const GAME_TITLE = 'Wilderfolk';

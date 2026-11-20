@@ -11,7 +11,7 @@
 ### Merged and implemented
 
 - [x] **Housing and family lifecycle:** ordered housing ownership, custody, reserved beds, fixed 20-bed leader home and linked annex ([#40](https://github.com/Rengerams/wilderfolk/pull/40), [#56](https://github.com/Rengerams/wilderfolk/pull/56)).
-- [x] **Raids and rivals:** strategic world-map settlements, six-hour battles, persistent casualties, surrender choices, recovery, destruction, prisoners and civic merit ([#58](https://github.com/Rengerams/wilderfolk/pull/58)).
+- [x] **Raids and rivals:** strategic world-map settlements, six-hour battles, persistent casualties, surrender choices, recovery, destruction and civic merit ([#58](https://github.com/Rengerams/wilderfolk/pull/58)).
 - [x] **Roads, walls and navigation:** continuous drag construction/demolition, junctions, gates, collision, entrance snapping, terrain-based path costs and road speed ([#59](https://github.com/Rengerams/wilderfolk/pull/59), [#65](https://github.com/Rengerams/wilderfolk/pull/65), [#66](https://github.com/Rengerams/wilderfolk/pull/66)).
 - [x] **Watchtowers — simulated, passive defense:** buildable Watchtowers provide +15 barricade strength each (+27 after forged Tower Ballistae), detect marching raiders within 260 world units, and can be built by the Virtual Player. These bonuses are simulation parameters; no towers shoot projectiles or initiate real-time combat (`defenseStructures.ts`, `watchtowerDetection.ts`, `virtualPlayer.ts`).
 - [x] **Indoor presentation:** hide settlers who are physically inside buildings while maintaining their simulation activity ([#60](https://github.com/Rengerams/wilderfolk/pull/60)).
@@ -19,7 +19,7 @@
 - [x] **Distinct biomes and map presets:** terrain-based habitats, consistent rivers/scenery, original-site production bonuses and generator compatibility ([#63](https://github.com/Rengerams/wilderfolk/pull/63)).
 - [x] **Reduced simulation copying:** fewer whole-world copies, smaller unchanged-history worker deltas and rollback profiling ([#64](https://github.com/Rengerams/wilderfolk/pull/64)).
 - [x] **Canonical engineering ownership:** consolidate duplicate aliases and remove obsolete compatibility-only facades ([#67](https://github.com/Rengerams/wilderfolk/pull/67), [#68](https://github.com/Rengerams/wilderfolk/pull/68)).
-- [x] **Situational wartime morality:** surrender, mercy and executions affect standing in context rather than assigning universal moral rewards ([#70](https://github.com/Rengerams/wilderfolk/pull/70)).
+- [x] **Situational wartime morality:** surrender, mercy, tribute and razing affect standing in context rather than assigning universal moral rewards ([#70](https://github.com/Rengerams/wilderfolk/pull/70)).
 - [x] **Workforce performance:** reuse staffing indexes and avoid unnecessary reassignment passes ([#71](https://github.com/Rengerams/wilderfolk/pull/71)).
 - [x] **Natural riverbanks and forest groves (terrain v3):** riparian transitions, flow-shaped river footprints and biome-weighted vegetation ([#73](https://github.com/Rengerams/wilderfolk/pull/73)).
 - [x] **Build workflow maintenance:** repair GitHub Actions dependency lockfile and npm caching setup ([#74](https://github.com/Rengerams/wilderfolk/pull/74)).
@@ -73,8 +73,8 @@
 ## 5. Valley diplomacy and consequences — implemented
 
 - [x] Persistent **trust, fear and grievance** memory; nearby witnesses react to a settlement's fate.
-- [x] Mercy, tribute, destruction and captive outcomes affect diplomatic relations, future hostility/raid timing and civic responses.
-- [x] Effects depend on context and the village population; neither mercy nor execution receives a universal moral reward or penalty.
+- [x] Mercy, tribute and razing affect diplomatic relations, future hostility/raid timing and civic responses.
+- [x] Effects depend on context and the village population; neither mercy nor razing receives a universal moral reward or penalty.
 - [x] Repeated low-risk victories cannot farm unlimited leadership merit.
 
 ## 6. Live raid reports and casualties — implemented
@@ -90,18 +90,18 @@
 - [x] Battle merit is assigned at resolution to the leader who served during the battle, with no retroactive credit to a successor.
 - [x] Significant defenses award up to **+60** merit; successful credible offensive raids award **+15 to +30**, while major failed defenses and reckless losses can reduce merit.
 - [x] One award per raid ID, a 30-day repeat-victory cooldown per rival and a bounded total election contribution.
-- [x] Civic reactions to prisoner treatment and settlement fate are situational rather than automatic approval or condemnation.
+- [x] Civic reactions to a settlement's fate are situational rather than automatic approval or condemnation.
 
 ## 8. Warfare integration — implemented
 
-- [x] The existing simulation owners handle raids (`frontierCombat.ts`), recovery and diplomatic memory (`raidAftermath.ts`), captives (`warPrisoners.ts`), world-state persistence, and the game UI.
-- [x] Save/load and worker state preserve relevant pending decisions, casualties, recovery, scoring and prisoner custody. A terminal outcome cannot restart simulation through ordinary actions.
+- [x] The existing simulation owners handle raids (`frontierCombat.ts`), recovery and diplomatic memory (`raidAftermath.ts`), world-state persistence, and the game UI.
+- [x] Save/load and worker state preserve relevant pending decisions, casualties, recovery and scoring. A terminal outcome cannot restart simulation through ordinary actions.
 
 ## 9. Raid feature implementation status
 
 - [x] **Expanded final-settlement report:** last recorded leader, Chronicle chapters and retained historical highlights (§3); merged PR [#89](https://github.com/Rengerams/wilderfolk/pull/89).
 - [x] **Clearer raze confirmation:** permanent rival removal, displacement and contextual diplomatic reactions (§4); merged PR [#89](https://github.com/Rengerams/wilderfolk/pull/89).
-- [x] Strategic rivals, six-hour raids, player choice, aftermath, recovery, terminal defeat, captives, diplomatic memory and leadership merit are in merged PR [#58](https://github.com/Rengerams/wilderfolk/pull/58).
+- [x] Strategic rivals, six-hour raids, player choice, aftermath, recovery, terminal defeat, diplomatic memory and leadership merit are in merged PR [#58](https://github.com/Rengerams/wilderfolk/pull/58).
 - [x] Civic wartime decisions were extended in merged PR [#70](https://github.com/Rengerams/wilderfolk/pull/70).
 
 ## 10. Warfare scope boundary

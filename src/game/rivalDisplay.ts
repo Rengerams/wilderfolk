@@ -1,17 +1,9 @@
 import type { RivalSettlement } from './gameTypes';
 
-/** Rival pop syncs from on-map entities — distant camps often show 0 without implying extinction. */
+/** Rival population is a strategic count at a distant camp, never a roster of on-map settlers. */
 export function formatRivalPopulationLabel(rival: RivalSettlement): string {
   if (rival.population > 0) {
-    return `${rival.population} settler${rival.population === 1 ? '' : 's'} on map`;
+    return `${rival.population} soul${rival.population === 1 ? '' : 's'} at the camp`;
   }
-  return 'Distant camp (war-band off-map)';
-}
-
-export function formatRivalRelationshipLabel(rival: RivalSettlement): string {
-  const rel = rival.relationship;
-  if (rival.population === 0) {
-    return `${rel} · abstract faction`;
-  }
-  return rel;
+  return 'Camp emptied';
 }
