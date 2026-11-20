@@ -91,11 +91,8 @@ export function isWalkingToward(entity: Entity, point: { x: number; y: number })
   return (point.x - entity.x) * entity.vx + (point.y - entity.y) * entity.vy > 0;
 }
 
-/**
- * Arrival changes presentation only; the settler remains in the simulation and building roster.
- * An on-duty worker can be hidden at an outdoor production site as well. Non-work visits to
- * outdoor places and unfinished construction sites still have no interior.
- */
+/** Arrival changes presentation, not the building roster or simulation membership.
+ * On-duty outdoor workers can be hidden; other outdoor visits and construction remain visible. */
 export function enterHumanBuilding(entity: Entity, building: Building, onDuty = false): void {
   if (!building.completed || (!onDuty && OUTDOOR_BUILDINGS.has(building.type))) return;
   entity.indoorBuildingId = building.id;
@@ -417,9 +414,8 @@ export function commuteHumanToBuilding(
   let target = saved?.buildingId === building.id && saved.grid === grid
     ? candidates.find((point) => point.x === saved.x && point.y === saved.y) : undefined;
   if (!target) {
-    // Choose the nearest *reachable* stretch of any facade, not a fixed door.
-    // Checking all unobstructed approaches first avoids one expensive A* quote for every
-    // perimeter sample of a large farm or greenhouse.
+    // Select a reachable facade rather than one fixed door.
+    // Try unobstructed approaches before expensive A* quotes.
     const ranked = candidates.map((point) => ({
       point, distance: Math.hypot(point.x - entity.x, point.y - entity.y),
     })).sort((a, b) => a.distance - b.distance);

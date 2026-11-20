@@ -258,11 +258,8 @@ function routeCommuteCost(fromWorldX: number, fromWorldY: number, toWorldX: numb
 }
 
 
-/**
- * Price at most one verified access point per building side. Walker steering and arrival still
- * accept every open stretch, but enumerating every pair of perimeter samples during an assignment
- * would exhaust the bounded commute-search budget before a starter farm could be priced.
- */
+/** Price one verified access point per side for commute quotes.
+ * Walkers still use all open stretches; pricing every pair exhausts the bounded search budget. */
 function representativeAccessPoints(points: readonly BuildingAccessPoint[]): BuildingAccessPoint[] {
   const bySide = new Map<BuildingAccessPoint['side'], BuildingAccessPoint>();
   for (const point of points) if (!bySide.has(point.side)) bySide.set(point.side, point);

@@ -1274,9 +1274,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         : workCommuteDue;
       if (wantsToWork) {
         if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) {
-          // Reuse the indoor flag already carried through saves, workers and rendering.
-          // This hides stationary farm/quarry/market workers too, but only during their
-          // actual shift; outdoor hunters and patrolling soldiers keep moving visibly.
+          // Hide stationary outdoor workers only during their shift.
+          // Hunters and patrolling soldiers remain visible and mobile.
           enterHumanBuilding(entity, workplace, onJobShift || onOfficialShift || onPriestShift);
         }
         commuting = true;

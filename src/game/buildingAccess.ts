@@ -84,9 +84,8 @@ function computeBuildingAccessPoints(building: Building, grid: PathGrid | null):
   const rect = getBuildingFootprintRect(building);
   const points: BuildingAccessPoint[] = [];
   for (const { side, normalX, normalY } of BUILDING_ACCESS_SIDES) {
-    // Every open stretch of the footprint is an entrance, not only the midpoint of each wall.
-    // Sampling at path-cell intervals keeps an available corner reachable when another building
-    // masks the middle of a facade. The existing per-grid memo makes this one probe per building.
+    // Sample each open facade at path-cell intervals so side obstacles cannot hide other entrances.
+    // The per-grid memo avoids repeated probes.
     const length = normalX === 0 ? building.width : building.height;
     const maxOffset = Math.max(0, length / 2 - PATH_CELL / 2);
     const offsets = [0];
