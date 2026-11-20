@@ -98,7 +98,7 @@ function flatWorld(entities: Entity[], buildings: Building[], tick = WALK_TICK):
 
 function rivalSettlement(campX: number, campY: number): RivalSettlement {
   return {
-    id: 'R1', name: 'Ridge', campX, campY, population: 1, entityIds: [RIVAL_ID],
+    id: 'R1', name: 'Ridge', campX, campY, population: 1,
     relationship: 'tense', foundedYear: 0, daysUntilAction: 99, raidCooldownDays: 99, peaceTreatyDays: 0,
   };
 }

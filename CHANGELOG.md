@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Removed (20 Nov 2026):** Retired warfare leftovers: rival-camp entity rosters and settler UI, the POW release/execution reaction choices, unused militia strength wrappers and combat-log text classification. Legacy camp structures still migrate on load.
 - **Fixed (20 Nov 2026):** Closing a colony saves its acknowledged state, visiting factions resume their activity after loading, and tick rollback shares unchanged family history.
 - **Fixed (20 Nov 2026):** The call-graph index treated a multi-line signature as the whole function body, so the overlap gate compared signatures and reported eight phantom duplicates; it now finds the real body.
 - **Fixed (20 Nov 2026):** Yearly props and wildlife spawn through one seeded random-point draw with a domain predicate, replacing two identical retry loops.

@@ -124,41 +124,15 @@ export function assignPendingGraves(state: WorldState): void {
   if (assigned > 0) bumpHistoryRevision(state, 'graveRecords');
 }
 
-/** Legacy fallback for saves logged before combatKind existed. */
+/** Combat kind of a stored entry. Only combat entries may be classified, so an ordinary event
+ *  mentioning a raid is not counted as one in the summary. */
 export function resolveCombatLogKind(evt: GameEventLog): CombatLogKind | null {
-  if (evt.combatKind) return evt.combatKind;
-  // Only combat entries may be classified, so an ordinary event mentioning a raid is not
-  // counted as one in the summary.
-  if (evt.type !== 'combat') return null;
-  const msg = evt.message.toLowerCase();
-  if (msg.includes('repelled') || msg.includes('routed')) return 'repelled';
-  if (msg.includes('defending') || msg.includes('militia') || msg.includes('barricade')) return 'defense';
-  if (msg.includes('raid')) {
-    if (msg.includes('launched a raid on the village') || msg.includes('raid on the village')) {
-      return 'incoming_raid';
-    }
-    if (msg.includes(' raid on ') || msg.startsWith('raid on ')) {
-      return 'outgoing_raid';
-    }
-    return 'incoming_raid';
-  }
-  return null;
+  return evt.type === 'combat' ? evt.combatKind ?? null : null;
 }
 
-/** Classify saved pre-stage combat records without treating every entry as a new raid. */
+/** Combat stage of a stored entry; every combat writer records one. */
 export function resolveCombatLogStage(evt: GameEventLog): CombatLogStage | null {
-  if (evt.type !== 'combat') return null;
-  if (evt.combatStage) return evt.combatStage;
-  const message = evt.message.toLowerCase();
-  if (message.startsWith('declared hostility')) return 'challenge';
-  if (message.includes('launched a raid on the village') || message.includes('dispatched toward')) {
-    return 'dispatched';
-  }
-  if (message.includes('fell defending against') || message.includes('fell on the raid against')) {
-    return 'casualties';
-  }
-  if (message.includes('broke off') || message.includes('fizzled')) return 'cancelled';
-  return 'resolved';
+  return evt.type === 'combat' ? evt.combatStage ?? null : null;
 }
 
 export function summarizeCombatEvents(events: GameEventLog[]): {

@@ -79,22 +79,20 @@ export default function SelectedEntityPanel({
   }, [currentActivity, entity.id]);
 
   const isVisitor = entity.faction === 'visitor';
-  const isRival = entity.faction === 'rival';
-  
+
   const visitorGroup = isVisitor ? state.visitorGroups?.find((g) => g.id === entity.groupId) : null;
-  const rivalCamp = isRival ? state.rivalSettlements?.find((r) => r.id === entity.groupId) : null;
 
   /** The movement reason trace for this settler — the day's named stops, the current leg and the
    * path owner's blocked/rerouting verdict, printed as-is. Read-only; nothing is derived here. */
-  const movementExplanation = isHuman && !isVisitor && !isRival
+  const movementExplanation = isHuman && !isVisitor
     ? explainSettlerMovement(state, entity.id)
     : null;
 
   // Derived each render: the sim mutates the world and its entities in place, so a memo
   // keyed on them cannot see a change.
-  const childCount = isHuman && !isVisitor && !isRival ? countLivingChildren(entity, allEntities) : 0;
+  const childCount = isHuman && !isVisitor ? countLivingChildren(entity, allEntities) : 0;
 
-  // Both come from the taming owner: the candidate list is the one that filters visitors/rivals, and
+  // Both come from the taming owner: the candidate list is player settlers only, and
   // `building.x/y` is the footprint centre, so the reach test measures from the centre.
   const availableHumans = listTamingCandidates(state);
 
@@ -232,10 +230,7 @@ export default function SelectedEntityPanel({
               Open camp — trade &amp; talks
             </button>
           )}
-          {isRival && rivalCamp && (
-            <p className="text-[11px] text-amber-300">Settler of {rivalCamp.name} · {rivalCamp.relationship}</p>
-          )}
-          {isHuman && !isVisitor && !isRival && (
+          {isHuman && !isVisitor && (
             <p className="text-[11px] text-amber-400">
               {/* The settler's own name — the entity id is engine bookkeeping, not something to show. */}
               <span className="font-mono text-stone-400">{citizenFullName(entity)}</span>
@@ -269,7 +264,7 @@ export default function SelectedEntityPanel({
       )}
 
       <div className="space-y-0.5 text-xs text-amber-200">
-        {isHuman && !isVisitor && !isRival && entity.needs ? (
+        {isHuman && !isVisitor && entity.needs ? (
           <>
             <p>Nutrition: {Math.round(entity.needs.nutrition)} / 100</p>
             <p>Rest: {Math.round(entity.needs.rest)} / 100</p>
@@ -283,13 +278,13 @@ export default function SelectedEntityPanel({
         {entity.combatTicks && entity.combatTicks > 0 && (
           <p className="text-amber-300">⚔️ In combat</p>
         )}
-        {isHuman && !entity.isJuvenile && !isVisitor && !isRival && getHumanArmamentLabel(state) && (
+        {isHuman && !entity.isJuvenile && !isVisitor && getHumanArmamentLabel(state) && (
           <p className="text-sky-300">⚔️ Village gear: {getHumanArmamentLabel(state)}</p>
         )}
         {entity.tamedBy && (
           <p className="text-emerald-400">🦴 Tamed by {tamer?.name || 'a settler'}</p>
         )}
-        {isHuman && !isVisitor && !isRival && (
+        {isHuman && !isVisitor && (
           <>
             {hasResidenceAssignment(entity) ? (() => {
               const home = state.buildings.find((b) => b.id === entity.residenceBuildingId);

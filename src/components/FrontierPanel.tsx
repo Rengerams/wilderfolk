@@ -9,7 +9,6 @@ import {
   formatCampDistance,
   formatRaidDeadline,
   formatRivalPopulationLabel,
-  formatRivalRelationshipLabel,
   getCampDistancePixels,
   getCombatPreview,
   getOutgoingRaidFoodCostForRival,
@@ -215,7 +214,7 @@ function FrontierPanel({
                   >
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-[13px] font-bold text-amber-200">🏕️ {r.name}</p>
-                      <span className="shrink-0 text-[13px] capitalize text-amber-400">{formatRivalRelationshipLabel(r)}</span>
+                      <span className="shrink-0 text-[13px] capitalize text-amber-400">{r.relationship}</span>
                     </div>
                     <p className="text-[13px] text-stone-300">
                       {formatRivalPopulationLabel(r)} · {formatCampDistance(getCampDistancePixels(state, state.buildings, r))}

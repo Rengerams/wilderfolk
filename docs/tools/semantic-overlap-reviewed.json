@@ -476,6 +476,14 @@
       "tests": [
         "tests/combatTierEffects.test.ts"
       ]
+    },
+    {
+      "key": "src/components/MiniMap.tsx:41:MiniMap@751cbc0e8cae3dd81f76ebc6f789cacafed817ed2678bff010f93e7f03aafc2b <-> src/components/MiniMap.tsx:61:draw@2c6e497501468915054410db1358879601f9505f0e95b4ce1db268075b19a04f",
+      "reason": "MiniMap is the React surface: it owns the canvas ref, the animation-frame effect, resize handling and click-to-navigate wiring. draw is the frame routine that effect schedules, and it only paints the cached world snapshot. They share the component's local canvas and camera bindings by closure, which the token metric reads as similarity, but they have different lifecycles, side effects and callers; merging them would collapse the render loop into the component body.",
+      "tests": [
+        "tests/minimap.viewportSizing.test.ts",
+        "tests/renderer.frameOwnership.test.ts"
+      ]
     }
   ]
 }

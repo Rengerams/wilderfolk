@@ -486,8 +486,6 @@ export interface RivalSettlement {
   campX: number;
   campY: number;
   population: number;
-  /** Legacy on-map roster; always empty in current games while the strategic rival system is the only one. */
-  entityIds?: number[];
   relationship: RivalRelationship;
   foundedYear: number;
   daysUntilAction: number;

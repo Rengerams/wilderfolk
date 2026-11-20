@@ -51,8 +51,8 @@ describe('civic community reaction reads the communityReaction activity', () => 
       villager(3, SEVERITY_GENOME),
     ];
     const state = world(people);
-    applyWarCommunityReaction(state, 'execution', 'rival-1');
-    expect(lastMessage(state)).toContain('Community reaction to execution: 2 favor restraint, 1 favor severity');
+    applyWarCommunityReaction(state, 'raze', 'rival-1');
+    expect(lastMessage(state)).toContain('Community reaction to raze: 2 favor restraint, 1 favor severity');
     expect(lastMessage(state)).toContain('no recent attack or active war');
     // sentiment = 1 severity + 0 threat - 2 restraint = -1 with a 3-villager population.
     expect(lastMessage(state)).toContain('leadership standing -2');
@@ -90,15 +90,15 @@ describe('civic community reaction reads the communityReaction activity', () => 
     const rival = villager(3, RESTRAINT_GENOME);
     rival.faction = 'rival';
     const state = world([villager(1, SEVERITY_GENOME), dead, rival]);
-    applyWarCommunityReaction(state, 'execution', 'rival-1');
+    applyWarCommunityReaction(state, 'raze', 'rival-1');
     expect(lastMessage(state)).toContain('0 favor restraint, 1 favor severity');
   });
 
-  it('keeps the leader merit cap and the five outcome polarities', () => {
-    for (const choice of ['release', 'execution', 'mercy', 'tribute', 'raze'] as const) {
+  it('keeps the leader merit cap and the three outcome polarities', () => {
+    for (const choice of ['mercy', 'tribute', 'raze'] as const) {
       const state = world([villager(1, SEVERITY_GENOME), villager(2, genomeFrom())]);
       applyWarCommunityReaction(state, choice, 'rival-1');
-      const coercive = choice === 'execution' || choice === 'tribute' || choice === 'raze';
+      const coercive = choice === 'tribute' || choice === 'raze';
       const expectedSign = coercive ? '+' : '-';
       expect(lastMessage(state), choice).toContain(`leadership standing ${expectedSign}`);
       const leader = state.entities[0];
@@ -119,7 +119,7 @@ describe('civic community reaction reads the communityReaction activity', () => 
       side: 'defense',
       resolvedAtTick: state.tick - 29 * TICKS_PER_DAY,
     } as NonNullable<WorldState['raidBattleReports']>[number]];
-    applyWarCommunityReaction(state, 'execution', 'rival-1');
+    applyWarCommunityReaction(state, 'raze', 'rival-1');
     expect(lastMessage(state)).toContain('recent attack or active war');
 
     state.raidBattleReports = [{
@@ -128,7 +128,7 @@ describe('civic community reaction reads the communityReaction activity', () => 
       side: 'defense',
       resolvedAtTick: state.tick - 31 * TICKS_PER_DAY,
     } as NonNullable<WorldState['raidBattleReports']>[number]];
-    applyWarCommunityReaction(state, 'execution', 'rival-1');
+    applyWarCommunityReaction(state, 'raze', 'rival-1');
     expect(lastMessage(state)).toContain('no recent attack or active war');
   });
 });

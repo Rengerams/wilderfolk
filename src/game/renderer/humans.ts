@@ -781,9 +781,8 @@ export function drawHumans(
     sx: number; headY: number; size: number; text: string; entityId: number; isLeader: boolean;
   }[] = [];
   for (const human of _cachedHumans) {
-    // Rivals live on the strategic map; deployed soldiers are away with the war-band.
-    if (human.faction === 'rival' || human.raidDeploymentId
-      || !shouldDrawSpotlightHuman(state.spotlightLore, human.id)) continue;
+    // Deployed soldiers are away with the war-band.
+    if (human.raidDeploymentId || !shouldDrawSpotlightHuman(state.spotlightLore, human.id)) continue;
     const isSel = state.selectedEntityIds.includes(human.id) || state.selectedEntity?.id === human.id;
     // Indoor occupants stay selectable in inspectors but never draw a body or overhead UI.
     if (human.indoorBuildingId != null || (!isSel && isAsleepAtHome(human, buildingById, state.hourOfDay))) continue;

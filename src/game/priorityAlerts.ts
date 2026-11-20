@@ -68,10 +68,7 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
 
   for (const evt of state.pendingOutgoingRaidEvents ?? []) {
     const rival = state.rivalSettlements.find((r) => r.id === evt.rivalId);
-    const deadline = formatRaidDeadline(
-      { createdAtTick: evt.createdAtTick, expiresAtTick: evt.expiresAtTick } as import('./frontierCombat').RaidEvent,
-      state.tick,
-    );
+    const deadline = formatRaidDeadline(evt, state.tick);
     alerts.push({
       id: `outgoing-${evt.id}`,
       severity: 'warning',

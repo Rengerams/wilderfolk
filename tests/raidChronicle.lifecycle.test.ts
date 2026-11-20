@@ -34,20 +34,6 @@ describe('raid chronicle lifecycle and combat stats', () => {
     expect(summarizeCombatEvents(entries)).toEqual({ raids: 1, defended: 1, repelled: 1, total: 3 });
   });
 
-  it('classifies legacy combat logs without stage fields', () => {
-    const old = (id: number, kind: CombatLogKind, message: string): GameEventLog => ({
-      id, tick: id, year: 0, day: 0, type: 'combat', message, combatKind: kind,
-    });
-    const entries = [
-      old(4, 'defense', '1 villager fell defending against Eastwood'),
-      old(3, 'repelled', 'Barricade repelled the raid'),
-      old(2, 'incoming_raid', 'Eastwood launched a raid on the village'),
-      old(1, 'outgoing_raid', 'Declared hostility toward Eastwood'),
-    ];
-    expect(entries.map(resolveCombatLogStage)).toEqual(['casualties', 'resolved', 'dispatched', 'challenge']);
-    expect(summarizeCombatEvents(entries)).toEqual({ raids: 1, defended: 1, repelled: 1, total: 4 });
-  });
-
   it('writes stage metadata into the live Chronicle', () => {
     const state = { tick: 14, year: 0, dayInYear: 1, eventLog: [] } as unknown as WorldState;
     logEvent(state, 'combat', 'Rivals are marching', 'Rivals', 'incoming_raid', 'dispatched');
