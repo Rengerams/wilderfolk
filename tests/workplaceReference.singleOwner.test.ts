@@ -34,7 +34,6 @@ const DOOR_CALLERS = [
   'src/game/dayCycle.ts',
   'src/game/leaderHouse.ts',
   'src/game/humanLifecycleCleanup.ts',
-  'src/game/rivalEvents.ts',
   'src/game/tradeCaravans.ts',
 ];
 
