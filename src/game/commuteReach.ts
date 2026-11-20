@@ -3,7 +3,7 @@ import { PATH_CELL } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycleClock';
 import { findRouteCostOutcome, getNavigationQuote, getCurrentPathGrid, getReadOnlyPathGrid, isWalkableRoad, type PathGrid } from './pathfinding';
 import { ROAD_SPEED_MULT } from './simulation/movementSteering';
-import { BUILDING_REACH_RADIUS_PX, buildingAccessPoints } from './buildingAccess';
+import { BUILDING_REACH_RADIUS_PX, buildingAccessPoints, type BuildingAccessPoint } from './buildingAccess';
 
 /** Commute reach, lead hours and walk pacing, shared by the movement loop and work assignment. */
 export const COMMUTE_CONFIG = {
@@ -258,6 +258,14 @@ function routeCommuteCost(fromWorldX: number, fromWorldY: number, toWorldX: numb
 }
 
 
+/** Price one verified access point per side for commute quotes.
+ * Walkers still use all open stretches; pricing every pair exhausts the bounded search budget. */
+function representativeAccessPoints(points: readonly BuildingAccessPoint[]): BuildingAccessPoint[] {
+  const bySide = new Map<BuildingAccessPoint['side'], BuildingAccessPoint>();
+  for (const point of points) if (!bySide.has(point.side)) bySide.set(point.side, point);
+  return [...bySide.values()];
+}
+
 /** Same walkable entrances and routed travel evidence for work, school, housing and bot previews. */
 export function quoteBuildingCommute(
   origin: Readonly<{ x: number; y: number }> | Building,
@@ -271,8 +279,8 @@ export function quoteBuildingCommute(
   const hasBlockedMask = grid.blocked?.length === grid.cols * grid.rows;
   const fromBuilding = hasBlockedMask && 'type' in origin && 'width' in origin && 'height' in origin;
   const toBuilding = hasBlockedMask && 'type' in destination && 'width' in destination && 'height' in destination;
-  const fromPoints = fromBuilding ? buildingAccessPoints(origin as Building, grid) : [origin];
-  const toPoints = toBuilding ? buildingAccessPoints(destination as Building, grid) : [destination];
+  const fromPoints = fromBuilding ? representativeAccessPoints(buildingAccessPoints(origin as Building, grid)) : [origin];
+  const toPoints = toBuilding ? representativeAccessPoints(buildingAccessPoints(destination as Building, grid)) : [destination];
   if (fromPoints.length === 0 || toPoints.length === 0) return { status: 'unreachable' };
 
   const pairs = fromPoints.flatMap((from) => toPoints.map((to) => ({
