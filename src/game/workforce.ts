@@ -648,7 +648,7 @@ function swapReachableWorkersIntoVacancies(
       transferWorkerBetweenBuildings(worker, donor, needy, currentTick);
       movedThisPass.add(worker.id);
       idle.splice(idle.indexOf(replacement), 1);
-      assignWorkerTransition(replacement, donor, currentTick);
+      assignWorkerTransition(replacement, donor);
       movedThisPass.add(replacement.id);
       index.counts.set(needy.id, (index.counts.get(needy.id) ?? 0) + 1);
       index.movable.set(donor.id, (index.movable.get(donor.id) ?? 0) - 1);
@@ -777,7 +777,7 @@ export function assignWorkerInPlace(
   }
   if (!worker) return false;
 
-  const assigned = assignWorkerTransition(worker, building, venueSchedules?.tick);
+  const assigned = assignWorkerTransition(worker, building);
   if (assigned && workerCounts) workerCounts.set(building.id, workerCount + 1);
   return assigned;
 }
