@@ -100,7 +100,7 @@ export const SIMULATION_DECISIONS = {
   navigation: {
     owner: 'pathfinding.ts — getNavigationQuote, searchRoute, sharedRouteCaches, getPathGrid, getReadOnlyPathGrid, resetPathGridCaches; commuteReach.ts — routeCommuteCost (internal budget verdict), quoteCommute (point-leg price), quoteBuildingCommute (validated facade-to-facade price)',
     cadence: 'on-demand',
-    cadenceNote: 'No independent scheduler or saved writes. Strict shared quotes validate walkable endpoint tiles, cache only complete directed results and preserve node exhaustion as pending; generator decor reservations and decorative building footprints do not obstruct walking. Workforce, education, relocation, bot preview and walker steering consume shared map-scoped route evidence. Policy owners retain their individual writes and scheduled cadence.',
+    cadenceNote: 'No independent scheduler or saved writes. Strict shared quotes validate walkable endpoint tiles, cache only complete directed results and preserve node exhaustion as pending; generator decor reservations and decorative building footprints do not obstruct walking. Workforce, education, relocation, bot preview and walker steering consume shared map-scoped route evidence. Building commute quotes use one validated representative point per facade to bound route pairs; walker approach and arrival still accept every accessible perimeter sample. Policy owners retain their individual writes and scheduled cadence.',
     writes: [],
     scheduledFrom: 'pathfinding.findRouteCostOutcome for valid tile endpoints; commuteReach.quoteCommute on demand',
     testFile: 'tests/navigation.sharedRoutes.test.ts, tests/commuteRouteEstimate.test.ts',
