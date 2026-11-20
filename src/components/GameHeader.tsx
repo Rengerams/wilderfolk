@@ -9,7 +9,7 @@ import { WEATHER_CONFIGS, WeatherType } from '../game/gameTypes';
 import { isNightHour, getHourOfDay, getWeekdayLabel, isWeekend, getAbsoluteCalendarDay, TICKS_PER_DAY } from '../game/dayCycle';
 import { displayYear } from '../game/dayCycleClock';
 import { DEFAULT_WORK_SCHEDULE, getWorkSchedule, getWorkScheduleLabel } from '../game/workSchedule';
-import { getEffectiveBedCapacity, getOpenPlayerBeds, getTotalBeds, resolvePopulationCap } from '../game/populationGrowth';
+import { getEffectiveBedCapacity, getOpenPlayerBeds, getTotalBeds, isAssignableHousingNearFull, isPopulationNearCap, resolvePopulationCap } from '../game/populationGrowth';
 import { isResourceCapped } from '../game/resourceUtils';
 import { formatSettlerName, getVillageLeader } from '../game/villageLeadership';
 import {
@@ -137,7 +137,7 @@ tutorialsEnabled,
   const beds = getTotalBeds(world);
   const effectiveBeds = getEffectiveBedCapacity(world);
   const openBeds = getOpenPlayerBeds(world);
-  const popNearCap = openBeds <= 1;
+  const capacityWarning = isPopulationNearCap(world) || isAssignableHousingNearFull(openBeds);
   const absoluteDay = getAbsoluteCalendarDay(world.tick);
   const workSchedule = getWorkSchedule(world);
   // The window that decides whether production happens at all was
@@ -318,7 +318,7 @@ tutorialsEnabled,
             onClick={onOpenCitizenOverview}
             disabled={!onOpenCitizenOverview}
             className={`flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[13px] ${
-              popNearCap ? 'bg-rose-900/40 text-rose-300' : 'bg-sky-900/40 text-sky-300'
+              capacityWarning ? 'bg-rose-900/40 text-rose-300' : 'bg-sky-900/40 text-sky-300'
             } hover:brightness-110 disabled:cursor-default`}
             /* The door names the subject window it opens, read from the one table that titles it, so
                a screen reader cannot hear the same name from two adjacent doors. */
