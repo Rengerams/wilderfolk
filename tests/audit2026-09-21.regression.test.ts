@@ -22,7 +22,8 @@ import {
   getVisitorTradeEligibility,
   getVisitorTradeTerms,
 } from '../src/game/groupEvents';
-import { getRaidChoiceEligibility, respondToRaidEvent } from '../src/game/frontierCombat';
+import { getRaidChoiceEligibility, queueRaidDefense, respondToRaidEvent, tickPendingRaidEvents } from '../src/game/frontierCombat';
+import { TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { REPUTATION_MAX, addReputation } from '../src/game/simHelpers';
 import { humanDisplayName } from '../src/game/citizenId';
 import { isMarriedOrExpecting } from '../src/game/relationships';
@@ -208,9 +209,19 @@ describe('the leader-honored announcement survives a maxed reputation', () => {
     return { world, eventId };
   }
 
+  /** Production defense is a six-hour scheduled battle, never an immediate choice resolution. */
+  function finishDefense(world: WorldState, eventId: string): WorldState {
+    const started = queueRaidDefense(world, eventId, 'defend');
+    const event = started.pendingRaidEvents.find((entry) => entry.id === eventId);
+    expect(event?.phase).toBe('fighting');
+    started.tick = (event?.battleStartedAtTick ?? started.tick) + 6 * TICKS_PER_HOUR;
+    tickPendingRaidEvents(started, started.entities);
+    return started;
+  }
+
   it('stores a once-only report for an actual resolved raid with named village losses', () => {
     const { world, eventId } = defendableWorld(50);
-    const after = respondToRaidEvent(world, eventId, 'defend');
+    const after = finishDefense(world, eventId);
     const report = after.raidBattleReports?.find((entry) => entry.raidId === eventId);
     expect(report).toBeDefined();
     expect(report?.side).toBe('defense');
@@ -227,11 +238,11 @@ describe('the leader-honored announcement survives a maxed reputation', () => {
 
   it('records serious defense as one leadership award while excluding trivial threats', () => {
     const { world, eventId } = defendableWorld(50);
-    const trivial = respondToRaidEvent(world, eventId, 'defend');
+    const trivial = finishDefense(world, eventId);
     expect(trivial.raidBattleReports?.[0]?.leadershipMerit).toBe(0);
     const serious = structuredClone(world);
     serious.pendingRaidEvents[0]!.attackerStrength = 10;
-    const outcome = respondToRaidEvent(serious, eventId, 'defend');
+    const outcome = finishDefense(serious, eventId);
     const report = outcome.raidBattleReports?.find((entry) => entry.raidId === eventId);
     expect(report).toBeDefined();
     expect(report?.leadershipMerit).toBeGreaterThanOrEqual(0);
@@ -239,7 +250,7 @@ describe('the leader-honored announcement survives a maxed reputation', () => {
 
   it('announces the leader when reputation still has room to rise', () => {
     const { world, eventId } = defendableWorld(REPUTATION_MAX - 5);
-    const after = respondToRaidEvent(world, eventId, 'defend');
+    const after = finishDefense(world, eventId);
 
     expect(after.villageReputation).toBeGreaterThan(REPUTATION_MAX - 5);
     // The positive control: with room below the cap the banner is expected. Without this the case
@@ -250,7 +261,7 @@ describe('the leader-honored announcement survives a maxed reputation', () => {
   it('announces the rise that reaches the cap', () => {
     // The full-bar case the old guard got right: 96 + 4 is a real rise, and the banner says so.
     const { world, eventId } = defendableWorld(REPUTATION_MAX - 4);
-    const after = respondToRaidEvent(world, eventId, 'defend');
+    const after = finishDefense(world, eventId);
 
     expect(after.villageReputation).toBe(REPUTATION_MAX);
     expect(after.bigNews.some((news) => news.title === '👑 Leader honored')).toBe(true);
@@ -260,7 +271,7 @@ describe('the leader-honored announcement survives a maxed reputation', () => {
     // `addReputation` clamps, so a victory at the cap grants 0; the banner promises "reputation
     // rises", so it is gated on the amount granted, not on the clamped total.
     const { world, eventId } = defendableWorld(REPUTATION_MAX);
-    const after = respondToRaidEvent(world, eventId, 'defend');
+    const after = finishDefense(world, eventId);
 
     expect(after.villageReputation).toBe(REPUTATION_MAX);
     // The victory itself still happens and is still logged; only the banner is withheld.
