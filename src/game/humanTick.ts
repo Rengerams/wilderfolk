@@ -822,8 +822,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         hasHospital: sleep.hasHospital,
         unheatedWinter: isWinter && !canHeat,
       });
-      if (resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds && !sleep.hasHospital) === 'eat') {
-        ateMeal = tryEatColonyMeal(entity, state, hourOfDay);
+      // Only the scheduled clock-hour pulse attempts a meal; the meal owner owns eligibility.
+      if (isStartOfClockHour(state.tick) && (!sleepingForNeeds || sleep.hasHospital)) {
+        ateMeal = tryEatColonyMeal(entity, state);
       }
       if (hasFatalStarvation(entity)) {
         killFromStarvation(entity, state, updatedBuildings, entityById);
@@ -985,7 +986,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // On-duty and emergency movement remain owned by their existing systems.
     const takingNeedsBreak = isPlayerHuman(entity) && !onJobShift &&
       !onOfficialShift && !onPriestShift && !schoolCommuteDue &&
-      resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds) === 'takeBreak';
+      resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds, false) === 'takeBreak';
 
     const commuteStartHour = isPrisonGuardAtPost ? prisonShiftStartHour : workSchedule.startHour;
     const commuteLeadHours = workplace
@@ -1507,7 +1508,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           suppressIdle = true;
 
           if (shouldLeadAffairPair(entity, paramour)) {
-            settlerPairChat(entity, paramour, 'affair', 0.18);
+            // Rare ambient speech, not a near-guaranteed affair bubble every eligible tick.
+            settlerPairChat(entity, paramour, 'affair', 0.01);
 
             const churchPenalty = churchStrength > 0 ? 0.72 + (1 - churchStrength) * 0.28 : 1;
             const affairRate = (churchStrength > 0 ? 5 : 8) * (state.festival?.active ? 1.4 : 1) * churchPenalty * PER_TICK_RATE_SCALE;

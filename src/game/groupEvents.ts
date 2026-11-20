@@ -28,7 +28,6 @@ import { getRandomSurname } from './nameLoader';
 import { maybeStartVisitorQuest } from './visitorQuest';
 import { logEvent } from './eventLog';
 import { getPlayerCampCenter } from './villageAnchor';
-import { clearFactionWanderState } from './factionWander';
 import { getRefugeeWelcomeBonus } from './townHall';
 import { addBigNews, addFloatingText, addNotification } from './simEffects';
 import { makeNextAliveDeer } from './rivalEvents';
@@ -409,7 +408,6 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[], ctx?: T
 
     if (group.daysLeft <= 0) {
       for (const id of group.entityIds) {
-        clearFactionWanderState(id);
         const ent = aliveById.get(id);
         if (ent?.faction === 'visitor') {
           ent.alive = false;
@@ -834,6 +832,7 @@ function admitRefugees(
       continue;
     }
     ent.faction = undefined;
+    ent.factionWander = undefined;
     ent.groupId = undefined;
     ent.occupation = 'settler';
     ent.job = JobType.Settler;

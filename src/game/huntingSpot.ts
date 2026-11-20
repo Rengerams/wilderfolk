@@ -58,6 +58,7 @@ export function huntingSpotPreyTypes(preyTarget: HuntingSpotPrey | undefined): E
   const types: EntityType[] = [];
   if (target === 'auto' || target === 'deer') types.push(EntityType.Deer);
   if (target === 'auto' || target === 'rabbit') types.push(EntityType.Rabbit);
+  if (target === 'auto' || target === 'fox') types.push(EntityType.Fox);
   if (target === 'auto' || target === 'wolf') types.push(EntityType.Wolf);
   return types;
 }

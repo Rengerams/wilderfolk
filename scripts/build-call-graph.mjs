@@ -237,7 +237,10 @@ export function findBodyBrace(code, from, startsInParams = false) {
       return i;
     }
     if (ch === ';' || ch === '}') return -1;
-    if (ch === '\n' && /^[^\S\n]*\n/.test(code.slice(i + 1, i + 80))) return -1;
+    // A blank line ends a declaration without a block body, but a stripped multi-line comment
+    // leaves blank lines inside an unfinished parameter list, where the body is still ahead.
+    if (ch === '\n' && depth === 0 && brackets === 0
+      && /^[^\S\n]*\n/.test(code.slice(i + 1, i + 80))) return -1;
   }
   return -1;
 }

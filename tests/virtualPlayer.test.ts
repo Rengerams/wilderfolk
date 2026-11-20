@@ -1177,10 +1177,10 @@ describe('virtual player remaining action surface', () => {
     expect(applied.buildings.find((b) => b.id === 5)?.mineMode).toBe('gold');
   });
 
-  it('digs iron when the colony is short of it, even with a low treasury', () => {
-    // Iron is the shortage even with a healthy treasury: the mine must dig iron, not gold.
+  it('digs iron when the treasury is healthy and the colony is short of iron', () => {
+    // Iron needs attention once the treasury is able to fund other operations.
     const world = tunableVillage({
-      resources: { wood: 500, stone: 500, food: 500, gold: 40, iron: 0 },
+      resources: { wood: 500, stone: 500, food: 500, gold: 120, iron: 0 },
     });
     world.buildings.find((b) => b.id === 5)!.mineMode = 'gold';
 
@@ -1191,6 +1191,15 @@ describe('virtual player remaining action surface', () => {
 
     const applied = applyWorkerCommand(world, decision.command);
     expect(applied.buildings.find((b) => b.id === 5)?.mineMode).toBe('iron');
+  });
+
+  it('restores the treasury even when iron is empty, rather than starving gold forever', () => {
+    const world = tunableVillage({
+      resources: { wood: 500, stone: 500, food: 500, gold: 0, iron: 0 },
+    });
+    expect(decideVirtualPlayerAction(world)?.command).toMatchObject({
+      op: 'setMineMode', buildingId: 5, mode: 'gold',
+    });
   });
 
   it('sends the Hunting Spot back to auto once food is healthy again', () => {

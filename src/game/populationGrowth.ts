@@ -194,6 +194,22 @@ export function getTotalBeds(state: WorldState): number {
   return snapshotPopulation(state).beds;
 }
 
+/** Bed places usable by the current colony: ordinary housing plus only the *occupied*
+ * Leader's House beds. The remaining manor beds are reserved, not immigration capacity.
+ */
+export function getEffectiveBedCapacity(state: WorldState): number {
+  const { beds, leaderHouseBeds } = snapshotPopulation(state);
+  if (leaderHouseBeds === 0) return beds;
+  const occupancy = buildResidenceOccupancy(state.entities ?? []);
+  let occupiedLeaderBeds = 0;
+  for (const building of state.buildings ?? []) {
+    if (isAssignableHome(building) && isLeaderHouseResidence(building)) {
+      occupiedLeaderBeds += occupancy.get(building.id) ?? 0;
+    }
+  }
+  return beds - leaderHouseBeds + occupiedLeaderBeds;
+}
+
 export function getLivePlayerPopulation(state: WorldState): number {
   return snapshotPopulation(state).pop;
 }

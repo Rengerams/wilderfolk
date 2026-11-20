@@ -2,7 +2,7 @@
  * The single owner of genetic identity: fourteen inherited aptitude dimensions, allocation,
  * inheritance, validation and the deterministic old-save backfill.
  */
-import { createSeededRng, getSimRng, randomInt, type RngStream } from './simRng';
+import { getSimRng, randomInt, type RngStream } from './simRng';
 import type { Entity } from './gameTypes';
 import { grantMark, rollBornMarks } from './personalMarks';
 import { PROFILE_REVISION, bumpRevision } from './entityRevision';
@@ -192,9 +192,11 @@ export function establishCitizenIdentity(person: Entity): void {
   for (const mark of rollBornMarks()) grantMark(person, mark.id, mark.day, mark.source);
 }
 
-/** Deterministic per-citizen backfill: stable for a save file and never draws from a live stream. */
-export function genomeFromSeed(colonySeed: number, entityId: number): GenomeV2 {
-  return drawGenome(createSeededRng(colonySeed, `settlerGenome:${entityId}`), BACKFILL_ALLELE_MIN, BACKFILL_ALLELE_MAX);
+/** Deterministic old-save backfill using the RNG owner's independent per-citizen stream.
+ * Genetics only draws alleles; it neither chooses a seed nor creates an RNG stream.
+ */
+export function backfillLegacyGenome(stream: RngStream): GenomeV2 {
+  return drawGenome(stream, BACKFILL_ALLELE_MIN, BACKFILL_ALLELE_MAX);
 }
 
 /** Validate an untrusted saved genome: version 2, exactly fourteen bounded pairs, no extra keys. */

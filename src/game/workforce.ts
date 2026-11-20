@@ -182,8 +182,8 @@ export function completedJobBuildings(
     });
 }
 
-/** Two 30-day in-game months. Existing saves with no timestamp stay eligible. */
-export const AUTO_JOB_TRANSFER_COOLDOWN_TICKS = 60 * TICKS_PER_DAY;
+/** Prevent job cycling for three in-game days after an actual transfer. Initial hiring is unrestricted. */
+export const AUTO_JOB_TRANSFER_COOLDOWN_TICKS = 3 * TICKS_PER_DAY;
 
 export function canAutoChangeWorkplace(human: Entity, currentTick?: number, foodEmergency = false): boolean {
   // A prisoner's post is reserved, not vacant: no automatic transfer may move it while they serve.
@@ -400,7 +400,7 @@ export function pickWorkerToTransfer(
  * Named assignment transition — assign ONE living adult settler to a completed workplace.
  * Single write path for `workerBuildingId`, workplace `occupants`, and `job`/`occupation` properties.
  */
-export function assignWorkerTransition(human: Entity, building: Building, currentTick?: number): boolean {
+export function assignWorkerTransition(human: Entity, building: Building): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
   if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE) return false;
@@ -414,7 +414,7 @@ export function assignWorkerTransition(human: Entity, building: Building, curren
   const keepOffice = human.occupation === LEADER_OCCUPATION;
   if (!alreadyListed) building.occupants.push(human.id);
   human.workerBuildingId = building.id;
-  if (currentTick != null) human.lastAutoJobTransferTick = currentTick;
+  // First employment is not a transfer: do not lock the new employee out of balancing.
   human.occupation = keepOffice ? LEADER_OCCUPATION : getOccupationForBuilding(building.type);
   human.job = job;
   ensureEntitySkills(human)[job] = readSkill(human, job);
@@ -648,7 +648,7 @@ function swapReachableWorkersIntoVacancies(
       transferWorkerBetweenBuildings(worker, donor, needy, currentTick);
       movedThisPass.add(worker.id);
       idle.splice(idle.indexOf(replacement), 1);
-      assignWorkerTransition(replacement, donor, currentTick);
+      assignWorkerTransition(replacement, donor);
       movedThisPass.add(replacement.id);
       index.counts.set(needy.id, (index.counts.get(needy.id) ?? 0) + 1);
       index.movable.set(donor.id, (index.movable.get(donor.id) ?? 0) - 1);
@@ -708,7 +708,6 @@ export function assignWorkerInPlace(
   building: Building,
   humans: Entity[],
   buildings: Building[],
-  venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'> & Partial<Pick<WorldState, 'tick'>>,
   constructionWorkerIds?: Set<number>,
   buildingById?: ReadonlyMap<number, Building>,
   workerCounts?: Map<number, number>,
@@ -777,7 +776,7 @@ export function assignWorkerInPlace(
   }
   if (!worker) return false;
 
-  const assigned = assignWorkerTransition(worker, building, venueSchedules?.tick);
+  const assigned = assignWorkerTransition(worker, building);
   if (assigned && workerCounts) workerCounts.set(building.id, workerCount + 1);
   return assigned;
 }
@@ -1023,10 +1022,10 @@ function staffJobsBeforeConstruction(
   for (const site of targets) {
     if (policy !== 'survival') {
       if ((workerCounts.get(site.id) ?? 0) > 0) continue;
-      assignWorkerInPlace(site, alive, buildings, world, constructionIds, buildingById, workerCounts);
+      assignWorkerInPlace(site, alive, buildings, constructionIds, buildingById, workerCounts);
       continue;
     }
-    while (assignWorkerInPlace(site, alive, buildings, world, constructionIds, buildingById, workerCounts)) {
+    while (assignWorkerInPlace(site, alive, buildings, constructionIds, buildingById, workerCounts)) {
       // Only unassigned, reachable adults; leave incumbent jobs untouched.
     }
   }
@@ -1057,7 +1056,7 @@ export function staffJobBuildings(
   const staffStart = profileStart();
   for (let i = 0; i < jobBuildings.length; i++) {
     const building = jobBuildings[i];
-    while (assignWorkerInPlace(building, alive, buildings, worldSlices, constructionWorkerIds, buildingById, workerCounts)) {
+    while (assignWorkerInPlace(building, alive, buildings, constructionWorkerIds, buildingById, workerCounts)) {
       // Fill job slots
     }
   }
@@ -1153,7 +1152,7 @@ export function assignMissingWorkers(
         site.completed && site.faction !== 'rival' && site.type === type
         && countActiveWorkersAtBuilding(alive, site.id) === 0,
       );
-      if (producer) assignWorkerInPlace(producer, alive, buildings, worldSlices, undefined, buildingById);
+      if (producer) assignWorkerInPlace(producer, alive, buildings, undefined, buildingById);
     }
   }
   // The preset's jobs get their hands before construction can take the whole idle pool.

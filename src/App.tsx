@@ -462,7 +462,7 @@ export default function App() {
     const loop = loopRef.current;
     if (!loop || loop.getWorld().spotlightLore?.phase === 'ready') return;
     loop.mutateWorld((w) => { w.paused = !w.paused; });
-    // Resuming only resumes; the labelled "Auto-assign all workers" control owns staffing.
+    // The scheduled workforce owner handles staffing independently of UI controls.
   }, [loopRef]);
 
   const spotlightReturnRef = useRef<{
@@ -2320,7 +2320,6 @@ export default function App() {
           tutorialsEnabled={tutorialsEnabled}
           onClose={closeCitizenOverview}
           onRecruitSettler={() => applyGameAction({ proto: 1, op: 'recruitSettler' })}
-          onAutoStaffAll={() => applyGameAction({ proto: 1, op: 'autoStaffWorkers' })}
           onFocusBuilding={focusBuildingOnMap}
           onFocusCitizen={focusCitizenOnMap}
           onToggleFavoriteCitizen={(id) => {

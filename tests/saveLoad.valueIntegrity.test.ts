@@ -164,6 +164,13 @@ describe('the id allocators are made safe to consume', () => {
     expect(Number.isSafeInteger(world.nextEntityId)).toBe(true);
   });
 
+  it('preserves the first building id when an empty colony is reloaded', () => {
+    const payload = realPayload();
+    payload.buildings = [];
+    payload.nextBuildingId = 0;
+    expect(buildWorld(payload)?.nextBuildingId).toBe(0);
+  });
+
   it('keeps the live building id floor without a rival building list', () => {
     const payload = realPayload();
     payload.nextBuildingId = 1;

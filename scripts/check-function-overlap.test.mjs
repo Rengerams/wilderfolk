@@ -53,8 +53,10 @@ test('unchanged legacy functions do not fail the incremental PR gate', () => {
 
 test('a multi-line signature is not mistaken for the function body', async () => {
   process.env.CALLGRAPH_LIB = '1';
-  const { extractDefinitions } = await import('./build-call-graph.mjs');
+  const { extractDefinitions, stripLiteralsAndComments } = await import('./build-call-graph.mjs');
   const defs = (source) => extractDefinitions(source, source, '/x.ts', []);
+  // The parser reads stripped code, where a block comment leaves whitespace-only lines behind.
+  const stripped = (source) => extractDefinitions(source, stripLiteralsAndComments(source), '/x.ts', []);
 
   // `): { x: number; y: number } | null {` — the return-type literal is not the body.
   const fn = defs([
@@ -89,4 +91,19 @@ test('a multi-line signature is not mistaken for the function body', async () =>
   ].join('\n'))[0];
   assert.equal(header.bodyStart, 42);
   assert.equal(header.bodyEnd, 44);
+
+  // A multi-line parameter comment is stripped to blank lines; the body is still ahead of them.
+  const commented = stripped([
+    'export function teach(',
+    '  state: WorldState,',
+    '  /**',
+    '   * Why this list is passed a second time in one pass.',
+    '   */',
+    '  people?: Entity[],',
+    '): void {',
+    '  return undefined;',
+    '}',
+  ].join('\n'))[0];
+  assert.equal(commented.bodyStart, 7);
+  assert.equal(commented.bodyEnd, 9);
 });

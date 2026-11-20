@@ -51,7 +51,6 @@ import { playerHumanCount } from './playerHuman';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { appointFoundingLeader } from './villageLeadership';
-import { clearAllFactionWanderStates } from './factionWander';
 import { createInitialForgeState } from './forge';
 import { getBuildingFootprint } from './buildingRotation';
 import { createEmptyLifetimeStats } from './stats';
@@ -572,7 +571,6 @@ export function createImmigrantSettler(
 // ============ GAME INITIALIZATION ============
 
 export function initGame(options: InitGameOptions = {}): WorldState {
-  clearAllFactionWanderStates();
   ensureNamesLoaded();
 
   const {

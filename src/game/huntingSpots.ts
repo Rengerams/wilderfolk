@@ -1,4 +1,4 @@
-export type HuntingSpotPrey = 'auto' | 'deer' | 'rabbit' | 'wolf';
+export type HuntingSpotPrey = 'auto' | 'deer' | 'rabbit' | 'fox' | 'wolf';
 
 export interface HuntingSpotPreyOption {
   readonly id: HuntingSpotPrey;
@@ -10,9 +10,10 @@ export interface HuntingSpotPreyOption {
 export const DEFAULT_HUNTING_SPOT_PREY: HuntingSpotPrey = 'auto';
 
 export const HUNTING_SPOT_PREY_OPTIONS: readonly HuntingSpotPreyOption[] = [
-  { id: 'auto', label: 'Auto', emoji: '🎯', hint: 'Nearest deer, rabbit, or wolf' },
+  { id: 'auto', label: 'Auto', emoji: '🎯', hint: 'Nearest deer, rabbit, fox, or wolf' },
   { id: 'deer', label: 'Deer', emoji: '🦌', hint: 'Biggest carcass — most meat' },
   { id: 'rabbit', label: 'Rabbit', emoji: '🐰', hint: 'Fast snack — small but safe' },
+  { id: 'fox', label: 'Fox', emoji: '🦊', hint: 'Small predator — hunt for meat' },
   { id: 'wolf', label: 'Wolf', emoji: '🐺', hint: 'Risky — wolves fight back' },
 ] as const;
 
@@ -21,7 +22,8 @@ const PREY_OPTIONS_MAP: Readonly<Record<HuntingSpotPrey, HuntingSpotPreyOption>>
   auto: HUNTING_SPOT_PREY_OPTIONS[0],
   deer: HUNTING_SPOT_PREY_OPTIONS[1],
   rabbit: HUNTING_SPOT_PREY_OPTIONS[2],
-  wolf: HUNTING_SPOT_PREY_OPTIONS[3],
+  fox: HUNTING_SPOT_PREY_OPTIONS[3],
+  wolf: HUNTING_SPOT_PREY_OPTIONS[4],
 };
 
 /** Retrieves UI option details for a given prey selection. */

@@ -33,7 +33,7 @@ import {
 } from './workforce';
 import { getWorkforcePolicy } from './workforcePolicy';
 import { readSkill } from './skills';
-import { getOpenPlayerBeds } from './populationGrowth';
+import { getEffectiveBedCapacity, getOpenPlayerBeds, getLivePlayerPopulation } from './populationGrowth';
 import { canHostTownFestival } from './townHall';
 import { findCompletedBuilding } from './buildings';
 import { canStartResearch } from './research';
@@ -454,7 +454,7 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
     command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type, x: spot.x, y: spot.y, rotation: 0 },
     reason: homeless > 0
       ? `build a House — ${homeless} settler${homeless === 1 ? '' : 's'} homeless`
-      : `build a House — ${openBeds} spare bed${openBeds === 1 ? '' : 's'} left for ${adultSettlerCount(state)} settlers`,
+      : `build a House — ${getLivePlayerPopulation(state)}/${getEffectiveBedCapacity(state)} housed, ${openBeds} spare bed${openBeds === 1 ? '' : 's'} (the reserve target is higher)`,
   };
 }
 
@@ -996,16 +996,16 @@ function decideBuildingTuning(state: WorldState): VirtualPlayerDecision | null {
     if (building.type === BuildingType.Mine) {
       const iron = state.resources.iron ?? 0;
       const gold = state.resources.gold ?? 0;
-      // Iron is the one resource only the Mine produces, so an iron shortage outranks the treasury
-      // rule: both thresholds are the colony's shortage lines, shared with the industry step.
+      // A treasury shortage must not be indefinitely shadowed by an empty iron shelf.
+      // Mine gold until the treasury reserve is restored, then meet iron demand.
       let desired: MineMode;
       let reason: string;
-      if (iron < LOW_IRON_STOCK) {
-        desired = 'iron';
-        reason = `mine iron — only ${Math.floor(iron)} iron in store`;
-      } else if (gold < VirtualPlayer.MINE_GOLD_TREASURY_GOLD) {
+      if (gold < VirtualPlayer.MINE_GOLD_TREASURY_GOLD) {
         desired = 'gold';
         reason = `mine gold — only ${Math.floor(gold)} gold in the treasury`;
+      } else if (iron < LOW_IRON_STOCK) {
+        desired = 'iron';
+        reason = `mine iron — only ${Math.floor(iron)} iron in store`;
       } else {
         desired = 'iron';
         reason = 'mine iron — the treasury can spare the gold seam';
@@ -1903,7 +1903,7 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
     if (isUnderConstruction(state, BuildingType.House) || isUnderConstruction(state, BuildingType.Mansion)) {
       return `${openBeds} spare bed${openBeds === 1 ? '' : 's'} left — the next House is still going up`;
     }
-    return `${openBeds} spare bed${openBeds === 1 ? '' : 's'} for ${adultSettlerCount(state)} settlers — ${buildingBlockReason(state, BuildingType.House)}`;
+    return `${getLivePlayerPopulation(state)}/${getEffectiveBedCapacity(state)} housed · ${openBeds} spare bed${openBeds === 1 ? '' : 's'} available — ${buildingBlockReason(state, BuildingType.House)}`;
   }
 
   const buildingNow = INDUSTRY_BUILD_ORDER

@@ -262,7 +262,7 @@ describe('worker hand-off state', () => {
     expect(withoutGrid.state).toBe(withGrid.state);
   });
 
-  it('clears the previous session faction-wander state on a worker session reset', async () => {
+  it('initializes a fresh wander plan when another colony reuses a rival ID', async () => {
     resetSimRng();
     const world = smallWorld(SEED + 1);
     adoptSimSeedFromWorld(world);
@@ -271,7 +271,7 @@ describe('worker hand-off state', () => {
     world.visitorGroups = [];
     world.tick = 0;
 
-    // Populate the module-level wander state for this id (ensureWanderState draws and stores a target).
+    // The first tick chooses a target for a legacy or newly spawned actor.
     tickFactionCampWander(world, rival, 500, 500, [], 2);
     const populated = streamState('factionWander');
     expect(populated).toBeDefined();
@@ -296,6 +296,46 @@ describe('worker hand-off state', () => {
       streamState('factionWander'),
       'a reused visitor/rival id must re-plan instead of inheriting the old camp target',
     ).not.toBe(populated);
+  });
+
+  it('resumes a saved camp walk with the same movement and random stream across a worker upload', async () => {
+    const world = initGame({ seed: SEED, width: 1024, height: 768, skipTerrain: true });
+    const visitor = human(910000, { faction: 'visitor', groupId: 'camp', x: 100, y: 100 });
+    world.entities = [visitor];
+    world.visitorGroups = [{
+      id: 'camp', name: 'Surveyors', kind: 'scholars', campX: 500, campY: 500, daysLeft: 3,
+      entityIds: [visitor.id], giftsGiven: 0, tradesCompleted: 0, refugeeResolved: true, leaderTalked: false,
+    }];
+    tickFactionCampWander(world, visitor, 500, 500, [], 2);
+    const cursor = streamState('factionWander');
+    const plan = visitor.factionWander!;
+    world.tick = plan.idleUntilTick + 1;
+    const loaded = tinyLoad(world);
+    expect(loaded.entities[0].factionWander).toEqual(plan);
+    loaded.simRng = snapshotSimRng(); // Full-world uploads carry the loading realm's restored cursor.
+
+    tickFactionCampWander(world, visitor, 500, 500, [], 2);
+    expect(visitor.x).toBeGreaterThan(100);
+    expect(streamState('factionWander')).toBe(cursor);
+    posted.length = 0;
+    await send({ type: 'init', proto: WORKER_PROTO, world: structuredClone(loaded), features: [], headless: true });
+    await send({ type: 'exportSave', proto: WORKER_PROTO });
+    const exported = posted.find((msg) => msg.type === 'exportSaveResult');
+    if (exported?.type !== 'exportSaveResult') throw new Error('missing worker export');
+    const resumed = exported.world.entities[0];
+    tickFactionCampWander(exported.world, resumed, 500, 500, [], 2);
+    expect([resumed.x, resumed.y, resumed.factionWander]).toEqual([visitor.x, visitor.y, plan]);
+    expect(streamState('factionWander')).toBe(cursor);
+
+    // Reaching the target changes the plan. An earlier rollback snapshot must still hold the old plan.
+    resumed.x = plan.targetX;
+    resumed.y = plan.targetY;
+    const backup = extractSimPrep(exported.world);
+    tickFactionCampWander(exported.world, resumed, 500, 500, [], 2);
+    expect(resumed.factionWander).not.toEqual(plan);
+    applySimPrep(exported.world, backup);
+    expect(exported.world.entities[0].factionWander).toEqual(plan);
+    expect(streamState('factionWander')).toBe(cursor);
   });
 
   it('adopts a simulation pause on the tick result without letting a stale result resume it', async () => {
