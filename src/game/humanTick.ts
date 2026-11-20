@@ -772,7 +772,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const inFocus = !focus || isInFocus(entity, focus);
     // An off-screen employee must leave the interior at shift end immediately, not wait
     // up to a full decision-throttle interval before appearing outside again.
-    const leavingWork = previousIndoorBuildingId === workplace?.id
+    const leavingWork = workplace != null && previousIndoorBuildingId === workplace.id
       && !onJobShift && !onOfficialShift && !onPriestShift;
     const active =
       !isPrisoner &&
