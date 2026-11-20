@@ -687,14 +687,19 @@ function classify(finding: Finding): string {
   if (finding.key === 'simRng') {
     return 'benign: host-owned RNG snapshot — the display world is strictly richer';
   }
-  if (finding.key === 'entities' && finding.section.includes('delta')) {
+  // Only a whole-value compare may be explained away as property presence; a set mismatch or a lost
+  // log entry is data loss and must stay UNEXPLAINED.
+  if (finding.kind === 'entity-set-mismatch' || finding.kind === 'entries-changed') {
+    return 'UNEXPLAINED';
+  }
+  if (finding.key === 'entities' && finding.kind === 'different' && finding.section.includes('delta')) {
     return 'benign: property presence only — no entity field value differs';
   }
-  if (finding.key === 'entities' && finding.section.startsWith('prep')) {
+  if (finding.key === 'entities' && finding.kind === 'different' && finding.section.startsWith('prep')) {
     return 'benign: property presence only — prep materializes optional keys as undefined';
   }
   if (
-    finding.section.startsWith('save') &&
+    finding.section.startsWith('save') && finding.kind === 'changed-on-load' &&
     ['paused', 'tradeRoutes', 'tutorialSeen', 'entities', 'eventLog'].includes(finding.key)
   ) {
     return 'benign: documented load-time normalization (starts paused, route merge, tutorial seed, migrateHumanAges)';
@@ -703,12 +708,12 @@ function classify(finding: Finding): string {
     return 'benign: load-time allocator repair — floorIdAllocators lifts the unset (0) building counter to one past the highest building id, so a consumed id can never be handed out twice';
   }
   if (
-    finding.section.startsWith('save') &&
+    finding.section.startsWith('save') && finding.kind === 'different-fields' &&
     ['entity.birthDay', 'entity.birthMonth'].includes(finding.key)
   ) {
     return 'benign: migrateHumanAges backfills the calendar birth date the worker left at 0 (age and every persisted field survive)';
   }
-  if (finding.section === 'host-writers') {
+  if (finding.section === 'host-writers' && finding.key === 'world.notifications') {
     return 'observation: host-side presentation cleanup; the durable dismissal travels via patchUi.dismissedNotificationIds';
   }
   return 'UNEXPLAINED';
