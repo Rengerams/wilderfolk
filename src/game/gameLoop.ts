@@ -17,7 +17,6 @@ import { resetLogisticsOverlayCache } from './logisticsOverlayData';
 import { patchCatalogKinematicsFromRenderSoA } from './simBuffers/applyKinematics';
 import type { EntityRenderMeta } from './simBuffers/entityRenderMeta';
 import type { RenderSoAReaderV1 } from './simBuffers/renderSoAReader';
-import { clearAllFactionWanderStates } from './factionWander';
 import { retainDialogueSessionsForWorld } from './humanChat';
 import { GameWorkerHost, isGameWorkerEnabled, type WorkerUiPatch } from './simWorker/GameWorkerHost';
 import { applySimPrep, extractSimPrep } from './simWorker/simPrep';
@@ -615,6 +614,14 @@ export class GameLoop {
     return this.world;
   }
 
+  /** Last acknowledged colony available synchronously while the document is closing. */
+  getExitSaveWorld(): WorldState | null {
+    if (this.workerBooting || this.workerRecoveryInFlight || this.workerRecoveryTimer !== null) return null;
+    if (this.isUsingSimWorker()) return this.workerHost?.getAuthoritativeWorld() ?? null;
+    if (this.optimisticCommands.length || this.deferredWorkerCommands.length) return null;
+    return this.world;
+  }
+
   lastExportWasDegraded(): boolean {
     return this.exportDegraded;
   }
@@ -638,7 +645,6 @@ export class GameLoop {
       this.workerBooting = true;
     }
 
-    clearAllFactionWanderStates();
     resetRendererCaches();
     retainDialogueSessionsForWorld(world);
 
@@ -985,7 +991,6 @@ export class GameLoop {
       this.rafId = 0;
     }
 
-    clearAllFactionWanderStates();
     this.workerHost?.dispose();
     this.workerHost = null;
     this.workerEnabled = false;

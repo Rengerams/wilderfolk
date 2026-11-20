@@ -41,6 +41,7 @@ type PersistenceLoop = Pick<
 > & {
   /** Optional so a test double that only exports a world still satisfies the contract. */
   lastExportWasDegraded?: () => boolean;
+  getExitSaveWorld?: () => WorldState | null;
   /** Optional so a test double need not model worker mode. */
   isUsingSimWorker?: () => boolean;
 };
@@ -48,7 +49,7 @@ type PersistenceLoop = Pick<
 /** What a page-exit write managed to persist, and whether it was the authoritative world. */
 export interface PageHideSaveOutcome {
   written: boolean;
-  /** False when a worker owned the newest state, so only the main-thread shadow could be written. */
+  /** A live worker may have advanced beyond the last acknowledged checkpoint. */
   authoritative: boolean;
 }
 
@@ -130,7 +131,7 @@ export function waitForPendingSave(): Promise<void> {
 
 /**
  * Synchronous page-exit write. A worker export cannot complete before the page dies, so this uses
- * the loop's current world and reports that write as best-effort when a worker owns the newest state.
+ * the last acknowledged world and reports that write as best-effort when a worker owns the newest state.
  */
 export function persistGameOnPageHide(
   accessors: GamePersistenceAccessors,
@@ -141,10 +142,13 @@ export function persistGameOnPageHide(
   }
   const view = loop.getView();
   if (!view) return { written: false, authoritative: true };
-  const result = saveGameToSlot(loop.getWorld(), view);
+  const workerOwnsWorld = loop.isUsingSimWorker?.() ?? false;
+  const world = loop.getExitSaveWorld ? loop.getExitSaveWorld() : workerOwnsWorld ? null : loop.getWorld();
+  if (!world) return { written: false, authoritative: false };
+  const result = saveGameToSlot(world, view);
   return {
     written: result.success,
-    authoritative: result.success && !(loop.isUsingSimWorker?.() ?? false),
+    authoritative: result.success && !workerOwnsWorld,
   };
 }
 
@@ -302,7 +306,7 @@ export function useGamePersistence({
       if (pageHideSaveWrittenRef.current) return;
       const outcome = persistGameOnPageHide(persistenceAccessors);
       // Only a completed, authoritative write may suppress the later session-stop save. A worker
-      // replica write is best-effort and must let the authoritative export still run.
+      // checkpoint can lag behind the worker, so an authoritative export may still run.
       pageHideSaveWrittenRef.current = outcome.written && outcome.authoritative;
     };
     window.addEventListener('pagehide', onPageLifecycle);

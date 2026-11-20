@@ -2,7 +2,7 @@
  * One village anchor per tick: `tickHumans` hoists the building half (`getPlayerCampCenterFromBuildings`)
  * because `updatedBuildings` cannot change during the loop, but re-reads the settler half each time.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, MapSize, Season, emptyEntityByType } from '../src/game/gameTypes';
 import type { Building, Entity, RivalSettlement, VisitorGroup, WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
@@ -12,7 +12,6 @@ import {
   getPlayerCampCenterFromBuildings,
   getPlayerSettlerCenter,
 } from '../src/game/frontierCombat';
-import { clearAllFactionWanderStates } from '../src/game/factionWander';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import { getCalendarDay, getColonyDay, setHumanBirthFromAge, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -234,14 +233,7 @@ function simContext(state: WorldState, humans: Entity[]): TickContext {
   };
 }
 
-// `factionWander` keeps its visitor wander state in a module-level Map, so two runs in one process
-// would otherwise inherit each other's targets.
-beforeEach(() => {
-  clearAllFactionWanderStates();
-});
-
 function runTick(fixture: Fixture): void {
-  clearAllFactionWanderStates();
   tickHumans(fixture.world, simContext(fixture.world, fixture.world.entities));
 }
 

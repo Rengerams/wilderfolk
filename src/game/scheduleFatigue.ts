@@ -144,7 +144,7 @@ export function getWorkdayAttendance(
     return { ticks, siteId: ticks > 0 ? worker.schedulePresentSiteIdToday : undefined };
   }
   return {
-    ticks: (worker.scheduleLastWorkedHours ?? 0) * TICKS_PER_HOUR,
+    ticks: getScheduleLastWorkedHours(worker) * TICKS_PER_HOUR,
     siteId: worker.scheduleLastWorkedSiteId,
   };
 }

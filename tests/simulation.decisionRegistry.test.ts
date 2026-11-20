@@ -51,7 +51,7 @@ const REQUIRED_DECISIONS = [
   'villageRequests',
   'inventionFair',
   'authoredStoryExpiry',
-  'visitorLifecycle',
+  'visitorLifecycle', 'factionWander',
   'idleSkillDecay',
   'socialFeedback',
   'dialogueContent',

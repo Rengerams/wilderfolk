@@ -148,13 +148,7 @@ const config: KnipConfig = {
     'src/game/worldGen.ts': ['exports'], // [A] generateWorldMap, finalizeSettlerAge (2)
     'src/test/factories.ts': ['exports'], // [B] stubHuman (1) — test-factory surface
   },
-  /**
-   * `tw-animate-css` is consumed from CSS (`src/index.css`), which knip's JS/TS follower cannot see,
-   * and removing it breaks the build. `tailwindcss` itself is *not* listed: it is not a direct
-   * dependency here (the build uses `@tailwindcss/vite`), and knip correctly says so.
-   */
   ignoreDependencies: [
-    'tw-animate-css',
     // CLIs invoked by name from scripts/test.mjs; knip cannot follow the shell strings.
     'jscpd',
     'oxlint',

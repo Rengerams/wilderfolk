@@ -60,7 +60,7 @@ export const ENTITY_PERSISTED_FIELDS = [
   'genomeV2',
   'marks',
   'skills', 'needs', 'careerHistory', 'careerMilestones', 'dialogueRecentScenes', 'dialogueRecentLines',
-  'formerSpouseId',
+  'formerSpouseId', 'factionWander',
   'scheduleWorkedTicksToday', 'schedulePresentTicksToday', 'schedulePresentSiteIdToday', 'scheduleLastWorkedHours',
   'scheduleWorkedSiteIdToday', 'scheduleLastWorkedSiteId',
   'scheduleWorkedJobToday', 'scheduleLastWorkedJob',

@@ -264,6 +264,18 @@ export interface MoonHowlerSavedState {
   combatTicks?: number;
 }
 
+export const FACTION_WANDER_PHASES = ['idle_camp', 'walk_poi', 'loiter_poi', 'return_camp', 'wander_edge'] as const;
+export type VisitPhase = typeof FACTION_WANDER_PHASES[number];
+
+export interface FactionWanderState {
+  readonly targetX: number;
+  readonly targetY: number;
+  readonly idleUntilTick: number;
+  readonly phase: VisitPhase;
+  /** Optional chat / flavor when arriving at a POI */
+  readonly poiLabel?: string;
+}
+
 export interface Entity {
   id: number;
   type: EntityType;
@@ -398,6 +410,7 @@ export interface Entity {
   hiddenFromPlayer?: boolean;
   detectedByPatrol?: boolean;
   groupId?: string;
+  factionWander?: FactionWanderState;
   hotelStayBuildingId?: number;
   hotelStayUntilTick?: number;
   huntTargetId?: number;

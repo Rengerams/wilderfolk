@@ -42,15 +42,17 @@ describe('leaving a colony persists and resets its session', () => {
     vi.restoreAllMocks();
   });
 
-  it('the pagehide write uses the loop world and marks a worker-owned snapshot best-effort', () => {
+  it('pagehide saves the acknowledged worker world while a command preview is visible', () => {
     const world = initGame({ skipTerrain: true, villageName: 'Page exit' });
     const view = createInitialView(world.width, world.height);
     saveGameToSlotMock.mockReturnValue({ success: true });
 
+    const preview = { ...world, villageName: 'Unconfirmed' };
     const makeLoop = (usingWorker: boolean) => ({
       exportAuthoritativeWorld: async () => world,
       getView: () => view,
-      getWorld: () => world,
+      getWorld: () => usingWorker ? preview : world,
+      getExitSaveWorld: () => world,
       isUsingSimWorker: () => usingWorker,
       mutateWorld: (mutator: (w: WorldState) => void) => mutator(world),
     });

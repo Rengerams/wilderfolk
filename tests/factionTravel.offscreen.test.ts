@@ -2,7 +2,7 @@
  * S-06 residual: faction travel is throttled decisions, not throttled movement. A rival marching to
  * the village or wandering back to its camp must cover the same ground off camera as on camera.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   BuildingType,
   EntityType,
@@ -12,7 +12,6 @@ import {
 import type { Building, Entity, RaidEvent, RivalSettlement, WorldState } from '../src/game/gameTypes';
 import type { SimulationFocus } from '../src/game/simFocus';
 import { gameTick } from '../src/game/gameTick';
-import { clearAllFactionWanderStates } from '../src/game/factionWander';
 import { TICKS_PER_DAY, getCalendarDay } from '../src/game/dayCycle';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { rebuildEntityByIdMap } from '../src/game/entityIndex';
@@ -128,7 +127,6 @@ function rivalWorld(x: number, withRaid: boolean): { state: WorldState; actor: E
 function run(focus: SimulationFocus, ticks: number, build: () => { state: WorldState; actor: Entity }): {
   dx: number; dy: number; actor: Entity; state: WorldState;
 } {
-  clearAllFactionWanderStates();
   resetSimRng();
   setSimSeed(FIXTURE_SEED);
   const { state, actor } = build();
@@ -137,13 +135,8 @@ function run(focus: SimulationFocus, ticks: number, build: () => { state: WorldS
   return { dx: actor.x - start.x, dy: actor.y - start.y, actor, state };
 }
 
-beforeEach(() => {
-  clearAllFactionWanderStates();
-});
-
 afterEach(() => {
   resetSimRng();
-  clearAllFactionWanderStates();
 });
 
 /** A checked-in visitor walking from the camp to the hotel door. */
