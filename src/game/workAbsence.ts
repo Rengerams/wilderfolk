@@ -28,7 +28,6 @@ import { isRestingHospitalPatient, medicalCareReason } from './hospitalCare';
 import { isPregnancyHospitalPriority, isStaffedHospital } from './humanHospitalBehavior';
 import { isHospitalDoctorOnShift, isHospitalDoctorCommuteTime } from './hospitalShifts';
 import { isSettlerLodgingAtHotel } from './hotelStay';
-import { canEatColonyMeal } from './simulation/humanNeeds';
 import { commuteDistanceToBuilding, isWalkingToward } from './simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { getRouteObstruction } from './pathfinding';
@@ -222,7 +221,8 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
   }
   if (hospitalPriority) return { code: 'going-to-hospital', label: 'Going to hospital' };
 
-  if (canEatColonyMeal(state, entity, hour)) return { code: 'eating', label: 'Eating' };
+  // Report an observed meal, not eligibility to eat at a future scheduler pulse.
+  if (entity.needs?.lastMealTick === state.tick) return { code: 'eating', label: 'Eating' };
   // The hospital roster owns commute duty, including the hour before midnight.
   if (!doctorCommuteDue && (isAsleepAtHome(entity, buildings, hour)
       || isSettlerLodgingAtHotel(entity, buildings, hour))) {

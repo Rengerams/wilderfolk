@@ -36,6 +36,7 @@ import { isActiveMoonHowler } from './moonHowler';
 import { logDeath, logEvent } from './eventLog';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { clampToMapBounds } from './mapBounds';
+import { isWalkStepAllowed } from './pathfinding';
 import { deterministicCos, deterministicSin } from './simTrig';
 import {
   buildGrassPopulationSnapshot,
@@ -675,6 +676,17 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         }
       }
 
+      // Wildlife respects the same obstacle grid as humans. Slide along a reachable axis rather
+      // than running through buildings; chase and wander owners may choose a new heading next pulse.
+      const nextX = entity.x + entity.vx;
+      const nextY = entity.y + entity.vy;
+      if (!isWalkStepAllowed(entity.x, entity.y, nextX, nextY)) {
+        const xFree = isWalkStepAllowed(entity.x, entity.y, nextX, entity.y);
+        const yFree = isWalkStepAllowed(entity.x, entity.y, entity.x, nextY);
+        if (xFree && (!yFree || Math.abs(entity.vx) >= Math.abs(entity.vy))) entity.vy = 0;
+        else if (yFree) entity.vx = 0;
+        else { entity.vx = 0; entity.vy = 0; }
+      }
       entity.x += entity.vx;
       entity.y += entity.vy;
 

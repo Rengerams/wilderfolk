@@ -153,9 +153,6 @@ export interface VillageTabPanelProps {
   villageStats: VillageStatsSummary;
   favoriteEntityId?: number | null;
   onRecruitSettler: () => void;
-  /** Village-wide staffing action. Deliberately here rather than in the building panel: the
-   *  per-building fill/auto-fill belongs on that building, and "assign all" is a village decision. */
-  onAutoStaffAll: () => void;
   onFocusBuilding: (buildingId: number, cx: number, cy: number) => void;
   onFocusCitizen: (entity: Entity) => void;
   onToggleFavoriteCitizen?: (entityId: number) => void;
@@ -170,7 +167,6 @@ export default function VillageTabPanel({
   villageStats,
   favoriteEntityId,
   onRecruitSettler,
-  onAutoStaffAll,
   onFocusBuilding,
   onFocusCitizen,
   onToggleFavoriteCitizen,
@@ -260,7 +256,7 @@ export default function VillageTabPanel({
           <div>
             <div className="flex items-end justify-between gap-1">
               <p className="text-2xl font-black leading-none text-sky-300">
-                {villageStats.beds}
+                {villageStats.effectiveBeds}
                 <span className="text-sm font-bold text-stone-400"> beds</span>
               </p>
               <p className="text-[13px] text-stone-300" title="Empty housing slots for assignment">
@@ -269,19 +265,10 @@ export default function VillageTabPanel({
             </div>
             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-600">
               <div className="h-full rounded-full bg-sky-500 transition-all"
-                style={{ width: `${resourceFillPercent({ amount: villageStats.total, cap: villageStats.beds })}%` }} />
+                style={{ width: `${resourceFillPercent({ amount: villageStats.total, cap: villageStats.effectiveBeds })}%` }} />
             </div>
           </div>
         </div>
-        {/* No count in the label: the staffing owner decides who is assignable,
-            so this view never recomputes an "idle" total. */}
-        <button
-          type="button"
-          onClick={onAutoStaffAll}
-          className="mb-2 w-full rounded bg-sky-800/60 px-2 py-1.5 text-[13px] font-bold text-sky-100 transition-colors hover:bg-sky-700/70"
-        >
-          ⚒️ Auto-assign all workers
-        </button>
         <CollapsibleSection
           title="Details"
           defaultOpen={false}

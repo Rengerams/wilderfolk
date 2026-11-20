@@ -65,9 +65,9 @@ export function isDialogueBusy(entity: Pick<ChatSpeaker, 'chatTicks' | 'chatDial
   return (entity.chatTicks ?? 0) > 0 || entity.chatDialogueSessionKey != null;
 }
 
-/** A spoken tree line remains visible for roughly 2.5–5 game hours. */
-export const DIALOGUE_LINE_BASE_HOURS = 2.5;
-export const DIALOGUE_LINE_CHAR_HOURS = 0.08;
+/** Spoken chat is brief; it must not monopolize a citizen's social scene for half a day. */
+export const DIALOGUE_LINE_BASE_HOURS = 0.25;
+export const DIALOGUE_LINE_CHAR_HOURS = 0.015;
 export const CHAT_BUBBLE_MAX_CHARS_PER_LINE = 38;
 export const CHAT_BUBBLE_MAX_LINES = 3;
 
@@ -156,7 +156,7 @@ export function formatChatLine(line: string, speaker?: Pick<ChatSpeaker, 'name'>
 
 export function ticksForDialogueLine(text: string): number {
   const durationHours = DIALOGUE_LINE_BASE_HOURS + text.length * DIALOGUE_LINE_CHAR_HOURS;
-  return Math.max(TICKS_PER_HOUR, Math.round(durationHours * TICKS_PER_HOUR));
+  return Math.max(4, Math.round(durationHours * TICKS_PER_HOUR));
 }
 
 function sessionKeyFor(aId: number, bId: number): string {

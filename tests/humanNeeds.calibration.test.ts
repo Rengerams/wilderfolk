@@ -28,7 +28,7 @@ function runNeedsScenario(days: number, scenario: Scenario) {
       : scenario === 'night' ? hour >= 22 || hour < 7 : false;
     observedWorkHours += working ? 1 / TICKS_PER_HOUR : 0;
     advanceHumanNeeds(e, { tick, sleeping, working, moving: false });
-    if (!sleeping && tick % TICKS_PER_HOUR === 0) tryEatColonyMeal(e, state, hour);
+    if (!sleeping && tick % TICKS_PER_HOUR === 0) tryEatColonyMeal(e, state);
     if (hasFatalStarvation(e) && firstFatalTick === undefined) firstFatalTick = tick;
   }
   return { needs: e.needs!, foodEaten: initialFood - state.resources.food,

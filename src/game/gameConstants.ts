@@ -111,7 +111,7 @@ export const VirtualPlayer = {
   REPAIR_HEALTH_RATIO: 0.8,
   /**
    * 80 = below this treasury the Mine switches to the gold seam; above it, iron
-   * (the forge always needs iron more than coin).
+   * so it can pay for actions that replenish the production chain.
    */
   MINE_GOLD_TREASURY_GOLD: 80,
   /**

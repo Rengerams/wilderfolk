@@ -89,11 +89,13 @@ GameLoop / Worker -> gameTick -> humanTick (every player human)
   -> advanceHumanNeeds(entity, observation)
        update reserves and time-based hunger/recovery state exactly once
        project energy = maxEnergy * stamina / 100
-  -> resolveHumanNeedsIntent [read-only]
-       eat -> humanNeeds.tryEatColonyMeal
-              -> economyLedger.spendFood('meals')
-              -> creditHumanNutritionFromFood(actualAmount)
-       sleep/break -> pre-existing schedule, movement and leisure owners
+  -> humanTick isStartOfClockHour [sole meal scheduler]
+       if awake -> humanNeeds.tryEatColonyMeal
+         -> canEatColonyMeal -> resolveHumanNeedsIntent (hunger and cooldown only)
+         -> economyLedger.spendFood('meals')
+         -> creditHumanNutritionFromFood(actualAmount)
+  -> resolveHumanNeedsIntent (meal disallowed) -> pre-existing break owners
+  -> workAbsence reads lastMealTick == current tick to display actual eating
   -> hasFatalStarvation -> killFromStarvation through death cleanup
   -> other behavior / off-screen throttle / worker-render projections
 ```

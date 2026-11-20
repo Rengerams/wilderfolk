@@ -189,12 +189,11 @@ export function rebaseHumanNeedsClockAfterFormRestore(entity: Entity, tick?: num
 
 export type HumanNeedsIntent = 'eat' | 'sleep' | 'takeBreak' | 'continueActivity';
 
-export function resolveHumanNeedsIntent(entity: Entity, tick: number, sleeping: boolean): HumanNeedsIntent {
+export function resolveHumanNeedsIntent(entity: Entity, tick: number, sleeping: boolean, allowMeal = true): HumanNeedsIntent {
   if (sleeping || !entity.needs) return 'continueActivity';
   const needs = entity.needs;
-  // Meal eligibility is hourly; on intervening ticks a hungry settler may
-  // still respond to exhaustion instead of postponing breaks indefinitely.
-  if (tick % TICKS_PER_HOUR === 0 && needs.nutrition < HUMAN_NEEDS.EAT_ENTER_NUTRITION &&
+  // The caller/scheduler owns meal timing; this owner decides nutrition need and cooldown.
+  if (allowMeal && needs.nutrition < HUMAN_NEEDS.EAT_ENTER_NUTRITION &&
       (needs.lastMealTick == null ||
        tick - needs.lastMealTick >= HUMAN_NEEDS.EAT_COOLDOWN_SIM_HOURS * TICKS_PER_HOUR)) return 'eat';
   if (needs.rest < HUMAN_NEEDS.REST_CRITICAL || (needs.sleepRecoveryUntilTick ?? 0) > tick) return 'sleep';

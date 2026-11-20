@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { createBuilding } from '../src/game/worldGen';
-import { autoStaffAllWorkers } from '../src/game/buildingStaffingActions';
+import { assignMissingWorkers } from '../src/game/workforce';
 import { setBuildingStaffingMode } from '../src/game/buildingConfigurationActions';
 import { human, building } from '../src/test/factories';
 import { isWorkerCommand, WORKER_CMD_PROTO } from '../src/game/simWorker/commands';
@@ -33,19 +33,19 @@ describe('automatic workplace staffing', () => {
 
   it('normalizes legacy manual flags and assigns available workers', () => {
     const world = makeWorld();
-    const next = autoStaffAllWorkers(world);
-    expect(next.buildings[0].occupants).toEqual([1]);
-    expect(next.buildings[0].staffingMode).toBe('auto');
-    expect(next.entities[0].workerBuildingId).toBe(7);
-    expect(next.notifications.at(-1)?.title).toContain('Auto-staff');
-    expect(world.buildings[0].staffingMode).toBe('manual');
+    assignMissingWorkers(world.entities, world.buildings, world);
+    expect(world.buildings[0].occupants).toEqual([1]);
+    expect(world.buildings[0].staffingMode).toBe('auto');
+    expect(world.entities[0].workerBuildingId).toBe(7);
+    // Automatic staffing is the simulation's scheduled responsibility, not a button or notification.
+    expect(world.notifications).toHaveLength(0);
   });
 
   it('rejects attempts to restore manual staffing after auto assignment', () => {
     const world = makeWorld();
-    const automatic = autoStaffAllWorkers(world);
-    const switched = setBuildingStaffingMode(automatic, 7, 'manual');
-    expect(switched).toBe(automatic);
+    assignMissingWorkers(world.entities, world.buildings, world);
+    const switched = setBuildingStaffingMode(world, 7, 'manual');
+    expect(switched).toBe(world);
     expect(switched.buildings[0].staffingMode).toBe('auto');
     expect(isWorkerCommand({ proto: WORKER_CMD_PROTO, op: 'setBuildingStaffingMode', buildingId: 7, mode: 'manual' })).toBe(false);
   });
