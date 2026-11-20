@@ -135,3 +135,21 @@ export function getPollutionProductionMultiplier(state: WorldState): number {
   const pollution = state.pollutionLevel ?? 0;
   return Math.max(0.5, 1 - pollution / 200);
 }
+
+/**
+ * The one random-point owner: draws up to `attempts` seeded points and returns the first the
+ * caller's predicate accepts. Callers supply their own stream so the draw stays in their sequence.
+ */
+export function randomPointWhere(
+  state: Pick<WorldState, 'width' | 'height'>,
+  random: () => number,
+  accept: (x: number, y: number) => boolean,
+  attempts = 16,
+): { x: number; y: number } | null {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const x = random() * state.width;
+    const y = random() * state.height;
+    if (accept(x, y)) return { x, y };
+  }
+  return null;
+}

@@ -149,13 +149,11 @@ const config: KnipConfig = {
     'src/test/factories.ts': ['exports'], // [B] stubHuman (1) — test-factory surface
   },
   /**
-   * `tw-animate-css` is consumed from CSS (`src/index.css`), which knip's JS/TS follower cannot see,
-   * and removing it breaks the build. `tailwindcss` itself is *not* listed: it is not a direct
-   * dependency here (the build uses `@tailwindcss/vite`), and knip correctly says so.
+   * Only CLIs invoked by name from `scripts/test.mjs` are listed: knip cannot follow the shell
+   * strings. `tailwindcss` and `tw-animate-css` are consumed from `src/index.css`, which knip's
+   * CSS follower resolves, so both are declared dependencies rather than ignored here.
    */
   ignoreDependencies: [
-    'tw-animate-css',
-    // CLIs invoked by name from scripts/test.mjs; knip cannot follow the shell strings.
     'jscpd',
     'oxlint',
     'oxlint-tsgolint',

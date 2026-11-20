@@ -103,7 +103,11 @@ function stable(value: unknown): string {
     const out: Record<string, unknown> = {};
     if (cls) out.__class = cls;
     for (const key of Object.keys(obj).sort()) {
-      out[key] = walk((obj as Record<string, unknown>)[key]);
+      const value = (obj as Record<string, unknown>)[key];
+      // JSON drops an explicit `undefined`, so a materialized optional key and an absent one are
+      // the same information on every wire the game actually uses.
+      if (value === undefined) continue;
+      out[key] = walk(value);
     }
     return out;
   };
@@ -134,6 +138,7 @@ function semanticValue(world: WorldState, key: string): unknown {
     case 'huntVisuals':
     case 'chronicleChapters':
     case 'pendingStoryEvents':
+    case 'graveRecords':
     case 'bigNews':
     case 'notifications':
       return raw ?? [];
@@ -693,6 +698,9 @@ function classify(finding: Finding): string {
     ['paused', 'tradeRoutes', 'tutorialSeen', 'entities', 'eventLog'].includes(finding.key)
   ) {
     return 'benign: documented load-time normalization (starts paused, route merge, tutorial seed, migrateHumanAges)';
+  }
+  if (finding.section.startsWith('save') && finding.key === 'nextBuildingId') {
+    return 'benign: load-time allocator repair — floorIdAllocators lifts the unset (0) building counter to one past the highest building id, so a consumed id can never be handed out twice';
   }
   if (
     finding.section.startsWith('save') &&

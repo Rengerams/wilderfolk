@@ -461,6 +461,21 @@
         "tests/gameWorker.uploadWatchdog.test.ts",
         "tests/gameWorker.transport.test.ts"
       ]
+    },
+    {
+      "key": "src/game/workforce.ts:66:countWorkersAtBuilding@c069611cb7ef527975a1f33830d8f08b5a0747dedf553545f0d15112b5b66440 <-> src/game/workforce.ts:81:countActiveWorkersAtBuilding@518fc0c5b938e861fd3ed17f15993f06481ac305e76f3dbcfae0f0bfd4ae0949",
+      "reason": "countWorkersAtBuilding counts every living player settler holding the post, including one jailed mid-sentence: it is the reservation total that moonHowlerForm and the workforce reassignment paths read, where a jailed holder must not be replaced. countActiveWorkersAtBuilding excludes imprisoned holders so the panel and staffing capacity show the post a substitute actually fills. Merging them would either overfill a post a substitute already holds or drop the jailed reservation on release; each stays the sole owner of its count and they share only the scan shape.",
+      "tests": [
+        "tests/workforce.jailRelease.test.ts",
+        "tests/quarry.zeroStoneRecovery.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/combat.ts:119:rollPredatorBlock@461f6605de6bb991a70627533057ebfe501358c746b37426f8998388f845727a <-> src/game/combat.ts:131:rollCounterAttack@438042a75b098527addd63d89ae36d7784bbe69b63c376447d1ad8c6ec88ec40",
+      "reason": "Both draw one run-seeded roll and compare it to a chance, but the chance owner and the stream key differ: rollPredatorBlock reads getPredatorBlockChance (armament plus predator_block research) and salts combat:predator-block:humanId:tick:seed, while rollCounterAttack reads getCounterAttackChance (counter_attack research) and salts combat:counter-attack:humanId:predatorId:tick:seed. One shared function would let either chance answer the other roll and collapse two independent salts into one, changing seeded outcomes; combatTierEffects pins each roll's own key and threshold.",
+      "tests": [
+        "tests/combatTierEffects.test.ts"
+      ]
     }
   ]
 }

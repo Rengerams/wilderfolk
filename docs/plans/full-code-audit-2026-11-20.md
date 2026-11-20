@@ -6,8 +6,9 @@
   harnesses (`knip`, `worker-boundary`), static scanning for determinism/type-safety/error-handling
   escapes, a 30-day bot colony run, and a live boot of the app through the preview harness.
 - **Verdict:** the code is in good shape — types, tests, determinism and save hardening are strong —
-  but **the branch cannot ship**: `npm run build` and the `standard` gate are red on the semantic
-  overlap check, and `npm run audit` is red on `knip`.
+  but **the branch could not ship as found**: `npm run build` and the `standard` gate were red on the
+  semantic overlap check, and `npm run audit` was red on `knip`. All findings are fixed in the same
+  session — see [Remediation](#remediation-2026-11-20-same-day).
 
 ## Gate results
 
@@ -173,3 +174,24 @@ limit. Not a failure; it is the largest chunk and worth watching as map setup gr
 Per `docs/bug_report/readme.md`, any of these that turns out to be a player-visible defect (rather
 than a gate/process finding) should get a dated report under `docs/bug_report/` plus one entry in
 `docs/BUG_REPORTS/SUMMARY.md` when it is fixed.
+
+## Remediation (2026-11-20, same day)
+
+Every finding above was fixed on this branch. The gate table at the top is the state *before* the
+fixes; none of these were player-visible defects, so no bug report was filed.
+
+| Finding | Fix | Verification |
+|---|---|---|
+| F-01 | Root cause was in the call-graph index, not in the game code: `findBodyBrace` mistook a return-type literal (`): { x: number; y: number } | null {`) for the body and gave up past a 400-character parameter list, so 57 functions were compared on their signature line alone — that is where the eight score-1.0 "duplicates" came from. The parser now resolves the real body (type literals, tuple types, long destructured params, method return types). The one genuine duplicate, `randomLegalPropPoint` ~ `randomPassableWildlifePoint`, was consolidated into `simHelpers.randomPointWhere` with the two domain predicates passed at the single call site. The two genuinely distinct pairs (`countWorkersAtBuilding`/`countActiveWorkersAtBuilding`, `rollPredatorBlock`/`rollCounterAttack`) carry fingerprint-pinned approvals with their evidence tests. | `npm run test -- semantic`: 476 modified functions / 0 unresolved matches. `npm run build`: green. |
+| F-02 | `audit` now runs `cycles` first, so a knip finding can never mask the cycle gate. | `npm run audit`: 3/3 steps pass. |
+| F-03 | `glob` dropped (unused); `tailwindcss` declared (imported by `src/index.css`); the dead `tauri:windows:build` script removed (its binary was never a dependency); `tw-animate-css` no longer ignored (knip resolves the CSS import); `getScheduleLastWorkedHours` kept and wired into `getWorkdayAttendance`, the fallback it documents. | `npm run audit:knip`: pass, 0 findings. |
+| F-04 | The probe's serializer now treats an explicit `undefined` property as absent (as JSON does), `graveRecords` is normalized like the other receiver-materialized slices, and `nextBuildingId` carries a documented load-time allocator-repair rule. `nextBuildingId` was verified not to be a stale counter: the export carried the unset `0` because the world held no buildings. | `npx tsx scripts/worker-boundary-audit.mts`: 8 measured differences / **0 unexplained**. |
+| F-05 | `audit-status-2026-11-14.md` carries a superseded banner pointing here. | doc review |
+| F-06 | Dependency arrays list the refs (`loopRef`, `catalogRef`, `viewRef`) instead of `.current`. | `npm run lint`: 0 warnings. |
+| F-07 | `GAME_VERSION` carries a note that the desktop shells use the semver prerelease form. | — |
+| F-08 | The dead nested workflow copy is deleted. | — |
+| F-09 | `server.open` removed from the dev config; the environment runs with `BROWSER=none`. | — |
+
+Gate state after remediation: `check`, `owners`, `semantic`, `semanticDup`, `cycles --strict`, `dup`,
+`types`, `scriptsTypes`, `lint`, `unit` (528 files / 3,480 tests), `worker-boundary`, `knip`, `audit`
+and `build` all pass. F-10 stays a watch item.

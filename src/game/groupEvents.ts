@@ -9,8 +9,9 @@ import { getAbsoluteCalendarDay, getColonyDay, HUMAN_MAX_LIFESPAN_YEARS, isNewCa
 import { assignMissingResidences, syncResidenceOccupants } from './housingPipeline';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { establishCitizenIdentity } from './settlerTraits';
-import { randomPassableWildlifePoint } from './worldGen';
-import { randomLegalPropPoint } from './worldEventSites';
+import { isPassableWildlifePosition } from './worldGen';
+import { isLegalCampSite } from './worldEventSites';
+import { randomPointWhere } from './simHelpers';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
 import { killWildGameForPoach, pushNewEntity } from './simulation/simulationEntities';
 import type { TickContext } from './simulation/simulationTypes';
@@ -1012,12 +1013,18 @@ export function rollYearlyWorldEvent(
 /** Ground a yearly tree or grass patch occupies, validated like any other 32-px prop. */
 const YEARLY_PROP_FOOTPRINT_PX = 32;
 
-/** Off-cycle spawns delegate to the canonical point owners; a fully blocked map spawns nothing. */
+/** Wildlife keeps this far inside the map edge, so a herd never spawns half off-screen. */
+const YEARLY_WILDLIFE_MARGIN_PX = 16;
+
+/**
+ * Off-cycle spawns draw from the one random-point owner and pick the domain rule for the type;
+ * a fully blocked map spawns nothing.
+ */
 function spawnWildlife(state: WorldState, type: EntityType, id: number): Entity | null {
   const random = getSimRng('groupEvents');
   const point = type === EntityType.Tree || type === EntityType.Grass
-    ? randomLegalPropPoint(state, random, YEARLY_PROP_FOOTPRINT_PX)
-    : randomPassableWildlifePoint(state, random);
+    ? randomPointWhere(state, random, (x, y) => isLegalCampSite(state, x, y, YEARLY_PROP_FOOTPRINT_PX))
+    : randomPointWhere(state, random, (x, y) => isPassableWildlifePosition(state, x, y, YEARLY_WILDLIFE_MARGIN_PX));
   if (!point) return null;
   return createEntity(type, point.x, point.y, id, SPECIES_CONFIG[type].spawnEnergy);
 }
