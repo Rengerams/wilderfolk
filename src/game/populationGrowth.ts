@@ -223,6 +223,11 @@ export function getOpenBedsFromPop(state: WorldState, pop: number): number {
   return Math.max(0, beds - Math.floor(pop));
 }
 
+/** True when only one or no assignable bed remains; the housing warning is owned here. */
+export function isAssignableHousingNearFull(openBeds: number): boolean {
+  return openBeds <= 1;
+}
+
 /**
  * Empty beds, counted over every residence — the Leader's House included. The inclusive
  * twin of {@link getOpenPlayerBeds}, which counts only beds a settler may be assigned.
