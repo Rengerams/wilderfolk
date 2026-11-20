@@ -215,9 +215,7 @@ describe('the leader-honored announcement survives a maxed reputation', () => {
     const started = queueRaidDefense(world, eventId, 'defend');
     const event = started.pendingRaidEvents.find((entry) => entry.id === eventId);
     expect(event?.phase).toBe('fighting');
-    // The two-person defense must take its casualty without killing the test's leader:
-    // seed 5 rolls one casualty, choosing the other soldier. This verifies actual timed
-    // combat while keeping the reputation-clamp assertions about a surviving leader.
+    // Fixed seed 5 applies timed casualties while keeping the leader alive for reputation tests.
     setSimSeed(5);
     started.tick = (event?.battleStartedAtTick ?? started.tick) + 6 * TICKS_PER_HOUR;
     tickPendingRaidEvents(started, started.entities);

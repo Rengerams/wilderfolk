@@ -1596,11 +1596,7 @@ function resolveOutgoingRaidCombat(
   rival.daysUntilAction = 30;
 }
 
-/**
- * Sole return transition for recall, treaty, abandoned settlement and completed battle.
- * The raid remains in the pending list and its members retain raidDeploymentId until
- * tickPendingOutgoingRaidEvents observes returnAtTick; the old save shape stays valid.
- */
+/** Return transit retains the raid and its deployments until arrival. */
 function beginRaidReturn(state: WorldState, event: OutgoingRaidEvent, fromCamp = false): void {
   if (event.phase === 'returning') return;
   const launched = event.launchedAtTick ?? event.createdAtTick;
