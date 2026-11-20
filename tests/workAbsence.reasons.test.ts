@@ -482,10 +482,11 @@ describe('the reason reaches every surface the player reads', () => {
 
   it('names every settler on a building’s roster, with their own reason', () => {
     const farm = building(1, BuildingType.Farm, { occupants: [1, 2] });
-    const offShift = postedFarmer(farm, { vx: -3, vy: -3 });
+    const commuter = postedFarmer(farm, { x: 240, y: 230 });
     const stand = humanBuildingTarget(farm, 2);
     const working = postedFarmer(farm, { id: 2, x: stand.x, y: stand.y });
-    const state = world(workdayTick(10), { entities: [offShift, working], buildings: [farm] });
+    const state = world(workdayTick(10), { entities: [commuter, working], buildings: [farm] });
+    expect(commuteHumanToBuilding(commuter, farm, 2)).toBe(false);
 
     const roster = getWorkplaceRosterReasons(state, farm);
 
