@@ -21,6 +21,6 @@ jobs:
           node-version: 26.12.1
           cache: npm
 
-      - run: npm ci
+      - run: npm install
 
-      - run: npm test -- colony-integration
+      - run: vitest run tests/longRunColony.integration.test.ts
