@@ -14,7 +14,7 @@ import {
 } from '../src/game/socialLife';
 import { resetDialogueSessions, tickHumanChat } from '../src/game/humanChat';
 import { simAmbientChatNeighbors } from '../src/game/simulation/humanSocial';
-import { explainSettlerMovement } from '../src/game/dashboardData';
+import { explainHumanMovement } from '../src/game/movementExplanation';
 import { initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
@@ -192,7 +192,7 @@ describe('movement inspector reads the real social input (W-105)', () => {
     }
     expect(chosen, 'fixture premise: the two input sets disagree on this tick').toBeGreaterThanOrEqual(0);
 
-    const explanation = explainSettlerMovement(state, mother.id);
+    const explanation = explainHumanMovement(state, mother.id);
     expect(explanation.stops.some((stop) => stop.kind === 'venue')).toBe(false);
   });
 });
