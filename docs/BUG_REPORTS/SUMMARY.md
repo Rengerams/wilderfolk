@@ -1,5 +1,9 @@
 # Bug report summary — one line per report
 
+**2026-11-22 — [Predator breeding ceiling collapses the prey base](../bug_report/2026-11-22-wildlife-predator-ceiling-collapses-prey.md):** open; wolf capacity (25) and the prey floor (16 rabbits every 3 days, wolf target 10) live in two owners; both harness seeds reach rabbits 0 / wolves 25 by day 90.
+
+**2026-11-22 — [Architecture docs still schedule the retired visitor camps](../bug_report/2026-11-22-architecture-doc-still-schedules-retired-visitors.md):** open; `tickVisitorGroups` and its spawners have no caller, yet the layer table, ownership ledger and the TEST-16 report still describe 00:00 visitors.
+
 **2026-11-22 — [New storage building stays capped until the next production pass](../bug_report/2026-11-22-storage-caps-stale-after-night-construction.md):** investigating; PR #166 refreshes the existing capacity owner on construction completion at 23:00; Barn/Silo/Storehouse regression and CI pending.
 
 **2026-11-22 — [Inbound caravan cargo clamped at home after storage fills in transit](../bug_report/2026-11-22-caravan-inbound-cargo-clamped-at-home.md):** investigating; PR #170 rechecks full cargo capacity at arrival and retries unloading; updated regression and CI verification pending.
