@@ -1509,7 +1509,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       worldMap: restoreWorldMapFromSave(source),
       ecoHealthYearsAbove80: worldData.ecoHealthYearsAbove80 ?? 0,
       // On-map visitor camps are retired. Old saves keep their strategic rivals and raids.
-      firstWeekVisitorSpawned: true,
+      // Preserve the retired flag for lossless worker/save round-trips; it schedules nothing.
+      firstWeekVisitorSpawned: worldData.firstWeekVisitorSpawned ?? false,
       visitorGroups: [],
       visitorQuest: undefined,
       activeVillageRequest: worldData.activeVillageRequest?.sourceVisitorGroupId
