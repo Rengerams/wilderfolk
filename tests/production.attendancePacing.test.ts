@@ -396,7 +396,8 @@ describe('construction and production attendance are separate (PR #166 reviews)'
     rebuildEntityByIdMap(state);
     invalidateCachedEntityByType(state);
     const full = getWorkScheduleHours(getWorkSchedule(state)) * TICKS_PER_HOUR;
-    witnessSiteShift(senior, site, full, JobType.Farmer);
+    // Keep the expert below the 100% construction cap so one helper tick is observable.
+    witnessSiteShift(senior, site, experienced ? Math.max(1, Math.floor(full / 4)) : full, JobType.Farmer);
     if (extraTicks > 0) witnessSiteShift(junior, site, extraTicks, JobType.Farmer);
     state.tick = tickAtDailyPhase(1, 'production') - 1;
     gameTick(state, ON_SCREEN);
