@@ -37,7 +37,7 @@ is the module already responsible for the behaviour:
 | Friendship/feud score and key | `relationshipScore(e, id, kind)` and `relationshipKey(kind, id)` — `relationships.ts` |
 | Hotkey predicate | `isHotkey(e, key, code)` — `hotkeys.ts` |
 | First-name draw | `getRandomName(gender)` — `nameLoader.ts` |
-| Grid env flags | `gridFeatureDisabled` / `runtimeEnvFlag` — `spatialGrid.ts` |
+| Grid env flags | `gridFeatureDisabled` — `spatialGrid.ts`; `runtimeEnvFlag` / `envFlagOn` — `envFlags.ts` |
 | First-gesture audio unlock | `useGestureUnlock(onGesture)` — `src/hooks/useGestureUnlock.ts` |
 | `clamp` copies | canonical `clamp` from `terrain/noise.ts`; the finite-guard and rounded variants are named `clampFinite` and `clampScore` |
 | Dialogue aliases | `tickDialogue` and `prepareScriptedDialogue` removed; callers use `tickHumanChat` and `clearCurrentEntityDialogue` |
