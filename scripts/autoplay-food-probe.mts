@@ -64,7 +64,6 @@ function snapshot(w: typeof world): string {
     (entity) => entity.alive && isPlayerHuman(entity) && entity.residenceBuildingId == null,
   ).length;
   const built = w.buildings
-    .filter((building) => building.faction !== 'rival')
     .map((building) => BUILDING_CONFIGS[building.type].label + (building.completed ? '' : '…'))
     .join(' ');
   return `d${String(Math.floor(w.tick / TICKS_PER_DAY)).padStart(2)} pop=${humans} homeless=${homeless} beds=${getTotalBeds(w)} open=${getOpenPlayerBeds(w)} food=${w.resources.food} wood=${w.resources.wood} stone=${w.resources.stone} gold=${w.resources.gold} iron=${w.resources.iron} | ${built || '(none)'}`;
