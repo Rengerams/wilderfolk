@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Wildkin lineage (pending merge):** Name and register Wildkin born to a human mother and their specific deer father (not the human spouse), preserve their mixed-species family tree and death history, chronicle Wildkin-to-Wildkin births, and let young human-born Wildkin stay near their mother instead of automatically roaming away. All births begin at age zero, and juveniles cannot reproduce.
+- **Wildkin lineage (pending merge):** Register human mothers and deer fathers, retain Wildkin ancestry in family trees and chronicle records, preserve Wildkin-to-Wildkin births, and let juveniles stay near their mother without forced departure.
 
 **Merged PR coverage (PRs #130–#152; checked 22 Nov 2026).** This index links the merged work to its PR; the dated release notes below retain the detailed change descriptions. Only merged PRs are treated as part of `main`.
 
