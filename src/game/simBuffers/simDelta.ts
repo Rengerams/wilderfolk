@@ -1,6 +1,7 @@
 import type { WorldState, Entity, Building } from '../gameTypes';
-import { isStaticPropEntity, PATH_CELL } from '../gameTypes';
+import { EntityType, isStaticPropEntity, PATH_CELL } from '../gameTypes';
 import { getWorkSchedule } from '../workSchedule';
+import { getCommandedCommuteBuildingId, setProjectedCommuteBuildingId } from '../simulation/humanMovement';
 import { getVenueSchedule } from '../venueSchedule';
 import { getWorkforcePolicy, normalizeWorkforcePolicy } from '../workforcePolicy';
 import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
@@ -116,6 +117,8 @@ export interface SimTickDelta {
   /** Tiles a command patched (ground reinforcement, forest clearing), applied to the replica map. */
   terrainPatches?: TerrainTilePatch[];
   aliveEntities: Entity[];
+  /** Transient worker-authored commute evidence (settler id, destination building id); not saved. */
+  commutingWorkers?: Array<[number, number]>;
   /** Static decor added since the last delta; unchanged props stay on the replica. */
   staticEntities?: Entity[];
   /** Static decor ids removed from the world; the replica drops them. */
@@ -296,6 +299,12 @@ export function extractSimTickDelta(
   }
 
   const cloneMode = options?.cloneMode ?? 'isolated';
+  const commutingWorkers: Array<[number, number]> = [];
+  for (const entity of aliveNow) {
+    if (entity.type !== EntityType.Human) continue;
+    const buildingId = getCommandedCommuteBuildingId(entity);
+    if (buildingId !== undefined) commutingWorkers.push([entity.id, buildingId]);
+  }
 
   const previousEventIndex = options?.previousEventHeadId == null
     ? -1
@@ -377,6 +386,7 @@ export function extractSimTickDelta(
     deathParticles: deltaClone(world.deathParticles, cloneMode),
     huntVisuals: deltaClone(world.huntVisuals ?? [], cloneMode),
     aliveEntities: deltaClone(aliveNow, cloneMode),
+    commutingWorkers,
     eventLogTail: deltaClone(eventLogTail, cloneMode),
     graveRecords: deltaClone(world.graveRecords ?? [], cloneMode),
     genealogyRegistry: deltaCloneOptional(world.genealogyRegistry, cloneMode) ?? undefined,
@@ -824,10 +834,13 @@ export function applySimTickDelta(
 
   const previousById = new Map<number, Entity>();
   for (const entity of world.entities) previousById.set(entity.id, entity);
+  const commutingWorkers = new Map(delta.commutingWorkers ?? []);
   const merged = delta.aliveEntities.map((entity) => {
     const next = deltaClone(entity, cloneMode);
     const previous = previousById.get(next.id);
-    return previous ? { ...previous, ...next } : next;
+    const reconstructed = previous ? { ...previous, ...next } : next;
+    setProjectedCommuteBuildingId(reconstructed, commutingWorkers.get(reconstructed.id));
+    return reconstructed;
   });
   const mergedIds = new Set(merged.map((entity) => entity.id));
   if (delta.staticPropsResolved) {

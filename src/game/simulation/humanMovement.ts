@@ -38,6 +38,8 @@ interface HumanWalkTarget {
 }
 
 const humanWalkTargets = new WeakMap<Entity, HumanWalkTarget>();
+/** Worker-authored travel evidence projected onto freshly reconstructed host entities. */
+const projectedCommuteBuildingIds = new WeakMap<Entity, number>();
 
 /**
  * Forget the commanded walk. A decision tick that does not steer a walk must not leave an older one
@@ -45,6 +47,7 @@ const humanWalkTargets = new WeakMap<Entity, HumanWalkTarget>();
  */
 export function clearHumanWalkTarget(entity: Entity): void {
   humanWalkTargets.delete(entity);
+  projectedCommuteBuildingIds.delete(entity);
 }
 
 /**
@@ -375,14 +378,28 @@ const walkerBuildingAccess = new WeakMap<Entity, {
   buildingId: number; grid: ReturnType<typeof getCurrentPathGrid>; x: number; y: number;
 }>();
 
-/** Only a currently commanded walk to the selected workplace facade proves a commute.
- * This includes route detours without confusing fleeing or hunting with going to work. */
-export function isCommutingToBuilding(entity: Entity, building: Building): boolean {
+/** Live evidence comes from the commanded walk, or its worker-to-host projection.
+ * A superseding escape or hunt never qualifies as a workplace commute. */
+export function getCommandedCommuteBuildingId(entity: Entity): number | undefined {
+  if (Math.hypot(entity.vx, entity.vy) <= WALKING_MIN_SPEED_PX) return undefined;
   const walk = humanWalkTargets.get(entity);
-  const frontage = walkerBuildingAccess.get(entity);
-  return walk != null && frontage != null && frontage.buildingId === building.id
-    && frontage.x === walk.x && frontage.y === walk.y
-    && Math.hypot(entity.vx, entity.vy) > WALKING_MIN_SPEED_PX;
+  if (walk) {
+    const frontage = walkerBuildingAccess.get(entity);
+    return frontage && frontage.x === walk.x && frontage.y === walk.y
+      ? frontage.buildingId : undefined;
+  }
+  return projectedCommuteBuildingIds.get(entity);
+}
+
+/** Attach only read-only worker evidence to the current host entity, never to save state. */
+export function setProjectedCommuteBuildingId(entity: Entity, buildingId: number | undefined): void {
+  if (buildingId === undefined) projectedCommuteBuildingIds.delete(entity);
+  else projectedCommuteBuildingIds.set(entity, buildingId);
+}
+
+/** Read the movement owner's same predicate on both worker and host entities. */
+export function isCommutingToBuilding(entity: Entity, building: Building): boolean {
+  return getCommandedCommuteBuildingId(entity) === building.id;
 }
 
 /**
