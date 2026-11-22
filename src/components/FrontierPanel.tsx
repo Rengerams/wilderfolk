@@ -18,7 +18,7 @@ import {
 import { getBarracksGuardCount, countCompletedDefenseBuildings } from '../game/defenseStructures';
 import { BuildingType } from '../game/gameTypes';
 import { computeMilitiaBreakdown, getMilitiaArmamentLabel } from '../game/militiaBalance';
-import { normalizeRivalProfile, getRivalProfileLabel } from '../game/rivalProfiles';
+import { getRivalProfileLabel } from '../game/rivalProfiles';
 import { getRivalPresenceSummary } from '../game/rivalPresence';
 import { MAX_STRATEGIC_SETTLEMENTS, MIN_RIVAL_FOUNDING_POPULATION, RIVAL_FOUNDING_START_DAY, RIVAL_FOUNDING_INTERVAL_DAYS } from '../game/rivalSettlements';
 
@@ -200,8 +200,8 @@ function FrontierPanel({
               const provokeEligibility = canProvokeRival(state, r);
               const raidFoodCost = getOutgoingRaidFoodCostForRival(state, r);
               const outgoingRaidAction = getOutgoingRaidActionLabel(state, r.id);
-              const profile = normalizeRivalProfile(r);
               const presence = getRivalPresenceSummary(state, r);
+              const profile = presence.profile;
               return (
                 <div
                   key={r.id}
@@ -223,7 +223,7 @@ function FrontierPanel({
                     </p>
                     <p className="text-[10px] capitalize text-amber-300/80">{getRivalProfileLabel(profile)} · {presence.stanceLabel}</p>
                     {r.diplomacyMemory && <p className="text-[10px] text-stone-300">Valley memory: trust {r.diplomacyMemory.trust} · fear {r.diplomacyMemory.fear} · grievance {r.diplomacyMemory.grievance}</p>}
-                    <p className="text-[10px] text-cyan-300/80">Activity: {presence.modeLabel}</p>
+                    <p className="text-[10px] text-cyan-300/80">Camp status: {presence.modeLabel}</p>
                     <p className="text-[10px] text-stone-400">Ledger: {profile.ledger.food} food · {profile.ledger.wood} wood · {profile.ledger.gold} gold · morale {profile.ledger.morale}% · recovery {profile.ledger.recovery}%</p>
                     <p className="text-[10px] text-stone-400">Latest contact: {presence.latestContact}</p>
                     {presence.history.length > 1 && <p className="text-[10px] text-stone-500">History: {presence.history.slice(1, 3).join(' · ')}</p>}
