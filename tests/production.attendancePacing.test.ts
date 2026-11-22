@@ -12,6 +12,7 @@ import { blockedColumn, testWorldMap } from '../src/test/worldMapFixtures';
 import { buildingAccessPoint, isAtBuildingReach } from '../src/game/buildingAccess';
 import { getReadOnlyPathGrid } from '../src/game/pathfinding';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
+import { addResource, updateStorageCaps } from '../src/game/economy';
 import {
   BuildingType,
   EntityType,
@@ -30,6 +31,7 @@ import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 import { jobBuildingPriorityForPolicy } from '../src/game/workforcePolicy';
 import { getWorkdayAttendance } from '../src/game/scheduleFatigue';
+import { getWorkScheduleHours, getWorkSchedule } from '../src/game/workSchedule';
 import { ensureEntitySkills, readSkill } from '../src/game/skills';
 
 const TEST_SEED = 20_261_112;
@@ -287,6 +289,15 @@ describe('production pays only witnessed attendance (W-136)', () => {
   });
 });
 
+/** Stamp the already-observed shift into the existing recorder's daily fields. */
+function witnessSiteShift(worker: Entity, site: Building, ticks: number, job: JobType): void {
+  worker.scheduleWorkedTicksToday = ticks;
+  worker.scheduleWorkedSiteIdToday = site.id;
+  worker.scheduleWorkedJobToday = job;
+  worker.schedulePresentTicksToday = ticks;
+  worker.schedulePresentSiteIdToday = site.id;
+}
+
 describe('crewless zero-slot sites finish in their advertised days (S-18)', () => {
   it.each([
     { type: BuildingType.Wall, days: BUILDING_CONFIGS[BuildingType.Wall].buildTime },
@@ -303,14 +314,45 @@ describe('crewless zero-slot sites finish in their advertised days (S-18)', () =
 
     let productionDay = 1;
     for (let elapsed = 0; elapsed < days - 1; elapsed++) {
-      state.tick = tickAtDailyPhase(productionDay++, 'production') - 1;
+      state.tick = tickAtDailyPhase(productionDay++, 'construction') - 1;
       gameTick(state, ON_SCREEN);
       expect(site.completed, `finishes early after ${elapsed + 1} day(s)`).toBe(false);
     }
-    state.tick = tickAtDailyPhase(productionDay, 'production') - 1;
+    state.tick = tickAtDailyPhase(productionDay, 'construction') - 1;
     gameTick(state, ON_SCREEN);
     expect(site.completed, `finishes within ${days} advertised day(s)`).toBe(true);
     expect(site.occupants, 'a zero-slot site never keeps a crew').toEqual([]);
+  });
+
+  it.each([
+    { type: BuildingType.Barn, resource: 'wood' as const },
+    { type: BuildingType.Silo, resource: 'food' as const },
+    { type: BuildingType.WoodStorehouse, resource: 'iron' as const },
+  ])('refreshes $resource capacity when a $type completes at 23:00', ({ type, resource }) => {
+    const state = isolatedWorld();
+    const site = createBuilding(type, 500, 500, 9104);
+    site.constructionProgress = 99;
+    state.buildings = [site];
+    state.entities = [settler(300, 500)];
+    rebuildEntityByIdMap(state);
+    invalidateCachedEntityByType(state);
+
+    // This is the snapshot calculated before completion by the regular 18:00 owner.
+    updateStorageCaps(state);
+    const previousCap = state.storageMax[resource];
+    const previousSpoilage = state.foodSpoilageRate;
+    state.resources[resource] = previousCap;
+    state.tick = tickAtDailyPhase(1, 'construction') - 1;
+    gameTick(state, ON_SCREEN);
+
+    expect(site.completed).toBe(true);
+    expect(state.storageMax[resource], 'completion left the resource at its old cap')
+      .toBeGreaterThan(previousCap);
+    expect(addResource(state, resource, 100), 'an overnight gain still hits the obsolete cap').toBe(100);
+    if (type === BuildingType.Silo) {
+      expect(state.foodSpoilageRate, 'Silo spoilage remained on yesterday\'s rate')
+        .toBeLessThan(previousSpoilage);
+    }
   });
 
   it('lets a real crew beat those advertised days', () => {
@@ -329,12 +371,144 @@ describe('crewless zero-slot sites finish in their advertised days (S-18)', () =
     rebuildEntityByIdMap(state);
     invalidateCachedEntityByType(state);
 
-    state.tick = tickAtDailyPhase(1, 'production') - 1;
+    const shiftTicks = getWorkScheduleHours(getWorkSchedule(state)) * TICKS_PER_HOUR;
+    for (const worker of state.entities) witnessSiteShift(worker, site, shiftTicks, JobType.Farmer);
+    state.tick = tickAtDailyPhase(1, 'construction') - 1;
     gameTick(state, ON_SCREEN);
     expect(site.completed, `one day of a crew is not enough for a ${advertised}-day advert`).toBe(false);
-    state.tick = tickAtDailyPhase(2, 'production') - 1;
+    for (const worker of state.entities) witnessSiteShift(worker, site, shiftTicks, JobType.Farmer);
+    state.tick = tickAtDailyPhase(2, 'construction') - 1;
     gameTick(state, ON_SCREEN);
-    expect(site.completed, 'a crewed site finishes ahead of its advertised days').toBe(true);
+    expect(site.completed, 'a witnessed crew finishes ahead of the passive advertised days').toBe(true);
+  });
+});
+
+
+describe('construction and production attendance are separate (PR #166 reviews)', () => {
+  it.each([
+    BuildingType.Church,
+    BuildingType.TownHall,
+    BuildingType.Hospital,
+    BuildingType.Prison,
+  ])('records witnessed construction at an unfinished %s', (type) => {
+    const state = isolatedWorld();
+    const site = createBuilding(type, 500, 500, 9200);
+    site.completed = false;
+    site.constructionProgress = 0;
+    state.buildings = [site];
+    const onPost = buildingAccessPoint(site, getReadOnlyPathGrid(state.worldMap!, [site]));
+    const worker = settler(onPost.x, onPost.y);
+    state.entities = [worker];
+    site.occupants = [worker.id];
+    rebuildEntityByIdMap(state);
+    invalidateCachedEntityByType(state);
+
+    // A real work tick, not a manually stamped attendance record.
+    state.tick = TICKS_PER_DAY + (getWorkSchedule(state).startHour + 1) * TICKS_PER_HOUR - 1;
+    gameTick(state, ON_SCREEN);
+    expect(worker.scheduleWorkedSiteIdToday).toBe(site.id);
+    expect(worker.schedulePresentSiteIdToday).toBe(site.id);
+    expect(worker.schedulePresentTicksToday).toBeGreaterThan(0);
+  });
+
+  function constructionDay(extraTicks: number, experienced = false): {
+    progress: number; food: number; finished: boolean; workerSkill: number;
+  } {
+    const state = isolatedWorld();
+    const site = createBuilding(BuildingType.Mine, 500, 500, 9201);
+    site.completed = false;
+    site.constructionProgress = 0;
+    state.buildings = [site];
+    const senior = settler(450, 500);
+    const junior = createEntity(EntityType.Human, 470, 500, SETTLER_ID + 1, 400, false,
+      { gender: 'male', name: 'Luka', surname: 'Reed', ageYears: 30, colonyDay: 0 });
+    if (experienced) senior.skills = { [JobType.Miner]: 100 };
+    state.entities = [senior, junior];
+    site.occupants = [senior.id, junior.id];
+    rebuildEntityByIdMap(state);
+    invalidateCachedEntityByType(state);
+    const full = getWorkScheduleHours(getWorkSchedule(state)) * TICKS_PER_HOUR;
+    // Keep an expert's simulated shift below the 100% cap so the helper's tick remains measurable.
+    witnessSiteShift(senior, site, experienced ? Math.max(1, Math.floor(full / 4)) : full, JobType.Miner);
+    if (extraTicks > 0) witnessSiteShift(junior, site, extraTicks, JobType.Miner);
+    state.tick = tickAtDailyPhase(1, 'construction') - 1;
+    gameTick(state, ON_SCREEN);
+    return {
+      progress: site.constructionProgress, food: state.resources.food,
+      finished: site.completed, workerSkill: senior.skills?.[JobType.Miner] ?? 0,
+    };
+  }
+
+  it('credits a witnessed 19:00–23:00 construction shift after 18:00', () => {
+    const state = isolatedWorld();
+    state.workSchedule = { startHour: 19, endHour: 23 };
+    const site = createBuilding(BuildingType.Farm, 500, 500, 9203);
+    state.buildings = [site];
+    const onPost = buildingAccessPoint(site, getReadOnlyPathGrid(state.worldMap!, [site]));
+    const worker = settler(onPost.x, onPost.y);
+    state.entities = [worker];
+    site.occupants = [worker.id];
+    rebuildEntityByIdMap(state);
+    invalidateCachedEntityByType(state);
+    state.tick = tickAtDailyPhase(1, 'production') - 1;
+    gameTick(state, ON_SCREEN);
+    expect(site.constructionProgress, 'the shift has not started at 18:00').toBe(0);
+    runTicks(state, 5 * TICKS_PER_HOUR, ON_SCREEN);
+    expect(state.tick).toBe(tickAtDailyPhase(1, 'construction'));
+    expect(worker.schedulePresentTicksToday).toBeGreaterThan(0);
+    expect(site.constructionProgress).toBeGreaterThan(0);
+    expect(readSkill(worker, JobType.Farmer)).toBeGreaterThan(0);
+  });
+
+  it('never lowers progress when a second builder contributes one tick', () => {
+    const one = constructionDay(0);
+    const extra = constructionDay(1);
+    expect(one.finished).toBe(false);
+    expect(extra.progress).toBeGreaterThan(one.progress);
+  });
+
+  it('does not dilute an expert when a weaker colleague helps briefly', () => {
+    const expert = constructionDay(0, true);
+    const withHelp = constructionDay(1, true);
+    expect(expert.finished, 'slow expert fixture must remain below 100%').toBe(false);
+    expect(withHelp.finished).toBe(false);
+    expect(withHelp.progress).toBeGreaterThan(expert.progress);
+  });
+
+  it('does not pay 18:00 production for a site finished at 23:00', () => {
+    const makeDay = (progress: number, previouslyCompleted: boolean) => {
+      const state = isolatedWorld();
+      const site = createBuilding(BuildingType.Farm, 500, 500, 9202);
+      site.completed = previouslyCompleted;
+      site.constructionProgress = progress;
+      state.buildings = [site];
+      const farmer = settler(450, 500);
+      if (previouslyCompleted) {
+        farmer.workerBuildingId = site.id;
+        farmer.job = JobType.Farmer;
+      }
+      state.entities = [farmer];
+      site.occupants = [farmer.id];
+      rebuildEntityByIdMap(state);
+      invalidateCachedEntityByType(state);
+      const shift = getWorkScheduleHours(getWorkSchedule(state)) * TICKS_PER_HOUR;
+      witnessSiteShift(farmer, site, shift, JobType.Farmer);
+      state.tick = tickAtDailyPhase(1, 'production') - 1;
+      gameTick(state, ON_SCREEN);
+      const foodAtEvening = state.resources.food;
+      state.tick = tickAtDailyPhase(1, 'construction') - 1;
+      gameTick(state, ON_SCREEN);
+      return { state, site, farmer, foodAtEvening };
+    };
+    const stillBuilding = makeDay(0, false);
+    const justCompleted = makeDay(99, false);
+    const operational = makeDay(100, true);
+
+    expect(stillBuilding.site.completed).toBe(false);
+    expect(justCompleted.site.completed).toBe(true);
+    expect(justCompleted.farmer.skills?.[JobType.Farmer] ?? 0).toBeCloseTo(0.2, 8);
+    expect(justCompleted.foodAtEvening).toBe(stillBuilding.foodAtEvening);
+    expect(operational.foodAtEvening).toBeGreaterThan(justCompleted.foodAtEvening);
   });
 });
 

@@ -248,6 +248,8 @@ describe('settlers inside buildings', () => {
     });
     world.entities = [person];
     world.buildings = [home];
+    // Replacing the generated colony also replaces its elected leader.
+    world.villageLeaderId = null;
     world.entityByType = undefined;
     world.entityById = undefined;
     world.paused = false;
@@ -280,6 +282,7 @@ describe('settlers inside buildings', () => {
       needs: { nutrition: 80, rest: 40, stamina: 60, severeHungerTicks: 0 } });
     world.entities = [married, spouse, lover];
     world.buildings = [home, loverHome];
+    world.villageLeaderId = null;
     world.entityByType = undefined;
     world.entityById = undefined;
     world.paused = false;

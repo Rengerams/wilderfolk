@@ -5,7 +5,7 @@ import { TICKS_PER_HOUR } from './dayCycle';
 import { isWorkDay } from './dayCycleClock';
 import { SCHOOL_MIN_AGE } from './gameConstants';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { writableEntitySkills } from './skills';
+import { increaseEntitySkill } from './skills';
 import { addNotification } from './simEffects';
 import { citizenFullName } from './citizenId';
 import { logEvent } from './eventLog';
@@ -446,9 +446,8 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
   entity.educated = true;
   const skillBonus = tier === 3 ? 20 : tier === 2 ? 8 : 5;
   const energyBonus = tier === 3 ? 10 : tier === 2 ? 6 : 4;
-  const skills = writableEntitySkills(entity);
   for (const job of Object.values(JobType)) {
-    skills[job] = Math.min(100, (skills[job] ?? 0) + skillBonus);
+    increaseEntitySkill(entity, job, skillBonus);
   }
   entity.maxEnergy = Math.min(500, entity.maxEnergy + energyBonus);
   adjustHumanStaminaFromEnergy(entity, energyBonus * 0.5);

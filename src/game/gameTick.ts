@@ -46,7 +46,7 @@ import { tickLayerAssign, LAYER_ASSIGN_INTERVAL, LAYER_ASSIGN_PHASE_TICK } from 
 import { tickLayerDaily } from './tickLayerDaily';
 import { isSettlementDestroyed, tickRaidRecovery } from './raidAftermath';
 import { tickPendingRaidEvents, tickPendingOutgoingRaidEvents } from './frontierCombat';
-import { isStartOfClockHour } from './dayCycleClock';
+import { DAILY_PHASE_HOURS, TICKS_PER_HOUR, isStartOfClockHour } from './dayCycleClock';
 import { tickPrisonPresence } from './prisonGuardDuty';
 import { tickWinterHeating } from './dailyBuildingEconomy';
 import {
@@ -278,8 +278,10 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   state.wildlifeCounts = wildlifeCountsFromPopulation(counts);
   state.humanPopulation = counts.humans;
 
-  // Daily layer is invoked at 00:00, 06:00, 12:00 and 18:00; phases occupy 00/06/18 and 12 is empty.
-  const dailyLayerRan = state.tick % (TICKS_PER_DAY / 4) === 0;
+  // Keep a single daily layer: the quarter-day phases plus the 23:00 construction close.
+  // 12:00 remains an empty phase; late shifts are fully witnessed before midnight reset.
+  const dailyLayerRan = state.tick % (TICKS_PER_DAY / 4) === 0
+    || state.tick % TICKS_PER_DAY === DAILY_PHASE_HOURS.construction * TICKS_PER_HOUR;
   if (dailyLayerRan) {
     const dailyStart = profileStart();
     tickLayerDaily(state, ctx, allAlive);

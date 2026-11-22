@@ -4,13 +4,15 @@ import { Time } from './gameConstants';
 export const TICKS_PER_HOUR = Time.TICKS_PER_HOUR;
 export const TICKS_PER_DAY = Time.HOURS_PER_DAY * TICKS_PER_HOUR;
 export const LEGACY_TICKS_PER_DAY = 24;
-/** Named daily phases: 00:00, 06:00 and 18:00; the 12:00 invocation has no phase. */
+/** Named daily phases: 00:00, 06:00, 18:00 and 23:00; 12:00 has no phase. */
 export const DAILY_PHASE_HOURS = {
   fatigue: 0,
   relationships: 6,
-  // The last daily slot, after the ordinary work window, so production reads today's work.
+  // Established 18:00 production; construction closes after the last legal shift at 23:00.
   production: 18,
   worldEvents: 18,
+  // Construction closes after the latest permitted work shift and before midnight settlement.
+  construction: 23,
 } as const;
 
 /** Tick at which a named daily phase begins on absolute colony day `day`. */

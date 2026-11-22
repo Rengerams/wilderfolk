@@ -8,7 +8,7 @@ import { gameTick } from '../src/game/gameTick';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { BUILDING_JOB_TYPES, BuildingType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import { PRODUCTION_INTERVAL, TICKS_PER_DAY, isProductionTick } from '../src/game/dayCycle';
+import { PRODUCTION_INTERVAL, TICKS_PER_DAY, TICKS_PER_HOUR, isProductionTick } from '../src/game/dayCycle';
 import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { readSkill, rewardProductionSkills, WORK_SKILL_BUILDING_TYPES, WORK_SKILL_PER_SHIFT } from '../src/game/skills';
@@ -51,15 +51,15 @@ function staffedWorld(
   const worker = state.entities.find((e) => e.alive && isPlayerHuman(e));
   expect(worker, 'fixture premise: the colony starts with a settler').toBeTruthy();
   worker!.faction = undefined;
-  worker!.workerBuildingId = SITE_ID;
+  worker!.workerBuildingId = options.completed === false ? undefined : SITE_ID;
   worker!.job = job;
   // The shift is settled before the daily layer reads attendance, so the fixture states it directly.
   worker!.scheduleLastWorkedHours = getScheduleTargetHours(state);
   state.buildings.find((b) => b.id === SITE_ID)!.occupants = [worker!.id];
   if (options.wood != null) state.resources.wood = options.wood;
-  // `gameTick` advances the clock first, so the day boundary (and its daily layer) lands on
-  // `TICKS_PER_DAY` from here.
-  state.tick = tickAtDailyPhase(1, 'production') - 1;
+  // Production earns its shift at 18:00; unfinished construction earns it at 23:00.
+  // `gameTick` advances the clock first, so choose the correct owner phase.
+  state.tick = tickAtDailyPhase(1, options.completed === false ? 'construction' : 'production') - 1;
   return { state, worker: worker! };
 }
 
@@ -134,17 +134,20 @@ describe('a worked shift teaches its trade', () => {
     ).toBeCloseTo(WORK_SKILL_PER_SHIFT, 6);
   });
 
-  it('credits the builder who worked the site', () => {
+  it('credits a witnessed builder once and never pays an absent builder', () => {
+    const absent = staffedWorld(BuildingType.House, JobType.Builder, { completed: false });
+    gameTick(absent.state);
+    expect(skillIn(absent.state, absent.worker.id, JobType.Builder)).toBe(0);
+
     const { state, worker } = staffedWorld(BuildingType.House, JobType.Builder, { completed: false });
-
+    const ticks = getScheduleTargetHours(state) * TICKS_PER_HOUR;
+    worker.scheduleWorkedTicksToday = ticks;
+    worker.scheduleWorkedSiteIdToday = SITE_ID;
+    worker.scheduleWorkedJobToday = JobType.Builder;
+    worker.schedulePresentTicksToday = ticks;
+    worker.schedulePresentSiteIdToday = SITE_ID;
     gameTick(state);
-
-    // The site pays its own progress credit and the standard shift; the day's idle decay then shaves
-    // the reassigned Builder, so the assertion is the floor a shift guarantees, not a fixed total.
-    expect(
-      skillIn(state, worker.id, JobType.Builder),
-      'a builder raised a house all day and learned nothing',
-    ).toBeGreaterThanOrEqual(WORK_SKILL_PER_SHIFT - 1e-9);
+    expect(skillIn(state, worker.id, JobType.Builder)).toBeCloseTo(WORK_SKILL_PER_SHIFT, 8);
   });
 
   it('keeps the trade set derived from the staffing table, so no post is dropped', () => {
