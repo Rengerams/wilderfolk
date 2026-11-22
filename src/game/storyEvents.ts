@@ -36,7 +36,7 @@ const CHILDREN_SHELTER_FOOD_PER_DAY = CHILDREN_SHELTER_CHILDREN * Human.DAILY_FO
 
 function countFreeShelterBeds(state: WorldState): number {
   return state.buildings
-    .filter((building) => isResidenceBuilding(building) && !isLeaderHouseResidence(building) && building.faction !== 'rival')
+    .filter((building) => isResidenceBuilding(building) && !isLeaderHouseResidence(building))
     .reduce((total, building) => total + Math.max(0, getResidenceCapacity(building) - building.occupants.length), 0);
 }
 
@@ -320,7 +320,7 @@ function resolveChildrenShelter(state: WorldState, choiceId: string): boolean {
   if (choiceId !== 'help') return true;
 
   const shelterHouses = state.buildings.filter(
-    (building) => isResidenceBuilding(building) && !isLeaderHouseResidence(building) && building.faction !== 'rival'
+    (building) => isResidenceBuilding(building) && !isLeaderHouseResidence(building)
       && getResidenceCapacity(building) - building.occupants.length > 0,
   ).length;
   state.storyFlags = {

@@ -29,7 +29,6 @@ export function drawBuildingActiveEffects(
 
   ctx.save();
   for (const b of state.buildings) {
-    if (b.faction === 'rival') continue;
     const sx = worldToScreenX(b.x, cam, cw);
     const sy = worldToScreenY(b.y, cam, ch);
     const w = b.width * cam.zoom;
