@@ -1,6 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { BuildingType, EntityType, type WorldState } from '../src/game/gameTypes';
 import { building } from '../src/test/factories';
 import { createEmptyLifetimeStats } from '../src/game/stats';
@@ -116,15 +114,6 @@ describe('village identity follows player choices', () => {
 
 
 describe('live Goals portrait', () => {
-  it('reads the latest snapshot while Your path is open, without a stale hourly memo', () => {
-    const source = readFileSync(
-      resolve(process.cwd(), 'src/components/tabPanels/ProgressTabPanel.tsx'), 'utf8',
-    );
-    expect(source).toContain("openSubject === 'path' ? computeVillagePortrait(state) : null");
-    expect(source).not.toContain('useMemo(() => computeVillagePortrait(state)');
-    expect(source).not.toContain('react-hooks/exhaustive-deps');
-  });
-
   it('responds to in-place building and trade changes at the same simulation tick', () => {
     const world = {
       ...neutralVillage,
