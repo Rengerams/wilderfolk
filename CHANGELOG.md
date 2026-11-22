@@ -26,6 +26,7 @@
 
 ---
 
+- **Fixed (22 Nov 2026):** Village identity now reflects player conservation, trade, buildings, diplomacy and recorded raids rather than starting wildlife or passive peace; portrait refreshes hourly without scanning the Chronicle.
 - **Removed (20 Nov 2026):** Retired warfare leftovers: rival-camp entity rosters and settler UI, the POW release/execution reaction choices, unused militia strength wrappers and combat-log text classification. Legacy camp structures still migrate on load.
 - **Fixed (20 Nov 2026):** Closing a colony saves its acknowledged state, visiting factions resume their activity after loading, and tick rollback shares unchanged family history.
 - **Fixed (20 Nov 2026):** The call-graph index treated a multi-line signature as the whole function body, so the overlap gate compared signatures and reported eight phantom duplicates; it now finds the real body.

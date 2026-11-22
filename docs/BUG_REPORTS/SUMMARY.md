@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-22 — [Village portrait mislabels an untouched valley as nature stewards](../bug_report/2026-11-22-village-portrait-passive-nature-score.md):** investigating; replaces passive nature/war scoring with player-action evidence; CI verification pending.
+
 **2026-11-11 — [Audit remediation: simulation hand-off, invariants and schedule](../bug_report/2026-11-11-audit-remediation-simulation.md):** resolved; election/beauty/paused hand-off, invariant gate that can fail, attendance-only pay, harvest/grass/herd/ledger/shelter/commute rules.
 
 **2026-11-11 — [Audit remediation: renderer and presentation](../bug_report/2026-11-11-audit-remediation-renderer.md):** resolved; live placement markers, real grass energy, no render writes to simulation fields, static-layer and terrain keys, cached static revision.
