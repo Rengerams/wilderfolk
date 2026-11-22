@@ -1348,7 +1348,7 @@ export function findCourtshipPartner(
   entity: Entity,
   atHome: boolean,
   courtRange: number,
-  humanSocialGrid: EntitySpatialGrid | undefined,
+  humanSocialGrid: EntitySpatialGrid<Entity> | undefined,
   residenceOccupants: Map<number, Entity[]> = new Map(),
   fallbackHumans?: readonly Entity[],
   width?: number,
