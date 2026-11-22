@@ -4,11 +4,15 @@ import type {
 } from './gameTypes';
 import { BuildingType, EntityType, FLOATING_TEXT_FADE_TICKS } from './gameTypes';
 import {
-  USE_SPATIAL_GRID,
-  syncMobileSimGrid,
-  syncHumanSocialGrid,
-  syncGrassRenderGrid,
-  syncTreeGrid,
+  GRASS_CELL_SIZE,
+  MOBILE_CELL_SIZE,
+  SOCIAL_CELL_SIZE,
+  TREE_CELL_SIZE,
+  isGrassGridEntity,
+  isHumanSocialGridEntity,
+  isMobileGridEntity,
+  isTreeGridEntity,
+  syncEntitySpatialGrid,
 } from './spatialGrid';
 import { USE_SCENT_GRID, ensureScentGrid, tickScentGrid } from './scentGrid';
 import { computePopulationCounts } from './entityCounts';
@@ -149,27 +153,29 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
   state.renffrOmen = tickRenffrOmen(state.renffrOmen);
 
   // Spatial grid sync (must run before AI uses the grids)
-  const mobileGrid = USE_SPATIAL_GRID
-    ? syncMobileSimGrid(state.mobileGrid, width, height, aliveEntities)
-    : undefined;
+  const mobileGrid = syncEntitySpatialGrid(
+    state.mobileGrid, width, height, aliveEntities, MOBILE_CELL_SIZE, isMobileGridEntity,
+  );
   state.mobileGrid = mobileGrid;
   ctx.mobileGrid = mobileGrid;
 
-  const humanSocialGrid = USE_SPATIAL_GRID
-    ? syncHumanSocialGrid(state.humanSocialGrid, width, height, ctx.byType[EntityType.Human] ?? [])
-    : undefined;
+  const humanSocialGrid = syncEntitySpatialGrid(
+    state.humanSocialGrid, width, height, ctx.byType[EntityType.Human] ?? [], SOCIAL_CELL_SIZE,
+    isHumanSocialGridEntity,
+  );
   state.humanSocialGrid = humanSocialGrid;
   ctx.humanSocialGrid = humanSocialGrid;
 
-  const grassGrid = USE_SPATIAL_GRID
-    ? syncGrassRenderGrid(state.grassGrid, width, height, ctx.byType[EntityType.Grass] ?? [])
-    : undefined;
+  const grassGrid = syncEntitySpatialGrid(
+    state.grassGrid, width, height, ctx.byType[EntityType.Grass] ?? [], GRASS_CELL_SIZE,
+    isGrassGridEntity,
+  );
   state.grassGrid = grassGrid ?? undefined;
   ctx.grassGrid = grassGrid;
 
-  const treeGrid = USE_SPATIAL_GRID
-    ? syncTreeGrid(state.treeGrid, width, height, ctx.byType[EntityType.Tree] ?? [])
-    : undefined;
+  const treeGrid = syncEntitySpatialGrid(
+    state.treeGrid, width, height, ctx.byType[EntityType.Tree] ?? [], TREE_CELL_SIZE, isTreeGridEntity,
+  );
   state.treeGrid = treeGrid;
   ctx.treeGrid = treeGrid;
 

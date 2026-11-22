@@ -5,7 +5,7 @@ import {
   bindNumberedPresentationSpeakers,
   canonicalDialogueBank,
   DIALOGUE_SCHEMA_VERSION,
-  readPresentationDialogue,
+  parsePresentationDialogue,
 } from '../src/game/dialogueTrees';
 
 type JsonScene = {
@@ -59,7 +59,7 @@ describe('v1.3 dialogue source contract', () => {
         expect(tree.category, tree.id).toBe(source.category);
         if (tree.conversation_type === 'group') {
           expect(tree.eventKey?.trim(), tree.id).toBeTruthy();
-          expect(() => readPresentationDialogue(source, tree.eventKey!), tree.id).not.toThrow();
+          expect(() => parsePresentationDialogue(source, tree.eventKey!), tree.id).not.toThrow();
         } else {
           expect(tree.conversation_type, tree.id).toBe(
             tree.speakers.length === 1 ? 'one_way' : 'two_way',
@@ -117,7 +117,7 @@ describe('PR #91 group-caption JSON compatibility', () => {
   } as const;
 
   it('returns ordered lines, role tags, and optional real-time caption timings', () => {
-    const scene = readPresentationDialogue(groupSource, 'spotlight.theLook');
+    const scene = parsePresentationDialogue(groupSource, 'spotlight.theLook');
     expect(scene.id).toBe('spotlight_example');
     expect(scene.speakers).toEqual(['chorus', 'heroine', 'narrator']);
     expect(scene.lines.map(({ speaker }) => speaker)).toEqual(['chorus', 'narrator', 'heroine']);
@@ -146,7 +146,7 @@ describe('PR #91 group-caption JSON compatibility', () => {
         })),
       }],
     };
-    const presentation = readPresentationDialogue(source, 'spotlight.lore');
+    const presentation = parsePresentationDialogue(source, 'spotlight.lore');
     const actors = [102, 107, 109, 114, 120, 123, 130, 135, 140, 145];
     for (let size = 6; size <= 10; size++) {
       const cast = Object.freeze(actors.slice(0, size));
@@ -167,7 +167,7 @@ describe('PR #91 group-caption JSON compatibility', () => {
       .toThrow(/Invalid or duplicate/);
     expect(() => bindNumberedPresentationSpeakers(presentation, [102, 107, 109, 114, 120, -1]))
       .toThrow(/Invalid or duplicate/);
-    const nonNumbered = readPresentationDialogue(groupSource, 'spotlight.theLook');
+    const nonNumbered = parsePresentationDialogue(groupSource, 'spotlight.theLook');
     expect(() => bindNumberedPresentationSpeakers(nonNumbered, actors))
       .toThrow(/must be sequential/);
   });
@@ -186,7 +186,7 @@ describe('PR #91 group-caption JSON compatibility', () => {
         lines: roles.map((speaker, i) => ({ speaker, text: `Line ${i + 1}` })),
       }],
     };
-    const scene = readPresentationDialogue(source, 'spotlight.lore');
+    const scene = parsePresentationDialogue(source, 'spotlight.lore');
     const cast = [101, 102, 103, 104, 105, 106, 107, 108];
     expect(() => bindNumberedPresentationSpeakers(scene, cast))
       .toThrow(/Every gathered performer must speak/);
@@ -208,7 +208,7 @@ describe('PR #91 group-caption JSON compatibility', () => {
         lines: roles.map((speaker, i) => ({ speaker, text: `Role ${i + 1}` })),
       }],
     };
-    const presentation = readPresentationDialogue(source, 'group.overflow');
+    const presentation = parsePresentationDialogue(source, 'group.overflow');
     const cast = Object.freeze([201, 202, 203, 204, 205, 206]);
     const bound = bindNumberedPresentationSpeakers(presentation, cast);
     expect(bound.map((line) => line.speakerId))
@@ -222,25 +222,25 @@ describe('PR #91 group-caption JSON compatibility', () => {
   it('does not write to human chat state or create a new gameplay chat session', () => {
     const speaker = { id: 491, chatPhrase: 'Still talking', chatTicks: 8 };
     const before = { ...speaker };
-    readPresentationDialogue(groupSource, 'spotlight.theLook');
+    parsePresentationDialogue(groupSource, 'spotlight.theLook');
     expect(speaker).toEqual(before);
   });
 
   it('rejects missing, duplicate or malformed group events instead of reusing ambient lines', () => {
-    expect(() => readPresentationDialogue(groupSource, 'spotlight.missing')).toThrow(/Missing presentation event key/);
-    expect(() => readPresentationDialogue({ ...groupSource, version: '1.2' }, 'spotlight.theLook')).toThrow(/Invalid 1.3/);
-    expect(() => readPresentationDialogue({
+    expect(() => parsePresentationDialogue(groupSource, 'spotlight.missing')).toThrow(/Missing presentation event key/);
+    expect(() => parsePresentationDialogue({ ...groupSource, version: '1.2' }, 'spotlight.theLook')).toThrow(/Invalid 1.3/);
+    expect(() => parsePresentationDialogue({
       ...groupSource,
       dialogue_trees: [groupSource.dialogue_trees[0], groupSource.dialogue_trees[0]],
     }, 'spotlight.theLook')).toThrow(/duplicate presentation tree ID/);
-    expect(() => readPresentationDialogue({
+    expect(() => parsePresentationDialogue({
       ...groupSource,
       dialogue_trees: [{
         ...groupSource.dialogue_trees[0],
         lines: [{ speaker: 'stranger', text: 'Wrong voice.' }],
       }],
     }, 'spotlight.theLook')).toThrow(/Invalid presentation tree/);
-    expect(() => readPresentationDialogue({
+    expect(() => parsePresentationDialogue({
       ...groupSource,
       dialogue_trees: [{
         ...groupSource.dialogue_trees[0],

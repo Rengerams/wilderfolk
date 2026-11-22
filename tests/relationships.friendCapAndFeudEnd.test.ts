@@ -3,15 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { WorldState } from '../src/game/gameTypes';
-import {
-  FRIEND_CLOSE_THRESHOLD,
-  MAX_CLOSE_FRIENDS_PER_SETTLER,
-  advanceSocialRelationships,
-  feudScore,
-  friendCount,
-  reconcileCloseFriendships,
-  friendshipScore,
-} from '../src/game/relationships';
+import { FRIEND_CLOSE_THRESHOLD, MAX_CLOSE_FRIENDS_PER_SETTLER, advanceSocialRelationships, relationshipScore, friendCount, reconcileCloseFriendships } from '../src/game/relationships';
 import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { human } from '../src/test/factories';
 import { genomeFrom } from './helpers/genome';
@@ -31,8 +23,7 @@ function state(): WorldState {
     resources: {},
     floatingTexts: [],
     nextFloatingTextId: 1,
-    villageReputation: 0,
-  } as unknown as WorldState;
+    villageReputation: 0 } as unknown as WorldState;
 }
 
 function messages(world: WorldState, needle: string): number {
@@ -44,8 +35,8 @@ function closePairAgreement(people: ReturnType<typeof human>[]): string[] {
   for (const a of people) {
     for (const b of people) {
       if (a.id === b.id) continue;
-      const ab = friendshipScore(a, b.id);
-      const ba = friendshipScore(b, a.id);
+      const ab = relationshipScore(a, b.id, 'friend');
+      const ba = relationshipScore(b, a.id, 'friend');
       if (ab !== ba) broken.push(`${a.id}->${b.id}=${ab} vs ${b.id}->${a.id}=${ba}`);
     }
   }
@@ -85,9 +76,9 @@ describe('legacy friendship reconciliation', () => {
     });
     reconcileCloseFriendships(people);
     expect(friendCount(central)).toBe(6);
-    expect(friendshipScore(central, 2)).toBe(59);
-    expect(friendshipScore(people[1], 1)).toBe(59);
-    expect(friendshipScore(central, 9)).toBe(77);
+    expect(relationshipScore(central, 2, 'friend')).toBe(59);
+    expect(relationshipScore(people[1], 1, 'friend')).toBe(59);
+    expect(relationshipScore(central, 9, 'friend')).toBe(77);
     expect(closePairAgreement(people)).toEqual([]);
     reconcileCloseFriendships(people);
     expect(friendCount(central)).toBe(6);
@@ -116,8 +107,8 @@ describe('a feud that starts is announced as settled', () => {
     const world = state();
 
     advanceSocialRelationships(world, [a, b], undefined, () => 0);
-    expect(feudScore(a, b.id)).toBeGreaterThan(0);
-    expect(feudScore(a, b.id)).toBe(feudScore(b, a.id));
+    expect(relationshipScore(a, b.id, 'feud')).toBeGreaterThan(0);
+    expect(relationshipScore(a, b.id, 'feud')).toBe(relationshipScore(b, a.id, 'feud'));
     expect(messages(world, 'feud is brewing'), 'the start is announced').toBe(1);
 
     for (let day = 0; day < 200; day++) advanceSocialRelationships(world, [a, b], undefined, () => 0.99);

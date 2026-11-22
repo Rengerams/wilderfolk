@@ -1,6 +1,7 @@
 import type { SpotlightLoreState, WorldState } from '../game/gameTypes';
 import { getReadOnlyPathGrid, lineCrossesBlocked } from '../game/pathfinding';
 import { PATH_CELL } from '../game/gameTypes';
+import { smoothstep01 } from '../game/terrain/noise';
 
 export interface SpotlightWorldPoint { readonly x: number; readonly y: number }
 
@@ -41,11 +42,10 @@ export function spotlightFarewellPosition(
   destination: SpotlightWorldPoint,
   fraction: number,
 ): SpotlightWorldPoint {
-  const t = Math.max(0, Math.min(1, fraction));
-  const smooth = t * t * (3 - 2 * t);
+  const eased = smoothstep01(fraction);
   return {
-    x: origin.x + (destination.x - origin.x) * smooth,
-    y: origin.y + (destination.y - origin.y) * smooth,
+    x: origin.x + (destination.x - origin.x) * eased,
+    y: origin.y + (destination.y - origin.y) * eased,
   };
 }
 

@@ -5,6 +5,7 @@ import { MapPreset, MapSize, MAP_SIZE_DIMENSIONS } from './gameTypes';
 import { generateRawTerrain } from './terrain/terragen';
 import { tileAt } from './terrain/terrainGrid';
 import { TERRAIN_PALETTE } from './terrainAtlas';
+import { useGestureUnlock } from '../hooks/useGestureUnlock';
 
 const PRESET_INFO: Record<MapPreset, { label: string; blurb: string; emoji: string; forTag: string; sky: string; mid: string; low: string; water?: boolean }> = {
   [MapPreset.Arabia]: {
@@ -176,15 +177,7 @@ export default function MapSetupScreen({
     ensureIntroMusic();
   }, [ensureIntroMusic]);
 
-  useEffect(() => {
-    const unlockOnGesture = () => ensureIntroMusic();
-    window.addEventListener('pointerdown', unlockOnGesture);
-    window.addEventListener('keydown', unlockOnGesture);
-    return () => {
-      window.removeEventListener('pointerdown', unlockOnGesture);
-      window.removeEventListener('keydown', unlockOnGesture);
-    };
-  }, [ensureIntroMusic]);
+  useGestureUnlock(ensureIntroMusic);
 
   const handleStart = () => {
     onStart(villageName.trim() || 'New Frontier');

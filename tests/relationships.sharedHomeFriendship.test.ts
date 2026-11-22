@@ -5,13 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { JobType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
-import {
-  FRIEND_CLOSE_THRESHOLD,
-  MAX_CLOSE_FRIENDS_PER_SETTLER,
-  advanceSocialRelationships,
-  friendCount,
-  friendshipScore,
-} from '../src/game/relationships';
+import { FRIEND_CLOSE_THRESHOLD, MAX_CLOSE_FRIENDS_PER_SETTLER, advanceSocialRelationships, friendCount, relationshipScore } from '../src/game/relationships';
 import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { human } from '../src/test/factories';
 
@@ -30,8 +24,7 @@ function state(): WorldState {
     resources: {},
     floatingTexts: [],
     nextFloatingTextId: 1,
-    villageReputation: 0,
-  } as unknown as WorldState;
+    villageReputation: 0 } as unknown as WorldState;
 }
 
 describe('daily friendship sources (F2)', () => {
@@ -42,8 +35,8 @@ describe('daily friendship sources (F2)', () => {
 
     advanceSocialRelationships(world, [a, b]);
 
-    expect(friendshipScore(a, b.id)).toBeGreaterThan(0);
-    expect(friendshipScore(b, a.id)).toBe(friendshipScore(a, b.id));
+    expect(relationshipScore(a, b.id, 'friend')).toBeGreaterThan(0);
+    expect(relationshipScore(b, a.id, 'friend')).toBe(relationshipScore(a, b.id, 'friend'));
   });
 
   it('still grows friendship between coworkers who share a workplace building', () => {
@@ -53,7 +46,7 @@ describe('daily friendship sources (F2)', () => {
 
     advanceSocialRelationships(world, [a, b]);
 
-    expect(friendshipScore(a, b.id)).toBeGreaterThan(0);
+    expect(relationshipScore(a, b.id, 'friend')).toBeGreaterThan(0);
   });
 
   it('leaves settlers who share neither home nor work as strangers', () => {
@@ -63,7 +56,7 @@ describe('daily friendship sources (F2)', () => {
 
     advanceSocialRelationships(world, [a, b]);
 
-    expect(friendshipScore(a, b.id)).toBe(0);
+    expect(relationshipScore(a, b.id, 'friend')).toBe(0);
   });
 
   it('does not treat the jobless as sharing a trade', () => {
@@ -75,7 +68,7 @@ describe('daily friendship sources (F2)', () => {
 
     advanceSocialRelationships(world, [a, b]);
 
-    expect(friendshipScore(a, b.id)).toBe(0);
+    expect(relationshipScore(a, b.id, 'friend')).toBe(0);
   });
 
   it('reaches members past the pair budget instead of bonding the same head every day', () => {
@@ -144,7 +137,7 @@ describe('close friendships are capped per settler', () => {
 
     expect(friendCount(loaded), 'loaded bonds obey the six-friend ceiling').toBe(MAX_CLOSE_FRIENDS_PER_SETTLER);
     // Warming an un-close bond is still allowed; only a *new close* bond is refused.
-    expect(friendshipScore(newcomer, loaded.id)).toBeGreaterThan(0);
+    expect(relationshipScore(newcomer, loaded.id, 'friend')).toBeGreaterThan(0);
     expect(friendCount(newcomer), 'the newcomer takes on no close bond').toBe(0);
   });
 });

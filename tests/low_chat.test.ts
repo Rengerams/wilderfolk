@@ -9,7 +9,7 @@ import type { Building, Entity, GameEventLog, StoryEvent, WorldState } from '../
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
 import { getEconomyLedger } from '../src/game/economyLedger';
-import { logEvent, resolveCombatLogKind } from '../src/game/eventLog';
+import { logEvent, resolveCombatLogField } from '../src/game/eventLog';
 import { EVENT_LOG_FILTER_OPTIONS } from '../src/game/eventLogFilters';
 import { tickHospitalDailyCare, treatPatientAtHospital } from '../src/game/hospitalCare';
 import {
@@ -257,7 +257,7 @@ describe('L23 — combat classification guard', () => {
       type: 'event',
       message: 'Raid called off — truce with the Ridge Camp',
     };
-    expect(resolveCombatLogKind(truce)).toBeNull();
+    expect(resolveCombatLogField(truce, 'combatKind')).toBeNull();
 
     const incoming: GameEventLog = {
       ...truce,
@@ -265,7 +265,7 @@ describe('L23 — combat classification guard', () => {
       combatKind: 'incoming_raid',
       message: 'The Ridge Camp launched a raid on the village',
     };
-    expect(resolveCombatLogKind(incoming)).toBe('incoming_raid');
+    expect(resolveCombatLogField(incoming, 'combatKind')).toBe('incoming_raid');
   });
 });
 

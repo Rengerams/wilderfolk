@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
 import { EntityType, BuildingType, JobType } from '../src/game/gameTypes';
-import { advanceSocialRelationships, friendshipScore, feudScore, startFeud, friendCount } from '../src/game/relationships';
+import { advanceSocialRelationships, relationshipScore, startFeud, friendCount } from '../src/game/relationships';
 import { advanceApprenticeships } from '../src/game/apprenticeships';
 import { SCHOOL_GRADUATION_DAYS, SCHOOL_FULL_EDUCATION_DAYS } from '../src/game/education';
 import { computeDynasties, hasDynasty } from '../src/game/familyLegacy';
@@ -58,10 +58,10 @@ describe('relationship webs — friendships', () => {
     const w = makeWorld();
     const a = addHuman(w, { id: 1, workerBuildingId: 10 });
     const b = addHuman(w, { id: 2, workerBuildingId: 10 });
-    expect(friendshipScore(a, b.id)).toBe(0);
+    expect(relationshipScore(a, b.id, 'friend')).toBe(0);
     advanceSocialRelationships(w, w.entities);
-    expect(friendshipScore(a, b.id)).toBeGreaterThanOrEqual(0.5);
-    expect(friendshipScore(a, b.id)).toBe(friendshipScore(b, a.id));
+    expect(relationshipScore(a, b.id, 'friend')).toBeGreaterThanOrEqual(0.5);
+    expect(relationshipScore(a, b.id, 'friend')).toBe(relationshipScore(b, a.id, 'friend'));
   });
 
   it('strong friendships count for the UI badge', () => {
@@ -80,8 +80,8 @@ describe('relationship webs — feuds', () => {
     const a = addHuman(w, { id: 1 });
     const b = addHuman(w, { id: 2 });
     startFeud(w, a, b, 35);
-    expect(feudScore(a, b.id)).toBe(35);
-    expect(feudScore(b, a.id)).toBe(35);
+    expect(relationshipScore(a, b.id, 'feud')).toBe(35);
+    expect(relationshipScore(b, a.id, 'feud')).toBe(35);
   });
 
   it('feuds decay and drain energy over days', () => {
@@ -91,7 +91,7 @@ describe('relationship webs — feuds', () => {
     startFeud(w, a, b, 35);
     const e0 = a.energy ?? 80;
     for (let d = 0; d < 3; d++) advanceSocialRelationships(w, w.entities);
-    expect(feudScore(a, b.id)).toBeLessThan(35);
+    expect(relationshipScore(a, b.id, 'feud')).toBeLessThan(35);
     expect((a.energy ?? 80)).toBeLessThan(e0);
   });
 });

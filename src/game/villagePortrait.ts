@@ -28,7 +28,8 @@ export interface VillagePortrait {
   primary: PortraitTraitId;
 }
 
-function clamp(n: number, lo = 0, hi = 100): number {
+/** Clamp to a rounded 0–100 score. */
+function clampScore(n: number, lo = 0, hi = 100): number {
   return Math.max(lo, Math.min(hi, Math.round(n)));
 }
 
@@ -88,7 +89,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
     if (!reports.some((report) => report.raidId === raid.id)) pendingRaids++;
   }
 
-  const warScore = clamp(
+  const warScore = clampScore(
     Math.min(65, outgoingRaids * 22) +
       Math.min(20, pendingRaids * 20) +
       Math.min(20, atWar * 12) +
@@ -97,20 +98,20 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
 
   // Wild animals and an untouched stable valley are not conservation decisions.
   // Ecosystem health already accounts for living wildlife.
-  const natureScore = clamp(
+  const natureScore = clampScore(
     (Math.min(45, preserves * 18)
       + Math.min(25, Math.max(0, state.ecoHealthYearsAbove80 ?? 0) * 5)
       + Math.max(0, eco - 50) * 0.5)
     * Math.max(0, Math.min(1, eco / 65)),
   );
 
-  const tradeScore = clamp(
+  const tradeScore = clampScore(
     Math.min(50, activeRoutes * 22) +
       Math.min(20, caravans * 2) +
       Math.min(15, tradeGold / 800),
   );
 
-  const buildScore = clamp(
+  const buildScore = clampScore(
     settlementSites > 0
       ? Math.min(25, humans / 4)
         + Math.min(55, settlementSites * 2.5)
@@ -118,7 +119,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
       : 0,
   );
 
-  const diplomacyScore = clamp(
+  const diplomacyScore = clampScore(
     Math.min(44, atPeace * 22) +
       Math.min(30, gifts * 6) +
       Math.min(20, friendly * 10) +

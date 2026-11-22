@@ -7,7 +7,7 @@ import { EntityType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { tickFamineDesperation } from '../src/game/famineDesperation';
 import { getSimRng, setSimSeed } from '../src/game/simRng';
-import { feudScore, friendshipScore } from '../src/game/relationships';
+import { relationshipScore } from '../src/game/relationships';
 import { Famine } from '../src/game/gameConstants';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 
@@ -169,7 +169,7 @@ describe('famine desperation bite (joke)', () => {
 
     const attackerEnergyBefore = attacker.energy;
     const victimEnergyBefore = victim.energy;
-    const before = friendshipScore(attacker, victim.id);
+    const before = relationshipScore(attacker, victim.id, 'friend');
 
     tickFamineDesperation(state, state.entities);
 
@@ -185,7 +185,7 @@ describe('famine desperation bite (joke)', () => {
     expect(victim.energy).toBe(victimEnergyBefore);
 
     // Victim is not amused — friendship went down.
-    const after = friendshipScore(attacker, victim.id);
+    const after = relationshipScore(attacker, victim.id, 'friend');
     expect(after).toBeLessThan(before);
     expect(after).toBeGreaterThanOrEqual(0);
   });
@@ -204,10 +204,10 @@ describe('famine desperation bite (joke)', () => {
     tickFamineDesperation(state, state.entities);
 
     expect(state.eventLog[0].message).toContain('took a bite');
-    expect(feudScore(victim, attacker.id)).toBe(Famine.BITE_FEUD_AMOUNT);
-    expect(feudScore(attacker, victim.id)).toBe(Famine.BITE_FEUD_AMOUNT);
+    expect(relationshipScore(victim, attacker.id, 'feud')).toBe(Famine.BITE_FEUD_AMOUNT);
+    expect(relationshipScore(attacker, victim.id, 'feud')).toBe(Famine.BITE_FEUD_AMOUNT);
     // The feud's built-in friendship charge is the only one a landed bite pays.
-    expect(friendshipScore(attacker, victim.id)).toBe(60 - Famine.BITE_FEUD_AMOUNT);
-    expect(friendshipScore(victim, attacker.id)).toBe(60 - Famine.BITE_FEUD_AMOUNT);
+    expect(relationshipScore(attacker, victim.id, 'friend')).toBe(60 - Famine.BITE_FEUD_AMOUNT);
+    expect(relationshipScore(victim, attacker.id, 'friend')).toBe(60 - Famine.BITE_FEUD_AMOUNT);
   });
 });

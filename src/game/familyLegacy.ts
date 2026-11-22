@@ -54,11 +54,11 @@ export function computeDynasties(state: WorldState): Dynasty[] {
  * Whether one family line counts as a dynasty: at least three living generations and three members.
  * Single definition, shared by the chronicle reward gate and `DynastyPanel`.
  */
-export function isDynasty(dynasty: Pick<Dynasty, 'generationsAlive' | 'members'>): boolean {
+export function meetsDynastyThreshold(dynasty: Pick<Dynasty, 'generationsAlive' | 'members'>): boolean {
   return dynasty.generationsAlive >= 3 && dynasty.members >= 3;
 }
 
 /** A dynasty: three living generations of the same family, at least three members. */
 export function hasDynasty(state: WorldState): boolean {
-  return computeDynasties(state).some(isDynasty);
+  return computeDynasties(state).some(meetsDynastyThreshold);
 }

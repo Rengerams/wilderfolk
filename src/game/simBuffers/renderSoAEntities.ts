@@ -1,6 +1,8 @@
 import { getRenderEntityLayer, UNCACHED_RENDER_TICK, type Entity } from '../gameTypes';
 import {
-  syncGrassRenderGrid,
+  GRASS_CELL_SIZE,
+  isGrassGridEntity,
+  syncEntitySpatialGrid,
   type EntitySpatialGrid,
   USE_SPATIAL_GRID,
 } from '../spatialGrid';
@@ -176,7 +178,9 @@ export function syncGrassRenderGridFromSoA(
     if (shim) grassEntities.push(shim);
   }
 
-  grassRenderGrid = syncGrassRenderGrid(grassRenderGrid, mapWidth, mapHeight, grassEntities);
+  grassRenderGrid = syncEntitySpatialGrid(
+    grassRenderGrid, mapWidth, mapHeight, grassEntities, GRASS_CELL_SIZE, isGrassGridEntity,
+  );
   grassGridTick = tick;
   grassGridMapW = mapWidth;
   grassGridMapH = mapHeight;

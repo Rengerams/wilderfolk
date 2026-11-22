@@ -3,6 +3,7 @@ import type { GameEventLog } from './gameTypes';
 import { displayYear } from './dayCycleClock';
 import { buildWeeklyGazette, gazetteWeekForTick } from './weeklyGazette';
 import { EVENT_LOG_FILTER_OPTIONS, getEventLogFilterLabel } from './eventLogFilters';
+import { formatEventLogLine } from './eventLog';
 import {
   downloadChronicleCSV,
   downloadChronicleJSON,
@@ -64,10 +65,6 @@ const EVENT_COLORS: Record<GameEventLog['type'], string> = {
 /** Rows drawn at a time. The list re-renders with the world, so it grows by request, not at once. */
 const IN_GAME_LOG_PAGE = 500;
 
-function formatEventLine(evt: GameEventLog): string {
-  return `Year ${displayYear(evt.year)}, Day ${evt.day} — ${evt.message}`;
-}
-
 /** Memoised so opening the whole log (thousands of rows) does not rebuild it on every world tick. */
 const LogRow = memo(function LogRow({ evt }: { evt: GameEventLog }) {
   return (
@@ -126,7 +123,7 @@ export default function EventLogPanel({ events, meta, initialFilter = 'all', onF
   };
 
   const copyLog = async () => {
-    const text = allFiltered.map(formatEventLine).join('\n');
+    const text = allFiltered.map(formatEventLogLine).join('\n');
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);

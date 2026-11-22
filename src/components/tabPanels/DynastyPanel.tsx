@@ -1,11 +1,11 @@
 import type { WorldState } from '../../game/gameTypes';
-import { computeDynasties, isDynasty } from '../../game/familyLegacy';
+import { computeDynasties, meetsDynastyThreshold } from '../../game/familyLegacy';
 
 /** Family legacy — living dynasties: surnames with multiple generations. */
 export default function DynastyPanel({ state }: { state: WorldState }) {
   const dynasties = computeDynasties(state);
-  /** Dynasty rule read from its owner (`isDynasty`): three living generations and at least three members. */
-  const meaningful = dynasties.filter(isDynasty);
+  /** Dynasty rule read from its owner (`meetsDynastyThreshold`): three living generations and at least three members. */
+  const meaningful = dynasties.filter(meetsDynastyThreshold);
 
   return (
     <div className="rounded-xl border border-violet-600/40 bg-gradient-to-br from-violet-950/40 to-stone-800/50 p-3">

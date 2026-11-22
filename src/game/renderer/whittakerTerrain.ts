@@ -3,7 +3,7 @@
  * smooth hillshaded ground out. Returns null for a legacy map, so the caller keeps the tile bake.
  */
 import { TerrainType, PATH_CELL, type WorldMap } from '../gameTypes';
-import { clamp, valueNoise } from '../terrain/noise';
+import { clamp, smoothstep01, valueNoise } from '../terrain/noise';
 import { grassDetailAt, loadedGrassTextures, loadedTerrainMaterials, loadedDirtTextures, sampleTerrainMaterial } from './grassTextures';
 // The cell edges, the relief bands and the moisture cuts are the classifier's; the bake must sample
 // the same grid and break the landscape at the same heights and the same dryness it does.
@@ -850,18 +850,14 @@ export function bakeWhittakerGround(
       // Material detail: each material carries an octave inside the roughness band, and materials
       // are chosen from the smooth fields so edges land on shorelines, not the 16 px lattice.
       if (!isWater && map.generationVersion === 4) {
-        const fade = (v: number): number => {
-          const t = clamp(v, 0, 1);
-          return t * t * (3 - 2 * t);
-        };
-        const snowW = fade(snowAmountAt(hn, te));
+        const snowW = smoothstep01(snowAmountAt(hn, te));
         const stoneW = (1 - snowW)
-          * fade((hn - (LAND_BANDS.hills - 0.06)) / (LAND_BANDS.rocky - LAND_BANDS.hills + 0.14));
+          * smoothstep01((hn - (LAND_BANDS.hills - 0.06)) / (LAND_BANDS.rocky - LAND_BANDS.hills + 0.14));
         const beachT = clamp(hn / BEACH_BAND_OF_LAND_RANGE, 0, 1);
         const sandStrength = Math.max(1 - beachT, nearWater * 0.35 * clamp(1 - hn / 0.12, 0, 1));
-        const sandW = (1 - snowW - stoneW) * fade(sandStrength);
+        const sandW = (1 - snowW - stoneW) * smoothstep01(sandStrength);
         const dryW = (1 - snowW - stoneW - sandW)
-          * fade((dryMoistureCut + 0.085 - mo) / 0.17);
+          * smoothstep01((dryMoistureCut + 0.085 - mo) / 0.17);
         const grassW = Math.max(0, 1 - snowW - stoneW - sandW - dryW);
 
         if (sandW > 0.005) {
@@ -870,7 +866,7 @@ export function bakeWhittakerGround(
             const k = sandW * 0.72;
             r += materialDetail[0] * k; g += materialDetail[1] * k; b += materialDetail[2] * k;
             // Underwater pebbles and wet shingle gently fade into sandy shoreline.
-            const shingle = sandW * fade((nearWater - 0.22) / 0.65) * 0.30;
+            const shingle = sandW * smoothstep01((nearWater - 0.22) / 0.65) * 0.30;
             if (shingle > 0.005) {
               sampleTerrainMaterial(naturalMaterials.pebbles, wx, wy, materialDetail);
               r += materialDetail[0] * shingle;
@@ -892,7 +888,7 @@ export function bakeWhittakerGround(
         }
         if (stoneW > 0.005) {
           if (naturalMaterials) {
-            const cliff = fade((hn - LAND_BANDS.rocky) / Math.max(0.01, LAND_BANDS.mountains - LAND_BANDS.rocky));
+            const cliff = smoothstep01((hn - LAND_BANDS.rocky) / Math.max(0.01, LAND_BANDS.mountains - LAND_BANDS.rocky));
             sampleTerrainMaterial(naturalMaterials.gravel, wx, wy, materialDetail);
             const k = stoneW * (1 - cliff) * 0.65;
             r += materialDetail[0] * k; g += materialDetail[1] * k; b += materialDetail[2] * k;
@@ -916,7 +912,7 @@ export function bakeWhittakerGround(
           if (dirtTextures) {
             // The supplied CC0 dirt pack is painted for close top-down views: damp fine loam gives
             // way continuously to drier, stony dirt. The rutted image is deliberately not used.
-            const wet = fade((mo - (dryMoistureCut - 0.10)) / 0.20);
+            const wet = smoothstep01((mo - (dryMoistureCut - 0.10)) / 0.20);
             sampleTerrainMaterial(dirtTextures.loam, wx, wy, materialDetail);
             const loamK = dryW * wet * 0.76;
             r += materialDetail[0] * loamK;
@@ -930,7 +926,7 @@ export function bakeWhittakerGround(
               b += materialDetail[2] * coarseK;
             }
           } else if (naturalMaterials) {
-            const dryFraction = fade((dryMoistureCut + 0.035 - mo) / 0.21);
+            const dryFraction = smoothstep01((dryMoistureCut + 0.035 - mo) / 0.21);
             sampleTerrainMaterial(naturalMaterials.soil, wx, wy, materialDetail);
             const k = dryW * (1 - dryFraction) * 0.76;
             r += materialDetail[0] * k; g += materialDetail[1] * k; b += materialDetail[2] * k;
@@ -967,8 +963,8 @@ export function bakeWhittakerGround(
             // stamping isolated vector leaves or sharp forest tiles.
             if (dirtTextures) {
               const forestCut = map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST;
-              const litter = grassW * fade((mo - (forestCut - 0.12)) / 0.30)
-                * (1 - fade((hn - (LAND_BANDS.hills - 0.05)) / 0.20))
+              const litter = grassW * smoothstep01((mo - (forestCut - 0.12)) / 0.30)
+                * (1 - smoothstep01((hn - (LAND_BANDS.hills - 0.05)) / 0.20))
                 * 0.42;
               if (litter > 0.005) {
                 sampleTerrainMaterial(dirtTextures.leafLitter, wx, wy, materialDetail);
@@ -979,8 +975,8 @@ export function bakeWhittakerGround(
             }
             // Dry meadow margins get straw instead of a hard grass/dirt cutoff.
             const dryStraw = naturalMaterials
-              ? grassW * fade((dryMoistureCut + 0.07 - mo) / 0.21)
-                * fade((te - 0.42) / 0.25) * 0.38
+              ? grassW * smoothstep01((dryMoistureCut + 0.07 - mo) / 0.21)
+                * smoothstep01((te - 0.42) / 0.25) * 0.38
               : 0;
             if (dryStraw > 0.005 && naturalMaterials) {
               sampleTerrainMaterial(naturalMaterials.straw, wx, wy, materialDetail);

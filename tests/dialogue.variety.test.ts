@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { canonicalDialogueBank, maybeDialogueChat, requestDialogue } from '../src/game/dialogueTrees';
-import { prepareScriptedDialogue, resetDialogueSessions, type ChatSpeaker } from '../src/game/humanChat';
+import { clearCurrentEntityDialogue, resetDialogueSessions, type ChatSpeaker } from '../src/game/humanChat';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 
 beforeEach(resetDialogueSessions);
@@ -42,7 +42,7 @@ describe('contextual catalogue reachability and dialogue variety', () => {
     const actor: ChatSpeaker = { id: 98301 };
     const request = { eventKey: 'social.impulse.grief.home' as const, speaker: actor };
     expect(requestDialogue({ ...request, tick: 25 })).toBe(true);
-    prepareScriptedDialogue(actor);
+    clearCurrentEntityDialogue(actor);
     expect(requestDialogue({ ...request, tick: 26 })).toBe(false);
     expect(requestDialogue({ ...request, tick: 25 + TICKS_PER_DAY * 3 })).toBe(true);
   });

@@ -5,7 +5,7 @@
  */
 import { TerrainType, PATH_CELL, type TerrainTile, type WorldMap } from './gameTypes';
 import { DEFAULT_SEA_LEVEL, TERRAIN_CELL, sampleElev, tileAt, worldToTile } from './terrain/terrainGrid';
-import { getSprite } from './spriteLoader';
+import { getCachedSprite } from './spriteLoader';
 
 export const TERRAIN_ATLAS_PATH = '/sprites/tileset_grass.png';
 /** Transparent 4×4 sand-bank/water boundary masks stamped over a sand base tile. */
@@ -205,12 +205,12 @@ export function pickSandWaterOverlay(map: WorldMap, tx: number, ty: number, self
 
 /** True once the painted grass/water atlas PNG is in the sprite cache. */
 export function terrainAtlasReady(): boolean {
-  return getSprite(TERRAIN_ATLAS_PATH) != null;
+  return getCachedSprite(TERRAIN_ATLAS_PATH) != null;
 }
 
 /** True once the optional transparent sand-water overlay sheet is ready to bake. */
 export function sandWaterOverlayReady(): boolean {
-  return getSprite(SAND_WATER_OVERLAY_PATH) != null;
+  return getCachedSprite(SAND_WATER_OVERLAY_PATH) != null;
 }
 
 /**

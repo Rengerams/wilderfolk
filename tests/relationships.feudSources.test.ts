@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import { advanceSocialRelationships, feudScore } from '../src/game/relationships';
+import { advanceSocialRelationships, relationshipScore } from '../src/game/relationships';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { genomeFrom } from './helpers/genome';
 
@@ -52,8 +52,8 @@ describe('feuds from incompatible aptitudes', () => {
 
     advanceSocialRelationships(world, [a, b], undefined, alwaysPasses);
 
-    expect(feudScore(a, b.id)).toBeGreaterThan(0);
-    expect(feudScore(b, a.id)).toBe(feudScore(a, b.id));
+    expect(relationshipScore(a, b.id, 'feud')).toBeGreaterThan(0);
+    expect(relationshipScore(b, a.id, 'feud')).toBe(relationshipScore(a, b.id, 'feud'));
     expect(world.eventLog.some((event) => event.message.includes('feud is brewing'))).toBe(true);
   });
 
@@ -68,6 +68,6 @@ describe('feuds from incompatible aptitudes', () => {
       advanceSocialRelationships(world, [a, b], undefined, alwaysPasses);
     }
 
-    expect(feudScore(a, b.id)).toBe(0);
+    expect(relationshipScore(a, b.id, 'feud')).toBe(0);
   });
 });

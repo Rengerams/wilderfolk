@@ -1,6 +1,6 @@
 import type { WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
-import { friendshipScore, feudScore } from './relationships';
+import { relationshipScore } from './relationships';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { seededRandomForRun } from './simRng';
@@ -85,7 +85,7 @@ export function simulateElectionVotes(
         -BOND_INFLUENCE_CAP,
         Math.min(
           BOND_INFLUENCE_CAP,
-          friendshipScore(voter, c.entityId) * FRIEND_WEIGHT - feudScore(voter, c.entityId) * FEUD_WEIGHT,
+          relationshipScore(voter, c.entityId, 'friend') * FRIEND_WEIGHT - relationshipScore(voter, c.entityId, 'feud') * FEUD_WEIGHT,
         ),
       );
       const occupationAffinity = voter.job != null && voter.job !== JobType.Settler && voter.job === c.job ? 8 : 0;

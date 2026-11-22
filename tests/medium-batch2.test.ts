@@ -12,7 +12,7 @@ import {
   WILDLIFE_LAYER_INTERVAL,
   isOffscreenWildlifeActive,
 } from '../src/game/simFocus';
-import { resolveCombatLogKind } from '../src/game/eventLog';
+import { resolveCombatLogField } from '../src/game/eventLog';
 import { needsMedicalCare } from '../src/game/hospitalCare';
 import { pickResidenceForFamily } from '../src/game/housingPipeline';
 import { applyStormDamageToBuildings } from '../src/game/worldEvents';
@@ -103,14 +103,14 @@ describe('M7 — only combat entries are classified', () => {
     ({ id: 1, tick: 0, year: 0, day: 0, type: 'event', message: '', ...over }) as GameEventLog;
 
   it('ignores a non-combat chronicle line that mentions a raid', () => {
-    expect(resolveCombatLogKind(event({ type: 'event', message: 'A raid on the road delayed the caravan' }))).toBeNull();
-    expect(resolveCombatLogKind(event({ type: 'scandal', message: 'A raid story spread through the tavern' }))).toBeNull();
+    expect(resolveCombatLogField(event({ type: 'event', message: 'A raid on the road delayed the caravan' }), 'combatKind')).toBeNull();
+    expect(resolveCombatLogField(event({ type: 'scandal', message: 'A raid story spread through the tavern' }), 'combatKind')).toBeNull();
   });
 
   it('classifies combat entries from their stored kind', () => {
-    expect(resolveCombatLogKind(event({ type: 'combat', combatKind: 'repelled', message: 'x' }))).toBe('repelled');
+    expect(resolveCombatLogField(event({ type: 'combat', combatKind: 'repelled', message: 'x' }), 'combatKind')).toBe('repelled');
     expect(
-      resolveCombatLogKind(event({ type: 'combat', combatKind: 'incoming_raid', message: 'x' })),
+      resolveCombatLogField(event({ type: 'combat', combatKind: 'incoming_raid', message: 'x' }), 'combatKind'),
     ).toBe('incoming_raid');
   });
 });

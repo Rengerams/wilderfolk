@@ -47,37 +47,43 @@ export interface MilitiaBreakdown {
   lines: string[];
 }
 
-export function getMilitiaSpearTier(state: WorldState): MilitiaSpearTier {
-  if (hasIronSwords(state)) return 'sword';
-  if (hasIronSpears(state)) return 'iron';
-  if (hasStoneSpears(state)) return 'stone';
+/** One chain per armament, strongest first: a researched tier replaces every lower one. */
+const SPEAR_TIER_CHAIN: readonly (readonly [MilitiaSpearTier, (state: WorldState) => boolean])[] = [
+  ['sword', hasIronSwords],
+  ['iron', hasIronSpears],
+  ['stone', hasStoneSpears],
+];
+const SHIELD_TIER_CHAIN: readonly (readonly [MilitiaShieldTier, (state: WorldState) => boolean])[] = [
+  ['scale', hasScaleMail],
+  ['iron', hasIronShields],
+  ['wooden', hasWoodenShields],
+];
+
+const SPEAR_TIER_MULTIPLIER: Readonly<Record<MilitiaSpearTier, number>> = {
+  sword: MILITIA_BALANCE.ironSwordMult,
+  iron: MILITIA_BALANCE.ironSpearMult,
+  stone: MILITIA_BALANCE.stoneSpearMult,
+  none: 1,
+};
+const SHIELD_TIER_PER_ADULT: Readonly<Record<MilitiaShieldTier, number>> = {
+  scale: MILITIA_BALANCE.scaleMailPerAdult,
+  iron: MILITIA_BALANCE.ironShieldPerAdult,
+  wooden: MILITIA_BALANCE.woodenShieldPerAdult,
+  none: 0,
+};
+
+/** Highest tier researched along an armament chain; `'none'` when nothing is researched. */
+function getMilitiaTier<T extends string>(
+  state: WorldState,
+  chain: readonly (readonly [T, (state: WorldState) => boolean])[],
+): T | 'none' {
+  for (const [tier, isResearched] of chain) if (isResearched(state)) return tier;
   return 'none';
-}
-
-export function getMilitiaShieldTier(state: WorldState): MilitiaShieldTier {
-  if (hasScaleMail(state)) return 'scale';
-  if (hasIronShields(state)) return 'iron';
-  if (hasWoodenShields(state)) return 'wooden';
-  return 'none';
-}
-
-export function getMilitiaSpearMultiplier(tier: MilitiaSpearTier): number {
-  if (tier === 'sword') return MILITIA_BALANCE.ironSwordMult;
-  if (tier === 'iron') return MILITIA_BALANCE.ironSpearMult;
-  if (tier === 'stone') return MILITIA_BALANCE.stoneSpearMult;
-  return 1;
-}
-
-export function getMilitiaShieldPerAdult(tier: MilitiaShieldTier): number {
-  if (tier === 'scale') return MILITIA_BALANCE.scaleMailPerAdult;
-  if (tier === 'iron') return MILITIA_BALANCE.ironShieldPerAdult;
-  if (tier === 'wooden') return MILITIA_BALANCE.woodenShieldPerAdult;
-  return 0;
 }
 
 export function getMilitiaArmamentLabel(state: WorldState): string | null {
-  const spear = getMilitiaSpearTier(state);
-  const shield = getMilitiaShieldTier(state);
+  const spear = getMilitiaTier(state, SPEAR_TIER_CHAIN);
+  const shield = getMilitiaTier(state, SHIELD_TIER_CHAIN);
   if (spear === 'none' && shield === 'none') return null;
   const spearLabel =
     spear === 'sword' ? 'Iron swords'
@@ -128,10 +134,10 @@ export function computeMilitiaBreakdown(
   const activeIds = new Set(mustered.map((soldier) => soldier.id));
   const guardCount = state.buildings.filter((building) => building.type === BuildingType.Barracks && building.completed && building.faction !== 'rival')
     .reduce((total, building) => total + building.occupants.filter((id) => activeIds.has(id)).length, 0);
-  const spearTier = getMilitiaSpearTier(state);
-  const shieldTier = getMilitiaShieldTier(state);
-  const spearMultiplier = getMilitiaSpearMultiplier(spearTier);
-  const shieldPerAdult = getMilitiaShieldPerAdult(shieldTier);
+  const spearTier = getMilitiaTier(state, SPEAR_TIER_CHAIN);
+  const shieldTier = getMilitiaTier(state, SHIELD_TIER_CHAIN);
+  const spearMultiplier = SPEAR_TIER_MULTIPLIER[spearTier];
+  const shieldPerAdult = SHIELD_TIER_PER_ADULT[shieldTier];
   const lines: string[] = [];
 
   // Early exit: no adults means no militia and no barricade

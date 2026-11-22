@@ -9,10 +9,11 @@ import type { Entity, HuntVisual, TradeRoute, WorldState } from '../src/game/gam
 import { applySimPrep, extractSimPrep } from '../src/game/simWorker/simPrep';
 import { applySimTickDelta, extractSimTickDelta } from '../src/game/simBuffers/simDelta';
 import {
+  GRASS_CELL_SIZE,
+  TREE_CELL_SIZE,
   isGrassGridEntity,
   isTreeGridEntity,
-  syncGrassRenderGrid,
-  syncTreeGrid,
+  syncEntitySpatialGrid,
 } from '../src/game/spatialGrid';
 
 function settlerFixture(): Entity {
@@ -196,36 +197,36 @@ describe('worker persistence + cache transport (audit low-1)', () => {
   it('L67 — reconciles a reused tree grid (late trees indexed, dead ones evicted)', () => {
     const first = treeAt(1, 10, 10);
 
-    let grid = syncTreeGrid(undefined, 400, 300, [first]);
+    let grid = syncEntitySpatialGrid(undefined, 400, 300, [first], TREE_CELL_SIZE, isTreeGridEntity);
     expect(grid).toBeDefined();
     expect(grid!.validateInvariant([first], isTreeGridEntity)).toEqual([]);
 
     // A yearly `nature_boom` tree enters after the grid was first built.
     const grown = treeAt(2, 200, 150);
-    grid = syncTreeGrid(grid, 400, 300, [first, grown]);
+    grid = syncEntitySpatialGrid(grid, 400, 300, [first, grown], TREE_CELL_SIZE, isTreeGridEntity);
     expect(grid!.validateInvariant([first, grown], isTreeGridEntity)).toEqual([]);
 
     // A footprint chop kills one; the grid must evict it, not retain a dead entity.
     const chopped = { ...first, alive: false } as Entity;
-    grid = syncTreeGrid(grid, 400, 300, [grown, chopped]);
+    grid = syncEntitySpatialGrid(grid, 400, 300, [grown, chopped], TREE_CELL_SIZE, isTreeGridEntity);
     expect(grid!.validateInvariant([grown, chopped], isTreeGridEntity)).toEqual([]);
   });
 
   it('X4 — reconciles a reused grass render grid', () => {
     const first = grassAt(1, 20, 20);
 
-    let grid = syncGrassRenderGrid(undefined, 400, 300, [first]);
+    let grid = syncEntitySpatialGrid(undefined, 400, 300, [first], GRASS_CELL_SIZE, isGrassGridEntity);
     expect(grid).toBeDefined();
     expect(grid!.validateInvariant([first], isGrassGridEntity)).toEqual([]);
 
     // Grass spawns mid-run (daily ecology / world events).
     const sprouted = grassAt(2, 120, 90);
-    grid = syncGrassRenderGrid(grid, 400, 300, [first, sprouted]);
+    grid = syncEntitySpatialGrid(grid, 400, 300, [first, sprouted], GRASS_CELL_SIZE, isGrassGridEntity);
     expect(grid!.validateInvariant([first, sprouted], isGrassGridEntity)).toEqual([]);
 
     // And it dies: the renderer draws from this grid, so a retained shim is ghost grass.
     const eaten = { ...first, alive: false } as Entity;
-    grid = syncGrassRenderGrid(grid, 400, 300, [sprouted, eaten]);
+    grid = syncEntitySpatialGrid(grid, 400, 300, [sprouted, eaten], GRASS_CELL_SIZE, isGrassGridEntity);
     expect(grid!.validateInvariant([sprouted, eaten], isGrassGridEntity)).toEqual([]);
   });
 });

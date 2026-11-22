@@ -1,6 +1,5 @@
 import type { GameEventLog } from '../game/gameTypes';
-import { displayYear } from '../game/dayCycleClock';
-import { resolveCombatLogStage, summarizeCombatEvents } from '../game/eventLog';
+import { formatEventLogLine, resolveCombatLogField, summarizeCombatEvents } from '../game/eventLog';
 import {
   downloadChronicleCSV,
   downloadChronicleJSON,
@@ -14,10 +13,6 @@ interface Props {
 }
 
 const IN_GAME_LIMIT = 500;
-
-function formatLine(evt: GameEventLog): string {
-  return `Year ${displayYear(evt.year)}, Day ${evt.day} — ${evt.message}`;
-}
 
 // The chronicle array is mutated in place and handed straight in, so a memo keyed on it could never
 // see a new line; every value below is derived each render.
@@ -86,8 +81,8 @@ export default function CombatLogPanel({ events, meta }: Props) {
       <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-stone-700 bg-stone-900/60 p-2">
         {shown.map((evt) => (
           <p key={evt.id} className="text-[13px] leading-relaxed text-rose-200/90">
-            <span className="mr-1 font-semibold uppercase text-amber-300/90">[{resolveCombatLogStage(evt) ?? 'combat'}]</span>
-            {formatLine(evt)}
+            <span className="mr-1 font-semibold uppercase text-amber-300/90">[{resolveCombatLogField(evt, 'combatStage') ?? 'combat'}]</span>
+            {formatEventLogLine(evt)}
           </p>
         ))}
       </div>

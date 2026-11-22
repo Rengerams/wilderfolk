@@ -38,18 +38,24 @@ function envFlagEnabled(val: string | undefined): boolean {
   return /^(1|true|yes|on|enabled)$/i.test(val.trim());
 }
 
-function isSpatialGridDisabled(): boolean {
-  if (typeof import.meta !== 'undefined' && envFlagDisabled(import.meta.env?.VITE_USE_SPATIAL_GRID)) {
-    return true;
-  }
+/** A grid feature is off when either its build-time or its runtime flag disables it. */
+export function gridFeatureDisabled(buildValue: string | undefined, runtimeValue: string | undefined): boolean {
+  return envFlagDisabled(buildValue) || envFlagDisabled(runtimeValue);
+}
+
+/** Runtime counterpart of a build-time `VITE_*` flag, for tests and non-Vite hosts. */
+export function runtimeEnvFlag(name: string): string | undefined {
   const runtime = globalThis as typeof globalThis & {
     process?: { env?: Record<string, string | undefined> };
   };
-  return envFlagDisabled(runtime.process?.env?.USE_SPATIAL_GRID);
+  return runtime.process?.env?.[name];
 }
 
 /** When false, hunt/graze/flee fall back to full-map entity scans (A/B perf comparison). */
-export const USE_SPATIAL_GRID = !isSpatialGridDisabled();
+export const USE_SPATIAL_GRID = !gridFeatureDisabled(
+  typeof import.meta !== 'undefined' ? import.meta.env?.VITE_USE_SPATIAL_GRID : undefined,
+  runtimeEnvFlag('USE_SPATIAL_GRID'),
+);
 
 /**
  * World→cell clamping convention for every uniform grid (`EntitySpatialGrid`, `ScentGrid`):
@@ -434,39 +440,19 @@ export function resolveSpatialGrid(
   return new EntitySpatialGrid(mapWidth, mapHeight, cellSize);
 }
 
-export function syncGrassRenderGrid(
+/** The one grid sync: a new layout rebuilds, a reused one reconciles mid-run spawns and removals. */
+export function syncEntitySpatialGrid(
   existing: EntitySpatialGrid | undefined,
   mapWidth: number,
   mapHeight: number,
-  grassEntities: Iterable<Entity>,
+  entities: Iterable<Entity>,
+  cellSize: number,
+  isGridEntity: (entity: Entity) => boolean,
 ): EntitySpatialGrid | undefined {
   if (!USE_SPATIAL_GRID) return undefined;
-  const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, GRASS_CELL_SIZE);
-  if (grid !== existing) {
-    grid.rebuild(grassEntities, isGrassGridEntity);
-  } else {
-    // A reused grid must track mid-run spawns and deaths, so reconcile it, not rebuild only on
-    // a new instance.
-    grid.reconcile(grassEntities, isGrassGridEntity);
-  }
-  return grid;
-}
-
-export function syncTreeGrid(
-  existing: EntitySpatialGrid | undefined,
-  mapWidth: number,
-  mapHeight: number,
-  treeEntities: Iterable<Entity>,
-): EntitySpatialGrid | undefined {
-  if (!USE_SPATIAL_GRID) return undefined;
-  const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, TREE_CELL_SIZE);
-  if (grid !== existing) {
-    grid.rebuild(treeEntities, isTreeGridEntity);
-  } else {
-    // Trees are static scenery, but not frozen: `nature_boom` adds them and
-    // `clearTreesUnderFootprint` removes them, both after the grid was first built.
-    grid.reconcile(treeEntities, isTreeGridEntity);
-  }
+  const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, cellSize);
+  if (grid !== existing) grid.rebuild(entities, isGridEntity);
+  else grid.reconcile(entities, isGridEntity);
   return grid;
 }
 
@@ -739,32 +725,6 @@ export function buildRoadAvoidanceIndex(
 ): RoadAvoidanceIndex | undefined {
   if (roads.length === 0) return undefined;
   return new RoadAvoidanceIndex(mapWidth, mapHeight, roads);
-}
-
-export function syncMobileSimGrid(
-  existing: EntitySpatialGrid | undefined,
-  mapWidth: number,
-  mapHeight: number,
-  entities: Iterable<Entity>,
-): EntitySpatialGrid | undefined {
-  if (!USE_SPATIAL_GRID) return undefined;
-  const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, MOBILE_CELL_SIZE);
-  if (grid !== existing) grid.rebuild(entities, isMobileGridEntity);
-  else grid.reconcile(entities, isMobileGridEntity);
-  return grid;
-}
-
-export function syncHumanSocialGrid(
-  existing: EntitySpatialGrid | undefined,
-  mapWidth: number,
-  mapHeight: number,
-  entities: Iterable<Entity>,
-): EntitySpatialGrid | undefined {
-  if (!USE_SPATIAL_GRID) return undefined;
-  const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, SOCIAL_CELL_SIZE);
-  if (grid !== existing) grid.rebuild(entities, isHumanSocialGridEntity);
-  else grid.reconcile(entities, isHumanSocialGridEntity);
-  return grid;
 }
 
 function isSpatialInvariantCheckEnabled(): boolean {

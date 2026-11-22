@@ -83,7 +83,7 @@ export function loadSprite(src: string): Promise<SpriteFrame> {
   return promise;
 }
 
-export function getSprite(src: string): HTMLImageElement | null {
+export function getCachedSprite(src: string): HTMLImageElement | null {
   return spriteCache.get(src) || null;
 }
 

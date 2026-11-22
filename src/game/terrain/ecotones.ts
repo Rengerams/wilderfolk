@@ -4,12 +4,7 @@
  */
 import { TerrainType, type WorldMap } from '../gameTypes';
 import { COLD_TEMPERATURE, DEFAULT_MOISTURE_FOREST, DEFAULT_SEA_LEVEL, LAND_BANDS, TERRAIN_CELL, WATER_CELL, sampleElev } from './terrainGrid';
-import { clamp } from './noise';
-
-const smooth = (v: number): number => {
-  const t = clamp(v, 0, 1);
-  return t * t * (3 - 2 * t);
-};
+import { clamp, smoothstep01 } from './noise';
 
 /** Minimal climate field ownership: world gen can sample before the full WorldMap exists. */
 export type EcotoneTerrainFields = Pick<WorldMap,
@@ -42,20 +37,20 @@ export function sampleEcotone(map: EcotoneTerrainFields, x: number, y: number): 
   const hn = (e - sea) / Math.max(0.01, 1 - sea);
   const forestCut = map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST;
   const denseCut = map.moistureDarkForestThreshold ?? forestCut + 0.12;
-  const humidityForest = smooth((mo - (forestCut - 0.12)) / 0.24);
-  const humidityDense = smooth((mo - (denseCut - 0.1)) / 0.20);
+  const humidityForest = smoothstep01((mo - (forestCut - 0.12)) / 0.24);
+  const humidityDense = smoothstep01((mo - (denseCut - 0.1)) / 0.20);
   // Taiga is a cold forest even in moderately dry air: soften the temperature threshold.
-  const cold = smooth((COLD_TEMPERATURE + 0.06 - te) / 0.12);
+  const cold = smoothstep01((COLD_TEMPERATURE + 0.06 - te) / 0.12);
   const forest = Math.max(humidityForest, cold * 0.72);
   const denseForest = Math.max(humidityDense * forest, cold * 0.55 * forest);
-  const dry = smooth(((forestCut - 0.14) + 0.08 - mo) / 0.20)
-    * smooth((te - 0.52) / 0.28);
-  const alpineFade = 1 - smooth((hn - (LAND_BANDS.hills - 0.08)) / 0.16);
+  const dry = smoothstep01(((forestCut - 0.14) + 0.08 - mo) / 0.20)
+    * smoothstep01((te - 0.52) / 0.28);
+  const alpineFade = 1 - smoothstep01((hn - (LAND_BANDS.hills - 0.08)) / 0.16);
   const wCols = map.waterCols ?? cols;
   const wRows = map.waterRows ?? rows;
   const rd = riverDist
     ? sampleElev(riverDist, wCols, wRows, x / WATER_CELL, y / WATER_CELL) : 0;
-  const riparian = smooth((rd - 0.035) / 0.37);
+  const riparian = smoothstep01((rd - 0.035) / 0.37);
   return { forest, denseForest, dry, riparian, alpineFade };
 }
 

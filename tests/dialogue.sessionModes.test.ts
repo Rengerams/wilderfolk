@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { requestDialogue, tickDialogue } from '../src/game/dialogueTrees';
-import { isDialogueBusy, resetDialogueSessions, type ChatSpeaker } from '../src/game/humanChat';
+import { requestDialogue } from '../src/game/dialogueTrees';
+import { isDialogueBusy, resetDialogueSessions, tickHumanChat, type ChatSpeaker } from '../src/game/humanChat';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
 const actor = (id: number): ChatSpeaker => ({ id, name: 'Actor ' + id });
@@ -27,10 +27,10 @@ describe('solo, paired and forced dialogue sessions', () => {
     })).toBe(true);
     expect(requestDialogue({ eventKey: 'ambient.social', speaker: b, tick: 42 })).toBe(false);
     expect(a.chatDialogueSessionKey).toBe(b.chatDialogueSessionKey);
-    for (let i = 0; i < 4; i++) tickDialogue(a, resolve);
+    for (let i = 0; i < 4; i++) tickHumanChat(a, resolve);
     expect(a.chatPhrase).toBeUndefined();
     expect(b.chatPhrase).toBeTruthy();
-    for (let i = 0; i < 4; i++) tickDialogue(b, resolve);
+    for (let i = 0; i < 4; i++) tickHumanChat(b, resolve);
     expect(a.chatDialogueSessionKey).toBeUndefined();
     expect(b.chatDialogueSessionKey).toBeUndefined();
     expect(isDialogueBusy(a)).toBe(false);
@@ -46,7 +46,7 @@ describe('solo, paired and forced dialogue sessions', () => {
     })).toBe(true);
     const missingPartner = (_id: number): undefined => undefined;
     expect(() => {
-      for (let i = 0; i < 4; i++) tickDialogue(a, missingPartner);
+      for (let i = 0; i < 4; i++) tickHumanChat(a, missingPartner);
     }).not.toThrow();
     expect(a.chatDialogueSessionKey).toBeUndefined();
     expect(b.chatDialogueSessionKey).toBeUndefined();

@@ -12,8 +12,11 @@ import { isPlayerHuman } from '../game/playerHuman';
 import {
   isEditableTarget,
   isActivatableTarget,
-  isLogisticsHotkey,
-  isCouncilHotkey,
+  isHotkey,
+  LOGISTICS_HOTKEY,
+  LOGISTICS_HOTKEY_CODE,
+  COUNCIL_HOTKEY,
+  COUNCIL_HOTKEY_CODE,
   resolveSidebarTabFromKey,
   HOTKEY_BUILDINGS,
   type SidebarTab,
@@ -148,7 +151,7 @@ export function useKeyboardControls({
       }
       // `C` — the village overview, beside `O` and gated the same way: both are windows over the
       // running colony, so neither opens from the intro or the map screen.
-      if (gameplayActiveRef.current && isCouncilHotkey(e)) {
+      if (gameplayActiveRef.current && isHotkey(e, COUNCIL_HOTKEY, COUNCIL_HOTKEY_CODE)) {
         e.preventDefault();
         toggleDashboardRef.current();
         return;
@@ -207,7 +210,7 @@ export function useKeyboardControls({
       }
       // F4 — logistics overlay toggle (X). A presentation-only read of the world, so it rides the
       // same ungated path as the grid toggle above; the owner callback no-ops without a loop.
-      if (isLogisticsHotkey(e)) {
+      if (isHotkey(e, LOGISTICS_HOTKEY, LOGISTICS_HOTKEY_CODE)) {
         e.preventDefault();
         toggleLogisticsRef.current();
       }
