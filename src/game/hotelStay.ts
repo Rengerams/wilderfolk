@@ -2,9 +2,8 @@
  * Hotel lodging — hotels host visitors and, overnight, settlers whose walk home is too long.
  * Lodging is free: the hotelier gains work experience for tending guests.
  */
-import { enterHumanBuilding } from './simulation/humanMovement';
-import { clearHumanWalkTarget, rememberHumanWalkTarget } from './simulation/humanMovement';
-import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
+import { clearHumanWalkTarget, commuteHumanToBuilding, enterHumanBuilding } from './simulation/humanMovement';
+import { isAtBuildingReach } from './buildingAccess';
 import type { Building, Entity, WorldState } from './gameTypes';
 import {
   BuildingType,
@@ -26,7 +25,7 @@ import { isPlayerHuman } from './playerHuman';
 import { hasResidenceAssignment } from './housingModel';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { addFloatingText, addNotification } from './simEffects';
-import { isOnWalkableRoadAt, steerWithPath } from './pathfinding';
+import { isOnWalkableRoadAt } from './pathfinding';
 import { applyHumanWalkStep } from './simulation/humanMovement';
 import { logEvent } from './eventLog';
 import { ensureEntityByIdMap } from './entityIndex';
@@ -34,7 +33,7 @@ import { isDialogueBusy } from './humanChat';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { gainSkill } from './skills';
 import { seededRandomForRun, personDayRoll } from './simRng';
-import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
+import { ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { isVenueServiceHour } from './venueSchedule';
 
 /** Max sleepers at one staffed hotel overnight; visitors and settlers share beds. */
@@ -568,48 +567,25 @@ export function steerVisitorToHotel(
     checkoutVisitor(visitor);
     return false;
   }
-  const door = buildingAccessPoint(hotel);
-  const tx = door.x;
-  const ty = door.y;
-  const dx = tx - visitor.x;
-  const dy = ty - visitor.y;
-  const dist = Math.hypot(dx, dy) || 1;
   if (!isAtBuildingReach(visitor, hotel)) {
-    // Route around water/mountains on the camp→hotel walk. Key on the visitor, not the moving
-    // position: a position key changes every step, so A* re-ran per tick and the shared cache churned.
-    const cacheKey = `h_${hotel.id}_${visitor.id}`;
-    // Recorded so the off-screen throttle re-issues this same walk every tick: arrival cannot be
-    // decided only on the visitor's 1-in-24 decision tick, or a guest can pass the door unseen.
-    rememberHumanWalkTarget(visitor, tx, ty, speed * 0.7, cacheKey);
-    const handled = steerWithPath(visitor, tx, ty, speed * 0.7, cacheKey);
-    // The hotel owns this visitor's movement step: humanTick must not apply another one.
-    // Road route pricing and actual motion both use the same completed-road footprint.
-    if (handled === 'path') {
-      applyHumanWalkStep(visitor, isOnWalkableRoadAt(visitor.x, visitor.y) ? ROAD_SPEED_MULT : 1);
-      return true;
-    }
-    if (handled === 'blocked') {
-      visitor.vx = 0;
-      visitor.vy = 0;
-      clearHumanWalkTarget(visitor);
-      return true;
-    }
-    if (handled === 'arrived') {
+    // The shared approach owner walks to whichever facade is reachable, so a guest is never
+    // stranded outside a doorstep that sits in a sealed pocket. It also records the walk target
+    // the off-screen throttle resumes, so arrival is never decided only on the decision tick.
+    if (commuteHumanToBuilding(visitor, hotel, speed * 0.7)) {
       clearHumanWalkTarget(visitor);
       enterHumanBuilding(visitor, hotel);
       return true;
     }
-    visitor.vx = (dx / dist) * speed * 0.7;
-    visitor.vy = (dy / dist) * speed * 0.7;
+    // The hotel owns this visitor's movement step: humanTick must not apply another one.
+    // Road route pricing and actual motion both use the same completed-road footprint.
     applyHumanWalkStep(visitor, isOnWalkableRoadAt(visitor.x, visitor.y) ? ROAD_SPEED_MULT : 1);
-    faceVelocity(visitor);
-  } else {
-    visitor.vx = 0;
-    visitor.vy = 0;
-    clearHumanWalkTarget(visitor);
-    enterHumanBuilding(visitor, hotel);
-    restAtHotel(visitor);
+    return true;
   }
+  visitor.vx = 0;
+  visitor.vy = 0;
+  clearHumanWalkTarget(visitor);
+  enterHumanBuilding(visitor, hotel);
+  restAtHotel(visitor);
   return true;
 }
 

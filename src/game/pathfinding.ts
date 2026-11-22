@@ -30,6 +30,11 @@ const SLOPE_UP_COST = 0.015;
 const SLOPE_DOWN_COST = 0.004;
 /** Single-tile elevation step (0–100 scale) above which the edge is an impassable cliff. */
 const CLIFF_STEP = 32;
+/**
+ * Half the settler's 10 px sprite, minus one pixel: how close a route may bring the body to a
+ * blocked cell. A full half-tile would make a one-tile passage unwalkable, so one pixel stays free.
+ */
+const WALKER_BODY_RADIUS_PX = PATH_CELL / 2 - 1;
 /** A road tile costs this fraction of a normal step — exactly the travel time the road speed saves. */
 const ROAD_STEP_COST = 1 / ROAD_SPEED_MULT;
 const PATH_MAX_SEARCH_NODES = 12000;
@@ -307,34 +312,35 @@ function tileBlockedForWalker(grid: PathGrid, tx: number, ty: number): boolean {
 }
 
 /**
- * Walkable tiles around a blocked destination, ring by ring. This is only the candidate set:
- * the route search decides which one is reachable, so a tile sealed in a pocket cannot end the
- * walk while an open approach exists on the same side of the obstacle.
+ * Walkable tiles around a blocked destination, one array per Chebyshev ring. Rings stay separate so
+ * the route search can insist on the closest reachable stand instead of whichever ring is cheapest.
  */
-function standTilesForWalker(grid: PathGrid, goalX: number, goalY: number): { x: number; y: number }[] {
+function standTilesForWalker(grid: PathGrid, goalX: number, goalY: number): { x: number; y: number }[][] {
   const { cols, rows, blocked } = grid;
-  const candidates: { x: number; y: number }[] = [];
+  const rings: { x: number; y: number }[][] = [];
   for (let radius = 1; radius <= GOAL_STAND_RINGS; radius++) {
     const minX = Math.max(0, goalX - radius);
     const maxX = Math.min(cols - 1, goalX + radius);
     const minY = Math.max(0, goalY - radius);
     const maxY = Math.min(rows - 1, goalY + radius);
+    const ring: { x: number; y: number }[] = [];
     for (let ty = minY; ty <= maxY; ty++) {
       const onEdgeRow = ty === minY || ty === maxY;
       for (let tx = minX; tx <= maxX; tx++) {
         if (!onEdgeRow && tx !== minX && tx !== maxX) continue;
         if (blocked[ty * cols + tx] !== 0) continue;
-        candidates.push({ x: tx, y: ty });
+        ring.push({ x: tx, y: ty });
       }
     }
+    rings.push(ring);
   }
-  return candidates;
+  return rings;
 }
 
 /**
- * Route to a destination the walker cannot stand on. One search targets every walkable tile around
- * the goal and stops at the cheapest it can reach, so reachability — never distance alone — picks
- * the stand point and the route cannot cross a river or wall to the far bank.
+ * Route to a destination the walker cannot stand on. Rings are searched nearest-first, so a stand
+ * point beside the goal always wins over a farther one that is merely cheaper to reach; a ring with
+ * no route falls through, which keeps the route on the walker's side of a river or wall.
  */
 function routeToBlockedGoal(
   grid: PathGrid,
@@ -348,11 +354,16 @@ function routeToBlockedGoal(
   if (!goalBlocked) {
     return walkRoute(grid, sx, sy, goalX, goalY, PATH_MAX_SEARCH_NODES, collectMetrics);
   }
-  const standTiles = standTilesForWalker(grid, goalX, goalY);
-  if (standTiles.length === 0) return { path: null, cost: null, hitNodeCap: false };
   const targets = new Uint8Array(grid.cols * grid.rows);
-  for (const tile of standTiles) targets[tile.y * grid.cols + tile.x] = 1;
-  return walkRoute(grid, sx, sy, goalX, goalY, PATH_MAX_SEARCH_NODES, collectMetrics, targets);
+  for (const ring of standTilesForWalker(grid, goalX, goalY)) {
+    if (ring.length === 0) continue;
+    targets.fill(0);
+    for (const tile of ring) targets[tile.y * grid.cols + tile.x] = 1;
+    const result = walkRoute(grid, sx, sy, goalX, goalY, PATH_MAX_SEARCH_NODES, collectMetrics, targets);
+    // A spent node budget proves nothing about the farther rings: report it as pending.
+    if (result.path || result.hitNodeCap) return result;
+  }
+  return { path: null, cost: null, hitNodeCap: false };
 }
 
 /** Find a valid stand point for a restored entity, with bridge and building masks applied. */
@@ -541,7 +552,7 @@ function findNearestWalkable(grid: PathGrid, x: number, y: number): { x: number;
 function hasLineOfSight(grid: PathGrid, x0: number, y0: number, x1: number, y1: number): boolean {
   return !segmentCrossesBlocked(grid,
     (x0 + 0.5) * PATH_CELL, (y0 + 0.5) * PATH_CELL,
-    (x1 + 0.5) * PATH_CELL, (y1 + 0.5) * PATH_CELL, false);
+    (x1 + 0.5) * PATH_CELL, (y1 + 0.5) * PATH_CELL, false, true);
 }
 
 /** A route search's verdict; `hitNodeCap` separates a spent node budget from a finished no-route search. */
@@ -707,7 +718,7 @@ function searchRoute(
       // A* and physical movement must never disagree about traversable edges.
       if (dx !== 0 && dy !== 0 && segmentCrossesBlocked(grid,
         (cx + 0.5) * PATH_CELL, (cy + 0.5) * PATH_CELL,
-        (nx + 0.5) * PATH_CELL, (ny + 0.5) * PATH_CELL, false)) continue;
+        (nx + 0.5) * PATH_CELL, (ny + 0.5) * PATH_CELL, false, true)) continue;
 
       let step = dx !== 0 && dy !== 0 ? 1.4142 : 1;
       // A built road is cheaper than open ground, so the route follows the player's own paths.
@@ -910,9 +921,54 @@ function collapseStraightWaypoints(points: { x: number; y: number }[]): { x: num
   return result;
 }
 
+/** Shortest distance from a point to the rectangle of the cell whose top-left corner is (left, top). */
+function distanceToCell(px: number, py: number, left: number, top: number): number {
+  const dx = Math.max(left - px, 0, px - (left + PATH_CELL));
+  const dy = Math.max(top - py, 0, py - (top + PATH_CELL));
+  return Math.hypot(dx, dy);
+}
+
+/**
+ * Whether a walk segment brings the walker's body closer than its radius to a blocked cell beside
+ * `tx,ty`. Cells the walk already starts inside are exempt, so it can always step away from a wall.
+ */
+function segmentHugsBlockedCell(
+  grid: PathGrid, x0: number, y0: number, x1: number, y1: number, tx: number, ty: number,
+): boolean {
+  const { cols, rows, blocked } = grid;
+  const minX = Math.min(x0, x1) - WALKER_BODY_RADIUS_PX;
+  const maxX = Math.max(x0, x1) + WALKER_BODY_RADIUS_PX;
+  const minY = Math.min(y0, y1) - WALKER_BODY_RADIUS_PX;
+  const maxY = Math.max(y0, y1) + WALKER_BODY_RADIUS_PX;
+  for (let ny = ty - 1; ny <= ty + 1; ny++) {
+    if (ny < 0 || ny >= rows) continue;
+    for (let nx = tx - 1; nx <= tx + 1; nx++) {
+      if (nx < 0 || nx >= cols || (nx === tx && ny === ty)) continue;
+      if (!blocked[ny * cols + nx]) continue;
+      const left = nx * PATH_CELL;
+      const top = ny * PATH_CELL;
+      // The walk starts inside this cell's clearance: moving away from it must stay possible.
+      if (distanceToCell(x0, y0, left, top) < WALKER_BODY_RADIUS_PX) continue;
+      if (left > maxX || left + PATH_CELL < minX || top > maxY || top + PATH_CELL < minY) continue;
+      const nearest = Math.min(
+        distanceToCell(x0, y0, left, top),
+        distanceToCell(x1, y1, left, top),
+        distanceToSegment(left, top, x0, y0, x1, y1),
+        distanceToSegment(left + PATH_CELL, top, x0, y0, x1, y1),
+        distanceToSegment(left, top + PATH_CELL, x0, y0, x1, y1),
+        distanceToSegment(left + PATH_CELL, top + PATH_CELL, x0, y0, x1, y1),
+      );
+      if (nearest < WALKER_BODY_RADIUS_PX) return true;
+    }
+  }
+  return false;
+}
+
 /**
  * The one exact supercover walkability traversal used by direct-line checks, waypoint smoothing
  * and physical walk steps. A blocked origin may be exited by the stepper, never entered later.
+ * Route geometry (`keepBodyClear`) also keeps the walker's body radius off every wall; a physical
+ * step does not, so a destination that itself sits close to a wall stays reachable.
  */
 function segmentCrossesBlocked(
   grid: PathGrid,
@@ -921,6 +977,7 @@ function segmentCrossesBlocked(
   x1: number,
   y1: number,
   allowBlockedStart: boolean,
+  keepBodyClear = false,
 ): boolean {
   if (!Number.isFinite(x0) || !Number.isFinite(y0)
     || !Number.isFinite(x1) || !Number.isFinite(y1)) return true;
@@ -957,6 +1014,7 @@ function segmentCrossesBlocked(
   const maxTransitions = Math.abs(goalX - tx) + Math.abs(goalY - ty);
   for (let crossed = 0; crossed <= maxTransitions; crossed++) {
     if (isBlocked(tx, ty, lastElevation)) return true;
+    if (keepBodyClear && segmentHugsBlockedCell(grid, x0, y0, x1, y1, tx, ty)) return true;
     if (elevation && tx >= 0 && ty >= 0 && tx < cols && ty < rows) {
       lastElevation = elevation[ty * cols + tx];
       lastBridge = !!grid.bridge?.[ty * cols + tx];

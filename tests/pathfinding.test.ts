@@ -3,9 +3,11 @@
  * whose passability grid is rebaked from the production tile projection.
  */
 import { describe, expect, it } from 'vitest';
-import { findPath, getPathGrid, lineCrossesBlocked } from '../src/game/pathfinding';
+import {
+  findPath, getPathGrid, getRouteObstruction, lineCrossesBlocked, setCurrentPathMap, steerWithPath,
+} from '../src/game/pathfinding';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
-import type { Building } from '../src/game/gameTypes';
+import type { Building, Entity } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 
 function makeMap(width: number, height: number, seed: number, blocker: (x: number, y: number) => boolean) {
@@ -142,6 +144,21 @@ describe('pathfinding', () => {
 
     // Snapping cannot bridge the river: the far bank stays unreachable.
     expect(findPath(grid, 5, 5, 9, 5)).toBeNull();
+  });
+
+  it('routes to the stand tile beside a blocked goal instead of accepting the walker own tile', () => {
+    // One river tile is the destination and the walker starts inside the outer stand rings, so a
+    // single shared target set would let the walker's own tile win and freeze it in place.
+    const map = makeMap(20, 20, 20261122, (x, y) => x === 10 && y === 10);
+    setCurrentPathMap(map, []);
+    try {
+      expect(getRouteObstruction(map, [], { x: 65, y: 105 }, { x: 105, y: 105 })).toBe('rerouting');
+      const walker = { id: 9, x: 65, y: 105, vx: 0, vy: 0 } as unknown as Entity;
+      expect(steerWithPath(walker, 105, 105, 5, 'blocked-goal')).toBe('path');
+      expect(walker.vx, 'the walker advances toward the destination').toBeGreaterThan(0);
+    } finally {
+      setCurrentPathMap(null);
+    }
   });
 
   it('does not cut diagonally through two blocked orthogonal corners', () => {

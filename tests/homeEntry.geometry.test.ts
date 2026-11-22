@@ -64,11 +64,39 @@ describe('home entry geometry', () => {
     }
   });
 
+  it('keeps a south entrance in a one-tile alley narrower than the standoff', () => {
+    const map = testWorldMap({ tilesX: 40, tilesY: 30 });
+    const home = building(5, BuildingType.House, { x: 100, y: 100, width: 40, height: 36 });
+    // The wall leaves one walkable cell between itself and the south facade.
+    const wall = building(6, BuildingType.Wall, { x: 100, y: 146, width: 200, height: 20 });
+    setCurrentPathMap(map, [home, wall]);
+    try {
+      const rect = getBuildingFootprintRect(home);
+      const access = buildingAccessPoint(home);
+      expect(access.side).toBe('south');
+      expect(access.y).toBeGreaterThan(rect.bottom);
+      expect(access.y).toBeLessThan(136);
+      expect(isGroundWalkableAt(access.x, access.y)).toBe(true);
+      // A settler south of the wall still walks around it and enters through that alley door.
+      const person = human(41, { x: home.x, y: 190, residenceBuildingId: home.id });
+      let entered = false;
+      for (let tick = 0; tick < 1200 && !entered; tick++) {
+        entered = commuteHumanToBuilding(person, home, 3);
+        if (!entered) applyHumanWalkStep(person, 1);
+      }
+      expect(entered).toBe(true);
+      enterHumanBuilding(person, home);
+      expect(person.indoorBuildingId).toBe(home.id);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
   it('moves the doorstep off a south front with no open ground', () => {
     const map = testWorldMap({ tilesX: 40, tilesY: 30 });
     const home = building(5, BuildingType.House, { x: 100, y: 100, width: 40, height: 36 });
-    // A wall right in front leaves the south facade no doorstep.
-    const wall = building(6, BuildingType.Wall, { x: 100, y: 146, width: 200, height: 20 });
+    // A wall against the facade blocks every stand point inside the building's reach.
+    const wall = building(6, BuildingType.Wall, { x: 100, y: 133, width: 200, height: 30 });
     setCurrentPathMap(map, [home, wall]);
     try {
       const access = buildingAccessPoint(home);

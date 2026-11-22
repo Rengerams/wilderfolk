@@ -25,6 +25,43 @@ describe('one authoritative movement walkability verdict', () => {
     expect(isWalkStepAllowed(fromX, center(2), toX, center(2), g)).toBe(true);
   });
 
+  it('walks a one-tile passage without letting the route skim its walls', () => {
+    const g = grid(9, 3);
+    // Blocked rows above and below leave row 1 as a one-tile passage.
+    for (let x = 0; x < 9; x++) {
+      g.blocked[0 * g.cols + x] = 1;
+      g.blocked[2 * g.cols + x] = 1;
+    }
+    // The passage centreline keeps half a tile from both walls: the body fits with one pixel spare.
+    expect(lineCrossesBlocked(g, center(0), center(1), center(8), center(1))).toBe(false);
+    const route = findPath(g, 0, 1, 8, 1);
+    expect(route).not.toBeNull();
+    expect(route!.every((tile) => tile.y === 1)).toBe(true);
+  });
+
+  it('keeps a route a body radius off a wall it would otherwise skim', () => {
+    const g = grid(12, 2);
+    // One wall tile in the lower row: a shallow chord from (0, 0) to (10, 1) grazes its top edge.
+    g.blocked[1 * g.cols + 5] = 1;
+    const route = findPath(g, 0, 0, 10, 1);
+    expect(route).not.toBeNull();
+    const left = 5 * PATH_CELL;
+    const top = 1 * PATH_CELL;
+    const clearance = (x: number, y: number) => Math.hypot(
+      Math.max(left - x, 0, x - (left + PATH_CELL)),
+      Math.max(top - y, 0, y - (top + PATH_CELL)),
+    );
+    for (let i = 1; i < route!.length; i++) {
+      const a = route![i - 1];
+      const b = route![i];
+      for (let t = 0; t <= 1.0001; t += 0.05) {
+        const x = (a.x + 0.5 + (b.x - a.x) * t) * PATH_CELL;
+        const y = (a.y + 0.5 + (b.y - a.y) * t) * PATH_CELL;
+        expect(clearance(x, y), `leg ${i - 1}->${i}`).toBeGreaterThanOrEqual(PATH_CELL / 2 - 1);
+      }
+    }
+  });
+
   it('agrees with route checks on blocked diagonal corners', () => {
     const g = grid(5, 5);
     g.blocked[1 * g.cols + 2] = 1;
