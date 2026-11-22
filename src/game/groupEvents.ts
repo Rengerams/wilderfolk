@@ -1,18 +1,16 @@
-import { pickSite } from './worldEventSites';
-import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import type {
   WorldState, Entity, Building, GameEvent, VisitorGroup, VisitorKind,
   VillageRequest, VillageRequestHistoryEntry,
 } from './gameTypes';
-import { EntityType, BuildingType, JobType } from './gameTypes';
-import { getAbsoluteCalendarDay, getColonyDay, HUMAN_MAX_LIFESPAN_YEARS, isNewCalendarDayTick, TICKS_PER_DAY } from './dayCycle';
+import { EntityType, JobType } from './gameTypes';
+import { getAbsoluteCalendarDay } from './dayCycle';
 import { assignMissingResidences, syncResidenceOccupants } from './housingPipeline';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { establishCitizenIdentity } from './settlerTraits';
 import { isPassableWildlifePosition } from './worldGen';
 import { isLegalCampSite } from './worldEventSites';
 import { randomPointWhere } from './simHelpers';
-import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
+import { indexLivingEntity } from './entityIndex';
 import { pushNewEntity } from './simulation/simulationEntities';
 import type { TickContext } from './simulation/simulationTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
@@ -24,12 +22,9 @@ import {
 } from './resourceUtils';
 import { recordFoodProduced, spendFood } from './economyLedger';
 import { bumpHistoryRevision } from './historyRevisions';
-import { getRandomSurname } from './nameLoader';
-import { maybeStartVisitorQuest } from './visitorQuest';
 import { logEvent } from './eventLog';
-import { getPlayerCampCenter } from './villageAnchor';
 import { getRefugeeWelcomeBonus } from './townHall';
-import { addBigNews, addFloatingText, addNotification } from './simEffects';
+import { addBigNews, addFloatingText } from './simEffects';
 import { addReputation, getReputationBand } from './simHelpers';
 import { grantResearchProgress } from './research';
 import { formatResourceAmounts, RESOURCE_METAS, type ResourceKey } from './resourceTypes';
@@ -192,231 +187,6 @@ export function resolveVillageRequest(
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { getSimRng, seededRandomForRun } from './simRng';
 
-function buildAliveEntityIndex(allAlive: Entity[]): Map<number, Entity> {
-  const index = new Map<number, Entity>();
-  for (const e of allAlive) {
-    if (e.alive) index.set(e.id, e);
-  }
-  return index;
-}
-
-/** Daily faction-human spawn: `pushNewEntity` when a tick context is present, else the harness fallback. */
-function registerSpawnedEntity(
-  state: WorldState,
-  allAlive: Entity[],
-  entity: Entity,
-  ctx?: TickContext,
-): void {
-  if (ctx) {
-    pushNewEntity(state, ctx, entity);
-    if (!allAlive.includes(entity)) allAlive.push(entity);
-    return;
-  }
-  allAlive.push(entity);
-  indexLivingEntity(state, entity);
-}
-
-function createVisitorHuman(
-  state: WorldState,
-  x: number,
-  y: number,
-  groupId: string,
-  surname: string
-): Entity {
-  const age = HUMAN_ADULT_MIN_AGE + Math.floor(getSimRng('groupEvents')() * 20);
-  const ent = createEntity(
-    EntityType.Human,
-    x + (getSimRng('groupEvents')() - 0.5) * 24,
-    y + (getSimRng('groupEvents')() - 0.5) * 24,
-    state.nextEntityId++,
-    undefined,
-    false,
-    { surname, ageYears: age, colonyDay: getColonyDay(state), faction: 'visitor' },
-  );
-  ent.hiddenFromPlayer = false;
-  ent.groupId = groupId;
-  ent.occupation = 'visitor';
-  ent.job = JobType.Settler;
-  ent.relationshipStatus = 'single';
-  ent.reproductionCooldown = 9999;
-  ent.flash = 8;
-  ent.maxAge = HUMAN_MAX_LIFESPAN_YEARS;
-  return ent;
-}
-
-const VISITOR_TEMPLATES: Record<VisitorKind, { emoji: string; names: string[]; days: [number, number]; members: [number, number] }> = {
-  traders: { emoji: '🛒', names: ['River Traders', 'Wandering Merchants', 'Highland Caravan'], days: [12, 22], members: [3, 5] },
-  pilgrims: { emoji: '🕯️', names: ['Pilgrims of the Glen', 'Wayfarer Monks', 'Lantern Pilgrimage'], days: [10, 18], members: [4, 6] },
-  scholars: { emoji: '📚', names: ['Royal Surveyors', 'Field Naturalists', 'Cartography Guild'], days: [14, 24], members: [3, 4] },
-  hunters: { emoji: '🏹', names: ['Wilderness Hunters', 'Fur Trappers', 'Longbow Company'], days: [8, 16], members: [3, 5] },
-  nomads: { emoji: '🐎', names: ['Steppe Nomads', 'Horse Clan', 'Dust Road Kin'], days: [10, 20], members: [4, 7] },
-  refugees: { emoji: '🧳', names: ['Road-Weary Families', 'Displaced Kin', 'Valley Refugees'], days: [6, 14], members: [3, 5] },
-  performers: { emoji: '🎭', names: ['Traveling Players', 'Bardic Troupe', 'Fire-Jugglers'], days: [8, 15], members: [4, 6] },
-};
-
-export function spawnVisitorGroup(
-  state: WorldState,
-  allAlive: Entity[],
-  buildings: Building[],
-  kind: VisitorKind,
-  ctx?: TickContext,
-): GameEvent {
-  const template = VISITOR_TEMPLATES[kind];
-  const name = template.names[Math.floor(getSimRng('groupEvents')() * template.names.length)];
-  const center = getPlayerCampCenter(state, buildings);
-  // Visitor camps are the only on-map camps; rival settlements are strategic records with no footprint.
-  const avoid = state.visitorGroups.map((v) => ({ x: v.campX, y: v.campY }));
-  const site = pickSite(state, center, 70, 160, avoid);
-  const memberCount = template.members[0] + Math.floor(getSimRng('groupEvents')() * (template.members[1] - template.members[0] + 1));
-  const daysLeft = template.days[0] + Math.floor(getSimRng('groupEvents')() * (template.days[1] - template.days[0] + 1));
-  const groupId = `visitor_${state.tick}_${Math.floor(getSimRng('groupEvents')() * 10000)}`;
-  const surname = getRandomSurname();
-  const entityIds: number[] = [];
-
-  for (let i = 0; i < memberCount; i++) {
-    const ent = createVisitorHuman(state, site.x, site.y, groupId, surname);
-    entityIds.push(ent.id);
-    registerSpawnedEntity(state, allAlive, ent, ctx);
-  }
-
-  state.visitorGroups.push({
-    id: groupId,
-    name,
-    kind,
-    campX: site.x,
-    campY: site.y,
-    daysLeft,
-    spawnedAtCalendarDay: getAbsoluteCalendarDay(state.tick),
-    entityIds,
-    giftsGiven: 0,
-    tradesCompleted: 0,
-    gold: seedGroupGold(kind),
-    refugeeResolved: kind !== 'refugees',
-    leaderTalked: false,
-  });
-
-  const effectMap: Record<VisitorKind, string> = {
-    traders: 'May trade goods while camped nearby',
-    pilgrims: 'Boosts village reputation',
-    scholars: 'Shares knowledge with your people',
-    hunters: 'Competes for local game',
-    nomads: 'Brings exotic stories and gifts',
-    refugees: 'May ask to join your village',
-    performers: 'Lifts spirits — courtship boosted',
-  };
-
-  addBigNews(
-    state,
-    `${template.emoji} Visitors Arrived!`,
-    `${name} (${memberCount}) set camp near ${state.villageName}. They'll stay ${daysLeft} more day${daysLeft === 1 ? '' : 's'} after today.`,
-    'neutral',
-  );
-  addNotification(
-    state,
-    `${template.emoji} ${name} camped nearby`,
-    `Click to find their camp — talk to the ${kind === 'traders' ? 'caravan master' : kind === 'refugees' ? 'spokesman' : 'leader'} or trade while they stay.`,
-    'event',
-    { x: site.x, y: site.y },
-    `visitor:${groupId}`,
-  );
-  logEvent(state, 'migration', `${name} arrived near the village`, name);
-
-  if (kind === 'traders') maybeStartVisitorQuest(state);
-
-  return {
-    id: `visitor_${kind}_${state.tick}`,
-    title: `${template.emoji} ${name}`,
-    description: `A group of ${memberCount} travelers has set camp near your village.`,
-    emoji: template.emoji,
-    effect: effectMap[kind],
-    type: 'neutral',
-  };
-}
-
-export function tickVisitorGroups(state: WorldState, allAlive: Entity[], _ctx?: TickContext): void {
-  // Early return keeps an empty visitor list from building the two indexes; this function never
-  // spawns a group, and `state.visitorGroups` is only reassigned at the end.
-  if (state.visitorGroups.length === 0) return;
-
-  const remaining: VisitorGroup[] = [];
-  const aliveById = buildAliveEntityIndex(allAlive);
-
-  const newCalendarDay = isNewCalendarDayTick(state);
-  const calendarDay = getAbsoluteCalendarDay(state.tick);
-
-  for (const group of state.visitorGroups) {
-    const arrivedDay = group.spawnedAtCalendarDay ?? calendarDay;
-    if (newCalendarDay && calendarDay > arrivedDay + 1) group.daysLeft--;
-
-    if (newCalendarDay && group.daysLeft > 0) {
-      switch (group.kind) {
-        case 'traders': {
-          const goldWant = 15 + Math.floor(getSimRng('groupEvents')() * 25);
-          const gold = Math.min(group.gold ?? 0, goldWant);
-          group.gold = (group.gold ?? 0) - gold;
-          const food = 10 + Math.floor(getSimRng('groupEvents')() * 20);
-          addCappedResource(state, 'gold', gold);
-          const giftFood = addCappedResource(state, 'food', food);
-          recordFoodProduced(state, 'gift', giftFood);
-          addFloatingText(state, group.campX, group.campY - 20, `+${gold}g +${giftFood}f`, '#eab308');
-          group.giftsGiven++;
-          break;
-        }
-        case 'pilgrims':
-          addReputation(state, 2);
-          addFloatingText(state, group.campX, group.campY - 20, '+Rep', '#22c55e');
-          group.giftsGiven++;
-          break;
-        case 'scholars':
-          if (state.activeResearch) {
-            grantResearchProgress(state, 3);
-            addFloatingText(state, group.campX, group.campY - 20, '+Research', '#8b5cf6');
-          } else {
-            const goldGift = Math.min(group.gold ?? 0, 10);
-            group.gold = (group.gold ?? 0) - goldGift;
-            addCappedResource(state, 'gold', goldGift);
-          }
-          group.giftsGiven++;
-          break;
-        case 'nomads': {
-          const wood = 10 + Math.floor(getSimRng('groupEvents')() * 15);
-          addCappedResource(state, 'wood', wood);
-          addFloatingText(state, group.campX, group.campY - 20, `+${wood}w`, '#d97706');
-          group.giftsGiven++;
-          break;
-        }
-        case 'performers':
-          addReputation(state, 1);
-          addFloatingText(state, group.campX, group.campY - 20, '🎭', '#f472b6');
-          group.giftsGiven++;
-          break;
-        case 'refugees':
-          break;
-        case 'hunters':
-          // No off-map visitor group can silently kill wildlife on the village map.
-          break;
-      }
-    }
-
-    if (group.daysLeft <= 0) {
-      for (const id of group.entityIds) {
-        const ent = aliveById.get(id);
-        if (ent?.faction === 'visitor') {
-          ent.alive = false;
-          unindexEntityFromState(state, ent.id);
-          aliveById.delete(id);
-        }
-      }
-      addBigNews(state, '👋 Visitors Departed', `${group.name} packed up and left the valley.`, 'neutral');
-      logEvent(state, 'migration', `${group.name} departed`);
-    } else {
-      remaining.push(group);
-    }
-  }
-
-  state.visitorGroups = remaining;
-}
-
 export interface VisitorLeaderTalkMeta {
   buttonLabel: string;
   hint: string;
@@ -555,19 +325,6 @@ export function getVisitorTradePriceMult(rep: number): number {
 
 export function getVisitorTradeRewardMult(rep: number): number {
   return getReputationBand(rep) === 'friendly' ? 1.15 : 1;
-}
-
-function seedGroupGold(kind: VisitorKind): number {
-  const ranges: Partial<Record<VisitorKind, [number, number]>> = {
-    traders: [40, 80],
-    hunters: [20, 50],
-    nomads: [15, 40],
-    scholars: [10, 30],
-    pilgrims: [0, 15],
-    performers: [0, 20],
-  };
-  const [lo, hi] = ranges[kind] ?? [0, 20];
-  return lo + Math.floor(getSimRng('groupEvents')() * (hi - lo + 1));
 }
 
 function rejectVisitorTrade(state: WorldState, group: VisitorGroup, hint: string, notify?: string): WorldState {
@@ -838,22 +595,6 @@ function admitRefugees(
   return joined;
 }
 
-export type CampHit = { kind: 'visitor'; id: string; x: number; y: number };
-
-export function hitTestCamp(
-  state: WorldState,
-  worldX: number,
-  worldY: number,
-  hitRadius = 28,
-): CampHit | null {
-  for (const group of state.visitorGroups) {
-    if (Math.hypot(group.campX - worldX, group.campY - worldY) <= hitRadius) {
-      return { kind: 'visitor', id: group.id, x: group.campX, y: group.campY };
-    }
-  }
-  return null;
-}
-
 export type WorldEventId =
   | 'wolf_migration'
   | 'bountiful_harvest'
@@ -990,53 +731,5 @@ function spawnWildlife(state: WorldState, type: EntityType, id: number): Entity 
     : randomPointWhere(state, random, (x, y) => isPassableWildlifePosition(state, x, y, YEARLY_WILDLIFE_MARGIN_PX));
   if (!point) return null;
   return createEntity(type, point.x, point.y, id, SPECIES_CONFIG[type].spawnEnergy);
-}
-
-/** One visitor camp at a time — the single gate every visitor-camp offer reads. */
-export function canOfferVisitorCamp(state: Pick<WorldState, 'visitorGroups'>): boolean {
-  return state.visitorGroups.length === 0;
-}
-
-export function tryMidYearVisitorEvent(
-  state: WorldState,
-  allAlive: Entity[],
-  buildings: Building[],
-  ctx?: TickContext,
-): GameEvent | null {
-  if (!canOfferVisitorCamp(state)) return null;
-  if (playerHumanCount(allAlive) < 4) return null;
-  if (seededRandomForRun(`mid-year-visitors:${state.tick}`) > 0.22) return null;
-  const kinds: VisitorKind[] = ['traders', 'pilgrims', 'performers', 'nomads', 'scholars'];
-  const kind = kinds[Math.floor(seededRandomForRun(`mid-year-kind:${state.tick}`) * kinds.length)];
-  return spawnVisitorGroup(state, allAlive, buildings, kind, ctx);
-}
-
-export function tryFirstWeekVisitor(
-  state: WorldState,
-  allAlive: Entity[],
-  buildings: Building[],
-  ctx?: TickContext,
-): GameEvent | null {
-  if (state.firstWeekVisitorSpawned) return null;
-  if (!canOfferVisitorCamp(state)) return null;
-  if (state.tick < 7 * TICKS_PER_DAY || state.tick >= 14 * TICKS_PER_DAY) return null;
-
-  const hasPlayerHouse = buildings.some(
-    (b) =>
-      b.completed
-      && (b.type === BuildingType.House || b.type === BuildingType.Mansion),
-  );
-  if (!hasPlayerHouse) return null;
-
-  state.firstWeekVisitorSpawned = true;
-  const kind: VisitorKind = getSimRng('groupEvents')() < 0.55 ? 'pilgrims' : 'performers';
-  const event = spawnVisitorGroup(state, allAlive, buildings, kind, ctx);
-  addBigNews(
-    state,
-    '🛖 Neighbors on the trail',
-    `Word of ${state.villageName} reached the valley — ${kind} have come to greet your pioneers.`,
-    'positive',
-  );
-  return event;
 }
 

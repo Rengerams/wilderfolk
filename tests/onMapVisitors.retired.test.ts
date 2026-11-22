@@ -18,6 +18,10 @@ describe('retired on-map visitor arrivals', () => {
     expect(readFileSync(resolve(root, 'src/App.tsx'), 'utf8')).not.toContain('VisitorCampPanel');
     expect(readFileSync(resolve(root, 'src/hooks/useCanvasInteractions.ts'), 'utf8')).not.toContain('hitTestCamp(');
     expect(readFileSync(resolve(root, 'src/components/FrontierPanel.tsx'), 'utf8')).not.toContain('view.visitors');
+    const groupEvents = readFileSync(resolve(root, 'src/game/groupEvents.ts'), 'utf8');
+    for (const deadEntry of ['spawnVisitorGroup', 'tickVisitorGroups', 'tryMidYearVisitorEvent', 'tryFirstWeekVisitor', 'hitTestCamp']) {
+      expect(groupEvents).not.toContain(`export function ${deadEntry}(`);
+    }
   });
 
   it('never selects a visitor camp or creates visitor actors from yearly events', () => {
