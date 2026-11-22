@@ -397,7 +397,7 @@ function tickBuildingProduction(
   const millBonus = hasMill ? MILL_FOOD_PRODUCTION_MULT : 1.0;
   const globalEff =
     getMultiplier(state, 'global_efficiency') *
-    getTownHallGovernanceEfficiency(state, updatedBuildings);
+    getTownHallGovernanceEfficiency(state, operationalBuildings);
   const festivalMult = state.festival?.active ? 1.5 : 1.0;
 
   const playerWorkers = allAlive.filter(isPlayerHuman);
