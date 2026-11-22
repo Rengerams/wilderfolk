@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-20T16:45:18.882Z",
+  "generatedAt": "2026-11-22T05:37:20.343Z",
   "groups": [
     {
       "hash": "7016380f050a7a8752564f84f32092fdfd270292",
@@ -115,8 +115,8 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/IntroScreen.tsx:189",
-            "src/game/MapSetupScreen.tsx:172"
+            "src/game/IntroScreen.tsx:190",
+            "src/game/MapSetupScreen.tsx:173"
           ]
         }
       ]
@@ -225,7 +225,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/gameLoop.ts:1105",
+            "src/game/gameLoop.ts:1110",
             "src/game/simFocus.ts:112"
           ]
         },
@@ -309,9 +309,9 @@
           "callers": [
             "src/game/buildingAccess.ts:51",
             "src/game/buildingAccess.ts:84",
-            "src/game/buildingAccess.ts:128",
-            "src/game/buildingAccess.ts:142",
-            "src/game/buildingPlacementActions.ts:59",
+            "src/game/buildingAccess.ts:136",
+            "src/game/buildingAccess.ts:150",
+            "src/game/buildingPlacementActions.ts:60",
             "src/game/buildingRotation.ts:101",
             "src/game/logisticsOverlayData.ts:254",
             "src/game/renderer/buildings.ts:61",
@@ -414,11 +414,11 @@
           "members": [],
           "writes": [],
           "callers": [
-            "src/game/worldGen.ts:76",
-            "src/game/worldGen.ts:193",
-            "src/game/worldGen.ts:282",
-            "src/game/worldGen.ts:339",
-            "src/game/worldGen.ts:728"
+            "src/game/worldGen.ts:75",
+            "src/game/worldGen.ts:176",
+            "src/game/worldGen.ts:265",
+            "src/game/worldGen.ts:322",
+            "src/game/worldGen.ts:710"
           ]
         }
       ]
@@ -474,7 +474,7 @@
           "callers": [
             "src/game/renderer/entityCache.ts:240",
             "src/game/renderer/logistics.ts:59",
-            "src/game/spatialGrid.ts:515"
+            "src/game/spatialGrid.ts:501"
           ]
         },
         {
@@ -518,10 +518,10 @@
           "writes": [],
           "callers": [
             "src/game/hotelStay.ts:88",
-            "src/game/hotelStay.ts:122",
-            "src/game/hotelStay.ts:251",
-            "src/game/hotelStay.ts:493",
-            "src/game/hotelStay.ts:566"
+            "src/game/hotelStay.ts:121",
+            "src/game/hotelStay.ts:250",
+            "src/game/hotelStay.ts:492",
+            "src/game/hotelStay.ts:565"
           ]
         },
         {
@@ -540,8 +540,8 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/hotelStay.ts:325",
-            "src/game/hotelStay.ts:338"
+            "src/game/hotelStay.ts:324",
+            "src/game/hotelStay.ts:337"
           ]
         },
         {
@@ -587,9 +587,9 @@
           ]
         },
         {
-          "id": "src/game/simulation/humanSocial.ts:byId",
+          "id": "src/game/simulation/humanSocial.ts:compareById",
           "file": "src/game/simulation/humanSocial.ts",
-          "name": "byId",
+          "name": "compareById",
           "tokens": 23,
           "calls": [],
           "members": [
@@ -615,9 +615,9 @@
           "members": [],
           "writes": [],
           "callers": [
-            "src/game/humanStatus.ts:80",
-            "src/game/humanTick.ts:752",
-            "src/game/workAbsence.ts:253"
+            "src/game/humanStatus.ts:79",
+            "src/game/humanTick.ts:754",
+            "src/game/workAbsence.ts:261"
           ]
         },
         {
@@ -654,7 +654,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/pathfinding.ts:876"
+            "src/game/pathfinding.ts:875"
           ]
         },
         {
@@ -670,9 +670,9 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/virtualPlayer.ts:1360",
-            "src/game/virtualPlayer.ts:1770",
-            "src/hooks/useCanvasInteractions.ts:413"
+            "src/game/virtualPlayer.ts:1355",
+            "src/game/virtualPlayer.ts:1759",
+            "src/hooks/useCanvasInteractions.ts:409"
           ]
         }
       ]
@@ -718,7 +718,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/spatialGrid.ts:773"
+            "src/game/spatialGrid.ts:733"
           ]
         },
         {
@@ -782,7 +782,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/stripTopology.ts:376"
+            "src/game/stripTopology.ts:374"
           ]
         }
       ]
@@ -809,7 +809,7 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/relationships.ts:251"
+            "src/game/relationships.ts:255"
           ]
         },
         {
@@ -830,76 +830,8 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/workforce.ts:685"
+            "src/game/workforce.ts:666"
           ]
-        }
-      ]
-    },
-    {
-      "hash": "900750ee3cadc97c795139cc14152bf00f209d96",
-      "count": 2,
-      "functions": [
-        {
-          "id": "src/game/renderer/whittakerTerrain.ts:fade",
-          "file": "src/game/renderer/whittakerTerrain.ts",
-          "name": "fade",
-          "tokens": 39,
-          "calls": [
-            "clamp"
-          ],
-          "members": [],
-          "writes": [],
-          "callers": [
-            "src/game/renderer/whittakerTerrain.ts:857"
-          ]
-        },
-        {
-          "id": "src/game/terrain/ecotones.ts:smooth",
-          "file": "src/game/terrain/ecotones.ts",
-          "name": "smooth",
-          "tokens": 39,
-          "calls": [
-            "clamp"
-          ],
-          "members": [],
-          "writes": [],
-          "callers": [
-            "src/game/terrain/ecotones.ts:45"
-          ]
-        }
-      ]
-    },
-    {
-      "hash": "03d448a801835d5c1669f15d218986519000e8cc",
-      "count": 2,
-      "functions": [
-        {
-          "id": "src/game/scentGrid.ts:ScentGrid.cellCoords",
-          "file": "src/game/scentGrid.ts",
-          "name": "cellCoords",
-          "tokens": 21,
-          "calls": [
-            "cellCoords"
-          ],
-          "members": [],
-          "writes": [],
-          "callers": [
-            "src/game/scentGrid.ts:131",
-            "src/game/scentGrid.ts:163",
-            "src/game/scentGrid.ts:176"
-          ]
-        },
-        {
-          "id": "src/game/spatialGrid.ts:EntitySpatialGrid.cellCoords",
-          "file": "src/game/spatialGrid.ts",
-          "name": "cellCoords",
-          "tokens": 23,
-          "calls": [
-            "cellCoords"
-          ],
-          "members": [],
-          "writes": [],
-          "callers": []
         }
       ]
     },
@@ -954,8 +886,8 @@
           "members": [],
           "writes": [],
           "callers": [
-            "src/game/simBuffers/simDelta.ts:376",
-            "src/game/simBuffers/simDelta.ts:690"
+            "src/game/simBuffers/simDelta.ts:384",
+            "src/game/simBuffers/simDelta.ts:699"
           ]
         },
         {
@@ -970,8 +902,8 @@
           "members": [],
           "writes": [],
           "callers": [
-            "src/game/simBuffers/simDelta.ts:382",
-            "src/game/simBuffers/simDelta.ts:697"
+            "src/game/simBuffers/simDelta.ts:391",
+            "src/game/simBuffers/simDelta.ts:706"
           ]
         }
       ]
@@ -996,8 +928,8 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/spatialGrid.ts:521",
-            "src/game/spatialGrid.ts:622"
+            "src/game/spatialGrid.ts:507",
+            "src/game/spatialGrid.ts:608"
           ]
         },
         {
@@ -1016,101 +948,6 @@
           ],
           "writes": [],
           "callers": []
-        }
-      ]
-    },
-    {
-      "hash": "a12afe7f8cff381862237cd4d98886254bf4e17d",
-      "count": 2,
-      "functions": [
-        {
-          "id": "src/game/spatialGrid.ts:syncGrassRenderGrid",
-          "file": "src/game/spatialGrid.ts",
-          "name": "syncGrassRenderGrid",
-          "tokens": 89,
-          "calls": [
-            "if",
-            "rebuild",
-            "reconcile",
-            "resolveSpatialGrid"
-          ],
-          "members": [
-            "grid",
-            "rebuild",
-            "reconcile"
-          ],
-          "writes": [],
-          "callers": [
-            "src/game/simBuffers/renderSoAEntities.ts:179",
-            "src/game/tickLayerRealtime.ts:165"
-          ]
-        },
-        {
-          "id": "src/game/spatialGrid.ts:syncTreeGrid",
-          "file": "src/game/spatialGrid.ts",
-          "name": "syncTreeGrid",
-          "tokens": 90,
-          "calls": [
-            "if",
-            "rebuild",
-            "reconcile",
-            "resolveSpatialGrid"
-          ],
-          "members": [
-            "grid",
-            "rebuild",
-            "reconcile"
-          ],
-          "writes": [],
-          "callers": [
-            "src/game/tickLayerRealtime.ts:171"
-          ]
-        }
-      ]
-    },
-    {
-      "hash": "903e33ab7a37f0de31b8ea69e760eaeb3d529bfd",
-      "count": 2,
-      "functions": [
-        {
-          "id": "src/game/spatialGrid.ts:syncHumanSocialGrid",
-          "file": "src/game/spatialGrid.ts",
-          "name": "syncHumanSocialGrid",
-          "tokens": 57,
-          "calls": [
-            "if",
-            "rebuild",
-            "reconcile",
-            "resolveSpatialGrid"
-          ],
-          "members": [
-            "rebuild",
-            "reconcile"
-          ],
-          "writes": [],
-          "callers": [
-            "src/game/tickLayerRealtime.ts:159"
-          ]
-        },
-        {
-          "id": "src/game/spatialGrid.ts:syncMobileSimGrid",
-          "file": "src/game/spatialGrid.ts",
-          "name": "syncMobileSimGrid",
-          "tokens": 57,
-          "calls": [
-            "if",
-            "rebuild",
-            "reconcile",
-            "resolveSpatialGrid"
-          ],
-          "members": [
-            "rebuild",
-            "reconcile"
-          ],
-          "writes": [],
-          "callers": [
-            "src/game/tickLayerRealtime.ts:153"
-          ]
         }
       ]
     },
@@ -1136,8 +973,8 @@
           ],
           "writes": [],
           "callers": [
-            "src/game/terrain/terragen.ts:97",
-            "src/game/terrain/terragen.ts:130"
+            "src/game/terrain/terragen.ts:98",
+            "src/game/terrain/terragen.ts:131"
           ]
         },
         {
