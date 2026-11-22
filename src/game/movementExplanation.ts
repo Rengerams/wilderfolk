@@ -13,10 +13,6 @@ import { getRouteObstruction } from './pathfinding';
 import { getCaravanMoveTarget } from './tradeCaravans';
 import type { ExplanationLine } from './explanationLines';
 
-function buildingLabel(building: Building): string {
-  return getBuildingConfig(building.type).label;
-}
-
 export type SettlerRouteStopKind = 'home' | 'workplace' | 'venue';
 
 /** One named stop on a settler's day route. Names come from `BUILDING_CONFIGS`, never from the view. */
@@ -158,15 +154,15 @@ export function explainHumanMovement(state: WorldState, settlerId: number): Huma
     ? state.buildings.find((building) => building.id === settler.residenceBuildingId) ?? null
     : null;
   const homeStop: SettlerRouteStop | null = residence
-    ? { kind: 'home', label: buildingLabel(residence), buildingId: residence.id }
+    ? { kind: 'home', label: getBuildingConfig(residence.type).label, buildingId: residence.id }
     : null;
   const workplace = findHumanWorkplace(settler, state.buildings);
   const venue = settlerVenue(state, settler);
 
   const stops: SettlerRouteStop[] = [];
   if (homeStop) stops.push(homeStop);
-  if (workplace) stops.push({ kind: 'workplace', label: buildingLabel(workplace), buildingId: workplace.id });
-  if (venue) stops.push({ kind: 'venue', label: buildingLabel(venue), buildingId: venue.id });
+  if (workplace) stops.push({ kind: 'workplace', label: getBuildingConfig(workplace.type).label, buildingId: workplace.id });
+  if (venue) stops.push({ kind: 'venue', label: getBuildingConfig(venue.type).label, buildingId: venue.id });
   // The walk home closes the day — only worth a stop once there is somewhere to walk back from.
   if (homeStop && stops.length > 1) stops.push(homeStop);
 
