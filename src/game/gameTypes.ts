@@ -1117,6 +1117,8 @@ export interface TradeRoute {
   caravanCarrierId?: number;
   caravanLeg?: 'outbound' | 'at_partner' | 'inbound';
   caravanWaitTicks?: number;
+  /** Exports from abandoned trips awaiting storage headroom; never silently discarded. */
+  pendingRefund?: Partial<Resources>;
   nextDepartureTick?: number;
   caravansCompleted?: number;
 }
