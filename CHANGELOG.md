@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (22 Nov 2026; pending merge):** Work and venue schedule previews now count real active job assignments (not stale occupant rosters), include ongoing construction crews once, exclude imprisoned/foreign/non-adult settlers, and recognize shifted windows with unchanged duration. Added regression coverage for roster consistency and render-time entity scans.
+- **Fixed (22 Nov 2026; PR #169):** Schedule previews count assigned workers and construction crews, exclude ineligible settlers, and detect shifts with unchanged duration. Added regression tests.
 
 - **Refactored (22 Nov 2026; pending merge):** Broke two type-import cycles: placement reads world-map types rather than renderer types; grid and gameplay readers use narrow entity contracts; statistics and social record types live in leaf schemas. No gameplay or save-format change.
 
