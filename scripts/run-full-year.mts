@@ -622,7 +622,7 @@ function run(): void {
     world,
     snapshots: healthObserved,
     final: finalHealth,
-    newBuildingsAtEnd: raisedBuildings.filter((building) => building.faction !== 'rival').length,
+    newBuildingsAtEnd: raisedBuildings.length,
   });
 
   writeLog({
@@ -666,7 +666,6 @@ function run(): void {
       standingByType,
       raisedSinceDayZero: raisedBuildings.length,
       raisedByType,
-      raisedRivalOwned: raisedBuildings.filter((building) => building.faction === 'rival').length,
     },
     finalState: {
       resources: {
