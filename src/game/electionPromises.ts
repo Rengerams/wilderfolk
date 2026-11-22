@@ -62,7 +62,7 @@ export function countCompletedWalls(state: WorldState): number {
   let count = 0;
   for (let i = 0; i < state.buildings.length; i++) {
     const b = state.buildings[i];
-    if (!b.completed || b.faction === 'rival') continue;
+    if (!b.completed) continue;
     if (b.type === BuildingType.Wall || b.type === BuildingType.WallGate || b.type === BuildingType.Watchtower) {
       count++;
     }
@@ -93,7 +93,7 @@ function selectPromiseCodes(state: WorldState, year: number): number[] {
     { code: PROMISE_CODES.build_walls, need: wallsNeed },
     { code: PROMISE_CODES.run_forge, need: forgeNeed },
     { code: PROMISE_CODES.raise_reputation, need: Math.max(0, 1 - state.villageReputation / 65) },
-    { code: PROMISE_CODES.strengthen_healthcare, need: state.buildings.some((building) => building.completed && building.type === BuildingType.Hospital && building.faction !== 'rival') ? 0 : 1 },
+    { code: PROMISE_CODES.strengthen_healthcare, need: state.buildings.some((building) => building.completed && building.type === BuildingType.Hospital) ? 0 : 1 },
   ];
 
   needs.sort((a, b) => {
@@ -170,7 +170,7 @@ export function getPromiseDetail(state: WorldState, code: number): PromiseDetail
       return { code, label: 'Restore public trust: Reach 65 village reputation', current, target: 65, fulfilled: current >= 65, pct: promiseProgressPct(current, 65) };
     }
     case PROMISE_CODES.strengthen_healthcare: {
-      const current = state.buildings.filter((building) => building.completed && building.type === BuildingType.Hospital && building.faction !== 'rival').length;
+      const current = state.buildings.filter((building) => building.completed && building.type === BuildingType.Hospital).length;
       return { code, label: 'Provide healthcare: Build a hospital', current, target: 1, fulfilled: current >= 1, pct: promiseProgressPct(current, 1) };
     }
     default:
