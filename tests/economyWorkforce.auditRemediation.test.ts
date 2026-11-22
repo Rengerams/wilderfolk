@@ -152,4 +152,25 @@ describe('a bounded swap resolves a vacancy no idle settler can reach', () => {
     expect(quarry.occupants).toContain(atMill.id);
     expect(mill.occupants).toContain(idle.id);
   });
+  it('ignores an unfinished rival roster when backfilling a donor during a vacancy swap', () => {
+    const mill = completed(BuildingType.LumberMill, 600, 0, 70);
+    const quarry = completed(BuildingType.Quarry, 1_200, 0, 71);
+    const atMill = settler(1, 850, 0, { workerBuildingId: mill.id });
+    const idle = settler(2, 100, 0);
+    mill.occupants = [atMill.id];
+
+    // Legacy rival buildings cannot reserve a player settler's staffing eligibility.
+    const rivalSite = createBuilding(BuildingType.House, 2_000, 200, 72);
+    rivalSite.faction = 'rival';
+    rivalSite.occupants = [idle.id];
+    expect(rivalSite.completed).toBe(false);
+
+    rebalanceJobWorkers([atMill, idle], [mill, quarry, rivalSite], 'growth', 100);
+
+    expect(atMill.workerBuildingId, 'reachable worker fills the Quarry').toBe(quarry.id);
+    expect(idle.workerBuildingId, 'rival roster must not block donor backfill').toBe(mill.id);
+    expect(quarry.occupants).toContain(atMill.id);
+    expect(mill.occupants).toContain(idle.id);
+  });
+
 });
