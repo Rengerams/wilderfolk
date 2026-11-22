@@ -12,7 +12,7 @@ import { TICKS_PER_DAY } from '../src/game/dayCycle';
 function house(state: WorldState, x: number, y: number): void {
   state.buildings.push({
     id: state.nextBuildingId++, type: BuildingType.House, x, y, width: 60, height: 48,
-    rotation: 0, completed: true, faction: 'player', occupants: [], constructionProgress: 100,
+    rotation: 0, completed: true, occupants: [], constructionProgress: 100,
     level: 1, spriteScale: 1, health: 100, maxHealth: 100,
   } as unknown as Building);
 }
