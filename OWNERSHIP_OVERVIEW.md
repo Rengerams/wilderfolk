@@ -6,10 +6,10 @@
 |---|---|---|
 | `buildConstructionCrewIndex` (moved from `workforce.ts`), `countWorkingAndIdleSettlers` (moved from `workforce.ts`) | `src/game/workforceSummary.ts` | One read-only construction roster and assigned-working/idle count; age 18 gate, prisoner exclusion and rival-site exclusion; `tests/dashboardAggregates.owner.test.ts`, `tests/workforce.transitions.test.ts` |
 | `computeVillageStats` (modified), `getActiveConstructionWorkers` (removed) | `src/game/uiSimSummary.ts` | Reads owned labour counts, projects adult/child demographics and housing figures; no second crew scan |
-| `isOnConstructionCrew` (removed), `findHumanWorkplace`, `assignWorkerInPlace`, `assignBuilderInPlace`, `staffConstructionCrews` (modified) | `src/game/workforce.ts` | Staff selection and workplace lookup consume the single indexed construction-roster owner |
+| `isOnConstructionCrew` (removed), `findHumanWorkplace`, `assignWorkerInPlace`, `assignBuilderInPlace`, `staffConstructionCrews`, `staffJobsBeforeConstruction`, `staffJobBuildings` (modified) | `src/game/workforce.ts` | Staff selection and workplace lookup consume the single indexed construction-roster owner |
 | `isEligibleBuilderForBuilding`, `_applyBuilderAssignmentMut`, `canAssignWorkerToBuilding`, `getWorkerAssignmentRefusal` (modified) | `src/game/buildingStaffingActions.ts` | Candidate/refusal decisions query the existing indexed construction-roster owner |
 | `collectDashboard` (modified) | `src/game/dashboardData.ts` | One roster index per dashboard, consistent adult and no-work labels |
-| `tickHumans`, `gameTick`, `collectColonyHealth` (existing callers; import migration) | `src/game/humanTick.ts`, `src/game/gameTick.ts`, `scripts/colonyHealth.ts` | Read-only owner relocation, no tick scheduling or state-write change |
+| Import consumers (no function changes) | `src/game/humanTick.ts`, `src/game/gameTick.ts`, `scripts/colonyHealth.ts`, `tests/workforce.transitions.test.ts` | Read-only import migration; no tick scheduling or state-write change |
 
 
 ## 2026-11-14 — early-colony playable behaviour fixes (function-level change register)
