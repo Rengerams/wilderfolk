@@ -240,16 +240,18 @@ describe('M13 hospital treatment cadence', () => {
 describe('fast road waypoint steering', () => {
   it('crosses ten-pixel road tiles without oscillating at a waypoint or repeatedly searching', () => {
     const road = {
-      id: 803, type: BuildingType.Road, x: pixel(20, 15), y: pixel(20, 15),
+      id: 803, type: BuildingType.Road, x: pixel(20, 15), y: pixel(15, 15),
       width: 30 * PATH_CELL, height: PATH_CELL, completed: true,
     } as Building;
     setCurrentPathMap(makeMap(45, 35, 20261028, () => false), [road]);
     setPathfindingMetricsEnabled(true);
     resetPathfinderSession();
     try {
-      const walker = human(803, pixel(4, 18), pixel(4, 18));
+      // pixel() converts its first tile argument only. The target Y must be row 18,
+      // not row 36 (which lies outside this 35-row fixture and correctly blocks travel).
+      const walker = human(803, pixel(4, 18), pixel(18, 18));
       const goalX = pixel(36, 18);
-      const goalY = pixel(36, 18);
+      const goalY = pixel(18, 18);
       const steps: number[] = [];
       let arrived = false;
       for (let tick = 0; tick < 90; tick++) {
