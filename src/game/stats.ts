@@ -7,7 +7,6 @@ import { getEcosystemHealth } from './dailyEcology';
 import type { ResourceKey } from './resourceTypes';
 import type { BondCensus } from './bondTypes';
 import type { YearlyStats, LifetimeStats, GatheredResources } from './statsRecords';
-export type { YearlyStats, LifetimeStats, GatheredResources } from './statsRecords';
 
 export function createEmptyLifetimeStats(): LifetimeStats {
   return {

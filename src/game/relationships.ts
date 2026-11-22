@@ -1,6 +1,5 @@
 import type { Entity, WorldState } from './gameTypes';
 import type { BondCensus } from './bondTypes';
-export type { BondCensus } from './bondTypes';
 import { JobType } from './gameTypes';
 import { combinePairFactors, evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { logEvent } from './eventLog';
