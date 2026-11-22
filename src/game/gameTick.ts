@@ -36,7 +36,7 @@ import {
   getSeason,
   getReproductionMultiplier,
 } from './simHelpers';
-import { countWorkingAndIdleSettlers } from './workforce';
+import { countWorkingAndIdleSettlers } from './workforceSummary';
 import { isPlayerHuman } from './playerHuman';
 import type { TickContext } from './simulation/simulationTypes';
 import { buildHuntTargetByPreyIndex } from './simulation/simulationEntities';
