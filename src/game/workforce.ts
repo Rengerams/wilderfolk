@@ -982,10 +982,7 @@ function staffJobsBeforeConstruction(
   // so construction cannot consume the whole idle pool before the preset's jobs are staffed.
   const targets = policy === 'survival' ? jobBuildings.filter(isFoodWorkplace) : jobBuildings;
   if (targets.length === 0) return;
-  const constructionIds = new Set<number>();
-  for (const site of buildings) {
-    if (!site.completed) for (const id of site.occupants) constructionIds.add(id);
-  }
+  const constructionIds = new Set(buildConstructionCrewIndex(buildings).keys());
   const workerCounts = new Map<number, number>();
   for (const human of alive) {
     if (human.workerBuildingId != null && !isImprisoned(human)) {
@@ -1021,10 +1018,7 @@ export function staffJobBuildings(
     const id = human.workerBuildingId;
     workerCounts.set(id, (workerCounts.get(id) ?? 0) + 1);
   }
-  const constructionWorkerIds = new Set<number>();
-  for (const site of buildings) {
-    if (!site.completed) for (const id of site.occupants) constructionWorkerIds.add(id);
-  }
+  const constructionWorkerIds = new Set(buildConstructionCrewIndex(buildings).keys());
 
   const staffStart = profileStart();
   for (let i = 0; i < jobBuildings.length; i++) {
