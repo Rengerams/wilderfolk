@@ -38,6 +38,24 @@ const WALKER_BODY_RADIUS_PX = PATH_CELL / 2 - 1;
 /** A road tile costs this fraction of a normal step — exactly the travel time the road speed saves. */
 const ROAD_STEP_COST = 1 / ROAD_SPEED_MULT;
 const PATH_MAX_SEARCH_NODES = 12000;
+/**
+ * A route search's node budget grows with the trip it prices. A flat cap made every long
+ * cross-map walk report "pending" forever — which froze trade caravans at the market door — while
+ * a short walk never needed it. The admissible heuristic stays weak on long legs, so the widened
+ * search is priced per tile of the straight leg, never per grid size.
+ */
+const PATH_SEARCH_NODES_BASE = 4000;
+const PATH_SEARCH_NODES_PER_TILE = 100;
+const PATH_SEARCH_NODE_CEILING = 60000;
+
+/** Node budget for one route search: the historical floor for short trips, widened for long ones. */
+function searchNodeBudget(sx: number, sy: number, tx: number, ty: number): number {
+  const dx = Math.abs(tx - sx);
+  const dy = Math.abs(ty - sy);
+  const octileTiles = Math.max(dx, dy) + 0.4142 * Math.min(dx, dy);
+  return Math.min(PATH_SEARCH_NODE_CEILING,
+    Math.max(PATH_MAX_SEARCH_NODES, Math.ceil(PATH_SEARCH_NODES_BASE + PATH_SEARCH_NODES_PER_TILE * octileTiles)));
+}
 const PATH_ARRIVAL_DISTANCE_PX = 8;
 const ROAD_DETOUR_RECHECK_TILES = 20;
 
@@ -351,15 +369,16 @@ function routeToBlockedGoal(
   goalBlocked: boolean,
   collectMetrics = true,
 ): RouteSearchResult {
+  const budget = searchNodeBudget(sx, sy, goalX, goalY);
   if (!goalBlocked) {
-    return walkRoute(grid, sx, sy, goalX, goalY, PATH_MAX_SEARCH_NODES, collectMetrics);
+    return walkRoute(grid, sx, sy, goalX, goalY, budget, collectMetrics);
   }
   const targets = new Uint8Array(grid.cols * grid.rows);
   for (const ring of standTilesForWalker(grid, goalX, goalY)) {
     if (ring.length === 0) continue;
     targets.fill(0);
     for (const tile of ring) targets[tile.y * grid.cols + tile.x] = 1;
-    const result = walkRoute(grid, sx, sy, goalX, goalY, PATH_MAX_SEARCH_NODES, collectMetrics, targets);
+    const result = walkRoute(grid, sx, sy, goalX, goalY, budget, collectMetrics, targets);
     // A spent node budget proves nothing about the farther rings: report it as pending.
     if (result.path || result.hitNodeCap) return result;
   }
@@ -773,9 +792,9 @@ export function findPath(
   sy: number,
   tx: number,
   ty: number,
-  maxNodes = PATH_MAX_SEARCH_NODES,
+  maxNodes?: number,
 ): { x: number; y: number }[] | null {
-  return walkRoute(grid, sx, sy, tx, ty, maxNodes).path;
+  return walkRoute(grid, sx, sy, tx, ty, maxNodes ?? searchNodeBudget(sx, sy, tx, ty)).path;
 }
 
 export type NavigationQuote =
@@ -866,7 +885,7 @@ export function findRouteCost(
   sy: number,
   tx: number,
   ty: number,
-  maxNodes = PATH_MAX_SEARCH_NODES,
+  maxNodes?: number,
 ): number | null {
   return findRouteCostOutcome(grid, sx, sy, tx, ty, maxNodes).cost;
 }
@@ -878,8 +897,9 @@ export function findRouteCostOutcome(
   sy: number,
   tx: number,
   ty: number,
-  maxNodes = PATH_MAX_SEARCH_NODES,
+  maxNodes?: number,
 ): { cost: number | null; budgetExhausted: boolean } {
+  const budget = maxNodes ?? searchNodeBudget(sx, sy, tx, ty);
   const valid = [sx, sy, tx, ty].every(Number.isInteger)
     && sx >= 0 && sy >= 0 && tx >= 0 && ty >= 0
     && sx < grid.cols && tx < grid.cols && sy < grid.rows && ty < grid.rows
@@ -887,13 +907,13 @@ export function findRouteCostOutcome(
   if (valid || (sx === tx && sy === ty)) {
     // Identical blocked endpoints cannot be priced by snapping both coordinates to a nearby
     // tile: that would fabricate a positive-cost trip to the same inaccessible location.
-    const quote = getNavigationQuote(grid, { x: sx, y: sy }, { x: tx, y: ty }, { maxNodes });
+    const quote = getNavigationQuote(grid, { x: sx, y: sy }, { x: tx, y: ty }, { maxNodes: budget });
     return { cost: quote.status === 'priced' ? quote.costTiles : null,
       budgetExhausted: quote.status === 'pending' };
   }
   // A blocked single-tile route has no walkable position to price; endpoint recovery would invent a leg.
   if (sx === tx && sy === ty) return { cost: null, budgetExhausted: false };
-  const result = searchRoute(grid, sx, sy, tx, ty, maxNodes, true);
+  const result = searchRoute(grid, sx, sy, tx, ty, budget, true);
   return { cost: result.cost, budgetExhausted: result.hitNodeCap };
 }
 
@@ -1236,12 +1256,13 @@ export function steerWithPath(
       // Prefer shared optimal geometry; a remote road may exhaust its discounted A* budget.
       // In that case retry with the existing bounded movement heuristic and preserve its
       // path. Never downgrade a confirmed unreachable quote into an unbounded search.
+      const searchBudget = searchNodeBudget(startTx, startTy, goalTx, goalTy);
       const shared = startBlocked || goalBlocked ? null : getNavigationQuote(currentGrid,
-        { x: startTx, y: startTy }, { x: goalTx, y: goalTy }, { maxNodes: PATH_MAX_SEARCH_NODES });
+        { x: startTx, y: startTy }, { x: goalTx, y: goalTy }, { maxNodes: searchBudget });
       const fallback = startBlocked || goalBlocked
         ? routeToBlockedGoal(currentGrid, startTx, startTy, goalTx, goalTy, goalBlocked)
         : shared?.status === 'pending' && !!pricedRoadMask(currentGrid)
-          ? searchRoute(currentGrid, startTx, startTy, goalTx, goalTy, PATH_MAX_SEARCH_NODES, false, true)
+          ? searchRoute(currentGrid, startTx, startTy, goalTx, goalTy, searchBudget, false, true)
           : null;
       const routeCost = shared?.status === 'priced' ? shared.costTiles : fallback?.cost ?? null;
       const routeTiles = shared?.status === 'priced'
