@@ -1459,8 +1459,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           suppressIdle = true;
 
           if (shouldLeadAffairPair(entity, paramour)) {
-            // Rare ambient speech, not a near-guaranteed affair bubble every eligible tick.
-            settlerPairChat(entity, paramour, 'affair', 0.01);
+            // One staggered attempt per game hour, not a roll every realtime tick.
+            // 11.4% per hour preserves roughly the former 1%-per-tick hourly odds.
+            // Keep affair progress and visual feedback on their original realtime cadence.
+            if ((state.tick + entity.id) % TICKS_PER_HOUR === 0) {
+              settlerPairChat(entity, paramour, 'affair', 0.114);
+            }
 
             const churchPenalty = churchStrength > 0 ? 0.72 + (1 - churchStrength) * 0.28 : 1;
             const affairRate = (churchStrength > 0 ? 5 : 8) * (state.festival?.active ? 1.4 : 1) * churchPenalty * PER_TICK_RATE_SCALE;

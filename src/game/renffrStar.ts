@@ -1,5 +1,5 @@
 import type { Entity, RenffrLetter, RenffrOmen, WorldState } from './gameTypes';
-import { TICKS_PER_DAY } from './dayCycle';
+import { TICKS_PER_DAY, isStartOfClockHour } from './dayCycle';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { isPlayerHuman } from './playerHuman';
 import { getSimSeed, mulberry32Advance, mulberry32Draw } from './simRng';
@@ -92,9 +92,11 @@ export function maybeTriggerRenffrOmen(
   entities: readonly Entity[],
   isNight: boolean,
 ): boolean {
-  if (state.renffrOmen || !isNight || state.tick < TICKS_PER_DAY * 3) return false;
+  if (state.renffrOmen || isRenffrGossipActive(state) || !isNight
+    || state.tick < TICKS_PER_DAY * 3 || !isStartOfClockHour(state.tick)) return false;
   if (state.humanPopulation < 2) return false;
-  if (renffrRoll(state, 0x0de7) >= 0.00035) return false;
+  // One chance per game hour, preserving approximately the old 0.035%-per-tick odds.
+  if (renffrRoll(state, 0x0de7) >= 0.0042) return false;
 
   state.renffrOmen = createRenffrOmen();
   state.screenShakeImpulse = Math.max(state.screenShakeImpulse, 2.5);

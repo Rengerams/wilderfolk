@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (22 Nov 2026, PR #178):** Affair chat: hourly 11.4% roll and 48-hour cooldown after success; affair progress unchanged. Renffr: hourly night roll at 0.42%, with a three-day gossip cooldown.
 - **Refactored (22 Nov 2026; pending merge):** Farm and greenhouse weather-yield calculations now live with weather rules instead of grass ecology; gameplay unchanged.
 
 - **Removed (22 Nov 2026; pending merge):** The two unreachable festival-performer reads left behind by the visitor-camp retirement are gone. Festival crowds still gather at the Square, and the courtship festival bonus is unchanged.

@@ -58,6 +58,7 @@ const REQUIRED_DECISIONS = [
   'socialFeedback',
   'dialogueContent',
   'dialogueSessions',
+  'renffrOmen',
   'spotlightLore',
   'courtship',
   'affairs',
