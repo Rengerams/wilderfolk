@@ -199,22 +199,9 @@ export function getOutgoingRaidFoodCostForRival(state: WorldState, rival: RivalS
   );
 }
 
-/** Incoming war-bands keyed by rival id; build once per tick instead of scanning per settler. */
-export function buildIncomingRaidIndex(state: WorldState): Map<string, RaidEvent> {
-  const byRival = new Map<string, RaidEvent>();
-  for (const raid of state.pendingRaidEvents ?? []) {
-    if (!byRival.has(raid.rivalId)) byRival.set(raid.rivalId, raid);
-  }
-  return byRival;
-}
-
-export function isRaidMarchingForRival(state: WorldState, groupId: string): boolean {
-  return buildIncomingRaidIndex(state).has(groupId);
-}
-
-/** True when that rival has an incoming war-band — your strike back is a counter-raid, not a first strike. */
+/** True when a rival has an incoming world-map war-band; no village-map raider index. */
 export function isCounterRaidOnRival(state: WorldState, rivalId: string): boolean {
-  return isRaidMarchingForRival(state, rivalId);
+  return (state.pendingRaidEvents ?? []).some((raid) => raid.rivalId === rivalId);
 }
 
 export function getOutgoingRaidActionLabel(state: WorldState, rivalId: string): {
