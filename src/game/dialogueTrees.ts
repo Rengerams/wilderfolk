@@ -545,7 +545,7 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
   const historyKey = eventKey + ':' + mode + (roles ? ':' + [...roles].sort().join(':') : '');
   // A completed request records this key for both actors below. A failed roll or
   // rejected request does not, so only a successfully started affair chat cools down.
-  if (eventKey === 'ambient.affair' && [speaker, partner].some((who) => {
+  if (request.priority !== 'scripted' && eventKey === 'ambient.affair' && [speaker, partner].some((who) => {
     const lastTick = who?.dialogueRecentScenes?.[historyKey]?.tick;
     return lastTick != null && tick >= lastTick && tick - lastTick < TICKS_PER_DAY * 2;
   })) return false;
