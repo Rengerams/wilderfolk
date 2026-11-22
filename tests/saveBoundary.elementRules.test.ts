@@ -111,6 +111,27 @@ describe('retired camps and linked cards are dropped, but strategic raids still 
   });
 });
 
+describe('loading saves retires on-map visitor NPCs without touching strategic raids', () => {
+  it('does not resurrect a visitor actor or its camp', () => {
+    const payload = realPayload();
+    const entities = payload.entities as Array<Record<string, unknown>>;
+    const player = entities.find((entity) => entity.type === 'human');
+    expect(player).toBeDefined();
+    if (!player) return;
+    const visitorId = (payload.nextEntityId as number) + 1;
+    entities.push({ ...player, id: visitorId, faction: 'visitor', groupId: 'visitor_traders_1' });
+    payload.nextEntityId = visitorId + 1;
+
+    const outcome = loadGameFromParsedOutcome(payload);
+    expect(outcome.ok, outcome.ok ? '' : outcome.detail).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.world.entities.some((entity) => entity.id === visitorId)).toBe(false);
+    expect(outcome.world.entityById?.has(visitorId)).toBe(false);
+    expect(outcome.world.visitorGroups).toHaveLength(0);
+    expect(outcome.world.pendingRaidEvents).toHaveLength(1);
+  });
+});
+
 describe('obsolete visitor camp records do not block existing saves', () => {
   it('discards a camp with no entityIds', () => {
     const payload = realPayload();
