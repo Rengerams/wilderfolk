@@ -32,10 +32,9 @@ describe('Virtual Player material storage pressure', () => {
     expect(needsAdditionalStore(state)).toBe(true);
   });
 
-  it('does not treat unfinished or rival Stores as player capacity', () => {
+  it('does not treat unfinished Stores as capacity', () => {
     const state = colony(0, 255, 0);
     state.buildings.push(building(1, BuildingType.Store, { completed: false }));
-    state.buildings.push(building(2, BuildingType.Store, { faction: 'rival' }));
     expect(needsAdditionalStore(state)).toBe(true);
   });
 

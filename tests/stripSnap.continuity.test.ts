@@ -81,11 +81,10 @@ describe('a drag can connect anywhere along an existing road', () => {
     expect(snapped).toEqual({ startX: 900, startY: 700, endX: 1000, endY: 700 });
   });
 
-  it('does not snap to a road belonging to a rival camp', () => {
-    const rival = createBuilding(BuildingType.Road, 600, 400, 9004);
-    rival.completed = true;
-    rival.faction = 'rival';
-    world.buildings.push(rival);
+  it('does not snap to an unfinished road', () => {
+    const unfinished = createBuilding(BuildingType.Road, 600, 400, 9004);
+    unfinished.completed = false;
+    world.buildings.push(unfinished);
 
     const snapped = snapStripDragEndpoints(world.buildings, BuildingType.Road, 610, 402, 700, 402);
 

@@ -85,11 +85,10 @@ function unlock(world: WorldState, type: BuildingType): void {
   }
 }
 
-/** A standing building of `type`, optionally owned by a rival camp. */
+/** A standing completed building of `type`. */
 function standingBuilding(
   id: number,
   type: BuildingType,
-  faction: Building['faction'] = undefined,
 ): Building {
   const config = BUILDING_CONFIGS[type];
   return {
@@ -107,7 +106,6 @@ function standingBuilding(
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    faction,
   } as Building;
 }
 
@@ -223,12 +221,9 @@ describe('F5 — the game layer words each reason', () => {
 });
 
 describe('F5 — one placement decision and one label owner', () => {
-  it('does not let a rival structure hold the player’s one-per-village slot', () => {
+  it('reserves the player’s one-per-village slot for an existing Church', () => {
     const world = initGame({ size: MapSize.Medium });
-    world.buildings.push(standingBuilding(901, BuildingType.Church, 'rival'));
     expect(isUniqueBuildingAlreadyBuilt(world, BuildingType.Church)).toBe(false);
-    expect(getPlaceBuildingFailureReason(world, BuildingType.Church, 1200, 900, 0)).not.toBe('unique');
-
     world.buildings.push(standingBuilding(902, BuildingType.Church));
     expect(isUniqueBuildingAlreadyBuilt(world, BuildingType.Church)).toBe(true);
   });

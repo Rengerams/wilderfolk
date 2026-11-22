@@ -154,7 +154,6 @@ describe('school.capacity.test.ts', () => {
       type: BuildingType.School,
       completed: true,
       occupants: [9001], // one teacher assigned manually
-      faction: undefined,
       x: 90,
       y: 90,
       width: 53,
@@ -354,7 +353,6 @@ describe('school.roster.test.ts', () => {
       type: BuildingType.School,
       completed: true,
       occupants,
-      faction: undefined,
       x,
       y,
       width: 53,
@@ -371,7 +369,6 @@ describe('school.roster.test.ts', () => {
       age: 10,
       isJuvenile: true,
       alive: true,
-      faction: undefined,
       x,
       y,
       ...overrides,
