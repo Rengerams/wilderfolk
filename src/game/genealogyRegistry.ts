@@ -14,7 +14,8 @@ function recordedFamilyEntity(entity: Entity, registry?: GenealogyRegistry): boo
     || (entity.type === EntityType.Deer && registry?.people[String(entity.id)] !== undefined);
 }
 
-function familyRecordName(entity: Entity): string {
+/** Display name for human and animal relatives; the tree and registry share one owner. */
+export function genealogyDisplayName(entity: Entity): string {
   return entity.name
     ?? (entity.type === EntityType.Wildkin ? `Wildkin #${entity.id}`
       : entity.type === EntityType.Deer ? `Deer #${entity.id}`
@@ -45,7 +46,7 @@ export function syncGenealogyRegistry(state: WorldState, entities: readonly Enti
     for (const childId of e.childrenIds ?? []) childrenIds.add(childId);
     registry.people[key] = {
       id: e.id,
-      name: e.name ?? existing?.name ?? familyRecordName(e),
+      name: e.name ?? existing?.name ?? genealogyDisplayName(e),
       entityType: e.type === EntityType.Human ? undefined : e.type,
       wildkinParentIds: e.wildkinParentIds ?? existing?.wildkinParentIds,
       birthSurname: existing?.birthSurname ?? e.surname ?? '',
@@ -117,7 +118,7 @@ export function recordGenealogyBirth(state: WorldState, child: Entity): void {
   const registry = editGenealogyRegistry(state);
   registry.people[key] = {
     id: child.id,
-    name: familyRecordName(child),
+    name: genealogyDisplayName(child),
     entityType: child.type === EntityType.Human ? undefined : child.type,
     wildkinParentIds: child.wildkinParentIds,
     birthSurname: child.surname ?? '',
@@ -148,7 +149,7 @@ export function recordGenealogyDeath(state: WorldState, entity: Entity): void {
   const registry = editGenealogyRegistry(state);
   if (!registry.people[String(entity.id)]) {
     registry.people[String(entity.id)] = {
-      id: entity.id, name: familyRecordName(entity),
+      id: entity.id, name: genealogyDisplayName(entity),
       entityType: entity.type === EntityType.Human ? undefined : entity.type,
       wildkinParentIds: entity.wildkinParentIds,
       birthSurname: entity.surname ?? '', surname: entity.surname ?? '', gender: entity.gender,
