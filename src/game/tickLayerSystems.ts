@@ -226,13 +226,16 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
     );
   }
   const wildlifePopulation = ctx.wildlifePopulation;
-  // Track every rabbit death this pulse before predators choose prey; breeding keeps its own snapshot.
-  let remainingRabbits = wildlifePopulation.aliveByType.get(EntityType.Rabbit) ?? 0;
-  // Keep predator capacity in sync with deaths and births already committed this pulse.
+  // Predator capacity and rabbit refuge share one live count after this pulse's births/deaths.
   const preyCounts = {
-    rabbits: remainingRabbits,
+    rabbits: wildlifePopulation.aliveByType.get(EntityType.Rabbit) ?? 0,
     deer: wildlifePopulation.aliveByType.get(EntityType.Deer) ?? 0,
     foxes: wildlifePopulation.aliveByType.get(EntityType.Fox) ?? 0,
+  };
+  const changePreyCount = (type: EntityType, delta: number): void => {
+    if (type === EntityType.Rabbit) preyCounts.rabbits += delta;
+    else if (type === EntityType.Deer) preyCounts.deer += delta;
+    else if (type === EntityType.Fox) preyCounts.foxes += delta;
   };
 
   if (!ctx.grassPopulation) {
@@ -291,14 +294,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       // 2. Old age death
       if (entity.age >= entity.maxAge) {
         markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick, state);
-        if (entity.type === EntityType.Rabbit) {
-          remainingRabbits--;
-          preyCounts.rabbits--;
-        } else if (entity.type === EntityType.Deer) {
-          preyCounts.deer--;
-        } else if (entity.type === EntityType.Fox) {
-          preyCounts.foxes--;
-        }
+        changePreyCount(entity.type, -1);
         createDeathParticles(state, entity.x, entity.y, '#aaaaaa', 5, 'smoke');
         syncEntityGrids(ctx, entity);
         continue;
@@ -323,14 +319,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
 
       if (entity.energy <= 0) {
         markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick, state);
-        if (entity.type === EntityType.Rabbit) {
-          remainingRabbits--;
-          preyCounts.rabbits--;
-        } else if (entity.type === EntityType.Deer) {
-          preyCounts.deer--;
-        } else if (entity.type === EntityType.Fox) {
-          preyCounts.foxes--;
-        }
+        changePreyCount(entity.type, -1);
         createDeathParticles(state, entity.x, entity.y, '#8a2a2a', 8);
         syncEntityGrids(ctx, entity);
         continue;
@@ -453,7 +442,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             if (!preyTypeSet.has(prey.type)) return;
             // Sparse rabbits retreat into refuge; wild predators switch prey or go hungry.
             // Player hunting still uses its separate owner and may affect this population.
-            if (prey.type === EntityType.Rabbit && !wildlifeMayHuntRabbit(remainingRabbits)) return;
+            if (prey.type === EntityType.Rabbit && !wildlifeMayHuntRabbit(preyCounts.rabbits)) return;
             if (!isValidHuntPrey(prey, prey.type, entity.id)) return;
             const dist = Math.sqrt(dSq);
             const humanBias = prey.type === EntityType.Human ? 0.82 : 1.0;
@@ -538,14 +527,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
                 }
               } else {
                 markWildlifeDead(ctx, caughtPrey, wildlifeDeathsThisTick, state.tick, state);
-                if (caughtPrey.type === EntityType.Rabbit) {
-                  remainingRabbits--;
-                  preyCounts.rabbits--;
-                } else if (caughtPrey.type === EntityType.Deer) {
-                  preyCounts.deer--;
-                } else if (caughtPrey.type === EntityType.Fox) {
-                  preyCounts.foxes--;
-                }
+                changePreyCount(caughtPrey.type, -1);
               }
 
               clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId, byType);
@@ -781,7 +763,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
               config.huntRange,
               (p) =>
                 (p.type === EntityType.Deer
-                  || (p.type === EntityType.Rabbit && wildlifeMayHuntRabbit(remainingRabbits))) &&
+                  || (p.type === EntityType.Rabbit && wildlifeMayHuntRabbit(preyCounts.rabbits))) &&
                 isValidHuntPrey(p, p.type, entity.id),
               'tamed_hunt',
               preyFallbackFor(),
@@ -789,14 +771,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             if (assistPrey?.alive) {
               const preyId = assistPrey.id;
               markWildlifeDead(ctx, assistPrey, wildlifeDeathsThisTick, state.tick, state);
-              if (assistPrey.type === EntityType.Rabbit) {
-                remainingRabbits--;
-                preyCounts.rabbits--;
-              } else if (assistPrey.type === EntityType.Deer) {
-                preyCounts.deer--;
-              } else if (assistPrey.type === EntityType.Fox) {
-                preyCounts.foxes--;
-              }
+              changePreyCount(assistPrey.type, -1);
               clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId, byType);
               syncEntityGrids(ctx, assistPrey);
               createDeathParticles(state, assistPrey.x, assistPrey.y, '#8a2a2a', 6);
@@ -868,14 +843,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             }
             ctx.wildlifeSpawnParent.set(offspring.id, entity.id);
             pushNewEntity(state, ctx, offspring);
-            if (offspring.type === EntityType.Rabbit) {
-              remainingRabbits++;
-              preyCounts.rabbits++;
-            } else if (offspring.type === EntityType.Deer) {
-              preyCounts.deer++;
-            } else if (offspring.type === EntityType.Fox) {
-              preyCounts.foxes++;
-            }
+            changePreyCount(offspring.type, 1);
             if (offspring.type === EntityType.Wildkin) {
               recordGenealogyBirth(state, entity);
               recordGenealogyBirth(state, mate);
