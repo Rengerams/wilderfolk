@@ -29,7 +29,9 @@ export function hash2(x: number, y: number, seed: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-function smoothstep(t: number): number {
+/** Smoothstep eased over `0..1`, clamped — the one shape shared by noise, terrain fades and spotlights. */
+export function smoothstep01(value: number): number {
+  const t = clamp(value, 0, 1);
   return t * t * (3 - 2 * t);
 }
 
@@ -38,8 +40,8 @@ export function valueNoise(x: number, y: number, seed: number): number {
   const yi = Math.floor(y);
   const xf = x - xi;
   const yf = y - yi;
-  const u = smoothstep(xf);
-  const v = smoothstep(yf);
+  const u = smoothstep01(xf);
+  const v = smoothstep01(yf);
   const a = hash2(xi, yi, seed);
   const b = hash2(xi + 1, yi, seed);
   const c = hash2(xi, yi + 1, seed);
@@ -100,7 +102,7 @@ export function warp(
 export const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 export function smoothRange(edge0: number, edge1: number, x: number): number {
-  return smoothstep(clamp((x - edge0) / (edge1 - edge0 || 1e-6), 0, 1));
+  return smoothstep01((x - edge0) / (edge1 - edge0 || 1e-6));
 }
 
 export function ridgedMulti(x: number, y: number, seed: number, octaves: number, gain: number): number {

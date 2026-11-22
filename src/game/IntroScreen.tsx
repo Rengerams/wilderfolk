@@ -5,6 +5,7 @@ import { getPresentationRng } from './simRng';
 import { fitCanvasToDpr } from './canvasLayer';
 import { INTRO_DURATION_MS, INTRO_TIMELINE_MS } from './introTimeline';
 import { isActivatableTarget } from './hotkeys';
+import { useGestureUnlock } from '../hooks/useGestureUnlock';
 
 type IntroPhase = 'opening' | 'ready';
 
@@ -207,15 +208,7 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
     tryStartIntroAudio();
   }, [tryStartIntroAudio]);
 
-  useEffect(() => {
-    const unlockOnGesture = () => tryStartIntroAudio();
-    window.addEventListener('pointerdown', unlockOnGesture);
-    window.addEventListener('keydown', unlockOnGesture);
-    return () => {
-      window.removeEventListener('pointerdown', unlockOnGesture);
-      window.removeEventListener('keydown', unlockOnGesture);
-    };
-  }, [tryStartIntroAudio]);
+  useGestureUnlock(tryStartIntroAudio);
 
   // Unhurried reveal timeline.
   useEffect(() => {

@@ -26,6 +26,7 @@
 
 ---
 
+- **Refactor (22 Nov 2026):** Merged the duplicate helper clusters into one owner each — random sampling, smoothstep, string guard, event-log line and combat fields, spatial-grid sync, militia tiers, relationship score/key, hotkeys, name draw, grid flags, gesture unlock and dialogue aliases.
 - **Docs (22 Nov 2026):** Added a function-naming audit listing same-meaning functions that carry different names, separating intentional domain variants and naming the canonical owner for each duplicate.
 - **Removed (20 Nov 2026):** Retired warfare leftovers: rival-camp entity rosters and settler UI, the POW release/execution reaction choices, unused militia strength wrappers and combat-log text classification. Legacy camp structures still migrate on load.
 - **Fixed (20 Nov 2026):** Closing a colony saves its acknowledged state, visiting factions resume their activity after loading, and tick rollback shares unchanged family history.

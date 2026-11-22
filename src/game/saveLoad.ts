@@ -1,5 +1,5 @@
 import { normalizeHumanNeeds } from './simulation/humanPhysiology';
-import { isFiniteNumber } from './inputGuards';
+import { isFiniteNumber, isNonEmptyString } from './inputGuards';
 import { normalizeCareerHistory } from './careers/careerHistory';
 import { normalizeCareerMilestones } from './careers/careerProgression';
 import { applyLeaderHousePhase } from './leaderHouse';
@@ -1019,11 +1019,6 @@ const MAX_SAVED_ID = MAX_ALLOCATOR_ID - 1;
 /** An id a payload may carry — above it, the allocator floored from the id would pass the allocator ceiling. */
 const isPersistedId = (value: unknown): value is number => isUsableId(value) && value <= MAX_SAVED_ID;
 
-/** An id the engine keys on by string equality — every camp, event and route id is a string. */
-function isStringId(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0;
-}
-
 /** An array of anything — every container list must be one, and the element rules judge the rest. */
 function isAnyArray(value: unknown): value is unknown[] {
   return Array.isArray(value);
@@ -1042,7 +1037,7 @@ interface ElementIdRule {
 
 /** Any id an element carries: numeric for entities and buildings, string for camps and events. */
 function isEntityOrBuildingId(value: unknown): boolean {
-  return isPersistedId(value) || isStringId(value);
+  return isPersistedId(value) || isNonEmptyString(value);
 }
 
 /** The nested id arrays an element carries, checked on a present value only. */
@@ -1082,7 +1077,7 @@ function containerArrayRule(
 }
 
 /** A Big News card carries a string id — `highestBigNewsSeq` parses its sequence out of it. */
-const BIG_NEWS_ELEMENT_RULES: readonly ElementFieldRule[] = [{ field: 'id', isValid: isStringId }];
+const BIG_NEWS_ELEMENT_RULES: readonly ElementFieldRule[] = [{ field: 'id', isValid: isNonEmptyString }];
 
 /** The dashboard and the council read both maps of a food-day sample, so one missing them throws. */
 const FOOD_HISTORY_ELEMENT_RULES: readonly ElementFieldRule[] = [
@@ -1104,7 +1099,7 @@ const VISITOR_KIND_VALUES: ReadonlySet<unknown> = new Set(['traders', 'pilgrims'
  * `daysLeft` and `entityIds` with no default, so a missing one freezes the camp or faults the tick.
  */
 const VISITOR_GROUP_ELEMENT_RULES: readonly ElementFieldRule[] = [
-  { field: 'id', isValid: isStringId },
+  { field: 'id', isValid: isNonEmptyString },
   { field: 'kind', isValid: isMemberOf(VISITOR_KIND_VALUES) },
   { field: 'daysLeft', isValid: isFiniteNumber },
   { field: 'entityIds', isValid: isIdArray },
@@ -1113,7 +1108,7 @@ const VISITOR_GROUP_ELEMENT_RULES: readonly ElementFieldRule[] = [
 /** An incoming raid's own fields: a missing strength makes `Math.max(undefined, 1)` `NaN`, so every
  *  Defend/Barricade resolves as `'defeat'`. `expiresAtTick` is not here — it has a legacy fallback. */
 const PENDING_RAID_ELEMENT_RULES: readonly ElementFieldRule[] = [
-  { field: 'id', isValid: isStringId },
+  { field: 'id', isValid: isNonEmptyString },
   { field: 'attackerStrength', isValid: isFiniteNumber },
   { field: 'marchDistanceTiles', isValid: isFiniteNumber },
 ];
@@ -1137,14 +1132,14 @@ const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>>
   pendingStoryEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   pendingOutgoingRaidEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   pendingRaidVictories: containerArrayRule(isAnyArray, [
-    { field: 'raidId', isValid: isStringId }, { field: 'rivalId', isValid: isStringId },
+    { field: 'raidId', isValid: isNonEmptyString }, { field: 'rivalId', isValid: isNonEmptyString },
     { field: 'playerCasualties', isValid: isAnyArray }, { field: 'enemyCasualties', isValid: isAnyArray },
   ]),
   raidBattleReports: containerArrayRule(isAnyArray, [
-    { field: 'raidId', isValid: isStringId }, { field: 'playerFallen', isValid: isAnyArray },
+    { field: 'raidId', isValid: isNonEmptyString }, { field: 'playerFallen', isValid: isAnyArray },
     { field: 'enemyFallen', isValid: isAnyArray },
   ]),
-  graveRecords: containerArrayRule(isAnyArray, [{ field: 'name', isValid: isStringId }]),
+  graveRecords: containerArrayRule(isAnyArray, [{ field: 'name', isValid: isNonEmptyString }]),
   scoredRaidIds: containerArrayRule(isAnyArray, null),
   tutorialSeen: containerArrayRule(isAnyArray, null),
   eventsThisYear: containerArrayRule(isAnyArray, null),
@@ -1173,14 +1168,14 @@ function findInvalidWarfareState(parsed: Record<string, unknown>): string | null
   const recovery = parsed.raidRecovery;
   if (recovery !== undefined) {
     if (!isSaveObject(recovery) || !['recovering', 'destroyed'].includes(String(recovery.status))
-      || !isStringId(recovery.raidId) || !isStringId(recovery.rivalName)
+      || !isNonEmptyString(recovery.raidId) || !isNonEmptyString(recovery.rivalName)
       || !isFiniteNumber(recovery.startedAtTick) || !isFiniteNumber(recovery.protectedUntilTick)
       || typeof recovery.reason !== 'string' || !isFiniteNumber(recovery.foodTarget)
       || !Array.isArray(recovery.repairs) || !recovery.repairs.every((item) => isSaveObject(item)
         && isPersistedId(item.buildingId) && isFiniteNumber(item.health))) return 'raidRecovery';
   }
   if (parsed.scoredRaidIds !== undefined && (!Array.isArray(parsed.scoredRaidIds)
-    || !parsed.scoredRaidIds.every(isStringId))) return 'scoredRaidIds';
+    || !parsed.scoredRaidIds.every(isNonEmptyString))) return 'scoredRaidIds';
   return null;
 }
 

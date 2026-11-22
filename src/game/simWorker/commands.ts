@@ -2,7 +2,7 @@ import { demolishBuildingInPlace, demolishStripBuildingsInPlace, toggleWallGate 
 
 import type { WorldState, ForgeOrderId } from '../gameTypes';
 import type { BuildingType } from '../gameTypes';
-import { isBuildingType, isFiniteNumber } from '../inputGuards';
+import { isBuildingType, isFiniteNumber, isNonEmptyString } from '../inputGuards';
 import type { HuntingSpotPrey } from '../gameTypes';
 import { isValidHuntingSpotPrey } from '../huntingSpots';
 import type { BuildingRotation } from '../buildingRotation';
@@ -170,10 +170,6 @@ function getVisitorTradeActions(): Set<string> {
 
 const REFUGEE_CHOICES = new Set<string>(['welcome', 'screen', 'turn_away']);
 const VILLAGE_REQUEST_CHOICES = new Set<string>(['accept', 'decline']);
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0;
-}
 
 function isBuildingRotation(value: unknown): value is BuildingRotation {
   return value === 0 || value === 90 || value === 180 || value === 270;

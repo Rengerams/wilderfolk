@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CombatLogKind, CombatLogStage, GameEventLog, WorldState } from '../src/game/gameTypes';
-import { logEvent, resolveCombatLogStage, summarizeCombatEvents } from '../src/game/eventLog';
+import { logEvent, summarizeCombatEvents } from '../src/game/eventLog';
 import { formatChronicleCSV } from '../src/game/eventLogExport';
 
 function entry(id: number, combatKind: CombatLogKind, combatStage: CombatLogStage, message: string): GameEventLog {

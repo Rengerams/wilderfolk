@@ -3,7 +3,7 @@ import spotlightPresentationJson from './data/dialogue/spotlight-lore.json' with
 
 import { seededRandomForRun } from './simRng';
 import { PER_TICK_RATE_SCALE, TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycleClock';
-import { isDialogueBusy, startDialogueTreeChat, prepareScriptedDialogue, tickHumanChat, type ChatSpeaker, type HumanChatContext, type ChatPickOptions } from './humanChat';
+import { isDialogueBusy, startDialogueTreeChat, clearCurrentEntityDialogue, type ChatSpeaker, type HumanChatContext, type ChatPickOptions } from './humanChat';
 export const DIALOGUE_CATEGORIES = ['dialogue'] as const;
 
 export type DialogueCategory = (typeof DIALOGUE_CATEGORIES)[number];
@@ -593,8 +593,8 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
   const selected = explicit ?? selectionPool[lastIndex >= 0 && selectionPool.length > 1
     ? (lastIndex + 1) % selectionPool.length : initialIndex]!;
   if (request.priority === 'scripted') {
-    prepareScriptedDialogue(speaker, request.resolvePartner);
-    if (partner) prepareScriptedDialogue(partner, request.resolvePartner);
+    clearCurrentEntityDialogue(speaker, request.resolvePartner);
+    if (partner) clearCurrentEntityDialogue(partner, request.resolvePartner);
   }
   const tree: DialogueTree = request.variables ? freezeDialogueTree({
     ...selected,
@@ -712,14 +712,6 @@ function contextualAmbientScene(
   }
   return { eventKey: `ambient.${context}` };
 }
-/** One existing tick dispatch; humanChat remains the only field-writing session executor. */
-export function tickDialogue(
-  entity: ChatSpeaker,
-  resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
-): void {
-  tickHumanChat(entity, resolvePartner);
-}
-
 export function maybeDialogueChat(
   entity: ChatSpeaker,
   partner: ChatSpeaker | null,

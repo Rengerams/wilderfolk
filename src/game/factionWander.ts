@@ -10,10 +10,7 @@ import { getSimRng } from './simRng';
 import { faceVelocity } from './simulation/movementSteering';
 import { applyHumanWalkStep } from './simulation/humanMovement';
 import { deterministicCos, deterministicSin } from './simTrig';
-
-function clamp(n: number, lo: number, hi: number): number {
-  return Math.max(lo, Math.min(hi, n));
-}
+import { clamp } from './terrain/noise';
 
 function jitter(n: number, amount: number): number {
   return n + (getSimRng('factionWander')() - 0.5) * amount;

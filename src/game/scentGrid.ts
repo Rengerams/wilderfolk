@@ -1,6 +1,6 @@
 import type { Entity } from './gameTypes';
 import { EntityType } from './gameTypes';
-import { envFlagDisabled, gridCellAxis, MOBILE_CELL_SIZE } from './spatialGrid';
+import { gridCellAxis, gridFeatureDisabled, MOBILE_CELL_SIZE, runtimeEnvFlag } from './spatialGrid';
 import { isActiveMoonHowler } from './moonHowler';
 
 /** Magic `WFSN` — Wilderfolk scent sidecar. */
@@ -33,17 +33,10 @@ export const SCENT_FLEE_MIN = 1.4;
 export const RABBIT_SCENT_SENSITIVITY = 1.25;
 export const DEER_SCENT_SENSITIVITY = 0.75;
 
-function isScentGridDisabled(): boolean {
-  if (typeof import.meta !== 'undefined' && envFlagDisabled(import.meta.env?.VITE_USE_SCENT_GRID)) {
-    return true;
-  }
-  const runtime = globalThis as typeof globalThis & {
-    process?: { env?: Record<string, string | undefined> };
-  };
-  return envFlagDisabled(runtime.process?.env?.USE_SCENT_GRID);
-}
-
-export const USE_SCENT_GRID = !isScentGridDisabled();
+export const USE_SCENT_GRID = !gridFeatureDisabled(
+  typeof import.meta !== 'undefined' ? import.meta.env?.VITE_USE_SCENT_GRID : undefined,
+  runtimeEnvFlag('USE_SCENT_GRID'),
+);
 
 export interface ScentGradientSample {
   /** Unit vector — flee away from rising scent. */

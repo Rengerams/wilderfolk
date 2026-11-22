@@ -256,20 +256,13 @@ function pickFrom(pool: string[]): string {
   return pool[Math.floor(getSimRng('nameLoader')() * pool.length)] ?? pool[0] ?? 'Settler';
 }
 
-export function getRandomMaleName(): string {
-  return pickFrom(maleNames);
-}
-
-export function getRandomFemaleName(): string {
-  return pickFrom(femaleNames);
+/** The one first-name draw; the pool follows the requested gender. */
+export function getRandomName(gender: 'male' | 'female'): string {
+  return pickFrom(gender === 'male' ? maleNames : femaleNames);
 }
 
 export function getRandomSurname(): string {
   return pickFrom(lastNames);
-}
-
-export function getRandomName(gender: 'male' | 'female'): string {
-  return gender === 'male' ? getRandomMaleName() : getRandomFemaleName();
 }
 
 export function areNamesLoaded(): boolean {

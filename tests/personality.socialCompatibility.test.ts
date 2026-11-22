@@ -10,11 +10,7 @@ import { createEntity } from '../src/game/entityFactory';
 import { EntityType } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { tryWorkplaceBanter } from '../src/game/socialLife';
-import {
-  advanceSocialRelationships,
-  feudScore,
-  friendshipScore,
-} from '../src/game/relationships';
+import { advanceSocialRelationships, relationshipScore } from '../src/game/relationships';
 import { combinePairFactors, evaluateAptitudeInfluence } from '../src/game/personality/traitEvaluation';
 import { genomeFrom } from './helpers/genome';
 
@@ -43,8 +39,7 @@ function socialWorld(): WorldState {
     resources: {},
     floatingTexts: [],
     nextFloatingTextId: 1,
-    villageReputation: 0,
-  } as unknown as WorldState;
+    villageReputation: 0 } as unknown as WorldState;
 }
 
 /** Two housemates in one residence group: too small to spend a group-sampling draw. */
@@ -57,8 +52,7 @@ function housemate(id: number, genomeV2: GenomeV2): Entity {
     energy: 100,
     maxEnergy: 100,
     residenceBuildingId: 10,
-    genomeV2,
-  } as Entity;
+    genomeV2 } as Entity;
 }
 
 function pairFactor(genomeA: GenomeV2, genomeB: GenomeV2, activity: 'friendship' | 'reconciliation' | 'conflict'): number {
@@ -81,7 +75,7 @@ describe('friendship growth follows the friendship activity', () => {
       const a = housemate(1, genomeV2);
       const b = housemate(2, genomeV2);
       advanceSocialRelationships(socialWorld(), [a, b], undefined, () => 0.99);
-      return friendshipScore(a, b.id);
+      return relationshipScore(a, b.id, 'friend');
     };
     // Housemates share a context, so the same-day decay leaves their new bond in place.
     expect(grow(genomeFrom())).toBeCloseTo(FRIENDSHIP_GROUP_BUMP * neutral, 10);
@@ -103,13 +97,13 @@ describe('feud decisions at the real owner boundary', () => {
 
     const clash = run(CONFLICT_GENOME, genomeFrom(), () => 0);
     expect(clash.draws).toBe(1);
-    expect(feudScore(clash.a, clash.b.id)).toBeGreaterThan(0);
-    expect(feudScore(clash.b, clash.a.id)).toBe(feudScore(clash.a, clash.b.id));
+    expect(relationshipScore(clash.a, clash.b.id, 'feud')).toBeGreaterThan(0);
+    expect(relationshipScore(clash.b, clash.a.id, 'feud')).toBe(relationshipScore(clash.a, clash.b.id, 'feud'));
 
     const calm = run(COOPERATIVE_GENOME, COOPERATIVE_GENOME, () => 0);
     expect(calm.draws).toBe(0);
-    expect(feudScore(calm.a, calm.b.id)).toBe(0);
-    expect(feudScore(calm.b, calm.a.id)).toBe(0);
+    expect(relationshipScore(calm.a, calm.b.id, 'feud')).toBe(0);
+    expect(relationshipScore(calm.b, calm.a.id, 'feud')).toBe(0);
   });
 
   it('scales the one threshold compare by the pair conflict factor', () => {
@@ -123,7 +117,7 @@ describe('feud decisions at the real owner boundary', () => {
       const a = housemate(1, CONFLICT_GENOME);
       const b = housemate(2, genomeFrom());
       advanceSocialRelationships(socialWorld(), [a, b], undefined, () => roll);
-      return feudScore(a, b.id);
+      return relationshipScore(a, b.id, 'feud');
     };
     expect(run(justBelow)).toBeGreaterThan(0);
     expect(run(above)).toBe(0);

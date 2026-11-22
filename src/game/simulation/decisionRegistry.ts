@@ -532,7 +532,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/phase7.social.test.ts, tests/socialLife.dialogueBusy.test.ts, tests/humanChat.ambientPairing.test.ts',
   },
   dialogueContent: {
-    owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, hasDialogueSceneOnDay, rememberDialogueLine, dialogueHoursFromNominalTicks, tickDialogue, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, readPresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
+    owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, hasDialogueSceneOnDay, rememberDialogueLine, dialogueHoursFromNominalTicks, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, readPresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
     cadence: 'on-demand',
     cadenceNote: 'One centralized ambient source (data/dialogue/ambient.json, one neutral dialogue category); eventKey+mode lookup matches real participant roles, cycles eligible variants and applies a per-settler three-day line cooldown before repeating. Singleton ambient scenes cool down for three calendar days; per-entity scene and line history survive save/load; line history is capped at the newest 48 entries so a silent settler keeps a bounded map. This owner writes human.dialogueRecentScenes and human.dialogueRecentLines; scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.',
     writes: ['human.dialogueRecentScenes', 'human.dialogueRecentLines'],
@@ -540,7 +540,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.variety.test.ts, tests/dialogue.lineRepeat.test.ts, tests/dialogue.pipeline.integration.test.ts',
   },
   dialogueSessions: {
-    owner: 'humanChat.ts — startDialogueTreeChat, tickHumanChat, endAmbientHumanChat, prepareScriptedDialogue, releaseDialogueSession, cleanupEntityDialogueState, resetDialogueSessions, retainDialogueSessionsForWorld',
+    owner: 'humanChat.ts — startDialogueTreeChat, tickHumanChat, endAmbientHumanChat, clearCurrentEntityDialogue, releaseDialogueSession, cleanupEntityDialogueState, resetDialogueSessions, retainDialogueSessionsForWorld',
     cadence: 'realtime',
     cadenceNote: 'Sole simulation writer of chatPhrase, chatTicks, chatPartnerId and chatDialogueSessionKey. Paired sessions are held with live participant references and release both sides immediately on interruption; saved orphan keys are reclaimed on their existing ticks; missing counterparts and cleared keys are ignored safely. The render-buffer boundary mirrors fields but does not originate speech.',
     writes: ['human.chatPhrase', 'human.chatTicks', 'human.chatPartnerId', 'human.chatDialogueSessionKey'],

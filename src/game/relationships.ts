@@ -19,8 +19,15 @@ const RELATIONSHIP_RNG_OWNER = 'relationships';
 
 export const FRIEND_CLOSE_THRESHOLD = 60;
 
-const friendKey = (id: number) => `${FRIEND_PREFIX}${id}`;
-const feudKey = (id: number) => `${FEUD_PREFIX}${id}`;
+const RELATIONSHIP_KINDS = {
+  friend: { field: 'friendships', prefix: FRIEND_PREFIX },
+  feud: { field: 'feuds', prefix: FEUD_PREFIX },
+} as const;
+
+export type RelationshipKind = keyof typeof RELATIONSHIP_KINDS;
+
+const relationshipKey = (kind: RelationshipKind, id: number): string =>
+  `${RELATIONSHIP_KINDS[kind].prefix}${id}`;
 
 const hasOwn = (obj: object, key: string) => Object.prototype.hasOwnProperty.call(obj, key);
 
@@ -71,12 +78,9 @@ function pushToGroup<K>(groups: Map<K, Entity[]>, key: K, e: Entity): void {
   else groups.set(key, [e]);
 }
 
-export function friendshipScore(e: Entity, otherId: number): number {
-  return e.friendships?.[friendKey(otherId)] ?? 0;
-}
-
-export function feudScore(e: Entity, otherId: number): number {
-  return e.feuds?.[feudKey(otherId)] ?? 0;
+/** One settler's score toward another in the given relationship kind; 0 when unrecorded. */
+export function relationshipScore(e: Entity, otherId: number, kind: RelationshipKind): number {
+  return e[RELATIONSHIP_KINDS[kind].field]?.[relationshipKey(kind, otherId)] ?? 0;
 }
 
 function hurtFriendshipRecord(entity: Entity, key: string, amount: number): void {
@@ -86,8 +90,8 @@ function hurtFriendshipRecord(entity: Entity, key: string, amount: number): void
 
 export function hurtFriendship(a: Entity, b: Entity, amount: number): void {
   if (a.id === b.id || amount <= 0) return;
-  hurtFriendshipRecord(a, friendKey(b.id), amount);
-  hurtFriendshipRecord(b, friendKey(a.id), amount);
+  hurtFriendshipRecord(a, relationshipKey('friend', b.id), amount);
+  hurtFriendshipRecord(b, relationshipKey('friend', a.id), amount);
 }
 
 /** Replace a record before an in-place edit, so the rollback snapshot keeps the old object. */
@@ -153,7 +157,7 @@ export function reconcileCloseFriendships(people: Entity[]): void {
       const otherId = Number(key.slice(FRIEND_PREFIX.length));
       const b = byId.get(otherId);
       if (!b || b.id <= a.id) continue;
-      const reverse = friendshipScore(b, a.id);
+      const reverse = relationshipScore(b, a.id, 'friend');
       if (reverse < FRIEND_CLOSE_THRESHOLD) continue;
       edges.push({ a, b, strength: Math.min(value, reverse) });
     }
@@ -286,9 +290,9 @@ export function advanceSocialRelationships(
     if (bumpedPairs.has(key)) return;
     bumpedPairs.add(key);
 
-    if (feudScore(a, b.id) > 0) return;
+    if (relationshipScore(a, b.id, 'feud') > 0) return;
 
-    const before = friendshipScore(a, b.id);
+    const before = relationshipScore(a, b.id, 'friend');
     const pairFactor = combinePairFactors(
       evaluateAptitudeInfluence(a, 'friendship').factor,
       evaluateAptitudeInfluence(b, 'friendship').factor,
@@ -303,8 +307,8 @@ export function advanceSocialRelationships(
 
     const aFriendships = writableForBump(a);
     const bFriendships = writableForBump(b);
-    aFriendships[friendKey(b.id)] = next;
-    bFriendships[friendKey(a.id)] = next;
+    aFriendships[relationshipKey('friend', b.id)] = next;
+    bFriendships[relationshipKey('friend', a.id)] = next;
   };
 
   const driftIntoFeud = (a: Entity, b: Entity) => {
@@ -314,7 +318,7 @@ export function advanceSocialRelationships(
     feudRolledPairs.add(key);
     feudRollsLeft--;
 
-    if (feudScore(a, b.id) > 0) return;
+    if (relationshipScore(a, b.id, 'feud') > 0) return;
     if ((liveFeudsById.get(a.id) ?? 0) >= MAX_LIVE_FEUDS_PER_SETTLER) return;
     if ((liveFeudsById.get(b.id) ?? 0) >= MAX_LIVE_FEUDS_PER_SETTLER) return;
 
@@ -388,7 +392,7 @@ export function advanceSocialRelationships(
         continue;
       }
 
-      const otherKey = feudKey(p.id);
+      const otherKey = relationshipKey('feud', p.id);
 
       if (p.id > otherId) {
         if (!other.feuds || !hasOwn(other.feuds, otherKey)) {
@@ -449,7 +453,7 @@ export function advanceSocialRelationships(
       if (sharesContext(p, other)) continue;
 
       const next = Math.max(0, friendships[key] - FRIENDSHIP_DECAY_PER_DAY);
-      const otherKey = friendKey(p.id);
+      const otherKey = relationshipKey('friend', p.id);
       if (next <= 0) {
         delete mapForDecay(p, 'friendships')[key];
         if (other.friendships) {
@@ -479,8 +483,8 @@ export function startFeud(state: WorldState, wronged: Entity, wrongdoer: Entity,
   const wrongedPeaks = writableFeudPeaks(wronged);
   const wrongdoerPeaks = writableFeudPeaks(wrongdoer);
 
-  const wrongedKey = feudKey(wrongdoer.id);
-  const wrongdoerKey = feudKey(wronged.id);
+  const wrongedKey = relationshipKey('feud', wrongdoer.id);
+  const wrongdoerKey = relationshipKey('feud', wronged.id);
 
   const wrongedBefore = wrongedFeuds[wrongedKey] ?? 0;
   const wrongdoerBefore = wrongdoerFeuds[wrongdoerKey] ?? 0;

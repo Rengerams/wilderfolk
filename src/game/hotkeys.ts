@@ -46,17 +46,11 @@ for (const [key, val] of Object.entries(HOTKEY_BUILDINGS)) {
 }
 
 /**
- * F4 logistics overlay toggle — `X` for "eXamine the network"; `isLogisticsHotkey` is the one
- * keydown test. The other letters belong to the sidebar tabs and actions.
+ * F4 logistics overlay toggle — `X` for "eXamine the network". The other letters belong to the
+ * sidebar tabs and actions.
  */
 export const LOGISTICS_HOTKEY = 'x';
 export const LOGISTICS_HOTKEY_CODE = 'KeyX';
-
-/** True when this keydown is the logistics-overlay toggle (never with a modifier). */
-export function isLogisticsHotkey(e: KeyboardEvent): boolean {
-  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return false;
-  return e.key.toLowerCase() === LOGISTICS_HOTKEY || e.code === LOGISTICS_HOTKEY_CODE;
-}
 
 /**
  * Village overview toggle — `C` for the council, which is what the window's own heading says.
@@ -65,10 +59,10 @@ export function isLogisticsHotkey(e: KeyboardEvent): boolean {
 export const COUNCIL_HOTKEY = 'c';
 export const COUNCIL_HOTKEY_CODE = 'KeyC';
 
-/** True when this keydown is the village-overview toggle (never with a modifier). */
-export function isCouncilHotkey(e: KeyboardEvent): boolean {
+/** True when this keydown is the named unmodified hotkey — the one keydown test. */
+export function isHotkey(e: KeyboardEvent, key: string, code: string): boolean {
   if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return false;
-  return e.key.toLowerCase() === COUNCIL_HOTKEY || e.code === COUNCIL_HOTKEY_CODE;
+  return e.key.toLowerCase() === key || e.code === code;
 }
 
 /** Input types that accept typed text; every other input is a pointer/toggle control. */

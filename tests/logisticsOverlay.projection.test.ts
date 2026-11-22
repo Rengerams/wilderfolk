@@ -21,7 +21,7 @@ import { TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { createInitialView, createViewFromSave, mergeForSave } from '../src/game/viewState';
 import { buildRenderSnapshot } from '../src/game/renderSnapshot';
 import { drawLogisticsOverlay } from '../src/game/renderer/logistics';
-import { isLogisticsHotkey } from '../src/game/hotkeys';
+import { LOGISTICS_HOTKEY, LOGISTICS_HOTKEY_CODE, isHotkey } from '../src/game/hotkeys';
 import { getPathGrid, getReadOnlyPathGrid, resetPathGridCaches } from '../src/game/pathfinding';
 
 function readSrc(relative: string): string {
@@ -362,11 +362,11 @@ describe('F4 toggle — default, persistence and shortcut', () => {
     const key = (value: string, over: Partial<KeyboardEvent> = {}): KeyboardEvent =>
       ({ key: value, ctrlKey: false, metaKey: false, altKey: false, repeat: false, ...over }) as KeyboardEvent;
 
-    expect(isLogisticsHotkey(key('x'))).toBe(true);
-    expect(isLogisticsHotkey(key('X'))).toBe(true);
-    expect(isLogisticsHotkey(key('x', { ctrlKey: true }))).toBe(false);
-    expect(isLogisticsHotkey(key('x', { repeat: true }))).toBe(false);
-    expect(isLogisticsHotkey(key('g'))).toBe(false);
+    expect(isHotkey(key('x'), LOGISTICS_HOTKEY, LOGISTICS_HOTKEY_CODE)).toBe(true);
+    expect(isHotkey(key('X'), LOGISTICS_HOTKEY, LOGISTICS_HOTKEY_CODE)).toBe(true);
+    expect(isHotkey(key('x', { ctrlKey: true }), LOGISTICS_HOTKEY, LOGISTICS_HOTKEY_CODE)).toBe(false);
+    expect(isHotkey(key('x', { repeat: true }), LOGISTICS_HOTKEY, LOGISTICS_HOTKEY_CODE)).toBe(false);
+    expect(isHotkey(key('g'), LOGISTICS_HOTKEY, LOGISTICS_HOTKEY_CODE)).toBe(false);
   });
 
   it('changes nothing while it is off — no projection, no canvas work', () => {

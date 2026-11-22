@@ -4,6 +4,7 @@ import { BuildingType } from './buildings';
 import type { CombatLogKind, CombatLogStage, GameEventLog, WorldState } from './gameTypes';
 import { addNotification } from './simEffects';
 import { bumpHistoryRevision } from './historyRevisions';
+import { displayYear } from './dayCycleClock';
 
 let nextEventLogId = 1;
 
@@ -124,15 +125,25 @@ export function assignPendingGraves(state: WorldState): void {
   if (assigned > 0) bumpHistoryRevision(state, 'graveRecords');
 }
 
-/** Combat kind of a stored entry. Only combat entries may be classified, so an ordinary event
- *  mentioning a raid is not counted as one in the summary. */
-export function resolveCombatLogKind(evt: GameEventLog): CombatLogKind | null {
-  return evt.type === 'combat' ? evt.combatKind ?? null : null;
+/** The two classification fields a combat entry may carry. */
+export interface CombatLogFields {
+  combatKind: CombatLogKind;
+  combatStage: CombatLogStage;
 }
 
-/** Combat stage of a stored entry; every combat writer records one. */
-export function resolveCombatLogStage(evt: GameEventLog): CombatLogStage | null {
-  return evt.type === 'combat' ? evt.combatStage ?? null : null;
+/** Combat kind or stage of a stored entry. Only combat entries may be classified, so an ordinary
+ *  event mentioning a raid is not counted as one in the summary. */
+export function resolveCombatLogField<K extends keyof CombatLogFields>(
+  evt: GameEventLog,
+  field: K,
+): CombatLogFields[K] | null {
+  if (evt.type !== 'combat') return null;
+  return (evt[field] as CombatLogFields[K] | undefined) ?? null;
+}
+
+/** The chronicle row label every event panel renders. */
+export function formatEventLogLine(evt: Pick<GameEventLog, 'year' | 'day' | 'message'>): string {
+  return `Year ${displayYear(evt.year)}, Day ${evt.day} — ${evt.message}`;
 }
 
 export function summarizeCombatEvents(events: GameEventLog[]): {
@@ -145,8 +156,8 @@ export function summarizeCombatEvents(events: GameEventLog[]): {
   let defended = 0;
   let repelled = 0;
   for (const evt of events) {
-    const kind = resolveCombatLogKind(evt);
-    const stage = resolveCombatLogStage(evt);
+    const kind = resolveCombatLogField(evt, 'combatKind');
+    const stage = resolveCombatLogField(evt, 'combatStage');
     if (stage === 'dispatched' && (kind === 'incoming_raid' || kind === 'outgoing_raid')) raids++;
     if (stage === 'resolved' && (kind === 'defense' || kind === 'repelled' || kind === 'incoming_raid')) defended++;
     if (stage === 'resolved' && kind === 'repelled') repelled++;

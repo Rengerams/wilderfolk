@@ -36,9 +36,10 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import {
   chatHintsFromWorld,
   endAmbientHumanChat,
+  tickHumanChat,
   type HumanChatContext,
 } from './humanChat';
-import { maybeDialogueChat, tickDialogue, tryAmbientRandomDialogue } from './dialogueTrees';
+import { maybeDialogueChat, tryAmbientRandomDialogue } from './dialogueTrees';
 
 import { isRenffrGossipActive } from './renffrStar';
 import { getHumanFleeSpeedMultiplier } from './combat';
@@ -849,7 +850,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           applyHumanWalkStep(entity, 1);
         }
       }
-      tickDialogue(entity, resolveChatPartner);
+      tickHumanChat(entity, resolveChatPartner);
       advancePregnancy(entity, conceivedToday);
       syncEntityGrids(ctx, entity);
       continue;
@@ -864,7 +865,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     // Verified sleep suppresses ambient speech; scripted dialogue remains owned by the dialogue tree.
-    tickDialogue(entity, resolveChatPartner);
+    tickHumanChat(entity, resolveChatPartner);
     if (sleepingForNeeds) endAmbientHumanChat(entity);
 
     if (

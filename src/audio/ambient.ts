@@ -1,11 +1,7 @@
 import { audioGraph } from './graph';
 import { ambientPlayer } from './trackPlayer';
 import { TRACKS, TRACK_VOLUMES } from './tracks';
-import { getPresentationRng } from '../game/simRng';
-
-function randomBetween(min: number, max: number): number {
-  return min + getPresentationRng('ambientAudio')() * (max - min);
-}
+import { getPresentationRng, randomFloat } from '../game/simRng';
 
 /**
  * Soft continuous nature bed under gameplay music.
@@ -58,7 +54,7 @@ class AmbientNaturePlayer {
     if (!this.running) return;
 
     // Sparse chirps — not every few seconds
-    const delayMs = randomBetween(45_000, 100_000);
+    const delayMs = randomFloat(getPresentationRng('ambientAudio'), 45_000, 100_000);
 
     this.oneShotTimer = setTimeout(() => {
       void this.playOneShot();

@@ -9,7 +9,7 @@ import { isWaterTerrainType } from '../terrain/terrainTraits';
 import { tileTypeAt } from '../terrain/terrainGrid';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { motionTime, renderDelta, renderTime } from './shared';
-import { getPresentationRng } from '../simRng';
+import { getPresentationRng, randomFloat } from '../simRng';
 import { worldToScreenX, worldToScreenY } from '../viewState';
 
 /* ========================= TERAFORGE'S REGISTRY CONTRACT ========================= */
@@ -57,14 +57,6 @@ export function registerWeather(plugin: WeatherPlugin): void {
 
 export function listWeather(): WeatherPlugin[] {
   return [...weatherRegistry.values()];
-}
-
-/**
- * Seeded presentation randomness, in Teraforge's `rnd(a, b)` shape. Teraforge calls `Math.random`
- * here; the stream is Wilderfolk's contract and the guard test enforces it.
- */
-function rnd(a: number, b: number): number {
-  return a + getPresentationRng('weatherFx')() * (b - a);
 }
 
 /** Camera parallax factor for the cloud layer — Teraforge's `f.camX * 0.06`. */
@@ -121,11 +113,11 @@ function makeCloudLayer(count: number, color: string, alpha: number): {
   draw: (g: CanvasRenderingContext2D, f: WeatherFrame) => void;
 } {
   const puffs: CloudPuff[] = Array.from({ length: count }, () => ({
-    x: rnd(-500, 2400),
-    y: rnd(-200, 1400),
-    r: rnd(130, 360),
-    sp: rnd(6, 18),
-    a: rnd(0.05, 0.14),
+    x: randomFloat(getPresentationRng('weatherFx'), -500, 2400),
+    y: randomFloat(getPresentationRng('weatherFx'), -200, 1400),
+    r: randomFloat(getPresentationRng('weatherFx'), 130, 360),
+    sp: randomFloat(getPresentationRng('weatherFx'), 6, 18),
+    a: randomFloat(getPresentationRng('weatherFx'), 0.05, 0.14),
   }));
   return {
     update(dt, f) {
@@ -179,7 +171,7 @@ function makeRain(storm: boolean): WeatherEffect {
   let drops: Drop[] = [];
   let ripples: Ripple[] = [];
   let flash = 0;
-  let nextFlash = rnd(3, 9);
+  let nextFlash = randomFloat(getPresentationRng('weatherFx'), 3, 9);
   const clouds = makeCloudLayer(storm ? 16 : 10, '#414e64', storm ? 1.2 : 0.8);
   // Wilderfolk's own particle budget per state (Teraforge's 480/900 are its own tuning).
   const target = (): number => cfg.particleCount;
@@ -194,16 +186,16 @@ function makeRain(storm: boolean): WeatherEffect {
     update(dt, f) {
       clouds.update(dt, f);
       const want = target();
-      while (drops.length < want) drops.push({ x: rnd(0, f.width), y: rnd(0, f.height), l: rnd(10, 24), s: rnd(900, 1500) });
+      while (drops.length < want) drops.push({ x: randomFloat(getPresentationRng('weatherFx'), 0, f.width), y: randomFloat(getPresentationRng('weatherFx'), 0, f.height), l: randomFloat(getPresentationRng('weatherFx'), 10, 24), s: randomFloat(getPresentationRng('weatherFx'), 900, 1500) });
       if (drops.length > want) drops = drops.slice(0, want);
       for (const d of drops) {
         d.y += d.s * dt;
         d.x += d.s * dt * wind;
         if (d.y > f.height) {
           d.y = -20;
-          d.x = rnd(-200, f.width + 200);
+          d.x = randomFloat(getPresentationRng('weatherFx'), -200, f.width + 200);
           // Rain ground ripples (Teraforge) — expanding rings where drops land.
-          if (ripples.length < 60) ripples.push({ x: d.x, y: rnd(0, f.height), t: 0 });
+          if (ripples.length < 60) ripples.push({ x: d.x, y: randomFloat(getPresentationRng('weatherFx'), 0, f.height), t: 0 });
         }
         if (d.x > f.width + 50) d.x = -50;
       }
@@ -212,7 +204,7 @@ function makeRain(storm: boolean): WeatherEffect {
         nextFlash -= dt;
         if (nextFlash <= 0) {
           flash = 0.85;
-          nextFlash = rnd(4, 12);
+          nextFlash = randomFloat(getPresentationRng('weatherFx'), 4, 12);
         }
         flash = Math.max(0, flash - dt * 3);
       }
@@ -280,14 +272,14 @@ function makeSnow(): WeatherEffect {
     update(dt, f) {
       t += dt;
       const want = cfg.particleCount;
-      while (flakes.length < want) flakes.push({ x: rnd(0, f.width), y: rnd(0, f.height), r: rnd(1, 3.2), s: rnd(25, 65), p: rnd(0, Math.PI * 2) });
+      while (flakes.length < want) flakes.push({ x: randomFloat(getPresentationRng('weatherFx'), 0, f.width), y: randomFloat(getPresentationRng('weatherFx'), 0, f.height), r: randomFloat(getPresentationRng('weatherFx'), 1, 3.2), s: randomFloat(getPresentationRng('weatherFx'), 25, 65), p: randomFloat(getPresentationRng('weatherFx'), 0, Math.PI * 2) });
       if (flakes.length > want) flakes = flakes.slice(0, want);
       for (const k of flakes) {
         k.y += k.s * dt;
         k.x += Math.sin(t * 0.8 + k.p) * 12 * dt;
         if (k.y > f.height + 5) {
           k.y = -5;
-          k.x = rnd(0, f.width);
+          k.x = randomFloat(getPresentationRng('weatherFx'), 0, f.width);
         }
       }
     },
@@ -356,10 +348,10 @@ function getFogBandBlob(): HTMLCanvasElement | null {
 function makeFog(): WeatherEffect {
   const cfg = WEATHER_CONFIGS[WeatherType.Fog];
   const bands: FogBand[] = Array.from({ length: 7 }, (_, i) => ({
-    y: i * 140 + rnd(-40, 40),
-    sp: rnd(7, 22),
-    x: rnd(-800, 800),
-    h: rnd(130, 280),
+    y: i * 140 + randomFloat(getPresentationRng('weatherFx'), -40, 40),
+    sp: randomFloat(getPresentationRng('weatherFx'), 7, 22),
+    x: randomFloat(getPresentationRng('weatherFx'), -800, 800),
+    h: randomFloat(getPresentationRng('weatherFx'), 130, 280),
   }));
   return {
     // The table has always declared 0.28 for fog; until now the bands returned before it was laid down.

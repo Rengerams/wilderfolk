@@ -352,8 +352,6 @@ export {
   ensureNamesLoaded,
   fixDefaultNames,
   getRandomName,
-  getRandomMaleName,
-  getRandomFemaleName,
   getRandomSurname,
   areNamesLoaded,
   getNamePoolInfo,

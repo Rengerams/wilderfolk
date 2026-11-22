@@ -4,7 +4,7 @@ import { displayYear } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isRivalAtPeace } from './rivalPeace';
-import { resolveCombatLogKind, resolveCombatLogStage } from './eventLog';
+import { resolveCombatLogField } from './eventLog';
 import { getEcosystemHealth } from './dailyEcology';
 
 export type PortraitTraitId = 'war' | 'nature' | 'trade' | 'build' | 'diplomacy';
@@ -29,7 +29,8 @@ export interface VillagePortrait {
   primary: PortraitTraitId;
 }
 
-function clamp(n: number, lo = 0, hi = 100): number {
+/** Clamp to a rounded 0–100 score. */
+function clampScore(n: number, lo = 0, hi = 100): number {
   return Math.max(lo, Math.min(hi, Math.round(n)));
 }
 
@@ -85,8 +86,8 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
   let defenses = 0;
   const eventLog = state.eventLog ?? [];
   for (let i = 0; i < eventLog.length; i++) {
-    const kind = resolveCombatLogKind(eventLog[i]);
-    const stage = resolveCombatLogStage(eventLog[i]);
+    const kind = resolveCombatLogField(eventLog[i], 'combatKind');
+    const stage = resolveCombatLogField(eventLog[i], 'combatStage');
     if (stage === 'dispatched' && kind === 'outgoing_raid') {
       outgoingRaids++;
     } else if (stage === 'resolved' && (kind === 'defense' || kind === 'repelled' || kind === 'incoming_raid')) {
@@ -94,14 +95,14 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
     }
   }
 
-  const warScore = clamp(
+  const warScore = clampScore(
     outgoingRaids * 18 +
       tense * 12 +
       (defenses > 0 && outgoingRaids >= defenses ? 10 : 0) +
       (humans > 80 && tense > 0 ? 8 : 0),
   );
 
-  const natureScore = clamp(
+  const natureScore = clampScore(
     (eco / 100) * 45 +
       (valley === 'stable' ? 25 : valley === 'strained' ? 10 : 0) +
       Math.min(20, wildWolves * 3) +
@@ -109,20 +110,20 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
       Math.min(15, (state.ecoHealthYearsAbove80 ?? 0) * 3),
   );
 
-  const tradeScore = clamp(
+  const tradeScore = clampScore(
     activeRoutes * 14 +
       Math.min(30, caravans * 2) +
       Math.min(25, tradeGold / 400) +
       (state.villageReputation ?? 0) * 0.2,
   );
 
-  const buildScore = clamp(
+  const buildScore = clampScore(
     Math.min(45, humans / 5) +
       Math.min(40, playerBuildings * 1.2) +
       Math.min(15, (state.lifetimeStats?.technologiesResearched ?? 0) * 2),
   );
 
-  const diplomacyScore = clamp(
+  const diplomacyScore = clampScore(
     friendly * 22 +
       atPeace * 18 +
       Math.min(20, (state.villageReputation ?? 0) * 0.25) +

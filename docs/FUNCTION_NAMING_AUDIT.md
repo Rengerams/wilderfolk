@@ -20,6 +20,34 @@ Scanned: 3,465 indexed functions across 384 source files at commit `214294c9`.
 
 Line numbers are from the commit above and will drift.
 
+## Status — consolidated
+
+The duplicate clusters this audit named have been merged into one function each. The canonical owner
+is the module already responsible for the behaviour:
+
+| Cluster | One owner now |
+| --- | --- |
+| Float sample in `[min, max)` | `randomFloat(rng, min, max)` — `simRng.ts`; `randomBetween` and `rnd` are gone |
+| Smoothstep over `0..1` | `smoothstep01(value)` — `terrain/noise.ts`; the terrain, ecotone and spotlight copies are gone |
+| Non-empty string guard | `isNonEmptyString(value)` — `inputGuards.ts`; `isStringId` is gone |
+| Event-log line text | `formatEventLogLine(evt)` — `eventLog.ts`; both panels render it |
+| Combat kind/stage | `resolveCombatLogField(evt, field)` — `eventLog.ts` |
+| Spatial grid sync | `syncEntitySpatialGrid(...)` — `spatialGrid.ts`; the four grid-specific syncs are gone |
+| Militia tiers | `getMilitiaTier(state, chain)` plus one balance table per armament — `militiaBalance.ts` |
+| Friendship/feud score and key | `relationshipScore(e, id, kind)` and `relationshipKey(kind, id)` — `relationships.ts` |
+| Hotkey predicate | `isHotkey(e, key, code)` — `hotkeys.ts` |
+| First-name draw | `getRandomName(gender)` — `nameLoader.ts` |
+| Grid env flags | `gridFeatureDisabled` / `runtimeEnvFlag` — `spatialGrid.ts` |
+| First-gesture audio unlock | `useGestureUnlock(onGesture)` — `src/hooks/useGestureUnlock.ts` |
+| `clamp` copies | canonical `clamp` from `terrain/noise.ts`; the finite-guard and rounded variants are named `clampFinite` and `clampScore` |
+| Dialogue aliases | `tickDialogue` and `prepareScriptedDialogue` removed; callers use `tickHumanChat` and `clearCurrentEntityDialogue` |
+
+Still intentionally separate (read and confirmed as different contracts): `worldToScreenX` /
+`worldToScreenY` (hot-path axis split), `deltaClone` / `deltaCloneOptional` (null handling),
+`isDoctorAtHospital` / `isOfficialAtHall` (domain job+building rules in their own modules), and the
+`play*Sound` cues.
+
+
 ---
 
 ## 1. Same behaviour, different names — consolidate
@@ -109,6 +137,6 @@ These look-alikes are recorded as distinct in `docs/tools/semantic-duplicates-re
 
 ## Follow-up
 
-Nothing here is changed by this audit. The three fixes with the clearest ownership are the
-`randomFloat` copies, the smoothstep copies and the two event-log formatters; each has an obvious
-canonical module, so a separate change can consolidate them without touching behaviour.
+Sections 1 and 2 are now implemented: the duplicates were merged into the owners listed under
+*Status — consolidated*, and their callers, tests and ownership entries were migrated with them.
+The remaining rows in section 2 are the pairs kept apart on purpose above.

@@ -333,7 +333,7 @@ function advanceDialogue(
 }
 
 /** Release an entity's current scene once; callers decide whether to clear an unrelated partner bubble. */
-function clearCurrentEntityDialogue(
+export function clearCurrentEntityDialogue(
   entity: ChatSpeaker,
   resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
 ): ChatSpeaker | undefined {
@@ -351,14 +351,6 @@ function clearCurrentEntityDialogue(
   entity.chatPartnerId = undefined;
   clearEntityChat(entity);
   return counterpart;
-}
-
-/** Scripted speech interrupts the current session and frees both participants. */
-export function prepareScriptedDialogue(
-  entity: ChatSpeaker,
-  resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
-): void {
-  clearCurrentEntityDialogue(entity, resolvePartner);
 }
 
 export function tickHumanChat(
