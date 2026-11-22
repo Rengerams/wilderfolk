@@ -512,15 +512,15 @@ function searchRoute(
   // Generated grids distinguish partial footprint coverage from tile-centre speed
   // eligibility. Older test grids without surface geometry retain their road mask.
   const pricedRoad = pricedRoadMask(grid);
-  collectMetrics && recordFindPathCall();
+  if (collectMetrics) recordFindPathCall();
   const rejected: RouteSearchResult = { path: null, cost: null, hitNodeCap: false };
   if (![sx, sy, tx, ty].every(Number.isInteger) || !Number.isFinite(maxNodes) || maxNodes < 0
     || sx < 0 || sy < 0 || sx >= cols || sy >= rows) {
-    collectMetrics && recordPathEarlyReject();
+    if (collectMetrics) recordPathEarlyReject();
     return rejected;
   }
   if (tx < 0 || ty < 0 || tx >= cols || ty >= rows) {
-    collectMetrics && recordPathEarlyReject();
+    if (collectMetrics) recordPathEarlyReject();
     return rejected;
   }
 
@@ -528,7 +528,7 @@ function searchRoute(
   const startPt = findNearestWalkable(grid, sx, sy);
   const goalPt = findNearestWalkable(grid, tx, ty);
   if (!startPt || !goalPt) {
-    collectMetrics && recordPathEarlyReject();
+    if (collectMetrics) recordPathEarlyReject();
     return rejected;
   }
 
@@ -545,7 +545,7 @@ function searchRoute(
         (sx + 0.5) * PATH_CELL, (sy + 0.5) * PATH_CELL,
         (actualSx + 0.5) * PATH_CELL, (actualSy + 0.5) * PATH_CELL, true);
     if (!escaped) {
-      collectMetrics && recordPathEarlyReject();
+      if (collectMetrics) recordPathEarlyReject();
       return rejected;
     }
     return { path: [{ x: sx, y: sy }, { x: actualSx, y: actualSy }],
@@ -599,8 +599,8 @@ function searchRoute(
       // Preserve road tiles: line-of-sight smoothing can erase the faster road detour.
       // Slope-weighted A* costs must not be invalidated by geometrical LOS smoothing.
       if (pricedRoad || keepFullPath || elevation) {
-        collectMetrics && recordPathNodes(nodes);
-        collectMetrics && recordPathFound();
+        if (collectMetrics) recordPathNodes(nodes);
+        if (collectMetrics) recordPathFound();
         return { path, cost: scores[goal], hitNodeCap: false };
       }
       const simplified: { x: number; y: number }[] = [path[0]];
@@ -612,8 +612,8 @@ function searchRoute(
       }
       simplified.push(path[path.length - 1]);
 
-      collectMetrics && recordPathNodes(nodes);
-      collectMetrics && recordPathFound();
+      if (collectMetrics) recordPathNodes(nodes);
+      if (collectMetrics) recordPathFound();
       return { path: simplified, cost: scores[goal], hitNodeCap: false };
     }
 
@@ -657,9 +657,9 @@ function searchRoute(
     }
   }
 
-  collectMetrics && recordPathNodes(nodes);
-  collectMetrics && recordPathFailed();
-  if (hitNodeCap) collectMetrics && recordPathMaxNodesExceeded();
+  if (collectMetrics) recordPathNodes(nodes);
+  if (collectMetrics) recordPathFailed();
+  if (hitNodeCap) if (collectMetrics) recordPathMaxNodesExceeded();
   return { path: null, cost: null, hitNodeCap };
   } finally {
     if (collectMetrics) profileEnd('pathfinding.findPath', pathProfileStart);
