@@ -3,8 +3,6 @@
  * also rejects a leaving caravan, a group out of gold, and insufficient storage for what it receives.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { initGame } from '../src/game/worldGen';
 import {
   getRefugeeChoiceEligibility,
@@ -58,7 +56,7 @@ function worldWithRefugees(options: { food?: number; maxPopulation?: number } = 
   return state;
 }
 
-describe('visitor trade eligibility is the panel\'s source of truth', () => {
+describe('legacy visitor trade eligibility', () => {
   it('quotes prices from the owner, not from a second implementation', () => {
     const state = worldWithTrader();
     state.villageReputation = 100; // >= 80 → 0.8 on gold paid, 1.15 on gold received
@@ -94,20 +92,14 @@ describe('visitor trade eligibility is the panel\'s source of truth', () => {
     expect(gate.blockReason).toBe('They are out of gold');
   });
 
-  it('keeps the panel on the owner for prices and gates', () => {
-    const panel = readFileSync(resolve(process.cwd(), 'src/components/VisitorCampPanel.tsx'), 'utf8');
-    expect(panel).toContain('getVisitorTradeTerms(state, action)');
-    expect(panel).toContain('getVisitorTradeEligibility(state, group.id, action)');
-    expect(panel, 'the panel re-derives the price multipliers again')
-      .not.toMatch(/getVisitorTradePriceMult|getVisitorTradeRewardMult/);
-  });
+
 });
 
 /**
  * Refugee choice buttons read `getRefugeeChoiceEligibility` for both price and reason, so a refusal
  * names which gate failed instead of surfacing as a floating text at the camp.
  */
-describe('refugee choice eligibility is the panel\'s source of truth (R5)', () => {
+describe('legacy refugee choice eligibility (R5)', () => {
   it('prices each offer from the owner and names the reason it refuses', () => {
     const poor = worldWithRefugees({ food: 39 });
     const welcome = getRefugeeChoiceEligibility(poor, GROUP_ID, 'welcome');
@@ -126,15 +118,5 @@ describe('refugee choice eligibility is the panel\'s source of truth (R5)', () =
     expect(getRefugeeChoiceEligibility(state, GROUP_ID, 'turn_away').ok).toBe(true);
   });
 
-  it('keeps the panel on the owner for both buttons and both prices', () => {
-    const panel = readFileSync(resolve(process.cwd(), 'src/components/VisitorCampPanel.tsx'), 'utf8');
-    expect(panel).toContain("getRefugeeChoiceEligibility(state, group.id, 'welcome')");
-    expect(panel).toContain("getRefugeeChoiceEligibility(state, group.id, 'screen')");
-    expect(panel, 'the panel quotes a second copy of the refugee prices').toMatch(
-      /REFUGEE_WELCOME_FOOD[\s\S]*REFUGEE_SCREEN_FOOD|REFUGEE_SCREEN_FOOD[\s\S]*REFUGEE_WELCOME_FOOD/,
-    );
-    expect(panel, 'the panel re-derives the refugee price or cap rule').not.toMatch(
-      /resources\.food < (40|20)|humanPopulation >= state\.maxHumanPopulation/,
-    );
-  });
+
 });

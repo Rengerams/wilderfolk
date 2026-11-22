@@ -5,14 +5,12 @@ import type { EntityCatalog } from '../game/entityCatalog';
 import {
   isStripBuildType,
   inferStripRotation,
-  hitTestCamp,
   EntityType,
 } from '../game/gameEngine';
 import { buildStripPreview, getPlaceBuildingFailureReason } from '../game/buildingPlacementActions';
 import { canPlaceBuilding } from '../game/placementUtils';
 import {
   screenToWorld,
-  focusCameraOn,
   nudgeCameraToward,
   clampCameraTarget,
   createBuildGhost,
@@ -266,25 +264,6 @@ export function useCanvasInteractions({
 
       // 2. Check building selection
       const clickedBuilding = findBuildingAt(world.buildings, worldX, worldY);
-
-      // 3. Check camp selection
-      const campHit = hitTestCamp(world, worldX, worldY);
-      if (campHit && !clickedEntity) {
-        const campKey = `${campHit.kind}:${campHit.id}`;
-        if (loop) {
-          const nextView = focusCameraOn(loop.getView(), campHit.x, campHit.y, 1.5);
-          loop.patchView({
-            ...nextView,
-            selectedEntityId: null,
-            selectedEntityIds: [],
-            selectedBuildingId: null,
-            highlightedCampKey: campKey,
-            selectedCampKey: campKey,
-          });
-          setInspectorCollapsed(false);
-        }
-        return;
-      }
 
       if (clickedEntity || clickedBuilding) {
         const focusTarget = clickedEntity ?? clickedBuilding;

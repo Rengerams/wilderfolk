@@ -1,5 +1,5 @@
 import type { RivalDailyAction, RivalProfile, RivalSettlement } from './gameTypes';
-import { getSimRng } from './simRng';
+import { getSimRng, hashSalt } from './simRng';
 
 const TEMPERAMENTS: RivalProfile['temperament'][] = ['welcoming', 'pragmatic', 'ambitious', 'warlike'];
 const PRIORITIES: RivalProfile['priority'][] = ['food', 'trade', 'security', 'shelter'];
@@ -61,6 +61,35 @@ export function ensureRivalProfile(rival: RivalSettlement): RivalProfile {
 
 export function getRivalProfileLabel(profile: RivalProfile): string {
   return `${profile.temperament} · prioritizes ${profile.priority}`;
+}
+
+/** A camp takes stock of its stores on this cadence, whatever its action timer says. */
+export const RIVAL_GROWTH_INTERVAL_DAYS = 9;
+/** A camp this size has outgrown the room the valley leaves it. */
+const RIVAL_CAMP_MAX_POPULATION = 12;
+/** Stores a camp must hold per head, and the morale/recovery below which nobody joins it. */
+const RIVAL_GROWTH_FOOD_PER_HEAD = 10;
+const RIVAL_GROWTH_MIN_MORALE = 55;
+const RIVAL_GROWTH_MIN_RECOVERY = 40;
+
+/** What a camp spends from its stores to settle another family. */
+export function getRivalGrowthFoodCost(): number {
+  return RIVAL_GROWTH_FOOD_PER_HEAD * 2;
+}
+
+/** Whether this camp's own stores can support another settler — the gate the growth roll asks. */
+export function canRivalCampGrow(rival: RivalSettlement): boolean {
+  if (rival.population >= RIVAL_CAMP_MAX_POPULATION) return false;
+  const profile = normalizeRivalProfile(rival);
+  const needed = RIVAL_GROWTH_FOOD_PER_HEAD * Math.max(1, rival.population);
+  return profile.ledger.food >= needed
+    && profile.ledger.morale >= RIVAL_GROWTH_MIN_MORALE
+    && profile.ledger.recovery >= RIVAL_GROWTH_MIN_RECOVERY;
+}
+
+/** Which day of the cadence this camp takes stock on — staggered by stable identity, not list order. */
+export function isRivalGrowthDay(rivalId: string, colonyDay: number): boolean {
+  return (colonyDay + (hashSalt(rivalId) % RIVAL_GROWTH_INTERVAL_DAYS)) % RIVAL_GROWTH_INTERVAL_DAYS === 0;
 }
 
 export function selectRivalDailyAction(

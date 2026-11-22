@@ -82,6 +82,7 @@ export type DecisionKey =
   | 'socialFeedback'
   | 'dialogueContent'
   | 'dialogueSessions'
+  | 'renffrOmen'
   | 'spotlightLore'
   | 'courtship'
   | 'affairs'
@@ -520,7 +521,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/villageRequests.test.ts, tests/workerCommand.roundtrip.test.ts, tests/gameWorker.transport.test.ts',
   },
   rivalStrategy: {
-    owner: 'rivalEvents.ts — tickRivalSettlements; rivalProfiles.ts — selectRivalDailyAction/applyRivalDailyAction',
+    owner: 'rivalEvents.ts — tickRivalSettlements; rivalProfiles.ts — growth eligibility/cadence and selectRivalDailyAction/applyRivalDailyAction',
     cadence: 'daily',
     cadenceNote: 'Strategic rival decisions, growth, diplomacy and raids only; no village-map raiders, hunter poaching, reveal patrols or floating text.',
     writes: ['rivalSettlements', 'pendingRaidEvents (through frontierCombat owner)', 'pendingDiplomacyEvents (through rivalDiplomacy owner)', 'resources (through resource owner)', 'villageReputation (through reputation owner)', 'eventLog (through logEvent)'],
@@ -538,7 +539,7 @@ export const SIMULATION_DECISIONS = {
   socialFeedback: {
     owner: 'humanSocial.ts — simAmbientChatNeighbors, simSettlerPairChat; socialLife.ts — pickSocialImpulse, tryWorkplaceBanter, tryNeighborGreeting, isSocialStaggerTick, isGreetingHour',
     cadence: 'realtime',
-    cadenceNote: 'Human-social owner only selects real nearby eligible participants and social motives at the shared work/morning/stagger gates. A scene is requested at most once per person per colony day across every event family (hasDialogueSceneOnDay counts greeting, banter and solo scenes together), even though the gate itself is evaluated per tick; the dialogue router selects text and humanChat executes sessions. The spatial query is adaptive and may legitimately use a bounded linear candidate scan.',
+    cadenceNote: 'Human-social owner only selects real nearby eligible participants and social motives at the shared work/morning/stagger gates. A scene is requested at most once per person per colony day across every event family (hasDialogueSceneOnDay counts greeting, banter and solo scenes together), even though the gate itself is evaluated per tick; the dialogue router selects text and humanChat executes sessions. Affair tryst speech is sampled on the initiating settler\'s hourly ID-staggered tick (11.4% opportunity, formerly 1% each active tick); tryst progress stays realtime. The spatial query is adaptive and may legitimately use a bounded linear candidate scan.',
     writes: ['floatingTexts (hearts)', 'small courtship progress'],
     scheduledFrom: 'humanTick.ts realtime social/leisure path, with SOCIAL_STAGGER on neighbour selection',
     testFile: 'tests/phase7.social.test.ts, tests/socialLife.dialogueBusy.test.ts, tests/humanChat.ambientPairing.test.ts',
@@ -546,7 +547,7 @@ export const SIMULATION_DECISIONS = {
   dialogueContent: {
     owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, hasDialogueSceneOnDay, rememberDialogueLine, dialogueHoursFromNominalTicks, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, parsePresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
     cadence: 'on-demand',
-    cadenceNote: 'One centralized ambient source (data/dialogue/ambient.json, one neutral dialogue category); eventKey+mode lookup matches real participant roles, cycles eligible variants and applies a per-settler three-day line cooldown before repeating. Singleton ambient scenes cool down for three calendar days; per-entity scene and line history survive save/load; line history is capped at the newest 48 entries so a silent settler keeps a bounded map. This owner writes human.dialogueRecentScenes and human.dialogueRecentLines; scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.',
+    cadenceNote: 'One centralized ambient source (data/dialogue/ambient.json, one neutral dialogue category); eventKey+mode lookup matches real participant roles, cycles eligible variants and applies a per-settler three-day line cooldown before repeating. Successful ambient.affair pair dialogue also imposes a 48-game-hour cooldown on both participants, using their existing persisted scene-history entries (failed requests do not count). Singleton ambient scenes cool down for three calendar days; per-entity scene and line history survive save/load; line history is capped at the newest 48 entries so a silent settler keeps a bounded map. This owner writes human.dialogueRecentScenes and human.dialogueRecentLines; scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.',
     writes: ['human.dialogueRecentScenes', 'human.dialogueRecentLines'],
     scheduledFrom: 'humanTick.ts, socialLife.ts, humanLeisureBehavior.ts, factionWander.ts and existing domain event owners; Spotlight overlay later uses read-only group adapter',
     testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.variety.test.ts, tests/dialogue.lineRepeat.test.ts, tests/dialogue.pipeline.integration.test.ts',
@@ -558,6 +559,14 @@ export const SIMULATION_DECISIONS = {
     writes: ['human.chatPhrase', 'human.chatTicks', 'human.chatPartnerId', 'human.chatDialogueSessionKey'],
     scheduledFrom: 'humanTick.ts — tickHumanChat and, on confirmed sleep, endAmbientHumanChat before the active-entity return; event owners request sessions through dialogueTrees.ts',
     testFile: 'tests/humanChat.duration.test.ts, tests/pairDialogue.orphanReclaim.test.ts, tests/dialogue.sessionModes.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.schema13.test.ts',
+  },
+  renffrOmen: {
+    owner: 'renffrStar.ts — maybeTriggerRenffrOmen, beginRenffrSettlerChatter, isRenffrGossipActive, tickRenffrOmen',
+    cadence: 'realtime',
+    cadenceNote: 'Eligibility is checked in the realtime layer, but the rare deterministic omen RNG runs only on nighttime clock-hour boundaries (0.42% per eligible hour, approximately the former 0.035% per tick). A successful omen starts three days of gossip and blocks another omen until the gossip window expires; visual animation still advances per tick. Existing dialogueTrees.ts and humanChat.ts remain the sole dialogue pipeline.',
+    writes: ['world.renffrOmen', 'world.renffrChatterUntilTick', 'world.screenShakeImpulse'],
+    scheduledFrom: 'tickLayerRealtime.ts for omen roll and animation; humanTick.ts reads the gossip window for ambient conversation context',
+    testFile: 'tests/dialogue.affairRenffrCadence.test.ts, tests/simSeed.adoption.test.ts',
   },
   spotlightLore: {
     owner: 'spotlightLore.ts — buildSpotlightLoreScene, stageSpotlightLoreCast, maybeStartSpotlightLore, startSpotlightLoreDebug, getSpotlightGatherTarget, tickSpotlightGathering, finishSpotlightLore, normalizeSpotlightLoreOnLoad',
@@ -583,7 +592,7 @@ export const SIMULATION_DECISIONS = {
   affairs: {
     owner: 'humanRelationships.ts — tryDailyAffairEncounter, recordAffairTrystSite, tryDailyAffairGossip, tryExposeCaughtAffairForPair, exposeAffair',
     cadence: 'staggered-social',
-    cadenceNote: 'authority declares staggered/daily — tryst PROGRESS advances every realtime tick (affairProgress += rate * PER_TICK_RATE_SCALE, no stagger); establishment/gossip/scandal roll on the daily gate; caught-in-act exposure can fire from realtime proximity checks; getAffairTrystBuilding selects only an available home of either lover when nearby; otherwise affairs remain outdoors; partner order never changes site selection; buildingAccess.buildingAccessPoint gives both partners the one outdoor doorstep instead of the blocked footprint centre; recordAffairTrystSite records an indoor location only when both lovers actually entered it; the before-shift hour is not affair time',
+    cadenceNote: 'authority declares staggered/daily — tryst PROGRESS advances every realtime tick (affairProgress += rate * PER_TICK_RATE_SCALE, no stagger); flavour chat attempts on one hourly, ID-staggered tick per active leading lover; establishment/gossip/scandal roll on the daily gate; caught-in-act exposure can fire from realtime proximity checks; getAffairTrystBuilding selects only an available home of either lover when nearby; otherwise affairs remain outdoors; partner order never changes site selection; buildingAccess.buildingAccessPoint gives both partners the one outdoor doorstep instead of the blocked footprint centre; recordAffairTrystSite records an indoor location only when both lovers actually entered it; the before-shift hour is not affair time',
     writes: [
       'human.affairPartnerId',
       'human.affairProgress',

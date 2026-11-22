@@ -280,11 +280,6 @@ describe('C2 — the remaining semantic duplicates read their owners (2026-09-20
     expect(getVisitorTradePriceMult(REPUTATION_FRIENDLY_MIN - 1)).toBe(1);
     expect(getVisitorTradePriceMult(REPUTATION_HARSH_MAX + 1)).toBe(1);
 
-    const camp = read('src/components/VisitorCampPanel.tsx');
-    // The panel asks for the band, never the price multiplier: pricing stays in the owner, which
-    // `tests/visitorTradePanel.eligibility.test.ts` guards separately.
-    expect(camp).toContain('getReputationBand(state.villageReputation)');
-    expect(camp, 'the hand-written 80/30 band is back').not.toContain('state.villageReputation >= 80');
     // The Village tooltip names the same bands instead of restating the numbers.
     expect(read('src/components/tabPanels/VillageTabPanel.tsx')).toContain('REPUTATION_FRIENDLY_MIN');
   });
@@ -311,13 +306,7 @@ describe('C2 — the remaining semantic duplicates read their owners (2026-09-20
     expect(getReputationBand(REPUTATION_HARSH_MAX + 1)).toBe('normal');
   });
 
-  it('storage headroom comes from its owner, not a local max(0, cap - current)', () => {
-    const camp = read('src/components/VisitorCampPanel.tsx');
-    expect(camp).toContain("getAvailableStorageHeadroom(state, 'food')");
-    expect(camp, 'the local headroom copy is back').not.toContain(
-      'state.storageMax.food - state.resources.food',
-    );
-  });
+
 });
 
 describe('U-2/U-3/U-4 — the 2026-09-20 inspector copy guards (building panel)', () => {

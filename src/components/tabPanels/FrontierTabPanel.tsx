@@ -15,8 +15,6 @@ export default function FrontierTabPanel({
   pendingRaidCount,
   pendingOutgoingRaidCount,
   pendingDiplomacyCount,
-  onFocusVisitor,
-  onFocusRival,
   onLaunchRaid,
   onProvokeRival,
   onRecallRaid,
@@ -28,8 +26,6 @@ export default function FrontierTabPanel({
         pendingRaidCount={pendingRaidCount}
         pendingOutgoingRaidCount={pendingOutgoingRaidCount}
         pendingDiplomacyCount={pendingDiplomacyCount}
-        onFocusVisitor={onFocusVisitor}
-        onFocusRival={onFocusRival}
         onLaunchRaid={onLaunchRaid}
         onProvokeRival={onProvokeRival}
         onRecallRaid={onRecallRaid}

@@ -22,9 +22,7 @@ import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import {
   rollYearlyWorldEvent,
-  spawnVisitorGroup,
   tradeWithVisitors,
-  tryFirstWeekVisitor,
 } from '../src/game/groupEvents';
 import { getDiplomacyChoiceEligibility, respondToDiplomacyEvent } from '../src/game/rivalDiplomacy';
 import { getBarracksGuardCount } from '../src/game/defenseStructures';
@@ -113,54 +111,7 @@ function worldWithTrader(): WorldState {
   return state;
 }
 
-describe('L31 — first-week visitor window matches the documented contract', () => {
-  it('visits only on days 7-13 and only with a completed player House or Mansion', () => {
-    const early = initGame({ skipTerrain: true });
-    early.tick = 6 * TICKS_PER_DAY;
-    early.buildings = [building(101, BuildingType.House)];
-    expect(tryFirstWeekVisitor(early, early.entities, early.buildings)).toBeNull();
-    expect(early.firstWeekVisitorSpawned).toBe(false);
-
-    const noHouse = initGame({ skipTerrain: true });
-    noHouse.tick = 7 * TICKS_PER_DAY;
-    expect(tryFirstWeekVisitor(noHouse, noHouse.entities, noHouse.buildings)).toBeNull();
-    expect(noHouse.firstWeekVisitorSpawned).toBe(false);
-
-    const firstDay = initGame({ skipTerrain: true });
-    firstDay.tick = 7 * TICKS_PER_DAY;
-    firstDay.buildings = [building(101, BuildingType.House)];
-    const event = tryFirstWeekVisitor(firstDay, firstDay.entities, firstDay.buildings);
-    expect(event).not.toBeNull();
-    expect(firstDay.firstWeekVisitorSpawned).toBe(true);
-    // One-shot: the same window never spawns a second group.
-    expect(tryFirstWeekVisitor(firstDay, firstDay.entities, firstDay.buildings)).toBeNull();
-
-    const lastDay = initGame({ skipTerrain: true });
-    lastDay.tick = 13 * TICKS_PER_DAY;
-    lastDay.buildings = [building(101, BuildingType.Mansion)];
-    expect(tryFirstWeekVisitor(lastDay, lastDay.entities, lastDay.buildings)).not.toBeNull();
-
-    const tooLate = initGame({ skipTerrain: true });
-    tooLate.tick = 14 * TICKS_PER_DAY;
-    tooLate.buildings = [building(101, BuildingType.House)];
-    expect(tryFirstWeekVisitor(tooLate, tooLate.entities, tooLate.buildings)).toBeNull();
-    expect(tooLate.firstWeekVisitorSpawned).toBe(false);
-  });
-});
-
 describe('L34 — recurring events carry instance-unique ids', () => {
-  it('does not reuse one id for repeated visitor arrivals', () => {
-    const state = initGame({ skipTerrain: true });
-    state.tick = 7 * TICKS_PER_DAY;
-    const first = spawnVisitorGroup(state, state.entities, state.buildings, 'pilgrims');
-    state.tick = 21 * TICKS_PER_DAY;
-    const second = spawnVisitorGroup(state, state.entities, state.buildings, 'pilgrims');
-
-    // `dismissActiveEvent` (useTransientGameFeedback) keys off this prefix.
-    expect(first.id.startsWith('visitor_')).toBe(true);
-    expect(second.id).not.toBe(first.id);
-  });
-
   it('does not reuse one id for the same yearly world event in different years', () => {
     const first = yearlyEventAt(100);
     const second = yearlyEventAt(200);

@@ -39,13 +39,15 @@ export function projectFrontierPanel(state: WorldState, counts: FrontierPanelCou
   const barracksCount = countCompletedDefenseBuildings(state.buildings, BuildingType.Barracks);
   const wallSegments = countCompletedDefenseBuildings(state.buildings, [BuildingType.Wall, BuildingType.WallGate]);
   const firstPendingRaid = pendingRaids[0];
+  const previewRival = firstPendingRaid
+    ? state.rivalSettlements.find((r) => r.id === firstPendingRaid.rivalId)
+    : undefined;
 
   const combatPreview = firstPendingRaid
     ? getCombatPreview(state, {
       attackerStrength: firstPendingRaid.attackerStrength
-        ?? (state.rivalSettlements[0] ? getRivalRaidStrength(state.rivalSettlements[0]) : undefined),
-      rival: state.rivalSettlements.find((r) => r.id === firstPendingRaid.rivalId)
-        ?? state.rivalSettlements[0],
+        ?? (previewRival ? getRivalRaidStrength(previewRival) : undefined),
+      rival: previewRival,
       incomingPayoffFood: firstPendingRaid.lootFood,
     })
     : null;
@@ -104,8 +106,9 @@ export function projectFrontierPanel(state: WorldState, counts: FrontierPanelCou
   });
 
   return {
-    isEmpty: state.visitorGroups.length === 0 && rivals.length === 0
-      && counts.pendingRaidCount === 0 && counts.pendingOutgoingRaidCount === 0 && battleReports.length === 0,
+    isEmpty: rivals.length === 0
+      && counts.pendingRaidCount === 0 && counts.pendingOutgoingRaidCount === 0
+      && counts.pendingDiplomacyCount === 0 && battleReports.length === 0,
     hasAlerts: counts.pendingRaidCount > 0 || counts.pendingOutgoingRaidCount > 0 || counts.pendingDiplomacyCount > 0,
     ...counts,
     militia,
@@ -117,13 +120,6 @@ export function projectFrontierPanel(state: WorldState, counts: FrontierPanelCou
     armament: getMilitiaArmamentLabel(state) ?? 'Unarmed adults',
     battleReports,
     combatPreview,
-    visitors: state.visitorGroups.map((group) => ({
-      id: group.id,
-      name: group.name,
-      description: `${group.kind} · ${group.daysLeft}d · click for trade & leader`,
-      x: group.campX,
-      y: group.campY,
-    })),
     rivals,
   };
 }
