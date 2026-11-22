@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (22 Nov 2026, PR #172):** Repaired blocked same-tile route pricing, small road-speed gains, fast-road waypoint overshoot, and exact uncapped velocity calculations that blocked CI.
+
 - **Fixed (22 Nov 2026, PR #172):** Shared wildlife recovery limits now cap wolves at 10, let rabbits breed to 150, protect depleted rabbit herds from predators, and reduce repeated wolf kills by increasing prey energy.
 - **Fixed (22 Nov 2026, PR #172):** Corrected assignment and construction cadence documentation; standalone overlap checks refresh call graphs after source removals.
 
