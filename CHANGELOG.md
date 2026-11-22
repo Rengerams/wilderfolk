@@ -2,7 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (22 Nov 2026; pending merge):** Large rocks block walking again, a blocked destination is approached from the settler's own side instead of across a river or wall, and a house packed between neighbours keeps a usable door.
+- **Fixed (22 Nov 2026; PR #181):** Large rocks block walking again; a blocked destination is approached from the settler's own side, with its stand point chosen by reachability rather than distance; a packed house keeps a usable door.
+- **Fixed (22 Nov 2026; PR #181):** Removed two stale references left by the visitor-camp retirement, restoring the typecheck and unit gates.
 - **Fixed (22 Nov 2026, PR #178):** Affair chat: hourly 11.4% roll and 48-hour cooldown after success; affair progress unchanged. Renffr: hourly night roll at 0.42%, with a three-day gossip cooldown.
 - **Refactored (22 Nov 2026; pending merge):** Farm and greenhouse weather-yield calculations now live with weather rules instead of grass ecology; gameplay unchanged.
 

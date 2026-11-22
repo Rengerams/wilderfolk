@@ -6,6 +6,8 @@
 
 **2026-11-22 — [A house packed between neighbours had no doorstep](../bug_report/2026-11-22-packed-houses-no-doorstep.md):** resolved; a doorstep required 20 px of open ground beyond its 12 px standoff, so interior houses in a block with 20 px alleys reported zero access points and 24 of 80 commutes never moved. A doorstep now counts when the walker can step off it along the street; packed houses report 12 doors and all commutes arrive.
 
+**2026-11-22 — [Visitor-camp retirement left a dangling export and a deleted test in the gates](../bug_report/2026-11-22-visitor-retirement-left-stale-references.md):** resolved; `gameEngine.ts` still re-exported the removed `hitTestCamp` (typecheck TS2305) and the day-length literal audit still read the deleted visitor-spawn test (ENOENT). Both stale references are gone and the gates pass.
+
 **2026-11-22 — [Affair conversations reattempted every realtime tick](../bug_report/2026-11-22-affair-chat-repeated-per-tick.md):** investigating; committed once-per-game-hour 11.4% attempts and 48-hour cooldown for both participants after a successful dialogue; focused regression written, CI pending.
 
 **2026-11-22 — [Renffr omen can retrigger during its own three-day gossip](../bug_report/2026-11-22-renffr-omen-retriggers-during-gossip.md):** investigating; committed nighttime hourly rolls at 0.42% and a gossip-window retrigger exclusion; focused seeded regression written, CI pending.
@@ -80,7 +82,7 @@
 
 **2026-11-11 — [Historical producer parity check is unreachable and invalid](../bug_report/2026-11-11-producer-parity-workflow-unreachable-and-invalid.md):** investigating; opt-in manual dispatch, valid comparison iteration and Bash pipefail; 360-day workflow not yet run.
 
-**2026-11-11 — [Scenery reservations blocked ordinary walking](../bug_report/2026-11-11-scenery-reservations-blocked-walking.md):** investigating; source fix in PR #127 ignores non-solid scenery and decorative footprints, with collision and removal regression coverage; CI pending.
+**2026-11-11 — [Scenery reservations blocked ordinary walking](../bug_report/2026-11-11-scenery-reservations-blocked-walking.md):** resolved for decorative buildings; the reserved-cell claim is corrected — `Walkability.Reserved` marks a generated big rock and keeps blocking, as recorded in the 2026-11-22 boulder report. PR #127's decorative-footprint exemption stands.
 
 **2026-11-08 — [Pregnancy merge introduced competing hospital thresholds](../bug_report/2026-11-08-pregnancy-individual-term-merge.md):** resolved; targeted regressions pass.
 

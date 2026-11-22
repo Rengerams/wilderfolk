@@ -255,6 +255,29 @@ describe('one authoritative movement walkability verdict', () => {
     }
   });
 
+  it('stands on a reachable tile when every nearby stand tile is sealed in a courtyard', () => {
+    // Distance-only stand-point selection picked tiles inside the walled courtyard around the goal,
+    // so the walk ended even though an open approach existed just outside it.
+    const inBlock = (x: number, y: number) => x >= 9 && x <= 15 && y >= 9 && y <= 15;
+    const map = testWorldMap({
+      tilesX: 24, tilesY: 24, seed: 2722,
+      tileType: (x, y) => (inBlock(x, y) && (x === 9 || x === 15 || y === 9 || y === 15 || (x === 12 && y === 12))
+        ? TerrainType.River : undefined),
+    });
+    resetPathGridCaches();
+    setCurrentPathMap(map, []);
+    try {
+      const walker = human(2722, { x: center(2), y: center(12) });
+      // The water ring seals the interior, where the nearest stand tiles lie; only the ring outside it routes.
+      expect(steerWithPath(walker, center(12), center(12), 2, 'sealed-courtyard')).toBe('path');
+      expect(Math.hypot(walker.vx, walker.vy), 'walker keeps moving').toBeGreaterThan(0);
+      expect(Math.sign(walker.vx), 'heads toward the reachable west approach').toBe(1);
+    } finally {
+      setCurrentPathMap(null);
+      resetPathGridCaches();
+    }
+  });
+
   it('does not give a previous walkers cached waypoints to a new walker sharing a key', () => {
     const map = testWorldMap({
       tilesX: 16, tilesY: 14, seed: 2717,

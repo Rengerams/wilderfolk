@@ -12,6 +12,7 @@
 
 ## Status history
 - 2026-11-22 — resolved: the passability grid treats every non-`Open` cell as blocked again, so reserved rock cells bar walking while decorative *buildings* stay walkable; regression test rewritten.
+- 2026-11-22 — supersedes the reserved-cell claim in `2026-11-11-scenery-reservations-blocked-walking.md`, which is corrected in place: `Walkability.Reserved` marks a generated big rock, not scenery. The decorative-building exemption from that report still stands.
 
 ## Observed behavior
 A `rock_big` decoration writes `pathGrid[cell] = 2` (`Walkability.Reserved`) during terrain generation. The walking grid only blocked `Walkability.Water`, so settlers walked straight through a boulder roughly 30 px wide. The build grid still classified the same cell as `Mixed` and placement still refuses it, so the player could not build on the rock but settlers crossed it.

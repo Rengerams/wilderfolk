@@ -297,23 +297,15 @@ function nearestWalkableTile(
   return best;
 }
 
-/** Rings scanned around a blocked destination for a stand point on the walker's own side. */
+/** Rings scanned around a blocked destination for a stand point the walker can actually reach. */
 const GOAL_STAND_RINGS = 4;
-/** Stand points one walk tries, so a sealed pocket costs a bounded number of searches. */
-const GOAL_STAND_ATTEMPTS = 4;
 
 /**
- * Stand points for a blocked destination, in the order they are tried: nearest ring around the goal
- * first, and within a ring the tile nearest the walker — so a route never crosses a river or wall to
- * the far bank. Reachability is unknown here; the caller keeps the first candidate that routes.
+ * Walkable tiles around a blocked destination, ring by ring. This is only the candidate set:
+ * the route search decides which one is reachable, so a tile sealed in a pocket cannot end the
+ * walk while an open approach exists on the same side of the obstacle.
  */
-function standTilesForWalker(
-  grid: PathGrid,
-  goalX: number,
-  goalY: number,
-  fromX: number,
-  fromY: number,
-): { x: number; y: number }[] {
+function standTilesForWalker(grid: PathGrid, goalX: number, goalY: number): { x: number; y: number }[] {
   const { cols, rows, blocked } = grid;
   const candidates: { x: number; y: number }[] = [];
   for (let radius = 1; radius <= GOAL_STAND_RINGS; radius++) {
@@ -321,28 +313,22 @@ function standTilesForWalker(
     const maxX = Math.min(cols - 1, goalX + radius);
     const minY = Math.max(0, goalY - radius);
     const maxY = Math.min(rows - 1, goalY + radius);
-    const ring: { x: number; y: number; distanceSq: number }[] = [];
     for (let ty = minY; ty <= maxY; ty++) {
       const onEdgeRow = ty === minY || ty === maxY;
       for (let tx = minX; tx <= maxX; tx++) {
         if (!onEdgeRow && tx !== minX && tx !== maxX) continue;
         if (blocked[ty * cols + tx] !== 0) continue;
-        ring.push({ x: tx, y: ty, distanceSq: (tx - fromX) ** 2 + (ty - fromY) ** 2 });
+        candidates.push({ x: tx, y: ty });
       }
-    }
-    ring.sort((a, b) => a.distanceSq - b.distanceSq);
-    for (const tile of ring) {
-      candidates.push({ x: tile.x, y: tile.y });
-      if (candidates.length >= GOAL_STAND_ATTEMPTS) return candidates;
     }
   }
   return candidates;
 }
 
 /**
- * Route to a destination the walker cannot stand on. Stand points are tried in preference order and
- * the first route that exists wins, so a walkable tile in a sealed pocket cannot end the walk; the
- * requested tile is the last resort, where A* applies its own nearest-tile snap.
+ * Route to a destination the walker cannot stand on. One search targets every walkable tile around
+ * the goal and stops at the cheapest it can reach, so reachability — never distance alone — picks
+ * the stand point and the route cannot cross a river or wall to the far bank.
  */
 function routeToBlockedGoal(
   grid: PathGrid,
@@ -353,14 +339,14 @@ function routeToBlockedGoal(
   goalBlocked: boolean,
   collectMetrics = true,
 ): RouteSearchResult {
-  const targets = goalBlocked ? standTilesForWalker(grid, goalX, goalY, sx, sy) : [];
-  targets.push({ x: goalX, y: goalY });
-  let result: RouteSearchResult = { path: null, cost: null, hitNodeCap: false };
-  for (const target of targets) {
-    result = walkRoute(grid, sx, sy, target.x, target.y, PATH_MAX_SEARCH_NODES, collectMetrics);
-    if (result.path || result.hitNodeCap) return result;
+  if (!goalBlocked) {
+    return walkRoute(grid, sx, sy, goalX, goalY, PATH_MAX_SEARCH_NODES, collectMetrics);
   }
-  return result;
+  const standTiles = standTilesForWalker(grid, goalX, goalY);
+  if (standTiles.length === 0) return { path: null, cost: null, hitNodeCap: false };
+  const targets = new Uint8Array(grid.cols * grid.rows);
+  for (const tile of standTiles) targets[tile.y * grid.cols + tile.x] = 1;
+  return walkRoute(grid, sx, sy, goalX, goalY, PATH_MAX_SEARCH_NODES, collectMetrics, targets);
 }
 
 /** Find a valid stand point for a restored entity, with bridge and building masks applied. */
@@ -575,6 +561,7 @@ function searchRoute(
   scaleHeuristicForRoadCost: boolean,
   keepFullPath = false,
   collectMetrics = true,
+  targets?: Uint8Array,
 ): RouteSearchResult {
   const pathProfileStart = collectMetrics ? profileStart() : 0;
   try {
@@ -594,20 +581,26 @@ function searchRoute(
     return rejected;
   }
 
-  // Resolve walkable neighbors if either endpoint falls on an obstacle
+  // Resolve walkable neighbors if either endpoint falls on an obstacle. A target set already holds
+  // walkable tiles, so resolving the blocked goal to one nearest tile would reintroduce the
+  // distance-only choice this search exists to avoid.
   const startPt = findNearestWalkable(grid, sx, sy);
-  const goalPt = findNearestWalkable(grid, tx, ty);
-  if (!startPt || !goalPt) {
+  const goalPt = targets ? null : findNearestWalkable(grid, tx, ty);
+  if (!startPt || (!targets && !goalPt)) {
     if (collectMetrics) recordPathEarlyReject();
     return rejected;
   }
 
   const actualSx = startPt.x;
   const actualSy = startPt.y;
-  const actualTx = goalPt.x;
-  const actualTy = goalPt.y;
+  const actualTx = goalPt ? goalPt.x : tx;
+  const actualTy = goalPt ? goalPt.y : ty;
+  const start = actualSy * cols + actualSx;
+  const isTarget = targets
+    ? (index: number) => targets[index] === 1
+    : (index: number) => index === actualTy * cols + actualTx;
 
-  if (actualSx === actualTx && actualSy === actualTy) {
+  if (isTarget(start)) {
     // A restored walker inside a blocked tile must be able to escape to the
     // neighbouring snapped endpoint, rather than receiving a false no-route.
     const escaped = (sx !== actualSx || sy !== actualSy)
@@ -615,6 +608,10 @@ function searchRoute(
         (sx + 0.5) * PATH_CELL, (sy + 0.5) * PATH_CELL,
         (actualSx + 0.5) * PATH_CELL, (actualSy + 0.5) * PATH_CELL, true);
     if (!escaped) {
+      // Already standing on a stand point of the target set: nothing left to walk.
+      if (targets && sx === actualSx && sy === actualSy) {
+        return { path: [{ x: actualSx, y: actualSy }], cost: 0, hitNodeCap: false };
+      }
       if (collectMetrics) recordPathEarlyReject();
       return rejected;
     }
@@ -622,18 +619,18 @@ function searchRoute(
       cost: Math.hypot(actualSx - sx, actualSy - sy), hitNodeCap: false };
   }
 
-  const start = actualSy * cols + actualSx;
-  const goal = actualTy * cols + actualTx;
-
   const { scores, parents, stamps, generation } = beginPathSearch(cols * rows);
 
   // Cost searches need the discounted road heuristic for optimality. Bounded movement searches
   // use the stronger unscaled heuristic to avoid exhausting their node budget on remote roads.
   const cheapestStep = scaleHeuristicForRoadCost && pricedRoad ? ROAD_STEP_COST : 1;
+  // A target set lies within GOAL_STAND_RINGS of the blocked goal; subtracting that radius keeps the
+  // heuristic admissible for every candidate while still steering the search toward the goal.
+  const anchorSlack = targets ? GOAL_STAND_RINGS : 0;
   const h = (x: number, y: number) => {
     const adx = Math.abs(x - actualTx);
     const ady = Math.abs(y - actualTy);
-    return (Math.max(adx, ady) + 0.4142 * Math.min(adx, ady)) * cheapestStep;
+    return Math.max(0, Math.max(adx, ady) + 0.4142 * Math.min(adx, ady) - anchorSlack) * cheapestStep;
   };
 
   const open = searchOpenSet ??= new OpenSetMinHeap();
@@ -650,13 +647,13 @@ function searchRoute(
     if (cur < 0) break;
     if (open.lastCost !== scores[cur]) continue;
     // A popped goal needs no further expansion even at the node budget.
-    if (cur !== goal && nodes >= maxNodes) {
+    if (!isTarget(cur) && nodes >= maxNodes) {
       hitNodeCap = true;
       break;
     }
     nodes++;
 
-    if (cur === goal) {
+    if (isTarget(cur)) {
       const path: { x: number; y: number }[] = [];
       let c = cur;
       while (c !== start && c >= 0) {
@@ -671,7 +668,7 @@ function searchRoute(
       if (pricedRoad || keepFullPath || elevation) {
         if (collectMetrics) recordPathNodes(nodes);
         if (collectMetrics) recordPathFound();
-        return { path, cost: scores[goal], hitNodeCap: false };
+        return { path, cost: scores[cur], hitNodeCap: false };
       }
       const simplified: { x: number; y: number }[] = [path[0]];
       for (let i = 1; i < path.length - 1; i++) {
@@ -684,7 +681,7 @@ function searchRoute(
 
       if (collectMetrics) recordPathNodes(nodes);
       if (collectMetrics) recordPathFound();
-      return { path: simplified, cost: scores[goal], hitNodeCap: false };
+      return { path: simplified, cost: scores[cur], hitNodeCap: false };
     }
 
     const cx = cur % cols;
@@ -745,10 +742,11 @@ function walkRoute(
   ty: number,
   maxNodes: number,
   collectMetrics = true,
+  targets?: Uint8Array,
 ): RouteSearchResult {
-  const optimal = searchRoute(grid, sx, sy, tx, ty, maxNodes, true, false, collectMetrics);
+  const optimal = searchRoute(grid, sx, sy, tx, ty, maxNodes, true, false, collectMetrics, targets);
   if (optimal.path || !optimal.hitNodeCap || !pricedRoadMask(grid)) return optimal;
-  return searchRoute(grid, sx, sy, tx, ty, maxNodes, false, false, collectMetrics);
+  return searchRoute(grid, sx, sy, tx, ty, maxNodes, false, false, collectMetrics, targets);
 }
 
 /** A* over the grid — returns tile path (start..goal inclusive) or null. */
