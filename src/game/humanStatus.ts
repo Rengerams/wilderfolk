@@ -3,6 +3,7 @@
  * human is standing near, so the status reads naturally: "Working at Farm", "Hunting", etc.
  */
 import type { Building, Entity, WorldState } from './gameTypes';
+import { citizenGivenName } from './citizenId';
 import { JobType } from './gameTypes';
 import { getHourOfDay } from './dayCycleClock';
 import { EVENING_START } from './dayCycle';
@@ -19,7 +20,7 @@ function labelFor(building: Building): string {
 }
 
 export type HumanActivityTarget = {
-  kind: 'workplace' | 'home' | 'nearby-building' | 'hunt' | 'combat';
+  kind: 'workplace' | 'home' | 'nearby-building' | 'hunt' | 'combat' | 'playmate' | 'guardian';
   label: string;
   buildingId?: number;
   entityId?: number;
@@ -93,6 +94,17 @@ export function getHumanActivityStatus(
   }
   if (isAsleepAtHome(entity, state.buildings, hourOfDay, onWorkSchedule)) return 'Sleeping';
 
+  if (entity.isJuvenile && entity.childLeisureTargetId != null) {
+    const companion = state.entities.find((candidate) =>
+      candidate.id === entity.childLeisureTargetId && candidate.alive);
+    if (companion && entity.childLeisureActivity === 'playing') {
+      return `Playing with ${citizenGivenName(companion)}`;
+    }
+    if (companion && entity.childLeisureActivity === 'following') {
+      return `Following ${citizenGivenName(companion)}`;
+    }
+  }
+
   // Assigned workplace during the configured work shift. Commuting is reported only on the
   // movement owner's evidence; being far from the post is not travel.
   if (workplace && onWorkSchedule) {
@@ -105,7 +117,7 @@ export function getHumanActivityStatus(
 
   // Evening social outings are an intentional free-time state, not a failed home return: surface it
   // before nearby-building inference so the inspector explains why a resident is away.
-  const isEveningOuting = hourOfDay >= EVENING_START
+  const isEveningOuting = !entity.isJuvenile && hourOfDay >= EVENING_START
     && hourOfDay < 23
     && !prefersHomeTonightFor(getWorkSchedule(state), entity.id, state.tick, hourOfDay)
     && !onWorkSchedule;
@@ -118,6 +130,8 @@ export function getHumanActivityStatus(
       return `At home (${labelFor(residence)})`;
     }
   }
+
+  if (entity.isJuvenile && entity.childLeisureActivity !== 'home') return 'Free time';
 
   // Not near any building but has a home → likely walking home (or away).
   if (entity.residenceBuildingId != null) {
@@ -158,6 +172,19 @@ export function getHumanActivityProjection(
       && !(workplace && isOnWorkScheduleShift(state, hour));
     if (eveningOuting) {
       return { kind: 'nearby-building', label: 'Evening outing', x: entity.x, y: entity.y };
+    }
+    if (entity.isJuvenile && entity.childLeisureTargetId != null
+      && (activity.startsWith('Playing with ') || activity.startsWith('Following '))) {
+      const companion = state.entities.find((candidate) =>
+        candidate.id === entity.childLeisureTargetId && candidate.alive);
+      if (companion) {
+        return {
+          kind: entity.childLeisureActivity === 'playing' ? 'playmate' : 'guardian',
+          label: citizenGivenName(companion),
+          entityId: companion.id,
+          x: companion.x, y: companion.y,
+        };
+      }
     }
     if (!entity.isJuvenile && entity.huntTargetId != null) {
       const huntTarget = state.entities.find((candidate) => candidate.id === entity.huntTargetId && candidate.alive);
