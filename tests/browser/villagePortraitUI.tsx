@@ -107,8 +107,6 @@ export async function runVillagePortraitUI(): Promise<{
     onFocusCitizen: noop,
     onHintAction: noop,
     onOpenWorkHours: noop,
-    onFocusVisitor: noop,
-    onFocusRival: noop,
     onLaunchRaid: noop,
     onProvokeRival: noop,
     onRecallRaid: noop,

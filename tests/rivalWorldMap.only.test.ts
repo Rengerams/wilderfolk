@@ -1,12 +1,12 @@
 /** Rivals are world-map records, not physical village-map hunters or raiders. */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
 import type { Entity, RivalSettlement, WorldState } from '../src/game/gameTypes';
 import { isCounterRaidOnRival } from '../src/game/frontierCombat';
 import { tickRivalSettlements } from '../src/game/rivalEvents';
 import { createRivalProfile, normalizeRivalProfile } from '../src/game/rivalProfiles';
 import { initGame } from '../src/game/worldGen';
-import { setSimSeed } from '../src/game/simRng';
+import { resetSimRng, setSimSeed } from '../src/game/simRng';
 
 function worldWithCompetitiveRival(): { world: WorldState; deer: Entity } {
   const world = initGame({ seed: 20261122, width: 1024, height: 768, skipTerrain: true });
@@ -32,7 +32,40 @@ function worldWithCompetitiveRival(): { world: WorldState; deer: Entity } {
   return { world, deer };
 }
 
+afterEach(() => resetSimRng());
+
 describe('world-map-only rival simulation', () => {
+  it('limits the total daily reputation drain across hostile rival camps', () => {
+    for (let seed = 1; seed <= 24; seed++) {
+      resetSimRng();
+      const state = initGame({ seed, skipTerrain: true });
+      setSimSeed(seed);
+      state.tick = 0;
+      state.year = 0;
+      state.villageReputation = 50;
+      state.rivalSettlements = Array.from({ length: 6 }, (_, index) => ({
+        id: `tense_${index}`,
+        name: `Tense Camp ${index}`,
+        campX: 500 + index * 20,
+        campY: 600,
+        population: 5,
+        relationship: 'tense' as const,
+        foundedYear: 0,
+        daysUntilAction: 1,
+        raidCooldownDays: 100,
+        peaceTreatyDays: 0,
+        profile: createRivalProfile(index + 1, 'tense'),
+      }));
+      tickRivalSettlements(state, state.entities, {
+        pushNews: () => {},
+        logEvent: () => {},
+        tickPendingDiplomacyEvents: () => {},
+        queueDiplomacyEvent: () => {},
+      });
+      expect(state.villageReputation, `seed ${seed}`).toBeGreaterThanOrEqual(48);
+    }
+  });
+
   it('updates strategic supplies without killing village wildlife, polluting or placing map text', () => {
     setSimSeed(20261122);
     const { world, deer } = worldWithCompetitiveRival();
