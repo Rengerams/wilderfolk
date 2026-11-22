@@ -48,7 +48,7 @@ import { syncResearchUnlocks } from './research';
 import { computeWildlifeCounts } from './entityCounts';
 import { buildEntityByType } from './simFocus';
 import { playerHumanCount } from './playerHuman';
-import { SPECIES_CONFIG } from './speciesConfig';
+import { SPECIES_CONFIG, WILDLIFE_POPULATION_POLICY, getWildlifeCarryingCapacity } from './speciesConfig';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { appointFoundingLeader } from './villageLeadership';
 import { createInitialForgeState } from './forge';
@@ -356,15 +356,11 @@ export function replenishDepletedWildlife(
 
   const MIN_GRASS = 65;
   const MIN_PREY_GRASS = MIN_GRASS - 20;
-  const MIN_RABBITS = 35;
-  const TARGET_RABBITS = 150;
-  const MIN_DEER = 12;
-  const TARGET_DEER = 45;
+  const rabbitPolicy = WILDLIFE_POPULATION_POLICY[EntityType.Rabbit];
+  const deerPolicy = WILDLIFE_POPULATION_POLICY[EntityType.Deer];
+  const foxPolicy = WILDLIFE_POPULATION_POLICY[EntityType.Fox];
+  const wolfPolicy = WILDLIFE_POPULATION_POLICY[EntityType.Wolf];
   const MAX_PREY_SPAWN_PER_PULSE = 16;
-  const MIN_FOXES = 8;
-  const TARGET_FOXES = 20;
-  const MIN_WOLVES = 5;
-  const TARGET_WOLVES = 10;
 
   const cx = state.width / 2;
   const cy = state.height / 2;
@@ -385,13 +381,13 @@ export function replenishDepletedWildlife(
     : grassCount;
   const sufficientGrass = grassAfterReplenish >= MIN_PREY_GRASS;
 
-  const needsRabbits = (rabbits < MIN_RABBITS && sufficientGrass) || rabbits < 20;
-  const needsDeer = (deer < MIN_DEER && sufficientGrass) || deer < 10;
-  const sufficientPreyForFoxes = rabbits >= 20;
-  const needsFoxes = (foxes < MIN_FOXES && sufficientPreyForFoxes) || foxes < 10;
-  const totalWolfPrey = deer + foxes + rabbits;
-  const sufficientPreyForWolves = totalWolfPrey >= 30;
-  const needsWolves = (wolves < MIN_WOLVES && sufficientPreyForWolves) || wolves < 5;
+  const needsRabbits = (rabbits < rabbitPolicy.replenishBelow && sufficientGrass) || rabbits < 20;
+  const needsDeer = (deer < deerPolicy.replenishBelow && sufficientGrass) || deer < 10;
+  const foxCapacity = getWildlifeCarryingCapacity(EntityType.Fox, counts);
+  const wolfCapacity = getWildlifeCarryingCapacity(EntityType.Wolf, counts);
+  // Never bypass the prey gate when a pack falls below its replenishment threshold.
+  const needsFoxes = foxes < foxPolicy.replenishBelow && foxes < foxCapacity;
+  const needsWolves = wolves < wolfPolicy.replenishBelow && wolves < wolfCapacity;
 
   const needsWildlife = needsRabbits || needsDeer || needsFoxes || needsWolves;
   if (!needsWildlife && !grassReplenished) return false;
@@ -399,21 +395,21 @@ export function replenishDepletedWildlife(
   let wildlifeSpawned = false;
 
   if (needsRabbits) {
-    spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, Math.min(MAX_PREY_SPAWN_PER_PULSE, TARGET_RABBITS - rabbits), 120, 320, {
+    spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, Math.min(MAX_PREY_SPAWN_PER_PULSE, rabbitPolicy.replenishTo - rabbits), 120, 320, {
       recordBirthYear: true, onSpawn,
     });
     wildlifeSpawned = true;
   }
 
   if (needsDeer) {
-    spawnWildlifeRing(state, EntityType.Deer, cx, cy, Math.min(MAX_PREY_SPAWN_PER_PULSE, TARGET_DEER - deer), 220, 440, {
+    spawnWildlifeRing(state, EntityType.Deer, cx, cy, Math.min(MAX_PREY_SPAWN_PER_PULSE, deerPolicy.replenishTo - deer), 220, 440, {
       recordBirthYear: true, onSpawn,
     });
     wildlifeSpawned = true;
   }
 
   if (needsFoxes) {
-    const countToSpawn = Math.max(2, TARGET_FOXES - foxes);
+    const countToSpawn = Math.min(foxPolicy.replenishTo, foxCapacity) - foxes;
     spawnWildlifeRing(state, EntityType.Fox, cx, cy, countToSpawn, 160, 320, {
       recordBirthYear: true, onSpawn,
     });
@@ -421,7 +417,7 @@ export function replenishDepletedWildlife(
   }
 
   if (needsWolves) {
-    const countToSpawn = Math.max(2, TARGET_WOLVES - wolves);
+    const countToSpawn = Math.min(wolfPolicy.replenishTo, wolfCapacity) - wolves;
     spawnWildlifeRing(state, EntityType.Wolf, cx, cy, countToSpawn, 340, 540, {
       recordBirthYear: true, onSpawn,
     });
@@ -791,11 +787,15 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     }
   }
 
-  // 5. Initial Wildlife Fauna
+  // 5. Initial Wildlife Fauna. Include the camp-ring animals in the predator targets.
+  const foxesAtCamp = 2;
+  const wolvesAtCamp = 1;
   spawnWildlifeAtRandomPassable(state, EntityType.Rabbit, 42);
   spawnWildlifeAtRandomPassable(state, EntityType.Deer, 14);
-  spawnWildlifeAtRandomPassable(state, EntityType.Fox, 10);
-  spawnWildlifeAtRandomPassable(state, EntityType.Wolf, 4);
+  spawnWildlifeAtRandomPassable(state, EntityType.Fox,
+    WILDLIFE_POPULATION_POLICY[EntityType.Fox].replenishTo - foxesAtCamp);
+  spawnWildlifeAtRandomPassable(state, EntityType.Wolf,
+    WILDLIFE_POPULATION_POLICY[EntityType.Wolf].replenishTo - wolvesAtCamp);
 
   // 6. Camp Selection & Founding Pioneers
   // The ground `generateWorldMap` cleared for the camp; the fallback covers a caller-made map.
@@ -861,8 +861,8 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   spawnWildlifeRing(state, EntityType.Rabbit, centerX, centerY, 13, 120, 280);
   spawnWildlifeRing(state, EntityType.Deer, centerX, centerY, 6, 180, 360);
-  spawnWildlifeRing(state, EntityType.Fox, centerX, centerY, 4, 200, 380);
-  spawnWildlifeRing(state, EntityType.Wolf, centerX, centerY, 2, 340, 520);
+  spawnWildlifeRing(state, EntityType.Fox, centerX, centerY, foxesAtCamp, 200, 380);
+  spawnWildlifeRing(state, EntityType.Wolf, centerX, centerY, wolvesAtCamp, 340, 520);
 
   // 8. Research, Leadership, and Index Finalization
   syncResearchUnlocks(state);
