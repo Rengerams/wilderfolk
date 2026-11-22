@@ -114,10 +114,17 @@ export function tickPregnancyAndBirth(
   const nx = Math.min(width, Math.max(0, entity.x + deterministicCos(angle) * 10));
   const ny = Math.min(height, Math.max(0, entity.y + deterministicSin(angle) * 10));
 
-  const nearDeer = byType[EntityType.Deer].some(
-    (d) => d.alive && Math.hypot(d.x - entity.x, d.y - entity.y) < LIFECYCLE_CONFIG.DEER_PROXIMITY_RADIUS,
-  );
-  const wildkinBirth = nearDeer && seededRandomForRun(`${birthKey}:wildkin`) < LIFECYCLE_CONFIG.WILDKIN_CHANCE;
+  // The closest deer is the actual animal father, not the mother's human partner.
+  let deerFather: Entity | undefined;
+  let closestDeerDistanceSq = LIFECYCLE_CONFIG.DEER_PROXIMITY_RADIUS ** 2;
+  for (const deer of byType[EntityType.Deer] ?? []) {
+    if (!deer.alive) continue;
+    const distanceSq = (deer.x - entity.x) ** 2 + (deer.y - entity.y) ** 2;
+    if (distanceSq >= closestDeerDistanceSq) continue;
+    closestDeerDistanceSq = distanceSq;
+    deerFather = deer;
+  }
+  const wildkinBirth = deerFather != null && seededRandomForRun(`${birthKey}:wildkin`) < LIFECYCLE_CONFIG.WILDKIN_CHANCE;
   const biologicalFatherIdAtBirth = entity.pregnantById ?? entity.partnerId;
   const pregnancyFromYouthLove = entity.pregnancyFromYouthLove === true;
 
@@ -155,8 +162,17 @@ export function tickPregnancyAndBirth(
       ny,
       state.nextEntityId++,
       SPECIES_CONFIG[EntityType.Wildkin].spawnEnergy,
+      true,
+      { motherId: entity.id, fatherId: deerFather!.id },
     );
+    wildkin.name = `Wildkin #${wildkin.id}`;
+    wildkin.birthDay = state.dayInYear;
+    wildkin.wildkinGuardianId = entity.id;
     pushNewEntity(state, ctx, wildkin);
+    // The deer is a recorded animal parent, not a human co-parent.
+    recordGenealogyBirth(state, deerFather!);
+    recordGenealogyBirth(state, wildkin);
+    safeAddChildId(entity, wildkin.id);
     addBigNews(
       state,
       '🦌 Wildkin Born!',
@@ -164,7 +180,7 @@ export function tickPregnancyAndBirth(
       'neutral',
     );
     addFloatingText(state, entity.x, entity.y - 20, 'Wildkin born!', '#a3a35a');
-    logWildkinBirth(state, wildkin, entity.name ?? '');
+    logWildkinBirth(state, wildkin, entity.name ?? '', `deer #${deerFather!.id}`);
     return;
   }
 
