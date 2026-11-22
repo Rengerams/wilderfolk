@@ -97,6 +97,47 @@ describe('a caravan carrier leaves through the tick spawn path', () => {
     expect(route.nextDepartureTick).toBeGreaterThan(state.tick);
   });
 
+  it('retains over-cap exports after an abandoned trip and drains them before another departure', () => {
+    const state = makeDepartingWorld(LAYER_SYSTEMS_INTERVAL);
+    const ctx = makeCtx(state);
+    const trade = state.tradeRoutes[0];
+    tickTradeCaravans(state, ctx, LAYER_SYSTEMS_INTERVAL);
+    state.entities.push(...ctx.newEntities.filter(isCarrier));
+    const expectedWood = trade.resourcesGiven.wood;
+    const expectedFood = trade.resourcesGiven.food;
+
+    // The returned cargo does not fit. Keep it on the route rather than silently clamping it.
+    state.resources.wood = state.storageMax.wood;
+    state.resources.food = state.storageMax.food;
+    state.tick = trade.nextDepartureTick!;
+    tickTradeCaravans(state, ctx, LAYER_SYSTEMS_INTERVAL);
+
+    expect(trade.caravanCarrierId).toBeUndefined();
+    expect(trade.pendingRefund).toEqual({ wood: expectedWood, food: expectedFood });
+    expect(state.resources.wood).toBe(state.storageMax.wood);
+    expect(state.resources.food).toBe(state.storageMax.food);
+    expect(state.eventLog.at(-1)?.description).toContain('queued until storage has room');
+
+    // Even when the departure time passes, the route settles its undelivered cargo first.
+    state.tick = trade.nextDepartureTick!;
+    tickTradeCaravans(state, ctx, LAYER_SYSTEMS_INTERVAL);
+    expect(trade.caravanCarrierId).toBeUndefined();
+    expect(trade.pendingRefund).toBeDefined();
+
+    // Pending amounts survive a round-trip through the persisted route object.
+    trade.pendingRefund = structuredClone(trade.pendingRefund);
+    state.resources.wood -= expectedWood;
+    state.resources.food -= expectedFood;
+    trade.nextDepartureTick = state.tick + LAYER_SYSTEMS_INTERVAL * 10;
+    state.tick += LAYER_SYSTEMS_INTERVAL;
+    tickTradeCaravans(state, ctx, LAYER_SYSTEMS_INTERVAL);
+
+    expect(trade.pendingRefund).toBeUndefined();
+    expect(state.resources.wood).toBe(state.storageMax.wood);
+    expect(state.resources.food).toBe(state.storageMax.food);
+    expect(trade.caravanCarrierId).toBeUndefined();
+  });
+
   it('the carrier is still in the world after a full gameTick', () => {
     const tick = LAYER_SYSTEMS_INTERVAL * 3;
     const state = makeDepartingWorld(tick);
