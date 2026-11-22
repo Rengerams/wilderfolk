@@ -35,13 +35,12 @@ function adjacencyCellKey(x: number, y: number): string {
 function isAdjacencySource(building: Building): boolean {
   return (
     building.completed
-    && building.faction !== 'rival'
     && ADJACENCY_SOURCE_TYPES.has(building.type)
   );
 }
 
 export function buildingUsesAdjacency(building: Building): boolean {
-  if (!building.completed || building.faction === 'rival') return false;
+  if (!building.completed) return false;
   if (building.type === BuildingType.Road) return false;
   return ADJACENCY_CONSUMER_TYPES.has(building.type);
 }

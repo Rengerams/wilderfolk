@@ -33,7 +33,7 @@ export const LIGHT_POOL_TYPES = new Set<BuildingType>([
 
 /** @param residentCount Pre-indexed residents-at-home (avoids per-building entity scans in the renderer). */
 export function getNightGlowIntensity(building: Building, residentCount = 0): number {
-  if (!building.completed || building.faction === 'rival') return 0;
+  if (!building.completed) return 0;
   if (NIGHT_HOME_GLOW_TYPES.has(building.type)) {
     if (residentCount <= 0) return 0;
     return Math.min(1, 0.45 + residentCount * 0.12);

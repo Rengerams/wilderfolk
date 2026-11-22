@@ -11,7 +11,7 @@ import { isPlayerHuman } from './playerHuman';
 export function buildConstructionCrewIndex(buildings: readonly Building[]): Map<number, Building> {
   const map = new Map<number, Building>();
   for (const building of buildings) {
-    if (building.completed || building.faction === 'rival' || building.occupants.length === 0) continue;
+    if (building.completed || building.occupants.length === 0) continue;
     for (const id of building.occupants) {
       if (!map.has(id)) map.set(id, building);
     }
