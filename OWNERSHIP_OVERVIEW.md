@@ -5,12 +5,13 @@
 | Function(s) changed | Sole owning source | Responsibility / verification |
 |---|---|---|
 | `loadGameFromParsedOutcome` | `src/game/saveLoad.ts` | One load-only boundary drops retired rival structures and strips old building faction tags before world setup; `tests/saveMigration.roundtrip.test.ts` covers both fresh and already-marked migration payloads. No active building ownership branch. |
+| Retired `Building.faction` checks and rival-only building command guards | `src/game/buildingPlacementActions.ts`, `buildingConfigurationActions.ts`, `buildingMaintenanceActions.ts`, `buildingStaffingActions.ts`, `workforceSummary.ts` | All live buildings belong to the player; normal building commands no longer branch on rival ownership. Retired assumptions have been removed from regression fixtures and simulation probes. |
 
 ## 2026-11-22 — canonical workforce projection
 
 | Function(s) changed, moved or removed | Sole owning source | Responsibility / verification |
 |---|---|---|
-| `buildConstructionCrewIndex` (moved from `workforce.ts`), `countWorkingAndIdleSettlers` (moved from `workforce.ts`) | `src/game/workforceSummary.ts` | One read-only construction roster and assigned-working/idle count; age 18 gate, prisoner exclusion and rival-site exclusion; `tests/dashboardAggregates.owner.test.ts`, `tests/workforce.transitions.test.ts` |
+| `buildConstructionCrewIndex` (moved from `workforce.ts`), `countWorkingAndIdleSettlers` (moved from `workforce.ts`) | `src/game/workforceSummary.ts` | One read-only construction roster and assigned-working/idle count; age 18 gate, prisoner exclusion and player-only construction site membership; `tests/dashboardAggregates.owner.test.ts`, `tests/workforce.transitions.test.ts` |
 | `computeVillageStats` (modified), `getActiveConstructionWorkers` (removed) | `src/game/uiSimSummary.ts` | Reads owned labour counts, projects adult/child demographics and housing figures; no second crew scan |
 | `isOnConstructionCrew` (removed), `findHumanWorkplace`, `assignWorkerInPlace`, `assignBuilderInPlace`, `staffConstructionCrews`, `staffJobsBeforeConstruction`, `staffJobBuildings`, `swapReachableWorkersIntoVacancies` (modified) | `src/game/workforce.ts` | Staff selection, vacancy swaps and workplace lookup consume the single indexed construction-roster owner |
 | `isEligibleBuilderForBuilding`, `_applyBuilderAssignmentMut`, `canAssignWorkerToBuilding`, `getWorkerAssignmentRefusal` (modified) | `src/game/buildingStaffingActions.ts` | Candidate/refusal decisions query the existing indexed construction-roster owner |
