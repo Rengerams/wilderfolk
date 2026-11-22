@@ -2,6 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (22 Nov 2026; pending PR):** Trade caravans now recheck storage headroom on arrival and wait/retry instead of silently dropping imports. Abandoned exports that cannot fit remain on the saved route until storage frees, without exceeding caps; gold-for-iron routes get the same early-colony Market exemption as other material purchases.
+
+
 - **Refactored (22 Nov 2026; pending merge):** Broke two type-import cycles: placement reads world-map types rather than renderer types; grid and gameplay readers use narrow entity contracts; statistics and social record types live in leaf schemas. No gameplay or save-format change.
 
 - **Removed (22 Nov 2026; pending merge):** No visitor camps or idle visitor NPCs spawn on the village map (first-week, mid-year and yearly event routes removed). Old saves discard visitors and their camps on load; strategic rivals, raids, resident immigration and trade routes remain.
