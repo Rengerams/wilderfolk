@@ -504,22 +504,23 @@ function searchRoute(
   maxNodes: number,
   scaleHeuristicForRoadCost: boolean,
   keepFullPath = false,
+  collectMetrics = true,
 ): RouteSearchResult {
-  const pathProfileStart = profileStart();
+  const pathProfileStart = collectMetrics ? profileStart() : 0;
   try {
   const { cols, rows, blocked, elevation } = grid;
   // Generated grids distinguish partial footprint coverage from tile-centre speed
   // eligibility. Older test grids without surface geometry retain their road mask.
   const pricedRoad = pricedRoadMask(grid);
-  recordFindPathCall();
+  collectMetrics && recordFindPathCall();
   const rejected: RouteSearchResult = { path: null, cost: null, hitNodeCap: false };
   if (![sx, sy, tx, ty].every(Number.isInteger) || !Number.isFinite(maxNodes) || maxNodes < 0
     || sx < 0 || sy < 0 || sx >= cols || sy >= rows) {
-    recordPathEarlyReject();
+    collectMetrics && recordPathEarlyReject();
     return rejected;
   }
   if (tx < 0 || ty < 0 || tx >= cols || ty >= rows) {
-    recordPathEarlyReject();
+    collectMetrics && recordPathEarlyReject();
     return rejected;
   }
 
@@ -527,7 +528,7 @@ function searchRoute(
   const startPt = findNearestWalkable(grid, sx, sy);
   const goalPt = findNearestWalkable(grid, tx, ty);
   if (!startPt || !goalPt) {
-    recordPathEarlyReject();
+    collectMetrics && recordPathEarlyReject();
     return rejected;
   }
 
@@ -544,7 +545,7 @@ function searchRoute(
         (sx + 0.5) * PATH_CELL, (sy + 0.5) * PATH_CELL,
         (actualSx + 0.5) * PATH_CELL, (actualSy + 0.5) * PATH_CELL, true);
     if (!escaped) {
-      recordPathEarlyReject();
+      collectMetrics && recordPathEarlyReject();
       return rejected;
     }
     return { path: [{ x: sx, y: sy }, { x: actualSx, y: actualSy }],
@@ -598,8 +599,8 @@ function searchRoute(
       // Preserve road tiles: line-of-sight smoothing can erase the faster road detour.
       // Slope-weighted A* costs must not be invalidated by geometrical LOS smoothing.
       if (pricedRoad || keepFullPath || elevation) {
-        recordPathNodes(nodes);
-        recordPathFound();
+        collectMetrics && recordPathNodes(nodes);
+        collectMetrics && recordPathFound();
         return { path, cost: scores[goal], hitNodeCap: false };
       }
       const simplified: { x: number; y: number }[] = [path[0]];
@@ -611,8 +612,8 @@ function searchRoute(
       }
       simplified.push(path[path.length - 1]);
 
-      recordPathNodes(nodes);
-      recordPathFound();
+      collectMetrics && recordPathNodes(nodes);
+      collectMetrics && recordPathFound();
       return { path: simplified, cost: scores[goal], hitNodeCap: false };
     }
 
@@ -656,12 +657,12 @@ function searchRoute(
     }
   }
 
-  recordPathNodes(nodes);
-  recordPathFailed();
-  if (hitNodeCap) recordPathMaxNodesExceeded();
+  collectMetrics && recordPathNodes(nodes);
+  collectMetrics && recordPathFailed();
+  if (hitNodeCap) collectMetrics && recordPathMaxNodesExceeded();
   return { path: null, cost: null, hitNodeCap };
   } finally {
-    profileEnd('pathfinding.findPath', pathProfileStart);
+    if (collectMetrics) profileEnd('pathfinding.findPath', pathProfileStart);
   }
 }
 
@@ -673,10 +674,11 @@ function walkRoute(
   tx: number,
   ty: number,
   maxNodes: number,
+  collectMetrics = true,
 ): RouteSearchResult {
-  const optimal = searchRoute(grid, sx, sy, tx, ty, maxNodes, true);
+  const optimal = searchRoute(grid, sx, sy, tx, ty, maxNodes, true, false, collectMetrics);
   if (optimal.path || !optimal.hitNodeCap || !pricedRoadMask(grid)) return optimal;
-  return searchRoute(grid, sx, sy, tx, ty, maxNodes, false);
+  return searchRoute(grid, sx, sy, tx, ty, maxNodes, false, false, collectMetrics);
 }
 
 /** A* over the grid — returns tile path (start..goal inclusive) or null. */
@@ -1006,7 +1008,7 @@ export function getRouteObstruction(
 ): RouteObstruction {
   if (!map) return 'clear';
   const grid = getReadOnlyPathGrid(map, buildings);
-  if (!lineCrossesBlocked(grid, from.x, from.y, to.x, to.y)) return 'clear';
+  if (!segmentCrossesBlocked(grid, from.x, from.y, to.x, to.y, false)) return 'clear';
 
   const result = walkRoute(
     grid,
@@ -1015,6 +1017,7 @@ export function getRouteObstruction(
     Math.floor(to.x / PATH_CELL),
     Math.floor(to.y / PATH_CELL),
     PATH_MAX_SEARCH_NODES,
+    false,
   );
   if (result.path && result.path.length > 1) return 'rerouting';
   return result.hitNodeCap ? 'pending' : 'blocked';
