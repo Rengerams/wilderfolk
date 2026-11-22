@@ -794,6 +794,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             (m) =>
               m.type === entity.type &&
               m.id !== entity.id &&
+              !(entity.type === EntityType.Wildkin && m.isJuvenile) &&
               m.energy > config.reproductionEnergyThreshold * 0.3,
             'mate',
             byType[entity.type],
