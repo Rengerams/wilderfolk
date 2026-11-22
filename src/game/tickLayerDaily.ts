@@ -11,7 +11,6 @@ import { mergeNewEntitiesIntoAlive } from './simulation/simulationEntities';
 import { addFloatingText } from './simEffects';
 import { playerHumansFrom } from './playerHuman';
 import { syncLeaderHouseResidency } from './leaderHouse';
-import { tickVisitorGroups } from './groupEvents';
 import { decayIdleSkills } from './skills';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 
@@ -46,7 +45,6 @@ export function tickLayerDaily(
 
   // 00:00 — day-boundary owners, then the new day's weather and grass.
   if (hour === DAILY_PHASE_HOURS.fatigue) {
-    tickVisitorGroups(state, allAlive, ctx);
     for (const human of ctx.playerHumans) {
       if (human.alive && human.age >= HUMAN_ADULT_MIN_AGE) decayIdleSkills(human, human.job);
     }
