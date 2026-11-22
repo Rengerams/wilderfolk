@@ -22,8 +22,6 @@ function runJscpd() {
     '--ignore', '**/test/**,**/*.test.ts,**/data/**,src/test/**',
     '--reporters', 'json',
     '--output', output,
-    '--dead-code, dead,
-    '--dashboard, dashboard,
   ];
   const result = spawnSync(process.execPath, [join(ROOT, 'node_modules', 'jscpd', 'run-jscpd.js'), ...args], {
     cwd: ROOT,

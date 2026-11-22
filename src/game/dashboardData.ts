@@ -22,7 +22,8 @@ import {
   isHomelessSettler,
   isResidenceBuildingType,
 } from './housingModel';
-import { findHumanWorkplace, isOnConstructionCrew, staffingCapFor } from './workforce';
+import { findHumanWorkplace, staffingCapFor } from './workforce';
+import { buildConstructionCrewIndex } from './workforceSummary';
 import { BUILDING_TYPE_CODES } from './buildings';
 import { getBuildingConfig } from './buildingConfig';
 import { formatCitizenName } from './citizenId';
@@ -32,6 +33,7 @@ import type { SettlerWorkReason } from './workAbsence';
 import { getSettlerWorkReason } from './workAbsence';
 import { buildSchoolRosters, isSchoolTime } from './education';
 import { SCHOOL_MIN_AGE } from './gameConstants';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { pickSocialImpulse } from './socialLife';
 import { socialImpulseNearbyAdults } from './humanLeisureBehavior';
 import { getRouteObstruction } from './pathfinding';
@@ -515,6 +517,7 @@ export function collectDashboard(state: WorldState): DashboardData {
     for (const pupil of roster.pupils) onWayToSchoolIds.add(pupil.id);
   }
   const classInSession = schoolRosters.size > 0 && isSchoolTime(state.tick, getHourOfDay(state.tick));
+  const constructionCrews = buildConstructionCrewIndex(state.buildings);
   const settlers: DashboardSettler[] = [];
   /** Absence reasons of the posted settlers, collected in the same pass that builds the rows. */
   const postedReasons: SettlerWorkReason[] = [];
@@ -524,9 +527,9 @@ export function collectDashboard(state: WorldState): DashboardData {
       e.occupation && e.occupation !== 'settler'
         ? e.occupation
         : (e.job ?? 'settler');
-    const workReason = getSettlerWorkReason(state, e);
-    if (!e.isJuvenile && e.prisonBuildingId == null
-      && (hasWorkAssignment(e) || isOnConstructionCrew(state.buildings, e.id))) {
+    const workReason = getSettlerWorkReason(state, e, constructionCrews);
+    if (e.age >= HUMAN_ADULT_MIN_AGE && e.prisonBuildingId == null
+      && (hasWorkAssignment(e) || constructionCrews.has(e.id))) {
       postedReasons.push(workReason);
     }
     settlers.push({
@@ -536,9 +539,8 @@ export function collectDashboard(state: WorldState): DashboardData {
       juvenile: e.isJuvenile,
       hoursToday: hoursToday(e),
       energyPct: energyPct(e),
-      // A settler stationed on an unfinished site is working, not idle — the same crew predicate the
-      // counters above use (`buildingStaffingActions.isOnConstructionCrew`).
-      noWork: !e.isJuvenile && !hasWorkAssignment(e) && !isOnConstructionCrew(state.buildings, e.id) && e.prisonBuildingId == null,
+      // The same indexed roster and age rule as the workforce-summary owner.
+      noWork: e.age >= HUMAN_ADULT_MIN_AGE && !hasWorkAssignment(e) && !constructionCrews.has(e.id) && e.prisonBuildingId == null,
       // A prisoner is neither homeless nor idle: imprisonment clears residence and workplace by design.
       noHome: isHomelessSettler(e),
       status: e.isJuvenile && classInSession && inClassIds.has(e.id)

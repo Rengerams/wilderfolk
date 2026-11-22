@@ -240,7 +240,6 @@ export {
 } from './saveLoad';
 export { isFootprintOnBuildableTerrain, canPlaceBuilding } from './placementUtils';
 export { getPlaceBuildingFailureReason, startBuilding, buildStripPreview, placeStripChain } from './buildingPlacementActions';
-export { isOnConstructionCrew } from './workforce';
 export { pickAdultSettler, assignBuilderToBuilding, fillBuildingWorkers, autoStaffAllWorkers, canAssignWorkerToBuilding } from './buildingStaffingActions';
 export { assignResidentToBuilding, removeResidentFromBuilding } from './buildingResidencyActions';
 export { assignIdleWorkerToBuilding, removeWorkerFromBuilding } from './buildingActionRouting';

@@ -19,7 +19,6 @@ import {
   staffConstructionCrews,
   staffJobBuildings,
   assignWorkerTransition,
-  countWorkingAndIdleSettlers,
   getSmithBonus,
   prepareWorkforce,
   removeWorkerTransition,
@@ -27,6 +26,7 @@ import {
   syncJobBuildingOccupants,
   transferWorkerBetweenBuildings,
 } from '../src/game/workforce';
+import { countWorkingAndIdleSettlers } from '../src/game/workforceSummary';
 import { removeWorkerFromBuilding } from '../src/game/buildingActionRouting';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { setHumanBirthFromAge } from '../src/game/dayCycle';

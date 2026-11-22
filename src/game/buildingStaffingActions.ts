@@ -6,10 +6,10 @@ import { addFloatingText, addNotification } from './simEffects';
 import {
   addToConstructionCrew,
   assignMissingWorkers,
-  isOnConstructionCrew,
   removeWorkerTransition,
 } from './workforce';
 import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './housingModel';
+import { buildConstructionCrewIndex } from './workforceSummary';
 import { allPlayerHumans, isPlayerHuman } from './playerHuman';
 
 /** 
@@ -77,14 +77,14 @@ function isEligibleStaffCandidate(entity: Entity): boolean {
  * anyone already on another structure's crew.
  */
 function isEligibleBuilderForBuilding(
-  state: WorldState,
   entity: Entity,
   building: Building,
+  constructionCrews: ReadonlyMap<number, Building>,
 ): boolean {
   return (
     isEligibleStaffCandidate(entity)
     && !building.occupants.includes(entity.id)
-    && !isOnConstructionCrew(state.buildings, entity.id, building.id)
+    && !constructionCrews.has(entity.id)
   );
 }
 
@@ -109,10 +109,11 @@ function _applyBuilderAssignmentMut(
   const config = getBuildingConfig(building.type);
   if (building.occupants.length >= config.maxOccupants) return state;
 
+  const constructionCrews = buildConstructionCrewIndex(state.buildings);
   const builder = pickAdultSettler(
     state,
     preferredHumanId,
-    (entity) => isEligibleBuilderForBuilding(state, entity, building),
+    (entity) => isEligibleBuilderForBuilding(entity, building, constructionCrews),
   );
 
   // addToConstructionCrew re-validates and returns false when it refuses — never
@@ -275,9 +276,9 @@ export function canAssignWorkerToBuilding(state: WorldState, buildingId: number)
 
   if (!building.completed) {
     const cap = getBuildingConfig(building.type).maxOccupants;
-    return building.occupants.length < cap && state.entities.some(
-      (entity) => isEligibleBuilderForBuilding(state, entity, building),
-    );
+    if (building.occupants.length >= cap) return false;
+    const constructionCrews = buildConstructionCrewIndex(state.buildings);
+    return state.entities.some((entity) => isEligibleBuilderForBuilding(entity, building, constructionCrews));
   }
 
   // Completed jobs are staffed only by the workforce owner.
@@ -310,7 +311,7 @@ export function getWorkerAssignmentRefusal(
     if (building.occupants.length >= getBuildingConfig(building.type).maxOccupants) return 'building-full';
     const core = staffCandidateRefusal(entity);
     if (core) return core;
-    if (isOnConstructionCrew(state.buildings, humanId, building.id)) return 'on-another-crew';
+    if (buildConstructionCrewIndex(state.buildings).has(humanId)) return 'on-another-crew';
     return null;
   }
 

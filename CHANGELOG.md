@@ -28,11 +28,10 @@
 
 ---
 
-- **Refactor (22 Nov 2026):** Renamed same-meaning look-alikes so each name states its contract: conception orchestration, dynasty threshold, cached sprite read, presentation parsing, random building pick and living-entity lookups.
-- **Refactor (22 Nov 2026):** Merged the duplicate helper clusters into one owner each — random sampling, smoothstep, string guard, event-log line and combat fields, spatial-grid sync, militia tiers, relationship score/key, hotkeys, name draw, grid flags, gesture unlock and dialogue aliases.
-- **Docs (22 Nov 2026):** Added a function-naming audit listing same-meaning functions that carry different names, separating intentional domain variants and naming the canonical owner for each duplicate.
+- **Fixed (22 Nov 2026):** Restore valid `jscpd` runner arguments after accidental malformed flags broke the main-branch duplicate-code baseline gate.
 - **Fixed (22 Nov 2026):** Village identity now reflects player conservation, trade, buildings, diplomacy and recorded raids rather than starting wildlife or passive peace; portrait refreshes hourly without scanning the Chronicle.
 - **Fixed (20 Nov 2026):** Workers reach accessible facades, count only movement-owner-confirmed detours as commutes, and hide while on duty except during emergency prey pursuit; route quotes use one sample per connected frontage stretch, and the worker delta preserves commute labels in the UI.
+- **Fixed (22 Nov 2026):** Unified construction-crew indexing and assigned/idle worker counts in a single read-only owner. HUD, People screen, dashboard, simulation and diagnostics now share age, prison and rival-crew eligibility.
 - **Removed (20 Nov 2026):** Retired warfare leftovers: rival-camp entity rosters and settler UI, the POW release/execution reaction choices, unused militia strength wrappers and combat-log text classification. Legacy camp structures still migrate on load.
 - **Fixed (20 Nov 2026):** Closing a colony saves its acknowledged state, visiting factions resume their activity after loading, and tick rollback shares unchanged family history.
 - **Fixed (20 Nov 2026):** The call-graph index treated a multi-line signature as the whole function body, so the overlap gate compared signatures and reported eight phantom duplicates; it now finds the real body.
