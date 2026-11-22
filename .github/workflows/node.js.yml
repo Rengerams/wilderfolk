@@ -69,3 +69,6 @@ jobs:
             npm test -- standard
           fi
           npm run build
+
+      - name: Verify live Goals portrait in Chromium
+        run: node scripts/browser-smoke.mjs --portrait-regression --out tmp/shots/portrait-ui
