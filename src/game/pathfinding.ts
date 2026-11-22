@@ -35,10 +35,6 @@ const ROAD_STEP_COST = 1 / ROAD_SPEED_MULT;
 const PATH_MAX_SEARCH_NODES = 12000;
 const PATH_ARRIVAL_DISTANCE_PX = 8;
 const ROAD_DETOUR_RECHECK_TILES = 20;
-const BUILDING_SIGNATURE_WIDTH_FACTOR = 19;
-const BUILDING_SIGNATURE_HEIGHT_FACTOR = 23;
-const BUILDING_SIGNATURE_BRIDGE_FACTOR = 29;
-const BUILDING_SIGNATURE_GATE_FACTOR = 31;
 
 /** Footprints that stay walkable even when the structure is complete. */
 const WALKABLE_BUILDING_TYPES = new Set<Building['type']>([
@@ -108,17 +104,23 @@ function buildingSignature(
   matches: (b: Building) => boolean,
 ): string {
   if (!buildings?.length) return '';
-  let hash = 0;
+  // Bind footprint coordinates to each building ID. A commutative sum would
+  // miss swapped positions, leaving an obsolete collision grid in the cache.
+  let hash = 2166136261;
   let count = 0;
   for (const b of buildings) {
     if (!matches(b)) continue;
-    hash = (hash + b.id * 31 + b.x * 17 + b.y * 13 + (b.rotation ?? 0) * 7
-      + b.width * BUILDING_SIGNATURE_WIDTH_FACTOR + b.height * BUILDING_SIGNATURE_HEIGHT_FACTOR
-      + (b.type === BuildingType.Bridge ? BUILDING_SIGNATURE_BRIDGE_FACTOR : 0)
-      + (b.gateClosed === true ? BUILDING_SIGNATURE_GATE_FACTOR : 0)) >>> 0;
+    hash = Math.imul(hash ^ b.id, 16777619);
+    hash = Math.imul(hash ^ Math.round(b.x * 1024), 16777619);
+    hash = Math.imul(hash ^ Math.round(b.y * 1024), 16777619);
+    hash = Math.imul(hash ^ Math.round((b.rotation ?? 0) * 1024), 16777619);
+    hash = Math.imul(hash ^ Math.round(b.width * 1024), 16777619);
+    hash = Math.imul(hash ^ Math.round(b.height * 1024), 16777619);
+    hash = Math.imul(hash ^ (b.type === BuildingType.Bridge ? 1 : 0), 16777619);
+    hash = Math.imul(hash ^ (b.gateClosed === true ? 1 : 0), 16777619);
     count++;
   }
-  return `${count}:${hash}`;
+  return `${count}:${hash >>> 0}`;
 }
 
 export interface PathGrid {
