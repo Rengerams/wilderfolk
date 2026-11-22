@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (22 Nov 2026; pending merge):** Movement A* budgets now scale with map size and increase on throttled retries when a valid detour exceeds the first limit; initial searches and retries remain capped.
+
 - **Fixed (22 Nov 2026; pending merge):** Removed an obsolete visitor-camp export that prevented TypeScript builds and the calendar invariant gate from starting. No gameplay change.
 
 - **Fixed (22 Nov 2026; pending merge):** Children keep one playmate per colony day instead of rerolling hourly. Their inspector now shows playing or following, not a false home journey.
