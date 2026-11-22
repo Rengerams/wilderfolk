@@ -120,7 +120,7 @@ export function logWildkinDeath(state: WorldState, entity: Entity): void {
   logEvent(
     state,
     'death',
-    `The Wildkin died — ${describeWildkinPlace(state, entity)}`,
+    `${entity.name ?? `Wildkin #${entity.id}`} died — ${describeWildkinPlace(state, entity)}`,
     'A Wildkin',
   );
 }
@@ -140,7 +140,7 @@ export function tickWildkinChronicle(state: WorldState, ctx: { newEntities?: rea
     logEvent(
       state,
       'milestone',
-      `A Wildkin was sighted ${describeWildkinPlace(state, entity)}`,
+      `${entity.name ?? `Wildkin #${entity.id}`} was sighted ${describeWildkinPlace(state, entity)}`,
       'A Wildkin',
     );
   }
