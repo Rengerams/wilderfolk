@@ -1,5 +1,17 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-22 — Named function ownership: PR #157 naming migration
+
+These names are registered under their existing sole implementation owners. The refactor changes naming, not independent decision authority, state ownership or simulation cadence.
+
+- **`src/game/factionWander.ts` — `pickRandomPlayerBuilding`:** Private visitor-destination picker; selects at random among completed player buildings restricted to the requested building types, using the faction-wander simulation RNG. Called only by the existing faction wandering activity owner.
+- **`src/game/familyTree.ts` — `aliveHumanById`:** Private lookup of an alive human by ID in the already-filtered family roster. Used by `buildFamilyTree` to resolve family relationships and distinguish this human-only lookup from mixed-species family members.
+- **`src/game/prisonGuardDuty.ts` — `livingEntityById`:** Private living-entity lookup by ID; checks the canonical entity map first and falls back to the world entity list for unindexed spawns, rejecting dead entities either way. Used by the existing prison guard roster/presence owner.
+- **`src/game/simulation/humanSocial.ts` — `compareById`:** Private ascending-ID comparator for preferred and standard chat-speaker candidate lists. Preserves deterministic candidate ordering before the seeded social choice; not an entity lookup or social decision owner.
+- **`src/game/rivalProfiles.ts` — `clampFinite`:** Private finite-value guard and bounds clamp for persisted rival ledger fields; non-finite inputs fall back to the lower bound during profile normalization.
+- **`src/game/villagePortrait.ts` — `clampScore`:** Private rounded score clamp for war, nature, trade, building and diplomacy portrait traits. Called by the read-only `computeVillagePortrait` projection; does not independently decide village identity.
+- **`src/game/familyLegacy.ts` — `meetsDynastyThreshold`:** Canonical pure predicate for a dynasty with at least three living generations and three members. Shared by `hasDynasty` (colony-wide scan) and the read-only `DynastyPanel` filter; neither caller duplicates the rule.
+
 ## 2026-11-22 — Wildkin animal lineage and village guardian
 
 - **Birth authority:** `simulation/humanLifecycle.ts` chooses the closest living deer at delivery as the **animal** father; `tickLayerSystems.ts` alone owns Wildkin-to-Wildkin reproduction, juvenile movement and age gating. Neither assigns the human mother's spouse as biological father.
