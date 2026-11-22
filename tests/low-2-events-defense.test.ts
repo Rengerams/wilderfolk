@@ -234,7 +234,8 @@ describe('L33 — the diplomacy resolver answers through the eligibility owner',
 
     expect(next.resources.food).toBe(10);
     expect(next.pendingDiplomacyEvents).toHaveLength(1);
-    expect(next.floatingTexts.some((f) => f.text === 'Need 30🍖')).toBe(true);
+    // Eligibility owns the refusal reason; strategic events never paint village-map floating text.
+    expect(next.floatingTexts).toEqual(state.floatingTexts);
   });
 
   it('applies the owner gate to the non-resource militia answer too', () => {
@@ -248,7 +249,8 @@ describe('L33 — the diplomacy resolver answers through the eligibility owner',
     const next = respondToDiplomacyEvent(state, event.id, 'militia');
 
     expect(next.pendingDiplomacyEvents).toHaveLength(1);
-    expect(next.floatingTexts.some((f) => f.text === 'Need spears')).toBe(true);
+    // Eligibility owns the refusal reason; strategic events never paint village-map floating text.
+    expect(next.floatingTexts).toEqual(state.floatingTexts);
   });
 
   it('pays exactly once when the owner says the answer is affordable', () => {
