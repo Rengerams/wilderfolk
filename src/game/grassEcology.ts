@@ -43,22 +43,6 @@ export function getGrassGrowthMultiplier(season: Season, weather: WeatherType): 
   return base;
 }
 
-/**
- * Weather multiplier for farm/greenhouse food output; `droughtResist` scales the drought penalty only.
- */
-export function getWeatherFarmMultiplier(weather: WeatherType, droughtResist = 1): number {
-  switch (weather) {
-    case WeatherType.Rain:
-      return 1.15;
-    case WeatherType.Storm:
-      return 0.9;
-    case WeatherType.Drought:
-      return 0.5 * droughtResist;
-    default:
-      return 1.0; // Clear, Fog, Snow
-  }
-}
-
 export function getWinterEnergyPenalty(season: Season): number {
   // Softer winter burn so fauna survive a full cold season if grass remains.
   return season === Season.Winter ? 0.22 * PER_TICK_RATE_SCALE : 0;
