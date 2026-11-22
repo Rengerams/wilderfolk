@@ -780,6 +780,7 @@ function generationPrefix(steps: number): string {
 
 /** `Child` / `Adult child`, marked when born outside wedlock. Age decides "adult" — see `childRelation`. */
 function childLabel(person: Entity): string {
+  if (person.type === EntityType.Wildkin) return 'Wildkin child';
   const relation = childRelation(person);
   if (relation === 'child') return RELATION_LABEL.child;
   if (relation === 'adult_child') return RELATION_LABEL.adult_child;
@@ -788,6 +789,7 @@ function childLabel(person: Entity): string {
 
 /** The small portrait glyph for one person on the tree, from their own life stage. */
 function iconForPerson(person: Entity): string {
+  if (person.type === EntityType.Wildkin || person.type === EntityType.Deer) return '🦌';
   if (person.isJuvenile) return person.gender === 'male' ? '👦' : '👧';
   return person.gender === 'male' ? '👨' : '👩';
 }
@@ -822,6 +824,8 @@ function relationLabelOf(focus: Entity, person: Entity, delta: number, flags: Re
   if (flags.isAncestor) {
     if (delta >= 0) return 'Ancestor';
     if (delta === -1) {
+      if (person.type === EntityType.Deer) return 'Deer father';
+      if (person.type === EntityType.Wildkin) return 'Wildkin parent';
       const adoptiveId = male ? focus.adoptiveFatherId : focus.adoptiveMotherId;
       const birthId = male ? focus.fatherId : focus.motherId;
       const adoptiveOnly = person.id === adoptiveId && person.id !== birthId;
@@ -853,7 +857,11 @@ function relationLabelOf(focus: Entity, person: Entity, delta: number, flags: Re
     if (flags.isFormerPartner) return RELATION_LABEL.former_spouse;
     // A divorce clears both `partnerId` links, so a former spouse arrives here as a co-parent. Blood
     // keeps its own word — a relative who raised the child is still a relative.
-    if (flags.isCoParent && !flags.isBlood) return flags.wasSpouse ? 'Former spouse' : 'Co-parent';
+    if (flags.isCoParent && !flags.isBlood) {
+      if (person.type === EntityType.Deer) return 'Animal father';
+      if (person.type === EntityType.Wildkin) return 'Wildkin co-parent';
+      return flags.wasSpouse ? 'Former spouse' : 'Co-parent';
+    }
     return flags.isBlood ? 'Cousin' : 'In-law';
   }
   if (!flags.isBlood) {
@@ -1094,6 +1102,7 @@ export function buildFullFamilyTree(
       || person.fatherId === focus.id
       || person.adoptiveMotherId === focus.id
       || person.adoptiveFatherId === focus.id
+      || person.wildkinParentIds?.includes(focus.id) === true
       || (focus.childrenIds ?? []).includes(person.id);
     const parts = [person.type === EntityType.Wildkin
       ? `Wildkin · ${Math.floor(person.age / 365)}y`
@@ -1132,7 +1141,7 @@ export function buildFullFamilyTree(
     const otherParentId = otherParentIdOfChild(person, focus.id);
     if (otherParentId == null || otherParentId === focus.id) continue;
     coParentIds.add(otherParentId);
-    if (!person.isBastard) marriedCoParentIds.add(otherParentId);
+    if (person.type === EntityType.Human && !person.isBastard) marriedCoParentIds.add(otherParentId);
   }
 
   const idsByRow = new Map<number, Entity[]>();
