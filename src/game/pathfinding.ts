@@ -598,8 +598,12 @@ function searchRoute(
       if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
       const nIdx = ny * cols + nx;
       if (blocked[nIdx]) continue;
-      // Prevent corner squeezing through diagonal blocked tiles
-      if (dx !== 0 && dy !== 0 && (blocked[cy * cols + nx] || blocked[ny * cols + cx])) continue;
+      // Match the integrator's exact corner and cliff rule: a diagonal is illegal if
+      // either orthogonal neighbour is blocked or too steep from the current tile.
+      // A* and physical movement must never disagree about traversable edges.
+      if (dx !== 0 && dy !== 0 && segmentCrossesBlocked(grid,
+        (cx + 0.5) * PATH_CELL, (cy + 0.5) * PATH_CELL,
+        (nx + 0.5) * PATH_CELL, (ny + 0.5) * PATH_CELL, false)) continue;
 
       let step = dx !== 0 && dy !== 0 ? 1.4142 : 1;
       // A built road is cheaper than open ground, so the route follows the player's own paths.
@@ -808,7 +812,8 @@ function segmentCrossesBlocked(
   y1: number,
   allowBlockedStart: boolean,
 ): boolean {
-  if (![x0, y0, x1, y1].every(Number.isFinite)) return true;
+  if (!Number.isFinite(x0) || !Number.isFinite(y0)
+    || !Number.isFinite(x1) || !Number.isFinite(y1)) return true;
 
   const { cols, rows, blocked, elevation } = grid;
   let tx = Math.floor(x0 / PATH_CELL);

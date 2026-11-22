@@ -4,10 +4,11 @@
 
 | Changed function(s) | Sole owner | Responsibility / verification |
 |---|---|---|
-| `segmentCrossesBlocked` (new internal), `hasLineOfSight`, `lineCrossesBlocked`, `isWalkStepAllowed` | `src/game/pathfinding.ts` | One exact grid traversal for A* smoothing, visual obstruction queries and actual walk integration; preserves blocked-origin escape and rejects blocked diagonals/cliffs/long steps. `tests/pathfinding.segmentTraversal.test.ts` |
+| `segmentCrossesBlocked` (new internal), `searchRoute`, `hasLineOfSight`, `lineCrossesBlocked`, `isWalkStepAllowed` | `src/game/pathfinding.ts` | One exact grid traversal for A* diagonal eligibility, waypoint smoothing, visual obstruction queries and actual walk integration; preserves blocked-origin escape and rejects blocked diagonal corners, including steep orthogonal neighbours, cliffs and long steps. `tests/pathfinding.segmentTraversal.test.ts` |
 | `nearestWalkableTile` (new internal), `findNearestWalkable`, `nearestWalkableWorldPoint` | `src/game/pathfinding.ts` | One bounded ring search over the existing passability grid, selecting the closest tile centre beyond arbitrary building depths; no separate snap/search authority. `tests/pathfinding.segmentTraversal.test.ts`, `tests/pathfinding.nearestWalkable.test.ts` |
 | `findRouteCostOutcome`, `getRouteObstruction` | `src/game/pathfinding.ts` | Same-cell cost 0; distinguish exhausted route search (`pending`) from proven disconnection (`blocked`) using the existing bounded A*. `tests/pathfinding.segmentTraversal.test.ts` |
 | `SettlerMovementStatus`, `explainSettlerMovement` (route text) | `src/game/dashboardData.ts` | Read-only display of pending vs blocked; `workAbsence.ts` continues to label unreachable only for confirmed blocked verdicts |
+| `grid` (test fixture), `center` (test coordinate helper) | `tests/pathfinding.segmentTraversal.test.ts` | Test-only owners constructing elevation/blocked grid cases and tile-centre coordinates, including 2×2 diagonal cliff corners; no separate production walkability logic |
 
 
 

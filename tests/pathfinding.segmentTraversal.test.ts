@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  findPath, findRouteCostOutcome, getRouteObstruction, isWalkStepAllowed,
+  findPath, findRouteCostOutcome, getNavigationQuote, getRouteObstruction, isWalkStepAllowed,
   lineCrossesBlocked, nearestWalkableWorldPoint, type PathGrid,
 } from '../src/game/pathfinding';
 import { PATH_CELL, TerrainType } from '../src/game/gameTypes';
@@ -28,6 +28,37 @@ describe('one authoritative movement walkability verdict', () => {
     g.blocked[2 * g.cols + 1] = 1;
     expect(lineCrossesBlocked(g, center(1), center(1), center(2), center(2))).toBe(true);
     expect(isWalkStepAllowed(center(1), center(1), center(2), center(2), g)).toBe(false);
+  });
+
+  it('rejects the 2x2 cliff-corner shortcut in movement, A* and commute quotes', () => {
+    const g = grid(2, 2);
+    // Rows: [0, 40] / [40, 0]. Both endpoints match, but neither adjacent
+    // cardinal tile is reachable; jumping across the corner strands walkers.
+    g.elevation!.set([0, 40, 40, 0]);
+    const start = { x: 0, y: 0 };
+    const goal = { x: 1, y: 1 };
+    expect(isWalkStepAllowed(center(0), center(0), center(1), center(1), g)).toBe(false);
+    expect(lineCrossesBlocked(g, center(0), center(0), center(1), center(1))).toBe(true);
+    expect(findPath(g, 0, 0, 1, 1)).toBeNull();
+    expect(getNavigationQuote(g, start, goal, { maxNodes: 100 })).toEqual({ status: 'unreachable' });
+  });
+
+  it('detours around one steep orthogonal corner instead of taking its diagonal', () => {
+    const g = grid(2, 2);
+    // This time the upper horizontal neighbour is legal, so the route detours
+    // via (1, 0) instead of attempting a diagonal over the steep (0, 1) corner.
+    g.elevation!.set([0, 0, 40, 0]);
+    expect(isWalkStepAllowed(center(0), center(0), center(1), center(1), g)).toBe(false);
+    expect(findPath(g, 0, 0, 1, 1)).toEqual([
+      { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 },
+    ]);
+    const quote = getNavigationQuote(g, { x: 0, y: 0 }, { x: 1, y: 1 }, { maxNodes: 100 });
+    expect(quote.status).toBe('priced');
+    if (quote.status === 'priced') {
+      expect(quote.tiles).toEqual([
+        { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 },
+      ]);
+    }
   });
 
   it('uses the identical elevation limit for physical steps and direct route checks', () => {
