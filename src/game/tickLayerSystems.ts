@@ -820,6 +820,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             ctx.wildlifeSpawnParent.set(offspring.id, entity.id);
             pushNewEntity(state, ctx, offspring);
             if (offspring.type === EntityType.Wildkin) {
+              recordGenealogyBirth(state, entity);
+              recordGenealogyBirth(state, mate);
               recordGenealogyBirth(state, offspring);
               logWildkinBirth(
                 state, offspring,
