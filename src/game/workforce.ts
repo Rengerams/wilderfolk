@@ -588,10 +588,8 @@ function swapReachableWorkersIntoVacancies(
 ): void {
   // A deferred route verdict is unknown, not a passable road; the next pulse prices it properly.
   if (wereCommuteRouteChecksDeferred()) return;
-  const crewIds = new Set<number>();
-  for (const site of buildings) {
-    if (!site.completed) for (const id of site.occupants) crewIds.add(id);
-  }
+  // Rival construction-site rosters must not reserve player settlers during vacancy swaps.
+  const crewIds = new Set(buildConstructionCrewIndex(buildings).keys());
   const idle = humans.filter((human) =>
     human.alive
     && isPlayerHuman(human)
