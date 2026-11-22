@@ -45,6 +45,15 @@
         "tests/pathfinding.cliffCorners.test.ts",
         "tests/stripTopology.connections.test.ts"
       ]
+    },
+    {
+      "hash": "4d0f8287fa868e8741a6e8bf7520c6a3a7283e50",
+      "status": "distinct",
+      "reason": "setVelocityToward is the simulation owner that writes a walker per-tick velocity: it clamps the applied speed to the remaining distance so a close target is never overshot, and zeroes velocity for a degenerate or non-finite step. interpolatePosition is a read-only renderer blend between two observed positions: it clamps the frame fraction and discards teleport-sized steps, returning a drawn position without writing world state. One advances authoritative movement, the other only draws it; merging them would move rendering policy into the simulation owner or vice versa.",
+      "tests": [
+        "tests/movementSteering.validity.test.ts",
+        "tests/renderer.motionAndHover.test.ts"
+      ]
     }
   ]
 }

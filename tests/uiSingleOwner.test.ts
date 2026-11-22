@@ -429,7 +429,7 @@ describe('O — no domain rule is computed inside a view', () => {
     expect(header, 'the hand-typed 90 % band is back').not.toContain('>= 0.9');
     // The band and the cap it divides are named once, in the growth owner.
     const growth = read('src/game/populationGrowth.ts');
-    expect(growth).toContain('export const POPULATION_NEAR_CAP_RATIO = 0.9;');
+    expect(growth).toContain('const POPULATION_NEAR_CAP_RATIO = 0.9;');
     expect(growth).toContain('export function resolvePopulationCap(');
   });
 
@@ -445,7 +445,7 @@ describe('O — no domain rule is computed inside a view', () => {
     const panel = read('src/components/WorkSchedulePanel.tsx');
     expect(panel).toContain('readVillageFatigue(state)');
     expect(panel, 'the view-side fatigue bands are back').not.toMatch(/averageFatigue >= \d/);
-    expect(read('src/game/dailyScheduleFatigue.ts')).toContain('export const FATIGUE_BANDS');
+    expect(read('src/game/dailyScheduleFatigue.ts')).toContain('const FATIGUE_BANDS');
   });
 
   it('O-1: the cockpit cannot count idle workers it was not given by the staffing owner', () => {

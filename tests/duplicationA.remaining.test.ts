@@ -76,7 +76,7 @@ describe('A12 — one owner for world→cell coordinate clamping', () => {
 });
 
 describe('A14 — one owner for "normalise a delta, set velocity, face it"', () => {
-  it('sets exactly the velocity the inline expression did', () => {
+  it('steers at the requested pace without overshooting the target', () => {
     const cases: Array<{ tx: number; ty: number; speed: number; factor?: number }> = [
       { tx: 260, ty: 90, speed: 1.4, factor: 0.55 },
       { tx: 40, ty: 210, speed: 0.8, factor: 0.18 },
@@ -91,8 +91,10 @@ describe('A14 — one owner for "normalise a delta, set velocity, face it"', () 
       const dy = ty - entity.y;
       const distance = Math.hypot(dx, dy) || 1;
       const approach = factor ?? 1;
-      const expectedVx = (dx / distance) * speed * approach;
-      const expectedVy = (dy / distance) * speed * approach;
+      // The owner caps the applied pace at the remaining distance, so a close target is never overshot.
+      const pace = Math.min(speed * approach, distance);
+      const expectedVx = (dx / distance) * pace;
+      const expectedVy = (dy / distance) * pace;
 
       if (factor === undefined) setVelocityToward(entity, tx, ty, speed);
       else steerEntityToward(entity, tx, ty, speed, factor);
