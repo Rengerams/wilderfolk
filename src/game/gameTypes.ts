@@ -975,10 +975,10 @@ export interface WorldState {
   villageHappiness?: number;
   scentGrid?: ScentGrid;
   entityByType?: EntityByType;
-  grassGrid?: EntitySpatialGrid;
-  mobileGrid?: EntitySpatialGrid;
-  humanSocialGrid?: EntitySpatialGrid;
-  treeGrid?: EntitySpatialGrid;
+  grassGrid?: EntitySpatialGrid<Entity>;
+  mobileGrid?: EntitySpatialGrid<Entity>;
+  humanSocialGrid?: EntitySpatialGrid<Entity>;
+  treeGrid?: EntitySpatialGrid<Entity>;
   roadAvoidance?: RoadAvoidanceIndex;
   roadAvoidanceStamp?: number;
   adjacency?: AdjacencyIndex;
