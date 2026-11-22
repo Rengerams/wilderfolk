@@ -2,7 +2,30 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (20 Nov 2026):** Raids respect the six-hour fight and return march; previews match launch rules, flashes use deployed soldiers, and incoming growth uses adults with capped loot. Fixed rival casualty kinds and raze totals.
+**Merged PR coverage (PRs #130–#152; checked 22 Nov 2026).** This index links the merged work to its PR; the dated release notes below retain the detailed change descriptions. Only merged PRs are treated as part of `main`.
+
+- **[PR #130](https://github.com/Rengerams/wilderfolk/pull/130) — Calendar CI:** Require the real-`gameTick` calendar-boundary regression job on PRs and main, without a continuous 720-day test.
+- **[PR #131](https://github.com/Rengerams/wilderfolk/pull/131) — Lifecycle and load safety:** Stop leaked animation frames, protect imported/quick saves, add separate crash recovery, and guard war dialogs and strip demolition.
+- **[PR #132](https://github.com/Rengerams/wilderfolk/pull/132) — Calendar/save regressions:** Remove duplicate festival restoration, consolidate election scheduling, align 288-tick fixtures, and protect Year-0 election loads.
+- **[PR #133](https://github.com/Rengerams/wilderfolk/pull/133) — Pregnancy and immigration:** Apply the individual 85%-of-term medical threshold and admit groups only when recurring food demand and vacant beds allow.
+- **[PR #134](https://github.com/Rengerams/wilderfolk/pull/134) — Master audit:** Fix movement arrival and blocked steering, worker death audio and clearing-mask updates, alongside simulation/rendering/performance audit work.
+- **[PR #135](https://github.com/Rengerams/wilderfolk/pull/135) — Semantic duplicates:** Consolidate dialogue cleanup, settler lookups and shared input guards; record intentionally distinct implementations without weakening the gate.
+- **[PR #136](https://github.com/Rengerams/wilderfolk/pull/136) — Obstacle routing:** Route purposeful settler/leisure walks around solid buildings and detect long-distance line-of-sight obstacles and corners.
+- **[PR #137](https://github.com/Rengerams/wilderfolk/pull/137) — Building lookup:** Replace the Town Hall-only helper with one completed-player-building lookup shared by civic callers.
+- **[PR #138](https://github.com/Rengerams/wilderfolk/pull/138) — Virtual Player build policy:** Avoid decorative construction and defer optional expansion when homeless settlers have no assignable beds.
+- **[PR #140](https://github.com/Rengerams/wilderfolk/pull/140) — Stamina and courtship:** Calibrate daily stamina, require awake/nearby partners with valid on-shift contact, and repair semantic/dependency checks.
+- **[PR #141](https://github.com/Rengerams/wilderfolk/pull/141) — CI and parity:** Check main pushes, preserve semantic baselines, fix the full-build and producer-comparison gates, and use real seeded/two-day parity coverage.
+- **[PR #142](https://github.com/Rengerams/wilderfolk/pull/142) — Invention Fair:** Add its seeded 24-hour demonstration, outcome tiers, choices, and save/worker/legacy compatibility.
+- **[PR #143](https://github.com/Rengerams/wilderfolk/pull/143) — Engineering standards:** Require canonical owners, one execution pipeline, accurate function/decision registration and focused tests.
+- **[PR #145](https://github.com/Rengerams/wilderfolk/pull/145) — Regression alignment:** Update jail-staffing and dialogue tests to match active-worker coverage and daily social-scene limits; no gameplay rule change.
+- **[PR #146](https://github.com/Rengerams/wilderfolk/pull/146) — Early-colony fixes:** Address staffing, housing/Virtual Player reporting, hunting and social feedback, and give legacy genetics backfill an owned seeded RNG stream.
+- **[PR #147](https://github.com/Rengerams/wilderfolk/pull/147) — Saves and rollback:** Preserve acknowledged worker exit saves and visitor activity across reloads, reduce genealogy rollback cost, and strengthen boundary auditing.
+- **[PR #149](https://github.com/Rengerams/wilderfolk/pull/149) — Audit gate repairs:** Correct semantic-overlap indexing, unify seeded random-point spawning, restore dependency/import-cycle checks and resolve worker-boundary false divergences.
+
+**Not merged at this audit date (excluded from released changes):** [#139](https://github.com/Rengerams/wilderfolk/pull/139), [#144](https://github.com/Rengerams/wilderfolk/pull/144), [#148](https://github.com/Rengerams/wilderfolk/pull/148) and [#150](https://github.com/Rengerams/wilderfolk/pull/150) were closed unmerged. [#151](https://github.com/Rengerams/wilderfolk/pull/151) (workplace access/indoor duty) and [#152](https://github.com/Rengerams/wilderfolk/pull/152) (raid lifecycle/reporting) remain open; their proposed changes are **not yet part of main**.
+
+---
+
 - **Removed (20 Nov 2026):** Retired warfare leftovers: rival-camp entity rosters and settler UI, the POW release/execution reaction choices, unused militia strength wrappers and combat-log text classification. Legacy camp structures still migrate on load.
 - **Fixed (20 Nov 2026):** Closing a colony saves its acknowledged state, visiting factions resume their activity after loading, and tick rollback shares unchanged family history.
 - **Fixed (20 Nov 2026):** The call-graph index treated a multi-line signature as the whole function body, so the overlap gate compared signatures and reported eight phantom duplicates; it now finds the real body.
