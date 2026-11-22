@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (22 Nov 2026; pending merge):** Affair conversations attempt once per game hour at 11.4% instead of every tick at 1%, with a 48-hour per-participant cooldown after a successful scene; affair progress is unchanged. Renffr omen checks once per night-hour at 0.42% and cannot reappear during its three-day gossip window, keeping roughly the former nightly odds.
 - **Removed (22 Nov 2026; pending merge):** The two unreachable festival-performer reads left behind by the visitor-camp retirement are gone. Festival crowds still gather at the Square, and the courtship festival bonus is unchanged.
 - **Fixed (22 Nov 2026, PR #172):** A route whose only tile is blocked reports unreachable instead of a one-step price; blocked same-tile pricing, small road-speed gains, fast-road waypoint overshoot, the pace cap and exact uncapped velocity calculations are repaired.
 - **Fixed (22 Nov 2026, PR #172; consolidates #173):** Unified wildlife population policy. Rabbits recover to 150 and are protected below 35; wolf/fox caps are 6/8 and depend on available prey. Initial packs, breeding, replenishment and migration share the same limits.
