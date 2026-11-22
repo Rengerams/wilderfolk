@@ -1,6 +1,7 @@
 import { Suspense, useMemo, useState } from 'react';
 import { lazyWithRetry } from '../lazyWithRetry';
 import { ResearchType } from '../../game/gameTypes';
+import { TICKS_PER_HOUR } from '../../game/dayCycleClock';
 import type { WorldState } from '../../game/gameEngine';
 import { canEstablishTradeRoute, hasCompletedMarket, summarizeTradeRouteBlocks } from '../../game/tradeCaravans';
 import { canStartResearch, getResearchBlockReason } from '../../game/research';
@@ -59,19 +60,22 @@ function GoalsPortraitPanel({
   openSubject: ProgressSubjectId | null;
   onClose: () => void;
 }) {
-  // Field-level deps on purpose — recompute only when a portrait input changes.
+  // Refresh hourly and on material scalar/count changes, not on every simulation tick.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const portrait = useMemo(() => computeVillagePortrait(state), [
-    state.tick,
+    Math.floor(state.tick / TICKS_PER_HOUR),
     state.year,
     state.humanPopulation,
     state.ecosystemHealth,
-    state.valleyStage,
+    state.ecoHealthYearsAbove80,
     state.villageReputation,
-    state.rivalSettlements,
-    state.tradeRoutes,
-    state.eventLog.length,
-    state.lifetimeStats,
+    state.rivalSettlements.length,
+    state.tradeRoutes.length,
+    state.raidBattleReports?.length,
+    state.pendingOutgoingRaidEvents?.length,
+    state.lifetimeStats?.tradeCaravansCompleted,
+    state.lifetimeStats?.goldFromTradeRoutes,
+    state.lifetimeStats?.technologiesResearched,
     state.buildings.length,
   ]);
   const primaryTrait = portrait.traits.find((t) => t.id === portrait.primary);
