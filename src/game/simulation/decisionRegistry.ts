@@ -86,6 +86,7 @@ export type DecisionKey =
   | 'affairs'
   | 'conception'
   | 'pregnancyBirth'
+  | 'wildkinLineage'
   | 'moonHowler'
   | 'leadership'
   | 'raidCombat'
@@ -100,7 +101,7 @@ export const SIMULATION_DECISIONS = {
   navigation: {
     owner: 'pathfinding.ts — getNavigationQuote, searchRoute, sharedRouteCaches, getPathGrid, getReadOnlyPathGrid, resetPathGridCaches; commuteReach.ts — routeCommuteCost (internal budget verdict), quoteCommute (point-leg price), quoteBuildingCommute (validated facade-to-facade price)',
     cadence: 'on-demand',
-    cadenceNote: 'No independent scheduler or saved writes. Strict shared quotes validate walkable endpoint tiles, cache only complete directed results and preserve node exhaustion as pending; generator decor reservations and decorative building footprints do not obstruct walking. Workforce, education, relocation, bot preview and walker steering consume shared map-scoped route evidence. Policy owners retain their individual writes and scheduled cadence.',
+    cadenceNote: 'No independent scheduler or saved writes. Strict shared quotes validate walkable endpoint tiles, cache only complete directed results and preserve node exhaustion as pending; generator decor reservations and decorative building footprints do not obstruct walking. Workforce, education, relocation, bot preview and walker steering consume shared map-scoped route evidence. Building commute quotes use one representative per connected frontage stretch to preserve isolated entrances while bounding route work; walker approach and arrival still accept every accessible perimeter sample. Policy owners retain their individual writes and scheduled cadence.',
     writes: [],
     scheduledFrom: 'pathfinding.findRouteCostOutcome for valid tile endpoints; commuteReach.quoteCommute on demand',
     testFile: 'tests/navigation.sharedRoutes.test.ts, tests/commuteRouteEstimate.test.ts',
@@ -204,10 +205,10 @@ export const SIMULATION_DECISIONS = {
   buildingAccess: {
     owner: 'buildingAccess.ts — buildingAccessPoints (validated facades), buildingAccessPoint (canonical UI frontage), isOpenDoorstep (facade corridor), isAtBuildingReach (the one arrival rule)',
     cadence: 'on-demand',
-    cadenceNote: 'Pure read-only geometry: buildingAccessPoints validates every traversable facade against the current grid; buildingAccessPoint selects the canonical first frontage for presentation, and isAtBuildingReach accepts only walkable reachable sides. No extra state or scheduler. No tick, no scheduler, no RNG and no writes; the commuter targets the access and the activity enterHumanBuilding call decides entry.',
+    cadenceNote: 'Pure read-only geometry: buildingAccessPoints samples the full accessible perimeter at path-cell intervals and validates each frontage against the current grid; buildingAccessPoint selects a canonical first frontage for presentation, while isAtBuildingReach accepts any nearby reachable side. No extra state or scheduler. No tick, no scheduler, no RNG and no writes; the commuter targets the access and the activity enterHumanBuilding call decides entry.',
     writes: [],
     scheduledFrom: 'humanMovement.commuteHumanToBuilding (navigation target and arrival), humanTick attendance, workAbsence, humanStatus, education, humanHospitalBehavior, hotelStay, logisticsOverlayData',
-    testFile: 'tests/homeEntry.geometry.test.ts, tests/buildingAccess.routeAround.test.ts, tests/settlers.indoors.test.ts, tests/education.centerGeometry.test.ts',
+    testFile: 'tests/homeEntry.geometry.test.ts, tests/buildingAccess.routeAround.test.ts, tests/settlers.indoors.test.ts, tests/workAbsence.reasons.test.ts, tests/education.centerGeometry.test.ts',
   },
   settlerDeathAudio: {
     owner: 'audio/interactionDetect.ts — detectInteractionSounds; hooks/useGameAudio.ts — useGameAudio holds the observed annual death count, year and session revision',
@@ -400,7 +401,7 @@ export const SIMULATION_DECISIONS = {
   humanWalk: {
     owner: 'humanTick.tickHumans → humanMovement.resumeHumanWalk + applyHumanWalkStep (one integration for focused and throttled ticks)',
     cadence: 'realtime',
-    cadenceNote: 'Decisions still run once per 24 ticks for out-of-focus settlers, but the already commanded walk is re-issued and integrated every tick, so travel distance per game time matches focus and arrival/collision stay per-step. Ordinary work commutes open at shift minus the existing commute lead and are exempt from the 0.85 planning damping; prison keeps its sticky departure. The walk target is a transient WeakMap, never saved.',
+    cadenceNote: 'Decisions still run once per 24 ticks for out-of-focus settlers, but the already commanded walk is re-issued and integrated every tick, so travel distance per game time matches focus and arrival/collision stay per-step. Ordinary work commutes open at shift minus the existing commute lead and are exempt from the 0.85 planning damping; prison keeps its sticky departure. The walk target is a transient WeakMap, never saved; isCommutingToBuilding checks the owner\'s commanded destination and velocity, projected to host entities by the worker delta without persistent fields, not incidental motion or a possible obstacle detour. On-shift workers enter indoor presentation on verified arrival even at outdoor job sites; emergency hunting takes over by clearing indoor presentation and superseded commute targets. Indoor workplace presence is released immediately when shifts end.',
     writes: [
       'human.x',
       'human.y',
@@ -614,6 +615,23 @@ export const SIMULATION_DECISIONS = {
     ],
     scheduledFrom: 'humanTick.ts pregnancy gate → humanLifecycle.tickPregnancyAndBirth → settlerTraits.inheritGenome (birth-key seeded stream); entityFactory.createEntity(opts.pregnant) → pregnancy.startPregnancy (arrival spawns)',
     testFile: 'tests/humanLifecycle.test.ts, tests/hospitalWalk.regression.test.ts, tests/pregnancyHospitalWork.test.ts, tests/settlers.indoors.test.ts, tests/workAbsence.reasons.test.ts, tests/conceptionEvent.labelling.test.ts, tests/personality.romanceContext.test.ts, tests/settlerTraits.test.ts, tests/duplicationA.remaining.test.ts',
+  },
+  wildkinLineage: {
+    owner: 'humanLifecycle.ts — tickPregnancyAndBirth (human mother + closest deer father); tickLayerSystems.ts — tickWildlife (Wildkin parents and juvenile guardian steering); genealogyRegistry.ts — recordGenealogyBirth, recordGenealogyDeath, syncGenealogyRegistry (sole persisted family owner); wildkinChronicle.ts — logWildkinBirth, logWildkinDeath, tickWildkinChronicle (sole log owner)',
+    cadence: 'systems',
+    cadenceNote: 'A human birth uses the pregnancy cadence, wild-to-wild births and juvenile movement use the systems cadence, and a daily genealogy census receives the already-merged alive set. Human mothers retain their Wildkin children in the historical registry without adding animals to housing; newborns follow the human mother while juvenile instead of being expelled.',
+    writes: [
+      'wildkin.motherId',
+      'wildkin.fatherId',
+      'wildkin.wildkinParentIds',
+      'wildkin.wildkinGuardianId',
+      'wildkin.age',
+      'wildkin.isJuvenile',
+      'genealogyRegistry.people',
+      'eventLog',
+    ],
+    scheduledFrom: 'humanTick.ts → tickPregnancyAndBirth; tickLayerSystems.ts → tickWildlife → pushNewEntity; tickLayerDaily.ts → tickDailyWorldEvents → syncGenealogyRegistry; wildlife death → retireWildlifeInState → recordGenealogyDeath',
+    testFile: 'tests/humanLifecycle.test.ts, tests/genealogyRegistry.test.ts, tests/wildkin.apexRole.test.ts',
   },
   moonHowler: {
     owner: 'moonHowler.ts + moonHowlerForm.ts — tickMoonHowlerCycle, curseMoonHowler, transformToWerewolfForm, revertToHumanForm, cureMoonHowler, finalizeMoonHowlerDeath, isSettlerRelationshipEntity; night window owned by daycycleconstants.ts',

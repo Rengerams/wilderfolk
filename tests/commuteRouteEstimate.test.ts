@@ -21,6 +21,8 @@ import {
   setPathfindingMetricsEnabled,
 } from '../src/game/pathfindingMetrics';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
+import { buildingAccessPoints } from '../src/game/buildingAccess';
+import type { PathGrid } from '../src/game/pathfinding';
 import type { Building, WorldMap } from '../src/game/gameTypes';
 import { building, human } from '../src/test/factories';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -104,6 +106,26 @@ describe('estimatedCommuteHours route pricing', () => {
     // destinations, so their separation cannot be imposed as a hard minimum.
     expect(routed).toBeGreaterThanOrEqual(straightHours(home, sameSide) / 1.5 * 0.7);
     expect(routed).toBeLessThan(straightHours(home, sameSide) * 1.2);
+  });
+
+  it('prices an accessible off-centre doorway when the same facade has a disconnected entrance', () => {
+    const grid: PathGrid = { cols: 100, rows: 100, blocked: new Uint8Array(100 * 100) };
+    // Water separates the two north-frontage stretches; the other facades are inaccessible.
+    for (let y = 0; y < grid.rows; y++) {
+      for (let x = 0; x < grid.cols; x++) {
+        if (x === 39 || y >= 36) grid.blocked[y * grid.cols + x] = 1;
+      }
+    }
+    const greenhouse = building(8, BuildingType.Greenhouse, {
+      x: 400, y: 400, width: 120, height: 80,
+    });
+    const north = buildingAccessPoints(greenhouse, grid).filter((point) => point.side === 'north');
+    expect(north.some((point) => point.x === 400)).toBe(true);
+    expect(north.some((point) => point.x < 390)).toBe(true);
+
+    const route = quoteBuildingCommute({ x: 350, y: 280 }, greenhouse, WALK_SPEED, grid);
+    expect(route.status).toBe('priced');
+    if (route.status === 'priced') expect(route.travelHours).toBeGreaterThan(0);
   });
 
   it('prices a paved route that is longer on the map but cheaper to walk', () => {

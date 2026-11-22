@@ -28,7 +28,7 @@ import { isRestingHospitalPatient, medicalCareReason } from './hospitalCare';
 import { isPregnancyHospitalPriority, isStaffedHospital } from './humanHospitalBehavior';
 import { isHospitalDoctorOnShift, isHospitalDoctorCommuteTime } from './hospitalShifts';
 import { isSettlerLodgingAtHotel } from './hotelStay';
-import { commuteDistanceToBuilding, isWalkingToward } from './simulation/humanMovement';
+import { commuteDistanceToBuilding, isCommutingToBuilding } from './simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { getRouteObstruction } from './pathfinding';
 import { commuteLeadHoursFor } from './commuteReach';
@@ -272,16 +272,17 @@ export function getSettlerWorkReason(
   }
 
   const label = labelFor(workplace);
-  const point = buildingAccessPoint(workplace);
   if (onShift && atWork) return { code: 'working', label: `Working at ${label}` };
   // The hospital roster owns its own commute window, which opens before the ward duty does.
   if (doctorCommuteDue) return { code: 'walking-to-work', label: `Walking to work — ${label}` };
   if (onShift) {
-    if (isWalkingToward(entity, point)) {
+    // Other movement owners may be fleeing or hunting while an available detour exists.
+    // Only an active, commanded workplace walk is proof of travelling to work.
+    if (isCommutingToBuilding(entity, workplace)) {
       return { code: 'walking-to-work', label: `Walking to work — ${label}` };
     }
-    // Only the navigation owner's own verdict may explain a walk that is not happening.
-    if (getRouteObstruction(state.worldMap, state.buildings, entity, point) === 'blocked') {
+    const obstruction = getRouteObstruction(state.worldMap, state.buildings, entity, buildingAccessPoint(workplace));
+    if (obstruction === 'blocked') {
       return { code: 'unreachable', label: `Route failure — cannot reach ${label}` };
     }
     return { code: 'unknown', label: `Unexplained absence — ${label}` };

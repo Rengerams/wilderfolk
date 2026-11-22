@@ -10,7 +10,6 @@ import { isAsleepAtHome, isFestivalGatherer, prefersHomeTonightFor } from './hum
 import { isNearResidence } from './housingModel';
 import { getWorkSchedule, getWorkScheduleLabel, isOnWorkScheduleShift } from './workSchedule';
 import { findHumanWorkplace } from './workforce';
-import { isWalkingToward } from './simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { BUILDING_CONFIGS } from './gameTypes';
 import { WORK_ARRIVE_DISTANCE, getSettlerWorkReason, type SettlerWorkReason } from './workAbsence';
@@ -97,12 +96,11 @@ export function getHumanActivityStatus(
   // Assigned workplace during the configured work shift. Commuting is reported only on the
   // movement owner's evidence; being far from the post is not travel.
   if (workplace && onWorkSchedule) {
-    const target = buildingAccessPoint(workplace);
     const label = labelFor(workplace);
     if (isAtBuildingReach(entity, workplace) || entity.indoorBuildingId === workplace.id) {
       return `Working at ${label}`;
     }
-    return isWalkingToward(entity, target) ? `Commuting to ${label}` : `Away from ${label}`;
+    return workReason.code === 'walking-to-work' ? `Commuting to ${label}` : `Away from ${label}`;
   }
 
   // Evening social outings are an intentional free-time state, not a failed home return: surface it

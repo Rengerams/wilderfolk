@@ -134,7 +134,7 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
 
 
 export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAlive: Entity[], counts: PopulationCounts): void {
-  syncGenealogyRegistry(state);
+  syncGenealogyRegistry(state, allAlive);
   // Catch burials delayed by missing or full graveyards; constant-time when none await.
   assignPendingGraves(state);
   // Frontier systems

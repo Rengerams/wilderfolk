@@ -10,7 +10,7 @@ import { resolve } from 'node:path';
 import SelectedBuildingPanel from '../src/components/SelectedBuildingPanel';
 import { BuildingType, JobType } from '../src/game/gameTypes';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
-import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { commuteHumanToBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import {
   assignStaffWorkerToBuilding,
@@ -173,9 +173,11 @@ describe('building worker roster shows work duty, not private activities', () =>
     const barracks = building(20, BuildingType.Barracks, { occupants: [1, 2] });
     const atPost = humanBuildingTarget(barracks, 1);
     const present = human(1, { workerBuildingId: barracks.id, job: JobType.Soldier, x: atPost.x, y: atPost.y });
-    const commuter = human(2, { workerBuildingId: barracks.id, job: JobType.Soldier, x: 3000, y: 3000, vx: -1, vy: 0 });
+    const commuter = human(2, { workerBuildingId: barracks.id, job: JobType.Soldier, x: 3000, y: 3000 });
     const state = makeWorld([present, commuter], [barracks]);
     state.tick = 10 * TICKS_PER_HOUR;
+    expect(commuteHumanToBuilding(commuter, barracks, 2)).toBe(false);
+    expect(Math.hypot(commuter.vx, commuter.vy)).toBeGreaterThan(0);
     const html = renderPanel(barracks, state);
     expect(html).toContain('Working');
     expect(html).toContain('Walking to work');

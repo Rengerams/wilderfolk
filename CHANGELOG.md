@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Wildkin lineage (pending merge):** Register human mothers and deer fathers, retain Wildkin ancestry in family trees and chronicle records, preserve Wildkin-to-Wildkin births, and let juveniles stay near their mother without forced departure.
+
 **Merged PR coverage (PRs #130–#152; checked 22 Nov 2026).** This index links the merged work to its PR; the dated release notes below retain the detailed change descriptions. Only merged PRs are treated as part of `main`.
 
 - **[PR #130](https://github.com/Rengerams/wilderfolk/pull/130) — Calendar CI:** Require the real-`gameTick` calendar-boundary regression job on PRs and main, without a continuous 720-day test.
@@ -26,6 +28,7 @@
 
 ---
 
+- **Fixed (20 Nov 2026):** Workers reach accessible facades, count only movement-owner-confirmed detours as commutes, and hide while on duty except during emergency prey pursuit; route quotes use one sample per connected frontage stretch, and the worker delta preserves commute labels in the UI.
 - **Fixed (22 Nov 2026):** Unified construction-crew indexing and assigned/idle worker counts in a single read-only owner. HUD, People screen, dashboard, simulation and diagnostics now share age, prison and rival-crew eligibility.
 - **Removed (20 Nov 2026):** Retired warfare leftovers: rival-camp entity rosters and settler UI, the POW release/execution reaction choices, unused militia strength wrappers and combat-log text classification. Legacy camp structures still migrate on load.
 - **Fixed (20 Nov 2026):** Closing a colony saves its acknowledged state, visiting factions resume their activity after loading, and tick rollback shares unchanged family history.

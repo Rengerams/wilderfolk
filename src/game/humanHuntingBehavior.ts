@@ -13,6 +13,7 @@ import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { valleyStageIndex } from './ecologyStage';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { steerEntityToward } from './simulation/movementSteering';
+import { clearHumanWalkTarget } from './simulation/humanMovement';
 import { freeHuntFoodGain } from './simulation/humanNeeds';
 import { HUMAN_NEEDS, adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { tryTickBlueberryForaging } from './blueberryForaging';
@@ -119,6 +120,13 @@ export function tickHumanHunting(
     if (huntHit) {
       closestPrey = huntHit.entity;
       closestDist = Math.sqrt(huntHit.distSq);
+    }
+
+    // A real hunt overrides work presentation and supersedes any workplace route.
+    // Otherwise integrateHumanWalk would erase the chase velocity of an indoor worker.
+    if (closestPrey?.alive) {
+      entity.indoorBuildingId = undefined;
+      clearHumanWalkTarget(entity);
     }
 
     if (closestPrey?.alive && closestDist < config.size + closestPrey.size) {

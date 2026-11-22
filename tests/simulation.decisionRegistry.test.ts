@@ -61,6 +61,7 @@ const REQUIRED_DECISIONS = [
   'affairs',
   'conception',
   'pregnancyBirth',
+  'wildkinLineage',
   'moonHowler',
   'leadership',
   'raidCombat',
