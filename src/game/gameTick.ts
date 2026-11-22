@@ -172,8 +172,8 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     if (!b.completed) continue;
     // Roads + bridges grant the walk-speed bonus
     if (b.type === BuildingType.Road || b.type === BuildingType.Bridge) roadBuildings.push(b);
-    else if (b.type === BuildingType.Well && b.faction !== 'rival') hasWell = true;
-    else if (b.type === BuildingType.Hospital && b.faction !== 'rival') hasHospital = true;
+    else if (b.type === BuildingType.Well) hasWell = true;
+    else if (b.type === BuildingType.Hospital) hasHospital = true;
   }
 
   // Predators — one roster owner shared with the Moon Howler form change.

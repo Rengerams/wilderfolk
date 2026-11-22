@@ -49,7 +49,7 @@ export function buildChallengeBuildingFacts(buildings: Building[]): ChallengeBui
   let hasPlayerHousing = false;
   for (let i = 0; i < buildings.length; i++) {
     const b = buildings[i];
-    if (!b.completed || b.faction === 'rival') continue;
+    if (!b.completed) continue;
     playerCompletedBuildings++;
     if (b.type === BuildingType.House || b.type === BuildingType.Mansion) hasPlayerHousing = true;
   }

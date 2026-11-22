@@ -27,7 +27,7 @@ const WORK_BUILDING_KINDS: Partial<Record<BuildingType, WorkKind>> = {
 export function detectWorkActivity(buildings: Building[], hourOfDay: number, workSchedule?: WorkSchedule): WorkKind | null {
   if (!isWorkScheduleHour(workSchedule ?? DEFAULT_WORK_SCHEDULE, hourOfDay)) return null;
   for (const b of buildings) {
-    if (!b.completed || b.faction === 'rival' || b.occupants.length === 0) continue;
+    if (!b.completed || b.occupants.length === 0) continue;
     const kind = WORK_BUILDING_KINDS[b.type];
     if (kind) return kind;
   }
