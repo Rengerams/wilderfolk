@@ -1,5 +1,11 @@
 # Bug report summary — one line per report
 
+**2026-11-22 — [Inbound caravan cargo clamped at home after storage fills in transit](../bug_report/2026-11-22-caravan-inbound-cargo-clamped-at-home.md):** investigating; PR #170 rechecks full cargo capacity at arrival and retries unloading; updated regression and CI verification pending.
+
+**2026-11-22 — [Abandoned caravan refund loses cargo at storage cap](../bug_report/2026-11-22-caravan-abandon-refund-overflow.md):** investigating; PR #170 retains over-cap exports on the saved route and credits them through the existing systems tick when space frees; CI pending.
+
+**2026-11-22 — [Gold-for-iron-only purchase routes incorrectly require a Market](../bug_report/2026-11-22-iron-only-trade-purchase-market-gate.md):** investigating; future/legacy iron-only routes are now included in the existing Market exemption; targeted owner-regression CI pending.
+
 **2026-11-22 — [Shallow water omitted from compact save validation](../bug_report/2026-11-22-shallow-water-save-validation.md):** resolved; save-load and diagnostics distinguish water from walkability. PR #161 Node.js CI passed 3,245/3,245 tests; all seven workflows green on `fc6a795`.
 
 **2026-11-22 — [Dry inland tiles unexpectedly reject ordinary buildings](../bug_report/2026-11-22-dry-land-unbuildable-patches.md):** resolved; buildings now use any dry terrain; water and ground reinforcement remain separate rules. PR #161 CI 3,245/3,245 tests and all seven workflows passed on `fc6a795`.
