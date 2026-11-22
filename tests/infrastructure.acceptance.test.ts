@@ -9,6 +9,7 @@ import { demolishStripBuildingsInPlace } from '../src/game/buildingMaintenanceAc
 import { createBuilding } from '../src/game/worldGen';
 import { Walkability, isTileBuildable, isWalkableTerrainType } from '../src/game/terrain/terrainGrid';
 import { isFootprintBuildable } from '../src/game/terrainGen';
+import { isWaterTerrainType, isReinforceableTerrainType } from '../src/game/terrain/terrainTraits';
 import { initGame } from '../src/game/worldGen';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
@@ -36,8 +37,20 @@ describe('infrastructure acceptance boundaries', () => {
       expect(isFootprintOnBuildableTerrain({ worldMap }, 10, 10, 55, 55, BuildingType.Road)).toBe(false);
       expect(isFootprintOnBuildableTerrain({ worldMap }, 10, 10, 55, 55, BuildingType.House)).toBe(false);
       expect(isTileBuildable(worldMap, 5, 5)).toBe(false);
+      expect(isWaterTerrainType(terrain)).toBe(true);
+      expect(isWalkableTerrainType(terrain)).toBe(terrain === TerrainType.ShallowWater);
     });
   }
+
+  it('distinguishes reinforcement eligibility from water and walking', () => {
+    expect(isReinforceableTerrainType(TerrainType.Mountains)).toBe(true);
+    expect(isReinforceableTerrainType(TerrainType.RiverBank)).toBe(true);
+    expect(isReinforceableTerrainType(TerrainType.ShallowWater)).toBe(true);
+    expect(isReinforceableTerrainType(TerrainType.River)).toBe(false);
+    expect(isReinforceableTerrainType(TerrainType.Grassland)).toBe(false);
+    expect(isWalkableTerrainType(TerrainType.Grassland)).toBe(true);
+    expect(isWaterTerrainType(TerrainType.RiverBank)).toBe(false);
+  });
 
   it('allows a Fishing Spot to reach river water from an otherwise dry riverbank', () => {
     const worldMap = testWorldMap({
