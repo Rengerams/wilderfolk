@@ -179,10 +179,22 @@ describe('daily lows', () => {
     ].some((type) => entity.type === type));
     world.wildlifeCounts = { ...world.wildlifeCounts, rabbits: 0, deer: 0, foxes: 0, wolves: 0 };
     world.tick = tickAtDailyPhase(3, 'worldEvents') - 1;
-    const next = gameTick(world);
+    let next = gameTick(world);
     expect(next.tick).toBe(tickAtDailyPhase(3, 'worldEvents'));
     expect(countType(next, EntityType.Rabbit)).toBeGreaterThan(0);
     expect(countType(next, EntityType.Deer)).toBeGreaterThan(0);
+    // An empty prey base must not cause instant fox/wolf restocking. Grazers recover first.
+    expect(countType(next, EntityType.Fox)).toBe(0);
+    expect(countType(next, EntityType.Wolf)).toBe(0);
+
+    // Every third-day refill can rebuild the prey base. Predators return only after
+    // the shared carrying-capacity policy can sustain them.
+    for (const day of [6, 9, 12]) {
+      next.tick = tickAtDailyPhase(day, 'worldEvents') - 1;
+      next = gameTick(next);
+      expect(next.tick).toBe(tickAtDailyPhase(day, 'worldEvents'));
+    }
+    expect(countType(next, EntityType.Rabbit)).toBeGreaterThan(35);
     expect(countType(next, EntityType.Fox)).toBeGreaterThan(0);
     expect(countType(next, EntityType.Wolf)).toBeGreaterThan(0);
   });
