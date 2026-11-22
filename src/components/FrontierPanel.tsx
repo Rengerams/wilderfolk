@@ -13,7 +13,6 @@ export interface FrontierPanelProps {
   pendingRaidCount: number;
   pendingOutgoingRaidCount: number;
   pendingDiplomacyCount: number;
-  onFocusVisitor: (id: string, x: number, y: number) => void;
   onLaunchRaid?: (rivalId: string) => void;
   onProvokeRival?: (rivalId: string) => void;
   onRecallRaid?: (eventId: string) => void;
@@ -24,7 +23,6 @@ function FrontierPanel({
   pendingRaidCount,
   pendingOutgoingRaidCount,
   pendingDiplomacyCount,
-  onFocusVisitor,
   onLaunchRaid,
   onProvokeRival,
   onRecallRaid,
@@ -41,9 +39,9 @@ function FrontierPanel({
       <div className="space-y-3">
         <StrategicWorldMap state={state} selectedRivalId={selectedRivalId} onSelectRival={setSelectedRivalId} />
       <div className="rounded-xl border border-dashed border-stone-600 bg-stone-800/40 p-4 text-center">
-        <p className="text-[13px] text-stone-300">No caravans or rival camps yet.</p>
+        <p className="text-[13px] text-stone-300">No rival settlements yet.</p>
         <p className="mt-1 text-[13px] text-stone-300">
-          Grow your village — trade caravans arrive as reputation spreads.
+          Grow your village — more settlements may emerge along the frontier.
         </p>
         <p className="mt-2 text-[13px] text-amber-400/90">
           From day {RIVAL_FOUNDING_START_DAY}, settlements can appear on the world map every{' '}
@@ -128,30 +126,6 @@ function FrontierPanel({
           showOutgoingRaid={false}
           title="⚔️ Incoming raid forecast"
         />
-      )}
-
-      {view.visitors.length > 0 && (
-        <div>
-          <h4 className="mb-1.5 text-[13px] font-bold uppercase tracking-wider text-cyan-400">Visitors</h4>
-          <div className="space-y-1.5">
-            {view.visitors.map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => onFocusVisitor(g.id, g.x, g.y)}
-                className="flex w-full items-center justify-between gap-2 rounded-lg bg-stone-800/60 px-2.5 py-2 text-left transition-colors hover:bg-cyan-900/30"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-bold text-cyan-200">🧳 {g.name}</p>
-                  <p className="text-[13px] capitalize text-stone-300">
-                    {g.description}
-                  </p>
-                </div>
-                <span className="shrink-0 text-[13px] text-cyan-500">→</span>
-              </button>
-            ))}
-          </div>
-        </div>
       )}
 
       {view.rivals.length > 0 && (

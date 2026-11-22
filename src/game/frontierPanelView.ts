@@ -106,7 +106,7 @@ export function projectFrontierPanel(state: WorldState, counts: FrontierPanelCou
   });
 
   return {
-    isEmpty: state.visitorGroups.length === 0 && rivals.length === 0
+    isEmpty: rivals.length === 0
       && counts.pendingRaidCount === 0 && counts.pendingOutgoingRaidCount === 0
       && counts.pendingDiplomacyCount === 0 && battleReports.length === 0,
     hasAlerts: counts.pendingRaidCount > 0 || counts.pendingOutgoingRaidCount > 0 || counts.pendingDiplomacyCount > 0,
@@ -120,13 +120,6 @@ export function projectFrontierPanel(state: WorldState, counts: FrontierPanelCou
     armament: getMilitiaArmamentLabel(state) ?? 'Unarmed adults',
     battleReports,
     combatPreview,
-    visitors: state.visitorGroups.map((group) => ({
-      id: group.id,
-      name: group.name,
-      description: `${group.kind} · ${group.daysLeft}d · click for trade & leader`,
-      x: group.campX,
-      y: group.campY,
-    })),
     rivals,
   };
 }

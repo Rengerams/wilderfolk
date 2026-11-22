@@ -11,7 +11,6 @@ import {
   loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave,
   saveImportedFileToSlot, loadImportedGameOutcome, hasImportedSave,
   loadGameFromFileTextOutcome,
-  getVisitorLeaderTalkMeta,
   ensureFullTradeRoutes,
   getCombatPreview,
   formatRaidDeadline, formatRaidLootSummary, raidEventLoot,
@@ -75,7 +74,6 @@ import VillageRequestCard from './components/VillageRequestCard';
 import BigNewsBanner from './components/BigNewsBanner';
 import ShortcutsOverlay from './components/ShortcutsOverlay';
 import GameDashboard from './components/dashboard/GameDashboard';
-import VisitorCampPanel from './components/VisitorCampPanel';
 import SelectedEntityPanel from './components/SelectedEntityPanel';
 import FamilyTreeWindow from './components/FamilyTreeWindow';
 import WorkHoursWindow from './components/WorkHoursWindow';
@@ -1510,10 +1508,7 @@ export default function App() {
     && pendingRaids.length === 0
   );
 
-  const selectedVisitorCamp = view.selectedCampKey?.startsWith('visitor:')
-    ? world.visitorGroups.find((g) => g.id === view.selectedCampKey!.slice(8)) ?? null
-    : null;
-  const hasInspectorSelection = !!(selectedEntity || selectedBuilding || selectedVisitorCamp);
+  const hasInspectorSelection = !!(selectedEntity || selectedBuilding);
   const canvasCursor = selectedBuildingType
     ? 'crosshair'
     : view.hoveredBuildingId
@@ -2102,7 +2097,7 @@ export default function App() {
         <GameInspector
           hasSelection={hasInspectorSelection}
           collapsed={inspectorCollapsed}
-          selectedLabel={selectedVisitorCamp?.name ?? selectedBuilding?.type ?? selectedEntity?.name ?? 'Selected'}
+          selectedLabel={selectedBuilding?.type ?? selectedEntity?.name ?? 'Selected'}
           onClear={clearSelection}
           onToggleCollapsed={() => setInspectorCollapsed((v) => !v)}
           diagnostics={debugMode && SimulationDiagnosticsPanel ? (
@@ -2112,26 +2107,7 @@ export default function App() {
           ) : undefined}
         >
 
-            {selectedVisitorCamp ? (
-              <VisitorCampPanel
-                group={selectedVisitorCamp}
-                state={world}
-                talkMeta={getVisitorLeaderTalkMeta(selectedVisitorCamp)}
-                onTalkLeader={() => {
-                  playClickSound();
-                  applyGameAction({ proto: 1, op: 'talkToVisitorLeader', groupId: selectedVisitorCamp.id });
-                }}
-                onTrade={(action) => {
-                  playClickSound();
-                  applyGameAction({ proto: 1, op: 'tradeWithVisitors', groupId: selectedVisitorCamp.id, action });
-                }}
-                onRefugeeChoice={(choice) => {
-                  playClickSound();
-                  applyGameAction({ proto: 1, op: 'negotiateRefugees', groupId: selectedVisitorCamp.id, choice });
-                }}
-                onFocusCamp={() => focusCampOnMap(selectedVisitorCamp.id, selectedVisitorCamp.campX, selectedVisitorCamp.campY)}
-              />
-            ) : selectedEntity ? (
+            {selectedEntity ? (
               <>
                 <SelectedEntityPanel
                   entity={selectedEntity}
@@ -2151,7 +2127,6 @@ export default function App() {
                     const entityId = selectedEntity.id;
                     applyGameAction({ proto: 1, op: 'tameEntity', entityId, humanId });
                   }}
-                  onOpenVisitorCamp={(group) => focusCampOnMap(group.id, group.campX, group.campY)}
                   onOpenFamilyTree={() => {
                     playClickSound();
                     setFamilyTreeFor(selectedEntity.id);
@@ -2339,7 +2314,6 @@ export default function App() {
             playClickSound();
             setWorkHoursOpen(true);
           }}
-          onFocusVisitor={(id, x, y) => focusCampOnMap(id, x, y)}
           onLaunchRaid={(rivalId) => {
             playClickSound();
             applyGameAction({ proto: 1, op: 'launchRaidOnRival', rivalId });

@@ -6,7 +6,6 @@ import {
   getAgeInYears,
 } from '../game/gameEngine';
 import type { WorldState, Entity } from '../game/gameEngine';
-import type { VisitorGroup } from '../game/gameTypes';
 import {
   hasResidenceAssignment,
   hasWorkAssignment,
@@ -41,7 +40,6 @@ export default function SelectedEntityPanel({
   isFavorite,
   onToggleFavorite,
   onTame,
-  onOpenVisitorCamp,
   onOpenFamilyTree,
 }: {
   entity: Entity;
@@ -50,7 +48,6 @@ export default function SelectedEntityPanel({
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
   onTame?: (humanId: number) => void;
-  onOpenVisitorCamp?: (group: VisitorGroup) => void;
   /** Opens the family tree in its own window (`FamilyTreeWindow`). */
   onOpenFamilyTree?: () => void;
 }) {
@@ -78,10 +75,6 @@ export default function SelectedEntityPanel({
     };
     record();
   }, [currentActivity, entity.id]);
-
-  const isVisitor = entity.faction === 'visitor';
-
-  const visitorGroup = isVisitor ? state.visitorGroups?.find((g) => g.id === entity.groupId) : null;
 
   /** The movement reason trace for this settler — the day's named stops, the current leg and the
    * path owner's blocked/rerouting verdict, printed as-is. Read-only; nothing is derived here. */
@@ -218,18 +211,6 @@ export default function SelectedEntityPanel({
                   );
                 })}
             </div>
-          )}
-          {isVisitor && visitorGroup && (
-            <p className="text-[11px] text-cyan-300">Visiting — {visitorGroup.name} ({visitorGroup.daysLeft}d)</p>
-          )}
-          {isVisitor && visitorGroup && onOpenVisitorCamp && (
-            <button
-              type="button"
-              onClick={() => onOpenVisitorCamp(visitorGroup)}
-              className="mt-1 rounded bg-cyan-900/60 px-2 py-0.5 text-[10px] font-bold text-cyan-100 hover:bg-cyan-800/60"
-            >
-              Open camp — trade &amp; talks
-            </button>
           )}
           {isLocalSettler && (
             <p className="text-[11px] text-amber-400">
