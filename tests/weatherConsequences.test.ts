@@ -14,6 +14,7 @@ import {
 } from '../src/game/worldEvents';
 import { BuildingType, EntityType, JobType, WeatherType } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
+import { building } from '../src/test/factories';
 import {
   daylightTint,
   listWeather,
@@ -33,22 +34,15 @@ describe('getWeatherFarmMultiplier', () => {
 });
 
 function playerHouse(id: number, health: number): Building {
-  return {
-    id,
-    type: BuildingType.House,
+  return building(id, BuildingType.House, {
     x: 100,
     y: 100,
     width: 60,
     height: 48,
     rotation: 0,
-    completed: true,
-    occupants: [],
     constructionProgress: 100,
-    level: 1,
-    spriteScale: 1,
     health,
-    maxHealth: 100,
-  } as Building;
+  });
 }
 
 describe('applyStormDamageToBuildings', () => {
@@ -124,20 +118,14 @@ describe('farm yield responds to weather (integration)', () => {
     state.resources.food = 0;
     state.resources.wood = 99999;
     // Completed farm owned by the player.
-    state.buildings.push({
-      id: state.nextBuildingId++,
-      type: BuildingType.Farm,
+    state.buildings.push(building(state.nextBuildingId++, BuildingType.Farm, {
       x: 400,
       y: 300,
       width: 80,
       height: 60,
       rotation: 0,
-      completed: true,
-        occupants: [],
       constructionProgress: 100,
-      level: 1,
-      spriteScale: 1,
-    } as never);
+    }));
     return state;
   }
 
