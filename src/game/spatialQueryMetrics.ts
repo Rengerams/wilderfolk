@@ -1,3 +1,5 @@
+import { envFlagOn } from './envFlags';
+
 export type SpatialQueryCategory =
   | 'graze'
   | 'flee'
@@ -46,21 +48,6 @@ const CATEGORY_LABELS: Record<SpatialQueryCategory, string> = {
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as readonly SpatialQueryCategory[];
 
-function envFlagEnabled(val: string | undefined): boolean {
-  if (val == null || val === '') return false;
-  return /^(1|true|yes|on|enabled)$/i.test(val.trim());
-}
-
-function isMetricsEnvEnabled(): boolean {
-  const runtime = globalThis as typeof globalThis & {
-    process?: { env?: Record<string, string | undefined> };
-  };
-  if (envFlagEnabled(runtime.process?.env?.SPATIAL_QUERY_METRICS)) return true;
-  if (typeof import.meta !== 'undefined') {
-    return envFlagEnabled(import.meta.env?.VITE_SPATIAL_QUERY_METRICS);
-  }
-  return false;
-}
 
 function createEmptyRecord(): Record<SpatialQueryCategory, SpatialQueryBucket> {
   const out = {} as Record<SpatialQueryCategory, SpatialQueryBucket>;
@@ -90,7 +77,10 @@ function cloneRecord(record: Record<SpatialQueryCategory, SpatialQueryBucket>): 
 }
 
 // Global Metric States
-let enabled = isMetricsEnvEnabled();
+let enabled = envFlagOn(
+  'SPATIAL_QUERY_METRICS',
+  typeof import.meta !== 'undefined' ? import.meta.env?.VITE_SPATIAL_QUERY_METRICS : undefined,
+);
 let activeTag: SpatialQueryCategory | null = null;
 const tickBuckets: Record<SpatialQueryCategory, SpatialQueryBucket> = createEmptyRecord();
 const sessionBuckets: Record<SpatialQueryCategory, SpatialQueryBucket> = createEmptyRecord();

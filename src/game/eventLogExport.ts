@@ -1,5 +1,6 @@
 import type { GameEventLog } from './gameTypes';
 import { displayYear } from './dayCycleClock';
+import { villageFileSlug } from './fileNames';
 import { GAME_VERSION } from './version';
 
 export interface ChronicleExportMeta {
@@ -32,12 +33,7 @@ function formatChronicleText(events: GameEventLog[], meta: ChronicleExportMeta):
 }
 
 function buildChronicleFilename(villageName: string): string {
-  const safe = villageName
-    .replace(/[^\w\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .slice(0, 40) || 'village';
-  return `wilderfolk-${safe}-chronicle.txt`;
+  return `wilderfolk-${villageFileSlug(villageName)}-chronicle.txt`;
 }
 
 function downloadTextFile(content: string, filename: string): void {

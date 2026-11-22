@@ -273,6 +273,15 @@ their own module are module-private again, `isWalkingToward`, `tickVisitorQuest`
 `ignoreUnresolved`. Two documented exceptions remain: the `VOLUME_PRESETS` re-export that only the
 ignored audio barrel consumes. `node scripts/test.mjs audit` now passes all three steps.
 
+The pass also pulled 130 files into the overlap gate's changed set, which surfaced real duplications
+and one accepted pattern. `offerStoryEvent` duplicated `pushStoryCard` and is folded into it; the
+four copies of the env-flag spelling reader became the `envFlags.ts` owner, which the pathfinder and
+spatial-query predicates now read their flag through; the two copies of the village-name slug became
+`fileNames.ts`. The five per-story `*EligibleDay` adapters — one-line bindings of each story's own
+`STORY_KEY`/`MIN_DAY`/`WINDOW_DAYS` to the shared `eligibleDayForStory` — and the two authored story
+offers are recorded as reviewed approvals. `npm test -- semantic` and `npm test -- semantic-dup` are
+green.
+
 ### F-05 — Tick-layer documentation drift (low)
 
 - `tickLayerAssign.ts:52` documents the layer as called when

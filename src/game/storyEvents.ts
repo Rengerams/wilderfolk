@@ -16,19 +16,13 @@ import { expireWeddingDiplomacy, getWeddingDiplomacyChoiceEligibility, resolveWe
 import { getInventionFairChoiceEligibility, resolveInventionFair } from './inventionFair';
 import { expireRumourLedger, resolveRumourLedger } from './rumourLedger';
 import { addReputation } from './simHelpers';
+import { pushStoryCard } from './storyHelpers';
 import { adjustEcosystemHealth } from './dailyEcology';
 
 /**
  * Authored cross-system stories: short player choices with real sim consequences and a chronicle
  * entry, so existing systems remember and react to one another.
  */
-
-/** Add a story event to the pending queue (no duplicate id). */
-function offerStoryEvent(state: WorldState, event: StoryEvent): void {
-  state.pendingStoryEvents ??= [];
-  if (state.pendingStoryEvents.some((e) => e.id === event.id)) return;
-  state.pendingStoryEvents.push(event);
-}
 
 const CHILDREN_SHELTER_CHILDREN = 10;
 /** Children consume the canonical daily human ration. */
@@ -296,7 +290,7 @@ export function maybeOfferChildrenShelter(state: WorldState): void {
   if (getColonyDay(state) < 10 || state.rivalSettlements.length === 0) return;
 
   state.storyFlags = { ...state.storyFlags, children_shelter_offered: state.tick };
-  offerStoryEvent(state, {
+  pushStoryCard(state, {
     id: `children_shelter_${state.tick}`,
     emoji: '🧳',
     storyKey: 'children_shelter',
@@ -373,7 +367,7 @@ export function maybeOfferWolfChoice(state: WorldState): void {
   if ((!hasHome || !startedWork) && state.dayInYear < 60) return;
 
   state.storyFlags = { ...state.storyFlags, wolf_choice: state.tick };
-  offerStoryEvent(state, {
+  pushStoryCard(state, {
     id: `wolf_choice_${state.tick}`,
     emoji: '🐺',
     storyKey: 'wolf_choice',
@@ -455,7 +449,7 @@ export function maybeOfferWelcome(state: WorldState): void {
   if ((state.storyFlags?.welcome ?? 0) > 0) return;
   if (state.year > 0 || state.dayInYear > 1) return;
   state.storyFlags = { ...state.storyFlags, welcome: state.tick };
-  offerStoryEvent(state, {
+  pushStoryCard(state, {
     id: `welcome_${state.tick}`,
     emoji: '🌄',
     storyKey: 'welcome',
@@ -495,7 +489,7 @@ export function maybeOfferRangerVisit(state: WorldState): void {
   if (state.tick < resolvedTick + TICKS_PER_DAY * 3) return;
   state.storyFlags = { ...state.storyFlags, ranger_visit: state.tick };
   const thin = resolved === WOLF_FATE_THINNED;
-  offerStoryEvent(state, {
+  pushStoryCard(state, {
     id: `ranger_${state.tick}`,
     emoji: '🧙',
     storyKey: 'ranger_visit',
@@ -547,7 +541,7 @@ export function maybeOfferWinterPrep(state: WorldState): void {
   if ((state.storyFlags?.winter_prep ?? 0) > 0) return;
   if (state.year > 0 || state.dayInYear !== 210) return;
   state.storyFlags = { ...state.storyFlags, winter_prep: state.tick };
-  offerStoryEvent(state, {
+  pushStoryCard(state, {
     id: `winter_prep_${state.tick}`,
     emoji: '❄️',
     storyKey: 'winter_prep',
@@ -615,7 +609,7 @@ export function maybeOfferGriefBeat(state: WorldState): void {
   );
   if (!mourner) return;
   state.storyFlags = { ...state.storyFlags, grief_beat: state.tick };
-  offerStoryEvent(state, {
+  pushStoryCard(state, {
     id: `grief_${state.tick}`,
     emoji: '🕯️',
     storyKey: 'grief_beat',
@@ -674,7 +668,7 @@ export function maybeOfferHowlerRumor(state: WorldState): void {
     howler_rumor: state.tick,
     howler_rumor_variant: rangerTale ? HOWLER_VARIANT_RANGER : HOWLER_VARIANT_TRAVELLER,
   };
-  offerStoryEvent(state, {
+  pushStoryCard(state, {
     id: `howler_${state.tick}`,
     emoji: '🌕',
     storyKey: 'howler_rumor',
@@ -739,7 +733,7 @@ export function maybeOfferValleyDebate(state: WorldState, candidateNames: string
   if (candidateNames.length < 2) return;
 
   state.storyFlags = { ...state.storyFlags, [flagKey]: state.tick };
-  offerStoryEvent(state, {
+  pushStoryCard(state, {
     id: `valley_debate_${state.tick}`,
     emoji: '🗳️',
     storyKey: 'valley_debate',

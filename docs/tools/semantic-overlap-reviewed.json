@@ -43,7 +43,7 @@
       ]
     },
     {
-      "key": "src/game/simulation/humanRelationships.ts:1229:isEligibleToCourt@41cb0f0a616832d0fcc789dbfa9f220e9a300b139346e0a7f657acd2633184b9 <-> src/game/simulation/humanRelationships.ts:482:isEligibleForYouthLove@57a6b8254b9236f543f2d76debd245b5172c032a8a91732b83c96166fb0ad3f6",
+      "key": "src/game/simulation/humanRelationships.ts:1242:isEligibleToCourt@41cb0f0a616832d0fcc789dbfa9f220e9a300b139346e0a7f657acd2633184b9 <-> src/game/simulation/humanRelationships.ts:482:isEligibleForYouthLove@dfef22e8332600e4dae0b256ed0f7c6cc3e62b164e095d8aeacd4955e7b63ade",
       "reason": "Two disjoint age windows with different contracts: youth love is the 12-17 band (YOUTH_LOVE_MIN_AGE, minor, gender required, no courtship cooldown) while courtship is 18+ (adult, lifespan cap, cooldown). They share the necessary available-single conditions (alive, player, no partner, single status, no youth partner, not pregnant, not imprisoned), but merging would either admit minors to courtship or block youth love. Each has its own gate, and the handoff from youth love to courtship is pinned separately.",
       "tests": [
         "tests/citizenOverview.youthLove.test.ts",
@@ -199,7 +199,7 @@
       ]
     },
     {
-      "key": "src/game/hotelStay.ts:286:findStaffedHotels@89a3bf7bc03679ed67eac6c03cc8f4fe2c6fa76f3103b172658c9406b4dbcf1f <-> src/game/housingPipeline.ts:1756:listPlayerResidences@926c1ccea7d979eb91a514cbcd9eb62491ad15d410be648bf16fc7a3a425dce8",
+      "key": "src/game/hotelStay.ts:285:findStaffedHotels@c5257e785cb31433d4b0523e3e39c85b3cff4e5140bc34d8ac598cc6946bc53a <-> src/game/housingPipeline.ts:1756:listPlayerResidences@926c1ccea7d979eb91a514cbcd9eb62491ad15d410be648bf16fc7a3a425dce8",
       "reason": "Distinct predicates for distinct building classes: findStaffedHotels returns completed player Hotels with a posted hotelier (lodging capacity), listPlayerResidences returns completed player residences (bed accounting). They share only the completed-player filter and are consumed by different services; merging them would put a staffing rule inside the housing census.",
       "tests": [
         "tests/hotelSettlerLodging.night.test.ts",
@@ -482,6 +482,70 @@
       "tests": [
         "tests/infrastructure.acceptance.test.ts",
         "tests/groundReinforcement.workerTransport.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/rumourLedger.ts:76:rumourLedgerEligibleDay@3bcc34fd458fd540532d949ac5fa19b4e12c27ceb7976907577adfb061dccaef <-> src/game/weddingDiplomacy.ts:54:weddingDiplomacyEligibleDay@5fad8014114f1b476924e3c39159541514679fa2c4f35980bfd30a3f1eb9a048",
+      "reason": "One-line adapters, not duplicate logic: rumourLedgerEligibleDay and weddingDiplomacyEligibleDay each bind their own story's STORY_KEY, MIN_DAY and WINDOW_DAYS to the single shared eligibleDayForStory owner in storyHelpers.ts. The rumour beat and wedding diplomacy open on different authored cadences with their own offer gates.",
+      "tests": [
+        "tests/story.expiryResolvers.test.ts",
+        "tests/weddingDiplomacy.rivalId.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/deerParliament.ts:43:deerParliamentEligibleDay@7afcf447bee075d9d1f94ad1edc3dc7e9427283e146f5c8b38cd430370691fd1 <-> src/game/rumourLedger.ts:76:rumourLedgerEligibleDay@3bcc34fd458fd540532d949ac5fa19b4e12c27ceb7976907577adfb061dccaef",
+      "reason": "One-line adapters, not duplicate logic: rumourLedgerEligibleDay and deerParliamentEligibleDay each bind their own story's STORY_KEY, MIN_DAY and WINDOW_DAYS to the single shared eligibleDayForStory owner in storyHelpers.ts. The rumour beat and the deer parliament open on different authored cadences and the parliament additionally gates on live deer.",
+      "tests": [
+        "tests/story.expiryResolvers.test.ts",
+        "tests/deerParliament.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/deerParliament.ts:43:deerParliamentEligibleDay@7afcf447bee075d9d1f94ad1edc3dc7e9427283e146f5c8b38cd430370691fd1 <-> src/game/weddingDiplomacy.ts:54:weddingDiplomacyEligibleDay@5fad8014114f1b476924e3c39159541514679fa2c4f35980bfd30a3f1eb9a048",
+      "reason": "One-line adapters, not duplicate logic: deerParliamentEligibleDay and weddingDiplomacyEligibleDay each bind their own story's STORY_KEY, MIN_DAY and WINDOW_DAYS to the single shared eligibleDayForStory owner in storyHelpers.ts. The deer parliament gates on live deer and the wedding story on a rival settlement.",
+      "tests": [
+        "tests/deerParliament.test.ts",
+        "tests/weddingDiplomacy.rivalId.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/inventionFair.ts:77:inventionFairEligibleDay@e85e1c74eb25b58bc9359383ef9ea11991be4733f8533042e45aa0b517bad085 <-> src/game/rumourLedger.ts:76:rumourLedgerEligibleDay@3bcc34fd458fd540532d949ac5fa19b4e12c27ceb7976907577adfb061dccaef",
+      "reason": "One-line adapters, not duplicate logic: rumourLedgerEligibleDay and inventionFairEligibleDay each bind their own story's STORY_KEY, MIN_DAY and WINDOW_DAYS to the single shared eligibleDayForStory owner in storyHelpers.ts. The rumour beat and the Invention Fair open on different authored cadences with their own offer gates.",
+      "tests": [
+        "tests/story.expiryResolvers.test.ts",
+        "tests/inventionFair.simulation.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/inventionFair.ts:77:inventionFairEligibleDay@e85e1c74eb25b58bc9359383ef9ea11991be4733f8533042e45aa0b517bad085 <-> src/game/weddingDiplomacy.ts:54:weddingDiplomacyEligibleDay@5fad8014114f1b476924e3c39159541514679fa2c4f35980bfd30a3f1eb9a048",
+      "reason": "One-line adapters, not duplicate logic: weddingDiplomacyEligibleDay and inventionFairEligibleDay each bind their own story's STORY_KEY, MIN_DAY and WINDOW_DAYS to the single shared eligibleDayForStory owner in storyHelpers.ts. Wedding diplomacy and the Invention Fair are separate authored stories with their own gates and tests.",
+      "tests": [
+        "tests/weddingDiplomacy.rivalId.test.ts",
+        "tests/inventionFair.simulation.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/rumourLedger.ts:76:rumourLedgerEligibleDay@3bcc34fd458fd540532d949ac5fa19b4e12c27ceb7976907577adfb061dccaef <-> src/game/travelingTheatre.ts:69:travelingTheatreEligibleDay@0162156d459f086f1241dbfde905fdd2dccc8e37081986cd25ff60fc06fa9d3a",
+      "reason": "One-line adapters, not duplicate logic: rumourLedgerEligibleDay and travelingTheatreEligibleDay each bind their own story's STORY_KEY, MIN_DAY and WINDOW_DAYS to the single shared eligibleDayForStory owner in storyHelpers.ts. Each story keeps its own cadence constants and its own offer gate.",
+      "tests": [
+        "tests/story.expiryResolvers.test.ts",
+        "tests/travelingTheatre.stageRouting.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/travelingTheatre.ts:69:travelingTheatreEligibleDay@0162156d459f086f1241dbfde905fdd2dccc8e37081986cd25ff60fc06fa9d3a <-> src/game/weddingDiplomacy.ts:54:weddingDiplomacyEligibleDay@5fad8014114f1b476924e3c39159541514679fa2c4f35980bfd30a3f1eb9a048",
+      "reason": "One-line adapters, not duplicate logic: weddingDiplomacyEligibleDay and travelingTheatreEligibleDay each bind their own story's STORY_KEY, MIN_DAY and WINDOW_DAYS to the single shared eligibleDayForStory owner in storyHelpers.ts. Each story keeps its own cadence constants and its own offer gate.",
+      "tests": [
+        "tests/weddingDiplomacy.rivalId.test.ts",
+        "tests/travelingTheatre.stageRouting.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/storyEvents.ts:448:maybeOfferWelcome@42ee2613040ea4f314fc8a8e16176ddf94486a4c64e176365954a6f09ab633f0 <-> src/game/storyEvents.ts:540:maybeOfferWinterPrep@6c1ae6b4a6f5ecc0e40b31774054adc1babe3f786481e9703327e220d8a0ab97",
+      "reason": "Two authored one-time stories that share only the offer shape: each guards its own story flag, opens at its own calendar day (day 1 welcome vs day 210 winter test), sets its own flag, and pushes its own card with its own expiry window. Merging them would put two unrelated story cadences and texts in one function.",
+      "tests": [
+        "tests/storyEvents.test.ts",
+        "tests/story.expiryResolvers.test.ts"
       ]
     }
   ]

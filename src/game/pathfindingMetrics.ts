@@ -3,6 +3,8 @@
  * Opt-in via env flag, per-tick and session buckets, zero overhead when disabled; `pathfinding.ts` writes it.
  */
 
+import { envFlagOn } from './envFlags';
+
 export interface PathfinderCounters {
   /** `findPath` invocations, including the cheap pre-A* rejects. */
   findPathCalls: number;
@@ -52,22 +54,6 @@ const COUNTER_KEYS = [
   'cacheMisses',
 ] as const satisfies readonly (keyof PathfinderCounters)[];
 
-function envFlagEnabled(val: string | undefined): boolean {
-  if (val == null || val === '') return false;
-  return /^(1|true|yes|on|enabled)$/i.test(val.trim());
-}
-
-function isMetricsEnvEnabled(): boolean {
-  const runtime = globalThis as typeof globalThis & {
-    process?: { env?: Record<string, string | undefined> };
-  };
-  if (envFlagEnabled(runtime.process?.env?.PATHFINDING_METRICS)) return true;
-  if (typeof import.meta !== 'undefined') {
-    return envFlagEnabled(import.meta.env?.VITE_PATHFINDING_METRICS);
-  }
-  return false;
-}
-
 function createEmptyCounters(): PathfinderCounters {
   return {
     findPathCalls: 0,
@@ -90,7 +76,10 @@ function zeroCountersInPlace(counters: PathfinderCounters): void {
   }
 }
 
-let enabled = isMetricsEnvEnabled();
+let enabled = envFlagOn(
+  'PATHFINDING_METRICS',
+  typeof import.meta !== 'undefined' ? import.meta.env?.VITE_PATHFINDING_METRICS : undefined,
+);
 const tickCounters: PathfinderCounters = createEmptyCounters();
 const sessionCounters: PathfinderCounters = createEmptyCounters();
 let measuredTicks = 0;

@@ -1,5 +1,6 @@
 import { EntityType } from './gameTypes';
-import { gridCellAxis, gridFeatureDisabled, MOBILE_CELL_SIZE, runtimeEnvFlag } from './spatialGrid';
+import { runtimeEnvFlag } from './envFlags';
+import { gridCellAxis, gridFeatureDisabled, MOBILE_CELL_SIZE } from './spatialGrid';
 import { isActiveMoonHowler } from './moonHowler';
 
 /** Scent reads only predator location, type and active curse, not the full entity model. */
