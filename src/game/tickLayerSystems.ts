@@ -34,6 +34,8 @@ import { appendDeathAge, citizenFullName, humanDisplayName } from './citizenId';
 import { rollPredatorBlock, rollCounterAttack } from './combat';
 import { isActiveMoonHowler } from './moonHowler';
 import { logDeath, logEvent } from './eventLog';
+import { logWildkinBirth } from './wildkinChronicle';
+import { recordGenealogyBirth } from './genealogyRegistry';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { clampToMapBounds } from './mapBounds';
 import { isWalkStepAllowed } from './pathfinding';
@@ -275,7 +277,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       }
 
       // 3. Growth transitions
-      if (entity.isJuvenile && entity.age >= HUMAN_ADULT_MIN_AGE) {
+      if (entity.isJuvenile && entity.age >= (entity.type === EntityType.Wildkin ? 365 * 2 : HUMAN_ADULT_MIN_AGE)) {
         entity.isJuvenile = false;
         entity.size = SPECIES_CONFIG[entity.type].size;
         entity.speed = SPECIES_CONFIG[entity.type].speed;
@@ -619,6 +621,26 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         }
       }
 
+      // A human-born Wildkin is not immediately cast into the wild. While young it stays
+      // near its mother when it has no active hunt target; it remains wildlife, not a worker.
+      if (
+        entity.type === EntityType.Wildkin &&
+        entity.isJuvenile &&
+        entity.wildkinGuardianId != null &&
+        entity.huntTargetId == null
+      ) {
+        const guardian = entityById.get(entity.wildkinGuardianId);
+        if (guardian?.alive && guardian.type === EntityType.Human) {
+          const dx = guardian.x - entity.x;
+          const dy = guardian.y - entity.y;
+          const distance = Math.hypot(dx, dy);
+          if (distance > 40) {
+            targetVx = (dx / distance) * config.speed * 0.6;
+            targetVy = (dy / distance) * config.speed * 0.6;
+          }
+        }
+      }
+
       // 10. Default Wander Steps
       if (targetVx === 0 && targetVy === 0) {
         if (getSimRng('tickLayerSystems')() < 1.0 - Math.pow(1.0 - 0.05, step)) {
@@ -742,6 +764,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
 
       if (
         entity.type !== EntityType.Werewolf &&
+        !(entity.type === EntityType.Wildkin && entity.isJuvenile) &&
         entity.reproductionCooldown <= 0 &&
         entity.energy > config.reproductionEnergyThreshold
       ) {
@@ -780,13 +803,30 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             const breedDist = 15;
             const nx = Math.min(width, Math.max(0, entity.x + deterministicCos(breedAngle) * breedDist));
             const ny = Math.min(height, Math.max(0, entity.y + deterministicSin(breedAngle) * breedDist));
-            const offspring = createEntity(entity.type, nx, ny, state.nextEntityId++, config.spawnEnergy);
+            const offspring = createEntity(
+              entity.type, nx, ny, state.nextEntityId++, config.spawnEnergy,
+              entity.type === EntityType.Wildkin,
+            );
+            if (entity.type === EntityType.Wildkin) {
+              offspring.name = `Wildkin #${offspring.id}`;
+              offspring.birthDay = state.dayInYear;
+              offspring.wildkinParentIds = [entity.id, mate.id];
+            }
 
             if (!ctx.wildlifeSpawnParent) {
               ctx.wildlifeSpawnParent = new Map();
             }
             ctx.wildlifeSpawnParent.set(offspring.id, entity.id);
             pushNewEntity(state, ctx, offspring);
+            if (offspring.type === EntityType.Wildkin) {
+              recordGenealogyBirth(state, offspring);
+              logWildkinBirth(
+                state, offspring,
+                entity.name ?? `Wildkin #${entity.id}`,
+                mate.name ?? `Wildkin #${mate.id}`,
+                'wildkin',
+              );
+            }
 
             entity.energy -= entity.maxEnergy * 0.2;
             entity.reproductionCooldown = config.reproductionCooldown;
