@@ -54,7 +54,7 @@ import {
   markWildlifeDead,
   clearHuntersTargetingPrey,
 } from './simulation/simulationEntities';
-import { getWeatherFarmMultiplier } from './grassEcology';
+import { getWeatherFarmMultiplier } from './worldEvents';
 import {
   getMultiplier,
   addReputation,

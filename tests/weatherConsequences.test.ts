@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
-import { getWeatherFarmMultiplier } from '../src/game/grassEcology';
+import { getWeatherFarmMultiplier } from '../src/game/worldEvents';
 import {
   applyDailyWeatherEffects,
   applyStormDamageToBuildings,
@@ -30,6 +30,8 @@ describe('getWeatherFarmMultiplier', () => {
     expect(getWeatherFarmMultiplier(WeatherType.Rain)).toBe(1.15);
     expect(getWeatherFarmMultiplier(WeatherType.Storm)).toBe(0.9);
     expect(getWeatherFarmMultiplier(WeatherType.Drought)).toBe(0.5);
+    expect(getWeatherFarmMultiplier(WeatherType.Drought, 1.4)).toBeCloseTo(0.7);
+    expect(getWeatherFarmMultiplier(WeatherType.Rain, 1.4)).toBe(1.15);
   });
 });
 
