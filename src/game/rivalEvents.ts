@@ -1,9 +1,9 @@
 import { unindexEntityFromState } from './entityIndex';
 import type { Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
 import { getColonyDay } from './dayCycle';
-import { canRivalCampGrow, getRivalGrowthFoodCost, isRivalGrowthDay, maybeQueueRaid } from './frontierCombat';
+import { maybeQueueRaid } from './frontierCombat';
 import { isRivalAtPeace } from './rivalPeace';
-import { applyRivalDailyAction, ensureRivalProfile, selectRivalDailyAction } from './rivalProfiles';
+import { applyRivalDailyAction, canRivalCampGrow, ensureRivalProfile, getRivalGrowthFoodCost, isRivalGrowthDay, selectRivalDailyAction } from './rivalProfiles';
 import { getSimRng } from './simRng';
 import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
