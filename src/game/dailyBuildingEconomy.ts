@@ -249,22 +249,22 @@ function tickBuildingProgress(state: WorldState): ReadonlySet<number> {
         ),
       }));
       const totalShares = contributions.reduce((sum, worker) => sum + worker.share, 0);
-      const coveredShift = Math.min(1, totalShares);
-      let baseWork = 0;
-      let remainingBaseShare = coveredShift;
-      // Allocate the base-work term to the strongest attended work first. This is
-      // independent of roster order and cannot decrease when another worker attends.
+      let remainingBaseShare = Math.min(1, totalShares);
+      let baseGain = 0;
+      // Keep the uncrewed floor. The best work fractions replace that floor only when
+      // they improve it; every additional witnessed tick contributes a nonnegative bonus.
+      // Thus neither a weak worker nor a one-tick helper can reduce existing progress.
       contributions.sort((a, b) => b.factor - a.factor);
       for (const worker of contributions) {
         const used = Math.min(worker.share, remainingBaseShare);
-        baseWork += used * worker.factor;
+        baseGain += used * Math.max(0, worker.factor - idleRate);
         remainingBaseShare -= used;
         if (remainingBaseShare <= 0) break;
       }
       const crewBonus = contributions.reduce(
         (sum, worker) => sum + 0.35 * worker.share * worker.factor, 0,
       );
-      const buildMultiplier = idleRate * (1 - coveredShift) + baseWork + crewBonus;
+      const buildMultiplier = idleRate + baseGain + crewBonus;
 
       building.constructionProgress +=
         baseRate * buildMultiplier * globalMult * ordinaryWorkHours;
