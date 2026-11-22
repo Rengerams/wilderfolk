@@ -55,13 +55,7 @@ export function sendRivalGift(originalState: WorldState, rivalId: string): World
   const rivalPreview = originalState.rivalSettlements.find((r) => r.id === rivalId);
   if (!rivalPreview) return originalState;
 
-  const eligibility = getRivalGiftEligibility(originalState, rivalId);
-  if (!eligibility.ok) {
-    const state = structuredClone(originalState);
-    const rival = state.rivalSettlements.find((r) => r.id === rivalId);
-    if (!rival) return state;
-    return state;
-  }
+  if (!getRivalGiftEligibility(originalState, rivalId).ok) return structuredClone(originalState);
 
   const state = structuredClone(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
@@ -99,13 +93,7 @@ export function establishRivalTradePact(originalState: WorldState, rivalId: stri
   const rivalPreview = originalState.rivalSettlements.find((r) => r.id === rivalId);
   if (!rivalPreview) return originalState;
 
-  const eligibility = getRivalTradePactEligibility(originalState, rivalId);
-  if (!eligibility.ok) {
-    const state = structuredClone(originalState);
-    const rival = state.rivalSettlements.find((r) => r.id === rivalId);
-    if (!rival) return state;
-    return state;
-  }
+  if (!getRivalTradePactEligibility(originalState, rivalId).ok) return structuredClone(originalState);
 
   const state = structuredClone(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
