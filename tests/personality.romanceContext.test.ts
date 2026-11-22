@@ -81,7 +81,6 @@ function courtFrame(
   genomeV2: GenomeV2,
   options: {
     festival?: boolean;
-    performers?: boolean;
     distance?: number;
     spouse?: boolean;
     partnerGender?: 'female' | 'male';
@@ -100,23 +99,6 @@ function courtFrame(
   state.entities = [a, b];
   state.tick = 12;
   if (options.festival) state.festival = { active: true, name: 'Harvest feast', daysLeft: 1 };
-  if (options.performers) {
-    state.visitorGroups = [
-      {
-        id: 'troupe-1',
-        name: 'Troupe',
-        kind: 'performers',
-        entityIds: [],
-        campX: 300,
-        campY: 300,
-        daysLeft: 2,
-        giftsGiven: 0,
-        tradesCompleted: 0,
-        refugeeResolved: false,
-        leaderTalked: false,
-      },
-    ];
-  }
   const humans = [a, b];
   tickHumans(state, {
     width: state.width,
@@ -169,10 +151,9 @@ describe('courtship progress at the real owner boundary', () => {
     expect(courtFrame(COURTSHIP_RESISTANT_GENOME).progressA / neutral.progressA).toBeCloseTo(resistantFactor, 10);
   });
 
-  it('keeps the feast and performer multipliers around the same aptitude product', () => {
+  it('keeps the feast multiplier around the same aptitude product', () => {
     const neutral = courtFrame(genomeFrom());
     expect(courtFrame(genomeFrom(), { festival: true }).progressA / neutral.progressA).toBeCloseTo(2, 10);
-    expect(courtFrame(genomeFrom(), { performers: true }).progressA / neutral.progressA).toBeCloseTo(1.35, 10);
     expect(
       courtFrame(COURTSHIP_GENOME, { festival: true }).progressA / courtFrame(COURTSHIP_GENOME).progressA,
     ).toBeCloseTo(2, 10);

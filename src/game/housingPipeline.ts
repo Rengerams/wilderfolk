@@ -16,7 +16,7 @@ export type ResidenceMoveReason = 'assignment' | 'family' | 'guardian' | 'commut
   | 'departure' | 'birth' | 'death' | 'demolition' | 'load' | 'moon-form' | 'divorce' | 'prison' | 'player';
 
 /** Decision order: mandatory corrections before optional improvements; `leader` (the manor hold) first. */
-export const HOUSING_PHASE_ORDER = ['leader', 'integrity', 'guardianship', 'capacity', 'homeless', 'adult-child', 'commute'] as const;
+const HOUSING_PHASE_ORDER = ['leader', 'integrity', 'guardianship', 'capacity', 'homeless', 'adult-child', 'commute'] as const;
 export type HousingPhase = (typeof HOUSING_PHASE_ORDER)[number];
 
 const MANDATORY_PHASES: ReadonlySet<HousingPhase> = new Set<HousingPhase>([
@@ -57,7 +57,7 @@ export interface RelocationPlan {
 }
 
 /** Run counters: passes over the homeless work list, and plans considered, moved or stayed. */
-export interface HousingStats {
+interface HousingStats {
   passes: number;
   considered: number;
   moved: number;
@@ -1610,7 +1610,7 @@ export function tryMoveOutOfFamilyHome(
   return applyRelocation(household, plan, 'adult-child', context) !== undefined;
 }
 
-export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
+function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
   humans: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
@@ -1794,7 +1794,7 @@ export function pickLeastCrowdedResidence(
   return best?.id;
 }
 
-export function pickResidenceFromChildCustodian(
+function pickResidenceFromChildCustodian(
   child: Entity,
   humans: Entity[],
   residences: Building[],
@@ -2068,7 +2068,7 @@ export function auditHousingSharingIssues(humans: Entity[], buildings: Building[
   return issues;
 }
 
-export function sortHousingUnitsForAssignment(
+function sortHousingUnitsForAssignment(
   units: Entity[][],
   alive: Entity[],
   residences: Building[],
@@ -2090,7 +2090,7 @@ export const RELOCATION_MIN_SAVED_HOURS = 0.5;
 /** …and beat the current home by this fraction, so two near-equal homes never trade the household. */
 export const RELOCATION_MIN_IMPROVEMENT_RATIO = 0.25;
 /** No member's own daily travel may worsen by more than this, whatever the household total does. */
-export const RELOCATION_MAX_MEMBER_REGRESSION_HOURS = 0.25;
+const RELOCATION_MAX_MEMBER_REGRESSION_HOURS = 0.25;
 /** Most household moves a colony makes in one day, so a new row of houses cannot reshuffle it at once. */
 export const MAX_RELOCATIONS_PER_DAY = 8;
 
@@ -2391,7 +2391,7 @@ function relocateCommuteSwaps(
  * Per-residence facts the pickers ask about, built in one walk and kept current by `residenceTraitMove`
  * beside every occupancy move, which makes a pick O(residences) rather than O(residences × humans).
  */
-export interface ResidenceTraits {
+interface ResidenceTraits {
   adults: number;
   minors: number;
   /** Occupants whose partner is a housemate; above zero is the "hosts a couple" predicate. */
@@ -2438,7 +2438,7 @@ export function buildResidenceTraits(humans: readonly Entity[]): ResidenceTraits
  * Applies one move to a threaded trait map, exactly as a fresh `buildResidenceTraits` would read it.
  * Every residence write in an assignment pass must call this beside `occupancyMove`.
  */
-export function residenceTraitMove(
+function residenceTraitMove(
   traits: ResidenceTraitsById,
   human: Entity,
   fromId: number | undefined,

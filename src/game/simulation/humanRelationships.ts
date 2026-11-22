@@ -57,8 +57,8 @@ import { addReputation } from '../simHelpers';
 
 import { allowSocialLifeFor } from '../humanSchedule';
 export const AFFAIR_SPOUSE_BLOCK_RADIUS = 22;
-export const AFFAIR_BUILDING_NEAR_RADIUS = 55;
-export const AFFAIR_DAILY_TRYST_RADIUS = 95;
+const AFFAIR_BUILDING_NEAR_RADIUS = 55;
+const AFFAIR_DAILY_TRYST_RADIUS = 95;
 
 /**
  * The affair-establishment chronicle phrase, written and read through one string so the People
@@ -77,7 +77,7 @@ export function shouldLeadAffairPair(a: Entity, b: Entity): boolean {
   return a.id < b.id;
 }
 
-export function affairPairLead(a: Entity, b: Entity): { lead: Entity; other: Entity } {
+function affairPairLead(a: Entity, b: Entity): { lead: Entity; other: Entity } {
   return a.id < b.id ? { lead: a, other: b } : { lead: b, other: a };
 }
 
@@ -118,7 +118,7 @@ export function hasAffairPartner(entity: Entity, entityById: Map<number, Entity>
  * The lover this settler is in an **established** mutual affair with, or nothing — exposure is an
  * established-affair outcome.
  */
-export function findAffairLover(
+function findAffairLover(
   entity: Entity,
   entityById: Map<number, Entity>,
   tick: number,
@@ -203,7 +203,7 @@ export function wouldWalkInOnAffair(
   return spouseIsOn(cheater, entityById, buildingById) || spouseIsOn(paramour, entityById, buildingById);
 }
 
-export function isSingleParamour(paramour: Entity): boolean {
+function isSingleParamour(paramour: Entity): boolean {
   return paramour.relationshipStatus === 'single' && paramour.partnerId == null;
 }
 
@@ -454,9 +454,9 @@ const YOUTH_LOVE_MIN_AGE = 12;
  * link may wait past the older partner's 18th birthday for the younger one to come of age.
  */
 export const YOUTH_LOVE_MAX_AGE_GAP = 4;
-export const YOUTH_LOVE_DAILY_START_CHANCE = 0.0015;
-export const YOUTH_LOVE_DAILY_SCHOOL_BONUS = 0.2;
-export const YOUTH_LOVE_DAILY_BREAKUP_CHANCE = 0.0004;
+const YOUTH_LOVE_DAILY_START_CHANCE = 0.0015;
+const YOUTH_LOVE_DAILY_SCHOOL_BONUS = 0.2;
+const YOUTH_LOVE_DAILY_BREAKUP_CHANCE = 0.0004;
 
 function hasSharedSchoolBond(a: Entity, b: Entity): boolean {
   return (a.childhoodFriendsIds ?? []).includes(b.id) || (b.childhoodFriendsIds ?? []).includes(a.id);
@@ -479,7 +479,7 @@ function clearYouthLovePair(a: Entity, b?: Entity): void {
   }
 }
 
-export function isEligibleForYouthLove(entity: Entity): boolean {
+function isEligibleForYouthLove(entity: Entity): boolean {
   return (
     isPlayerHuman(entity) &&
     entity.alive &&
@@ -508,7 +508,7 @@ function isValidYouthLoveTarget(entity: Entity, candidate: Entity): boolean {
  * Clear a youth-love link that can no longer be valid — except the pending handoff where the older
  * partner has turned 18 while the younger one is still a minor, which `advanceYouthLove` promotes.
  */
-export function reconcileYouthLove(entity: Entity, entityById: Map<number, Entity>): void {
+function reconcileYouthLove(entity: Entity, entityById: Map<number, Entity>): void {
   const partnerId = entity.youthLovePartnerId;
   if (partnerId == null) return;
   const partner = getLivingEntity(partnerId, entityById);
@@ -930,7 +930,7 @@ function getScandalCooldownTicks(): number {
   return RELATIONSHIP_CONFIG.SCANDAL_COOLDOWN_TICKS;
 }
 
-export function onScandalCooldown(entity: Entity, tick: number): boolean {
+function onScandalCooldown(entity: Entity, tick: number): boolean {
   return entity.scandalCooldownUntilTick != null && tick < entity.scandalCooldownUntilTick;
 }
 
@@ -1271,7 +1271,7 @@ export function isWithinRemarriageBar(entity: Entity, other: Entity, tick: numbe
 }
 
 /** Put a settler out of the courting pool for `COURTSHIP_COOLDOWN_DAYS`, counted down daily. */
-export function startCourtshipCooldown(entity: Entity): void {
+function startCourtshipCooldown(entity: Entity): void {
   entity.courtshipCooldownDays = Relationship.COURTSHIP_COOLDOWN_DAYS;
 }
 

@@ -20,7 +20,7 @@ export type BiomeId =
   | 'rock'
   | 'snow';
 
-export const BIOME_IDS: BiomeId[] = [
+const BIOME_IDS: BiomeId[] = [
   'deep_water', 'water', 'river', 'sand', 'desert', 'dirt',
   'grass', 'meadow', 'forest', 'dense_forest', 'taiga',
   'swamp', 'tundra', 'rock', 'snow',

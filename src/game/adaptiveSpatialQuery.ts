@@ -205,7 +205,7 @@ export function findClosestAdaptiveInRadius(
 
 // ============ TUNING CONSTANTS & CONFIGURATIONS ============
 
-export const ADAPTIVE_QUERY_CONFIG = {
+const ADAPTIVE_QUERY_CONFIG = {
   social: { gridWorkThreshold: 0.7, densityFactor: 1.35 },
   flee: { gridWorkThreshold: 0.9, densityFactor: 1.1 },
   hunt: { gridWorkThreshold: 0.85, densityFactor: 1.1 },

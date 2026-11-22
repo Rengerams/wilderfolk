@@ -2,11 +2,11 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (22 Nov 2026, PR #172):** Repaired blocked same-tile route pricing, small road-speed gains, fast-road waypoint overshoot, and exact uncapped velocity calculations that blocked CI.
-
+- **Removed (22 Nov 2026; pending merge):** The two unreachable festival-performer reads left behind by the visitor-camp retirement are gone. Festival crowds still gather at the Square, and the courtship festival bonus is unchanged.
+- **Fixed (22 Nov 2026, PR #172):** A route whose only tile is blocked reports unreachable instead of a one-step price; blocked same-tile pricing, small road-speed gains, fast-road waypoint overshoot, the pace cap and exact uncapped velocity calculations are repaired.
 - **Fixed (22 Nov 2026, PR #172; consolidates #173):** Unified wildlife population policy. Rabbits recover to 150 and are protected below 35; wolf/fox caps are 6/8 and depend on available prey. Initial packs, breeding, replenishment and migration share the same limits.
+- **Refactored (22 Nov 2026; pending merge):** 293 internal-only exports are module-private, three unreachable helpers are gone, story cards, env flags and file names have one owner each, so the audit and overlap gates pass. Call-graph artifacts regenerated. No gameplay, save or API change.
 - **Fixed (22 Nov 2026, PR #172):** Corrected assignment and construction cadence documentation; standalone overlap checks refresh call graphs after source removals.
-
 - **Fixed (22 Nov 2026, PR #171):** Unified path/walk rules, recovered blocked origins, reached exact destinations, guarded bridges and map edges, and distinguished search budgets from unreachable routes. Reused valid caches, removed duplicate A* work and corrected steering/metrics.
 
 - **Fixed (22 Nov 2026, PR #170):** Caravans now wait for storage on arrival, retain undelivered exports on the saved route until space frees, and allow gold-for-iron purchases without a Market.

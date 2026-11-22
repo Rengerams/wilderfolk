@@ -67,7 +67,7 @@ export function huntingSpotPreyTypes(preyTarget: HuntingSpotPrey | undefined): E
  * The animal this spot is after right now, or null when nothing is inside its eyes. A tamed animal is
  * never targeted; a wolf carries a +160 px penalty so one is picked only when nothing safer is closer.
  */
-export function pickHuntingSpotPrey(
+function pickHuntingSpotPrey(
   building: Building,
   hunter: Entity,
   byType: Record<EntityType, Entity[]>,
@@ -171,13 +171,13 @@ export const HUNTING_PURSUIT_SPEED_MULT = 1.4;
  * How many ticks ahead of the animal the hunter aims — the difference between a chase that closes and
  * one that treadmills, since steering at its current position fights its radial motion.
  */
-export const HUNTING_LEAD_TICKS = 3;
+const HUNTING_LEAD_TICKS = 3;
 
 /**
  * How long a hunter's contact with an animal stays good for, in ticks: the spot samples the shot on its
  * own production pass, so a recently recorded contact (`huntingSpotInReachTick`) is accepted.
  */
-export const HUNTING_SPOT_STRIKE_GRACE_TICKS = 12;
+const HUNTING_SPOT_STRIKE_GRACE_TICKS = 12;
 
 /** True when the hunter was beside this spot's animal recently enough for the shot to count. */
 export function isHuntingStrikeLive(building: Building, tick: number): boolean {

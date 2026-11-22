@@ -6,9 +6,9 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isRivalAtPeace } from './rivalPeace';
 import { getEcosystemHealth } from './dailyEcology';
 
-export type PortraitTraitId = 'war' | 'nature' | 'trade' | 'build' | 'diplomacy';
+type PortraitTraitId = 'war' | 'nature' | 'trade' | 'build' | 'diplomacy';
 
-export interface PortraitTrait {
+interface PortraitTrait {
   id: PortraitTraitId;
   label: string;
   emoji: string;

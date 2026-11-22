@@ -9,7 +9,7 @@ import { countHomelessSettlers } from './housingModel';
 import { isMarriedOrExpecting } from './relationships';
 import { AFFAIR_ESTABLISHED_LOG_PHRASE } from './simulation/humanRelationships';
 
-export type VillageMood =
+type VillageMood =
   | 'thriving'
   | 'stable'
   | 'strained'

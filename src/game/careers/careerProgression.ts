@@ -2,7 +2,7 @@ import { JobType } from '../gameTypes';
 import { MAX_CAREER_DAY, type CareerHistory } from './careerHistory';
 
 export type CareerTier = 'practiced' | 'experienced' | 'master';
-export interface CareerMilestone {
+interface CareerMilestone {
   tier?: CareerTier;
   tierAtDay?: number;
   trainedAtDay?: number;

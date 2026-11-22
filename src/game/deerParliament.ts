@@ -13,7 +13,7 @@ import { spendFood } from './economyLedger';
 import { adjustEcosystemHealth, getEcosystemHealth } from './dailyEcology';
 
 export const STORY_KEY = 'deer_parliament';
-export const AUTHORED_STORY_COOLDOWN_DAYS = 21;
+const AUTHORED_STORY_COOLDOWN_DAYS = 21;
 
 const FLAG_OFFERED = 'deer_parliament_offered';
 const FLAG_RESOLVED = 'deer_parliament_resolved';

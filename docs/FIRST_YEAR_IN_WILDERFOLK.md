@@ -2,6 +2,8 @@
 
 ## The journal of Mara Bell, who arrived at twenty and learned that confidence is no substitute for a roof
 
+> **Historical record — visitor passages deprecated (2026-11-22):** on-map visitor camps were retired, so the visitors described here belong to the pre-retirement game. The narrative is preserved as written.
+
 I began this journal because I thought a record would make the first year seem orderly.
 
 It did not.

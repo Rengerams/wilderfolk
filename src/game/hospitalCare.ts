@@ -29,7 +29,7 @@ export const HOSPITAL_TREATMENT_REPUTATION_MAX = 3;
 export const HOSPITAL_REPUTATION_INTERVAL_DAYS = PRODUCTION_INTERVAL.hospital / TICKS_PER_DAY;
 
 /** How near the ward a settler must stand for the ward round to reach them, in world px. */
-export const HOSPITAL_WARD_RADIUS_PX = 70;
+const HOSPITAL_WARD_RADIUS_PX = 70;
 
 /**
  * The hospital's whole reputation grant for one production interval: the flat staffed grant plus
@@ -115,7 +115,7 @@ export function medicalCareReason(entity: Entity, tick: number): string | null {
 }
 
 /** One patient in the ward, with the owner's reason they are there. */
-export interface HospitalPatientEntry {
+interface HospitalPatientEntry {
   entity: Entity;
   reason: string;
 }

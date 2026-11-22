@@ -27,7 +27,7 @@ export type HumanActivityTarget = {
   y: number;
 };
 
-export type HumanActivityTransition = {
+type HumanActivityTransition = {
   from: string;
   to: string;
   observedAtTick: number;

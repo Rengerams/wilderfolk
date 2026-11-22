@@ -1,5 +1,6 @@
 import { normalizeHumanNeeds } from './simulation/humanPhysiology';
 import { isFiniteNumber, isNonEmptyString } from './inputGuards';
+import { villageFileSlug } from './fileNames';
 import { normalizeCareerHistory } from './careers/careerHistory';
 import { normalizeCareerMilestones } from './careers/careerProgression';
 import { applyLeaderHousePhase } from './leaderHouse';
@@ -332,12 +333,7 @@ export function buildSaveData(world: WorldState, view: ViewState): Record<string
  * player reads, so the file agrees with the clock in the header instead of trailing it by one.
  */
 export function buildSaveFilename(villageName: string, year: number, dayInYear: number): string {
-  const safe = (villageName || 'village')
-    .replace(/[^\w\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .slice(0, 40) || 'village';
-  return `wilderfolk-${safe}-Y${displayYear(year)}-D${dayInYear}.json`;
+  return `wilderfolk-${villageFileSlug(villageName)}-Y${displayYear(year)}-D${dayInYear}.json`;
 }
 
 /**

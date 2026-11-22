@@ -56,7 +56,7 @@ export function countCompletedDefenseBuildings(
 }
 
 /** Hard cap on the wall-segment militia bonus; forged wall plates raise it (`FORGE_BONUSES`). */
-export const WALL_SEGMENT_BASE_CAP = 72;
+const WALL_SEGMENT_BASE_CAP = 72;
 
 /**
  * Barricade strength one completed wall segment (or gate) adds before forged wall plates.

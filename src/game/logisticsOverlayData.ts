@@ -20,7 +20,7 @@ import { getTerrainRevision } from './terrain/terrainGrid';
  * Footprint gap (world units) between two road strips that still counts as one network.
  * A real junction has a zero gap; the tolerance covers one placement-grid step plus rounding.
  */
-export const ROAD_CONNECT_GAP = 26;
+const ROAD_CONNECT_GAP = 26;
 
 /** At or under this distance from a road footprint edge, a building is well connected. */
 export const GOOD_ROAD_ACCESS_DISTANCE = 40;
@@ -48,14 +48,14 @@ export const SETTLER_WALK_SPEED = SPECIES_CONFIG[EntityType.Human].speed;
 // ============ PROJECTION TYPES ============
 
 /** One road strip that carries the colony's traffic. */
-export interface LogisticsRoadNode {
+interface LogisticsRoadNode {
   readonly buildingId: number;
   readonly x: number;
   readonly y: number;
 }
 
 /** A maximal set of road strips that touch: one connectivity component of the road network. */
-export interface LogisticsRoadComponent {
+interface LogisticsRoadComponent {
   readonly id: number;
   readonly nodes: readonly LogisticsRoadNode[];
   /** Mean of the member centres — a stable label anchor for the overlay. */
@@ -67,7 +67,7 @@ export interface LogisticsRoadComponent {
  * Why a building is flagged: a discriminated union because "no roads exist" and "this
  * building is off the network" are different problems; only `poorly_connected` has a distance.
  */
-export type LogisticsConnectionIssue = 'no_road_network' | 'no_road_access' | 'poorly_connected';
+type LogisticsConnectionIssue = 'no_road_network' | 'no_road_access' | 'poorly_connected';
 
 export interface LogisticsBuildingFlag {
   readonly buildingId: number;
@@ -108,7 +108,7 @@ export interface LogisticsCommute {
   readonly severity: LogisticsCommuteSeverity;
 }
 
-export interface LogisticsOverlayTotals {
+interface LogisticsOverlayTotals {
   readonly roadCount: number;
   readonly roadComponentCount: number;
   readonly poorlyConnectedCount: number;

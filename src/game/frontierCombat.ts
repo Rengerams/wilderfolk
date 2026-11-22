@@ -89,11 +89,11 @@ export function getRaidExpiresAtTick(evt: Pick<RaidEvent, 'expiresAtTick'>): num
   return evt.expiresAtTick;
 }
 
-export function getRaidTicksRemaining(evt: Pick<RaidEvent, 'expiresAtTick'>, currentTick: number): number {
+function getRaidTicksRemaining(evt: Pick<RaidEvent, 'expiresAtTick'>, currentTick: number): number {
   return Math.max(0, getRaidExpiresAtTick(evt) - currentTick);
 }
 
-export function getRaidDaysRemaining(evt: Pick<RaidEvent, 'expiresAtTick'>, currentTick: number): number {
+function getRaidDaysRemaining(evt: Pick<RaidEvent, 'expiresAtTick'>, currentTick: number): number {
   return Math.max(0, Math.ceil(getRaidTicksRemaining(evt, currentTick) / TICKS_PER_DAY));
 }
 
@@ -117,7 +117,7 @@ export function getOutgoingRaidFoodCost(distancePixels: number, soldierCount = 0
 }
 
 /** Remove in-flight raid events when a truce is signed. */
-export function cancelPendingRaidsForRival(state: WorldState, rivalId: string): boolean {
+function cancelPendingRaidsForRival(state: WorldState, rivalId: string): boolean {
   const before = state.pendingRaidEvents?.length ?? 0;
   for (const event of state.pendingRaidEvents ?? []) {
     if (event.rivalId === rivalId) releaseRaidSoldiers(state, event.id);
@@ -664,7 +664,7 @@ function damageRandomPlayerBuilding(state: WorldState, amount: number): Building
 /** Every fight costs lives — even a routed war-band. */
 export type RaidCasualtyTier = 'victory' | 'costly' | 'moderate' | 'heavy';
 
-export function getRaidCasualtyBounds(tier: RaidCasualtyTier, adultPop: number): [number, number] {
+function getRaidCasualtyBounds(tier: RaidCasualtyTier, adultPop: number): [number, number] {
   const pop = Math.max(1, adultPop);
   const pct: Record<RaidCasualtyTier, [number, number]> = {
     victory: [0.012, 0.022],
@@ -751,7 +751,7 @@ function applyRaidCasualties(
   return victims.length;
 }
 
-export function resolveDefenseRatio(defender: number, attacker: number): RaidOutcomeTier {
+function resolveDefenseRatio(defender: number, attacker: number): RaidOutcomeTier {
   const ratio = defender / Math.max(attacker, 1);
   if (ratio >= 1.35) return 'decisive';
   if (ratio >= 0.95) return 'narrow';
@@ -770,7 +770,7 @@ export function raidEventLoot(evt: Pick<RaidEvent, 'lootFood' | 'lootGold' | 'lo
 }
 
 /** What a rival war-band tries to seize — scales with camp size & tension. */
-export function rollIncomingRaidLoot(rival: RivalSettlement): RaidLootBundle {
+function rollIncomingRaidLoot(rival: RivalSettlement): RaidLootBundle {
   const mood = rival.relationship === 'tense' ? 1.25 : 1;
   const pop = Math.max(1, rival.population);
   return {
@@ -953,7 +953,7 @@ function outgoingRaidChoices(
  * What a war-band carries home. The camp's stores and people set the base, and `lootScale` carries the
  * same strength multiple the fight did — a 5-person camp has little worth taking, a grown one does.
  */
-export function rollOutgoingRaidSpoils(
+function rollOutgoingRaidSpoils(
   rival: RivalSettlement,
   tier: 'success' | 'meager',
   lootScale: number,

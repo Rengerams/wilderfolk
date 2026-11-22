@@ -19,8 +19,8 @@ import {
 } from './storyHelpers';
 import { getSimSeed } from './simRng';
 
-export const STORY_KEY = 'rumour_ledger';
-export const AUTHORED_STORY_COOLDOWN_DAYS = 14;
+const STORY_KEY = 'rumour_ledger';
+const AUTHORED_STORY_COOLDOWN_DAYS = 14;
 
 const FLAG_OFFERED = 'rumour_ledger_offered';
 const FLAG_STATUS = 'rumour_ledger_status';
@@ -73,7 +73,7 @@ const VALID_CHOICES: ReadonlySet<string> = new Set<Stage1Choice>([
   'investigate',
 ]);
 
-export function rumourLedgerEligibleDay(mapSeed: number | undefined): number {
+function rumourLedgerEligibleDay(mapSeed: number | undefined): number {
   return eligibleDayForStory(mapSeed, STORY_KEY, MIN_DAY, WINDOW_DAYS);
 }
 

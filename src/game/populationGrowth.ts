@@ -131,7 +131,7 @@ export function resolvePopulationCap(state: WorldState): number {
 }
 
 /** Fraction of the immigration cap at which the HUD flags the colony as near-capacity. */
-export const POPULATION_NEAR_CAP_RATIO = 0.9;
+const POPULATION_NEAR_CAP_RATIO = 0.9;
 
 /**
  * True when the living population is within {@link POPULATION_NEAR_CAP_RATIO} of the
@@ -232,11 +232,8 @@ export function getOpenBeds(state: WorldState): number {
   return Math.max(0, beds - pop);
 }
 
-/**
- * `pop > beds` — more settlers than beds. One definition for the growth report's tone and the
- * Focus panel's "Build more housing" hint.
- */
-export function isOvercrowded(state: WorldState): boolean {
+/** `pop > beds` — more settlers than beds, as the growth report reads it. */
+function isOvercrowded(state: WorldState): boolean {
   const { pop, beds } = snapshotPopulation(state);
   return pop > beds;
 }

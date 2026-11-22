@@ -2,6 +2,8 @@
 
 ## The journal of Mara Bell, who learned that belonging is mostly knowing which roof leaks
 
+> **Historical record — visitor passages deprecated (2026-11-22):** on-map visitor camps were retired, so the visitors described here belong to the pre-retirement game. The narrative is preserved as written.
+
 I began my second year at twenty-one, which was old enough for people to ask my opinion and young enough for them to ignore it when I gave one.
 
 The settlement had changed while I was busy surviving it. The first year had been a collection of emergencies tied together with string. The second year acquired habits. People checked the wood before the frost. They looked at the sky before promising a harvest. They counted beds before inviting visitors. They asked whether a building had a worker before praising its roof.

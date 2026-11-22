@@ -1,7 +1,7 @@
 /** The mini-map's frame cadence: the panel registers one paint, `renderGame` drives it. */
 
 /** Frames between mini-map repaints — the interval its own `requestAnimationFrame` loop ran at. */
-export const MINI_MAP_FRAME_INTERVAL = 5;
+const MINI_MAP_FRAME_INTERVAL = 5;
 
 /** Whether this main-loop frame is the panel's repaint — 12 Hz when the loop runs at 60 fps. */
 export function shouldRepaintMiniMap(frame: number): boolean {

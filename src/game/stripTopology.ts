@@ -29,7 +29,7 @@ const ROAD_ENTRANCE_HOUSING_TYPES = new Set<BuildingType>([
 ]);
 
 /** Wall membership is `defenseStructures.isWallBuildingType`'s rule, not a second set here. */
-export function isWallStripType(type: BuildingType): boolean {
+function isWallStripType(type: BuildingType): boolean {
   return isWallBuildingType(type);
 }
 
@@ -37,7 +37,7 @@ export function isRoadStripType(type: BuildingType): boolean {
   return ROAD_STRIP_TYPES.has(type);
 }
 
-export function stripFamilyFor(type: BuildingType): 'wall' | 'road' | null {
+function stripFamilyFor(type: BuildingType): 'wall' | 'road' | null {
   if (isWallStripType(type) || type === BuildingType.Wall) return 'wall';
   if (isRoadStripType(type)) return 'road';
   if (isStripBuildType(type)) return isWallStripType(type) ? 'wall' : 'road';
@@ -272,7 +272,7 @@ export function resolveRoadStripPlan(
   });
 }
 
-export function resolveStripPlan(
+function resolveStripPlan(
   state: WorldState,
   type: BuildingType,
   centers: { x: number; y: number }[],
@@ -290,7 +290,7 @@ export function resolveStripPlan(
   }));
 }
 
-export function findStripBuildingAt(
+function findStripBuildingAt(
   state: WorldState,
   x: number,
   y: number,
@@ -346,7 +346,7 @@ export function collectStripDemolitionIds(
 const ENCLOSURE_CELL = 24;
 
 /** Flood-fill from map border; highlight regions fully surrounded by walls. */
-export function findEnclosedWallAreas(
+function findEnclosedWallAreas(
   state: WorldState,
   extraCenters: { x: number; y: number }[] = [],
 ): EnclosedArea[] {

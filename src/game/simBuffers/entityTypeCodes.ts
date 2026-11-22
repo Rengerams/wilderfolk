@@ -2,7 +2,7 @@
 import { EntityType, type EntityType as EntityTypeName } from '../gameTypes';
 
 /** Stable numeric codes for render SoA rows (append-only when adding species). */
-export const ENTITY_TYPE_CODE: Record<EntityTypeName, number> = {
+const ENTITY_TYPE_CODE: Record<EntityTypeName, number> = {
   [EntityType.Grass]: 0,
   [EntityType.Rabbit]: 1,
   [EntityType.Deer]: 2,
@@ -18,12 +18,12 @@ export const ENTITY_TYPE_CODE: Record<EntityTypeName, number> = {
  * Reverse map, derived from the forward one so the two can never drift: a hand-written map silently
  * missed a new `EntityType`, and every entity of that species became invisible.
  */
-export const ENTITY_CODE_TO_TYPE: Record<number, EntityTypeName> = Object.fromEntries(
+const ENTITY_CODE_TO_TYPE: Record<number, EntityTypeName> = Object.fromEntries(
   Object.entries(ENTITY_TYPE_CODE).map(([type, code]) => [code, type as EntityTypeName]),
 );
 
 /** Reserved wire code — never mapped to a real species. */
-export const UNKNOWN_ENTITY_TYPE_CODE = 255;
+const UNKNOWN_ENTITY_TYPE_CODE = 255;
 
 export function entityTypeToCode(type: EntityTypeName): number {
   return ENTITY_TYPE_CODE[type] ?? UNKNOWN_ENTITY_TYPE_CODE;

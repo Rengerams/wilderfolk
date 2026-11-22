@@ -60,7 +60,7 @@ export const APTITUDE_DEFS: Readonly<Record<GeneticAptitude, AptitudeDef>> = {
 };
 
 /** A single inherited allele value, a validated finite integer in `[0, 100]`. */
-export type AptitudeAllele = number;
+type AptitudeAllele = number;
 
 /** One dimension's maternal and paternal allele, in that documented order. */
 export type AllelePair = readonly [AptitudeAllele, AptitudeAllele];
@@ -71,7 +71,7 @@ export interface GenomeV2 {
   readonly aptitudeAlleles: readonly AllelePair[];
 }
 
-export const GENOME_VERSION = 2 as const;
+const GENOME_VERSION = 2 as const;
 export const ALLELE_MIN = 0;
 export const ALLELE_MAX = 100;
 

@@ -1,6 +1,6 @@
 import type { WorldState } from './gameTypes';
 
-export type GuidedCampaignChapterId =
+type GuidedCampaignChapterId =
   | 'deer_parliament'
   | 'traveling_theatre'
   | 'wedding_diplomacy'
@@ -143,7 +143,7 @@ export function tickGuidedCampaign(world: WorldState): void {
   }
 }
 
-export function getCurrentGuidedChapter(
+function getCurrentGuidedChapter(
   world: WorldState,
 ): GuidedCampaignChapter | null {
   const campaign = world.guidedCampaign;

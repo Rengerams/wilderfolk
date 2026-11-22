@@ -11,7 +11,7 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 const MEANINGFUL_FATIGUE_CHANGE = 8;
 
 /** The bands the HUD names a village's average fatigue by, worst first. */
-export const FATIGUE_BANDS = { high: 60, building: 25 } as const;
+const FATIGUE_BANDS = { high: 60, building: 25 } as const;
 
 export interface VillageFatigueReading {
   /** Mean `scheduleFatigue` over the living adult settlers. */

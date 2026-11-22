@@ -1,5 +1,6 @@
 import type { Building } from './buildings';
 import { EntityType } from './gameTypes';
+import { FLAG_OFF, FLAG_ON, envFlagMatches, runtimeEnvFlag } from './envFlags';
 import {
   isSpatialQueryMetricsEnabled,
   recordSpatialCandidate,
@@ -39,27 +40,9 @@ const MOBILE_ENTITY_TYPES = new Set<EntityType>([
   EntityType.Werewolf,
 ]);
 
-export function envFlagDisabled(val: string | undefined): boolean {
-  if (val == null || val === '') return false;
-  return /^(0|false|no|off|disabled)$/i.test(val.trim());
-}
-
-function envFlagEnabled(val: string | undefined): boolean {
-  if (val == null || val === '') return false;
-  return /^(1|true|yes|on|enabled)$/i.test(val.trim());
-}
-
 /** A grid feature is off when either its build-time or its runtime flag disables it. */
 export function gridFeatureDisabled(buildValue: string | undefined, runtimeValue: string | undefined): boolean {
-  return envFlagDisabled(buildValue) || envFlagDisabled(runtimeValue);
-}
-
-/** Runtime counterpart of a build-time `VITE_*` flag, for tests and non-Vite hosts. */
-export function runtimeEnvFlag(name: string): string | undefined {
-  const runtime = globalThis as typeof globalThis & {
-    process?: { env?: Record<string, string | undefined> };
-  };
-  return runtime.process?.env?.[name];
+  return envFlagMatches(buildValue, FLAG_OFF) || envFlagMatches(runtimeValue, FLAG_OFF);
 }
 
 /** When false, hunt/graze/flee fall back to full-map entity scans (A/B perf comparison). */
@@ -439,7 +422,7 @@ function isReusableSpatialGrid<T extends SpatialGridEntity>(
   );
 }
 
-export function resolveSpatialGrid<T extends SpatialGridEntity>(
+function resolveSpatialGrid<T extends SpatialGridEntity>(
   existing: EntitySpatialGrid<T> | undefined,
   mapWidth: number,
   mapHeight: number,
@@ -740,17 +723,17 @@ export function buildRoadAvoidanceIndex(
 
 function isSpatialInvariantCheckEnabled(): boolean {
   if (typeof import.meta !== 'undefined') {
-    if (envFlagDisabled(import.meta.env?.VITE_SPATIAL_GRID_INVARIANT)) return false;
-    if (envFlagEnabled(import.meta.env?.VITE_SPATIAL_GRID_INVARIANT)) return true;
+    if (envFlagMatches(import.meta.env?.VITE_SPATIAL_GRID_INVARIANT, FLAG_OFF)) return false;
+    if (envFlagMatches(import.meta.env?.VITE_SPATIAL_GRID_INVARIANT, FLAG_ON)) return true;
   }
   const runtime = globalThis as typeof globalThis & {
     process?: { env?: Record<string, string | undefined> };
   };
-  if (envFlagDisabled(runtime.process?.env?.SPATIAL_GRID_INVARIANT)) return false;
-  return envFlagEnabled(runtime.process?.env?.SPATIAL_GRID_INVARIANT);
+  if (envFlagMatches(runtime.process?.env?.SPATIAL_GRID_INVARIANT, FLAG_OFF)) return false;
+  return envFlagMatches(runtime.process?.env?.SPATIAL_GRID_INVARIANT, FLAG_ON);
 }
 
-export const SPATIAL_GRID_INVARIANT_CHECK = isSpatialInvariantCheckEnabled();
+const SPATIAL_GRID_INVARIANT_CHECK = isSpatialInvariantCheckEnabled();
 
 export function assertSpatialGridInvariants<T extends SpatialGridEntity>(
   grassGrid: EntitySpatialGrid<T> | undefined,

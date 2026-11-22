@@ -1,5 +1,6 @@
 import { EntityType } from './gameTypes';
-import { gridCellAxis, gridFeatureDisabled, MOBILE_CELL_SIZE, runtimeEnvFlag } from './spatialGrid';
+import { runtimeEnvFlag } from './envFlags';
+import { gridCellAxis, gridFeatureDisabled, MOBILE_CELL_SIZE } from './spatialGrid';
 import { isActiveMoonHowler } from './moonHowler';
 
 /** Scent reads only predator location, type and active curse, not the full entity model. */
@@ -12,13 +13,13 @@ interface ScentPredator {
 }
 
 /** Magic `WFSN` — Wilderfolk scent sidecar. */
-export const SCENT_GRID_MAGIC = 0x5746534e;
+const SCENT_GRID_MAGIC = 0x5746534e;
 
-export const SCENT_GRID_VERSION = 1;
+const SCENT_GRID_VERSION = 1;
 
-export const SCENT_HEADER_WORDS = 6;
+const SCENT_HEADER_WORDS = 6;
 
-export const SCENT_HEADER = {
+const SCENT_HEADER = {
   magic: 0,
   schemaVersion: 1,
   tick: 2,
@@ -28,15 +29,15 @@ export const SCENT_HEADER = {
 } as const;
 
 /** Per-tick multiplicative decay (≈ half-life ~20 ticks). */
-export const SCENT_DECAY_PER_TICK = 0.965;
+const SCENT_DECAY_PER_TICK = 0.965;
 
-export const WOLF_SCENT_DEPOSIT = 6;
-export const FOX_SCENT_DEPOSIT = 3;
-export const WEREWOLF_SCENT_DEPOSIT = 11;
-export const WILDKIN_SCENT_DEPOSIT = 8;
+const WOLF_SCENT_DEPOSIT = 6;
+const FOX_SCENT_DEPOSIT = 3;
+const WEREWOLF_SCENT_DEPOSIT = 11;
+const WILDKIN_SCENT_DEPOSIT = 8;
 
 /** Minimum neighborhood scent before grazers react. */
-export const SCENT_FLEE_MIN = 1.4;
+const SCENT_FLEE_MIN = 1.4;
 
 export const RABBIT_SCENT_SENSITIVITY = 1.25;
 export const DEER_SCENT_SENSITIVITY = 0.75;

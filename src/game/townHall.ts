@@ -31,7 +31,7 @@ export function isTownHallStaffed(buildings: Building[]): boolean {
   return !!hall && hall.occupants.length > 0;
 }
 
-export function getTownHallOfficialSkillAvg(state: WorldState, hall: Building): number {
+function getTownHallOfficialSkillAvg(state: WorldState, hall: Building): number {
   if (hall.occupants.length === 0) return 0;
   let total = 0;
   let count = 0;
@@ -162,7 +162,7 @@ export function isOfficialAtHall(
 }
 
 /** Settler wants civic attention (dispute, aid, gossip, leader). */
-export function wantsCivicAudience(entity: Entity, state: WorldState): boolean {
+function wantsCivicAudience(entity: Entity, state: WorldState): boolean {
   if (!isPlayerHuman(entity) || entity.age < HUMAN_ADULT_MIN_AGE) return false;
   if (entity.job === JobType.Official) return false;
   if ((entity.griefUntilTick ?? 0) > state.tick) return true;

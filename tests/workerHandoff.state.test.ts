@@ -278,7 +278,6 @@ describe('worker hand-off state', () => {
         workplace: undefined,
         workSchedule: getWorkSchedule(world),
         idleVenues: [],
-        festivalPerformers: undefined,
         treeGrid: undefined,
         trees: [],
         weekend: false,

@@ -110,8 +110,8 @@ flowchart LR
 |-------|------|----------------|
 | **Realtime** | `tickLayerRealtime.ts` | Humans move, social, meals, combat chase |
 | **Systems** | `tickLayerSystems.ts` | Wildlife AI, weather, research progress, trade walkers |
-| **Assign** | `tickLayerAssign.ts` | Fill jobs/homes at 03:00, 09:00, 15:00 and 21:00 (six-hour offset schedule) |
-| **Daily** | `tickLayerDaily.ts` | 00:00 idle skills, year rollover and fatigue (retired visitor camps have no scheduler); 06:00 relationships; 12:00 empty; 18:00 production, ecology, immigration and world events; 23:00 construction |
+| **Assign** | `tickLayerAssign.ts` | Fill jobs/homes at 03:00, 09:00, 15:00 and 21:00 (six-hour offset schedule; not every frame) |
+| **Daily** | `tickLayerDaily.ts` | 00:00 idle skills, year rollover and fatigue (retired visitor camps have no scheduler); 06:00 relationships; 12:00 empty; 18:00 production, ecology, immigration and other world events; 23:00 construction |
 
 Domain logic lives in modules, not one mega-file:
 
@@ -120,7 +120,7 @@ Domain logic lives in modules, not one mega-file:
 | `humanTick.ts` | Human tick bodies (animal AI: `tickLayerSystems`) |
 | `dayCycle.ts` | Calendar, housing, age, family helpers |
 | `frontierCombat.ts` | Raids (abstract ratios, not a battle screen) |
-| `groupEvents.ts` | Legacy visitor compatibility and general events; active rivals use strategic records, not on-map camps |
+| `groupEvents.ts` | Rivals and diplomacy; the visitor-camp lifecycle is retired and kept only for old-save compatibility; active rivals use strategic records, not on-map camps |
 | `moonHowler.ts` | Curse / transform / church |
 | `forge.ts` + `combat.ts` | Blacksmith orders → village gear **tiers** |
 | `ecologyStage.ts` | Valley stable → strained → … |
@@ -171,7 +171,7 @@ flowchart LR
 | Area | Notes |
 |------|--------|
 | **Village** | Pop, families, armament steps, leadership |
-| **Frontier** | Visitors, rivals, raid UI |
+| **Frontier** | Rivals, raid UI |
 | **Nature** | Wildlife counts, eco health, season |
 | **Progress** | Research, trade, **legend portrait** (not hard win) |
 | **More** | Guide (searchable help), roadmap |
@@ -248,7 +248,7 @@ src/
     renderer.ts           Canvas draw
     saveLoad.ts           persist
     frontierCombat.ts     war abstract
-    groupEvents.ts        visitors & rivals
+    groupEvents.ts        rivals & retired visitor camps
     simWorker/            optional off-main sim
     simBuffers/           render packing
 ```

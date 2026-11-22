@@ -48,7 +48,7 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 export const STATS_SAMPLE_INTERVAL_TICKS = 10;
 
 /** Rolling buffer length — 300 samples × STATS_SAMPLE_INTERVAL_TICKS (≈10 game days at 288 ticks/day). */
-export const POPULATION_HISTORY_MAX = 300;
+const POPULATION_HISTORY_MAX = 300;
 
 /**
  * The tick's predator roster: hunting wildlife species plus adult player settlers.

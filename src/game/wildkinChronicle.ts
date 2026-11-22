@@ -41,7 +41,7 @@ function compassSector(dx: number, dy: number): string {
  * The biome cell the generator classified at a world position, or `null` off-map / legacy map. The cell
  * axis comes from `spatialGrid.gridCellAxis`, so a position lands on the same cell as every uniform grid.
  */
-export function biomeNameAt(state: WorldState, x: number, y: number): string | null {
+function biomeNameAt(state: WorldState, x: number, y: number): string | null {
   const map = state.worldMap;
   const cols = map?.cols;
   const rows = map?.rows;

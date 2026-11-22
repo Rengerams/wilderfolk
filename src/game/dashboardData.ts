@@ -54,7 +54,7 @@ export function resourceFillPercent(resource: Pick<DashboardResource, 'amount' |
   return Math.min(100, Math.round((resource.amount / resource.cap) * 100));
 }
 
-export interface DashboardSettler {
+interface DashboardSettler {
   id: number;
   name: string;
   role: string;
@@ -72,7 +72,7 @@ export interface DashboardSettler {
 }
 
 /** One village building as the dashboard's table lists it — both identities, level and occupancy. */
-export interface DashboardBuilding {
+interface DashboardBuilding {
   id: number;
   /** The append-only type number (`buildings.BUILDING_TYPE_CODES`). */
   typeCode: number;
@@ -85,7 +85,7 @@ export interface DashboardBuilding {
   slots: { used: number; cap: number } | null;
 }
 
-export interface HistoryPoint {
+interface HistoryPoint {
   day: number;
   humans: number;
   deer: number;
@@ -96,7 +96,7 @@ export interface HistoryPoint {
   food?: number;
 }
 
-export interface FoodSourceToday {
+interface FoodSourceToday {
   label: string;
   amount: number;
   /**
@@ -106,7 +106,7 @@ export interface FoodSourceToday {
   sharePct: number;
 }
 
-export interface VillageConcern {
+interface VillageConcern {
   id: string;
   severity: 'critical' | 'warning' | 'info';
   title: string;
@@ -115,7 +115,7 @@ export interface VillageConcern {
   hint: string;
 }
 
-export interface CouncilLine {
+interface CouncilLine {
   label: string;
   value: string;
   tone: 'good' | 'warn' | 'bad' | 'neutral';
@@ -739,7 +739,7 @@ const STAFFING_REFUSAL_LABELS: Record<WorkerAssignmentRefusal, string> = {
 };
 
 /** One settler the staffing owner refuses, with the owner's own reason and its player-facing label. */
-export interface StaffingRefusal {
+interface StaffingRefusal {
   settlerId: number;
   name: string;
   /** The owner's answer, verbatim — never re-derived by the projection or the view. */

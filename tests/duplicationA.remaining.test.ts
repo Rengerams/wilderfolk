@@ -76,7 +76,7 @@ describe('A12 — one owner for world→cell coordinate clamping', () => {
 });
 
 describe('A14 — one owner for "normalise a delta, set velocity, face it"', () => {
-  it('sets exactly the velocity the inline expression did', () => {
+  it('steers at the requested pace without overshooting the target', () => {
     const cases: Array<{ tx: number; ty: number; speed: number; factor?: number }> = [
       { tx: 260, ty: 90, speed: 1.4, factor: 0.55 },
       { tx: 40, ty: 210, speed: 0.8, factor: 0.18 },
@@ -84,6 +84,8 @@ describe('A14 — one owner for "normalise a delta, set velocity, face it"', () 
       { tx: 100, ty: 50, speed: 1.1, factor: 0.5 },
       { tx: 100, ty: 50, speed: 1.1 },
       { tx: 380, ty: 320, speed: 0.44, factor: 0.72 },
+      // Close target: the requested pace exceeds the remaining distance, so the cap applies.
+      { tx: 100.3, ty: 50.2, speed: 2, factor: 0.5 },
     ];
     for (const { tx, ty, speed, factor } of cases) {
       const entity = human(1, { x: 100, y: 50 });
@@ -91,8 +93,17 @@ describe('A14 — one owner for "normalise a delta, set velocity, face it"', () 
       const dy = ty - entity.y;
       const distance = Math.hypot(dx, dy) || 1;
       const approach = factor ?? 1;
-      const expectedVx = (dx / distance) * speed * approach;
-      const expectedVy = (dy / distance) * speed * approach;
+      // The owner caps the applied pace at the remaining distance, and keeps the original
+      // component-wise multiplication order when uncapped (IEEE-754 multiplication is not associative).
+      const requestedSpeed = speed * approach;
+      const appliedSpeed = Math.min(Math.max(0, requestedSpeed), distance);
+      const uncapped = appliedSpeed === requestedSpeed;
+      const expectedVx = uncapped
+        ? (dx / distance) * speed * approach
+        : (dx / distance) * appliedSpeed;
+      const expectedVy = uncapped
+        ? (dy / distance) * speed * approach
+        : (dy / distance) * appliedSpeed;
 
       if (factor === undefined) setVelocityToward(entity, tx, ty, speed);
       else steerEntityToward(entity, tx, ty, speed, factor);

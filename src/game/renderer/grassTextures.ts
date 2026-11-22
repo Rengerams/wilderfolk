@@ -17,7 +17,7 @@ export const TERRAIN_MATERIAL_PATHS = {
   pebbles: '/sprites/terrain/rubberduck/215.jpg',
 } as const;
 
-export type NaturalTerrainMaterial = keyof typeof TERRAIN_MATERIAL_PATHS;
+type NaturalTerrainMaterial = keyof typeof TERRAIN_MATERIAL_PATHS;
 
 // The original Cethiel pack. Dirt_03 has parallel ruts: keep it available for
 // future deliberate path/farm painting, never random-repeat it as natural soil.

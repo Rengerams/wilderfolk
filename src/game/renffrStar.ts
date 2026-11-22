@@ -13,7 +13,7 @@ const STREAK_DURATION = 50;
 const REVEAL_DURATION = 45;
 const SCATTER_DURATION = 130;
 
-export function createRenffrOmen(): RenffrOmen {
+function createRenffrOmen(): RenffrOmen {
   const spacing = 0.028;
   const startNx = 0.5 - ((NAME.length - 1) * spacing) / 2;
   const letters: RenffrLetter[] = NAME.split('').map((char, i) => ({
@@ -70,7 +70,7 @@ function scatterUnit(index: number, life: number): number {
   return x - Math.floor(x);
 }
 
-export function beginRenffrSettlerChatter(state: WorldState, entities: readonly Entity[]): void {
+function beginRenffrSettlerChatter(state: WorldState, entities: readonly Entity[]): void {
   state.renffrChatterUntilTick = state.tick + TICKS_PER_DAY * RENFFR_GOSSIP_DAYS;
 
   const humans = entities.filter((e) => e.alive && isPlayerHuman(e));

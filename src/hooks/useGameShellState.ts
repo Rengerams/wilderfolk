@@ -33,7 +33,7 @@ export type OverviewWorldFocus = 'frontier' | 'nature' | 'progress';
 export type OverviewNavId = 'people' | 'frontier' | 'nature' | 'progress' | 'chronicle' | 'help';
 
 export const TUTORIAL_DONE_STORAGE_KEY = 'wilderfolk-tutorial-done';
-export const BUILD_PANEL_STORAGE_KEY = 'wilderfolk-build-panel';
+const BUILD_PANEL_STORAGE_KEY = 'wilderfolk-build-panel';
 
 /** Returns the visible tab using insertion-order convention. */
 export function getActiveSidebarTab(openTabs: ReadonlySet<SidebarTab>): SidebarTab {

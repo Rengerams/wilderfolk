@@ -21,7 +21,7 @@ import {
 } from './forge';
 import { getValleyStageFocusHint } from './ecologyStage';
 
-export type FocusHintActionId =
+type FocusHintActionId =
   | 'open_goals'
   | 'open_frontier'
   | 'open_trade'

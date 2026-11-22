@@ -33,7 +33,7 @@ export function isSimTickDelta(value: unknown): value is SimTickDelta {
 }
 
 /** Keep player-dismissed Big News across worker ticks (sim delta overwrites UI flags). */
-export function preserveBigNewsDismissals(
+function preserveBigNewsDismissals(
   prev: WorldState['bigNews'],
   incoming: WorldState['bigNews'],
   dismissedIds?: readonly string[],
@@ -47,7 +47,7 @@ export function preserveBigNewsDismissals(
 }
 
 /** Keep player-dismissed active event banners across worker ticks. */
-export function preserveActiveEventDismissal(
+function preserveActiveEventDismissal(
   incoming: WorldState['activeEvent'],
   dismissedIds?: readonly string[],
 ): WorldState['activeEvent'] {
@@ -197,7 +197,7 @@ export interface SimTickDelta {
   simRng?: SimRngSnapshot;
 }
 
-export type SimDeltaCloneMode = 'isolated' | 'transfer';
+type SimDeltaCloneMode = 'isolated' | 'transfer';
 
 export interface ExtractSimTickDeltaOptions {
   cloneMode?: SimDeltaCloneMode;

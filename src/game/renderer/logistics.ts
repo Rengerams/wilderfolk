@@ -137,7 +137,7 @@ export function drawLogisticsOverlay(
 }
 
 /** One legend row: label and swatch colour for the on-map legend control. */
-export interface LogisticsLegendEntry {
+interface LogisticsLegendEntry {
   readonly label: string;
   readonly color: string;
 }

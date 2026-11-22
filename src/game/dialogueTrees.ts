@@ -6,7 +6,7 @@ import { PER_TICK_RATE_SCALE, TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycleCl
 import { isDialogueBusy, startDialogueTreeChat, clearCurrentEntityDialogue, type ChatSpeaker, type HumanChatContext, type ChatPickOptions } from './humanChat';
 export const DIALOGUE_CATEGORIES = ['dialogue'] as const;
 
-export type DialogueCategory = (typeof DIALOGUE_CATEGORIES)[number];
+type DialogueCategory = (typeof DIALOGUE_CATEGORIES)[number];
 
 export const DIALOGUE_EVENT_KEYS = [
   'ambient.social',
@@ -106,7 +106,7 @@ export const DIALOGUE_EVENT_KEYS = [
 export type DialogueEventKey = (typeof DIALOGUE_EVENT_KEYS)[number];
 const DIALOGUE_EVENT_KEY_SET: ReadonlySet<string> = new Set(DIALOGUE_EVENT_KEYS);
 
-export interface DialogueLine {
+interface DialogueLine {
   readonly speaker: string;
   readonly text: string;
 }
@@ -306,7 +306,7 @@ export function getDialogueCategories(): readonly DialogueCategory[] {
  * Timed, presentation-only dialogue. Not an Entity chat session: the caller owns its wall clock,
  * actor mapping, pause/camera/skip and world state.
  */
-export interface PresentationDialogueLine extends DialogueLine {
+interface PresentationDialogueLine extends DialogueLine {
   readonly id?: string;
   readonly cue?: string;
   /** Optional authored wall-clock caption duration, not simulation ticks. */
