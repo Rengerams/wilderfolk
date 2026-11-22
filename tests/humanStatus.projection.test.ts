@@ -5,6 +5,8 @@ import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { DEFAULT_WORK_SCHEDULE } from '../src/game/workSchedule';
 import { getHumanActivityProjection, getHumanActivityStatus } from '../src/game/humanStatus';
+import { explainHumanMovement } from '../src/game/movementExplanation';
+import { setProjectedCommuteBuildingId } from '../src/game/simulation/humanMovement';
 
 describe('selected human activity projection', () => {
   it('returns stable read-only fields from the authoritative world', () => {
@@ -60,6 +62,77 @@ describe('selected human activity projection', () => {
     expect(projection.schedule.onShift).toBe(false);
     expect(projection.workReason.code).toBe('no-post');
     expect(projection.target).toBeNull();
+  });
+
+  it('shows real child play instead of walking home and exposes the playmate as target', () => {
+    const world = initGame({ villageName: 'Child Play', size: MapSize.Medium, seed: 106 });
+    const child = world.entities.find((entity) => entity.alive && entity.type === EntityType.Human);
+    const companion = world.entities.find((entity) =>
+      entity.alive && entity.type === EntityType.Human && entity.id !== child?.id);
+    if (!child || !companion) throw new Error('Expected two settlers');
+    child.isJuvenile = true;
+    child.age = 10;
+    child.workerBuildingId = undefined;
+    const eveningTick = Array.from({ length: 100 }, (_, day) => day * TICKS_PER_DAY + 19 * TICKS_PER_HOUR)
+      .find((tick) => !prefersHomeTonightFor(DEFAULT_WORK_SCHEDULE, child.id, tick, 19));
+    if (eveningTick === undefined) throw new Error('Expected an evening-outing preference sample');
+    world.tick = eveningTick;
+    child.childPlaymateDay = Math.floor(world.tick / TICKS_PER_DAY);
+    child.childPlaymateId = companion.id;
+    child.childLeisureActivity = 'playing';
+    child.childLeisureTargetId = companion.id;
+    child.residenceBuildingId = 99111;
+
+    expect(getHumanActivityStatus(world, child)).toBe(`Playing with ${companion.name}`);
+    const projection = getHumanActivityProjection(world, child);
+    expect(projection.target).toMatchObject({ kind: 'playmate', entityId: companion.id });
+    expect(projection.target?.label).not.toBe('Evening outing');
+    expect(explainHumanMovement(world, child.id).lines).toContainEqual({
+      label: 'Destination', value: companion.name, tone: 'neutral',
+    });
+    expect(explainHumanMovement(world, child.id).lines[0]).toMatchObject({
+      label: 'Activity', value: `Playing with ${companion.name}`,
+    });
+
+    child.childLeisureActivity = undefined;
+    child.childLeisureTargetId = undefined;
+    expect(getHumanActivityStatus(world, child)).toBe('Free time');
+  });
+
+  it('reports a child walking home on the scheduled commute, not free time', () => {
+    const world = initGame({ villageName: 'Scheduled Child', size: MapSize.Medium, seed: 107 });
+    const child = world.entities.find((entity) => entity.alive && entity.type === EntityType.Human);
+    if (!child) throw new Error('Expected an initial human');
+    child.isJuvenile = true;
+    child.age = 10;
+    child.workerBuildingId = undefined;
+    child.needs = undefined;
+    child.x = 500;
+    child.y = 500;
+    child.vx = 1;
+    child.vy = 0;
+    world.tick = 23 * TICKS_PER_HOUR;
+    const home = {
+      id: 91117, type: BuildingType.House, x: 80, y: 80,
+      width: 40, height: 40, occupants: [], level: 1,
+      constructionProgress: 1, completed: true, health: 100,
+      maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
+    };
+    world.buildings.push(home);
+    child.residenceBuildingId = home.id;
+    // The worker projects its actual commanded building commute to the inspector host.
+    setProjectedCommuteBuildingId(child, home.id);
+
+    const projection = getHumanActivityProjection(world, child);
+    expect(projection.activity).toBe('Walking home');
+    expect(projection.target).toMatchObject({ kind: 'home', buildingId: home.id });
+    expect(explainHumanMovement(world, child.id).lines).toContainEqual({
+      label: 'Destination', value: 'House', tone: 'neutral',
+    });
+
+    // Standing still is not evidence of a commute, even if the last projected ID survives.
+    child.vx = 0;
+    expect(getHumanActivityStatus(world, child)).toBe('Free time');
   });
 
   it('does not infer adult activity from proximity to a public building', () => {

@@ -8,6 +8,10 @@
 
 **2026-11-22 — [Visitor-camp retirement left a dangling export and a deleted test in the gates](../bug_report/2026-11-22-visitor-retirement-left-stale-references.md):** resolved; `gameEngine.ts` still re-exported the removed `hitTestCamp` (typecheck TS2305) and the day-length literal audit still read the deleted visitor-spawn test (ENOENT). Both stale references are gone and the gates pass.
 
+**2026-11-22 — [Retired camp hit-test export breaks TypeScript and calendar CI](../bug_report/2026-11-22-stale-hit-test-camp-export.md):** resolved; the same stale `hitTestCamp` re-export, found independently from the CI logs; removed from the engine facade, so the Node.js typecheck and the calendar scheduler import `gameEngine` again. No gameplay change.
+
+**2026-11-22 — [Child playmates reroll hourly and play looks like walking home](../bug_report/2026-11-22-child-playmate-hourly-reset-and-activity.md):** investigating; selection changed to one daily persisted playmate, activity and movement projections read recorded play/follow/home intent; focused tests added, CI pending.
+
 **2026-11-22 — [Affair conversations reattempted every realtime tick](../bug_report/2026-11-22-affair-chat-repeated-per-tick.md):** investigating; committed once-per-game-hour 11.4% attempts and 48-hour cooldown for both participants after a successful dialogue; focused regression written, CI pending.
 
 **2026-11-22 — [Renffr omen can retrigger during its own three-day gossip](../bug_report/2026-11-22-renffr-omen-retriggers-during-gossip.md):** investigating; committed nighttime hourly rolls at 0.42% and a gossip-window retrigger exclusion; focused seeded regression written, CI pending.

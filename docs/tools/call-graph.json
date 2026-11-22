@@ -1,26 +1,26 @@
 {
  "generatedFrom": "src/**/*.{ts,tsx} + decisionRegistry.ts + OWNERSHIP_OVERVIEW.md",
- "generatedAt": "2026-11-22T22:03:01.977Z",
+ "generatedAt": "2026-11-22T22:23:43.035Z",
  "stats": {
   "files": 403,
   "functions": 3415,
-  "callEdges": 7281,
+  "callEdges": 7286,
   "withRecordedOwner": 3415,
   "withExplicitEntry": 1590,
   "withModuleOwner": 1825,
   "withoutRecordedOwner": 0,
-  "decisions": 490,
+  "decisions": 491,
   "ambiguousCalls": 5,
   "injectedCallbackCalls": 193,
-  "externalMethodCalls": 9465,
+  "externalMethodCalls": 9472,
   "resolutionKinds": {
    "local": 4085,
-   "imported": 5957,
+   "imported": 5966,
    "namespace": 82,
    "methodThis": 279,
    "methodInstance": 51,
    "injectedCallback": 193,
-   "external": 9465,
+   "external": 9472,
    "uniqueName": 50
   }
  },
@@ -273,14 +273,18 @@
    "source": "decisionRegistry.ts",
    "owner": "humanLeisureBehavior.ts — tickHumanLeisure (single free-time entry), tickHumanChildLeisure, tickAdultLeisureMotive",
    "cadence": "realtime",
-   "cadenceNote": "Called once per eligible humanTick free-time tick. Chooses child/adult activities and steering intent; humanTick owns the final movement step. The companion beat draws both humanTick rolls unconditionally and branches identically for a null/zero beauty grid, so a missing cache cannot shift the stream.",
+   "cadenceNote": "Called once per eligible humanTick free-time tick. Children choose one playmate per colony day (replacement only if unavailable) and record the active play/follow/home intent; humanTick owns movement integration. Companion RNG beats remain unconditional for deterministic replay.",
    "scheduledFrom": "humanTick.tickHumans → humanLeisureBehavior.tickHumanLeisure",
    "writes": [
     "human.vx",
     "human.vy",
-    "human.indoorBuildingId"
+    "human.indoorBuildingId",
+    "human.childPlaymateDay",
+    "human.childPlaymateId",
+    "human.childLeisureActivity",
+    "human.childLeisureTargetId"
    ],
-   "testFile": "tests/humanLeisureBehavior.test.ts, tests/simulation.decisionRegistry.test.ts",
+   "testFile": "tests/humanLeisureBehavior.test.ts, tests/humanStatus.projection.test.ts, tests/simulation.decisionRegistry.test.ts",
    "modules": [
     "humanLeisureBehavior.ts"
    ],
@@ -6743,7 +6747,6 @@
     "at",
     "leisureKindFor",
     "leisureSlotFor",
-    "refresh",
     "seeded",
     "tick",
     "tickAdultLeisureMotive",
@@ -8009,6 +8012,22 @@
     "tests/phase7.social.test.ts"
    ],
    "entryFunctions": []
+  },
+  {
+   "key": "Child leisure regression fixtures",
+   "source": "OWNERSHIP_OVERVIEW.md",
+   "owner": "`tests/humanLeisureBehavior.test.ts`",
+   "cadence": "test tier only",
+   "cadenceNote": null,
+   "scheduledFrom": null,
+   "writes": [],
+   "testFile": null,
+   "modules": [
+    "tests/humanLeisureBehavior.test.ts"
+   ],
+   "entryFunctions": [
+    "bounded"
+   ]
   },
   {
    "key": "Company-following movement fixture",
@@ -21559,7 +21578,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 108
+     "line": 105
     },
     {
      "index": 1350,
@@ -21718,7 +21737,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 120
+     "line": 117
     },
     {
      "index": 1350,
@@ -23389,7 +23408,7 @@
     {
      "index": 1404,
      "file": "src/game/humanStatus.ts",
-     "line": 152
+     "line": 178
     },
     {
      "index": 1405,
@@ -23512,7 +23531,7 @@
     {
      "index": 1402,
      "file": "src/game/humanStatus.ts",
-     "line": 100
+     "line": 103
     },
     {
      "index": 1409,
@@ -27268,6 +27287,11 @@
      "index": 514,
      "file": "src/game/citizenId.ts",
      "line": 20
+    },
+    {
+     "index": 1404,
+     "file": "src/game/humanStatus.ts",
+     "line": 195
     }
    ],
    "callees": []
@@ -32880,12 +32904,12 @@
     {
      "index": 1402,
      "file": "src/game/humanStatus.ts",
-     "line": 74
+     "line": 76
     },
     {
      "index": 1403,
      "file": "src/game/humanStatus.ts",
-     "line": 140
+     "line": 166
     },
     {
      "index": 1540,
@@ -33143,6 +33167,11 @@
      "line": 77
     },
     {
+     "index": 1348,
+     "file": "src/game/humanLeisureBehavior.ts",
+     "line": 94
+    },
+    {
      "index": 1351,
      "file": "src/game/humanLeisureBehavior.ts",
      "line": 254
@@ -33156,6 +33185,11 @@
      "index": 1370,
      "file": "src/game/humanSchedule.ts",
      "line": 69
+    },
+    {
+     "index": 1402,
+     "file": "src/game/humanStatus.ts",
+     "line": 107
     },
     {
      "index": 1409,
@@ -35286,7 +35320,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 141
+     "line": 136
     },
     {
      "index": 1351,
@@ -49918,9 +49952,9 @@
   {
    "name": "createInitialResearchNodes",
    "file": "src/game/gameTypes.ts",
-   "line": 1125,
-   "bodyStart": 1125,
-   "bodyEnd": 1154,
+   "line": 1131,
+   "bodyStart": 1131,
+   "bodyEnd": 1160,
    "exported": true,
    "kind": "function",
    "className": null,
@@ -49950,9 +49984,9 @@
   {
    "name": "snapToGrid",
    "file": "src/game/gameTypes.ts",
-   "line": 1297,
-   "bodyStart": 1297,
-   "bodyEnd": 1299,
+   "line": 1303,
+   "bodyStart": 1303,
+   "bodyEnd": 1305,
    "exported": true,
    "kind": "function",
    "className": null,
@@ -55106,7 +55140,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 165
+     "line": 164
     },
     {
      "index": 1349,
@@ -55549,7 +55583,7 @@
     {
      "index": 1402,
      "file": "src/game/humanStatus.ts",
-     "line": 91
+     "line": 93
     },
     {
      "index": 1409,
@@ -56312,7 +56346,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 155
+     "line": 152
     },
     {
      "index": 1474,
@@ -62888,9 +62922,9 @@
   {
    "name": "deterministicWave",
    "file": "src/game/humanLeisureBehavior.ts",
-   "line": 46,
-   "bodyStart": 46,
-   "bodyEnd": 49,
+   "line": 40,
+   "bodyStart": 40,
+   "bodyEnd": 43,
    "exported": false,
    "kind": "function",
    "className": null,
@@ -62902,7 +62936,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 138
+     "line": 133
     },
     {
      "index": 1353,
@@ -62925,9 +62959,9 @@
   {
    "name": "leisureSlotFor",
    "file": "src/game/humanLeisureBehavior.ts",
-   "line": 51,
-   "bodyStart": 51,
-   "bodyEnd": 53,
+   "line": 45,
+   "bodyStart": 45,
+   "bodyEnd": 47,
    "exported": false,
    "kind": "function",
    "className": null,
@@ -62939,7 +62973,7 @@
     {
      "index": 1347,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 60
+     "line": 54
     },
     {
      "index": 1352,
@@ -62952,9 +62986,9 @@
   {
    "name": "leisureKindFor",
    "file": "src/game/humanLeisureBehavior.ts",
-   "line": 59,
-   "bodyStart": 59,
-   "bodyEnd": 75,
+   "line": 53,
+   "bodyStart": 53,
+   "bodyEnd": 69,
    "exported": true,
    "kind": "function",
    "className": null,
@@ -62973,25 +63007,25 @@
     {
      "index": 1346,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 60
+     "line": 54
     },
     {
      "index": 2386,
      "file": "src/game/simRng.ts",
-     "line": 62
+     "line": 56
     },
     {
      "index": 2383,
      "file": "src/game/simRng.ts",
-     "line": 63
+     "line": 57
     }
    ]
   },
   {
    "name": "tickHumanChildLeisure",
    "file": "src/game/humanLeisureBehavior.ts",
-   "line": 77,
-   "bodyStart": 93,
+   "line": 71,
+   "bodyStart": 87,
    "bodyEnd": 173,
    "exported": true,
    "kind": "function",
@@ -63011,92 +63045,97 @@
     {
      "index": 1677,
      "file": "src/game/playerHuman.ts",
+     "line": 88
+    },
+    {
+     "index": 634,
+     "file": "src/game/dayCycleClock.ts",
      "line": 94
     },
     {
      "index": 2383,
      "file": "src/game/simRng.ts",
-     "line": 106
+     "line": 103
     },
     {
      "index": 367,
      "file": "src/game/adaptiveSpatialQuery.ts",
-     "line": 108
+     "line": 105
     },
     {
      "index": 370,
      "file": "src/game/adaptiveSpatialQuery.ts",
-     "line": 120
+     "line": 117
     },
     {
      "index": 2645,
      "file": "src/game/socialLife.ts",
-     "line": 130
+     "line": 125
     },
     {
      "index": 2504,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 136
+     "line": 131
     },
     {
      "index": 1345,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 138
+     "line": 133
     },
     {
      "index": 2386,
      "file": "src/game/simRng.ts",
-     "line": 140
+     "line": 135
     },
     {
      "index": 689,
      "file": "src/game/dialogueTrees.ts",
-     "line": 141
+     "line": 136
     },
     {
      "index": 2605,
      "file": "src/game/simulation/movementSteering.ts",
-     "line": 148
+     "line": 143
     },
     {
      "index": 1410,
      "file": "src/game/humanTick.ts",
-     "line": 152
+     "line": 149
     },
     {
      "index": 1374,
      "file": "src/game/humanSchedule.ts",
-     "line": 154
+     "line": 151
     },
     {
      "index": 3252,
      "file": "src/game/workSchedule.ts",
-     "line": 154
+     "line": 151
     },
     {
      "index": 3259,
      "file": "src/game/workSchedule.ts",
-     "line": 154
+     "line": 151
     },
     {
      "index": 1191,
      "file": "src/game/housingModel.ts",
-     "line": 155
+     "line": 152
     },
     {
      "index": 1172,
      "file": "src/game/housingModel.ts",
-     "line": 165
+     "line": 164
     },
     {
      "index": 2519,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 168
+     "line": 167
     },
     {
      "index": 2503,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 168
+     "line": 167
     }
    ]
   },
@@ -64147,7 +64186,7 @@
     {
      "index": 1402,
      "file": "src/game/humanStatus.ts",
-     "line": 79
+     "line": 81
     },
     {
      "index": 1409,
@@ -64310,7 +64349,7 @@
     {
      "index": 1402,
      "file": "src/game/humanStatus.ts",
-     "line": 94
+     "line": 96
     },
     {
      "index": 1409,
@@ -64363,7 +64402,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 154
+     "line": 151
     },
     {
      "index": 1375,
@@ -64373,12 +64412,12 @@
     {
      "index": 1402,
      "file": "src/game/humanStatus.ts",
-     "line": 110
+     "line": 134
     },
     {
      "index": 1404,
      "file": "src/game/humanStatus.ts",
-     "line": 157
+     "line": 183
     },
     {
      "index": 1409,
@@ -65151,9 +65190,9 @@
   {
    "name": "labelFor",
    "file": "src/game/humanStatus.ts",
-   "line": 17,
-   "bodyStart": 17,
-   "bodyEnd": 19,
+   "line": 19,
+   "bodyStart": 19,
+   "bodyEnd": 21,
    "exported": false,
    "kind": "function",
    "className": null,
@@ -65165,17 +65204,17 @@
     {
      "index": 1402,
      "file": "src/game/humanStatus.ts",
-     "line": 99
+     "line": 123
     },
     {
      "index": 1404,
      "file": "src/game/humanStatus.ts",
-     "line": 153
+     "line": 179
     },
     {
      "index": 1403,
      "file": "src/game/humanStatus.ts",
-     "line": 195
+     "line": 234
     }
    ],
    "callees": []
@@ -65183,9 +65222,9 @@
   {
    "name": "isAtActivityTarget",
    "file": "src/game/humanStatus.ts",
-   "line": 58,
-   "bodyStart": 58,
-   "bodyEnd": 61,
+   "line": 60,
+   "bodyStart": 60,
+   "bodyEnd": 63,
    "exported": true,
    "kind": "function",
    "className": null,
@@ -65198,6 +65237,11 @@
      "index": 1539,
      "file": "src/game/movementExplanation.ts",
      "line": 74
+    },
+    {
+     "index": 1541,
+     "file": "src/game/movementExplanation.ts",
+     "line": 165
     }
    ],
    "callees": []
@@ -65205,9 +65249,9 @@
   {
    "name": "getHumanActivityStatus",
    "file": "src/game/humanStatus.ts",
-   "line": 63,
-   "bodyStart": 67,
-   "bodyEnd": 129,
+   "line": 65,
+   "bodyStart": 69,
+   "bodyEnd": 155,
    "exported": true,
    "kind": "function",
    "className": null,
@@ -65219,68 +65263,78 @@
     {
      "index": 1403,
      "file": "src/game/humanStatus.ts",
-     "line": 147
+     "line": 173
     }
    ],
    "callees": [
     {
      "index": 632,
      "file": "src/game/dayCycleClock.ts",
-     "line": 74
+     "line": 76
     },
     {
      "index": 3301,
      "file": "src/game/workforce.ts",
-     "line": 76
+     "line": 78
     },
     {
      "index": 3259,
      "file": "src/game/workSchedule.ts",
-     "line": 77
+     "line": 79
     },
     {
      "index": 1368,
      "file": "src/game/humanSchedule.ts",
-     "line": 79
+     "line": 81
     },
     {
      "index": 1177,
      "file": "src/game/housingModel.ts",
-     "line": 91
+     "line": 93
     },
     {
      "index": 1373,
      "file": "src/game/humanSchedule.ts",
-     "line": 94
-    },
-    {
-     "index": 1400,
-     "file": "src/game/humanStatus.ts",
-     "line": 99
+     "line": 96
     },
     {
      "index": 420,
      "file": "src/game/buildingAccess.ts",
-     "line": 100
+     "line": 103
+    },
+    {
+     "index": 2518,
+     "file": "src/game/simulation/humanMovement.ts",
+     "line": 103
+    },
+    {
+     "index": 634,
+     "file": "src/game/dayCycleClock.ts",
+     "line": 107
+    },
+    {
+     "index": 1400,
+     "file": "src/game/humanStatus.ts",
+     "line": 123
     },
     {
      "index": 1374,
      "file": "src/game/humanSchedule.ts",
-     "line": 110
+     "line": 134
     },
     {
      "index": 3252,
      "file": "src/game/workSchedule.ts",
-     "line": 110
+     "line": 134
     }
    ]
   },
   {
    "name": "getHumanActivityProjection",
    "file": "src/game/humanStatus.ts",
-   "line": 135,
-   "bodyStart": 139,
-   "bodyEnd": 205,
+   "line": 161,
+   "bodyStart": 165,
+   "bodyEnd": 244,
    "exported": true,
    "kind": "function",
    "className": null,
@@ -65297,58 +65351,58 @@
     {
      "index": 1541,
      "file": "src/game/movementExplanation.ts",
-     "line": 169
+     "line": 160
     }
    ],
    "callees": [
     {
      "index": 632,
      "file": "src/game/dayCycleClock.ts",
-     "line": 140
+     "line": 166
     },
     {
      "index": 3252,
      "file": "src/game/workSchedule.ts",
-     "line": 141
+     "line": 167
     },
     {
      "index": 3301,
      "file": "src/game/workforce.ts",
-     "line": 142
+     "line": 168
     },
     {
      "index": 3246,
      "file": "src/game/workAbsence.ts",
-     "line": 146
+     "line": 172
     },
     {
      "index": 1402,
      "file": "src/game/humanStatus.ts",
-     "line": 147
+     "line": 173
     },
     {
      "index": 3260,
      "file": "src/game/workSchedule.ts",
-     "line": 190
+     "line": 229
     },
     {
      "index": 3259,
      "file": "src/game/workSchedule.ts",
-     "line": 193
+     "line": 232
     },
     {
      "index": 1400,
      "file": "src/game/humanStatus.ts",
-     "line": 195
+     "line": 234
     }
    ]
   },
   {
    "name": "target",
    "file": "src/game/humanStatus.ts",
-   "line": 148,
-   "bodyStart": 148,
-   "bodyEnd": 176,
+   "line": 174,
+   "bodyStart": 174,
+   "bodyEnd": 215,
    "exported": false,
    "kind": "const-arrow",
    "className": null,
@@ -65361,27 +65415,32 @@
     {
      "index": 3259,
      "file": "src/game/workSchedule.ts",
-     "line": 151
+     "line": 177
     },
     {
      "index": 419,
      "file": "src/game/buildingAccess.ts",
-     "line": 152
+     "line": 178
     },
     {
      "index": 1400,
      "file": "src/game/humanStatus.ts",
-     "line": 153
+     "line": 179
     },
     {
      "index": 1374,
      "file": "src/game/humanSchedule.ts",
-     "line": 157
+     "line": 183
     },
     {
      "index": 3252,
      "file": "src/game/workSchedule.ts",
-     "line": 157
+     "line": 183
+    },
+    {
+     "index": 512,
+     "file": "src/game/citizenId.ts",
+     "line": 195
     }
    ]
   },
@@ -66377,7 +66436,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 152
+     "line": 149
     },
     {
      "index": 1350,
@@ -71187,7 +71246,7 @@
     {
      "index": 1541,
      "file": "src/game/movementExplanation.ts",
-     "line": 170
+     "line": 184
     }
    ],
    "callees": [
@@ -71220,7 +71279,7 @@
     {
      "index": 1541,
      "file": "src/game/movementExplanation.ts",
-     "line": 160
+     "line": 174
     }
    ],
    "callees": [
@@ -71251,7 +71310,7 @@
    "file": "src/game/movementExplanation.ts",
    "line": 113,
    "bodyStart": 113,
-   "bodyEnd": 195,
+   "bodyEnd": 209,
    "exported": true,
    "kind": "function",
    "className": null,
@@ -71288,24 +71347,29 @@
      "line": 157
     },
     {
+     "index": 1403,
+     "file": "src/game/humanStatus.ts",
+     "line": 160
+    },
+    {
+     "index": 1401,
+     "file": "src/game/humanStatus.ts",
+     "line": 165
+    },
+    {
      "index": 3301,
      "file": "src/game/workforce.ts",
-     "line": 159
+     "line": 173
     },
     {
      "index": 1540,
      "file": "src/game/movementExplanation.ts",
-     "line": 160
-    },
-    {
-     "index": 1403,
-     "file": "src/game/humanStatus.ts",
-     "line": 169
+     "line": 174
     },
     {
      "index": 1539,
      "file": "src/game/movementExplanation.ts",
-     "line": 170
+     "line": 184
     }
    ]
   },
@@ -76210,7 +76274,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 94
+     "line": 88
     },
     {
      "index": 1350,
@@ -102190,12 +102254,12 @@
     {
      "index": 1347,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 63
+     "line": 57
     },
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 106
+     "line": 103
     },
     {
      "index": 1349,
@@ -102449,12 +102513,12 @@
     {
      "index": 1347,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 62
+     "line": 56
     },
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 140
+     "line": 135
     },
     {
      "index": 1351,
@@ -107024,7 +107088,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 168
+     "line": 167
     },
     {
      "index": 1351,
@@ -107081,7 +107145,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 136
+     "line": 131
     },
     {
      "index": 1351,
@@ -107590,6 +107654,11 @@
    "cadence": "realtime",
    "callers": [
     {
+     "index": 1402,
+     "file": "src/game/humanStatus.ts",
+     "line": 103
+    },
+    {
      "index": 3246,
      "file": "src/game/workAbsence.ts",
      "line": 281
@@ -107625,7 +107694,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 168
+     "line": 167
     },
     {
      "index": 1351,
@@ -111423,7 +111492,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 148
+     "line": 143
     },
     {
      "index": 1352,
@@ -112837,7 +112906,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 130
+     "line": 125
     },
     {
      "index": 1351,
@@ -135737,7 +135806,7 @@
     {
      "index": 1403,
      "file": "src/game/humanStatus.ts",
-     "line": 146
+     "line": 172
     },
     {
      "index": 2709,
@@ -136072,22 +136141,22 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 154
+     "line": 151
     },
     {
      "index": 1402,
      "file": "src/game/humanStatus.ts",
-     "line": 110
+     "line": 134
     },
     {
      "index": 1403,
      "file": "src/game/humanStatus.ts",
-     "line": 141
+     "line": 167
     },
     {
      "index": 1404,
      "file": "src/game/humanStatus.ts",
-     "line": 157
+     "line": 183
     },
     {
      "index": 1409,
@@ -136383,7 +136452,7 @@
     {
      "index": 1348,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 154
+     "line": 151
     },
     {
      "index": 1351,
@@ -136393,17 +136462,17 @@
     {
      "index": 1402,
      "file": "src/game/humanStatus.ts",
-     "line": 77
+     "line": 79
     },
     {
      "index": 1404,
      "file": "src/game/humanStatus.ts",
-     "line": 151
+     "line": 177
     },
     {
      "index": 1403,
      "file": "src/game/humanStatus.ts",
-     "line": 193
+     "line": 232
     },
     {
      "index": 1409,
@@ -136481,7 +136550,7 @@
     {
      "index": 1403,
      "file": "src/game/humanStatus.ts",
-     "line": 190
+     "line": 229
     }
    ],
    "callees": []
@@ -138391,12 +138460,12 @@
     {
      "index": 1402,
      "file": "src/game/humanStatus.ts",
-     "line": 76
+     "line": 78
     },
     {
      "index": 1403,
      "file": "src/game/humanStatus.ts",
-     "line": 142
+     "line": 168
     },
     {
      "index": 1409,
@@ -138406,7 +138475,7 @@
     {
      "index": 1541,
      "file": "src/game/movementExplanation.ts",
-     "line": 159
+     "line": 173
     },
     {
      "index": 2596,
