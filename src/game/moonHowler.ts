@@ -185,7 +185,7 @@ export function canMoonHowlerCurse(entity: Entity): boolean {
   );
 }
 
-export function isActiveMoonHowler(entity: Entity): boolean {
+export function isActiveMoonHowler(entity: Pick<Entity, 'alive' | 'type' | 'moonHowlerCursed'>): boolean {
   return entity.alive && entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
 }
 
