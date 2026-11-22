@@ -484,3 +484,14 @@ describe('O — no domain rule is computed inside a view', () => {
     );
   });
 });
+
+describe('Frontier UI boundary: the panel renders and delegates, never recalculates', () => {
+  it('consumes one read-only projection without local gameplay selectors or array queries', () => {
+    const panel = read('src/components/FrontierPanel.tsx');
+    expect(count(panel, 'projectFrontierPanel(state,')).toBe(1);
+    expect(panel).not.toMatch(/\.(?:filter|some|find|reduce|slice|sort|reverse)\(/);
+    expect(panel).not.toMatch(/\b(?:computeMilitiaBreakdown|countCompletedDefenseBuildings|getBarracksGuardCount|getCombatPreview|canLaunchRaidOnRival|canProvokeRival|normalizeRivalProfile|getRivalPresenceSummary)\s*\(/);
+    expect(panel).toContain('view.rivals.map(');
+    expect(panel).toContain('view.battleReports.map(');
+  });
+});
