@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-22 — [Retired camp hit-test import breaks TypeScript and scheduler CI](../bug_report/2026-11-22-stale-hit-test-camp-export.md):** investigating; inherited from main, unused `hitTestCamp` re-export removed from the engine facade, verification pending updated PR CI.
+
 **2026-11-22 — [Child playmates reroll hourly and play looks like walking home](../bug_report/2026-11-22-child-playmate-hourly-reset-and-activity.md):** investigating; selection changed to one daily persisted playmate, activity and movement projections read recorded play/follow/home intent; focused tests added, CI pending.
 
 **2026-11-22 — [Affair conversations reattempted every realtime tick](../bug_report/2026-11-22-affair-chat-repeated-per-tick.md):** investigating; committed once-per-game-hour 11.4% attempts and 48-hour cooldown for both participants after a successful dialogue; focused regression written, CI pending.
