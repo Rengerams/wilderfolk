@@ -103,6 +103,14 @@ describe('schedule feedback previews', () => {
     expect(preview.assignedWorkers).toBe(0);
   });
 
+  it('uses the ordinary schedule owner to clamp malformed negative durations', () => {
+    const preview = getScheduleImpactPreview(
+      state, 'ordinary', { startHour: 18, endHour: 7 }, normal,
+    );
+    expect(preview.expectedHours).toBe(9);
+    expect(preview.durationDelta).toBe(9);
+  });
+
   it('recognizes a shifted window with the same duration', () => {
     const preview = getScheduleImpactPreview(state, 'ordinary', normal, shifted);
     expect(preview.durationDelta).toBe(0);
