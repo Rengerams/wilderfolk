@@ -188,8 +188,8 @@ function logCompletedBuildings(state: WorldState, completedToday: ReadonlyMap<Bu
   }
 }
 
-/** Construction / repair / winter decay — once per colony day. */
-function tickBuildingProgress(state: WorldState): ReadonlySet<number> {
+/** Construction / repair / winter decay — once at 23:00, after the latest legal shift. */
+export function tickBuildingProgress(state: WorldState): void {
   const entityById = new Map<number, Entity>();
   const livingPlayerHumans: Entity[] = [];
 
@@ -212,7 +212,6 @@ function tickBuildingProgress(state: WorldState): ReadonlySet<number> {
   let completedAny = false;
   // Keyed in completion order, which is also the order `logCompletedBuildings` writes the lines in.
   const completedToday = new Map<BuildingType, number>();
-  const completedTodayIds = new Set<number>();
 
   for (let b = 0; b < state.buildings.length; b++) {
     const building = state.buildings[b];
@@ -282,7 +281,6 @@ function tickBuildingProgress(state: WorldState): ReadonlySet<number> {
         building.occupants = [];
         building.spriteScale = 1;
         completedAny = true;
-        completedTodayIds.add(building.id);
         completedToday.set(building.type, (completedToday.get(building.type) ?? 0) + 1);
 
         state.totalBuildingsCompleted++;
@@ -341,7 +339,6 @@ function tickBuildingProgress(state: WorldState): ReadonlySet<number> {
     logCompletedBuildings(state, completedToday);
     assignMissingWorkers(livingPlayerHumans, state.buildings, state);
   }
-  return completedTodayIds;
 }
 
 // ==================== STATIC / DAILY BOOKKEEPING ====================
@@ -362,11 +359,11 @@ export function tickDailyBuildingEconomy(
   ctx: TickContext,
   allAlive: Entity[],
 ): void {
-  const completedTodayIds = tickBuildingProgress(state);
+  // Production stays at 18:00; the existing construction owner runs at 23:00.
   tickStaticDaily(state, ctx.season);
   tickBlueberryRegrowth(state);
-  // A building finished at 18:00 did not operate during the preceding shift.
-  tickBuildingProduction(state, ctx, allAlive, completedTodayIds);
+  // A site completed tonight cannot produce before tomorrow's evening pass.
+  tickBuildingProduction(state, ctx, allAlive);
   // Recompute the ledger's food totals now that the day's production has run, so views read
   // stored numbers instead of adding the maps up themselves.
   refreshFoodLedgerTotals(state);
@@ -378,15 +375,12 @@ function tickBuildingProduction(
   state: WorldState,
   ctx: TickContext,
   allAlive: Entity[],
-  completedTodayIds: ReadonlySet<number>,
 ): void {
   const { updatedBuildings, entityById, byType, roadBuildings } = ctx;
-  // Exclude newly finished sites from ALL operational branches and buffs for this day,
-  // including the forge and the Mill bonus. Construction gets the entire just-ended shift.
-  const operationalBuildings = completedTodayIds.size
-    ? updatedBuildings.filter((building) => !completedTodayIds.has(building.id))
-    : updatedBuildings;
-  // Production runs after the work window, but isProductionTick is anchored to midnight.
+  // Construction finishes at 23:00, after this production pass, so only sites that
+  // completed on an earlier day can supply output, XP and operational bonuses.
+  const operationalBuildings = updatedBuildings;
+  // Production is scheduled at 18:00, while isProductionTick is anchored to midnight.
   // Align to the same calendar day's start to preserve weekdays and interval cadence.
   const productionDayTick = state.tick - (state.tick % TICKS_PER_DAY);
 
@@ -434,7 +428,7 @@ function tickBuildingProduction(
     // Attribute the verified hours to the site they were worked at. `-1` means the
     // settler changed sites; crediting that to the current building would be a guess.
     const siteId = attendance.siteId ?? h.workerBuildingId;
-    if (siteId == null || siteId < 0 || completedTodayIds.has(siteId)) continue;
+    if (siteId == null || siteId < 0) continue;
 
     const current = buildingWorkerStats.get(siteId)
       ?? { count: 0, fatigueSum: 0, workedHoursSum: 0, workedCount: 0, workedIds: new Set<number>() };

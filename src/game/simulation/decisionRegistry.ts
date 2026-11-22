@@ -318,21 +318,21 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/housingPlanner.contract.test.ts, tests/housingAuthority.pipeline.test.ts, tests/housingPipeline.invariants.test.ts, tests/housingDiagnostics.test.ts, tests/adultChild.moveOutTarget.test.ts, tests/residenceCommuteRelocation.test.ts, tests/divorceHousing.custody.test.ts, tests/leaderHouse.successionHousehold.test.ts, tests/simulation.invariants.test.ts, tests/longRunColony.integration.test.ts, tests/residencyCapacity.writers.test.ts, tests/housing.custodianSplit.test.ts, tests/housingPulse.audit.test.ts',
   },
   construction: {
-    owner: 'buildingStaffingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); dailyBuildingEconomy.tickBuildingProgress (progress advance at the 18:00 production pass)',
+    owner: 'buildingStaffingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); dailyBuildingEconomy.tickBuildingProgress (progress advance at 23:00 after the latest legal work shift)',
     cadence: 'work',
-    cadenceNote: 'The existing 18:00 construction owner reads witnessed attendance and site attribution from scheduleFatigue; assignment alone never proves work. Passive sites retain their uncrewed pace, while unattended staffable sites crawl at 0.22x. Individual fractional shifts add monotonically to construction progress, retaining the 0.35 full-worker bonus; skill and DNA are evaluated once per worker using the sole skills owner. One proportional trade skill credit is paid.',
+    cadenceNote: 'The existing construction owner closes at 23:00, consuming every permitted shift before midnight clears the witness counters; attendance and site attribution still come solely from scheduleFatigue; assignment alone never proves work. Passive sites retain their uncrewed pace, while unattended staffable sites crawl at 0.22x. Individual fractional shifts add monotonically to construction progress, retaining the 0.35 full-worker bonus; skill and DNA are evaluated once per worker using the sole skills owner. One proportional trade skill credit is paid.',
     writes: [
       'building.constructionProgress',
       'building.occupants (construction crew)',
       'building.buildAnimTimer',
     ],
-    scheduledFrom: 'dailyBuildingEconomy.tickBuildingProduction (progress); assign layer + commands (crew membership)',
+    scheduledFrom: 'gameTick → tickLayerDaily 23:00 → dailyBuildingEconomy.tickBuildingProgress (progress); assign layer + commands (crew membership)',
     testFile: 'tests/commands.validation.test.ts, tests/demolish.roundtrip.test.ts, tests/personality.workIntegration.test.ts, tests/production.attendancePacing.test.ts',
   },
   production: {
     owner: 'dailyBuildingEconomy.tickBuildingProduction; scheduleFatigue.getWorkdayAttendance (the one presence verdict); forge.tickVillageForge (forge orders, gated on the production-day anchor); economy.ts — addResource, applyFoodSpoilage, updateStorageCaps, computeStorageMax; the crew term this decision multiplies is skills.getWorkerSkillMultiplier',
     cadence: 'daily',
-    cadenceNote: 'At 18:00, production excludes sites completed in the evening construction pass, including their output, XP and operational bonuses; existing sites price attendance through scheduleFatigue.getWorkdayAttendance. A worked shift earns XP even at full storage; separate XP for successful output remains. Stale, underage, dead, jailed, foreign and duplicate occupant ids never dilute the skill/DNA crew average. An empty eligible crew has a neutral multiplier.',
+    cadenceNote: 'At 18:00, production precedes the 23:00 construction close, so a site finished that night cannot yet grant output, XP or operational bonuses; existing sites price attendance through scheduleFatigue.getWorkdayAttendance. A worked shift earns XP even at full storage; separate XP for successful output remains. Stale, underage, dead, jailed, foreign and duplicate occupant ids never dilute the skill/DNA crew average. An empty eligible crew has a neutral multiplier.',
     writes: [
       'resources',
       'economyLedger.produced',

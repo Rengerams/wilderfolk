@@ -1,5 +1,13 @@
 # Bug report summary — one line per report
 
+**2026-11-22 — [Late construction shifts were never applied](../bug_report/2026-11-22-construction-late-shifts-uncredited.md):** investigating; implementation in PR #166; CI verification pending.
+
+**2026-11-22 — [Unwitnessed construction roster earned crew speed and XP](../bug_report/2026-11-22-construction-absent-crew-earned-progress.md):** investigating; implementation in PR #166; CI verification pending.
+
+**2026-11-22 — [Reading skill state could mutate saved entity data](../bug_report/2026-11-22-skill-read-mutated-entity.md):** investigating; implementation in PR #166; CI verification pending.
+
+**2026-11-22 — [Idle skill decay exempted the assigned job without work](../bug_report/2026-11-22-idle-decay-exempted-absent-job.md):** investigating; implementation in PR #166; CI verification pending.
+
 **2026-11-22 — [Shallow water omitted from compact save validation](../bug_report/2026-11-22-shallow-water-save-validation.md):** resolved; save-load and diagnostics distinguish water from walkability. PR #161 Node.js CI passed 3,245/3,245 tests; all seven workflows green on `fc6a795`.
 
 **2026-11-22 — [Dry inland tiles unexpectedly reject ordinary buildings](../bug_report/2026-11-22-dry-land-unbuildable-patches.md):** resolved; buildings now use any dry terrain; water and ground reinforcement remain separate rules. PR #161 CI 3,245/3,245 tests and all seven workflows passed on `fc6a795`.

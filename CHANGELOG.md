@@ -3,7 +3,7 @@
 ## 0.6.5.2 [Unreleased]
 
 - **Fixed (22 Nov 2026; PR #169):** Schedule previews count assigned workers and construction crews, exclude ineligible settlers, and detect shifts with unchanged duration. Added regression tests.
-- **Fixed (22 Nov 2026; PR #166):** Construction progress rises monotonically with each attended shift, including special-purpose sites. Buildings completed at 18:00 cannot earn same-day production or XP. Skills use one revision-aware writer, and idle decay uses witnessed work.
+- **Fixed (22 Nov 2026; PR #166):** Construction now settles at 23:00 after all legal shifts, without early production from newly finished sites. The expert-crew regression avoids the completion cap. Skill changes and idle decay use witnessed work.
 
 - **Refactored (22 Nov 2026; pending merge):** Broke two type-import cycles: placement reads world-map types rather than renderer types; grid and gameplay readers use narrow entity contracts; statistics and social record types live in leaf schemas. No gameplay or save-format change.
 - **Removed (22 Nov 2026, PR #165):** Rival raiders no longer wander, poach wildlife or create battle effects on the village map. Warfare and diplomacy remain on the strategic world map, and legacy saves still load.
