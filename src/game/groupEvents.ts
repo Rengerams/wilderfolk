@@ -333,7 +333,7 @@ export function spawnVisitorGroup(
   };
 }
 
-export function tickVisitorGroups(state: WorldState, allAlive: Entity[], ctx?: TickContext): void {
+export function tickVisitorGroups(state: WorldState, allAlive: Entity[], _ctx?: TickContext): void {
   // Early return keeps an empty visitor list from building the two indexes; this function never
   // spawns a group, and `state.visitorGroups` is only reassigned at the end.
   if (state.visitorGroups.length === 0) return;
