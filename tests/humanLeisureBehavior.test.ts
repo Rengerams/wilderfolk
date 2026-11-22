@@ -8,7 +8,7 @@ import {
   tickHumanChildLeisure,
 } from '../src/game/humanLeisureBehavior';
 import { isPlayerHuman } from '../src/game/playerHuman';
-import { TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { TICKS_PER_HOUR, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { initGame } from '../src/game/worldGen';
 import { homeStandPosition } from '../src/game/simulation/humanMovement';
 
@@ -37,41 +37,25 @@ function childFixture(): { state: ReturnType<typeof initGame>; child: Entity } {
   return { state, child: playerChild(prototype, 10) };
 }
 
-function playTickFor(child: Entity, start = 1, end = 500): number {
-  for (let tick = start; tick < end; tick++) {
-    const tickBucket = Math.floor(tick / TICKS_PER_HOUR);
-    if (personDayRoll(child.id, tick, 718 + tickBucket) < 0.72) return tick;
+function playTickFor(child: Entity, start = 1, end = 5000): number {
+  for (let tick = start; tick < end; tick += TICKS_PER_DAY) {
+    if (personDayRoll(child.id, tick, 718) < 0.72) return tick;
   }
-  throw new Error('could not find a child play tick');
-}
-
-function nextPlayHour(child: Entity): { firstCheck: number; sameHourCheck: number; nextCheck: number } {
-  for (let hour = 0; hour < 500; hour++) {
-    const nextCheck = (hour + 1) * TICKS_PER_HOUR;
-    const nextBucket = Math.floor(nextCheck / TICKS_PER_HOUR);
-    if (personDayRoll(child.id, nextCheck, 718 + nextBucket) < 0.72) {
-      return {
-        firstCheck: hour * TICKS_PER_HOUR + 1,
-        sameHourCheck: hour * TICKS_PER_HOUR + 2,
-        nextCheck,
-      };
-    }
-  }
-  throw new Error('could not find consecutive child play hours');
+  throw new Error('could not find a child play day');
 }
 
 /** A crowded play tick whose uncapped choice would fall outside the bounded candidate list. */
 function crowdedSteeringTick(state: ReturnType<typeof initGame>, child: Entity, allHumans: Entity[]): number {
   const nearby = allHumans.length - 1;
-  for (let tick = 1; tick < 5000; tick++) {
-    const tickBucket = Math.floor(tick / TICKS_PER_HOUR);
-    if ((child.id + tickBucket) % nearby < CHILD_PLAYMATE_CANDIDATE_LIMIT) continue;
-    if (personDayRoll(child.id, tick, 718 + tickBucket) >= 0.72) continue;
+  for (let tick = 1; tick < 50 * TICKS_PER_DAY; tick += TICKS_PER_DAY) {
+    const day = Math.floor(tick / TICKS_PER_DAY);
+    if ((child.id + day) % nearby < CHILD_PLAYMATE_CANDIDATE_LIMIT) continue;
+    if (personDayRoll(child.id, tick, 718) >= 0.72) continue;
     child.vx = 0;
     child.vy = 0;
     if (tickChild(state, child, allHumans, tick)) return tick;
   }
-  throw new Error('could not find a crowded child play tick');
+  throw new Error('could not find a crowded child play day');
 }
 
 function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans: Entity[], tick: number): boolean {
@@ -126,43 +110,57 @@ describe('tickHumanChildLeisure', () => {
     expect(child.vx).toBeGreaterThan(0);
   });
 
-  it('refreshes neighborhood selection every hour while keeping the mate between checks', () => {
+  it('keeps the same playmate throughout the day when other children become available', () => {
     const { state, child } = childFixture();
-    const nearby = playerChild(child, 11, { x: 120, y: 100 });
-    const { firstCheck, sameHourCheck, nextCheck } = nextPlayHour(child);
+    const mate = playerChild(child, 11, { x: 120, y: 100 });
+    const newcomer = playerChild(child, 12, { x: 105, y: 100 });
+    const tick = playTickFor(child);
 
-    expect(tickChild(state, child, [child], firstCheck)).toBe(false);
-    expect(tickChild(state, child, [child, nearby], sameHourCheck)).toBe(false);
-    expect(tickChild(state, child, [child, nearby], nextCheck)).toBe(true);
-    expect(child.vx).toBeGreaterThan(0);
-    expect(tickChild(state, child, [child, nearby], nextCheck + 1)).toBe(true);
+    expect(tickChild(state, child, [child, mate], tick)).toBe(true);
+    expect(child.childPlaymateId).toBe(mate.id);
+    const day = child.childPlaymateDay;
+
+    expect(tickChild(state, child, [child, newcomer, mate], tick + 4 * TICKS_PER_HOUR)).toBe(true);
+    expect(child.childPlaymateId).toBe(mate.id);
+    expect(child.childPlaymateDay).toBe(day);
+    expect(child.childLeisureActivity).toBe('playing');
+    expect(child.childLeisureTargetId).toBe(mate.id);
   });
 
-  it('drops a cached playmate that a rollback removed from the roster', () => {
+  it('persists a daily selection through a save copy and replaces an unavailable mate', () => {
     const { state, child } = childFixture();
-    const nearby = playerChild(child, 11, { x: 120, y: 100 });
-    const tick = playTickInsideOneHour(child);
+    const mate = playerChild(child, 11, { x: 120, y: 100 });
+    const replacement = playerChild(child, 12, { x: 130, y: 100 });
+    const tick = playTickFor(child);
+    expect(tickChild(state, child, [child, mate], tick)).toBe(true);
 
-    expect(tickChild(state, child, [child, nearby], tick)).toBe(true);
-    expect(child.vx).toBeGreaterThan(0);
+    const restored = structuredClone(child);
+    expect(tickChild(state, restored, [restored, mate, replacement], tick + TICKS_PER_HOUR)).toBe(true);
+    expect(restored.childPlaymateId).toBe(mate.id);
 
-    // The rollback restores a roster without the extra child, inside the same cached hour.
-    child.vx = 0;
-    child.vy = 0;
-    expect(tickChild(state, child, [child], tick + 1)).toBe(false);
-    expect(child.vx).toBe(0);
+    mate.alive = false;
+    expect(tickChild(state, restored, [restored, replacement], tick + TICKS_PER_HOUR + 1)).toBe(true);
+    expect(restored.childPlaymateId).toBe(replacement.id);
+    expect(restored.childLeisureTargetId).toBe(replacement.id);
   });
+
+  it('resets the chosen playmate at the next colony-day boundary', () => {
+    const { state, child } = childFixture();
+    const mate = playerChild(child, 11, { x: 120, y: 100 });
+    const newcomer = playerChild(child, 12, { x: 130, y: 100 });
+    const tick = playTickFor(child);
+    tickChild(state, child, [child, mate], tick);
+    const firstDay = child.childPlaymateDay;
+
+    const nextDayTick = Math.floor(tick / TICKS_PER_DAY) * TICKS_PER_DAY + TICKS_PER_DAY + 1;
+    tickChild(state, child, [child, mate, newcomer], nextDayTick);
+    expect(child.childPlaymateDay).toBe(firstDay! + 1);
+    if (child.childPlaymateId != null) {
+      expect([mate.id, newcomer.id]).toContain(child.childPlaymateId);
+    }
+  });
+
 });
-
-/** A play tick that is not the last of its hour bucket, so `tick + 1` stays in the cached window. */
-function playTickInsideOneHour(child: Entity): number {
-  for (let tick = 1; tick < 500; tick++) {
-    if (tick % TICKS_PER_HOUR === TICKS_PER_HOUR - 1) continue;
-    const tickBucket = Math.floor(tick / TICKS_PER_HOUR);
-    if (personDayRoll(child.id, tick, 718 + tickBucket) < 0.72) return tick;
-  }
-  throw new Error('could not find a child play tick inside one hour');
-}
 
 describe('seeded free-time selection', () => {
   afterEach(() => {

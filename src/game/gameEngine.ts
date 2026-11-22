@@ -115,7 +115,6 @@ export {
   getVisitorLeaderTalkMeta,
   getVisitorTradePriceMult,
   getVisitorTradeRewardMult,
-  hitTestCamp,
   type VisitorLeaderTalkMeta,
 } from './groupEvents';
 export { isRivalAtPeace } from './rivalPeace';

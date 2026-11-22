@@ -305,6 +305,12 @@ export interface Entity {
   schoolDays?: number;
   schoolTicksToday?: number;
   schoolBuildingId?: number;
+  /** One playmate choice per colony day, persisted across save/load and worker replay. */
+  childPlaymateDay?: number;
+  childPlaymateId?: number;
+  /** Current child leisure intent, written by the leisure owner for the inspector. */
+  childLeisureActivity?: 'playing' | 'following' | 'home';
+  childLeisureTargetId?: number;
   scheduleWorkedTicksToday?: number;
   /** Verified on-post ticks today, separate from schedule attendance. */
   schedulePresentTicksToday?: number;

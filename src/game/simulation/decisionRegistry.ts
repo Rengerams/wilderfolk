@@ -199,10 +199,10 @@ export const SIMULATION_DECISIONS = {
   humanLeisure: {
     owner: 'humanLeisureBehavior.ts — tickHumanLeisure (single free-time entry), tickHumanChildLeisure, tickAdultLeisureMotive',
     cadence: 'realtime',
-    cadenceNote: 'Called once per eligible humanTick free-time tick. Chooses child/adult activities and steering intent; humanTick owns the final movement step. The companion beat draws both humanTick rolls unconditionally and branches identically for a null/zero beauty grid, so a missing cache cannot shift the stream.',
-    writes: ['human.vx', 'human.vy', 'human.indoorBuildingId'],
+    cadenceNote: 'Called once per eligible humanTick free-time tick. Children choose one playmate per colony day (replacement only if unavailable) and record the active play/follow/home intent; humanTick owns movement integration. Companion RNG beats remain unconditional for deterministic replay.',
+    writes: ['human.vx', 'human.vy', 'human.indoorBuildingId', 'human.childPlaymateDay', 'human.childPlaymateId', 'human.childLeisureActivity', 'human.childLeisureTargetId'],
     scheduledFrom: 'humanTick.tickHumans → humanLeisureBehavior.tickHumanLeisure',
-    testFile: 'tests/humanLeisureBehavior.test.ts, tests/simulation.decisionRegistry.test.ts',
+    testFile: 'tests/humanLeisureBehavior.test.ts, tests/humanStatus.projection.test.ts, tests/simulation.decisionRegistry.test.ts',
   },
   buildingAccess: {
     owner: 'buildingAccess.ts — buildingAccessPoints (validated facades), buildingAccessPoint (canonical UI frontage), isOpenDoorstep (facade corridor), isAtBuildingReach (the one arrival rule)',
