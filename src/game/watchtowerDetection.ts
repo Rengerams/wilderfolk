@@ -49,8 +49,6 @@ export function revealRivalGroup(
 
 /** Daily bounded scan — completed towers only, marching rival bands only. */
 export function detectRaidersFromWatchtowers(state: WorldState, humans: readonly Entity[]): void {
-  // Player-owned towers only: a rival camp's own watchtower must not hand the player early
-  // warning about rival raiders (or log that "A Watchtower spotted" them).
   const towers = state.buildings.filter(
     (b) => b.completed && b.type === BuildingType.Watchtower,
   );
