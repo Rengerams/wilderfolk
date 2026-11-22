@@ -7,6 +7,7 @@ import {
   WEREWOLF_HOWL_LINES,
 } from './gameTypes';
 import { SPECIES_CONFIG, getPreyEnergyGain } from './speciesConfig';
+import { wildlifeBreedingCeiling, wildlifeMayHuntRabbit } from './wildlifePopulationPolicy';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import {
   isProductionTick,
@@ -214,6 +215,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
     );
   }
   const wildlifePopulation = ctx.wildlifePopulation;
+  // Keep a live per-pulse count as predator kills occur; the breed snapshot is otherwise immutable.
+  let remainingRabbits = wildlifePopulation.aliveByType.get(EntityType.Rabbit) ?? 0;
 
   if (!ctx.grassPopulation) {
     ctx.grassPopulation = buildGrassPopulationSnapshot(byType, newEntities);
@@ -415,6 +418,9 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           huntRange,
           (prey, dSq) => {
             if (!preyTypeSet.has(prey.type)) return;
+            // Sparse rabbits retreat into refuge; wild predators switch prey or go hungry.
+            // Player hunting still uses its separate owner and may affect this population.
+            if (prey.type === EntityType.Rabbit && !wildlifeMayHuntRabbit(remainingRabbits)) return;
             if (!isValidHuntPrey(prey, prey.type, entity.id)) return;
             const dist = Math.sqrt(dSq);
             const humanBias = prey.type === EntityType.Human ? 0.82 : 1.0;
@@ -499,6 +505,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
                 }
               } else {
                 markWildlifeDead(ctx, caughtPrey, wildlifeDeathsThisTick, state.tick, state);
+                if (caughtPrey.type === EntityType.Rabbit) remainingRabbits--;
               }
 
               clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId, byType);
@@ -741,6 +748,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             if (assistPrey?.alive) {
               const preyId = assistPrey.id;
               markWildlifeDead(ctx, assistPrey, wildlifeDeathsThisTick, state.tick, state);
+              if (assistPrey.type === EntityType.Rabbit) remainingRabbits--;
               clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId, byType);
               syncEntityGrids(ctx, assistPrey);
               createDeathParticles(state, assistPrey.x, assistPrey.y, '#8a2a2a', 6);
@@ -769,14 +777,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         entity.energy > config.reproductionEnergyThreshold
       ) {
         const sameTypeCount = wildlifeTypePopulation(wildlifePopulation, entity.type, entity.id);
-        const maxPop =
-          entity.type === EntityType.Rabbit
-            ? 120
-            : entity.type === EntityType.Deer
-              ? 60
-              : entity.type === EntityType.Wolf
-                ? 25
-                : 35;
+        const maxPop = wildlifeBreedingCeiling(entity.type);
         const capacityFactor = Math.max(0, 1.0 - sameTypeCount / maxPop);
         const scarcityBoost =
           sameTypeCount < maxPop * 0.25 ? 1.55 : sameTypeCount < maxPop * 0.45 ? 1.25 : 1.0;
