@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Removed (22 Nov 2026, PR #159):** Retired rival-building ownership checks, model field, save migration and related test fixtures. Rival settlements remain strategic-only; historical physical camps are no longer migrated.
+- **Removed (22 Nov 2026, PR #159):** Retired rival-building ownership checks, model field and obsolete simulation/test assumptions. Rival settlements remain strategic-only. **Compatibility:** Old 0.6.5.0/0.6.5.1 saves still discard legacy rival camp structures at the load boundary; the retired faction field does not enter live buildings.
 - **Wildkin lineage (pending merge):** Register human mothers and deer fathers, retain Wildkin ancestry in family trees and chronicle records, preserve Wildkin-to-Wildkin births, and let juveniles stay near their mother without forced departure.
 
 **Merged PR coverage (PRs #130–#152; checked 22 Nov 2026).** This index links the merged work to its PR; the dated release notes below retain the detailed change descriptions. Only merged PRs are treated as part of `main`.
