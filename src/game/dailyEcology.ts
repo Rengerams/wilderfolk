@@ -130,9 +130,7 @@ export function calculateEcosystemMetrics(
     const building = buildings[i];
     if (!building.completed) continue;
 
-    if (building.faction !== 'rival') {
-      playerCompletedBuildings++;
-    }
+    playerCompletedBuildings++;
 
     if (INDUSTRIAL_BUILDING_TYPES.has(building.type)) {
       industrialCount++;

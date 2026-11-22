@@ -38,7 +38,7 @@ let lastActedTick: number | null = null;
 function producers(w: typeof world, completedOnly: boolean): string {
   const rows = FOOD_TYPES.map((type) => {
     const hits = w.buildings.filter(
-      (b) => b.type === type && b.faction !== 'rival' && (!completedOnly || b.completed),
+      (b) => b.type === type && (!completedOnly || b.completed),
     ).length;
     return hits > 0 ? `${BUILDING_CONFIGS[type].label}×${hits}` : null;
   }).filter(Boolean);
@@ -127,7 +127,7 @@ const idleAdults = (w: typeof world): number =>
   w.entities.filter((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile && e.workerBuildingId == null).length;
 console.log(`idle adults: ${idleAdults(world)} · assigned settlers: ${assignedCount(world)}`);
 for (const building of world.buildings) {
-  if (!building.completed || building.faction === 'rival') continue;
+  if (!building.completed) continue;
   if (!BUILDING_JOB_TYPES[building.type]) continue;
   console.log(
     `  ${BUILDING_CONFIGS[building.type].label}: ${building.occupants.length}/${BUILDING_CONFIGS[building.type].maxOccupants} occupied`,
@@ -148,8 +148,8 @@ console.log('');
 console.log('=== industry inputs at the end ===');
 const INDUSTRY = [BuildingType.LumberMill, BuildingType.Quarry, BuildingType.Mine, BuildingType.Store] as const;
 for (const type of INDUSTRY) {
-  const exists = world.buildings.some((b) => b.type === type && b.faction !== 'rival');
-  const under = world.buildings.some((b) => b.type === type && b.faction !== 'rival' && !b.completed);
+  const exists = world.buildings.some((b) => b.type === type);
+  const under = world.buildings.some((b) => b.type === type && !b.completed);
   const cost = BUILDING_CONFIGS[type].cost;
   const afford = (['wood', 'stone', 'gold', 'iron'] as const).every(
     (key) => (world.resources[key] ?? 0) >= (cost[key] ?? 0),

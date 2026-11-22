@@ -186,7 +186,7 @@ function describeHousingFailure(
   housing: HousingDiagnosticsSnapshot,
 ): string {
   const overCapacity = world.buildings
-    .filter((b) => isResidenceBuilding(b) && b.faction !== 'rival')
+    .filter((b) => isResidenceBuilding(b))
     .map((b) => ({ b, cap: getResidenceCapacity(b), held: b.occupants.length }))
     .filter((entry) => entry.held > entry.cap);
   if (overCapacity.length > 0) {
@@ -514,7 +514,7 @@ function run(): void {
       world,
       snapshots: healthObserved,
       final: health,
-      newBuildingsAtEnd: world.buildings.filter((building) => !initialBuildingIds.has(building.id) && building.faction !== 'rival').length,
+      newBuildingsAtEnd: world.buildings.filter((building) => !initialBuildingIds.has(building.id)).length,
     });
     if (options.scenario === 'producers' && provisional.reasons.includes('food-exhausted')) {
       foodExhaustionCheckpointDays.push(day);

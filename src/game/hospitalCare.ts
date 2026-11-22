@@ -84,7 +84,7 @@ export function isRestingHospitalPatient(
   previousIndoorBuildingId?: number,
 ): boolean {
   if (!hospital || hospital.type !== BuildingType.Hospital || !hospital.completed
-    || hospital.faction === 'rival' || hospital.occupants.length === 0
+    || hospital.occupants.length === 0
     || previousIndoorBuildingId !== hospital.id || !isPlayerHuman(patient)
     || !needsMedicalCare(patient, tick)) return false;
   // buildingGeometry: x/y are the footprint centre, not the top-left corner.

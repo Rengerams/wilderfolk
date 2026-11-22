@@ -151,10 +151,7 @@ export function useVirtualPlayer({
     if (!enabled) return null;
     return {
       settlers: playerHumanCount(world.entities),
-      buildings: world.buildings.reduce(
-        (total, building) => total + (building.faction === 'rival' ? 0 : 1),
-        0,
-      ),
+      buildings: world.buildings.length,
       acts: run.acts,
     };
   }, [enabled, run, world]);

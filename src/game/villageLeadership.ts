@@ -455,7 +455,7 @@ function scoreSummary(b: LeadershipScoreBreakdown): string {
 
 export function getElectionGatherSite(state: WorldState): { x: number; y: number } {
   const square = state.buildings.find((building) =>
-    building.type === 'square' && building.completed && building.faction !== 'rival'
+    building.type === 'square' && building.completed
   );
   if (square) return { x: square.x + square.width / 2, y: square.y + square.height / 2 };
   const hall = findCompletedBuilding(state.buildings, BuildingType.TownHall);
@@ -811,7 +811,7 @@ export function startElectionCeremony(
     finalistIds: [...nominated].sort((a, b) => (vote.tally.get(b.entityId) ?? 0) - (vote.tally.get(a.entityId) ?? 0) || b.totalScore - a.totalScore).slice(0, 3).map((candidate) => candidate.entityId),
   };
 
-  const place = state.buildings.some((building) => building.type === 'square' && building.completed && building.faction !== 'rival')
+  const place = state.buildings.some((building) => building.type === 'square' && building.completed)
     ? 'the Village Square' : findCompletedBuilding(state.buildings, BuildingType.TownHall) ? 'the Town Hall' : 'the village center';
 
   logEvent(
@@ -1176,7 +1176,7 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
   // A death and a non-fatal deposition use the same succession schedule; announce it even if no
   // candidate is eligible now. Snapshot the manor residents whose entitlement must outlive the leader.
   const manor = state.buildings.find((building) =>
-    building.type === BuildingType.LeaderHouse && building.completed && building.faction !== 'rival');
+    building.type === BuildingType.LeaderHouse && building.completed);
   state.pendingLeaderHouseResidentIds = manor
     ? state.entities.filter((person) => person.alive && !person.faction
       && person.residenceBuildingId === manor.id).map((person) => person.id)
