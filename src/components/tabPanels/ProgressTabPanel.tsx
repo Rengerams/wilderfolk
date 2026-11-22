@@ -1,7 +1,6 @@
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useState } from 'react';
 import { lazyWithRetry } from '../lazyWithRetry';
 import { ResearchType } from '../../game/gameTypes';
-import { TICKS_PER_HOUR } from '../../game/dayCycleClock';
 import type { WorldState } from '../../game/gameEngine';
 import { canEstablishTradeRoute, hasCompletedMarket, summarizeTradeRouteBlocks } from '../../game/tradeCaravans';
 import { canStartResearch, getResearchBlockReason } from '../../game/research';
@@ -60,26 +59,10 @@ function GoalsPortraitPanel({
   openSubject: ProgressSubjectId | null;
   onClose: () => void;
 }) {
-  // Refresh hourly and on material scalar/count changes, not on every simulation tick.
-  const portraitHour = Math.floor(state.tick / TICKS_PER_HOUR);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const portrait = useMemo(() => computeVillagePortrait(state), [
-    portraitHour,
-    state.year,
-    state.humanPopulation,
-    state.ecosystemHealth,
-    state.ecoHealthYearsAbove80,
-    state.villageReputation,
-    state.rivalSettlements.length,
-    state.tradeRoutes.length,
-    state.raidBattleReports?.length,
-    state.pendingOutgoingRaidEvents?.length,
-    state.lifetimeStats?.tradeCaravansCompleted,
-    state.lifetimeStats?.goldFromTradeRoutes,
-    state.lifetimeStats?.technologiesResearched,
-    state.buildings.length,
-  ]);
-  const primaryTrait = portrait.traits.find((t) => t.id === portrait.primary);
+  // The world can mutate in place and same-length changes still affect the score.
+  // Read the live world only while this subject is open; closed subjects do no work.
+  const portrait = openSubject === 'path' ? computeVillagePortrait(state) : null;
+  const primaryTrait = portrait?.traits.find((t) => t.id === portrait.primary);
 
   return (
     <div className="space-y-3">
@@ -92,7 +75,7 @@ function GoalsPortraitPanel({
         subtitle={primaryTrait ? `Strongest: ${primaryTrait.label}${primaryTrait.score != null ? ` (${primaryTrait.score})` : ''}` : 'Every trait, scored as you play'}
       >
         <div className="space-y-2">
-          {portrait.traits.map((t) => (
+          {portrait?.traits.map((t) => (
             <div key={t.id} className="rounded-lg border border-stone-600/50 bg-stone-800/40 p-2">
               <div className="mb-0.5 flex items-center justify-between gap-2">
                 <span className="text-[13px] font-bold text-stone-200">
