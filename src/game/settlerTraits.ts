@@ -3,8 +3,7 @@
  * inheritance, validation and the deterministic old-save backfill.
  */
 import { getSimRng, randomInt, type RngStream } from './simRng';
-import type { Entity } from './gameTypes';
-import { grantMark, rollBornMarks } from './personalMarks';
+import { grantMark, rollBornMarks, type MarkCarrier } from './personalMarks';
 import { PROFILE_REVISION, bumpRevision } from './entityRevision';
 
 /**
@@ -183,7 +182,9 @@ export function rollFounderGenome(stream?: RngStream): GenomeV2 {
  * Citizenship establishes the permanent identity a settler's whole life is priced from: a foreign
  * human arrives neutral, so the owner granting citizenship rolls the genome and born marks once.
  */
-export function establishCitizenIdentity(person: Entity): void {
+type MutableGenomeCarrier = { -readonly [K in keyof GenomeCarrier]: GenomeCarrier[K] };
+
+export function establishCitizenIdentity(person: MutableGenomeCarrier & MarkCarrier): void {
   if (person.genomeV2 == null) {
     person.genomeV2 = rollFounderGenome();
     // `genomeV2` is a profile field the delta omits until its revision changes.

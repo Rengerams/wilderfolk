@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Refactored (22 Nov 2026; pending merge):** Broke two type-import cycles: placement reads world-map types rather than renderer types; grid and gameplay readers use narrow entity contracts; statistics and social record types live in leaf schemas. No gameplay or save-format change.
+
 - **Removed (22 Nov 2026; pending merge):** No visitor camps or idle visitor NPCs spawn on the village map (first-week, mid-year and yearly event routes removed). Old saves discard visitors and their camps on load; strategic rivals, raids, resident immigration and trade routes remain.
 
 - **Removed (22 Nov 2026, PR #159):** Retired active rival-building ownership, field and dead tests. Rival camps remain strategic-only; old saves still remove physical rival structures on load without restoring the field.

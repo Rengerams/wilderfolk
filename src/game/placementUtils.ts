@@ -1,8 +1,7 @@
 import { canBuildLeaderHouse } from './leaderHouseExpansion';
 import { type BuildingRotation, getBuildingFootprintForType } from './buildingRotation';
-import { BuildingType, PATH_CELL, TerrainType, type Building } from './gameTypes';
+import { BuildingType, PATH_CELL, TerrainType, type Building, type WorldState } from './gameTypes';
 import type { ResearchNode } from './gameTypes';
-import type { RenderSnapshot } from './renderSnapshot';
 import { getBuildingConfig } from './buildingConfig';
 import { isWalkableTerrainType, tileAt, Walkability } from './terrain/terrainGrid';
 // The "what a terrain type is" pair moved to a leaf so `terrainGrid` can read it without importing
@@ -53,7 +52,7 @@ const RIVER_PLACE_TERRAIN = new Set<TerrainType>([
  * Bridges: must touch river water; neither open water nor alpine ground can support a span.
  */
 export function isFootprintOnBuildableTerrain(
-  snapshot: Pick<RenderSnapshot, 'worldMap'>,
+  snapshot: Pick<WorldState, 'worldMap'>,
   width: number,
   height: number,
   x: number,
@@ -274,12 +273,12 @@ export function isBuildingTechUnlocked(
   return node?.researched ?? false;
 }
 
-/** Read-only world shape the placement rule needs; `WorldState` and `RenderSnapshot` both satisfy it. */
+/** Read-only world shape the placement rule needs; `WorldState` and renderer snapshots both satisfy it. */
 export interface PlacementCheckWorld {
   readonly buildings: readonly Building[];
   readonly width: number;
   readonly height: number;
-  readonly worldMap: RenderSnapshot['worldMap'];
+  readonly worldMap: WorldState['worldMap'];
   readonly unlockedTechs: readonly string[];
   readonly researchNodes?: readonly ResearchNode[];
 }

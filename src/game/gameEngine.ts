@@ -106,7 +106,7 @@ export { gameTick } from './gameTick';
 // ---- Feature modules (previous re-export surface) ----
 export { generateWorldMap } from './terrainGen';
 export { recordYearlyStats, updateLifetimeStats, drawBarChart, drawLineChart } from './stats';
-export type { YearlyStats, LifetimeStats } from './stats';
+export type { YearlyStats, LifetimeStats } from './statsRecords';
 export { logEvent } from './eventLog';
 export {
   tradeWithVisitors,

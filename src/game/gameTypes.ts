@@ -1,7 +1,7 @@
 // Entity types as const object
 import type { Resources, ResourceKey } from './resourceTypes';
 import type { ValleyStage } from './ecologyTypes';
-import type { YearlyStats, LifetimeStats } from './stats';
+import type { YearlyStats, LifetimeStats } from './statsRecords';
 import type { ScentGrid } from './scentGrid';
 import type { BeautyGrid } from './beautyGrid';
 import type { EntitySpatialGrid, RoadAvoidanceIndex } from './spatialGrid';
@@ -975,10 +975,10 @@ export interface WorldState {
   villageHappiness?: number;
   scentGrid?: ScentGrid;
   entityByType?: EntityByType;
-  grassGrid?: EntitySpatialGrid;
-  mobileGrid?: EntitySpatialGrid;
-  humanSocialGrid?: EntitySpatialGrid;
-  treeGrid?: EntitySpatialGrid;
+  grassGrid?: EntitySpatialGrid<Entity>;
+  mobileGrid?: EntitySpatialGrid<Entity>;
+  humanSocialGrid?: EntitySpatialGrid<Entity>;
+  treeGrid?: EntitySpatialGrid<Entity>;
   roadAvoidance?: RoadAvoidanceIndex;
   roadAvoidanceStamp?: number;
   adjacency?: AdjacencyIndex;

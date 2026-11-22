@@ -1,4 +1,3 @@
-import type { Entity } from '../gameTypes';
 import { JobType } from '../gameTypes';
 import { MAX_CAREER_DAY, type CareerHistory } from './careerHistory';
 
@@ -9,6 +8,12 @@ export interface CareerMilestone {
   trainedAtDay?: number;
 }
 export type CareerMilestones = Partial<Record<JobType, CareerMilestone>>;
+
+/** Only the fields this career milestone updater mutates. */
+interface CareerProgressionCarrier {
+  careerMilestones?: CareerMilestones;
+  careerHistory?: CareerHistory;
+}
 
 /** Work thresholds grant descriptive history, never a skill or staffing advantage. */
 export const CAREER_TIER_DAYS = { practiced: 15, experienced: 60, master: 180 } as const;
@@ -49,7 +54,7 @@ export function normalizeCareerMilestones(raw: unknown, history?: CareerHistory)
 
 /** Only a genuine credited shift or actual apprenticeship completion may advance milestones. */
 export function advanceCareerProgression(
-  person: Entity, job: JobType, day: number, source: 'work' | 'training',
+  person: CareerProgressionCarrier, job: JobType, day: number, source: 'work' | 'training',
 ): boolean {
   if (!Number.isSafeInteger(day) || day < 0 || day > MAX_CAREER_DAY) return false;
   const previous = person.careerMilestones?.[job];

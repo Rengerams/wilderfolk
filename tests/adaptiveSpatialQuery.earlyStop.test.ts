@@ -26,7 +26,7 @@ function options(population: number) {
 describe('radial queries stop when the callback returns false', () => {
   it('stops the grid walk', () => {
     const entities = row(50);
-    const grid = new EntitySpatialGrid(WORLD, WORLD, 64);
+    const grid = new EntitySpatialGrid<Entity>(WORLD, WORLD, 64);
     grid.rebuild(entities);
     const visited: number[] = [];
 

@@ -147,7 +147,7 @@ export interface RenderSnapshot {
   readonly scentGrid: ScentGrid | null;
   readonly scentReader: ScentGridReader | null;
   /** Tick-persistent grass spatial index — sim path from world; worker path from render SoA. */
-  readonly grassGrid: EntitySpatialGrid | null;
+  readonly grassGrid: EntitySpatialGrid<Entity> | null;
 }
 
 /**
@@ -264,7 +264,7 @@ export function buildRenderSnapshot(
     ? EMPTY_ENTITY_BY_TYPE
     : (catalog?.getEntityByType() ?? world.entityByType ?? buildEntityByType(entities));
 
-  let grassGrid: EntitySpatialGrid | null = world.grassGrid ?? null;
+  let grassGrid: EntitySpatialGrid<Entity> | null = world.grassGrid ?? null;
   if (options.renderSoA) {
     grassGrid = syncGrassRenderGridFromSoA(
       options.renderSoA,

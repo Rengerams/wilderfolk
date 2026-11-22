@@ -1,7 +1,16 @@
-import type { WorldState } from './gameTypes';
 import { BuildingType } from './buildings';
 import type { Building } from './buildings';
 import type { Resources } from './resourceTypes';
+
+/** The challenge reader's required state, independent of the simulation's world model. */
+interface ChallengeWorld {
+  year: number;
+  ecoHealthYearsAbove80: number;
+  unlockedTechs: readonly string[];
+  tradeRoutes: readonly { active: boolean }[];
+  humanPopulation: number;
+  buildings: Building[];
+}
 
 export interface Challenge {
   id: string;
@@ -62,7 +71,7 @@ function countPlayerCompletedBuildings(buildings: Building[]): number {
 
 export function isChallengeComplete(
   challenge: Challenge,
-  state: WorldState,
+  state: ChallengeWorld,
   humanCount: number,
   buildings: Building[],
   /** Pre-built facts for a pass that tests several challenges against one building array. */
@@ -118,7 +127,7 @@ export function getActiveChallengeId(challenges: Challenge[]): string | null {
   return challenges.find((c) => !c.completed)?.id ?? null;
 }
 
-export function getChallengeProgress(challenge: Challenge, state: WorldState): ChallengeProgress | null {
+export function getChallengeProgress(challenge: Challenge, state: ChallengeWorld): ChallengeProgress | null {
   if (challenge.completed) return null;
   switch (challenge.id) {
     case 'eco_master': return { current: state.ecoHealthYearsAbove80, target: 10, unit: 'years eco ≥80%', tone: 'eco' };

@@ -71,7 +71,7 @@ export function forEachInArrayRadius(
  * Calculates operational cost estimate for a grid query vs a linear scan.
  */
 function shouldQueryViaGrid(
-  grid: EntitySpatialGrid | undefined,
+  grid: EntitySpatialGrid<Entity> | undefined,
   radius: number,
   options: AdaptiveRadiusOptions,
 ): boolean {
@@ -112,7 +112,7 @@ function shouldQueryViaGrid(
  * Adaptive forEach — routes to the grid or linear array based on cost estimation.
  */
 export function forEachAdaptiveInRadius(
-  grid: EntitySpatialGrid | undefined,
+  grid: EntitySpatialGrid<Entity> | undefined,
   fallbackEntities: readonly Entity[],
   x: number,
   y: number,
@@ -184,7 +184,7 @@ function naiveFindClosestInArray(
  * Adaptive find-closest — selects nearest entity via cost-modeled routing.
  */
 export function findClosestAdaptiveInRadius(
-  grid: EntitySpatialGrid | undefined,
+  grid: EntitySpatialGrid<Entity> | undefined,
   fallbackEntities: readonly Entity[],
   x: number,
   y: number,
