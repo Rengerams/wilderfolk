@@ -621,7 +621,6 @@ describe('villageLeadership.vacancy.test.ts', () => {
       health: 100,
       maxHealth: 100,
       spriteScale: 1,
-      faction: 'player',
       ...overrides,
     } as Building;
   }
