@@ -1,14 +1,14 @@
 /**
  * Dashboard data snapshot — a pure read-only projection of authoritative state for the
- * full-screen dashboard; it also owns the inspector explanations panels render verbatim.
+ * full-screen dashboard, including the council and staffing explanations.
  */
 import type { Building, Entity, Season, WorldState } from './gameTypes';
+import type { ExplanationLine } from './explanationLines';
 import { BUILDING_JOB_TYPES, EntityType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { countActiveMoonHowlerCurses, isActiveMoonHowler } from './moonHowler';
 import { TICKS_PER_DAY } from './dayCycle';
 import { getHourOfDay } from './dayCycleClock';
-import { isOnWorkScheduleShift } from './workSchedule';
 import { dailyFoodNeedForSettlers, foodSharePct, summarizeFoodLedger } from './economyLedger';
 import { isFoodCritical } from './resourceUtils';
 import { getEcosystemHealth } from './dailyEcology';
@@ -22,21 +22,16 @@ import {
   isHomelessSettler,
   isResidenceBuildingType,
 } from './housingModel';
-import { findHumanWorkplace, staffingCapFor } from './workforce';
+import { staffingCapFor } from './workforce';
 import { buildConstructionCrewIndex } from './workforceSummary';
 import { BUILDING_TYPE_CODES } from './buildings';
 import { getBuildingConfig } from './buildingConfig';
 import { formatCitizenName } from './citizenId';
-import type { HumanActivityTarget } from './humanStatus';
-import { getHumanActivityProjection, isAtActivityTarget } from './humanStatus';
 import type { SettlerWorkReason } from './workAbsence';
 import { getSettlerWorkReason } from './workAbsence';
 import { buildSchoolRosters, isSchoolTime } from './education';
 import { SCHOOL_MIN_AGE } from './gameConstants';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { pickSocialImpulse } from './socialLife';
-import { socialImpulseNearbyAdults } from './humanLeisureBehavior';
-import { getRouteObstruction } from './pathfinding';
 import type { WorkerAssignmentRefusal } from './buildingStaffingActions';
 import {
   canAssignWorkerToBuilding,
@@ -611,18 +606,12 @@ export function collectDashboard(state: WorldState): DashboardData {
   };
 }
 
-export interface SettlerExplanationLine {
-  label: string;
-  value: string;
-  tone: 'good' | 'warn' | 'neutral';
-}
-
 /**
  * Read-only "why is this settler where/what they are" explanation. Uses only
  * authoritative WorldState — no writes, no commands.
  */
-export function explainSettler(state: WorldState, id: number): SettlerExplanationLine[] {
-  const lines: SettlerExplanationLine[] = [];
+export function explainSettler(state: WorldState, id: number): ExplanationLine[] {
+  const lines: ExplanationLine[] = [];
   const settler = state.entities.find((e) => e.id === id && e.alive && isPlayerHuman(e));
   if (!settler) {
     return [{ label: 'Settler', value: 'Not found or no longer alive.', tone: 'warn' }];
@@ -769,11 +758,7 @@ export interface BuildingStaffingExplanation {
   acceptsWorker: boolean;
   /** One entry per requested settler the owner refuses. */
   refusals: StaffingRefusal[];
-  lines: SettlerExplanationLine[];
-}
-
-function buildingLabel(building: Building): string {
-  return getBuildingConfig(building.type).label;
+  lines: ExplanationLine[];
 }
 
 /** The settler ids holding this building's slots, in roster order. */
@@ -838,7 +823,7 @@ export function explainBuildingStaffing(
   }
 
   const slotWord = isResidence ? 'residents' : building.completed ? 'workers' : 'builders';
-  const lines: SettlerExplanationLine[] = [];
+  const lines: ExplanationLine[] = [];
   lines.push({
     label: 'Mode',
     value: isResidence
@@ -875,157 +860,3 @@ export function explainBuildingStaffing(
   return { mode: 'auto', capacity, workerCount, acceptsWorker, refusals, lines };
 }
 
-type SettlerRouteStopKind = 'home' | 'workplace' | 'venue';
-
-/** One named stop on a settler's day route. Names come from `BUILDING_CONFIGS`, never from the view. */
-interface SettlerRouteStop {
-  kind: SettlerRouteStopKind;
-  label: string;
-  buildingId: number;
-}
-
-type SettlerMovementStatus =
-  /** No leg in progress — nothing for the path owner to report. */
-  | 'none'
-  /** The straight line is walkable. */
-  | 'clear'
-  /** The line is blocked but the walk is routed around it. */
-  | 'rerouting'
-  /** The route search ran out of budget without a conclusive answer. */
-  | 'pending'
-  /** The line is blocked and no route exists. */
-  | 'blocked';
-
-/** Read-only movement answer for the selected settler (`Roadmap_V0_6.4.1.MD` line 27). */
-export interface SettlerMovementExplanation {
-  /** The day's stops in the order the simulation takes them: home → workplace → venue → home. */
-  stops: SettlerRouteStop[];
-  /** Index in {@link stops} of the stop being walked to, or `null` when no leg is in progress. */
-  legIndex: number | null;
-  /** `"House → Lumber Mill"` for the current leg, or `null` when there is none. */
-  legLabel: string | null;
-  status: SettlerMovementStatus;
-  lines: SettlerExplanationLine[];
-}
-
-/** Index of the last stop matching `predicate`, or -1. */
-function lastStopIndex(stops: SettlerRouteStop[], predicate: (stop: SettlerRouteStop) => boolean): number {
-  for (let i = stops.length - 1; i >= 0; i--) {
-    if (predicate(stops[i]!)) return i;
-  }
-  return -1;
-}
-
-/**
- * The stop the activity owner is sending this settler to, or `null` when none of the day's
- * stops is that destination. Standing at it is not a leg — that test is the owner's.
- */
-function resolveLegIndex(
-  settler: Entity,
-  stops: SettlerRouteStop[],
-  target: HumanActivityTarget | null,
-): number | null {
-  if (!target || isAtActivityTarget(settler, target)) return null;
-  if (target.kind === 'home') {
-    const index = lastStopIndex(stops, (stop) => stop.kind === 'home');
-    return index > 0 ? index : null;
-  }
-  if (target.buildingId != null) {
-    const index = stops.findIndex((stop) => stop.kind !== 'home' && stop.buildingId === target.buildingId);
-    if (index > 0) return index;
-  }
-  if (target.kind === 'nearby-building') {
-    const index = stops.findIndex((stop) => stop.kind === 'venue');
-    if (index > 0) return index;
-  }
-  return null;
-}
-
-/**
- * The free-time venue the social owner names for this settler, if any: only outside the
- * work shift, and never for a child.
- */
-function settlerVenue(state: WorldState, settler: Entity): Building | undefined {
-  if (settler.isJuvenile) return undefined;
-  if (isOnWorkScheduleShift(state, getHourOfDay(state.tick))) return undefined;
-  const nearbyAdults = socialImpulseNearbyAdults({
-    state,
-    entity: settler,
-    allHumans: state.entities,
-    humanSocialGrid: undefined,
-    width: state.width,
-    height: state.height,
-    livingHumanAt: (id) => (id == null ? undefined : state.entities.find((entity) => entity.id === id)),
-  });
-  return pickSocialImpulse(settler, state, state.buildings, nearbyAdults, []).building;
-}
-
-/**
- * Read-only movement explanation for one settler: the day's named stops in order, the leg
- * they are on, and the path owner's blocked/rerouting state. Nothing here writes state.
- */
-export function explainSettlerMovement(state: WorldState, settlerId: number): SettlerMovementExplanation {
-  const settler = state.entities.find((e) => e.id === settlerId && e.alive && isPlayerHuman(e));
-  if (!settler) {
-    return {
-      stops: [],
-      legIndex: null,
-      legLabel: null,
-      status: 'none',
-      lines: [{ label: 'Movement', value: 'Settler not found or no longer alive.', tone: 'warn' }],
-    };
-  }
-
-  const residence = settler.residenceBuildingId != null
-    ? state.buildings.find((building) => building.id === settler.residenceBuildingId) ?? null
-    : null;
-  const homeStop: SettlerRouteStop | null = residence
-    ? { kind: 'home', label: buildingLabel(residence), buildingId: residence.id }
-    : null;
-  const workplace = findHumanWorkplace(settler, state.buildings);
-  const venue = settlerVenue(state, settler);
-
-  const stops: SettlerRouteStop[] = [];
-  if (homeStop) stops.push(homeStop);
-  if (workplace) stops.push({ kind: 'workplace', label: buildingLabel(workplace), buildingId: workplace.id });
-  if (venue) stops.push({ kind: 'venue', label: buildingLabel(venue), buildingId: venue.id });
-  // The walk home closes the day — only worth a stop once there is somewhere to walk back from.
-  if (homeStop && stops.length > 1) stops.push(homeStop);
-
-  const activity = getHumanActivityProjection(state, settler);
-  const legIndex = resolveLegIndex(settler, stops, activity.target);
-  const legLabel = legIndex != null && legIndex > 0
-    ? `${stops[legIndex - 1]!.label} → ${stops[legIndex]!.label}`
-    : null;
-
-  const lines: SettlerExplanationLine[] = [];
-  lines.push({
-    label: 'Route today',
-    value: stops.length === 0
-      ? 'No home or workplace assigned yet.'
-      : stops.length === 1
-        ? `${stops[0]!.label} — no other stop assigned.`
-        : stops.map((stop) => stop.label).join(' → '),
-    tone: 'neutral',
-  });
-
-  let status: SettlerMovementStatus = 'none';
-  if (legIndex != null && legLabel != null && activity.target) {
-    const obstruction = getRouteObstruction(state.worldMap, state.buildings, settler, activity.target);
-    status = obstruction;
-    lines.push({ label: 'Current leg', value: legLabel, tone: 'neutral' });
-    lines.push({
-      label: 'Path',
-      value: obstruction === 'clear'
-        ? 'Clear — nothing blocks this leg.'
-        : obstruction === 'rerouting'
-          ? 'Rerouting — the direct line is blocked, so they walk around.'
-          : obstruction === 'pending'
-            ? 'Checking route — the search budget was exhausted; reachability is unresolved.'
-            : 'Blocked — no walkable route found; movement is stopped.',
-      tone: obstruction === 'clear' ? 'good' : 'warn',
-    });
-  }
-
-  return { stops, legIndex, legLabel, status, lines };
-}
