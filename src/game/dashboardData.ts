@@ -891,6 +891,8 @@ export type SettlerMovementStatus =
   | 'clear'
   /** The line is blocked but the walk is routed around it. */
   | 'rerouting'
+  /** The route search ran out of budget without a conclusive answer. */
+  | 'pending'
   /** The line is blocked and no route exists. */
   | 'blocked';
 
@@ -1018,7 +1020,9 @@ export function explainSettlerMovement(state: WorldState, settlerId: number): Se
         ? 'Clear — nothing blocks this leg.'
         : obstruction === 'rerouting'
           ? 'Rerouting — the direct line is blocked, so they walk around.'
-          : 'Blocked — no route exists; they walk into the obstacle.',
+          : obstruction === 'pending'
+            ? 'Checking route — the search budget was exhausted; reachability is unresolved.'
+            : 'Blocked — no walkable route found; movement is stopped.',
       tone: obstruction === 'clear' ? 'good' : 'warn',
     });
   }
