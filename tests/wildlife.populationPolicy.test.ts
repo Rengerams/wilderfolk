@@ -11,6 +11,7 @@ import {
   WILDLIFE_POPULATION_POLICY,
   wildlifeBreedingCeiling,
   wildlifeMayHuntRabbit,
+  getWildlifeCarryingCapacity,
 } from '../src/game/wildlifePopulationPolicy';
 
 describe('wildlife population policy', () => {
@@ -23,6 +24,48 @@ describe('wildlife population policy', () => {
     }
     // Wildkin retains the pre-existing fallback ceiling.
     expect(wildlifeBreedingCeiling(EntityType.Wildkin)).toBe(35);
+  });
+
+  it('constrains wolf/fox numbers to the prey base, including a zero-prey valley', () => {
+    const empty = { rabbits: 0, deer: 0, foxes: 0 };
+    expect(getWildlifeCarryingCapacity(EntityType.Wolf, empty)).toBe(0);
+    expect(getWildlifeCarryingCapacity(EntityType.Fox, empty)).toBe(0);
+    expect(getWildlifeCarryingCapacity(EntityType.Fox, { ...empty, rabbits: 54 })).toBe(6);
+    expect(getWildlifeCarryingCapacity(EntityType.Wolf, { rabbits: 55, deer: 20, foxes: 6 })).toBe(4);
+    expect(getWildlifeCarryingCapacity(EntityType.Wolf, { rabbits: 1000, deer: 1000, foxes: 10 }))
+      .toBe(WILDLIFE_POPULATION_POLICY[EntityType.Wolf].breedingCeiling);
+    expect(getWildlifeCarryingCapacity(EntityType.Wildkin, empty)).toBe(35);
+  });
+
+  it('initializes predator groups within the same population policy', () => {
+    const state = initGame({ skipTerrain: true, seed: 20261122 });
+    for (const [type, key] of [
+      [EntityType.Fox, 'foxes'],
+      [EntityType.Wolf, 'wolves'],
+    ] as const) {
+      expect(state.wildlifeCounts[key]).toBeLessThanOrEqual(
+        WILDLIFE_POPULATION_POLICY[type].replenishTarget,
+      );
+    }
+  });
+
+  it('never restocks a predator into an empty-prey valley', () => {
+    const state = initGame({ skipTerrain: true, seed: 20261122 });
+    for (const animal of state.entities) {
+      if (animal.type === EntityType.Rabbit || animal.type === EntityType.Deer
+          || animal.type === EntityType.Wolf || animal.type === EntityType.Fox) {
+        animal.alive = false;
+      }
+    }
+    state.wildlifeCounts = computeWildlifeCounts(state.entities);
+    expect(state.wildlifeCounts.rabbits).toBe(0);
+    expect(state.wildlifeCounts.wolves).toBe(0);
+    replenishDepletedWildlife(state);
+    expect(state.wildlifeCounts.rabbits).toBeGreaterThan(0);
+    expect(state.wildlifeCounts.deer).toBeGreaterThan(0);
+    // Refill uses prey counts at pulse start, not the newborn rabbit/deer restock.
+    expect(state.wildlifeCounts.wolves).toBe(0);
+    expect(state.wildlifeCounts.foxes).toBe(0);
   });
 
   it('protects scarce rabbits from wild predators until the herd recovers', () => {
