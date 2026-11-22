@@ -1,7 +1,7 @@
 // Entity types as const object
 import type { Resources, ResourceKey } from './resourceTypes';
 import type { ValleyStage } from './ecologyTypes';
-import type { YearlyStats, LifetimeStats } from './stats';
+import type { YearlyStats, LifetimeStats } from './statsRecords';
 import type { ScentGrid } from './scentGrid';
 import type { BeautyGrid } from './beautyGrid';
 import type { EntitySpatialGrid, RoadAvoidanceIndex } from './spatialGrid';
