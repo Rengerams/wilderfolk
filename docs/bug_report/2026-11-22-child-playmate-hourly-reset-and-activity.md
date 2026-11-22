@@ -12,6 +12,7 @@
 
 ## Status history
 - 2026-11-22 — investigating: daily selection, persisted intent and read-only activity/target updates committed; focused regression tests added, CI pending.
+- 2026-11-22 — investigating: Codex review fixes committed; evening-outing projection excludes children and scheduled homeward travel reads the existing movement owner's commute evidence. Added 19:00 and scheduled-home regressions, latest CI pending.
 
 ## Observed behavior
 A child standing alongside other children is labelled "Walking home" with a House target even when play/follow behaviour is steering movement. The old child selection cache uses `Math.floor(tick / TICKS_PER_HOUR)`, rerolling a potential partner each hour.
@@ -31,7 +32,7 @@ One playmate is selected per colony day and retained while available. Work/schoo
 Daily relationships were stored in an hourly ephemeral cache, while UI projection ignored child leisure intent and instead inferred movement from a distant assigned residence.
 
 ## Fix / proposed fix
-The leisure owner now records the playmate ID and colony day on `Entity`; it reselects only at a day boundary or if the chosen mate disappears. It records play/follow/home intent for read-only activity and movement projections. No second scheduler or UI-side playmate decision was added.
+The leisure owner now records the playmate ID and colony day on `Entity`; it reselects only at a day boundary or if the chosen mate disappears. It records play/follow/home intent for read-only activity and movement projections. Children are excluded from the adult evening-outing target, and a homeward label additionally reads `humanMovement.isCommutingToBuilding` for schedule-owned travel. No second scheduler or UI-side playmate decision was added.
 
 ## Save/migration impact
 Optional fields are absent in older saves and initialize on the first eligible leisure tick. The existing full-entity worker tick delta and save representation carry the added primitive fields. No schema version change.
