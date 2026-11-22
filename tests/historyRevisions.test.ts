@@ -28,7 +28,7 @@ function makeWorld(seed: number): WorldState {
 
 function completeBuilding(id: number, type: BuildingType): Building {
   return {
-    id, type, completed: true, faction: 'player', x: 0, y: 0, width: 2, height: 2,
+    id, type, completed: true, x: 0, y: 0, width: 2, height: 2,
   } as unknown as Building;
 }
 
