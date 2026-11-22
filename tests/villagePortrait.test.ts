@@ -70,7 +70,7 @@ describe('village identity follows player choices', () => {
     };
     const portrait = computeVillagePortrait(world);
     expect(portrait.primary).toBe('war');
-    expect(portrait.title).toBe('Warlike frontier folk');
+    expect(portrait.title).toBe('Barbarians of the border');
     const withChronicle = computeVillagePortrait({
       ...world, eventLog: [
         { id: 1, tick: 0, year: 0, day: 0, type: 'combat', message: 'Old raid',
