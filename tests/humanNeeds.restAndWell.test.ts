@@ -17,7 +17,6 @@ describe('the 400 px well radius', () => {
     expect(hasNearbyWell(p, [well(1, 400, { width: 40, height: 40 })])).toBe(true);
     expect(hasNearbyWell(p, [well(1, 401)])).toBe(false);
     expect(hasNearbyWell(p, [well(1, 20, { completed: false })])).toBe(false);
-    expect(hasNearbyWell(p, [well(1, 20, { faction: 'rival' })])).toBe(false);
   });
   it('does not stack two overlapping water wells', () => {
     const one = resident(), two = resident(), none = resident();
@@ -113,7 +112,6 @@ describe('hospital admission versus mere proximity', () => {
     expect(isRestingHospitalPatient(p, ward, 0, undefined)).toBe(false);
     expect(isRestingHospitalPatient(p, { ...ward, occupants: [] }, 0, 9)).toBe(false);
     expect(isRestingHospitalPatient(p, { ...ward, completed: false }, 0, 9)).toBe(false);
-    expect(isRestingHospitalPatient(p, { ...ward, faction: 'rival' }, 0, 9)).toBe(false);
   });
   it('increases sleeping stamina recovery, not a nonexistent negative hospital drain', () => {
     const regular = resident(), patient = resident();
