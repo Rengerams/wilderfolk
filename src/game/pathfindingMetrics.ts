@@ -131,9 +131,9 @@ export function flushPathfinderTickToSession(): void {
     sessionCounters[key] += tick;
   }
 
-  if (hadActivity) {
-    measuredTicks++;
-  }
+  if (hadActivity) measuredTicks++;
+  // A flush consumes this tick: repeated calls without new work are idempotent.
+  zeroCountersInPlace(tickCounters);
 }
 
 export function recordFindPathCall(): void {
