@@ -49,6 +49,7 @@ const REQUIRED_DECISIONS = [
   'foodLedger',
   'herdMemory',
   'wildlifePredation',
+  'wildlifeReplenishment',
   'villageRequests',
   'inventionFair',
   'authoredStoryExpiry',
@@ -142,6 +143,16 @@ describe('simulation decision registry', () => {
     expect(caravans.scheduledFrom).toContain('tickLayerSystems.ts');
     expect(caravans.scheduledFrom).toContain('humanTick.tickHumans');
     expect(caravans.writes).toContain('tradeRoutes.pendingRefund');
+  });
+
+  it('tracks the shared wildlife restock policy under its real daily owner', () => {
+    const restock = SIMULATION_DECISIONS.wildlifeReplenishment;
+    expect(restock.owner).toContain('worldGen.replenishDepletedWildlife');
+    expect(restock.owner).toContain('getWildlifeCarryingCapacity');
+    expect(restock.cadence).toBe('daily');
+    expect(restock.cadenceNote).toContain('18:00');
+    expect(restock.scheduledFrom).toContain('tickLayerDaily');
+    expect(restock.testFile).toContain('wildlife.populationPolicy.test.ts');
   });
 
   it('contains exactly the required decision keys', () => {
