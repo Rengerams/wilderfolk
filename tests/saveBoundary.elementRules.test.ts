@@ -98,56 +98,75 @@ afterEach(() => {
   resetSimRng();
 });
 
-describe('a real camp, raid and provisions card still load', () => {
-  it('accepts the payload the writer produced, and keeps the card', () => {
+describe('retired camps and linked cards are dropped, but strategic raids still load', () => {
+  it('accepts the payload the writer produced, but retires the camp and linked request', () => {
     const outcome = loadGameFromParsedOutcome(realPayload());
 
     expect(outcome.ok, outcome.ok ? '' : outcome.detail).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.world.visitorGroups).toHaveLength(1);
-    expect(outcome.world.visitorGroups[0].daysLeft).toBe(4);
+    expect(outcome.world.visitorGroups).toHaveLength(0);
     expect(outcome.world.pendingRaidEvents).toHaveLength(1);
     expect(outcome.world.pendingRaidEvents[0].attackerStrength).toBe(35);
-    expect(outcome.world.activeVillageRequest?.choices).toHaveLength(2);
+    expect(outcome.world.activeVillageRequest).toBeUndefined();
   });
 });
 
-describe('a camp whose own fields are unusable is refused by name', () => {
-  it('refuses a camp with no entityIds, which a daily tick dereferences', () => {
+describe('loading saves retires on-map visitor NPCs without touching strategic raids', () => {
+  it('does not resurrect a visitor actor or its camp', () => {
+    const payload = realPayload();
+    const entities = payload.entities as Array<Record<string, unknown>>;
+    const player = entities.find((entity) => entity.type === 'human');
+    expect(player).toBeDefined();
+    if (!player) return;
+    const visitorId = (payload.nextEntityId as number) + 1;
+    entities.push({ ...player, id: visitorId, faction: 'visitor', groupId: 'visitor_traders_1' });
+    payload.nextEntityId = visitorId + 1;
+
+    const outcome = loadGameFromParsedOutcome(payload);
+    expect(outcome.ok, outcome.ok ? '' : outcome.detail).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.world.entities.some((entity) => entity.id === visitorId)).toBe(false);
+    expect(outcome.world.entityById?.has(visitorId)).toBe(false);
+    expect(outcome.world.visitorGroups).toHaveLength(0);
+    expect(outcome.world.pendingRaidEvents).toHaveLength(1);
+  });
+});
+
+describe('obsolete visitor camp records do not block existing saves', () => {
+  it('discards a camp with no entityIds', () => {
     const payload = realPayload();
     delete visitorGroupIn(payload).entityIds;
 
     const outcome = loadGameFromParsedOutcome(payload);
 
-    expect(outcome.ok).toBe(false);
-    if (outcome.ok) return;
-    expect(outcome.reason).toBe('unrestorable');
-    expect(outcome.detail).toContain('visitorGroups[0].entityIds');
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.world.visitorGroups).toHaveLength(0);
   });
 
-  it('refuses a camp whose daysLeft is not a number, which never reaches 0', () => {
+  it('discards a camp whose daysLeft is not a number', () => {
     const payload = realPayload();
     visitorGroupIn(payload).daysLeft = 'four';
 
     const outcome = loadGameFromParsedOutcome(payload);
 
-    expect(outcome.ok).toBe(false);
-    if (outcome.ok) return;
-    expect(outcome.detail).toContain('visitorGroups[0].daysLeft');
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.world.visitorGroups).toHaveLength(0);
   });
 
-  it('refuses a camp whose kind is none of the kinds the tick switches on', () => {
+  it('discards a camp whose kind is unrecognized', () => {
     const payload = realPayload();
     visitorGroupIn(payload).kind = 'pirates';
 
     const outcome = loadGameFromParsedOutcome(payload);
 
-    expect(outcome.ok).toBe(false);
-    if (outcome.ok) return;
-    expect(outcome.detail).toContain('visitorGroups[0].kind');
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.world.visitorGroups).toHaveLength(0);
   });
 
-  it('defaults a camp with no giftsGiven the way its sibling counter is defaulted', () => {
+  it('discards a camp with no giftsGiven', () => {
     const payload = realPayload();
     delete visitorGroupIn(payload).giftsGiven;
 
@@ -155,7 +174,7 @@ describe('a camp whose own fields are unusable is refused by name', () => {
 
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.world.visitorGroups[0].giftsGiven).toBe(0);
+    expect(outcome.world.visitorGroups).toHaveLength(0);
   });
 });
 

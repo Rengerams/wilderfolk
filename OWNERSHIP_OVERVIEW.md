@@ -1,5 +1,14 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-22 — retire on-map visitors (no second scheduler)
+
+| Function or path | Owner | Rule and verification |
+|---|---|---|
+| `tickDailyWorldEvents` / `rollYearlyWorldEvent` | `dailyWorldEvents.ts` / `groupEvents.ts` | Removes first-week and mid-year arrivals and all visitor choices from the yearly event pool; ordinary world events remain. `tests/onMapVisitors.retired.test.ts` |
+| `tickLayerDaily` | `tickLayerDaily.ts` | No longer schedules obsolete `tickVisitorGroups`; no alternative visitor scheduler is introduced |
+| `loadGameFromParsedOutcome` | `saveLoad.ts` | Drops old visitor actors/camps and visitor-linked requests before live indexes are built; keeps strategic rival/raid records and trade routes. `tests/saveBoundary.elementRules.test.ts` |
+| `visitorLifecycle` (retired decision) | `simulation/decisionRegistry.ts` | Removed unscheduled visitor lifecycle ownership; `factionWander` and legacy visitor commands remain compatibility-only, not normal arrival paths |
+
 ## 2026-11-22 — legacy rival building load boundary
 
 | Function(s) changed | Sole owning source | Responsibility / verification |

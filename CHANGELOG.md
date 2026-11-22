@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Removed (22 Nov 2026; pending merge):** No visitor camps or idle visitor NPCs spawn on the village map (first-week, mid-year and yearly event routes removed). Old saves discard visitors and their camps on load; strategic rivals, raids, resident immigration and trade routes remain.
+
 - **Removed (22 Nov 2026, PR #159):** Retired active rival-building ownership, field and dead tests. Rival camps remain strategic-only; old saves still remove physical rival structures on load without restoring the field.
 - **Wildkin lineage (pending merge):** Register human mothers and deer fathers, retain Wildkin ancestry in family trees and chronicle records, preserve Wildkin-to-Wildkin births, and let juveniles stay near their mother without forced departure.
 

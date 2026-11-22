@@ -51,7 +51,7 @@ const REQUIRED_DECISIONS = [
   'villageRequests',
   'inventionFair',
   'authoredStoryExpiry',
-  'visitorLifecycle', 'factionWander',
+  'factionWander',
   'idleSkillDecay',
   'socialFeedback',
   'dialogueContent',
@@ -140,7 +140,7 @@ describe('simulation decision registry', () => {
 
   it('requires a real gameTick integration file for midnight-owned decisions', () => {
     // Metadata alone is not a test: the named file runs as an explicit required CI step.
-    for (const key of ['leadership', 'idleSkillDecay', 'visitorLifecycle'] as const) {
+    for (const key of ['leadership', 'idleSkillDecay'] as const) {
       expect(SIMULATION_DECISIONS[key].testFile).toContain('tests/calendarPhase.auditRegressions.test.ts');
       expect(SIMULATION_DECISIONS[key].scheduledFrom).toContain('tickLayerDaily.ts');
       expect(SIMULATION_DECISIONS[key].cadenceNote).toContain('calendar-scheduler');

@@ -11,9 +11,8 @@ import { addReputation } from './simHelpers';
 import { tickLeaderVacancy, tickElectionBuildup, tryStartVacancyElectionCeremony, tryStartTermElectionCeremony } from './villageLeadership';
 import { getTownHallFestivalCooldownTicks, isTownHallStaffed } from './townHall';
 
-import { rollYearlyWorldEvent, tryFirstWeekVisitor, tryMidYearVisitorEvent, tickVillageRequests } from './groupEvents';
+import { rollYearlyWorldEvent, tickVillageRequests } from './groupEvents';
 import { tickWorldRivalSettlements } from './rivalWorldTick';
-import { tickVisitorQuest } from './visitorQuest';
 import { maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferGriefBeat, maybeOfferHowlerRumor, maybeOfferWinterPrep, tickWinterFreezeCheck, tickPendingStoryEvents, maybeOfferChildrenShelter, tickChildrenShelter } from './storyEvents';
 import { maybeOfferTravelingTheatre, tickTravelingTheatre } from './travelingTheatre';
 import { maybeOfferDeerParliament, tickDeerParliament } from './deerParliament';
@@ -139,7 +138,6 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   assignPendingGraves(state);
   // Frontier systems
   tickVillageRequests(state);
-  tickVisitorQuest(state);
   // First-session arc (year 0 only): welcome, wolf choice, ranger's memory, Old Kaia's winter quest.
   if (state.year === 0) {
     maybeOfferWelcome(state);
@@ -225,26 +223,6 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
     if (state.activeEvent) {
       trackYearEvent(state, state.activeEvent.title);
       addNotification(state, state.activeEvent.title, state.activeEvent.description, state.activeEvent.type === 'positive' ? 'success' : state.activeEvent.type === 'negative' ? 'warning' : 'event');
-    }
-  }
-
-  // Mid-year visitor
-  if (state.dayInYear === 180 && state.year > 0 && state.tick > 0) {
-    const midEvent = tryMidYearVisitorEvent(state, allAlive, ctx.updatedBuildings, ctx);
-    if (midEvent) {
-      state.activeEvent = midEvent;
-      trackYearEvent(state, midEvent.title);
-      addNotification(state, midEvent.title, midEvent.description, 'event');
-    }
-  }
-
-  // First-week visitor
-  if (!state.firstWeekVisitorSpawned) {
-    const firstWeekEvent = tryFirstWeekVisitor(state, allAlive, ctx.updatedBuildings, ctx);
-    if (firstWeekEvent) {
-      state.activeEvent = firstWeekEvent;
-      trackYearEvent(state, firstWeekEvent.title);
-      addNotification(state, firstWeekEvent.title, firstWeekEvent.description, 'success');
     }
   }
 

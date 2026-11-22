@@ -867,27 +867,15 @@ export type WorldEventId =
   | 'bountiful_harvest'
   | 'traveling_merchant'
   | 'nature_boom'
-  | 'visiting_traders'
-  | 'pilgrim_caravan'
-  | 'scholar_expedition'
-  | 'nomad_hunters'
-  | 'refugee_family'
-  | 'wandering_performers'
   | 'surveyors_crown'
   | 'deer_migration'
   | 'generous_neighbors';
 
-const WORLD_EVENTS: { id: WorldEventId; weight: number; minHumans?: number; requiresNoVisitors?: boolean }[] = [
+const WORLD_EVENTS: { id: WorldEventId; weight: number; minHumans?: number }[] = [
   { id: 'wolf_migration', weight: 10 },
   { id: 'bountiful_harvest', weight: 10 },
   { id: 'traveling_merchant', weight: 8 },
   { id: 'nature_boom', weight: 8 },
-  { id: 'visiting_traders', weight: 10, minHumans: 4, requiresNoVisitors: true },
-  { id: 'pilgrim_caravan', weight: 8, minHumans: 3, requiresNoVisitors: true },
-  { id: 'scholar_expedition', weight: 7, minHumans: 5, requiresNoVisitors: true },
-  { id: 'nomad_hunters', weight: 6, minHumans: 4, requiresNoVisitors: true },
-  { id: 'refugee_family', weight: 5, minHumans: 3, requiresNoVisitors: true },
-  { id: 'wandering_performers', weight: 7, minHumans: 4, requiresNoVisitors: true },
   { id: 'surveyors_crown', weight: 5, minHumans: 5 },
   { id: 'deer_migration', weight: 8 },
   { id: 'generous_neighbors', weight: 6, minHumans: 4 },
@@ -896,7 +884,7 @@ const WORLD_EVENTS: { id: WorldEventId; weight: number; minHumans?: number; requ
 export function rollYearlyWorldEvent(
   state: WorldState,
   allAlive: Entity[],
-  buildings: Building[],
+  _buildings: Building[],
   width: number,
   height: number,
   nextEntityId: () => number,
@@ -920,11 +908,7 @@ export function rollYearlyWorldEvent(
   };
 
   const humans = playerHumanCount(allAlive);
-  const pool = WORLD_EVENTS.filter((e) => {
-    if (e.minHumans && humans < e.minHumans) return false;
-    if (e.requiresNoVisitors && !canOfferVisitorCamp(state)) return false;
-    return true;
-  });
+  const pool = WORLD_EVENTS.filter((e) => !e.minHumans || humans >= e.minHumans);
   const totalWeight = pool.reduce((s, e) => s + e.weight, 0);
   if (totalWeight <= 0) {
     return { event: null, bountifulHarvest: false };
@@ -972,18 +956,6 @@ export function rollYearlyWorldEvent(
         event: { id: `nature_boom_${state.tick}`, title: 'Ecological Super-Bloom', description: 'Natural energy revitalizes the valley flora!', emoji: '🌿', effect: '+15 Trees, +30 Grass', type: 'positive' },
         bountifulHarvest,
       };
-    case 'visiting_traders':
-      return { event: spawnVisitorGroup(state, allAlive, buildings, 'traders', ctx), bountifulHarvest };
-    case 'pilgrim_caravan':
-      return { event: spawnVisitorGroup(state, allAlive, buildings, 'pilgrims', ctx), bountifulHarvest };
-    case 'scholar_expedition':
-      return { event: spawnVisitorGroup(state, allAlive, buildings, 'scholars', ctx), bountifulHarvest };
-    case 'nomad_hunters':
-      return { event: spawnVisitorGroup(state, allAlive, buildings, 'hunters', ctx), bountifulHarvest };
-    case 'refugee_family':
-      return { event: spawnVisitorGroup(state, allAlive, buildings, 'refugees', ctx), bountifulHarvest };
-    case 'wandering_performers':
-      return { event: spawnVisitorGroup(state, allAlive, buildings, 'performers', ctx), bountifulHarvest };
     case 'surveyors_crown':
       addReputation(state, 5);
       return {

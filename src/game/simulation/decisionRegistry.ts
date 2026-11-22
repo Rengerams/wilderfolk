@@ -75,7 +75,6 @@ export type DecisionKey =
   | 'villageRequests'
   | 'inventionFair'
   | 'authoredStoryExpiry'
-  | 'visitorLifecycle'
   | 'factionWander'
   | 'idleSkillDecay'
   | 'socialFeedback'
@@ -436,7 +435,7 @@ export const SIMULATION_DECISIONS = {
   yearlyWorldEvents: {
     owner: 'dailyWorldEvents.ts — tickYearBoundaryWorldEvents and tickDailyWorldEvents; groupEvents.ts — rollYearlyWorldEvent',
     cadence: 'daily',
-    cadenceNote: 'The 00:00 year boundary clears the previous year\'s bountifulHarvest before that day\'s production; the first 18:00 daily pass of the new year rolls the yearly event and may grant it for days 1–359. No odd/even parity reset.',
+    cadenceNote: 'The 00:00 year boundary clears last year\'s harvest grant before production; the first 18:00 daily pass of the new year rolls a non-visitor event. No visitor camps or actors are spawned.',
     writes: [
       'activeEvent',
       'lastEventYear',
@@ -495,7 +494,6 @@ export const SIMULATION_DECISIONS = {
       'villageRequestCooldownUntilDay',
       'villageRequestHistory',
       'documented resources/reputation effects',
-      'source visitor-group counters',
       'eventLog/bigNews/floatingTexts',
     ],
     scheduledFrom: 'tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → groupEvents.tickVillageRequests; commands.ts "resolveVillageRequest" → groupEvents.resolveVillageRequest',
@@ -507,14 +505,6 @@ export const SIMULATION_DECISIONS = {
     writes: ['human.factionWander', 'human.vx', 'human.vy', 'human.spriteAngle'],
     scheduledFrom: 'humanTick.ts → tickFactionCampWander for eligible foreign camp actors',
     testFile: 'tests/workerHandoff.state.test.ts, tests/factionTravel.offscreen.test.ts',
-  },
-  visitorLifecycle: {
-    owner: 'groupEvents.ts — tickVisitorGroups; sole visitor stay, gift, and departure owner',
-    cadence: 'new-calendar-day',
-    cadenceNote: 'One 00:00 pass per colony day; arrival grace stays in groupEvents and departure unindexes visitors. Required CI: calendar-scheduler executes the real gameTick regression.',
-    writes: ['visitorGroups', 'visitorGroup.daysLeft', 'visitorGroup.giftsGiven', 'visitorGroup.gold', 'visitorHuman.alive', 'resources', 'villageReputation', 'eventLog/bigNews/floatingTexts'],
-    scheduledFrom: 'gameTick.ts → tickLayerDaily.ts 00:00 → groupEvents.tickVisitorGroups',
-    testFile: 'tests/calendarPhase.auditRegressions.test.ts',
   },
   idleSkillDecay: {
     owner: 'skills.ts — decayIdleSkills; sole non-active trade-skill decay writer',
