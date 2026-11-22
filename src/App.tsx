@@ -2340,7 +2340,6 @@ export default function App() {
             setWorkHoursOpen(true);
           }}
           onFocusVisitor={(id, x, y) => focusCampOnMap(id, x, y)}
-          onFocusRival={() => focusRivalOnStrategicMap()}
           onLaunchRaid={(rivalId) => {
             playClickSound();
             applyGameAction({ proto: 1, op: 'launchRaidOnRival', rivalId });

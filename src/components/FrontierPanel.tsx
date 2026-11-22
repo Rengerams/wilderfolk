@@ -14,7 +14,6 @@ export interface FrontierPanelProps {
   pendingOutgoingRaidCount: number;
   pendingDiplomacyCount: number;
   onFocusVisitor: (id: string, x: number, y: number) => void;
-  onFocusRival: (id: string, x: number, y: number, buildingId?: number) => void;
   onLaunchRaid?: (rivalId: string) => void;
   onProvokeRival?: (rivalId: string) => void;
   onRecallRaid?: (eventId: string) => void;

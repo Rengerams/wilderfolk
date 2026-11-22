@@ -105,9 +105,10 @@ export function tickRivalSettlements(
       && tenseRepDrainToday < MAX_TENSE_REP_DRAIN_PER_DAY
       && getSimRng('rivalEvents')() < 0.4
     ) {
-      addReputation(state, -2);
-      tenseRepDrainToday++;
-      callbacks.pushNews(state, '⚡ Border Tension', `${rival.name} grumbles about your expansion. Reputation -2.`, 'negative');
+      const drain = Math.min(2, MAX_TENSE_REP_DRAIN_PER_DAY - tenseRepDrainToday);
+      addReputation(state, -drain);
+      tenseRepDrainToday += drain;
+      callbacks.pushNews(state, '⚡ Border Tension', `${rival.name} grumbles about your expansion. Reputation -${drain}.`, 'negative');
     } else if (rival.relationship === 'neutral' && getSimRng('rivalEvents')() < 0.3) {
       callbacks.logEvent(state, 'event', `${rival.name} scouts were seen mapping the river bend`, rival.name);
     }
