@@ -674,7 +674,7 @@ const CONCEPTION_LOOK: Readonly<Record<ConceptionKind, {
  * Conception presentation and chronicle around `humanLifecycle.startPregnancy`, the one writer that
  * owns pregnancy state. The kind only changes the wording and the pulse.
  */
-function beginPregnancy(
+function resolveConception(
   state: WorldState,
   entity: Entity,
   partner: Entity,
@@ -761,7 +761,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
         // Non-genetic: the conception activity carries only the acquired lucky mark.
         const conceptionFactor = evaluateAptitudeInfluence(entity, 'conception').factor;
         if (personDayRoll(entity.id, state.tick, 603) < baseChance * fertility * conceptionFactor) {
-          beginPregnancy(state, entity, partner, 'married');
+          resolveConception(state, entity, partner, 'married');
           recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
           return true;
         }
@@ -806,7 +806,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
         const chance =
           HUMAN_DAILY_PREGNANCY_CHANCE_NEAR * youthMultiplier * fertility * conceptionFactor;
         if (personDayRoll(entity.id, state.tick, 604) < chance) {
-          beginPregnancy(state, entity, youthPartner, 'youth');
+          resolveConception(state, entity, youthPartner, 'youth');
           recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
           return true;
         }
@@ -829,7 +829,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
       if (tryst && fertility > 0) {
         const conceptionFactor = evaluateAptitudeInfluence(entity, 'conception').factor;
         if (personDayRoll(entity.id, state.tick, 605) < HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE * fertility * conceptionFactor) {
-          beginPregnancy(state, entity, lover, 'affair');
+          resolveConception(state, entity, lover, 'affair');
           recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
           return true;
         }

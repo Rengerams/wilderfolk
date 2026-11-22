@@ -3,7 +3,7 @@
  * https://opengameart.org/content/tileable-grass-textures-set-1 — decoded once, sampled by world position.
  */
 import { MapPreset } from '../gameTypes';
-import { getSprite } from '../spriteLoader';
+import { getCachedSprite } from '../spriteLoader';
 
 // Curated 512px albedos from rubberduck's CC0 pack; other albedos stay available for future
 // buildings/paths but are never loaded into the map without a material that uses them.
@@ -88,10 +88,10 @@ function decodeTerrainAlbedo(image: HTMLImageElement): GroundGrassTexture | null
 
 /** Returns null until all four artist PNGs are loaded; legacy fallback stays available. */
 export function loadedGrassTextures(): GroundGrassTextures | null {
-  const a = getSprite(GRASS_TEXTURE_PATHS[0]);
-  const b = getSprite(GRASS_TEXTURE_PATHS[1]);
-  const c = getSprite(GRASS_TEXTURE_PATHS[2]);
-  const d = getSprite(GRASS_TEXTURE_PATHS[3]);
+  const a = getCachedSprite(GRASS_TEXTURE_PATHS[0]);
+  const b = getCachedSprite(GRASS_TEXTURE_PATHS[1]);
+  const c = getCachedSprite(GRASS_TEXTURE_PATHS[2]);
+  const d = getCachedSprite(GRASS_TEXTURE_PATHS[3]);
   if (!a || !b || !c || !d) return null;
   const aa = decodeTerrainAlbedo(a), bb = decodeTerrainAlbedo(b);
   const cc = decodeTerrainAlbedo(c), dd = decodeTerrainAlbedo(d);
@@ -102,13 +102,13 @@ export type LoadedTerrainMaterials = Record<NaturalTerrainMaterial, GroundGrassT
 
 /** Decode the seven used photographic materials at most once per loaded image. */
 export function loadedTerrainMaterials(): LoadedTerrainMaterials | null {
-  const sand = getSprite(TERRAIN_MATERIAL_PATHS.sand);
-  const soil = getSprite(TERRAIN_MATERIAL_PATHS.soil);
-  const drySoil = getSprite(TERRAIN_MATERIAL_PATHS.drySoil);
-  const gravel = getSprite(TERRAIN_MATERIAL_PATHS.gravel);
-  const rock = getSprite(TERRAIN_MATERIAL_PATHS.rock);
-  const straw = getSprite(TERRAIN_MATERIAL_PATHS.straw);
-  const pebbles = getSprite(TERRAIN_MATERIAL_PATHS.pebbles);
+  const sand = getCachedSprite(TERRAIN_MATERIAL_PATHS.sand);
+  const soil = getCachedSprite(TERRAIN_MATERIAL_PATHS.soil);
+  const drySoil = getCachedSprite(TERRAIN_MATERIAL_PATHS.drySoil);
+  const gravel = getCachedSprite(TERRAIN_MATERIAL_PATHS.gravel);
+  const rock = getCachedSprite(TERRAIN_MATERIAL_PATHS.rock);
+  const straw = getCachedSprite(TERRAIN_MATERIAL_PATHS.straw);
+  const pebbles = getCachedSprite(TERRAIN_MATERIAL_PATHS.pebbles);
   if (!sand || !soil || !drySoil || !gravel || !rock || !straw || !pebbles) return null;
   const values = [
     decodeTerrainAlbedo(sand), decodeTerrainAlbedo(soil), decodeTerrainAlbedo(drySoil),
@@ -149,9 +149,9 @@ export interface CethielDirtTextures {
 
 /** Decodes the three appropriate dirt images through the shared albedo cache. */
 export function loadedDirtTextures(): CethielDirtTextures | null {
-  const loam = getSprite(DIRT_TEXTURE_PATHS.loam);
-  const coarse = getSprite(DIRT_TEXTURE_PATHS.coarseSoil);
-  const leaves = getSprite(DIRT_TEXTURE_PATHS.leafLitter);
+  const loam = getCachedSprite(DIRT_TEXTURE_PATHS.loam);
+  const coarse = getCachedSprite(DIRT_TEXTURE_PATHS.coarseSoil);
+  const leaves = getCachedSprite(DIRT_TEXTURE_PATHS.leafLitter);
   if (!loam || !coarse || !leaves) return null;
   const a = decodeTerrainAlbedo(loam);
   const b = decodeTerrainAlbedo(coarse);

@@ -339,7 +339,7 @@ interface PresentationDialogueSource {
  * Parse presentation-owned JSON without importing it into an ambient-chat bank. Never touches
  * `chatPhrase`, `chatTicks`, the simulation clock or RNG; invalid content fails closed.
  */
-export function readPresentationDialogue(
+export function parsePresentationDialogue(
   rawSource: unknown,
   eventKey: string,
 ): PresentationDialogueScene {
@@ -412,7 +412,7 @@ for (const raw of [spotlightPresentationJson]) {
     if (typeof tree?.eventKey !== 'string' || presentationScenesByEvent.has(tree.eventKey)) {
       throw new Error('[dialogue] Invalid or duplicate presentation event key');
     }
-    const scene = readPresentationDialogue(raw, tree.eventKey);
+    const scene = parsePresentationDialogue(raw, tree.eventKey);
     presentationScenesByEvent.set(scene.eventKey, scene);
   }
 }

@@ -97,9 +97,9 @@ export function simAmbientChatNeighbors(
 
   // Close bonds sort first and are **id-stable within each tier** — order is part of the contract,
   // because callers index this list with a seeded roll.
-  const byId = (a: ChatSpeaker, b: ChatSpeaker): number => a.id - b.id;
-  preferred.sort(byId);
-  standard.sort(byId);
+  const compareById = (a: ChatSpeaker, b: ChatSpeaker): number => a.id - b.id;
+  preferred.sort(compareById);
+  standard.sort(compareById);
   for (let i = 0; i < standard.length; i++) {
     preferred.push(standard[i]);
   }

@@ -40,7 +40,7 @@ function heldPrisoners(state: WorldState, prisonId: number): Entity[] {
  * The living entity for an id: canonical map first, scan fallback for unindexed spawns, `alive` tested
  * either way because the map can hold an entity whose `alive` was cleared.
  */
-function livingById(
+function livingEntityById(
   state: WorldState,
   entityById: Map<number, Entity>,
   id: number,
@@ -53,7 +53,7 @@ export function prisonGuardIds(state: WorldState, occupants: number[]): number[]
   const entityById = ensureEntityByIdMap(state);
   const ids: number[] = [];
   for (const id of occupants) {
-    const occupant = livingById(state, entityById, id);
+    const occupant = livingEntityById(state, entityById, id);
     if (occupant && isPlayerHuman(occupant) && occupant.job === 'prison_guard') ids.push(id);
   }
   const prison = state.buildings.find(
@@ -67,8 +67,8 @@ export function prisonGuardIds(state: WorldState, occupants: number[]): number[]
   const postY = prison.y + prison.height / 2;
   return ids
     .sort((a, b) => {
-      const guardA = livingById(state, entityById, a)!;
-      const guardB = livingById(state, entityById, b)!;
+      const guardA = livingEntityById(state, entityById, a)!;
+      const guardB = livingEntityById(state, entityById, b)!;
       const distanceA = Math.hypot(postX - guardA.x, postY - guardA.y);
       const distanceB = Math.hypot(postX - guardB.x, postY - guardB.y);
       return distanceA - distanceB || a - b;
@@ -108,7 +108,7 @@ export function tickPrisonPresence(state: WorldState): void {
     // Any guard on the post covers the hour: the roster says who is expected, not who is allowed, and
     // every open hour carries an escape roll.
     const posted = guardIds.some((id) => {
-      const guard = livingById(state, entityById, id);
+      const guard = livingEntityById(state, entityById, id);
       // A staffed post is reached at the walkable facade, not an arbitrary distance from the centre.
       // The movement owner already admits guards at this boundary and marks them indoors.
       return guard != null && (guard.indoorBuildingId === prison.id || isAtBuildingReach(guard, prison));

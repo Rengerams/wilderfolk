@@ -532,7 +532,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/phase7.social.test.ts, tests/socialLife.dialogueBusy.test.ts, tests/humanChat.ambientPairing.test.ts',
   },
   dialogueContent: {
-    owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, hasDialogueSceneOnDay, rememberDialogueLine, dialogueHoursFromNominalTicks, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, readPresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
+    owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, hasDialogueSceneOnDay, rememberDialogueLine, dialogueHoursFromNominalTicks, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, parsePresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
     cadence: 'on-demand',
     cadenceNote: 'One centralized ambient source (data/dialogue/ambient.json, one neutral dialogue category); eventKey+mode lookup matches real participant roles, cycles eligible variants and applies a per-settler three-day line cooldown before repeating. Singleton ambient scenes cool down for three calendar days; per-entity scene and line history survive save/load; line history is capped at the newest 48 entries so a silent settler keeps a bounded map. This owner writes human.dialogueRecentScenes and human.dialogueRecentLines; scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.',
     writes: ['human.dialogueRecentScenes', 'human.dialogueRecentLines'],
@@ -586,7 +586,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/phase7.social.test.ts, tests/electionGossip.dedup.test.ts, tests/affairTrystSite.walkIn.test.ts, tests/settlers.indoors.test.ts',
   },
   conception: {
-    owner: 'humanRelationships.ts — tryDailyConception (ONLY conception decision/roll owner; the married, youth and affair routes all apply the same conception activity factor); pregnancy.ts — startPregnancy (sole pregnancy-start writer, called by beginPregnancy)',
+    owner: 'humanRelationships.ts — tryDailyConception (ONLY conception decision/roll owner; the married, youth and affair routes all apply the same conception activity factor); pregnancy.ts — startPregnancy (sole pregnancy-start writer, called by resolveConception)',
     cadence: 'new-calendar-day',
     cadenceNote: 'One roll per settler per colony day through salted personDayRoll; married-near, youth-pair and affair trysts use separate salts. Conception is deliberately non-genetic: the `conception` activity carries no aptitude weights and reads no allele, so only the acquired lucky mark can move the married/youth chance; the retired inherited Lucky ×1.15 is gone and no replacement roll exists. The youth route follows the retained youth link: while one partner is 18 and the other is still a minor it may conceive in either direction; once both are 18 (or the older is beyond 18) the route closes and the handoff/adult path applies.',
     writes: [
@@ -597,7 +597,7 @@ export const SIMULATION_DECISIONS = {
       'human.pregnancyDueProgress',
       'human.relationshipStatus (expecting)',
     ],
-    scheduledFrom: 'humanTick.ts (isNewCalendarDay gate) → tryDailyConception → beginPregnancy → pregnancy.startPregnancy',
+    scheduledFrom: 'humanTick.ts (isNewCalendarDay gate) → tryDailyConception → resolveConception → pregnancy.startPregnancy',
     testFile: 'tests/phase7.social.test.ts, tests/conceptionEvent.labelling.test.ts, tests/youthConception.ageFloor.test.ts, tests/humanLifecycle.test.ts',
   },
   pregnancyBirth: {

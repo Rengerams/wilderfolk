@@ -19,7 +19,7 @@ import {
   TERRAIN_RENDER_CELL,
   terrainRegionRevision,
 } from '../terrain/terrainGrid';
-import { getSprite } from '../spriteLoader';
+import { getCachedSprite } from '../spriteLoader';
 
 // Terrain base palette lives in the terrain owner (`terrainAtlas.TERRAIN_PALETTE`) so the bake
 // and the minimap cannot drift apart.
@@ -756,7 +756,7 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
 function drawReinforcedSoil(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number): void {
   const overrides = state.worldMap?.overrides;
   if (!overrides?.size) return;
-  const sprite = getSprite('/sprites/ground_soil.png');
+  const sprite = getCachedSprite('/sprites/ground_soil.png');
   if (!sprite || !sprite.complete || sprite.naturalWidth === 0) return;
   const mapWidth = state.worldMap!.width;
   const size = PATH_CELL * state.camera.zoom;

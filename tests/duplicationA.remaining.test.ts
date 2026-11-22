@@ -276,7 +276,7 @@ describe('A22 — the gestation term and pregnancy start each have one owner', (
     expect(relationshipsSource, 'the term formula is back in the conception owner').not.toMatch(DUE_FORMULA);
     expect(relationshipsSource, 'the duplicate term helper is back').not.toContain('rollPregnancyDueProgress');
     expect(
-      relationshipsSource.match(/beginPregnancy\(/g) ?? [],
+      relationshipsSource.match(/resolveConception\(/g) ?? [],
       'a conception path bypasses the one pregnancy writer',
     ).toHaveLength(4);
     expect(
@@ -284,13 +284,13 @@ describe('A22 — the gestation term and pregnancy start each have one owner', (
       'the conception owner no longer calls the start writer',
     ).toHaveLength(1);
     const conceptionWriter = relationshipsSource.slice(
-      relationshipsSource.indexOf('function beginPregnancy('),
+      relationshipsSource.indexOf('function resolveConception('),
       relationshipsSource.indexOf('type ConceptionGateOutcome'),
     );
-    expect(conceptionWriter, 'beginPregnancy stopped delegating to the start writer').toContain(
+    expect(conceptionWriter, 'resolveConception stopped delegating to the start writer').toContain(
       'startPregnancy(',
     );
-    expect(conceptionWriter, 'beginPregnancy writes pregnancy state again').not.toMatch(
+    expect(conceptionWriter, 'resolveConception writes pregnancy state again').not.toMatch(
       /pregnancyDueProgress\s*=|pregnancyProgress\s*=|pregnantById\s*=|pregnancyFromYouthLove\s*=|\.pregnant\s*=/,
     );
 

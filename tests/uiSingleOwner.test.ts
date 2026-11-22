@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { isDynasty, type Dynasty } from '../src/game/familyLegacy';
+import { meetsDynastyThreshold, type Dynasty } from '../src/game/familyLegacy';
 import { resourceFillPercent } from '../src/game/dashboardData';
 import { citizenGivenName, SETTLER_NAME_FALLBACK } from '../src/game/citizenId';
 import { getWallSegmentCap, WALL_SEGMENT_BASE_BONUS, WATCHTOWER_BASE_BONUS, MILITIA_BALANCE } from '../src/game/defenseStructures';
@@ -32,12 +32,12 @@ function count(haystack: string, needle: string): number {
 }
 
 describe('C2 — the view reads the owner instead of re-deriving the rule', () => {
-  it('dynasty definition: the panel filters with the chronicle reward gate (familyLegacy.isDynasty)', () => {
+  it('dynasty definition: the panel filters with the chronicle reward gate (familyLegacy.meetsDynastyThreshold)', () => {
     // A two-generation filter is not a dynasty; the panel reads the chronicle predicate.
     const panel = read('src/components/tabPanels/DynastyPanel.tsx');
     expect(panel, 'the two-generation filter is back').not.toContain('generationsAlive >= 2');
-    expect(panel, 'the panel no longer reads the owner').toContain('filter(isDynasty)');
-    expect(read('src/game/familyLegacy.ts')).toContain('computeDynasties(state).some(isDynasty)');
+    expect(panel, 'the panel no longer reads the owner').toContain('filter(meetsDynastyThreshold)');
+    expect(read('src/game/familyLegacy.ts')).toContain('computeDynasties(state).some(meetsDynastyThreshold)');
   });
 
   it('dynasty definition: a two-generation family is not a dynasty at any member count', () => {
@@ -45,11 +45,11 @@ describe('C2 — the view reads the owner instead of re-deriving the rule', () =
     const threeGenerationsTwoMembers: Dynasty = { surname: 'Birch', generationsAlive: 3, members: 2 };
     const realDynasty: Dynasty = { surname: 'Cedar', generationsAlive: 3, members: 3 };
 
-    expect(isDynasty(twoGenerations)).toBe(false);
-    expect(isDynasty(threeGenerationsTwoMembers)).toBe(false);
-    expect(isDynasty(realDynasty)).toBe(true);
+    expect(meetsDynastyThreshold(twoGenerations)).toBe(false);
+    expect(meetsDynastyThreshold(threeGenerationsTwoMembers)).toBe(false);
+    expect(meetsDynastyThreshold(realDynasty)).toBe(true);
     // And the chronicle reward gate reads the same predicate, so panel and reward cannot disagree.
-    expect(read('src/game/familyLegacy.ts')).toContain('return computeDynasties(state).some(isDynasty);');
+    expect(read('src/game/familyLegacy.ts')).toContain('return computeDynasties(state).some(meetsDynastyThreshold);');
   });
 
   it('ecosystem health: the Nature bar reads getEcosystemHealth, not the raw field', () => {

@@ -1,6 +1,6 @@
 {
  "generatedFrom": "src/**/*.{ts,tsx} + decisionRegistry.ts + OWNERSHIP_OVERVIEW.md",
- "generatedAt": "2026-11-22T03:40:51.331Z",
+ "generatedAt": "2026-11-22T03:43:47.687Z",
  "stats": {
   "files": 399,
   "functions": 3444,
@@ -982,7 +982,7 @@
   {
    "key": "dialogueContent",
    "source": "decisionRegistry.ts",
-   "owner": "dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, hasDialogueSceneOnDay, rememberDialogueLine, dialogueHoursFromNominalTicks, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, readPresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank",
+   "owner": "dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, hasDialogueSceneOnDay, rememberDialogueLine, dialogueHoursFromNominalTicks, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, parsePresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank",
    "cadence": "on-demand",
    "cadenceNote": "One centralized ambient source (data/dialogue/ambient.json, one neutral dialogue category); eventKey+mode lookup matches real participant roles, cycles eligible variants and applies a per-settler three-day line cooldown before repeating. Singleton ambient scenes cool down for three calendar days; per-entity scene and line history survive save/load; line history is capped at the newest 48 entries so a silent settler keeps a bounded map. This owner writes human.dialogueRecentScenes and human.dialogueRecentLines; scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.",
    "scheduledFrom": "humanTick.ts, socialLife.ts, humanLeisureBehavior.ts, factionWander.ts and existing domain event owners; Spotlight overlay later uses read-only group adapter",
@@ -1003,9 +1003,9 @@
     "hasDialogueSceneOnDay",
     "indexDialogueBank",
     "maybeDialogueChat",
+    "parsePresentationDialogue",
     "pickRandomChatContext",
     "preloadDialogueBank",
-    "readPresentationDialogue",
     "rememberDialogueLine",
     "requestDialogue",
     "tryAmbientRandomDialogue"
@@ -1126,10 +1126,10 @@
   {
    "key": "conception",
    "source": "decisionRegistry.ts",
-   "owner": "humanRelationships.ts — tryDailyConception (ONLY conception decision/roll owner; the married, youth and affair routes all apply the same conception activity factor); pregnancy.ts — startPregnancy (sole pregnancy-start writer, called by beginPregnancy)",
+   "owner": "humanRelationships.ts — tryDailyConception (ONLY conception decision/roll owner; the married, youth and affair routes all apply the same conception activity factor); pregnancy.ts — startPregnancy (sole pregnancy-start writer, called by resolveConception)",
    "cadence": "new-calendar-day",
    "cadenceNote": "One roll per settler per colony day through salted personDayRoll; married-near, youth-pair and affair trysts use separate salts. Conception is deliberately non-genetic: the `conception` activity carries no aptitude weights and reads no allele, so only the acquired lucky mark can move the married/youth chance; the retired inherited Lucky ×1.15 is gone and no replacement roll exists. The youth route follows the retained youth link: while one partner is 18 and the other is still a minor it may conceive in either direction; once both are 18 (or the older is beyond 18) the route closes and the handoff/adult path applies.",
-   "scheduledFrom": "humanTick.ts (isNewCalendarDay gate) → tryDailyConception → beginPregnancy → pregnancy.startPregnancy",
+   "scheduledFrom": "humanTick.ts (isNewCalendarDay gate) → tryDailyConception → resolveConception → pregnancy.startPregnancy",
    "writes": [
     "human.pregnant",
     "human.pregnantById",
@@ -1143,7 +1143,7 @@
     "humanRelationships.ts"
    ],
    "entryFunctions": [
-    "beginPregnancy",
+    "resolveConception",
     "roll",
     "start",
     "startPregnancy",
@@ -2894,8 +2894,8 @@
     "humanRelationships.ts"
    ],
    "entryFunctions": [
-    "beginPregnancy",
     "record",
+    "resolveConception",
     "rollPregnancyDueProgress",
     "tryDailyConception"
    ]
@@ -3800,7 +3800,7 @@
     "spriteLoader.ts"
    ],
    "entryFunctions": [
-    "getSprite",
+    "getCachedSprite",
     "isSpriteLoaded",
     "loadSprite",
     "preloadAllSprites"
@@ -5148,9 +5148,9 @@
     "getPresentationDialogue",
     "indexDialogueBank",
     "maybeDialogueChat",
+    "parsePresentationDialogue",
     "pickRandomChatContext",
     "preloadDialogueBank",
-    "readPresentationDialogue",
     "requestDialogue",
     "tryAmbientRandomDialogue"
    ]
@@ -35206,7 +35206,7 @@
    ]
   },
   {
-   "name": "readPresentationDialogue",
+   "name": "parsePresentationDialogue",
    "file": "src/game/dialogueTrees.ts",
    "line": 342,
    "bodyStart": 345,
@@ -41993,7 +41993,7 @@
    ]
   },
   {
-   "name": "findBuilding",
+   "name": "pickRandomPlayerBuilding",
    "file": "src/game/factionWander.ts",
    "line": 19,
    "bodyStart": 22,
@@ -42529,7 +42529,7 @@
    ]
   },
   {
-   "name": "isDynasty",
+   "name": "meetsDynastyThreshold",
    "file": "src/game/familyLegacy.ts",
    "line": 57,
    "bodyStart": 57,
@@ -42731,7 +42731,7 @@
    ]
   },
   {
-   "name": "byId",
+   "name": "aliveHumanById",
    "file": "src/game/familyTree.ts",
    "line": 229,
    "bodyStart": 229,
@@ -79547,7 +79547,7 @@
    ]
   },
   {
-   "name": "livingById",
+   "name": "livingEntityById",
    "file": "src/game/prisonGuardDuty.ts",
    "line": 43,
    "bodyStart": 47,
@@ -110890,7 +110890,7 @@
    "callees": []
   },
   {
-   "name": "beginPregnancy",
+   "name": "resolveConception",
    "file": "src/game/simulation/humanRelationships.ts",
    "line": 677,
    "bodyStart": 682,
@@ -112550,7 +112550,7 @@
    ]
   },
   {
-   "name": "byId",
+   "name": "compareById",
    "file": "src/game/simulation/humanSocial.ts",
    "line": 100,
    "bodyStart": 100,
@@ -116370,7 +116370,7 @@
    "callees": []
   },
   {
-   "name": "getSprite",
+   "name": "getCachedSprite",
    "file": "src/game/spriteLoader.ts",
    "line": 86,
    "bodyStart": 86,

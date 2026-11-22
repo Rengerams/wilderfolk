@@ -17,7 +17,7 @@ import type { WorldMap } from '../src/game/gameTypes';
 const sprites = vi.hoisted(() => ({ ready: new Set<string>() }));
 
 vi.mock('../src/game/spriteLoader', () => ({
-  getSprite: (src: string) => (sprites.ready.has(src) ? ({} as HTMLImageElement) : null),
+  getCachedSprite: (src: string) => (sprites.ready.has(src) ? ({} as HTMLImageElement) : null),
 }));
 
 const CHUNK_A = { left: 0, top: 0, right: 256, bottom: 256 };

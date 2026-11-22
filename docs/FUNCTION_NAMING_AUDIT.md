@@ -104,6 +104,26 @@ re-declare it), and `unlockOnGesture` is copied in `src/game/IntroScreen.tsx:211
 Read and confirmed as different behaviour. The names are close enough that a caller can pick the
 wrong one.
 
+### Status — disambiguated
+
+Each pair below was renamed so the name states the contract, with all callers, tests and owner
+entries migrated:
+
+| Old name | New name | Now says |
+| --- | --- | --- |
+| `beginPregnancy` | `resolveConception` | Orchestrates the conception event around the writer; it is not the pregnancy writer |
+| `isDynasty` | `meetsDynastyThreshold` | Tests one dynasty record against the rule; `hasDynasty` stays the colony-wide scan |
+| `getSprite` | `getCachedSprite` | Synchronous cache read; `loadSprite` stays the async loader |
+| `readPresentationDialogue` | `parsePresentationDialogue` | Parses, validates and freezes raw source; `getPresentationDialogue` stays the indexed lookup |
+| `findBuilding` (`factionWander.ts`) | `pickRandomPlayerBuilding` | Picks a random completed player building; `findPlayerBuilding` / `resolveBuilding` stay by-id lookups |
+| `byId` (`familyTree.ts`) | `aliveHumanById` | Living player-human lookup, not any entity |
+| `livingById` (`prisonGuardDuty.ts`) | `livingEntityById` | Living entity lookup through the canonical map with scan fallback |
+| `byId` (`humanSocial.ts`) | `compareById` | A sort comparator, not a lookup |
+
+`getVolumePreset` (live graph state) and `loadVolumePreset` (persisted preferences) keep their names:
+each already states where the value comes from, and the audio facade re-exports the owner's name on
+purpose.
+
 | Name A | Name B | Why they differ |
 | --- | --- | --- |
 | `startPregnancy` (`src/game/pregnancy.ts:44`) | `beginPregnancy` (`src/game/simulation/humanRelationships.ts:677`) | A mutates the entity's pregnancy fields; B orchestrates the conception event, flash, particles, log and notification and then calls A |
@@ -137,6 +157,8 @@ These look-alikes are recorded as distinct in `docs/tools/semantic-duplicates-re
 
 ## Follow-up
 
-Sections 1 and 2 are now implemented: the duplicates were merged into the owners listed under
-*Status — consolidated*, and their callers, tests and ownership entries were migrated with them.
-The remaining rows in section 2 are the pairs kept apart on purpose above.
+Sections 1, 2 and 3 are now implemented: the duplicates were merged into the owners listed under
+*Status — consolidated*, and the ambiguous names in section 3 were renamed to state their contract
+(*Status — disambiguated*). Callers, tests, the ownership overview, the decision registry and the
+semantic-overlap approvals were migrated with them. The remaining rows in section 2 are the pairs
+kept apart on purpose above.

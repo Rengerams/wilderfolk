@@ -226,7 +226,7 @@ function familyHumans(all: readonly Entity[], includeDeceased: boolean): Entity[
   return all.filter((e) => (includeDeceased || e.alive) && e.type === EntityType.Human && isPlayerHuman(e));
 }
 
-function byId(all: readonly Entity[], id: number | undefined): Entity | undefined {
+function aliveHumanById(all: readonly Entity[], id: number | undefined): Entity | undefined {
   if (id == null) return undefined;
   return all.find((e) => e.id === id && e.alive && e.type === EntityType.Human);
 }
@@ -360,8 +360,8 @@ export function buildFamilyTree(
   // custodian resolver credits, so the window names the person actually raising the child.
   const custodian = getChildCustodian(focus, people);
   const parentFor = (birthId: number | undefined, adoptiveId: number | undefined): Entity | undefined => {
-    const birth = byId(people, birthId);
-    const adoptive = byId(people, adoptiveId);
+    const birth = aliveHumanById(people, birthId);
+    const adoptive = aliveHumanById(people, adoptiveId);
     if (!birth || !adoptive) return birth ?? adoptive;
     if (custodian?.id === adoptive.id) return adoptive;
     if (custodian?.id === birth.id) return birth;
@@ -375,19 +375,19 @@ export function buildFamilyTree(
   // A parent's new partner is the marriage's own relation, not an in-law.
   for (const parent of [mother, father]) {
     if (!parent) continue;
-    const stepParent = byId(people, parent.partnerId)
+    const stepParent = aliveHumanById(people, parent.partnerId)
       ?? people.find((p) => p.partnerId === parent.id && isMarriedOrExpecting(p));
     add(stepParent, stepParent?.gender === 'male' ? 'stepfather' : 'stepmother');
   }
 
   // Grandparents
   if (mother) {
-    add(byId(people, mother.motherId) ?? byId(people, mother.adoptiveMotherId), 'grandmother');
-    add(byId(people, mother.fatherId) ?? byId(people, mother.adoptiveFatherId), 'grandfather');
+    add(aliveHumanById(people, mother.motherId) ?? aliveHumanById(people, mother.adoptiveMotherId), 'grandmother');
+    add(aliveHumanById(people, mother.fatherId) ?? aliveHumanById(people, mother.adoptiveFatherId), 'grandfather');
   }
   if (father) {
-    add(byId(people, father.motherId) ?? byId(people, father.adoptiveMotherId), 'grandmother');
-    add(byId(people, father.fatherId) ?? byId(people, father.adoptiveFatherId), 'grandfather');
+    add(aliveHumanById(people, father.motherId) ?? aliveHumanById(people, father.adoptiveMotherId), 'grandmother');
+    add(aliveHumanById(people, father.fatherId) ?? aliveHumanById(people, father.adoptiveFatherId), 'grandfather');
   }
 
   // Aunts / uncles — siblings of parents
@@ -409,7 +409,7 @@ export function buildFamilyTree(
 
   // Active Spouse only — divorced ex-partners never display as active spouse
   if (isMarriedOrExpecting(focus)) {
-    const spouse = byId(people, focus.partnerId)
+    const spouse = aliveHumanById(people, focus.partnerId)
       ?? people.find((p) => p.partnerId === focus.id && isMarriedOrExpecting(p));
     if (spouse) add(spouse, 'spouse');
   }
@@ -455,7 +455,7 @@ export function buildFamilyTree(
 
   // Kin words first: past and non-marital bonds fill in whoever the walk above did not name.
   for (const idText of Object.keys(focus.pastPartnerTicks ?? {})) {
-    add(byId(people, Number(idText)), 'former_spouse');
+    add(aliveHumanById(people, Number(idText)), 'former_spouse');
   }
   for (const person of people) {
     if (person.id === focus.id) continue;
@@ -466,7 +466,7 @@ export function buildFamilyTree(
   // A shared child ties a divorced pair who left no other record of the marriage.
   for (const person of people) {
     if (person.id === focus.id || !isChildOf(person, focus)) continue;
-    add(byId(people, otherParentIdOfChild(person, focus.id)), 'co_parent');
+    add(aliveHumanById(people, otherParentIdOfChild(person, focus.id)), 'co_parent');
   }
 
   members.sort(

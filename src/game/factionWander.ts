@@ -16,7 +16,7 @@ function jitter(n: number, amount: number): number {
   return n + (getSimRng('factionWander')() - 0.5) * amount;
 }
 
-function findBuilding(
+function pickRandomPlayerBuilding(
   buildings: Building[],
   types: BuildingType[],
 ): Building | undefined {
@@ -34,7 +34,7 @@ function pickPoiForKind(
   const village = getPlayerCampCenter(state, buildings);
 
   const tryTypes = (types: BuildingType[], label: string) => {
-    const b = findBuilding(buildings, types);
+    const b = pickRandomPlayerBuilding(buildings, types);
     if (!b) return null;
     const c = getBuildingCenter(b);
     return { x: jitter(c.x, 18), y: jitter(c.y, 14), label };
@@ -66,7 +66,7 @@ function pickPoiForKind(
     case 'hunters': {
       // Edge of village / hunting grounds, not always the same building
       if (getSimRng('factionWander')() < 0.45) {
-        const spot = findBuilding(buildings, [BuildingType.HuntingSpot, BuildingType.TamingPost]);
+        const spot = pickRandomPlayerBuilding(buildings, [BuildingType.HuntingSpot, BuildingType.TamingPost]);
         if (spot) {
           const c = getBuildingCenter(spot);
           return { x: jitter(c.x, 22), y: jitter(c.y, 22), label: 'hunt' };

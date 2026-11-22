@@ -484,6 +484,21 @@
         "tests/minimap.viewportSizing.test.ts",
         "tests/renderer.frameOwnership.test.ts"
       ]
+    },
+    {
+      "key": "src/game/terrainAtlas.ts:207:terrainAtlasReady@5d162aeb48c9907b15049957b1db45b35124928f279876ed86b718643478ecee <-> src/game/terrainAtlas.ts:212:sandWaterOverlayReady@dbc27397e621ddfd6f9383624e508a20e563cc55aa601bd83efeff20e1b3ce7d",
+      "reason": "Two named readiness predicates over two different art assets: terrainAtlasReady observes the painted grass/water atlas, sandWaterOverlayReady observes the optional transparent sand-bank overlay sheet. They feed different parts of the terrain bake key (atlas flag vs overlay revision), so collapsing them into one anonymous path check would move asset identity into the caller and lose the domain predicate each caller reads.",
+      "tests": [
+        "tests/terrain.regionRevision.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/spriteLoader.ts:86:getCachedSprite@47706835da4dc225421c11216fdf6684659d706612bf1c6ed4d240bb2031561b <-> src/game/spriteLoader.ts:90:getSpriteFrame@baecf60ce43da6e0593cf2b0b7c3e3b3c9460f67c4c61ba771811599b0158387",
+      "reason": "Two caches with different value contracts in the one sprite owner: getCachedSprite returns the decoded image element for callers that draw or sample raw pixels, while getSpriteFrame returns the prepared frame (source rect plus the feet-down anchor) built by loadSprite. Returning frames to image consumers would break terrain sampling; returning images to draw consumers would drop the anchor.",
+      "tests": [
+        "tests/visualsAudit.renderWiring.test.ts",
+        "tests/wallGate.rendering.test.ts"
+      ]
     }
   ]
 }

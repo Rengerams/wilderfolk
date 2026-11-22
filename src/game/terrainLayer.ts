@@ -10,7 +10,7 @@ import {
   type CanvasContext2d,
   type CanvasSurface,
 } from './canvasLayer';
-import { getSprite } from './spriteLoader';
+import { getCachedSprite } from './spriteLoader';
 import {
   ATLAS_TILE_SIZE,
   atlasSourceRect,
@@ -90,7 +90,7 @@ function drawTerrainFill(
 ): boolean {
   const path = TERRAIN_FILL_PATH[type];
   if (!path) return false;
-  const img = getSprite(path);
+  const img = getCachedSprite(path);
   if (!img) return false;
   const iw = img.naturalWidth || (img as HTMLImageElement).width || 128;
   const ih = img.naturalHeight || (img as HTMLImageElement).height || 128;
@@ -123,7 +123,7 @@ function blendNeighborEdge(
   tileSize: number,
 ): void {
   if (fillFamily(selfType) === fillFamily(neighborType)) return;
-  if (!TERRAIN_FILL_PATH[neighborType] || !getSprite(TERRAIN_FILL_PATH[neighborType]!)) return;
+  if (!TERRAIN_FILL_PATH[neighborType] || !getCachedSprite(TERRAIN_FILL_PATH[neighborType]!)) return;
 
   const band = Math.max(2, Math.min(5, Math.round(tileSize * 0.4)));
   const strips = band;
@@ -270,7 +270,7 @@ export function terrainChunkCacheKeyFor(
 }
 
 export function terrainFillSpritesReady(): boolean {
-  return Object.values(TERRAIN_FILL_PATH).every((p) => p != null && getSprite(p) != null);
+  return Object.values(TERRAIN_FILL_PATH).every((p) => p != null && getCachedSprite(p) != null);
 }
 
 export function disposeTerrainLayer(cache: TerrainLayerCache | null): void {
@@ -468,7 +468,7 @@ export function bakeTerrainLayer(
       : `rgba(0,0,0,${Math.min(0.35, -light * 0.45)})`;
 
     const atlasPick = atlasReady ? pickAtlasTile(map, tx, ty, tile) : null;
-    const atlasImg = atlasPick ? getSprite(TERRAIN_ATLAS_PATH) : null;
+    const atlasImg = atlasPick ? getCachedSprite(TERRAIN_ATLAS_PATH) : null;
     const stamped = atlasImg && atlasPick
       ? drawAtlasTile(ctx, atlasImg, atlasPick, x0, y0, fillW, fillH)
       : drawTerrainFill(ctx, tile.type, x0, y0, fillW, fillH, tx, ty);
@@ -476,7 +476,7 @@ export function bakeTerrainLayer(
     // The shoreline mask is independent of which base painter stamped the tile: it is authored for
     // Beach and RiverBank, while `pickAtlasTile` returns null for Beach, so it must not nest under it.
     const overlayPick = overlayReady ? pickSandWaterOverlay(map, tx, ty, tile) : null;
-    const overlayImg = overlayPick ? getSprite(SAND_WATER_OVERLAY_PATH) : null;
+    const overlayImg = overlayPick ? getCachedSprite(SAND_WATER_OVERLAY_PATH) : null;
 
     if (atlasPick) {
       if (overlayImg && overlayPick) {
