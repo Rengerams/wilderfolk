@@ -1,3 +1,7 @@
+import { memo, useState } from 'react';
+import type { WorldState } from '../game/gameTypes';
+import CombatPreviewPanel from '../game/CombatPreviewPanel';
+import StrategicWorldMap from './StrategicWorldMap';
 import { projectFrontierPanel } from '../game/frontierPanelView';
 import { RIVAL_FOUNDING_START_DAY, RIVAL_FOUNDING_INTERVAL_DAYS, MIN_RIVAL_FOUNDING_POPULATION, MAX_STRATEGIC_SETTLEMENTS } from '../game/rivalSettlements';
 
