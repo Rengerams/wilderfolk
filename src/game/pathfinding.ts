@@ -690,7 +690,7 @@ export function findPath(
   sy: number,
   tx: number,
   ty: number,
-  maxNodes = PATH_MAX_SEARCH_NODES,
+  maxNodes = movementSearchNodeBudget(grid),
 ): { x: number; y: number }[] | null {
   return walkRoute(grid, sx, sy, tx, ty, maxNodes).path;
 }
@@ -709,6 +709,21 @@ interface SharedNavigationCache {
 const SHARED_ROUTE_CACHE_LIMIT = 1024;
 const SHARED_ROUTE_TILE_LIMIT = 131072;
 const SHARED_ROUTE_NODE_LIMIT = 131072;
+
+/**
+ * Keep short searches cheap, scale movement's first search with map area, and
+ * double the allowance on an unresolved walker's next (throttled) attempt.
+ * Never exceed the shared A* safety cap. Explicit caller budgets stay exact.
+ */
+function movementSearchNodeBudget(grid: PathGrid, previousBudget = 0): number {
+  const terminal = Math.min(SHARED_ROUTE_NODE_LIMIT,
+    Math.max(PATH_MAX_SEARCH_NODES, grid.cols * grid.rows));
+  const initial = Math.min(terminal,
+    Math.max(PATH_MAX_SEARCH_NODES, Math.ceil(grid.cols * grid.rows / 2)));
+  return previousBudget > 0
+    ? Math.min(terminal, Math.max(initial, previousBudget * 2))
+    : initial;
+}
 let sharedRouteCaches = new WeakMap<PathGrid, SharedNavigationCache>();
 
 /** One directed, immutable and generation-scoped route quote from the existing A*. */
@@ -783,7 +798,7 @@ export function findRouteCost(
   sy: number,
   tx: number,
   ty: number,
-  maxNodes = PATH_MAX_SEARCH_NODES,
+  maxNodes = movementSearchNodeBudget(grid),
 ): number | null {
   return findRouteCostOutcome(grid, sx, sy, tx, ty, maxNodes).cost;
 }
@@ -795,7 +810,7 @@ export function findRouteCostOutcome(
   sy: number,
   tx: number,
   ty: number,
-  maxNodes = PATH_MAX_SEARCH_NODES,
+  maxNodes = movementSearchNodeBudget(grid),
 ): { cost: number | null; budgetExhausted: boolean } {
   const valid = [sx, sy, tx, ty].every(Number.isInteger)
     && sx >= 0 && sy >= 0 && tx >= 0 && ty >= 0
@@ -964,6 +979,8 @@ interface CachedPath {
   directDetourRejected?: boolean;
   /** Retry unresolved shared route searches after a bounded pause. */
   retryAfter?: number;
+  /** Node limit of the last search; only pending retries increase it. */
+  searchNodeBudget?: number;
   /** Waypoint the settler is currently walking toward, so progress survives a cache hit. */
   nextIndex: number;
 }
@@ -1022,7 +1039,7 @@ export function getRouteObstruction(
     Math.floor(from.y / PATH_CELL),
     Math.floor(to.x / PATH_CELL),
     Math.floor(to.y / PATH_CELL),
-    PATH_MAX_SEARCH_NODES,
+    movementSearchNodeBudget(grid),
     false,
   );
   if (result.path && result.path.length > 1) return 'rerouting';
@@ -1065,6 +1082,7 @@ export function steerWithPath(
   const considerRoadDetour = !directBlocked && !!pricedRoadMask(currentGrid);
   if (directBlocked || considerRoadDetour || continueAcceptedRoute) {
     let cached = pathCache.get(cacheKey);
+    let searchNodeBudget = movementSearchNodeBudget(currentGrid);
     if (cached && (cached.walkerId !== entity.id || cached.targetX !== targetX || cached.targetY !== targetY
       || (cached.directDetourRejected && (directBlocked
         || Math.abs(cached.startTileX - Math.floor(entity.x / PATH_CELL))
@@ -1075,8 +1093,10 @@ export function steerWithPath(
     }
     // A pending search is not an unreachable route. Do not run expensive retries every tick.
     if (cached?.retryAfter !== undefined) {
-      if (cached.retryAfter <= 1) cached = undefined;
-      else cached.retryAfter--;
+      if (cached.retryAfter <= 1) {
+        searchNodeBudget = movementSearchNodeBudget(currentGrid, cached.searchNodeBudget);
+        cached = undefined;
+      } else cached.retryAfter--;
     }
     // Reuse the route while the settler is still walking it; advance past reached waypoints and
     // recompute only when the settler has left the current segment (interrupted elsewhere).
@@ -1111,11 +1131,11 @@ export function steerWithPath(
       // In that case retry with the existing bounded movement heuristic and preserve its
       // path. Never downgrade a confirmed unreachable quote into an unbounded search.
       const shared = startBlocked || goalBlocked ? null : getNavigationQuote(currentGrid,
-        { x: startTx, y: startTy }, { x: goalTx, y: goalTy }, { maxNodes: PATH_MAX_SEARCH_NODES });
+        { x: startTx, y: startTy }, { x: goalTx, y: goalTy }, { maxNodes: searchNodeBudget });
       const fallback = startBlocked || goalBlocked
-        ? walkRoute(currentGrid, startTx, startTy, goalTx, goalTy, PATH_MAX_SEARCH_NODES)
+        ? walkRoute(currentGrid, startTx, startTy, goalTx, goalTy, searchNodeBudget)
         : shared?.status === 'pending' && !!pricedRoadMask(currentGrid)
-          ? searchRoute(currentGrid, startTx, startTy, goalTx, goalTy, PATH_MAX_SEARCH_NODES, false, true)
+          ? searchRoute(currentGrid, startTx, startTy, goalTx, goalTy, searchNodeBudget, false, true)
           : null;
       const routeCost = shared?.status === 'priced' ? shared.costTiles : fallback?.cost ?? null;
       const routeTiles = shared?.status === 'priced'
@@ -1148,7 +1168,9 @@ export function steerWithPath(
         waypoints, nextIndex: waypoints && waypoints.length > 1 ? 1 : 0,
         targetX, targetY, startTileX: startTx, startTileY: startTy,
         directDetourRejected: !directBlocked && !savesTime,
-        retryAfter: routePending && !waypoints ? 32 : undefined,
+        searchNodeBudget,
+        retryAfter: routePending && !waypoints
+          && movementSearchNodeBudget(currentGrid, searchNodeBudget) > searchNodeBudget ? 32 : undefined,
       };
       pathCache.delete(cacheKey);
       if (pathCache.size >= PATH_CACHE_LIMIT) {
