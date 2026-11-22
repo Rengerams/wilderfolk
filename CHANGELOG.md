@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (22 Nov 2026; stacked on PR #181):** Long, reachable walker detours progressively retry a bounded A* search instead of stopping indefinitely at the same 12,000-node budget. Blocked-goal searches also retry after budget exhaustion.
+
 - **Fixed (22 Nov 2026; PR #181):** Large rocks block walking again; a blocked destination is approached from the settler's own side, with its stand point chosen by reachability rather than distance; a packed house keeps a usable door.
 - **Fixed (22 Nov 2026; PR #181):** Removed two stale references left by the visitor-camp retirement, restoring the typecheck and unit gates.
 - **Fixed (22 Nov 2026, PR #178):** Affair chat: hourly 11.4% roll and 48-hour cooldown after success; affair progress unchanged. Renffr: hourly night roll at 0.42%, with a three-day gossip cooldown.
