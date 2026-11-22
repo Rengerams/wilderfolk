@@ -108,7 +108,7 @@ export function countStaffedWorkersAtType(buildings: Building[], humans: Entity[
   let total = 0;
   for (let i = 0; i < buildings.length; i++) {
     const b = buildings[i];
-    if (b.completed && b.type === type && b.faction !== 'rival') {
+    if (b.completed && b.type === type) {
       total += countActiveWorkersAtBuilding(humans, b.id);
     }
   }
@@ -130,7 +130,7 @@ export function getSmithBonus(buildings: Building[], humans: Entity[]): number {
 
 export function getChurchStrength(buildings: Building[], humans: Entity[]): number {
   const hasChurch = buildings.some(
-    (b) => b.completed && b.type === BuildingType.Church && b.faction !== 'rival',
+    (b) => b.completed && b.type === BuildingType.Church,
   );
   if (!hasChurch) return 0;
   const workers = countStaffedWorkersAtType(buildings, humans, BuildingType.Church);
@@ -142,7 +142,6 @@ export function hasStaffedSchool(buildings: Building[]): boolean {
     (b) =>
       b.completed &&
       b.type === BuildingType.School &&
-      b.faction !== 'rival' &&
       b.occupants.length > 0,
   );
 }
@@ -157,7 +156,7 @@ export function completedJobBuildings(
 ): Building[] {
   return buildings
     .filter((b) => {
-      if (!b.completed || b.faction === 'rival' || !BUILDING_JOB_TYPES[b.type]) return false;
+      if (!b.completed || !BUILDING_JOB_TYPES[b.type]) return false;
       return BUILDING_CONFIGS[b.type].maxOccupants > 0;
     })
     .sort((a, b) => {
@@ -387,7 +386,7 @@ export function pickWorkerToTransfer(
  */
 export function assignWorkerTransition(human: Entity, building: Building): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
-  if (!job || !building.completed || building.faction === 'rival') return false;
+  if (!job || !building.completed) return false;
   if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE) return false;
   if (human.prisonBuildingId != null) return false;
   if (human.workerBuildingId != null && human.workerBuildingId !== building.id) return false;
@@ -429,7 +428,7 @@ export function restoreWorkerRosterAfterCustody(human: Entity, buildings: readon
   const workplaceId = human.workerBuildingId;
   if (workplaceId == null) return;
   const workplace = buildings.find((building) => building.id === workplaceId);
-  if (!workplace || !workplace.completed || workplace.faction === 'rival' ||
+  if (!workplace || !workplace.completed ||
       BUILDING_JOB_TYPES[workplace.type] == null) return;
   // Custody restoration must also retire stale prison and construction memberships.
   for (const building of buildings) {
@@ -470,7 +469,7 @@ export function removeWorkerTransition(human: Entity, buildings: Building[]): vo
  * Adds an idle settler to an incomplete building's construction crew.
  */
 export function addToConstructionCrew(human: Entity, building: Building): boolean {
-  if (building.completed || building.faction === 'rival') return false;
+  if (building.completed) return false;
   if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE) return false;
   if (human.prisonBuildingId != null) return false;
   if (human.workerBuildingId != null) return false; // Must be unassigned from regular jobs first
@@ -676,7 +675,7 @@ export function syncJobBuildingOccupants(
 
   for (let i = 0; i < buildings.length; i++) {
     const building = buildings[i];
-    if (!building.completed || building.faction === 'rival' || !BUILDING_JOB_TYPES[building.type]) {
+    if (!building.completed || !BUILDING_JOB_TYPES[building.type]) {
       continue;
     }
 
@@ -698,7 +697,7 @@ export function assignWorkerInPlace(
   workerCounts?: Map<number, number>,
 ): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
-  if (!job || !building.completed || building.faction === 'rival') return false;
+  if (!job || !building.completed) return false;
 
   // Auto means fill all available staff positions, including Taverns and Hotels; opening-hour
   // minimum shift coverage is not a staffing limit.
@@ -775,7 +774,7 @@ export function assignBuilderInPlace(
   buildingById?: ReadonlyMap<number, Building>,
   allowJobTransfers = true,
 ): boolean {
-  if (building.completed || building.faction === 'rival') return false;
+  if (building.completed) return false;
 
   const cap = BUILDING_CONFIGS[building.type].maxOccupants;
   if (building.occupants.length >= cap) return false;
@@ -859,7 +858,6 @@ export function prepareWorkforce(
         if (
           !workplace ||
           !workplace.completed ||
-          workplace.faction === 'rival' ||
           !BUILDING_JOB_TYPES[workplace.type]
         ) {
           if (workplace) {
@@ -879,7 +877,6 @@ export function prepareWorkforce(
     if (
       !workplace ||
       !workplace.completed ||
-      workplace.faction === 'rival' ||
       !BUILDING_JOB_TYPES[workplace.type]
     ) {
       clearWorkerAssignment(human);
@@ -923,7 +920,7 @@ export function staffConstructionCrews(
   const incomplete = buildings
     // Passive zero-capacity sites (Wildlife Preserve, roads, decor) cannot hold builders, and the
     // donor rebalance below bypasses the normal capacity check.
-    .filter((b) => !b.completed && b.faction !== 'rival' && BUILDING_CONFIGS[b.type].maxOccupants > 0)
+    .filter((b) => !b.completed && BUILDING_CONFIGS[b.type].maxOccupants > 0)
     .sort((a, b) => {
       const aHouse = isResidenceBuildingType(a.type) ? 0 : 1;
       const bHouse = isResidenceBuildingType(b.type) ? 0 : 1;
@@ -1049,7 +1046,7 @@ function workforceSignature(world: WorldState, humans: readonly Entity[]): strin
   const priority = getWorkforcePolicy(world);
   const resourceNeeds = `${Number((world.resources?.wood ?? 1) <= 0)}:${Number((world.resources?.stone ?? 1) <= 0)}:${Number(isAcuteFoodStaffingEmergency(world))}:${Number(hasFoodStaffingPressure(world))}`;
   const residenceIds = new Set(world.buildings
-    .filter((site) => site.completed && site.faction !== 'rival' && isResidenceBuildingType(site.type))
+    .filter((site) => site.completed && isResidenceBuildingType(site.type))
     .map((site) => site.id));
   const residents = humans.map((human) => {
     // A timestamp alone cannot invalidate this cache when a transfer cooldown expires, so include
@@ -1100,7 +1097,7 @@ export function assignMissingWorkers(
   const prepStart = profileStart();
   // Old manual flags never displace established employees.
   for (const building of buildings) {
-    if (building.faction !== 'rival' && BUILDING_JOB_TYPES[building.type]
+    if (BUILDING_JOB_TYPES[building.type]
       && building.staffingMode === 'manual') building.staffingMode = 'auto';
   }
   const alive = prepareWorkforce(humans, buildings);
@@ -1116,7 +1113,7 @@ export function assignMissingWorkers(
     ] as const) {
       if (worldSlices.resources[resource] > 0) continue;
       const producer = buildings.find((site) =>
-        site.completed && site.faction !== 'rival' && site.type === type
+        site.completed && site.type === type
         && countActiveWorkersAtBuilding(alive, site.id) === 0,
       );
       if (producer) assignWorkerInPlace(producer, alive, buildings, undefined, buildingById);
@@ -1154,7 +1151,7 @@ export function findHumanWorkplace(
   const byId = opts?.buildingById;
   if (hasWorkAssignment(entity) && entity.workerBuildingId != null) {
     const jobSite = byId?.get(entity.workerBuildingId) ?? buildings.find((b) => b.id === entity.workerBuildingId);
-    if (jobSite?.completed && jobSite.faction !== 'rival' && BUILDING_JOB_TYPES[jobSite.type]) {
+    if (jobSite?.completed && BUILDING_JOB_TYPES[jobSite.type]) {
       return jobSite;
     }
   }

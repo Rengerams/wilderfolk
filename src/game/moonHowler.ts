@@ -329,7 +329,6 @@ function findStaffedChurches(buildings: Building[]): Building[] {
     (b) =>
       b.completed
       && b.type === BuildingType.Church
-      && b.faction !== 'rival'
       && b.occupants.length > 0,
   );
 }

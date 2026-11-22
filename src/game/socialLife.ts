@@ -105,7 +105,7 @@ function pickBuilding(
   let count = 0;
   for (let i = 0; i < buildings.length; i++) {
     const b = buildings[i];
-    if (b.completed && b.faction !== 'rival' && types.includes(b.type)) {
+    if (b.completed && types.includes(b.type)) {
       count++;
     }
   }
@@ -119,7 +119,7 @@ function pickBuilding(
   let currentIdx = 0;
   for (let i = 0; i < buildings.length; i++) {
     const b = buildings[i];
-    if (b.completed && b.faction !== 'rival' && types.includes(b.type)) {
+    if (b.completed && types.includes(b.type)) {
       if (currentIdx === targetIdx) return b;
       currentIdx++;
     }
