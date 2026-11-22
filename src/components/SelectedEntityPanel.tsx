@@ -78,7 +78,7 @@ export default function SelectedEntityPanel({
 
   /** The movement reason trace for this settler — the day's named stops, the current leg and the
    * path owner's blocked/rerouting verdict, printed as-is. Read-only; nothing is derived here. */
-  const movementExplanation = isHuman && !isVisitor
+  const movementExplanation = isHuman && entity.faction !== 'visitor'
     ? explainHumanMovement(state, entity.id)
     : null;
 
