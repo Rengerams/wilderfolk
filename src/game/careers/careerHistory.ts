@@ -1,4 +1,4 @@
-import type { Building, Entity } from '../gameTypes';
+import type { Building } from '../buildings';
 import { BUILDING_JOB_TYPES, JobType } from '../gameTypes';
 import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 import { isPlayerHumanShiftOwner } from '../playerHuman';
@@ -12,6 +12,16 @@ export interface CareerJobHistory {
   lastDay: number;
 }
 export type CareerHistory = Partial<Record<JobType, CareerJobHistory>>;
+
+/** The shift recorder reads only attendance, eligibility and history, not a full entity. */
+type CareerWorker = Parameters<typeof isPlayerHumanShiftOwner>[0] & {
+  alive: boolean;
+  age: number;
+  prisonBuildingId?: number | null;
+  scheduleLastWorkedSiteId?: number | null;
+  scheduleLastWorkedJob?: JobType | null;
+  careerHistory?: CareerHistory;
+};
 
 /** A missing or corrupt legacy record represents no invented previous shifts. */
 export function normalizeCareerHistory(raw: unknown): CareerHistory | undefined {
@@ -36,7 +46,7 @@ export function normalizeCareerHistory(raw: unknown): CareerHistory | undefined 
 
 /** Sole write path for attended career credits; midnight attendance settlement supplies observed hours. */
 export function recordCareerWork(
-  worker: Entity, site: Building, job: JobType, day: number, observedHours: number,
+  worker: CareerWorker, site: Building, job: JobType, day: number, observedHours: number,
 ): boolean {
   if (!isPlayerHumanShiftOwner(worker) || !worker.alive
     || worker.age < HUMAN_ADULT_MIN_AGE || worker.prisonBuildingId != null) return false;
