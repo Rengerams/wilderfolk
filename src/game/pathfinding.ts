@@ -33,6 +33,10 @@ const CLIFF_STEP = 32;
 /** A road tile costs this fraction of a normal step — exactly the travel time the road speed saves. */
 const ROAD_STEP_COST = 1 / ROAD_SPEED_MULT;
 const PATH_MAX_SEARCH_NODES = 12000;
+/** Walking-only recovery, capped separately from shared commute-price queries. */
+const PATH_MAX_WALK_RETRY_NODES = 96000;
+const PATH_PENDING_RETRY_DECISIONS = 8;
+const PATH_PENDING_CAP_RETRY_DECISIONS = 128;
 const PATH_ARRIVAL_DISTANCE_PX = 8;
 const ROAD_DETOUR_RECHECK_TILES = 20;
 
@@ -344,15 +348,16 @@ function routeToBlockedGoal(
   goalY: number,
   goalBlocked: boolean,
   collectMetrics = true,
+  maxNodes = PATH_MAX_SEARCH_NODES,
 ): RouteSearchResult {
   if (!goalBlocked) {
-    return walkRoute(grid, sx, sy, goalX, goalY, PATH_MAX_SEARCH_NODES, collectMetrics);
+    return walkRoute(grid, sx, sy, goalX, goalY, maxNodes, collectMetrics);
   }
   const standTiles = standTilesForWalker(grid, goalX, goalY);
   if (standTiles.length === 0) return { path: null, cost: null, hitNodeCap: false };
   const targets = new Uint8Array(grid.cols * grid.rows);
   for (const tile of standTiles) targets[tile.y * grid.cols + tile.x] = 1;
-  return walkRoute(grid, sx, sy, goalX, goalY, PATH_MAX_SEARCH_NODES, collectMetrics, targets);
+  return walkRoute(grid, sx, sy, goalX, goalY, maxNodes, collectMetrics, targets);
 }
 
 /** Find a valid stand point for a restored entity, with bridge and building masks applied. */
@@ -1034,8 +1039,10 @@ interface CachedPath {
   waypoints: { x: number; y: number }[] | null;
   /** A clear walk rejected a road detour; keep direct travel cached across tiles. */
   directDetourRejected?: boolean;
-  /** Retry unresolved shared route searches after a bounded pause. */
+  /** Retry unresolved walking searches after a bounded number of decision pulses. */
   retryAfter?: number;
+  /** Larger node budget for the next attempt to this destination; transient per walker. */
+  nextSearchBudget?: number;
   /** Waypoint the settler is currently walking toward, so progress survives a cache hit. */
   nextIndex: number;
 }
@@ -1143,10 +1150,14 @@ export function steerWithPath(
         || cached.startTileY !== Math.floor(entity.y / PATH_CELL))))) {
       cached = undefined;
     }
-    // A pending search is not an unreachable route. Do not run expensive retries every tick.
+    // An exhausted search is not proof that the destination is unreachable. Off-screen human
+    // decisions are throttled too, so avoid a 32-decision pause between budget escalations.
+    let searchBudget = PATH_MAX_SEARCH_NODES;
     if (cached?.retryAfter !== undefined) {
-      if (cached.retryAfter <= 1) cached = undefined;
-      else cached.retryAfter--;
+      if (cached.retryAfter <= 1) {
+        searchBudget = cached.nextSearchBudget ?? PATH_MAX_SEARCH_NODES;
+        cached = undefined;
+      } else cached.retryAfter--;
     }
     // Reuse the route while the settler is still walking it; advance past reached waypoints and
     // recompute only when the settler has left the current segment (interrupted elsewhere).
@@ -1179,16 +1190,18 @@ export function steerWithPath(
       // In that case retry with the existing bounded movement heuristic and preserve its
       // path. Never downgrade a confirmed unreachable quote into an unbounded search.
       const shared = startBlocked || goalBlocked ? null : getNavigationQuote(currentGrid,
-        { x: startTx, y: startTy }, { x: goalTx, y: goalTy }, { maxNodes: PATH_MAX_SEARCH_NODES });
+        { x: startTx, y: startTy }, { x: goalTx, y: goalTy }, { maxNodes: searchBudget });
       const fallback = startBlocked || goalBlocked
-        ? routeToBlockedGoal(currentGrid, startTx, startTy, goalTx, goalTy, goalBlocked)
+        ? routeToBlockedGoal(currentGrid, startTx, startTy, goalTx, goalTy, goalBlocked, true, searchBudget)
         : shared?.status === 'pending' && !!pricedRoadMask(currentGrid)
-          ? searchRoute(currentGrid, startTx, startTy, goalTx, goalTy, PATH_MAX_SEARCH_NODES, false, true)
+          ? searchRoute(currentGrid, startTx, startTy, goalTx, goalTy, searchBudget, false, true)
           : null;
       const routeCost = shared?.status === 'priced' ? shared.costTiles : fallback?.cost ?? null;
       const routeTiles = shared?.status === 'priced'
         ? shared.tiles.map((tile) => ({ x: tile.x, y: tile.y })) : fallback?.path ?? null;
-      const routePending = shared?.status === 'pending' && (!fallback || fallback.hitNodeCap);
+      // A blocked goal skips the shared quote; its fallback can exhaust the budget too.
+      const routePending = fallback?.hitNodeCap === true
+        || (shared?.status === 'pending' && !fallback?.path);
       // Compare costs with actual first/last legs, not tile-centre A* against exact world distance.
       const startCentreX = (startTx + 0.5) * PATH_CELL;
       const startCentreY = (startTy + 0.5) * PATH_CELL;
@@ -1216,7 +1229,12 @@ export function steerWithPath(
         waypoints, nextIndex: waypoints && waypoints.length > 1 ? 1 : 0,
         targetX, targetY, startTileX: startTx, startTileY: startTy,
         directDetourRejected: !directBlocked && !savesTime,
-        retryAfter: routePending && !waypoints ? 32 : undefined,
+        retryAfter: routePending && !waypoints
+          ? (searchBudget >= PATH_MAX_WALK_RETRY_NODES
+            ? PATH_PENDING_CAP_RETRY_DECISIONS : PATH_PENDING_RETRY_DECISIONS)
+          : undefined,
+        nextSearchBudget: routePending && !waypoints
+          ? Math.min(PATH_MAX_WALK_RETRY_NODES, searchBudget * 2) : undefined,
       };
       pathCache.delete(cacheKey);
       if (pathCache.size >= PATH_CACHE_LIMIT) {
