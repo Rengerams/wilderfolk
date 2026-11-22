@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (22 Nov 2026):** Stand points around a blocked destination are tried nearest the settler first, so a settler stops at the closest reachable tile instead of walking around an obstacle to a far ring.
 - **Fixed (22 Nov 2026):** A route search's node budget now follows the trip length, so long cross-map walks are routed instead of reported pending forever; trade caravans no longer freeze at their own market door.
 - **Fixed (22 Nov 2026; PR #181):** Large rocks block walking again; a blocked destination is approached from the settler's own side, at the closest reachable stand point, so a settler never freezes beside a goal it could reach; a packed house keeps a usable door.
 - **Fixed (22 Nov 2026; PR #181):** Removed two stale references left by the visitor-camp retirement, restoring the typecheck and unit gates.

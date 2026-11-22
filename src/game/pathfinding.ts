@@ -330,35 +330,45 @@ function tileBlockedForWalker(grid: PathGrid, tx: number, ty: number): boolean {
 }
 
 /**
- * Walkable tiles around a blocked destination, one array per Chebyshev ring. Rings stay separate so
- * the route search can insist on the closest reachable stand instead of whichever ring is cheapest.
+ * Walkable tiles around a blocked destination, grouped into distance bands measured from the walker.
+ * Bands stay separate so the nearest reachable stand is tried before any farther one, instead of one
+ * bulk target set letting the search pick a stand tile far from the walker.
  */
-function standTilesForWalker(grid: PathGrid, goalX: number, goalY: number): { x: number; y: number }[][] {
+function standTilesForWalker(
+  grid: PathGrid,
+  goalX: number,
+  goalY: number,
+  fromX: number,
+  fromY: number,
+): { x: number; y: number }[][] {
   const { cols, rows, blocked } = grid;
-  const rings: { x: number; y: number }[][] = [];
+  const bands = new Map<number, { x: number; y: number }[]>();
   for (let radius = 1; radius <= GOAL_STAND_RINGS; radius++) {
     const minX = Math.max(0, goalX - radius);
     const maxX = Math.min(cols - 1, goalX + radius);
     const minY = Math.max(0, goalY - radius);
     const maxY = Math.min(rows - 1, goalY + radius);
-    const ring: { x: number; y: number }[] = [];
     for (let ty = minY; ty <= maxY; ty++) {
       const onEdgeRow = ty === minY || ty === maxY;
       for (let tx = minX; tx <= maxX; tx++) {
         if (!onEdgeRow && tx !== minX && tx !== maxX) continue;
         if (blocked[ty * cols + tx] !== 0) continue;
-        ring.push({ x: tx, y: ty });
+        // The walker's own tile needs no route; a one-tile "path" would read as blocked.
+        if (tx === fromX && ty === fromY) continue;
+        const band = Math.round(Math.hypot(tx - fromX, ty - fromY));
+        const known = bands.get(band);
+        if (known) known.push({ x: tx, y: ty });
+        else bands.set(band, [{ x: tx, y: ty }]);
       }
     }
-    rings.push(ring);
   }
-  return rings;
+  return [...bands.entries()].sort(([a], [b]) => a - b).map(([, tiles]) => tiles);
 }
 
 /**
- * Route to a destination the walker cannot stand on. Rings are searched nearest-first, so a stand
- * point beside the goal always wins over a farther one that is merely cheaper to reach; a ring with
- * no route falls through, which keeps the route on the walker's side of a river or wall.
+ * Route to a destination the walker cannot stand on. Stand tiles are searched nearest the walker
+ * first, so the walk ends at the closest reachable one instead of a far ring around the obstacle; a
+ * band with no route falls through, which keeps the route on the walker's side of a river or wall.
  */
 function routeToBlockedGoal(
   grid: PathGrid,
@@ -374,12 +384,11 @@ function routeToBlockedGoal(
     return walkRoute(grid, sx, sy, goalX, goalY, budget, collectMetrics);
   }
   const targets = new Uint8Array(grid.cols * grid.rows);
-  for (const ring of standTilesForWalker(grid, goalX, goalY)) {
-    if (ring.length === 0) continue;
+  for (const band of standTilesForWalker(grid, goalX, goalY, sx, sy)) {
     targets.fill(0);
-    for (const tile of ring) targets[tile.y * grid.cols + tile.x] = 1;
+    for (const tile of band) targets[tile.y * grid.cols + tile.x] = 1;
     const result = walkRoute(grid, sx, sy, goalX, goalY, budget, collectMetrics, targets);
-    // A spent node budget proves nothing about the farther rings: report it as pending.
+    // A spent node budget proves nothing about the farther bands: report it as pending.
     if (result.path || result.hitNodeCap) return result;
   }
   return { path: null, cost: null, hitNodeCap: false };

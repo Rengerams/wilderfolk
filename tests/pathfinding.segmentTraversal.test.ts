@@ -315,6 +315,33 @@ describe('one authoritative movement walkability verdict', () => {
     }
   });
 
+  it('stops at the nearest reachable stand tile instead of a far ring around the goal', () => {
+    // Ring-first stand selection committed to the ring beside the goal, so a settler had to walk
+    // around the whole walled yard to reach it although a stand tile stood two tiles away.
+    const inYardWall = (x: number, y: number) => (x === 18 && y >= 6 && y <= 14)
+      || ((y === 6 || y === 14) && x >= 18 && x <= 26);
+    const map = testWorldMap({
+      tilesX: 30, tilesY: 20, seed: 2723,
+      tileType: (x, y) => (inYardWall(x, y) || (x === 20 && y === 10) ? TerrainType.River : undefined),
+    });
+    resetPathGridCaches();
+    setCurrentPathMap(map, []);
+    try {
+      const walker = human(2723, { x: center(14), y: center(10) });
+      let verdict = steerWithPath(walker, center(20), center(10), 2, 'nearest-stand');
+      for (let tick = 0; tick < 400 && verdict !== 'blocked'; tick++) {
+        applyHumanWalkStep(walker, 1);
+        verdict = steerWithPath(walker, center(20), center(10), 2, 'nearest-stand');
+      }
+      expect(verdict).toBe('blocked');
+      expect(Math.floor(walker.x / PATH_CELL), 'stands west of the yard wall').toBeLessThan(18);
+      expect(Math.floor(walker.y / PATH_CELL)).toBe(10);
+    } finally {
+      setCurrentPathMap(null);
+      resetPathGridCaches();
+    }
+  });
+
   it('does not give a previous walkers cached waypoints to a new walker sharing a key', () => {
     const map = testWorldMap({
       tilesX: 16, tilesY: 14, seed: 2717,

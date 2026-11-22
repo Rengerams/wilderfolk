@@ -14,6 +14,7 @@
 - 2026-11-22 — resolved: a blocked goal now takes its stand point from the walker's side of the obstacle.
 - 2026-11-22 — resolved (review follow-up): the first stand tile chosen was never checked for connectivity, so a walkable tile inside a water pocket ended the walk even though the same ring held an open approach. Stand points are tried in preference order and the first one that actually routes wins.
 - 2026-11-22 — resolved (second review follow-up): trying only the four nearest candidates still let a sealed neighbourhood exhaust the list, and the requested blocked tile remained as a last resort whose nearest-tile snap could cross to the far bank. One search now targets every walkable stand tile around the goal and stops at the cheapest it can actually reach.
+- 2026-11-22 — resolved (third review follow-up): searching whole rings around the goal made a settler walk around an entire walled yard to a stand tile beside the goal although a reachable stand tile stood two tiles away. Stand tiles are now grouped into distance bands measured from the walker and the nearest band that routes wins, so the walk ends at the closest reachable stand instead of a far ring.
 
 ## Observed behavior
 A settler standing on the east bank of a one-tile river, told to walk to a point on the river itself 50 px away, walked 918 px south to a bridge, crossed, came back north and stopped on the **west** bank. The west-bank settler walked 33 px and stopped on its own bank.
@@ -33,13 +34,13 @@ A destination that cannot be stood on is approached from the walker's own side: 
 The nearest-stand-point rule ignored which side the walker is on. Connectivity was never part of the choice, so the chosen stand tile could be in a different region of the map.
 
 ## Fix / proposed fix
-`steerWithPath` now approaches a blocked goal through `routeToBlockedGoal`. `standTilesForWalker` collects every walkable tile within four rings of the requested tile and the existing A* runs once against that whole target set, stopping at the cheapest target it can actually reach; reachability — not distance — therefore picks the stand point, and a walkable tile sealed in a pocket is skipped instead of ending the walk. When no stand point routes the leg reports blocked; there is no distance-based last resort that could cross the obstacle. `findPath`/`findRouteCostOutcome` keep their documented nearest-tile contract because they have no walker to prefer.
+`steerWithPath` now approaches a blocked goal through `routeToBlockedGoal`. `standTilesForWalker` collects every walkable tile within four rings of the requested tile, except the walker's own tile, and groups them into bands by distance from the walker; `routeToBlockedGoal` searches the nearest band first and keeps the first band that routes. Distance orders the attempts and reachability decides them, so a walkable tile sealed in a pocket is skipped instead of ending the walk, and the walk ends at the closest reachable stand rather than a far ring around the obstacle. When no stand point routes the leg reports blocked; there is no distance-based last resort that could cross the obstacle. `findPath`/`findRouteCostOutcome` keep their documented nearest-tile contract because they have no walker to prefer.
 
 ## Save/migration impact
 None. Transient route cache only.
 
 ## Verification result
-- `npx vitest run tests/pathfinding.segmentTraversal.test.ts` — PASS, including "stands on the walker's own bank of a blocked destination", "keeps a blocked destination reachable when its nearest stand tile is sealed off" and "stands on a reachable tile when every nearby stand tile is sealed in a courtyard"; the courtyard case returns `blocked` on the distance-only implementation and routes on the target-set search.
+- `npx vitest run tests/pathfinding.segmentTraversal.test.ts` — PASS, including "stands on the walker's own bank of a blocked destination", "keeps a blocked destination reachable when its nearest stand tile is sealed off", "stands on a reachable tile when every nearby stand tile is sealed in a courtyard" and "stops at the nearest reachable stand tile instead of a far ring around the goal"; the courtyard case returns `blocked` on the distance-only implementation and routes on the target-set search, and the far-ring case walks around a walled yard on ring-first selection and stops west of the wall on distance bands.
 - Movement, navigation and commute suites (23 files, 227 tests) — PASS after the `main` merge, including commute, work absence, movement explanation, home entry and indoors arrival.
 - Full unit suite (537 files, 3584 tests) — PASS after the `main` merge.
 - Probe from the first report: east-bank walk 918 px → 33 px, ending on the correct bank.
