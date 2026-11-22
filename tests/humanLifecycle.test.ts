@@ -300,13 +300,16 @@ describe('human lifecycle golden contracts', () => {
       y: 100,
       alive: true,
     } as Entity;
+    const father = human(FATHER_ID);
     const mother = human(MATERNAL_ID, {
       pregnant: true,
+      partnerId: FATHER_ID,
+      pregnantById: FATHER_ID,
       pregnancyProgress: 9,
       pregnancyDueProgress: 10,
       relationshipStatus: 'expecting',
     });
-    const { state, ctx } = makeFixture([mother], [deer]);
+    const { state, ctx } = makeFixture([mother, father], [deer]);
     state.tick = tickWhere(
       (tick) =>
         birthRoll('stillborn', tick) >= LIFECYCLE_CONFIG.STILLBORN_CHANCE
@@ -317,7 +320,19 @@ describe('human lifecycle golden contracts', () => {
 
     expect(ctx.newEntities).toHaveLength(1);
     expect(ctx.newEntities[0]?.type).toBe(EntityType.Wildkin);
-    expect(mother.childrenIds).toEqual([]);
+    const child = ctx.newEntities[0]!;
+    expect(child.motherId).toBe(mother.id);
+    expect(child.fatherId).toBe(deer.id);
+    expect(child.fatherId).not.toBe(father.id);
+    expect(child.age).toBe(0);
+    expect(child.isJuvenile).toBe(true);
+    expect(child.wildkinGuardianId).toBe(mother.id);
+    expect(child.name).toBe(`Wildkin #${child.id}`);
+    expect(state.genealogyRegistry?.people[String(child.id)]?.fatherId).toBe(deer.id);
+    expect(state.genealogyRegistry?.people[String(child.id)]?.motherId).toBe(mother.id);
+    expect(state.genealogyRegistry?.people[String(deer.id)]?.entityType).toBe(EntityType.Deer);
+    expect(state.genealogyRegistry?.people[String(mother.id)]?.childrenIds).toContain(child.id);
+    expect(state.genealogyRegistry?.people[String(father.id)]?.childrenIds ?? []).not.toContain(child.id);
     expect(mother.pregnant).toBe(false);
     const wildkinLine = state.eventLog.find(
       (event) => event.type === 'birth' && event.message.includes('Wildkin'),
