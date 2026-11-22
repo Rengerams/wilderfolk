@@ -5,6 +5,7 @@ import { recordWildlifeBirth, recordGrassBirth, recordGrassDeath } from '../simQ
 import { syncSpatialGridEntity } from '../spatialGrid';
 import { killHuman, isKillableSettlerEntity } from '../dayCycle';
 import { logWildkinDeath } from '../wildkinChronicle';
+import { recordGenealogyDeath } from '../genealogyRegistry';
 import { unindexEntityFromState } from '../entityIndex';
 
 /** Medium map reference area for grass population cap scaling. */
@@ -123,6 +124,9 @@ export function markWildlifeDead(
 export function retireWildlifeInState(state: WorldState, entity: Entity): void {
   if (!entity.alive) return;
   if (entity.type === EntityType.Wildkin) logWildkinDeath(state, entity);
+  if (entity.type === EntityType.Wildkin || (entity.type === EntityType.Deer && state.genealogyRegistry?.people[String(entity.id)])) {
+    recordGenealogyDeath(state, entity);
+  }
   entity.alive = false;
   state.entityById?.delete(entity.id);
   unindexEntityFromState(state, entity.id);

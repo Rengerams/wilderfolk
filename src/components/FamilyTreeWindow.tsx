@@ -29,12 +29,13 @@ type TreeMode = 'all' | 'ancestors' | 'descendants';
 function historicalEntity(person: GenealogyPerson): Entity {
   return {
     id: person.id,
-    type: EntityType.Human,
+    type: person.entityType ?? EntityType.Human,
     x: 0,
     y: 0,
     energy: 0,
     maxEnergy: 0,
-    age: Math.max(0, (person.diedYear ?? person.bornYear ?? 0) - (person.bornYear ?? 0)),
+    age: Math.max(0, (person.diedYear ?? person.bornYear ?? 0) - (person.bornYear ?? 0))
+      * (person.entityType === EntityType.Wildkin || person.entityType === EntityType.Deer ? 365 : 1),
     birthYear: person.bornYear ?? 0,
     birthMonth: 0,
     birthDay: person.bornDay ?? 0,
@@ -52,6 +53,7 @@ function historicalEntity(person: GenealogyPerson): Entity {
     gender: person.gender,
     motherId: person.motherId,
     fatherId: person.fatherId,
+    wildkinParentIds: person.wildkinParentIds,
     adoptiveMotherId: person.adoptiveMotherId,
     adoptiveFatherId: person.adoptiveFatherId,
     childrenIds: [...person.childrenIds],
@@ -146,7 +148,7 @@ export default function FamilyTreeWindow({
     <GameWindow
       title={`Family tree · ${tree.focusName || humanDisplayName(entity)}`}
       icon="🌳"
-      subtitle={`${visibleMemberCount} people drawn · ${visibleRows.length} generations shown`}
+      subtitle={`${visibleMemberCount} relatives drawn · ${visibleRows.length} generations shown`}
       onClose={onClose}
       centered
       widthClassName="w-[56rem] max-w-[95vw]"

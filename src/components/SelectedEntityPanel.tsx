@@ -29,7 +29,7 @@ import PersonalityCareerDetails from './PersonalityCareerDetails';
 function countLivingChildren(entity: Entity, allEntities: Entity[]): number {
   return allEntities.filter((e) =>
     e.alive
-    && e.type === EntityType.Human
+    && (e.type === EntityType.Human || e.type === EntityType.Wildkin)
     && ((entity.childrenIds ?? []).includes(e.id) || e.motherId === entity.id || e.fatherId === entity.id),
   ).length;
 }

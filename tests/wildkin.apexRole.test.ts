@@ -13,6 +13,7 @@ import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { getGrazingPressureReport } from '../src/game/ecosystemPressure';
 import { getGrazerDailyDemand } from '../src/game/grassEcology';
 import { markWildlifeDead } from '../src/game/simulation/simulationEntities';
+import { recordGenealogyBirth } from '../src/game/genealogyRegistry';
 import {
   describeWildkinPlace,
   isWildkinNearSettlement,
@@ -228,8 +229,10 @@ describe('the Wildkin is half human, so the chronicle says where it is', () => {
     const dead = wildkin(300, 160, 602);
     state.entities = [dead];
     const ctx = ctxFor(state, [dead]);
+    recordGenealogyBirth(state, dead);
 
     markWildlifeDead(ctx, dead, undefined, state.tick, state);
+    expect(state.genealogyRegistry?.people[String(dead.id)]?.alive).toBe(false);
 
     const entry = state.eventLog.find((event) => event.type === 'death' && event.message.includes('Wildkin'));
     expect(entry).toBeDefined();

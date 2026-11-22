@@ -84,17 +84,25 @@ function computeBuildingAccessPoints(building: Building, grid: PathGrid | null):
   const rect = getBuildingFootprintRect(building);
   const points: BuildingAccessPoint[] = [];
   for (const { side, normalX, normalY } of BUILDING_ACCESS_SIDES) {
-    const edgeX = normalX > 0 ? rect.right : normalX < 0 ? rect.left : building.x;
-    const edgeY = normalY > 0 ? rect.bottom : normalY < 0 ? rect.top : building.y;
-    const baseX = edgeX + normalX * BUILDING_ACCESS_STANDOFF_PX;
-    const baseY = edgeY + normalY * BUILDING_ACCESS_STANDOFF_PX;
-    for (let step = 0; step <= BUILDING_ACCESS_MAX_OUTWARD_STEPS; step++) {
-      const x = baseX + normalX * PATH_CELL * step;
-      const y = baseY + normalY * PATH_CELL * step;
-      if (isOpenDoorstep(building, edgeX, edgeY, x, y, normalX, normalY, grid)
-        && Math.hypot(x - edgeX, y - edgeY) <= BUILDING_REACH_RADIUS_PX) {
-        points.push({ x, y, side });
-        break;
+    // Sample each open facade at path-cell intervals so side obstacles cannot hide other entrances.
+    // The per-grid memo avoids repeated probes.
+    const length = normalX === 0 ? building.width : building.height;
+    const maxOffset = Math.max(0, length / 2 - PATH_CELL / 2);
+    const offsets = [0];
+    for (let d = PATH_CELL; d <= maxOffset; d += PATH_CELL) offsets.push(-d, d);
+    for (const offset of offsets) {
+      const edgeX = (normalX > 0 ? rect.right : normalX < 0 ? rect.left : building.x)
+        - normalY * offset;
+      const edgeY = (normalY > 0 ? rect.bottom : normalY < 0 ? rect.top : building.y)
+        + normalX * offset;
+      for (let step = 0; step <= BUILDING_ACCESS_MAX_OUTWARD_STEPS; step++) {
+        const x = edgeX + normalX * (BUILDING_ACCESS_STANDOFF_PX + step * PATH_CELL);
+        const y = edgeY + normalY * (BUILDING_ACCESS_STANDOFF_PX + step * PATH_CELL);
+        if (isOpenDoorstep(building, edgeX, edgeY, x, y, normalX, normalY, grid)
+          && Math.hypot(x - edgeX, y - edgeY) <= BUILDING_REACH_RADIUS_PX) {
+          points.push({ x, y, side });
+          break;
+        }
       }
     }
   }
@@ -102,7 +110,7 @@ function computeBuildingAccessPoints(building: Building, grid: PathGrid | null):
 }
 
 /**
- * Every facade that has a walkable, reachable access point. Order is deterministic for stable
+ * Walkable frontage samples along every open building side. Order is deterministic for stable
  * presentation: the first entry remains the canonical south-first frontage used by UI consumers.
  * Movement can choose another entry when arriving from another side or when a wall blocks one side.
  */
