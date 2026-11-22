@@ -10,6 +10,7 @@ import { packEntityRenderMeta, buildRenderEntityShim } from '../src/game/simBuff
 import { packRenderSoA } from '../src/game/simBuffers/packRenderSoA';
 import { createRenderSoAReader } from '../src/game/simBuffers/renderSoAReader';
 import { gameTick } from '../src/game/gameTick';
+import { createEntity } from '../src/game/entityFactory';
 import { buildSaveData } from '../src/game/saveLoad';
 import { initGame } from '../src/game/worldGen';
 import { buildRenderSnapshot } from '../src/game/renderSnapshot';
@@ -42,10 +43,70 @@ describe('settlers inside buildings', () => {
   });
 
   it.each([BuildingType.Farm, BuildingType.Quarry, BuildingType.HuntingSpot, BuildingType.FishingSpot,
-    BuildingType.Market, BuildingType.Graveyard, BuildingType.Well, BuildingType.Watchtower])('keeps outdoor %s workers visible', (type) => {
+    BuildingType.Market, BuildingType.Graveyard, BuildingType.Well, BuildingType.Watchtower])('keeps non-work visits to outdoor %s visible', (type) => {
     const person = human(1);
     enterHumanBuilding(person, building(1, type));
     expect(person.indoorBuildingId).toBeUndefined();
+  });
+
+  it.each([BuildingType.Farm, BuildingType.Quarry, BuildingType.Market, BuildingType.Graveyard,
+    BuildingType.HuntingSpot, BuildingType.FishingSpot])('hides an on-duty worker at %s after arrival', (type) => {
+    const person = human(1);
+    enterHumanBuilding(person, building(1, type), true);
+    expect(person.indoorBuildingId).toBe(1);
+  });
+
+  it('hides an outdoor farm worker while working and releases them at the end of the shift', () => {
+    const world = initGame({ skipTerrain: true, seed: 628 });
+    world.worldMap = null;
+    const farm = building(10, BuildingType.Farm, { x: 300, y: 300, occupants: [1] });
+    const worker = human(1, {
+      ...buildingAccessPoint(farm), job: JobType.Farmer, workerBuildingId: farm.id,
+    });
+    world.entities = [worker];
+    world.buildings = [farm];
+    world.entityByType = undefined;
+    world.entityById = undefined;
+    world.paused = false;
+    world.tick = 10 * TICKS_PER_HOUR;
+    world.lastProcessedCalendarDay = 0;
+
+    gameTick(world);
+    expect(worker.indoorBuildingId).toBe(farm.id);
+    expect(worker.schedulePresentTicksToday ?? 0).toBeGreaterThan(0);
+    gameTick(world);
+    expect(worker.indoorBuildingId).toBe(farm.id);
+
+    world.tick = 16 * TICKS_PER_HOUR;
+    gameTick(world);
+    expect(worker.indoorBuildingId).toBeUndefined();
+    expect(worker.job).toBe(JobType.Farmer);
+    expect(worker.workerBuildingId).toBe(farm.id);
+  });
+
+  it('lets an on-duty farmer hunt emergency food instead of freezing the pursuit indoors', () => {
+    const world = initGame({ skipTerrain: true, seed: 629 });
+    world.worldMap = null;
+    const farm = building(10, BuildingType.Farm, { x: 300, y: 300, occupants: [1] });
+    const worker = human(1, {
+      ...buildingAccessPoint(farm), job: JobType.Farmer, workerBuildingId: farm.id,
+      needs: { nutrition: 10, rest: 100, stamina: 100 },
+    });
+    const deer = createEntity(EntityType.Deer, worker.x + 60, worker.y, 2);
+    world.entities = [worker, deer];
+    world.buildings = [farm];
+    world.resources.food = 0;
+    world.entityByType = undefined;
+    world.entityById = undefined;
+    world.paused = false;
+    world.tick = 10 * TICKS_PER_HOUR + 1;
+    world.lastProcessedCalendarDay = 0;
+
+    const startX = worker.x;
+    gameTick(world);
+    expect(worker.huntTargetId).toBe(deer.id);
+    expect(worker.indoorBuildingId).toBeUndefined();
+    expect(worker.x).toBeGreaterThan(startX);
   });
 
   it('keeps construction crews outside', () => {

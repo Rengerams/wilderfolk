@@ -29,12 +29,15 @@ import {
   startElectionCeremony,
 } from '../src/game/villageLeadership';
 import { getWorkSchedule } from '../src/game/workSchedule';
+import { getSettlerWorkReason } from '../src/game/workAbsence';
+import { commuteHumanToBuilding, steerHumanToward } from '../src/game/simulation/humanMovement';
+import { setCurrentPathMap } from '../src/game/pathfinding';
 import { getHourOfDay, TICKS_PER_HOUR, TICKS_PER_DAY, DAYS_PER_YEAR } from '../src/game/dayCycleClock';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
 import { WORKER_PROTO, type WorkerRequest, type WorkerResponse } from '../src/game/simWorker/protocol';
 import { human, building } from '../src/test/factories';
-import { BuildingType, EntityType, PATH_CELL, WeatherType, type WorldState } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType, PATH_CELL, WeatherType, type WorldState } from '../src/game/gameTypes';
 
 const SEED = 4242;
 const TERM_YEAR = 2;
@@ -95,6 +98,39 @@ describe('worker hand-off state', () => {
     self = installWorkerSelf();
     const { installWorkerMessageHandlers } = await import('../src/game/simWorker/gameWorker');
     installWorkerMessageHandlers();
+  });
+
+  it('projects a real commute across the worker delta and clears it when escape takes over', () => {
+    const simulated = smallWorld();
+    const workplace = building(910004, BuildingType.Farm, { x: 300, y: 300, occupants: [1] });
+    const worker = human(1, {
+      x: 140, y: 160, workerBuildingId: workplace.id, job: JobType.Farmer, age: 30,
+    });
+    simulated.entities = [worker];
+    simulated.buildings = [workplace];
+    simulated.worldMap = null;
+    simulated.tick = 10 * TICKS_PER_HOUR;
+    simulated.workSchedule = { startHour: 7, endHour: 16 };
+    const replica = structuredClone(simulated);
+    setCurrentPathMap(null);
+    try {
+      expect(commuteHumanToBuilding(worker, workplace, 2)).toBe(false);
+      expect(getSettlerWorkReason(simulated, worker).code).toBe('walking-to-work');
+      const delta = extractSimTickDelta(simulated);
+      expect(delta.commutingWorkers).toEqual([[worker.id, workplace.id]]);
+      applySimTickDelta(replica, delta);
+      const displayed = replica.entities.find((entity) => entity.id === worker.id)!;
+      expect(getSettlerWorkReason(replica, displayed).code).toBe('walking-to-work');
+
+      steerHumanToward(worker, worker.x - 90, worker.y, 2, 1, 'escape_for_worker_projection_test');
+      const escapeDelta = extractSimTickDelta(simulated);
+      expect(escapeDelta.commutingWorkers).toEqual([]);
+      applySimTickDelta(replica, escapeDelta);
+      const fleeing = replica.entities.find((entity) => entity.id === worker.id)!;
+      expect(getSettlerWorkReason(replica, fleeing).code).not.toBe('walking-to-work');
+    } finally {
+      setCurrentPathMap(null);
+    }
   });
 
   it('rebuilds the beauty field at the worker upload boundaries', () => {

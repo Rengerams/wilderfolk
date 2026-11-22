@@ -38,6 +38,8 @@ interface HumanWalkTarget {
 }
 
 const humanWalkTargets = new WeakMap<Entity, HumanWalkTarget>();
+/** Worker-authored travel evidence projected onto freshly reconstructed host entities. */
+const projectedCommuteBuildingIds = new WeakMap<Entity, number>();
 
 /**
  * Forget the commanded walk. A decision tick that does not steer a walk must not leave an older one
@@ -45,6 +47,7 @@ const humanWalkTargets = new WeakMap<Entity, HumanWalkTarget>();
  */
 export function clearHumanWalkTarget(entity: Entity): void {
   humanWalkTargets.delete(entity);
+  projectedCommuteBuildingIds.delete(entity);
 }
 
 /**
@@ -91,9 +94,10 @@ export function isWalkingToward(entity: Entity, point: { x: number; y: number })
   return (point.x - entity.x) * entity.vx + (point.y - entity.y) * entity.vy > 0;
 }
 
-/** Arrival changes presentation only; the settler remains in the simulation and building roster. */
-export function enterHumanBuilding(entity: Entity, building: Building): void {
-  if (!building.completed || OUTDOOR_BUILDINGS.has(building.type)) return;
+/** Arrival changes presentation, not the building roster or simulation membership.
+ * On-duty outdoor workers can be hidden; other outdoor visits and construction remain visible. */
+export function enterHumanBuilding(entity: Entity, building: Building, onDuty = false): void {
+  if (!building.completed || (!onDuty && OUTDOOR_BUILDINGS.has(building.type))) return;
   entity.indoorBuildingId = building.id;
   entity.vx = 0;
   entity.vy = 0;
@@ -374,6 +378,30 @@ const walkerBuildingAccess = new WeakMap<Entity, {
   buildingId: number; grid: ReturnType<typeof getCurrentPathGrid>; x: number; y: number;
 }>();
 
+/** Live evidence comes from the commanded walk, or its worker-to-host projection.
+ * A superseding escape or hunt never qualifies as a workplace commute. */
+export function getCommandedCommuteBuildingId(entity: Entity): number | undefined {
+  if (Math.hypot(entity.vx, entity.vy) <= WALKING_MIN_SPEED_PX) return undefined;
+  const walk = humanWalkTargets.get(entity);
+  if (walk) {
+    const frontage = walkerBuildingAccess.get(entity);
+    return frontage && frontage.x === walk.x && frontage.y === walk.y
+      ? frontage.buildingId : undefined;
+  }
+  return projectedCommuteBuildingIds.get(entity);
+}
+
+/** Attach only read-only worker evidence to the current host entity, never to save state. */
+export function setProjectedCommuteBuildingId(entity: Entity, buildingId: number | undefined): void {
+  if (buildingId === undefined) projectedCommuteBuildingIds.delete(entity);
+  else projectedCommuteBuildingIds.set(entity, buildingId);
+}
+
+/** Read the movement owner's same predicate on both worker and host entities. */
+export function isCommutingToBuilding(entity: Entity, building: Building): boolean {
+  return getCommandedCommuteBuildingId(entity) === building.id;
+}
+
 /**
  * Walk to any reachable facade, not a fixed southern entrance. An obstructed approach cannot
  * authorize arrival; keep the chosen facade while walking so the route does not oscillate.
@@ -403,32 +431,35 @@ export function commuteHumanToBuilding(
   let target = saved?.buildingId === building.id && saved.grid === grid
     ? candidates.find((point) => point.x === saved.x && point.y === saved.y) : undefined;
   if (!target) {
-    let bestCost = Infinity;
-    let pendingPoint: (typeof candidates)[number] | undefined;
-    for (const point of candidates) {
-      let cost = Math.hypot(point.x - entity.x, point.y - entity.y);
-      if (grid && lineCrossesBlocked(grid, entity.x, entity.y, point.x, point.y)) {
+    // Select a reachable facade rather than one fixed door.
+    // Try unobstructed approaches before expensive A* quotes.
+    const ranked = candidates.map((point) => ({
+      point, distance: Math.hypot(point.x - entity.x, point.y - entity.y),
+    })).sort((a, b) => a.distance - b.distance);
+    for (const { point } of ranked) {
+      if (!grid || !lineCrossesBlocked(grid, entity.x, entity.y, point.x, point.y)) {
+        target = point;
+        break;
+      }
+    }
+    if (!target && grid) {
+      let pendingPoint: (typeof candidates)[number] | undefined;
+      for (const { point } of ranked) {
         const quote = getNavigationQuote(grid,
           { x: Math.floor(entity.x / PATH_CELL), y: Math.floor(entity.y / PATH_CELL) },
           { x: Math.floor(point.x / PATH_CELL), y: Math.floor(point.y / PATH_CELL) },
           { maxNodes: 6000 });
-        if (quote.status !== 'priced') {
-          // A pending shared quote does not prove this facade is unreachable.
-          // Select it only if no confirmed route wins, so steerWithPath can try
-          // its bounded non-road heuristic and safely reject a real obstruction.
-          if (quote.status === 'pending' || !isGroundWalkableAt(entity.x, entity.y, grid)) {
-            pendingPoint ??= point;
-          }
-          continue;
+        if (quote.status === 'priced') {
+          target = point;
+          break;
         }
-        cost = quote.costTiles * PATH_CELL;
+        // A pending shared quote is unknown, not an impassable building side.
+        if (quote.status === 'pending' || !isGroundWalkableAt(entity.x, entity.y, grid)) {
+          pendingPoint ??= point;
+        }
       }
-      if (cost < bestCost) {
-        bestCost = cost;
-        target = point;
-      }
+      target ??= pendingPoint;
     }
-    target ??= pendingPoint;
     if (target) walkerBuildingAccess.set(entity, {
       buildingId: building.id, grid, x: target.x, y: target.y,
     });
