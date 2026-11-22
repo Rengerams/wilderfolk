@@ -65,8 +65,12 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
   
   // Preview the impact of the chosen window; derived each render because the
   // WorldState prop is mutated in place and cannot key a memo.
-  const previewHours = validation.ok ? getWorkScheduleHours(validation.schedule) : currentHours;
-  const preview = getScheduleImpactPreview(state, 'ordinary', currentHours, previewHours);
+  const preview = getScheduleImpactPreview(
+    state,
+    'ordinary',
+    current,
+    validation.ok ? validation.schedule : current,
+  );
 
   // Drives both the message and the disabled Apply button, so "Unchanged" can never sit
   // next to an enabled button (the validation now reports `'unchanged'` itself).
@@ -102,7 +106,7 @@ export default function WorkSchedulePanel({ state, onApply }: Props) {
       <div className="rounded border border-stone-700/70 bg-stone-900/40 px-2.5 py-2 text-xs">
         <div className="flex items-center justify-between">
           <span>Preview</span>
-          <strong className="text-stone-200">{preview.expectedHours}h · {preview.affectedWorkplaces} workplaces</strong>
+          <strong className="text-stone-200">{preview.expectedHours}h · {preview.affectedWorkplaces} work/build sites</strong>
         </div>
         <p className="mt-1 text-stone-400">
           {preview.assignedWorkers} assigned workers are affected. {preview.warning}
