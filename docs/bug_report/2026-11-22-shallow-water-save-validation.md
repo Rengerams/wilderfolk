@@ -1,7 +1,7 @@
 # Shallow water omitted from compact save validation
 
 - Bug: A compact save's fishing docks and water census were validated through the walking grid, so shallow water was misclassified as dry after wading was enabled.
-- Status: investigating
+- Status: resolved
 - Severity: high
 - Date discovered: 2026-11-22
 - Version/build: 0.6.5.2, PR #161 at commit `c0087fc`
@@ -11,6 +11,7 @@
 - Related PR/commit: PR #161, corrective commit `807a88a`
 
 ## Status history
+- 2026-11-22 — resolved: PR #161 Node.js CI passed 473 test files and 3,245 tests on `fc6a795`. All seven GitHub workflows, including 120-day simulation and performance tiers, succeeded.
 - 2026-11-22 — investigating: deterministic seed-6422 Oasis test reported zero water cells after shallows became walkable; production and diagnostic water checks updated, CI pending.
 
 ## Observed behavior
@@ -45,4 +46,4 @@ No save schema or terrain-generation recipe changes. Legacy compact saves withou
 
 ## Verification result
 
-Corrective source changes committed in PR #161; TypeScript and targeted/full CI not yet confirmed.
+**PASS** — Node.js CI on `fc6a795`: 473/473 files, 3,245/3,245 tests, zero failed, including the compact-save terrain-seed regression. TypeScript, lint, duplicate-code and semantic-overlap gates passed; all seven GitHub workflows completed successfully.

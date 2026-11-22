@@ -1,8 +1,8 @@
 # Bug report summary — one line per report
 
-**2026-11-22 — [Shallow water omitted from compact save validation](../bug_report/2026-11-22-shallow-water-save-validation.md):** investigating; save-load seed fallback and the save inspector now use the canonical water terrain trait, even where shallows are walkable; CI verification pending.
+**2026-11-22 — [Shallow water omitted from compact save validation](../bug_report/2026-11-22-shallow-water-save-validation.md):** resolved; save-load and diagnostics distinguish water from walkability. PR #161 Node.js CI passed 3,245/3,245 tests; all seven workflows green on `fc6a795`.
 
-**2026-11-22 — [Dry inland tiles unexpectedly reject ordinary buildings](../bug_report/2026-11-22-dry-land-unbuildable-patches.md):** investigating; allows construction on mountain, snow and riverbank tiles; retains water/structure exceptions and reinforcement eligibility, with new regression coverage.
+**2026-11-22 — [Dry inland tiles unexpectedly reject ordinary buildings](../bug_report/2026-11-22-dry-land-unbuildable-patches.md):** resolved; buildings now use any dry terrain; water and ground reinforcement remain separate rules. PR #161 CI 3,245/3,245 tests and all seven workflows passed on `fc6a795`.
 
 **2026-11-22 — [Rival construction roster blocks a legal staffing vacancy swap](../bug_report/2026-11-22-rival-construction-roster-blocks-vacancy-swap.md):** investigating; canonical crew-index fix in PR #160; prior-head CI passed, new direct swap regression and latest-head CI pending.
 
@@ -194,7 +194,7 @@
 
 **2026-11-03 — [Gameplay markers stay drawn over a running Spotlight performance](../bug_report/2026-11-03-spotlight-gameplay-markers-over-stage.md):** Name plates and purple status discs covered every performer, and gold level frames, pennants and "Lv3" tags stayed on neighbouring buildings during the paused show. The ready phase now hides all of them and the entity-layer key carries it; regression, renderer suites and a browser capture pass.
 
-**2026-11-03 — [Spotlight chorus slots stacked the men on each other](../bug_report/2026-11-03-spotlight-chorus-slots-stacked.md):** The stage builder put every chorus slot on a 27–36 px arc south of the girl, 12.92 px apart, so the men overlapped and hid her. Slots now form one spaced ring around her; targeted tests, TypeScript, lint, build and a browser capture pass.
+**2026-11-03 — [Spotlight chorus slots stacked the men on each other](../bug_report/2026-11-03-spotlight-chorus-slots-stacked.md):** resolved; the spaced ring now also rejects walkability snaps outside its 60px bound, with PR #161 full CI (3,245 tests) passed on `fc6a795`.
 
 **2026-11-02 — [Spotlight stage obscures village cast](../bug_report/2026-11-02-spotlight-stage-visibility.md):** Gameplay screenshot shows the oversized lore caption and narrow spotlight obscuring actors. The scene now uses a completed Village Square, with nonparticipating settlers hidden only in the ready render pass; verification pending.
 

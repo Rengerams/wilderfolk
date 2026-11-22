@@ -1,7 +1,7 @@
 # Dry inland tiles unexpectedly reject ordinary buildings
 
 - Bug: Dry but walkable mountain, snow or riverbank tiles are rejected as build sites by the generic terrain-type predicate, resulting in unexplained land-only no-build patches.
-- Status: investigating
+- Status: resolved
 - Severity: medium
 - Date discovered: 2026-11-22
 - Version/build: 0.6.5.2, main at 3122449ff1687084c07c2143387b1f88b1d14b18
@@ -11,6 +11,7 @@
 - Related PR: pending feature branch `fix/buildable-dry-land-20261122`
 
 ## Status history
+- 2026-11-22 — resolved: PR #161 Node.js CI passed 473/473 test files, 3,245/3,245 tests on `fc6a795`; all seven GitHub workflows passed, including the calendar, housing, 120-day simulation and population tiers.
 - 2026-11-22 — investigating: full CI uncovered an outdated Ground Reinforcement fixture (mountains were intentionally made buildable) and a related shallow-water save-load classifier regression. The fixture now reinforces shallow water; water-dependent saved Fishing Spots use terrain type rather than L0 path blocking. Fresh CI pending.
 - 2026-11-22 — investigating: changed the canonical classification and updated placement, terrain regeneration, and reinforcement regressions; CI pending.
 
@@ -32,12 +33,12 @@ Pre-change `UNBUILDABLE_TERRAIN` in `src/game/terrain/terrainTraits.ts` and corr
 Terrain-type buildability conflated water, alpine terrain and riverbanks. Ground-reinforcement eligibility was coupled to that wider no-build definition instead of having one shared dedicated predicate.
 
 ## Fix / proposed fix
-Canonical `isUnbuildableTerrainType` now recognizes only the three actual water types; `isReinforceableTerrainType` owns the separately required mountain/snow/shallow-water/bank condition. Placement preview, the reinforcement command and worker regression fixture share that one predicate. River-bank dock footprints are allowed with a genuine water cell; bridge/fishing alpine exclusions remain. The initial L0 path raster now uses `isWalkableTerrainType`, while both generation and rebaking classify L1 water independently of walking. Tests assert dry ordinary builds, water refusals, wadeable shallow water and dock access.
+Ordinary placement and terrain grids now use canonical `isWaterTerrainType` directly; the obsolete `isUnbuildableTerrainType` forwarding wrapper was removed. `isReinforceableTerrainType` separately owns the mountain/snow/shallow-water/bank improvement condition. Placement preview, the reinforcement command and worker regression fixture share that one predicate. River-bank dock footprints are allowed with a genuine water cell; bridge/fishing alpine exclusions remain. The initial L0 path raster now uses `isWalkableTerrainType`, while both generation and rebaking classify L1 water independently of walking. Tests assert dry ordinary builds, water refusals, wadeable shallow water and dock access.
 
 ## Save/migration impact
 No stored world terrain fields, elevations, biome-generation formulas or save schema changed. The runtime placement policy now accepts dry land; freshly generated or regenerated L0/L1 occupancy rasters are derived consistently from the canonical walking/water traits, so navigation through shallow water can differ from legacy cached generated grids.
 
 ## Verification result
 
-- 2026-11-22: three regressions failed on commit `c0087fc` (Ground Reinforcement fixture, compact save water census, Spotlight ring); fixes now on PR #161 and new CI pending. No green result claimed yet.
+- 2026-11-22: **PASS** — three CI failures on `c0087fc` were corrected in PR #161; full Node.js CI on `fc6a795`: 473 passed files, 3,245 passed tests, zero failed. Calendar, housing, simulation, and all three performance tiers also passed.
 NOT RUN at filing — CI checks pending; see `tests/infrastructure.acceptance.test.ts` and `tests/groundReinforcement.workerTransport.test.ts`.
