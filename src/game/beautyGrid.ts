@@ -1,4 +1,4 @@
-import type { Building, WorldState } from './gameTypes';
+import type { Building } from './buildings';
 import { BUILDING_CONFIGS, BuildingType } from './buildings';
 import { EntityType, PATH_CELL } from './gameTypes';
 
@@ -6,6 +6,15 @@ export interface BeautyGrid {
   cols: number;
   rows: number;
   values: Int16Array;
+}
+
+/** Only the fields the beauty projection reads and writes; no dependency on the full world model. */
+interface BeautyWorld {
+  buildings: readonly Building[];
+  worldMap: { width: number; height: number } | null;
+  beautyGrid?: BeautyGrid;
+  villageHappiness: number;
+  entities: readonly { type: EntityType; alive: boolean; x: number; y: number }[];
 }
 
 /** Beauty falloff radius in tiles around each decor building. */
@@ -38,7 +47,7 @@ function stampDecor(grid: BeautyGrid, b: Building, beauty: number): void {
 
 /** Rebuild the beauty grid from the world's completed player decor buildings. */
 export function rebuildBeautyGrid(
-  state: WorldState,
+  state: Pick<BeautyWorld, 'buildings'>,
   cols: number,
   rows: number,
 ): BeautyGrid {
@@ -78,14 +87,14 @@ export function isDecorType(type: BuildingType): boolean {
 }
 
 
-export function rebuildBeautyGridFromWorld(state: WorldState): void {
+export function rebuildBeautyGridFromWorld(state: BeautyWorld): void {
   const map = state.worldMap;
   if (!map) return;
   state.beautyGrid = rebuildBeautyGrid(state, map.width, map.height);
 }
 
 /** Daily: rebuild the beauty grid from buildings and refresh village happiness. */
-export function tickBeauty(state: WorldState): void {
+export function tickBeauty(state: BeautyWorld): void {
   const map = state.worldMap;
   if (!map) return;
   const grid = rebuildBeautyGrid(state, map.width, map.height);
