@@ -379,7 +379,7 @@ export const Buildability = {
   Open: 0,
   /** Water. */
   Water: 1,
-  /** Hard ground (mountain / snow / swamp) or reserved decor. */
+  /** Shallow-water terrain, which blocks buildings but not walking. */
   Hard: 2,
   /** Partially water or hard — a footprint that only clips it is still refused. */
   Mixed: 3,

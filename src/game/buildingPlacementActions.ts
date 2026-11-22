@@ -28,11 +28,12 @@ import {
 } from './placementUtils';
 import { patchTile, rebakeTerrainGrids, tileAt } from './terrain/terrainGrid';
 import { logEvent } from './eventLog';
+import { isReinforceableTerrainType } from './terrain/terrainTraits';
 
 export { getPlaceBuildingFailureReason, isUniqueBuildingAlreadyBuilt };
 
-// The unbuildable-terrain rule has one owner: `terrain/terrainTraits.isUnbuildableTerrainType`, a
-// leaf module so `terrainGrid` can read it without importing `placementUtils` back. Do not restate it.
+// Terrain eligibility and reinforcement have separate read-only owners in terrainTraits;
+// placement preview and the terrain-edit command must read the same reinforcement set.
 
 function isStripSegmentTechUnlocked(
   stripType: BuildingType,
@@ -147,8 +148,7 @@ export function startBuilding(
       for (let tx = startTx; tx < endTx; tx++) {
         const tile = tileAt(map, tx, ty);
         if (!tile) continue;
-        if (tile.type === TerrainType.Mountains || tile.type === TerrainType.Snow ||
-            tile.type === TerrainType.ShallowWater || tile.type === TerrainType.RiverBank) {
+        if (isReinforceableTerrainType(tile.type)) {
           patchTile(map, tx, ty, { type: TerrainType.Rocky, reinforced: true });
           changed++;
         }

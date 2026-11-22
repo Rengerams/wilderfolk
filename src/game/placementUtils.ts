@@ -7,7 +7,7 @@ import { getBuildingConfig } from './buildingConfig';
 import { isWalkableTerrainType, tileAt, Walkability } from './terrain/terrainGrid';
 // The "what a terrain type is" pair moved to a leaf so `terrainGrid` can read it without importing
 // this module back — that edge was a runtime cycle.
-import { isUnbuildableTerrainType, isWaterTerrainType } from './terrain/terrainTraits';
+import { isReinforceableTerrainType, isUnbuildableTerrainType, isWaterTerrainType } from './terrain/terrainTraits';
 
 /** Keep building footprints slightly inside the map edge so sprites are not clipped. */
 export const MAP_EDGE_INSET = 1;
@@ -49,8 +49,8 @@ const RIVER_PLACE_TERRAIN = new Set<TerrainType>([
 ]);
 
 /**
- * Normal buildings: no water/mountains/snow.
- * Bridges: only river / riverbank (must touch river water, not only bank).
+ * Ordinary buildings: any dry land, including mountains, snow and riverbank; never water.
+ * Bridges: must touch river water; neither open water nor alpine ground can support a span.
  */
 export function isFootprintOnBuildableTerrain(
   snapshot: Pick<RenderSnapshot, 'worldMap'>,
@@ -90,14 +90,15 @@ export function isFootprintOnBuildableTerrain(
       cells++;
       if (reinforcement) {
         if (tile.type === TerrainType.DeepWater || tile.type === TerrainType.River) return false;
-        if (isUnbuildableTerrainType(tile.type)) unstableCells++;
+        if (isReinforceableTerrainType(tile.type)) unstableCells++;
       } else if (bridge) {
         // A bridge needs water to span, but may land on the banks/approach like a real deck.
         if (isUnbuildableTerrainType(tile.type) && !RIVER_PLACE_TERRAIN.has(tile.type)) return false;
+        if (tile.type === TerrainType.Mountains || tile.type === TerrainType.Snow) return false;
         if (tile.type === TerrainType.River) riverCells++;
       } else if (fishing) {
-        // A fishing dock may straddle land and water — but never mountains/snow.
-        if (isUnbuildableTerrainType(tile.type) && !isWaterTerrainType(tile.type)) return false;
+        // A fishing dock may straddle ordinary land, bank and water, but not alpine ground.
+        if (tile.type === TerrainType.Mountains || tile.type === TerrainType.Snow) return false;
         if (isWaterTerrainType(tile.type)) waterCells++;
       } else if (road) {
         const occupancy = snapshot.worldMap.pathGrid?.[ty * tileW + tx];
