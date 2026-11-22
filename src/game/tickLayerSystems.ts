@@ -6,7 +6,7 @@ import {
   WEREWOLF_ATTACK_LINES,
   WEREWOLF_HOWL_LINES,
 } from './gameTypes';
-import { SPECIES_CONFIG, getPreyEnergyGain } from './speciesConfig';
+import { SPECIES_CONFIG, getPreyEnergyGain, getWildlifeCarryingCapacity } from './speciesConfig';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import {
   isProductionTick,
@@ -137,7 +137,18 @@ function tickWolfRecruitment(state: WorldState, ctx: TickContext): void {
     (byType[EntityType.Wolf]?.filter((e) => e.alive).length ?? 0) +
     newEntities.filter((e) => e.alive && e.type === EntityType.Wolf).length;
 
-  if (currentWolves >= 2 || getSimRng('tickLayerSystems')() >= 0.1) {
+  // Occasional immigration obeys the same prey-supported cap as births and replenishment.
+  const preySnapshot = ctx.wildlifePopulation;
+  const preyCounts = {
+    rabbits: (preySnapshot?.aliveByType.get(EntityType.Rabbit) ?? state.wildlifeCounts.rabbits)
+      + (preySnapshot?.newByType.get(EntityType.Rabbit) ?? 0),
+    deer: (preySnapshot?.aliveByType.get(EntityType.Deer) ?? state.wildlifeCounts.deer)
+      + (preySnapshot?.newByType.get(EntityType.Deer) ?? 0),
+    foxes: (preySnapshot?.aliveByType.get(EntityType.Fox) ?? state.wildlifeCounts.foxes)
+      + (preySnapshot?.newByType.get(EntityType.Fox) ?? 0),
+  };
+  const carryingCapacity = getWildlifeCarryingCapacity(EntityType.Wolf, preyCounts);
+  if (currentWolves >= 2 || currentWolves >= carryingCapacity || getSimRng('tickLayerSystems')() >= 0.1) {
     return;
   }
 
@@ -214,6 +225,14 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
     );
   }
   const wildlifePopulation = ctx.wildlifePopulation;
+  const preyCounts = {
+    rabbits: (wildlifePopulation.aliveByType.get(EntityType.Rabbit) ?? 0)
+      + (wildlifePopulation.newByType.get(EntityType.Rabbit) ?? 0),
+    deer: (wildlifePopulation.aliveByType.get(EntityType.Deer) ?? 0)
+      + (wildlifePopulation.newByType.get(EntityType.Deer) ?? 0),
+    foxes: (wildlifePopulation.aliveByType.get(EntityType.Fox) ?? 0)
+      + (wildlifePopulation.newByType.get(EntityType.Fox) ?? 0),
+  };
 
   if (!ctx.grassPopulation) {
     ctx.grassPopulation = buildGrassPopulationSnapshot(byType, newEntities);
@@ -769,15 +788,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         entity.energy > config.reproductionEnergyThreshold
       ) {
         const sameTypeCount = wildlifeTypePopulation(wildlifePopulation, entity.type, entity.id);
-        const maxPop =
-          entity.type === EntityType.Rabbit
-            ? 120
-            : entity.type === EntityType.Deer
-              ? 60
-              : entity.type === EntityType.Wolf
-                ? 25
-                : 35;
-        const capacityFactor = Math.max(0, 1.0 - sameTypeCount / maxPop);
+        const maxPop = getWildlifeCarryingCapacity(entity.type, preyCounts);
+        const capacityFactor = maxPop > 0 ? Math.max(0, 1.0 - sameTypeCount / maxPop) : 0;
         const scarcityBoost =
           sameTypeCount < maxPop * 0.25 ? 1.55 : sameTypeCount < maxPop * 0.45 ? 1.25 : 1.0;
 
