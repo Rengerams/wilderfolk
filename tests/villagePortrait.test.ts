@@ -51,8 +51,7 @@ describe('village identity follows player choices', () => {
   it('recognizes active caravans as a merchant identity', () => {
     const world: WorldState = {
       ...neutralVillage,
-      tradeRoutes: (Array.from({ length: 3 }, () => ({ active: true }))
-        as unknown as WorldState['tradeRoutes']),
+      tradeRoutes: Array.from({ length: 3 }, () => ({ active: true })) as unknown as WorldState['tradeRoutes'],
       lifetimeStats: {
         ...neutralVillage.lifetimeStats,
         tradeCaravansCompleted: 20, goldFromTradeRoutes: 12_000,
