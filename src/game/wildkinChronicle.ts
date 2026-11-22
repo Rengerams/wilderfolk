@@ -97,14 +97,19 @@ function markSightingAnnounced(state: WorldState, id: number): void {
 }
 
 /** Birth chronicle line for the human-mother path, carrying the place it was born. */
-export function logWildkinBirth(state: WorldState, entity: Entity, motherName: string): void {
+export function logWildkinBirth(
+  state: WorldState,
+  entity: Entity,
+  motherName: string,
+  fatherName?: string,
+  origin: 'human' | 'wildkin' = 'human',
+): void {
   const name = motherName || 'A settler';
-  logEvent(
-    state,
-    'birth',
-    `${name} gave birth to a Wildkin — half human — ${describeWildkinPlace(state, entity)}`,
-    name,
-  );
+  const parents = fatherName ? ` (father: ${fatherName})` : '';
+  const message = origin === 'wildkin'
+    ? `${entity.name ?? 'A Wildkin'} was born to ${name} and ${fatherName ?? 'another Wildkin'} — ${describeWildkinPlace(state, entity)}`
+    : `${name} gave birth to ${entity.name ?? 'a Wildkin'} — half human${parents} — ${describeWildkinPlace(state, entity)}`;
+  logEvent(state, 'birth', message, entity.name ?? 'A Wildkin');
 }
 
 /**
