@@ -66,7 +66,7 @@ import { syncGenealogyRegistry } from './genealogyRegistry';
 import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
 import { nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
-import { pruneOrphanRivalEntities, retireLegacyCampStructures } from './rivalEvents';
+import { pruneOrphanRivalEntities } from './rivalEvents';
 
 const SAVE_KEY = 'ecosim_save';
 /** A file import never writes the quick-save; the import has its own recoverable slot. */
@@ -1634,7 +1634,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     syncEventLogIdFromState(world);
     syncBigNewsIdFromState(world);
     world.totalBuildingsCompleted = (world.buildings ?? []).filter(
-      (b) => b.completed && b.faction !== 'rival',
+      (b) => b.completed,
     ).length;
     world.challenges = world.challenges?.length
       ? world.challenges
@@ -1662,29 +1662,6 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     );
     // A payload written before the spoilage field existed takes its rate from the one economy owner.
     if (worldData.foodSpoilageRate == null) updateStorageCaps(world);
-    const applySaveMigration = (id: string, message: string) => {
-      if (!world.appliedSaveMigrations) world.appliedSaveMigrations = [];
-      if (world.appliedSaveMigrations.includes(id)) return;
-      world.appliedSaveMigrations.push(id);
-      logEvent(world, 'event', message);
-    };
-
-    // A save written while village camps existed can hold camp structures the day pulse never reached,
-    // since it retires only what a rival row still lists. Runs before the dangling-reference sweep.
-    const campMigrationDone = (world.appliedSaveMigrations ?? []).includes('legacy-village-camps');
-    if (!campMigrationDone) {
-      const retiredCampStructures = retireLegacyCampStructures(world.buildings);
-      if (retiredCampStructures.size > 0) {
-        applySaveMigration(
-          'legacy-village-camps',
-          `Save migrated — ${retiredCampStructures.size} legacy rival camp structure(s) removed from the map.`,
-        );
-      } else {
-        if (!world.appliedSaveMigrations) world.appliedSaveMigrations = [];
-        world.appliedSaveMigrations.push('legacy-village-camps');
-      }
-    }
-
     world.scoredRaidIds ??= world.raidBattleReports?.map((report) => report.raidId);
     if (world.raidRecovery?.status === 'destroyed') world.paused = true;
     for (const grave of world.graveRecords ?? []) {

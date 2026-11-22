@@ -15,12 +15,12 @@ export interface VillageAnchor {
 
 /**
  * The building half of the anchor: the first completed player Town Hall, else the first completed
- * player House, else `null` — rival and unfinished structures never anchor the village.
+ * player House, else `null` — unfinished structures never anchor the village.
  */
 export function getPlayerCampCenterFromBuildings(buildings: readonly Building[]): VillageAnchor | null {
   let house: Building | undefined;
   for (const building of buildings) {
-    if (!building.completed || building.faction === 'rival') continue;
+    if (!building.completed) continue;
     if (building.type === BuildingType.TownHall) return getBuildingCenter(building);
     if (house === undefined && building.type === BuildingType.House) house = building;
   }

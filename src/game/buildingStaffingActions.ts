@@ -43,7 +43,6 @@ export function pickAdultSettler(
 export type WorkerAssignmentRefusal =
   | 'unknown-building'
   | 'unknown-settler'
-  | 'rival-building'
   | 'residence-building'
   | 'building-full'
   | 'building-has-no-job'
@@ -184,7 +183,7 @@ export function fillBuildingWorkers(
   const preview = originalState.buildings.find((building) => building.id === buildingId);
   // Bulk selection only applies to unfinished construction crews; completed workplaces are
   // staffed by automatic reconciliation.
-  if (!preview || preview.faction === 'rival' || preview.completed) return originalState;
+  if (!preview || preview.completed) return originalState;
 
   const cap = getBuildingConfig(preview.type).maxOccupants;
   
@@ -296,7 +295,6 @@ export function getWorkerAssignmentRefusal(
 ): WorkerAssignmentRefusal | null {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
   if (!building) return 'unknown-building';
-  if (building.faction === 'rival') return 'rival-building';
 
   const entity = state.entities.find((candidate) => candidate.id === humanId);
   if (!entity) return 'unknown-settler';

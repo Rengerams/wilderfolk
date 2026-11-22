@@ -154,8 +154,6 @@ export interface Building {
   // Visual
   spriteScale: number;
   buildAnimTimer: number;
-  /** Rival settlement structures — not player-owned */
-  faction?: 'rival';
   groupId?: string;
   /** Workshop only — which goods this building crafts */
   workshopRecipeId?: string;
@@ -183,12 +181,12 @@ export interface Building {
   mineMode?: MineMode;
 }
 
-/** A completed building the player owns — the shared boundary for venues and homes. */
+/** Completion is the sole eligibility gate: all on-map buildings belong to the player. */
 export function isCompletedPlayerBuilding(building: Building): boolean {
-  return building.completed && building.faction !== 'rival';
+  return building.completed;
 }
 
-/** First completed player building of the requested type, if one exists. */
+/** First completed building of the requested type, if one exists. */
 export function findCompletedBuilding(
   buildings: readonly Building[],
   type: BuildingType,
