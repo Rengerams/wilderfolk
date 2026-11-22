@@ -1,5 +1,9 @@
 # Bug report summary — one line per report
 
+**2026-11-22 — [Affair conversations reattempted every realtime tick](../bug_report/2026-11-22-affair-chat-repeated-per-tick.md):** investigating; committed once-per-game-hour 11.4% attempts and 48-hour cooldown for both participants after a successful dialogue; focused regression written, CI pending.
+
+**2026-11-22 — [Renffr omen can retrigger during its own three-day gossip](../bug_report/2026-11-22-renffr-omen-retriggers-during-gossip.md):** investigating; committed nighttime hourly rolls at 0.42% and a gossip-window retrigger exclusion; focused seeded regression written, CI pending.
+
 **2026-11-22 — [Daily event odds quantized to 1/10,000 inflate small rates](../bug_report/2026-11-22-daily-odds-quantized-to-ten-thousandths.md):** open; `personDayRoll` returns `(hash % 10000) / 10000`, so illness death runs at 7.15%/yr instead of 4.32%, amicable divorce at 11.34% instead of 7.50%, age-60 old-age mortality at 3.65% instead of 2.00%, and the `damaged` valley illness bonus lands on the same bucket as `stable`.
 
 **2026-11-22 — [Predator breeding and restocking overwhelm prey](../bug_report/2026-11-22-wildlife-prey-collapse-predator-capacity.md):** investigating; wolf capacity and the prey floor now share one wildlife population policy, rabbits recover to 150 and are protected below 35, and wolf/fox caps depend on live prey (PR #172, consolidating #173); focused regressions committed, long-run 90/360-day outcome still to be verified. Supersedes the earlier [predator-ceiling audit report](../bug_report/2026-11-22-wildlife-predator-ceiling-collapses-prey.md).
