@@ -1103,7 +1103,7 @@ export function generateRawTerrain(
   const per = BUILD_CELL / PATH_CELL; // 2
   for (let y = 0; y < bRows; y++)
     for (let x = 0; x < bCols; x++) {
-      let water = 0, reserved = 0, hard = 0;
+      let water = 0, reserved = 0;
       for (let j = 0; j < per; j++)
         for (let i = 0; i < per; i++) {
           // `pCols`/`pRows` are the ceiling tile counts and `bCols * per >= pCols` by the
@@ -1118,11 +1118,9 @@ export function generateRawTerrain(
         }
       buildGrid[y * bCols + x] = water
         ? Buildability.Water
-        : hard > 0
-          ? Buildability.Hard
-          : reserved
-            ? Buildability.Mixed
-            : Buildability.Open;
+        : reserved
+          ? Buildability.Mixed
+          : Buildability.Open;
     }
 
   // World-pixel river polylines (Wilderfolk `rivers` contract).
