@@ -38,6 +38,12 @@ jobs:
       - name: Real gameTick calendar boundaries, invariants and minimum owner coverage
         run: npm test -- calendar-scheduler
 
+      - name: Deterministic social lifecycle writers (full-year seeds need not trigger these)
+        run: npx vitest run tests/courtship.exclusivity.test.ts tests/conceptionEvent.labelling.test.ts tests/humanLifecycle.test.ts tests/historyRevisions.test.ts
+
+      - name: Wildlife recovery and breeding policy regression
+        run: npx vitest run tests/wildlife.populationPolicy.test.ts
+
       - name: Non-DEV invariants through Year-2 midnight
         run: SIM_START_DAY=720 SIM_DAYS=3 npx tsx scripts/sim-invariants.ts
 
