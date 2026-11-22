@@ -172,7 +172,6 @@ export function tickPregnancyAndBirth(
     // The deer is a recorded animal parent, not a human co-parent.
     recordGenealogyBirth(state, deerFather!);
     recordGenealogyBirth(state, wildkin);
-    safeAddChildId(entity, wildkin.id);
     addBigNews(
       state,
       '🦌 Wildkin Born!',
