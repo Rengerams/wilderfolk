@@ -13,7 +13,9 @@ import { getRouteObstruction } from './pathfinding';
 import { getCaravanMoveTarget } from './tradeCaravans';
 import type { ExplanationLine } from './explanationLines';
 
-
+function buildingLabel(building: Building): string {
+  return getBuildingConfig(building.type).label;
+}
 
 export type SettlerRouteStopKind = 'home' | 'workplace' | 'venue';
 
@@ -190,7 +192,7 @@ export function explainHumanMovement(state: WorldState, settlerId: number): Huma
     const obstruction = getRouteObstruction(state.worldMap, state.buildings, settler, activity.target);
     status = obstruction;
     lines.push({ label: 'Current leg', value: legLabel, tone: 'neutral' });
-    lines.push({ label: 'Path', ...PATH_STATUS_LINES[obstruction] });;
+    lines.push({ label: 'Path', ...PATH_STATUS_LINES[obstruction] });
   }
 
   return { stops, legIndex, legLabel, status, lines };
