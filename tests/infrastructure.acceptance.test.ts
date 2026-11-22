@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { building, human } from '../src/test/factories';
 import { testWorldMap } from '../src/test/worldMapFixtures';
-import { BUILDING_CONFIGS, BuildingType, MapSize, TerrainType } from '../src/game/gameTypes';
+import { BUILDING_CONFIGS, BuildingType, MapPreset, MapSize, TerrainType } from '../src/game/gameTypes';
 import { isFootprintOnBuildableTerrain } from '../src/game/placementUtils';
 import { findPath, findRouteCost, getPathGrid, isOnWalkableRoadAt, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { buildStripPreview, placeStripChain } from '../src/game/buildingPlacementActions';
 import { demolishStripBuildingsInPlace } from '../src/game/buildingMaintenanceActions';
 import { createBuilding } from '../src/game/worldGen';
-import { Walkability } from '../src/game/terrain/terrainGrid';
+import { Walkability, Buildability, isTileBuildable, isWalkableTerrainType, tileTypeAt } from '../src/game/terrain/terrainGrid';
+import { generateRawTerrain } from '../src/game/terrain/terragen';
+import { isFootprintBuildable } from '../src/game/terrainGen';
+import { isWaterTerrainType, isReinforceableTerrainType } from '../src/game/terrain/terrainTraits';
 import { initGame } from '../src/game/worldGen';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
@@ -16,10 +19,14 @@ import { applyWorkerCommand, isWorkerCommand } from '../src/game/simWorker/comma
 
 describe('infrastructure acceptance boundaries', () => {
   for (const terrain of [TerrainType.Mountains, TerrainType.Snow, TerrainType.RiverBank]) {
-    it(`allows roads on passable ${terrain} without permitting ordinary buildings`, () => {
+    it(`permits ordinary buildings and walking on dry ${terrain} without phantom no-build patches`, () => {
       const worldMap = testWorldMap({ tilesX: 20, tilesY: 20, tileType: () => terrain });
+      expect(isWalkableTerrainType(terrain)).toBe(true);
+      expect(isTileBuildable(worldMap, 5, 5)).toBe(true);
+      expect(isFootprintBuildable(worldMap, 10, 10, 55, 55)).toBe(true);
+      expect(isFootprintOnBuildableTerrain({ worldMap }, 10, 10, 55, 55, BuildingType.House)).toBe(true);
       expect(isFootprintOnBuildableTerrain({ worldMap }, 10, 10, 55, 55, BuildingType.Road)).toBe(true);
-      expect(isFootprintOnBuildableTerrain({ worldMap }, 10, 10, 55, 55, BuildingType.House)).toBe(false);
+      expect(isFootprintOnBuildableTerrain({ worldMap }, 10, 10, 55, 55, BuildingType.GroundReinforcement)).toBe(true);
       worldMap.pathGrid![5 * worldMap.width + 5] = Walkability.Reserved;
       expect(isFootprintOnBuildableTerrain({ worldMap }, 10, 10, 55, 55, BuildingType.Road)).toBe(false);
     });
@@ -29,8 +36,47 @@ describe('infrastructure acceptance boundaries', () => {
     it(`refuses road construction on ${terrain}`, () => {
       const worldMap = testWorldMap({ tilesX: 20, tilesY: 20, tileType: () => terrain });
       expect(isFootprintOnBuildableTerrain({ worldMap }, 10, 10, 55, 55, BuildingType.Road)).toBe(false);
+      expect(isFootprintOnBuildableTerrain({ worldMap }, 10, 10, 55, 55, BuildingType.House)).toBe(false);
+      expect(isTileBuildable(worldMap, 5, 5)).toBe(false);
+      expect(isWaterTerrainType(terrain)).toBe(true);
+      expect(isWalkableTerrainType(terrain)).toBe(terrain === TerrainType.ShallowWater);
     });
   }
+
+  it('distinguishes reinforcement eligibility from water and walking', () => {
+    expect(isReinforceableTerrainType(TerrainType.Mountains)).toBe(true);
+    expect(isReinforceableTerrainType(TerrainType.RiverBank)).toBe(true);
+    expect(isReinforceableTerrainType(TerrainType.ShallowWater)).toBe(true);
+    expect(isReinforceableTerrainType(TerrainType.River)).toBe(false);
+    expect(isReinforceableTerrainType(TerrainType.Grassland)).toBe(false);
+    expect(isWalkableTerrainType(TerrainType.Grassland)).toBe(true);
+    expect(isWaterTerrainType(TerrainType.RiverBank)).toBe(false);
+  });
+
+  it('generates walkable shallow water without accidentally making it buildable', () => {
+    const map = generateRawTerrain(480, 480, 1234, MapSize.Medium, MapPreset.Islands, undefined, 4);
+    let shallowTiles = 0;
+    for (let ty = 0; ty < map.height; ty++) {
+      for (let tx = 0; tx < map.width; tx++) {
+        if (tileTypeAt(map, tx, ty) !== TerrainType.ShallowWater) continue;
+        shallowTiles++;
+        expect(map.pathGrid![ty * map.width + tx]).toBe(Walkability.Open);
+        const buildIndex = Math.floor(ty / 2) * map.bCols! + Math.floor(tx / 2);
+        expect(map.buildGrid![buildIndex]).toBe(Buildability.Water);
+      }
+    }
+    expect(shallowTiles).toBeGreaterThan(0);
+  });
+
+  it('allows a Fishing Spot to reach river water from an otherwise dry riverbank', () => {
+    const worldMap = testWorldMap({
+      tilesX: 20, tilesY: 20,
+      tileType: (tx) => tx === 10 ? TerrainType.River : TerrainType.RiverBank,
+    });
+    expect(isFootprintOnBuildableTerrain({ worldMap }, 30, 30, 105, 105, BuildingType.FishingSpot)).toBe(true);
+    expect(isFootprintOnBuildableTerrain({ worldMap }, 30, 30, 55, 105, BuildingType.FishingSpot)).toBe(false);
+    expect(isFootprintOnBuildableTerrain({ worldMap }, 30, 30, 105, 105, BuildingType.House)).toBe(false);
+  });
 
   it('considers faster roads on short trips and when the gain is below five percent', () => {
     const map = testWorldMap({ tilesX: 40, tilesY: 20 });

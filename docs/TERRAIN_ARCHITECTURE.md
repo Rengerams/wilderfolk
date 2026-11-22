@@ -59,7 +59,7 @@ The canonical **simulation** remains world-space XY: AI, pathfinding, footprints
 | Harvestable trees, grass, blueberry and wildlife entities | `worldGen.ts` and specialized entity owners | `WorldState.entities`; drawn as living sprites, not additional static forests. |
 | Rendering caches, height projection | `renderer/terrain.ts`, `renderer/whittakerTerrain.ts`, `renderer/heightMesh.ts` and `terrainAtlas.ts` | Disposable derived data; never serialized as another terrain state. |
 
-`classifyTile` samples the height/climate/river fields with the map's stored forest moisture thresholds. `tileAt` incorporates user overrides; `tileTypeAtWorld` is an adapted world-coordinate read, not another classifier. `terrain/terrainTraits.ts` owns pure water/unbuildable terrain-type predicates. Walking, building placement, river paint and static prop eligibility must agree on river and shore boundaries.
+`classifyTile` samples the height/climate/river fields with the map's stored forest moisture thresholds. `tileAt` incorporates user overrides; `tileTypeAtWorld` is an adapted world-coordinate read, not another classifier. `terrain/terrainTraits.ts` owns pure water/unbuildable and ground-reinforcement terrain traits. Only actual water is terrain-unbuildable for ordinary buildings: mountains, snow and riverbanks remain walkable *and* buildable. Fishing Spots and bridges still require real water; reinforcement may upgrade hard/damp land independent of building eligibility. Raw terrain and grid rebakes both use the canonical wadeable-shallow-water path rule while treating every water type as unbuildable for structures. Walking, building placement, river paint and static prop eligibility must agree on river and shore boundaries.
 
 ## 4. Generation and biome presets
 
@@ -159,7 +159,7 @@ Version matrix for code reviews:
 | Noise and rain shadow | `terrain/noise.ts`; `terrain/rainShadow.ts` — `rainShadowField` |
 | Biome identities / visual deco types | `terrain/biomes.ts` |
 | Gameplay terrain and occupancy | `terrain/terrainGrid.ts` — `classifyTile`, `tileAt`, `tileTypeAt`, `setTileOverride`, `rebakeTerrainGrids` |
-| Terrain-type traits | `terrain/terrainTraits.ts` — `isWaterTerrainType`, `isUnbuildableTerrainType` |
+| Terrain-type traits | `terrain/terrainTraits.ts` — `isWaterTerrainType`, `isReinforceableTerrainType` |
 | Ecotone weights | `terrain/ecotones.ts` — `sampleEcotone`, `treeEcotoneAt` |
 | Continuous field paint + river visuals | `renderer/whittakerTerrain.ts` — `buildWhittakerFields`, `bakeWhittakerGround`, `sampleRiverPhase` |
 | Ground caching and composition | `renderer/terrain.ts` — `planGroundChunks`, `drawGround`, `targetGroundStep` |

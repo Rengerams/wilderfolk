@@ -13,7 +13,7 @@ import {
   drawBuildingGroundwork,
   drawDepthSortedBuilding,
 } from './buildings';
-import { drawBuildZoneOverlay, drawGrid } from './grid';
+import { drawGrid } from './grid';
 import { drawGrass } from './grass';
 import { drawHumans, drawHuntChaseLines, drawTradeRouteLines } from './humans';
 import { shouldDrawSpotlightHuman } from './overheadLayout';
@@ -64,7 +64,6 @@ function paintWorldEntityLayer(ctx: CanvasContext2d, state: RenderSnapshot, cw: 
   // OffscreenCanvas 2d contexts are API-compatible with CanvasRenderingContext2D for draw passes.
   const drawCtx = ctx as CanvasRenderingContext2D;
   drawScentOverlay(drawCtx, state, cw, ch);
-  drawBuildZoneOverlay(drawCtx, state, cw, ch);
   drawGrid(drawCtx, state, cw, ch);
   drawGrass(drawCtx, state, cw, ch);
   drawBuildingGroundwork(drawCtx, state, cw, ch);

@@ -1,33 +1,33 @@
 /**
- * What a `TerrainType` is: is this water, and may a structure stand on it. A leaf module, so both
- * `terrainGrid` and `placementUtils` can read the rule without an import cycle.
+ * Terrain-type properties used by placement, ground reinforcement and map grids. This is the
+ * shared leaf owner; L0 walking remains independent in terrainGrid.
  */
 import { TerrainType } from '../gameTypes';
 
-/**
- * Terrain a structure may not stand on — the placement rule, deliberately separate from the
- * walking rule in `terrainGrid.WALK_BLOCKED_TERRAIN`.
+/** Only actual water is unbuildable by terrain type. All dry land — including steep, snowy,
+ * or riverside terrain — is ordinary buildable ground unless occupied by a structure or decor.
+ * Special structure footprints (docks/bridges) still have their own placement constraints.
  */
-const UNBUILDABLE_TERRAIN = new Set<TerrainType>([
-  TerrainType.DeepWater,
-  TerrainType.ShallowWater,
-  TerrainType.River,
-  TerrainType.RiverBank,
-  TerrainType.Mountains,
-  TerrainType.Snow,
-]);
-
-/** The subset of the above that a Fishing Spot's footprint is *required* to touch. */
 const WATER_TERRAIN = new Set<TerrainType>([
   TerrainType.DeepWater,
   TerrainType.ShallowWater,
   TerrainType.River,
 ]);
 
-export function isUnbuildableTerrainType(type: TerrainType): boolean {
-  return UNBUILDABLE_TERRAIN.has(type);
-}
+/** Ground that a Ground Reinforcement operation can improve; distinct from buildability.
+ * Centralized because both preview validation and the terrain-edit command must agree.
+ */
+const REINFORCEABLE_TERRAIN = new Set<TerrainType>([
+  TerrainType.Mountains,
+  TerrainType.Snow,
+  TerrainType.ShallowWater,
+  TerrainType.RiverBank,
+]);
 
 export function isWaterTerrainType(type: TerrainType): boolean {
   return WATER_TERRAIN.has(type);
+}
+
+export function isReinforceableTerrainType(type: TerrainType): boolean {
+  return REINFORCEABLE_TERRAIN.has(type);
 }

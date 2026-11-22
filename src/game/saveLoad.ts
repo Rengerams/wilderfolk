@@ -6,7 +6,8 @@ import { applyLeaderHousePhase } from './leaderHouse';
 import { assignMissingResidences, moveResident, rebuildChildrenIds } from './housingPipeline';
 import type { WorldState, Entity, TerrainTile, Building } from './gameTypes';
 import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, FACTION_WANDER_PHASES, MapSize, PATH_CELL, createInitialResearchNodes } from './gameTypes';
-import { isWalkableTerrainType, setTileOverride, tileAt, Walkability } from './terrain/terrainGrid';
+import { setTileOverride, tileTypeAt } from './terrain/terrainGrid';
+import { isWaterTerrainType } from './terrain/terrainTraits';
 import { INITIAL_CHALLENGES } from './challenges';
 import { normalizeLifetimeStats } from './stats';
 import {
@@ -600,9 +601,8 @@ function terrainHasWaterAt(map: NonNullable<WorldState['worldMap']>, worldX: num
   const tx = Math.floor(worldX / PATH_CELL);
   const ty = Math.floor(worldY / PATH_CELL);
   if (tx < 0 || ty < 0 || tx >= map.width || ty >= map.height) return false;
-  if (map.pathGrid) return map.pathGrid[ty * map.width + tx] === Walkability.Water;
-  const tile = tileAt(map, tx, ty);
-  return !!tile && !isWalkableTerrainType(tile.type);
+  const type = tileTypeAt(map, tx, ty);
+  return type !== null && isWaterTerrainType(type);
 }
 
 /**

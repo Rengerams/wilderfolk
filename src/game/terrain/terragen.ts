@@ -12,7 +12,7 @@ import {
 } from '../gameTypes';
 import { computeFlow, fillDepressions, riverWidthAt } from './hydrology';
 import { RAIN_SHADOW_MOISTURE_STRENGTH, rainShadowField } from './rainShadow';
-import { isUnbuildableTerrainType } from './terrainTraits';
+import { isWaterTerrainType } from './terrainTraits';
 import { sampleEcotone, type EcotoneTerrainFields } from './ecotones';
 import { B, BIOME_BY_IDX, BIOMES, RETIRED_V4_DECOR_TYPES, TREE_SPRITE_TYPES, type BiomeDef, type SpriteType } from './biomes';
 import {
@@ -24,6 +24,7 @@ import {
   classifyTile,
   biomeEdgeDither,
   sampleElev,
+  isWalkableTerrainType,
 } from './terrainGrid';
 import {
   clamp,
@@ -133,7 +134,6 @@ function moistureCuts(
 }
 
 /** L0 path grid: only water blocks walking — land is climbable, however high. */
-const PATH_WATER = new Set<TerrainType>([TerrainType.DeepWater, TerrainType.ShallowWater, TerrainType.River]);
 
 /**
  * Per-preset Teraforge tuning — one fixed landscape recipe per Wilderfolk preset. `temperature` is the
@@ -1082,7 +1082,7 @@ export function generateRawTerrain(
   };
   for (let y = 0; y < pRows; y++)
     for (let x = 0; x < pCols; x++) {
-      pathGrid[y * pCols + x] = PATH_WATER.has(pathTileType(x, y)) ? Walkability.Water : Walkability.Open;
+      pathGrid[y * pCols + x] = isWalkableTerrainType(pathTileType(x, y)) ? Walkability.Open : Walkability.Water;
     }
 
   // L3 decorations (biome-density-driven; trees excluded)
@@ -1095,33 +1095,32 @@ export function generateRawTerrain(
     } : undefined,
   );
 
-  // L1 build grid (20px) — 0=buildable, 1=water, 2=hard, 3=mixed. The hard-ground test reads the same
-  // projection `terrainGrid.isTileBuildable` uses, so the grid and placement cannot disagree.
+  // L1 build grid (20px) — water rejects buildings independently of the walking grid.
+  // The canonical terrain trait also owns footprint placement and tile buildability.
   const bCols = Math.ceil(width / BUILD_CELL);
   const bRows = Math.ceil(height / BUILD_CELL);
   const buildGrid = new Uint8Array(bCols * bRows);
   const per = BUILD_CELL / PATH_CELL; // 2
   for (let y = 0; y < bRows; y++)
     for (let x = 0; x < bCols; x++) {
-      let water = 0, reserved = 0, hard = 0;
+      let water = 0, reserved = 0;
       for (let j = 0; j < per; j++)
         for (let i = 0; i < per; i++) {
           // `pCols`/`pRows` are the ceiling tile counts and `bCols * per >= pCols` by the
           // same ceiling, so these clamps only trim the final partial cell.
           const v = pathGrid[Math.min(pRows - 1, y * per + j) * pCols + Math.min(pCols - 1, x * per + i)];
-          if (v === Walkability.Water) water++;
-          else if (v === Walkability.Reserved) reserved++;
+          if (v === Walkability.Reserved) reserved++;
           const tx = Math.min(tileW - 1, x * per + i);
           const ty = Math.min(tileH - 1, y * per + j);
-          if (isUnbuildableTerrainType(pathTileType(tx, ty))) hard++;
+          const type = pathTileType(tx, ty);
+          // Shallow water is walkable, but all water must still be unbuildable.
+          if (isWaterTerrainType(type)) water++;
         }
       buildGrid[y * bCols + x] = water
         ? Buildability.Water
-        : hard > 0
-          ? Buildability.Hard
-          : reserved
-            ? Buildability.Mixed
-            : Buildability.Open;
+        : reserved
+          ? Buildability.Mixed
+          : Buildability.Open;
     }
 
   // World-pixel river polylines (Wilderfolk `rivers` contract).

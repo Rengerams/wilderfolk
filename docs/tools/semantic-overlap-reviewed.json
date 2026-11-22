@@ -499,6 +499,29 @@
         "tests/visualsAudit.renderWiring.test.ts",
         "tests/wallGate.rendering.test.ts"
       ]
+    },
+    {
+      "key": "src/game/terrain/terrainTraits.ts:27:isWaterTerrainType@03418faee4022496984d863c086be3e64132a7172cb705714a032cb673883f8e <-> src/game/terrain/terrainTraits.ts:31:isReinforceableTerrainType@f17f95e5c3d1fb5e1b602285d6accdf73fac5a52d30cbbe83265d88b29401751",
+      "reason": "Distinct read-only terrain contracts despite identical membership-check syntax. isWaterTerrainType is the single definition of actual liquid (deep water, shallow water, river); isReinforceableTerrainType selects the separate four terrain kinds that an explicit ground-improvement command can transform (mountains, snow, shallow water, bank). A dry mountain is reinforceable but not water; a deep river is water but cannot be reinforced. Their different sets, command callers and test assertions must not be unified.",
+      "tests": [
+        "tests/infrastructure.acceptance.test.ts",
+        "tests/groundReinforcement.workerTransport.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/terrain/terrainGrid.ts:389:isWalkableTerrainType@aabc4729845666938754bd1f9079979ec7f963de7d04678819f42e9100ced8a8 <-> src/game/terrain/terrainTraits.ts:27:isWaterTerrainType@03418faee4022496984d863c086be3e64132a7172cb705714a032cb673883f8e",
+      "reason": "Water classification and walking eligibility have different movement rules. isWaterTerrainType recognizes shallow water as water, while isWalkableTerrainType deliberately allows wading through it (and all dry highlands), blocking only deep water and rivers. The water predicate is used by construction, bridges, docks and weather; walking belongs to terrainGrid/pathfinding. Merging them would disallow shallow-water walking or let buildings occupy water. Infrastructure regression tests explicitly check the difference.",
+      "tests": [
+        "tests/infrastructure.acceptance.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/terrain/terrainGrid.ts:389:isWalkableTerrainType@aabc4729845666938754bd1f9079979ec7f963de7d04678819f42e9100ced8a8 <-> src/game/terrain/terrainTraits.ts:31:isReinforceableTerrainType@f17f95e5c3d1fb5e1b602285d6accdf73fac5a52d30cbbe83265d88b29401751",
+      "reason": "Ground reinforcement eligibility and terrain walking have different callers and results. Mountains, snow and riverbanks are walkable and eligible for ground improvement; grassland is walkable but not reinforceable; deep water/rivers are blocked from both for different reasons. TerrainGrid's walkability determines L0 routing, while terrainTraits.isReinforceableTerrainType serves only the Ground Reinforcement placement and terrain-write operation. Existing infrastructure and worker-delta tests pin these distinct contracts.",
+      "tests": [
+        "tests/infrastructure.acceptance.test.ts",
+        "tests/groundReinforcement.workerTransport.test.ts"
+      ]
     }
   ]
 }

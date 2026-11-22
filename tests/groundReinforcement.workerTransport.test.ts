@@ -10,15 +10,9 @@ import { tileAt } from '../src/game/terrain/terrainGrid';
 import { applyWorkerCommand, extractCommandDelta } from '../src/game/simWorker/commands';
 import { applySimTickDelta } from '../src/game/simBuffers/simDelta';
 import { isFootprintOnBuildableTerrain } from '../src/game/placementUtils';
+import { isReinforceableTerrainType } from '../src/game/terrain/terrainTraits';
 
 const REINFORCE_PATCH_TILES = 3;
-const UNSTABLE = new Set<TerrainType>([
-  TerrainType.Mountains,
-  TerrainType.Snow,
-  TerrainType.ShallowWater,
-  TerrainType.RiverBank,
-]);
-
 /** Centre of a 3×3 patch that the reinforcement accepts (some hard ground, no deep water or river). */
 function findReinforceableSpot(world: WorldState): { x: number; y: number } | null {
   const map = world.worldMap;
@@ -32,7 +26,7 @@ function findReinforceableSpot(world: WorldState): { x: number; y: number } | nu
           const tile = tileAt(map, x, y);
           if (!tile) continue;
           if (tile.type === TerrainType.DeepWater || tile.type === TerrainType.River) liquid = true;
-          if (UNSTABLE.has(tile.type)) unstable++;
+          if (isReinforceableTerrainType(tile.type)) unstable++;
         }
       }
       if (!liquid && unstable > 0) {
