@@ -2,6 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (22 Nov 2026, PR #172):** Shared wildlife recovery limits now cap wolves at 10, let rabbits breed to 150, protect depleted rabbit herds from predators, and reduce repeated wolf kills by increasing prey energy.
+- **Fixed (22 Nov 2026, PR #172):** Corrected assignment and construction cadence documentation; standalone overlap checks refresh call graphs after source removals.
+
 - **Fixed (22 Nov 2026, PR #171):** Unified path/walk rules, recovered blocked origins, reached exact destinations, guarded bridges and map edges, and distinguished search budgets from unreachable routes. Reused valid caches, removed duplicate A* work and corrected steering/metrics.
 
 - **Fixed (22 Nov 2026, PR #170):** Caravans now wait for storage on arrival, retain undelivered exports on the saved route until space frees, and allow gold-for-iron purchases without a Market.
