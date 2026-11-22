@@ -343,7 +343,7 @@ async function main() {
   // It mounts the real CitizenOverviewScreen so React delivers same-tick world updates.
   if (args.portraitRegression) {
     page.on('pageerror', (error) => report.pageErrors.push(error.message.slice(0, 300)));
-    await page.goto(new URL('tests/browser/portrait.html', url), {
+    await page.goto(new URL('tests/browser/portrait.html', url).href, {
       waitUntil: 'domcontentloaded',
       timeout: args.timeoutMs,
     });
