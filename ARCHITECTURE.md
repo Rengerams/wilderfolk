@@ -111,7 +111,7 @@ flowchart LR
 | **Realtime** | `tickLayerRealtime.ts` | Humans move, social, meals, combat chase |
 | **Systems** | `tickLayerSystems.ts` | Wildlife AI, weather, research progress, trade walkers |
 | **Assign** | `tickLayerAssign.ts` | Fill jobs/homes (not every frame) |
-| **Daily** | `tickLayerDaily.ts` | 00:00 visitors, idle skills, year rollover and fatigue; 06:00 relationships; 12:00 empty; 18:00 production, ecology, immigration and other world events |
+| **Daily** | `tickLayerDaily.ts` | 00:00 idle skills, year rollover and fatigue (retired visitor camps have no scheduler); 06:00 relationships; 12:00 empty; 18:00 production, ecology, immigration and world events; 23:00 construction |
 
 Domain logic lives in modules, not one mega-file:
 
@@ -120,7 +120,7 @@ Domain logic lives in modules, not one mega-file:
 | `humanTick.ts` | Human tick bodies (animal AI: `tickLayerSystems`) |
 | `dayCycle.ts` | Calendar, housing, age, family helpers |
 | `frontierCombat.ts` | Raids (abstract ratios, not a battle screen) |
-| `groupEvents.ts` | Visitors, rivals, living camps, diplomacy |
+| `groupEvents.ts` | Legacy visitor compatibility and general events; active rivals use strategic records, not on-map camps |
 | `moonHowler.ts` | Curse / transform / church |
 | `forge.ts` + `combat.ts` | Blacksmith orders → village gear **tiers** |
 | `ecologyStage.ts` | Valley stable → strained → … |
