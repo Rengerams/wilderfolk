@@ -4,7 +4,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, MAP_SIZE_DIMENSIONS, MapPreset, MapSize, PATH_CELL, type WorldMap } from '../src/game/gameTypes';
-import { Walkability } from '../src/game/terrain/terrainGrid';
+import { Buildability, tileTypeAt } from '../src/game/terrain/terrainGrid';
+import { isWaterTerrainType } from '../src/game/terrain/terrainTraits';
 import { legacyTerrainSeed } from '../src/game/terrain/terragen';
 import { generateWorldMap } from '../src/game/terrainGen';
 import { initGame } from '../src/game/worldGen';
@@ -25,7 +26,7 @@ const DIMENSIONS = MAP_SIZE_DIMENSIONS[SIZE];
 function fishingSpotOnWater(map: WorldMap, id: number): Record<string, unknown> {
   for (let ty = 1; ty < map.height - 1; ty++) {
     for (let tx = 1; tx < map.width - 1; tx++) {
-      if (map.pathGrid?.[ty * map.width + tx] !== Walkability.Water) continue;
+      if (!isWaterTerrainType(tileTypeAt(map, tx, ty)!)) continue;
       return {
         id,
         type: BuildingType.FishingSpot,
@@ -81,10 +82,11 @@ function loadThroughParse(
 
 function waterCells(map: WorldMap): number {
   let count = 0;
-  const grid = map.pathGrid;
+  // The L1 build grid marks all water, including shallow water that L0 permits walking across.
+  const grid = map.buildGrid;
   if (!grid) return 0;
   for (let i = 0; i < grid.length; i++) {
-    if (grid[i] === Walkability.Water) count++;
+    if (grid[i] === Buildability.Water) count++;
   }
   return count;
 }
@@ -94,7 +96,8 @@ function waterAt(map: WorldMap, worldX: number, worldY: number): boolean {
   const tx = Math.floor(worldX / PATH_CELL);
   const ty = Math.floor(worldY / PATH_CELL);
   if (tx < 0 || ty < 0 || tx >= map.width || ty >= map.height) return false;
-  return map.pathGrid?.[ty * map.width + tx] === Walkability.Water;
+  const type = tileTypeAt(map, tx, ty);
+  return type !== null && isWaterTerrainType(type);
 }
 
 describe('a compact save regenerates the valley it was saved from', () => {

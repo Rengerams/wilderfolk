@@ -16,7 +16,7 @@ const SPOTLIGHT_MIN_CHORUS = 6;
 const SPOTLIGHT_MAX_CHORUS = 10;
 /** A settler sprite is ~14 px wide and ~20 px tall; 55 px keeps the ring on the plaza stones and clear of silos. */
 const SPOTLIGHT_RING_RADIUS_PX = 55;
-const SPOTLIGHT_MIN_SLOT_GAP_PX = 18;
+const SPOTLIGHT_MIN_SLOT_GAP_PX = 20;
 /** The square sprite is drawn bottom-anchored (0.92), so its painted middle sits 0.42 x 70 x 1.15 px above x/y. */
 export const SPOTLIGHT_SQUARE_ART_LIFT_PX = 34;
 
@@ -63,16 +63,27 @@ function buildSpotlightLoreScene(
 
   for (let i = 0; i < chorus.length; i++) {
     const angle = startAngle + i * step;
-    const candidateX = ringX + Math.cos(angle) * SPOTLIGHT_RING_RADIUS_PX;
-    const candidateY = ringY + Math.sin(angle) * SPOTLIGHT_RING_RADIUS_PX;
-    const point = nearestWalkableWorldPoint(
-      state.worldMap, state.buildings, candidateX, candidateY,
-    );
-    if (!point || point.x < 0 || point.x >= state.width || point.y < 0 || point.y >= state.height
-      || slots.some((slot) => Math.hypot(slot.x - point.x, slot.y - point.y) < SPOTLIGHT_MIN_SLOT_GAP_PX)) {
-      return null;
+    let selected: { x: number; y: number } | null = null;
+    // A blocked arc needs another ring position, not a distant nearest-walkable destination.
+    for (const radius of [SPOTLIGHT_RING_RADIUS_PX, 50, 45, 40, 35]) {
+      for (const angleOffset of [0, -0.2, 0.2, -0.4, 0.4, -0.6, 0.6, -0.8, 0.8]) {
+        const candidateAngle = angle + angleOffset * step;
+        const point = nearestWalkableWorldPoint(
+          state.worldMap, state.buildings,
+          ringX + Math.cos(candidateAngle) * radius,
+          ringY + Math.sin(candidateAngle) * radius,
+        );
+        if (!point || point.x < 0 || point.x >= state.width || point.y < 0 || point.y >= state.height) continue;
+        const fromCenter = Math.hypot(point.x - ringX, point.y - ringY);
+        if (fromCenter < 30 || fromCenter > SPOTLIGHT_RING_RADIUS_PX + 5) continue;
+        if (slots.some((slot) => Math.hypot(slot.x - point.x, slot.y - point.y) < SPOTLIGHT_MIN_SLOT_GAP_PX)) continue;
+        selected = point;
+        break;
+      }
+      if (selected) break;
     }
-    slots.push({ humanId: chorus[i].id, x: point.x, y: point.y });
+    if (!selected) return null;
+    slots.push({ humanId: chorus[i].id, x: selected.x, y: selected.y });
   }
 
   return {

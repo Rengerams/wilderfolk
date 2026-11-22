@@ -5,7 +5,7 @@ import { getPlaceBuildingFailureReason, startBuilding } from '../src/game/buildi
 import { patchTile, tileAt } from '../src/game/terrain/terrainGrid';
 
 describe('ground reinforcement', () => {
-  function blockedGround() {
+  function reinforceableWater() {
     const world = initGame({ seed: 321 });
     world.buildings = [];
     world.resources.stone = 500;
@@ -13,13 +13,13 @@ describe('ground reinforcement', () => {
     const map = world.worldMap!;
     // Use the same three-by-three footprint as the catalog tool.
     for (let ty = 9; ty <= 11; ty++) {
-      for (let tx = 9; tx <= 11; tx++) patchTile(map, tx, ty, { type: TerrainType.Mountains });
+      for (let tx = 9; tx <= 11; tx++) patchTile(map, tx, ty, { type: TerrainType.ShallowWater });
     }
     return world;
   }
 
-  it('converts unbuildable ground into permanent buildable terrain without leaving a structure', () => {
-    const world = blockedGround();
+  it('converts shallow water into permanent buildable ground without leaving a structure', () => {
+    const world = reinforceableWater();
     const x = 10.5 * PATH_CELL;
     const y = 10.5 * PATH_CELL;
     expect(getPlaceBuildingFailureReason(world, BuildingType.GroundReinforcement, x, y)).toBe(null);
@@ -35,7 +35,7 @@ describe('ground reinforcement', () => {
   });
 
   it('cannot erase active rivers or deep water', () => {
-    const world = blockedGround();
+    const world = reinforceableWater();
     patchTile(world.worldMap!, 10, 10, { type: TerrainType.River });
     const x = 10.5 * PATH_CELL;
     const y = 10.5 * PATH_CELL;
