@@ -22,12 +22,14 @@ function parseArgs(argv) {
     baseline: null,
     maxDiff: 0.02,
     timeoutMs: 45000,
+    portraitRegression: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--url') parsed.url = argv[++i];
     else if (arg === '--out') parsed.out = argv[++i];
     else if (arg === '--headful') parsed.headful = true;
+    else if (arg === '--portrait-regression') parsed.portraitRegression = true;
     else if (arg === '--channel') parsed.channel = argv[++i];
     else if (arg === '--baseline') parsed.baseline = argv[++i];
     else if (arg === '--max-diff') parsed.maxDiff = Number(argv[++i]);
@@ -35,7 +37,7 @@ function parseArgs(argv) {
       const [w, h] = String(argv[++i]).split('x').map(Number);
       if (w > 0 && h > 0) parsed.viewport = { width: w, height: h };
     } else if (arg === '--help' || arg === '-h') {
-      console.log('usage: node scripts/browser-smoke.mjs [--url URL] [--out DIR] [--headful] [--channel NAME] [--baseline PNG] [--max-diff R] [--viewport WxH]');
+      console.log('usage: node scripts/browser-smoke.mjs [--url URL] [--out DIR] [--headful] [--channel NAME] [--baseline PNG] [--max-diff R] [--viewport WxH] [--portrait-regression]');
       process.exit(0);
     } else {
       console.error(`unknown argument: ${arg}`);
@@ -96,7 +98,7 @@ async function httpOk(url) {
 /** Serve `dist/` unless a URL was supplied. `vite preview` is the shipped artifact, not the dev server. */
 async function ensureServer(url) {
   if (args.url) return url;
-  serverProcess = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
+  serverProcess = spawn('npx', ['vite', ...(args.portraitRegression ? [] : ['preview']), '--port', String(PORT), '--strictPort'], {
     cwd: process.cwd(),
     shell: true,
     stdio: 'ignore',
@@ -336,6 +338,24 @@ async function main() {
   browser = await chromium.launch({ channel: args.channel, headless: !args.headful });
   report.browser = { channel: args.channel, headless: !args.headful, version: browser.version() };
   const page = await browser.newPage({ viewport: args.viewport });
+
+  // Runs in the same Chromium harness as the shipped-game smoke, against Vite's source server.
+  // It mounts the real CitizenOverviewScreen so React delivers same-tick world updates.
+  if (args.portraitRegression) {
+    page.on('pageerror', (error) => report.pageErrors.push(error.message.slice(0, 300)));
+    await page.goto(new URL('tests/browser/portrait.html', url), {
+      waitUntil: 'domcontentloaded',
+      timeout: args.timeoutMs,
+    });
+    const evidence = await page.evaluate(async () => {
+      const { runVillagePortraitUI } = await import('/tests/browser/villagePortraitUI.tsx');
+      return runVillagePortraitUI();
+    });
+    report.portraitUI = evidence;
+    record('portraitUI', report.pageErrors.length === 0, JSON.stringify(evidence));
+    if (report.pageErrors.length) record('pageErrors', false, report.pageErrors[0]);
+    return;
+  }
 
   // Frame-time recorder, installed before the valley exists: a slow environment must not be mistaken
   // for a frozen game.
