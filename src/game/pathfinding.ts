@@ -32,7 +32,7 @@ const SLOPE_DOWN_COST = 0.004;
 const CLIFF_STEP = 32;
 /** A road tile costs this fraction of a normal step — exactly the travel time the road speed saves. */
 const ROAD_STEP_COST = 1 / ROAD_SPEED_MULT;
-const PATH_MAX_SEARCH_NODES = 12000;
+const PATH_BASE_SEARCH_NODES = 12000;
 const PATH_ARRIVAL_DISTANCE_PX = 8;
 const ROAD_DETOUR_RECHECK_TILES = 20;
 
@@ -717,9 +717,10 @@ const SHARED_ROUTE_NODE_LIMIT = 131072;
  */
 function movementSearchNodeBudget(grid: PathGrid, previousBudget = 0): number {
   const terminal = Math.min(SHARED_ROUTE_NODE_LIMIT,
-    Math.max(PATH_MAX_SEARCH_NODES, grid.cols * grid.rows));
-  const initial = Math.min(terminal,
-    Math.max(PATH_MAX_SEARCH_NODES, Math.ceil(grid.cols * grid.rows / 2)));
+    Math.max(PATH_BASE_SEARCH_NODES, grid.cols * grid.rows));
+  // At most 4x the old default on the first attempt; difficult routes escalate later.
+  const initial = Math.min(terminal, PATH_BASE_SEARCH_NODES * 4,
+    Math.max(PATH_BASE_SEARCH_NODES, Math.ceil(grid.cols * grid.rows / 2)));
   return previousBudget > 0
     ? Math.min(terminal, Math.max(initial, previousBudget * 2))
     : initial;
