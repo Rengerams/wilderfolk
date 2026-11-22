@@ -111,7 +111,6 @@ function festivalFixture(goerCount: number): Fixture {
   world.visitorGroups = [
     visitorGroup('V1', 100, 100),
     visitorGroup('V2', 120, 120),
-    visitorGroup('P1', 300, 500, 'performers'),
   ];
   return { world, goers };
 }

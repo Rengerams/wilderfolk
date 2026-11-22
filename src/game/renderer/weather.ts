@@ -35,7 +35,7 @@ export interface WeatherTint {
 }
 
 /** What one weather state does, created once when that state becomes active. */
-export interface WeatherEffect {
+interface WeatherEffect {
   tint?: (f: WeatherFrame) => WeatherTint | null;
   update?: (dt: number, f: WeatherFrame) => void;
   draw?: (g: CanvasRenderingContext2D, f: WeatherFrame) => void;
@@ -51,7 +51,7 @@ export interface WeatherPlugin {
 /** Every weather state's effect. One entry per `WeatherType` — see `tests/weatherConsequences.test.ts`. */
 export const weatherRegistry = new Map<WeatherType, WeatherPlugin>();
 
-export function registerWeather(plugin: WeatherPlugin): void {
+function registerWeather(plugin: WeatherPlugin): void {
   weatherRegistry.set(plugin.id, plugin);
 }
 

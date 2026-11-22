@@ -477,9 +477,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   // Ceremony seats are the same id-sorted ranks for every settler; build them once per tick.
   const ceremonySeats = state.electionCeremony ? buildCeremonySeatIndex(state) : undefined;
 
-  // Festival places are tick-stable facts, indexed once rather than per settler.
-  const festivalPerformers = (state.visitorGroups ?? [])
-    .find((group) => group.kind === 'performers' && group.daysLeft > 0);
+  // The festival square is a tick-stable fact, indexed once rather than per settler.
   const festivalSquare = updatedBuildings.find(
     (b) => b.type === BuildingType.Square && b.completed,
   );
@@ -1064,11 +1062,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       suppressIdle = true;
       onSchedule = true;
     } else if (festivalGathering) {
-      const performers = festivalPerformers;
       const hall = staffedTownHalls.length > 0 ? staffedTownHalls[entity.id % staffedTownHalls.length] : undefined;
       const square = festivalSquare;
-      const targetX = square ? square.x + square.width / 2 : (performers?.campX ?? (hall ? hall.x : width * 0.5));
-      const targetY = square ? square.y + square.height / 2 : (performers?.campY ?? (hall ? hall.y : height * 0.5));
+      const targetX = square ? square.x + square.width / 2 : (hall ? hall.x : width * 0.5);
+      const targetY = square ? square.y + square.height / 2 : (hall ? hall.y : height * 0.5);
       // A real place per festival-goer: `crowdGatherPosition` spreads the crowd around the target.
       const stand = crowdGatherPosition(targetX, targetY, entity.id);
       const dx = stand.x - entity.x;
@@ -1352,7 +1349,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               settlerPairChat(entity, closest, 'courtship', 0.1);
             }
 
-            const hasPerformers = state.visitorGroups.some((g) => g.kind === 'performers' && g.daysLeft > 0);
             // Symmetric pair rule: both people's courtship aptitudes average into one rate.
             const courtshipFactor = combinePairFactors(
               evaluateAptitudeInfluence(entity, 'courtship').factor,
@@ -1361,7 +1357,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             const courtRate =
               courtshipRatePerHour(socialTime) *
               (state.festival?.active ? 2 : 1) *
-              (hasPerformers ? 1.35 : 1) *
               (livingTogether ? 1.5 : 1) *
               courtshipFactor *
               PER_TICK_RATE_SCALE;
@@ -1633,7 +1628,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       workplace,
       workSchedule,
       idleVenues,
-      festivalPerformers,
       treeGrid: ctx.treeGrid,
       trees: byType[EntityType.Tree],
       weekend,

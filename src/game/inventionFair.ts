@@ -16,8 +16,8 @@ import { getSimRng, getSimSeed, personDayRoll } from './simRng';
 import { crowdGatherPosition } from './simulation/humanMovement';
 import { isGroundWalkableAt } from './pathfinding';
 
-export const STORY_KEY = 'invention_fair';
-export const AUTHORED_STORY_COOLDOWN_DAYS = 14;
+const STORY_KEY = 'invention_fair';
+const AUTHORED_STORY_COOLDOWN_DAYS = 14;
 
 const FLAG_OFFERED = 'invention_fair_offered';
 const FLAG_STATUS = 'invention_fair_status';
@@ -301,7 +301,7 @@ function resolveStage2(state: WorldState, choice: Stage2Choice): boolean {
 }
 
 // One canonical new-event project table; legacy funded events use the original flag-based path above.
-export const INVENTION_FAIR_PROJECTS = {
+const INVENTION_FAIR_PROJECTS = {
   low_budget: { wood: 10, gold: 0, odds: [10, 40, 50, 0] },
   standard: { wood: 25, gold: 10, odds: [20, 40, 30, 10] },
   high_risk: { wood: 50, gold: 25, odds: [35, 15, 20, 30] },

@@ -4,7 +4,7 @@
  */
 import { getAbsoluteCalendarDay, TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycleClock';
 
-export type PrisonShiftKey = 'morning' | 'afternoon' | 'night';
+type PrisonShiftKey = 'morning' | 'afternoon' | 'night';
 
 export interface PrisonShift {
   key: PrisonShiftKey;
@@ -87,7 +87,7 @@ export function prisonWeekIndex(tick: number): number {
 }
 
 /** The shift a guard holds: their crew position, advanced one shift per calendar week. */
-export function shiftForCrewIndex(crewIndex: number, weekIndex: number): PrisonShift {
+function shiftForCrewIndex(crewIndex: number, weekIndex: number): PrisonShift {
   const count = PRISON_SHIFTS.length;
   const index = (((crewIndex + weekIndex) % count) + count) % count;
   return PRISON_SHIFTS[index];

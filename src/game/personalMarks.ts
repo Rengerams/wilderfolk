@@ -56,7 +56,7 @@ function isAllowedMarkSource(id: PersonalMarkId, source: unknown): source is Per
     && (MARK_ALLOWED_SOURCES[id] as readonly string[]).includes(source);
 }
 
-export function isPersonalMarkId(value: unknown): value is PersonalMarkId {
+function isPersonalMarkId(value: unknown): value is PersonalMarkId {
   return typeof value === 'string' && MARK_IDS.has(value);
 }
 

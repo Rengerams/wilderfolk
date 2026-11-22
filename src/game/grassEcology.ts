@@ -68,7 +68,7 @@ export function getWinterEnergyPenalty(season: Season): number {
  * Grass energy consumed per day to sustain one grazer at metabolic equilibrium.
  * Uses the same bite size and tick cadence as the wildlife simulation.
  */
-export function grazerGrassEnergyDemandPerDay(
+function grazerGrassEnergyDemandPerDay(
   energyLossPerTick: number,
   grassEnergyGain: number,
   winterPenalty = 0,
@@ -82,7 +82,7 @@ export function grazerGrassEnergyDemandPerDay(
  * Metabolism values mirrored from `SPECIES_CONFIG` grazers (already PER_TICK_RATE_SCALE).
  * The Wildkin is an apex predator, not a grazer: only species that take a grass bite belong here.
  */
-export const GRAZER_METABOLISM = {
+const GRAZER_METABOLISM = {
   deer: { energyLossPerTick: 4.2 * PER_TICK_RATE_SCALE, grassEnergyGain: 55 },
   rabbit: { energyLossPerTick: 2.5 * PER_TICK_RATE_SCALE, grassEnergyGain: 25 },
 } as const;

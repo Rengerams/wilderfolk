@@ -37,7 +37,7 @@ export function getEcosystemHealth(state: WorldState): number {
 }
 
 /** The single writer of the score: clamps to the 0–100 scale the readers assume. */
-export function setEcosystemHealth(state: WorldState, value: number): void {
+function setEcosystemHealth(state: WorldState, value: number): void {
   state.ecosystemHealth = Math.max(0, Math.min(100, value));
 }
 
@@ -83,7 +83,7 @@ export interface EcosystemMetrics {
  * Calculates the Shannon-Wiener biodiversity index (H') for the wildlife population.
  * H' = -sum(p_i * ln(p_i)) where p_i is the relative abundance of each species.
  */
-export function calculateBiodiversityIndex(counts: PopulationCounts): number {
+function calculateBiodiversityIndex(counts: PopulationCounts): number {
   const speciesCounts = [
     counts.rabbits,
     counts.deer,

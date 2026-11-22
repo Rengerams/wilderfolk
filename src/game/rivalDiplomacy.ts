@@ -32,11 +32,11 @@ const PEACE_TREATY_PLAYER_DAYS = 60;
 const PEACE_TREATY_EVENT_DAYS = 45;
 /** Truce the tribute answer buys — shorter than a signed treaty. */
 const PEACE_TREATY_TRIBUTE_DAYS = 21;
-/** Rival diplomacy prices — exported so the panel's button labels quote the owner's figures. */
-export const RIVAL_GIFT_FOOD_COST = 25;
-export const RIVAL_TRADE_PACT_GOLD_COST = 40;
-export const PEACE_TREATY_GOLD_COST = 30;
-export const PEACE_TREATY_FOOD_COST = 20;
+/** Rival diplomacy prices; the eligibility reasons and option labels quote these figures. */
+const RIVAL_GIFT_FOOD_COST = 25;
+const RIVAL_TRADE_PACT_GOLD_COST = 40;
+const PEACE_TREATY_GOLD_COST = 30;
+const PEACE_TREATY_FOOD_COST = 20;
 
 export function getRivalGiftEligibility(
   state: WorldState,
@@ -193,15 +193,15 @@ export function signPeaceTreaty(originalState: WorldState, rivalId: string): Wor
   return state;
 }
 
-/** Diplomacy-card prices — exported so the panel's button labels quote the owner's figures. */
-export const DIPLOMACY_TRIBUTE_PAY_FOOD = 30;
-export const DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD = 15;
-export const DIPLOMACY_ALLIANCE_ACCEPT_GOLD = 20;
-export const DIPLOMACY_ALLIANCE_COUNTER_FOOD = 25;
-export const DIPLOMACY_ALLIANCE_COUNTER_GOLD = 15;
-export const DIPLOMACY_PEACE_SIGN_GOLD = 15;
-export const DIPLOMACY_PEACE_SIGN_FOOD = 10;
-export const DIPLOMACY_PEACE_TRIBUTE_FOOD = 35;
+/** Diplomacy-card prices; the card's option labels quote these figures. */
+const DIPLOMACY_TRIBUTE_PAY_FOOD = 30;
+const DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD = 15;
+const DIPLOMACY_ALLIANCE_ACCEPT_GOLD = 20;
+const DIPLOMACY_ALLIANCE_COUNTER_FOOD = 25;
+const DIPLOMACY_ALLIANCE_COUNTER_GOLD = 15;
+const DIPLOMACY_PEACE_SIGN_GOLD = 15;
+const DIPLOMACY_PEACE_SIGN_FOOD = 10;
+const DIPLOMACY_PEACE_TRIBUTE_FOOD = 35;
 
 function diplomacyChoicesFor(kind: DiplomacyEventKind, rivalName: string): DiplomacyChoice[] {
   switch (kind) {
@@ -315,7 +315,7 @@ const DIPLOMACY_CARD_EXPIRE_AFTER_TICKS = 14 * TICKS_PER_DAY;
  * When a diplomacy card expires. Single owner: the daily sweep and the inspector's "Expires in N
  * days" both read it, so the countdown cannot promise a different deadline.
  */
-export function getDiplomacyExpiresAtTick(
+function getDiplomacyExpiresAtTick(
   event: { createdAtTick: number; expiresAtTick?: number },
 ): number {
   return event.expiresAtTick ?? event.createdAtTick + DIPLOMACY_CARD_EXPIRE_AFTER_TICKS;

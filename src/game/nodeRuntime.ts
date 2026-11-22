@@ -1,5 +1,5 @@
 /** True when running under Node (tsx, vitest node, sim scripts) — not the browser bundle. */
-export function isNodeRuntime(): boolean {
+function isNodeRuntime(): boolean {
   const proc = (globalThis as { process?: { versions?: { node?: string } } }).process;
   return typeof proc?.versions?.node === 'string';
 }

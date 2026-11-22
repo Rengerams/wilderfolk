@@ -6,7 +6,7 @@ export type { HuntVisual };
  * An arrow's flight is animated against the render clock: `startedAtMs` is a presentation-only stamp
  * (never read by a decision), while `startedAtTick` is the simulation reading that owns retention.
  */
-export const HUNT_ANIM_MS = 1000;
+const HUNT_ANIM_MS = 1000;
 
 /**
  * Retention in simulation ticks. At speed 1 a tick is one second, so this keeps the arrow for the
@@ -22,7 +22,7 @@ export function huntAnimProgress(visual: HuntVisual, nowMs = Date.now()): number
 }
 
 /** Whether the arrow is still inside its retention window, measured in simulation ticks. */
-export function isHuntVisualActive(visual: HuntVisual, nowTick: number): boolean {
+function isHuntVisualActive(visual: HuntVisual, nowTick: number): boolean {
   return nowTick - visual.startedAtTick < HUNT_ANIM_LIFETIME_TICKS;
 }
 

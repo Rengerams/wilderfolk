@@ -1,10 +1,7 @@
 import { useEffect, useRef, type RefObject } from 'react';
 
-/**
- * The one focusable-element query for full-screen overlays, exported so traps not built on
- * `useModalFocus` read the same list instead of keeping private copies.
- */
-export const FOCUSABLE_SELECTOR =
+/** The one focusable-element query for full-screen overlays in this module. */
+const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /** Every element inside `container` that Tab can reach, in document order. */

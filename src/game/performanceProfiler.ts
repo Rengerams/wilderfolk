@@ -6,7 +6,7 @@ import {
 } from './housingRelocationMonitor';
 
 /** Opt-in per-realm CPU-time sampling with bounded call-site names. */
-export interface PerformanceSection {
+interface PerformanceSection {
   name: string;
   calls: number;
   totalMs: number;
@@ -35,7 +35,7 @@ export interface PerformanceSnapshot {
 }
 
 export const PERFORMANCE_SAMPLE_LIMIT = 512;
-export const SIMULATION_TICK_BUDGET_MS = 1000;
+const SIMULATION_TICK_BUDGET_MS = 1000;
 
 interface MutableSection {
   calls: number;

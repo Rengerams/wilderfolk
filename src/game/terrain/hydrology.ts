@@ -213,11 +213,11 @@ export function computeFlow(filled: Float32Array, cols: number, rows: number): F
   return { downstream, accumulation };
 }
 
-export const DISCHARGE_AREA_EXPONENT = 0.69;
-export const WIDTH_AREA_EXPONENT = DISCHARGE_AREA_EXPONENT * 0.5;
-export const HEADWATER_WIDTH_FACTOR = 0.3;
-export const TRUNK_WIDTH_FACTOR = 2.4;
-export const CHANNEL_WIDTH_SCALE = 0.3;
+const DISCHARGE_AREA_EXPONENT = 0.69;
+const WIDTH_AREA_EXPONENT = DISCHARGE_AREA_EXPONENT * 0.5;
+const HEADWATER_WIDTH_FACTOR = 0.3;
+const TRUNK_WIDTH_FACTOR = 2.4;
+const CHANNEL_WIDTH_SCALE = 0.3;
 
 export function riverWidthAt(presetWidth: number, catchmentFraction: number): number {
   const t = Math.min(1, Math.max(0, catchmentFraction));

@@ -2,7 +2,7 @@
  * Opt-in, read-only recorder for relocated households (churn investigation). Bounded in both
  * directions: a fixed recent-event ring and a capped household index, so a long session cannot grow.
  */
-export interface HousingRelocationEvent {
+interface HousingRelocationEvent {
   tick: number;
   year: number;
   dayInYear: number;

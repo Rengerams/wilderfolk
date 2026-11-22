@@ -2,7 +2,7 @@ import type { RivalDailyAction, RivalProfile, RivalSettlement, WorldState } from
 import { normalizeRivalProfile } from './rivalProfiles';
 import { isRivalAtPeace } from './rivalPeace';
 
-export type RivalPresenceMode = 'trading' | 'gathering' | 'recovering' | 'preparing' | 'scouting' | 'quiet' | 'under_treaty';
+type RivalPresenceMode = 'trading' | 'gathering' | 'recovering' | 'preparing' | 'scouting' | 'quiet' | 'under_treaty';
 
 export interface RivalPresenceSummary {
   /** The single normalized profile used by all frontier-panel readings. */

@@ -5,7 +5,7 @@ import { EVENT_LOG_MAX_ENTRIES } from './eventLog';
 const DAYS_PER_ISSUE = 7;
 const TICKS_PER_ISSUE = DAYS_PER_ISSUE * TICKS_PER_DAY;
 
-export type GazetteArticle = {
+type GazetteArticle = {
   section: string;
   headline: string;
   event: GameEventLog;

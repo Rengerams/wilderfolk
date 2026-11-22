@@ -4,12 +4,11 @@
  */
 import type { WorldState, VisitorQuest } from './gameTypes';
 import { getAbsoluteCalendarDay } from './dayCycle';
-import { addBigNews } from './simEffects';
 import { getSimRng } from './simRng';
 import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
 
-export const QUEST_EXPIRE_DAYS = 4;
+const QUEST_EXPIRE_DAYS = 4;
 
 /** Chance a trader group starts the smith quest when they arrive. */
 const QUEST_START_CHANCE = 0.5;
@@ -36,16 +35,6 @@ export function maybeStartVisitorQuest(state: WorldState): void {
     status: 'active',
     expiresDay: getAbsoluteCalendarDay(state.tick) + QUEST_EXPIRE_DAYS,
   };
-}
-
-/** Day-boundary tick: fail/clear quests the smith gave up on. */
-export function tickVisitorQuest(state: WorldState): void {
-  const q = state.visitorQuest;
-  if (!q || q.status !== 'active') return;
-  if (getAbsoluteCalendarDay(state.tick) > q.expiresDay) {
-    state.visitorQuest = undefined;
-    addBigNews(state, 'The smith moved on', `${q.title} left without their goods.`, 'neutral');
-  }
 }
 
 /** Try to deliver the quest goods. Returns true when the quest completed. */

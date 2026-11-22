@@ -22,7 +22,7 @@ const MAX_DEMOLITION_EFFECTS = 8;
 const MAX_BUILDING_LEVEL = 3;
 
 /** Reason returned for a type whose level buys nothing; the UI hides the upgrade button for it. */
-export const NO_LEVEL_BENEFIT_REASON = 'This building does not have levels';
+const NO_LEVEL_BENEFIT_REASON = 'This building does not have levels';
 
 /**
  * Whether a level of this building type changes anything at all. The whole rule is membership of

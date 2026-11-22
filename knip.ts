@@ -25,6 +25,7 @@ const config: KnipConfig = {
   ignoreIssues: {
     'src/audio/index.ts': ['exports'], // [C] soundDirector, TRACKS, TRACK_VOLUMES, playFailSfx, VOLUMES, NOTES, playHuntSound, playErrorSound, startIntroSong, isIntroMusicPlaying, startMusic, stopMusic, stopAllAudio, setMute, VOLUME_PRESETS, initAudio (16)
     'src/audio/interactionSfx.ts': ['exports'], // [C] playFailSfx (1)
+    'src/audio/preferences.ts': ['exports'], // [C] VOLUME_PRESETS (1) — re-exported by the ignored audio barrel
     'src/audio/sampleLoader.ts': ['exports'], // [C] clearSampleCache (1)
     'src/audio/session.ts': ['exports'], // [C] isGameplayAudioActive (1)
     'src/game/apprenticeships.ts': ['exports'], // [A] apprenticeSkill (1)
@@ -70,8 +71,11 @@ const config: KnipConfig = {
     'src/test/factories.ts': ['exports'], // [B] stubHuman (1) — test-factory surface
   },
 
+  // Resolved by the Vite dev server inside the page, not by Node: the smoke script imports the
+  // harness by URL at runtime, so knip cannot see the file behind the specifier.
+  ignoreUnresolved: ['/tests/browser/villagePortraitUI.tsx'],
+
   ignoreDependencies: [
-    'jscpd',
     'oxlint',
     'oxlint-tsgolint',
   ],

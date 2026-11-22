@@ -921,7 +921,7 @@ export function legacyTerrainSeed(seed: number): number {
  * The terrain noise seed for a world. A save's own `terrainSeed` wins outright, so retuning the offset
  * (or `hashString`, or the size table) cannot repaint an existing valley.
  */
-export function terrainSeedFor(
+function terrainSeedFor(
   seed: number,
   size: WorldMap['size'],
   terrainSeed?: number,

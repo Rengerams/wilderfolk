@@ -1,6 +1,10 @@
 # Bug report summary — one line per report
 
-**2026-11-22 — [Predator breeding and restocking overwhelm prey](../bug_report/2026-11-22-wildlife-prey-collapse-predator-capacity.md):** investigating; consolidated wildlife prey-supported reproduction and refill from PR #173 into PR #172; focused regressions committed, long-run 90/360-day outcome still to be verified.
+**2026-11-22 — [Daily event odds quantized to 1/10,000 inflate small rates](../bug_report/2026-11-22-daily-odds-quantized-to-ten-thousandths.md):** open; `personDayRoll` returns `(hash % 10000) / 10000`, so illness death runs at 7.15%/yr instead of 4.32%, amicable divorce at 11.34% instead of 7.50%, age-60 old-age mortality at 3.65% instead of 2.00%, and the `damaged` valley illness bonus lands on the same bucket as `stable`.
+
+**2026-11-22 — [Predator breeding and restocking overwhelm prey](../bug_report/2026-11-22-wildlife-prey-collapse-predator-capacity.md):** investigating; wolf capacity and the prey floor now share one wildlife population policy, rabbits recover to 150 and are protected below 35, and wolf/fox caps depend on live prey (PR #172, consolidating #173); focused regressions committed, long-run 90/360-day outcome still to be verified. Supersedes the earlier [predator-ceiling audit report](../bug_report/2026-11-22-wildlife-predator-ceiling-collapses-prey.md).
+
+**2026-11-22 — [Architecture docs still schedule the retired visitor camps](../bug_report/2026-11-22-architecture-doc-still-schedules-retired-visitors.md):** resolved — documents corrected and the two unreachable `state.visitorGroups` reads in `humanTick.ts` removed 2026-11-22; `tickVisitorGroups` and its spawners still have no caller, so the layer table, ownership ledger and TEST-16 report are corrected or marked legacy.
 
 **2026-11-22 — [New storage building stays capped until the next production pass](../bug_report/2026-11-22-storage-caps-stale-after-night-construction.md):** investigating; PR #166 refreshes the existing capacity owner on construction completion at 23:00; Barn/Silo/Storehouse regression and CI pending.
 
@@ -152,7 +156,7 @@
 
 **2026-11-07 — [SIM-02: idle skills never decay](../bug_report/2026-11-07-idle-skill-decay-never-runs.md):** Midnight-only skill decay was called from the 18:00 world-events pass; moved to midnight. Status: resolved — exact decay passed in Node.js CI.
 
-**2026-11-07 — [TEST-16: visitor groups never age or depart](../bug_report/2026-11-07-visitor-groups-never-depart.md):** Visitor lifecycle now runs at 00:00 so gift/counter/departure decisions fire. Status: resolved — the multi-day regression passed in Node.js CI.
+**2026-11-07 — [TEST-16: visitor groups never age or depart](../bug_report/2026-11-07-visitor-groups-never-depart.md):** Visitor lifecycle ran at 00:00 so gift/counter/departure decisions fire. Status: resolved, then deprecated 2026-11-22 — the visitor camps were retired, so that lifecycle call no longer exists; the report is kept as history.
 
 **2026-11-07 — [Full-year test demanded a marriage a one-couple start cannot produce](../bug_report/2026-11-07-full-year-marriage-guard-one-couple-start.md):** The 360-day scenario started with one married couple in a full two-bed house, so no eligible pair or immigrant could exist and the marriage guard failed; the scaffold now seeds four eligible neighbours with homes plus two Silos (spoilage 0). The file and the full suite pass.
 

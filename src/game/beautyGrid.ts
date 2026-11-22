@@ -18,7 +18,7 @@ interface BeautyWorld {
 }
 
 /** Beauty falloff radius in tiles around each decor building. */
-export const BEAUTY_RADIUS_TILES = 3;
+const BEAUTY_RADIUS_TILES = 3;
 /** Happiness mapping — base 50, +2 per beauty point at a settler's feet. */
 export const HAPPINESS_BASE = 50;
 export const HAPPINESS_PER_BEAUTY = 2;

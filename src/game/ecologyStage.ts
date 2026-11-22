@@ -16,7 +16,7 @@ import { addReputation } from './simHelpers';
 import { loadValleyStageWarnings } from './preferences';
 
 export type EcologyDriverId = 'grazing' | 'predators' | 'overhunt' | 'footprint';
-export type DriverBand = 'good' | 'caution' | 'bad';
+type DriverBand = 'good' | 'caution' | 'bad';
 
 export interface EcologyDriverView {
   id: EcologyDriverId;
@@ -69,7 +69,7 @@ function parkValleyStageState(state: WorldState): void {
 }
 
 /** No Collapse until the colony has lived this many absolute days. */
-export const ECOLOGY_COLLAPSE_MIN_DAY = 14;
+const ECOLOGY_COLLAPSE_MIN_DAY = 14;
 /** Metrics must stay elevated this many colony days before stage +1 (warning-first). */
 const CONFIRM_UP_DAYS = 3;
 /** Improved metrics must hold before stage −1. */

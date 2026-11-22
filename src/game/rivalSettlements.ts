@@ -32,7 +32,7 @@ function uniqueRivalName(state: WorldState): string {
   return name;
 }
 
-export function spawnRivalSettlement(
+function spawnRivalSettlement(
   state: WorldState,
   buildings: Building[],
   /** Scripted founding state; the pool draws its own when this is omitted. */

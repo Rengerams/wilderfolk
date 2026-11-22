@@ -41,7 +41,7 @@ import { getBuildingConfig } from './buildingConfig';
 /** Distance under which a worker counts as standing at their post — the sim's own arrival test. */
 export const WORK_ARRIVE_DISTANCE = 24;
 
-export type SettlerWorkReasonCode =
+type SettlerWorkReasonCode =
   | 'dead'
   | 'working'
   | 'walking-to-work'

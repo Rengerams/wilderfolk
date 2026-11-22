@@ -9,7 +9,7 @@ export const SPOTLIGHT_LIGHT_CUE_MS = 1450;
 export const SPOTLIGHT_MUSIC_CUE_MS = 1650;
 export const SPOTLIGHT_MUSIC_FADE_MS = 1400;
 export const SPOTLIGHT_REVEAL_START_MS = 1850;
-export const SPOTLIGHT_REVEAL_DURATION_MS = SPOTLIGHT_INTRO_MS - SPOTLIGHT_REVEAL_START_MS;
+const SPOTLIGHT_REVEAL_DURATION_MS = SPOTLIGHT_INTRO_MS - SPOTLIGHT_REVEAL_START_MS;
 
 export interface SpotlightOpeningFrame {
   readonly blackoutOpacity: number;
@@ -49,12 +49,12 @@ export function spotlightOpeningCues(
 
 export const SPOTLIGHT_APPLAUSE_MS = 6400;
 
-export const SPOTLIGHT_CUES = [
+const SPOTLIGHT_CUES = [
   'juvenile-reply', 'first-look-pose', 'first-chorus-start', 'first-chorus-end',
   'second-look-lead', 'second-look-pose', 'bridge-hearts-start',
   'farewell-walk', 'final-heroine',
 ] as const;
-export type SpotlightCue = typeof SPOTLIGHT_CUES[number];
+type SpotlightCue = typeof SPOTLIGHT_CUES[number];
 
 export interface SpotlightCaption {
   readonly id: string;
@@ -121,7 +121,7 @@ function readCaptions(): readonly SpotlightCaption[] {
 
 export const SPOTLIGHT_CAPTIONS = readCaptions();
 
-export function spotlightLineDurationMs(text: string): number {
+function spotlightLineDurationMs(text: string): number {
   return Math.max(3000, Math.min(5300, 1900 + text.length * 43));
 }
 
@@ -158,7 +158,7 @@ export const SPOTLIGHT_BRIDGE_START = captionBoundary('bridge-hearts-start', 'st
 export const SPOTLIGHT_FAREWELL_START = captionBoundary('farewell-walk', 'start');
 export const SPOTLIGHT_APPLAUSE_START = SPOTLIGHT_TOTAL_MS - SPOTLIGHT_APPLAUSE_MS;
 
-export const SPOTLIGHT_CIRCLE_CYCLE_MS = 3500;
+const SPOTLIGHT_CIRCLE_CYCLE_MS = 3500;
 export const SPOTLIGHT_WALK_RADIUS_PX = 28;
 
 export function spotlightFrameAt(elapsedMs: number): SpotlightFrame {

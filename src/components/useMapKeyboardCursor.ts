@@ -57,10 +57,10 @@ const CURSOR_STEPS: Readonly<Record<string, MapCursorPoint | undefined>> = {
 /**
  * Activation key. Enter only, never Space: `useKeyboardControls` claims Space to pause in the capture phase.
  */
-export const MAP_CURSOR_ACTIVATION_KEY = 'Enter';
+const MAP_CURSOR_ACTIVATION_KEY = 'Enter';
 
 /** Escape: clears the cursor. Cancelling an armed build type stays the game's own Escape chain. */
-export const MAP_CURSOR_CANCEL_KEY = 'Escape';
+const MAP_CURSOR_CANCEL_KEY = 'Escape';
 
 const MAP_CURSOR_STEP_KEYS: readonly string[] = Object.freeze(Object.keys(CURSOR_STEPS));
 

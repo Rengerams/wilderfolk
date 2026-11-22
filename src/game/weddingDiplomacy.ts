@@ -13,8 +13,8 @@ import { getSimSeed } from './simRng';
 import { spendFood } from './economyLedger';
 import { RIVAL_RELATIONSHIP_STEPS, shiftRivalRelationship } from './rivalDiplomacy';
 
-export const STORY_KEY = 'wedding_diplomacy';
-export const AUTHORED_STORY_COOLDOWN_DAYS = 28;
+const STORY_KEY = 'wedding_diplomacy';
+const AUTHORED_STORY_COOLDOWN_DAYS = 28;
 
 const FLAG_OFFERED = 'wedding_diplomacy_offered';
 const FLAG_STATUS = 'wedding_diplomacy_status';
@@ -51,7 +51,7 @@ type Stage1Choice = 'gift_practical' | 'gift_impressive' | 'decline' | 'envoy';
 type Stage2Choice = 'host_feast' | 'send_delegation' | 'stay_home_fortify';
 type WeddingOutcome = 'alliance' | 'uneasy_respect' | 'insult' | 'catastrophe';
 
-export function weddingDiplomacyEligibleDay(mapSeed: number | undefined): number {
+function weddingDiplomacyEligibleDay(mapSeed: number | undefined): number {
   return eligibleDayForStory(mapSeed, STORY_KEY, MIN_DAY, WINDOW_DAYS);
 }
 

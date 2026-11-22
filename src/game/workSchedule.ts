@@ -5,7 +5,7 @@ export const DEFAULT_WORK_START_HOUR = 7;
 export const DEFAULT_WORK_END_HOUR = 16;
 
 /** Baseline work window for production scaling — 9 hours = 1.0 output. */
-export const STANDARD_PRODUCTION_WORK_HOURS = 9;
+const STANDARD_PRODUCTION_WORK_HOURS = 9;
 
 export interface WorkSchedule {
   startHour: number;

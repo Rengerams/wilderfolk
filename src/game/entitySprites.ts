@@ -2,7 +2,7 @@ import { EntityType, type Entity } from './gameTypes';
 import { HUMAN_WORLD_HEIGHT } from './humanSprites';
 
 /** Visual heights in world units — tuned vs house (40wu) and settler (20wu). */
-export const ANIMAL_WORLD_HEIGHT: Partial<Record<EntityType, number>> = {
+const ANIMAL_WORLD_HEIGHT: Partial<Record<EntityType, number>> = {
   [EntityType.Rabbit]: HUMAN_WORLD_HEIGHT * 0.4,
   [EntityType.Fox]: HUMAN_WORLD_HEIGHT * 0.58,
   [EntityType.Wolf]: HUMAN_WORLD_HEIGHT * 0.7,

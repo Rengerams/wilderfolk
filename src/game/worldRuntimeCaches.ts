@@ -51,18 +51,18 @@ export function hydrateWorldRuntimeCaches(world: WorldState, preserveGeometry = 
 }
 
 
-export interface PreservedSimulationState {
+interface PreservedSimulationState {
   scentGrid: WorldState['scentGrid'];
 }
 
 /** Take the simulation state out before a rebuild, so it can be put back after one. */
-export function captureSimulationState(world: WorldState): PreservedSimulationState {
+function captureSimulationState(world: WorldState): PreservedSimulationState {
   if (!world || typeof world !== 'object') return { scentGrid: undefined };
   return { scentGrid: world.scentGrid };
 }
 
 /** Put captured simulation state back onto `world` (see `PreservedSimulationState`). */
-export function restoreSimulationState(world: WorldState, preserved: PreservedSimulationState): void {
+function restoreSimulationState(world: WorldState, preserved: PreservedSimulationState): void {
   if (!world || typeof world !== 'object') return;
   world.scentGrid = preserved.scentGrid;
 }

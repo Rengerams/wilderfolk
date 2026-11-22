@@ -22,7 +22,7 @@ const HUNT_DEFAULT_BASE_YIELD = 18;
  * The one colony-larder meal rule, read without eating: every gate {@link tryEatColonyMeal}
  * applies before it drains a unit of food.
  */
-export function canEatColonyMeal(state: WorldState, entity: Entity): boolean {
+function canEatColonyMeal(state: WorldState, entity: Entity): boolean {
   if (!entity.alive || state.resources.food <= 0) return false;
   return isPlayerHuman(entity) && resolveHumanNeedsIntent(entity, state.tick, false) === 'eat';
 }

@@ -761,7 +761,7 @@ function clearJobAssignment(human: Entity, buildings: Building[]): void {
   removeWorkerTransition(human, buildings);
 }
 
-export function assignBuilderInPlace(
+function assignBuilderInPlace(
   building: Building,
   humans: Entity[],
   allBuildings: Building[],

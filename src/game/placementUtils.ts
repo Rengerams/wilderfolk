@@ -143,7 +143,7 @@ export function overlapsAnyBuilding(
 }
 
 /** The only overlap exception: perpendicular strips of the same road or solid-wall type. */
-export function stripCrossingIsTheOnlyOverlap(
+function stripCrossingIsTheOnlyOverlap(
   buildings: readonly Building[],
   x: number,
   y: number,

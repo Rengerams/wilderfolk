@@ -77,7 +77,7 @@ export const MOON_HOWLER_GUARD_SAVE_CHANCE = 0.5;
  */
 export const MOON_HOWLER_REPLACEMENT_CHANCE = 0.15;
 
-export type MoonHowlerRiteOutcome = 'cured' | 'priest_killed' | 'priest_fled';
+type MoonHowlerRiteOutcome = 'cured' | 'priest_killed' | 'priest_fled';
 
 export interface MoonHowlerRiteWeights {
   cure: number;

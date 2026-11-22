@@ -11,7 +11,7 @@ import { ELECTION_INTERVAL_YEARS } from './villageLeadership';
 import { isFoodCritical } from './resourceUtils';
 import { getEcosystemHealth } from './dailyEcology';
 
-export type ContextualTutorialId =
+type ContextualTutorialId =
   | 'shelter_night'
   | 'first_building_done'
   | 'first_worker_assigned'

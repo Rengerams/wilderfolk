@@ -808,6 +808,8 @@ export function findRouteCostOutcome(
     return { cost: quote.status === 'priced' ? quote.costTiles : null,
       budgetExhausted: quote.status === 'pending' };
   }
+  // A blocked single-tile route has no walkable position to price; endpoint recovery would invent a leg.
+  if (sx === tx && sy === ty) return { cost: null, budgetExhausted: false };
   const result = searchRoute(grid, sx, sy, tx, ty, maxNodes, true);
   return { cost: result.cost, budgetExhausted: result.hitNodeCap };
 }

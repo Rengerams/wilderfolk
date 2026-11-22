@@ -45,7 +45,7 @@ export function terrainPaletteHex(type: TerrainType): string {
 }
 
 /** Atlas terrain families we can paint. */
-export type AtlasFamily = 0 | 1; // 0 = grass, 1 = water
+type AtlasFamily = 0 | 1; // 0 = grass, 1 = water
 const GRASS: AtlasFamily = 0;
 const WATER: AtlasFamily = 1;
 
