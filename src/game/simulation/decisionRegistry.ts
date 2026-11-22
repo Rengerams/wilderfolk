@@ -86,6 +86,7 @@ export type DecisionKey =
   | 'affairs'
   | 'conception'
   | 'pregnancyBirth'
+  | 'wildkinLineage'
   | 'moonHowler'
   | 'leadership'
   | 'raidCombat'
@@ -614,6 +615,21 @@ export const SIMULATION_DECISIONS = {
     ],
     scheduledFrom: 'humanTick.ts pregnancy gate → humanLifecycle.tickPregnancyAndBirth → settlerTraits.inheritGenome (birth-key seeded stream); entityFactory.createEntity(opts.pregnant) → pregnancy.startPregnancy (arrival spawns)',
     testFile: 'tests/humanLifecycle.test.ts, tests/hospitalWalk.regression.test.ts, tests/pregnancyHospitalWork.test.ts, tests/settlers.indoors.test.ts, tests/workAbsence.reasons.test.ts, tests/conceptionEvent.labelling.test.ts, tests/personality.romanceContext.test.ts, tests/settlerTraits.test.ts, tests/duplicationA.remaining.test.ts',
+  },
+  wildkinLineage: {
+    owner: 'humanLifecycle.ts — tickPregnancyAndBirth (human mother + closest deer father); tickLayerSystems.ts — tickWildlife (Wildkin parents and juvenile guardian steering); genealogyRegistry.ts — recordGenealogyBirth, recordGenealogyDeath, syncGenealogyRegistry (sole persisted family owner); wildkinChronicle.ts — logWildkinBirth, logWildkinDeath, tickWildkinChronicle (sole log owner)',
+    cadence: 'systems',
+    cadenceNote: 'A human birth uses the pregnancy cadence, wild-to-wild births and juvenile movement use the systems cadence, and a daily genealogy census receives the already-merged alive set. Human mothers retain their Wildkin children in the historical registry without adding animals to housing; newborns follow the human mother while juvenile instead of being expelled.',
+    writes: [
+      'wildkin.motherId / wildkin.fatherId (deer, never human spouse)',
+      'wildkin.wildkinParentIds',
+      'wildkin.wildkinGuardianId',
+      'wildkin.age / wildkin.isJuvenile',
+      'genealogyRegistry.people',
+      'eventLog',
+    ],
+    scheduledFrom: 'humanTick.ts → tickPregnancyAndBirth; tickLayerSystems.ts → tickWildlife → pushNewEntity; tickLayerDaily.ts → tickDailyWorldEvents → syncGenealogyRegistry; wildlife death → retireWildlifeInState → recordGenealogyDeath',
+    testFile: 'tests/humanLifecycle.test.ts, tests/genealogyRegistry.test.ts, tests/wildkin.apexRole.test.ts',
   },
   moonHowler: {
     owner: 'moonHowler.ts + moonHowlerForm.ts — tickMoonHowlerCycle, curseMoonHowler, transformToWerewolfForm, revertToHumanForm, cureMoonHowler, finalizeMoonHowlerDeath, isSettlerRelationshipEntity; night window owned by daycycleconstants.ts',
