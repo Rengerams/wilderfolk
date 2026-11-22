@@ -176,8 +176,10 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
       const t = tileAt(map, x, y);
       if (!t) continue;
       elevation[i] = t.elevation;
+      // The L0 grid is authoritative: water and generator-reserved decor (a big rock) both bar
+      // walking; a map without one falls back to the terrain trait.
       blocked[i] = hasPathGrid
-        ? (map.pathGrid![i] === Walkability.Water ? 1 : 0)
+        ? (map.pathGrid![i] === Walkability.Open ? 0 : 1)
         : (isWalkableTerrainType(t.type) ? 0 : 1);
       terrainBlocked[i] = blocked[i];
     }
@@ -293,6 +295,45 @@ function nearestWalkableTile(
     if (best && worldInsideStart && bestDistanceSq <= ((radius + 0.5) * PATH_CELL) ** 2) break;
   }
   return best;
+}
+
+/** Rings scanned around a blocked destination for a stand point on the walker's own side. */
+const GOAL_STAND_RINGS = 4;
+
+/**
+ * The stand point for a blocked destination, chosen on the walker's side of the obstacle: the first
+ * walkable ring around the goal keeps it as close to the requested tile as possible, and within that
+ * ring the tile nearest the walker wins — so a route never crosses a river or wall to the far bank.
+ */
+function nearestStandTileToWalker(
+  grid: PathGrid,
+  goalX: number,
+  goalY: number,
+  fromX: number,
+  fromY: number,
+): { x: number; y: number } | null {
+  const { cols, rows, blocked } = grid;
+  for (let radius = 1; radius <= GOAL_STAND_RINGS; radius++) {
+    const minX = Math.max(0, goalX - radius);
+    const maxX = Math.min(cols - 1, goalX + radius);
+    const minY = Math.max(0, goalY - radius);
+    const maxY = Math.min(rows - 1, goalY + radius);
+    let best: { x: number; y: number } | null = null;
+    let bestDistanceSq = Infinity;
+    for (let ty = minY; ty <= maxY; ty++) {
+      const onEdgeRow = ty === minY || ty === maxY;
+      for (let tx = minX; tx <= maxX; tx++) {
+        if (!onEdgeRow && tx !== minX && tx !== maxX) continue;
+        if (blocked[ty * cols + tx] !== 0) continue;
+        const distanceSq = (tx - fromX) ** 2 + (ty - fromY) ** 2;
+        if (distanceSq >= bestDistanceSq) continue;
+        bestDistanceSq = distanceSq;
+        best = { x: tx, y: ty };
+      }
+    }
+    if (best) return best;
+  }
+  return null;
 }
 
 /** Find a valid stand point for a restored entity, with bridge and building masks applied. */
@@ -1107,13 +1148,18 @@ export function steerWithPath(
         || startTy >= currentGrid.rows || currentGrid.blocked[startTy * currentGrid.cols + startTx] !== 0;
       const goalBlocked = goalTx < 0 || goalTy < 0 || goalTx >= currentGrid.cols
         || goalTy >= currentGrid.rows || currentGrid.blocked[goalTy * currentGrid.cols + goalTx] !== 0;
+      // A blocked destination is approached from the walker's side: snapping to the tile nearest
+      // the goal's centre could sit on the far bank of a river or the far side of a wall.
+      const goalStand = goalBlocked
+        ? nearestStandTileToWalker(currentGrid, goalTx, goalTy, startTx, startTy) : null;
       // Prefer shared optimal geometry; a remote road may exhaust its discounted A* budget.
       // In that case retry with the existing bounded movement heuristic and preserve its
       // path. Never downgrade a confirmed unreachable quote into an unbounded search.
       const shared = startBlocked || goalBlocked ? null : getNavigationQuote(currentGrid,
         { x: startTx, y: startTy }, { x: goalTx, y: goalTy }, { maxNodes: PATH_MAX_SEARCH_NODES });
       const fallback = startBlocked || goalBlocked
-        ? walkRoute(currentGrid, startTx, startTy, goalTx, goalTy, PATH_MAX_SEARCH_NODES)
+        ? walkRoute(currentGrid, startTx, startTy, goalStand?.x ?? goalTx, goalStand?.y ?? goalTy,
+          PATH_MAX_SEARCH_NODES)
         : shared?.status === 'pending' && !!pricedRoadMask(currentGrid)
           ? searchRoute(currentGrid, startTx, startTy, goalTx, goalTy, PATH_MAX_SEARCH_NODES, false, true)
           : null;

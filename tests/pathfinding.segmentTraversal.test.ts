@@ -4,6 +4,7 @@ import {
   lineCrossesBlocked, nearestWalkableWorldPoint, resetPathGridCaches, setCurrentPathMap,
   steerWithPath, type PathGrid,
 } from '../src/game/pathfinding';
+import { applyHumanWalkStep } from '../src/game/simulation/humanMovement';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
 import { building, human } from '../src/test/factories';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -203,6 +204,31 @@ describe('one authoritative movement walkability verdict', () => {
       const walker = human(2716, { x: center(5), y: center(7) });
       expect(steerWithPath(walker, center(10), center(7), 6, 'offroad-corner')).toBe('path');
       expect(Math.hypot(walker.vx, walker.vy)).toBeCloseTo(6);
+    } finally {
+      setCurrentPathMap(null);
+      resetPathGridCaches();
+    }
+  });
+
+  it('stands on the walker\'s own bank of a blocked destination', () => {
+    // Snapping a blocked goal to the tile nearest the goal centre put an east-bank walker on the
+    // west bank, so it crossed the river at a far bridge for a target ten pixels away.
+    const map = testWorldMap({
+      tilesX: 40, tilesY: 24, seed: 2720,
+      tileType: (x, y) => (x === 20 && y !== 22 ? TerrainType.River : undefined),
+    });
+    resetPathGridCaches();
+    setCurrentPathMap(map, []);
+    try {
+      const walker = human(2720, { x: center(25), y: center(10) });
+      let verdict = steerWithPath(walker, center(20), center(10), 2, 'blocked-bank');
+      for (let tick = 0; tick < 400 && verdict !== 'blocked'; tick++) {
+        applyHumanWalkStep(walker, 1);
+        verdict = steerWithPath(walker, center(20), center(10), 2, 'blocked-bank');
+      }
+      expect(verdict).toBe('blocked');
+      expect(Math.floor(walker.x / PATH_CELL), 'never crossed the river').toBeGreaterThan(20);
+      expect(Math.floor(walker.y / PATH_CELL)).toBe(10);
     } finally {
       setCurrentPathMap(null);
       resetPathGridCaches();

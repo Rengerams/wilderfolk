@@ -199,20 +199,25 @@ describe('pathfinding', () => {
     expect(path!.some((tile) => tile.x >= 4 && tile.x <= 9 && tile.y >= 3 && tile.y <= 5)).toBe(false);
   });
 
-  it('ignores reserved scenery and decorative structures on ordinary land', () => {
+  it('routes around a generator-reserved boulder and still crosses decorative buildings', () => {
     const map = makeMap(12, 8, 2031, () => false);
-    const at = 3 * map.width + 6;
-    map.pathGrid![at] = 2;
+    // The L3 decor pass reserves the cell of a big rock (`Walkability.Reserved`) and the build
+    // grid already refuses to build there, so the walker must treat it as solid.
+    const rock = 3 * map.width + 6;
+    map.pathGrid![rock] = 2;
     const decor: Building = {
-      id: 901, type: BuildingType.Garden, x: 6.5 * PATH_CELL, y: 3.5 * PATH_CELL,
+      id: 901, type: BuildingType.Garden, x: 8.5 * PATH_CELL, y: 3.5 * PATH_CELL,
       width: PATH_CELL, height: PATH_CELL,
       occupants: [], level: 1, constructionProgress: 100, completed: true,
       health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
     };
     const grid = getPathGrid(map, [decor]);
-    expect(grid.blocked[at], 'scenery and non-solid decor cannot block walkers').toBe(0);
-    expect(findPath(grid, 1, 3, 10, 3)).not.toBeNull();
-    expect(lineCrossesBlocked(grid, 15, 35, 105, 35)).toBe(false);
+    expect(grid.blocked[rock], 'a reserved boulder bars walking').toBe(1);
+    expect(grid.blocked[3 * grid.cols + 8], 'a decorative structure stays walkable').toBe(0);
+    expect(lineCrossesBlocked(grid, 15, 35, 105, 35), 'no straight line through the rock').toBe(true);
+    const path = findPath(grid, 1, 3, 10, 3);
+    expect(path, 'there is still a route around the rock').not.toBeNull();
+    expect(path!.some((tile) => tile.x === 6 && tile.y === 3)).toBe(false);
   });
 
   it('rebuilds the route when a completed solid structure is removed', () => {

@@ -1,0 +1,44 @@
+# Base44 development stack for Wilderfolk: the Vite dev server runs from the cloned
+# source so edits are live. Run tests inside this service, e.g.
+#   docker compose -f docker-compose.base44.yml exec -T web npx vitest run tests/pathfinding.test.ts
+name: wilderfolk
+
+services:
+  web:
+    image: node:22-bookworm-slim
+    working_dir: /app
+    # Install only when the lockfile changed, then start the live-reload dev server on
+    # the public preview port. node_modules lives in a volume so installs survive restarts.
+    command:
+      - sh
+      - -ec
+      - |
+        STAMP=node_modules/.package-lock.stamp
+        HASH=$$(sha1sum package-lock.json | cut -d' ' -f1)
+        if [ ! -x node_modules/.bin/vite ] || [ "$$(cat $$STAMP 2>/dev/null)" != "$$HASH" ]; then
+          npm ci --no-audit --no-fund
+          echo "$$HASH" > $$STAMP
+        fi
+        exec npx vite --host 0.0.0.0 --port 3000 --strictPort
+    environment:
+      - BASE44_PREVIEW_MODE
+      - __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - wilderfolk_node_modules:/app/node_modules
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 240s
+    restart: on-failure
+
+volumes:
+  wilderfolk_node_modules:

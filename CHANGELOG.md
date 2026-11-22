@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (22 Nov 2026; pending merge):** Large rocks block walking again, a blocked destination is approached from the settler's own side instead of across a river or wall, and a house packed between neighbours keeps a usable door.
+
 - **Refactored (22 Nov 2026; pending merge):** Farm and greenhouse weather-yield calculations now live with weather rules instead of grass ecology; gameplay unchanged.
 
 - **Removed (22 Nov 2026; pending merge):** The two unreachable festival-performer reads left behind by the visitor-camp retirement are gone. Festival crowds still gather at the Square, and the courtship festival bonus is unchanged.

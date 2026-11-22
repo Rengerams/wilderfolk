@@ -204,9 +204,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/humanLeisureBehavior.test.ts, tests/simulation.decisionRegistry.test.ts',
   },
   buildingAccess: {
-    owner: 'buildingAccess.ts — buildingAccessPoints (validated facades), buildingAccessPoint (canonical UI frontage), isOpenDoorstep (facade corridor), isAtBuildingReach (the one arrival rule)',
+    owner: 'buildingAccess.ts — buildingAccessPoints (validated facades), buildingAccessPoint (canonical UI frontage), isOpenDoorstep (facade corridor), doorstepHasExit (usable doorstep), isAtBuildingReach (the one arrival rule)',
     cadence: 'on-demand',
-    cadenceNote: 'Pure read-only geometry: buildingAccessPoints samples the full accessible perimeter at path-cell intervals and validates each frontage against the current grid; buildingAccessPoint selects a canonical first frontage for presentation, while isAtBuildingReach accepts any nearby reachable side. No extra state or scheduler. No tick, no scheduler, no RNG and no writes; the commuter targets the access and the activity enterHumanBuilding call decides entry.',
+    cadenceNote: 'Pure read-only geometry: buildingAccessPoints samples the full accessible perimeter at path-cell intervals and validates each frontage against the current grid; a doorstep is usable when doorstepHasExit finds one walkable orthogonal neighbour outside the footprint, so a narrow alley counts as a street; buildingAccessPoint selects a canonical first frontage for presentation, while isAtBuildingReach accepts any nearby reachable side. No extra state or scheduler. No tick, no scheduler, no RNG and no writes; the commuter targets the access and the activity enterHumanBuilding call decides entry.',
     writes: [],
     scheduledFrom: 'humanMovement.commuteHumanToBuilding (navigation target and arrival), humanTick attendance, workAbsence, humanStatus, education, humanHospitalBehavior, hotelStay, logisticsOverlayData',
     testFile: 'tests/homeEntry.geometry.test.ts, tests/buildingAccess.routeAround.test.ts, tests/settlers.indoors.test.ts, tests/workAbsence.reasons.test.ts, tests/education.centerGeometry.test.ts',

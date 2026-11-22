@@ -384,8 +384,11 @@ describe('M22 path cache origin', () => {
   it('recomputes a cached path started from a different origin', () => {
     // Horizontal river at tile row 20 with a single gap at column 35.
     setCurrentPathMap(makeMap(40, 40, 922, (x, y) => y === 20 && x !== 35), []);
-    const target = { x: pixel(20, 10), y: pixel(20, 10) };
-    const entity = human(7, pixel(5, 35), pixel(5, 35));
+    // A walkable target north of the river: a blocked target is now approached from the walker's
+    // own side, which would make "did it steer back to the stale origin?" unanswerable. `pixel`
+    // reads one tile index, so each axis is converted on its own.
+    const target = { x: pixel(20, 0), y: pixel(10, 0) };
+    const entity = human(7, pixel(5, 0), pixel(35, 0));
     const cacheKey = 'c_7_42_h';
 
     // First leg: cached from the bottom-left corner.
@@ -397,8 +400,8 @@ describe('M22 path cache origin', () => {
     entity.y = pixel(25, 35);
     expect(steerWithPath(entity, target.x, target.y, 5, cacheKey)).toBe('path');
 
-    const toStaleOriginX = pixel(5, 35) - entity.x;
-    const toStaleOriginY = pixel(5, 35) - entity.y;
+    const toStaleOriginX = pixel(5, 0) - entity.x;
+    const toStaleOriginY = pixel(35, 0) - entity.y;
     const steeredBackToOrigin = entity.vx * toStaleOriginX + entity.vy * toStaleOriginY;
     expect(steeredBackToOrigin).toBeLessThanOrEqual(0);
   });
