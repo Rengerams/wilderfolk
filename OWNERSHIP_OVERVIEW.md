@@ -317,7 +317,8 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Dashboard projections | `dashboardData.ts` | UI (read-only projection) | `collectDashboard`, `explainSettler`, `deriveDashboardBuildings` (the village building table's rows) |
 | Chronicle export and download | `eventLogExport.ts` | UI + autosave | `downloadChronicleLog`, `formatChronicleText`, `formatChronicleJSON`, `buildChronicleFilename` |
 | Population and wildlife counts | `entityCounts.ts` | per-tick bookkeeping (`gameTick`, `tickLayerRealtime`) + daily point-of-use snapshot (`tickLayerDaily`) | `computePopulationCounts`, `countLivingPopulation`, `computeWildlifeCounts`, `wildlifeCountsFromPopulation` |
-| Rival presence summary | `rivalPresence.ts` | UI projection | `getRivalPresenceSummary` — labels the camp's actual last action (including gathering) and gives the treaty precedence. |
+| Rival presence summary | `rivalPresence.ts` | UI projection | `getRivalPresenceSummary` — the only UI projection of camp status and normalized rival profile; delegates normalization to `rivalProfiles.ts` and peace eligibility to `rivalPeace.ts`. |
+| Frontier panel data | `frontierPanelView.ts` | read-only UI projection | `projectFrontierPanel` — the sole pre-render assembly of rival card, combat preview, militia, war-band, event, and visitor presentation data; delegates each gameplay rule to its registered domain owner. `FrontierPanel.tsx` only renders the projection and sends player commands. |
 | Renffr star omen and settler gossip | `renffrStar.ts` | realtime (`tickLayerRealtime`, `tickHumans`) + overlay draw | `maybeTriggerRenffrOmen`, `tickRenffrOmen`, `createRenffrOmen`, `beginRenffrSettlerChatter`, `isRenffrGossipActive`, `drawRenffrOmen` |
 | Chronicle/log panel presentation | `EventLogPanel.tsx` | UI (read + export only) | `EventLogPanel` |
 | Apprenticeships (master/apprentice pairing and skill transfer) | `apprenticeships.ts` | new-calendar-day (`tickLayerDaily`) | `advanceApprenticeships`, `apprenticeSkill`, `teach` — `advanceApprenticeships` owns the daily pass and `teach` applies the trade's `apprenticeshipTraining` activity factor once to the daily skill gain |
@@ -838,6 +839,7 @@ Named functions and named React callbacks were audited across every complete sou
 | `tests/raidDeadline.owner.test.ts` | `undatedRaid`, `readSrc` | Local raid fixtures (including the corrupt undated-deadline payload) and source-read probe; no runtime decision authority |
 | `tests/warfare.lifecycle.test.ts` | `colony`, `raid`, `reload` | Local warfare fixtures; no runtime decision authority |
 | `tests/frontierCombat.raidGold.test.ts` | `raidFixture`, `queuedRaid` | Local raid fixtures; no runtime decision authority |
+| `tests/frontierPanelView.test.ts` | `world`, `rival` | Test-local world-state and rival-settlement fixture constructors for read-only Frontier projection assertions; no gameplay or runtime decision authority |
 | `tests/relationships.feudSources.test.ts` | `settler`, `state`, `alwaysPasses` | Local relationship fixtures; no runtime decision authority |
 | `tests/relationships.friendCapAndFeudEnd.test.ts` | `state`, `messages`, `closePairAgreement` | Local relationship assertions; no runtime decision authority |
 | `tests/simDelta.entityProfile.test.ts` | `fixture`, `revisions` | Local worker-delta fixtures; no runtime decision authority |
