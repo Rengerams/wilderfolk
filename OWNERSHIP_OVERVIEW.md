@@ -1,5 +1,11 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-22 — legacy rival building load boundary
+
+| Function(s) changed | Sole owning source | Responsibility / verification |
+|---|---|---|
+| `loadGameFromParsedOutcome` | `src/game/saveLoad.ts` | One load-only boundary drops retired rival structures and strips old building faction tags before world setup; `tests/saveMigration.roundtrip.test.ts` covers both fresh and already-marked migration payloads. No active building ownership branch. |
+
 ## 2026-11-22 — canonical workforce projection
 
 | Function(s) changed, moved or removed | Sole owning source | Responsibility / verification |
