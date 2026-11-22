@@ -5,7 +5,8 @@ import { getEcosystemBreakdown } from '../../game/gameEngine';
 import { getEcosystemHealth } from '../../game/dailyEcology';
 import { resourceFillPercent } from '../../game/dashboardData';
 import { SEASON_LABELS, seasonTextClass, formatTemperatureC, computeDailyTemperatureC } from '../../game/temperature';
-import { Season, WeatherType, WEATHER_CONFIGS } from '../../game/gameTypes';
+import { EntityType, Season, WeatherType, WEATHER_CONFIGS } from '../../game/gameTypes';
+import { WILDLIFE_POPULATION_POLICY } from '../../game/wildlifePopulationPolicy';
 import {
   computeValleyEcologySnapshot,
   valleyStageEmoji,
@@ -165,10 +166,10 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
           </div>
         </div>
         <div className="space-y-1 text-[13px]">
-          <WildlifeBar label="Rabbits" count={wc?.rabbits ?? 0} max={120} color="bg-amber-600" icon="🐰" />
-          <WildlifeBar label="Deer" count={wc?.deer ?? 0} max={60} color="bg-orange-700" icon="🦌" />
-          <WildlifeBar label="Wolves" count={wc?.wolves ?? 0} max={25} color="bg-stone-500" icon="🐺" />
-          <WildlifeBar label="Foxes" count={wc?.foxes ?? 0} max={35} color="bg-orange-600" icon="🦊" />
+          <WildlifeBar label="Rabbits" count={wc?.rabbits ?? 0} max={WILDLIFE_POPULATION_POLICY[EntityType.Rabbit].breedingCeiling} color="bg-amber-600" icon="🐰" />
+          <WildlifeBar label="Deer" count={wc?.deer ?? 0} max={WILDLIFE_POPULATION_POLICY[EntityType.Deer].breedingCeiling} color="bg-orange-700" icon="🦌" />
+          <WildlifeBar label="Wolves" count={wc?.wolves ?? 0} max={WILDLIFE_POPULATION_POLICY[EntityType.Wolf].breedingCeiling} color="bg-stone-500" icon="🐺" />
+          <WildlifeBar label="Foxes" count={wc?.foxes ?? 0} max={WILDLIFE_POPULATION_POLICY[EntityType.Fox].breedingCeiling} color="bg-orange-600" icon="🦊" />
           <WildlifeBar label="Grass patches" count={wc?.grass ?? 0} max={500} color="bg-green-500" icon="🌿" />
           {(wc?.werewolves ?? 0) > 0 && (
             <WildlifeBar label="Moon Howlers" count={wc.werewolves} max={10} color="bg-violet-700" icon="🌝" />
