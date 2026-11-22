@@ -1,5 +1,14 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-22 — witnessed work and skill ownership
+
+| Function / path | Sole owner | Contract / verification |
+|---|---|---|
+| Skill reads, writes and decay | `src/game/skills.ts` | `readSkill` is pure; `increaseEntitySkill` gives XP for production, apprenticeships and graduation, with revision bumps only when a value changes; `decayIdleSkills` avoids no-op revisions. `tests/skills.attendanceOwner.test.ts` |
+| Shift and construction provenance | `src/game/scheduleFatigue.ts` / `src/game/humanTick.ts` | The one attendance recorder receives builder site/job even without `workerBuildingId`; `getPracticedJobForCompletedDay` uses the current day's attendance at 00:00 without a previous-day fallback. No new scheduler. |
+| Construction production | `src/game/dailyBuildingEconomy.ts` | Onsite shift fractions contribute monotonically; stronger or weaker additional workers cannot remove earlier progress. Newly completed sites skip the same evening's production and XP, including forge and Mill buffs. Unattended build rates remain passive or 0.22×; accepted-output bonuses apply only to previously operational sites. `tests/personality.workIntegration.test.ts`, `tests/workSkillAttribution.accrual.test.ts` |
+| Day boundary | `src/game/tickLayerDaily.ts` | Sole 00:00 skill-decay call before the attendance owner settles the prior day. `tests/calendarPhase.auditRegressions.test.ts` |
+
 ## 2026-11-22 — retire on-map visitors (no second scheduler)
 
 | Function or path | Owner | Rule and verification |

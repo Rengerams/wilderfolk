@@ -10,7 +10,7 @@ import { BUILDING_JOB_TYPES, BuildingType, JobType } from '../src/game/gameTypes
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import type { GenomeV2 } from '../src/game/settlerTraits';
 import { isPlayerHuman } from '../src/game/playerHuman';
-import { tickAtDailyPhase } from '../src/game/dayCycleClock';
+import { TICKS_PER_HOUR, tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { getScheduleTargetHours } from '../src/game/scheduleFatigue';
 import { MAX_SKILL, readSkill, WORK_SKILL_PER_SHIFT, getWorkerSkillMultiplier } from '../src/game/skills';
 import { advanceApprenticeships } from '../src/game/apprenticeships';
@@ -79,9 +79,9 @@ describe('the crew multiplier prices the trade activity once', () => {
 
     expect(getWorkerSkillMultiplier(bare, withStale, crew(plain)))
       .toBeCloseTo(getWorkerSkillMultiplier(bare, solo, crew(plain)), 10);
-    // The known settler's factor counts once; the missing slot contributes a neutral 1.
+    // A stale slot is not a second neutral worker in the average.
     const factor = evaluateAptitudeInfluence(apt, 'routineWork').factor;
-    expect(getWorkerSkillMultiplier(bare, withStale, crew(apt))).toBeCloseTo((1 + factor) / 2, 10);
+    expect(getWorkerSkillMultiplier(bare, withStale, crew(apt))).toBeCloseTo(factor, 10);
   });
 
   it('prices a construction crew from the construction activity', () => {
@@ -152,6 +152,12 @@ function houseProgressAfterOneDay(genomeV2: GenomeV2): number {
   builder.job = JobType.Builder;
   builder.workerBuildingId = SITE_ID;
   site.occupants = [builder.id];
+  // Direct production-boundary fixture: supply the observed shift it skipped in realtime.
+  builder.schedulePresentTicksToday = getScheduleTargetHours(state) * TICKS_PER_HOUR;
+  builder.schedulePresentSiteIdToday = SITE_ID;
+  builder.scheduleWorkedTicksToday = builder.schedulePresentTicksToday;
+  builder.scheduleWorkedSiteIdToday = SITE_ID;
+  builder.scheduleWorkedJobToday = JobType.Builder;
   state.tick = tickAtDailyPhase(1, 'production') - 1;
 
   gameTick(state);

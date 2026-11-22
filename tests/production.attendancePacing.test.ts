@@ -30,6 +30,7 @@ import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 import { jobBuildingPriorityForPolicy } from '../src/game/workforcePolicy';
 import { getWorkdayAttendance } from '../src/game/scheduleFatigue';
+import { getWorkScheduleHours, getWorkSchedule } from '../src/game/workSchedule';
 import { ensureEntitySkills, readSkill } from '../src/game/skills';
 
 const TEST_SEED = 20_261_112;
@@ -287,6 +288,15 @@ describe('production pays only witnessed attendance (W-136)', () => {
   });
 });
 
+/** Stamp the already-observed shift into the existing recorder's daily fields. */
+function witnessSiteShift(worker: Entity, site: Building, ticks: number, job: JobType): void {
+  worker.scheduleWorkedTicksToday = ticks;
+  worker.scheduleWorkedSiteIdToday = site.id;
+  worker.scheduleWorkedJobToday = job;
+  worker.schedulePresentTicksToday = ticks;
+  worker.schedulePresentSiteIdToday = site.id;
+}
+
 describe('crewless zero-slot sites finish in their advertised days (S-18)', () => {
   it.each([
     { type: BuildingType.Wall, days: BUILDING_CONFIGS[BuildingType.Wall].buildTime },
@@ -329,12 +339,117 @@ describe('crewless zero-slot sites finish in their advertised days (S-18)', () =
     rebuildEntityByIdMap(state);
     invalidateCachedEntityByType(state);
 
+    const shiftTicks = getWorkScheduleHours(getWorkSchedule(state)) * TICKS_PER_HOUR;
+    for (const worker of state.entities) witnessSiteShift(worker, site, shiftTicks, JobType.Farmer);
     state.tick = tickAtDailyPhase(1, 'production') - 1;
     gameTick(state, ON_SCREEN);
     expect(site.completed, `one day of a crew is not enough for a ${advertised}-day advert`).toBe(false);
+    for (const worker of state.entities) witnessSiteShift(worker, site, shiftTicks, JobType.Farmer);
     state.tick = tickAtDailyPhase(2, 'production') - 1;
     gameTick(state, ON_SCREEN);
-    expect(site.completed, 'a crewed site finishes ahead of its advertised days').toBe(true);
+    expect(site.completed, 'a witnessed crew finishes ahead of the passive advertised days').toBe(true);
+  });
+});
+
+
+describe('construction and production attendance are separate (PR #166 reviews)', () => {
+  it.each([
+    BuildingType.Church,
+    BuildingType.TownHall,
+    BuildingType.Hospital,
+    BuildingType.Prison,
+  ])('records witnessed construction at an unfinished %s', (type) => {
+    const state = isolatedWorld();
+    const site = createBuilding(type, 500, 500, 9200);
+    site.completed = false;
+    site.constructionProgress = 0;
+    state.buildings = [site];
+    const onPost = buildingAccessPoint(site, getReadOnlyPathGrid(state.worldMap!, [site]));
+    const worker = settler(onPost.x, onPost.y);
+    state.entities = [worker];
+    site.occupants = [worker.id];
+    rebuildEntityByIdMap(state);
+    invalidateCachedEntityByType(state);
+
+    // A real work tick, not a manually stamped attendance record.
+    state.tick = TICKS_PER_DAY + 8 * TICKS_PER_HOUR - 1;
+    gameTick(state, ON_SCREEN);
+    expect(worker.scheduleWorkedSiteIdToday).toBe(site.id);
+    expect(worker.schedulePresentSiteIdToday).toBe(site.id);
+    expect(worker.schedulePresentTicksToday).toBeGreaterThan(0);
+  });
+
+  function constructionDay(extraTicks: number, experienced = false): {
+    progress: number; food: number; finished: boolean; workerSkill: number;
+  } {
+    const state = isolatedWorld();
+    const site = createBuilding(BuildingType.Farm, 500, 500, 9201);
+    site.completed = false;
+    site.constructionProgress = 0;
+    state.buildings = [site];
+    const senior = settler(450, 500);
+    const junior = createEntity(EntityType.Human, 470, 500, SETTLER_ID + 1, 400, false,
+      { gender: 'male', name: 'Luka', surname: 'Reed', ageYears: 30, colonyDay: 0 });
+    if (experienced) senior.skills = { [JobType.Farmer]: 100 };
+    state.entities = [senior, junior];
+    site.occupants = [senior.id, junior.id];
+    rebuildEntityByIdMap(state);
+    invalidateCachedEntityByType(state);
+    const full = getWorkScheduleHours(getWorkSchedule(state)) * TICKS_PER_HOUR;
+    witnessSiteShift(senior, site, full, JobType.Farmer);
+    if (extraTicks > 0) witnessSiteShift(junior, site, extraTicks, JobType.Farmer);
+    state.tick = tickAtDailyPhase(1, 'production') - 1;
+    gameTick(state, ON_SCREEN);
+    return {
+      progress: site.constructionProgress, food: state.resources.food,
+      finished: site.completed, workerSkill: senior.skills?.[JobType.Farmer] ?? 0,
+    };
+  }
+
+  it('never lowers progress when a second builder contributes one tick', () => {
+    const one = constructionDay(0);
+    const extra = constructionDay(1);
+    expect(one.finished).toBe(false);
+    expect(extra.progress).toBeGreaterThan(one.progress);
+  });
+
+  it('does not dilute an expert when a weaker colleague helps briefly', () => {
+    const expert = constructionDay(0, true);
+    const withHelp = constructionDay(1, true);
+    expect(withHelp.progress).toBeGreaterThan(expert.progress);
+  });
+
+  it('cannot pay production or output on the 18:00 construction-completion day', () => {
+    const makeDay = (progress: number, previouslyCompleted: boolean) => {
+      const state = isolatedWorld();
+      const site = createBuilding(BuildingType.Farm, 500, 500, 9202);
+      site.completed = previouslyCompleted;
+      site.constructionProgress = progress;
+      state.buildings = [site];
+      const farmer = settler(450, 500);
+      if (previouslyCompleted) {
+        farmer.workerBuildingId = site.id;
+        farmer.job = JobType.Farmer;
+      }
+      state.entities = [farmer];
+      site.occupants = [farmer.id];
+      rebuildEntityByIdMap(state);
+      invalidateCachedEntityByType(state);
+      const shift = getWorkScheduleHours(getWorkSchedule(state)) * TICKS_PER_HOUR;
+      witnessSiteShift(farmer, site, shift, JobType.Farmer);
+      state.tick = tickAtDailyPhase(1, 'production') - 1;
+      gameTick(state, ON_SCREEN);
+      return { state, site, farmer };
+    };
+    const stillBuilding = makeDay(0, false);
+    const justCompleted = makeDay(99, false);
+    const operational = makeDay(100, true);
+
+    expect(stillBuilding.site.completed).toBe(false);
+    expect(justCompleted.site.completed).toBe(true);
+    expect(justCompleted.farmer.skills?.[JobType.Farmer] ?? 0).toBeCloseTo(0.2, 8);
+    expect(justCompleted.state.resources.food).toBe(stillBuilding.state.resources.food);
+    expect(operational.state.resources.food).toBeGreaterThan(justCompleted.state.resources.food);
   });
 });
 

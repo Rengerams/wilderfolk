@@ -13,6 +13,7 @@ import { playerHumansFrom } from './playerHuman';
 import { syncLeaderHouseResidency } from './leaderHouse';
 import { decayIdleSkills } from './skills';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
+import { getPracticedJobForCompletedDay } from './scheduleFatigue';
 
 // Social & Relationships
 import { advanceSocialRelationships } from './relationships';
@@ -46,7 +47,9 @@ export function tickLayerDaily(
   // 00:00 — day-boundary owners, then the new day's weather and grass.
   if (hour === DAILY_PHASE_HOURS.fatigue) {
     for (const human of ctx.playerHumans) {
-      if (human.alive && human.age >= HUMAN_ADULT_MIN_AGE) decayIdleSkills(human, human.job);
+      if (human.alive && human.age >= HUMAN_ADULT_MIN_AGE) {
+        decayIdleSkills(human, getPracticedJobForCompletedDay(human));
+      }
     }
     tickYearBoundaryWorldEvents(state);
     const stage1 = profileStart();

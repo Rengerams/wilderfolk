@@ -1,6 +1,6 @@
 import { MAX_ASSIGNABLE_COMMUTE_HOURS, MAX_COMMUTE_LEAD_HOURS, WORK_COMMUTE_RUSH, quoteBuildingCommute } from './commuteReach';
 import type { WorldState, Entity, Building, VisitorGroup, RivalSettlement } from './gameTypes';
-import { EntityType, BuildingType, JobType, Season, PATH_CELL } from './gameTypes';
+import { EntityType, BuildingType, BUILDING_JOB_TYPES, JobType, Season, PATH_CELL } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
@@ -601,12 +601,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const isInnkeeper =
       entity.job === JobType.Innkeeper && workplace?.type === BuildingType.Tavern && workplace.completed;
 
+    // Unfinished sites of every kind use the ordinary day shift: a builder on a future
+    // Church, Town Hall, Prison or Hospital must accrue the same witnessed attendance.
     const ordinaryWorkplace =
       workplace != null &&
-      workplace.type !== BuildingType.Church &&
-      workplace.type !== BuildingType.TownHall &&
-      workplace.type !== BuildingType.Prison &&
-      workplace.type !== BuildingType.Hospital;
+      (!workplace.completed ||
+        (workplace.type !== BuildingType.Church &&
+          workplace.type !== BuildingType.TownHall &&
+          workplace.type !== BuildingType.Prison &&
+          workplace.type !== BuildingType.Hospital));
     const isHospitalDoctor = entity.job === JobType.Doctor
       && workplace?.type === BuildingType.Hospital && workplace.completed;
     const onHospitalShift = !!(isHospitalDoctor && isHospitalDoctorOnShift(workplace, state.tick, entity.id));
@@ -766,8 +769,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // standing at a post they are leaving is not verified work.
     const goingToHospital = isPregnancyHospitalPriority(entity, staffedHospitals.length > 0);
     if (isPlayerHuman(entity) && (onJobShift || onOfficialShift || onPriestShift)) {
-      recordScheduleWorkTick(entity);
-      if (!goingToHospital && (atPost || wasInsideWorkplace || hunterInField)) recordPresentWorkTick(entity);
+      // A construction crew has no regular workerBuildingId. Its resolved workplace supplies
+      // the witnessed site and trade through the existing attendance recorders.
+      const attendedJob = workplace && !workplace.completed
+        ? (BUILDING_JOB_TYPES[workplace.type] ?? JobType.Builder)
+        : (entity.job ?? null);
+      recordScheduleWorkTick(entity, 1, workplace?.id, attendedJob);
+      if (!goingToHospital && (atPost || wasInsideWorkplace || hunterInField)) {
+        recordPresentWorkTick(entity, 1, workplace?.id);
+      }
     }
 
     const recoveringSleep = (entity.needs?.sleepRecoveryUntilTick ?? 0) > state.tick;
