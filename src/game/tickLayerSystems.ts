@@ -7,7 +7,7 @@ import {
   WEREWOLF_HOWL_LINES,
 } from './gameTypes';
 import { SPECIES_CONFIG, getPreyEnergyGain } from './speciesConfig';
-import { wildlifeBreedingCeiling, wildlifeMayHuntRabbit } from './wildlifePopulationPolicy';
+import { getWildlifeCarryingCapacity, wildlifeMayHuntRabbit } from './wildlifePopulationPolicy';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import {
   isProductionTick,
@@ -138,7 +138,18 @@ function tickWolfRecruitment(state: WorldState, ctx: TickContext): void {
     (byType[EntityType.Wolf]?.filter((e) => e.alive).length ?? 0) +
     newEntities.filter((e) => e.alive && e.type === EntityType.Wolf).length;
 
-  if (currentWolves >= 2 || getSimRng('tickLayerSystems')() >= 0.1) {
+  // A rare migrant obeys the same prey-supported capacity as births and ecological restocking.
+  const preyCounts = {
+    rabbits: (byType[EntityType.Rabbit] ?? []).filter((e) => e.alive).length
+      + newEntities.filter((e) => e.alive && e.type === EntityType.Rabbit).length,
+    deer: (byType[EntityType.Deer] ?? []).filter((e) => e.alive).length
+      + newEntities.filter((e) => e.alive && e.type === EntityType.Deer).length,
+    foxes: (byType[EntityType.Fox] ?? []).filter((e) => e.alive).length
+      + newEntities.filter((e) => e.alive && e.type === EntityType.Fox).length,
+  };
+  const wolfCapacity = getWildlifeCarryingCapacity(EntityType.Wolf, preyCounts);
+  if (currentWolves >= 2 || currentWolves >= wolfCapacity
+    || getSimRng('tickLayerSystems')() >= 0.1) {
     return;
   }
 
@@ -217,6 +228,12 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
   const wildlifePopulation = ctx.wildlifePopulation;
   // Track every rabbit death this pulse before predators choose prey; breeding keeps its own snapshot.
   let remainingRabbits = wildlifePopulation.aliveByType.get(EntityType.Rabbit) ?? 0;
+  // Keep predator capacity in sync with deaths and births already committed this pulse.
+  const preyCounts = {
+    rabbits: remainingRabbits,
+    deer: wildlifePopulation.aliveByType.get(EntityType.Deer) ?? 0,
+    foxes: wildlifePopulation.aliveByType.get(EntityType.Fox) ?? 0,
+  };
 
   if (!ctx.grassPopulation) {
     ctx.grassPopulation = buildGrassPopulationSnapshot(byType, newEntities);
@@ -274,7 +291,14 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       // 2. Old age death
       if (entity.age >= entity.maxAge) {
         markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick, state);
-        if (entity.type === EntityType.Rabbit) remainingRabbits--;
+        if (entity.type === EntityType.Rabbit) {
+          remainingRabbits--;
+          preyCounts.rabbits--;
+        } else if (entity.type === EntityType.Deer) {
+          preyCounts.deer--;
+        } else if (entity.type === EntityType.Fox) {
+          preyCounts.foxes--;
+        }
         createDeathParticles(state, entity.x, entity.y, '#aaaaaa', 5, 'smoke');
         syncEntityGrids(ctx, entity);
         continue;
@@ -299,7 +323,14 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
 
       if (entity.energy <= 0) {
         markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick, state);
-        if (entity.type === EntityType.Rabbit) remainingRabbits--;
+        if (entity.type === EntityType.Rabbit) {
+          remainingRabbits--;
+          preyCounts.rabbits--;
+        } else if (entity.type === EntityType.Deer) {
+          preyCounts.deer--;
+        } else if (entity.type === EntityType.Fox) {
+          preyCounts.foxes--;
+        }
         createDeathParticles(state, entity.x, entity.y, '#8a2a2a', 8);
         syncEntityGrids(ctx, entity);
         continue;
@@ -507,7 +538,14 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
                 }
               } else {
                 markWildlifeDead(ctx, caughtPrey, wildlifeDeathsThisTick, state.tick, state);
-                if (caughtPrey.type === EntityType.Rabbit) remainingRabbits--;
+                if (caughtPrey.type === EntityType.Rabbit) {
+                  remainingRabbits--;
+                  preyCounts.rabbits--;
+                } else if (caughtPrey.type === EntityType.Deer) {
+                  preyCounts.deer--;
+                } else if (caughtPrey.type === EntityType.Fox) {
+                  preyCounts.foxes--;
+                }
               }
 
               clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId, byType);
@@ -751,7 +789,14 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             if (assistPrey?.alive) {
               const preyId = assistPrey.id;
               markWildlifeDead(ctx, assistPrey, wildlifeDeathsThisTick, state.tick, state);
-              if (assistPrey.type === EntityType.Rabbit) remainingRabbits--;
+              if (assistPrey.type === EntityType.Rabbit) {
+                remainingRabbits--;
+                preyCounts.rabbits--;
+              } else if (assistPrey.type === EntityType.Deer) {
+                preyCounts.deer--;
+              } else if (assistPrey.type === EntityType.Fox) {
+                preyCounts.foxes--;
+              }
               clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId, byType);
               syncEntityGrids(ctx, assistPrey);
               createDeathParticles(state, assistPrey.x, assistPrey.y, '#8a2a2a', 6);
@@ -780,8 +825,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         entity.energy > config.reproductionEnergyThreshold
       ) {
         const sameTypeCount = wildlifeTypePopulation(wildlifePopulation, entity.type, entity.id);
-        const maxPop = wildlifeBreedingCeiling(entity.type);
-        const capacityFactor = Math.max(0, 1.0 - sameTypeCount / maxPop);
+        const maxPop = getWildlifeCarryingCapacity(entity.type, preyCounts);
+        const capacityFactor = maxPop > 0 ? Math.max(0, 1.0 - sameTypeCount / maxPop) : 0;
         const scarcityBoost =
           sameTypeCount < maxPop * 0.25 ? 1.55 : sameTypeCount < maxPop * 0.45 ? 1.25 : 1.0;
 
@@ -823,6 +868,14 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             }
             ctx.wildlifeSpawnParent.set(offspring.id, entity.id);
             pushNewEntity(state, ctx, offspring);
+            if (offspring.type === EntityType.Rabbit) {
+              remainingRabbits++;
+              preyCounts.rabbits++;
+            } else if (offspring.type === EntityType.Deer) {
+              preyCounts.deer++;
+            } else if (offspring.type === EntityType.Fox) {
+              preyCounts.foxes++;
+            }
             if (offspring.type === EntityType.Wildkin) {
               recordGenealogyBirth(state, entity);
               recordGenealogyBirth(state, mate);
