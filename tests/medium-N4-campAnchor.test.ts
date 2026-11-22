@@ -34,7 +34,7 @@ const HALL_ANCHOR = { x: HALL.x, y: HALL.y };
  * the building point itself. The split must stay a pure extraction of this rule.
  */
 function canonicalCampCenter(state: WorldState, buildings: Building[]): { x: number; y: number } {
-  const playerBuildings = buildings.filter((b) => b.completed && b.faction !== 'rival');
+  const playerBuildings = buildings.filter((b) => b.completed);
   const townHall = playerBuildings.find((b) => b.type === BuildingType.TownHall);
   if (townHall) {
     return { x: townHall.x, y: townHall.y };
@@ -241,9 +241,6 @@ describe('camp anchor split (N-4)', () => {
   it('matches the canonical centre in every branch', () => {
     const { world, hall, barracks } = anchorFixture(true);
     const house = building(103, BuildingType.House, { x: 60, y: 60, width: 20, height: 20 });
-    const rivalHall = building(104, BuildingType.TownHall, { x: 900, y: 900, width: 40, height: 40 }, {
-      faction: 'rival',
-    });
     const unfinishedHall = building(105, BuildingType.TownHall, { x: 800, y: 100, width: 40, height: 40 }, {
       completed: false,
     });
@@ -251,7 +248,6 @@ describe('camp anchor split (N-4)', () => {
     const cases: Array<{ name: string; buildings: Building[] }> = [
       { name: 'town hall wins over house', buildings: [house, hall!, house] },
       { name: 'house when there is no hall', buildings: [house, barracks] },
-      { name: 'rival hall is not a player hall', buildings: [rivalHall, house] },
       { name: 'unfinished hall is not a hall', buildings: [unfinishedHall, house] },
       { name: 'no buildings at all', buildings: [] },
     ];
@@ -266,7 +262,7 @@ describe('camp anchor split (N-4)', () => {
     // Pinned answers, so the branches themselves are under test and not just the agreement.
     expect(getPlayerCampCenterFromBuildings([hall!, house])).toEqual(HALL_ANCHOR);
     expect(getPlayerCampCenterFromBuildings([house])).toEqual({ x: 60, y: 60 });
-    expect(getPlayerCampCenterFromBuildings([rivalHall, unfinishedHall])).toBeNull();
+    expect(getPlayerCampCenterFromBuildings([unfinishedHall])).toBeNull();
     expect(getPlayerCampCenterFromBuildings([])).toBeNull();
     expect(getPlayerCampCenter(world, [])).toEqual(getPlayerSettlerCenter(world));
 

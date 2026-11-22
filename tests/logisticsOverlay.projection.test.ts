@@ -214,7 +214,6 @@ describe('F4 projection — commute pressure', () => {
           place(31, BuildingType.Farm, 100, 240), // 100 wu from home — over budget, not extreme
           place(32, BuildingType.Workshop, 500, 140), // 400 wu — past the snap distance
           place(33, BuildingType.Farm, 100, 300, { completed: false }),
-          place(34, BuildingType.Farm, 100, 200, { faction: 'rival' }),
         ],
         [
           settler(1, 30, 31),
@@ -223,7 +222,6 @@ describe('F4 projection — commute pressure', () => {
           settler(4, 30, 31, { faction: 'visitor' }), // not a colony settler
           settler(5, 30, 999), // workplace does not exist
           settler(6, 30, 33), // workplace is still a site
-          settler(7, 30, 34), // rival structure
           settler(8, 30, 31, { alive: false }),
         ],
       ),

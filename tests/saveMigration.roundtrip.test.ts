@@ -4,13 +4,11 @@
  */
 import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';
-import { BuildingType, EntityType } from '../src/game/gameTypes';
-import type { RivalSettlement } from '../src/game/gameTypes';
+import { EntityType } from '../src/game/gameTypes';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { HERD_BASE_SIZE, MIGRATION_WINDOW_DAYS } from '../src/game/migration';
 import { getAbsoluteCalendarDay } from '../src/game/dayCycle';
-import { building } from '../src/test/factories';
 
 function roundTrip(world: Parameters<typeof buildSaveData>[0]) {
   const raw = JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height)));
@@ -45,31 +43,3 @@ describe('migration survives save/load', () => {
   });
 });
 
-describe('legacy rival camp structures', () => {
-  it('leave the map when a save that still holds them is loaded', () => {
-    const state = initGame({ villageName: 'M', size: 'medium' });
-    // A camp row whose list still names its house — the case the daily pulse retires only a day later.
-    const camp: RivalSettlement = {
-      id: 'rival-legacy',
-      name: 'Stonefall',
-      campX: 300,
-      campY: 300,
-      population: 5,
-      relationship: 'neutral',
-      foundedYear: 1,
-      daysUntilAction: 30,
-      raidCooldownDays: 30,
-      peaceTreatyDays: 0,
-    };
-    state.rivalSettlements = [camp];
-    state.buildings.push(building(9001, BuildingType.House, {
-      faction: 'rival',
-      groupId: camp.id,
-    }));
-
-    const loaded = roundTrip(state);
-
-    expect(loaded.buildings.some((entry) => entry.id === 9001)).toBe(false);
-    expect(loaded.appliedSaveMigrations).toContain('legacy-village-camps');
-  });
-});

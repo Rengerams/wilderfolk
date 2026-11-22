@@ -1,5 +1,5 @@
 /**
- * Audit remediation for the economy and auto-staffing defects: the Mill bonus is player-only, a
+ * Audit remediation for the economy and auto-staffing defects: the Mill bonus is granted by a completed Mill, a
  * jailed holder's post is backfilled, a completed Taming Post offers no unfillable slots, a full food
  * building can seed another, construction leaves hands for the preset's jobs, and a bounded swap
  * resolves an unreachable vacancy.
@@ -48,7 +48,7 @@ function freshWorld(): WorldState {
 }
 
 /** A farm with one witnessed shift, standing on the tick before its 18:00 production pass. */
-function farmWorld(mill: 'none' | 'player' | 'rival'): WorldState {
+function farmWorld(mill: 'none' | 'player'): WorldState {
   const state = freshWorld();
   const farm = completed(BuildingType.Farm, 100, 100, 30);
   farm.occupants = [1];
@@ -57,7 +57,6 @@ function farmWorld(mill: 'none' | 'player' | 'rival'): WorldState {
   state.buildings = [farm];
   if (mill !== 'none') {
     const millBuilding = completed(BuildingType.Mill, 200, 100, 31);
-    if (mill === 'rival') millBuilding.faction = 'rival';
     state.buildings.push(millBuilding);
   }
   state.resources.food = 300;
@@ -71,15 +70,13 @@ function runProductionPass(state: WorldState): number {
   return state.resources.food - before;
 }
 
-describe('the Mill farm bonus belongs to the player', () => {
-  it('grants no bonus for a rival Mill and the full bonus for a player Mill', () => {
+describe('the Mill farm bonus', () => {
+  it('raises farm output when a completed Mill stands', () => {
     const none = runProductionPass(farmWorld('none'));
-    const rival = runProductionPass(farmWorld('rival'));
     const player = runProductionPass(farmWorld('player'));
 
     expect(none, 'the fixture must produce food, or the bonus proves nothing').toBeGreaterThan(0);
-    expect(rival, 'a rival Mill must not feed the player\'s farms').toBe(none);
-    expect(player, 'a player Mill raises farm output').toBeGreaterThan(none);
+    expect(player, 'a completed Mill raises farm output').toBeGreaterThan(none);
   });
 });
 
