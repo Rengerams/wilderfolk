@@ -5,7 +5,7 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { citizenGivenName } from './citizenId';
 import { JobType } from './gameTypes';
-import { getHourOfDay } from './dayCycleClock';
+import { getAbsoluteCalendarDay, getHourOfDay } from './dayCycleClock';
 import { EVENING_START } from './dayCycle';
 import { isAsleepAtHome, isFestivalGatherer, prefersHomeTonightFor } from './humanSchedule';
 import { isNearResidence } from './housingModel';
@@ -94,13 +94,15 @@ export function getHumanActivityStatus(
   }
   if (isAsleepAtHome(entity, state.buildings, hourOfDay, onWorkSchedule)) return 'Sleeping';
 
-  if (entity.isJuvenile && entity.childLeisureTargetId != null) {
+  const currentChildLeisure = entity.childPlaymateDay === getAbsoluteCalendarDay(state.tick)
+    ? entity.childLeisureActivity : undefined;
+  if (entity.isJuvenile && entity.childLeisureTargetId != null && currentChildLeisure) {
     const companion = state.entities.find((candidate) =>
       candidate.id === entity.childLeisureTargetId && candidate.alive);
-    if (companion && entity.childLeisureActivity === 'playing') {
+    if (companion && currentChildLeisure === 'playing') {
       return `Playing with ${citizenGivenName(companion)}`;
     }
-    if (companion && entity.childLeisureActivity === 'following') {
+    if (companion && currentChildLeisure === 'following') {
       return `Following ${citizenGivenName(companion)}`;
     }
   }
@@ -131,7 +133,7 @@ export function getHumanActivityStatus(
     }
   }
 
-  if (entity.isJuvenile && entity.childLeisureActivity !== 'home') return 'Free time';
+  if (entity.isJuvenile && currentChildLeisure !== 'home') return 'Free time';
 
   // Not near any building but has a home → likely walking home (or away).
   if (entity.residenceBuildingId != null) {
