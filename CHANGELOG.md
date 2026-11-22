@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (22 Nov 2026; pending merge):** Children keep one playmate per colony day instead of rerolling hourly. Their inspector now shows playing or following, not a false home journey.
+
 - **Fixed (22 Nov 2026, PR #178):** Affair chat: hourly 11.4% roll and 48-hour cooldown after success; affair progress unchanged. Renffr: hourly night roll at 0.42%, with a three-day gossip cooldown.
 - **Refactored (22 Nov 2026; pending merge):** Farm and greenhouse weather-yield calculations now live with weather rules instead of grass ecology; gameplay unchanged.
 
