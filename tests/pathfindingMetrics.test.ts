@@ -7,6 +7,8 @@ import { findPath, type PathGrid } from '../src/game/pathfinding';
 import {
   flushPathfinderTickToSession,
   getPathfinderReport,
+  getCurrentPathfinderTickCounters,
+  recordPathNodes,
   resetPathfinderSession,
   resetPathfinderTickMetrics,
   setPathfindingMetricsEnabled,
@@ -115,5 +117,29 @@ describe('pathfinding metrics', () => {
     flushPathfinderTickToSession();
     expect(getPathfinderReport().ticks).toBe(1);
     expect(getPathfinderReport().perTick.findPathCalls).toBe(1);
+  });
+
+  it('excludes early rejects from the average expanded A* search', () => {
+    const grid = makeGrid(5, 5);
+    expect(findPath(grid, -1, 0, 4, 4)).toBeNull();
+    expect(findPath(grid, 0, 0, 4, 4)).not.toBeNull();
+    flushPathfinderTickToSession();
+    const report = getPathfinderReport();
+    expect(report.session.findPathCalls).toBe(2);
+    expect(report.session.earlyRejects).toBe(1);
+    expect(report.nodesPerCall).toBe(report.session.nodesExpanded);
+  });
+
+  it('rejects non-finite node counts and discards counters across disable/enable', () => {
+    recordPathNodes(NaN);
+    recordPathNodes(Infinity);
+    expect(getCurrentPathfinderTickCounters().nodesExpanded).toBe(0);
+    findPath(makeGrid(5, 5), 0, 0, 4, 4);
+    expect(getCurrentPathfinderTickCounters().findPathCalls).toBeGreaterThan(0);
+    setPathfindingMetricsEnabled(false);
+    expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(0);
+    setPathfindingMetricsEnabled(true);
+    flushPathfinderTickToSession();
+    expect(getPathfinderReport().session.findPathCalls).toBe(0);
   });
 });
