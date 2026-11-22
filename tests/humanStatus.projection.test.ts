@@ -5,6 +5,7 @@ import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { DEFAULT_WORK_SCHEDULE } from '../src/game/workSchedule';
 import { getHumanActivityProjection, getHumanActivityStatus } from '../src/game/humanStatus';
+import { explainHumanMovement } from '../src/game/movementExplanation';
 
 describe('selected human activity projection', () => {
   it('returns stable read-only fields from the authoritative world', () => {
@@ -60,6 +61,33 @@ describe('selected human activity projection', () => {
     expect(projection.schedule.onShift).toBe(false);
     expect(projection.workReason.code).toBe('no-post');
     expect(projection.target).toBeNull();
+  });
+
+  it('shows real child play instead of walking home and exposes the playmate as target', () => {
+    const world = initGame({ villageName: 'Child Play', size: MapSize.Medium, seed: 106 });
+    const child = world.entities.find((entity) => entity.alive && entity.type === EntityType.Human);
+    const companion = world.entities.find((entity) =>
+      entity.alive && entity.type === EntityType.Human && entity.id !== child?.id);
+    if (!child || !companion) throw new Error('Expected two settlers');
+    child.isJuvenile = true;
+    child.age = 10;
+    child.workerBuildingId = undefined;
+    child.childPlaymateDay = Math.floor(world.tick / TICKS_PER_DAY);
+    child.childPlaymateId = companion.id;
+    child.childLeisureActivity = 'playing';
+    child.childLeisureTargetId = companion.id;
+    child.residenceBuildingId = 99111;
+
+    expect(getHumanActivityStatus(world, child)).toBe(`Playing with ${companion.name}`);
+    const projection = getHumanActivityProjection(world, child);
+    expect(projection.target).toMatchObject({ kind: 'playmate', entityId: companion.id });
+    expect(explainHumanMovement(world, child.id).lines[0]).toMatchObject({
+      label: 'Activity', value: `Playing with ${companion.name}`,
+    });
+
+    child.childLeisureActivity = undefined;
+    child.childLeisureTargetId = undefined;
+    expect(getHumanActivityStatus(world, child)).toBe('Free time');
   });
 
   it('does not infer adult activity from proximity to a public building', () => {
