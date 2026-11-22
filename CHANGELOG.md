@@ -4,7 +4,7 @@
 
 - **Fixed (22 Nov 2026, PR #172):** Repaired blocked same-tile route pricing, small road-speed gains, fast-road waypoint overshoot, and exact uncapped velocity calculations that blocked CI.
 
-- **Fixed (22 Nov 2026, PR #172):** Shared wildlife recovery limits now cap wolves at 10, let rabbits breed to 150, protect depleted rabbit herds from predators, and reduce repeated wolf kills by increasing prey energy.
+- **Fixed (22 Nov 2026, PR #172; consolidates #173):** Unified wildlife carrying-capacity policy: rabbits can recover up to 150, scarcity-protected below 35; wolves (ceiling 6) and foxes (ceiling 8) may breed, replenish or immigrate only when prey can support them. Reduced starting predator packs and retained improved wolf energy per rabbit; seeded long-run ecology validation pending.
 - **Fixed (22 Nov 2026, PR #172):** Corrected assignment and construction cadence documentation; standalone overlap checks refresh call graphs after source removals.
 
 - **Fixed (22 Nov 2026, PR #171):** Unified path/walk rules, recovered blocked origins, reached exact destinations, guarded bridges and map edges, and distinguished search budgets from unreachable routes. Reused valid caches, removed duplicate A* work and corrected steering/metrics.
