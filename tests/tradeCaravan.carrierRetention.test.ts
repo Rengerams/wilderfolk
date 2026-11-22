@@ -116,7 +116,7 @@ describe('a caravan carrier leaves through the tick spawn path', () => {
     expect(trade.pendingRefund).toEqual({ wood: expectedWood, food: expectedFood });
     expect(state.resources.wood).toBe(state.storageMax.wood);
     expect(state.resources.food).toBe(state.storageMax.food);
-    expect(state.eventLog.at(-1)?.description).toContain('queued until storage has room');
+    expect(state.eventLog[0]?.message).toContain('queued until storage has room');
 
     // Even when the departure time passes, the route settles its undelivered cargo first.
     state.tick = trade.nextDepartureTick!;
