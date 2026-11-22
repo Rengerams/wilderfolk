@@ -54,6 +54,15 @@ describe('trade-route eligibility (owner rule)', () => {
     expect(canEstablishTradeRoute(state([], [rescue]), rescue.id)).toEqual({ ok: true });
   });
 
+  it('allows an iron-only purchase route without a Market', () => {
+    const iron = rescueRoute({
+      id: 'trade_iron',
+      resourcesReceived: resources({ iron: 15 }),
+    });
+    expect(isMaterialPurchaseRoute(iron)).toBe(true);
+    expect(canEstablishTradeRoute(state([], [iron]), iron.id)).toEqual({ ok: true });
+  });
+
   it('still requires a Market for a route that is not a material purchase', () => {
     const normal = normalRoute();
     expect(isMaterialPurchaseRoute(normal)).toBe(false);

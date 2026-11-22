@@ -1,5 +1,11 @@
 # Bug report summary — one line per report
 
+**2026-11-22 — [Inbound caravan cargo clamped at home after storage fills in transit](../bug_report/2026-11-22-caravan-inbound-cargo-clamped-at-home.md):** investigating; PR #170 rechecks full cargo capacity at arrival and retries unloading; updated regression and CI verification pending.
+
+**2026-11-22 — [Abandoned caravan refund loses cargo at storage cap](../bug_report/2026-11-22-caravan-abandon-refund-overflow.md):** investigating; PR #170 retains over-cap exports on the saved route and credits them through the existing systems tick when space frees; CI pending.
+
+**2026-11-22 — [Gold-for-iron-only purchase routes incorrectly require a Market](../bug_report/2026-11-22-iron-only-trade-purchase-market-gate.md):** investigating; future/legacy iron-only routes are now included in the existing Market exemption; targeted owner-regression CI pending.
+
 **2026-11-22 — [Late construction shifts were never applied](../bug_report/2026-11-22-construction-late-shifts-uncredited.md):** investigating; implementation in PR #166; CI verification pending.
 
 **2026-11-22 — [Unwitnessed construction roster earned crew speed and XP](../bug_report/2026-11-22-construction-absent-crew-earned-progress.md):** investigating; implementation in PR #166; CI verification pending.

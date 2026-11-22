@@ -35,6 +35,13 @@ describe('rival presence summary', () => {
     expect(summary.modeLabel).toBe('Gathering supplies');
   });
 
+  it('provides the normalized profile to the UI without a second normalization', () => {
+    const summary = getRivalPresenceSummary(state, rival());
+    expect(summary.profile.lastAction).toBe('gather');
+    expect(summary.profile.ledger.food).toBe(30);
+    expect(summary.profile.priority).toBe('food');
+  });
+
   it('keeps a peace treaty over whatever the camp last did', () => {
     const summary = getRivalPresenceSummary(state, rival({ peaceTreatyDays: 5 }));
     expect(summary.mode).toBe('under_treaty');

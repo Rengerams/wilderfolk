@@ -65,6 +65,7 @@ export type DecisionKey =
   | 'housing'
   | 'construction'
   | 'production'
+  | 'tradeCaravans'
   | 'humanWalk'
   | 'dailyRelationships'
   | 'yearlyWorldEvents'
@@ -328,6 +329,14 @@ export const SIMULATION_DECISIONS = {
     ],
     scheduledFrom: 'gameTick → tickLayerDaily 23:00 → dailyBuildingEconomy.tickBuildingProgress (progress); assign layer + commands (crew membership)',
     testFile: 'tests/commands.validation.test.ts, tests/demolish.roundtrip.test.ts, tests/personality.workIntegration.test.ts, tests/production.attendancePacing.test.ts',
+  },
+  tradeCaravans: {
+    owner: 'tradeCaravans.ts — canEstablishTradeRoute, isMaterialPurchaseRoute, establishTradeRoute, spawnCaravan, tickTradeCaravans, countDownCaravanWait, tryAdvanceCaravanLeg, canStoreImports, applyImports, refundExports, settlePendingReturns, abandonCaravan',
+    cadence: 'systems',
+    cadenceNote: 'The systems layer schedules one caravan departure/deadline and advances partner/home cooldowns; humanTick.tickHumans drives the same owner\'s arrival transitions after moving the carrier. Export cargo is reserved at departure. Incoming cargo is admitted only with actual storage headroom on the return leg; a full store delays unloading until headroom or the bounded trip deadline. Aborted exports are held as pendingRefund on the route and drained through resourceUtils without exceeding caps, including after save/load and route deactivation. Outstanding returns block a new departure; food ledgers count accepted quantities only. Establishment uses the same route-eligibility rule from UI/commands.',
+    writes: ['tradeRoutes.caravanCarrierId', 'tradeRoutes.caravanLeg', 'tradeRoutes.caravanWaitTicks', 'tradeRoutes.nextDepartureTick', 'tradeRoutes.pendingRefund', 'tradeRoutes.caravansCompleted', 'entities (via simulationEntities)', 'resources (via resourceUtils and spendFood)', 'economyLedger.produced (via recordFoodProduced)', 'lifetimeStats', 'eventLog (via logEvent)', 'notifications (via simEffects)'],
+    scheduledFrom: 'tickLayerSystems.ts → tickTradeCaravans; humanTick.tickHumans → tryAdvanceCaravanLeg; trade establishment command → establishTradeRoute',
+    testFile: 'tests/tradeCaravan.carrierRetention.test.ts, tests/tradeImports.iron.test.ts, tests/tradeRoutes.eligibility.test.ts',
   },
   production: {
     owner: 'dailyBuildingEconomy.tickBuildingProduction; scheduleFatigue.getWorkdayAttendance (the one presence verdict); forge.tickVillageForge (forge orders, gated on the production-day anchor); economy.ts — addResource, applyFoodSpoilage, updateStorageCaps, computeStorageMax; the crew term this decision multiplies is skills.getWorkerSkillMultiplier',

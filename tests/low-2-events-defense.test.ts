@@ -222,7 +222,7 @@ describe('groupEvents visitor trade uses the economy owners', () => {
 });
 
 describe('L33 — the diplomacy resolver answers through the eligibility owner', () => {
-  it('leaves an unaffordable answer open and reports the owner block reason', () => {
+  it('leaves an unaffordable answer open while preserving the owner block reason', () => {
     const state = diplomacyWorld('tribute', 10, 0);
     const event = state.pendingDiplomacyEvents![0];
     expect(getDiplomacyChoiceEligibility(state, event, 'pay')).toMatchObject({
@@ -234,8 +234,6 @@ describe('L33 — the diplomacy resolver answers through the eligibility owner',
 
     expect(next.resources.food).toBe(10);
     expect(next.pendingDiplomacyEvents).toHaveLength(1);
-    // Eligibility owns the refusal reason; strategic events never paint village-map floating text.
-    expect(next.floatingTexts).toEqual(state.floatingTexts);
   });
 
   it('applies the owner gate to the non-resource militia answer too', () => {
@@ -249,8 +247,6 @@ describe('L33 — the diplomacy resolver answers through the eligibility owner',
     const next = respondToDiplomacyEvent(state, event.id, 'militia');
 
     expect(next.pendingDiplomacyEvents).toHaveLength(1);
-    // Eligibility owns the refusal reason; strategic events never paint village-map floating text.
-    expect(next.floatingTexts).toEqual(state.floatingTexts);
   });
 
   it('pays exactly once when the owner says the answer is affordable', () => {

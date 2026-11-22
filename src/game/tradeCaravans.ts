@@ -7,6 +7,7 @@ import { getPlayerSettlerCenter } from './villageAnchor';
 import { addFloatingText, addNotification } from './simEffects';
 import { getMultiplier } from './simHelpers';
 import { addResource } from './resourceUtils';
+import { RESOURCE_METAS } from './resourceTypes';
 import { spendFood, recordFoodProduced } from './economyLedger';
 import { getTownHallTradeMultiplier } from './townHall';
 import { logEvent } from './eventLog';
@@ -122,15 +123,36 @@ function deductExports(state: WorldState, route: TradeRoute): void {
   }
 }
 
-/** Return a departed caravan's reserved exports through the storage-cap owner. */
+/** Return as much queued cargo as storage accepts, retaining the rest across ticks and saves. */
+function settlePendingReturns(state: WorldState, route: TradeRoute): void {
+  const pending = route.pendingRefund;
+  if (!pending) return;
+  let hasRemainder = false;
+  for (const key of Object.keys(RESOURCE_METAS) as (keyof Resources)[]) {
+    const amount = pending[key] ?? 0;
+    if (amount <= 0) continue;
+    const accepted = addResource(state, key, amount);
+    if (key === 'food' && accepted > 0) recordFoodProduced(state, 'trade', accepted);
+    const remainder = amount - accepted;
+    if (remainder > 0) {
+      pending[key] = remainder;
+      hasRemainder = true;
+    } else {
+      delete pending[key];
+    }
+  }
+  if (!hasRemainder) route.pendingRefund = undefined;
+}
+
+/** A cancelled caravan still owns its exports; no over-cap credits and no lost remainder. */
 function refundExports(state: WorldState, route: TradeRoute): void {
-  const given = route.resourcesGiven;
-  if (given.wood > 0) addResource(state, 'wood', given.wood);
-  if (given.stone > 0) addResource(state, 'stone', given.stone);
-  if (given.gold > 0) addResource(state, 'gold', given.gold);
-  if ((given.iron ?? 0) > 0) addResource(state, 'iron', given.iron);
-  // A returned cargo is a trade inflow: the ledger records what storage actually accepted.
-  if (given.food > 0) recordFoodProduced(state, 'trade', addResource(state, 'food', given.food));
+  const pending = route.pendingRefund ?? {};
+  for (const key of Object.keys(RESOURCE_METAS) as (keyof Resources)[]) {
+    const amount = route.resourcesGiven[key] ?? 0;
+    if (amount > 0) pending[key] = (pending[key] ?? 0) + amount;
+  }
+  route.pendingRefund = pending;
+  settlePendingReturns(state, route);
 }
 
 /** How many ticks this trip may take before the route abandons it: both legs plus dock slack. */
@@ -189,12 +211,15 @@ function abandonCaravan(state: WorldState, route: TradeRoute): void {
     : ensureEntityByIdMap(state).get(carrierId)
       ?? state.entities.find((entity) => entity.alive && entity.id === carrierId);
   refundExports(state, route);
+  const cargoStatus = route.pendingRefund
+    ? 'exports queued until storage has room'
+    : 'exports returned to storage';
   if (carrier) {
     addFloatingText(
       state,
       carrier.x,
       carrier.y - 20,
-      `↩ ${route.targetName} caravan turned back — goods returned`,
+      `↩ ${route.targetName} caravan turned back — ${cargoStatus}`,
       '#f59e0b',
     );
     removeCarrier(state, route, carrier);
@@ -207,7 +232,7 @@ function abandonCaravan(state: WorldState, route: TradeRoute): void {
   logEvent(
     state,
     'trade',
-    `Caravan to ${route.targetName} turned back before the deadline; reserved goods returned`,
+    `Caravan to ${route.targetName} abandoned at its deadline; ${cargoStatus}`,
     route.targetName,
   );
 }
@@ -238,7 +263,8 @@ export function isMaterialPurchaseRoute(route: TradeRoute): boolean {
   const receivesMaterials =
     route.resourcesReceived.wood > 0
     || route.resourcesReceived.stone > 0
-    || route.resourcesReceived.food > 0;
+    || route.resourcesReceived.food > 0
+    || route.resourcesReceived.iron > 0;
   return givesGoldOnly && receivesMaterials && route.resourcesReceived.gold === 0;
 }
 
@@ -376,18 +402,20 @@ function hasActiveCarrier(state: WorldState, route: TradeRoute): boolean {
  * measured in ticks while the per-human throttle only reaches an off-screen caravan every 24.
  */
 function countDownCaravanWait(state: WorldState, route: TradeRoute, step: number): void {
-  if ((route.caravanWaitTicks ?? 0) > 0) {
+  const wasWaiting = (route.caravanWaitTicks ?? 0) > 0;
+  if (wasWaiting) {
     route.caravanWaitTicks = Math.max(0, (route.caravanWaitTicks ?? 0) - step);
   }
   if ((route.caravanWaitTicks ?? 0) > 0) return;
-  if ((route.caravanLeg ?? 'outbound') !== 'at_partner') return;
+  const leg = route.caravanLeg ?? 'outbound';
+  // Partner unloads once its wait expires; at home, retry only after a full-store cooldown.
+  if (leg !== 'at_partner' && !(leg === 'inbound' && wasWaiting)) return;
 
   const carrierId = route.caravanCarrierId;
   if (carrierId == null) return;
   const carrier =
     ensureEntityByIdMap(state).get(carrierId) ?? state.entities.find((e) => e.alive && e.id === carrierId);
-  // Position gates are the tick owner's; this only decides the wait is over.
-  if (!carrier) return;
+  if (!carrier?.alive) return;
   tryAdvanceCaravanLeg(state, carrier);
 }
 
@@ -399,6 +427,8 @@ export function tickTradeCaravans(
 ): void {
   for (let i = 0; i < state.tradeRoutes.length; i++) {
     const route = state.tradeRoutes[i];
+    // Pending exports belong to this route even if it is later deactivated.
+    settlePendingReturns(state, route);
     if (!route.active) continue;
     enrichTradeRoute(route, state, i);
 
@@ -411,7 +441,7 @@ export function tickTradeCaravans(
       if (route.nextDepartureTick == null) {
         scheduleTradeRouteDeparture(state, route);
       }
-      if (state.tick >= (route.nextDepartureTick ?? 0)) {
+      if (!route.pendingRefund && state.tick >= (route.nextDepartureTick ?? 0)) {
         spawnCaravan(state, route, ctx);
       }
       continue;
@@ -485,7 +515,14 @@ export function tryAdvanceCaravanLeg(state: WorldState, entity: Entity): void {
 
   if (leg === 'inbound') {
     const dist = Math.hypot(hub.x - entity.x, hub.y - entity.y);
-    if (dist > TRADE_CARAVAN_ARRIVAL_DIST) return;
+    if (dist > TRADE_CARAVAN_ARRIVAL_DIST || (route.caravanWaitTicks ?? 0) > 0) return;
+    // Partner-side capacity was only a forecast: production can fill the store on the way home.
+    // Never mark delivery complete while addResource would clamp any of the cargo away.
+    if (!canStoreImports(state, route, mult)) {
+      route.caravanWaitTicks = EVENT_INTERVAL.tradeRoute / 4;
+      addFloatingText(state, entity.x, entity.y - 16, 'Home storage full — caravan waiting', '#ef4444');
+      return;
+    }
 
     const goldGained = applyImports(state, route, mult);
     route.caravansCompleted = (route.caravansCompleted ?? 0) + 1;

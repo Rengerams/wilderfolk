@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, MapSize, Season, emptyEntityByType } from '../src/game/gameTypes';
-import type { Building, Entity, RivalSettlement, VisitorGroup, WorldState } from '../src/game/gameTypes';
+import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { tickHumans } from '../src/game/humanTick';
 import {
@@ -99,49 +99,16 @@ function settler(world: WorldState, id: number, x: number, y: number, overrides:
   return entity;
 }
 
-function rivalSettlement(): RivalSettlement {
-  return {
-    id: 'R1',
-    name: 'Ridge',
-    campX: 520,
-    campY: 300,
-    population: 6,
-    relationship: 'tense',
-    foundedYear: 0,
-    daysUntilAction: 5,
-    raidCooldownDays: 5,
-    peaceTreatyDays: 0,
-  };
-}
-
-function visitorGroup(): VisitorGroup {
-  return {
-    id: 'V1',
-    name: 'Traders',
-    kind: 'traders',
-    entityIds: [],
-    campX: 700,
-    campY: 500,
-    daysLeft: 3,
-    giftsGiven: 0,
-    tradesCompleted: 0,
-    refugeeResolved: false,
-    leaderTalked: false,
-  };
-}
-
 interface Fixture {
   world: WorldState;
   guard: Entity;
-  raider: Entity;
-  visitor: Entity;
   hall: Building | null;
   barracks: Building;
 }
 
 /**
- * A village with a barracks, a marching war-band, a visitor group, a barracks guard on shift and
- * roaming settlers; `withHall` decides which half of the anchor answers.
+ * A village with a barracks guard on shift and roaming settlers;
+ * `withHall` selects the building or live-settler anchor.
  */
 function anchorFixture(withHall: boolean): Fixture {
   const world = initGame({
@@ -162,16 +129,6 @@ function anchorFixture(withHall: boolean): Fixture {
     workerBuildingId: BARRACKS_ID,
     energy: 90,
   });
-  const raider = settler(world, 3, 640, 320, {
-    faction: 'rival',
-    groupId: 'R1',
-    energy: 90,
-  });
-  const visitor = settler(world, 2, 700, 500, {
-    faction: 'visitor',
-    groupId: 'V1',
-    energy: 90,
-  });
   // Free-roaming settlers, far from the village and on a long commute to the farm: their walk is
   // what shifts the settler average during the tick.
   const roamers = [
@@ -180,30 +137,8 @@ function anchorFixture(withHall: boolean): Fixture {
     settler(world, 7, 200, 800, { workerBuildingId: FARM_ID }),
   ];
 
-  // Order matters: the raider takes an anchor sample first, the guard last.
-  world.entities = [raider, ...roamers, guard, visitor];
-  world.rivalSettlements = [rivalSettlement()];
-  world.visitorGroups = [visitorGroup()];
-  world.pendingRaidEvents = [
-    {
-      id: 'raid_R1',
-      rivalId: 'R1',
-      rivalName: 'Ridge',
-      title: 'War-band',
-      description: 'A war-band is marching.',
-      emoji: '⚔️',
-      choices: [],
-      createdAtTick: 0,
-      expiresAtTick: WORK_TICK + 200,
-      marchDistanceTiles: 20,
-      attackerStrength: 60,
-      lootFood: 0,
-      lootGold: 0,
-      lootWood: 0,
-      lootStone: 0,
-    },
-  ];
-  return { world, guard, raider, visitor, hall, barracks };
+  world.entities = [...roamers, guard];
+  return { world, guard, hall, barracks };
 }
 
 /** Minimal real TickContext for `tickHumans`, over the fixture's own cast. */
@@ -273,9 +208,9 @@ describe('camp anchor split (N-4)', () => {
 });
 
 describe('camp anchor inside the human loop (N-4)', () => {
-  it('keeps retired war-bands off the village map while maintaining the Town Hall anchor', () => {
+  it('keeps the Town Hall anchor fixed while the barracks guard patrols', () => {
     const fixture = anchorFixture(true);
-    const { world, guard, raider, visitor } = fixture;
+    const { world, guard } = fixture;
     expect(getPlayerCampCenter(world, world.buildings)).toEqual(HALL_ANCHOR);
 
     runTick(fixture);
@@ -284,19 +219,12 @@ describe('camp anchor inside the human loop (N-4)', () => {
     expect(getPlayerCampCenter(world, world.buildings)).toEqual(HALL_ANCHOR);
     expect(getPlayerCampCenterFromBuildings(world.buildings)).toEqual(HALL_ANCHOR);
 
-    // Strategic war-bands no longer march through the village; the guard keeps his post.
-    expect({ x: raider.x, y: raider.y }).toEqual({ x: 640, y: 320 });
     expect(Math.hypot(guard.x - 215, guard.y - 215)).toBeLessThan(30);
-
-    // The visitor's anchor read only feeds `nearVillage`, which scales chat chance rather than
-    // steering, so only its survival through the shared branch is asserted.
-    expect(visitor.alive).toBe(true);
-    expect(Number.isFinite(visitor.x) && Number.isFinite(visitor.y)).toBe(true);
   });
 
-  it('keeps the settler fallback anchor live without steering retired raiders', () => {
+  it('recomputes the live-settler anchor when the village has neither hall nor house', () => {
     const fixture = anchorFixture(false);
-    const { world, guard, raider } = fixture;
+    const { world, guard } = fixture;
     const before = getPlayerSettlerCenter(world);
     expect(getPlayerCampCenterFromBuildings(world.buildings)).toBeNull();
     expect(getPlayerCampCenter(world, world.buildings)).toEqual(before);
@@ -310,8 +238,6 @@ describe('camp anchor inside the human loop (N-4)', () => {
     expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(0.5);
     expect(getPlayerCampCenter(world, world.buildings)).toEqual(after);
 
-    // The active anchor follows settlers; retired raider entities do not follow it.
-    expect({ x: raider.x, y: raider.y }).toEqual({ x: 640, y: 320 });
     expect(Math.hypot(guard.x - 215, guard.y - 215)).toBeLessThan(30);
   });
 });

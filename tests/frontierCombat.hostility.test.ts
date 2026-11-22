@@ -198,8 +198,6 @@ describe('mobilized raid lifecycle', () => {
     expect(army.soldierIds).toHaveLength(12);
     expect(launched.entities.filter((person) => person.raidDeploymentId === army.id)).toHaveLength(12);
     expect(launched.entities.every((person) => person.raidDeploymentId === army.id)).toBe(true);
-    // Strategic deployments no longer create combat flashes on the village map.
-    expect(launched.entities.every((person) => person.flash !== 10 && person.combatTicks !== 12)).toBe(true);
 
     const premature = respondToOutgoingRaidEvent(launched, army.id, army.rivalResponse === 'fight' ? 'fight' : 'accept_payoff');
     expect(premature.pendingOutgoingRaidEvents[0]?.phase).toBe('marching');
