@@ -570,7 +570,7 @@ describe('runtime caches are stripped by their owner', () => {
 
 describe('the spatial grid refreshes an object that did not change cell', () => {
   /** Everything the grid holds in a rectangle, via its own traversal primitive. */
-  function inRect(grid: EntitySpatialGrid, minX: number, minY: number, maxX: number, maxY: number): Entity[] {
+  function inRect(grid: EntitySpatialGrid<Entity>, minX: number, minY: number, maxX: number, maxY: number): Entity[] {
     const found: Entity[] = [];
     grid.forEachInRect(minX, minY, maxX, maxY, (entity) => found.push(entity));
     return found;
