@@ -7,7 +7,7 @@ import { initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
 import { EntityType } from '../src/game/gameTypes';
 import { ensureFullTradeRoutes, initTradeRoutes } from '../src/game/economy';
-import { getCaravanMoveTarget, tryAdvanceCaravanLeg } from '../src/game/tradeCaravans';
+import { enrichTradeRoute, getCaravanMoveTarget, tryAdvanceCaravanLeg } from '../src/game/tradeCaravans';
 import type { Entity, TradeRoute, WorldState } from '../src/game/gameTypes';
 
 const FIXTURE_SEED = 20_260_917;
@@ -31,6 +31,8 @@ function caravanOn(state: WorldState, id: string, leg: TradeRoute['caravanLeg'])
   r.active = true;
   r.partnerX = 50;
   r.partnerY = 50;
+  // The systems owner performs this normalization before running a live caravan.
+  enrichTradeRoute(r, state, state.tradeRoutes.indexOf(r));
   r.caravanLeg = leg;
   r.caravanWaitTicks = 0;
   const carrier = createEntity(EntityType.Human, 50, 50, state.nextEntityId++, 300, false, {
@@ -87,7 +89,7 @@ describe('a trade round trip credits everything the route advertises', () => {
     state.resources.iron = 500; // iron filled while the carrier was travelling
     tryAdvanceCaravanLeg(state, carrier);
     expect(trade.caravanLeg).toBe('inbound');
-    expect(trade.caravansCompleted ?? 0).toBe(0);
+    expect(trade.caravansCompleted).toBe(0);
     expect(trade.caravanWaitTicks).toBeGreaterThan(0);
     expect(state.resources.iron).toBe(500);
     expect(state.resources.gold).toBe(0); // neither cargo nor reward is applied partially
