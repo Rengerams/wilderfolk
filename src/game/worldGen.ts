@@ -49,7 +49,7 @@ import { computeWildlifeCounts } from './entityCounts';
 import { buildEntityByType } from './simFocus';
 import { playerHumanCount } from './playerHuman';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { WILDLIFE_POPULATION_POLICY } from './wildlifePopulationPolicy';
+import { WILDLIFE_POPULATION_POLICY, getWildlifeCarryingCapacity } from './wildlifePopulationPolicy';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { appointFoundingLeader } from './villageLeadership';
 import { createInitialForgeState } from './forge';
@@ -384,11 +384,11 @@ export function replenishDepletedWildlife(
 
   const needsRabbits = (rabbits < rabbitPolicy.replenishMinimum && sufficientGrass) || rabbits < 20;
   const needsDeer = (deer < deerPolicy.replenishMinimum && sufficientGrass) || deer < 10;
-  const sufficientPreyForFoxes = rabbits >= 20;
-  const needsFoxes = (foxes < foxPolicy.replenishMinimum && sufficientPreyForFoxes) || foxes < 10;
-  const totalWolfPrey = deer + foxes + rabbits;
-  const sufficientPreyForWolves = totalWolfPrey >= 30;
-  const needsWolves = (wolves < wolfPolicy.replenishMinimum && sufficientPreyForWolves) || wolves < 5;
+  const foxCapacity = getWildlifeCarryingCapacity(EntityType.Fox, counts);
+  const wolfCapacity = getWildlifeCarryingCapacity(EntityType.Wolf, counts);
+  // Do not bypass the prey gate when a predator species drops to a single animal.
+  const needsFoxes = foxes < foxPolicy.replenishMinimum && foxes < foxCapacity;
+  const needsWolves = wolves < wolfPolicy.replenishMinimum && wolves < wolfCapacity;
 
   const needsWildlife = needsRabbits || needsDeer || needsFoxes || needsWolves;
   if (!needsWildlife && !grassReplenished) return false;
@@ -410,7 +410,7 @@ export function replenishDepletedWildlife(
   }
 
   if (needsFoxes) {
-    const countToSpawn = Math.max(2, foxPolicy.replenishTarget - foxes);
+    const countToSpawn = Math.min(foxPolicy.replenishTarget, foxCapacity) - foxes;
     spawnWildlifeRing(state, EntityType.Fox, cx, cy, countToSpawn, 160, 320, {
       recordBirthYear: true, onSpawn,
     });
@@ -418,7 +418,7 @@ export function replenishDepletedWildlife(
   }
 
   if (needsWolves) {
-    const countToSpawn = Math.max(2, wolfPolicy.replenishTarget - wolves);
+    const countToSpawn = Math.min(wolfPolicy.replenishTarget, wolfCapacity) - wolves;
     spawnWildlifeRing(state, EntityType.Wolf, cx, cy, countToSpawn, 340, 540, {
       recordBirthYear: true, onSpawn,
     });
@@ -788,11 +788,15 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     }
   }
 
-  // 5. Initial Wildlife Fauna
+  // 5. Initial Wildlife Fauna. Camp-buffer predators count against the same policy.
+  const campFoxes = 2;
+  const campWolves = 1;
   spawnWildlifeAtRandomPassable(state, EntityType.Rabbit, 42);
   spawnWildlifeAtRandomPassable(state, EntityType.Deer, 14);
-  spawnWildlifeAtRandomPassable(state, EntityType.Fox, 10);
-  spawnWildlifeAtRandomPassable(state, EntityType.Wolf, 4);
+  spawnWildlifeAtRandomPassable(state, EntityType.Fox,
+    WILDLIFE_POPULATION_POLICY[EntityType.Fox].replenishTarget - campFoxes);
+  spawnWildlifeAtRandomPassable(state, EntityType.Wolf,
+    WILDLIFE_POPULATION_POLICY[EntityType.Wolf].replenishTarget - campWolves);
 
   // 6. Camp Selection & Founding Pioneers
   // The ground `generateWorldMap` cleared for the camp; the fallback covers a caller-made map.
@@ -858,8 +862,8 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   spawnWildlifeRing(state, EntityType.Rabbit, centerX, centerY, 13, 120, 280);
   spawnWildlifeRing(state, EntityType.Deer, centerX, centerY, 6, 180, 360);
-  spawnWildlifeRing(state, EntityType.Fox, centerX, centerY, 4, 200, 380);
-  spawnWildlifeRing(state, EntityType.Wolf, centerX, centerY, 2, 340, 520);
+  spawnWildlifeRing(state, EntityType.Fox, centerX, centerY, campFoxes, 200, 380);
+  spawnWildlifeRing(state, EntityType.Wolf, centerX, centerY, campWolves, 340, 520);
 
   // 8. Research, Leadership, and Index Finalization
   syncResearchUnlocks(state);
