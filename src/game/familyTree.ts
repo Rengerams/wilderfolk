@@ -7,7 +7,7 @@ import { citizenGivenName, humanDisplayName } from './citizenId';
 import { EntityType, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isMarriedOrExpecting } from './relationships';
-import { findFamilyGroupRoot } from './genealogyRegistry';
+import { findFamilyGroupRoot, genealogyDisplayName } from './genealogyRegistry';
 import type { GenealogyRegistry } from './genealogyTypes';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isWithinRemarriageBar } from './simulation/humanRelationships';
@@ -262,6 +262,9 @@ function isChildOf(child: Entity, parent: Entity): boolean {
 
 /** The other parent of `child`, from the side `parentId` fills: the co-parent a shared child ties on. */
 function otherParentIdOfChild(child: Entity, parentId: number): number | undefined {
+  if (child.wildkinParentIds?.includes(parentId)) {
+    return child.wildkinParentIds.find((id) => id !== parentId);
+  }
   const viaMother = child.motherId === parentId || child.adoptiveMotherId === parentId;
   return viaMother
     ? child.fatherId ?? child.adoptiveFatherId
@@ -1128,7 +1131,7 @@ export function buildFullFamilyTree(
       return parts.join(' · ');
     }
     const otherParent = byId.get(otherParentId);
-    if (otherParent) parts.push(`with ${citizenGivenName(otherParent)}`);
+    if (otherParent) parts.push(`with ${genealogyDisplayName(otherParent)}`);
     return parts.join(' · ');
   };
 
@@ -1190,7 +1193,7 @@ export function buildFullFamilyTree(
             });
           return {
             id: person.id,
-            name: humanDisplayName(person),
+            name: person.type === EntityType.Human ? humanDisplayName(person) : genealogyDisplayName(person),
             relation,
             icon: iconForPerson(person),
             detail: detailOf(person),
