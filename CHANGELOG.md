@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (22 Nov 2026, PR #170):** Caravans now wait for storage on arrival, retain undelivered exports on the saved route until space frees, and allow gold-for-iron purchases without a Market.
+
 - **Fixed (22 Nov 2026; PR #169):** Schedule previews count assigned workers and construction crews, exclude ineligible settlers, and detect shifts with unchanged duration. Added regression tests.
 
 - **Refactored (22 Nov 2026; pending merge):** Broke two type-import cycles: placement reads world-map types rather than renderer types; grid and gameplay readers use narrow entity contracts; statistics and social record types live in leaf schemas. No gameplay or save-format change.

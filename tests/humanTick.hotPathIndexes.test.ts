@@ -1,6 +1,6 @@
 /**
- * PERF-04: camp, war-band and festival lookups are tick-stable, so `tickHumans` indexes them once
- * instead of scanning for every settler. The read counter proves the per-settler scan is gone.
+ * PERF-04: festival place lookups are tick-stable, so `tickHumans` indexes them once
+ * instead of scanning for every settler. Retired visitor-camp movement is no longer tested.
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, MapSize, Season, emptyEntityByType } from '../src/game/gameTypes';
@@ -187,19 +187,4 @@ describe('humanTick per-settler lookups', () => {
     expect(SQUARE_CENTRE.x).toBeGreaterThan(startX[0]);
   });
 
-  it('resolves each visitor against its own group, not the first group in the list', () => {
-    const fixture = festivalFixture(1);
-    const visitor = settler(fixture.world, 500, 320, 320, { faction: 'visitor', groupId: 'V2' });
-    fixture.world.festival = null;
-    fixture.world.entities = [visitor];
-    fixture.world.visitorGroups = [
-      visitorGroup('V1', 100, 100),
-      visitorGroup('V2', 1200, 320),
-    ];
-
-    runTick(fixture);
-
-    // V2 camp lies to the east, V1's to the north-west: only the indexed lookup reaches V2.
-    expect(visitor.x).toBeGreaterThan(320);
-  });
 });

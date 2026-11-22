@@ -41,6 +41,7 @@ const REQUIRED_DECISIONS = [
   'housing',
   'construction',
   'production',
+  'tradeCaravans',
   'humanWalk',
   'dailyRelationships',
   'yearlyWorldEvents',
@@ -132,6 +133,15 @@ describe('simulation decision registry', () => {
     expect(daily.scheduledFrom).toContain('DAILY_PHASE_HOURS.relationships');
     expect(daily.writes).toContain('human.friendships');
     expect(daily.writes).toContain('human.courtshipCooldownDays');
+  });
+
+  it('registers the existing caravan owner without a second scheduler', () => {
+    const caravans = SIMULATION_DECISIONS.tradeCaravans;
+    expect(caravans.owner).toContain('tradeCaravans.ts');
+    expect(caravans.cadence).toBe('systems');
+    expect(caravans.scheduledFrom).toContain('tickLayerSystems.ts');
+    expect(caravans.scheduledFrom).toContain('humanTick.tickHumans');
+    expect(caravans.writes).toContain('tradeRoutes.pendingRefund');
   });
 
   it('contains exactly the required decision keys', () => {

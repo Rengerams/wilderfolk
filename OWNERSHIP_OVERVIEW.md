@@ -1,5 +1,16 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-22 — trade caravan storage and return settlement
+
+| Changed function(s) | Sole owner | Responsibility / verification |
+|---|---|---|
+| `isMaterialPurchaseRoute` | `src/game/tradeCaravans.ts` | Gold-for-iron-only routes receive the same Market exemption as gold-for-wood/stone/food routes; `tests/tradeRoutes.eligibility.test.ts` |
+| `tryAdvanceCaravanLeg`, `countDownCaravanWait` | `src/game/tradeCaravans.ts` | One authoritative arrival/unload decision: retry inbound storage-gated unloading after a systems-layer cooldown, with no partial completion or second timer; `tests/tradeImports.iron.test.ts` |
+| `refundExports`, `settlePendingReturns` (new), `abandonCaravan`, `tickTradeCaravans` | `src/game/tradeCaravans.ts` | The single caravan system retains over-cap cancelled exports in `TradeRoute.pendingRefund`, retries credits through `resourceUtils.addResource` on the existing systems tick, blocks fresh departures until settled and logs the truthful state; `tests/tradeCaravan.carrierRetention.test.ts` |
+| `TradeRoute.pendingRefund` | `src/game/gameTypes.ts` | Optional saved partial cargo ledger; `saveLoad.ts` retains route objects through the existing `ensureFullTradeRoutes` load path; no competing settlement owner or tick schedule |
+| `caravanOn` (test fixture) | `tests/tradeImports.iron.test.ts` | Test-only owner: prepares an active caravan route and carrier, calls the existing `enrichTradeRoute` initializer to normalize `caravansCompleted` before simulating legs, and verifies blocked inbound unloading and retry. No production decision or scheduler. |
+
+
 ## 2026-11-22 — retire on-map visitors (no second scheduler)
 
 | Function or path | Owner | Rule and verification |
