@@ -156,6 +156,20 @@ export function explainHumanMovement(state: WorldState, settlerId: number): Huma
   const homeStop: SettlerRouteStop | null = residence
     ? { kind: 'home', label: getBuildingConfig(residence.type).label, buildingId: residence.id }
     : null;
+  if (settler.isJuvenile) {
+    const activity = getHumanActivityProjection(state, settler);
+    const lines: ExplanationLine[] = [{ label: 'Activity', value: activity.activity, tone: 'neutral' }];
+    let status: HumanMovementStatus = 'none';
+    if (activity.target) {
+      lines.push({ label: 'Destination', value: activity.target.label, tone: 'neutral' });
+      if (!isAtActivityTarget(settler, activity.target)) {
+        status = getRouteObstruction(state.worldMap, state.buildings, settler, activity.target);
+        lines.push({ label: 'Path', ...PATH_STATUS_LINES[status] });
+      }
+    }
+    return { stops: homeStop ? [homeStop] : [], legIndex: null, legLabel: null, status, lines };
+  }
+
   const workplace = findHumanWorkplace(settler, state.buildings);
   const venue = settlerVenue(state, settler);
 
