@@ -543,10 +543,12 @@ function searchRoute(
       && !segmentCrossesBlocked(grid,
         (sx + 0.5) * PATH_CELL, (sy + 0.5) * PATH_CELL,
         (actualSx + 0.5) * PATH_CELL, (actualSy + 0.5) * PATH_CELL, true);
-    const path = escaped
-      ? [{ x: sx, y: sy }, { x: actualSx, y: actualSy }]
-      : [{ x: actualSx, y: actualSy }];
-    return { path, cost: escaped ? Math.hypot(actualSx - sx, actualSy - sy) : 0, hitNodeCap: false };
+    if (!escaped) {
+      recordPathEarlyReject();
+      return rejected;
+    }
+    return { path: [{ x: sx, y: sy }, { x: actualSx, y: actualSy }],
+      cost: Math.hypot(actualSx - sx, actualSy - sy), hitNodeCap: false };
   }
 
   const start = actualSy * cols + actualSx;
@@ -594,7 +596,8 @@ function searchRoute(
       path.reverse();
 
       // Preserve road tiles: line-of-sight smoothing can erase the faster road detour.
-      if (pricedRoad || keepFullPath) {
+      // Slope-weighted A* costs must not be invalidated by geometrical LOS smoothing.
+      if (pricedRoad || keepFullPath || elevation) {
         recordPathNodes(nodes);
         recordPathFound();
         return { path, cost: scores[goal], hitNodeCap: false };
@@ -1154,7 +1157,18 @@ export function steerWithPath(
       const next = wp[cached.nextIndex];
       const ndx = next.x - entity.x;
       const ndy = next.y - entity.y;
-      const nd = Math.hypot(ndx, ndy) || 1;
+      const nd = Math.hypot(ndx, ndy);
+      if (nd <= PATH_ARRIVAL_DISTANCE_PX && cached.nextIndex === wp.length - 1
+        && isGroundWalkableAt(targetX, targetY, currentGrid) === false) {
+        entity.vx = 0;
+        entity.vy = 0;
+        return 'blocked';
+      }
+      if (nd === 0) {
+        entity.vx = 0;
+        entity.vy = 0;
+        return 'path';
+      }
 
       // The step integrator applies the road multiplier later: cap the base velocity now.
       // This prevents skipping a corner waypoint while keeping long straight road legs fast.
