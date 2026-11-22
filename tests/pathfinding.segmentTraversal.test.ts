@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   findPath, findRouteCostOutcome, getNavigationQuote, getRouteObstruction, isWalkStepAllowed,
-  lineCrossesBlocked, nearestWalkableWorldPoint, type PathGrid,
+  lineCrossesBlocked, nearestWalkableWorldPoint, resetPathGridCaches, setCurrentPathMap,
+  steerWithPath, type PathGrid,
 } from '../src/game/pathfinding';
 import { PATH_CELL, TerrainType } from '../src/game/gameTypes';
+import { human } from '../src/test/factories';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 
 function grid(cols: number, rows: number): PathGrid {
@@ -125,5 +127,67 @@ describe('one authoritative movement walkability verdict', () => {
     expect(getRouteObstruction(map, [],
       { x: center(2), y: center(6) }, { x: center(9), y: center(6) }))
       .toBe('blocked');
+  });
+
+  it('escapes when a blocked origin snaps to the same walkable tile as its destination', () => {
+    const g = grid(3, 3);
+    g.blocked[1 * g.cols + 1] = 1;
+    expect(findPath(g, 1, 1, 1, 2)).toEqual([{ x: 1, y: 1 }, { x: 1, y: 2 }]);
+    expect(isWalkStepAllowed(center(1), center(1), center(1), center(2), g)).toBe(true);
+  });
+
+  it('keeps a cheaper slope-avoiding A* path instead of smoothing through costly hills', () => {
+    const g = grid(5, 3);
+    for (const x of [1, 3]) g.elevation![g.cols + x] = 32;
+    const result = findPath(g, 0, 1, 4, 1);
+    expect(result).not.toBeNull();
+    expect(result!.length).toBeGreaterThan(2);
+    expect(result!.some(({ y }) => y !== 1)).toBe(true);
+  });
+
+  it('treats bridge entrances as traversable even over a steep riverbed', () => {
+    const g = grid(3, 1);
+    g.bridge = new Uint8Array([0, 1, 0]);
+    g.elevation!.set([70, 0, 70]);
+    expect(isWalkStepAllowed(center(0), center(0), center(2), center(0), g)).toBe(true);
+    expect(findPath(g, 0, 0, 2, 0)).not.toBeNull();
+  });
+
+  it('rejects off-map walking and clamps restored points to walkable map bounds', () => {
+    const g = grid(3, 3);
+    expect(isWalkStepAllowed(center(0), center(0), -1, center(0), g)).toBe(false);
+    expect(isWalkStepAllowed(-1, center(0), center(0), center(0), g)).toBe(false);
+    const map = testWorldMap({ tilesX: 3, tilesY: 3, seed: 2714 });
+    expect(nearestWalkableWorldPoint(map, [], -5, center(1))).toEqual({ x: 0, y: center(1) });
+    expect(nearestWalkableWorldPoint(map, [], NaN, center(1))).toBeNull();
+  });
+
+  it('rejects invalid A* coordinates and nonpositive fractional search budgets', () => {
+    const g = grid(3, 3);
+    expect(findPath(g, NaN, 0, 2, 2)).toBeNull();
+    expect(findPath(g, 0.5, 0, 2, 2)).toBeNull();
+    expect(getNavigationQuote(g, { x: 0, y: 0 }, { x: 2, y: 2 }, { maxNodes: 0.5 }))
+      .toEqual({ status: 'pending', reason: 'search-budget' });
+  });
+
+  it('does not turn a reused cached route into a route through a newly blocked tile', () => {
+    const map = testWorldMap({
+      tilesX: 15, tilesY: 15, seed: 2715,
+      tileType: (x, y) => x === 7 && y !== 10 ? TerrainType.River : undefined,
+    });
+    resetPathGridCaches();
+    setCurrentPathMap(map, []);
+    try {
+      const walker = human(2715, { x: center(4), y: center(4) });
+      expect(steerWithPath(walker, center(10), center(4), 2, 'route-reuse')).toBe('path');
+      walker.x = center(8);
+      walker.y = center(4);
+      // Teleporting to the other side invalidates the old segment and replans;
+      // the remaining unobstructed leg should now be traversed directly.
+      expect(steerWithPath(walker, center(10), center(4), 2, 'route-reuse')).toBe('direct');
+    } finally {
+      setCurrentPathMap(null);
+      resetPathGridCaches();
+    }
   });
 });
