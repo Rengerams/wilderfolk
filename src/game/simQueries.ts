@@ -100,7 +100,7 @@ function naiveForEachInRadius(
 }
 
 export function findClosestInEntityGrid(
-  grid: EntitySpatialGrid | undefined,
+  grid: EntitySpatialGrid<Entity> | undefined,
   x: number,
   y: number,
   radius: number,
@@ -120,7 +120,7 @@ export function findClosestInEntityGrid(
 }
 
 export function findClosestEntityInRadius(
-  grid: EntitySpatialGrid | undefined,
+  grid: EntitySpatialGrid<Entity> | undefined,
   x: number,
   y: number,
   radius: number,
@@ -132,7 +132,7 @@ export function findClosestEntityInRadius(
 }
 
 export function forEachInEntityGrid(
-  grid: EntitySpatialGrid | undefined,
+  grid: EntitySpatialGrid<Entity> | undefined,
   x: number,
   y: number,
   radius: number,
