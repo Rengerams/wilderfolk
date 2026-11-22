@@ -99,6 +99,20 @@ describe('pathfinding metrics', () => {
     expect(report.session.nodesExpanded).toBe(0);
   });
 
+  it('consumes a tick once instead of counting it again on repeated flushes', () => {
+    const g = makeGrid(8, 8);
+    expect(findPath(g, 0, 0, 7, 7)).not.toBeNull();
+    flushPathfinderTickToSession();
+    const first = getPathfinderReport();
+    flushPathfinderTickToSession();
+    expect(getPathfinderReport()).toEqual(first);
+
+    expect(findPath(g, 0, 0, 7, 7)).not.toBeNull();
+    flushPathfinderTickToSession();
+    expect(getPathfinderReport().session.findPathCalls).toBe(2);
+    expect(getPathfinderReport().ticks).toBe(2);
+  });
+
   it('advances measuredTicks only through the tick flush, so per-tick rates stay honest', () => {
     const grid = makeGrid(10, 10);
     findPath(grid, 0, 5, 9, 5);
