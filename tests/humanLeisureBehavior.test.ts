@@ -47,7 +47,7 @@ function playTickFor(child: Entity, start = 1, end = 5000): number {
 /** A crowded play tick whose uncapped choice would fall outside the bounded candidate list. */
 function crowdedSteeringTick(state: ReturnType<typeof initGame>, child: Entity, allHumans: Entity[]): number {
   const nearby = allHumans.length - 1;
-  for (let tick = 1; tick < 5000; tick += TICKS_PER_DAY) {
+  for (let tick = 1; tick < 50 * TICKS_PER_DAY; tick += TICKS_PER_DAY) {
     const day = Math.floor(tick / TICKS_PER_DAY);
     if ((child.id + day) % nearby < CHILD_PLAYMATE_CANDIDATE_LIMIT) continue;
     if (personDayRoll(child.id, tick, 718) >= 0.72) continue;
