@@ -1,10 +1,9 @@
 import type { WorldState } from './gameTypes';
-import { EntityType } from './gameTypes';
+import { BuildingType, isCompletedPlayerBuilding } from './buildings';
 import { displayYear } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isRivalAtPeace } from './rivalPeace';
-import { resolveCombatLogKind, resolveCombatLogStage } from './eventLog';
 import { getEcosystemHealth } from './dailyEcology';
 
 export type PortraitTraitId = 'war' | 'nature' | 'trade' | 'build' | 'diplomacy';
@@ -33,101 +32,97 @@ function clamp(n: number, lo = 0, hi = 100): number {
   return Math.max(lo, Math.min(hi, Math.round(n)));
 }
 
+/** Roads, enclosure segments and decoration do not establish a township on their own. */
+const NON_TOWNSHIP_STRUCTURES: ReadonlySet<BuildingType> = new Set([
+  BuildingType.Road, BuildingType.Wall, BuildingType.WallGate, BuildingType.Fence,
+  BuildingType.Bridge, BuildingType.GroundReinforcement, BuildingType.Lamp,
+  BuildingType.Garden, BuildingType.Statue,
+]);
+
 export function computeVillagePortrait(state: WorldState): VillagePortrait {
   const humans = state.humanPopulation;
-
-  // Single-pass building scan
-  let playerBuildings = 0;
-  for (let i = 0; i < state.buildings.length; i++) {
-    const b = state.buildings[i];
-    if (b.completed && b.faction !== 'rival') {
-      playerBuildings++;
-    }
+  let settlementSites = 0;
+  let preserves = 0;
+  for (const site of state.buildings) {
+    if (!isCompletedPlayerBuilding(site)) continue;
+    if (site.type === BuildingType.WildlifePreserve) preserves++;
+    if (!NON_TOWNSHIP_STRUCTURES.has(site.type)) settlementSites++;
   }
 
-  // Single-pass trade route scan
   let activeRoutes = 0;
-  for (let i = 0; i < state.tradeRoutes.length; i++) {
-    if (state.tradeRoutes[i].active) activeRoutes++;
+  for (const route of state.tradeRoutes) {
+    if (route.active) activeRoutes++;
   }
-
   const caravans = state.lifetimeStats?.tradeCaravansCompleted ?? 0;
   const tradeGold = state.lifetimeStats?.goldFromTradeRoutes ?? 0;
   const eco = getEcosystemHealth(state);
-  const valley = state.valleyStage ?? 'stable';
 
-  // Single-pass entity scan
-  let wildWolves = 0;
-  let wildkin = 0;
   let adults = 0;
-  for (let i = 0; i < state.entities.length; i++) {
-    const e = state.entities[i];
-    if (!e.alive) continue;
-    if (e.type === EntityType.Wolf && e.tamedBy == null) wildWolves++;
-    else if (e.type === EntityType.Wildkin) wildkin++;
-    else if (e.type === EntityType.Human && isPlayerHuman(e) && e.age >= HUMAN_ADULT_MIN_AGE) adults++;
+  for (const entity of state.entities) {
+    if (entity.alive && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE) adults++;
   }
 
-  // Single-pass rival settlements scan
   let friendly = 0;
   let tense = 0;
   let atPeace = 0;
+  let atWar = 0;
+  let gifts = 0;
   const rivals = state.rivalSettlements ?? [];
-  for (let i = 0; i < rivals.length; i++) {
-    const r = rivals[i];
-    if (r.relationship === 'friendly') friendly++;
-    if (r.relationship === 'tense') tense++;
-    if (isRivalAtPeace(r)) atPeace++;
+  for (const rival of rivals) {
+    if (rival.relationship === 'friendly') friendly++;
+    if (rival.relationship === 'tense') tense++;
+    if (rival.atWarWithPlayer) atWar++;
+    if (isRivalAtPeace(rival)) atPeace++;
+    gifts += Math.max(0, rival.giftsGiven ?? 0);
   }
 
-  // Single-pass combat event log scan
+  // The Chronicle is bounded; battle reports retain the last 40 completed engagements.
+  // Do not count a pending raid a second time after it receives its battle report.
+  const reports = state.raidBattleReports ?? [];
   let outgoingRaids = 0;
-  let defenses = 0;
-  const eventLog = state.eventLog ?? [];
-  for (let i = 0; i < eventLog.length; i++) {
-    const kind = resolveCombatLogKind(eventLog[i]);
-    const stage = resolveCombatLogStage(eventLog[i]);
-    if (stage === 'dispatched' && kind === 'outgoing_raid') {
-      outgoingRaids++;
-    } else if (stage === 'resolved' && (kind === 'defense' || kind === 'repelled' || kind === 'incoming_raid')) {
-      defenses++;
-    }
+  for (const report of reports) {
+    if (report.side === 'offense') outgoingRaids++;
+  }
+  let pendingRaids = 0;
+  for (const raid of state.pendingOutgoingRaidEvents ?? []) {
+    if (!reports.some((report) => report.raidId === raid.id)) pendingRaids++;
   }
 
   const warScore = clamp(
-    outgoingRaids * 18 +
-      tense * 12 +
-      (defenses > 0 && outgoingRaids >= defenses ? 10 : 0) +
-      (humans > 80 && tense > 0 ? 8 : 0),
+    Math.min(65, outgoingRaids * 22) +
+      Math.min(20, pendingRaids * 20) +
+      Math.min(20, atWar * 12) +
+      Math.min(15, tense * 5),
   );
 
+  // Wild animals and an untouched stable valley are not conservation decisions.
+  // Ecosystem health already accounts for living wildlife.
   const natureScore = clamp(
-    (eco / 100) * 45 +
-      (valley === 'stable' ? 25 : valley === 'strained' ? 10 : 0) +
-      Math.min(20, wildWolves * 3) +
-      Math.min(15, wildkin * 1.5) +
-      Math.min(15, (state.ecoHealthYearsAbove80 ?? 0) * 3),
+    (Math.min(45, preserves * 18)
+      + Math.min(25, Math.max(0, state.ecoHealthYearsAbove80 ?? 0) * 5)
+      + Math.max(0, eco - 50) * 0.5)
+    * Math.max(0, Math.min(1, eco / 65)),
   );
 
   const tradeScore = clamp(
-    activeRoutes * 14 +
-      Math.min(30, caravans * 2) +
-      Math.min(25, tradeGold / 400) +
-      (state.villageReputation ?? 0) * 0.2,
+    Math.min(50, activeRoutes * 22) +
+      Math.min(20, caravans * 2) +
+      Math.min(15, tradeGold / 800),
   );
 
   const buildScore = clamp(
-    Math.min(45, humans / 5) +
-      Math.min(40, playerBuildings * 1.2) +
-      Math.min(15, (state.lifetimeStats?.technologiesResearched ?? 0) * 2),
+    settlementSites > 0
+      ? Math.min(25, humans / 4)
+        + Math.min(55, settlementSites * 2.5)
+        + Math.min(20, (state.lifetimeStats?.technologiesResearched ?? 0) * 3)
+      : 0,
   );
 
   const diplomacyScore = clamp(
-    friendly * 22 +
-      atPeace * 18 +
-      Math.min(20, (state.villageReputation ?? 0) * 0.25) +
-      (outgoingRaids === 0 && rivals.length > 0 ? 15 : 0) +
-      (tense === 0 && rivals.length > 0 ? 10 : 0),
+    Math.min(44, atPeace * 22) +
+      Math.min(30, gifts * 6) +
+      Math.min(20, friendly * 10) +
+      Math.min(10, Math.max(0, state.villageReputation ?? 0) * 0.12),
   );
 
   const traits: PortraitTrait[] = ([
@@ -140,7 +135,7 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
         warScore >= 50
           ? 'You march on camps and live by the spear — neighbors call you hard.'
           : warScore >= 25
-            ? 'You have tasted frontier war, but it is not your whole story.'
+            ? 'Your borders are contested, but fighting does not define your village.'
             : 'You have rarely spilled blood on purpose.',
     },
     {
@@ -152,8 +147,12 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
         natureScore >= 55
           ? 'The valley still breathes with you — grass, game, and wild things remain.'
           : natureScore >= 30
-            ? 'You use the land, sometimes carefully, sometimes hard.'
-            : 'The land shows strain from farms, hunts, and sprawl.',
+            ? 'Your choices are beginning to protect the valley.'
+            : eco < 40
+              ? 'The land shows strain from farms, hunts, and sprawl.'
+              : preserves > 0
+                ? 'You have begun protecting land; its benefits are still growing.'
+                : 'The valley is wild, but no land has been set aside for conservation.',
     },
     {
       id: 'trade' as const,
@@ -165,7 +164,9 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
           ? 'Caravans and gold shape your name more than walls do.'
           : tradeScore >= 25
             ? 'Some routes and deals already mark you as a trading folk.'
-            : 'Trade is thin — most wealth still comes from the home valley.',
+            : activeRoutes === 0
+              ? 'No active trade routes yet — the valley remains your main market.'
+              : 'Trade is beginning, but the home valley still drives most activity.',
     },
     {
       id: 'build' as const,
@@ -193,7 +194,8 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
               ? 'No lasting neighbors yet — the map is still mostly yours.'
               : 'Borders stay cold; few hands of friendship have been offered.',
     },
-  ] satisfies PortraitTrait[]).sort((a, b) => b.score - a.score);
+  ] satisfies PortraitTrait[]).sort((a, b) => b.score - a.score
+    || (a.id === 'build' ? -1 : b.id === 'build' ? 1 : 0));
 
   const primary = traits[0];
   const secondary = traits[1];
@@ -213,8 +215,11 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
   if (primary.id === 'war' && primary.score >= 45 && natureScore < 35 && diplomacyScore < 35) {
     title = 'Barbarians of the border';
     emoji = '🗡️';
-  } else if (primary.score < 20 && humans < 12) {
+  } else if (primary.score < 30 && humans < 12 && settlementSites < 6) {
     title = 'Young pioneers';
+    emoji = '🌅';
+  } else if (primary.score < 20) {
+    title = 'An unwritten village';
     emoji = '🌅';
   }
 
