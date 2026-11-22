@@ -81,6 +81,7 @@ import {
 import { assignMissingWorkers, getSmithBonus } from './workforce';
 import { isImprisoned } from './housingModel';
 import { isPlayerHuman } from './playerHuman';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { adjustHumanStaminaFromEnergy, getHumanNeedsWorkMultiplier } from './simulation/humanPhysiology';
 import { grantHospitalIntervalReputation } from './hospitalCare';
 import {
@@ -187,8 +188,8 @@ function logCompletedBuildings(state: WorldState, completedToday: ReadonlyMap<Bu
   }
 }
 
-/** Construction / repair / winter decay — once per colony day. */
-function tickBuildingProgress(state: WorldState): void {
+/** Construction / repair / winter decay — once at 23:00, after the latest legal shift. */
+export function tickBuildingProgress(state: WorldState): void {
   const entityById = new Map<number, Entity>();
   const livingPlayerHumans: Entity[] = [];
 
@@ -216,36 +217,61 @@ function tickBuildingProgress(state: WorldState): void {
     const building = state.buildings[b];
 
     if (!building.completed && building.constructionProgress < 100) {
-      // A corpse's id can survive in the crew roster; only living hands are on site.
-      const livingCrew: number[] = [];
-      for (let o = 0; o < building.occupants.length; o++) {
-        if (entityById.get(building.occupants[o])?.alive) livingCrew.push(building.occupants[o]);
+      // Only witnessed attendance at this site counts; no previous-day hours fallback.
+      // Builders have no ordinary workerBuildingId, but the attendance owner knows their site.
+      const attendedShares = new Map<number, number>();
+      for (const id of building.occupants) {
+        if (attendedShares.has(id)) continue;
+        const worker = entityById.get(id);
+        if (!worker || !isPlayerHuman(worker) || worker.age < HUMAN_ADULT_MIN_AGE
+          || worker.prisonBuildingId != null || (worker.schedulePresentTicksToday ?? 0) <= 0) continue;
+        const attendance = getWorkdayAttendance(worker);
+        if (attendance.siteId !== building.id || attendance.ticks <= 0) continue;
+        const share = getWorkplacePresenceShare(
+          attendance.ticks / TICKS_PER_HOUR, 1, ordinaryWorkHours, true,
+        );
+        if (share > 0) attendedShares.set(id, share);
       }
-      const workers = livingCrew.length;
       const buildDays = BUILDING_CONFIGS[building.type].buildTime;
       const totalWorkHours = Math.max(ordinaryWorkHours, Math.round(buildDays * ordinaryWorkHours));
       const baseRate = 100 / totalWorkHours;
 
-      // A crewed site speeds up with every hand; a site no crew can be posted to is its own builder,
-      // so its advertised days are the real pace; a staffable site left empty still crawls.
-      const buildMultiplier =
-        workers > 0 ? 1 + workers * 0.35 : isPassiveBuild(building.type) ? 1 : 0.22;
-      const skillMult = getWorkerSkillMultiplier(state, building, entityById, 'construction');
+      // Monotonic crew contribution: adding a positive partial shift can never erase work
+      // already supplied by another builder. Price each trade/aptitude once via skills.ts.
+      // The best one full-shift equivalent receives the base-work term; any additional
+      // fractions contribute the existing 0.35 per effective worker.
+      const idleRate = isPassiveBuild(building.type) ? 1 : 0.22;
+      const contributions = [...attendedShares].map(([id, share]) => ({
+        share,
+        factor: getWorkerSkillMultiplier(
+          state, building, entityById, 'construction', new Set([id]),
+        ),
+      }));
+      const totalShares = contributions.reduce((sum, worker) => sum + worker.share, 0);
+      let remainingBaseShare = Math.min(1, totalShares);
+      let baseGain = 0;
+      // Keep the uncrewed floor. The best work fractions replace that floor only when
+      // they improve it; every additional witnessed tick contributes a nonnegative bonus.
+      // Thus neither a weak worker nor a one-tick helper can reduce existing progress.
+      contributions.sort((a, b) => b.factor - a.factor);
+      for (const worker of contributions) {
+        const used = Math.min(worker.share, remainingBaseShare);
+        baseGain += used * Math.max(0, worker.factor - idleRate);
+        remainingBaseShare -= used;
+        if (remainingBaseShare <= 0) break;
+      }
+      const crewBonus = contributions.reduce(
+        (sum, worker) => sum + 0.35 * worker.share * worker.factor, 0,
+      );
+      const buildMultiplier = idleRate + baseGain + crewBonus;
 
       building.constructionProgress +=
-        baseRate * buildMultiplier * globalMult * skillMult * ordinaryWorkHours;
+        baseRate * buildMultiplier * globalMult * ordinaryWorkHours;
       building.buildAnimTimer += ordinaryWorkHours * 0.1;
 
-      if (workers > 0) {
-        const job = getJobForBuilding(building.type) ?? JobType.Builder;
-        for (const occupantId of livingCrew) {
-          // `entityById` is the map this function already built and passes to
-          // `getWorkerSkillMultiplier`; without it `gainSkill` scans every living entity per occupant.
-          gainSkill(state, occupantId, job, 0.15, entityById);
-          // The crew also earns the standard worked shift for the trade it is raising, so a Builder
-          // on a house site learns Building; the site's own job is what the roster records.
-          gainSkill(state, occupantId, job, WORK_SKILL_PER_SHIFT, entityById);
-        }
+      const job = getJobForBuilding(building.type) ?? JobType.Builder;
+      for (const [id, presenceShare] of attendedShares) {
+        gainSkill(state, id, job, WORK_SKILL_PER_SHIFT * presenceShare, entityById);
       }
 
       if (building.constructionProgress >= 100) {
@@ -310,6 +336,9 @@ function tickBuildingProgress(state: WorldState): void {
 
   // Newly finished job buildings get workers assigned the same day
   if (completedAny) {
+    // The 18:00 storage snapshot preceded this 23:00 completion. Refresh its existing
+    // economy owner now, before overnight trade/gathering can be clamped to stale caps.
+    updateStorageCaps(state);
     logCompletedBuildings(state, completedToday);
     assignMissingWorkers(livingPlayerHumans, state.buildings, state);
   }
@@ -333,9 +362,10 @@ export function tickDailyBuildingEconomy(
   ctx: TickContext,
   allAlive: Entity[],
 ): void {
-  tickBuildingProgress(state);
+  // Production stays at 18:00; the existing construction owner runs at 23:00.
   tickStaticDaily(state, ctx.season);
   tickBlueberryRegrowth(state);
+  // A site completed tonight cannot produce before tomorrow's evening pass.
   tickBuildingProduction(state, ctx, allAlive);
   // Recompute the ledger's food totals now that the day's production has run, so views read
   // stored numbers instead of adding the maps up themselves.
@@ -350,18 +380,21 @@ function tickBuildingProduction(
   allAlive: Entity[],
 ): void {
   const { updatedBuildings, entityById, byType, roadBuildings } = ctx;
-  // Production runs after the work window, but isProductionTick is anchored to midnight.
+  // Construction finishes at 23:00, after this production pass, so only sites that
+  // completed on an earlier day can supply output, XP and operational bonuses.
+  const operationalBuildings = updatedBuildings;
+  // Production is scheduled at 18:00, while isProductionTick is anchored to midnight.
   // Align to the same calendar day's start to preserve weekdays and interval cadence.
   const productionDayTick = state.tick - (state.tick % TICKS_PER_DAY);
 
   // The Mill bonus is the player's: a rival settlement's Mill feeds nobody here.
-  const hasMill = updatedBuildings.some(
+  const hasMill = operationalBuildings.some(
     (b) => b.type === BuildingType.Mill && isCompletedPlayerBuilding(b),
   );
   const millBonus = hasMill ? MILL_FOOD_PRODUCTION_MULT : 1.0;
   const globalEff =
     getMultiplier(state, 'global_efficiency') *
-    getTownHallGovernanceEfficiency(state, updatedBuildings);
+    getTownHallGovernanceEfficiency(state, operationalBuildings);
   const festivalMult = state.festival?.active ? 1.5 : 1.0;
 
   const playerWorkers = allAlive.filter(isPlayerHuman);
@@ -411,10 +444,10 @@ function tickBuildingProduction(
   }
 
   const adjacencyIndex = ensureAdjacencyIndex(state);
-  const smithBonus = getSmithBonus(updatedBuildings, playerWorkers);
+  const smithBonus = getSmithBonus(operationalBuildings, playerWorkers);
 
-  for (let b = 0; b < updatedBuildings.length; b++) {
-    const building = updatedBuildings[b];
+  for (let b = 0; b < operationalBuildings.length; b++) {
+    const building = operationalBuildings[b];
     const levelMult = building.level || 1;
     const terrainMult = getTerrainEfficiencyMultiplier(state, building);
     const adjacencyMult = buildingUsesAdjacency(building)
@@ -973,7 +1006,7 @@ function tickBuildingProduction(
     // Silos are storage, not food producers; their food branch multiplied by zero workers.
   }
 
-  tickVillageForge(state, updatedBuildings, productionDayTick);
+  tickVillageForge(state, operationalBuildings, productionDayTick);
 
   // Urban Planning: completed roads passively generate reputation (road_bonus research)
   const roadRepMult = getMultiplier(state, 'road_bonus');
@@ -982,7 +1015,7 @@ function tickBuildingProduction(
     if (roadCount > 0) {
       const rep = Math.min(5, Math.max(1, Math.floor(roadCount * (roadRepMult - 1) + 1)));
       addReputation(state, rep);
-      const camp = updatedBuildings.find(
+      const camp = operationalBuildings.find(
         (b) => b.completed && (b.type === BuildingType.TownHall || b.type === BuildingType.House),
       );
       if (camp) {

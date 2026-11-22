@@ -13,6 +13,7 @@ import { playerHumansFrom } from './playerHuman';
 import { syncLeaderHouseResidency } from './leaderHouse';
 import { decayIdleSkills } from './skills';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
+import { getPracticedJobForCompletedDay } from './scheduleFatigue';
 
 // Social & Relationships
 import { advanceSocialRelationships } from './relationships';
@@ -24,7 +25,7 @@ import { tickDailyPopulation } from './dailyPopulation';
 import { tickDailyChallenges } from './dailyChallenges';
 import { tickGrassDaily } from './dailyGrassEcology';
 import { resolveDailyVillageScheduleFatigue } from './dailyScheduleFatigue';
-import { tickDailyBuildingEconomy } from './dailyBuildingEconomy';
+import { tickBuildingProgress, tickDailyBuildingEconomy } from './dailyBuildingEconomy';
 import { tickDailyWorldEvents, tickYearBoundaryWorldEvents } from './dailyWorldEvents';
 import { applyDailyWeatherEffects } from './worldEvents';
 
@@ -46,7 +47,9 @@ export function tickLayerDaily(
   // 00:00 — day-boundary owners, then the new day's weather and grass.
   if (hour === DAILY_PHASE_HOURS.fatigue) {
     for (const human of ctx.playerHumans) {
-      if (human.alive && human.age >= HUMAN_ADULT_MIN_AGE) decayIdleSkills(human, human.job);
+      if (human.alive && human.age >= HUMAN_ADULT_MIN_AGE) {
+        decayIdleSkills(human, getPracticedJobForCompletedDay(human));
+      }
     }
     tickYearBoundaryWorldEvents(state);
     const stage1 = profileStart();
@@ -101,7 +104,7 @@ export function tickLayerDaily(
     }
   }
 
-  // 18:00 — production runs after the work window; world events read its output.
+  // 18:00 — established production cadence; world events read its output before 23:00 construction.
   if (hour === DAILY_PHASE_HOURS.production) {
     const stage10 = profileStart();
     tickWildkinChronicle(state, ctx);
@@ -109,6 +112,14 @@ export function tickLayerDaily(
     const stage11 = profileStart();
     tickDailyBuildingEconomy(state, ctx, allAlive);
     profileEnd('daily.tickDailyBuildingEconomy', stage11);
+  }
+
+  // 23:00 — consume all witnessed construction shifts before 00:00 clears the counters.
+  // This is the existing construction owner in the same daily layer, not a new scheduler.
+  if (hour === DAILY_PHASE_HOURS.construction) {
+    const constructionStart = profileStart();
+    tickBuildingProgress(state);
+    profileEnd('daily.tickBuildingProgress', constructionStart);
   }
 
   // 18:00 — population, world events and challenges, after this day's spawns.

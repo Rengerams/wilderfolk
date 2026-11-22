@@ -319,15 +319,17 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/housingPlanner.contract.test.ts, tests/housingAuthority.pipeline.test.ts, tests/housingPipeline.invariants.test.ts, tests/housingDiagnostics.test.ts, tests/adultChild.moveOutTarget.test.ts, tests/residenceCommuteRelocation.test.ts, tests/divorceHousing.custody.test.ts, tests/leaderHouse.successionHousehold.test.ts, tests/simulation.invariants.test.ts, tests/longRunColony.integration.test.ts, tests/residencyCapacity.writers.test.ts, tests/housing.custodianSplit.test.ts, tests/housingPulse.audit.test.ts',
   },
   construction: {
-    owner: 'buildingStaffingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); dailyBuildingEconomy.tickBuildingProgress (progress advance at the 18:00 production pass)',
+    owner: 'buildingStaffingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); dailyBuildingEconomy.tickBuildingProgress (progress advance at 23:00 after the latest legal work shift)',
     cadence: 'work',
-    cadenceNote: 'progress advances once per colony day in tickLayerDaily; crew membership changes on command/assignment phase. `isPassiveBuild` treats House and every zero-`maxOccupants` type as passive: they advance at the advertised pace without a crew, while a staffable but empty site still pays 0.22×. The crew multiplier is called with the construction action, so site progress reads only the catalog\'s work/builder/construction factor and no production-context DNA reaches it; that holds for a site with no production job too, since the crew\'s skill baseline falls back to Builder',
+    cadenceNote: 'The existing construction owner closes at 23:00, consuming every permitted shift before midnight clears the witness counters; attendance and site attribution still come solely from scheduleFatigue; assignment alone never proves work. Passive sites retain their uncrewed pace, while unattended staffable sites crawl at 0.22x. Individual fractional shifts add monotonically to construction progress, retaining the 0.35 full-worker bonus; skill and DNA are evaluated once per worker using the sole skills owner. One proportional trade skill credit is paid. Any new completion refreshes storage caps and Silo spoilage through economy.updateStorageCaps, before overnight resource arrivals.',
     writes: [
       'building.constructionProgress',
       'building.occupants (construction crew)',
       'building.buildAnimTimer',
+      'storageMax (via economy.updateStorageCaps on completion)',
+      'foodSpoilageRate (via economy.updateStorageCaps on completion)',
     ],
-    scheduledFrom: 'dailyBuildingEconomy.tickBuildingProduction (progress); assign layer + commands (crew membership)',
+    scheduledFrom: 'gameTick → tickLayerDaily 23:00 → dailyBuildingEconomy.tickBuildingProgress (progress); assign layer + commands (crew membership)',
     testFile: 'tests/commands.validation.test.ts, tests/demolish.roundtrip.test.ts, tests/personality.workIntegration.test.ts, tests/production.attendancePacing.test.ts',
   },
   tradeCaravans: {
@@ -341,7 +343,7 @@ export const SIMULATION_DECISIONS = {
   production: {
     owner: 'dailyBuildingEconomy.tickBuildingProduction; scheduleFatigue.getWorkdayAttendance (the one presence verdict); forge.tickVillageForge (forge orders, gated on the production-day anchor); economy.ts — addResource, applyFoodSpoilage, updateStorageCaps, computeStorageMax; the crew term this decision multiplies is skills.getWorkerSkillMultiplier',
     cadence: 'daily',
-    cadenceNote: 'system/daily at 18:00, after the work window, and before the same-hour ecology/world-event tail — getWorkdayAttendance is the one presence verdict: a positive rota or present tick is the sample, so zero presence pays no output; an all-zero resolved day or a legacy save without the counters reads the last worked hours. A changed site (-1) is excluded rather than guessed. Farms/hunt/smith production and spoilage are daily ledger work. Day-interval producers are additionally gated on isWorkDay, so they run 5 days in 7; the 2/3/5-day interval buildings (store, market, workshop, townHall, hospital, forge) skip that work-day test and read the same midnight production-day anchor. Silos are storage-only. The crew\'s trade DNA (personality traitInfluence, `work`/production context) enters through getWorkerSkillMultiplier, which reads `building.occupants` only; the workshop estimate reads the same function so the preview cannot drift. An occupant id that resolves to nobody contributes neutral DNA to that average instead of diluting it',
+    cadenceNote: 'At 18:00, production precedes the 23:00 construction close, so a site finished that night cannot yet grant output, XP or operational bonuses; existing sites price attendance through scheduleFatigue.getWorkdayAttendance. A worked shift earns XP even at full storage; separate XP for successful output remains. Stale, underage, dead, jailed, foreign and duplicate occupant ids never dilute the skill/DNA crew average. An empty eligible crew has a neutral multiplier.',
     writes: [
       'resources',
       'economyLedger.produced',
@@ -519,10 +521,10 @@ export const SIMULATION_DECISIONS = {
   idleSkillDecay: {
     owner: 'skills.ts — decayIdleSkills; sole non-active trade-skill decay writer',
     cadence: 'new-calendar-day',
-    cadenceNote: 'Exactly once at 00:00 for living adult player humans; active job skill is exempt. Required CI: calendar-scheduler tests exact loss through gameTick.',
+    cadenceNote: 'Exactly once at 00:00, before attendance settlement, living adult player humans decay skills that were not practiced. Only the witnessed, site-attributed trade from that day is exempt; a held job alone is not. No-op decay does not dirty the entity profile revision. Required CI: calendar-scheduler gameTick regression.',
     writes: ['human.skills', 'human.profileRevision'],
     scheduledFrom: 'gameTick.ts → tickLayerDaily.ts 00:00 → skills.decayIdleSkills',
-    testFile: 'tests/calendarPhase.auditRegressions.test.ts',
+    testFile: 'tests/calendarPhase.auditRegressions.test.ts, tests/skills.attendanceOwner.test.ts',
   },
   socialFeedback: {
     owner: 'humanSocial.ts — simAmbientChatNeighbors, simSettlerPairChat; socialLife.ts — pickSocialImpulse, tryWorkplaceBanter, tryNeighborGreeting, isSocialStaggerTick, isGreetingHour',

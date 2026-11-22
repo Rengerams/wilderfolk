@@ -3,6 +3,7 @@ import { TICKS_PER_HOUR } from './dayCycle';
 import { getWorkSchedule } from './workSchedule';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
+import { JobType } from './gameTypes';
 
 export const MAX_SCHEDULE_FATIGUE = 100;
 /** The worst output a fully fatigued crew can fall to — the floor of the penalty, not a % of energy. */
@@ -26,30 +27,37 @@ export function getScheduleProductivityMultiplier(entity: Pick<Entity, 'schedule
  * Credit `step` consecutive ticks of attendance — one call per evaluated tick, so a caller that
  * does not evaluate every tick can still record the ticks it covered (see `humanTick`).
  */
-export function recordScheduleWorkTick(entity: Entity, step = 1): void {
+export function recordScheduleWorkTick(
+  entity: Entity,
+  step = 1,
+  siteId = entity.workerBuildingId ?? -1,
+  job: JobType | null = entity.job ?? null,
+): void {
   if (!entity.alive || entity.age < HUMAN_ADULT_MIN_AGE || !isPlayerHuman(entity)) return;
   // A jailed settler keeps the reserved post but earns no attendance: a cell is not a shift.
   if (entity.prisonBuildingId != null) return;
   if (!Number.isFinite(step) || step <= 0) return;
   const priorTicks = entity.scheduleWorkedTicksToday ?? 0;
-  const siteId = entity.workerBuildingId ?? -1;
   if (priorTicks === 0) {
     entity.scheduleWorkedSiteIdToday = siteId;
-    entity.scheduleWorkedJobToday = entity.job ?? null;
+    entity.scheduleWorkedJobToday = job;
   } else {
     if (entity.scheduleWorkedSiteIdToday !== siteId) entity.scheduleWorkedSiteIdToday = -1;
-    if (entity.scheduleWorkedJobToday !== entity.job) entity.scheduleWorkedJobToday = null;
+    if (entity.scheduleWorkedJobToday !== job) entity.scheduleWorkedJobToday = null;
   }
   entity.scheduleWorkedTicksToday = priorTicks + step;
 }
 
 /** Credit only a tick the settler actually spent at the post. */
-export function recordPresentWorkTick(entity: Entity, step = 1): void {
+export function recordPresentWorkTick(
+  entity: Entity,
+  step = 1,
+  siteId = entity.workerBuildingId ?? -1,
+): void {
   if (!entity.alive || entity.age < HUMAN_ADULT_MIN_AGE || !isPlayerHuman(entity)) return;
   if (entity.prisonBuildingId != null) return;
   if (!Number.isFinite(step) || step <= 0) return;
   const priorTicks = entity.schedulePresentTicksToday ?? 0;
-  const siteId = entity.workerBuildingId ?? -1;
   if (priorTicks === 0) entity.schedulePresentSiteIdToday = siteId;
   else if (entity.schedulePresentSiteIdToday !== siteId) entity.schedulePresentSiteIdToday = -1;
   entity.schedulePresentTicksToday = priorTicks + step;
@@ -147,6 +155,19 @@ export function getWorkdayAttendance(
     ticks: getScheduleLastWorkedHours(worker) * TICKS_PER_HOUR,
     siteId: worker.scheduleLastWorkedSiteId,
   };
+}
+
+/**
+ * Return the practiced trade before midnight settlement clears today's attendance.
+ * The previous day's hours must never protect an idle occupation from decay.
+ */
+export function getPracticedJobForCompletedDay(entity: Entity): JobType | undefined {
+  const job = entity.scheduleWorkedJobToday;
+  const siteId = entity.scheduleWorkedSiteIdToday;
+  if (!job || job === JobType.Settler || siteId == null || siteId < 0
+    || (entity.scheduleWorkedTicksToday ?? 0) <= 0) return undefined;
+  const attendance = getWorkdayAttendance(entity, job === JobType.Hunter);
+  return attendance.ticks > 0 && attendance.siteId === siteId ? job : undefined;
 }
 
 /**

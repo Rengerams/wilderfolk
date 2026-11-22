@@ -53,10 +53,16 @@ describe('militia armament label', () => {
     expect(getMilitiaArmamentLabel(makeState([], {}))).toBeNull();
   });
 
-  it('the readiness panel asks the owner rather than restating the tiers', () => {
+  it('the readiness panel renders the canonical armament projection without restating tiers', () => {
     const panel = readFileSync(resolve(process.cwd(), 'src/components/FrontierPanel.tsx'), 'utf8');
-    expect(panel).toContain('getMilitiaArmamentLabel(state)');
-    expect(panel, 'the panel still restates the spear tiers by hand').not.toMatch(/hasIronSpears\(/);
-    expect(panel, 'the panel still restates the shield tiers by hand').not.toMatch(/hasStoneSpears\(/);
+    const projection = readFileSync(resolve(process.cwd(), 'src/game/frontierPanelView.ts'), 'utf8');
+    // The read-only projection asks the combat owner; React only displays the prepared verdict.
+    expect(projection).toContain('getMilitiaArmamentLabel(state)');
+    expect(panel).toContain('projectFrontierPanel(state,');
+    expect(panel).toContain('{view.armament}');
+    for (const source of [panel, projection]) {
+      expect(source, 'armament tiers must not be calculated outside militiaBalance').not.toMatch(/hasIronSpears\(/);
+      expect(source, 'armament tiers must not be calculated outside militiaBalance').not.toMatch(/hasStoneSpears\(/);
+    }
   });
 });

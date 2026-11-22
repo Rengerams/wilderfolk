@@ -1,6 +1,6 @@
 import type { Entity, WorldState } from './gameTypes';
 import { BuildingType, BUILDING_JOB_TYPES, type JobType } from './gameTypes';
-import { readSkill, writableEntitySkills } from './skills';
+import { readSkill, increaseEntitySkill } from './skills';
 import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
@@ -121,14 +121,12 @@ export function advanceApprenticeships(
 
 function teach(ap: Entity, master: Entity, job: JobType, state: WorldState): void {
   const masterSkill = readSkill(master, job);
-  const skills = writableEntitySkills(ap);
-  const before = skills[job] ?? 0;
   // The apprentice's own aptitudes nudge how fast this trade is learned.
   const trainingFactor = evaluateAptitudeInfluence(ap, 'apprenticeshipTraining').factor;
-  skills[job] = Math.min(100, before + (0.4 + (masterSkill / 100) * 0.5) * trainingFactor);
-  // A teacher keeps their own hand in.
-  writableEntitySkills(master)[job] = Math.min(100, masterSkill + 0.05);
-  if (skills[job] >= GRADUATE_SKILL) {
+  increaseEntitySkill(ap, job, (0.4 + (masterSkill / 100) * 0.5) * trainingFactor);
+  // A teacher keeps their own hand in without dirtying a saturated skill.
+  increaseEntitySkill(master, job, 0.05);
+  if (readSkill(ap, job) >= GRADUATE_SKILL) {
     if (masterSkill >= GRANDMASTER_SKILL && getEducationTier(ap.schoolDays ?? 0) === 3) {
       ap.grandmasterApprenticeshipCompleted = true;
     }

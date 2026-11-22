@@ -1,7 +1,7 @@
 /**
  * Tick-layer schedule lock: `gameTick` is the only orchestrator and calls these four modules in order
  * — realtime every tick, systems on their own interval, assignment at 03/09/15/21 and
- * daily entry at 00/06/12/18 (12 is empty) — and no other layer may exist.
+ * daily entry at 00/06/12/18/23 (12 is empty; 23 closes construction) — and no other layer may exist.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorldState } from '../src/game/gameTypes';
@@ -173,7 +173,7 @@ describe('gameTick layer orchestration (fixed schedule)', () => {
     expect(count('systems')).toBe(ticks / LAYER_SYSTEMS_INTERVAL);
     expect(count('assign')).toBe(ticks / LAYER_ASSIGN_INTERVAL);
     expect(count('prison-presence')).toBe(ticks / TICKS_PER_HOUR);
-    expect(count('daily')).toBe(ticks / (TICKS_PER_DAY / 4));
+    expect(count('daily')).toBe(5 * (ticks / TICKS_PER_DAY));
   });
 
   it('fires no daily tick before the first day boundary', async () => {
@@ -187,11 +187,11 @@ describe('gameTick layer orchestration (fixed schedule)', () => {
     expect(assignments).toEqual(['assign@36', 'assign@108', 'assign@180', 'assign@252']);
   });
 
-  it('invokes daily layer four times per calendar day at 00:00, 06:00, 12:00 and 18:00', async () => {
+  it('invokes the sole daily layer at 00:00, 06:00, 12:00, 18:00 and 23:00', async () => {
     await runTicks(0, 3 * TICKS_PER_DAY);
     const dailies = callLog.calls.filter((c) => c.startsWith('daily@'));
     expect(dailies).toEqual(Array.from({ length: 3 }, (_, day) =>
-      [6, 12, 18, 24].map((hour) => `daily@${day * TICKS_PER_DAY + hour * TICKS_PER_HOUR}`),
+      [6, 12, 18, 23, 24].map((hour) => `daily@${day * TICKS_PER_DAY + hour * TICKS_PER_HOUR}`),
     ).flat());
   });
 

@@ -1,9 +1,10 @@
 import type { Entity, WorldState, Building } from './gameTypes';
-import { BuildingType, BUILDING_JOB_TYPES, EntityType, JOB_LABELS, JobType } from './gameTypes';
+import { BuildingType, BUILDING_JOB_TYPES, JOB_LABELS, JobType } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { PROFILE_REVISION, bumpRevision } from './entityRevision';
+import { isPlayerHuman } from './playerHuman';
 
 export function getOccupationForBuilding(type: BuildingType): string {
   const job = BUILDING_JOB_TYPES[type];
@@ -21,14 +22,14 @@ export function ensureEntitySkills(entity: { skills?: Partial<Record<JobType, nu
   return entity.skills;
 }
 
-/** The writable skill map: marks the profile revision so the worker ships it when it changes. */
+/** Explicit mutable-map escape hatch (legacy/tests); prefer increaseEntitySkill. */
 export function writableEntitySkills(entity: Entity): Partial<Record<JobType, number>> {
   bumpRevision(entity, PROFILE_REVISION);
   return ensureEntitySkills(entity);
 }
 
 export function readSkill(entity: { skills?: Partial<Record<JobType, number>> }, job: JobType): number {
-  return ensureEntitySkills(entity)[job] ?? 0;
+  return entity.skills?.[job] ?? 0;
 }
 
 /** Skill ceiling — a trade is scored 0..100. */
@@ -51,30 +52,44 @@ export const WORK_SKILL_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<Buil
   Object.keys(BUILDING_JOB_TYPES) as BuildingType[],
 );
 
+/** Single revision-aware skill writer for work, training and graduation. */
+export function increaseEntitySkill(entity: Entity, job: JobType, amount: number): void {
+  if (!isPlayerHuman(entity) || !entity.alive || entity.age < HUMAN_ADULT_MIN_AGE
+    || !Number.isFinite(amount) || amount <= 0) return;
+  const before = readSkill(entity, job);
+  const after = Math.min(MAX_SKILL, before + amount);
+  if (after === before) return;
+  ensureEntitySkills(entity)[job] = after;
+  bumpRevision(entity, PROFILE_REVISION);
+}
+
 export function gainSkill(
   state: WorldState,
   humanId: number,
   job: JobType,
   amount: number,
   entityById?: Map<number, Entity>,
-) {
+): void {
   // A supplied index is authoritative: an id it lacks is a stale slot, not a cue to scan the world.
   const human = entityById ? entityById.get(humanId) : state.entities.find((e) => e.id === humanId);
-  if (!human || human.type !== EntityType.Human || human.age < HUMAN_ADULT_MIN_AGE || !human.alive) return;
-  const skills = writableEntitySkills(human);
-  skills[job] = Math.min(MAX_SKILL, (skills[job] ?? 0) + amount);
+  if (human) increaseEntitySkill(human, job, amount);
 }
 
 /** Apply a small decay to non-active job skills on calendar day rollover. */
 export function decayIdleSkills(entity: Entity, activeJob?: JobType, amount = SKILL_IDLE_DECAY_PER_DAY): void {
-  if (entity.type !== EntityType.Human || !entity.alive || entity.age < HUMAN_ADULT_MIN_AGE) return;
-  const skills = writableEntitySkills(entity);
+  if (!isPlayerHuman(entity) || !entity.alive || entity.age < HUMAN_ADULT_MIN_AGE
+    || !Number.isFinite(amount) || amount <= 0 || !entity.skills) return;
+  let changed = false;
   for (const job of Object.values(JobType)) {
     if (job === activeJob) continue;
-    const current = skills[job] ?? 0;
-    if (current <= 0) continue;
-    skills[job] = Math.max(0, current - amount);
+    const current = entity.skills[job] ?? 0;
+    if (!Number.isFinite(current) || current <= 0) continue;
+    const next = Math.max(0, current - amount);
+    if (next === current) continue;
+    entity.skills[job] = next;
+    changed = true;
   }
+  if (changed) bumpRevision(entity, PROFILE_REVISION);
 }
 
 /**
@@ -123,10 +138,6 @@ export function getWorkerSkillMultiplier(
   /** The workers who actually attended this shift. Omitted means the whole roster (construction). */
   workedIds?: ReadonlySet<number>,
 ): number {
-  const participants = workedIds
-    ? building.occupants.filter((id) => workedIds.has(id))
-    : building.occupants;
-  if (participants.length === 0) return 1;
   const siteJob = getJobForBuilding(building.type);
   // A build crew is paid the site's own trade when it has one, else Builder: a house or wall has
   // no production job, yet the crew raising it still earns — and is priced by — Building.
@@ -135,19 +146,22 @@ export function getWorkerSkillMultiplier(
   const workActivity = action === 'construction' ? 'construction' as const : 'routineWork' as const;
   let total = 0;
   let traitFactorSum = 0;
-  for (const id of participants) {
-    // A supplied index is authoritative: an id it lacks is a stale slot, not a cue to scan the world.
+  let validWorkers = 0;
+  const seen = new Set<number>();
+  for (const id of building.occupants) {
+    if (seen.has(id) || (workedIds && !workedIds.has(id))) continue;
+    seen.add(id);
+    // A supplied index is authoritative; stale, dead, underage and foreign occupants do not count.
     const h = entityById ? entityById.get(id) : state.entities.find((e) => e.id === id);
-    if (!h || !h.alive) {
-      // An unresolved or dead occupant has no DNA, so it counts as neutral rather than a penalty.
-      traitFactorSum += 1;
-      continue;
-    }
+    if (!h || !isPlayerHuman(h) || !h.alive || h.age < HUMAN_ADULT_MIN_AGE
+      || h.prisonBuildingId != null) continue;
     total += readSkill(h, skillJob);
     traitFactorSum += evaluateAptitudeInfluence(h, workActivity).factor;
+    validWorkers++;
   }
-  const avg = total / participants.length;
-  const traitMult = traitFactorSum / participants.length;
+  if (validWorkers === 0) return 1;
+  const avg = total / validWorkers;
+  const traitMult = traitFactorSum / validWorkers;
   return (1 + avg * 0.02) * traitMult; // up to 3x at skill 100
 }
 

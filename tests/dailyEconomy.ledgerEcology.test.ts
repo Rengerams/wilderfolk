@@ -19,7 +19,7 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import { getScheduleTargetHours } from '../src/game/scheduleFatigue';
 import { setSimSeed } from '../src/game/simRng';
 import { tickDailyWorldEvents, tickYearBoundaryWorldEvents } from '../src/game/dailyWorldEvents';
-import { tickDailyBuildingEconomy } from '../src/game/dailyBuildingEconomy';
+import { tickBuildingProgress, tickDailyBuildingEconomy } from '../src/game/dailyBuildingEconomy';
 import { tickVisitorGroups } from '../src/game/groupEvents';
 import { getTradeHubCenter, tryAdvanceCaravanLeg } from '../src/game/tradeCaravans';
 import { respondToDiplomacyEvent } from '../src/game/rivalDiplomacy';
@@ -353,7 +353,7 @@ describe('W-90 — a dead crew id neither speeds construction nor earns skill', 
     const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     const config = BUILDING_CONFIGS[BuildingType.House];
     state.season = Season.Spring;
-    state.tick = tickAtDailyPhase(1, 'production');
+    state.tick = tickAtDailyPhase(1, 'construction');
     state.entities = [];
     state.buildings = [{
       id: 9_001,
@@ -382,8 +382,9 @@ describe('W-90 — a dead crew id neither speeds construction nor earns skill', 
     const empty = siteWorld([]);
     empty.entities = [];
 
-    tickDailyBuildingEconomy(withCorpse, contextFor(withCorpse), living(withCorpse));
-    tickDailyBuildingEconomy(empty, contextFor(empty), living(empty));
+    // Construction closes at 23:00 in its own owner; the 18:00 economy pass does not advance sites.
+    tickBuildingProgress(withCorpse);
+    tickBuildingProgress(empty);
 
     expect(withCorpse.buildings[0].constructionProgress).toBeGreaterThan(10);
     expect(withCorpse.buildings[0].constructionProgress)

@@ -7,13 +7,13 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createBuilding, initGame } from '../src/game/worldGen';
 import { BUILDING_CONFIGS, BuildingType, Season } from '../src/game/gameTypes';
-import type { Entity, WorldState } from '../src/game/gameTypes';
+import type { WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
-import { tickDailyBuildingEconomy } from '../src/game/dailyBuildingEconomy';
+import { tickBuildingProgress } from '../src/game/dailyBuildingEconomy';
 import { tickDailyWorldEvents } from '../src/game/dailyWorldEvents';
 import { invalidateEntityByIdMap } from '../src/game/entityIndex';
 import { isPlayerHuman } from '../src/game/playerHuman';
-import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycle';
+import { DAYS_PER_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 
 const worldEventsSource = readFileSync(
   fileURLToPath(new URL('../src/game/dailyWorldEvents.ts', import.meta.url)),
@@ -78,7 +78,7 @@ describe('a day of building completions is one chronicle line per label', () => 
   /** Three Walls and one Leader's House a hair from finishing, so today's pass completes them all. */
   function worldWithSitesNearCompletion(): WorldState {
     const world = initGame({ skipTerrain: true, seed: 4242 });
-    world.tick = dayTick(40);
+    world.tick = dayTick(40) + 23 * TICKS_PER_HOUR;
     world.season = Season.Spring;
     const nearlyDone = (id: number, type: BuildingType, x: number) => {
       const site = createBuilding(type, x, 300, id);
@@ -104,7 +104,7 @@ describe('a day of building completions is one chronicle line per label', () => 
     const world = worldWithSitesNearCompletion();
     expect(world.buildings.every((building) => building.constructionProgress < 100)).toBe(true);
 
-    tickDailyBuildingEconomy(world, tickContext(world, Season.Spring), [] as Entity[]);
+    tickBuildingProgress(world);
 
     expect(
       world.buildings.every((building) => building.completed),
@@ -121,7 +121,7 @@ describe('a day of building completions is one chronicle line per label', () => 
     // The Leader's House is updated first, so the Walls have all finished by the time it does.
     world.buildings = [world.buildings[3]!, ...world.buildings.slice(0, 3)];
 
-    tickDailyBuildingEconomy(world, tickContext(world, Season.Spring), [] as Entity[]);
+    tickBuildingProgress(world);
 
     // The log is newest-first, so the head is the last line written.
     expect(completions(world)).toEqual([
