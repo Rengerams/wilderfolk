@@ -1,6 +1,7 @@
 import type { Building, BuildingType, WorldState } from './gameTypes';
 import { BuildingType as BT, BUILDING_CONFIGS, BUILDING_JOB_TYPES } from './gameTypes';
-import type { WorkSchedule } from './workSchedule';
+import { getWorkScheduleHours, type WorkSchedule } from './workSchedule';
+import { getVenueScheduleHours } from './venueSchedule';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned } from './housingModel';
@@ -92,8 +93,10 @@ export function getScheduleImpactPreview(
     }
   }
 
-  const currentHours = current.endHour - current.startHour;
-  const nextHours = next.endHour - next.startHour;
+  // The schedule owners supply duration semantics; this projection only compares their readings.
+  const scheduleHours = kind === 'ordinary' ? getWorkScheduleHours : getVenueScheduleHours;
+  const currentHours = scheduleHours(current);
+  const nextHours = scheduleHours(next);
   const durationDelta = nextHours - currentHours;
   const unchanged = current.startHour === next.startHour && current.endHour === next.endHour;
 
