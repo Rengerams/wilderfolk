@@ -21,7 +21,7 @@ import { hasNearbyPlayerTamingPost, listTamingCandidates, getTameEntityEligibili
 import { getBuildingConfig } from '../game/buildingConfig';
 import { useEffect, useState } from 'react';
 import { getHumanActivityProjection } from '../game/humanStatus';
-import { explainSettlerMovement } from '../game/dashboardData';
+import { explainHumanMovement } from '../game/movementExplanation';
 import { citizenFullName, citizenGivenName, humanDisplayName } from '../game/citizenId';
 import { displayYear } from '../game/dayCycleClock';
 import PersonalityCareerDetails from './PersonalityCareerDetails';
@@ -57,12 +57,13 @@ export default function SelectedEntityPanel({
   const [lastActivity, setLastActivity] = useState<{ entityId: number; activity: string } | null>(null);
   const isVillageHead = isVillageLeader(state, entity.id);
   const isHuman = entity.type === EntityType.Human;
+  const isLocalSettler = isHuman && isPlayerHuman(entity);
 
   const previousActivity = lastActivity?.entityId === entity.id
     ? lastActivity.activity
     : undefined;
 
-  const activityProjection = isHuman || entity.type === EntityType.Werewolf
+  const activityProjection = isLocalSettler || entity.type === EntityType.Werewolf
     ? getHumanActivityProjection(state, entity, previousActivity)
     : null;
 
@@ -85,12 +86,12 @@ export default function SelectedEntityPanel({
   /** The movement reason trace for this settler — the day's named stops, the current leg and the
    * path owner's blocked/rerouting verdict, printed as-is. Read-only; nothing is derived here. */
   const movementExplanation = isHuman && !isVisitor
-    ? explainSettlerMovement(state, entity.id)
+    ? explainHumanMovement(state, entity.id)
     : null;
 
   // Derived each render: the sim mutates the world and its entities in place, so a memo
   // keyed on them cannot see a change.
-  const childCount = isHuman && !isVisitor ? countLivingChildren(entity, allEntities) : 0;
+  const childCount = isLocalSettler ? countLivingChildren(entity, allEntities) : 0;
 
   // Both come from the taming owner: the candidate list is player settlers only, and
   // `building.x/y` is the footprint centre, so the reach test measures from the centre.
@@ -230,7 +231,7 @@ export default function SelectedEntityPanel({
               Open camp — trade &amp; talks
             </button>
           )}
-          {isHuman && !isVisitor && (
+          {isLocalSettler && (
             <p className="text-[11px] text-amber-400">
               {/* The settler's own name — the entity id is engine bookkeeping, not something to show. */}
               <span className="font-mono text-stone-400">{citizenFullName(entity)}</span>
@@ -264,7 +265,7 @@ export default function SelectedEntityPanel({
       )}
 
       <div className="space-y-0.5 text-xs text-amber-200">
-        {isHuman && !isVisitor && entity.needs ? (
+        {isLocalSettler && entity.needs ? (
           <>
             <p>Nutrition: {Math.round(entity.needs.nutrition)} / 100</p>
             <p>Rest: {Math.round(entity.needs.rest)} / 100</p>
@@ -278,13 +279,13 @@ export default function SelectedEntityPanel({
         {entity.combatTicks && entity.combatTicks > 0 && (
           <p className="text-amber-300">⚔️ In combat</p>
         )}
-        {isHuman && !entity.isJuvenile && !isVisitor && getHumanArmamentLabel(state) && (
+        {isLocalSettler && !entity.isJuvenile && getHumanArmamentLabel(state) && (
           <p className="text-sky-300">⚔️ Village gear: {getHumanArmamentLabel(state)}</p>
         )}
         {entity.tamedBy && (
           <p className="text-emerald-400">🦴 Tamed by {tamer?.name || 'a settler'}</p>
         )}
-        {isHuman && !isVisitor && (
+        {isLocalSettler && (
           <>
             {hasResidenceAssignment(entity) ? (() => {
               const home = state.buildings.find((b) => b.id === entity.residenceBuildingId);
