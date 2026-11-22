@@ -4,11 +4,17 @@
  */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
-import type { Building, Entity, RivalSettlement, WorldState } from '../src/game/gameTypes';
+import type { Building, Entity, RaidEvent, RivalSettlement, WorldState } from '../src/game/gameTypes';
 import { applyWorkerCommand, WORKER_CMD_PROTO } from '../src/game/simWorker/commands';
 import {
   canLaunchRaidOnRival,
   canProvokeRival,
+  getCombatPreview,
+  respondToRaidEvent,
+  tickPendingRaidEvents,
+  applyTruceToRival,
+  cancelPendingOutgoingRaidsForRival,
+  resolveRaidVictory,
   getRaidLootScale,
   getRaidGrowthScale,
   RAID_GROWTH_BASE_ADULTS,
@@ -192,6 +198,7 @@ describe('mobilized raid lifecycle', () => {
     expect(army.soldierIds).toHaveLength(12);
     expect(launched.entities.filter((person) => person.raidDeploymentId === army.id)).toHaveLength(12);
     expect(launched.entities.every((person) => person.raidDeploymentId === army.id)).toBe(true);
+    expect(launched.entities.every((person) => person.flash === 10 && person.combatTicks === 12)).toBe(true);
 
     const premature = respondToOutgoingRaidEvent(launched, army.id, army.rivalResponse === 'fight' ? 'fight' : 'accept_payoff');
     expect(premature.pendingOutgoingRaidEvents[0]?.phase).toBe('marching');
@@ -275,6 +282,98 @@ describe('mobilized raid lifecycle', () => {
     const provoked = provokeRival(state, state.rivalSettlements[0]!.id);
     expect(provoked.rivalSettlements[0]!.peaceTreatyDays).toBe(0);
     expect(provoked.rivalSettlements[0]!.atWarWithPlayer).toBe(true);
+  });
+});
+
+describe('raid decision and return authority', () => {
+  it('cannot bypass a six-hour defense through the public immediate responder', () => {
+    const world = village([rival({ relationship: 'tense', population: 8 })]);
+    const raid: RaidEvent = {
+      id: 'incoming_test', rivalId: world.rivalSettlements[0].id, rivalName: 'OakCrossing',
+      emoji: '⚔️', title: 'Incoming', description: 'Defend the village',
+      choices: [{ id: 'defend', label: 'Defend', hint: 'Fight' }, { id: 'barricade', label: 'Barricade', hint: 'Hold' }],
+      createdAtTick: world.tick, expiresAtTick: world.tick + TICKS_PER_DAY * 3,
+      marchDistanceTiles: 8, attackerStrength: 1,
+      lootFood: 10, lootGold: 1, lootWood: 1, lootStone: 1,
+    };
+    world.pendingRaidEvents = [raid];
+
+    expect(respondToRaidEvent(world, raid.id, 'defend')).toBe(world);
+    expect(respondToRaidEvent(world, raid.id, 'barricade')).toBe(world);
+    expect(world.pendingRaidEvents[0].phase).toBeUndefined();
+
+    const started = applyWorkerCommand(world, {
+      proto: WORKER_CMD_PROTO, op: 'respondToRaidEvent', eventId: raid.id, choiceId: 'defend',
+    });
+    expect(started.pendingRaidEvents[0].phase).toBe('fighting');
+    expect(started.pendingRaidEvents[0].battleStartedAtTick).toBe(0);
+    expect(started.pendingRaidEvents[0].soldierIds).toHaveLength(12);
+    started.tick = 2 * TICKS_PER_HOUR;
+    tickPendingRaidEvents(started, started.entities);
+    expect(started.pendingRaidEvents[0].phase).toBe('fighting');
+    started.tick = 6 * TICKS_PER_HOUR;
+    tickPendingRaidEvents(started, started.entities);
+    expect(started.pendingRaidEvents).toHaveLength(0);
+    expect(started.eventLog.some((line) =>
+      line.combatKind === 'incoming_raid' && line.combatStage === 'casualties'
+      && line.message.includes('OakCrossing lost'))).toBe(true);
+  });
+
+  it('recalls a marching army on truce but releases it only at the return tick', () => {
+    const state = launchRaidOnRival(village([rival({ relationship: 'tense' })]), 'rival_oakcrossing');
+    const raid = state.pendingOutgoingRaidEvents[0]!;
+    state.tick = Math.floor((raid.arrivalAtTick! + raid.launchedAtTick!) / 2);
+    applyTruceToRival(state, raid.rivalId, 30);
+
+    const returning = state.pendingOutgoingRaidEvents[0]!;
+    expect(returning.phase).toBe('returning');
+    expect(returning.returnAtTick).toBeGreaterThan(state.tick);
+    expect(state.entities.filter((person) => person.raidDeploymentId === raid.id)).toHaveLength(12);
+    const eta = returning.returnAtTick;
+    expect(cancelPendingOutgoingRaidsForRival(state, raid.rivalId)).toBe(false);
+    expect(returning.returnAtTick).toBe(eta);
+    state.tick = eta! - 1;
+    tickPendingOutgoingRaidEvents(state);
+    expect(state.entities.filter((person) => person.raidDeploymentId === raid.id)).toHaveLength(12);
+    state.tick = eta!;
+    tickPendingOutgoingRaidEvents(state);
+    expect(state.pendingOutgoingRaidEvents).toHaveLength(0);
+    expect(state.entities.every((person) => person.raidDeploymentId === undefined)).toBe(true);
+  });
+
+  it('uses the launch eligibility for previews, including treaty-breaking and busy camps', () => {
+    const state = village([rival({ relationship: 'friendly', peaceTreatyDays: 18 })]);
+    const camp = state.rivalSettlements[0];
+    const allowed = canLaunchRaidOnRival(state, camp);
+    const preview = getCombatPreview(state, { rival: camp });
+    expect(allowed.ok).toBe(true);
+    expect(preview.canCounterRaid).toBe(true);
+    expect(preview.counterRaidBlockReason).toBeNull();
+    expect(preview.breakdown.join(' ')).toContain('reputation -6');
+
+    const marching = launchRaidOnRival(state, camp.id);
+    const blocked = canLaunchRaidOnRival(marching, marching.rivalSettlements[0]);
+    const busyPreview = getCombatPreview(marching, { rival: marching.rivalSettlements[0] });
+    expect(blocked.ok).toBe(false);
+    expect(busyPreview.canCounterRaid).toBe(false);
+    expect(busyPreview.counterRaidBlockReason).toBe(blocked.blockReason);
+  });
+
+  it('reports actual residents killed on raze instead of a stale battle snapshot', () => {
+    const state = village([rival({ relationship: 'tense', population: 7 })]);
+    state.pendingRaidVictories = [{
+      raidId: 'won_1', rivalId: 'rival_oakcrossing', rivalName: 'OakCrossing',
+      playerDead: 0, enemyDead: 3, enemySurvivors: 4, playerCasualties: [],
+      enemyCasualties: [], credibleThreat: false,
+    }];
+    state.raidBattleReports = [{
+      raidId: 'won_1', enemyDeaths: 3, refugees: 4,
+    } as NonNullable<WorldState['raidBattleReports']>[number]];
+    const razed = resolveRaidVictory(state, 'won_1', 'raze');
+    expect(razed.raidBattleReports?.[0].enemyDeaths).toBe(10);
+    expect(razed.raidBattleReports?.[0].refugees).toBe(0);
+    expect(razed.rivalSettlements).toHaveLength(0);
+    expect(state.rivalSettlements[0].population).toBe(7);
   });
 });
 
