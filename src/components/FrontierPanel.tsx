@@ -1,26 +1,5 @@
-import { memo, useState } from 'react';
-import type { WorldState } from '../game/gameTypes';
-import CombatPreviewPanel from '../game/CombatPreviewPanel';
-import StrategicWorldMap from './StrategicWorldMap';
-import {
-  canLaunchRaidOnRival,
-  canProvokeRival,
-  getOutgoingRaidActionLabel,
-  formatCampDistance,
-  formatRaidDeadline,
-  formatRivalPopulationLabel,
-  getCampDistancePixels,
-  getCombatPreview,
-  getOutgoingRaidFoodCostForRival,
-  getRivalRaidStrength,
-  isRivalAtPeace,
-} from '../game/gameEngine';
-import { getBarracksGuardCount, countCompletedDefenseBuildings } from '../game/defenseStructures';
-import { BuildingType } from '../game/gameTypes';
-import { computeMilitiaBreakdown, getMilitiaArmamentLabel } from '../game/militiaBalance';
-import { getRivalProfileLabel } from '../game/rivalProfiles';
-import { getRivalPresenceSummary } from '../game/rivalPresence';
-import { MAX_STRATEGIC_SETTLEMENTS, MIN_RIVAL_FOUNDING_POPULATION, RIVAL_FOUNDING_START_DAY, RIVAL_FOUNDING_INTERVAL_DAYS } from '../game/rivalSettlements';
+import { projectFrontierPanel } from '../game/frontierPanelView';
+import { RIVAL_FOUNDING_START_DAY, RIVAL_FOUNDING_INTERVAL_DAYS, MIN_RIVAL_FOUNDING_POPULATION, MAX_STRATEGIC_SETTLEMENTS } from '../game/rivalSettlements';
 
 /**
  * The frontier view's props — the lazy wrapper (`tabPanels/FrontierTabPanel`) reuses this contract.
@@ -48,23 +27,13 @@ function FrontierPanel({
   onRecallRaid,
 }: FrontierPanelProps) {
   const [selectedRivalId, setSelectedRivalId] = useState<string | null>(null);
-  const pendingRaids = state.pendingRaidEvents ?? [];
-  const firstPendingRaid = pendingRaids[0];
-  const pendingDiplomacy = state.pendingDiplomacyEvents ?? [];
-  const livingIds = new Set(state.entities.filter((person) => person.alive).map((person) => person.id));
-  const hasNeighbors = state.visitorGroups.length > 0 || state.rivalSettlements.length > 0;
-  const militia = computeMilitiaBreakdown(state, state.entities);
-  const guards = getBarracksGuardCount(state, state.buildings);
-  const barracksCount = countCompletedDefenseBuildings(state.buildings, BuildingType.Barracks);
-  const wallSegments = countCompletedDefenseBuildings(state.buildings, [
-    BuildingType.Wall,
-    BuildingType.WallGate,
-  ]);
-  // The armament label comes from the militia owner, whose multipliers are what `computeMilitiaBreakdown`
-  // prints as the strength above, so both lines must come from that owner.
-  const armament = getMilitiaArmamentLabel(state) ?? 'Unarmed adults';
+  const view = projectFrontierPanel(state, {
+    pendingRaidCount,
+    pendingOutgoingRaidCount,
+    pendingDiplomacyCount,
+  });
 
-  if (!hasNeighbors && pendingRaidCount === 0 && pendingOutgoingRaidCount === 0 && !(state.raidBattleReports?.length)) {
+  if (view.isEmpty) {
     return (
       <div className="space-y-3">
         <StrategicWorldMap state={state} selectedRivalId={selectedRivalId} onSelectRival={setSelectedRivalId} />
@@ -86,21 +55,21 @@ function FrontierPanel({
   return (
     <div className="space-y-3">
       <StrategicWorldMap state={state} selectedRivalId={selectedRivalId} onSelectRival={setSelectedRivalId} />
-      {(state.raidBattleReports?.length ?? 0) > 0 && (
+      {view.battleReports.length > 0 && (
         <section className="rounded-lg border border-amber-600/40 bg-stone-900/70 px-3 py-2 text-[12px]">
           <h4 className="text-[13px] font-bold text-amber-200">Battle aftermath and recovery</h4>
-          {state.raidBattleReports!.slice(-5).reverse().map((report) => (
+          {view.battleReports.map((report) => (
             <details key={report.raidId} className="mt-2 rounded border border-stone-700 px-2 py-1">
               <summary className="cursor-pointer font-semibold text-stone-100">
-                {report.side === 'defense' ? 'Defending against' : 'Raiding'} {report.rivalName} · {report.outcome}
+                {report.sideLabel} {report.rivalName} · {report.outcome}
               </summary>
               <p className="mt-1 text-stone-300">{report.playerDeaths} villagers lost · {report.enemyDeaths} enemies lost · {report.damagedBuildings} buildings damaged</p>
               <p className="text-stone-400">Supplies lost: {report.suppliesLost.food} food, {report.suppliesLost.wood} wood, {report.suppliesLost.stone} stone, {report.suppliesLost.gold} gold</p>
-              <p className="text-stone-400">Leadership merit: {report.leadershipMerit > 0 ? '+' : ''}{report.leadershipMerit}</p>
+              <p className="text-stone-400">Leadership merit: {report.leadershipMeritLabel}</p>
               {report.playerFallen.length > 0 && <div className="mt-1 text-emerald-300"><strong>Village fallen</strong>{report.playerFallen.map((name, i) => <p key={i}>{name} — killed</p>)}</div>}
               {report.enemyFallen.length > 0 && <div className="mt-1 text-red-300"><strong>Enemy fallen</strong>{report.enemyFallen.map((name, i) => <p key={i}>{name} — killed</p>)}</div>}
-              {report.enemyDeaths > report.enemyFallen.length && <p className="text-red-300">Enemy losses without known names: {report.enemyDeaths - report.enemyFallen.length}</p>}
-              {report.side === 'defense' && report.outcome !== 'decisive' && <p className="mt-1 text-amber-200">Recovery: inspect damaged buildings, restaff defenses and rebuild supplies.</p>}
+              {report.unlistedEnemyLosses > 0 && <p className="text-red-300">Enemy losses without known names: {report.unlistedEnemyLosses}</p>}
+              {report.showRecoveryAdvice && <p className="mt-1 text-amber-200">Recovery: inspect damaged buildings, restaff defenses and rebuild supplies.</p>}
             </details>
           ))}
         </section>
@@ -114,71 +83,65 @@ function FrontierPanel({
         <div className="grid grid-cols-2 gap-1.5 text-[13px]">
           <div className="rounded bg-stone-800/80 px-2 py-1">
             <div className="text-stone-400">Militia</div>
-            <strong className="text-emerald-300">{militia.militiaStrength}</strong>
+            <strong className="text-emerald-300">{view.militia.militiaStrength}</strong>
           </div>
           <div className="rounded bg-stone-800/80 px-2 py-1">
             <div className="text-stone-400">Barricade</div>
-            <strong className="text-cyan-300">{militia.barricadeStrength}</strong>
+            <strong className="text-cyan-300">{view.militia.barricadeStrength}</strong>
           </div>
           <div className="rounded bg-stone-800/80 px-2 py-1">
             <div className="text-stone-400">Guards</div>
-            <strong className={guards > 0 ? 'text-violet-300' : 'text-amber-400'}>
-              {guards}{barracksCount > 0 ? ` / ${barracksCount} barracks` : ''}
+            <strong className={view.guardsColorClass}>
+              {view.guards}{view.barracksSuffix}
             </strong>
           </div>
           <div className="rounded bg-stone-800/80 px-2 py-1">
             <div className="text-stone-400">Walls</div>
-            <strong className="text-stone-300">{wallSegments} seg.</strong>
+            <strong className="text-stone-300">{view.wallSegments} seg.</strong>
           </div>
         </div>
-        <p className="mt-1.5 text-[10px] text-stone-300">🏹 {armament} · assign guards in Barracks inspector</p>
+        <p className="mt-1.5 text-[10px] text-stone-300">🏹 {view.armament} · assign guards in Barracks inspector</p>
       </div>
 
-      {(pendingRaidCount > 0 || pendingOutgoingRaidCount > 0 || pendingDiplomacyCount > 0) && (
+      {view.hasAlerts && (
         <div className="rounded-lg border border-rose-500/30 bg-rose-950/25 px-3 py-2 text-[13px] text-rose-200">
-          {pendingRaidCount > 0 && <p>⚔️ {pendingRaidCount} incoming raid(s) — respond in the map banner</p>}
-          {pendingOutgoingRaidCount > 0 && (
-            <p className={pendingRaidCount > 0 ? 'mt-0.5' : ''}>
-              🏹 {pendingOutgoingRaidCount} war-band(s) at rival camps — accept tribute or fight
+          {view.pendingRaidCount > 0 && <p>⚔️ {view.pendingRaidCount} incoming raid(s) — respond in the map banner</p>}
+          {view.pendingOutgoingRaidCount > 0 && (
+            <p className={view.pendingRaidCount > 0 ? 'mt-0.5' : ''}>
+              🏹 {view.pendingOutgoingRaidCount} war-band(s) at rival camps — accept tribute or fight
             </p>
           )}
-          {pendingDiplomacyCount > 0 && (
-            <p className={pendingRaidCount > 0 || pendingOutgoingRaidCount > 0 ? 'mt-0.5' : ''}>
-              📜 {pendingDiplomacyCount} diplomacy event(s) — respond on map
+          {view.pendingDiplomacyCount > 0 && (
+            <p className={view.pendingRaidCount > 0 || view.pendingOutgoingRaidCount > 0 ? 'mt-0.5' : ''}>
+              📜 {view.pendingDiplomacyCount} diplomacy event(s) — respond on map
             </p>
           )}
         </div>
       )}
 
-      {firstPendingRaid && (
+      {view.combatPreview && (
         <CombatPreviewPanel
-          preview={getCombatPreview(state, {
-            attackerStrength: firstPendingRaid.attackerStrength
-              ?? (state.rivalSettlements[0] ? getRivalRaidStrength(state.rivalSettlements[0]) : undefined),
-            rival: state.rivalSettlements.find((r) => r.id === firstPendingRaid.rivalId)
-              ?? state.rivalSettlements[0],
-            incomingPayoffFood: firstPendingRaid.lootFood,
-          })}
+          preview={view.combatPreview}
           showOutgoingRaid={false}
           title="⚔️ Incoming raid forecast"
         />
       )}
 
-      {state.visitorGroups.length > 0 && (
+      {view.visitors.length > 0 && (
         <div>
           <h4 className="mb-1.5 text-[13px] font-bold uppercase tracking-wider text-cyan-400">Visitors</h4>
           <div className="space-y-1.5">
-            {state.visitorGroups.map((g) => (
+            {view.visitors.map((g) => (
               <button
                 key={g.id}
                 type="button"
-                onClick={() => onFocusVisitor(g.id, g.campX, g.campY)}
+                onClick={() => onFocusVisitor(g.id, g.x, g.y)}
                 className="flex w-full items-center justify-between gap-2 rounded-lg bg-stone-800/60 px-2.5 py-2 text-left transition-colors hover:bg-cyan-900/30"
               >
                 <div className="min-w-0">
                   <p className="truncate text-[13px] font-bold text-cyan-200">🧳 {g.name}</p>
                   <p className="text-[13px] capitalize text-stone-300">
-                    {g.kind} · {g.daysLeft}d · click for trade &amp; leader
+                    {g.description}
                   </p>
                 </div>
                 <span className="shrink-0 text-[13px] text-cyan-500">→</span>
@@ -188,21 +151,11 @@ function FrontierPanel({
         </div>
       )}
 
-      {state.rivalSettlements.length > 0 && (
+      {view.rivals.length > 0 && (
         <div>
           <h4 className="mb-1.5 text-[13px] font-bold uppercase tracking-wider text-amber-400">Rival camps</h4>
           <div className="space-y-1.5">
-            {state.rivalSettlements.map((r) => {
-              const hasRaid = pendingRaids.some((e) => e.rivalId === r.id);
-              const hasDiplo = pendingDiplomacy.some((e) => e.rivalId === r.id);
-              const warBands = (state.pendingOutgoingRaidEvents ?? []).filter((army) => army.rivalId === r.id);
-              const raidEligibility = canLaunchRaidOnRival(state, r);
-              const provokeEligibility = canProvokeRival(state, r);
-              const raidFoodCost = getOutgoingRaidFoodCostForRival(state, r);
-              const outgoingRaidAction = getOutgoingRaidActionLabel(state, r.id);
-              const presence = getRivalPresenceSummary(state, r);
-              const profile = presence.profile;
-              return (
+            {view.rivals.map((r) => (
                 <div
                   key={r.id}
                   className={`rounded-lg border px-2.5 py-2 ${selectedRivalId === r.id ? 'border-amber-500 bg-amber-950/40' : 'border-transparent bg-stone-800/60'}`}
@@ -217,38 +170,25 @@ function FrontierPanel({
                       <span className="shrink-0 text-[13px] capitalize text-amber-400">{r.relationship}</span>
                     </div>
                     <p className="text-[13px] text-stone-300">
-                      {formatRivalPopulationLabel(r)} · {formatCampDistance(getCampDistancePixels(state, state.buildings, r))}
-                      · raid {raidFoodCost}🍖
-                      {isRivalAtPeace(r) && <span className="text-cyan-400"> · 🕊️ {r.peaceTreatyDays}d (raid breaks treaty)</span>}
+                      {r.populationLabel} · {r.distanceLabel}
+                      · raid {r.raidFoodCost}🍖
+                      {r.isAtPeace && <span className="text-cyan-400"> · 🕊️ {r.peaceTreatyDays}d (raid breaks treaty)</span>}
                     </p>
-                    <p className="text-[10px] capitalize text-amber-300/80">{getRivalProfileLabel(profile)} · {presence.stanceLabel}</p>
-                    {r.diplomacyMemory && <p className="text-[10px] text-stone-300">Valley memory: trust {r.diplomacyMemory.trust} · fear {r.diplomacyMemory.fear} · grievance {r.diplomacyMemory.grievance}</p>}
-                    <p className="text-[10px] text-cyan-300/80">Camp status: {presence.modeLabel}</p>
-                    <p className="text-[10px] text-stone-400">Ledger: {profile.ledger.food} food · {profile.ledger.wood} wood · {profile.ledger.gold} gold · morale {profile.ledger.morale}% · recovery {profile.ledger.recovery}%</p>
-                    <p className="text-[10px] text-stone-400">Latest contact: {presence.latestContact}</p>
-                    {presence.history.length > 1 && <p className="text-[10px] text-stone-500">History: {presence.history.slice(1, 3).join(' · ')}</p>}
-                    {(hasRaid || hasDiplo) && (
-                      <p className="text-[10px] font-bold text-rose-400">
-                        {(() => {
-                          const pendingRaid = pendingRaids.find((e) => e.rivalId === r.id);
-                          return hasRaid && pendingRaid
-                            ? `⚔️ Raid — ${formatRaidDeadline(pendingRaid, state.tick)}`
-                            : '';
-                        })()}
-                        {hasRaid && hasDiplo ? ' · ' : ''}
-                        {hasDiplo ? '📜 Diplomacy pending' : ''}
-                      </p>
+                    <p className="text-[10px] capitalize text-amber-300/80">{r.profileLabel} · {r.stanceLabel}</p>
+                    {r.valleyMemoryLabel && <p className="text-[10px] text-stone-300">{r.valleyMemoryLabel}</p>}
+                    <p className="text-[10px] text-cyan-300/80">Camp status: {r.statusLabel}</p>
+                    <p className="text-[10px] text-stone-400">{r.ledgerLabel}</p>
+                    <p className="text-[10px] text-stone-400">Latest contact: {r.latestContact}</p>
+                    {r.historyLabel && <p className="text-[10px] text-stone-500">History: {r.historyLabel}</p>}
+                    {r.pendingLabel && (
+                      <p className="text-[10px] font-bold text-rose-400">{r.pendingLabel}</p>
                     )}
                     <p className="text-[10px] text-stone-400">Select to highlight this settlement on the strategic map; no village-camera jump.</p>
                   </button>
-                  {warBands.map((army) => {
-                    const phase = army.phase === 'returning' ? 'Returning' : army.phase === 'fighting' ? 'Battle underway' : army.phase === 'engaging' ? 'Arrived' : 'Marching';
-                    const marchingSoldiers = army.soldierIds?.filter((id) => livingIds.has(id)).length ?? 0;
-                    const canRecall = onRecallRaid && army.phase !== 'returning' && army.phase !== 'fighting';
-                    return (
+                  {r.warBands.map((army) => (
                       <div key={army.id} className="mt-1.5 flex items-center justify-between gap-2 rounded bg-emerald-950/40 px-2 py-1 text-[10px] text-emerald-200">
-                        <span>🏹 {phase} · {marchingSoldiers} soldiers afield</span>
-                        {canRecall && (
+                        <span>🏹 {army.phaseLabel} · {army.marchingSoldiers} soldiers afield</span>
+                        {onRecallRaid && army.canRecall && (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -262,17 +202,17 @@ function FrontierPanel({
                         )}
                       </div>
                     );
-                  })}
+                  ))}
                   {onLaunchRaid && (
                     <>
                     {onProvokeRival && (
                       <>
                       <button
                         type="button"
-                        disabled={!provokeEligibility.ok}
-                        title={provokeEligibility.ok
+                        disabled={!r.provokeEligibility.ok}
+                        title={r.provokeEligibility.ok
                           ? 'Declare hostility — relations turn tense (reputation -6) so you can raid them'
-                          : provokeEligibility.blockReason}
+                          : r.provokeEligibility.blockReason}
                         onClick={(e) => {
                           e.stopPropagation();
                           onProvokeRival(r.id);
@@ -281,36 +221,36 @@ function FrontierPanel({
                       >
                         🗡️ Declare hostility
                       </button>
-                      {!provokeEligibility.ok && (
+                      {!r.provokeEligibility.ok && (
                         <p className="mt-0.5 text-[10px] text-stone-400">
-                          {provokeEligibility.blockReason}
+                          {r.provokeEligibility.blockReason}
                         </p>
                       )}
                       </>
                     )}
                     <button
                       type="button"
-                      disabled={!raidEligibility.ok}
-                      title={raidEligibility.ok ? `March provisions ${raidFoodCost}🍖 · worsens relations` : raidEligibility.blockReason}
+                      disabled={!r.raidEligibility.ok}
+                      title={r.raidEligibility.ok ? `March provisions ${r.raidFoodCost}🍖 · worsens relations` : r.raidEligibility.blockReason}
                       onClick={(e) => {
                         e.stopPropagation();
                         onLaunchRaid(r.id);
                       }}
                       className="mt-1.5 w-full rounded bg-orange-950 px-2 py-1 text-[10px] font-bold text-orange-100 hover:bg-orange-900 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      🏹 {outgoingRaidAction.buttonLabel} ({raidFoodCost}🍖)
+                      🏹 {r.outgoingRaidAction.buttonLabel} ({r.raidFoodCost}🍖)
                     </button>
                     {/* A disabled button is not focusable and its title is unreachable on touch. */}
-                    {!raidEligibility.ok && (
+                    {!r.raidEligibility.ok && (
                       <p className="mt-0.5 text-[10px] text-rose-300">
-                        ⚠️ {raidEligibility.blockReason ?? 'Cannot raid'}
+                        ⚠️ {r.raidEligibility.blockReason ?? 'Cannot raid'}
                       </p>
                     )}
                     </>
                   )}
                 </div>
               );
-            })}
+            ))}
           </div>
         </div>
       )}
