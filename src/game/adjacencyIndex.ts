@@ -1,4 +1,4 @@
-import type { Building } from './gameTypes';
+import type { Building } from './buildings';
 import { BuildingType } from './gameTypes';
 
 export const ADJACENCY_CELL = 80;

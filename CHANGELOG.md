@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Refactored (22 Nov 2026; pending merge):** Broke two type-import cycles: placement reads world-map types rather than renderer types; grid and gameplay readers use narrow entity contracts; statistics and social record types live in leaf schemas. No gameplay or save-format change.
 - **Removed (22 Nov 2026, PR #165):** Rival raiders no longer wander, poach wildlife or create battle effects on the village map. Warfare and diplomacy remain on the strategic world map, and legacy saves still load.
 
 - **Removed (22 Nov 2026; pending merge):** No visitor camps or idle visitor NPCs spawn on the village map (first-week, mid-year and yearly event routes removed). Old saves discard visitors and their camps on load; strategic rivals, raids, resident immigration and trade routes remain.
@@ -39,7 +40,9 @@
 - **Fixed (22 Nov 2026):** Spotlight gatherings retry nearby ring positions instead of accepting distant walkability snaps, preserving the ring radius and participant spacing.
 - **Changed (22 Nov 2026):** Removed the obsolete terrain-buildability forwarding predicate and now read the water rule directly throughout placement, generation, and grid checks; removed the empty no-build terrain overlay, retaining real placement verdict markers.
 - **Fixed (22 Nov 2026):** Restore valid `jscpd` runner arguments after accidental malformed flags broke the main-branch duplicate-code baseline gate.
-- **Fixed (22 Nov 2026):** Village identity now reflects player conservation, trade, buildings, diplomacy and recorded raids rather than starting wildlife or passive peace; portrait refreshes hourly without scanning the Chronicle.
+- **Fixed (22 Nov 2026):** Village identity now reflects player conservation, trade, buildings, diplomacy and recorded raids rather than starting wildlife or passive peace; the live portrait reads the current state only while its window is open, without scanning the Chronicle.
+- **Fixed (22 Nov 2026):** The Goals portrait reads the latest mutable simulation state whenever Your path is open, including completed buildings and activated routes in the same hour. Closed windows do no portrait work; the stale hourly memo and lint suppression are removed.
+- **Tested (22 Nov 2026; pending merge):** Replaced Goals portrait source-text assertions with a real Chromium UI regression through Overview → Progress → Your path. It checks same-tick building/trade changes, closed-window non-computation, and reopening.
 - **Fixed (20 Nov 2026):** Workers reach accessible facades, count only movement-owner-confirmed detours as commutes, and hide while on duty except during emergency prey pursuit; route quotes use one sample per connected frontage stretch, and the worker delta preserves commute labels in the UI.
 - **Fixed (22 Nov 2026):** Unified construction-crew indexing and assigned/idle worker counts in a single read-only owner. HUD, People screen, dashboard, simulation and diagnostics now share age, prison and rival-crew eligibility.
 - **Fixed (22 Nov 2026, PR #160):** Vacancy swaps now reuse the canonical construction-crew index; staffing regressions cover reserved builders and stale workplace references.

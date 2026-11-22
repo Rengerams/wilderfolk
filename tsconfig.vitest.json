@@ -24,7 +24,8 @@
     //
     // `types` above already declares `vitest/globals`, `node` and `vite/client`, so this also gives
     // the test files the Node builtins (`node:fs`, `node:path`, `process`) they import.
-    "tests/**/*.ts"
+    "tests/**/*.ts",
+    "tests/browser/**/*.tsx"
   ],
   "exclude": []
 }

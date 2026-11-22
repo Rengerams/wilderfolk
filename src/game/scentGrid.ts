@@ -1,7 +1,15 @@
-import type { Entity } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { gridCellAxis, gridFeatureDisabled, MOBILE_CELL_SIZE, runtimeEnvFlag } from './spatialGrid';
 import { isActiveMoonHowler } from './moonHowler';
+
+/** Scent reads only predator location, type and active curse, not the full entity model. */
+interface ScentPredator {
+  alive: boolean;
+  type: EntityType;
+  x: number;
+  y: number;
+  moonHowlerCursed?: boolean;
+}
 
 /** Magic `WFSN` — Wilderfolk scent sidecar. */
 export const SCENT_GRID_MAGIC = 0x5746534e;
@@ -127,7 +135,7 @@ export class ScentGrid implements ScentGridRuntime {
   }
 
   /** Stain cells where mobile predators stood this tick (wolf / fox / active werewolf / wildkin). */
-  depositPredatorScent(entities: Iterable<Entity>): void {
+  depositPredatorScent(entities: Iterable<ScentPredator>): void {
     for (const entity of entities) {
       if (!entity.alive) continue;
       const type = entity.type;
@@ -329,7 +337,7 @@ export function ensureScentGrid(
 
 export function tickScentGrid(
   state: { scentGrid?: ScentGrid },
-  predators: Iterable<Entity>,
+  predators: Iterable<ScentPredator>,
 ): ScentGrid | undefined {
   if (!USE_SCENT_GRID || !state.scentGrid) return undefined;
   state.scentGrid.decay();

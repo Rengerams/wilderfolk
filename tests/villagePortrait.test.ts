@@ -111,3 +111,28 @@ describe('village identity follows player choices', () => {
     );
   });
 });
+
+
+describe('live Goals portrait', () => {
+  it('responds to in-place building and trade changes at the same simulation tick', () => {
+    const world = {
+      ...neutralVillage,
+      ecosystemHealth: 90,
+      buildings: [building(1, BuildingType.WildlifePreserve, { completed: false })],
+      tradeRoutes: [{ active: false }],
+    } as unknown as WorldState;
+    const initial = computeVillagePortrait(world);
+    world.buildings[0].completed = true;
+    world.tradeRoutes[0].active = true;
+    const updated = computeVillagePortrait(world);
+    expect(updated.traits.find((trait) => trait.id === 'nature')?.score).toBeGreaterThan(
+      initial.traits.find((trait) => trait.id === 'nature')?.score ?? 0,
+    );
+    expect(updated.traits.find((trait) => trait.id === 'trade')?.score).toBeGreaterThan(
+      initial.traits.find((trait) => trait.id === 'trade')?.score ?? 0,
+    );
+    expect(world.tick).toBe(0);
+    expect(world.buildings).toHaveLength(1);
+    expect(world.tradeRoutes).toHaveLength(1);
+  });
+});

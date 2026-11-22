@@ -1,10 +1,21 @@
-import type { Entity, Building } from './gameTypes';
+import type { Building } from './buildings';
 import { EntityType } from './gameTypes';
 import {
   isSpatialQueryMetricsEnabled,
   recordSpatialCandidate,
   recordSpatialCells,
 } from './spatialQueryMetrics';
+
+/** The spatial grid's sole entity contract, independent of the full world model. */
+export interface SpatialGridEntity {
+  id: number;
+  type: EntityType;
+  alive: boolean;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+}
 
 /** Grass patches — updated on birth/death; queried for grazing and viewport culling. */
 export const GRASS_CELL_SIZE = 56;
@@ -65,19 +76,19 @@ export function gridCellAxis(coord: number, cellSize: number, cellCount: number)
   return Math.min(cellCount - 1, Math.max(0, Math.floor(coord / cellSize)));
 }
 
-export function isHumanSocialGridEntity(entity: Entity): boolean {
+export function isHumanSocialGridEntity(entity: SpatialGridEntity): boolean {
   return entity.type === EntityType.Human && entity.alive;
 }
 
-export function isMobileGridEntity(entity: Entity): boolean {
+export function isMobileGridEntity(entity: SpatialGridEntity): boolean {
   return entity.alive && MOBILE_ENTITY_TYPES.has(entity.type);
 }
 
-export function isGrassGridEntity(entity: Entity): boolean {
+export function isGrassGridEntity(entity: SpatialGridEntity): boolean {
   return entity.alive && entity.type === EntityType.Grass;
 }
 
-export function isTreeGridEntity(entity: Entity): boolean {
+export function isTreeGridEntity(entity: SpatialGridEntity): boolean {
   return entity.alive && entity.type === EntityType.Tree;
 }
 
@@ -85,11 +96,11 @@ export function isTreeGridEntity(entity: Entity): boolean {
  * Uniform 2D Spatial Hash Grid.
  * Optimized for zero heap-allocation on update, reconcile, and radial walks.
  */
-export class EntitySpatialGrid {
+export class EntitySpatialGrid<T extends SpatialGridEntity = SpatialGridEntity> {
   readonly mapWidth: number;
   readonly mapHeight: number;
   readonly cellSize: number;
-  private readonly cells: Entity[][];
+  private readonly cells: T[][];
   private readonly cols: number;
   private readonly rows: number;
 
@@ -103,7 +114,7 @@ export class EntitySpatialGrid {
    * entity id → the object currently stored in that bucket, so an unchanged-cell update can
    * tell whether the bucket already holds this object without scanning it.
    */
-  private readonly entityStored = new Map<number, Entity>();
+  private readonly entityStored = new Map<number, T>();
 
   /** Scratch buffers reused during reconcile() to prevent GC churn every tick. */
   private readonly scratchSeen = new Set<number>();
@@ -150,7 +161,7 @@ export class EntitySpatialGrid {
   }
 
   /** Remove an entity from its current cell bucket (no-op if absent). */
-  remove(entity: Entity): void {
+  remove(entity: T): void {
     this.removeById(entity.id);
   }
 
@@ -173,7 +184,7 @@ export class EntitySpatialGrid {
     this.entityStored.delete(id);
   }
 
-  private insert(entity: Entity): void {
+  private insert(entity: T): void {
     if (!entity.alive || !Number.isFinite(entity.x) || !Number.isFinite(entity.y)) return;
 
     const col = gridCellAxis(entity.x, this.cellSize, this.cols);
@@ -205,7 +216,7 @@ export class EntitySpatialGrid {
   /**
    * Incremental move — fast bucket transfer without object allocations.
    */
-  update(entity: Entity): void {
+  update(entity: T): void {
     if (!entity.alive) {
       this.removeById(entity.id);
       return;
@@ -216,7 +227,7 @@ export class EntitySpatialGrid {
   /**
    * Synchronizes grid state against an active entity collection with zero object allocations.
    */
-  reconcile(entities: Iterable<Entity>, filter?: (entity: Entity) => boolean): void {
+  reconcile(entities: Iterable<T>, filter?: (entity: T) => boolean): void {
     const seen = this.scratchSeen;
     seen.clear();
 
@@ -239,7 +250,7 @@ export class EntitySpatialGrid {
     }
   }
 
-  rebuild(entities: Iterable<Entity>, filter?: (entity: Entity) => boolean): void {
+  rebuild(entities: Iterable<T>, filter?: (entity: T) => boolean): void {
     this.clear();
     for (const entity of entities) {
       if (!entity.alive) continue;
@@ -254,7 +265,7 @@ export class EntitySpatialGrid {
     minY: number,
     maxX: number,
     maxY: number,
-    fn: (entity: Entity) => void,
+    fn: (entity: T) => void,
   ): void {
     if (
       !Number.isFinite(minX) ||
@@ -303,7 +314,7 @@ export class EntitySpatialGrid {
     x: number,
     y: number,
     radius: number,
-    fn: (entity: Entity, distSq: number) => boolean | void,
+    fn: (entity: T, distSq: number) => boolean | void,
     recordCandidates = true,
   ): void {
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(radius) || radius < 0) return;
@@ -350,12 +361,12 @@ export class EntitySpatialGrid {
     x: number,
     y: number,
     radius: number,
-    predicate: (entity: Entity, distSq: number) => boolean,
-  ): { entity: Entity; distSq: number } | null {
+    predicate: (entity: T, distSq: number) => boolean,
+  ): { entity: T; distSq: number } | null {
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(radius) || radius < 0) return null;
 
     const metrics = isSpatialQueryMetricsEnabled();
-    let bestEntity: Entity | undefined;
+    let bestEntity: T | undefined;
     let bestDistSq = Number.POSITIVE_INFINITY;
 
     this.forEachInRadius(
@@ -374,7 +385,7 @@ export class EntitySpatialGrid {
     return bestEntity ? { entity: bestEntity, distSq: bestDistSq } : null;
   }
 
-  validateInvariant(entities: Iterable<Entity>, filter: (entity: Entity) => boolean): string[] {
+  validateInvariant(entities: Iterable<T>, filter: (entity: T) => boolean): string[] {
     const errors: string[] = [];
     const expected = new Set<number>();
 
@@ -415,12 +426,12 @@ export class EntitySpatialGrid {
 
 // ============ REUSABLE INSTANTIATION & SYNC HELPERS ============
 
-function isReusableSpatialGrid(
+function isReusableSpatialGrid<T extends SpatialGridEntity>(
   grid: unknown,
   mapWidth: number,
   mapHeight: number,
   cellSize: number,
-): grid is EntitySpatialGrid {
+): grid is EntitySpatialGrid<T> {
   return (
     grid instanceof EntitySpatialGrid &&
     typeof grid.rebuild === 'function' &&
@@ -428,29 +439,29 @@ function isReusableSpatialGrid(
   );
 }
 
-export function resolveSpatialGrid(
-  existing: EntitySpatialGrid | undefined,
+export function resolveSpatialGrid<T extends SpatialGridEntity>(
+  existing: EntitySpatialGrid<T> | undefined,
   mapWidth: number,
   mapHeight: number,
   cellSize: number,
-): EntitySpatialGrid {
-  if (isReusableSpatialGrid(existing, mapWidth, mapHeight, cellSize)) {
+): EntitySpatialGrid<T> {
+  if (isReusableSpatialGrid<T>(existing, mapWidth, mapHeight, cellSize)) {
     return existing;
   }
-  return new EntitySpatialGrid(mapWidth, mapHeight, cellSize);
+  return new EntitySpatialGrid<T>(mapWidth, mapHeight, cellSize);
 }
 
 /** The one grid sync: a new layout rebuilds, a reused one reconciles mid-run spawns and removals. */
-export function syncEntitySpatialGrid(
-  existing: EntitySpatialGrid | undefined,
+export function syncEntitySpatialGrid<T extends SpatialGridEntity>(
+  existing: EntitySpatialGrid<T> | undefined,
   mapWidth: number,
   mapHeight: number,
-  entities: Iterable<Entity>,
+  entities: Iterable<T>,
   cellSize: number,
-  isGridEntity: (entity: Entity) => boolean,
-): EntitySpatialGrid | undefined {
+  isGridEntity: (entity: T) => boolean,
+): EntitySpatialGrid<T> | undefined {
   if (!USE_SPATIAL_GRID) return undefined;
-  const grid = resolveSpatialGrid(existing, mapWidth, mapHeight, cellSize);
+  const grid = resolveSpatialGrid<T>(existing, mapWidth, mapHeight, cellSize);
   if (grid !== existing) grid.rebuild(entities, isGridEntity);
   else grid.reconcile(entities, isGridEntity);
   return grid;
@@ -487,9 +498,9 @@ export function viewportFromCamera(
  * Gathers grass entities in the viewport: the spatial grid when available, otherwise an
  * allocation-free linear AABB walk rather than rebuilding a grid per frame.
  */
-export function collectGrassInViewport(
-  grassGrid: EntitySpatialGrid | null | undefined,
-  grassEntities: Entity[],
+export function collectGrassInViewport<T extends SpatialGridEntity>(
+  grassGrid: EntitySpatialGrid<T> | null | undefined,
+  grassEntities: T[],
   mapWidth: number,
   mapHeight: number,
   camX: number,
@@ -497,9 +508,9 @@ export function collectGrassInViewport(
   zoom: number,
   canvasW: number,
   canvasH: number,
-): Entity[] {
+): T[] {
   const vp = viewportFromCamera(camX, camY, zoom, canvasW, canvasH);
-  const visible: Entity[] = [];
+  const visible: T[] = [];
 
   if (
     grassGrid &&
@@ -526,15 +537,15 @@ export function collectGrassInViewport(
   return visible;
 }
 
-export function syncSpatialGridEntity(
-  entity: Entity,
-  grassGrid?: EntitySpatialGrid,
-  mobileGrid?: EntitySpatialGrid,
+export function syncSpatialGridEntity<T extends SpatialGridEntity>(
+  entity: T,
+  grassGrid?: EntitySpatialGrid<T>,
+  mobileGrid?: EntitySpatialGrid<T>,
   /**
    * The tree grid. Required for a tree spawned mid-tick: the realtime layer reconciles the tree
    * grid once per tick, so a same-tick spawn is invisible without this.
    */
-  treeGrid?: EntitySpatialGrid,
+  treeGrid?: EntitySpatialGrid<T>,
 ): void {
   if (!USE_SPATIAL_GRID) return;
   if (grassGrid && isGrassGridEntity(entity)) grassGrid.update(entity);
@@ -646,7 +657,7 @@ export class RoadAvoidanceIndex {
     return false;
   }
 
-  applyAvoidance(entity: Entity, radius = ROAD_AVOID_RADIUS): void {
+  applyAvoidance(entity: Pick<SpatialGridEntity, 'x' | 'y' | 'vx' | 'vy'>, radius = ROAD_AVOID_RADIUS): void {
     if (!Number.isFinite(entity.x) || !Number.isFinite(entity.y) || radius <= 0) return;
 
     // Zero-allocation query deduplication
@@ -741,10 +752,10 @@ function isSpatialInvariantCheckEnabled(): boolean {
 
 export const SPATIAL_GRID_INVARIANT_CHECK = isSpatialInvariantCheckEnabled();
 
-export function assertSpatialGridInvariants(
-  grassGrid: EntitySpatialGrid | undefined,
-  mobileGrid: EntitySpatialGrid | undefined,
-  entities: Iterable<Entity>,
+export function assertSpatialGridInvariants<T extends SpatialGridEntity>(
+  grassGrid: EntitySpatialGrid<T> | undefined,
+  mobileGrid: EntitySpatialGrid<T> | undefined,
+  entities: Iterable<T>,
 ): void {
   if (!SPATIAL_GRID_INVARIANT_CHECK || !grassGrid || !mobileGrid) return;
 

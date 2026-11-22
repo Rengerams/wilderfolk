@@ -44,7 +44,7 @@ const slotLists = {
   shimById: new Map<number, Entity>(),
 };
 let buckets: RenderSoABuckets = emptyBuckets();
-let grassRenderGrid: EntitySpatialGrid | undefined;
+let grassRenderGrid: EntitySpatialGrid<Entity> | undefined;
 let grassGridTick = UNCACHED_RENDER_TICK;
 let grassGridMapW = 0;
 let grassGridMapH = 0;
@@ -158,7 +158,7 @@ export function syncGrassRenderGridFromSoA(
   mapWidth: number,
   mapHeight: number,
   tick: number,
-): EntitySpatialGrid | undefined {
+): EntitySpatialGrid<Entity> | undefined {
   if (!USE_SPATIAL_GRID) return undefined;
 
   const bucketData = updateRenderSoABuckets(reader, metaBySlot, tick);

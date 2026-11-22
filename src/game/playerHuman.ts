@@ -20,12 +20,12 @@ export function isForeignFaction(faction: Entity['faction']): boolean {
  * Whether an entity is a settler of the player's village: a Human that is not in a foreign faction.
  * A missing or unnamed faction marker still counts as player-owned.
  */
-export function isPlayerHuman(e: Entity): boolean {
+export function isPlayerHuman(e: Pick<Entity, 'type' | 'faction'>): boolean {
   return e.type === EntityType.Human && !isForeignFaction(e.faction);
 }
 
 /** A player's witnessed human shift still belongs to them during a temporary Moon Howler form. */
-export function isPlayerHumanShiftOwner(e: Entity): boolean {
+export function isPlayerHumanShiftOwner(e: Pick<Entity, 'type' | 'faction' | 'moonHowlerCursed' | 'moonHowlerSaved'>): boolean {
   return isPlayerHuman(e) || (e.type === EntityType.Werewolf && !!e.moonHowlerCursed
     && !!e.moonHowlerSaved && !isForeignFaction(e.faction));
 }

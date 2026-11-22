@@ -47,11 +47,11 @@ export interface TickContext {
   predators: Entity[];
 
   // ── Spatial Grids (Partitioned for query performance) ──
-  grassGrid?: EntitySpatialGrid;
-  mobileGrid?: EntitySpatialGrid;
+  grassGrid?: EntitySpatialGrid<Entity>;
+  mobileGrid?: EntitySpatialGrid<Entity>;
   /** Living humans only — social, greeting, and courtship queries avoid wildlife. */
-  humanSocialGrid?: EntitySpatialGrid;
-  treeGrid?: EntitySpatialGrid;
+  humanSocialGrid?: EntitySpatialGrid<Entity>;
+  treeGrid?: EntitySpatialGrid<Entity>;
 
   // ── Indices & Cached Lookups ──
   residenceOccupants?: Map<number, Entity[]>;

@@ -570,7 +570,7 @@ describe('runtime caches are stripped by their owner', () => {
 
 describe('the spatial grid refreshes an object that did not change cell', () => {
   /** Everything the grid holds in a rectangle, via its own traversal primitive. */
-  function inRect(grid: EntitySpatialGrid, minX: number, minY: number, maxX: number, maxY: number): Entity[] {
+  function inRect(grid: EntitySpatialGrid<Entity>, minX: number, minY: number, maxX: number, maxY: number): Entity[] {
     const found: Entity[] = [];
     grid.forEachInRect(minX, minY, maxX, maxY, (entity) => found.push(entity));
     return found;
@@ -579,7 +579,7 @@ describe('the spatial grid refreshes an object that did not change cell', () => 
   it('replaces the stored entry when a fresh object arrives for the same cell', () => {
     // The worker's render path builds a new shim per slot per tick with the same id and cell, so the
     // grid must replace the stored entry to carry fields that changed without a cell change.
-    const grid = new EntitySpatialGrid(100, 100, 10);
+    const grid = new EntitySpatialGrid<Entity>(100, 100, 10);
     const first = human(1, { x: 5, y: 5 });
     const refreshed = human(1, { x: 5, y: 5, flash: 9 });
     expect(first.id).toBe(refreshed.id);
@@ -594,7 +594,7 @@ describe('the spatial grid refreshes an object that did not change cell', () => 
   });
 
   it('still moves an entity between cells', () => {
-    const grid = new EntitySpatialGrid(100, 100, 10);
+    const grid = new EntitySpatialGrid<Entity>(100, 100, 10);
     grid.reconcile([human(1, { x: 5, y: 5 })]);
     grid.reconcile([human(1, { x: 55, y: 55 })]);
 
