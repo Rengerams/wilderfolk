@@ -372,7 +372,7 @@ describe('construction and production attendance are separate (PR #166 reviews)'
     invalidateCachedEntityByType(state);
 
     // A real work tick, not a manually stamped attendance record.
-    state.tick = TICKS_PER_DAY + 8 * TICKS_PER_HOUR - 1;
+    state.tick = TICKS_PER_DAY + (getWorkSchedule(state).startHour + 1) * TICKS_PER_HOUR - 1;
     gameTick(state, ON_SCREEN);
     expect(worker.scheduleWorkedSiteIdToday).toBe(site.id);
     expect(worker.schedulePresentSiteIdToday).toBe(site.id);
