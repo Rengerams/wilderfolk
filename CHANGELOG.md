@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (22 Nov 2026; pending PR):** Trade caravans now recheck storage headroom on arrival and wait/retry instead of silently dropping imports. Abandoned exports that cannot fit remain on the saved route until storage frees, without exceeding caps; gold-for-iron routes get the same early-colony Market exemption as other material purchases.
+- **Fixed (22 Nov 2026, PR #170):** Caravans now wait for storage on arrival, retain undelivered exports on the saved route until space frees, and allow gold-for-iron purchases without a Market.
 
 
 - **Refactored (22 Nov 2026; pending merge):** Broke two type-import cycles: placement reads world-map types rather than renderer types; grid and gameplay readers use narrow entity contracts; statistics and social record types live in leaf schemas. No gameplay or save-format change.
