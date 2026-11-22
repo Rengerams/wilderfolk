@@ -358,9 +358,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts, tests/workSkillAttribution.accrual.test.ts, tests/forge.cadence.test.ts, tests/production.attendancePacing.test.ts',
   },
   wildlifePredation: {
-    owner: 'tickLayerSystems.tickWildlife — the sole wildlife AI owner (hunt target, catch, metabolism, grazing, reproduction); rebuildPredators owns the roster; speciesConfig.getPreyEnergyGain owns prey energy; GRAZER_METABOLISM owns grazer metabolism',
+    owner: 'tickLayerSystems.tickWildlife — sole wildlife AI owner (hunt, predation, metabolism, reproduction); worldGen.replenishDepletedWildlife owns three-day replenishment; wildlifePopulationPolicy owns shared numeric ceilings and thresholds; speciesConfig.getPreyEnergyGain owns prey energy; GRAZER_METABOLISM owns grazer metabolism',
     cadence: 'systems',
-    cadenceNote: 'WILDLIFE_LAYER_INTERVAL = 4 systems pulses; out-of-focus wildlife runs every 8th pulse. Wildlife translation checks the shared walk-step grid before integrating each pulse and slides along legal axes when blocked; no separate animal obstacle authority. Hungry Wildkin hunts deer/rabbit only and pays apex metabolism; it is never prey and never grazes. Wildkin is on the predator roster that grazers scent-flee. No human prey for Wildkin.',
+    cadenceNote: 'WILDLIFE_LAYER_INTERVAL = 4 systems pulses; out-of-focus wildlife runs every 8th pulse. Predators leave rabbits at/below the shared scarcity floor, and the shared ceiling limits wolf breeding; the 3-day restock remains the worldGen owner. Wildlife uses shared walk-step obstacles. Hungry Wildkin hunts deer/rabbit only and pays apex metabolism; it is never prey and never grazes. Wildkin is on the predator roster that grazers scent-flee. No human prey for Wildkin.',
     writes: [
       'entity.energy',
       'entity.huntTargetId',
