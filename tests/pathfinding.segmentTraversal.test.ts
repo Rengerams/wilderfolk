@@ -278,6 +278,33 @@ describe('one authoritative movement walkability verdict', () => {
     }
   });
 
+  it('recovers a reachable detour after exhausting the first 12,000-node walking search', () => {
+    // A river divides the map except for one gap at the southern edge. A* requires more than
+    // 12,000 expansions to reach the other bank, but less than the next 24,000-node budget.
+    const map = testWorldMap({
+      tilesX: 180, tilesY: 180, seed: 2723,
+      tileType: (x, y) => (x === 90 && y !== 179 ? TerrainType.River : undefined),
+    });
+    resetPathGridCaches();
+    setCurrentPathMap(map, []);
+    try {
+      const walker = human(2723, { x: center(160), y: center(90) });
+      const goalX = center(20), goalY = center(90);
+      expect(getRouteObstruction(map, [], walker, { x: goalX, y: goalY })).toBe('pending');
+      let result = steerWithPath(walker, goalX, goalY, 2, 'long-detour');
+      expect(result).toBe('blocked'); // No answer yet, not an unreachable route.
+      for (let pulse = 0; pulse < 16 && result !== 'path'; pulse++) {
+        result = steerWithPath(walker, goalX, goalY, 2, 'long-detour');
+      }
+      expect(result).toBe('path');
+      expect(Math.hypot(walker.vx, walker.vy)).toBeGreaterThan(0);
+      expect(Math.floor(walker.x / PATH_CELL)).toBeGreaterThan(90);
+    } finally {
+      setCurrentPathMap(null);
+      resetPathGridCaches();
+    }
+  });
+
   it('does not give a previous walkers cached waypoints to a new walker sharing a key', () => {
     const map = testWorldMap({
       tilesX: 16, tilesY: 14, seed: 2717,
