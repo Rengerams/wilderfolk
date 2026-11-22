@@ -842,6 +842,7 @@ Named functions and named React callbacks were audited across every complete sou
 | `tests/raidDeadline.owner.test.ts` | `undatedRaid`, `readSrc` | Local raid fixtures (including the corrupt undated-deadline payload) and source-read probe; no runtime decision authority |
 | `tests/warfare.lifecycle.test.ts` | `colony`, `raid`, `reload` | Local warfare fixtures; no runtime decision authority |
 | `tests/frontierCombat.raidGold.test.ts` | `raidFixture`, `queuedRaid` | Local raid fixtures; no runtime decision authority |
+| `tests/frontierPanelView.test.ts` | `world`, `rival` | Test-local world-state and rival-settlement fixture constructors for read-only Frontier projection assertions; no gameplay or runtime decision authority |
 | `tests/relationships.feudSources.test.ts` | `settler`, `state`, `alwaysPasses` | Local relationship fixtures; no runtime decision authority |
 | `tests/relationships.friendCapAndFeudEnd.test.ts` | `state`, `messages`, `closePairAgreement` | Local relationship assertions; no runtime decision authority |
 | `tests/simDelta.entityProfile.test.ts` | `fixture`, `revisions` | Local worker-delta fixtures; no runtime decision authority |
