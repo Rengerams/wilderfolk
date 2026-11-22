@@ -9,6 +9,7 @@
 | `isOnConstructionCrew` (removed), `findHumanWorkplace`, `assignWorkerInPlace`, `assignBuilderInPlace`, `staffConstructionCrews`, `staffJobsBeforeConstruction`, `staffJobBuildings` (modified) | `src/game/workforce.ts` | Staff selection and workplace lookup consume the single indexed construction-roster owner |
 | `isEligibleBuilderForBuilding`, `_applyBuilderAssignmentMut`, `canAssignWorkerToBuilding`, `getWorkerAssignmentRefusal` (modified) | `src/game/buildingStaffingActions.ts` | Candidate/refusal decisions query the existing indexed construction-roster owner |
 | `collectDashboard` (modified) | `src/game/dashboardData.ts` | One roster index per dashboard, consistent adult and no-work labels |
+| `getSettlerWorkReason` (modified) | `src/game/workAbsence.ts` | Accepts a caller-supplied crew index for bulk dashboard observations; one worker-location owner, no extra scan per resident |
 | Import consumers (no function changes) | `src/game/humanTick.ts`, `src/game/gameTick.ts`, `scripts/colonyHealth.ts`, `tests/workforce.transitions.test.ts` | Read-only import migration; no tick scheduling or state-write change |
 
 
