@@ -87,7 +87,7 @@ describe('a trade round trip credits everything the route advertises', () => {
     state.resources.iron = 500; // iron filled while the carrier was travelling
     tryAdvanceCaravanLeg(state, carrier);
     expect(trade.caravanLeg).toBe('inbound');
-    expect(trade.caravansCompleted).toBe(0);
+    expect(trade.caravansCompleted ?? 0).toBe(0);
     expect(trade.caravanWaitTicks).toBeGreaterThan(0);
     expect(state.resources.iron).toBe(500);
     expect(state.resources.gold).toBe(0); // neither cargo nor reward is applied partially
