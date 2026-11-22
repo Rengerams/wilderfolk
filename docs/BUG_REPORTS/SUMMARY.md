@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-22 — [Predator breeding and restocking overwhelm prey](../bug_report/2026-11-22-wildlife-prey-collapse-predator-capacity.md):** investigating; shared prey-supported predator caps and reduced initial/refill targets proposed in wildlife-balance PR; new regression test added, full-year CI verification pending.
+
 **2026-11-22 — [New storage building stays capped until the next production pass](../bug_report/2026-11-22-storage-caps-stale-after-night-construction.md):** investigating; PR #166 refreshes the existing capacity owner on construction completion at 23:00; Barn/Silo/Storehouse regression and CI pending.
 
 **2026-11-22 — [Inbound caravan cargo clamped at home after storage fills in transit](../bug_report/2026-11-22-caravan-inbound-cargo-clamped-at-home.md):** investigating; PR #170 rechecks full cargo capacity at arrival and retries unloading; updated regression and CI verification pending.
