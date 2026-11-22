@@ -14,7 +14,7 @@ import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import { applyColonyBotAction, assessColonyStall, captureConsoleVolume, collectInvariantErrors, createColonyObserver, formatColonyStallVerdict, livingHumans, prepareColonyWorld, sampleDelta, type ColonyHealthReport } from '../scripts/colonyHealth';
 
 const SEED = 12345;
-const CHECKPOINT_DAYS = 30;
+const CHECKPOINT_DAYS = 15;
 
 /** The housing owner's dependent-child policy: below adult age and not partnered. */
 const isDependentMinor = (person: Entity): boolean =>
