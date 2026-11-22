@@ -366,6 +366,10 @@ export interface Entity {
   pregnancyFromYouthLove?: boolean;
   fatherId?: number;
   motherId?: number;
+  /** Two species-matched parents when Wildkin reproduce; roles are not gender-assigned. */
+  wildkinParentIds?: number[];
+  /** Human parent the young Wildkin may stay close to rather than being sent into the wild. */
+  wildkinGuardianId?: number;
   isBastard?: boolean;
   adoptiveMotherId?: number;
   adoptiveFatherId?: number;

@@ -1,5 +1,13 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-22 — Wildkin animal lineage and village guardian
+
+- **Birth authority:** `simulation/humanLifecycle.ts` chooses the closest living deer at delivery as the **animal** father; `tickLayerSystems.ts` alone owns Wildkin-to-Wildkin reproduction, juvenile movement and age gating. Neither assigns the human mother's spouse as biological father.
+- **Family persistence authority:** `genealogyRegistry.ts` owns `recordedFamilyEntity` (private census inclusion for player humans, Wildkin and referenced deer) and `genealogyDisplayName` (canonical human/animal family label), alongside `recordGenealogyBirth`, `recordGenealogyDeath` and `syncGenealogyRegistry` (one persistent birth/death/census pipeline). `genealogyTypes.ts` stores species and unsexed Wildkin parent pairs; `familyTree.ts` owns `familyTreeMembers` (private mixed-species family roster, including legacy Wildkin referenced by offspring) and `buildFullFamilyTree`; `FamilyTreeWindow.tsx` restores deceased relatives.
+- **Chronicle authority:** `wildkinChronicle.ts` names each birth, sighting and death. `simulation/simulationEntities.ts` routes wildlife death into the genealogy owner. `dailyWorldEvents.ts` passes the merged living list to the existing daily census to preserve queued newborns.
+- **Player presentation:** `SelectedEntityPanel.tsx` includes living human-born Wildkin in the mother's child count, without adding Wildkin to the housing/worker system.
+- **Regressions:** `tests/humanLifecycle.test.ts`, `tests/genealogyRegistry.test.ts`, `tests/wildkin.apexRole.test.ts`; decision key `wildkinLineage` in `simulation/decisionRegistry.ts`.
+
 ## 2026-11-14 — early-colony playable behaviour fixes (function-level change register)
 
 These entries describe changed named functions at their existing sole owners. They do not create parallel decision implementations.

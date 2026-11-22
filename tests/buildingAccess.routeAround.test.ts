@@ -85,8 +85,43 @@ describe('a settler reaches a building from every side', () => {
     });
     setCurrentPathMap(map, [home]);
     try {
-      expect(buildingAccessPoints(home).map((point) => point.side).sort())
+      expect([...new Set(buildingAccessPoints(home).map((point) => point.side))].sort())
         .toEqual(['east', 'north', 'south', 'west']);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('allows an off-centre greenhouse frontage when a mine blocks the middle', () => {
+    const map = testWorldMap({ tilesX: 100, tilesY: 100 });
+    const greenhouse = building(7, BuildingType.Greenhouse, {
+      x: 400, y: 400, width: 120, height: 80, occupants: [1],
+    });
+    const mine = building(8, BuildingType.Mine, { x: 400, y: 326, width: 40, height: 40 });
+    setCurrentPathMap(map, [greenhouse, mine]);
+    try {
+      const north = buildingAccessPoints(greenhouse).filter((point) => point.side === 'north');
+      expect(north.some((point) => point.x < 380), 'the open part of the north wall is usable').toBe(true);
+      expect(north.some((point) => point.x === greenhouse.x), 'the mine obstructs the centre').toBe(false);
+      const worker = human(1, { x: 350, y: 280, workerBuildingId: greenhouse.id });
+      expect(walkHome(worker, greenhouse, 600)).toBe(true);
+      expect(worker.indoorBuildingId).toBe(greenhouse.id);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('routes to the greenhouse around a mine instead of repeatedly walking into its footprint', () => {
+    const map = testWorldMap({ tilesX: 100, tilesY: 100 });
+    const greenhouse = building(7, BuildingType.Greenhouse, {
+      x: 500, y: 500, width: 80, height: 80, occupants: [1],
+    });
+    const mine = building(8, BuildingType.Mine, { x: 360, y: 500, width: 90, height: 120 });
+    setCurrentPathMap(map, [greenhouse, mine]);
+    try {
+      const worker = human(1, { x: 240, y: 500, workerBuildingId: greenhouse.id });
+      expect(walkHome(worker, greenhouse, 900), 'must reach a free side rather than the mine wall').toBe(true);
+      expect(isAtBuildingReach(worker, greenhouse)).toBe(true);
     } finally {
       setCurrentPathMap(null);
     }
