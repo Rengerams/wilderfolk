@@ -497,7 +497,7 @@ let cachedOverlayInputs: number[] = [];
 
 /**
  * Writes every value `computeLogisticsOverlay` reads into {@link overlayInputScratch} and reports
- * whether the vector differs from the cached one: building geometry/faction, settler home↔work
+ * whether the vector differs from the cached one: building geometry, settler home↔work
  * links and the terrain revision behind the walk grid.
  */
 function logisticsInputsChanged(world: WorldState): boolean {
@@ -520,7 +520,6 @@ function logisticsInputsChanged(world: WorldState): boolean {
     scratch[index++] = b.height;
     scratch[index++] = b.rotation ?? 0;
     scratch[index++] = b.completed ? 1 : 0;
-    scratch[index++] = 0;
   }
 
   const entities = world.entities ?? [];

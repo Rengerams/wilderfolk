@@ -737,7 +737,6 @@ export function explainSettler(state: WorldState, id: number): SettlerExplanatio
 const STAFFING_REFUSAL_LABELS: Record<WorkerAssignmentRefusal, string> = {
   'unknown-building': 'That building no longer exists.',
   'unknown-settler': 'That settler is no longer in the valley.',
-  'rival-building': 'A rival camp is not yours to staff.',
   'residence-building': 'Homes fill themselves — build a House and people move in.',
   'building-full': 'Every slot here is taken.',
   'building-has-no-job': 'This building takes no workers.',

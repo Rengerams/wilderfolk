@@ -268,8 +268,7 @@ function sameBuildingFingerprint(building: Building, previous: BuildingFingerpri
 /** The fields the derived geometry caches (road avoidance, adjacency, beauty) depend on. */
 function buildingGeometryKey(building: Building): string {
   return `${building.id}|${building.type}|${building.x}|${building.y}|${building.width}`
-    + `|${building.height}|${building.rotation ?? 0}|${building.completed ? 1 : 0}`
-    ;
+    + `|${building.height}|${building.rotation ?? 0}|${building.completed ? 1 : 0}`;
 }
 
 export function simTickDeltaFromWorld(world: WorldState): SimTickDelta {

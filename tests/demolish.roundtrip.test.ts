@@ -14,12 +14,6 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { applyWorkerCommand, WORKER_CMD_PROTO, type WorkerCommand } from '../src/game/simWorker/commands';
 import { gameTick } from '../src/game/gameTick';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
-import {
-  getBuildingUpgradeEligibility,
-  getRepairBuildingEligibility,
-  repairBuilding,
-  upgradeBuilding,
-} from '../src/game/buildingMaintenanceActions';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 
 function human(id: number, overrides: Partial<Entity> = {}): Entity {

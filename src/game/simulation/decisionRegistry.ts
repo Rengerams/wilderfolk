@@ -181,7 +181,7 @@ export const SIMULATION_DECISIONS = {
   completedBuildingLookup: {
     owner: 'buildings.ts — isCompletedPlayerBuilding, findCompletedBuilding',
     cadence: 'on-demand',
-    cadenceNote: 'Pure read-only lookup of the first completed building of the requested type. Existing legacy rival-building exclusion remains centralized; no world state, ticks, or RNG are mutated.',
+    cadenceNote: 'Pure read-only lookup of the first completed building of the requested type. All on-map buildings belong to the player; the lookup validates completion and type only. No world state, ticks, or RNG are mutated.',
     writes: [],
     scheduledFrom: 'townHall.isTownHallStaffed / getTownHallTradeMultiplier / getTownHallGovernanceEfficiency, villageLeadership election site, tickLayerRealtime election notification, virtualPlayer.decideFestival',
     testFile: 'tests/buildings.lookup.test.ts',
