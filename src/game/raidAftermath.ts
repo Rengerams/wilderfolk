@@ -41,7 +41,7 @@ export function beginRaidRecovery(state: WorldState, event: RaidEvent, outcome: 
     && event.attackerStrength >= Math.max(1, defenseStrength) * OVERWHELMING_BREACH_RATIO) {
     const ruinedIds: number[] = [];
     for (const home of state.buildings) {
-      if (!home.completed || home.faction === 'rival') continue;
+      if (!home.completed) continue;
       home.health = Math.max(0, home.health - DEVASTATION_BUILDING_DAMAGE);
       if (home.health === 0) ruinedIds.push(home.id);
     }
@@ -49,8 +49,8 @@ export function beginRaidRecovery(state: WorldState, event: RaidEvent, outcome: 
     logEvent(state, 'combat', 'The remaining defenses were breached; the razing force devastated unprotected infrastructure.', event.rivalName, 'defense', 'resolved');
   }
   const people = state.entities.filter((person) => person.alive && isPlayerHuman(person));
-  const shelter = state.buildings.some((home) => isResidenceBuilding(home) && home.faction !== 'rival' && home.health > 0);
-  const defenses = state.buildings.some((home) => home.completed && home.faction !== 'rival' && home.health > 0
+  const shelter = state.buildings.some((home) => isResidenceBuilding(home) && home.health > 0);
+  const defenses = state.buildings.some((home) => home.completed && home.health > 0
     && ([BuildingType.Wall, BuildingType.WallGate, BuildingType.Watchtower, BuildingType.Barracks] as BuildingType[]).includes(home.type));
   const destroyed = event.intent === 'raze' && outcome !== 'stalemate'
     && event.attackerStrength >= Math.max(1, defenseStrength) * OVERWHELMING_BREACH_RATIO
@@ -61,7 +61,7 @@ export function beginRaidRecovery(state: WorldState, event: RaidEvent, outcome: 
     .map((repair) => [repair.buildingId, repair.health]));
   for (const home of before.buildings) {
     const current = currentBuildings.get(home.id);
-    if (home.faction !== 'rival' && current && current.health < home.health) {
+    if (current && current.health < home.health) {
       repairs.set(home.id, Math.max(repairs.get(home.id) ?? 0, home.health));
     }
   }

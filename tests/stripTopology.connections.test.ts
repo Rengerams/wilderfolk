@@ -157,12 +157,12 @@ describe('connected strip planning', () => {
     expect(buildStripPlanFromStroke(state, BuildingType.Road, points).plan.length).toBeLessThanOrEqual(72);
   });
 
-  it('selects only player roads touched by a demolition drag', () => {
+  it('selects every road-family piece touched by a demolition drag', () => {
     const road = strip(BuildingType.Road, 0);
     const wall = { ...strip(BuildingType.Wall, 0), id: 11 };
-    const rivalRoad = { ...road, id: 12, faction: 'rival' as const };
-    expect(collectStripDemolitionIds([road, wall, rivalRoad], BuildingType.Road, -2, -2, 2, 2))
-      .toEqual([10]);
+    const secondRoad = { ...road, id: 12 };
+    expect(collectStripDemolitionIds([road, wall, secondRoad], BuildingType.Road, -2, -2, 2, 2))
+      .toEqual([10, 12]);
   });
 
   it('preserves the existing wall-to-gate replacement behavior', () => {

@@ -36,7 +36,6 @@ function addBuilding(state: WorldState, type: BuildingType, id = SITE_ID, comple
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    faction: 'player',
   } as never);
 }
 

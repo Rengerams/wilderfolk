@@ -109,7 +109,7 @@ function playerSettlers(state: WorldState): Entity[] {
 }
 
 function playerResidences(state: WorldState): Building[] {
-  return state.buildings.filter((b) => isResidenceBuilding(b) && b.faction !== 'rival');
+  return state.buildings.filter((b) => isResidenceBuilding(b));
 }
 
 function assignment(state: WorldState): string {

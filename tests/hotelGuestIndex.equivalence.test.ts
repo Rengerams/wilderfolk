@@ -43,7 +43,7 @@ const THEIR_TICK_IS_FAR_AWAY = 100_000;
  */
 function referencePruneAndRepair(state: WorldState): void {
   const hotels = state.buildings.filter(
-    (b) => b.completed && b.type === BuildingType.Hotel && b.faction !== 'rival',
+    (b) => b.completed && b.type === BuildingType.Hotel,
   );
   for (const h of hotels) {
     const aliveIds = new Set(

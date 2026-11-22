@@ -1913,7 +1913,7 @@ describe('virtual player opening on a real colony', () => {
     let world = initGame({ size: MapSize.Medium, seed: 4242 });
     const producers = () =>
       world.buildings.filter(
-        (building) => building.faction !== 'rival' && FOOD_TYPES.includes(building.type),
+        (building) => FOOD_TYPES.includes(building.type),
       );
     expect(producers()).toHaveLength(0);
     // The larder is the whole food system here, which is exactly the trap.

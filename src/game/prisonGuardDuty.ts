@@ -101,7 +101,7 @@ export function tickPrisonPresence(state: WorldState): void {
 
   const entityById = ensureEntityByIdMap(state);
   for (const prison of state.buildings) {
-    if (prison.type !== BuildingType.Prison || !prison.completed || prison.faction === 'rival') continue;
+    if (prison.type !== BuildingType.Prison || !prison.completed) continue;
     if (heldPrisoners(state, prison.id).length === 0) continue;
 
     const guardIds = prisonGuardIds(state, prison.occupants ?? []);
@@ -123,7 +123,7 @@ export function tickPrisonPresence(state: WorldState): void {
 /** Daily pulse — one escape chance per hour of the day nobody stood on the post. */
 export function tickPrisonGuardDuty(state: WorldState): void {
   for (const prison of state.buildings) {
-    if (prison.type !== BuildingType.Prison || !prison.completed || prison.faction === 'rival') {
+    if (prison.type !== BuildingType.Prison || !prison.completed) {
       continue;
     }
     const sampled = prison.uncoveredPrisonHours ?? [];

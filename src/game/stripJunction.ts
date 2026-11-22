@@ -121,7 +121,7 @@ export function collectStripCenters(
   };
 
   for (const b of buildings) {
-    if (!b.completed || b.faction === 'rival' || !familyMembers(b.type)) continue;
+    if (!b.completed || !familyMembers(b.type)) continue;
     const list = normalizeBuildingRotation(b.rotation) === 0 ? hList : vList;
     list.push({ x: b.x, y: b.y, width: b.width, height: b.height });
   }
@@ -234,7 +234,7 @@ export function findStripBuildingNear(
   let nearest: Building | undefined;
   let bestDist = tolerance + 1;
   for (const b of buildings) {
-    if (!b.completed || b.faction === 'rival' || !types.has(b.type)) continue;
+    if (!b.completed || !types.has(b.type)) continue;
     const d = dist(b, { x, y });
     if (d <= tolerance && d < bestDist) {
       bestDist = d;

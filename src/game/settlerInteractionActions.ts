@@ -41,8 +41,8 @@ function reconcileNewSettlerAssignments(state: WorldState): void {
 function recruitSpawnPosition(state: WorldState): { x: number; y: number } {
   // Buildings only stand on valid land; favor a house without changing the existing fallback.
   const anchor = state.buildings.find(
-    (building) => building.type === BuildingType.House && building.completed && building.faction !== 'rival',
-  ) ?? state.buildings.find((building) => building.completed && building.faction !== 'rival');
+    (building) => building.type === BuildingType.House && building.completed,
+  ) ?? state.buildings.find((building) => building.completed);
   if (!anchor) return { x: state.width / 2, y: state.height / 2 };
   return { x: anchor.x + anchor.width / 2, y: anchor.y + anchor.height / 2 };
 }
@@ -164,7 +164,6 @@ export function hasNearbyPlayerTamingPost(state: WorldState, entity: Entity): bo
   return state.buildings.some(
     (building) =>
       building.completed
-      && building.faction !== 'rival'
       && building.type === BuildingType.TamingPost
       && Math.hypot(building.x - entity.x, building.y - entity.y) < 140,
   );

@@ -91,7 +91,6 @@ function building(id: number, type: BuildingType, overrides: Partial<Building> =
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    faction: 'player',
     ...overrides,
   } as Building;
 }
@@ -215,19 +214,18 @@ describe('L54 dead family scorer', () => {
 });
 
 describe('L55 housing-sharing audit', () => {
-  it('does not count rival-camp or leader housing as empty housing', () => {
+  it('does not count leader housing as an empty ordinary house', () => {
     const lone = entity(1, EntityType.Human, { residenceBuildingId: 1 });
     const partnerA = entity(2, EntityType.Human, { residenceBuildingId: 1, partnerId: 3 });
     const partnerB = entity(3, EntityType.Human, { residenceBuildingId: 1, partnerId: 2 });
     const humans = [lone, partnerA, partnerB];
 
     const sharedHouse = building(1, BuildingType.House, { occupants: [1, 2, 3] });
-    const rivalHouse = building(2, BuildingType.House, { faction: 'rival' });
     const leaderHouse = building(3, BuildingType.LeaderHouse);
 
-    // Rival-camp and leader housing are not empty housing, so the settler sharing the family home
+    // Leader housing is not an empty ordinary home, so the settler sharing the family home
     // is not flagged.
-    expect(auditHousingSharingIssues(humans, [sharedHouse, rivalHouse, leaderHouse])).toEqual([]);
+    expect(auditHousingSharingIssues(humans, [sharedHouse, leaderHouse])).toEqual([]);
 
     // A genuinely empty player house is still reported.
     const freePlayerHouse = building(4, BuildingType.House);

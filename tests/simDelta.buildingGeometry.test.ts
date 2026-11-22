@@ -19,7 +19,6 @@ function fixture(): { world: ReturnType<typeof initGame>; buildings: Building[] 
     height: 40,
     rotation: 0,
     completed: true,
-    faction: 'player',
     occupants: [],
     progress: 0,
   } as unknown as Building);

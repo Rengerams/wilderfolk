@@ -111,8 +111,7 @@ describe('apprenticeships', () => {
       id: 10, type: BuildingType.Farm, x: 300, y: 300, width: 60, height: 60,
       occupants: [master.id], level: 1, constructionProgress: 100,
       completed: true, health: 100, maxHealth: 100,
-      spriteScale: 1, buildAnimTimer: 0, faction: 'player',
-    } as never);
+      spriteScale: 1, buildAnimTimer: 0, } as never);
     advanceApprenticeships(w, w.entities);
     expect(scholar.apprenticeOfId).toBeUndefined();
     expect(scholar.grandmasterApprenticeshipCompleted).not.toBe(true);
@@ -148,8 +147,7 @@ describe('apprenticeships', () => {
       id: 10, type: BuildingType.Farm, x: 300, y: 300, width: 60, height: 60,
       occupants: [master.id], level: 1, constructionProgress: 100,
       completed: true, health: 100, maxHealth: 100,
-      spriteScale: 1, buildAnimTimer: 0, faction: 'player',
-    } as never);
+      spriteScale: 1, buildAnimTimer: 0, } as never);
     advanceApprenticeships(w, w.entities);
     expect(master.apprenticeId).toBe(scholar.id);
     expect(ordinary.apprenticeOfId).toBeUndefined();
@@ -175,8 +173,7 @@ describe('apprenticeships', () => {
       occupants: [master.id, grandmaster.id], level: 1,
       constructionProgress: 100, completed: true,
       health: 100, maxHealth: 100, spriteScale: 1,
-      buildAnimTimer: 0, faction: 'player',
-    } as never);
+      buildAnimTimer: 0, } as never);
     advanceApprenticeships(w, w.entities);
     expect(ordinary.apprenticeOfId).toBe(master.id);
     expect(scholar.apprenticeOfId).toBe(grandmaster.id);
@@ -208,7 +205,6 @@ describe('apprenticeships', () => {
       maxHealth: 100,
       spriteScale: 1,
       buildAnimTimer: 0,
-      faction: 'player',
     } as never);
 
     advanceApprenticeships(w, w.entities);
@@ -248,7 +244,6 @@ describe('apprenticeships', () => {
       maxHealth: 100,
       spriteScale: 1,
       buildAnimTimer: 0,
-      faction: 'player',
     } as never);
     master.apprenticeId = kid.id;
     kid.apprenticeOfId = master.id;

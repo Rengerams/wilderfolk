@@ -68,16 +68,16 @@ describe('autoStaffAllWorkers feedback', () => {
 });
 
 describe('legacy staffing-mode normalization', () => {
-  it('normalizes legacy manual workplaces and assigns idle adults without changing rivals', () => {
+  it('normalizes legacy manual workplaces and assigns idle adults', () => {
     const world = initGame({ skipTerrain: true });
     world.entities = [human(1)];
     world.buildings = [
       building(2, BuildingType.Farm, { staffingMode: 'manual' }),
       building(3, BuildingType.School, { staffingMode: 'manual' }),
-      building(4, BuildingType.Farm, { staffingMode: 'manual', faction: 'rival' }),
+      building(4, BuildingType.Farm, { staffingMode: 'manual' }),
     ];
     const next = autoStaffAllWorkers(world);
-    expect(next.buildings.map((site) => site.staffingMode)).toEqual(['auto', 'auto', 'manual']);
+    expect(next.buildings.map((site) => site.staffingMode)).toEqual(['auto', 'auto', 'auto']);
     expect(next.entities[0].workerBuildingId).toBeDefined();
     expect(world.buildings[0].staffingMode).toBe('manual');
     expect(world.entities[0].workerBuildingId).toBeUndefined();

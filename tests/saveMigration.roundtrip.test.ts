@@ -5,18 +5,21 @@
 import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
-import type { RivalSettlement } from '../src/game/gameTypes';
+import { building } from '../src/test/factories';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { HERD_BASE_SIZE, MIGRATION_WINDOW_DAYS } from '../src/game/migration';
 import { getAbsoluteCalendarDay } from '../src/game/dayCycle';
-import { building } from '../src/test/factories';
 
-function roundTrip(world: Parameters<typeof buildSaveData>[0]) {
+function roundTrip(
+  world: Parameters<typeof buildSaveData>[0],
+  preparePayload?: (payload: Record<string, unknown>) => void,
+) {
   const raw = JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height)));
   const parsed = parseSaveJson(raw);
   expect(parsed.valid).toBe(true);
   if (!parsed.valid || !parsed.parsed) throw new Error('save invalid');
+  preparePayload?.(parsed.parsed);
   const loaded = loadGameFromParsed(parsed.parsed);
   expect(loaded).not.toBeNull();
   return loaded!.world;
@@ -45,31 +48,37 @@ describe('migration survives save/load', () => {
   });
 });
 
-describe('legacy rival camp structures', () => {
-  it('leave the map when a save that still holds them is loaded', () => {
+describe('legacy rival camp save compatibility', () => {
+  it('retires old rival structures without discarding player buildings', () => {
     const state = initGame({ villageName: 'M', size: 'medium' });
-    // A camp row whose list still names its house — the case the daily pulse retires only a day later.
-    const camp: RivalSettlement = {
-      id: 'rival-legacy',
-      name: 'Stonefall',
-      campX: 300,
-      campY: 300,
-      population: 5,
-      relationship: 'neutral',
-      foundedYear: 1,
-      daysUntilAction: 30,
-      raidCooldownDays: 30,
-      peaceTreatyDays: 0,
-    };
-    state.rivalSettlements = [camp];
-    state.buildings.push(building(9001, BuildingType.House, {
-      faction: 'rival',
-      groupId: camp.id,
-    }));
+    state.buildings.push(building(9001, BuildingType.House), building(9002, BuildingType.Store));
+    state.nextBuildingId = Math.max(state.nextBuildingId, 9003);
 
-    const loaded = roundTrip(state);
+    const loaded = roundTrip(state, (payload) => {
+      // Old faction tags exist only in serialized saves, not the active Building model.
+      const saved = payload.buildings as Array<{ id: number; faction?: string }>;
+      saved.find((item) => item.id === 9001)!.faction = 'rival';
+      saved.find((item) => item.id === 9002)!.faction = 'player';
+    });
 
-    expect(loaded.buildings.some((entry) => entry.id === 9001)).toBe(false);
+    expect(loaded.buildings.some((item) => item.id === 9001)).toBe(false);
+    const store = loaded.buildings.find((item) => item.id === 9002);
+    expect(store).toBeDefined();
+    expect((store as typeof store & { faction?: string }).faction).toBeUndefined();
+    expect(loaded.nextBuildingId).toBeGreaterThan(9001);
     expect(loaded.appliedSaveMigrations).toContain('legacy-village-camps');
+  });
+
+  it('still cleans an old save that already has the migration marker', () => {
+    const state = initGame({ villageName: 'M', size: 'medium' });
+    state.buildings.push(building(9001, BuildingType.House));
+    state.nextBuildingId = Math.max(state.nextBuildingId, 9002);
+    const loaded = roundTrip(state, (payload) => {
+      const saved = payload.buildings as Array<{ id: number; faction?: string }>;
+      saved.find((item) => item.id === 9001)!.faction = 'rival';
+      payload.appliedSaveMigrations = ['legacy-village-camps'];
+    });
+    expect(loaded.buildings.some((item) => item.id === 9001)).toBe(false);
+    expect(loaded.appliedSaveMigrations?.filter((id) => id === 'legacy-village-camps')).toHaveLength(1);
   });
 });

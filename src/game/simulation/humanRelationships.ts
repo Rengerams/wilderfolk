@@ -230,7 +230,7 @@ export function getAffairTrystBuilding(
   for (const participant of [cheater, paramour]) {
     if (!hasResidenceAssignment(participant)) continue;
     const residence = buildingById.get(participant.residenceBuildingId!);
-    if (!residence?.completed || residence.faction === 'rival' || !isResidenceBuilding(residence)) continue;
+    if (!residence?.completed || !isResidenceBuilding(residence)) continue;
     if (participant.partnerId != null && isSpouseAtSharedHome(participant, entityById, buildingById)) continue;
 
     const center = getBuildingCenter(residence);

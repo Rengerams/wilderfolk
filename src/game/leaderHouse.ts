@@ -78,7 +78,6 @@ export function applyLeaderOccupation(state: WorldState, prevLeaderId: number | 
     const stale =
       !workplace ||
       !workplace.completed ||
-      workplace.faction === 'rival' ||
       !BUILDING_JOB_TYPES[workplace.type];
 
     if (stale) clearWorkerAssignment(leader, state.buildings);

@@ -319,13 +319,9 @@ export function useCanvasInteractions({
             selectedEntityIds: nextEntityIds,
             selectedBuildingId: clickedBuilding?.id ?? null,
             highlightedCampKey:
-              clickedEntity?.faction === 'rival' && clickedEntity.groupId
-                ? `rival:${clickedEntity.groupId}`
-                : clickedEntity?.faction === 'visitor' && clickedEntity.groupId
-                  ? `visitor:${clickedEntity.groupId}`
-                  : clickedBuilding?.faction === 'rival' && clickedBuilding.groupId
-                    ? `rival:${clickedBuilding.groupId}`
-                    : null,
+              clickedEntity?.faction === 'visitor' && clickedEntity.groupId
+                ? `visitor:${clickedEntity.groupId}`
+                : null,
             selectedCampKey: null,
           });
         }

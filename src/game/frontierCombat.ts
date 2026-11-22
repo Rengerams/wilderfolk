@@ -525,7 +525,7 @@ function persistBattleAftermath(
   (after.scoredRaidIds ??= []).push(raidId);
   const beforeAlive = new Map(before.entities.filter((entity) => entity.alive && !entity.faction && entity.type === EntityType.Human).map((entity) => [entity.id, formatCitizenName(entity)]));
   const fallen = [...new Set([...confirmedPlayerFallen, ...after.entities.filter((entity) => beforeAlive.has(entity.id) && !entity.alive).map((entity) => beforeAlive.get(entity.id)!)])];
-  const previousBuildings = new Map(before.buildings.filter((building) => !building.faction).map((building) => [building.id, building.health]));
+  const previousBuildings = new Map(before.buildings.map((building) => [building.id, building.health]));
   const currentBuildings = new Map(after.buildings.map((home) => [home.id, home]));
   const damagedBuildings = [...previousBuildings].filter(([id, health]) => {
     const current = currentBuildings.get(id);
@@ -681,7 +681,7 @@ function rewardRaidParticipants(
 }
 
 function damageRandomPlayerBuilding(state: WorldState, amount: number): Building | null {
-  const targets = state.buildings.filter((b) => b.completed && b.faction !== 'rival');
+  const targets = state.buildings.filter((b) => b.completed);
   if (targets.length === 0) return null;
   const b = targets[Math.floor(getSimRng('frontierCombat')() * targets.length)];
   b.health = Math.max(5, b.health - amount);
@@ -1043,7 +1043,7 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   if (rival.relationship !== 'tense' && rival.relationship !== 'competitive') return;
   if (playerHumanCount(allAlive) < 5) return;
 
-  const hasPlayerStructure = state.buildings.some((b) => b.completed && b.faction !== 'rival');
+  const hasPlayerStructure = state.buildings.some((b) => b.completed);
   if (!hasPlayerStructure) return;
 
   const rep = state.villageReputation ?? 0;

@@ -32,7 +32,6 @@ const housingChangedThisDay = new WeakMap<WorldState, boolean>();
 function housingSignature(world: WorldState, humans: readonly WorldState['entities'][number][]): string {
   const parts: (number | string)[] = [];
   for (const building of world.buildings) {
-    if (building.faction === 'rival') continue;
     if (!isResidenceBuilding(building) && building.type !== BuildingType.Road
       && building.type !== BuildingType.Bridge) continue;
     parts.push(building.id, building.type, building.completed ? 1 : 0, building.level,

@@ -185,7 +185,7 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
   }
 
   const hasMarket = state.buildings.some(
-    (b) => b.completed && b.faction !== 'rival' && b.type === BuildingType.Market,
+    (b) => b.completed && b.type === BuildingType.Market,
   );
   const readyRoute = state.tradeRoutes.find(
     (r) => !r.active && hasMarket && state.villageReputation >= r.reputationRequired,

@@ -165,7 +165,7 @@ function ownerColony(
   }
 
   for (const extra of extraBuildings) {
-    if (!extra.completed || extra.faction === 'rival') continue;
+    if (!extra.completed) continue;
     for (const id of extra.occupants) {
       if (!homeOf.has(id)) homeOf.set(id, extra.id);
     }

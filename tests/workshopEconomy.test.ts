@@ -160,7 +160,6 @@ function worldWithWorkshop(): { state: WorldState; workshop: Building } {
   const workshop = {
     id: 9_001,
     type: BuildingType.Workshop,
-    faction: 'player',
     x: state.width / 2,
     y: state.height / 2,
     completed: true,

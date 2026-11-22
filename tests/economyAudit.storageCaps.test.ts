@@ -35,7 +35,6 @@ function addBuilding(w: WorldState, type: BuildingType): void {
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    faction: 'player',
   } as never);
 }
 

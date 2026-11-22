@@ -63,7 +63,6 @@ function isWalkingObstacle(b: Building): boolean {
 export function isWalkableRoad(b: Building): boolean {
   return (
     b.completed &&
-    b.faction !== 'rival' &&
     (b.type === BuildingType.Road || b.type === BuildingType.Bridge)
   );
 }

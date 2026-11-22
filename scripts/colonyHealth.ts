@@ -840,7 +840,7 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
     const players = livingHumans(world);
     const workforceCounts = countWorkingAndIdleSettlers(world.entities, world.buildings);
     const jobBuildings = world.buildings.filter(
-      (building) => building.completed && building.faction !== 'rival' && BUILDING_JOB_TYPES[building.type] != null,
+      (building) => building.completed && BUILDING_JOB_TYPES[building.type] != null,
     );
     const staffable = jobBuildings.filter((building) => BUILDING_CONFIGS[building.type].maxOccupants > 0);
     const assignedByBuilding = new Map<number, number>();

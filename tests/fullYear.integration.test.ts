@@ -103,7 +103,7 @@ function printFullYearFailure(
         graves: (world.graveRecords ?? []).filter((grave) => grave.deceasedId === id) };
     }),
     buildings: world.buildings.map((building) => ({
-      id: building.id, type: building.type, faction: building.faction ?? null,
+      id: building.id, type: building.type,
       completed: building.completed, health: building.health,
       occupants: [...building.occupants],
       assignedResidents: world.entities.filter((entity) => isResidenceOccupantEntity(entity)

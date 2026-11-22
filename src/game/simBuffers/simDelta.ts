@@ -230,7 +230,7 @@ function deltaCloneOptional<T>(value: T | null | undefined, mode: SimDeltaCloneM
 export const BUILDING_FINGERPRINT_FIELDS = [
   'id', 'type', 'siteTerrain', 'x', 'y', 'width', 'height', 'occupants', 'staffingMode', 'level',
   'constructionProgress', 'completed', 'health', 'maxHealth', 'spriteScale', 'buildAnimTimer',
-  'faction', 'groupId', 'workshopRecipeId', 'rotation', 'gateClosed', 'hotelGuestIds',
+  'groupId', 'workshopRecipeId', 'rotation', 'gateClosed', 'hotelGuestIds',
   'huntingSpotPrey', 'huntingSpotTargetId', 'huntingSpotInReachTick', 'uncoveredPrisonHours', 'mineMode',
 ] as const satisfies readonly (keyof Building)[];
 
@@ -268,8 +268,7 @@ function sameBuildingFingerprint(building: Building, previous: BuildingFingerpri
 /** The fields the derived geometry caches (road avoidance, adjacency, beauty) depend on. */
 function buildingGeometryKey(building: Building): string {
   return `${building.id}|${building.type}|${building.x}|${building.y}|${building.width}`
-    + `|${building.height}|${building.rotation ?? 0}|${building.completed ? 1 : 0}`
-    + `|${building.faction ?? ''}`;
+    + `|${building.height}|${building.rotation ?? 0}|${building.completed ? 1 : 0}`;
 }
 
 export function simTickDeltaFromWorld(world: WorldState): SimTickDelta {

@@ -84,7 +84,7 @@ function referenceRebalanceOvercrowdedResidences(humans: Entity[], residences: B
 function referenceSyncJobBuildingOccupants(humans: Entity[], buildings: Building[]): void {
   for (let i = 0; i < buildings.length; i++) {
     const building = buildings[i];
-    if (!building.completed || building.faction === 'rival' || !BUILDING_JOB_TYPES_REF[building.type]) {
+    if (!building.completed || !BUILDING_JOB_TYPES_REF[building.type]) {
       continue;
     }
     if (building.type === BuildingType.Prison) {
@@ -207,7 +207,7 @@ describe('syncResidenceOccupants accepts the unfiltered alive collection', () =>
   it('produces the same occupant lists whether the caller pre-filters or not', () => {
     const house = finishedBuilding(1, BuildingType.House);
     const mansion = finishedBuilding(2, BuildingType.Mansion);
-    const rivalHouse = finishedBuilding(3, BuildingType.House, { faction: 'rival' });
+    const spareHouse = finishedBuilding(3, BuildingType.House);
     const farm = finishedBuilding(4, BuildingType.Farm, { occupants: [999] });
 
     const dead = settler(house.id);
@@ -234,7 +234,7 @@ describe('syncResidenceOccupants accepts the unfiltered alive collection', () =>
 
     // Filtered call shape: the caller filters first, duplicating the callee's own predicate.
     const filteredWorld = newWorld();
-    filteredWorld.buildings = structuredClone([house, mansion, rivalHouse, farm]);
+    filteredWorld.buildings = structuredClone([house, mansion, spareHouse, farm]);
     filteredWorld.entities = structuredClone(allAlive);
     syncResidenceOccupants(
       filteredWorld.entities.filter((e) => e.alive && isResidenceOccupantEntity(e)),
@@ -243,7 +243,7 @@ describe('syncResidenceOccupants accepts the unfiltered alive collection', () =>
 
     // Production call shape: the whole collection, as `gameTick` passes `allAlive`.
     const unfilteredWorld = newWorld();
-    unfilteredWorld.buildings = structuredClone([house, mansion, rivalHouse, farm]);
+    unfilteredWorld.buildings = structuredClone([house, mansion, spareHouse, farm]);
     unfilteredWorld.entities = structuredClone(allAlive);
     syncResidenceOccupants(unfilteredWorld.entities, unfilteredWorld.buildings);
 
@@ -256,7 +256,7 @@ describe('syncResidenceOccupants accepts the unfiltered alive collection', () =>
     // The un-cursed werewolf is NOT an occupant, so the mansion holds only the settler and the
     // cursed one — in `humans` order.
     expect(byId.get(mansion.id)).toEqual([mansionResident.id, cursed.id]);
-    expect(byId.get(rivalHouse.id)).toEqual([]);
+    expect(byId.get(spareHouse.id)).toEqual([]);
     expect(byId.get(farm.id)).toEqual([999]);
   });
 });
@@ -266,7 +266,7 @@ describe('syncJobBuildingOccupants buckets like its pre-fix per-building filter'
     const prison = finishedBuilding(1, BuildingType.Prison);
     const farm = finishedBuilding(2, BuildingType.Farm);
     const barracks = finishedBuilding(3, BuildingType.Barracks);
-    const rivalFarm = finishedBuilding(4, BuildingType.Farm, { faction: 'rival' });
+    const secondFarm = finishedBuilding(4, BuildingType.Farm);
     const site = createBuilding(BuildingType.Farm, 900, 900, 5);
     const deadWorker = settler(undefined, { alive: false });
 
@@ -280,7 +280,7 @@ describe('syncJobBuildingOccupants buckets like its pre-fix per-building filter'
       // homeless prisoner.
       settler(undefined, { prisonBuildingId: prison.id }),
       settler(undefined, { workerBuildingId: barracks.id }),
-      settler(undefined, { workerBuildingId: rivalFarm.id }),
+      settler(undefined, { workerBuildingId: secondFarm.id }),
       settler(undefined, { workerBuildingId: site.id }),
       settler(undefined, { workerBuildingId: farm.id, faction: 'rival' }),
       deadWorker,
@@ -288,10 +288,10 @@ describe('syncJobBuildingOccupants buckets like its pre-fix per-building filter'
     deadWorker.workerBuildingId = farm.id;
 
     const realWorld = newWorld();
-    realWorld.buildings = structuredClone([prison, farm, barracks, rivalFarm, site]);
+    realWorld.buildings = structuredClone([prison, farm, barracks, secondFarm, site]);
     realWorld.entities = structuredClone(humans);
     const referenceWorld = newWorld();
-    referenceWorld.buildings = structuredClone([prison, farm, barracks, rivalFarm, site]);
+    referenceWorld.buildings = structuredClone([prison, farm, barracks, secondFarm, site]);
     referenceWorld.entities = structuredClone(humans);
 
     syncJobBuildingOccupants(realWorld.entities, realWorld.buildings);
@@ -307,8 +307,8 @@ describe('syncJobBuildingOccupants buckets like its pre-fix per-building filter'
     // farm = home-only, so the imprisoned home-worker and the dead one are out.
     expect(byId.get(farm.id)).toEqual([humans[1]!.id]);
     expect(byId.get(barracks.id)).toEqual([humans[4]!.id]);
-    // A rival camp and an unfinished site are skipped entirely: their lists keep whatever they had.
-    expect(byId.get(rivalFarm.id)).toEqual([]);
+    // A second completed Farm accepts its own roster; an unfinished site remains untouched.
+    expect(byId.get(secondFarm.id)).toEqual([humans[5]!.id]);
     expect(byId.get(site.id)).toEqual([]);
   });
 });

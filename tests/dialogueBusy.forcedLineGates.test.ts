@@ -34,7 +34,6 @@ function hotelWorld(): { state: WorldState; hotelier: WorldState['entities'][num
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    faction: 'player',
     hotelGuestIds: [1, 2],
   } as unknown as Building);
 

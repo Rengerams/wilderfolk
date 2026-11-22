@@ -187,7 +187,7 @@ function buildHumanStatusIconContext(
   humans: readonly Entity[],
 ): HumanStatusIconContext {
   const schools = new Map(state.buildings.filter((b) =>
-    b.type === BuildingType.School && b.completed && b.faction !== 'rival' && b.occupants.length > 0,
+    b.type === BuildingType.School && b.completed && b.occupants.length > 0,
   ).map((b) => [b.id, b]));
   const childSchoolById = new Map<number, RenderSnapshot['buildings'][number] | undefined>();
   for (const human of humans) {
@@ -506,8 +506,8 @@ export function drawTradeRouteLines(ctx: CanvasRenderingContext2D, state: Render
   if (state.tradeRoutes.length === 0) return;
   const cam = state.camera;
   const hubTypes: BuildingType[] = [BuildingType.Market, BuildingType.Store, BuildingType.TownHall, BuildingType.Workshop];
-  let hub = state.buildings.find((b) => b.completed && b.faction !== 'rival' && hubTypes.includes(b.type));
-  if (!hub) hub = state.buildings.find((b) => b.completed && b.faction !== 'rival');
+  let hub = state.buildings.find((b) => b.completed && hubTypes.includes(b.type));
+  if (!hub) hub = state.buildings.find((b) => b.completed);
   if (!hub) return;
   const hx = (hub.x + hub.width / 2 - cam.x) * cam.zoom + cw / 2;
   const hy = (hub.y + hub.height / 2 - cam.y) * cam.zoom + ch / 2;

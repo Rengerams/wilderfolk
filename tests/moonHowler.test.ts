@@ -251,7 +251,6 @@ describe('moonHowler.exorcism.test.ts', () => {
       type: BuildingType.Church,
       completed: true,
       occupants: [9000],
-      faction: undefined,
       x: 90,
       y: 90,
       width: 50,
@@ -875,7 +874,6 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
   const MANSION_ID = 102;
   const FARM_ID = 103;
   const PRISON_ID = 104;
-  const RIVAL_HOUSE_ID = 105;
   const SITE_ID = 106;
 
   const ELDER_ID = 1;
@@ -979,7 +977,6 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
       mansion,
       farm,
       finishedBuilding(PRISON_ID, BuildingType.Prison),
-      finishedBuilding(RIVAL_HOUSE_ID, BuildingType.House, { faction: 'rival', occupants: [900] }),
       createBuilding(BuildingType.House, 900, 900, SITE_ID),
     ];
 
@@ -1040,7 +1037,6 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
 
     const rivalSettler = settler(RIVAL_SETTLER_ID, { ageYears: 31 });
     rivalSettler.faction = 'rival';
-    rivalSettler.residenceBuildingId = RIVAL_HOUSE_ID;
 
     const wolf = createEntity(EntityType.Wolf, 200, 200, WOLF_ID, 500);
     const deadPlain = settler(DEAD_PLAIN_ID, { ageYears: 50 });

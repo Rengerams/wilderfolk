@@ -76,7 +76,7 @@ export function advanceApprenticeships(
     && (p.id * 37 + 17) % 4 === 0 && !claimed.has(p.id));
 
   for (const b of state.buildings) {
-    if (!b.completed || b.faction === 'rival') continue;
+    if (!b.completed) continue;
     const job = BUILDING_JOB_TYPES[b.type];
     if (!job || !PRODUCTION_TYPES.has(b.type)) continue;
 

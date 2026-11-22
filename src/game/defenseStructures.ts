@@ -51,7 +51,7 @@ export function countCompletedDefenseBuildings(
   if (!buildings?.length) return 0;
   const wanted = Array.isArray(types) ? new Set(types) : new Set([types]);
   return buildings.filter(
-    (b) => b.completed && b.faction !== 'rival' && wanted.has(b.type),
+    (b) => b.completed && wanted.has(b.type),
   ).length;
 }
 
@@ -117,7 +117,7 @@ export function getBarracksGuardCount(state: WorldState, buildings: Building[]):
   let guards = 0;
 
   for (const b of buildings) {
-    if (!b.completed || b.type !== BuildingType.Barracks || b.faction === 'rival') continue;
+    if (!b.completed || b.type !== BuildingType.Barracks) continue;
     if (!b.occupants?.length) continue;
 
     for (const humanId of b.occupants) {

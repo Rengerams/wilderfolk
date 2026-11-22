@@ -333,7 +333,7 @@ export function detectContextualTutorials(world: WorldState): ContextualTutorial
 
   // A placed (even unfinished) house counts — the player already acted, don't nag.
   const hasHouse = world.buildings.some(
-    (b) => b.type === BuildingType.House && b.faction !== 'rival',
+    (b) => b.type === BuildingType.House,
   );
   // From late afternoon on day one (hour >= 16) until first house. Not in `derivedSeenIds`: it
   // nudges about something that has not happened, so a loaded save must not be seeded with it.

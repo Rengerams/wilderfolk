@@ -41,7 +41,6 @@ function house(id: number, x: number, y: number): Building {
     height: 48,
     rotation: 0,
     completed: true,
-    faction: 'player',
     occupants: [],
   } as unknown as Building;
 }

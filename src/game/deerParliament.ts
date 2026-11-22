@@ -54,7 +54,7 @@ function countAliveDeer(state: WorldState): number {
 
 function hasHuntingPressure(state: WorldState): boolean {
   const hasHuntingSpot = state.buildings.some(
-    (b) => b.completed && b.faction !== 'rival' && b.type === BuildingType.HuntingSpot,
+    (b) => b.completed && b.type === BuildingType.HuntingSpot,
   );
   return hasHuntingSpot || getEcosystemHealth(state) < ECO_PRESSURE_THRESHOLD;
 }

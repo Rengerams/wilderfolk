@@ -1,6 +1,6 @@
 /**
  * Three owner rules: a beauty-free grid keeps the caller where they are, the travelling theatre
- * reads recent history, and only player watchtowers reveal raiders.
+ * reads recent history, and only completed watchtowers reveal raiders.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -15,7 +15,7 @@ import { logEvent } from '../src/game/eventLog';
 
 const FIXTURE_SEED = 20240913;
 
-function building(type: BuildingType, faction: string, x = 100, y = 100): Building {
+function building(type: BuildingType, completed = true, x = 100, y = 100): Building {
   const cfg = BUILDING_CONFIGS[type];
   return {
     id: Math.floor(x * 1000 + y),
@@ -26,13 +26,12 @@ function building(type: BuildingType, faction: string, x = 100, y = 100): Buildi
     height: cfg.height,
     occupants: [],
     level: 1,
-    constructionProgress: 100,
-    completed: true,
+    constructionProgress: completed ? 100 : 0,
+    completed,
     health: 100,
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    faction,
   } as never;
 }
 
@@ -75,7 +74,7 @@ describe('M32 — the theatre reads recent history', () => {
   });
 });
 
-describe('M36 — only player watchtowers reveal raiders', () => {
+describe('M36 — only completed watchtowers reveal raiders', () => {
   function raiderFixture(): { state: WorldState; rival: Entity } {
     const state = initGame({ seed: FIXTURE_SEED });
     state.pendingRaidEvents = [{ rivalId: 'r1' } as never];
@@ -106,9 +105,9 @@ describe('M36 — only player watchtowers reveal raiders', () => {
     return { state, rival };
   }
 
-  it('leaves the raider hidden when the only tower belongs to the rival camp', () => {
+  it('leaves the raider hidden when the only watchtower is unfinished', () => {
     const { state, rival } = raiderFixture();
-    state.buildings = [building(BuildingType.Watchtower, 'rival')];
+    state.buildings = [building(BuildingType.Watchtower, false)];
 
     detectRaidersFromWatchtowers(state, [rival]);
 
@@ -116,9 +115,9 @@ describe('M36 — only player watchtowers reveal raiders', () => {
     expect(state.eventLog.some((e) => e.message.includes('Watchtower spotted'))).toBe(false);
   });
 
-  it('reveals the raider from a player watchtower', () => {
+  it('reveals the raider from a completed watchtower', () => {
     const { state, rival } = raiderFixture();
-    state.buildings = [building(BuildingType.Watchtower, 'player')];
+    state.buildings = [building(BuildingType.Watchtower)];
 
     detectRaidersFromWatchtowers(state, [rival]);
 

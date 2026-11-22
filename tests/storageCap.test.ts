@@ -31,7 +31,6 @@ function addCompleted(state: WorldState, type: BuildingType): void {
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    faction: 'player',
   } as never);
 }
 
@@ -163,7 +162,7 @@ function makeWorld(): WorldState {
   } as unknown as WorldState;
 }
 
-function addBuilding(w: WorldState, type: BuildingType, faction: 'player' | 'rival'): void {
+function addBuilding(w: WorldState, type: BuildingType, completed = true): void {
   const cfg = BUILDING_CONFIGS[type];
   w.buildings.push({
     id: w.buildings.length + 1,
@@ -175,60 +174,51 @@ function addBuilding(w: WorldState, type: BuildingType, faction: 'player' | 'riv
     occupants: [],
     level: 1,
     constructionProgress: 100,
-    completed: true,
+    completed,
     health: 100,
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    faction,
   } as Building);
 }
 
-/** `storageMax` the caps owner derives from `types`, each owned by `faction`. */
-function capsFor(types: BuildingType[], faction: 'player' | 'rival'): WorldState {
+/** Storage caps derive only from completed on-map buildings. */
+function capsFor(types: BuildingType[], completed = true): WorldState {
   const w = makeWorld();
-  for (const type of types) addBuilding(w, type, faction);
+  for (const type of types) addBuilding(w, type, completed);
   updateStorageCaps(w);
   return w;
 }
 
 /**
- * `updateStorageCaps` counts only completed player buildings: a rival Market or Silo must confer
- * no storage or spoilage benefit on the player.
+ * Only completed on-map buildings grant storage and spoilage benefits.
  */
-describe('E-1 — a rival building confers no storage on the player', () => {
-  it('a rival Market changes nothing; a player Market still adds its storage', () => {
-    const base = capsFor([], 'player');
-    const rival = capsFor([BuildingType.Market], 'rival');
-    const player = capsFor([BuildingType.Market], 'player');
+describe('E-1 — storage contributors require completed buildings', () => {
+  it('an unfinished Market changes nothing; a completed Market adds its storage', () => {
+    const base = capsFor([]);
+    const unfinished = capsFor([BuildingType.Market], false);
+    const completed = capsFor([BuildingType.Market]);
 
-    // A rival Market confers none of a player Market's caps.
-    expect(rival.storageMax).toEqual(base.storageMax);
-    expect(rival.foodSpoilageRate).toBe(base.foodSpoilageRate);
+    expect(unfinished.storageMax).toEqual(base.storageMax);
+    expect(unfinished.foodSpoilageRate).toBe(base.foodSpoilageRate);
 
-    expect(player.storageMax.wood).toBe(base.storageMax.wood + 200);
-    expect(player.storageMax.stone).toBe(base.storageMax.stone + 200);
-    expect(player.storageMax.iron).toBe(base.storageMax.iron + 100);
+    expect(completed.storageMax.wood).toBe(base.storageMax.wood + 200);
+    expect(completed.storageMax.stone).toBe(base.storageMax.stone + 200);
+    expect(completed.storageMax.iron).toBe(base.storageMax.iron + 100);
   });
 
-  it('covers every cap contributor: Barn, Silo and Wood Storehouse, plus the Silo spoilage cut', () => {
-    const player = capsFor(
-      [BuildingType.Barn, BuildingType.Silo, BuildingType.WoodStorehouse],
-      'player',
-    );
-    const rival = capsFor(
-      [BuildingType.Barn, BuildingType.Silo, BuildingType.WoodStorehouse],
-      'rival',
-    );
-    const base = capsFor([], 'player');
+  it('covers Barn, Silo and Wood Storehouse caps plus the Silo spoilage cut', () => {
+    const types = [BuildingType.Barn, BuildingType.Silo, BuildingType.WoodStorehouse];
+    const completed = capsFor(types);
+    const unfinished = capsFor(types, false);
+    const base = capsFor([]);
 
-    expect(rival.storageMax).toEqual(base.storageMax);
-    // Only the player's own Silo lowers the spoilage rate.
-    expect(rival.foodSpoilageRate).toBe(base.foodSpoilageRate);
+    expect(unfinished.storageMax).toEqual(base.storageMax);
+    expect(unfinished.foodSpoilageRate).toBe(base.foodSpoilageRate);
 
-    expect(player.storageMax.wood).toBeGreaterThan(base.storageMax.wood);
-    expect(player.storageMax.food).toBeGreaterThan(base.storageMax.food);
-    expect(player.storageMax.stone).toBeGreaterThan(base.storageMax.stone);
-    expect(player.foodSpoilageRate).toBeLessThan(base.foodSpoilageRate);
+    expect(completed.storageMax.wood).toBeGreaterThan(base.storageMax.wood);
+    expect(completed.storageMax.food).toBeGreaterThan(base.storageMax.food);
+    expect(completed.storageMax.stone).toBeGreaterThan(base.storageMax.stone);
+    expect(completed.foodSpoilageRate).toBeLessThan(base.foodSpoilageRate);
   });
 });

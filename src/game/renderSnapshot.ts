@@ -173,7 +173,6 @@ function staticEntityLayerRevision(world: WorldState): string {
       b.level,
       b.spriteScale,
       b.rotation ?? 0,
-      b.faction ?? '',
       b.completed ? 1 : 0,
       b.gateClosed ? 1 : 0,
       b.health,
@@ -238,7 +237,7 @@ function colonyHasBlacksmith(buildings: readonly Building[], tick: number): bool
     return blacksmithScanResult;
   }
   blacksmithScanResult = buildings.some(
-    (b) => b.completed && b.type === BuildingType.Blacksmith && b.faction !== 'rival',
+    (b) => b.completed && b.type === BuildingType.Blacksmith,
   );
   blacksmithScan = { buildings, length: buildings.length, tick };
   return blacksmithScanResult;

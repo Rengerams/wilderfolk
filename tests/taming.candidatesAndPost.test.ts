@@ -1,6 +1,6 @@
 /**
  * The taming panel must list candidates and measure the post's reach through the owners, so the
- * list agrees with the command that refuses foreign settlers and rival posts.
+ * list agrees with the command that refuses foreign settlers and unfinished posts.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -22,7 +22,7 @@ function world(): WorldState {
   return initGame({ skipTerrain: true, seed: FIXTURE_SEED });
 }
 
-function addPost(state: WorldState, faction: 'player' | 'rival' = 'player'): void {
+function addPost(state: WorldState, completed = true): void {
   state.buildings.push({
     id: 9001,
     type: BuildingType.TamingPost,
@@ -33,12 +33,11 @@ function addPost(state: WorldState, faction: 'player' | 'rival' = 'player'): voi
     occupants: [],
     level: 1,
     constructionProgress: 100,
-    completed: true,
+    completed,
     health: 100,
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    faction,
   } as never);
 }
 
@@ -102,11 +101,11 @@ describe('taming candidates and post reach', () => {
     expect(preFixOwnerReach, 'the pre-fix owner circle disagreed here').toBe(true);
     expect(preFixPanelReach, 'the pre-fix panel circle matched the centre').toBe(false);
 
-    const rivalState = world();
-    addPost(rivalState, 'rival');
+    const unfinishedState = world();
+    addPost(unfinishedState, false);
     expect(
-      hasNearbyPlayerTamingPost(rivalState, creatureAt(rivalState, 110, 100)),
-      'a rival-owned post is not the player\'s',
+      hasNearbyPlayerTamingPost(unfinishedState, creatureAt(unfinishedState, 110, 100)),
+      'an unfinished post is not active yet',
     ).toBe(false);
   });
 

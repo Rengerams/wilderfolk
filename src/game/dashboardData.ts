@@ -459,7 +459,6 @@ function deriveDashboardBuildings(state: WorldState): DashboardBuilding[] {
   const occupancy = buildResidenceOccupancy(state.entities);
   const rows: DashboardBuilding[] = [];
   for (const building of state.buildings) {
-    if (building.faction === 'rival') continue;
     const residence = building.completed && isResidenceBuildingType(building.type);
     // A finished workplace's slot count is the staffing owner's: a Prison's occupants are guards ∪ prisoners.
     const staffing = !residence && building.completed && BUILDING_JOB_TYPES[building.type] !== undefined
@@ -738,7 +737,6 @@ export function explainSettler(state: WorldState, id: number): SettlerExplanatio
 const STAFFING_REFUSAL_LABELS: Record<WorkerAssignmentRefusal, string> = {
   'unknown-building': 'That building no longer exists.',
   'unknown-settler': 'That settler is no longer in the valley.',
-  'rival-building': 'A rival camp is not yours to staff.',
   'residence-building': 'Homes fill themselves — build a House and people move in.',
   'building-full': 'Every slot here is taken.',
   'building-has-no-job': 'This building takes no workers.',

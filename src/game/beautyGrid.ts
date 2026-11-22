@@ -44,7 +44,7 @@ export function rebuildBeautyGrid(
 ): BeautyGrid {
   const grid = createBeautyGrid(cols, rows);
   for (const b of state.buildings) {
-    if (!b.completed || b.faction === 'rival') continue;
+    if (!b.completed) continue;
     const beauty = BUILDING_CONFIGS[b.type]?.beauty;
     if (beauty) stampDecor(grid, b, beauty);
   }

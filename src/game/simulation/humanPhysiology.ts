@@ -36,7 +36,7 @@ export const HUMAN_NEEDS = {
 export function hasNearbyWell(entity: Pick<Entity, 'x' | 'y'>, wells: readonly Building[]): boolean {
   const radiusSquared = HUMAN_NEEDS.WELL_RADIUS_PX ** 2;
   for (const well of wells) {
-    if (well.type !== BuildingType.Well || !well.completed || well.faction === 'rival') continue;
+    if (well.type !== BuildingType.Well || !well.completed) continue;
     // buildingGeometry: x/y already ARE the authoritative building centre.
     const dx = entity.x - well.x;
     const dy = entity.y - well.y;

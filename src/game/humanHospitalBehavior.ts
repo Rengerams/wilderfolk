@@ -31,7 +31,6 @@ function isAtHospital(entity: Entity, hospital: Building): boolean {
 export function isStaffedHospital(building: Building): boolean {
   return building.type === BuildingType.Hospital
     && building.completed
-    && building.faction !== 'rival'
     && building.occupants.length > 0;
 }
 

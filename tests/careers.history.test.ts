@@ -49,7 +49,6 @@ describe('observed career history', () => {
     expect(recordCareerWork({ ...base, scheduleLastWorkedSiteId: 11 }, farm, JobType.Farmer, 0, 4)).toBe(false);
     expect(recordCareerWork({ ...base, scheduleLastWorkedJob: JobType.Hunter }, farm, JobType.Farmer, 0, 4)).toBe(false);
     expect(recordCareerWork(base, { ...farm, completed: false }, JobType.Farmer, 0, 4)).toBe(false);
-    expect(recordCareerWork(base, { ...farm, faction: 'rival' }, JobType.Farmer, 0, 4)).toBe(false);
     expect(base.careerHistory).toBeUndefined();
   });
 

@@ -1,3 +1,4 @@
+import { findCompletedBuilding } from './buildings';
 import { moveResident } from './housingPipeline';
 import type { Entity, Resources, TradeRoute, WorldState } from './gameTypes';
 import { BuildingType, EntityType, JobType } from './gameTypes';
@@ -19,9 +20,7 @@ import type { TickContext } from './simulation/simulationTypes';
 
 /** Long-range trade routes require a completed player Market (EC-4). */
 export function hasCompletedMarket(state: WorldState): boolean {
-  return state.buildings.some(
-    (b) => b.completed && b.faction !== 'rival' && b.type === BuildingType.Market,
-  );
+  return findCompletedBuilding(state.buildings, BuildingType.Market) !== undefined;
 }
 
 export const TRADE_CARAVAN_ARRIVAL_DIST = 28;
@@ -65,13 +64,13 @@ export function getDefaultPartnerPosition(state: WorldState, index: number): { x
 export function getTradeHubCenter(state: WorldState): { x: number; y: number } {
   const hubTypes = [BuildingType.Market, BuildingType.Store, BuildingType.TownHall, BuildingType.Workshop];
   for (const type of hubTypes) {
-    const building = state.buildings.find((b) => b.completed && b.faction !== 'rival' && b.type === type);
+    const building = state.buildings.find((b) => b.completed && b.type === type);
     if (building) {
       // The building centre is inside a solid footprint; the caravan uses its door.
       return buildingAccessPoint(building);
     }
   }
-  const fallback = state.buildings.find((b) => b.completed && b.faction !== 'rival');
+  const fallback = state.buildings.find((b) => b.completed);
   return fallback
     ? buildingAccessPoint(fallback)
     : getPlayerSettlerCenter(state);

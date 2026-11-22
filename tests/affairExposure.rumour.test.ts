@@ -69,7 +69,6 @@ function makePrison(): Building {
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    faction: 'player',
   } as never;
 }
 

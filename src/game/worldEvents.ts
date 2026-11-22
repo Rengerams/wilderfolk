@@ -127,7 +127,7 @@ export function applyStormDamageToBuildings(
   const damaged: Building[] = [];
   for (let i = 0; i < buildings.length; i++) {
     const b = buildings[i];
-    if (!b.completed || b.faction === 'rival') continue;
+    if (!b.completed) continue;
     const dmg = Math.max(1, Math.round(damagePerDay * resistMult));
     const before = b.health ?? b.maxHealth;
     // A building already at or below the weather floor must not be touched: clamping `before - dmg`
@@ -155,7 +155,7 @@ export function applyEarthquakeDamageToBuildings(
   const radiusSq = radius * radius;
   for (let i = 0; i < buildings.length; i++) {
     const b = buildings[i];
-    if (!b.completed || b.faction === 'rival') continue;
+    if (!b.completed) continue;
     const dx = b.x - quakeX;
     const dy = b.y - quakeY;
     if (dx * dx + dy * dy >= radiusSq) continue;

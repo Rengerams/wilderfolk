@@ -59,7 +59,6 @@ function building(id: number, x: number, y: number, over: Partial<Building> = {}
     height: 48,
     rotation: 0,
     completed: true,
-    faction: 'player',
     occupants: [],
     constructionProgress: 100,
     level: 1,
@@ -166,15 +165,14 @@ describe('frontierCombat militia count (cross-cutting dead militia rule)', () =>
 });
 
 describe('worldEvents earthquake (L79)', () => {
-  it('damages only completed player buildings inside the quake radius', () => {
+  it('damages only completed buildings inside the quake radius', () => {
     const inside = building(1, 100, 100);
     const justInside = building(2, 140, 100);
     const justOutside = building(3, 180, 100);
-    const rivalInside = building(4, 105, 100, { faction: 'rival' as never });
     const unfinishedInside = building(5, 110, 100, { completed: false as never });
 
     const damaged = applyEarthquakeDamageToBuildings(
-      [inside, justInside, justOutside, rivalInside, unfinishedInside],
+      [inside, justInside, justOutside, unfinishedInside],
       100,
       100,
       60,
@@ -185,7 +183,6 @@ describe('worldEvents earthquake (L79)', () => {
     expect(inside.health).toBe(85);
     expect(justInside.health).toBe(85);
     expect(justOutside.health).toBe(100);
-    expect(rivalInside.health).toBe(100);
     expect(unfinishedInside.health).toBe(100);
   });
 });
@@ -522,7 +519,7 @@ describe('economy storage caps (L19)', () => {
   }
 
   function capsBuilding(w: WorldState, type: BuildingType): void {
-    w.buildings.push({ id: w.buildings.length + 1, type, x: 0, y: 0, completed: true, faction: 'player', level: 1 } as never);
+    w.buildings.push({ id: w.buildings.length + 1, type, x: 0, y: 0, completed: true, level: 1 } as never);
   }
 
   it('lets one Silo reach the formula 0.8% spoilage instead of clamping it to 1%', () => {

@@ -19,7 +19,6 @@ function worldWithBuildings(): { world: ReturnType<typeof initGame>; buildings: 
     height: 40,
     rotation: 0,
     completed: true,
-    faction: 'player',
     occupants: [],
     progress: 0,
     storage: { wood: 0, stone: 0, food: 0, gold: 0, iron: 0 },
