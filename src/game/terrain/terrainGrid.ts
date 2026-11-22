@@ -4,9 +4,9 @@
  */
 import { TerrainType, PATH_CELL, type TerrainTile, type WorldMap } from '../gameTypes';
 import { clamp, lerp, valueNoise, hashString } from './noise';
-// The unbuildable-terrain rule lives in the leaf `terrainTraits` so this file can read it without
-// importing `placementUtils`, which imports `tileAt` from here (a cycle).
-import { isUnbuildableTerrainType, isWaterTerrainType } from './terrainTraits';
+// Water classification lives in the terrainTraits leaf so placement and the grid share one
+// rule without introducing a circular import through placementUtils.
+import { isWaterTerrainType } from './terrainTraits';
 
 /**
  * L2 cell edge (px) — the biome / continuous-field resolution. One number because the generator,
@@ -392,12 +392,12 @@ export function isWalkableTerrainType(type: TerrainType): boolean {
 
 /**
  * Whether the terrain behind a 10px cell accepts a structure. Reads the same
- * `isUnbuildableTerrainType` owner as the placement rules, so the two cannot disagree.
+ * `isWaterTerrainType` owner as the placement rules, so the two cannot disagree.
  */
 export function isTileBuildable(map: WorldMap, tx: number, ty: number): boolean {
   const tile = tileAt(map, tx, ty);
   if (!tile) return false;
-  return !isUnbuildableTerrainType(tile.type);
+  return !isWaterTerrainType(tile.type);
 }
 
 /* ===== Re-bake after generation edits ===== */

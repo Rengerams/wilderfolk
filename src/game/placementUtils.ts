@@ -7,7 +7,7 @@ import { getBuildingConfig } from './buildingConfig';
 import { isWalkableTerrainType, tileAt, Walkability } from './terrain/terrainGrid';
 // The "what a terrain type is" pair moved to a leaf so `terrainGrid` can read it without importing
 // this module back — that edge was a runtime cycle.
-import { isReinforceableTerrainType, isUnbuildableTerrainType, isWaterTerrainType } from './terrain/terrainTraits';
+import { isReinforceableTerrainType, isWaterTerrainType } from './terrain/terrainTraits';
 
 /** Keep building footprints slightly inside the map edge so sprites are not clipped. */
 export const MAP_EDGE_INSET = 1;
@@ -93,7 +93,7 @@ export function isFootprintOnBuildableTerrain(
         if (isReinforceableTerrainType(tile.type)) unstableCells++;
       } else if (bridge) {
         // A bridge needs water to span, but may land on the banks/approach like a real deck.
-        if (isUnbuildableTerrainType(tile.type) && !RIVER_PLACE_TERRAIN.has(tile.type)) return false;
+        if (isWaterTerrainType(tile.type) && !RIVER_PLACE_TERRAIN.has(tile.type)) return false;
         if (tile.type === TerrainType.Mountains || tile.type === TerrainType.Snow) return false;
         if (tile.type === TerrainType.River) riverCells++;
       } else if (fishing) {
@@ -104,7 +104,7 @@ export function isFootprintOnBuildableTerrain(
         const occupancy = snapshot.worldMap.pathGrid?.[ty * tileW + tx];
         if (isWaterTerrainType(tile.type) || !isWalkableTerrainType(tile.type)
           || (occupancy !== undefined && occupancy !== Walkability.Open)) return false;
-      } else if (isUnbuildableTerrainType(tile.type)) {
+      } else if (isWaterTerrainType(tile.type)) {
         return false;
       }
     }

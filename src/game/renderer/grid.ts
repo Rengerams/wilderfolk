@@ -1,9 +1,7 @@
-import { GRID_SIZE, PATH_CELL, snapToGrid } from '../gameTypes';
+import { GRID_SIZE, snapToGrid } from '../gameTypes';
 import { isNightHour } from '../dayCycle';
 import { snapBuildingCenter } from '../buildingRotation';
 import { canPlaceBuilding } from '../placementUtils';
-import { isUnbuildableTerrainType, isWaterTerrainType } from '../terrain/terrainTraits';
-import { tileTypeAt } from '../terrain/terrainGrid';
 import { worldToScreen as w2s, worldToScreenX, worldToScreenY } from '../viewState';
 import { terrainRiseAt } from '../terrainAtlas';
 import type { RenderSnapshot } from '../renderSnapshot';
@@ -138,59 +136,6 @@ export function drawIsoCellMarker(
 }
 
 
-/** Unbuildable-terrain blockers while placing — terrain-derived, so they belong to the cached layer. */
-export function drawBuildZoneOverlay(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
-  if (!state.buildMode || !state.worldMap) return;
-  const cam = state.camera;
-  const map = state.worldMap;
-  const halfW = (cw / 2) / cam.zoom;
-  const halfH = (ch / 2) / cam.zoom;
-  const wl = cam.x - halfW;
-  const wr = cam.x + halfW;
-  const wt = cam.y - halfH;
-  const wb = cam.y + halfH;
-
-  const startTx = Math.max(0, Math.floor(wl / PATH_CELL));
-  const endTx = Math.min(map.width - 1, Math.ceil(wr / PATH_CELL));
-  const startTy = Math.max(0, Math.floor(wt / PATH_CELL));
-  const endTy = Math.min(map.height - 1, Math.ceil(wb / PATH_CELL));
-
-  const blockerHw = (PATH_CELL * 0.48) * cam.zoom;
-  const blockerHh = (PATH_CELL * 0.28) * cam.zoom;
-  const lipHeight = Math.max(2, 3 * cam.zoom);
-
-  // 1. Render unbuildable terrain markers
-  for (let ty = startTy; ty <= endTy; ty++) {
-    for (let tx = startTx; tx <= endTx; tx++) {
-      const type = tileTypeAt(map, tx, ty);
-      if (type === null || !isUnbuildableTerrainType(type)) continue;
-      if (isWaterTerrainType(type)) continue;
-
-      const wx = tx * PATH_CELL + PATH_CELL / 2;
-      const wy = ty * PATH_CELL + PATH_CELL / 2;
-      const cx = worldToScreenX(wx, cam, cw);
-      const cy = worldToScreenY(wy, cam, ch) - terrainRiseAt(map, wx, wy) * cam.zoom;
-
-      drawIsoCellMarker(
-        ctx, cx, cy, blockerHw, blockerHh,
-        'rgba(185, 28, 28, 0.32)',
-        'rgba(252, 165, 165, 0.35)',
-        Math.max(0.8, 1.1 * cam.zoom),
-      );
-
-      // South lip for 2.5D elevation
-      ctx.fillStyle = 'rgba(80, 10, 10, 0.35)';
-      ctx.beginPath();
-      ctx.moveTo(cx - blockerHw, cy);
-      ctx.lineTo(cx, cy + blockerHh);
-      ctx.lineTo(cx + blockerHw, cy);
-      ctx.lineTo(cx, cy + blockerHh + lipHeight);
-      ctx.closePath();
-      ctx.fill();
-    }
-  }
-}
-
 /**
  * Validity markers around the live ghost. They follow the pointer, so they are painted every frame
  * and never baked into the tick-keyed layer (a baked copy froze around the old ghost tile).
@@ -279,7 +224,7 @@ export function drawGrid(ctx: CanvasRenderingContext2D, state: RenderSnapshot, c
           ? snapBuildingCenter(state.buildMode, rawX, rawY, state.buildRotation)
           : { x: snapToGrid(rawX, gs), y: snapToGrid(rawY, gs) };
         // Plate and verdict share one centre — the snapped centre `canPlaceBuilding` is
-        // asked about, matching `drawBuildZoneOverlay` below.
+        // asked about, matching the ghost and placement-verdict overlay.
         const px = worldToScreenX(cx, cam, cw);
         // Ride the 2.5D relief the same way the ghost does, so a plate and the building that lands
         // on it share one screen height instead of the plate floating at the flat-map position.

@@ -28,11 +28,6 @@ export function isWaterTerrainType(type: TerrainType): boolean {
   return WATER_TERRAIN.has(type);
 }
 
-/** Ordinary building eligibility delegates to the water owner — not a second classification. */
-export function isUnbuildableTerrainType(type: TerrainType): boolean {
-  return isWaterTerrainType(type);
-}
-
 export function isReinforceableTerrainType(type: TerrainType): boolean {
   return REINFORCEABLE_TERRAIN.has(type);
 }

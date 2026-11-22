@@ -159,7 +159,7 @@ Version matrix for code reviews:
 | Noise and rain shadow | `terrain/noise.ts`; `terrain/rainShadow.ts` — `rainShadowField` |
 | Biome identities / visual deco types | `terrain/biomes.ts` |
 | Gameplay terrain and occupancy | `terrain/terrainGrid.ts` — `classifyTile`, `tileAt`, `tileTypeAt`, `setTileOverride`, `rebakeTerrainGrids` |
-| Terrain-type traits | `terrain/terrainTraits.ts` — `isWaterTerrainType`, `isUnbuildableTerrainType` |
+| Terrain-type traits | `terrain/terrainTraits.ts` — `isWaterTerrainType`, `isReinforceableTerrainType` |
 | Ecotone weights | `terrain/ecotones.ts` — `sampleEcotone`, `treeEcotoneAt` |
 | Continuous field paint + river visuals | `renderer/whittakerTerrain.ts` — `buildWhittakerFields`, `bakeWhittakerGround`, `sampleRiverPhase` |
 | Ground caching and composition | `renderer/terrain.ts` — `planGroundChunks`, `drawGround`, `targetGroundStep` |

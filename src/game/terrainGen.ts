@@ -1,6 +1,6 @@
 import { MapPreset, MapSize, MAP_SIZE_DIMENSIONS, TerrainType, type WorldMap } from './gameTypes';
 import { getSimRng } from './simRng';
-import { isUnbuildableTerrainType, isWaterTerrainType } from './terrain/terrainTraits';
+import { isWaterTerrainType } from './terrain/terrainTraits';
 import { generateRawTerrain } from './terrain/terragen';
 import {
   rebakeTerrainGrids,
@@ -49,7 +49,7 @@ export function isFootprintBuildable(
   for (let ty = startTy; ty <= endTy; ty++) {
     for (let tx = startTx; tx <= endTx; tx++) {
       const type = tileTypeAt(map, tx, ty);
-      if (type === null || isUnbuildableTerrainType(type)) return false;
+      if (type === null || isWaterTerrainType(type)) return false;
     }
   }
   return true;

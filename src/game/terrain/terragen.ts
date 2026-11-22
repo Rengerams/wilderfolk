@@ -12,7 +12,7 @@ import {
 } from '../gameTypes';
 import { computeFlow, fillDepressions, riverWidthAt } from './hydrology';
 import { RAIN_SHADOW_MOISTURE_STRENGTH, rainShadowField } from './rainShadow';
-import { isUnbuildableTerrainType } from './terrainTraits';
+import { isWaterTerrainType } from './terrainTraits';
 import { sampleEcotone, type EcotoneTerrainFields } from './ecotones';
 import { B, BIOME_BY_IDX, BIOMES, RETIRED_V4_DECOR_TYPES, TREE_SPRITE_TYPES, type BiomeDef, type SpriteType } from './biomes';
 import {
@@ -1114,7 +1114,7 @@ export function generateRawTerrain(
           const ty = Math.min(tileH - 1, y * per + j);
           const type = pathTileType(tx, ty);
           // Shallow water is walkable, but all water must still be unbuildable.
-          if (isUnbuildableTerrainType(type)) water++;
+          if (isWaterTerrainType(type)) water++;
         }
       buildGrid[y * bCols + x] = water
         ? Buildability.Water
