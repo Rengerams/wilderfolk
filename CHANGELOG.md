@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Refactored (22 Nov 2026; pending merge):** The Frontier panel reads one normalized rival profile from `getRivalPresenceSummary` instead of normalizing again; peace checks use the canonical owner, unused status-color calculation is removed, and the label says camp status.
+
 - **Refactored (22 Nov 2026; pending merge):** Broke two type-import cycles: placement reads world-map types rather than renderer types; grid and gameplay readers use narrow entity contracts; statistics and social record types live in leaf schemas. No gameplay or save-format change.
 
 - **Removed (22 Nov 2026; pending merge):** No visitor camps or idle visitor NPCs spawn on the village map (first-week, mid-year and yearly event routes removed). Old saves discard visitors and their camps on load; strategic rivals, raids, resident immigration and trade routes remain.
