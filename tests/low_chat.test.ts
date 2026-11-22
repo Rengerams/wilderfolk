@@ -320,14 +320,16 @@ describe('L58 — ordinary work window preview', () => {
         { id: 5, type: BuildingType.Church, completed: true, occupants: [13], x: 0, y: 0, width: 1, height: 1 },
       ],
       entities: [
-        { id: 10, alive: true, faction: undefined },
-        { id: 11, alive: true, faction: undefined },
-        { id: 12, alive: true, faction: undefined },
-        { id: 13, alive: true, faction: undefined },
+        human(10, { workerBuildingId: 1 }),
+        human(11),
+        human(12),
+        human(13),
       ],
     } as never;
 
-    const preview = getScheduleImpactPreview(state, 'ordinary', 8, 10);
+    const preview = getScheduleImpactPreview(
+      state, 'ordinary', { startHour: 7, endHour: 15 }, { startHour: 7, endHour: 17 },
+    );
 
     expect(preview.affectedWorkplaces).toBe(1);
     expect(preview.assignedWorkers).toBe(1);

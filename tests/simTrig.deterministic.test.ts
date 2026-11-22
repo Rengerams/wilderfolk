@@ -34,7 +34,6 @@ describe('deterministic sine and cosine', () => {
 /** The modules that integrate a settler or animal position on a tick. */
 const TICK_POSITION_MODULES = [
   'src/game/humanTick.ts',
-  'src/game/factionWander.ts',
   'src/game/tickLayerSystems.ts',
   'src/game/moonHowler.ts',
   'src/game/villageLeadership.ts',

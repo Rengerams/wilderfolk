@@ -1,10 +1,10 @@
 import { MAX_ASSIGNABLE_COMMUTE_HOURS, MAX_COMMUTE_LEAD_HOURS, WORK_COMMUTE_RUSH, quoteBuildingCommute } from './commuteReach';
-import type { WorldState, Entity, Building, VisitorGroup, RivalSettlement } from './gameTypes';
+import type { WorldState, Entity, Building } from './gameTypes';
 import { EntityType, BuildingType, JobType, Season, PATH_CELL } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
-import { faceVelocity, ROAD_SPEED_MULT, steerEntityToward } from './simulation/movementSteering';
+import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import { getChurchStrength, findHumanWorkplace } from './workforce';
 import { buildConstructionCrewIndex } from './workforceSummary';
@@ -57,11 +57,9 @@ import {
   SCHOOL_START_HOUR,
 } from './education';
 import {
-  buildIncomingRaidIndex,
   getPlayerCampCenterFromBuildings,
   getPlayerSettlerCenter,
 } from './frontierCombat';
-import { buildPatrolRevealIndex, detectRaidersForPatrol, type PatrolRevealIndex } from './humanPatrolBehavior';
 import { idleDestination, tickHumanLeisure } from './humanLeisureBehavior';
 import { tickHumanHunting } from './humanHuntingBehavior';
 import {
@@ -73,7 +71,6 @@ import {
   isHuntingSpotHunter,
 } from './huntingSpot';
 import { getCaravanMoveTarget, tryAdvanceCaravanLeg } from './tradeCaravans';
-import { tickFactionCampWander } from './factionWander';
 import {
   isGreetingHour,
   isSocialStaggerTick,
@@ -96,7 +93,6 @@ import {
   createHotelLodgingIndex,
   isSettlerLodgingAtHotel,
   lodgingHotelFor,
-  steerVisitorToHotel,
 } from './hotelStay';
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonDutyForGuard } from './prisonShifts';
@@ -453,10 +449,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (hasTeacherPresent(school, entityById)) schoolsWithTeacherPresent.add(school.id);
   }
 
-  // Marching-raider groups for patrol reveal depend on the tick's raid state, not on the guard
-  // looking, so the first barracks watch on shift builds the index and the rest reuse it.
-  let patrolRevealIndex: PatrolRevealIndex | undefined;
-
   // Only the building half of the camp anchor is tick-stable: entities move in this loop, so the
   // settler half is always re-read. `null` means no hall and no house; `undefined` means unresolved.
   let buildingCampAnchor: { x: number; y: number } | null | undefined;
@@ -485,12 +477,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   // Ceremony seats are the same id-sorted ranks for every settler; build them once per tick.
   const ceremonySeats = state.electionCeremony ? buildCeremonySeatIndex(state) : undefined;
 
-  // Camps, war-bands and festival places are tick-stable facts: index them once, never per settler.
-  const visitorGroupById = new Map<string, VisitorGroup>();
-  for (const group of state.visitorGroups ?? []) visitorGroupById.set(group.id, group);
-  const rivalSettlementById = new Map<string, RivalSettlement>();
-  for (const rival of state.rivalSettlements ?? []) rivalSettlementById.set(rival.id, rival);
-  const incomingRaids = buildIncomingRaidIndex(state);
+  // Festival places are tick-stable facts, indexed once rather than per settler.
   const festivalPerformers = (state.visitorGroups ?? [])
     .find((group) => group.kind === 'performers' && group.daysLeft > 0);
   const festivalSquare = updatedBuildings.find(
@@ -927,55 +914,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       syncEntityGrids(ctx, entity);
       continue;
     }
-    // Visitors & rival settlers
-    if (entity.faction === 'visitor' || entity.faction === 'rival') {
-      const camp = entity.groupId == null
-        ? undefined
-        : entity.faction === 'visitor'
-          ? visitorGroupById.get(entity.groupId)
-          : rivalSettlementById.get(entity.groupId);
-
-      if (camp) {
-        const marching = entity.faction === 'rival' && entity.groupId != null && incomingRaids.has(entity.groupId);
-        if (entity.faction === 'rival') {
-          entity.hiddenFromPlayer = Boolean(marching && !entity.detectedByPatrol);
-        }
-        const playerCenter = marching ? getCampAnchor() : null;
-        const cx = marching && playerCenter ? playerCenter.x : 'campX' in camp ? camp.campX : 0;
-        const cy = marching && playerCenter ? playerCenter.y : 'campY' in camp ? camp.campY : 0;
-
-        let speedMult = entity.faction === 'visitor' ? 0.62 : 0.4;
-        if (marching) {
-          const raidEvt = entity.groupId == null ? undefined : incomingRaids.get(entity.groupId);
-          const marchTiles = raidEvt?.marchDistanceTiles ?? 30;
-          speedMult = Math.max(0.38, 0.92 - marchTiles / 130);
-        }
-
-        if (marching) {
-          steerEntityToward(entity, cx, cy, config.speed, speedMult);
-          applyHumanWalkStep(entity, 1);
-        } else if (
-          entity.faction === 'visitor' &&
-          steerVisitorToHotel(entity, buildingById, config.speed * speedMult)
-        ) {
-          // Hotel lodging owns its single walk step, including the road-speed multiplier.
-        } else {
-          tickFactionCampWander(state, entity, cx, cy, updatedBuildings, config.speed * speedMult);
-        }
-
-        const dist = Math.hypot(cx - entity.x, cy - entity.y);
-        if (marching && dist < 90) entity.combatTicks = Math.max(entity.combatTicks ?? 0, 8);
-
-        const village = getCampAnchor();
-        const nearVillage = Math.hypot(entity.x - village.x, entity.y - village.y) < 110;
-        const chatChance =
-          (entity.faction === 'visitor' ? (nearVillage ? 0.055 : 0.03) : 0.025) * PER_TICK_RATE_SCALE;
-        settlerChat(entity, entity.faction === 'visitor' ? 'visitor' : 'rival', chatChance);
-      }
-      syncEntityGrids(ctx, entity);
-      continue;
-    }
-
     if (isWinter && !canHeat && isTick8) entity.flash = 5;
 
     let suppressIdle = false;
@@ -1171,8 +1109,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     ) {
       const anchor = getCampAnchor();
       if (anchor) {
-        patrolRevealIndex ??= buildPatrolRevealIndex(state, byType[EntityType.Human] ?? []);
-        detectRaidersForPatrol(state, entity, patrolRevealIndex);
         const radius = 95 + (entity.id % 6) * 10;
         const angle = state.tick * 0.028 * PER_TICK_RATE_SCALE + entity.id * 2.1;
         const tx = anchor.x + deterministicCos(angle) * radius;
