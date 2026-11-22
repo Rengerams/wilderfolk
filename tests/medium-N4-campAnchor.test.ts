@@ -273,7 +273,7 @@ describe('camp anchor split (N-4)', () => {
 });
 
 describe('camp anchor inside the human loop (N-4)', () => {
-  it('sends the war-band and the barracks guard to the Town Hall, whatever else the tick does', () => {
+  it('keeps retired war-bands off the village map while maintaining the Town Hall anchor', () => {
     const fixture = anchorFixture(true);
     const { world, guard, raider, visitor } = fixture;
     expect(getPlayerCampCenter(world, world.buildings)).toEqual(HALL_ANCHOR);
@@ -284,13 +284,8 @@ describe('camp anchor inside the human loop (N-4)', () => {
     expect(getPlayerCampCenter(world, world.buildings)).toEqual(HALL_ANCHOR);
     expect(getPlayerCampCenterFromBuildings(world.buildings)).toEqual(HALL_ANCHOR);
 
-    // The war-band follows the anchored camp; the guard keeps his barracks patrol post.
-    expect(raider.x).toBeLessThan(640);
-    expect(raider.x).toBeGreaterThan(620);
-    // The canonical hall centre (400,300) is slightly north of the old corner anchor (420,320), so the
-    // march also drifts north instead of holding y = 320 exactly.
-    expect(raider.y).toBeLessThan(320);
-    expect(raider.y).toBeGreaterThan(300);
+    // Strategic war-bands no longer march through the village; the guard keeps his post.
+    expect({ x: raider.x, y: raider.y }).toEqual({ x: 640, y: 320 });
     expect(Math.hypot(guard.x - 215, guard.y - 215)).toBeLessThan(30);
 
     // The visitor's anchor read only feeds `nearVillage`, which scales chat chance rather than
@@ -299,7 +294,7 @@ describe('camp anchor inside the human loop (N-4)', () => {
     expect(Number.isFinite(visitor.x) && Number.isFinite(visitor.y)).toBe(true);
   });
 
-  it('follows the live settlers when the village has neither hall nor house', () => {
+  it('keeps the settler fallback anchor live without steering retired raiders', () => {
     const fixture = anchorFixture(false);
     const { world, guard, raider } = fixture;
     const before = getPlayerSettlerCenter(world);
@@ -315,10 +310,8 @@ describe('camp anchor inside the human loop (N-4)', () => {
     expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(0.5);
     expect(getPlayerCampCenter(world, world.buildings)).toEqual(after);
 
-    // A live settler anchor steers the war-band; the guard remains at his post.
-    expect(raider.x).toBeLessThan(640);
-    expect(raider.x).toBeGreaterThan(620);
-    expect(raider.y).toBeGreaterThan(320);
+    // The active anchor follows settlers; retired raider entities do not follow it.
+    expect({ x: raider.x, y: raider.y }).toEqual({ x: 640, y: 320 });
     expect(Math.hypot(guard.x - 215, guard.y - 215)).toBeLessThan(30);
   });
 });
