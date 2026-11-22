@@ -6,7 +6,7 @@ import { TerrainType, PATH_CELL, type TerrainTile, type WorldMap } from '../game
 import { clamp, lerp, valueNoise, hashString } from './noise';
 // The unbuildable-terrain rule lives in the leaf `terrainTraits` so this file can read it without
 // importing `placementUtils`, which imports `tileAt` from here (a cycle).
-import { isUnbuildableTerrainType } from './terrainTraits';
+import { isUnbuildableTerrainType, isWaterTerrainType } from './terrainTraits';
 
 /**
  * L2 cell edge (px) — the biome / continuous-field resolution. One number because the generator,
@@ -430,7 +430,8 @@ function rebakeBuildCell(map: WorldMap, bx: number, by: number): void {
       const tx = Math.min(map.width - 1, bx * per + i);
       const ty = Math.min(map.height - 1, by * per + j);
       const value = map.pathGrid?.[ty * map.width + tx] ?? Walkability.Open;
-      if (value === Walkability.Water) water++;
+      const type = tileTypeAt(map, tx, ty);
+      if (type !== null && isWaterTerrainType(type)) water++;
       else if (value === Walkability.Reserved) reserved++;
       if (!isTileBuildable(map, tx, ty)) hard++;
     }

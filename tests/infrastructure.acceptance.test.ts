@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { building, human } from '../src/test/factories';
 import { testWorldMap } from '../src/test/worldMapFixtures';
-import { BUILDING_CONFIGS, BuildingType, MapSize, TerrainType } from '../src/game/gameTypes';
+import { BUILDING_CONFIGS, BuildingType, MapPreset, MapSize, TerrainType } from '../src/game/gameTypes';
 import { isFootprintOnBuildableTerrain } from '../src/game/placementUtils';
 import { findPath, findRouteCost, getPathGrid, isOnWalkableRoadAt, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { buildStripPreview, placeStripChain } from '../src/game/buildingPlacementActions';
 import { demolishStripBuildingsInPlace } from '../src/game/buildingMaintenanceActions';
 import { createBuilding } from '../src/game/worldGen';
-import { Walkability, isTileBuildable, isWalkableTerrainType } from '../src/game/terrain/terrainGrid';
+import { Walkability, Buildability, isTileBuildable, isWalkableTerrainType, tileTypeAt } from '../src/game/terrain/terrainGrid';
+import { generateRawTerrain } from '../src/game/terrain/terragen';
 import { isFootprintBuildable } from '../src/game/terrainGen';
 import { isWaterTerrainType, isReinforceableTerrainType } from '../src/game/terrain/terrainTraits';
 import { initGame } from '../src/game/worldGen';
@@ -50,6 +51,21 @@ describe('infrastructure acceptance boundaries', () => {
     expect(isReinforceableTerrainType(TerrainType.Grassland)).toBe(false);
     expect(isWalkableTerrainType(TerrainType.Grassland)).toBe(true);
     expect(isWaterTerrainType(TerrainType.RiverBank)).toBe(false);
+  });
+
+  it('generates walkable shallow water without accidentally making it buildable', () => {
+    const map = generateRawTerrain(480, 480, 1234, MapSize.Small, MapPreset.Islands, undefined, 4);
+    let shallowTiles = 0;
+    for (let ty = 0; ty < map.height; ty++) {
+      for (let tx = 0; tx < map.width; tx++) {
+        if (tileTypeAt(map, tx, ty) !== TerrainType.ShallowWater) continue;
+        shallowTiles++;
+        expect(map.pathGrid![ty * map.width + tx]).toBe(Walkability.Open);
+        const buildIndex = Math.floor(ty / 2) * map.bCols! + Math.floor(tx / 2);
+        expect(map.buildGrid![buildIndex]).toBe(Buildability.Water);
+      }
+    }
+    expect(shallowTiles).toBeGreaterThan(0);
   });
 
   it('allows a Fishing Spot to reach river water from an otherwise dry riverbank', () => {
