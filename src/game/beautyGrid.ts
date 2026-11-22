@@ -13,7 +13,7 @@ interface BeautyWorld {
   buildings: readonly Building[];
   worldMap: { width: number; height: number } | null;
   beautyGrid?: BeautyGrid;
-  villageHappiness: number;
+  villageHappiness?: number;
   entities: readonly { type: EntityType; alive: boolean; x: number; y: number }[];
 }
 
