@@ -48,6 +48,44 @@ const LEGACY_MEDIUM_AXIS_PX = 1200;
 /** Per-axis map enlargement: every mobile species' pace and absolute range scales with it. */
 export const MAP_SCALE = MAP_SIZE_DIMENSIONS[MapSize.Medium].width / LEGACY_MEDIUM_AXIS_PX;
 
+/**
+ * The single population policy read by breeding and the three wildlife spawn paths.
+ * Targets never exceed breeding ceilings. Predator capacity also depends on live prey,
+ * so refilling an empty valley cannot automatically recreate an unsustainable pack.
+ */
+type ManagedWildlifeType = EntityType.Rabbit | EntityType.Deer | EntityType.Fox | EntityType.Wolf;
+export const WILDLIFE_POPULATION_POLICY: Readonly<Record<ManagedWildlifeType, Readonly<{
+  breedingCap: number;
+  replenishBelow: number;
+  replenishTo: number;
+}>>> = {
+  [EntityType.Rabbit]: { breedingCap: 120, replenishBelow: 35, replenishTo: 120 },
+  [EntityType.Deer]: { breedingCap: 60, replenishBelow: 12, replenishTo: 45 },
+  [EntityType.Fox]: { breedingCap: 8, replenishBelow: 3, replenishTo: 6 },
+  [EntityType.Wolf]: { breedingCap: 6, replenishBelow: 2, replenishTo: 4 },
+};
+
+/**
+ * Current ecological carrying capacity, shared by breeding, migration and replenishment.
+ * Foxes need a rabbit base; wolves need a larger, mixed prey base (deer count twice).
+ * Species without a managed refill policy retain their previous 35-entity breeding cap.
+ */
+export function getWildlifeCarryingCapacity(
+  type: EntityType,
+  prey: { readonly rabbits: number; readonly deer: number; readonly foxes: number },
+): number {
+  const policy = WILDLIFE_POPULATION_POLICY[type as ManagedWildlifeType];
+  if (!policy) return 35;
+  if (type === EntityType.Fox) {
+    return Math.min(policy.breedingCap, Math.floor(Math.max(0, prey.rabbits) / 9));
+  }
+  if (type === EntityType.Wolf) {
+    const preySupply = Math.max(0, prey.rabbits) + 2 * Math.max(0, prey.deer) + Math.max(0, prey.foxes);
+    return Math.min(policy.breedingCap, Math.floor(preySupply / 25));
+  }
+  return policy.breedingCap;
+}
+
 export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Object.freeze({
   [EntityType.Grass]: {
     maxEnergy: 100,
