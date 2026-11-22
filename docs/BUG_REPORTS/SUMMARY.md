@@ -2,6 +2,8 @@
 
 **2026-11-22 — [Dry inland tiles unexpectedly reject ordinary buildings](../bug_report/2026-11-22-dry-land-unbuildable-patches.md):** investigating; allows construction on mountain, snow and riverbank tiles; retains water/structure exceptions and reinforcement eligibility, with new regression coverage.
 
+**2026-11-22 — [Rival construction roster blocks a legal staffing vacancy swap](../bug_report/2026-11-22-rival-construction-roster-blocks-vacancy-swap.md):** investigating; canonical crew-index fix in PR #160; prior-head CI passed, new direct swap regression and latest-head CI pending.
+
 **2026-11-22 — [Village portrait mislabels an untouched valley as nature stewards](../bug_report/2026-11-22-village-portrait-passive-nature-score.md):** resolved; passive nature/war scoring replaced with player-action evidence; six regressions, Node.js CI and calendar gate passed in PR #155.
 
 **2026-11-11 — [Audit remediation: simulation hand-off, invariants and schedule](../bug_report/2026-11-11-audit-remediation-simulation.md):** resolved; election/beauty/paused hand-off, invariant gate that can fail, attendance-only pay, harvest/grass/herd/ledger/shelter/commute rules.
