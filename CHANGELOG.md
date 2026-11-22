@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Removed (22 Nov 2026, PR #159):** Deleted retired on-map rival-building ownership and faction checks across colony simulation, UI, staffing and transport; rivals remain strategic-only. Removed the legacy rival-building save migration and updated tests and owner registries (old saves with physical rival camps are no longer migrated).
+- **Removed (22 Nov 2026, PR #159):** Retired rival-building ownership checks, model field, save migration and related test fixtures. Rival settlements remain strategic-only; historical physical camps are no longer migrated.
 - **Wildkin lineage (pending merge):** Register human mothers and deer fathers, retain Wildkin ancestry in family trees and chronicle records, preserve Wildkin-to-Wildkin births, and let juveniles stay near their mother without forced departure.
 
 **Merged PR coverage (PRs #130–#152; checked 22 Nov 2026).** This index links the merged work to its PR; the dated release notes below retain the detailed change descriptions. Only merged PRs are treated as part of `main`.
