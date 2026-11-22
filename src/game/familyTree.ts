@@ -723,7 +723,7 @@ function pushLink(links: Map<number, number[]>, from: number, to: number): void 
 /** Every parent id a settler's record names, birth and adoptive, so a sibling test counts both. */
 function parentIdSet(person: Entity): Set<number> {
   const ids = new Set<number>();
-  for (const id of [person.motherId, person.fatherId, person.adoptiveMotherId, person.adoptiveFatherId]) {
+  for (const id of [person.motherId, person.fatherId, person.adoptiveMotherId, person.adoptiveFatherId, ...(person.wildkinParentIds ?? [])]) {
     if (id != null) ids.add(id);
   }
   return ids;
