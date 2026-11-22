@@ -42,14 +42,13 @@ function playerHouse(id: number, health: number): Building {
     height: 48,
     rotation: 0,
     completed: true,
-    faction: 'player',
     occupants: [],
     constructionProgress: 100,
     level: 1,
     spriteScale: 1,
     health,
     maxHealth: 100,
-  } as never;
+  } as Building;
 }
 
 describe('applyStormDamageToBuildings', () => {
@@ -73,12 +72,10 @@ describe('applyStormDamageToBuildings', () => {
     expect(house.health).toBe(20);
   });
 
-  it('leaves rival and uncompleted buildings untouched', () => {
-    const rival = { ...playerHouse(1, 100), faction: 'rival' as never };
-    const skeleton = { ...playerHouse(2, 100), completed: false as never };
-    const damaged = applyStormDamageToBuildings([rival, skeleton], 1);
+  it('leaves unfinished buildings untouched', () => {
+    const skeleton = { ...playerHouse(2, 100), completed: false };
+    const damaged = applyStormDamageToBuildings([skeleton], 1);
     expect(damaged).toEqual([]);
-    expect(rival.health).toBe(100);
     expect(skeleton.health).toBe(100);
   });
 });
@@ -136,8 +133,7 @@ describe('farm yield responds to weather (integration)', () => {
       height: 60,
       rotation: 0,
       completed: true,
-      faction: 'player',
-      occupants: [],
+        occupants: [],
       constructionProgress: 100,
       level: 1,
       spriteScale: 1,
