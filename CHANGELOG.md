@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (22 Nov 2026; pending PR):** Unified physical steps, line checks and A* waypoint smoothing under the same exact tile/corner/cliff traversal; blocked origins can still escape. Shared nearest-stand-point selection restores deep blocked endpoints, same-tile route prices are zero, and budget-limited route checks report pending instead of falsely unreachable.
+- **Fixed (22 Nov 2026, PR #171):** Unified step/line/A* obstacle checks, repaired deep blocked endpoints and same-tile costs, and distinguished bounded-search timeouts from proven unreachable routes.
 
 - **Fixed (22 Nov 2026, PR #170):** Caravans now wait for storage on arrival, retain undelivered exports on the saved route until space frees, and allow gold-for-iron purchases without a Market.
 
