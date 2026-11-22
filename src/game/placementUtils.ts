@@ -295,7 +295,7 @@ export function isUniqueBuildingAlreadyBuilt(
   if (type === BuildingType.LeaderHouse) return !canBuildLeaderHouse(world.buildings);
   if (!getBuildingConfig(type).unique) return false;
   return world.buildings.some(
-    (building) => building.type === type && building.faction !== 'rival',
+    (building) => building.type === type,
   );
 }
 

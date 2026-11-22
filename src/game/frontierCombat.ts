@@ -681,7 +681,7 @@ function rewardRaidParticipants(
 }
 
 function damageRandomPlayerBuilding(state: WorldState, amount: number): Building | null {
-  const targets = state.buildings.filter((b) => b.completed && b.faction !== 'rival');
+  const targets = state.buildings.filter((b) => b.completed);
   if (targets.length === 0) return null;
   const b = targets[Math.floor(getSimRng('frontierCombat')() * targets.length)];
   b.health = Math.max(5, b.health - amount);
@@ -1043,7 +1043,7 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   if (rival.relationship !== 'tense' && rival.relationship !== 'competitive') return;
   if (playerHumanCount(allAlive) < 5) return;
 
-  const hasPlayerStructure = state.buildings.some((b) => b.completed && b.faction !== 'rival');
+  const hasPlayerStructure = state.buildings.some((b) => b.completed);
   if (!hasPlayerStructure) return;
 
   const rep = state.villageReputation ?? 0;

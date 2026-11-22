@@ -196,7 +196,7 @@ function wantedProducerCount(state: WorldState, perProducer: number): number {
 /** Completed, player-owned producers of `type`. */
 function completedProducerCount(state: WorldState, type: BuildingType): number {
   return state.buildings.filter(
-    (building) => building.type === type && building.faction !== 'rival' && building.completed,
+    (building) => building.type === type && building.completed,
   ).length;
 }
 
@@ -279,7 +279,7 @@ function siteCondition(
 
 function isUnderConstruction(state: WorldState, type: BuildingType): boolean {
   return state.buildings.some(
-    (building) => building.faction !== 'rival' && building.type === type && !building.completed,
+    (building) => building.type === type && !building.completed,
   );
 }
 
@@ -290,8 +290,7 @@ function isUnderConstruction(state: WorldState, type: BuildingType): boolean {
 export function hasProductiveFoodProducer(state: WorldState): boolean {
   return state.buildings.some(
     (building) =>
-      building.faction !== 'rival'
-      && FOOD_PRODUCER_TYPES.includes(building.type)
+      FOOD_PRODUCER_TYPES.includes(building.type)
       && (!building.completed || building.occupants.length > 0),
   );
 }
@@ -437,7 +436,7 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
       const clearance = decideDemolish(state);
       if (clearance) return clearance;
       for (const building of state.buildings) {
-        if (building.faction === 'rival' || building.type === BuildingType.LeaderHouse) continue;
+        if (building.type === BuildingType.LeaderHouse) continue;
         if (!isResidenceBuilding(building)) continue;
         if (!getBuildingUpgradeEligibility(state, building.id).ok) continue;
         return {
@@ -463,7 +462,7 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
 /** Find an auto-managed food producer whose real crew cannot yet fill its capacity. */
 function firstUnstaffedFoodProducer(state: WorldState): Building | undefined {
   return state.buildings.find((building) =>
-    building.completed && building.faction !== 'rival'
+    building.completed
     && FOOD_PRODUCER_TYPES.includes(building.type)
     && countActiveWorkersAtBuilding(state.entities, building.id) < BUILDING_CONFIGS[building.type].maxOccupants,
   );
@@ -488,7 +487,7 @@ function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision |
   if (!producer) return null;
   const humans = state.entities.filter((human) => human.alive && isPlayerHuman(human));
   const workplaces = state.buildings.filter((building) =>
-    building.completed && building.faction !== 'rival'
+    building.completed
     && BUILDING_JOB_TYPES[building.type],
   );
   const emergency = isAcuteFoodStaffingEmergency(state) || hasFoodStaffingPressure(state);
@@ -550,7 +549,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   if (measuredDeficit || forecastRisk) {
     const farm = state.buildings
       .filter((building) => building.type === BuildingType.Farm
-        && building.completed && building.faction !== 'rival')
+        && building.completed)
       .map((building) => ({
         building, workers: countActiveWorkersAtBuilding(state.entities, building.id),
       }))
@@ -611,7 +610,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   // One site at a time normally; a measured deficit keeps two going up so capacity grows
   // faster than the mouths, and it never waits for an existing site to be crewing first.
   const goingUp = state.buildings.filter(
-    (building) => building.faction !== 'rival' && !building.completed
+    (building) => !building.completed
       && FOOD_PRODUCER_TYPES.includes(building.type),
   ).length;
   if (measuredDeficit ? goingUp >= 2 : goingUp > 0) return null;
@@ -638,7 +637,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
         (assignedFoodWorkers.get(person.workerBuildingId) ?? 0) + 1);
     }
     const openFoodPosts = state.buildings.reduce((total, building) => {
-      if (building.faction === 'rival' || !FOOD_PRODUCER_TYPES.includes(building.type)) return total;
+      if (!FOOD_PRODUCER_TYPES.includes(building.type)) return total;
       return total + (building.completed
         ? Math.max(0, BUILDING_CONFIGS[building.type].maxOccupants
           - (assignedFoodWorkers.get(building.id) ?? 0))
@@ -733,7 +732,7 @@ const RESEARCH_NEED_ORDER: readonly BuildingType[] = [
 
 function neededResearch(state: WorldState): { nodeId: string; forType: BuildingType } | null {
   for (const type of RESEARCH_NEED_ORDER) {
-    if (state.buildings.some((building) => building.type === type && building.faction !== 'rival')) {
+    if (state.buildings.some((building) => building.type === type)) {
       continue;
     }
     const requirement = BUILDING_CONFIGS[type].unlockRequirement;
@@ -792,7 +791,7 @@ function decideCivic(state: WorldState): VirtualPlayerDecision | null {
   if (CIVIC_BUILD_ORDER.some((type) => isUnderConstruction(state, type))) return null;
 
   for (const type of CIVIC_BUILD_ORDER) {
-    if (state.buildings.some((building) => building.type === type && building.faction !== 'rival')) continue;
+    if (state.buildings.some((building) => building.type === type)) continue;
     if (!canAfford(state, BUILDING_CONFIGS[type].cost)) continue;
     const spot = findPlacementSpot(state, type, 0);
     if (!spot) continue;
@@ -824,14 +823,13 @@ const INDUSTRY_BUILD_ORDER: readonly {
 function decideUnstaffedProducer(state: WorldState): VirtualPlayerDecision | null {
   const humans = state.entities.filter((human) => human.alive && isPlayerHuman(human));
   const workplaces = state.buildings.filter((building) =>
-    building.completed && building.faction !== 'rival'
+    building.completed
     && BUILDING_JOB_TYPES[building.type],
   );
   for (const entry of INDUSTRY_BUILD_ORDER) {
     if (entry.type === BuildingType.Store || (state.resources[entry.stock] ?? 0) >= entry.minimumStock) continue;
     const producer = state.buildings.find((building) =>
       building.completed && building.type === entry.type
-      && building.faction !== 'rival'
       && countActiveWorkersAtBuilding(state.entities, building.id) === 0,
     );
     if (!producer) continue;
@@ -870,7 +868,7 @@ function decideIndustry(state: WorldState, storeOnly = false): VirtualPlayerDeci
     if (!short && !scaling) continue;
 
     const owned = state.buildings.filter(
-      (building) => building.type === entry.type && building.faction !== 'rival',
+      (building) => building.type === entry.type,
     );
     if (owned.length > 0) {
       // A wanted extra copy falls through to the build; a stand-in for an existing producer does not.
@@ -909,7 +907,6 @@ function decideRepairs(state: WorldState): VirtualPlayerDecision | null {
   const damaged = state.buildings
     .filter((building) =>
       building.completed
-      && building.faction !== 'rival'
       && building.maxHealth > 0
       && building.health / building.maxHealth < VirtualPlayer.REPAIR_HEALTH_RATIO
       && getRepairBuildingEligibilityFor(state, building).ok,
@@ -952,7 +949,7 @@ function decideForgeOrders(state: WorldState): VirtualPlayerDecision | null {
 
   const smith = state.buildings.find(
     (building) =>
-      building.completed && building.faction !== 'rival' && building.type === BuildingType.Blacksmith,
+      building.completed && building.type === BuildingType.Blacksmith,
   );
   if (!smith) return null;
 
@@ -991,7 +988,7 @@ function bestAffordableWorkshopRecipe(state: WorldState): WorkshopRecipe | null 
  */
 function decideBuildingTuning(state: WorldState): VirtualPlayerDecision | null {
   for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival') continue;
+    if (!building.completed) continue;
 
     if (building.type === BuildingType.Mine) {
       const iron = state.resources.iron ?? 0;
@@ -1203,7 +1200,7 @@ const VENUE_SCHEDULE_ORDER: readonly {
 function decideVenueSchedules(state: WorldState): VirtualPlayerDecision | null {
   for (const entry of VENUE_SCHEDULE_ORDER) {
     const stands = state.buildings.some(
-      (building) => building.completed && building.faction !== 'rival' && building.type === entry.type,
+      (building) => building.completed && building.type === entry.type,
     );
     if (!stands) continue;
 
@@ -1240,7 +1237,7 @@ function decideSurplusWorkers(state: WorldState): VirtualPlayerDecision | null {
   }
 
   for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival') continue;
+    if (!building.completed) continue;
     const job = BUILDING_JOB_TYPES[building.type];
     if (!job) continue;
     const cap = BUILDING_CONFIGS[building.type].maxOccupants;
@@ -1272,7 +1269,7 @@ function hasRoadNearby(state: WorldState, building: Building): boolean {
   const cx = building.x + building.width / 2;
   const cy = building.y + building.height / 2;
   return state.buildings.some((other) => {
-    if (other.type !== BuildingType.Road || other.faction === 'rival') return false;
+    if (other.type !== BuildingType.Road) return false;
     return Math.hypot(other.x + other.width / 2 - cx, other.y + other.height / 2 - cy)
       <= VirtualPlayer.ROAD_LINK_MAX_DISTANCE;
   });
@@ -1287,7 +1284,7 @@ function findRoadTarget(state: WorldState, camp: { x: number; y: number }): Buil
   let bestDistance = Infinity;
 
   for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival') continue;
+    if (!building.completed) continue;
     if (!BUILDING_JOB_TYPES[building.type]) continue;
     if (hasRoadNearby(state, building)) continue;
 
@@ -1434,7 +1431,7 @@ function decideUpgrades(state: WorldState): VirtualPlayerDecision | null {
   if (computeVillageStats(state).idle > 0) return null;
 
   for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival') continue;
+    if (!building.completed) continue;
     if (BUILDING_CONFIGS[building.type].decor) continue;
     if (!buildingTypeHasLevelBenefit(building.type)) continue;
     if (!getBuildingUpgradeEligibility(state, building.id).ok) continue;
@@ -1454,13 +1451,13 @@ function decideUpgrades(state: WorldState): VirtualPlayerDecision | null {
  */
 function findRedundantOutbuilding(state: WorldState): Building | null {
   for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival') continue;
+    if (!building.completed) continue;
     if (building.occupants.length > 0) continue;
     if (isResidenceBuilding(building)) continue;
     if (BUILDING_CONFIGS[building.type].unique) continue;
 
     const completedCopies = state.buildings.filter(
-      (other) => other.completed && other.faction !== 'rival' && other.type === building.type,
+      (other) => other.completed && other.type === building.type,
     ).length;
     if (completedCopies < 2) continue;
     return building;
@@ -1501,12 +1498,12 @@ interface ServiceBuildOption {
 
 /** The colony already has this type, built or on the way — `decideCivic`'s own rule. */
 function ownsBuildingOfType(state: WorldState, type: BuildingType): boolean {
-  return state.buildings.some((building) => building.type === type && building.faction !== 'rival');
+  return state.buildings.some((building) => building.type === type);
 }
 
 function hasCompletedBuildingOfType(state: WorldState, type: BuildingType): boolean {
   return state.buildings.some(
-    (building) => building.type === type && building.faction !== 'rival' && building.completed,
+    (building) => building.type === type && building.completed,
   );
 }
 
@@ -1923,7 +1920,6 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
     const unmanned = state.buildings.find(
       (building) =>
         building.type === entry.type &&
-        building.faction !== 'rival' &&
         building.completed &&
         countActiveWorkersAtBuilding(state.entities, building.id) === 0,
     );
@@ -1942,7 +1938,7 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
 
     const label = BUILDING_CONFIGS[entry.type].label;
     const owned = state.buildings.filter(
-      (building) => building.type === entry.type && building.faction !== 'rival',
+      (building) => building.type === entry.type,
     );
     if (owned.some((building) => !building.completed)) {
       return store
