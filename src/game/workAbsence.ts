@@ -185,7 +185,11 @@ function resolveShift(
  * Why this settler is not at their post right now. Reads stored state and the owners' predicates;
  * it invents no hours, distances or thresholds of its own.
  */
-export function getSettlerWorkReason(state: WorldState, entity: Entity): SettlerWorkReason {
+export function getSettlerWorkReason(
+  state: WorldState,
+  entity: Entity,
+  constructionCrews?: ReadonlyMap<number, Building>,
+): SettlerWorkReason {
   if (!entity.alive) return { code: 'dead', label: 'Dead' };
   if (isImprisoned(entity)) return { code: 'in-prison', label: 'In prison' };
   if (entity.raidDeploymentId) return { code: 'deployed', label: 'Away with the war-band' };
@@ -193,7 +197,11 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
 
   const hour = getHourOfDay(state.tick);
   const buildings = state.buildings;
-  const workplace = findHumanWorkplace(entity, buildings);
+  const workplace = findHumanWorkplace(
+    entity,
+    buildings,
+    constructionCrews ? { constructionByWorkerId: constructionCrews } : undefined,
+  );
   const isHospitalDoctor = entity.job === JobType.Doctor
     && workplace?.type === BuildingType.Hospital && workplace.completed;
   const doctorCommuteDue = !!(isHospitalDoctor && isHospitalDoctorCommuteTime(
