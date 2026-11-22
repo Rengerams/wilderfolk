@@ -16,6 +16,18 @@ function requireElement<T extends Element>(element: T | null | undefined, messag
   return element;
 }
 
+async function waitForPathButton(): Promise<HTMLButtonElement> {
+  // ProgressTabPanel is React.lazy: wait for the actual indexed control, not a fixed delay.
+  const end = performance.now() + 12_000;
+  while (performance.now() < end) {
+    const button = [...document.querySelectorAll<HTMLButtonElement>('button')]
+      .find((candidate) => candidate.textContent?.includes('Your path (live)'));
+    if (button) return button;
+    await new Promise<void>((resolve) => { setTimeout(resolve, 50); });
+  }
+  throw new Error(`Your path button never mounted; visible UI: ${document.body.textContent?.slice(0, 240)}`);
+}
+
 function portraitDialog(): HTMLElement | null {
   return [...document.querySelectorAll<HTMLElement>('[role="dialog"]')]
     .find((dialog) => dialog.querySelector('h2')?.textContent?.includes('Your path (live)')) ?? null;
@@ -129,11 +141,7 @@ export async function runVillagePortraitUI(): Promise<{
     if (portraitDialog() || portraitReads !== 0) {
       throw new Error('Closed Your path computed its portrait before the window was opened');
     }
-    const launch = requireElement(
-      [...document.querySelectorAll<HTMLButtonElement>('button')]
-        .find((button) => button.textContent?.includes('Your path (live)')),
-      'Goals index has no Your path button',
-    );
+    const launch = await waitForPathButton();
     await click(launch);
     const initial = scores();
     if (portraitReads === 0) throw new Error('Opening Your path did not read the live projection');
@@ -165,11 +173,7 @@ export async function runVillagePortraitUI(): Promise<{
       throw new Error(`Closed Your path recomputed its projection ${portraitReads - readsWhenClosed} time(s)`);
     }
 
-    await click(requireElement(
-      [...document.querySelectorAll<HTMLButtonElement>('button')]
-        .find((button) => button.textContent?.includes('Your path (live)')),
-      'Cannot reopen Your path',
-    ));
+    await click(await waitForPathButton());
     const reopened = scores();
     if (reopened.nature !== initial.nature || reopened.trade !== initial.trade) {
       throw new Error(`Reopened Your path showed stale values: ${JSON.stringify({ initial, reopened })}`);
