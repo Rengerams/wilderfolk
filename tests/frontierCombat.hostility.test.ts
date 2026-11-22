@@ -406,11 +406,9 @@ describe('rival camps grow from their own stores', () => {
       world.dayInYear = (world.dayInYear + 1) % DAYS_PER_YEAR;
       tickRivalSettlements(world, world.entities, {
         pushNews: () => {},
-        pushFloat: () => {},
         logEvent: () => {},
         tickPendingDiplomacyEvents: () => {},
         queueDiplomacyEvent: () => {},
-        killWildGameForPoach: () => {},
       });
     }
     return world;
