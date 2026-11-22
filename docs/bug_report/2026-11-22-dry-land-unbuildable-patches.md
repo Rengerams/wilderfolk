@@ -17,7 +17,7 @@
 `isUnbuildableTerrainType` previously classified `Mountains`, `Snow` and `RiverBank` alongside real water. The shared `isFootprintOnBuildableTerrain`, `isTileBuildable` and world-generator `buildGrid` consequently rejected ordinary structures in terrain that was walkable. The original infrastructure acceptance test explicitly exercised that rejection. The Fishing Spot branch also rejected `RiverBank` anywhere its footprint touched it, even when that footprint included a river cell.
 
 ## Expected behavior
-All dry land should be terrain-buildable for ordinary structures, including mountains, snow and riverbanks, without changing which tiles are walkable. Water remains unbuildable. A Fishing Spot must reach real water and may rest on a bank, while bridges must span river water. Ground Reinforcement must still work on its four previously eligible terrain types; dry-land buildability must not accidentally disable its terrain-upgrade action. Other placement constraints (occupied tiles, map bounds, technology, resources) remain.
+All dry land should be terrain-buildable for ordinary structures, including mountains, snow and riverbanks, without changing which tiles are walkable. Water remains unbuildable. A Fishing Spot must reach real water and may rest on a bank, while bridges must span river water. Ground Reinforcement must still work on its four previously eligible terrain types; dry-land buildability must not accidentally disable its terrain-upgrade action. Shallow water must remain wadeable in both freshly generated and rebaked path grids, while remaining unbuildable. Other placement constraints (occupied tiles, map bounds, technology, resources) remain.
 
 ## Reproduction steps
 1. Create a 20×20 map of `Mountains`, `Snow` or `RiverBank` with `testWorldMap`.
@@ -25,16 +25,16 @@ All dry land should be terrain-buildable for ordinary structures, including moun
 3. Use a footprint across `RiverBank` and `River`: the previous Fishing Spot rule rejected the shore section.
 
 ## Evidence
-Pre-change `UNBUILDABLE_TERRAIN` in `src/game/terrain/terrainTraits.ts` and corresponding branches of `src/game/placementUtils.ts`. The ground-reinforcement command originally used a separate inline four-type list while placement preview used generic `isUnbuildableTerrainType`.
+Pre-change `UNBUILDABLE_TERRAIN` in `src/game/terrain/terrainTraits.ts` and corresponding branches of `src/game/placementUtils.ts`. The ground-reinforcement command originally used a separate inline four-type list while placement preview used generic `isUnbuildableTerrainType`. The raw generator also had a second path-water set that incorrectly blocked shallow-water wading although the shared walking rule and rebake allow it.
 
 ## Root cause
 Terrain-type buildability conflated water, alpine terrain and riverbanks. Ground-reinforcement eligibility was coupled to that wider no-build definition instead of having one shared dedicated predicate.
 
 ## Fix / proposed fix
-Canonical `isUnbuildableTerrainType` now recognizes only the three actual water types; `isReinforceableTerrainType` owns the separately required mountain/snow/shallow-water/bank condition. Placement preview, the reinforcement command and worker regression fixture share that one predicate. River-bank dock footprints are allowed with a genuine water cell; bridge/fishing alpine exclusions remain. Tests assert dry ordinary builds, water refusals and dock access.
+Canonical `isUnbuildableTerrainType` now recognizes only the three actual water types; `isReinforceableTerrainType` owns the separately required mountain/snow/shallow-water/bank condition. Placement preview, the reinforcement command and worker regression fixture share that one predicate. River-bank dock footprints are allowed with a genuine water cell; bridge/fishing alpine exclusions remain. The initial L0 path raster now uses `isWalkableTerrainType`, while both generation and rebaking classify L1 water independently of walking. Tests assert dry ordinary builds, water refusals, wadeable shallow water and dock access.
 
 ## Save/migration impact
-No stored terrain schema or generation recipe changed. The runtime rule for building on previously forbidden dry types changes for existing saves. Generated and regenerated L1 build grids read the same canonical terrain predicate, so both use the updated policy.
+No stored world terrain fields, elevations, biome-generation formulas or save schema changed. The runtime placement policy now accepts dry land; freshly generated or regenerated L0/L1 occupancy rasters are derived consistently from the canonical walking/water traits, so navigation through shallow water can differ from legacy cached generated grids.
 
 ## Verification result
 NOT RUN at filing — CI checks pending; see `tests/infrastructure.acceptance.test.ts` and `tests/groundReinforcement.workerTransport.test.ts`.

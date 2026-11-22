@@ -379,7 +379,7 @@ export const Buildability = {
   Open: 0,
   /** Water. */
   Water: 1,
-  /** Shallow-water terrain, which blocks buildings but not walking. */
+  /** Retained for older grid values and possible future hard-ground rules; current dry terrain is buildable. */
   Hard: 2,
   /** Partially water or hard — a footprint that only clips it is still refused. */
   Mixed: 3,
