@@ -59,7 +59,6 @@ function building(id: number, x: number, y: number, over: Partial<Building> = {}
     height: 48,
     rotation: 0,
     completed: true,
-    faction: 'player',
     occupants: [],
     constructionProgress: 100,
     level: 1,
@@ -520,7 +519,7 @@ describe('economy storage caps (L19)', () => {
   }
 
   function capsBuilding(w: WorldState, type: BuildingType): void {
-    w.buildings.push({ id: w.buildings.length + 1, type, x: 0, y: 0, completed: true, faction: 'player', level: 1 } as never);
+    w.buildings.push({ id: w.buildings.length + 1, type, x: 0, y: 0, completed: true, level: 1 } as never);
   }
 
   it('lets one Silo reach the formula 0.8% spoilage instead of clamping it to 1%', () => {

@@ -91,7 +91,6 @@ function building(id: number, type: BuildingType, overrides: Partial<Building> =
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    faction: 'player',
     ...overrides,
   } as Building;
 }
