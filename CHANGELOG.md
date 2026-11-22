@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Removed (22 Nov 2026; pending merge):** No visitor camps or idle visitor NPCs spawn on the village map (first-week, mid-year and yearly event routes removed). Old saves discard visitors and their camps on load; strategic rivals, raids, resident immigration and trade routes remain.
+
 - **Wildkin lineage (pending merge):** Register human mothers and deer fathers, retain Wildkin ancestry in family trees and chronicle records, preserve Wildkin-to-Wildkin births, and let juveniles stay near their mother without forced departure.
 
 **Merged PR coverage (PRs #130–#152; checked 22 Nov 2026).** This index links the merged work to its PR; the dated release notes below retain the detailed change descriptions. Only merged PRs are treated as part of `main`.
