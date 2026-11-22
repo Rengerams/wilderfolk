@@ -358,9 +358,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts, tests/workSkillAttribution.accrual.test.ts, tests/forge.cadence.test.ts, tests/production.attendancePacing.test.ts',
   },
   wildlifePredation: {
-    owner: 'tickLayerSystems.tickWildlife — the sole wildlife AI owner (hunt target, catch, metabolism, grazing, reproduction); rebuildPredators owns the roster; speciesConfig.getPreyEnergyGain owns prey energy; GRAZER_METABOLISM owns grazer metabolism',
+    owner: 'tickLayerSystems.tickWildlife — wildlife AI and reproduction; tickLayerSystems.tickWolfRecruitment — rare wolf migration; speciesConfig.getWildlifeCarryingCapacity — sole prey-supported breeding/recruitment cap; rebuildPredators owns the roster; speciesConfig.getPreyEnergyGain owns prey energy; GRAZER_METABOLISM owns grazer metabolism',
     cadence: 'systems',
-    cadenceNote: 'WILDLIFE_LAYER_INTERVAL = 4 systems pulses; out-of-focus wildlife runs every 8th pulse. Wildlife translation checks the shared walk-step grid before integrating each pulse and slides along legal axes when blocked; no separate animal obstacle authority. Hungry Wildkin hunts deer/rabbit only and pays apex metabolism; it is never prey and never grazes. Wildkin is on the predator roster that grazers scent-flee. No human prey for Wildkin.',
+    cadenceNote: 'WILDLIFE_LAYER_INTERVAL = 4 systems pulses; out-of-focus wildlife runs every 8th pulse. Wildlife translation checks the shared walk-step grid before integrating each pulse and slides along legal axes when blocked; no separate animal obstacle authority. Hungry Wildkin hunts deer/rabbit only and pays apex metabolism; it is never prey and never grazes. Wildkin is on the predator roster that grazers scent-flee. No human prey for Wildkin. Fox and wolf births and rare wolf recruits cannot exceed the prey-supported capacity shared with ecology replenishment.',
     writes: [
       'entity.energy',
       'entity.huntTargetId',
@@ -377,8 +377,16 @@ export const SIMULATION_DECISIONS = {
       'eventLog',
       'floatingTexts',
     ],
-    scheduledFrom: 'gameTick → tickLayerSystems.tickLayerSystems → tickWildlife',
-    testFile: 'tests/wildkin.apexRole.test.ts, tests/ecosystemPressure.winterDemand.test.ts',
+    scheduledFrom: 'gameTick → tickLayerSystems.tickLayerSystems → tickWildlife / tickWolfRecruitment',
+    testFile: 'tests/wildkin.apexRole.test.ts, tests/ecosystemPressure.winterDemand.test.ts, tests/wildlifePopulation.policy.test.ts',
+  },
+  wildlifeReplenishment: {
+    owner: 'worldGen.replenishDepletedWildlife — ecology restock; speciesConfig.WILDLIFE_POPULATION_POLICY / getWildlifeCarryingCapacity — single refill targets and prey-dependent predator caps',
+    cadence: 'daily',
+    cadenceNote: 'Every third colony day at 18:00. Prey restocks in bounded pulses below its minimum; predators enter only when both below their minimum and supported by the existing prey base. New-world predators start at policy targets including the camp ring.',
+    writes: ['entities (via worldGen.registerSpawnedWildlife)', 'nextEntityId', 'wildlifeCounts', 'lastWildlifeReplenishLogDay', 'eventLog'],
+    scheduledFrom: 'tickLayerDaily → dailyWorldEvents.tickDailyWorldEvents → worldGen.replenishDepletedWildlife',
+    testFile: 'tests/wildlifePopulation.policy.test.ts',
   },
   inventionFair: {
     owner: 'inventionFair.ts — maybeOfferInventionFair, tickInventionFair, tickInventionFairRealtime, getInventionFairChoiceEligibility, resolveInventionFair, rollInventionFairOutcome, private stage and outcome lifecycle; storyEvents delegates player choices only',
