@@ -62,7 +62,7 @@ function GoalsPortraitPanel({
   // The world can mutate in place and same-length changes still affect the score.
   // Read the live world only while this subject is open; closed subjects do no work.
   const portrait = openSubject === 'path' ? computeVillagePortrait(state) : null;
-  const primaryTrait = portrait?.traits.find((t) => t.id === portrait.primary);
+  const primaryTrait = portrait ? portrait.traits.find((t) => t.id === portrait.primary) : undefined;
 
   return (
     <div className="space-y-3">
@@ -75,7 +75,7 @@ function GoalsPortraitPanel({
         subtitle={primaryTrait ? `Strongest: ${primaryTrait.label}${primaryTrait.score != null ? ` (${primaryTrait.score})` : ''}` : 'Every trait, scored as you play'}
       >
         <div className="space-y-2">
-          {portrait?.traits.map((t) => (
+          {portrait && portrait.traits.map((t) => (
             <div key={t.id} className="rounded-lg border border-stone-600/50 bg-stone-800/40 p-2">
               <div className="mb-0.5 flex items-center justify-between gap-2">
                 <span className="text-[13px] font-bold text-stone-200">
