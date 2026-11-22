@@ -75,7 +75,7 @@ export type DecisionKey =
   | 'villageRequests'
   | 'inventionFair'
   | 'authoredStoryExpiry'
-  | 'factionWander'
+  | 'rivalStrategy'
   | 'idleSkillDecay'
   | 'socialFeedback'
   | 'dialogueContent'
