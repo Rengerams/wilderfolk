@@ -30,6 +30,9 @@ describe('wildlife population policy', () => {
     const empty = { rabbits: 0, deer: 0, foxes: 0 };
     expect(getWildlifeCarryingCapacity(EntityType.Wolf, empty)).toBe(0);
     expect(getWildlifeCarryingCapacity(EntityType.Fox, empty)).toBe(0);
+    const refuge = WILDLIFE_POPULATION_POLICY[EntityType.Rabbit].replenishMinimum;
+    expect(getWildlifeCarryingCapacity(EntityType.Fox, { ...empty, rabbits: refuge })).toBe(0);
+    expect(getWildlifeCarryingCapacity(EntityType.Wolf, { ...empty, rabbits: refuge })).toBe(0);
     expect(getWildlifeCarryingCapacity(EntityType.Fox, { ...empty, rabbits: 54 })).toBe(6);
     expect(getWildlifeCarryingCapacity(EntityType.Wolf, { rabbits: 55, deer: 20, foxes: 6 })).toBe(4);
     expect(getWildlifeCarryingCapacity(EntityType.Wolf, { rabbits: 1000, deer: 1000, foxes: 10 }))
