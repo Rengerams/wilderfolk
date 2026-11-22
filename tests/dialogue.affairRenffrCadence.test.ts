@@ -51,6 +51,26 @@ describe('affair chatter cadence', () => {
     finishPair(a, other);
   });
 
+  it('preserves scripted scene access during the 48-hour ambient cooldown', () => {
+    const a = actor(84);
+    const b = actor(85);
+    expect(requestDialogue({
+      eventKey: 'ambient.affair', speaker: a, partner: b, tick: 1_000,
+    })).toBe(true);
+    finishPair(a, b);
+
+    // Scripted requests intentionally bypass ordinary chatter limits so that
+    // authored scenes remain reachable (including dialogue.variety.test.ts).
+    expect(requestDialogue({
+      eventKey: 'ambient.affair', speaker: a, partner: b,
+      tick: 1_001, priority: 'scripted', selectionRoll: 0,
+    })).toBe(true);
+    finishPair(a, b);
+    expect(requestDialogue({
+      eventKey: 'ambient.affair', speaker: a, partner: b, tick: 1_002,
+    })).toBe(false);
+  });
+
   it('does not start a cooldown for a rejected request', () => {
     const a = actor(91);
     const b = actor(92);
