@@ -9,7 +9,7 @@
 | `findRouteCostOutcome`, `getRouteObstruction`, `walkRoute`, `steerWithPath` | `src/game/pathfinding.ts` | Preserve bounded/unreachable quotes, use read-only grids/metrics, reject stale cached segments, reach requested world-space targets and avoid repeated identical A*. `tests/pathfinding.segmentTraversal.test.ts`, `tests/medium-A-movement.test.ts` |
 | `SettlerMovementStatus`, `explainSettlerMovement` (route text) | `src/game/dashboardData.ts` | Read-only display of pending vs blocked; `workAbsence.ts` continues to label unreachable only for confirmed blocked verdicts |
 | `faceVelocity`, `setVelocityToward` | `src/game/simulation/movementSteering.ts` | Existing owner preserves facing at rest, caps steps to remaining distance and rejects non-finite inputs. `tests/movementSteering.validity.test.ts` |
-| `recordPathNodes`, `setPathfindingMetricsEnabled`, `getPathfinderReport` | `src/game/pathfindingMetrics.ts` | Ignore non-finite metrics, isolate disabled intervals and average only expanded A* searches. `tests/pathfindingMetrics.test.ts` |
+| `recordPathNodes`, `setPathfindingMetricsEnabled`, `getPathfinderReport`, `flushPathfinderTickToSession` | `src/game/pathfindingMetrics.ts` | Ignore non-finite metrics, isolate disabled intervals, average expanded A* searches and consume each tick once. `tests/pathfindingMetrics.test.ts` |
 | `grid`, `center` | `tests/pathfinding.segmentTraversal.test.ts` | Test-only fixtures for steep corners, bridge decks, snapped starts, stale routes and map boundaries |
 
 
