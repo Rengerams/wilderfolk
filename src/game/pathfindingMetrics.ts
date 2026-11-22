@@ -104,6 +104,8 @@ export function isPathfindingMetricsEnabled(): boolean {
 }
 
 export function setPathfindingMetricsEnabled(value: boolean): void {
+  // A disabled interval must not leak counters into a later measurement session.
+  if (enabled !== value) zeroCountersInPlace(tickCounters);
   enabled = value;
 }
 
@@ -140,7 +142,7 @@ export function recordFindPathCall(): void {
 }
 
 export function recordPathNodes(count: number): void {
-  if (!enabled || count <= 0) return;
+  if (!enabled || !Number.isFinite(count) || count <= 0) return;
   tickCounters.nodesExpanded += count;
 }
 
@@ -198,7 +200,7 @@ export function getPathfinderReport(): PathfinderReport {
     perTick[key] = sessionCounters[key] / divisor;
   }
 
-  const calls = sessionCounters.findPathCalls;
+  const calls = Math.max(0, sessionCounters.findPathCalls - sessionCounters.earlyRejects);
   const cached = sessionCounters.cacheHits + sessionCounters.cacheMisses;
 
   return {
