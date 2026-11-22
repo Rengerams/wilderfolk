@@ -17,6 +17,7 @@ import {
 } from './commuteReach';
 import { TICKS_PER_HOUR } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
+import { buildConstructionCrewIndex } from './workforceSummary';
 import { humanDisplayName } from './citizenId';
 import { assignMissingResidences, reassignDivorcedResidences, restoreCustodyAfterRelease } from './housingPipeline';
 import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './housingModel';
@@ -35,22 +36,6 @@ import {
   jobBuildingPriorityForPolicy,
   type WorkforcePolicy,
 } from './workforcePolicy';
-
-/** The one membership rule: is this settler on any unfinished building's crew? One building may be ignored. */
-export function isOnConstructionCrew(
-  buildings: readonly Building[],
-  humanId: number,
-  exceptBuildingId?: number,
-): boolean {
-  for (let i = 0; i < buildings.length; i++) {
-    const b = buildings[i];
-    if (!b.completed && b.id !== exceptBuildingId && b.occupants.includes(humanId)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 
 /**
  * Auto-staff rank of a job building; the ordering table lives in the policy owner, and this side
@@ -730,12 +715,7 @@ export function assignWorkerInPlace(
   let worker: Entity | undefined;
   let bestDistance = Infinity;
   let bestSkill = -Infinity;
-  const crewIds = constructionWorkerIds ?? new Set<number>();
-  if (!constructionWorkerIds) {
-    for (const site of buildings) {
-      if (!site.completed) for (const id of site.occupants) crewIds.add(id);
-    }
-  }
+  const crewIds = constructionWorkerIds ?? new Set(buildConstructionCrewIndex(buildings).keys());
   for (const candidate of humans) {
     if (!isPlayerHuman(candidate) || !candidate.alive || candidate.age < HUMAN_ADULT_MIN_AGE
       || hasWorkAssignment(candidate) || isImprisoned(candidate)
@@ -799,6 +779,7 @@ export function assignBuilderInPlace(
 
   const cap = BUILDING_CONFIGS[building.type].maxOccupants;
   if (building.occupants.length >= cap) return false;
+  const crewIds = constructionWorkerIds ?? new Set(buildConstructionCrewIndex(allBuildings).keys());
 
   const freeBuilder = humans.find(
     (h) =>
@@ -808,14 +789,12 @@ export function assignBuilderInPlace(
       !hasWorkAssignment(h) &&
       !isImprisoned(h) &&
       !building.occupants.includes(h.id) &&
-      (constructionWorkerIds
-        ? !constructionWorkerIds.has(h.id)
-        : !allBuildings.some((b) => !b.completed && b.id !== building.id && b.occupants.includes(h.id))),
+      !crewIds.has(h.id),
   );
 
   if (freeBuilder) {
     building.occupants.push(freeBuilder.id);
-    constructionWorkerIds?.add(freeBuilder.id);
+    crewIds.add(freeBuilder.id);
     return true;
   }
 
@@ -831,9 +810,7 @@ export function assignBuilderInPlace(
         canAutoChangeWorkplace(h, currentTick) &&
         !isImprisoned(h) &&
         !building.occupants.includes(h.id) &&
-        !(constructionWorkerIds
-          ? constructionWorkerIds.has(h.id)
-          : isOnConstructionCrew(allBuildings, h.id)),
+        !crewIds.has(h.id),
     )
     .sort((a, b) => {
       const aPri = jobBuildingPriority(
@@ -859,7 +836,7 @@ export function assignBuilderInPlace(
   clearJobAssignment(jobHolder, allBuildings);
   if (currentTick != null) jobHolder.lastAutoJobTransferTick = currentTick;
   building.occupants.push(jobHolder.id);
-  constructionWorkerIds?.add(jobHolder.id);
+  crewIds.add(jobHolder.id);
   return true;
 }
 
@@ -954,12 +931,8 @@ export function staffConstructionCrews(
       return a.id - b.id;
     });
 
-  const constructionWorkerIds = new Set<number>();
-  const buildingById = new Map<number, Building>();
-  for (const site of buildings) {
-    buildingById.set(site.id, site);
-    if (!site.completed) for (const id of site.occupants) constructionWorkerIds.add(id);
-  }
+  const constructionWorkerIds = new Set(buildConstructionCrewIndex(buildings).keys());
+  const buildingById = new Map(buildings.map((building) => [building.id, building]));
 
   // Fill empty sites from unemployed builders before disturbing established jobs.
   for (const site of incomplete) {
@@ -1176,38 +1149,6 @@ export function assignMissingWorkers(
   }
 }
 
-export function countWorkingAndIdleSettlers(
-  humans: Entity[],
-  buildings: Building[],
-): { working: number; idle: number } {
-  const constructionWorkers = new Set<number>();
-  for (let i = 0; i < buildings.length; i++) {
-    const b = buildings[i];
-    if (!b.completed) {
-      for (let j = 0; j < b.occupants.length; j++) {
-        constructionWorkers.add(b.occupants[j]);
-      }
-    }
-  }
-
-  let working = 0;
-  let idle = 0;
-
-  for (let i = 0; i < humans.length; i++) {
-    const e = humans[i];
-    if (!e.alive || !isPlayerHuman(e) || e.age < HUMAN_ADULT_MIN_AGE) continue;
-    if (isImprisoned(e)) continue;
-
-    if (hasWorkAssignment(e) || constructionWorkers.has(e.id)) {
-      working++;
-    } else {
-      idle++;
-    }
-  }
-
-  return { working, idle };
-}
-
 export function findHumanWorkplace(
   entity: Entity,
   buildings: Building[],
@@ -1228,27 +1169,7 @@ export function findHumanWorkplace(
   if (construction && !construction.completed) return construction;
   if (opts?.constructionByWorkerId) return undefined;
 
-  for (let i = 0; i < buildings.length; i++) {
-    const b = buildings[i];
-    if (!b.completed && b.occupants.includes(entity.id)) {
-      return b;
-    }
-  }
-
-  return undefined;
-}
-
-export function buildConstructionCrewIndex(buildings: readonly Building[]): Map<number, Building> {
-  const map = new Map<number, Building>();
-  for (let i = 0; i < buildings.length; i++) {
-    const b = buildings[i];
-    if (b.completed || b.faction === 'rival' || b.occupants.length === 0) continue;
-    for (let j = 0; j < b.occupants.length; j++) {
-      const id = b.occupants[j];
-      if (!map.has(id)) map.set(id, b);
-    }
-  }
-  return map;
+  return buildConstructionCrewIndex(buildings).get(entity.id);
 }
 
 export function releasePrisoners(state: WorldState): void {
