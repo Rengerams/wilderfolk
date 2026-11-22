@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { gameTick, initGame } from '../src/game/gameEngine';
 import { DAYS_PER_YEAR, TICKS_PER_DAY, tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { assertSimInvariants } from '../src/game/simulation/simInvariants';
-import { EntityType, JobType, MapSize, type VisitorGroup, type WorldState } from '../src/game/gameTypes';
+import { EntityType, JobType, MapSize, type WorldState } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { SKILL_IDLE_DECAY_PER_DAY } from '../src/game/skills';
 import { recordElectionPromises } from '../src/game/electionPromises';
@@ -72,40 +72,16 @@ describe('audit calendar phase integration', () => {
     }
   });
 
-  it('TEST-16: a visitor camp gifts, loses days and eventually departs via gameTick', () => {
-    const world = worldBeforeDay(7);
-    const startReputation = world.villageReputation ?? 0;
-    const camp = {
-      id: 'audit-calendar-camp',
-      name: 'Audit Pilgrims',
-      kind: 'pilgrims',
-      entityIds: [],
-      campX: 100,
-      campY: 100,
-      daysLeft: 3,
-      spawnedAtCalendarDay: 5,
-      giftsGiven: 0,
-      tradesCompleted: 0,
-      gold: 0,
-      refugeeResolved: true,
-      leaderTalked: false,
-    } satisfies VisitorGroup;
-    world.visitorGroups.push(camp);
-
-    gameTick(world);
-    expect(camp.daysLeft).toBe(2);
-    expect(camp.giftsGiven).toBe(1);
-    expect(world.villageReputation).toBe(startReputation + 2);
-
-    world.tick = 8 * TICKS_PER_DAY - 1;
-    gameTick(world);
-    expect(camp.daysLeft).toBe(1);
-    expect(camp.giftsGiven).toBe(2);
-
-    world.tick = 9 * TICKS_PER_DAY - 1;
-    gameTick(world);
-    expect(world.visitorGroups).not.toContain(camp);
-    expect(world.eventLog.some((event) => event.message.includes('Audit Pilgrims departed'))).toBe(true);
+  it('TEST-16: daily calendar passes never create on-map visitor camps', () => {
+    // All retired entry paths: week-one invitation, year-one midyear visit, yearly roll.
+    for (const day of [8, DAYS_PER_YEAR + 180, DAYS_PER_YEAR * 2]) {
+      const world = worldBeforeDay(day);
+      gameTick(world);
+      world.tick = tickAtDailyPhase(day, 'worldEvents') - 1;
+      gameTick(world);
+      expect(world.visitorGroups, `day ${day}`).toHaveLength(0);
+      expect(world.entities.some((entity) => entity.faction === 'visitor'), `day ${day}`).toBe(false);
+    }
   });
   it('SIM-06/07: promises are judged at the 18:00 world-events boundary only once', () => {
     const world = worldBeforeDay(7);
