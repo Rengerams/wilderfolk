@@ -1091,20 +1091,6 @@ const FOOD_HISTORY_ELEMENT_RULES: readonly ElementFieldRule[] = [
  */
 const EVENT_LOG_ELEMENT_RULES: readonly ElementFieldRule[] = [{ field: 'id', isValid: isPersistedId }];
 
-/** The `kind` values `tickVisitorGroups` switches on — it is the same `as const` list as the type. */
-const VISITOR_KIND_VALUES: ReadonlySet<unknown> = new Set(['traders', 'pilgrims', 'scholars', 'hunters', 'nomads', 'refugees', 'performers']);
-
-/**
- * A camped group's own fields: `spawnVisitorGroup` writes all of them, and a daily tick dereferences
- * `daysLeft` and `entityIds` with no default, so a missing one freezes the camp or faults the tick.
- */
-const VISITOR_GROUP_ELEMENT_RULES: readonly ElementFieldRule[] = [
-  { field: 'id', isValid: isNonEmptyString },
-  { field: 'kind', isValid: isMemberOf(VISITOR_KIND_VALUES) },
-  { field: 'daysLeft', isValid: isFiniteNumber },
-  { field: 'entityIds', isValid: isIdArray },
-];
-
 /** An incoming raid's own fields: a missing strength makes `Math.max(undefined, 1)` `NaN`, so every
  *  Defend/Barricade resolves as `'defeat'`. `expiresAtTick` is not here — it has a legacy fallback. */
 const PENDING_RAID_ELEMENT_RULES: readonly ElementFieldRule[] = [
@@ -1124,7 +1110,8 @@ const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>>
   tradeRoutes: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   eventLog: containerArrayRule(isAnyArray, EVENT_LOG_ELEMENT_RULES),
   chronicleChapters: containerArrayRule(isAnyArray, null),
-  visitorGroups: containerArrayRule(isAnyArray, VISITOR_GROUP_ELEMENT_RULES),
+  // Retired camp payloads may be malformed: no runtime reader consumes their elements.
+  visitorGroups: containerArrayRule(isAnyArray, []),
   villageRequestHistory: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   rivalSettlements: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   pendingDiplomacyEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
@@ -1521,16 +1508,12 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       eventLog: worldData.eventLog || [],
       worldMap: restoreWorldMapFromSave(source),
       ecoHealthYearsAbove80: worldData.ecoHealthYearsAbove80 ?? 0,
-      firstWeekVisitorSpawned: worldData.firstWeekVisitorSpawned ?? false,
-      visitorGroups: (worldData.visitorGroups ?? []).map((g) => ({
-        ...g,
-        // `giftsGiven` has no rule of its own; default an absent count to 0 like `tradesCompleted`.
-        giftsGiven: g.giftsGiven ?? 0,
-        tradesCompleted: g.tradesCompleted ?? 0,
-        refugeeResolved: g.refugeeResolved ?? g.kind !== 'refugees',
-        leaderTalked: g.leaderTalked ?? false,
-        spawnedAtCalendarDay: g.spawnedAtCalendarDay,
-      })),
+      // On-map visitor camps are retired. Old saves keep their strategic rivals and raids.
+      firstWeekVisitorSpawned: true,
+      visitorGroups: [],
+      visitorQuest: undefined,
+      activeVillageRequest: worldData.activeVillageRequest?.sourceVisitorGroupId
+        ? undefined : worldData.activeVillageRequest,
       rivalSettlements: (worldData.rivalSettlements ?? []).map((r) => ({
         ...r,
         raidCooldownDays: r.raidCooldownDays ?? 30,
@@ -1545,7 +1528,10 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       graveRecords: worldData.graveRecords,
       raidRecovery: worldData.raidRecovery,
       scoredRaidIds: worldData.scoredRaidIds,
-      entities: (worldData.entities || []).map((saved: Partial<Entity> & { traits?: unknown }) => {
+      // Remove visitor actors before building live indexes or repairing cross-entity references.
+      entities: (worldData.entities || [])
+        .filter((saved) => saved.faction !== 'visitor')
+        .map((saved: Partial<Entity> & { traits?: unknown }) => {
         // Required fields (`vx`, `vy`, `alive`, `flash`, `birthYear`, `birthMonth`, `birthDay`) are
         // repaired for every element here; `...e` still wins over every default the payload carries.
         // Retired and foreign-only keys leave in this copy: a later `delete` would put every entity
