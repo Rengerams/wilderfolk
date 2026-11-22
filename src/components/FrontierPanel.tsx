@@ -201,7 +201,6 @@ function FrontierPanel({
                           </button>
                         )}
                       </div>
-                    );
                   ))}
                   {onLaunchRaid && (
                     <>
@@ -249,7 +248,6 @@ function FrontierPanel({
                     </>
                   )}
                 </div>
-              );
             ))}
           </div>
         </div>
