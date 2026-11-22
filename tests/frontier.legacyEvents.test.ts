@@ -1,7 +1,7 @@
 /**
  * Frontier legacy-event contracts from the full-code audit: citizenship establishes identity
- * (W-77), yearly spawns land on legal ground (W-81), poaching retires through the wildlife-death
- * owner (W-82), and one visitor camp at a time is the single gate (W-86).
+ * (W-77), yearly spawns land on legal ground (W-81), retired visitor hunters cannot poach wildlife
+ * (W-82), and one visitor camp at a time is the single gate (W-86).
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -146,7 +146,7 @@ describe('frontier legacy events', () => {
     }
   });
 
-  it('W-82: a poached deer is retired through the wildlife-death owner', () => {
+  it('W-82: retired visitor hunters cannot poach live deer', () => {
     resetSimRng();
     setSimSeed(999);
     const state = initGame({ skipTerrain: true, width: 1200, height: 900, seed: 999 });
@@ -182,10 +182,10 @@ describe('frontier legacy events', () => {
     const ctx = contextFor(state);
     tickVisitorGroups(state, state.entities, ctx);
 
-    expect(deer.alive, 'the poached deer stayed alive').toBe(false);
-    expect(ctx.entityById.has(deer.id), 'the dead deer stayed in the live index').toBe(false);
-    expect(ctx.byType[EntityType.Deer].includes(deer), 'the dead deer stayed in its byType bucket').toBe(false);
-    expect(hunter.huntTargetId, 'the hunter still targets the dead deer').toBeUndefined();
+    expect(deer.alive, 'retired visitor hunting must not kill deer').toBe(true);
+    expect(ctx.entityById.has(deer.id), 'the deer disappeared from the live index').toBe(true);
+    expect(ctx.byType[EntityType.Deer].includes(deer), 'the deer disappeared from its byType bucket').toBe(true);
+    expect(hunter.huntTargetId, 'retired visitors must not clear active player hunt targets').toBe(deer.id);
   });
 
   it('W-86: a second visitor camp is refused while one exists', () => {
