@@ -1,5 +1,7 @@
 # Visitor groups neither advance nor depart
 
+> **Deprecated (2026-11-22):** the visitor-camp subsystem this report fixed was retired later in the year — `tickVisitorGroups` has no caller and old saves strip visitor groups and actors on load, so the 00:00 lifecycle described below no longer exists. Kept as a historical record; the current state is tracked in [Architecture docs still schedule the retired visitor camps](2026-11-22-architecture-doc-still-schedules-retired-visitors.md).
+
 - Bug: TEST-16 — Visitor group day counters and the daily gift logic rely on isNewCalendarDayTick, but the sole tickVisitorGroups call was in the 18:00 world-events phase.
 - Status: resolved
 - Severity: high
@@ -14,6 +16,7 @@
 - 2026-11-07 — open: reproduced in the audit's code trace and recorded as TEST-16.
 - 2026-11-07 — investigating: scheduling change committed on the fix branch; regression suite and CI initially unverified.
 - 2026-11-07 — resolved: the real gameTick regression passed and all five GitHub Actions workflows were green at commit 3546fd55 (Node.js CI run 42409653516).
+- 2026-11-22 — deprecated: visitor camps were retired, so the 00:00 lifecycle call recorded here no longer exists; this report is history only.
 
 ## Observed behavior
 Visitor group day counters and the daily gift logic rely on isNewCalendarDayTick, but the sole tickVisitorGroups call was in the 18:00 world-events phase.

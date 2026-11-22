@@ -20,7 +20,7 @@
 |---|---|---|---|---|
 | F-01 | Predator ceiling (25) is 2.5× the prey floor's pack target (10); prey collapses by day 90 | medium | open | [`2026-11-22-wildlife-predator-ceiling-collapses-prey`](../bug_report/2026-11-22-wildlife-predator-ceiling-collapses-prey.md) |
 | F-02 | Day rolls quantize to 1/10,000, inflating illness, divorce and old-age mortality | medium | open | [`2026-11-22-daily-odds-quantized-to-ten-thousandths`](../bug_report/2026-11-22-daily-odds-quantized-to-ten-thousandths.md) |
-| F-03 | Visitor camps were retired, but their tick, spawners, dead reads and docs remain | low | open | [`2026-11-22-architecture-doc-still-schedules-retired-visitors`](../bug_report/2026-11-22-architecture-doc-still-schedules-retired-visitors.md) |
+| F-03 | Visitor camps were retired, but their tick, spawners, dead reads and docs remain | low | documents fixed 2026-11-22; dead reads open | [`2026-11-22-architecture-doc-still-schedules-retired-visitors`](../bug_report/2026-11-22-architecture-doc-still-schedules-retired-visitors.md) |
 | F-04 | `npm run audit` is red on `knip` (225 unused exports, 1 false-positive import) | medium | resolved 2026-11-22 | — |
 | F-05 | Tick-layer cadence descriptions contradict `gameTick` | low | open | — |
 | F-06 | The weekly full-year gate is demographically inert | info | open | — |
@@ -370,8 +370,8 @@ defence, deterministic triggers). The unit-suite and harness rows still describe
    This is the only finding that visibly degrades a played game.
 2. **F-02** — raise the day-roll resolution in a release that accepts a new deterministic baseline,
    with one effective-rate test.
-3. **F-03 / F-05** — delete the retired visitor surface or mark it legacy; fix the two cadence
-   descriptions.
+3. **F-03 / F-05** — F-03's documentation half is done (2026-11-22); the two dead
+   `state.visitorGroups` reads and the F-05 cadence descriptions remain.
 4. ~~**F-04** — restore a green `npm run audit`.~~ Done 2026-11-22.
 5. **F-06** — add a non-vacuity assertion to the weekly gate. F-07 (call-graph artifacts) is done.
 

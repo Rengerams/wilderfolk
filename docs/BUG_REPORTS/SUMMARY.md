@@ -4,7 +4,7 @@
 
 **2026-11-22 — [Predator breeding ceiling collapses the prey base](../bug_report/2026-11-22-wildlife-predator-ceiling-collapses-prey.md):** open; wolf capacity (25) and the prey floor (16 rabbits every 3 days, wolf target 10) live in two owners; both harness seeds reach rabbits 0 / wolves 25 by day 90.
 
-**2026-11-22 — [Architecture docs still schedule the retired visitor camps](../bug_report/2026-11-22-architecture-doc-still-schedules-retired-visitors.md):** open; `tickVisitorGroups` and its spawners have no caller, yet the layer table, ownership ledger and the TEST-16 report still describe 00:00 visitors.
+**2026-11-22 — [Architecture docs still schedule the retired visitor camps](../bug_report/2026-11-22-architecture-doc-still-schedules-retired-visitors.md):** open — documents fixed 2026-11-22; `tickVisitorGroups` and its spawners have no caller, so the layer table, ownership ledger and TEST-16 report were corrected or marked legacy; the two unreachable `state.visitorGroups` reads in `humanTick.ts` remain code work.
 
 **2026-11-22 — [New storage building stays capped until the next production pass](../bug_report/2026-11-22-storage-caps-stale-after-night-construction.md):** investigating; PR #166 refreshes the existing capacity owner on construction completion at 23:00; Barn/Silo/Storehouse regression and CI pending.
 
@@ -156,7 +156,7 @@
 
 **2026-11-07 — [SIM-02: idle skills never decay](../bug_report/2026-11-07-idle-skill-decay-never-runs.md):** Midnight-only skill decay was called from the 18:00 world-events pass; moved to midnight. Status: resolved — exact decay passed in Node.js CI.
 
-**2026-11-07 — [TEST-16: visitor groups never age or depart](../bug_report/2026-11-07-visitor-groups-never-depart.md):** Visitor lifecycle now runs at 00:00 so gift/counter/departure decisions fire. Status: resolved — the multi-day regression passed in Node.js CI.
+**2026-11-07 — [TEST-16: visitor groups never age or depart](../bug_report/2026-11-07-visitor-groups-never-depart.md):** Visitor lifecycle ran at 00:00 so gift/counter/departure decisions fire. Status: resolved, then deprecated 2026-11-22 — the visitor camps were retired, so that lifecycle call no longer exists; the report is kept as history.
 
 **2026-11-07 — [Full-year test demanded a marriage a one-couple start cannot produce](../bug_report/2026-11-07-full-year-marriage-guard-one-couple-start.md):** The 360-day scenario started with one married couple in a full two-bed house, so no eligible pair or immigrant could exist and the marriage guard failed; the scaffold now seeds four eligible neighbours with homes plus two Silos (spoilage 0). The file and the full suite pass.
 

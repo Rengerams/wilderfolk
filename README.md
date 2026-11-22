@@ -515,7 +515,7 @@ Wilderfolk is gradually moving toward its **first proper release**, so ease of a
 |---------|----------------|
 | **Living food chain** | Grass, prey, predators, and your village share one ecology — balance or collapse |
 | **Settlers with personalities** | Three traits each from a pool of fourteen, inherited DNA-style; day jobs, courtship, scandals, families, drama |
-| **Frontier diplomacy** | Visitor caravans with real gold purses, rival camps, trade, peace treaties, incoming raids you can *prepare* for |
+| **Frontier diplomacy** | Rival camps, trade, peace treaties, incoming raids you can *prepare* for |
 | **Craft & defense** | Forge tier 5 — iron swords, scale mail, tower ballistae; walls, towers, barracks, guard patrols |
 | **Clear goals** | Focus hints, alert strip, sidebar tabs, valley stages — you always know what to do next |
 | **Sandbox with goals** | No forced win conditions — optional challenges reward milestones, and a living village portrait writes your story as you play |

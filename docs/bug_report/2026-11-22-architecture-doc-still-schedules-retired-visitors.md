@@ -1,7 +1,7 @@
 # Architecture docs still schedule the retired visitor camps
 
 - Bug: On-map visitor camps were retired and their tick has no caller, but the architecture doc, the ownership ledger and the TEST-16 report still describe the feature as running at 00:00.
-- Status: open
+- Status: open (living documents corrected 2026-11-22; the two dead `state.visitorGroups` reads remain)
 - Severity: low
 - Date discovered: 2026-11-22
 - Version/build: V.0.6.5.1 / `audit-simulation-logic` @ `ecd9866c`
@@ -12,6 +12,7 @@
 
 ## Status history
 - 2026-11-22 — open: confirmed by call-site search and a read of the three documents; not yet fixed.
+- 2026-11-22 — open (documents fixed): the architecture layer/module/tree tables, the ownership ledger rows and the TEST-16 report were corrected or marked legacy; the two unreachable `state.visitorGroups` reads in `humanTick.ts` are still code work.
 
 ## Observed behavior
 
@@ -50,10 +51,14 @@ read-only branches were not retired with it.
 
 ## Fix / proposed fix
 
-Update the architecture layer table and the ownership ledger to state that visitor camps are
-retired; correct the TEST-16 report's fix/verification section to record that the lifecycle was
-removed rather than rescheduled; drop the two unreachable `state.visitorGroups` reads in
-`humanTick.ts` with the rest of the retired surface.
+Done 2026-11-22 (documents): `ARCHITECTURE.md` no longer lists 00:00 visitors in the daily layer
+and describes `groupEvents.ts` as rivals plus a retired visitor lifecycle; the ownership ledger
+rows for the daily scheduler, event-site sampling, yearly events, camp hit testing and highlights,
+food-ledger sources and the visitor quest now say retired or legacy; the TEST-16 report carries a
+deprecation banner.
+
+Remaining (code): drop the two unreachable `state.visitorGroups` reads in `humanTick.ts` (festival
+performers and the courtship multiplier) with the rest of the retired surface.
 
 ## Save/migration impact
 
@@ -62,5 +67,6 @@ None — the load path already strips visitor groups and actors.
 ## Verification result
 
 - Reproduction: PASS — call-site search and document reads above.
-- Fix: NOT IMPLEMENTED.
-- Docs check (`node scripts/test.mjs check`): PASS before the change.
+- Fix (documents): PASS — the quoted `ARCHITECTURE.md` and `OWNERSHIP_OVERVIEW.md` lines no longer describe live visitors, and the TEST-16 report is marked deprecated.
+- Fix (code): NOT IMPLEMENTED — the two `humanTick.ts` reads remain.
+- Docs check (`node scripts/test.mjs check`): PASS after the change.
