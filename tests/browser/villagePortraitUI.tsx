@@ -11,7 +11,7 @@ import { computeVillageStats } from '../../src/game/uiSimSummary';
 import { initGame } from '../../src/game/worldGen';
 import { building } from '../../src/test/factories';
 
-function requireElement<T extends Element>(element: T | null, message: string): T {
+function requireElement<T extends Element>(element: T | null | undefined, message: string): T {
   if (!element) throw new Error(message);
   return element;
 }
