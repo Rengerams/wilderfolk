@@ -1057,12 +1057,21 @@ export function getRouteObstruction(
   const grid = getReadOnlyPathGrid(map, buildings);
   if (!segmentCrossesBlocked(grid, from.x, from.y, to.x, to.y, false)) return 'clear';
 
+  const startTx = Math.floor(from.x / PATH_CELL);
+  const startTy = Math.floor(from.y / PATH_CELL);
+  const goalTx = Math.floor(to.x / PATH_CELL);
+  const goalTy = Math.floor(to.y / PATH_CELL);
+  // Mirror `steerWithPath`: a destination that cannot be stood on is approached from the walker's side.
+  const goalBlocked = goalTx < 0 || goalTy < 0 || goalTx >= grid.cols || goalTy >= grid.rows
+    || grid.blocked[goalTy * grid.cols + goalTx] !== 0;
+  const stand = goalBlocked
+    ? nearestStandTileToWalker(grid, goalTx, goalTy, startTx, startTy) : null;
   const result = walkRoute(
     grid,
-    Math.floor(from.x / PATH_CELL),
-    Math.floor(from.y / PATH_CELL),
-    Math.floor(to.x / PATH_CELL),
-    Math.floor(to.y / PATH_CELL),
+    startTx,
+    startTy,
+    stand?.x ?? goalTx,
+    stand?.y ?? goalTy,
     PATH_MAX_SEARCH_NODES,
     false,
   );

@@ -261,16 +261,3 @@ Be curious, candid and inventive. Treat Wilderfolk as a complete simulation, not
 **Tell me always the truth**
 
 — The developer
-
----
-
-## Base44 sandbox (development preview)
-
-The imported app runs as one Compose service from the cloned source. Never build or pull a production image for the preview; a frozen bundle cannot show edits.
-
-- Start: `docker compose -f docker-compose.base44.yml up -d --build` — Vite dev server on host port 3000 with live reload.
-- Run every check inside that container, because the sandbox host has no `node_modules`:
-  `docker compose -f docker-compose.base44.yml exec -T web npx vitest run tests/pathfinding.test.ts`.
-- `scripts/check-comments.mjs` and `scripts/check-function-overlap.mjs` shell out to `git`, which the Node image does not ship; run those two on the host instead.
-- No environment variables, secrets or external services are required. `BASE44_PREVIEW_MODE` is passed through, but no code branches on it, so shared configuration is identical inside and outside the sandbox.
-- Dependencies install from the lockfile when the container starts (`npm ci` whenever `package-lock.json` changes) into a named volume, so a rebuild never re-downloads an unchanged tree.

@@ -1,10 +1,10 @@
 {
  "generatedFrom": "src/**/*.{ts,tsx} + decisionRegistry.ts + OWNERSHIP_OVERVIEW.md",
- "generatedAt": "2026-11-22T20:41:12.022Z",
+ "generatedAt": "2026-11-22T20:43:49.115Z",
  "stats": {
   "files": 404,
   "functions": 3423,
-  "callEdges": 7319,
+  "callEdges": 7320,
   "withRecordedOwner": 3423,
   "withExplicitEntry": 1590,
   "withModuleOwner": 1833,
@@ -14,7 +14,7 @@
   "injectedCallbackCalls": 209,
   "externalMethodCalls": 9474,
   "resolutionKinds": {
-   "local": 4104,
+   "local": 4105,
    "imported": 6024,
    "namespace": 82,
    "methodThis": 279,
@@ -72839,7 +72839,7 @@
     {
      "index": 1619,
      "file": "src/game/pathfinding.ts",
-     "line": 1281
+     "line": 1290
     }
    ],
    "callees": []
@@ -73127,9 +73127,14 @@
    "cadence": "on-demand",
    "callers": [
     {
+     "index": 1615,
+     "file": "src/game/pathfinding.ts",
+     "line": 1068
+    },
+    {
      "index": 1616,
      "file": "src/game/pathfinding.ts",
-     "line": 1154
+     "line": 1163
     }
    ],
    "callees": []
@@ -73318,7 +73323,7 @@
     {
      "index": 1616,
      "file": "src/game/pathfinding.ts",
-     "line": 1106
+     "line": 1115
     }
    ],
    "callees": []
@@ -73355,7 +73360,7 @@
     {
      "index": 1616,
      "file": "src/game/pathfinding.ts",
-     "line": 1164
+     "line": 1173
     }
    ],
    "callees": [
@@ -73453,12 +73458,12 @@
     {
      "index": 1615,
      "file": "src/game/pathfinding.ts",
-     "line": 1060
+     "line": 1069
     },
     {
      "index": 1616,
      "file": "src/game/pathfinding.ts",
-     "line": 1161
+     "line": 1170
     }
    ],
    "callees": [
@@ -73529,7 +73534,7 @@
     {
      "index": 1616,
      "file": "src/game/pathfinding.ts",
-     "line": 1158
+     "line": 1167
     },
     {
      "index": 2527,
@@ -73622,7 +73627,7 @@
     {
      "index": 1616,
      "file": "src/game/pathfinding.ts",
-     "line": 1181
+     "line": 1190
     },
     {
      "index": 3193,
@@ -73649,7 +73654,7 @@
     {
      "index": 1616,
      "file": "src/game/pathfinding.ts",
-     "line": 1181
+     "line": 1190
     }
    ],
    "callees": []
@@ -73691,17 +73696,17 @@
     {
      "index": 1616,
      "file": "src/game/pathfinding.ts",
-     "line": 1137
+     "line": 1146
     },
     {
      "index": 1617,
      "file": "src/game/pathfinding.ts",
-     "line": 1258
+     "line": 1267
     },
     {
      "index": 1618,
      "file": "src/game/pathfinding.ts",
-     "line": 1268
+     "line": 1277
     }
    ],
    "callees": [
@@ -73744,7 +73749,7 @@
     {
      "index": 1616,
      "file": "src/game/pathfinding.ts",
-     "line": 1101
+     "line": 1110
     },
     {
      "index": 2527,
@@ -73782,7 +73787,7 @@
     {
      "index": 1616,
      "file": "src/game/pathfinding.ts",
-     "line": 1136
+     "line": 1145
     }
    ],
    "callees": []
@@ -73914,7 +73919,7 @@
    "file": "src/game/pathfinding.ts",
    "line": 1050,
    "bodyStart": 1055,
-   "bodyEnd": 1071,
+   "bodyEnd": 1080,
    "exported": true,
    "kind": "function",
    "className": null,
@@ -73946,18 +73951,23 @@
      "line": 1058
     },
     {
+     "index": 1594,
+     "file": "src/game/pathfinding.ts",
+     "line": 1068
+    },
+    {
      "index": 1602,
      "file": "src/game/pathfinding.ts",
-     "line": 1060
+     "line": 1069
     }
    ]
   },
   {
    "name": "steerWithPath",
    "file": "src/game/pathfinding.ts",
-   "line": 1077,
-   "bodyStart": 1083,
-   "bodyEnd": 1248,
+   "line": 1086,
+   "bodyStart": 1092,
+   "bodyEnd": 1257,
    "exported": true,
    "kind": "function",
    "className": null,
@@ -74011,81 +74021,81 @@
     {
      "index": 1610,
      "file": "src/game/pathfinding.ts",
-     "line": 1101
+     "line": 1110
     },
     {
      "index": 1600,
      "file": "src/game/pathfinding.ts",
-     "line": 1106
+     "line": 1115
     },
     {
      "index": 1611,
      "file": "src/game/pathfinding.ts",
-     "line": 1136
+     "line": 1145
     },
     {
      "index": 1609,
      "file": "src/game/pathfinding.ts",
-     "line": 1137
+     "line": 1146
     },
     {
      "index": 1647,
      "file": "src/game/pathfindingMetrics.ts",
-     "line": 1142
+     "line": 1151
     },
     {
      "index": 1594,
      "file": "src/game/pathfinding.ts",
-     "line": 1154
+     "line": 1163
     },
     {
      "index": 1604,
      "file": "src/game/pathfinding.ts",
-     "line": 1158
+     "line": 1167
     },
     {
      "index": 1602,
      "file": "src/game/pathfinding.ts",
-     "line": 1161
+     "line": 1170
     },
     {
      "index": 1601,
      "file": "src/game/pathfinding.ts",
-     "line": 1164
+     "line": 1173
     },
     {
      "index": 1608,
      "file": "src/game/pathfinding.ts",
-     "line": 1181
+     "line": 1190
     },
     {
      "index": 1607,
      "file": "src/game/pathfinding.ts",
-     "line": 1181
+     "line": 1190
     },
     {
      "index": 1646,
      "file": "src/game/pathfindingMetrics.ts",
-     "line": 1209
+     "line": 1218
     },
     {
      "index": 1618,
      "file": "src/game/pathfinding.ts",
-     "line": 1219
+     "line": 1228
     },
     {
      "index": 2613,
      "file": "src/game/simulation/movementSteering.ts",
-     "line": 1238
+     "line": 1247
     }
    ]
   },
   {
    "name": "isWalkStepAllowed",
    "file": "src/game/pathfinding.ts",
-   "line": 1254,
-   "bodyStart": 1257,
-   "bodyEnd": 1259,
+   "line": 1263,
+   "bodyStart": 1266,
+   "bodyEnd": 1268,
    "exported": true,
    "kind": "function",
    "className": null,
@@ -74124,16 +74134,16 @@
     {
      "index": 1609,
      "file": "src/game/pathfinding.ts",
-     "line": 1258
+     "line": 1267
     }
    ]
   },
   {
    "name": "isGroundWalkableAt",
    "file": "src/game/pathfinding.ts",
-   "line": 1265,
-   "bodyStart": 1265,
-   "bodyEnd": 1269,
+   "line": 1274,
+   "bodyStart": 1274,
+   "bodyEnd": 1278,
    "exported": true,
    "kind": "function",
    "className": null,
@@ -74165,7 +74175,7 @@
     {
      "index": 1616,
      "file": "src/game/pathfinding.ts",
-     "line": 1219
+     "line": 1228
     },
     {
      "index": 2513,
@@ -74182,16 +74192,16 @@
     {
      "index": 1609,
      "file": "src/game/pathfinding.ts",
-     "line": 1268
+     "line": 1277
     }
    ]
   },
   {
    "name": "isOnWalkableRoadAt",
    "file": "src/game/pathfinding.ts",
-   "line": 1272,
-   "bodyStart": 1272,
-   "bodyEnd": 1282,
+   "line": 1281,
+   "bodyStart": 1281,
+   "bodyEnd": 1291,
    "exported": true,
    "kind": "function",
    "className": null,
@@ -74215,7 +74225,7 @@
     {
      "index": 1586,
      "file": "src/game/pathfinding.ts",
-     "line": 1281
+     "line": 1290
     }
    ]
   },
@@ -74848,7 +74858,7 @@
     {
      "index": 1616,
      "file": "src/game/pathfinding.ts",
-     "line": 1209
+     "line": 1218
     }
    ],
    "callees": []
@@ -74870,7 +74880,7 @@
     {
      "index": 1616,
      "file": "src/game/pathfinding.ts",
-     "line": 1142
+     "line": 1151
     }
    ],
    "callees": []
@@ -111864,7 +111874,7 @@
     {
      "index": 1616,
      "file": "src/game/pathfinding.ts",
-     "line": 1238
+     "line": 1247
     },
     {
      "index": 2527,
