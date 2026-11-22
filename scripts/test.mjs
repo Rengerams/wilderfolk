@@ -56,7 +56,7 @@ const STEP = {
   semantic: 'node --test scripts/check-function-overlap.test.mjs scripts/check-function-overlap.integration.test.mjs && node scripts/check-function-overlap.mjs',
   semanticDup: 'node scripts/check-semantic-duplicates.mjs',
   invariants: 'tsx scripts/run-full-year.mts',
-  browser: 'node scripts/browser-smoke.mjs',
+  browser: 'node scripts/browser-smoke.mjs && node scripts/browser-smoke.mjs --portrait-regression --out tmp/shots/portrait-ui',
   build: 'npm run build',
   workerBoundary: 'tsx scripts/worker-boundary-audit.mts',
   clean: 'node scripts/clean.mjs',
