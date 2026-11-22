@@ -215,7 +215,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
     );
   }
   const wildlifePopulation = ctx.wildlifePopulation;
-  // Keep a live per-pulse count as predator kills occur; the breed snapshot is otherwise immutable.
+  // Track every rabbit death this pulse before predators choose prey; breeding keeps its own snapshot.
   let remainingRabbits = wildlifePopulation.aliveByType.get(EntityType.Rabbit) ?? 0;
 
   if (!ctx.grassPopulation) {
@@ -274,6 +274,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       // 2. Old age death
       if (entity.age >= entity.maxAge) {
         markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick, state);
+        if (entity.type === EntityType.Rabbit) remainingRabbits--;
         createDeathParticles(state, entity.x, entity.y, '#aaaaaa', 5, 'smoke');
         syncEntityGrids(ctx, entity);
         continue;
@@ -298,6 +299,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
 
       if (entity.energy <= 0) {
         markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick, state);
+        if (entity.type === EntityType.Rabbit) remainingRabbits--;
         createDeathParticles(state, entity.x, entity.y, '#8a2a2a', 8);
         syncEntityGrids(ctx, entity);
         continue;
@@ -740,7 +742,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
               entity.y,
               config.huntRange,
               (p) =>
-                (p.type === EntityType.Rabbit || p.type === EntityType.Deer) &&
+                (p.type === EntityType.Deer
+                  || (p.type === EntityType.Rabbit && wildlifeMayHuntRabbit(remainingRabbits))) &&
                 isValidHuntPrey(p, p.type, entity.id),
               'tamed_hunt',
               preyFallbackFor(),
