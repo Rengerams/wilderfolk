@@ -131,7 +131,8 @@ describe('one authoritative movement walkability verdict', () => {
 
   it('escapes when a blocked origin snaps to the same walkable tile as its destination', () => {
     const g = grid(3, 3);
-    g.blocked[1 * g.cols + 1] = 1;
+    g.blocked.fill(1);
+    g.blocked[2 * g.cols + 1] = 0;
     expect(findPath(g, 1, 1, 1, 2)).toEqual([{ x: 1, y: 1 }, { x: 1, y: 2 }]);
     expect(isWalkStepAllowed(center(1), center(1), center(1), center(2), g)).toBe(true);
   });
