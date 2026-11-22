@@ -7,7 +7,7 @@ import { citizenGivenName, humanDisplayName } from './citizenId';
 import { EntityType, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isMarriedOrExpecting } from './relationships';
-import { findFamilyGroupRoot } from './genealogyRegistry';
+import { findFamilyGroupRoot, genealogyDisplayName } from './genealogyRegistry';
 import type { GenealogyRegistry } from './genealogyTypes';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isWithinRemarriageBar } from './simulation/humanRelationships';
@@ -226,6 +226,29 @@ function familyHumans(all: readonly Entity[], includeDeceased: boolean): Entity[
   return all.filter((e) => (includeDeceased || e.alive) && e.type === EntityType.Human && isPlayerHuman(e));
 }
 
+/** The full tree includes recorded mixed-species relatives, not unrelated wildlife. */
+function familyTreeMembers(all: readonly Entity[], includeDeceased: boolean): Entity[] {
+  const animalParentIds = new Set<number>();
+  for (const entity of all) {
+    if (entity.type !== EntityType.Wildkin) continue;
+    if (entity.fatherId != null) animalParentIds.add(entity.fatherId);
+    for (const id of entity.wildkinParentIds ?? []) animalParentIds.add(id);
+  }
+  return all.filter((e) => {
+    if (!includeDeceased && !e.alive) return false;
+    if (isPlayerHuman(e)) return true;
+    if (e.type === EntityType.Wildkin) {
+      // Legacy Wildkin have no own parent fields. Include them when a known child
+      // names them, just as we include referenced deer fathers.
+      return animalParentIds.has(e.id)
+        || e.motherId != null
+        || e.fatherId != null
+        || (e.wildkinParentIds?.length ?? 0) > 0;
+    }
+    return e.type === EntityType.Deer && animalParentIds.has(e.id);
+  });
+}
+
 function byId(all: readonly Entity[], id: number | undefined): Entity | undefined {
   if (id == null) return undefined;
   return all.find((e) => e.id === id && e.alive && e.type === EntityType.Human);
@@ -237,12 +260,16 @@ function isChildOf(child: Entity, parent: Entity): boolean {
     || child.fatherId === parent.id
     || child.adoptiveMotherId === parent.id
     || child.adoptiveFatherId === parent.id
+    || child.wildkinParentIds?.includes(parent.id) === true
     || (parent.childrenIds ?? []).includes(child.id)
   );
 }
 
 /** The other parent of `child`, from the side `parentId` fills: the co-parent a shared child ties on. */
 function otherParentIdOfChild(child: Entity, parentId: number): number | undefined {
+  if (child.wildkinParentIds?.includes(parentId)) {
+    return child.wildkinParentIds.find((id) => id !== parentId);
+  }
   const viaMother = child.motherId === parentId || child.adoptiveMotherId === parentId;
   return viaMother
     ? child.fatherId ?? child.adoptiveFatherId
@@ -704,7 +731,7 @@ function pushLink(links: Map<number, number[]>, from: number, to: number): void 
 /** Every parent id a settler's record names, birth and adoptive, so a sibling test counts both. */
 function parentIdSet(person: Entity): Set<number> {
   const ids = new Set<number>();
-  for (const id of [person.motherId, person.fatherId, person.adoptiveMotherId, person.adoptiveFatherId]) {
+  for (const id of [person.motherId, person.fatherId, person.adoptiveMotherId, person.adoptiveFatherId, ...(person.wildkinParentIds ?? [])]) {
     if (id != null) ids.add(id);
   }
   return ids;
@@ -761,6 +788,7 @@ function generationPrefix(steps: number): string {
 
 /** `Child` / `Adult child`, marked when born outside wedlock. Age decides "adult" — see `childRelation`. */
 function childLabel(person: Entity): string {
+  if (person.type === EntityType.Wildkin) return 'Wildkin child';
   const relation = childRelation(person);
   if (relation === 'child') return RELATION_LABEL.child;
   if (relation === 'adult_child') return RELATION_LABEL.adult_child;
@@ -769,6 +797,7 @@ function childLabel(person: Entity): string {
 
 /** The small portrait glyph for one person on the tree, from their own life stage. */
 function iconForPerson(person: Entity): string {
+  if (person.type === EntityType.Wildkin || person.type === EntityType.Deer) return '🦌';
   if (person.isJuvenile) return person.gender === 'male' ? '👦' : '👧';
   return person.gender === 'male' ? '👨' : '👩';
 }
@@ -803,6 +832,8 @@ function relationLabelOf(focus: Entity, person: Entity, delta: number, flags: Re
   if (flags.isAncestor) {
     if (delta >= 0) return 'Ancestor';
     if (delta === -1) {
+      if (person.type === EntityType.Deer) return 'Deer father';
+      if (person.type === EntityType.Wildkin) return 'Wildkin parent';
       const adoptiveId = male ? focus.adoptiveFatherId : focus.adoptiveMotherId;
       const birthId = male ? focus.fatherId : focus.motherId;
       const adoptiveOnly = person.id === adoptiveId && person.id !== birthId;
@@ -834,7 +865,11 @@ function relationLabelOf(focus: Entity, person: Entity, delta: number, flags: Re
     if (flags.isFormerPartner) return RELATION_LABEL.former_spouse;
     // A divorce clears both `partnerId` links, so a former spouse arrives here as a co-parent. Blood
     // keeps its own word — a relative who raised the child is still a relative.
-    if (flags.isCoParent && !flags.isBlood) return flags.wasSpouse ? 'Former spouse' : 'Co-parent';
+    if (flags.isCoParent && !flags.isBlood) {
+      if (person.type === EntityType.Deer) return 'Animal father';
+      if (person.type === EntityType.Wildkin) return 'Wildkin co-parent';
+      return flags.wasSpouse ? 'Former spouse' : 'Co-parent';
+    }
     return flags.isBlood ? 'Cousin' : 'In-law';
   }
   if (!flags.isBlood) {
@@ -873,7 +908,7 @@ export function buildFullFamilyTree(
   tick?: number,
   options?: FamilyTreeOptions,
 ): FullFamilyTree {
-  const people = familyHumans(allEntities, options?.includeDeceased === true);
+  const people = familyTreeMembers(allEntities, options?.includeDeceased === true);
   const byId = new Map<number, Entity>();
   for (const person of people) byId.set(person.id, person);
   // The focus is normally one of `people`; drawing its tree anyway beats an empty window.
@@ -883,7 +918,7 @@ export function buildFullFamilyTree(
   const childLinks = new Map<number, number[]>();
   const partnerLinks = new Map<number, number[]>();
   for (const person of byId.values()) {
-    const parentIds = [person.motherId, person.fatherId, person.adoptiveMotherId, person.adoptiveFatherId];
+    const parentIds = [person.motherId, person.fatherId, person.adoptiveMotherId, person.adoptiveFatherId, ...(person.wildkinParentIds ?? [])];
     for (const parentId of parentIds) {
       if (parentId == null || parentId === person.id || !byId.has(parentId)) continue;
       pushLink(parentLinks, person.id, parentId);
@@ -1075,8 +1110,13 @@ export function buildFullFamilyTree(
       || person.fatherId === focus.id
       || person.adoptiveMotherId === focus.id
       || person.adoptiveFatherId === focus.id
+      || person.wildkinParentIds?.includes(focus.id) === true
       || (focus.childrenIds ?? []).includes(person.id);
-    const parts = [`${Math.floor(person.age)}y`];
+    const parts = [person.type === EntityType.Wildkin
+      ? `Wildkin · ${Math.floor(person.age / 365)}y`
+      : person.type === EntityType.Deer
+        ? 'Deer'
+        : `${Math.floor(person.age)}y`];
     const occupation = occupationOf(person);
     if (occupation) parts.push(occupation);
     // A different residence from the focus is a different household: a child's reads as moving out.
@@ -1096,7 +1136,7 @@ export function buildFullFamilyTree(
       return parts.join(' · ');
     }
     const otherParent = byId.get(otherParentId);
-    if (otherParent) parts.push(`with ${citizenGivenName(otherParent)}`);
+    if (otherParent) parts.push(`with ${genealogyDisplayName(otherParent)}`);
     return parts.join(' · ');
   };
 
@@ -1109,7 +1149,7 @@ export function buildFullFamilyTree(
     const otherParentId = otherParentIdOfChild(person, focus.id);
     if (otherParentId == null || otherParentId === focus.id) continue;
     coParentIds.add(otherParentId);
-    if (!person.isBastard) marriedCoParentIds.add(otherParentId);
+    if (person.type === EntityType.Human && !person.isBastard) marriedCoParentIds.add(otherParentId);
   }
 
   const idsByRow = new Map<number, Entity[]>();
@@ -1158,7 +1198,7 @@ export function buildFullFamilyTree(
             });
           return {
             id: person.id,
-            name: humanDisplayName(person),
+            name: person.type === EntityType.Human ? humanDisplayName(person) : genealogyDisplayName(person),
             relation,
             icon: iconForPerson(person),
             detail: detailOf(person),

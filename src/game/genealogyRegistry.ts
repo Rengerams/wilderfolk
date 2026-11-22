@@ -6,8 +6,20 @@ import type { GenealogyRegistry, GenealogyPerson } from './genealogyTypes';
 import { bumpHistoryRevision } from './historyRevisions';
 export type { GenealogyRegistry, GenealogyPerson } from './genealogyTypes';
 
-function recordedHuman(entity: Entity): boolean {
-  return entity.type === EntityType.Human && isPlayerHuman(entity);
+function recordedFamilyEntity(entity: Entity, registry?: GenealogyRegistry): boolean {
+  // Do not turn every wild deer into a genealogical person. Animal relatives enter
+  // the registry only at a Wildkin birth, then the normal census tracks them.
+  return (entity.type === EntityType.Human && isPlayerHuman(entity))
+    || entity.type === EntityType.Wildkin
+    || (entity.type === EntityType.Deer && registry?.people[String(entity.id)] !== undefined);
+}
+
+/** Display name for human and animal relatives; the tree and registry share one owner. */
+export function genealogyDisplayName(entity: Entity): string {
+  return entity.name
+    ?? (entity.type === EntityType.Wildkin ? `Wildkin #${entity.id}`
+      : entity.type === EntityType.Deer ? `Deer #${entity.id}`
+        : 'Unknown settler');
 }
 
 /** Publish a new genealogy version on mutation so tick rollback can retain its prior reference. */
@@ -20,11 +32,11 @@ function editGenealogyRegistry(state: WorldState): GenealogyRegistry {
 /** Idempotent census: track new births, new relationships and disappearances.
  * Call from a daily simulation boundary and before serialization. Never scan per tick.
  */
-export function syncGenealogyRegistry(state: WorldState): GenealogyRegistry {
+export function syncGenealogyRegistry(state: WorldState, entities: readonly Entity[] = state.entities): GenealogyRegistry {
   const registry = editGenealogyRegistry(state);
   const aliveIds = new Set<number>();
-  for (const e of state.entities) {
-    if (!recordedHuman(e)) continue;
+  for (const e of entities) {
+    if (!recordedFamilyEntity(e, registry)) continue;
     if (e.alive) aliveIds.add(e.id);
     const key = String(e.id);
     const existing = registry.people[key];
@@ -34,7 +46,9 @@ export function syncGenealogyRegistry(state: WorldState): GenealogyRegistry {
     for (const childId of e.childrenIds ?? []) childrenIds.add(childId);
     registry.people[key] = {
       id: e.id,
-      name: e.name ?? existing?.name ?? 'Unknown settler',
+      name: e.name ?? existing?.name ?? genealogyDisplayName(e),
+      entityType: e.type === EntityType.Human ? undefined : e.type,
+      wildkinParentIds: e.wildkinParentIds ?? existing?.wildkinParentIds,
       birthSurname: existing?.birthSurname ?? e.surname ?? '',
       surname: e.surname ?? existing?.surname ?? '',
       gender: e.gender ?? existing?.gender,
@@ -58,7 +72,7 @@ export function syncGenealogyRegistry(state: WorldState): GenealogyRegistry {
   }
   // Child parent links take priority over older, potentially incomplete childrenIds.
   for (const child of Object.values(registry.people)) {
-    for (const parentId of [child.motherId, child.fatherId, child.adoptiveMotherId, child.adoptiveFatherId]) {
+    for (const parentId of [child.motherId, child.fatherId, child.adoptiveMotherId, child.adoptiveFatherId, ...(child.wildkinParentIds ?? [])]) {
       if (parentId == null || parentId === child.id) continue;
       const parent = registry.people[String(parentId)];
       if (parent && !parent.childrenIds.includes(child.id)) {
@@ -104,7 +118,9 @@ export function recordGenealogyBirth(state: WorldState, child: Entity): void {
   const registry = editGenealogyRegistry(state);
   registry.people[key] = {
     id: child.id,
-    name: child.name ?? 'Unknown settler',
+    name: genealogyDisplayName(child),
+    entityType: child.type === EntityType.Human ? undefined : child.type,
+    wildkinParentIds: child.wildkinParentIds,
     birthSurname: child.surname ?? '',
     surname: child.surname ?? '',
     gender: child.gender,
@@ -115,10 +131,10 @@ export function recordGenealogyBirth(state: WorldState, child: Entity): void {
     fatherId: child.fatherId,
     adoptiveMotherId: child.adoptiveMotherId,
     adoptiveFatherId: child.adoptiveFatherId,
-    partners: [],
-    childrenIds: [],
+    partners: child.partnerId == null ? [] : [child.partnerId],
+    childrenIds: [...(child.childrenIds ?? [])],
   };
-  for (const parentId of [child.motherId, child.fatherId, child.adoptiveMotherId, child.adoptiveFatherId]) {
+  for (const parentId of [child.motherId, child.fatherId, child.adoptiveMotherId, child.adoptiveFatherId, ...(child.wildkinParentIds ?? [])]) {
     const parent = parentId == null ? undefined : registry.people[String(parentId)];
     if (parent && !parent.childrenIds.includes(child.id)) {
       registry.people[String(parent.id)] = { ...parent, childrenIds: [...parent.childrenIds, child.id] };
@@ -129,11 +145,13 @@ export function recordGenealogyBirth(state: WorldState, child: Entity): void {
 
 /** Capture a death while the entity still has its identity and family links. */
 export function recordGenealogyDeath(state: WorldState, entity: Entity): void {
-  if (!recordedHuman(entity)) return;
+  if (!recordedFamilyEntity(entity, state.genealogyRegistry)) return;
   const registry = editGenealogyRegistry(state);
   if (!registry.people[String(entity.id)]) {
     registry.people[String(entity.id)] = {
-      id: entity.id, name: entity.name ?? 'Unknown settler',
+      id: entity.id, name: genealogyDisplayName(entity),
+      entityType: entity.type === EntityType.Human ? undefined : entity.type,
+      wildkinParentIds: entity.wildkinParentIds,
       birthSurname: entity.surname ?? '', surname: entity.surname ?? '', gender: entity.gender,
       bornYear: entity.birthYear, bornDay: entity.birthDay, alive: true,
       motherId: entity.motherId, fatherId: entity.fatherId,
@@ -187,7 +205,7 @@ export function largestExtendedFamilies(registry: GenealogyRegistry, limit = 10)
   };
   for (const person of records) {
     for (const id of [person.motherId, person.fatherId, person.adoptiveMotherId,
-      person.adoptiveFatherId, ...person.partners]) {
+      person.adoptiveFatherId, ...(person.wildkinParentIds ?? []), ...person.partners]) {
       if (id != null && id !== person.id) unite(person.id, id);
     }
   }
