@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const SCANNER = fileURLToPath(new URL('./check-function-overlap.mjs', import.meta.url));
 
-function runCase(t, candidate) {
+function runCase(t, candidate, { staleGraph = false } = {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'wilderfolk-semantic-e2e-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, 'src/game'), { recursive: true });
@@ -50,6 +50,17 @@ function runCase(t, candidate) {
   git('commit', '-qm', 'baseline');
   writeFileSync(path.join(root, peer.file), candidate);
   writeGraph([original, peer]);
+  if (staleGraph) {
+    // Reproduce tracked artifacts left pointing to deleted code after a refactor.
+    const repaired = JSON.stringify({ functions: [original, peer] });
+    mkdirSync(path.join(root, 'scripts'), { recursive: true });
+    writeFileSync(path.join(root, 'scripts/build-call-graph.mjs'), [
+      "import { writeFileSync } from 'node:fs';",
+      'writeFileSync("docs/tools/call-graph.json", ' + JSON.stringify(repaired) + ');',
+      'writeFileSync("docs/tools/call-graph.html", "<html>regenerated</html>");',
+    ].join('\n'));
+    writeGraph([original, peer, { ...original, file: 'src/game/deleted.ts' }]);
+  }
   return spawnSync(process.execPath, [SCANNER, '--base', 'HEAD'], { cwd: root, encoding: 'utf8' });
 }
 
@@ -85,4 +96,17 @@ test('real git PR-gate is strict for different thresholds but offers review', t 
   ].join('\n'));
   assert.equal(result.status, 1, result.stdout + result.stderr);
   assert.match(result.stderr, /POSSIBLE OVERLAP/);
+});
+
+
+test('standalone overlap gate regenerates artifacts referencing deleted sources', t => {
+  const result = runCase(t, [
+    'export function countLiving(state: { animals: number }): number {',
+    '  return state.animals * 7 + 13;',
+    '}',
+    '',
+  ].join('\n'), { staleGraph: true });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /Refreshed stale call graph/);
+  assert.match(result.stdout, /1 modified functions \/ 2 indexed \/ 0 unresolved matches/);
 });
