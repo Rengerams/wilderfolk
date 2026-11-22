@@ -101,7 +101,7 @@ export function assignPendingGraves(state: WorldState): void {
   if (!graves?.some((grave) => grave.faction === 'player' && grave.graveyardId == null)) return;
   const capacity = new Map<number, number>();
   for (const building of state.buildings) {
-    if (building.completed && building.type === BuildingType.Graveyard && building.faction !== 'rival') {
+    if (building.completed && building.type === BuildingType.Graveyard) {
       capacity.set(building.id, GRAVEYARD_CAPACITY_PER_YARD);
     }
   }

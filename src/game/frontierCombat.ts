@@ -525,7 +525,7 @@ function persistBattleAftermath(
   (after.scoredRaidIds ??= []).push(raidId);
   const beforeAlive = new Map(before.entities.filter((entity) => entity.alive && !entity.faction && entity.type === EntityType.Human).map((entity) => [entity.id, formatCitizenName(entity)]));
   const fallen = [...new Set([...confirmedPlayerFallen, ...after.entities.filter((entity) => beforeAlive.has(entity.id) && !entity.alive).map((entity) => beforeAlive.get(entity.id)!)])];
-  const previousBuildings = new Map(before.buildings.filter((building) => !building.faction).map((building) => [building.id, building.health]));
+  const previousBuildings = new Map(before.buildings.map((building) => [building.id, building.health]));
   const currentBuildings = new Map(after.buildings.map((home) => [home.id, home]));
   const damagedBuildings = [...previousBuildings].filter(([id, health]) => {
     const current = currentBuildings.get(id);

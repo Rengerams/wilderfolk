@@ -1063,7 +1063,7 @@ function workforceSignature(world: WorldState, humans: readonly Entity[]): strin
     return `${human.id}:${human.alive ? 1 : 0}:${human.isJuvenile ? 1 : 0}:${human.workerBuildingId ?? ''}:${human.residenceBuildingId ?? ''}:${human.prisonBuildingId ?? ''}:${human.lastAutoJobTransferTick ?? ''}:${transferable ? 1 : 0}:${originCell}:${human.faction ?? ''}`;
   });
   const sites = world.buildings.map((site) =>
-    `${site.id}:${site.type}:${site.completed ? 1 : 0}:${site.faction ?? ''}:${site.level ?? 1}:${site.completed ? '' : site.occupants.join(',')}`,
+    `${site.id}:${site.type}:${site.completed ? 1 : 0}:${site.level ?? 1}:${site.completed ? '' : site.occupants.join(',')}`,
   );
   return `${week}|${priority}|${resourceNeeds}|${residents.join(';')}|${sites.join(';')}`;
 }

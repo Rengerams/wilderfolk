@@ -58,12 +58,12 @@ function computePopulationSnapshot(state: WorldState): PopulationSnapshot {
   return { pop, beds, houseCount, mansionCount, leaderHouseBeds };
 }
 
-/** Everything a bed projection depends on — level, type, ownership and completion. */
+/** Everything a bed projection depends on — level, type and completion. */
 function buildingStateSignature(buildings: readonly Building[]): string {
   let signature = String(buildings.length);
   for (let i = 0; i < buildings.length; i++) {
     const building = buildings[i];
-    signature += `|${building.id}:${building.type}:${building.level ?? 1}:${building.completed ? 1 : 0}:${building.faction ?? ''}`;
+    signature += `|${building.id}:${building.type}:${building.level ?? 1}:${building.completed ? 1 : 0}`;
   }
   return signature;
 }

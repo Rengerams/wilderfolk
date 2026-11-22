@@ -459,7 +459,6 @@ function deriveDashboardBuildings(state: WorldState): DashboardBuilding[] {
   const occupancy = buildResidenceOccupancy(state.entities);
   const rows: DashboardBuilding[] = [];
   for (const building of state.buildings) {
-    if (building.faction === 'rival') continue;
     const residence = building.completed && isResidenceBuildingType(building.type);
     // A finished workplace's slot count is the staffing owner's: a Prison's occupants are guards ∪ prisoners.
     const staffing = !residence && building.completed && BUILDING_JOB_TYPES[building.type] !== undefined
