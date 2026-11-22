@@ -4,11 +4,13 @@
 
 | Changed function(s) | Sole owner | Responsibility / verification |
 |---|---|---|
-| `segmentCrossesBlocked` (new internal), `searchRoute`, `hasLineOfSight`, `lineCrossesBlocked`, `isWalkStepAllowed`, `isGroundWalkableAt` | `src/game/pathfinding.ts` | One exact grid traversal for A* diagonal eligibility, waypoint smoothing, visual obstruction queries and actual walk integration; preserves blocked-origin escape and rejects blocked diagonal corners, including steep orthogonal neighbours, cliffs and long steps. `tests/pathfinding.segmentTraversal.test.ts` |
-| `nearestWalkableTile` (new internal), `findNearestWalkable`, `nearestWalkableWorldPoint` | `src/game/pathfinding.ts` | One bounded ring search over the existing passability grid, selecting the closest tile centre beyond arbitrary building depths; no separate snap/search authority. `tests/pathfinding.segmentTraversal.test.ts`, `tests/pathfinding.nearestWalkable.test.ts` |
-| `findRouteCostOutcome`, `getRouteObstruction` | `src/game/pathfinding.ts` | Same-cell cost 0; distinguish exhausted route search (`pending`) from proven disconnection (`blocked`) using the existing bounded A*. `tests/pathfinding.segmentTraversal.test.ts` |
+| `segmentCrossesBlocked`, `searchRoute`, `hasLineOfSight`, `lineCrossesBlocked`, `isWalkStepAllowed`, `isGroundWalkableAt`, `pricedRoadMask` | `src/game/pathfinding.ts` | Shared tile, diagonal and cliff rules for movement/A*, bridge deck handling and map bounds; slope-aware routes retain their A* tile steps. Road discounts use the existing pricing owner. `tests/pathfinding.segmentTraversal.test.ts` |
+| `nearestWalkableTile`, `findNearestWalkable`, `nearestWalkableWorldPoint` | `src/game/pathfinding.ts` | One nearest-stand-point fallback for blocked starts, finite/out-of-bounds restoration and same-snapped-endpoint recovery; no alternate path owner. `tests/pathfinding.segmentTraversal.test.ts` |
+| `findRouteCostOutcome`, `getRouteObstruction`, `walkRoute`, `steerWithPath` | `src/game/pathfinding.ts` | Preserve bounded/unreachable quotes, use read-only grids/metrics, reject stale cached segments, reach requested world-space targets and avoid repeated identical A*. `tests/pathfinding.segmentTraversal.test.ts`, `tests/medium-A-movement.test.ts` |
 | `SettlerMovementStatus`, `explainSettlerMovement` (route text) | `src/game/dashboardData.ts` | Read-only display of pending vs blocked; `workAbsence.ts` continues to label unreachable only for confirmed blocked verdicts |
-| `grid` (test fixture), `center` (test coordinate helper) | `tests/pathfinding.segmentTraversal.test.ts` | Test-only owners constructing elevation/blocked grid cases and tile-centre coordinates, including 2×2 diagonal cliff corners; no separate production walkability logic |
+| `faceVelocity`, `setVelocityToward` | `src/game/simulation/movementSteering.ts` | Existing owner preserves facing at rest, caps steps to remaining distance and rejects non-finite inputs. `tests/movementSteering.validity.test.ts` |
+| `recordPathNodes`, `setPathfindingMetricsEnabled`, `getPathfinderReport` | `src/game/pathfindingMetrics.ts` | Ignore non-finite metrics, isolate disabled intervals and average only expanded A* searches. `tests/pathfindingMetrics.test.ts` |
+| `grid`, `center` | `tests/pathfinding.segmentTraversal.test.ts` | Test-only fixtures for steep corners, bridge decks, snapped starts, stale routes and map boundaries |
 
 
 
