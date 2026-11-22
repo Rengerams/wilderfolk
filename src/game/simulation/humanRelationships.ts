@@ -1468,7 +1468,7 @@ export function tryDailyAffairEncounter(
   buildingById: Map<number, Building>,
   churchStrength: number,
   hourOfDay: number,
-  humanSocialGrid?: EntitySpatialGrid,
+  humanSocialGrid?: EntitySpatialGrid<Entity>,
   playerHumans?: readonly Entity[],
   width?: number,
   height?: number,
