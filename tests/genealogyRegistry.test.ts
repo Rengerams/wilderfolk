@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { human } from '../src/test/factories';
-import type { WorldState } from '../src/game/gameTypes';
+import { EntityType, type Entity, type WorldState } from '../src/game/gameTypes';
+import { buildFullFamilyTree } from '../src/game/familyTree';
 import { findFamilyGroupRoot, descendantsOf, largestBloodlines, largestExtendedFamilies, recordGenealogyBirth, recordGenealogyDeath, syncGenealogyRegistry } from '../src/game/genealogyRegistry';
 
 function world(): WorldState {
@@ -61,6 +62,61 @@ describe('persistent genealogy registry', () => {
     expect(largestExtendedFamilies(registry, 1)[0].livingMembers).toBe(3);
     expect(descendantsOf(registry, 1)).toHaveLength(0);
     expect(descendantsOf(registry, 2).map(person => person.id)).toEqual([3]);
+  });
+
+  it('retains a human mother and a deer father in the Wildkin family tree and after death', () => {
+    const state = world();
+    const mother = human(1, { name: 'Maren' });
+    const deer = { id: 9, type: EntityType.Deer, alive: true, birthYear: 2, birthDay: 15 } as Entity;
+    const wildkin = {
+      id: 10, type: EntityType.Wildkin, alive: true, name: 'Wildkin #10',
+      motherId: mother.id, fatherId: deer.id, age: 0, birthYear: 4, birthDay: 15,
+      isJuvenile: true,
+    } as Entity;
+    state.entities = [mother, deer];
+
+    syncGenealogyRegistry(state);
+    recordGenealogyBirth(state, deer);
+    recordGenealogyBirth(state, wildkin);
+    // Production's newEntities have not been committed to state.entities at this phase.
+    syncGenealogyRegistry(state, [mother, deer, wildkin]);
+
+    const record = state.genealogyRegistry!.people['10'];
+    expect(record.alive).toBe(true);
+    expect(record.entityType).toBe(EntityType.Wildkin);
+    expect(record.motherId).toBe(mother.id);
+    expect(record.fatherId).toBe(deer.id);
+    expect(state.genealogyRegistry!.people['1'].childrenIds).toContain(10);
+    expect(state.genealogyRegistry!.people['9'].childrenIds).toContain(10);
+
+    const tree = buildFullFamilyTree(mother, [mother, deer, wildkin]);
+    expect(tree.parentLinks.get(wildkin.id)).toEqual(expect.arrayContaining([mother.id, deer.id]));
+
+    state.entities = [mother, deer, wildkin];
+    recordGenealogyDeath(state, wildkin);
+    const saved = structuredClone(state);
+    expect(saved.genealogyRegistry!.people['10'].alive).toBe(false);
+    expect(saved.genealogyRegistry!.people['10'].fatherId).toBe(deer.id);
+  });
+
+  it('records both parents of a Wildkin-to-Wildkin newborn without assuming their gender', () => {
+    const state = world();
+    const a = { id: 4, type: EntityType.Wildkin, alive: true, name: 'Wildkin #4' } as Entity;
+    const b = { id: 5, type: EntityType.Wildkin, alive: true, name: 'Wildkin #5' } as Entity;
+    const child = {
+      id: 6, type: EntityType.Wildkin, alive: true, name: 'Wildkin #6',
+      wildkinParentIds: [4, 5],
+    } as Entity;
+    state.entities = [a, b, child];
+    recordGenealogyBirth(state, a);
+    recordGenealogyBirth(state, b);
+    recordGenealogyBirth(state, child);
+    syncGenealogyRegistry(state);
+    expect(state.genealogyRegistry!.people['6'].wildkinParentIds).toEqual([4, 5]);
+    expect(state.genealogyRegistry!.people['4'].childrenIds).toContain(6);
+    expect(state.genealogyRegistry!.people['5'].childrenIds).toContain(6);
+    expect(buildFullFamilyTree(a, [a, b, child]).parentLinks.get(6))
+      .toEqual(expect.arrayContaining([4, 5]));
   });
 
   it('records a newborn not yet merged into the world entity list', () => {
