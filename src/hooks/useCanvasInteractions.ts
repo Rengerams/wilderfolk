@@ -11,7 +11,6 @@ import { buildStripPreview, getPlaceBuildingFailureReason } from '../game/buildi
 import { canPlaceBuilding } from '../game/placementUtils';
 import {
   screenToWorld,
-  focusCameraOn,
   nudgeCameraToward,
   clampCameraTarget,
   createBuildGhost,
