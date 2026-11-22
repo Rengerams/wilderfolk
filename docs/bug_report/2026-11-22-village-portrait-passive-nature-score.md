@@ -1,17 +1,17 @@
 # Untouched starting valley receives a nature-steward identity
 
 - Bug: A stable starting biome and native wildlife earn Nature points before any conservation action.
-- Status: investigating
+- Status: resolved
 - Severity: medium
 - Date discovered: 2026-11-22
 - Version/build: 0.6.5.2 (main at 214294c939815df52048bd02f9a269b80423304e)
 - Reporter: code review and deterministic score calculation
 - Area: Progress → Your path
 - Owner module: `src/game/villagePortrait.ts`
-- Related branch: `fix/village-portrait-player-choices-20261122`
+- Related PR: [#155](https://github.com/Rengerams/wilderfolk/pull/155)
 
 ## Status history
-- 2026-11-22 — investigating: projection and regression tests committed; CI verification pending.
+- 2026-11-22 — resolved: all six portrait regressions, the standard Node.js CI gate and calendar scheduler gate passed on commit 9ddd35c; longer simulations remain in progress.
 
 ## Observed behavior
 For a starting village with ecosystem health 50 and a `stable` valley, the previous Nature formula gave `(50 / 100) * 45 + 25 = 47.5`, rounded to 48, with no player-owned conservation sites. Nature was the strongest identity and the title was “Stewards of the valley.” The “Young pioneers” fallback required a strongest score below 20. Native wolves and Wildkin raised Nature further without any village action.
@@ -39,4 +39,4 @@ Reuse `isCompletedPlayerBuilding`, reward completed wildlife preserves and susta
 None; only existing read-only state fields are used.
 
 ## Verification result
-NOT RUN at filing — `tests/villagePortrait.test.ts` was added; CI verification pending.
+PASS — six tests in `tests/villagePortrait.test.ts`, Node.js CI [run 44981084613](https://github.com/Rengerams/wilderfolk/actions/runs/44981084613) and calendar scheduler [run 44981084599](https://github.com/Rengerams/wilderfolk/actions/runs/44981084599) passed at commit 9ddd35c. Long-run and population performance checks were still running at verification.
