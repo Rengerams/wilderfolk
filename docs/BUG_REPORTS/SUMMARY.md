@@ -4,7 +4,7 @@
 
 **2026-11-22 — [Predator breeding ceiling collapses the prey base](../bug_report/2026-11-22-wildlife-predator-ceiling-collapses-prey.md):** open; wolf capacity (25) and the prey floor (16 rabbits every 3 days, wolf target 10) live in two owners; both harness seeds reach rabbits 0 / wolves 25 by day 90.
 
-**2026-11-22 — [Architecture docs still schedule the retired visitor camps](../bug_report/2026-11-22-architecture-doc-still-schedules-retired-visitors.md):** open — documents fixed 2026-11-22; `tickVisitorGroups` and its spawners have no caller, so the layer table, ownership ledger and TEST-16 report were corrected or marked legacy; the two unreachable `state.visitorGroups` reads in `humanTick.ts` remain code work.
+**2026-11-22 — [Architecture docs still schedule the retired visitor camps](../bug_report/2026-11-22-architecture-doc-still-schedules-retired-visitors.md):** resolved — documents corrected and the two unreachable `state.visitorGroups` reads in `humanTick.ts` removed 2026-11-22; `tickVisitorGroups` and its spawners still have no caller, so the layer table, ownership ledger and TEST-16 report are corrected or marked legacy.
 
 **2026-11-22 — [New storage building stays capped until the next production pass](../bug_report/2026-11-22-storage-caps-stale-after-night-construction.md):** investigating; PR #166 refreshes the existing capacity owner on construction completion at 23:00; Barn/Silo/Storehouse regression and CI pending.
 

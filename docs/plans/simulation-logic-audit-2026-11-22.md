@@ -56,9 +56,9 @@ and the surrounding system has not been told:
 - **No data.** Save loading replaces the array with `visitorGroups: []`
   (`src/game/saveLoad.ts:1529`) and filters visitor actors out (`saveLoad.ts:1549`), so even a save
   written by an older build loads with the subsystem empty.
-- **Two unreachable reads.** `src/game/humanTick.ts:481` looks for festival performers in
-  `state.visitorGroups`, and `humanTick.ts:1355` checks for performers before courtship. Both
-  branches are dead: the array is always empty.
+- **Two unreachable reads (removed 2026-11-22).** `src/game/humanTick.ts:481` looked for festival
+  performers in `state.visitorGroups`, and `humanTick.ts:1355` checked for performers before
+  courtship. Both branches were dead: the array is always empty.
 
 The countdown arithmetic itself is correct — arrival day is a grace day, `daysLeft` decrements at
 each following midnight, and the departure block runs on the tick the counter reaches zero
@@ -88,7 +88,7 @@ every reader (and every future agent) assumes it runs.
 ### Recommended fix
 
 Delete the retired surface (`tickVisitorGroups`, `spawnVisitorGroup`, `tryMidYearVisitorEvent`,
-`tryFirstWeekVisitor`, the two `state.visitorGroups` reads) and keep only the load-time strip as
+`tryFirstWeekVisitor`; the two `state.visitorGroups` reads are already gone) and keep only the load-time strip as
 explicit legacy save-compatibility code with a comment saying so. Then correct the layer table, the
 ledger row and the 2026-11-07 report's verification section. If the camps are planned to return,
 mark them as such in the roadmap instead of leaving them registered as live.
@@ -370,8 +370,8 @@ defence, deterministic triggers). The unit-suite and harness rows still describe
    This is the only finding that visibly degrades a played game.
 2. **F-02** — raise the day-roll resolution in a release that accepts a new deterministic baseline,
    with one effective-rate test.
-3. **F-03 / F-05** — F-03's documentation half is done (2026-11-22); the two dead
-   `state.visitorGroups` reads and the F-05 cadence descriptions remain.
+3. **F-03 / F-05** — F-03 is done (2026-11-22): documents corrected and the two dead
+   `state.visitorGroups` reads removed. The F-05 cadence descriptions remain.
 4. ~~**F-04** — restore a green `npm run audit`.~~ Done 2026-11-22.
 5. **F-06** — add a non-vacuity assertion to the weekly gate. F-07 (call-graph artifacts) is done.
 

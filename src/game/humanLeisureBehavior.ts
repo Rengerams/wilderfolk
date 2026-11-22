@@ -1,4 +1,4 @@
-import type { Building, Entity, WorldState, VisitorGroup } from './gameTypes';
+import type { Building, Entity, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition, crowdGatherPosition, homeStandPosition, steerHumanToward } from './simulation/humanMovement';
 import { faceVelocity } from './simulation/movementSteering';
@@ -360,7 +360,6 @@ export function tickHumanLeisure(args: {
   workplace: Building | undefined;
   workSchedule: ReturnType<typeof getWorkSchedule>;
   idleVenues: readonly Building[];
-  festivalPerformers: VisitorGroup | undefined;
   treeGrid: TickContext['treeGrid'];
   trees: readonly Entity[];
   weekend: boolean;
@@ -370,7 +369,7 @@ export function tickHumanLeisure(args: {
     allHumans, entityById, pickSocialBuilding, updatedBuildings, buildingById, humanSocialGrid,
     width, height, livingHumanAt, settlerChat, settlerPairChat, completedPoolOf,
     workersByWorkplace, workerIndexById, workplace, workSchedule, idleVenues,
-    festivalPerformers, treeGrid, trees, weekend,
+    treeGrid, trees, weekend,
   } = args;
   let suppressIdle = args.suppressIdleInitial;
 
@@ -712,11 +711,6 @@ export function tickHumanLeisure(args: {
               gx = hallCentre.x;
               gy = hallCentre.y + hall.height / 2 + 20;
             }
-          }
-          const performers = festivalPerformers;
-          if (performers) {
-            gx = performers.campX;
-            gy = performers.campY;
           }
           steerTo(gx + ((entity.id % 6) - 2.5) * 12, gy + ((entity.id % 5) - 2) * 10, 0.5, 22);
         } else if (leisureKind === 8) {

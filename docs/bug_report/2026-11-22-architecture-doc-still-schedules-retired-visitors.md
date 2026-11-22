@@ -1,7 +1,7 @@
 # Architecture docs still schedule the retired visitor camps
 
 - Bug: On-map visitor camps were retired and their tick has no caller, but the architecture doc, the ownership ledger and the TEST-16 report still describe the feature as running at 00:00.
-- Status: open (living documents corrected 2026-11-22; the two dead `state.visitorGroups` reads remain)
+- Status: resolved
 - Severity: low
 - Date discovered: 2026-11-22
 - Version/build: V.0.6.5.1 / `audit-simulation-logic` @ `ecd9866c`
@@ -13,6 +13,7 @@
 ## Status history
 - 2026-11-22 — open: confirmed by call-site search and a read of the three documents; not yet fixed.
 - 2026-11-22 — open (documents fixed): the architecture layer/module/tree tables, the ownership ledger rows and the TEST-16 report were corrected or marked legacy; the two unreachable `state.visitorGroups` reads in `humanTick.ts` are still code work.
+- 2026-11-22 — resolved: both `state.visitorGroups` reads in `humanTick.ts` are removed, with the performer target they fed in `humanLeisureBehavior.ts` and the dead performer courtship multiplier; the two tests that pinned them were updated.
 
 ## Observed behavior
 
@@ -21,8 +22,8 @@
   "on each inflow".
 - `docs/bug_report/2026-11-07-visitor-groups-never-depart.md` is marked **resolved** by moving the
   visitor lifecycle call to 00:00; that call no longer exists.
-- `humanTick.ts:481` and `humanTick.ts:1355` still read `state.visitorGroups` for festival performers
-  and courtship; the array is always empty because save loading clears it.
+- `humanTick.ts:481` and `humanTick.ts:1355` read `state.visitorGroups` for festival performers and
+  courtship; the array is always empty because save loading clears it (both reads removed 2026-11-22).
 
 ## Expected behavior
 
@@ -57,8 +58,11 @@ rows for the daily scheduler, event-site sampling, yearly events, camp hit testi
 food-ledger sources and the visitor quest now say retired or legacy; the TEST-16 report carries a
 deprecation banner.
 
-Remaining (code): drop the two unreachable `state.visitorGroups` reads in `humanTick.ts` (festival
-performers and the courtship multiplier) with the rest of the retired surface.
+Done 2026-11-22 (code): the two unreachable `state.visitorGroups` reads are gone — the festival
+gathering target now resolves to the Square, else a staffed Town Hall, else the map centre; the
+courtship rate keeps only the festival and cohabitation multipliers. The `festivalPerformers` input
+of `tickHumanLeisure` went with them, and the two tests that pinned the performer branches now cover
+only the shipped paths.
 
 ## Save/migration impact
 
@@ -68,5 +72,5 @@ None — the load path already strips visitor groups and actors.
 
 - Reproduction: PASS — call-site search and document reads above.
 - Fix (documents): PASS — the quoted `ARCHITECTURE.md` and `OWNERSHIP_OVERVIEW.md` lines no longer describe live visitors, and the TEST-16 report is marked deprecated.
-- Fix (code): NOT IMPLEMENTED — the two `humanTick.ts` reads remain.
+- Fix (code): PASS — `rg -n "visitorGroups" src/game/humanTick.ts src/game/humanLeisureBehavior.ts` returns nothing; `npm run test:types`, `npm run lint`, the targeted vitest suites (`workerHandoff.state`, `humanLeisureBehavior`, `humanTick.hotPathIndexes`, `courtship.churchRestraint`, `personality.romanceContext`, `duplicationA.remaining`, `simulation.decisionRegistry`, `venueSchedule`), the semantic-duplicate and function-overlap gates all PASS.
 - Docs check (`node scripts/test.mjs check`): PASS after the change.

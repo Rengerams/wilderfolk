@@ -1,6 +1,6 @@
 {
  "generatedFrom": "src/**/*.{ts,tsx} + decisionRegistry.ts + OWNERSHIP_OVERVIEW.md",
- "generatedAt": "2026-11-22T15:48:53.810Z",
+ "generatedAt": "2026-11-22T15:51:25.970Z",
  "stats": {
   "files": 401,
   "functions": 3417,
@@ -12,7 +12,7 @@
   "decisions": 483,
   "ambiguousCalls": 5,
   "injectedCallbackCalls": 209,
-  "externalMethodCalls": 9451,
+  "externalMethodCalls": 9449,
   "resolutionKinds": {
    "local": 4098,
    "imported": 6013,
@@ -20,7 +20,7 @@
    "methodThis": 279,
    "methodInstance": 51,
    "injectedCallback": 209,
-   "external": 9451,
+   "external": 9449,
    "uniqueName": 50
   }
  },
@@ -21673,12 +21673,12 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 668
+     "line": 667
     },
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1275
+     "line": 1272
     },
     {
      "index": 2573,
@@ -21741,12 +21741,12 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 675
+     "line": 674
     },
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1282
+     "line": 1279
     },
     {
      "index": 2573,
@@ -22656,7 +22656,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 555
+     "line": 554
     }
    ],
    "callees": []
@@ -22809,7 +22809,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 548
+     "line": 547
     }
    ],
    "callees": []
@@ -23304,7 +23304,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 844
+     "line": 842
     },
     {
      "index": 1510,
@@ -23422,7 +23422,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 751
+     "line": 749
     },
     {
      "index": 1746,
@@ -23927,7 +23927,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 582
+     "line": 581
     },
     {
      "index": 1504,
@@ -28899,7 +28899,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 607
+     "line": 605
     },
     {
      "index": 3249,
@@ -29100,7 +29100,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 613
+     "line": 611
     },
     {
      "index": 3284,
@@ -32127,7 +32127,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 569
+     "line": 567
     }
    ],
    "callees": []
@@ -32552,7 +32552,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 498
+     "line": 496
     }
    ],
    "callees": [
@@ -33227,7 +33227,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 417
+     "line": 416
     },
     {
      "index": 1390,
@@ -33237,7 +33237,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 703
+     "line": 701
     },
     {
      "index": 1520,
@@ -33900,7 +33900,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 817
+     "line": 815
     },
     {
      "index": 1870,
@@ -34764,7 +34764,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 626
+     "line": 624
     },
     {
      "index": 1547,
@@ -35659,7 +35659,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 882
+     "line": 880
     }
    ],
    "callees": [
@@ -37687,7 +37687,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 609
+     "line": 607
     },
     {
      "index": 1878,
@@ -38240,7 +38240,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 496
+     "line": 494
     }
    ],
    "callees": [
@@ -38268,7 +38268,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1141
+     "line": 1138
     }
    ],
    "callees": [
@@ -38371,7 +38371,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 570
+     "line": 568
     }
    ],
    "callees": [
@@ -53104,7 +53104,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 712
+     "line": 710
     }
    ],
    "callees": [
@@ -53142,7 +53142,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 602
+     "line": 600
     },
     {
      "index": 3248,
@@ -53190,7 +53190,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 603
+     "line": 601
     },
     {
      "index": 3249,
@@ -53715,7 +53715,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 542
+     "line": 540
     },
     {
      "index": 3249,
@@ -53763,7 +53763,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 997
+     "line": 995
     }
    ],
    "callees": [
@@ -54355,7 +54355,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1002
+     "line": 1000
     }
    ],
    "callees": []
@@ -55772,7 +55772,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 749
+     "line": 743
     },
     {
      "index": 1380,
@@ -55782,7 +55782,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 996
+     "line": 994
     },
     {
      "index": 2551,
@@ -56147,7 +56147,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1326
+     "line": 1323
     },
     {
      "index": 2551,
@@ -56205,7 +56205,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1262
+     "line": 1259
     },
     {
      "index": 2578,
@@ -62938,7 +62938,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 855
+     "line": 853
     }
    ],
    "callees": [
@@ -62976,7 +62976,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 871
+     "line": 869
     }
    ],
    "callees": [
@@ -63190,7 +63190,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 757
+     "line": 755
     },
     {
      "index": 3249,
@@ -63261,7 +63261,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1562
+     "line": 1557
     }
    ],
    "callees": [
@@ -63342,7 +63342,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1580
+     "line": 1575
     }
    ],
    "callees": [
@@ -63415,7 +63415,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1244
+     "line": 1241
     }
    ],
    "callees": [
@@ -63558,17 +63558,17 @@
     {
      "index": 1373,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 439
+     "line": 438
     },
     {
      "index": 1375,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 565
+     "line": 564
     },
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 593
+     "line": 592
     }
    ],
    "callees": []
@@ -63595,7 +63595,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 418
+     "line": 417
     }
    ],
    "callees": []
@@ -63617,7 +63617,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 419
+     "line": 418
     }
    ],
    "callees": [
@@ -63655,7 +63655,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 396
+     "line": 395
     }
    ],
    "callees": [
@@ -63768,12 +63768,12 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 702
+     "line": 701
     },
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1287
+     "line": 1284
     }
    ],
    "callees": [
@@ -63879,7 +63879,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 463
+     "line": 462
     }
    ],
    "callees": [
@@ -63984,8 +63984,8 @@
    "name": "tickHumanLeisure",
    "file": "src/game/humanLeisureBehavior.ts",
    "line": 337,
-   "bodyStart": 367,
-   "bodyEnd": 772,
+   "bodyStart": 366,
+   "bodyEnd": 766,
    "exported": true,
    "kind": "function",
    "className": null,
@@ -63997,198 +63997,198 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1610
+     "line": 1605
     }
    ],
    "callees": [
     {
      "index": 1687,
      "file": "src/game/playerHuman.ts",
-     "line": 379
+     "line": 378
     },
     {
      "index": 2511,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 385
+     "line": 384
     },
     {
      "index": 1368,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 396
+     "line": 395
     },
     {
      "index": 640,
      "file": "src/game/dayCycleClock.ts",
-     "line": 417
+     "line": 416
     },
     {
      "index": 1366,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 418
+     "line": 417
     },
     {
      "index": 1367,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 419
+     "line": 418
     },
     {
      "index": 1371,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 463
+     "line": 462
     },
     {
      "index": 1430,
      "file": "src/game/humanTick.ts",
-     "line": 483
+     "line": 482
     },
     {
      "index": 2548,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 503
+     "line": 502
     },
     {
      "index": 2603,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 504
+     "line": 503
     },
     {
      "index": 2551,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 505
+     "line": 504
     },
     {
      "index": 2390,
      "file": "src/game/simRng.ts",
-     "line": 507
+     "line": 506
     },
     {
      "index": 1615,
      "file": "src/game/pathfinding.ts",
-     "line": 530
+     "line": 529
     },
     {
      "index": 2405,
      "file": "src/game/simRng.ts",
-     "line": 544
+     "line": 543
     },
     {
      "index": 408,
      "file": "src/game/beautyGrid.ts",
-     "line": 548
+     "line": 547
     },
     {
      "index": 1373,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 554
+     "line": 553
     },
     {
      "index": 403,
      "file": "src/game/beautyGrid.ts",
-     "line": 555
+     "line": 554
     },
     {
      "index": 2538,
      "file": "src/game/simulation/humanPhysiology.ts",
-     "line": 556
+     "line": 555
     },
     {
      "index": 2346,
      "file": "src/game/simEffects.ts",
-     "line": 557
+     "line": 556
     },
     {
      "index": 1374,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 570
+     "line": 569
     },
     {
      "index": 2514,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 572
+     "line": 571
     },
     {
      "index": 1375,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 575
+     "line": 574
     },
     {
      "index": 433,
      "file": "src/game/buildingGeometry.ts",
-     "line": 582
+     "line": 581
     },
     {
      "index": 2513,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 583
+     "line": 582
     },
     {
      "index": 1365,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 593
+     "line": 592
     },
     {
      "index": 1436,
      "file": "src/game/humanTick.ts",
-     "line": 599
+     "line": 598
     },
     {
      "index": 1435,
      "file": "src/game/humanTick.ts",
-     "line": 601
+     "line": 600
     },
     {
      "index": 2531,
      "file": "src/game/simulation/humanNeeds.ts",
-     "line": 640
+     "line": 639
     },
     {
      "index": 2641,
      "file": "src/game/socialLife.ts",
-     "line": 666
+     "line": 665
     },
     {
      "index": 374,
      "file": "src/game/adaptiveSpatialQuery.ts",
-     "line": 668
+     "line": 667
     },
     {
      "index": 375,
      "file": "src/game/adaptiveSpatialQuery.ts",
-     "line": 675
+     "line": 674
     },
     {
      "index": 1369,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 702
+     "line": 701
     },
     {
      "index": 2375,
      "file": "src/game/simQueries.ts",
-     "line": 723
+     "line": 717
     },
     {
      "index": 1192,
      "file": "src/game/housingModel.ts",
-     "line": 749
+     "line": 743
     },
     {
      "index": 2515,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 752
+     "line": 746
     },
     {
      "index": 2612,
      "file": "src/game/simulation/movementSteering.ts",
-     "line": 765
+     "line": 759
     }
    ]
   },
   {
    "name": "steerTo",
    "file": "src/game/humanLeisureBehavior.ts",
-   "line": 425,
-   "bodyStart": 425,
-   "bodyEnd": 455,
+   "line": 424,
+   "bodyStart": 424,
+   "bodyEnd": 454,
    "exported": false,
    "kind": "const-arrow",
    "className": null,
@@ -64200,48 +64200,48 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 554
+     "line": 553
     },
     {
      "index": 1375,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 564
+     "line": 563
     }
    ],
    "callees": [
     {
      "index": 1617,
      "file": "src/game/pathfinding.ts",
-     "line": 431
+     "line": 430
     },
     {
      "index": 1594,
      "file": "src/game/pathfinding.ts",
-     "line": 432
+     "line": 431
     },
     {
      "index": 2510,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 438
+     "line": 437
     },
     {
      "index": 1365,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 439
+     "line": 438
     },
     {
      "index": 1615,
      "file": "src/game/pathfinding.ts",
-     "line": 446
+     "line": 445
     }
    ]
   },
   {
    "name": "pickCompleted",
    "file": "src/game/humanLeisureBehavior.ts",
-   "line": 457,
-   "bodyStart": 457,
-   "bodyEnd": 461,
+   "line": 456,
+   "bodyStart": 456,
+   "bodyEnd": 460,
    "exported": false,
    "kind": "const-arrow",
    "className": null,
@@ -64253,28 +64253,28 @@
     {
      "index": 1375,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 561
+     "line": 560
     },
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 570
+     "line": 569
     }
    ],
    "callees": [
     {
      "index": 1432,
      "file": "src/game/humanTick.ts",
-     "line": 458
+     "line": 457
     }
    ]
   },
   {
    "name": "steerToShop",
    "file": "src/game/humanLeisureBehavior.ts",
-   "line": 560,
-   "bodyStart": 560,
-   "bodyEnd": 566,
+   "line": 559,
+   "bodyStart": 559,
+   "bodyEnd": 565,
    "exported": false,
    "kind": "const-arrow",
    "className": null,
@@ -64286,29 +64286,29 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 575
+     "line": 574
     }
    ],
    "callees": [
     {
      "index": 1374,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 561
+     "line": 560
     },
     {
      "index": 2514,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 563
+     "line": 562
     },
     {
      "index": 1373,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 564
+     "line": 563
     },
     {
      "index": 1365,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 565
+     "line": 564
     }
    ]
   },
@@ -64803,7 +64803,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 744
+     "line": 742
     },
     {
      "index": 3249,
@@ -64863,7 +64863,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 655
+     "line": 653
     },
     {
      "index": 3248,
@@ -64906,7 +64906,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 737
+     "line": 735
     }
    ],
    "callees": []
@@ -64928,7 +64928,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1262
+     "line": 1259
     },
     {
      "index": 1882,
@@ -64966,7 +64966,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 541
+     "line": 539
     },
     {
      "index": 1890,
@@ -65034,7 +65034,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 893
+     "line": 891
     },
     {
      "index": 3249,
@@ -65120,7 +65120,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 971
+     "line": 969
     },
     {
      "index": 2603,
@@ -66053,7 +66053,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1454
+     "line": 1449
     }
    ],
    "callees": [
@@ -66086,7 +66086,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1459
+     "line": 1454
     }
    ],
    "callees": [
@@ -66119,7 +66119,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 905
+     "line": 903
     }
    ],
    "callees": [
@@ -66162,7 +66162,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 799
+     "line": 797
     }
    ],
    "callees": [
@@ -66213,7 +66213,7 @@
    "file": "src/game/humanTick.ts",
    "line": 270,
    "bodyStart": 270,
-   "bodyEnd": 1717,
+   "bodyEnd": 1711,
    "exported": true,
    "kind": "function",
    "className": null,
@@ -66362,652 +66362,652 @@
     {
      "index": 2547,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 491
+     "line": 489
     },
     {
      "index": 769,
      "file": "src/game/education.ts",
-     "line": 496
+     "line": 494
     },
     {
      "index": 628,
      "file": "src/game/dayCycle.ts",
-     "line": 498
+     "line": 496
     },
     {
      "index": 2579,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 514
+     "line": 512
     },
     {
      "index": 2622,
      "file": "src/game/simulation/simulationEntities.ts",
-     "line": 515
+     "line": 513
     },
     {
      "index": 2578,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 528
+     "line": 526
     },
     {
      "index": 2580,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 529
+     "line": 527
     },
     {
      "index": 2604,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 539
+     "line": 537
     },
     {
      "index": 1393,
      "file": "src/game/humanSchedule.ts",
-     "line": 541
+     "line": 539
     },
     {
      "index": 1155,
      "file": "src/game/hotelStay.ts",
-     "line": 542
+     "line": 540
     },
     {
      "index": 2563,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 545
+     "line": 543
     },
     {
      "index": 2605,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 554
+     "line": 552
     },
     {
      "index": 621,
      "file": "src/game/dayCycle.ts",
-     "line": 569
+     "line": 567
     },
     {
      "index": 773,
      "file": "src/game/education.ts",
-     "line": 570
+     "line": 568
     },
     {
      "index": 2564,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 582
+     "line": 580
     },
     {
      "index": 2565,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 583
+     "line": 581
     },
     {
      "index": 3304,
      "file": "src/game/workforce.ts",
-     "line": 587
+     "line": 585
     },
     {
      "index": 1141,
      "file": "src/game/hospitalShifts.ts",
-     "line": 602
+     "line": 600
     },
     {
      "index": 1142,
      "file": "src/game/hospitalShifts.ts",
-     "line": 603
+     "line": 601
     },
     {
      "index": 555,
      "file": "src/game/commuteReach.ts",
-     "line": 607
+     "line": 605
     },
     {
      "index": 2518,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 607
+     "line": 605
     },
     {
      "index": 755,
      "file": "src/game/education.ts",
-     "line": 609
+     "line": 607
     },
     {
      "index": 561,
      "file": "src/game/commuteReach.ts",
-     "line": 613
+     "line": 611
     },
     {
      "index": 676,
      "file": "src/game/defenseStructures.ts",
-     "line": 626
+     "line": 624
     },
     {
      "index": 3052,
      "file": "src/game/venueSchedule.ts",
-     "line": 641
+     "line": 639
     },
     {
      "index": 3054,
      "file": "src/game/venueSchedule.ts",
-     "line": 642
+     "line": 640
     },
     {
      "index": 1390,
      "file": "src/game/humanSchedule.ts",
-     "line": 655
+     "line": 653
     },
     {
      "index": 1758,
      "file": "src/game/prisonShifts.ts",
-     "line": 667
+     "line": 665
     },
     {
      "index": 1743,
      "file": "src/game/prisonGuardDuty.ts",
-     "line": 667
+     "line": 665
     },
     {
      "index": 640,
      "file": "src/game/dayCycleClock.ts",
-     "line": 703
+     "line": 701
     },
     {
      "index": 1140,
      "file": "src/game/hospitalShifts.ts",
-     "line": 712
+     "line": 710
     },
     {
      "index": 3051,
      "file": "src/game/venueSchedule.ts",
-     "line": 717
+     "line": 715
     },
     {
      "index": 2519,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 731
+     "line": 729
     },
     {
      "index": 1391,
      "file": "src/game/humanSchedule.ts",
-     "line": 737
+     "line": 735
     },
     {
      "index": 1388,
      "file": "src/game/humanSchedule.ts",
-     "line": 744
+     "line": 742
     },
     {
      "index": 422,
      "file": "src/game/buildingAccess.ts",
-     "line": 751
+     "line": 749
     },
     {
      "index": 1359,
      "file": "src/game/humanHospitalBehavior.ts",
-     "line": 757
+     "line": 755
     },
     {
      "index": 2223,
      "file": "src/game/scheduleFatigue.ts",
-     "line": 764
+     "line": 762
     },
     {
      "index": 2224,
      "file": "src/game/scheduleFatigue.ts",
-     "line": 766
+     "line": 764
     },
     {
      "index": 2357,
      "file": "src/game/simFocus.ts",
-     "line": 771
+     "line": 769
     },
     {
      "index": 2548,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 785
+     "line": 783
     },
     {
      "index": 3121,
      "file": "src/game/villageLeadership.ts",
-     "line": 792
+     "line": 790
     },
     {
      "index": 1428,
      "file": "src/game/humanTick.ts",
-     "line": 799
+     "line": 797
     },
     {
      "index": 2536,
      "file": "src/game/simulation/humanPhysiology.ts",
-     "line": 814
+     "line": 812
     },
     {
      "index": 653,
      "file": "src/game/daycycleconstants.ts",
-     "line": 817
+     "line": 815
     },
     {
      "index": 2533,
      "file": "src/game/simulation/humanPhysiology.ts",
-     "line": 824
+     "line": 822
     },
     {
      "index": 2529,
      "file": "src/game/simulation/humanNeeds.ts",
-     "line": 830
+     "line": 828
     },
     {
      "index": 2543,
      "file": "src/game/simulation/humanPhysiology.ts",
-     "line": 832
+     "line": 830
     },
     {
      "index": 2530,
      "file": "src/game/simulation/humanNeeds.ts",
-     "line": 833
+     "line": 831
     },
     {
      "index": 421,
      "file": "src/game/buildingAccess.ts",
-     "line": 844
+     "line": 842
     },
     {
      "index": 2510,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 846
+     "line": 844
     },
     {
      "index": 2511,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 851
+     "line": 849
     },
     {
      "index": 2521,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 852
+     "line": 850
     },
     {
      "index": 1350,
      "file": "src/game/humanChat.ts",
-     "line": 855
+     "line": 853
     },
     {
      "index": 1438,
      "file": "src/game/humanTick.ts",
-     "line": 856
+     "line": 854
     },
     {
      "index": 1351,
      "file": "src/game/humanChat.ts",
-     "line": 871
+     "line": 869
     },
     {
      "index": 2641,
      "file": "src/game/socialLife.ts",
-     "line": 879
+     "line": 877
     },
     {
      "index": 1434,
      "file": "src/game/humanTick.ts",
-     "line": 881
+     "line": 879
     },
     {
      "index": 701,
      "file": "src/game/dialogueTrees.ts",
-     "line": 882
+     "line": 880
     },
     {
      "index": 1437,
      "file": "src/game/humanTick.ts",
-     "line": 884
+     "line": 882
     },
     {
      "index": 2033,
      "file": "src/game/renffrStar.ts",
-     "line": 891
+     "line": 889
     },
     {
      "index": 1394,
      "file": "src/game/humanSchedule.ts",
-     "line": 893
+     "line": 891
     },
     {
      "index": 2509,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 904
+     "line": 902
     },
     {
      "index": 1427,
      "file": "src/game/humanTick.ts",
-     "line": 905
+     "line": 903
     },
     {
      "index": 2507,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 912
+     "line": 910
     },
     {
      "index": 3022,
      "file": "src/game/tradeCaravans.ts",
-     "line": 916
+     "line": 914
     },
     {
      "index": 3023,
      "file": "src/game/tradeCaravans.ts",
-     "line": 922
+     "line": 920
     },
     {
      "index": 2541,
      "file": "src/game/simulation/humanPhysiology.ts",
-     "line": 943
+     "line": 941
     },
     {
      "index": 3261,
      "file": "src/game/workSchedule.ts",
-     "line": 952
+     "line": 950
     },
     {
      "index": 3259,
      "file": "src/game/workSchedule.ts",
-     "line": 968
+     "line": 966
     },
     {
      "index": 1397,
      "file": "src/game/humanSchedule.ts",
-     "line": 971
+     "line": 969
     },
     {
      "index": 2375,
      "file": "src/game/simQueries.ts",
-     "line": 976
+     "line": 974
     },
     {
      "index": 1192,
      "file": "src/game/housingModel.ts",
-     "line": 996
+     "line": 994
     },
     {
      "index": 1156,
      "file": "src/game/hotelStay.ts",
-     "line": 997
+     "line": 995
     },
     {
      "index": 1170,
      "file": "src/game/hotelStay.ts",
-     "line": 1002
+     "line": 1000
     },
     {
      "index": 2527,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 1009
+     "line": 1007
     },
     {
      "index": 2612,
      "file": "src/game/simulation/movementSteering.ts",
-     "line": 1018
+     "line": 1016
     },
     {
      "index": 2526,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 1020
+     "line": 1018
     },
     {
      "index": 1671,
      "file": "src/game/personality/traitEvaluation.ts",
-     "line": 1026
+     "line": 1024
     },
     {
      "index": 1435,
      "file": "src/game/humanTick.ts",
-     "line": 1032
+     "line": 1030
     },
     {
      "index": 2718,
      "file": "src/game/spotlightLore.ts",
-     "line": 1034
+     "line": 1032
     },
     {
      "index": 1615,
      "file": "src/game/pathfinding.ts",
-     "line": 1041
+     "line": 1039
     },
     {
      "index": 3123,
      "file": "src/game/villageLeadership.ts",
-     "line": 1055
+     "line": 1053
     },
     {
      "index": 2513,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 1073
+     "line": 1070
     },
     {
      "index": 2417,
      "file": "src/game/simTrig.ts",
-     "line": 1081
+     "line": 1078
     },
     {
      "index": 2418,
      "file": "src/game/simTrig.ts",
-     "line": 1082
+     "line": 1079
     },
     {
      "index": 770,
      "file": "src/game/education.ts",
-     "line": 1141
+     "line": 1138
     },
     {
      "index": 1442,
      "file": "src/game/humanVenueBehavior.ts",
-     "line": 1149
+     "line": 1146
     },
     {
      "index": 1445,
      "file": "src/game/huntingSpot.ts",
-     "line": 1175
+     "line": 1172
     },
     {
      "index": 1364,
      "file": "src/game/humanHuntingBehavior.ts",
-     "line": 1244
+     "line": 1241
     },
     {
      "index": 1392,
      "file": "src/game/humanSchedule.ts",
-     "line": 1262
+     "line": 1259
     },
     {
      "index": 1197,
      "file": "src/game/housingModel.ts",
-     "line": 1262
+     "line": 1259
     },
     {
      "index": 2596,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 1268
+     "line": 1265
     },
     {
      "index": 2390,
      "file": "src/game/simRng.ts",
-     "line": 1272
+     "line": 1269
     },
     {
      "index": 374,
      "file": "src/game/adaptiveSpatialQuery.ts",
-     "line": 1275
+     "line": 1272
     },
     {
      "index": 375,
      "file": "src/game/adaptiveSpatialQuery.ts",
-     "line": 1282
+     "line": 1279
     },
     {
      "index": 1369,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 1287
+     "line": 1284
     },
     {
      "index": 2602,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 1305
+     "line": 1302
     },
     {
      "index": 1196,
      "file": "src/game/housingModel.ts",
-     "line": 1326
+     "line": 1323
     },
     {
      "index": 2594,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 1336
+     "line": 1333
     },
     {
      "index": 2600,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 1341
+     "line": 1338
     },
     {
      "index": 2393,
      "file": "src/game/simRng.ts",
-     "line": 1349
+     "line": 1346
     },
     {
      "index": 1436,
      "file": "src/game/humanTick.ts",
-     "line": 1350
+     "line": 1347
     },
     {
      "index": 1672,
      "file": "src/game/personality/traitEvaluation.ts",
-     "line": 1357
+     "line": 1353
     },
     {
      "index": 2595,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 1362
+     "line": 1358
     },
     {
      "index": 2405,
      "file": "src/game/simRng.ts",
-     "line": 1372
+     "line": 1367
     },
     {
      "index": 2606,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 1386
+     "line": 1381
     },
     {
      "index": 1431,
      "file": "src/game/humanTick.ts",
-     "line": 1390
+     "line": 1385
     },
     {
      "index": 1777,
      "file": "src/game/relationships.ts",
-     "line": 1404
+     "line": 1399
     },
     {
      "index": 1430,
      "file": "src/game/humanTick.ts",
-     "line": 1409
+     "line": 1404
     },
     {
      "index": 2603,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 1431
+     "line": 1426
     },
     {
      "index": 2553,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 1440
+     "line": 1435
     },
     {
      "index": 2574,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 1449
+     "line": 1444
     },
     {
      "index": 2550,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 1449
+     "line": 1444
     },
     {
      "index": 1425,
      "file": "src/game/humanTick.ts",
-     "line": 1454
+     "line": 1449
     },
     {
      "index": 2560,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 1455
+     "line": 1450
     },
     {
      "index": 1426,
      "file": "src/game/humanTick.ts",
-     "line": 1459
+     "line": 1454
     },
     {
      "index": 2545,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 1466
+     "line": 1461
     },
     {
      "index": 2588,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 1496
+     "line": 1491
     },
     {
      "index": 2558,
      "file": "src/game/simulation/humanRelationships.ts",
-     "line": 1537
+     "line": 1532
     },
     {
      "index": 2653,
      "file": "src/game/socialLife.ts",
-     "line": 1559
+     "line": 1554
     },
     {
      "index": 1361,
      "file": "src/game/humanHospitalBehavior.ts",
-     "line": 1562
+     "line": 1557
     },
     {
      "index": 1443,
      "file": "src/game/humanVenueBehavior.ts",
-     "line": 1570
+     "line": 1565
     },
     {
      "index": 1363,
      "file": "src/game/humanHospitalBehavior.ts",
-     "line": 1580
+     "line": 1575
     },
     {
      "index": 2642,
      "file": "src/game/socialLife.ts",
-     "line": 1593
+     "line": 1588
     },
     {
      "index": 2654,
      "file": "src/game/socialLife.ts",
-     "line": 1604
+     "line": 1599
     },
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 1610
+     "line": 1605
     },
     {
      "index": 1592,
      "file": "src/game/pathfinding.ts",
-     "line": 1669
+     "line": 1663
     },
     {
      "index": 1594,
      "file": "src/game/pathfinding.ts",
-     "line": 1676
+     "line": 1670
     },
     {
      "index": 1773,
      "file": "src/game/relationshipDiagnostics.ts",
-     "line": 1710
+     "line": 1704
     }
    ]
   },
@@ -67043,7 +67043,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 483
+     "line": 482
     },
     {
      "index": 1434,
@@ -67053,7 +67053,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1409
+     "line": 1404
     },
     {
      "index": 2506,
@@ -67086,7 +67086,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1390
+     "line": 1385
     }
    ],
    "callees": []
@@ -67108,7 +67108,7 @@
     {
      "index": 1374,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 458
+     "line": 457
     },
     {
      "index": 1433,
@@ -67157,7 +67157,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 881
+     "line": 879
     }
    ],
    "callees": [
@@ -67190,12 +67190,12 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 601
+     "line": 600
     },
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1032
+     "line": 1030
     }
    ],
    "callees": []
@@ -67222,12 +67222,12 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 599
+     "line": 598
     },
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1350
+     "line": 1347
     }
    ],
    "callees": []
@@ -67249,7 +67249,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 884
+     "line": 882
     }
    ],
    "callees": []
@@ -67271,7 +67271,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 856
+     "line": 854
     }
    ],
    "callees": [
@@ -67290,9 +67290,9 @@
   {
    "name": "isBarracksGuard",
    "file": "src/game/humanTick.ts",
-   "line": 1118,
-   "bodyStart": 1119,
-   "bodyEnd": 1137,
+   "line": 1115,
+   "bodyStart": 1116,
+   "bodyEnd": 1134,
    "exported": false,
    "kind": "method",
    "className": null,
@@ -67305,36 +67305,36 @@
     {
      "index": 2418,
      "file": "src/game/simTrig.ts",
-     "line": 1124
+     "line": 1121
     },
     {
      "index": 2417,
      "file": "src/game/simTrig.ts",
-     "line": 1125
+     "line": 1122
     },
     {
      "index": 2511,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 1126
+     "line": 1123
     },
     {
      "index": 2526,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 1133
+     "line": 1130
     },
     {
      "index": 2510,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 1133
+     "line": 1130
     }
    ]
   },
   {
    "name": "isHuntingSpotHunter",
    "file": "src/game/humanTick.ts",
-   "line": 1175,
-   "bodyStart": 1176,
-   "bodyEnd": 1207,
+   "line": 1172,
+   "bodyStart": 1173,
+   "bodyEnd": 1204,
    "exported": false,
    "kind": "method",
    "className": null,
@@ -67347,37 +67347,37 @@
     {
      "index": 1451,
      "file": "src/game/huntingSpot.ts",
-     "line": 1181
+     "line": 1178
     },
     {
      "index": 1453,
      "file": "src/game/huntingSpot.ts",
-     "line": 1182
+     "line": 1179
     },
     {
      "index": 1446,
      "file": "src/game/huntingSpot.ts",
-     "line": 1187
+     "line": 1184
     },
     {
      "index": 1455,
      "file": "src/game/huntingSpot.ts",
-     "line": 1193
+     "line": 1190
     },
     {
      "index": 2511,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 1194
+     "line": 1191
     },
     {
      "index": 2526,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 1203
+     "line": 1200
     },
     {
      "index": 2510,
      "file": "src/game/simulation/humanMovement.ts",
-     "line": 1203
+     "line": 1200
     }
    ]
   },
@@ -67420,7 +67420,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1149
+     "line": 1146
     }
    ],
    "callees": [
@@ -67463,7 +67463,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1570
+     "line": 1565
     }
    ],
    "callees": [
@@ -67544,7 +67544,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1175
+     "line": 1172
     },
     {
      "index": 1453,
@@ -67582,7 +67582,7 @@
     {
      "index": 1440,
      "file": "src/game/humanTick.ts",
-     "line": 1187
+     "line": 1184
     },
     {
      "index": 1453,
@@ -67719,7 +67719,7 @@
     {
      "index": 1440,
      "file": "src/game/humanTick.ts",
-     "line": 1181
+     "line": 1178
     },
     {
      "index": 1453,
@@ -67779,7 +67779,7 @@
     {
      "index": 1440,
      "file": "src/game/humanTick.ts",
-     "line": 1182
+     "line": 1179
     }
    ],
    "callees": [
@@ -67839,7 +67839,7 @@
     {
      "index": 1440,
      "file": "src/game/humanTick.ts",
-     "line": 1193
+     "line": 1190
     }
    ],
    "callees": []
@@ -72943,7 +72943,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1669
+     "line": 1663
     },
     {
      "index": 1506,
@@ -73018,12 +73018,12 @@
     {
      "index": 1373,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 432
+     "line": 431
     },
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1676
+     "line": 1670
     },
     {
      "index": 2109,
@@ -73841,12 +73841,12 @@
     {
      "index": 1373,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 446
+     "line": 445
     },
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 530
+     "line": 529
     },
     {
      "index": 1426,
@@ -73856,7 +73856,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1041
+     "line": 1039
     },
     {
      "index": 2509,
@@ -74022,7 +74022,7 @@
     {
      "index": 1373,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 431
+     "line": 430
     },
     {
      "index": 1479,
@@ -75588,7 +75588,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1026
+     "line": 1024
     },
     {
      "index": 1525,
@@ -75681,7 +75681,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1357
+     "line": 1353
     },
     {
      "index": 1799,
@@ -76526,7 +76526,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 379
+     "line": 378
     },
     {
      "index": 1429,
@@ -79082,7 +79082,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 667
+     "line": 665
     },
     {
      "index": 1746,
@@ -79658,7 +79658,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 667
+     "line": 665
     },
     {
      "index": 3248,
@@ -80128,7 +80128,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1710
+     "line": 1704
     }
    ],
    "callees": [
@@ -80245,7 +80245,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1404
+     "line": 1399
     },
     {
      "index": 1738,
@@ -89076,7 +89076,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 891
+     "line": 889
     }
    ],
    "callees": []
@@ -95614,7 +95614,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 764
+     "line": 762
     }
    ],
    "callees": [
@@ -95642,7 +95642,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 766
+     "line": 764
     }
    ],
    "callees": [
@@ -99979,7 +99979,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 557
+     "line": 556
     },
     {
      "index": 1548,
@@ -101051,7 +101051,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 771
+     "line": 769
     },
     {
      "index": 2970,
@@ -101909,12 +101909,12 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 723
+     "line": 717
     },
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 976
+     "line": 974
     },
     {
      "index": 2970,
@@ -102468,7 +102468,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 507
+     "line": 506
     },
     {
      "index": 1398,
@@ -102483,7 +102483,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1272
+     "line": 1269
     },
     {
      "index": 1480,
@@ -102727,7 +102727,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1349
+     "line": 1346
     },
     {
      "index": 1442,
@@ -103288,12 +103288,12 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 544
+     "line": 543
     },
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1372
+     "line": 1367
     },
     {
      "index": 1480,
@@ -103844,12 +103844,12 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1081
+     "line": 1078
     },
     {
      "index": 1439,
      "file": "src/game/humanTick.ts",
-     "line": 1125
+     "line": 1122
     },
     {
      "index": 1541,
@@ -103927,12 +103927,12 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1082
+     "line": 1079
     },
     {
      "index": 1439,
      "file": "src/game/humanTick.ts",
-     "line": 1124
+     "line": 1121
     },
     {
      "index": 1541,
@@ -107225,7 +107225,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 912
+     "line": 910
     }
    ],
    "callees": []
@@ -107274,7 +107274,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 904
+     "line": 902
     }
    ],
    "callees": [
@@ -107327,22 +107327,22 @@
     {
      "index": 1373,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 438
+     "line": 437
     },
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 846
+     "line": 844
     },
     {
      "index": 1439,
      "file": "src/game/humanTick.ts",
-     "line": 1133
+     "line": 1130
     },
     {
      "index": 1440,
      "file": "src/game/humanTick.ts",
-     "line": 1203
+     "line": 1200
     },
     {
      "index": 1442,
@@ -107384,22 +107384,22 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 385
+     "line": 384
     },
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 851
+     "line": 849
     },
     {
      "index": 1439,
      "file": "src/game/humanTick.ts",
-     "line": 1126
+     "line": 1123
     },
     {
      "index": 1440,
      "file": "src/game/humanTick.ts",
-     "line": 1194
+     "line": 1191
     }
    ],
    "callees": [
@@ -107485,12 +107485,12 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 583
+     "line": 582
     },
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1073
+     "line": 1070
     },
     {
      "index": 1479,
@@ -107543,12 +107543,12 @@
     {
      "index": 1375,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 563
+     "line": 562
     },
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 572
+     "line": 571
     },
     {
      "index": 2516,
@@ -107596,7 +107596,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 752
+     "line": 746
     }
    ],
    "callees": [
@@ -107678,7 +107678,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 607
+     "line": 605
     },
     {
      "index": 3249,
@@ -107716,7 +107716,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 731
+     "line": 729
     }
    ],
    "callees": [
@@ -107781,7 +107781,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 852
+     "line": 850
     }
    ],
    "callees": [
@@ -107923,17 +107923,17 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1020
+     "line": 1018
     },
     {
      "index": 1439,
      "file": "src/game/humanTick.ts",
-     "line": 1133
+     "line": 1130
     },
     {
      "index": 1440,
      "file": "src/game/humanTick.ts",
-     "line": 1203
+     "line": 1200
     },
     {
      "index": 1442,
@@ -108011,7 +108011,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1009
+     "line": 1007
     }
    ],
    "callees": [
@@ -108072,7 +108072,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 830
+     "line": 828
     }
    ],
    "callees": [
@@ -108110,7 +108110,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 833
+     "line": 831
     }
    ],
    "callees": [
@@ -108158,7 +108158,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 640
+     "line": 639
     }
    ],
    "callees": []
@@ -108213,7 +108213,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 824
+     "line": 822
     }
    ],
    "callees": []
@@ -108326,7 +108326,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 814
+     "line": 812
     }
    ],
    "callees": [
@@ -108437,7 +108437,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 556
+     "line": 555
     },
     {
      "index": 1480,
@@ -108560,7 +108560,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 943
+     "line": 941
     },
     {
      "index": 2528,
@@ -108614,7 +108614,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 832
+     "line": 830
     }
    ],
    "callees": []
@@ -108678,7 +108678,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1466
+     "line": 1461
     },
     {
      "index": 2562,
@@ -108757,7 +108757,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 491
+     "line": 489
     }
    ],
    "callees": [
@@ -108785,7 +108785,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 503
+     "line": 502
     },
     {
      "index": 1428,
@@ -108795,7 +108795,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 785
+     "line": 783
     },
     {
      "index": 2563,
@@ -108866,7 +108866,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1449
+     "line": 1444
     },
     {
      "index": 2554,
@@ -108929,7 +108929,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 505
+     "line": 504
     },
     {
      "index": 2553,
@@ -109055,7 +109055,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1440
+     "line": 1435
     }
    ],
    "callees": [
@@ -109219,7 +109219,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1537
+     "line": 1532
     },
     {
      "index": 2560,
@@ -109320,7 +109320,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1455
+     "line": 1450
     },
     {
      "index": 2561,
@@ -109459,7 +109459,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 545
+     "line": 543
     }
    ],
    "callees": [
@@ -109527,7 +109527,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 582
+     "line": 580
     }
    ],
    "callees": [
@@ -109595,7 +109595,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 583
+     "line": 581
     }
    ],
    "callees": [
@@ -109965,7 +109965,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1449
+     "line": 1444
     },
     {
      "index": 2549,
@@ -110116,7 +110116,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 528
+     "line": 526
     }
    ],
    "callees": [
@@ -110214,7 +110214,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 514
+     "line": 512
     }
    ],
    "callees": [
@@ -110277,7 +110277,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 529
+     "line": 527
     }
    ],
    "callees": [
@@ -110642,7 +110642,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1496
+     "line": 1491
     }
    ],
    "callees": [
@@ -110929,7 +110929,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1336
+     "line": 1333
     }
    ],
    "callees": []
@@ -110951,7 +110951,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1362
+     "line": 1358
     }
    ],
    "callees": []
@@ -110973,7 +110973,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1268
+     "line": 1265
     },
     {
      "index": 2599,
@@ -111118,7 +111118,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1341
+     "line": 1338
     }
    ],
    "callees": []
@@ -111178,7 +111178,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1305
+     "line": 1302
     }
    ],
    "callees": [
@@ -111236,12 +111236,12 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 504
+     "line": 503
     },
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1431
+     "line": 1426
     },
     {
      "index": 2605,
@@ -111304,7 +111304,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 539
+     "line": 537
     }
    ],
    "callees": [
@@ -111337,7 +111337,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 554
+     "line": 552
     }
    ],
    "callees": [
@@ -111475,7 +111475,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1386
+     "line": 1381
     }
    ],
    "callees": [
@@ -111721,7 +111721,7 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 765
+     "line": 759
     },
     {
      "index": 1426,
@@ -111731,7 +111731,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1018
+     "line": 1016
     },
     {
      "index": 1615,
@@ -112131,7 +112131,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 515
+     "line": 513
     },
     {
      "index": 2970,
@@ -112884,12 +112884,12 @@
     {
      "index": 1372,
      "file": "src/game/humanLeisureBehavior.ts",
-     "line": 666
+     "line": 665
     },
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 879
+     "line": 877
     },
     {
      "index": 2610,
@@ -112916,7 +112916,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1593
+     "line": 1588
     },
     {
      "index": 2654,
@@ -113258,7 +113258,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1559
+     "line": 1554
     }
    ],
    "callees": [
@@ -113306,7 +113306,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1604
+     "line": 1599
     }
    ],
    "callees": [
@@ -115176,7 +115176,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1034
+     "line": 1032
     }
    ],
    "callees": []
@@ -126967,7 +126967,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 916
+     "line": 914
     }
    ],
    "callees": [
@@ -126995,7 +126995,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 922
+     "line": 920
     },
     {
      "index": 3020,
@@ -128070,7 +128070,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 717
+     "line": 715
     },
     {
      "index": 3052,
@@ -128113,7 +128113,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 641
+     "line": 639
     },
     {
      "index": 3248,
@@ -128173,7 +128173,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 642
+     "line": 640
     },
     {
      "index": 3248,
@@ -130757,7 +130757,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 792
+     "line": 790
     },
     {
      "index": 3249,
@@ -130818,7 +130818,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 1055
+     "line": 1053
     }
    ],
    "callees": [
@@ -136487,7 +136487,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 968
+     "line": 966
     },
     {
      "index": 1882,
@@ -136551,7 +136551,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 952
+     "line": 950
     }
    ],
    "callees": []
@@ -138596,7 +138596,7 @@
     {
      "index": 1429,
      "file": "src/game/humanTick.ts",
-     "line": 587
+     "line": 585
     },
     {
      "index": 2603,
