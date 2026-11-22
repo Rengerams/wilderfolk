@@ -12,6 +12,7 @@ import { blockedColumn, testWorldMap } from '../src/test/worldMapFixtures';
 import { buildingAccessPoint, isAtBuildingReach } from '../src/game/buildingAccess';
 import { getReadOnlyPathGrid } from '../src/game/pathfinding';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
+import { addResource, updateStorageCaps } from '../src/game/economy';
 import {
   BuildingType,
   EntityType,
@@ -321,6 +322,37 @@ describe('crewless zero-slot sites finish in their advertised days (S-18)', () =
     gameTick(state, ON_SCREEN);
     expect(site.completed, `finishes within ${days} advertised day(s)`).toBe(true);
     expect(site.occupants, 'a zero-slot site never keeps a crew').toEqual([]);
+  });
+
+  it.each([
+    { type: BuildingType.Barn, resource: 'wood' as const },
+    { type: BuildingType.Silo, resource: 'food' as const },
+    { type: BuildingType.WoodStorehouse, resource: 'iron' as const },
+  ])('refreshes $resource capacity when a $type completes at 23:00', ({ type, resource }) => {
+    const state = isolatedWorld();
+    const site = createBuilding(type, 500, 500, 9104);
+    site.constructionProgress = 99;
+    state.buildings = [site];
+    state.entities = [settler(300, 500)];
+    rebuildEntityByIdMap(state);
+    invalidateCachedEntityByType(state);
+
+    // This is the snapshot calculated before completion by the regular 18:00 owner.
+    updateStorageCaps(state);
+    const previousCap = state.storageMax[resource];
+    const previousSpoilage = state.foodSpoilageRate;
+    state.resources[resource] = previousCap;
+    state.tick = tickAtDailyPhase(1, 'construction') - 1;
+    gameTick(state, ON_SCREEN);
+
+    expect(site.completed).toBe(true);
+    expect(state.storageMax[resource], 'completion left the resource at its old cap')
+      .toBeGreaterThan(previousCap);
+    expect(addResource(state, resource, 100), 'an overnight gain still hits the obsolete cap').toBe(100);
+    if (type === BuildingType.Silo) {
+      expect(state.foodSpoilageRate, 'Silo spoilage remained on yesterday\'s rate')
+        .toBeLessThan(previousSpoilage);
+    }
   });
 
   it('lets a real crew beat those advertised days', () => {

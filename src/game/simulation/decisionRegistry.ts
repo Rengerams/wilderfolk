@@ -321,11 +321,13 @@ export const SIMULATION_DECISIONS = {
   construction: {
     owner: 'buildingStaffingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); dailyBuildingEconomy.tickBuildingProgress (progress advance at 23:00 after the latest legal work shift)',
     cadence: 'work',
-    cadenceNote: 'The existing construction owner closes at 23:00, consuming every permitted shift before midnight clears the witness counters; attendance and site attribution still come solely from scheduleFatigue; assignment alone never proves work. Passive sites retain their uncrewed pace, while unattended staffable sites crawl at 0.22x. Individual fractional shifts add monotonically to construction progress, retaining the 0.35 full-worker bonus; skill and DNA are evaluated once per worker using the sole skills owner. One proportional trade skill credit is paid.',
+    cadenceNote: 'The existing construction owner closes at 23:00, consuming every permitted shift before midnight clears the witness counters; attendance and site attribution still come solely from scheduleFatigue; assignment alone never proves work. Passive sites retain their uncrewed pace, while unattended staffable sites crawl at 0.22x. Individual fractional shifts add monotonically to construction progress, retaining the 0.35 full-worker bonus; skill and DNA are evaluated once per worker using the sole skills owner. One proportional trade skill credit is paid. Any new completion refreshes storage caps and Silo spoilage through economy.updateStorageCaps, before overnight resource arrivals.',
     writes: [
       'building.constructionProgress',
       'building.occupants (construction crew)',
       'building.buildAnimTimer',
+      'storageMax (via economy.updateStorageCaps on completion)',
+      'foodSpoilageRate (via economy.updateStorageCaps on completion)',
     ],
     scheduledFrom: 'gameTick → tickLayerDaily 23:00 → dailyBuildingEconomy.tickBuildingProgress (progress); assign layer + commands (crew membership)',
     testFile: 'tests/commands.validation.test.ts, tests/demolish.roundtrip.test.ts, tests/personality.workIntegration.test.ts, tests/production.attendancePacing.test.ts',

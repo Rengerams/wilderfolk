@@ -336,6 +336,9 @@ export function tickBuildingProgress(state: WorldState): void {
 
   // Newly finished job buildings get workers assigned the same day
   if (completedAny) {
+    // The 18:00 storage snapshot preceded this 23:00 completion. Refresh its existing
+    // economy owner now, before overnight trade/gathering can be clamped to stale caps.
+    updateStorageCaps(state);
     logCompletedBuildings(state, completedToday);
     assignMissingWorkers(livingPlayerHumans, state.buildings, state);
   }
