@@ -92,7 +92,7 @@ function isWildlifePredator(entity: Entity): boolean {
       entity.type === EntityType.Wildkin ||
       (entity.type === EntityType.Human &&
         entity.age >= HUMAN_ADULT_MIN_AGE &&
-        (isPlayerHuman(entity) || entity.faction === 'rival')))
+        isPlayerHuman(entity)))
   );
 }
 

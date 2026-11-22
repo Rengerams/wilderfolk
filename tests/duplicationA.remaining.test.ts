@@ -131,7 +131,6 @@ describe('A14 — one owner for "normalise a delta, set velocity, face it"', () 
       'src/game/hotelStay.ts',
       'src/game/pathfinding.ts',
       'src/game/tickLayerSystems.ts',
-      'src/game/factionWander.ts',
       'src/game/humanTick.ts',
     ];
     for (const file of swept) {

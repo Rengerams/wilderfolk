@@ -29,7 +29,6 @@ export interface EntityRenderMeta {
   faction?: Entity['faction'];
   indoorBuildingId?: number;
   hiddenFromPlayer?: boolean;
-  detectedByPatrol?: boolean;
   raidDeploymentId?: Entity['raidDeploymentId'];
 
   needs?: Entity['needs'];
@@ -66,7 +65,6 @@ export function packEntityRenderMeta(entity: Entity): EntityRenderMeta {
     faction: entity.faction,
     indoorBuildingId: entity.indoorBuildingId,
     hiddenFromPlayer: entity.hiddenFromPlayer,
-    detectedByPatrol: entity.detectedByPatrol,
     raidDeploymentId: entity.raidDeploymentId,
 
     needs: entity.needs ? { ...entity.needs } : undefined,
@@ -153,7 +151,6 @@ export function buildRenderEntityShim(
     faction: meta?.faction ?? factionFromFlags(flags),
     indoorBuildingId: meta?.indoorBuildingId,
     hiddenFromPlayer: meta?.hiddenFromPlayer,
-    detectedByPatrol: meta?.detectedByPatrol,
     raidDeploymentId: meta?.raidDeploymentId,
 
     needs: meta?.needs ? { ...meta.needs } : undefined,
