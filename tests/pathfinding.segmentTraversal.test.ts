@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  findPath, findRouteCostOutcome, getNavigationQuote, getRouteObstruction, isWalkStepAllowed,
+  findPath, findRouteCostOutcome, getNavigationQuote, getPathGrid, getRouteObstruction, isWalkStepAllowed,
   lineCrossesBlocked, nearestWalkableWorldPoint, resetPathGridCaches, setCurrentPathMap,
   steerWithPath, type PathGrid,
 } from '../src/game/pathfinding';
-import { PATH_CELL, TerrainType } from '../src/game/gameTypes';
-import { human } from '../src/test/factories';
+import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
+import { building, human } from '../src/test/factories';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 
 function grid(cols: number, rows: number): PathGrid {
@@ -225,5 +225,22 @@ describe('one authoritative movement walkability verdict', () => {
       setCurrentPathMap(null);
       resetPathGridCaches();
     }
+  });
+
+  it('invalidates footprint occupancy when differently sized buildings swap coordinates', () => {
+    const map = testWorldMap({ tilesX: 15, tilesY: 15, seed: 2716 });
+    const small = building(2716, BuildingType.Wall, { x: center(2), y: center(3),
+      width: PATH_CELL, height: PATH_CELL });
+    const wide = building(2717, BuildingType.Wall, { x: center(8), y: center(3),
+      width: PATH_CELL * 3, height: PATH_CELL });
+    resetPathGridCaches();
+    const original = getPathGrid(map, [small, wide]);
+    const x = small.x;
+    small.x = wide.x;
+    wide.x = x;
+    const moved = getPathGrid(map, [small, wide]);
+    expect(moved).not.toBe(original);
+    expect(Array.from(moved.blocked)).not.toEqual(Array.from(original.blocked));
+    resetPathGridCaches();
   });
 });
