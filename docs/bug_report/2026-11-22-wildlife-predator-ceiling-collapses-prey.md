@@ -1,7 +1,9 @@
 # Predator breeding ceiling collapses the prey base
 
+> **Superseded (2026-11-22):** the same defect is tracked as [Predator breeding and restocking overwhelm prey](2026-11-22-wildlife-prey-collapse-predator-capacity.md), which fixes it with one wildlife population policy owner in PR #172. The measurements below remain the pre-fix reproduction.
+
 - Bug: Wolf breeding capacity (25) and the prey replenishment floor live in two owners, and the pack settles on that ceiling while rabbits reach zero and deer nearly vanish.
-- Status: open
+- Status: superseded by [Predator breeding and restocking overwhelm prey](2026-11-22-wildlife-prey-collapse-predator-capacity.md) (PR #172)
 - Severity: medium
 - Date discovered: 2026-11-22
 - Version/build: V.0.6.5.1 / `audit-simulation-logic` @ `ecd9866c`

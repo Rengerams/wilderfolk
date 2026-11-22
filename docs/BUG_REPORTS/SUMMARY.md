@@ -2,7 +2,7 @@
 
 **2026-11-22 — [Daily event odds quantized to 1/10,000 inflate small rates](../bug_report/2026-11-22-daily-odds-quantized-to-ten-thousandths.md):** open; `personDayRoll` returns `(hash % 10000) / 10000`, so illness death runs at 7.15%/yr instead of 4.32%, amicable divorce at 11.34% instead of 7.50%, age-60 old-age mortality at 3.65% instead of 2.00%, and the `damaged` valley illness bonus lands on the same bucket as `stable`.
 
-**2026-11-22 — [Predator breeding ceiling collapses the prey base](../bug_report/2026-11-22-wildlife-predator-ceiling-collapses-prey.md):** open; wolf capacity (25) and the prey floor (16 rabbits every 3 days, wolf target 10) live in two owners; both harness seeds reach rabbits 0 / wolves 25 by day 90.
+**2026-11-22 — [Predator breeding and restocking overwhelm prey](../bug_report/2026-11-22-wildlife-prey-collapse-predator-capacity.md):** investigating; wolf capacity and the prey floor now share one wildlife population policy, rabbits recover to 150 and are protected below 35, and wolf/fox caps depend on live prey (PR #172, consolidating #173); focused regressions committed, long-run 90/360-day outcome still to be verified. Supersedes the earlier [predator-ceiling audit report](../bug_report/2026-11-22-wildlife-predator-ceiling-collapses-prey.md).
 
 **2026-11-22 — [Architecture docs still schedule the retired visitor camps](../bug_report/2026-11-22-architecture-doc-still-schedules-retired-visitors.md):** resolved — documents corrected and the two unreachable `state.visitorGroups` reads in `humanTick.ts` removed 2026-11-22; `tickVisitorGroups` and its spawners still have no caller, so the layer table, ownership ledger and TEST-16 report are corrected or marked legacy.
 

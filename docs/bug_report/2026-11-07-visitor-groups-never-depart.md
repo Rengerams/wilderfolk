@@ -1,6 +1,6 @@
 # Visitor groups neither advance nor depart
 
-> **Deprecated (2026-11-22):** the visitor-camp subsystem this report fixed was retired later in the year — `tickVisitorGroups` has no caller and old saves strip visitor groups and actors on load, so the 00:00 lifecycle described below no longer exists. Kept as a historical record; the current state is tracked in [Architecture docs still schedule the retired visitor camps](2026-11-22-architecture-doc-still-schedules-retired-visitors.md).
+> **Deprecated (2026-11-22):** the visitor-camp subsystem this report fixed was retired later in the year. `tickLayerDaily` no longer calls `tickVisitorGroups`, which has no live caller, and old saves strip visitor groups and actors on load, so the 00:00 lifecycle described below no longer exists. Kept as a historical record; the old fix and verification describe the behavior before retirement. The current state is tracked in [Architecture docs still schedule the retired visitor camps](2026-11-22-architecture-doc-still-schedules-retired-visitors.md), and `tests/calendarPhase.auditRegressions.test.ts` asserts that no visitor camps are created.
 
 - Bug: TEST-16 — Visitor group day counters and the daily gift logic rely on isNewCalendarDayTick, but the sole tickVisitorGroups call was in the 18:00 world-events phase.
 - Status: resolved

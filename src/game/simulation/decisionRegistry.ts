@@ -73,6 +73,7 @@ export type DecisionKey =
   | 'foodLedger'
   | 'herdMemory'
   | 'wildlifePredation'
+  | 'wildlifeReplenishment'
   | 'villageRequests'
   | 'inventionFair'
   | 'authoredStoryExpiry'
@@ -358,9 +359,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts, tests/workSkillAttribution.accrual.test.ts, tests/forge.cadence.test.ts, tests/production.attendancePacing.test.ts',
   },
   wildlifePredation: {
-    owner: 'tickLayerSystems.tickWildlife — the sole wildlife AI owner (hunt target, catch, metabolism, grazing, reproduction); rebuildPredators owns the roster; speciesConfig.getPreyEnergyGain owns prey energy; GRAZER_METABOLISM owns grazer metabolism',
+    owner: 'tickLayerSystems.tickWildlife — sole wildlife AI owner (hunt, predation, metabolism, reproduction); tickLayerSystems.tickWolfRecruitment — rare wolf migration; wildlifePopulationPolicy.getWildlifeCarryingCapacity owns the prey-supported breeding/migration cap; speciesConfig.getPreyEnergyGain owns prey energy; GRAZER_METABOLISM owns grazer metabolism',
     cadence: 'systems',
-    cadenceNote: 'WILDLIFE_LAYER_INTERVAL = 4 systems pulses; out-of-focus wildlife runs every 8th pulse. Wildlife translation checks the shared walk-step grid before integrating each pulse and slides along legal axes when blocked; no separate animal obstacle authority. Hungry Wildkin hunts deer/rabbit only and pays apex metabolism; it is never prey and never grazes. Wildkin is on the predator roster that grazers scent-flee. No human prey for Wildkin.',
+    cadenceNote: 'WILDLIFE_LAYER_INTERVAL = 4 systems pulses; out-of-focus wildlife runs every 8th pulse. Predators leave rabbits at/below the shared scarcity floor, and wolf/fox breeding and rare wolf recruitment cannot exceed shared prey-supported capacity; the 3-day restock remains with worldGen. Wildlife uses shared walk-step obstacles. Hungry Wildkin hunts deer/rabbit only and pays apex metabolism; it is never prey and never grazes. Wildkin is on the predator roster that grazers scent-flee. No human prey for Wildkin.',
     writes: [
       'entity.energy',
       'entity.huntTargetId',
@@ -377,8 +378,16 @@ export const SIMULATION_DECISIONS = {
       'eventLog',
       'floatingTexts',
     ],
-    scheduledFrom: 'gameTick → tickLayerSystems.tickLayerSystems → tickWildlife',
-    testFile: 'tests/wildkin.apexRole.test.ts, tests/ecosystemPressure.winterDemand.test.ts',
+    scheduledFrom: 'gameTick → tickLayerSystems.tickLayerSystems → tickWildlife / tickWolfRecruitment',
+    testFile: 'tests/wildkin.apexRole.test.ts, tests/ecosystemPressure.winterDemand.test.ts, tests/wildlife.populationPolicy.test.ts',
+  },
+  wildlifeReplenishment: {
+    owner: 'worldGen.replenishDepletedWildlife — wildlife restocking; wildlifePopulationPolicy.WILDLIFE_POPULATION_POLICY and getWildlifeCarryingCapacity — sole refill targets and prey-supported predator caps',
+    cadence: 'daily',
+    cadenceNote: 'Every third colony day at 18:00. Grazer restocking is bounded per pulse and predators are replenished only below their minimum and when existing prey can sustain them. Initial predator groups follow the same target policy.',
+    writes: ['entities (via worldGen.registerSpawnedWildlife)', 'nextEntityId', 'wildlifeCounts', 'lastWildlifeReplenishLogDay', 'eventLog'],
+    scheduledFrom: 'tickLayerDaily → dailyWorldEvents.tickDailyWorldEvents → worldGen.replenishDepletedWildlife',
+    testFile: 'tests/wildlife.populationPolicy.test.ts',
   },
   inventionFair: {
     owner: 'inventionFair.ts — maybeOfferInventionFair, tickInventionFair, tickInventionFairRealtime, getInventionFairChoiceEligibility, resolveInventionFair, rollInventionFairOutcome, private stage and outcome lifecycle; storyEvents delegates player choices only',

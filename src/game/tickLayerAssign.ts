@@ -49,7 +49,8 @@ function housingSignature(world: WorldState, humans: readonly WorldState['entiti
 
 /**
  * Assignment layer — residence + workforce bookkeeping, called when
- * `world.tick % LAYER_ASSIGN_INTERVAL === 0`. Realtime interactions and daily mortality live elsewhere.
+ * `world.tick % LAYER_ASSIGN_INTERVAL === LAYER_ASSIGN_PHASE_TICK` (03:00, 09:00,
+ * 15:00, 21:00). Realtime interactions and daily mortality live elsewhere.
  */
 export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
   const { playerHumans, updatedBuildings, byType, newEntities } = ctx;

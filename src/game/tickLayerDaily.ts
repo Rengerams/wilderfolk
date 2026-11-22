@@ -1,6 +1,7 @@
 
 /**
- * Daily layer — invoked at 00:00, 06:00, 12:00 and 18:00; its phases run at 00:00, 06:00 and 18:00.
+ * Daily layer — invoked at 00:00, 06:00, 12:00, 18:00 and 23:00; noon has no owner.
+ * The retired on-map visitor lifecycle is never scheduled here.
  */
 import type { Entity, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';

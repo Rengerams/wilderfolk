@@ -166,26 +166,26 @@ describe('the Wildkin hunts as an apex predator in the wildlife tick', () => {
   it('acquires a valid prey target within its hunt range', () => {
     const hunter = wildkin(500, 500, 703);
     hunter.energy = 100;
-    const rabbit = createEntity(EntityType.Rabbit, 560, 500, 704);
-    const ctx = ctxFor(state, [hunter, rabbit]);
+    const deer = createEntity(EntityType.Deer, 560, 500, 704);
+    const ctx = ctxFor(state, [hunter, deer]);
     ctx.predators = [hunter];
 
     tickWildlife(state, ctx);
 
-    expect(hunter.huntTargetId).toBe(rabbit.id);
+    expect(hunter.huntTargetId).toBe(deer.id);
     expect(Number.isFinite(hunter.energy)).toBe(true);
   });
 
   it('gains finite energy when it catches valid prey', () => {
     const hunter = wildkin(500, 500, 705);
     hunter.energy = 100;
-    const rabbit = createEntity(EntityType.Rabbit, 502, 500, 706);
-    const ctx = ctxFor(state, [hunter, rabbit]);
+    const deer = createEntity(EntityType.Deer, 502, 500, 706);
+    const ctx = ctxFor(state, [hunter, deer]);
     ctx.predators = [hunter];
 
     tickWildlife(state, ctx);
 
-    expect(rabbit.alive).toBe(false);
+    expect(deer.alive).toBe(false);
     expect(hunter.energy).toBeGreaterThan(100);
     expect(Number.isFinite(hunter.energy)).toBe(true);
     expect(hunter.energy).toBeLessThanOrEqual(hunter.maxEnergy);

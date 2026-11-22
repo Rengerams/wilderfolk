@@ -103,7 +103,8 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
   [EntityType.Wolf]: {
     maxEnergy: 900,
     energyLossPerTick: 5.5 * PER_TICK_RATE_SCALE,
-    energyGain: { deer: 650, rabbit: 30 },
+    // One rabbit now sustains a wolf for more than one day, preventing repeat kills every few hours.
+    energyGain: { deer: 650, rabbit: 240 },
     maxAge: 365 * 8,
     speed: 4 * MAP_SCALE,
     size: 13,
