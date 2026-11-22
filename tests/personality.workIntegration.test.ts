@@ -150,7 +150,8 @@ function houseProgressAfterOneDay(genomeV2: GenomeV2): number {
   }
   const builder = adults[0];
   builder.job = JobType.Builder;
-  builder.workerBuildingId = SITE_ID;
+  // An unfinished building owns a construction crew, not an ordinary workerBuildingId post.
+  builder.workerBuildingId = undefined;
   site.occupants = [builder.id];
   // Direct production-boundary fixture: supply the observed shift it skipped in realtime.
   builder.schedulePresentTicksToday = getScheduleTargetHours(state) * TICKS_PER_HOUR;
@@ -158,7 +159,7 @@ function houseProgressAfterOneDay(genomeV2: GenomeV2): number {
   builder.scheduleWorkedTicksToday = builder.schedulePresentTicksToday;
   builder.scheduleWorkedSiteIdToday = SITE_ID;
   builder.scheduleWorkedJobToday = JobType.Builder;
-  state.tick = tickAtDailyPhase(1, 'production') - 1;
+  state.tick = tickAtDailyPhase(1, 'construction') - 1;
 
   gameTick(state);
   return state.buildings.find((b) => b.id === SITE_ID)!.constructionProgress;

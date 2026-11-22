@@ -51,15 +51,15 @@ function staffedWorld(
   const worker = state.entities.find((e) => e.alive && isPlayerHuman(e));
   expect(worker, 'fixture premise: the colony starts with a settler').toBeTruthy();
   worker!.faction = undefined;
-  worker!.workerBuildingId = SITE_ID;
+  worker!.workerBuildingId = options.completed === false ? undefined : SITE_ID;
   worker!.job = job;
   // The shift is settled before the daily layer reads attendance, so the fixture states it directly.
   worker!.scheduleLastWorkedHours = getScheduleTargetHours(state);
   state.buildings.find((b) => b.id === SITE_ID)!.occupants = [worker!.id];
   if (options.wood != null) state.resources.wood = options.wood;
-  // `gameTick` advances the clock first, so the day boundary (and its daily layer) lands on
-  // `TICKS_PER_DAY` from here.
-  state.tick = tickAtDailyPhase(1, 'production') - 1;
+  // Production earns its shift at 18:00; unfinished construction earns it at 23:00.
+  // `gameTick` advances the clock first, so choose the correct owner phase.
+  state.tick = tickAtDailyPhase(1, options.completed === false ? 'construction' : 'production') - 1;
   return { state, worker: worker! };
 }
 
