@@ -499,12 +499,13 @@ export const SIMULATION_DECISIONS = {
     scheduledFrom: 'tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → groupEvents.tickVillageRequests; commands.ts "resolveVillageRequest" → groupEvents.resolveVillageRequest',
     testFile: 'tests/villageRequests.test.ts, tests/workerCommand.roundtrip.test.ts, tests/gameWorker.transport.test.ts',
   },
-  factionWander: {
-    owner: 'factionWander.ts — tickFactionCampWander, ensureWanderState, nextVisitorActivity',
-    cadence: 'realtime',
-    writes: ['human.factionWander', 'human.vx', 'human.vy', 'human.spriteAngle'],
-    scheduledFrom: 'humanTick.ts → tickFactionCampWander for eligible foreign camp actors',
-    testFile: 'tests/workerHandoff.state.test.ts, tests/factionTravel.offscreen.test.ts',
+  rivalStrategy: {
+    owner: 'rivalEvents.ts — tickRivalSettlements; rivalProfiles.ts — selectRivalDailyAction/applyRivalDailyAction',
+    cadence: 'daily',
+    cadenceNote: 'Strategic rival decisions, growth, diplomacy and raids only; no village-map raiders, hunter poaching, reveal patrols or floating text.',
+    writes: ['rivalSettlements', 'pendingRaidEvents (through frontierCombat owner)', 'pendingDiplomacyEvents (through rivalDiplomacy owner)', 'resources (through resource owner)', 'villageReputation (through reputation owner)', 'eventLog (through logEvent)'],
+    scheduledFrom: 'tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → rivalEvents.tickRivalSettlements',
+    testFile: 'tests/rivalWorldMap.only.test.ts, tests/frontierCombat.hostility.test.ts',
   },
   idleSkillDecay: {
     owner: 'skills.ts — decayIdleSkills; sole non-active trade-skill decay writer',
@@ -660,11 +661,11 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts, tests/medium-N5-electionGatherSlot.test.ts, tests/calendarPhase.auditRegressions.test.ts, tests/saveLoad.a1CalendarRepair.test.ts',
   },
   raidCombat: {
-    owner: 'frontierCombat.ts — queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, beginRaidReturn, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory, buildIncomingRaidIndex, isRaidMarchingForRival',
+    owner: 'frontierCombat.ts — queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, beginRaidReturn, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory, isCounterRaidOnRival',
     cadence: 'realtime',
     cadenceNote: 'Incoming and outgoing battles progress on game ticks across six game hours. Raid dispatch, responses and settlement-fate choices also enter through player commands; truce recalls retain deployment until return, the preview and launch share eligibility, incoming strength uses the adult population with capped loot, and the immediate responder cannot skip the six-hour defense; treaties may be broken at a reputation cost, razing zeroes the strategic population of a settlement, and events are written through the ordinary Chronicle owner. Awarded spoils—gold included—enter through addCappedResource, so the configured storage cap and the common resource accounting apply. Rival camp growth is staggered by the stable rival id, never by list position.',
     writes: ['pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports', 'scoredRaidIds', 'human.raidDeploymentId', 'human.battleLeadershipMerit', 'rivalSettlements', 'resources (through economy owner)', 'eventLog (through logEvent)'],
-    scheduledFrom: 'gameTick.ts → tickPendingRaidEvents/tickPendingOutgoingRaidEvents; simWorker/commands.ts → raid and victory commands; humanTick.ts builds buildIncomingRaidIndex once per tick for its rival wanderers',
+    scheduledFrom: 'gameTick.ts → tickPendingRaidEvents/tickPendingOutgoingRaidEvents; simWorker/commands.ts → raid and victory commands',
     testFile: 'tests/frontierCombat.hostility.test.ts, tests/frontierCombat.raidGold.test.ts, tests/raidChronicle.lifecycle.test.ts, tests/raidDeadline.owner.test.ts, tests/humanTick.hotPathIndexes.test.ts',
   },
   raidRecovery: {
