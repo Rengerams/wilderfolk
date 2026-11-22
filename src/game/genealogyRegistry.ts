@@ -31,10 +31,10 @@ function editGenealogyRegistry(state: WorldState): GenealogyRegistry {
 /** Idempotent census: track new births, new relationships and disappearances.
  * Call from a daily simulation boundary and before serialization. Never scan per tick.
  */
-export function syncGenealogyRegistry(state: WorldState): GenealogyRegistry {
+export function syncGenealogyRegistry(state: WorldState, entities: readonly Entity[] = state.entities): GenealogyRegistry {
   const registry = editGenealogyRegistry(state);
   const aliveIds = new Set<number>();
-  for (const e of state.entities) {
+  for (const e of entities) {
     if (!recordedFamilyEntity(e, registry)) continue;
     if (e.alive) aliveIds.add(e.id);
     const key = String(e.id);
