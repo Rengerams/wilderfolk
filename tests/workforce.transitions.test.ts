@@ -483,7 +483,7 @@ describe('idle-worker counts', () => {
     );
 
     expect(swap).toContain('buildConstructionCrewIndex(buildings)');
-    expect(swap).not.toMatch(/for\\s*\\(const site of buildings\\)/);
+    expect(swap).not.toContain('for (const site of buildings)');
   });
 });
 
