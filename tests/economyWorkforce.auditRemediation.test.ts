@@ -149,4 +149,21 @@ describe('a bounded swap resolves a vacancy no idle settler can reach', () => {
     expect(quarry.occupants).toContain(atMill.id);
     expect(mill.occupants).toContain(idle.id);
   });
+
+  it('reserves an idle builder on an unfinished site while evaluating vacancy swaps', () => {
+    const mill = completed(BuildingType.LumberMill, 600, 0, 70);
+    const quarry = completed(BuildingType.Quarry, 1_200, 0, 71);
+    const atMill = settler(1, 850, 0, { workerBuildingId: mill.id });
+    const builder = settler(2, 100, 0);
+    mill.occupants = [atMill.id];
+    const houseSite = createBuilding(BuildingType.House, 2_000, 200, 72);
+    houseSite.occupants = [builder.id];
+
+    rebalanceJobWorkers([atMill, builder], [mill, quarry, houseSite], 'growth', 100);
+
+    expect(atMill.workerBuildingId).toBe(mill.id);
+    expect(builder.workerBuildingId).toBeUndefined();
+    expect(quarry.occupants).toEqual([]);
+    expect(mill.occupants).toEqual([atMill.id]);
+  });
 });

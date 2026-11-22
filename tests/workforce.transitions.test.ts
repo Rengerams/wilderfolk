@@ -4,6 +4,8 @@ import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycyc
  * must agree after every transition, no living human may hold two workplaces, and a leader keeps office.
  */
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   BuildingType,
   EntityType,
@@ -26,7 +28,7 @@ import {
   syncJobBuildingOccupants,
   transferWorkerBetweenBuildings,
 } from '../src/game/workforce';
-import { countWorkingAndIdleSettlers } from '../src/game/workforceSummary';
+import { buildConstructionCrewIndex, countWorkingAndIdleSettlers } from '../src/game/workforceSummary';
 import { removeWorkerFromBuilding } from '../src/game/buildingActionRouting';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { setHumanBirthFromAge } from '../src/game/dayCycle';
@@ -450,6 +452,37 @@ describe('idle-worker counts', () => {
 
     removeWorkerTransition(settler, [farm]);
     expect(countWorkingAndIdleSettlers([settler], [farm])).toEqual({ working: 0, idle: 1 });
+  });
+
+  it('only indexes unfinished construction crews, not completed job rosters', () => {
+    const idle = human(1);
+    const builder = human(2);
+    const playerSite = building(11, BuildingType.House, { completed: false, occupants: [builder.id] });
+    const completed = building(12, BuildingType.Farm, { occupants: [idle.id] });
+    const sites = [completed, playerSite];
+
+    expect([...buildConstructionCrewIndex(sites).keys()]).toEqual([builder.id]);
+    expect(countWorkingAndIdleSettlers([idle, builder], sites)).toEqual({ working: 1, idle: 1 });
+  });
+
+  it('repairs demolished workplace pointers in the write owner before reporting idle labour', () => {
+    const settler = human(1, { workerBuildingId: 999, job: JobType.Farmer });
+    prepareWorkforce([settler], []);
+
+    expect(settler.workerBuildingId).toBeUndefined();
+    expect(settler.job).toBe(JobType.Settler);
+    expect(countWorkingAndIdleSettlers([settler], [])).toEqual({ working: 0, idle: 1 });
+  });
+
+  it('uses the canonical crew index in vacancy swaps instead of a second roster scan', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/game/workforce.ts'), 'utf8');
+    const swap = source.slice(
+      source.indexOf('function swapReachableWorkersIntoVacancies('),
+      source.indexOf('export function syncJobBuildingOccupants('),
+    );
+
+    expect(swap).toContain('buildConstructionCrewIndex(buildings)');
+    expect(swap).not.toContain('for (const site of buildings)');
   });
 });
 
