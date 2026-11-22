@@ -883,6 +883,7 @@ Named functions and named React callbacks were audited across every complete sou
 | `tests/warfare.lifecycle.test.ts` | `colony`, `raid`, `reload` | Local warfare fixtures; no runtime decision authority |
 | `tests/frontierCombat.raidGold.test.ts` | `raidFixture`, `queuedRaid` | Local raid fixtures; no runtime decision authority |
 | `tests/frontierPanelView.test.ts` | `world`, `rival` | Test-local world-state and rival-settlement fixture constructors for read-only Frontier projection assertions; no gameplay or runtime decision authority |
+| `tests/dialogue.affairRenffrCadence.test.ts` | `actor`, `finishPair`, `findPartner` (local resolver inside `finishPair`) | Test-only chat-speaker fixture builder, paired-dialogue session drain, and participant-ID resolver; no runtime dialogue or simulation authority |
 | `tests/relationships.feudSources.test.ts` | `settler`, `state`, `alwaysPasses` | Local relationship fixtures; no runtime decision authority |
 | `tests/relationships.friendCapAndFeudEnd.test.ts` | `state`, `messages`, `closePairAgreement` | Local relationship assertions; no runtime decision authority |
 | `tests/simDelta.entityProfile.test.ts` | `fixture`, `revisions` | Local worker-delta fixtures; no runtime decision authority |
