@@ -3,6 +3,7 @@
 ## 0.6.5.2 [Unreleased]
 
 - **Refactored (22 Nov 2026; pending merge):** 293 internal-only exports are module-private, three unreachable helpers are gone, story cards, env flags and file names have one owner each, so the audit and overlap gates pass. Call-graph artifacts regenerated. No gameplay, save or API change.
+- **Fixed (22 Nov 2026, PR #171):** Unified path/walk rules, recovered blocked origins, reached exact destinations, guarded bridges and map edges, and distinguished search budgets from unreachable routes. Reused valid caches, removed duplicate A* work and corrected steering/metrics.
 
 - **Fixed (22 Nov 2026, PR #170):** Caravans now wait for storage on arrival, retain undelivered exports on the saved route until space frees, and allow gold-for-iron purchases without a Market.
 
