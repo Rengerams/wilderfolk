@@ -61,9 +61,10 @@ function GoalsPortraitPanel({
   onClose: () => void;
 }) {
   // Refresh hourly and on material scalar/count changes, not on every simulation tick.
+  const portraitHour = Math.floor(state.tick / TICKS_PER_HOUR);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const portrait = useMemo(() => computeVillagePortrait(state), [
-    Math.floor(state.tick / TICKS_PER_HOUR),
+    portraitHour,
     state.year,
     state.humanPopulation,
     state.ecosystemHealth,
