@@ -6,7 +6,7 @@ import { applyLeaderHousePhase } from './leaderHouse';
 import { assignMissingResidences, moveResident, rebuildChildrenIds } from './housingPipeline';
 import type { WorldState, Entity, TerrainTile, Building } from './gameTypes';
 import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, FACTION_WANDER_PHASES, MapSize, PATH_CELL, createInitialResearchNodes } from './gameTypes';
-import { setTileOverride, tileAt, tileTypeAt } from './terrain/terrainGrid';
+import { setTileOverride, tileTypeAt } from './terrain/terrainGrid';
 import { isWaterTerrainType } from './terrain/terrainTraits';
 import { INITIAL_CHALLENGES } from './challenges';
 import { normalizeLifetimeStats } from './stats';

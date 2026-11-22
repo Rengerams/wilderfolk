@@ -16,7 +16,8 @@ import {
 } from '../src/game/dayCycleClock';
 import { gameTick } from '../src/game/gameTick';
 import { getPathGrid, type PathGrid } from '../src/game/pathfinding';
-import { isWalkableTerrainType, tileAt, Walkability } from '../src/game/terrain/terrainGrid';
+import { isWalkableTerrainType, tileAt, tileTypeAt } from '../src/game/terrain/terrainGrid';
+import { isWaterTerrainType } from '../src/game/terrain/terrainTraits';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { humanDisplayName } from '../src/game/citizenId';
 import { prisonGuardIds } from '../src/game/prisonGuardDuty';
@@ -140,12 +141,8 @@ function reportGroundAudit(world: WorldState, map: NonNullable<WorldState['world
     const tx = Math.floor(x / PATH_CELL);
     const ty = Math.floor(y / PATH_CELL);
     if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) return false;
-    const idx = ty * grid.cols + tx;
-    // The raw L0 grid, not `grid.blocked`: that copy also carries a completed wall's footprint, so a
-    // building standing beside a wall would read as standing on water.
-    if (map.pathGrid) return map.pathGrid[idx] === Walkability.Water;
-    const tile = tileAt(map, tx, ty);
-    return !!tile && !isWalkableTerrainType(tile.type);
+    const type = tileTypeAt(map, tx, ty);
+    return type !== null && isWaterTerrainType(type);
   };
   const footprintHasWater = (building: Building): boolean => {
     for (let y = building.y; y <= building.y + building.height; y += PATH_CELL / 2) {
@@ -156,14 +153,10 @@ function reportGroundAudit(world: WorldState, map: NonNullable<WorldState['world
     return false;
   };
   let waterCells = 0;
-  if (map.pathGrid) {
-    for (let i = 0; i < map.pathGrid.length; i++) if (map.pathGrid[i] === Walkability.Water) waterCells++;
-  } else {
-    for (let ty = 0; ty < grid.rows; ty++) {
-      for (let tx = 0; tx < grid.cols; tx++) {
-        const tile = tileAt(map, tx, ty);
-        if (tile && !isWalkableTerrainType(tile.type)) waterCells++;
-      }
+  for (let ty = 0; ty < grid.rows; ty++) {
+    for (let tx = 0; tx < grid.cols; tx++) {
+      const type = tileTypeAt(map, tx, ty);
+      if (type !== null && isWaterTerrainType(type)) waterCells++;
     }
   }
   console.log(

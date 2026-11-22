@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-22 — [Shallow water omitted from compact save validation](../bug_report/2026-11-22-shallow-water-save-validation.md):** investigating; save-load seed fallback and the save inspector now use the canonical water terrain trait, even where shallows are walkable; CI verification pending.
+
 **2026-11-22 — [Dry inland tiles unexpectedly reject ordinary buildings](../bug_report/2026-11-22-dry-land-unbuildable-patches.md):** investigating; allows construction on mountain, snow and riverbank tiles; retains water/structure exceptions and reinforcement eligibility, with new regression coverage.
 
 **2026-11-22 — [Rival construction roster blocks a legal staffing vacancy swap](../bug_report/2026-11-22-rival-construction-roster-blocks-vacancy-swap.md):** investigating; canonical crew-index fix in PR #160; prior-head CI passed, new direct swap regression and latest-head CI pending.

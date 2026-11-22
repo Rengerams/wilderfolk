@@ -11,6 +11,7 @@
 - Related PR: pending feature branch `fix/buildable-dry-land-20261122`
 
 ## Status history
+- 2026-11-22 — investigating: full CI uncovered an outdated Ground Reinforcement fixture (mountains were intentionally made buildable) and a related shallow-water save-load classifier regression. The fixture now reinforces shallow water; water-dependent saved Fishing Spots use terrain type rather than L0 path blocking. Fresh CI pending.
 - 2026-11-22 — investigating: changed the canonical classification and updated placement, terrain regeneration, and reinforcement regressions; CI pending.
 
 ## Observed behavior
@@ -37,4 +38,6 @@ Canonical `isUnbuildableTerrainType` now recognizes only the three actual water 
 No stored world terrain fields, elevations, biome-generation formulas or save schema changed. The runtime placement policy now accepts dry land; freshly generated or regenerated L0/L1 occupancy rasters are derived consistently from the canonical walking/water traits, so navigation through shallow water can differ from legacy cached generated grids.
 
 ## Verification result
+
+- 2026-11-22: three regressions failed on commit `c0087fc` (Ground Reinforcement fixture, compact save water census, Spotlight ring); fixes now on PR #161 and new CI pending. No green result claimed yet.
 NOT RUN at filing — CI checks pending; see `tests/infrastructure.acceptance.test.ts` and `tests/groundReinforcement.workerTransport.test.ts`.

@@ -1,7 +1,7 @@
 # Spotlight chorus slots stacked the men on each other in front of the heroine
 
 - Bug: the stage builder placed all chorus slots on one shallow arc south of the girl, 27–36 px away and 9–14 px apart, so their sprites overlapped and none of them left her standing clear in the middle.
-- Status: resolved
+- Status: investigating
 - Severity: medium
 - Date discovered: 2026-11-03
 - Version/build: 0.6.5.1 working tree (0.6.5.2 development)
@@ -11,6 +11,7 @@
 - Related PR/commit: none yet (uncommitted change in the working tree)
 
 ## Status history
+- 2026-11-22 — investigating: PR #161 CI found a ring slot 73.82 px from the heroine (maximum 60 px). Nearest-walkable snapping had displaced one point too far; the scene now retries walkable angles and radii inside the bounded ring and enforces a 20 px separation. Awaiting fresh CI.
 - 2026-11-03 — resolved: slots now form one evenly spaced ring around the heroine, measured and captured in the browser; TypeScript, lint and build pass.
 
 ## Observed behavior
@@ -49,11 +50,17 @@ The girl is the stage: she keeps the middle, the chorus surrounds her with enoug
 
 One ring at `SPOTLIGHT_RING_RADIUS_PX = 40` around the heroine, starting half a step past south so the front stays open; the stage centre is clamped inward so the ring always fits on the map instead of collapsing slots at a map edge. A slot closer than `SPOTLIGHT_MIN_SLOT_GAP_PX = 16` to another (only possible after walkability snapping) refuses the ground rather than staging a stacked cast. Walkability snapping, arrival tolerance and the single movement owner are unchanged.
 
+## Regression discovered on 22 November 2026
+
+The 55 px ring was not bounded after `nearestWalkableWorldPoint` snapped a blocked position; in the deterministic seed-63231 fixture, the real returned distance was 73.824 px. The bounded-slot selection in `buildSpotlightLoreScene` retries local positions, rejects distant snaps, preserves the existing stage/actor authority and requires each pair to stay at least 20 px apart. `tests/spotlightLore.test.ts` retains the original radius and separation assertions; no weakening or RNG changes.
+
 ## Save/migration impact
 
 None. Scene slots are transient presentation data; an already-saved ready scene keeps its stored slot coordinates and still validates exactly as before. No schema or field changes.
 
 ## Verification result
+
+- 2026-11-22 corrective PR #161: targeted test and full CI pending; previously recorded 2026-11-03 passes below remain historical results.
 
 - `npx vitest run tests/spotlightLore.test.ts` — PASS, 27 tests, including the new ring regression.
 - Related suites (`spotlightChoreography`, `spotlightApplause`, `spotlightReturnState`, `spotlightAudioRace`, `spotlightMusic`) — PASS, 19 tests.
