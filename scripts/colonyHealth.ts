@@ -22,9 +22,9 @@ import { updateStorageCaps } from '../src/game/economy';
 import { getRecentFoodFlow } from '../src/game/economyLedger';
 import {
   assignWorkerTransition,
-  countWorkingAndIdleSettlers,
   syncJobBuildingOccupants,
 } from '../src/game/workforce';
+import { countWorkingAndIdleSettlers } from '../src/game/workforceSummary';
 import { collectHousingDiagnostics, isHousingDiagnosticsHealthy, type HousingDiagnosticsSnapshot } from '../src/game/housingDiagnostics';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { countTamedAnimals, getAnimalCareStatus, tamedAnimalsFedToday, type AnimalCareStatus } from '../src/game/animalCare';

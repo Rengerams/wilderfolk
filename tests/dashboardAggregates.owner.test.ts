@@ -10,6 +10,7 @@ import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/g
 import { UNKNOWN_ECOSYSTEM_HEALTH } from '../src/game/dailyEcology';
 import { collectDashboard } from '../src/game/dashboardData';
 import { computeVillageStats } from '../src/game/uiSimSummary';
+import { countWorkingAndIdleSettlers } from '../src/game/workforceSummary';
 import { computeCitizenOverview } from '../src/game/citizenOverview';
 
 function world(overrides: Partial<WorldState> = {}): WorldState {
@@ -60,6 +61,7 @@ function settler(id: number, overrides: Partial<Entity> = {}): Entity {
     energy: 80,
     maxEnergy: 100,
     isJuvenile: false,
+    age: 30,
     ...overrides,
   } as unknown as Entity;
 }
@@ -147,6 +149,33 @@ describe('A7 — the village labour counters have one aggregator', () => {
     // Working and idle partition the workforce, so a fully employed free colony reads 100%.
     expect(stats.working + stats.idle).toBe(stats.workforce);
     expect(Math.round((stats.working / stats.workforce) * 100)).toBe(100);
+  });
+
+  it('uses calendar age for adults even when a saved juvenile flag is stale', () => {
+    const child = settler(1, { age: 17, isJuvenile: false, workerBuildingId: 5 });
+    const adult = settler(2, { age: 18, isJuvenile: true });
+    const state = world({ entities: [child, adult], humanPopulation: 2 });
+    const stats = computeVillageStats(state);
+    expect(stats).toMatchObject({
+      total: 2, adults: 1, children: 1, workforce: 1, working: 0, idle: 1,
+    });
+    expect(countWorkingAndIdleSettlers(state.entities, state.buildings)).toEqual({
+      working: stats.working, idle: stats.idle,
+    });
+  });
+
+  it('never mistakes a rival construction crew or imprisoned post holder for active labour', () => {
+    const rival = constructionSite(1);
+    rival.faction = 'rival';
+    const prisoner = settler(2, { workerBuildingId: 7, prisonBuildingId: 9 });
+    const state = world({ entities: [settler(1), prisoner], buildings: [rival], humanPopulation: 2 });
+    const stats = computeVillageStats(state);
+    expect(stats).toMatchObject({
+      total: 2, adults: 2, imprisoned: 1, workforce: 1, working: 0, idle: 1,
+    });
+    expect(countWorkingAndIdleSettlers(state.entities, state.buildings)).toEqual({
+      working: stats.working, idle: stats.idle,
+    });
   });
 
   it('leaves no second aggregation of the counters', () => {

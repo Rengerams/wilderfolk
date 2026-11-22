@@ -6,7 +6,8 @@ import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT, steerEntityToward } from './simulation/movementSteering';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
-import { getChurchStrength, findHumanWorkplace, buildConstructionCrewIndex } from './workforce';
+import { getChurchStrength, findHumanWorkplace } from './workforce';
+import { buildConstructionCrewIndex } from './workforceSummary';
 
 import { isPlayerHuman } from './playerHuman';
 import { deterministicCos, deterministicSin } from './simTrig';
