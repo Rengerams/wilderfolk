@@ -44,7 +44,7 @@ export function recordCareerWork(
     || !Number.isFinite(observedHours) || observedHours <= 0) return false;
   // Credit the witnessed prior shift, not the worker's current job or roster.
   if (worker.scheduleLastWorkedSiteId !== site.id || worker.scheduleLastWorkedJob !== job
-    || !site.completed || site.faction === 'rival' || BUILDING_JOB_TYPES[site.type] !== job) return false;
+    || !site.completed || BUILDING_JOB_TYPES[site.type] !== job) return false;
   const previous = worker.careerHistory?.[job];
   if (previous && (previous.lastDay >= day || previous.days >= MAX_CREDITED_DAYS)) return false;
   const history = worker.careerHistory ?? (worker.careerHistory = {});

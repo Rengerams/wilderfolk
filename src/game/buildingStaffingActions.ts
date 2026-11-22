@@ -90,7 +90,7 @@ function isEligibleBuilderForBuilding(
 
 function findPlayerBuilding(state: WorldState, buildingId: number): Building | undefined {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
-  return !building || building.faction === 'rival' ? undefined : building;
+  return !building ? undefined : building;
 }
 
 /** 
@@ -222,7 +222,7 @@ export function autoStaffAllWorkers(
   const countAssigned = () => allPlayerHumans(state.entities).filter((human) => human.workerBuildingId != null).length;
   const before = countAssigned();
   const workplaces = state.buildings.filter((building) =>
-    building.faction !== 'rival' && BUILDING_JOB_TYPES[building.type] != null,
+    BUILDING_JOB_TYPES[building.type] != null,
   );
   // An explicit colony or Virtual Player request is a staffing event even if
   // the passive workforce fingerprint has not changed yet.
@@ -272,7 +272,7 @@ export function removeStaffWorkerFromBuilding(
 
 export function canAssignWorkerToBuilding(state: WorldState, buildingId: number): boolean {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (!building || building.faction === 'rival') return false;
+  if (!building) return false;
 
   if (!building.completed) {
     const cap = getBuildingConfig(building.type).maxOccupants;

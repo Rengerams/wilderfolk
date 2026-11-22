@@ -132,7 +132,7 @@ export function computeMilitiaBreakdown(
   const adultCount = mustered.length;
   const staffedGuards = getBarracksGuardCount(state, state.buildings);
   const activeIds = new Set(mustered.map((soldier) => soldier.id));
-  const guardCount = state.buildings.filter((building) => building.type === BuildingType.Barracks && building.completed && building.faction !== 'rival')
+  const guardCount = state.buildings.filter((building) => building.type === BuildingType.Barracks && building.completed)
     .reduce((total, building) => total + building.occupants.filter((id) => activeIds.has(id)).length, 0);
   const spearTier = getMilitiaTier(state, SPEAR_TIER_CHAIN);
   const shieldTier = getMilitiaTier(state, SHIELD_TIER_CHAIN);
