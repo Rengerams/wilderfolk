@@ -236,7 +236,7 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
         errors.push(`leader ${leader.id} does not hold the "${LEADER_OCCUPATION}" occupation`);
       }
       const manor = state.buildings.find(
-        (b) => b.type === BuildingType.LeaderHouse && b.completed && b.faction !== 'rival',
+        (b) => b.type === BuildingType.LeaderHouse && b.completed,
       );
       // A cursed leader in Moon Howler form has `residenceBuildingId` parked in `moonHowlerSaved`, so
       // the manor check must exempt the form, as `isActingVillageHead` does for the office.

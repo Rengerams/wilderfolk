@@ -21,7 +21,7 @@ export interface ChronicleChapter {
 }
 
 const hasCompleted = (w: WorldState, type: BuildingType) =>
-  w.buildings.some((b) => b.completed && b.type === type && b.faction !== 'rival');
+  w.buildings.some((b) => b.completed && b.type === type);
 
 const anyForgeOrderDone = (w: WorldState): boolean =>
   Object.values(w.villageForge?.completed ?? {}).some(Boolean);

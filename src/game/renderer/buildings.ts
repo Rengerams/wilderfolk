@@ -302,7 +302,6 @@ export function drawDepthSortedBuilding(
   cw: number,
   ch: number,
 ): void {
-  if (b.faction === 'rival') return;
   const cam = state.camera;
   const stageHidesLevelMarks = state.spotlightLore?.phase === 'ready';
   const { sx, sy, w, h } = getBuildingScreenRect(b, state, cam, cw, ch);
@@ -375,7 +374,7 @@ export function drawDepthSortedBuilding(
 
     // Show empty staffed workplaces as 0 instead of hiding their staffing badge.
     // Non-workplaces keep their previous behavior; construction crews remain visible.
-    if (cam.zoom > 0.8 && (b.occupants.length > 0 || (b.completed && !!BUILDING_JOB_TYPES[b.type] && b.faction !== 'rival'))) {
+    if (cam.zoom > 0.8 && (b.occupants.length > 0 || (b.completed && !!BUILDING_JOB_TYPES[b.type]))) {
       const bs = Math.max(10, 12 * cam.zoom);
       const bx = sx + w / 2 - bs / 2;
       const by = sy + h / 2 - bs / 2;

@@ -140,7 +140,7 @@ export function maybeStartSpotlightLore(state: WorldState): boolean {
   if (chorus.length < SPOTLIGHT_MIN_CHORUS) return false;
 
   const square = state.buildings.find((b) =>
-    b.type === BuildingType.Square && b.completed && b.faction !== 'rival');
+    b.type === BuildingType.Square && b.completed);
   const squareStage = square ? squareStagePoint(square) : null;
 
   const squareOrigin = squareStage
@@ -183,7 +183,7 @@ export function startSpotlightLoreDebug(state: WorldState): boolean {
 
   const camp = map.campSite ?? { x: state.width / 2, y: state.height / 2 };
   const square = state.buildings.find((b) =>
-    b.type === BuildingType.Square && b.completed && b.faction !== 'rival');
+    b.type === BuildingType.Square && b.completed);
   const squareStage = square ? squareStagePoint(square) : null;
 
   const candidates = [

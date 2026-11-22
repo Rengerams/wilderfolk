@@ -17,7 +17,7 @@ export interface TutorialCampaignStep {
 }
 
 const hasCompletedBuilding = (world: WorldState, type: BuildingType): boolean =>
-  world.buildings.some((b) => b.completed && b.type === type && b.faction !== 'rival');
+  world.buildings.some((b) => b.completed && b.type === type);
 
 const hasAnyStaffedBuilding = (world: WorldState): boolean =>
   world.buildings.some((b) => b.completed && (b.occupants?.length ?? 0) > 0);

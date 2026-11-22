@@ -249,7 +249,7 @@ function observeHumanSleep(entity: Entity, context: {
   if (onDuty) return { sleeping: false, hasHospital: false };
 
   const home = entity.residenceBuildingId == null ? undefined : buildingById.get(entity.residenceBuildingId);
-  const atHome = !!home && home.faction !== 'rival' && isResidenceBuilding(home)
+  const atHome = !!home && isResidenceBuilding(home)
     && previousIndoorBuildingId === home.id;
   const atHotel = entity.hotelStayBuildingId != null
     && previousIndoorBuildingId === entity.hotelStayBuildingId
@@ -367,7 +367,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
   // Nearby completed player wells are cached once per tick, not scanned from every building per settler.
   const nearbyWells = updatedBuildings.filter((b) => b.type === BuildingType.Well
-    && b.completed && b.faction !== 'rival');
+    && b.completed);
 
   const staffedHospitals: Building[] = [];
   const staffedTownHalls: Building[] = [];
@@ -377,7 +377,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
    */
   const idleVenues: Building[] = [];
   for (const b of updatedBuildings) {
-    if (!b.completed || b.faction === 'rival') continue;
+    if (!b.completed) continue;
     if (
       b.type === BuildingType.Tavern ||
       b.type === BuildingType.Market ||
@@ -389,7 +389,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   }
   for (const b of updatedBuildings) {
     if (isStaffedHospital(b)) staffedHospitals.push(b);
-    else if (b.type === BuildingType.TownHall && b.completed && b.faction !== 'rival' && b.occupants.length > 0) {
+    else if (b.type === BuildingType.TownHall && b.completed && b.occupants.length > 0) {
       staffedTownHalls.push(b);
     }
   }
@@ -405,7 +405,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     let pool = completedPoolByKey.get(key);
     if (pool === undefined) {
       pool = updatedBuildings.filter(
-        (b) => b.completed && b.faction !== 'rival' && types.includes(b.type),
+        (b) => b.completed && types.includes(b.type),
       );
       completedPoolByKey.set(key, pool);
     }
@@ -494,7 +494,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const festivalPerformers = (state.visitorGroups ?? [])
     .find((group) => group.kind === 'performers' && group.daysLeft > 0);
   const festivalSquare = updatedBuildings.find(
-    (b) => b.type === BuildingType.Square && b.completed && b.faction !== 'rival',
+    (b) => b.type === BuildingType.Square && b.completed,
   );
 
   for (const entity of allHumans) {

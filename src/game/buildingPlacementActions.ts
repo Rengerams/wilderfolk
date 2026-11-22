@@ -179,7 +179,7 @@ export function startBuilding(
     } else {
       // Replacement main: preserve the surviving annex and its occupied beds.
       for (const annex of state.buildings) {
-        if (annex.type !== BuildingType.LeaderHouse || annex.faction === 'rival') continue;
+        if (annex.type !== BuildingType.LeaderHouse) continue;
         if (!annex.groupId?.startsWith('leader-house:')) continue;
         const formerId = Number(annex.groupId.slice('leader-house:'.length));
         if (state.buildings.some((candidate) => candidate.id === formerId)) continue;

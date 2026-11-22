@@ -23,7 +23,6 @@ function playerHouse(id: number, health: number): Building {
     height: 48,
     rotation: 0,
     completed: true,
-    faction: 'player',
     occupants: [],
     constructionProgress: 100,
     level: 1,

@@ -26,8 +26,4 @@ describe('auto-player food producer predicate', () => {
     expect(hasProductiveFoodProducer(withBuildings([site]))).toBe(true);
   });
 
-  it('ignores a rival producer', () => {
-    const rival = building(1, BuildingType.Farm, { faction: 'rival', occupants: [7] });
-    expect(hasProductiveFoodProducer(withBuildings([rival]))).toBe(false);
-  });
 });

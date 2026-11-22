@@ -205,15 +205,15 @@ class RoadBucketGrid {
  * `stripFamilyFor`, whose fallback routes a Fence into the 'road' family.
  */
 function isNetworkRoad(b: Building): boolean {
-  return b.completed && b.faction !== 'rival' && isRoadStripType(b.type);
+  return b.completed && isRoadStripType(b.type);
 }
 
 /**
- * A building the network serves: completed, non-rival, and not a multi-tile strip type
+ * A building the network serves: completed and not a multi-tile strip type
  * (roads are the network; walls, gates and fences are barriers).
  */
 function isServicedBuilding(b: Building): boolean {
-  return b.completed && b.faction !== 'rival' && !isStripBuildType(b.type);
+  return b.completed && !isStripBuildType(b.type);
 }
 
 /** Building id → completed player building: the two lookups each settler's commute needs. */
@@ -221,7 +221,7 @@ function indexBuildings(buildings: readonly Building[]): Map<number, Building> {
   const byId = new Map<number, Building>();
   for (let i = 0; i < buildings.length; i++) {
     const b = buildings[i];
-    if (b.completed && b.faction !== 'rival') byId.set(b.id, b);
+    if (b.completed) byId.set(b.id, b);
   }
   return byId;
 }
@@ -497,7 +497,7 @@ let cachedOverlayInputs: number[] = [];
 
 /**
  * Writes every value `computeLogisticsOverlay` reads into {@link overlayInputScratch} and reports
- * whether the vector differs from the cached one: building geometry/faction, settler home↔work
+ * whether the vector differs from the cached one: building geometry, settler home↔work
  * links and the terrain revision behind the walk grid.
  */
 function logisticsInputsChanged(world: WorldState): boolean {
@@ -520,7 +520,6 @@ function logisticsInputsChanged(world: WorldState): boolean {
     scratch[index++] = b.height;
     scratch[index++] = b.rotation ?? 0;
     scratch[index++] = b.completed ? 1 : 0;
-    scratch[index++] = b.faction === 'rival' ? 1 : 0;
   }
 
   const entities = world.entities ?? [];

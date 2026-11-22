@@ -164,11 +164,10 @@ describe('A7 — the village labour counters have one aggregator', () => {
     });
   });
 
-  it('never mistakes a rival construction crew or imprisoned post holder for active labour', () => {
-    const rival = constructionSite(1);
-    rival.faction = 'rival';
+  it('never mistakes a phantom construction crew or imprisoned post holder for active labour', () => {
+    const unstaffedSite = constructionSite(99);
     const prisoner = settler(2, { workerBuildingId: 7, prisonBuildingId: 9 });
-    const state = world({ entities: [settler(1), prisoner], buildings: [rival], humanPopulation: 2 });
+    const state = world({ entities: [settler(1), prisoner], buildings: [unstaffedSite], humanPopulation: 2 });
     const stats = computeVillageStats(state);
     expect(stats).toMatchObject({
       total: 2, adults: 2, imprisoned: 1, workforce: 1, working: 0, idle: 1,

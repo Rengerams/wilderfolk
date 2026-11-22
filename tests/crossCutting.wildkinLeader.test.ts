@@ -64,7 +64,6 @@ function leaderWorld(): { state: WorldState; leader: Entity; manor: Building } {
     height: 48,
     rotation: 0,
     completed: true,
-    faction: 'player',
     occupants: [leader.id],
     constructionProgress: 100,
     level: 1,

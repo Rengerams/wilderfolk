@@ -147,7 +147,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   }
 
   if (saved.workerBuildingId != null) {
-    const jobSite = buildings.find((b) => b.id === saved.workerBuildingId && b.completed && b.faction !== 'rival');
+    const jobSite = buildings.find((b) => b.id === saved.workerBuildingId && b.completed);
     if (jobSite) {
       const maxOcc = BUILDING_CONFIGS[jobSite.type]?.maxOccupants ?? 0;
       const workers = countWorkersAtBuilding(humans, jobSite.id);
@@ -162,7 +162,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
 
   if (saved.residenceBuildingId != null) {
     const home = buildings.find(
-      (b) => b.id === saved.residenceBuildingId && b.completed && b.faction !== 'rival',
+      (b) => b.id === saved.residenceBuildingId && b.completed,
     );
     if (home) {
       const cap = getResidenceCapacity(home);

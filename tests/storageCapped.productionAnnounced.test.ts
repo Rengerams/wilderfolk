@@ -37,7 +37,6 @@ function addLumberMill(state: WorldState): void {
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    faction: 'player',
   } as never);
 }
 

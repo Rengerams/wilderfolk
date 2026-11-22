@@ -551,7 +551,6 @@ describe('legacy frontier rival settlement spawning is retired', () => {
         height: 3,
         completed: true,
         occupants: [],
-        faction: undefined,
       } as unknown as Building);
     }
     return { state, allAlive: [...state.entities] };
@@ -565,12 +564,13 @@ describe('legacy frontier rival settlement spawning is retired', () => {
       const { state } = colonyFixture(10, true);
       state.paused = false;
       state.tick = tickAtDailyPhase(10, 'worldEvents') - 1;
+      const originalBuildingCount = state.buildings.length;
 
       gameTick(state);
 
       expect(state.rivalSettlements).toHaveLength(1);
       expect(state.entities.some((entity) => entity.faction === 'rival')).toBe(false);
-      expect(state.buildings.some((building) => building.faction === 'rival')).toBe(false);
+      expect(state.buildings).toHaveLength(originalBuildingCount);
     }
   });
 

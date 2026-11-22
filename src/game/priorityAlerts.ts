@@ -187,7 +187,7 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
   }
 
   const hasMarket = state.buildings.some(
-    (b) => b.completed && b.faction !== 'rival' && b.type === BuildingType.Market,
+    (b) => b.completed && b.type === BuildingType.Market,
   );
   if (!hasMarket && state.villageReputation >= 15) {
     alerts.push({

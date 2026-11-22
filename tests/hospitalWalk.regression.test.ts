@@ -132,11 +132,10 @@ describe('the single pregnancy hospital threshold', () => {
     expect(isPregnancyHospitalPriority(entity(0, 0, { pregnant: true, pregnancyProgress: 120 }), true)).toBe(false);
   });
 
-  it('counts only a completed, player-owned, staffed ward as available', () => {
+  it('counts only a completed, staffed ward as available', () => {
     expect(isStaffedHospital(hospital(1, 0, 0, [2]))).toBe(true);
     expect(isStaffedHospital(hospital(1, 0, 0, []))).toBe(false);
     expect(isStaffedHospital({ ...hospital(1, 0, 0, [2]), completed: false })).toBe(false);
-    expect(isStaffedHospital({ ...hospital(1, 0, 0, [2]), faction: 'rival' })).toBe(false);
   });
 });
 

@@ -24,7 +24,7 @@ function updatePlayerBuilding(
   apply: (building: Building) => Building,
 ): WorldState {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (!building || building.faction === 'rival' || !accept(building)) return state;
+  if (!building || !accept(building)) return state;
   const updated = apply(building);
   if (updated === building) return state;
   return {

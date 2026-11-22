@@ -454,13 +454,12 @@ describe('idle-worker counts', () => {
     expect(countWorkingAndIdleSettlers([settler], [farm])).toEqual({ working: 0, idle: 1 });
   });
 
-  it('only indexes unfinished player crews, not rival or completed rosters', () => {
+  it('only indexes unfinished construction crews, not completed job rosters', () => {
     const idle = human(1);
     const builder = human(2);
-    const rival = building(10, BuildingType.House, { completed: false, faction: 'rival', occupants: [idle.id] });
     const playerSite = building(11, BuildingType.House, { completed: false, occupants: [builder.id] });
     const completed = building(12, BuildingType.Farm, { occupants: [idle.id] });
-    const sites = [rival, completed, playerSite];
+    const sites = [completed, playerSite];
 
     expect([...buildConstructionCrewIndex(sites).keys()]).toEqual([builder.id]);
     expect(countWorkingAndIdleSettlers([idle, builder], sites)).toEqual({ working: 1, idle: 1 });

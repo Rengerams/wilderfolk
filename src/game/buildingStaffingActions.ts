@@ -43,7 +43,6 @@ export function pickAdultSettler(
 export type WorkerAssignmentRefusal =
   | 'unknown-building'
   | 'unknown-settler'
-  | 'rival-building'
   | 'residence-building'
   | 'building-full'
   | 'building-has-no-job'
@@ -90,7 +89,7 @@ function isEligibleBuilderForBuilding(
 
 function findPlayerBuilding(state: WorldState, buildingId: number): Building | undefined {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
-  return !building || building.faction === 'rival' ? undefined : building;
+  return !building ? undefined : building;
 }
 
 /** 
@@ -184,7 +183,7 @@ export function fillBuildingWorkers(
   const preview = originalState.buildings.find((building) => building.id === buildingId);
   // Bulk selection only applies to unfinished construction crews; completed workplaces are
   // staffed by automatic reconciliation.
-  if (!preview || preview.faction === 'rival' || preview.completed) return originalState;
+  if (!preview || preview.completed) return originalState;
 
   const cap = getBuildingConfig(preview.type).maxOccupants;
   
@@ -222,7 +221,7 @@ export function autoStaffAllWorkers(
   const countAssigned = () => allPlayerHumans(state.entities).filter((human) => human.workerBuildingId != null).length;
   const before = countAssigned();
   const workplaces = state.buildings.filter((building) =>
-    building.faction !== 'rival' && BUILDING_JOB_TYPES[building.type] != null,
+    BUILDING_JOB_TYPES[building.type] != null,
   );
   // An explicit colony or Virtual Player request is a staffing event even if
   // the passive workforce fingerprint has not changed yet.
@@ -272,7 +271,7 @@ export function removeStaffWorkerFromBuilding(
 
 export function canAssignWorkerToBuilding(state: WorldState, buildingId: number): boolean {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (!building || building.faction === 'rival') return false;
+  if (!building) return false;
 
   if (!building.completed) {
     const cap = getBuildingConfig(building.type).maxOccupants;
@@ -296,7 +295,6 @@ export function getWorkerAssignmentRefusal(
 ): WorkerAssignmentRefusal | null {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
   if (!building) return 'unknown-building';
-  if (building.faction === 'rival') return 'rival-building';
 
   const entity = state.entities.find((candidate) => candidate.id === humanId);
   if (!entity) return 'unknown-settler';

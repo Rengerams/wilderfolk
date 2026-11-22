@@ -153,7 +153,7 @@ export function computeRawEcologyStress(state: WorldState): {
   const buildings = state.buildings;
   for (let i = 0; i < buildings.length; i++) {
     const b = buildings[i];
-    if (b.completed && b.type === BuildingType.HuntingSpot && b.faction !== 'rival' && b.occupants.length > 0) {
+    if (b.completed && b.type === BuildingType.HuntingSpot && b.occupants.length > 0) {
       huntSpots++;
     }
   }

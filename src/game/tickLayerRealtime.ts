@@ -202,7 +202,7 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     
     let completedBuildings = 0;
     for (const b of state.buildings) {
-      if (b.completed && b.faction !== 'rival') completedBuildings++;
+      if (b.completed) completedBuildings++;
     }
 
     const snapshot: PopulationHistoryEntry = {

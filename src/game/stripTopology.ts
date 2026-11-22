@@ -68,7 +68,7 @@ function collectSnapPoints(buildings: Building[], family: 'wall' | 'road'): { x:
   const types = family === 'wall' ? null : ROAD_STRIP_TYPES;
   for (const b of buildings) {
     const member = family === 'wall' ? isWallStripType(b.type) : types!.has(b.type);
-    if (!b.completed || b.faction === 'rival' || !member) continue;
+    if (!b.completed || !member) continue;
     const rot = normalizeBuildingRotation(b.rotation);
     const sampleType = b.type === BuildingType.WallGate ? BuildingType.WallGate : b.type;
     const [a, c] = getStripSegmentEndpoints(sampleType, b.x, b.y, rot);
@@ -109,7 +109,7 @@ function collectRoadEntranceSnapPoints(buildings: readonly Building[]): { x: num
   const roadHalfDepth = getBuildingFootprintForType(BuildingType.Road, 0).height / 2;
   const entrances: { x: number; y: number }[] = [];
   for (const building of buildings) {
-    if (!building.completed || building.faction === 'rival') continue;
+    if (!building.completed) continue;
     if (!ROAD_ENTRANCE_HOUSING_TYPES.has(building.type) && !BUILDING_JOB_TYPES[building.type]) continue;
     const foundationEdge = building.y + building.height / 2;
     const approachY = foundationEdge + roadHalfDepth;
@@ -256,8 +256,7 @@ export function resolveRoadStripPlan(
     if (emitted.has(key)) return [];
     emitted.add(key);
     // A repeated stroke must not create another building over an existing road segment.
-    const existing = state.buildings.some((b) => b.type === BuildingType.Road
-      && b.faction !== 'rival' && b.x === snapped.x && b.y === snapped.y
+    const existing = state.buildings.some((b) => b.type === BuildingType.Road && b.x === snapped.x && b.y === snapped.y
       && normalizeBuildingRotation(b.rotation) === stripRotation);
     if (existing) return [];
     const junctionPt = resolveJunctionCenter(snapped.x, snapped.y, hList, vList);
@@ -304,7 +303,7 @@ export function findStripBuildingAt(
       ? isRoadStripType
       : null;
   for (const b of state.buildings) {
-    if (!b.completed || b.faction === 'rival') continue;
+    if (!b.completed) continue;
     if (familyFilter) {
       if (!familyFilter(b.type)) continue;
     } else if (!isWallStripType(b.type) && !isRoadStripType(b.type)) {
@@ -332,7 +331,6 @@ export function collectStripDemolitionIds(
   const bottom = Math.max(startY, endY);
   const ids: number[] = [];
   for (const building of buildings) {
-    if (building.faction === 'rival') continue;
     const matching = type === BuildingType.Fence
       ? building.type === BuildingType.Fence
       : family === 'wall' ? isWallStripType(building.type) : isRoadStripType(building.type);
@@ -371,7 +369,7 @@ export function findEnclosedWallAreas(
   };
 
   for (const b of state.buildings) {
-    if (!b.completed || b.faction === 'rival') continue;
+    if (!b.completed) continue;
     if (!isWallStripType(b.type)) continue;
     markBlocked(b.x, b.y, Math.max(b.width, b.height) * 0.45);
   }

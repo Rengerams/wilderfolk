@@ -1,3 +1,4 @@
+import { findStaffedBuildings } from './buildings';
 import type { WorldState, Entity, Building } from './gameTypes';
 import { BuildingType, EntityType, JobType, PATH_CELL } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycle';
@@ -54,13 +55,7 @@ export function schoolCapacity(school: Building): number {
 }
 
 export function findStaffedSchools(buildings: readonly Building[]): Building[] {
-  return buildings.filter(
-    (b) =>
-      b.completed
-      && b.type === BuildingType.School
-      && b.faction !== 'rival'
-      && b.occupants.length > 0,
-  );
+  return findStaffedBuildings(buildings, BuildingType.School);
 }
 
 export function findNearestStaffedSchool(
@@ -211,7 +206,7 @@ export function getSchoolingBlockReason(
 ): string | null {
   if (child.age < SCHOOL_MIN_AGE) return `Too young — school starts at age ${SCHOOL_MIN_AGE}`;
   if (child.age >= HUMAN_ADULT_MIN_AGE) return 'Grown up — past school age';
-  const schools = buildings.filter((b) => b.type === BuildingType.School && b.faction !== 'rival');
+  const schools = buildings.filter((b) => b.type === BuildingType.School);
   if (schools.length === 0) return 'No school built';
   if (!schools.some((b) => b.completed)) return 'School still under construction';
   const staffed = findStaffedSchools(buildings);

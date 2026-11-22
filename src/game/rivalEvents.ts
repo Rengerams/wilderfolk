@@ -1,5 +1,5 @@
 import { unindexEntityFromState } from './entityIndex';
-import type { Building, Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
+import type { Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { getColonyDay } from './dayCycle';
 import { canRivalCampGrow, getRivalGrowthFoodCost, isRivalGrowthDay, maybeQueueRaid } from './frontierCombat';
@@ -39,21 +39,6 @@ export function makeNextAliveDeer(allAlive: Entity[]): () => Entity | undefined 
     }
     return undefined;
   };
-}
-
-/**
- * Retires every rival-faction camp building in place; returns the ids that left the map. The save
- * migration is its only caller: 0.6.5.0/0.6.5.1 saves can still carry the retired village camps.
- */
-export function retireLegacyCampStructures(buildings: Building[]): Set<number> {
-  const retired = new Set<number>();
-  for (let index = buildings.length - 1; index >= 0; index--) {
-    const building = buildings[index];
-    if (building.faction !== 'rival') continue;
-    retired.add(building.id);
-    buildings.splice(index, 1);
-  }
-  return retired;
 }
 
 /**

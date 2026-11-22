@@ -12,7 +12,7 @@ import type { StripSegment } from '../src/game/stripBuild';
 
 /** The load-time oracle for the counter (`saveLoad.ts`), restated here as the test's expectation. */
 function completedPlayerBuildings(world: WorldState): number {
-  return world.buildings.filter((b) => b.completed && b.faction !== 'rival').length;
+  return world.buildings.filter((b) => b.completed).length;
 }
 
 /** A spot where a Wall and the Gate that replaces it both pass the placement owner's own checks. */

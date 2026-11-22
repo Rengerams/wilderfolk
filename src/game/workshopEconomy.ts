@@ -42,7 +42,7 @@ export function estimateWorkshopGold(
   building: Building,
   options: EstimateWorkshopGoldOptions = {},
 ): number {
-  if (!building.completed || building.faction === 'rival') {
+  if (!building.completed) {
     return 0;
   }
 

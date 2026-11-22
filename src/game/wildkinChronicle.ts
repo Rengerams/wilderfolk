@@ -20,7 +20,7 @@ export const WILDKIN_SETTLEMENT_RANGE_WU = TERRAIN_CELL * 4;
 function settlementAnchor(state: WorldState): { x: number; y: number } | null {
   for (let i = 0; i < state.buildings.length; i++) {
     const building = state.buildings[i];
-    if (!building.completed || building.faction === 'rival') continue;
+    if (!building.completed) continue;
     return { x: building.x, y: building.y };
   }
   return null;

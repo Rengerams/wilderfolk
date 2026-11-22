@@ -178,7 +178,6 @@ describe('one run-seed authority for stories, elections and omens', () => {
       id: 20_000,
       type: BuildingType.HuntingSpot,
       completed: true,
-      faction: 'player',
       occupants: [],
     } as unknown as Building);
     state.year = Math.floor(day / DAYS_PER_YEAR);

@@ -14,6 +14,7 @@ import {
 } from '../src/game/worldEvents';
 import { BuildingType, EntityType, JobType, WeatherType } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
+import { building } from '../src/test/factories';
 import {
   daylightTint,
   listWeather,
@@ -33,23 +34,15 @@ describe('getWeatherFarmMultiplier', () => {
 });
 
 function playerHouse(id: number, health: number): Building {
-  return {
-    id,
-    type: BuildingType.House,
+  return building(id, BuildingType.House, {
     x: 100,
     y: 100,
     width: 60,
     height: 48,
     rotation: 0,
-    completed: true,
-    faction: 'player',
-    occupants: [],
     constructionProgress: 100,
-    level: 1,
-    spriteScale: 1,
     health,
-    maxHealth: 100,
-  } as never;
+  });
 }
 
 describe('applyStormDamageToBuildings', () => {
@@ -73,12 +66,10 @@ describe('applyStormDamageToBuildings', () => {
     expect(house.health).toBe(20);
   });
 
-  it('leaves rival and uncompleted buildings untouched', () => {
-    const rival = { ...playerHouse(1, 100), faction: 'rival' as never };
-    const skeleton = { ...playerHouse(2, 100), completed: false as never };
-    const damaged = applyStormDamageToBuildings([rival, skeleton], 1);
+  it('leaves unfinished buildings untouched', () => {
+    const skeleton = { ...playerHouse(2, 100), completed: false };
+    const damaged = applyStormDamageToBuildings([skeleton], 1);
     expect(damaged).toEqual([]);
-    expect(rival.health).toBe(100);
     expect(skeleton.health).toBe(100);
   });
 });
@@ -127,21 +118,14 @@ describe('farm yield responds to weather (integration)', () => {
     state.resources.food = 0;
     state.resources.wood = 99999;
     // Completed farm owned by the player.
-    state.buildings.push({
-      id: state.nextBuildingId++,
-      type: BuildingType.Farm,
+    state.buildings.push(building(state.nextBuildingId++, BuildingType.Farm, {
       x: 400,
       y: 300,
       width: 80,
       height: 60,
       rotation: 0,
-      completed: true,
-      faction: 'player',
-      occupants: [],
       constructionProgress: 100,
-      level: 1,
-      spriteScale: 1,
-    } as never);
+    }));
     return state;
   }
 

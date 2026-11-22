@@ -94,7 +94,7 @@ export function needsHotelBed(
 
 /** A completed player hotel the settler could still reach tonight. */
 function isReachableHotel(entity: Entity, hotel: Building, homeHours: number): boolean {
-  if (!hotel.completed || hotel.type !== BuildingType.Hotel || hotel.faction === 'rival') return false;
+  if (!hotel.completed || hotel.type !== BuildingType.Hotel) return false;
   const hours = commuteLeadHoursFor(centreDistance(entity, hotel), HUMAN_WALK_SPEED);
   return hours <= MAX_ASSIGNABLE_COMMUTE_HOURS && hours <= homeHours;
 }
@@ -106,7 +106,6 @@ function isReachableHotel(entity: Entity, hotel: Building, homeHours: number): b
 export function isStaffedHotel(building: Building): boolean {
   return building.completed
     && building.type === BuildingType.Hotel
-    && building.faction !== 'rival'
     && building.occupants.length > 0;
 }
 
@@ -179,7 +178,7 @@ export function createHotelLodgingIndex(
     if (!hotels) {
       hotels = [];
       for (const b of buildings) {
-        if (!b.completed || b.type !== BuildingType.Hotel || b.faction === 'rival') continue;
+        if (!b.completed || b.type !== BuildingType.Hotel) continue;
         hotels.push(b);
       }
     }
@@ -219,7 +218,7 @@ export function isSettlerLodgingAtHotel(
   const candidates: Iterable<Building> = hotels
     ?? ('get' in buildings ? (buildings as ReadonlyMap<number, Building>).values() : buildings);
   for (const b of candidates) {
-    if (!b.completed || b.type !== BuildingType.Hotel || b.faction === 'rival') continue;
+    if (!b.completed || b.type !== BuildingType.Hotel) continue;
     if (holdsSettlerHotelBed(entity, b.id) && centreDistance(entity, b) <= HOTEL_LODGING_RADIUS_PX) return true;
   }
   return false;
@@ -476,7 +475,7 @@ export function checkoutVisitor(visitor: Entity, hotel?: Building): void {
 export function tickHotelLodging(state: WorldState): void {
   const hour = getHourOfDay(state.tick);
   const hotels = state.buildings.filter(
-    (b) => b.completed && b.type === BuildingType.Hotel && b.faction !== 'rival',
+    (b) => b.completed && b.type === BuildingType.Hotel,
   );
   // One guest index for the whole call: prune, `pickHotelForVisitor` and every `checkInVisitor`
   // in the loop share it instead of rebuilding it per hotel per visitor.

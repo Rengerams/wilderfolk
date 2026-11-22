@@ -53,7 +53,7 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
   } as Entity;
 }
 
-function residence(id: number, faction: string): Building {
+function residence(id: number, completed = true): Building {
   const cfg = BUILDING_CONFIGS[BuildingType.House];
   return {
     id,
@@ -64,13 +64,12 @@ function residence(id: number, faction: string): Building {
     height: cfg.height,
     occupants: [],
     level: 1,
-    constructionProgress: 100,
-    completed: true,
+    constructionProgress: completed ? 100 : 0,
+    completed,
     health: 100,
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    faction,
   } as never;
 }
 
@@ -125,24 +124,24 @@ describe('M11 — grief is a window, not a permanent state', () => {
   });
 });
 
-describe('M23 — rival-camp houses never house settlers', () => {
-  it('never returns a rival residence', () => {
+describe('M23 — unfinished houses never house settlers', () => {
+  it('skips an unfinished residence while selecting a completed home', () => {
     const settler = human(1);
-    const rivalHouse = residence(10, 'rival');
-    const playerHouse = residence(11, 'player');
+    const unfinished = residence(10, false);
+    const completed = residence(11);
 
-    expect(pickResidenceForFamily([settler], [settler], [rivalHouse])).toBeUndefined();
-    expect(pickResidenceForFamily([settler], [settler], [rivalHouse, playerHouse])).toBe(playerHouse.id);
+    expect(pickResidenceForFamily([settler], [settler], [unfinished])).toBeUndefined();
+    expect(pickResidenceForFamily([settler], [settler], [unfinished, completed])).toBe(completed.id);
   });
 });
 
 describe('M38 — storm damage never heals a building', () => {
   it('leaves a building at or below the floor untouched and out of the report', () => {
-    const atFloor = residence(1, 'player');
+    const atFloor = residence(1);
     atFloor.health = 20;
-    const belowFloor = residence(2, 'player');
+    const belowFloor = residence(2);
     belowFloor.health = 15;
-    const healthy = residence(3, 'player');
+    const healthy = residence(3);
     healthy.health = 100;
 
     const damaged = applyStormDamageToBuildings([atFloor, belowFloor, healthy], 1);

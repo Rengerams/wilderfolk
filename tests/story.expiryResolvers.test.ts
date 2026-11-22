@@ -119,7 +119,6 @@ function addHuntingSpot(world: WorldState): void {
     width: 46,
     height: 40,
     completed: true,
-    faction: 'player',
     occupants: [],
     level: 1,
   } as never);

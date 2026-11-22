@@ -66,7 +66,7 @@ import { syncGenealogyRegistry } from './genealogyRegistry';
 import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
 import { nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
-import { pruneOrphanRivalEntities, retireLegacyCampStructures } from './rivalEvents';
+import { pruneOrphanRivalEntities } from './rivalEvents';
 
 const SAVE_KEY = 'ecosim_save';
 /** A file import never writes the quick-save; the import has its own recoverable slot. */
@@ -1470,10 +1470,25 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       : loadAutoSavePreference();
     // The payload's value is adopted onto the world; the browser preference stays the player's.
 
+    // Old 0.6.5.0/0.6.5.1 saves may still carry physical rival camps. Read the retired
+    // faction field only at the load boundary; active Buildings have no such ownership.
+    // The input payload has already been cloned, so removing wire fields is safe here.
+    const playerBuildings: Building[] = [];
+    let retiredLegacyCampCount = 0;
+    for (const building of worldData.buildings ?? []) {
+      const legacy = building as Building & { faction?: unknown };
+      if (legacy.faction === 'rival') {
+        retiredLegacyCampCount++;
+        continue;
+      }
+      delete legacy.faction;
+      playerBuildings.push(building);
+    }
+
     const transient = restoreTransientWorldFieldsFromSave(source);
     const world = {
       ...worldData,
-      buildings: worldData.buildings ?? [],
+      buildings: playerBuildings,
       scentGrid: undefined,
       autoSave,
       workSchedule: normalizeWorkSchedule(worldData.workSchedule),
@@ -1502,7 +1517,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       townHallFestivalCooldownUntilTick: worldData.townHallFestivalCooldownUntilTick ?? 0,
       // A save written before `storageMax` existed falls back to the owner's cap rule
       // (`computeStorageMax`) rather than a copy; a save that carries its own numbers keeps them.
-      storageMax: worldData.storageMax || computeStorageMax(worldData.buildings ?? []),
+      storageMax: worldData.storageMax || computeStorageMax(playerBuildings),
       // A payload that predates the rate takes it from the same owner after its buildings are read.
       foodSpoilageRate: worldData.foodSpoilageRate ?? 0,
       eventLog: worldData.eventLog || [],
@@ -1620,8 +1635,16 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     repairEventLogOnLoad(world);
     syncEventLogIdFromState(world);
     syncBigNewsIdFromState(world);
+    if (retiredLegacyCampCount > 0) {
+      world.appliedSaveMigrations ??= [];
+      if (!world.appliedSaveMigrations.includes('legacy-village-camps')) {
+        world.appliedSaveMigrations.push('legacy-village-camps');
+      }
+      logEvent(world, 'event',
+        `Save migrated — ${retiredLegacyCampCount} legacy rival camp structure(s) removed from the map.`);
+    }
     world.totalBuildingsCompleted = (world.buildings ?? []).filter(
-      (b) => b.completed && b.faction !== 'rival',
+      (b) => b.completed,
     ).length;
     world.challenges = world.challenges?.length
       ? world.challenges
@@ -1648,30 +1671,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         : b,
     );
     // A payload written before the spoilage field existed takes its rate from the one economy owner.
-    if (worldData.foodSpoilageRate == null) updateStorageCaps(world);
-    const applySaveMigration = (id: string, message: string) => {
-      if (!world.appliedSaveMigrations) world.appliedSaveMigrations = [];
-      if (world.appliedSaveMigrations.includes(id)) return;
-      world.appliedSaveMigrations.push(id);
-      logEvent(world, 'event', message);
-    };
-
-    // A save written while village camps existed can hold camp structures the day pulse never reached,
-    // since it retires only what a rival row still lists. Runs before the dangling-reference sweep.
-    const campMigrationDone = (world.appliedSaveMigrations ?? []).includes('legacy-village-camps');
-    if (!campMigrationDone) {
-      const retiredCampStructures = retireLegacyCampStructures(world.buildings);
-      if (retiredCampStructures.size > 0) {
-        applySaveMigration(
-          'legacy-village-camps',
-          `Save migrated — ${retiredCampStructures.size} legacy rival camp structure(s) removed from the map.`,
-        );
-      } else {
-        if (!world.appliedSaveMigrations) world.appliedSaveMigrations = [];
-        world.appliedSaveMigrations.push('legacy-village-camps');
-      }
-    }
-
+    if (worldData.foodSpoilageRate == null || retiredLegacyCampCount > 0) updateStorageCaps(world);
     world.scoredRaidIds ??= world.raidBattleReports?.map((report) => report.raidId);
     if (world.raidRecovery?.status === 'destroyed') world.paused = true;
     for (const grave of world.graveRecords ?? []) {

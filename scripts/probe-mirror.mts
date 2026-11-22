@@ -80,7 +80,7 @@ function run(): void {
           dayOps[decision.command.op] = (dayOps[decision.command.op] ?? 0) + 1;
           if (dayReasons.length < 3) dayReasons.push(`${decision.command.op}: ${decision.reason}`);
           if (decision.command.op === 'startBuilding' && gateLog.length < 40) {
-            const food = world.buildings.filter((b) => FOOD_TYPES.includes(b.type) && b.faction !== 'rival');
+            const food = world.buildings.filter((b) => FOOD_TYPES.includes(b.type));
             gateLog.push(`t=${world.tick} type=${String((decision.command as { type?: unknown }).type)}`
               + ` completed=${food.filter((b) => b.completed).length}`
               + ` incomplete=${food.filter((b) => !b.completed).length}`);
@@ -100,7 +100,7 @@ function run(): void {
       const adults = humans.filter((e) => !e.isJuvenile).length;
       const idleAdults = humans.filter((e) => !e.isJuvenile && e.workerBuildingId == null).length;
       const flow = getRecentFoodFlow(world, 7);
-      const foodSites = world.buildings.filter((b) => FOOD_TYPES.includes(b.type) && b.faction !== 'rival');
+      const foodSites = world.buildings.filter((b) => FOOD_TYPES.includes(b.type));
       const understaffed = foodSites.filter((b) => b.completed
         && countWorkersAtBuilding(world.entities, b.id) < BUILDING_CONFIGS[b.type].maxOccupants).length;
       const incomplete = foodSites.filter((b) => !b.completed).length;

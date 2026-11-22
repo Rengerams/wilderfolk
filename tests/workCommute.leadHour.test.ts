@@ -17,7 +17,7 @@ import { TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay, getWeekday } from '../src/
 function workplace(state: WorldState, x: number, y: number): Building {
   const b = {
     id: state.nextBuildingId++, type: BuildingType.LumberMill, x, y, width: 60, height: 48,
-    rotation: 0, completed: true, faction: 'player', occupants: [], constructionProgress: 100,
+    rotation: 0, completed: true, occupants: [], constructionProgress: 100,
     level: 1, spriteScale: 1, health: 100, maxHealth: 100,
   } as unknown as Building;
   state.buildings.push(b);

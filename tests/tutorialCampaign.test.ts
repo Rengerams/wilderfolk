@@ -41,11 +41,6 @@ describe('tutorial campaign', () => {
     expect(stepId(makeWorld())).toBe('build_house');
   });
 
-  it('a rival house does not satisfy the build-a-house step', () => {
-    const w = addBuilding(makeWorld(), BuildingType.House);
-    w.buildings[w.buildings.length - 1].faction = 'rival';
-    expect(stepId(w)).toBe('build_house');
-  });
 
   it('an unfinished house does not satisfy the build-a-house step', () => {
     const w = addBuilding(makeWorld(), BuildingType.House, false);

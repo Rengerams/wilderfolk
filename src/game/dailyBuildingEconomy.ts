@@ -63,7 +63,6 @@ import {
 import {
   addFloatingText,
   impulseScreenShake,
-  createDeathParticles,
 } from './simEffects';
 import { recordFoodProduced } from './economyLedger';
 import { tickBlueberryRegrowth } from './blueberryForaging';
@@ -258,26 +257,22 @@ function tickBuildingProgress(state: WorldState): void {
         completedAny = true;
         completedToday.set(building.type, (completedToday.get(building.type) ?? 0) + 1);
 
-        if (building.faction !== 'rival') {
-          state.totalBuildingsCompleted++;
-          const repGain = 2;
-          addReputation(state, repGain);
+        state.totalBuildingsCompleted++;
+        const repGain = 2;
+        addReputation(state, repGain);
 
-          if (loadJuiceEffectsEnabled()) {
-            spawnBuildCompleteParticles(state, building);
-            addFloatingText(
-              state,
-              building.x,
-              building.y - building.height * 0.35,
-              '✨ Built!',
-              '#fde047',
-              'emphasis',
-            );
-            addFloatingText(state, building.x, building.y - 8, `+${repGain}⭐`, '#22c55e', 'brief');
-            impulseScreenShake(state, 3.5);
-          }
-        } else {
-          createDeathParticles(state, building.x, building.y, '#ffd700', 12, 'star');
+        if (loadJuiceEffectsEnabled()) {
+          spawnBuildCompleteParticles(state, building);
+          addFloatingText(
+            state,
+            building.x,
+            building.y - building.height * 0.35,
+            '✨ Built!',
+            '#fde047',
+            'emphasis',
+          );
+          addFloatingText(state, building.x, building.y - 8, `+${repGain}⭐`, '#22c55e', 'brief');
+          impulseScreenShake(state, 3.5);
         }
 
         syncAdjacency(state, building, wasCompleted);

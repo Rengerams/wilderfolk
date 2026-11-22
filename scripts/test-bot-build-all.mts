@@ -151,7 +151,7 @@ function completeEverything(world: WorldState): { world: WorldState; completed: 
   let next = structuredClone(world);
   let completed = 0;
   for (const building of next.buildings) {
-    if (building.faction === 'rival' || building.completed) continue;
+    if (building.completed) continue;
     building.completed = true;
     building.constructionProgress = 100;
     building.spriteScale = 1;

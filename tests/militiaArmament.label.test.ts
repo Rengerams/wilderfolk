@@ -35,7 +35,6 @@ function makeState(researched: string[], forgeCompleted: Record<string, boolean>
         maxHealth: 100,
         spriteScale: 1,
         buildAnimTimer: 0,
-        faction: 'player',
       },
     ],
     villageForge: { activeOrder: null, progress: 0, completed: forgeCompleted },

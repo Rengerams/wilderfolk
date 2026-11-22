@@ -1032,7 +1032,6 @@ export function tryFirstWeekVisitor(
   const hasPlayerHouse = buildings.some(
     (b) =>
       b.completed
-      && b.faction !== 'rival'
       && (b.type === BuildingType.House || b.type === BuildingType.Mansion),
   );
   if (!hasPlayerHouse) return null;

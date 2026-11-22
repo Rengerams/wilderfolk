@@ -92,7 +92,7 @@ export function maybeOfferInventionFair(state: WorldState): void {
   if ((state.pendingStoryEvents ?? []).length > 0) return;
   if (state.resources.wood < 30) return;
   const site = state.buildings.find((b) =>
-    b.completed && b.faction !== 'rival' && b.type === BuildingType.TownHall);
+    b.completed && b.type === BuildingType.TownHall);
   if (!site) return;
   if (state.entities.filter((e) => e.alive && isPlayerHuman(e)).length < 15) return;
   const apprentice = findApprentice(state);

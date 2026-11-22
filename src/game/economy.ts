@@ -41,14 +41,14 @@ export function computeStorageMax(
 ): { wood: number; stone: number; food: number; gold: number; iron: number } {
   // Which completed buildings confer storage is a player rule: rival-owned buildings never count.
   const countOf = (type: BuildingType): number =>
-    buildings.filter((b) => b.completed && b.faction !== 'rival' && b.type === type).length;
+    buildings.filter((b) => b.completed && b.type === type).length;
   const barns = countOf(BuildingType.Barn);
   const silos = countOf(BuildingType.Silo);
   const siloFoodCapacity = buildings.reduce((sum, building) =>
-    sum + (building.completed && building.faction !== 'rival' && building.type === BuildingType.Silo
+    sum + (building.completed && building.type === BuildingType.Silo
       ? siloFoodStorageForLevel(building.level ?? 1) : 0), 0);
   const storehouseCapacity = buildings.reduce((sum, building) =>
-    sum + (building.completed && building.faction !== 'rival' && building.type === BuildingType.WoodStorehouse
+    sum + (building.completed && building.type === BuildingType.WoodStorehouse
       ? storehouseStorageForLevel(building.level ?? 1) : 0), 0);
   const warehouses = countOf(BuildingType.Store) + countOf(BuildingType.Market);
 
@@ -67,7 +67,7 @@ export function computeStorageMax(
 
 export function updateStorageCaps(state: WorldState) {
   const silos = state.buildings.filter(
-    (b) => b.completed && b.faction !== 'rival' && b.type === BuildingType.Silo,
+    (b) => b.completed && b.type === BuildingType.Silo,
   ).length;
 
   state.storageMax = computeStorageMax(state.buildings);

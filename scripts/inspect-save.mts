@@ -198,7 +198,7 @@ function reportGroundAudit(world: WorldState, map: NonNullable<WorldState['world
 
   /** What blocks a tile: a completed wall's footprint, water, or the decor the L3 pass reserved. */
   const walls = world.buildings.filter(
-    (building) => building.type === BuildingType.Wall && building.completed && building.faction !== 'rival',
+    (building) => building.type === BuildingType.Wall && building.completed,
   );
   const blockerAt = (entity: Entity): 'wall' | 'water' | 'decor' | null => {
     const tx = Math.floor(entity.x / PATH_CELL);
@@ -435,7 +435,7 @@ function reportPrisonEscapeWatch(world: WorldState, days: number): void {
 
   const prisons = (): Building[] =>
     world.buildings.filter(
-      (b) => b.completed && b.type === BuildingType.Prison && b.faction !== 'rival'
+      (b) => b.completed && b.type === BuildingType.Prison
         && (b.occupants ?? []).length > 0,
     );
 
@@ -482,7 +482,7 @@ function reportPrisonEscapeWatch(world: WorldState, days: number): void {
       // it sampled for the new day is the one this observation cannot see.
       const rolledNow = world.tick % TICKS_PER_DAY === 0;
       for (const prison of world.buildings) {
-        if (prison.type !== BuildingType.Prison || prison.faction === 'rival') continue;
+        if (prison.type !== BuildingType.Prison) continue;
         const set = running.get(prison.id) ?? new Set<number>();
         for (const hour of prison.uncoveredPrisonHours ?? []) {
           if (set.has(hour)) continue;

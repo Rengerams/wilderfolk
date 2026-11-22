@@ -20,7 +20,6 @@ function house(id: number) {
     height: 60,
     completed: true,
     constructionProgress: 100,
-    faction: 'player' as const,
     occupants: [],
     level: 1,
   } as never;

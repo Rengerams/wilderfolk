@@ -263,10 +263,10 @@ describe('pathfinding', () => {
     expect(grid.blocked[3 * grid.cols + 8]).toBe(0);
   });
 
-  it('treats completed rival or legacy walls as impassable terrain', () => {
+  it('treats completed walls as impassable terrain', () => {
     const map = makeMap(8, 8, 431, () => false);
     const wall: Building = {
-      id: 900, type: BuildingType.Wall, faction: 'rival', x: 3.5 * PATH_CELL, y: 3.5 * PATH_CELL,
+      id: 900, type: BuildingType.Wall, x: 3.5 * PATH_CELL, y: 3.5 * PATH_CELL,
       width: PATH_CELL, height: PATH_CELL,
       occupants: [], level: 1, constructionProgress: 100, completed: true,
       health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
