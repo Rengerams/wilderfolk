@@ -112,6 +112,22 @@ export function updateWeather(state: WorldState): void {
   }
 }
 
+/**
+ * Weather multiplier for farm/greenhouse food output; `droughtResist` scales the drought penalty only.
+ */
+export function getWeatherFarmMultiplier(weather: WeatherType, droughtResist = 1): number {
+  switch (weather) {
+    case WeatherType.Rain:
+      return 1.15;
+    case WeatherType.Storm:
+      return 0.9;
+    case WeatherType.Drought:
+      return 0.5 * droughtResist;
+    default:
+      return 1.0; // Clear, Fog, Snow
+  }
+}
+
 /** Weather never destroys a building completely — storm damage stops here (repair restores HP). */
 const STORM_DAMAGE_HEALTH_FLOOR = 20;
 

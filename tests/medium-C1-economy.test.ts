@@ -7,7 +7,7 @@ import { initGame, gameTick } from '../src/game/gameEngine';
 import { createBuilding, isPassableWildlifePosition } from '../src/game/worldGen';
 import { rebuildEntityByIdMap } from '../src/game/entityIndex';
 import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
-import { getWeatherFarmMultiplier } from '../src/game/grassEcology';
+import { getWeatherFarmMultiplier } from '../src/game/worldEvents';
 import { getMultiplier } from '../src/game/simHelpers';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { tickAtDailyPhase } from '../src/game/dayCycleClock';
