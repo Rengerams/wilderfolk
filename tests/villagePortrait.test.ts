@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { BuildingType, EntityType, type WorldState } from '../src/game/gameTypes';
 import { building } from '../src/test/factories';
 import { createEmptyLifetimeStats } from '../src/game/stats';
@@ -109,5 +111,39 @@ describe('village identity follows player choices', () => {
     expect(withStrips.traits.find((trait) => trait.id === 'build')?.score).toBe(
       original.traits.find((trait) => trait.id === 'build')?.score,
     );
+  });
+});
+
+
+describe('live Goals portrait', () => {
+  it('reads the latest snapshot while Your path is open, without a stale hourly memo', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/components/tabPanels/ProgressTabPanel.tsx'), 'utf8',
+    );
+    expect(source).toContain("openSubject === 'path' ? computeVillagePortrait(state) : null");
+    expect(source).not.toContain('useMemo(() => computeVillagePortrait(state)');
+    expect(source).not.toContain('react-hooks/exhaustive-deps');
+  });
+
+  it('responds to in-place building and trade changes at the same simulation tick', () => {
+    const world = {
+      ...neutralVillage,
+      ecosystemHealth: 90,
+      buildings: [building(1, BuildingType.WildlifePreserve, { completed: false })],
+      tradeRoutes: [{ active: false }],
+    } as unknown as WorldState;
+    const initial = computeVillagePortrait(world);
+    world.buildings[0].completed = true;
+    world.tradeRoutes[0].active = true;
+    const updated = computeVillagePortrait(world);
+    expect(updated.traits.find((trait) => trait.id === 'nature')?.score).toBeGreaterThan(
+      initial.traits.find((trait) => trait.id === 'nature')?.score ?? 0,
+    );
+    expect(updated.traits.find((trait) => trait.id === 'trade')?.score).toBeGreaterThan(
+      initial.traits.find((trait) => trait.id === 'trade')?.score ?? 0,
+    );
+    expect(world.tick).toBe(0);
+    expect(world.buildings).toHaveLength(1);
+    expect(world.tradeRoutes).toHaveLength(1);
   });
 });
