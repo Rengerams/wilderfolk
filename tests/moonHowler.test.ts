@@ -251,7 +251,6 @@ describe('moonHowler.exorcism.test.ts', () => {
       type: BuildingType.Church,
       completed: true,
       occupants: [9000],
-      faction: undefined,
       x: 90,
       y: 90,
       width: 50,
