@@ -9,8 +9,6 @@ export const ROAD_SPEED_MULT = 1.5;
 
 /** Faces the entity the way its velocity already points. */
 export function faceVelocity(entity: Entity): void {
-  if (!Number.isFinite(entity.vx) || !Number.isFinite(entity.vy)
-    || (entity.vx === 0 && entity.vy === 0)) return;
   entity.spriteAngle = Math.atan2(entity.vy, entity.vx);
 }
 
@@ -27,17 +25,9 @@ export function setVelocityToward(
 ): void {
   const dx = targetX - entity.x;
   const dy = targetY - entity.y;
-  const distance = Math.hypot(dx, dy);
-  const requestedSpeed = speed * approachFactor;
-  if (!Number.isFinite(distance) || !Number.isFinite(requestedSpeed) || distance === 0) {
-    entity.vx = 0;
-    entity.vy = 0;
-    return;
-  }
-  // Never overshoot a close target, even when the caller requests a large pace.
-  const appliedSpeed = Math.min(Math.max(0, requestedSpeed), distance);
-  entity.vx = (dx / distance) * appliedSpeed;
-  entity.vy = (dy / distance) * appliedSpeed;
+  const distance = Math.hypot(dx, dy) || 1;
+  entity.vx = (dx / distance) * speed * approachFactor;
+  entity.vy = (dy / distance) * speed * approachFactor;
 }
 
 /** {@link setVelocityToward} plus {@link faceVelocity} — the whole step at once. */

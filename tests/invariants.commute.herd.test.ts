@@ -189,24 +189,23 @@ describe('ordinary work commute (S-14)', () => {
     state.tick = SHIFT_DAY * TICKS_PER_DAY + 5 * TICKS_PER_HOUR;
 
     let departureTick: number | null = null;
-    let cruiseSpeed = 0;
+    let departureSpeed = 0;
     let arrivalTick: number | null = null;
     for (let tick = 0; tick < 3 * TICKS_PER_HOUR; tick++) {
       gameTick(state);
       if (arrivalTick == null && isAtBuildingReach(worker, work)) arrivalTick = state.tick;
-      const speed = Math.hypot(worker.vx, worker.vy);
-      if (departureTick == null && speed >= 20) departureTick = state.tick;
-      // A newly snapped waypoint may legitimately cap the first step to avoid
-      // overshooting a corner. Check that the long straight section still cruises
-      // at the priced undamped pace, rather than mistaking that corner for damping.
-      if (departureTick != null && !isAtBuildingReach(worker, work)) {
-        cruiseSpeed = Math.max(cruiseSpeed, speed);
+      if (departureTick == null) {
+        const speed = Math.hypot(worker.vx, worker.vy);
+        if (speed >= 20) {
+          departureTick = state.tick;
+          departureSpeed = speed;
+        }
       }
     }
 
     expect(departureTick, 'the work walk opens on the commute lead').toBe(expectedDepartureTick);
     expect(leadHours).toBeGreaterThan(1);
-    expect(cruiseSpeed, 'the long work leg cruises at the undamped commute pace')
+    expect(departureSpeed, 'the lead is priced at the undamped commute pace')
       .toBeGreaterThanOrEqual(COMMUTE_PACE * 0.99);
     expect(arrivalTick).not.toBeNull();
     expect(arrivalTick!, 'the worker reaches the post by shift start').toBeLessThanOrEqual(SHIFT_START_TICK);

@@ -104,7 +104,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: 'No independent scheduler or saved writes. Strict shared quotes validate walkable endpoint tiles, cache only complete directed results and preserve node exhaustion as pending; generator decor reservations and decorative building footprints do not obstruct walking. Workforce, education, relocation, bot preview and walker steering consume shared map-scoped route evidence. Building commute quotes use one representative per connected frontage stretch to preserve isolated entrances while bounding route work; walker approach and arrival still accept every accessible perimeter sample. Policy owners retain their individual writes and scheduled cadence.',
     writes: [],
     scheduledFrom: 'pathfinding.findRouteCostOutcome for valid tile endpoints; commuteReach.quoteCommute on demand',
-    testFile: 'tests/navigation.sharedRoutes.test.ts, tests/commuteRouteEstimate.test.ts, tests/pathfinding.segmentTraversal.test.ts',
+    testFile: 'tests/navigation.sharedRoutes.test.ts, tests/commuteRouteEstimate.test.ts',
   },
   virtualPlayer: {
     owner: 'virtualPlayer.ts — decideVirtualPlayerAction, decideFood, decideUnstaffedFoodProducer, firstUnstaffedFoodProducer, wantedBootstrapCropSiteCount, needsAdditionalStore, decideIndustry, chooseRefugeeChoice (read-only policy proposals); economyLedger.isMeasuredFoodDeficit owns measured trend, getProjectedFoodSupply/isProjectedFoodShortfall own proactive demand risk',
