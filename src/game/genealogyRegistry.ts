@@ -10,8 +10,8 @@ function recordedFamilyEntity(entity: Entity, registry?: GenealogyRegistry): boo
   // Do not turn every wild deer into a genealogical person. Animal relatives enter
   // the registry only at a Wildkin birth, then the normal census tracks them.
   return (entity.type === EntityType.Human && isPlayerHuman(entity))
-    || ((entity.type === EntityType.Wildkin || entity.type === EntityType.Deer)
-      && registry?.people[String(entity.id)] !== undefined);
+    || entity.type === EntityType.Wildkin
+    || (entity.type === EntityType.Deer && registry?.people[String(entity.id)] !== undefined);
 }
 
 function familyRecordName(entity: Entity): string {
@@ -130,8 +130,8 @@ export function recordGenealogyBirth(state: WorldState, child: Entity): void {
     fatherId: child.fatherId,
     adoptiveMotherId: child.adoptiveMotherId,
     adoptiveFatherId: child.adoptiveFatherId,
-    partners: [],
-    childrenIds: [],
+    partners: child.partnerId == null ? [] : [child.partnerId],
+    childrenIds: [...(child.childrenIds ?? [])],
   };
   for (const parentId of [child.motherId, child.fatherId, child.adoptiveMotherId, child.adoptiveFatherId, ...(child.wildkinParentIds ?? [])]) {
     const parent = parentId == null ? undefined : registry.people[String(parentId)];
