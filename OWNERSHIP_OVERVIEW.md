@@ -128,6 +128,8 @@ Genetics layers, activity registry, evaluator contract and change recipes: [DNA 
 
 | Decision | True owner | Cadence | Key entry functions |
 |---|---|---|---|
+| Selected movement explanation (settlers and trade carriers) | `src/game/movementExplanation.ts` | UI, read-only on demand | `buildingLabel`, `lastStopIndex`, `resolveLegIndex`, `settlerVenue`, `explainHumanMovement` — consumes `tradeCaravans.getCaravanMoveTarget`, `pathfinding.getRouteObstruction`, social activity inputs; no state writes. `tests/caravanMovementExplanation.test.ts`, `tests/socialCadence.oneScenePerDay.test.ts` |
+| Shared explanation row type | `src/game/explanationLines.ts` | UI, read-only declaration | `ExplanationLine` — only a presentational type; never a gameplay decision |
 | Tick orchestration | `gameTick.ts` | fixed 4 layers; canonical daily-layer invocations at 00/06/12/18/23 (12 empty) | `gameTick` |
 | Realtime pulse and population history sampling | `tickLayerRealtime.ts` | realtime (every tick); sample each 10 ticks | `tickLayerRealtime` — sole writer of rolling `populationHistory`, now sampling gold, food, wood, stone and iron; older entries may omit iron |
 | Assignment pulse | `tickLayerAssign.ts` | assignment (~4×/day) | `tickLayerAssign` |
