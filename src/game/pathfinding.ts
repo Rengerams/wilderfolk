@@ -801,7 +801,9 @@ export function findRouteCostOutcome(
     && sx >= 0 && sy >= 0 && tx >= 0 && ty >= 0
     && sx < grid.cols && tx < grid.cols && sy < grid.rows && ty < grid.rows
     && grid.blocked[sy * grid.cols + sx] === 0 && grid.blocked[ty * grid.cols + tx] === 0;
-  if (valid) {
+  if (valid || (sx === tx && sy === ty)) {
+    // Identical blocked endpoints cannot be priced by snapping both coordinates to a nearby
+    // tile: that would fabricate a positive-cost trip to the same inaccessible location.
     const quote = getNavigationQuote(grid, { x: sx, y: sy }, { x: tx, y: ty }, { maxNodes });
     return { cost: quote.status === 'priced' ? quote.costTiles : null,
       budgetExhausted: quote.status === 'pending' };
@@ -1126,7 +1128,7 @@ export function steerWithPath(
         + Math.hypot(entity.x - startCentreX, entity.y - startCentreY)
         + Math.hypot(targetX - goalCentreX, targetY - goalCentreY);
       const savesTime = !directBlocked && !!pricedRoadMask(currentGrid)
-        && !!routeTiles && routeTiles.length > 1 && routeTravel < dist * 0.95;
+        && !!routeTiles && routeTiles.length > 1 && routeTravel + 0.000001 < dist;
       let waypoints = routeTiles && (directBlocked || savesTime)
         ? collapseStraightWaypoints(pathWaypoints(routeTiles)) : null;
       // The final A* tile centre is not necessarily the requested destination.
@@ -1179,8 +1181,10 @@ export function steerWithPath(
 
       // The step integrator applies the road multiplier later: cap the base velocity now.
       // This prevents skipping a corner waypoint while keeping long straight road legs fast.
-      const roadMultiplier = isOnWalkableRoadAt(entity.x, entity.y) ? ROAD_SPEED_MULT : 1;
-      const boundedSpeed = Math.min(speed, nd / roadMultiplier);
+      // Some travel integrators apply the road boost after steering. Always cap for the
+      // maximum possible multiplier, including a move that starts just before a road.
+      // Otherwise a fast step crosses a short corner and invalidates its cached route.
+      const boundedSpeed = Math.min(speed, nd / ROAD_SPEED_MULT);
       entity.vx = (ndx / nd) * boundedSpeed;
       entity.vy = (ndy / nd) * boundedSpeed;
       faceVelocity(entity);
