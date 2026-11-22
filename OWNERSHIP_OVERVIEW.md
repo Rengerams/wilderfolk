@@ -1,5 +1,17 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-22 — canonical workforce projection
+
+| Function(s) changed, moved or removed | Sole owning source | Responsibility / verification |
+|---|---|---|
+| `buildConstructionCrewIndex` (moved from `workforce.ts`), `countWorkingAndIdleSettlers` (moved from `workforce.ts`) | `src/game/workforceSummary.ts` | One read-only construction roster and assigned-working/idle count; age 18 gate, prisoner exclusion and rival-site exclusion; `tests/dashboardAggregates.owner.test.ts`, `tests/workforce.transitions.test.ts` |
+| `computeVillageStats` (modified), `getActiveConstructionWorkers` (removed) | `src/game/uiSimSummary.ts` | Reads owned labour counts, projects adult/child demographics and housing figures; no second crew scan |
+| `isOnConstructionCrew` (removed), `findHumanWorkplace`, `assignWorkerInPlace`, `assignBuilderInPlace`, `staffConstructionCrews` (modified) | `src/game/workforce.ts` | Staff selection and workplace lookup consume the single indexed construction-roster owner |
+| `isEligibleBuilderForBuilding`, `_applyBuilderAssignmentMut`, `canAssignWorkerToBuilding`, `getWorkerAssignmentRefusal` (modified) | `src/game/buildingStaffingActions.ts` | Candidate/refusal decisions query the existing indexed construction-roster owner |
+| `collectDashboard` (modified) | `src/game/dashboardData.ts` | One roster index per dashboard, consistent adult and no-work labels |
+| `tickHumans`, `gameTick`, `collectColonyHealth` (existing callers; import migration) | `src/game/humanTick.ts`, `src/game/gameTick.ts`, `scripts/colonyHealth.ts` | Read-only owner relocation, no tick scheduling or state-write change |
+
+
 ## 2026-11-14 — early-colony playable behaviour fixes (function-level change register)
 
 These entries describe changed named functions at their existing sole owners. They do not create parallel decision implementations.
@@ -725,7 +737,7 @@ Named functions and named React callbacks audited across the complete source and
 | `src/game/saveLoad.ts` | `repairLoadedHumanGround`, `pickWorldStateFromSave`, `isSaveObject`, `describeJsonShape`, `describeSaveReadFailure`, `describeSaveLoadOutcome`, `describeSaveCompatibility`, `readSavePayload`, `executeConfirmedColonyLoad`, `saveImportedFileToSlot`, `loadImportedGameOutcome`, `hasImportedSave`, `buildSaveFilename`, `decideSaveRoute`, `fileSaveCause`, `describeFileSaveReason`, `describeCadenceFileSave`, `downloadSaveFile`, `downloadSaveJson`, `maxSavedMapPixelsForAxis`, `maxSavedMapTiles`, `isUsableMapTileCount`, `completedFishingSpotNeedsWater`, `completedFishingSpots`, `fishingSpotFootprintHasWater`, `terrainHasWaterAt`, `stripRuntimeWorldFields`, `serializeScentGridForSave` (the saved predatory-scent sidecar), `restoreScentGridFromSave` (validated scent field for a loaded map), `scaleTickValue`, `scaleTickField`, `scaleTickRecord`, `migrateLegacySecurityRoles`, `saveGame`, `saveGameToSlot`, `writeSaveSlot`, `isFiniteNumber`, `isFiniteNumberOrNull`, `hasCompleteResourceShape`, `findUnrestorableField`, `isMemberOf`, `isFiniteWithin`, `isStringId`, `isAnyArray`, `isIdArray`, `isEntityOrBuildingId`, `elementIdRules`, `containerArrayRule`, `normalizeBigNewsItem`, `findUnrestorableContainerField`, `isSafeIntegerWithin`, `entityFieldRules`, `buildingFieldRules`, `worldScalarRules`, `findUnrestorableEntityField`, `isVillageRequestChoice`, `isUsableVillageRequest`, `reconcileDanglingReferencesOnLoad`, `loadGameOutcome`, `loadGameFromFileText`, `hasSave`, `hasSaveSlot`, `deleteSave`, `validSite`, `validJob`, `regenerateTerrain`, `floorFor`, `applySaveMigration` | Save serialization, validation, migration, file/slot operations and load reconciliation |
 | `src/game/virtualPlayer.ts` | `canCrewNewFoodSite` | Local crew reachability predicate for proactive food-site decisions |
 | `src/game/workAbsence.ts` | `clockLabel`, `labelFor`, `resolveShift` | Read-only roster absence and shift explanation formatting |
-| `src/game/workforce.ts` | `isOnConstructionCrew`, `jobBuildingPriority`, `countWorkersAtBuilding`, `countStaffedWorkersAtType`, `getChurchStrength`, `hasStaffedSchool`, `completedJobBuildings`, `minimumAutoCoverage`, `pickWorkerToTransfer`, `addToConstructionCrew`, `syncJobBuildingOccupants`, `clearJobAssignment`, `countWorkingAndIdleSettlers`, `findHumanWorkplace`, `buildConstructionCrewIndex`, `releasePrisoners`, `pushId` | Canonical worker counts, roster synchronization, hiring, transfers and protected minima |
+| `src/game/workforce.ts` | `jobBuildingPriority`, `countWorkersAtBuilding`, `countStaffedWorkersAtType`, `getChurchStrength`, `hasStaffedSchool`, `completedJobBuildings`, `minimumAutoCoverage`, `pickWorkerToTransfer`, `addToConstructionCrew`, `syncJobBuildingOccupants`, `clearJobAssignment`, `findHumanWorkplace`, `releasePrisoners`, `pushId` | Worker mutations, roster synchronization, hiring, transfers and protected minima |
 
 | Sole owning test file | File-local named functions | Responsibility |
 |---|---|---|
