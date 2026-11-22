@@ -180,7 +180,7 @@ export function tickPregnancyAndBirth(
       'neutral',
     );
     addFloatingText(state, entity.x, entity.y - 20, 'Wildkin born!', '#a3a35a');
-    logWildkinBirth(state, wildkin, entity.name ?? '', `deer #${deerFather!.id}`);
+    logWildkinBirth(state, wildkin, entity.name ?? '', `Deer #${deerFather!.id}`);
     return;
   }
 
