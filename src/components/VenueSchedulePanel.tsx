@@ -25,7 +25,12 @@ export default function VenueSchedulePanel({ state, onApply }: Props) {
     endHour: current.endHour,
   });
   const label = venue === 'tavern' ? 'Tavern' : 'Hotel';
-  const preview = getScheduleImpactPreview(state, venue, getVenueScheduleHours(current), validation.ok ? getVenueScheduleHours(validation.schedule) : getVenueScheduleHours(current));
+  const preview = getScheduleImpactPreview(
+    state,
+    venue,
+    current,
+    validation.ok ? validation.schedule : current,
+  );
   const festivalStatus = isFestivalOverrideActive(state, venue) ? 'Festival override: Tavern remains open all day while the festival is active.' : 'No temporary override is active.';
 
   return (

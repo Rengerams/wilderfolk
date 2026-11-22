@@ -22,6 +22,7 @@ Working package version: `0.6.5.1`; current development target: `0.6.5.2`. Verif
 10. **Be proactive without being reckless.** Implement necessary, related end-to-end changes. Fix small related problems you can substantiate. Explain substantial unrelated issues and propose solutions before implementing a separate feature or broad unrelated redesign. Ideas are welcome; speculative unrequested changes are not.
 11. **Tests are evidence, not a productivity metric.** Add only tests that guard real behavior, regressions, boundaries or contracts. Do not create dozens of tests for trivial functions, mirror implementation details, or turn every change into a huge test project.
 12. **Verify before claiming.** Never say a test, build, migration, branch or PR is good unless you checked it. Never suppress failures by weakening assertions, skipping tests, adding `@ts-ignore` or changing expectations to fit broken code.
+13.** No calculations in panels** Its forbidden to keep calculations in panel tabs, panel tabs are only to show data or to accept decisions from players
 
 A failed architecture rule is a defect even when the game compiles. A passing test suite does not make duplicated or incorrectly owned logic acceptable.
 

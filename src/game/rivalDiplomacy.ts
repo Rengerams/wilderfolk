@@ -3,7 +3,7 @@ import { getSimRng, seededRandomForRun } from './simRng';
 import { applyTruceToRival, hasMilitiaWeapons } from './frontierCombat';
 import { ensureRivalProfile } from './rivalProfiles';
 import { addReputation } from './simHelpers';
-import { addBigNews, addFloatingText } from './simEffects';
+import { addBigNews } from './simEffects';
 import { logEvent } from './eventLog';
 import { spendFood, recordFoodProduced } from './economyLedger';
 import { addCappedResource } from './resourceUtils';
@@ -55,15 +55,7 @@ export function sendRivalGift(originalState: WorldState, rivalId: string): World
   const rivalPreview = originalState.rivalSettlements.find((r) => r.id === rivalId);
   if (!rivalPreview) return originalState;
 
-  const eligibility = getRivalGiftEligibility(originalState, rivalId);
-  if (!eligibility.ok) {
-    const state = structuredClone(originalState);
-    const rival = state.rivalSettlements.find((r) => r.id === rivalId);
-    if (!rival) return state;
-    const color = rivalPreview.relationship === 'friendly' ? '#94a3b8' : '#f97316';
-    addFloatingText(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot send a gift', color);
-    return state;
-  }
+  if (!getRivalGiftEligibility(originalState, rivalId).ok) return structuredClone(originalState);
 
   const state = structuredClone(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
@@ -101,15 +93,7 @@ export function establishRivalTradePact(originalState: WorldState, rivalId: stri
   const rivalPreview = originalState.rivalSettlements.find((r) => r.id === rivalId);
   if (!rivalPreview) return originalState;
 
-  const eligibility = getRivalTradePactEligibility(originalState, rivalId);
-  if (!eligibility.ok) {
-    const state = structuredClone(originalState);
-    const rival = state.rivalSettlements.find((r) => r.id === rivalId);
-    if (!rival) return state;
-    const color = rivalPreview.relationship === 'friendly' ? '#94a3b8' : '#f97316';
-    addFloatingText(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot sign a pact', color);
-    return state;
-  }
+  if (!getRivalTradePactEligibility(originalState, rivalId).ok) return structuredClone(originalState);
 
   const state = structuredClone(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
@@ -147,7 +131,6 @@ export function showStrengthToRival(originalState: WorldState, rivalId: string):
 
   const eligibility = getShowStrengthEligibility(originalState, rivalId);
   if (!eligibility.ok) {
-    addFloatingText(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot show strength', '#f97316');
     return state;
   }
 
@@ -195,7 +178,6 @@ export function signPeaceTreaty(originalState: WorldState, rivalId: string): Wor
 
   const eligibility = getPeaceTreatyEligibility(originalState, rivalId);
   if (!eligibility.ok) {
-    addFloatingText(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot sign a treaty', '#f97316');
     return state;
   }
 
@@ -206,7 +188,6 @@ export function signPeaceTreaty(originalState: WorldState, rivalId: string): Wor
   rival.daysUntilAction = Math.max(rival.daysUntilAction, 30);
   applyTruceToRival(state, rivalId, PEACE_TREATY_PLAYER_DAYS);
 
-  addFloatingText(state, rival.campX, rival.campY - 20, '🕊️ Peace', '#22d3ee');
   addBigNews(state, '🕊️ Peace signed', `${rival.name} and ${state.villageName} agreed to 60 days without raids.`, 'positive');
   logEvent(state, 'event', `Peace treaty with ${rival.name} — 60 days`, rival.name);
   return state;
@@ -425,7 +406,6 @@ export function respondToDiplomacyEvent(
 
   const gate = getDiplomacyChoiceEligibility(state, event, choiceId);
   if (!gate.ok) {
-    addFloatingText(state, rival.campX, rival.campY - 20, gate.blockReason ?? 'Cannot answer', '#f97316');
     return state;
   }
 
@@ -434,7 +414,6 @@ export function respondToDiplomacyEvent(
       if (choiceId === 'pay') {
         spendFood(state, 'tribute', DIPLOMACY_TRIBUTE_PAY_FOOD);
         rival.relationship = shiftRelationship(rival.relationship, 1);
-        addFloatingText(state, rival.campX, rival.campY - 20, 'Tribute paid', '#22c55e');
         logEvent(state, 'trade', `Paid tribute to ${rival.name} — relations improved`, rival.name);
         resolved = true;
       } else if (choiceId === 'negotiate') {
@@ -473,7 +452,6 @@ export function respondToDiplomacyEvent(
         state.resources.gold -= DIPLOMACY_ALLIANCE_ACCEPT_GOLD;
         rival.relationship = 'friendly';
         rival.daysUntilAction = 20;
-        addFloatingText(state, rival.campX, rival.campY - 20, 'Alliance!', '#22d3ee');
         logEvent(state, 'trade', `Alliance with ${rival.name}`, rival.name);
         resolved = true;
       } else if (choiceId === 'counter') {
@@ -497,7 +475,6 @@ export function respondToDiplomacyEvent(
         rival.peaceTreatyDays = PEACE_TREATY_EVENT_DAYS;
         if (rival.relationship === 'competitive') rival.relationship = 'neutral';
         applyTruceToRival(state, rival.id, PEACE_TREATY_EVENT_DAYS);
-        addFloatingText(state, rival.campX, rival.campY - 20, '🕊️ Truce', '#22d3ee');
         logEvent(state, 'event', `Peace treaty with ${rival.name} — 45 days`, rival.name);
         resolved = true;
       } else if (choiceId === 'tribute') {
@@ -505,11 +482,6 @@ export function respondToDiplomacyEvent(
         applyTruceToRival(state, rival.id, PEACE_TREATY_TRIBUTE_DAYS);
         const tributeFood = addCappedResource(state, 'food', DIPLOMACY_PEACE_TRIBUTE_FOOD);
         recordFoodProduced(state, 'tribute', tributeFood);
-        if (tributeFood < DIPLOMACY_PEACE_TRIBUTE_FOOD) {
-          addFloatingText(state, rival.campX, rival.campY - 20, `+${tributeFood}🍖 (storage full)`, '#f97316');
-        } else {
-          addFloatingText(state, rival.campX, rival.campY - 20, `+${DIPLOMACY_PEACE_TRIBUTE_FOOD}🍖 tribute`, '#eab308');
-        }
         logEvent(state, 'trade', `Short truce with ${rival.name} — they paid tribute`, rival.name);
         resolved = true;
       } else if (choiceId === 'decline') {

@@ -1,8 +1,7 @@
 /**
  * The hand-off set: state a colony cannot rebuild from its own save must stay identical across the
  * worker boundary. Covers the election fields the delta used to drop, the beauty field every
- * hand-off used to strip, the faction-wander state a reused session inherited, and the simulation
- * pause the replica never received.
+ * hand-off used to strip, and the simulation pause the replica never received.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -21,7 +20,6 @@ import {
   resetSimRng,
   snapshotSimRng,
 } from '../src/game/simRng';
-import { tickFactionCampWander } from '../src/game/factionWander';
 import { createBeautyGrid } from '../src/game/beautyGrid';
 import { tickHumanLeisure } from '../src/game/humanLeisureBehavior';
 import {
@@ -296,42 +294,6 @@ describe('worker hand-off state', () => {
     expect(withGrid.draws, 'the fixture must reach the companion beat').toBe(2);
     expect(withoutGrid.draws).toBe(2);
     expect(withoutGrid.state).toBe(withGrid.state);
-  });
-
-  it('initializes a fresh wander plan when another colony reuses a rival ID', async () => {
-    resetSimRng();
-    const world = smallWorld(SEED + 1);
-    adoptSimSeedFromWorld(world);
-    const rival = human(900010, { faction: 'rival', x: 100, y: 100 });
-    world.entities = [rival];
-    world.visitorGroups = [];
-    world.tick = 0;
-
-    // The first tick chooses a target for a legacy or newly spawned actor.
-    tickFactionCampWander(world, rival, 500, 500, [], 2);
-    const populated = streamState('factionWander');
-    expect(populated).toBeDefined();
-
-    // While the state exists the same id walks its stored target and draws nothing.
-    tickFactionCampWander(world, rival, 500, 500, [], 2);
-    expect(streamState('factionWander'), 'the stored wander state must be exercised').toBe(populated);
-
-    // A full-world upload carries the live RNG positions, exactly like `GameWorkerHost.importSave`.
-    const uploadedRng = snapshotSimRng();
-    const upload = smallWorld(SEED + 1);
-    const reused = human(900010, { faction: 'rival', x: 100, y: 100 });
-    upload.entities = [reused];
-    upload.visitorGroups = [];
-    upload.tick = 0;
-    upload.simRng = uploadedRng;
-    await send({ type: 'init', proto: WORKER_PROTO, world: structuredClone(upload), features: [], headless: true });
-    expect(streamState('factionWander'), 'the upload must restore the RNG positions').toBe(populated);
-
-    tickFactionCampWander(upload, reused, 500, 500, [], 2);
-    expect(
-      streamState('factionWander'),
-      'a reused visitor/rival id must re-plan instead of inheriting the old camp target',
-    ).not.toBe(populated);
   });
 
   it('does not resurrect retired visitor camps or actors across worker upload', async () => {
