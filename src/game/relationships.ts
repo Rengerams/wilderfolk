@@ -1,4 +1,6 @@
 import type { Entity, WorldState } from './gameTypes';
+import type { BondCensus } from './bondTypes';
+export type { BondCensus } from './bondTypes';
 import { JobType } from './gameTypes';
 import { combinePairFactors, evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { logEvent } from './eventLog';
@@ -198,12 +200,6 @@ export function reconcileCloseFriendships(people: Entity[]): void {
       closeCount -= 1;
     }
   }
-}
-
-export interface BondCensus {
-  closeBonds: number;
-  withFriend: number;
-  isolated: number;
 }
 
 export function bondCensus(people: Entity[]): BondCensus {
