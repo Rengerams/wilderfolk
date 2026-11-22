@@ -300,6 +300,12 @@ function nearestWalkableTile(
 /** Rings scanned around a blocked destination for a stand point the walker can actually reach. */
 const GOAL_STAND_RINGS = 4;
 
+/** A tile a walker cannot stand on: outside the grid, or blocked by terrain, footprint or decor. */
+function tileBlockedForWalker(grid: PathGrid, tx: number, ty: number): boolean {
+  return tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows
+    || grid.blocked[ty * grid.cols + tx] !== 0;
+}
+
 /**
  * Walkable tiles around a blocked destination, ring by ring. This is only the candidate set:
  * the route search decides which one is reachable, so a tile sealed in a pocket cannot end the
@@ -1087,8 +1093,7 @@ export function getRouteObstruction(
   const goalTx = Math.floor(to.x / PATH_CELL);
   const goalTy = Math.floor(to.y / PATH_CELL);
   // Mirror `steerWithPath`: a destination that cannot be stood on is approached from the walker's side.
-  const goalBlocked = goalTx < 0 || goalTy < 0 || goalTx >= grid.cols || goalTy >= grid.rows
-    || grid.blocked[goalTy * grid.cols + goalTx] !== 0;
+  const goalBlocked = tileBlockedForWalker(grid, goalTx, goalTy);
   const result = routeToBlockedGoal(grid, startTx, startTy, goalTx, goalTy, goalBlocked, false);
   if (result.path && result.path.length > 1) return 'rerouting';
   return result.hitNodeCap ? 'pending' : 'blocked';
@@ -1168,10 +1173,8 @@ export function steerWithPath(
       const startTy = Math.floor(entity.y / PATH_CELL);
       const goalTx = Math.floor(targetX / PATH_CELL);
       const goalTy = Math.floor(targetY / PATH_CELL);
-      const startBlocked = startTx < 0 || startTy < 0 || startTx >= currentGrid.cols
-        || startTy >= currentGrid.rows || currentGrid.blocked[startTy * currentGrid.cols + startTx] !== 0;
-      const goalBlocked = goalTx < 0 || goalTy < 0 || goalTx >= currentGrid.cols
-        || goalTy >= currentGrid.rows || currentGrid.blocked[goalTy * currentGrid.cols + goalTx] !== 0;
+      const startBlocked = tileBlockedForWalker(currentGrid, startTx, startTy);
+      const goalBlocked = tileBlockedForWalker(currentGrid, goalTx, goalTy);
       // Prefer shared optimal geometry; a remote road may exhaust its discounted A* budget.
       // In that case retry with the existing bounded movement heuristic and preserve its
       // path. Never downgrade a confirmed unreachable quote into an unbounded search.
