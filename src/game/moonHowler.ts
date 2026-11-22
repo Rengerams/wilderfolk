@@ -1,3 +1,4 @@
+import { findStaffedBuildings } from './buildings';
 import { assignMissingResidences, moveResident, syncResidenceOccupants } from './housingPipeline';
 import { BuildingType, EntityType, JobType, LEADER_OCCUPATION } from './gameTypes';
 import type { Building, Entity, EntityByType, WorldState } from './gameTypes';
@@ -324,15 +325,6 @@ export interface MoonHowlerCureAttempt {
   cureChance?: number;
 }
 
-function findStaffedChurches(buildings: Building[]): Building[] {
-  return buildings.filter(
-    (b) =>
-      b.completed
-      && b.type === BuildingType.Church
-      && b.occupants.length > 0,
-  );
-}
-
 function isEligiblePriest(e: Entity | undefined): e is Entity {
   return !!e
     && e.alive
@@ -356,7 +348,7 @@ export function countStaffedPriests(
   entityById: Map<number, Entity>,
 ): number {
   let n = 0;
-  for (const church of findStaffedChurches(buildings)) {
+  for (const church of findStaffedBuildings(buildings, BuildingType.Church)) {
     for (const id of church.occupants) {
       if (isEligiblePriest(entityById.get(id))) n++;
     }
@@ -407,7 +399,7 @@ export function tryMoonHowlerChurchCures(
   const howlers = entities.filter(isActiveMoonHowler);
   if (howlers.length === 0) return empty('no_howler');
 
-  const churches = findStaffedChurches(buildings);
+  const churches = findStaffedBuildings(buildings, BuildingType.Church);
   if (churches.length === 0) return empty('no_staffed_church');
 
   const priestCount = countStaffedPriests(buildings, entityById);

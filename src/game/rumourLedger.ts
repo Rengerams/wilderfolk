@@ -1,3 +1,4 @@
+import { findCompletedBuilding } from './buildings';
 /**
  * The Rumour Ledger: recent event → one rumour → response → delayed social resolution.
  */
@@ -98,10 +99,6 @@ function recentSourceEvent(state: WorldState): { kind: SourceKind; eventId: numb
   return null;
 }
 
-function hasTownHall(state: WorldState): boolean {
-  return state.buildings.some((b) => b.completed && b.type === BuildingType.TownHall);
-}
-
 export function maybeOfferRumourLedger(state: WorldState): void {
   if (storyFlag(state, FLAG_OFFERED) > 0) return;
 
@@ -109,7 +106,7 @@ export function maybeOfferRumourLedger(state: WorldState): void {
   if (colonyDay < rumourLedgerEligibleDay(getSimSeed())) return;
   if (storyFlag(state, AUTHORED_STORY_COOLDOWN_FLAG) > colonyDay) return;
   if ((state.pendingStoryEvents ?? []).length > 0) return;
-  if (!hasTownHall(state)) return;
+  if (!findCompletedBuilding(state.buildings, BuildingType.TownHall)) return;
 
   const source = recentSourceEvent(state);
   if (!source) return;

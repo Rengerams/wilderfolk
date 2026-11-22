@@ -278,9 +278,7 @@ function siteCondition(
 }
 
 function isUnderConstruction(state: WorldState, type: BuildingType): boolean {
-  return state.buildings.some(
-    (building) => building.type === type && !building.completed,
-  );
+  return state.buildings.find((building) => building.type === type && !building.completed) !== undefined;
 }
 
 /**
@@ -1501,12 +1499,6 @@ function ownsBuildingOfType(state: WorldState, type: BuildingType): boolean {
   return state.buildings.some((building) => building.type === type);
 }
 
-function hasCompletedBuildingOfType(state: WorldState, type: BuildingType): boolean {
-  return state.buildings.some(
-    (building) => building.type === type && building.completed,
-  );
-}
-
 /** Adult settlers — the population a service has to be worth building for. */
 function adultSettlerCount(state: WorldState): number {
   let adults = 0;
@@ -1578,7 +1570,7 @@ const COMMUNITY_BUILD_ORDER: readonly ServiceBuildOption[] = [
     type: BuildingType.Workshop,
     needed: (state) =>
       !ownsBuildingOfType(state, BuildingType.Workshop)
-      && hasCompletedBuildingOfType(state, BuildingType.Blacksmith),
+      && !!findCompletedBuilding(state.buildings, BuildingType.Blacksmith),
   },
   {
     type: BuildingType.School,

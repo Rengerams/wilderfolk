@@ -40,9 +40,8 @@ function isAdjacencySource(building: Building): boolean {
 }
 
 export function buildingUsesAdjacency(building: Building): boolean {
-  if (!building.completed) return false;
-  if (building.type === BuildingType.Road) return false;
-  return ADJACENCY_CONSUMER_TYPES.has(building.type);
+  return building.completed && building.type !== BuildingType.Road
+    && ADJACENCY_CONSUMER_TYPES.has(building.type);
 }
 
 function hasAdjacencyNeighbor(

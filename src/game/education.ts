@@ -1,3 +1,4 @@
+import { findStaffedBuildings } from './buildings';
 import type { WorldState, Entity, Building } from './gameTypes';
 import { BuildingType, EntityType, JobType, PATH_CELL } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycle';
@@ -54,12 +55,7 @@ export function schoolCapacity(school: Building): number {
 }
 
 export function findStaffedSchools(buildings: readonly Building[]): Building[] {
-  return buildings.filter(
-    (b) =>
-      b.completed
-      && b.type === BuildingType.School
-      && b.occupants.length > 0,
-  );
+  return findStaffedBuildings(buildings, BuildingType.School);
 }
 
 export function findNearestStaffedSchool(

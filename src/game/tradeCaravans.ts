@@ -1,3 +1,4 @@
+import { findCompletedBuilding } from './buildings';
 import { moveResident } from './housingPipeline';
 import type { Entity, Resources, TradeRoute, WorldState } from './gameTypes';
 import { BuildingType, EntityType, JobType } from './gameTypes';
@@ -19,9 +20,7 @@ import type { TickContext } from './simulation/simulationTypes';
 
 /** Long-range trade routes require a completed player Market (EC-4). */
 export function hasCompletedMarket(state: WorldState): boolean {
-  return state.buildings.some(
-    (b) => b.completed && b.type === BuildingType.Market,
-  );
+  return findCompletedBuilding(state.buildings, BuildingType.Market) !== undefined;
 }
 
 export const TRADE_CARAVAN_ARRIVAL_DIST = 28;

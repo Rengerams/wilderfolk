@@ -186,6 +186,11 @@ export function isCompletedPlayerBuilding(building: Building): boolean {
   return building.completed;
 }
 
+/** Completed staffed venues are filtered here for both schools and churches. */
+export function findStaffedBuildings(buildings: readonly Building[], type: BuildingType): Building[] {
+  return buildings.filter((building) => building.completed && building.type === type && building.occupants.length > 0);
+}
+
 /** First completed building of the requested type, if one exists. */
 export function findCompletedBuilding(
   buildings: readonly Building[],
