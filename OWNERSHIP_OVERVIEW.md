@@ -757,6 +757,7 @@ Named functions and named React callbacks audited across the complete source and
 | `tests/colonyProducerCommute.test.ts` | `blockedAt` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
 | `tests/commuteRouteEstimate.test.ts` | `riverMap`, `islandMap`, `onTile`, `straightHours`, `measuredSearches` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
 | `tests/dailyPopulation.foodAdmission.test.ts` | `stateFor` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
+| `tests/dashboardAggregates.owner.test.ts` | `world`, `worldMissingEcoHealth`, `settler`, `constructionSite` | Local ecosystem and workforce-owner regression fixtures; no runtime decision authority |
 | `tests/duplicationA.remaining.test.ts` | `read`, `srcFiles` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
 | `tests/economyLedger.foodFlow.test.ts` | `sample` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
 | `tests/festival.behavior.test.ts` | `human`, `building`, `makeState` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
