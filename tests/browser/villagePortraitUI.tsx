@@ -47,9 +47,11 @@ export async function runVillagePortraitUI(): Promise<{
   world.tradeRoutes = [{
     id: 'portrait-test-route',
     targetName: 'Test partner',
+    resourcesGiven: { wood: 1, stone: 0, food: 0, gold: 0, iron: 0 },
+    resourcesReceived: { wood: 0, stone: 0, food: 0, gold: 1, iron: 0 },
     reputationRequired: 0,
     active: false,
-  } as (typeof world.tradeRoutes)[number]];
+  }];
 
   const originalTick = world.tick;
   const originalBuildings = world.buildings;
