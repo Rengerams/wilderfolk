@@ -1054,11 +1054,12 @@ export function steerWithPath(
   const directBlocked = lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY);
   const acceptedRoute = pathCache.get(cacheKey);
   const continueAcceptedRoute = !!acceptedRoute?.waypoints && acceptedRoute.waypoints.length > 1
+    && acceptedRoute.walkerId === entity.id
     && acceptedRoute.targetX === targetX && acceptedRoute.targetY === targetY;
   const considerRoadDetour = !directBlocked && !!pricedRoadMask(currentGrid);
   if (directBlocked || considerRoadDetour || continueAcceptedRoute) {
     let cached = pathCache.get(cacheKey);
-    if (cached && (cached.targetX !== targetX || cached.targetY !== targetY
+    if (cached && (cached.walkerId !== entity.id || cached.targetX !== targetX || cached.targetY !== targetY
       || (cached.directDetourRejected && (directBlocked
         || Math.abs(cached.startTileX - Math.floor(entity.x / PATH_CELL))
           + Math.abs(cached.startTileY - Math.floor(entity.y / PATH_CELL)) >= ROAD_DETOUR_RECHECK_TILES))
@@ -1152,7 +1153,8 @@ export function steerWithPath(
     } else {
       pathCache.delete(cacheKey);
       pathCache.set(cacheKey, cached);
-      recordPathCacheHit();
+      // A pending null route deliberately throttles retries; it is not a saved waypoint hit.
+      if (cached.waypoints !== null || cached.directDetourRejected) recordPathCacheHit();
     }
 
     const wp = cached.waypoints;
@@ -1175,7 +1177,8 @@ export function steerWithPath(
 
       // The step integrator applies the road multiplier later: cap the base velocity now.
       // This prevents skipping a corner waypoint while keeping long straight road legs fast.
-      const boundedSpeed = Math.min(speed, nd / ROAD_SPEED_MULT);
+      const roadMultiplier = isOnWalkableRoadAt(entity.x, entity.y) ? ROAD_SPEED_MULT : 1;
+      const boundedSpeed = Math.min(speed, nd / roadMultiplier);
       entity.vx = (ndx / nd) * boundedSpeed;
       entity.vy = (ndy / nd) * boundedSpeed;
       faceVelocity(entity);

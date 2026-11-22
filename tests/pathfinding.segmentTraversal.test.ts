@@ -191,4 +191,39 @@ describe('one authoritative movement walkability verdict', () => {
       resetPathGridCaches();
     }
   });
+
+  it('keeps full cruise pace before an off-road corner waypoint', () => {
+    const map = testWorldMap({
+      tilesX: 16, tilesY: 14, seed: 2716,
+      tileType: (x, y) => x === 7 && y === 7 ? TerrainType.River : undefined,
+    });
+    resetPathGridCaches();
+    setCurrentPathMap(map, []);
+    try {
+      const walker = human(2716, { x: center(5), y: center(7) });
+      expect(steerWithPath(walker, center(10), center(7), 6, 'offroad-corner')).toBe('path');
+      expect(Math.hypot(walker.vx, walker.vy)).toBeCloseTo(6);
+    } finally {
+      setCurrentPathMap(null);
+      resetPathGridCaches();
+    }
+  });
+
+  it('does not give a previous walkers cached waypoints to a new walker sharing a key', () => {
+    const map = testWorldMap({
+      tilesX: 16, tilesY: 14, seed: 2717,
+      tileType: (x, y) => x === 7 && y !== 10 ? TerrainType.River : undefined,
+    });
+    resetPathGridCaches();
+    setCurrentPathMap(map, []);
+    try {
+      const first = human(2717, { x: center(4), y: center(4) });
+      const second = human(2718, { x: center(8), y: center(4) });
+      expect(steerWithPath(first, center(10), center(4), 2, 'shared-key')).toBe('path');
+      expect(steerWithPath(second, center(10), center(4), 2, 'shared-key')).toBe('direct');
+    } finally {
+      setCurrentPathMap(null);
+      resetPathGridCaches();
+    }
+  });
 });
