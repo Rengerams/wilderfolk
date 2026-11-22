@@ -235,6 +235,26 @@ describe('one authoritative movement walkability verdict', () => {
     }
   });
 
+  it('keeps a blocked destination reachable when its nearest stand tile is sealed off', () => {
+    // The stand tile nearest the walker was picked without a connectivity check, so a walkable tile
+    // inside a water pocket ended the walk although the same ring held an open approach.
+    const sealed = new Set(['9,9', '9,11', '8,10', '10,10']);
+    const map = testWorldMap({
+      tilesX: 20, tilesY: 20, seed: 2721,
+      tileType: (x, y) => (sealed.has(`${x},${y}`) ? TerrainType.River : undefined),
+    });
+    resetPathGridCaches();
+    setCurrentPathMap(map, []);
+    try {
+      const walker = human(2721, { x: center(2), y: center(8) });
+      expect(steerWithPath(walker, center(10), center(10), 2, 'sealed-stand')).toBe('path');
+      expect(Math.hypot(walker.vx, walker.vy), 'walker keeps moving').toBeGreaterThan(0);
+    } finally {
+      setCurrentPathMap(null);
+      resetPathGridCaches();
+    }
+  });
+
   it('does not give a previous walkers cached waypoints to a new walker sharing a key', () => {
     const map = testWorldMap({
       tilesX: 16, tilesY: 14, seed: 2717,
