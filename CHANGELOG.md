@@ -38,6 +38,7 @@
 - **Changed (22 Nov 2026):** Removed the obsolete terrain-buildability forwarding predicate and now read the water rule directly throughout placement, generation, and grid checks; removed the empty no-build terrain overlay, retaining real placement verdict markers.
 - **Fixed (22 Nov 2026):** Restore valid `jscpd` runner arguments after accidental malformed flags broke the main-branch duplicate-code baseline gate.
 - **Fixed (22 Nov 2026):** Village identity now reflects player conservation, trade, buildings, diplomacy and recorded raids rather than starting wildlife or passive peace; portrait refreshes hourly without scanning the Chronicle.
+- **Fixed (22 Nov 2026):** Named the hourly Goals portrait memo dependency to satisfy React hooks lint without changing refresh cadence.
 - **Fixed (20 Nov 2026):** Workers reach accessible facades, count only movement-owner-confirmed detours as commutes, and hide while on duty except during emergency prey pursuit; route quotes use one sample per connected frontage stretch, and the worker delta preserves commute labels in the UI.
 - **Fixed (22 Nov 2026):** Unified construction-crew indexing and assigned/idle worker counts in a single read-only owner. HUD, People screen, dashboard, simulation and diagnostics now share age, prison and rival-crew eligibility.
 - **Fixed (22 Nov 2026, PR #160):** Vacancy swaps now reuse the canonical construction-crew index; staffing regressions cover reserved builders and stale workplace references.
