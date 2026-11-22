@@ -164,7 +164,7 @@ export function explainHumanMovement(state: WorldState, settlerId: number): Huma
       lines.push({ label: 'Destination', value: activity.target.label, tone: 'neutral' });
       if (!isAtActivityTarget(settler, activity.target)) {
         status = getRouteObstruction(state.worldMap, state.buildings, settler, activity.target);
-        lines.push({ label: 'Path', ...PATH_STATUS_LINES[status] });
+        lines.push({ label: 'Path', ...PATH_STATUS_LINES[status as Exclude<HumanMovementStatus, 'none'>] });
       }
     }
     return { stops: homeStop ? [homeStop] : [], legIndex: null, legLabel: null, status, lines };
