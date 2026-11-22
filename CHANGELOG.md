@@ -28,6 +28,7 @@
 
 ---
 
+- **Changed (22 Nov 2026):** Ordinary buildings may stand on all dry terrain, including mountains, snow and riverbanks; no unexpected inland terrain-only building bans. Roads remain walkable, docks/bridges retain river rules, and ground reinforcement keeps its own eligibility.
 - **Fixed (22 Nov 2026):** Restore valid `jscpd` runner arguments after accidental malformed flags broke the main-branch duplicate-code baseline gate.
 - **Fixed (22 Nov 2026):** Village identity now reflects player conservation, trade, buildings, diplomacy and recorded raids rather than starting wildlife or passive peace; portrait refreshes hourly without scanning the Chronicle.
 - **Fixed (20 Nov 2026):** Workers reach accessible facades, count only movement-owner-confirmed detours as commutes, and hide while on duty except during emergency prey pursuit; route quotes use one sample per connected frontage stretch, and the worker delta preserves commute labels in the UI.
