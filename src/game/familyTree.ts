@@ -238,7 +238,12 @@ function familyTreeMembers(all: readonly Entity[], includeDeceased: boolean): En
     if (!includeDeceased && !e.alive) return false;
     if (isPlayerHuman(e)) return true;
     if (e.type === EntityType.Wildkin) {
-      return e.motherId != null || e.fatherId != null || (e.wildkinParentIds?.length ?? 0) > 0;
+      // Legacy Wildkin have no own parent fields. Include them when a known child
+      // names them, just as we include referenced deer fathers.
+      return animalParentIds.has(e.id)
+        || e.motherId != null
+        || e.fatherId != null
+        || (e.wildkinParentIds?.length ?? 0) > 0;
     }
     return e.type === EntityType.Deer && animalParentIds.has(e.id);
   });
