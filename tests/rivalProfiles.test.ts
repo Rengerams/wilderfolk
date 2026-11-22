@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyRivalDailyAction, createRivalProfile, ensureRivalProfile, normalizeRivalProfile, selectRivalDailyAction } from '../src/game/rivalProfiles';
-import { isRivalGrowthDay, RIVAL_GROWTH_INTERVAL_DAYS } from '../src/game/frontierCombat';
+import { applyRivalDailyAction, createRivalProfile, ensureRivalProfile, isRivalGrowthDay, normalizeRivalProfile, RIVAL_GROWTH_INTERVAL_DAYS, selectRivalDailyAction } from '../src/game/rivalProfiles';
 import type { RivalSettlement } from '../src/game/gameTypes';
 
 const rival = (profile?: RivalSettlement['profile']): RivalSettlement => ({

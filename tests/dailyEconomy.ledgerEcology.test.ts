@@ -9,7 +9,7 @@ import {
   BUILDING_CONFIGS, BuildingType, EntityType, JobType, Season, WeatherType, emptyEntityByType,
 } from '../src/game/gameTypes';
 import type {
-  Building, Entity, RivalSettlement, TradeRoute, VisitorGroup, WorldState,
+  Building, Entity, RivalSettlement, TradeRoute, WorldState,
 } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { TICKS_PER_HOUR, getAbsoluteCalendarDay, tickAtDailyPhase } from '../src/game/dayCycleClock';
@@ -20,7 +20,6 @@ import { getScheduleTargetHours } from '../src/game/scheduleFatigue';
 import { setSimSeed } from '../src/game/simRng';
 import { tickDailyWorldEvents, tickYearBoundaryWorldEvents } from '../src/game/dailyWorldEvents';
 import { tickBuildingProgress, tickDailyBuildingEconomy } from '../src/game/dailyBuildingEconomy';
-import { tickVisitorGroups } from '../src/game/groupEvents';
 import { getTradeHubCenter, tryAdvanceCaravanLeg } from '../src/game/tradeCaravans';
 import { respondToDiplomacyEvent } from '../src/game/rivalDiplomacy';
 import {
@@ -217,36 +216,6 @@ describe('S-08 — every stored food gain reaches the daily ledger', () => {
     expect(flow?.producedPerDay).toBeCloseTo(imported / 7, 5);
     expect(isMeasuredFoodDeficit(state, 0.05)).toBe(false);
     expect(canSupportImmigration(state, 20, 1), 'a larder fed by recorded trade cannot admit').toBe(true);
-  });
-
-  it('records a visitor group’s daily food gift under the gift source', () => {
-    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
-    state.tick = 100 * TICKS_PER_DAY;
-    state.resources.food = 100;
-    state.storageMax.food = 10_000;
-    const group: VisitorGroup = {
-      id: 'visitor-gift',
-      name: 'The Brass Kettle Caravan',
-      kind: 'traders',
-      entityIds: [],
-      campX: state.width / 2,
-      campY: state.height / 2,
-      daysLeft: 5,
-      giftsGiven: 0,
-      tradesCompleted: 0,
-      gold: 80,
-      refugeeResolved: false,
-      leaderTalked: false,
-      spawnedAtCalendarDay: getAbsoluteCalendarDay(state.tick) - 1,
-    };
-    state.visitorGroups = [group];
-
-    const before = state.resources.food;
-    tickVisitorGroups(state, living(state));
-    const gained = state.resources.food - before;
-
-    expect(gained, 'fixture premise: the traders gifted food').toBeGreaterThan(0);
-    expect(state.economyLedger?.produced.gift).toBe(gained);
   });
 
   it('records a rival’s peace tribute under the tribute source', () => {

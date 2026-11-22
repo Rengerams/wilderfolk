@@ -61,8 +61,6 @@ export interface CitizenOverviewScreenProps {
   onHintAction: (action: FocusHintAction) => void;
   /** Opens the work & venue hours window; the hours editors live in their own window. */
   onOpenWorkHours: () => void;
-  onFocusVisitor: (id: string, x: number, y: number) => void;
-  onFocusRival: (id: string, x: number, y: number, buildingId?: number) => void;
   onLaunchRaid: (rivalId: string) => void;
   onProvokeRival: (rivalId: string) => void;
   onRecallRaid: (eventId: string) => void;
@@ -153,8 +151,6 @@ export default function CitizenOverviewScreen({
   onToggleFavoriteCitizen,
   onHintAction,
   onOpenWorkHours,
-  onFocusVisitor,
-  onFocusRival,
   onLaunchRaid,
   onProvokeRival,
   onRecallRaid,
@@ -316,14 +312,6 @@ export default function CitizenOverviewScreen({
                         pendingRaidCount={pendingRaidCount}
                         pendingOutgoingRaidCount={pendingOutgoingRaidCount}
                         pendingDiplomacyCount={pendingDiplomacyCount}
-                        onFocusVisitor={(id, x, y) => {
-                          onFocusVisitor(id, x, y);
-                          onClose();
-                        }}
-                        onFocusRival={(id, x, y, buildingId) => {
-                          onFocusRival(id, x, y, buildingId);
-                          onClose();
-                        }}
                         onLaunchRaid={onLaunchRaid}
                         onProvokeRival={onProvokeRival}
                         onRecallRaid={onRecallRaid}

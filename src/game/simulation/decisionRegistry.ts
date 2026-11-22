@@ -521,7 +521,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/villageRequests.test.ts, tests/workerCommand.roundtrip.test.ts, tests/gameWorker.transport.test.ts',
   },
   rivalStrategy: {
-    owner: 'rivalEvents.ts — tickRivalSettlements; rivalProfiles.ts — selectRivalDailyAction/applyRivalDailyAction',
+    owner: 'rivalEvents.ts — tickRivalSettlements; rivalProfiles.ts — growth eligibility/cadence and selectRivalDailyAction/applyRivalDailyAction',
     cadence: 'daily',
     cadenceNote: 'Strategic rival decisions, growth, diplomacy and raids only; no village-map raiders, hunter poaching, reveal patrols or floating text.',
     writes: ['rivalSettlements', 'pendingRaidEvents (through frontierCombat owner)', 'pendingDiplomacyEvents (through rivalDiplomacy owner)', 'resources (through resource owner)', 'villageReputation (through reputation owner)', 'eventLog (through logEvent)'],
