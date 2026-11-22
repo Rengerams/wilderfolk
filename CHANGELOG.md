@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Refactored (22 Nov 2026; pending merge):** The Frontier panel reads one normalized rival profile from `getRivalPresenceSummary` instead of normalizing again; peace checks use the canonical owner, unused status-color calculation is removed, and the label says camp status.
+- **Refactored (22 Nov 2026; pending merge):** The Frontier panel renders a single read-only `frontierPanelView.ts` projection instead of directly computing militia, raid eligibility/preview, war-band counts, or rival status; the projection uses one normalized rival profile per card, the canonical peace predicate, and prepared text labels. The unused status color was removed.
 
 - **Refactored (22 Nov 2026; pending merge):** Broke two type-import cycles: placement reads world-map types rather than renderer types; grid and gameplay readers use narrow entity contracts; statistics and social record types live in leaf schemas. No gameplay or save-format change.
 
