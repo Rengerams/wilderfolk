@@ -169,7 +169,8 @@ export function tickPregnancyAndBirth(
     wildkin.birthDay = state.dayInYear;
     wildkin.wildkinGuardianId = entity.id;
     pushNewEntity(state, ctx, wildkin);
-    // The deer is a recorded animal parent, not a human co-parent.
+    // Register both parents even when the first birth happens before the daily census.
+    recordGenealogyBirth(state, entity);
     recordGenealogyBirth(state, deerFather!);
     recordGenealogyBirth(state, wildkin);
     addBigNews(
