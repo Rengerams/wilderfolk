@@ -13,7 +13,6 @@ import { getTownHallFestivalCooldownTicks, isTownHallStaffed } from './townHall'
 
 import { rollYearlyWorldEvent, tickVillageRequests } from './groupEvents';
 import { tickWorldRivalSettlements } from './rivalWorldTick';
-import { tickVisitorQuest } from './visitorQuest';
 import { maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferGriefBeat, maybeOfferHowlerRumor, maybeOfferWinterPrep, tickWinterFreezeCheck, tickPendingStoryEvents, maybeOfferChildrenShelter, tickChildrenShelter } from './storyEvents';
 import { maybeOfferTravelingTheatre, tickTravelingTheatre } from './travelingTheatre';
 import { maybeOfferDeerParliament, tickDeerParliament } from './deerParliament';
@@ -139,7 +138,6 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   assignPendingGraves(state);
   // Frontier systems
   tickVillageRequests(state);
-  tickVisitorQuest(state);
   // First-session arc (year 0 only): welcome, wolf choice, ranger's memory, Old Kaia's winter quest.
   if (state.year === 0) {
     maybeOfferWelcome(state);
