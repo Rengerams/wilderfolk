@@ -54,7 +54,7 @@ describe('infrastructure acceptance boundaries', () => {
   });
 
   it('generates walkable shallow water without accidentally making it buildable', () => {
-    const map = generateRawTerrain(480, 480, 1234, MapSize.Small, MapPreset.Islands, undefined, 4);
+    const map = generateRawTerrain(480, 480, 1234, MapSize.Medium, MapPreset.Islands, undefined, 4);
     let shallowTiles = 0;
     for (let ty = 0; ty < map.height; ty++) {
       for (let tx = 0; tx < map.width; tx++) {
