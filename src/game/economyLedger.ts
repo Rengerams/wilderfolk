@@ -37,7 +37,7 @@ export const ECONOMY_SOURCE_LABELS: Record<string, string> = {
 };
 
 /** How many finished days of food history the insight UI keeps. */
-export const FOOD_HISTORY_MAX_DAYS = 30;
+const FOOD_HISTORY_MAX_DAYS = 30;
 
 /** Food a colony of `settlers` needs per day at the standard ration. */
 export function dailyFoodNeedForSettlers(settlers: number): number {
@@ -194,7 +194,7 @@ export function getEconomyLedger(state: WorldState): DailyEconomyLedger | null {
 }
 
 /** One line of a day's food balance, already summed. */
-export interface FoodLedgerRow {
+interface FoodLedgerRow {
   source: string;
   amount: number;
 }

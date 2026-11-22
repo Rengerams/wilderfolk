@@ -24,7 +24,7 @@ export type TavernRuntimeContext = {
   onWorkChat: () => void;
 };
 
-export function shouldRunTavernService(
+function shouldRunTavernService(
   huntingWere: boolean,
   inElectionCeremony: boolean,
   onTavernShift: boolean,

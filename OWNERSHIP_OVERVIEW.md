@@ -390,7 +390,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | Venue service (tavern, civic venues) | `humanVenueBehavior.ts` | realtime (`humanTick`) | `tickTavernService`, `tickHumanCivicVenueService` |
 | Map-bounds clamp | `mapBounds.ts` | realtime + systems | `clampToMapBounds` |
 | Election vote simulation | `electionVotes.ts` | election ceremony | `simulateElectionVotes` |
-| Visitor quest | `visitorQuest.ts` | daily + player-command | `tickVisitorQuest`, `maybeStartVisitorQuest`, `deliverVisitorQuest` |
+| Visitor quest | `visitorQuest.ts` | player-command | `maybeStartVisitorQuest`, `deliverVisitorQuest` |
 | Prison guard duty and post presence | `prisonGuardDuty.ts` + `prisonShifts.ts` | daily (`tickDailyWorldEvents`) + hourly (`tickLayerRealtime`) | `tickPrisonGuardDuty`, `tickPrisonPresence`, `prisonGuardIds`, `prisonRoster`, `prisonDutyForGuard` (absolute shift start, including across midnight and weekly turnover), `holds` (private per-guard roster ownership predicate inside `prisonDutyForGuard`), `unguardedPrisonHours` |
 | Settler work reasons and workplace duty labels | `workAbsence.ts` | read-only UI projection | `getSettlerWorkReason`, `getWorkplaceRosterReasons`, `getUnstaffedPostNote`, `workplaceDutyLabel` |
 | Simulation invariant collection and assertion | `simulationInvariants.ts` + `simInvariants.ts` | dev/daily check (`gameTick`) | `collectSimulationInvariantErrors`, `assertSimInvariants` |

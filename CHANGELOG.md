@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Refactored (22 Nov 2026; pending merge):** 293 internal-only exports are module-private again, three unreachable helpers are gone and the one false-positive import is declared, so the dependency audit gate passes. Call-graph artifacts regenerated. No gameplay, save or API change.
+
 - **Fixed (22 Nov 2026, PR #170):** Caravans now wait for storage on arrival, retain undelivered exports on the saved route until space frees, and allow gold-for-iron purchases without a Market.
 
 - **Fixed (22 Nov 2026; PR #169):** Schedule previews count assigned workers and construction crews, exclude ineligible settlers, and detect shifts with unchanged duration. Added regression tests.

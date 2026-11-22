@@ -33,7 +33,7 @@ export function isGreetingHour(hour: number): boolean {
   return Number.isFinite(hour) && hour >= 6 && hour <= 9;
 }
 
-export type SocialMotive =
+type SocialMotive =
   | 'sick_day'
   | 'grief'
   | 'bad_weather'

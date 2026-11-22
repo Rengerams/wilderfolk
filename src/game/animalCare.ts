@@ -28,7 +28,7 @@ const STATUS_CODES: Record<AnimalCareStatus, number> = {
 /** Daily ration for a tamed animal, derived from authoritative diet settings. */
 const ANIMAL_DAILY_FOOD = Human.DAILY_FOOD_CONSUMPTION * Animal.FOOD_RATIO_OF_HUMAN;
 /** Energy restored to a tamed animal's owner each fed day (per animal). */
-export const TAMED_ANIMAL_OWNER_ENERGY_BONUS = 8;
+const TAMED_ANIMAL_OWNER_ENERGY_BONUS = 8;
 
 export function countTamedAnimals(state: WorldState): number {
   // A pet is a living animal with an owner, full stop: removal of the owner clears `tamedBy` at

@@ -125,7 +125,7 @@ export function mineOreForMode(mode: string | undefined): MineMode {
 }
 
 /** Legacy stored orientation; effective rendering uses the canonical 0|90 run axis. */
-export type StoredBuildingRotation = 0 | 90 | 180 | 270;
+type StoredBuildingRotation = 0 | 90 | 180 | 270;
 
 export interface BuildingCost {
   wood: number;

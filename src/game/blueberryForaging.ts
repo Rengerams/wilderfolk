@@ -23,29 +23,29 @@ export const BLUEBERRY_MAX_YIELD = 6;
 export const BLUEBERRY_FOOD_PER_PICK = 4;
 export const BLUEBERRY_ENERGY_PER_PICK = 45;
 export const BLUEBERRY_REGROWTH_DAYS = 4;
-export const BLUEBERRY_SEARCH_RADIUS = 180;
-export const BLUEBERRY_PICK_RADIUS = 18;
-export const BLUEBERRY_SEARCH_STAGGER = 18;
+const BLUEBERRY_SEARCH_RADIUS = 180;
+const BLUEBERRY_PICK_RADIUS = 18;
+const BLUEBERRY_SEARCH_STAGGER = 18;
 
 /** AGENTS.md §8: new maps contain at most three blueberry trees. */
-export const BLUEBERRY_TREE_SPAWN_BY_MAP_SIZE: Partial<Record<MapSize, number>> = {
+const BLUEBERRY_TREE_SPAWN_BY_MAP_SIZE: Partial<Record<MapSize, number>> = {
   [MapSize.Medium]: 2,
   [MapSize.Large]: 3,
   [MapSize.Huge]: 3,
 };
 
-export function isBlueberryTree(entity: Entity | undefined): entity is Entity {
+function isBlueberryTree(entity: Entity | undefined): entity is Entity {
   return !!entity
     && entity.alive
     && entity.type === EntityType.Tree
     && entity.forageKind === 'blueberry';
 }
 
-export function hasRipeBlueberries(entity: Entity | undefined): entity is Entity {
+function hasRipeBlueberries(entity: Entity | undefined): entity is Entity {
   return isBlueberryTree(entity) && (entity.blueberryYield ?? 0) > 0;
 }
 
-export function clearBlueberryTarget(settler: Entity): void {
+function clearBlueberryTarget(settler: Entity): void {
   settler.blueberryForageTargetId = undefined;
 }
 

@@ -5,15 +5,15 @@ import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { JobType } from './gameTypes';
 
-export const MAX_SCHEDULE_FATIGUE = 100;
+const MAX_SCHEDULE_FATIGUE = 100;
 /** The worst output a fully fatigued crew can fall to — the floor of the penalty, not a % of energy. */
 export const MIN_SCHEDULE_PRODUCTIVITY = 0.65;
 /** The normal work day, in hours (owner: "normal work day is 9 hrs"). A settler working exactly
  *  this many hours is fatigue-neutral, and `workSchedule.STANDARD_PRODUCTION_WORK_HOURS` matches it. */
-export const NEUTRAL_WORK_HOURS = 9;
-export const FATIGUE_PER_EXCESS_HOUR = 10;
-export const RECOVERY_PER_SHORT_HOUR = 3;
-export const BASE_DAILY_RECOVERY = 4;
+const NEUTRAL_WORK_HOURS = 9;
+const FATIGUE_PER_EXCESS_HOUR = 10;
+const RECOVERY_PER_SHORT_HOUR = 3;
+const BASE_DAILY_RECOVERY = 4;
 
 export function getScheduleFatigue(entity: Pick<Entity, 'scheduleFatigue'>): number {
   return Math.max(0, Math.min(MAX_SCHEDULE_FATIGUE, entity.scheduleFatigue ?? 0));
@@ -110,7 +110,7 @@ export function resolveDailyScheduleFatigue(
  * The schedule-only hours a settled day bills when it left no witnessed sample — the fallback
  * `getWorkdayAttendance` reads. Clamped so a corrupt save cannot bill negative or non-finite hours.
  */
-export function getScheduleLastWorkedHours(entity: Pick<Entity, 'scheduleLastWorkedHours'>): number {
+function getScheduleLastWorkedHours(entity: Pick<Entity, 'scheduleLastWorkedHours'>): number {
   const hours = entity.scheduleLastWorkedHours ?? 0;
   return Number.isFinite(hours) && hours > 0 ? hours : 0;
 }

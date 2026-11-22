@@ -90,7 +90,7 @@ export const LAND_BANDS = {
  * Biome-boundary dither, in band units: a coherent zero-mean shift moves where a boundary falls,
  * never which biomes exist, so edges interlock instead of meeting on a lattice line.
  */
-export const BIOME_EDGE_DITHER = 0.055;
+const BIOME_EDGE_DITHER = 0.055;
 
 /** Shared biome-edge offset for L0/L1 projection and static scenery placement. */
 export function biomeEdgeDither(e: number, seaLevel: number): number {
@@ -168,13 +168,13 @@ export function worldToTile(worldX: number, worldY: number): { tx: number; ty: n
 const projectionCache = new WeakMap<WorldMap, Map<number, TerrainTile>>();
 
 /** Tile (tx, ty) → world pixel of the tile centre. */
-export function tileToWorld(tx: number, ty: number): { x: number; y: number } {
+function tileToWorld(tx: number, ty: number): { x: number; y: number } {
   const half = PATH_CELL / 2;
   return { x: tx * PATH_CELL + half, y: ty * PATH_CELL + half };
 }
 
 /** True when a tile coordinate is inside the map's L0 tile grid. */
-export function isInsideTileGrid(map: WorldMap, tx: number, ty: number): boolean {
+function isInsideTileGrid(map: WorldMap, tx: number, ty: number): boolean {
   return tx >= 0 && ty >= 0 && tx < map.width && ty < map.height;
 }
 

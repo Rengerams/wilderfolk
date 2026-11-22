@@ -46,7 +46,7 @@ function previewGlowGradient(
  * The whole drag stroke, painted segment by segment while the button is held: green where the
  * placement owner will pave, red where it refuses. Read-only — no second validator here.
  */
-export function drawStripBuildPreview(
+function drawStripBuildPreview(
   ctx: CanvasRenderingContext2D,
   state: RenderSnapshot,
   cw: number,

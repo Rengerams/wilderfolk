@@ -16,7 +16,7 @@ import { describeSaveCompatibility } from '../game/saveLoad';
 import { getFocusableElements } from '../hooks/useModalFocus';
 import { TICKS_PER_DAY } from '../game/dayCycle';
 
-export type VolumePreset = 'soft' | 'normal' | 'loud';
+type VolumePreset = 'soft' | 'normal' | 'loud';
 type MenuView = 'main' | 'settings' | 'graphics' | 'about' | 'profiler';
 
 /**

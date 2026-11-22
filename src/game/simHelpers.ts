@@ -59,7 +59,7 @@ export function hasTech(state: Pick<WorldState, 'unlockedTechs'>, techId: string
   return state.unlockedTechs.includes(techId);
 }
 
-export const TIERED_ADD_TARGETS: ReadonlySet<string> = new Set(['counter_attack', 'predator_block']);
+const TIERED_ADD_TARGETS: ReadonlySet<string> = new Set(['counter_attack', 'predator_block']);
 
 /** The combined research contribution for one effect target. */
 export interface ResearchEffectTotals {

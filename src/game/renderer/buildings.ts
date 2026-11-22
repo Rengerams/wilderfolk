@@ -61,7 +61,7 @@ export function footprintGroundRise(
   return terrainRiseAt(map, footprint.x, getBuildingFootprintRect(footprint).bottom);
 }
 
-export function getBuildingScreenRect(
+function getBuildingScreenRect(
   b: Pick<Building, 'x' | 'y' | 'width' | 'height'>,
   state: RenderSnapshot,
   cam: Camera,

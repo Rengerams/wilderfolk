@@ -3,7 +3,7 @@
  * `explanation` is the owner's verbatim refusal and `reasonCode` derives from identifiers, never text.
  */
 
-export type ActionOutcomeKind = 'accepted' | 'blocked';
+type ActionOutcomeKind = 'accepted' | 'blocked';
 
 export interface ActionOutcome {
   kind: ActionOutcomeKind;

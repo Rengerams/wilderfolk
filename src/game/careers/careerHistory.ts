@@ -7,7 +7,7 @@ import { PROFILE_REVISION, bumpRevision } from '../entityRevision';
 /** Compact, genuine worked shifts. One credit per person, profession and settled day. */
 export const MAX_CREDITED_DAYS = 65_535;
 export const MAX_CAREER_DAY = 2_147_483_647;
-export interface CareerJobHistory {
+interface CareerJobHistory {
   days: number;
   lastDay: number;
 }

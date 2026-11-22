@@ -66,10 +66,10 @@ export function isDialogueBusy(entity: Pick<ChatSpeaker, 'chatTicks' | 'chatDial
 }
 
 /** Spoken chat is brief; it must not monopolize a citizen's social scene for half a day. */
-export const DIALOGUE_LINE_BASE_HOURS = 0.25;
-export const DIALOGUE_LINE_CHAR_HOURS = 0.015;
-export const CHAT_BUBBLE_MAX_CHARS_PER_LINE = 38;
-export const CHAT_BUBBLE_MAX_LINES = 3;
+const DIALOGUE_LINE_BASE_HOURS = 0.25;
+const DIALOGUE_LINE_CHAR_HOURS = 0.015;
+const CHAT_BUBBLE_MAX_CHARS_PER_LINE = 38;
+const CHAT_BUBBLE_MAX_LINES = 3;
 
 interface DialogueSession {
   tree: DialogueTree;
@@ -406,7 +406,7 @@ export function endAmbientHumanChat(entity: ChatSpeaker): boolean {
   return true;
 }
 
-export function getAnimatedChatDots(tick: number, entityId: number): string {
+function getAnimatedChatDots(tick: number, entityId: number): string {
   const phase = (Math.floor(tick / 4) + entityId) % 3;
   return '.'.repeat(phase + 1);
 }

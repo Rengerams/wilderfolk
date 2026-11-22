@@ -8,7 +8,7 @@ export interface GuideHelpTopic {
   body: string;
 }
 
-export const GUIDE_HELP_TOPICS: GuideHelpTopic[] = [
+const GUIDE_HELP_TOPICS: GuideHelpTopic[] = [
   {
     id: 'forge',
     title: 'Blacksmith forge',

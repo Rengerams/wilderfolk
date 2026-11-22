@@ -19,12 +19,12 @@ export function normalizePregnancyDueProgress(due: number | undefined): number {
 }
 
 /** The one term jitter: ±15 % around 24 days, keyed by settler and colony day. */
-export function rollPregnancyDueProgress(settlerId: number, startDay: number): number {
+function rollPregnancyDueProgress(settlerId: number, startDay: number): number {
   return Math.round(PREGNANCY_TICKS * (0.85 + seededRandomForRun(`pregnancy-due:${settlerId}:${startDay}`) * 0.3));
 }
 
 /** Where a pregnancy came from; it only changes the visible pair status and the youth record. */
-export type PregnancyOrigin = 'married' | 'youth' | 'affair' | 'existing';
+type PregnancyOrigin = 'married' | 'youth' | 'affair' | 'existing';
 
 export interface PregnancyStartOptions {
   origin: PregnancyOrigin;

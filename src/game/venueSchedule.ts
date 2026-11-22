@@ -14,9 +14,9 @@ export const DEFAULT_HOTEL_SCHEDULE: VenueSchedule = Object.freeze({ startHour: 
  * One settler covers a venue service window up to this many hours; longer windows add a settler.
  * The window itself has no length limit beyond not wrapping through midnight.
  */
-export const STANDARD_WORK_HOURS = 9;
+const STANDARD_WORK_HOURS = 9;
 /** An hour of shared handover when the hotel has multiple shifts. */
-export const HOTEL_SHIFT_OVERLAP_HOURS = 1;
+const HOTEL_SHIFT_OVERLAP_HOURS = 1;
 
 function defaultFor(kind: VenueScheduleKind): VenueSchedule {
   return kind === 'tavern' ? DEFAULT_TAVERN_SCHEDULE : DEFAULT_HOTEL_SCHEDULE;

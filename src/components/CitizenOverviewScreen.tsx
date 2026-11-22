@@ -29,8 +29,6 @@ const ProgressTabPanel = lazyWithRetry(() => import('./tabPanels/ProgressTabPane
 const LogTabPanel = lazyWithRetry(() => import('./tabPanels/LogTabPanel'));
 const MoreTabPanel = lazyWithRetry(() => import('./tabPanels/MoreTabPanel'));
 
-export type { OverviewSection, OverviewWorldFocus };
-
 export interface CitizenOverviewScreenProps {
   state: WorldState;
   villageStats: VillageStatsSummary;

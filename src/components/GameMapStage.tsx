@@ -40,7 +40,7 @@ export interface GameMapStageProps extends CanvasHandlers {
 }
 
 /** Derives the preset shown by the map zoom control from a live camera target. */
-export function getNearestCameraZoomPreset(cameraTargetZoom: number): number {
+function getNearestCameraZoomPreset(cameraTargetZoom: number): number {
   const zoom = clampCameraZoom(cameraTargetZoom);
   return CAMERA_ZOOM_PRESETS.reduce(
     (nearest, preset) => (Math.abs(zoom - preset) < Math.abs(zoom - nearest) ? preset : nearest),

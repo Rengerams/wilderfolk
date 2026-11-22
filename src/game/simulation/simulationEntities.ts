@@ -121,7 +121,7 @@ export function markWildlifeDead(
  * The state-level half of a wildlife death: the one retirement every non-settler death path shares,
  * including poaching outside a tick context. Context-less callers clear hunter links separately.
  */
-export function retireWildlifeInState(state: WorldState, entity: Entity): void {
+function retireWildlifeInState(state: WorldState, entity: Entity): void {
   if (!entity.alive) return;
   if (entity.type === EntityType.Wildkin) logWildkinDeath(state, entity);
   if (entity.type === EntityType.Wildkin || (entity.type === EntityType.Deer && state.genealogyRegistry?.people[String(entity.id)])) {

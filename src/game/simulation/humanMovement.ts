@@ -85,15 +85,6 @@ export function resumeHumanWalk(entity: Entity): void {
   steerEntityToward(entity, walk.x, walk.y, Math.min(walk.pace, remaining));
 }
 
-/**
- * Read-only evidence of travel: the settler is moving this tick and closing on this point. Reports
- * only what the movement owners already steered — it never plans a route.
- */
-export function isWalkingToward(entity: Entity, point: { x: number; y: number }): boolean {
-  if (Math.hypot(entity.vx, entity.vy) <= WALKING_MIN_SPEED_PX) return false;
-  return (point.x - entity.x) * entity.vx + (point.y - entity.y) * entity.vy > 0;
-}
-
 /** Arrival changes presentation, not the building roster or simulation membership.
  * On-duty outdoor workers can be hidden; other outdoor visits and construction remain visible. */
 export function enterHumanBuilding(entity: Entity, building: Building, onDuty = false): void {
@@ -220,10 +211,10 @@ export function homeStandPosition(building: Building, entityId: number): { x: nu
 }
 
 /** Spacing between two workers of the same building, in world px (a settler sprite is ~20 px wide). */
-export const WORKER_STAND_SPACING_PX = 16;
+const WORKER_STAND_SPACING_PX = 16;
 
 /** How far south of the footprint's edge the worker row stands, in px — in front of it, never on it. */
-export const WORKER_STAND_STANDOFF_PX = 10;
+const WORKER_STAND_STANDOFF_PX = 10;
 
 /** The work-post stand point in front of a building; placement only, never a navigation target. */
 export function humanBuildingTarget(building: Building, entityId: number): { x: number; y: number } {

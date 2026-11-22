@@ -11,7 +11,7 @@ export type SpatialQueryCategory =
   | 'road_avoid'
   | 'lumber_trees';
 
-export interface SpatialQueryBucket {
+interface SpatialQueryBucket {
   queries: number;
   candidates: number;
   cells: number;

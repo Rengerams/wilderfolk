@@ -12,7 +12,7 @@ import {
 import { isEntityOnBuilding } from './buildingRotation';
 
 /** The projected terrain tile under a world position, or `null` off-map. */
-export function getTileAt(state: WorldState, x: number, y: number): TerrainTile | null {
+function getTileAt(state: WorldState, x: number, y: number): TerrainTile | null {
   if (!state.worldMap) return null;
   const { tx, ty } = worldToTile(x, y);
   return tileAt(state.worldMap, tx, ty) ?? null;

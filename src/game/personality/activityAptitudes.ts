@@ -25,13 +25,13 @@ export type AptitudeActivityId =
   | 'communityReaction'
   | 'conception';
 
-export interface AptitudeWeight {
+interface AptitudeWeight {
   readonly aptitude: GeneticAptitude;
   /** Signed share of the activity; positive helps the named outcome, negative hurts it. */
   readonly weight: number;
 }
 
-export interface MarkWeight {
+interface MarkWeight {
   readonly mark: PersonalMarkId;
   /** Signed contribution applied only while the settler carries the mark. */
   readonly weight: number;

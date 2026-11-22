@@ -24,7 +24,7 @@ import { adjustEcosystemHealth } from './dailyEcology';
  */
 
 /** Add a story event to the pending queue (no duplicate id). */
-export function offerStoryEvent(state: WorldState, event: StoryEvent): void {
+function offerStoryEvent(state: WorldState, event: StoryEvent): void {
   state.pendingStoryEvents ??= [];
   if (state.pendingStoryEvents.some((e) => e.id === event.id)) return;
   state.pendingStoryEvents.push(event);
@@ -146,7 +146,7 @@ export function tickChildrenShelter(state: WorldState): void {
  * Drops expired unanswered stories through one contract: the story that offered the card must resolve
  * its own chain, so a lapsed offer can never strand a later stage or the guided campaign.
  */
-export type StoryExpiryResolver = (state: WorldState) => void;
+type StoryExpiryResolver = (state: WorldState) => void;
 
 /**
  * Keyed dispatch from the card queue to each story's owner-supplied resolver; the resolver and the

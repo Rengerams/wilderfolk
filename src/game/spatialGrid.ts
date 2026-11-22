@@ -39,7 +39,7 @@ const MOBILE_ENTITY_TYPES = new Set<EntityType>([
   EntityType.Werewolf,
 ]);
 
-export function envFlagDisabled(val: string | undefined): boolean {
+function envFlagDisabled(val: string | undefined): boolean {
   if (val == null || val === '') return false;
   return /^(0|false|no|off|disabled)$/i.test(val.trim());
 }
@@ -439,7 +439,7 @@ function isReusableSpatialGrid<T extends SpatialGridEntity>(
   );
 }
 
-export function resolveSpatialGrid<T extends SpatialGridEntity>(
+function resolveSpatialGrid<T extends SpatialGridEntity>(
   existing: EntitySpatialGrid<T> | undefined,
   mapWidth: number,
   mapHeight: number,
@@ -750,7 +750,7 @@ function isSpatialInvariantCheckEnabled(): boolean {
   return envFlagEnabled(runtime.process?.env?.SPATIAL_GRID_INVARIANT);
 }
 
-export const SPATIAL_GRID_INVARIANT_CHECK = isSpatialInvariantCheckEnabled();
+const SPATIAL_GRID_INVARIANT_CHECK = isSpatialInvariantCheckEnabled();
 
 export function assertSpatialGridInvariants<T extends SpatialGridEntity>(
   grassGrid: EntitySpatialGrid<T> | undefined,

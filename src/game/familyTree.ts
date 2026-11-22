@@ -13,7 +13,7 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isWithinRemarriageBar } from './simulation/humanRelationships';
 import { getChildCustodian, isImprisoned } from './housingModel';
 
-export type KinRelation =
+type KinRelation =
   | 'grandmother'
   | 'grandfather'
   | 'aunt'
@@ -36,7 +36,7 @@ export type KinRelation =
   | 'niece'
   | 'grandchild';
 
-export interface KinMember {
+interface KinMember {
   id: number;
   name: string;
   relation: KinRelation;
@@ -56,14 +56,14 @@ export interface KinMember {
  * A link the tree cannot draw because the simulation holds no record of it. A dead settler's record
  * leaves the world, so the id survives on the living and the name, age and row do not.
  */
-export type FamilyTreeGapKind =
+type FamilyTreeGapKind =
   | 'no-parents'
   | 'parent-record-gone'
   | 'co-parent-record-gone'
   | 'former-partner-record-gone'
   | 'courtship-ended';
 
-export interface FamilyTreeGap {
+interface FamilyTreeGap {
   kind: FamilyTreeGapKind;
   text: string;
 }
@@ -688,7 +688,7 @@ export interface FamilyTreePerson {
 }
 
 /** One generation of the family, `delta` rows from the focused settler's own row. */
-export interface FamilyTreeRow {
+interface FamilyTreeRow {
   /** Row offset from the focused settler: negative is older, `0` is their own generation. */
   delta: number;
   label: string;

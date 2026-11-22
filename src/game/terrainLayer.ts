@@ -225,7 +225,7 @@ function drawCliffFace(
   ctx.fillRect(x0, fy, fillW, Math.max(1, Math.round(tileSize * 0.06)));
 }
 
-export type TerrainSurface = CanvasSurface;
+type TerrainSurface = CanvasSurface;
 
 export interface TerrainLayerCache {
   /** Cache identity the bake was made for; the chunk re-bakes when its own region changes. */

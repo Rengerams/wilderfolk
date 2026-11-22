@@ -7,7 +7,7 @@ interface IconProps {
   className?: string;
 }
 
-export function WoodIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
+function WoodIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
   return (
     <svg viewBox="0 0 12 12" className={`shrink-0 ${className}`} aria-hidden>
       <rect x="2.5" y="4.25" width="7" height="3.5" rx="0.75" fill="#92400e" />
@@ -18,7 +18,7 @@ export function WoodIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
   );
 }
 
-export function StoneIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
+function StoneIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
   return (
     <svg viewBox="0 0 12 12" className={`shrink-0 ${className}`} aria-hidden>
       <path d="M2.5 8.5 4.5 3.5 7.5 4 10 7 7.5 9.5 4 9.5Z" fill="#57534e" />
@@ -28,7 +28,7 @@ export function StoneIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
   );
 }
 
-export function FoodIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
+function FoodIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
   return (
     <svg viewBox="0 0 12 12" className={`shrink-0 ${className}`} aria-hidden>
       <path d="M6 10V5.5" stroke="#15803d" strokeWidth="0.9" strokeLinecap="round" />
@@ -40,7 +40,7 @@ export function FoodIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
   );
 }
 
-export function IronIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
+function IronIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
   return (
     <svg viewBox="0 0 12 12" className={`shrink-0 ${className}`} aria-hidden>
       <rect x="2" y="4.5" width="8" height="4" rx="0.8" fill="#57534e" />
@@ -51,7 +51,7 @@ export function IronIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
   );
 }
 
-export function GoldIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
+function GoldIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
   return (
     <svg viewBox="0 0 12 12" className={`shrink-0 ${className}`} aria-hidden>
       <circle cx="6" cy="6" r="5.5" fill="#a16207" />

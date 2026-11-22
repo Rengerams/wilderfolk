@@ -24,7 +24,7 @@ export function hasCompletedMarket(state: WorldState): boolean {
   return findCompletedBuilding(state.buildings, BuildingType.Market) !== undefined;
 }
 
-export const TRADE_CARAVAN_ARRIVAL_DIST = 28;
+const TRADE_CARAVAN_ARRIVAL_DIST = 28;
 function getPartnerWaitTicks(): number {
   return ticksForDays(1);
 }
@@ -48,7 +48,7 @@ function tradeMultiplier(state: WorldState): number {
   return getMultiplier(state, 'trade_bonus') * getTownHallTradeMultiplier(state, state.buildings);
 }
 
-export function getDefaultPartnerPosition(state: WorldState, index: number): { x: number; y: number } {
+function getDefaultPartnerPosition(state: WorldState, index: number): { x: number; y: number } {
   const margin = 90;
   const anchors = [
     { x: margin, y: margin },
@@ -329,7 +329,7 @@ export function establishTradeRoute(state: WorldState, routeId: string): WorldSt
   return s;
 }
 
-export function onTradeRouteEstablished(state: WorldState, routeId: string): void {
+function onTradeRouteEstablished(state: WorldState, routeId: string): void {
   const route = state.tradeRoutes.find((r) => r.id === routeId);
   if (!route) return;
   const idx = state.tradeRoutes.findIndex((r) => r.id === routeId);

@@ -113,7 +113,7 @@ export function updateWeather(state: WorldState): void {
 }
 
 /** Weather never destroys a building completely — storm damage stops here (repair restores HP). */
-export const STORM_DAMAGE_HEALTH_FLOOR = 20;
+const STORM_DAMAGE_HEALTH_FLOOR = 20;
 
 /**
  * Storm damage per day per building. Floored at the health floor so weather never destroys

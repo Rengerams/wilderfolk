@@ -55,7 +55,7 @@ type UseGameSessionParams = {
 };
 
 /** Determines whether the existing gameplay session is allowed to run. */
-export function shouldRunGameSession(
+function shouldRunGameSession(
   spritesLoaded: boolean,
   showIntro: boolean,
   showMapSetup: boolean,

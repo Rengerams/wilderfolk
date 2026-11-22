@@ -6,7 +6,7 @@ import { TICKS_PER_HOUR } from '../game/dayCycleClock';
 import { playerHumanCount } from '../game/playerHuman';
 
 
-export const VIRTUAL_PLAYER_HISTORY_LIMIT = 8;
+const VIRTUAL_PLAYER_HISTORY_LIMIT = 8;
 export const VIRTUAL_PLAYER_TOOLTIP_LIMIT = 5;
 /**
  * The status only ever shown when the ladder has nothing to do *and* the colony is short of nothing

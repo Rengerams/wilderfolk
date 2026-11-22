@@ -110,7 +110,7 @@ export function strokeGridLines(
 }
 
 /** Soft diamond “tile” at a screen point — 2.5D grid cell / snap marker. */
-export function drawIsoCellMarker(
+function drawIsoCellMarker(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,

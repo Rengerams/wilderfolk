@@ -41,13 +41,13 @@ import { isVenueServiceHour } from './venueSchedule';
 export const HOTEL_GUEST_CAPACITY = 8;
 
 /** Walk-home time, in hours, below which a settler never looks for a hotel bed. */
-export const LODGING_MIN_COMMUTE_HOURS = 1.5;
+const LODGING_MIN_COMMUTE_HOURS = 1.5;
 
 /** Distance from a reserved hotel bed, in world px, at which a settler can rest. */
-export const HOTEL_LODGING_RADIUS_PX = 40;
+const HOTEL_LODGING_RADIUS_PX = 40;
 
 /** Energy, per in-game hour of rest, restored by a night in a hotel bed. */
-export const HOTEL_REST_ENERGY_PER_HOUR = 0.8;
+const HOTEL_REST_ENERGY_PER_HOUR = 0.8;
 
 /** Colony day whose lodging summary has already been announced, so one night reports once. */
 const HOTEL_LODGING_NOTICE_DAY_FLAG = 'hotel_lodging_notice_day';
@@ -110,7 +110,7 @@ export function isStaffedHotel(building: Building): boolean {
 }
 
 /** Staffed player hotels this settler could reach tonight and that are no further than home, nearest first. */
-export function lodgingHotelsFor(
+function lodgingHotelsFor(
   entity: Entity,
   buildings: readonly Building[],
   hour: number,
@@ -147,7 +147,7 @@ export function countHotelSettlerLodgers(hotel: Building, entities: readonly Ent
 }
 
 /** Settler reservations per hotel for the visitor capacity check. */
-export function buildHotelSettlerLodgerCounts(
+function buildHotelSettlerLodgerCounts(
   hotels: readonly Building[],
   entities: readonly Entity[],
 ): Map<number, number> {
@@ -278,11 +278,11 @@ export function lodgingHotelFor(
 }
 
 /** A night of hotel rest restores energy at the same rate for visitors and settling lodgers. */
-export function restAtHotel(entity: Entity): void {
+function restAtHotel(entity: Entity): void {
   entity.energy = Math.min(entity.maxEnergy, entity.energy + HOTEL_REST_ENERGY_PER_HOUR * PER_TICK_RATE_SCALE);
 }
 
-export function findStaffedHotels(buildings: readonly Building[]): Building[] {
+function findStaffedHotels(buildings: readonly Building[]): Building[] {
   return buildings.filter(isStaffedHotel);
 }
 
@@ -385,7 +385,7 @@ export function hotelHasVacancy(
 }
 
 /** Pick a staffed hotel with free beds (prefer closest to visitor). */
-export function pickHotelForVisitor(
+function pickHotelForVisitor(
   visitor: Entity,
   buildings: readonly Building[],
   entities: readonly Entity[],

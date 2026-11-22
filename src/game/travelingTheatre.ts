@@ -10,8 +10,8 @@ import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, s
 import { getSimSeed } from './simRng';
 import { spendFood } from './economyLedger';
 
-export const STORY_KEY = 'traveling_theatre';
-export const AUTHORED_STORY_COOLDOWN_DAYS = 21;
+const STORY_KEY = 'traveling_theatre';
+const AUTHORED_STORY_COOLDOWN_DAYS = 21;
 
 const FLAG_OFFERED = 'traveling_theatre_company_offered';
 const FLAG_STATUS = 'traveling_theatre_company_status';

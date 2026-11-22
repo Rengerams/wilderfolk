@@ -26,7 +26,7 @@ let _cachedEntityViewportKey = '';
 let _cachedGrassKey = '';
 
 /** Full per-tick entity lists (not viewport-culled). */
-export let _tickTrees: Entity[] = [];
+let _tickTrees: Entity[] = [];
 export let _tickAnimals: Entity[] = [];
 export let _tickHumans: Entity[] = [];
 
@@ -141,7 +141,7 @@ export function filterEntitiesInViewportBounds(
 const VIEWPORT_CHUNK_COUNT = 16;
 
 /** One contiguous group of a tick list, with the y range its entities actually occupy. */
-export interface ViewportChunk {
+interface ViewportChunk {
   readonly entities: readonly Entity[];
   readonly minY: number;
   readonly maxY: number;

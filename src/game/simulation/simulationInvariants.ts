@@ -16,7 +16,7 @@ import { isValidPregnancyDueProgress } from '../pregnancy';
 type BuildingRole = 'prison' | 'residence' | 'workplace' | 'crew' | 'none';
 
 /** Classify a building's occupants role for invariant checking. */
-export function buildingOccupantRole(building: Building): BuildingRole {
+function buildingOccupantRole(building: Building): BuildingRole {
   if (building.completed && building.type === BuildingType.Prison) return 'prison';
   if (building.completed && isResidenceBuildingType(building.type)) return 'residence';
   if (building.completed && BUILDING_JOB_TYPES[building.type] != null) return 'workplace';

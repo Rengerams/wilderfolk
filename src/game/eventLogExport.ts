@@ -11,7 +11,7 @@ export interface ChronicleExportMeta {
   exportedAt?: Date;
 }
 
-export function formatChronicleText(events: GameEventLog[], meta: ChronicleExportMeta): string {
+function formatChronicleText(events: GameEventLog[], meta: ChronicleExportMeta): string {
   const exported = meta.exportedAt ?? new Date();
   const header = [
     'Wilderfolk — Village Chronicle',
@@ -31,7 +31,7 @@ export function formatChronicleText(events: GameEventLog[], meta: ChronicleExpor
   return [...header, ...body].join('\n');
 }
 
-export function buildChronicleFilename(villageName: string): string {
+function buildChronicleFilename(villageName: string): string {
   const safe = villageName
     .replace(/[^\w\s-]/g, '')
     .trim()
@@ -40,7 +40,7 @@ export function buildChronicleFilename(villageName: string): string {
   return `wilderfolk-${safe}-chronicle.txt`;
 }
 
-export function downloadTextFile(content: string, filename: string): void {
+function downloadTextFile(content: string, filename: string): void {
   if (typeof document === 'undefined') {
     console.warn('[chronicle] downloadTextFile is only available in the browser');
     return;
@@ -64,7 +64,7 @@ export function downloadChronicleLog(events: GameEventLog[], meta: ChronicleExpo
   return content;
 }
 
-export function formatChronicleJSON(events: GameEventLog[], meta: ChronicleExportMeta): string {
+function formatChronicleJSON(events: GameEventLog[], meta: ChronicleExportMeta): string {
   return JSON.stringify(
     {
       meta: {

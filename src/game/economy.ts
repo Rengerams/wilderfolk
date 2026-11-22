@@ -9,28 +9,28 @@ export { canAffordWorkshopRecipe } from './workshops';
 /**
  * Storage one completed building adds, per resource — the numbers the inspector hints quote.
  */
-export const BARN_FOOD_STORAGE = 400;
-export const BARN_WOOD_STORAGE = 300;
+const BARN_FOOD_STORAGE = 400;
+const BARN_WOOD_STORAGE = 300;
 export const SILO_FOOD_STORAGE = 2000;
 /** Total food capacity bonus at each Silo upgrade level (level 3 and above capped). */
 export function siloFoodStorageForLevel(level: number): number {
   return SILO_FOOD_STORAGE + Math.min(2, Math.max(0, Math.floor((Number.isFinite(level) ? level : 1)) - 1)) * 500;
 }
-export const SILO_STONE_STORAGE = 200;
+const SILO_STONE_STORAGE = 200;
 /** Capacity added to each non-food resource by one completed Storehouse. */
 export const WOOD_STOREHOUSE_STORAGE = 800;
 /** Total bonus for each non-food resource: L1 800, L2 1800, L3+ 2800. */
 export function storehouseStorageForLevel(level: number): number {
   return WOOD_STOREHOUSE_STORAGE + Math.min(2, Math.max(0, Math.floor(Number.isFinite(level) ? level : 1) - 1)) * 1000;
 }
-export const STORE_WAREHOUSE_STORAGE = 200;
-export const BASE_WOOD_STORAGE = 800;
-export const BASE_FOOD_STORAGE = 800;
-export const BASE_STONE_STORAGE = 300;
+const STORE_WAREHOUSE_STORAGE = 200;
+const BASE_WOOD_STORAGE = 800;
+const BASE_FOOD_STORAGE = 800;
+const BASE_STONE_STORAGE = 300;
 /** Base gold and iron ceilings are augmented by completed Storehouses (and iron by warehouses). */
-export const BASE_GOLD_STORAGE = 20000;
+const BASE_GOLD_STORAGE = 20000;
 export const BASE_IRON_STORAGE = 300;
-export const WAREHOUSE_IRON_STORAGE = 100;
+const WAREHOUSE_IRON_STORAGE = 100;
 
 /**
  * The one derivation of `storageMax` from the colony's completed storage buildings — every writer

@@ -30,9 +30,9 @@ import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 /** Each already-mustered soldier's own defensive aptitude, applied to that soldier's base only. */
 
 /** Weapon tier used for militia multiplier (legacy name kept for call sites). */
-export type MilitiaSpearTier = 'none' | 'stone' | 'iron' | 'sword';
+type MilitiaSpearTier = 'none' | 'stone' | 'iron' | 'sword';
 /** Armor tier used for militia flat bonus. */
-export type MilitiaShieldTier = 'none' | 'wooden' | 'iron' | 'scale';
+type MilitiaShieldTier = 'none' | 'wooden' | 'iron' | 'scale';
 
 export interface MilitiaBreakdown {
   adultCount: number;

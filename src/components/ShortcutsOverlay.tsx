@@ -3,7 +3,7 @@ import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 import { HEADER_DOORS } from '../game/hotkeys';
 import { overviewSubjectForTab } from '../hooks/useGameShellState';
 
-export interface Shortcut {
+interface Shortcut {
   keys: string;
   description: string;
 }

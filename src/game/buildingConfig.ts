@@ -1,7 +1,7 @@
 import { BUILDING_CONFIGS, type BuildingType } from './buildings';
 import type { BuildingConfig } from './gameTypes';
 
-export const FALLBACK_BUILDING_CONFIG: BuildingConfig = {
+const FALLBACK_BUILDING_CONFIG: BuildingConfig = {
   width: 32,
   height: 32,
   cost: { wood: 0, stone: 0, gold: 0 },

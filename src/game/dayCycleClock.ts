@@ -22,7 +22,7 @@ export function tickAtDailyPhase(day: number, phase: keyof typeof DAILY_PHASE_HO
 
 export const DAYS_PER_YEAR = Time.DAYS_PER_YEAR;
 export const PER_TICK_RATE_SCALE = 1 / TICKS_PER_HOUR;
-export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
 export type CalendarState = {
   tick: number;

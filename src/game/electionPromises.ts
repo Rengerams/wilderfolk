@@ -12,7 +12,7 @@ import { storyFlag, setStoryFlags } from './storyHelpers';
 import { addReputation } from './simHelpers';
 import { getSimSeed } from './simRng';
 
-export const PROMISE_CODES = {
+const PROMISE_CODES = {
   fill_granary: 1,
   build_walls: 2,
   run_forge: 3,
@@ -26,10 +26,10 @@ export const EVAL_DAY_OFFSET = 180;
 
 // Higher thresholds so promises feel like real commitments.
 export const GRANARY_FOOD_REQUIREMENT = 400;
-export const WALLS_REQUIREMENT = 5;
-export const FORGE_ORDERS_REQUIREMENT = 3;
+const WALLS_REQUIREMENT = 5;
+const FORGE_ORDERS_REQUIREMENT = 3;
 
-export const PROMISE_COUNT = 2;
+const PROMISE_COUNT = 2;
 
 const FLAG_PREFIX = 'election_promises';
 const FLAG_ACTIVE_YEAR = 'election_promises_active_year';
@@ -58,7 +58,7 @@ function tieBreak(code: number, mapSeed: number | undefined, year: number): numb
   return hashSeed((mapSeed ?? 1) >>> 0, year + code * 7919);
 }
 
-export function countCompletedWalls(state: WorldState): number {
+function countCompletedWalls(state: WorldState): number {
   let count = 0;
   for (let i = 0; i < state.buildings.length; i++) {
     const b = state.buildings[i];
@@ -70,7 +70,7 @@ export function countCompletedWalls(state: WorldState): number {
   return count;
 }
 
-export function countCompletedForgeOrders(state: WorldState): number {
+function countCompletedForgeOrders(state: WorldState): number {
   const completed = state.villageForge?.completed ?? {};
   let count = 0;
   for (const value of Object.values(completed)) {
@@ -130,7 +130,7 @@ function promiseProgressPct(current: number, target: number): number {
   return Math.min(100, Math.round((current / target) * 100));
 }
 
-export function getPromiseDetail(state: WorldState, code: number): PromiseDetail {
+function getPromiseDetail(state: WorldState, code: number): PromiseDetail {
   switch (code) {
     case PROMISE_CODES.fill_granary: {
       const current = Math.floor(state.resources.food);

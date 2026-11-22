@@ -37,7 +37,7 @@ export const SCHOOL_CHILDREN_PER_TEACHER = 10;
 export const SCHOOL_MAX_CHILDREN = 20;
 
 export const SCHOOL_START_HOUR = 9;
-export const SCHOOL_END_HOUR = 15;
+const SCHOOL_END_HOUR = 15;
 export const SCHOOL_HOURS_PER_DAY = SCHOOL_END_HOUR - SCHOOL_START_HOUR;
 
 export function isSchoolTime(tick: number, hourOfDay: number): boolean {
@@ -304,7 +304,7 @@ export function describeSchoolRoster(
 }
 
 /** One reason this settler set is out of school, with how many of them it holds. */
-export interface SchoolingReasonCount {
+interface SchoolingReasonCount {
   /** The owner's own reason, exactly as {@link getSchoolingBlockReason} states it. */
   reason: string;
   count: number;

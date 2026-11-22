@@ -128,4 +128,3 @@ export function projectFrontierPanel(state: WorldState, counts: FrontierPanelCou
   };
 }
 
-export type FrontierPanelView = ReturnType<typeof projectFrontierPanel>;

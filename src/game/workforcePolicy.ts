@@ -11,7 +11,7 @@ export type WorkforcePolicy = WorkforcePreset;
 export const DEFAULT_WORKFORCE_POLICY: WorkforcePolicy = 'survival';
 
 /** Player-facing preset copy — the single definition, read by the work-schedule panel. */
-export const WORKFORCE_PRESET_DETAILS: Readonly<
+const WORKFORCE_PRESET_DETAILS: Readonly<
   Record<WorkforcePreset, { label: string; description: string }>
 > = {
   survival: {
@@ -36,7 +36,7 @@ export const WORKFORCE_PRESET_DETAILS: Readonly<
  * Tunable: the position at which a job building that a preset does not name is ranked.
  * Unnamed types sort after every named type, in building-id order among themselves.
  */
-export const UNRANKED_JOB_BUILDING_RANK = Number.MAX_SAFE_INTEGER;
+const UNRANKED_JOB_BUILDING_RANK = Number.MAX_SAFE_INTEGER;
 
 const JOB_BUILDING_IDS: Readonly<Record<BuildingType, string>> = {
   house: 'house',

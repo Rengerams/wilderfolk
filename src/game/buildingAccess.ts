@@ -8,7 +8,7 @@ import { getBuildingFootprintRect } from './buildingGeometry';
 import { getTerrainRevision } from './terrain/terrainGrid';
 import { getCurrentPathGrid, isGroundWalkableAt, isWalkStepAllowed, type PathGrid } from './pathfinding';
 
-export type BuildingAccessSide = 'south' | 'east' | 'west' | 'north';
+type BuildingAccessSide = 'south' | 'east' | 'west' | 'north';
 
 export interface BuildingAccessPoint {
   x: number;

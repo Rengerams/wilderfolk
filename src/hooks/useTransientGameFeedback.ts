@@ -11,7 +11,7 @@ import { GameLoop } from '../game/gameLoop';
 import type { MomentCardData } from '../components/MomentTitleCard';
 import { VALLEY_CHAPTERS } from '../game/valleyChronicle';
 
-export const BIG_NEWS_DISPLAY_MS = 8_000;
+const BIG_NEWS_DISPLAY_MS = 8_000;
 /**
  * Wall-clock lifetime of an ordinary notification toast; without a timer, notifications left only
  * when clicked and otherwise piled up.
@@ -74,7 +74,7 @@ export function expireBigNews(world: Pick<WorldState, 'bigNews' | 'tick'>): void
 }
 
 /** Lists undismissed Big News records requiring wall-clock auto-dismissal. */
-export function getBigNewsAutoDismissIds(
+function getBigNewsAutoDismissIds(
   world: Pick<WorldState, 'bigNews'>,
   hiddenBigNewsIds: ReadonlySet<string> = new Set(),
 ): string[] {
@@ -114,7 +114,7 @@ export function expireNotifications(
 }
 
 /** Resolves the latest undismissed Valley Chronicle moment for presentation. */
-export function getPendingChapterMoment(
+function getPendingChapterMoment(
   world: Pick<WorldState, 'chronicleChapters'>,
   dismissedChapter: string | null,
 ): MomentCardData | null {

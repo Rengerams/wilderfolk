@@ -231,7 +231,7 @@ export function socialImpulseNearbyAdults(args: {
   return nearbyAdults;
 }
 
-export function tickAdultLeisureMotive(args: {
+function tickAdultLeisureMotive(args: {
   state: WorldState;
   entity: Entity;
   speed: number;
