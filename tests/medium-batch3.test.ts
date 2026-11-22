@@ -1,39 +1,12 @@
-/**
- * Three owner rules: a beauty-free grid keeps the caller where they are, the travelling theatre
- * reads recent history, and only completed watchtowers reveal raiders.
- */
+/** The beauty-grid and theatre owner rules (physical raider detection retired). */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
-import { BuildingType, EntityType, JobType, TerrainType } from '../src/game/gameTypes';
-import type { Building, Entity, WorldState } from '../src/game/gameTypes';
-import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { PATH_CELL } from '../src/game/gameTypes';
 import { pickBeautySpot } from '../src/game/beautyGrid';
-import { detectRaidersFromWatchtowers, WATCHTOWER_DETECTION_RADIUS } from '../src/game/watchtowerDetection';
 import { maybeOfferTravelingTheatre, travelingTheatreEligibleDay } from '../src/game/travelingTheatre';
 import { logEvent } from '../src/game/eventLog';
 
 const FIXTURE_SEED = 20240913;
-
-function building(type: BuildingType, completed = true, x = 100, y = 100): Building {
-  const cfg = BUILDING_CONFIGS[type];
-  return {
-    id: Math.floor(x * 1000 + y),
-    type,
-    x,
-    y,
-    width: cfg.width,
-    height: cfg.height,
-    occupants: [],
-    level: 1,
-    constructionProgress: completed ? 100 : 0,
-    completed,
-    health: 100,
-    maxHealth: 100,
-    spriteScale: 1,
-    buildAnimTimer: 0,
-  } as never;
-}
 
 describe('M2 — a beauty-free grid keeps the caller where they are', () => {
   const flatGrid = { cols: 12, rows: 12, values: new Array(144).fill(0) };
@@ -71,57 +44,5 @@ describe('M32 — the theatre reads recent history', () => {
     const card = state.pendingStoryEvents?.find((e) => e.storyKey.includes('theatre'));
     expect(card).toBeDefined();
     expect(card!.choices.map((c) => c.id)).toContain('town_hall_scandal');
-  });
-});
-
-describe('M36 — only completed watchtowers reveal raiders', () => {
-  function raiderFixture(): { state: WorldState; rival: Entity } {
-    const state = initGame({ seed: FIXTURE_SEED });
-    state.pendingRaidEvents = [{ rivalId: 'r1' } as never];
-    state.eventLog = [];
-    const rival = {
-      id: 9001,
-      type: EntityType.Human,
-      x: 100,
-      y: 100,
-      alive: true,
-      faction: 'rival',
-      groupId: 'r1',
-      hiddenFromPlayer: true,
-      energy: 100,
-      maxEnergy: 100,
-      age: 30,
-      maxAge: 90,
-      speed: 2,
-      size: 10,
-      vx: 0,
-      vy: 0,
-      flash: 0,
-      gender: 'male',
-      job: JobType.Soldier,
-      childrenIds: [],
-      isJuvenile: false,
-    } as unknown as Entity;
-    return { state, rival };
-  }
-
-  it('leaves the raider hidden when the only watchtower is unfinished', () => {
-    const { state, rival } = raiderFixture();
-    state.buildings = [building(BuildingType.Watchtower, false)];
-
-    detectRaidersFromWatchtowers(state, [rival]);
-
-    expect(rival.hiddenFromPlayer).toBe(true);
-    expect(state.eventLog.some((e) => e.message.includes('Watchtower spotted'))).toBe(false);
-  });
-
-  it('reveals the raider from a completed watchtower', () => {
-    const { state, rival } = raiderFixture();
-    state.buildings = [building(BuildingType.Watchtower)];
-
-    detectRaidersFromWatchtowers(state, [rival]);
-
-    expect(rival.hiddenFromPlayer).toBe(false);
-    expect(state.eventLog.some((e) => e.message.includes('Watchtower spotted'))).toBe(true);
   });
 });

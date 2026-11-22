@@ -13,7 +13,7 @@ import { isPassableWildlifePosition } from './worldGen';
 import { isLegalCampSite } from './worldEventSites';
 import { randomPointWhere } from './simHelpers';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
-import { killWildGameForPoach, pushNewEntity } from './simulation/simulationEntities';
+import { pushNewEntity } from './simulation/simulationEntities';
 import type { TickContext } from './simulation/simulationTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
 import {
@@ -30,7 +30,6 @@ import { logEvent } from './eventLog';
 import { getPlayerCampCenter } from './villageAnchor';
 import { getRefugeeWelcomeBonus } from './townHall';
 import { addBigNews, addFloatingText, addNotification } from './simEffects';
-import { makeNextAliveDeer } from './rivalEvents';
 import { addReputation, getReputationBand } from './simHelpers';
 import { grantResearchProgress } from './research';
 import { formatResourceAmounts, RESOURCE_METAS, type ResourceKey } from './resourceTypes';
@@ -334,14 +333,13 @@ export function spawnVisitorGroup(
   };
 }
 
-export function tickVisitorGroups(state: WorldState, allAlive: Entity[], ctx?: TickContext): void {
+export function tickVisitorGroups(state: WorldState, allAlive: Entity[], _ctx?: TickContext): void {
   // Early return keeps an empty visitor list from building the two indexes; this function never
   // spawns a group, and `state.visitorGroups` is only reassigned at the end.
   if (state.visitorGroups.length === 0) return;
 
   const remaining: VisitorGroup[] = [];
   const aliveById = buildAliveEntityIndex(allAlive);
-  const nextDeer = makeNextAliveDeer(allAlive);
 
   const newCalendarDay = isNewCalendarDayTick(state);
   const calendarDay = getAbsoluteCalendarDay(state.tick);
@@ -394,15 +392,9 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[], ctx?: T
           break;
         case 'refugees':
           break;
-        case 'hunters': {
-          const deer = nextDeer();
-          const poachChance = group.leaderTalked ? 0.1 : 0.25;
-          if (deer && seededRandomForRun(`poach:${group.id}:${state.tick}`) < poachChance) {
-            killWildGameForPoach(state, deer, ctx);
-            addFloatingText(state, deer.x, deer.y - 15, 'Hunted', '#f97316');
-          }
+        case 'hunters':
+          // No off-map visitor group can silently kill wildlife on the village map.
           break;
-        }
       }
     }
 

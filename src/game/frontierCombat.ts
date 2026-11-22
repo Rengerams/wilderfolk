@@ -23,7 +23,7 @@ import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } fr
 import { getSimRng, hashSalt } from './simRng';
 import { addCappedResource } from './resourceUtils';
 import { spendFood, recordFoodProduced } from './economyLedger';
-import { addBigNews, addFloatingText } from './simEffects';
+import { addBigNews } from './simEffects';
 import { addReputation, getReputationBand } from './simHelpers';
 export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
 export const RAID_BATTLE_HOURS = 6;
@@ -199,22 +199,9 @@ export function getOutgoingRaidFoodCostForRival(state: WorldState, rival: RivalS
   );
 }
 
-/** Incoming war-bands keyed by rival id; build once per tick instead of scanning per settler. */
-export function buildIncomingRaidIndex(state: WorldState): Map<string, RaidEvent> {
-  const byRival = new Map<string, RaidEvent>();
-  for (const raid of state.pendingRaidEvents ?? []) {
-    if (!byRival.has(raid.rivalId)) byRival.set(raid.rivalId, raid);
-  }
-  return byRival;
-}
-
-export function isRaidMarchingForRival(state: WorldState, groupId: string): boolean {
-  return buildIncomingRaidIndex(state).has(groupId);
-}
-
-/** True when that rival has an incoming war-band — your strike back is a counter-raid, not a first strike. */
+/** True when a rival has an incoming world-map war-band; no village-map raider index. */
 export function isCounterRaidOnRival(state: WorldState, rivalId: string): boolean {
-  return isRaidMarchingForRival(state, rivalId);
+  return (state.pendingRaidEvents ?? []).some((raid) => raid.rivalId === rivalId);
 }
 
 export function getOutgoingRaidActionLabel(state: WorldState, rivalId: string): {
@@ -338,7 +325,6 @@ export function provokeRival(originalState: WorldState, rivalId: string): WorldS
 
   const eligibility = canProvokeRival(state, rival);
   if (!eligibility.ok) {
-    addFloatingText(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot provoke', '#f97316');
     return state;
   }
 
@@ -349,7 +335,6 @@ export function provokeRival(originalState: WorldState, rivalId: string): WorldS
   rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PROVOKE_RAID_COOLDOWN_DAYS);
   rival.daysUntilAction = Math.max(rival.daysUntilAction, PROVOKE_RAID_COOLDOWN_DAYS);
   addReputation(state, -PROVOKE_REPUTATION_COST);
-  addFloatingText(state, rival.campX, rival.campY - 20, '⚠️ Hostility declared', '#f87171');
   addBigNews(
     state,
     brokeTreaty ? '⚔️ Treaty broken' : '⚔️ War declared',
@@ -489,17 +474,6 @@ export function getCombatPreview(
       ? null
       : resolveCounterRaidRatio(militiaStrength, counterRaidRivalStrength!),
   };
-}
-
-/** Flash the fighters recorded by the battle owner, not the post-deployment muster pool. */
-function flashMilitia(entities: Entity[], ticks = 22, soldierIds?: readonly number[]): void {
-  const selected = soldierIds ? new Set(soldierIds) : undefined;
-  for (const e of entities) {
-    if (selected ? e.alive && selected.has(e.id) : canBeMustered(e)) {
-      e.combatTicks = Math.max(e.combatTicks ?? 0, ticks);
-      e.flash = 10;
-    }
-  }
 }
 
 /** A leader killed during the battle is memorialized instead of crediting a replacement. */
@@ -667,7 +641,6 @@ function rewardRaidParticipants(
         `${formatCitizenName(leader)} led the raid against ${rivalName} — village reputation +${granted}`,
         formatCitizenName(leader),
       );
-      if (granted > 0) addFloatingText(state, leader.x, leader.y - 24, `👑 +${granted} rep`, '#fbbf24');
     }
     if (granted > 0) {
       addBigNews(
@@ -1096,13 +1069,12 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   rival.raidCooldownDays = 21;
   addBigNews(state, '⚔️ Raid incoming!', `${rival.name} war-bands approach your border. Respond in the banner or rival inspector.`, 'negative');
   logEvent(state, 'combat', `${rival.name} launched a raid on the village`, rival.name, 'incoming_raid', 'dispatched');
-  state.screenShakeImpulse = Math.max(state.screenShakeImpulse, 5);
 }
 
 export function tickPendingRaidEvents(
   state: WorldState,
   allAlive: Entity[],
-  buildings = state.buildings,
+  _buildings = state.buildings,
 ): void {
   if (isSettlementDestroyed(state) || !state.pendingRaidEvents?.length) return;
 
@@ -1161,8 +1133,6 @@ export function tickPendingRaidEvents(
     damageRandomPlayerBuilding(state, Math.max(4, Math.round(12 * defenseFactor)));
     addReputation(state, -4);
     rival.relationship = 'tense';
-    const camp = getPlayerCampCenter(state, buildings);
-    addFloatingText(state, camp.x, camp.y - 25, formatLootParts(taken, '-') || 'Raid!', '#f87171');
     const lootNote = formatLootParts(taken);
     const defendedNote = structureBonus > 0
       ? ` — defenses (${structureBonus} structure strength) limited the damage`
@@ -1276,7 +1246,6 @@ function resolveIncomingRaidInPlace(state: WorldState, eventId: string, choiceId
   if (event.phase === 'fighting') return state;
   const rival = state.rivalSettlements.find((r) => r.id === event.rivalId);
   const allAlive = state.entities.filter((e) => e.alive);
-  const camp = getPlayerCampCenter(state, state.buildings);
   const defenderStrength = event.defenseStrength ?? getMilitiaStrength(state, allAlive);
   const remove = () => {
     releaseRaidSoldiers(state, event.id);
@@ -1301,7 +1270,6 @@ function resolveIncomingRaidInPlace(state: WorldState, eventId: string, choiceId
   if (choiceId === 'payoff') {
     const eligibility = getRaidChoiceEligibility(state, event, choiceId, allAlive);
     if (!eligibility.ok && event.phase !== 'resolving') {
-      addFloatingText(state, camp.x, camp.y - 20, eligibility.blockReason ?? `Need ${event.lootFood}🍖`, '#f97316');
       return state;
     }
     spendFood(state, 'tribute', event.lootFood);
@@ -1309,7 +1277,6 @@ function resolveIncomingRaidInPlace(state: WorldState, eventId: string, choiceId
       rival.relationship = rival.relationship === 'tense' ? 'competitive' : rival.relationship;
       rival.raidCooldownDays = 14;
     }
-    addFloatingText(state, camp.x, camp.y - 20, 'Paid off', '#eab308');
     logEvent(state, 'combat', `Paid ${event.lootFood} food to end ${event.rivalName}'s raid`, event.rivalName, 'defense', 'resolved');
     remove();
     return state;
@@ -1318,7 +1285,6 @@ function resolveIncomingRaidInPlace(state: WorldState, eventId: string, choiceId
   if (choiceId === 'barricade') {
     const eligibility = getRaidChoiceEligibility(state, event, choiceId, allAlive);
     if (!eligibility.ok && event.phase !== 'resolving') {
-      addFloatingText(state, camp.x, camp.y - 20, eligibility.blockReason ?? 'Cannot barricade', '#f97316');
       return state;
     }
     if (!event.barricadePaid) {
@@ -1349,7 +1315,6 @@ function resolveIncomingRaidInPlace(state: WorldState, eventId: string, choiceId
         'defense',
         'resolved',
       );
-      addFloatingText(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Raided', '#f87171');
       resolveIncomingRaidCasualties(
         state,
         event,
@@ -1359,11 +1324,9 @@ function resolveIncomingRaidInPlace(state: WorldState, eventId: string, choiceId
     } else {
       addReputation(state, 2);
       if (rival) rival.relationship = rival.relationship === 'tense' ? 'competitive' : rival.relationship;
-      addFloatingText(state, camp.x, camp.y - 20, 'Held!', '#22c55e');
       logEvent(state, 'combat', `Barricade repelled ${event.rivalName}'s raid`, event.rivalName, 'repelled', 'resolved');
       resolveIncomingRaidCasualties(state, event, allAlive, 'victory');
     }
-    flashMilitia(allAlive, 14, event.soldierIds);
     if (rival) rival.raidCooldownDays = 18;
     const enemyLosses = recordIncomingRivalLosses(state, event, outcome, effectiveDef);
     beginRaidRecovery(state, event, outcome, effectiveDef, originalState);
@@ -1375,7 +1338,6 @@ function resolveIncomingRaidInPlace(state: WorldState, eventId: string, choiceId
   if (choiceId === 'defend') {
     const eligibility = getRaidChoiceEligibility(state, event, choiceId, allAlive);
     if (!eligibility.ok && event.phase !== 'resolving') {
-      addFloatingText(state, camp.x, camp.y - 20, eligibility.blockReason ?? 'Cannot defend', '#f97316');
       return state;
     }
 
@@ -1388,8 +1350,6 @@ function resolveIncomingRaidInPlace(state: WorldState, eventId: string, choiceId
       defenseOutcomeToReward(outcome),
       event.rivalName,
     );
-    flashMilitia(allAlive, 24, event.soldierIds);
-    state.screenShakeImpulse = Math.max(state.screenShakeImpulse, 6);
 
     switch (outcome) {
       case 'decisive':
@@ -1398,7 +1358,6 @@ function resolveIncomingRaidInPlace(state: WorldState, eventId: string, choiceId
           rival.relationship = rival.relationship === 'tense' ? 'competitive' : 'neutral';
           rival.raidCooldownDays = 28;
         }
-        addFloatingText(state, camp.x, camp.y - 20, 'Victory!', '#22c55e');
         logEvent(state, 'combat', `Militia routed ${event.rivalName}'s war-band`, event.rivalName, 'repelled', 'resolved');
         resolveIncomingRaidCasualties(state, event, allAlive, 'victory');
         break;
@@ -1407,7 +1366,6 @@ function resolveIncomingRaidInPlace(state: WorldState, eventId: string, choiceId
         damageRandomPlayerBuilding(state, 6);
         addReputation(state, 1);
         if (rival) rival.raidCooldownDays = 20;
-        addFloatingText(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Costly win', '#fbbf24');
         const lootNote = formatLootParts(taken);
         logEvent(
           state,
@@ -1435,7 +1393,6 @@ function resolveIncomingRaidInPlace(state: WorldState, eventId: string, choiceId
           'defense',
           'resolved',
         );
-        addFloatingText(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Looted', '#f87171');
         break;
       }
       case 'defeat': {
@@ -1444,7 +1401,6 @@ function resolveIncomingRaidInPlace(state: WorldState, eventId: string, choiceId
         addReputation(state, -6);
         if (rival) rival.relationship = 'tense';
         resolveIncomingRaidCasualties(state, event, allAlive, 'heavy');
-        addFloatingText(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Raided!', '#f87171');
         const lootNote = formatLootParts(taken);
         logEvent(
           state,
@@ -1514,15 +1470,11 @@ function resolveOutgoingRaidCombat(
 
   const confirmedCasualties = new Set(event.battlePlayerCasualties ?? []);
 
-  flashMilitia(state.entities, 20, event.soldierIds);
-  state.screenShakeImpulse = Math.max(state.screenShakeImpulse, outcome === 'fail' ? 8 : 4);
-
   if (outcome === 'success') {
     const gained = grantRaidSpoils(state, rollOutgoingRaidSpoils(rival, 'success', lootScale));
     rival.relationship = 'tense';
     rival.raidCooldownDays = 10;
     if (!event.battleCasualtiesApplied) applyRaidCasualties(state, state.entities, 'victory', rival.name, 'raiding', new Set(warBand.map((soldier) => soldier.id)));
-    addFloatingText(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Spoils!', '#22c55e');
     const lootNote = formatLootParts(gained);
     logEvent(
       state,
@@ -1574,7 +1526,6 @@ function resolveOutgoingRaidCombat(
       'outgoing_raid',
       'resolved',
     );
-    addFloatingText(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Meager', '#fbbf24');
     const playerCasualties = [...new Set([...confirmedCasualties, ...allRaidSoldiers.filter((fighter) => !fighter.alive).map(formatCitizenName)])];
     const playerDeaths = playerCasualties.length;
     logEvent(state, 'combat', `The war-band returned from ${rival.name} with limited success: ${playerDeaths} of our people died. No victory celebration was held.`, rival.name, 'outgoing_raid', 'resolved');
@@ -1583,7 +1534,6 @@ function resolveOutgoingRaidCombat(
     addReputation(state, -8);
     rival.relationship = 'tense';
     if (!event.battleCasualtiesApplied) applyRaidCasualties(state, state.entities, 'heavy', rival.name, 'raiding', new Set(warBand.map((soldier) => soldier.id)));
-    addFloatingText(state, rival.campX, rival.campY - 20, 'War-band broken!', '#f87171');
     logEvent(state, 'combat', `${verb} on ${rival.name} failed — war-band fought back`, rival.name, 'outgoing_raid', 'resolved');
     const playerCasualties = [...new Set([...confirmedCasualties, ...allRaidSoldiers.filter((fighter) => !fighter.alive).map(formatCitizenName)])];
     const playerDeaths = playerCasualties.length;
@@ -1799,7 +1749,6 @@ export function respondToOutgoingRaidEvent(
     rival.daysUntilAction = 28;
     addReputation(state, -2);
     const lootNote = formatLootParts(gained);
-    addFloatingText(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Tribute!', '#eab308');
     logEvent(
       state,
       'combat',
@@ -1837,7 +1786,6 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
 
   const eligibility = canLaunchRaidOnRival(state, rival);
   if (!eligibility.ok) {
-    addFloatingText(state, rival.campX, rival.campY - 20, eligibility.blockReason ?? 'Cannot march on this camp', '#f97316');
     return state;
   }
   const raidFoodCost = eligibility.foodCost;
@@ -1922,7 +1870,6 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
     if (soldierIds.includes(soldier.id)) soldier.raidDeploymentId = event.id;
   }
   state.pendingOutgoingRaidEvents.push(event);
-  flashMilitia(state.entities, 12, soldierIds);
   addBigNews(
     state,
     `🏹 ${verb} marching`,

@@ -51,7 +51,7 @@ export const STATS_SAMPLE_INTERVAL_TICKS = 10;
 export const POPULATION_HISTORY_MAX = 300;
 
 /**
- * The tick's predator roster: every hunting wildlife species plus hostile/adult settlers.
+ * The tick's predator roster: hunting wildlife species plus adult player settlers.
  * Shared by the initial `TickContext` and the Moon Howler form change so both agree on Wildkin.
  */
 export function rebuildPredators(byType: TickContext['byType'], playerHumans?: readonly Entity[]): Entity[] {
@@ -71,11 +71,6 @@ export function rebuildPredators(byType: TickContext['byType'], playerHumans?: r
   const settlers = playerHumans ?? (byType[EntityType.Human]?.filter(isPlayerHuman) ?? []);
   for (const h of settlers) {
     if (h.alive && h.age >= HUMAN_ADULT_MIN_AGE) out.push(h);
-  }
-  
-  const humans = byType[EntityType.Human] ?? [];
-  for (const h of humans) {
-    if (h.alive && h.faction === 'rival') out.push(h);
   }
   
   return out;

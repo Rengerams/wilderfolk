@@ -412,7 +412,6 @@ export interface Entity {
   /** Transient indoor presence, recomputed by the movement/activity owners. */
   indoorBuildingId?: number;
   hiddenFromPlayer?: boolean;
-  detectedByPatrol?: boolean;
   groupId?: string;
   factionWander?: FactionWanderState;
   hotelStayBuildingId?: number;

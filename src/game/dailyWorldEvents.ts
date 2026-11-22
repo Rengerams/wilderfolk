@@ -12,7 +12,8 @@ import { tickLeaderVacancy, tickElectionBuildup, tryStartVacancyElectionCeremony
 import { getTownHallFestivalCooldownTicks, isTownHallStaffed } from './townHall';
 
 import { rollYearlyWorldEvent, tickVillageRequests } from './groupEvents';
-import { tickWorldRivalSettlements } from './rivalWorldTick';
+import { tickRivalSettlements } from './rivalEvents';
+import { tickPendingDiplomacyEvents, maybeQueueDiplomacyEvent } from './rivalDiplomacy';
 import { maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferGriefBeat, maybeOfferHowlerRumor, maybeOfferWinterPrep, tickWinterFreezeCheck, tickPendingStoryEvents, maybeOfferChildrenShelter, tickChildrenShelter } from './storyEvents';
 import { maybeOfferTravelingTheatre, tickTravelingTheatre } from './travelingTheatre';
 import { maybeOfferDeerParliament, tickDeerParliament } from './deerParliament';
@@ -24,7 +25,6 @@ import { tickPrisonGuardDuty } from './prisonGuardDuty';
 import { tickFamineDesperation } from './famineDesperation';
 import { tickElectionPromises } from './electionPromises';
 import { tickGuidedCampaign } from './guidedCampaign';
-import { detectRaidersFromWatchtowers } from './watchtowerDetection';
 import { trackYearEvent } from './stats';
 import { replenishDepletedWildlife } from './worldGen';
 import { mergeNewEntitiesIntoAlive, pushNewEntity } from './simulation/simulationEntities';
@@ -166,9 +166,13 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   tickFamineDesperation(state, allAlive);
   tickElectionPromises(state);
   tickGuidedCampaign(state);
-  // Watchtowers reveal marching raiders earlier than patrols (daily, bounded).
-  detectRaidersFromWatchtowers(state, allAlive);
-  tickWorldRivalSettlements(state, allAlive, ctx);
+  // One existing 18:00 daily pulse for strategic rivals; no village-map raider scheduler.
+  tickRivalSettlements(state, allAlive, {
+    pushNews: addBigNews,
+    logEvent,
+    tickPendingDiplomacyEvents,
+    queueDiplomacyEvent: maybeQueueDiplomacyEvent,
+  });
 
   // Population cleanup and immigration remain in tickLayerDaily.
   tickFestivals(state, counts);
