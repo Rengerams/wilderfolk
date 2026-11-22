@@ -1206,11 +1206,9 @@ export function isWalkStepAllowed(
  * exemption, so a stand point can move off water, reserved decor or a wall footprint.
  */
 export function isGroundWalkableAt(x: number, y: number, grid: PathGrid | null = currentGrid): boolean {
-  if (!grid) return true;
-  const tx = Math.floor(x / PATH_CELL);
-  const ty = Math.floor(y / PATH_CELL);
-  if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) return false;
-  return grid.blocked[ty * grid.cols + tx] !== 1;
+  // Standing is a zero-length segment without the blocked-start escape rule.
+  // Reuse the same owner as every other walking verdict; do not repeat grid indexing.
+  return !grid || !segmentCrossesBlocked(grid, x, y, x, y, false);
 }
 
 /** Walk-speed ownership uses the same completed-road mask as A* and commute pricing. */
