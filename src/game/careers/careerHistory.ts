@@ -45,8 +45,8 @@ export function normalizeCareerHistory(raw: unknown): CareerHistory | undefined 
 }
 
 /** Sole write path for attended career credits; midnight attendance settlement supplies observed hours. */
-export function recordCareerWork(
-  worker: CareerWorker, site: Building, job: JobType, day: number, observedHours: number,
+export function recordCareerWork<T extends CareerWorker>(
+  worker: T, site: Building, job: JobType, day: number, observedHours: number,
 ): boolean {
   if (!isPlayerHumanShiftOwner(worker) || !worker.alive
     || worker.age < HUMAN_ADULT_MIN_AGE || worker.prisonBuildingId != null) return false;
