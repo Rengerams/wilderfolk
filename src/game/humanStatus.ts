@@ -12,6 +12,7 @@ import { isNearResidence } from './housingModel';
 import { getWorkSchedule, getWorkScheduleLabel, isOnWorkScheduleShift } from './workSchedule';
 import { findHumanWorkplace } from './workforce';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
+import { isCommutingToBuilding } from './simulation/humanMovement';
 import { BUILDING_CONFIGS } from './gameTypes';
 import { WORK_ARRIVE_DISTANCE, getSettlerWorkReason, type SettlerWorkReason } from './workAbsence';
 
@@ -94,6 +95,15 @@ export function getHumanActivityStatus(
   }
   if (isAsleepAtHome(entity, state.buildings, hourOfDay, onWorkSchedule)) return 'Sleeping';
 
+  // The movement owner records both scheduled and leisure homeward journeys.
+  const childHome = entity.isJuvenile && entity.residenceBuildingId != null
+    ? state.buildings.find((building) =>
+      building.id === entity.residenceBuildingId && building.completed)
+    : undefined;
+  if (childHome && !isAtBuildingReach(entity, childHome) && isCommutingToBuilding(entity, childHome)) {
+    return 'Walking home';
+  }
+
   const currentChildLeisure = entity.childPlaymateDay === getAbsoluteCalendarDay(state.tick)
     ? entity.childLeisureActivity : undefined;
   if (entity.isJuvenile && entity.childLeisureTargetId != null && currentChildLeisure) {
@@ -133,7 +143,7 @@ export function getHumanActivityStatus(
     }
   }
 
-  if (entity.isJuvenile && currentChildLeisure !== 'home') return 'Free time';
+  if (entity.isJuvenile) return 'Free time';
 
   // Not near any building but has a home → likely walking home (or away).
   if (entity.residenceBuildingId != null) {
@@ -168,7 +178,7 @@ export function getHumanActivityProjection(
       const point = buildingAccessPoint(workplace);
       return { kind: 'workplace', label: labelFor(workplace), buildingId: workplace.id, ...point };
     }
-    const eveningOuting = hour >= EVENING_START
+    const eveningOuting = !entity.isJuvenile && hour >= EVENING_START
       && hour < 23
       && !prefersHomeTonightFor(getWorkSchedule(state), entity.id, state.tick, hour)
       && !(workplace && isOnWorkScheduleShift(state, hour));
