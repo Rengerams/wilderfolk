@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Removed (22 Nov 2026):** Retired physical village-map rival/visitor movement, watchtower and patrol raider detection, indirect wildlife poaching, pollution and fake camp floating texts. The existing 18:00 world-events pulse now calls the strategic rival owner directly; world-map raids, diplomacy, rival economy and legacy save cleanup remain. Removed village-map raid flashes, screen shakes and invalid world-map-coordinate floating texts from the raid and diplomacy owners. Added world-map-only regression tests.
+- **Removed (22 Nov 2026, PR #165):** Retired village-map raider movement, detection, poaching and battle effects. Rival decisions use the existing daily pulse; world-map combat, diplomacy and save migration remain. Added regression tests.
 
 - **Removed (22 Nov 2026; pending merge):** No visitor camps or idle visitor NPCs spawn on the village map (first-week, mid-year and yearly event routes removed). Old saves discard visitors and their camps on load; strategic rivals, raids, resident immigration and trade routes remain.
 
