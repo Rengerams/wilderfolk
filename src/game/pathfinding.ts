@@ -133,6 +133,8 @@ export interface PathGrid {
   road?: Uint8Array;
   /** A* discount only where the waypoint at the tile centre is actually on a paved footprint. */
   roadCost?: Uint8Array;
+  /** Bridge decks remain traversable even above deep riverbeds. */
+  bridge?: Uint8Array;
   /** Partial-cell footprint index for exact point-speed checks (including narrow legacy roads). */
   roadSurfaces?: Map<number, Building[]>;
 }
@@ -179,6 +181,7 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
     }
   }
   let road: Uint8Array | null = null;
+  let bridge: Uint8Array | undefined;
   const roadSurfaces = new Map<number, Building[]>();
   if (buildings) {
     // Only a bridge opens water; a road never makes impassable ground walkable.
@@ -187,6 +190,8 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
       road ??= new Uint8Array(cols * rows);
       stampBuildingFootprint(road, cols, rows, b, 1, roadSurfaces);
       if (b.type === BuildingType.Bridge) {
+        bridge ??= new Uint8Array(cols * rows);
+        stampBuildingFootprint(bridge, cols, rows, b);
         stampBuildingFootprint(blocked, cols, rows, b, 0);
         stampBuildingFootprint(terrainBlocked, cols, rows, b, 0);
       }
@@ -209,7 +214,7 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
       }
     }
   }
-  return road ? { cols, rows, blocked, terrainBlocked, elevation, road, roadCost, roadSurfaces }
+  return road ? { cols, rows, blocked, terrainBlocked, elevation, road, roadCost, roadSurfaces, bridge }
     : { cols, rows, blocked, terrainBlocked, elevation };
 }
 
@@ -295,10 +300,15 @@ export function nearestWalkableWorldPoint(
   x: number,
   y: number,
 ): { x: number; y: number } | null {
+  if (![x, y].every(Number.isFinite)) return null;
   const grid = getReadOnlyPathGrid(map, buildings);
+  if (grid.cols <= 0 || grid.rows <= 0) return null;
   const startX = Math.max(0, Math.min(grid.cols - 1, Math.floor(x / PATH_CELL)));
   const startY = Math.max(0, Math.min(grid.rows - 1, Math.floor(y / PATH_CELL)));
-  if (grid.blocked[startY * grid.cols + startX] === 0) return { x, y };
+  if (grid.blocked[startY * grid.cols + startX] === 0) {
+    return { x: Math.min(Math.max(x, 0), grid.cols * PATH_CELL - 1),
+      y: Math.min(Math.max(y, 0), grid.rows * PATH_CELL - 1) };
+  }
   const tile = nearestWalkableTile(grid, startX, startY, x, y);
   return tile ? { x: (tile.x + 0.5) * PATH_CELL, y: (tile.y + 0.5) * PATH_CELL } : null;
 }
@@ -312,6 +322,7 @@ export function resetPathGridCaches(): void {
   readOnlyGridCacheSeed = '';
   readOnlyGridCacheMap = null;
   searchWorkspace = undefined;
+  searchOpenSet = undefined;
   sharedRouteCaches = new WeakMap<PathGrid, SharedNavigationCache>();
   pathCache.clear();
   currentGrid = null;
@@ -478,6 +489,11 @@ interface RouteSearchResult {
   hitNodeCap: boolean;
 }
 
+/** The road mask that actually grants tile-centre A* discounts. */
+function pricedRoadMask(grid: PathGrid): Uint8Array | undefined {
+  return grid.roadCost ?? (grid.roadSurfaces ? undefined : grid.road);
+}
+
 /** The A* core: the cheapest route's tile path (start..goal inclusive) and its cost, or null. */
 function searchRoute(
   grid: PathGrid,
@@ -491,13 +507,14 @@ function searchRoute(
 ): RouteSearchResult {
   const pathProfileStart = profileStart();
   try {
-  const { cols, rows, blocked, elevation, road } = grid;
+  const { cols, rows, blocked, elevation } = grid;
   // Generated grids distinguish partial footprint coverage from tile-centre speed
   // eligibility. Older test grids without surface geometry retain their road mask.
-  const pricedRoad = grid.roadCost ?? (grid.roadSurfaces ? undefined : road);
+  const pricedRoad = pricedRoadMask(grid);
   recordFindPathCall();
   const rejected: RouteSearchResult = { path: null, cost: null, hitNodeCap: false };
-  if (sx < 0 || sy < 0 || sx >= cols || sy >= rows) {
+  if (![sx, sy, tx, ty].every(Number.isInteger) || !Number.isFinite(maxNodes) || maxNodes < 0
+    || sx < 0 || sy < 0 || sx >= cols || sy >= rows) {
     recordPathEarlyReject();
     return rejected;
   }
@@ -520,8 +537,16 @@ function searchRoute(
   const actualTy = goalPt.y;
 
   if (actualSx === actualTx && actualSy === actualTy) {
-    recordPathEarlyReject();
-    return rejected;
+    // A restored walker inside a blocked tile must be able to escape to the
+    // neighbouring snapped endpoint, rather than receiving a false no-route.
+    const escaped = (sx !== actualSx || sy !== actualSy)
+      && !segmentCrossesBlocked(grid,
+        (sx + 0.5) * PATH_CELL, (sy + 0.5) * PATH_CELL,
+        (actualSx + 0.5) * PATH_CELL, (actualSy + 0.5) * PATH_CELL, true);
+    const path = escaped
+      ? [{ x: sx, y: sy }, { x: actualSx, y: actualSy }]
+      : [{ x: actualSx, y: actualSy }];
+    return { path, cost: escaped ? Math.hypot(actualSx - sx, actualSy - sy) : 0, hitNodeCap: false };
   }
 
   const start = actualSy * cols + actualSx;
@@ -551,10 +576,12 @@ function searchRoute(
     const cur = open.lastNode;
     if (cur < 0) break;
     if (open.lastCost !== scores[cur]) continue;
-    if (nodes++ >= maxNodes) {
+    // A popped goal needs no further expansion even at the node budget.
+    if (cur !== goal && nodes >= maxNodes) {
       hitNodeCap = true;
       break;
     }
+    nodes++;
 
     if (cur === goal) {
       const path: { x: number; y: number }[] = [];
@@ -612,7 +639,7 @@ function searchRoute(
         const nextElev = elevation[nIdx];
         const delta = nextElev - curElev;
         // An impassable cliff: a single-tile elevation jump too steep to climb.
-        if (Math.abs(delta) > CLIFF_STEP) continue;
+        if (Math.abs(delta) > CLIFF_STEP && !grid.bridge?.[cur] && !grid.bridge?.[nIdx]) continue;
         step += delta > 0 ? delta * SLOPE_UP_COST : -delta * SLOPE_DOWN_COST;
       }
 
@@ -645,7 +672,7 @@ function walkRoute(
   maxNodes: number,
 ): RouteSearchResult {
   const optimal = searchRoute(grid, sx, sy, tx, ty, maxNodes, true);
-  if (optimal.path || !optimal.hitNodeCap || !grid.road) return optimal;
+  if (optimal.path || !optimal.hitNodeCap || !pricedRoadMask(grid)) return optimal;
   return searchRoute(grid, sx, sy, tx, ty, maxNodes, false);
 }
 
@@ -706,7 +733,7 @@ export function getNavigationQuote(
     return existing;
   }
   if ((start.x !== goal.x || start.y !== goal.y)
-    && (!Number.isFinite(limits.maxNodes) || limits.maxNodes <= 0)) {
+    && (!Number.isFinite(limits.maxNodes) || Math.floor(limits.maxNodes) <= 0)) {
     return { status: 'pending', reason: 'search-budget' };
   }
 
@@ -833,12 +860,14 @@ function segmentCrossesBlocked(
   let nextY = stepY > 0 ? ((ty + 1) * PATH_CELL - y0) / dy
     : stepY < 0 ? (ty * PATH_CELL - y0) / dy : Infinity;
   let lastElevation: number | null = null;
+  let lastBridge = false;
 
   const isBlocked = (cellX: number, cellY: number, fromElevation: number | null): boolean => {
-    if (cellX < 0 || cellY < 0 || cellX >= cols || cellY >= rows) return false;
+    if (cellX < 0 || cellY < 0 || cellX >= cols || cellY >= rows) return true;
     const index = cellY * cols + cellX;
     if (blocked[index] && !(allowBlockedStart && cellX === originX && cellY === originY)) return true;
     return !!elevation && fromElevation !== null
+      && !lastBridge && !grid.bridge?.[index]
       && Math.abs(elevation[index] - fromElevation) > CLIFF_STEP;
   };
 
@@ -847,10 +876,17 @@ function segmentCrossesBlocked(
     if (isBlocked(tx, ty, lastElevation)) return true;
     if (elevation && tx >= 0 && ty >= 0 && tx < cols && ty < rows) {
       lastElevation = elevation[ty * cols + tx];
+      lastBridge = !!grid.bridge?.[ty * cols + tx];
     }
     if (tx === goalX && ty === goalY) return false;
 
-    if (nextX < nextY) {
+    if (tx === goalX && ty !== goalY) {
+      ty += stepY;
+      nextY += deltaY;
+    } else if (ty === goalY && tx !== goalX) {
+      tx += stepX;
+      nextX += deltaX;
+    } else if (nextX < nextY) {
       tx += stepX;
       nextX += deltaX;
     } else if (nextY < nextX) {
@@ -966,7 +1002,7 @@ export function getRouteObstruction(
   to: { x: number; y: number },
 ): RouteObstruction {
   if (!map) return 'clear';
-  const grid = getPathGrid(map, buildings);
+  const grid = getReadOnlyPathGrid(map, buildings);
   if (!lineCrossesBlocked(grid, from.x, from.y, to.x, to.y)) return 'clear';
 
   const result = walkRoute(
@@ -995,7 +1031,14 @@ export function steerWithPath(
   const dx = targetX - entity.x;
   const dy = targetY - entity.y;
   const dist = Math.hypot(dx, dy) || 1;
+  if (![entity.x, entity.y, targetX, targetY, speed].every(Number.isFinite) || speed < 0) {
+    entity.vx = 0;
+    entity.vy = 0;
+    pathCache.delete(cacheKey);
+    return 'blocked';
+  }
   if (dist <= PATH_ARRIVAL_DISTANCE_PX) {
+    pathCache.delete(cacheKey);
     entity.vx = 0;
     entity.vy = 0;
     return 'arrived';
@@ -1006,7 +1049,7 @@ export function steerWithPath(
   const acceptedRoute = pathCache.get(cacheKey);
   const continueAcceptedRoute = !!acceptedRoute?.waypoints && acceptedRoute.waypoints.length > 1
     && acceptedRoute.targetX === targetX && acceptedRoute.targetY === targetY;
-  const considerRoadDetour = !directBlocked && !!currentGrid.road;
+  const considerRoadDetour = !directBlocked && !!pricedRoadMask(currentGrid);
   if (directBlocked || considerRoadDetour || continueAcceptedRoute) {
     let cached = pathCache.get(cacheKey);
     if (cached && (cached.targetX !== targetX || cached.targetY !== targetY
@@ -1036,7 +1079,8 @@ export function steerWithPath(
       }
       const prev = cached.waypoints[cached.nextIndex - 1];
       const next = cached.waypoints[cached.nextIndex];
-      if (distanceToSegment(entity.x, entity.y, prev.x, prev.y, next.x, next.y) > PATH_CACHE_OFF_ROUTE_TOLERANCE) {
+      if (distanceToSegment(entity.x, entity.y, prev.x, prev.y, next.x, next.y) > PATH_CACHE_OFF_ROUTE_TOLERANCE
+        || segmentCrossesBlocked(currentGrid, entity.x, entity.y, next.x, next.y, true)) {
         cached = undefined;
       }
     }
@@ -1057,16 +1101,29 @@ export function steerWithPath(
         { x: startTx, y: startTy }, { x: goalTx, y: goalTy }, { maxNodes: PATH_MAX_SEARCH_NODES });
       const fallback = startBlocked || goalBlocked
         ? walkRoute(currentGrid, startTx, startTy, goalTx, goalTy, PATH_MAX_SEARCH_NODES)
-        : shared?.status === 'pending'
+        : shared?.status === 'pending' && !!pricedRoadMask(currentGrid)
           ? searchRoute(currentGrid, startTx, startTy, goalTx, goalTy, PATH_MAX_SEARCH_NODES, false, true)
           : null;
       const routeCost = shared?.status === 'priced' ? shared.costTiles : fallback?.cost ?? null;
       const routeTiles = shared?.status === 'priced'
         ? shared.tiles.map((tile) => ({ x: tile.x, y: tile.y })) : fallback?.path ?? null;
       const routePending = shared?.status === 'pending' && (!fallback || fallback.hitNodeCap);
-      const savesTime = routeCost !== null && routeCost * PATH_CELL < dist;
+      // Compare costs with actual first/last legs, not tile-centre A* against exact world distance.
+      const startCentreX = (startTx + 0.5) * PATH_CELL;
+      const startCentreY = (startTy + 0.5) * PATH_CELL;
+      const goalCentreX = (goalTx + 0.5) * PATH_CELL;
+      const goalCentreY = (goalTy + 0.5) * PATH_CELL;
+      const routeTravel = routeCost === null ? Infinity : routeCost * PATH_CELL
+        + Math.hypot(entity.x - startCentreX, entity.y - startCentreY)
+        + Math.hypot(targetX - goalCentreX, targetY - goalCentreY);
+      const savesTime = !directBlocked && !!pricedRoadMask(currentGrid)
+        && !!routeTiles && routeTiles.length > 1 && routeTravel < dist * 0.95;
       let waypoints = routeTiles && (directBlocked || savesTime)
         ? collapseStraightWaypoints(pathWaypoints(routeTiles)) : null;
+      // The final A* tile centre is not necessarily the requested destination.
+      if (waypoints && !goalBlocked && (waypoints.at(-1)!.x !== targetX || waypoints.at(-1)!.y !== targetY)) {
+        waypoints.push({ x: targetX, y: targetY });
+      }
       const startIsBlocked = startTx >= 0 && startTy >= 0
         && startTx < currentGrid.cols && startTy < currentGrid.rows
         && currentGrid.blocked[startTy * currentGrid.cols + startTx] === 1;
@@ -1135,7 +1192,7 @@ export function isGroundWalkableAt(x: number, y: number, grid: PathGrid | null =
   if (!grid) return true;
   const tx = Math.floor(x / PATH_CELL);
   const ty = Math.floor(y / PATH_CELL);
-  if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) return true;
+  if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) return false;
   return grid.blocked[ty * grid.cols + tx] !== 1;
 }
 
