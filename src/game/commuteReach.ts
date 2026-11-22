@@ -1,7 +1,7 @@
 import type { Building, Entity, WorldMap } from './gameTypes';
 import { PATH_CELL } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycleClock';
-import { findRouteCostOutcome, getNavigationQuote, getCurrentPathGrid, getReadOnlyPathGrid, isWalkableRoad, type PathGrid } from './pathfinding';
+import { findRouteCostOutcome, getNavigationQuote, getCurrentPathGrid, getReadOnlyPathGrid, isWalkStepAllowed, isWalkableRoad, type PathGrid } from './pathfinding';
 import { ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { BUILDING_REACH_RADIUS_PX, buildingAccessPoints, type BuildingAccessPoint } from './buildingAccess';
 
@@ -258,12 +258,46 @@ function routeCommuteCost(fromWorldX: number, fromWorldY: number, toWorldX: numb
 }
 
 
-/** Price one verified access point per side for commute quotes.
- * Walkers still use all open stretches; pricing every pair exhausts the bounded search budget. */
-function representativeAccessPoints(points: readonly BuildingAccessPoint[]): BuildingAccessPoint[] {
-  const bySide = new Map<BuildingAccessPoint['side'], BuildingAccessPoint>();
-  for (const point of points) if (!bySide.has(point.side)) bySide.set(point.side, point);
-  return [...bySide.values()];
+/** One route-price sample per locally connected frontage stretch.
+ * A wall or river can split one facade into disconnected access regions. */
+function representativeAccessPoints(
+  points: readonly BuildingAccessPoint[],
+  grid: PathGrid,
+  opposite: Readonly<{ x: number; y: number }>,
+): BuildingAccessPoint[] {
+  const bySide = new Map<BuildingAccessPoint['side'], BuildingAccessPoint[]>();
+  for (const point of points) {
+    const sidePoints = bySide.get(point.side);
+    if (sidePoints) sidePoints.push(point);
+    else bySide.set(point.side, [point]);
+  }
+  const representatives: BuildingAccessPoint[] = [];
+  for (const sidePoints of bySide.values()) {
+    const horizontal = sidePoints[0].side === 'north' || sidePoints[0].side === 'south';
+    sidePoints.sort((a, b) => horizontal ? a.x - b.x : a.y - b.y);
+    let best = sidePoints[0];
+    let previous = best;
+    let bestDistance = Math.hypot(best.x - opposite.x, best.y - opposite.y);
+    for (let i = 1; i < sidePoints.length; i++) {
+      const point = sidePoints[i];
+      const along = horizontal ? point.x - previous.x : point.y - previous.y;
+      const outward = horizontal ? Math.abs(point.y - previous.y) : Math.abs(point.x - previous.x);
+      if (along > PATH_CELL + 0.001 || outward > 0.001
+        || !isWalkStepAllowed(previous.x, previous.y, point.x, point.y, grid)) {
+        representatives.push(best);
+        best = point;
+        bestDistance = Infinity;
+      }
+      const distance = Math.hypot(point.x - opposite.x, point.y - opposite.y);
+      if (distance < bestDistance) {
+        best = point;
+        bestDistance = distance;
+      }
+      previous = point;
+    }
+    representatives.push(best);
+  }
+  return representatives;
 }
 
 /** Same walkable entrances and routed travel evidence for work, school, housing and bot previews. */
@@ -279,8 +313,8 @@ export function quoteBuildingCommute(
   const hasBlockedMask = grid.blocked?.length === grid.cols * grid.rows;
   const fromBuilding = hasBlockedMask && 'type' in origin && 'width' in origin && 'height' in origin;
   const toBuilding = hasBlockedMask && 'type' in destination && 'width' in destination && 'height' in destination;
-  const fromPoints = fromBuilding ? representativeAccessPoints(buildingAccessPoints(origin as Building, grid)) : [origin];
-  const toPoints = toBuilding ? representativeAccessPoints(buildingAccessPoints(destination as Building, grid)) : [destination];
+  const fromPoints = fromBuilding ? representativeAccessPoints(buildingAccessPoints(origin as Building, grid), grid, destination) : [origin];
+  const toPoints = toBuilding ? representativeAccessPoints(buildingAccessPoints(destination as Building, grid), grid, origin) : [destination];
   if (fromPoints.length === 0 || toPoints.length === 0) return { status: 'unreachable' };
 
   const pairs = fromPoints.flatMap((from) => toPoints.map((to) => ({
