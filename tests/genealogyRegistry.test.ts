@@ -115,8 +115,14 @@ describe('persistent genealogy registry', () => {
     expect(state.genealogyRegistry!.people['6'].wildkinParentIds).toEqual([4, 5]);
     expect(state.genealogyRegistry!.people['4'].childrenIds).toContain(6);
     expect(state.genealogyRegistry!.people['5'].childrenIds).toContain(6);
-    expect(buildFullFamilyTree(a, [a, b, child]).parentLinks.get(6))
-      .toEqual(expect.arrayContaining([4, 5]));
+    // Both parents are legacy Wildkin with no parentage of their own. An existing
+    // focus fallback must not mask exclusion of the other parent from the roster.
+    const fromParent = buildFullFamilyTree(a, [a, b, child]);
+    const fromChild = buildFullFamilyTree(child, [a, b, child]);
+    expect(fromParent.parentLinks.get(6)).toEqual(expect.arrayContaining([4, 5]));
+    expect(fromParent.parentLinks.get(6)).toHaveLength(2);
+    expect(fromChild.parentLinks.get(6)).toEqual(expect.arrayContaining([4, 5]));
+    expect(fromChild.parentLinks.get(6)).toHaveLength(2);
   });
 
   it('records a newborn not yet merged into the world entity list', () => {
