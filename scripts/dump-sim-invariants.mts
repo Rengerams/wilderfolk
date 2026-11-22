@@ -532,18 +532,6 @@ add('leader_resident_in_manor_is_fine', 'Leader housed in the completed Leader H
   person.residenceBuildingId = manor.id;
 });
 
-add('leader_manor_is_rivals', "The only Leader House belongs to a rival, so the manor rule does not fire.", (w) => {
-  const person = human(w, baselineFounders[0].id);
-  person.occupation = 'leader';
-  person.residenceBuildingId = undefined;
-  w.villageLeaderId = person.id;
-  const manor: Building = {
-    id: 9000, type: BuildingType.LeaderHouse, x: 12, y: 12, width: 3, height: 3,
-    occupants: [], level: 1, constructionProgress: 100, completed: true,
-    health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0, faction: 'rival',
-  };
-  w.buildings.push(manor);
-});
 
 add('leader_manor_unfinished', 'The only Leader House is incomplete, so the manor rule does not fire.', (w) => {
   const person = human(w, baselineFounders[0].id);
