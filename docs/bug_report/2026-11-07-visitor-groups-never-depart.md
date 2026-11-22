@@ -1,5 +1,7 @@
 # Visitor groups neither advance nor depart
 
+> Historical TEST-16 report (7 November 2026). Superseded by the 22 November 2026 retirement of on-map visitor camps. `tickLayerDaily` no longer calls `tickVisitorGroups`; no active 00:00 visitor lifecycle exists. The old fix and verification below describe the behavior before retirement, not the current schedule. Current regression: `tests/calendarPhase.auditRegressions.test.ts` asserts that no visitor camps are created.
+
 - Bug: TEST-16 — Visitor group day counters and the daily gift logic rely on isNewCalendarDayTick, but the sole tickVisitorGroups call was in the 18:00 world-events phase.
 - Status: resolved
 - Severity: high

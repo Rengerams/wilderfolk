@@ -2,6 +2,11 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (22 Nov 2026, PR #172):** Repaired blocked same-tile route pricing, small road-speed gains, fast-road waypoint overshoot, and exact uncapped velocity calculations that blocked CI.
+
+- **Fixed (22 Nov 2026, PR #172; consolidates #173):** Unified wildlife population policy. Rabbits recover to 150 and are protected below 35; wolf/fox caps are 6/8 and depend on available prey. Initial packs, breeding, replenishment and migration share the same limits.
+- **Fixed (22 Nov 2026, PR #172):** Corrected assignment and construction cadence documentation; standalone overlap checks refresh call graphs after source removals.
+
 - **Fixed (22 Nov 2026, PR #171):** Unified path/walk rules, recovered blocked origins, reached exact destinations, guarded bridges and map edges, and distinguished search budgets from unreachable routes. Reused valid caches, removed duplicate A* work and corrected steering/metrics.
 
 - **Fixed (22 Nov 2026, PR #170):** Caravans now wait for storage on arrival, retain undelivered exports on the saved route until space frees, and allow gold-for-iron purchases without a Market.

@@ -2,7 +2,7 @@
 /** Review changed functions against the canonical repository call graph. */
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -116,7 +116,20 @@ function requireTestFile(root, file) {
 
 function main() {
   const root = process.cwd();
-  const graph = JSON.parse(readFileSync(path.join(root, GRAPH_FILE), 'utf8'));
+  let graph = JSON.parse(readFileSync(path.join(root, GRAPH_FILE), 'utf8'));
+  // The graph is a generated snapshot. A standalone invocation must not crash when a
+  // tracked snapshot still includes sources removed by a later refactor.
+  const missing = [...new Set(graph.functions.map(fn => fn.file))]
+    .filter(file => !existsSync(path.join(root, file)));
+  if (missing.length > 0) {
+    // Regenerate both existing artifacts via their sole owner; do not create a second scanner.
+    execFileSync(process.execPath, [path.join(root, 'scripts/build-call-graph.mjs')], {
+      cwd: root, stdio: 'inherit',
+    });
+    graph = JSON.parse(readFileSync(path.join(root, GRAPH_FILE), 'utf8'));
+    console.log('Refreshed stale call graph (missing: ' + missing.slice(0, 5).join(', ')
+      + (missing.length > 5 ? ', …' : '') + ')');
+  }
   const reviewed = JSON.parse(readFileSync(path.join(root, REVIEW_FILE), 'utf8'));
   if (!Array.isArray(reviewed.approvals)) throw new Error('Review file must have an approvals array');
   for (const approval of reviewed.approvals) {
