@@ -41,7 +41,7 @@ export function simSettlerPairChat(
 export function simAmbientChatNeighbors(
   self: Entity,
   tick: number,
-  humanSocialGrid: EntitySpatialGrid | undefined,
+  humanSocialGrid: EntitySpatialGrid<Entity> | undefined,
   allHumans: Entity[],
   width: number,
   height: number,
