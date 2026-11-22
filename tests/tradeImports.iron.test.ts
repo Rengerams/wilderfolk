@@ -69,6 +69,38 @@ describe('a trade round trip credits everything the route advertises', () => {
     expect(state.resources.iron).toBe(15);
   });
 
+  it('keeps inbound cargo on the carrier when storage fills during the return trip', () => {
+    const state = freshWorld();
+    const carrier = caravanOn(state, 'trade_3', 'at_partner');
+    const trade = route(state, 'trade_3');
+
+    state.resources.iron = 0;
+    state.resources.gold = 0;
+    state.storageMax.iron = 500;
+    state.storageMax.gold = 500;
+    tryAdvanceCaravanLeg(state, carrier); // partner accepts the planned shipment
+    expect(trade.caravanLeg).toBe('inbound');
+
+    const home = getCaravanMoveTarget(state, carrier)!;
+    carrier.x = home.x;
+    carrier.y = home.y;
+    state.resources.iron = 500; // iron filled while the carrier was travelling
+    tryAdvanceCaravanLeg(state, carrier);
+    expect(trade.caravanLeg).toBe('inbound');
+    expect(trade.caravansCompleted).toBe(0);
+    expect(trade.caravanWaitTicks).toBeGreaterThan(0);
+    expect(state.resources.iron).toBe(500);
+    expect(state.resources.gold).toBe(0); // neither cargo nor reward is applied partially
+
+    state.resources.iron = 480;
+    trade.caravanWaitTicks = 0; // retry after the cooldown
+    tryAdvanceCaravanLeg(state, carrier);
+    expect(trade.caravansCompleted).toBe(1);
+    expect(trade.caravanCarrierId).toBeUndefined();
+    expect(state.resources.iron).toBe(495);
+    expect(state.resources.gold).toBe(30);
+  });
+
   it('makes the caravan wait when the iron store is full, instead of dropping the cargo', () => {
     const state = freshWorld();
     const carrier = caravanOn(state, 'trade_3', 'at_partner');
