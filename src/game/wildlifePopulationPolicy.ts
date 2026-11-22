@@ -31,13 +31,18 @@ export function getWildlifeCarryingCapacity(
   prey: { readonly rabbits: number; readonly deer: number; readonly foxes: number },
 ): number {
   const ceiling = wildlifeBreedingCeiling(type);
+  // Rabbits at/below the refuge floor cannot be caught by predators; only surplus
+  // rabbits count toward sustainable predator numbers.
+  const surplusRabbits = Math.max(
+    0, prey.rabbits - WILDLIFE_POPULATION_POLICY[EntityType.Rabbit].replenishMinimum,
+  );
   if (type === EntityType.Fox) {
-    return Math.min(ceiling, Math.floor(Math.max(0, prey.rabbits) / 9));
+    return Math.min(ceiling, Math.floor(surplusRabbits / 3));
   }
   if (type === EntityType.Wolf) {
-    const availablePrey = Math.max(0, prey.rabbits)
+    const availablePrey = surplusRabbits
       + 2 * Math.max(0, prey.deer) + Math.max(0, prey.foxes);
-    return Math.min(ceiling, Math.floor(availablePrey / 25));
+    return Math.min(ceiling, Math.floor(availablePrey / 15));
   }
   return ceiling;
 }
