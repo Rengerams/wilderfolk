@@ -73,6 +73,7 @@ export type DecisionKey =
   | 'foodLedger'
   | 'herdMemory'
   | 'wildlifePredation'
+  | 'wildlifeReplenishment'
   | 'villageRequests'
   | 'inventionFair'
   | 'authoredStoryExpiry'
