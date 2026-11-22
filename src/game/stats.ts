@@ -4,6 +4,7 @@ import { isPlayerHuman, isPlayerHumanShiftOwner } from './playerHuman';
 import { citizenFullName } from './citizenId';
 import { bondCensus, isMarriedOrExpecting } from './relationships';
 import { getEcosystemHealth } from './dailyEcology';
+import type { ResourceKey } from './resourceTypes';
 import type { BondCensus } from './bondTypes';
 import type { YearlyStats, LifetimeStats, GatheredResources } from './statsRecords';
 export type { YearlyStats, LifetimeStats, GatheredResources } from './statsRecords';
