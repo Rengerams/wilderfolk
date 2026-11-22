@@ -527,7 +527,7 @@ export function collectDashboard(state: WorldState): DashboardData {
       e.occupation && e.occupation !== 'settler'
         ? e.occupation
         : (e.job ?? 'settler');
-    const workReason = getSettlerWorkReason(state, e);
+    const workReason = getSettlerWorkReason(state, e, constructionCrews);
     if (e.age >= HUMAN_ADULT_MIN_AGE && e.prisonBuildingId == null
       && (hasWorkAssignment(e) || constructionCrews.has(e.id))) {
       postedReasons.push(workReason);
