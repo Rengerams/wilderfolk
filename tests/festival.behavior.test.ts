@@ -159,7 +159,7 @@ describe('festival participant behavior', () => {
     expect(festivalAfter.scheduleWorkedTicksToday ?? 0).toBeGreaterThan(0);
     expect(festivalAfter.workerBuildingId).toBe(10);
     expect(festival.state.buildings.find((entry) => entry.id === 10)?.occupants).toContain(1);
-    expect(idlerAfter.workerBuildingId).toBeUndefined();
+    expect(festival.idler.workerBuildingId).toBeUndefined();
 
     // Festivities begin at 17:00, after the afternoon work shift.
     expect(isFestivalGatheringHour(15, true)).toBe(false);
