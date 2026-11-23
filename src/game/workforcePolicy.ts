@@ -24,8 +24,9 @@ export const WORKFORCE_FOCUS_OPTIONS: readonly {
   { sector: 'church', label: 'Church', description: 'Prioritise filling every priest post at the church.' },
 ];
 
-export function isWorkforceFocusSector(value: unknown): value is WorkforceFocusSector {
-  return typeof value === 'string' && (WORKFORCE_FOCUS_SECTORS as readonly string[]).includes(value);
+/** Single validator for every policy option set (presets and sector toggles). */
+export function isWorkforceOption<T extends string>(value: unknown, options: readonly T[]): value is T {
+  return typeof value === 'string' && (options as readonly string[]).includes(value);
 }
 
 export function normalizeWorkforceFocus(value: unknown): WorkforceFocusSector[] {
@@ -40,7 +41,7 @@ export function getWorkforceFocus(world: { workforceFocus?: unknown }): Workforc
 export function setWorkforceFocus<T extends { workforceFocus?: WorkforceFocusSector[] }>(
   world: T, sector: WorkforceFocusSector, enabled: boolean,
 ): T {
-  if (!isWorkforceFocusSector(sector) || typeof enabled !== 'boolean') return world;
+  if (!isWorkforceOption(sector, WORKFORCE_FOCUS_SECTORS) || typeof enabled !== 'boolean') return world;
   const previous = getWorkforceFocus(world);
   if (previous.includes(sector) === enabled) return world;
   return { ...world, workforceFocus: WORKFORCE_FOCUS_SECTORS.filter((candidate) =>
@@ -234,7 +235,7 @@ const PRESET_BUILDING_ORDER: Readonly<Record<WorkforcePreset, readonly BuildingT
 
 /** True when `value` is one of the four named presets. */
 export function isWorkforcePreset(value: unknown): value is WorkforcePreset {
-  return typeof value === 'string' && (WORKFORCE_PRESETS as readonly string[]).includes(value);
+  return isWorkforceOption(value, WORKFORCE_PRESETS);
 }
 
 /**
