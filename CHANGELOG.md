@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (23 Nov 2026; PR #187, pending merge):** Game version updates no longer reject saves with unchanged formats. Older 0.6.5.0–0.6.5.2 saves remain loadable; new saves use an independent format version.
+
 - **Fixed (23 Nov 2026; PR #183):** When even the distance-based path-search budget runs out, walkers retry with capped increasing A* budgets and backoff; the closest-reachable blocked-destination search also retries instead of silently stopping.
 
 - **Fixed (22 Nov 2026):** Stand points around a blocked destination are tried nearest the settler first, so a settler stops at the closest reachable tile instead of walking around an obstacle to a far ring.
