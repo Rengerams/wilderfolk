@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (23 Nov 2026; pending merge):** Children form daily play circles of two to four, prefer familiar friends while welcoming others, and roam between reachable shared play areas instead of circling one child at a fixed spot. Groups continue after separation, repair surviving circles after a loss, and cache failed play-site searches for the leisure phase.
+- **Fixed (23 Nov 2026; PR #188):** Children form friendship-weighted groups of 2–4 and visit safe play areas. Groups keep travelling when separated, repair after a death, and cache failed site searches for the current leisure phase.
 - **Fixed (23 Nov 2026; PR #187, pending merge):** Game version updates no longer reject saves with unchanged formats. Older 0.6.5.0–0.6.5.2 saves remain loadable; new saves use an independent format version.
 
 - **Fixed (23 Nov 2026; PR #186, pending merge):** Couples at 100% courtship can marry regardless of processing order; partner conversations no longer disappear when the higher-ID settler initiates them.
