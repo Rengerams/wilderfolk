@@ -1,6 +1,6 @@
 import { PERSON_DAY_ROLL_SALTS, personDayRoll, resetSimRng, setSimSeed } from '../src/game/simRng';
 import { describe, expect, it, afterEach } from 'vitest';
-import { BuildingType, WeatherType, type Building, type Entity, type WorldState } from '../src/game/gameTypes';
+import { BuildingType, TerrainType, WeatherType, type Building, type Entity, type WorldState } from '../src/game/gameTypes';
 import {
   CHILD_PLAYMATE_CANDIDATE_LIMIT,
   idleDestination,
@@ -11,6 +11,8 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import { TICKS_PER_HOUR, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { initGame } from '../src/game/worldGen';
 import { homeStandPosition } from '../src/game/simulation/humanMovement';
+import { testWorldMap } from '../src/test/worldMapFixtures';
+import { getCurrentPathGrid, isGroundWalkableAt, lineCrossesBlocked, setCurrentPathMap } from '../src/game/pathfinding';
 
 function playerChild(prototype: Entity, id: number, overrides: Partial<Entity> = {}): Entity {
   return Object.assign(structuredClone(prototype), {
@@ -28,6 +30,7 @@ function playerChild(prototype: Entity, id: number, overrides: Partial<Entity> =
 }
 
 function childFixture(): { state: ReturnType<typeof initGame>; child: Entity } {
+  setCurrentPathMap(null);
   const state = initGame({ skipTerrain: true, seed: 4242 });
   const prototype = state.entities.find((entity) => isPlayerHuman(entity) && entity.alive);
   if (!prototype) throw new Error('worldGen produced no player settler for the child leisure test');
@@ -64,7 +67,7 @@ function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans:
     state,
     entity: child,
     speed: 5,
-    hourOfDay: 12,
+    hourOfDay: Math.floor((tick % TICKS_PER_DAY) / TICKS_PER_HOUR),
     onSchedule: false,
     allHumans,
     entityById: new Map(allHumans.map((human) => [human.id, human])),
@@ -79,6 +82,55 @@ function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans:
 }
 
 describe('tickHumanChildLeisure', () => {
+
+  it('walks to a reachable play area instead of circling the same spot', () => {
+    const { state, child } = childFixture();
+    const mate = playerChild(child, 11, { x: 108, y: 100 });
+    const tick = playTickFor(child);
+    expect(tickChild(state, child, [child, mate], tick)).toBe(true);
+    const first = child.childPlaySite;
+    expect(first).toBeDefined();
+    expect(first!.mateId).toBe(mate.id);
+    expect(Math.hypot(first!.x - child.x, first!.y - child.y)).toBeGreaterThan(25);
+    expect(Math.hypot(child.vx, child.vy)).toBeGreaterThan(0);
+
+    tickChild(state, child, [child, mate], tick + 1);
+    expect(child.childPlaySite).toEqual(first);
+
+    tickChild(state, child, [child, mate], tick + 3 * TICKS_PER_HOUR);
+    const next = child.childPlaySite;
+    expect(next).toBeDefined();
+    expect(next!.phase).not.toBe(first!.phase);
+    expect(Math.hypot(next!.x - first!.x, next!.y - first!.y)).toBeGreaterThanOrEqual(28);
+    expect(child.childPlaymateId).toBe(mate.id);
+  });
+
+  it('keeps play destinations on reachable ground beside a river', () => {
+    const { state, child } = childFixture();
+    const mate = playerChild(child, 11, { x: 142, y: 150 });
+    child.x = 130;
+    child.y = 150;
+    state.width = 400;
+    state.height = 300;
+    state.worldMap = testWorldMap({
+      tilesX: 40, tilesY: 30,
+      tileType: (tx) => tx === 18 ? TerrainType.River : undefined,
+    });
+    setCurrentPathMap(state.worldMap, state.buildings);
+    try {
+      expect(tickChild(state, child, [child, mate], playTickFor(child))).toBe(true);
+      const site = child.childPlaySite;
+      expect(site).toBeDefined();
+      const grid = getCurrentPathGrid()!;
+      expect(site!.x).toBeLessThan(180);
+      expect(isGroundWalkableAt(site!.x, site!.y, grid)).toBe(true);
+      expect(lineCrossesBlocked(grid, child.x, child.y, site!.x, site!.y)).toBe(false);
+      expect(lineCrossesBlocked(grid, mate.x, mate.y, site!.x, site!.y)).toBe(false);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
   it('steers children toward a playmate in the neighborhood', () => {
     const { state, child } = childFixture();
     const nearby = playerChild(child, 11, { x: 120, y: 100 });
