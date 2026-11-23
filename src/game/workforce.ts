@@ -393,7 +393,7 @@ export function assignWorkerTransition(human: Entity, building: Building): boole
   const alreadyListed = building.occupants.includes(human.id);
   // A stale roster entry is not a completed assignment: repair the worker
   // pointer and job fields instead of returning with an invariant violation.
-  if (alreadyListed && human.workerBuildingId === building.id) return true;
+  if (alreadyListed && human.workerBuildingId === building.id && human.job === job) return true;
 
   const keepOffice = human.occupation === LEADER_OCCUPATION;
   if (!alreadyListed) building.occupants.push(human.id);
@@ -848,6 +848,14 @@ export function prepareWorkforce(
 
   for (let i = 0; i < alive.length; i++) {
     const human = alive[i];
+
+    // Existing fishing crews used to share the hunting profession. Keep their post and skills.
+    if (human.job === JobType.Hunter && human.workerBuildingId != null) {
+      const site = buildingById.get(human.workerBuildingId);
+      if (site?.type === BuildingType.FishingSpot && assignWorkerTransition(human, site)) {
+        human.huntTargetId = undefined;
+      }
+    }
 
     if (human.occupation === LEADER_OCCUPATION) {
       if (human.workerBuildingId != null) {
