@@ -1584,7 +1584,9 @@ export function tryCompleteCourtshipMarriage(  state: WorldState,
   residences: Building[],
   playerHumans: Entity[],
 ): boolean {
-  if (entity.id >= partner.id) return false;
+  // Marriage is a mutual transition, not a lower-ID initiated action: courtship advances
+  // when the second observed partner is processed, regardless of the couple's ID order.
+  if (entity.courtshipPartnerId !== partner.id || partner.courtshipPartnerId !== entity.id) return false;
   if (!entity.gender || !partner.gender || entity.gender === partner.gender) return false;
   if ((entity.courtshipProgress ?? 0) < 100 || (partner.courtshipProgress ?? 0) < 100) return false;
   if (entity.age < HUMAN_ADULT_MIN_AGE || partner.age < HUMAN_ADULT_MIN_AGE) return false;

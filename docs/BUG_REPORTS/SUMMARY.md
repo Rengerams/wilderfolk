@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-23 — [Courtship marriage and pair dialogue blocked by ID order](../bug_report/2026-11-23-courtship-social-id-order.md):** investigating; 16 mutual adult couples reached 100% courtship in the day-95 save but could not marry because the second-processed partner failed the ID guard. Higher-ID-initiated pair chats were also dropped. Fix and regressions committed in PR #186; CI and live-save verification pending.
+
 **2026-11-22 — [Pending navigation search repeatedly strands moving walkers](../bug_report/2026-11-22-pending-navigation-budget-stalls-walkers.md):** investigating; the original flat 12k budget repeatedly stranded walkers. The subsequently merged distance-based budget still has a finite cap, so PR #183 adds capped walker-only retries, including blocked-goal fallback exhaustion. Live save verification remains pending.
 
 **2026-11-22 — [Generator-reserved big-rock cells were walkable again](../bug_report/2026-11-22-reserved-boulder-cells-walkable.md):** resolved; `buildPathGrid` only blocked water, so `Walkability.Reserved` rock cells were walked through although the build grid refuses to build there, the enum documents them as barring walking and the terrain rebake preserves them. Passability now treats every non-`Open` cell as blocked while decorative buildings stay walkable; regression test rewritten.
