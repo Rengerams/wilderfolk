@@ -17,6 +17,7 @@ import {
 import { loadAutoSavePreference, saveAutoSavePreference } from '../src/game/preferences';
 import { resetSimRng } from '../src/game/simRng';
 import { GAME_VERSION } from '../src/game/version';
+import { SAVE_FORMAT_VERSION } from '../src/game/saveSchema';
 
 import { MapSize } from '../src/game/gameTypes';
 
@@ -209,7 +210,7 @@ describe('the save-loadability probe validates the saved payload', () => {
     stubSlot(JSON.stringify({ _version: '0.0.0-ancient', entities: [] }));
     expect(hasSave()).toBe(false);
 
-    stubSlot(JSON.stringify({ _version: GAME_VERSION, entities: [] }));
+    stubSlot(JSON.stringify({ _version: GAME_VERSION, _saveFormatVersion: SAVE_FORMAT_VERSION, entities: [] }));
     expect(hasSave()).toBe(true);
   });
 });
