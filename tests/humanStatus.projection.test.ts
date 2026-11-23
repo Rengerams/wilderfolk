@@ -106,6 +106,11 @@ describe('selected human activity projection', () => {
     const mate = world.entities.find((entity) =>
       entity.alive && entity.type === EntityType.Human && entity.id !== child?.id);
     if (!child || !mate) throw new Error('Expected two settlers');
+    const third = structuredClone(mate);
+    third.id = Math.max(...world.entities.map((e) => e.id)) + 1;
+    third.alive = true;
+    third.isJuvenile = true;
+    world.entities.push(third);
     child.isJuvenile = true;
     child.age = 10;
     child.needs = undefined;
@@ -114,6 +119,7 @@ describe('selected human activity projection', () => {
     child.indoorBuildingId = undefined;
     child.childPlaymateDay = Math.floor(world.tick / TICKS_PER_DAY);
     child.childPlaymateId = mate.id;
+    child.childPlayGroupIds = [child.id, mate.id, third.id];
     child.childLeisureActivity = 'playing';
     child.childLeisureTargetId = mate.id;
     child.childPlaySite = {
@@ -122,13 +128,13 @@ describe('selected human activity projection', () => {
       mateId: mate.id, x: child.x + 65, y: child.y + 45,
     };
     const projection = getHumanActivityProjection(world, child);
-    expect(projection.activity).toBe(`Playing with ${mate.name}`);
+    expect(projection.activity).toBe(`Playing with ${mate.name} + 1 friend`);
     expect(projection.target).toMatchObject({
       kind: 'play-site', entityId: mate.id,
       x: child.x + 65, y: child.y + 45,
     });
     expect(explainHumanMovement(world, child.id).lines).toContainEqual({
-      label: 'Destination', value: `Play area with ${mate.name}`, tone: 'neutral',
+      label: 'Destination', value: `Play area with ${mate.name} + 1 friend`, tone: 'neutral',
     });
   });
 
