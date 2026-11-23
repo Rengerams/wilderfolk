@@ -3,7 +3,8 @@ import type { WorldState, Entity, Building } from './gameTypes';
 import { BuildingType, EntityType, JobType, PATH_CELL } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycle';
 import { isWorkDay } from './dayCycleClock';
-import { SCHOOL_MIN_AGE } from './gameConstants';
+import { SCHOOL_MIN_AGE, SCHOOL_CHILDREN_PER_TEACHER } from './gameConstants';
+export { SCHOOL_CHILDREN_PER_TEACHER } from './gameConstants';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { increaseEntitySkill } from './skills';
 import { addNotification } from './simEffects';
@@ -29,9 +30,6 @@ export const SCHOOL_FULL_EDUCATION_DAYS = 150;
 export function immigrantSchoolDaysForAge(age: number): number {
   return Math.max(0, Math.min(HUMAN_ADULT_MIN_AGE - SCHOOL_MIN_AGE, Math.floor(age) - SCHOOL_MIN_AGE)) * 20;
 }
-
-/** Pupils one assigned teacher can supervise — a school's seats are ten per teacher. */
-export const SCHOOL_CHILDREN_PER_TEACHER = 10;
 
 /** Hard ceiling on one school's pupils — the two-teacher building's twenty seats. */
 export const SCHOOL_MAX_CHILDREN = 20;
