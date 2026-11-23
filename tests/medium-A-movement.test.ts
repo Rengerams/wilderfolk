@@ -176,6 +176,25 @@ describe('hotel guest routing and road speed', () => {
     }
   });
 
+  it('walks to a reachable facade when the first doorstep sits in a sealed pocket', () => {
+    // River tiles seal the two cells in front of the south door into a pocket that no walker can
+    // enter; the east frontage is open ground.
+    const pocket = new Set(['9,12', '12,12', '10,13', '11,13']);
+    setCurrentPathMap(makeMap(40, 40, 20261122, (x, y) => pocket.has(`${x},${y}`)), []);
+    try {
+      const h = hotel(7, 100, 100);
+      const visitor = human(7, 165, 105, { faction: 'visitor', hotelStayBuildingId: h.id });
+      let entered = false;
+      for (let tick = 0; tick < 400 && !entered; tick++) {
+        steerVisitorToHotel(visitor, [h], 2);
+        entered = visitor.indoorBuildingId === h.id;
+      }
+      expect(entered).toBe(true);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
   it('does not walk through a sealed river when the hotel is unreachable', () => {
     setCurrentPathMap(makeMap(40, 40, 20261030, (x) => x === 20), []);
     try {
@@ -384,8 +403,11 @@ describe('M22 path cache origin', () => {
   it('recomputes a cached path started from a different origin', () => {
     // Horizontal river at tile row 20 with a single gap at column 35.
     setCurrentPathMap(makeMap(40, 40, 922, (x, y) => y === 20 && x !== 35), []);
-    const target = { x: pixel(20, 10), y: pixel(20, 10) };
-    const entity = human(7, pixel(5, 35), pixel(5, 35));
+    // A walkable target north of the river: a blocked target is now approached from the walker's
+    // own side, which would make "did it steer back to the stale origin?" unanswerable. `pixel`
+    // reads one tile index, so each axis is converted on its own.
+    const target = { x: pixel(20, 0), y: pixel(10, 0) };
+    const entity = human(7, pixel(5, 0), pixel(35, 0));
     const cacheKey = 'c_7_42_h';
 
     // First leg: cached from the bottom-left corner.
@@ -397,8 +419,8 @@ describe('M22 path cache origin', () => {
     entity.y = pixel(25, 35);
     expect(steerWithPath(entity, target.x, target.y, 5, cacheKey)).toBe('path');
 
-    const toStaleOriginX = pixel(5, 35) - entity.x;
-    const toStaleOriginY = pixel(5, 35) - entity.y;
+    const toStaleOriginX = pixel(5, 0) - entity.x;
+    const toStaleOriginY = pixel(35, 0) - entity.y;
     const steeredBackToOrigin = entity.vx * toStaleOriginX + entity.vy * toStaleOriginY;
     expect(steeredBackToOrigin).toBeLessThanOrEqual(0);
   });

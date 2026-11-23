@@ -1,6 +1,14 @@
 # Bug report summary — one line per report
 
-**2026-11-22 — [Retired camp hit-test import breaks TypeScript and scheduler CI](../bug_report/2026-11-22-stale-hit-test-camp-export.md):** investigating; inherited from main, unused `hitTestCamp` re-export removed from the engine facade, verification pending updated PR CI.
+**2026-11-22 — [Generator-reserved big-rock cells were walkable again](../bug_report/2026-11-22-reserved-boulder-cells-walkable.md):** resolved; `buildPathGrid` only blocked water, so `Walkability.Reserved` rock cells were walked through although the build grid refuses to build there, the enum documents them as barring walking and the terrain rebake preserves them. Passability now treats every non-`Open` cell as blocked while decorative buildings stay walkable; regression test rewritten.
+
+**2026-11-22 — [A blocked destination was approached from the far bank](../bug_report/2026-11-22-blocked-destination-far-bank-snap.md):** resolved; the goal snapped to the tile nearest the destination centre, which could sit across a river or wall, so an east-bank settler walked 918 px to a far bridge to reach a target 50 px away. The stand point is now chosen on the walker's side of the obstacle (33 px, correct bank), and the route search itself now picks the cheapest *reachable* stand tile instead of trusting distance.
+
+**2026-11-22 — [A house packed between neighbours had no doorstep](../bug_report/2026-11-22-packed-houses-no-doorstep.md):** resolved; a doorstep required 20 px of open ground beyond its 12 px standoff, so interior houses in a block with 20 px alleys reported zero access points and 24 of 80 commutes never moved. A doorstep now counts when the walker can step off it along the street; packed houses report 12 doors and all commutes arrive.
+
+**2026-11-22 — [Visitor-camp retirement left a dangling export and a deleted test in the gates](../bug_report/2026-11-22-visitor-retirement-left-stale-references.md):** resolved; `gameEngine.ts` still re-exported the removed `hitTestCamp` (typecheck TS2305) and the day-length literal audit still read the deleted visitor-spawn test (ENOENT). Both stale references are gone and the gates pass.
+
+**2026-11-22 — [Retired camp hit-test export breaks TypeScript and calendar CI](../bug_report/2026-11-22-stale-hit-test-camp-export.md):** resolved; the same stale `hitTestCamp` re-export, found independently from the CI logs; removed from the engine facade, so the Node.js typecheck and the calendar scheduler import `gameEngine` again. No gameplay change.
 
 **2026-11-22 — [Child playmates reroll hourly and play looks like walking home](../bug_report/2026-11-22-child-playmate-hourly-reset-and-activity.md):** investigating; selection changed to one daily persisted playmate, activity and movement projections read recorded play/follow/home intent; focused tests added, CI pending.
 
@@ -78,7 +86,7 @@
 
 **2026-11-11 — [Historical producer parity check is unreachable and invalid](../bug_report/2026-11-11-producer-parity-workflow-unreachable-and-invalid.md):** investigating; opt-in manual dispatch, valid comparison iteration and Bash pipefail; 360-day workflow not yet run.
 
-**2026-11-11 — [Scenery reservations blocked ordinary walking](../bug_report/2026-11-11-scenery-reservations-blocked-walking.md):** investigating; source fix in PR #127 ignores non-solid scenery and decorative footprints, with collision and removal regression coverage; CI pending.
+**2026-11-11 — [Scenery reservations blocked ordinary walking](../bug_report/2026-11-11-scenery-reservations-blocked-walking.md):** resolved for decorative buildings; the reserved-cell claim is corrected — `Walkability.Reserved` marks a generated big rock and keeps blocking, as recorded in the 2026-11-22 boulder report. PR #127's decorative-footprint exemption stands.
 
 **2026-11-08 — [Pregnancy merge introduced competing hospital thresholds](../bug_report/2026-11-08-pregnancy-individual-term-merge.md):** resolved; targeted regressions pass.
 

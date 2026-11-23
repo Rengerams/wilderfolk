@@ -40,7 +40,6 @@ describe('seeded producer-colony commute preflight', () => {
     expect(founder).toBeDefined();
     expect(world.worldMap).not.toBeNull();
     setCurrentPathMap(world.worldMap, world.buildings);
-    beginCommuteRoutePass();
     const grid = getCurrentPathGrid();
     expect(grid).not.toBeNull();
     const blockedAt = (x: number, y: number) => {
@@ -52,6 +51,9 @@ describe('seeded producer-colony commute preflight', () => {
         : grid.blocked[row * grid.cols + col];
     };
     const coverage = houses.map((home) => {
+      // One assignment pulse prices one residence's candidates; a pulse whose legs could not be
+      // priced is retried, so each home is quoted on its own pass rather than sharing one budget.
+      beginCommuteRoutePass();
       const applicant = { ...founder!, residenceBuildingId: home.id, workerBuildingId: undefined };
       const reachable = farms.filter((farm) =>
         isWithinAssignableCommute(applicant, farm, world.buildings, SPECIES_CONFIG[EntityType.Human].speed));

@@ -22,8 +22,40 @@ const BUILDING_ACCESS_STANDOFF_PX = 12;
 export const BUILDING_REACH_RADIUS_PX = 24;
 /** Outward cells a doorstep may move to leave a neighbouring footprint's tile behind. */
 const BUILDING_ACCESS_MAX_OUTWARD_STEPS = 1;
-/** Cells of open ground the doorstep must have in front of it to count as a way in. */
-const BUILDING_ACCESS_OPEN_CELLS = 2;
+
+/**
+ * Footprint stamping marks every touched cell, even when its centre lies just outside the wall, so a
+ * cell that only partly overlaps the building is the wall itself rather than the street beside it.
+ */
+function cellOverlapsFootprint(
+  rect: { left: number; top: number; right: number; bottom: number },
+  tx: number,
+  ty: number,
+): boolean {
+  return (tx + 1) * PATH_CELL > rect.left && tx * PATH_CELL < rect.right
+    && (ty + 1) * PATH_CELL > rect.top && ty * PATH_CELL < rect.bottom;
+}
+
+/**
+ * A doorstep is usable when the walker can step off it: one walkable orthogonal neighbour outside
+ * the building's own stamped footprint. Requiring open ground straight out made every street
+ * narrower than the standoff plus two cells a dead end, so a house packed between neighbours had
+ * no door at all and its owner stood at the wall forever.
+ */
+function doorstepHasExit(building: Building, x: number, y: number, grid: PathGrid): boolean {
+  const rect = getBuildingFootprintRect(building);
+  const tx = Math.floor(x / PATH_CELL);
+  const ty = Math.floor(y / PATH_CELL);
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+    const nx = tx + dx;
+    const ny = ty + dy;
+    if (nx < 0 || ny < 0 || nx >= grid.cols || ny >= grid.rows) continue;
+    if (grid.blocked[ny * grid.cols + nx]) continue;
+    if (cellOverlapsFootprint(rect, nx, ny)) continue;
+    if (isWalkStepAllowed(x, y, (nx + 0.5) * PATH_CELL, (ny + 0.5) * PATH_CELL, grid)) return true;
+  }
+  return false;
+}
 
 /** Deterministic enumeration only; any side may be entered when its approach is actually clear. */
 const BUILDING_ACCESS_SIDES = [
@@ -43,11 +75,8 @@ function isOpenDoorstep(
   x: number, y: number, normalX: number, normalY: number, grid: PathGrid | null,
 ): boolean {
   if (!isGroundWalkableAt(x, y, grid)) return false;
-  const reach = PATH_CELL * BUILDING_ACCESS_OPEN_CELLS;
-  const outX = x + normalX * reach;
-  const outY = y + normalY * reach;
-  if (!isGroundWalkableAt(outX, outY, grid) || !isWalkStepAllowed(x, y, outX, outY, grid)) return false;
   if (!grid) return true;
+  if (!doorstepHasExit(building, x, y, grid)) return false;
   const rect = getBuildingFootprintRect(building);
   const length = Math.hypot(x - edgeX, y - edgeY);
   for (let distance = PATH_CELL / 4; distance <= length; distance += PATH_CELL / 4) {
@@ -58,13 +87,28 @@ function isOpenDoorstep(
     if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) return false;
     const index = ty * grid.cols + tx;
     if (grid.terrainBlocked?.[index]) return false;
-    // Footprint stamping marks every touched cell, even when its centre lies just outside
-    // the wall. Exempt those partial edge cells from the building's own collision mask.
-    const overlapsOwnFootprint = (tx + 1) * PATH_CELL > rect.left && tx * PATH_CELL < rect.right
-      && (ty + 1) * PATH_CELL > rect.top && ty * PATH_CELL < rect.bottom;
-    if (grid.blocked[index] && !overlapsOwnFootprint) return false;
+    // Exempt the building's own partial edge cells from its collision mask.
+    if (grid.blocked[index] && !cellOverlapsFootprint(rect, tx, ty)) return false;
   }
   return true;
+}
+
+/**
+ * A street narrower than the doorstep standoff leaves the fixed offset inside a neighbour, so the
+ * nearest open point outward is the stand the walker's body still fits on. Every open side keeps
+ * an entrance instead of the building losing that approach.
+ */
+function nearestOpenStandPoint(
+  building: Building, edgeX: number, edgeY: number,
+  normalX: number, normalY: number, grid: PathGrid | null,
+): { x: number; y: number } | null {
+  if (!grid) return null;
+  for (let distance = PATH_CELL / 2; distance <= BUILDING_REACH_RADIUS_PX; distance += PATH_CELL / 2) {
+    const x = edgeX + normalX * distance;
+    const y = edgeY + normalY * distance;
+    if (isOpenDoorstep(building, edgeX, edgeY, x, y, normalX, normalY, grid)) return { x, y };
+  }
+  return null;
 }
 
 /**
@@ -90,21 +134,35 @@ function computeBuildingAccessPoints(building: Building, grid: PathGrid | null):
     const maxOffset = Math.max(0, length / 2 - PATH_CELL / 2);
     const offsets = [0];
     for (let d = PATH_CELL; d <= maxOffset; d += PATH_CELL) offsets.push(-d, d);
+    const edgeAt = (offset: number) => ({
+      edgeX: (normalX > 0 ? rect.right : normalX < 0 ? rect.left : building.x) - normalY * offset,
+      edgeY: (normalY > 0 ? rect.bottom : normalY < 0 ? rect.top : building.y) + normalX * offset,
+    });
+    const sidePoints: BuildingAccessPoint[] = [];
     for (const offset of offsets) {
-      const edgeX = (normalX > 0 ? rect.right : normalX < 0 ? rect.left : building.x)
-        - normalY * offset;
-      const edgeY = (normalY > 0 ? rect.bottom : normalY < 0 ? rect.top : building.y)
-        + normalX * offset;
+      const { edgeX, edgeY } = edgeAt(offset);
       for (let step = 0; step <= BUILDING_ACCESS_MAX_OUTWARD_STEPS; step++) {
         const x = edgeX + normalX * (BUILDING_ACCESS_STANDOFF_PX + step * PATH_CELL);
         const y = edgeY + normalY * (BUILDING_ACCESS_STANDOFF_PX + step * PATH_CELL);
         if (isOpenDoorstep(building, edgeX, edgeY, x, y, normalX, normalY, grid)
           && Math.hypot(x - edgeX, y - edgeY) <= BUILDING_REACH_RADIUS_PX) {
-          points.push({ x, y, side });
+          sidePoints.push({ x, y, side });
           break;
         }
       }
     }
+    // A side whose whole frontage is narrower than the standoff still keeps one entrance, but a
+    // side that already has a proper doorstep never gains a stand squeezed against the wall.
+    if (sidePoints.length === 0) {
+      for (const offset of offsets) {
+        const { edgeX, edgeY } = edgeAt(offset);
+        const narrow = nearestOpenStandPoint(building, edgeX, edgeY, normalX, normalY, grid);
+        if (narrow && !sidePoints.some((point) => point.x === narrow.x && point.y === narrow.y)) {
+          sidePoints.push({ ...narrow, side });
+        }
+      }
+    }
+    points.push(...sidePoints);
   }
   return points;
 }

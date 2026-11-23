@@ -3,9 +3,11 @@
  * whose passability grid is rebaked from the production tile projection.
  */
 import { describe, expect, it } from 'vitest';
-import { findPath, getPathGrid, lineCrossesBlocked } from '../src/game/pathfinding';
+import {
+  findPath, getPathGrid, getRouteObstruction, lineCrossesBlocked, setCurrentPathMap, steerWithPath,
+} from '../src/game/pathfinding';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
-import type { Building } from '../src/game/gameTypes';
+import type { Building, Entity } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 
 function makeMap(width: number, height: number, seed: number, blocker: (x: number, y: number) => boolean) {
@@ -144,6 +146,21 @@ describe('pathfinding', () => {
     expect(findPath(grid, 5, 5, 9, 5)).toBeNull();
   });
 
+  it('routes to the stand tile beside a blocked goal instead of accepting the walker own tile', () => {
+    // One river tile is the destination and the walker starts inside the outer stand rings, so a
+    // single shared target set would let the walker's own tile win and freeze it in place.
+    const map = makeMap(20, 20, 20261122, (x, y) => x === 10 && y === 10);
+    setCurrentPathMap(map, []);
+    try {
+      expect(getRouteObstruction(map, [], { x: 65, y: 105 }, { x: 105, y: 105 })).toBe('rerouting');
+      const walker = { id: 9, x: 65, y: 105, vx: 0, vy: 0 } as unknown as Entity;
+      expect(steerWithPath(walker, 105, 105, 5, 'blocked-goal')).toBe('path');
+      expect(walker.vx, 'the walker advances toward the destination').toBeGreaterThan(0);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
   it('does not cut diagonally through two blocked orthogonal corners', () => {
     const grid = getPathGrid(makeMap(3, 3, 6, (x, y) => (x === 1 && y === 0) || (x === 0 && y === 1)));
     expect(findPath(grid, 0, 0, 2, 2)).toBeNull();
@@ -199,20 +216,25 @@ describe('pathfinding', () => {
     expect(path!.some((tile) => tile.x >= 4 && tile.x <= 9 && tile.y >= 3 && tile.y <= 5)).toBe(false);
   });
 
-  it('ignores reserved scenery and decorative structures on ordinary land', () => {
+  it('routes around a generator-reserved boulder and still crosses decorative buildings', () => {
     const map = makeMap(12, 8, 2031, () => false);
-    const at = 3 * map.width + 6;
-    map.pathGrid![at] = 2;
+    // The L3 decor pass reserves the cell of a big rock (`Walkability.Reserved`) and the build
+    // grid already refuses to build there, so the walker must treat it as solid.
+    const rock = 3 * map.width + 6;
+    map.pathGrid![rock] = 2;
     const decor: Building = {
-      id: 901, type: BuildingType.Garden, x: 6.5 * PATH_CELL, y: 3.5 * PATH_CELL,
+      id: 901, type: BuildingType.Garden, x: 8.5 * PATH_CELL, y: 3.5 * PATH_CELL,
       width: PATH_CELL, height: PATH_CELL,
       occupants: [], level: 1, constructionProgress: 100, completed: true,
       health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
     };
     const grid = getPathGrid(map, [decor]);
-    expect(grid.blocked[at], 'scenery and non-solid decor cannot block walkers').toBe(0);
-    expect(findPath(grid, 1, 3, 10, 3)).not.toBeNull();
-    expect(lineCrossesBlocked(grid, 15, 35, 105, 35)).toBe(false);
+    expect(grid.blocked[rock], 'a reserved boulder bars walking').toBe(1);
+    expect(grid.blocked[3 * grid.cols + 8], 'a decorative structure stays walkable').toBe(0);
+    expect(lineCrossesBlocked(grid, 15, 35, 105, 35), 'no straight line through the rock').toBe(true);
+    const path = findPath(grid, 1, 3, 10, 3);
+    expect(path, 'there is still a route around the rock').not.toBeNull();
+    expect(path!.some((tile) => tile.x === 6 && tile.y === 3)).toBe(false);
   });
 
   it('rebuilds the route when a completed solid structure is removed', () => {

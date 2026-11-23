@@ -4,6 +4,7 @@ import {
   lineCrossesBlocked, nearestWalkableWorldPoint, resetPathGridCaches, setCurrentPathMap,
   steerWithPath, type PathGrid,
 } from '../src/game/pathfinding';
+import { applyHumanWalkStep } from '../src/game/simulation/humanMovement';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
 import { building, human } from '../src/test/factories';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -22,6 +23,43 @@ describe('one authoritative movement walkability verdict', () => {
     expect(lineCrossesBlocked(g, fromX, y, toX, y)).toBe(true);
     expect(isWalkStepAllowed(fromX, y, toX, y, g)).toBe(false);
     expect(isWalkStepAllowed(fromX, center(2), toX, center(2), g)).toBe(true);
+  });
+
+  it('walks a one-tile passage without letting the route skim its walls', () => {
+    const g = grid(9, 3);
+    // Blocked rows above and below leave row 1 as a one-tile passage.
+    for (let x = 0; x < 9; x++) {
+      g.blocked[0 * g.cols + x] = 1;
+      g.blocked[2 * g.cols + x] = 1;
+    }
+    // The passage centreline keeps half a tile from both walls: the body fits with one pixel spare.
+    expect(lineCrossesBlocked(g, center(0), center(1), center(8), center(1))).toBe(false);
+    const route = findPath(g, 0, 1, 8, 1);
+    expect(route).not.toBeNull();
+    expect(route!.every((tile) => tile.y === 1)).toBe(true);
+  });
+
+  it('keeps a route a body radius off a wall it would otherwise skim', () => {
+    const g = grid(12, 2);
+    // One wall tile in the lower row: a shallow chord from (0, 0) to (10, 1) grazes its top edge.
+    g.blocked[1 * g.cols + 5] = 1;
+    const route = findPath(g, 0, 0, 10, 1);
+    expect(route).not.toBeNull();
+    const left = 5 * PATH_CELL;
+    const top = 1 * PATH_CELL;
+    const clearance = (x: number, y: number) => Math.hypot(
+      Math.max(left - x, 0, x - (left + PATH_CELL)),
+      Math.max(top - y, 0, y - (top + PATH_CELL)),
+    );
+    for (let i = 1; i < route!.length; i++) {
+      const a = route![i - 1];
+      const b = route![i];
+      for (let t = 0; t <= 1.0001; t += 0.05) {
+        const x = (a.x + 0.5 + (b.x - a.x) * t) * PATH_CELL;
+        const y = (a.y + 0.5 + (b.y - a.y) * t) * PATH_CELL;
+        expect(clearance(x, y), `leg ${i - 1}->${i}`).toBeGreaterThanOrEqual(PATH_CELL / 2 - 1);
+      }
+    }
   });
 
   it('agrees with route checks on blocked diagonal corners', () => {
@@ -203,6 +241,101 @@ describe('one authoritative movement walkability verdict', () => {
       const walker = human(2716, { x: center(5), y: center(7) });
       expect(steerWithPath(walker, center(10), center(7), 6, 'offroad-corner')).toBe('path');
       expect(Math.hypot(walker.vx, walker.vy)).toBeCloseTo(6);
+    } finally {
+      setCurrentPathMap(null);
+      resetPathGridCaches();
+    }
+  });
+
+  it('stands on the walker\'s own bank of a blocked destination', () => {
+    // Snapping a blocked goal to the tile nearest the goal centre put an east-bank walker on the
+    // west bank, so it crossed the river at a far bridge for a target ten pixels away.
+    const map = testWorldMap({
+      tilesX: 40, tilesY: 24, seed: 2720,
+      tileType: (x, y) => (x === 20 && y !== 22 ? TerrainType.River : undefined),
+    });
+    resetPathGridCaches();
+    setCurrentPathMap(map, []);
+    try {
+      const walker = human(2720, { x: center(25), y: center(10) });
+      let verdict = steerWithPath(walker, center(20), center(10), 2, 'blocked-bank');
+      for (let tick = 0; tick < 400 && verdict !== 'blocked'; tick++) {
+        applyHumanWalkStep(walker, 1);
+        verdict = steerWithPath(walker, center(20), center(10), 2, 'blocked-bank');
+      }
+      expect(verdict).toBe('blocked');
+      expect(Math.floor(walker.x / PATH_CELL), 'never crossed the river').toBeGreaterThan(20);
+      expect(Math.floor(walker.y / PATH_CELL)).toBe(10);
+    } finally {
+      setCurrentPathMap(null);
+      resetPathGridCaches();
+    }
+  });
+
+  it('keeps a blocked destination reachable when its nearest stand tile is sealed off', () => {
+    // The stand tile nearest the walker was picked without a connectivity check, so a walkable tile
+    // inside a water pocket ended the walk although the same ring held an open approach.
+    const sealed = new Set(['9,9', '9,11', '8,10', '10,10']);
+    const map = testWorldMap({
+      tilesX: 20, tilesY: 20, seed: 2721,
+      tileType: (x, y) => (sealed.has(`${x},${y}`) ? TerrainType.River : undefined),
+    });
+    resetPathGridCaches();
+    setCurrentPathMap(map, []);
+    try {
+      const walker = human(2721, { x: center(2), y: center(8) });
+      expect(steerWithPath(walker, center(10), center(10), 2, 'sealed-stand')).toBe('path');
+      expect(Math.hypot(walker.vx, walker.vy), 'walker keeps moving').toBeGreaterThan(0);
+    } finally {
+      setCurrentPathMap(null);
+      resetPathGridCaches();
+    }
+  });
+
+  it('stands on a reachable tile when every nearby stand tile is sealed in a courtyard', () => {
+    // Distance-only stand-point selection picked tiles inside the walled courtyard around the goal,
+    // so the walk ended even though an open approach existed just outside it.
+    const inBlock = (x: number, y: number) => x >= 9 && x <= 15 && y >= 9 && y <= 15;
+    const map = testWorldMap({
+      tilesX: 24, tilesY: 24, seed: 2722,
+      tileType: (x, y) => (inBlock(x, y) && (x === 9 || x === 15 || y === 9 || y === 15 || (x === 12 && y === 12))
+        ? TerrainType.River : undefined),
+    });
+    resetPathGridCaches();
+    setCurrentPathMap(map, []);
+    try {
+      const walker = human(2722, { x: center(2), y: center(12) });
+      // The water ring seals the interior, where the nearest stand tiles lie; only the ring outside it routes.
+      expect(steerWithPath(walker, center(12), center(12), 2, 'sealed-courtyard')).toBe('path');
+      expect(Math.hypot(walker.vx, walker.vy), 'walker keeps moving').toBeGreaterThan(0);
+      expect(Math.sign(walker.vx), 'heads toward the reachable west approach').toBe(1);
+    } finally {
+      setCurrentPathMap(null);
+      resetPathGridCaches();
+    }
+  });
+
+  it('stops at the nearest reachable stand tile instead of a far ring around the goal', () => {
+    // Ring-first stand selection committed to the ring beside the goal, so a settler had to walk
+    // around the whole walled yard to reach it although a stand tile stood two tiles away.
+    const inYardWall = (x: number, y: number) => (x === 18 && y >= 6 && y <= 14)
+      || ((y === 6 || y === 14) && x >= 18 && x <= 26);
+    const map = testWorldMap({
+      tilesX: 30, tilesY: 20, seed: 2723,
+      tileType: (x, y) => (inYardWall(x, y) || (x === 20 && y === 10) ? TerrainType.River : undefined),
+    });
+    resetPathGridCaches();
+    setCurrentPathMap(map, []);
+    try {
+      const walker = human(2723, { x: center(14), y: center(10) });
+      let verdict = steerWithPath(walker, center(20), center(10), 2, 'nearest-stand');
+      for (let tick = 0; tick < 400 && verdict !== 'blocked'; tick++) {
+        applyHumanWalkStep(walker, 1);
+        verdict = steerWithPath(walker, center(20), center(10), 2, 'nearest-stand');
+      }
+      expect(verdict).toBe('blocked');
+      expect(Math.floor(walker.x / PATH_CELL), 'stands west of the yard wall').toBeLessThan(18);
+      expect(Math.floor(walker.y / PATH_CELL)).toBe(10);
     } finally {
       setCurrentPathMap(null);
       resetPathGridCaches();

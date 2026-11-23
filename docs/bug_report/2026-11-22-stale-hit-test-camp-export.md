@@ -1,7 +1,7 @@
 # Retired camp hit-test export breaks TypeScript and calendar CI
 
 - Bug: The game engine facade re-exports `hitTestCamp` from `groupEvents`, although the retired function is no longer exported.
-- Status: investigating
+- Status: resolved
 - Severity: high
 - Date discovered: 2026-11-22
 - Version/build: main and PR #182 head `64cce4cbc70dba7b29889159417238111842e72c`
@@ -13,6 +13,7 @@
 ## Status history
 - 2026-11-22 — open: the previous PR head failed Node.js CI with TS2305 and calendar scheduler with an ESM missing-export error.
 - 2026-11-22 — investigating: removed the unused re-export and its stale ownership row; current-head CI not yet verified.
+- 2026-11-22 — resolved: same defect as the visitor-retirement report, fixed on the pathfinding branch; `gameEngine.ts` no longer re-exports `hitTestCamp` and the typecheck, lint and ownership gates pass after merging `main`.
 
 ## Observed behavior
 Node.js CI fails at `src/game/gameEngine.ts:118` with `TS2305: Module './groupEvents' has no exported member 'hitTestCamp'`. The calendar scheduler fails with the matching ESM missing export. The same stale import exists on main.

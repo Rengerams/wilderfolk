@@ -60,6 +60,34 @@ describe('a settler reaches a building from every side', () => {
     }
   });
 
+  it('gives every house in a tightly packed block a usable door', () => {
+    // 20px alleys between 40x30 houses: open ground straight out from a wall is shorter than the
+    // standoff plus two cells, so the old rule left interior houses with no door at all and their
+    // owners standing at the wall.
+    const map = testWorldMap({ tilesX: 120, tilesY: 90 });
+    const block: ReturnType<typeof building>[] = [];
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 3; col++) {
+        block.push(building(row * 3 + col + 1, BuildingType.House, {
+          x: 200 + col * 60, y: 200 + row * 55, width: 40, height: 30, occupants: [],
+        }));
+      }
+    }
+    const middle = block[4]!;
+    middle.occupants = [1];
+    setCurrentPathMap(map, block);
+    try {
+      for (const home of block) {
+        expect(buildingAccessPoints(home).length, `house ${home.id} has a door`).toBeGreaterThan(0);
+      }
+      const worker = human(1, { x: 120, y: 200, workerBuildingId: middle.id });
+      expect(walkHome(worker, middle, 900), 'the owner reaches a packed house').toBe(true);
+      expect(worker.indoorBuildingId).toBe(middle.id);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
   it('rejects an outward doorstep with a wall between it and the facade', () => {
     const map = testWorldMap({ tilesX: 60, tilesY: 60 });
     const home = building(7, BuildingType.House, { x: 300, y: 300, width: 60, height: 60, occupants: [1] });
