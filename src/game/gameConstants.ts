@@ -58,6 +58,8 @@ export const Immigration = {
 
 
 export const SCHOOL_MIN_AGE = 6;
+/** Shared between classroom capacity and workforce demand. */
+export const SCHOOL_CHILDREN_PER_TEACHER = 10;
 
 
 export const Animal = {
