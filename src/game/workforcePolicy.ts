@@ -10,6 +10,63 @@ export type WorkforcePolicy = WorkforcePreset;
 
 export const DEFAULT_WORKFORCE_POLICY: WorkforcePolicy = 'survival';
 
+/** Independent player-selected sector boosts on top of the ordinary staffing preset. */
+export const WORKFORCE_FOCUS_SECTORS = ['food', 'mining', 'education', 'healthcare'] as const;
+export type WorkforceFocusSector = (typeof WORKFORCE_FOCUS_SECTORS)[number];
+
+export const WORKFORCE_FOCUS_OPTIONS: readonly {
+  sector: WorkforceFocusSector; label: string; description: string;
+}[] = [
+  { sector: 'food', label: 'Food', description: 'Protect food production and prioritise open farming and foraging posts.' },
+  { sector: 'mining', label: 'Mining', description: 'Fill mines and quarries before lower-priority jobs when staff can be spared.' },
+  { sector: 'education', label: 'Schools', description: 'Prioritise teachers; a school with ten pupils seeks its second teacher.' },
+  { sector: 'healthcare', label: 'Hospitals', description: 'Prioritise extra doctors for completed hospitals.' },
+];
+
+export function isWorkforceFocusSector(value: unknown): value is WorkforceFocusSector {
+  return typeof value === 'string' && (WORKFORCE_FOCUS_SECTORS as readonly string[]).includes(value);
+}
+
+export function normalizeWorkforceFocus(value: unknown): WorkforceFocusSector[] {
+  if (!Array.isArray(value)) return [];
+  return WORKFORCE_FOCUS_SECTORS.filter((sector) => value.includes(sector));
+}
+
+export function getWorkforceFocus(world: { workforceFocus?: unknown }): WorkforceFocusSector[] {
+  return normalizeWorkforceFocus(world.workforceFocus);
+}
+
+export function setWorkforceFocus<T extends { workforceFocus?: WorkforceFocusSector[] }>(
+  world: T, sector: WorkforceFocusSector, enabled: boolean,
+): T {
+  if (!isWorkforceFocusSector(sector) || typeof enabled !== 'boolean') return world;
+  const previous = getWorkforceFocus(world);
+  if (previous.includes(sector) === enabled) return world;
+  return { ...world, workforceFocus: WORKFORCE_FOCUS_SECTORS.filter((candidate) =>
+    candidate === sector ? enabled : previous.includes(candidate)) };
+}
+
+/** A type belongs to at most one boosted sector. */
+export function workforceSectorForBuilding(type: BuildingType): WorkforceFocusSector | undefined {
+  switch (type) {
+    case 'farm':
+    case 'greenhouse':
+    case 'fishingSpot':
+    case 'huntingSpot':
+      return 'food';
+    case 'mine':
+    case 'quarry':
+      return 'mining';
+    case 'school':
+      return 'education';
+    case 'hospital':
+      return 'healthcare';
+    default:
+      return undefined;
+  }
+}
+
+
 /** Player-facing preset copy — the single definition, read by the work-schedule panel. */
 const WORKFORCE_PRESET_DETAILS: Readonly<
   Record<WorkforcePreset, { label: string; description: string }>
@@ -205,7 +262,11 @@ export function getWorkforcePresetDescription(preset: WorkforcePreset): string {
 export function jobBuildingPriorityForPolicy(
   preset: WorkforcePolicy,
   type: BuildingType,
+  focus: readonly WorkforceFocusSector[] = [],
 ): number {
+  const sector = workforceSectorForBuilding(type);
+  const focusRank = sector == null ? -1 : focus.indexOf(sector);
+  if (focusRank >= 0) return -100 + focusRank * 25 + PRESET_BUILDING_ORDER[preset].indexOf(type) / 100;
   const index = PRESET_BUILDING_ORDER[preset].indexOf(type);
   return index === -1 ? UNRANKED_JOB_BUILDING_RANK : index;
 }
