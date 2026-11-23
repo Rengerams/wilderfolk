@@ -26,7 +26,7 @@ import { logEvent } from './eventLog';
 import { addFloatingText, addNotification } from './simEffects';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { Human, VirtualPlayer } from './gameConstants';
+import { Human, VirtualPlayer, SCHOOL_MIN_AGE, SCHOOL_CHILDREN_PER_TEACHER } from './gameConstants';
 import { isMeasuredFoodDeficit, isProjectedFoodShortfall } from './economyLedger';
 import { evaluateWorkerFit } from './careers/workerFit';
 import { profileStart, profileEnd } from './performanceProfiler';
@@ -34,6 +34,9 @@ import {
   DEFAULT_WORKFORCE_POLICY,
   getWorkforcePolicy,
   jobBuildingPriorityForPolicy,
+  getWorkforceFocus,
+  workforceSectorForBuilding,
+  type WorkforceFocusSector,
   type WorkforcePolicy,
 } from './workforcePolicy';
 
@@ -44,8 +47,9 @@ import {
 export function jobBuildingPriority(
   type: BuildingType,
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
+  focus: readonly WorkforceFocusSector[] = [],
 ): number {
-  return jobBuildingPriorityForPolicy(policy, type);
+  return jobBuildingPriorityForPolicy(policy, type, focus);
 }
 
 export function countWorkersAtBuilding(humans: Entity[], buildingId: number): number {
@@ -153,6 +157,7 @@ export function hasStaffedSchool(buildings: Building[]): boolean {
 export function completedJobBuildings(
   buildings: Building[],
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
+  focus: readonly WorkforceFocusSector[] = [],
 ): Building[] {
   return buildings
     .filter((b) => {
@@ -160,7 +165,7 @@ export function completedJobBuildings(
       return BUILDING_CONFIGS[b.type].maxOccupants > 0;
     })
     .sort((a, b) => {
-      const prio = jobBuildingPriority(a.type, policy) - jobBuildingPriority(b.type, policy);
+      const prio = jobBuildingPriority(a.type, policy, focus) - jobBuildingPriority(b.type, policy, focus);
       if (prio !== 0) return prio;
       return a.id - b.id;
     });
@@ -509,8 +514,9 @@ export function rebalanceJobWorkers(
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
   currentTick?: number,
   foodEmergency = false,
+  focus: readonly WorkforceFocusSector[] = [],
 ): void {
-  const jobBuildings = completedJobBuildings(buildings, policy);
+  const jobBuildings = completedJobBuildings(buildings, policy, focus);
   const index = buildWorkforceAssignmentIndex(humans, currentTick, foodEmergency);
   const movedThisPass = new Set<number>();
 
@@ -529,6 +535,13 @@ export function rebalanceJobWorkers(
     while (staffed < target) {
       const donor = pickOverstaffedDonor(jobBuildings, index, needy, true, rejectedDonors);
       if (!donor) break;
+      // An ordinary low-priority vacancy cannot undo the player's selected focus.
+      const donorSector = workforceSectorForBuilding(donor.type);
+      if (donorSector && focus.includes(donorSector)
+        && jobBuildingPriority(donor.type, policy, focus) < jobBuildingPriority(needy.type, policy, focus)) {
+        rejectedDonors.add(donor.id);
+        continue;
+      }
       if (!criticalPost && (index.counts.get(donor.id) ?? 0) - 1 <= baseStaffed) break;
       const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings,
         movedThisPass, foodEmergency && priorityFood);
@@ -565,6 +578,7 @@ export function rebalanceJobWorkers(
     fillFromDonors(needy, capacity);
   }
 
+  fillPriorityStaffing(jobBuildings, index, humans, buildings, policy, focus, currentTick, foodEmergency, movedThisPass);
   swapReachableWorkersIntoVacancies(jobBuildings, index, humans, buildings, currentTick, movedThisPass);
 }
 
@@ -971,10 +985,14 @@ function staffJobsBeforeConstruction(
 ): void {
   if (!world) return;
   const policy = getWorkforcePolicy(world);
-  const jobBuildings = completedJobBuildings(buildings, policy);
+  const focus = getWorkforceFocus(world);
+  const jobBuildings = completedJobBuildings(buildings, policy, focus);
   // Survival fills food production; every other preset seeds each empty job building with one hand,
   // so construction cannot consume the whole idle pool before the preset's jobs are staffed.
-  const targets = policy === 'survival' ? jobBuildings.filter(isFoodWorkplace) : jobBuildings;
+  const targets = policy === 'survival'
+    ? jobBuildings.filter((building) => isFoodWorkplace(building)
+      || focus.includes(workforceSectorForBuilding(building.type)!))
+    : jobBuildings;
   if (targets.length === 0) return;
   const constructionIds = new Set(buildConstructionCrewIndex(buildings).keys());
   const workerCounts = new Map<number, number>();
@@ -984,13 +1002,18 @@ function staffJobsBeforeConstruction(
     }
   }
   for (const site of targets) {
-    if (policy !== 'survival') {
+    const selected = focus.includes(workforceSectorForBuilding(site.type)!);
+    if (policy !== 'survival' && !selected) {
       if ((workerCounts.get(site.id) ?? 0) > 0) continue;
       assignWorkerInPlace(site, alive, buildings, constructionIds, buildingById, workerCounts);
       continue;
     }
-    while (assignWorkerInPlace(site, alive, buildings, constructionIds, buildingById, workerCounts)) {
-      // Only unassigned, reachable adults; leave incumbent jobs untouched.
+    const target = site.type === BuildingType.School
+      ? preferredSchoolStaff(site, alive)
+      : staffingCapFor(site, alive).cap;
+    while ((workerCounts.get(site.id) ?? 0) < target
+      && assignWorkerInPlace(site, alive, buildings, constructionIds, buildingById, workerCounts)) {
+      // Fill important vacancies before construction crews consume the idle pool.
     }
   }
 }
@@ -1002,7 +1025,8 @@ export function staffJobBuildings(
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
   buildingIndex?: ReadonlyMap<number, Building>,
 ): void {
-  const jobBuildings = completedJobBuildings(buildings, policy);
+  const focus = getWorkforceFocus(worldSlices as WorldState ?? {});
+  const jobBuildings = completedJobBuildings(buildings, policy, focus);
   const buildingById = buildingIndex ?? new Map(buildings.map((building) => [building.id, building]));
   // One scan for the whole pass: every vacancy would otherwise rescan all settlers.
   const workerCounts = new Map<number, number>();
@@ -1026,7 +1050,7 @@ export function staffJobBuildings(
   const rebalanceStart = profileStart();
   const world = worldSlices as WorldState | undefined;
   const urgentFood = world?.entities && world.resources && hasFoodStaffingPressure(world);
-  rebalanceJobWorkers(alive, buildings, policy, worldSlices?.tick, !!urgentFood);
+  rebalanceJobWorkers(alive, buildings, policy, worldSlices?.tick, !!urgentFood, focus);
   profileEnd('workforce.rebalance', rebalanceStart);
   const syncStart = profileStart();
   syncJobBuildingOccupants(alive, buildings);
@@ -1041,6 +1065,7 @@ const lastWorkforceSignature = new WeakMap<WorldState, string>();
 function workforceSignature(world: WorldState, humans: readonly Entity[]): string {
   const week = Math.floor(world.tick / (7 * TICKS_PER_DAY));
   const priority = getWorkforcePolicy(world);
+  const focus = getWorkforceFocus(world).join(',');
   const resourceNeeds = `${Number((world.resources?.wood ?? 1) <= 0)}:${Number((world.resources?.stone ?? 1) <= 0)}:${Number(isAcuteFoodStaffingEmergency(world))}:${Number(hasFoodStaffingPressure(world))}`;
   const residenceIds = new Set(world.buildings
     .filter((site) => site.completed && isResidenceBuildingType(site.type))
@@ -1057,12 +1082,12 @@ function workforceSignature(world: WorldState, humans: readonly Entity[]): strin
     const originCell = unhousedApplicant
       ? `${Math.floor(human.x / PATH_CELL)},${Math.floor(human.y / PATH_CELL)}`
       : '';
-    return `${human.id}:${human.alive ? 1 : 0}:${human.isJuvenile ? 1 : 0}:${human.workerBuildingId ?? ''}:${human.residenceBuildingId ?? ''}:${human.prisonBuildingId ?? ''}:${human.lastAutoJobTransferTick ?? ''}:${transferable ? 1 : 0}:${originCell}:${human.faction ?? ''}`;
+    return `${human.id}:${human.alive ? 1 : 0}:${human.isJuvenile ? 1 : 0}:${human.workerBuildingId ?? ''}:${human.residenceBuildingId ?? ''}:${human.schoolBuildingId ?? ''}:${human.prisonBuildingId ?? ''}:${human.lastAutoJobTransferTick ?? ''}:${transferable ? 1 : 0}:${originCell}:${human.faction ?? ''}`;
   });
   const sites = world.buildings.map((site) =>
     `${site.id}:${site.type}:${site.completed ? 1 : 0}:${site.level ?? 1}:${site.completed ? '' : site.occupants.join(',')}`,
   );
-  return `${week}|${priority}|${resourceNeeds}|${residents.join(';')}|${sites.join(';')}`;
+  return `${week}|${priority}|${focus}|${resourceNeeds}|${residents.join(';')}|${sites.join(';')}`;
 }
 
 /**
@@ -1074,7 +1099,7 @@ export function assignMissingWorkers(
   buildings: Building[],
   worldSlices?: Pick<
     WorldState,
-    'tavernSchedule' | 'hotelSchedule' | 'workforcePolicy'
+    'tavernSchedule' | 'hotelSchedule' | 'workforcePolicy' | 'workforceFocus'
   > & Partial<Pick<WorldState, 'tick' | 'resources'>>,
   forceReconcile = false,
 ): void {
