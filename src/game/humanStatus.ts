@@ -21,7 +21,7 @@ function labelFor(building: Building): string {
 }
 
 export type HumanActivityTarget = {
-  kind: 'workplace' | 'home' | 'nearby-building' | 'hunt' | 'combat' | 'playmate' | 'guardian';
+  kind: 'workplace' | 'home' | 'nearby-building' | 'hunt' | 'combat' | 'playmate' | 'guardian' | 'play-site';
   label: string;
   buildingId?: number;
   entityId?: number;
@@ -190,6 +190,17 @@ export function getHumanActivityProjection(
       const companion = state.entities.find((candidate) =>
         candidate.id === entity.childLeisureTargetId && candidate.alive);
       if (companion) {
+        const playSite = entity.childPlaySite;
+        if (entity.childLeisureActivity === 'playing'
+          && playSite?.day === getAbsoluteCalendarDay(state.tick)
+          && playSite.phase === Math.floor(hour / 3)
+          && playSite.mateId === companion.id) {
+          return {
+            kind: 'play-site',
+            label: `Play area with ${citizenGivenName(companion)}`,
+            entityId: companion.id, x: playSite.x, y: playSite.y,
+          };
+        }
         return {
           kind: entity.childLeisureActivity === 'playing' ? 'playmate' : 'guardian',
           label: citizenGivenName(companion),
