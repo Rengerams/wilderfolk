@@ -4,7 +4,7 @@
 
 | Changed function(s) | Sole owner | Responsibility / verification |
 |---|---|---|
-| `WORKFORCE_FOCUS_SECTORS`, `normalizeWorkforceFocus`, `getWorkforceFocus`, `setWorkforceFocus`, `workforceSectorForBuilding`, `jobBuildingPriorityForPolicy` | `src/game/workforcePolicy.ts` | One validated persisted choice of sector priorities (Food, Mining, Schools, Hospitals, Church) layered over the four presets; `WorkforcePolicyPanel` renders options from this owner |
+| `WORKFORCE_FOCUS_SECTORS`, `isWorkforceOption`, `normalizeWorkforceFocus`, `getWorkforceFocus`, `setWorkforceFocus`, `workforceSectorForBuilding`, `jobBuildingPriorityForPolicy` | `src/game/workforcePolicy.ts` | One validated persisted choice of sector priorities (Food, Mining, Schools, Hospitals, Church) layered over the four presets; `WorkforcePolicyPanel` renders options from this owner |
 | `preferredSchoolStaff`, `fillPriorityStaffing`, `rebalanceJobWorkers`, `staffJobsBeforeConstruction`, `staffConstructionCrews` | `src/game/workforce.ts` | Existing single staffing pipeline; reserves focused jobs, recruits from idle hands and safe donor surplus; ten enrolled pupils call for a second teacher; Church has four posts. Critical food/guard floors, cooldown and commute checks stay enforced |
 | `setWorkforceFocus` worker command; save/delta/prep metadata | `src/game/simWorker/commands.ts`, `src/game/saveSchema.ts`, `src/game/simBuffers/simDelta.ts`, `src/game/simWorker/simPrep.ts` | No parallel staffing authority; one worker command triggers a forced staffing reconciliation, saved toggles load with the previous default (none); snapshots and UI projections share the same value |
 
