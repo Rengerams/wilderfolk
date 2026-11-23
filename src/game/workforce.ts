@@ -865,6 +865,7 @@ function assignBuilderInPlace(
   constructionWorkerIds?: Set<number>,
   buildingById?: ReadonlyMap<number, Building>,
   allowJobTransfers = true,
+  focus: readonly WorkforceFocusSector[] = [],
 ): boolean {
   if (building.completed) return false;
 
@@ -906,17 +907,18 @@ function assignBuilderInPlace(
     .sort((a, b) => {
       const aPri = jobBuildingPriority(
         (buildingById?.get(a.workerBuildingId!) ?? allBuildings.find((x) => x.id === a.workerBuildingId))?.type ?? BuildingType.Farm,
-        policy,
+        policy, focus,
       );
       const bPri = jobBuildingPriority(
         (buildingById?.get(b.workerBuildingId!) ?? allBuildings.find((x) => x.id === b.workerBuildingId))?.type ?? BuildingType.Farm,
-        policy,
+        policy, focus,
       );
       return bPri - aPri;
     })
     .find((h) => {
       const site = (buildingById?.get(h.workerBuildingId!) ?? allBuildings.find((b) => b.id === h.workerBuildingId));
       if (!site || !site.completed) return false;
+      if (focus.includes(workforceSectorForBuilding(site.type)!)) return false;
       const staffed = countWorkersAtBuilding(humans, site.id);
       // Construction must not strip the last ordinary producer or protected food/guard crew.
       // This is the same donor-coverage invariant that job rebalancing applies.
@@ -1008,6 +1010,7 @@ export function staffConstructionCrews(
   buildings: Building[],
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
   currentTick?: number,
+  focus: readonly WorkforceFocusSector[] = [],
 ): void {
   const incomplete = buildings
     // Passive zero-capacity sites (Wildlife Preserve, roads, decor) cannot hold builders, and the
@@ -1042,7 +1045,7 @@ export function staffConstructionCrews(
   // At most one established worker is borrowed to start each still-empty project.
   for (const site of incomplete) {
     if (site.occupants.length === 0) {
-      assignBuilderInPlace(site, alive, buildings, policy, currentTick, constructionWorkerIds, buildingById);
+      assignBuilderInPlace(site, alive, buildings, policy, currentTick, constructionWorkerIds, buildingById, true, focus);
     }
   }
 
@@ -1225,7 +1228,7 @@ export function assignMissingWorkers(
   // The preset's jobs get their hands before construction can take the whole idle pool.
   staffJobsBeforeConstruction(alive, buildings, world, buildingById);
   const constructionStart = profileStart();
-  staffConstructionCrews(alive, buildings, policy, worldSlices?.tick);
+  staffConstructionCrews(alive, buildings, policy, worldSlices?.tick, getWorkforceFocus(worldSlices ?? {}));
   profileEnd('workforce.construction', constructionStart);
   const jobsStart = profileStart();
   staffJobBuildings(alive, buildings, worldSlices, policy, buildingById);
