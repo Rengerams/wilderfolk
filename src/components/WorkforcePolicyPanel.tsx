@@ -1,6 +1,9 @@
 import type { WorldState } from '../game/gameTypes';
 import {
   getWorkforcePolicy,
+  getWorkforceFocus,
+  WORKFORCE_FOCUS_OPTIONS,
+  type WorkforceFocusSector,
   getWorkforcePresetDescription,
   getWorkforcePresetLabel,
   WORKFORCE_PRESET_OPTIONS,
@@ -10,14 +13,16 @@ import {
 interface Props {
   state: WorldState;
   onApply: (preset: WorkforcePreset) => void;
+  onSetFocus: (sector: WorkforceFocusSector, enabled: boolean) => void;
 }
 
 /**
  * Workforce policy presets. The panel restates no ordering or preset copy:
  * `workforcePolicy.ts` is the single definition of both.
  */
-export default function WorkforcePolicyPanel({ state, onApply }: Props) {
+export default function WorkforcePolicyPanel({ state, onApply, onSetFocus }: Props) {
   const current = getWorkforcePolicy(state);
+  const focused = getWorkforceFocus(state);
 
   return (
     <div className="space-y-3 text-sm text-stone-300">
@@ -49,6 +54,38 @@ export default function WorkforcePolicyPanel({ state, onApply }: Props) {
             </button>
           );
         })}
+      </div>
+      <div className="rounded border border-stone-700/70 bg-stone-900/40 px-2.5 py-2 text-xs">
+        <p className="font-semibold text-stone-100">Sector priorities</p>
+        <p className="mt-1 text-stone-400">
+          Choose any combination. Priority sectors get extra workers ahead of lower-priority jobs,
+          while keeping essential staff. Ten pupils at one school call for a second teacher.
+        </p>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {WORKFORCE_FOCUS_OPTIONS.map(({ sector, label, description }) => {
+            const active = focused.includes(sector);
+            return (
+              <button
+                key={sector}
+                type="button"
+                title={description}
+                aria-pressed={active}
+                onClick={() => onSetFocus(sector, !active)}
+                className={`rounded border px-2 py-2 text-xs font-semibold ${
+                  active
+                    ? 'border-amber-400/70 bg-amber-900/40 text-amber-200'
+                    : 'border-stone-600 bg-stone-950 text-stone-300 hover:border-stone-400'
+                }`}
+              >
+                {label} {active ? 'On' : 'Off'}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-stone-500">
+          Changes trigger an immediate staffing pass. Workers only transfer between reachable posts;
+          essential food and guard coverage stays protected.
+        </p>
       </div>
       <div className="rounded border border-stone-700/70 bg-stone-900/40 px-2.5 py-2 text-xs">
         <div className="flex items-center justify-between">
