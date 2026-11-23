@@ -13,8 +13,8 @@ import { testWorldMap } from '../src/test/worldMapFixtures';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 
 const FIXTURE_SEED = 20_261_107;
-/** 16:00 — inside the festival gathering window and outside the default work shift. */
-const FESTIVAL_TICK = 16 * TICKS_PER_HOUR;
+/** 18:00 — inside the shorter evening festival window and outside the default work shift. */
+const FESTIVAL_TICK = 18 * TICKS_PER_HOUR;
 const SQUARE = { x: 640, y: 480, width: 40, height: 40 };
 const SQUARE_CENTRE = { x: SQUARE.x + SQUARE.width / 2, y: SQUARE.y + SQUARE.height / 2 };
 
@@ -121,7 +121,7 @@ function simContext(state: WorldState, humans: Entity[]): TickContext {
   return {
     width: state.width,
     height: state.height,
-    hourOfDay: 16,
+    hourOfDay: 18,
     season: Season.Summer,
     grassMult: 1,
     reproMult: 1,

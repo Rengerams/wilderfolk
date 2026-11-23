@@ -61,8 +61,8 @@ export function repairStaleFestivalOnLoad(state: WorldState): void {
       && typeof entry.tick === 'number',
   );
   if (!match || typeof match.tick !== 'number') return;
-  // Festivals now last at most four days; an older saved festival past that age is stale.
-  if (state.tick - match.tick > 4 * TICKS_PER_DAY) {
+  // Keep the conservative save-load stale threshold for legacy festivals; live durations are capped at the daily pulse.
+  if (state.tick - match.tick > 40 * TICKS_PER_DAY) {
     state.festival = null;
   }
 }

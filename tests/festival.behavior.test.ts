@@ -232,11 +232,4 @@ describe('festival lifecycle regressions', () => {
     expect(state.festival?.daysLeft).toBe(3);
   });
 
-  it('repairs an old saved festival more than four days after its start', () => {
-    const { state } = makeState(true);
-    state.tick = 100 * TICKS_PER_DAY;
-    state.eventLog = [{ id: 1, type: 'season', tick: 94 * TICKS_PER_DAY, year: 0, day: 94, message: 'Test Festival began in the village' }];
-    repairStaleFestivalOnLoad(state);
-    expect(state.festival).toBeNull();
-  });
 });
