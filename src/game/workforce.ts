@@ -537,7 +537,7 @@ export function rebalanceJobWorkers(
       if (!donor) break;
       // An ordinary low-priority vacancy cannot undo the player's selected focus.
       const donorSector = workforceSectorForBuilding(donor.type);
-      if (donorSector && focus.includes(donorSector)
+      if (!criticalPost && donorSector && focus.includes(donorSector)
         && jobBuildingPriority(donor.type, policy, focus) < jobBuildingPriority(needy.type, policy, focus)) {
         rejectedDonors.add(donor.id);
         continue;
@@ -588,7 +588,6 @@ export function rebalanceJobWorkers(
   swapReachableWorkersIntoVacancies(jobBuildings, index, humans, buildings, currentTick, movedThisPass);
 }
 
-/** Bounded swap work one rebalance pass may do: two moves, each with its own backfill search. */
 /**
  * Staffing demand for an enrolled classroom. Ten pupils exhaust one teacher's seats, so
  * request the second teacher at ten rather than waiting for an eleventh to be turned away.
@@ -664,6 +663,7 @@ function fillPriorityStaffing(
   }
 }
 
+/** Bounded swap work one rebalance pass may do: two moves, each with its own backfill search. */
 const MAX_SWAP_TRANSFERS_PER_PASS = 2;
 /** Donor ties a pass may inspect after the ordinary distribution has already been tried. */
 const MAX_SWAP_DONOR_CHECKS_PER_PASS = 8;
@@ -1105,7 +1105,7 @@ function staffJobsBeforeConstruction(
 export function staffJobBuildings(
   alive: Entity[],
   buildings: Building[],
-  worldSlices?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'> & Partial<Pick<WorldState, 'tick'>>,
+  worldSlices?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'> & Partial<Pick<WorldState, 'tick' | 'workforceFocus'>>,
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
   buildingIndex?: ReadonlyMap<number, Building>,
 ): void {
