@@ -11,7 +11,7 @@
 - **Old-save fallback:** a human saved before `needs` existed seeds `stamina` from `energy` in `normalizeHumanNeeds`.
 - **Unfinished player-human migration:** old readers/writers still use the mirror.
 
-Migrated so far: `hospitalCare.needsMedicalCare`, `medicalUrgency`, `medicalCareReason` and the `humanHospitalBehavior` treatment gate now read `getHumanStaminaRatio`; the hospital no longer calls a settler exhausted from a stale mirror.
+Migrated so far: `hospitalCare.needsMedicalCare`, `medicalUrgency`, `medicalCareReason` and the `humanHospitalBehavior` treatment gate now read `getHumanStaminaRatio`; the hospital no longer calls a settler exhausted from a stale mirror. Hospital stamina-only admission uses the existing 15% `HUMAN_NEEDS.STAMINA_CRITICAL` boundary, not the former 42% fatigue gate: routine ~30%-stamina bedtime fatigue belongs to the home/sleep owner; late pregnancy and grief remain independently eligible.
 
 Remaining player-human `energy` paths (the actual acceptance list):
 
