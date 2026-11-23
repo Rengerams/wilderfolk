@@ -63,7 +63,8 @@ function doctorTreatsFrom(x: number, y: number): boolean {
   const doctor = settler(DOCTOR_ID, x, y, 500);
   doctor.job = JobType.Doctor;
   doctor.workerBuildingId = hospital.id;
-  const patient = settler(PATIENT_ID, WARD_X, WARD_Y, 200);
+  // Critical exhaustion (<15%), not ordinary 40% bedtime fatigue.
+  const patient = settler(PATIENT_ID, WARD_X, WARD_Y, 50);
   const state = freshState([doctor, patient], [hospital]);
   state.tick = passingWardRoundTick(DOCTOR_ID, PATIENT_ID);
   return doctorTreatNearby(state, doctor, hospital, [patient]);
@@ -98,8 +99,9 @@ describe('S-10 — hospital gates read the footprint centre and the shared reach
     doctor.job = JobType.Doctor;
     doctor.workerBuildingId = hospital.id;
     // 45 px outside the north wall (68 px from the centre): inside the 70 px ward radius, outside
-    // the old shifted 70 px circle. Non-urgent, so only the ward test can reach them.
-    const patient = settler(PATIENT_ID, WARD_X, WARD_Y - WARD_CONFIG.height / 2 - 45, 200);
+    // the old shifted 70 px circle. The patient is critically exhausted, so both
+    // clinical eligibility and real ward reach are required.
+    const patient = settler(PATIENT_ID, WARD_X, WARD_Y - WARD_CONFIG.height / 2 - 45, 50);
     const state = freshState([doctor, patient], [hospital]);
     const before = getHumanStaminaRatio(patient);
 
