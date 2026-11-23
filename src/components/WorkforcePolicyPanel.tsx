@@ -29,8 +29,8 @@ export default function WorkforcePolicyPanel({ state, onApply, onSetFocus }: Pro
       <div>
         <p className="font-semibold text-stone-100">Workforce policy</p>
         <p className="mt-1 text-xs leading-relaxed text-stone-400">
-          Steers which workplace receives the next idle settler during auto-staffing. Manual
-          assignments always outrank the preset, and removing a worker is never blocked by it.
+          The preset sets the normal hiring order. Sector buttons below let you redirect safe
+          surplus staffing to the jobs your settlement currently needs most.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -94,7 +94,7 @@ export default function WorkforcePolicyPanel({ state, onApply, onSetFocus }: Pro
         </div>
         <p className="mt-1 text-stone-400">{getWorkforcePresetDescription(current)}</p>
         <p className="mt-1 text-stone-500">
-          A manual assignment or a manual-staffing workplace still overrides this preset.
+          Completed workplaces are staffed automatically; worker transfers preserve essential coverage.
         </p>
       </div>
     </div>
