@@ -20,6 +20,7 @@ import { observeIndoorPatients } from '../src/game/virtualPlayer';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { PREGNANCY_TICKS } from '../src/game/dayCycle';
 import { prefersHomeTonightFor } from '../src/game/humanSchedule';
+import { canPursueSecretAffair } from '../src/game/simulation/humanRelationships';
 import { drawHumans, drawLeaderAuraOverlay } from '../src/game/renderer/humans';
 
 describe('settlers inside buildings', () => {
@@ -207,7 +208,7 @@ describe('settlers inside buildings', () => {
     expect(observeIndoorPatients(world).patients[0].hospitalId).toBeNull();
   });
 
-  it('lets an indoor worker leave for an established affair during work hours', () => {
+  it('keeps an on-duty blacksmith at work instead of chasing an established affair', () => {
     const world = initGame({ skipTerrain: true, seed: 624 });
     world.worldMap = null;
     const workplace = building(0, BuildingType.Blacksmith, { x: 300, y: 300, occupants: [1], staffingMode: 'manual' });
@@ -224,10 +225,12 @@ describe('settlers inside buildings', () => {
     world.paused = false;
     world.tick = 10 * TICKS_PER_HOUR + 1;
     world.lastProcessedCalendarDay = 0;
-    const before = { x: person.x, y: person.y };
     gameTick(world);
-    expect(person.indoorBuildingId).toBeUndefined();
-    expect(Math.hypot(person.x - before.x, person.y - before.y)).toBeGreaterThan(0);
+    expect(person.indoorBuildingId).toBe(workplace.id);
+    expect(person.schedulePresentTicksToday ?? 0).toBeGreaterThan(0);
+    expect(person.affairPartnerId).toBe(3);
+    expect(canPursueSecretAffair(person, 10, workplace, world.buildings, world.entityById!, world.tick)).toBe(false);
+    expect(canPursueSecretAffair(person, 16, workplace, world.buildings, world.entityById!, world.tick)).toBe(true);
   });
 
   it('lets a zero-stamina resident reach the house rather than freezing the home commute', () => {
