@@ -65,7 +65,7 @@ export const WORLD_STATE_SAVE_KEYS = [
   // the day's simulation reads it for the unheated-winter penalty and freeze flash.
   'villageCanHeat',
   // Workforce policy preset: the auto-staffing priority order the player picked.
-  'workforcePolicy',
+  'workforcePolicy', 'workforceFocus',
   // Food accounting: `economyLedger` is today's row, `foodHistory` the rolling archive. Nothing
   // rebuilds them, so both must round-trip; both are plain JSON.
   'economyLedger', 'foodHistory',

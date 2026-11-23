@@ -2,6 +2,8 @@
 
 **2026-11-23 — [Deferred production applied newly warned ecology penalties too early](../bug_report/2026-11-23-deferred-production-applies-ecology-penalties-early.md):** investigating; PR #192 captures the pre-warning stage for evening-shift output and retains it through saves/worker transport. Focused integration regression added; current-head CI pending.
 
+**2026-11-23 — [Ordinary fatigue filled hospital wards](../bug_report/2026-11-23-ordinary-fatigue-overfills-hospital-ward.md):** investigating; the old 42% medical threshold misclassified normal 30%-stamina bedtime fatigue as exhaustion. Medical eligibility now shares physiology's 15% critical cutoff; late pregnancy and grief remain eligible. CI and live-save verification pending.
+
 **2026-11-23 — [Game release version bumps reject compatible saves](../bug_report/2026-11-23-game-version-bump-rejects-compatible-save.md):** investigating; the gate coupled accepted save versions to the changing game release label. PR #187 introduces independent save-format metadata, retains v0.6.5.0–v0.6.5.2 markerless saves and corrects the legacy fixture after one CI failure. Latest CI and real-save verification pending.
 
 **2026-11-23 — [Courtship marriage and pair dialogue blocked by ID order](../bug_report/2026-11-23-courtship-social-id-order.md):** investigating; 16 mutual adult couples reached 100% courtship in the day-95 save but could not marry because the second-processed partner failed the ID guard. Higher-ID-initiated pair chats were also dropped. Fix and regressions committed in PR #186; CI and live-save verification pending.

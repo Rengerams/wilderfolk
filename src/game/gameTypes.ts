@@ -878,6 +878,7 @@ export interface WorldState {
   tavernSchedule?: import('./venueSchedule').VenueSchedule;
   hotelSchedule?: import('./venueSchedule').VenueSchedule;
   workforcePolicy?: import('./workforcePolicy').WorkforcePolicy;
+  workforceFocus?: import('./workforcePolicy').WorkforceFocusSector[];
   villageReputation: number;
   resources: Resources;
   storageMax: Resources;

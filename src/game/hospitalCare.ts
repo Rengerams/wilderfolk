@@ -13,7 +13,7 @@ import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees'
 import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
 import { spendFood } from './economyLedger';
-import { adjustHumanStaminaFromEnergy, getHumanStaminaRatio } from './simulation/humanPhysiology';
+import { HUMAN_NEEDS, adjustHumanStaminaFromEnergy, getHumanStaminaRatio } from './simulation/humanPhysiology';
 import { getPregnancyProgressFraction } from './pregnancy';
 import { isPregnancyHospitalDue } from './simulation/humanLifecycle';
 import { getBuildingCenter } from './buildingGeometry';
@@ -71,7 +71,9 @@ export function needsMedicalCare(entity: Entity, tick: number): boolean {
   if (!entity.alive || entity.isJuvenile === undefined) return false;
   if (isPregnancyHospitalDue(entity)) return true;
   const stamina = getHumanStaminaRatio(entity);
-  if (stamina < 0.42) return true;
+  // Normal end-of-day fatigue is handled by home sleep and off-duty breaks, not a hospital bed.
+  // Use the physiology owner's existing critical exhaustion threshold (15% stamina).
+  if (stamina < HUMAN_NEEDS.STAMINA_CRITICAL / 100) return true;
   if ((entity.griefUntilTick ?? 0) > tick && stamina < 0.7) return true;
   return false;
 }
@@ -95,14 +97,12 @@ export function isRestingHospitalPatient(
 }
 
 /** How urgently this settler should seek the hospital (0–1). */
-export function medicalUrgency(entity: Entity): number {
-  if (isPregnancyHospitalDue(entity)) {
-    return 0.55 + 0.4 * getPregnancyProgressFraction(entity);
-  }
-  const stamina = getHumanStaminaRatio(entity);
-  if (stamina < 0.28) return 0.85;
-  if (stamina < 0.42) return 0.55;
-  if (stamina < 0.55) return 0.3;
+export function medicalUrgency(entity: Entity, tick: number): number {
+  // Triage must never treat fatigue the admission rule considers healthy.
+  const reason = medicalCareReason(entity, tick);
+  if (reason === 'expecting') return 0.55 + 0.4 * getPregnancyProgressFraction(entity);
+  if (reason === 'exhausted') return 0.85;
+  if (reason === 'grieving') return 0.3;
   return 0;
 }
 
@@ -110,7 +110,7 @@ export function medicalUrgency(entity: Entity): number {
 export function medicalCareReason(entity: Entity, tick: number): string | null {
   if (!needsMedicalCare(entity, tick)) return null;
   if (isPregnancyHospitalDue(entity)) return 'expecting';
-  if (getHumanStaminaRatio(entity) < 0.42) return 'exhausted';
+  if (getHumanStaminaRatio(entity) < HUMAN_NEEDS.STAMINA_CRITICAL / 100) return 'exhausted';
   return 'grieving';
 }
 
@@ -140,7 +140,7 @@ export function getHospitalRoster(
     const reason = medicalCareReason(e, tick);
     if (reason) patients.push({ entity: e, reason });
   }
-  patients.sort((a, b) => medicalUrgency(b.entity) - medicalUrgency(a.entity));
+  patients.sort((a, b) => medicalUrgency(b.entity, tick) - medicalUrgency(a.entity, tick));
   return { hospitalId: hospital.id, patients };
 }
 
@@ -154,7 +154,7 @@ export function describeHospitalRoster(
     emptyHint: entry.patients.length > 0
       ? null
       : hasDoctor
-        ? 'Ward empty — settlers walk here when expecting, exhausted or grieving.'
+        ? 'Ward empty — settlers receive care for late pregnancy, critical exhaustion or grief.'
         : 'No doctor assigned — only a staffed hospital treats patients.',
   };
 }
@@ -255,7 +255,7 @@ export function doctorTreatNearby(
     const near = isAtBuildingReach(p, hospital)
       || Math.hypot(p.x - centre.x, p.y - centre.y) < HOSPITAL_WARD_RADIUS_PX;
     if (!near) continue;
-    const u = medicalUrgency(p);
+    const u = medicalUrgency(p, state.tick);
     if (u > bestU) {
       bestU = u;
       best = p;
@@ -285,7 +285,7 @@ export function tickHospitalDailyCare(
   const centre = getBuildingCenter(hospital);
   const patients = humans
     .filter((h) => h.alive && isPlayerHuman(h) && needsMedicalCare(h, state.tick))
-    .sort((a, b) => medicalUrgency(b) - medicalUrgency(a));
+    .sort((a, b) => medicalUrgency(b, state.tick) - medicalUrgency(a, state.tick));
 
   let treated = 0;
   for (const p of patients) {

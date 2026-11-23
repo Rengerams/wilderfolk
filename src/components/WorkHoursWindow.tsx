@@ -4,7 +4,7 @@
  */
 import { useState } from 'react';
 import type { WorldState } from '../game/gameTypes';
-import type { WorkforcePreset } from '../game/workforcePolicy';
+import type { WorkforcePreset, WorkforceFocusSector } from '../game/workforcePolicy';
 import type { VenueScheduleKind } from '../game/venueSchedule';
 import GameWindow from './GameWindow';
 import WorkSchedulePanel from './WorkSchedulePanel';
@@ -35,6 +35,7 @@ export interface WorkHoursWindowProps {
   onApplyWorkSchedule: (startHour: number, endHour: number) => void;
   onApplyVenueSchedule: (venue: VenueScheduleKind, startHour: number, endHour: number) => void;
   onApplyWorkforcePolicy: (preset: WorkforcePreset) => void;
+  onApplyWorkforceFocus: (sector: WorkforceFocusSector, enabled: boolean) => void;
   onClose: () => void;
 }
 
@@ -43,6 +44,7 @@ export default function WorkHoursWindow({
   onApplyWorkSchedule,
   onApplyVenueSchedule,
   onApplyWorkforcePolicy,
+  onApplyWorkforceFocus,
   onClose,
 }: WorkHoursWindowProps) {
   const [subject, setSubject] = useState<WorkHoursSubjectId>('work');
@@ -86,7 +88,7 @@ export default function WorkHoursWindow({
           <VenueSchedulePanel state={state} onApply={onApplyVenueSchedule} />
         </div>
         <div className={subject === 'workforce' ? 'block' : 'hidden'}>
-          <WorkforcePolicyPanel state={state} onApply={onApplyWorkforcePolicy} />
+          <WorkforcePolicyPanel state={state} onApply={onApplyWorkforcePolicy} onSetFocus={onApplyWorkforceFocus} />
         </div>
       </div>
     </GameWindow>
