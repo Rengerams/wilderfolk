@@ -199,8 +199,8 @@ export const SIMULATION_DECISIONS = {
   humanLeisure: {
     owner: 'humanLeisureBehavior.ts — tickHumanLeisure (single free-time entry), tickHumanChildLeisure, tickAdultLeisureMotive',
     cadence: 'realtime',
-    cadenceNote: 'Called once per eligible humanTick free-time tick. Children choose one playmate per colony day (replacement only if unavailable) and record the active play/follow/home intent; humanTick owns movement integration. Companion RNG beats remain unconditional for deterministic replay.',
-    writes: ['human.vx', 'human.vy', 'human.indoorBuildingId', 'human.childPlaymateDay', 'human.childPlaymateId', 'human.childLeisureActivity', 'human.childLeisureTargetId'],
+    cadenceNote: 'Called once per eligible humanTick free-time tick. Children keep one playmate per colony day (replacement only if unavailable), choose a new safe play site every three leisure hours and record active play/follow/home intent; humanTick owns movement integration. Companion RNG beats remain unconditional for deterministic replay.',
+    writes: ['human.vx', 'human.vy', 'human.indoorBuildingId', 'human.childPlaymateDay', 'human.childPlaymateId', 'human.childPlaySite', 'human.childLeisureActivity', 'human.childLeisureTargetId'],
     scheduledFrom: 'humanTick.tickHumans → humanLeisureBehavior.tickHumanLeisure',
     testFile: 'tests/humanLeisureBehavior.test.ts, tests/humanStatus.projection.test.ts, tests/simulation.decisionRegistry.test.ts',
   },
