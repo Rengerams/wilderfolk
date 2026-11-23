@@ -308,6 +308,8 @@ export interface Entity {
   /** One playmate choice per colony day, persisted across save/load and worker replay. */
   childPlaymateDay?: number;
   childPlaymateId?: number;
+  /** Stable, saved play outing for one companion and three-hour leisure phase. */
+  childPlaySite?: { day: number; phase: number; mateId: number; x: number; y: number };
   /** Current child leisure intent, written by the leisure owner for the inspector. */
   childLeisureActivity?: 'playing' | 'following' | 'home';
   childLeisureTargetId?: number;
