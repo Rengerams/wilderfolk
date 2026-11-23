@@ -1,6 +1,25 @@
 import type { Entity, WorldState } from './gameTypes';
 
 /**
+ * Version of the serialized save *layout*, independent of the game's release version.
+ * Increment this only when a breaking layout change cannot be migrated by the load owner.
+ * All new saves carry `_saveFormatVersion`; `_version` remains the originating GAME_VERSION
+ * for diagnostics and display only.
+ */
+export const SAVE_FORMAT_VERSION = 1;
+
+/**
+ * Shipped saves from before `_saveFormatVersion` existed. These have been audited against
+ * the current loader/migrations. This list must NOT depend on the running GAME_VERSION:
+ * otherwise bumping the application version silently changes the set of loadable saves.
+ */
+export const LEGACY_SAVE_GAME_VERSIONS: readonly string[] = [
+  '0.6.5.0',
+  '0.6.5.1',
+  '0.6.5.2',
+];
+
+/**
  * Allow-list of WorldState keys — prevents view/UI fields from leaking into simulation state.
  * Absence is a durability decision: a field missing here will not survive a reload.
  */

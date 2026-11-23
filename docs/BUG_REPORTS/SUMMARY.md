@@ -1,6 +1,7 @@
 # Bug report summary — one line per report
 
 **2026-11-23 — [Child play groups remain at one fixed spot](../bug_report/2026-11-23-child-play-groups-fixed-location.md):** investigating; previous daily playmate fix did not provide a destination; new friendship-weighted circles of two to four share reachable play areas, changing every three leisure hours; CI pending.
+**2026-11-23 — [Game release version bumps reject compatible saves](../bug_report/2026-11-23-game-version-bump-rejects-compatible-save.md):** investigating; the gate coupled accepted save versions to the changing game release label. PR #187 introduces independent save-format metadata, retains v0.6.5.0–v0.6.5.2 markerless saves and corrects the legacy fixture after one CI failure. Latest CI and real-save verification pending.
 
 **2026-11-23 — [Courtship marriage and pair dialogue blocked by ID order](../bug_report/2026-11-23-courtship-social-id-order.md):** investigating; 16 mutual adult couples reached 100% courtship in the day-95 save but could not marry because the second-processed partner failed the ID guard. Higher-ID-initiated pair chats were also dropped. Fix and regressions committed in PR #186; CI and live-save verification pending.
 
