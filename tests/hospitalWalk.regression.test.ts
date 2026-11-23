@@ -82,6 +82,24 @@ describe('pickHospitalWalkTarget', () => {
     expect(pickHospitalWalkTarget(patient, [hospital(1, 10_000, 10_000)])?.id).toBe(1);
   });
 
+  it('does not admit a merely tired settler standing at the hospital door', () => {
+    const ward = { ...hospital(1, 100, 100, [7]), width: 120, height: 80 };
+    const visitor = entity(ward.x, ward.y + ward.height / 2 + 20, {
+      energy: 150,
+      needs: { nutrition: 80, rest: 40, stamina: 30, severeHungerTicks: 0 },
+    });
+
+    expect(shouldAttemptHospitalTreatment(visitor, true, 0)).toBe(false);
+    tickHumanHospitalPatientCare({
+      state: { tick: 0 } as WorldState,
+      entity: visitor,
+      staffedHospitals: [ward],
+      speed: 2,
+    });
+
+    expect(visitor.indoorBuildingId).toBeUndefined();
+  });
+
   it('admits an exhausted patient at a large hospital by its entrance, not its footprint centre', () => {
     const ward = { ...hospital(1, 100, 100, [7]), width: 120, height: 80 };
     // Standing at the south door: 60 px from the centre, 8 px from the entrance.
