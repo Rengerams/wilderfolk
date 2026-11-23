@@ -216,6 +216,7 @@ export function fillBuildingWorkers(
 export function autoStaffAllWorkers(
   originalState: WorldState,
   ownership: 'isolated' | 'owned' = 'isolated',
+  notify = true,
 ): WorldState {
   const state = ownership === 'owned' ? originalState : structuredClone(originalState);
   const countAssigned = () => allPlayerHumans(state.entities).filter((human) => human.workerBuildingId != null).length;
@@ -226,6 +227,7 @@ export function autoStaffAllWorkers(
   // An explicit colony or Virtual Player request is a staffing event even if
   // the passive workforce fingerprint has not changed yet.
   assignMissingWorkers(allPlayerHumans(state.entities), state.buildings, state, true);
+  if (!notify) return state;
   const after = countAssigned();
   const assigned = after - before;
 

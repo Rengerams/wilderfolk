@@ -3,7 +3,7 @@ import { EntityType, isStaticPropEntity, PATH_CELL } from '../gameTypes';
 import { getWorkSchedule } from '../workSchedule';
 import { getCommandedCommuteBuildingId, setProjectedCommuteBuildingId } from '../simulation/humanMovement';
 import { getVenueSchedule } from '../venueSchedule';
-import { getWorkforcePolicy, normalizeWorkforcePolicy } from '../workforcePolicy';
+import { getWorkforcePolicy, normalizeWorkforcePolicy, getWorkforceFocus, normalizeWorkforceFocus } from '../workforcePolicy';
 import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
 import { HISTORY_FAMILIES, snapshotHistoryRevisions, type HistoryRevisions } from '../historyRevisions';
 import {
@@ -105,6 +105,7 @@ export interface SimTickDelta {
   tavernSchedule: WorldState['tavernSchedule'];
   hotelSchedule: WorldState['hotelSchedule'];
   workforcePolicy: WorldState['workforcePolicy'];
+  workforceFocus?: WorldState['workforceFocus'];
   screenShakeImpulse: number;
   floatingTexts: WorldState['floatingTexts'];
   deathParticles: WorldState['deathParticles'];
@@ -380,6 +381,7 @@ export function extractSimTickDelta(
     tavernSchedule: getVenueSchedule(world, 'tavern'),
     hotelSchedule: getVenueSchedule(world, 'hotel'),
     workforcePolicy: getWorkforcePolicy(world),
+    workforceFocus: getWorkforceFocus(world),
     screenShakeImpulse: world.screenShakeImpulse,
     floatingTexts: deltaClone(world.floatingTexts, cloneMode),
     deathParticles: deltaClone(world.deathParticles, cloneMode),
@@ -695,6 +697,7 @@ export function applySimTickDelta(
   world.tavernSchedule = delta.tavernSchedule ? { ...delta.tavernSchedule } : getVenueSchedule(world, 'tavern');
   world.hotelSchedule = delta.hotelSchedule ? { ...delta.hotelSchedule } : getVenueSchedule(world, 'hotel');
   world.workforcePolicy = normalizeWorkforcePolicy(delta.workforcePolicy);
+  world.workforceFocus = normalizeWorkforceFocus(delta.workforceFocus);
   world.screenShakeImpulse = delta.screenShakeImpulse;
   world.floatingTexts = deltaClone(delta.floatingTexts, cloneMode);
   world.deathParticles = deltaClone(delta.deathParticles, cloneMode);
