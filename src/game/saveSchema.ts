@@ -60,6 +60,8 @@ export const ENTITY_PERSISTED_FIELDS = [
   'genomeV2',
   'marks',
   'skills', 'needs', 'careerHistory', 'careerMilestones', 'dialogueRecentScenes', 'dialogueRecentLines',
+  'childPlaymateDay', 'childPlaymateId', 'childPlayGroupIds', 'childPlaySite',
+  'childLeisureActivity', 'childLeisureTargetId',
   'formerSpouseId', 'factionWander',
   'scheduleWorkedTicksToday', 'schedulePresentTicksToday', 'schedulePresentSiteIdToday', 'scheduleLastWorkedHours',
   'scheduleWorkedSiteIdToday', 'scheduleLastWorkedSiteId',
