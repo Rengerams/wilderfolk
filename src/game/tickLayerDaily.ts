@@ -4,6 +4,7 @@
  * The retired on-map visitor lifecycle is never scheduled here.
  */
 import type { Entity, WorldState } from './gameTypes';
+import { getWorkSchedule } from './workSchedule';
 import { EntityType } from './gameTypes';
 import type { TickContext } from './simulation/simulationTypes';
 import { countLivingPopulation } from './entityCounts';
@@ -112,6 +113,11 @@ export function tickLayerDaily(
     profileEnd('daily.tickWildkinChronicle', stage10);
   }
   if (hour === DAILY_PHASE_HOURS.production) {
+    state.productionDeferred = getWorkSchedule(state).endHour > hour;
+  }
+  if ((hour === DAILY_PHASE_HOURS.production && !state.productionDeferred)
+    || (hour === DAILY_PHASE_HOURS.construction && state.productionDeferred)) {
+    state.productionDeferred = false;
     const stage11 = profileStart();
     tickDailyBuildingEconomy(state, ctx, allAlive);
     profileEnd('daily.tickDailyBuildingEconomy', stage11);

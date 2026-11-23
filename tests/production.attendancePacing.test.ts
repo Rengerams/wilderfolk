@@ -230,8 +230,8 @@ describe('production pays only witnessed attendance (W-136)', () => {
     const absent = farmDay(true);
 
     // 07:00 → 18:00: the whole rota plus the production pass that reads it.
-    runTicks(onPost.state, 1 + (23 - 7) * TICKS_PER_HOUR, ON_SCREEN);
-    runTicks(absent.state, 1 + (23 - 7) * TICKS_PER_HOUR, ON_SCREEN);
+    runTicks(onPost.state, 1 + (18 - 7) * TICKS_PER_HOUR, ON_SCREEN);
+    runTicks(absent.state, 1 + (18 - 7) * TICKS_PER_HOUR, ON_SCREEN);
 
     // The rota credited both crews; only one was ever witnessed at the post.
     expect(absent.worker.scheduleWorkedTicksToday ?? 0).toBeGreaterThan(0);
@@ -254,7 +254,9 @@ describe('production pays only witnessed attendance (W-136)', () => {
       runTicks(state, 6 * TICKS_PER_HOUR, ON_SCREEN);
       expect(worker.schedulePresentTicksToday).toBe(6 * TICKS_PER_HOUR);
       const before = readSkill(worker, JobType.Farmer);
+      const outputBefore = state.economyLedger?.produced.farms ?? 0;
       runTicks(state, 2 * TICKS_PER_HOUR + 1, ON_SCREEN);
+      expect(state.economyLedger?.produced.farms ?? 0).toBeGreaterThan(outputBefore);
       expect(readSkill(worker, JobType.Farmer) - before).toBeGreaterThanOrEqual(0.19);
       runTicks(state, TICKS_PER_HOUR, ON_SCREEN);
       expect(worker.schedulePresentTicksToday ?? 0).toBe(0);
@@ -467,7 +469,7 @@ describe('construction and production attendance are separate (PR #166 reviews)'
     site.occupants = [worker.id];
     rebuildEntityByIdMap(state);
     invalidateCachedEntityByType(state);
-    state.tick = tickAtDailyPhase(1, 'worldEvents') - 1;
+    state.tick = tickAtDailyPhase(1, 'production') - 1;
     gameTick(state, ON_SCREEN);
     expect(site.constructionProgress, 'the shift has not started at 18:00').toBe(0);
     runTicks(state, 5 * TICKS_PER_HOUR, ON_SCREEN);
@@ -492,7 +494,7 @@ describe('construction and production attendance are separate (PR #166 reviews)'
     expect(withHelp.progress).toBeGreaterThan(expert.progress);
   });
 
-  it('settles production before a site completes at 23:00', () => {
+  it('does not pay 18:00 production for a site finished at 23:00', () => {
     const makeDay = (progress: number, previouslyCompleted: boolean) => {
       const state = isolatedWorld();
       const site = createBuilding(BuildingType.Farm, 500, 500, 9202);
@@ -513,6 +515,8 @@ describe('construction and production attendance are separate (PR #166 reviews)'
       state.tick = tickAtDailyPhase(1, 'production') - 1;
       gameTick(state, ON_SCREEN);
       const foodAtEvening = state.resources.food;
+      state.tick = tickAtDailyPhase(1, 'construction') - 1;
+      gameTick(state, ON_SCREEN);
       return { state, site, farmer, foodAtEvening };
     };
     const stillBuilding = makeDay(0, false);

@@ -1508,6 +1508,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       tavernSchedule: normalizeVenueSchedule(worldData.tavernSchedule, 'tavern'),
       hotelSchedule: normalizeVenueSchedule(worldData.hotelSchedule, 'hotel'),
       tick: loadedTick,
+      productionDeferred: worldData.productionDeferred === true,
       lastProcessedCalendarDay: typeof worldData.lastProcessedCalendarDay === 'number'
         ? worldData.lastProcessedCalendarDay
         : undefined,

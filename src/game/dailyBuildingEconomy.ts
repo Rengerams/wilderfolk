@@ -361,7 +361,7 @@ export function tickDailyBuildingEconomy(
   ctx: TickContext,
   allAlive: Entity[],
 ): void {
-  // Production precedes construction in the same 23:00 phase.
+  // Evening production settles just before construction closes.
   tickStaticDaily(state, ctx.season);
   tickBlueberryRegrowth(state);
   // A site completed tonight cannot produce before tomorrow's evening pass.
@@ -382,7 +382,7 @@ function tickBuildingProduction(
   // Construction finishes at 23:00, after this production pass, so only sites that
   // completed on an earlier day can supply output, XP and operational bonuses.
   const operationalBuildings = updatedBuildings;
-  // Production is scheduled at 23:00, while isProductionTick is anchored to midnight.
+  // Production runs at 18:00 or, for evening shifts, 23:00, while isProductionTick is anchored to midnight.
   // Align to the same calendar day's start to preserve weekdays and interval cadence.
   const productionDayTick = state.tick - (state.tick % TICKS_PER_DAY);
 

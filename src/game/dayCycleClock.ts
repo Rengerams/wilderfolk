@@ -8,8 +8,8 @@ export const LEGACY_TICKS_PER_DAY = 24;
 export const DAILY_PHASE_HOURS = {
   fatigue: 0,
   relationships: 6,
-  // Settle all legal shifts before construction can complete another workplace.
-  production: 23,
+  // Established 18:00 production; construction closes after the last legal shift at 23:00.
+  production: 18,
   worldEvents: 18,
   // Construction closes after the latest permitted work shift and before midnight settlement.
   construction: 23,

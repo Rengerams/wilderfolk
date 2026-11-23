@@ -906,6 +906,8 @@ export interface WorldState {
   disasters: Disaster[];
   tradeRoutes: TradeRoute[];
   totalBuildingsCompleted: number;
+  /** The 18:00 pass deferred this evening shift until 23:00. */
+  productionDeferred?: boolean;
   lastProcessedCalendarDay?: number;
   villageCanHeat?: boolean;
   worldMap: WorldMap | null;
