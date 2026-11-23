@@ -385,6 +385,8 @@ function tickBuildingProduction(
   // Production runs at 18:00 or, for evening shifts, 23:00, while isProductionTick is anchored to midnight.
   // Align to the same calendar day's start to preserve weekdays and interval cadence.
   const productionDayTick = state.tick - (state.tick % TICKS_PER_DAY);
+  // Preserve the pre-warning ecology stage only for the already-earned evening shift.
+  const stageAtProduction = state.productionDeferred ? state.productionValleyStage : undefined;
 
   // The Mill bonus is the player's: a rival settlement's Mill feeds nobody here.
   const hasMill = operationalBuildings.some(
@@ -509,7 +511,7 @@ function tickBuildingProduction(
       const harvestBonus = state.bountifulHarvest ? 2 : 1;
       const farmMult = getMultiplier(state, 'farm_yield');
       const pollutionMult = getPollutionProductionMultiplier(state);
-      const valleyFarm = getValleyFarmYieldMultiplier(state);
+      const valleyFarm = getValleyFarmYieldMultiplier(state, stageAtProduction);
       const weatherFarm = getWeatherFarmMultiplier(state.weather, getMultiplier(state, 'drought_resist'));
       const amount = Math.floor(
         (12 + workers * 5) *
@@ -632,7 +634,7 @@ function tickBuildingProduction(
           // `hunt_food` is the key the hunting research nodes declare (defense_2/4/8);
           // never look it up as `hunt_yield`.
           const huntMult = getHuntFoodMultiplier(state);
-          const valleyHunt = getValleyHuntYieldMultiplier(state);
+          const valleyHunt = getValleyHuntYieldMultiplier(state, stageAtProduction);
           const carcass =
             targetPrey.type === EntityType.Deer
               ? 1.35
@@ -830,7 +832,7 @@ function tickBuildingProduction(
       const harvestBonus = state.bountifulHarvest ? 2 : 1;
       const farmMult = getMultiplier(state, 'farm_yield');
       const pollutionMult = getPollutionProductionMultiplier(state);
-      const valleyFarm = getValleyFarmYieldMultiplier(state);
+      const valleyFarm = getValleyFarmYieldMultiplier(state, stageAtProduction);
       const weatherFarm = getWeatherFarmMultiplier(state.weather, getMultiplier(state, 'drought_resist'));
       const amount = Math.floor(
         (18 + workers * 5) *

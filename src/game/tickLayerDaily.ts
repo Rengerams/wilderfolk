@@ -114,13 +114,16 @@ export function tickLayerDaily(
   }
   if (hour === DAILY_PHASE_HOURS.production) {
     state.productionDeferred = getWorkSchedule(state).endHour > hour;
+    // The 18:00 world-events pass can change valley stage. Production still belongs to today.
+    state.productionValleyStage = state.productionDeferred ? (state.valleyStage ?? 'stable') : undefined;
   }
   if ((hour === DAILY_PHASE_HOURS.production && !state.productionDeferred)
     || (hour === DAILY_PHASE_HOURS.construction && state.productionDeferred)) {
-    state.productionDeferred = false;
     const stage11 = profileStart();
     tickDailyBuildingEconomy(state, ctx, allAlive);
     profileEnd('daily.tickDailyBuildingEconomy', stage11);
+    state.productionDeferred = false;
+    state.productionValleyStage = undefined;
   }
 
   // 23:00 — consume all witnessed construction shifts before 00:00 clears the counters.

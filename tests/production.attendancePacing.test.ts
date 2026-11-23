@@ -31,6 +31,7 @@ import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 import { jobBuildingPriorityForPolicy } from '../src/game/workforcePolicy';
 import { getWorkdayAttendance } from '../src/game/scheduleFatigue';
+import { getValleyFarmYieldMultiplier, getValleyHuntYieldMultiplier } from '../src/game/ecologyStage';
 import { getWorkScheduleHours, getWorkSchedule } from '../src/game/workSchedule';
 import { ensureEntitySkills, readSkill } from '../src/game/skills';
 
@@ -261,6 +262,39 @@ describe('production pays only witnessed attendance (W-136)', () => {
       runTicks(state, TICKS_PER_HOUR, ON_SCREEN);
       expect(worker.schedulePresentTicksToday ?? 0).toBe(0);
     }
+  });
+
+  it('defers evening output without applying the ecology warning announced at 18:00', () => {
+    const produce = (transition: boolean): number => {
+      resetSimRng();
+      setSimSeed(TEST_SEED);
+      const { state, farm } = farmDay(false);
+      state.workSchedule = { startHour: 15, endHour: 21 };
+      state.valleyStage = 'strained';
+      state.valleyStageSinceDay = 0;
+      state.valleyRawStressStreakDays = 2;
+      if (transition) state.pendingEcosystemHealthDelta = -100;
+      state.tick = TICKS_PER_DAY + 15 * TICKS_PER_HOUR - 1;
+
+      runTicks(state, 3 * TICKS_PER_HOUR + 1, ON_SCREEN);
+      expect(state.productionDeferred).toBe(true);
+      expect(state.productionValleyStage).toBe('strained');
+      if (transition) expect(state.valleyStage).toBe('damaged');
+      expect(state.economyLedger?.produced.farms ?? 0).toBe(0);
+      expect(getValleyFarmYieldMultiplier(state, state.productionValleyStage)).toBe(1);
+      expect(getValleyHuntYieldMultiplier(state, state.productionValleyStage)).toBe(0.9);
+
+      runTicks(state, 5 * TICKS_PER_HOUR, ON_SCREEN);
+      expect(state.productionDeferred).toBe(false);
+      expect(state.productionValleyStage).toBeUndefined();
+      expect(farm.completed).toBe(true);
+      return state.economyLedger?.produced.farms ?? 0;
+    };
+
+    const beforeWarning = produce(false);
+    const afterWarning = produce(true);
+    expect(beforeWarning).toBeGreaterThan(0);
+    expect(afterWarning).toBe(beforeWarning);
   });
 
   it('prices and teaches only the workers who attended, never an absent roster member', () => {

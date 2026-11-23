@@ -345,9 +345,10 @@ export const SIMULATION_DECISIONS = {
   production: {
     owner: 'dailyBuildingEconomy.tickBuildingProduction; scheduleFatigue.getWorkdayAttendance (the one presence verdict); forge.tickVillageForge (forge orders, gated on the production-day anchor); economy.ts — addResource, applyFoodSpoilage, updateStorageCaps, computeStorageMax; the crew term this decision multiplies is skills.getWorkerSkillMultiplier; the read-only weather yield modifier is worldEvents.getWeatherFarmMultiplier',
     cadence: 'daily',
-    cadenceNote: 'At 18:00 production settles the workday or sets productionDeferred for an evening shift. Deferred production runs at 23:00 immediately before construction closes, so a site finished that night cannot yet grant output, XP or operational bonuses; existing sites price attendance through scheduleFatigue.getWorkdayAttendance. A worked shift earns XP even at full storage; separate XP for successful output remains. Stale, underage, dead, jailed, foreign and duplicate occupant ids never dilute the skill/DNA crew average. An empty eligible crew has a neutral multiplier.',
+    cadenceNote: 'At 18:00 production settles the workday or sets productionDeferred and captures productionValleyStage for an evening shift before world-events can change the ecology stage. Deferred production runs at 23:00 with the 18:00 stage through canonical ecology yield readers, then clears the snapshot immediately before construction closes, so a site finished that night cannot yet grant output, XP or operational bonuses; existing sites price attendance through scheduleFatigue.getWorkdayAttendance. A worked shift earns XP even at full storage; separate XP for successful output remains. Stale, underage, dead, jailed, foreign and duplicate occupant ids never dilute the skill/DNA crew average. An empty eligible crew has a neutral multiplier.',
     writes: [
       'productionDeferred',
+      'productionValleyStage',
       'resources',
       'economyLedger.produced',
       'foodSpoilageRate',
