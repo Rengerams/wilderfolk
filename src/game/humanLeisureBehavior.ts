@@ -153,11 +153,40 @@ export function tickHumanChildLeisure(args: {
   const mateUnavailable = entity.childPlaymateId != null
     && (!assignedMate?.alive || assignedMate.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(assignedMate));
 
-  if (entity.childPlaymateDay !== day || mateUnavailable) {
+  // Repair a reserved circle in place when its primary companion becomes unavailable.
+  // Other surviving members remain reserved for today, so a fresh neighborhood scan
+  // (which excludes assigned children) would wrongly dissolve the entire circle.
+  if (mateUnavailable && entity.childPlaymateDay === day) {
+    const survivors = (entity.childPlayGroupIds ?? [])
+      .map((id) => byId(id))
+      .filter((member): member is Entity =>
+        !!member?.alive && member.age < HUMAN_ADULT_MIN_AGE && isPlayerHuman(member)
+        && member.childPlaymateDay === day
+        && !!member.childPlayGroupIds?.includes(entity.id));
+    if (survivors.length >= 2 && survivors.some((member) => member.id === entity.id)) {
+      const ids = survivors.map((member) => member.id).sort((a, b) => a - b);
+      for (const member of survivors) {
+        if (!ids.includes(member.childPlaymateId ?? -1)) {
+          member.childPlaymateId = ids.find((id) => id !== member.id);
+        }
+        member.childPlayGroupIds = [...ids];
+        // The old destination was chosen for a different roster; all survivors
+        // must agree on a new site, even if some still had a living companion.
+        member.childPlaySite = undefined;
+        member.childPlaySiteAttempt = undefined;
+      }
+    }
+  }
+  const currentMate = entity.childPlaymateId == null ? undefined : byId(entity.childPlaymateId);
+  const needsReplacement = entity.childPlaymateId != null
+    && (!currentMate?.alive || currentMate.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(currentMate));
+
+  if (entity.childPlaymateDay !== day || needsReplacement) {
     entity.childPlaymateDay = day;
     entity.childPlaymateId = undefined;
     entity.childPlayGroupIds = undefined;
     entity.childPlaySite = undefined;
+    entity.childPlaySiteAttempt = undefined;
     if (personDayRoll(entity.id, state.tick, 718) < KID_PLAY_CHANCE) {
       const nearby: Entity[] = [];
       const grid = getCurrentPathGrid();
@@ -200,6 +229,7 @@ export function tickHumanChildLeisure(args: {
           member.childPlaymateId = member.id === entity.id ? chosen[0]!.id : entity.id;
           member.childPlayGroupIds = [...groupIds];
           member.childPlaySite = undefined;
+          member.childPlaySiteAttempt = undefined;
         }
       }
     }
@@ -212,8 +242,12 @@ export function tickHumanChildLeisure(args: {
   const impulse = pickSocialImpulse(entity, state, updatedBuildings, [], [], args.pickSocialBuilding);
 
   if (!impulse.stayHome) {
+    // The radius gates initial membership, not an outing already assigned to a
+    // group: walking to a shared stop can temporarily separate companions.
+    const reservedGroup = entity.childPlayGroupIds?.includes(entity.id)
+      && entity.childPlayGroupIds.includes(mate?.id ?? -1);
     if (mate?.alive && group.length >= 2
-      && Math.hypot(mate.x - entity.x, mate.y - entity.y) <= SOCIAL_FRIENDSHIP_RADIUS) {
+      && (reservedGroup || Math.hypot(mate.x - entity.x, mate.y - entity.y) <= SOCIAL_FRIENDSHIP_RADIUS)) {
       const phase = Math.floor(hourOfDay / 3);
       const cachedSite = entity.childPlaySite;
       if (!cachedSite || cachedSite.day !== day || cachedSite.phase !== phase
@@ -224,12 +258,19 @@ export function tickHumanChildLeisure(args: {
           member.childPlaySite?.day === day && member.childPlaySite.phase === phase
           && Number.isFinite(member.childPlaySite.x) && Number.isFinite(member.childPlaySite.y)
           && isGroundWalkableAt(member.childPlaySite.x, member.childPlaySite.y))?.childPlaySite;
-        const point = shared ?? chooseChildPlaySite(state, group, day, phase, cachedSite);
-        for (const member of group) {
-          if (member.childPlaymateId == null) continue;
-          member.childPlaySite = point
-            ? { day, phase, mateId: member.childPlaymateId, x: point.x, y: point.y }
-            : undefined;
+        // A rejected search is a decision for this phase too. Without this
+        // marker every eligible tick repeats 12 blocked-ground probes per child.
+        const attempted = group.some((member) =>
+          member.childPlaySiteAttempt?.day === day && member.childPlaySiteAttempt.phase === phase);
+        if (shared || !attempted) {
+          const point = shared ?? chooseChildPlaySite(state, group, day, phase, cachedSite);
+          for (const member of group) {
+            if (member.childPlaymateId == null) continue;
+            member.childPlaySite = point
+              ? { day, phase, mateId: member.childPlaymateId, x: point.x, y: point.y }
+              : undefined;
+            member.childPlaySiteAttempt = { day, phase };
+          }
         }
       }
       const site = entity.childPlaySite;

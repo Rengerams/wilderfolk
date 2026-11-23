@@ -312,6 +312,8 @@ export interface Entity {
   childPlayGroupIds?: number[];
   /** Stable, saved play outing for one companion and three-hour leisure phase. */
   childPlaySite?: { day: number; phase: number; mateId: number; x: number; y: number };
+  /** Successful or unsuccessful destination search, cached for one three-hour phase. */
+  childPlaySiteAttempt?: { day: number; phase: number };
   /** Current child leisure intent, written by the leisure owner for the inspector. */
   childLeisureActivity?: 'playing' | 'following' | 'home';
   childLeisureTargetId?: number;
@@ -882,7 +884,6 @@ export interface WorldState {
   tavernSchedule?: import('./venueSchedule').VenueSchedule;
   hotelSchedule?: import('./venueSchedule').VenueSchedule;
   workforcePolicy?: import('./workforcePolicy').WorkforcePolicy;
-  workforceFocus?: import('./workforcePolicy').WorkforceFocusSector[];
   villageReputation: number;
   resources: Resources;
   storageMax: Resources;

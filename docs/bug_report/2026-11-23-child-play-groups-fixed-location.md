@@ -13,6 +13,7 @@
 ## Status history
 - 2026-11-23 — open: player confirms the children still repeatedly return to one fixed spot after PR #182.
 - 2026-11-23 — investigating: friendship-weighted groups and shared play sites committed, with save-schema and inspector support; CI pending.
+- 2026-11-23 — Codex follow-up: retain outings beyond the group-formation radius, cache failed site searches for each phase, and repair surviving play circles after a companion's death. Three regressions added; CI pending.
 
 ## Observed behavior
 With two children already near each other, the child leisure branch steers toward the other child's exact coordinates when farther than 16 pixels. Inside 16 pixels it only adds tiny waveform velocities. No different play destination ever gets selected. PR #182 only made the playmate selection daily, not the actual play movement.
@@ -36,9 +37,9 @@ Playmate selection and playful movement were conflated. A valid mate was treated
 The same child leisure owner uses the existing friendship and school-bond scores to select a weighted, deterministic daily circle of 2–4 children. One bounded, walkable outdoor play stop is shared by that circle during each three-hour leisure phase using the group/day/phase seed. It records the membership and active destination in optional `Entity.childPlayGroupIds` and `Entity.childPlaySite` fields so saves, worker snapshots and the read-only inspector agree. The current path owner's ground and direct-line checks reject blocked targets; movement integration and the existing daily playmate rule are unchanged. When no safe stop is available, keep the existing companion interaction rather than sending a child to a blocked target.
 
 ## Save/migration impact
-Optional per-child circle and play-site fields are persisted by the existing entity schema; legacy saves populate them on the next eligible play tick. Existing full entity save/worker-delta paths already carry optional entity fields. No version gate or migration change.
+Optional per-child circle, play-site and play-site-attempt fields are persisted by the existing entity schema; legacy saves populate them on the next eligible play tick. Existing full entity save/worker-delta paths already carry optional entity fields. No version gate or migration change.
 
 ## Verification result
 - Source trace: completed.
-- Focused regressions for movement, phase continuity, river-side reachability, friendship preference, shared group destinations and inspector projection: committed; latest CI pending.
+- Focused regressions for movement, phase continuity, river-side reachability, friendship preference, shared group destinations, inspector projection, separated companion travel, failed-search caching, and surviving members after a companion death: committed; latest CI pending.
 - Type checks, full CI and live-game confirmation: pending.
