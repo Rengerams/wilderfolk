@@ -1,8 +1,9 @@
 import type { Building, Entity, WorldState } from './gameTypes';
-import { EntityType } from './gameTypes';
+import { EntityType, PATH_CELL } from './gameTypes';
 import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition, crowdGatherPosition, homeStandPosition, steerHumanToward } from './simulation/humanMovement';
 import { faceVelocity } from './simulation/movementSteering';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
+import { deterministicCos, deterministicSin } from './simTrig';
 import { getBuildingCenter } from './buildingGeometry';
 import { getChildCustodian, hasResidenceAssignment } from './housingModel';
 import { getWorkSchedule, isOnWorkScheduleShift } from './workSchedule';
@@ -20,7 +21,7 @@ import { findClosestAdaptiveInRadius, forEachAdaptiveInRadius, socialAdaptiveOpt
 import { seededRandomForRun, personDayRoll, getSimRng, PERSON_DAY_ROLL_SALTS } from './simRng';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
 import { addFloatingText } from './simEffects';
-import { isGroundWalkableAt, nearestWalkableWorldPoint, steerWithPath } from './pathfinding';
+import { getCurrentPathGrid, isGroundWalkableAt, lineCrossesBlocked, nearestWalkableWorldPoint, steerWithPath } from './pathfinding';
 import { fract } from './simulation/humanNeeds';
 import { findClosestEntityInRadius } from './simQueries';
 import { hasAffairPartner, canPursueSecretAffair, isAtMaritalHome } from './simulation/humanRelationships';
@@ -66,6 +67,40 @@ export function leisureKindFor(entityId: number, tick: number, weekend: boolean)
     leisureKind = Math.floor(seededRandomForRun(`leisure-weekend:${entityId}:${leisureSlot}`) * 7);
   }
   return leisureKind;
+}
+
+/** Pick a new reachable outdoor play stop without changing the child's daily companion. */
+function chooseChildPlaySite(
+  state: WorldState,
+  child: Entity,
+  mate: Entity,
+  day: number,
+  phase: number,
+): { x: number; y: number } | null {
+  const grid = getCurrentPathGrid();
+  const lowId = Math.min(child.id, mate.id);
+  const highId = Math.max(child.id, mate.id);
+  const midX = (child.x + mate.x) / 2;
+  const midY = (child.y + mate.y) / 2;
+  const last = child.childPlaySite;
+  // Bound the work to a handful of candidate checks once per three-hour phase.
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const key = `child-play-site:${lowId}:${highId}:${day}:${phase}:${attempt}`;
+    const angle = seededRandomForRun(`${key}:angle`) * Math.PI * 2;
+    const radius = 42 + seededRandomForRun(`${key}:radius`) * 36;
+    const x = (Math.floor((midX + deterministicCos(angle) * radius) / PATH_CELL) + 0.5) * PATH_CELL;
+    const y = (Math.floor((midY + deterministicSin(angle) * radius) / PATH_CELL) + 0.5) * PATH_CELL;
+    if (x < 0 || y < 0 || x >= state.width || y >= state.height) continue;
+    if (last && Math.hypot(x - last.x, y - last.y) < 28) continue;
+    if (!isGroundWalkableAt(x, y, grid)) continue;
+    // Prefer the same reachable bank/side as both children; never send a play group across water.
+    if (grid && (
+      (isGroundWalkableAt(child.x, child.y, grid) && lineCrossesBlocked(grid, child.x, child.y, x, y))
+      || (isGroundWalkableAt(mate.x, mate.y, grid) && lineCrossesBlocked(grid, mate.x, mate.y, x, y))
+    )) continue;
+    return { x, y };
+  }
+  return null;
 }
 
 export function tickHumanChildLeisure(args: {
@@ -126,12 +161,24 @@ export function tickHumanChildLeisure(args: {
 
   if (!impulse.stayHome) {
     if (mate?.alive && Math.hypot(mate.x - entity.x, mate.y - entity.y) <= SOCIAL_FRIENDSHIP_RADIUS) {
-      const pdist = Math.hypot(mate.x - entity.x, mate.y - entity.y) || 1;
-      if (pdist > 16) {
-        steerHumanToward(entity, mate.x, mate.y, speed, 0.7, `child_play_${entity.id}_${mate.id}`);
+      const phase = Math.floor(hourOfDay / 3);
+      const cachedSite = entity.childPlaySite;
+      if (!cachedSite || cachedSite.day !== day || cachedSite.phase !== phase
+        || cachedSite.mateId !== mate.id || !isGroundWalkableAt(cachedSite.x, cachedSite.y)) {
+        const point = chooseChildPlaySite(state, entity, mate, day, phase);
+        entity.childPlaySite = point ? { day, phase, mateId: mate.id, ...point } : undefined;
+      }
+      const site = entity.childPlaySite;
+      const destinationX = site?.x ?? mate.x;
+      const destinationY = site?.y ?? mate.y;
+      const distance = Math.hypot(destinationX - entity.x, destinationY - entity.y);
+      if (distance > 14) {
+        steerHumanToward(entity, destinationX, destinationY, speed, 0.7,
+          `child_play_${entity.id}_${mate.id}`);
       } else {
-        entity.vx = deterministicWave(state.tick * 0.2 + entity.id) * speed * 0.45;
-        entity.vy = deterministicWave(state.tick * 0.18 + mate.id + 0.5) * speed * 0.45;
+        // A little movement at the play area, not an endless chase around the mate's feet.
+        entity.vx = deterministicWave(state.tick * 0.2 + entity.id) * speed * 0.18;
+        entity.vy = deterministicWave(state.tick * 0.18 + mate.id + 0.5) * speed * 0.18;
         if (seededRandomForRun(`chat-kid:${entity.id}:${state.tick}`) < 0.06 * PER_TICK_RATE_SCALE) {
           requestDialogue({
             eventKey: 'child.play', speaker: entity, tick: state.tick,
