@@ -11,7 +11,7 @@ export type WorkforcePolicy = WorkforcePreset;
 export const DEFAULT_WORKFORCE_POLICY: WorkforcePolicy = 'survival';
 
 /** Independent player-selected sector boosts on top of the ordinary staffing preset. */
-export const WORKFORCE_FOCUS_SECTORS = ['food', 'mining', 'education', 'healthcare'] as const;
+export const WORKFORCE_FOCUS_SECTORS = ['food', 'mining', 'education', 'healthcare', 'church'] as const;
 export type WorkforceFocusSector = (typeof WORKFORCE_FOCUS_SECTORS)[number];
 
 export const WORKFORCE_FOCUS_OPTIONS: readonly {
@@ -21,6 +21,7 @@ export const WORKFORCE_FOCUS_OPTIONS: readonly {
   { sector: 'mining', label: 'Mining', description: 'Fill mines and quarries before lower-priority jobs when staff can be spared.' },
   { sector: 'education', label: 'Schools', description: 'Prioritise teachers; a school with ten pupils seeks its second teacher.' },
   { sector: 'healthcare', label: 'Hospitals', description: 'Prioritise extra doctors for completed hospitals.' },
+  { sector: 'church', label: 'Church', description: 'Prioritise filling every priest post at the church.' },
 ];
 
 export function isWorkforceFocusSector(value: unknown): value is WorkforceFocusSector {
@@ -61,6 +62,8 @@ export function workforceSectorForBuilding(type: BuildingType): WorkforceFocusSe
       return 'education';
     case 'hospital':
       return 'healthcare';
+    case 'church':
+      return 'church';
     default:
       return undefined;
   }
