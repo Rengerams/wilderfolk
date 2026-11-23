@@ -21,8 +21,8 @@ import {
 import { initGame } from '../src/game/worldGen';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
-import { applyWorkerCommand, isWorkerCommand, WORKER_CMD_PROTO } from '../src/game/simWorker/commands';
-import { applySimTickDelta, extractCommandDelta, extractSimTickDelta } from '../src/game/simBuffers/simDelta';
+import { applyWorkerCommand, extractCommandDelta, isWorkerCommand, WORKER_CMD_PROTO } from '../src/game/simWorker/commands';
+import { applySimTickDelta, extractSimTickDelta } from '../src/game/simBuffers/simDelta';
 import { applySimPrep, extractSimPrep } from '../src/game/simWorker/simPrep';
 
 function adult(id: number, workplace: number) {
