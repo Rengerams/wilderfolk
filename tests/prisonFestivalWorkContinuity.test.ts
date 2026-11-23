@@ -350,8 +350,7 @@ describe('settlers keep working during a festival', () => {
 
   it('preserves afternoon work and gathers off-duty settlers after 17:00', () => {
     const { state, farmer, idler } = festivalWorkWorld();
-    // The gathering opens at 15:00; the earlier 14:40 systems sample is
-    // valid for attendance but is still outside the festival's gathering window.
+    // The gathering begins at 17:00; the 15:00 work sample is still outside the new festival window.
     state.tick = 15 * TICKS_PER_HOUR - 1;
     gameTick(state);
 
