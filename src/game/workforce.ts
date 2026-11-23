@@ -8,7 +8,7 @@ import {
   LEADER_OCCUPATION,
   PATH_CELL,
 } from './gameTypes';
-import { getOccupationForBuilding, ensureEntitySkills, readSkill } from './skills';
+import { getOccupationForBuilding, ensureEntitySkills, readSkill, writableEntitySkills } from './skills';
 import { getBuildingConfig } from './buildingConfig';
 import { SPECIES_CONFIG } from './speciesConfig';
 import {
@@ -853,6 +853,11 @@ export function prepareWorkforce(
     if (human.job === JobType.Hunter && human.workerBuildingId != null) {
       const site = buildingById.get(human.workerBuildingId);
       if (site?.type === BuildingType.FishingSpot && assignWorkerTransition(human, site)) {
+        // Fishing earned Hunter skill in old saves; do not overwrite any stronger Fisher skill.
+        const earned = readSkill(human, JobType.Hunter);
+        if (earned > readSkill(human, JobType.Fisher)) {
+          writableEntitySkills(human)[JobType.Fisher] = earned;
+        }
         human.huntTargetId = undefined;
       }
     }
