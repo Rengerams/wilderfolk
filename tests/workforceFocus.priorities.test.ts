@@ -186,10 +186,11 @@ describe('sector priority setting and persistence', () => {
     const church = building(10, BuildingType.Church);
     const project = building(11, BuildingType.Workshop, { completed: false, occupants: [] });
     const people = [human(1)];
-    const world = {
-      tick: 0, entities: people, buildings: [church, project], resources: { wood: 20, stone: 20 },
-      workforcePolicy: 'survival', workforceFocus: ['church'],
-    } as unknown as import('../src/game/gameTypes').WorldState;
+    const world = initGame({ skipTerrain: true, seed: 125 });
+    world.entities = people;
+    world.buildings = [church, project];
+    world.workforcePolicy = 'survival';
+    world.workforceFocus = ['church'];
     assignMissingWorkers(people, world.buildings, world);
     expect(people[0].workerBuildingId).toBe(church.id);
     expect(project.occupants).toEqual([]);
