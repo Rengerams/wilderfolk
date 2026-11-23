@@ -3,6 +3,7 @@ import { describe, expect, it, afterEach } from 'vitest';
 import { BuildingType, TerrainType, WeatherType, type Building, type Entity, type WorldState } from '../src/game/gameTypes';
 import {
   CHILD_PLAYMATE_CANDIDATE_LIMIT,
+  CHILD_PLAY_GROUP_MAX,
   idleDestination,
   leisureKindFor,
   tickHumanChildLeisure,
@@ -82,6 +83,58 @@ function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans:
 }
 
 describe('tickHumanChildLeisure', () => {
+  it('prefers childhood and strong friends on successive days without excluding newcomers', () => {
+    const { state, child } = childFixture();
+    const friend = playerChild(child, 11, {
+      x: 120, y: 100,
+      friendships: { friend_10: 88 },
+      childhoodFriendsIds: [10],
+    });
+    const newcomer = playerChild(child, 12, { x: 105, y: 100 });
+    child.friendships = { friend_11: 88 };
+    child.childhoodFriendsIds = [friend.id];
+    let withFriend = 0;
+    let withNewcomer = 0;
+    for (let day = 0; day < 120; day++) {
+      const tick = day * TICKS_PER_DAY + 1;
+      tickChild(state, child, [child, friend, newcomer], tick);
+      if (child.childPlaymateId === friend.id) withFriend++;
+      if (child.childPlaymateId === newcomer.id) withNewcomer++;
+    }
+    expect(withFriend).toBeGreaterThan(withNewcomer * 2);
+    expect(withNewcomer).toBeGreaterThan(0);
+  });
+
+  it('forms a shared play circle of two to four children and takes them to one site', () => {
+    const { state, child } = childFixture();
+    const others = [
+      playerChild(child, 11, { x: 112, y: 100 }),
+      playerChild(child, 12, { x: 103, y: 115 }),
+      playerChild(child, 13, { x: 96, y: 115 }),
+    ];
+    const all = [child, ...others];
+    let found = false;
+    for (let day = 0; day < 100; day++) {
+      const tick = day * TICKS_PER_DAY + 1;
+      tickChild(state, child, all, tick);
+      const groupIds = child.childPlayGroupIds ?? [];
+      if (groupIds.length < 3) continue;
+      found = true;
+      expect(groupIds.length).toBeLessThanOrEqual(CHILD_PLAY_GROUP_MAX);
+      const group = all.filter((member) => groupIds.includes(member.id));
+      expect(group.length).toBe(groupIds.length);
+      for (const member of group) {
+        expect(member.childPlayGroupIds).toEqual(groupIds);
+        expect(member.childPlaymateDay).toBe(day);
+        tickChild(state, member, all, tick);
+        expect(member.childPlaySite?.x).toBe(child.childPlaySite?.x);
+        expect(member.childPlaySite?.y).toBe(child.childPlaySite?.y);
+      }
+      break;
+    }
+    expect(found).toBe(true);
+  });
+
 
   it('walks to a reachable play area instead of circling the same spot', () => {
     const { state, child } = childFixture();
