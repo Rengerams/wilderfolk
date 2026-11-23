@@ -17,7 +17,7 @@ import {
   restoreTransientWorldFieldsFromSave,
   type ViewState,
 } from './viewState';
-import { ENTITY_PERSISTED_FIELDS, WORLD_STATE_SAVE_KEYS } from './saveSchema';
+import { ENTITY_PERSISTED_FIELDS, WORLD_STATE_SAVE_KEYS, SAVE_FORMAT_VERSION, LEGACY_SAVE_GAME_VERSIONS } from './saveSchema';
 import { generateWorldMap } from './terrainGen';
 import { legacyTerrainSeed } from './terrain/terragen';
 import {
@@ -111,8 +111,8 @@ function repairLoadedHumanGround(world: WorldState): number {
   return repaired;
 }
 
-/** Last release with a save layout supported by the current load migrations. */
-const COMPATIBLE_SAVE_VERSIONS = new Set([GAME_VERSION, '0.6.5.0']);
+/** Old saves without a format marker use an explicit, release-independent compatibility list. */
+const LEGACY_SAVE_GAME_VERSION_SET: ReadonlySet<string> = new Set(LEGACY_SAVE_GAME_VERSIONS);
 
 /**
  * The one genotype load boundary: keep a valid saved genome, backfill an old player settler
@@ -253,11 +253,22 @@ export function parseSaveJson(raw: string | null | undefined): SaveReadResult {
     const detail = version === undefined ? 'no _version field' : `_version is ${describeJsonShape(version)}`;
     return { valid: false, reason: 'not-a-save', detail };
   }
-  if (typeof version !== 'string' || !COMPATIBLE_SAVE_VERSIONS.has(version)) {
+  const format = parsed._saveFormatVersion;
+  if (format !== undefined) {
+    // Explicit layout version is authoritative. A newer game build using this same layout can
+    // be loaded without needing to add its marketing version to a hard-coded allow-list.
+    if (format !== SAVE_FORMAT_VERSION || typeof version !== 'string') {
+      return {
+        valid: false,
+        reason: 'version-mismatch',
+        detail: `save format ${String(format)} vs supported format ${SAVE_FORMAT_VERSION} (save game v${String(version)}, build v${GAME_VERSION})`,
+      };
+    }
+  } else if (typeof version !== 'string' || !LEGACY_SAVE_GAME_VERSION_SET.has(version)) {
     return {
       valid: false,
       reason: 'version-mismatch',
-      detail: `save ${String(version)} vs build ${GAME_VERSION}`,
+      detail: `legacy save game v${String(version)} has no save-format marker (build v${GAME_VERSION})`,
     };
   }
   return { valid: true, parsed };
@@ -277,7 +288,7 @@ export function describeSaveReadFailure(
     case 'not-a-save':
       return `That is not a Wilderfolk save${failure.detail ? ` (${failure.detail})` : ''} — load a save this build exported.`;
     case 'version-mismatch':
-      return `This save version is not supported${failure.detail ? ` (${failure.detail})` : ''}. Saves from v0.6.5.0 and v${GAME_VERSION} can be loaded; keep the original save file.`;
+      return `This save version is not supported${failure.detail ? ` (${failure.detail})` : ''}. ${describeSaveCompatibility()}`;
   }
 }
 
@@ -297,7 +308,7 @@ export function describeSaveLoadOutcome(failure: SaveLoadFailure): string {
  * lives, so the menu cannot drift from the refusal message.
  */
 export function describeSaveCompatibility(): string {
-  return `This build is v${GAME_VERSION}. Saves from v0.6.5.0 and v${GAME_VERSION} are supported. Keep backups of original save files when upgrading.`;
+  return `This build is v${GAME_VERSION}. Save format ${SAVE_FORMAT_VERSION} is supported regardless of game release; legacy saves without a format marker from ${LEGACY_SAVE_GAME_VERSIONS.map((version) => `v${version}`).join(', ')} are also supported. Keep backups of original save files when upgrading.`;
 }
 
 export function readSavePayload(slotKey: string = SAVE_KEY): SaveReadResult {
@@ -324,6 +335,7 @@ export function buildSaveData(world: WorldState, view: ViewState): Record<string
     worldMap: compactWorldMapForSave(persistable.worldMap),
     _savedAt: Date.now(),
     _version: GAME_VERSION,
+    _saveFormatVersion: SAVE_FORMAT_VERSION,
     _ticksPerDay: TICKS_PER_DAY,
   };
 }
@@ -1833,7 +1845,7 @@ export function loadGameFromFileText(raw: string): { world: WorldState; view: Vi
   return outcome.ok ? { world: outcome.world, view: outcome.view } : null;
 }
 
-/** A save the compatibility gate accepts, verified by parsing its version. */
+/** A save the compatibility gate accepts, verified by its format or known legacy provenance. */
 export function hasSave(): boolean {
   try {
     const raw = localStorage.getItem(SAVE_KEY);

@@ -10,6 +10,7 @@ import {
   type SaveReadResult,
 } from '../src/game/saveLoad';
 import { GAME_VERSION } from '../src/game/version';
+import { SAVE_FORMAT_VERSION } from '../src/game/saveSchema';
 
 /**
  * The refusal arm of `SaveReadResult`, annotated so the reason literals below are checked
@@ -52,7 +53,7 @@ describe('save refusal reasons', () => {
 
   it('accepts saves from v0.6.5.0 and the current build', () => {
     expect(parseSaveJson(JSON.stringify({ _version: '0.6.5.0', entities: [], tick: 5 })).valid).toBe(true);
-    const accepted = parseSaveJson(JSON.stringify({ _version: GAME_VERSION, entities: [], tick: 5 }));
+    const accepted = parseSaveJson(JSON.stringify({ _version: GAME_VERSION, _saveFormatVersion: SAVE_FORMAT_VERSION, entities: [], tick: 5 }));
     expect(accepted.valid).toBe(true);
     if (accepted.valid) expect(accepted.parsed.tick).toBe(5);
   });

@@ -21,15 +21,19 @@ function countType(state: ReturnType<typeof initGame>, type: EntityType): number
 }
 
 describe('saveLoad cross-cutting items', () => {
-  it('does not apply legacy migrations that the exact-version gate makes unreachable', () => {
+  it('does not apply legacy migrations to a bypassed unsupported pre-format save', () => {
     const world = initGame({ seed: 12, size: MapSize.Medium });
     const saved = buildSaveData(world, createInitialView(world.width, world.height));
 
-    // The version gate lives in `parseSaveJson`; this forged older payload bypasses it and must
-    // load without any legacy migration.
-    expect(parseSaveJson(JSON.stringify({ ...saved, _version: '0.4' })).valid).toBe(false);
+    // A current-format save stays loadable if only its game release label changes.
+    expect(parseSaveJson(JSON.stringify({ ...saved, _version: '0.4' })).valid).toBe(true);
 
-    const forged = { ...saved, _version: '0.4', foodSpoilageRate: 0.5 };
+    // A real legacy save has no format marker: an unknown old release must still be refused
+    // by parseSaveJson, even though a direct loadGameFromParsed call bypasses the version gate.
+    const forged: Record<string, unknown> = { ...saved, _version: '0.4', foodSpoilageRate: 0.5 };
+    delete forged._saveFormatVersion;
+    expect(parseSaveJson(JSON.stringify(forged)).valid).toBe(false);
+
     const loaded = loadGameFromParsed(forged);
     expect(loaded).not.toBeNull();
     // A forged `v0.4` save keeps its own `foodSpoilageRate`; no migration id is stamped.

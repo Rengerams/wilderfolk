@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (23 Nov 2026; PR #187, pending merge):** Game version updates no longer reject saves with unchanged formats. Older 0.6.5.0–0.6.5.2 saves remain loadable; new saves use an independent format version.
+
 - **Fixed (23 Nov 2026; PR #186, pending merge):** Couples at 100% courtship can marry regardless of processing order; partner conversations no longer disappear when the higher-ID settler initiates them.
 
 - **Fixed (23 Nov 2026; PR #183):** When even the distance-based path-search budget runs out, walkers retry with capped increasing A* budgets and backoff; the closest-reachable blocked-destination search also retries instead of silently stopping.
