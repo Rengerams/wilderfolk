@@ -192,6 +192,43 @@ describe('courtship exclusivity and cleanup (audit F5)', () => {
   });
 });
 
+describe('courtship completion is independent of ID and iteration order', () => {
+  for (const higherIdInitiates of [false, true]) {
+    it(`marries once when the ${higherIdInitiates ? 'higher' : 'lower'} ID initiates`, () => {
+      const a = settler(A_ID, 'male', { courtshipPartnerId: B_ID, courtshipProgress: 100 });
+      const b = settler(B_ID, 'female', { courtshipPartnerId: A_ID, courtshipProgress: 100 });
+      const { state } = fixture([a, b]);
+      const first = higherIdInitiates ? b : a;
+      const second = higherIdInitiates ? a : b;
+
+      expect(tryCompleteCourtshipMarriage(state, first, second, [], [a, b])).toBe(true);
+      expect(a.relationshipStatus).toBe('married');
+      expect(b.relationshipStatus).toBe('married');
+      expect(a.partnerId).toBe(b.id);
+      expect(b.partnerId).toBe(a.id);
+      expect(a.courtshipPartnerId).toBeUndefined();
+      expect(b.courtshipPartnerId).toBeUndefined();
+      expect(a.courtshipProgress).toBe(0);
+      expect(b.courtshipProgress).toBe(0);
+      expect(state.eventLog.filter((event) => event.type === 'marriage')).toHaveLength(1);
+
+      // The second participant is still ticked, but must not announce a duplicate wedding.
+      expect(tryCompleteCourtshipMarriage(state, second, first, [], [a, b])).toBe(false);
+      expect(state.eventLog.filter((event) => event.type === 'marriage')).toHaveLength(1);
+    });
+  }
+
+  it('rejects non-mutual or stale 100% courtships', () => {
+    const a = settler(A_ID, 'male', { courtshipPartnerId: B_ID, courtshipProgress: 100 });
+    const b = settler(B_ID, 'female', { courtshipProgress: 100 });
+    const { state } = fixture([a, b]);
+
+    expect(tryCompleteCourtshipMarriage(state, a, b, [], [a, b])).toBe(false);
+    expect(a.relationshipStatus).toBe('single');
+    expect(b.relationshipStatus).toBe('single');
+  });
+});
+
 describe('a divorced pair may not court again for a year (owner, 2026-10-06)', () => {
   const DIVORCE_TICK = TICKS_PER_DAY * 10;
 

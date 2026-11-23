@@ -1,6 +1,7 @@
 import { PERSON_DAY_ROLL_SALTS, personDayRoll, personPairDayRoll } from '../src/game/simRng';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { tryNeighborGreeting, tryWorkplaceBanter } from '../src/game/socialLife';
+import { simSettlerPairChat } from '../src/game/simulation/humanSocial';
 import { isDialogueBusy, resetDialogueSessions } from '../src/game/humanChat';
 import type { Entity } from '../src/game/gameTypes';
 
@@ -33,6 +34,27 @@ describe('social events use the one JSON dialogue session path', () => {
     expect(isDialogueBusy(b)).toBe(true);
     expect(a.chatPartnerId).toBe(b.id);
     expect(b.chatPartnerId).toBe(a.id);
+  });
+
+  it('lets either participant initiate pair chat, independent of ID order', () => {
+    for (const higherIdInitiates of [false, true]) {
+      const a = settler(701);
+      const b = settler(702);
+      const initiator = higherIdInitiates ? b : a;
+      const partner = higherIdInitiates ? a : b;
+
+      simSettlerPairChat(initiator, partner, 'courtship', 1, 1000, {});
+      expect(a.chatDialogueSessionKey).toBeDefined();
+      expect(b.chatDialogueSessionKey).toBe(a.chatDialogueSessionKey);
+      expect(a.chatPartnerId).toBe(b.id);
+      expect(b.chatPartnerId).toBe(a.id);
+
+      const sessionKey = a.chatDialogueSessionKey;
+      simSettlerPairChat(partner, initiator, 'courtship', 1, 1000, {});
+      expect(a.chatDialogueSessionKey).toBe(sessionKey);
+      expect(b.chatDialogueSessionKey).toBe(sessionKey);
+      resetDialogueSessions();
+    }
   });
 
   it('allows only solo workplace speech when no eligible coworker exists', () => {
