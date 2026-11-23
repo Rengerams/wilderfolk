@@ -567,7 +567,13 @@ export function rebalanceJobWorkers(
   for (const needy of jobBuildings) {
     if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
     const capacity = staffingCapFor(needy, humans, index.counts.get(needy.id) ?? 0).cap;
-    fillFromDonors(needy, Math.min(capacity, minimumAutoCoverage(needy)));
+    const relaxedFoodCoverage = isFoodWorkplace(needy) && !foodEmergency
+      && (focus.some((sector) => sector !== 'food')
+        || jobBuildings.some((site) => site.type === BuildingType.School
+          && preferredSchoolStaff(site, humans) > 1))
+      && !focus.includes('food');
+    fillFromDonors(needy, Math.min(capacity,
+      relaxedFoodCoverage ? 1 : minimumAutoCoverage(needy)));
   }
 
   // Open posts left after coverage are filled up from workplaces holding a clear surplus, so a
@@ -583,6 +589,81 @@ export function rebalanceJobWorkers(
 }
 
 /** Bounded swap work one rebalance pass may do: two moves, each with its own backfill search. */
+/**
+ * Staffing demand for an enrolled classroom. Ten pupils exhaust one teacher's seats, so
+ * request the second teacher at ten rather than waiting for an eleventh to be turned away.
+ */
+function preferredSchoolStaff(school: Building, humans: readonly Entity[]): number {
+  let pupils = 0;
+  for (const person of humans) {
+    if (person.alive && isPlayerHuman(person)
+      && person.age >= SCHOOL_MIN_AGE && person.age < HUMAN_ADULT_MIN_AGE
+      && person.schoolBuildingId === school.id) pupils++;
+  }
+  return Math.min(BUILDING_CONFIGS[BuildingType.School].maxOccupants,
+    Math.max(1, Math.floor(pupils / SCHOOL_CHILDREN_PER_TEACHER) + 1));
+}
+
+/**
+ * The second pass for player-focused sectors and fully enrolled classrooms. Unlike ordinary
+ * equalisation this may move a worker from a lower-priority two-person food crew to a priority
+ * vacancy, but never leaves any producer unstaffed or breaks emergency food coverage.
+ */
+function fillPriorityStaffing(
+  jobBuildings: Building[],
+  index: WorkforceAssignmentIndex,
+  humans: Entity[],
+  buildings: Building[],
+  policy: WorkforcePolicy,
+  focus: readonly WorkforceFocusSector[],
+  currentTick: number | undefined,
+  foodEmergency: boolean,
+  movedThisPass: Set<number>,
+): void {
+  const targets = jobBuildings.filter((site) => {
+    const sector = workforceSectorForBuilding(site.type);
+    return (sector != null && focus.includes(sector))
+      || (site.type === BuildingType.School && preferredSchoolStaff(site, humans) > 1);
+  });
+
+  for (const recipient of targets) {
+    const sector = workforceSectorForBuilding(recipient.type);
+    const focused = sector != null && focus.includes(sector);
+    const target = recipient.type === BuildingType.School
+      ? preferredSchoolStaff(recipient, humans)
+      : focused ? staffingCapFor(recipient, humans).cap : 1;
+    let staffed = index.counts.get(recipient.id) ?? 0;
+    if (staffed >= target) continue;
+
+    // Lower-ranked donors are tried first; no donor may lose its last worker.
+    for (const donor of [...jobBuildings].reverse()) {
+      if (staffed >= target) break;
+      if (donor.id === recipient.id) continue;
+      const donorSector = workforceSectorForBuilding(donor.type);
+      if (donorSector && focus.includes(donorSector)
+        && jobBuildingPriority(donor.type, policy, focus)
+          <= jobBuildingPriority(recipient.type, policy, focus)) continue;
+
+      // When food is secure a surplus second farmer may staff the school, mine or hospital.
+      // A food shortage restores the protected food/guard crew floor.
+      const donorFloor = isFoodWorkplace(donor) && !foodEmergency
+        && sector !== 'food' && !focus.includes('food')
+        ? 1 : minimumAutoCoverage(donor);
+      while (staffed < target && (index.counts.get(donor.id) ?? 0) > donorFloor) {
+        const worker = pickWorkerToTransfer(
+          humans, donor, recipient, currentTick, buildings, movedThisPass,
+        );
+        if (!worker) break;
+        transferWorkerBetweenBuildings(worker, donor, recipient, currentTick);
+        movedThisPass.add(worker.id);
+        index.counts.set(donor.id, (index.counts.get(donor.id) ?? 0) - 1);
+        index.counts.set(recipient.id, ++staffed);
+        index.movable.set(donor.id, (index.movable.get(donor.id) ?? 0) - 1);
+      }
+    }
+  }
+}
+
 const MAX_SWAP_TRANSFERS_PER_PASS = 2;
 /** Donor ties a pass may inspect after the ordinary distribution has already been tried. */
 const MAX_SWAP_DONOR_CHECKS_PER_PASS = 8;
@@ -1025,7 +1106,7 @@ export function staffJobBuildings(
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
   buildingIndex?: ReadonlyMap<number, Building>,
 ): void {
-  const focus = getWorkforceFocus(worldSlices as WorldState ?? {});
+  const focus = getWorkforceFocus(worldSlices ?? {});
   const jobBuildings = completedJobBuildings(buildings, policy, focus);
   const buildingById = buildingIndex ?? new Map(buildings.map((building) => [building.id, building]));
   // One scan for the whole pass: every vacancy would otherwise rescan all settlers.
