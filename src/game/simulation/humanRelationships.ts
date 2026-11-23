@@ -31,7 +31,7 @@ import {
   ticksForDays,
   isStartOfClockHour,
 } from '../dayCycle';
-import { hasResidenceAssignment, hasWorkAssignment, isNearResidence, isResidenceBuilding, shareResidence } from '../housingModel';
+import { hasResidenceAssignment, isNearResidence, isResidenceBuilding, shareResidence } from '../housingModel';
 import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 import { citizenFullName, formatCitizenName, formatDeathLog, humanDisplayName } from '../citizenId';
 import { dissolveMarriage, formatCaughtCheaterDivorceDetail, syncMarriageSurnames } from '../nameLoader';
@@ -46,7 +46,7 @@ import { evaluateAptitudeInfluence } from '../personality/traitEvaluation';
 import { SCHOOL_GRADUATION_DAYS } from '../education';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 import { findHumanWorkplace } from '../workforce';
-import { getWorkSchedule, isWorkScheduleHour, type WorkSchedule } from '../workSchedule';
+import { getWorkSchedule, type WorkSchedule } from '../workSchedule';
 import { requestDialogue, dialogueHoursFromNominalTicks } from '../dialogueTrees';
 import { Relationship } from '../gameConstants';
 import { prisonPrisonerCapacity } from '../prisonShifts';
@@ -1414,34 +1414,21 @@ export function findCourtshipPartner(
   return closest;
 }
 
-/** Affairs can run off-duty or during work when spouses are at separate job sites. */
+/** Only free time may lead to an affair: a spouse's distant job never releases this worker. */
 export function canPursueSecretAffair(
   entity: Entity,
   hourOfDay: number,
   workplace: Building | undefined,
-  buildings: Building[],
+  _buildings: Building[],
   entityById: Map<number, Entity>,
   tick: number,
   workSchedule: WorkSchedule = getWorkSchedule({ workSchedule: undefined }),
 ): boolean {
   if (onScandalCooldown(entity, tick)) return false;
   if (isSpouseNearby(entity, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)) return false;
-  // Before the shift starts the day belongs to work; after it, off-duty time is fair game.
+  // The pre-shift hour belongs to the upcoming commute; the workday belongs to work.
   if (hourOfDay < workSchedule.startHour) return false;
-  // Off-duty evenings are prime social time, including the hours after the
-  // generic night flag starts; actual sleep is checked by the caller.
-  if (hourOfDay >= 18 && hourOfDay < 23 && !isWorkScheduleHour(workSchedule, hourOfDay)) return true;
-  if (allowSocialLifeFor(workSchedule, hourOfDay, workplace != null)) return true;
-  if (!isWorkScheduleHour(workSchedule, hourOfDay) || entity.partnerId == null) return false;
-
-  const spouse = getLivingEntity(entity.partnerId, entityById);
-  if (!spouse) return true;
-  if (!hasWorkAssignment(spouse)) return true;
-
-  const spouseJob = findHumanWorkplace(spouse, buildings);
-  if (!spouseJob) return true;
-  if (workplace && spouseJob.id !== workplace.id) return true;
-  return Math.hypot(spouse.x - entity.x, spouse.y - entity.y) > 58;
+  return allowSocialLifeFor(workSchedule, hourOfDay, workplace != null, tick);
 }
 
 /**

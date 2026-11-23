@@ -3,6 +3,7 @@
  * building, and an unstaffed spot never looks like it fired.
  */
 import { describe, expect, it } from 'vitest';
+import { huntingKillReach } from '../src/game/huntingSpot';
 import { gameTick, initGame } from '../src/game/gameEngine';
 import { BuildingType, EntityType, JobType, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
@@ -135,6 +136,8 @@ describe('hunting spot shot origin', () => {
 
     // The shot belongs to the hunter, not to the building.
     expect(visual.hunterId).toBe(HUNTER_ID);
+    expect(Math.hypot(visual.toX - visual.fromX, visual.toY - visual.fromY))
+      .toBeLessThanOrEqual(huntingKillReach(liveHunter, deer(PREY_ID)));
     // …and it leaves the hunter's position. The old code used `building.x` /
     // `building.y` and `hunterId: building.id`.
     expect({ x: visual.fromX, y: visual.fromY }).not.toEqual({ x: SPOT_X, y: SPOT_Y });

@@ -1,8 +1,9 @@
 import { PERSON_DAY_ROLL_SALTS, personDayRoll, resetSimRng, setSimSeed } from '../src/game/simRng';
 import { describe, expect, it, afterEach } from 'vitest';
-import { BuildingType, WeatherType, type Building, type Entity, type WorldState } from '../src/game/gameTypes';
+import { BuildingType, TerrainType, WeatherType, type Building, type Entity, type WorldState } from '../src/game/gameTypes';
 import {
   CHILD_PLAYMATE_CANDIDATE_LIMIT,
+  CHILD_PLAY_GROUP_MAX,
   idleDestination,
   leisureKindFor,
   tickHumanChildLeisure,
@@ -11,6 +12,8 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import { TICKS_PER_HOUR, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { initGame } from '../src/game/worldGen';
 import { homeStandPosition } from '../src/game/simulation/humanMovement';
+import { testWorldMap } from '../src/test/worldMapFixtures';
+import { getCurrentPathGrid, isGroundWalkableAt, lineCrossesBlocked, setCurrentPathMap } from '../src/game/pathfinding';
 
 function playerChild(prototype: Entity, id: number, overrides: Partial<Entity> = {}): Entity {
   return Object.assign(structuredClone(prototype), {
@@ -28,6 +31,7 @@ function playerChild(prototype: Entity, id: number, overrides: Partial<Entity> =
 }
 
 function childFixture(): { state: ReturnType<typeof initGame>; child: Entity } {
+  setCurrentPathMap(null);
   const state = initGame({ skipTerrain: true, seed: 4242 });
   const prototype = state.entities.find((entity) => isPlayerHuman(entity) && entity.alive);
   if (!prototype) throw new Error('worldGen produced no player settler for the child leisure test');
@@ -64,7 +68,7 @@ function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans:
     state,
     entity: child,
     speed: 5,
-    hourOfDay: 12,
+    hourOfDay: Math.floor((tick % TICKS_PER_DAY) / TICKS_PER_HOUR),
     onSchedule: false,
     allHumans,
     entityById: new Map(allHumans.map((human) => [human.id, human])),
@@ -79,13 +83,201 @@ function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans:
 }
 
 describe('tickHumanChildLeisure', () => {
-  it('steers children toward a playmate in the neighborhood', () => {
+  it('prefers childhood and strong friends on successive days without excluding newcomers', () => {
+    const { state, child } = childFixture();
+    const friend = playerChild(child, 11, {
+      x: 120, y: 100,
+      friendships: { friend_10: 88 },
+      childhoodFriendsIds: [10],
+    });
+    const newcomer = playerChild(child, 12, { x: 105, y: 100 });
+    child.friendships = { friend_11: 88 };
+    child.childhoodFriendsIds = [friend.id];
+    let withFriend = 0;
+    let withNewcomer = 0;
+    for (let day = 0; day < 120; day++) {
+      const tick = day * TICKS_PER_DAY + 1;
+      tickChild(state, child, [child, friend, newcomer], tick);
+      if (child.childPlaymateId === friend.id) withFriend++;
+      if (child.childPlaymateId === newcomer.id) withNewcomer++;
+    }
+    expect(withFriend).toBeGreaterThan(withNewcomer * 2);
+    expect(withNewcomer).toBeGreaterThan(0);
+  });
+
+  it('forms a shared play circle of two to four children and takes them to one site', () => {
+    const { state, child } = childFixture();
+    const others = [
+      playerChild(child, 11, { x: 112, y: 100 }),
+      playerChild(child, 12, { x: 103, y: 115 }),
+      playerChild(child, 13, { x: 96, y: 115 }),
+    ];
+    const all = [child, ...others];
+    let found = false;
+    for (let day = 0; day < 100; day++) {
+      const tick = day * TICKS_PER_DAY + 1;
+      tickChild(state, child, all, tick);
+      const groupIds = child.childPlayGroupIds ?? [];
+      if (groupIds.length < 3) continue;
+      found = true;
+      expect(groupIds.length).toBeLessThanOrEqual(CHILD_PLAY_GROUP_MAX);
+      const group = all.filter((member) => groupIds.includes(member.id));
+      expect(group.length).toBe(groupIds.length);
+      for (const member of group) {
+        expect(member.childPlayGroupIds).toEqual(groupIds);
+        expect(member.childPlaymateDay).toBe(day);
+        tickChild(state, member, all, tick);
+        expect(member.childPlaySite?.x).toBe(child.childPlaySite?.x);
+        expect(member.childPlaySite?.y).toBe(child.childPlaySite?.y);
+      }
+      break;
+    }
+    expect(found).toBe(true);
+  });
+
+
+  it('walks to a reachable play area instead of circling the same spot', () => {
+    const { state, child } = childFixture();
+    const mate = playerChild(child, 11, { x: 108, y: 100 });
+    const tick = playTickFor(child);
+    expect(tickChild(state, child, [child, mate], tick)).toBe(true);
+    const first = child.childPlaySite;
+    expect(first).toBeDefined();
+    expect(first!.mateId).toBe(mate.id);
+    expect(Math.hypot(first!.x - child.x, first!.y - child.y)).toBeGreaterThan(25);
+    expect(Math.hypot(child.vx, child.vy)).toBeGreaterThan(0);
+
+    tickChild(state, child, [child, mate], tick + 1);
+    expect(child.childPlaySite).toEqual(first);
+
+    tickChild(state, child, [child, mate], tick + 3 * TICKS_PER_HOUR);
+    const next = child.childPlaySite;
+    expect(next).toBeDefined();
+    expect(next!.phase).not.toBe(first!.phase);
+    expect(Math.hypot(next!.x - first!.x, next!.y - first!.y)).toBeGreaterThanOrEqual(28);
+    expect(child.childPlaymateId).toBe(mate.id);
+  });
+
+  it('keeps play destinations on reachable ground beside a river', () => {
+    const { state, child } = childFixture();
+    const mate = playerChild(child, 11, { x: 142, y: 150 });
+    child.x = 130;
+    child.y = 150;
+    state.width = 400;
+    state.height = 300;
+    state.worldMap = testWorldMap({
+      tilesX: 40, tilesY: 30,
+      tileType: (tx) => tx === 18 ? TerrainType.River : undefined,
+    });
+    setCurrentPathMap(state.worldMap, state.buildings);
+    try {
+      expect(tickChild(state, child, [child, mate], playTickFor(child))).toBe(true);
+      const site = child.childPlaySite;
+      expect(site).toBeDefined();
+      const grid = getCurrentPathGrid()!;
+      expect(site!.x).toBeLessThan(180);
+      expect(isGroundWalkableAt(site!.x, site!.y, grid)).toBe(true);
+      expect(lineCrossesBlocked(grid, child.x, child.y, site!.x, site!.y)).toBe(false);
+      expect(lineCrossesBlocked(grid, mate.x, mate.y, site!.x, site!.y)).toBe(false);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('keeps a reserved circle headed to its play site after members separate beyond the scan radius', () => {
+    const { state, child } = childFixture();
+    const mate = playerChild(child, 11, { x: 195, y: 100 });
+    const tick = playTickFor(child);
+    tickChild(state, child, [child, mate], tick);
+    expect(child.childPlayGroupIds).toEqual([child.id, mate.id]);
+    const assignedSite = structuredClone(child.childPlaySite);
+    expect(assignedSite).toBeDefined();
+
+    // Their shared outing is already underway, so 96px is no longer a stop condition.
+    child.x = mate.x - 125;
+    expect(tickChild(state, child, [child, mate], tick + 1)).toBe(true);
+    expect(child.childLeisureActivity).toBe('playing');
+    expect(child.childLeisureTargetId).toBe(mate.id);
+    expect(child.childPlaySite).toEqual(assignedSite);
+    expect(Math.hypot(child.vx, child.vy)).toBeGreaterThan(0);
+  });
+
+  it('caches a rejected play-area search until the next three-hour phase', () => {
+    const { state, child } = childFixture();
+    child.x = 105;
+    child.y = 105;
+    const mate = playerChild(child, 11, { x: 115, y: 105 });
+    state.width = 400;
+    state.height = 300;
+    // All play stops 42–78 pixels away are blocked; only the children's tiny island is open.
+    state.worldMap = testWorldMap({
+      tilesX: 40, tilesY: 30,
+      tileType: (tx, ty) => tx >= 9 && tx <= 12 && ty >= 9 && ty <= 12
+        ? undefined : TerrainType.River,
+    });
+    setCurrentPathMap(state.worldMap, state.buildings);
+    try {
+      const tick = playTickFor(child);
+      tickChild(state, child, [child, mate], tick);
+      const day = Math.floor(tick / TICKS_PER_DAY);
+      const phase = Math.floor((tick % TICKS_PER_DAY) / (3 * TICKS_PER_HOUR));
+      expect(child.childPlaySite).toBeUndefined();
+      expect(child.childPlaySiteAttempt).toEqual({ day, phase });
+      expect(mate.childPlaySiteAttempt).toEqual({ day, phase });
+
+      // The world becomes walkable, but the failed phase decision stays cached.
+      state.worldMap = testWorldMap({ tilesX: 40, tilesY: 30 });
+      setCurrentPathMap(state.worldMap, state.buildings);
+      tickChild(state, child, [child, mate], tick + 1);
+      expect(child.childPlaySite).toBeUndefined();
+      expect(child.childPlaySiteAttempt).toEqual({ day, phase });
+
+      tickChild(state, child, [child, mate], tick + 3 * TICKS_PER_HOUR);
+      expect(child.childPlaySite).toBeDefined();
+      expect(child.childPlaySiteAttempt?.phase).not.toBe(phase);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('keeps surviving group members paired when the founder dies', () => {
+    const { state, child } = childFixture();
+    const second = playerChild(child, 11, { x: 110, y: 100 });
+    const third = playerChild(child, 12, { x: 100, y: 110 });
+    const all = [child, second, third];
+    let tick = -1;
+    for (let day = 0; day < 100; day++) {
+      const candidate = day * TICKS_PER_DAY + 1;
+      tickChild(state, child, all, candidate);
+      if (child.childPlayGroupIds?.length === 3) {
+        tick = candidate;
+        break;
+      }
+    }
+    expect(tick).toBeGreaterThan(0);
+    expect(second.childPlaymateId).toBe(child.id);
+    expect(third.childPlaymateId).toBe(child.id);
+
+    child.alive = false;
+    tickChild(state, second, all, tick + 1);
+    expect(second.childPlaymateId).toBe(third.id);
+    expect(second.childPlayGroupIds).toEqual([second.id, third.id]);
+    expect(third.childPlaymateId).toBe(second.id);
+    expect(third.childPlayGroupIds).toEqual([second.id, third.id]);
+    tickChild(state, third, all, tick + 2);
+    expect(third.childPlaymateId).toBe(second.id);
+    expect(third.childPlaymateDay).toBe(Math.floor(tick / TICKS_PER_DAY));
+  });
+
+  it('chooses a neighborhood playmate and heads toward an outdoor play site', () => {
     const { state, child } = childFixture();
     const nearby = playerChild(child, 11, { x: 120, y: 100 });
     const distant = playerChild(child, 12, { x: 1000, y: 100 });
 
     expect(tickChild(state, child, [child, nearby, distant], playTickFor(child))).toBe(true);
-    expect(child.vx).toBeGreaterThan(0);
+    expect(child.childPlaymateId).toBe(nearby.id);
+    expect(child.childPlaySite).toBeDefined();
+    expect(Math.hypot(child.vx, child.vy)).toBeGreaterThan(0);
   });
 
   it('does not select a child outside the neighborhood', () => {
@@ -107,7 +299,9 @@ describe('tickHumanChildLeisure', () => {
 
     crowdedSteeringTick(state, child, humans);
 
-    expect(child.vx).toBeGreaterThan(0);
+    expect(right.map((mate) => mate.id)).toContain(child.childPlaymateId);
+    expect(child.childPlaySite).toBeDefined();
+    expect(Math.hypot(child.vx, child.vy)).toBeGreaterThan(0);
   });
 
   it('keeps the same playmate throughout the day when other children become available', () => {

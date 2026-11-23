@@ -40,7 +40,7 @@ import { ensureEntitySkills } from './skills';
 import { TICKED_SPECIES } from './entityFactory';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { normalizeWorkSchedule } from './workSchedule';
-import { normalizeWorkforcePolicy } from './workforcePolicy';
+import { normalizeWorkforcePolicy, normalizeWorkforceFocus } from './workforcePolicy';
 import { normalizeVenueSchedule } from './venueSchedule';
 import { normalizeFestivalState, repairStaleFestivalOnLoad } from './dailyWorldEvents';
 
@@ -65,7 +65,7 @@ import { ScentGrid, isScentGridRuntime } from './scentGrid';
 import { validateVillageLeaderOnLoad } from './villageLeadership';
 import { normalizeSpotlightLoreOnLoad } from './spotlightLore';
 import { syncGenealogyRegistry } from './genealogyRegistry';
-import { ensureValleyEcologyOnLoad } from './ecologyStage';
+import { ensureValleyEcologyOnLoad, valleyStageIndex } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
 import { nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
 import { pruneOrphanRivalEntities } from './rivalEvents';
@@ -1503,11 +1503,18 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       // A save written before the workforce policy existed loads with the documented default
       // (`workforcePolicy.DEFAULT_WORKFORCE_POLICY`); no save-version bump, as for `workSchedule`.
       workforcePolicy: normalizeWorkforcePolicy(worldData.workforcePolicy),
+      workforceFocus: normalizeWorkforceFocus(worldData.workforceFocus),
       // Same in-place-default contract for the venue windows: an unusable pair loads as that
       // venue's documented default instead of a silently substituted one the next save would keep.
       tavernSchedule: normalizeVenueSchedule(worldData.tavernSchedule, 'tavern'),
       hotelSchedule: normalizeVenueSchedule(worldData.hotelSchedule, 'hotel'),
       tick: loadedTick,
+      productionDeferred: worldData.productionDeferred === true,
+      productionValleyStage: worldData.productionDeferred === true
+        && typeof worldData.productionValleyStage === 'string'
+        && valleyStageIndex(worldData.productionValleyStage as NonNullable<WorldState['valleyStage']>) >= 0
+        ? worldData.productionValleyStage as WorldState['valleyStage']
+        : undefined,
       lastProcessedCalendarDay: typeof worldData.lastProcessedCalendarDay === 'number'
         ? worldData.lastProcessedCalendarDay
         : undefined,

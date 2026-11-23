@@ -36,7 +36,7 @@ export const WORLD_STATE_SAVE_KEYS = [
   'valleyRawCalmStreakDays', 'valleyLastStageNotifyDay',
   'challenges', 'autoSave', 'weather', 'weatherTimer', 'researchNodes',
   'unlockedTechs', 'activeResearch', 'researchProgress',
-  'tradeRoutes', 'totalBuildingsCompleted', 'lastProcessedCalendarDay', 'yearlyStats',
+  'tradeRoutes', 'totalBuildingsCompleted', 'productionDeferred', 'productionValleyStage', 'lastProcessedCalendarDay', 'yearlyStats',
   'lifetimeStats', 'eventLog', 'chronicleChapters', 'festival', 'townHallFestivalCooldownUntilTick',
   'visitorGroups', 'activeVillageRequest', 'villageRequestCooldownUntilDay', 'villageRequestHistory',
   'rivalSettlements', 'pendingDiplomacyEvents', 'pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports', 'raidRecovery', 'scoredRaidIds', 'graveRecords',
@@ -65,7 +65,7 @@ export const WORLD_STATE_SAVE_KEYS = [
   // the day's simulation reads it for the unheated-winter penalty and freeze flash.
   'villageCanHeat',
   // Workforce policy preset: the auto-staffing priority order the player picked.
-  'workforcePolicy',
+  'workforcePolicy', 'workforceFocus',
   // Food accounting: `economyLedger` is today's row, `foodHistory` the rolling archive. Nothing
   // rebuilds them, so both must round-trip; both are plain JSON.
   'economyLedger', 'foodHistory',
@@ -79,6 +79,8 @@ export const ENTITY_PERSISTED_FIELDS = [
   'genomeV2',
   'marks',
   'skills', 'needs', 'careerHistory', 'careerMilestones', 'dialogueRecentScenes', 'dialogueRecentLines',
+  'childPlaymateDay', 'childPlaymateId', 'childPlayGroupIds', 'childPlaySite', 'childPlaySiteAttempt',
+  'childLeisureActivity', 'childLeisureTargetId',
   'formerSpouseId', 'factionWander',
   'scheduleWorkedTicksToday', 'schedulePresentTicksToday', 'schedulePresentSiteIdToday', 'scheduleLastWorkedHours',
   'scheduleWorkedSiteIdToday', 'scheduleLastWorkedSiteId',

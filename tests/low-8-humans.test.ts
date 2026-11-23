@@ -296,13 +296,13 @@ describe('L41 — realtime affair gate honours the colony work schedule', () => 
     expect(farmHand.vy).toBe(0);
   });
 
-  it('opens the gate when the schedule covers the hour', () => {
+  it('keeps the work commute ahead of an affair during the scheduled shift', () => {
     setSimSeed(TEST_SEED);
     const tick = noonTick();
     const farmHand = affairScene(tick, 7, 16);
 
-    // Moving right, toward the lover — the gate is open for a covered hour.
-    expect(farmHand.vx).toBeGreaterThan(0);
+    // The farm is to the left and the lover to the right: work must win at noon.
+    expect(farmHand.vx).toBeLessThan(0);
   });
 });
 

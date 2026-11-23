@@ -192,6 +192,36 @@ function makeState(): WorldState {
 }
 
 describe('Hunting Spot wildlife cleanup', () => {
+  it('keeps pursuing a selected fox beyond the initial search radius', async () => {
+    const { huntingSpotTarget } = await import('../src/game/huntingSpot');
+    const state = makeState();
+    const [hunter, fox] = state.entities;
+    const spot = state.buildings[0];
+    spot.huntingSpotPrey = 'fox';
+    spot.huntingSpotTargetId = fox.id;
+    fox.type = EntityType.Fox;
+    fox.x = hunter.x + 351;
+    const byType = { [EntityType.Fox]: [fox] } as Record<EntityType, Entity[]>;
+    expect(huntingSpotTarget(spot, hunter, new Map([[fox.id, fox]]), byType)).toBe(fox);
+  });
+
+  it('does not fire at a distant wolf or let it counterattack after contact with other prey', async () => {
+    const { gameTick } = await import('../src/game/gameTick');
+    const state = makeState();
+    const [hunter, wolf] = state.entities;
+    const spot = state.buildings[0];
+    wolf.type = EntityType.Wolf;
+    wolf.x = hunter.x + 150;
+    spot.huntingSpotPrey = 'wolf';
+    spot.huntingSpotTargetId = 999;
+    state.tick = TICKS_PER_DAY + DAILY_PHASE_HOURS.production * TICKS_PER_HOUR - 1;
+    spot.huntingSpotInReachTick = state.tick;
+    const after = gameTick(state);
+    expect(spot.huntingSpotTargetId).toBe(wolf.id);
+    expect(after.huntVisuals ?? []).toHaveLength(0);
+    expect(hunter.alive && wolf.alive).toBe(true);
+  });
+
   it('uses the shared cleanup transitions when its daily hunt succeeds', async () => {
     vi.resetModules();
     const { gameTick } = await import('../src/game/gameTick');

@@ -132,6 +132,7 @@ export const JobType = {
   Priest: 'priest',
   Gravekeeper: 'gravekeeper',
   Hunter: 'hunter',
+  Fisher: 'fisher',
   Builder: 'builder',
   /** @deprecated Legacy saves only; new assignments use Soldier or PrisonGuard. */
   Guard: 'guard',
@@ -155,6 +156,7 @@ export const JOB_LABELS: Record<JobType, string> = {
   [JobType.Priest]: 'Priest',
   [JobType.Gravekeeper]: 'Gravekeeper',
   [JobType.Hunter]: 'Hunter',
+  [JobType.Fisher]: 'Fisher',
   [JobType.Builder]: 'Builder',
   /** @deprecated Displayed only for unmigrated legacy assignments. */
   [JobType.Guard]: 'Guard (legacy)',
@@ -182,7 +184,7 @@ export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
   [BuildingType.Prison]: JobType.PrisonGuard,
   [BuildingType.Barracks]: JobType.Soldier,
   [BuildingType.HuntingSpot]: JobType.Hunter,
-  [BuildingType.FishingSpot]: JobType.Hunter,
+  [BuildingType.FishingSpot]: JobType.Fisher,
   [BuildingType.Tavern]: JobType.Innkeeper,
   [BuildingType.Hotel]: JobType.Hotelier,
 };
@@ -308,6 +310,12 @@ export interface Entity {
   /** One playmate choice per colony day, persisted across save/load and worker replay. */
   childPlaymateDay?: number;
   childPlaymateId?: number;
+  /** A daily play circle of two to four children; set by the one child-leisure owner. */
+  childPlayGroupIds?: number[];
+  /** Stable, saved play outing for one companion and three-hour leisure phase. */
+  childPlaySite?: { day: number; phase: number; mateId: number; x: number; y: number };
+  /** Successful or unsuccessful destination search, cached for one three-hour phase. */
+  childPlaySiteAttempt?: { day: number; phase: number };
   /** Current child leisure intent, written by the leisure owner for the inspector. */
   childLeisureActivity?: 'playing' | 'following' | 'home';
   childLeisureTargetId?: number;
@@ -878,6 +886,7 @@ export interface WorldState {
   tavernSchedule?: import('./venueSchedule').VenueSchedule;
   hotelSchedule?: import('./venueSchedule').VenueSchedule;
   workforcePolicy?: import('./workforcePolicy').WorkforcePolicy;
+  workforceFocus?: import('./workforcePolicy').WorkforceFocusSector[];
   villageReputation: number;
   resources: Resources;
   storageMax: Resources;
@@ -906,6 +915,10 @@ export interface WorldState {
   disasters: Disaster[];
   tradeRoutes: TradeRoute[];
   totalBuildingsCompleted: number;
+  /** The 18:00 pass deferred this evening shift until 23:00. */
+  productionDeferred?: boolean;
+  /** Valley stage before the 18:00 ecology transition; only deferred production uses it. */
+  productionValleyStage?: ValleyStage;
   lastProcessedCalendarDay?: number;
   villageCanHeat?: boolean;
   worldMap: WorldMap | null;

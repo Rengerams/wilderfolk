@@ -8,8 +8,8 @@ import {
   trySchoolyardGossip,
 } from '../src/game/simulation/humanRelationships';
 import { getAbsoluteCalendarDay, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { SCHOOL_CHILDREN_PER_TEACHER } from '../src/game/gameConstants';
 import {
-  SCHOOL_CHILDREN_PER_TEACHER,
   SCHOOL_MAX_CHILDREN,
   schoolCapacity,
   syncSchoolAssignments,

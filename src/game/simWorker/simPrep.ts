@@ -11,7 +11,7 @@ import type { WorldState } from '../gameTypes';
 import { normalizeForgeState } from '../forge';
 import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
-import { getWorkforcePolicy } from '../workforcePolicy';
+import { getWorkforcePolicy, getWorkforceFocus } from '../workforcePolicy';
 import { rebuildWorldRuntimeCaches } from '../worldRuntimeCaches';
 import { ScentGrid, isScentGridRuntime } from '../scentGrid';
 import { restoreSimRng, snapshotSimRng } from '../simRng';
@@ -116,6 +116,8 @@ type SimPrepKeys =
   | 'chronicleChapters'
   | 'electionPromiseRecords'
   | 'renffrChatterUntilTick'
+  | 'productionDeferred'
+  | 'productionValleyStage'
   | 'lastProcessedCalendarDay'
   | 'lastWildlifeReplenishLogDay'
   | 'storyFlags'
@@ -126,6 +128,7 @@ type SimPrepKeys =
   | 'tavernSchedule'
   | 'hotelSchedule'
   | 'workforcePolicy'
+  | 'workforceFocus'
   | 'bigNews'
   | 'notifications'
   | 'huntVisuals'
@@ -299,6 +302,8 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
       ? undefined
       : structuredClone(state.electionPromiseRecords),
     renffrChatterUntilTick: state.renffrChatterUntilTick ?? 0,
+    productionDeferred: state.productionDeferred,
+    productionValleyStage: state.productionValleyStage,
     lastProcessedCalendarDay: state.lastProcessedCalendarDay ?? 0,
     lastWildlifeReplenishLogDay: state.lastWildlifeReplenishLogDay ?? 0,
     storyFlags: { ...(state.storyFlags ?? {}) },
@@ -309,6 +314,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     tavernSchedule: getVenueSchedule(state, 'tavern'),
     hotelSchedule: getVenueSchedule(state, 'hotel'),
     workforcePolicy: getWorkforcePolicy(state),
+    workforceFocus: getWorkforceFocus(state),
     bigNews: [...(state.bigNews ?? [])],
     notifications: [...(state.notifications ?? [])],
     huntVisuals: [...(state.huntVisuals ?? [])],
@@ -429,6 +435,8 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   if (prep.electionPromiseRecords === undefined) delete world.electionPromiseRecords;
   else world.electionPromiseRecords = prep.electionPromiseRecords;
   world.renffrChatterUntilTick = prep.renffrChatterUntilTick;
+  world.productionDeferred = prep.productionDeferred;
+  world.productionValleyStage = prep.productionValleyStage;
   world.lastProcessedCalendarDay = prep.lastProcessedCalendarDay;
   world.lastWildlifeReplenishLogDay = prep.lastWildlifeReplenishLogDay;
   world.storyFlags = prep.storyFlags;
@@ -439,6 +447,7 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.tavernSchedule = prep.tavernSchedule;
   world.hotelSchedule = prep.hotelSchedule;
   world.workforcePolicy = prep.workforcePolicy;
+  world.workforceFocus = [...(prep.workforceFocus ?? [])];
   world.bigNews = prep.bigNews;
   world.notifications = prep.notifications;
   world.huntVisuals = prep.huntVisuals;
