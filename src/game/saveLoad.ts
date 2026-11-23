@@ -65,7 +65,7 @@ import { ScentGrid, isScentGridRuntime } from './scentGrid';
 import { validateVillageLeaderOnLoad } from './villageLeadership';
 import { normalizeSpotlightLoreOnLoad } from './spotlightLore';
 import { syncGenealogyRegistry } from './genealogyRegistry';
-import { ensureValleyEcologyOnLoad } from './ecologyStage';
+import { ensureValleyEcologyOnLoad, valleyStageIndex } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
 import { nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
 import { pruneOrphanRivalEntities } from './rivalEvents';
@@ -1509,6 +1509,12 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       tavernSchedule: normalizeVenueSchedule(worldData.tavernSchedule, 'tavern'),
       hotelSchedule: normalizeVenueSchedule(worldData.hotelSchedule, 'hotel'),
       tick: loadedTick,
+      productionDeferred: worldData.productionDeferred === true,
+      productionValleyStage: worldData.productionDeferred === true
+        && typeof worldData.productionValleyStage === 'string'
+        && valleyStageIndex(worldData.productionValleyStage as NonNullable<WorldState['valleyStage']>) >= 0
+        ? worldData.productionValleyStage as WorldState['valleyStage']
+        : undefined,
       lastProcessedCalendarDay: typeof worldData.lastProcessedCalendarDay === 'number'
         ? worldData.lastProcessedCalendarDay
         : undefined,

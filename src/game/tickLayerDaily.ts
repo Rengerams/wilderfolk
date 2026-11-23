@@ -4,6 +4,7 @@
  * The retired on-map visitor lifecycle is never scheduled here.
  */
 import type { Entity, WorldState } from './gameTypes';
+import { getWorkSchedule } from './workSchedule';
 import { EntityType } from './gameTypes';
 import type { TickContext } from './simulation/simulationTypes';
 import { countLivingPopulation } from './entityCounts';
@@ -89,9 +90,9 @@ export function tickLayerDaily(
     profileEnd('daily.syncLeaderHouseResidency', stage6);
   }
 
-  // 18:00 — election promises and the chronicle, before production feeds world events.
+  // 18:00 — election promises and the chronicle.
   if (hour === DAILY_PHASE_HOURS.worldEvents) {
-  // World-events owns promise evaluation, once per evening, after today's production.
+  // World-events owns promise evaluation, once per evening.
     const chronicleStart = profileStart();
     const newlyUnlocked = advanceValleyChronicle(state);
     profileEnd('daily.advanceValleyChronicle', chronicleStart);
@@ -105,14 +106,24 @@ export function tickLayerDaily(
     }
   }
 
-  // 18:00 — established production cadence; world events read its output before 23:00 construction.
-  if (hour === DAILY_PHASE_HOURS.production) {
+  // The chronicle keeps its evening cadence. Settle production after all legal shifts.
+  if (hour === DAILY_PHASE_HOURS.worldEvents) {
     const stage10 = profileStart();
     tickWildkinChronicle(state, ctx);
     profileEnd('daily.tickWildkinChronicle', stage10);
+  }
+  if (hour === DAILY_PHASE_HOURS.production) {
+    state.productionDeferred = getWorkSchedule(state).endHour > hour;
+    // The 18:00 world-events pass can change valley stage. Production still belongs to today.
+    state.productionValleyStage = state.productionDeferred ? (state.valleyStage ?? 'stable') : undefined;
+  }
+  if ((hour === DAILY_PHASE_HOURS.production && !state.productionDeferred)
+    || (hour === DAILY_PHASE_HOURS.construction && state.productionDeferred)) {
     const stage11 = profileStart();
     tickDailyBuildingEconomy(state, ctx, allAlive);
     profileEnd('daily.tickDailyBuildingEconomy', stage11);
+    state.productionDeferred = false;
+    state.productionValleyStage = undefined;
   }
 
   // 23:00 — consume all witnessed construction shifts before 00:00 clears the counters.

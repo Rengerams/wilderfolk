@@ -64,7 +64,6 @@ import { idleDestination, tickHumanLeisure } from './humanLeisureBehavior';
 import { tickHumanHunting } from './humanHuntingBehavior';
 import {
   HUNTING_PURSUIT_SPEED_MULT,
-  huntingKillReach,
   huntingPursuitPoint,
   huntingSpotChaseTarget,
   huntingSpotTarget,
@@ -1179,11 +1178,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const chase = spotPrey ? huntingSpotChaseTarget(workplace, entity, entityById, byType) : null;
       // Who is after what: the map's dashed hunt line and the prey's flee rule both read this field.
       entity.huntTargetId = spotPrey ? spotPrey.id : undefined;
-      // Record the contact while it is happening: the spot's production pass samples an instant and would
-      // otherwise never see the hunter beside the animal (`HUNTING_SPOT_STRIKE_GRACE_TICKS`).
-      if (spotPrey && Math.hypot(spotPrey.x - entity.x, spotPrey.y - entity.y) <= huntingKillReach(entity, spotPrey)) {
-        workplace.huntingSpotInReachTick = state.tick;
-      }
       if (chase) {
         // Aim where the animal is going, not where it is (`huntingPursuitPoint`), at a pace that can
         // actually close: prey do not flee, but they wander faster than a damped working walk.

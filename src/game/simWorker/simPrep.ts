@@ -116,6 +116,8 @@ type SimPrepKeys =
   | 'chronicleChapters'
   | 'electionPromiseRecords'
   | 'renffrChatterUntilTick'
+  | 'productionDeferred'
+  | 'productionValleyStage'
   | 'lastProcessedCalendarDay'
   | 'lastWildlifeReplenishLogDay'
   | 'storyFlags'
@@ -300,6 +302,8 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
       ? undefined
       : structuredClone(state.electionPromiseRecords),
     renffrChatterUntilTick: state.renffrChatterUntilTick ?? 0,
+    productionDeferred: state.productionDeferred,
+    productionValleyStage: state.productionValleyStage,
     lastProcessedCalendarDay: state.lastProcessedCalendarDay ?? 0,
     lastWildlifeReplenishLogDay: state.lastWildlifeReplenishLogDay ?? 0,
     storyFlags: { ...(state.storyFlags ?? {}) },
@@ -431,6 +435,8 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   if (prep.electionPromiseRecords === undefined) delete world.electionPromiseRecords;
   else world.electionPromiseRecords = prep.electionPromiseRecords;
   world.renffrChatterUntilTick = prep.renffrChatterUntilTick;
+  world.productionDeferred = prep.productionDeferred;
+  world.productionValleyStage = prep.productionValleyStage;
   world.lastProcessedCalendarDay = prep.lastProcessedCalendarDay;
   world.lastWildlifeReplenishLogDay = prep.lastWildlifeReplenishLogDay;
   world.storyFlags = prep.storyFlags;

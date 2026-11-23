@@ -185,6 +185,8 @@ export interface SimTickDelta {
   chronicleChapters?: WorldState['chronicleChapters'];
   electionPromiseRecords?: WorldState['electionPromiseRecords'];
   renffrChatterUntilTick: number;
+  productionDeferred?: boolean;
+  productionValleyStage?: WorldState['valleyStage'];
   lastProcessedCalendarDay: number;
   lastWildlifeReplenishLogDay: number;
   storyFlags: WorldState['storyFlags'];
@@ -453,6 +455,8 @@ export function extractSimTickDelta(
       ? {}
       : { electionPromiseRecords: deltaClone(world.electionPromiseRecords, cloneMode) }),
     renffrChatterUntilTick: world.renffrChatterUntilTick ?? 0,
+    productionDeferred: world.productionDeferred,
+    productionValleyStage: world.productionValleyStage,
     lastProcessedCalendarDay: world.lastProcessedCalendarDay ?? 0,
     lastWildlifeReplenishLogDay: world.lastWildlifeReplenishLogDay ?? 0,
     storyFlags: deltaClone(world.storyFlags ?? {}, cloneMode),
@@ -806,6 +810,8 @@ export function applySimTickDelta(
     world.electionPromiseRecords = deltaClone(delta.electionPromiseRecords ?? [], cloneMode);
   }
   world.renffrChatterUntilTick = delta.renffrChatterUntilTick;
+  world.productionDeferred = delta.productionDeferred;
+  world.productionValleyStage = delta.productionValleyStage;
   world.lastProcessedCalendarDay = delta.lastProcessedCalendarDay;
   world.lastWildlifeReplenishLogDay = delta.lastWildlifeReplenishLogDay;
   world.storyFlags = deltaClone(delta.storyFlags, cloneMode);

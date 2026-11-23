@@ -915,6 +915,10 @@ export interface WorldState {
   disasters: Disaster[];
   tradeRoutes: TradeRoute[];
   totalBuildingsCompleted: number;
+  /** The 18:00 pass deferred this evening shift until 23:00. */
+  productionDeferred?: boolean;
+  /** Valley stage before the 18:00 ecology transition; only deferred production uses it. */
+  productionValleyStage?: ValleyStage;
   lastProcessedCalendarDay?: number;
   villageCanHeat?: boolean;
   worldMap: WorldMap | null;

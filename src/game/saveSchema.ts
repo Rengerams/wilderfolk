@@ -36,7 +36,7 @@ export const WORLD_STATE_SAVE_KEYS = [
   'valleyRawCalmStreakDays', 'valleyLastStageNotifyDay',
   'challenges', 'autoSave', 'weather', 'weatherTimer', 'researchNodes',
   'unlockedTechs', 'activeResearch', 'researchProgress',
-  'tradeRoutes', 'totalBuildingsCompleted', 'lastProcessedCalendarDay', 'yearlyStats',
+  'tradeRoutes', 'totalBuildingsCompleted', 'productionDeferred', 'productionValleyStage', 'lastProcessedCalendarDay', 'yearlyStats',
   'lifetimeStats', 'eventLog', 'chronicleChapters', 'festival', 'townHallFestivalCooldownUntilTick',
   'visitorGroups', 'activeVillageRequest', 'villageRequestCooldownUntilDay', 'villageRequestHistory',
   'rivalSettlements', 'pendingDiplomacyEvents', 'pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports', 'raidRecovery', 'scoredRaidIds', 'graveRecords',

@@ -43,8 +43,8 @@ const STAGE_ORDER: readonly ValleyStage[] = ['stable', 'strained', 'damaged', 'c
  * The stage every multiplier and focus hint reads: the live stage while the ladder runs, a quiet
  * 'stable' while `ValleyEcology.ENABLED` is off.
  */
-function effectiveValleyStage(state: WorldState): ValleyStage {
-  return ValleyEcology.ENABLED ? (state.valleyStage ?? 'stable') : 'stable';
+function effectiveValleyStage(state: WorldState, stageAtProduction?: ValleyStage): ValleyStage {
+  return ValleyEcology.ENABLED ? (stageAtProduction ?? state.valleyStage ?? 'stable') : 'stable';
 }
 
 /** The parked baseline: stage fields as the disabled ladder wants them. */
@@ -311,8 +311,8 @@ export function computeValleyEcologySnapshot(state: WorldState): ValleyEcologySn
 }
 
 /** Hunt food multiplier from valley stage (1 = normal). */
-export function getValleyHuntYieldMultiplier(state: WorldState): number {
-  switch (effectiveValleyStage(state)) {
+export function getValleyHuntYieldMultiplier(state: WorldState, stageAtProduction?: ValleyStage): number {
+  switch (effectiveValleyStage(state, stageAtProduction)) {
     case 'strained':
       return 0.9;
     case 'damaged':
@@ -325,8 +325,8 @@ export function getValleyHuntYieldMultiplier(state: WorldState): number {
 }
 
 /** Mild farm edge only when footprint/grazing is bad enough to reach Damaged+. */
-export function getValleyFarmYieldMultiplier(state: WorldState): number {
-  const stage = effectiveValleyStage(state);
+export function getValleyFarmYieldMultiplier(state: WorldState, stageAtProduction?: ValleyStage): number {
+  const stage = effectiveValleyStage(state, stageAtProduction);
   if (stage === 'damaged') return 0.95;
   if (stage === 'collapse') return 0.88;
   return 1;

@@ -170,10 +170,7 @@ export interface Building {
    * hunter's movement and the shot all chase one animal (cleared when it dies, is tamed or leaves).
    */
   huntingSpotTargetId?: number;
-  /**
-   * Hunting Spot only — the last tick the hunter stood within killing distance; the production pass
-   * accepts a recent one (`HUNTING_SPOT_STRIKE_GRACE_TICKS`) because it samples one instant.
-   */
+  /** Legacy save field. Live hunts use current positions. */
   huntingSpotInReachTick?: number;
   /** Prison only — clock hours of the current day that nobody stood on the post (see `prisonGuardDuty`). */
   uncoveredPrisonHours?: number[];

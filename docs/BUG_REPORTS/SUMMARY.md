@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-23 — [Deferred production applied newly warned ecology penalties too early](../bug_report/2026-11-23-deferred-production-applies-ecology-penalties-early.md):** investigating; PR #192 captures the pre-warning stage for evening-shift output and retains it through saves/worker transport. Focused integration regression added; current-head CI pending.
+
 **2026-11-23 — [Child play groups remain at one fixed spot](../bug_report/2026-11-23-child-play-groups-fixed-location.md):** investigating; previous daily playmate fix did not provide a destination; new friendship-weighted circles of two to four share reachable play areas, changing every three leisure hours; Further regressions cover separated companions, failed searches and surviving groups after a death; CI pending.
 **2026-11-23 — [Legacy fishing crews used Hunter behavior and lost proficiency on conversion](../bug_report/2026-11-23-legacy-fishing-crews-used-hunter-job.md):** investigating; PR #190 reconciles their job and preserves the higher old Hunter/new Fisher skill without discarding Hunter proficiency. Production-bonus and non-downgrade regressions committed; latest CI pending.
 
