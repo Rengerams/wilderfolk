@@ -146,7 +146,7 @@ describe('A14 — one owner for "normalise a delta, set velocity, face it"', () 
     ];
     for (const file of swept) {
       expect(read(file), `${file} no longer names the movement owner`).toMatch(
-        /steerHumanToward\(|steerEntityToward\(|setVelocityToward\(|faceVelocity\(/,
+        /steerHumanToward\(|steerEntityToward\(|setVelocityToward\(|faceVelocity\(|commuteHumanToBuilding\(/,
       );
     }
   });

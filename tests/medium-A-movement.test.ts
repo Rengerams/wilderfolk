@@ -176,6 +176,25 @@ describe('hotel guest routing and road speed', () => {
     }
   });
 
+  it('walks to a reachable facade when the first doorstep sits in a sealed pocket', () => {
+    // River tiles seal the two cells in front of the south door into a pocket that no walker can
+    // enter; the east frontage is open ground.
+    const pocket = new Set(['9,12', '12,12', '10,13', '11,13']);
+    setCurrentPathMap(makeMap(40, 40, 20261122, (x, y) => pocket.has(`${x},${y}`)), []);
+    try {
+      const h = hotel(7, 100, 100);
+      const visitor = human(7, 165, 105, { faction: 'visitor', hotelStayBuildingId: h.id });
+      let entered = false;
+      for (let tick = 0; tick < 400 && !entered; tick++) {
+        steerVisitorToHotel(visitor, [h], 2);
+        entered = visitor.indoorBuildingId === h.id;
+      }
+      expect(entered).toBe(true);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
   it('does not walk through a sealed river when the hotel is unreachable', () => {
     setCurrentPathMap(makeMap(40, 40, 20261030, (x) => x === 20), []);
     try {

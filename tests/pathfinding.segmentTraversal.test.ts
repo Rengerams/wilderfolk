@@ -25,6 +25,43 @@ describe('one authoritative movement walkability verdict', () => {
     expect(isWalkStepAllowed(fromX, center(2), toX, center(2), g)).toBe(true);
   });
 
+  it('walks a one-tile passage without letting the route skim its walls', () => {
+    const g = grid(9, 3);
+    // Blocked rows above and below leave row 1 as a one-tile passage.
+    for (let x = 0; x < 9; x++) {
+      g.blocked[0 * g.cols + x] = 1;
+      g.blocked[2 * g.cols + x] = 1;
+    }
+    // The passage centreline keeps half a tile from both walls: the body fits with one pixel spare.
+    expect(lineCrossesBlocked(g, center(0), center(1), center(8), center(1))).toBe(false);
+    const route = findPath(g, 0, 1, 8, 1);
+    expect(route).not.toBeNull();
+    expect(route!.every((tile) => tile.y === 1)).toBe(true);
+  });
+
+  it('keeps a route a body radius off a wall it would otherwise skim', () => {
+    const g = grid(12, 2);
+    // One wall tile in the lower row: a shallow chord from (0, 0) to (10, 1) grazes its top edge.
+    g.blocked[1 * g.cols + 5] = 1;
+    const route = findPath(g, 0, 0, 10, 1);
+    expect(route).not.toBeNull();
+    const left = 5 * PATH_CELL;
+    const top = 1 * PATH_CELL;
+    const clearance = (x: number, y: number) => Math.hypot(
+      Math.max(left - x, 0, x - (left + PATH_CELL)),
+      Math.max(top - y, 0, y - (top + PATH_CELL)),
+    );
+    for (let i = 1; i < route!.length; i++) {
+      const a = route![i - 1];
+      const b = route![i];
+      for (let t = 0; t <= 1.0001; t += 0.05) {
+        const x = (a.x + 0.5 + (b.x - a.x) * t) * PATH_CELL;
+        const y = (a.y + 0.5 + (b.y - a.y) * t) * PATH_CELL;
+        expect(clearance(x, y), `leg ${i - 1}->${i}`).toBeGreaterThanOrEqual(PATH_CELL / 2 - 1);
+      }
+    }
+  });
+
   it('agrees with route checks on blocked diagonal corners', () => {
     const g = grid(5, 5);
     g.blocked[1 * g.cols + 2] = 1;
@@ -278,32 +315,64 @@ describe('one authoritative movement walkability verdict', () => {
     }
   });
 
-  it('recovers a reachable detour after exhausting the first 12,000-node walking search', () => {
-    // A river divides the map except for one gap at the southern edge. A* requires more than
-    // 12,000 expansions to reach the other bank, but less than the next 24,000-node budget.
+  it('stops at the nearest reachable stand tile instead of a far ring around the goal', () => {
+    // Ring-first stand selection committed to the ring beside the goal, so a settler had to walk
+    // around the whole walled yard to reach it although a stand tile stood two tiles away.
+    const inYardWall = (x: number, y: number) => (x === 18 && y >= 6 && y <= 14)
+      || ((y === 6 || y === 14) && x >= 18 && x <= 26);
     const map = testWorldMap({
-      tilesX: 180, tilesY: 180, seed: 2723,
-      tileType: (x, y) => (x === 90 && y !== 179 ? TerrainType.River : undefined),
+      tilesX: 30, tilesY: 20, seed: 2723,
+      tileType: (x, y) => (inYardWall(x, y) || (x === 20 && y === 10) ? TerrainType.River : undefined),
     });
     resetPathGridCaches();
     setCurrentPathMap(map, []);
     try {
-      const walker = human(2723, { x: center(160), y: center(90) });
-      const goalX = center(20), goalY = center(90);
-      expect(getRouteObstruction(map, [], walker, { x: goalX, y: goalY })).toBe('pending');
-      let result = steerWithPath(walker, goalX, goalY, 2, 'long-detour');
-      expect(result).toBe('blocked'); // No answer yet, not an unreachable route.
-      for (let pulse = 0; pulse < 16 && result !== 'path'; pulse++) {
-        result = steerWithPath(walker, goalX, goalY, 2, 'long-detour');
+      const walker = human(2723, { x: center(14), y: center(10) });
+      let verdict = steerWithPath(walker, center(20), center(10), 2, 'nearest-stand');
+      for (let tick = 0; tick < 400 && verdict !== 'blocked'; tick++) {
+        applyHumanWalkStep(walker, 1);
+        verdict = steerWithPath(walker, center(20), center(10), 2, 'nearest-stand');
       }
-      expect(result).toBe('path');
-      expect(Math.hypot(walker.vx, walker.vy)).toBeGreaterThan(0);
-      expect(Math.floor(walker.x / PATH_CELL)).toBeGreaterThan(90);
+      expect(verdict).toBe('blocked');
+      expect(Math.floor(walker.x / PATH_CELL), 'stands west of the yard wall').toBeLessThan(18);
+      expect(Math.floor(walker.y / PATH_CELL)).toBe(10);
     } finally {
       setCurrentPathMap(null);
       resetPathGridCaches();
     }
   });
+
+  for (const goalBlocked of [false, true]) {
+    it(`retries a long detour above the distance-based search budget (${goalBlocked ? 'blocked' : 'open'} goal)`, () => {
+      // The default budget for this 180-tile leg is 22,000 nodes. Its only river gap
+      // forces more expansions; the second walking decision budget must find the detour.
+      // A blocked goal also exercises the stand-point fallback and its pending verdict.
+      const map = testWorldMap({
+        tilesX: 240, tilesY: 240, seed: goalBlocked ? 2724 : 2723,
+        tileType: (x, y) => (x === 120 && y !== 239)
+          || (goalBlocked && x === 30 && y === 100) ? TerrainType.River : undefined,
+      });
+      resetPathGridCaches();
+      setCurrentPathMap(map, []);
+      try {
+        const walker = human(goalBlocked ? 2724 : 2723, { x: center(210), y: center(100) });
+        const goalX = center(30), goalY = center(100);
+        expect(getRouteObstruction(map, [], walker, { x: goalX, y: goalY })).toBe('pending');
+        const key = goalBlocked ? 'blocked-long-detour' : 'open-long-detour';
+        let result = steerWithPath(walker, goalX, goalY, 2, key);
+        expect(result).toBe('blocked');
+        for (let pulse = 0; pulse < 16 && result !== 'path'; pulse++) {
+          result = steerWithPath(walker, goalX, goalY, 2, key);
+        }
+        expect(result).toBe('path');
+        expect(Math.hypot(walker.vx, walker.vy)).toBeGreaterThan(0);
+        expect(Math.floor(walker.x / PATH_CELL)).toBeGreaterThan(120);
+      } finally {
+        setCurrentPathMap(null);
+        resetPathGridCaches();
+      }
+    });
+  }
 
   it('does not give a previous walkers cached waypoints to a new walker sharing a key', () => {
     const map = testWorldMap({

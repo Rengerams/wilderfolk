@@ -78,4 +78,25 @@ describe('road-aware search budgets', () => {
       setCurrentPathMap(null);
     }
   });
+
+  it('routes a long detour under the default budget instead of leaving it pending', () => {
+    // A wall forces a ~360-tile detour and one road tile discounts the admissible heuristic, which
+    // widens the search past the old flat 12,000-node cap. A capped search froze trade caravans at
+    // their own market door, so the default budget follows the trip length.
+    const side = 300;
+    const grid: PathGrid = {
+      cols: side,
+      rows: side,
+      blocked: new Uint8Array(side * side),
+      road: new Uint8Array(side * side),
+    };
+    grid.road![0] = 1;
+    for (let y = 0; y < 200; y++) grid.blocked[y * side + 150] = 1;
+
+    expect(findPath(grid, 20, 20, 280, 20, 12_000)).toBeNull();
+    const path = findPath(grid, 20, 20, 280, 20);
+    expect(path?.[0]).toEqual({ x: 20, y: 20 });
+    expect(path?.at(-1)).toEqual({ x: 280, y: 20 });
+    expect(path!.length).toBeGreaterThan(300);
+  });
 });

@@ -2,10 +2,13 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (22 Nov 2026; stacked on PR #181):** Long, reachable walker detours progressively retry a bounded A* search instead of stopping indefinitely at the same 12,000-node budget. Blocked-goal searches also retry after budget exhaustion.
+- **Fixed (23 Nov 2026; PR #183):** When even the distance-based path-search budget runs out, walkers retry with capped increasing A* budgets and backoff; the closest-reachable blocked-destination search also retries instead of silently stopping.
 
-- **Fixed (22 Nov 2026; PR #181):** Large rocks block walking again; a blocked destination is approached from the settler's own side, with its stand point chosen by reachability rather than distance; a packed house keeps a usable door.
-- **Fixed (22 Nov 2026; PR #181):** Removed two stale references left by the visitor-camp retirement, restoring the typecheck and unit gates.
+- **Fixed (22 Nov 2026):** Stand points around a blocked destination are tried nearest the settler first, so a settler stops at the closest reachable tile instead of walking around an obstacle to a far ring.
+- **Fixed (22 Nov 2026):** A route search's node budget now follows the trip length, so long cross-map walks are routed instead of reported pending forever; trade caravans no longer freeze at their own market door.
+- **Fixed (22 Nov 2026; PR #181):** Large rocks block walking again; a blocked destination is approached from the settler's own side, at the closest reachable stand point, so a settler never freezes beside a goal it could reach; a packed house keeps a usable door.
+- **Fixed (22 Nov 2026; PR #181):** Removed two stale references left by the visitor-camp retirement — an obsolete `hitTestCamp` export and a deleted visitor-spawn test — restoring the typecheck and unit gates. No gameplay change.
+- **Fixed (22 Nov 2026; pending merge):** Children keep one playmate per colony day instead of rerolling hourly. Their inspector now shows playing or following, not a false home journey.
 - **Fixed (22 Nov 2026, PR #178):** Affair chat: hourly 11.4% roll and 48-hour cooldown after success; affair progress unchanged. Renffr: hourly night roll at 0.42%, with a three-day gossip cooldown.
 - **Refactored (22 Nov 2026; pending merge):** Farm and greenhouse weather-yield calculations now live with weather rules instead of grass ecology; gameplay unchanged.
 

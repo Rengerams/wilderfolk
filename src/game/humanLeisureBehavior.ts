@@ -25,16 +25,10 @@ import { fract } from './simulation/humanNeeds';
 import { findClosestEntityInRadius } from './simQueries';
 import { hasAffairPartner, canPursueSecretAffair, isAtMaritalHome } from './simulation/humanRelationships';
 
-/** A free child has a 72% chance to choose a nearby playmate each hour. */
+/** One daily play roll, not a new companion every clock hour. */
 const KID_PLAY_CHANCE = 0.72;
-const CHILD_PLAYMATE_REFRESH_TICKS = TICKS_PER_HOUR;
-/** Enough playmates to choose from; stops a crowded colony paying a quadratic hourly scan. */
+/** Bound the candidate scan in large colonies. */
 export const CHILD_PLAYMATE_CANDIDATE_LIMIT = 32;
-/**
- * The chosen playmate is cached by id for the hour, never by entity reference: a rollback restores a
- * different roster, and a reference would keep steering toward the discarded timeline's child.
- */
-const childPlaymateByWorld = new WeakMap<WorldState, WeakMap<Entity, { tickBucket: number; mateId?: number }>>();
 
 /** 80 in-game hours: one free-time activity holds for several days, not one tick. */
 const LEISURE_SLOT_TICKS = 80 * TICKS_PER_HOUR;
@@ -91,19 +85,22 @@ export function tickHumanChildLeisure(args: {
   livingHumanAt: (id: number | null | undefined) => Entity | undefined;
   suppressIdleInitial: boolean;
 }): boolean {
-  if (args.onSchedule || args.entity.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(args.entity)) return args.suppressIdleInitial;
+  if (args.entity.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(args.entity)) return args.suppressIdleInitial;
   const { state, entity, speed, hourOfDay, allHumans, updatedBuildings, buildingById, humanSocialGrid, width, height, livingHumanAt } = args;
-  let childCache = childPlaymateByWorld.get(state);
-  if (!childCache) {
-    childCache = new WeakMap();
-    childPlaymateByWorld.set(state, childCache);
-  }
-  const tickBucket = Math.floor(state.tick / CHILD_PLAYMATE_REFRESH_TICKS);
-  let cached = childCache.get(entity);
-  if (!cached || cached.tickBucket !== tickBucket) {
-    let mateId: number | undefined;
-    // The play roll is stateless, so a child who will not play never pays for the scan.
-    if (personDayRoll(entity.id, state.tick, 718 + tickBucket) < KID_PLAY_CHANCE) {
+  entity.childLeisureActivity = undefined;
+  entity.childLeisureTargetId = undefined;
+  if (args.onSchedule || args.suppressIdleInitial) return args.suppressIdleInitial;
+
+  const day = getAbsoluteCalendarDay(state.tick);
+  const assignedMate = entity.childPlaymateId == null ? undefined
+    : (args.entityById?.get(entity.childPlaymateId)
+      ?? allHumans.find((human) => human.id === entity.childPlaymateId));
+  const mateUnavailable = entity.childPlaymateId != null
+    && (!assignedMate?.alive || assignedMate.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(assignedMate));
+  if (entity.childPlaymateDay !== day || mateUnavailable) {
+    entity.childPlaymateDay = day;
+    entity.childPlaymateId = undefined;
+    if (personDayRoll(entity.id, state.tick, 718) < KID_PLAY_CHANCE) {
       const playmates: Entity[] = [];
       forEachAdaptiveInRadius(
         humanSocialGrid,
@@ -119,14 +116,12 @@ export function tickHumanChildLeisure(args: {
         },
         socialAdaptiveOptions('social', allHumans.length, width, height),
       );
-      if (playmates.length > 0) mateId = playmates[(entity.id + tickBucket) % playmates.length].id;
+      if (playmates.length > 0) entity.childPlaymateId = playmates[(entity.id + day) % playmates.length].id;
     }
-    cached = { tickBucket, mateId };
-    childCache.set(entity, cached);
   }
-  const mate = cached.mateId == null
-    ? undefined
-    : allHumans.find((human) => human.id === cached!.mateId && human.alive);
+  const mate = entity.childPlaymateId == null ? undefined
+    : (args.entityById?.get(entity.childPlaymateId)
+      ?? allHumans.find((human) => human.id === entity.childPlaymateId && human.alive));
   const impulse = pickSocialImpulse(entity, state, updatedBuildings, [], [], args.pickSocialBuilding);
 
   if (!impulse.stayHome) {
@@ -146,6 +141,8 @@ export function tickHumanChildLeisure(args: {
         }
       }
       faceVelocity(entity);
+      entity.childLeisureActivity = 'playing';
+      entity.childLeisureTargetId = mate.id;
       return true;
     }
   }
@@ -160,12 +157,15 @@ export function tickHumanChildLeisure(args: {
     } else if (distance > 8) {
       steerHumanToward(entity, follow.x, follow.y, speed, 0.18, `child_follow_${entity.id}_${follow.id}`);
     }
+    entity.childLeisureActivity = 'following';
+    entity.childLeisureTargetId = follow.id;
     return true;
   }
   if (hasResidenceAssignment(entity)) {
     const residence = buildingById.get(entity.residenceBuildingId!);
     if (residence?.completed) {
       if (commuteHumanToBuilding(entity, residence, speed)) enterHumanBuilding(entity, residence);
+      entity.childLeisureActivity = 'home';
       return true;
     }
   }
