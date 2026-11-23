@@ -131,13 +131,15 @@ describe('tickHumanChildLeisure', () => {
     }
   });
 
-  it('steers children toward a playmate in the neighborhood', () => {
+  it('chooses a neighborhood playmate and heads toward an outdoor play site', () => {
     const { state, child } = childFixture();
     const nearby = playerChild(child, 11, { x: 120, y: 100 });
     const distant = playerChild(child, 12, { x: 1000, y: 100 });
 
     expect(tickChild(state, child, [child, nearby, distant], playTickFor(child))).toBe(true);
-    expect(child.vx).toBeGreaterThan(0);
+    expect(child.childPlaymateId).toBe(nearby.id);
+    expect(child.childPlaySite).toBeDefined();
+    expect(Math.hypot(child.vx, child.vy)).toBeGreaterThan(0);
   });
 
   it('does not select a child outside the neighborhood', () => {
@@ -159,7 +161,9 @@ describe('tickHumanChildLeisure', () => {
 
     crowdedSteeringTick(state, child, humans);
 
-    expect(child.vx).toBeGreaterThan(0);
+    expect(right.map((mate) => mate.id)).toContain(child.childPlaymateId);
+    expect(child.childPlaySite).toBeDefined();
+    expect(Math.hypot(child.vx, child.vy)).toBeGreaterThan(0);
   });
 
   it('keeps the same playmate throughout the day when other children become available', () => {
