@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (23 Nov 2026; pending merge):** Children now visit different reachable play areas during free time instead of endlessly circling a playmate at one spot. Daily companions remain unchanged.
+- **Fixed (23 Nov 2026; pending merge):** Children form daily play circles of two to four, prefer familiar friends while welcoming others, and roam between reachable shared play areas instead of circling one child at a fixed spot.
 
 - **Fixed (23 Nov 2026; PR #186, pending merge):** Couples at 100% courtship can marry regardless of processing order; partner conversations no longer disappear when the higher-ID settler initiates them.
 
