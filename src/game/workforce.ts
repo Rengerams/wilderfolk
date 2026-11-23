@@ -538,7 +538,7 @@ export function rebalanceJobWorkers(
       // An ordinary low-priority vacancy cannot undo the player's selected focus.
       const donorSector = workforceSectorForBuilding(donor.type);
       if (!criticalPost && donorSector && focus.includes(donorSector)
-        && jobBuildingPriority(donor.type, policy, focus) < jobBuildingPriority(needy.type, policy, focus)) {
+        && donorSector !== workforceSectorForBuilding(needy.type)) {
         rejectedDonors.add(donor.id);
         continue;
       }
@@ -584,7 +584,7 @@ export function rebalanceJobWorkers(
     fillFromDonors(needy, capacity);
   }
 
-  fillPriorityStaffing(jobBuildings, index, humans, buildings, policy, focus, currentTick, foodEmergency, movedThisPass);
+  fillPriorityStaffing(jobBuildings, index, humans, buildings, focus, currentTick, foodEmergency, movedThisPass);
   swapReachableWorkersIntoVacancies(jobBuildings, index, humans, buildings, currentTick, movedThisPass);
 }
 
@@ -613,7 +613,6 @@ function fillPriorityStaffing(
   index: WorkforceAssignmentIndex,
   humans: Entity[],
   buildings: Building[],
-  policy: WorkforcePolicy,
   focus: readonly WorkforceFocusSector[],
   currentTick: number | undefined,
   foodEmergency: boolean,
@@ -639,9 +638,7 @@ function fillPriorityStaffing(
       if (staffed >= target) break;
       if (donor.id === recipient.id) continue;
       const donorSector = workforceSectorForBuilding(donor.type);
-      if (donorSector && focus.includes(donorSector)
-        && jobBuildingPriority(donor.type, policy, focus)
-          <= jobBuildingPriority(recipient.type, policy, focus)) continue;
+      if (donorSector && focus.includes(donorSector) && donorSector !== sector) continue;
 
       // When food is secure a surplus second farmer may staff the school, mine or hospital.
       // A food shortage restores the protected food/guard crew floor.
