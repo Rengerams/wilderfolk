@@ -52,7 +52,7 @@ function catchUpBudgetFor(speed: number): number {
 
 /** Commands that change only top-level policy fields, never entities or buildings. */
 function isLightweightWorkerCommand(cmd: WorkerCommand): boolean {
-  return cmd.op === 'setWorkSchedule' || cmd.op === 'setVenueSchedule' || cmd.op === 'setWorkforcePolicy' || cmd.op === 'setWorkforceFocus';
+  return cmd.op === 'setWorkSchedule' || cmd.op === 'setVenueSchedule' || cmd.op === 'setWorkforcePolicy';
 }
 
 /** Only bounded edits may replay on the UI thread while the worker is authoritative. */
