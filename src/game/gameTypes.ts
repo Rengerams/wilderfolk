@@ -310,6 +310,12 @@ export interface Entity {
   /** One playmate choice per colony day, persisted across save/load and worker replay. */
   childPlaymateDay?: number;
   childPlaymateId?: number;
+  /** A daily play circle of two to four children; set by the one child-leisure owner. */
+  childPlayGroupIds?: number[];
+  /** Stable, saved play outing for one companion and three-hour leisure phase. */
+  childPlaySite?: { day: number; phase: number; mateId: number; x: number; y: number };
+  /** Successful or unsuccessful destination search, cached for one three-hour phase. */
+  childPlaySiteAttempt?: { day: number; phase: number };
   /** Current child leisure intent, written by the leisure owner for the inspector. */
   childLeisureActivity?: 'playing' | 'following' | 'home';
   childLeisureTargetId?: number;

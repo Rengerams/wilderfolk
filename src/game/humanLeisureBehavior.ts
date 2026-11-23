@@ -1,8 +1,9 @@
 import type { Building, Entity, WorldState } from './gameTypes';
-import { EntityType } from './gameTypes';
+import { EntityType, PATH_CELL } from './gameTypes';
 import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition, crowdGatherPosition, homeStandPosition, steerHumanToward } from './simulation/humanMovement';
 import { faceVelocity } from './simulation/movementSteering';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
+import { deterministicCos, deterministicSin } from './simTrig';
 import { getBuildingCenter } from './buildingGeometry';
 import { getChildCustodian, hasResidenceAssignment } from './housingModel';
 import { getWorkSchedule, isOnWorkScheduleShift } from './workSchedule';
@@ -20,15 +21,18 @@ import { findClosestAdaptiveInRadius, forEachAdaptiveInRadius, socialAdaptiveOpt
 import { seededRandomForRun, personDayRoll, getSimRng, PERSON_DAY_ROLL_SALTS } from './simRng';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
 import { addFloatingText } from './simEffects';
-import { isGroundWalkableAt, nearestWalkableWorldPoint, steerWithPath } from './pathfinding';
+import { getCurrentPathGrid, isGroundWalkableAt, lineCrossesBlocked, nearestWalkableWorldPoint, steerWithPath } from './pathfinding';
 import { fract } from './simulation/humanNeeds';
 import { findClosestEntityInRadius } from './simQueries';
 import { hasAffairPartner, canPursueSecretAffair, isAtMaritalHome } from './simulation/humanRelationships';
+import { relationshipScore } from './relationships';
 
 /** One daily play roll, not a new companion every clock hour. */
 const KID_PLAY_CHANCE = 0.72;
 /** Bound the candidate scan in large colonies. */
 export const CHILD_PLAYMATE_CANDIDATE_LIMIT = 32;
+/** Including the child: a pair, trio or four-child play circle. */
+export const CHILD_PLAY_GROUP_MAX = 4;
 
 /** 80 in-game hours: one free-time activity holds for several days, not one tick. */
 const LEISURE_SLOT_TICKS = 80 * TICKS_PER_HOUR;
@@ -68,6 +72,56 @@ export function leisureKindFor(entityId: number, tick: number, weekend: boolean)
   return leisureKind;
 }
 
+/** More likely to revisit real friends, without making newcomers impossible. */
+function childPlayCompanionWeight(child: Entity, candidate: Entity): number {
+  const bond = Math.max(
+    relationshipScore(child, candidate.id, 'friend'),
+    relationshipScore(candidate, child.id, 'friend'),
+  );
+  const dispute = Math.max(
+    relationshipScore(child, candidate.id, 'feud'),
+    relationshipScore(candidate, child.id, 'feud'),
+  );
+  const schoolFriend = child.childhoodFriendsIds?.includes(candidate.id)
+    || candidate.childhoodFriendsIds?.includes(child.id);
+  return Math.max(0.2, 1
+    + Math.min(6, Math.max(0, bond) / 10)
+    + (schoolFriend ? 4 : 0)
+    + (Math.abs(child.age - candidate.age) <= 5 ? 1 : 0)
+    - Math.min(5, Math.max(0, dispute) / 10));
+}
+
+/** Pick a new reachable outdoor play stop for an entire small friend circle. */
+function chooseChildPlaySite(
+  state: WorldState,
+  group: readonly Entity[],
+  day: number,
+  phase: number,
+  previous: Entity['childPlaySite'],
+): { x: number; y: number } | null {
+  const grid = getCurrentPathGrid();
+  const ids = group.map((child) => child.id).sort((a, b) => a - b);
+  const midX = group.reduce((sum, child) => sum + child.x, 0) / group.length;
+  const midY = group.reduce((sum, child) => sum + child.y, 0) / group.length;
+  // Only on phase changes: 12 candidate checks at most, never a new scan every tick.
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const key = `child-play-site:${ids.join('-')}:${day}:${phase}:${attempt}`;
+    const angle = seededRandomForRun(`${key}:angle`) * Math.PI * 2;
+    const radius = 42 + seededRandomForRun(`${key}:radius`) * 36;
+    const x = (Math.floor((midX + deterministicCos(angle) * radius) / PATH_CELL) + 0.5) * PATH_CELL;
+    const y = (Math.floor((midY + deterministicSin(angle) * radius) / PATH_CELL) + 0.5) * PATH_CELL;
+    if (x < 0 || y < 0 || x >= state.width || y >= state.height) continue;
+    if (previous && Math.hypot(x - previous.x, y - previous.y) < 28) continue;
+    if (!isGroundWalkableAt(x, y, grid)) continue;
+    // Use the path owner's same blocked-line predicate for every participant.
+    if (grid && group.some((member) =>
+      isGroundWalkableAt(member.x, member.y, grid)
+      && lineCrossesBlocked(grid, member.x, member.y, x, y))) continue;
+    return { x, y };
+  }
+  return null;
+}
+
 export function tickHumanChildLeisure(args: {
   state: WorldState;
   entity: Entity;
@@ -92,16 +146,50 @@ export function tickHumanChildLeisure(args: {
   if (args.onSchedule || args.suppressIdleInitial) return args.suppressIdleInitial;
 
   const day = getAbsoluteCalendarDay(state.tick);
-  const assignedMate = entity.childPlaymateId == null ? undefined
-    : (args.entityById?.get(entity.childPlaymateId)
-      ?? allHumans.find((human) => human.id === entity.childPlaymateId));
+  const byId = (id: number): Entity | undefined =>
+    args.entityById?.get(id) ?? allHumans.find((human) => human.id === id);
+  const assignedMate = entity.childPlaymateId == null
+    ? undefined : byId(entity.childPlaymateId);
   const mateUnavailable = entity.childPlaymateId != null
     && (!assignedMate?.alive || assignedMate.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(assignedMate));
-  if (entity.childPlaymateDay !== day || mateUnavailable) {
+
+  // Repair a reserved circle in place when its primary companion becomes unavailable.
+  // Other surviving members remain reserved for today, so a fresh neighborhood scan
+  // (which excludes assigned children) would wrongly dissolve the entire circle.
+  if (mateUnavailable && entity.childPlaymateDay === day) {
+    const survivors = (entity.childPlayGroupIds ?? [])
+      .map((id) => byId(id))
+      .filter((member): member is Entity =>
+        !!member?.alive && member.age < HUMAN_ADULT_MIN_AGE && isPlayerHuman(member)
+        && member.childPlaymateDay === day
+        && !!member.childPlayGroupIds?.includes(entity.id));
+    if (survivors.length >= 2 && survivors.some((member) => member.id === entity.id)) {
+      const ids = survivors.map((member) => member.id).sort((a, b) => a - b);
+      for (const member of survivors) {
+        if (!ids.includes(member.childPlaymateId ?? -1)) {
+          member.childPlaymateId = ids.find((id) => id !== member.id);
+        }
+        member.childPlayGroupIds = [...ids];
+        // The old destination was chosen for a different roster; all survivors
+        // must agree on a new site, even if some still had a living companion.
+        member.childPlaySite = undefined;
+        member.childPlaySiteAttempt = undefined;
+      }
+    }
+  }
+  const currentMate = entity.childPlaymateId == null ? undefined : byId(entity.childPlaymateId);
+  const needsReplacement = entity.childPlaymateId != null
+    && (!currentMate?.alive || currentMate.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(currentMate));
+
+  if (entity.childPlaymateDay !== day || needsReplacement) {
     entity.childPlaymateDay = day;
     entity.childPlaymateId = undefined;
+    entity.childPlayGroupIds = undefined;
+    entity.childPlaySite = undefined;
+    entity.childPlaySiteAttempt = undefined;
     if (personDayRoll(entity.id, state.tick, 718) < KID_PLAY_CHANCE) {
-      const playmates: Entity[] = [];
+      const nearby: Entity[] = [];
+      const grid = getCurrentPathGrid();
       forEachAdaptiveInRadius(
         humanSocialGrid,
         allHumans,
@@ -109,29 +197,93 @@ export function tickHumanChildLeisure(args: {
         entity.y,
         SOCIAL_FRIENDSHIP_RADIUS,
         (human) => {
-          if (human.id !== entity.id && human.alive && human.age < HUMAN_ADULT_MIN_AGE && isPlayerHuman(human)) {
-            playmates.push(human);
-            if (playmates.length >= CHILD_PLAYMATE_CANDIDATE_LIMIT) return false;
+          if (human.id !== entity.id && human.alive && human.age < HUMAN_ADULT_MIN_AGE
+            && isPlayerHuman(human) && human.childPlaymateDay !== day
+            && (!grid || !lineCrossesBlocked(grid, entity.x, entity.y, human.x, human.y))) {
+            nearby.push(human);
+            if (nearby.length >= CHILD_PLAYMATE_CANDIDATE_LIMIT) return false;
           }
         },
         socialAdaptiveOptions('social', allHumans.length, width, height),
       );
-      if (playmates.length > 0) entity.childPlaymateId = playmates[(entity.id + day) % playmates.length].id;
+      const chosen: Entity[] = [];
+      const targetCount = 1 + Math.floor(
+        seededRandomForRun(`child-play-circle-size:${entity.id}:${day}`) * (CHILD_PLAY_GROUP_MAX - 1),
+      );
+      for (let slot = 0; slot < targetCount && nearby.length > 0; slot++) {
+        const weights = nearby.map((candidate) => childPlayCompanionWeight(entity, candidate));
+        const total = weights.reduce((sum, weight) => sum + weight, 0);
+        let choice = seededRandomForRun(`child-play-circle-member:${entity.id}:${day}:${slot}`) * total;
+        let index = nearby.length - 1;
+        for (let i = 0; i < nearby.length; i++) {
+          choice -= weights[i];
+          if (choice < 0) { index = i; break; }
+        }
+        chosen.push(nearby.splice(index, 1)[0]!);
+      }
+      if (chosen.length > 0) {
+        const roster = [entity, ...chosen];
+        const groupIds = roster.map((member) => member.id).sort((a, b) => a - b);
+        for (const member of roster) {
+          member.childPlaymateDay = day;
+          member.childPlaymateId = member.id === entity.id ? chosen[0]!.id : entity.id;
+          member.childPlayGroupIds = [...groupIds];
+          member.childPlaySite = undefined;
+          member.childPlaySiteAttempt = undefined;
+        }
+      }
     }
   }
-  const mate = entity.childPlaymateId == null ? undefined
-    : (args.entityById?.get(entity.childPlaymateId)
-      ?? allHumans.find((human) => human.id === entity.childPlaymateId && human.alive));
+  const mate = entity.childPlaymateId == null ? undefined : byId(entity.childPlaymateId);
+  const group = (entity.childPlayGroupIds ?? [entity.id, mate?.id].filter((id): id is number => id != null))
+    .map((id) => byId(id))
+    .filter((human): human is Entity =>
+      !!human?.alive && human.age < HUMAN_ADULT_MIN_AGE && isPlayerHuman(human));
   const impulse = pickSocialImpulse(entity, state, updatedBuildings, [], [], args.pickSocialBuilding);
 
   if (!impulse.stayHome) {
-    if (mate?.alive && Math.hypot(mate.x - entity.x, mate.y - entity.y) <= SOCIAL_FRIENDSHIP_RADIUS) {
-      const pdist = Math.hypot(mate.x - entity.x, mate.y - entity.y) || 1;
-      if (pdist > 16) {
-        steerHumanToward(entity, mate.x, mate.y, speed, 0.7, `child_play_${entity.id}_${mate.id}`);
+    // The radius gates initial membership, not an outing already assigned to a
+    // group: walking to a shared stop can temporarily separate companions.
+    const reservedGroup = entity.childPlayGroupIds?.includes(entity.id)
+      && entity.childPlayGroupIds.includes(mate?.id ?? -1);
+    if (mate?.alive && group.length >= 2
+      && (reservedGroup || Math.hypot(mate.x - entity.x, mate.y - entity.y) <= SOCIAL_FRIENDSHIP_RADIUS)) {
+      const phase = Math.floor(hourOfDay / 3);
+      const cachedSite = entity.childPlaySite;
+      if (!cachedSite || cachedSite.day !== day || cachedSite.phase !== phase
+        || cachedSite.mateId !== mate.id || !Number.isFinite(cachedSite.x)
+        || !Number.isFinite(cachedSite.y) || !isGroundWalkableAt(cachedSite.x, cachedSite.y)) {
+        // One stop shared by all participants, including children processed later this tick.
+        const shared = group.find((member) =>
+          member.childPlaySite?.day === day && member.childPlaySite.phase === phase
+          && Number.isFinite(member.childPlaySite.x) && Number.isFinite(member.childPlaySite.y)
+          && isGroundWalkableAt(member.childPlaySite.x, member.childPlaySite.y))?.childPlaySite;
+        // A rejected search is a decision for this phase too. Without this
+        // marker every eligible tick repeats 12 blocked-ground probes per child.
+        const attempted = group.some((member) =>
+          member.childPlaySiteAttempt?.day === day && member.childPlaySiteAttempt.phase === phase);
+        if (shared || !attempted) {
+          const point = shared ?? chooseChildPlaySite(state, group, day, phase, cachedSite);
+          for (const member of group) {
+            if (member.childPlaymateId == null) continue;
+            member.childPlaySite = point
+              ? { day, phase, mateId: member.childPlaymateId, x: point.x, y: point.y }
+              : undefined;
+            member.childPlaySiteAttempt = { day, phase };
+          }
+        }
+      }
+      const site = entity.childPlaySite;
+      const destinationX = site?.x ?? mate.x;
+      const destinationY = site?.y ?? mate.y;
+      const distance = Math.hypot(destinationX - entity.x, destinationY - entity.y);
+      if (distance > 14) {
+        steerHumanToward(entity, destinationX, destinationY, speed, 0.7,
+          `child_play_${entity.id}_${mate.id}`);
       } else {
-        entity.vx = deterministicWave(state.tick * 0.2 + entity.id) * speed * 0.45;
-        entity.vy = deterministicWave(state.tick * 0.18 + mate.id + 0.5) * speed * 0.45;
+        // A little movement at the play area, not an endless chase around the mate's feet.
+        entity.vx = deterministicWave(state.tick * 0.2 + entity.id) * speed * 0.18;
+        entity.vy = deterministicWave(state.tick * 0.18 + mate.id + 0.5) * speed * 0.18;
         if (seededRandomForRun(`chat-kid:${entity.id}:${state.tick}`) < 0.06 * PER_TICK_RATE_SCALE) {
           requestDialogue({
             eventKey: 'child.play', speaker: entity, tick: state.tick,

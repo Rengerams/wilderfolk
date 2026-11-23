@@ -99,6 +99,45 @@ describe('selected human activity projection', () => {
     expect(getHumanActivityStatus(world, child)).toBe('Free time');
   });
 
+
+  it('projects the actual play area instead of a playmate position', () => {
+    const world = initGame({ villageName: 'Play area', size: MapSize.Medium, seed: 606 });
+    const child = world.entities.find((entity) => entity.alive && entity.type === EntityType.Human);
+    const mate = world.entities.find((entity) =>
+      entity.alive && entity.type === EntityType.Human && entity.id !== child?.id);
+    if (!child || !mate) throw new Error('Expected two settlers');
+    const third = structuredClone(mate);
+    third.id = Math.max(...world.entities.map((e) => e.id)) + 1;
+    third.alive = true;
+    third.isJuvenile = true;
+    world.entities.push(third);
+    child.isJuvenile = true;
+    child.age = 10;
+    child.needs = undefined;
+    child.workerBuildingId = undefined;
+    child.residenceBuildingId = undefined;
+    child.indoorBuildingId = undefined;
+    child.childPlaymateDay = Math.floor(world.tick / TICKS_PER_DAY);
+    child.childPlaymateId = mate.id;
+    child.childPlayGroupIds = [child.id, mate.id, third.id];
+    child.childLeisureActivity = 'playing';
+    child.childLeisureTargetId = mate.id;
+    child.childPlaySite = {
+      day: child.childPlaymateDay,
+      phase: Math.floor((world.tick % TICKS_PER_DAY) / (3 * TICKS_PER_HOUR)),
+      mateId: mate.id, x: child.x + 65, y: child.y + 45,
+    };
+    const projection = getHumanActivityProjection(world, child);
+    expect(projection.activity).toBe(`Playing with ${mate.name} + 1 friend`);
+    expect(projection.target).toMatchObject({
+      kind: 'play-site', entityId: mate.id,
+      x: child.x + 65, y: child.y + 45,
+    });
+    expect(explainHumanMovement(world, child.id).lines).toContainEqual({
+      label: 'Destination', value: `Play area with ${mate.name} + 1 friend`, tone: 'neutral',
+    });
+  });
+
   it('reports a child walking home on the scheduled commute, not free time', () => {
     const world = initGame({ villageName: 'Scheduled Child', size: MapSize.Medium, seed: 107 });
     const child = world.entities.find((entity) => entity.alive && entity.type === EntityType.Human);
