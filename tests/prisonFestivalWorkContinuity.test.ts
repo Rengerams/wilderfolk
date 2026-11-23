@@ -5,6 +5,8 @@
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
+import { prepareWorkforce } from '../src/game/workforce';
+import { getWorkerSkillMultiplier } from '../src/game/skills';
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, setHumanBirthFromAge } from '../src/game/dayCycle';
 import { homeStandPosition } from '../src/game/simulation/humanMovement';
@@ -194,6 +196,43 @@ function festivalWorkWorld(): { state: WorldState; farmer: Entity; innkeeper: En
   state.tick = 15 * TICKS_PER_HOUR - 1; // Enters 15:00 inside the afternoon shift
   return { state, farmer, innkeeper, idler };
 }
+
+it('keeps a former Hunter hidden and present after arriving at a fishing post', () => {
+  const jetty = building(10, BuildingType.FishingSpot, 300, 200, [1]);
+  const fisher = human(1, { job: JobType.Hunter, occupation: 'Hunter', workerBuildingId: jetty.id,
+    x: 345, y: 200, skills: { hunter: 12 }, huntTargetId: 99 });
+  const state = worldState([fisher], [jetty], null);
+  state.tick = 10 * TICKS_PER_HOUR;
+  const bonusBefore = getWorkerSkillMultiplier(state, jetty);
+  prepareWorkforce(state.entities, state.buildings);
+  expect(fisher.job).toBe(JobType.Fisher);
+  expect(fisher.occupation).toBe('Fisher');
+  expect(fisher.skills?.hunter).toBe(12);
+  expect(fisher.skills?.fisher).toBe(12);
+  expect(getWorkerSkillMultiplier(state, jetty)).toBeCloseTo(bonusBefore * 1.24);
+  prepareWorkforce(state.entities, state.buildings);
+  expect(fisher.skills?.fisher).toBe(12);
+  expect(fisher.huntTargetId).toBeUndefined();
+  for (let i = 0; i < TICKS_PER_HOUR && fisher.indoorBuildingId == null; i++) gameTick(state);
+  const arrived = [fisher.x, fisher.y];
+  const present = fisher.schedulePresentTicksToday ?? 0;
+  for (let tick = 1; tick <= TICKS_PER_HOUR; tick++) {
+    gameTick(state);
+    expect(fisher.indoorBuildingId).toBe(jetty.id);
+    expect([fisher.x, fisher.y]).toEqual(arrived);
+    expect(fisher.schedulePresentTicksToday).toBe(present + tick);
+  }
+});
+
+it('retains an already higher Fisher skill when reconciling legacy fishing crews', () => {
+  const jetty = building(10, BuildingType.FishingSpot, 300, 200, [1]);
+  const fisher = human(1, { job: JobType.Hunter, workerBuildingId: jetty.id,
+    skills: { hunter: 12, fisher: 23 } });
+  prepareWorkforce([fisher], [jetty]);
+  expect(fisher.job).toBe(JobType.Fisher);
+  expect(fisher.skills?.fisher).toBe(23);
+  expect(fisher.skills?.hunter).toBe(12);
+});
 
 describe('a prison is open 24 hours', () => {
   it('counts a guard at the valid facade as present even outside the old centre-radius cutoff', () => {

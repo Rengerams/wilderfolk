@@ -132,6 +132,7 @@ export const JobType = {
   Priest: 'priest',
   Gravekeeper: 'gravekeeper',
   Hunter: 'hunter',
+  Fisher: 'fisher',
   Builder: 'builder',
   /** @deprecated Legacy saves only; new assignments use Soldier or PrisonGuard. */
   Guard: 'guard',
@@ -155,6 +156,7 @@ export const JOB_LABELS: Record<JobType, string> = {
   [JobType.Priest]: 'Priest',
   [JobType.Gravekeeper]: 'Gravekeeper',
   [JobType.Hunter]: 'Hunter',
+  [JobType.Fisher]: 'Fisher',
   [JobType.Builder]: 'Builder',
   /** @deprecated Displayed only for unmigrated legacy assignments. */
   [JobType.Guard]: 'Guard (legacy)',
@@ -182,7 +184,7 @@ export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
   [BuildingType.Prison]: JobType.PrisonGuard,
   [BuildingType.Barracks]: JobType.Soldier,
   [BuildingType.HuntingSpot]: JobType.Hunter,
-  [BuildingType.FishingSpot]: JobType.Hunter,
+  [BuildingType.FishingSpot]: JobType.Fisher,
   [BuildingType.Tavern]: JobType.Innkeeper,
   [BuildingType.Hotel]: JobType.Hotelier,
 };
