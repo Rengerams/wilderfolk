@@ -15,7 +15,8 @@ import { setVenueSchedule, validateVenueSchedule, type VenueScheduleKind } from 
 import {
   isWorkforcePreset,
   setWorkforcePolicy,
-  isWorkforceFocusSector,
+  isWorkforceOption,
+  WORKFORCE_FOCUS_SECTORS,
   setWorkforceFocus,
   type WorkforceFocusSector,
   type WorkforcePreset,
@@ -253,7 +254,7 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
     case 'setWorkforcePolicy':
       return isWorkforcePreset(cmd.preset);
     case 'setWorkforceFocus':
-      return isWorkforceFocusSector(cmd.sector) && typeof cmd.enabled === 'boolean';
+      return isWorkforceOption(cmd.sector, WORKFORCE_FOCUS_SECTORS) && typeof cmd.enabled === 'boolean';
     case 'tameEntity':
       return isFiniteNumber(cmd.entityId) && isFiniteNumber(cmd.humanId);
     case 'notifyBuildingLocked':
