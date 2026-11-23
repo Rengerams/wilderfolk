@@ -342,6 +342,38 @@ describe('one authoritative movement walkability verdict', () => {
     }
   });
 
+  for (const goalBlocked of [false, true]) {
+    it(`retries a long detour above the distance-based search budget (${goalBlocked ? 'blocked' : 'open'} goal)`, () => {
+      // The default budget for this 180-tile leg is 22,000 nodes. Its only river gap
+      // forces more expansions; the second walking decision budget must find the detour.
+      // A blocked goal also exercises the stand-point fallback and its pending verdict.
+      const map = testWorldMap({
+        tilesX: 240, tilesY: 240, seed: goalBlocked ? 2724 : 2723,
+        tileType: (x, y) => (x === 120 && y !== 239)
+          || (goalBlocked && x === 30 && y === 100) ? TerrainType.River : undefined,
+      });
+      resetPathGridCaches();
+      setCurrentPathMap(map, []);
+      try {
+        const walker = human(goalBlocked ? 2724 : 2723, { x: center(210), y: center(100) });
+        const goalX = center(30), goalY = center(100);
+        expect(getRouteObstruction(map, [], walker, { x: goalX, y: goalY })).toBe('pending');
+        const key = goalBlocked ? 'blocked-long-detour' : 'open-long-detour';
+        let result = steerWithPath(walker, goalX, goalY, 2, key);
+        expect(result).toBe('blocked');
+        for (let pulse = 0; pulse < 16 && result !== 'path'; pulse++) {
+          result = steerWithPath(walker, goalX, goalY, 2, key);
+        }
+        expect(result).toBe('path');
+        expect(Math.hypot(walker.vx, walker.vy)).toBeGreaterThan(0);
+        expect(Math.floor(walker.x / PATH_CELL)).toBeGreaterThan(120);
+      } finally {
+        setCurrentPathMap(null);
+        resetPathGridCaches();
+      }
+    });
+  }
+
   it('does not give a previous walkers cached waypoints to a new walker sharing a key', () => {
     const map = testWorldMap({
       tilesX: 16, tilesY: 14, seed: 2717,

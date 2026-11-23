@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-22 — [Pending navigation search repeatedly strands moving walkers](../bug_report/2026-11-22-pending-navigation-budget-stalls-walkers.md):** investigating; the original flat 12k budget repeatedly stranded walkers. The subsequently merged distance-based budget still has a finite cap, so PR #183 adds capped walker-only retries, including blocked-goal fallback exhaustion. Live save verification remains pending.
+
 **2026-11-22 — [Generator-reserved big-rock cells were walkable again](../bug_report/2026-11-22-reserved-boulder-cells-walkable.md):** resolved; `buildPathGrid` only blocked water, so `Walkability.Reserved` rock cells were walked through although the build grid refuses to build there, the enum documents them as barring walking and the terrain rebake preserves them. Passability now treats every non-`Open` cell as blocked while decorative buildings stay walkable; regression test rewritten.
 
 **2026-11-22 — [A blocked destination was approached from the far bank](../bug_report/2026-11-22-blocked-destination-far-bank-snap.md):** resolved; the goal snapped to the tile nearest the destination centre, which could sit across a river or wall, so an east-bank settler walked 918 px to a far bridge to reach a target 50 px away. The stand point is now chosen on the walker's side of the obstacle (33 px, correct bank), and the route search itself now picks the cheapest *reachable* stand tile instead of trusting distance.
