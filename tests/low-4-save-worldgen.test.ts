@@ -30,7 +30,7 @@ describe('saveLoad cross-cutting items', () => {
 
     // A real legacy save has no format marker: an unknown old release must still be refused
     // by parseSaveJson, even though a direct loadGameFromParsed call bypasses the version gate.
-    const forged = { ...saved, _version: '0.4', foodSpoilageRate: 0.5 };
+    const forged: Record<string, unknown> = { ...saved, _version: '0.4', foodSpoilageRate: 0.5 };
     delete forged._saveFormatVersion;
     expect(parseSaveJson(JSON.stringify(forged)).valid).toBe(false);
 
