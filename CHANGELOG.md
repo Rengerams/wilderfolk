@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- Fishing Spots now employ Fishers. Existing fishing crews retain their posts and stop using Hunter job behavior.
 - **Added (23 Nov 2026):** Food, Mining, Schools, Hospitals and Church priority buttons steer automatic staffing. Full classes of ten pupils seek a second teacher; vital posts keep safe coverage.
 
 - **Fixed (23 Nov 2026; PR #186, pending merge):** Couples at 100% courtship can marry regardless of processing order; partner conversations no longer disappear when the higher-ID settler initiates them.
