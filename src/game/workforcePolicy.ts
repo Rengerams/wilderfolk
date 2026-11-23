@@ -10,6 +10,67 @@ export type WorkforcePolicy = WorkforcePreset;
 
 export const DEFAULT_WORKFORCE_POLICY: WorkforcePolicy = 'survival';
 
+/** Independent player-selected sector boosts on top of the ordinary staffing preset. */
+export const WORKFORCE_FOCUS_SECTORS = ['food', 'mining', 'education', 'healthcare', 'church'] as const;
+export type WorkforceFocusSector = (typeof WORKFORCE_FOCUS_SECTORS)[number];
+
+export const WORKFORCE_FOCUS_OPTIONS: readonly {
+  sector: WorkforceFocusSector; label: string; description: string;
+}[] = [
+  { sector: 'food', label: 'Food', description: 'Protect food production and prioritise open farming and foraging posts.' },
+  { sector: 'mining', label: 'Mining', description: 'Fill mines and quarries before lower-priority jobs when staff can be spared.' },
+  { sector: 'education', label: 'Schools', description: 'Prioritise teachers; a school with ten pupils seeks its second teacher.' },
+  { sector: 'healthcare', label: 'Hospitals', description: 'Prioritise extra doctors for completed hospitals.' },
+  { sector: 'church', label: 'Church', description: 'Prioritise filling every priest post at the church.' },
+];
+
+/** Single validator for every policy option set (presets and sector toggles). */
+export function isWorkforceOption<T extends string>(value: unknown, options: readonly T[]): value is T {
+  return typeof value === 'string' && (options as readonly string[]).includes(value);
+}
+
+export function normalizeWorkforceFocus(value: unknown): WorkforceFocusSector[] {
+  if (!Array.isArray(value)) return [];
+  return WORKFORCE_FOCUS_SECTORS.filter((sector) => value.includes(sector));
+}
+
+export function getWorkforceFocus(world: { workforceFocus?: unknown }): WorkforceFocusSector[] {
+  return normalizeWorkforceFocus(world.workforceFocus);
+}
+
+export function setWorkforceFocus<T extends { workforceFocus?: WorkforceFocusSector[] }>(
+  world: T, sector: WorkforceFocusSector, enabled: boolean,
+): T {
+  if (!isWorkforceOption(sector, WORKFORCE_FOCUS_SECTORS) || typeof enabled !== 'boolean') return world;
+  const previous = getWorkforceFocus(world);
+  if (previous.includes(sector) === enabled) return world;
+  return { ...world, workforceFocus: WORKFORCE_FOCUS_SECTORS.filter((candidate) =>
+    candidate === sector ? enabled : previous.includes(candidate)) };
+}
+
+/** A type belongs to at most one boosted sector. */
+export function workforceSectorForBuilding(type: BuildingType): WorkforceFocusSector | undefined {
+  switch (type) {
+    case 'farm':
+    case 'greenhouse':
+    case 'fishingSpot':
+    case 'huntingSpot':
+      return 'food';
+    case 'mine':
+    case 'quarry':
+      return 'mining';
+    case 'school':
+      return 'education';
+    case 'hospital':
+      return 'healthcare';
+    case 'church':
+      return 'church';
+    default:
+      return undefined;
+  }
+}
+
+
 /** Player-facing preset copy — the single definition, read by the work-schedule panel. */
 const WORKFORCE_PRESET_DETAILS: Readonly<
   Record<WorkforcePreset, { label: string; description: string }>
@@ -174,7 +235,7 @@ const PRESET_BUILDING_ORDER: Readonly<Record<WorkforcePreset, readonly BuildingT
 
 /** True when `value` is one of the four named presets. */
 export function isWorkforcePreset(value: unknown): value is WorkforcePreset {
-  return typeof value === 'string' && (WORKFORCE_PRESETS as readonly string[]).includes(value);
+  return isWorkforceOption(value, WORKFORCE_PRESETS);
 }
 
 /**
@@ -205,7 +266,11 @@ export function getWorkforcePresetDescription(preset: WorkforcePreset): string {
 export function jobBuildingPriorityForPolicy(
   preset: WorkforcePolicy,
   type: BuildingType,
+  focus: readonly WorkforceFocusSector[] = [],
 ): number {
+  const sector = workforceSectorForBuilding(type);
+  const focusRank = sector == null ? -1 : focus.indexOf(sector);
+  if (focusRank >= 0) return -100 + focusRank * 25 + PRESET_BUILDING_ORDER[preset].indexOf(type) / 100;
   const index = PRESET_BUILDING_ORDER[preset].indexOf(type);
   return index === -1 ? UNRANKED_JOB_BUILDING_RANK : index;
 }
