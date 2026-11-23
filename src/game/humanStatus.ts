@@ -20,8 +20,18 @@ function labelFor(building: Building): string {
   return BUILDING_CONFIGS[building.type]?.label ?? 'Building';
 }
 
+/** Keep the primary companion visible, and mention additional living playmates. */
+function childPlayCompanionLabel(state: WorldState, entity: Entity, companion: Entity): string {
+  const others = (entity.childPlayGroupIds ?? []).filter((id) =>
+    id !== entity.id && id !== companion.id
+    && state.entities.some((candidate) => candidate.id === id && candidate.alive && candidate.isJuvenile),
+  ).length;
+  const name = citizenGivenName(companion);
+  return others ? `${name} + ${others} ${others === 1 ? 'friend' : 'friends'}` : name;
+}
+
 export type HumanActivityTarget = {
-  kind: 'workplace' | 'home' | 'nearby-building' | 'hunt' | 'combat' | 'playmate' | 'guardian';
+  kind: 'workplace' | 'home' | 'nearby-building' | 'hunt' | 'combat' | 'playmate' | 'guardian' | 'play-site';
   label: string;
   buildingId?: number;
   entityId?: number;
@@ -110,7 +120,7 @@ export function getHumanActivityStatus(
     const companion = state.entities.find((candidate) =>
       candidate.id === entity.childLeisureTargetId && candidate.alive);
     if (companion && currentChildLeisure === 'playing') {
-      return `Playing with ${citizenGivenName(companion)}`;
+      return `Playing with ${childPlayCompanionLabel(state, entity, companion)}`;
     }
     if (companion && currentChildLeisure === 'following') {
       return `Following ${citizenGivenName(companion)}`;
@@ -190,6 +200,17 @@ export function getHumanActivityProjection(
       const companion = state.entities.find((candidate) =>
         candidate.id === entity.childLeisureTargetId && candidate.alive);
       if (companion) {
+        const playSite = entity.childPlaySite;
+        if (entity.childLeisureActivity === 'playing'
+          && playSite?.day === getAbsoluteCalendarDay(state.tick)
+          && playSite.phase === Math.floor(hour / 3)
+          && playSite.mateId === companion.id) {
+          return {
+            kind: 'play-site',
+            label: `Play area with ${childPlayCompanionLabel(state, entity, companion)}`,
+            entityId: companion.id, x: playSite.x, y: playSite.y,
+          };
+        }
         return {
           kind: entity.childLeisureActivity === 'playing' ? 'playmate' : 'guardian',
           label: citizenGivenName(companion),

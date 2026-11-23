@@ -1409,12 +1409,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
+    // Work and its commute own movement; neither kind of affair may steal their steering.
+    const availableForAffair = !onJobShift && !onOfficialShift && !onPriestShift &&
+      !workCommuteDue && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue;
+
     // Secret affairs: pregnancy or expecting status does not block encounters or catching.
     const hasActiveMarriage =
       isMarriedOrExpecting(entity) &&
       entity.partnerId != null;
 
     if (
+      availableForAffair &&
       !inSpotlightGathering &&
       !goingToHospital &&
       canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
@@ -1506,6 +1511,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Established affairs still happen in normal free time, but cannot steal
     // spotlight participants' movement after the gathering vector is assigned.
     if (
+      availableForAffair &&
       !inSpotlightGathering &&
       !goingToHospital &&
       canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&

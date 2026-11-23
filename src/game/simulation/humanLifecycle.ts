@@ -34,7 +34,7 @@ const BIRTH_TALENT_JOBS = [
   JobType.Farmer, JobType.Lumberjack, JobType.Miner, JobType.Blacksmith,
   JobType.Merchant, JobType.Teacher, JobType.Doctor, JobType.Official,
   JobType.Priest, JobType.Gravekeeper, JobType.Hunter, JobType.Builder,
-  JobType.Soldier, JobType.PrisonGuard, JobType.Innkeeper, JobType.Hotelier,
+  JobType.Soldier, JobType.PrisonGuard, JobType.Innkeeper, JobType.Hotelier, JobType.Fisher,
 ] as const;
 
 export function grantRareBirthTalent(child: Entity, birthKey: string): void {
