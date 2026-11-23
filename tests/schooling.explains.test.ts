@@ -8,13 +8,12 @@ import { resolve } from 'node:path';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import {
-  SCHOOL_CHILDREN_PER_TEACHER,
   SCHOOL_MAX_CHILDREN,
   describeSchoolingSummary,
   getSchoolingBlockReason,
   summarizeSchooling,
 } from '../src/game/education';
-import { SCHOOL_MIN_AGE } from '../src/game/gameConstants';
+import { SCHOOL_MIN_AGE, SCHOOL_CHILDREN_PER_TEACHER } from '../src/game/gameConstants';
 import { isSchoolTime } from '../src/game/education';
 import { summarizeTradeRouteBlocks } from '../src/game/tradeCaravans';
 

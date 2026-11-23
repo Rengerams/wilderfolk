@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType, JobType } from '../src/game/gameTypes';
 import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
 import { SCHOOL_MIN_AGE } from '../src/game/gameConstants';
+import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { schoolCapacity } from '../src/game/education';
 import { building, human } from '../src/test/factories';
 import {
@@ -25,15 +26,11 @@ import { applyWorkerCommand, extractCommandDelta, isWorkerCommand, WORKER_CMD_PR
 import { applySimTickDelta, extractSimTickDelta } from '../src/game/simBuffers/simDelta';
 import { applySimPrep, extractSimPrep } from '../src/game/simWorker/simPrep';
 
-function adult(id: number, workplace: number) {
-  return human(id, { workerBuildingId: workplace });
-}
-
 describe('workforce sector focus: real staffing', () => {
   it('lets the Church hire a second priest from a safe food surplus when the Church button is on', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2] });
     const church = building(11, BuildingType.Church, { occupants: [3] });
-    const workers = [adult(1, farm.id), adult(2, farm.id), adult(3, church.id)];
+    const workers = [human(1, { workerBuildingId: farm.id }), human(2, { workerBuildingId: farm.id }), human(3, { workerBuildingId: church.id })];
 
     rebalanceJobWorkers(workers, [farm, church], 'survival', 100, false, ['church']);
 
@@ -49,9 +46,9 @@ describe('workforce sector focus: real staffing', () => {
     const lumber = building(12, BuildingType.LumberMill, { occupants: [3, 4, 5] });
     const church = building(11, BuildingType.Church, { occupants: [6] });
     const workers = [
-      ...[1, 2].map((id) => adult(id, farm.id)),
-      ...[3, 4, 5].map((id) => adult(id, lumber.id)),
-      adult(6, church.id),
+      ...[1, 2].map((id) => human(id, { workerBuildingId: farm.id })),
+      ...[3, 4, 5].map((id) => human(id, { workerBuildingId: lumber.id })),
+      human(6, { workerBuildingId: church.id }),
     ];
 
     rebalanceJobWorkers(workers, [farm, lumber, church], 'survival', 100, false, ['church']);
@@ -64,7 +61,7 @@ describe('workforce sector focus: real staffing', () => {
   it('does not drain food workers in a food emergency just to fill the Church', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2] });
     const church = building(11, BuildingType.Church, { occupants: [3] });
-    const workers = [adult(1, farm.id), adult(2, farm.id), adult(3, church.id)];
+    const workers = [human(1, { workerBuildingId: farm.id }), human(2, { workerBuildingId: farm.id }), human(3, { workerBuildingId: church.id })];
 
     rebalanceJobWorkers(workers, [farm, church], 'survival', 100, true, ['church']);
 
@@ -75,7 +72,7 @@ describe('workforce sector focus: real staffing', () => {
   it('gives a Mine an extra miner when the mining button is on, protecting one farmer', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2] });
     const mine = building(11, BuildingType.Mine, { occupants: [3] });
-    const workers = [adult(1, farm.id), adult(2, farm.id), adult(3, mine.id)];
+    const workers = [human(1, { workerBuildingId: farm.id }), human(2, { workerBuildingId: farm.id }), human(3, { workerBuildingId: mine.id })];
 
     rebalanceJobWorkers(workers, [farm, mine], 'survival', 100, false, ['mining']);
 
@@ -89,7 +86,7 @@ describe('workforce sector focus: real staffing', () => {
     const pupils = Array.from({ length: 10 }, (_, i) =>
       human(100 + i, { age: SCHOOL_MIN_AGE, isJuvenile: true, schoolBuildingId: school.id }),
     );
-    const humans = [adult(1, farm.id), adult(2, farm.id), adult(3, school.id), ...pupils];
+    const humans = [human(1, { workerBuildingId: farm.id }), human(2, { workerBuildingId: farm.id }), human(3, { workerBuildingId: school.id }), ...pupils];
 
     rebalanceJobWorkers(humans, [farm, school], 'survival', 100);
 
@@ -98,13 +95,65 @@ describe('workforce sector focus: real staffing', () => {
     expect(countWorkersAtBuilding(humans, farm.id)).toBe(1);
   });
 
+  it('reclaims Church surplus for an empty food site during an emergency, with or without Food focus', () => {
+    for (const focus of [['church'], ['food', 'church']] as const) {
+      const farm = building(10, BuildingType.Farm);
+      const church = building(11, BuildingType.Church, { occupants: [1, 2, 3, 4] });
+      const workers = [1, 2, 3, 4].map((id) => human(id, { workerBuildingId: church.id }));
+
+      rebalanceJobWorkers(workers, [farm, church], 'survival', 100, true, focus);
+
+      expect(countWorkersAtBuilding(workers, farm.id)).toBe(3);
+      expect(countWorkersAtBuilding(workers, church.id)).toBe(1);
+      expect(farm.occupants).toHaveLength(3);
+    }
+  });
+
+  it('keeps two equally prioritized Churches stable over repeated staffing passes', () => {
+    const first = building(10, BuildingType.Church, { occupants: [1, 2] });
+    const second = building(11, BuildingType.Church, { occupants: [3, 4] });
+    const workers = [
+      human(1, { workerBuildingId: first.id }),
+      human(2, { workerBuildingId: first.id }),
+      human(3, { workerBuildingId: second.id }),
+      human(4, { workerBuildingId: second.id }),
+    ];
+
+    rebalanceJobWorkers(workers, [first, second], 'survival', 100, false, ['church']);
+    expect(first.occupants).toEqual([1, 2]);
+    expect(second.occupants).toEqual([3, 4]);
+
+    rebalanceJobWorkers(workers, [first, second], 'survival', 100 + 3 * TICKS_PER_DAY, false, ['church']);
+    expect(first.occupants).toEqual([1, 2]);
+    expect(second.occupants).toEqual([3, 4]);
+  });
+
+  it('allows genuine same-sector surplus: an empty school lends its extra teacher', () => {
+    const quiet = building(10, BuildingType.School, { occupants: [1, 2] });
+    const full = building(11, BuildingType.School, { occupants: [3] });
+    const pupils = Array.from({ length: 10 }, (_, i) =>
+      human(100 + i, { age: SCHOOL_MIN_AGE, isJuvenile: true, schoolBuildingId: full.id }),
+    );
+    const people = [
+      human(1, { workerBuildingId: quiet.id }),
+      human(2, { workerBuildingId: quiet.id }),
+      human(3, { workerBuildingId: full.id }),
+      ...pupils,
+    ];
+
+    rebalanceJobWorkers(people, [quiet, full], 'survival', 100, false, ['education']);
+
+    expect(countWorkersAtBuilding(people, quiet.id)).toBe(1);
+    expect(countWorkersAtBuilding(people, full.id)).toBe(2);
+  });
+
   it('does not borrow an extra teacher for nine pupils', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2] });
     const school = building(11, BuildingType.School, { occupants: [3] });
     const pupils = Array.from({ length: 9 }, (_, i) =>
       human(100 + i, { age: HUMAN_ADULT_MIN_AGE - 1, isJuvenile: true, schoolBuildingId: school.id }),
     );
-    const humans = [adult(1, farm.id), adult(2, farm.id), adult(3, school.id), ...pupils];
+    const humans = [human(1, { workerBuildingId: farm.id }), human(2, { workerBuildingId: farm.id }), human(3, { workerBuildingId: school.id }), ...pupils];
 
     rebalanceJobWorkers(humans, [farm, school], 'survival', 100);
 
@@ -115,7 +164,7 @@ describe('workforce sector focus: real staffing', () => {
   it('construction cannot take an extra focused priest to seed an empty building project', () => {
     const church = building(10, BuildingType.Church, { occupants: [1, 2] });
     const project = building(11, BuildingType.Workshop, { completed: false, occupants: [] });
-    const humans = [adult(1, church.id), adult(2, church.id)];
+    const humans = [human(1, { workerBuildingId: church.id }), human(2, { workerBuildingId: church.id })];
 
     staffConstructionCrews(humans, [church, project], 'survival', 100, ['church']);
 

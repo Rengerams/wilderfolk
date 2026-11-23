@@ -4,7 +4,6 @@ import { BuildingType, EntityType, JobType, PATH_CELL } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycle';
 import { isWorkDay } from './dayCycleClock';
 import { SCHOOL_MIN_AGE, SCHOOL_CHILDREN_PER_TEACHER } from './gameConstants';
-export { SCHOOL_CHILDREN_PER_TEACHER } from './gameConstants';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { increaseEntitySkill } from './skills';
 import { addNotification } from './simEffects';

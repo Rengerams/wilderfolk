@@ -537,7 +537,8 @@ export function rebalanceJobWorkers(
       if (!donor) break;
       // An ordinary low-priority vacancy cannot undo the player's selected focus.
       const donorSector = workforceSectorForBuilding(donor.type);
-      if (!criticalPost && donorSector && focus.includes(donorSector)
+      if (!criticalPost && !(foodEmergency && priorityFood)
+        && donorSector && focus.includes(donorSector)
         && donorSector !== workforceSectorForBuilding(needy.type)) {
         rejectedDonors.add(donor.id);
         continue;
@@ -638,16 +639,23 @@ function fillPriorityStaffing(
       if (staffed >= target) break;
       if (donor.id === recipient.id) continue;
       const donorSector = workforceSectorForBuilding(donor.type);
-      if (donorSector && focus.includes(donorSector) && donorSector !== sector) continue;
+      if (donorSector && focus.includes(donorSector) && donorSector !== sector
+        && !(foodEmergency && isFoodWorkplace(recipient))) continue;
 
-      // When food is secure a surplus second farmer may staff the school, mine or hospital.
-      // A food shortage restores the protected food/guard crew floor.
+      // A site in the same sector may lend only workers above its own staffing demand.
+      const sameSectorDemand = donorSector != null && donorSector === sector
+        ? donor.type === BuildingType.School
+          ? preferredSchoolStaff(donor, humans)
+          : focused ? staffingCapFor(donor, humans).cap : minimumAutoCoverage(donor)
+        : 0;
       const donorFloor = isFoodWorkplace(donor) && !foodEmergency
         && sector !== 'food' && !focus.includes('food')
         ? 1 : minimumAutoCoverage(donor);
-      while (staffed < target && (index.counts.get(donor.id) ?? 0) > donorFloor) {
+      const keep = Math.max(donorFloor, sameSectorDemand);
+      while (staffed < target && (index.counts.get(donor.id) ?? 0) > keep) {
         const worker = pickWorkerToTransfer(
           humans, donor, recipient, currentTick, buildings, movedThisPass,
+          foodEmergency && isFoodWorkplace(recipient),
         );
         if (!worker) break;
         transferWorkerBetweenBuildings(worker, donor, recipient, currentTick);
