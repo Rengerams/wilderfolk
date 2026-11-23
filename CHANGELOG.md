@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Balanced (23 Nov 2026; pending merge):** Seasonal festivals now last 2 days instead of 5, random festivals 2–4 instead of 20–39, Town Hall celebrations 3 instead of 14, and legacy visiting-performer revelry 1 instead of 3. Random checks and Town Hall cooldowns use 90 days; festival gatherings are 17:00–21:00, with regular work still taking priority. Ongoing oversized festivals in existing saves are capped. Election festivities remain unchanged at one day. Virtual Player building placement is not changed.
+- **Balanced (23 Nov 2026; PR #195, pending merge):** Seasonal festivals 5→2d, random 20–39→2–4d, Town Hall 14→3d, performer revelry 3→1d. Random checks and hall cooldowns now 90d; gatherings 17:00–21:00. Old long festivals capped; work takes priority. Election celebrations unchanged.
 
 - Hunting Spot shots and wolf counterattacks require current close range. Fox pursuits and catch reports use the selected species. Evening shifts settle at 23:00 without applying ecology warnings to earlier work.
 
