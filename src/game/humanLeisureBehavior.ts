@@ -217,10 +217,12 @@ export function tickHumanChildLeisure(args: {
       const phase = Math.floor(hourOfDay / 3);
       const cachedSite = entity.childPlaySite;
       if (!cachedSite || cachedSite.day !== day || cachedSite.phase !== phase
-        || cachedSite.mateId !== mate.id || !isGroundWalkableAt(cachedSite.x, cachedSite.y)) {
+        || cachedSite.mateId !== mate.id || !Number.isFinite(cachedSite.x)
+        || !Number.isFinite(cachedSite.y) || !isGroundWalkableAt(cachedSite.x, cachedSite.y)) {
         // One stop shared by all participants, including children processed later this tick.
         const shared = group.find((member) =>
           member.childPlaySite?.day === day && member.childPlaySite.phase === phase
+          && Number.isFinite(member.childPlaySite.x) && Number.isFinite(member.childPlaySite.y)
           && isGroundWalkableAt(member.childPlaySite.x, member.childPlaySite.y))?.childPlaySite;
         const point = shared ?? chooseChildPlaySite(state, group, day, phase, cachedSite);
         for (const member of group) {
