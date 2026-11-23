@@ -18,8 +18,9 @@ import {
 import type { EntitySpatialGrid } from '../spatialGrid';
 
 /**
- * Pair banter — only the lower-ID side initiates the roll,
- * guaranteeing pairs never double-fire in the same tick.
+ * Pair dialogue has a stable, lower-ID speaker for its deterministic roll, irrespective of
+ * which participant's tick initiated it. The dialogue owner rejects an already-busy pair;
+ * repeated same-tick calls use the same stateless seeded roll rather than rerolling.
  */
 export function simSettlerPairChat(
   entityA: Entity,
@@ -29,9 +30,10 @@ export function simSettlerPairChat(
   tick: number,
   chatHints: ChatPickOptions,
 ): void {
-  if (entityA.id < entityB.id) {
-    maybeDialogueChat(entityA, entityB, context, tick, chance, chatHints);
-  }
+  if (entityA.id === entityB.id) return;
+  const first = entityA.id < entityB.id ? entityA : entityB;
+  const second = first === entityA ? entityB : entityA;
+  maybeDialogueChat(first, second, context, tick, chance, chatHints);
 }
 
 /**
