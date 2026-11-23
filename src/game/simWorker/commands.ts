@@ -434,7 +434,7 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand, owners
       return setWorkforcePolicy(world, cmd.preset);
     case 'setWorkforceFocus': {
       const updated = setWorkforceFocus(world, cmd.sector, cmd.enabled);
-      return updated === world ? world : autoStaffAllWorkers(updated, 'owned');
+      return updated === world ? world : autoStaffAllWorkers(updated, ownership);
     }
     default: {
       const unknown = cmd as { op?: string };
