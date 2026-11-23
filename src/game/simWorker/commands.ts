@@ -15,6 +15,9 @@ import { setVenueSchedule, validateVenueSchedule, type VenueScheduleKind } from 
 import {
   isWorkforcePreset,
   setWorkforcePolicy,
+  isWorkforceFocusSector,
+  setWorkforceFocus,
+  type WorkforceFocusSector,
   type WorkforcePreset,
 } from '../workforcePolicy';
 import { startBuilding, placeStripChain } from '../buildingPlacementActions';
@@ -91,7 +94,8 @@ export type WorkerCommand =
   | { proto: 1; op: 'buildDebug'; type: string; x: number; y: number }
   | { proto: 1; op: 'setWorkSchedule'; startHour: number; endHour: number }
   | { proto: 1; op: 'setVenueSchedule'; venue: VenueScheduleKind; startHour: number; endHour: number }
-  | { proto: 1; op: 'setWorkforcePolicy'; preset: WorkforcePreset };
+  | { proto: 1; op: 'setWorkforcePolicy'; preset: WorkforcePreset }
+  | { proto: 1; op: 'setWorkforceFocus'; sector: WorkforceFocusSector; enabled: boolean };
 
 const WORKER_COMMAND_OPS = [
   'startBuilding',
@@ -140,6 +144,7 @@ const WORKER_COMMAND_OPS = [
   'setWorkSchedule',
   'setVenueSchedule',
   'setWorkforcePolicy',
+  'setWorkforceFocus',
 ] as const satisfies readonly WorkerCommand['op'][];
 const WORKER_COMMAND_OP_SET = new Set<WorkerCommand['op']>(WORKER_COMMAND_OPS);
 
@@ -247,6 +252,8 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
       return (cmd.venue === 'tavern' || cmd.venue === 'hotel') && validateVenueSchedule(cmd.startHour, cmd.endHour).ok;
     case 'setWorkforcePolicy':
       return isWorkforcePreset(cmd.preset);
+    case 'setWorkforceFocus':
+      return isWorkforceFocusSector(cmd.sector) && typeof cmd.enabled === 'boolean';
     case 'tameEntity':
       return isFiniteNumber(cmd.entityId) && isFiniteNumber(cmd.humanId);
     case 'notifyBuildingLocked':
@@ -425,6 +432,10 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand, owners
       return setVenueSchedule(world, cmd.venue, cmd.startHour, cmd.endHour);
     case 'setWorkforcePolicy':
       return setWorkforcePolicy(world, cmd.preset);
+    case 'setWorkforceFocus': {
+      const updated = setWorkforceFocus(world, cmd.sector, cmd.enabled);
+      return updated === world ? world : autoStaffAllWorkers(updated, 'owned');
+    }
     default: {
       const unknown = cmd as { op?: string };
       console.warn('[WorkerCommand] Unknown op', unknown.op ?? '?');
