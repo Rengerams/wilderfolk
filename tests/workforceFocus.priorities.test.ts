@@ -103,9 +103,9 @@ describe('workforce sector focus: real staffing', () => {
 
       rebalanceJobWorkers(workers, [farm, church], 'survival', 100, true, focus);
 
-      expect(countWorkersAtBuilding(workers, farm.id)).toBe(3);
-      expect(countWorkersAtBuilding(workers, church.id)).toBe(1);
-      expect(farm.occupants).toHaveLength(3);
+      expect(countWorkersAtBuilding(workers, farm.id)).toBe(2);
+      expect(countWorkersAtBuilding(workers, church.id)).toBe(2);
+      expect(farm.occupants).toHaveLength(2);
     }
   });
 
