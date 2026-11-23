@@ -2350,6 +2350,9 @@ export default function App() {
           onApplyWorkforcePolicy={(preset) =>
             applyGameAction({ proto: 1, op: 'setWorkforcePolicy', preset })
           }
+          onApplyWorkforceFocus={(sector, enabled) =>
+            applyGameAction({ proto: 1, op: 'setWorkforceFocus', sector, enabled })
+          }
         />
       )}
       {(world.pendingRaidVictories ?? []).length > 0 && !battleReport && (

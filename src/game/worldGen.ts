@@ -617,6 +617,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     villageName: villageName || 'New Frontier',
     workSchedule: { startHour: 7, endHour: 16 },
     workforcePolicy: DEFAULT_WORKFORCE_POLICY,
+    workforceFocus: [],
     villageReputation: 10,
     resources: {
       wood: Math.min(220, storageMax.wood),
