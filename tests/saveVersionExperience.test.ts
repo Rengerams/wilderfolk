@@ -20,6 +20,9 @@ describe('save-version experience (roadmap T4)', () => {
 
     expect(text, 'the rule must name the running build').toContain(`v${GAME_VERSION}`);
     expect(text).toContain('v0.6.5.0');
+    expect(text).toContain('v0.6.5.1');
+    expect(text).toContain('v0.6.5.2');
+    expect(text).toContain('Save format 1');
   });
 
   it('states the same version policy the refusal does (one source of truth)', () => {

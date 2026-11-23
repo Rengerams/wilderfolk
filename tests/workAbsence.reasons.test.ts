@@ -275,13 +275,13 @@ describe('the reason a settler is not at their post', () => {
   });
 
   it('says ill, in the hospital owner’s own word, for a settler below the care threshold', () => {
-    const worker = settler(1, { energy: 30 });
+    const worker = settler(1, { energy: 10 });
     const state = world(workdayTick(11), { entities: [worker] });
 
     expect(getSettlerWorkReason(state, worker)).toEqual({ code: 'ill', label: 'Ill — exhausted' });
   });
 
-  it('says working for an exhausted settler who is visibly at the post', () => {
+  it('says working for a tired settler who is visibly at the post', () => {
     const farm = building(1, BuildingType.Farm, { occupants: [1] });
     const stand = humanBuildingTarget(farm, 1);
     const worker = postedFarmer(farm, { x: stand.x, y: stand.y, energy: 30 });

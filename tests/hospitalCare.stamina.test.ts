@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Entity } from '../src/game/gameTypes';
-import { getHumanStaminaRatio } from '../src/game/simulation/humanPhysiology';
-import { medicalCareReason, medicalUrgency, needsMedicalCare } from '../src/game/hospitalCare';
+import { BuildingType } from '../src/game/gameTypes';
+import { HUMAN_NEEDS, getHumanStaminaRatio } from '../src/game/simulation/humanPhysiology';
+import { getHospitalRoster, medicalCareReason, medicalUrgency, needsMedicalCare } from '../src/game/hospitalCare';
 
 function human(overrides: Partial<Entity> = {}): Entity {
   return {
@@ -24,12 +25,53 @@ function human(overrides: Partial<Entity> = {}): Entity {
 }
 
 describe('hospital care reads the authoritative stamina reserve', () => {
-  it('treats low stamina as exhausted even when the energy mirror is full', () => {
-    const patient = human({ energy: 450, needs: { nutrition: 80, rest: 80, stamina: 30, severeHungerTicks: 0 } });
-    expect(getHumanStaminaRatio(patient)).toBeCloseTo(0.3);
+  it('sends critical exhaustion, not stale energy, to medical care', () => {
+    const patient = human({ energy: 450, needs: { nutrition: 80, rest: 80, stamina: 10, severeHungerTicks: 0 } });
+    expect(getHumanStaminaRatio(patient)).toBeCloseTo(0.1);
     expect(needsMedicalCare(patient, 0)).toBe(true);
     expect(medicalCareReason(patient, 0)).toBe('exhausted');
-    expect(medicalUrgency(patient)).toBeGreaterThan(0);
+    expect(medicalUrgency(patient, 0)).toBe(0.85);
+  });
+
+  it('leaves normal end-of-day fatigue to sleep/recovery rather than hospital admission', () => {
+    for (const stamina of [20, 30, 41, 55]) {
+      const settler = human({ needs: { nutrition: 80, rest: 50, stamina, severeHungerTicks: 0 } });
+      expect(needsMedicalCare(settler, 0), `stamina ${stamina}`).toBe(false);
+      expect(medicalCareReason(settler, 0)).toBeNull();
+      expect(medicalUrgency(settler, 0)).toBe(0);
+    }
+  });
+
+  it('shares exactly the physiological critical threshold, without admitting someone at its boundary', () => {
+    const settler = human();
+    settler.needs!.stamina = HUMAN_NEEDS.STAMINA_CRITICAL;
+    expect(needsMedicalCare(settler, 0)).toBe(false);
+    settler.needs!.stamina = HUMAN_NEEDS.STAMINA_CRITICAL - 0.01;
+    expect(needsMedicalCare(settler, 0)).toBe(true);
+    expect(medicalCareReason(settler, 0)).toBe('exhausted');
+  });
+
+  it('retains genuine grief and late-pregnancy admissions independently of ordinary fatigue', () => {
+    const grieving = human({ griefUntilTick: 200, needs: { nutrition: 80, rest: 80, stamina: 60, severeHungerTicks: 0 } });
+    expect(needsMedicalCare(grieving, 100)).toBe(true);
+    expect(medicalCareReason(grieving, 100)).toBe('grieving');
+    expect(medicalUrgency(grieving, 100)).toBeGreaterThan(0);
+    expect(needsMedicalCare(grieving, 200)).toBe(false);
+    expect(medicalUrgency(grieving, 200)).toBe(0);
+  });
+
+  it('shows only genuine patients in the ward, even when tired visitors remain indoors', () => {
+    const ward = { id: 9, type: BuildingType.Hospital, completed: true,
+      x: 0, y: 0, width: 40, height: 40, occupants: [99] } as import('../src/game/gameTypes').Building;
+    const tiredVisitor = human({ id: 1, energy: 140, indoorBuildingId: 9,
+      needs: { nutrition: 80, rest: 80, stamina: 28, severeHungerTicks: 0 } });
+    const criticallyExhausted = human({ id: 2, indoorBuildingId: 9,
+      needs: { nutrition: 80, rest: 80, stamina: 12, severeHungerTicks: 0 } });
+    const grieving = human({ id: 3, indoorBuildingId: 9, griefUntilTick: 200,
+      needs: { nutrition: 80, rest: 80, stamina: 60, severeHungerTicks: 0 } });
+    const wardRoster = getHospitalRoster(ward, [tiredVisitor, criticallyExhausted, grieving], 100);
+    expect(wardRoster.patients.map((p) => p.entity.id)).toEqual([2, 3]);
+    expect(wardRoster.patients.map((p) => p.reason)).toEqual(['exhausted', 'grieving']);
   });
 
   it('does not call a settler exhausted when stamina is healthy but energy is stale', () => {
@@ -39,9 +81,12 @@ describe('hospital care reads the authoritative stamina reserve', () => {
     expect(medicalCareReason(patient, 0)).toBeNull();
   });
 
-  it('falls back to energy for a legacy human without needs', () => {
-    const patient = human({ energy: 100, needs: undefined });
-    expect(getHumanStaminaRatio(patient)).toBeCloseTo(0.2);
+  it('falls back to energy for a legacy human without needs, with the same critical boundary', () => {
+    const tired = human({ energy: 100, needs: undefined });
+    expect(getHumanStaminaRatio(tired)).toBeCloseTo(0.2);
+    expect(needsMedicalCare(tired, 0)).toBe(false);
+    const patient = human({ energy: 50, needs: undefined });
+    expect(getHumanStaminaRatio(patient)).toBeCloseTo(0.1);
     expect(needsMedicalCare(patient, 0)).toBe(true);
     expect(medicalCareReason(patient, 0)).toBe('exhausted');
   });

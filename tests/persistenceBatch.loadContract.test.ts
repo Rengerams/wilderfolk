@@ -17,6 +17,7 @@ import {
 import { loadAutoSavePreference, saveAutoSavePreference } from '../src/game/preferences';
 import { resetSimRng } from '../src/game/simRng';
 import { GAME_VERSION } from '../src/game/version';
+import { SAVE_FORMAT_VERSION } from '../src/game/saveSchema';
 
 import { MapSize } from '../src/game/gameTypes';
 
@@ -69,6 +70,44 @@ afterEach(() => {
   resetSimRng();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+describe('game release version is separate from persisted save layout', () => {
+  it('writes the format marker alongside the originating game version', () => {
+    const payload = realPayload();
+    expect(payload._version).toBe(GAME_VERSION);
+    expect(payload._saveFormatVersion).toBe(SAVE_FORMAT_VERSION);
+  });
+
+  it('restores pre-marker saves from v0.6.5.0, v0.6.5.1 and v0.6.5.2', () => {
+    for (const release of ['0.6.5.0', '0.6.5.1', '0.6.5.2']) {
+      const payload = realPayload();
+      delete payload._saveFormatVersion;
+      payload._version = release;
+
+      const loaded = loadGameFromFileTextOutcome(JSON.stringify(payload));
+      expect(loaded.ok, `legacy game v${release}`).toBe(true);
+    }
+  });
+
+  it('restores a newer game release if it still uses this exact format', () => {
+    const payload = realPayload();
+    payload._version = '0.6.5.9';
+    const loaded = loadGameFromFileTextOutcome(JSON.stringify(payload));
+
+    expect(loaded.ok).toBe(true);
+  });
+
+  it('refuses a new format even if its game version is unchanged', () => {
+    const payload = realPayload();
+    payload._saveFormatVersion = SAVE_FORMAT_VERSION + 1;
+    const outcome = loadGameFromFileTextOutcome(JSON.stringify(payload));
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.reason).toBe('version-mismatch');
+    expect(outcome.detail).toContain('save format');
+  });
 });
 
 describe('a load adopts the saved auto-save setting without writing the browser preference', () => {
@@ -209,7 +248,7 @@ describe('the save-loadability probe validates the saved payload', () => {
     stubSlot(JSON.stringify({ _version: '0.0.0-ancient', entities: [] }));
     expect(hasSave()).toBe(false);
 
-    stubSlot(JSON.stringify({ _version: GAME_VERSION, entities: [] }));
+    stubSlot(JSON.stringify({ _version: GAME_VERSION, _saveFormatVersion: SAVE_FORMAT_VERSION, entities: [] }));
     expect(hasSave()).toBe(true);
   });
 });
