@@ -824,6 +824,7 @@ Named functions and named React callbacks audited across the complete source and
 | `tests/festival.behavior.test.ts` | `human`, `building`, `makeState` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
 | `tests/frontierCombat.raidGold.test.ts` | `raidFixture`, `queuedRaid` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
 | `tests/gameLoop.lifecycle.test.ts` | `runningLoop` | Local lifecycle test factory; no runtime decisions |
+| `tests/saveVersion.gate.test.ts` | `parse` | Test-only fixture builder: serializes `_version`, optional `_saveFormatVersion`, and minimum world dimensions, then delegates to the canonical `saveLoad.parseSaveJson` validation boundary; does not implement or duplicate version policy. |
 | `tests/saveLoad.a1CalendarRepair.test.ts` | `roundTrip` | Real save/load fixture for one festival repair and Year-0 election sentinel |
 | `tests/gameLoop.test.ts` | `makeWorldForEntities`, `settleLoop`, `makeFakeHost`, `fakeHostReturning`, `loopWithWorker`, `msPerDay`, `humanEntity`, `makeWorldSessionSwap`, `fakeHost`, `liveLoop`, `building`, `makeWorldSpeed`, `loopWithStaleSnapshot`, `frame` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
 | `tests/longRunColony.integration.test.ts` | `observeRun`, `verdictFor` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
