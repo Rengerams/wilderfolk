@@ -45,7 +45,6 @@ import {
   huntingFightBackFate,
   huntingKillReach,
   huntingSpotTarget,
-  isHuntingStrikeLive,
 } from './huntingSpot';
 import { humanDisplayName } from './citizenId';
 
@@ -336,7 +335,7 @@ export function tickBuildingProgress(state: WorldState): void {
 
   // Newly finished job buildings get workers assigned the same day
   if (completedAny) {
-    // The 18:00 storage snapshot preceded this 23:00 completion. Refresh its existing
+    // The production storage snapshot preceded this 23:00 completion. Refresh its existing
     // economy owner now, before overnight trade/gathering can be clamped to stale caps.
     updateStorageCaps(state);
     logCompletedBuildings(state, completedToday);
@@ -362,7 +361,7 @@ export function tickDailyBuildingEconomy(
   ctx: TickContext,
   allAlive: Entity[],
 ): void {
-  // Production stays at 18:00; the existing construction owner runs at 23:00.
+  // Production precedes construction in the same 23:00 phase.
   tickStaticDaily(state, ctx.season);
   tickBlueberryRegrowth(state);
   // A site completed tonight cannot produce before tomorrow's evening pass.
@@ -383,7 +382,7 @@ function tickBuildingProduction(
   // Construction finishes at 23:00, after this production pass, so only sites that
   // completed on an earlier day can supply output, XP and operational bonuses.
   const operationalBuildings = updatedBuildings;
-  // Production is scheduled at 18:00, while isProductionTick is anchored to midnight.
+  // Production is scheduled at 23:00, while isProductionTick is anchored to midnight.
   // Align to the same calendar day's start to preserve weekdays and interval cadence.
   const productionDayTick = state.tick - (state.tick % TICKS_PER_DAY);
 
@@ -556,21 +555,15 @@ function tickBuildingProduction(
       // The spot owns the decision, so it records it: the hunter's walk reads the same commitment.
       commitHuntingSpotTarget(building, targetPrey);
 
-      if (targetPrey) {
+      if (targetPrey && Math.hypot(targetPrey.x - hunter.x, targetPrey.y - hunter.y) > huntingKillReach(hunter, targetPrey)) {
+        addFloatingText(state, hunter.x, hunter.y - 14, 'Too far to shoot', '#94a3b8', 'brief');
+      } else if (targetPrey) {
         const isWolf = targetPrey.type === EntityType.Wolf;
         // Stateless per shot: whether the prey fights back and whether the shot lands must
         // not depend on how many other draws this module made first.
         const huntKey = `hunt:${building.id}:${state.tick}:${targetPrey.id}`;
         const foughtBack = isWolf && seededRandomForRun(`${huntKey}:fight`) < HUNTING_FIGHT_BACK_CHANCE;
-        /**
-         * The reach: bodies touching, both radii, the same gate the free-roam hunt applies;
-         * inside it the 85 % accuracy roll still decides hit or miss.
-         */
-        const preyDistance = Math.hypot(targetPrey.x - hunter.x, targetPrey.y - hunter.y);
-        // Standing beside the animal now, or moments ago: the pass samples an instant while the
-        // hunter stalks across ticks.
-        const inReach = preyDistance <= huntingKillReach(hunter, targetPrey) || isHuntingStrikeLive(building, state.tick);
-        const success = inReach && !foughtBack && seededRandomForRun(`${huntKey}:success`) < 0.85;
+        const success = !foughtBack && seededRandomForRun(`${huntKey}:success`) < 0.85;
 
         // The targeting above only runs with a live hunter, so this uses that same settler.
         addHuntVisual(state, {
@@ -672,18 +665,8 @@ function tickBuildingProduction(
               '#ef4444',
               'brief',
             );
-            const preyName =
-              targetPrey.type === EntityType.Deer
-                ? 'deer'
-                : targetPrey.type === EntityType.Wolf
-                  ? 'wolf'
-                  : 'rabbit';
-            logEvent(state, 'event', `Hunting Spot bagged a ${preyName} (+${added} meat)`);
+            logEvent(state, 'event', `Hunting Spot bagged a ${targetPrey.type} (+${added} meat)`);
           }
-        } else if (!inReach) {
-          // Prey was spotted but the hunter is not beside it: distinct from a miss, so the player
-          // can tell "nothing out there" from "the animal is over there".
-          addFloatingText(state, hunter.x, hunter.y - 14, 'Too far to shoot', '#94a3b8', 'brief');
         } else {
           addFloatingText(state, targetPrey.x, targetPrey.y - 12, 'Missed shot!', '#94a3b8', 'brief');
         }

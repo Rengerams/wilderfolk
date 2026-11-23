@@ -89,9 +89,9 @@ export function tickLayerDaily(
     profileEnd('daily.syncLeaderHouseResidency', stage6);
   }
 
-  // 18:00 — election promises and the chronicle, before production feeds world events.
+  // 18:00 — election promises and the chronicle.
   if (hour === DAILY_PHASE_HOURS.worldEvents) {
-  // World-events owns promise evaluation, once per evening, after today's production.
+  // World-events owns promise evaluation, once per evening.
     const chronicleStart = profileStart();
     const newlyUnlocked = advanceValleyChronicle(state);
     profileEnd('daily.advanceValleyChronicle', chronicleStart);
@@ -105,11 +105,13 @@ export function tickLayerDaily(
     }
   }
 
-  // 18:00 — established production cadence; world events read its output before 23:00 construction.
-  if (hour === DAILY_PHASE_HOURS.production) {
+  // The chronicle keeps its evening cadence. Settle production after all legal shifts.
+  if (hour === DAILY_PHASE_HOURS.worldEvents) {
     const stage10 = profileStart();
     tickWildkinChronicle(state, ctx);
     profileEnd('daily.tickWildkinChronicle', stage10);
+  }
+  if (hour === DAILY_PHASE_HOURS.production) {
     const stage11 = profileStart();
     tickDailyBuildingEconomy(state, ctx, allAlive);
     profileEnd('daily.tickDailyBuildingEconomy', stage11);

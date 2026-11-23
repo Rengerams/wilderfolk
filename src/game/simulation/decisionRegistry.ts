@@ -345,7 +345,7 @@ export const SIMULATION_DECISIONS = {
   production: {
     owner: 'dailyBuildingEconomy.tickBuildingProduction; scheduleFatigue.getWorkdayAttendance (the one presence verdict); forge.tickVillageForge (forge orders, gated on the production-day anchor); economy.ts — addResource, applyFoodSpoilage, updateStorageCaps, computeStorageMax; the crew term this decision multiplies is skills.getWorkerSkillMultiplier; the read-only weather yield modifier is worldEvents.getWeatherFarmMultiplier',
     cadence: 'daily',
-    cadenceNote: 'At 18:00, production precedes the 23:00 construction close, so a site finished that night cannot yet grant output, XP or operational bonuses; existing sites price attendance through scheduleFatigue.getWorkdayAttendance. A worked shift earns XP even at full storage; separate XP for successful output remains. Stale, underage, dead, jailed, foreign and duplicate occupant ids never dilute the skill/DNA crew average. An empty eligible crew has a neutral multiplier.',
+    cadenceNote: 'At 23:00, production settles the complete workday immediately before construction closes, so a site finished that night cannot yet grant output, XP or operational bonuses; existing sites price attendance through scheduleFatigue.getWorkdayAttendance. A worked shift earns XP even at full storage; separate XP for successful output remains. Stale, underage, dead, jailed, foreign and duplicate occupant ids never dilute the skill/DNA crew average. An empty eligible crew has a neutral multiplier.',
     writes: [
       'resources',
       'economyLedger.produced',

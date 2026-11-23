@@ -111,6 +111,7 @@ function workshopWorld(gold: number): WorldState {
     workshopRecipeId: PARTIAL_GOLD_RECIPE,
   };
   state.entities = [worker];
+  state.villageLeaderId = null;
   state.buildings = [shop];
   state.resources.gold = gold;
   state.resources.wood = 500;

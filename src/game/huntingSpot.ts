@@ -102,13 +102,7 @@ const HUNTING_SPOT_ABANDON_RADIUS_PX = HUNTING_SPOT_SEARCH_RADIUS_PX * 2;
 /** Whether the spot's own prey setting allows this kind of animal at all. */
 function isHuntableSpotPreyType(building: Building, prey: Entity): boolean {
   if (!prey.alive || prey.tamedBy != null) return false;
-  const preyTarget = building.huntingSpotPrey ?? 'auto';
-  return (
-    preyTarget === 'auto' ||
-    (preyTarget === 'deer' && prey.type === EntityType.Deer) ||
-    (preyTarget === 'rabbit' && prey.type === EntityType.Rabbit) ||
-    (preyTarget === 'wolf' && prey.type === EntityType.Wolf)
-  );
+  return huntingSpotPreyTypes(building.huntingSpotPrey).includes(prey.type);
 }
 
 /**
@@ -172,18 +166,6 @@ export const HUNTING_PURSUIT_SPEED_MULT = 1.4;
  * one that treadmills, since steering at its current position fights its radial motion.
  */
 const HUNTING_LEAD_TICKS = 3;
-
-/**
- * How long a hunter's contact with an animal stays good for, in ticks: the spot samples the shot on its
- * own production pass, so a recently recorded contact (`huntingSpotInReachTick`) is accepted.
- */
-const HUNTING_SPOT_STRIKE_GRACE_TICKS = 12;
-
-/** True when the hunter was beside this spot's animal recently enough for the shot to count. */
-export function isHuntingStrikeLive(building: Building, tick: number): boolean {
-  const at = building.huntingSpotInReachTick;
-  return at != null && tick - at <= HUNTING_SPOT_STRIKE_GRACE_TICKS;
-}
 
 /**
  * Where the hunter should steer: the animal's position led by its own `vx`/`vy` heading, not a prediction.
