@@ -558,6 +558,7 @@ export function advanceYouthLove(
 ): void {
   const { entityById, humanSocialGrid, playerHumans, width, height } = ctx;
   const day = getAbsoluteCalendarDay(state.tick);
+  const attempted = new Set<number>();
 
   for (const entity of playerHumans) {
     reconcileYouthLove(entity, entityById);
@@ -587,6 +588,8 @@ export function advanceYouthLove(
       const affinity = schoolAffinity(entity, partner);
       const breakupChance = YOUTH_LOVE_DAILY_BREAKUP_CHANCE * (1.45 - affinity * 0.6);
       if (rng() < breakupChance) {
+        attempted.add(entity.id);
+        attempted.add(partner.id);
         clearYouthLovePair(entity, partner);
         addFloatingText(
           state,
@@ -611,7 +614,7 @@ export function advanceYouthLove(
       continue;
     }
 
-    if (!isEligibleForYouthLove(entity)) continue;
+    if (attempted.has(entity.id) || !isEligibleForYouthLove(entity)) continue;
     let candidate: Entity | undefined;
     let bestScore = Infinity;
     forEachAdaptiveInRadius(
@@ -621,7 +624,7 @@ export function advanceYouthLove(
       entity.y,
       150,
       (other, distanceSq) => {
-        if (!isValidYouthLoveTarget(entity, other)) return;
+        if (attempted.has(other.id) || !isValidYouthLoveTarget(entity, other)) return;
         // Prefer an existing childhood friendship without expanding the local search radius.
         const score = distanceSq * (hasSharedSchoolBond(entity, other) ? 0.25 : 1);
         if (!candidate || score < bestScore || (score === bestScore && other.id < candidate.id)) {
@@ -634,6 +637,8 @@ export function advanceYouthLove(
     // Formation is not a pair update: either eligible single can initiate.
     // The reciprocal link immediately removes both from the candidate pool.
     if (!candidate) continue;
+    attempted.add(entity.id);
+    attempted.add(candidate.id);
 
     const affinity = schoolAffinity(entity, candidate);
     if (rng() >= YOUTH_LOVE_DAILY_START_CHANCE + affinity * YOUTH_LOVE_DAILY_SCHOOL_BONUS) continue;
