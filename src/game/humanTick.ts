@@ -1329,6 +1329,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
         if (!closeEnough) {
           if (!courtshipPresence.onDuty && !otherPresence.onDuty && socialTime) {
+            // Reserve a reciprocal date before walking so neither side switches targets mid-route.
+            bindCourtship(entity, closest);
             const chaseSpeed = atHome ? 0.35 : 0.45;
             steerHumanToward(entity, closest.x, closest.y, config.speed, chaseSpeed,
               `courtship_${entity.id}_${closest.id}`);
