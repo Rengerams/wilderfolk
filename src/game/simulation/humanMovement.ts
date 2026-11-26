@@ -299,8 +299,23 @@ const stuckWalkers = new WeakMap<Entity, { x: number; y: number; ticks: number }
  * Never snap to another tile: that caused a visible move/backtrack loop against walls.
  */
 export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
-  const stepX = entity.vx * roadMult;
-  const stepY = entity.vy * roadMult;
+  let stepX = entity.vx * roadMult;
+  let stepY = entity.vy * roadMult;
+  // A road bonus must not carry a direct final leg past its commanded target.
+  // Leave detour waypoints alone: the path owner already bounds those steps.
+  const destination = humanWalkTargets.get(entity);
+  if (destination) {
+    const dx = destination.x - entity.x;
+    const dy = destination.y - entity.y;
+    const remaining = Math.hypot(dx, dy);
+    const length = Math.hypot(stepX, stepY);
+    const cross = dx * stepY - dy * stepX;
+    if (length > remaining && dx * stepX + dy * stepY > 0
+      && Math.abs(cross) <= 1e-8 * Math.max(1, remaining * length)) {
+      stepX = dx;
+      stepY = dy;
+    }
+  }
   if (stepX === 0 && stepY === 0) {
     stuckWalkers.delete(entity);
     return;
