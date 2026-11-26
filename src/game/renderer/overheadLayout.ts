@@ -187,7 +187,7 @@ export function getSpeechBubbleHeadClearance(
   return spriteSize + 14 + crownClearance;
 }
 
-/** Whether a settler's name plate is drawn at this zoom. A speaker keeps the plate. */
+/** Whether a settler's name plate is drawn at this zoom. */
 export function shouldDrawHumanNameLabel(zoom: number, nameZoomMin: number): boolean {
   return zoom > nameZoomMin;
 }
@@ -204,6 +204,11 @@ function rectanglesOverlap(a: OverheadRect, b: OverheadRect): boolean {
     && a.x + a.width > b.x
     && a.y < b.y + b.height
     && a.y + a.height > b.y;
+}
+
+/** A regular name plate is omitted rather than painted over an existing one. */
+export function canPlaceNamePlate(rect: OverheadRect, occupied: readonly OverheadRect[]): boolean {
+  return !occupied.some((other) => rectanglesOverlap(rect, other));
 }
 
 /**

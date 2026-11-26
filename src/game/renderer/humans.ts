@@ -18,7 +18,6 @@ import {
   getJuvenileFigureScale,
   getJuvenileSpriteFrame,
   pickHumanVariant,
-  HUMAN_SPRITE_MIN_ZOOM,
   HUMAN_WALK_SPEED_THRESHOLD,
   overviewRenderDetail,
   type HumanGender,
@@ -32,6 +31,7 @@ import { huntAnimProgress } from '../huntvisuals';
 import { getCachedNameWidth, isDrawableSpriteFrame, motionTime, roundRect } from './shared';
 import {
   clampSpeechBubbleTailY,
+  canPlaceNamePlate,
   formatHumanNameLabel,
   getNamePlateLayout,
   getSpeechBubbleFontSize,
@@ -708,10 +708,8 @@ export function drawLeaderAuraOverlay(
       || !shouldDrawSpotlightHuman(state.spotlightLore, leader.id)) return;
 
   const isSel = state.selectedEntityIds.includes(leader.id) || state.selectedEntity?.id === leader.id;
-  if (!isSel) {
-    if (cam.zoom < HUMAN_SPRITE_MIN_ZOOM) return; // marker mode — `drawHumanMarker` draws the crown
-    if (isAsleepAtHome(leader, state.buildings, state.hourOfDay)) return;
-  }
+  // The leader is always exempt from marker LOD in drawHumans; the overlay owns its crown.
+  if (leader.raidDeploymentId || (!isSel && isAsleepAtHome(leader, state.buildings, state.hourOfDay))) return;
 
   const leaderPos = presentationPosition(leader);
   const sx = (leaderPos.x - cam.x) * cam.zoom + cw / 2;
@@ -803,7 +801,7 @@ export function drawHumans(
       && !human.faction;
 
     // Zoomed-out LOD: one dot per settler, no sprite/shadow/bob/badge/bubble/name.
-    if (overviewRenderDetail(cam.zoom, isSel, _cachedHumans.length) === 'marker') {
+    if (overviewRenderDetail(cam.zoom, isSel || isLeader, _cachedHumans.length) === 'marker') {
       drawHumanMarker(ctx, sx, sy, human, cam.zoom, isLeader);
       continue;
     }
@@ -883,10 +881,13 @@ export function drawHumans(
     // and a neighbour's. A running performance shows no overhead markers: they buried the cast.
     const stageHidesOverhead = state.spotlightLore?.phase === 'ready';
     const nameZoomMin = isLeader ? 0.28 : (human.isJuvenile ? 0.38 : 0.45);
+    const denseNameZoomMin = _cachedHumans.length >= 90 ? 1.2 : _cachedHumans.length >= 45 ? 0.85 : nameZoomMin;
+    const readableNameZoomMin = isSel || isLeader ? nameZoomMin : Math.max(nameZoomMin, denseNameZoomMin);
     const labelY = headY - 4 - (isLeader && cam.zoom > 0.22 ? Math.max(10, 12 * cam.zoom) : 0);
     let namePlate: { text: string; fontSize: number; labelY: number; rect: OverheadRect } | null = null;
     if (!stageHidesOverhead
-      && shouldDrawHumanNameLabel(cam.zoom, nameZoomMin) && (human.name || human.surname || isLeader)) {
+      && shouldDrawHumanNameLabel(cam.zoom, readableNameZoomMin)
+      && (human.name || human.surname || isLeader)) {
       const text = formatHumanNameLabel(human, {
         isLeader,
         showRole: cam.zoom > 0.5,
@@ -895,8 +896,11 @@ export function drawHumans(
       const fontSize = Math.max(isLeader ? 8 : 7, Math.min(isLeader ? 11 : 9, (isLeader ? 9.5 : 8) * cam.zoom));
       const textWidth = getCachedNameWidth(ctx, text, fontSize, cam.zoom);
       const plate = getNamePlateLayout(labelY, sx, textWidth, fontSize, isLeader);
-      occupiedBubbleRects.push(plate.rect);
-      namePlate = { text, fontSize, labelY, rect: plate.rect };
+      // Keep the leader and selection visible; ordinary plates yield to existing ones.
+      if (isSel || isLeader || canPlaceNamePlate(plate.rect, occupiedBubbleRects)) {
+        occupiedBubbleRects.push(plate.rect);
+        namePlate = { text, fontSize, labelY, rect: plate.rect };
+      }
     }
 
     if (isTalking) {
