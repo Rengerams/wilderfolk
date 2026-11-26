@@ -584,7 +584,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     const regularWorkplace = findHumanWorkplace(entity, updatedBuildings, workplaceOpts);
     const apprenticeSite = regularWorkplace ? null : getApprenticeTrainingSite(entity, entityById, buildingById);
-    const workplace = regularWorkplace ?? apprenticeSite;
+    const workplace = regularWorkplace ?? apprenticeSite ?? undefined;
     const isInnkeeper =
       entity.job === JobType.Innkeeper && workplace?.type === BuildingType.Tavern && workplace.completed;
 
