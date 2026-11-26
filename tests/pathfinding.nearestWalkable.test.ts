@@ -61,6 +61,16 @@ describe('nearestWalkableWorldPoint', () => {
     expect(nearestWalkableWorldPoint(map, buildings, 75, 45, undefined, grid)).toEqual({ x: 75, y: 45 });
   });
 
+  it('preserves the nearest result and row-order tie break on a deep blocked ring', () => {
+    const map = testWorldMap({
+      tilesX: 24, tilesY: 24, seed: 17,
+      tileType: (tx, ty) => ty === 12 && (tx === 3 || tx === 21) ? undefined : TerrainType.River,
+    });
+    expect(nearestWalkableWorldPoint(map, [], centre(12, 12).x, centre(12, 12).y)).toEqual(centre(3, 12));
+    expect(nearestWalkableWorldPoint(map, [], centre(12, 12).x, centre(12, 12).y,
+      (tx) => tx === 3)).toEqual(centre(21, 12));
+  });
+
   it('returns null when no cell is walkable', () => {
     const map = testWorldMap({
       tilesX: 10,

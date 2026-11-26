@@ -307,8 +307,10 @@ function nearestWalkableTile(
     const maxY = Math.min(rows - 1, startY + radius);
     for (let ty = minY; ty <= maxY; ty++) {
       const onEdgeRow = ty === minY || ty === maxY;
-      for (let tx = minX; tx <= maxX; tx++) {
-        if (!onEdgeRow && tx !== minX && tx !== maxX) continue;
+      // Interior rows only contribute their two endpoints. Jump over their interior
+      // rather than visiting every cell of the square to discard it.
+      const stride = onEdgeRow ? 1 : Math.max(1, maxX - minX);
+      for (let tx = minX; tx <= maxX; tx += stride) {
         if (blocked[ty * cols + tx] !== 0 || additionalBlocked?.(tx, ty)) continue;
         const dx = (tx + 0.5) * PATH_CELL - worldX;
         const dy = (ty + 0.5) * PATH_CELL - worldY;
