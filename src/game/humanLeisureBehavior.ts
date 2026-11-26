@@ -21,7 +21,7 @@ import { findClosestAdaptiveInRadius, forEachAdaptiveInRadius, socialAdaptiveOpt
 import { seededRandomForRun, personDayRoll, getSimRng, PERSON_DAY_ROLL_SALTS } from './simRng';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
 import { addFloatingText } from './simEffects';
-import { getCurrentPathGrid, getNavigationQuote, isGroundWalkableAt, lineCrossesBlocked, nearestWalkableWorldPoint, steerWithPath } from './pathfinding';
+import { getCurrentPathGrid, getNavigationQuote, isGroundWalkableAt, lineCrossesBlocked, nearestWalkableWorldPoint } from './pathfinding';
 import { fract } from './simulation/humanNeeds';
 import { findClosestEntityInRadius } from './simQueries';
 import { hasAffairPartner, canPursueSecretAffair, isAtMaritalHome } from './simulation/humanRelationships';
@@ -695,81 +695,41 @@ export function tickHumanLeisure(args: {
 
         const hangWithCompany = company != null && personDayRoll(entity.id, tick, 520 + leisureSlot) < 0.78;
         if (hangWithCompany && company) {
-          const sdx = company.x - entity.x;
-          const sdy = company.y - entity.y;
-          const sdist = Math.hypot(sdx, sdy) || 1;
+          // Select a meeting place before approaching company. Otherwise a settler
+          // who starts walking away toward a venue immediately switches back to
+          // chasing the companion as soon as the pair exceeds the talk radius.
+          const pairId = Math.min(entity.id, company.id);
+          const shared = (pairId * 31 + leisureSlot * 17 + absDay) % 6;
+          const pairVenue = (types: BuildingType[]): Building | undefined => {
+            const pool = completedPoolOf(types);
+            return pool.length ? pool[(pairId + leisureSlot) % pool.length] : undefined;
+          };
+          const shop = () => pairVenue([BuildingType.Market, BuildingType.Store]);
+          const venue = shared <= 1 ? pairVenue([BuildingType.Tavern]) ?? shop()
+            : shared === 2 ? shop()
+            : shared === 3 ? pairVenue([BuildingType.Well])
+            : shared === 4 ? pairVenue([BuildingType.TownHall])
+            : undefined;
+          const distance = Math.hypot(company.x - entity.x, company.y - entity.y);
           const arrive = companyKind === 'kid' ? 14 : 18;
-          if (sdist > arrive) {
-            const route = steerWithPath(entity, company.x, company.y, speed * 0.48,
-              `idle_company_${entity.id}_${company.id}`);
-            if (route === 'direct') {
-              idleVx = (sdx / sdist) * speed * 0.48;
-              idleVy = (sdy / sdist) * speed * 0.48;
-            } else {
-              routedIdleWalk = true;
-            }
-          } else if (sdist < 8) {
-            idleVx = -(sdx / sdist) * speed * 0.1;
-            idleVy = -(sdy / sdist) * speed * 0.1;
+          if (venue) {
+            const spot = venueGatherPosition(venue, entity.id);
+            steerTo(spot.x, spot.y, 0.45, 18, venue);
+          } else if (distance > arrive) {
+            steerTo(company.x, company.y, 0.48, arrive);
           } else {
-            // Both rolls and the branch itself are independent of the grid: an absent field and an
-            // all-zero one decide alike, so a missing runtime cache cannot shift the humanTick stream.
-            const prettyRoll = personDayRoll(entity.id, tick, 9601 + leisureSlot);
-            // Preserve the existing per-tick RNG consumption for downstream events.
-            getSimRng('humanTick')();
-            const gardenRoll = getSimRng('humanTick')();
+            clearHumanWalkTarget(entity);
+            entity.vx = 0;
+            entity.vy = 0;
+            routedIdleWalk = true;
             const beautyGrid = state.beautyGrid ?? null;
-            if (prettyRoll < 0.35) {
-              const pretty = pickBeautySpot(
-                beautyGrid,
-                (entity.x + company.x) / 2,
-                (entity.y + company.y) / 2,
-                5,
-              );
-              steerTo(pretty.x, pretty.y, 0.42, 14);
-              if (beautyAt(beautyGrid, entity.x, entity.y) >= 3 && gardenRoll < 0.04 * PER_TICK_RATE_SCALE) {
-                adjustHumanStaminaFromEnergy(entity, 0.4 * PER_TICK_RATE_SCALE);
-                addFloatingText(state, entity.x, entity.y - 26, '💐', '#f9a8d4', 'brief');
-              }
-            } else {
-              const steerToShop = (): void => {
-                const shop = pickCompleted([BuildingType.Market, BuildingType.Store]);
-                if (shop) {
-                  const spot = venueGatherPosition(shop, entity.id);
-                  steerTo(spot.x, spot.y, 0.42, 20, shop);
-                } else idleVx = deterministicWave(tick * 0.03 + entity.id) * speed * 0.1;
-              };
-
-              const shared = (Math.min(entity.id, company.id) * 31 + leisureSlot * 17 + absDay) % 6;
-              if (shared <= 1) {
-                const tavern = pickCompleted([BuildingType.Tavern]);
-                if (tavern) {
-                  const spot = venueGatherPosition(tavern, entity.id);
-                  steerTo(spot.x, spot.y, 0.45, 20, tavern);
-                } else {
-                  steerToShop();
-                }
-              } else if (shared === 2) {
-                steerToShop();
-              } else if (shared === 3) {
-                const well = pickCompleted([BuildingType.Well]);
-                if (well) {
-                  const wellCentre = getBuildingCenter(well);
-                  const spot = crowdGatherPosition(wellCentre.x, wellCentre.y, entity.id);
-                  steerTo(spot.x, spot.y, 0.4, 12);
-                }
-              } else if (shared === 4) {
-                const hall = pickCompleted([BuildingType.TownHall]);
-                if (hall) {
-                  const spot = venueGatherPosition(hall, entity.id);
-                  steerTo(spot.x, spot.y, 0.42, 22, hall);
-                }
-              } else {
-                idleVx = deterministicWave(tick * 0.025 + entity.id) * speed * 0.12;
-                idleVy = deterministicWave(tick * 0.02 + company.id + 0.5) * speed * 0.12;
-              }
+            if (beautyAt(beautyGrid, entity.x, entity.y) >= 3
+              && seededRandomForRun(`leisure-garden:${entity.id}:${tick}`) < 0.04 * PER_TICK_RATE_SCALE) {
+              adjustHumanStaminaFromEnergy(entity, 0.4 * PER_TICK_RATE_SCALE);
+              addFloatingText(state, entity.x, entity.y - 26, '💐', '#f9a8d4', 'brief');
             }
-
+          }
+          if (distance <= arrive) {
             if (companyKind === 'partner') {
               settlerPairChat(entity, company, 'home', 0.08);
             } else if (companyKind === 'kid') {
