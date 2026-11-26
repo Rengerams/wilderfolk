@@ -12,7 +12,7 @@ import {
   getOutstandingForgeOrder,
   isBlacksmithStaffed,
 } from './forge';
-import { formatRaidDeadline, formatRaidLootSummary, raidEventLoot } from './frontierCombat';
+import { formatRaidDeadline, getOutgoingRaidStatus } from './frontierCombat';
 
 export type PriorityAlertSeverity = 'critical' | 'warning' | 'info';
 
@@ -68,14 +68,14 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
 
   for (const evt of state.pendingOutgoingRaidEvents ?? []) {
     const rival = state.rivalSettlements.find((r) => r.id === evt.rivalId);
-    const deadline = formatRaidDeadline(evt, state.tick);
+    const status = getOutgoingRaidStatus(evt, state.tick);
     alerts.push({
       id: `outgoing-${evt.id}`,
-      severity: 'warning',
+      severity: status.returning ? 'info' : 'warning',
       icon: '🏹',
-      title: evt.rivalResponse === 'payoff_offer' ? 'Tribute offered' : 'Press the attack',
-      detail: `${evt.rivalName} — ${deadline} · ${formatRaidLootSummary(raidEventLoot(evt))}`,
-      action: rival
+      title: status.title,
+      detail: status.summary ? `${status.detail} ${status.summary}` : status.detail,
+      action: rival && !status.returning
         ? { type: 'focus_rival', rivalId: rival.id, x: rival.campX, y: rival.campY }
         : { type: 'tab', tab: 'frontier' },
     });

@@ -9,7 +9,7 @@ import {
   formatSettlerName,
 } from './villageLeadership';
 import { hasIronSpears, hasStoneSpears } from './combat';
-import { formatRaidDeadline } from './frontierCombat';
+import { formatRaidDeadline, getOutgoingRaidStatus } from './frontierCombat';
 import { isFoodAlert } from './resourceUtils';
 import { getBuildingCenter } from './placementUtils';
 import {
@@ -271,10 +271,11 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
 
   if ((state.pendingOutgoingRaidEvents?.length ?? 0) > 0) {
     const march = state.pendingOutgoingRaidEvents![0];
+    const status = getOutgoingRaidStatus(march, state.tick);
     hints.push({
       icon: '🏹',
-      title: march.rivalResponse === 'payoff_offer' ? 'Tribute on the table' : 'Attack orders',
-      detail: `${march.rivalName} — accept their payoff or press the attack before the war-band stands down.`,
+      title: status.title,
+      detail: status.summary ? `${status.detail} ${status.summary}` : status.detail,
       action: { label: 'Frontier tab', id: 'open_frontier' },
     });
   } else if ((state.pendingRaidEvents?.length ?? 0) > 0) {

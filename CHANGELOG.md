@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (26 Nov 2026):** Returning armies show homeward travel rather than obsolete battle orders; the Chronicle and deployment lifecycle remain intact.
+
 - **Fixed (26 Nov 2026):** Free-roaming hunters route around impassable terrain and cannot kill close prey through blocked terrain. Shallow-water walking remains unchanged.
 
 - **Balanced (23 Nov 2026; PR #195, pending merge):** Seasonal 2d, random 2–4d, hosted 3d, performer 1d. Random checks and shared cooldown 90d from start; seasonal endings never renew it. Gatherings 17–21h; work first, legacy festivals capped, elections unchanged.
