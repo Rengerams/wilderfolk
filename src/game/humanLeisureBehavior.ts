@@ -660,10 +660,10 @@ export function tickHumanLeisure(args: {
         return false;
       };
 
-      const pickCompleted = (types: BuildingType[]): Building | undefined => {
+      const pickCompleted = (types: BuildingType[], selectionId = entity.id): Building | undefined => {
         const pool = completedPoolOf(types);
         if (pool.length === 0) return undefined;
-        return pool[(entity.id + leisureSlot) % pool.length];
+        return pool[(selectionId + leisureSlot) % pool.length];
       };
 
       const adultLeisure = tickAdultLeisureMotive({
@@ -733,15 +733,11 @@ export function tickHumanLeisure(args: {
           // chasing the companion as soon as the pair exceeds the talk radius.
           const pairId = Math.min(entity.id, company.id);
           const shared = (pairId * 31 + leisureSlot * 17 + absDay) % 6;
-          const pairVenue = (types: BuildingType[]): Building | undefined => {
-            const pool = completedPoolOf(types);
-            return pool.length ? pool[(pairId + leisureSlot) % pool.length] : undefined;
-          };
-          const shop = () => pairVenue([BuildingType.Market, BuildingType.Store]);
-          const venue = shared <= 1 ? pairVenue([BuildingType.Tavern]) ?? shop()
+          const shop = () => pickCompleted([BuildingType.Market, BuildingType.Store], pairId);
+          const venue = shared <= 1 ? pickCompleted([BuildingType.Tavern], pairId) ?? shop()
             : shared === 2 ? shop()
-            : shared === 3 ? pairVenue([BuildingType.Well])
-            : shared === 4 ? pairVenue([BuildingType.TownHall])
+            : shared === 3 ? pickCompleted([BuildingType.Well], pairId)
+            : shared === 4 ? pickCompleted([BuildingType.TownHall], pairId)
             : undefined;
           const distance = Math.hypot(company.x - entity.x, company.y - entity.y);
           const arrive = companyKind === 'kid' ? 14 : 18;
