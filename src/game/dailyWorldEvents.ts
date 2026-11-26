@@ -61,18 +61,20 @@ export function repairStaleFestivalOnLoad(state: WorldState): void {
       && typeof entry.tick === 'number',
   );
   if (!match || typeof match.tick !== 'number') return;
-  // Even the longest randomly scheduled festival runs for fewer than 40 days.
+  // Keep the conservative save-load stale threshold for legacy festivals; live durations are capped at the daily pulse.
   if (state.tick - match.tick > 40 * TICKS_PER_DAY) {
     state.festival = null;
   }
 }
 
-function tickFestivals(state: WorldState, counts: PopulationCounts): void {
+export function tickFestivals(state: WorldState, counts: PopulationCounts): void {
   const townHallFestivalBoost = isTownHallStaffed(state.buildings) ? 1.4 : 1;
+  // Apply the shorter maximum to older saves with ongoing 20–39-day festivals.
+  if (state.festival?.active && state.festival.daysLeft > 4) state.festival.daysLeft = 4;
 
   let festivalStartedThisTick = false;
 
-  // Seasonal festivals — 5 days at the start of each season, 20 guaranteed festival days a year.
+  // Four two-day seasonal festivals: eight guaranteed festival days per year.
   const dayInYear = getAbsoluteCalendarDay(state.tick) % DAYS_PER_YEAR;
   const seasonalStart = Math.floor(dayInYear / 90) * 90;
   const seasonalNames: Record<number, string> = {
@@ -92,9 +94,9 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
     && dayInYear < seasonalStart + 90
     && counts.humans >= 2
   ) {
-    state.festival = { active: true, name: seasonalName, daysLeft: 5 };
+    state.festival = { active: true, name: seasonalName, daysLeft: 2 };
     addReputation(state, 5);
-    addBigNews(state, '🎉 Festival!', `${seasonalName} has begun! Production, courtship, and immigration are boosted for 5 days.`, 'positive');
+    addBigNews(state, '🎉 Festival!', `${seasonalName} has begun! Production, courtship, and immigration are boosted for 2 days.`, 'positive');
     logEvent(state, 'season', `${seasonalName} began in the village`);
     trackYearEvent(state, seasonalName);
     festivalStartedThisTick = true;
@@ -108,11 +110,11 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
     && state.tick >= (state.townHallFestivalCooldownUntilTick ?? 0)
     && getAbsoluteCalendarDay(state.tick) % Math.max(1, Math.round(FESTIVAL_CHECK_TICKS / TICKS_PER_DAY)) === 0
     && counts.humans >= 6
-    && festivalRng() < 0.25 * townHallFestivalBoost
+    && festivalRng() < 0.12 * townHallFestivalBoost
   ) {
     const festivalNames = ['Harvest Festival', 'Moonlight Feast', 'Founders Day', 'Spring Revel', 'Trade Fair'];
     const name = festivalNames[Math.floor(festivalRng() * festivalNames.length)];
-    state.festival = { active: true, name, daysLeft: 20 + Math.floor(festivalRng() * 20) };
+    state.festival = { active: true, name, daysLeft: 2 + Math.floor(festivalRng() * 3) };
     state.townHallFestivalCooldownUntilTick = state.tick + getTownHallFestivalCooldownTicks();
     addReputation(state, 10);
     addBigNews(state, '🎉 Festival!', `${name} has begun! Production, courtship, and immigration are boosted for ${state.festival.daysLeft} days.`, 'positive');
@@ -125,8 +127,8 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
     state.festival.daysLeft--;
     if (state.festival.daysLeft <= 0) {
       addBigNews(state, '🎉 Festival Ended', `${state.festival.name} is over. The village returns to normal.`, 'neutral');
+      // Hosted and random festivals set their cooldown on start, not expiry.
       state.festival = null;
-      state.townHallFestivalCooldownUntilTick = state.tick + getTownHallFestivalCooldownTicks();
     }
   }
 }

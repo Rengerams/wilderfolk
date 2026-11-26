@@ -24,6 +24,8 @@ Working package version: `0.6.5.1`; current development target: `0.6.5.2`. Verif
 12. **Verify before claiming.** Never say a test, build, migration, branch or PR is good unless you checked it. Never suppress failures by weakening assertions, skipping tests, adding `@ts-ignore` or changing expectations to fit broken code.
 13.** No calculations in panels** Its forbidden to keep calculations in panel tabs, panel tabs are only to show data or to accept decisions from players
 
+14. **English is the mandatory project language.** Write all source code identifiers, comments, documentation, commit messages, pull requests, review responses, bug reports, test descriptions and developer-facing communication in English. This applies even when the project owner communicates in another language. Localized player-facing content is exempt where explicitly required.
+
 A failed architecture rule is a defect even when the game compiles. A passing test suite does not make duplicated or incorrectly owned logic acceptable.
 
 ---

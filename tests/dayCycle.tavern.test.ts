@@ -25,12 +25,13 @@ describe('tavern festival hours', () => {
     expect(isOnInnkeeperShift(TICKS_PER_DAY * 10, 19)).toBe(true); // evening shift always
   });
 
-  it('defines a bounded afternoon-to-evening gathering window only for active festivals', () => {
-    expect(isFestivalGatheringHour(14, true)).toBe(false);
-    expect(isFestivalGatheringHour(15, true)).toBe(true);
-    expect(isFestivalGatheringHour(21, true)).toBe(true);
-    expect(isFestivalGatheringHour(22, true)).toBe(true);
-    expect(isFestivalGatheringHour(23, true)).toBe(false);
+  it('gathers only in a short evening window while a festival is active', () => {
+    expect(isFestivalGatheringHour(15, true)).toBe(false);
+    expect(isFestivalGatheringHour(16, true)).toBe(false);
+    expect(isFestivalGatheringHour(17, true)).toBe(true);
+    expect(isFestivalGatheringHour(20, true)).toBe(true);
+    expect(isFestivalGatheringHour(21, true)).toBe(false);
+    expect(isFestivalGatheringHour(22, true)).toBe(false);
     expect(isFestivalGatheringHour(17, false)).toBe(false);
   });
 });

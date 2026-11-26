@@ -41,8 +41,11 @@ function worldAt(dayInYear: number, year = 0): WorldState {
   world.year = year;
   world.dayInYear = dayInYear;
   world.storyFlags = {};
-  // A long festival suppresses the seeded festival roll, so reputation assertions isolate story effects.
-  world.festival = { active: true, name: 'Expiry Vale Festival', daysLeft: 300 };
+  // Story expiry tests isolate reputation from unrelated festival rolls. The maximum festival
+  // length is four days, so mark seasonal celebrations already run and block random festivals.
+  world.festival = { active: true, name: 'Expiry Vale Festival', daysLeft: 4 };
+  world.eventsThisYear = ['Spring Revel', 'Midsummer Feast', 'Harvest Festival', 'Frostfall Feast'];
+  world.townHallFestivalCooldownUntilTick = world.tick + 2 * DAYS_PER_YEAR * TICKS_PER_DAY;
   return world;
 }
 

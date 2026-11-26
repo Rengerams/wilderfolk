@@ -23,8 +23,8 @@ export const EVENING_START = 18;
 export const TAVERN_SHIFT_START = 17;
 export const TAVERN_SHIFT_END = 23;
 /** Festival gathering window for realtime movement. */
-export const FESTIVAL_GATHER_START = 15;
-export const FESTIVAL_GATHER_END = 23;
+export const FESTIVAL_GATHER_START = 17;
+export const FESTIVAL_GATHER_END = 21;
 /** Default 07–16 hours per weekday (9). */
 export const WORK_HOURS_PER_DAY = DEFAULT_WORK_END_HOUR - DEFAULT_WORK_START_HOUR;
 

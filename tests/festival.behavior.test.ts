@@ -2,14 +2,17 @@
  * Festival behavior — owner ruling: settlers keep working during a festival, and the gathering
  * window redirects the settlers who are free instead.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
-import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR, FESTIVAL_CHECK_TICKS } from '../src/game/dayCycle';
 import { DAILY_PHASE_HOURS } from '../src/game/dayCycleClock';
-import { repairStaleFestivalOnLoad } from '../src/game/dailyWorldEvents';
+import { repairStaleFestivalOnLoad, tickFestivals } from '../src/game/dailyWorldEvents';
 import { isFestivalGatheringHour } from '../src/game/humanSchedule';
+import * as simRng from '../src/game/simRng';
+import type { PopulationCounts } from '../src/game/entityCounts';
+import { TOWN_HALL_FESTIVAL_DAYS, getTownHallFestivalCooldownTicks, canHostTownFestival } from '../src/game/townHall';
 
 /**
  * Ticked by the real `gameTick`: `maxAge` and `reproductionCooldown` must be present or old-age
@@ -145,14 +148,12 @@ function makeState(festivalActive: boolean): { state: WorldState; worker: Entity
 }
 
 describe('festival participant behavior', () => {
-  it('keeps the assigned farmer on the farm at 15:00 and gathers the settler who is free', () => {
+  it('keeps the assigned farmer working at 15:00 and gathers the free settler after 17:00', () => {
     const ordinary = makeState(false);
     const festival = makeState(true);
 
     const ordinaryAfter = gameTick(ordinary.state).entities.find((entity) => entity.id === ordinary.worker.id)!;
     const festivalAfter = gameTick(festival.state).entities.find((entity) => entity.id === festival.worker.id)!;
-    const idlerAfter = festival.state.entities.find((entity) => entity.id === festival.idler.id)!;
-
     // The farm is left of the worker: the festival does not take him off his shift, and the
     // schedule owner credits the attendance.
     expect(ordinaryAfter.vx).toBeLessThan(0);
@@ -160,9 +161,14 @@ describe('festival participant behavior', () => {
     expect(festivalAfter.scheduleWorkedTicksToday ?? 0).toBeGreaterThan(0);
     expect(festivalAfter.workerBuildingId).toBe(10);
     expect(festival.state.buildings.find((entry) => entry.id === 10)?.occupants).toContain(1);
-    expect(idlerAfter.workerBuildingId).toBeUndefined();
+    expect(festival.idler.workerBuildingId).toBeUndefined();
 
-    // The festival still gathers the settler with no shift: the staffed Town Hall is right/down.
+    // Festivities begin at 17:00, after the afternoon work shift.
+    expect(isFestivalGatheringHour(15, true)).toBe(false);
+    festival.state.tick = 17 * TICKS_PER_HOUR - 1;
+    gameTick(festival.state);
+    const idlerAfter = festival.state.entities.find((entity) => entity.id === festival.idler.id)!;
+    // The staffed Town Hall is right/down from the free settler.
     expect(idlerAfter.vx).toBeGreaterThan(0);
     expect(idlerAfter.vy).toBeGreaterThan(0);
   });
@@ -199,8 +205,76 @@ describe('festival lifecycle regressions', () => {
     expect(state.festival?.daysLeft).toBe(3);
   });
 
-  it('allows gathering at 22:00 but not from 23:00', () => {
-    expect(isFestivalGatheringHour(22, true)).toBe(true);
-    expect(isFestivalGatheringHour(23, true)).toBe(false);
+  it('gathers only from 17:00 through 20:59', () => {
+    expect(isFestivalGatheringHour(16, true)).toBe(false);
+    expect(isFestivalGatheringHour(17, true)).toBe(true);
+    expect(isFestivalGatheringHour(20, true)).toBe(true);
+    expect(isFestivalGatheringHour(21, true)).toBe(false);
   });
+
+  it('starts a two-day seasonal festival in the normal daily world-events pulse', () => {
+    const { state } = makeState(false);
+    state.tick = 3 * TICKS_PER_DAY + DAILY_PHASE_HOURS.worldEvents * TICKS_PER_HOUR - 1;
+    gameTick(state);
+    expect(state.festival?.name).toBe('Spring Revel');
+    expect(state.festival?.daysLeft).toBe(2);
+  });
+
+  it('uses ninety-day random checks and Town Hall cooldown, and three-day hosted events', () => {
+    expect(FESTIVAL_CHECK_TICKS).toBe(90 * TICKS_PER_DAY);
+    expect(getTownHallFestivalCooldownTicks()).toBe(90 * TICKS_PER_DAY);
+    expect(TOWN_HALL_FESTIVAL_DAYS).toBe(3);
+  });
+
+  it('preserves hosted eligibility across seasonal endings and the year boundary', () => {
+    const { state } = makeState(false);
+    const counts = { humans: 6 } as PopulationCounts;
+    const rng = vi.spyOn(simRng, 'getSimRng').mockReturnValue(() => 0.99);
+    const deadline = 90 * TICKS_PER_DAY;
+    state.townHallFestivalCooldownUntilTick = deadline;
+    try {
+      for (let day = 0; day <= 365; day++) {
+        if (day === 360) state.eventsThisYear = [];
+        state.tick = day * TICKS_PER_DAY + DAILY_PHASE_HOURS.worldEvents * TICKS_PER_HOUR;
+        tickFestivals(state, counts);
+        expect(state.townHallFestivalCooldownUntilTick).toBe(deadline);
+        if ([5, 95, 185, 275, 365].includes(day)) {
+          expect(state.festival).toBeNull();
+          if (day >= 95) expect(canHostTownFestival(state, state.buildings[1]).ok).toBe(true);
+        }
+      }
+    } finally {
+      rng.mockRestore();
+    }
+  });
+
+  it('allows random festivals at eligible checkpoints without renewing their cooldown on expiry', () => {
+    const { state } = makeState(false);
+    const counts = { humans: 6 } as PopulationCounts;
+    const rng = vi.spyOn(simRng, 'getSimRng').mockReturnValue(() => 0);
+    try {
+      state.tick = 90 * TICKS_PER_DAY + DAILY_PHASE_HOURS.worldEvents * TICKS_PER_HOUR;
+      tickFestivals(state, counts);
+      expect(state.festival?.daysLeft).toBe(2);
+      const deadline = state.tick + getTownHallFestivalCooldownTicks();
+      expect(state.townHallFestivalCooldownUntilTick).toBe(deadline);
+      for (let day = 91; day <= 92; day++) {
+        state.tick = day * TICKS_PER_DAY + DAILY_PHASE_HOURS.worldEvents * TICKS_PER_HOUR;
+        tickFestivals(state, counts);
+      }
+      expect(state.festival).toBeNull();
+      expect(state.townHallFestivalCooldownUntilTick).toBe(deadline);
+    } finally {
+      rng.mockRestore();
+    }
+  });
+
+  it('caps ongoing long festivals from old saves to four days at the next daily pulse', () => {
+    const { state } = makeState(true);
+    state.festival = { active: true, name: 'Old Festival', daysLeft: 30 };
+    state.tick = 20 * TICKS_PER_DAY + DAILY_PHASE_HOURS.worldEvents * TICKS_PER_HOUR - 1;
+    gameTick(state);
+    expect(state.festival?.daysLeft).toBe(3);
+  });
+
 });

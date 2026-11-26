@@ -21,10 +21,10 @@ import { isFoodAlert } from './resourceUtils';
 import { HUMAN_NEEDS, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 
 export function getTownHallFestivalCooldownTicks(): number {
-  return ticksForDays(50);
+  return ticksForDays(90);
 }
 export const TOWN_HALL_FESTIVAL_COST = { food: 25, gold: 20 };
-export const TOWN_HALL_FESTIVAL_DAYS = 14;
+export const TOWN_HALL_FESTIVAL_DAYS = 3;
 
 export function isTownHallStaffed(buildings: Building[]): boolean {
   const hall = findCompletedBuilding(buildings, BuildingType.TownHall);

@@ -348,10 +348,9 @@ describe('settlers keep working during a festival', () => {
     expect(getHumanActivityStatus(state, farmer)).not.toBe('Gathering at festival');
   });
 
-  it('labels the settler on shift as working and the free one as gathering', () => {
+  it('preserves afternoon work and gathers off-duty settlers after 17:00', () => {
     const { state, farmer, idler } = festivalWorkWorld();
-    // The gathering opens at 15:00; the earlier 14:40 systems sample is
-    // valid for attendance but is still outside the festival's gathering window.
+    // The gathering begins at 17:00; the 15:00 work sample is still outside the new festival window.
     state.tick = 15 * TICKS_PER_HOUR - 1;
     gameTick(state);
 
@@ -360,6 +359,9 @@ describe('settlers keep working during a festival', () => {
     expect(farmer.workerBuildingId).toBe(10);
     expect(idler.workerBuildingId).toBeUndefined();
     expect(getHumanActivityStatus(state, farmer)).not.toBe('Gathering at festival');
+    expect(getHumanActivityStatus(state, idler)).not.toBe('Gathering at festival');
+    state.tick = 17 * TICKS_PER_HOUR - 1;
+    gameTick(state);
     expect(getHumanActivityStatus(state, idler)).toBe('Gathering at festival');
   });
 

@@ -285,7 +285,7 @@ export const PRODUCTION_INTERVAL = {
 } as const;
 
 export const IMMIGRATION_CHECK_TICKS = ticksForDays(2);
-export const FESTIVAL_CHECK_TICKS = ticksForDays(50);
+export const FESTIVAL_CHECK_TICKS = ticksForDays(90);
 
 /** Calendar-aligned event intervals. */
 export const EVENT_INTERVAL = {

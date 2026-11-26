@@ -216,7 +216,7 @@ const VISITOR_LEADER_TALK: Record<VisitorKind, VisitorLeaderTalkMeta> = {
   },
   performers: {
     buttonLabel: '🗣️ Toast the troupe leader',
-    hint: 'Once per visit: revelry lifts spirits (+6 rep, mini festival 3d).',
+    hint: 'Once per visit: revelry lifts spirits (+6 rep, mini festival 1d).',
   },
   refugees: {
     buttonLabel: '🗣️ Hear the families\' spokesman',
@@ -286,9 +286,9 @@ export function talkToVisitorLeader(originalState: WorldState, groupId: string):
     case 'performers':
       addReputation(state, 6);
       if (!state.festival) {
-        state.festival = { active: true, name: 'Visitor Revelry', daysLeft: 3 };
+        state.festival = { active: true, name: 'Visitor Revelry', daysLeft: 1 };
       } else {
-        state.festival.daysLeft = Math.min(14, state.festival.daysLeft + 2);
+        state.festival.daysLeft = Math.min(4, state.festival.daysLeft + 1);
       }
       addFloatingText(state, group.campX, group.campY - 20, '🎭 Festival!', '#f472b6');
       logEvent(state, 'event', `Troupe leader of ${group.name} led a night of revelry`, group.name);
