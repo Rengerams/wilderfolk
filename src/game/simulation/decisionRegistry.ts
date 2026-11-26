@@ -459,7 +459,7 @@ export const SIMULATION_DECISIONS = {
   yearlyWorldEvents: {
     owner: 'dailyWorldEvents.ts — tickYearBoundaryWorldEvents, tickDailyWorldEvents, tickFestivals, normalizeFestivalState, repairStaleFestivalOnLoad; groupEvents.ts — rollYearlyWorldEvent; townHall.ts — hostTownFestival, getTownHallFestivalCooldownTicks',
     cadence: 'daily',
-    cadenceNote: 'The 00:00 year boundary clears last year\'s harvest grant before production; the first 18:00 daily pass rolls a non-visitor event and schedules two-day seasonal or rare 2–4-day random festivals at 90-day checkpoints. Hosted festivals last three days with 90-day cooldowns; ongoing legacy festivals are capped to four days.',
+    cadenceNote: 'The 00:00 year boundary clears last year\'s harvest grant before production; the first 18:00 daily pass rolls a non-visitor event and schedules two-day seasonal or rare 2–4-day random festivals at 90-day checkpoints. Hosted festivals last three days; hosted/random starts set a shared 90-day cooldown, never renewed by festival expiry; ongoing legacy festivals are capped to four days.',
     writes: [
       'activeEvent',
       'lastEventYear',
