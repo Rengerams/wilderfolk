@@ -78,6 +78,9 @@ describe('long bridge construction', () => {
     expect(next.buildings.every(b => !b.completed && b.type === BuildingType.Bridge)).toBe(true);
     expect(w.resources.wood - next.resources.wood).toBe(preview.segments.length * BUILDING_CONFIGS[BuildingType.Bridge].cost.wood);
     w.resources.wood = 0;
-    expect(placeStripChain(w, BuildingType.Bridge, preview.segments, rotation)).toBe(w);
+    const refused = placeStripChain(w, BuildingType.Bridge, preview.segments, rotation);
+    expect(refused.buildings).toEqual(w.buildings);
+    expect(refused.resources).toEqual(w.resources);
+    expect(refused.floatingTexts.length).toBeGreaterThan(w.floatingTexts.length);
   });
 });

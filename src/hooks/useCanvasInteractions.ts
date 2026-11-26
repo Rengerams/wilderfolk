@@ -423,7 +423,7 @@ export function useCanvasInteractions({
             },
             true,
           );
-        } else if (!isStripBuildType(selectedBuildingType)) {
+        } else if (!isStripBuildType(selectedBuildingType) || selectedBuildingType === BuildingType.Bridge) {
           const rotation = loop?.getView().buildRotation ?? 0;
           const { x: snapX, y: snapY } = snapBuildingCenter(
             selectedBuildingType,

@@ -286,8 +286,8 @@ export function buildStripPreview(
     });
   if (type === BuildingType.Bridge) {
     // Dry land at either end of a river drag is an approach, not a bridge segment.
-    while (segments[0]?.reason === 'terrain') segments.shift();
-    while (segments[segments.length - 1]?.reason === 'terrain') segments.pop();
+    while (segments.length > 1 && segments[0]?.reason === 'terrain') segments.shift();
+    while (segments.length > 1 && segments[segments.length - 1]?.reason === 'terrain') segments.pop();
   }
   return {
     rotation,
@@ -334,10 +334,18 @@ export function placeStripChain(
   if (type === BuildingType.Bridge) {
     const check = { ...originalState, buildings: [...originalState.buildings], resources: { ...originalState.resources } };
     for (const segment of segments) {
-      if (!segment.valid || segment.placeType !== type || segment.replacesBuildingId != null
-        || getPlaceBuildingFailureReason(check, type, segment.x, segment.y, placementRotationFor(segment.rotation)) != null) return originalState;
+      const failure = getPlaceBuildingFailureReason(check, type, segment.x, segment.y, placementRotationFor(segment.rotation));
       const cost = BUILDING_CONFIGS[type].cost;
-      if (check.resources.wood < cost.wood || check.resources.stone < cost.stone || check.resources.gold < cost.gold) return originalState;
+      const shortage = segment.resourceShortage || check.resources.wood < cost.wood || check.resources.stone < cost.stone || check.resources.gold < cost.gold;
+      if (!segment.valid || failure || shortage || segment.placeType !== type || segment.replacesBuildingId != null) {
+        const refused = structuredClone(originalState);
+        const reason = failure ?? segment.reason;
+        if (reason === 'research') return notifyBuildingLocked(refused, type);
+        addFloatingText(refused, segment.x, segment.y,
+          reason ? getPlaceBuildingFailureLabel(type, reason, refused.researchNodes)
+            : shortage ? 'Not enough materials for the entire bridge' : 'Cannot build bridge here', '#ef4444');
+        return refused;
+      }
       check.resources.wood -= cost.wood; check.resources.stone -= cost.stone; check.resources.gold -= cost.gold;
       check.buildings.push(createBuilding(type, segment.x, segment.y, -1, segment.rotation));
     }
