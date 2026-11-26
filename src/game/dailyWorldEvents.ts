@@ -67,7 +67,7 @@ export function repairStaleFestivalOnLoad(state: WorldState): void {
   }
 }
 
-function tickFestivals(state: WorldState, counts: PopulationCounts): void {
+export function tickFestivals(state: WorldState, counts: PopulationCounts): void {
   const townHallFestivalBoost = isTownHallStaffed(state.buildings) ? 1.4 : 1;
   // Apply the shorter maximum to older saves with ongoing 20–39-day festivals.
   if (state.festival?.active && state.festival.daysLeft > 4) state.festival.daysLeft = 4;
@@ -127,8 +127,8 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
     state.festival.daysLeft--;
     if (state.festival.daysLeft <= 0) {
       addBigNews(state, '🎉 Festival Ended', `${state.festival.name} is over. The village returns to normal.`, 'neutral');
+      // Hosted and random festivals set their cooldown on start, not expiry.
       state.festival = null;
-      state.townHallFestivalCooldownUntilTick = state.tick + getTownHallFestivalCooldownTicks();
     }
   }
 }
