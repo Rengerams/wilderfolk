@@ -34,6 +34,18 @@ describe('persistent automatic employment and commute eligibility', () => {
     expect(further.workerBuildingId).toBeUndefined();
   });
 
+  it('does not spend the swap donor budget on empty workplaces', () => {
+    const vacancy = building(100, BuildingType.Quarry, { x: 0, y: 0 });
+    const donor = building(101, BuildingType.Quarry, { x: 10_000, y: 0, occupants: [1] });
+    const empty = Array.from({ length: 10 }, (_, i) =>
+      building(200 + i, BuildingType.Quarry, { x: 100_000 + i * 100, y: 0 }));
+    const incumbent = human(1, { x: 0, y: 0, workerBuildingId: donor.id });
+    const idle = human(2, { x: donor.x, y: donor.y });
+    rebalanceJobWorkers([incumbent, idle], [vacancy, donor, ...empty]);
+    expect(incumbent.workerBuildingId).toBe(vacancy.id);
+    expect(idle.workerBuildingId).toBe(donor.id);
+  });
+
   it('refuses an unreachable new workplace instead of treating reachability as a preference', () => {
     const distant = building(10, BuildingType.Farm, { x: 100_000, y: 100_000 });
     const applicant = human(1, { x: 0, y: 0 });
