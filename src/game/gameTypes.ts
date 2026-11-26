@@ -308,6 +308,8 @@ export interface Entity {
   schoolTicksToday?: number;
   schoolBuildingId?: number;
   /** One playmate choice per colony day, persisted across save/load and worker replay. */
+  /** Cached adult leisure companion search, including a failed search, for a bounded interval. */
+  leisureFriendSearch?: { day: number; tick: number; friendId: number | null };
   childPlaymateDay?: number;
   childPlaymateId?: number;
   /** A daily play circle of two to four children; set by the one child-leisure owner. */
