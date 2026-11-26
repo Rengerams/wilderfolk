@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-26 — [Schooling fabricates attendance and universal trade skills](../bug_report/2026-11-26-school-qualification-trade-skills.md):** investigating; new immigration attendance starts at zero, graduation no longer awards every job, and completion bonuses use actual trade training. CI pending.
+
 **2026-11-26 — [Free-roam hunting bypasses route planning](../bug_report/2026-11-26-free-hunt-pursuit-routing.md):** investigating; direct chase replaced by shared human routing and close kills use the existing obstruction check. Original water screenshot not reproduced; tests pending.
 
 **2026-11-23 — [Deferred production applied newly warned ecology penalties too early](../bug_report/2026-11-23-deferred-production-applies-ecology-penalties-early.md):** investigating; PR #192 captures the pre-warning stage for evening-shift output and retains it through saves/worker transport. Focused integration regression added; current-head CI pending.
