@@ -94,6 +94,7 @@ export function markWildlifeDead(
   state?: WorldState,
 ): void {
   if (!entity.alive) return;
+  const previousType = entity.type;
 
   if (isKillableSettlerEntity(entity)) {
     killHuman(entity, ctx.updatedBuildings, ctx.entityById, tick);
@@ -110,7 +111,7 @@ export function markWildlifeDead(
   }
 
   // Drop from byType immediately so same-tick hunters / AI fallbacks skip corpse.
-  const bucket = ctx.byType[entity.type];
+  const bucket = ctx.byType[previousType];
   if (bucket) {
     const idx = bucket.indexOf(entity);
     if (idx >= 0) bucket.splice(idx, 1);
