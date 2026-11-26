@@ -203,8 +203,22 @@ describe('youth-love reconciliation preserves exclusive bonds', () => {
 
 
 describe('youth-love formation', () => {
+  it('does not retry a failed encounter within the same daily pass', () => {
+    const { state, ctx } = pair(16, 15);
+    const a = settler(1, 16, 'male');
+    const b = settler(2, 15, 'female');
+    const humans = [a, b];
+    state.entities = humans;
+    let rolls = 0;
+    advanceYouthLove(state, { ...ctx, playerHumans: humans, entityById: new Map(humans.map(h => [h.id, h])) }, () => { rolls++; return 0.99; });
+    expect(rolls).toBe(1);
+    expect(a.youthLovePartnerId).toBeUndefined();
+    expect(b.youthLovePartnerId).toBeUndefined();
+  });
+
   it('prefers a nearby childhood friend over a slightly closer stranger', () => {
     const { state, ctx } = pair(16, 15);
+    state.tick = 0; // Stable rotation starts with the first ID on day zero.
     const a = settler(1, 16, 'male', { x: 100, childhoodFriendsIds: [3] });
     const b = settler(2, 15, 'female', { x: 120 });
     const c = settler(3, 15, 'female', { x: 130 });
@@ -218,11 +232,11 @@ describe('youth-love formation', () => {
     expect(c.youthLoveProgress).toBe(1);
   });
 
-  it('allows the higher-ID settler to initiate without advancing the new bond on the same day', () => {
+  it.each([false, true])('forms the same mutual bond in either input order (reverse=%s)', reverse => {
     const { state, ctx } = pair(16, 15);
     const a = settler(1, 16, 'male');
     const b = settler(2, 15, 'female');
-    const humans = [b, a];
+    const humans = reverse ? [b, a] : [a, b];
     state.entities = humans;
     advanceYouthLove(state, { ...ctx, playerHumans: humans, entityById: new Map(humans.map(h => [h.id, h])) }, () => 0);
     expect(a.youthLovePartnerId).toBe(2);
