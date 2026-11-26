@@ -15,7 +15,7 @@ import { computeLogisticsOverlayCached, type LogisticsOverlayData } from './logi
 import { getEcosystemHealth } from './dailyEcology';
 import { getTerrainRevision } from './terrain/terrainGrid';
 import { isPlayerHuman } from './playerHuman';
-import { isImprisoned } from './housingModel';
+import { isAssignableHome, isImprisoned, isResidenceBuildingType } from './housingModel';
 import { buildConstructionCrewIndex } from './workforceSummary';
 
 /**
@@ -41,10 +41,10 @@ export function resolveSelectedSettlerBuildings(
   if (!selected?.alive || !isPlayerHuman(selected) || isImprisoned(selected)) return null;
   const home = resolveBuilding(world, selected.residenceBuildingId ?? null);
   const assignedWork = resolveBuilding(world, selected.workerBuildingId ?? null);
-  const work = assignedWork?.completed
+  const work = assignedWork?.completed && !isResidenceBuildingType(assignedWork.type)
     ? assignedWork
     : buildConstructionCrewIndex(world.buildings ?? []).get(selected.id) ?? null;
-  return { home: home?.completed ? home : null, work };
+  return { home: home && isAssignableHome(home) ? home : null, work };
 }
 
 /**
