@@ -15,8 +15,8 @@ import { computeLogisticsOverlayCached, type LogisticsOverlayData } from './logi
 import { getEcosystemHealth } from './dailyEcology';
 import { getTerrainRevision } from './terrain/terrainGrid';
 import { isPlayerHuman } from './playerHuman';
-import { isAssignableHome, isImprisoned, isResidenceBuildingType } from './housingModel';
-import { buildConstructionCrewIndex } from './workforceSummary';
+import { isAssignableHome, isImprisoned } from './housingModel';
+import { findHumanWorkplace } from './workforce';
 
 /**
  * A shared, frozen by-type table for the SoA render path, which never reads `snapshot.entityByType`;
@@ -40,10 +40,7 @@ export function resolveSelectedSettlerBuildings(
 ): SelectedSettlerBuildings | null {
   if (!selected?.alive || !isPlayerHuman(selected) || isImprisoned(selected)) return null;
   const home = resolveBuilding(world, selected.residenceBuildingId ?? null);
-  const assignedWork = resolveBuilding(world, selected.workerBuildingId ?? null);
-  const work = assignedWork?.completed && !isResidenceBuildingType(assignedWork.type)
-    ? assignedWork
-    : buildConstructionCrewIndex(world.buildings ?? []).get(selected.id) ?? null;
+  const work = findHumanWorkplace(selected, world.buildings ?? []) ?? null;
   return { home: home && isAssignableHome(home) ? home : null, work };
 }
 
