@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Balanced (26 Nov 2026):** Immigrant children earn real school attendance; graduation grants qualifications, not blanket job skills. Apprenticeship bonuses apply only to the completed trade. Existing skills are preserved.
 - **Fixed (26 Nov 2026; PR pending):** The elected leader must command outgoing campaigns and defensive battles, can be wounded or killed in combat, and cannot command two raids at once. Battle merit requires actual deployment, not merely holding office.
 
 - **Fixed (26 Nov 2026):** Returning armies show homeward travel rather than obsolete battle orders; the Chronicle and deployment lifecycle remain intact.
