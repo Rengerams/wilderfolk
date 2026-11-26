@@ -38,7 +38,7 @@ import { logWildkinBirth } from './wildkinChronicle';
 import { recordGenealogyBirth } from './genealogyRegistry';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { clampToMapBounds } from './mapBounds';
-import { getPathGrid, hasUnreachableWalkTarget, isWalkStepAllowed, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
+import { getPathGrid, getWildlifePathGrid, hasUnreachableWalkTarget, isWalkStepAllowed, nearestWalkableWorldPoint, steerWithPath } from './pathfinding';
 import { isPassableWildlifePosition } from './worldGen';
 import { deterministicCos, deterministicSin } from './simTrig';
 import {
@@ -213,13 +213,11 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
   /** Scale per-tick metabolic rates to the systems cadence step. */
   const step = WILDLIFE_LAYER_INTERVAL;
   const walkGrid = state.worldMap ? getPathGrid(state.worldMap, state.buildings) : null;
-  // The shared steering cache must describe this world even in headless wildlife-only calls.
-  if (state.worldMap && byType[EntityType.Werewolf]?.some(isActiveMoonHowler)) {
-    setCurrentPathMap(state.worldMap, state.buildings);
-  }
   const waterBlocked = (tx: number, ty: number): boolean =>
     !walkGrid?.bridge?.[ty * walkGrid.cols + tx]
     && !isPassableWildlifePosition(state, (tx + 0.5) * PATH_CELL, (ty + 0.5) * PATH_CELL, 0);
+  const howlerGrid = walkGrid && byType[EntityType.Werewolf]?.some(isActiveMoonHowler)
+    ? getWildlifePathGrid(walkGrid, waterBlocked) : null;
   const canStep = (entity: Entity, x: number, y: number): boolean =>
     !waterBlocked(Math.floor(x / PATH_CELL), Math.floor(y / PATH_CELL))
     && isWalkStepAllowed(entity.x, entity.y, x, y, walkGrid, waterBlocked);
@@ -471,8 +469,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             // Player hunting still uses its separate owner and may affect this population.
             if (prey.type === EntityType.Rabbit && !wildlifeMayHuntRabbit(preyCounts.rabbits)) return;
             if (!isValidHuntPrey(prey, prey.type, entity.id)) return;
-            if (moonHowlerHunter && walkGrid && hasUnreachableWalkTarget(
-              entity, prey.x, prey.y, `moonhunt_${entity.id}_${prey.id}`,
+            if (moonHowlerHunter && howlerGrid && hasUnreachableWalkTarget(
+              entity, prey.x, prey.y, `moonhunt_${entity.id}_${prey.id}`, howlerGrid,
             )) return;
             const dist = Math.sqrt(dSq);
             const humanBias = prey.type === EntityType.Human ? 0.82 : 1.0;
@@ -499,11 +497,11 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           targetVy = (dy / dist) * config.speed * packSpeed * wereSpeed;
 
           const clearContact = !moonHowlerHunter || canStep(entity, caughtPrey.x, caughtPrey.y);
-          if (moonHowlerHunter && !clearContact && walkGrid) {
+          if (moonHowlerHunter && !clearContact && howlerGrid) {
             // Chase through the shared navigation owner, not straight into walls or across rivers.
             // A pending path is not a request to resume the previous wander velocity.
             const route = steerWithPath(entity, caughtPrey.x, caughtPrey.y,
-              config.speed * wereSpeed, `moonhunt_${entity.id}_${caughtPrey.id}`);
+              config.speed * wereSpeed, `moonhunt_${entity.id}_${caughtPrey.id}`, howlerGrid);
             if (route !== 'direct') {
               targetVx = entity.vx;
               targetVy = entity.vy;
