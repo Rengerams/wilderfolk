@@ -15,9 +15,7 @@ import {
 } from '../src/game/wildlifePopulationPolicy';
 
 import { testWorldMap } from '../src/test/worldMapFixtures';
-import { getPathGrid, isWalkStepAllowed } from '../src/game/pathfinding';
-import { tileTypeAt } from '../src/game/terrain/terrainGrid';
-import { isWaterTerrainType } from '../src/game/terrain/terrainTraits';
+import { getPathGrid, isWalkStepAllowed, nearestWalkableWorldPoint } from '../src/game/pathfinding';
 
 describe('wildlife water traversal', () => {
   it.each([TerrainType.ShallowWater, TerrainType.DeepWater, TerrainType.River])(
@@ -30,10 +28,11 @@ describe('wildlife water traversal', () => {
       expect(isPassableWildlifePosition(state, 105, 105)).toBe(false);
       expect(isPassableWildlifePosition(state, 95, 105)).toBe(true);
       const grid = getPathGrid(map, []);
-      const waterBlocked = (x: number, y: number) => {
-        const type = tileTypeAt(map, x, y);
-        return type == null || isWaterTerrainType(type);
-      };
+      const waterBlocked = (x: number, y: number) =>
+        !isPassableWildlifePosition(state, (x + 0.5) * 10, (y + 0.5) * 10, 0);
+      const recovered = nearestWalkableWorldPoint(map, [], 105, 105, waterBlocked);
+      expect(recovered).not.toBeNull();
+      expect(isPassableWildlifePosition(state, recovered!.x, recovered!.y, 0)).toBe(true);
       expect(isWalkStepAllowed(95, 105, 115, 105, grid, waterBlocked)).toBe(false);
       expect(isWalkStepAllowed(95, 105, 95, 115, grid, waterBlocked)).toBe(true);
     },
