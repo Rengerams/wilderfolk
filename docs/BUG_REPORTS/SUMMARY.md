@@ -12,9 +12,9 @@
 
 **2026-11-26 — [Moon Howler pursuit disagrees with movement passability](../bug_report/2026-11-26-moon-howler-pursuit-obstacles.md):** investigating; PR #215 source fixes; prior-head CI green, latest follow-up and live-save verification pending.
 
-**2026-11-26 — [Moon Howler form transitions retain stale indoor and movement state](../bug_report/2026-11-26-moon-howler-stale-form-state.md):** investigating; PR #215 source fixes; prior-head CI green, latest follow-up and live-save verification pending.
+**2026-11-26 — [Moon Howler form transitions retain stale indoor and movement state](../bug_report/2026-11-26-moon-howler-stale-form-state.md):** investigating; PR #215 source fixes; 3,180 tests passed on `ffca52c`; follow-up preserves living human family identity in wolf form; new regression pending CI.
 
-**2026-11-26 — [Moon Howler counter-kill loses title and original type index](../bug_report/2026-11-26-moon-howler-death-type-and-title.md):** investigating; PR #215 source fixes; prior-head CI green, latest follow-up and live-save verification pending.
+**2026-11-26 — [Moon Howler counter-kill loses title and original type index](../bug_report/2026-11-26-moon-howler-death-type-and-title.md):** investigating; PR #215 source fixes; 3,180 tests passed on `ffca52c`; follow-up routes world state into death cleanup and targets slain predator; new counter-kill regression pending CI.
 
 **2026-11-26 — [Schooling fabricates attendance and universal trade skills](../bug_report/2026-11-26-school-qualification-trade-skills.md):** investigating; new immigration attendance starts at zero, graduation no longer awards every job, and completion bonuses use actual trade training. CI pending.
 **2026-11-26 — [Returning army shows stale battle instructions](../bug_report/2026-11-26-raid-return-stale-status.md):** investigating; phase-aware status projection implemented for banner, hints and alerts; CI passed on prior head; browser verification pending.
