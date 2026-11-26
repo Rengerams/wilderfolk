@@ -1,0 +1,50 @@
+import { describe, expect, it, vi } from 'vitest';
+import { BuildingType, EntityType, type WorldState } from '../src/game/gameTypes';
+import { resolveSelectedSettlerBuildings, type RenderSnapshot } from '../src/game/renderSnapshot';
+import { drawSelectedSettlerBuildingHighlights } from '../src/game/renderer/overlay';
+import { building, human } from '../src/test/factories';
+
+describe('selected settler building highlights', () => {
+  const home = building(0, BuildingType.House);
+  const work = building(2, BuildingType.Farm, { x: 70 });
+  const site = building(3, BuildingType.House, { completed: false, occupants: [8] });
+  const world = { buildings: [home, work, site] } as WorldState;
+
+  it('uses the real home and job assignments, including building id zero', () => {
+    const person = human(7, { residenceBuildingId: 0, workerBuildingId: 2 });
+    expect(resolveSelectedSettlerBuildings(world, person)).toEqual({ home, work });
+    expect(resolveSelectedSettlerBuildings(world, { ...person, workerBuildingId: undefined }))
+      .toEqual({ home, work: null });
+    expect(resolveSelectedSettlerBuildings(world, { ...person, workerBuildingId: 999 }))
+      .toEqual({ home, work: null });
+  });
+
+  it('includes unfinished construction crew assignments and ignores foreign or dead people', () => {
+    expect(resolveSelectedSettlerBuildings(world, human(8))).toEqual({ home: null, work: site });
+    expect(resolveSelectedSettlerBuildings(world, human(8, { faction: 'visitor' }))).toBeNull();
+    expect(resolveSelectedSettlerBuildings(world, human(8, { alive: false }))).toBeNull();
+    expect(resolveSelectedSettlerBuildings(world, human(8, { type: EntityType.Wolf }))).toBeNull();
+    expect(resolveSelectedSettlerBuildings(world, null)).toBeNull();
+  });
+
+  it('draws separate labels and colours, one combined marker for a shared building, and no marker after deselection', () => {
+    const fillText = vi.fn();
+    const ctx = {
+      save: vi.fn(), restore: vi.fn(), setLineDash: vi.fn(), strokeRect: vi.fn(),
+      fillRect: vi.fn(), fillText, measureText: () => ({ width: 40 }),
+    } as unknown as CanvasRenderingContext2D;
+    const state = {
+      camera: { x: 0, y: 0, zoom: 1 }, worldMap: null,
+      selectedSettlerBuildings: { home, work },
+    } as RenderSnapshot;
+    drawSelectedSettlerBuildingHighlights(ctx, state, 800, 600);
+    expect(fillText.mock.calls.map(call => call[0])).toEqual(['Home', 'Work']);
+    expect(ctx.fillStyle).toBe('#7dd3fc');
+    fillText.mockClear();
+    drawSelectedSettlerBuildingHighlights(ctx, { ...state, selectedSettlerBuildings: { home, work: home } }, 800, 600);
+    expect(fillText.mock.calls.map(call => call[0])).toEqual(['Home & Work']);
+    fillText.mockClear();
+    drawSelectedSettlerBuildingHighlights(ctx, { ...state, selectedSettlerBuildings: null }, 800, 600);
+    expect(fillText).not.toHaveBeenCalled();
+  });
+});
