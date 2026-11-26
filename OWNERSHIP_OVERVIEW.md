@@ -4,7 +4,9 @@
 
 | Functions | Owner | Responsibility |
 |---|---|---|
-| `pickIdleWorkerForBuilding`, `assignWorkerInPlace`, `swapReachableWorkersIntoVacancies`, `pickWorkerToTransfer` | `src/game/workforce.ts` | One idle candidate selector for normal hiring and swap backfill; uses home-based commute, skill, career fit and deterministic ID ties. Bonded apprentices are excluded from swaps and transfers; fallback transfer distances use hours. Regression: `tests/workforce.persistentCommute.test.ts`. |
+| `pickIdleWorkerForBuilding`, `assignWorkerInPlace`, `swapReachableWorkersIntoVacancies`, `pickWorkerToTransfer` | `src/game/workforce.ts` | One idle candidate selector for normal hiring and swap backfill; uses home-based commute, skill, career fit and deterministic ID ties. Bonded apprentices are excluded from swaps and transfers; fallback transfer distances use hours. Transfer selection uses a single ranked scan instead of repeatedly pricing routes in a sort comparator. Regression: `tests/workforce.persistentCommute.test.ts`. |
+
+| `canAutoChangeWorkplace`, `rebalanceJobWorkers`, `fillFromDonors`, `swapReachableWorkersIntoVacancies` | `src/game/workforce.ts` | Apprentice reservation applies even to emergency donor eligibility and prospective supply; insufficient small donors are skipped rather than ending the search; empty and immovable donor sites do not consume the bounded swap allowance. Regression: `tests/workforce.autoTransferCooldown.test.ts`, `tests/workforce.persistentCommute.test.ts`. |
 
 ## 2026-11-23 — optional sector-focused automatic staffing
 
