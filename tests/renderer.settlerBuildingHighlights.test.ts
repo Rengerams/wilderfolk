@@ -3,12 +3,14 @@ import { BuildingType, EntityType, type WorldState } from '../src/game/gameTypes
 import { resolveSelectedSettlerBuildings, type RenderSnapshot } from '../src/game/renderSnapshot';
 import { drawSelectedSettlerBuildingHighlights } from '../src/game/renderer/overlay';
 import { building, human } from '../src/test/factories';
+import { findHumanWorkplace } from '../src/game/workforce';
 
 describe('selected settler building highlights', () => {
   const home = building(0, BuildingType.House);
   const work = building(2, BuildingType.Farm, { x: 70 });
   const site = building(3, BuildingType.House, { completed: false, occupants: [8] });
-  const world = { buildings: [home, work, site] } as WorldState;
+  const silo = building(4, BuildingType.Silo);
+  const world = { buildings: [home, work, site, silo] } as WorldState;
 
   it('uses the real home and job assignments, including building id zero', () => {
     const person = human(7, { residenceBuildingId: 0, workerBuildingId: 2 });
@@ -22,6 +24,17 @@ describe('selected settler building highlights', () => {
       .toEqual({ home, work: null });
     expect(resolveSelectedSettlerBuildings(world, { ...person, residenceBuildingId: 2 }))
       .toEqual({ home: null, work });
+  });
+
+  it('uses the same workplace verdict as the simulation for non-job buildings and construction fallback', () => {
+    const idle = human(7, { residenceBuildingId: 0, workerBuildingId: silo.id });
+    const builder = human(8, { residenceBuildingId: 0, workerBuildingId: silo.id });
+    expect(resolveSelectedSettlerBuildings(world, idle)).toEqual({ home, work: null });
+    expect(resolveSelectedSettlerBuildings(world, builder)).toEqual({ home, work: site });
+    for (const person of [idle, builder, { ...builder, workerBuildingId: work.id }]) {
+      expect(resolveSelectedSettlerBuildings(world, person)?.work)
+        .toBe(findHumanWorkplace(person, world.buildings) ?? null);
+    }
   });
 
   it('includes unfinished construction crew assignments and ignores foreign or dead people', () => {
