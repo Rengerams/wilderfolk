@@ -202,6 +202,7 @@ export function forceMoonHowlerOutside(
   mapHeight: number,
   rng: () => number = getSimRng('moonHowler'),
 ): void {
+  entity.indoorBuildingId = undefined;
   const saved = entity.moonHowlerSaved;
   const jobId = entity.workerBuildingId ?? saved?.workerBuildingId;
   const residenceId = entity.residenceBuildingId ?? saved?.residenceBuildingId;
@@ -287,6 +288,8 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
   releaseDialogueSession(human);
 
   human.type = EntityType.Werewolf;
+  // Indoor occupancy is a transient arrival marker, never part of the wolf form.
+  human.indoorBuildingId = undefined;
   human.needs = undefined;
   human.huntTargetId = undefined;
   human.combatTicks = 0;
@@ -711,8 +714,8 @@ export function tickMoonHowlerCycle(
       if (!isActiveMoonHowler(were)) continue;
       // The owner helper, not a second axis-aligned test: it pads the footprint, and a howler within
       // that margin is indoors too.
-      const inside = isInsideCompletedBuilding(state, were.x, were.y);
-      if (inside) {
+      const inside = isInsideCompletedBuilding(state, were.x, were.y, 10, false);
+      if (inside || were.indoorBuildingId != null) {
         forceMoonHowlerOutside(were, buildings, state.width, state.height, rng);
         changed = true;
       }

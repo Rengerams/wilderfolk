@@ -262,6 +262,33 @@ export function getPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
   return gridCache;
 }
 
+/** Derive the wildlife-only terrain restriction once per shared grid revision.
+ * The caller supplies the same water/bridge verdict as the step integrator.
+ * Never mutate the human grid or introduce a second route search.
+ */
+let wildlifePathGrids = new WeakMap<PathGrid, PathGrid>();
+
+export function getWildlifePathGrid(
+  grid: PathGrid,
+  waterBlocked: (tx: number, ty: number) => boolean,
+): PathGrid {
+  const cached = wildlifePathGrids.get(grid);
+  if (cached) return cached;
+  const blocked = grid.blocked.slice();
+  const terrainBlocked = grid.terrainBlocked?.slice();
+  for (let ty = 0; ty < grid.rows; ty++) {
+    for (let tx = 0; tx < grid.cols; tx++) {
+      if (!waterBlocked(tx, ty)) continue;
+      const i = ty * grid.cols + tx;
+      blocked[i] = 1;
+      if (terrainBlocked) terrainBlocked[i] = 1;
+    }
+  }
+  const strictGrid = { ...grid, blocked, terrainBlocked };
+  wildlifePathGrids.set(grid, strictGrid);
+  return strictGrid;
+}
+
 /**
  * A second, independent grid cache for read-only consumers (the logistics overlay) that must not
  * clear the simulation's waypoint cache or its grid-build metric.
@@ -436,6 +463,7 @@ export function resetPathGridCaches(): void {
   searchWorkspace = undefined;
   searchOpenSet = undefined;
   sharedRouteCaches = new WeakMap<PathGrid, SharedNavigationCache>();
+  wildlifePathGrids = new WeakMap<PathGrid, PathGrid>();
   pathCache.clear();
   currentGrid = null;
 }
@@ -1128,6 +1156,7 @@ function distanceToSegment(px: number, py: number, ax: number, ay: number, bx: n
 const PATH_CACHE_LIMIT = 4096;
 
 interface CachedPath {
+  grid: PathGrid;
   /** The mover that owns this entry, regardless of the activity-specific cache key. */
   walkerId: number;
   targetX: number;
@@ -1205,9 +1234,9 @@ export function getRouteObstruction(
 }
 
 /** Read the movement owner's definitive failure without launching a second search. */
-export function hasUnreachableWalkTarget(entity: Entity, x: number, y: number, cacheKey: string): boolean {
+export function hasUnreachableWalkTarget(entity: Entity, x: number, y: number, cacheKey: string, grid = currentGrid): boolean {
   const cached = pathCache.get(cacheKey);
-  return !!cached && cached.walkerId === entity.id
+  return !!cached && cached.grid === grid && cached.walkerId === entity.id
     && cached.targetX === x && cached.targetY === y
     && cached.startTileX === Math.floor(entity.x / PATH_CELL)
     && cached.startTileY === Math.floor(entity.y / PATH_CELL)
@@ -1225,6 +1254,7 @@ export function steerWithPath(
   targetY: number,
   speed: number,
   cacheKey: string,
+  grid = currentGrid,
 ): 'arrived' | 'path' | 'direct' | 'blocked' {
   const dx = targetX - entity.x;
   const dy = targetY - entity.y;
@@ -1241,19 +1271,19 @@ export function steerWithPath(
     entity.vy = 0;
     return 'arrived';
   }
-  if (!currentGrid) return 'direct';
+  if (!grid) return 'direct';
 
   const acceptedRoute = pathCache.get(cacheKey);
   const continueAcceptedRoute = !!acceptedRoute?.waypoints && acceptedRoute.waypoints.length > 1
-    && acceptedRoute.walkerId === entity.id
+    && acceptedRoute.grid === grid && acceptedRoute.walkerId === entity.id
     && acceptedRoute.targetX === targetX && acceptedRoute.targetY === targetY;
   // Accepted routes only need their next leg checked; defer the full goal chord until replanning.
-  let directBlocked = !continueAcceptedRoute && lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY);
-  const hasPricedRoad = !!pricedRoadMask(currentGrid);
+  let directBlocked = !continueAcceptedRoute && lineCrossesBlocked(grid, entity.x, entity.y, targetX, targetY);
+  const hasPricedRoad = !!pricedRoadMask(grid);
   const considerRoadDetour = !directBlocked && hasPricedRoad;
   if (directBlocked || considerRoadDetour || continueAcceptedRoute) {
     let cached = acceptedRoute;
-    if (cached && (cached.walkerId !== entity.id || cached.targetX !== targetX || cached.targetY !== targetY
+    if (cached && (cached.grid !== grid || cached.walkerId !== entity.id || cached.targetX !== targetX || cached.targetY !== targetY
       || (cached.directDetourRejected && (directBlocked
         || Math.abs(cached.startTileX - Math.floor(entity.x / PATH_CELL))
           + Math.abs(cached.startTileY - Math.floor(entity.y / PATH_CELL)) >= ROAD_DETOUR_RECHECK_TILES))
@@ -1285,30 +1315,30 @@ export function steerWithPath(
       const prev = cached.waypoints[cached.nextIndex - 1];
       const next = cached.waypoints[cached.nextIndex];
       if (distanceToSegment(entity.x, entity.y, prev.x, prev.y, next.x, next.y) > PATH_CACHE_OFF_ROUTE_TOLERANCE
-        || segmentCrossesBlocked(currentGrid, entity.x, entity.y, next.x, next.y, true)) {
+        || segmentCrossesBlocked(grid, entity.x, entity.y, next.x, next.y, true)) {
         cached = undefined;
       }
     }
     if (cached === undefined) {
-      if (continueAcceptedRoute) directBlocked = lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY);
+      if (continueAcceptedRoute) directBlocked = lineCrossesBlocked(grid, entity.x, entity.y, targetX, targetY);
       recordPathCacheMiss();
       const startTx = Math.floor(entity.x / PATH_CELL);
       const startTy = Math.floor(entity.y / PATH_CELL);
       const goalTx = Math.floor(targetX / PATH_CELL);
       const goalTy = Math.floor(targetY / PATH_CELL);
-      const startBlocked = tileBlockedForWalker(currentGrid, startTx, startTy);
-      const goalBlocked = tileBlockedForWalker(currentGrid, goalTx, goalTy);
+      const startBlocked = tileBlockedForWalker(grid, startTx, startTy);
+      const goalBlocked = tileBlockedForWalker(grid, goalTx, goalTy);
       // Prefer shared optimal geometry; a remote road may exhaust its discounted A* budget.
       // In that case retry with the existing bounded movement heuristic and preserve its
       // path. Never downgrade a confirmed unreachable quote into an unbounded search.
       const searchBudget = Math.min(PATH_MAX_WALK_RETRY_NODES,
         Math.max(searchNodeBudget(startTx, startTy, goalTx, goalTy), pendingRetryBudget ?? 0));
-      const shared = startBlocked || goalBlocked ? null : getNavigationQuote(currentGrid,
+      const shared = startBlocked || goalBlocked ? null : getNavigationQuote(grid,
         { x: startTx, y: startTy }, { x: goalTx, y: goalTy }, { maxNodes: searchBudget });
       const fallback = startBlocked || goalBlocked
-        ? routeToBlockedGoal(currentGrid, startTx, startTy, goalTx, goalTy, goalBlocked, true, searchBudget)
+        ? routeToBlockedGoal(grid, startTx, startTy, goalTx, goalTy, goalBlocked, true, searchBudget)
         : shared?.status === 'pending' && hasPricedRoad
-          ? searchRoute(currentGrid, startTx, startTy, goalTx, goalTy, searchBudget, false, true)
+          ? searchRoute(grid, startTx, startTy, goalTx, goalTy, searchBudget, false, true)
           : null;
       const routeCost = shared?.status === 'priced' ? shared.costTiles : fallback?.cost ?? null;
       const routeTiles = shared?.status === 'priced'
@@ -1333,12 +1363,13 @@ export function steerWithPath(
         waypoints.push({ x: targetX, y: targetY });
       }
       const startIsBlocked = startTx >= 0 && startTy >= 0
-        && startTx < currentGrid.cols && startTy < currentGrid.rows
-        && currentGrid.blocked[startTy * currentGrid.cols + startTx] === 1;
+        && startTx < grid.cols && startTy < grid.rows
+        && grid.blocked[startTy * grid.cols + startTx] === 1;
       if (waypoints && startIsBlocked) {
         waypoints = [{ x: entity.x, y: entity.y }, ...waypoints];
       }
       cached = {
+        grid,
         walkerId: entity.id,
         waypoints, nextIndex: waypoints && waypoints.length > 1 ? 1 : 0,
         targetX, targetY, startTileX: startTx, startTileY: startTy,
@@ -1370,7 +1401,7 @@ export function steerWithPath(
       const ndy = next.y - entity.y;
       const nd = Math.hypot(ndx, ndy);
       if (nd <= PATH_ARRIVAL_DISTANCE_PX && cached.nextIndex === wp.length - 1
-        && isGroundWalkableAt(targetX, targetY, currentGrid) === false) {
+        && isGroundWalkableAt(targetX, targetY, grid) === false) {
         entity.vx = 0;
         entity.vy = 0;
         return 'blocked';
