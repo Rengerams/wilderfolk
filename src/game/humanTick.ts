@@ -968,7 +968,24 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       courtshipPresence.atWorkplace = false;
     }
 
-    if (!active) {
+    // A close established pair can advance on the later participant's tick,
+    // even when that participant's normal offscreen decision is throttled.
+    // Do not wake sleeping settlers or activate distant courtship searches.
+    const closeCourtshipPartner = !active && entity.courtshipPartnerId != null
+      ? entityById.get(entity.courtshipPartnerId) : undefined;
+    const closeCourtshipPresence = closeCourtshipPartner
+      ? courtshipReadiness.get(closeCourtshipPartner.id) : undefined;
+    const closeCourtshipDue = !!closeCourtshipPartner && !!closeCourtshipPresence
+      && closeCourtshipPartner.courtshipPartnerId === entity.id
+      && courtshipReadiness.has(entity.id)
+      && isEligibleToCourt(entity) && isEligibleToCourt(closeCourtshipPartner)
+      && entity.energy > config.reproductionEnergyThreshold * 0.6
+      && closeCourtshipPartner.energy > config.reproductionEnergyThreshold * 0.6
+      && canAdvanceCourtship(courtshipPresence, closeCourtshipPresence,
+        Math.hypot(closeCourtshipPartner.x - entity.x, closeCourtshipPartner.y - entity.y),
+        courtshipPresence.socialTime && closeCourtshipPresence.socialTime);
+
+    if (!active && !closeCourtshipDue) {
       if (previousIndoorBuildingId != null && buildingById.get(previousIndoorBuildingId)?.completed) {
         entity.indoorBuildingId = previousIndoorBuildingId;
       }
