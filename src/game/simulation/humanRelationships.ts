@@ -1315,11 +1315,14 @@ export function bindCourtship(entity: Entity, partner: Entity): void {
 export function reconcileCourtships(
   ctx: Pick<TickContext, 'entityById' | 'playerHumans'>,
 ): void {
+  // Age existing cooldowns before any pair repair starts a new one. Otherwise
+  // the second member of a dissolved pair could lose a day immediately.
   for (const entity of ctx.playerHumans) {
-    // Count the post-courtship cooldown down once per colony day.
     if ((entity.courtshipCooldownDays ?? 0) > 0) {
       entity.courtshipCooldownDays = (entity.courtshipCooldownDays ?? 0) - 1;
     }
+  }
+  for (const entity of ctx.playerHumans) {
     const partnerId = entity.courtshipPartnerId;
     if (partnerId == null) continue;
     const partner = getLivingEntity(partnerId, ctx.entityById);
