@@ -100,11 +100,14 @@ export function getMilitiaArmamentLabel(state: WorldState): string | null {
 }
 
 /**
- * An adult settler who may be mustered for the village's defence — the one definition the militia
- * count, the raid fighter pool and the raid casualty pool share. Imprisonment excludes.
+ * One shared muster eligibility rule. By default only employed soldiers qualify; a caller may
+ * exempt the elected commander from the Soldier-job requirement without bypassing age,
+ * imprisonment, life or existing-deployment checks. Strength still counts soldiers only.
  */
-export function canBeMustered(entity: Entity): boolean {
-  return entity.alive && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE && !isImprisoned(entity) && entity.job === JobType.Soldier && !entity.raidDeploymentId;
+export function canBeMustered(entity: Entity, options?: { allowNonSoldier?: boolean }): boolean {
+  return entity.alive && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE
+    && !isImprisoned(entity) && !entity.raidDeploymentId
+    && (entity.job === JobType.Soldier || options?.allowNonSoldier === true);
 }
 
 export function computeMilitiaBreakdown(
@@ -128,7 +131,7 @@ export function computeMilitiaBreakdown(
     };
   }
 
-  const mustered = entities.filter(canBeMustered);
+  const mustered = entities.filter((entity) => canBeMustered(entity));
   const adultCount = mustered.length;
   const staffedGuards = getBarracksGuardCount(state, state.buildings);
   const activeIds = new Set(mustered.map((soldier) => soldier.id));

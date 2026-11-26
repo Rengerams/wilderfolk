@@ -11,6 +11,7 @@ import {
   canProvokeRival,
   getCombatPreview,
   getOutgoingRaidStatus,
+  getRaidParticipants,
   respondToRaidEvent,
   tickPendingRaidEvents,
   applyTruceToRival,
@@ -125,6 +126,39 @@ function village(rivals: RivalSettlement[] = [rival()]): WorldState {
     lifetimeStats: { totalResourcesGathered: { food: 0, wood: 0, stone: 0, gold: 0 } },
   } as unknown as WorldState;
 }
+
+describe('elected leader commands the militia and outgoing war-band', () => {
+  it('must include a healthy non-soldier leader in both defense and outgoing raids', () => {
+    const world = village([rival({ relationship: 'tense' })]);
+    const leader = world.entities[11];
+    world.villageLeaderId = leader.id;
+    leader.job = JobType.Farmer;
+    expect(getRaidParticipants(world, world.entities, 'barricade').map((person) => person.id)).toContain(leader.id);
+    expect(getRaidParticipants(world, world.entities, 'militia').map((person) => person.id)).toContain(leader.id);
+    expect(getRaidParticipants(world, world.entities, 'outgoing').map((person) => person.id)).toContain(leader.id);
+
+    const dispatched = launchRaidOnRival(world, world.rivalSettlements[0].id);
+    const event = dispatched.pendingOutgoingRaidEvents[0];
+    expect(event.soldierIds).toContain(leader.id);
+    expect(dispatched.entities.find((person) => person.id === leader.id)?.raidDeploymentId).toBe(event.id);
+  });
+
+  it('a busy or jailed leader cannot send a different army while absent', () => {
+    const world = village([rival({ relationship: 'tense' }), rival({ id: 'rival_birch', name: 'Birch' , relationship: 'tense' })]);
+    const leader = world.entities[11];
+    world.villageLeaderId = leader.id;
+    leader.job = JobType.Farmer;
+    const first = launchRaidOnRival(world, world.rivalSettlements[0].id);
+    expect(first.entities.find((person) => person.id === leader.id)?.raidDeploymentId).toBeTruthy();
+    const blocked = canLaunchRaidOnRival(first, first.rivalSettlements[1]);
+    expect(blocked.ok).toBe(false);
+    expect(blocked.blockReason).toContain('leader');
+
+    leader.prisonBuildingId = 9;
+    expect(getRaidParticipants(world, world.entities, 'barricade').some((person) => person.id === leader.id)).toBe(false);
+    expect(canLaunchRaidOnRival(world, world.rivalSettlements[0]).ok).toBe(false);
+  });
+});
 
 describe('declaring hostility on a friendly rival', () => {
   it('allows raiding a friendly camp as a treaty-breaking attack', () => {

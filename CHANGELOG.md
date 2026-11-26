@@ -4,6 +4,8 @@
 
 - **Balanced (26 Nov 2026; PR pending):** Election merit now rewards witnessed career service, trained specialties, and community trust instead of summing all trades. Surname, honorary title, battle and promise contributions are capped more tightly; voters still cast separate ballots.
 - **Balanced (26 Nov 2026):** Immigrant children earn real school attendance; graduation grants qualifications, not blanket job skills. Apprenticeship bonuses apply only to the completed trade. Existing skills are preserved.
+- **Fixed (26 Nov 2026; PR pending):** The elected leader must command outgoing campaigns and defensive battles, can be wounded or killed in combat, and cannot command two raids at once. Battle merit requires actual deployment, not merely holding office.
+
 - **Fixed (26 Nov 2026):** Returning armies show homeward travel rather than obsolete battle orders; the Chronicle and deployment lifecycle remain intact.
 
 - **Fixed (26 Nov 2026):** Free-roaming hunters route around impassable terrain and cannot kill close prey through blocked terrain. Shallow-water walking remains unchanged.
