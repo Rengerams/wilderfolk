@@ -7,7 +7,6 @@ import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
 import { formatCitizenName, formatDeathLog } from './citizenId';
 import { logDeath, logEvent } from './eventLog';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
-import { isImprisoned } from './housingModel';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isRivalAtPeace } from './rivalPeace';
 import { gainSkill } from './skills';
@@ -328,7 +327,7 @@ export function canLaunchRaidOnRival(
   if (state.villageLeaderId != null && !available.some((person) => person.id === state.villageLeaderId)) {
     return { ok: false, foodCost, blockReason: 'The elected leader is unavailable to command the army' };
   }
-  if (!available.some(canBeMustered)) return { ok: false, foodCost, blockReason: 'No available soldiers' };
+  if (!available.some((person) => canBeMustered(person))) return { ok: false, foodCost, blockReason: 'No available soldiers' };
   if (!hasMilitiaWeapons(state)) {
     return { ok: false, foodCost, blockReason: 'Need weapons (stone/iron spears or swords)' };
   }
@@ -563,10 +562,8 @@ export function getRaidParticipants(
   entities: Entity[],
   mode: RaidParticipantMode,
 ): Entity[] {
-  return entities.filter((e) => {
-    const commander = e.id === state.villageLeaderId && e.alive && isPlayerHuman(e)
-      && e.age >= HUMAN_ADULT_MIN_AGE && !isImprisoned(e) && !e.raidDeploymentId;
-    if (!canBeMustered(e) && !commander) return false;
+  return entities.filter((entity) => {
+    if (!canBeMustered(entity, { allowNonSoldier: entity.id === state.villageLeaderId })) return false;
     if (mode === 'barricade') return true;
     return hasMilitiaWeapons(state);
   });
