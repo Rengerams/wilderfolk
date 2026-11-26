@@ -561,6 +561,48 @@
       "tests": [
         "tests/deadCode.retainedContracts.test.ts"
       ]
+    },
+    {
+      "key": "src/game/combat.ts:100:getHumanFleeSpeedMultiplier@1f0fec6ca70497b628b0ed1baa5e840849e2a51b9143349d0db66a17030f2090 <-> src/game/combat.ts:80:getHuntRangeMultiplier@d4f9c0fa3ea4962f39313c1ad986dcea7cb70aafc793b5f2b8085c7f50bf462d",
+      "reason": "These domain readers delegate to the same canonical research effect resolver but address distinct effect targets: hunting range, food yield and flee speed. The targeted regression checks independent outputs; changing visibility does not change calculation.",
+      "tests": [
+        "tests/combatTierEffects.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/combat.ts:80:getHuntRangeMultiplier@d4f9c0fa3ea4962f39313c1ad986dcea7cb70aafc793b5f2b8085c7f50bf462d <-> src/game/combat.ts:84:getHuntFoodMultiplier@a19f7cfea5e0a23d0c068ff64d5bc1208b8c6b8549baf950a769b82dada091a8",
+      "reason": "These domain readers delegate to the same canonical research effect resolver but address distinct effect targets: hunting range, food yield and flee speed. The targeted regression checks independent outputs; changing visibility does not change calculation.",
+      "tests": [
+        "tests/combatTierEffects.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/combat.ts:29:hasIronSpears@eeceae51e2a6a79806524cd7f6a7e7a2dbe15d31088e9454aeb594a5e454e7ee <-> src/game/combat.ts:68:hasTowerBallistae@2bb4f71f19850251ab403da26eed3b8d331d8ca78562cbc12b045cda72ece366",
+      "reason": "Each armament predicate requires its own research and completed forge order, with the shared blacksmith prerequisite. The armament-step regression checks that researching and forging ballistae does not unlock any other armament.",
+      "tests": [
+        "tests/combatTierEffects.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/combat.ts:41:hasIronShields@88d54cc33c49bfd4e7f9dd2652c14dac96704894771a7c97d5ae338d97afd934 <-> src/game/combat.ts:68:hasTowerBallistae@2bb4f71f19850251ab403da26eed3b8d331d8ca78562cbc12b045cda72ece366",
+      "reason": "Each armament predicate requires its own research and completed forge order, with the shared blacksmith prerequisite. The armament-step regression checks that researching and forging ballistae does not unlock any other armament.",
+      "tests": [
+        "tests/combatTierEffects.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/combat.ts:50:hasIronSwords@8da147166ba591cc2954f2222eb6cd9e44e6ea4ee1266ba2a302758fd4d94311 <-> src/game/combat.ts:68:hasTowerBallistae@2bb4f71f19850251ab403da26eed3b8d331d8ca78562cbc12b045cda72ece366",
+      "reason": "Each armament predicate requires its own research and completed forge order, with the shared blacksmith prerequisite. The armament-step regression checks that researching and forging ballistae does not unlock any other armament.",
+      "tests": [
+        "tests/combatTierEffects.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/combat.ts:59:hasScaleMail@69dfbcfc88959407764d4f8ce0bf6b94e8ffae6169905b0f95514e2f3383c4f4 <-> src/game/combat.ts:68:hasTowerBallistae@2bb4f71f19850251ab403da26eed3b8d331d8ca78562cbc12b045cda72ece366",
+      "reason": "Each armament predicate requires its own research and completed forge order, with the shared blacksmith prerequisite. The armament-step regression checks that researching and forging ballistae does not unlock any other armament.",
+      "tests": [
+        "tests/combatTierEffects.test.ts"
+      ]
     }
   ]
 }

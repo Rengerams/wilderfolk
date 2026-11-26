@@ -9,9 +9,7 @@ import { personDayRoll } from './simRng';
 import { HUMAN_NEEDS } from './simulation/humanPhysiology';
 import { isNearResidence } from './housingModel';
 import {
-  DEFAULT_WORK_END_HOUR,
   DEFAULT_WORK_SCHEDULE,
-  DEFAULT_WORK_START_HOUR,
   isWorkScheduleHour,
   type WorkSchedule,
 } from './workSchedule';
@@ -20,19 +18,13 @@ import type { Building, Entity } from './gameTypes';
 /** Evening/home transition hour — fixed, independent of the work window. */
 export const EVENING_START = 18;
 /** Tavern service window, inclusive start and exclusive end. */
-export const TAVERN_SHIFT_START = 17;
-export const TAVERN_SHIFT_END = 23;
+const TAVERN_SHIFT_START = 17;
+const TAVERN_SHIFT_END = 23;
 /** Festival gathering window for realtime movement. */
-export const FESTIVAL_GATHER_START = 17;
-export const FESTIVAL_GATHER_END = 21;
-/** Default 07–16 hours per weekday (9). */
-export const WORK_HOURS_PER_DAY = DEFAULT_WORK_END_HOUR - DEFAULT_WORK_START_HOUR;
+const FESTIVAL_GATHER_START = 17;
+const FESTIVAL_GATHER_END = 21;
 
-export function buildWorkHours(buildDays: number): number {
-  return Math.max(WORK_HOURS_PER_DAY, Math.round(buildDays * WORK_HOURS_PER_DAY));
-}
-
-export function isTavernServiceHour(hour: number): boolean {
+function isTavernServiceHour(hour: number): boolean {
   return hour >= TAVERN_SHIFT_START && hour < TAVERN_SHIFT_END;
 }
 
@@ -128,18 +120,6 @@ export function prefersHomeTonightFor(
   if (hour >= 22 && hour < 23) return roll(104) > 0.2;
   if (weekend && hour >= s.startHour && hour < s.endHour) return roll(105) < 0.3;
   return false;
-}
-
-export function isActiveFreeDay(entityId: number, tick: number): boolean {
-  if (isWeekend(tick)) return personDayRoll(entityId, tick, 201) >= 0.3;
-  return !prefersHomeTonightFor(DEFAULT_WORK_SCHEDULE, entityId, tick, EVENING_START + 1);
-}
-
-export function formatHour(hour: number): string {
-  const normalizedHour = ((hour % 24) + 24) % 24;
-  const suffix = normalizedHour < 12 ? 'am' : 'pm';
-  const display = normalizedHour % 12 === 0 ? 12 : normalizedHour % 12;
-  return `${display}${suffix}`;
 }
 
 export function allowSocialLifeFor(

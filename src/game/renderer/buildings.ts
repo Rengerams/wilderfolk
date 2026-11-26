@@ -28,7 +28,7 @@ import {
 let sortedBuildingsKey: { array: readonly Building[]; count: number } | null = null;
 let sortedBuildings: Building[] | null = null;
 
-export function isHighlightableBuilding(b: Building): boolean {
+function isHighlightableBuilding(b: Building): boolean {
   return b.completed && b.type !== BuildingType.Road && !ISO_PANEL_BUILDINGS.has(b.type);
 }
 

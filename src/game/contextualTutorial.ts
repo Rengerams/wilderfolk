@@ -50,7 +50,7 @@ export interface ContextualTutorialTip {
   action?: FocusHintAction;
 }
 
-export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutorialTip> = {
+const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutorialTip> = {
   shelter_night: {
     id: 'shelter_night',
     icon: '🌙',

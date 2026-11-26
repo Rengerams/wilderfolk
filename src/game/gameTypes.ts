@@ -1,5 +1,5 @@
 // Entity types as const object
-import type { Resources, ResourceKey } from './resourceTypes';
+import type { Resources } from './resourceTypes';
 import type { ValleyStage } from './ecologyTypes';
 import type { YearlyStats, LifetimeStats } from './statsRecords';
 import type { ScentGrid } from './scentGrid';
@@ -21,7 +21,6 @@ export { HUNTING_SPOT_PREY_OPTIONS } from './huntingSpots';
 export type { HuntingSpotPrey } from './huntingSpots';
 export { WORKSHOP_RECIPES, DEFAULT_WORKSHOP_RECIPE_ID, getWorkshopRecipe, formatRecipeInputs } from './workshops';
 export type { WorkshopRecipe } from './workshops';
-export type { Challenge } from './challenges';
 /** One letter of the Renffr sky omen (see renffrStar). */
 export interface RenffrLetter {
   char: string;
@@ -215,7 +214,6 @@ export const LEVEL_BENEFIT_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<B
 
 export const LEADER_OCCUPATION = 'leader';
 
-
 export interface HumanNeedsState {
   nutrition: number;
   rest: number;
@@ -230,7 +228,7 @@ export interface HumanNeedsState {
   nightDutyRecoveryPending?: boolean;
 }
 
-export interface MoonHowlerSavedState {
+interface MoonHowlerSavedState {
   needs?: HumanNeedsState;
   energy: number;
   maxEnergy: number;
@@ -267,9 +265,9 @@ export interface MoonHowlerSavedState {
 }
 
 export const FACTION_WANDER_PHASES = ['idle_camp', 'walk_poi', 'loiter_poi', 'return_camp', 'wander_edge'] as const;
-export type VisitPhase = typeof FACTION_WANDER_PHASES[number];
+type VisitPhase = typeof FACTION_WANDER_PHASES[number];
 
-export interface FactionWanderState {
+interface FactionWanderState {
   readonly targetX: number;
   readonly targetY: number;
   readonly idleUntilTick: number;
@@ -478,11 +476,11 @@ export interface DiplomacyEvent {
   expiresAtTick?: number;
 }
 
-export type RivalRelationship = 'friendly' | 'neutral' | 'competitive' | 'tense';
-export type RivalTemperament = 'welcoming' | 'pragmatic' | 'ambitious' | 'warlike';
-export type RivalPriority = 'food' | 'trade' | 'security' | 'shelter';
+type RivalRelationship = 'friendly' | 'neutral' | 'competitive' | 'tense';
+type RivalTemperament = 'welcoming' | 'pragmatic' | 'ambitious' | 'warlike';
+type RivalPriority = 'food' | 'trade' | 'security' | 'shelter';
 
-export interface RivalLedger {
+interface RivalLedger {
   food: number;
   wood: number;
   gold: number;
@@ -532,7 +530,7 @@ export interface DeathParticle {
   type: 'blood' | 'sparkle' | 'smoke' | 'heart' | 'star';
 }
 
-export interface FloatingText {
+interface FloatingText {
   id: number;
   x: number;
   y: number;
@@ -542,7 +540,6 @@ export interface FloatingText {
   maxLife: number;
   scale: number;
 }
-
 
 export const FLOATING_TEXT_FADE_TICKS = 6;
 
@@ -555,7 +552,7 @@ export interface GameEvent {
   type: 'positive' | 'negative' | 'neutral';
 }
 
-export type { Resources, ResourceKey };
+export type { Resources };
 
 export interface PopulationHistoryEntry {
   tick: number;
@@ -582,7 +579,7 @@ export interface PopulationHistoryEntry {
   biodiversity?: number;
 }
 
-export interface StoryChoice {
+interface StoryChoice {
   id: string;
   label: string;
   detail: string;
@@ -612,8 +609,6 @@ export interface StoryEvent {
     | 'rumour_ledger';
 }
 
-export type PopulationHistoryPoint = PopulationHistoryEntry;
-
 export interface WildlifeCounts {
   grass: number;
   rabbits: number;
@@ -625,7 +620,7 @@ export interface WildlifeCounts {
   trees: number;
 }
 
-export interface ResearchCompletionNotify {
+interface ResearchCompletionNotify {
   title: string;
   message: string;
   level?: 'info' | 'success' | 'warning';
@@ -647,7 +642,7 @@ export interface ResearchNode {
   forgeUnlockNotify?: boolean;
 }
 
-export interface ResearchEffect {
+interface ResearchEffect {
   target: string;
   multiplier?: number;
   add?: number;
@@ -805,7 +800,7 @@ export interface HuntVisual {
 }
 
 /** Graveyard record; linked to a real death, never a fabricated casualty. */
-export interface GraveRecord {
+interface GraveRecord {
   name: string;
   faction: 'player' | 'enemy';
   tick: number;
@@ -830,7 +825,7 @@ export interface SpotlightLoreState {
 export type InventionFairProject = 'low_budget' | 'standard' | 'high_risk';
 export type InventionFairOutcome = 'success' | 'failure' | 'malfunction' | 'dangerous';
 
-export interface InventionFairState {
+interface InventionFairState {
   stage: 'selection' | 'preparation' | 'demonstration' | 'resolution';
   apprenticeId: number;
   siteBuildingId: number;
@@ -1052,7 +1047,7 @@ export interface DailyEconomyLedger {
   consumedTotal?: number;
 }
 
-export interface FoodDaySample {
+interface FoodDaySample {
   day: number;
   produced: Record<string, number>;
   consumed: Record<string, number>;
@@ -1120,7 +1115,7 @@ export interface BigNewsItem {
   dismissed: boolean;
 }
 
-export interface Disaster {
+interface Disaster {
   type: 'fire' | 'flood' | 'plague' | 'tornado' | 'earthquake';
   x: number;
   y: number;
@@ -1225,7 +1220,6 @@ export const MapSize = {
 } as const;
 export type MapSize = (typeof MapSize)[keyof typeof MapSize];
 
-
 export const MAP_SIZE_DIMENSIONS: Record<MapSize, { width: number; height: number }> = {
   [MapSize.Medium]: { width: 2560, height: 1920 },
   [MapSize.Large]: { width: 4096, height: 3072 },
@@ -1317,15 +1311,11 @@ export const GRID_SIZE = 20;
  * all project onto. Named for that grid, not the generator's 16 px biome cell.
  */
 export const PATH_CELL = 10;
-export const GRID_SNAP = true;
 
 export function snapToGrid(value: number, gridSize: number = GRID_SIZE): number {
   return Math.round(value / gridSize) * gridSize;
 }
 
-export {
-  GAME_VERSION, GAME_PHASE, GAME_TITLE, GAME_SUBTITLE, GAME_VERSION_TAGLINE, ECOLOGICAL_FACTS,
-} from './version';
 
 export const WEREWOLF_CURSE_LINES = [
   (name: string) => `${name} was touched by the full moon. They seem fine… for now.`,
@@ -1361,13 +1351,6 @@ export const WEREWOLF_HOWL_LINES = [
   'Hungry!',
   'Closer…',
   'No escape!',
-] as const;
-
-export const WEREWOLF_BEFRIEND_LINES = [
-  (human: string, wolf: string) => `${human} offered snacks. ${wolf} accepted friendship.`,
-  (human: string, wolf: string) => `${human} and ${wolf} signed a howling waiver.`,
-  (human: string, wolf: string) => `${wolf} now follows ${human} on a leash of mutual respect.`,
-  (human: string, wolf: string) => `${human} said "nice fur." ${wolf} said "deal."`,
 ] as const;
 
 // Corrected: taming lines reflect companionship and taming, not Church exorcisms

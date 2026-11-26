@@ -7,6 +7,10 @@ import { createInitialResearchNodes, BuildingType } from '../src/game/gameTypes'
 import type { WorldState } from '../src/game/gameTypes';
 import {
   getCounterAttackChance,
+  getArmamentSteps,
+  getHumanHuntRange,
+  getHuntFoodMultiplier,
+  getHumanFleeSpeedMultiplier,
   getPredatorBlockChance,
   rollCounterAttack,
   rollPredatorBlock,
@@ -117,5 +121,22 @@ describe('combat rolls draw from the run-seeded stream', () => {
     expect(restoreSimRng(snapshot)).toBe(true);
 
     expect(draw()).toEqual(before);
+  });
+});
+describe('independent combat effect and armament contracts', () => {
+  it('keeps hunt range, food yield and flee speed as independent research targets', () => {
+    const state = makeState(['defense_4'], { iron_spears: true });
+    expect(getHumanHuntRange(state, 100)).toBeCloseTo(140);
+    expect(getHuntFoodMultiplier(state)).toBeCloseTo(1.3);
+    expect(getHumanFleeSpeedMultiplier(state)).toBe(1);
+  });
+
+  it('does not let a completed ballista order unlock other armaments', () => {
+    const state = makeState(['defense_10'], { tower_ballistae: true });
+    const steps = getArmamentSteps(state);
+    expect(steps.find(step => step.id === 'tower_ballistae')?.done).toBe(true);
+    for (const id of ['iron_spears', 'iron_shields', 'iron_swords', 'scale_mail']) {
+      expect(steps.find(step => step.id === id)?.done).toBe(false);
+    }
   });
 });
