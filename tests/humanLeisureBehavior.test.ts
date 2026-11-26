@@ -158,6 +158,25 @@ describe('tickHumanChildLeisure', () => {
     expect(child.childPlaymateId).toBe(mate.id);
   });
 
+  it('stops at the shared play site instead of oscillating', () => {
+    const { state, child } = childFixture();
+    const mate = playerChild(child, 11, { x: 108, y: 100 });
+    const tick = playTickFor(child);
+    expect(tickChild(state, child, [child, mate], tick)).toBe(true);
+    const site = child.childPlaySite!;
+    expect(site).toBeDefined();
+    child.x = site.x;
+    child.y = site.y;
+    child.vx = 2;
+    child.vy = -2;
+    for (let offset = 1; offset <= 8; offset++) {
+      expect(tickChild(state, child, [child, mate], tick + offset)).toBe(true);
+      expect(child.childPlaySite).toEqual(site);
+      expect(child.vx).toBe(0);
+      expect(child.vy).toBe(0);
+    }
+  });
+
   it('keeps play destinations on reachable ground beside a river', () => {
     const { state, child } = childFixture();
     const mate = playerChild(child, 11, { x: 142, y: 150 });
@@ -224,6 +243,14 @@ describe('tickHumanChildLeisure', () => {
       expect(child.childPlaySite).toBeUndefined();
       expect(child.childPlaySiteAttempt).toEqual({ day, phase });
       expect(mate.childPlaySiteAttempt).toEqual({ day, phase });
+      // No reachable play stop: do not chase the other child's moving coordinates.
+      mate.x = 150;
+      child.vx = 2;
+      child.vy = -1;
+      tickChild(state, child, [child, mate], tick + 1);
+      expect(child.vx).toBe(0);
+      expect(child.vy).toBe(0);
+
 
       // The world becomes walkable, but the failed phase decision stays cached.
       state.worldMap = testWorldMap({ tilesX: 40, tilesY: 30 });
