@@ -1361,6 +1361,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             entity.vx = 0;
             entity.vy = 0;
             clearHumanWalkTarget(entity);
+            // The previously observed partner has already integrated this tick.
+            // Stop its residual leisure route, without moving it a second time.
+            closest.vx = 0;
+            closest.vy = 0;
+            clearHumanWalkTarget(closest);
             suppressIdle = true;
           }
           // The relationship owner decides how a pair is bound (new partner → progress starts at zero).
