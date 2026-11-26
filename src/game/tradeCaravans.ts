@@ -42,8 +42,6 @@ const CARAVAN_TRIP_SLACK_DAYS = 3;
 /** Partner-side grace after the unloading wait, in days, before a blocked cargo returns home. */
 const CARAVAN_CARGO_GRACE_DAYS = 3;
 
-export type TradeCaravanLeg = 'outbound' | 'at_partner' | 'inbound';
-
 function tradeMultiplier(state: WorldState): number {
   return getMultiplier(state, 'trade_bonus') * getTownHallTradeMultiplier(state, state.buildings);
 }
@@ -166,7 +164,6 @@ function caravanTripDeadlineTicks(state: WorldState, route: TradeRoute): number 
   const travelTicks = speed > 0 ? distance / speed : 0;
   return Math.ceil(travelTicks * CARAVAN_TRIP_DETOUR_ALLOWANCE) + ticksForDays(CARAVAN_TRIP_SLACK_DAYS);
 }
-
 
 function applyImports(state: WorldState, route: TradeRoute, mult: number): number {
   let goldGained = 0;

@@ -14,7 +14,7 @@ import {
 
 export type PlaceResult = { state: WorldState; ok: boolean; detail?: string };
 
-export function findBuildSpot(
+function findBuildSpot(
   state: WorldState,
   type: BuildingTypeName,
   cx: number,

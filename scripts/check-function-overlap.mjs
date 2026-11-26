@@ -39,7 +39,7 @@ export function lex(source) {
   return source.match(/(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b[A-Za-z_$][\w$]*\b|\b\d+(?:\.\d+)?\b|===|!==|=>|==|!=|\+\+|--|\+=|-=|&&|\|\||\?\?|[^\s])/g) ?? [];
 }
 
-export function dice(left, right) {
+function dice(left, right) {
   if (!left.length || !right.length) return 0;
   const remaining = new Map();
   for (const token of left) remaining.set(token, (remaining.get(token) ?? 0) + 1);

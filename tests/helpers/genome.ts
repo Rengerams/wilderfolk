@@ -1,6 +1,5 @@
 import {
   APTITUDE_IDS,
-  expressAptitudes,
   type AllelePair,
   type GeneticAptitude,
   type GenomeV2,
@@ -16,21 +15,6 @@ export function genomeFrom(values: Partial<Record<GeneticAptitude, number>> = {}
     return [value, value] as const;
   });
   return { version: 2, aptitudeAlleles };
-}
-
-/** One dimension pushed high, every other dimension neutral. */
-export function high(aptitude: GeneticAptitude): GenomeV2 {
-  return genomeFrom({ [aptitude]: 90 });
-}
-
-/** One dimension pushed low, every other dimension neutral. */
-export function low(aptitude: GeneticAptitude): GenomeV2 {
-  return genomeFrom({ [aptitude]: 10 });
-}
-
-/** The settler's own relative expression for one dimension, in points. */
-export function relativeOf(genome: GenomeV2, aptitude: GeneticAptitude): number {
-  return expressAptitudes(genome).relative[APTITUDE_IDS.indexOf(aptitude)];
 }
 
 /** A pair whose two alleles differ, to exercise inheritance without depending on allele identity. */

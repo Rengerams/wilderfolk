@@ -20,8 +20,6 @@ const PROMISE_CODES = {
   strengthen_healthcare: 5,
 } as const;
 
-export type PromiseCode = (typeof PROMISE_CODES)[keyof typeof PROMISE_CODES];
-
 export const EVAL_DAY_OFFSET = 180;
 
 // Higher thresholds so promises feel like real commitments.

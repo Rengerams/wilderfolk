@@ -354,7 +354,7 @@ export function livingHumans(world: WorldState): Entity[] {
   return world.entities.filter((entity) => entity.alive && entity.type === EntityType.Human);
 }
 
-export function countLivingEntitiesByType(world: WorldState): Record<string, number> {
+function countLivingEntitiesByType(world: WorldState): Record<string, number> {
   const counts = Object.fromEntries(
     Object.values(EntityType).map((entityType) => [entityType, 0]),
   ) as Record<string, number>;
@@ -398,7 +398,7 @@ export function countRelationships(world: WorldState): Record<string, number> {
 // Exact event totals (counted from new log ids, so the log cap cannot truncate them)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface ColonyEventTotals {
+interface ColonyEventTotals {
   births: number;
   conceptions: number;
   deaths: number;
@@ -597,7 +597,7 @@ function safeInspect(value: unknown): string {
 // The eight health domains, projected together
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface ColonyMovementSample {
+interface ColonyMovementSample {
   id: number;
   workplaceId?: number;
   travelling: number;
@@ -987,7 +987,7 @@ export function collectInvariantErrors(world: WorldState): string[] {
  * correct, read from numbers the observer records (a preset like spare adults is not a stall). An
  * invariant violation reported anywhere in the run is its own reason, never folded into a growth cause.
  */
-export type ColonyStallReason =
+type ColonyStallReason =
   | 'housing-full'
   | 'food-exhausted'
   | 'wood-pinned'
@@ -1089,5 +1089,3 @@ export function assessColonyStall(input: ColonyStallInput): ColonyStallVerdict {
 export function formatColonyStallVerdict(verdict: ColonyStallVerdict): string {
   return verdict.reasons.length > 0 ? `stalled(${verdict.reasons.join(',')})` : 'healthy';
 }
-
-
