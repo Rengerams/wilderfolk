@@ -1261,6 +1261,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       suppressIdle,
     );
     suppressIdle = huntingSuppressIdle;
+    // Do not advertise leisure availability while another movement owner is active.
+    courtshipPresence.socialTime = courtshipPresence.socialTime && !suppressIdle && !commuting && !huntingWere;
 
     advancePregnancy(entity, conceivedToday);
 
@@ -1271,6 +1273,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       socialTime &&
       allowFreeRoam &&
       isEligibleToCourt(entity) &&
+      entity.courtshipPartnerId == null &&
       hourOfDay >= EVENING_START &&
       hourOfDay <= 22 &&
       !suppressIdle &&
@@ -1303,7 +1306,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Courtship: only two observed, awake people may interact. An on-duty pair may
     // progress only if both are actually at their *same* workplace and within 10 px.
     // Other workers do not abandon their jobs to chase dates.
-    if (!sleepingForNeeds && (courtshipPresence.socialTime || courtshipPresence.onDuty) &&
+    if (!sleepingForNeeds && ((!suppressIdle && courtshipPresence.socialTime) || courtshipPresence.onDuty) &&
       isEligibleToCourt(entity) && entity.gender &&
       entity.energy > config.reproductionEnergyThreshold * 0.6) {
       const courtRange = atHome ? 120 : 80;
