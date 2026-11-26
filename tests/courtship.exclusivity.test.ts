@@ -366,3 +366,56 @@ describe('a widowed settler may court again (owner, 2026-10-09)', () => {
     expect(isEligibleToCourt(widower)).toBe(true);
   });
 });
+
+
+describe('courtship candidate availability', () => {
+  it('skips an unavailable nearest candidate in favour of an available one', () => {
+    const a = settler(A_ID, 'male');
+    const b = settler(B_ID, 'female');
+    const c = settler(C_ID, 'female');
+    const humans = [a, b, c];
+    const { entityById } = fixture(humans);
+    expect(findCourtshipPartner(a, false, 120, undefined, new Map(), humans, 1200, 900, 0, entityById, candidate => candidate.id !== B_ID)?.id).toBe(C_ID);
+  });
+
+  it('waits for an unavailable established partner without switching', () => {
+    const a = settler(A_ID, 'male', { courtshipPartnerId: B_ID, courtshipProgress: 60 });
+    const b = settler(B_ID, 'female', { courtshipPartnerId: A_ID, courtshipProgress: 60 });
+    const c = settler(C_ID, 'female');
+    const humans = [a, b, c];
+    const { entityById } = fixture(humans);
+    expect(findCourtshipPartner(a, false, 120, undefined, new Map(), humans, 1200, 900, 0, entityById, candidate => candidate.id !== B_ID)).toBeUndefined();
+    expect(a.courtshipProgress).toBe(60);
+    expect(a.courtshipPartnerId).toBe(B_ID);
+  });
+});
+
+
+it('selects the same courtship candidate at equal distance in either traversal order', () => {
+  const a = settler(A_ID, 'male', { x: 100 });
+  const b = settler(B_ID, 'female', { x: 110 });
+  const c = settler(C_ID, 'female', { x: 90 });
+  for (const humans of [[a, b, c], [c, b, a]]) {
+    expect(findCourtshipPartner(a, false, 120, undefined, new Map(), humans, 1200, 900)?.id).toBe(B_ID);
+  }
+});
+
+
+describe('courtship cooldown reconciliation order', () => {
+  it.each([false, true])('starts equal cooldowns for both partners (reverse=%s)', reverse => {
+    const a = settler(A_ID, 'male', { courtshipPartnerId: B_ID, courtshipProgress: 60 });
+    const b = settler(B_ID, 'female', { courtshipPartnerId: A_ID, courtshipProgress: 60, pregnant: true });
+    const humans = reverse ? [b, a] : [a, b];
+    const { entityById } = fixture(humans);
+    reconcileCourtships(context(entityById, humans));
+    expect(a.courtshipPartnerId).toBeUndefined();
+    expect(b.courtshipPartnerId).toBeUndefined();
+    expect(a.courtshipProgress).toBe(0);
+    expect(b.courtshipProgress).toBe(0);
+    expect(a.courtshipCooldownDays).toBe(1);
+    expect(b.courtshipCooldownDays).toBe(1);
+    reconcileCourtships(context(entityById, humans));
+    expect(a.courtshipCooldownDays).toBe(0);
+    expect(b.courtshipCooldownDays).toBe(0);
+  });
+});

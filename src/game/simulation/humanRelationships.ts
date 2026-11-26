@@ -37,7 +37,7 @@ import { citizenFullName, formatCitizenName, formatDeathLog, humanDisplayName } 
 import { dissolveMarriage, formatCaughtCheaterDivorceDetail, syncMarriageSurnames } from '../nameLoader';
 import { dampScandalReputationLoss } from '../townHall';
 import { getLivingEntity, getHousemates } from '../simQueries';
-import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_AFFAIR_RADIUS } from '../adaptiveSpatialQuery';
+import { forEachAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_AFFAIR_RADIUS } from '../adaptiveSpatialQuery';
 import { isMarriedOrExpecting, startFeud } from '../relationships';
 import { logDeath, logEvent } from '../eventLog';
 import { isPlayerHuman } from '../playerHuman';
@@ -479,19 +479,17 @@ function clearYouthLovePair(a: Entity, b?: Entity): void {
   }
 }
 
+/** Shared single-settler eligibility; age and bond-specific rules stay with each lifecycle. */
+function isAvailableForRomance(entity: Entity): boolean {
+  return isPlayerHuman(entity) && entity.alive && !entity.pregnant
+    && entity.prisonBuildingId == null && entity.partnerId == null
+    && entity.relationshipStatus === 'single' && entity.youthLovePartnerId == null;
+}
+
 function isEligibleForYouthLove(entity: Entity): boolean {
-  return (
-    isPlayerHuman(entity) &&
-    entity.alive &&
-    entity.age >= YOUTH_LOVE_MIN_AGE &&
-    entity.age < HUMAN_ADULT_MIN_AGE &&
-    entity.prisonBuildingId == null &&
-    !entity.pregnant &&
-    entity.partnerId == null &&
-    entity.relationshipStatus === 'single' &&
-    entity.youthLovePartnerId == null &&
-    !!entity.gender
-  );
+  return isAvailableForRomance(entity)
+    && entity.age >= YOUTH_LOVE_MIN_AGE && entity.age < HUMAN_ADULT_MIN_AGE
+    && entity.courtshipPartnerId == null && !!entity.gender;
 }
 
 function isValidYouthLoveTarget(entity: Entity, candidate: Entity): boolean {
@@ -521,9 +519,14 @@ function reconcileYouthLove(entity: Entity, entityById: Map<number, Entity>): vo
     partner.partnerId != null ||
     entity.relationshipStatus !== 'single' ||
     partner.relationshipStatus !== 'single' ||
+    entity.courtshipPartnerId != null ||
+    partner.courtshipPartnerId != null ||
+    entity.id === partner.id ||
+    !entity.gender || !partner.gender || entity.gender === partner.gender ||
     Math.abs(entity.age - partner.age) > YOUTH_LOVE_MAX_AGE_GAP
   ) {
-    clearYouthLovePair(entity, partner);
+    // A stale outgoing link must not erase the other settler's valid relationship.
+    clearYouthLovePair(entity, partner?.youthLovePartnerId === entity.id ? partner : undefined);
   }
 }
 
@@ -533,8 +536,7 @@ function promoteYouthLoveToCourtship(state: WorldState, a: Entity, b: Entity): v
     Math.max(25, Math.round(Math.min(a.youthLoveProgress ?? 0, b.youthLoveProgress ?? 0) * 0.7)),
   );
   clearYouthLovePair(a, b);
-  a.courtshipPartnerId = b.id;
-  b.courtshipPartnerId = a.id;
+  bindCourtship(a, b);
   a.courtshipProgress = carriedProgress;
   b.courtshipProgress = carriedProgress;
   createDeathParticles(state, (a.x + b.x) / 2, (a.y + b.y) / 2 - 12, '#f9a8d4', 9, 'heart');
@@ -553,7 +555,12 @@ export function advanceYouthLove(
 ): void {
   const { entityById, humanSocialGrid, playerHumans, width, height } = ctx;
   const day = getAbsoluteCalendarDay(state.tick);
+  const attempted = new Set<number>();
 
+  // Snapshot before reconciliation can clear both participants' fields.
+  for (const entity of playerHumans) {
+    if (entity.youthLovePartnerId != null) attempted.add(entity.id);
+  }
   for (const entity of playerHumans) {
     reconcileYouthLove(entity, entityById);
   }
@@ -576,9 +583,14 @@ export function advanceYouthLove(
         continue;
       }
 
+      // Only progression and breakup are deferred on formation day; adult
+      // handoff and age validation above must also work for imported saves.
+      if (entity.youthLoveStartedDay === day || partner.youthLoveStartedDay === day) continue;
       const affinity = schoolAffinity(entity, partner);
       const breakupChance = YOUTH_LOVE_DAILY_BREAKUP_CHANCE * (1.45 - affinity * 0.6);
       if (rng() < breakupChance) {
+        attempted.add(entity.id);
+        attempted.add(partner.id);
         clearYouthLovePair(entity, partner);
         addFloatingText(
           state,
@@ -603,17 +615,40 @@ export function advanceYouthLove(
       continue;
     }
 
-    if (!isEligibleForYouthLove(entity)) continue;
-    const candidate = findClosestAdaptiveInRadius(
+  }
+
+  // Resolve every existing bond before matching singles. Rotate a stable ID
+  // order daily so neither array order nor permanently low IDs get priority.
+  const singles = playerHumans.filter(entity => !attempted.has(entity.id) && isEligibleForYouthLove(entity))
+    .sort((a, b) => a.id - b.id);
+  const offset = singles.length ? day % singles.length : 0;
+  for (let index = 0; index < singles.length; index++) {
+    const entity = singles[(index + offset) % singles.length];
+    if (attempted.has(entity.id) || !isEligibleForYouthLove(entity)) continue;
+    let candidate: Entity | undefined;
+    let bestScore = Infinity;
+    forEachAdaptiveInRadius(
       humanSocialGrid,
       playerHumans,
       entity.x,
       entity.y,
       150,
-      (other) => isValidYouthLoveTarget(entity, other),
+      (other, distanceSq) => {
+        if (attempted.has(other.id) || !isValidYouthLoveTarget(entity, other)) return;
+        // Prefer an existing childhood friendship without expanding the local search radius.
+        const score = distanceSq * (hasSharedSchoolBond(entity, other) ? 0.25 : 1);
+        if (!candidate || score < bestScore || (score === bestScore && other.id < candidate.id)) {
+          candidate = other;
+          bestScore = score;
+        }
+      },
       socialAdaptiveOptions('social', playerHumans.length, width, height),
     );
-    if (!candidate || !shouldLeadAffairPair(entity, candidate)) continue;
+    // Formation is not a pair update: either eligible single can initiate.
+    // The reciprocal link immediately removes both from the candidate pool.
+    if (!candidate) continue;
+    attempted.add(entity.id);
+    attempted.add(candidate.id);
 
     const affinity = schoolAffinity(entity, candidate);
     if (rng() >= YOUTH_LOVE_DAILY_START_CHANCE + affinity * YOUTH_LOVE_DAILY_SCHOOL_BONUS) continue;
@@ -1244,18 +1279,9 @@ export /**
  * is `isWithinRemarriageBar`, so a divorced pair cannot remarry within a year.
  */
 function isEligibleToCourt(entity: Entity): boolean {
-  return (
-    isPlayerHuman(entity) &&
-    entity.alive &&
-    entity.age >= HUMAN_ADULT_MIN_AGE &&
-    !entity.pregnant &&
-    entity.prisonBuildingId == null &&
-    entity.partnerId == null &&
-    entity.youthLovePartnerId == null &&
-    entity.relationshipStatus === 'single' &&
-    (entity.courtshipCooldownDays ?? 0) <= 0 &&
-    entity.age < HUMAN_MAX_LIFESPAN_YEARS
-  );
+  return isAvailableForRomance(entity)
+    && entity.age >= HUMAN_ADULT_MIN_AGE && entity.age < HUMAN_MAX_LIFESPAN_YEARS
+    && (entity.courtshipCooldownDays ?? 0) <= 0;
 }
 
 /** Ticks a divorced pair must stay apart before they may court each other again: one year. */
@@ -1315,11 +1341,14 @@ export function bindCourtship(entity: Entity, partner: Entity): void {
 export function reconcileCourtships(
   ctx: Pick<TickContext, 'entityById' | 'playerHumans'>,
 ): void {
+  // Age existing cooldowns before any pair repair starts a new one. Otherwise
+  // the second member of a dissolved pair could lose a day immediately.
   for (const entity of ctx.playerHumans) {
-    // Count the post-courtship cooldown down once per colony day.
     if ((entity.courtshipCooldownDays ?? 0) > 0) {
       entity.courtshipCooldownDays = (entity.courtshipCooldownDays ?? 0) - 1;
     }
+  }
+  for (const entity of ctx.playerHumans) {
     const partnerId = entity.courtshipPartnerId;
     if (partnerId == null) continue;
     const partner = getLivingEntity(partnerId, ctx.entityById);
@@ -1356,33 +1385,36 @@ export function findCourtshipPartner(
   // Defaulted to 0 so a caller that does not care about the divorce bar keeps its argument list; a
   // divorce is always stamped at a tick > 0, so from tick 0 every past marriage is inside the bar.
   tick = 0,
+  entityById?: ReadonlyMap<number, Entity>,
+  available: (candidate: Entity) => boolean = () => true,
 ): Entity | undefined {
   const currentCourtship =
     entity.courtshipPartnerId != null
-      ? fallbackHumans?.find((candidate) => candidate.id === entity.courtshipPartnerId)
+      ? entityById?.get(entity.courtshipPartnerId) ?? fallbackHumans?.find((candidate) => candidate.id === entity.courtshipPartnerId)
       : undefined;
-  if (
-    currentCourtship &&
-    currentCourtship.courtshipPartnerId === entity.id &&
-    isCourtshipCandidate(entity, currentCourtship, tick)
-  ) {
-    return currentCourtship;
+  if (currentCourtship && currentCourtship.courtshipPartnerId === entity.id) {
+    // An existing reciprocal bond must be repaired by its owner before a new
+    // partner can be selected, even if its current eligibility is invalid.
+    return isCourtshipCandidate(entity, currentCourtship, tick) && available(currentCourtship)
+      ? currentCourtship : undefined;
   }
 
   let closest: Entity | undefined;
   let closestDistSq = courtRange * courtRange;
+  const considered = new Set<number>();
 
   const consider = (candidate: Entity, distSq: number) => {
-    if (!isCourtshipCandidate(entity, candidate, tick)) return;
-    if (distSq >= closestDistSq) return;
+    if (considered.has(candidate.id)) return;
+    considered.add(candidate.id);
+    if (!isCourtshipCandidate(entity, candidate, tick) || !available(candidate)) return;
+    if (distSq > closestDistSq || (distSq === closestDistSq && (!closest || candidate.id >= closest.id))) return;
     closestDistSq = distSq;
     closest = candidate;
   };
 
   for (const friendId of entity.childhoodFriendsIds ?? []) {
-    const friend = fallbackHumans?.find((h) => h.id === friendId);
+    const friend = entityById?.get(friendId) ?? fallbackHumans?.find((h) => h.id === friendId);
     if (!friend || !friend.alive) continue;
-    if (!isCourtshipCandidate(entity, friend, tick)) continue;
     const dx = friend.x - entity.x;
     const dy = friend.y - entity.y;
     consider(friend, (dx * dx + dy * dy) * 0.25);
@@ -1397,20 +1429,17 @@ export function findCourtshipPartner(
     }
   }
 
-  const nearby = findClosestAdaptiveInRadius(
+  // Rank every local candidate through the same comparator so equal-distance
+  // results do not depend on spatial-grid traversal order.
+  forEachAdaptiveInRadius(
     humanSocialGrid,
     fallbackHumans ?? [],
     entity.x,
     entity.y,
     courtRange,
-    (candidate) => isCourtshipCandidate(entity, candidate, tick),
+    (candidate, distSq) => consider(candidate, distSq),
     socialAdaptiveOptions('social', fallbackHumans?.length ?? 0, width ?? 0, height ?? 0),
   );
-  if (nearby) {
-    const dx = nearby.x - entity.x;
-    const dy = nearby.y - entity.y;
-    consider(nearby, dx * dx + dy * dy);
-  }
   return closest;
 }
 

@@ -329,6 +329,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     onDuty: boolean;
     workplaceId: number | undefined;
     atWorkplace: boolean;
+    socialTime: boolean;
+    contactOnly: boolean;
   }>();
   const advancedCourtshipIds = new Set<number>();
 
@@ -809,8 +811,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       onDuty: onJobShift || onOfficialShift || onPriestShift,
       workplaceId: workplace?.id,
       atWorkplace: atPost || wasInsideWorkplace,
+      socialTime: false,
+      contactOnly: false,
     };
-    courtshipReadiness.set(entity.id, courtshipPresence);
     let ateMeal = false;
     if (isPlayerHuman(entity)) {
       advanceHumanNeeds(entity, {
@@ -897,43 +900,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       );
     }
 
-    if (!active) {
-      if (previousIndoorBuildingId != null && buildingById.get(previousIndoorBuildingId)?.completed) {
-        entity.indoorBuildingId = previousIndoorBuildingId;
-      }
-      // The throttle rests the decisions, not the walk: the route the settler was already commanded
-      // to take carries them at the same pace, so camera focus cannot change travel time.
-      resumeHumanWalk(entity);
-      integrateHumanWalk(entity, width, height);
-      syncEntityGrids(ctx, entity);
-      continue;
-    }
-
-    // A decision tick starts with no commanded walk: whatever it steers records the one walk a
-    // throttled tick may resume, and a tick that only flees or stops leaves none behind.
-    clearHumanWalkTarget(entity);
-
-    // Trade-route merchants
-    if (entity.faction === 'trade_caravan') {
-      const target = getCaravanMoveTarget(state, entity);
-      if (target) {
-        steerHumanToward(
-          entity, target.x, target.y, config.speed, target.speedMult, `caravan_${entity.id}`,
-        );
-        applyHumanWalkStep(entity, 1);
-        tryAdvanceCaravanLeg(state, entity);
-      }
-      syncEntityGrids(ctx, entity);
-      continue;
-    }
-    if (isWinter && !canHeat && isTick8) entity.flash = 5;
-
-    let suppressIdle = false;
-    let onSchedule = false;
-    // A walk to work is priced at the undamped commute pace by `commuteLeadHoursFor`.
-    let commuting = false;
-
-
     // A crew larger than three shifts takes days off in turn; a resting guard is off the colony work
     // day and must not still walk to the prison.
     const offDutyPrisonGuard = isPrisonGuardAtPost && prisonShift == null;
@@ -985,6 +951,80 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           byType[EntityType.Werewolf],
         )
       : undefined;
+
+    // The festival destination is shared by the readiness and movement decisions.
+    const festivalStand = festivalGathering ? crowdGatherPosition(
+      festivalSquare ? festivalSquare.x + festivalSquare.width / 2 : (staffedTownHalls[entity.id % staffedTownHalls.length]?.x ?? width * 0.5),
+      festivalSquare ? festivalSquare.y + festivalSquare.height / 2 : (staffedTownHalls[entity.id % staffedTownHalls.length]?.y ?? height * 0.5),
+      entity.id,
+    ) : undefined;
+    const atFestival = festivalStand != null && Math.hypot(festivalStand.x - entity.x, festivalStand.y - entity.y) <= 18;
+    const home = entity.residenceBuildingId == null ? undefined : buildingById.get(entity.residenceBuildingId);
+    const homeLeisure = stayIn && !preShiftSleep.headHome && !recoveringSleep
+      && (!hasResidenceAssignment(entity) || (!!home?.completed && isAtBuildingReach(entity, home)));
+    const contactOnly = atFestival || homeLeisure;
+    courtshipPresence.socialTime = socialTime && !takingNeedsBreak && (!stayIn || homeLeisure) && !inElectionCeremony
+      && !workCommuteDue && !huntingWere && (!festivalGathering || atFestival);
+    courtshipPresence.contactOnly = contactOnly;
+    if (!goingToHospital && !inSpotlightGathering && !inElectionCeremony && !huntingWere) {
+      courtshipReadiness.set(entity.id, courtshipPresence);
+    } else {
+      courtshipPresence.atWorkplace = false;
+    }
+
+    // A close established pair can advance on the later participant's tick,
+    // even when that participant's normal offscreen decision is throttled.
+    // Do not wake sleeping settlers or activate distant courtship searches.
+    const closeCourtshipPartner = !active && entity.courtshipPartnerId != null
+      ? entityById.get(entity.courtshipPartnerId) : undefined;
+    const closeCourtshipPresence = closeCourtshipPartner
+      ? courtshipReadiness.get(closeCourtshipPartner.id) : undefined;
+    const closeCourtshipDue = !!closeCourtshipPartner && !!closeCourtshipPresence
+      && closeCourtshipPartner.courtshipPartnerId === entity.id
+      && courtshipReadiness.has(entity.id)
+      && isEligibleToCourt(entity) && isEligibleToCourt(closeCourtshipPartner)
+      && entity.energy > config.reproductionEnergyThreshold * 0.6
+      && closeCourtshipPartner.energy > config.reproductionEnergyThreshold * 0.6
+      && canAdvanceCourtship(courtshipPresence, closeCourtshipPresence,
+        Math.hypot(closeCourtshipPartner.x - entity.x, closeCourtshipPartner.y - entity.y),
+        courtshipPresence.socialTime && closeCourtshipPresence.socialTime);
+
+    if (!active && !closeCourtshipDue) {
+      if (previousIndoorBuildingId != null && buildingById.get(previousIndoorBuildingId)?.completed) {
+        entity.indoorBuildingId = previousIndoorBuildingId;
+      }
+      // The throttle rests the decisions, not the walk: the route the settler was already commanded
+      // to take carries them at the same pace, so camera focus cannot change travel time.
+      resumeHumanWalk(entity);
+      integrateHumanWalk(entity, width, height);
+      syncEntityGrids(ctx, entity);
+      continue;
+    }
+
+    // A decision tick starts with no commanded walk: whatever it steers records the one walk a
+    // throttled tick may resume, and a tick that only flees or stops leaves none behind.
+    clearHumanWalkTarget(entity);
+
+    // Trade-route merchants
+    if (entity.faction === 'trade_caravan') {
+      const target = getCaravanMoveTarget(state, entity);
+      if (target) {
+        steerHumanToward(
+          entity, target.x, target.y, config.speed, target.speedMult, `caravan_${entity.id}`,
+        );
+        applyHumanWalkStep(entity, 1);
+        tryAdvanceCaravanLeg(state, entity);
+      }
+      syncEntityGrids(ctx, entity);
+      continue;
+    }
+    if (isWinter && !canHeat && isTick8) entity.flash = 5;
+
+    let suppressIdle = false;
+    let onSchedule = false;
+    // A walk to work is priced at the undamped commute pace by `commuteLeadHoursFor`.
+    let commuting = false;
+
 
     // Cross-map lodging: a walk home too long for the hours left before the sleep hour takes a
     // reserved hotel bed instead, including the time spent walking there.
@@ -1066,12 +1106,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       suppressIdle = true;
       onSchedule = true;
     } else if (festivalGathering) {
-      const hall = staffedTownHalls.length > 0 ? staffedTownHalls[entity.id % staffedTownHalls.length] : undefined;
-      const square = festivalSquare;
-      const targetX = square ? square.x + square.width / 2 : (hall ? hall.x : width * 0.5);
-      const targetY = square ? square.y + square.height / 2 : (hall ? hall.y : height * 0.5);
-      // A real place per festival-goer: `crowdGatherPosition` spreads the crowd around the target.
-      const stand = crowdGatherPosition(targetX, targetY, entity.id);
+      const stand = festivalStand!;
       const dx = stand.x - entity.x;
       const dy = stand.y - entity.y;
       const dist = Math.hypot(dx, dy) || 1;
@@ -1096,8 +1131,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         onSchedule = true;
         suppressIdle = true;
       } else if (residence?.completed) {
-        if (commuteHumanToBuilding(entity, residence, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, residence);
-        commuting = true;
+        const arrived = commuteHumanToBuilding(entity, residence, config.speed, WORK_COMMUTE_RUSH);
+        if (arrived) enterHumanBuilding(entity, residence);
+        commuting = !arrived || !homeLeisure;
         onSchedule = true;
         suppressIdle = true;
       }
@@ -1256,6 +1292,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       suppressIdle,
     );
     suppressIdle = huntingSuppressIdle;
+    // Do not advertise leisure availability while another movement owner is active.
+    courtshipPresence.socialTime = courtshipPresence.socialTime && (!suppressIdle || contactOnly) && !commuting && !huntingWere;
 
     advancePregnancy(entity, conceivedToday);
 
@@ -1266,6 +1304,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       socialTime &&
       allowFreeRoam &&
       isEligibleToCourt(entity) &&
+      entity.courtshipPartnerId == null &&
       hourOfDay >= EVENING_START &&
       hourOfDay <= 22 &&
       !suppressIdle &&
@@ -1298,9 +1337,24 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Courtship: only two observed, awake people may interact. An on-duty pair may
     // progress only if both are actually at their *same* workplace and within 10 px.
     // Other workers do not abandon their jobs to chase dates.
-    if (!sleepingForNeeds && (socialTime || courtshipPresence.onDuty) &&
+    if (!sleepingForNeeds && (((!suppressIdle || contactOnly) && courtshipPresence.socialTime) || courtshipPresence.onDuty) &&
       isEligibleToCourt(entity) && entity.gender &&
       entity.energy > config.reproductionEnergyThreshold * 0.6) {
+      // The first processed member of an established pair may wait briefly at
+      // contact. This is only a local leisure choice, never assumed consent or
+      // progress: the later member still has to pass the observed pair gate.
+      const established = entity.courtshipPartnerId != null
+        ? entityById.get(entity.courtshipPartnerId) : undefined;
+      if (established && established.courtshipPartnerId === entity.id
+        && !courtshipReadiness.has(established.id)
+        && !courtshipPresence.onDuty && !contactOnly && courtshipPresence.socialTime
+        && isEligibleToCourt(established)
+        && Math.hypot(established.x - entity.x, established.y - entity.y) <= 10) {
+        entity.vx = 0;
+        entity.vy = 0;
+        clearHumanWalkTarget(entity);
+        suppressIdle = true;
+      }
       const courtRange = atHome ? 120 : 80;
       const closest = findCourtshipPartner(
         entity,
@@ -1312,6 +1366,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         width,
         height,
         state.tick,
+        entityById,
+        (candidate) => {
+          const presence = courtshipReadiness.get(candidate.id);
+          if (!presence || presence.sleeping || candidate.energy <= config.reproductionEnergyThreshold * 0.6) return false;
+          if (courtshipPresence.onDuty || presence.onDuty) {
+            return canAdvanceCourtship(courtshipPresence, presence, Math.hypot(candidate.x - entity.x, candidate.y - entity.y), socialTime);
+          }
+          return courtshipPresence.socialTime && presence.socialTime
+            && (!(contactOnly || presence.contactOnly) || Math.hypot(candidate.x - entity.x, candidate.y - entity.y) <= 10);
+        },
       );
 
       // A candidate that has not been ticked yet may still be asleep. Wait for
@@ -1323,33 +1387,54 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const dx = closest.x - entity.x;
         const dy = closest.y - entity.y;
         const dist = Math.hypot(dx, dy);
-        const livingTogether = atHome && shareResidence(entity, closest);
+        const livingTogether = atHome && shareResidence(entity, closest)
+          && isNearResidence(closest, buildingById);
         const closeEnough = dist <= 10;
 
         if (!closeEnough) {
-          if (!courtshipPresence.onDuty && !otherPresence.onDuty && socialTime) {
+          if (!courtshipPresence.onDuty && !otherPresence.onDuty && !contactOnly && !otherPresence.contactOnly && courtshipPresence.socialTime && otherPresence.socialTime) {
+            // Keep established dates stable, but do not lock two strangers into an
+            // exclusive relationship until they actually meet. An unreachable route
+            // must not create a permanent zero-progress courtship.
+            // Binding remains owned by the close-contact branch below.
             const chaseSpeed = atHome ? 0.35 : 0.45;
             steerHumanToward(entity, closest.x, closest.y, config.speed, chaseSpeed,
               `courtship_${entity.id}_${closest.id}`);
             suppressIdle = true;
           }
-        } else if (canAdvanceCourtship(courtshipPresence, otherPresence, dist, socialTime)) {
-          entity.vx *= 0.6;
-          entity.vy *= 0.6;
-          suppressIdle = true;
+        } else if (canAdvanceCourtship(courtshipPresence, otherPresence, dist, courtshipPresence.socialTime && otherPresence.socialTime)) {
+          // Leisure dates stop at contact instead of resuming an old walk target.
+          // Coworkers keep their work movement and attendance untouched.
+          if (!courtshipPresence.onDuty && !otherPresence.onDuty && !contactOnly && !otherPresence.contactOnly) {
+            entity.vx = 0;
+            entity.vy = 0;
+            clearHumanWalkTarget(entity);
+            // The observed partner has already integrated this tick.
+            // Stop its residual leisure route, without moving it a second time.
+            closest.vx = 0;
+            closest.vy = 0;
+            clearHumanWalkTarget(closest);
+            suppressIdle = true;
+          }
           // The relationship owner decides how a pair is bound (new partner → progress starts at zero).
           bindCourtship(entity, closest);
 
           // Either partner may be processed second. Credit this pair at most once
           // this tick, irrespective of entity iteration order or ID.
-          if (!advancedCourtshipIds.has(entity.id) && !advancedCourtshipIds.has(closest.id)) {
+          // Fully progressed pairs (including loaded saves) need the marriage
+          // transition, not another aptitude calculation, dialogue or heart roll.
+          if (((entity.courtshipProgress ?? 0) < 100 || (closest.courtshipProgress ?? 0) < 100)
+            && !advancedCourtshipIds.has(entity.id) && !advancedCourtshipIds.has(closest.id)) {
             advancedCourtshipIds.add(entity.id);
             advancedCourtshipIds.add(closest.id);
 
-            if (seededRandomForRun(`chat-court1:${entity.id}:${state.tick}`) < 0.4 * PER_TICK_RATE_SCALE) {
-              settlerPairChat(entity, closest, 'courtship', 0.85);
-            } else if (seededRandomForRun(`chat-court2:${entity.id}:${state.tick}`) < 0.5 * PER_TICK_RATE_SCALE) {
-              settlerPairChat(entity, closest, 'courtship', 0.1);
+            // A stable speaker and seed make dialogue independent of which partner was processed last.
+            const speaker = entity.id < closest.id ? entity : closest;
+            const listener = speaker === entity ? closest : entity;
+            if (seededRandomForRun(`chat-court1:${speaker.id}:${state.tick}`) < 0.4 * PER_TICK_RATE_SCALE) {
+              settlerPairChat(speaker, listener, 'courtship', 0.85);
+            } else if (seededRandomForRun(`chat-court2:${speaker.id}:${state.tick}`) < 0.5 * PER_TICK_RATE_SCALE) {
+              settlerPairChat(speaker, listener, 'courtship', 0.1);
             }
 
             // Symmetric pair rule: both people's courtship aptitudes average into one rate.
@@ -1358,7 +1443,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               evaluateAptitudeInfluence(closest, 'courtship').factor,
             );
             const courtRate =
-              courtshipRatePerHour(socialTime) *
+              courtshipRatePerHour(!courtshipPresence.onDuty && !otherPresence.onDuty) *
               (state.festival?.active ? 2 : 1) *
               (livingTogether ? 1.5 : 1) *
               courtshipFactor *

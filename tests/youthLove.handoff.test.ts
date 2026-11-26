@@ -174,3 +174,74 @@ describe('youth-love → courtship handoff (audit F3)', () => {
     expect(werewolf.courtshipPartnerId).toBeUndefined();
   });
 });
+
+
+describe('youth-love reconciliation preserves exclusive bonds', () => {
+  it('does not overwrite an existing adult courtship during handoff', () => {
+    const { state, older, younger, ctx } = pair(19, 18);
+    older.courtshipPartnerId = 3;
+    older.courtshipProgress = 65;
+    advance(state, ctx);
+    expect(older.courtshipPartnerId).toBe(3);
+    expect(older.courtshipProgress).toBe(65);
+    expect(older.youthLovePartnerId).toBeUndefined();
+    expect(younger.youthLovePartnerId).toBeUndefined();
+  });
+
+  it('does not clear a valid pair when a third settler has a stale outgoing link', () => {
+    const { state, older, younger, ctx } = pair(16, 15);
+    const stale = settler(3, 15, 'male', { youthLovePartnerId: YOUNGER_ID });
+    ctx.entityById.set(stale.id, stale);
+    ctx.playerHumans = [stale, older, younger];
+    state.entities = [stale, older, younger];
+    advance(state, ctx);
+    expect(stale.youthLovePartnerId).toBeUndefined();
+    expect(older.youthLovePartnerId).toBe(YOUNGER_ID);
+    expect(younger.youthLovePartnerId).toBe(OLDER_ID);
+  });
+});
+
+
+describe('youth-love formation', () => {
+  it('does not retry a failed encounter within the same daily pass', () => {
+    const { state, ctx } = pair(16, 15);
+    const a = settler(1, 16, 'male');
+    const b = settler(2, 15, 'female');
+    const humans = [a, b];
+    state.entities = humans;
+    let rolls = 0;
+    advanceYouthLove(state, { ...ctx, playerHumans: humans, entityById: new Map(humans.map(h => [h.id, h])) }, () => { rolls++; return 0.99; });
+    expect(rolls).toBe(1);
+    expect(a.youthLovePartnerId).toBeUndefined();
+    expect(b.youthLovePartnerId).toBeUndefined();
+  });
+
+  it('prefers a nearby childhood friend over a slightly closer stranger', () => {
+    const { state, ctx } = pair(16, 15);
+    state.tick = 0; // Stable rotation starts with the first ID on day zero.
+    const a = settler(1, 16, 'male', { x: 100, childhoodFriendsIds: [3] });
+    const b = settler(2, 15, 'female', { x: 120 });
+    const c = settler(3, 15, 'female', { x: 130 });
+    const humans = [a, b, c];
+    state.entities = humans;
+    advanceYouthLove(state, { ...ctx, playerHumans: humans, entityById: new Map(humans.map(h => [h.id, h])) }, () => 0);
+    expect(a.youthLovePartnerId).toBe(3);
+    expect(c.youthLovePartnerId).toBe(1);
+    expect(b.youthLovePartnerId).toBeUndefined();
+    expect(a.youthLoveProgress).toBe(1);
+    expect(c.youthLoveProgress).toBe(1);
+  });
+
+  it.each([false, true])('forms the same mutual bond in either input order (reverse=%s)', reverse => {
+    const { state, ctx } = pair(16, 15);
+    const a = settler(1, 16, 'male');
+    const b = settler(2, 15, 'female');
+    const humans = reverse ? [b, a] : [a, b];
+    state.entities = humans;
+    advanceYouthLove(state, { ...ctx, playerHumans: humans, entityById: new Map(humans.map(h => [h.id, h])) }, () => 0);
+    expect(a.youthLovePartnerId).toBe(2);
+    expect(b.youthLovePartnerId).toBe(1);
+    expect(a.youthLoveProgress).toBe(1);
+    expect(b.youthLoveProgress).toBe(1);
+  });
+});
