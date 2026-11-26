@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (26 Nov 2026):** Moon Howlers pursue exposed settlers even when fed or off-screen, no longer get ejected from roads and bridges, and award Moonslayer after the human-form death transition.
+
 - **Performance (26 Nov 2026):** Reuse the active path grid for leisure goals and avoid redundant standability checks; preserve deterministic routing and invalidate cached goals when the grid changes.
 
 - **Improved (26 Nov 2026; PR pending):** Drag long straight bridge chains across rivers in either axis; preview segment costs and reject incomplete material/placement commits.
