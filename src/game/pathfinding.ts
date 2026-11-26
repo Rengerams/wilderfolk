@@ -1243,11 +1243,12 @@ export function steerWithPath(
   }
   if (!currentGrid) return 'direct';
 
-  const directBlocked = lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY);
   const acceptedRoute = pathCache.get(cacheKey);
   const continueAcceptedRoute = !!acceptedRoute?.waypoints && acceptedRoute.waypoints.length > 1
     && acceptedRoute.walkerId === entity.id
     && acceptedRoute.targetX === targetX && acceptedRoute.targetY === targetY;
+  // Accepted routes only need their next leg checked; defer the full goal chord until replanning.
+  let directBlocked = !continueAcceptedRoute && lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY);
   const hasPricedRoad = !!pricedRoadMask(currentGrid);
   const considerRoadDetour = !directBlocked && hasPricedRoad;
   if (directBlocked || considerRoadDetour || continueAcceptedRoute) {
@@ -1289,6 +1290,7 @@ export function steerWithPath(
       }
     }
     if (cached === undefined) {
+      if (continueAcceptedRoute) directBlocked = lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY);
       recordPathCacheMiss();
       const startTx = Math.floor(entity.x / PATH_CELL);
       const startTy = Math.floor(entity.y / PATH_CELL);
