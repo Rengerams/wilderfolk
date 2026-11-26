@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (26 Nov 2026; PR pending):** Compact 30×10 walls and 30×20 gates use a shared corner lattice and exact duplicate matching; vertical artwork follows the actual placement axis.
+
 - **Fixed (26 Nov 2026; PR pending):** Reconciled apprenticeship diploma bonuses (+5/+8/+20, honours under a grandmaster), valid adult pairing, career receipts and reachable training workplaces.
 
 - **Improved (26 Nov 2026; PR pending):** Names are now decluttered dynamically: dense villages hide ordinary plates until zoomed in, with the elected leader and selected villagers kept visible and overlapping ordinary labels suppressed.

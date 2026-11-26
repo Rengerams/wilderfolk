@@ -612,8 +612,8 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     padShape: 'road',
   },
   [BuildingType.Wall]: {
-    width: 60,
-    height: 40,
+    width: 30,
+    height: 10,
     cost: { wood: 8, stone: 14, gold: 0 },
     buildTime: 1,
     maxOccupants: 0,
@@ -626,8 +626,8 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     unlockRequirement: 'defense_1',
   },
   [BuildingType.WallGate]: {
-    width: 60,
-    height: 48,
+    width: 30,
+    height: 20,
     cost: { wood: 18, stone: 28, gold: 8 },
     buildTime: 2,
     maxOccupants: 0,
