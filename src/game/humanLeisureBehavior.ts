@@ -21,7 +21,7 @@ import { findClosestAdaptiveInRadius, forEachAdaptiveInRadius, socialAdaptiveOpt
 import { seededRandomForRun, personDayRoll, getSimRng, PERSON_DAY_ROLL_SALTS } from './simRng';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
 import { addFloatingText } from './simEffects';
-import { getCurrentPathGrid, getNavigationQuote, isGroundWalkableAt, lineCrossesBlocked, nearestWalkableWorldPoint } from './pathfinding';
+import { getCurrentPathGrid, getNavigationQuote, hasUnreachableWalkTarget, isGroundWalkableAt, lineCrossesBlocked, nearestWalkableWorldPoint } from './pathfinding';
 import { fract } from './simulation/humanNeeds';
 import { findClosestEntityInRadius } from './simQueries';
 import { hasAffairPartner, canPursueSecretAffair, isAtMaritalHome } from './simulation/humanRelationships';
@@ -620,6 +620,24 @@ export function tickHumanLeisure(args: {
           routedIdleWalk = true;
           return false;
         }
+        const fallback = (): false => {
+          clearHumanWalkTarget(entity);
+          entity.vx = 0;
+          entity.vy = 0;
+          routedIdleWalk = true;
+          // Rest at home if available; do not claim arrival at the original venue.
+          const home = entity.residenceBuildingId == null ? undefined : buildingById.get(entity.residenceBuildingId);
+          if (home?.completed && home.id !== destination?.id) {
+            if (commuteHumanToBuilding(entity, home, speed * 0.4)) enterHumanBuilding(entity, home);
+          }
+          return false;
+        };
+        const rejected = entity.leisureRejectedTarget;
+        if (rejected && tick < rejected.untilTick && tick >= rejected.untilTick - TICKS_PER_HOUR
+          && Math.floor(rejected.x / PATH_CELL) === Math.floor(walkX / PATH_CELL)
+          && Math.floor(rejected.y / PATH_CELL) === Math.floor(walkY / PATH_CELL)) {
+          return fallback();
+        }
         const dist = Math.hypot(walkX - entity.x, walkY - entity.y);
         // Being close across a wall or river does not count as arrival.
         if (dist <= arrive && (!grid || !lineCrossesBlocked(grid, entity.x, entity.y, walkX, walkY))) {
@@ -632,8 +650,12 @@ export function tickHumanLeisure(args: {
         }
         // Use the shared walk owner for direct and routed movement, including
         // off-screen resumption; do not blend stale velocity into a new route.
-        steerHumanToward(entity, walkX, walkY, Math.min(speed * speedMult, dist), 1,
-          `idle_${destination?.id ?? 'roam'}_${entity.id}`);
+        const routeKey = `idle_${destination?.id ?? 'roam'}_${entity.id}`;
+        steerHumanToward(entity, walkX, walkY, Math.min(speed * speedMult, dist), 1, routeKey);
+        if (hasUnreachableWalkTarget(entity, walkX, walkY, routeKey)) {
+          entity.leisureRejectedTarget = { x: walkX, y: walkY, untilTick: tick + TICKS_PER_HOUR };
+          return fallback();
+        }
         routedIdleWalk = true;
         return false;
       };
