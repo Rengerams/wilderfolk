@@ -425,7 +425,7 @@ export const SIMULATION_DECISIONS = {
   humanWalk: {
     owner: 'humanTick.tickHumans → humanMovement.resumeHumanWalk + applyHumanWalkStep (one integration for focused and throttled ticks)',
     cadence: 'realtime',
-    cadenceNote: 'Decisions still run once per 24 ticks for out-of-focus settlers, but the already commanded walk is re-issued and integrated every tick, so travel distance per game time matches focus and arrival/collision stay per-step. Ordinary work commutes open at shift minus the existing commute lead and are exempt from the 0.85 planning damping; prison keeps its sticky departure. The walk target is a transient WeakMap, never saved; isCommutingToBuilding checks the owner\'s commanded destination and velocity, projected to host entities by the worker delta without persistent fields, not incidental motion or a possible obstacle detour. On-shift workers enter indoor presentation on verified arrival even at outdoor job sites; emergency hunting takes over by clearing indoor presentation and superseded commute targets. Indoor workplace presence is released immediately when shifts end.',
+    cadenceNote: 'Decisions still run once per 24 ticks for out-of-focus settlers, but the already commanded walk is re-issued and integrated every tick, so travel distance per game time matches focus and arrival/collision stay per-step. Ordinary work commutes open at shift minus the existing commute lead and are exempt from the 0.85 planning damping; prison keeps its sticky departure. The walk target is a transient WeakMap, never saved; isCommutingToBuilding checks the owner\'s commanded destination and velocity, projected to host entities by the worker delta without persistent fields, not incidental motion or a possible obstacle detour. On-shift workers enter indoor presentation on verified arrival even at outdoor job sites; emergency hunting takes over by clearing indoor presentation and superseded commute targets; free-roam pursuit uses steerHumanToward and the canonical line obstruction check for close-range kills. Indoor workplace presence is released immediately when shifts end.',
     writes: [
       'human.x',
       'human.y',
@@ -435,7 +435,7 @@ export const SIMULATION_DECISIONS = {
       'human.indoorBuildingId',
     ],
     scheduledFrom: 'tickHumans',
-    testFile: 'tests/production.attendancePacing.test.ts, tests/simBatch.offscreenThrottle.test.ts, tests/medium-A-movement.test.ts',
+    testFile: 'tests/production.attendancePacing.test.ts, tests/simBatch.offscreenThrottle.test.ts, tests/medium-A-movement.test.ts, tests/humanHunting.ledger.test.ts',
   },
   dailyRelationships: {
     owner: 'tickLayerDaily at 06:00 — relationships.advanceSocialRelationships (friendships/feuds), simulation/humanRelationships.advanceYouthLove and reconcileCourtships, apprenticeships.advanceApprenticeships, then leaderHouse.syncLeaderHouseResidency (delegated to the housing owner)',
