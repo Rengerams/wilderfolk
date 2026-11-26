@@ -1313,6 +1313,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         height,
         state.tick,
         entityById,
+        (candidate) => {
+          const presence = courtshipReadiness.get(candidate.id);
+          if (!presence || presence.sleeping || candidate.energy <= config.reproductionEnergyThreshold * 0.6) return false;
+          if (courtshipPresence.onDuty || presence.onDuty) {
+            return canAdvanceCourtship(courtshipPresence, presence, Math.hypot(candidate.x - entity.x, candidate.y - entity.y), socialTime);
+          }
+          return socialTime;
+        },
       );
 
       // A candidate that has not been ticked yet may still be asleep. Wait for
