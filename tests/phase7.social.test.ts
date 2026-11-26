@@ -238,7 +238,8 @@ describe('apprenticeships', () => {
     apprentice.apprenticeOfId = 1;
     const unfinished = {
       id: 30, type: BuildingType.House, x: 300, y: 300, width: 60, height: 60,
-      occupants: [], completed: false,
+      occupants: [], completed: false, level: 1, constructionProgress: 0,
+      health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
     } as Building;
     world.buildings.push(unfinished);
     expect(addToConstructionCrew(apprentice, unfinished)).toBe(false);
