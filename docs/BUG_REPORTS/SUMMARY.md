@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-26 — [Returning army shows stale battle instructions](../bug_report/2026-11-26-raid-return-stale-status.md):** investigating; phase-aware status projection implemented for banner, hints and alerts; regression and browser verification pending.
+
 **2026-11-23 — [Deferred production applied newly warned ecology penalties too early](../bug_report/2026-11-23-deferred-production-applies-ecology-penalties-early.md):** investigating; PR #192 captures the pre-warning stage for evening-shift output and retains it through saves/worker transport. Focused integration regression added; current-head CI pending.
 
 **2026-11-23 — [Child play groups remain at one fixed spot](../bug_report/2026-11-23-child-play-groups-fixed-location.md):** investigating; previous daily playmate fix did not provide a destination; new friendship-weighted circles of two to four share reachable play areas, changing every three leisure hours; Further regressions cover separated companions, failed searches and surviving groups after a death; CI pending.
