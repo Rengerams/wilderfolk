@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Improved (26 Nov 2026):** Selecting a settler highlights their assigned home and workplace on the map with separate colours and labels, including construction sites.
+
 - **Fixed (26 Nov 2026):** HUD notifications wait in arrival order for a visible slot, receive their full display lifetime, free acknowledged worker slots, and summarize extreme overflow instead of silently evicting visible cards.
 
 - **Fixed (26 Nov 2026):** Workplace vacancy swaps now use the same home-based candidate ranking as ordinary hiring, reserve apprentices even during food emergencies, skip insufficient or empty donors, and rank transfers in one scan using consistent commute units.

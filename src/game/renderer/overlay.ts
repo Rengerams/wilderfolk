@@ -8,7 +8,6 @@ import {
   drawConstructionProgressOverlay,
   drawHoveredBuildingTint,
   getBuildingFootprintScreenRect,
-  isHighlightableBuilding,
 } from './buildings';
 import { drawBuildPreview } from './buildPreview';
 import { drawBuildSnapOverlay, drawBuildStripPreviewOverlay, drawGridTopOverlay } from './grid';
@@ -30,7 +29,6 @@ export function drawGameOverlay(
 ): void {
   drawBuildingActiveEffects(ctx, state, cw, ch);
   drawHoveredBuildingTint(ctx, state, cw, ch);
-  drawHoveredBuildingRing(ctx, state, cw, ch);
   // Construction progress ramps with the colony clock, so its bar and percentage stay live too.
   drawConstructionProgressOverlay(ctx, state, cw, ch);
   // Placement verdicts and the strip-gesture footprint follow the pointer, so they are live draws:
@@ -65,31 +63,36 @@ export function drawGameOverlay(
 
   // Screen vignette — neutral edge shading without night darkening
   drawScreenVignette(ctx, cw, ch, false);
+  drawSelectedSettlerBuildingHighlights(ctx, state, cw, ch);
 
   if (state.renffrOmen) {
     drawRenffrOmen(ctx, state.renffrOmen, cw, ch, motionTime);
   }
 }
 
-/**
- * Hover feedback repaints every frame, never in the tick-keyed entity layer: the layer is keyed on
- * the tick and the selection, so a ring baked there lagged a tick and never appeared while paused.
- */
-function drawHoveredBuildingRing(
+/** Selection feedback is a live overlay, independent of hover and decorative effects. */
+export function drawSelectedSettlerBuildingHighlights(
   ctx: CanvasRenderingContext2D,
   state: RenderSnapshot,
   cw: number,
   ch: number,
 ): void {
-  const hovered = state.hoveredBuilding;
-  // The layer already paints the selection ring for the same footprint.
-  if (hovered == null || hovered.id === state.selectedBuilding?.id) return;
-  if (!isHighlightableBuilding(hovered)) return;
-  drawBuildingHighlightRing(
-    ctx,
-    getBuildingFootprintScreenRect(hovered, state, state.camera, cw, ch),
-    { stroke: 'rgba(255,255,255,0.85)', lineWidth: 1.5, pad: 3, shadowBlur: 5 },
-  );
+  const assignments = state.selectedSettlerBuildings;
+  if (!assignments) return;
+  const { home, work } = assignments;
+  for (const [building, role] of [[home, 'home'], [work, 'work']] as const) {
+    if (!building) continue;
+    const rect = getBuildingFootprintScreenRect(building, state, state.camera, cw, ch);
+    if (rect.right < -30 || rect.left > cw + 30 || rect.bottom < -30 || rect.top > ch + 30) continue;
+    const stroke = role === 'home' ? '#86efac' : '#7dd3fc';
+    drawBuildingHighlightRing(ctx, rect, {
+      stroke,
+      lineWidth: 2.5,
+      pad: 4,
+      shadowBlur: 9,
+      label: role === 'home' ? 'Home' : 'Work',
+    });
+  }
 }
 
 /** Cool blue night wash — no-op to disable night darkening. */

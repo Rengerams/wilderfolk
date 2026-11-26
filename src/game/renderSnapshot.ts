@@ -14,6 +14,9 @@ import { resolveBuilding, resolveEntity } from './viewState';
 import { computeLogisticsOverlayCached, type LogisticsOverlayData } from './logisticsOverlayData';
 import { getEcosystemHealth } from './dailyEcology';
 import { getTerrainRevision } from './terrain/terrainGrid';
+import { isPlayerHuman } from './playerHuman';
+import { isAssignableHome, isImprisoned } from './housingModel';
+import { findHumanWorkplace } from './workforce';
 
 /**
  * A shared, frozen by-type table for the SoA render path, which never reads `snapshot.entityByType`;
@@ -24,6 +27,22 @@ const EMPTY_ENTITY_BY_TYPE: EntityByType = (() => {
   for (const key of Object.keys(table) as EntityType[]) Object.freeze(table[key]);
   return Object.freeze(table);
 })();
+
+export interface SelectedSettlerBuildings {
+  readonly home: Building | null;
+  readonly work: Building | null;
+}
+
+/** Read the primary settler's real assignments, not their current movement destination. */
+export function resolveSelectedSettlerBuildings(
+  world: WorldState,
+  selected: Entity | null,
+): SelectedSettlerBuildings | null {
+  if (!selected?.alive || !isPlayerHuman(selected) || isImprisoned(selected)) return null;
+  const home = resolveBuilding(world, selected.residenceBuildingId ?? null);
+  const work = findHumanWorkplace(selected, world.buildings ?? []) ?? null;
+  return { home: home && isAssignableHome(home) ? home : null, work };
+}
 
 /**
  * Cache identity for {@link buildRenderSnapshot}: every world and view input the snapshot reads must
@@ -36,6 +55,7 @@ export function renderSnapshotDirtyKey(
 ): string {
   const ghost = view.buildGhost;
   const strip = view.buildStripPreview;
+  // Assignment changes at the same tick invalidate the snapshot through GameLoop's command boundary.
 
   return [
     world.tick,
@@ -109,6 +129,7 @@ export interface RenderSnapshot {
   readonly camera: Camera;
   readonly screenShake: number;
   readonly selectedEntity: Entity | null;
+  readonly selectedSettlerBuildings?: SelectedSettlerBuildings | null;
   /** Multi-selection (shift-click) — drives selection rings + multi-assign. */
   readonly selectedEntityIds: readonly number[];
   readonly selectedBuilding: Building | null;
@@ -297,6 +318,7 @@ export function buildRenderSnapshot(
     camera: view.camera,
     screenShake: view.screenShake,
     selectedEntity,
+    selectedSettlerBuildings: resolveSelectedSettlerBuildings(world, selectedEntity),
     selectedEntityIds,
     selectedBuilding: resolveBuilding(world, view.selectedBuildingId),
     hoveredBuilding: resolveBuilding(world, view.hoveredBuildingId),
