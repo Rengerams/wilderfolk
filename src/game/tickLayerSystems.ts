@@ -38,7 +38,7 @@ import { logWildkinBirth } from './wildkinChronicle';
 import { recordGenealogyBirth } from './genealogyRegistry';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { clampToMapBounds } from './mapBounds';
-import { getPathGrid, isWalkStepAllowed, nearestWalkableWorldPoint } from './pathfinding';
+import { getPathGrid, hasUnreachableWalkTarget, isWalkStepAllowed, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
 import { isPassableWildlifePosition } from './worldGen';
 import { deterministicCos, deterministicSin } from './simTrig';
 import {
@@ -213,6 +213,10 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
   /** Scale per-tick metabolic rates to the systems cadence step. */
   const step = WILDLIFE_LAYER_INTERVAL;
   const walkGrid = state.worldMap ? getPathGrid(state.worldMap, state.buildings) : null;
+  // The shared steering cache must describe this world even in headless wildlife-only calls.
+  if (state.worldMap && byType[EntityType.Werewolf]?.some(isActiveMoonHowler)) {
+    setCurrentPathMap(state.worldMap, state.buildings);
+  }
   const waterBlocked = (tx: number, ty: number): boolean =>
     !walkGrid?.bridge?.[ty * walkGrid.cols + tx]
     && !isPassableWildlifePosition(state, (tx + 0.5) * PATH_CELL, (ty + 0.5) * PATH_CELL, 0);
@@ -359,6 +363,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
 
       let targetVx = 0;
       let targetVy = 0;
+      let routedHowlerPursuit = false;
 
       // 6. Evasion Behavior — grazers flee any predator; foxes are also prey to apex canids
       // (wolves and Moon Howlers), so a fox flees those but stays a predator of rabbits.
@@ -466,6 +471,9 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             // Player hunting still uses its separate owner and may affect this population.
             if (prey.type === EntityType.Rabbit && !wildlifeMayHuntRabbit(preyCounts.rabbits)) return;
             if (!isValidHuntPrey(prey, prey.type, entity.id)) return;
+            if (moonHowlerHunter && walkGrid && hasUnreachableWalkTarget(
+              entity, prey.x, prey.y, `moonhunt_${entity.id}_${prey.id}`,
+            )) return;
             const dist = Math.sqrt(dSq);
             const humanBias = prey.type === EntityType.Human ? 0.82 : 1.0;
             const biased = dist * humanBias;
@@ -490,7 +498,19 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           targetVx = (dx / dist) * config.speed * packSpeed * wereSpeed;
           targetVy = (dy / dist) * config.speed * packSpeed * wereSpeed;
 
-          if (dist < config.size + caughtPrey.size) {
+          const clearContact = !moonHowlerHunter || canStep(entity, caughtPrey.x, caughtPrey.y);
+          if (moonHowlerHunter && !clearContact && walkGrid) {
+            // Chase through the shared navigation owner, not straight into walls or across rivers.
+            // A pending path is not a request to resume the previous wander velocity.
+            const route = steerWithPath(entity, caughtPrey.x, caughtPrey.y,
+              config.speed * wereSpeed, `moonhunt_${entity.id}_${caughtPrey.id}`);
+            if (route !== 'direct') {
+              targetVx = entity.vx;
+              targetVy = entity.vy;
+              routedHowlerPursuit = true;
+            }
+          }
+          if (dist < config.size + caughtPrey.size && clearContact) {
             const isHumanPrey = caughtPrey.type === EntityType.Human;
 
             if (
@@ -693,7 +713,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       }
 
       // 10. Default Wander Steps
-      if (targetVx === 0 && targetVy === 0) {
+      if (!routedHowlerPursuit && targetVx === 0 && targetVy === 0) {
         if (getSimRng('tickLayerSystems')() < 1.0 - Math.pow(1.0 - 0.05, step)) {
           const angle = getSimRng('tickLayerSystems')() * Math.PI * 2;
           entity.vx = deterministicCos(angle) * config.speed * 0.4;
@@ -710,10 +730,10 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       }
 
       // 11. Road speed modifiers and alignment
-      queryRoadAvoidance(roadAvoidance, entity);
+      if (!moonHowlerHunter) queryRoadAvoidance(roadAvoidance, entity);
 
       // 12. Domestic Tamed Followers
-      if (entity.tamedBy) {
+      if (entity.tamedBy && !moonHowlerHunter) {
         const owner = entityById.get(entity.tamedBy);
         if (owner?.alive) {
           const dx = owner.x - entity.x;
