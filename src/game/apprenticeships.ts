@@ -10,7 +10,7 @@ import { advanceCareerProgression } from './careers/careerProgression';
 import { getAbsoluteCalendarDay, TICKS_PER_HOUR } from './dayCycleClock';
 import { getWorkSchedule } from './workSchedule';
 import { removeWorkerTransition } from './workforce';
-import { isWithinAssignableCommute } from './commuteReach';
+import { beginCommuteRoutePass, isWithinAssignableCommute } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
 
 /**
@@ -119,6 +119,8 @@ export function advanceApprenticeships(
     && getEducationTier(p.schoolDays ?? 0) < 3
     && (p.id * 37 + 17) % 4 === 0 && p.apprenticeId == null && !claimed.has(p.id));
 
+  // Matching has its own bounded search pass, independent of earlier staffing/housing work.
+  if (scholars.length || candidates.length) beginCommuteRoutePass();
   for (const b of state.buildings) {
     if (!b.completed) continue;
     const job = BUILDING_JOB_TYPES[b.type];

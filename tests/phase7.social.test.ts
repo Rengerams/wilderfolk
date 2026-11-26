@@ -2,7 +2,8 @@
  * Phase 7 regression tests — relationship webs (friendships, feuds),
  * apprenticeships, and family legacy (dynasties + the chronicle chapter).
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import * as commuteReach from '../src/game/commuteReach';
 import { initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
 import { EntityType, BuildingType, JobType } from '../src/game/gameTypes';
@@ -422,6 +423,31 @@ describe('apprenticeships', () => {
 });
 
 describe('apprenticeship eligibility reconciliation', () => {
+  it('opens a fresh bounded commute pass before matching', () => {
+    const w = makeWorld();
+    w.entities = [];
+    w.buildings = [];
+    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    master.skills = { [JobType.Farmer]: 90 };
+    const student = addHuman(w, { id: 2 });
+    student.educated = true;
+    student.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
+    w.buildings.push({ id: 10, type: BuildingType.Farm, x: 300, y: 300,
+      width: 60, height: 60, occupants: [master.id], completed: true } as Building);
+    let fresh = false;
+    const begin = vi.spyOn(commuteReach, 'beginCommuteRoutePass').mockImplementation(() => { fresh = true; });
+    const quote = vi.spyOn(commuteReach, 'isWithinAssignableCommute').mockImplementation(() => fresh);
+    try {
+      advanceApprenticeships(w, w.entities);
+      expect(begin).toHaveBeenCalledTimes(1);
+      expect(quote).toHaveBeenCalled();
+      expect(student.apprenticeOfId).toBe(master.id);
+    } finally {
+      begin.mockRestore();
+      quote.mockRestore();
+    }
+  });
+
   it('skips already-skilled and imprisoned scholars and trains an eligible scholar instead', () => {
     const w = makeWorld();
     w.entities = [];
