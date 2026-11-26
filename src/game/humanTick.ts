@@ -1389,7 +1389,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
           // Either partner may be processed second. Credit this pair at most once
           // this tick, irrespective of entity iteration order or ID.
-          if (!advancedCourtshipIds.has(entity.id) && !advancedCourtshipIds.has(closest.id)) {
+          // Fully progressed pairs (including loaded saves) need the marriage
+          // transition, not another aptitude calculation, dialogue or heart roll.
+          if (((entity.courtshipProgress ?? 0) < 100 || (closest.courtshipProgress ?? 0) < 100)
+            && !advancedCourtshipIds.has(entity.id) && !advancedCourtshipIds.has(closest.id)) {
             advancedCourtshipIds.add(entity.id);
             advancedCourtshipIds.add(closest.id);
 
