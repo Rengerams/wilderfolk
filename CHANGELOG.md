@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (26 Nov 2026):** Returning armies show homeward travel rather than obsolete battle orders; the Chronicle and deployment lifecycle remain intact.
+
 - **Fixed (26 Nov 2026; PR #198):** Apprenticeships now release previous jobs and builder crews via the shared workforce transition. Auto-staffing reserves trainees, and legacy conflicting assignments are reconciled so apprentices attend their actual masters.
 
 - **Fixed (26 Nov 2026):** Free-roaming hunters route around impassable terrain and cannot kill close prey through blocked terrain. Shallow-water walking remains unchanged.

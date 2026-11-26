@@ -92,6 +92,7 @@ export type DecisionKey =
   | 'moonHowler'
   | 'leadership'
   | 'raidCombat'
+  | 'outgoingRaidStatus'
   | 'raidRecovery'
   | 'raidTerminalPresentation'
   | 'crashRecovery'
@@ -702,6 +703,14 @@ export const SIMULATION_DECISIONS = {
     writes: ['pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports', 'scoredRaidIds', 'human.raidDeploymentId', 'human.battleLeadershipMerit', 'rivalSettlements', 'resources (through economy owner)', 'eventLog (through logEvent)'],
     scheduledFrom: 'gameTick.ts → tickPendingRaidEvents/tickPendingOutgoingRaidEvents; simWorker/commands.ts → raid and victory commands',
     testFile: 'tests/frontierCombat.hostility.test.ts, tests/frontierCombat.raidGold.test.ts, tests/raidChronicle.lifecycle.test.ts, tests/raidDeadline.owner.test.ts, tests/humanTick.hotPathIndexes.test.ts',
+  },
+  outgoingRaidStatus: {
+    owner: 'frontierCombat.ts — getOutgoingRaidStatus',
+    cadence: 'on-demand',
+    cadenceNote: 'Read-only phase-aware status for outgoing raids; old encounter text is ignored during return travel.',
+    writes: [],
+    scheduledFrom: 'App.tsx, focusHints.getFocusHints, priorityAlerts.getPriorityAlerts',
+    testFile: 'tests/frontierCombat.hostility.test.ts',
   },
   raidRecovery: {
     owner: 'raidAftermath.ts — beginRaidRecovery, tickRaidRecovery, isSettlementDestroyed, rememberRivalDisposition, applyWarCommunityReaction',
