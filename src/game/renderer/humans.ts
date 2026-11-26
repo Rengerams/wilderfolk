@@ -18,7 +18,6 @@ import {
   getJuvenileFigureScale,
   getJuvenileSpriteFrame,
   pickHumanVariant,
-  HUMAN_SPRITE_MIN_ZOOM,
   HUMAN_WALK_SPEED_THRESHOLD,
   overviewRenderDetail,
   type HumanGender,
@@ -709,10 +708,8 @@ export function drawLeaderAuraOverlay(
       || !shouldDrawSpotlightHuman(state.spotlightLore, leader.id)) return;
 
   const isSel = state.selectedEntityIds.includes(leader.id) || state.selectedEntity?.id === leader.id;
-  if (!isSel) {
-    if (cam.zoom < HUMAN_SPRITE_MIN_ZOOM) return; // marker mode — `drawHumanMarker` draws the crown
-    if (isAsleepAtHome(leader, state.buildings, state.hourOfDay)) return;
-  }
+  // The leader is always exempt from marker LOD in drawHumans; the overlay owns its crown.
+  if (leader.raidDeploymentId || (!isSel && isAsleepAtHome(leader, state.buildings, state.hourOfDay))) return;
 
   const leaderPos = presentationPosition(leader);
   const sx = (leaderPos.x - cam.x) * cam.zoom + cw / 2;

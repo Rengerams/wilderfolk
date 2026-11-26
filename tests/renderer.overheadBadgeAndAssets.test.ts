@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { drawHumans } from '../src/game/renderer/humans';
+import { drawHumans, drawLeaderAuraOverlay } from '../src/game/renderer/humans';
 import { resetEntityCaches, updateCachedEntities } from '../src/game/renderer/entityCache';
 import { emptyEntityByType, EntityType } from '../src/game/gameTypes';
 import { createEntity } from '../src/game/entityFactory';
@@ -107,7 +107,7 @@ describe('status badge draws a shape, not a font glyph', () => {
 describe('dense village name plate decluttering', () => {
   it.each([
     [44, 1.18, true], [45, 1.18, true], [89, 1.18, true],
-    [90, 1.18, false], [90, 1.21, true], [90, 0.9, false],
+    [90, 1.18, false], [90, 1.21, true], [90, 0.9, false], [90, 0.25, false],
   ] as const)('renders names for %i visible settlers at zoom %f', (count, zoom, ordinaryVisible) => {
     resetEntityCaches();
     try {
@@ -121,6 +121,7 @@ describe('dense village name plate decluttering', () => {
       const ctx = new Proxy({
         fillText: (value: string) => labels.push(value),
         measureText: (value: string) => ({ width: value.length * 5 }),
+        createRadialGradient: () => ({ addColorStop: () => {} }),
       }, {
         get: (target, key) => Reflect.has(target, key) ? Reflect.get(target, key) : () => {},
       }) as unknown as CanvasRenderingContext2D;
@@ -131,9 +132,13 @@ describe('dense village name plate decluttering', () => {
       } as unknown as RenderSnapshot;
       updateCachedEntities(byType, null, 1, camera, 1800, 1800, 2400, 2400);
       drawHumans(ctx, state, 2400, 2400);
-      expect(labels.some(label => label.includes('Resident1X'))).toBe(true);
-      expect(labels.some(label => label.includes('Resident2X'))).toBe(true);
+      expect(labels.some(label => label.includes('Resident1X'))).toBe(zoom > 0.45);
+      expect(labels.some(label => label.includes('Resident2X'))).toBe(zoom > 0.28);
       expect(labels.some(label => label.includes('Resident3X'))).toBe(ordinaryVisible);
+      // The unselected leader has exactly one crown (shadow and foreground), even below name zoom.
+      expect(labels.filter(label => label === '👑')).toHaveLength(0);
+      drawLeaderAuraOverlay(ctx, state, 2400, 2400);
+      expect(labels.filter(label => label === '👑')).toHaveLength(2);
     } finally {
       resetEntityCaches();
     }
