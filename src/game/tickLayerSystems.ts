@@ -38,7 +38,8 @@ import { logWildkinBirth } from './wildkinChronicle';
 import { recordGenealogyBirth } from './genealogyRegistry';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { clampToMapBounds } from './mapBounds';
-import { getPathGrid, isWalkStepAllowed } from './pathfinding';
+import { getPathGrid, isWalkStepAllowed, nearestWalkableWorldPoint } from './pathfinding';
+import { isPassableWildlifePosition } from './worldGen';
 import { deterministicCos, deterministicSin } from './simTrig';
 import {
   buildGrassPopulationSnapshot,
@@ -69,8 +70,6 @@ import { tickTradeCaravans } from './tradeCaravans';
 import { createEntity } from './entityFactory';
 import { getSimRng } from './simRng';
 import { faceVelocity } from './simulation/movementSteering';
-import { tileTypeAt } from './terrain/terrainGrid';
-import { isWaterTerrainType } from './terrain/terrainTraits';
 
 /** Systems layer interval (ticks). Keep in sync with WILDLIFE_LAYER_INTERVAL. */
 export const LAYER_SYSTEMS_INTERVAL = WILDLIFE_LAYER_INTERVAL;
@@ -123,13 +122,6 @@ const SENSES_WILDLIFE_PREDATOR = (pred: Entity): boolean => isWildlifePredator(p
 const SENSES_CANID_PREDATOR = (pred: Entity): boolean =>
   pred.alive && (pred.type === EntityType.Wolf || pred.type === EntityType.Werewolf);
 
-/** Wildlife spawns only on dry terrain; completed decks are handled by the walk grid. */
-function wildlifeWaterBlocked(state: WorldState, tx: number, ty: number): boolean {
-  if (!state.worldMap) return false;
-  const type = tileTypeAt(state.worldMap, tx, ty);
-  return type == null || isWaterTerrainType(type);
-}
-
 /** Occasional predator migration to keep wolf pressure present. */
 function tickWolfRecruitment(state: WorldState, ctx: TickContext): void {
   const { width, height, byType, newEntities } = ctx;
@@ -175,7 +167,7 @@ function tickWolfRecruitment(state: WorldState, ctx: TickContext): void {
 
   sx = Math.min(width - 1, Math.max(0, sx));
   sy = Math.min(height - 1, Math.max(0, sy));
-  if (wildlifeWaterBlocked(state, Math.floor(sx / PATH_CELL), Math.floor(sy / PATH_CELL))) return;
+  if (!isPassableWildlifePosition(state, sx, sy, 0)) return;
   const wolf = createEntity(
     EntityType.Wolf,
     sx,
@@ -222,7 +214,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
   const step = WILDLIFE_LAYER_INTERVAL;
   const walkGrid = state.worldMap ? getPathGrid(state.worldMap, state.buildings) : null;
   const waterBlocked = (tx: number, ty: number): boolean =>
-    !walkGrid?.bridge?.[ty * walkGrid.cols + tx] && wildlifeWaterBlocked(state, tx, ty);
+    !walkGrid?.bridge?.[ty * walkGrid.cols + tx]
+    && !isPassableWildlifePosition(state, (tx + 0.5) * PATH_CELL, (ty + 0.5) * PATH_CELL, 0);
   const canStep = (entity: Entity, x: number, y: number): boolean =>
     !waterBlocked(Math.floor(x / PATH_CELL), Math.floor(y / PATH_CELL))
     && isWalkStepAllowed(entity.x, entity.y, x, y, walkGrid, waterBlocked);
@@ -288,6 +281,19 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
     for (let i = 0; i < currentPass.length; i++) {
       const entity = currentPass[i];
       if (!entity.alive) continue;
+
+      // Recover legacy wet positions once through the shared nearest-stand search.
+      if (state.worldMap && waterBlocked(Math.floor(entity.x / PATH_CELL), Math.floor(entity.y / PATH_CELL))) {
+        const dry = nearestWalkableWorldPoint(state.worldMap, state.buildings, entity.x, entity.y,
+          (tx, ty) => !isPassableWildlifePosition(state, (tx + 0.5) * PATH_CELL, (ty + 0.5) * PATH_CELL, 0));
+        if (dry) {
+          entity.x = dry.x;
+          entity.y = dry.y;
+          entity.vx = 0;
+          entity.vy = 0;
+          syncEntityGrids(ctx, entity);
+        }
+      }
 
       // 1. Common updates
       if (isNewCalendarDay) {
@@ -818,7 +824,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             const breedDist = 15;
             const nx = Math.min(width, Math.max(0, entity.x + deterministicCos(breedAngle) * breedDist));
             const ny = Math.min(height, Math.max(0, entity.y + deterministicSin(breedAngle) * breedDist));
-            if (wildlifeWaterBlocked(state, Math.floor(nx / PATH_CELL), Math.floor(ny / PATH_CELL))
+            if (!isPassableWildlifePosition(state, nx, ny, 0)
               || !canStep(entity, nx, ny)) {
               syncEntityGrids(ctx, entity);
               continue;
