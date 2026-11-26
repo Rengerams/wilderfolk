@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Performance (26 Nov 2026):** Build the population family graph index once per group projection instead of once per disconnected household; verify deterministic groups and indexed alive lookups.
+
 - **Maintenance (26 Nov 2026):** Restore the Base44 sandbox runbook, fold the duplicate family-graph lookup into the shared alive-entity owner, and re-pin the reviewed semantic-overlap approvals.
 
 - **Maintenance (26 Nov 2026):** Remove unused renderer, audio and game helpers, drop blanket Knip export exclusions, and audit full-project and production-only reachability independently.

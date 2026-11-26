@@ -188,8 +188,12 @@ export function findLivingHuman(
   byId?: ReadonlyMap<number, Entity>,
 ): Entity | undefined {
   if (id == null) return undefined;
-  const found = byId ? byId.get(id) : humans.find((human) => human.id === id);
-  return found?.alive ? found : undefined;
+  if (byId) {
+    const found = byId.get(id);
+    return found?.alive ? found : undefined;
+  }
+  // Match the first living entry, even in malformed legacy lists with duplicate ids.
+  return humans.find((human) => human.id === id && human.alive);
 }
 
 function livingHuman(
@@ -369,11 +373,14 @@ export function unitIsKinOf(index: UnitKinIndex, other: Entity): boolean {
 export function buildFamilyGroups(humans: Entity[]): Entity[][] {
   const visited = new Set<number>();
   const families: Entity[][] = [];
+  // A population can contain hundreds of disconnected households. Reuse the same graph
+  // index across every component instead of rebuilding both maps for each seed.
+  const relations = indexFamilyRelations(humans);
 
   const sorted = [...humans].sort((a, b) => a.id - b.id);
   for (const human of sorted) {
     if (visited.has(human.id)) continue;
-    const family = collectFamilyMembers(human, humans, visited);
+    const family = collectFamilyMembers(human, humans, visited, relations);
     families.push(family);
   }
 
