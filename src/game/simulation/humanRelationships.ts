@@ -620,9 +620,13 @@ export function advanceYouthLove(
 
   }
 
-  // Resolve every existing bond before matching singles. Relationship events
-  // cannot change the candidate pool halfway through the formation pass.
-  for (const entity of playerHumans) {
+  // Resolve every existing bond before matching singles. Rotate a stable ID
+  // order daily so neither array order nor permanently low IDs get priority.
+  const singles = playerHumans.filter(entity => !attempted.has(entity.id) && isEligibleForYouthLove(entity))
+    .sort((a, b) => a.id - b.id);
+  const offset = singles.length ? day % singles.length : 0;
+  for (let index = 0; index < singles.length; index++) {
+    const entity = singles[(index + offset) % singles.length];
     if (attempted.has(entity.id) || !isEligibleForYouthLove(entity)) continue;
     let candidate: Entity | undefined;
     let bestScore = Infinity;
