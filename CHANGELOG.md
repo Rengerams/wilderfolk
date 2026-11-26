@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Balanced (23 Nov 2026; PR #195, pending merge):** Seasonal festivals 5→2d, random 20–39→2–4d, Town Hall 14→3d, performer revelry 3→1d. Random checks and shared hosted/random cooldowns now 90d from start (seasonal endings do not renew cooldown); gatherings 17:00–21:00. Old long festivals capped; work takes priority. Election celebrations unchanged.
+- **Balanced (23 Nov 2026; PR #195, pending merge):** Seasonal 2d, random 2–4d, hosted 3d, performer 1d. Random checks and shared cooldown 90d from start; seasonal endings never renew it. Gatherings 17–21h; work first, legacy festivals capped, elections unchanged.
 
 - Hunting Spot shots and wolf counterattacks require current close range. Fox pursuits and catch reports use the selected species. Evening shifts settle at 23:00 without applying ecology warnings to earlier work.
 
