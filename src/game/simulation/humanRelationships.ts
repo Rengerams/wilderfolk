@@ -1373,8 +1373,11 @@ export function findCourtshipPartner(
 
   let closest: Entity | undefined;
   let closestDistSq = courtRange * courtRange;
+  const considered = new Set<number>();
 
   const consider = (candidate: Entity, distSq: number) => {
+    if (considered.has(candidate.id)) return;
+    considered.add(candidate.id);
     if (!isCourtshipCandidate(entity, candidate, tick) || !available(candidate)) return;
     if (distSq > closestDistSq || (distSq === closestDistSq && (!closest || candidate.id >= closest.id))) return;
     closestDistSq = distSq;
@@ -1384,7 +1387,6 @@ export function findCourtshipPartner(
   for (const friendId of entity.childhoodFriendsIds ?? []) {
     const friend = entityById?.get(friendId) ?? fallbackHumans?.find((h) => h.id === friendId);
     if (!friend || !friend.alive) continue;
-    if (!isCourtshipCandidate(entity, friend, tick)) continue;
     const dx = friend.x - entity.x;
     const dy = friend.y - entity.y;
     consider(friend, (dx * dx + dy * dy) * 0.25);
