@@ -84,8 +84,8 @@ const YOUTH_CONCEPTION_MULTIPLIERS: Readonly<Record<number, number>> = {
   16: 0.50,
   17: 0.70,
 };
-export const HUMAN_FERTILITY_PEAK_END = 35;
-export const HUMAN_FERTILITY_END = 50;
+const HUMAN_FERTILITY_PEAK_END = 35;
+const HUMAN_FERTILITY_END = 50;
 
 export function getFemaleFertility(age: number): number {
   if (age < HUMAN_FERTILITY_START || age >= HUMAN_FERTILITY_END) return 0;
@@ -100,8 +100,8 @@ export function getYouthConceptionMultiplier(age: number): number {
 }
 
 /** Children age faster so they mature in ~1 game year; adults age 1 year per game year. */
-export const JUVENILE_DAYS_PER_AGE_YEAR = 30;
-export const ADULT_DAYS_PER_AGE_YEAR = DAYS_PER_YEAR;
+const JUVENILE_DAYS_PER_AGE_YEAR = 30;
+const ADULT_DAYS_PER_AGE_YEAR = DAYS_PER_YEAR;
 
 /** Old-age death thresholds in life-years. */
 export const HUMAN_MAX_LIFESPAN_YEARS = 90;
@@ -110,7 +110,7 @@ export function getColonyDay(state: { year: number; dayInYear: number }): number
   return state.year * DAYS_PER_YEAR + state.dayInYear;
 }
 
-export function daysLivedFromAgeYears(ageYears: number): number {
+function daysLivedFromAgeYears(ageYears: number): number {
   if (ageYears <= HUMAN_ADULT_MIN_AGE) {
     return ageYears * JUVENILE_DAYS_PER_AGE_YEAR;
   }
@@ -227,7 +227,7 @@ export function getAgeInYears(
 }
 
 /** Annual old-age mortality rate (2% at age 60, scaling to 100% at age 90). */
-export function getOldAgeAnnualDeathChance(age: number): number {
+function getOldAgeAnnualDeathChance(age: number): number {
   if (age < HUMAN_VENERABLE_AGE) return 0;
   if (age >= HUMAN_MAX_LIFESPAN_YEARS) return 1;
   return 0.02 + ((age - HUMAN_VENERABLE_AGE) / (HUMAN_MAX_LIFESPAN_YEARS - HUMAN_VENERABLE_AGE)) * 0.98;
@@ -272,7 +272,6 @@ export const PRODUCTION_INTERVAL = {
   fishingSpot: ticksForDays(1),
 } as const;
 
-export const IMMIGRATION_CHECK_TICKS = ticksForDays(2);
 export const FESTIVAL_CHECK_TICKS = ticksForDays(90);
 
 /** Calendar-aligned event intervals. */
