@@ -284,6 +284,11 @@ export function buildStripPreview(
         resourceShortage: shortage,
       };
     });
+  if (type === BuildingType.Bridge) {
+    // Dry land at either end of a river drag is an approach, not a bridge segment.
+    while (segments[0]?.reason === 'terrain') segments.shift();
+    while (segments[segments.length - 1]?.reason === 'terrain') segments.pop();
+  }
   return {
     rotation,
     // An incomplete stroke must never advertise a sealed wall enclosure.
@@ -324,6 +329,19 @@ export function placeStripChain(
   rotation: BuildingRotation,
 ): WorldState {
   if (!isStripBuildType(type) || segments.length === 0) return originalState;
+  // A bridge stroke is atomic: do not leave a partial crossing because of a refused interior
+  // segment or a material shortage. Recheck the live world instead of trusting the preview.
+  if (type === BuildingType.Bridge) {
+    const check = { ...originalState, buildings: [...originalState.buildings], resources: { ...originalState.resources } };
+    for (const segment of segments) {
+      if (!segment.valid || segment.placeType !== type || segment.replacesBuildingId != null
+        || getPlaceBuildingFailureReason(check, type, segment.x, segment.y, placementRotationFor(segment.rotation)) != null) return originalState;
+      const cost = BUILDING_CONFIGS[type].cost;
+      if (check.resources.wood < cost.wood || check.resources.stone < cost.stone || check.resources.gold < cost.gold) return originalState;
+      check.resources.wood -= cost.wood; check.resources.stone -= cost.stone; check.resources.gold -= cost.gold;
+      check.buildings.push(createBuilding(type, segment.x, segment.y, -1, segment.rotation));
+    }
+  }
   const state = structuredClone(originalState);
 
   let placed = 0;

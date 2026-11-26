@@ -1001,3 +1001,5 @@ Functions added, changed or removed by the whole-code remediation. The existing 
 `GameLoop.getExitSaveWorld` in `src/game/gameLoop.ts` selects the acknowledged checkpoint for `persistGameOnPageHide`.
 
 `scripts/run-tauri-dev-log.mjs` owns desktop development process logging.
+
+Bridge drag placement uses `stripBuild`, `stripTopology.buildStripPlanFromDrag` and `buildingPlacementActions.placeStripChain`; straight horizontal/vertical spans, existing per-piece terrain/research/cost owner and atomic live preflight. Existing completed bridge path-grid rules remain unchanged.

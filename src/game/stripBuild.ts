@@ -10,6 +10,7 @@ import {
 
 export const STRIP_BUILD_TYPES = new Set<BuildingType>([
   BuildingType.Road,
+  BuildingType.Bridge,
   BuildingType.Wall,
   BuildingType.WallGate,
   BuildingType.Fence,

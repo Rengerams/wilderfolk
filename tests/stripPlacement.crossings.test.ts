@@ -3,7 +3,7 @@ import { initGame } from '../src/game/worldGen';
 import { BUILDING_CONFIGS, BuildingType, MapSize } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
 import { getBuildingFootprintForType } from '../src/game/buildingRotation';
-import { getPlaceBuildingFailureReason } from '../src/game/buildingPlacementActions';
+import { buildStripPreview, placeStripChain, getPlaceBuildingFailureReason } from '../src/game/buildingPlacementActions';
 import { canPlaceBuilding } from '../src/game/placementUtils';
 import type { RenderSnapshot } from '../src/game/renderSnapshot';
 
@@ -53,4 +53,31 @@ describe('crossing construction', () => {
       expect(canPlaceBuilding(world as unknown as RenderSnapshot, type, x, y, 0)).toBe(false);
     });
   }
+});
+
+import { testWorldMap } from '../src/test/worldMapFixtures';
+import { TerrainType } from '../src/game/gameTypes';
+
+describe('long bridge construction', () => {
+  it.each([0, 90] as const)('places a continuous bridge stroke at rotation %s', (rotation) => {
+    const w = worldFor(BuildingType.Bridge);
+    w.worldMap = testWorldMap({ tilesX: 60, tilesY: 60, tileType: (x, y) => {
+      const axis = rotation === 0 ? x : y;
+      return axis >= 10 && axis < 35 ? TerrainType.River : TerrainType.Grassland;
+    } });
+    w.width = w.height = 600;
+    w.buildings = [];
+    w.resources.wood = w.resources.stone = w.resources.gold = 10000;
+    const a = rotation === 0 ? { x: 64, y: 200 } : { x: 200, y: 64 };
+    const b = rotation === 0 ? { x: 384, y: 200 } : { x: 200, y: 384 };
+    const preview = buildStripPreview(w, BuildingType.Bridge, a.x, a.y, b.x, b.y, rotation);
+    expect(preview.segments.length).toBeGreaterThan(2);
+    expect(preview.segments.every(s => s.valid && s.rotation === rotation)).toBe(true);
+    const next = placeStripChain(w, BuildingType.Bridge, preview.segments, rotation);
+    expect(next.buildings).toHaveLength(preview.segments.length);
+    expect(next.buildings.every(b => !b.completed && b.type === BuildingType.Bridge)).toBe(true);
+    expect(w.resources.wood - next.resources.wood).toBe(preview.segments.length * BUILDING_CONFIGS[BuildingType.Bridge].cost.wood);
+    w.resources.wood = 0;
+    expect(placeStripChain(w, BuildingType.Bridge, preview.segments, rotation)).toBe(w);
+  });
 });
