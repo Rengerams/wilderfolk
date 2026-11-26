@@ -154,12 +154,6 @@ export function getHumanSpriteMetrics(human: Entity, camZoom: number): HumanSpri
   return { size, spriteH, footOffset };
 }
 
-export function getHumanSpritePath(human: Entity): string {
-  const gender = (human.gender ?? 'male') as HumanGender;
-  const variant = human.spriteVariant ?? pickHumanVariant(human.id, gender);
-  return getHumanWalkSheetPath(gender, variant);
-}
-
 /**
  * A sprite's clickable box, in world units, for the current zoom. The bounds are clamped to a floor
  * measured in screen pixels and converted back, so tolerance stays constant however far the camera is in.

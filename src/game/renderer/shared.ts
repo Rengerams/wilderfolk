@@ -162,10 +162,6 @@ export function getCachedNameWidth(
   return tw;
 }
 
-export function clearNameWidthCache(): void {
-  _nameWidthCache.clear();
-}
-
 // ============ SPRITE DRAWING CONSTANTS ============
 export const DEFAULT_SPRITE_DISPLAY_SCALE = 1.15;
 

@@ -137,11 +137,6 @@ export function saveShowFps(enabled: boolean): void {
   writeBoolPreference(SHOW_FPS_KEY, enabled);
 }
 
-/** Resets in-memory preference caches (primarily for unit tests and session resets). */
-export function resetPreferencesCache(): void {
-  cachedJuiceEffects = null;
-}
-
 /**
  * Whether this browser has already watched the opening cinematic, so a returning player skips the
  * timed reveal and goes straight to map setup. The cinematic stays reachable from the menu.

@@ -386,22 +386,6 @@ export function getHumanStatusCombatIconFromFlags(
   return null;
 }
 
-export function getHumanStatusCombatIcon(
-  human: Entity,
-  unlockedTechs: readonly string[],
-  hasBlacksmith: boolean,
-  villageForge?: VillageForgeState,
-  buildings?: readonly Building[],
-): string | null {
-  const flags = buildHumanCombatStatusFlags(
-    unlockedTechs,
-    hasBlacksmith,
-    villageForge,
-    buildings ?? [],
-  );
-  return getHumanStatusCombatIconFromFlags(human, flags);
-}
-
 /**
  * The simulation's predator set, also read by the audio layer's hunt cue rather than duplicated;
  * `isPredatorType` is the predicate over it.

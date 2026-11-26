@@ -325,8 +325,3 @@ export function sandWaterOverlaySourceRect(id: number): { sx: number; sy: number
     sy: Math.floor(id / SAND_WATER_OVERLAY_COLUMNS) * ATLAS_TILE_SIZE,
   };
 }
-
-/** Runtime scale — atlas tile px → baked tile px. */
-export function atlasScale(tileSize: number): number {
-  return tileSize / ATLAS_TILE_SIZE;
-}

@@ -154,13 +154,6 @@ export function isForgeOrderComplete(
   return !!normalized.completed[orderId];
 }
 
-export function hasAnyForgeUpgrade(
-  forge: VillageForgeState | (VillageForgeState & { spearsReady?: boolean; shieldsReady?: boolean }) | null | undefined,
-): boolean {
-  const normalized = normalizeForgeState(forge);
-  return FORGE_ORDERS.some((order) => normalized.completed[order.id]);
-}
-
 export function getForgeQuarryMultiplier(state: WorldState): number {
   if (!state?.villageForge) return 1;
   return isForgeOrderComplete(state.villageForge, 'iron_pickaxes')
