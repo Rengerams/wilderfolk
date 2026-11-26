@@ -560,6 +560,10 @@ export function advanceYouthLove(
   const day = getAbsoluteCalendarDay(state.tick);
   const attempted = new Set<number>();
 
+  // Snapshot before reconciliation can clear both participants' fields.
+  for (const entity of playerHumans) {
+    if (entity.youthLovePartnerId != null) attempted.add(entity.id);
+  }
   for (const entity of playerHumans) {
     reconcileYouthLove(entity, entityById);
   }
@@ -614,6 +618,11 @@ export function advanceYouthLove(
       continue;
     }
 
+  }
+
+  // Resolve every existing bond before matching singles. Relationship events
+  // cannot change the candidate pool halfway through the formation pass.
+  for (const entity of playerHumans) {
     if (attempted.has(entity.id) || !isEligibleForYouthLove(entity)) continue;
     let candidate: Entity | undefined;
     let bestScore = Infinity;
