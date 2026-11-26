@@ -7,6 +7,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   DECISION_CADENCES,
+  PERSONALITY_CAREER_INSPECTOR_PRESENTATION,
+  STRATEGIC_MAP_PRESENTATION,
   DECISION_KEYS,
   SIMULATION_DECISIONS,
   getDecisionsByCadence,
@@ -279,5 +281,18 @@ describe('simulation decision registry', () => {
     // The registry itself must carry no "to be added" promise.
     const source = readFileSync(resolve(process.cwd(), 'src/game/simulation/decisionRegistry.ts'), 'utf8');
     expect(source, 'a stale "to be added" note is back').not.toMatch(/to be added/i);
+  });
+});
+
+describe('read-only presentation ownership metadata', () => {
+  it('documents both presentation owners without granting simulation writes', () => {
+    for (const entry of [PERSONALITY_CAREER_INSPECTOR_PRESENTATION, STRATEGIC_MAP_PRESENTATION]) {
+      expect(entry.owner).not.toBe('');
+      expect(entry.scheduledFrom).not.toBe('');
+      expect(entry.writes).toEqual([]);
+      for (const file of entry.testFile.split(', ')) {
+        expect(existsSync(resolve(file)), file).toBe(true);
+      }
+    }
   });
 });

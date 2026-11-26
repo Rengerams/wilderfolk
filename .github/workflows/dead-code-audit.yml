@@ -32,5 +32,12 @@ jobs:
           node-version: '26.12.1'
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Report unused files, exports, types and dependencies
-        run: npm exec -- knip ${{ matrix.args }}
+      - name: Full project gate (includes test and tool usage)
+        if: matrix.mode == 'full-project'
+        run: npm exec -- knip
+      - name: Report production-only exports and types (including test-only consumers)
+        if: matrix.mode == 'production-only'
+        run: npm exec -- knip --production --exports --no-exit-code
+      - name: Gate production files, dependencies and import resolution
+        if: matrix.mode == 'production-only'
+        run: npm exec -- knip --production --exclude exports,nsExports,types,nsTypes,enumMembers,namespaceMembers,duplicates
