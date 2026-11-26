@@ -1355,7 +1355,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const dx = closest.x - entity.x;
         const dy = closest.y - entity.y;
         const dist = Math.hypot(dx, dy);
-        const livingTogether = atHome && shareResidence(entity, closest);
+        const livingTogether = atHome && shareResidence(entity, closest)
+          && isNearResidence(closest, buildingById);
         const closeEnough = dist <= 10;
 
         if (!closeEnough) {
@@ -1392,10 +1393,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             advancedCourtshipIds.add(entity.id);
             advancedCourtshipIds.add(closest.id);
 
-            if (seededRandomForRun(`chat-court1:${entity.id}:${state.tick}`) < 0.4 * PER_TICK_RATE_SCALE) {
-              settlerPairChat(entity, closest, 'courtship', 0.85);
-            } else if (seededRandomForRun(`chat-court2:${entity.id}:${state.tick}`) < 0.5 * PER_TICK_RATE_SCALE) {
-              settlerPairChat(entity, closest, 'courtship', 0.1);
+            // A stable speaker and seed make dialogue independent of which partner was processed last.
+            const speaker = entity.id < closest.id ? entity : closest;
+            const listener = speaker === entity ? closest : entity;
+            if (seededRandomForRun(`chat-court1:${speaker.id}:${state.tick}`) < 0.4 * PER_TICK_RATE_SCALE) {
+              settlerPairChat(speaker, listener, 'courtship', 0.85);
+            } else if (seededRandomForRun(`chat-court2:${speaker.id}:${state.tick}`) < 0.5 * PER_TICK_RATE_SCALE) {
+              settlerPairChat(speaker, listener, 'courtship', 0.1);
             }
 
             // Symmetric pair rule: both people's courtship aptitudes average into one rate.
