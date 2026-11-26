@@ -3,7 +3,8 @@
 ## 0.6.5.2 [Unreleased]
 
 - **Improved (26 Nov 2026; PR pending):** Names are now decluttered dynamically: dense villages hide ordinary plates until zoomed in, with the elected leader and selected villagers kept visible and overlapping ordinary labels suppressed.
-
+- **Balanced (26 Nov 2026; PR pending):** Election merit now rewards witnessed career service, trained specialties, and community trust instead of summing all trades. Surname, honorary title, battle and promise contributions are capped more tightly; voters still cast separate ballots.
+- **Balanced (26 Nov 2026):** Immigrant children earn real school attendance; graduation grants qualifications, not blanket job skills. Apprenticeship bonuses apply only to the completed trade. Existing skills are preserved.
 - **Fixed (26 Nov 2026):** Returning armies show homeward travel rather than obsolete battle orders; the Chronicle and deployment lifecycle remain intact.
 
 - **Fixed (26 Nov 2026):** Free-roaming hunters route around impassable terrain and cannot kill close prey through blocked terrain. Shallow-water walking remains unchanged.
