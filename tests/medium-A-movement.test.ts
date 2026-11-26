@@ -9,7 +9,7 @@ import { steerVisitorToHotel } from '../src/game/hotelStay';
 import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
 import { getPathGrid, invalidateCommutePathsForWalker, isOnWalkableRoadAt, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { getCurrentPathfinderTickCounters, resetPathfinderSession, setPathfindingMetricsEnabled } from '../src/game/pathfindingMetrics';
-import { applyHumanWalkStep, commuteHumanToBuilding, humanBuildingTarget, steerHumanToward } from '../src/game/simulation/humanMovement';
+import { applyHumanWalkStep, commuteHumanToBuilding, humanBuildingTarget, steerHumanToward, rememberHumanWalkTarget } from '../src/game/simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from '../src/game/buildingAccess';
 import { ROAD_SPEED_MULT } from '../src/game/simulation/movementSteering';
 import { COMMUTE_CONFIG } from '../src/game/commuteReach';
@@ -706,5 +706,16 @@ describe('blocked commuter path recovery', () => {
     expect(steerWithPath(first, targetX, targetY, 2, 'c_9901_8_w')).toBe('path');
     expect(steerWithPath(second, targetX, targetY, 2, 'c_9902_8_w')).toBe('path');
     setCurrentPathMap(null);
+  });
+});
+
+ describe('final road approach', () => {
+  it('does not overshoot a child walk target after applying the road multiplier', () => {
+    setCurrentPathMap(null);
+    const child = human(9001, 100, 100, { age: 10, isJuvenile: true, vx: 4, vy: 0 });
+    rememberHumanWalkTarget(child, 104, 100, 4, 'child-final-leg');
+    applyHumanWalkStep(child, ROAD_SPEED_MULT);
+    expect(child.x).toBe(104);
+    expect(child.y).toBe(100);
   });
 });
