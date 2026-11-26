@@ -193,7 +193,17 @@ export function resolveWallStripPlan(
     // parallel or perpendicular wall must not consume this new segment's placement.
     const existing = state.buildings.find((b) => isWallStripType(b.type)
       && b.x === snapped.x && b.y === snapped.y
-      && (stripType === BuildingType.WallGate || normalizeBuildingRotation(b.rotation) === stripRotation));
+      && (stripType === BuildingType.WallGate || normalizeBuildingRotation(b.rotation) === stripRotation))
+      ?? (stripType === BuildingType.WallGate
+        ? state.buildings.filter((b) => b.type === BuildingType.Wall && b.completed
+          // Only legacy off-lattice walls that snap to this exact cell can be replaced.
+          && (b.x !== snapped.x || b.y !== snapped.y)
+          && Math.abs(b.x - snapped.x) <= 15 && Math.abs(b.y - snapped.y) <= 15
+          && snapBuildingCenter(stripType, b.x, b.y, normalizeBuildingRotation(b.rotation)).x === snapped.x
+          && snapBuildingCenter(stripType, b.x, b.y, normalizeBuildingRotation(b.rotation)).y === snapped.y)
+          .sort((a, b) => Math.hypot(a.x - snapped.x, a.y - snapped.y)
+            - Math.hypot(b.x - snapped.x, b.y - snapped.y) || a.id - b.id)[0]
+        : undefined);
 
     if (existing && isWallStripType(existing.type)) {
       emitted.add(key);

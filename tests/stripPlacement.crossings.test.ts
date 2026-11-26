@@ -59,6 +59,23 @@ import { testWorldMap } from '../src/test/worldMapFixtures';
 import { TerrainType } from '../src/game/gameTypes';
 
 describe('compact wall runs', () => {
+  it('replaces an off-lattice legacy wall with a gate at its saved centre', () => {
+    const world = worldFor(BuildingType.WallGate);
+    world.worldMap = testWorldMap({ tilesX: 60, tilesY: 60, tileType: () => TerrainType.Grassland });
+    world.width = world.height = 600;
+    world.buildings = [];
+    world.resources.wood = world.resources.stone = world.resources.gold = 10000;
+    const wall = completedStrip(world, BuildingType.Wall, 180, 200);
+    wall.width = 60;
+    wall.height = 40;
+    const preview = buildStripPreview(world, BuildingType.WallGate, 180, 200, 180, 200, 0);
+    expect(preview.segments).toHaveLength(1);
+    expect(preview.segments[0]).toMatchObject({ x: 180, y: 200, replacesBuildingId: wall.id, valid: true });
+    const next = placeStripChain(world, BuildingType.WallGate, preview.segments, 0);
+    expect(next.buildings).toHaveLength(1);
+    expect(next.buildings[0]).toMatchObject({ type: BuildingType.WallGate, x: 180, y: 200 });
+  });
+
   it.each([BuildingType.Wall, BuildingType.WallGate])('commits horizontal and vertical %s with matching footprints', (type) => {
     const world = worldFor(type);
     world.worldMap = testWorldMap({ tilesX: 60, tilesY: 60, tileType: () => TerrainType.Grassland });
