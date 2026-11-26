@@ -22,9 +22,7 @@ jobs:
       matrix:
         include:
           - mode: full-project
-            args: ''
           - mode: production-only
-            args: '--production'
     steps:
       - uses: actions/checkout@v4.4.0
       - uses: actions/setup-node@v4.1.0
@@ -35,7 +33,7 @@ jobs:
       - name: Full project gate (includes test and tool usage)
         if: matrix.mode == 'full-project'
         run: npm exec -- knip
-      - name: Report production-only exports and types (including test-only consumers)
+      - name: Informational production-only exports and types (not a test failure)
         if: matrix.mode == 'production-only'
         run: npm exec -- knip --production --exports --no-exit-code
       - name: Gate production files, dependencies and import resolution
