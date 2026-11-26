@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Balanced (26 Nov 2026):** Immigrant children earn real school attendance; graduation grants qualifications, not blanket job skills. Apprenticeship bonuses apply only to the completed trade. Existing skills are preserved.
 - **Fixed (26 Nov 2026):** Returning armies show homeward travel rather than obsolete battle orders; the Chronicle and deployment lifecycle remain intact.
 
 - **Fixed (26 Nov 2026):** Free-roaming hunters route around impassable terrain and cannot kill close prey through blocked terrain. Shallow-water walking remains unchanged.

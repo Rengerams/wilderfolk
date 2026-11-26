@@ -127,7 +127,14 @@ function teach(ap: Entity, master: Entity, job: JobType, state: WorldState): voi
   // A teacher keeps their own hand in without dirtying a saturated skill.
   increaseEntitySkill(master, job, 0.05);
   if (readSkill(ap, job) >= GRADUATE_SKILL) {
-    if (masterSkill >= GRANDMASTER_SKILL && getEducationTier(ap.schoolDays ?? 0) === 3) {
+    // School qualifications grant a one-time completion bonus only in the trained trade.
+    // Existing career receipts also prevent a repeat award after reassignment or reload.
+    const tier = getEducationTier(ap.schoolDays ?? 0);
+    if (ap.careerMilestones?.[job]?.trainedAtDay == null) {
+      const bonus = tier === 3 && masterSkill >= GRANDMASTER_SKILL ? 20 : tier === 2 ? 8 : tier === 1 ? 5 : 0;
+      if (bonus > 0) increaseEntitySkill(ap, job, bonus);
+    }
+    if (masterSkill >= GRANDMASTER_SKILL && tier === 3) {
       ap.grandmasterApprenticeshipCompleted = true;
     }
     ap.apprenticeOfId = undefined;

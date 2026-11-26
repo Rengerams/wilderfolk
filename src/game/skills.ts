@@ -52,7 +52,7 @@ export const WORK_SKILL_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<Buil
   Object.keys(BUILDING_JOB_TYPES) as BuildingType[],
 );
 
-/** Single revision-aware skill writer for work, training and graduation. */
+/** Single revision-aware skill writer for work and trade training. */
 export function increaseEntitySkill(entity: Entity, job: JobType, amount: number): void {
   if (!isPlayerHuman(entity) || !entity.alive || entity.age < HUMAN_ADULT_MIN_AGE
     || !Number.isFinite(amount) || amount <= 0) return;
