@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (26 Nov 2026):** Moon Howlers pursue exposed settlers even when fed or off-screen, no longer get ejected from roads and bridges, navigate around obstacles without attacking through walls, clear stale indoor state, and award Moonslayer after the human-form death transition.
+- **Fixed (26 Nov 2026):** Moon Howlers pursue exposed settlers even when fed or off-screen, no longer get ejected from roads and bridges, route around obstacles and shallow water without attacking through walls, clear stale indoor state, and award Moonslayer after the human-form death transition.
 
 - **Performance (26 Nov 2026):** Reuse the active path grid for leisure goals and avoid redundant standability checks; preserve deterministic routing and invalidate cached goals when the grid changes.
 
