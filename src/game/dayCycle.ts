@@ -42,26 +42,14 @@ const MONTH_NAMES = [
 
 export {
   EVENING_START,
-  FESTIVAL_GATHER_END,
-  FESTIVAL_GATHER_START,
-  TAVERN_SHIFT_END,
-  TAVERN_SHIFT_START,
-  WORK_HOURS_PER_DAY,
-  buildWorkHours,
-  formatHour,
-  isActiveFreeDay,
   isFestivalGatheringHour,
   isOnInnkeeperShift,
   isOnMoonHowlerNightShift,
   isTavernOpen,
-  isTavernServiceHour,
 } from './humanSchedule';
 
 export {
-  DAYS_PER_MOON_CYCLE,
   HUMAN_VENERABLE_AGE,
-  isFullMoonDay,
-  isFullMoonNight,
   isNightHour,
   NIGHT_END,
   NIGHT_START,
@@ -369,10 +357,7 @@ export function migrateHumanAges(
 }
 
 export {
-  finalizeHumanDeath,
   isKillableSettlerEntity,
   killHuman,
-  reconcileFamilyReferencesAfterRemoval,
   reconcileOrphanedMarriages,
-  removeHumanFromBuildingOccupants,
 } from './humanLifecycleCleanup';

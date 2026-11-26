@@ -76,8 +76,6 @@ function getRandomInt(min: number, max: number): number {
   return min + Math.floor(simRandom() * (max - min + 1));
 }
 
-
-
 function getTileAtWorld(state: WorldState, x: number, y: number) {
   if (!state.worldMap) return null;
   const tw = state.worldMap.width > 0 ? state.width / state.worldMap.width : PATH_CELL;
@@ -89,8 +87,6 @@ function getTileAtWorld(state: WorldState, x: number, y: number) {
   }
   return tileAt(state.worldMap, tx, ty) ?? null;
 }
-
-
 
 export function isPassableWildlifePosition(state: WorldState, x: number, y: number, margin = 8): boolean {
   if (x < margin || y < margin || x > state.width - margin || y > state.height - margin) {

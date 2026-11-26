@@ -8,6 +8,7 @@ const config: KnipConfig = {
     'src/game/simWorker/gameWorker.node.ts!',
     // Tests and manually invoked diagnostic scripts count only in the full audit.
     'tests/**/*.{test,spec}.{ts,tsx}',
+    'tests/browser/villagePortraitUI.tsx',
     'scripts/**/*.{ts,mts,mjs}',
   ],
   project: [

@@ -547,6 +547,20 @@
         "tests/storyEvents.test.ts",
         "tests/story.expiryResolvers.test.ts"
       ]
+    },
+    {
+      "key": "src/game/terrainAtlas.ts:317:atlasSourceRect@5232ca62a2e53b67a92fa35c7a449061370b16d439ba5a0bf1129d335df14eec <-> src/game/terrainAtlas.ts:322:sandWaterOverlaySourceRect@1bcb9f0b1580da96d439af36369aa3913a570204cbfca67f420270fc5e4e4cb0",
+      "reason": "The opaque atlas and transparent sand-water overlay use different column counts, so the two public functions select distinct texture grids. Deleting the obsolete scale helper does not change either function.",
+      "tests": [
+        "tests/deadCode.retainedContracts.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/resourceUtils.ts:83:canAfford@1ea1109c2f48179b90e5ee9af90270858aaa5f3264bdc53423a0ea72e5cd1d90 <-> src/game/resourceUtils.ts:94:consumeResources@200c0fce97c628715260852846910a0d707470925c7c58e25236ea1886fa0dc8",
+      "reason": "canAfford is a read-only preflight while consumeResources first checks every resource and then mutates stores atomically; the two loops have distinct read/write contracts and must not be collapsed into a partial debit.",
+      "tests": [
+        "tests/deadCode.retainedContracts.test.ts"
+      ]
     }
   ]
 }
