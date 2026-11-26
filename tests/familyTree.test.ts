@@ -3,6 +3,8 @@ import { EntityType, type Entity } from '../src/game/gameTypes';
 import {
   buildFamilyTree,
   buildFullFamilyTree,
+  visibleFamilyTreeLinks,
+  orderFamilyTreeRows,
   groupFamiliesByLineage,
   groupFamiliesBySurname,
   type FamilyTreePerson,
@@ -681,5 +683,64 @@ describe('the stamboom slice the Village panel renders', () => {
     const formerMember = tree.members.find((member) => member.id === 7);
     expect(formerMember?.bonds).toContain('May not remarry yet');
     expect(tree.gaps.map((gap) => gap.kind)).toContain('parent-record-gone');
+  });
+});
+
+
+describe('visible family tree branches', () => {
+  it('links each visible biological and adoptive parent, not unrelated cards or hidden endpoints', () => {
+    const mother = human({ id: 1, name: 'Mother' });
+    const father = human({ id: 2, name: 'Father', gender: 'male' });
+    const adopter = human({ id: 3, name: 'Adopter', gender: 'male' });
+    const child = human({ id: 4, name: 'Child', motherId: 1, fatherId: 2, adoptiveFatherId: 3 });
+    const tree = buildFullFamilyTree(child, [mother, father, adopter, child]);
+    expect(visibleFamilyTreeLinks(tree, new Set([1, 3, 4]))).toEqual([
+      { parentId: 1, childId: 4 }, { parentId: 3, childId: 4 },
+    ]);
+    expect(visibleFamilyTreeLinks(tree, new Set([1, 2, 3]))).toEqual([]);
+  });
+
+  it('preserves actual kinship through a deceased intermediate without inventing a direct edge', () => {
+    const root = human({ id: 1, name: 'Root' });
+    const middle = human({ id: 2, name: 'Middle', motherId: 1, alive: false });
+    const child = human({ id: 3, name: 'Child', motherId: 2 });
+    const tree = buildFullFamilyTree(child, [root, middle, child], undefined, { includeDeceased: true });
+    expect(tree.rows.flatMap((row) => row.members).map((person) => person.id)).toContain(1);
+    expect(visibleFamilyTreeLinks(tree, new Set([1, 3]))).toEqual([]);
+    expect(visibleFamilyTreeLinks(tree, new Set([1, 2, 3]))).toHaveLength(2);
+  });
+});
+
+
+describe('family tree branch navigation', () => {
+  it('distinguishes direct lineage from siblings, spouses and side branches', () => {
+    const parent = human({ id: 1, name: 'Parent' });
+    const focus = human({ id: 2, name: 'Focus', motherId: 1, partnerId: 4 });
+    const sibling = human({ id: 3, name: 'Sibling', motherId: 1 });
+    const partner = human({ id: 4, name: 'Partner', partnerId: 2 });
+    const child = human({ id: 5, name: 'Child', motherId: 2, fatherId: 4 });
+    const niece = human({ id: 6, name: 'Niece', motherId: 3 });
+    const tree = buildFullFamilyTree(focus, [parent, focus, sibling, partner, child, niece]);
+    expect([...tree.ancestorIds]).toEqual([1]);
+    expect([...tree.descendantIds]).toEqual([5]);
+  });
+
+  it('orders children by parent branches rather than interleaving siblings alphabetically', () => {
+    const a = human({ id: 1, name: 'A', childrenIds: [3, 5] });
+    const b = human({ id: 2, name: 'B', childrenIds: [4, 6] });
+    const children = [
+      human({ id: 3, name: 'A child', motherId: 1 }),
+      human({ id: 4, name: 'B child', motherId: 2 }),
+      human({ id: 5, name: 'C child', motherId: 1 }),
+      human({ id: 6, name: 'D child', motherId: 2 }),
+    ];
+    // Both unrelated branches can be visible through a founding couple.
+    a.partnerId = 2;
+    b.partnerId = 1;
+    const tree = buildFullFamilyTree(a, [a, b, ...children]);
+    const original = tree.rows.map((row) => row.members.map((person) => person.id));
+    const ordered = orderFamilyTreeRows(tree.rows, tree.parentLinks);
+    expect(ordered.find((row) => row.delta === 1)?.members.map((person) => person.id)).toEqual([3, 5, 4, 6]);
+    expect(tree.rows.map((row) => row.members.map((person) => person.id))).toEqual(original);
   });
 });
