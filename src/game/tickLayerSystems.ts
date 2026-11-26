@@ -521,10 +521,10 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
                 caughtPrey.combatRollSeed ?? 0,
               )
             ) {
-              const victimId = caughtPrey.id;
+              const slainPredatorId = entity.id;
               markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick, state);
               syncEntityGrids(ctx, entity);
-              clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId, byType);
+              clearHuntersTargetingPrey(slainPredatorId, entityById, ctx.huntTargetByPreyId, byType);
 
               // The death owner already restored the slain werewolf's human type.
               if (moonHowlerHunter && !caughtPrey.title) {
