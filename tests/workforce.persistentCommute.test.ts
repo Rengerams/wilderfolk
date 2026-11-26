@@ -26,7 +26,7 @@ describe('persistent automatic employment and commute eligibility', () => {
     const vacancy = building(101, BuildingType.Quarry, { x: 0, y: 0 });
     const home = building(102, BuildingType.House, { x: donor.x, y: donor.y });
     const incumbent = human(1, { x: 0, y: 0, workerBuildingId: donor.id, job: JobType.Settler });
-    const further = human(2, { x: donor.x + 45, y: donor.y });
+    const further = human(2, { x: donor.x - 45, y: donor.y });
     const nearer = human(3, { x: 0, y: 0, residenceBuildingId: home.id });
     rebalanceJobWorkers([incumbent, further, nearer], [donor, vacancy, home]);
     expect(incumbent.workerBuildingId).toBe(vacancy.id);
