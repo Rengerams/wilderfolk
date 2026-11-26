@@ -5,10 +5,35 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType, JobType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
-import { AUTO_JOB_TRANSFER_COOLDOWN_TICKS, assignMissingWorkers, assignWorkerInPlace, pickWorkerToTransfer } from '../src/game/workforce';
+import { AUTO_JOB_TRANSFER_COOLDOWN_TICKS, assignMissingWorkers, assignWorkerInPlace, pickWorkerToTransfer, rebalanceJobWorkers } from '../src/game/workforce';
 import { building, human } from '../src/test/factories';
 
 describe('persistent automatic employment and commute eligibility', () => {
+  it('does not sacrifice an occupied post to backfill it with a bonded apprentice', () => {
+    const donor = building(100, BuildingType.Quarry, { x: 10_000, y: 0, occupants: [1] });
+    const vacancy = building(101, BuildingType.Quarry, { x: 0, y: 0 });
+    const incumbent = human(1, { x: 0, y: 0, workerBuildingId: donor.id, job: JobType.Settler });
+    const trainee = human(2, { x: donor.x, y: donor.y, apprenticeOfId: 1 });
+    rebalanceJobWorkers([incumbent, trainee], [donor, vacancy]);
+    expect(incumbent.workerBuildingId).toBe(donor.id);
+    expect(trainee.workerBuildingId).toBeUndefined();
+    expect(donor.occupants).toEqual([1]);
+    expect(vacancy.occupants).toEqual([]);
+  });
+
+  it('backfills a swap with the nearer eligible resident rather than the first idle candidate', () => {
+    const donor = building(100, BuildingType.Quarry, { x: 10_000, y: 0, occupants: [1] });
+    const vacancy = building(101, BuildingType.Quarry, { x: 0, y: 0 });
+    const home = building(102, BuildingType.House, { x: donor.x, y: donor.y });
+    const incumbent = human(1, { x: 0, y: 0, workerBuildingId: donor.id, job: JobType.Settler });
+    const further = human(2, { x: donor.x + 45, y: donor.y });
+    const nearer = human(3, { x: 0, y: 0, residenceBuildingId: home.id });
+    rebalanceJobWorkers([incumbent, further, nearer], [donor, vacancy, home]);
+    expect(incumbent.workerBuildingId).toBe(vacancy.id);
+    expect(nearer.workerBuildingId).toBe(donor.id);
+    expect(further.workerBuildingId).toBeUndefined();
+  });
+
   it('refuses an unreachable new workplace instead of treating reachability as a preference', () => {
     const distant = building(10, BuildingType.Farm, { x: 100_000, y: 100_000 });
     const applicant = human(1, { x: 0, y: 0 });
