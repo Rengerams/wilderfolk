@@ -366,3 +366,26 @@ describe('a widowed settler may court again (owner, 2026-10-09)', () => {
     expect(isEligibleToCourt(widower)).toBe(true);
   });
 });
+
+
+describe('courtship candidate availability', () => {
+  it('skips an unavailable nearest candidate in favour of an available one', () => {
+    const a = settler(A_ID, 'male');
+    const b = settler(B_ID, 'female');
+    const c = settler(C_ID, 'female');
+    const humans = [a, b, c];
+    const { entityById } = fixture(humans);
+    expect(findCourtshipPartner(a, false, 120, undefined, new Map(), humans, 1200, 900, 0, entityById, candidate => candidate.id !== B_ID)?.id).toBe(C_ID);
+  });
+
+  it('waits for an unavailable established partner without switching', () => {
+    const a = settler(A_ID, 'male', { courtshipPartnerId: B_ID, courtshipProgress: 60 });
+    const b = settler(B_ID, 'female', { courtshipPartnerId: A_ID, courtshipProgress: 60 });
+    const c = settler(C_ID, 'female');
+    const humans = [a, b, c];
+    const { entityById } = fixture(humans);
+    expect(findCourtshipPartner(a, false, 120, undefined, new Map(), humans, 1200, 900, 0, entityById, candidate => candidate.id !== B_ID)).toBeUndefined();
+    expect(a.courtshipProgress).toBe(60);
+    expect(a.courtshipPartnerId).toBe(B_ID);
+  });
+});
