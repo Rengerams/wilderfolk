@@ -389,3 +389,13 @@ describe('courtship candidate availability', () => {
     expect(a.courtshipPartnerId).toBe(B_ID);
   });
 });
+
+
+it('selects the same courtship candidate at equal distance in either traversal order', () => {
+  const a = settler(A_ID, 'male', { x: 100 });
+  const b = settler(B_ID, 'female', { x: 110 });
+  const c = settler(C_ID, 'female', { x: 90 });
+  for (const humans of [[a, b, c], [c, b, a]]) {
+    expect(findCourtshipPartner(a, false, 120, undefined, new Map(), humans, 1200, 900)?.id).toBe(B_ID);
+  }
+});
