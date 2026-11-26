@@ -40,20 +40,6 @@ export function disposeCanvasSurface(surface: CanvasSurface | null | undefined):
   surface.height = 0;
 }
 
-export function resizeCanvasSurface(
-  surface: CanvasSurface,
-  width: number,
-  height: number,
-): CanvasContext2d {
-  const w = Math.max(1, Math.floor(width));
-  const h = Math.max(1, Math.floor(height));
-  if (surface.width !== w || surface.height !== h) {
-    surface.width = w;
-    surface.height = h;
-  }
-  return getCanvasContext(surface);
-}
-
 /**
  * Sizes a **display** canvas to `logical × dpr` device pixels and returns the ratio its context must
  * be scaled by, so a surface that paints in logical pixels stays 1:1 on the device grid.

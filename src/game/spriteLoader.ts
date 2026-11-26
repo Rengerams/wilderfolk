@@ -91,10 +91,6 @@ export function getSpriteFrame(src: string): SpriteFrame | null {
   return frameCache.get(src) || null;
 }
 
-export function isSpriteLoaded(src: string): boolean {
-  return frameCache.has(src);
-}
-
 export function isHumanSpritesReady(): boolean {
   return humanSpritesReady;
 }

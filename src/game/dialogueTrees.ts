@@ -281,16 +281,6 @@ export async function preloadDialogueBank(): Promise<void> {
   }
 }
 
-function requireBank(): DialogueBankFile {
-  if (!isDialogueBankReady()) {
-    ensureDialogueBankFromBundle();
-  }
-  if (!bank) {
-    throw new Error('Dialogue bank not loaded — call preloadDialogueBank() before chat simulation');
-  }
-  return bank;
-}
-
 export function getDialogueTrees(): readonly DialogueTree[] {
   if (!isDialogueBankReady()) {
     ensureDialogueBankFromBundle();
