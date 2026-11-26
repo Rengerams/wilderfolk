@@ -460,8 +460,8 @@ function tickAdultLeisureMotive(args: {
       }
     } else if (impulse.company?.alive && impulse.building) {
       const meeting = venueGatherPosition(impulse.building, entity.id);
-      const targetX = (impulse.company.x + meeting.x) / 2;
-      const targetY = (impulse.company.y + meeting.y) / 2;
+      const targetX = meeting.x;
+      const targetY = meeting.y;
       const dist = Math.hypot(targetX - entity.x, targetY - entity.y) || 1;
       if (dist > 16) {
         steerHumanToward(
@@ -472,7 +472,14 @@ function tickAdultLeisureMotive(args: {
           0.48,
           `leisure_company_${impulse.building.id}_${entity.id}`,
         );
-      } else settlerPairChat(entity, impulse.company, 'home', 0.1);
+      } else {
+        clearHumanWalkTarget(entity);
+        entity.vx = 0;
+        entity.vy = 0;
+        if (Math.hypot(impulse.company.x - entity.x, impulse.company.y - entity.y) <= 24) {
+          settlerPairChat(entity, impulse.company, 'home', 0.1);
+        }
+      }
       suppressIdle = true;
     } else if (impulse.company?.alive) {
       const c = impulse.company; const dist = Math.hypot(c.x - entity.x, c.y - entity.y) || 1;
@@ -487,7 +494,12 @@ function tickAdultLeisureMotive(args: {
   
       const spot = venueGatherPosition(b, entity.id);
       const arrived = Math.hypot(entity.x - spot.x, entity.y - spot.y) < 20;
-      if (arrived) enterHumanBuilding(entity, b);
+      if (arrived) {
+        clearHumanWalkTarget(entity);
+        entity.vx = 0;
+        entity.vy = 0;
+        enterHumanBuilding(entity, b);
+      }
       if (!arrived) steerHumanToward(entity, spot.x, spot.y, speed * 0.5, 1, `leisure_venue_${b.id}_${entity.id}`);
       else if (impulse.motive === 'sunday_service' || impulse.motive === 'grief' || impulse.motive === 'day_off') { entity.vx *= 0.2; entity.vy *= 0.2; if (seededRandomForRun(`chat-social:${entity.id}:${state.tick}`) < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1); }
       else if (impulse.motive === 'market_errand' || impulse.motive === 'birthday') { adjustHumanStaminaFromEnergy(entity, 0.2 * PER_TICK_RATE_SCALE); settlerChat(entity, 'social', 0.1); }
@@ -600,22 +612,18 @@ export function tickHumanLeisure(args: {
         const walkY = safe?.y ?? ty;
         const dist = Math.hypot(walkX - entity.x, walkY - entity.y);
         if (dist <= arrive) {
+          clearHumanWalkTarget(entity);
+          entity.vx = 0;
+          entity.vy = 0;
           if (destination) enterHumanBuilding(entity, destination);
-          idleVx = deterministicWave(tick * 0.04 + entity.id) * speed * 0.08;
-          idleVy = deterministicWave(tick * 0.035 + entity.id + 0.5) * speed * 0.08;
+          routedIdleWalk = true;
           return true;
         }
-        // Keep the original once-per-tick idle blend when the direct line is clear.
-        // Only a routed detour owns the velocity outright; otherwise last tick's
-        // momentum must still be weighted at 0.5 for ordinary leisure walks.
-        const route = steerWithPath(entity, walkX, walkY, speed * speedMult,
+        // Use the shared walk owner for direct and routed movement, including
+        // off-screen resumption; do not blend stale velocity into a new route.
+        steerHumanToward(entity, walkX, walkY, Math.min(speed * speedMult, dist), 1,
           `idle_${destination?.id ?? 'roam'}_${entity.id}`);
-        if (route === 'direct') {
-          idleVx = ((walkX - entity.x) / dist) * speed * speedMult;
-          idleVy = ((walkY - entity.y) / dist) * speed * speedMult;
-        } else {
-          routedIdleWalk = true;
-        }
+        routedIdleWalk = true;
         return false;
       };
 
@@ -706,7 +714,9 @@ export function tickHumanLeisure(args: {
           } else {
             // Both rolls and the branch itself are independent of the grid: an absent field and an
             // all-zero one decide alike, so a missing runtime cache cannot shift the humanTick stream.
-            const prettyRoll = getSimRng('humanTick')();
+            const prettyRoll = personDayRoll(entity.id, tick, 9601 + leisureSlot);
+            // Preserve the existing per-tick RNG consumption for downstream events.
+            getSimRng('humanTick')();
             const gardenRoll = getSimRng('humanTick')();
             const beautyGrid = state.beautyGrid ?? null;
             if (prettyRoll < 0.35) {
@@ -828,7 +838,7 @@ export function tickHumanLeisure(args: {
           if (!friend && coworker && personDayRoll(entity.id, tick, 530) < 0.55) {
             friend = coworker;
           }
-          if (!friend && isSocialStaggerTick(entity, state.tick)) {
+          if (!friend) {
             friend =
               findClosestAdaptiveInRadius(
                 humanSocialGrid,
