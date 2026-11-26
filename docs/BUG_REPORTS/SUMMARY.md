@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-26 — [HUD notifications expire before presentation](../bug_report/2026-11-26-hud-notifications-expire-before-presentation.md):** investigating; PR #216 adds FIFO presentation, visible-time expiry, worker acknowledgement and bounded overflow summaries. Final CI and browser verification pending.
+
 **2026-11-26 — [Staffing capacity search abandons larger eligible donors](../bug_report/2026-11-26-workforce-donor-search-stops-early.md):** investigating; PR #213 source fix and focused CI regressions passed on head `22ac3cb5`; follow-up CI pending.
 
 **2026-11-26 — [Bonded apprentices enter workforce swap and donor eligibility](../bug_report/2026-11-26-workforce-apprentice-donor-backfill.md):** investigating; PR #213 source fix and focused CI regressions passed on head `22ac3cb5`; follow-up CI pending.
