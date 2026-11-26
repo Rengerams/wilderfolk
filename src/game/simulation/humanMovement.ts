@@ -420,6 +420,7 @@ export function commuteHumanToBuilding(
   rush = 1,
 ): boolean {
   if (isAtBuildingReach(entity, building)) {
+    clearHumanWalkTarget(entity);
     entity.vx = 0;
     entity.vy = 0;
     walkerBuildingAccess.delete(entity);
@@ -428,6 +429,7 @@ export function commuteHumanToBuilding(
   const grid = getCurrentPathGrid();
   const candidates = buildingAccessPoints(building, grid);
   if (candidates.length === 0) {
+    clearHumanWalkTarget(entity);
     entity.vx = 0;
     entity.vy = 0;
     walkerBuildingAccess.delete(entity);
@@ -471,6 +473,8 @@ export function commuteHumanToBuilding(
     });
   }
   if (!target) {
+    clearHumanWalkTarget(entity);
+    walkerBuildingAccess.delete(entity);
     entity.vx = 0;
     entity.vy = 0;
     return false;
@@ -480,6 +484,7 @@ export function commuteHumanToBuilding(
   const dist = Math.hypot(dx, dy);
 
   if (dist === 0) {
+    clearHumanWalkTarget(entity);
     entity.vx = 0;
     entity.vy = 0;
     return false;
@@ -516,8 +521,10 @@ export function commuteHumanToBuilding(
   // the tick is the single integration (the stepper must not move the entity as well).
   if (handled === 'path') return false;
   if (handled === 'blocked') {
-    // A changed obstacle may invalidate this side; re-evaluate all usable facades next tick.
-    walkerBuildingAccess.delete(entity);
+    // A bounded route search can still be pending. Keep the chosen facade and
+    // cache key so the path owner can escalate its budget instead of restarting
+    // whenever the movement decision runs. A new grid invalidates the facade.
+    clearHumanWalkTarget(entity);
     entity.vx = 0;
     entity.vy = 0;
     return false;
