@@ -70,6 +70,7 @@ export interface LeadershipScoreBreakdown {
   name: string;
   totalScore: number;
   skillPoints: number;
+  contributionPoints: number;
   experiencePoints: number;
   battlePoints: number;
   familyPoints: number;
@@ -98,15 +99,19 @@ const RECORD_VILLAGE_GOOD = 4;
 const RECORD_VILLAGE_POOR = -6;
 const RECORD_POSITIVE_CAP = 12;
 const RECORD_NEGATIVE_CAP = -12;
-const TITLE_MERIT_BONUS = 30;
+const TITLE_MERIT_BONUS = 6;
 
 /**
  * Merit per year served past adulthood, at the top of the witnessed age range.
  */
 const EXPERIENCE_MERIT_PER_YEAR = 0.5;
-/** One capped trade is worth 50 merit; expertise across trades is capped at 100. */
-const SKILL_MERIT_PER_POINT = 0.5;
-const SKILL_MERIT_CAP = 60;
+/** Strongest trained trade matters most; a second specialty helps, not nineteen copied bonuses. */
+const LEADERSHIP_PRIMARY_SKILL_WEIGHT = 0.24;
+const LEADERSHIP_SECONDARY_SKILL_WEIGHT = 0.06;
+const SKILL_MERIT_CAP = 30;
+/** Verified workday receipts, not age or assigned occupation, determine civic contribution. */
+const CONTRIBUTION_MERIT_PER_FIVE_DAYS = 1;
+const CONTRIBUTION_MERIT_CAP = 45;
 /** Merit per close friendship (`relationships.friendCount`, the ≥60 bond the owner calls a friend). */
 const COMMUNITY_MERIT_PER_FRIEND = 2;
 /** Merit for being married, the household half of standing. */
@@ -284,7 +289,8 @@ export function isEligibleForLeadership(
 function familyPrestigeBySurname(state: WorldState): Map<string, number> {
   const prestige = new Map<string, number>();
   for (const family of computeDynasties(state)) {
-    const points = Math.min(25, Math.max(0, family.generationsAlive - 1) * 8 + Math.min(9, Math.max(0, family.members - 1)));
+    // A surname alone is not civic service. Reward only sustained lineage, with a small cap.
+    const points = Math.min(6, Math.max(0, family.generationsAlive - 1) * 3);
     prestige.set(family.surname, points);
   }
   return prestige;
@@ -296,8 +302,17 @@ export function getLeadershipScoreBreakdown(
   familyPrestige?: ReadonlyMap<string, number>,
 ): LeadershipScoreBreakdown {
   const skills = ensureEntitySkills(entity);
-  const skillSum = Object.values(skills).reduce((sum, value) => sum + (value ?? 0), 0);
-  const skillPoints = Math.min(SKILL_MERIT_CAP, Math.round(skillSum * SKILL_MERIT_PER_POINT));
+  const strongestTrades = Object.values(skills).filter((value) => Number.isFinite(value) && value > 0)
+    .sort((a, b) => b - a);
+  const skillPoints = Math.min(SKILL_MERIT_CAP, Math.round(
+    (strongestTrades[0] ?? 0) * LEADERSHIP_PRIMARY_SKILL_WEIGHT
+    + (strongestTrades[1] ?? 0) * LEADERSHIP_SECONDARY_SKILL_WEIGHT,
+  ));
+  const realCareerDays = Object.values(entity.careerHistory ?? {}).reduce(
+    (sum, receipt) => sum + (receipt?.days ?? 0), 0,
+  );
+  const contributionPoints = Math.min(CONTRIBUTION_MERIT_CAP,
+    Math.round(realCareerDays / (5 / CONTRIBUTION_MERIT_PER_FIVE_DAYS)));
   const ageYears = leadershipAgeYears(entity, state);
   const experiencePoints = Math.round(
     Math.min(Math.max(0, ageYears - HUMAN_ADULT_MIN_AGE), 100) * EXPERIENCE_MERIT_PER_YEAR,
@@ -308,15 +323,17 @@ export function getLeadershipScoreBreakdown(
     (isMarriedOrExpecting(entity) ? COMMUNITY_MERIT_MARRIED : 0);
   const titlePoints = entity.title ? TITLE_MERIT_BONUS : 0;
   const recordPoints = getIncumbentRecordPoints(state, entity);
-  const battlePoints = Math.min(100, Math.max(-100, entity.battleLeadershipMerit ?? 0));
+  const battlePoints = Math.min(45, Math.max(-45, entity.battleLeadershipMerit ?? 0));
   const familyPoints = (familyPrestige ?? familyPrestigeBySurname(state)).get(entity.surname?.trim() ?? '') ?? 0;
-  const promisePoints = Math.max(-60, Math.min(60, entity.promiseLeadershipMerit ?? 0));
-  const baseScore = skillPoints + experiencePoints + battlePoints + familyPoints + promisePoints + communityPoints + titlePoints;
+  const promisePoints = Math.max(-30, Math.min(30, entity.promiseLeadershipMerit ?? 0));
+  const baseScore = skillPoints + contributionPoints + experiencePoints
+    + battlePoints + familyPoints + promisePoints + communityPoints + titlePoints;
 
   return {
     entityId: entity.id,
     name: formatSettlerName(entity),
     skillPoints,
+    contributionPoints,
     experiencePoints,
     battlePoints,
     familyPoints,
@@ -442,7 +459,7 @@ function getYearsUntilElectionForYear(year: number, lastElectionYear: number): n
 }
 
 function scoreSummary(b: LeadershipScoreBreakdown): string {
-  const parts = [`skills ${b.skillPoints}`, `experience ${b.experiencePoints}`];
+  const parts = [`skills ${b.skillPoints}`, `service ${b.contributionPoints}`, `experience ${b.experiencePoints}`];
   if (b.battlePoints > 0) parts.push(`defense & raids +${b.battlePoints}`);
   if (b.familyPoints > 0) parts.push(`family name +${b.familyPoints}`);
   if (b.promisePoints !== 0) parts.push(`promises ${b.promisePoints > 0 ? '+' : ''}${b.promisePoints}`);
