@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (26 Nov 2026):** HUD notifications now wait in arrival order for a visible slot and receive their full display lifetime, rather than expiring while hidden behind other pop-ups.
+- **Fixed (26 Nov 2026):** HUD notifications wait in arrival order for a visible slot, receive their full display lifetime, free acknowledged worker slots, and summarize extreme overflow instead of silently evicting visible cards.
 
 - **Fixed (26 Nov 2026):** Workplace vacancy swaps now use the same home-based candidate ranking as ordinary hiring, reserve apprentices even during food emergencies, skip insufficient or empty donors, and rank transfers in one scan using consistent commute units.
 
