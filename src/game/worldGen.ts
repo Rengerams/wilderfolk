@@ -204,12 +204,6 @@ export interface InitGameOptions {
   skipTerrain?: boolean;
 }
 
-export function setEntityBirthDate(entity: Entity, year?: number, month?: number, day?: number): void {
-  if (year !== undefined) entity.birthYear = year;
-  if (month !== undefined) entity.birthMonth = month;
-  if (day !== undefined) entity.birthDay = day;
-}
-
 export function createBuilding(
   type: BuildingType,
   x: number,
@@ -243,7 +237,7 @@ export function createBuilding(
   };
 }
 
-export function spawnGrassPatch(
+function spawnGrassPatch(
   state: WorldState,
   cx: number,
   cy: number,

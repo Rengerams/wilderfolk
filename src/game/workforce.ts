@@ -44,7 +44,7 @@ import {
  * Auto-staff rank of a job building; the ordering table lives in the policy owner, and this side
  * defaults to the colony preset.
  */
-export function jobBuildingPriority(
+function jobBuildingPriority(
   type: BuildingType,
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
   focus: readonly WorkforceFocusSector[] = [],
@@ -141,20 +141,11 @@ export function getChurchStrength(buildings: Building[], humans: Entity[]): numb
   return workers > 0 ? 1 : 0.5;
 }
 
-export function hasStaffedSchool(buildings: Building[]): boolean {
-  return buildings.some(
-    (b) =>
-      b.completed &&
-      b.type === BuildingType.School &&
-      b.occupants.length > 0,
-  );
-}
-
 /**
  * Completed player job buildings, ordered by the current workforce preset — the order
  * `staffJobBuildings` serves open slots in.
  */
-export function completedJobBuildings(
+function completedJobBuildings(
   buildings: Building[],
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
   focus: readonly WorkforceFocusSector[] = [],

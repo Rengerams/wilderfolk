@@ -3,7 +3,6 @@ import { EntityType } from '../gameTypes';
 import type { SimulationFocus } from '../simFocus';
 import { isPlayerHuman } from '../playerHuman';
 import { entityTypeToCode } from './entityTypeCodes';
-import { validateRenderBufferLayout } from './renderSoAReader';
 import {
   HUNT_TARGET_NONE,
   RESIDENCE_BUILDING_NONE,
@@ -133,7 +132,7 @@ function partitionTopKIndices(
 }
 
 /** Select entities for render SoA — prioritizes settlers and viewport when over slot cap. */
-export function selectRenderEntities(
+function selectRenderEntities(
   alive: Entity[],
   maxSlots: number,
   focus?: SimulationFocus,
@@ -238,8 +237,4 @@ export function packRenderSoA(
     tick: world.tick,
     packedEntities: packed,
   };
-}
-
-export function validateRenderBufferHeader(buffer: ArrayBuffer): boolean {
-  return validateRenderBufferLayout(buffer);
 }

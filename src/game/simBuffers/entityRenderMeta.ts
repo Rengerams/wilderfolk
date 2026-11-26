@@ -185,7 +185,3 @@ export function buildRenderEntityShim(
     childrenIds: [],
   };
 }
-
-export function isHumanSlot(reader: RenderSoAReaderV1, slot: number): boolean {
-  return reader.type(slot) === EntityType.Human;
-}

@@ -211,13 +211,6 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
 });
 
 /**
- * Retrieves the species configuration for an entity type.
- */
-export function getSpeciesConfig(type: EntityType): SpeciesConfig {
-  return SPECIES_CONFIG[type];
-}
-
-/**
  * Resolves the nutritional energy value gained when a predator consumes a specific prey type.
  * `fallback` preserves a caller's diet-gap value instead of returning zero.
  */

@@ -26,7 +26,7 @@ export interface StripJunctionInfo {
 
 const ROAD_TYPES = new Set<BuildingType>([BuildingType.Road]);
 
-export const JUNCTION_PROXIMITY = 44;
+const JUNCTION_PROXIMITY = 44;
 
 function dist(a: { x: number; y: number }, b: { x: number; y: number }): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
@@ -50,7 +50,7 @@ export function classifyJunction(connections: JunctionConnections): JunctionKind
 }
 
 /** Corner / tee facing from open compass arms. */
-export function cornerRotationFromConnections(c: JunctionConnections): CornerRotation {
+function cornerRotationFromConnections(c: JunctionConnections): CornerRotation {
   if (c.east && c.north && !c.west && !c.south) return 0;
   if (c.east && c.south && !c.west && !c.north) return 90;
   if (c.west && c.north && !c.east && !c.south) return 180;
@@ -69,12 +69,6 @@ export function cornerRotationFromConnections(c: JunctionConnections): CornerRot
   if (c.east && c.south) return 90;
   if (c.west && c.north) return 180;
   if (c.west && c.south) return 270;
-  return 0;
-}
-
-export function straightRotationFromConnections(c: JunctionConnections): BuildingRotation {
-  if (c.east || c.west) return 0;
-  if (c.north || c.south) return 90;
   return 0;
 }
 
@@ -213,33 +207,4 @@ export function analyzeStripJunction(
     connections,
     cornerRotation: cornerRotationFromConnections(connections),
   };
-}
-
-export function detectBuildingJunction(
-  buildings: Building[],
-  building: Building,
-  family: 'wall' | 'road',
-): StripJunctionInfo {
-  const { hList, vList, along } = collectStripCenters(buildings, family);
-  return analyzeStripJunction(building.x, building.y, hList, vList, along);
-}
-
-export function findStripBuildingNear(
-  buildings: Building[],
-  x: number,
-  y: number,
-  types: Set<BuildingType>,
-  tolerance = 10,
-): Building | undefined {
-  let nearest: Building | undefined;
-  let bestDist = tolerance + 1;
-  for (const b of buildings) {
-    if (!b.completed || !types.has(b.type)) continue;
-    const d = dist(b, { x, y });
-    if (d <= tolerance && d < bestDist) {
-      bestDist = d;
-      nearest = b;
-    }
-  }
-  return nearest;
 }
