@@ -51,6 +51,18 @@ describe('save refusal reasons', () => {
     expect(describeSaveReadFailure(odd)).not.toContain('[object Object]');
   });
 
+  it('renders invalid structured format markers as JSON without Object coercion', () => {
+    for (const format of [{ major: 2, minor: 0 }, [SAVE_FORMAT_VERSION], '1']) {
+      const mismatch = refusal(parseSaveJson(JSON.stringify({
+        _version: GAME_VERSION,
+        _saveFormatVersion: format,
+      })));
+      expect(mismatch.reason).toBe('version-mismatch');
+      expect(mismatch.detail).toContain(`save format ${JSON.stringify(format)} vs supported format`);
+      expect(mismatch.detail).not.toContain('[object Object]');
+    }
+  });
+
   it('accepts saves from v0.6.5.0 and the current build', () => {
     expect(parseSaveJson(JSON.stringify({ _version: '0.6.5.0', entities: [], tick: 5 })).valid).toBe(true);
     const accepted = parseSaveJson(JSON.stringify({ _version: GAME_VERSION, _saveFormatVersion: SAVE_FORMAT_VERSION, entities: [], tick: 5 }));
