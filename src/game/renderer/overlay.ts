@@ -80,18 +80,17 @@ export function drawSelectedSettlerBuildingHighlights(
   const assignments = state.selectedSettlerBuildings;
   if (!assignments) return;
   const { home, work } = assignments;
-  const shared = home != null && home.id === work?.id;
-  for (const [building, role] of [[home, shared ? 'both' : 'home'], [shared ? null : work, 'work']] as const) {
+  for (const [building, role] of [[home, 'home'], [work, 'work']] as const) {
     if (!building) continue;
     const rect = getBuildingFootprintScreenRect(building, state, state.camera, cw, ch);
     if (rect.right < -30 || rect.left > cw + 30 || rect.bottom < -30 || rect.top > ch + 30) continue;
-    const stroke = role === 'home' ? '#86efac' : role === 'work' ? '#7dd3fc' : '#fcd34d';
+    const stroke = role === 'home' ? '#86efac' : '#7dd3fc';
     drawBuildingHighlightRing(ctx, rect, {
       stroke,
       lineWidth: 2.5,
       pad: 4,
       shadowBlur: 9,
-      label: role === 'home' ? 'Home' : role === 'work' ? 'Work' : 'Home & Work',
+      label: role === 'home' ? 'Home' : 'Work',
     });
   }
 }
