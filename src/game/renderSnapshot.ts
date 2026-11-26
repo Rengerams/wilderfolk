@@ -14,6 +14,9 @@ import { resolveBuilding, resolveEntity } from './viewState';
 import { computeLogisticsOverlayCached, type LogisticsOverlayData } from './logisticsOverlayData';
 import { getEcosystemHealth } from './dailyEcology';
 import { getTerrainRevision } from './terrain/terrainGrid';
+import { isPlayerHuman } from './playerHuman';
+import { isImprisoned } from './housingModel';
+import { buildConstructionCrewIndex } from './workforceSummary';
 
 /**
  * A shared, frozen by-type table for the SoA render path, which never reads `snapshot.entityByType`;
@@ -24,6 +27,25 @@ const EMPTY_ENTITY_BY_TYPE: EntityByType = (() => {
   for (const key of Object.keys(table) as EntityType[]) Object.freeze(table[key]);
   return Object.freeze(table);
 })();
+
+export interface SelectedSettlerBuildings {
+  readonly home: Building | null;
+  readonly work: Building | null;
+}
+
+/** Read the primary settler's real assignments, not their current movement destination. */
+export function resolveSelectedSettlerBuildings(
+  world: WorldState,
+  selected: Entity | null,
+): SelectedSettlerBuildings | null {
+  if (!selected?.alive || !isPlayerHuman(selected) || isImprisoned(selected)) return null;
+  const home = resolveBuilding(world, selected.residenceBuildingId ?? null);
+  const assignedWork = resolveBuilding(world, selected.workerBuildingId ?? null);
+  const work = assignedWork?.completed
+    ? assignedWork
+    : buildConstructionCrewIndex(world.buildings ?? []).get(selected.id) ?? null;
+  return { home: home?.completed ? home : null, work };
+}
 
 /**
  * Cache identity for {@link buildRenderSnapshot}: every world and view input the snapshot reads must
@@ -36,6 +58,10 @@ export function renderSnapshotDirtyKey(
 ): string {
   const ghost = view.buildGhost;
   const strip = view.buildStripPreview;
+  // Paused commands can change assignments without advancing the simulation tick.
+  const assignments = world.paused && view.selectedEntityId != null
+    ? resolveSelectedSettlerBuildings(world, resolveEntity(world, view.selectedEntityId))
+    : null;
 
   return [
     world.tick,
@@ -54,6 +80,8 @@ export function renderSnapshotDirtyKey(
     view.camera.zoom.toFixed(3),
     view.screenShake.toFixed(1),
     view.selectedEntityId ?? '',
+    assignments?.home?.id ?? '',
+    assignments?.work?.id ?? '',
     (view.selectedEntityIds ?? []).join(','),
     view.selectedBuildingId ?? '',
     view.hoveredBuildingId ?? '',
@@ -109,6 +137,7 @@ export interface RenderSnapshot {
   readonly camera: Camera;
   readonly screenShake: number;
   readonly selectedEntity: Entity | null;
+  readonly selectedSettlerBuildings?: SelectedSettlerBuildings | null;
   /** Multi-selection (shift-click) — drives selection rings + multi-assign. */
   readonly selectedEntityIds: readonly number[];
   readonly selectedBuilding: Building | null;
@@ -297,6 +326,7 @@ export function buildRenderSnapshot(
     camera: view.camera,
     screenShake: view.screenShake,
     selectedEntity,
+    selectedSettlerBuildings: resolveSelectedSettlerBuildings(world, selectedEntity),
     selectedEntityIds,
     selectedBuilding: resolveBuilding(world, view.selectedBuildingId),
     hoveredBuilding: resolveBuilding(world, view.hoveredBuildingId),
