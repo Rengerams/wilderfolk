@@ -13,7 +13,7 @@ import { TICKS_PER_HOUR, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { initGame } from '../src/game/worldGen';
 import { homeStandPosition } from '../src/game/simulation/humanMovement';
 import { testWorldMap } from '../src/test/worldMapFixtures';
-import { getCurrentPathGrid, isGroundWalkableAt, lineCrossesBlocked, setCurrentPathMap } from '../src/game/pathfinding';
+import { getCurrentPathGrid, getNavigationQuote, isGroundWalkableAt, lineCrossesBlocked, setCurrentPathMap } from '../src/game/pathfinding';
 
 function playerChild(prototype: Entity, id: number, overrides: Partial<Entity> = {}): Entity {
   return Object.assign(structuredClone(prototype), {
@@ -198,6 +198,40 @@ describe('tickHumanChildLeisure', () => {
       expect(isGroundWalkableAt(site!.x, site!.y, grid)).toBe(true);
       expect(lineCrossesBlocked(grid, child.x, child.y, site!.x, site!.y)).toBe(false);
       expect(lineCrossesBlocked(grid, mate.x, mate.y, site!.x, site!.y)).toBe(false);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('can select a shared play site reached by a detour around a short river barrier', () => {
+    const { state, child } = childFixture();
+    const mate = playerChild(child, 11, { x: 135, y: 145 });
+    child.x = 125;
+    child.y = 145;
+    state.width = 400;
+    state.height = 300;
+    state.worldMap = testWorldMap({
+      tilesX: 40, tilesY: 30,
+      tileType: (tx, ty) => tx === 16 && ty >= 12 && ty <= 16 ? TerrainType.River : undefined,
+    });
+    setCurrentPathMap(state.worldMap, state.buildings);
+    try {
+      const grid = getCurrentPathGrid()!;
+      let detourFound = false;
+      for (let day = 0; day < 100 && !detourFound; day++) {
+        tickChild(state, child, [child, mate], day * TICKS_PER_DAY + 1);
+        const site = child.childPlaySite;
+        if (!site || !lineCrossesBlocked(grid, child.x, child.y, site.x, site.y)) continue;
+        for (const member of [child, mate]) {
+          const quote = getNavigationQuote(grid,
+            { x: Math.floor(member.x / 10), y: Math.floor(member.y / 10) },
+            { x: Math.floor(site.x / 10), y: Math.floor(site.y / 10) },
+            { maxNodes: 600 });
+          expect(quote.status).toBe('priced');
+        }
+        detourFound = true;
+      }
+      expect(detourFound).toBe(true);
     } finally {
       setCurrentPathMap(null);
     }
