@@ -263,3 +263,14 @@ Be curious, candid and inventive. Treat Wilderfolk as a complete simulation, not
 **Tell me always the truth**
 
 — The developer
+
+---
+
+## 11. Base44 sandbox environment
+
+`docker-compose.base44.yml` is the Linux sandbox runbook; the rest of the tooling still assumes Windows/PowerShell and is unchanged.
+
+- One `node:22` service runs `vite` from the bind-mounted clone on host port 3000 → container 5173, so edits hot-reload without a rebuild. Dependencies install into a named volume from `package-lock.json` at every start.
+- `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS` and `BASE44_PREVIEW_MODE` are platform-provided; Vite appends the first to its allowed hosts. No secrets are needed: the app is a client-only SPA with no backend.
+- Verify with `docker compose -f docker-compose.base44.yml ps`, then a `curl` of `http://localhost:3000/` returning 200 and a preview load that reaches the intro screen.
+- `.base44/environment.json` records the preview port, health path and start command. A clone without these two files cannot start in the sandbox — restore them rather than rebuilding the setup from scratch.

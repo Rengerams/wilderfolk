@@ -180,9 +180,16 @@ export function collectMinorHousehold(seed: Entity, humans: Entity[]): Entity[] 
   );
 }
 
-/** Look up an alive human by id without applying housing or imprisonment eligibility. */
-export function findLivingHuman(humans: Entity[], id: number | undefined): Entity | undefined {
-  return id == null ? undefined : humans.find((human) => human.id === id && human.alive);
+/** Look up an alive human by id without applying housing or imprisonment eligibility.
+ * Callers that already hold an id → entity index pass it, so the lookup avoids a list scan. */
+export function findLivingHuman(
+  humans: Entity[],
+  id: number | undefined,
+  byId?: ReadonlyMap<number, Entity>,
+): Entity | undefined {
+  if (id == null) return undefined;
+  const found = byId ? byId.get(id) : humans.find((human) => human.id === id);
+  return found?.alive ? found : undefined;
 }
 
 function livingHuman(
@@ -266,24 +273,19 @@ export function collectFamilyMembers(
 ): Entity[] {
   const family: Entity[] = [];
   const queue: Entity[] = [seed];
-  const findLiving = (id: number | undefined): Entity | undefined => {
-    if (id == null) return undefined;
-    const found = relations.byId.get(id);
-    return found?.alive ? found : undefined;
-  };
   while (queue.length > 0) {
     const human = queue.pop()!;
     if (visited.has(human.id)) continue;
     visited.add(human.id);
     family.push(human);
-    const partner = findLiving(human.partnerId);
+    const partner = findLivingHuman(humans, human.partnerId, relations.byId);
     if (partner && !visited.has(partner.id)) queue.push(partner);
-    const mother = findLiving(human.motherId);
+    const mother = findLivingHuman(humans, human.motherId, relations.byId);
     if (mother && !visited.has(mother.id)) queue.push(mother);
-    const father = findLiving(human.fatherId);
+    const father = findLivingHuman(humans, human.fatherId, relations.byId);
     if (father && !visited.has(father.id)) queue.push(father);
     for (const childId of human.childrenIds ?? []) {
-      const child = findLiving(childId);
+      const child = findLivingHuman(humans, childId, relations.byId);
       if (child && !visited.has(child.id)) queue.push(child);
     }
     for (const child of relations.childrenByParentId.get(human.id) ?? []) {

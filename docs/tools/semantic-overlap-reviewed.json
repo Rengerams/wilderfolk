@@ -24,7 +24,7 @@
       ]
     },
     {
-      "key": "src/game/buildingConfigurationActions.ts:108:setHuntingSpotPrey@a4710b49140fd68c2c8b2afdf3bc7d97f2ba4cec0aa82a14f64ef08c6a8fd8f3 <-> src/game/buildingConfigurationActions.ts:60:setWorkshopRecipe@4ecca3768c0272b3cb07ddd3f9444d00410eb19ddc1687d7df3f3ef005a7c3e7",
+      "key": "src/game/buildingConfigurationActions.ts:103:setHuntingSpotPrey@a4710b49140fd68c2c8b2afdf3bc7d97f2ba4cec0aa82a14f64ef08c6a8fd8f3 <-> src/game/buildingConfigurationActions.ts:55:setWorkshopRecipe@4ecca3768c0272b3cb07ddd3f9444d00410eb19ddc1687d7df3f3ef005a7c3e7",
       "reason": "Both are thin validated field setters that delegate the shared state rewrite to setValidatedOption. Workshop requires a known recipe id and a Workshop target; hunting prey requires a known prey id and a HuntingSpot target. They write different persisted fields, refuse different invalid inputs, and are invoked by different worker operations; merging them would lose the typed command surface. Regressions cover both command round-trips and no-op identity.",
       "tests": [
         "tests/workerCommand.roundtrip.test.ts",
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "key": "src/game/housingModel.ts:104:isResidenceOccupantEntity@8cb8691eb775d0ecf0c3fa98f96eb42366d9103cbd96cbff949288d781d0eade <-> src/game/moonHowlerForm.ts:40:isSettlerRelationshipEntity@320002da3895aa1ee994e1dab3f7f3f55bedb3acf4034666ddcf01cd90a64465",
+      "key": "src/game/housingModel.ts:100:isResidenceOccupantEntity@8cb8691eb775d0ecf0c3fa98f96eb42366d9103cbd96cbff949288d781d0eade <-> src/game/moonHowlerForm.ts:31:isSettlerRelationshipEntity@320002da3895aa1ee994e1dab3f7f3f55bedb3acf4034666ddcf01cd90a64465",
       "reason": "The residence-occupant rule counts only player-owned settlers (and cursed Moon Howlers with no faction) for beds and rosters; the settler-relationship rule accepts any living human of any faction, and a cursed werewolf regardless of faction, for the relationship record (invariants, lifecycle cleanup, humanTick), never for bed occupancy. Merging them would either seat visitors and rivals in beds or drop foreign settlers from relationship restoration. They are distinct predicates with different consumers and faction rules.",
       "tests": [
         "tests/housingPipeline.invariants.test.ts",
@@ -53,7 +53,7 @@
       ]
     },
     {
-      "key": "src/game/pathfinding.ts:210:getPathGrid@524477825f71d9bc4fdbf4bbe1857bde6e592a46a0c51616aea1b12247673d0e <-> src/game/pathfinding.ts:230:getReadOnlyPathGrid@189564c4232455c5e35d2e530d606b949ea911044fda3af0b52cd64bc8b26de8",
+      "key": "src/game/pathfinding.ts:253:getPathGrid@524477825f71d9bc4fdbf4bbe1857bde6e592a46a0c51616aea1b12247673d0e <-> src/game/pathfinding.ts:300:getReadOnlyPathGrid@189564c4232455c5e35d2e530d606b949ea911044fda3af0b52cd64bc8b26de8",
       "reason": "Both accessors derive the same passability rules using buildPathGrid, but their cache owners and side effects are intentionally different. getPathGrid feeds the active simulation and records rebuilds; its identity changes cause setCurrentPathMap to invalidate movement waypoint caches. getReadOnlyPathGrid serves the UI/logistics projection with an independent cache and no simulation metrics or waypoint invalidation. Combining their cache state would let render snapshots invalidate live movement routes. The logistics-overlay regression proves separate grid/buffer identities and unchanged simulation cache identity after a projection read; the terrain pathfinding test separately exercises the simulation cache.",
       "tests": [
         "tests/logisticsOverlay.projection.test.ts",
@@ -94,7 +94,7 @@
       ]
     },
     {
-      "key": "src/game/simBuffers/simDelta.ts:565:stripUnchangedRelationships@4c331c79462fe95983c74ceaa5bac4aefc4982337f1c434ac1c025928ca72872 <-> src/game/simBuffers/simDelta.ts:625:stripUnchangedProfile@7480f1ce137deb4a05425da173cc957383870360e1d05bf39649cde804b91df3",
+      "key": "src/game/simBuffers/simDelta.ts:582:stripUnchangedRelationships@4c331c79462fe95983c74ceaa5bac4aefc4982337f1c434ac1c025928ca72872 <-> src/game/simBuffers/simDelta.ts:642:stripUnchangedProfile@7480f1ce137deb4a05425da173cc957383870360e1d05bf39649cde804b91df3",
       "reason": "Both strip replica-held fields from a tick delta by delegating to stripCoveredEntityFields, but their coverage contracts differ. Relationship coverage is revision-exact: a map ships again only when its revision changes. Profile coverage also stores a tick stamp and re-ships once PROFILE_REFRESH_TICKS elapses, so a missed writer can only be briefly stale. Merging them would either drop that refresh window or re-ship relationship maps on a timer nobody asked for. Both are write-free over the delta.",
       "tests": [
         "tests/simDelta.fieldCoverage.test.ts",
@@ -199,7 +199,7 @@
       ]
     },
     {
-      "key": "src/game/hotelStay.ts:285:findStaffedHotels@c5257e785cb31433d4b0523e3e39c85b3cff4e5140bc34d8ac598cc6946bc53a <-> src/game/housingPipeline.ts:1756:listPlayerResidences@926c1ccea7d979eb91a514cbcd9eb62491ad15d410be648bf16fc7a3a425dce8",
+      "key": "src/game/hotelStay.ts:284:findStaffedHotels@c5257e785cb31433d4b0523e3e39c85b3cff4e5140bc34d8ac598cc6946bc53a <-> src/game/housingPipeline.ts:1756:listPlayerResidences@926c1ccea7d979eb91a514cbcd9eb62491ad15d410be648bf16fc7a3a425dce8",
       "reason": "Distinct predicates for distinct building classes: findStaffedHotels returns completed player Hotels with a posted hotelier (lodging capacity), listPlayerResidences returns completed player residences (bed accounting). They share only the completed-player filter and are consumed by different services; merging them would put a staffing rule inside the housing census.",
       "tests": [
         "tests/hotelSettlerLodging.night.test.ts",
@@ -247,7 +247,7 @@
       ]
     },
     {
-      "key": "src/game/EventLogPanel.tsx:145:downloadLogFile@f62ca08ad026db9a20abfd8a9b1d18d9b942a2fcb231b9b990c7632de65f8a63 <-> src/game/EventLogPanel.tsx:150:downloadLogJSON@d885e6851237dd0b610cb032c936b5ffcb812032a5ff7ece1280a22b95c9a7b9",
+      "key": "src/game/EventLogPanel.tsx:142:downloadLogFile@f62ca08ad026db9a20abfd8a9b1d18d9b942a2fcb231b9b990c7632de65f8a63 <-> src/game/EventLogPanel.tsx:147:downloadLogJSON@d885e6851237dd0b610cb032c936b5ffcb812032a5ff7ece1280a22b95c9a7b9",
       "reason": "One shared download helper plus three format writers (JSON, CSV, text). The formats differ in MIME type, escaping and column layout; the shared helper owns the anchor/blob/revoke lifecycle. Collapsing the three would lose the player-facing format choice, which the log panel now exports over the full stored set.",
       "tests": [
         "tests/eventLogPanel.filters.test.ts",
@@ -255,7 +255,7 @@
       ]
     },
     {
-      "key": "src/game/EventLogPanel.tsx:145:downloadLogFile@f62ca08ad026db9a20abfd8a9b1d18d9b942a2fcb231b9b990c7632de65f8a63 <-> src/game/EventLogPanel.tsx:155:downloadLogCSV@92d40762678bdc4efb4161b0a52f8b61ff38a5ab776d735e1387d524590fae36",
+      "key": "src/game/EventLogPanel.tsx:142:downloadLogFile@f62ca08ad026db9a20abfd8a9b1d18d9b942a2fcb231b9b990c7632de65f8a63 <-> src/game/EventLogPanel.tsx:152:downloadLogCSV@92d40762678bdc4efb4161b0a52f8b61ff38a5ab776d735e1387d524590fae36",
       "reason": "One shared download helper plus three format writers (JSON, CSV, text). The formats differ in MIME type, escaping and column layout; the shared helper owns the anchor/blob/revoke lifecycle. Collapsing the three would lose the player-facing format choice, which the log panel now exports over the full stored set.",
       "tests": [
         "tests/eventLogPanel.filters.test.ts",
@@ -263,7 +263,7 @@
       ]
     },
     {
-      "key": "src/game/EventLogPanel.tsx:150:downloadLogJSON@d885e6851237dd0b610cb032c936b5ffcb812032a5ff7ece1280a22b95c9a7b9 <-> src/game/EventLogPanel.tsx:155:downloadLogCSV@92d40762678bdc4efb4161b0a52f8b61ff38a5ab776d735e1387d524590fae36",
+      "key": "src/game/EventLogPanel.tsx:147:downloadLogJSON@d885e6851237dd0b610cb032c936b5ffcb812032a5ff7ece1280a22b95c9a7b9 <-> src/game/EventLogPanel.tsx:152:downloadLogCSV@92d40762678bdc4efb4161b0a52f8b61ff38a5ab776d735e1387d524590fae36",
       "reason": "One shared download helper plus three format writers (JSON, CSV, text). The formats differ in MIME type, escaping and column layout; the shared helper owns the anchor/blob/revoke lifecycle. Collapsing the three would lose the player-facing format choice, which the log panel now exports over the full stored set.",
       "tests": [
         "tests/eventLogPanel.filters.test.ts",
@@ -416,7 +416,7 @@
       ]
     },
     {
-      "key": "src/game/simWorker/gameWorker.ts:245:installWorkerMessageHandlers@38bd288f44fc6ec202a55cbf80948ab8920483d95407ce8271f2b5d2fce47610 <-> src/game/simWorker/gameWorker.ts:258:onmessage@8aa354f484df1af12c0db46a5051853c13f6ae03e45684a122970c582cf3e6dd",
+      "key": "src/game/simWorker/gameWorker.ts:242:installWorkerMessageHandlers@38bd288f44fc6ec202a55cbf80948ab8920483d95407ce8271f2b5d2fce47610 <-> src/game/simWorker/gameWorker.ts:255:onmessage@8aa354f484df1af12c0db46a5051853c13f6ae03e45684a122970c582cf3e6dd",
       "reason": "installWorkerMessageHandlers binds every worker message port and owns the shared dispatch table; onmessage is one entry point among those handlers (the host-to-worker command channel). They share the switch shape, not a responsibility; merging them would fold the bootstrap installer into a single message callback.",
       "tests": [
         "tests/gameWorker.uploadWatchdog.test.ts",
@@ -424,7 +424,7 @@
       ]
     },
     {
-      "key": "src/game/workforce.ts:66:countWorkersAtBuilding@c069611cb7ef527975a1f33830d8f08b5a0747dedf553545f0d15112b5b66440 <-> src/game/workforce.ts:81:countActiveWorkersAtBuilding@518fc0c5b938e861fd3ed17f15993f06481ac305e76f3dbcfae0f0bfd4ae0949",
+      "key": "src/game/workforce.ts:55:countWorkersAtBuilding@c069611cb7ef527975a1f33830d8f08b5a0747dedf553545f0d15112b5b66440 <-> src/game/workforce.ts:70:countActiveWorkersAtBuilding@518fc0c5b938e861fd3ed17f15993f06481ac305e76f3dbcfae0f0bfd4ae0949",
       "reason": "countWorkersAtBuilding counts every living player settler holding the post, including one jailed mid-sentence: it is the reservation total that moonHowlerForm and the workforce reassignment paths read, where a jailed holder must not be replaced. countActiveWorkersAtBuilding excludes imprisoned holders so the panel and staffing capacity show the post a substitute actually fills. Merging them would either overfill a post a substitute already holds or drop the jailed reservation on release; each stays the sole owner of its count and they share only the scan shape.",
       "tests": [
         "tests/workforce.jailRelease.test.ts",

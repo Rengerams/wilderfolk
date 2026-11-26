@@ -460,7 +460,8 @@ describe('O — no domain rule is computed inside a view', () => {
     const owner = read('src/game/citizenId.ts');
     // Two grammars, two named strings, one module: the sentence form and the `#id` label form.
     expect(owner).toContain("export const SETTLER_NAME_FALLBACK = 'A settler';");
-    expect(owner).toContain("export const SETTLER_LABEL_FALLBACK = 'Settler';");
+    // The label form is private to its owner: only formatCitizenName may spell it.
+    expect(owner).toContain("const SETTLER_LABEL_FALLBACK = 'Settler';");
     expect(owner, 'formatCitizenName typed its own fallback again').not.toMatch(
       /entity\.name \|\| '(Settler|Unnamed|Unknown|A settler)'/,
     );
