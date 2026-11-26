@@ -329,6 +329,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     onDuty: boolean;
     workplaceId: number | undefined;
     atWorkplace: boolean;
+    socialTime: boolean;
   }>();
   const advancedCourtshipIds = new Set<number>();
 
@@ -809,8 +810,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       onDuty: onJobShift || onOfficialShift || onPriestShift,
       workplaceId: workplace?.id,
       atWorkplace: atPost || wasInsideWorkplace,
+      socialTime: false,
     };
-    courtshipReadiness.set(entity.id, courtshipPresence);
     let ateMeal = false;
     if (isPlayerHuman(entity)) {
       advanceHumanNeeds(entity, {
@@ -973,6 +974,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         (!socialBlockedByJob && allowSocialLifeFor(workSchedule, hourOfDay, false, state.tick)) ||
         (allowFreeRoam && isPlayerHuman(entity))
       );
+
+    // Publish only after the actual leisure and essential-activity decisions are known.
+    courtshipPresence.socialTime = socialTime && !takingNeedsBreak && !stayIn;
+    courtshipReadiness.set(entity.id, courtshipPresence);
 
     const huntingWere = anyActiveHowler
       ? findClosestEntityInRadius(
@@ -1298,7 +1303,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Courtship: only two observed, awake people may interact. An on-duty pair may
     // progress only if both are actually at their *same* workplace and within 10 px.
     // Other workers do not abandon their jobs to chase dates.
-    if (!sleepingForNeeds && (socialTime || courtshipPresence.onDuty) &&
+    if (!sleepingForNeeds && (courtshipPresence.socialTime || courtshipPresence.onDuty) &&
       isEligibleToCourt(entity) && entity.gender &&
       entity.energy > config.reproductionEnergyThreshold * 0.6) {
       const courtRange = atHome ? 120 : 80;
@@ -1319,7 +1324,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           if (courtshipPresence.onDuty || presence.onDuty) {
             return canAdvanceCourtship(courtshipPresence, presence, Math.hypot(candidate.x - entity.x, candidate.y - entity.y), socialTime);
           }
-          return socialTime;
+          return courtshipPresence.socialTime && presence.socialTime;
         },
       );
 
@@ -1336,7 +1341,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const closeEnough = dist <= 10;
 
         if (!closeEnough) {
-          if (!courtshipPresence.onDuty && !otherPresence.onDuty && socialTime) {
+          if (!courtshipPresence.onDuty && !otherPresence.onDuty && courtshipPresence.socialTime && otherPresence.socialTime) {
             // Reserve a reciprocal date before walking so neither side switches targets mid-route.
             bindCourtship(entity, closest);
             const chaseSpeed = atHome ? 0.35 : 0.45;
@@ -1344,7 +1349,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               `courtship_${entity.id}_${closest.id}`);
             suppressIdle = true;
           }
-        } else if (canAdvanceCourtship(courtshipPresence, otherPresence, dist, socialTime)) {
+        } else if (canAdvanceCourtship(courtshipPresence, otherPresence, dist, courtshipPresence.socialTime && otherPresence.socialTime)) {
           entity.vx *= 0.6;
           entity.vy *= 0.6;
           suppressIdle = true;
@@ -1369,7 +1374,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               evaluateAptitudeInfluence(closest, 'courtship').factor,
             );
             const courtRate =
-              courtshipRatePerHour(socialTime) *
+              courtshipRatePerHour(!courtshipPresence.onDuty && !otherPresence.onDuty) *
               (state.festival?.active ? 2 : 1) *
               (livingTogether ? 1.5 : 1) *
               courtshipFactor *
