@@ -37,6 +37,7 @@ export function isRoadStripType(type: BuildingType): boolean {
 }
 
 function stripFamilyFor(type: BuildingType): 'wall' | 'road' | null {
+  if (type === BuildingType.Bridge) return null;
   if (isWallStripType(type) || type === BuildingType.Wall) return 'wall';
   if (isRoadStripType(type)) return 'road';
   if (isStripBuildType(type)) return isWallStripType(type) ? 'wall' : 'road';
@@ -297,14 +298,15 @@ export function collectStripDemolitionIds(
   endY: number,
 ): number[] {
   const family = stripFamilyFor(type);
-  if (!family) return [];
+  if (!family && type !== BuildingType.Bridge) return [];
   const left = Math.min(startX, endX);
   const right = Math.max(startX, endX);
   const top = Math.min(startY, endY);
   const bottom = Math.max(startY, endY);
   const ids: number[] = [];
   for (const building of buildings) {
-    const matching = type === BuildingType.Fence
+    const matching = type === BuildingType.Bridge ? building.type === BuildingType.Bridge
+      : type === BuildingType.Fence
       ? building.type === BuildingType.Fence
       : family === 'wall' ? isWallStripType(building.type) : isRoadStripType(building.type);
     if (!matching) continue;
@@ -436,6 +438,11 @@ export function buildStripPlanFromStroke(
   points: readonly { x: number; y: number }[],
 ): { plan: StripPlacementPiece[]; enclosedAreas: EnclosedArea[] } {
   if (points.length === 0) return { plan: [], enclosedAreas: [] };
+  if (type === BuildingType.Bridge && points.length > 1) {
+    const first = points[0], last = points[points.length - 1];
+    const rotation = Math.abs(last.x - first.x) >= Math.abs(last.y - first.y) ? 0 : 90;
+    return buildStripPlanFromDrag(state, type, first.x, first.y, last.x, last.y, rotation);
+  }
   if (points.length === 1) {
     const p = points[0];
     return buildStripPlanFromDrag(state, type, p.x, p.y, p.x, p.y, 0);
@@ -495,6 +502,13 @@ export function buildStripPlanFromDrag(
   enclosedAreas: EnclosedArea[];
 } {
   const snapped = snapStripDragEndpoints(state.buildings, type, startX, startY, endX, endY);
+  if (type === BuildingType.Bridge) {
+    const centers = computeStripSegmentCenters(type, startX, startY, endX, endY, rotation);
+    // Existing collinear decks already satisfy this span; never duplicate them.
+    return { plan: centers.filter((p) => !state.buildings.some((b) => b.type === type
+      && b.x === p.x && b.y === p.y && normalizeBuildingRotation(b.rotation) === rotation))
+      .map((p) => ({ type, ...p, rotation })), enclosedAreas: [] };
+  }
   // A diagonal drag becomes one L-shaped stroke instead of silently discarding an axis.
   const bend = Math.min(Math.abs(snapped.endX - snapped.startX), Math.abs(snapped.endY - snapped.startY))
     >= STRIP_BEND_MIN_DISTANCE_PX;

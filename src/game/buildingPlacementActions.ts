@@ -284,6 +284,11 @@ export function buildStripPreview(
         resourceShortage: shortage,
       };
     });
+  if (type === BuildingType.Bridge) {
+    // Dry land at either end of a river drag is an approach, not a bridge segment.
+    while (segments.length > 1 && segments[0]?.reason === 'terrain') segments.shift();
+    while (segments.length > 1 && segments[segments.length - 1]?.reason === 'terrain') segments.pop();
+  }
   return {
     rotation,
     // An incomplete stroke must never advertise a sealed wall enclosure.
@@ -324,6 +329,27 @@ export function placeStripChain(
   rotation: BuildingRotation,
 ): WorldState {
   if (!isStripBuildType(type) || segments.length === 0) return originalState;
+  // A bridge stroke is atomic: do not leave a partial crossing because of a refused interior
+  // segment or a material shortage. Recheck the live world instead of trusting the preview.
+  if (type === BuildingType.Bridge) {
+    const check = { ...originalState, buildings: [...originalState.buildings], resources: { ...originalState.resources } };
+    for (const segment of segments) {
+      const failure = getPlaceBuildingFailureReason(check, type, segment.x, segment.y, placementRotationFor(segment.rotation));
+      const cost = BUILDING_CONFIGS[type].cost;
+      const shortage = segment.resourceShortage || check.resources.wood < cost.wood || check.resources.stone < cost.stone || check.resources.gold < cost.gold;
+      if (!segment.valid || failure || shortage || segment.placeType !== type || segment.replacesBuildingId != null) {
+        const refused = structuredClone(originalState);
+        const reason = failure ?? segment.reason;
+        if (reason === 'research') return notifyBuildingLocked(refused, type);
+        addFloatingText(refused, segment.x, segment.y,
+          reason ? getPlaceBuildingFailureLabel(type, reason, refused.researchNodes)
+            : shortage ? 'Not enough materials for the entire bridge' : 'Cannot build bridge here', '#ef4444');
+        return refused;
+      }
+      check.resources.wood -= cost.wood; check.resources.stone -= cost.stone; check.resources.gold -= cost.gold;
+      check.buildings.push(createBuilding(type, segment.x, segment.y, -1, segment.rotation));
+    }
+  }
   const state = structuredClone(originalState);
 
   let placed = 0;

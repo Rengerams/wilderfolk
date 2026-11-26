@@ -469,6 +469,19 @@ export function drawProceduralStripBuilding(
   rotation: BuildingRotation | CornerRotation,
   alpha = 1,
 ): void {
+  if (type === BuildingType.Bridge) {
+    const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation as BuildingRotation, alpha);
+    if (!paintStripSprite(ctx, '/sprites/bridge.png', 0, 0, rw, rh, 0)) {
+      ctx.fillStyle = '#92643d';
+      ctx.fillRect(x0, y0, rw, rh);
+      ctx.strokeStyle = '#513923';
+      for (let x = x0 + rh / 3; x < x0 + rw; x += rh / 3) {
+        ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y0 + rh); ctx.stroke();
+      }
+    }
+    ctx.restore();
+    return;
+  }
   if (type === BuildingType.Road) {
     drawProceduralRoad(ctx, sx, sy, w, h, rotation as BuildingRotation, alpha);
     return;

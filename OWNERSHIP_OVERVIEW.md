@@ -1004,3 +1004,5 @@ Functions added, changed or removed by the whole-code remediation. The existing 
 `scripts/run-tauri-dev-log.mjs` owns desktop development process logging.
 
 Wall strips use a shared 30-unit corner lattice in `buildingRotation.snapBuildingCenter`; `stripTopology.resolveWallStripPlan` deduplicates only actual coincident same-axis segments; gate replacement also accepts legacy walls snapping to the same 30-unit cell within 15 units per axis. Existing saved footprints remain authoritative; vertical wall art follows the stored axis in `stripRender.drawProceduralWall`.
+
+Bridge drag placement uses `stripBuild`, `stripTopology.buildStripPlanFromDrag` and `buildingPlacementActions.placeStripChain`; straight horizontal/vertical spans, existing per-piece terrain/research/cost owner and atomic live preflight. Existing completed bridge path-grid rules remain unchanged.

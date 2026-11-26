@@ -95,3 +95,38 @@ describe('compact wall runs', () => {
     }
   });
 });
+
+describe('long bridge construction', () => {
+  it.each([0, 90] as const)('places a continuous bridge stroke at rotation %s', (rotation) => {
+    const w = worldFor(BuildingType.Bridge);
+    w.worldMap = testWorldMap({ tilesX: 60, tilesY: 60, tileType: (x, y) => {
+      const axis = rotation === 0 ? x : y;
+      return axis >= 10 && axis < 35 ? TerrainType.River : TerrainType.Grassland;
+    } });
+    w.width = w.height = 600;
+    w.buildings = [];
+    w.resources.wood = w.resources.stone = w.resources.gold = 10000;
+    const a = rotation === 0 ? { x: 64, y: 200 } : { x: 200, y: 64 };
+    const b = rotation === 0 ? { x: 384, y: 200 } : { x: 200, y: 384 };
+    const preview = buildStripPreview(w, BuildingType.Bridge, a.x, a.y, b.x, b.y, rotation);
+    expect(preview.segments.length).toBeGreaterThan(2);
+    expect(preview.segments.every(s => s.valid && s.rotation === rotation)).toBe(true);
+    const next = placeStripChain(w, BuildingType.Bridge, preview.segments, rotation);
+    expect(next.buildings).toHaveLength(preview.segments.length);
+    expect(next.buildings.every(b => !b.completed && b.type === BuildingType.Bridge)).toBe(true);
+    expect(w.resources.wood - next.resources.wood).toBe(preview.segments.length * BUILDING_CONFIGS[BuildingType.Bridge].cost.wood);
+    // A segment can become occupied after the preview has been submitted.
+    const blocked = structuredClone(w);
+    blocked.buildings.push({ ...next.buildings[Math.floor(preview.segments.length / 2)], completed: true });
+    const blockedResult = placeStripChain(blocked, BuildingType.Bridge, preview.segments, rotation);
+    expect(blockedResult.buildings).toEqual(blocked.buildings);
+    expect(blockedResult.resources).toEqual(blocked.resources);
+    expect(blockedResult.floatingTexts.length).toBeGreaterThan(blocked.floatingTexts.length);
+    // Enough resources for the first piece, but not the complete stroke.
+    w.resources.wood = BUILDING_CONFIGS[BuildingType.Bridge].cost.wood;
+    const refused = placeStripChain(w, BuildingType.Bridge, preview.segments, rotation);
+    expect(refused.buildings).toEqual(w.buildings);
+    expect(refused.resources).toEqual(w.resources);
+    expect(refused.floatingTexts.length).toBeGreaterThan(w.floatingTexts.length);
+  });
+});
