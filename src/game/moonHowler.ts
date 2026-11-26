@@ -711,7 +711,7 @@ export function tickMoonHowlerCycle(
       if (!isActiveMoonHowler(were)) continue;
       // The owner helper, not a second axis-aligned test: it pads the footprint, and a howler within
       // that margin is indoors too.
-      const inside = isInsideCompletedBuilding(state, were.x, were.y);
+      const inside = isInsideCompletedBuilding(state, were.x, were.y, 10, false);
       if (inside) {
         forceMoonHowlerOutside(were, buildings, state.width, state.height, rng);
         changed = true;
