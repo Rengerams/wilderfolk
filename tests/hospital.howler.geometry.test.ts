@@ -20,6 +20,10 @@ import {
 } from '../src/game/hospitalCare';
 import { getHumanStaminaRatio } from '../src/game/simulation/humanPhysiology';
 import { tickWildlife } from '../src/game/tickLayerSystems';
+import { curseMoonHowler, transformToWerewolfForm } from '../src/game/moonHowler';
+import { syncGenealogyRegistry } from '../src/game/genealogyRegistry';
+import { rollCounterAttack } from '../src/game/combat';
+import { COMBAT_TECH } from '../src/game/combatTech';
 
 const FIXTURE_SEED = 20_261_111;
 const WARD_ID = 10;
@@ -184,6 +188,43 @@ describe('S-16 — indoors is safe from the Moon Howler', () => {
 });
 
 describe('Moon Howler navigation and contact', () => {
+  it('finalizes a slain cursed leader through the human death owner and awards Moonslayer', () => {
+    const smith = createBuilding(BuildingType.Blacksmith, 500, 500, 60);
+    smith.completed = true;
+    const howler = settler(40, 100, 100, 500);
+    const defender = settler(41, 106, 100, 500);
+    const witness = settler(42, 500, 600, 500);
+    const state = freshState([howler, defender, witness], [smith]);
+    state.villageLeaderId = howler.id;
+    state.unlockedTechs = [COMBAT_TECH.ironSpears];
+    state.villageForge = { activeOrder: null, progress: 0, completed: { iron_spears: true } };
+    syncGenealogyRegistry(state);
+    curseMoonHowler(howler);
+    transformToWerewolfForm(howler, state.buildings);
+    witness.huntTargetId = howler.id;
+    const ctx = wildlifeContext(state, state.entities, howler);
+    const tick = Array.from({ length: 100 }, (_, i) => (i + 1) * 4).find(
+      (candidate) => rollCounterAttack(state, defender.id, howler.id, candidate, defender.combatRollSeed ?? 0),
+    );
+    expect(tick).toBeDefined();
+    state.tick = tick!;
+    const before = { x: howler.x, y: howler.y };
+    tickWildlife(state, ctx);
+
+    expect(howler.alive).toBe(false);
+    expect(howler.type).toBe(EntityType.Human);
+    expect(defender.alive).toBe(true);
+    expect(defender.title).toBe('Moonslayer');
+    expect(ctx.byType[EntityType.Werewolf]).not.toContain(howler);
+    expect(ctx.entityById.has(howler.id)).toBe(false);
+    expect(witness.huntTargetId).toBeUndefined();
+    expect(state.villageLeaderId).toBeNull();
+    expect(state.genealogyRegistry!.people[String(howler.id)]).toMatchObject({
+      alive: false, diedYear: state.year, diedDay: state.dayInYear,
+    });
+    expect({ x: howler.x, y: howler.y }).toEqual(before);
+  });
+
   it('takes the dry detour when the shorter route around a wall crosses shallow water', () => {
     const wall = createBuilding(BuildingType.Wall, 105, 105, 50);
     Object.assign(wall, { completed: true, width: 10, height: 50 });
