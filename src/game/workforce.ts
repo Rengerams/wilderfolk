@@ -355,6 +355,7 @@ export function pickWorkerToTransfer(
       h.alive &&
       h.age >= HUMAN_ADULT_MIN_AGE &&
       h.workerBuildingId === fromBuilding.id &&
+      h.apprenticeOfId == null &&
       !excludedWorkers?.has(h.id) &&
       canAutoChangeWorkplace(h, currentTick, foodEmergency) &&
       isWithinAssignableCommute(h, toBuilding, buildings, SPECIES_CONFIG[EntityType.Human].speed),
@@ -374,9 +375,9 @@ export function pickWorkerToTransfer(
     const aRoute = quoteBuildingCommute(aHome, toBuilding, SPECIES_CONFIG[EntityType.Human].speed);
     const bRoute = quoteBuildingCommute(bHome, toBuilding, SPECIES_CONFIG[EntityType.Human].speed);
     const aDistance = aRoute.status === 'priced' ? aRoute.travelHours
-      : Math.hypot(aHome.x - toX, aHome.y - toY);
+      : Math.hypot(aHome.x - toX, aHome.y - toY) / SPECIES_CONFIG[EntityType.Human].speed / TICKS_PER_HOUR;
     const bDistance = bRoute.status === 'priced' ? bRoute.travelHours
-      : Math.hypot(bHome.x - toX, bHome.y - toY);
+      : Math.hypot(bHome.x - toX, bHome.y - toY) / SPECIES_CONFIG[EntityType.Human].speed / TICKS_PER_HOUR;
     return aDistance - bDistance || a.id - b.id;
   });
 
@@ -693,12 +694,14 @@ function swapReachableWorkersIntoVacancies(
     && isPlayerHuman(human)
     && human.age >= HUMAN_ADULT_MIN_AGE
     && !hasWorkAssignment(human)
+    && human.apprenticeOfId == null
     && !isImprisoned(human)
     && !crewIds.has(human.id)
     && !movedThisPass.has(human.id),
   );
   if (idle.length === 0) return;
 
+  const buildingById = new Map(buildings.map((site) => [site.id, site]));
   let transfersLeft = MAX_SWAP_TRANSFERS_PER_PASS;
   let donorChecksLeft = MAX_SWAP_DONOR_CHECKS_PER_PASS;
   for (const needy of jobBuildings) {
@@ -717,13 +720,9 @@ function swapReachableWorkersIntoVacancies(
       const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings,
         movedThisPass, false);
       if (!worker) continue;
-      const replacement = idle.find((candidate) =>
-        candidate.id !== worker.id
-        && straightLineCommuteLowerBoundHours(candidate, donor, SPECIES_CONFIG[EntityType.Human].speed)
-          <= MAX_ASSIGNABLE_COMMUTE_HOURS
-        && isWithinAssignableCommute(
-          candidate, donor, buildings, SPECIES_CONFIG[EntityType.Human].speed,
-        ));
+      const replacement = pickIdleWorkerForBuilding(
+        donor, idle, buildings, crewIds, buildingById, movedThisPass,
+      );
       if (!replacement) continue;
 
       transferWorkerBetweenBuildings(worker, donor, needy, currentTick);
@@ -785,37 +784,26 @@ export function syncJobBuildingOccupants(
   }
 }
 
-export function assignWorkerInPlace(
+/** Select an eligible idle adult for any new workplace appointment, including swap backfill. */
+function pickIdleWorkerForBuilding(
   building: Building,
-  humans: Entity[],
-  buildings: Building[],
-  constructionWorkerIds?: Set<number>,
+  humans: readonly Entity[],
+  buildings: readonly Building[],
+  crewIds: ReadonlySet<number>,
   buildingById?: ReadonlyMap<number, Building>,
-  workerCounts?: Map<number, number>,
-): boolean {
+  excludedWorkers?: ReadonlySet<number>,
+): Entity | undefined {
   const job = BUILDING_JOB_TYPES[building.type];
-  if (!job || !building.completed) return false;
-
-  // Auto means fill all available staff positions, including Taverns and Hotels; opening-hour
-  // minimum shift coverage is not a staffing limit.
-  // A jailed holder's post is reserved but unfilled, so the fill count excludes them.
-  const workerCount = workerCounts?.get(building.id) ?? countActiveWorkersAtBuilding(humans, building.id);
-  const cap = staffingCapFor(building, humans, workerCount).cap;
-
-  if (workerCount >= cap) return false;
-
-  // Select the best candidate in one pass. Sorting every idle settler for every
-  // vacant slot repeated expensive commute checks O(N log N) times.
+  if (!job || !building.completed) return undefined;
   const buildingX = building.x + building.width / 2;
   const buildingY = building.y + building.height / 2;
   let worker: Entity | undefined;
   let bestDistance = Infinity;
   let bestSkill = -Infinity;
-  const crewIds = constructionWorkerIds ?? new Set(buildConstructionCrewIndex(buildings).keys());
   for (const candidate of humans) {
     if (!isPlayerHuman(candidate) || !candidate.alive || candidate.age < HUMAN_ADULT_MIN_AGE
       || hasWorkAssignment(candidate) || candidate.apprenticeOfId != null || isImprisoned(candidate)
-      || crewIds.has(candidate.id)) continue;
+      || crewIds.has(candidate.id) || excludedWorkers?.has(candidate.id)) continue;
     const home = candidate.residenceBuildingId == null
       ? undefined
       : buildingById?.get(candidate.residenceBuildingId)
@@ -844,12 +832,39 @@ export function assignWorkerInPlace(
       const candidateFit = evaluateWorkerFit(candidate, job);
       if (candidateFit.creditedDays < bestFit.creditedDays
         || (candidateFit.creditedDays === bestFit.creditedDays
-          && candidateFit.aptitudeFactor <= bestFit.aptitudeFactor)) continue;
+          && (candidateFit.aptitudeFactor < bestFit.aptitudeFactor
+            || (candidateFit.aptitudeFactor === bestFit.aptitudeFactor && candidate.id >= worker.id)))) continue;
     }
     worker = candidate;
     bestDistance = distance;
     bestSkill = skill;
   }
+  return worker;
+}
+
+export function assignWorkerInPlace(
+  building: Building,
+  humans: Entity[],
+  buildings: Building[],
+  constructionWorkerIds?: Set<number>,
+  buildingById?: ReadonlyMap<number, Building>,
+  workerCounts?: Map<number, number>,
+): boolean {
+  const job = BUILDING_JOB_TYPES[building.type];
+  if (!job || !building.completed) return false;
+
+  // Auto means fill all available staff positions, including Taverns and Hotels; opening-hour
+  // minimum shift coverage is not a staffing limit.
+  // A jailed holder's post is reserved but unfilled, so the fill count excludes them.
+  const workerCount = workerCounts?.get(building.id) ?? countActiveWorkersAtBuilding(humans, building.id);
+  const cap = staffingCapFor(building, humans, workerCount).cap;
+
+  if (workerCount >= cap) return false;
+
+  // Select the best candidate in one pass. Sorting every idle settler for every
+  // vacant slot repeated expensive commute checks O(N log N) times.
+  const crewIds = constructionWorkerIds ?? new Set(buildConstructionCrewIndex(buildings).keys());
+  const worker = pickIdleWorkerForBuilding(building, humans, buildings, crewIds, buildingById);
   if (!worker) return false;
 
   const assigned = assignWorkerTransition(worker, building);
