@@ -610,8 +610,19 @@ export function tickHumanLeisure(args: {
           : null;
         const walkX = safe?.x ?? tx;
         const walkY = safe?.y ?? ty;
+        const grid = getCurrentPathGrid();
+        if (!Number.isFinite(walkX) || !Number.isFinite(walkY)
+          || walkX < 0 || walkY < 0 || walkX >= width || walkY >= height
+          || !isGroundWalkableAt(walkX, walkY, grid)) {
+          clearHumanWalkTarget(entity);
+          entity.vx = 0;
+          entity.vy = 0;
+          routedIdleWalk = true;
+          return false;
+        }
         const dist = Math.hypot(walkX - entity.x, walkY - entity.y);
-        if (dist <= arrive) {
+        // Being close across a wall or river does not count as arrival.
+        if (dist <= arrive && (!grid || !lineCrossesBlocked(grid, entity.x, entity.y, walkX, walkY))) {
           clearHumanWalkTarget(entity);
           entity.vx = 0;
           entity.vy = 0;
@@ -712,10 +723,11 @@ export function tickHumanLeisure(args: {
             : undefined;
           const distance = Math.hypot(company.x - entity.x, company.y - entity.y);
           const arrive = companyKind === 'kid' ? 14 : 18;
+          const socialGrid = getCurrentPathGrid();
           if (venue) {
             const spot = venueGatherPosition(venue, entity.id);
             steerTo(spot.x, spot.y, 0.45, 18, venue);
-          } else if (distance > arrive) {
+          } else if (distance > arrive || (socialGrid && lineCrossesBlocked(socialGrid, entity.x, entity.y, company.x, company.y))) {
             steerTo(company.x, company.y, 0.48, arrive);
           } else {
             clearHumanWalkTarget(entity);
@@ -729,7 +741,7 @@ export function tickHumanLeisure(args: {
               addFloatingText(state, entity.x, entity.y - 26, '💐', '#f9a8d4', 'brief');
             }
           }
-          if (distance <= arrive) {
+          if (distance <= arrive && (!socialGrid || !lineCrossesBlocked(socialGrid, entity.x, entity.y, company.x, company.y))) {
             if (companyKind === 'partner') {
               settlerPairChat(entity, company, 'home', 0.08);
             } else if (companyKind === 'kid') {
@@ -819,7 +831,8 @@ export function tickHumanLeisure(args: {
           }
           if (friend) {
             const sdist = Math.hypot(friend.x - entity.x, friend.y - entity.y);
-            if (sdist > 22) {
+            const grid = getCurrentPathGrid();
+            if (sdist > 22 || (grid && lineCrossesBlocked(grid, entity.x, entity.y, friend.x, friend.y))) {
               steerTo(friend.x, friend.y, 0.42, 22);
             } else {
               clearHumanWalkTarget(entity);
