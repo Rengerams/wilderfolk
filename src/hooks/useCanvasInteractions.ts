@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { GameLoop } from '../game/gameLoop';
-import type { WorldState, BuildingType, Building, Entity } from '../game/gameEngine';
+import type { WorldState, Building, Entity } from '../game/gameEngine';
 import type { EntityCatalog } from '../game/entityCatalog';
 import {
   isStripBuildType,
   inferStripRotation,
   EntityType,
+  BuildingType,
 } from '../game/gameEngine';
 import { buildStripPreview, getPlaceBuildingFailureReason } from '../game/buildingPlacementActions';
 import { canPlaceBuilding } from '../game/placementUtils';
