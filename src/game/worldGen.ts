@@ -45,6 +45,7 @@ import { syncEventLogIdFromState, logEvent } from './eventLog';
 import { indexLivingEntity, rebuildEntityByIdMap } from './entityIndex';
 import { syncResearchUnlocks } from './research';
 import { computeWildlifeCounts } from './entityCounts';
+import { isWaterTerrainType } from './terrain/terrainTraits';
 import { buildEntityByType } from './simFocus';
 import { playerHumanCount } from './playerHuman';
 import { SPECIES_CONFIG } from './speciesConfig';
@@ -75,10 +76,7 @@ function getRandomInt(min: number, max: number): number {
   return min + Math.floor(simRandom() * (max - min + 1));
 }
 
-const UNPASSABLE_WILDLIFE_TERRAIN = new Set<TerrainType>([
-  TerrainType.DeepWater,
-  TerrainType.River,
-]);
+
 
 function getTileAtWorld(state: WorldState, x: number, y: number) {
   if (!state.worldMap) return null;
@@ -102,7 +100,7 @@ export function isPassableWildlifePosition(state: WorldState, x: number, y: numb
   if (!tile) {
     return !state.worldMap;
   }
-  return !UNPASSABLE_WILDLIFE_TERRAIN.has(tile.type);
+  return !isWaterTerrainType(tile.type);
 }
 
 /** Helper voor het aanmaken en indexeren van gespawnde dieren */
