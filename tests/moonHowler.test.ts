@@ -461,6 +461,17 @@ describe('moonHowler.indoorsPad.test.ts', () => {
   }
 
   describe('the cure-window sweep treats the padded footprint as indoors (L16)', () => {
+    it.each([BuildingType.Road, BuildingType.Bridge])('does not eject a howler from %s', (type) => {
+      const { state, howler, building } = howlerWorld();
+      building.type = type;
+      howler.x = building.x;
+      howler.y = building.y;
+      const before = { x: howler.x, y: howler.y };
+      tickMoonHowlerCycle(state, state.entities, state.buildings, FULL_MOON_DAY,
+        MOON_HOWLER_NIGHT_START, new Map([[howler.id, howler]]), undefined, () => 0.5);
+      expect({ x: howler.x, y: howler.y }).toEqual(before);
+    });
+
     it('forces a howler out of the pad margin, not only out of the bare rectangle', () => {
       const { state, howler, building } = howlerWorld();
 
