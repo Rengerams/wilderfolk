@@ -110,6 +110,19 @@ export function checkOverlaps(facts, changed, approvals) {
   return findings.sort((a, b) => b.score - a.score || a.key.localeCompare(b.key));
 }
 
+/** Only exclude an exact, uniquely matched top-level function from the incremental review. */
+export function unchangedTopLevelFunction(fn, current, previous) {
+  if (fn.className || !previous || !current) return false;
+  const lines = current.split('\n');
+  const source = lines.slice(fn.line - 1, fn.bodyEnd).join('\n');
+  if (!/^(?:export )?(?:async )?function [\w$]+\s*\(/.test(source)) return false;
+  const normalize = text => text.replace(/\r\n/g, '\n')
+    .replace(/^export (?=(?:async )?function )/gm, '');
+  const needle = normalize(source);
+  const count = text => normalize(text).split(needle).length - 1;
+  return count(current) === 1 && count(previous) === 1;
+}
+
 function requireTestFile(root, file) {
   try { readFileSync(path.join(root, file)); return true; } catch { return false; }
 }
@@ -147,7 +160,18 @@ function main() {
   }
   const sources = new Map([...new Set(graph.functions.map(f => f.file))].map(file => [file, readFileSync(path.join(root, file), 'utf8')]));
   const facts = graph.functions.map(fn => extractFact(fn, sources));
-  const affected = facts.filter(f => (changed.get(f.fn.file) ?? []).some(([start, end]) => start <= f.fn.bodyEnd && end >= f.fn.line));
+  const candidates = facts.filter(f => (changed.get(f.fn.file) ?? []).some(([start, end]) => start <= f.fn.bodyEnd && end >= f.fn.line));
+  // A deletion next to an unchanged function (or removing only its export modifier)
+  // must not turn legacy overlap into a newly introduced duplicate.
+  const baselineSources = new Map();
+  const affected = candidates.filter(f => {
+    if (!baselineSources.has(f.fn.file)) {
+      let previous = '';
+      try { previous = git('show', base + ':' + f.fn.file); } catch { /* new file */ }
+      baselineSources.set(f.fn.file, previous);
+    }
+    return !unchangedTopLevelFunction(f.fn, sources.get(f.fn.file), baselineSources.get(f.fn.file));
+  });
   const findings = checkOverlaps(facts, affected, reviewed.approvals);
   console.log('Semantic overlap gate: ' + affected.length + ' modified functions / ' + facts.length + ' indexed / ' + findings.length + ' unresolved matches');
   for (const finding of findings.slice(0, 80)) {

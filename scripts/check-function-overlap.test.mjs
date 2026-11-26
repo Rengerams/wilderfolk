@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { changedLines, lex, overlap, checkOverlaps } from './check-function-overlap.mjs';
+import { changedLines, lex, overlap, checkOverlaps, unchangedTopLevelFunction } from './check-function-overlap.mjs';
 
 function fact(file, source, digest = source) {
   const tokens = lex(source);
@@ -106,4 +106,15 @@ test('a multi-line signature is not mistaken for the function body', async () =>
   ].join('\n'))[0];
   assert.equal(commented.bodyStart, 7);
   assert.equal(commented.bodyEnd, 9);
+});
+
+test('deletion-adjacent and export-only changes do not re-review identical top-level functions', () => {
+  const prior = 'export function obsolete() { return 1; }\nexport function read() {\n  return 7;\n}';
+  const current = 'function read() {\n  return 7;\n}';
+  const fn = { line: 1, bodyEnd: 3, name: 'read', className: null };
+  assert.equal(unchangedTopLevelFunction(fn, current, prior), true);
+  assert.equal(unchangedTopLevelFunction(fn, current.replace('7', '8'), prior), false);
+  assert.equal(unchangedTopLevelFunction(fn, current, ''), false);
+  assert.equal(unchangedTopLevelFunction(fn, current, prior + '\n' + current), false);
+  assert.equal(unchangedTopLevelFunction({ ...fn, className: 'Reader' }, current, prior), false);
 });
