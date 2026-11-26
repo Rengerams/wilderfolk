@@ -839,38 +839,35 @@ export function tickHumanLeisure(args: {
             friend = coworker;
           }
           if (!friend) {
-            friend =
-              findClosestAdaptiveInRadius(
-                humanSocialGrid,
-                allHumans,
-                entity.x,
-                entity.y,
-                SOCIAL_FRIENDSHIP_RADIUS,
-                (h) => h.id !== entity.id && h.alive && isPlayerHuman(h) && h.age >= HUMAN_ADULT_MIN_AGE && h.id !== entity.affairPartnerId,
+            const eligible = (h: Entity | undefined): h is Entity =>
+              !!h?.alive && h.id !== entity.id && isPlayerHuman(h)
+              && h.age >= HUMAN_ADULT_MIN_AGE && h.id !== entity.affairPartnerId;
+            const cached = entity.leisureFriendSearch;
+            const candidate = cached?.friendId == null ? undefined : livingHumanAt(cached.friendId);
+            const current = cached != null && cached.day === absDay && cached.tick <= tick;
+            if (current && eligible(candidate)) {
+              friend = candidate;
+            } else if (!cached || !current || (cached.friendId != null && !eligible(candidate))
+              || tick - cached.tick >= TICKS_PER_HOUR) {
+              friend = findClosestAdaptiveInRadius(
+                humanSocialGrid, allHumans, entity.x, entity.y,
+                SOCIAL_FRIENDSHIP_RADIUS, eligible,
                 socialAdaptiveOptions('social', allHumans.length, width, height),
               ) ?? null;
+              entity.leisureFriendSearch = { day: absDay, tick, friendId: friend?.id ?? null };
+            }
           }
           if (friend) {
-            const sdx = friend.x - entity.x;
-            const sdy = friend.y - entity.y;
-            const sdist = Math.hypot(sdx, sdy) || 1;
+            const sdist = Math.hypot(friend.x - entity.x, friend.y - entity.y);
             if (sdist > 22) {
-              const route = steerWithPath(entity, friend.x, friend.y, speed * 0.42,
-                `idle_friend_${entity.id}_${friend.id}`);
-              if (route === 'direct') {
-                idleVx = (sdx / sdist) * speed * 0.42;
-                idleVy = (sdy / sdist) * speed * 0.42;
-              } else {
-                routedIdleWalk = true;
-              }
-            } else if (sdist < 9) {
-              idleVx = -(sdx / sdist) * speed * 0.12;
-              idleVy = -(sdy / sdist) * speed * 0.12;
+              steerTo(friend.x, friend.y, 0.42, 22);
+            } else {
+              clearHumanWalkTarget(entity);
+              entity.vx = 0;
+              entity.vy = 0;
+              routedIdleWalk = true;
               if (friend.id === entity.partnerId) settlerPairChat(entity, friend, 'home', 0.1);
               else settlerPairChat(entity, friend, 'social', 0.08);
-            } else {
-              idleVx = deterministicWave(tick * 0.03 + entity.id) * speed * 0.1;
-              idleVy = deterministicWave(tick * 0.025 + entity.id + 0.5) * speed * 0.1;
             }
           } else {
             // As above: a destination, not the map centre.
