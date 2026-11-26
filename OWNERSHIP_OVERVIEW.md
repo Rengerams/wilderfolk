@@ -1,5 +1,13 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-26 — consistent workplace selection
+
+| Functions | Owner | Responsibility |
+|---|---|---|
+| `pickIdleWorkerForBuilding`, `assignWorkerInPlace`, `swapReachableWorkersIntoVacancies`, `pickWorkerToTransfer` | `src/game/workforce.ts` | One idle candidate selector for normal hiring and swap backfill; uses home-based commute, skill, career fit and stable first-encountered exact ties (the existing idle-hire contract). Bonded apprentices are excluded from swaps and transfers; fallback transfer distances use hours. Transfer selection uses a single ranked scan instead of repeatedly pricing routes in a sort comparator. Regression: `tests/workforce.persistentCommute.test.ts`. |
+
+| `canAutoChangeWorkplace`, `rebalanceJobWorkers`, `fillFromDonors`, `swapReachableWorkersIntoVacancies` | `src/game/workforce.ts` | Apprentice reservation applies even to emergency donor eligibility and prospective supply; insufficient small donors are skipped rather than ending the search; empty and immovable donor sites do not consume the bounded swap allowance. Regression: `tests/workforce.autoTransferCooldown.test.ts`, `tests/workforce.persistentCommute.test.ts`. |
+
 ## 2026-11-26 — family tree diagram
 
 | Function / path | Sole owner | Responsibility / verification |
