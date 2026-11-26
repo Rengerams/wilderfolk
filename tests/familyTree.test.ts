@@ -3,6 +3,7 @@ import { EntityType, type Entity } from '../src/game/gameTypes';
 import {
   buildFamilyTree,
   buildFullFamilyTree,
+  visibleFamilyTreeLinks,
   groupFamiliesByLineage,
   groupFamiliesBySurname,
   type FamilyTreePerson,
@@ -681,5 +682,30 @@ describe('the stamboom slice the Village panel renders', () => {
     const formerMember = tree.members.find((member) => member.id === 7);
     expect(formerMember?.bonds).toContain('May not remarry yet');
     expect(tree.gaps.map((gap) => gap.kind)).toContain('parent-record-gone');
+  });
+});
+
+
+describe('visible family tree branches', () => {
+  it('links each visible biological and adoptive parent, not unrelated cards or hidden endpoints', () => {
+    const mother = human({ id: 1, name: 'Mother' });
+    const father = human({ id: 2, name: 'Father', gender: 'male' });
+    const adopter = human({ id: 3, name: 'Adopter', gender: 'male' });
+    const child = human({ id: 4, name: 'Child', motherId: 1, fatherId: 2, adoptiveFatherId: 3 });
+    const tree = buildFullFamilyTree(child, [mother, father, adopter, child]);
+    expect(visibleFamilyTreeLinks(tree, new Set([1, 3, 4]))).toEqual([
+      { parentId: 1, childId: 4 }, { parentId: 3, childId: 4 },
+    ]);
+    expect(visibleFamilyTreeLinks(tree, new Set([1, 2, 3]))).toEqual([]);
+  });
+
+  it('preserves actual kinship through a deceased intermediate without inventing a direct edge', () => {
+    const root = human({ id: 1, name: 'Root' });
+    const middle = human({ id: 2, name: 'Middle', motherId: 1, alive: false });
+    const child = human({ id: 3, name: 'Child', motherId: 2 });
+    const tree = buildFullFamilyTree(child, [root, middle, child], undefined, { includeDeceased: true });
+    expect(tree.rows.flatMap((row) => row.members).map((person) => person.id)).toContain(1);
+    expect(visibleFamilyTreeLinks(tree, new Set([1, 3]))).toEqual([]);
+    expect(visibleFamilyTreeLinks(tree, new Set([1, 2, 3]))).toHaveLength(2);
   });
 });

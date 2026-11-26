@@ -1225,3 +1225,18 @@ export function buildFullFamilyTree(
     gaps: missingLinks(focus, known),
   };
 }
+
+/** Read-only diagram edges: never link to cards excluded by depth, mode or visibility filters. */
+export function visibleFamilyTreeLinks(
+  tree: FullFamilyTree,
+  visibleIds: ReadonlySet<number>,
+): Array<{ parentId: number; childId: number }> {
+  const links: Array<{ parentId: number; childId: number }> = [];
+  for (const [childId, parents] of tree.parentLinks) {
+    if (!visibleIds.has(childId)) continue;
+    for (const parentId of parents) {
+      if (parentId !== childId && visibleIds.has(parentId)) links.push({ parentId, childId });
+    }
+  }
+  return links;
+}
