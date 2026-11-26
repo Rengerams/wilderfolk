@@ -16,6 +16,19 @@ function grid(cols: number, rows: number): PathGrid {
 const center = (tile: number) => (tile + 0.5) * PATH_CELL;
 
 describe('one authoritative movement walkability verdict', () => {
+  it('preserves same-cell stand, step and extra-blocker verdicts', () => {
+    const g = grid(3, 3);
+    const x = center(1), y = center(1);
+    expect(lineCrossesBlocked(g, x, y, x + 1, y)).toBe(false);
+    expect(isWalkStepAllowed(x, y, x + 1, y, g)).toBe(true);
+    g.blocked[4] = 1;
+    expect(lineCrossesBlocked(g, x, y, x + 1, y)).toBe(true);
+    expect(isWalkStepAllowed(x, y, x + 1, y, g)).toBe(true);
+    expect(isWalkStepAllowed(x, y, x + 1, y, g, () => true)).toBe(true);
+    expect(isWalkStepAllowed(-2, y, -1, y, g)).toBe(false);
+    expect(lineCrossesBlocked(g, NaN, y, x, y)).toBe(true);
+  });
+
   it('does not skip a one-tile obstruction on a very long physical step', () => {
     const g = grid(300, 4);
     g.blocked[1 * g.cols + 151] = 1;
