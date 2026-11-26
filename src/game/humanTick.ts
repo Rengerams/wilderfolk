@@ -976,7 +976,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       );
 
     // Publish only after the actual leisure and essential-activity decisions are known.
-    courtshipPresence.socialTime = socialTime && !takingNeedsBreak && !stayIn;
+    courtshipPresence.socialTime = socialTime && !takingNeedsBreak && !stayIn && !inElectionCeremony;
     courtshipReadiness.set(entity.id, courtshipPresence);
 
     const huntingWere = anyActiveHowler
@@ -1342,8 +1342,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
         if (!closeEnough) {
           if (!courtshipPresence.onDuty && !otherPresence.onDuty && courtshipPresence.socialTime && otherPresence.socialTime) {
-            // Reserve a reciprocal date before walking so neither side switches targets mid-route.
-            bindCourtship(entity, closest);
+            // Keep established dates stable, but do not lock two strangers into an
+            // exclusive relationship until they actually meet. An unreachable route
+            // must not create a permanent zero-progress courtship.
+            // Binding remains owned by the close-contact branch below.
             const chaseSpeed = atHome ? 0.35 : 0.45;
             steerHumanToward(entity, closest.x, closest.y, config.speed, chaseSpeed,
               `courtship_${entity.id}_${closest.id}`);
