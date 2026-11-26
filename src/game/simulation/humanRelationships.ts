@@ -1357,6 +1357,7 @@ export function findCourtshipPartner(
   // divorce is always stamped at a tick > 0, so from tick 0 every past marriage is inside the bar.
   tick = 0,
   entityById?: ReadonlyMap<number, Entity>,
+  available: (candidate: Entity) => boolean = () => true,
 ): Entity | undefined {
   const currentCourtship =
     entity.courtshipPartnerId != null
@@ -1367,14 +1368,14 @@ export function findCourtshipPartner(
     currentCourtship.courtshipPartnerId === entity.id &&
     isCourtshipCandidate(entity, currentCourtship, tick)
   ) {
-    return currentCourtship;
+    return available(currentCourtship) ? currentCourtship : undefined;
   }
 
   let closest: Entity | undefined;
   let closestDistSq = courtRange * courtRange;
 
   const consider = (candidate: Entity, distSq: number) => {
-    if (!isCourtshipCandidate(entity, candidate, tick)) return;
+    if (!isCourtshipCandidate(entity, candidate, tick) || !available(candidate)) return;
     if (distSq > closestDistSq || (distSq === closestDistSq && (!closest || candidate.id >= closest.id))) return;
     closestDistSq = distSq;
     closest = candidate;
@@ -1404,7 +1405,7 @@ export function findCourtshipPartner(
     entity.x,
     entity.y,
     courtRange,
-    (candidate) => isCourtshipCandidate(entity, candidate, tick),
+    (candidate) => isCourtshipCandidate(entity, candidate, tick) && available(candidate),
     socialAdaptiveOptions('social', fallbackHumans?.length ?? 0, width ?? 0, height ?? 0),
   );
   if (nearby) {
