@@ -102,13 +102,15 @@ describe('status badge draws a shape, not a font glyph', () => {
 
 describe('dense village name plate decluttering', () => {
   it('hides ordinary names earlier in busy villages but preserves the selected and leader', () => {
-    expect(shouldDrawHumanNameLabel(0.6, 0.45, 20)).toBe(true);
-    expect(shouldDrawHumanNameLabel(0.6, 0.45, 50)).toBe(false);
-    expect(shouldDrawHumanNameLabel(1, 0.45, 50)).toBe(true);
-    expect(shouldDrawHumanNameLabel(1, 0.45, 110)).toBe(false);
-    expect(shouldDrawHumanNameLabel(1.3, 0.45, 110)).toBe(true);
-    expect(shouldDrawHumanNameLabel(0.6, 0.45, 110, true)).toBe(true);
-    expect(shouldDrawHumanNameLabel(0.3, 0.45, 110, true)).toBe(false);
+    expect(shouldDrawHumanNameLabel(0.6, 0.45)).toBe(true);
+    expect(shouldDrawHumanNameLabel(0.6, 0.85)).toBe(false);
+    expect(shouldDrawHumanNameLabel(1.0, 0.85)).toBe(true);
+    expect(shouldDrawHumanNameLabel(1.0, 1.2)).toBe(false);
+    expect(shouldDrawHumanNameLabel(1.3, 1.2)).toBe(true);
+    // Crowd levels are selected in the renderer, but both still use the shared zoom gate.
+    const painter = readFileSync(resolve(process.cwd(), 'src/game/renderer/humans.ts'), 'utf8');
+    expect(painter).toContain('_cachedHumans.length >= 90');
+    expect(painter).toContain('isSel || isLeader ? nameZoomMin');
   });
 
   it('never paints a regular name on top of a reserved name', () => {

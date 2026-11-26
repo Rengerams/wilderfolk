@@ -187,13 +187,9 @@ export function getSpeechBubbleHeadClearance(
   return spriteSize + 14 + crownClearance;
 }
 
-/** Dense villages show only selected/important villagers at ordinary zoom levels. */
-export function shouldDrawHumanNameLabel(
-  zoom: number, nameZoomMin: number, humanCount = 0, important = false,
-): boolean {
-  if (important) return zoom > nameZoomMin;
-  const crowdedZoomMin = humanCount >= 90 ? 1.2 : humanCount >= 45 ? 0.85 : nameZoomMin;
-  return zoom > Math.max(nameZoomMin, crowdedZoomMin);
+/** Whether a settler's name plate is drawn at this zoom. */
+export function shouldDrawHumanNameLabel(zoom: number, nameZoomMin: number): boolean {
+  return zoom > nameZoomMin;
 }
 
 export interface OverheadRect {

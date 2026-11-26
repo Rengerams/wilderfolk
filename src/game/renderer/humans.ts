@@ -884,10 +884,12 @@ export function drawHumans(
     // and a neighbour's. A running performance shows no overhead markers: they buried the cast.
     const stageHidesOverhead = state.spotlightLore?.phase === 'ready';
     const nameZoomMin = isLeader ? 0.28 : (human.isJuvenile ? 0.38 : 0.45);
+    const denseNameZoomMin = _cachedHumans.length >= 90 ? 1.2 : _cachedHumans.length >= 45 ? 0.85 : nameZoomMin;
+    const readableNameZoomMin = isSel || isLeader ? nameZoomMin : Math.max(nameZoomMin, denseNameZoomMin);
     const labelY = headY - 4 - (isLeader && cam.zoom > 0.22 ? Math.max(10, 12 * cam.zoom) : 0);
     let namePlate: { text: string; fontSize: number; labelY: number; rect: OverheadRect } | null = null;
     if (!stageHidesOverhead
-      && shouldDrawHumanNameLabel(cam.zoom, nameZoomMin, _cachedHumans.length, isSel || isLeader)
+      && shouldDrawHumanNameLabel(cam.zoom, readableNameZoomMin)
       && (human.name || human.surname || isLeader)) {
       const text = formatHumanNameLabel(human, {
         isLeader,
