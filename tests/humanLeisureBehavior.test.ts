@@ -13,7 +13,7 @@ import { TICKS_PER_HOUR, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { initGame } from '../src/game/worldGen';
 import { homeStandPosition } from '../src/game/simulation/humanMovement';
 import { testWorldMap } from '../src/test/worldMapFixtures';
-import { getCurrentPathGrid, getNavigationQuote, isGroundWalkableAt, lineCrossesBlocked, setCurrentPathMap } from '../src/game/pathfinding';
+import { getCurrentPathGrid, getNavigationQuote, hasUnreachableWalkTarget, steerWithPath, isGroundWalkableAt, lineCrossesBlocked, setCurrentPathMap } from '../src/game/pathfinding';
 
 function playerChild(prototype: Entity, id: number, overrides: Partial<Entity> = {}): Entity {
   return Object.assign(structuredClone(prototype), {
@@ -503,5 +503,47 @@ describe('seeded free-time selection', () => {
     const porch = homeStandPosition(home, entityId);
 
     expect(destination).not.toEqual(porch);
+  });
+});
+
+describe('leisure route failure verdict', () => {
+  it('distinguishes a proven disconnected destination from an unsearched destination', () => {
+    const { state, child } = childFixture();
+    child.x = 105;
+    child.y = 105;
+    state.worldMap = testWorldMap({
+      tilesX: 40, tilesY: 30,
+      tileType: (tx) => tx === 18 ? TerrainType.River : undefined,
+    });
+    setCurrentPathMap(state.worldMap, []);
+    try {
+      const key = 'leisure-test-disconnected';
+      expect(hasUnreachableWalkTarget(child, 245, 105, key)).toBe(false);
+      expect(steerWithPath(child, 245, 105, 2, key)).toBe('blocked');
+      expect(hasUnreachableWalkTarget(child, 245, 105, key)).toBe(true);
+      expect(hasUnreachableWalkTarget(child, 115, 105, key)).toBe(false);
+      expect(steerWithPath(child, 115, 105, 2, key)).toBe('direct');
+      expect(hasUnreachableWalkTarget(child, 115, 105, key)).toBe(false);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('does not reject a destination with a route around a short barrier', () => {
+    const { state, child } = childFixture();
+    child.x = 145;
+    child.y = 145;
+    state.worldMap = testWorldMap({
+      tilesX: 40, tilesY: 30,
+      tileType: (tx, ty) => tx === 18 && ty >= 12 && ty <= 16 ? TerrainType.River : undefined,
+    });
+    setCurrentPathMap(state.worldMap, []);
+    try {
+      const key = 'leisure-test-detour';
+      expect(steerWithPath(child, 215, 145, 2, key)).toBe('path');
+      expect(hasUnreachableWalkTarget(child, 215, 145, key)).toBe(false);
+    } finally {
+      setCurrentPathMap(null);
+    }
   });
 });
