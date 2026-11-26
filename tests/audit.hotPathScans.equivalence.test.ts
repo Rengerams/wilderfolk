@@ -13,7 +13,7 @@ import {
   getResidenceCapacity,
   isLeaderHouseResidence,
 } from '../src/game/housingModel';
-import { collectFamilyMembers, indexFamilyRelations } from '../src/game/housingModel';
+import { buildFamilyGroups, collectFamilyMembers, findLivingHuman, indexFamilyRelations } from '../src/game/housingModel';
 import { rebalanceOvercrowdedResidences, syncResidenceOccupants } from '../src/game/housingPipeline';
 import { isResidenceOccupantEntity } from '../src/game/housingModel';
 
@@ -372,5 +372,47 @@ describe('indexed family traversal', () => {
     const family = collectFamilyMembers(mother, humans, new Set(), indexed);
     expect(new Set(family.map((member) => member.id))).toEqual(new Set([mother.id, child.id, sibling.id]));
     expect(collectFamilyMembers(mother, humans, new Set()).map((member) => member.id)).toEqual(family.map((member) => member.id));
+  });
+
+  it('resolves living relatives equally with and without a prebuilt index', () => {
+    const dead = settler(undefined, { alive: false });
+    const living = settler();
+    const humans = [dead, living];
+    const byId = indexFamilyRelations(humans).byId;
+    expect(findLivingHuman(humans, living.id)).toBe(living);
+    expect(findLivingHuman(humans, living.id, byId)).toBe(living);
+    expect(findLivingHuman(humans, dead.id)).toBeUndefined();
+    expect(findLivingHuman(humans, dead.id, byId)).toBeUndefined();
+    expect(findLivingHuman(humans, undefined, byId)).toBeUndefined();
+  });
+
+  it('keeps grouped memberships and ordering stable regardless of input order', () => {
+    const mother = settler(undefined, { childrenIds: [] });
+    const partner = settler(undefined, { partnerId: mother.id, childrenIds: [] });
+    mother.partnerId = partner.id;
+    const daughter = settler(undefined, { motherId: mother.id, childrenIds: [] });
+    const son = settler(undefined, { motherId: mother.id, childrenIds: [] });
+    const otherParent = settler(undefined, { childrenIds: [] });
+    const otherChild = settler(undefined, { fatherId: otherParent.id, childrenIds: [] });
+    const unrelated = settler();
+    const people = [otherChild, son, unrelated, partner, otherParent, daughter, mother];
+    const groups = buildFamilyGroups(people)
+      .map((group) => group.map((member) => member.id).sort((a, b) => a - b));
+    expect(groups).toEqual([
+      [mother.id, partner.id, daughter.id, son.id].sort((a, b) => a - b),
+      [otherParent.id, otherChild.id].sort((a, b) => a - b),
+      [unrelated.id],
+    ]);
+    expect(buildFamilyGroups([...people].reverse())
+      .map((group) => group.map((member) => member.id).sort((a, b) => a - b)))
+      .toEqual(groups);
+  });
+
+  it('preserves independent households across a large disconnected population', () => {
+    const people = Array.from({ length: 600 }, () => settler());
+    const groups = buildFamilyGroups(people);
+    expect(groups).toHaveLength(people.length);
+    expect(groups.every((family) => family.length === 1)).toBe(true);
+    expect(new Set(groups.map((family) => family[0].id)).size).toBe(people.length);
   });
 });
