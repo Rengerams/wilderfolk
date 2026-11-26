@@ -25,20 +25,30 @@ function spyCanvas() {
 }
 
 describe('upright wall and gate renderer', () => {
-  it('repeats upright wall modules on both construction axes', () => {
+  it('uses upright wall modules horizontally and rotated deck art vertically', () => {
     for (const [w, h, angle] of [[72, 12, 0], [12, 72, 90]] as const) {
       const { context, pictures, rotations } = spyCanvas();
       drawProceduralWall(context, 50, 60, w, h, angle, false);
-      expect(pictures.length).toBeGreaterThan(1);
-      expect(pictures.every((picture) => picture.path.endsWith('/wall.png'))).toBe(true);
-      expect(rotations.every((angle) => angle === 0)).toBe(true);
+      if (angle === 0) {
+        expect(pictures.length).toBeGreaterThan(1);
+        expect(pictures.every((picture) => picture.path.endsWith('/wall.png'))).toBe(true);
+        expect(rotations.every((rotation) => rotation === 0)).toBe(true);
+      } else {
+        expect(pictures).toEqual([{ path: '/sprites/walls/wall_straight.svg', width: 72, height: 12 }]);
+        expect(rotations).toEqual([Math.PI / 2, 0]);
+      }
     }
   });
 
-  it('places exactly one upright gate with masonry to either side', () => {
+  it('uses one gate facade horizontally and one rotated gate deck vertically', () => {
     for (const [w, h, angle] of [[72, 12, 0], [12, 72, 90]] as const) {
       const { context, pictures, rotations } = spyCanvas();
       drawProceduralWall(context, 50, 60, w, h, angle, true);
+      if (angle === 90) {
+        expect(pictures).toEqual([{ path: '/sprites/walls/wall_gate.svg', width: 72, height: 12 }]);
+        expect(rotations).toEqual([Math.PI / 2, 0]);
+        continue;
+      }
       const gates = pictures.filter((picture) => picture.path.endsWith('/gate.png'));
       expect(gates).toHaveLength(1);
       expect(gates[0].width / gates[0].height).toBeCloseTo(49 / 57);

@@ -210,7 +210,9 @@ describe('infrastructure acceptance boundaries', () => {
   it('keeps looping wall previews consistent with sequential placement and material costs', () => {
     const world = initGame({ size: MapSize.Medium, seed: 20261027 });
     world.worldMap = testWorldMap({ tilesX: 120, tilesY: 120 });
-    world.buildings = [];
+    const obstacle = createBuilding(BuildingType.Well, 180, 120, world.nextBuildingId++);
+    obstacle.completed = true;
+    world.buildings = [obstacle];
     const tech = BUILDING_CONFIGS[BuildingType.Wall].unlockRequirement;
     if (tech) {
       world.unlockedTechs.push(tech);
@@ -240,7 +242,7 @@ describe('infrastructure acceptance boundaries', () => {
     const preview = buildStripPreview(world, BuildingType.Wall, 120, 110, 120, 240, 0, stroke);
     expect(preview.segments.filter((segment) => segment.valid)).toHaveLength(validCount);
     expect(preview.segments.some((segment) => segment.resourceShortage)).toBe(false);
-    expect(world.buildings).toEqual([]);
+    expect(world.buildings).toEqual([obstacle]);
     expect(world.resources).toEqual(startingResources);
     expect(world.lifetimeStats).toEqual(startingStats);
 
