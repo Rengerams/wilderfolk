@@ -8,7 +8,7 @@ export interface AudioLevels {
   sfx: number;
 }
 
-export const VOLUME_PRESETS: Record<VolumePreset, AudioLevels> = {
+const VOLUME_PRESETS: Record<VolumePreset, AudioLevels> = {
   soft: { master: 0.72, music: 0.82, sfx: 0.78 },
   normal: { master: 1.0, music: 1.0, sfx: 1.0 },
   loud: { master: 1.28, music: 1.12, sfx: 1.18 },

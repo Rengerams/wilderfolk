@@ -46,30 +46,26 @@ import { deterministicCos, deterministicSin } from './simTrig';
  * One roll with three mutually exclusive outcomes; a failed cure leaves the curse for the next full moon.
  */
 /** Base weights with 1 priest (sum = 1). */
-export const MOON_HOWLER_OUTCOME_CURE = 0.35;
-export const MOON_HOWLER_OUTCOME_KILL_PRIEST = 0.40;
-export const MOON_HOWLER_OUTCOME_FLEE = 0.25;
+const MOON_HOWLER_OUTCOME_CURE = 0.35;
+const MOON_HOWLER_OUTCOME_KILL_PRIEST = 0.40;
+const MOON_HOWLER_OUTCOME_FLEE = 0.25;
 
 /** Extra cure weight per priest beyond the first. */
-export const MOON_HOWLER_CURE_BONUS_PER_PRIEST = 0.12;
+const MOON_HOWLER_CURE_BONUS_PER_PRIEST = 0.12;
 /** Maximum cure weight for the unique Church's four-priest capacity. */
 export const MOON_HOWLER_CURE_CHANCE_MAX = 0.71;
-
-/** @deprecated UI compat — kill share among failures at base weights */
-export const MOON_HOWLER_PRIEST_KILL_CHANCE =
-  MOON_HOWLER_OUTCOME_KILL_PRIEST / (MOON_HOWLER_OUTCOME_KILL_PRIEST + MOON_HOWLER_OUTCOME_FLEE);
 
 /** How often (in-game clock hours) a priest may attempt while the night window is open. */
 export const MOON_HOWLER_EXORCISM_INTERVAL_HOURS = 2;
 
 /** The priest must be within this distance (world px) of the howler to attempt the rite. */
-export const MOON_HOWLER_EXORCISM_RANGE = 200;
+const MOON_HOWLER_EXORCISM_RANGE = 200;
 
 /** Barracks guards within this distance (world px) of the priest can roll to save them. */
-export const MOON_HOWLER_GUARD_PROTECT_RANGE = 220;
+const MOON_HOWLER_GUARD_PROTECT_RANGE = 220;
 
 /** Per-guard save chance when a failed rite would kill the priest (extra roll, not guaranteed). */
-export const MOON_HOWLER_GUARD_SAVE_CHANCE = 0.5;
+const MOON_HOWLER_GUARD_SAVE_CHANCE = 0.5;
 
 /**
  * Chance that a full moon with no active curse creates a replacement Howler: a full moon must not
@@ -106,13 +102,8 @@ export function moonHowlerRiteWeights(priestCount: number): MoonHowlerRiteWeight
   return { cure, killPriest, flee, priestCount: n };
 }
 
-/** Display helper — cure % for N priests (0 if none). */
-export function moonHowlerCureChanceForPriests(priestCount: number): number {
-  return moonHowlerRiteWeights(priestCount).cure;
-}
-
 /** Single weighted roll → one of the three rite outcomes. */
-export function rollMoonHowlerRiteOutcome(
+function rollMoonHowlerRiteOutcome(
   rng: () => number = getSimRng('moonHowler'),
   priestCount = 1,
 ): MoonHowlerRiteOutcome {
@@ -308,7 +299,7 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
   human.prisonSentenceCrime = undefined;
 }
 
-export function cureMoonHowler(entity: Entity, opts?: RevertToHumanFormOptions): void {
+function cureMoonHowler(entity: Entity, opts?: RevertToHumanFormOptions): void {
   if (entity.type === EntityType.Werewolf) {
     revertToHumanForm(entity, opts);
   }
