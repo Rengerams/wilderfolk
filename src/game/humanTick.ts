@@ -1092,10 +1092,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const residence = buildingById.get(entity.residenceBuildingId!);
       if (lodgingHotel) {
         if (commuteHumanToBuilding(entity, lodgingHotel, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, lodgingHotel);
+        commuting = true;
         onSchedule = true;
         suppressIdle = true;
       } else if (residence?.completed) {
         if (commuteHumanToBuilding(entity, residence, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, residence);
+        commuting = true;
         onSchedule = true;
         suppressIdle = true;
       }
@@ -1137,6 +1139,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     } else if (!huntingWere && !inElectionCeremony && !inSpotlightGathering && !festivalGathering && (onSchoolShift || schoolCommuteDue) && !isInnkeeper && schoolTarget) {
       if (commuteHumanToBuilding(entity, schoolTarget, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, schoolTarget);
+      commuting = true;
       onSchedule = true;
       suppressIdle = true;
       recordChildSchoolTick(
