@@ -1,5 +1,5 @@
 import type { Building, Entity, WorldState } from './gameTypes';
-import { BuildingType, BUILDING_JOB_TYPES, type JobType } from './gameTypes';
+import { BuildingType, BUILDING_JOB_TYPES, EntityType, type JobType } from './gameTypes';
 import { readSkill, increaseEntitySkill } from './skills';
 import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
@@ -10,6 +10,8 @@ import { advanceCareerProgression } from './careers/careerProgression';
 import { getAbsoluteCalendarDay, TICKS_PER_HOUR } from './dayCycleClock';
 import { getWorkSchedule } from './workSchedule';
 import { removeWorkerTransition } from './workforce';
+import { beginCommuteRoutePass, isWithinAssignableCommute } from './commuteReach';
+import { SPECIES_CONFIG } from './speciesConfig';
 
 /**
  * Apprenticeships: a skilled master (skill ≥ 40) working a production building takes on a
@@ -20,7 +22,8 @@ const MASTER_SKILL = 40;
 const GRANDMASTER_SKILL = 80;
 const GRADUATE_SKILL = 50;
 const APPRENTICESHIP_BONUS = 5;
-const GRANDMASTER_COMPLETION_BONUS = 10;
+const EDUCATED_COMPLETION_BONUS = 8;
+const GRANDMASTER_COMPLETION_BONUS = 20;
 
 /** Apprentices cannot attend a second workplace or a construction crew in the same shift. */
 function hasCompetingWorkAssignment(apprentice: Entity, buildings: readonly Building[]): boolean {
@@ -35,10 +38,11 @@ export function getApprenticeTrainingSite(
   buildingById: ReadonlyMap<number, Building>,
 ): Building | null {
   if (!apprentice.alive || apprentice.age < HUMAN_ADULT_MIN_AGE || apprentice.prisonBuildingId != null
-    || apprentice.raidDeploymentId || apprentice.apprenticeOfId == null) return null;
+    || apprentice.raidDeploymentId || apprentice.apprenticeId != null || apprentice.apprenticeOfId == null) return null;
   const master = entityById.get(apprentice.apprenticeOfId);
-  if (!master?.alive || master.apprenticeId !== apprentice.id || master.prisonBuildingId != null
-    || master.raidDeploymentId) return null;
+  if (!master?.alive || master.id === apprentice.id || master.age < HUMAN_ADULT_MIN_AGE
+    || master.apprenticeOfId != null || master.apprenticeId !== apprentice.id || master.prisonBuildingId != null
+    || master.raidDeploymentId || master.job == null || readSkill(master, master.job) < MASTER_SKILL) return null;
   const atSite = (building: Building | undefined): building is Building => !!building
     && building.completed && PRODUCTION_TYPES.has(building.type)
     && BUILDING_JOB_TYPES[building.type] === master.job
@@ -98,22 +102,25 @@ export function advanceApprenticeships(
       if (master?.apprenticeId === p.id) master.apprenticeId = undefined;
       p.apprenticeOfId = undefined;
     }
-    if (p.apprenticeId != null && !byId.has(p.apprenticeId)) p.apprenticeId = undefined;
+    if (p.apprenticeId != null && byId.get(p.apprenticeId)?.apprenticeOfId !== p.id) p.apprenticeId = undefined;
   }
   const claimed = new Set<number>(people.filter((p) => p.apprenticeOfId != null).map((p) => p.id));
   // An apprenticeship is optional, not a guaranteed next step after school.
   // The stable id-based selection prevents repeatedly offering every eligible adult a place.
   const scholars = people.filter((p) => p.age >= HUMAN_ADULT_MIN_AGE
-    && p.educated && getEducationTier(p.schoolDays ?? 0) === 3
+    && p.educated && p.prisonBuildingId == null && !p.raidDeploymentId && getEducationTier(p.schoolDays ?? 0) === 3
     && !p.grandmasterApprenticeshipCompleted && p.apprenticeId == null && !claimed.has(p.id));
   // Scholars keep their place in the waiting pool even after age 24.
   scholars.sort((a, b) => b.age - a.age || a.id - b.id);
   const candidates = people.filter((p) => p.age >= HUMAN_ADULT_MIN_AGE
     && p.age <= HUMAN_ADULT_MIN_AGE + 6
+    && p.educated && p.prisonBuildingId == null && !p.raidDeploymentId
     && (p.schoolDays ?? 0) >= SCHOOL_GRADUATION_DAYS
     && getEducationTier(p.schoolDays ?? 0) < 3
     && (p.id * 37 + 17) % 4 === 0 && p.apprenticeId == null && !claimed.has(p.id));
 
+  // Matching has its own bounded search pass, independent of earlier staffing/housing work.
+  if (scholars.length || candidates.length) beginCommuteRoutePass();
   for (const b of state.buildings) {
     if (!b.completed) continue;
     const job = BUILDING_JOB_TYPES[b.type];
@@ -121,9 +128,12 @@ export function advanceApprenticeships(
 
     const masters = (b.occupants ?? [])
       .map((id) => byId.get(id))
-      .filter((e): e is Entity => !!e && e.age >= HUMAN_ADULT_MIN_AGE && readSkill(e, job) >= MASTER_SKILL);
+      .filter((e): e is Entity => !!e && e.alive && e.age >= HUMAN_ADULT_MIN_AGE && e.job === job
+        && e.prisonBuildingId == null && !e.raidDeploymentId && e.apprenticeOfId == null
+        && readSkill(e, job) >= MASTER_SKILL);
 
     for (const master of masters) {
+      if (claimed.has(master.id)) continue;
       const currentApprentice = master.apprenticeId != null ? byId.get(master.apprenticeId) : undefined;
       if (currentApprentice?.alive && currentApprentice.age >= HUMAN_ADULT_MIN_AGE
         && currentApprentice.apprenticeOfId === master.id) {
@@ -142,14 +152,18 @@ export function advanceApprenticeships(
 
       const grandmaster = readSkill(master, job) >= GRANDMASTER_SKILL;
       // Grandmasters reserve free slots for the oldest waiting Tier 3 scholars.
-      const scholar = grandmaster ? scholars.find((p) => !claimed.has(p.id)) : undefined;
+      const eligible = (p: Entity): boolean => p.id !== master.id && p.apprenticeId == null
+        && !claimed.has(p.id) && readSkill(p, job) < GRADUATE_SKILL
+        && p.careerMilestones?.[job]?.trainedAtDay == null
+        && isWithinAssignableCommute(p, b, state.buildings, SPECIES_CONFIG[EntityType.Human].speed, buildingById);
+      const scholar = grandmaster ? scholars.find(eligible) : undefined;
       const bx = b.x + b.width / 2;
       const by = b.y + b.height / 2;
       let best: Entity | null = scholar ?? null;
       let bestD = Infinity;
       if (!best) {
         for (const j of candidates) {
-          if (claimed.has(j.id) || readSkill(j, job) >= GRADUATE_SKILL) continue;
+          if (!eligible(j)) continue;
           const d = Math.hypot(j.x - bx, j.y - by);
           if (d < bestD) {
             bestD = d;
@@ -181,7 +195,9 @@ function teach(ap: Entity, master: Entity, job: JobType, state: WorldState): voi
     const grandmaster = masterSkill >= GRANDMASTER_SKILL && getEducationTier(ap.schoolDays ?? 0) === 3;
     // Preserve the existing career receipt guard against repeat completion bonuses.
     if (ap.careerMilestones?.[job]?.trainedAtDay == null) {
-      increaseEntitySkill(ap, job, grandmaster ? GRANDMASTER_COMPLETION_BONUS : APPRENTICESHIP_BONUS);
+      const tier = getEducationTier(ap.schoolDays ?? 0);
+      increaseEntitySkill(ap, job, grandmaster ? GRANDMASTER_COMPLETION_BONUS
+        : tier === 2 ? EDUCATED_COMPLETION_BONUS : APPRENTICESHIP_BONUS);
     }
     if (grandmaster) ap.grandmasterApprenticeshipCompleted = true;
     ap.apprenticeOfId = undefined;

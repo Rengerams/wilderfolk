@@ -292,6 +292,7 @@ function nearestWalkableTile(
   startY: number,
   worldX: number,
   worldY: number,
+  additionalBlocked?: (tx: number, ty: number) => boolean,
 ): { x: number; y: number } | null {
   const { cols, rows, blocked } = grid;
   let best: { x: number; y: number } | null = null;
@@ -308,7 +309,7 @@ function nearestWalkableTile(
       const onEdgeRow = ty === minY || ty === maxY;
       for (let tx = minX; tx <= maxX; tx++) {
         if (!onEdgeRow && tx !== minX && tx !== maxX) continue;
-        if (blocked[ty * cols + tx] !== 0) continue;
+        if (blocked[ty * cols + tx] !== 0 || additionalBlocked?.(tx, ty)) continue;
         const dx = (tx + 0.5) * PATH_CELL - worldX;
         const dy = (ty + 0.5) * PATH_CELL - worldY;
         const distanceSq = dx * dx + dy * dy;
@@ -405,17 +406,18 @@ export function nearestWalkableWorldPoint(
   buildings: Building[] | undefined,
   x: number,
   y: number,
+  additionalBlocked?: (tx: number, ty: number) => boolean,
 ): { x: number; y: number } | null {
   if (![x, y].every(Number.isFinite)) return null;
   const grid = getReadOnlyPathGrid(map, buildings);
   if (grid.cols <= 0 || grid.rows <= 0) return null;
   const startX = Math.max(0, Math.min(grid.cols - 1, Math.floor(x / PATH_CELL)));
   const startY = Math.max(0, Math.min(grid.rows - 1, Math.floor(y / PATH_CELL)));
-  if (grid.blocked[startY * grid.cols + startX] === 0) {
+  if (grid.blocked[startY * grid.cols + startX] === 0 && !additionalBlocked?.(startX, startY)) {
     return { x: Math.min(Math.max(x, 0), grid.cols * PATH_CELL - 1),
       y: Math.min(Math.max(y, 0), grid.rows * PATH_CELL - 1) };
   }
-  const tile = nearestWalkableTile(grid, startX, startY, x, y);
+  const tile = nearestWalkableTile(grid, startX, startY, x, y, additionalBlocked);
   return tile ? { x: (tile.x + 0.5) * PATH_CELL, y: (tile.y + 0.5) * PATH_CELL } : null;
 }
 
@@ -1012,6 +1014,7 @@ function segmentCrossesBlocked(
   y1: number,
   allowBlockedStart: boolean,
   keepBodyClear = false,
+  additionalBlocked?: (tx: number, ty: number) => boolean,
 ): boolean {
   if (!Number.isFinite(x0) || !Number.isFinite(y0)
     || !Number.isFinite(x1) || !Number.isFinite(y1)) return true;
@@ -1039,7 +1042,7 @@ function segmentCrossesBlocked(
   const isBlocked = (cellX: number, cellY: number, fromElevation: number | null): boolean => {
     if (cellX < 0 || cellY < 0 || cellX >= cols || cellY >= rows) return true;
     const index = cellY * cols + cellX;
-    if (blocked[index] && !(allowBlockedStart && cellX === originX && cellY === originY)) return true;
+    if ((blocked[index] || additionalBlocked?.(cellX, cellY)) && !(allowBlockedStart && cellX === originX && cellY === originY)) return true;
     return !!elevation && fromElevation !== null
       && !lastBridge && !grid.bridge?.[index]
       && Math.abs(elevation[index] - fromElevation) > CLIFF_STEP;
@@ -1383,8 +1386,9 @@ export function steerWithPath(
 export function isWalkStepAllowed(
   fromX: number, fromY: number, toX: number, toY: number,
   grid: PathGrid | null = currentGrid,
+  additionalBlocked?: (tx: number, ty: number) => boolean,
 ): boolean {
-  return !grid || !segmentCrossesBlocked(grid, fromX, fromY, toX, toY, true);
+  return !grid || !segmentCrossesBlocked(grid, fromX, fromY, toX, toY, true, false, additionalBlocked);
 }
 
 /**
