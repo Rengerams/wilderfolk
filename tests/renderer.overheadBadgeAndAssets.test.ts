@@ -2,12 +2,18 @@
  * Guards the overhead status badge (shapes, not font glyphs) and the speech-bubble layout that must
  * clear the name plates.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { drawHumans, drawLeaderAuraOverlay } from '../src/game/renderer/humans';
+import { resetEntityCaches, updateCachedEntities } from '../src/game/renderer/entityCache';
+import { emptyEntityByType, EntityType } from '../src/game/gameTypes';
+import { createEntity } from '../src/game/entityFactory';
+import type { RenderSnapshot } from '../src/game/renderSnapshot';
 import { getHumanStatusCombatIconFromFlags } from '../src/game/combat';
 import {
   clampSpeechBubbleTailY,
+  canPlaceNamePlate,
   combatTokenStatusKind,
   getStatusBadgeColor,
   getStatusBadgeLayout,
@@ -95,6 +101,53 @@ describe('status badge draws a shape, not a font glyph', () => {
     expect(source).not.toContain('getStatusIcon');
     expect(source).toContain('resolveStatusBadgeKind(');
     expect(source).toContain('drawStatusBadge(');
+  });
+});
+
+describe('dense village name plate decluttering', () => {
+  it.each([
+    [44, 1.18, true], [45, 1.18, true], [89, 1.18, true],
+    [90, 1.18, false], [90, 1.21, true], [90, 0.9, false], [90, 0.25, false],
+  ] as const)('renders names for %i visible settlers at zoom %f', (count, zoom, ordinaryVisible) => {
+    resetEntityCaches();
+    try {
+      const byType = emptyEntityByType();
+      const humans = Array.from({ length: count }, (_, i) =>
+        createEntity(EntityType.Human, 100 + (i % 10) * 160, 100 + Math.floor(i / 10) * 160,
+          i + 1, 80, false, { name: 'Resident' + (i + 1) + 'X', ageYears: 30 }));
+      byType[EntityType.Human] = humans;
+      const camera = { x: 900, y: 900, zoom, targetX: 900, targetY: 900, targetZoom: zoom };
+      const labels: string[] = [];
+      const ctx = new Proxy({
+        fillText: (value: string) => labels.push(value),
+        measureText: (value: string) => ({ width: value.length * 5 }),
+        createRadialGradient: () => ({ addColorStop: () => {} }),
+      }, {
+        get: (target, key) => Reflect.has(target, key) ? Reflect.get(target, key) : () => {},
+      }) as unknown as CanvasRenderingContext2D;
+      const state = {
+        tick: 1, camera, buildings: [], unlockedTechs: [], hasBlacksmith: false,
+        hourOfDay: 12, selectedEntityIds: [1], selectedEntity: humans[0],
+        villageLeaderId: 2, worldMap: null, juiceEffectsEnabled: false,
+      } as unknown as RenderSnapshot;
+      updateCachedEntities(byType, null, 1, camera, 1800, 1800, 2400, 2400);
+      drawHumans(ctx, state, 2400, 2400);
+      expect(labels.some(label => label.includes('Resident1X'))).toBe(zoom > 0.45);
+      expect(labels.some(label => label.includes('Resident2X'))).toBe(zoom > 0.28);
+      expect(labels.some(label => label.includes('Resident3X'))).toBe(ordinaryVisible);
+      // The unselected leader has exactly one crown (shadow and foreground), even below name zoom.
+      expect(labels.filter(label => label === '👑')).toHaveLength(0);
+      drawLeaderAuraOverlay(ctx, state, 2400, 2400);
+      expect(labels.filter(label => label === '👑')).toHaveLength(2);
+    } finally {
+      resetEntityCaches();
+    }
+  });
+
+  it('never paints a regular name on top of a reserved name', () => {
+    const existing = { x: 20, y: 35, width: 70, height: 15 };
+    expect(canPlaceNamePlate({ x: 50, y: 40, width: 50, height: 12 }, [existing])).toBe(false);
+    expect(canPlaceNamePlate({ x: 95, y: 40, width: 50, height: 12 }, [existing])).toBe(true);
   });
 });
 

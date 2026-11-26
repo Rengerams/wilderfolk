@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (26 Nov 2026; PR pending):** Reconciled apprenticeship diploma bonuses (+5/+8/+20, honours under a grandmaster), valid adult pairing, career receipts and reachable training workplaces.
+
+- **Improved (26 Nov 2026; PR pending):** Names are now decluttered dynamically: dense villages hide ordinary plates until zoomed in, with the elected leader and selected villagers kept visible and overlapping ordinary labels suppressed.
+
 - **Fixed (26 Nov 2026; PR pending):** Wildlife cannot walk across shallow/deep water or rivers, or spawn in water; shared segment traversal preserves bank sliding and completed bridges.
 
 - **Improved (26 Nov 2026; PR pending):** Virtual Player construction now prefers available building plots beside existing roads, preserving street layouts. If no lawful road frontage is available, the previous deterministic camp-ring search remains the fallback.
