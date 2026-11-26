@@ -200,3 +200,34 @@ describe('youth-love reconciliation preserves exclusive bonds', () => {
     expect(younger.youthLovePartnerId).toBe(OLDER_ID);
   });
 });
+
+
+describe('youth-love formation', () => {
+  it('prefers a nearby childhood friend over a slightly closer stranger', () => {
+    const { state, ctx } = pair(16, 15);
+    const a = settler(1, 16, 'male', { x: 100, childhoodFriendsIds: [3] });
+    const b = settler(2, 15, 'female', { x: 120 });
+    const c = settler(3, 15, 'female', { x: 130 });
+    const humans = [a, b, c];
+    state.entities = humans;
+    advanceYouthLove(state, { ...ctx, playerHumans: humans, entityById: new Map(humans.map(h => [h.id, h])) }, () => 0);
+    expect(a.youthLovePartnerId).toBe(3);
+    expect(c.youthLovePartnerId).toBe(1);
+    expect(b.youthLovePartnerId).toBeUndefined();
+    expect(a.youthLoveProgress).toBe(1);
+    expect(c.youthLoveProgress).toBe(1);
+  });
+
+  it('allows the higher-ID settler to initiate without advancing the new bond on the same day', () => {
+    const { state, ctx } = pair(16, 15);
+    const a = settler(1, 16, 'male');
+    const b = settler(2, 15, 'female');
+    const humans = [b, a];
+    state.entities = humans;
+    advanceYouthLove(state, { ...ctx, playerHumans: humans, entityById: new Map(humans.map(h => [h.id, h])) }, () => 0);
+    expect(a.youthLovePartnerId).toBe(2);
+    expect(b.youthLovePartnerId).toBe(1);
+    expect(a.youthLoveProgress).toBe(1);
+    expect(b.youthLoveProgress).toBe(1);
+  });
+});
