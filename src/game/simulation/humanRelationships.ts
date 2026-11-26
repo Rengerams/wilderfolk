@@ -523,7 +523,8 @@ function reconcileYouthLove(entity: Entity, entityById: Map<number, Entity>): vo
     partner.relationshipStatus !== 'single' ||
     Math.abs(entity.age - partner.age) > YOUTH_LOVE_MAX_AGE_GAP
   ) {
-    clearYouthLovePair(entity, partner);
+    // A stale outgoing link must not erase the other settler's valid relationship.
+    clearYouthLovePair(entity, partner?.youthLovePartnerId === entity.id ? partner : undefined);
   }
 }
 
@@ -561,6 +562,8 @@ export function advanceYouthLove(
   for (const entity of playerHumans) {
     const partner = entity.youthLovePartnerId != null ? getLivingEntity(entity.youthLovePartnerId, entityById) : undefined;
     if (partner) {
+      // Newly formed bonds start at one point and cannot advance or break on their formation day.
+      if (entity.youthLoveStartedDay === day || partner.youthLoveStartedDay === day) continue;
       // A partner mid-transform is frozen: promoting or breaking up writes only its live fields, and
       // `revertToHumanForm` then re-asserts the stale snapshot, leaving the link one-sided.
       if (!isPlayerHuman(partner)) continue;
@@ -613,7 +616,9 @@ export function advanceYouthLove(
       (other) => isValidYouthLoveTarget(entity, other),
       socialAdaptiveOptions('social', playerHumans.length, width, height),
     );
-    if (!candidate || !shouldLeadAffairPair(entity, candidate)) continue;
+    // Formation is not a pair update: either eligible single can initiate.
+    // The reciprocal link immediately removes both from the candidate pool.
+    if (!candidate) continue;
 
     const affinity = schoolAffinity(entity, candidate);
     if (rng() >= YOUTH_LOVE_DAILY_START_CHANCE + affinity * YOUTH_LOVE_DAILY_SCHOOL_BONUS) continue;
