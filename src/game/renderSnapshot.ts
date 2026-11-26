@@ -58,10 +58,7 @@ export function renderSnapshotDirtyKey(
 ): string {
   const ghost = view.buildGhost;
   const strip = view.buildStripPreview;
-  // Paused commands can change assignments without advancing the simulation tick.
-  const assignments = world.paused && view.selectedEntityId != null
-    ? resolveSelectedSettlerBuildings(world, resolveEntity(world, view.selectedEntityId))
-    : null;
+  // Assignment changes at the same tick invalidate the snapshot through GameLoop's command boundary.
 
   return [
     world.tick,
@@ -80,8 +77,6 @@ export function renderSnapshotDirtyKey(
     view.camera.zoom.toFixed(3),
     view.screenShake.toFixed(1),
     view.selectedEntityId ?? '',
-    assignments?.home?.id ?? '',
-    assignments?.work?.id ?? '',
     (view.selectedEntityIds ?? []).join(','),
     view.selectedBuildingId ?? '',
     view.hoveredBuildingId ?? '',
