@@ -479,20 +479,17 @@ function clearYouthLovePair(a: Entity, b?: Entity): void {
   }
 }
 
+/** Shared single-settler eligibility; age and bond-specific rules stay with each lifecycle. */
+function isAvailableForRomance(entity: Entity): boolean {
+  return isPlayerHuman(entity) && entity.alive && !entity.pregnant
+    && entity.prisonBuildingId == null && entity.partnerId == null
+    && entity.relationshipStatus === 'single' && entity.youthLovePartnerId == null;
+}
+
 function isEligibleForYouthLove(entity: Entity): boolean {
-  return (
-    isPlayerHuman(entity) &&
-    entity.alive &&
-    entity.age >= YOUTH_LOVE_MIN_AGE &&
-    entity.age < HUMAN_ADULT_MIN_AGE &&
-    entity.prisonBuildingId == null &&
-    !entity.pregnant &&
-    entity.partnerId == null &&
-    entity.relationshipStatus === 'single' &&
-    entity.youthLovePartnerId == null &&
-    entity.courtshipPartnerId == null &&
-    !!entity.gender
-  );
+  return isAvailableForRomance(entity)
+    && entity.age >= YOUTH_LOVE_MIN_AGE && entity.age < HUMAN_ADULT_MIN_AGE
+    && entity.courtshipPartnerId == null && !!entity.gender;
 }
 
 function isValidYouthLoveTarget(entity: Entity, candidate: Entity): boolean {
@@ -1282,18 +1279,9 @@ export /**
  * is `isWithinRemarriageBar`, so a divorced pair cannot remarry within a year.
  */
 function isEligibleToCourt(entity: Entity): boolean {
-  return (
-    isPlayerHuman(entity) &&
-    entity.alive &&
-    entity.age >= HUMAN_ADULT_MIN_AGE &&
-    !entity.pregnant &&
-    entity.prisonBuildingId == null &&
-    entity.partnerId == null &&
-    entity.youthLovePartnerId == null &&
-    entity.relationshipStatus === 'single' &&
-    (entity.courtshipCooldownDays ?? 0) <= 0 &&
-    entity.age < HUMAN_MAX_LIFESPAN_YEARS
-  );
+  return isAvailableForRomance(entity)
+    && entity.age >= HUMAN_ADULT_MIN_AGE && entity.age < HUMAN_MAX_LIFESPAN_YEARS
+    && (entity.courtshipCooldownDays ?? 0) <= 0;
 }
 
 /** Ticks a divorced pair must stay apart before they may court each other again: one year. */
