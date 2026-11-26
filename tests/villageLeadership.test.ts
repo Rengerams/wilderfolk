@@ -416,13 +416,13 @@ describe('villageLeadership.titlePoints.test.ts', () => {
   }
 
   describe('leadership title bonus', () => {
-    it('a titled candidate gains +30 titlePoints in the score breakdown', () => {
+    it('an honorary title gives a small bonus rather than deciding the election', () => {
       const hero = stubHuman(1, { title: 'Moonslayer' });
       const state = stubState([hero]);
 
       const breakdown = getLeadershipScoreBreakdown(state, hero);
-      expect(breakdown.titlePoints).toBe(30);
-      expect(breakdown.totalScore).toBe(breakdown.skillPoints + breakdown.experiencePoints + 30);
+      expect(breakdown.titlePoints).toBe(6);
+      expect(breakdown.totalScore).toBe(breakdown.skillPoints + breakdown.contributionPoints + breakdown.experiencePoints + 6);
     });
 
     it('an untitled candidate gets no title bonus', () => {
@@ -438,7 +438,7 @@ describe('villageLeadership.titlePoints.test.ts', () => {
 
       const ranked = rankLeadershipCandidates(state);
       expect(ranked[0]!.entityId).toBe(1);
-      expect(ranked[0]!.totalScore).toBe(ranked[1]!.totalScore + 30);
+      expect(ranked[0]!.totalScore).toBe(ranked[1]!.totalScore + 6);
     });
 
     it('the title shows after the candidate name', () => {
@@ -491,7 +491,7 @@ describe('villageLeadership.titlePoints.test.ts', () => {
       const score = getLeadershipScoreBreakdown(state, fighter);
       expect(score.battlePoints).toBe(40);
       fighter.battleLeadershipMerit = 300;
-      expect(getLeadershipScoreBreakdown(state, fighter).battlePoints).toBe(100);
+      expect(getLeadershipScoreBreakdown(state, fighter).battlePoints).toBe(45);
     });
 
     it('gives established family names bounded popularity without awarding lone surnames', () => {
@@ -503,7 +503,7 @@ describe('villageLeadership.titlePoints.test.ts', () => {
       const family = getLeadershipScoreBreakdown(state, candidate);
       const unrelated = getLeadershipScoreBreakdown(state, outsider);
       expect(family.familyPoints).toBeGreaterThan(0);
-      expect(family.familyPoints).toBeLessThanOrEqual(25);
+      expect(family.familyPoints).toBeLessThanOrEqual(6);
       expect(unrelated.familyPoints).toBe(0);
     });
 
@@ -512,19 +512,42 @@ describe('villageLeadership.titlePoints.test.ts', () => {
       const skeptic = stubHuman(2, { promiseLeadershipMerit: -32 });
       const state = stubState([leader, skeptic]);
       expect(getLeadershipScoreBreakdown(state, leader).promisePoints).toBe(24);
-      expect(getLeadershipScoreBreakdown(state, skeptic).promisePoints).toBe(-32);
+      expect(getLeadershipScoreBreakdown(state, skeptic).promisePoints).toBe(-30);
       leader.promiseLeadershipMerit = 90;
       skeptic.promiseLeadershipMerit = -100;
-      expect(getLeadershipScoreBreakdown(state, leader).promisePoints).toBe(60);
-      expect(getLeadershipScoreBreakdown(state, skeptic).promisePoints).toBe(-60);
+      expect(getLeadershipScoreBreakdown(state, leader).promisePoints).toBe(30);
+      expect(getLeadershipScoreBreakdown(state, skeptic).promisePoints).toBe(-30);
     });
 
-    it('one capped trade is worth 50 points and broad expertise caps at 60', () => {
+    it('one mastered trade beats inflated beginner skills, while a second specialty adds a little', () => {
       const specialist = stubHuman(1, { skills: { farmer: 100 } });
       const expert = stubHuman(2, { skills: { farmer: 100, miner: 100, hunter: 100 } });
 
-      expect(getLeadershipScoreBreakdown(stubState([specialist]), specialist).skillPoints).toBe(50);
-      expect(getLeadershipScoreBreakdown(stubState([expert]), expert).skillPoints).toBe(60);
+      expect(getLeadershipScoreBreakdown(stubState([specialist]), specialist).skillPoints).toBe(24);
+      expect(getLeadershipScoreBreakdown(stubState([expert]), expert).skillPoints).toBe(30);
+    });
+
+    it('rewards verified years of work, not an inherited collection of novice skills', () => {
+      const veteran = stubHuman(1, {
+        age: 35,
+        skills: { farmer: 20 },
+        careerHistory: { farmer: { days: 200, lastDay: 250 } },
+      });
+      const inflated = stubHuman(2, {
+        age: 35,
+        skills: Object.fromEntries(Object.values(JobType).map((job) => [job, 20])),
+      });
+      const state = stubState([veteran, inflated]);
+      const actual = getLeadershipScoreBreakdown(state, veteran);
+      const legacy = getLeadershipScoreBreakdown(state, inflated);
+      expect(actual.contributionPoints).toBe(40);
+      expect(legacy.contributionPoints).toBe(0);
+      expect(actual.totalScore).toBeGreaterThan(legacy.totalScore);
+    });
+
+    it('does not reward an assigned job without witnessed career days', () => {
+      const worker = stubHuman(1, { job: JobType.Farmer, workerBuildingId: 50 });
+      expect(getLeadershipScoreBreakdown(stubState([worker]), worker).contributionPoints).toBe(0);
     });
 
     it('keeps a scandal measurably expensive for the incumbent', () => {

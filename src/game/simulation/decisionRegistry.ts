@@ -280,10 +280,10 @@ export const SIMULATION_DECISIONS = {
   school: {
     owner: 'education.ts — syncSchoolAssignments, findSchoolForChild, schoolCapacity, isSchoolTime (weekday 09–15), buildSchoolRosters, recordChildSchoolTick, creditChildSchoolDay, applyEducationGraduation',
     cadence: 'realtime',
-    cadenceNote: 'School keeps its own weekday 09–15 day, independent of the configured work window. syncSchoolAssignments reassigns pupils on the new calendar day; humanTick records attendance ticks only while the teacher is present and the pupil is at school; creditChildSchoolDay runs at the day close. The dashboard reads isSchoolTime for its in-session state.',
+    cadenceNote: 'School keeps its own weekday 09–15 day, independent of the configured work window. syncSchoolAssignments reassigns pupils on the new calendar day; humanTick records attendance ticks only while the teacher is present and the pupil is at school; creditChildSchoolDay runs at the day close. The dashboard reads isSchoolTime for its in-session state. New immigrants start with zero witnessed school days; graduation grants qualification and stamina, not universal job skills.',
     writes: ['child.schoolBuildingId', 'child.schoolTicksToday', 'child.schoolDays', 'child.educated'],
     scheduledFrom: 'humanTick.ts (syncSchoolAssignments, recordChildSchoolTick, creditChildSchoolDay); dashboardData reads isSchoolTime',
-    testFile: 'tests/school.test.ts, tests/schooling.explains.test.ts, tests/dashboardData.prisonAndCouncil.test.ts',
+    testFile: 'tests/school.test.ts, tests/schooling.explains.test.ts, tests/dashboardData.prisonAndCouncil.test.ts, tests/humanGraduation.education.test.ts, tests/immigration.composition.test.ts',
   },
   workforce: {
     owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, swapReachableWorkersIntoVacancies, staffJobsBeforeConstruction, preferredSchoolStaff, fillPriorityStaffing, workforceSignature, isAcuteFoodStaffingEmergency, hasFoodStaffingPressure, prospectiveFoodTransferDonors, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command assignWorker limited to construction/residency',
@@ -440,7 +440,7 @@ export const SIMULATION_DECISIONS = {
   dailyRelationships: {
     owner: 'tickLayerDaily at 06:00 — relationships.advanceSocialRelationships (friendships/feuds), simulation/humanRelationships.advanceYouthLove and reconcileCourtships, apprenticeships.advanceApprenticeships, then leaderHouse.syncLeaderHouseResidency (delegated to the housing owner)',
     cadence: 'daily',
-    cadenceNote: 'One social/relationship pass per colony day at DAILY_PHASE_HOURS.relationships (06:00), reading the day\'s living list so a later arrival is not retroactively befriended. Friendship/feud scores, youth love, courtship cooldowns and apprenticeships are written here; the leader-house residency call delegates its residence writes to the housing decision and does not own them.',
+    cadenceNote: 'One social/relationship pass per colony day at DAILY_PHASE_HOURS.relationships (06:00), reading the day\'s living list so a later arrival is not retroactively befriended. Friendship/feud scores, youth love, courtship cooldowns and apprenticeships are written here; apprenticeship completion grants the school-tier bonus only in its trained trade, guarded by the existing career receipt; the leader-house residency call delegates its residence writes to the housing decision and does not own them.',
     writes: [
       'human.friendships',
       'human.feuds',
@@ -674,7 +674,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/moonHowler.test.ts, tests/low-3-moon-lifecycle.test.ts, tests/medium-persistence.test.ts',
   },
   leadership: {
-    owner: 'leaderHouse.ts — syncLeaderHouseResidency, applyLeaderOccupation; election: villageLeadership.ts — tickElectionBuildup, tryStartTermElectionCeremony, tryStartVacancyElectionCeremony, tickElectionCeremony, tickElectionGossip, creditedCeremonyBallot (the credited-ballot tally: only currently eligible nominees count); dailyWorldEvents.ts — tickYearBoundaryWorldEvents (midnight scheduling), tickDailyWorldEvents (18:00 vacancy scheduling); ceremony attendance: villageLeadership.ts — isCeremonyAttendee, getElectionGatherTarget (read-only)',
+    owner: 'leaderHouse.ts — syncLeaderHouseResidency, applyLeaderOccupation; election and scoring: villageLeadership.ts — getLeadershipScoreBreakdown (real recorded workdays, two strongest trades, restrained family prestige, social trust, battle/campaign record), tickElectionBuildup, tryStartTermElectionCeremony, tryStartVacancyElectionCeremony, tickElectionCeremony, tickElectionGossip, creditedCeremonyBallot; dailyWorldEvents.ts — tickYearBoundaryWorldEvents (midnight scheduling), tickDailyWorldEvents (18:00 vacancy scheduling); ceremony attendance: villageLeadership.ts — isCeremonyAttendee, getElectionGatherTarget (read-only)',
     cadence: 'daily',
     cadenceNote: 'Term elections and buildup run at 00:00 on year rollover, vacancies and one campaign-promise evaluation pass run at 18:00 through dailyWorldEvents, ceremony progression in realtime; residency remains idempotent. Required CI: calendar-scheduler tests Year-2 midnight via gameTick.',
     writes: [
