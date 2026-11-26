@@ -57,6 +57,22 @@ import { createSeededRng, getSimRng, setSimSeed } from '../src/game/simRng';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 
 describe('Moon Howler restored physiology clock', () => {
+  it('clears indoor and predator movement state across both form transitions', () => {
+    const state = initGame({ skipTerrain: true, seed: 61 });
+    const settler = state.entities.find((entity) => entity.type === EntityType.Human)!;
+    settler.indoorBuildingId = 99;
+    curseMoonHowler(settler);
+    transformToWerewolfForm(settler, state.buildings);
+    expect(settler.indoorBuildingId).toBeUndefined();
+    settler.indoorBuildingId = 99;
+    settler.vx = 4;
+    settler.vy = -2;
+    revertToHumanForm(settler, { buildings: state.buildings, humans: state.entities, tick: 360 });
+    expect(settler.indoorBuildingId).toBeUndefined();
+    expect(settler.vx).toBe(0);
+    expect(settler.vy).toBe(0);
+  });
+
   it('does not debit a full werewolf night as human nutrition after dawn', () => {
     const state = initGame({ size: MapSize.Medium, seed: 61 });
     const settler = state.entities.find((entity) => entity.type === EntityType.Human)!;
