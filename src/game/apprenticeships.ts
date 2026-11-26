@@ -9,6 +9,7 @@ import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { advanceCareerProgression } from './careers/careerProgression';
 import { getAbsoluteCalendarDay, TICKS_PER_HOUR } from './dayCycleClock';
 import { getWorkSchedule } from './workSchedule';
+import { removeWorkerTransition } from './workforce';
 
 /**
  * Apprenticeships: a skilled master (skill ≥ 40) working a production building takes on a
@@ -20,6 +21,12 @@ const GRANDMASTER_SKILL = 80;
 const GRADUATE_SKILL = 50;
 const APPRENTICESHIP_BONUS = 5;
 const GRANDMASTER_COMPLETION_BONUS = 10;
+
+/** Apprentices cannot attend a second workplace or a construction crew in the same shift. */
+function hasCompetingWorkAssignment(apprentice: Entity, buildings: readonly Building[]): boolean {
+  return apprentice.workerBuildingId != null || buildings.some((site) =>
+    !site.completed && site.occupants.includes(apprentice.id));
+}
 
 /** A trainee uses the mentor's real, staffed workplace, never a fabricated worker assignment. */
 export function getApprenticeTrainingSite(
@@ -78,9 +85,14 @@ export function advanceApprenticeships(
 
   const byId = new Map(people.map((e) => [e.id, e]));
   const buildingById = new Map(state.buildings.map((building) => [building.id, building]));
-  // Remove invalid and legacy underage apprenticeship bonds (including those in older saves).
+  // Restore older valid bonds intercepted by staffing: training owns the apprentice's shift.
+  // Delegate both job and construction-roster cleanup to the workforce transition owner.
   // Apprenticeship skills and school progress remain untouched.
   for (const p of people) {
+    if (p.apprenticeOfId != null && getApprenticeTrainingSite(p, byId, buildingById)
+      && hasCompetingWorkAssignment(p, state.buildings)) {
+      removeWorkerTransition(p, state.buildings);
+    }
     if (p.apprenticeOfId != null && !getApprenticeTrainingSite(p, byId, buildingById)) {
       const master = byId.get(p.apprenticeOfId);
       if (master?.apprenticeId === p.id) master.apprenticeId = undefined;
@@ -93,14 +105,14 @@ export function advanceApprenticeships(
   // The stable id-based selection prevents repeatedly offering every eligible adult a place.
   const scholars = people.filter((p) => p.age >= HUMAN_ADULT_MIN_AGE
     && p.educated && getEducationTier(p.schoolDays ?? 0) === 3
-    && !p.grandmasterApprenticeshipCompleted && !claimed.has(p.id));
+    && !p.grandmasterApprenticeshipCompleted && p.apprenticeId == null && !claimed.has(p.id));
   // Scholars keep their place in the waiting pool even after age 24.
   scholars.sort((a, b) => b.age - a.age || a.id - b.id);
   const candidates = people.filter((p) => p.age >= HUMAN_ADULT_MIN_AGE
     && p.age <= HUMAN_ADULT_MIN_AGE + 6
     && (p.schoolDays ?? 0) >= SCHOOL_GRADUATION_DAYS
     && getEducationTier(p.schoolDays ?? 0) < 3
-    && (p.id * 37 + 17) % 4 === 0 && !claimed.has(p.id));
+    && (p.id * 37 + 17) % 4 === 0 && p.apprenticeId == null && !claimed.has(p.id));
 
   for (const b of state.buildings) {
     if (!b.completed) continue;
@@ -146,6 +158,9 @@ export function advanceApprenticeships(
         }
       }
       if (best) {
+        // A new apprenticeship replaces any normal job or build-crew duty. Without this,
+        // an employed trainee keeps commuting to their old building and never earns lessons.
+        if (hasCompetingWorkAssignment(best, state.buildings)) removeWorkerTransition(best, state.buildings);
         master.apprenticeId = best.id;
         best.apprenticeOfId = master.id;
         claimed.add(best.id);
