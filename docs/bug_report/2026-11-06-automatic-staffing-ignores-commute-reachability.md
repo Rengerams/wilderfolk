@@ -11,6 +11,7 @@
 - Related plan: `docs/plans/persistent-automatic-workforce-2026-11-06.md`
 
 ## Status history
+- 2026-11-26 — investigating: PR #213 reuses the ordinary home-based idle candidate ranking for swap backfill; previous swap prefilter used current position rather than residence and selected the first reachable replacement. Persistent commute suite passed 8 tests on head `22ac3cb5`. The full suite exposed a new exact-tie regression in `careers.workerFit` (3,037 passed, 1 failed): idle hiring must preserve first encountered order for equally ranked applicants. Follow-up restores that contract without weakening the commute gate. Latest-head CI pending.
 - 2026-11-06 — Codex P2 follow-up: per-route A* node-limit exhaustion now advances from 4,000 nodes through bounded, one-expanded-search-per-pulse retries. A terminal complexity cap produces a conservative refusal instead of infinite identical searches; node-budget regression cases added (unrun).
 - 2026-11-06 — Codex cache follow-up: signature now tracks current transfer cooldown eligibility and the path cells of applicants without valid residences; changes trigger the next workforce pulse without disturbing established jobs. The commute owner query was already registered in `OWNERSHIP_OVERVIEW.md`. Source tests added, not executed.
 - 2026-11-06 — Codex review follow-up: unpriced route or node-budget searches now set a per-pass deferral signal; workforce does not cache an incomplete staffing pass. The next scheduled pulse retries with a fresh budget; no tests executed.
@@ -49,3 +50,6 @@ No new stored job schema required. Preserve existing saved jobs and avoid bulk r
 ## Verification result
 - Static code-path inspection — completed.
 - Runtime reproduction, tests, typecheck, lint, build and CI — NOT RUN by owner instruction.
+
+## 2026-11-26 follow-up — swap replacement ranking
+At main `ab0525ce`, `swapReachableWorkersIntoVacancies` applied its preliminary distance check to the current position, not the home, and used the first idle candidate. Reuse the canonical idle-hire selector to choose the reachable, nearer resident with the same skill and career ranking. The test `backfills a swap with the nearer eligible resident rather than the first idle candidate` passed in `tests/workforce.persistentCommute.test.ts` on PR #213 head `22ac3cb5`. Preserve the existing stable input order on an exact idle-hire tie (the original `tests/careers.workerFit.test.ts` assertion is unchanged). No schema changes. Latest-head CI pending.
