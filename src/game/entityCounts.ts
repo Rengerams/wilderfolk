@@ -117,13 +117,3 @@ export function countLivingPopulation(
   }
   return computePopulationCounts(merged);
 }
-
-export function formatPopulationBrief(
-  counts: Pick<PopulationCounts, 'humans' | 'visitorHumans' | 'rivalHumans'>,
-  maxPop?: number,
-): string {
-  const cap = maxPop != null ? `/${maxPop}` : '';
-  let line = `settlers=${counts.humans}${cap} visitors=${counts.visitorHumans}`;
-  if (counts.rivalHumans > 0) line += ` rivals=${counts.rivalHumans}`;
-  return line;
-}

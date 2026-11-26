@@ -39,9 +39,6 @@ export function isOffscreenWildlifeActive(tick: number, entityId: number): boole
  */
 export const WILDLIFE_LAYER_INTERVAL = 4;
 
-/** @deprecated Grass runs once per day in `tickGrassDaily`, not per-tick. */
-export const OFFSCREEN_GRASS_THROTTLE = 4;
-
 function sortEntitiesByY(entities: Entity[]): Entity[] {
   return entities.slice().sort((a, b) => a.y - b.y);
 }

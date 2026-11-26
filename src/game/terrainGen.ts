@@ -76,7 +76,7 @@ function rectAroundTile(map: WorldMap, cx: number, cy: number, radiusTiles: numb
  * Flatten the ground around the camp into a buildable clearing. Water stays water — a filled tile
  * is walkable land the ground bake still paints as sea, so settlers wade across open water.
  */
-export function ensureCampClearing(
+function ensureCampClearing(
   map: WorldMap,
   worldX: number,
   worldY: number,
@@ -132,7 +132,7 @@ function clearStartAreaForest(map: WorldMap, worldX: number, worldY: number, rad
  * Resolve a footprint-sized camp site near `preferredX/preferredY`, widening the search until
  * buildable ground is found. Returns the preferred point when nothing better exists.
  */
-export function findCampSite(
+function findCampSite(
   map: WorldMap,
   mapPixelW: number,
   mapPixelH: number,
@@ -184,14 +184,6 @@ export function findCampSite(
 }
 
 // ─── World generation ────────────────────────────────────────────────────────
-
-export interface GenerateWorldMapOptions {
-  size?: MapSize;
-  preset?: MapPreset;
-  seed?: number;
-  width?: number;
-  height?: number;
-}
 
 /** Preferred: `generateWorldMap(MapSize.Medium, MapPreset.Continental, seed)`. */
 export function generateWorldMap(size: MapSize, preset?: MapPreset, seed?: number): WorldMap;
