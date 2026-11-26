@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { human } from '../src/test/factories';
 import { EntityType, type Entity, type WorldState } from '../src/game/gameTypes';
 import { buildFullFamilyTree } from '../src/game/familyTree';
+import { curseMoonHowler, transformToWerewolfForm } from '../src/game/moonHowler';
 import { findFamilyGroupRoot, descendantsOf, largestBloodlines, largestExtendedFamilies, recordGenealogyBirth, recordGenealogyDeath, syncGenealogyRegistry } from '../src/game/genealogyRegistry';
 
 function world(): WorldState {
@@ -9,6 +10,24 @@ function world(): WorldState {
 }
 
 describe('persistent genealogy registry', () => {
+  it('preserves human identity and living status during a transformed settler census', () => {
+    const state = world();
+    const parent = human(1, { name: 'Founder', childrenIds: [2] });
+    const child = human(2, { motherId: 1 });
+    state.entities = [parent, child];
+    syncGenealogyRegistry(state);
+    curseMoonHowler(parent);
+    transformToWerewolfForm(parent, []);
+    const registry = syncGenealogyRegistry(state);
+    expect(registry.people['1'].alive).toBe(true);
+    expect(registry.people['1'].entityType).toBeUndefined();
+    expect(registry.people['1'].diedDay).toBeUndefined();
+    expect(registry.people['1'].childrenIds).toContain(2);
+    recordGenealogyDeath(state, parent);
+    expect(state.genealogyRegistry!.people['1']).toMatchObject({ alive: false, diedYear: 4, diedDay: 15 });
+    expect(state.genealogyRegistry!.people['1'].entityType).toBeUndefined();
+  });
+
   it('uses one compressed root lookup for all family group projections', () => {
     const parents = new Map<number, number>([[1, 2], [2, 3], [3, 3], [4, 4]]);
     expect(findFamilyGroupRoot(parents, 1)).toBe(3);
