@@ -1,5 +1,15 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-26 — Moon Howler night hunting
+
+| Functions | Owner | Responsibility |
+|---|---|---|
+| `tickWildlife` | `src/game/tickLayerSystems.ts` | Active cursed forms pursue exposed humans even when fed and run on every systems pulse regardless of viewport; animal prey remains hunger-gated. Preserve human age and award Moonslayer from the pre-death form. |
+| `tickMoonHowlerCycle`, `isInsideCompletedBuilding` | `src/game/moonHowler.ts`, `src/game/terrainSystems.ts` (respectively) | Existing moon-window ejection uses shared footprint geometry but excludes road and bridge travel surfaces; spawn validation retains its existing default. |
+| `markWildlifeDead` | `src/game/simulation/simulationEntities.ts` | Remove a dead entity from its pre-death type bucket even when the death owner restores the human form. |
+
+Regression coverage: `tests/hospital.howler.geometry.test.ts`, `tests/moonHowler.test.ts`.
+
 ## 2026-11-23 — optional sector-focused automatic staffing
 
 | Changed function(s) | Sole owner | Responsibility / verification |
