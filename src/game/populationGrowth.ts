@@ -250,7 +250,7 @@ export function getOpenPlayerBeds(state: WorldState): number {
   return open;
 }
 
-export type PopulationGrowthTone = 'good' | 'warn' | 'blocked';
+type PopulationGrowthTone = 'good' | 'warn' | 'blocked';
 
 export interface PopulationGrowthReport {
   tone: PopulationGrowthTone;

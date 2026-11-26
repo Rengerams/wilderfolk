@@ -1,5 +1,4 @@
 import type { Entity } from '../gameTypes';
-import { EntityType } from '../gameTypes';
 import type { RenderSoAReaderV1 } from './renderSoAReader';
 import {
   RESIDENCE_BUILDING_NONE,

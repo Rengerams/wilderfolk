@@ -25,7 +25,7 @@ import { addCappedResource } from './resourceUtils';
 import { spendFood, recordFoodProduced } from './economyLedger';
 import { addBigNews } from './simEffects';
 import { addReputation, getReputationBand } from './simHelpers';
-export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
+export type { RaidEvent, RaidLootBundle, OutgoingRaidEvent } from './gameTypes';
 export const RAID_BATTLE_HOURS = 6;
 const RAID_MERIT_REPEAT_COOLDOWN_DAYS = 30;
 const RIVAL_RAZE_INTENT_CHANCE = 0.15;

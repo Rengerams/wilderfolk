@@ -6,7 +6,7 @@ import {
   getGrazerDailyDemand,
 } from './grassEcology';
 
-export type GrazingPressureLevel = 'stable' | 'caution' | 'critical';
+type GrazingPressureLevel = 'stable' | 'caution' | 'critical';
 
 /** Deer:grass ratios aligned across level, advice, and stable-branch warnings. */
 const DEER_GRASS_CAUTION_RATIO = 5 / 120;

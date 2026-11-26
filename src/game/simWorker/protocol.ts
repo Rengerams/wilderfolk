@@ -33,7 +33,7 @@ export function workerSimVersionMismatch(expected: string, got: unknown): string
 }
 
 /** Viewport region receiving full simulation this tick – extracted here so the contract stays pure. */
-export interface SimulationFocus {
+interface SimulationFocus {
   minX: number;
   maxX: number;
   minY: number;
@@ -51,7 +51,7 @@ export type WorkerCommandEnvelope = {
 export type SimPrepPayload = unknown;
 
 /** Opaque tick‑delta – concrete shape lives in `simBuffers/simDelta.ts`. */
-export type SimTickDeltaPayload = unknown;
+type SimTickDeltaPayload = unknown;
 
 /**
  * Verifies that every feature the host asked for is advertised by the worker.
