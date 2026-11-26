@@ -8,7 +8,6 @@ import { describe, expect, it } from 'vitest';
 
 
 import { Immigration } from '../src/game/gameConstants';
-import { immigrantSchoolDaysForAge } from '../src/game/education';
 import { setSimSeed } from '../src/game/simRng';
 import { createImmigrantSettler } from '../src/game/worldGen';
 import type { Entity, WorldState } from '../src/game/gameTypes';
@@ -39,11 +38,7 @@ const isChild = (e: Entity) =>
   e.age >= Immigration.CHILD_AGE_MIN && e.age <= Immigration.CHILD_AGE_MAX;
 
 describe('immigration party composition', () => {
-  it('does not invent attendance before immigrant children join a village school', () => {
-    expect(immigrantSchoolDaysForAge(5)).toBe(0);
-    expect(immigrantSchoolDaysForAge(6)).toBe(0);
-    expect(immigrantSchoolDaysForAge(12)).toBe(0);
-    expect(immigrantSchoolDaysForAge(17)).toBe(0);
+  it('does not fabricate attendance for newly arriving immigrants', () => {
     for (const party of parties(4)) {
       for (const member of party) {
         expect(member.schoolDays ?? 0).toBe(0);

@@ -179,7 +179,10 @@ function teach(ap: Entity, master: Entity, job: JobType, state: WorldState): voi
   increaseEntitySkill(master, job, 0.05);
   if (readSkill(ap, job) >= GRADUATE_SKILL) {
     const grandmaster = masterSkill >= GRANDMASTER_SKILL && getEducationTier(ap.schoolDays ?? 0) === 3;
-    increaseEntitySkill(ap, job, grandmaster ? GRANDMASTER_COMPLETION_BONUS : APPRENTICESHIP_BONUS);
+    // Preserve the existing career receipt guard against repeat completion bonuses.
+    if (ap.careerMilestones?.[job]?.trainedAtDay == null) {
+      increaseEntitySkill(ap, job, grandmaster ? GRANDMASTER_COMPLETION_BONUS : APPRENTICESHIP_BONUS);
+    }
     if (grandmaster) ap.grandmasterApprenticeshipCompleted = true;
     ap.apprenticeOfId = undefined;
     master.apprenticeId = undefined;

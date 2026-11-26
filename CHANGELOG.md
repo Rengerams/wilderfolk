@@ -2,13 +2,17 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (26 Nov 2026):** Returning armies show homeward travel rather than obsolete battle orders; the Chronicle and deployment lifecycle remain intact.
-
 - **Fixed (26 Nov 2026; PR #198):** Apprenticeships now release previous jobs and builder crews via the shared workforce transition. Auto-staffing reserves trainees, and legacy conflicting assignments are reconciled so apprentices attend their actual masters.
 
-- **Fixed (26 Nov 2026):** Free-roaming hunters route around impassable terrain and cannot kill close prey through blocked terrain. Shallow-water walking remains unchanged.
-
 - **Fixed (26 Nov 2026; PR #198):** Immigrant children start with zero school days. Graduation no longer grants all trade skills. Apprentices visibly commute, require shared attendance with a master, and earn a trade-specific +5 (+10 grandmaster) bonus on completion.
+
+- **Balanced (26 Nov 2026; PR pending):** Election merit now rewards witnessed career service, trained specialties, and community trust instead of summing all trades. Surname, honorary title, battle and promise contributions are capped more tightly; voters still cast separate ballots.
+- **Balanced (26 Nov 2026):** Immigrant children earn real school attendance; graduation grants qualifications, not blanket job skills. Apprenticeship bonuses apply only to the completed trade. Existing skills are preserved.
+- **Fixed (26 Nov 2026; PR pending):** The elected leader must command outgoing campaigns and defensive battles, can be wounded or killed in combat, and cannot command two raids at once. Battle merit requires actual deployment, not merely holding office.
+
+- **Fixed (26 Nov 2026):** Returning armies show homeward travel rather than obsolete battle orders; the Chronicle and deployment lifecycle remain intact.
+
+- **Fixed (26 Nov 2026):** Free-roaming hunters route around impassable terrain and cannot kill close prey through blocked terrain. Shallow-water walking remains unchanged.
 
 - **Balanced (23 Nov 2026; PR #195, pending merge):** Seasonal 2d, random 2–4d, hosted 3d, performer 1d. Random checks and shared cooldown 90d from start; seasonal endings never renew it. Gatherings 17–21h; work first, legacy festivals capped, elections unchanged.
 

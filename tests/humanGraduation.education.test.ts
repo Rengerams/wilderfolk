@@ -74,16 +74,16 @@ describe('education tiers', () => {
 });
 
 describe('a child graduates once, with the education payoff', () => {
-  it('awards honours qualification without granting unrelated trade skills', () => {
+  it('qualifies Tier 3 without awarding unrelated trade skills', () => {
     const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     const child = makeChild(HUMAN_CHILDHOOD_YEARS, state);
     child.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
     child.isJuvenile = false;
     child.skills = { [JobType.Farmer]: 7 };
     applyEducationGraduation(state, child);
-    expect(child.educated).toBe(true);
     expect(child.skills?.[JobType.Farmer]).toBe(7);
     expect(child.skills?.[JobType.Teacher]).toBeUndefined();
+    expect(child.educated).toBe(true);
     applyEducationGraduation(state, child);
     expect(child.skills?.[JobType.Farmer]).toBe(7);
   });

@@ -24,11 +24,6 @@ export const SCHOOL_EDUCATED_DAYS = 135;
 /** School days for full education tier. */
 export const SCHOOL_FULL_EDUCATION_DAYS = 150;
 
-/** Immigrants must attend a staffed village school; age alone never earns attendance credit. */
-export function immigrantSchoolDaysForAge(_age: number): number {
-  return 0;
-}
-
 /** Hard ceiling on one school's pupils — the two-teacher building's twenty seats. */
 export const SCHOOL_MAX_CHILDREN = 20;
 
@@ -449,7 +444,7 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
     tier === 3
       ? `${label} graduated with honors — eligible for grandmaster apprenticeship`
       : tier === 2
-        ? `${label} graduated — eligible for an advanced apprenticeship`
+        ? `${label} graduated — eligible for apprenticeship training`
         : `${label} finished basic schooling — ready to work`;
 
   addNotification(state, 'Graduation', detail, 'success');

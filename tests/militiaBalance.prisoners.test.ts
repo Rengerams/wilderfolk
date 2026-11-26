@@ -50,6 +50,22 @@ describe('a prisoner is never mustered', () => {
     expect(canBeMustered(settler)).toBe(false);
   });
 
+  it('permits an elected civilian commander using the same eligibility safeguards', () => {
+    const leader = adult(88, { job: JobType.Farmer });
+    expect(canBeMustered(leader)).toBe(false);
+    expect(canBeMustered(leader, { allowNonSoldier: true })).toBe(true);
+    // The exception does not affect the soldier-only militia-strength calculation.
+    expect(computeMilitiaBreakdown(world(), [leader], { includeStructures: false }).adultCount).toBe(0);
+
+    const jailed = adult(89, { job: JobType.Farmer, prisonBuildingId: 9 });
+    const deployed = adult(90, { job: JobType.Farmer, raidDeploymentId: 'other_raid' });
+    const dead = adult(91, { job: JobType.Farmer, alive: false });
+    const juvenile = adult(92, { job: JobType.Farmer, age: 16 });
+    for (const unavailable of [jailed, deployed, dead, juvenile]) {
+      expect(canBeMustered(unavailable, { allowNonSoldier: true })).toBe(false);
+    }
+  });
+
   it('excludes civilians from combat strength and casualties even when armed', () => {
     const state = world();
     const soldier = adult(1);

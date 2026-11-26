@@ -129,6 +129,7 @@ describe('apprenticeships', () => {
     advanceApprenticeships(w, w.entities);
     expect(scholar.grandmasterApprenticeshipCompleted).toBe(true);
     expect(scholar.skills[JobType.Farmer]).toBeGreaterThanOrEqual(60);
+    expect(scholar.skills?.[JobType.Teacher]).toBeUndefined();
     expect(scholar.careerMilestones?.farmer?.trainedAtDay).toBe(0);
     expect(scholar.careerHistory).toBeUndefined();
     expect(scholar.apprenticeOfId).toBeUndefined();
@@ -410,6 +411,7 @@ describe('apprenticeships', () => {
 
     advanceApprenticeships(w, w.entities);
     expect((kid.skills?.[JobType.Farmer] ?? 0)).toBeGreaterThanOrEqual(55);
+    expect(kid.skills?.[JobType.Teacher]).toBeUndefined();
     expect(master.apprenticeId).toBeUndefined();
     expect(kid.apprenticeOfId).toBeUndefined();
   });
