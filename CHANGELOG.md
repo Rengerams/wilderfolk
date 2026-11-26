@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (26 Nov 2026):** Free-roaming hunters route around impassable terrain and cannot kill close prey through blocked terrain. Shallow-water walking remains unchanged.
+
 - **Fixed (26 Nov 2026; pending PR):** Immigrant children start with zero witnessed school days; graduation gives qualifications, not skills in every trade. Apprentices visibly travel to a master's workplace, learn only with verified shared attendance, and earn a +5 or +10 trade-only bonus on completion.
 
 - **Balanced (23 Nov 2026; PR #195, pending merge):** Seasonal 2d, random 2–4d, hosted 3d, performer 1d. Random checks and shared cooldown 90d from start; seasonal endings never renew it. Gatherings 17–21h; work first, legacy festivals capped, elections unchanged.

@@ -12,8 +12,8 @@ import { addHuntVisual } from './huntvisuals';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { valleyStageIndex } from './ecologyStage';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
-import { steerEntityToward } from './simulation/movementSteering';
-import { clearHumanWalkTarget } from './simulation/humanMovement';
+import { clearHumanWalkTarget, steerHumanToward } from './simulation/humanMovement';
+import { getCurrentPathGrid, lineCrossesBlocked } from './pathfinding';
 import { freeHuntFoodGain } from './simulation/humanNeeds';
 import { HUMAN_NEEDS, adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { tryTickBlueberryForaging } from './blueberryForaging';
@@ -129,7 +129,9 @@ export function tickHumanHunting(
       clearHumanWalkTarget(entity);
     }
 
-    if (closestPrey?.alive && closestDist < config.size + closestPrey.size) {
+    const grid = getCurrentPathGrid();
+    if (closestPrey?.alive && closestDist < config.size + closestPrey.size
+      && (!grid || !lineCrossesBlocked(grid, entity.x, entity.y, closestPrey.x, closestPrey.y))) {
       const preyId = closestPrey.id;
       markWildlifeDead(ctx, closestPrey, undefined, state.tick, state);
       clearHuntersTargetingPrey(preyId, entityById, ctx.huntTargetByPreyId);
@@ -192,7 +194,8 @@ export function tickHumanHunting(
       entity.huntTargetId = closestPrey.id;
       // Hunters pursue faster; casual foragers jog; hunting-favoured settlers push harder
       const chaseMult = (isJobHunter ? 0.72 : 0.5) * evaluateAptitudeInfluence(entity, 'pursuit').factor;
-      steerEntityToward(entity, closestPrey.x, closestPrey.y, config.speed, chaseMult);
+      steerHumanToward(entity, closestPrey.x, closestPrey.y, config.speed, chaseMult,
+        `freehunt_${entity.id}_${closestPrey.id}`);
       suppressIdle = true;
 
       // Strained+ valley: occasional chatter so yield dips don't read as pure RNG
