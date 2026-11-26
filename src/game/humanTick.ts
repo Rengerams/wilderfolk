@@ -8,6 +8,7 @@ import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import { getChurchStrength, findHumanWorkplace } from './workforce';
 import { buildConstructionCrewIndex } from './workforceSummary';
+import { getApprenticeTrainingSite } from './apprenticeships';
 
 import { isPlayerHuman } from './playerHuman';
 import { deterministicCos, deterministicSin } from './simTrig';
@@ -581,7 +582,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    const workplace = findHumanWorkplace(entity, updatedBuildings, workplaceOpts);
+    const regularWorkplace = findHumanWorkplace(entity, updatedBuildings, workplaceOpts);
+    const apprenticeSite = regularWorkplace ? null : getApprenticeTrainingSite(entity, entityById, buildingById);
+    const workplace = regularWorkplace ?? apprenticeSite ?? undefined;
     const isInnkeeper =
       entity.job === JobType.Innkeeper && workplace?.type === BuildingType.Tavern && workplace.completed;
 
@@ -755,9 +758,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (isPlayerHuman(entity) && (onJobShift || onOfficialShift || onPriestShift)) {
       // A construction crew has no regular workerBuildingId. Its resolved workplace supplies
       // the witnessed site and trade through the existing attendance recorders.
-      const attendedJob = workplace && !workplace.completed
-        ? (BUILDING_JOB_TYPES[workplace.type] ?? JobType.Builder)
-        : (entity.job ?? null);
+      const attendedJob = apprenticeSite
+        ? (BUILDING_JOB_TYPES[apprenticeSite.type] ?? JobType.Settler)
+        : workplace && !workplace.completed
+          ? (BUILDING_JOB_TYPES[workplace.type] ?? JobType.Builder)
+          : (entity.job ?? null);
       recordScheduleWorkTick(entity, 1, workplace?.id, attendedJob);
       if (!goingToHospital && (atPost || wasInsideWorkplace || hunterInField)) {
         recordPresentWorkTick(entity, 1, workplace?.id);
@@ -810,7 +815,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (isPlayerHuman(entity)) {
       advanceHumanNeeds(entity, {
         tick: state.tick, sleeping: sleepingForNeeds,
-        working: (onJobShift || onOfficialShift || onPriestShift) && entity.workerBuildingId != null,
+        working: (onJobShift || onOfficialShift || onPriestShift) && (entity.workerBuildingId != null || apprenticeSite != null),
         nightDuty: (onJobShift || onOfficialShift || onPriestShift) && isNightHour(hourOfDay),
         moving: Math.hypot(entity.vx, entity.vy) > 0.1,
         // The needs break is a real off-duty stationary pause, not all idle leisure.
@@ -1215,7 +1220,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) {
           // Hide stationary outdoor workers only during their shift.
           // Hunters and patrolling soldiers remain visible and mobile.
-          enterHumanBuilding(entity, workplace, onJobShift || onOfficialShift || onPriestShift);
+          // Apprentices stay visible outside their mentor's workplace rather than vanishing into it.
+          if (!apprenticeSite) enterHumanBuilding(entity, workplace, onJobShift || onOfficialShift || onPriestShift);
         }
         commuting = true;
         onSchedule = true;

@@ -323,7 +323,11 @@ export function canLaunchRaidOnRival(
   if ((state.pendingRaidVictories ?? []).some((pending) => pending.rivalId === rival.id)) {
     return { ok: false, foodCost, blockReason: 'Decide this settlement’s fate after the previous victory' };
   }
-  if (getRaidParticipants(state, state.entities, 'outgoing').length === 0) return { ok: false, foodCost, blockReason: 'No available soldiers' };
+  const available = getRaidParticipants(state, state.entities, 'outgoing');
+  if (state.villageLeaderId != null && !available.some((person) => person.id === state.villageLeaderId)) {
+    return { ok: false, foodCost, blockReason: 'The elected leader is unavailable to command the army' };
+  }
+  if (!available.some((person) => canBeMustered(person))) return { ok: false, foodCost, blockReason: 'No available soldiers' };
   if (!hasMilitiaWeapons(state)) {
     return { ok: false, foodCost, blockReason: 'Need weapons (stone/iron spears or swords)' };
   }
@@ -530,6 +534,10 @@ function persistBattleAftermath(
     leadershipMerit = -20;
   }
   const leader = leaderId == null ? undefined : after.entities.find((entity) => entity.id === leaderId);
+  // Elected title alone earns no battlefield merit: the commander must actually have deployed.
+  const ledBattle = leaderId != null && before.entities.some((person) =>
+    person.id === leaderId && person.raidDeploymentId === raidId);
+  if (!ledBattle || !leader?.alive) leadershipMerit = 0;
   const lastAward = leader?.battleLeadershipAwards?.[rivalId];
   if (leadershipMerit > 0 && lastAward != null
     && after.tick - lastAward < RAID_MERIT_REPEAT_COOLDOWN_DAYS * TICKS_PER_DAY) leadershipMerit = 0;
@@ -548,14 +556,14 @@ function persistBattleAftermath(
 
 export type RaidParticipantMode = 'militia' | 'barricade' | 'outgoing';
 
-/** Adults who can fight — `canBeMustered` owns that test, so a jailed settler is in neither pool. */
+/** The elected leader commands every available force; ordinary fighters still use canBeMustered. */
 export function getRaidParticipants(
   state: WorldState,
   entities: Entity[],
   mode: RaidParticipantMode,
 ): Entity[] {
-  return entities.filter((e) => {
-    if (!canBeMustered(e)) return false;
+  return entities.filter((entity) => {
+    if (!canBeMustered(entity, { allowNonSoldier: entity.id === state.villageLeaderId })) return false;
     if (mode === 'barricade') return true;
     return hasMilitiaWeapons(state);
   });

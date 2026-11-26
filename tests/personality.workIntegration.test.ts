@@ -282,6 +282,10 @@ describe('the apprenticeship-training activity reaches the real teaching path', 
     });
     master.apprenticeId = apprentice.id;
     apprentice.apprenticeOfId = master.id;
+    master.schedulePresentSiteIdToday = SITE_ID;
+    master.schedulePresentTicksToday = 108;
+    apprentice.schedulePresentSiteIdToday = SITE_ID;
+    apprentice.schedulePresentTicksToday = 108;
     blacksmith.occupants = [master.id];
     state.entities.push(master, apprentice);
     return { state, apprentice, master };
