@@ -6,7 +6,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Entity } from '../game/gameTypes';
 import { EntityType } from '../game/gameTypes';
 import type { GenealogyRegistry, GenealogyPerson } from '../game/genealogyRegistry';
-import { buildFullFamilyTree, visibleFamilyTreeLinks, type FamilyTreePerson } from '../game/familyTree';
+import { buildFullFamilyTree, orderFamilyTreeRows, visibleFamilyTreeLinks, type FamilyTreePerson } from '../game/familyTree';
 import { humanDisplayName } from '../game/citizenId';
 import GameWindow from './GameWindow';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
@@ -66,6 +66,7 @@ export default function FamilyTreeWindow({
 }: FamilyTreeWindowProps) {
   useOverlayKeyboard('family-tree-window', onClose);
   const [depth, setDepth] = useState(3);
+  const [openingId] = useState(entity.id);
   const [historicalFocusId, setHistoricalFocusId] = useState<number | null>(null);
   const focusId = historicalFocusId ?? entity.id;
   const [mode, setMode] = useState<TreeMode>('all');
@@ -97,23 +98,25 @@ export default function FamilyTreeWindow({
   const maxGenerations = Math.max(1, ...tree.rows.map((row) => Math.abs(row.delta)));
   const shownGenerations = Math.min(depth, maxGenerations);
 
-  const visibleRows = useMemo(() => tree.rows
-    .filter((row) => {
-      if (Math.abs(row.delta) > shownGenerations) return false;
-      if (mode === 'ancestors') return row.delta <= 0;
-      if (mode === 'descendants') return row.delta >= 0;
-      return true;
-    })
+  const visibleRows = useMemo(() => orderFamilyTreeRows(tree.rows
+    .filter((row) => Math.abs(row.delta) <= shownGenerations)
     .map((row) => ({
       ...row,
-      members: row.members.filter((person) => showDeceased || person.alive || person.isFocus),
+      members: row.members.filter((person) => {
+        if (person.isFocus) return true;
+        if (!showDeceased && !person.alive) return false;
+        if (mode === 'ancestors') return tree.ancestorIds.has(person.id);
+        if (mode === 'descendants') return tree.descendantIds.has(person.id);
+        return true;
+      }),
     }))
-    .filter((row) => row.members.length > 0), [tree, shownGenerations, mode, showDeceased]);
+    .filter((row) => row.members.length > 0), tree.parentLinks), [tree, shownGenerations, mode, showDeceased]);
   const visiblePeople = useMemo(() => new Map(
     visibleRows.flatMap((row) => row.members.map((person) => [person.id, person] as const)),
   ), [visibleRows]);
   const links = useMemo(() => visibleFamilyTreeLinks(tree, new Set(visiblePeople.keys())), [tree, visiblePeople]);
   const diagramRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const [branchPath, setBranchPath] = useState('');
 
   // Measure actual cards: names, occupations and translations can change their height.
@@ -154,6 +157,18 @@ export default function FamilyTreeWindow({
   /** Members in the rows actually drawn — the same reduction the rows render, so the header cannot overcount. */
   const visibleMemberCount = visibleRows.reduce((count, row) => count + row.members.length, 0);
 
+  const centerFocus = () => {
+    const viewport = viewportRef.current;
+    const card = diagramRef.current?.querySelector<HTMLElement>('[data-family-focus="true"]');
+    if (!viewport || !card) return;
+    const outer = viewport.getBoundingClientRect();
+    const inner = card.getBoundingClientRect();
+    viewport.scrollTo({
+      left: viewport.scrollLeft + inner.left - outer.left - (outer.width - inner.width) / 2,
+      top: viewport.scrollTop + inner.top - outer.top - (outer.height - inner.height) / 2,
+    });
+  };
+
   const selectPerson = (person: FamilyTreePerson) => {
     if (person.id === focusId) return;
     setHistoricalFocusId(person.id);
@@ -164,6 +179,7 @@ export default function FamilyTreeWindow({
     <button
       key={person.id}
       data-family-person={person.id}
+      data-family-focus={person.isFocus}
       type="button"
       disabled={person.id === focusId}
       onClick={() => selectPerson(person)}
@@ -224,10 +240,17 @@ export default function FamilyTreeWindow({
               {Array.from({ length: maxGenerations }, (_, index) => index + 1).map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </label>
-          {historicalFocusId != null && historicalFocusId !== entity.id && (
-            <button type="button" onClick={() => setHistoricalFocusId(null)}
+          <button type="button" onClick={centerFocus}
+            className="rounded bg-stone-700 px-3 py-1.5 text-xs hover:bg-stone-600">
+            Center selected person
+          </button>
+          {focusId !== openingId && roster.some((person) => person.id === openingId) && (
+            <button type="button" onClick={() => {
+              setHistoricalFocusId(openingId);
+              if (roster.some((person) => person.id === openingId && person.alive)) onSelect?.(openingId);
+            }}
               className="rounded bg-stone-700 px-3 py-1.5 text-xs hover:bg-stone-600">
-              Back to selected settler
+              Back to original person
             </button>
           )}
           <label className="ml-auto flex items-center gap-2 text-xs">
@@ -241,7 +264,7 @@ export default function FamilyTreeWindow({
           parents and children, including adoptive links. Marriage alone does not imply ancestry.
           Scroll sideways to see wide generations.
         </p>
-        <div className="max-h-[57vh] overflow-auto rounded-xl border border-amber-900/40 bg-stone-950/60 p-4">
+        <div ref={viewportRef} className="max-h-[57vh] overflow-auto rounded-xl border border-amber-900/40 bg-stone-950/60 p-4">
           {visibleRows.length === 0 ? (
             <p>No genealogy record available for this settler.</p>
           ) : (

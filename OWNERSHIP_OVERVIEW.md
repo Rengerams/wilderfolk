@@ -5,7 +5,8 @@
 | Function / path | Sole owner | Responsibility / verification |
 |---|---|---|
 | `visibleFamilyTreeLinks` | `src/game/familyTree.ts` | Filters existing `buildFullFamilyTree` parent edges to visible cards; never infers kinship. `tests/familyTree.test.ts` |
-| `FamilyTreeWindow` | `src/components/FamilyTreeWindow.tsx` | Read-only card geometry, SVG branches and visibility filters; deceased ancestors remain in the underlying graph. No simulation writes or additional genealogy decision. |
+| `orderFamilyTreeRows`, `buildFullFamilyTree` | `src/game/familyTree.ts` | Stable parent-based display ordering and existing direct ancestor/descendant closures for view filters; no new ancestry inference. `tests/familyTree.test.ts` |
+| `FamilyTreeWindow` | `src/components/FamilyTreeWindow.tsx` | Read-only card geometry, SVG branches, direct-line visibility filters, center and return navigation; deceased ancestors remain in the underlying graph. No simulation writes or additional genealogy decision. |
 
 ## 2026-11-23 — optional sector-focused automatic staffing
 
