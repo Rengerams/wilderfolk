@@ -524,6 +524,15 @@ export function commuteHumanToBuilding(
     // A bounded route search can still be pending. Keep the chosen facade and
     // cache key so the path owner can escalate its budget instead of restarting
     // whenever the movement decision runs. A new grid invalidates the facade.
+    // A definitive unreachable quote may be cached by the shared path owner;
+    // a pending quote must not dislodge the active facade.
+    if (grid && isGroundWalkableAt(entity.x, entity.y, grid)) {
+      const quote = getNavigationQuote(grid,
+        { x: Math.floor(entity.x / PATH_CELL), y: Math.floor(entity.y / PATH_CELL) },
+        { x: Math.floor(target.x / PATH_CELL), y: Math.floor(target.y / PATH_CELL) },
+        { maxNodes: 0 });
+      if (quote.status === 'unreachable') walkerBuildingAccess.delete(entity);
+    }
     clearHumanWalkTarget(entity);
     entity.vx = 0;
     entity.vy = 0;
