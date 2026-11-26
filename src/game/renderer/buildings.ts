@@ -98,15 +98,47 @@ export interface BuildingHighlightStyle {
   fill?: string;
   dash?: number[];
   shadowBlur?: number;
+  label?: string;
 }
 
 export function drawBuildingHighlightRing(
-  _ctx: CanvasRenderingContext2D,
-  _rect: { left: number; top: number; right: number; bottom: number },
-  _style: BuildingHighlightStyle,
+  ctx: CanvasRenderingContext2D,
+  rect: { left: number; top: number; right: number; bottom: number },
+  style: BuildingHighlightStyle,
 ): void {
-  // VOLLEDIG UITGESCHAKELD: tekent nooit meer kaders om gebouwen.
-  return;
+  const w = Math.max(12, rect.right - rect.left + style.pad * 2);
+  const h = Math.max(12, rect.bottom - rect.top + style.pad * 2);
+  const x = (rect.left + rect.right - w) / 2;
+  const y = (rect.top + rect.bottom - h) / 2;
+  ctx.save();
+  ctx.strokeStyle = style.stroke;
+  ctx.lineWidth = style.lineWidth;
+  ctx.shadowColor = style.stroke;
+  ctx.shadowBlur = style.shadowBlur ?? 0;
+  ctx.setLineDash(style.dash ?? []);
+  if (style.fill) {
+    ctx.fillStyle = style.fill;
+    ctx.fillRect(x, y, w, h);
+  }
+  ctx.strokeRect(x, y, w, h);
+  ctx.shadowBlur = 0;
+  ctx.setLineDash([]);
+  if (style.label) {
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const labelWidth = ctx.measureText(style.label).width + 12;
+    const labelX = (rect.left + rect.right) / 2;
+    const labelY = y + h + 11;
+    ctx.fillStyle = 'rgba(20, 24, 28, 0.94)';
+    ctx.fillRect(labelX - labelWidth / 2, labelY - 9, labelWidth, 18);
+    ctx.strokeStyle = style.stroke;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(labelX - labelWidth / 2, labelY - 9, labelWidth, 18);
+    ctx.fillStyle = style.stroke;
+    ctx.fillText(style.label, labelX, labelY);
+  }
+  ctx.restore();
 }
 
 const ROAD_STRIP_ALPHA = 0.92;
