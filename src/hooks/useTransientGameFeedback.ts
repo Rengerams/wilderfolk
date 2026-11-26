@@ -179,10 +179,9 @@ export function useTransientGameFeedback({
   const bigNewsTimersRef = useRef<Map<string, number>>(new Map());
   const dismissBigNewsItemRef = useRef<(id: string, playFeedback?: boolean) => void>(() => {});
   const notificationVisibleSinceRef = useRef<Map<string, number>>(new Map());
-  const visibleNotifications = useMemo(
-    () => getVisibleNotifications(world.notifications, hudNotificationsEnabled),
-    [world.notifications, hudNotificationsEnabled],
-  );
+  // Simulation and command paths may append to the existing array before a UI render.
+  // Derive the tiny visible batch on every render, not only when the array identity changes.
+  const visibleNotifications = getVisibleNotifications(world.notifications, hudNotificationsEnabled);
 
   const clearFeedbackTiming = useCallback(() => {
     for (const timeout of bigNewsTimersRef.current.values()) {
