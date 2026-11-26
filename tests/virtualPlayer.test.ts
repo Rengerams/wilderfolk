@@ -32,6 +32,7 @@ import { applyWorkerCommand, WORKER_CMD_PROTO } from '../src/game/simWorker/comm
 import { canLaunchRaidOnRival, getRaidChoiceEligibility } from '../src/game/frontierCombat';
 import { getOpenBeds, getOpenPlayerBeds } from '../src/game/populationGrowth';
 import { canPlaceBuilding } from '../src/game/placementUtils';
+import { getBuildingCenter } from '../src/game/buildingGeometry';
 import { canAssignWorkerToBuilding } from '../src/game/buildingStaffingActions';
 import { assignMissingWorkers } from '../src/game/workforce';
 import { getRepairBuildingEligibility, buildingTypeHasLevelBenefit } from '../src/game/buildingMaintenanceActions';
@@ -466,6 +467,25 @@ describe('virtual player decision engine', () => {
     // Snapped from the camp anchor at (600, 450) onto the 20-unit build grid.
     expect({ x: command.x, y: command.y }).toEqual({ x: 600, y: 460 });
     expect(decision!.reason).toContain('House');
+  });
+
+  it('places a needed house beside an existing player-built road rather than randomly around camp', () => {
+    const road = building(60, BuildingType.Road, {
+      x: 840, y: 500, width: 20, height: 100, completed: true,
+    });
+    const world = makeWorld([human(1), human(2), human(3)], [road]);
+    const decision = decideVirtualPlayerAction(world);
+    expect(decision?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.House });
+    if (decision?.command.op !== 'startBuilding') throw new Error('expected House placement');
+
+    const house = decision.command;
+    expect(canPlaceBuilding(world, BuildingType.House, house.x, house.y, house.rotation)).toBe(true);
+    // The placement deliberately follows the north/south road segment's frontage near y=500,
+    // not the old unrelated camp ring at (600, 460).
+    const centre = getBuildingCenter(road);
+    expect(Math.abs(house.y - centre.y)).toBeLessThanOrEqual(20);
+    expect(house.x).toBeGreaterThan(730);
+    expect(Math.abs(house.x - centre.x)).toBeLessThanOrEqual(90);
   });
 
   it("builds the free Leader's House first, before any other colony work", () => {
