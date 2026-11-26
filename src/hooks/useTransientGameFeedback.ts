@@ -10,6 +10,7 @@ import type { WorldState } from '../game/gameEngine';
 import { GameLoop } from '../game/gameLoop';
 import type { MomentCardData } from '../components/MomentTitleCard';
 import { VALLEY_CHAPTERS } from '../game/valleyChronicle';
+import { MAX_PENDING_NOTIFICATIONS } from '../game/simEffects';
 
 const BIG_NEWS_DISPLAY_MS = 8_000;
 /**
@@ -24,9 +25,10 @@ const NOTIFICATION_CLEANUP_INTERVAL_MS = 1_000;
 export const MAX_VISIBLE_NOTIFICATIONS = 4;
 /**
  * Cap on the persisted dismissal ledger: it is copied into every UI patch and diffed per tick, so
- * it must stay bounded — but a tail cap above the simulation's 20-toast window can never resurrect one.
+ * it must stay bounded. Keep more IDs than a full queue so delayed worker deltas cannot
+ * resurrect recently acknowledged notifications.
  */
-const MAX_DISMISSED_NOTIFICATION_IDS = 50;
+const MAX_DISMISSED_NOTIFICATION_IDS = MAX_PENDING_NOTIFICATIONS * 2;
 
 /**
  * Cap on the persisted Big News / active-event dismissal ledgers — the same tail cap as the
