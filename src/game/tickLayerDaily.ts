@@ -79,15 +79,19 @@ export function tickLayerDaily(
     const stage4 = profileStart();
     reconcileCourtships(ctx);
     profileEnd('daily.reconcileCourtships', stage4);
-    const stage5 = profileStart();
-    advanceApprenticeships(state, allAlive, dayPeople);
-    profileEnd('daily.advanceApprenticeships', stage5);
-
     // Idempotent leader-house reconciliation: move the current spouse and children into the
     // manor and evict former household members.
     const stage6 = profileStart();
     syncLeaderHouseResidency(state);
     profileEnd('daily.syncLeaderHouseResidency', stage6);
+  }
+
+  // Apprentices train at 23:00 after even the latest legal work shift.
+  // Witnessed attendance still exists before the midnight fatigue settlement.
+  if (hour === DAILY_PHASE_HOURS.construction) {
+    const stage5 = profileStart();
+    advanceApprenticeships(state, allAlive, playerHumansFrom(allAlive));
+    profileEnd('daily.advanceApprenticeships', stage5);
   }
 
   // 18:00 — election promises and the chronicle.
