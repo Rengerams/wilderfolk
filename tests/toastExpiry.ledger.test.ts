@@ -13,7 +13,7 @@ import {
   reconcileNotificationVisibility,
   dismissNotifications,
 } from '../src/hooks/useTransientGameFeedback';
-import { preserveNotificationDismissals } from '../src/game/simBuffers/simDelta';
+import { addNotification, MAX_PENDING_NOTIFICATIONS, preserveNotificationDismissals } from '../src/game/simEffects';
 import type { WorldState } from '../src/game/gameTypes';
 
 const NOW = 1_000_000_000;
@@ -130,5 +130,25 @@ describe('the HUD presents queued notifications before their display lifetime be
     expect(visibleSince.has('2')).toBe(false);
     expect(preserveNotificationDismissals([toast('2', 0)], world.dismissedNotificationIds)).toHaveLength(0);
     expect(getVisibleNotifications(world.notifications, false)).toEqual([]);
+  });
+});
+
+describe('the simulation notification queue handles extreme bursts explicitly', () => {
+  it('keeps the visible head and bounds the queue with a counted overflow summary', () => {
+    const world = { tick: 10, notifications: [] } as unknown as WorldState;
+    for (let i = 0; i < MAX_PENDING_NOTIFICATIONS; i++) {
+      addNotification(world, 'Event', `notice ${i}`);
+    }
+    const originalHead = getVisibleNotifications(world.notifications, true).map((note) => note.id);
+    addNotification(world, 'Event', 'overflow one');
+    const summaryId = world.notifications.at(-1)?.id;
+    addNotification(world, 'Event', 'overflow two');
+    expect(world.notifications).toHaveLength(MAX_PENDING_NOTIFICATIONS);
+    expect(getVisibleNotifications(world.notifications, true).map((note) => note.id)).toEqual(originalHead);
+    expect(world.notifications.at(-1)).toMatchObject({ id: summaryId, overflowCount: 3 });
+    expect(world.notifications.at(-1)?.message).toContain('3 notifications');
+    dismissNotifications(world, originalHead);
+    addNotification(world, 'Event', 'fresh notice');
+    expect(world.notifications.at(-1)?.message).toBe('fresh notice');
   });
 });
