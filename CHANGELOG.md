@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Improved (26 Nov 2026):** Family trees draw parent-child branches, group siblings by parent, filter direct ancestors and descendants, and support centering and returning to the original person. Hiding deceased relatives preserves living branches.
+
 - **Performance (26 Nov 2026):** Reuse the active path grid for leisure goals and avoid redundant standability checks; preserve deterministic routing and invalidate cached goals when the grid changes.
 
 - **Improved (26 Nov 2026; PR pending):** Drag long straight bridge chains across rivers in either axis; preview segment costs and reject incomplete material/placement commits.

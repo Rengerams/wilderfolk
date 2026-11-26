@@ -1,5 +1,13 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-26 — family tree diagram
+
+| Function / path | Sole owner | Responsibility / verification |
+|---|---|---|
+| `visibleFamilyTreeLinks` | `src/game/familyTree.ts` | Filters existing `buildFullFamilyTree` parent edges to visible cards; never infers kinship. `tests/familyTree.test.ts` |
+| `orderFamilyTreeRows`, `buildFullFamilyTree` | `src/game/familyTree.ts` | Stable parent-based display ordering and existing direct ancestor/descendant closures for view filters; no new ancestry inference. `tests/familyTree.test.ts` |
+| `FamilyTreeWindow`, `measure`, `centerFocus`, `selectPerson`, `renderPerson` | `src/components/FamilyTreeWindow.tsx` | Read-only card geometry, SVG branches, direct-line visibility filters, center and return navigation; deceased ancestors remain in the underlying graph. `measure` owns SVG geometry updates; `centerFocus` owns viewport centering. No simulation writes or additional genealogy decision. |
+
 ## 2026-11-23 — optional sector-focused automatic staffing
 
 | Changed function(s) | Sole owner | Responsibility / verification |
