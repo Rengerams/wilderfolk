@@ -23,3 +23,5 @@ NOT RUN: focused regression tests and full CI. Updated immigration, graduation a
 
 ## Status history
 - 2026-11-26 — investigating: implementation and regression changes submitted; CI pending.
+
+- 2026-11-26 — follow-up: reconcile overlapping PRs #198/#199, restoring tier bonuses 5/8/20 and validating new pair eligibility and commute reach. Existing saves remain unchanged; CI and live simulation pending.
