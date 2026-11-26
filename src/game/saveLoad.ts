@@ -261,7 +261,7 @@ export function parseSaveJson(raw: string | null | undefined): SaveReadResult {
       return {
         valid: false,
         reason: 'version-mismatch',
-        detail: `save format ${String(format)} vs supported format ${SAVE_FORMAT_VERSION} (save game v${String(version)}, build v${GAME_VERSION})`,
+        detail: `save format ${JSON.stringify(format)} vs supported format ${SAVE_FORMAT_VERSION} (save game v${String(version)}, build v${GAME_VERSION})`,
       };
     }
   } else if (typeof version !== 'string' || !LEGACY_SAVE_GAME_VERSION_SET.has(version)) {
