@@ -1356,10 +1356,11 @@ export function findCourtshipPartner(
   // Defaulted to 0 so a caller that does not care about the divorce bar keeps its argument list; a
   // divorce is always stamped at a tick > 0, so from tick 0 every past marriage is inside the bar.
   tick = 0,
+  entityById?: ReadonlyMap<number, Entity>,
 ): Entity | undefined {
   const currentCourtship =
     entity.courtshipPartnerId != null
-      ? fallbackHumans?.find((candidate) => candidate.id === entity.courtshipPartnerId)
+      ? entityById?.get(entity.courtshipPartnerId) ?? fallbackHumans?.find((candidate) => candidate.id === entity.courtshipPartnerId)
       : undefined;
   if (
     currentCourtship &&
@@ -1374,13 +1375,13 @@ export function findCourtshipPartner(
 
   const consider = (candidate: Entity, distSq: number) => {
     if (!isCourtshipCandidate(entity, candidate, tick)) return;
-    if (distSq >= closestDistSq) return;
+    if (distSq > closestDistSq || (distSq === closestDistSq && (!closest || candidate.id >= closest.id))) return;
     closestDistSq = distSq;
     closest = candidate;
   };
 
   for (const friendId of entity.childhoodFriendsIds ?? []) {
-    const friend = fallbackHumans?.find((h) => h.id === friendId);
+    const friend = entityById?.get(friendId) ?? fallbackHumans?.find((h) => h.id === friendId);
     if (!friend || !friend.alive) continue;
     if (!isCourtshipCandidate(entity, friend, tick)) continue;
     const dx = friend.x - entity.x;
