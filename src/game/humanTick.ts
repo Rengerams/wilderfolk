@@ -1309,6 +1309,21 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (!sleepingForNeeds && ((!suppressIdle && courtshipPresence.socialTime) || courtshipPresence.onDuty) &&
       isEligibleToCourt(entity) && entity.gender &&
       entity.energy > config.reproductionEnergyThreshold * 0.6) {
+      // The first processed member of an established pair may wait briefly at
+      // contact. This is only a local leisure choice, never assumed consent or
+      // progress: the later member still has to pass the observed pair gate.
+      const established = entity.courtshipPartnerId != null
+        ? entityById.get(entity.courtshipPartnerId) : undefined;
+      if (established && established.courtshipPartnerId === entity.id
+        && !courtshipReadiness.has(established.id)
+        && !courtshipPresence.onDuty && courtshipPresence.socialTime
+        && isEligibleToCourt(established)
+        && Math.hypot(established.x - entity.x, established.y - entity.y) <= 10) {
+        entity.vx = 0;
+        entity.vy = 0;
+        clearHumanWalkTarget(entity);
+        suppressIdle = true;
+      }
       const courtRange = atHome ? 120 : 80;
       const closest = findCourtshipPartner(
         entity,
