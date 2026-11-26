@@ -1105,6 +1105,8 @@ export interface GameNotification {
   message: string;
   type: 'info' | 'success' | 'warning' | 'event';
   createdAt: number;
+  /** Number of notices represented by an extreme-burst overflow summary. */
+  overflowCount?: number;
   focus?: { x: number; y: number };
   campKey?: string;
 }
