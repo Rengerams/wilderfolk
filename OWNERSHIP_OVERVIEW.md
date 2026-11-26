@@ -4,8 +4,9 @@
 
 | Functions | Owner | Responsibility |
 |---|---|---|
-| `tickWildlife` | `src/game/tickLayerSystems.ts` | Active cursed forms pursue exposed humans even when fed and run on every systems pulse regardless of viewport; animal prey remains hunger-gated. Preserve human age and award Moonslayer from the pre-death form. |
+| `tickWildlife` | `src/game/tickLayerSystems.ts` | Active cursed forms pursue exposed humans even when fed and run on every systems pulse regardless of viewport; animal prey remains hunger-gated. Preserve human age and award Moonslayer from the pre-death form. Route obstructed pursuit through the shared steering owner, reject contact across blocked segments, skip definitively unreachable prey and omit wildlife road repulsion for active cursed forms. |
 | `tickMoonHowlerCycle`, `isInsideCompletedBuilding` | `src/game/moonHowler.ts`, `src/game/terrainSystems.ts` (respectively) | Existing moon-window ejection uses shared footprint geometry but excludes road and bridge travel surfaces; spawn validation retains its existing default. |
+| `forceMoonHowlerOutside`, `transformToWerewolfForm`, `revertToHumanForm` | `src/game/moonHowler.ts`, `src/game/moonHowlerForm.ts` (restore) | Clear transient indoor arrival records during transformation, ejection and reversion; dawn stops predator velocity. |
 | `markWildlifeDead` | `src/game/simulation/simulationEntities.ts` | Remove a dead entity from its pre-death type bucket even when the death owner restores the human form. |
 
 Regression coverage: `tests/hospital.howler.geometry.test.ts`, `tests/moonHowler.test.ts`.
