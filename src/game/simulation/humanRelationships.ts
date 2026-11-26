@@ -566,8 +566,6 @@ export function advanceYouthLove(
   for (const entity of playerHumans) {
     const partner = entity.youthLovePartnerId != null ? getLivingEntity(entity.youthLovePartnerId, entityById) : undefined;
     if (partner) {
-      // Newly formed bonds start at one point and cannot advance or break on their formation day.
-      if (entity.youthLoveStartedDay === day || partner.youthLoveStartedDay === day) continue;
       // A partner mid-transform is frozen: promoting or breaking up writes only its live fields, and
       // `revertToHumanForm` then re-asserts the stale snapshot, leaving the link one-sided.
       if (!isPlayerHuman(partner)) continue;
@@ -583,6 +581,9 @@ export function advanceYouthLove(
         continue;
       }
 
+      // Only progression and breakup are deferred on formation day; adult
+      // handoff and age validation above must also work for imported saves.
+      if (entity.youthLoveStartedDay === day || partner.youthLoveStartedDay === day) continue;
       const affinity = schoolAffinity(entity, partner);
       const breakupChance = YOUTH_LOVE_DAILY_BREAKUP_CHANCE * (1.45 - affinity * 0.6);
       if (rng() < breakupChance) {
