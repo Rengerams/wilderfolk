@@ -1399,20 +1399,17 @@ export function findCourtshipPartner(
     }
   }
 
-  const nearby = findClosestAdaptiveInRadius(
+  // Rank every local candidate through the same comparator so equal-distance
+  // results do not depend on spatial-grid traversal order.
+  forEachAdaptiveInRadius(
     humanSocialGrid,
     fallbackHumans ?? [],
     entity.x,
     entity.y,
     courtRange,
-    (candidate) => isCourtshipCandidate(entity, candidate, tick) && available(candidate),
+    (candidate, distSq) => consider(candidate, distSq),
     socialAdaptiveOptions('social', fallbackHumans?.length ?? 0, width ?? 0, height ?? 0),
   );
-  if (nearby) {
-    const dx = nearby.x - entity.x;
-    const dy = nearby.y - entity.y;
-    consider(nearby, dx * dx + dy * dy);
-  }
   return closest;
 }
 
