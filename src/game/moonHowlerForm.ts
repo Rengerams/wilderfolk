@@ -57,6 +57,10 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   const restoredOccupation = staleLeaderOccupation ? 'settler' : (savedOccupation ?? 'settler');
 
   were.type = EntityType.Human;
+  // Dawn occurs at the current outdoor position, not at yesterday's indoor arrival.
+  were.indoorBuildingId = undefined;
+  were.vx = 0;
+  were.vy = 0;
   were.maxEnergy = saved?.maxEnergy ?? cfg.maxEnergy;
   were.energy = Math.min(were.maxEnergy, saved?.energy ?? cfg.maxEnergy * 0.55);
   were.needs = saved?.needs ? { ...saved.needs } : undefined;

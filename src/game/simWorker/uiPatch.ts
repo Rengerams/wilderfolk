@@ -1,4 +1,5 @@
 import type { WorldState } from '../gameTypes';
+import { preserveNotificationDismissals } from '../simEffects';
 import type { WorkerUiPatch } from './GameWorkerHost';
 
 /**
@@ -10,6 +11,8 @@ export function applyWorkerUiPatch(world: WorldState, patch: WorkerUiPatch): voi
   if (patch.dismissedBigNewsIds !== undefined) world.dismissedBigNewsIds = patch.dismissedBigNewsIds;
   if (patch.dismissedNotificationIds !== undefined) {
     world.dismissedNotificationIds = patch.dismissedNotificationIds;
+    // Acknowledge only dismissed IDs, never replace worker-authored notifications with a stale UI list.
+    world.notifications = preserveNotificationDismissals(world.notifications, patch.dismissedNotificationIds);
   }
   if (patch.dismissedActiveEventIds !== undefined) {
     world.dismissedActiveEventIds = patch.dismissedActiveEventIds;

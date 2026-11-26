@@ -1,7 +1,7 @@
 /**
  * Screen juice: particles, floating text, notifications, big news, shake.
  */
-import type { DeathParticle, WorldState } from './gameTypes';
+import type { DeathParticle, GameNotification, WorldState } from './gameTypes';
 import { pushTransientParticle } from './juiceEffects';
 import { getSimRng } from './simRng';
 
@@ -62,6 +62,19 @@ export function addFloatingText(
   });
 }
 
+/** Keep the queue bounded for both headless simulation and worker snapshots. */
+export const MAX_PENDING_NOTIFICATIONS = 64;
+
+/** Keep player-dismissed toasts across worker ticks. */
+export function preserveNotificationDismissals(
+  incoming: WorldState['notifications'],
+  dismissedIds: readonly string[] | undefined,
+): WorldState['notifications'] {
+  const hidden = new Set(dismissedIds ?? []);
+  if (hidden.size === 0) return incoming;
+  return incoming.filter((n) => !hidden.has(n.id));
+}
+
 export function addNotification(
   state: WorldState,
   title: string,
@@ -70,7 +83,8 @@ export function addNotification(
   focus?: { x: number; y: number },
   campKey?: string,
 ) {
-  state.notifications.push({
+  // Keep the existing RNG draw per notification even when an extreme burst is summarized.
+  const notification: GameNotification = {
     id: `notif_${state.tick}_${getSimRng('simEffects')()}`,
     title,
     message,
@@ -78,8 +92,24 @@ export function addNotification(
     createdAt: Date.now(),
     ...(focus ? { focus } : {}),
     ...(campKey ? { campKey } : {}),
-  });
-  if (state.notifications.length > 20) state.notifications.shift();
+  };
+  if (state.notifications.length < MAX_PENDING_NOTIFICATIONS) {
+    state.notifications.push(notification);
+    return;
+  }
+
+  // Never evict the head (including currently visible cards). Reserve the last slot for a
+  // truthful overflow summary when producers outrun the HUD; no silent drop or unbounded queue.
+  const tail = state.notifications[MAX_PENDING_NOTIFICATIONS - 1]!;
+  const overflowCount = (tail.overflowCount ?? 1) + 1;
+  state.notifications[MAX_PENDING_NOTIFICATIONS - 1] = {
+    id: tail.overflowCount === undefined ? notification.id : tail.id,
+    title: 'More notifications',
+    message: `${overflowCount} notifications were grouped because the queue was full. Check the Chronicle for recorded events.`,
+    type: 'info',
+    createdAt: tail.createdAt,
+    overflowCount,
+  };
 }
 
 let nextBigNewsId = 1;

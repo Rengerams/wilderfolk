@@ -57,6 +57,22 @@ import { createSeededRng, getSimRng, setSimSeed } from '../src/game/simRng';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 
 describe('Moon Howler restored physiology clock', () => {
+  it('clears indoor and predator movement state across both form transitions', () => {
+    const state = initGame({ skipTerrain: true, seed: 61 });
+    const settler = state.entities.find((entity) => entity.type === EntityType.Human)!;
+    settler.indoorBuildingId = 99;
+    curseMoonHowler(settler);
+    transformToWerewolfForm(settler, state.buildings);
+    expect(settler.indoorBuildingId).toBeUndefined();
+    settler.indoorBuildingId = 99;
+    settler.vx = 4;
+    settler.vy = -2;
+    revertToHumanForm(settler, { buildings: state.buildings, humans: state.entities, tick: 360 });
+    expect(settler.indoorBuildingId).toBeUndefined();
+    expect(settler.vx).toBe(0);
+    expect(settler.vy).toBe(0);
+  });
+
   it('does not debit a full werewolf night as human nutrition after dawn', () => {
     const state = initGame({ size: MapSize.Medium, seed: 61 });
     const settler = state.entities.find((entity) => entity.type === EntityType.Human)!;
@@ -461,6 +477,17 @@ describe('moonHowler.indoorsPad.test.ts', () => {
   }
 
   describe('the cure-window sweep treats the padded footprint as indoors (L16)', () => {
+    it.each([BuildingType.Road, BuildingType.Bridge])('does not eject a howler from %s', (type) => {
+      const { state, howler, building } = howlerWorld();
+      building.type = type;
+      howler.x = building.x;
+      howler.y = building.y;
+      const before = { x: howler.x, y: howler.y };
+      tickMoonHowlerCycle(state, state.entities, state.buildings, FULL_MOON_DAY,
+        MOON_HOWLER_NIGHT_START, new Map([[howler.id, howler]]), undefined, () => 0.5);
+      expect({ x: howler.x, y: howler.y }).toEqual(before);
+    });
+
     it('forces a howler out of the pad margin, not only out of the bare rectangle', () => {
       const { state, howler, building } = howlerWorld();
 

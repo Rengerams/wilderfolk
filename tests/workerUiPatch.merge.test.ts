@@ -9,6 +9,7 @@ import { applyWorkerUiPatch } from '../src/game/simWorker/uiPatch';
 function world(overrides: Partial<WorldState> = {}): WorldState {
   return {
     bigNews: [{ id: 'worker-b1', title: 'A stranger arrives' }],
+    notifications: [{ id: 'old-toast' }, { id: 'new-worker-toast' }],
     floatingTexts: [{ id: 9, text: '+1 Settler arrived' }],
     activeEvent: { id: 'worker-e1', kind: 'raid' },
     nextFloatingTextId: 10,
@@ -25,6 +26,7 @@ function world(overrides: Partial<WorldState> = {}): WorldState {
 function stalePatch() {
   return {
     bigNews: [],
+    notifications: [],
     floatingTexts: [],
     activeEvent: null,
     nextFloatingTextId: 4,
@@ -54,6 +56,7 @@ describe('worker-side UI patch merge (F2)', () => {
     expect(state.autoSave).toBe(false);
     expect(state.dismissedBigNewsIds).toEqual(['old-banner']);
     expect(state.dismissedNotificationIds).toEqual(['old-toast']);
+    expect(state.notifications.map((note) => note.id)).toEqual(['new-worker-toast']);
     expect(state.tutorialSeen).toEqual(['intro']);
   });
 

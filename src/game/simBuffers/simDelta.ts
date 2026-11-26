@@ -5,6 +5,7 @@ import { getCommandedCommuteBuildingId, setProjectedCommuteBuildingId } from '..
 import { getVenueSchedule } from '../venueSchedule';
 import { getWorkforcePolicy, normalizeWorkforcePolicy, getWorkforceFocus, normalizeWorkforceFocus } from '../workforcePolicy';
 import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
+import { preserveNotificationDismissals } from '../simEffects';
 import { HISTORY_FAMILIES, snapshotHistoryRevisions, type HistoryRevisions } from '../historyRevisions';
 import {
   bumpTerrainRevision,
@@ -54,16 +55,6 @@ function preserveActiveEventDismissal(
   if (!incoming) return null;
   const hidden = new Set(dismissedIds ?? []);
   return hidden.has(incoming.id) ? null : incoming;
-}
-
-/** Keep player-dismissed toasts across worker ticks. */
-export function preserveNotificationDismissals(
-  incoming: WorldState['notifications'],
-  dismissedIds: readonly string[] | undefined,
-): WorldState['notifications'] {
-  const hidden = new Set(dismissedIds ?? []);
-  if (hidden.size === 0) return incoming;
-  return incoming.filter((n) => !hidden.has(n.id));
 }
 
 /** Max event-log entries shipped per worker tick (overflow-safe). */
