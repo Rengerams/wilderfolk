@@ -2,15 +2,17 @@
  * Festival behavior — owner ruling: settlers keep working during a festival, and the gathering
  * window redirects the settlers who are free instead.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, FESTIVAL_CHECK_TICKS } from '../src/game/dayCycle';
 import { DAILY_PHASE_HOURS } from '../src/game/dayCycleClock';
-import { repairStaleFestivalOnLoad } from '../src/game/dailyWorldEvents';
+import { repairStaleFestivalOnLoad, tickFestivals } from '../src/game/dailyWorldEvents';
 import { isFestivalGatheringHour } from '../src/game/humanSchedule';
-import { TOWN_HALL_FESTIVAL_DAYS, getTownHallFestivalCooldownTicks } from '../src/game/townHall';
+import * as simRng from '../src/game/simRng';
+import type { PopulationCounts } from '../src/game/entityCounts';
+import { TOWN_HALL_FESTIVAL_DAYS, getTownHallFestivalCooldownTicks, canHostTownFestival } from '../src/game/townHall';
 
 /**
  * Ticked by the real `gameTick`: `maxAge` and `reproductionCooldown` must be present or old-age
@@ -222,6 +224,49 @@ describe('festival lifecycle regressions', () => {
     expect(FESTIVAL_CHECK_TICKS).toBe(90 * TICKS_PER_DAY);
     expect(getTownHallFestivalCooldownTicks()).toBe(90 * TICKS_PER_DAY);
     expect(TOWN_HALL_FESTIVAL_DAYS).toBe(3);
+  });
+
+  it('preserves hosted eligibility across seasonal endings and the year boundary', () => {
+    const { state } = makeState(false);
+    const counts = { humans: 6 } as PopulationCounts;
+    const rng = vi.spyOn(simRng, 'getSimRng').mockReturnValue(() => 0.99);
+    const deadline = 90 * TICKS_PER_DAY;
+    state.townHallFestivalCooldownUntilTick = deadline;
+    try {
+      for (let day = 0; day <= 365; day++) {
+        if (day === 360) state.eventsThisYear = [];
+        state.tick = day * TICKS_PER_DAY + DAILY_PHASE_HOURS.worldEvents * TICKS_PER_HOUR;
+        tickFestivals(state, counts);
+        expect(state.townHallFestivalCooldownUntilTick).toBe(deadline);
+        if ([5, 95, 185, 275, 365].includes(day)) {
+          expect(state.festival).toBeNull();
+          if (day >= 95) expect(canHostTownFestival(state, state.buildings[1]).ok).toBe(true);
+        }
+      }
+    } finally {
+      rng.mockRestore();
+    }
+  });
+
+  it('allows random festivals at eligible checkpoints without renewing their cooldown on expiry', () => {
+    const { state } = makeState(false);
+    const counts = { humans: 6 } as PopulationCounts;
+    const rng = vi.spyOn(simRng, 'getSimRng').mockReturnValue(() => 0);
+    try {
+      state.tick = 90 * TICKS_PER_DAY + DAILY_PHASE_HOURS.worldEvents * TICKS_PER_HOUR;
+      tickFestivals(state, counts);
+      expect(state.festival?.daysLeft).toBe(2);
+      const deadline = state.tick + getTownHallFestivalCooldownTicks();
+      expect(state.townHallFestivalCooldownUntilTick).toBe(deadline);
+      for (let day = 91; day <= 92; day++) {
+        state.tick = day * TICKS_PER_DAY + DAILY_PHASE_HOURS.worldEvents * TICKS_PER_HOUR;
+        tickFestivals(state, counts);
+      }
+      expect(state.festival).toBeNull();
+      expect(state.townHallFestivalCooldownUntilTick).toBe(deadline);
+    } finally {
+      rng.mockRestore();
+    }
   });
 
   it('caps ongoing long festivals from old saves to four days at the next daily pulse', () => {
