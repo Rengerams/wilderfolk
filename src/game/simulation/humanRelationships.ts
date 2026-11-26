@@ -37,7 +37,7 @@ import { citizenFullName, formatCitizenName, formatDeathLog, humanDisplayName } 
 import { dissolveMarriage, formatCaughtCheaterDivorceDetail, syncMarriageSurnames } from '../nameLoader';
 import { dampScandalReputationLoss } from '../townHall';
 import { getLivingEntity, getHousemates } from '../simQueries';
-import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_AFFAIR_RADIUS } from '../adaptiveSpatialQuery';
+import { forEachAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_AFFAIR_RADIUS } from '../adaptiveSpatialQuery';
 import { isMarriedOrExpecting, startFeud } from '../relationships';
 import { logDeath, logEvent } from '../eventLog';
 import { isPlayerHuman } from '../playerHuman';
@@ -612,13 +612,23 @@ export function advanceYouthLove(
     }
 
     if (!isEligibleForYouthLove(entity)) continue;
-    const candidate = findClosestAdaptiveInRadius(
+    let candidate: Entity | undefined;
+    let bestScore = Infinity;
+    forEachAdaptiveInRadius(
       humanSocialGrid,
       playerHumans,
       entity.x,
       entity.y,
       150,
-      (other) => isValidYouthLoveTarget(entity, other),
+      (other, distanceSq) => {
+        if (!isValidYouthLoveTarget(entity, other)) return;
+        // Prefer an existing childhood friendship without expanding the local search radius.
+        const score = distanceSq * (hasSharedSchoolBond(entity, other) ? 0.25 : 1);
+        if (!candidate || score < bestScore || (score === bestScore && other.id < candidate.id)) {
+          candidate = other;
+          bestScore = score;
+        }
+      },
       socialAdaptiveOptions('social', playerHumans.length, width, height),
     );
     // Formation is not a pair update: either eligible single can initiate.
