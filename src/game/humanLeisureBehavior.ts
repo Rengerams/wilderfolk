@@ -1,6 +1,6 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { EntityType, PATH_CELL } from './gameTypes';
-import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition, crowdGatherPosition, homeStandPosition, steerHumanToward } from './simulation/humanMovement';
+import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition, crowdGatherPosition, homeStandPosition, steerHumanToward, clearHumanWalkTarget } from './simulation/humanMovement';
 import { faceVelocity } from './simulation/movementSteering';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
 import { deterministicCos, deterministicSin } from './simTrig';
@@ -274,16 +274,19 @@ export function tickHumanChildLeisure(args: {
         }
       }
       const site = entity.childPlaySite;
-      const destinationX = site?.x ?? mate.x;
-      const destinationY = site?.y ?? mate.y;
+      // Failed site searches must not turn a reserved group into a moving-target chase.
+      const destinationX = site?.x ?? entity.x;
+      const destinationY = site?.y ?? entity.y;
       const distance = Math.hypot(destinationX - entity.x, destinationY - entity.y);
-      if (distance > 14) {
+      if (site && distance > 14) {
         steerHumanToward(entity, destinationX, destinationY, speed, 0.7,
           `child_play_${entity.id}_${mate.id}`);
       } else {
-        // A little movement at the play area, not an endless chase around the mate's feet.
-        entity.vx = deterministicWave(state.tick * 0.2 + entity.id) * speed * 0.18;
-        entity.vy = deterministicWave(state.tick * 0.18 + mate.id + 0.5) * speed * 0.18;
+        // Stop the previous route as well as velocity: off-screen walk resumption
+        // must not pull a child away from its arrived or unavailable destination.
+        clearHumanWalkTarget(entity);
+        entity.vx = 0;
+        entity.vy = 0;
         if (seededRandomForRun(`chat-kid:${entity.id}:${state.tick}`) < 0.06 * PER_TICK_RATE_SCALE) {
           requestDialogue({
             eventKey: 'child.play', speaker: entity, tick: state.tick,
@@ -306,8 +309,12 @@ export function tickHumanChildLeisure(args: {
     const distance = Math.hypot(follow.x - entity.x, follow.y - entity.y) || 1;
     if (distance > 22) {
       steerHumanToward(entity, follow.x, follow.y, speed, 0.55, `child_follow_${entity.id}_${follow.id}`);
-    } else if (distance > 8) {
+    } else if (distance > 14) {
       steerHumanToward(entity, follow.x, follow.y, speed, 0.18, `child_follow_${entity.id}_${follow.id}`);
+    } else {
+      clearHumanWalkTarget(entity);
+      entity.vx = 0;
+      entity.vy = 0;
     }
     entity.childLeisureActivity = 'following';
     entity.childLeisureTargetId = follow.id;
