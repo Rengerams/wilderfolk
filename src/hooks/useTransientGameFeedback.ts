@@ -10,6 +10,7 @@ import type { WorldState } from '../game/gameEngine';
 import { GameLoop } from '../game/gameLoop';
 import type { MomentCardData } from '../components/MomentTitleCard';
 import { VALLEY_CHAPTERS } from '../game/valleyChronicle';
+import { MAX_PENDING_NOTIFICATIONS } from '../game/simEffects';
 
 const BIG_NEWS_DISPLAY_MS = 8_000;
 /**
@@ -20,12 +21,14 @@ export const NOTIFICATION_DISPLAY_MS = 12_000;
 const BIG_NEWS_DISMISS_AFTER_TICKS = 360;
 const BIG_NEWS_REMOVE_AFTER_TICKS = 600;
 const BIG_NEWS_CLEANUP_INTERVAL_MS = 1_000;
-const NOTIFICATION_CLEANUP_INTERVAL_MS = 2_000;
+const NOTIFICATION_CLEANUP_INTERVAL_MS = 1_000;
+export const MAX_VISIBLE_NOTIFICATIONS = 4;
 /**
  * Cap on the persisted dismissal ledger: it is copied into every UI patch and diffed per tick, so
- * it must stay bounded — but a tail cap above the simulation's 20-toast window can never resurrect one.
+ * it must stay bounded. Keep more IDs than a full queue so delayed worker deltas cannot
+ * resurrect recently acknowledged notifications.
  */
-const MAX_DISMISSED_NOTIFICATION_IDS = 50;
+const MAX_DISMISSED_NOTIFICATION_IDS = MAX_PENDING_NOTIFICATIONS * 2;
 
 /**
  * Cap on the persisted Big News / active-event dismissal ledgers — the same tail cap as the
@@ -39,6 +42,7 @@ export interface UseTransientGameFeedbackOptions {
   worldRef: RefObject<WorldState>;
   loopRef: RefObject<GameLoop | null>;
   onFeedbackInteraction: () => void;
+  hudNotificationsEnabled: boolean;
 }
 
 /** True only when the next Big News sweep would change the world. */
@@ -83,34 +87,69 @@ function getBigNewsAutoDismissIds(
     .map((news) => news.id);
 }
 
-/** True only when the notification sweep would dismiss at least one toast. */
-export function hasExpiredNotifications(
-  world: Pick<WorldState, 'notifications'>,
-  now = Date.now(),
-): boolean {
-  const cutoff = now - NOTIFICATION_DISPLAY_MS;
-  return (world.notifications ?? []).some((notification) => notification.createdAt <= cutoff);
+/** Oldest pending notifications keep their slots until dismissed; newer ones wait. */
+export function getVisibleNotifications(
+  notifications: WorldState['notifications'] | undefined,
+  enabled: boolean,
+): WorldState['notifications'] {
+  return enabled ? (notifications ?? []).slice(0, MAX_VISIBLE_NOTIFICATIONS) : [];
 }
 
-/**
- * Removes notifications past the wall-clock display lifetime, **recording their ids** so the next
- * worker delta cannot restore a toast the player already saw leave.
- */
+/** Track elapsed presentation time only for eligible cards, never for a hidden queue entry. */
+export function reconcileNotificationVisibility(
+  visibleSince: Map<string, number>,
+  eligible: WorldState['notifications'],
+  now: number,
+): void {
+  const ids = new Set(eligible.map((notification) => notification.id));
+  for (const id of visibleSince.keys()) {
+    if (!ids.has(id)) visibleSince.delete(id);
+  }
+  for (const id of ids) {
+    if (!visibleSince.has(id)) visibleSince.set(id, now);
+  }
+}
+
+/** The single wall-clock expiry rule, anchored to first presentation rather than creation. */
+function getExpiredNotificationIds(
+  world: Pick<WorldState, 'notifications'>,
+  visibleSince: ReadonlyMap<string, number>,
+  now: number,
+): string[] {
+  const cutoff = now - NOTIFICATION_DISPLAY_MS;
+  return (world.notifications ?? []).filter((notification) => {
+    const since = visibleSince.get(notification.id);
+    return since !== undefined && since <= cutoff;
+  }).map((notification) => notification.id);
+}
+
+export function hasExpiredNotifications(
+  world: Pick<WorldState, 'notifications'>,
+  visibleSince: ReadonlyMap<string, number>,
+  now = Date.now(),
+): boolean {
+  return getExpiredNotificationIds(world, visibleSince, now).length > 0;
+}
+
+/** One dismissal path for both clicks and expiry, preserving worker-delta suppression. */
+export function dismissNotifications(
+  world: Pick<WorldState, 'notifications' | 'dismissedNotificationIds'>,
+  ids: readonly string[],
+): void {
+  if (ids.length === 0) return;
+  const removed = new Set(ids);
+  const dismissed = new Set(world.dismissedNotificationIds ?? []);
+  for (const id of removed) dismissed.add(id);
+  world.dismissedNotificationIds = Array.from(dismissed).slice(-MAX_DISMISSED_NOTIFICATION_IDS);
+  world.notifications = (world.notifications ?? []).filter((notification) => !removed.has(notification.id));
+}
+
 export function expireNotifications(
   world: Pick<WorldState, 'notifications' | 'dismissedNotificationIds'>,
+  visibleSince: ReadonlyMap<string, number>,
   now = Date.now(),
 ): void {
-  if (!world.notifications || world.notifications.length === 0) return;
-  // One lifetime, one name: the sweeper cutoff and the per-toast timer both read `NOTIFICATION_DISPLAY_MS`.
-  const cutoff = now - NOTIFICATION_DISPLAY_MS;
-  const expired = world.notifications.filter((notification) => notification.createdAt <= cutoff);
-  if (expired.length === 0) return;
-
-  const dismissed = new Set(world.dismissedNotificationIds ?? []);
-  for (const notification of expired) dismissed.add(notification.id);
-  // Same ordering and cap as `dismissNotification`: newest last, oldest dropped past the window.
-  world.dismissedNotificationIds = Array.from(dismissed).slice(-MAX_DISMISSED_NOTIFICATION_IDS);
-  world.notifications = world.notifications.filter((notification) => notification.createdAt > cutoff);
+  dismissNotifications(world, getExpiredNotificationIds(world, visibleSince, now));
 }
 
 /** Resolves the latest undismissed Valley Chronicle moment for presentation. */
@@ -133,6 +172,7 @@ export function useTransientGameFeedback({
   worldRef,
   loopRef,
   onFeedbackInteraction,
+  hudNotificationsEnabled,
 }: UseTransientGameFeedbackOptions) {
   const [dismissedChapter, setDismissedChapter] = useState<string | null>(null);
   const [hiddenBigNewsIds, setHiddenBigNewsIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -140,19 +180,17 @@ export function useTransientGameFeedback({
 
   const bigNewsTimersRef = useRef<Map<string, number>>(new Map());
   const dismissBigNewsItemRef = useRef<(id: string, playFeedback?: boolean) => void>(() => {});
-  /** One wall-clock timer per on-screen notification, mirroring the Big News timers. */
-  const notificationTimersRef = useRef<Map<string, number>>(new Map());
-  const dismissNotificationRef = useRef<(id: string, playFeedback?: boolean) => void>(() => {});
+  const notificationVisibleSinceRef = useRef<Map<string, number>>(new Map());
+  // Simulation and command paths may append to the existing array before a UI render.
+  // Derive the tiny visible batch on every render, not only when the array identity changes.
+  const visibleNotifications = getVisibleNotifications(world.notifications, hudNotificationsEnabled);
 
-  const clearBigNewsTimers = useCallback(() => {
+  const clearFeedbackTiming = useCallback(() => {
     for (const timeout of bigNewsTimersRef.current.values()) {
       window.clearTimeout(timeout);
     }
     bigNewsTimersRef.current.clear();
-    for (const timeout of notificationTimersRef.current.values()) {
-      window.clearTimeout(timeout);
-    }
-    notificationTimersRef.current.clear();
+    notificationVisibleSinceRef.current.clear();
   }, []);
 
   // Periodic simulation-tick cleanup for long-lived/restored news
@@ -166,21 +204,36 @@ export function useTransientGameFeedback({
     return () => clearInterval(timer);
   }, [loopRef]);
 
-  // Periodic wall-clock expiration for toast notifications
+  // Changing the preference starts a fresh presentation interval. Muted cards expire quietly
+  // instead of building up a backlog; any card shown after unmuting gets its full display time.
+  useEffect(() => {
+    notificationVisibleSinceRef.current.clear();
+  }, [hudNotificationsEnabled]);
+
+  useEffect(() => {
+    reconcileNotificationVisibility(
+      notificationVisibleSinceRef.current,
+      hudNotificationsEnabled ? visibleNotifications : (world.notifications ?? []),
+      Date.now(),
+    );
+  }, [hudNotificationsEnabled, visibleNotifications, world.notifications]);
+
+  // One expiry sweep; waiting cards cannot expire before they enter the visible batch.
   useEffect(() => {
     const timer = setInterval(() => {
       const loop = loopRef.current;
       const now = Date.now();
-      if (loop && hasExpiredNotifications(loop.getWorld(), now)) {
-        loop.mutateWorld((currentWorld) => expireNotifications(currentWorld, now));
+      const visibleSince = notificationVisibleSinceRef.current;
+      if (loop && hasExpiredNotifications(loop.getWorld(), visibleSince, now)) {
+        loop.mutateWorld((currentWorld) => expireNotifications(currentWorld, visibleSince, now));
       }
     }, NOTIFICATION_CLEANUP_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [loopRef]);
 
   useEffect(() => {
-    return () => clearBigNewsTimers();
-  }, [clearBigNewsTimers]);
+    return () => clearFeedbackTiming();
+  }, [clearFeedbackTiming]);
 
   // Derived Valley Chronicle moment
   const pendingChapterCard = useMemo(
@@ -201,13 +254,7 @@ export function useTransientGameFeedback({
     (id: string, playFeedback = true) => {
       if (playFeedback) onFeedbackInteraction();
       loopRef.current?.mutateWorld((currentWorld) => {
-        const dismissed = new Set(currentWorld.dismissedNotificationIds ?? []);
-        dismissed.add(id);
-        // Keep insertion order (newest last) and drop the oldest entries past the cap.
-        currentWorld.dismissedNotificationIds = Array.from(dismissed).slice(-MAX_DISMISSED_NOTIFICATION_IDS);
-        currentWorld.notifications = currentWorld.notifications.filter(
-          (notification) => notification.id !== id,
-        );
+        dismissNotifications(currentWorld, [id]);
       });
     },
     [loopRef, onFeedbackInteraction],
@@ -241,32 +288,6 @@ export function useTransientGameFeedback({
   useEffect(() => {
     dismissBigNewsItemRef.current = dismissBigNewsItem;
   }, [dismissBigNewsItem]);
-
-  useEffect(() => {
-    dismissNotificationRef.current = dismissNotification;
-  }, [dismissNotification]);
-
-  // Reconcile auto-dismissal timeouts when notifications change, so every toast leaves the
-  // screen even if the player never clicks it.
-  useEffect(() => {
-    const liveIds = new Set((world.notifications ?? []).map((notification) => notification.id));
-
-    for (const [id, timeout] of notificationTimersRef.current) {
-      if (!liveIds.has(id)) {
-        window.clearTimeout(timeout);
-        notificationTimersRef.current.delete(id);
-      }
-    }
-
-    for (const id of liveIds) {
-      if (notificationTimersRef.current.has(id)) continue;
-      const timeout = window.setTimeout(() => {
-        notificationTimersRef.current.delete(id);
-        dismissNotificationRef.current(id, false);
-      }, NOTIFICATION_DISPLAY_MS);
-      notificationTimersRef.current.set(id, timeout);
-    }
-  }, [world.notifications]);
 
   // Reconcile auto-dismissal timeouts when bigNews entries change
   useEffect(() => {
@@ -337,15 +358,15 @@ export function useTransientGameFeedback({
   }, [loopRef, onFeedbackInteraction, worldRef]);
 
   const resetTransientFeedbackForNewSession = useCallback(() => {
-    clearBigNewsTimers();
+    clearFeedbackTiming();
     setHiddenBigNewsIds(new Set());
     setHiddenActiveEventIds(new Set());
     setDismissedChapter(null);
-  }, [clearBigNewsTimers]);
+  }, [clearFeedbackTiming]);
 
   const synchronizeTransientFeedbackFromWorld = useCallback(
     (loadedWorld: WorldState) => {
-      clearBigNewsTimers();
+      clearFeedbackTiming();
       const dismissedIds = new Set(loadedWorld.dismissedBigNewsIds ?? []);
       const newsList = loadedWorld.bigNews ?? [];
       for (let i = 0; i < newsList.length; i++) {
@@ -356,7 +377,7 @@ export function useTransientGameFeedback({
       setHiddenBigNewsIds(dismissedIds);
       setHiddenActiveEventIds(new Set(loadedWorld.dismissedActiveEventIds ?? []));
     },
-    [clearBigNewsTimers],
+    [clearFeedbackTiming],
   );
 
   const activeBigNews = useMemo(
@@ -375,6 +396,7 @@ export function useTransientGameFeedback({
   const activeEventForBanner = activeEventDismissible ? world.activeEvent : null;
 
   return {
+    visibleNotifications,
     activeBigNews,
     activeEventDismissible,
     activeEventForBanner,

@@ -80,11 +80,13 @@ describe('C2 — the view reads the owner instead of re-deriving the rule', () =
     expect(resourceFillPercent({ amount: 900, cap: 800 })).toBe(100);
   });
 
-  it('toast lifetime: one constant for the sweeper cutoff and the per-toast timer', () => {
-    // One lifetime constant feeds both the sweeper cutoff and the per-toast timer.
+  it('toast lifetime: one visibility-based expiry owner and one HUD batch', () => {
     const hook = read('src/hooks/useTransientGameFeedback.ts');
     expect(hook, 'the duplicate lifetime constant is back').not.toContain('NOTIFICATION_LIFETIME_MS');
     expect(hook).toContain('const cutoff = now - NOTIFICATION_DISPLAY_MS;');
+    expect(hook).not.toContain('notificationTimersRef');
+    expect(read('src/App.tsx')).toContain('visibleNotifications.map(');
+    expect(read('src/App.tsx')).not.toContain('world.notifications ?? []).slice(-4)');
   });
 
   it('SidebarTab: one union, owned by hotkeys, imported by the shell hook', () => {

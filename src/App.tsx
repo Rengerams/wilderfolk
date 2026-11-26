@@ -375,6 +375,7 @@ export default function App() {
     void persistCurrentGame({ chronicle: false, feedback: false, background: true });
   }, [world.raidRecovery, persistCurrentGame]);
   const {
+    visibleNotifications,
     activeBigNews,
     activeEventDismissible,
     activeEventForBanner,
@@ -390,6 +391,7 @@ export default function App() {
     worldRef,
     loopRef,
     onFeedbackInteraction: playClickSound,
+    hudNotificationsEnabled,
   });
 
   const isDraggingRef = useRef(false);
@@ -1658,7 +1660,7 @@ export default function App() {
               className="flex max-h-[calc(100vh-9rem)] flex-col gap-1.5 overflow-y-auto pr-0.5"
               aria-live="polite"
             >
-            {hudNotificationsEnabled && (world.notifications ?? []).slice(-4).map((n) => {
+            {visibleNotifications.map((n) => {
               // Acting on a notification must not destroy it: the body jumps to the subject, the ×
               // dismisses.
               const openSubject = () => {
