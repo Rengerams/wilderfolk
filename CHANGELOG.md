@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Improved (26 Nov 2026; PR pending):** Virtual Player construction now prefers available building plots beside existing roads, preserving street layouts. If no lawful road frontage is available, the previous deterministic camp-ring search remains the fallback.
 - **Fixed (26 Nov 2026; PR #198):** Apprenticeships now release previous jobs and builder crews via the shared workforce transition. Auto-staffing reserves trainees, and legacy conflicting assignments are reconciled so apprentices attend their actual masters.
 
 - **Fixed (26 Nov 2026; PR #198):** Immigrant children start with zero school days. Graduation no longer grants all trade skills. Apprentices visibly commute, require shared attendance with a master, and earn a trade-specific +5 (+10 grandmaster) bonus on completion.
