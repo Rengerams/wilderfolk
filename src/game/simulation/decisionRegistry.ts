@@ -92,6 +92,7 @@ export type DecisionKey =
   | 'moonHowler'
   | 'leadership'
   | 'raidCombat'
+  | 'outgoingRaidStatus'
   | 'raidRecovery'
   | 'raidTerminalPresentation'
   | 'crashRecovery'
