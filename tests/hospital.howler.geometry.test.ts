@@ -145,21 +145,35 @@ function wildlifeContext(state: WorldState, entities: Entity[], howler: Entity):
 }
 
 /** A hungry active Moon Howler 40 px from a settler at their own doorstep. */
-function howlerAtDoor(indoors: boolean): { howler: Entity; settler: Entity } {
+function howlerAtDoor(indoors: boolean, energy = 350, offscreen = false): { howler: Entity; settler: Entity } {
   const { house, door } = houseAndDoorway();
-  const howler = createEntity(EntityType.Werewolf, door.x + 40, door.y, 40, 350);
+  const howler = createEntity(EntityType.Werewolf, door.x + 40, door.y, 40, energy);
   howler.moonHowlerCursed = true;
   const target = settler(41, door.x, door.y, 200);
   if (indoors) target.indoorBuildingId = house.id;
   const state = freshState([howler, target], [house]);
 
-  tickWildlife(state, wildlifeContext(state, state.entities, howler));
+  const ctx = wildlifeContext(state, state.entities, howler);
+  if (offscreen) {
+    state.tick = 4; // id 40 is deliberately outside its ordinary eight-pulse throttle slot.
+    ctx.focus = { minX: 0, minY: 0, maxX: 10, maxY: 10 };
+  }
+  tickWildlife(state, ctx);
   return { howler, settler: target };
 }
 
 describe('S-16 — indoors is safe from the Moon Howler', () => {
   it('does not pick a settler whose indoor building record says they are inside', () => {
     expect(howlerAtDoor(true).howler.huntTargetId).toBeUndefined();
+  });
+
+  it('pursues an exposed settler even while fed and off-screen', () => {
+    const { howler, settler: target } = howlerAtDoor(false, 700, true);
+    expect(howler.huntTargetId).toBe(target.id);
+  });
+
+  it('still protects an indoor settler from a fed off-screen howler', () => {
+    expect(howlerAtDoor(true, 700, true).howler.huntTargetId).toBeUndefined();
   });
 
   it('still picks the same settler standing at the doorway outside', () => {
