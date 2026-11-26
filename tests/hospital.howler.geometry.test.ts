@@ -4,14 +4,14 @@
  * on a full moon must actually shelter them from the Moon Howler's prey filter (S-16).
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { BUILDING_CONFIGS, BuildingType, EntityType, JobType } from '../src/game/gameTypes';
+import { BUILDING_CONFIGS, BuildingType, EntityType, JobType, TerrainType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { createBuilding, initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { personDayRoll, setSimSeed } from '../src/game/simRng';
-import { resetPathGridCaches } from '../src/game/pathfinding';
+import { getPathGrid, getWildlifePathGrid, resetPathGridCaches } from '../src/game/pathfinding';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import {
   doctorTreatNearby,
@@ -184,6 +184,44 @@ describe('S-16 — indoors is safe from the Moon Howler', () => {
 });
 
 describe('Moon Howler navigation and contact', () => {
+  it('takes the dry detour when the shorter route around a wall crosses shallow water', () => {
+    const wall = createBuilding(BuildingType.Wall, 105, 105, 50);
+    Object.assign(wall, { completed: true, width: 10, height: 50 });
+    const howler = createEntity(EntityType.Werewolf, 65, 95, 40, 700);
+    howler.moonHowlerCursed = true;
+    const target = settler(41, 155, 95, 200);
+    const state = freshState([howler, target], [wall]);
+    state.worldMap = testWorldMap({
+      tilesX: 30, tilesY: 30,
+      tileType: (_tx, ty) => ty <= 7 ? TerrainType.ShallowWater : undefined,
+    });
+    state.width = state.height = 300;
+    let usedSouthernDetour = false;
+    for (let pulse = 0; pulse < 100 && howler.alive && target.alive; pulse++) {
+      state.tick = 4 + pulse * 4;
+      tickWildlife(state, wildlifeContext(state, state.entities, howler));
+      expect(howler.y).toBeGreaterThanOrEqual(80);
+      if (howler.y >= 130) usedSouthernDetour = true;
+    }
+    expect(usedSouthernDetour).toBe(true);
+    expect(howler.x).toBeGreaterThan(115);
+  });
+
+  it('keeps strict wildlife masks cached and separate from the human grid', () => {
+    const map = testWorldMap({ tilesX: 10, tilesY: 10,
+      tileType: (tx) => tx === 4 ? TerrainType.ShallowWater : undefined });
+    const bridge = createBuilding(BuildingType.Bridge, 45, 55, 60);
+    Object.assign(bridge, { completed: true, width: 10, height: 10 });
+    const humanGrid = getPathGrid(map, [bridge]);
+    const waterBlocked = (tx: number, ty: number) =>
+      tx === 4 && !humanGrid.bridge?.[ty * humanGrid.cols + tx];
+    const wildlifeGrid = getWildlifePathGrid(humanGrid, waterBlocked);
+    expect(getWildlifePathGrid(humanGrid, waterBlocked)).toBe(wildlifeGrid);
+    expect(wildlifeGrid.blocked[4]).toBe(1);
+    expect(humanGrid.blocked[4]).toBe(0);
+    expect(wildlifeGrid.blocked[5 * humanGrid.cols + 4]).toBe(0);
+  });
+
   it('cannot attack a nearby settler through a completed wall', () => {
     const wall = createBuilding(BuildingType.Wall, 95, 95, 50);
     Object.assign(wall, { completed: true, width: 10, height: 70 });
