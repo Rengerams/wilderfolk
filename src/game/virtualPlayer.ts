@@ -7,6 +7,7 @@ import type { ForgeOrderId } from './gameTypes';
 import { WORKER_CMD_PROTO, type WorkerCommand } from './simWorker/commands';
 import { buildStripPreview } from './buildingPlacementActions';
 import { canPlaceBuilding } from './placementUtils';
+import { getBuildingCenter } from './buildingGeometry';
 import {
   getBuildingFootprintForType,
   snapBuildingCenter,
@@ -243,13 +244,14 @@ function findPlacementSpot(
   if (type !== BuildingType.Road) {
     const roads = state.buildings.filter((b) => b.type === BuildingType.Road && b.completed)
       .sort((a, b) => {
-        const da = Math.hypot(a.x + a.width / 2 - camp.x, a.y + a.height / 2 - camp.y);
-        const db = Math.hypot(b.x + b.width / 2 - camp.x, b.y + b.height / 2 - camp.y);
+        const ac = getBuildingCenter(a);
+        const bc = getBuildingCenter(b);
+        const da = Math.hypot(ac.x - camp.x, ac.y - camp.y);
+        const db = Math.hypot(bc.x - camp.x, bc.y - camp.y);
         return da - db || a.id - b.id;
       });
     for (const road of roads) {
-      const roadX = road.x + road.width / 2;
-      const roadY = road.y + road.height / 2;
+      const { x: roadX, y: roadY } = getBuildingCenter(road);
       const horizontal = road.width >= road.height;
       // Try just beyond both road edges, then nearby points along that road.
       for (const along of [0, -1, 1, -2, 2]) {

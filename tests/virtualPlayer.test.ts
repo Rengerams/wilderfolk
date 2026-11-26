@@ -32,6 +32,7 @@ import { applyWorkerCommand, WORKER_CMD_PROTO } from '../src/game/simWorker/comm
 import { canLaunchRaidOnRival, getRaidChoiceEligibility } from '../src/game/frontierCombat';
 import { getOpenBeds, getOpenPlayerBeds } from '../src/game/populationGrowth';
 import { canPlaceBuilding } from '../src/game/placementUtils';
+import { getBuildingCenter } from '../src/game/buildingGeometry';
 import { canAssignWorkerToBuilding } from '../src/game/buildingStaffingActions';
 import { assignMissingWorkers } from '../src/game/workforce';
 import { getRepairBuildingEligibility, buildingTypeHasLevelBenefit } from '../src/game/buildingMaintenanceActions';
@@ -479,11 +480,12 @@ describe('virtual player decision engine', () => {
 
     const house = decision.command;
     expect(canPlaceBuilding(world, BuildingType.House, house.x, house.y, house.rotation)).toBe(true);
-    // The placement deliberately follows the north/south road segment's frontage near y=550,
+    // The placement deliberately follows the north/south road segment's frontage near y=500,
     // not the old unrelated camp ring at (600, 460).
-    expect(Math.abs(house.y - (road.y + road.height / 2))).toBeLessThanOrEqual(40);
+    const centre = getBuildingCenter(road);
+    expect(Math.abs(house.y - centre.y)).toBeLessThanOrEqual(20);
     expect(house.x).toBeGreaterThan(730);
-    expect(Math.abs(house.x - (road.x + road.width / 2))).toBeLessThanOrEqual(90);
+    expect(Math.abs(house.x - centre.x)).toBeLessThanOrEqual(90);
   });
 
   it("builds the free Leader's House first, before any other colony work", () => {
