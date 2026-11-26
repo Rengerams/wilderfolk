@@ -836,8 +836,7 @@ function pickIdleWorkerForBuilding(
       const candidateFit = evaluateWorkerFit(candidate, job);
       if (candidateFit.creditedDays < bestFit.creditedDays
         || (candidateFit.creditedDays === bestFit.creditedDays
-          && (candidateFit.aptitudeFactor < bestFit.aptitudeFactor
-            || (candidateFit.aptitudeFactor === bestFit.aptitudeFactor && candidate.id >= worker.id)))) continue;
+          && candidateFit.aptitudeFactor <= bestFit.aptitudeFactor)) continue;
     }
     worker = candidate;
     bestDistance = distance;
