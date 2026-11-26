@@ -128,7 +128,7 @@ describe('apprenticeships', () => {
     master.schedulePresentTicksToday = 108;
     advanceApprenticeships(w, w.entities);
     expect(scholar.grandmasterApprenticeshipCompleted).toBe(true);
-    expect(scholar.skills[JobType.Farmer]).toBeGreaterThanOrEqual(60);
+    expect(scholar.skills[JobType.Farmer]).toBeGreaterThanOrEqual(70);
     expect(scholar.skills?.[JobType.Teacher]).toBeUndefined();
     expect(scholar.careerMilestones?.farmer?.trainedAtDay).toBe(0);
     expect(scholar.careerHistory).toBeUndefined();
@@ -150,6 +150,7 @@ describe('apprenticeships', () => {
     scholar.educated = true;
     const ordinary = addHuman(w, { id: 3 });
     ordinary.schoolDays = SCHOOL_GRADUATION_DAYS;
+    ordinary.educated = true;
     w.buildings.push({
       id: 10, type: BuildingType.Farm, x: 300, y: 300, width: 60, height: 60,
       occupants: [master.id], level: 1, constructionProgress: 100,
@@ -170,6 +171,7 @@ describe('apprenticeships', () => {
     grandmaster.skills = { [JobType.Farmer]: 90 };
     const ordinary = addHuman(w, { id: 3 });
     ordinary.schoolDays = SCHOOL_GRADUATION_DAYS;
+    ordinary.educated = true;
     ordinary.apprenticeOfId = master.id;
     master.apprenticeId = ordinary.id;
     const scholar = addHuman(w, { id: 2 });
@@ -286,6 +288,7 @@ describe('apprenticeships', () => {
     const kid = addHuman(w, { id: 3, x: 310, y: 310, isJuvenile: false });
     kid.age = 18;
     kid.schoolDays = SCHOOL_GRADUATION_DAYS;
+    kid.educated = true;
     w.buildings.push({
       id: 1,
       type: BuildingType.Farm,
@@ -385,6 +388,7 @@ describe('apprenticeships', () => {
     const kid = addHuman(w, { id: 3, x: 310, y: 310, isJuvenile: false });
     kid.age = 18;
     kid.schoolDays = SCHOOL_GRADUATION_DAYS;
+    kid.educated = true;
     kid.skills = { [JobType.Farmer]: 49.6 }; // one strong lesson → ≥ 50
     w.buildings.push({
       id: 1,
@@ -414,6 +418,60 @@ describe('apprenticeships', () => {
     expect(kid.skills?.[JobType.Teacher]).toBeUndefined();
     expect(master.apprenticeId).toBeUndefined();
     expect(kid.apprenticeOfId).toBeUndefined();
+  });
+});
+
+describe('apprenticeship eligibility reconciliation', () => {
+  it('skips already-skilled and imprisoned scholars and trains an eligible scholar instead', () => {
+    const w = makeWorld();
+    w.entities = [];
+    w.buildings = [];
+    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    master.skills = { [JobType.Farmer]: 90 };
+    const skilled = addHuman(w, { id: 2 });
+    const prisoner = addHuman(w, { id: 4 });
+    const eligible = addHuman(w, { id: 6 });
+    for (const person of [skilled, prisoner, eligible]) {
+      person.educated = true;
+      person.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
+    }
+    skilled.skills = { [JobType.Farmer]: 50 };
+    prisoner.prisonBuildingId = 99;
+    w.buildings.push({
+      id: 10, type: BuildingType.Farm, x: 300, y: 300, width: 60, height: 60,
+      occupants: [master.id], completed: true,
+    } as Building);
+    advanceApprenticeships(w, w.entities);
+    expect(master.apprenticeId).toBe(eligible.id);
+    expect(skilled.apprenticeOfId).toBeUndefined();
+    expect(prisoner.apprenticeOfId).toBeUndefined();
+  });
+
+  it('awards the intermediate diploma bonus only to the trained trade', () => {
+    const w = makeWorld();
+    w.entities = [];
+    w.buildings = [];
+    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    master.skills = { [JobType.Farmer]: 90 };
+    const student = addHuman(w, { id: 3 });
+    student.educated = true;
+    student.schoolDays = 135;
+    student.skills = { [JobType.Farmer]: 49.9 };
+    master.apprenticeId = student.id;
+    student.apprenticeOfId = master.id;
+    for (const person of [master, student]) {
+      person.schedulePresentSiteIdToday = 10;
+      person.schedulePresentTicksToday = 108;
+    }
+    w.buildings.push({
+      id: 10, type: BuildingType.Farm, x: 300, y: 300, width: 60, height: 60,
+      occupants: [master.id], completed: true,
+    } as Building);
+    advanceApprenticeships(w, w.entities);
+    expect(student.skills?.[JobType.Farmer]).toBeGreaterThanOrEqual(58);
+    expect(student.skills?.[JobType.Farmer]).toBeLessThan(59);
+    expect(student.skills?.[JobType.Teacher]).toBeUndefined();
+    expect(student.apprenticeOfId).toBeUndefined();
   });
 });
 
