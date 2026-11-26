@@ -32,6 +32,7 @@ import { huntAnimProgress } from '../huntvisuals';
 import { getCachedNameWidth, isDrawableSpriteFrame, motionTime, roundRect } from './shared';
 import {
   clampSpeechBubbleTailY,
+  canPlaceNamePlate,
   formatHumanNameLabel,
   getNamePlateLayout,
   getSpeechBubbleFontSize,
@@ -886,7 +887,8 @@ export function drawHumans(
     const labelY = headY - 4 - (isLeader && cam.zoom > 0.22 ? Math.max(10, 12 * cam.zoom) : 0);
     let namePlate: { text: string; fontSize: number; labelY: number; rect: OverheadRect } | null = null;
     if (!stageHidesOverhead
-      && shouldDrawHumanNameLabel(cam.zoom, nameZoomMin) && (human.name || human.surname || isLeader)) {
+      && shouldDrawHumanNameLabel(cam.zoom, nameZoomMin, _cachedHumans.length, isSel || isLeader)
+      && (human.name || human.surname || isLeader)) {
       const text = formatHumanNameLabel(human, {
         isLeader,
         showRole: cam.zoom > 0.5,
@@ -895,8 +897,11 @@ export function drawHumans(
       const fontSize = Math.max(isLeader ? 8 : 7, Math.min(isLeader ? 11 : 9, (isLeader ? 9.5 : 8) * cam.zoom));
       const textWidth = getCachedNameWidth(ctx, text, fontSize, cam.zoom);
       const plate = getNamePlateLayout(labelY, sx, textWidth, fontSize, isLeader);
-      occupiedBubbleRects.push(plate.rect);
-      namePlate = { text, fontSize, labelY, rect: plate.rect };
+      // Keep the leader and selection visible; ordinary plates yield to existing ones.
+      if (isSel || isLeader || canPlaceNamePlate(plate.rect, occupiedBubbleRects)) {
+        occupiedBubbleRects.push(plate.rect);
+        namePlate = { text, fontSize, labelY, rect: plate.rect };
+      }
     }
 
     if (isTalking) {

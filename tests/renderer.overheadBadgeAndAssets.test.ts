@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest';
 import { getHumanStatusCombatIconFromFlags } from '../src/game/combat';
 import {
   clampSpeechBubbleTailY,
+  canPlaceNamePlate,
+  shouldDrawHumanNameLabel,
   combatTokenStatusKind,
   getStatusBadgeColor,
   getStatusBadgeLayout,
@@ -95,6 +97,24 @@ describe('status badge draws a shape, not a font glyph', () => {
     expect(source).not.toContain('getStatusIcon');
     expect(source).toContain('resolveStatusBadgeKind(');
     expect(source).toContain('drawStatusBadge(');
+  });
+});
+
+describe('dense village name plate decluttering', () => {
+  it('hides ordinary names earlier in busy villages but preserves the selected and leader', () => {
+    expect(shouldDrawHumanNameLabel(0.6, 0.45, 20)).toBe(true);
+    expect(shouldDrawHumanNameLabel(0.6, 0.45, 50)).toBe(false);
+    expect(shouldDrawHumanNameLabel(1, 0.45, 50)).toBe(true);
+    expect(shouldDrawHumanNameLabel(1, 0.45, 110)).toBe(false);
+    expect(shouldDrawHumanNameLabel(1.3, 0.45, 110)).toBe(true);
+    expect(shouldDrawHumanNameLabel(0.6, 0.45, 110, true)).toBe(true);
+    expect(shouldDrawHumanNameLabel(0.3, 0.45, 110, true)).toBe(false);
+  });
+
+  it('never paints a regular name on top of a reserved name', () => {
+    const existing = { x: 20, y: 35, width: 70, height: 15 };
+    expect(canPlaceNamePlate({ x: 50, y: 40, width: 50, height: 12 }, [existing])).toBe(false);
+    expect(canPlaceNamePlate({ x: 95, y: 40, width: 50, height: 12 }, [existing])).toBe(true);
   });
 });
 

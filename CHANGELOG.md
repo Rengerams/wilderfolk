@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Improved (26 Nov 2026; PR pending):** Names are now decluttered dynamically: dense villages hide ordinary plates until zoomed in, with the elected leader and selected villagers kept visible and overlapping ordinary labels suppressed.
+
 - **Fixed (26 Nov 2026):** Returning armies show homeward travel rather than obsolete battle orders; the Chronicle and deployment lifecycle remain intact.
 
 - **Fixed (26 Nov 2026):** Free-roaming hunters route around impassable terrain and cannot kill close prey through blocked terrain. Shallow-water walking remains unchanged.

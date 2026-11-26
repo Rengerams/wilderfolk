@@ -187,9 +187,13 @@ export function getSpeechBubbleHeadClearance(
   return spriteSize + 14 + crownClearance;
 }
 
-/** Whether a settler's name plate is drawn at this zoom. A speaker keeps the plate. */
-export function shouldDrawHumanNameLabel(zoom: number, nameZoomMin: number): boolean {
-  return zoom > nameZoomMin;
+/** Dense villages show only selected/important villagers at ordinary zoom levels. */
+export function shouldDrawHumanNameLabel(
+  zoom: number, nameZoomMin: number, humanCount = 0, important = false,
+): boolean {
+  if (important) return zoom > nameZoomMin;
+  const crowdedZoomMin = humanCount >= 90 ? 1.2 : humanCount >= 45 ? 0.85 : nameZoomMin;
+  return zoom > Math.max(nameZoomMin, crowdedZoomMin);
 }
 
 export interface OverheadRect {
@@ -204,6 +208,11 @@ function rectanglesOverlap(a: OverheadRect, b: OverheadRect): boolean {
     && a.x + a.width > b.x
     && a.y < b.y + b.height
     && a.y + a.height > b.y;
+}
+
+/** A regular name plate is omitted rather than painted over an existing one. */
+export function canPlaceNamePlate(rect: OverheadRect, occupied: readonly OverheadRect[]): boolean {
+  return !occupied.some((other) => rectanglesOverlap(rect, other));
 }
 
 /**
