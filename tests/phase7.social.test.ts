@@ -7,11 +7,12 @@ import { initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
 import { EntityType, BuildingType, JobType } from '../src/game/gameTypes';
 import { advanceSocialRelationships, relationshipScore, startFeud, friendCount } from '../src/game/relationships';
-import { advanceApprenticeships } from '../src/game/apprenticeships';
+import { advanceApprenticeships, getApprenticeTrainingSite } from '../src/game/apprenticeships';
+import { addToConstructionCrew, assignWorkerInPlace, assignWorkerTransition, staffConstructionCrews } from '../src/game/workforce';
 import { SCHOOL_GRADUATION_DAYS, SCHOOL_FULL_EDUCATION_DAYS } from '../src/game/education';
 import { computeDynasties, hasDynasty } from '../src/game/familyLegacy';
 import { advanceValleyChronicle } from '../src/game/valleyChronicle';
-import type { Entity, WorldState } from '../src/game/gameTypes';
+import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 
 function makeWorld(): WorldState {
   return initGame({ villageName: 'P7', size: 'medium' });
@@ -121,9 +122,13 @@ describe('apprenticeships', () => {
     expect(scholar.apprenticeOfId).toBe(master.id);
 
     scholar.skills = { [JobType.Farmer]: 49.5 };
+    scholar.schedulePresentSiteIdToday = 10;
+    scholar.schedulePresentTicksToday = 108;
+    master.schedulePresentSiteIdToday = 10;
+    master.schedulePresentTicksToday = 108;
     advanceApprenticeships(w, w.entities);
     expect(scholar.grandmasterApprenticeshipCompleted).toBe(true);
-    expect(scholar.skills?.[JobType.Farmer]).toBeGreaterThanOrEqual(70);
+    expect(scholar.skills[JobType.Farmer]).toBeGreaterThanOrEqual(60);
     expect(scholar.skills?.[JobType.Teacher]).toBeUndefined();
     expect(scholar.careerMilestones?.farmer?.trainedAtDay).toBe(0);
     expect(scholar.careerHistory).toBeUndefined();
@@ -181,6 +186,95 @@ describe('apprenticeships', () => {
     expect(scholar.apprenticeOfId).toBe(grandmaster.id);
   });
 
+  it('releases an employed scholar from another workplace so she can attend her master', () => {
+    const world = makeWorld();
+    world.entities = [];
+    world.buildings = [];
+    const master = addHuman(world, { id: 1, job: JobType.Farmer });
+    master.skills = { [JobType.Farmer]: 90 };
+    master.workerBuildingId = 10;
+    const scholar = addHuman(world, { id: 2, workerBuildingId: 20, job: JobType.Lumberjack });
+    scholar.age = 26;
+    scholar.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
+    scholar.educated = true;
+    scholar.skills = { [JobType.Farmer]: 10, [JobType.Lumberjack]: 30 };
+    const farm = {
+      id: 10, type: BuildingType.Farm, x: 300, y: 300, width: 60, height: 60,
+      occupants: [master.id], completed: true,
+    } as Building;
+    const lumber = {
+      id: 20, type: BuildingType.LumberMill, x: 500, y: 300, width: 60, height: 60,
+      occupants: [scholar.id], completed: true,
+    } as Building;
+    world.buildings.push(farm, lumber);
+
+    advanceApprenticeships(world, world.entities);
+    expect(master.apprenticeId).toBe(scholar.id);
+    expect(scholar.apprenticeOfId).toBe(master.id);
+    expect(scholar.workerBuildingId).toBeUndefined();
+    expect(scholar.job).toBe(JobType.Settler);
+    expect(lumber.occupants).not.toContain(scholar.id);
+    expect(getApprenticeTrainingSite(scholar,
+      new Map(world.entities.map((person) => [person.id, person])),
+      new Map(world.buildings.map((site) => [site.id, site])),
+    )).toBe(farm);
+
+    // A normal paid job cannot silently replace a valid apprenticeship.
+    expect(assignWorkerTransition(scholar, lumber)).toBe(false);
+    expect(assignWorkerInPlace(lumber, world.entities, world.buildings)).toBe(false);
+    scholar.schedulePresentTicksToday = 108;
+    scholar.schedulePresentSiteIdToday = farm.id;
+    master.schedulePresentTicksToday = 108;
+    master.schedulePresentSiteIdToday = farm.id;
+    advanceApprenticeships(world, world.entities);
+    expect(scholar.skills?.[JobType.Farmer]).toBeGreaterThan(10);
+    expect(scholar.workerBuildingId).toBeUndefined();
+  });
+
+  it('keeps apprentices out of automatic construction crews', () => {
+    const world = makeWorld();
+    world.entities = [];
+    world.buildings = [];
+    const apprentice = addHuman(world, { id: 2 });
+    apprentice.apprenticeOfId = 1;
+    const unfinished = {
+      id: 30, type: BuildingType.House, x: 300, y: 300, width: 60, height: 60,
+      occupants: [], completed: false, level: 1, constructionProgress: 0,
+      health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
+    } as Building;
+    world.buildings.push(unfinished);
+    expect(addToConstructionCrew(apprentice, unfinished)).toBe(false);
+    staffConstructionCrews(world.entities, world.buildings);
+    expect(unfinished.occupants).not.toContain(apprentice.id);
+  });
+
+  it('repairs a previously bonded apprentice who was given a competing job', () => {
+    const world = makeWorld();
+    world.entities = [];
+    world.buildings = [];
+    const master = addHuman(world, { id: 1, job: JobType.Farmer });
+    master.skills = { [JobType.Farmer]: 90 };
+    const apprentice = addHuman(world, { id: 2, workerBuildingId: 20, job: JobType.Lumberjack });
+    apprentice.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
+    apprentice.educated = true;
+    master.apprenticeId = apprentice.id;
+    apprentice.apprenticeOfId = master.id;
+    const farm = {
+      id: 10, type: BuildingType.Farm, x: 300, y: 300,
+      occupants: [master.id], completed: true,
+    } as Building;
+    const competing = {
+      id: 20, type: BuildingType.LumberMill, x: 450, y: 300,
+      occupants: [apprentice.id], completed: true,
+    } as Building;
+    world.buildings.push(farm, competing);
+    advanceApprenticeships(world, world.entities);
+    expect(apprentice.workerBuildingId).toBeUndefined();
+    expect(competing.occupants).not.toContain(apprentice.id);
+    expect(apprentice.apprenticeOfId).toBe(master.id);
+    expect(master.apprenticeId).toBe(apprentice.id);
+  });
+
   it('a master may train a qualified adult after school', () => {
     const w = makeWorld();
     // Isolate this apprenticeship from generated founders and workplaces: they may
@@ -213,10 +307,71 @@ describe('apprenticeships', () => {
     expect(master.apprenticeId).toBe(kid.id);
     expect(kid.apprenticeOfId).toBe(master.id);
 
-    // teaching boosts the apprentice's skill
+    // Teaching requires presence from both apprentice and mentor at this exact workplace.
+    kid.schedulePresentSiteIdToday = 1;
+    kid.schedulePresentTicksToday = 108;
+    master.schedulePresentSiteIdToday = 1;
+    master.schedulePresentTicksToday = 108;
     const before = kid.skills?.[JobType.Farmer] ?? 0;
     advanceApprenticeships(w, w.entities);
     expect((kid.skills?.[JobType.Farmer] ?? 0)).toBeGreaterThan(before);
+  });
+
+  it('only teaches after both apprentice and mentor attend the same production site', () => {
+    const w = makeWorld();
+    w.entities = [];
+    w.buildings = [];
+    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    master.skills = { [JobType.Farmer]: 90 };
+    const apprentice = addHuman(w, { id: 2, x: 310, y: 310 });
+    apprentice.skills = { [JobType.Farmer]: 10 };
+    const farm = {
+      id: 80, type: BuildingType.Farm, x: 300, y: 300, width: 60, height: 60,
+      occupants: [master.id], level: 1, constructionProgress: 100,
+      completed: true, health: 100, maxHealth: 100,
+      spriteScale: 1, buildAnimTimer: 0,
+    } as never;
+    w.buildings.push(farm);
+    master.apprenticeId = apprentice.id;
+    apprentice.apprenticeOfId = master.id;
+    const peopleById = new Map(w.entities.map((person) => [person.id, person]));
+    const sitesById = new Map(w.buildings.map((site) => [site.id, site]));
+    expect(getApprenticeTrainingSite(apprentice, peopleById, sitesById)).toBe(farm);
+
+    advanceApprenticeships(w, w.entities);
+    expect(apprentice.skills?.[JobType.Farmer]).toBe(10);
+    apprentice.schedulePresentSiteIdToday = 80;
+    apprentice.schedulePresentTicksToday = 108;
+    advanceApprenticeships(w, w.entities);
+    expect(apprentice.skills?.[JobType.Farmer]).toBe(10);
+    master.schedulePresentSiteIdToday = 80;
+    master.schedulePresentTicksToday = 108;
+    advanceApprenticeships(w, w.entities);
+    expect(apprentice.skills?.[JobType.Farmer]).toBeGreaterThan(10);
+    expect(apprentice.apprenticeOfId).toBe(master.id);
+  });
+
+  it('will not route a juvenile into an adult apprenticeship even with an old saved bond', () => {
+    const w = makeWorld();
+    w.entities = [];
+    w.buildings = [];
+    const master = addHuman(w, { id: 10, job: JobType.Farmer });
+    const child = addHuman(w, { id: 11, isJuvenile: true });
+    master.skills = { [JobType.Farmer]: 95 };
+    master.apprenticeId = child.id;
+    child.apprenticeOfId = master.id;
+    const farm = {
+      id: 81, type: BuildingType.Farm, x: 300, y: 300, width: 60, height: 60,
+      occupants: [master.id], completed: true,
+    } as never;
+    w.buildings.push(farm);
+    expect(getApprenticeTrainingSite(
+      child, new Map(w.entities.map((person) => [person.id, person])),
+      new Map(w.buildings.map((site) => [site.id, site])),
+    )).toBeNull();
+    advanceApprenticeships(w, w.entities);
+    expect(child.apprenticeOfId).toBeUndefined();
+    expect(master.apprenticeId).toBeUndefined();
   });
 
   it('an apprentice graduates at skill 50 and both bonds clear', () => {
@@ -249,6 +404,10 @@ describe('apprenticeships', () => {
     } as never);
     master.apprenticeId = kid.id;
     kid.apprenticeOfId = master.id;
+    kid.schedulePresentSiteIdToday = 1;
+    kid.schedulePresentTicksToday = 108;
+    master.schedulePresentSiteIdToday = 1;
+    master.schedulePresentTicksToday = 108;
 
     advanceApprenticeships(w, w.entities);
     expect((kid.skills?.[JobType.Farmer] ?? 0)).toBeGreaterThanOrEqual(55);

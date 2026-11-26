@@ -393,7 +393,7 @@ export function assignWorkerTransition(human: Entity, building: Building): boole
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed) return false;
   if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE) return false;
-  if (human.prisonBuildingId != null) return false;
+  if (human.prisonBuildingId != null || human.apprenticeOfId != null) return false;
   if (human.workerBuildingId != null && human.workerBuildingId !== building.id) return false;
   const alreadyListed = building.occupants.includes(human.id);
   // A stale roster entry is not a completed assignment: repair the worker
@@ -476,7 +476,7 @@ export function removeWorkerTransition(human: Entity, buildings: Building[]): vo
 export function addToConstructionCrew(human: Entity, building: Building): boolean {
   if (building.completed) return false;
   if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE) return false;
-  if (human.prisonBuildingId != null) return false;
+  if (human.prisonBuildingId != null || human.apprenticeOfId != null) return false;
   if (human.workerBuildingId != null) return false; // Must be unassigned from regular jobs first
   if (building.occupants.includes(human.id)) return true;
   building.occupants.push(human.id);
@@ -814,7 +814,7 @@ export function assignWorkerInPlace(
   const crewIds = constructionWorkerIds ?? new Set(buildConstructionCrewIndex(buildings).keys());
   for (const candidate of humans) {
     if (!isPlayerHuman(candidate) || !candidate.alive || candidate.age < HUMAN_ADULT_MIN_AGE
-      || hasWorkAssignment(candidate) || isImprisoned(candidate)
+      || hasWorkAssignment(candidate) || candidate.apprenticeOfId != null || isImprisoned(candidate)
       || crewIds.has(candidate.id)) continue;
     const home = candidate.residenceBuildingId == null
       ? undefined
@@ -884,6 +884,7 @@ function assignBuilderInPlace(
       h.alive &&
       h.age >= HUMAN_ADULT_MIN_AGE &&
       !hasWorkAssignment(h) &&
+      h.apprenticeOfId == null &&
       !isImprisoned(h) &&
       !building.occupants.includes(h.id) &&
       !crewIds.has(h.id),
@@ -997,7 +998,8 @@ export function prepareWorkforce(
 
   // Keep incomplete crews limited to unique living, idle, unjailed settlers.
   const eligibleBuilders = new Set(
-    alive.filter((human) => human.age >= HUMAN_ADULT_MIN_AGE && !isImprisoned(human) && !hasWorkAssignment(human))
+    alive.filter((human) => human.age >= HUMAN_ADULT_MIN_AGE && !isImprisoned(human)
+      && human.apprenticeOfId == null && !hasWorkAssignment(human))
       .map((human) => human.id),
   );
   const rosteredBuilders = new Set<number>();
@@ -1184,7 +1186,7 @@ function workforceSignature(world: WorldState, humans: readonly Entity[]): strin
     const originCell = unhousedApplicant
       ? `${Math.floor(human.x / PATH_CELL)},${Math.floor(human.y / PATH_CELL)}`
       : '';
-    return `${human.id}:${human.alive ? 1 : 0}:${human.isJuvenile ? 1 : 0}:${human.workerBuildingId ?? ''}:${human.residenceBuildingId ?? ''}:${human.schoolBuildingId ?? ''}:${human.prisonBuildingId ?? ''}:${human.lastAutoJobTransferTick ?? ''}:${transferable ? 1 : 0}:${originCell}:${human.faction ?? ''}`;
+    return `${human.id}:${human.alive ? 1 : 0}:${human.isJuvenile ? 1 : 0}:${human.workerBuildingId ?? ''}:${human.apprenticeOfId ?? ''}:${human.residenceBuildingId ?? ''}:${human.schoolBuildingId ?? ''}:${human.prisonBuildingId ?? ''}:${human.lastAutoJobTransferTick ?? ''}:${transferable ? 1 : 0}:${originCell}:${human.faction ?? ''}`;
   });
   const sites = world.buildings.map((site) =>
     `${site.id}:${site.type}:${site.completed ? 1 : 0}:${site.level ?? 1}:${site.completed ? '' : site.occupants.join(',')}`,
