@@ -1366,12 +1366,11 @@ export function findCourtshipPartner(
     entity.courtshipPartnerId != null
       ? entityById?.get(entity.courtshipPartnerId) ?? fallbackHumans?.find((candidate) => candidate.id === entity.courtshipPartnerId)
       : undefined;
-  if (
-    currentCourtship &&
-    currentCourtship.courtshipPartnerId === entity.id &&
-    isCourtshipCandidate(entity, currentCourtship, tick)
-  ) {
-    return available(currentCourtship) ? currentCourtship : undefined;
+  if (currentCourtship && currentCourtship.courtshipPartnerId === entity.id) {
+    // An existing reciprocal bond must be repaired by its owner before a new
+    // partner can be selected, even if its current eligibility is invalid.
+    return isCourtshipCandidate(entity, currentCourtship, tick) && available(currentCourtship)
+      ? currentCourtship : undefined;
   }
 
   let closest: Entity | undefined;
