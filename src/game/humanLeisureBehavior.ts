@@ -21,7 +21,7 @@ import { findClosestAdaptiveInRadius, forEachAdaptiveInRadius, socialAdaptiveOpt
 import { seededRandomForRun, personDayRoll, getSimRng, PERSON_DAY_ROLL_SALTS } from './simRng';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
 import { addFloatingText } from './simEffects';
-import { getCurrentPathGrid, isGroundWalkableAt, lineCrossesBlocked, nearestWalkableWorldPoint, steerWithPath } from './pathfinding';
+import { getCurrentPathGrid, getNavigationQuote, isGroundWalkableAt, lineCrossesBlocked, nearestWalkableWorldPoint, steerWithPath } from './pathfinding';
 import { fract } from './simulation/humanNeeds';
 import { findClosestEntityInRadius } from './simQueries';
 import { hasAffairPartner, canPursueSecretAffair, isAtMaritalHome } from './simulation/humanRelationships';
@@ -113,10 +113,17 @@ function chooseChildPlaySite(
     if (x < 0 || y < 0 || x >= state.width || y >= state.height) continue;
     if (previous && Math.hypot(x - previous.x, y - previous.y) < 28) continue;
     if (!isGroundWalkableAt(x, y, grid)) continue;
-    // Use the path owner's same blocked-line predicate for every participant.
-    if (grid && group.some((member) =>
-      isGroundWalkableAt(member.x, member.y, grid)
-      && lineCrossesBlocked(grid, member.x, member.y, x, y))) continue;
+    // Prefer a clear direct leg, but accept a bounded route around walls or
+    // through bridges. A pending quote is not proof of reachability.
+    if (grid && group.some((member) => {
+      if (!isGroundWalkableAt(member.x, member.y, grid)) return true;
+      if (!lineCrossesBlocked(grid, member.x, member.y, x, y)) return false;
+      const quote = getNavigationQuote(grid,
+        { x: Math.floor(member.x / PATH_CELL), y: Math.floor(member.y / PATH_CELL) },
+        { x: Math.floor(x / PATH_CELL), y: Math.floor(y / PATH_CELL) },
+        { maxNodes: 600 });
+      return quote.status !== 'priced' || quote.tiles.length > 24;
+    })) continue;
     return { x, y };
   }
   return null;
