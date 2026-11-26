@@ -752,13 +752,6 @@ function searchRoute(
       if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
       const nIdx = ny * cols + nx;
       if (blocked[nIdx]) continue;
-      // Match the integrator's exact corner and cliff rule: a diagonal is illegal if
-      // either orthogonal neighbour is blocked or too steep from the current tile.
-      // A* and physical movement must never disagree about traversable edges.
-      if (dx !== 0 && dy !== 0 && segmentCrossesBlocked(grid,
-        (cx + 0.5) * PATH_CELL, (cy + 0.5) * PATH_CELL,
-        (nx + 0.5) * PATH_CELL, (ny + 0.5) * PATH_CELL, false, true)) continue;
-
       let step = dx !== 0 && dy !== 0 ? 1.4142 : 1;
       // A built road is cheaper than open ground, so the route follows the player's own paths.
       if (pricedRoad?.[nIdx]) step *= ROAD_STEP_COST;
@@ -772,6 +765,11 @@ function searchRoute(
 
       const ng = scores[cur] + step;
       if (ng < (stamps[nIdx] === generation ? scores[nIdx] : Infinity)) {
+        // Only a cost-improving edge can change the route. Keep the same exact
+        // diagonal corner, cliff and body-clearance verdict before relaxing it.
+        if (dx !== 0 && dy !== 0 && segmentCrossesBlocked(grid,
+          (cx + 0.5) * PATH_CELL, (cy + 0.5) * PATH_CELL,
+          (nx + 0.5) * PATH_CELL, (ny + 0.5) * PATH_CELL, false, true)) continue;
         scores[nIdx] = ng;
         parents[nIdx] = cur;
         stamps[nIdx] = generation;
@@ -879,7 +877,7 @@ export function getNavigationQuote(
     }
     quote = found.path && found.cost !== null
       ? Object.freeze({ status: 'priced' as const, costTiles: found.cost,
-          tiles: Object.freeze(found.path.map((p) => Object.freeze({ x: p.x, y: p.y }))) })
+          tiles: Object.freeze(found.path.map((p) => Object.freeze(p))) })
       : Object.freeze({ status: 'unreachable' as const });
   }
   const tiles = quote.status === 'priced' ? quote.tiles.length : 0;
