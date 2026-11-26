@@ -1,41 +1,9 @@
 /**
- * Visitor quest chain — one small deliverable quest at a time: the smith asks for 20 wood for gold and
- * reputation, quests expire after a few days and never stack.
+ * Legacy visitor quest delivery — retain compatibility with existing saved quests.
  */
 import type { WorldState, VisitorQuest } from './gameTypes';
-import { getAbsoluteCalendarDay } from './dayCycle';
-import { getSimRng } from './simRng';
 import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
-
-const QUEST_EXPIRE_DAYS = 4;
-
-/** Chance a trader group starts the smith quest when they arrive. */
-const QUEST_START_CHANCE = 0.5;
-
-const SMITH_QUEST = {
-  id: 'smith_wood',
-  emoji: '⚒️',
-  title: 'The traveling smith',
-  description: 'A smith at the trader camp needs 20 wood to finish a masterwork. He will pay handsomely.',
-  goalType: 'deliver',
-  goalResource: 'wood',
-  goalAmount: 20,
-  rewardGold: 30,
-  rewardReputation: 4,
-} as const;
-
-export function maybeStartVisitorQuest(state: WorldState): void {
-  const existing = state.visitorQuest;
-  if (existing && existing.status === 'active') return;
-  if (getSimRng('visitorQuest')() > QUEST_START_CHANCE) return;
-  state.visitorQuest = {
-    ...SMITH_QUEST,
-    progress: 0,
-    status: 'active',
-    expiresDay: getAbsoluteCalendarDay(state.tick) + QUEST_EXPIRE_DAYS,
-  };
-}
 
 /** Try to deliver the quest goods. Returns true when the quest completed. */
 export function deliverVisitorQuest(state: WorldState): boolean {

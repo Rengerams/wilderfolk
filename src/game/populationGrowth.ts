@@ -214,15 +214,6 @@ export function getLivePlayerPopulation(state: WorldState): number {
   return snapshotPopulation(state).pop;
 }
 
-/** Returns remaining open beds against a projected or passed population count. */
-export function getOpenBedsFromPop(state: WorldState, pop: number): number {
-  const { pop: livePop, beds } = snapshotPopulation(state);
-  if (typeof pop !== 'number' || !Number.isFinite(pop) || pop < 0) {
-    return Math.max(0, beds - livePop);
-  }
-  return Math.max(0, beds - Math.floor(pop));
-}
-
 /**
  * Empty beds, counted over every residence — the Leader's House included. The inclusive
  * twin of {@link getOpenPlayerBeds}, which counts only beds a settler may be assigned.
@@ -259,7 +250,7 @@ export function getOpenPlayerBeds(state: WorldState): number {
   return open;
 }
 
-export type PopulationGrowthTone = 'good' | 'warn' | 'blocked';
+type PopulationGrowthTone = 'good' | 'warn' | 'blocked';
 
 export interface PopulationGrowthReport {
   tone: PopulationGrowthTone;

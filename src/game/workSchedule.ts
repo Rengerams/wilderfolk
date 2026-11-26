@@ -1,8 +1,8 @@
 import type { WorldState } from './gameTypes';
 import { getHourOfDay, isWorkDay, TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycleClock';
 
-export const DEFAULT_WORK_START_HOUR = 7;
-export const DEFAULT_WORK_END_HOUR = 16;
+const DEFAULT_WORK_START_HOUR = 7;
+const DEFAULT_WORK_END_HOUR = 16;
 
 /** Baseline work window for production scaling — 9 hours = 1.0 output. */
 const STANDARD_PRODUCTION_WORK_HOURS = 9;

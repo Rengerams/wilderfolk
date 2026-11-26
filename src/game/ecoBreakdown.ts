@@ -2,7 +2,7 @@ import { type Building, type WorldState } from './gameTypes';
 import { calculateEcosystemMetrics, getEcosystemHealth, PRESERVE_HEALTH_BONUS, type EcosystemCounts } from './dailyEcology';
 import { hasTech } from './simHelpers';
 
-export interface EcosystemBreakdownLine {
+interface EcosystemBreakdownLine {
   label: string;
   delta: number;
   detail: string;

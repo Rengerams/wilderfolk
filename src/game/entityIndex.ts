@@ -7,12 +7,12 @@ import type { Entity, WorldState } from './gameTypes';
 const canonicalMapByWorld = new WeakMap<WorldState, Map<number, Entity>>();
 
 /** Insert or refresh a living entity in the tick-persistent id map. */
-export function indexEntity(map: Map<number, Entity>, entity: Entity): void {
+function indexEntity(map: Map<number, Entity>, entity: Entity): void {
   if (entity.alive) map.set(entity.id, entity);
 }
 
 /** Remove an entity id from the map on death or despawn. */
-export function unindexEntity(map: Map<number, Entity> | undefined, id: number): void {
+function unindexEntity(map: Map<number, Entity> | undefined, id: number): void {
   map?.delete(id);
 }
 

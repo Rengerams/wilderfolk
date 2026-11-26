@@ -50,7 +50,7 @@ export interface ContextualTutorialTip {
   action?: FocusHintAction;
 }
 
-export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutorialTip> = {
+const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutorialTip> = {
   shelter_night: {
     id: 'shelter_night',
     icon: '🌙',
@@ -345,12 +345,4 @@ export function detectContextualTutorials(world: WorldState): ContextualTutorial
   for (const id of derived) queue(id as ContextualTutorialId);
 
   return tips;
-}
-
-export function markTutorialsSeen(state: WorldState, ids: ContextualTutorialId[]): WorldState {
-  const merged = new Set([...(state.tutorialSeen ?? []), ...ids]);
-  return {
-    ...state,
-    tutorialSeen: [...merged],
-  };
 }

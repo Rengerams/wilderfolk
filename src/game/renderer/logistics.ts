@@ -135,20 +135,3 @@ export function drawLogisticsOverlay(
 
   ctx.restore();
 }
-
-/** One legend row: label and swatch colour for the on-map legend control. */
-interface LogisticsLegendEntry {
-  readonly label: string;
-  readonly color: string;
-}
-
-/** The colours the pass strokes, published so the UI legend and the canvas cannot drift apart. */
-export const LOGISTICS_LEGEND: readonly LogisticsLegendEntry[] = [
-  { label: 'Road network', color: ROAD_NODE_STYLE },
-  { label: 'Supply link', color: SUPPLY_LINK_STYLE },
-  { label: 'Poorly connected', color: POORLY_CONNECTED_STYLE },
-  { label: 'No road access', color: NO_ACCESS_STYLE },
-  { label: 'Commute blocked (must detour)', color: BLOCKED_COMMUTE_STYLE },
-  { label: 'Commute over budget', color: OVER_BUDGET_COMMUTE_STYLE },
-  { label: 'Commute abandoned (snap distance)', color: EXTREME_COMMUTE_STYLE },
-];

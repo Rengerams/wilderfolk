@@ -25,7 +25,7 @@ import { addCappedResource } from './resourceUtils';
 import { spendFood, recordFoodProduced } from './economyLedger';
 import { addBigNews } from './simEffects';
 import { addReputation, getReputationBand } from './simHelpers';
-export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
+export type { RaidEvent, RaidLootBundle, OutgoingRaidEvent } from './gameTypes';
 export const RAID_BATTLE_HOURS = 6;
 const RAID_MERIT_REPEAT_COOLDOWN_DAYS = 30;
 const RIVAL_RAZE_INTENT_CHANCE = 0.15;
@@ -215,13 +215,13 @@ export function getRaidLootScale(growthScale: number): number {
 }
 
 /** Rival strength when you attack their camp — includes home-turf defense bonus. */
-export function getRivalDefenseStrength(rival: RivalSettlement): number {
+function getRivalDefenseStrength(rival: RivalSettlement): number {
   return Math.round(getRivalRaidStrength(rival) * OUTGOING_RAID_DEFENSE_MULT);
 }
 
 export type CounterRaidTier = 'success' | 'meager' | 'fail';
 
-export function resolveCounterRaidRatio(attacker: number, defender: number): CounterRaidTier {
+function resolveCounterRaidRatio(attacker: number, defender: number): CounterRaidTier {
   const ratio = attacker / Math.max(defender, 1);
   if (ratio >= 1.35) return 'success';
   if (ratio >= 1.0) return 'meager';
@@ -263,11 +263,11 @@ export function countArmedMilitia(state: WorldState, entities: Entity[]): number
   return computeMilitiaBreakdown(state, entities, { includeStructures: false }).adultCount;
 }
 
-export function getMilitiaStrength(state: WorldState, entities: Entity[]): number {
+function getMilitiaStrength(state: WorldState, entities: Entity[]): number {
   return computeMilitiaBreakdown(state, entities, { includeStructures: false }).militiaStrength;
 }
 
-export function getBarricadeStrength(state: WorldState, entities: Entity[]): number {
+function getBarricadeStrength(state: WorldState, entities: Entity[]): number {
   return computeMilitiaBreakdown(state, entities).barricadeStrength;
 }
 
@@ -569,7 +569,7 @@ export function getRaidParticipants(
   });
 }
 
-export type RaidExperienceTier =
+type RaidExperienceTier =
   | 'decisive_win'
   | 'narrow_win'
   | 'stalemate'
@@ -677,7 +677,7 @@ function damageRandomPlayerBuilding(state: WorldState, amount: number): Building
 }
 
 /** Every fight costs lives — even a routed war-band. */
-export type RaidCasualtyTier = 'victory' | 'costly' | 'moderate' | 'heavy';
+type RaidCasualtyTier = 'victory' | 'costly' | 'moderate' | 'heavy';
 
 function getRaidCasualtyBounds(tier: RaidCasualtyTier, adultPop: number): [number, number] {
   const pop = Math.max(1, adultPop);
@@ -895,7 +895,7 @@ function grantRaidSpoils(state: WorldState, spoils: RaidLootBundle): RaidLootBun
 }
 
 /** Tribute a rival offers to avoid your assault — less than full raid spoils. */
-export function rollRivalPayoffOffer(
+function rollRivalPayoffOffer(
   rival: RivalSettlement,
   militiaStrength: number,
   rivalDefense: number,
@@ -913,7 +913,7 @@ export function rollRivalPayoffOffer(
 }
 
 /** Rival chooses tribute or battle when your war-band reaches their camp. */
-export function rollRivalOutgoingRaidResponse(
+function rollRivalOutgoingRaidResponse(
   militiaStrength: number,
   rivalDefense: number,
   rival: RivalSettlement,

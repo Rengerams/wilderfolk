@@ -1,4 +1,4 @@
-import { BuildingType, type Building, type DeathParticle, type WorldState } from './gameTypes';
+import { type Building, type DeathParticle, type WorldState } from './gameTypes';
 import { getSimRng } from './simRng';
 
 /** Shared transient pool on `state.deathParticles` (deaths, confetti, smoke, forge sparks). */
@@ -7,42 +7,6 @@ export function pushTransientParticle(state: WorldState, particle: DeathParticle
 }
 
 const BUILD_COMPLETE_COLORS = ['#fde047', '#fbbf24', '#34d399', '#60a5fa', '#f472b6', '#ffffff'];
-
-/** Housing — warm windows + chimney when residents are home at night. */
-export const NIGHT_HOME_GLOW_TYPES = new Set<BuildingType>([
-  BuildingType.House,
-  BuildingType.Mansion,
-]);
-
-/** Community/industry — subtle forge/candle glow when staffed (day or night). */
-export const NIGHT_STAFFED_GLOW_TYPES = new Set<BuildingType>([
-  BuildingType.Church,
-  BuildingType.Tavern,
-  BuildingType.Hotel,
-  BuildingType.Blacksmith,
-  BuildingType.Hospital,
-]);
-
-/** Community buildings that pool warm light on the plaza at night when staffed. */
-export const LIGHT_POOL_TYPES = new Set<BuildingType>([
-  BuildingType.TownHall,
-  BuildingType.Market,
-  BuildingType.Tavern,
-  BuildingType.Church,
-]);
-
-/** @param residentCount Pre-indexed residents-at-home (avoids per-building entity scans in the renderer). */
-export function getNightGlowIntensity(building: Building, residentCount = 0): number {
-  if (!building.completed) return 0;
-  if (NIGHT_HOME_GLOW_TYPES.has(building.type)) {
-    if (residentCount <= 0) return 0;
-    return Math.min(1, 0.45 + residentCount * 0.12);
-  }
-  if (NIGHT_STAFFED_GLOW_TYPES.has(building.type) && building.occupants.length > 0) {
-    return 0.55;
-  }
-  return 0;
-}
 
 /** Confetti burst when a building finishes construction. Caller handles shake + rep float text. */
 export function spawnBuildCompleteParticles(state: WorldState, building: Building): void {

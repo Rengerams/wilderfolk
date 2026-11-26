@@ -200,15 +200,3 @@ export function getPathfinderReport(): PathfinderReport {
     cacheHitRate: cached > 0 ? sessionCounters.cacheHits / cached : 0,
   };
 }
-
-export function formatPathfinderReport(report: PathfinderReport): string {
-  const s = report.session;
-  return [
-    `Pathfinder metrics — ${report.ticks} active ticks`,
-    `  A* calls ${s.findPathCalls} (${report.perTick.findPathCalls.toFixed(1)}/tick), `
-      + `nodes ${s.nodesExpanded} (${report.nodesPerCall.toFixed(1)}/call)`,
-    `  found ${s.pathsFound} · failed ${s.pathsFailed} · node-cap ${s.maxNodesExceeded} · early rejects ${s.earlyRejects}`,
-    `  line checks ${s.lineChecks} (${report.perTick.lineChecks.toFixed(1)}/tick) · grid rebuilds ${s.gridRebuilds}`,
-    `  waypoint cache hit ${s.cacheHits} / miss ${s.cacheMisses} (${(report.cacheHitRate * 100).toFixed(1)}%)`,
-  ].join('\n');
-}

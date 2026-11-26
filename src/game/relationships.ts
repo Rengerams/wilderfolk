@@ -221,7 +221,7 @@ export function bondCensus(people: Entity[]): BondCensus {
   return { closeBonds, withFriend, isolated: people.length - withFriend };
 }
 
-export function activeFeudCount(e: Entity): number {
+function activeFeudCount(e: Entity): number {
   if (!e.feuds) return 0;
   let count = 0;
   for (const val of Object.values(e.feuds)) {

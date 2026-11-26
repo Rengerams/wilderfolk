@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Maintenance (26 Nov 2026):** Remove unused renderer, audio and game helpers, drop blanket Knip export exclusions, and audit full-project and production-only reachability independently.
+
 - **Improved (26 Nov 2026):** Selecting a settler highlights their assigned home and workplace on the map with separate colours and labels, including construction sites.
 
 - **Fixed (26 Nov 2026):** HUD notifications wait in arrival order for a visible slot, receive their full display lifetime, free acknowledged worker slots, and summarize extreme overflow instead of silently evicting visible cards.

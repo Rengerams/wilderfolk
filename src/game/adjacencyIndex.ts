@@ -187,13 +187,6 @@ export function unindexAdjacency(
   ensureAdjacencyIndex(state).removeById(buildingId);
 }
 
-/** Full rebuild helper — tests and one-off estimates. */
-export function buildAdjacencyIndex(buildings: readonly Building[]): AdjacencyIndex {
-  const index = new AdjacencyIndex();
-  index.rebuild(buildings);
-  return index;
-}
-
 export function getAdjacencyMultiplierFromIndex(index: AdjacencyIndex, building: Building): number {
   return index.getMultiplier(building);
 }

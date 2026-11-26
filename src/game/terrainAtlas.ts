@@ -53,7 +53,7 @@ const WATER: AtlasFamily = 1;
  * Map a game terrain type to an atlas family, or null when the atlas has no art. Forest/DarkForest
  * count as grass — their cells render painted grass with the forest look from tint and tree entities.
  */
-export function atlasFamily(type: TerrainType): AtlasFamily | null {
+function atlasFamily(type: TerrainType): AtlasFamily | null {
   switch (type) {
     case TerrainType.Grassland:
     case TerrainType.Forest:
@@ -230,13 +230,6 @@ export function reliefY(type: TerrainType, elevation: number): number {
   return Math.min(0.35, (e - 0.5) * 0.7);
 }
 
-/** Elevation at a world position (10px tile grid), 0–100. */
-export function elevationAt(map: WorldMap | null, x: number, y: number): number {
-  if (!map) return 0;
-  const { tx, ty } = worldToTile(x, y);
-  return tileAt(map, tx, ty)?.elevation ?? 0;
-}
-
 /**
  * Fixed 32-world-pixel height-mesh lattice, its vertices from the 16px altitude field: one definition
  * of "ground level", and a 28px maximum rise keeps the y projection monotone for screen-to-world.
@@ -324,9 +317,4 @@ export function sandWaterOverlaySourceRect(id: number): { sx: number; sy: number
     sx: (id % SAND_WATER_OVERLAY_COLUMNS) * ATLAS_TILE_SIZE,
     sy: Math.floor(id / SAND_WATER_OVERLAY_COLUMNS) * ATLAS_TILE_SIZE,
   };
-}
-
-/** Runtime scale — atlas tile px → baked tile px. */
-export function atlasScale(tileSize: number): number {
-  return tileSize / ATLAS_TILE_SIZE;
 }

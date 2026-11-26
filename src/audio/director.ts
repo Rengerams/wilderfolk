@@ -6,7 +6,6 @@ import type { VolumePreset } from './preferences';
 import { preloadAllSamples } from './sampleLoader';
 import {
   isIntroAudioAllowed,
-  setGameplayAudioActive,
   setIntroAudioAllowed,
 } from './session';
 
@@ -50,7 +49,6 @@ class SoundDirector {
 
   async beginGameplayAudio(): Promise<void> {
     this.gameplayActive = true;
-    setGameplayAudioActive(true);
     setIntroAudioAllowed(false);
     introMusic.stop();
     audioGraph.primeUnlock();
@@ -66,7 +64,6 @@ class SoundDirector {
 
   stopAll() {
     this.gameplayActive = false;
-    setGameplayAudioActive(false);
     setIntroAudioAllowed(true);
     introMusic.stop();
     backgroundMusic.stop();

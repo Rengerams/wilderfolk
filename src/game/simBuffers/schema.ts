@@ -4,7 +4,7 @@ export const RENDER_SOA_MAGIC = 0x57464b52;
 export const RENDER_SOA_VERSION = 1;
 
 /** Words (u32/f32 slots) before entity rows. */
-export const RENDER_HEADER_WORDS = 8;
+const RENDER_HEADER_WORDS = 8;
 
 /** Words per alive entity row — append-only when bumping version. */
 export const RENDER_STRIDE_V1 = 16;
@@ -32,8 +32,6 @@ export const RENDER_FIELD = {
   reserved1: 15,
 } as const;
 
-export type RenderField = (typeof RENDER_FIELD)[keyof typeof RENDER_FIELD];
-
 /** Header layout (Uint32 indices). */
 export const RENDER_HEADER = {
   magic: 0,
@@ -45,8 +43,6 @@ export const RENDER_HEADER = {
   worldHeight: 6,
   globalFlags: 7,
 } as const;
-
-export type RenderHeaderIndex = (typeof RENDER_HEADER)[keyof typeof RENDER_HEADER];
 
 /** Flag bits — upper 16 bits reserved for future bool semantics. */
 export const RENDER_FLAG_ALIVE = 1 << 0;
@@ -69,7 +65,7 @@ export const RESIDENCE_BUILDING_NONE = 0xffffffff;
 /** `globalFlags` bit — packed aliveCount < total alive entities. */
 export const RENDER_GLOBAL_OVERFLOW = 1 << 0;
 
-export function renderBufferWordCount(maxSlots = RENDER_MAX_SLOTS): number {
+function renderBufferWordCount(maxSlots = RENDER_MAX_SLOTS): number {
   return RENDER_HEADER_WORDS + maxSlots * RENDER_STRIDE_V1;
 }
 
@@ -79,19 +75,4 @@ export function renderBufferByteLength(maxSlots = RENDER_MAX_SLOTS): number {
 
 export function rowBaseWord(slot: number): number {
   return RENDER_HEADER_WORDS + slot * RENDER_STRIDE_V1;
-}
-
-/** Checks whether a specific bitflag is enabled. */
-export function isRenderFlagSet(flags: number, flag: number): boolean {
-  return (flags & flag) === flag;
-}
-
-/** Sets a bitflag. */
-export function setRenderFlag(flags: number, flag: number): number {
-  return flags | flag;
-}
-
-/** Clears a bitflag. */
-export function clearRenderFlag(flags: number, flag: number): number {
-  return flags & ~flag;
 }

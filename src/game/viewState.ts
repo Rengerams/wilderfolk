@@ -144,7 +144,7 @@ function resolveCampKey(world: WorldState, key: string | null): string | null {
   return world.visitorGroups?.some((group) => key === `visitor:${group.id}`) ? key : null;
 }
 
-export function parseBuildRotation(value: unknown): 0 | 90 {
+function parseBuildRotation(value: unknown): 0 | 90 {
   const n = parseFiniteNumber(value);
   return n === 90 ? 90 : 0;
 }
@@ -186,7 +186,7 @@ export function resolveBuilding(world: WorldState, id: number | null): Building 
 
 // ============ CAMERA SANITIZATION & PERSISTENCE ============
 
-export function sanitizeCamera(raw: Partial<Camera> | undefined, fallback: Camera): Camera {
+function sanitizeCamera(raw: Partial<Camera> | undefined, fallback: Camera): Camera {
   if (!raw) return fallback;
 
   const zoom = isFiniteNumber(raw.zoom) ? clampCameraZoom(raw.zoom) : fallback.zoom;
@@ -212,7 +212,7 @@ export function sanitizeCamera(raw: Partial<Camera> | undefined, fallback: Camer
   };
 }
 
-export function normalizeCameraForSave(cam: Camera): Camera {
+function normalizeCameraForSave(cam: Camera): Camera {
   return {
     ...cam,
     x: cam.targetX,
@@ -294,7 +294,7 @@ export function createViewFromSave(
   };
 }
 
-export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewState {
+function sanitizeViewSelection(world: WorldState, view: ViewState): ViewState {
   let selectedEntityId = view.selectedEntityId;
   let selectedEntityIds = (view.selectedEntityIds ?? []).filter((id) => resolveEntity(world, id) != null);
   let selectedBuildingId = view.selectedBuildingId;
@@ -341,7 +341,7 @@ export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewS
   };
 }
 
-export function pickTransientWorldFieldsForSave(world: WorldState): Record<string, unknown> {
+function pickTransientWorldFieldsForSave(world: WorldState): Record<string, unknown> {
   return {
     deathParticles: world.deathParticles ?? [],
     floatingTexts: world.floatingTexts ?? [],
@@ -545,16 +545,6 @@ export function clampCameraToCoverage(
     ? cam
     : { ...cam, x: cam.targetX, y: cam.targetY, zoom, targetZoom: zoom };
   return clampCameraTarget(covered, world.width, world.height, viewportW, viewportH);
-}
-
-export function zoomCameraView(
-  view: ViewState,
-  factor: number,
-  canvasW = 800,
-  canvasH = 600,
-  world?: Pick<WorldState, 'width' | 'height'>,
-): ViewState {
-  return zoomCameraViewAt(view, factor, canvasW / 2, canvasH / 2, canvasW, canvasH, world);
 }
 
 export function focusCameraOn(view: ViewState, x: number, y: number, zoom?: number): ViewState {

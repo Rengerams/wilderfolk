@@ -932,7 +932,6 @@ function writeSaveSlot(json: string, slotKey: string = SAVE_KEY): SaveResult {
 /** Every resource key the economy reads, so a save can be checked for a complete purse. */
 const RESOURCE_KEYS = ['wood', 'stone', 'food', 'gold', 'iron'] as const;
 
-
 /**
  * A year scalar that is legitimately `null` (no pending election). It must still reject `Infinity`, or
  * "election in Infinity years" means no election can ever run again.
@@ -1844,12 +1843,6 @@ export function loadGameFromFileTextOutcome(raw: string): SaveLoadOutcome {
   const result = parseSaveJson(raw);
   if (!result.valid) return { ok: false, reason: result.reason, detail: result.detail };
   return loadGameFromParsedOutcome(result.parsed);
-}
-
-/** Load a colony from a downloaded .json file body, or `null` when it will not restore. */
-export function loadGameFromFileText(raw: string): { world: WorldState; view: ViewState } | null {
-  const outcome = loadGameFromFileTextOutcome(raw);
-  return outcome.ok ? { world: outcome.world, view: outcome.view } : null;
 }
 
 /** A save the compatibility gate accepts, verified by its format or known legacy provenance. */

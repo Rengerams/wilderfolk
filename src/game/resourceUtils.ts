@@ -3,12 +3,8 @@ import { recordResourcesGathered } from './stats';
 
 export const FOOD_LOW_THRESHOLD = 20;
 /** 15 = the floor under the per-settler rule; 1.5 = stores per settler below which food is critical. */
-export const FOOD_CRITICAL_BASE = 15;
-export const FOOD_CRITICAL_PER_PERSON = 1.5;
-
-export function isFoodLow(resources: Pick<WorldState['resources'], 'food'>): boolean {
-  return (resources.food ?? 0) < FOOD_LOW_THRESHOLD;
-}
+const FOOD_CRITICAL_BASE = 15;
+const FOOD_CRITICAL_PER_PERSON = 1.5;
 
 /**
  * The absolute store level below which `population` settlers count as critical: the single
@@ -35,7 +31,7 @@ export function isFoodAlert(world: Pick<WorldState, 'resources' | 'humanPopulati
   return isFoodAlertAmount(world.resources.food ?? 0, world.humanPopulation ?? 0);
 }
 
-export function getStorageCap(state: WorldState, type: keyof Resources): number {
+function getStorageCap(state: WorldState, type: keyof Resources): number {
   const max = state.storageMax?.[type];
   return typeof max === 'number' && Number.isFinite(max) ? max : Infinity;
 }

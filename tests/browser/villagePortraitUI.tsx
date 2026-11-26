@@ -44,7 +44,11 @@ function scoreInDialog(trait: string): number {
   return score;
 }
 
-/** Run inside Chromium. All button clicks and updates pass through React, not raw projection calls. */
+/**
+ * Run inside Chromium via the Vite URL imported by scripts/browser-smoke.mjs.
+ * All button clicks and updates pass through React, not raw projection calls.
+ * @public External browser entry; the Node module graph cannot see the URL import.
+ */
 export async function runVillagePortraitUI(): Promise<{
   initial: { nature: number; trade: number };
   changed: { nature: number; trade: number };

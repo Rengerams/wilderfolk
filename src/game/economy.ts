@@ -4,7 +4,6 @@ import { addFloatingText } from './simEffects';
 import { recordFoodConsumed } from './economyLedger';
 
 export { addResource } from './resourceUtils';
-export { canAffordWorkshopRecipe } from './workshops';
 
 /**
  * Storage one completed building adds, per resource — the numbers the inspector hints quote.

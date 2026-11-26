@@ -30,7 +30,7 @@ export function isKillableSettlerEntity(entity: Entity): boolean {
 }
 
 /** Remove a dead or evicted settler from every building occupant list. */
-export function removeHumanFromBuildingOccupants(entity: Entity, buildings: Building[]): void {
+function removeHumanFromBuildingOccupants(entity: Entity, buildings: Building[]): void {
   if (!isKillableSettlerEntity(entity)) return;
   for (const building of buildings) {
     if (building.occupants.includes(entity.id)) {
@@ -45,7 +45,7 @@ function statusAfterMarriageEnd(entity: Pick<Entity, 'pregnant'>): 'single' | 'e
 }
 
 /** Clear building assignments when a human dies (work, home, prison). */
-export function finalizeHumanDeath(
+function finalizeHumanDeath(
   entity: Entity,
   buildings: Building[],
   entityById?: ReadonlyMap<number, Entity>,

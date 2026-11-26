@@ -15,7 +15,7 @@ import { allPlayerHumans, isPlayerHuman } from './playerHuman';
 /** 
  * 🚀 OPTIMIZED: Single-pass search for a preferred settler, falling back to the first match.
  */
-export function pickAdultSettler(
+function pickAdultSettler(
   state: WorldState,
   preferredHumanId: number | undefined,
   filter: (entity: Entity) => boolean,

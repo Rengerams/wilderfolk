@@ -39,7 +39,7 @@ export function isInsideCompletedBuilding(
   return false;
 }
 
-export function isValidHumanSpawnPosition(state: WorldState, x: number, y: number): boolean {
+function isValidHumanSpawnPosition(state: WorldState, x: number, y: number): boolean {
   const margin = 12;
   if (x < margin || y < margin || x > state.width - margin || y > state.height - margin) return false;
   const tile = getTileAt(state, x, y);
@@ -94,7 +94,6 @@ export function getTerrainEfficiencyMultiplier(state: WorldState, building: Buil
       return 1.0;
   }
 }
-
 
 export function getAdjacencyMultiplier(state: WorldState, building: Building): number {
   if (!buildingUsesAdjacency(building)) return 1;

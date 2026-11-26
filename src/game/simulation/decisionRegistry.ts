@@ -800,15 +800,6 @@ export const DECISION_KEYS = Object.keys(SIMULATION_DECISIONS) as DecisionKey[];
 
 // TEST & VERIFICATION UTILITIES
 
-/** Retrieves decision metadata by subsystem key. */
-export function getDecisionOwner(key: DecisionKey): DecisionOwner {
-  const decision = SIMULATION_DECISIONS[key];
-  if (!decision) {
-    throw new Error(`Unknown decision key: ${key}`);
-  }
-  return decision;
-}
-
 /** Lists all subsystems executing under a specific primary cadence. */
 export function getDecisionsByCadence(cadence: DecisionCadence): DecisionKey[] {
   return DECISION_KEYS.filter((key) => SIMULATION_DECISIONS[key].cadence === cadence);

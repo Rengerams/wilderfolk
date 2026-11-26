@@ -5,7 +5,6 @@ import {
   playHuntSound,
   playMarriageSound,
   playDeathSound,
-  playErrorSound,
 } from './sfx';
 
 async function playSampleOr(
@@ -47,9 +46,4 @@ export function playTransformSfx() {
 /** Settler died (keeps procedural fallback). */
 export function playSettlerDeathSfx() {
   playDeathSound();
-}
-
-/** Failed tame / not enough food (UI feedback). */
-export function playFailSfx() {
-  playErrorSound();
 }

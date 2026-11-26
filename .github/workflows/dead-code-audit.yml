@@ -1,0 +1,41 @@
+name: Dead code audit
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dead-code-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  knip:
+    name: Knip (${{ matrix.mode }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: full-project
+          - mode: production-only
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '26.12.1'
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Full project gate (includes test and tool usage)
+        if: matrix.mode == 'full-project'
+        run: npm exec -- knip
+      - name: Informational production-only exports and types (not a test failure)
+        if: matrix.mode == 'production-only'
+        run: npm exec -- knip --production --exports --no-exit-code
+      - name: Gate production files, dependencies and import resolution
+        if: matrix.mode == 'production-only'
+        run: npm exec -- knip --production --exclude exports,nsExports,types,nsTypes,enumMembers,namespaceMembers,duplicates

@@ -48,7 +48,6 @@ const CATEGORY_LABELS: Record<SpatialQueryCategory, string> = {
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as readonly SpatialQueryCategory[];
 
-
 function createEmptyRecord(): Record<SpatialQueryCategory, SpatialQueryBucket> {
   const out = {} as Record<SpatialQueryCategory, SpatialQueryBucket>;
   for (let i = 0; i < CATEGORIES.length; i++) {
@@ -98,10 +97,6 @@ export function setSpatialQueryMetricsEnabled(value: boolean): void {
 
 export function setSpatialQueryGridMode(mode: 'grid' | 'naive'): void {
   gridMode = mode;
-}
-
-export function getSpatialQueryGridMode(): 'grid' | 'naive' {
-  return gridMode;
 }
 
 export function resetSpatialQuerySession(): void {
@@ -164,11 +159,6 @@ export function recordSpatialCells(category: SpatialQueryCategory | null, count:
   tickBuckets[cat].cells += count;
 }
 
-/** Returns a detached snapshot of the current unflushed tick metrics. */
-export function getCurrentTickMetrics(): Record<SpatialQueryCategory, SpatialQueryBucket> {
-  return cloneRecord(tickBuckets);
-}
-
 export function getSpatialQueryReport(): SpatialQueryReport {
   const perTick = createEmptyRecord();
   let totalQueries = 0;
@@ -204,39 +194,4 @@ export function getSpatialQueryReport(): SpatialQueryReport {
     },
     gridMode,
   };
-}
-
-function fmtBucket(label: string, bucket: SpatialQueryBucket, showCells: boolean): string {
-  const cells = showCells ? ` cells=${bucket.cells.toFixed(1)}` : '';
-  return `${label}: queries=${bucket.queries.toFixed(1)}/tick candidates=${bucket.candidates.toFixed(1)}/tick${cells}`;
-}
-
-export function formatSpatialQueryReport(report: SpatialQueryReport): string {
-  const lines: string[] = [];
-  const mode = report.gridMode === 'grid' ? 'grid (default)' : 'naive (USE_SPATIAL_GRID=0)';
-  lines.push(`Spatial query metrics — ${report.ticks} ticks, mode=${mode}`);
-  const showCells = report.gridMode === 'grid';
-
-  for (let i = 0; i < CATEGORIES.length; i++) {
-    const cat = CATEGORIES[i];
-    const bucket = report.perTick[cat];
-    if (bucket.queries <= 0 && bucket.candidates <= 0 && bucket.cells <= 0) continue;
-    lines.push(`  ${fmtBucket(CATEGORY_LABELS[cat], bucket, showCells)}`);
-  }
-
-  const graze = report.perTick.graze.candidates;
-  const flee = report.perTick.flee.candidates;
-  const hunt = report.perTick.hunt.candidates;
-  const social = report.perTick.social.candidates;
-  if (graze > 0 || flee > 0 || hunt > 0 || social > 0) {
-    lines.push(
-      `  Hot-path averages: graze=${graze.toFixed(0)} flee=${flee.toFixed(0)} hunt=${hunt.toFixed(0)} social=${social.toFixed(0)} candidate checks/tick`,
-    );
-  }
-
-  lines.push(
-    `  Total load: ${report.totals.queriesPerTick.toFixed(1)} queries/tick, ${report.totals.candidatesPerTick.toFixed(1)} candidates evaluated/tick`,
-  );
-
-  return lines.join('\n');
 }

@@ -14,7 +14,7 @@ import { COMBAT_TECH } from './combatTech';
 import { hasTech, resolveResearchEffect } from './simHelpers';
 import { seededRandomForRun } from './simRng';
 
-export const EMPTY_FORGE: VillageForgeState = {
+const EMPTY_FORGE: VillageForgeState = {
   activeOrder: null,
   progress: 0,
   completed: {},
@@ -65,7 +65,7 @@ export function hasScaleMail(state: CombatContext & { villageForge?: VillageForg
 }
 
 /** Research + forge — watchtower ballistae. */
-export function hasTowerBallistae(state: CombatContext & { villageForge?: VillageForgeState }): boolean {
+function hasTowerBallistae(state: CombatContext & { villageForge?: VillageForgeState }): boolean {
   return (
     hasTech(state, COMBAT_TECH.bastionTowers) &&
     hasCompletedBlacksmith(state) &&
@@ -77,7 +77,7 @@ export function hasTowerBallistae(state: CombatContext & { villageForge?: Villag
  * Combat research readings. The combination rule lives in `simHelpers.TIERED_ADD_TARGETS`; read
  * effects through this owner so no second consumer re-introduces a summed guaranteed kill.
  */
-export function getHuntRangeMultiplier(state: WorldState): number {
+function getHuntRangeMultiplier(state: WorldState): number {
   return resolveResearchEffect(state, 'hunt_range')?.multiplier ?? 1;
 }
 
@@ -384,22 +384,6 @@ export function getHumanStatusCombatIconFromFlags(
   if (flags.hasShields) return '🛡️';
   if (flags.hasSpears) return '🏹';
   return null;
-}
-
-export function getHumanStatusCombatIcon(
-  human: Entity,
-  unlockedTechs: readonly string[],
-  hasBlacksmith: boolean,
-  villageForge?: VillageForgeState,
-  buildings?: readonly Building[],
-): string | null {
-  const flags = buildHumanCombatStatusFlags(
-    unlockedTechs,
-    hasBlacksmith,
-    villageForge,
-    buildings ?? [],
-  );
-  return getHumanStatusCombatIconFromFlags(human, flags);
 }
 
 /**

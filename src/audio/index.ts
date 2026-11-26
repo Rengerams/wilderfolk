@@ -1,28 +1,16 @@
-/**
- * Wilderfolk audio entry — modular procedural audio via Web Audio API; re-exports the director,
- * sfx, tracks and volume controls that the rest of the app calls.
- */
+/** Wilderfolk audio entry — UI-facing audio controls and effects. */
 
-import { ambientNature } from './ambient';
-import { backgroundMusic } from './backgroundMusic';
 import { soundDirector } from './director';
 import { audioGraph } from './graph';
-import { introMusic } from './introMusic';
 import type { VolumePreset } from './preferences';
 
 export { soundDirector } from './director';
-export { TRACKS, TRACK_VOLUMES } from './tracks';
-export { playFailSfx } from './interactionSfx';
-export { VOLUMES, NOTES } from './constants';
 
 export {
   playBuildSound,
   playBirthSound,
-  playHuntSound,
-  playDeathSound,
   playMarriageSound,
   playUpgradeSound,
-  playErrorSound,
   playClickSound,
   playDisasterSound,
   playResearchCompleteSound,
@@ -49,25 +37,8 @@ export async function beginAudio(): Promise<void> {
   return soundDirector.beginGameplayAudio();
 }
 
-export function startIntroSong(): void {
-  if (!soundDirector.getMuteState()) void soundDirector.beginIntroAudio();
-}
-
 export function stopIntroSong(): void {
   soundDirector.dismissIntroAudio();
-}
-
-export function isIntroMusicPlaying(): boolean {
-  return introMusic.isRunning;
-}
-
-export function startMusic(): void {
-  soundDirector.startGameplay();
-}
-
-export function stopMusic(): void {
-  backgroundMusic.stop();
-  ambientNature.stop();
 }
 
 export function stopAllAudio(): void {
@@ -78,16 +49,11 @@ export function toggleMute(): boolean {
   return soundDirector.toggleMute();
 }
 
-export function setMute(muted: boolean): void {
-  soundDirector.setMute(muted);
-}
-
 export function getMuteState(): boolean {
   return soundDirector.getMuteState();
 }
 
 export type { VolumePreset } from './preferences';
-export { VOLUME_PRESETS } from './preferences';
 
 export function getVolumePreset() {
   return soundDirector.getVolumePreset();
@@ -99,8 +65,4 @@ export function setVolumePreset(preset: VolumePreset) {
 
 export function setGameMood(isNight: boolean): void {
   soundDirector.setGameMood(isNight);
-}
-
-export function initAudio(): void {
-  soundDirector.initAudio();
 }

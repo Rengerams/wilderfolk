@@ -13,7 +13,7 @@ import {
   rowBaseWord,
 } from './schema';
 
-export function validateRenderBufferLayout(buffer: ArrayBuffer): boolean {
+function validateRenderBufferLayout(buffer: ArrayBuffer): boolean {
   if (buffer.byteLength < 32) return false;
   if (buffer.byteLength % 4 !== 0) return false;
   const u32 = new Uint32Array(buffer);

@@ -95,22 +95,6 @@ export function drawSelectedSettlerBuildingHighlights(
   }
 }
 
-/** Cool blue night wash — no-op to disable night darkening. */
-export function drawNightAtmosphere(
-  _ctx: CanvasRenderingContext2D,
-  _state: RenderSnapshot,
-  _cw: number,
-  _ch: number,
-): void {}
-
-/** Warm / seasonal day grade — no-op to disable day tinting. */
-export function drawDayAtmosphere(
-  _ctx: CanvasRenderingContext2D,
-  _state: RenderSnapshot,
-  _cw: number,
-  _ch: number,
-): void {}
-
 /** The vignette's gradient depends only on the target context, the viewport and `night`. */
 let vignetteCache: {
   ctx: CanvasRenderingContext2D;

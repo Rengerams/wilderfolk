@@ -4,7 +4,7 @@ import spotlightPresentationJson from './data/dialogue/spotlight-lore.json' with
 import { seededRandomForRun } from './simRng';
 import { PER_TICK_RATE_SCALE, TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycleClock';
 import { isDialogueBusy, startDialogueTreeChat, clearCurrentEntityDialogue, type ChatSpeaker, type HumanChatContext, type ChatPickOptions } from './humanChat';
-export const DIALOGUE_CATEGORIES = ['dialogue'] as const;
+const DIALOGUE_CATEGORIES = ['dialogue'] as const;
 
 type DialogueCategory = (typeof DIALOGUE_CATEGORIES)[number];
 
@@ -281,25 +281,11 @@ export async function preloadDialogueBank(): Promise<void> {
   }
 }
 
-function requireBank(): DialogueBankFile {
-  if (!isDialogueBankReady()) {
-    ensureDialogueBankFromBundle();
-  }
-  if (!bank) {
-    throw new Error('Dialogue bank not loaded — call preloadDialogueBank() before chat simulation');
-  }
-  return bank;
-}
-
 export function getDialogueTrees(): readonly DialogueTree[] {
   if (!isDialogueBankReady()) {
     ensureDialogueBankFromBundle();
   }
   return bank?.dialogue_trees ?? [];
-}
-
-export function getDialogueCategories(): readonly DialogueCategory[] {
-  return requireBank().categories;
 }
 
 /**
@@ -481,11 +467,6 @@ export function getDialogueTreeById(id: string): DialogueTree | undefined {
   if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
   return treesById.get(id);
 }
-
-export function speakerRoleIndex(tree: DialogueTree, line: DialogueLine): 0 | 1 {
-  return line.speaker === tree.speakers[0] ? 0 : 1;
-}
-
 
 /** Keep effective bubble ticks when an existing nominal-tick speech event migrates to hours. */
 export function dialogueHoursFromNominalTicks(nominalTicks: number): number {
@@ -817,7 +798,6 @@ export function tryAmbientRandomDialogue(
   }
   maybeDialogueChat(entity, partner, context, tick, 1, options, extra);
 }
-
 
 // Eager install keeps the first worker/main-thread chat tick deterministic.
 ensureDialogueBankFromBundle();

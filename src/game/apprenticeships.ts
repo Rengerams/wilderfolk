@@ -54,7 +54,6 @@ export function getApprenticeTrainingSite(
   return null;
 }
 
-
 const PRODUCTION_TYPES = new Set<BuildingType>([
   BuildingType.Farm,
   BuildingType.Greenhouse,
@@ -68,11 +67,6 @@ const PRODUCTION_TYPES = new Set<BuildingType>([
   BuildingType.HuntingSpot,
   BuildingType.FishingSpot,
 ]);
-
-/** Skill the named entity holds in the given job (0 for none). */
-export function apprenticeSkill(e: Entity | undefined, job: JobType): number {
-  return e ? readSkill(e, job) : 0;
-}
 
 /** Daily pulse — match masters to apprentices and teach. */
 export function advanceApprenticeships(

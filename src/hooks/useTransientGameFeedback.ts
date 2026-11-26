@@ -22,7 +22,7 @@ const BIG_NEWS_DISMISS_AFTER_TICKS = 360;
 const BIG_NEWS_REMOVE_AFTER_TICKS = 600;
 const BIG_NEWS_CLEANUP_INTERVAL_MS = 1_000;
 const NOTIFICATION_CLEANUP_INTERVAL_MS = 1_000;
-export const MAX_VISIBLE_NOTIFICATIONS = 4;
+const MAX_VISIBLE_NOTIFICATIONS = 4;
 /**
  * Cap on the persisted dismissal ledger: it is copied into every UI patch and diffed per tick, so
  * it must stay bounded. Keep more IDs than a full queue so delayed worker deltas cannot

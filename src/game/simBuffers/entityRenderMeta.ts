@@ -1,5 +1,4 @@
 import type { Entity } from '../gameTypes';
-import { EntityType } from '../gameTypes';
 import type { RenderSoAReaderV1 } from './renderSoAReader';
 import {
   RESIDENCE_BUILDING_NONE,
@@ -184,8 +183,4 @@ export function buildRenderEntityShim(
     reproductionCooldown: 0,
     childrenIds: [],
   };
-}
-
-export function isHumanSlot(reader: RenderSoAReaderV1, slot: number): boolean {
-  return reader.type(slot) === EntityType.Human;
 }

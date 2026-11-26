@@ -53,11 +53,6 @@ export function playUpgradeSound() {
   sfx(NOTES.G5, 0.22, 0.08, 'sine', 0.21);
 }
 
-export function playErrorSound() {
-  sfx(180, 0.12, 0.09, 'triangle', 0, false);
-  sfx(130, 0.18, 0.07, 'triangle', 0.1);
-}
-
 export function playClickSound() {
   sfx(620, 0.04, 0.05, 'sine', 0, false);
 }

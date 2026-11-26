@@ -7,8 +7,6 @@ export interface HuntingSpotPreyOption {
   readonly hint: string;
 }
 
-export const DEFAULT_HUNTING_SPOT_PREY: HuntingSpotPrey = 'auto';
-
 export const HUNTING_SPOT_PREY_OPTIONS: readonly HuntingSpotPreyOption[] = [
   { id: 'auto', label: 'Auto', emoji: '🎯', hint: 'Nearest deer, rabbit, fox, or wolf' },
   { id: 'deer', label: 'Deer', emoji: '🦌', hint: 'Biggest carcass — most meat' },
@@ -25,11 +23,6 @@ const PREY_OPTIONS_MAP: Readonly<Record<HuntingSpotPrey, HuntingSpotPreyOption>>
   fox: HUNTING_SPOT_PREY_OPTIONS[3],
   wolf: HUNTING_SPOT_PREY_OPTIONS[4],
 };
-
-/** Retrieves UI option details for a given prey selection. */
-export function getHuntingSpotPreyOption(prey: HuntingSpotPrey = 'auto'): HuntingSpotPreyOption {
-  return PREY_OPTIONS_MAP[prey] ?? PREY_OPTIONS_MAP.auto;
-}
 
 /** Type guard verifying if an unknown value is a valid HuntingSpotPrey target. */
 export function isValidHuntingSpotPrey(value: unknown): value is HuntingSpotPrey {

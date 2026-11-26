@@ -116,18 +116,3 @@ export class EntityCatalog {
     return this.ensureAliveIndex().alive.length;
   }
 }
-
-/** Prefer catalog, then sim tick buckets, then a full-world scan. */
-export function resolveAliveByType(
-  world: WorldState,
-  type: EntityType,
-  catalog?: EntityCatalog,
-): Entity[] {
-  if (catalog) return catalog.getAliveByType(type);
-  return world.entityByType?.[type]
-    ?? world.entities.filter((entity) => entity.alive && entity.type === type);
-}
-
-export function resolveAliveHumans(world: WorldState, catalog?: EntityCatalog): Entity[] {
-  return resolveAliveByType(world, EntityType.Human, catalog);
-}

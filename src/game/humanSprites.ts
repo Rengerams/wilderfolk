@@ -111,8 +111,8 @@ export const HUMAN_VARIANT_LABELS: Record<HumanGender, readonly string[]> = {
 } as const;
 
 /** Native artboard — feet on bottom edge. */
-export const PIONEER_FRAME_W = 40;
-export const PIONEER_FRAME_H = 56;
+const PIONEER_FRAME_W = 40;
+const PIONEER_FRAME_H = 56;
 
 /**
  * Human scale is tied to building footprints, not collision size: a house footprint is 40wu tall and
@@ -120,12 +120,12 @@ export const PIONEER_FRAME_H = 56;
  */
 const HOUSE_REFERENCE_HEIGHT = 40;
 /** Screen height as fraction of a house's displayed height (at any zoom). */
-export const HUMAN_HEIGHT_BUILDING_RATIO = 0.5;
+const HUMAN_HEIGHT_BUILDING_RATIO = 0.5;
 export const HUMAN_WORLD_HEIGHT = HOUSE_REFERENCE_HEIGHT * HUMAN_HEIGHT_BUILDING_RATIO;
 /** Shadow / badge radius multiplier on collision size. */
-export const HUMAN_DRAW_SCALE = 1.35;
+const HUMAN_DRAW_SCALE = 1.35;
 /** Feet sit this fraction of sprite height below entity center (top-down). */
-export const HUMAN_FOOT_OFFSET_RATIO = 0.2;
+const HUMAN_FOOT_OFFSET_RATIO = 0.2;
 export const HUMAN_MIN_SCREEN_PX = 30;
 /** Fallback aspect ratio of the human PNG sprites (27x72, feet on bottom row). */
 export const HUMAN_SPRITE_ASPECT = 27 / 72;
@@ -152,12 +152,6 @@ export function getHumanSpriteMetrics(human: Entity, camZoom: number): HumanSpri
   const size = baseSize * HUMAN_DRAW_SCALE * camZoom;
   const footOffset = spriteH * HUMAN_FOOT_OFFSET_RATIO;
   return { size, spriteH, footOffset };
-}
-
-export function getHumanSpritePath(human: Entity): string {
-  const gender = (human.gender ?? 'male') as HumanGender;
-  const variant = human.spriteVariant ?? pickHumanVariant(human.id, gender);
-  return getHumanWalkSheetPath(gender, variant);
 }
 
 /**
@@ -221,7 +215,7 @@ function px(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
 }
 
 /** Draw one full-body pioneer (feet at y = PIONEER_FRAME_H). */
-export function drawPioneerFrame(
+function drawPioneerFrame(
   ctx: CanvasRenderingContext2D,
   walkFrame: number,
   gender: HumanGender,
@@ -397,11 +391,6 @@ export function getHumanMarkerColors(
 ): { fill: string; outline: string } {
   const palette = paletteFor(gender, variant);
   return { fill: palette.skin, outline: palette.outline };
-}
-
-export function getHumanWalkFrameIndex(animFrame: number, speed: number): number {
-  if (speed < HUMAN_WALK_SPEED_THRESHOLD) return 0;
-  return Math.floor(animFrame) % HUMAN_WALK_FRAMES;
 }
 
 export function getHumanWalkBob(frame: number, speed: number, camZoom: number): number {

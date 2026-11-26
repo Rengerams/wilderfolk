@@ -335,10 +335,6 @@ export function demolishBuildingsInPlace(state: WorldState, buildingIds: readonl
   return state;
 }
 
-/** Immutable public API used outside the worker-command owner. */
-export function demolishBuilding(originalState: WorldState, buildingId: number): WorldState {
-  return demolishBuildingInPlace(structuredClone(originalState), buildingId);
-}
 /** Strip selection delegates demolition, assignment cleanup, and refunds to the shared batch owner. */
 export function demolishStripBuildingsInPlace(state: WorldState, buildingIds: readonly number[]): WorldState {
   if (buildingIds.length === 0 || buildingIds.length > MAX_STRIP_SEGMENTS) return state;

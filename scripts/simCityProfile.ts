@@ -114,7 +114,7 @@ export function expectedCityAlive(targets: CityProfileTargets = DEFAULT_CITY_TAR
 }
 
 /** Steady-state city bench — hold ~1250 alive for spatial grid perf gates. */
-export const CITY_BENCH_MIN_ALIVE = 1200;
+const CITY_BENCH_MIN_ALIVE = 1200;
 
 export function maintainCityBenchmarkState(
   state: WorldState,

@@ -13,16 +13,16 @@ import { getRouteObstruction } from './pathfinding';
 import { getCaravanMoveTarget } from './tradeCaravans';
 import type { ExplanationLine } from './explanationLines';
 
-export type SettlerRouteStopKind = 'home' | 'workplace' | 'venue';
+type SettlerRouteStopKind = 'home' | 'workplace' | 'venue';
 
 /** One named stop on a settler's day route. Names come from `BUILDING_CONFIGS`, never from the view. */
-export interface SettlerRouteStop {
+interface SettlerRouteStop {
   kind: SettlerRouteStopKind;
   label: string;
   buildingId: number;
 }
 
-export type HumanMovementStatus =
+type HumanMovementStatus =
   /** No leg in progress — nothing for the path owner to report. */
   | 'none'
   /** The straight line is walkable. */

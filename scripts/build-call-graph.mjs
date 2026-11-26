@@ -198,7 +198,7 @@ const TYPE_CONTINUATION_CHARS = new Set(['|', '&', '>', ']', '[']);
  * bodyless declaration cannot adopt the next function's braces. The window must clear a
  * destructured parameter list of a hundred props, hence the generous bound.
  */
-export function findBodyBrace(code, from, startsInParams = false) {
+function findBodyBrace(code, from, startsInParams = false) {
   const limit = Math.min(code.length, from + 4000);
   let depth = startsInParams ? 1 : 0;
   let brackets = 0;
