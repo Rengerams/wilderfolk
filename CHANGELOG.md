@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (26 Nov 2026):** HUD notifications now wait in arrival order for a visible slot and receive their full display lifetime, rather than expiring while hidden behind other pop-ups.
+
 - **Fixed (26 Nov 2026):** Workplace vacancy swaps now use the same home-based candidate ranking as ordinary hiring, reserve apprentices even during food emergencies, skip insufficient or empty donors, and rank transfers in one scan using consistent commute units.
 
 - **Improved (26 Nov 2026):** Family trees draw parent-child branches, group siblings by parent, filter direct ancestors and descendants, and support centering and returning to the original person. Hiding deceased relatives preserves living branches.
