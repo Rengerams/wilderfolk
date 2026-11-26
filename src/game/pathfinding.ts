@@ -1196,6 +1196,17 @@ export function getRouteObstruction(
   return result.hitNodeCap ? 'pending' : 'blocked';
 }
 
+/** Read the movement owner's definitive failure without launching a second search. */
+export function hasUnreachableWalkTarget(entity: Entity, x: number, y: number, cacheKey: string): boolean {
+  const cached = pathCache.get(cacheKey);
+  return !!cached && cached.walkerId === entity.id
+    && cached.targetX === x && cached.targetY === y
+    && cached.startTileX === Math.floor(entity.x / PATH_CELL)
+    && cached.startTileY === Math.floor(entity.y / PATH_CELL)
+    && cached.waypoints === null && !cached.directDetourRejected
+    && cached.retryAfter === undefined;
+}
+
 /**
  * Steer an entity toward a target, routing around obstacles when the direct line is blocked.
  * Returns how the caller should proceed; the stepper never writes a position.

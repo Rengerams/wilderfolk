@@ -211,7 +211,7 @@ describe('worker hand-off state', () => {
   });
 
   it('draws the same humanTick stream with and without a beauty field', () => {
-    const drawsFor = (withGrid: boolean): { draws: number; state: number | undefined } => {
+    const drawsFor = (withGrid: boolean): { draws: number; state: number | undefined; paired: boolean } => {
       resetSimRng();
       const world = smallWorld();
       adoptSimSeedFromWorld(world);
@@ -252,6 +252,7 @@ describe('worker hand-off state', () => {
       }
       getSimRng('humanTick');
       const before = streamState('humanTick') ?? 0;
+      let paired = false;
       tickHumanLeisure({
         state: world,
         entity: resident,
@@ -271,7 +272,7 @@ describe('worker hand-off state', () => {
         livingHumanAt: (id) => (id == null ? undefined : world.entities.find((entity) => entity.id === id)),
         suppressIdleInitial: false,
         settlerChat: () => {},
-        settlerPairChat: () => {},
+        settlerPairChat: () => { paired = true; },
         completedPoolOf: () => [],
         workersByWorkplace: new Map(),
         workerIndexById: new Map(),
@@ -284,14 +285,16 @@ describe('worker hand-off state', () => {
       });
       const state = streamState('humanTick');
       const draws = state === undefined ? 0 : ((state - before) >>> 0) / MULBERRY_STEP;
-      return { draws, state };
+      return { draws, state, paired };
     };
 
     const withGrid = drawsFor(true);
     const withoutGrid = drawsFor(false);
     // The fixture really reaches the companion branch (guard against a vacuous pass).
-    expect(withGrid.draws, 'the fixture must reach the companion beat').toBe(2);
-    expect(withoutGrid.draws).toBe(2);
+    expect(withGrid.paired, 'the fixture must reach the companion beat').toBe(true);
+    expect(withoutGrid.paired).toBe(true);
+    expect(withGrid.draws).toBe(0);
+    expect(withoutGrid.draws).toBe(0);
     expect(withoutGrid.state).toBe(withGrid.state);
   });
 

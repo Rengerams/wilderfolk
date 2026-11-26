@@ -306,7 +306,7 @@ describe('L41 — realtime affair gate honours the colony work schedule', () => 
   });
 });
 
-describe('L42 — company-following leisure blends velocity once', () => {
+describe('L42 — company-following leisure replaces stale velocity', () => {
   /** Ticks whose deterministic rolls put the settler on the spouse-following branch. */
   function companyFollowTicks(): number[] {
     const ticks: number[] = [];
@@ -340,15 +340,17 @@ describe('L42 — company-following leisure blends velocity once', () => {
     return speaker.vx;
   }
 
-  it('weights the previous velocity at 0.5 like every other leisure kind', () => {
+  it('routes toward company without blending stale velocity', () => {
     const fixture = newWorld();
     fixture.worldMap = null;
     setSimSeed(TEST_SEED);
-    const deltas = companyFollowTicks()
-      .map((tick) => runCompanyFollow(fixture, tick, 20) - runCompanyFollow(fixture, tick, 0));
-
-    // The previous velocity is weighted once at 0.5; a double blend would halve it again.
-    expect(deltas.some((delta) => Math.abs(delta - 10) < 1e-9)).toBe(true);
+    const routes = companyFollowTicks().map((tick) => ({
+      fresh: runCompanyFollow(fixture, tick, 0),
+      stale: runCompanyFollow(fixture, tick, -20),
+    }));
+    const towardCompany = routes.filter(({ fresh }) => fresh > 0);
+    expect(towardCompany.length).toBeGreaterThan(0);
+    expect(towardCompany.some(({ fresh, stale }) => Math.abs(fresh - stale) < 1e-9)).toBe(true);
   });
 });
 
