@@ -11,6 +11,7 @@
 - Related PR: [#216](https://github.com/Rengerams/wilderfolk/pull/216)
 
 ## Status history
+- 2026-11-26 — CI verified: head `31d6957` passed all five workflows, including 3,418 tests across 479 files. Browser/live-save reproduction remains pending.
 - 2026-11-26 — investigating: player reports events in the Chronicle without corresponding HUD pop-ups; source confirms a concrete loss path.
 - 2026-11-26 — implementation committed: FIFO presentation, visible-time expiry, bounded overflow summary and worker acknowledgement. Final CI and browser reproduction pending.
 
@@ -45,4 +46,5 @@ No persisted schema change; notifications and their overflow summary are transie
 - Source trace: confirmed the pre-fix failure path; implementation and branch diff inspected.
 - `tests/toastExpiry.ledger.test.ts`, `tests/uiSingleOwner.test.ts`, `tests/workerUiPatch.merge.test.ts`: regressions added; local execution NOT RUN.
 - GitHub Actions on `e3ee1d5b64`: calendar, medium and large population gates PASS; Node.js CI and small population gate pending at inspection.
-- Browser/live-save reproduction: NOT RUN. Status remains investigating until verification.
+- GitHub Actions on `31d6957`: [Node.js CI](https://github.com/Rengerams/wilderfolk/actions/runs/45873094639) PASS (3,418/3,418 tests in 479 files; standard, lint and duplicate checks PASS). Focused suites: toastExpiry.ledger 8/8, uiSingleOwner 45/45, workerUiPatch.merge 4/4. Calendar and all three population performance workflows PASS.
+- Browser/live-save reproduction: NOT RUN. Status remains investigating for that verification; automated regression coverage passed on `31d6957`. This documentation-only follow-up does not alter runtime code; latest-head CI pending.
