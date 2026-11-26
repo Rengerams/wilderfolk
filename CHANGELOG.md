@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Performance (26 Nov 2026):** Reuse the active path grid for blocked leisure targets and avoid redundant walkability checks; fast-path same-cell steps and reuse immutable route tiles; skip full destination line checks on valid cached routes and scan only ring perimeters during blocked-goal recovery; validate diagonal A* edges only when they improve the tentative cost.
+- **Performance (26 Nov 2026):** Reuse the active path grid for leisure goals and avoid redundant standability checks; preserve deterministic routing and invalidate cached goals when the grid changes.
 
 - **Improved (26 Nov 2026; PR pending):** Drag long straight bridge chains across rivers in either axis; preview segment costs and reject incomplete material/placement commits.
 
