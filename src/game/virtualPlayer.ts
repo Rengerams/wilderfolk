@@ -237,6 +237,36 @@ function findPlacementSpot(
   const stepY = height + GRID_SIZE;
   const rings = VirtualPlayer.PLACEMENT_SEARCH_RINGS;
 
+  // Use established roads as the first village frontage, rather than placing a new
+  // building on an unrelated camp-centered ring. The real placement owner still
+  // checks collision, terrain, resources and any caller-specific acceptance.
+  if (type !== BuildingType.Road) {
+    const roads = state.buildings.filter((b) => b.type === BuildingType.Road && b.completed)
+      .sort((a, b) => {
+        const da = Math.hypot(a.x + a.width / 2 - camp.x, a.y + a.height / 2 - camp.y);
+        const db = Math.hypot(b.x + b.width / 2 - camp.x, b.y + b.height / 2 - camp.y);
+        return da - db || a.id - b.id;
+      });
+    for (const road of roads) {
+      const roadX = road.x + road.width / 2;
+      const roadY = road.y + road.height / 2;
+      const horizontal = road.width >= road.height;
+      // Try just beyond both road edges, then nearby points along that road.
+      for (const along of [0, -1, 1, -2, 2]) {
+        for (const side of [-1, 1]) {
+          const x = horizontal ? roadX + along * GRID_SIZE : roadX + side * (road.width / 2 + width / 2 + GRID_SIZE);
+          const y = horizontal ? roadY + side * (road.height / 2 + height / 2 + GRID_SIZE) : roadY + along * GRID_SIZE;
+          const spot = snapBuildingCenter(type, x, y, rotation);
+          if (!canPlaceBuilding(state, type, spot.x, spot.y, rotation)) continue;
+          if (accept && !accept(spot)) continue;
+          return spot;
+        }
+      }
+    }
+  }
+
+  // No usable road frontage (or no roads yet): retain the existing deterministic
+  // camp-centered search so sparse or inaccessible settlements can still grow.
   for (let ring = 0; ring <= rings; ring++) {
     for (let dx = -ring; dx <= ring; dx++) {
       for (let dy = -ring; dy <= ring; dy++) {

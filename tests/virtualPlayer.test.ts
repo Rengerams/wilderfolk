@@ -468,6 +468,24 @@ describe('virtual player decision engine', () => {
     expect(decision!.reason).toContain('House');
   });
 
+  it('places a needed house beside an existing player-built road rather than randomly around camp', () => {
+    const road = building(60, BuildingType.Road, {
+      x: 840, y: 500, width: 20, height: 100, completed: true,
+    });
+    const world = makeWorld([human(1), human(2), human(3)], [road]);
+    const decision = decideVirtualPlayerAction(world);
+    expect(decision?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.House });
+    if (decision?.command.op !== 'startBuilding') throw new Error('expected House placement');
+
+    const house = decision.command;
+    expect(canPlaceBuilding(world, BuildingType.House, house.x, house.y, house.rotation)).toBe(true);
+    // The placement deliberately follows the north/south road segment's frontage near y=550,
+    // not the old unrelated camp ring at (600, 460).
+    expect(Math.abs(house.y - (road.y + road.height / 2))).toBeLessThanOrEqual(40);
+    expect(house.x).toBeGreaterThan(730);
+    expect(Math.abs(house.x - (road.x + road.width / 2))).toBeLessThanOrEqual(90);
+  });
+
   it("builds the free Leader's House first, before any other colony work", () => {
     // World generation places no Leader's House and the build costs nothing, so a
     // broke colony still gets its official residence before anything else.

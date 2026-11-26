@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Improved (26 Nov 2026; PR pending):** Virtual Player construction now prefers available building plots beside existing roads, preserving street layouts. If no lawful road frontage is available, the previous deterministic camp-ring search remains the fallback.
+
 - **Fixed (26 Nov 2026):** Returning armies show homeward travel rather than obsolete battle orders; the Chronicle and deployment lifecycle remain intact.
 
 - **Fixed (26 Nov 2026):** Free-roaming hunters route around impassable terrain and cannot kill close prey through blocked terrain. Shallow-water walking remains unchanged.
