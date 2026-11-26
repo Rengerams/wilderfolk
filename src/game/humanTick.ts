@@ -330,6 +330,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     workplaceId: number | undefined;
     atWorkplace: boolean;
     socialTime: boolean;
+    atFestival: boolean;
   }>();
   const advancedCourtshipIds = new Set<number>();
 
@@ -811,6 +812,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       workplaceId: workplace?.id,
       atWorkplace: atPost || wasInsideWorkplace,
       socialTime: false,
+      atFestival: false,
     };
     let ateMeal = false;
     if (isPlayerHuman(entity)) {
@@ -898,43 +900,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       );
     }
 
-    if (!active) {
-      if (previousIndoorBuildingId != null && buildingById.get(previousIndoorBuildingId)?.completed) {
-        entity.indoorBuildingId = previousIndoorBuildingId;
-      }
-      // The throttle rests the decisions, not the walk: the route the settler was already commanded
-      // to take carries them at the same pace, so camera focus cannot change travel time.
-      resumeHumanWalk(entity);
-      integrateHumanWalk(entity, width, height);
-      syncEntityGrids(ctx, entity);
-      continue;
-    }
-
-    // A decision tick starts with no commanded walk: whatever it steers records the one walk a
-    // throttled tick may resume, and a tick that only flees or stops leaves none behind.
-    clearHumanWalkTarget(entity);
-
-    // Trade-route merchants
-    if (entity.faction === 'trade_caravan') {
-      const target = getCaravanMoveTarget(state, entity);
-      if (target) {
-        steerHumanToward(
-          entity, target.x, target.y, config.speed, target.speedMult, `caravan_${entity.id}`,
-        );
-        applyHumanWalkStep(entity, 1);
-        tryAdvanceCaravanLeg(state, entity);
-      }
-      syncEntityGrids(ctx, entity);
-      continue;
-    }
-    if (isWinter && !canHeat && isTick8) entity.flash = 5;
-
-    let suppressIdle = false;
-    let onSchedule = false;
-    // A walk to work is priced at the undamped commute pace by `commuteLeadHoursFor`.
-    let commuting = false;
-
-
     // A crew larger than three shifts takes days off in turn; a resting guard is off the colony work
     // day and must not still walk to the prison.
     const offDutyPrisonGuard = isPrisonGuardAtPost && prisonShift == null;
@@ -975,10 +940,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         (allowFreeRoam && isPlayerHuman(entity))
       );
 
-    // Publish only after the actual leisure and essential-activity decisions are known.
-    courtshipPresence.socialTime = socialTime && !takingNeedsBreak && !stayIn && !inElectionCeremony;
-    courtshipReadiness.set(entity.id, courtshipPresence);
-
     const huntingWere = anyActiveHowler
       ? findClosestEntityInRadius(
           mobileGrid,
@@ -990,6 +951,59 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           byType[EntityType.Werewolf],
         )
       : undefined;
+
+    // The festival destination is shared by the readiness and movement decisions.
+    const festivalStand = festivalGathering ? crowdGatherPosition(
+      festivalSquare ? festivalSquare.x + festivalSquare.width / 2 : (staffedTownHalls[entity.id % staffedTownHalls.length]?.x ?? width * 0.5),
+      festivalSquare ? festivalSquare.y + festivalSquare.height / 2 : (staffedTownHalls[entity.id % staffedTownHalls.length]?.y ?? height * 0.5),
+      entity.id,
+    ) : undefined;
+    const atFestival = festivalStand != null && Math.hypot(festivalStand.x - entity.x, festivalStand.y - entity.y) <= 18;
+    courtshipPresence.socialTime = socialTime && !takingNeedsBreak && !stayIn && !inElectionCeremony
+      && !workCommuteDue && !huntingWere && (!festivalGathering || atFestival);
+    courtshipPresence.atFestival = atFestival;
+    if (!goingToHospital && !inSpotlightGathering && !inElectionCeremony && !huntingWere) {
+      courtshipReadiness.set(entity.id, courtshipPresence);
+    } else {
+      courtshipPresence.atWorkplace = false;
+    }
+
+    if (!active) {
+      if (previousIndoorBuildingId != null && buildingById.get(previousIndoorBuildingId)?.completed) {
+        entity.indoorBuildingId = previousIndoorBuildingId;
+      }
+      // The throttle rests the decisions, not the walk: the route the settler was already commanded
+      // to take carries them at the same pace, so camera focus cannot change travel time.
+      resumeHumanWalk(entity);
+      integrateHumanWalk(entity, width, height);
+      syncEntityGrids(ctx, entity);
+      continue;
+    }
+
+    // A decision tick starts with no commanded walk: whatever it steers records the one walk a
+    // throttled tick may resume, and a tick that only flees or stops leaves none behind.
+    clearHumanWalkTarget(entity);
+
+    // Trade-route merchants
+    if (entity.faction === 'trade_caravan') {
+      const target = getCaravanMoveTarget(state, entity);
+      if (target) {
+        steerHumanToward(
+          entity, target.x, target.y, config.speed, target.speedMult, `caravan_${entity.id}`,
+        );
+        applyHumanWalkStep(entity, 1);
+        tryAdvanceCaravanLeg(state, entity);
+      }
+      syncEntityGrids(ctx, entity);
+      continue;
+    }
+    if (isWinter && !canHeat && isTick8) entity.flash = 5;
+
+    let suppressIdle = false;
+    let onSchedule = false;
+    // A walk to work is priced at the undamped commute pace by `commuteLeadHoursFor`.
+    let commuting = false;
+
 
     // Cross-map lodging: a walk home too long for the hours left before the sleep hour takes a
     // reserved hotel bed instead, including the time spent walking there.
@@ -1071,12 +1085,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       suppressIdle = true;
       onSchedule = true;
     } else if (festivalGathering) {
-      const hall = staffedTownHalls.length > 0 ? staffedTownHalls[entity.id % staffedTownHalls.length] : undefined;
-      const square = festivalSquare;
-      const targetX = square ? square.x + square.width / 2 : (hall ? hall.x : width * 0.5);
-      const targetY = square ? square.y + square.height / 2 : (hall ? hall.y : height * 0.5);
-      // A real place per festival-goer: `crowdGatherPosition` spreads the crowd around the target.
-      const stand = crowdGatherPosition(targetX, targetY, entity.id);
+      const stand = festivalStand!;
       const dx = stand.x - entity.x;
       const dy = stand.y - entity.y;
       const dist = Math.hypot(dx, dy) || 1;
@@ -1262,7 +1271,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     );
     suppressIdle = huntingSuppressIdle;
     // Do not advertise leisure availability while another movement owner is active.
-    courtshipPresence.socialTime = courtshipPresence.socialTime && !suppressIdle && !commuting && !huntingWere;
+    courtshipPresence.socialTime = courtshipPresence.socialTime && (!suppressIdle || atFestival) && !commuting && !huntingWere;
 
     advancePregnancy(entity, conceivedToday);
 
@@ -1306,7 +1315,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Courtship: only two observed, awake people may interact. An on-duty pair may
     // progress only if both are actually at their *same* workplace and within 10 px.
     // Other workers do not abandon their jobs to chase dates.
-    if (!sleepingForNeeds && ((!suppressIdle && courtshipPresence.socialTime) || courtshipPresence.onDuty) &&
+    if (!sleepingForNeeds && (((!suppressIdle || atFestival) && courtshipPresence.socialTime) || courtshipPresence.onDuty) &&
       isEligibleToCourt(entity) && entity.gender &&
       entity.energy > config.reproductionEnergyThreshold * 0.6) {
       // The first processed member of an established pair may wait briefly at
@@ -1316,7 +1325,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         ? entityById.get(entity.courtshipPartnerId) : undefined;
       if (established && established.courtshipPartnerId === entity.id
         && !courtshipReadiness.has(established.id)
-        && !courtshipPresence.onDuty && courtshipPresence.socialTime
+        && !courtshipPresence.onDuty && !atFestival && courtshipPresence.socialTime
         && isEligibleToCourt(established)
         && Math.hypot(established.x - entity.x, established.y - entity.y) <= 10) {
         entity.vx = 0;
@@ -1342,7 +1351,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           if (courtshipPresence.onDuty || presence.onDuty) {
             return canAdvanceCourtship(courtshipPresence, presence, Math.hypot(candidate.x - entity.x, candidate.y - entity.y), socialTime);
           }
-          return courtshipPresence.socialTime && presence.socialTime;
+          return courtshipPresence.socialTime && presence.socialTime
+            && (!(atFestival || presence.atFestival) || Math.hypot(candidate.x - entity.x, candidate.y - entity.y) <= 10);
         },
       );
 
@@ -1360,7 +1370,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const closeEnough = dist <= 10;
 
         if (!closeEnough) {
-          if (!courtshipPresence.onDuty && !otherPresence.onDuty && courtshipPresence.socialTime && otherPresence.socialTime) {
+          if (!courtshipPresence.onDuty && !otherPresence.onDuty && !atFestival && !otherPresence.atFestival && courtshipPresence.socialTime && otherPresence.socialTime) {
             // Keep established dates stable, but do not lock two strangers into an
             // exclusive relationship until they actually meet. An unreachable route
             // must not create a permanent zero-progress courtship.
@@ -1373,7 +1383,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         } else if (canAdvanceCourtship(courtshipPresence, otherPresence, dist, courtshipPresence.socialTime && otherPresence.socialTime)) {
           // Leisure dates stop at contact instead of resuming an old walk target.
           // Coworkers keep their work movement and attendance untouched.
-          if (!courtshipPresence.onDuty && !otherPresence.onDuty) {
+          if (!courtshipPresence.onDuty && !otherPresence.onDuty && !atFestival && !otherPresence.atFestival) {
             entity.vx = 0;
             entity.vy = 0;
             clearHumanWalkTarget(entity);
