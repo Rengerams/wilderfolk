@@ -27,9 +27,13 @@ const UNBUILDABLE_SPAWN_TERRAIN = new Set<TerrainType>([
   TerrainType.Snow,
 ]);
 
-export function isInsideCompletedBuilding(state: WorldState, x: number, y: number, pad = 10): boolean {
+export function isInsideCompletedBuilding(
+  state: WorldState, x: number, y: number, pad = 10, includeTravelSurfaces = true,
+): boolean {
   for (const b of state.buildings) {
     if (!b.completed) continue;
+    // Road and bridge surfaces are not shelter. Spawn validation retains its existing default.
+    if (!includeTravelSurfaces && (b.type === BuildingType.Road || b.type === BuildingType.Bridge)) continue;
     if (isEntityOnBuilding(x, y, b, pad)) return true;
   }
   return false;

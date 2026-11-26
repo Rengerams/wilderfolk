@@ -38,7 +38,7 @@ import { logWildkinBirth } from './wildkinChronicle';
 import { recordGenealogyBirth } from './genealogyRegistry';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { clampToMapBounds } from './mapBounds';
-import { getPathGrid, isWalkStepAllowed, nearestWalkableWorldPoint } from './pathfinding';
+import { getPathGrid, getWildlifePathGrid, hasUnreachableWalkTarget, isWalkStepAllowed, nearestWalkableWorldPoint, steerWithPath } from './pathfinding';
 import { isPassableWildlifePosition } from './worldGen';
 import { deterministicCos, deterministicSin } from './simTrig';
 import {
@@ -216,6 +216,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
   const waterBlocked = (tx: number, ty: number): boolean =>
     !walkGrid?.bridge?.[ty * walkGrid.cols + tx]
     && !isPassableWildlifePosition(state, (tx + 0.5) * PATH_CELL, (ty + 0.5) * PATH_CELL, 0);
+  const howlerGrid = walkGrid && byType[EntityType.Werewolf]?.some(isActiveMoonHowler)
+    ? getWildlifePathGrid(walkGrid, waterBlocked) : null;
   const canStep = (entity: Entity, x: number, y: number): boolean =>
     !waterBlocked(Math.floor(x / PATH_CELL), Math.floor(y / PATH_CELL))
     && isWalkStepAllowed(entity.x, entity.y, x, y, walkGrid, waterBlocked);
@@ -295,8 +297,10 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         }
       }
 
-      // 1. Common updates
-      if (isNewCalendarDay) {
+      const moonHowlerHunter = isActiveMoonHowler(entity);
+
+      // 1. Common updates: a transformed settler retains human calendar age, not wildlife days.
+      if (isNewCalendarDay && !moonHowlerHunter) {
         entity.age++;
       }
       entity.flash = Math.max(0, entity.flash - step);
@@ -348,7 +352,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       const wildlifeActive =
         // `OFFSCREEN_WILDLIFE_THROTTLE` counts wildlife-layer calls, not raw ticks, so out-of-focus
         // fauna is gated by layer pulse.
-        wildlifeInFocus || isOffscreenWildlifeActive(state.tick, entity.id);
+        moonHowlerHunter || wildlifeInFocus || isOffscreenWildlifeActive(state.tick, entity.id);
       if (!wildlifeActive) {
         entity.reproductionCooldown = Math.max(0, entity.reproductionCooldown - step);
         syncEntityGrids(ctx, entity);
@@ -357,6 +361,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
 
       let targetVx = 0;
       let targetVy = 0;
+      let routedHowlerPursuit = false;
 
       // 6. Evasion Behavior — grazers flee any predator; foxes are also prey to apex canids
       // (wolves and Moon Howlers), so a fox flees those but stays a predator of rabbits.
@@ -409,13 +414,12 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       // 7. Hunting Behavior — the Wildkin is an apex predator on the shared deer/rabbit prey base.
       const isHungry = entity.energy < entity.maxEnergy * 0.7;
       if (
-        isHungry &&
+        (isHungry || moonHowlerHunter) &&
         (entity.type === EntityType.Wolf ||
           entity.type === EntityType.Fox ||
           entity.type === EntityType.Werewolf ||
           entity.type === EntityType.Wildkin)
       ) {
-        const moonHowlerHunter = entity.type === EntityType.Werewolf && isActiveMoonHowler(entity);
         // Wolves are apex predators — they hunt deer and rabbits and also take
         // competing foxes (intraguild predation). Foxes keep hunting rabbits.
         const { preyTypeSet, fallback: huntPreyFallback } = huntPreyLookup(
@@ -458,10 +462,16 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           huntRange,
           (prey, dSq) => {
             if (!preyTypeSet.has(prey.type)) return;
+            // The curse drives attacks on exposed settlers even when the beast is fed.
+            // Ordinary wildlife prey still requires hunger, preserving ecosystem limits.
+            if (!isHungry && prey.type !== EntityType.Human) return;
             // Sparse rabbits retreat into refuge; wild predators switch prey or go hungry.
             // Player hunting still uses its separate owner and may affect this population.
             if (prey.type === EntityType.Rabbit && !wildlifeMayHuntRabbit(preyCounts.rabbits)) return;
             if (!isValidHuntPrey(prey, prey.type, entity.id)) return;
+            if (moonHowlerHunter && howlerGrid && hasUnreachableWalkTarget(
+              entity, prey.x, prey.y, `moonhunt_${entity.id}_${prey.id}`, howlerGrid,
+            )) return;
             const dist = Math.sqrt(dSq);
             const humanBias = prey.type === EntityType.Human ? 0.82 : 1.0;
             const biased = dist * humanBias;
@@ -486,7 +496,19 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           targetVx = (dx / dist) * config.speed * packSpeed * wereSpeed;
           targetVy = (dy / dist) * config.speed * packSpeed * wereSpeed;
 
-          if (dist < config.size + caughtPrey.size) {
+          const clearContact = !moonHowlerHunter || canStep(entity, caughtPrey.x, caughtPrey.y);
+          if (moonHowlerHunter && !clearContact && howlerGrid) {
+            // Chase through the shared navigation owner, not straight into walls or across rivers.
+            // A pending path is not a request to resume the previous wander velocity.
+            const route = steerWithPath(entity, caughtPrey.x, caughtPrey.y,
+              config.speed * wereSpeed, `moonhunt_${entity.id}_${caughtPrey.id}`, howlerGrid);
+            if (route !== 'direct') {
+              targetVx = entity.vx;
+              targetVy = entity.vy;
+              routedHowlerPursuit = true;
+            }
+          }
+          if (dist < config.size + caughtPrey.size && clearContact) {
             const isHumanPrey = caughtPrey.type === EntityType.Human;
 
             if (
@@ -499,12 +521,13 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
                 caughtPrey.combatRollSeed ?? 0,
               )
             ) {
-              const victimId = caughtPrey.id;
+              const slainPredatorId = entity.id;
               markWildlifeDead(ctx, entity, wildlifeDeathsThisTick, state.tick, state);
               syncEntityGrids(ctx, entity);
-              clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId, byType);
+              clearHuntersTargetingPrey(slainPredatorId, entityById, ctx.huntTargetByPreyId, byType);
 
-              if (entity.type === EntityType.Werewolf && entity.moonHowlerCursed && !caughtPrey.title) {
+              // The death owner already restored the slain werewolf's human type.
+              if (moonHowlerHunter && !caughtPrey.title) {
                 caughtPrey.title = 'Moonslayer';
                 addFloatingText(state, caughtPrey.x, caughtPrey.y - 28, 'Moonslayer!', '#fbbf24');
                 logEvent(
@@ -520,8 +543,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
               createDeathParticles(state, entity.x, entity.y, '#8a2a2a', 10);
               addFloatingText(state, caughtPrey.x, caughtPrey.y - 14, 'Defended!', '#38bdf8');
               impulseScreenShake(state, 3);
-              targetVx = 0;
-              targetVy = 0;
+              continue;
             } else if (
               isHumanPrey &&
               rollPredatorBlock(state, caughtPrey.id, state.tick, caughtPrey.combatRollSeed ?? 0)
@@ -689,7 +711,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       }
 
       // 10. Default Wander Steps
-      if (targetVx === 0 && targetVy === 0) {
+      if (!routedHowlerPursuit && targetVx === 0 && targetVy === 0) {
         if (getSimRng('tickLayerSystems')() < 1.0 - Math.pow(1.0 - 0.05, step)) {
           const angle = getSimRng('tickLayerSystems')() * Math.PI * 2;
           entity.vx = deterministicCos(angle) * config.speed * 0.4;
@@ -706,10 +728,10 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       }
 
       // 11. Road speed modifiers and alignment
-      queryRoadAvoidance(roadAvoidance, entity);
+      if (!moonHowlerHunter) queryRoadAvoidance(roadAvoidance, entity);
 
       // 12. Domestic Tamed Followers
-      if (entity.tamedBy) {
+      if (entity.tamedBy && !moonHowlerHunter) {
         const owner = entityById.get(entity.tamedBy);
         if (owner?.alive) {
           const dx = owner.x - entity.x;

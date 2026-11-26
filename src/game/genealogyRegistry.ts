@@ -1,6 +1,6 @@
 import type { Entity, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
-import { isPlayerHuman } from './playerHuman';
+import { isPlayerHumanShiftOwner } from './playerHuman';
 
 import type { GenealogyRegistry, GenealogyPerson } from './genealogyTypes';
 import { bumpHistoryRevision } from './historyRevisions';
@@ -9,7 +9,7 @@ export type { GenealogyRegistry, GenealogyPerson } from './genealogyTypes';
 function recordedFamilyEntity(entity: Entity, registry?: GenealogyRegistry): boolean {
   // Do not turn every wild deer into a genealogical person. Animal relatives enter
   // the registry only at a Wildkin birth, then the normal census tracks them.
-  return (entity.type === EntityType.Human && isPlayerHuman(entity))
+  return isPlayerHumanShiftOwner(entity)
     || entity.type === EntityType.Wildkin
     || (entity.type === EntityType.Deer && registry?.people[String(entity.id)] !== undefined);
 }
@@ -47,7 +47,7 @@ export function syncGenealogyRegistry(state: WorldState, entities: readonly Enti
     registry.people[key] = {
       id: e.id,
       name: e.name ?? existing?.name ?? genealogyDisplayName(e),
-      entityType: e.type === EntityType.Human ? undefined : e.type,
+      entityType: isPlayerHumanShiftOwner(e) ? undefined : e.type,
       wildkinParentIds: e.wildkinParentIds ?? existing?.wildkinParentIds,
       birthSurname: existing?.birthSurname ?? e.surname ?? '',
       surname: e.surname ?? existing?.surname ?? '',
@@ -150,7 +150,7 @@ export function recordGenealogyDeath(state: WorldState, entity: Entity): void {
   if (!registry.people[String(entity.id)]) {
     registry.people[String(entity.id)] = {
       id: entity.id, name: genealogyDisplayName(entity),
-      entityType: entity.type === EntityType.Human ? undefined : entity.type,
+      entityType: isPlayerHumanShiftOwner(entity) ? undefined : entity.type,
       wildkinParentIds: entity.wildkinParentIds,
       birthSurname: entity.surname ?? '', surname: entity.surname ?? '', gender: entity.gender,
       bornYear: entity.birthYear, bornDay: entity.birthDay, alive: true,

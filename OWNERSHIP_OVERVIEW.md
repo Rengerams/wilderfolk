@@ -16,6 +16,19 @@
 | `orderFamilyTreeRows`, `buildFullFamilyTree` | `src/game/familyTree.ts` | Stable parent-based display ordering and existing direct ancestor/descendant closures for view filters; no new ancestry inference. `tests/familyTree.test.ts` |
 | `FamilyTreeWindow`, `measure`, `centerFocus`, `selectPerson`, `renderPerson` | `src/components/FamilyTreeWindow.tsx` | Read-only card geometry, SVG branches, direct-line visibility filters, center and return navigation; deceased ancestors remain in the underlying graph. `measure` owns SVG geometry updates; `centerFocus` owns viewport centering. No simulation writes or additional genealogy decision. |
 
+## 2026-11-26 — Moon Howler night hunting
+
+| Functions | Owner | Responsibility |
+|---|---|---|
+| `tickWildlife` | `src/game/tickLayerSystems.ts` | Active cursed forms pursue exposed humans even when fed and run on every systems pulse regardless of viewport; animal prey remains hunger-gated. Preserve human age and award Moonslayer from the pre-death form; counter-kill clears hunters of the slain predator, not of its living defender. Route obstructed pursuit through the shared steering owner, reject contact across blocked segments, skip definitively unreachable prey and omit wildlife road repulsion for active cursed forms. |
+| `getWildlifePathGrid`, `steerWithPath`, `hasUnreachableWalkTarget` | `src/game/pathfinding.ts` | Cached strict wildlife grid derives the same water/bridge verdict as movement; steering and failure caches retain grid identity. Human grid and A* remain shared and unchanged. |
+| `tickMoonHowlerCycle`, `isInsideCompletedBuilding` | `src/game/moonHowler.ts`, `src/game/terrainSystems.ts` (respectively) | Existing moon-window ejection uses shared footprint geometry but excludes road and bridge travel surfaces; spawn validation retains its existing default. |
+| `forceMoonHowlerOutside`, `transformToWerewolfForm`, `revertToHumanForm` | `src/game/moonHowler.ts`, `src/game/moonHowlerForm.ts` (restore) | Clear transient indoor arrival records during transformation, ejection and reversion; dawn stops predator velocity. |
+| `markWildlifeDead` | `src/game/simulation/simulationEntities.ts` | Remove from pre-death type bucket and forward world state to the existing human death owner for genealogy and office vacancy. |
+| `recordedFamilyEntity`, `syncGenealogyRegistry`, `recordGenealogyDeath` | `src/game/genealogyRegistry.ts` | Shared player-settler ownership predicate includes transformed humans without persisting Werewolf as a family species; normal census and death writer remain sole owners. `tests/genealogyRegistry.test.ts`. |
+
+Regression coverage: `tests/hospital.howler.geometry.test.ts`, `tests/moonHowler.test.ts`.
+
 ## 2026-11-23 — optional sector-focused automatic staffing
 
 | Changed function(s) | Sole owner | Responsibility / verification |

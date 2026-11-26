@@ -4,14 +4,15 @@
  * on a full moon must actually shelter them from the Moon Howler's prey filter (S-16).
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { BUILDING_CONFIGS, BuildingType, EntityType, JobType } from '../src/game/gameTypes';
+import { BUILDING_CONFIGS, BuildingType, EntityType, JobType, TerrainType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { createBuilding, initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { personDayRoll, setSimSeed } from '../src/game/simRng';
-import { resetPathGridCaches } from '../src/game/pathfinding';
+import { getPathGrid, getWildlifePathGrid, resetPathGridCaches } from '../src/game/pathfinding';
+import { testWorldMap } from '../src/test/worldMapFixtures';
 import {
   doctorTreatNearby,
   pickHospitalWalkTarget,
@@ -19,6 +20,10 @@ import {
 } from '../src/game/hospitalCare';
 import { getHumanStaminaRatio } from '../src/game/simulation/humanPhysiology';
 import { tickWildlife } from '../src/game/tickLayerSystems';
+import { curseMoonHowler, transformToWerewolfForm } from '../src/game/moonHowler';
+import { syncGenealogyRegistry } from '../src/game/genealogyRegistry';
+import { rollCounterAttack } from '../src/game/combat';
+import { COMBAT_TECH } from '../src/game/combatTech';
 
 const FIXTURE_SEED = 20_261_111;
 const WARD_ID = 10;
@@ -145,15 +150,20 @@ function wildlifeContext(state: WorldState, entities: Entity[], howler: Entity):
 }
 
 /** A hungry active Moon Howler 40 px from a settler at their own doorstep. */
-function howlerAtDoor(indoors: boolean): { howler: Entity; settler: Entity } {
+function howlerAtDoor(indoors: boolean, energy = 350, offscreen = false): { howler: Entity; settler: Entity } {
   const { house, door } = houseAndDoorway();
-  const howler = createEntity(EntityType.Werewolf, door.x + 40, door.y, 40, 350);
+  const howler = createEntity(EntityType.Werewolf, door.x + 40, door.y, 40, energy);
   howler.moonHowlerCursed = true;
   const target = settler(41, door.x, door.y, 200);
   if (indoors) target.indoorBuildingId = house.id;
   const state = freshState([howler, target], [house]);
 
-  tickWildlife(state, wildlifeContext(state, state.entities, howler));
+  const ctx = wildlifeContext(state, state.entities, howler);
+  if (offscreen) {
+    state.tick = 4; // id 40 is deliberately outside its ordinary eight-pulse throttle slot.
+    ctx.focus = { minX: 0, minY: 0, maxX: 10, maxY: 10 };
+  }
+  tickWildlife(state, ctx);
   return { howler, settler: target };
 }
 
@@ -162,9 +172,128 @@ describe('S-16 — indoors is safe from the Moon Howler', () => {
     expect(howlerAtDoor(true).howler.huntTargetId).toBeUndefined();
   });
 
+  it('pursues an exposed settler even while fed and off-screen', () => {
+    const { howler, settler: target } = howlerAtDoor(false, 700, true);
+    expect(howler.huntTargetId).toBe(target.id);
+  });
+
+  it('still protects an indoor settler from a fed off-screen howler', () => {
+    expect(howlerAtDoor(true, 700, true).howler.huntTargetId).toBeUndefined();
+  });
+
   it('still picks the same settler standing at the doorway outside', () => {
     const { howler, settler: target } = howlerAtDoor(false);
     expect(howler.huntTargetId).toBe(target.id);
+  });
+});
+
+describe('Moon Howler navigation and contact', () => {
+  it('finalizes a slain cursed leader through the human death owner and awards Moonslayer', () => {
+    const smith = createBuilding(BuildingType.Blacksmith, 500, 500, 60);
+    smith.completed = true;
+    const howler = settler(40, 100, 100, 500);
+    const defender = settler(41, 106, 100, 500);
+    const witness = settler(42, 500, 600, 500);
+    const state = freshState([howler, defender, witness], [smith]);
+    state.villageLeaderId = howler.id;
+    state.unlockedTechs = [COMBAT_TECH.ironSpears];
+    state.villageForge = { activeOrder: null, progress: 0, completed: { iron_spears: true } };
+    syncGenealogyRegistry(state);
+    curseMoonHowler(howler);
+    transformToWerewolfForm(howler, state.buildings);
+    witness.huntTargetId = howler.id;
+    const ctx = wildlifeContext(state, state.entities, howler);
+    const tick = Array.from({ length: 100 }, (_, i) => (i + 1) * 4).find(
+      (candidate) => rollCounterAttack(state, defender.id, howler.id, candidate, defender.combatRollSeed ?? 0),
+    );
+    expect(tick).toBeDefined();
+    state.tick = tick!;
+    const before = { x: howler.x, y: howler.y };
+    tickWildlife(state, ctx);
+
+    expect(howler.alive).toBe(false);
+    expect(howler.type).toBe(EntityType.Human);
+    expect(defender.alive).toBe(true);
+    expect(defender.title).toBe('Moonslayer');
+    expect(ctx.byType[EntityType.Werewolf]).not.toContain(howler);
+    expect(ctx.entityById.has(howler.id)).toBe(false);
+    expect(witness.huntTargetId).toBeUndefined();
+    expect(state.villageLeaderId).toBeNull();
+    expect(state.genealogyRegistry!.people[String(howler.id)]).toMatchObject({
+      alive: false, diedYear: state.year, diedDay: state.dayInYear,
+    });
+    expect({ x: howler.x, y: howler.y }).toEqual(before);
+  });
+
+  it('takes the dry detour when the shorter route around a wall crosses shallow water', () => {
+    const wall = createBuilding(BuildingType.Wall, 105, 105, 50);
+    Object.assign(wall, { completed: true, width: 10, height: 50 });
+    const howler = createEntity(EntityType.Werewolf, 65, 95, 40, 700);
+    howler.moonHowlerCursed = true;
+    const target = settler(41, 155, 95, 200);
+    const state = freshState([howler, target], [wall]);
+    state.worldMap = testWorldMap({
+      tilesX: 30, tilesY: 30,
+      tileType: (_tx, ty) => ty <= 7 ? TerrainType.ShallowWater : undefined,
+    });
+    state.width = state.height = 300;
+    let usedSouthernDetour = false;
+    for (let pulse = 0; pulse < 100 && howler.alive && target.alive; pulse++) {
+      state.tick = 4 + pulse * 4;
+      tickWildlife(state, wildlifeContext(state, state.entities, howler));
+      expect(howler.y).toBeGreaterThanOrEqual(80);
+      if (howler.y >= 130) usedSouthernDetour = true;
+    }
+    expect(usedSouthernDetour).toBe(true);
+    expect(howler.x).toBeGreaterThan(115);
+  });
+
+  it('keeps strict wildlife masks cached and separate from the human grid', () => {
+    const map = testWorldMap({ tilesX: 10, tilesY: 10,
+      tileType: (tx) => tx === 4 ? TerrainType.ShallowWater : undefined });
+    const bridge = createBuilding(BuildingType.Bridge, 45, 55, 60);
+    Object.assign(bridge, { completed: true, width: 10, height: 10 });
+    const humanGrid = getPathGrid(map, [bridge]);
+    const waterBlocked = (tx: number, ty: number) =>
+      tx === 4 && !humanGrid.bridge?.[ty * humanGrid.cols + tx];
+    const wildlifeGrid = getWildlifePathGrid(humanGrid, waterBlocked);
+    expect(getWildlifePathGrid(humanGrid, waterBlocked)).toBe(wildlifeGrid);
+    expect(wildlifeGrid.blocked[4]).toBe(1);
+    expect(humanGrid.blocked[4]).toBe(0);
+    expect(wildlifeGrid.blocked[5 * humanGrid.cols + 4]).toBe(0);
+  });
+
+  it('cannot attack a nearby settler through a completed wall', () => {
+    const wall = createBuilding(BuildingType.Wall, 95, 95, 50);
+    Object.assign(wall, { completed: true, width: 10, height: 70 });
+    const howler = createEntity(EntityType.Werewolf, 85, 95, 40, 700);
+    howler.moonHowlerCursed = true;
+    const target = settler(41, 105, 95, 200);
+    const state = freshState([howler, target], [wall]);
+    state.worldMap = testWorldMap({ tilesX: 30, tilesY: 30 });
+    state.width = state.height = 300;
+
+    tickWildlife(state, wildlifeContext(state, state.entities, howler));
+
+    expect(target.alive).toBe(true);
+    expect(howler.alive).toBe(true);
+    expect(howler.huntTargetId).toBe(target.id);
+  });
+
+  it('routes around a finite wall rather than pressing against it all night', () => {
+    const wall = createBuilding(BuildingType.Wall, 105, 105, 50);
+    Object.assign(wall, { completed: true, width: 10, height: 50 });
+    const howler = createEntity(EntityType.Werewolf, 65, 105, 40, 700);
+    howler.moonHowlerCursed = true;
+    const target = settler(41, 155, 105, 200);
+    const state = freshState([howler, target], [wall]);
+    state.worldMap = testWorldMap({ tilesX: 30, tilesY: 30 });
+    state.width = state.height = 300;
+    for (let pulse = 0; pulse < 20 && howler.alive && target.alive; pulse++) {
+      state.tick = 4 + pulse * 4;
+      tickWildlife(state, wildlifeContext(state, state.entities, howler));
+    }
+    expect(Math.abs(howler.y - 105) > 10 || howler.x > 115).toBe(true);
   });
 });
 
