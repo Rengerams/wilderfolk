@@ -804,7 +804,7 @@ export function drawHumans(
       && !human.faction;
 
     // Zoomed-out LOD: one dot per settler, no sprite/shadow/bob/badge/bubble/name.
-    if (overviewRenderDetail(cam.zoom, isSel, _cachedHumans.length) === 'marker') {
+    if (overviewRenderDetail(cam.zoom, isSel || isLeader, _cachedHumans.length) === 'marker') {
       drawHumanMarker(ctx, sx, sy, human, cam.zoom, isLeader);
       continue;
     }

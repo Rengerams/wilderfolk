@@ -2,14 +2,18 @@
  * Guards the overhead status badge (shapes, not font glyphs) and the speech-bubble layout that must
  * clear the name plates.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { drawHumans } from '../src/game/renderer/humans';
+import { resetEntityCaches, updateCachedEntities } from '../src/game/renderer/entityCache';
+import { emptyEntityByType, EntityType } from '../src/game/gameTypes';
+import { createEntity } from '../src/game/entityFactory';
+import type { RenderSnapshot } from '../src/game/renderSnapshot';
 import { getHumanStatusCombatIconFromFlags } from '../src/game/combat';
 import {
   clampSpeechBubbleTailY,
   canPlaceNamePlate,
-  shouldDrawHumanNameLabel,
   combatTokenStatusKind,
   getStatusBadgeColor,
   getStatusBadgeLayout,
@@ -101,16 +105,38 @@ describe('status badge draws a shape, not a font glyph', () => {
 });
 
 describe('dense village name plate decluttering', () => {
-  it('hides ordinary names earlier in busy villages but preserves the selected and leader', () => {
-    expect(shouldDrawHumanNameLabel(0.6, 0.45)).toBe(true);
-    expect(shouldDrawHumanNameLabel(0.6, 0.85)).toBe(false);
-    expect(shouldDrawHumanNameLabel(1.0, 0.85)).toBe(true);
-    expect(shouldDrawHumanNameLabel(1.0, 1.2)).toBe(false);
-    expect(shouldDrawHumanNameLabel(1.3, 1.2)).toBe(true);
-    // Crowd levels are selected in the renderer, but both still use the shared zoom gate.
-    const painter = readFileSync(resolve(process.cwd(), 'src/game/renderer/humans.ts'), 'utf8');
-    expect(painter).toContain('_cachedHumans.length >= 90');
-    expect(painter).toContain('isSel || isLeader ? nameZoomMin');
+  it.each([
+    [44, 1.18, true], [45, 1.18, true], [89, 1.18, true],
+    [90, 1.18, false], [90, 1.21, true], [90, 0.9, false],
+  ] as const)('renders names for %i visible settlers at zoom %f', (count, zoom, ordinaryVisible) => {
+    resetEntityCaches();
+    try {
+      const byType = emptyEntityByType();
+      const humans = Array.from({ length: count }, (_, i) =>
+        createEntity(EntityType.Human, 100 + (i % 10) * 160, 100 + Math.floor(i / 10) * 160,
+          i + 1, 80, false, { name: 'Resident' + (i + 1) + 'X', ageYears: 30 }));
+      byType[EntityType.Human] = humans;
+      const camera = { x: 900, y: 900, zoom };
+      const labels: string[] = [];
+      const ctx = new Proxy({
+        fillText: (value: string) => labels.push(value),
+        measureText: (value: string) => ({ width: value.length * 5 }),
+      }, {
+        get: (target, key) => Reflect.has(target, key) ? Reflect.get(target, key) : () => {},
+      }) as unknown as CanvasRenderingContext2D;
+      const state = {
+        tick: 1, camera, buildings: [], unlockedTechs: [], hasBlacksmith: false,
+        hourOfDay: 12, selectedEntityIds: [1], selectedEntity: humans[0],
+        villageLeaderId: 2, worldMap: null, juiceEffectsEnabled: false,
+      } as unknown as RenderSnapshot;
+      updateCachedEntities(byType, null, 1, camera, 1800, 1800, 2400, 2400);
+      drawHumans(ctx, state, 2400, 2400);
+      expect(labels.some(label => label.includes('Resident1X'))).toBe(true);
+      expect(labels.some(label => label.includes('Resident2X'))).toBe(true);
+      expect(labels.some(label => label.includes('Resident3X'))).toBe(ordinaryVisible);
+    } finally {
+      resetEntityCaches();
+    }
   });
 
   it('never paints a regular name on top of a reserved name', () => {
