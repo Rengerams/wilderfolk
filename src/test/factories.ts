@@ -43,22 +43,6 @@ export function human(id: number, overrides: Partial<Entity> = {}): Entity {
   return { ...settlerBase(id), job: JobType.Settler, ...overrides };
 }
 
-/**
- * A second, older spelling of {@link human}: same body, but standing at the origin, named, female,
- * and with **no** `job` — matching the three byte-identical `stubHuman()` copies it replaces.
- */
-export function stubHuman(id: number, overrides: Partial<Entity> = {}): Entity {
-  return {
-    ...settlerBase(id),
-    x: 0,
-    y: 0,
-    name: 'Asha',
-    surname: 'Reed',
-    gender: 'female',
-    ...overrides,
-  };
-}
-
 /** A completed test building at `constructionProgress: 1`; the `100` variant is {@link finishedBuilding}. */
 export function building(
   id: number,

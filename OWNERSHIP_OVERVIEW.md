@@ -51,8 +51,6 @@ Regression coverage: `tests/hospital.howler.geometry.test.ts`, `tests/moonHowler
 | `recordPathNodes`, `setPathfindingMetricsEnabled`, `getPathfinderReport`, `flushPathfinderTickToSession` | `src/game/pathfindingMetrics.ts` | Ignore non-finite metrics, isolate disabled intervals, average expanded A* searches and consume each tick once. `tests/pathfindingMetrics.test.ts` |
 | `grid`, `center` | `tests/pathfinding.segmentTraversal.test.ts` | Test-only fixtures for steep corners, bridge decks, snapped starts, stale routes and map boundaries |
 
-
-
 ## 2026-11-22 — trade caravan storage and return settlement
 
 | Changed function(s) | Sole owner | Responsibility / verification |
@@ -62,7 +60,6 @@ Regression coverage: `tests/hospital.howler.geometry.test.ts`, `tests/moonHowler
 | `refundExports`, `settlePendingReturns` (new), `abandonCaravan`, `tickTradeCaravans` | `src/game/tradeCaravans.ts` | The single caravan system retains over-cap cancelled exports in `TradeRoute.pendingRefund`, retries credits through `resourceUtils.addResource` on the existing systems tick, blocks fresh departures until settled and logs the truthful state; `tests/tradeCaravan.carrierRetention.test.ts` |
 | `TradeRoute.pendingRefund` | `src/game/gameTypes.ts` | Optional saved partial cargo ledger; `saveLoad.ts` retains route objects through the existing `ensureFullTradeRoutes` load path; no competing settlement owner or tick schedule |
 | `caravanOn` (test fixture) | `tests/tradeImports.iron.test.ts` | Test-only owner: prepares an active caravan route and carrier, calls the existing `enrichTradeRoute` initializer to normalize `caravansCompleted` before simulating legs, and verifies blocked inbound unloading and retry. No production decision or scheduler. |
-
 
 ## 2026-11-22 — witnessed work and skill ownership
 
@@ -101,7 +98,6 @@ Regression coverage: `tests/hospital.howler.geometry.test.ts`, `tests/moonHowler
 | `getSettlerWorkReason` (modified) | `src/game/workAbsence.ts` | Accepts a caller-supplied crew index for bulk dashboard observations; one worker-location owner, no extra scan per resident |
 | Import consumers (no function changes) | `src/game/humanTick.ts`, `src/game/gameTick.ts`, `scripts/colonyHealth.ts`, `tests/workforce.transitions.test.ts` | Read-only import migration; no tick scheduling or state-write change |
 
-
 ## 2026-11-22 — Wildkin animal lineage and village guardian
 
 - **Birth authority:** `simulation/humanLifecycle.ts` chooses the closest living deer at delivery as the **animal** father; `tickLayerSystems.ts` alone owns Wildkin-to-Wildkin reproduction, juvenile movement and age gating. Neither assigns the human mother's spouse as biological father.
@@ -130,7 +126,6 @@ These entries describe changed named functions at their existing sole owners. Th
 | `tickHumans` | `src/game/humanTick.ts` | Restrict excessive affair-chat initiation frequency while preserving relationship simulation |
 | `makeWorld` (existing test fixture; referenced, unchanged) | `tests/virtualPlayer.staffingAndRepairBatch.test.ts` | Test scheduled workforce owner rather than a manual auto-assign command |
 | Existing tests (inline, no new named functions) | `tests/workforce.autoTransferCooldown.test.ts`, `tests/virtualPlayer.test.ts`, `tests/virtualPlayer.staffingAndRepairBatch.test.ts` | Validate Quarry/Mine redistribution, revised cooldown semantics, and treasury-mode decisions |
-
 
 Authority: `AGENTS.md` + `src/game/simulation/decisionRegistry.ts`  
 Purpose: one decision → one owner module → one definition of each function.
@@ -434,7 +429,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | Hover tint for roads, walls and construction pads | decision `renderer/buildings.ts`, drawn by `renderer/overlay.ts` | per frame (presentation) | `hoverTintKindFor`, `drawHoveredBuildingTint`, `drawStripBuilding`, `drawConstructionBody` |
 | Render device-pixel-ratio and canvas fit | `canvasLayer.ts` | per frame (presentation) | `getRenderDpr`, `fitCanvasToDpr` |
 | Mini-map frame drawing and repaint cadence | `renderer/miniMapFrame.ts` | per frame (presentation) | `drawMiniMapFrame`, `registerMiniMapFrameDraw`, `shouldRepaintMiniMap` |
-| Building command actions (config and maintenance) | `buildingConfigurationActions.ts` + `buildingMaintenanceActions.ts` | player-command | `upgradeBuilding` (worker-owned mutation skips world cloning; isolated calls preserve copy semantics), `setWorkshopRecipe`, `setMineMode`, `demolishBuilding`, `demolishBuildingInPlace`, `toggleWallGate` (persisted open/closed gate state), `demolishBuildingsInPlace`, `clearAssignmentsForDemolishedBuilding`, `removeBuildingFromState`, `removeBuildingsFromState` (demolition rehomes only displaced households with a bounded housing sweep; workforce reconciles when staff or crews are displaced; raid destruction skips refunds), `repairBuilding`, `REPAIR_COST` |
+| Building command actions (config and maintenance) | `buildingConfigurationActions.ts` + `buildingMaintenanceActions.ts` | player-command | `upgradeBuilding` (worker-owned mutation skips world cloning; isolated calls preserve copy semantics), `setWorkshopRecipe`, `setMineMode`, `demolishBuildingInPlace`, `toggleWallGate` (persisted open/closed gate state), `demolishBuildingsInPlace`, `clearAssignmentsForDemolishedBuilding`, `removeBuildingFromState`, `removeBuildingsFromState` (demolition rehomes only displaced households with a bounded housing sweep; workforce reconciles when staff or crews are displaced; raid destruction skips refunds), `repairBuilding`, `REPAIR_COST` |
 | Spatial grids (mobile, grass, social) and their invariants | `spatialGrid.ts` (generic `SpatialGridEntity` input contract) | realtime (rebuild/reconcile per tick) + query helpers | `syncEntitySpatialGrid` (one rebuild/reconcile sync for every grid), `syncSpatialGridEntity`, `assertSpatialGridInvariants`, `EntitySpatialGrid`, `isHumanSocialGridEntity`, `gridFeatureDisabled` |
 | Systems tick layer | `tickLayerSystems.ts` | systems pulse (`LAYER_SYSTEMS_INTERVAL`) | `tickLayerSystems`, `tickWildlife`, `tickWolfRecruitment`, `isWildlifePredator` |
 | Resource types, costs and build catalogue | `resourceTypes.ts` + `resourceCost.ts` + `buildCatalog.ts` | — (data + formatting, no state) | `formatResourceAmount`, `formatResourceAmounts`, `formatResourceCost`, `canAffordResourceCost`, `missingResourceCost`, `categoryForBuildingType`, `categoryBorderDashForType`, `isProductionBuildingType` |
@@ -450,11 +445,11 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | Venue service (tavern, civic venues) | `humanVenueBehavior.ts` | realtime (`humanTick`) | `tickTavernService`, `tickHumanCivicVenueService` |
 | Map-bounds clamp | `mapBounds.ts` | realtime + systems | `clampToMapBounds` |
 | Election vote simulation | `electionVotes.ts` | election ceremony | `simulateElectionVotes` |
-| Visitor quest (retired with the visitor camps) | `visitorQuest.ts` | no live schedule — only the retired spawn path called `maybeStartVisitorQuest` | `maybeStartVisitorQuest`, `deliverVisitorQuest` (legacy, kept so old saves and their command shape still validate) |
+| Visitor quest (retired with the visitor camps) | `visitorQuest.ts` | no live schedule — retired spawn path removed | `deliverVisitorQuest` (legacy, kept so old saves and their command shape still validate) |
 | Prison guard duty and post presence | `prisonGuardDuty.ts` + `prisonShifts.ts` | daily (`tickDailyWorldEvents`) + hourly (`tickLayerRealtime`) | `tickPrisonGuardDuty`, `tickPrisonPresence`, `prisonGuardIds`, `prisonRoster`, `prisonDutyForGuard` (absolute shift start, including across midnight and weekly turnover), `holds` (private per-guard roster ownership predicate inside `prisonDutyForGuard`), `unguardedPrisonHours` |
 | Settler work reasons and workplace duty labels | `workAbsence.ts` | read-only UI projection | `getSettlerWorkReason`, `getWorkplaceRosterReasons`, `getUnstaffedPostNote`, `workplaceDutyLabel` |
 | Simulation invariant collection and assertion | `simulationInvariants.ts` + `simInvariants.ts` | dev/daily check (`gameTick`) | `collectSimulationInvariantErrors`, `assertSimInvariants` |
-| Decision-registry accessors | `simulation/decisionRegistry.ts` | — (static table accessors; `isPropertyWritePermitted` is the contract-test query for declared writes and has no production caller) | `getDecisionOwner`, `getDecisionsByCadence`, `isPropertyWritePermitted` |
+| Decision-registry accessors | `simulation/decisionRegistry.ts` | — (static table accessors; `isPropertyWritePermitted` is the contract-test query for declared writes and has no production caller) | `getDecisionsByCadence`, `isPropertyWritePermitted` |
 | Species configuration | `speciesConfig.ts` | — (data) | `SPECIES_CONFIG`, `getPreyEnergyGain` |
 | Ecosystem pressure and temperature projections | `ecosystemPressure.ts` + `temperature.ts` | daily + UI projection | `getGrazingPressureReport`, `computeDailyTemperatureC` |
 | Wildkin chronicle and its place descriptions | `wildkinChronicle.ts` | birth (`humanLifecycle`) + death (`simulationEntities.markWildlifeDead`) + daily sighting (`tickLayerDaily`) | `logWildkinBirth`, `logWildkinDeath`, `tickWildkinChronicle`, `describeWildkinPlace`, `biomeNameAt`, `isWildkinNearSettlement` |
@@ -494,7 +489,7 @@ sites. Two conventions worth stating once:
 |---|---|---|---|
 | Building centre and ground rectangle | `buildingGeometry.ts` | read at every placement, hit-test and camera call site | `getBuildingCenter`, `getBuildingFootprintRect` |
 | Velocity steering: "normalise the delta, set velocity, face it" | `simulation/movementSteering.ts` | realtime, at every steering behaviour; a leaf module so `pathfinding` and `humanMovement` can both use it | `steerEntityToward`, `setVelocityToward`, `faceVelocity` |
-| Pathfinder A\* counters and their report | `pathfindingMetrics.ts` (`pathfinding.ts` is the only writer) | dev/perf only — opt-in by env flag or a running CPU profiler session, and every recorder returns immediately while disabled | `recordFindPathCall`, `recordPathCacheHit`, `recordGridRebuild`, `getPathfinderReport`, `formatPathfinderReport`, `flushPathfinderTickToSession`, `setPathfindingMetricsEnabled` |
+| Pathfinder A\* counters and their report | `pathfindingMetrics.ts` (`pathfinding.ts` is the only writer) | dev/perf only — opt-in by env flag or a running CPU profiler session, and every recorder returns immediately while disabled | `recordFindPathCall`, `recordPathCacheHit`, `recordGridRebuild`, `getPathfinderReport`, `flushPathfinderTickToSession`, `setPathfindingMetricsEnabled` |
 | Infrastructure / logistics overlay projection (road networks, access, commute pressure) | `logisticsOverlayData.ts` | UI toggle; read-only projection — nothing here writes to the world | `computeLogisticsOverlay` |
 | Logistics overlay painting | `renderer/logistics.ts` | render pass, in the per-frame overlay pass rather than the tick-keyed entity layer | `drawLogisticsOverlay` |
 | Overlay keyboard ownership | `keyboardOwnership.ts` | overlay open/close; `useKeyboardControls` ignores every key while any overlay holds it | `claimKeyboard`, `releaseKeyboard`, `isKeyboardClaimed` |
@@ -505,7 +500,7 @@ sites. Two conventions worth stating once:
 | Placement failure wording (the reason itself stays with the placement owner) | `buildingPlacementLabels.ts` | render pass for the placement ghost | `getPlaceBuildingFailureLabel`, `PLACEMENT_FAILURE_LABELS` |
 | Chronicle filter categories and their labels | `eventLogFilters.ts` | UI, read-only — the dropdown and the "Showing N of M" header read one label | `getEventLogFilterLabel`, `EVENT_LOG_FILTER_OPTIONS` |
 | Workforce policy preset panel | `components/WorkforcePolicyPanel.tsx` | UI, read-only — restates no ordering and no preset copy | `WorkforcePolicyPanel` |
-| Test fixture factories | `src/test/factories.ts` | test tier only — excluded from the app build, type-checked by the vitest project | `human`, `building`, `finishedBuilding`, `stubHuman`, `byType` |
+| Test fixture factories | `src/test/factories.ts` | test tier only — excluded from the app build, type-checked by the vitest project | `human`, `building`, `finishedBuilding`, `byType` |
 | Moon Howler saved-form shape | `gameTypes.ts` (declared beside `Entity`, which carries it) | load, full-moon transform and revert | `MoonHowlerSavedState` |
 | Transient-feedback dismissal ledgers, presentation queue and lifetime | `hooks/useTransientGameFeedback.ts` | UI events; the ledgers cross the worker boundary and are saved; presentation timestamps are session-local | `MAX_DISMISSED_NOTIFICATION_IDS`, `MAX_DISMISSED_BIG_NEWS_IDS`, `MAX_DISMISSED_ACTIVE_EVENT_IDS`, `MAX_VISIBLE_NOTIFICATIONS`, `getVisibleNotifications`, `reconcileNotificationVisibility`, `getExpiredNotificationIds`, `hasExpiredNotifications`, `expireNotifications`, `dismissNotifications`, `dismissNotification`, `clearFeedbackTiming`, `resetTransientFeedbackForNewSession`, `synchronizeTransientFeedbackFromWorld` — FIFO batch, one expiry sweep and shared dismissal path. `App` displays the returned batch only. Regression coverage: `tests/toastExpiry.ledger.test.ts`, `tests/uiSingleOwner.test.ts`. |
 | Opt-in CPU section profiler across worker + renderer | `game/performanceProfiler.ts` + `components/PerformanceProfilerPanel.tsx` | instrumentation at existing simulation and drawing call sites, off by default | `profileStart`, `profileEnd`, `setPerformanceProfilingEnabled`, `getPerformanceSnapshot`, `withPathfinderReport`, `PerformanceProfilerPanel` |
@@ -711,7 +706,6 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `removeResidentFromBuilding` | `game/buildingResidencyActions.ts` | Remove a resident and reconcile housing/workforce through the owning pipelines. |
 | `buildingFingerprint` | `game/simBuffers/simDelta.ts` | Serialize a building once for the next acknowledged delta baseline. |
 | `resetWorkerSession` | `game/simWorker/gameWorker.ts` | Reset runtime state and transport baselines at full-world boundaries. |
-
 
 ## Missing source-module registrations (27 October 2026)
 
@@ -932,7 +926,6 @@ Named functions and named React callbacks were audited across every complete sou
 | `tests/simDelta.entityProfile.test.ts` | `fixture`, `revisions` | Local worker-delta fixtures; no runtime decision authority |
 | `tests/helpers/genome.ts` | `genomeFrom`, `high`, `low`, `relativeOf`, `heterozygous` | Shared read-only genome fixture builder for the genetics tests; `NEUTRAL_VALUE` is its plain constant; no runtime decision authority |
 
-
 | `useGameAudio` | `src/hooks/useGameAudio.ts` | Seed and advance annual death observations across session replacement and year rollover; deliver tally increments to the interaction sound owner. |
 | `readRunOptions`, `run` | `scripts/run-full-year.mts` | Parse opt-in movement observations and sample the existing colony observer after normal game ticks. |
 
@@ -985,7 +978,6 @@ Functions added, changed, or previously absent from the register, grouped by sol
 | Invariant gate | `src/game/simulation/simulationInvariants.ts` + `gameTick.ts` + `scripts/colonyHealth.ts` + `scripts/run-full-year.mts` | DEV/test daily; harness every tick/checkpoint | `assertSimulationInvariants` throws in dev/test; `assessColonyStall` fails `invariant-violation`; `run` and `observeRun` collect per tick and assert per checkpoint | `tests/invariants.commute.herd.test.ts`, `tests/longRunColony.integration.test.ts` |
 | Herd memory and recovery | `src/game/migration.ts` | autumn arrival/departure | `spawnHerdAtEdge` returns the placed count; `tickMigration` records placed and recovers +1 per unharmed autumn capped at `HERD_BASE_SIZE` | `tests/invariants.commute.herd.test.ts`, `tests/migration.herds.test.ts` |
 | Invariant/commute/herd fixtures | `tests/invariants.commute.herd.test.ts` | test-only | `flatWorld`, `completedBuilding`, `settler`, `longCommuteWorld` | test-local, no runtime authority |
-
 
 ## 2026-11-12 — audit remediation (whole-code register)
 
