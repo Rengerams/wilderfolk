@@ -596,15 +596,16 @@ export function tickHumanLeisure(args: {
         idleVy = 0;
         // Random and social targets may fall inside a completed footprint. Use standable ground
         // before routing so an unreachable target cannot hold the settler against a wall.
-        const safe = state.worldMap && !isGroundWalkableAt(tx, ty)
-          ? nearestWalkableWorldPoint(state.worldMap, state.buildings, tx, ty)
+        const grid = getCurrentPathGrid();
+        const targetWalkable = isGroundWalkableAt(tx, ty, grid);
+        const safe = state.worldMap && !targetWalkable
+          ? nearestWalkableWorldPoint(state.worldMap, state.buildings, tx, ty, undefined, grid ?? undefined)
           : null;
         const walkX = safe?.x ?? tx;
         const walkY = safe?.y ?? ty;
-        const grid = getCurrentPathGrid();
         if (!Number.isFinite(walkX) || !Number.isFinite(walkY)
           || walkX < 0 || walkY < 0 || walkX >= width || walkY >= height
-          || !isGroundWalkableAt(walkX, walkY, grid)) {
+          || (!targetWalkable && (!safe || !isGroundWalkableAt(walkX, walkY, grid)))) {
           clearHumanWalkTarget(entity);
           entity.vx = 0;
           entity.vy = 0;

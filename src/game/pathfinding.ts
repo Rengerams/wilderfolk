@@ -407,9 +407,11 @@ export function nearestWalkableWorldPoint(
   x: number,
   y: number,
   additionalBlocked?: (tx: number, ty: number) => boolean,
+  preparedGrid?: PathGrid,
 ): { x: number; y: number } | null {
-  if (![x, y].every(Number.isFinite)) return null;
-  const grid = getReadOnlyPathGrid(map, buildings);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  // Simulation callers already holding the current grid avoid hashing all buildings again.
+  const grid = preparedGrid ?? getReadOnlyPathGrid(map, buildings);
   if (grid.cols <= 0 || grid.rows <= 0) return null;
   const startX = Math.max(0, Math.min(grid.cols - 1, Math.floor(x / PATH_CELL)));
   const startY = Math.max(0, Math.min(grid.rows - 1, Math.floor(y / PATH_CELL)));
