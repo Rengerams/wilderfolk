@@ -490,6 +490,7 @@ function isEligibleForYouthLove(entity: Entity): boolean {
     entity.partnerId == null &&
     entity.relationshipStatus === 'single' &&
     entity.youthLovePartnerId == null &&
+    entity.courtshipPartnerId == null &&
     !!entity.gender
   );
 }
@@ -521,6 +522,10 @@ function reconcileYouthLove(entity: Entity, entityById: Map<number, Entity>): vo
     partner.partnerId != null ||
     entity.relationshipStatus !== 'single' ||
     partner.relationshipStatus !== 'single' ||
+    entity.courtshipPartnerId != null ||
+    partner.courtshipPartnerId != null ||
+    entity.id === partner.id ||
+    !entity.gender || !partner.gender || entity.gender === partner.gender ||
     Math.abs(entity.age - partner.age) > YOUTH_LOVE_MAX_AGE_GAP
   ) {
     // A stale outgoing link must not erase the other settler's valid relationship.
@@ -534,8 +539,7 @@ function promoteYouthLoveToCourtship(state: WorldState, a: Entity, b: Entity): v
     Math.max(25, Math.round(Math.min(a.youthLoveProgress ?? 0, b.youthLoveProgress ?? 0) * 0.7)),
   );
   clearYouthLovePair(a, b);
-  a.courtshipPartnerId = b.id;
-  b.courtshipPartnerId = a.id;
+  bindCourtship(a, b);
   a.courtshipProgress = carriedProgress;
   b.courtshipProgress = carriedProgress;
   createDeathParticles(state, (a.x + b.x) / 2, (a.y + b.y) / 2 - 12, '#f9a8d4', 9, 'heart');
