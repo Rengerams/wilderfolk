@@ -586,7 +586,7 @@ export const SIMULATION_DECISIONS = {
   courtship: {
     owner: 'humanRelationships.ts — findCourtshipPartner, isEligibleToCourt, canAdvanceCourtship, tryCompleteCourtshipMarriage; progress advance executes from humanTick.ts',
     cadence: 'realtime',
-    cadenceNote: 'Realtime: humanTick observes each participant’s actual shift/sleep state before interactions; canAdvanceCourtship requires both awake and physically within 10px, off-duty social time or both actually present at the same workplace during an overlapping shift. Because the partner’s sleep observation must be known, the later processed partner may advance the pair; a per-tick pair guard prevents duplicate credit. No stagger is applied to courtship partner selection. Marriage finalization remains owned by humanRelationships.',
+    cadenceNote: 'Realtime: humanTick observes each participant’s actual shift/sleep state before interactions; canAdvanceCourtship requires both awake and physically within 10px, off-duty social time or both actually present at the same workplace during an overlapping shift. Because the partner’s sleep observation must be known, the later processed partner may advance the pair; a per-tick pair guard prevents duplicate credit. Partner selection uses indexed established bonds and deduplicated available candidates with deterministic distance ties. Both off-duty participants must be available for leisure; new bonds require close contact. No stagger is applied to courtship partner selection. Marriage finalization remains owned by humanRelationships.',
     writes: [
       'human.courtshipPartnerId',
       'human.courtshipProgress',
@@ -594,7 +594,7 @@ export const SIMULATION_DECISIONS = {
       'human.partnerId',
     ],
     scheduledFrom: 'humanTick.ts (per realtime tick, observed pair sleep, distance and shared-duty gates) → humanRelationships.findCourtshipPartner / canAdvanceCourtship / tryCompleteCourtshipMarriage',
-    testFile: 'tests/phase7.social.test.ts',
+    testFile: 'tests/phase7.social.test.ts, tests/courtship.exclusivity.test.ts',
   },
   affairs: {
     owner: 'humanRelationships.ts — tryDailyAffairEncounter, recordAffairTrystSite, tryDailyAffairGossip, tryExposeCaughtAffairForPair, exposeAffair',
