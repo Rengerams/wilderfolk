@@ -279,7 +279,7 @@ export const SIMULATION_DECISIONS = {
   school: {
     owner: 'education.ts — syncSchoolAssignments, findSchoolForChild, schoolCapacity, isSchoolTime (weekday 09–15), buildSchoolRosters, recordChildSchoolTick, creditChildSchoolDay, applyEducationGraduation',
     cadence: 'realtime',
-    cadenceNote: 'School keeps its own weekday 09–15 day, independent of the configured work window. syncSchoolAssignments reassigns pupils on the new calendar day; humanTick records attendance ticks only while the teacher is present and the pupil is at school; creditChildSchoolDay runs at the day close. The dashboard reads isSchoolTime for its in-session state.',
+    cadenceNote: 'School keeps its own weekday 09–15 day, independent of the configured work window. Only real staffed-school attendance of at least half the day earns one school-day credit; new immigrant children start with zero credit. syncSchoolAssignments reassigns pupils daily; humanTick records attendance with a teacher present and a pupil at school, and creditChildSchoolDay settles credits at day close. Graduation grants eligibility for apprenticeships and stamina but no blanket trade-skill bonus.',
     writes: ['child.schoolBuildingId', 'child.schoolTicksToday', 'child.schoolDays', 'child.educated'],
     scheduledFrom: 'humanTick.ts (syncSchoolAssignments, recordChildSchoolTick, creditChildSchoolDay); dashboardData reads isSchoolTime',
     testFile: 'tests/school.test.ts, tests/schooling.explains.test.ts, tests/dashboardData.prisonAndCouncil.test.ts',
@@ -437,9 +437,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/production.attendancePacing.test.ts, tests/simBatch.offscreenThrottle.test.ts, tests/medium-A-movement.test.ts',
   },
   dailyRelationships: {
-    owner: 'tickLayerDaily at 06:00 — relationships.advanceSocialRelationships (friendships/feuds), simulation/humanRelationships.advanceYouthLove and reconcileCourtships, apprenticeships.advanceApprenticeships, then leaderHouse.syncLeaderHouseResidency (delegated to the housing owner)',
+    owner: 'tickLayerDaily at 06:00 — relationships.advanceSocialRelationships (friendships/feuds), simulation/humanRelationships.advanceYouthLove and reconcileCourtships, leaderHouse.syncLeaderHouseResidency (delegated housing); at 23:00 — apprenticeships.advanceApprenticeships after all legal work shifts',
     cadence: 'daily',
-    cadenceNote: 'One social/relationship pass per colony day at DAILY_PHASE_HOURS.relationships (06:00), reading the day\'s living list so a later arrival is not retroactively befriended. Friendship/feud scores, youth love, courtship cooldowns and apprenticeships are written here; the leader-house residency call delegates its residence writes to the housing decision and does not own them.',
+    cadenceNote: 'At 06:00 the social/relationship pass uses the living list without retroactively counting later arrivals. Leader-house reconciliation delegates residence writes. At 23:00 the existing apprenticeship owner matches young adult students to qualified masters, after all configured work shifts finish. humanTick sends apprentices to the master\'s actual workplace and records attendance through the shared scheduleFatigue writers; training requires both student and master to be present at the same site for at least half a shift. Graduation grants +5 in that trade, or +10 for qualifying honours students of grandmasters, never all trades. Legacy invalid bonds are cleared.',
     writes: [
       'human.friendships',
       'human.feuds',
@@ -453,8 +453,8 @@ export const SIMULATION_DECISIONS = {
       'human.apprenticeOfId',
       'human.apprenticeId',
     ],
-    scheduledFrom: 'tickLayerDaily — hour === DAILY_PHASE_HOURS.relationships',
-    testFile: 'tests/phase7.social.test.ts, tests/relationshipDiagnostics.test.ts, tests/villageLeadership.test.ts',
+    scheduledFrom: 'tickLayerDaily — DAILY_PHASE_HOURS.relationships (social and housing at 06:00), DAILY_PHASE_HOURS.construction (apprenticeships at 23:00); humanTick work commute/presence; humanStatus read-only projection',
+    testFile: 'tests/phase7.social.test.ts, tests/relationshipDiagnostics.test.ts, tests/villageLeadership.test.ts, tests/humanGraduation.education.test.ts, tests/immigration.composition.test.ts',
   },
   yearlyWorldEvents: {
     owner: 'dailyWorldEvents.ts — tickYearBoundaryWorldEvents, tickDailyWorldEvents, tickFestivals, normalizeFestivalState, repairStaleFestivalOnLoad; groupEvents.ts — rollYearlyWorldEvent; townHall.ts — hostTownFestival, getTownHallFestivalCooldownTicks',

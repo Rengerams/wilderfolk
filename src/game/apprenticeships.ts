@@ -1,4 +1,4 @@
-import type { Entity, WorldState } from './gameTypes';
+import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, BUILDING_JOB_TYPES, type JobType } from './gameTypes';
 import { readSkill, increaseEntitySkill } from './skills';
 import { logEvent } from './eventLog';
@@ -7,7 +7,8 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { SCHOOL_GRADUATION_DAYS, getEducationTier } from './education';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { advanceCareerProgression } from './careers/careerProgression';
-import { getAbsoluteCalendarDay } from './dayCycleClock';
+import { getAbsoluteCalendarDay, TICKS_PER_HOUR } from './dayCycleClock';
+import { getWorkSchedule } from './workSchedule';
 
 /**
  * Apprenticeships: a skilled master (skill ≥ 40) working a production building takes on a
@@ -17,6 +18,31 @@ import { getAbsoluteCalendarDay } from './dayCycleClock';
 const MASTER_SKILL = 40;
 const GRANDMASTER_SKILL = 80;
 const GRADUATE_SKILL = 50;
+const APPRENTICESHIP_BONUS = 5;
+const GRANDMASTER_COMPLETION_BONUS = 10;
+
+/** A trainee uses the mentor's real, staffed workplace, never a fabricated worker assignment. */
+export function getApprenticeTrainingSite(
+  apprentice: Entity,
+  entityById: ReadonlyMap<number, Entity>,
+  buildingById: ReadonlyMap<number, Building>,
+): Building | null {
+  if (!apprentice.alive || apprentice.age < HUMAN_ADULT_MIN_AGE || apprentice.prisonBuildingId != null
+    || apprentice.raidDeploymentId || apprentice.apprenticeOfId == null) return null;
+  const master = entityById.get(apprentice.apprenticeOfId);
+  if (!master?.alive || master.apprenticeId !== apprentice.id || master.prisonBuildingId != null
+    || master.raidDeploymentId) return null;
+  const atSite = (building: Building | undefined): building is Building => !!building
+    && building.completed && PRODUCTION_TYPES.has(building.type)
+    && BUILDING_JOB_TYPES[building.type] === master.job
+    && (building.occupants ?? []).includes(master.id);
+  const assigned = master.workerBuildingId == null ? undefined : buildingById.get(master.workerBuildingId);
+  if (atSite(assigned)) return assigned;
+  // Older saves can carry a valid building roster without a synchronized workerBuildingId.
+  for (const building of buildingById.values()) if (atSite(building)) return building;
+  return null;
+}
+
 
 const PRODUCTION_TYPES = new Set<BuildingType>([
   BuildingType.Farm,
@@ -51,10 +77,11 @@ export function advanceApprenticeships(
   if (people.length < 2) return;
 
   const byId = new Map(people.map((e) => [e.id, e]));
-  // Remove legacy underage apprenticeship bonds (including those in older saves).
+  const buildingById = new Map(state.buildings.map((building) => [building.id, building]));
+  // Remove invalid and legacy underage apprenticeship bonds (including those in older saves).
   // Apprenticeship skills and school progress remain untouched.
   for (const p of people) {
-    if (p.apprenticeOfId != null && (!byId.has(p.apprenticeOfId) || p.age < HUMAN_ADULT_MIN_AGE)) {
+    if (p.apprenticeOfId != null && !getApprenticeTrainingSite(p, byId, buildingById)) {
       const master = byId.get(p.apprenticeOfId);
       if (master?.apprenticeId === p.id) master.apprenticeId = undefined;
       p.apprenticeOfId = undefined;
@@ -86,8 +113,17 @@ export function advanceApprenticeships(
 
     for (const master of masters) {
       const currentApprentice = master.apprenticeId != null ? byId.get(master.apprenticeId) : undefined;
-      if (currentApprentice && currentApprentice.alive) {
-        teach(currentApprentice, master, job, state);
+      if (currentApprentice?.alive && currentApprentice.age >= HUMAN_ADULT_MIN_AGE
+        && currentApprentice.apprenticeOfId === master.id) {
+        const schedule = getWorkSchedule(state);
+        const requiredTicks = Math.ceil((schedule.endHour - schedule.startHour) * TICKS_PER_HOUR / 2);
+        // A bond is not attendance: apprentice AND master must have worked at this site today.
+        if ((currentApprentice.schedulePresentTicksToday ?? 0) >= requiredTicks
+          && currentApprentice.schedulePresentSiteIdToday === b.id
+          && (master.schedulePresentTicksToday ?? 0) >= requiredTicks
+          && master.schedulePresentSiteIdToday === b.id) {
+          teach(currentApprentice, master, job, state);
+        }
         continue;
       }
       master.apprenticeId = undefined;
@@ -127,9 +163,9 @@ function teach(ap: Entity, master: Entity, job: JobType, state: WorldState): voi
   // A teacher keeps their own hand in without dirtying a saturated skill.
   increaseEntitySkill(master, job, 0.05);
   if (readSkill(ap, job) >= GRADUATE_SKILL) {
-    if (masterSkill >= GRANDMASTER_SKILL && getEducationTier(ap.schoolDays ?? 0) === 3) {
-      ap.grandmasterApprenticeshipCompleted = true;
-    }
+    const grandmaster = masterSkill >= GRANDMASTER_SKILL && getEducationTier(ap.schoolDays ?? 0) === 3;
+    increaseEntitySkill(ap, job, grandmaster ? GRANDMASTER_COMPLETION_BONUS : APPRENTICESHIP_BONUS);
+    if (grandmaster) ap.grandmasterApprenticeshipCompleted = true;
     ap.apprenticeOfId = undefined;
     master.apprenticeId = undefined;
     advanceCareerProgression(ap, job, getAbsoluteCalendarDay(state.tick), 'training');

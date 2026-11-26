@@ -11,6 +11,7 @@ import { isAsleepAtHome, isFestivalGatherer, prefersHomeTonightFor } from './hum
 import { isNearResidence } from './housingModel';
 import { getWorkSchedule, getWorkScheduleLabel, isOnWorkScheduleShift } from './workSchedule';
 import { findHumanWorkplace } from './workforce';
+import { getApprenticeTrainingSite } from './apprenticeships';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { isCommutingToBuilding } from './simulation/humanMovement';
 import { BUILDING_CONFIGS } from './gameTypes';
@@ -85,7 +86,12 @@ export function getHumanActivityStatus(
 
   const hourOfDay = getHourOfDay(state.tick);
   const festivalActive = state.festival?.active;
-  const workplace = findHumanWorkplace(entity, state.buildings);
+  const regularWorkplace = findHumanWorkplace(entity, state.buildings);
+  const trainingSite = regularWorkplace ? null : getApprenticeTrainingSite(
+    entity, new Map(state.entities.map((person) => [person.id, person])),
+    new Map(state.buildings.map((building) => [building.id, building])),
+  );
+  const workplace = regularWorkplace ?? trainingSite;
   const onWorkSchedule = !entity.isJuvenile && workplace != null && isOnWorkScheduleShift(state, hourOfDay);
   // The verdict is the simulation owner's, so the label cannot drift from what the settler does.
   if (isFestivalGatherer(hourOfDay, festivalActive, onWorkSchedule, entity.job === JobType.Innkeeper)) {
@@ -131,6 +137,10 @@ export function getHumanActivityStatus(
   // movement owner's evidence; being far from the post is not travel.
   if (workplace && onWorkSchedule) {
     const label = labelFor(workplace);
+    if (trainingSite) return isAtBuildingReach(entity, trainingSite)
+      ? `Apprenticing at ${label}`
+      : isCommutingToBuilding(entity, trainingSite)
+        ? `Walking to apprenticeship at ${label}` : `Away from apprenticeship at ${label}`;
     if (isAtBuildingReach(entity, workplace) || entity.indoorBuildingId === workplace.id) {
       return `Working at ${label}`;
     }
@@ -175,7 +185,9 @@ export function getHumanActivityProjection(
 ): HumanActivityProjection {
   const hour = getHourOfDay(state.tick);
   const schedule = getWorkSchedule(state);
-  const workplace = entity.isJuvenile ? undefined : findHumanWorkplace(entity, state.buildings);
+  const workplace = entity.isJuvenile ? undefined : (findHumanWorkplace(entity, state.buildings)
+    ?? getApprenticeTrainingSite(entity, new Map(state.entities.map((person) => [person.id, person])),
+      new Map(state.buildings.map((building) => [building.id, building]))) ?? undefined);
   const homeBuilding = entity.residenceBuildingId == null
     ? null
     : state.buildings.find((building) => building.id === entity.residenceBuildingId) ?? null;

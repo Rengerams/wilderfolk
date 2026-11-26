@@ -8,7 +8,6 @@ import { describe, expect, it } from 'vitest';
 
 
 import { Immigration } from '../src/game/gameConstants';
-import { SCHOOL_MIN_AGE } from '../src/game/gameConstants';
 import { immigrantSchoolDaysForAge } from '../src/game/education';
 import { setSimSeed } from '../src/game/simRng';
 import { createImmigrantSettler } from '../src/game/worldGen';
@@ -40,18 +39,14 @@ const isChild = (e: Entity) =>
   e.age >= Immigration.CHILD_AGE_MIN && e.age <= Immigration.CHILD_AGE_MAX;
 
 describe('immigration party composition', () => {
-  it('credits earlier school years for each immigrant below age 18', () => {
+  it('does not invent attendance before immigrant children join a village school', () => {
     expect(immigrantSchoolDaysForAge(5)).toBe(0);
     expect(immigrantSchoolDaysForAge(6)).toBe(0);
-    expect(immigrantSchoolDaysForAge(12)).toBe(120);
-    expect(immigrantSchoolDaysForAge(17)).toBe(220);
+    expect(immigrantSchoolDaysForAge(12)).toBe(0);
+    expect(immigrantSchoolDaysForAge(17)).toBe(0);
     for (const party of parties(4)) {
       for (const member of party) {
-        if (member.age < 18) {
-          expect(member.schoolDays).toBe(Math.max(0, member.age - SCHOOL_MIN_AGE) * 20);
-        } else {
-          expect(member.schoolDays ?? 0).toBe(0);
-        }
+        expect(member.schoolDays ?? 0).toBe(0);
       }
     }
   });
