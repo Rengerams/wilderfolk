@@ -1012,6 +1012,7 @@ function segmentCrossesBlocked(
   y1: number,
   allowBlockedStart: boolean,
   keepBodyClear = false,
+  additionalBlocked?: (tx: number, ty: number) => boolean,
 ): boolean {
   if (!Number.isFinite(x0) || !Number.isFinite(y0)
     || !Number.isFinite(x1) || !Number.isFinite(y1)) return true;
@@ -1039,7 +1040,7 @@ function segmentCrossesBlocked(
   const isBlocked = (cellX: number, cellY: number, fromElevation: number | null): boolean => {
     if (cellX < 0 || cellY < 0 || cellX >= cols || cellY >= rows) return true;
     const index = cellY * cols + cellX;
-    if (blocked[index] && !(allowBlockedStart && cellX === originX && cellY === originY)) return true;
+    if ((blocked[index] || additionalBlocked?.(cellX, cellY)) && !(allowBlockedStart && cellX === originX && cellY === originY)) return true;
     return !!elevation && fromElevation !== null
       && !lastBridge && !grid.bridge?.[index]
       && Math.abs(elevation[index] - fromElevation) > CLIFF_STEP;
@@ -1383,8 +1384,9 @@ export function steerWithPath(
 export function isWalkStepAllowed(
   fromX: number, fromY: number, toX: number, toY: number,
   grid: PathGrid | null = currentGrid,
+  additionalBlocked?: (tx: number, ty: number) => boolean,
 ): boolean {
-  return !grid || !segmentCrossesBlocked(grid, fromX, fromY, toX, toY, true);
+  return !grid || !segmentCrossesBlocked(grid, fromX, fromY, toX, toY, true, false, additionalBlocked);
 }
 
 /**

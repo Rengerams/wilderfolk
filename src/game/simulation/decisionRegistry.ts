@@ -366,7 +366,7 @@ export const SIMULATION_DECISIONS = {
   wildlifePredation: {
     owner: 'tickLayerSystems.tickWildlife — sole wildlife AI owner (hunt, predation, metabolism, reproduction); tickLayerSystems.tickWolfRecruitment — rare wolf migration; wildlifePopulationPolicy.getWildlifeCarryingCapacity owns the prey-supported breeding/migration cap; speciesConfig.getPreyEnergyGain owns prey energy; GRAZER_METABOLISM owns grazer metabolism',
     cadence: 'systems',
-    cadenceNote: 'WILDLIFE_LAYER_INTERVAL = 4 systems pulses; out-of-focus wildlife runs every 8th pulse. Predators leave rabbits at/below the shared scarcity floor, and wolf/fox breeding and rare wolf recruitment cannot exceed shared prey-supported capacity; the 3-day restock remains with worldGen. Wildlife uses shared walk-step obstacles. Hungry Wildkin hunts deer/rabbit only and pays apex metabolism; it is never prey and never grazes. Wildkin is on the predator roster that grazers scent-flee. No human prey for Wildkin.',
+    cadenceNote: 'WILDLIFE_LAYER_INTERVAL = 4 systems pulses; out-of-focus wildlife runs every 8th pulse. Predators leave rabbits at/below the shared scarcity floor, and wolf/fox breeding and rare wolf recruitment cannot exceed shared prey-supported capacity; the 3-day restock remains with worldGen. Wildlife uses shared walk-step obstacles with the shared water terrain predicate, including shallow water; dry births and migration, completed bridges allowed for movement. Hungry Wildkin hunts deer/rabbit only and pays apex metabolism; it is never prey and never grazes. Wildkin is on the predator roster that grazers scent-flee. No human prey for Wildkin.',
     writes: [
       'entity.energy',
       'entity.huntTargetId',

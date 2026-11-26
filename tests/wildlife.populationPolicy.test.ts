@@ -1,18 +1,44 @@
 import { describe, expect, it } from 'vitest';
-import { EntityType, emptyEntityByType } from '../src/game/gameTypes';
+import { EntityType, TerrainType, emptyEntityByType } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { createEntity } from '../src/game/entityFactory';
 import { tickWildlife } from '../src/game/tickLayerSystems';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { computeWildlifeCounts } from '../src/game/entityCounts';
-import { initGame, replenishDepletedWildlife } from '../src/game/worldGen';
+import { initGame, isPassableWildlifePosition, replenishDepletedWildlife } from '../src/game/worldGen';
 import {
   WILDLIFE_POPULATION_POLICY,
   wildlifeBreedingCeiling,
   wildlifeMayHuntRabbit,
   getWildlifeCarryingCapacity,
 } from '../src/game/wildlifePopulationPolicy';
+
+import { testWorldMap } from '../src/test/worldMapFixtures';
+import { getPathGrid, isWalkStepAllowed } from '../src/game/pathfinding';
+import { tileTypeAt } from '../src/game/terrain/terrainGrid';
+import { isWaterTerrainType } from '../src/game/terrain/terrainTraits';
+
+describe('wildlife water traversal', () => {
+  it.each([TerrainType.ShallowWater, TerrainType.DeepWater, TerrainType.River])(
+    'rejects water terrain %s for wildlife spawning and segment traversal', (water) => {
+      const state = initGame({ skipTerrain: true, seed: 20261122 });
+      const map = testWorldMap({ tilesX: 20, tilesY: 20,
+        tileType: (x) => x === 10 ? water : TerrainType.Grassland });
+      state.worldMap = map;
+      state.width = state.height = 200;
+      expect(isPassableWildlifePosition(state, 105, 105)).toBe(false);
+      expect(isPassableWildlifePosition(state, 95, 105)).toBe(true);
+      const grid = getPathGrid(map, []);
+      const waterBlocked = (x: number, y: number) => {
+        const type = tileTypeAt(map, x, y);
+        return type == null || isWaterTerrainType(type);
+      };
+      expect(isWalkStepAllowed(95, 105, 115, 105, grid, waterBlocked)).toBe(false);
+      expect(isWalkStepAllowed(95, 105, 95, 115, grid, waterBlocked)).toBe(true);
+    },
+  );
+});
 
 describe('wildlife population policy', () => {
   it('keeps every replenishment target within the same breeding ceiling shown by the UI', () => {

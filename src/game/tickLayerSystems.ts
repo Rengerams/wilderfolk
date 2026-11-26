@@ -1,7 +1,6 @@
 import type { WorldState, Entity } from './gameTypes';
 import {
   EntityType,
-  TerrainType,
   PATH_CELL,
   WEREWOLF_ATTACK_LINES,
   WEREWOLF_HOWL_LINES,
@@ -39,7 +38,7 @@ import { logWildkinBirth } from './wildkinChronicle';
 import { recordGenealogyBirth } from './genealogyRegistry';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { clampToMapBounds } from './mapBounds';
-import { isWalkStepAllowed } from './pathfinding';
+import { getPathGrid, isWalkStepAllowed } from './pathfinding';
 import { deterministicCos, deterministicSin } from './simTrig';
 import {
   buildGrassPopulationSnapshot,
@@ -71,6 +70,7 @@ import { createEntity } from './entityFactory';
 import { getSimRng } from './simRng';
 import { faceVelocity } from './simulation/movementSteering';
 import { tileTypeAt } from './terrain/terrainGrid';
+import { isWaterTerrainType } from './terrain/terrainTraits';
 
 /** Systems layer interval (ticks). Keep in sync with WILDLIFE_LAYER_INTERVAL. */
 export const LAYER_SYSTEMS_INTERVAL = WILDLIFE_LAYER_INTERVAL;
@@ -123,9 +123,12 @@ const SENSES_WILDLIFE_PREDATOR = (pred: Entity): boolean => isWildlifePredator(p
 const SENSES_CANID_PREDATOR = (pred: Entity): boolean =>
   pred.alive && (pred.type === EntityType.Wolf || pred.type === EntityType.Werewolf);
 
-/** River/sea tile test for the deep-water slide. Captures nothing; one instance serves every entity. */
-const isDeepWaterTile = (t: TerrainType | undefined): boolean =>
-  t === TerrainType.River || t === TerrainType.DeepWater;
+/** Wildlife spawns only on dry terrain; completed decks are handled by the walk grid. */
+function wildlifeWaterBlocked(state: WorldState, tx: number, ty: number): boolean {
+  if (!state.worldMap) return false;
+  const type = tileTypeAt(state.worldMap, tx, ty);
+  return type == null || isWaterTerrainType(type);
+}
 
 /** Occasional predator migration to keep wolf pressure present. */
 function tickWolfRecruitment(state: WorldState, ctx: TickContext): void {
@@ -170,6 +173,9 @@ function tickWolfRecruitment(state: WorldState, ctx: TickContext): void {
     sy = getSimRng('tickLayerSystems')() * height;
   }
 
+  sx = Math.min(width - 1, Math.max(0, sx));
+  sy = Math.min(height - 1, Math.max(0, sy));
+  if (wildlifeWaterBlocked(state, Math.floor(sx / PATH_CELL), Math.floor(sy / PATH_CELL))) return;
   const wolf = createEntity(
     EntityType.Wolf,
     sx,
@@ -214,6 +220,12 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
 
   /** Scale per-tick metabolic rates to the systems cadence step. */
   const step = WILDLIFE_LAYER_INTERVAL;
+  const walkGrid = state.worldMap ? getPathGrid(state.worldMap, state.buildings) : null;
+  const waterBlocked = (tx: number, ty: number): boolean =>
+    !walkGrid?.bridge?.[ty * walkGrid.cols + tx] && wildlifeWaterBlocked(state, tx, ty);
+  const canStep = (entity: Entity, x: number, y: number): boolean =>
+    !waterBlocked(Math.floor(x / PATH_CELL), Math.floor(y / PATH_CELL))
+    && isWalkStepAllowed(entity.x, entity.y, x, y, walkGrid, waterBlocked);
 
   const roadAvoidance = ctx.roadAvoidance ?? buildRoadAvoidanceIndex(width, height, roadBuildings);
   ctx.roadAvoidance = roadAvoidance;
@@ -706,34 +718,12 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         }
       }
 
-      // 13. Deep water sliding physics (collides/slides on river/sea banks)
-      const worldMap = state.worldMap;
-      if (worldMap) {
-        const nextX = entity.x + entity.vx;
-        const nextY = entity.y + entity.vy;
-        const tileTypeNear = (px: number, py: number): TerrainType | undefined =>
-          tileTypeAt(worldMap, Math.floor(px / PATH_CELL), Math.floor(py / PATH_CELL)) ?? undefined;
-        if (isDeepWaterTile(tileTypeNear(nextX, nextY))) {
-          const xBlocked = isDeepWaterTile(tileTypeNear(nextX, entity.y));
-          const yBlocked = isDeepWaterTile(tileTypeNear(entity.x, nextY));
-          if (xBlocked && !yBlocked) {
-            entity.vx = 0;
-          } else if (yBlocked && !xBlocked) {
-            entity.vy = 0;
-          } else {
-            entity.vx = 0;
-            entity.vy = 0;
-          }
-        }
-      }
-
-      // Wildlife respects the same obstacle grid as humans. Slide along a reachable axis rather
-      // than running through buildings; chase and wander owners may choose a new heading next pulse.
+      // 13. Shared segment traversal blocks water, cliffs and obstacles, with bank sliding.
       const nextX = entity.x + entity.vx;
       const nextY = entity.y + entity.vy;
-      if (!isWalkStepAllowed(entity.x, entity.y, nextX, nextY)) {
-        const xFree = isWalkStepAllowed(entity.x, entity.y, nextX, entity.y);
-        const yFree = isWalkStepAllowed(entity.x, entity.y, entity.x, nextY);
+      if (!canStep(entity, nextX, nextY)) {
+        const xFree = canStep(entity, nextX, entity.y);
+        const yFree = canStep(entity, entity.x, nextY);
         if (xFree && (!yFree || Math.abs(entity.vx) >= Math.abs(entity.vy))) entity.vy = 0;
         else if (yFree) entity.vx = 0;
         else { entity.vx = 0; entity.vy = 0; }
@@ -828,6 +818,11 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
             const breedDist = 15;
             const nx = Math.min(width, Math.max(0, entity.x + deterministicCos(breedAngle) * breedDist));
             const ny = Math.min(height, Math.max(0, entity.y + deterministicSin(breedAngle) * breedDist));
+            if (wildlifeWaterBlocked(state, Math.floor(nx / PATH_CELL), Math.floor(ny / PATH_CELL))
+              || !canStep(entity, nx, ny)) {
+              syncEntityGrids(ctx, entity);
+              continue;
+            }
             const offspring = createEntity(
               entity.type, nx, ny, state.nextEntityId++, config.spawnEnergy,
               entity.type === EntityType.Wildkin,
