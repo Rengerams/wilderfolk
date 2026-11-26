@@ -1312,6 +1312,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         width,
         height,
         state.tick,
+        entityById,
       );
 
       // A candidate that has not been ticked yet may still be asleep. Wait for
