@@ -10,6 +10,7 @@ import {
   canLaunchRaidOnRival,
   canProvokeRival,
   getCombatPreview,
+  getOutgoingRaidStatus,
   respondToRaidEvent,
   tickPendingRaidEvents,
   applyTruceToRival,
@@ -227,6 +228,12 @@ describe('mobilized raid lifecycle', () => {
       tickPendingOutgoingRaidEvents(result);
     }
     expect(result.pendingOutgoingRaidEvents[0]?.phase).toBe('returning');
+    const returning = result.pendingOutgoingRaidEvents[0]!;
+    const status = getOutgoingRaidStatus({ ...returning, title: 'Battle at OakCrossing', description: 'They chose to fight' }, result.tick);
+    expect(status.title).toBe('Returning from OakCrossing');
+    expect(status.detail).not.toContain('fight');
+    expect(status.summary).toContain('Homeward journey');
+    expect(status.returning).toBe(true);
     expect(result.entities.some((person) => person.alive && person.raidDeploymentId === event.id)).toBe(true);
     result.tick = result.pendingOutgoingRaidEvents[0]!.returnAtTick!;
     tickPendingOutgoingRaidEvents(result);

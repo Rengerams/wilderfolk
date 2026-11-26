@@ -1,6 +1,7 @@
 # Bug report summary — one line per report
 
 **2026-11-26 — [Schooling fabricates attendance and universal trade skills](../bug_report/2026-11-26-school-qualification-trade-skills.md):** investigating; new immigration attendance starts at zero, graduation no longer awards every job, and completion bonuses use actual trade training. CI pending.
+**2026-11-26 — [Returning army shows stale battle instructions](../bug_report/2026-11-26-raid-return-stale-status.md):** investigating; phase-aware status projection implemented for banner, hints and alerts; CI passed on prior head; browser verification pending.
 
 **2026-11-26 — [Free-roam hunting bypasses route planning](../bug_report/2026-11-26-free-hunt-pursuit-routing.md):** investigating; direct chase replaced by shared human routing and close kills use the existing obstruction check. Original water screenshot not reproduced; tests pending.
 

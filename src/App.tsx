@@ -1,4 +1,4 @@
-import { getBattleProgressPercent, RAID_BATTLE_HOURS } from './game/frontierCombat';
+import { getBattleProgressPercent, getOutgoingRaidStatus, RAID_BATTLE_HOURS } from './game/frontierCombat';
 import { isStripBuildType } from './game/stripBuild';
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, Suspense } from 'react';
 import {
@@ -1718,27 +1718,17 @@ export default function App() {
           {/* Raid defense — respond before march deadline (distance-scaled) */}
           {pendingOutgoingRaids.length > 0 && (
             <div className={`pointer-events-auto absolute left-1/2 ${pendingRaids.length > 0 ? 'top-44' : 'top-4'} z-20 w-full max-w-lg -translate-x-1/2 animate-in fade-in slide-in-from-top`}>
-              {pendingOutgoingRaids.slice(0, 2).map((evt) => (
+              {pendingOutgoingRaids.slice(0, 2).map((evt) => {
+                const status = getOutgoingRaidStatus(evt, world.tick);
+                return (
                 <div key={evt.id} className="mb-2 rounded-xl border border-orange-500/50 bg-orange-950/95 p-3 shadow-xl backdrop-blur">
                   <div className="flex items-start gap-3">
                     <Emoji className="text-2xl">{evt.emoji}</Emoji>
                     <div className="flex-1">
-                      <h3 className="font-bold text-orange-100">{evt.title}</h3>
-                      <p className="text-sm text-stone-300">{evt.description}</p>
-                      <p className="mt-1 text-[11px] text-orange-300/90">
-                        {evt.rivalResponse === 'payoff_offer'
-                          ? `Offer: ${formatRaidLootSummary(raidEventLoot(evt))}`
-                          : 'They chose to fight'}
-                        {' · '}
-                        <strong>{evt.phase === 'fighting' ? 'Battle underway — hourly updates' : formatRaidDeadline(evt, world.tick)}</strong>
-                        {evt.marchDistanceTiles > 0 && (
-                          <span> · {evt.marchDistanceTiles} tiles march</span>
-                        )}
-                      </p>
-                      {evt.phase === 'marching' && <p className="mt-2 text-xs font-semibold text-amber-200">War-band marching — {evt.soldierIds?.length ?? 0} soldiers deployed. Battle decisions unlock at arrival.</p>}
-                      {evt.phase === 'fighting' && <p className="mt-2 text-xs font-semibold text-rose-200">Battle underway — reports arrive automatically as time advances.</p>}
-                      {(evt.battleChronicle?.length ?? 0) > 0 && <div className="mt-2 space-y-1 rounded bg-stone-950/70 p-2 text-xs text-stone-200" aria-label="Battle chronicle">{evt.battleChronicle?.slice(-4).map((line, index) => <p key={index}>{line}</p>)}</div>}
-                      {evt.phase === 'returning' && <p className="mt-2 text-xs font-semibold text-emerald-200">War-band returning. Surviving soldiers rejoin village defense when they reach home.</p>}
+                      <h3 className="font-bold text-orange-100">{status.title}</h3>
+                      <p className="text-sm text-stone-300">{status.detail}</p>
+                      {status.summary && <p className="mt-1 text-[11px] text-orange-300/90">{status.summary}</p>}
+                      {evt.phase === 'fighting' && (evt.battleChronicle?.length ?? 0) > 0 && <div className="mt-2 space-y-1 rounded bg-stone-950/70 p-2 text-xs text-stone-200" aria-label="Battle chronicle">{evt.battleChronicle?.slice(-4).map((line, index) => <p key={index}>{line}</p>)}</div>}
                       {evt.phase !== 'returning' && evt.phase !== 'fighting' && <button type="button" className="mt-2 rounded bg-amber-800 px-3 py-1.5 text-xs font-bold text-white" onClick={() => applyGameAction({ proto: 1, op: 'respondToOutgoingRaidEvent', eventId: evt.id, choiceId: 'recall' })}>Recall Army</button>}
                       <div className="mt-2 grid grid-cols-1 gap-1">
                         {(evt.phase === 'engaging' || !evt.phase ? evt.choices : []).map((choice) => (
@@ -1768,7 +1758,7 @@ export default function App() {
                           </button>
                         ))}
                       </div>
-                      <button
+                      {!status.returning && <button
                         type="button"
                         onClick={() => {
                           const rival = world.rivalSettlements.find((r) => r.id === evt.rivalId);
@@ -1777,11 +1767,12 @@ export default function App() {
                         className="mt-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300"
                       >
                         📍 Open rival camp
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
