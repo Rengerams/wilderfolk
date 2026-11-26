@@ -295,8 +295,10 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
         }
       }
 
-      // 1. Common updates
-      if (isNewCalendarDay) {
+      const moonHowlerHunter = isActiveMoonHowler(entity);
+
+      // 1. Common updates: a transformed settler retains human calendar age, not wildlife days.
+      if (isNewCalendarDay && !moonHowlerHunter) {
         entity.age++;
       }
       entity.flash = Math.max(0, entity.flash - step);
@@ -348,7 +350,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       const wildlifeActive =
         // `OFFSCREEN_WILDLIFE_THROTTLE` counts wildlife-layer calls, not raw ticks, so out-of-focus
         // fauna is gated by layer pulse.
-        wildlifeInFocus || isOffscreenWildlifeActive(state.tick, entity.id);
+        moonHowlerHunter || wildlifeInFocus || isOffscreenWildlifeActive(state.tick, entity.id);
       if (!wildlifeActive) {
         entity.reproductionCooldown = Math.max(0, entity.reproductionCooldown - step);
         syncEntityGrids(ctx, entity);
@@ -409,13 +411,12 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       // 7. Hunting Behavior — the Wildkin is an apex predator on the shared deer/rabbit prey base.
       const isHungry = entity.energy < entity.maxEnergy * 0.7;
       if (
-        isHungry &&
+        (isHungry || moonHowlerHunter) &&
         (entity.type === EntityType.Wolf ||
           entity.type === EntityType.Fox ||
           entity.type === EntityType.Werewolf ||
           entity.type === EntityType.Wildkin)
       ) {
-        const moonHowlerHunter = entity.type === EntityType.Werewolf && isActiveMoonHowler(entity);
         // Wolves are apex predators — they hunt deer and rabbits and also take
         // competing foxes (intraguild predation). Foxes keep hunting rabbits.
         const { preyTypeSet, fallback: huntPreyFallback } = huntPreyLookup(
@@ -458,6 +459,9 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           huntRange,
           (prey, dSq) => {
             if (!preyTypeSet.has(prey.type)) return;
+            // The curse drives attacks on exposed settlers even when the beast is fed.
+            // Ordinary wildlife prey still requires hunger, preserving ecosystem limits.
+            if (!isHungry && prey.type !== EntityType.Human) return;
             // Sparse rabbits retreat into refuge; wild predators switch prey or go hungry.
             // Player hunting still uses its separate owner and may affect this population.
             if (prey.type === EntityType.Rabbit && !wildlifeMayHuntRabbit(preyCounts.rabbits)) return;
@@ -504,7 +508,8 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
               syncEntityGrids(ctx, entity);
               clearHuntersTargetingPrey(victimId, entityById, ctx.huntTargetByPreyId, byType);
 
-              if (entity.type === EntityType.Werewolf && entity.moonHowlerCursed && !caughtPrey.title) {
+              // The death owner already restored the slain werewolf's human type.
+              if (moonHowlerHunter && !caughtPrey.title) {
                 caughtPrey.title = 'Moonslayer';
                 addFloatingText(state, caughtPrey.x, caughtPrey.y - 28, 'Moonslayer!', '#fbbf24');
                 logEvent(
@@ -520,8 +525,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
               createDeathParticles(state, entity.x, entity.y, '#8a2a2a', 10);
               addFloatingText(state, caughtPrey.x, caughtPrey.y - 14, 'Defended!', '#38bdf8');
               impulseScreenShake(state, 3);
-              targetVx = 0;
-              targetVy = 0;
+              continue;
             } else if (
               isHumanPrey &&
               rollPredatorBlock(state, caughtPrey.id, state.tick, caughtPrey.combatRollSeed ?? 0)
