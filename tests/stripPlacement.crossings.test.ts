@@ -77,7 +77,15 @@ describe('long bridge construction', () => {
     expect(next.buildings).toHaveLength(preview.segments.length);
     expect(next.buildings.every(b => !b.completed && b.type === BuildingType.Bridge)).toBe(true);
     expect(w.resources.wood - next.resources.wood).toBe(preview.segments.length * BUILDING_CONFIGS[BuildingType.Bridge].cost.wood);
-    w.resources.wood = 0;
+    // A segment can become occupied after the preview has been submitted.
+    const blocked = structuredClone(w);
+    blocked.buildings.push({ ...next.buildings[Math.floor(preview.segments.length / 2)], completed: true });
+    const blockedResult = placeStripChain(blocked, BuildingType.Bridge, preview.segments, rotation);
+    expect(blockedResult.buildings).toEqual(blocked.buildings);
+    expect(blockedResult.resources).toEqual(blocked.resources);
+    expect(blockedResult.floatingTexts.length).toBeGreaterThan(blocked.floatingTexts.length);
+    // Enough resources for the first piece, but not the complete stroke.
+    w.resources.wood = BUILDING_CONFIGS[BuildingType.Bridge].cost.wood;
     const refused = placeStripChain(w, BuildingType.Bridge, preview.segments, rotation);
     expect(refused.buildings).toEqual(w.buildings);
     expect(refused.resources).toEqual(w.resources);
