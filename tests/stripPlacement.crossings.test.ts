@@ -58,6 +58,44 @@ describe('crossing construction', () => {
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import { TerrainType } from '../src/game/gameTypes';
 
+describe('compact wall runs', () => {
+  it('replaces an off-lattice legacy wall with a gate at its saved centre', () => {
+    const world = worldFor(BuildingType.WallGate);
+    world.worldMap = testWorldMap({ tilesX: 60, tilesY: 60, tileType: () => TerrainType.Grassland });
+    world.width = world.height = 600;
+    world.buildings = [];
+    world.resources.wood = world.resources.stone = world.resources.gold = 10000;
+    const wall = completedStrip(world, BuildingType.Wall, 180, 200);
+    wall.width = 60;
+    wall.height = 40;
+    const preview = buildStripPreview(world, BuildingType.WallGate, 180, 200, 180, 200, 0);
+    expect(preview.segments).toHaveLength(1);
+    expect(preview.segments[0]).toMatchObject({ x: 180, y: 200, replacesBuildingId: wall.id, valid: true });
+    const next = placeStripChain(world, BuildingType.WallGate, preview.segments, 0);
+    expect(next.buildings).toHaveLength(1);
+    expect(next.buildings[0]).toMatchObject({ type: BuildingType.WallGate, x: 180, y: 200 });
+  });
+
+  it.each([BuildingType.Wall, BuildingType.WallGate])('commits horizontal and vertical %s with matching footprints', (type) => {
+    const world = worldFor(type);
+    world.worldMap = testWorldMap({ tilesX: 60, tilesY: 60, tileType: () => TerrainType.Grassland });
+    world.width = world.height = 600;
+    world.buildings = [];
+    world.resources.wood = world.resources.stone = world.resources.gold = 10000;
+    for (const rotation of [0, 90] as const) {
+      const x = rotation === 0 ? 150 : 390;
+      const y = 150;
+      const preview = buildStripPreview(world, type, x, y, x + (rotation === 0 ? 90 : 0), y + (rotation === 90 ? 90 : 0), rotation);
+      expect(preview.segments).toHaveLength(4);
+      expect(preview.segments.every((s) => s.valid && s.rotation === rotation)).toBe(true);
+      const placed = placeStripChain(world, type, preview.segments, rotation);
+      expect(placed.buildings).toHaveLength(4);
+      const fp = getBuildingFootprintForType(type, rotation);
+      expect(placed.buildings.every((b) => b.width === fp.width && b.height === fp.height && (b.rotation ?? 0) === rotation)).toBe(true);
+    }
+  });
+});
+
 describe('long bridge construction', () => {
   it.each([0, 90] as const)('places a continuous bridge stroke at rotation %s', (rotation) => {
     const w = worldFor(BuildingType.Bridge);

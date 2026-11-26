@@ -81,6 +81,11 @@ export function snapBuildingCenter(
   rotation: BuildingRotation | CornerRotation = 0,
 ): { x: number; y: number } {
   const { width, height } = getBuildingFootprintForType(type, rotation);
+  // Wall axes share one lattice so a perpendicular run can meet the exact same corner.
+  if (type === BuildingType.Wall || type === BuildingType.WallGate) {
+    const pitch = Math.max(width, height);
+    return { x: Math.round(x / pitch) * pitch, y: Math.round(y / pitch) * pitch };
+  }
   if (STRIP_SNAP_TYPES.has(type)) {
     if (width >= height) {
       return {

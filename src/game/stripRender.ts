@@ -251,7 +251,8 @@ export function drawProceduralWall(
   isGate: boolean,
   alpha = 1,
 ): void {
-  if (paintRpgStoneStrip(ctx, sx, sy, w, h, rotation, isGate, alpha)) return;
+  // The upright facade art is horizontal-facing; use the axis-rotated deck art vertically.
+  if (rotation === 0 && paintRpgStoneStrip(ctx, sx, sy, w, h, rotation, isGate, alpha)) return;
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
   if (paintStripSprite(ctx, isGate ? WALL_GATE_FALLBACK : WALL_STRAIGHT_FALLBACK, 0, 0, rw, rh, 0)) {
     ctx.restore();

@@ -1,6 +1,6 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { EntityType, PATH_CELL } from './gameTypes';
-import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition, crowdGatherPosition, homeStandPosition, steerHumanToward } from './simulation/humanMovement';
+import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition, crowdGatherPosition, homeStandPosition, steerHumanToward, clearHumanWalkTarget } from './simulation/humanMovement';
 import { faceVelocity } from './simulation/movementSteering';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
 import { deterministicCos, deterministicSin } from './simTrig';
@@ -21,7 +21,7 @@ import { findClosestAdaptiveInRadius, forEachAdaptiveInRadius, socialAdaptiveOpt
 import { seededRandomForRun, personDayRoll, getSimRng, PERSON_DAY_ROLL_SALTS } from './simRng';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
 import { addFloatingText } from './simEffects';
-import { getCurrentPathGrid, isGroundWalkableAt, lineCrossesBlocked, nearestWalkableWorldPoint, steerWithPath } from './pathfinding';
+import { getCurrentPathGrid, getNavigationQuote, isGroundWalkableAt, lineCrossesBlocked, nearestWalkableWorldPoint, steerWithPath } from './pathfinding';
 import { fract } from './simulation/humanNeeds';
 import { findClosestEntityInRadius } from './simQueries';
 import { hasAffairPartner, canPursueSecretAffair, isAtMaritalHome } from './simulation/humanRelationships';
@@ -113,10 +113,17 @@ function chooseChildPlaySite(
     if (x < 0 || y < 0 || x >= state.width || y >= state.height) continue;
     if (previous && Math.hypot(x - previous.x, y - previous.y) < 28) continue;
     if (!isGroundWalkableAt(x, y, grid)) continue;
-    // Use the path owner's same blocked-line predicate for every participant.
-    if (grid && group.some((member) =>
-      isGroundWalkableAt(member.x, member.y, grid)
-      && lineCrossesBlocked(grid, member.x, member.y, x, y))) continue;
+    // Prefer a clear direct leg, but accept a bounded route around walls or
+    // through bridges. A pending quote is not proof of reachability.
+    if (grid && group.some((member) => {
+      if (!isGroundWalkableAt(member.x, member.y, grid)) return true;
+      if (!lineCrossesBlocked(grid, member.x, member.y, x, y)) return false;
+      const quote = getNavigationQuote(grid,
+        { x: Math.floor(member.x / PATH_CELL), y: Math.floor(member.y / PATH_CELL) },
+        { x: Math.floor(x / PATH_CELL), y: Math.floor(y / PATH_CELL) },
+        { maxNodes: 600 });
+      return quote.status !== 'priced' || quote.tiles.length > 24;
+    })) continue;
     return { x, y };
   }
   return null;
@@ -274,16 +281,19 @@ export function tickHumanChildLeisure(args: {
         }
       }
       const site = entity.childPlaySite;
-      const destinationX = site?.x ?? mate.x;
-      const destinationY = site?.y ?? mate.y;
+      // Failed site searches must not turn a reserved group into a moving-target chase.
+      const destinationX = site?.x ?? entity.x;
+      const destinationY = site?.y ?? entity.y;
       const distance = Math.hypot(destinationX - entity.x, destinationY - entity.y);
-      if (distance > 14) {
+      if (site && distance > 14) {
         steerHumanToward(entity, destinationX, destinationY, speed, 0.7,
           `child_play_${entity.id}_${mate.id}`);
       } else {
-        // A little movement at the play area, not an endless chase around the mate's feet.
-        entity.vx = deterministicWave(state.tick * 0.2 + entity.id) * speed * 0.18;
-        entity.vy = deterministicWave(state.tick * 0.18 + mate.id + 0.5) * speed * 0.18;
+        // Stop the previous route as well as velocity: off-screen walk resumption
+        // must not pull a child away from its arrived or unavailable destination.
+        clearHumanWalkTarget(entity);
+        entity.vx = 0;
+        entity.vy = 0;
         if (seededRandomForRun(`chat-kid:${entity.id}:${state.tick}`) < 0.06 * PER_TICK_RATE_SCALE) {
           requestDialogue({
             eventKey: 'child.play', speaker: entity, tick: state.tick,
@@ -306,8 +316,12 @@ export function tickHumanChildLeisure(args: {
     const distance = Math.hypot(follow.x - entity.x, follow.y - entity.y) || 1;
     if (distance > 22) {
       steerHumanToward(entity, follow.x, follow.y, speed, 0.55, `child_follow_${entity.id}_${follow.id}`);
-    } else if (distance > 8) {
+    } else if (distance > 14) {
       steerHumanToward(entity, follow.x, follow.y, speed, 0.18, `child_follow_${entity.id}_${follow.id}`);
+    } else {
+      clearHumanWalkTarget(entity);
+      entity.vx = 0;
+      entity.vy = 0;
     }
     entity.childLeisureActivity = 'following';
     entity.childLeisureTargetId = follow.id;
