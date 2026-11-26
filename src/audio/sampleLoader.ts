@@ -27,8 +27,3 @@ export function preloadAllSamples(): Promise<void> {
   }
   return preloadPromise;
 }
-
-export function clearSampleCache() {
-  cache.clear();
-  preloadPromise = null;
-}

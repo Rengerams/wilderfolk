@@ -4,15 +4,6 @@ import type { RenderSnapshot } from '../renderSnapshot';
 import { motionTime } from './shared';
 import { worldToScreenX, worldToScreenY } from '../viewState';
 
-// ============ NIGHT BUILDING GLOW ============
-/** No-op: day/night lighting and building glow are disabled. */
-export function drawNightBuildingGlow(
-  _ctx: CanvasRenderingContext2D,
-  _state: RenderSnapshot,
-  _cw: number,
-  _ch: number,
-): void {}
-
 /**
  * Polish effects: forge fire pulse, house chimney smoke, blacksmith heat, and work dust.
  * Drawn every frame (outside entity-layer cache) so motion stays smooth.

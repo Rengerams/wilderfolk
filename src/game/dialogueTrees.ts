@@ -298,10 +298,6 @@ export function getDialogueTrees(): readonly DialogueTree[] {
   return bank?.dialogue_trees ?? [];
 }
 
-export function getDialogueCategories(): readonly DialogueCategory[] {
-  return requireBank().categories;
-}
-
 /**
  * Timed, presentation-only dialogue. Not an Entity chat session: the caller owns its wall clock,
  * actor mapping, pause/camera/skip and world state.

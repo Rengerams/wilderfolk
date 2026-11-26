@@ -6,10 +6,6 @@ export const FOOD_LOW_THRESHOLD = 20;
 export const FOOD_CRITICAL_BASE = 15;
 export const FOOD_CRITICAL_PER_PERSON = 1.5;
 
-export function isFoodLow(resources: Pick<WorldState['resources'], 'food'>): boolean {
-  return (resources.food ?? 0) < FOOD_LOW_THRESHOLD;
-}
-
 /**
  * The absolute store level below which `population` settlers count as critical: the single
  * definition every low-food surface calls.
