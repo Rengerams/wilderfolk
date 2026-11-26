@@ -399,3 +399,23 @@ it('selects the same courtship candidate at equal distance in either traversal o
     expect(findCourtshipPartner(a, false, 120, undefined, new Map(), humans, 1200, 900)?.id).toBe(B_ID);
   }
 });
+
+
+describe('courtship cooldown reconciliation order', () => {
+  it.each([false, true])('starts equal cooldowns for both partners (reverse=%s)', reverse => {
+    const a = settler(A_ID, 'male', { courtshipPartnerId: B_ID, courtshipProgress: 60 });
+    const b = settler(B_ID, 'female', { courtshipPartnerId: A_ID, courtshipProgress: 60, pregnant: true });
+    const humans = reverse ? [b, a] : [a, b];
+    const { entityById } = fixture(humans);
+    reconcileCourtships(context(entityById, humans));
+    expect(a.courtshipPartnerId).toBeUndefined();
+    expect(b.courtshipPartnerId).toBeUndefined();
+    expect(a.courtshipProgress).toBe(0);
+    expect(b.courtshipProgress).toBe(0);
+    expect(a.courtshipCooldownDays).toBe(1);
+    expect(b.courtshipCooldownDays).toBe(1);
+    reconcileCourtships(context(entityById, humans));
+    expect(a.courtshipCooldownDays).toBe(0);
+    expect(b.courtshipCooldownDays).toBe(0);
+  });
+});
