@@ -1355,9 +1355,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             suppressIdle = true;
           }
         } else if (canAdvanceCourtship(courtshipPresence, otherPresence, dist, courtshipPresence.socialTime && otherPresence.socialTime)) {
-          entity.vx *= 0.6;
-          entity.vy *= 0.6;
-          suppressIdle = true;
+          // Leisure dates stop at contact instead of resuming an old walk target.
+          // Coworkers keep their work movement and attendance untouched.
+          if (!courtshipPresence.onDuty && !otherPresence.onDuty) {
+            entity.vx = 0;
+            entity.vy = 0;
+            clearHumanWalkTarget(entity);
+            suppressIdle = true;
+          }
           // The relationship owner decides how a pair is bound (new partner → progress starts at zero).
           bindCourtship(entity, closest);
 
