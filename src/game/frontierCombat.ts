@@ -106,6 +106,42 @@ export function formatRaidDeadline(evt: Pick<RaidEvent, 'expiresAtTick'>, curren
   return `${days} day${days === 1 ? '' : 's'} left`;
 }
 
+/** Read-only status shared by raid banners, guidance and priority alerts. */
+export function getOutgoingRaidStatus(event: OutgoingRaidEvent, tick: number): {
+  title: string; detail: string; summary: string; returning: boolean;
+} {
+  if (event.phase === 'returning') {
+    return {
+      title: `Returning from ${event.rivalName}`,
+      detail: 'Surviving soldiers rejoin village defense when they reach home.',
+      summary: `Homeward journey — ${formatRaidDeadline(event, tick)}`,
+      returning: true,
+    };
+  }
+  if (event.phase === 'marching') {
+    return {
+      title: `Marching to ${event.rivalName}`,
+      detail: 'Battle decisions unlock at arrival.',
+      summary: `${event.soldierIds?.length ?? 0} soldiers deployed · ${formatRaidDeadline(event, tick)}`,
+      returning: false,
+    };
+  }
+  if (event.phase === 'fighting') {
+    return {
+      title: `Battle at ${event.rivalName}`,
+      detail: 'Battle underway — reports arrive automatically as time advances.',
+      summary: '',
+      returning: false,
+    };
+  }
+  return {
+    title: event.title,
+    detail: event.description,
+    summary: `${event.rivalResponse === 'payoff_offer' ? `Offer: ${formatRaidLootSummary(raidEventLoot(event))}` : 'They chose to fight'} · ${formatRaidDeadline(event, tick)}`,
+    returning: false,
+  };
+}
+
 /** Food is packed for the outward and return march: deployed soldiers cannot resupply at home en
  * route. One ration per soldier per game day, plus a fixed pack cost for wagons and travel losses.
  */
