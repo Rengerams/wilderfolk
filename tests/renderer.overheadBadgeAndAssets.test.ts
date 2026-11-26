@@ -116,7 +116,7 @@ describe('dense village name plate decluttering', () => {
         createEntity(EntityType.Human, 100 + (i % 10) * 160, 100 + Math.floor(i / 10) * 160,
           i + 1, 80, false, { name: 'Resident' + (i + 1) + 'X', ageYears: 30 }));
       byType[EntityType.Human] = humans;
-      const camera = { x: 900, y: 900, zoom };
+      const camera = { x: 900, y: 900, zoom, targetX: 900, targetY: 900, targetZoom: zoom };
       const labels: string[] = [];
       const ctx = new Proxy({
         fillText: (value: string) => labels.push(value),
