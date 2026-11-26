@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (26 Nov 2026):** Workplace vacancy swaps now use the same home-based candidate ranking as ordinary hiring, reserve apprentices, and compare transfer commute distances in consistent units.
+- **Fixed (26 Nov 2026):** Workplace vacancy swaps now use the same home-based candidate ranking as ordinary hiring, reserve apprentices even during food emergencies, skip insufficient or empty donors, and rank transfers in one scan using consistent commute units.
 
 - **Performance (26 Nov 2026):** Reuse the active path grid for leisure goals and avoid redundant standability checks; preserve deterministic routing and invalidate cached goals when the grid changes.
 
