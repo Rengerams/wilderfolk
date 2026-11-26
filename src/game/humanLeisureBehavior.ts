@@ -37,15 +37,6 @@ export const CHILD_PLAY_GROUP_MAX = 4;
 /** 80 in-game hours: one free-time activity holds for several days, not one tick. */
 const LEISURE_SLOT_TICKS = 80 * TICKS_PER_HOUR;
 
-/**
- * Sine replacement in [-1, 1]. `Math.sin`/`Math.cos` are only implementation-approximated, so a
- * velocity derived from them can differ by an ulp between engines and drift a saved coordinate.
- */
-function deterministicWave(phase: number): number {
-  const t = phase - Math.floor(phase);
-  return t < 0.5 ? 4 * t - 1 : 3 - 4 * t;
-}
-
 function leisureSlotFor(tick: number, entityId: number): number {
   return Math.floor(tick / LEISURE_SLOT_TICKS + entityId * 3);
 }
