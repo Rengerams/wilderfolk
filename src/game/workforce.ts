@@ -176,7 +176,8 @@ export const AUTO_JOB_TRANSFER_COOLDOWN_TICKS = 3 * TICKS_PER_DAY;
 
 export function canAutoChangeWorkplace(human: Entity, currentTick?: number, foodEmergency = false): boolean {
   // A prisoner's post is reserved, not vacant: no automatic transfer may move it while they serve.
-  if (isImprisoned(human)) return false;
+  // Bonded apprentices are reserved for training, even during food emergencies.
+  if (isImprisoned(human) || human.apprenticeOfId != null) return false;
   if (foodEmergency) return true;
   if (currentTick == null || human.lastAutoJobTransferTick == null) return true;
   return currentTick - human.lastAutoJobTransferTick >= AUTO_JOB_TRANSFER_COOLDOWN_TICKS;
@@ -349,39 +350,35 @@ export function pickWorkerToTransfer(
   const fromJob = BUILDING_JOB_TYPES[fromBuilding.type];
   if (!toJob || !fromJob) return undefined;
 
-  const workers = humans.filter(
-    (h) =>
-      isPlayerHuman(h) &&
-      h.alive &&
-      h.age >= HUMAN_ADULT_MIN_AGE &&
-      h.workerBuildingId === fromBuilding.id &&
-      h.apprenticeOfId == null &&
-      !excludedWorkers?.has(h.id) &&
-      canAutoChangeWorkplace(h, currentTick, foodEmergency) &&
-      isWithinAssignableCommute(h, toBuilding, buildings, SPECIES_CONFIG[EntityType.Human].speed),
-  );
-  if (workers.length === 0) return undefined;
-
+  const buildingById = new Map(buildings.map((site) => [site.id, site]));
+  const speed = SPECIES_CONFIG[EntityType.Human].speed;
   const toX = toBuilding.x + toBuilding.width / 2;
   const toY = toBuilding.y + toBuilding.height / 2;
-
-  workers.sort((a, b) => {
-    const aFit = readSkill(a, toJob) - readSkill(a, fromJob);
-    const bFit = readSkill(b, toJob) - readSkill(b, fromJob);
-    if (bFit !== aFit) return bFit - aFit;
-
-    const aHome = buildings.find((site) => site.id === a.residenceBuildingId) ?? a;
-    const bHome = buildings.find((site) => site.id === b.residenceBuildingId) ?? b;
-    const aRoute = quoteBuildingCommute(aHome, toBuilding, SPECIES_CONFIG[EntityType.Human].speed);
-    const bRoute = quoteBuildingCommute(bHome, toBuilding, SPECIES_CONFIG[EntityType.Human].speed);
-    const aDistance = aRoute.status === 'priced' ? aRoute.travelHours
-      : Math.hypot(aHome.x - toX, aHome.y - toY) / SPECIES_CONFIG[EntityType.Human].speed / TICKS_PER_HOUR;
-    const bDistance = bRoute.status === 'priced' ? bRoute.travelHours
-      : Math.hypot(bHome.x - toX, bHome.y - toY) / SPECIES_CONFIG[EntityType.Human].speed / TICKS_PER_HOUR;
-    return aDistance - bDistance || a.id - b.id;
-  });
-
-  return workers[0];
+  let best: Entity | undefined;
+  let bestFit = -Infinity;
+  let bestDistance = Infinity;
+  // Select in one pass. A sort comparator must not repeatedly price routes, especially
+  // when the shared commute budget is close to exhaustion.
+  for (const candidate of humans) {
+    if (!isPlayerHuman(candidate) || !candidate.alive || candidate.age < HUMAN_ADULT_MIN_AGE
+      || candidate.workerBuildingId !== fromBuilding.id || excludedWorkers?.has(candidate.id)
+      || !canAutoChangeWorkplace(candidate, currentTick, foodEmergency)) continue;
+    const fit = readSkill(candidate, toJob) - readSkill(candidate, fromJob);
+    if (fit < bestFit) continue;
+    const origin = (candidate.residenceBuildingId == null
+      ? undefined : buildingById.get(candidate.residenceBuildingId)) ?? candidate;
+    if (straightLineCommuteLowerBoundHours(origin, toBuilding, speed) > MAX_ASSIGNABLE_COMMUTE_HOURS
+      || !isWithinAssignableCommute(candidate, toBuilding, buildings, speed, buildingById)) continue;
+    const route = quoteBuildingCommute(origin, toBuilding, speed);
+    const distance = route.status === 'priced' ? route.travelHours
+      : Math.hypot(origin.x - toX, origin.y - toY) / speed / TICKS_PER_HOUR;
+    if (best && fit === bestFit && (distance > bestDistance
+      || (distance === bestDistance && candidate.id >= best.id))) continue;
+    best = candidate;
+    bestFit = fit;
+    bestDistance = distance;
+  }
+  return best;
 }
 
 // ============ AUTHORITATIVE WORKFORCE MUTATIONS ============
@@ -544,7 +541,12 @@ export function rebalanceJobWorkers(
         rejectedDonors.add(donor.id);
         continue;
       }
-      if (!criticalPost && (index.counts.get(donor.id) ?? 0) - 1 <= baseStaffed) break;
+      if (!criticalPost && (index.counts.get(donor.id) ?? 0) - 1 <= baseStaffed) {
+        // Donors are ordered from smallest to largest. An insufficient small crew must not
+        // hide a larger eligible donor that can still lend safely.
+        rejectedDonors.add(donor.id);
+        continue;
+      }
       const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings,
         movedThisPass, foodEmergency && priorityFood);
       if (!worker) {
@@ -714,7 +716,9 @@ function swapReachableWorkersIntoVacancies(
     // Least important donor first: the post moved out is the one the colony can most afford to refill.
     for (let d = jobBuildings.length - 1; d >= 0 && donorChecksLeft > 0; d--) {
       const donor = jobBuildings[d];
-      if (donor.id === needy.id) continue;
+      // Empty sites and sites with no movable staff cannot supply a swap; do not
+      // spend the bounded route-search allowance on them.
+      if (donor.id === needy.id || (index.movable.get(donor.id) ?? 0) <= 0) continue;
       donorChecksLeft--;
       // The replacement refills the donor's post, so a donor at its floor can still supply the swap.
       const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings,
