@@ -17,6 +17,11 @@ describe('selected settler building highlights', () => {
       .toEqual({ home, work: null });
     expect(resolveSelectedSettlerBuildings(world, { ...person, workerBuildingId: 999 }))
       .toEqual({ home, work: null });
+    // Invalid legacy assignment references must not turn a finished residence into a workplace.
+    expect(resolveSelectedSettlerBuildings(world, { ...person, workerBuildingId: 0 }))
+      .toEqual({ home, work: null });
+    expect(resolveSelectedSettlerBuildings(world, { ...person, residenceBuildingId: 2 }))
+      .toEqual({ home: null, work });
   });
 
   it('includes unfinished construction crew assignments and ignores foreign or dead people', () => {
@@ -27,7 +32,7 @@ describe('selected settler building highlights', () => {
     expect(resolveSelectedSettlerBuildings(world, null)).toBeNull();
   });
 
-  it('draws separate labels and colours, one combined marker for a shared building, and no marker after deselection', () => {
+  it('draws separate labels and colours and no marker after deselection', () => {
     const fillText = vi.fn();
     const ctx = {
       save: vi.fn(), restore: vi.fn(), setLineDash: vi.fn(), strokeRect: vi.fn(),
@@ -40,9 +45,6 @@ describe('selected settler building highlights', () => {
     drawSelectedSettlerBuildingHighlights(ctx, state, 800, 600);
     expect(fillText.mock.calls.map(call => call[0])).toEqual(['Home', 'Work']);
     expect(ctx.fillStyle).toBe('#7dd3fc');
-    fillText.mockClear();
-    drawSelectedSettlerBuildingHighlights(ctx, { ...state, selectedSettlerBuildings: { home, work: home } }, 800, 600);
-    expect(fillText.mock.calls.map(call => call[0])).toEqual(['Home & Work']);
     fillText.mockClear();
     drawSelectedSettlerBuildingHighlights(ctx, { ...state, selectedSettlerBuildings: null }, 800, 600);
     expect(fillText).not.toHaveBeenCalled();
