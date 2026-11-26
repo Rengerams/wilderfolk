@@ -13,6 +13,30 @@ import {
 import { building, human } from '../src/test/factories';
 
 describe('automatic job stability without blocking new colonies', () => {
+  it('tries a larger donor when a smaller crew cannot spare a worker above the recipient baseline', () => {
+    const recipient = building(10, BuildingType.Market, { occupants: [1] });
+    const small = building(11, BuildingType.Market, { occupants: [2, 3] });
+    const large = building(12, BuildingType.Market, { occupants: [4, 5, 6] });
+    const workers = [human(1, { workerBuildingId: recipient.id }),
+      ...[2, 3].map((id) => human(id, { workerBuildingId: small.id })),
+      ...[4, 5, 6].map((id) => human(id, { workerBuildingId: large.id }))];
+    rebalanceJobWorkers(workers, [recipient, small, large], undefined, 100);
+    expect(recipient.occupants).toHaveLength(2);
+    expect(small.occupants).toHaveLength(2);
+    expect(large.occupants).toHaveLength(2);
+  });
+
+  it('never counts bonded apprentices as movable, including emergency food transfers', () => {
+    const quarry = building(10, BuildingType.Quarry, { occupants: [1, 2] });
+    const farm = building(11, BuildingType.Farm);
+    const workers = [1, 2].map((id) => human(id, {
+      workerBuildingId: quarry.id, apprenticeOfId: 99,
+    }));
+    expect(canAutoChangeWorkplace(workers[0], 100, true)).toBe(false);
+    expect(findOverstaffedDonorBuilding([quarry, farm], workers, farm.id, 100, true, true)).toBeUndefined();
+    expect(pickWorkerToTransfer(workers, quarry, farm, 100, [quarry, farm], undefined, true)).toBeUndefined();
+  });
+
   it('does not drain the critical food crew while staffing a guard post', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2, 3] });
     const barracks = building(11, BuildingType.Barracks, { occupants: [] });

@@ -1,5 +1,21 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-26 — consistent workplace selection
+
+| Functions | Owner | Responsibility |
+|---|---|---|
+| `pickIdleWorkerForBuilding`, `assignWorkerInPlace`, `swapReachableWorkersIntoVacancies`, `pickWorkerToTransfer` | `src/game/workforce.ts` | One idle candidate selector for normal hiring and swap backfill; uses home-based commute, skill, career fit and stable first-encountered exact ties (the existing idle-hire contract). Bonded apprentices are excluded from swaps and transfers; fallback transfer distances use hours. Transfer selection uses a single ranked scan instead of repeatedly pricing routes in a sort comparator. Regression: `tests/workforce.persistentCommute.test.ts`. |
+
+| `canAutoChangeWorkplace`, `rebalanceJobWorkers`, `fillFromDonors`, `swapReachableWorkersIntoVacancies` | `src/game/workforce.ts` | Apprentice reservation applies even to emergency donor eligibility and prospective supply; insufficient small donors are skipped rather than ending the search; empty and immovable donor sites do not consume the bounded swap allowance. Regression: `tests/workforce.autoTransferCooldown.test.ts`, `tests/workforce.persistentCommute.test.ts`. |
+
+## 2026-11-26 — family tree diagram
+
+| Function / path | Sole owner | Responsibility / verification |
+|---|---|---|
+| `visibleFamilyTreeLinks` | `src/game/familyTree.ts` | Filters existing `buildFullFamilyTree` parent edges to visible cards; never infers kinship. `tests/familyTree.test.ts` |
+| `orderFamilyTreeRows`, `buildFullFamilyTree` | `src/game/familyTree.ts` | Stable parent-based display ordering and existing direct ancestor/descendant closures for view filters; no new ancestry inference. `tests/familyTree.test.ts` |
+| `FamilyTreeWindow`, `measure`, `centerFocus`, `selectPerson`, `renderPerson` | `src/components/FamilyTreeWindow.tsx` | Read-only card geometry, SVG branches, direct-line visibility filters, center and return navigation; deceased ancestors remain in the underlying graph. `measure` owns SVG geometry updates; `centerFocus` owns viewport centering. No simulation writes or additional genealogy decision. |
+
 ## 2026-11-26 — Moon Howler night hunting
 
 | Functions | Owner | Responsibility |

@@ -714,6 +714,8 @@ export interface FullFamilyTree {
   truncated: boolean;
   /** Member id → the ids of their parents inside this tree: the edges a drawing needs to branch. */
   parentLinks: ReadonlyMap<number, readonly number[]>;
+  ancestorIds: ReadonlySet<number>;
+  descendantIds: ReadonlySet<number>;
   /** What the walk could not draw, and why. */
   gaps: FamilyTreeGap[];
 }
@@ -1222,6 +1224,53 @@ export function buildFullFamilyTree(
     memberCount: seen.size,
     truncated,
     parentLinks,
+    ancestorIds: ancestorsOfFocus,
+    descendantIds: descendantsOfFocus,
     gaps: missingLinks(focus, known),
   };
+}
+
+/** Read-only diagram edges: never link to cards excluded by depth, mode or visibility filters. */
+export function visibleFamilyTreeLinks(
+  tree: FullFamilyTree,
+  visibleIds: ReadonlySet<number>,
+): Array<{ parentId: number; childId: number }> {
+  const links: Array<{ parentId: number; childId: number }> = [];
+  for (const [childId, parents] of tree.parentLinks) {
+    if (!visibleIds.has(childId)) continue;
+    for (const parentId of parents) {
+      if (parentId !== childId && visibleIds.has(parentId)) links.push({ parentId, childId });
+    }
+  }
+  return links;
+}
+
+
+/** Presentation only: keep siblings and related branches together using the recorded parent edges.
+ * The top-down pass uses the already ordered parents, not a second kinship inference.
+ */
+export function orderFamilyTreeRows(
+  rows: FullFamilyTree['rows'],
+  parentLinks: FullFamilyTree['parentLinks'],
+): FullFamilyTree['rows'] {
+  const positions = new Map<number, number>();
+  return rows.map((row) => {
+    const scored = row.members.map((person, index) => {
+      const parents = (parentLinks.get(person.id) ?? [])
+        .flatMap((id) => positions.get(id) ?? []);
+      return {
+        person,
+        index,
+        score: parents.length
+          ? parents.reduce((sum, position) => sum + position, 0) / parents.length
+          : index / Math.max(1, row.members.length - 1),
+      };
+    });
+    scored.sort((a, b) => a.score - b.score || a.index - b.index);
+    const members = scored.map(({ person }) => person);
+    members.forEach((person, index) => {
+      positions.set(person.id, members.length === 1 ? 0.5 : index / (members.length - 1));
+    });
+    return { ...row, members };
+  });
 }

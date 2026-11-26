@@ -176,7 +176,8 @@ export const AUTO_JOB_TRANSFER_COOLDOWN_TICKS = 3 * TICKS_PER_DAY;
 
 export function canAutoChangeWorkplace(human: Entity, currentTick?: number, foodEmergency = false): boolean {
   // A prisoner's post is reserved, not vacant: no automatic transfer may move it while they serve.
-  if (isImprisoned(human)) return false;
+  // Bonded apprentices are reserved for training, even during food emergencies.
+  if (isImprisoned(human) || human.apprenticeOfId != null) return false;
   if (foodEmergency) return true;
   if (currentTick == null || human.lastAutoJobTransferTick == null) return true;
   return currentTick - human.lastAutoJobTransferTick >= AUTO_JOB_TRANSFER_COOLDOWN_TICKS;
@@ -349,38 +350,35 @@ export function pickWorkerToTransfer(
   const fromJob = BUILDING_JOB_TYPES[fromBuilding.type];
   if (!toJob || !fromJob) return undefined;
 
-  const workers = humans.filter(
-    (h) =>
-      isPlayerHuman(h) &&
-      h.alive &&
-      h.age >= HUMAN_ADULT_MIN_AGE &&
-      h.workerBuildingId === fromBuilding.id &&
-      !excludedWorkers?.has(h.id) &&
-      canAutoChangeWorkplace(h, currentTick, foodEmergency) &&
-      isWithinAssignableCommute(h, toBuilding, buildings, SPECIES_CONFIG[EntityType.Human].speed),
-  );
-  if (workers.length === 0) return undefined;
-
+  const buildingById = new Map(buildings.map((site) => [site.id, site]));
+  const speed = SPECIES_CONFIG[EntityType.Human].speed;
   const toX = toBuilding.x + toBuilding.width / 2;
   const toY = toBuilding.y + toBuilding.height / 2;
-
-  workers.sort((a, b) => {
-    const aFit = readSkill(a, toJob) - readSkill(a, fromJob);
-    const bFit = readSkill(b, toJob) - readSkill(b, fromJob);
-    if (bFit !== aFit) return bFit - aFit;
-
-    const aHome = buildings.find((site) => site.id === a.residenceBuildingId) ?? a;
-    const bHome = buildings.find((site) => site.id === b.residenceBuildingId) ?? b;
-    const aRoute = quoteBuildingCommute(aHome, toBuilding, SPECIES_CONFIG[EntityType.Human].speed);
-    const bRoute = quoteBuildingCommute(bHome, toBuilding, SPECIES_CONFIG[EntityType.Human].speed);
-    const aDistance = aRoute.status === 'priced' ? aRoute.travelHours
-      : Math.hypot(aHome.x - toX, aHome.y - toY);
-    const bDistance = bRoute.status === 'priced' ? bRoute.travelHours
-      : Math.hypot(bHome.x - toX, bHome.y - toY);
-    return aDistance - bDistance || a.id - b.id;
-  });
-
-  return workers[0];
+  let best: Entity | undefined;
+  let bestFit = -Infinity;
+  let bestDistance = Infinity;
+  // Select in one pass. A sort comparator must not repeatedly price routes, especially
+  // when the shared commute budget is close to exhaustion.
+  for (const candidate of humans) {
+    if (!isPlayerHuman(candidate) || !candidate.alive || candidate.age < HUMAN_ADULT_MIN_AGE
+      || candidate.workerBuildingId !== fromBuilding.id || excludedWorkers?.has(candidate.id)
+      || !canAutoChangeWorkplace(candidate, currentTick, foodEmergency)) continue;
+    const fit = readSkill(candidate, toJob) - readSkill(candidate, fromJob);
+    if (fit < bestFit) continue;
+    const origin = (candidate.residenceBuildingId == null
+      ? undefined : buildingById.get(candidate.residenceBuildingId)) ?? candidate;
+    if (straightLineCommuteLowerBoundHours(origin, toBuilding, speed) > MAX_ASSIGNABLE_COMMUTE_HOURS
+      || !isWithinAssignableCommute(candidate, toBuilding, buildings, speed, buildingById)) continue;
+    const route = quoteBuildingCommute(origin, toBuilding, speed);
+    const distance = route.status === 'priced' ? route.travelHours
+      : Math.hypot(origin.x - toX, origin.y - toY) / speed / TICKS_PER_HOUR;
+    if (best && fit === bestFit && (distance > bestDistance
+      || (distance === bestDistance && candidate.id >= best.id))) continue;
+    best = candidate;
+    bestFit = fit;
+    bestDistance = distance;
+  }
+  return best;
 }
 
 // ============ AUTHORITATIVE WORKFORCE MUTATIONS ============
@@ -543,7 +541,12 @@ export function rebalanceJobWorkers(
         rejectedDonors.add(donor.id);
         continue;
       }
-      if (!criticalPost && (index.counts.get(donor.id) ?? 0) - 1 <= baseStaffed) break;
+      if (!criticalPost && (index.counts.get(donor.id) ?? 0) - 1 <= baseStaffed) {
+        // Donors are ordered from smallest to largest. An insufficient small crew must not
+        // hide a larger eligible donor that can still lend safely.
+        rejectedDonors.add(donor.id);
+        continue;
+      }
       const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings,
         movedThisPass, foodEmergency && priorityFood);
       if (!worker) {
@@ -693,12 +696,14 @@ function swapReachableWorkersIntoVacancies(
     && isPlayerHuman(human)
     && human.age >= HUMAN_ADULT_MIN_AGE
     && !hasWorkAssignment(human)
+    && human.apprenticeOfId == null
     && !isImprisoned(human)
     && !crewIds.has(human.id)
     && !movedThisPass.has(human.id),
   );
   if (idle.length === 0) return;
 
+  const buildingById = new Map(buildings.map((site) => [site.id, site]));
   let transfersLeft = MAX_SWAP_TRANSFERS_PER_PASS;
   let donorChecksLeft = MAX_SWAP_DONOR_CHECKS_PER_PASS;
   for (const needy of jobBuildings) {
@@ -711,19 +716,17 @@ function swapReachableWorkersIntoVacancies(
     // Least important donor first: the post moved out is the one the colony can most afford to refill.
     for (let d = jobBuildings.length - 1; d >= 0 && donorChecksLeft > 0; d--) {
       const donor = jobBuildings[d];
-      if (donor.id === needy.id) continue;
+      // Empty sites and sites with no movable staff cannot supply a swap; do not
+      // spend the bounded route-search allowance on them.
+      if (donor.id === needy.id || (index.movable.get(donor.id) ?? 0) <= 0) continue;
       donorChecksLeft--;
       // The replacement refills the donor's post, so a donor at its floor can still supply the swap.
       const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings,
         movedThisPass, false);
       if (!worker) continue;
-      const replacement = idle.find((candidate) =>
-        candidate.id !== worker.id
-        && straightLineCommuteLowerBoundHours(candidate, donor, SPECIES_CONFIG[EntityType.Human].speed)
-          <= MAX_ASSIGNABLE_COMMUTE_HOURS
-        && isWithinAssignableCommute(
-          candidate, donor, buildings, SPECIES_CONFIG[EntityType.Human].speed,
-        ));
+      const replacement = pickIdleWorkerForBuilding(
+        donor, idle, buildings, crewIds, buildingById, movedThisPass,
+      );
       if (!replacement) continue;
 
       transferWorkerBetweenBuildings(worker, donor, needy, currentTick);
@@ -785,37 +788,26 @@ export function syncJobBuildingOccupants(
   }
 }
 
-export function assignWorkerInPlace(
+/** Select an eligible idle adult for any new workplace appointment, including swap backfill. */
+function pickIdleWorkerForBuilding(
   building: Building,
-  humans: Entity[],
-  buildings: Building[],
-  constructionWorkerIds?: Set<number>,
+  humans: readonly Entity[],
+  buildings: readonly Building[],
+  crewIds: ReadonlySet<number>,
   buildingById?: ReadonlyMap<number, Building>,
-  workerCounts?: Map<number, number>,
-): boolean {
+  excludedWorkers?: ReadonlySet<number>,
+): Entity | undefined {
   const job = BUILDING_JOB_TYPES[building.type];
-  if (!job || !building.completed) return false;
-
-  // Auto means fill all available staff positions, including Taverns and Hotels; opening-hour
-  // minimum shift coverage is not a staffing limit.
-  // A jailed holder's post is reserved but unfilled, so the fill count excludes them.
-  const workerCount = workerCounts?.get(building.id) ?? countActiveWorkersAtBuilding(humans, building.id);
-  const cap = staffingCapFor(building, humans, workerCount).cap;
-
-  if (workerCount >= cap) return false;
-
-  // Select the best candidate in one pass. Sorting every idle settler for every
-  // vacant slot repeated expensive commute checks O(N log N) times.
+  if (!job || !building.completed) return undefined;
   const buildingX = building.x + building.width / 2;
   const buildingY = building.y + building.height / 2;
   let worker: Entity | undefined;
   let bestDistance = Infinity;
   let bestSkill = -Infinity;
-  const crewIds = constructionWorkerIds ?? new Set(buildConstructionCrewIndex(buildings).keys());
   for (const candidate of humans) {
     if (!isPlayerHuman(candidate) || !candidate.alive || candidate.age < HUMAN_ADULT_MIN_AGE
       || hasWorkAssignment(candidate) || candidate.apprenticeOfId != null || isImprisoned(candidate)
-      || crewIds.has(candidate.id)) continue;
+      || crewIds.has(candidate.id) || excludedWorkers?.has(candidate.id)) continue;
     const home = candidate.residenceBuildingId == null
       ? undefined
       : buildingById?.get(candidate.residenceBuildingId)
@@ -850,6 +842,32 @@ export function assignWorkerInPlace(
     bestDistance = distance;
     bestSkill = skill;
   }
+  return worker;
+}
+
+export function assignWorkerInPlace(
+  building: Building,
+  humans: Entity[],
+  buildings: Building[],
+  constructionWorkerIds?: Set<number>,
+  buildingById?: ReadonlyMap<number, Building>,
+  workerCounts?: Map<number, number>,
+): boolean {
+  const job = BUILDING_JOB_TYPES[building.type];
+  if (!job || !building.completed) return false;
+
+  // Auto means fill all available staff positions, including Taverns and Hotels; opening-hour
+  // minimum shift coverage is not a staffing limit.
+  // A jailed holder's post is reserved but unfilled, so the fill count excludes them.
+  const workerCount = workerCounts?.get(building.id) ?? countActiveWorkersAtBuilding(humans, building.id);
+  const cap = staffingCapFor(building, humans, workerCount).cap;
+
+  if (workerCount >= cap) return false;
+
+  // Select the best candidate in one pass. Sorting every idle settler for every
+  // vacant slot repeated expensive commute checks O(N log N) times.
+  const crewIds = constructionWorkerIds ?? new Set(buildConstructionCrewIndex(buildings).keys());
+  const worker = pickIdleWorkerForBuilding(building, humans, buildings, crewIds, buildingById);
   if (!worker) return false;
 
   const assigned = assignWorkerTransition(worker, building);

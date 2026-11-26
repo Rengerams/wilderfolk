@@ -1,5 +1,11 @@
 # Bug report summary — one line per report
 
+**2026-11-26 — [Staffing capacity search abandons larger eligible donors](../bug_report/2026-11-26-workforce-donor-search-stops-early.md):** investigating; PR #213 source fix and focused CI regressions passed on head `22ac3cb5`; follow-up CI pending.
+
+**2026-11-26 — [Bonded apprentices enter workforce swap and donor eligibility](../bug_report/2026-11-26-workforce-apprentice-donor-backfill.md):** investigating; PR #213 source fix and focused CI regressions passed on head `22ac3cb5`; follow-up CI pending.
+
+**2026-11-26 — [Empty workplaces consume the vacancy-swap donor budget](../bug_report/2026-11-26-workforce-empty-donors-exhaust-swap-budget.md):** investigating; PR #213 source fix and focused CI regressions passed on head `22ac3cb5`; follow-up CI pending.
+
 **2026-11-26 — [Moon Howler hunting is throttled and hunger-gated](../bug_report/2026-11-26-moon-howler-hunt-cadence-and-hunger.md):** investigating; PR #215 source fixes; prior-head CI green, latest follow-up and live-save verification pending.
 
 **2026-11-26 — [Moon Howlers are repeatedly scattered from travel surfaces](../bug_report/2026-11-26-moon-howler-road-ejection.md):** investigating; PR #215 source fixes; prior-head CI green, latest follow-up and live-save verification pending.
@@ -232,7 +238,7 @@
 
 **2026-11-06 — [Dormant Moon Howler curse mislabeled active](../bug_report/2026-11-06-moon-howler-dormant-curse-mislabeled-active.md):** Dashboard and Population UI confused curse persistence with active werewolf form and listed 20:00 instead of 22:00. Corrected in PR #126; runtime verification not run.
 
-**2026-11-06 — [Automatic staffing can select unreachable jobs](../bug_report/2026-11-06-automatic-staffing-ignores-commute-reachability.md):** Assignment treats the two-hour pathfinding rule as a preference and transfers lack the reachability check. Open; source confirmed, runtime untested.
+**2026-11-06 — [Automatic staffing can select unreachable jobs](../bug_report/2026-11-06-automatic-staffing-ignores-commute-reachability.md):** Assignment treats the two-hour pathfinding rule as a preference and transfers lack the reachability check. Open; source confirmed, runtime untested. PR #213 follow-up shares home-based swap ranking; focused CI passed, exact-tie follow-up pending.
 
 **2026-11-06 — [Auto-play staffing policy inconsistency](../bug_report/2026-11-06-autoplay-staffing-policy-inconsistent.md):** Food and non-food proposals differ in manual-staffing handling; runtime effect unverified. Investigating; manual staffing is proposed for removal in favor of persistent automatic jobs.
 
