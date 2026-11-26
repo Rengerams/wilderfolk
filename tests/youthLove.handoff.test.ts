@@ -174,3 +174,29 @@ describe('youth-love → courtship handoff (audit F3)', () => {
     expect(werewolf.courtshipPartnerId).toBeUndefined();
   });
 });
+
+
+describe('youth-love reconciliation preserves exclusive bonds', () => {
+  it('does not overwrite an existing adult courtship during handoff', () => {
+    const { state, older, younger, ctx } = pair(19, 18);
+    older.courtshipPartnerId = 3;
+    older.courtshipProgress = 65;
+    advance(state, ctx);
+    expect(older.courtshipPartnerId).toBe(3);
+    expect(older.courtshipProgress).toBe(65);
+    expect(older.youthLovePartnerId).toBeUndefined();
+    expect(younger.youthLovePartnerId).toBeUndefined();
+  });
+
+  it('does not clear a valid pair when a third settler has a stale outgoing link', () => {
+    const { state, older, younger, ctx } = pair(16, 15);
+    const stale = settler(3, 15, 'male', { youthLovePartnerId: YOUNGER_ID });
+    ctx.entityById.set(stale.id, stale);
+    ctx.playerHumans = [stale, older, younger];
+    state.entities = [stale, older, younger];
+    advance(state, ctx);
+    expect(stale.youthLovePartnerId).toBeUndefined();
+    expect(older.youthLovePartnerId).toBe(YOUNGER_ID);
+    expect(younger.youthLovePartnerId).toBe(OLDER_ID);
+  });
+});
