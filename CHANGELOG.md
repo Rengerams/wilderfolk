@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (26 Nov 2026; PR pending):** Compact 30×10 walls and 30×20 gates use a shared corner lattice and exact duplicate matching; vertical artwork follows the actual placement axis.
+
 - **Improved (26 Nov 2026; PR pending):** Virtual Player construction now prefers available building plots beside existing roads, preserving street layouts. If no lawful road frontage is available, the previous deterministic camp-ring search remains the fallback.
 - **Fixed (26 Nov 2026; PR #198):** Apprenticeships now release previous jobs and builder crews via the shared workforce transition. Auto-staffing reserves trainees, and legacy conflicting assignments are reconciled so apprentices attend their actual masters.
 

@@ -1001,3 +1001,5 @@ Functions added, changed or removed by the whole-code remediation. The existing 
 `GameLoop.getExitSaveWorld` in `src/game/gameLoop.ts` selects the acknowledged checkpoint for `persistGameOnPageHide`.
 
 `scripts/run-tauri-dev-log.mjs` owns desktop development process logging.
+
+Wall strips use a shared 30-unit corner lattice in `buildingRotation.snapBuildingCenter`; `stripTopology.resolveWallStripPlan` deduplicates only actual coincident same-axis segments. Existing saved footprints remain authoritative; vertical wall art follows the stored axis in `stripRender.drawProceduralWall`.

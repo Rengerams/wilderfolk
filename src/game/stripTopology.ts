@@ -12,7 +12,6 @@ import { isWallBuildingType } from './defenseStructures';
 import {
   analyzeStripJunction,
   collectStripCenters,
-  JUNCTION_PROXIMITY,
   resolveJunctionCenter,
   type StripJunctionInfo,
 } from './stripJunction';
@@ -182,14 +181,6 @@ export function resolveWallStripPlan(
   centers: { x: number; y: number }[],
   stripRotation: BuildingRotation,
 ): StripPlacementPiece[] {
-  const extra = centers.map((c) => ({
-    x: c.x,
-    y: c.y,
-    rotation: stripRotation,
-    type: stripType,
-  }));
-  const { hList, vList } = collectStripCenters(state.buildings, 'wall', extra);
-
   const pieces: StripPlacementPiece[] = [];
   const emitted = new Set<string>();
 
@@ -198,17 +189,13 @@ export function resolveWallStripPlan(
     const key = cellKey(snapped.x, snapped.y);
     if (emitted.has(key)) continue;
 
-    const junctionPt = resolveJunctionCenter(snapped.x, snapped.y, hList, vList);
-    const existing = findStripBuildingAt(state, junctionPt.x, junctionPt.y, JUNCTION_PROXIMITY * 0.75, 'wall');
+    // Only an actual coincident segment is a duplicate or a gate replacement. A nearby
+    // parallel or perpendicular wall must not consume this new segment's placement.
+    const existing = state.buildings.find((b) => isWallStripType(b.type)
+      && b.x === snapped.x && b.y === snapped.y
+      && (stripType === BuildingType.WallGate || normalizeBuildingRotation(b.rotation) === stripRotation));
 
     if (existing && isWallStripType(existing.type)) {
-      // A perpendicular wall can intersect an existing wall; both arms must remain physical.
-      if (stripType === BuildingType.Wall && existing.type === BuildingType.Wall
-        && normalizeBuildingRotation(existing.rotation) !== stripRotation) {
-        pieces.push({ type: stripType, x: snapped.x, y: snapped.y, rotation: stripRotation });
-        emitted.add(key);
-        continue;
-      }
       emitted.add(key);
       // A WallGate run replaces the plain Wall it lands on (the placement owner demolishes it and
       // refunds half); any other wall-family overlap is stepped over so the rest of the run places.
@@ -288,30 +275,6 @@ function resolveStripPlan(
     y: c.y,
     rotation: stripRotation,
   }));
-}
-
-function findStripBuildingAt(
-  state: WorldState,
-  x: number,
-  y: number,
-  tolerance = 6,
-  family?: 'wall' | 'road',
-): Building | undefined {
-  const familyFilter = family === 'wall'
-    ? isWallStripType
-    : family === 'road'
-      ? isRoadStripType
-      : null;
-  for (const b of state.buildings) {
-    if (!b.completed) continue;
-    if (familyFilter) {
-      if (!familyFilter(b.type)) continue;
-    } else if (!isWallStripType(b.type) && !isRoadStripType(b.type)) {
-      continue;
-    }
-    if (Math.hypot(b.x - x, b.y - y) <= tolerance) return b;
-  }
-  return undefined;
 }
 
 /** Select only matching player-built strips intersecting the drag rectangle, in stable world order. */

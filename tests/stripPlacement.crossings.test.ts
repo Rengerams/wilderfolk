@@ -3,7 +3,7 @@ import { initGame } from '../src/game/worldGen';
 import { BUILDING_CONFIGS, BuildingType, MapSize } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
 import { getBuildingFootprintForType } from '../src/game/buildingRotation';
-import { getPlaceBuildingFailureReason } from '../src/game/buildingPlacementActions';
+import { buildStripPreview, placeStripChain, getPlaceBuildingFailureReason } from '../src/game/buildingPlacementActions';
 import { canPlaceBuilding } from '../src/game/placementUtils';
 import type { RenderSnapshot } from '../src/game/renderSnapshot';
 
@@ -53,4 +53,28 @@ describe('crossing construction', () => {
       expect(canPlaceBuilding(world as unknown as RenderSnapshot, type, x, y, 0)).toBe(false);
     });
   }
+});
+
+import { testWorldMap } from '../src/test/worldMapFixtures';
+import { TerrainType } from '../src/game/gameTypes';
+
+describe('compact wall runs', () => {
+  it.each([BuildingType.Wall, BuildingType.WallGate])('commits horizontal and vertical %s with matching footprints', (type) => {
+    const world = worldFor(type);
+    world.worldMap = testWorldMap({ tilesX: 60, tilesY: 60, tileType: () => TerrainType.Grassland });
+    world.width = world.height = 600;
+    world.buildings = [];
+    world.resources.wood = world.resources.stone = world.resources.gold = 10000;
+    for (const rotation of [0, 90] as const) {
+      const x = rotation === 0 ? 150 : 390;
+      const y = 150;
+      const preview = buildStripPreview(world, type, x, y, x + (rotation === 0 ? 90 : 0), y + (rotation === 90 ? 90 : 0), rotation);
+      expect(preview.segments).toHaveLength(4);
+      expect(preview.segments.every((s) => s.valid && s.rotation === rotation)).toBe(true);
+      const placed = placeStripChain(world, type, preview.segments, rotation);
+      expect(placed.buildings).toHaveLength(4);
+      const fp = getBuildingFootprintForType(type, rotation);
+      expect(placed.buildings.every((b) => b.width === fp.width && b.height === fp.height && (b.rotation ?? 0) === rotation)).toBe(true);
+    }
+  });
 });
