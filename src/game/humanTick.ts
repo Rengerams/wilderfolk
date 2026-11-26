@@ -330,7 +330,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     workplaceId: number | undefined;
     atWorkplace: boolean;
     socialTime: boolean;
-    atFestival: boolean;
+    contactOnly: boolean;
   }>();
   const advancedCourtshipIds = new Set<number>();
 
@@ -812,7 +812,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       workplaceId: workplace?.id,
       atWorkplace: atPost || wasInsideWorkplace,
       socialTime: false,
-      atFestival: false,
+      contactOnly: false,
     };
     let ateMeal = false;
     if (isPlayerHuman(entity)) {
@@ -959,9 +959,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.id,
     ) : undefined;
     const atFestival = festivalStand != null && Math.hypot(festivalStand.x - entity.x, festivalStand.y - entity.y) <= 18;
-    courtshipPresence.socialTime = socialTime && !takingNeedsBreak && !stayIn && !inElectionCeremony
+    const home = entity.residenceBuildingId == null ? undefined : buildingById.get(entity.residenceBuildingId);
+    const homeLeisure = stayIn && !preShiftSleep.headHome && !recoveringSleep
+      && (!hasResidenceAssignment(entity) || (!!home?.completed && isAtBuildingReach(entity, home)));
+    const contactOnly = atFestival || homeLeisure;
+    courtshipPresence.socialTime = socialTime && !takingNeedsBreak && (!stayIn || homeLeisure) && !inElectionCeremony
       && !workCommuteDue && !huntingWere && (!festivalGathering || atFestival);
-    courtshipPresence.atFestival = atFestival;
+    courtshipPresence.contactOnly = contactOnly;
     if (!goingToHospital && !inSpotlightGathering && !inElectionCeremony && !huntingWere) {
       courtshipReadiness.set(entity.id, courtshipPresence);
     } else {
@@ -1127,8 +1131,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         onSchedule = true;
         suppressIdle = true;
       } else if (residence?.completed) {
-        if (commuteHumanToBuilding(entity, residence, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, residence);
-        commuting = true;
+        const arrived = commuteHumanToBuilding(entity, residence, config.speed, WORK_COMMUTE_RUSH);
+        if (arrived) enterHumanBuilding(entity, residence);
+        commuting = !arrived || !homeLeisure;
         onSchedule = true;
         suppressIdle = true;
       }
@@ -1288,7 +1293,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     );
     suppressIdle = huntingSuppressIdle;
     // Do not advertise leisure availability while another movement owner is active.
-    courtshipPresence.socialTime = courtshipPresence.socialTime && (!suppressIdle || atFestival) && !commuting && !huntingWere;
+    courtshipPresence.socialTime = courtshipPresence.socialTime && (!suppressIdle || contactOnly) && !commuting && !huntingWere;
 
     advancePregnancy(entity, conceivedToday);
 
@@ -1332,7 +1337,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Courtship: only two observed, awake people may interact. An on-duty pair may
     // progress only if both are actually at their *same* workplace and within 10 px.
     // Other workers do not abandon their jobs to chase dates.
-    if (!sleepingForNeeds && (((!suppressIdle || atFestival) && courtshipPresence.socialTime) || courtshipPresence.onDuty) &&
+    if (!sleepingForNeeds && (((!suppressIdle || contactOnly) && courtshipPresence.socialTime) || courtshipPresence.onDuty) &&
       isEligibleToCourt(entity) && entity.gender &&
       entity.energy > config.reproductionEnergyThreshold * 0.6) {
       // The first processed member of an established pair may wait briefly at
@@ -1342,7 +1347,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         ? entityById.get(entity.courtshipPartnerId) : undefined;
       if (established && established.courtshipPartnerId === entity.id
         && !courtshipReadiness.has(established.id)
-        && !courtshipPresence.onDuty && !atFestival && courtshipPresence.socialTime
+        && !courtshipPresence.onDuty && !contactOnly && courtshipPresence.socialTime
         && isEligibleToCourt(established)
         && Math.hypot(established.x - entity.x, established.y - entity.y) <= 10) {
         entity.vx = 0;
@@ -1369,7 +1374,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             return canAdvanceCourtship(courtshipPresence, presence, Math.hypot(candidate.x - entity.x, candidate.y - entity.y), socialTime);
           }
           return courtshipPresence.socialTime && presence.socialTime
-            && (!(atFestival || presence.atFestival) || Math.hypot(candidate.x - entity.x, candidate.y - entity.y) <= 10);
+            && (!(contactOnly || presence.contactOnly) || Math.hypot(candidate.x - entity.x, candidate.y - entity.y) <= 10);
         },
       );
 
@@ -1387,7 +1392,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const closeEnough = dist <= 10;
 
         if (!closeEnough) {
-          if (!courtshipPresence.onDuty && !otherPresence.onDuty && !atFestival && !otherPresence.atFestival && courtshipPresence.socialTime && otherPresence.socialTime) {
+          if (!courtshipPresence.onDuty && !otherPresence.onDuty && !contactOnly && !otherPresence.contactOnly && courtshipPresence.socialTime && otherPresence.socialTime) {
             // Keep established dates stable, but do not lock two strangers into an
             // exclusive relationship until they actually meet. An unreachable route
             // must not create a permanent zero-progress courtship.
@@ -1400,7 +1405,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         } else if (canAdvanceCourtship(courtshipPresence, otherPresence, dist, courtshipPresence.socialTime && otherPresence.socialTime)) {
           // Leisure dates stop at contact instead of resuming an old walk target.
           // Coworkers keep their work movement and attendance untouched.
-          if (!courtshipPresence.onDuty && !otherPresence.onDuty && !atFestival && !otherPresence.atFestival) {
+          if (!courtshipPresence.onDuty && !otherPresence.onDuty && !contactOnly && !otherPresence.contactOnly) {
             entity.vx = 0;
             entity.vy = 0;
             clearHumanWalkTarget(entity);
