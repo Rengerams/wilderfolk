@@ -97,7 +97,7 @@ export function markWildlifeDead(
   const previousType = entity.type;
 
   if (isKillableSettlerEntity(entity)) {
-    killHuman(entity, ctx.updatedBuildings, ctx.entityById, tick);
+    killHuman(entity, ctx.updatedBuildings, ctx.entityById, tick, state);
   } else if (state) {
     retireWildlifeInState(state, entity);
     ctx.entityById.delete(entity.id);
