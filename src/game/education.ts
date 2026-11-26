@@ -1,11 +1,10 @@
 import { findStaffedBuildings } from './buildings';
 import type { WorldState, Entity, Building } from './gameTypes';
-import { BuildingType, EntityType, JobType, PATH_CELL } from './gameTypes';
+import { BuildingType, EntityType, PATH_CELL } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycle';
 import { isWorkDay } from './dayCycleClock';
 import { SCHOOL_MIN_AGE, SCHOOL_CHILDREN_PER_TEACHER } from './gameConstants';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { increaseEntitySkill } from './skills';
 import { addNotification } from './simEffects';
 import { citizenFullName } from './citizenId';
 import { logEvent } from './eventLog';
@@ -24,11 +23,6 @@ export const SCHOOL_GRADUATION_DAYS = 120;
 export const SCHOOL_EDUCATED_DAYS = 135;
 /** School days for full education tier. */
 export const SCHOOL_FULL_EDUCATION_DAYS = 150;
-
-/** Credit school years completed before a child immigrated: 20 days per year after age 6. */
-export function immigrantSchoolDaysForAge(age: number): number {
-  return Math.max(0, Math.min(HUMAN_ADULT_MIN_AGE - SCHOOL_MIN_AGE, Math.floor(age) - SCHOOL_MIN_AGE)) * 20;
-}
 
 /** Hard ceiling on one school's pupils — the two-teacher building's twenty seats. */
 export const SCHOOL_MAX_CHILDREN = 20;
@@ -441,11 +435,7 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
   if (entity.educated) return;
 
   entity.educated = true;
-  const skillBonus = tier === 3 ? 20 : tier === 2 ? 8 : 5;
   const energyBonus = tier === 3 ? 10 : tier === 2 ? 6 : 4;
-  for (const job of Object.values(JobType)) {
-    increaseEntitySkill(entity, job, skillBonus);
-  }
   entity.maxEnergy = Math.min(500, entity.maxEnergy + energyBonus);
   adjustHumanStaminaFromEnergy(entity, energyBonus * 0.5);
 
@@ -454,7 +444,7 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
     tier === 3
       ? `${label} graduated with honors — eligible for grandmaster apprenticeship`
       : tier === 2
-        ? `${label} graduated — bonus skills & stamina`
+        ? `${label} graduated — eligible for apprenticeship training`
         : `${label} finished basic schooling — ready to work`;
 
   addNotification(state, 'Graduation', detail, 'success');
