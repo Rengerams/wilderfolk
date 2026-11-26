@@ -3,7 +3,7 @@
  * these cases pin the ring order, the nearest-centre answer and the map-edge clamp it must keep.
  */
 import { describe, expect, it } from 'vitest';
-import { nearestWalkableWorldPoint } from '../src/game/pathfinding';
+import { getPathGrid, nearestWalkableWorldPoint } from '../src/game/pathfinding';
 import { PATH_CELL, TerrainType } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 
@@ -46,6 +46,29 @@ describe('nearestWalkableWorldPoint', () => {
       tileType: (tx, ty) => (tx === 2 && ty === 0 ? undefined : TerrainType.River),
     });
     expect(nearestWalkableWorldPoint(map, [], 2, 3)).toEqual(centre(2, 0));
+  });
+
+  it('reuses a prepared simulation grid without reading the building list again', () => {
+    const map = testWorldMap({
+      tilesX: 12, tilesY: 12, seed: 16,
+      tileType: (tx, ty) => tx === 7 && ty === 4 ? undefined : TerrainType.River,
+    });
+    const grid = getPathGrid(map, []);
+    const buildings = new Proxy([], {
+      get() { throw new Error('prepared grid must bypass building signature scans'); },
+    });
+    expect(nearestWalkableWorldPoint(map, buildings, 55, 45, undefined, grid)).toEqual(centre(7, 4));
+    expect(nearestWalkableWorldPoint(map, buildings, 75, 45, undefined, grid)).toEqual({ x: 75, y: 45 });
+  });
+
+  it('preserves the nearest result and row-order tie break on a deep blocked ring', () => {
+    const map = testWorldMap({
+      tilesX: 24, tilesY: 24, seed: 17,
+      tileType: (tx, ty) => ty === 12 && (tx === 3 || tx === 21) ? undefined : TerrainType.River,
+    });
+    expect(nearestWalkableWorldPoint(map, [], centre(12, 12).x, centre(12, 12).y)).toEqual(centre(3, 12));
+    expect(nearestWalkableWorldPoint(map, [], centre(12, 12).x, centre(12, 12).y,
+      (tx) => tx === 3)).toEqual(centre(21, 12));
   });
 
   it('returns null when no cell is walkable', () => {

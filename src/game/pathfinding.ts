@@ -307,8 +307,10 @@ function nearestWalkableTile(
     const maxY = Math.min(rows - 1, startY + radius);
     for (let ty = minY; ty <= maxY; ty++) {
       const onEdgeRow = ty === minY || ty === maxY;
-      for (let tx = minX; tx <= maxX; tx++) {
-        if (!onEdgeRow && tx !== minX && tx !== maxX) continue;
+      // Interior rows only contribute their two endpoints. Jump over their interior
+      // rather than visiting every cell of the square to discard it.
+      const stride = onEdgeRow ? 1 : Math.max(1, maxX - minX);
+      for (let tx = minX; tx <= maxX; tx += stride) {
         if (blocked[ty * cols + tx] !== 0 || additionalBlocked?.(tx, ty)) continue;
         const dx = (tx + 0.5) * PATH_CELL - worldX;
         const dy = (ty + 0.5) * PATH_CELL - worldY;
@@ -407,9 +409,11 @@ export function nearestWalkableWorldPoint(
   x: number,
   y: number,
   additionalBlocked?: (tx: number, ty: number) => boolean,
+  preparedGrid?: PathGrid,
 ): { x: number; y: number } | null {
-  if (![x, y].every(Number.isFinite)) return null;
-  const grid = getReadOnlyPathGrid(map, buildings);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  // Simulation callers already holding the current grid avoid hashing all buildings again.
+  const grid = preparedGrid ?? getReadOnlyPathGrid(map, buildings);
   if (grid.cols <= 0 || grid.rows <= 0) return null;
   const startX = Math.max(0, Math.min(grid.cols - 1, Math.floor(x / PATH_CELL)));
   const startY = Math.max(0, Math.min(grid.rows - 1, Math.floor(y / PATH_CELL)));
@@ -748,13 +752,6 @@ function searchRoute(
       if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
       const nIdx = ny * cols + nx;
       if (blocked[nIdx]) continue;
-      // Match the integrator's exact corner and cliff rule: a diagonal is illegal if
-      // either orthogonal neighbour is blocked or too steep from the current tile.
-      // A* and physical movement must never disagree about traversable edges.
-      if (dx !== 0 && dy !== 0 && segmentCrossesBlocked(grid,
-        (cx + 0.5) * PATH_CELL, (cy + 0.5) * PATH_CELL,
-        (nx + 0.5) * PATH_CELL, (ny + 0.5) * PATH_CELL, false, true)) continue;
-
       let step = dx !== 0 && dy !== 0 ? 1.4142 : 1;
       // A built road is cheaper than open ground, so the route follows the player's own paths.
       if (pricedRoad?.[nIdx]) step *= ROAD_STEP_COST;
@@ -768,6 +765,11 @@ function searchRoute(
 
       const ng = scores[cur] + step;
       if (ng < (stamps[nIdx] === generation ? scores[nIdx] : Infinity)) {
+        // Only a cost-improving edge can change the route. Keep the same exact
+        // diagonal corner, cliff and body-clearance verdict before relaxing it.
+        if (dx !== 0 && dy !== 0 && segmentCrossesBlocked(grid,
+          (cx + 0.5) * PATH_CELL, (cy + 0.5) * PATH_CELL,
+          (nx + 0.5) * PATH_CELL, (ny + 0.5) * PATH_CELL, false, true)) continue;
         scores[nIdx] = ng;
         parents[nIdx] = cur;
         stamps[nIdx] = generation;
@@ -875,7 +877,7 @@ export function getNavigationQuote(
     }
     quote = found.path && found.cost !== null
       ? Object.freeze({ status: 'priced' as const, costTiles: found.cost,
-          tiles: Object.freeze(found.path.map((p) => Object.freeze({ x: p.x, y: p.y }))) })
+          tiles: Object.freeze(found.path.map((p) => Object.freeze(p))) })
       : Object.freeze({ status: 'unreachable' as const });
   }
   const tiles = quote.status === 'priced' ? quote.tiles.length : 0;
@@ -934,7 +936,7 @@ export function findRouteCostOutcome(
 }
 
 /** Tile path → world-coordinate waypoints (tile centers). */
-export function pathWaypoints(path: { x: number; y: number }[]): { x: number; y: number }[] {
+export function pathWaypoints(path: readonly Readonly<{ x: number; y: number }>[]): { x: number; y: number }[] {
   const half = PATH_CELL / 2;
   return path.map((p) => ({ x: p.x * PATH_CELL + half, y: p.y * PATH_CELL + half }));
 }
@@ -1026,6 +1028,12 @@ function segmentCrossesBlocked(
   const originY = ty;
   const goalX = Math.floor(x1 / PATH_CELL);
   const goalY = Math.floor(y1 / PATH_CELL);
+  // Most physical steps and stand checks stay in one cell. No corner or cliff transition
+  // is possible there; body-clearance callers still use the full traversal.
+  if (!keepBodyClear && tx === goalX && ty === goalY) {
+    if (tx < 0 || ty < 0 || tx >= cols || ty >= rows) return true;
+    return !allowBlockedStart && (!!blocked[ty * cols + tx] || !!additionalBlocked?.(tx, ty));
+  }
   const dx = x1 - x0;
   const dy = y1 - y0;
   const stepX = Math.sign(dx);
@@ -1235,14 +1243,16 @@ export function steerWithPath(
   }
   if (!currentGrid) return 'direct';
 
-  const directBlocked = lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY);
   const acceptedRoute = pathCache.get(cacheKey);
   const continueAcceptedRoute = !!acceptedRoute?.waypoints && acceptedRoute.waypoints.length > 1
     && acceptedRoute.walkerId === entity.id
     && acceptedRoute.targetX === targetX && acceptedRoute.targetY === targetY;
-  const considerRoadDetour = !directBlocked && !!pricedRoadMask(currentGrid);
+  // Accepted routes only need their next leg checked; defer the full goal chord until replanning.
+  let directBlocked = !continueAcceptedRoute && lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY);
+  const hasPricedRoad = !!pricedRoadMask(currentGrid);
+  const considerRoadDetour = !directBlocked && hasPricedRoad;
   if (directBlocked || considerRoadDetour || continueAcceptedRoute) {
-    let cached = pathCache.get(cacheKey);
+    let cached = acceptedRoute;
     if (cached && (cached.walkerId !== entity.id || cached.targetX !== targetX || cached.targetY !== targetY
       || (cached.directDetourRejected && (directBlocked
         || Math.abs(cached.startTileX - Math.floor(entity.x / PATH_CELL))
@@ -1280,6 +1290,7 @@ export function steerWithPath(
       }
     }
     if (cached === undefined) {
+      if (continueAcceptedRoute) directBlocked = lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY);
       recordPathCacheMiss();
       const startTx = Math.floor(entity.x / PATH_CELL);
       const startTy = Math.floor(entity.y / PATH_CELL);
@@ -1296,12 +1307,12 @@ export function steerWithPath(
         { x: startTx, y: startTy }, { x: goalTx, y: goalTy }, { maxNodes: searchBudget });
       const fallback = startBlocked || goalBlocked
         ? routeToBlockedGoal(currentGrid, startTx, startTy, goalTx, goalTy, goalBlocked, true, searchBudget)
-        : shared?.status === 'pending' && !!pricedRoadMask(currentGrid)
+        : shared?.status === 'pending' && hasPricedRoad
           ? searchRoute(currentGrid, startTx, startTy, goalTx, goalTy, searchBudget, false, true)
           : null;
       const routeCost = shared?.status === 'priced' ? shared.costTiles : fallback?.cost ?? null;
       const routeTiles = shared?.status === 'priced'
-        ? shared.tiles.map((tile) => ({ x: tile.x, y: tile.y })) : fallback?.path ?? null;
+        ? shared.tiles : fallback?.path ?? null;
       // Blocked goals skip the shared quote, but exhausting their stand search is pending too.
       const routePending = fallback?.hitNodeCap === true
         || (shared?.status === 'pending' && !fallback?.path);
@@ -1313,7 +1324,7 @@ export function steerWithPath(
       const routeTravel = routeCost === null ? Infinity : routeCost * PATH_CELL
         + Math.hypot(entity.x - startCentreX, entity.y - startCentreY)
         + Math.hypot(targetX - goalCentreX, targetY - goalCentreY);
-      const savesTime = !directBlocked && !!pricedRoadMask(currentGrid)
+      const savesTime = !directBlocked && hasPricedRoad
         && !!routeTiles && routeTiles.length > 1 && routeTravel + 0.000001 < dist;
       let waypoints = routeTiles && (directBlocked || savesTime)
         ? collapseStraightWaypoints(pathWaypoints(routeTiles)) : null;

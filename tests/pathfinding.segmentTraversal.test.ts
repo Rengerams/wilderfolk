@@ -4,6 +4,7 @@ import {
   lineCrossesBlocked, nearestWalkableWorldPoint, resetPathGridCaches, setCurrentPathMap,
   steerWithPath, type PathGrid,
 } from '../src/game/pathfinding';
+import { getCurrentPathfinderTickCounters, isPathfindingMetricsEnabled, resetPathfinderTickMetrics, setPathfindingMetricsEnabled } from '../src/game/pathfindingMetrics';
 import { applyHumanWalkStep } from '../src/game/simulation/humanMovement';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
 import { building, human } from '../src/test/factories';
@@ -16,6 +17,19 @@ function grid(cols: number, rows: number): PathGrid {
 const center = (tile: number) => (tile + 0.5) * PATH_CELL;
 
 describe('one authoritative movement walkability verdict', () => {
+  it('preserves same-cell stand, step and extra-blocker verdicts', () => {
+    const g = grid(3, 3);
+    const x = center(1), y = center(1);
+    expect(lineCrossesBlocked(g, x, y, x + 1, y)).toBe(false);
+    expect(isWalkStepAllowed(x, y, x + 1, y, g)).toBe(true);
+    g.blocked[4] = 1;
+    expect(lineCrossesBlocked(g, x, y, x + 1, y)).toBe(true);
+    expect(isWalkStepAllowed(x, y, x + 1, y, g)).toBe(true);
+    expect(isWalkStepAllowed(x, y, x + 1, y, g, () => true)).toBe(true);
+    expect(isWalkStepAllowed(-2, y, -1, y, g)).toBe(false);
+    expect(lineCrossesBlocked(g, NaN, y, x, y)).toBe(true);
+  });
+
   it('does not skip a one-tile obstruction on a very long physical step', () => {
     const g = grid(300, 4);
     g.blocked[1 * g.cols + 151] = 1;
@@ -207,6 +221,34 @@ describe('one authoritative movement walkability verdict', () => {
     expect(findPath(g, 0.5, 0, 2, 2)).toBeNull();
     expect(getNavigationQuote(g, { x: 0, y: 0 }, { x: 2, y: 2 }, { maxNodes: 0.5 }))
       .toEqual({ status: 'pending', reason: 'search-budget' });
+  });
+
+  it('checks only the current leg while continuing an accepted route', () => {
+    const map = testWorldMap({
+      tilesX: 15, tilesY: 15, seed: 2715,
+      tileType: (x, y) => x === 7 && y !== 10 ? TerrainType.River : undefined,
+    });
+    const wasEnabled = isPathfindingMetricsEnabled();
+    resetPathGridCaches();
+    setCurrentPathMap(map, []);
+    setPathfindingMetricsEnabled(true);
+    try {
+      const walker = human(2715, { x: center(4), y: center(4) });
+      expect(steerWithPath(walker, center(10), center(4), 2, 'cached-leg')).toBe('path');
+      resetPathfinderTickMetrics();
+      expect(steerWithPath(walker, center(10), center(4), 2, 'cached-leg')).toBe('path');
+      expect(getCurrentPathfinderTickCounters().lineChecks).toBe(0);
+      expect(getCurrentPathfinderTickCounters().cacheHits).toBe(1);
+      walker.x = center(8);
+      resetPathfinderTickMetrics();
+      expect(steerWithPath(walker, center(10), center(4), 2, 'cached-leg')).toBe('direct');
+      expect(getCurrentPathfinderTickCounters().lineChecks).toBeGreaterThan(0);
+    } finally {
+      resetPathfinderTickMetrics();
+      setPathfindingMetricsEnabled(wasEnabled);
+      setCurrentPathMap(null);
+      resetPathGridCaches();
+    }
   });
 
   it('does not turn a reused cached route into a route through a newly blocked tile', () => {
