@@ -189,6 +189,10 @@ All 15 cases are preserved. The staffing fixture keeps its original factory sema
 
 CI passed all 153 source guards and 513 declarative mutations, but the overlap gate rejected a deleted staffing test path in its reviewed approval. Updated that path to its workforce owner and replaced the retired keyboard-contract reference in the semantic-duplicate review with the surviving overlay-keyboard behavior test, documenting the static guard separately. The review fingerprints and approval thresholds are unchanged. Full CI verification is pending.
 
+## Renderer owner consolidation — 2026-11-27
+
+Moved six frame-cache cases into `renderer.frameOwnership.test.ts` and two missing-sprite fallback cases into `renderer.motionAndHover.test.ts`. The two frame-ownership source-only cases now run as static guards, including mutation proofs; registry total 155 rules. Fallback module and global cleanup is scoped to its suite. All eight moved behavior cases and existing runtime cases remain. CI verification is pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

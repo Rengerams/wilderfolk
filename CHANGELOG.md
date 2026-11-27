@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Tests (27 Nov 2026):** Consolidate renderer frame-cache and fallback regressions, and move two frame ownership source checks into the central registry.
+
 - **Tests (27 Nov 2026):** Repair stale semantic overlap and duplicate review evidence paths after test consolidation; retain the reviewed fingerprints and guard thresholds.
 
 - **Tests (27 Nov 2026):** Consolidate housing pulse, automatic staffing, repair command validation and reduced motion regressions into their owner suites, preserving all 15 cases.

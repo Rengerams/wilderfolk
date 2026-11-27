@@ -1574,6 +1574,14 @@ const SOURCE_ROWS = [
     id: 'player-human-faction-union-exhaustive',
     checks: [{ file: 'src/game/playerHuman.ts', matches: /Record<NonNullable<Entity\['faction'\]>, boolean>/ }],
   },
+  {
+    id: 'map-canvas-no-fullscreen-filter',
+    checks: [{ file: 'src/App.css', notMatches: /filter:\s*contrast\(/, example: '.map-canvas { filter: contrast(1.04) saturate(1.06); }' }],
+  },
+  {
+    id: 'mini-map-no-private-raf',
+    checks: [{ file: 'src/components/MiniMap.tsx', notMatches: /requestAnimationFrame/, example: 'animId = requestAnimationFrame(draw);' }],
+  },
 ];
 
 const asArray = (value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]);

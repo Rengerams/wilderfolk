@@ -694,7 +694,8 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/saveLoad.valueIntegrity.test.ts` | `logEntry`, `payloadWithEventLog` (value-normalization fixtures; existing `realPayload` and `buildWorld` reused) |
 | `tests/housingPipeline.invariants.test.ts` | `worldWith`, `assignContext` (assignment pulse fixtures) |
 | `tests/workforce.transitions.test.ts` | `legacyStaffingWorld` (legacy manual staffing fixture) |
-| `tests/renderer.motionAndHover.test.ts` | `sharedModule` (isolated reduced-motion module fixture) |
+| `tests/renderer.motionAndHover.test.ts` | `sharedModule`, `recorder`, `snapshot`, `completedBuilding`, `expectedPadFill` (isolated motion and fallback fixtures) |
+| `tests/renderer.frameOwnership.test.ts` | `snapshot`, `minimalWorld`, `camera`, `blacksmithBuilding`, `gradientCounter` (frame cache fixtures) |
 | `tests/rpgArt.integration.test.ts` | `localAsset` |
 | `tests/stripDemolition.workerProtocol.test.ts` | `cmd` |
 | `tests/stripPlacement.crossings.test.ts` | `worldFor`, `crossingSpot`, `completedStrip`, `completedPlayerBuildings`, `findReplacementSpot`, `worldWithCompletedWall`, `gateSegmentReplacing` |
