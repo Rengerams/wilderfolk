@@ -592,6 +592,7 @@ export const SIMULATION_DECISIONS = {
       'human.courtshipPartnerId',
       'human.courtshipProgress',
       'human.relationshipStatus',
+      'lifetimeStats.totalMarriages / marriagesThisYear (via stats.recordMarriageEvent at wedding commit)',
       'human.partnerId',
     ],
     scheduledFrom: 'humanTick.ts (per realtime tick, observed pair sleep, distance and shared-duty gates) → humanRelationships.findCourtshipPartner / canAdvanceCourtship / tryCompleteCourtshipMarriage',
@@ -600,7 +601,7 @@ export const SIMULATION_DECISIONS = {
   affairs: {
     owner: 'humanRelationships.ts — tryDailyAffairEncounter, recordAffairTrystSite, tryDailyAffairGossip, tryExposeCaughtAffairForPair, exposeAffair',
     cadence: 'staggered-social',
-    cadenceNote: 'authority declares staggered/daily — tryst PROGRESS advances every realtime tick (affairProgress += rate * PER_TICK_RATE_SCALE, no stagger); flavour chat attempts on one hourly, ID-staggered tick per active leading lover; establishment/gossip/scandal roll on the daily gate; caught-in-act exposure can fire from realtime proximity checks; getAffairTrystBuilding selects only an available home of either lover when nearby; otherwise affairs remain outdoors; partner order never changes site selection; buildingAccess.buildingAccessPoint gives both partners the one outdoor doorstep instead of the blocked footprint centre; recordAffairTrystSite records an indoor location only when both lovers actually entered it; the before-shift hour is not affair time; during a scheduled shift and its commute, work movement wins and affair encounters are off-duty only',
+    cadenceNote: 'daily encounter owns all affair progress and establishment; flavour chat attempts on one hourly, ID-staggered tick per active leading lover; gossip/scandal roll on the daily gate; caught-in-act exposure requires witnessed proximity with one stable daily probability per leading lover (direct home walk-in remains certain); witnessed divorces are independent with 21-day courtship cooldown; getAffairTrystBuilding selects only an available home of either lover when nearby; otherwise affairs remain outdoors; partner order never changes site selection; buildingAccess.buildingAccessPoint gives both partners the one outdoor doorstep instead of the blocked footprint centre; recordAffairTrystSite records an indoor location only when both lovers actually entered it; the before-shift hour is not affair time; during a scheduled shift and its commute, work movement wins and affair encounters are off-duty only',
     writes: [
       'human.affairPartnerId',
       'human.affairProgress',
@@ -624,7 +625,6 @@ export const SIMULATION_DECISIONS = {
       'human.pregnancyFromYouthLove (conception route)',
       'human.pregnancyProgress',
       'human.pregnancyDueProgress',
-      'human.relationshipStatus (expecting)',
     ],
     scheduledFrom: 'humanTick.ts (isNewCalendarDay gate) → tryDailyConception → resolveConception → pregnancy.startPregnancy',
     testFile: 'tests/phase7.social.test.ts, tests/conceptionEvent.labelling.test.ts, tests/youthConception.ageFloor.test.ts, tests/humanLifecycle.test.ts',
