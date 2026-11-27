@@ -7,7 +7,7 @@ import { initGame } from '../src/game/worldGen';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { tickPregnancyAndBirth, LIFECYCLE_CONFIG, isPregnancyHospitalDue } from '../src/game/simulation/humanLifecycle';
-import { getPregnancyProgressFraction } from '../src/game/pregnancy';
+import { getPregnancyProgressFraction, startPregnancy } from '../src/game/pregnancy';
 import { createEntity } from '../src/game/entityFactory';
 import { tryDailyConception } from '../src/game/simulation/humanRelationships';
 import { personDayRoll, resetSimRng, seededRandomForRun } from '../src/game/simRng';
@@ -492,7 +492,7 @@ describe('human lifecycle golden contracts', () => {
     expect(tryDailyConception(married.state, married.ctx, marriedMother)).toBe(true);
     expect(marriedMother.pregnancyProgress).toBe(0);
     expect(marriedMother.pregnancyDueProgress).toBe(expectedDue(MATERNAL_ID, marriedDay));
-    expect(marriedMother.pregnantById).toBeUndefined();
+    expect(marriedMother.pregnantById).toBe(FATHER_ID);
     expect(marriedMother.relationshipStatus).toBe('married');
     expect(husband.relationshipStatus).toBe('married');
 
@@ -533,6 +533,30 @@ describe('human lifecycle golden contracts', () => {
     expect(affairMother.pregnantById).toBe(FATHER_ID);
     expect(affairMother.pregnancyFromYouthLove).toBeUndefined();
     expect(affairMother.relationshipStatus).toBe('single');
+  });
+
+  it.each(['remarriage', 'father removed', 'unknown father'] as const)('keeps conception paternity through %s', (scenario) => {
+    const father = human(FATHER_ID, { partnerId: MATERNAL_ID });
+    const newHusband = human(HUSBAND_ID, { partnerId: MATERNAL_ID });
+    const mother = human(MATERNAL_ID, { partnerId: FATHER_ID });
+    const { state, ctx } = makeFixture([mother, father, newHusband]);
+    startPregnancy(mother, { origin: 'married', fatherId: scenario === 'unknown father' ? undefined : FATHER_ID, startDay: 1 });
+    mother.partnerId = HUSBAND_ID;
+    father.partnerId = undefined;
+    father.relationshipStatus = 'single';
+    if (scenario === 'father removed') {
+      father.alive = false;
+      ctx.entityById.delete(FATHER_ID);
+    }
+    mother.pregnancyProgress = mother.pregnancyDueProgress! - 1;
+    state.tick = liveBirthTick();
+
+    runBirth(state, ctx, mother);
+
+    const child = ctx.newEntities.find((entity) => entity.type === EntityType.Human)!;
+    expect(child.fatherId).toBe(scenario === 'unknown father' ? undefined : FATHER_ID);
+    expect(newHusband.childrenIds).not.toContain(child.id);
+    expect(mother.relationshipStatus).toBe('married');
   });
 
   it('gives an arriving pregnant immigrant and a colony conception the same pregnancy state', () => {
