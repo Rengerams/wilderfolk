@@ -2,6 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (27 Nov 2026):** Children no longer follow caregivers during work or commute hours, or while they remain at their workplace; stale following routes are cleared.
+
+
 - **Fixed (27 Nov 2026):** Population performance fixtures now seed 1,800 residents on actual dry Meadows terrain (continental remains the 250/750 stress map) and include departed settlers' earned career days in the independent workday audit without weakening checks.
 
 - **Fixed (27 Nov 2026):** Raid launch previews now identify a jailed elected commander and remaining sentence instead of displaying a generic unavailable-leader warning; lack of weapons is reported separately. A prisoner remains ineligible until released.

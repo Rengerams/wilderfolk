@@ -10,6 +10,7 @@ import {
 } from '../src/game/humanLeisureBehavior';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { TICKS_PER_HOUR, TICKS_PER_DAY } from '../src/game/dayCycle';
+import { isWorkDay } from '../src/game/dayCycleClock';
 import { initGame } from '../src/game/worldGen';
 import { homeStandPosition } from '../src/game/simulation/humanMovement';
 import { isWaterTerrainType } from '../src/game/terrain/terrainTraits';
@@ -64,7 +65,7 @@ function crowdedSteeringTick(state: ReturnType<typeof initGame>, child: Entity, 
   throw new Error('could not find a crowded child play day');
 }
 
-function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans: Entity[], tick: number): boolean {
+function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans: Entity[], tick: number, livingHumanAt: (id: number | null | undefined) => Entity | undefined = () => undefined): boolean {
   state.tick = tick;
   return tickHumanChildLeisure({
     state,
@@ -79,12 +80,38 @@ function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans:
     humanSocialGrid: undefined,
     width: state.width,
     height: state.height,
-    livingHumanAt: () => undefined,
+    livingHumanAt,
     suppressIdleInitial: false,
   });
 }
 
 describe('tickHumanChildLeisure', () => {
+  it('does not follow a parent commuting to or working at a job, including the custodian fallback', () => {
+    const { state, child } = childFixture();
+    const parent = playerChild(child, 21, {
+      age: 30, isJuvenile: false, workerBuildingId: 99, x: 180, y: 100,
+    });
+    child.motherId = parent.id;
+    const humans = [child, parent];
+    const lookup = (id: number | null | undefined) => id === parent.id ? parent : undefined;
+    const day = Array.from({ length: 60 }, (_, i) => i).find((d) =>
+      isWorkDay(d * TICKS_PER_DAY) && personDayRoll(child.id, d * TICKS_PER_DAY, 601) > 0.22);
+    if (day == null) throw new Error('test needs a workday with a follow roll');
+    state.workSchedule = { startHour: 8, endHour: 16 };
+    for (const [hour, expected] of [[6, true], [7, false], [9, false], [17, true]] as const) {
+      tickChild(state, child, humans, day * TICKS_PER_DAY + hour * TICKS_PER_HOUR + 1, lookup);
+      expect(child.childLeisureActivity === 'following').toBe(expected);
+      expect(child.childLeisureTargetId === parent.id).toBe(expected);
+    }
+    parent.indoorBuildingId = parent.workerBuildingId;
+    tickChild(state, child, humans, day * TICKS_PER_DAY + 18 * TICKS_PER_HOUR, lookup);
+    expect(child.childLeisureActivity).not.toBe('following');
+    parent.workerBuildingId = undefined;
+    parent.indoorBuildingId = undefined;
+    tickChild(state, child, humans, day * TICKS_PER_DAY + 9 * TICKS_PER_HOUR, lookup);
+    expect(child.childLeisureActivity).toBe('following');
+  });
+
   it('prefers childhood and strong friends on successive days without excluding newcomers', () => {
     const { state, child } = childFixture();
     const friend = playerChild(child, 11, {
