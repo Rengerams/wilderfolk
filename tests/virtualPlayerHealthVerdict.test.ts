@@ -248,7 +248,7 @@ describe('the health verdict at the owner numbers', () => {
     expect(decision?.reason).toContain('projected');
   });
 
-  it('plans a future Farm with a safe excess donor even when every adult already works', () => {
+  it('plans food expansion from visible demand even when every adult already works', () => {
     const world = ownerColony(5, {
       tick: 8 * TICKS_PER_DAY,
       workforcePolicy: 'survival',
@@ -265,7 +265,7 @@ describe('the health verdict at the owner numbers', () => {
     expect(action?.reason).toContain('projected');
   });
 
-  it('never plans a future Farm using protected food crews as pretend spare labor', () => {
+  it('does not use private transfer eligibility to plan food expansion', () => {
     const world = ownerColony(4, {
       tick: 8 * TICKS_PER_DAY,
       workforcePolicy: 'survival',
@@ -276,9 +276,10 @@ describe('the health verdict at the owner numbers', () => {
       })),
     }, { farms: 2, mills: 0 });
     expect(world.entities.every((human) => human.workerBuildingId != null)).toBe(true);
-    expect(decideVirtualPlayerAction(world)?.command).not.toMatchObject({
-      op: 'startBuilding', type: BuildingType.Farm,
-    });
+    const before = decideVirtualPlayerAction(world);
+    // Private employment history is not available in a normal player construction decision.
+    world.entities.forEach((human) => { human.lastAutoJobTransferTick = undefined; });
+    expect(decideVirtualPlayerAction(world)).toEqual(before);
   });
 
   it('transfers an excess lumber worker to a waiting Farm before food runs short', () => {
@@ -541,16 +542,15 @@ describe('the health verdict at the owner numbers', () => {
       .toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
   });
 
-  it('stops unstaffable food expansion across repeated deficit days', () => {
+  it('waits across repeated deficit days when a visible completed food site remains empty', () => {
     const world = ownerColony(3, {
       tick: 8 * TICKS_PER_DAY,
       resources: { food: 300, wood: 500, stone: 200, gold: 0, iron: 150 },
     }, {
       mills: 1, farms: 1,
-      extraBuildings: [building(80, BuildingType.Mill)],
+      extraBuildings: [building(80, BuildingType.Mill), building(81, BuildingType.Farm)],
     });
-    // The Farm requires both workers; the one remaining Lumber Mill employee
-    // is its protected minimum. There is no idle or surplus donor for a new site.
+    // The empty Farm is visible to the player. Do not query hidden workforce eligibility.
     const farm = world.buildings.find((site) => site.type === BuildingType.Farm)!;
     farm.level = 3;
     for (let day = 8; day <= 14; day++) {
