@@ -82,7 +82,7 @@ function loadThroughParse(
 
 function waterCells(map: WorldMap): number {
   let count = 0;
-  // The L1 build grid marks all water, including shallow water that L0 permits walking across.
+  // The L1 build grid marks all water independently of the L0 walkability grid.
   const grid = map.buildGrid;
   if (!grid) return 0;
   for (let i = 0; i < grid.length; i++) {
