@@ -1,4 +1,3 @@
-import { selectRaidBattleCommentary } from '../src/game/eventLog';
 /**
  * The event log announces each settled outcome once: an affair, a hotel stay and the auto-staff
  * result each produce one entry per occurrence, not one per checking tick.
@@ -24,6 +23,7 @@ import {
   EVENT_LOG_MAX_ENTRIES,
   logEvent,
   repairEventLogOnLoad,
+  selectRaidBattleCommentary,
 } from '../src/game/eventLog';
 import { createEventCounter } from '../scripts/colonyHealth';
 
@@ -278,5 +278,6 @@ describe('battle commentary projection', () => {
     const entries = [{ ...base, id: 6, tick: 21 }, final, outgoing, first, first, { ...base, tick: 9 }];
     expect(selectRaidBattleCommentary(entries, { rivalName: 'Hillford', incoming: true, baselineId: 0, startedAtTick: 10, resolvedAtTick: 20 }).map((event) => event.id)).toEqual([2, 4]);
     expect(selectRaidBattleCommentary(entries, { rivalName: 'Hillford', incoming: false, baselineId: 0, startedAtTick: 10, resolvedAtTick: 20 }).map((event) => event.id)).toEqual([3]);
+    expect(selectRaidBattleCommentary(entries, { rivalName: 'Hillford', incoming: true, baselineId: 0 })).toEqual([]);
   });
 });

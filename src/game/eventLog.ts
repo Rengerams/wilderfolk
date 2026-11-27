@@ -150,6 +150,8 @@ export function selectRaidBattleCommentary(
   events: readonly GameEventLog[],
   scope: { rivalName: string; incoming: boolean; baselineId: number; startedAtTick?: number; resolvedAtTick?: number },
 ): GameEventLog[] {
+  // A legacy report without a start clock must not replay the rival's entire history.
+  if (scope.baselineId === 0 && scope.startedAtTick == null) return [];
   const seen = new Set<number>();
   const result: GameEventLog[] = [];
   for (const event of events) {

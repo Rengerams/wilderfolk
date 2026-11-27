@@ -60,7 +60,7 @@ describe('raid match report presentation', () => {
       ],
     });
     expect(html).toContain('LIVE');
-    expect(html).toContain('The lines clash');
+    expect(html).toContain('The decisive hour');
     expect(html).toContain('Skip commentary');
     expect(html).not.toContain('Do you want to exterminate this village?');
   });

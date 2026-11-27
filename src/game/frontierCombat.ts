@@ -1666,7 +1666,9 @@ export function tickPendingOutgoingRaidEvents(state: WorldState): void {
         event.expiresAtTick = state.tick + 3 * TICKS_PER_DAY;
         event.battleChronicle = [`Our soldiers reached ${event.rivalName}.`];
         if (event.rivalResponse === 'fight') beginTextRaidBattle(state, event);
-        addBigNews(state, '⚔️ War-band arrived', `Your soldiers reached ${event.rivalName}. Choose the battle outcome in the raid banner.`, 'negative');
+        addBigNews(state, '⚔️ War-band arrived', event.rivalResponse === 'fight'
+          ? `Your soldiers reached ${event.rivalName}; the battle is underway.`
+          : `Your soldiers reached ${event.rivalName}. Choose a response in the raid banner.`, 'negative');
         logEvent(state, 'combat', `War-band arrived at ${event.rivalName}`, event.rivalName, 'outgoing_raid', 'dispatched');
       }
       remaining.push(event);

@@ -139,7 +139,7 @@ export default function BattleReportScreen({
               <div aria-hidden="true" className={`text-3xl tracking-tighter text-emerald-200 sm:text-5xl ${status === 'LIVE' ? 'motion-safe:animate-pulse' : ''}`}>♟ ♟ ♟</div>
               <div className="text-center">
                 <div aria-hidden="true" className={`text-4xl text-amber-300 drop-shadow-lg sm:text-5xl ${status === 'LIVE' ? 'motion-safe:animate-pulse' : ''}`}>⚔</div>
-                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">{resolved || pending ? 'The field falls silent' : 'The lines clash'}</p>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">{resolved || pending ? 'The field falls silent' : progressPercent >= 75 ? 'The decisive hour' : progressPercent >= 50 ? 'The struggle intensifies' : progressPercent >= 25 ? 'The lines clash' : 'The war-bands assemble'}</p>
                 <p className="text-[10px] text-stone-400">Confirmed casualties</p>
               </div>
               <div aria-hidden="true" className={`text-3xl tracking-tighter text-rose-200 sm:text-5xl ${status === 'LIVE' ? 'motion-safe:animate-pulse' : ''}`}>♟ ♟ ♟</div>
@@ -211,7 +211,7 @@ export default function BattleReportScreen({
 
             <div className="rounded-lg border border-amber-900/50 bg-amber-950/20 p-3 text-xs text-amber-200/80">
               <p className="font-bold uppercase tracking-wider text-amber-300/80">Your war-band</p>
-              <p className="mt-1">{liveArmy ? `${liveArmy.soldierIds?.length ?? 0} marched out; ${liveSoldiers ?? 0} still standing in the line.` : liveDefense ? `${liveDefense.soldierIds?.length ?? 0} villagers stood at the barricade.` : 'The survivors who came home.'}</p>
+              <p className="mt-1">{liveArmy ? `${liveArmy.soldierIds?.length ?? 0} marched out; ${liveSoldiers ?? 0} still standing in the line.` : liveDefense ? `${liveDefense.soldierIds?.length ?? 0} villagers committed; ${liveSoldiers ?? 0} still standing.` : 'The survivors who came home.'}</p>
             </div>
           </aside>
         </div>

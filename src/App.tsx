@@ -1397,8 +1397,9 @@ export default function App() {
     [world],
   );
   const liveRaidSoldierCount = useMemo(() => {
-    const army = battleReport && world.pendingOutgoingRaidEvents.find((event) =>
-      event.phase === 'fighting' && (battleReport.raidId ? event.id === battleReport.raidId : event.rivalName === battleReport.rivalName));
+    if (!battleReport) return null;
+    const army = (battleReport.incoming ? world.pendingRaidEvents : world.pendingOutgoingRaidEvents).find((event) =>
+      event.phase === 'fighting' && event.id === battleReport.raidId);
     if (!army) return null;
     const selected = new Set(army.soldierIds ?? []);
     return world.entities.reduce((count, person) => count + Number(selected.has(person.id) && person.alive && person.raidDeploymentId === army.id), 0);
@@ -2392,7 +2393,7 @@ export default function App() {
             key={battleReport.raidId ?? battleReport.rivalName}
             rivalName={battleReport.rivalName}
             incoming={battleReport.incoming}
-            skipInitialReplay={battleReport.baselineId === 0 && resolved}
+            skipInitialReplay={battleReport.baselineId === 0}
             dayLabel={`${world.season} · Year ${world.year} · Day ${world.dayInYear}`}
             events={events}
             resolved={resolved}
