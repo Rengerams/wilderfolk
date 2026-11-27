@@ -987,7 +987,7 @@ function tryDivorceOnCaughtCheater(
     isMarriedOrExpecting(cheater) &&
     cheater.partnerId != null;
   if (!isCheaterMarried) return;
-  if (!caughtInAct && !isSpouseNearby(cheater, entityById, 40)) return;
+  if (!isSpouseNearby(cheater, entityById, AFFAIR_WALK_IN_RADIUS)) return;
 
   const spouse = getLivingEntity(cheater.partnerId!, entityById);
   if (!spouse) return;
@@ -1021,10 +1021,12 @@ function tryDivorceOnCaughtCheater(
     paramour.partnerId != null;
   if (isParamourMarried) {
     const paramourSpouse = getLivingEntity(paramour.partnerId!, entityById);
-    const paramourSpousePresent = caughtInAct || isSpouseNearby(paramour, entityById, 40);
+    const paramourSpousePresent = isSpouseNearby(paramour, entityById, 40);
     const paramourDivorceChance = caughtInAct ? 1 : RELATIONSHIP_CONFIG.DIVORCE_CAUGHT_CHANCE;
     if (paramourSpouse && paramourSpousePresent && personDayRoll(paramour.id, state.tick, 609) < paramourDivorceChance) {
       dissolveMarriage(paramourSpouse, paramour, state.tick);
+      startCourtshipCooldown(paramourSpouse);
+      startCourtshipCooldown(paramour);
       if (paramour.pregnant) paramour.relationshipStatus = 'expecting';
       if (paramourSpouse.pregnant) paramourSpouse.relationshipStatus = 'expecting';
       logEvent(
@@ -1079,7 +1081,7 @@ function tryExposeCaughtAffair(
 
   let chance = caughtAffairRollChance(churchStrength, establishedAffair);
   if (walkInAtHome) chance = 1;
-  if (getSimRng('humanRelationships')() < chance) {
+  if (personDayRoll(cheater.id, state.tick, 611) < chance) {
     exposeAffair(state, cheater, paramour, 'caught', entityById, buildings, playerHumans);
   }
 }
