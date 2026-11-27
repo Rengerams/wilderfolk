@@ -193,6 +193,7 @@ export function getHumanActivityProjection(
     : state.buildings.find((building) => building.id === entity.residenceBuildingId) ?? null;
   const workReason = getSettlerWorkReason(state, entity);
   const activity = getHumanActivityStatus(state, entity, workReason);
+  const shift = resolveShift(state, entity, workplace, hour);
   const target: HumanActivityTarget | null = (() => {
     // A hospital-bound or admitted settler is not walking a workplace leg, so claim no post target.
     if (workReason.code === 'going-to-hospital' || workReason.code === 'in-hospital') return null;
@@ -260,10 +261,11 @@ export function getHumanActivityProjection(
   return {
     activity,
     schedule: {
-      label: entity.isJuvenile ? 'Child — no work schedule' : getWorkScheduleLabel(schedule),
-      startHour: schedule.startHour,
-      endHour: schedule.endHour,
-      onShift: !entity.isJuvenile && resolveShift(state, entity, workplace ?? undefined, hour).onShift,
+      label: entity.isJuvenile ? 'Child — no work schedule'
+        : shift.next.kind === 'venue' ? 'Individual venue shift' : getWorkScheduleLabel(schedule),
+      startHour: shift.next.kind === 'venue' ? shift.next.hour : schedule.startHour,
+      endHour: shift.next.endHour ?? schedule.endHour,
+      onShift: !entity.isJuvenile && shift.onShift,
     },
     home: homeBuilding ? { id: homeBuilding.id, label: labelFor(homeBuilding) } : null,
     workplace: workplace ? { id: workplace.id, label: labelFor(workplace) } : null,
