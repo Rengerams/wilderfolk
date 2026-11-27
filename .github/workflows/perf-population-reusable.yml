@@ -61,6 +61,9 @@ jobs:
           set -euo pipefail
           git checkout --detach "$BASE_SHA"
           git show "$HEAD_SHA:scripts/perf-population-colony.mts" > scripts/perf-population-colony.mts
+          # Both revisions must use the same seeded settlement fixture. Otherwise
+          # changed shallow-water navigation puts the base and head on different islands.
+          git show "$HEAD_SHA:scripts/colonyHealth.ts" > scripts/colonyHealth.ts
           npm ci --prefer-offline --no-audit --no-fund
           PERF_EXPECT_CAREER=0 PERF_REPORT="$REPORT_DIR/baseline.json" /usr/bin/time -f 'peak_rss_kib=%M\nelapsed_seconds=%e' -o "$REPORT_DIR/baseline.resources" \
             node --import tsx scripts/perf-population-colony.mts 2>&1 | tee "$REPORT_DIR/baseline.log"
@@ -74,6 +77,7 @@ jobs:
           else
             git clean -f -- scripts/perf-population-colony.mts
           fi
+          git restore -- scripts/colonyHealth.ts
           git checkout --detach "$HEAD_SHA"
           npm ci --prefer-offline --no-audit --no-fund
           PERF_EXPECT_CAREER=1 PERF_REPORT="$REPORT_DIR/pr.json" /usr/bin/time -f 'peak_rss_kib=%M\nelapsed_seconds=%e' -o "$REPORT_DIR/pr.resources" \
