@@ -24,6 +24,14 @@ describe('raid chronicle lifecycle and combat stats', () => {
       baselineId: 0, startedAtTick: 10, endedAtTick: 16 }).map((event) => event.id)).toEqual([3, 4, 8]);
   });
 
+  it('does not drop distinct named deaths with identical text or an incomplete casualty summary', () => {
+    const row = { ...entry(1, 'outgoing_raid', 'casualties', 'Village fighter killed: Alex'), tick: 20, raidId: 'a', entityName: 'Hillford' };
+    const summary = { ...row, id: 3, message: '3 villagers fell on the raid against Hillford (Alex, Alex, Robin)' };
+    expect(selectRaidBattleEvents([summary, { ...row, id: 2 }, row], {
+      raidId: 'a', rivalName: 'Hillford', incoming: false, baselineId: 0,
+    }).map((event) => event.id)).toEqual([1, 2, 3]);
+  });
+
   it('scopes legacy reports to the correct side and bounded time window, including repelled defenses', () => {
     const legacy = (id: number, tick: number, kind: CombatLogKind, stage: CombatLogStage, name = 'Hillford') =>
       ({ ...entry(id, kind, stage, 'Report ' + id), tick, entityName: name });
