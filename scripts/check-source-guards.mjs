@@ -1582,6 +1582,10 @@ const SOURCE_ROWS = [
     id: 'mini-map-no-private-raf',
     checks: [{ file: 'src/components/MiniMap.tsx', notMatches: /requestAnimationFrame/, example: 'animId = requestAnimationFrame(draw);' }],
   },
+  {
+    id: 'save-load-entity-index-before-resolvers',
+    checks: [{ file: 'src/game/saveLoad.ts', order: [["rebuildEntityByIdMap(world);","migrateTickTimeline(world"],["rebuildEntityByIdMap(world);","syncMoonHowlerForms("],["rebuildEntityByIdMap(world);","reconcileDanglingReferencesOnLoad(world);"],["rebuildEntityByIdMap(world);","assignMissingResidences("],["rebuildEntityByIdMap(world);","assignMissingWorkers("],["rebuildEntityByIdMap(world);","repairJuvenileAssignmentsOnLoad(world);"]] }],
+  },
 ];
 
 const asArray = (value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]);

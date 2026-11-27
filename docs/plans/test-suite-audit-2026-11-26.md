@@ -193,6 +193,14 @@ CI passed all 153 source guards and 513 declarative mutations, but the overlap g
 
 Moved six frame-cache cases into `renderer.frameOwnership.test.ts` and two missing-sprite fallback cases into `renderer.motionAndHover.test.ts`. The two frame-ownership source-only cases now run as static guards, including mutation proofs; registry total 155 rules. Fallback module and global cleanup is scoped to its suite. All eight moved behavior cases and existing runtime cases remain. CI verification is pending.
 
+## Dialogue, persistence and simulation owner consolidation — 2026-11-27
+
+- `dialogue.legacyElectionsAudit.test.ts` → `dialogue.bankIntegrity.test.ts` (1 case).
+- `persistenceBatch.loadContract.test.ts` → `saveLoad.outcomeReasons.test.ts` (14 runtime cases, shared slot fixture and scoped RNG/storage cleanup).
+- `simBatch.offscreenThrottle.test.ts` → `humanTick.hotPathIndexes.test.ts` (5 cases, original fixture semantics preserved).
+
+Moved the load index ordering source test into the central registry with all six ordering pairs. Registry total: 156 rules. Retained all 20 moved runtime cases. Verified active registry file references against the planned tree. Full CI verification pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete
