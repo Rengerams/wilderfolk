@@ -84,7 +84,7 @@ import { inferStripRotation, type StripSegment } from './stripBuild';
 
 /** One proposed auto-play action plus the short player-facing reason for it. */
 export interface VirtualPlayerDecision {
-  command: WorkerCommand;
+  command: Exclude<WorkerCommand, { op: 'assignWorker' | 'removeWorker' }>;
   reason: string;
 }
 
