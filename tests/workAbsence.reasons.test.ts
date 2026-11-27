@@ -278,7 +278,7 @@ describe('the reason a settler is not at their post', () => {
     const worker = settler(1, { energy: 10 });
     const state = world(workdayTick(11), { entities: [worker] });
 
-    expect(getSettlerWorkReason(state, worker)).toEqual({ code: 'ill', label: 'Ill — exhausted' });
+    expect(getSettlerWorkReason(state, worker)).toEqual({ code: 'exhausted', label: 'Exhausted' });
   });
 
   it('says working for a tired settler who is visibly at the post', () => {
