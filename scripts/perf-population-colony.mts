@@ -11,9 +11,10 @@ import { buildEntityByType } from '../src/game/simFocus';
 import { moveResident, syncResidenceOccupants } from '../src/game/housingPipeline';
 import { assignWorkerTransition, syncJobBuildingOccupants } from '../src/game/workforce';
 import { buildingAccessPoints } from '../src/game/buildingAccess';
-import { beginCommuteRoutePass, isWithinAssignableCommute } from '../src/game/commuteReach';
-import { getCurrentPathGrid, isGroundWalkableAt, setCurrentPathMap } from '../src/game/pathfinding';
+import { beginCommuteRoutePass, isWithinAssignableCommute, quoteBuildingCommute, MAX_ASSIGNABLE_COMMUTE_HOURS } from '../src/game/commuteReach';
+import { getCurrentPathGrid, getReadOnlyPathGrid, isGroundWalkableAt, setCurrentPathMap } from '../src/game/pathfinding';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
+import { createBuilding } from '../src/game/worldGen';
 import { updateStorageCaps } from '../src/game/economy';
 import { preloadDialogueBank } from '../src/game/dialogueTrees';
 import { loadNames } from '../src/game/nameLoader';
@@ -57,6 +58,16 @@ function careerCredits(world: WorldState): number {
   return total;
 }
 
+/** Rotate benchmark district geometry without changing building types or their owners. */
+function rotateDistrictOffset(x: number, y: number, quarterTurns: number): { x: number; y: number } {
+  switch (quarterTurns) {
+    case 1: return { x: -y, y: x };
+    case 2: return { x: -x, y: -y };
+    case 3: return { x: y, y: -x };
+    default: return { x, y };
+  }
+}
+
 function prepareScaledColony(target: number): WorldState {
   const prepared = prepareColonyWorld({ size: MapSize.Huge, seed: SEED, scenario: 'producers', preferConnectedStart: true });
   const world = prepared.world;
@@ -70,9 +81,8 @@ function prepareScaledColony(target: number): WorldState {
   let spawned = 0;
 
   for (let district = 0; district < districts; district++) {
-    // Sample the same physical layout on baseline and PR. Real building footprints,
-    // a continuous walk lane and two cross-streets must all be dry and unreserved;
-    // a whole empty 360px square is needlessly restrictive on shoreline terrain.
+    // The full template (buildings plus genuine walk corridors) is the same on
+    // baseline and PR; rotate it to fit irregular mainland and coastal terrain.
     const siteTypes: Array<readonly [BuildingType, number, number]> = [
       ...[0, 72, 144, 216].map((offset) => [BuildingType.House, offset, 0] as const),
       ...[0, 72, 144, 216].map((offset) => [BuildingType.Farm, offset, 95] as const),
@@ -84,33 +94,68 @@ function prepareScaledColony(target: number): WorldState {
     if (district % 4 === 0) {
       siteTypes.push([BuildingType.Barn, 235, -72], [BuildingType.Silo, 170, -72]);
     }
-    const districtSites = [
-      ...siteTypes.map(([type, offsetX, offsetY]) => ({
-        x: offsetX - 120, y: offsetY - 65,
-        width: BUILDING_CONFIGS[type].width + 8,
-        height: BUILDING_CONFIGS[type].height + 8,
-      })),
-      { x: 36 - 120, y: 92 - 65, width: 8, height: 192 },
-      { x: 120 - 120, y: 55 - 65, width: 260, height: 8 },
-      { x: 120 - 120, y: 140 - 65, width: 260, height: 8 },
-    ];
-    const center = findDryBenchmarkStart(world, preferred, districtSites);
-    const x = center.x - 120;
-    const y = center.y - 65;
-    const homes = [0, 72, 144, 216].map((offset) =>
-      createCompletedBuilding(world, BuildingType.House, x + offset, y));
-    const jobs: Building[] = [
-      ...[0, 72, 144, 216].map((offset) => createCompletedBuilding(world, BuildingType.Farm, x + offset, y + 95)),
-      createCompletedBuilding(world, BuildingType.LumberMill, x, y + 185),
-      createCompletedBuilding(world, BuildingType.Quarry, x + 82, y + 185),
-      createCompletedBuilding(world, BuildingType.Market, x + 166, y + 185),
-      createCompletedBuilding(world, BuildingType.Tavern, x + 238, y + 185),
-    ];
-
-    if (district % 4 === 0) {
-      createCompletedBuilding(world, BuildingType.Barn, x + 235, y - 72);
-      createCompletedBuilding(world, BuildingType.Silo, x + 170, y - 72);
+    let choice: { center: { x: number; y: number }; orientation: number } | null = null;
+    for (let orientation = 0; orientation < 4; orientation++) {
+      const centreOffset = rotateDistrictOffset(120, 65, orientation);
+      const districtSites = siteTypes.map(([type, offsetX, offsetY]) => {
+        const point = rotateDistrictOffset(offsetX, offsetY, orientation);
+        return {
+          x: point.x - centreOffset.x, y: point.y - centreOffset.y,
+          width: BUILDING_CONFIGS[type].width + 8,
+          height: BUILDING_CONFIGS[type].height + 8,
+        };
+      });
+      // One shared dry central lane and two cross-streets keep each row connected.
+      for (const [px, py, width, height] of [
+        [36, 92, 8, 192], [120, 55, 260, 8], [120, 140, 260, 8],
+      ]) {
+        const rotated = rotateDistrictOffset(px, py, orientation);
+        districtSites.push({
+          x: rotated.x - centreOffset.x, y: rotated.y - centreOffset.y,
+          width: orientation % 2 ? height : width,
+          height: orientation % 2 ? width : height,
+        });
+      }
+      try {
+        const center = findDryBenchmarkStart(world, preferred, districtSites, (spot) => {
+          const origin = { x: spot.x - centreOffset.x, y: spot.y - centreOffset.y };
+          const preview = siteTypes.map(([type, offsetX, offsetY], index) => {
+            const point = rotateDistrictOffset(offsetX, offsetY, orientation);
+            return { ...createBuilding(type, origin.x + point.x, origin.y + point.y, -index - 1), completed: true };
+          });
+          const grid = getReadOnlyPathGrid(world.worldMap!, [...world.buildings, ...preview]);
+          const homes = preview.slice(0, 4);
+          const jobs = preview.slice(4, 12);
+          const checked = new Set<string>();
+          let workerIndex = 0;
+          for (const job of jobs) {
+            for (let position = 0; position < BUILDING_CONFIGS[job.type].maxOccupants
+              && workerIndex < districtSize; position++, workerIndex++) {
+              const home = homes[Math.floor(workerIndex / 6)];
+              const key = home.id + ':' + job.id;
+              if (checked.has(key)) continue;
+              checked.add(key);
+              const quote = quoteBuildingCommute(home, job, SPECIES_CONFIG[EntityType.Human].speed, grid);
+              if (quote.status !== 'priced' || quote.leadHours > MAX_ASSIGNABLE_COMMUTE_HOURS) return false;
+            }
+          }
+          return true;
+        });
+        choice = { center, orientation };
+        break;
+      } catch (error) {
+        if (!(error instanceof Error) || !error.message.startsWith('Benchmark map contains no unoccupied dry district plot')) throw error;
+      }
     }
+    if (!choice) throw new Error('No dry, routed district remains after ' + district + ' of ' + districts + ' districts');
+    const centreOffset = rotateDistrictOffset(120, 65, choice.orientation);
+    const origin = { x: choice.center.x - centreOffset.x, y: choice.center.y - centreOffset.y };
+    const placed = siteTypes.map(([type, offsetX, offsetY]) => {
+      const point = rotateDistrictOffset(offsetX, offsetY, choice.orientation);
+      return createCompletedBuilding(world, type, origin.x + point.x, origin.y + point.y);
+    });
+    const homes = placed.slice(0, 4);
+    const jobs: Building[] = placed.slice(4, 12);
 
     const residents: Entity[] = [];
     for (let local = 0; local < districtSize && spawned < needed; local++, spawned++) {
