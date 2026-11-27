@@ -493,8 +493,8 @@ describe('human lifecycle golden contracts', () => {
     expect(marriedMother.pregnancyProgress).toBe(0);
     expect(marriedMother.pregnancyDueProgress).toBe(expectedDue(MATERNAL_ID, marriedDay));
     expect(marriedMother.pregnantById).toBeUndefined();
-    expect(marriedMother.relationshipStatus).toBe('expecting');
-    expect(husband.relationshipStatus).toBe('expecting');
+    expect(marriedMother.relationshipStatus).toBe('married');
+    expect(husband.relationshipStatus).toBe('married');
 
     const youthDay = conceptionDay(604);
     const youthFather = human(FATHER_ID, {
@@ -532,7 +532,7 @@ describe('human lifecycle golden contracts', () => {
     expect(affairMother.pregnancyDueProgress).toBe(expectedDue(MATERNAL_ID, affairDay));
     expect(affairMother.pregnantById).toBe(FATHER_ID);
     expect(affairMother.pregnancyFromYouthLove).toBeUndefined();
-    expect(affairMother.relationshipStatus).toBe('expecting');
+    expect(affairMother.relationshipStatus).toBe('single');
   });
 
   it('gives an arriving pregnant immigrant and a colony conception the same pregnancy state', () => {
