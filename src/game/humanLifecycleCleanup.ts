@@ -198,7 +198,7 @@ export function reconcileFamilyReferencesAfterRemoval(
       survivor.courtshipPartnerId = undefined;
       survivor.courtshipProgress = 0;
     }
-    if (survivor.pregnantById === removedId) survivor.pregnantById = undefined;
+    // Biological paternity is historical lineage, not a live reference; retain it after removal.
     // A youth-love link joins two living settlers. Reconciliation runs before most daily deaths, so
     // the survivor's half must be cleared here or it points at a pruned settler until the next day.
     if (survivor.youthLovePartnerId === removedId) {
