@@ -42,6 +42,7 @@ export function logEvent(
   entityName?: string,
   combatKind?: CombatLogKind,
   combatStage?: CombatLogStage,
+  raidId?: string,
 ): void {
   // Ids must be monotonic per log, not per realm: `applySimTickDelta` drops entries whose id
   // already exists, so never issue an id the newest-first log already uses.
@@ -58,8 +59,52 @@ export function logEvent(
     entityName,
     combatKind,
     combatStage,
+    ...(raidId ? { raidId } : {}),
   });
   if (state.eventLog.length > EVENT_LOG_MAX_ENTRIES) state.eventLog.pop();
+}
+
+/** Read a single battle from the canonical newest-first Chronicle, in display order.
+ * Legacy entries have no raid ID: require their exact rival, side and known battle window.
+ * Preserve named deaths but do not narrate the same casualty group a second time.
+ */
+export function selectRaidBattleEvents(
+  events: readonly GameEventLog[],
+  options: { raidId?: string; rivalName: string; incoming: boolean; baselineId: number;
+    startedAtTick?: number; endedAtTick?: number },
+): GameEventLog[] {
+  const { raidId, rivalName, incoming, baselineId, startedAtTick, endedAtTick } = options;
+  const seen = new Set<number>();
+  const distinct = new Set<string>();
+  const selected: GameEventLog[] = [];
+  for (const event of events) {
+    if (event.type !== 'combat' || seen.has(event.id) || event.id <= baselineId
+      || (startedAtTick != null && event.tick < startedAtTick)
+      || (endedAtTick != null && event.tick > endedAtTick)
+      || event.combatStage === 'cancelled' || event.combatStage === 'challenge') continue;
+    if (event.raidId != null) {
+      if (!raidId || event.raidId !== raidId) continue;
+    } else {
+      if (startedAtTick == null && baselineId === 0) continue;
+      const correctSide = incoming
+        ? event.combatKind === 'defense' || event.combatKind === 'incoming_raid' || event.combatKind === 'repelled'
+        : event.combatKind === 'outgoing_raid';
+      if (!correctSide || event.entityName !== rivalName) continue;
+    }
+    const key = JSON.stringify([event.tick, event.combatKind, event.combatStage, event.message]);
+    if (distinct.has(key)) continue;
+    seen.add(event.id);
+    distinct.add(key);
+    selected.push(event);
+  }
+  const namedDeathTicks = new Set(selected
+    .filter((entry) => entry.combatStage === 'casualties' && entry.message.startsWith('Village fighter killed:'))
+    .map((entry) => entry.tick));
+  return selected.filter((entry) => !(entry.combatStage === 'casualties'
+    && namedDeathTicks.has(entry.tick)
+    && (/^\d+ villagers? fell (?:on the raid|defending)/.test(entry.message)
+      || entry.message.startsWith('Fallen in the fighting at '))))
+    .sort((a, b) => a.tick - b.tick || a.id - b.id);
 }
 
 /** Human death: chronicle entry + HUD notification. */
