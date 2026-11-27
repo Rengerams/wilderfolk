@@ -10,6 +10,7 @@ type RaidReport = NonNullable<WorldState['raidBattleReports']>[number];
 
 interface BattleReportScreenProps {
   rivalName: string;
+  villageName?: string;
   incoming?: boolean;
   resume?: boolean;
   dayLabel: string;
@@ -61,7 +62,7 @@ function outcomeHeadline(outcome: string | undefined, pending: PendingFate | und
 }
 
 export default function BattleReportScreen({
-  rivalName, incoming, resume, dayLabel, events, resolved, pending, report, liveArmy, liveDefense,
+  rivalName, villageName = 'Wilderfolk', incoming, resume, dayLabel, events, resolved, pending, report, liveArmy, liveDefense,
   liveSoldiers, progressPercent, startedAtTick, onClose, onFate,
 }: BattleReportScreenProps) {
   const [revealed, setRevealed] = useState(() => resume ? events.length : Math.min(1, events.length));
@@ -98,9 +99,9 @@ export default function BattleReportScreen({
   }, [allSeen, finalReady, confirmExterminate, dialogRef]);
   const playerLosses = pending?.playerDead ?? report?.playerDeaths
     ?? liveArmy?.battlePlayerCasualties?.length ?? liveDefense?.battlePlayerCasualties?.length ?? 0;
-  const enemyLosses = pending?.enemyDead ?? report?.enemyDeaths ?? 0;
+  const enemyLosses = pending?.enemyDead ?? report?.enemyDeaths;
   const committed = liveArmy?.soldierIds?.length ?? liveDefense?.soldierIds?.length
-    ?? (pending ? pending.playerDead + (liveSoldiers ?? 0) : undefined);
+    ?? (pending && liveSoldiers != null ? pending.playerDead + liveSoldiers : undefined);
   const battleHour = Math.max(0, Math.min(6, Math.floor((progressPercent / 100) * 6)));
   const phaseLabel = finalReady ? 'Aftermath' : resolved || pending ? 'Final reports' : battleHour < 2 ? 'Opening clash' : battleHour < 4 ? 'Main engagement' : 'Decisive phase';
   const ourStrength = liveArmy?.attackerStrength ?? liveDefense?.defenseStrength;
@@ -127,20 +128,20 @@ export default function BattleReportScreen({
             <div className="relative mb-3 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-amber-200"><span className="h-px flex-1 bg-amber-700/50" />{phaseLabel}<span className="h-px flex-1 bg-amber-700/50" /></div>
             <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-2">
             <div className="min-w-0">
-              <p className="truncate text-sm font-black uppercase tracking-wide text-emerald-200 sm:text-lg">Wilderfolk</p>
+              <p className="truncate text-sm font-black uppercase tracking-wide text-emerald-200 sm:text-lg">{villageName}</p>
               <p className="text-[10px] uppercase tracking-widest text-emerald-300/80">{incoming ? 'Defending' : 'Attacking'}</p>
             </div>
             <div className="rounded-xl border border-amber-900/80 bg-black/70 px-4 py-2 text-center font-mono shadow-inner"><p className="text-[9px] uppercase tracking-widest text-stone-400">Confirmed losses</p><div className="flex items-center gap-3">
               <span className="text-3xl font-black text-emerald-300 sm:text-4xl">{playerLosses}</span>
               <span className="text-lg text-stone-500">—</span>
-              <span className="text-3xl font-black text-rose-300 sm:text-4xl">{enemyLosses}</span>
+              <span className="text-3xl font-black text-rose-300 sm:text-4xl">{enemyLosses ?? '—'}</span>
             </div></div>
             <div className="min-w-0 text-right">
               <p className="truncate text-sm font-black uppercase tracking-wide text-rose-200 sm:text-lg">{rivalName}</p>
               <p className="text-[10px] uppercase tracking-widest text-rose-500/80">{incoming ? 'Raiders' : 'War-band'}</p>
             </div>
             </div>
-            {strengthShare != null && <div className="relative mt-4"><div className="mb-1 flex justify-between text-[10px] font-bold uppercase tracking-wider"><span className="text-emerald-200">Our strength {Math.round(ourStrength!)}</span><span className="text-rose-200">Enemy strength {Math.round(theirStrength!)}</span></div><div className="flex h-2 overflow-hidden rounded-full bg-rose-800"><div className="bg-gradient-to-r from-emerald-800 to-emerald-400 transition-[width] duration-700" style={{ width: `${strengthShare}%` }} /></div></div>}
+            {strengthShare != null && ourStrength != null && theirStrength != null && <div className="relative mt-4"><div className="mb-1 flex justify-between text-[10px] font-bold uppercase tracking-wider"><span className="text-emerald-200">Our strength {Math.round(ourStrength)}</span><span className="text-rose-200">Enemy strength {Math.round(theirStrength)}</span></div><div className="flex h-2 overflow-hidden rounded-full bg-rose-800"><div className="bg-gradient-to-r from-emerald-800 to-emerald-400 transition-[width] duration-700" style={{ width: `${strengthShare}%` }} /></div></div>}
           </div>
 
           <div className="mt-3 flex items-center gap-3">
@@ -221,7 +222,7 @@ export default function BattleReportScreen({
                 <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-500">Battle outcome</p>
                 <p className="text-lg font-black text-amber-100">{outcomeHeadline(report?.outcome, pending)}</p>
                 <p className="text-sm text-stone-400">
-                  {playerLosses} of ours killed · {enemyLosses} of theirs · {pending ? `${pending.enemySurvivors} survivors remain` : `${report?.enemyFallen.length ?? 0} identified enemy dead`}
+                  {playerLosses} of ours killed · {enemyLosses == null ? 'Enemy losses unconfirmed' : `${enemyLosses} of theirs`} · {pending ? `${pending.enemySurvivors} survivors remain` : `${report?.enemyFallen.length ?? 0} identified enemy dead`}
                 </p>
               </div>
               {pending && (
