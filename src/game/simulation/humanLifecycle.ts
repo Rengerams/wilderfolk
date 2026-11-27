@@ -131,7 +131,7 @@ export function tickPregnancyAndBirth(
   const husband = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;
   const biologicalFather = biologicalFatherIdAtBirth != null ? livingHumanAt(biologicalFatherIdAtBirth) : undefined;
 
-  //Mother recovery & status reset
+  // Mother recovery and pregnancy reset
   const recoveredEnergy = Math.max(
     entity.maxEnergy * LIFECYCLE_CONFIG.MATERNAL_ENERGY_MIN_RATIO,
     entity.energy - LIFECYCLE_CONFIG.MATERNAL_ENERGY_COST,
@@ -147,10 +147,10 @@ export function tickPregnancyAndBirth(
   entity.pregnancyDueProgress = undefined;
   entity.pregnantById = undefined;
   entity.pregnancyFromYouthLove = undefined;
-  entity.relationshipStatus = entity.partnerId != null ? 'married' : 'single';
+  clearExpectingStatus(entity);
   entity.reproductionCooldown = REPRODUCTION_COOLDOWN_TICKS;
 
-  //Clear expectant status on partners regardless of birth outcome
+  // Repair legacy status on partners without changing current relationship status.
   clearExpectingStatus(husband);
   clearExpectingStatus(biologicalFather);
 
