@@ -770,6 +770,8 @@ export interface OutgoingRaidEvent {
 export interface ElectionCeremonyState {
   electionId?: number;
   ballotTally?: Record<string, number>;
+  /** Immutable names at ballot time; absent on legacy saves. */
+  candidateNames?: Record<string, string>;
   ballotTotal?: number;
   ballotWinnerVotes?: number;
   ballotCast?: boolean;
@@ -969,7 +971,7 @@ export interface WorldState {
   electionBuildupNotifiedYear: number | null;
   electionCeremony: ElectionCeremonyState | null;
   nextElectionId?: number;
-  lastElectionResult?: { electionId: number; winnerId: number | null; ballots: number; tally: Record<string, number>; turnout: number; eligibleVoters: number };
+  lastElectionResult?: { electionId: number; winnerId: number | null; ballots: number; tally: Record<string, number>; candidateNames?: Record<string, string>; turnout: number; eligibleVoters: number };
   electionPromiseRecords?: Array<{ electionId: number; leaderId: number; year: number; dueDay: number; codes: number[]; evaluated: boolean }>;
   villageForge?: VillageForgeState;
   tutorialSeen?: string[];
