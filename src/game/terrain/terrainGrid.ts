@@ -359,9 +359,10 @@ export function patchTile(map: WorldMap, tx: number, ty: number, patch: Partial<
 
 /* ===== L0 / L1 occupancy ===== */
 
-/** Deep water and rivers block walking; shallow water is wadeable. */
+/** Canonical pedestrian terrain policy: water requires a bridge, regardless of depth. */
 const WALK_BLOCKED_TERRAIN = new Set<TerrainType>([
   TerrainType.DeepWater,
+  TerrainType.ShallowWater,
   TerrainType.River,
 ]);
 
