@@ -75,7 +75,6 @@ export function selectRaidBattleEvents(
 ): GameEventLog[] {
   const { raidId, rivalName, incoming, baselineId, startedAtTick, endedAtTick } = options;
   const seen = new Set<number>();
-  const distinct = new Set<string>();
   const selected: GameEventLog[] = [];
   for (const event of events) {
     if (event.type !== 'combat' || seen.has(event.id) || event.id <= baselineId
@@ -91,19 +90,30 @@ export function selectRaidBattleEvents(
         : event.combatKind === 'outgoing_raid';
       if (!correctSide || event.entityName !== rivalName) continue;
     }
-    const key = JSON.stringify([event.tick, event.combatKind, event.combatStage, event.message]);
-    if (distinct.has(key)) continue;
+    // Identical text can refer to distinct settlers with the same name; only IDs deduplicate.
     seen.add(event.id);
-    distinct.add(key);
     selected.push(event);
   }
-  const namedDeathTicks = new Set(selected
-    .filter((entry) => entry.combatStage === 'casualties' && entry.message.startsWith('Village fighter killed:'))
-    .map((entry) => entry.tick));
-  return selected.filter((entry) => !(entry.combatStage === 'casualties'
-    && namedDeathTicks.has(entry.tick)
-    && (/^\d+ villagers? fell (?:on the raid|defending)/.test(entry.message)
-      || entry.message.startsWith('Fallen in the fighting at '))))
+  const namedDeaths = new Map<number, number>();
+  for (const entry of selected) {
+    if (entry.combatStage === 'casualties' && entry.message.startsWith('Village fighter killed:')) {
+      namedDeaths.set(entry.tick, (namedDeaths.get(entry.tick) ?? 0) + 1);
+    }
+  }
+  // Retain a casualty summary when the rolling log no longer contains every named death.
+  return selected.filter((entry) => {
+    if (entry.combatStage !== 'casualties') return true;
+    const count = /^([0-9]+) villagers? fell (?:on the raid|defending)/.exec(entry.message);
+    if (count) return (namedDeaths.get(entry.tick) ?? 0) < Number(count[1]);
+    if (entry.message.startsWith('Fallen in the fighting at ')) {
+      const summary = selected.find((candidate) => candidate.tick === entry.tick
+        && candidate.combatStage === 'casualties'
+        && /^([0-9]+) villagers? fell (?:on the raid|defending)/.test(candidate.message));
+      // The casualty owner's numbered summary (or its complete named rows) carries the same news.
+      return !summary;
+    }
+    return true;
+  })
     .sort((a, b) => a.tick - b.tick || a.id - b.id);
 }
 
