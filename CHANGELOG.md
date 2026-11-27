@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (27 Nov 2026):** Preserve the biological father's identity from conception through remarriage, divorce, death and save reload; childbirth no longer assigns paternity to a new spouse.
 - **Fixed (27 Nov 2026):** Protect bedtime and venue recovery; distinguish exhaustion from illness; use daily affair progress, witnessed divorce and cooldowns; persist actual wedding counts; keep pregnancy separate from marriage.
 
 - **Fixed (27 Nov 2026):** Children no longer follow caregivers during work or commute hours, or while they remain at their workplace; stale following routes are cleared.
