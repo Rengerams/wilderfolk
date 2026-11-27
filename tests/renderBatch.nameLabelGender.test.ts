@@ -2,8 +2,6 @@
  * Gender is not carried by the name plate's colour alone: the plate text also carries the ♂/♀ glyph
  * the inspector uses.
  */
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { formatHumanNameLabel, type HumanNameLabelSubject } from '../src/game/renderer/overheadLayout';
 
@@ -42,16 +40,5 @@ describe('F-RND-19 — the name plate states gender in text', () => {
     expect(leader).toContain('👑');
     expect(leader).toContain('Village head');
     expect(leader).toContain('Head');
-  });
-
-  it('is what the human painter draws', () => {
-    const humans = readFileSync(
-      fileURLToPath(new URL('../src/game/renderer/humans.ts', import.meta.url)),
-      'utf8',
-    );
-    expect(humans).toContain('formatHumanNameLabel(');
-    // The painter must render the plate through the formatter, not inline these literals.
-    expect(humans).not.toContain('· Head');
-    expect(humans).not.toContain('Village head');
   });
 });

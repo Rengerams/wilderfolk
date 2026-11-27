@@ -1479,6 +1479,97 @@ const SOURCE_ROWS = [
   { id: "reputation-single-writer", scan: { dir: "src", ext: [".ts", ".tsx"], minFiles: 301, except: ["src/game/simHelpers.ts", "src/game/simBuffers/simDelta.ts", "src/game/simWorker/simPrep.ts"], notMatches: /(?:state|world)\.villageReputation[^\S\r\n]*=[^\S\r\n]*[^=\r\n]/, example: "state.villageReputation = 50;" } },
   { id: "storage-gain-never-clamps-existing-stock", scan: { dir: "src", ext: [".ts", ".tsx"], minFiles: 301, notMatches: /state\.resources\.\w+\s*=\s*Math\.min\(\s*state\.storageMax\./, example: "state.resources.wood = Math.min(state.storageMax.wood, state.resources.wood + gain);" } },
   { id: "deterministic-tick-position-trigonometry", checks: [{ files: ["src/game/humanTick.ts", "src/game/tickLayerSystems.ts", "src/game/moonHowler.ts", "src/game/villageLeadership.ts", "src/game/simulation/humanMovement.ts", "src/game/simulation/humanLifecycle.ts", "src/game/worldEventSites.ts", "src/game/dailyGrassEcology.ts"], notMatches: /^(?![^\S\r\n]*(?:\/\/|\*|\/\*))[^\r\n]*Math\.(sin|cos)\(/m, example: "const dx = Math.cos(angle);" }] },
+  // Consolidation batch 1: UI ownership.
+  {
+    id: "human-name-label-render-owner",
+    checks: [
+      { file: "src/game/renderer/humans.ts", contains: "formatHumanNameLabel(", notContains: ["· Head", "Village head"] },
+    ],
+  },
+  {
+    id: "taming-candidates-and-reach-owner",
+    checks: [
+      { file: "src/components/SelectedEntityPanel.tsx", contains: ["listTamingCandidates(state)", "hasNearbyPlayerTamingPost(state, entity)"], notMatches: /TamingPost && Math\.hypot/, example: "TamingPost && Math.hypot(dx, dy)" },
+    ],
+  },
+  {
+    id: "research-block-reason-owner",
+    checks: [
+      { file: "src/components/tabPanels/ProgressTabPanel.tsx", contains: ["const canResearch = canStartResearch(state, node.id);", "getResearchBlockReason(state, node.id)", "{blockReason}"] },
+    ],
+  },
+  // Consolidation batch 2: Raid, Chronicle and social cadence.
+  {
+    id: "raid-deadline-single-render-owner",
+    checks: [
+      { file: "src/App.tsx", contains: "formatRaidDeadline(evt, world.tick)", notContains: "formatRaidDeadlineSafe" },
+      { file: "src/components/SelectedBuildingPanel.tsx", notContains: "formatRaidDeadline(" },
+      { file: "src/game/raidUtils.ts", absent: true },
+    ],
+  },
+  {
+    id: "festival-chronicle-message-shape",
+    checks: [
+      { file: "src/game/dailyWorldEvents.ts", counts: [{ needle: "began in the village`", times: 2 }], notMatches: [/festival began in the village/, /festival\$\{/], example: ["festival began in the village", "festival${name}"] },
+    ],
+  },
+  {
+    id: "social-pair-roll-not-id-added-salt",
+    checks: [
+      { file: "src/game/socialLife.ts", notMatches: /personDayRoll\([^)]*\+ Math\.abs/, example: "personDayRoll(id, salt + Math.abs(other));" },
+    ],
+  },
+  // Consolidation batch 3: Logistics.
+  {
+    id: "logistics-overlay-per-frame-only",
+    checks: [
+      { file: "src/game/renderer/overlay.ts", matches: /drawLogisticsOverlay\(ctx, state, cw, ch\)/ },
+      { file: "src/game/entityLayer.ts", notMatches: /logistics/i, example: "state.showLogistics ? 1 : 0," },
+    ],
+  },
+  {
+    id: "logistics-projection-owner",
+    checks: [
+      { file: "src/game/renderer/logistics.ts", contains: "state.logistics", notMatches: /GOOD_ROAD_ACCESS_DISTANCE|MAX_ROAD_ACCESS_DISTANCE|COMMUTE_WALK_BUDGET_TICKS|COMMUTE_EXTREME_DISTANCE|ROAD_CONNECT_GAP/, example: "if (nearest.distance > GOOD_ROAD_ACCESS_DISTANCE) {}", matches: /import type \{[\s\S]*?\} from '\.\.\/logisticsOverlayData';/ },
+      { file: "src/game/renderSnapshot.ts", matches: /computeLogisticsOverlayCached\(world\)|computeLogisticsOverlay\(world\)/ },
+    ],
+  },
+  // Consolidation batch 4: Dashboard aggregates.
+  {
+    id: "ecosystem-health-read-owner",
+    checks: [
+      { files: ["src/game/storyEvents.ts", "src/game/deerParliament.ts", "src/game/dashboardData.ts", "src/game/ecologyStage.ts", "src/game/villagePortrait.ts", "src/game/ecoBreakdown.ts"], matches: /EcosystemHealth/, notMatches: [/ecosystemHealth\s*\?\?/, /Math\.max\(0,\s*Math\.min\(100,\s*value\)\)/], example: ["state.ecosystemHealth ?? 50", "Math.max(0, Math.min(100, value))"] },
+    ],
+  },
+  {
+    id: "village-labour-aggregate-owner",
+    checks: [
+      { file: "src/game/citizenOverview.ts", matches: /computeVillageStats\(/, notMatches: /b\.faction !== 'rival'/, example: "b.faction !== 'rival'" },
+      { file: "src/game/dashboardData.ts", matches: /computeVillageStats\(/, notMatches: /idleAdults\+\+/, example: "idleAdults++" },
+    ],
+  },
+  // Consolidation batch 5: Shared simulation predicates.
+  {
+    id: "colony-human-predicate-owner",
+    checks: [
+      { files: ["src/App.tsx", "src/game/apprenticeships.ts", "src/game/relationships.ts", "src/game/electionVotes.ts", "src/game/housingModel.ts", "src/game/housingPipeline.ts", "src/game/workforce.ts", "src/game/scheduleFeedback.ts", "src/game/leaderHouse.ts", "src/game/moonHowler.ts", "src/components/SimulationDiagnosticsPanel.tsx"], matches: /isPlayerHuman|playerHumansFrom/, notMatches: /\.alive\s*&&\s*![\w.]+\.faction|\.type === EntityType\.Human\s*&&\s*![\w.]+\.faction/, example: "e.alive && !e.faction" },
+      { files: ["src/components/SelectedBuildingPanel.tsx", "src/components/WorkSchedulePanel.tsx"], notMatches: /\.alive\s*&&\s*![\w.]+\.faction|\.type === EntityType\.Human\s*&&\s*![\w.]+\.faction/, example: "e.type === EntityType.Human && !e.faction" },
+    ],
+  },
+  {
+    id: "predator-set-audio-owner",
+    checks: [
+      { file: "src/audio/interactionDetect.ts", matches: /import \{[^}]*PREDATOR_TYPES[^}]*\} from '\.\.\/game\/combat'/, notMatches: /const PREDATOR_TYPES = new Set<EntityType>\(/, example: "const PREDATOR_TYPES = new Set<EntityType>();" },
+      { file: "src/game/combat.ts", matches: /export const PREDATOR_TYPES: ReadonlySet<EntityType> = /, counts: [{ needle: "new Set<EntityType>(", times: 1 }] },
+    ],
+  },
+  {
+    id: "wall-predicate-strip-owner",
+    checks: [
+      { file: "src/game/stripJunction.ts", matches: /isWallBuildingType[^;]*from '\.\/defenseStructures'/, notMatches: /const WALL_TYPES = new Set<BuildingType>\(/, example: "const WALL_TYPES = new Set<BuildingType>();" },
+      { file: "src/game/stripTopology.ts", matches: /isWallBuildingType[^;]*from '\.\/defenseStructures'/, notMatches: /WALL_STRIP_TYPES/, example: "const WALL_STRIP_TYPES = new Set();" },
+    ],
+  },
 ];
 
 const asArray = (value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]);

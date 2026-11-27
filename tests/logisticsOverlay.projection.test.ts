@@ -2,8 +2,6 @@
  * Infrastructure and Logistics Overlay: classification is asserted on the pure
  * `computeLogisticsOverlay` projection, boundaries at the threshold and one step past it.
  */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { BUILDING_CONFIGS, BuildingType, EntityType, type Building, type Entity, type WorldState } from '../src/game/gameTypes';
 import { blockedColumn, testWorldMap } from '../src/test/worldMapFixtures';
@@ -23,10 +21,6 @@ import { buildRenderSnapshot } from '../src/game/renderSnapshot';
 import { drawLogisticsOverlay } from '../src/game/renderer/logistics';
 import { LOGISTICS_HOTKEY, LOGISTICS_HOTKEY_CODE, isHotkey } from '../src/game/hotkeys';
 import { getPathGrid, getReadOnlyPathGrid, resetPathGridCaches } from '../src/game/pathfinding';
-
-function readSrc(relative: string): string {
-  return readFileSync(resolve(process.cwd(), 'src', relative), 'utf8');
-}
 
 /**
  * The projection reads only `buildings` and `entities`; the size/tick fields keep the `ViewState`
@@ -392,47 +386,3 @@ function throwingContext(): CanvasRenderingContext2D {
     },
   });
 }
-
-describe('F4 source guard — the overlay draws the projection, it does not decide it', () => {
-  /** The per-frame call, name and arguments included. */
-  const OVERLAY_CALL = /drawLogisticsOverlay\(ctx, state, cw, ch\)/;
-  /**
-   * The projection owner, invoked where the snapshot is built: either the plain function or the
-   * memoised accessor that saves panning from re-projecting the colony every frame.
-   */
-  const PROJECTION_OWNER = /computeLogisticsOverlayCached\(world\)|computeLogisticsOverlay\(world\)/;
-  /** Any projection threshold — a decision the renderer must never take. */
-  const THRESHOLD_IN_RENDERER =
-    /GOOD_ROAD_ACCESS_DISTANCE|MAX_ROAD_ACCESS_DISTANCE|COMMUTE_WALK_BUDGET_TICKS|COMMUTE_EXTREME_DISTANCE|ROAD_CONNECT_GAP/;
-  /** A projection read inside the tick-keyed layer key. */
-  const PROJECTION_IN_ENTITY_LAYER = /logistics/i;
-
-  it('runs in the per-frame overlay pass, never in the tick-keyed entity layer', () => {
-    expect(readSrc('game/renderer/overlay.ts')).toMatch(OVERLAY_CALL);
-    expect(readSrc('game/entityLayer.ts')).not.toMatch(PROJECTION_IN_ENTITY_LAYER);
-  });
-
-  it('reads the projection instead of re-deriving the classification', () => {
-    const renderer = readSrc('game/renderer/logistics.ts');
-    expect(renderer).toContain('state.logistics');
-    expect(renderer).not.toMatch(THRESHOLD_IN_RENDERER);
-    // Types only from the projection module: no classification helper can be called from here.
-    expect(renderer).toMatch(/import type \{[\s\S]*?\} from '\.\.\/logisticsOverlayData';/);
-    // And the snapshot feeds it from the owner rather than scanning the world inline.
-    expect(readSrc('game/renderSnapshot.ts')).toMatch(PROJECTION_OWNER);
-  });
-
-  it('guards are not vacuous', () => {
-    // The renderer deciding for itself (the defect the threshold guard exists for).
-    expect('if (nearest.distance > GOOD_ROAD_ACCESS_DISTANCE) {').toMatch(THRESHOLD_IN_RENDERER);
-    expect('if (hit.distance > MAX_ROAD_ACCESS_DISTANCE) return;').toMatch(THRESHOLD_IN_RENDERER);
-    // A logistics read in the baked layer looks exactly like this line, beside `state.showPaths ? 1 : 0`.
-    expect('    state.showLogistics ? 1 : 0,').toMatch(PROJECTION_IN_ENTITY_LAYER);
-    // The overlay call with a different receiver is not the per-frame pass.
-    expect('  drawLogisticsOverlay(drawCtx, state, cw, ch);').not.toMatch(OVERLAY_CALL);
-    expect('  computeLogisticsOverlay(this.world);').not.toMatch(PROJECTION_OWNER);
-    // The guard is not vacuous on the new spelling either: a call with a different receiver is not the
-    // snapshot's.
-    expect('  computeLogisticsOverlayCached(this.world);').not.toMatch(PROJECTION_OWNER);
-  });
-});

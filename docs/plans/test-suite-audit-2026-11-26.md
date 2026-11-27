@@ -155,6 +155,10 @@ Migrated the reputation single-writer scan, storage gain clamp scan and determin
 
 Moved all three unguarded-hour escape and workplace-restoration cases into `prisonShifts.test.ts`, which already covers the roster and its uncovered hours. The escape fixtures and RNG reset are preserved; the reset is scoped to the escape suite so the existing roster tests are unchanged. Updated the two active human-needs architecture references and named fixture ownership. No behavioral case was deleted. CI verification is pending.
 
+## Five grouped source-guard batches — 2026-11-27
+
+Moved thirteen source-only cases across nine mixed files (including the logistics guard's synthetic proof) and extracted one source assertion from a retained social-cadence behavior test. The five groups are UI ownership (3), raid/Chronicle/social cadence (2 cases plus the social assertion), logistics (3 cases into 2 guards), dashboard aggregations (2), and shared predicates (3). All runtime cases remain in Vitest. The 13 new rules bring the registry to 152 (14 handwritten, 138 declarative). Source clauses were checked against the branch before migration; the obsolete raid wrapper is checked by the existing absent-file mechanism. The five batches are pushed together to avoid cancelling intermediate CI runs. Full CI verification is pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

@@ -3,8 +3,6 @@
  * `canStartResearch` stays the same gate as a boolean. The panel renders that reason as text.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { createInitialResearchNodes, type WorldState } from '../src/game/gameTypes';
 import { canStartResearch, getResearchBlockReason } from '../src/game/research';
 
@@ -22,10 +20,6 @@ function node(state: WorldState, id: string) {
   const found = state.researchNodes.find((entry) => entry.id === id);
   if (!found) throw new Error(`${id} missing from the shipped research tree`);
   return found;
-}
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.env.UX2_SOURCE_ROOT ?? process.cwd(), relativePath), 'utf8');
 }
 
 describe('the research owner names its refusal', () => {
@@ -74,12 +68,5 @@ describe('the research owner names its refusal', () => {
         ).toBe(reason === null);
       }
     }
-  });
-
-  it('the Progress panel renders the owner reason as visible text', () => {
-    const panel = read('src/components/tabPanels/ProgressTabPanel.tsx');
-    expect(panel).toContain('const canResearch = canStartResearch(state, node.id);');
-    expect(panel).toContain('getResearchBlockReason(state, node.id)');
-    expect(panel, 'the refusal is computed and thrown away again').toContain('{blockReason}');
   });
 });

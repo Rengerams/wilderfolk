@@ -3,8 +3,6 @@
  * `uiSimSummary` owns the labour counters the dashboard, People screen and HUD share.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
 import { UNKNOWN_ECOSYSTEM_HEALTH } from '../src/game/dailyEcology';
@@ -92,25 +90,6 @@ describe('A5 — the ecosystem-health read has one owner and one missing-value d
     const concern = dashboard.concerns.find((c) => c.id === 'ecology' || c.id === 'ecology_soft');
     expect(concern?.detail, 'the concern text reads the same value as the card').toContain('50/100');
   });
-
-  it('leaves no reader re-deriving the default or the clamp', () => {
-    const files = [
-      'src/game/storyEvents.ts',
-      'src/game/deerParliament.ts',
-      'src/game/dashboardData.ts',
-      'src/game/ecologyStage.ts',
-      'src/game/villagePortrait.ts',
-      'src/game/ecoBreakdown.ts',
-    ];
-    for (const file of files) {
-      const source = readFileSync(resolve(process.cwd(), file), 'utf8');
-      expect(source, `${file} restates the missing-value default`).not.toMatch(/ecosystemHealth\s*\?\?/);
-      expect(source, `${file} re-implements the 0..100 clamp`).not.toMatch(
-        /Math\.max\(0,\s*Math\.min\(100,\s*value\)\)/,
-      );
-      expect(source, `${file} does not read the owner`).toMatch(/EcosystemHealth/);
-    }
-  });
 });
 
 describe('A7 — the village labour counters have one aggregator', () => {
@@ -175,17 +154,5 @@ describe('A7 — the village labour counters have one aggregator', () => {
     expect(countWorkingAndIdleSettlers(state.entities, state.buildings)).toEqual({
       working: stats.working, idle: stats.idle,
     });
-  });
-
-  it('leaves no second aggregation of the counters', () => {
-    const citizen = readFileSync(resolve(process.cwd(), 'src/game/citizenOverview.ts'), 'utf8');
-    expect(citizen, 'citizenOverview re-implements the construction-crew scan').not.toMatch(
-      /b\.faction !== 'rival'/,
-    );
-    expect(citizen, 'citizenOverview does not compose the owner').toMatch(/computeVillageStats\(/);
-
-    const dashboard = readFileSync(resolve(process.cwd(), 'src/game/dashboardData.ts'), 'utf8');
-    expect(dashboard, 'the dashboard re-derives the idle-adult rule').not.toMatch(/idleAdults\+\+/);
-    expect(dashboard, 'the dashboard does not compose the owner').toMatch(/computeVillageStats\(/);
   });
 });

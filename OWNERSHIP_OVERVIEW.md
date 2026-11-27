@@ -917,7 +917,7 @@ Named functions and named React callbacks were audited across every complete sou
 | `tests/careers.workerFit.test.ts` | — | Fixtures come from the shared factories; no file-local named functions |
 | `tests/militiaBalance.chivalrous.test.ts` | `adult`, `settlers`, `strength` | Local militia fixtures; no runtime decision authority |
 | `tests/militiaBalance.prisoners.test.ts` | `adult`, `imprison`, `world`, `settlers` | Local custody fixtures; no runtime decision authority |
-| `tests/raidDeadline.owner.test.ts` | `undatedRaid`, `readSrc` | Local raid fixtures (including the corrupt undated-deadline payload) and source-read probe; no runtime decision authority |
+| `tests/raidDeadline.owner.test.ts` | `undatedRaid` | Local raid fixture for the corrupt undated-deadline payload; no runtime decision authority |
 | `tests/warfare.lifecycle.test.ts` | `colony`, `raid`, `reload` | Local warfare fixtures; no runtime decision authority |
 | `tests/frontierCombat.raidGold.test.ts` | `raidFixture`, `queuedRaid` | Local raid fixtures; no runtime decision authority |
 | `tests/frontierPanelView.test.ts` | `world`, `rival` | Test-local world-state and rival-settlement fixture constructors for read-only Frontier projection assertions; no gameplay or runtime decision authority |

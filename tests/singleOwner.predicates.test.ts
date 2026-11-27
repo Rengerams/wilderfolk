@@ -3,8 +3,6 @@
  * in `combat`, and "what is a wall" in `defenseStructures`.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -32,10 +30,6 @@ vi.mock('../src/audio/interactionSfx', () => ({
   playSettlerDeathSfx: sfx.playSettlerDeathSfx,
 }));
 import { detectInteractionSounds } from '../src/audio/interactionDetect';
-
-function source(relPath: string): string {
-  return readFileSync(resolve(process.cwd(), relPath), 'utf8');
-}
 
 /**
  * An entity carrying a faction string outside the declared union; `faction` is parsed from save data,
@@ -83,38 +77,6 @@ describe('A3 — the colony-human rule has one owner', () => {
     }
     const result = simulateElectionVotes(state, [{ entityId: 10, name: 'C10', totalScore: 100 }]);
     expect(result.totalVotes).toBe(2);
-  });
-
-  it('leaves no module re-deriving the colony-human test', () => {
-    const copy = /\.alive\s*&&\s*![\w.]+\.faction|\.type === EntityType\.Human\s*&&\s*![\w.]+\.faction/;
-    const readers = [
-      'src/App.tsx',
-      'src/game/apprenticeships.ts',
-      'src/game/relationships.ts',
-      'src/game/electionVotes.ts',
-      'src/game/housingModel.ts',
-      'src/game/housingPipeline.ts',
-      'src/game/workforce.ts',
-      'src/game/scheduleFeedback.ts',
-      'src/game/leaderHouse.ts',
-      'src/game/moonHowler.ts',
-      'src/components/SimulationDiagnosticsPanel.tsx',
-    ];
-    for (const rel of readers) {
-      const src = source(rel);
-      // Either owner accessor counts: `playerHumansFrom` is the list helper beside `isPlayerHuman`.
-      expect(src, `${rel} no longer asks the owner`).toMatch(/isPlayerHuman|playerHumansFrom/);
-      expect(src, `${rel} re-derives the colony-human test`).not.toMatch(copy);
-    }
-
-    // These two classify no humans themselves — their owners apply `isPlayerHuman` — but they must
-    // still not re-derive the test.
-    for (const rel of [
-      'src/components/SelectedBuildingPanel.tsx',
-      'src/components/WorkSchedulePanel.tsx',
-    ]) {
-      expect(source(rel), `${rel} re-derives the colony-human test`).not.toMatch(copy);
-    }
   });
 });
 
@@ -172,21 +134,6 @@ describe('A10 — one predator definition across the sim/audio boundary', () => 
       for (const fn of Object.values(sfx)) fn.mockClear();
     }
   });
-
-  it('keeps the audio layer reading the simulation set instead of re-declaring it', () => {
-    const audio = source('src/audio/interactionDetect.ts');
-    expect(audio, 'the audio layer no longer reads the simulation predator owner').toMatch(
-      /import \{[^}]*PREDATOR_TYPES[^}]*\} from '\.\.\/game\/combat'/,
-    );
-    expect(audio, 'the audio layer re-declares the simulation predator set').not.toMatch(
-      /const PREDATOR_TYPES = new Set<EntityType>\(/,
-    );
-    const combat = source('src/game/combat.ts');
-    expect(combat, 'the simulation predator owner is no longer exported').toMatch(
-      /export const PREDATOR_TYPES: ReadonlySet<EntityType> = /,
-    );
-    expect((combat.match(/new Set<EntityType>\(/g) ?? []).length, 'combat holds a second predator set').toBe(1);
-  });
 });
 
 function stubBuilding(id: number, type: BuildingType, x: number, y: number): Building {
@@ -226,20 +173,5 @@ describe('A11 — "what is a wall" has one owner', () => {
     ];
     const { hList, vList } = collectStripCenters(buildings, 'wall');
     expect(hList.length + vList.length, 'a wall type dropped out of the strip family').toBe(2);
-  });
-
-  it('leaves the strip modules reading the exported owner', () => {
-    const junction = source('src/game/stripJunction.ts');
-    expect(junction, 'stripJunction no longer reads the wall owner').toMatch(
-      /isWallBuildingType[^;]*from '\.\/defenseStructures'/,
-    );
-    expect(junction, 'stripJunction declares a second wall set').not.toMatch(
-      /const WALL_TYPES = new Set<BuildingType>\(/,
-    );
-    const topology = source('src/game/stripTopology.ts');
-    expect(topology, 'stripTopology no longer reads the wall owner').toMatch(
-      /isWallBuildingType[^;]*from '\.\/defenseStructures'/,
-    );
-    expect(topology, 'stripTopology declares a second wall set').not.toMatch(/WALL_STRIP_TYPES/);
   });
 });
