@@ -1,6 +1,6 @@
 # Bug report summary — one line per report
 
-**2026-11-27 — [Auto-player bypasses workforce owner](../bug_report/2026-11-27-autoplay-bypasses-workforce-owner.md):** investigating; independent worker dismissal removed and individual staffing commands excluded from auto-play proposals; regression CI pending.
+**2026-11-27 — [Auto-player bypasses workforce owner](../bug_report/2026-11-27-autoplay-bypasses-workforce-owner.md):** investigating; all auto-play staffing decisions and policy overrides removed; completed-job dismissal commands refused; read-only feasibility and donor selection consolidated under workforce; regression CI pending.
 
 **2026-11-28 — [Spotlight stage off square centre (follow-up)](../bug_report/2026-11-03-spotlight-stage-off-square-centre.md):** investigating; reject displaced square origins and off-square debug fallback; regression added, live reproduction pending.
 
