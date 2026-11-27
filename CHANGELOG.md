@@ -8,7 +8,7 @@
 
 - **Fixed (27 Nov 2026):** Deployed war-band soldiers regain rest/stamina through normal field sleep, pay ordinary march fatigue instead of phantom barracks attendance, and cannot conceive at their frozen village coordinates.
 
-- **Fixed (27 Nov 2026):** Children no longer choose shallow water as a play site; shared cached sites are revalidated for dry terrain and safe arrival clearance without changing ordinary wading navigation.
+- **Fixed (27 Nov 2026):** Children no longer choose shallow water as a play site; shared cached sites are revalidated for dry terrain and safe arrival clearance; ordinary shallow-water crossing is now blocked by the central navigation rule.
 
 - **Fixed (27 Nov 2026):** Battle reports use one raid-specific chronological timeline, suppress duplicate loss summaries and resume without replay. Cinematic phases, actual force strength and confirmed losses make the battle clearer; victory has one announcement.
 
