@@ -1373,7 +1373,6 @@ function reconcileDanglingReferencesOnLoad(world: WorldState): void {
   for (const entity of aliveEntities) {
     for (const id of [
       entity.partnerId,
-      entity.pregnantById,
       entity.courtshipPartnerId,
       entity.youthLovePartnerId,
       entity.affairPartnerId,
@@ -1420,6 +1419,9 @@ function floorIdAllocators(world: WorldState): void {
   let highestEntity = 0;
   for (const entity of world.entities ?? []) {
     if (isPersistedId(entity.id) && entity.id > highestEntity) highestEntity = entity.id;
+    for (const fatherId of [entity.pregnantById, entity.moonHowlerSaved?.pregnantById]) {
+      if (isPersistedId(fatherId) && fatherId > highestEntity) highestEntity = fatherId;
+    }
   }
   // The genealogy registry keeps a settler after they leave `entities`, so their id retires with them.
   for (const person of Object.values(world.genealogyRegistry?.people ?? {})) {
@@ -1708,6 +1710,16 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     pruneOrphanRivalEntities(world);
     world.entities = world.entities.filter((person) => !person.departedAlive);
     repairLoadedHumanGround(world);
+    // Freeze the best available legacy father identity before live spouse links are repaired.
+    for (const entity of world.entities) {
+      if (entity.pregnant && entity.pregnantById === undefined) {
+        entity.pregnantById = isPersistedId(entity.partnerId) ? entity.partnerId : null;
+      }
+      const parked = entity.moonHowlerSaved;
+      if (parked?.pregnant && parked.pregnantById === undefined) {
+        parked.pregnantById = isPersistedId(parked.partnerId) ? parked.partnerId : null;
+      }
+    }
     reconcileDanglingReferencesOnLoad(world);
     // Legacy pregnancy status is not a marriage: use reciprocal spouse links and retain pregnancy.
     const livingById = new Map(world.entities.filter(entity => entity.alive).map(entity => [entity.id, entity]));
