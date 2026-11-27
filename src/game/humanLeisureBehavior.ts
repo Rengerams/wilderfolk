@@ -8,8 +8,8 @@ import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
 import { deterministicCos, deterministicSin } from './simTrig';
 import { getBuildingCenter } from './buildingGeometry';
 import { getChildCustodian, hasResidenceAssignment } from './housingModel';
-import { getWorkSchedule, isOnWorkScheduleShift } from './workSchedule';
-import { getHourOfDay, getAbsoluteCalendarDay } from './dayCycleClock';
+import { getWorkSchedule, isOnWorkScheduleShift, isOnWorkCommuteHours } from './workSchedule';
+import { getHourOfDay, getAbsoluteCalendarDay, isWorkDay } from './dayCycleClock';
 import { BuildingType } from './buildings';
 import { pickSocialImpulse, isSocialStaggerTick, type SocialBuildingPicker } from './socialLife';
 import { isPlayerHuman } from './playerHuman';
@@ -17,7 +17,6 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { requestDialogue } from './dialogueTrees';
 import { isDialogueBusy } from './humanChat';
-import { prefersHomeTonightFor } from './humanSchedule';
 import type { TickContext } from './simulation/simulationTypes';
 import { findClosestAdaptiveInRadius, forEachAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_FRIENDSHIP_RADIUS } from './adaptiveSpatialQuery';
 import { seededRandomForRun, personDayRoll, getSimRng, PERSON_DAY_ROLL_SALTS } from './simRng';
@@ -165,6 +164,7 @@ export function tickHumanChildLeisure(args: {
 }): boolean {
   if (args.entity.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(args.entity)) return args.suppressIdleInitial;
   const { state, entity, speed, hourOfDay, allHumans, updatedBuildings, buildingById, humanSocialGrid, width, height, livingHumanAt } = args;
+  const wasFollowing = entity.childLeisureActivity === 'following';
   entity.childLeisureActivity = undefined;
   entity.childLeisureTargetId = undefined;
   if (args.onSchedule || args.suppressIdleInitial) return args.suppressIdleInitial;
@@ -342,8 +342,20 @@ export function tickHumanChildLeisure(args: {
   }
   const mother = entity.motherId != null ? livingHumanAt(entity.motherId) : undefined;
   const father = entity.fatherId != null ? livingHumanAt(entity.fatherId) : undefined;
-  const freeParent = [mother, father].find((parent) => parent?.alive && isPlayerHuman(parent) && !prefersHomeTonightFor(getWorkSchedule(state), parent.id, state.tick, hourOfDay) && !isOnWorkScheduleShift(state, hourOfDay)) ?? [mother, father].find((parent) => parent?.alive);
-  const follow = freeParent ?? getChildCustodian(entity, allHumans, args.entityById);
+  // Children may accompany a free caregiver, but must never trail an employed
+  // parent into their workplace during a shift. This also applies to the
+  // household custodian fallback (which can be the same working parent).
+  const workTime = isOnWorkScheduleShift(state, hourOfDay)
+    || (isWorkDay(state.tick) && isOnWorkCommuteHours(getWorkSchedule(state), hourOfDay));
+  const custodian = getChildCustodian(entity, allHumans, args.entityById);
+  let follow: Entity | undefined;
+  for (const caregiver of [mother, father, custodian]) {
+    if (!caregiver?.alive || !isPlayerHuman(caregiver) || caregiver.age < HUMAN_ADULT_MIN_AGE) continue;
+    if (caregiver.workerBuildingId != null
+      && (workTime || caregiver.indoorBuildingId === caregiver.workerBuildingId)) continue;
+    follow = caregiver;
+    break;
+  }
   if (follow?.alive && personDayRoll(entity.id, state.tick, 601) > 0.22) {
     const distance = Math.hypot(follow.x - entity.x, follow.y - entity.y) || 1;
     if (distance > 22) {
@@ -358,6 +370,11 @@ export function tickHumanChildLeisure(args: {
     entity.childLeisureActivity = 'following';
     entity.childLeisureTargetId = follow.id;
     return true;
+  }
+  if (wasFollowing) {
+    clearHumanWalkTarget(entity);
+    entity.vx = 0;
+    entity.vy = 0;
   }
   if (hasResidenceAssignment(entity)) {
     const residence = buildingById.get(entity.residenceBuildingId!);
