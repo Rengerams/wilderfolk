@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (27 Nov 2026):** Remove auto-player individual worker dismissals, including false Barracks surplus notices; workforce staffing decisions remain with the canonical owner.
+- **Fixed (27 Nov 2026):** Prevent auto-player staffing commands and policy overrides; keep construction feasibility read-only in workforce, and reject legacy individual dismissal from completed workplaces.
 - **Fixed (28 Nov 2026):** Keep Spotlight Lore centred on the Village Square; skip blocked or displaced stage marks rather than relocating the performance, including debug preview.
 
 - **Fixed (27 Nov 2026):** Regular election notices and buildup gossip begin one day before voting, not one year; the two-year election calendar and succession rules remain unchanged. The notice enters the Chronicle; ballot-time candidate names persist even after renaming or death.
