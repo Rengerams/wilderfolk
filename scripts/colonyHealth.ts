@@ -227,7 +227,42 @@ function placeLegalStarterBuilding(
     }
   }
   }
-  throw new Error(`Seeded ${type} has no legal, commutable starter placement near ${preferred.x},${preferred.y} (rejected: ${JSON.stringify(rejected)}, commute samples: ${JSON.stringify(commuteSamples)})`);
+  const grid = getCurrentPathGrid();
+  const regionSummary = (() => {
+    if (!grid) return null;
+    const labels = new Int32Array(grid.blocked.length);
+    let nextLabel = 0;
+    const sizes: number[] = [0];
+    const stack: number[] = [];
+    for (let i = 0; i < grid.blocked.length; i++) {
+      if (grid.blocked[i] || labels[i]) continue;
+      const label = ++nextLabel;
+      labels[i] = label;
+      stack.push(i);
+      let count = 0;
+      while (stack.length) {
+        const cur = stack.pop()!;
+        count++;
+        const x = cur % grid.cols, y = Math.floor(cur / grid.cols);
+        for (const ni of [x > 0 ? cur - 1 : -1, x + 1 < grid.cols ? cur + 1 : -1,
+          y > 0 ? cur - grid.cols : -1, y + 1 < grid.rows ? cur + grid.cols : -1]) {
+          if (ni < 0 || grid.blocked[ni] || labels[ni]) continue;
+          labels[ni] = label;
+          stack.push(ni);
+        }
+      }
+      sizes[label] = count;
+    }
+    const homeRegions = fromHomes.map((home) => {
+      const door = buildingAccessPoints(home, grid)[0];
+      const index = door ? Math.floor(door.y / PATH_CELL) * grid.cols + Math.floor(door.x / PATH_CELL) : -1;
+      const label = index >= 0 && index < labels.length ? labels[index] : 0;
+      return { x: home.x, y: home.y, region: label, cells: sizes[label] ?? 0 };
+    });
+    return { regionCount: nextLabel, homeRegions, largestRegions: [...sizes].sort((a, b) => b - a).slice(0, 5),
+      existing: world.buildings.map((site) => ({ type: site.type, x: site.x, y: site.y })) };
+  })();
+  throw new Error(`Seeded ${type} has no legal, commutable starter placement near ${preferred.x},${preferred.y} (rejected: ${JSON.stringify(rejected)}, commute samples: ${JSON.stringify(commuteSamples)}, terrain: ${JSON.stringify(regionSummary)})`);
 }
 
 function placeStarterHousing(world: WorldState, anchor: { x: number; y: number }): void {
