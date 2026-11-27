@@ -3,7 +3,6 @@ import type { Building } from './gameTypes';
 import {
   getBuildingFootprintForType,
   normalizeBuildingRotation,
-  normalizeCornerRotation,
   type BuildingRotation,
   type CornerRotation,
 } from './buildingRotation';
@@ -73,16 +72,6 @@ function cornerRotationFromConnections(c: JunctionConnections): CornerRotation {
 }
 
 type StripCenter = { x: number; y: number; width?: number; height?: number };
-
-export function cornerArms(rotation: CornerRotation): JunctionConnections {
-  const r = normalizeCornerRotation(rotation);
-  return {
-    north: r === 0 || r === 180,
-    south: r === 90 || r === 270,
-    east: r === 0 || r === 90,
-    west: r === 180 || r === 270,
-  };
-}
 
 export type StripCenterExtra = {
   x: number;
