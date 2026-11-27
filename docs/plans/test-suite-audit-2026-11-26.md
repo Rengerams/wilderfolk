@@ -151,6 +151,10 @@ Ten source-only cases from four mixed files now run as ten declarative guards: r
 
 Migrated the reputation single-writer scan, storage gain clamp scan and deterministic tick-position trigonometry rule. The original owner exceptions, eight position modules, both TypeScript extensions and minimum 301-file coverage are preserved. The shared scanner now checks multiple extensions with a single rule and self-tests each extension and the minimum-file floor. The registry contains 139 rules (14 handwritten, 125 declarative). Three mixed test files retain all runtime cases. CI verification is pending.
 
+## Second owner-file consolidation — 2026-11-27
+
+Moved all three unguarded-hour escape and workplace-restoration cases into `prisonShifts.test.ts`, which already covers the roster and its uncovered hours. The escape fixtures and RNG reset are preserved; the reset is scoped to the escape suite so the existing roster tests are unchanged. Updated the two active human-needs architecture references and named fixture ownership. No behavioral case was deleted. CI verification is pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete
