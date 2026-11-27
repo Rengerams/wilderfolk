@@ -70,9 +70,31 @@ function prepareScaledColony(target: number): WorldState {
   let spawned = 0;
 
   for (let district = 0; district < districts; district++) {
-    // Exactly the same dry L1 plot selection on baseline and PR. Each 360px square
-    // encloses every district footprint and its entrances and avoids all buildings.
-    const center = findDryBenchmarkStart(world, preferred, true);
+    // Sample the same physical layout on baseline and PR. Real building footprints,
+    // a continuous walk lane and two cross-streets must all be dry and unreserved;
+    // a whole empty 360px square is needlessly restrictive on shoreline terrain.
+    const siteTypes: Array<readonly [BuildingType, number, number]> = [
+      ...[0, 72, 144, 216].map((offset) => [BuildingType.House, offset, 0] as const),
+      ...[0, 72, 144, 216].map((offset) => [BuildingType.Farm, offset, 95] as const),
+      [BuildingType.LumberMill, 0, 185],
+      [BuildingType.Quarry, 82, 185],
+      [BuildingType.Market, 166, 185],
+      [BuildingType.Tavern, 238, 185],
+    ];
+    if (district % 4 === 0) {
+      siteTypes.push([BuildingType.Barn, 235, -72], [BuildingType.Silo, 170, -72]);
+    }
+    const districtSites = [
+      ...siteTypes.map(([type, offsetX, offsetY]) => ({
+        x: offsetX - 120, y: offsetY - 65,
+        width: BUILDING_CONFIGS[type].width + 8,
+        height: BUILDING_CONFIGS[type].height + 8,
+      })),
+      { x: 36 - 120, y: 92 - 65, width: 8, height: 192 },
+      { x: 120 - 120, y: 55 - 65, width: 260, height: 8 },
+      { x: 120 - 120, y: 140 - 65, width: 260, height: 8 },
+    ];
+    const center = findDryBenchmarkStart(world, preferred, districtSites);
     const x = center.x - 120;
     const y = center.y - 65;
     const homes = [0, 72, 144, 216].map((offset) =>
