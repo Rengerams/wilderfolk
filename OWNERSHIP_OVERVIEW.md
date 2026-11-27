@@ -1,5 +1,15 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-27 — ground traversal and construction policy audit
+
+| Decision | Owner | Contract |
+|---|---|---|
+| Water identity | `src/game/terrain/terrainTraits.ts` — `isWaterTerrainType` | Classify deep water, shallow water and rivers once; no duplicated pedestrian water set. |
+| Pedestrian terrain eligibility | `src/game/terrain/terrainGrid.ts` — `isWalkableTerrainType` | Only dry terrain is walkable. World generation, rebaking, pathfinding and road checks consume this rule; bridges override blocked cells only through `pathfinding.buildPathGrid`. |
+| Building and road terrain restrictions | `src/game/placementUtils.ts` — `isFootprintOnBuildableTerrain` | Ordinary buildings cannot be placed on water. Roads require walkable, unreserved ground; bridge, fishing and reinforcement exceptions remain construction-specific. |
+| Wildlife dry-ground eligibility | `src/game/worldGen.ts` — `isPassableWildlifePosition` | Reads shared water identity and map bounds; does not introduce another water terrain list. |
+
+
 ## 2026-11-26 — consistent workplace selection
 
 | Functions | Owner | Responsibility |
