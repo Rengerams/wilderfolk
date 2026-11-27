@@ -7,7 +7,7 @@ runs in `scripts/check-source-guards.mjs` on every gate.
 
 ## Verdict
 
-- **Up to date: yes.** 3,593 executed cases pass, 0 failed, 0 skipped, no test imports a module that no
+- **Up to date: yes.** 3,594 executed cases pass, 0 failed, 0 skipped, no test imports a module that no
   longer exists, and the great majority of files were touched in November 2026. The suite was not stale.
 - **Not redundant.** No two files share half of their assertion/title set, no literal pin is repeated
   across files, and the unused-code audit reports nothing.
@@ -38,7 +38,7 @@ runs in `scripts/check-source-guards.mjs` on every gate.
 | Audit-batch files (`audit*`, `low-*`, `medium-*`, `phase*`, `*Batch`, `duplication*`) | 51 | Merge into their subject owner |
 | Assertion-light files (≥ 40 % `toBeTruthy`/`toBeDefined`) | 11 | Strengthen or fold into a stronger file |
 
-Rows overlap, so they do not sum to 534. Unit tier now: 532 files / 3,593 cases.
+Rows overlap, so they do not sum to 534. Unit tier now: 532 files / 3,594 cases.
 
 ## What moved (two passes, 2026-11-27)
 
@@ -47,9 +47,9 @@ hand-written scanners and 103 are declarative rows (`contains` / `notContains` /
 `notMatches` / `counts` / `order` / `region` / `scan` / `absent`). It runs from the `check` step of
 every gate. `--self-test` synthesizes a violation for every rule — injecting the bad spelling, deleting
 the needle, swapping the order, removing a region anchor, adding a probe file — and fails if the rule
-stops reporting it, so a row cannot silently stop guarding.
+stops reporting it. Declarative checks also mutate each file and clause separately and require the specific diagnostic. The handwritten guards retain their original per-rule samples.
 
-**139 cases left the unit tier. Eight files were removed:**
+**138 cases left the unit tier. Eight files were removed:**
 
 - `keyboardGuards.contract` (31 — the file was source contracts throughout)
 - `ticksPerDay.literals` (23 — 22 guarded test files plus the table floor)
@@ -58,7 +58,7 @@ stops reporting it, so a row cannot silently stop guarding.
 - `selectedBuildingPanel.perBuildingState` (1)
 
 **Nineteen files were trimmed to their behavioral half:** `uiSingleOwner` (36 of 45), `uiRefinement.residuals`
-(8 of 9), `ux2.doorNames` (8 of 9), `actionOutcome` (2), `alertStrip.criticalVisibility` (2),
+(8 of 9), `ux2.doorNames` (7 of 9), `actionOutcome` (2), `alertStrip.criticalVisibility` (2),
 `buildGhost.failureReason`, `councilNotices.row`, `conceptionEvent.labelling`, `dashboard.foodBalance`,
 `dashboardData.suggestionLabels`, `dialogue.workerSaveParity`, `foodSpend.ledger`, `militiaArmament.label`,
 `onMapVisitors.retired`, `rpgArt.integration`, `dayLength.owner`, `copyAndDayIndex.owners`,
@@ -72,7 +72,7 @@ listed it as source-only; that was wrong.
 **Correction to the first inventory.** The first pass counted 208 source-scan cases with a per-case
 regex. That undercounted: a file that hoists `const source = readFileSync(...)` into the `describe`
 block (e.g. `alertStrip`, `keyboardGuards`) has cases that never name the helper. The real figure is
-closer to 250. The migrated 139 are the ones whose only evidence was source text; the cases left behind
+closer to 250. The migrated 138 are the ones whose only evidence was source text; the cases left behind
 are behavioral tests that also assert the view reads its owner, which is legitimate.
 
 ## Remaining source-text guards — 56 files

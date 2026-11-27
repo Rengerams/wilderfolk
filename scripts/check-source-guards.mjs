@@ -3,7 +3,7 @@
  * Source-text guards migrated out of the vitest tier: "this rule has exactly one owner" assertions
  * that read `src` and match a regex. They are lint, not behavior, so they run once per gate here
  * instead of as one vitest process per file. `--self-test` proves each rule still reports a
- * violation on an overlay source tree, so a rule cannot silently stop guarding.
+ * violation on an overlay source tree. Declarative clauses are mutated individually.
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
@@ -1093,6 +1093,7 @@ const SOURCE_ROWS = [
             to: "throw new Error('no tick produces a live birth')",
             contains: 'LIFECYCLE_CONFIG.STILLBORN_CHANCE',
             notMatches: />=\s*0\.\d/,
+            example: 'roll >= 0.5',
           },
         ],
       },
@@ -1351,7 +1352,7 @@ const SOURCE_ROWS = [
         file: 'src/components/useMapKeyboardCursor.ts',
         matches: /dispatchEvent\(new MouseEvent\(type/,
         notMatches: [/proto:\s*1/, /applyGameAction\s*\(/, /mutateWorld\s*\(/],
-        example: 'applyGameAction(state, command);',
+        example: ['proto: 1', 'applyGameAction(state, command);', 'mutateWorld(state);'],
       },
     ],
   },
@@ -1440,30 +1441,81 @@ function runRow(ctx, row) {
   return row.scan ? runScan(ctx, row.scan) : (row.checks ?? []).flatMap((check) => runCheck(ctx, check));
 }
 
-/** A synthetic violation for a row: mutate its first check's file, or add a probe file for a scan. */
-function rowOverlay(row) {
+/** Mutate each declarative clause separately so another failing clause cannot mask a dead one. */
+function* rowMutations(row) {
   if (row.scan) {
-    const probe = `${row.scan.dir}/__guard_probe__.${row.scan.ext.replace('.', '')}`;
-    return { [probe]: row.scan.example ?? '' };
+    const { dir, ext, example, notMatches } = row.scan;
+    const file = dir + '/__guard_probe__' + ext;
+    if (!example || !notMatches.test(example)) throw new Error('invalid scan example');
+    yield { file, text: example, expected: file + ': still matches ' + notMatches };
+    return;
   }
-  const check = row.checks[0];
-  const file = (check.files ?? [check.file])[0];
-  if (check.absent) return { [file]: '' };
-  const text = readFromDisk(file);
-  if (check.notContains !== undefined) return { [file]: `${text}\n${asArray(check.notContains)[0]}\n` };
-  if (check.notMatches !== undefined) return { [file]: `${text}\n${check.example ?? ''}\n` };
-  if (check.order !== undefined) return { [file]: text.split(check.order[0][1]).join('') };
-  if (check.region !== undefined) return { [file]: text.split(check.region[0].from).join('') };
-  if (check.contains !== undefined) return { [file]: text.split(asArray(check.contains)[0]).join('') };
-  if (check.matches !== undefined) {
-    const pattern = asArray(check.matches)[0];
-    return { [file]: text.replace(new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`), '') };
+  for (const check of row.checks) {
+    for (const file of check.files ?? [check.file]) {
+      if (check.absent) {
+        yield { file, text: '', expected: file + ': the retired file is back' };
+        continue;
+      }
+      const text = readFromDisk(file);
+      const remove = (needle) => text.split(needle).join('');
+      for (const needle of asArray(check.contains)) {
+        yield { file, text: remove(needle), expected: file + ': no longer contains ' + quote(needle) };
+      }
+      for (const needle of asArray(check.notContains)) {
+        yield { file, text: text + '\n' + needle, expected: file + ': still contains ' + quote(needle) };
+      }
+      for (const pattern of asArray(check.matches)) {
+        const global = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g');
+        yield { file, text: text.replace(global, ''), expected: file + ': no longer matches ' + pattern };
+      }
+      for (const [index, pattern] of asArray(check.notMatches).entries()) {
+        const example = asArray(check.example)[index];
+        if (!example || !pattern.test(example)) throw new Error(file + ': invalid example for ' + pattern);
+        yield { file, text: text + '\n' + example, expected: file + ': still matches ' + pattern };
+      }
+      for (const { needle, times } of check.counts ?? []) {
+        const found = occurrences(text, needle) + 1;
+        yield { file, text: text + '\n' + needle, expected: file + ': ' + quote(needle) + ' appears ' + found + ' times, expected ' + times };
+      }
+      for (const [before, after] of check.order ?? []) {
+        yield { file, text: remove(before), expected: file + ': no longer contains ' + quote(before) };
+        yield { file, text: remove(after), expected: file + ': no longer contains ' + quote(after) };
+        yield {
+          file,
+          text: after + '\n' + before + '\n' + text.split(before).join('').split(after).join(''),
+          expected: file + ': ' + quote(before) + ' must precede ' + quote(after),
+        };
+      }
+      for (const region of check.region ?? []) {
+        const prefix = file + ': region anchor ' + quote(region.from);
+        yield { file, text: remove(region.from), expected: prefix + ' is gone' };
+        const start = text.indexOf(region.from);
+        const end = region.to ? text.indexOf(region.to, start) : region.within ? start + region.within : text.length;
+        if (start < 0 || end < 0) throw new Error(file + ': missing region in baseline');
+        if (region.to) {
+          yield { file, text: remove(region.to), expected: file + ': region end ' + quote(region.to) + ' is gone' };
+        }
+        const label = file + ': the ' + quote(region.from) + ' region';
+        for (const needle of asArray(region.contains)) {
+          // Remove all occurrences without shortening the bounded region.
+          yield {
+            file,
+            text: text.slice(0, start) + text.slice(start, end).split(needle).join(' '.repeat(needle.length)) + text.slice(end),
+            expected: label + ' lost ' + quote(needle),
+          };
+        }
+        const insertion = start + region.from.length;
+        for (const needle of asArray(region.notContains)) {
+          yield { file, text: text.slice(0, insertion) + '\n' + needle + text.slice(insertion), expected: label + ' still contains ' + quote(needle) };
+        }
+        for (const [index, pattern] of asArray(region.notMatches).entries()) {
+          const example = asArray(region.example)[index];
+          if (!example || !pattern.test(example)) throw new Error(file + ': invalid region example for ' + pattern);
+          yield { file, text: text.slice(0, insertion) + '\n' + example + text.slice(insertion), expected: label + ' still matches ' + pattern };
+        }
+      }
+    }
   }
-  if (check.counts !== undefined) {
-    const { needle } = check.counts[0];
-    return { [file]: `${text}\n${needle}\n` };
-  }
-  return { [file]: text };
 }
 
 function runRows(ctx) {
@@ -1480,6 +1532,8 @@ function main() {
   const selfTest = process.argv.includes('--self-test');
   if (selfTest) {
     const failures = [];
+    const ids = [...GUARDS, ...SOURCE_ROWS].map((rule) => rule.id);
+    if (new Set(ids).size !== ids.length) failures.push('duplicate source guard ID');
     for (const guard of GUARDS) {
       if (!guard.sample) {
         failures.push(`${guard.id}: no red-before sample`);
@@ -1488,20 +1542,32 @@ function main() {
       const violations = guard.check(makeContext(guard.sample));
       if (violations.length === 0) failures.push(`${guard.id}: did not report a violation on its sample`);
     }
+    let mutations = 0;
     for (const row of SOURCE_ROWS) {
-      if (row.scan ? !row.scan.example : !row.checks?.length) {
-        failures.push(`${row.id}: no red-before sample`);
+      const baseline = runRow(makeContext(), row);
+      if (baseline.length) {
+        failures.push(...baseline.map((message) => row.id + ': baseline: ' + message));
         continue;
       }
-      const violations = runRow(makeContext(rowOverlay(row)), row);
-      if (violations.length === 0) failures.push(`${row.id}: did not report a violation on its sample`);
+      try {
+        let cases = 0;
+        for (const { file, text, expected } of rowMutations(row)) {
+          cases++;
+          mutations++;
+          const violations = runRow(makeContext({ [file]: text }), row);
+          if (!violations.includes(expected)) failures.push(row.id + ': mutation missed: ' + expected);
+        }
+        if (!cases) failures.push(row.id + ': no red-before sample');
+      } catch (error) {
+        failures.push(row.id + ': ' + error.message);
+      }
     }
     if (failures.length > 0) {
       process.stderr.write(`source guards self-test FAILED\n${failures.map((line) => `  ${line}`).join('\n')}\n`);
       process.exit(1);
     }
     const total = GUARDS.length + SOURCE_ROWS.length;
-    process.stdout.write(`source guards self-test: PASS (${total} rules still catch a violation)\n`);
+    process.stdout.write(`source guards self-test: PASS (${total} rules; ${mutations} declarative mutations)\n`);
     return;
   }
 

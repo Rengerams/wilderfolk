@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Maintenance (27 Nov 2026):** Move single-owner source-text guards out of the unit test tier into the static check step, which proves each rule still catches a reintroduction; 139 cases leave vitest, eight duplicate test files are removed and 117 rules now guard the tree.
+- **Maintenance (27 Nov 2026):** Move single-owner source-text guards out of the unit test tier into the static check step, which proves each rule still catches a reintroduction; 138 source-only cases leave vitest; eight source-only files are removed, 117 rules guard the tree, and declarative clauses have individual mutation proofs.
 
 - **Fixed (27 Nov 2026):** Save-format mismatch diagnostics serialize invalid JSON markers instead of printing `[object Object]`; regression-covered without changing the save compatibility gate.
 
