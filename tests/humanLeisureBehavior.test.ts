@@ -205,7 +205,7 @@ describe('tickHumanChildLeisure', () => {
     }
   });
 
-  it('never chooses wadeable shallow water as a play site, even when every distant tile is wet', () => {
+  it('never chooses shallow water as a play site, even when every distant tile is wet', () => {
     const { state, child } = childFixture();
     const mate = playerChild(child, 11, { x: 115, y: 105 });
     child.x = 105;
@@ -219,8 +219,8 @@ describe('tickHumanChildLeisure', () => {
     });
     setCurrentPathMap(state.worldMap, []);
     try {
-      // Shallow water is intentionally wadeable for other navigation, but not a playground.
-      expect(isGroundWalkableAt(155, 105)).toBe(true);
+      // Shallow water is blocked for both walking and child play destinations.
+      expect(isGroundWalkableAt(155, 105)).toBe(false);
       expect(tileTypeAtWorld(state.worldMap, 155, 105)).toBe(TerrainType.ShallowWater);
       const tick = playTickFor(child);
       expect(tickChild(state, child, [child, mate], tick)).toBe(true);
