@@ -355,7 +355,7 @@ function placeProducers(world: WorldState, anchor: { x: number; y: number }): Bu
 export function findDryBenchmarkStart(
   world: WorldState,
   preferred: { x: number; y: number },
-  districtPlot = false,
+  districtSites?: readonly Readonly<{ x: number; y: number; width: number; height: number }>[],
 ): { x: number; y: number } {
   const map = world.worldMap;
   // The L1 build mask classifies shallow water as water even on an earlier game
@@ -379,7 +379,7 @@ export function findDryBenchmarkStart(
   // One owner selects both the founding district and the scaled benchmark plots.
   // Reserve clearance around each plot so the simulated walk entrances remain dry.
   const buildCell = PATH_CELL * 2;
-  const shapes: readonly (readonly [number, number])[] = districtPlot
+  const shapes: readonly (readonly [number, number])[] = districtSites
     ? [[9, 9]]
     : [[18, 16], [15, 13], [12, 11]];
   for (const [halfWidth, halfHeight] of shapes) {
@@ -387,21 +387,35 @@ export function findDryBenchmarkStart(
     let bestDistance = Infinity;
     for (let ty = halfHeight + 2; ty + halfHeight + 2 < rows; ty += 2) {
       for (let tx = halfWidth + 2; tx + halfWidth + 2 < cols; tx += 2) {
-        if (waterCount(tx - halfWidth, ty - halfHeight, tx + halfWidth, ty + halfHeight) !== 0) continue;
+        if (!districtSites && waterCount(tx - halfWidth, ty - halfHeight, tx + halfWidth, ty + halfHeight) !== 0) continue;
         const x = (tx + 0.5) * buildCell;
         const y = (ty + 0.5) * buildCell;
         const distance = Math.hypot(x - preferred.x, y - preferred.y);
         if (distance >= bestDistance) continue;
-        if (districtPlot && overlapsAnyBuilding(
-          world.buildings, halfWidth * 2 * buildCell, halfHeight * 2 * buildCell, x, y,
-        )) continue;
+        if (districtSites) {
+          if (overlapsAnyBuilding(
+            world.buildings, halfWidth * 2 * buildCell, halfHeight * 2 * buildCell, x, y,
+          )) continue;
+          // Only the real building footprint and shared access lanes need dry,
+          // unreserved land; requiring a completely empty 360px square rejects
+          // viable coast districts that the canonical route owner can serve.
+          const viable = districtSites.every((site) => {
+            const left = Math.floor((x + site.x - site.width / 2) / buildCell);
+            const right = Math.ceil((x + site.x + site.width / 2) / buildCell);
+            const top = Math.floor((y + site.y - site.height / 2) / buildCell);
+            const bottom = Math.ceil((y + site.y + site.height / 2) / buildCell);
+            return left >= 0 && top >= 0 && right <= cols && bottom <= rows
+              && waterCount(left, top, right, bottom) === 0;
+          });
+          if (!viable) continue;
+        }
         bestDistance = distance;
         best = { x, y };
       }
     }
     if (best) return best;
   }
-  throw new Error(districtPlot
+  throw new Error(districtSites
     ? 'Benchmark map contains no unoccupied dry district plot'
     : 'Benchmark map contains no sufficiently large dry starting area');
 }
