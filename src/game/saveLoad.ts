@@ -10,7 +10,7 @@ import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WO
 import { rebakeTerrainGrids, setTileOverride, tileTypeAt } from './terrain/terrainGrid';
 import { isWaterTerrainType } from './terrain/terrainTraits';
 import { INITIAL_CHALLENGES } from './challenges';
-import { normalizeLifetimeStats } from './stats';
+import { normalizeLifetimeStats, reconcileMarriageStatistics } from './stats';
 import {
   mergeForSave,
   createViewFromSave,
@@ -1677,6 +1677,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       : structuredClone(INITIAL_CHALLENGES);
     world.yearlyStats = world.yearlyStats ?? [];
     world.lifetimeStats = normalizeLifetimeStats(world.lifetimeStats);
+    reconcileMarriageStatistics(world);
     world.eventsThisYear = worldData.eventsThisYear ?? [];
     if (!Array.isArray(world.chronicleChapters)) {
       world.chronicleChapters = [];
