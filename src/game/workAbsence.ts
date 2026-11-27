@@ -98,7 +98,7 @@ function labelFor(building: Building): string {
 }
 
 /** Where the settler's next shift starts, and which of the three shift owners said so. */
-type NextShift = { hour: number; kind: 'day' | 'venue' | 'prison' | 'hospital' };
+type NextShift = { hour: number; kind: 'day' | 'venue' | 'prison' | 'hospital'; endHour?: number };
 
 const VENUE_BY_BUILDING: Partial<Record<BuildingType, 'tavern' | 'hotel'>> = {
   [BuildingType.Tavern]: 'tavern',
@@ -136,10 +136,10 @@ export function resolveShift(
     const onVenueShift = venueIndex >= 0
       ? isVenueWorkerServiceHour(state, venueKind, hour, venueIndex, venueCount)
       : isVenueServiceHour(state, venueKind, hour);
-    const startHour = venueIndex >= 0
-      ? getVenueWorkerServiceWindow(state, venueKind, venueIndex, venueCount).startHour
-      : getVenueSchedule(state, venueKind).startHour;
-    return { onShift: onVenueShift, next: { hour: startHour, kind: 'venue' } };
+    const window = venueIndex >= 0
+      ? getVenueWorkerServiceWindow(state, venueKind, venueIndex, venueCount)
+      : getVenueSchedule(state, venueKind);
+    return { onShift: onVenueShift, next: { hour: window.startHour, endHour: window.endHour, kind: 'venue' } };
   }
 
   const isPrisonGuardAtPost =
