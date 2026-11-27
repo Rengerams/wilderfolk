@@ -24,7 +24,6 @@ import { getEcosystemHealth } from './dailyEcology';
 import { computeVillageStats } from './uiSimSummary';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
 import { HUNTING_SPOT_SEARCH_RADIUS_PX, huntingSpotPreyTypes } from './huntingSpot';
-import { countActiveWorkersAtBuilding, findUnstaffedFoodProducer, prospectiveFoodSiteStaffing } from './workforce';
 import { getEffectiveBedCapacity, getOpenPlayerBeds, getLivePlayerPopulation } from './populationGrowth';
 import { canHostTownFestival } from './townHall';
 import { findCompletedBuilding } from './buildings';
@@ -509,11 +508,6 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   // Once measured history exists, this guess yields to observed production versus consumption.
   const cropSites = completedProducerCount(state, BuildingType.Farm)
     + completedProducerCount(state, BuildingType.Greenhouse);
-  // Consider staff-free output improvements even when the workforce cannot
-  // yet crew an existing food site. Do not build another unstaffable farm.
-  const unstaffedFoodProducer = (shortOnFood || measuredDeficit || forecastRisk)
-    ? findUnstaffedFoodProducer(state)
-    : undefined;
   const target = wantedBootstrapCropSiteCount(state, VirtualPlayer.SETTLERS_PER_FOOD_PRODUCER);
   const wantMore = measuredFlow === null && cropSites < target;
 
@@ -524,7 +518,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
       .filter((building) => building.type === BuildingType.Farm
         && building.completed)
       .map((building) => ({
-        building, workers: countActiveWorkersAtBuilding(state.entities, building.id),
+        building, workers: building.occupants.length,
       }))
       .filter(({ building, workers }) => workers > 0
         && getBuildingUpgradeEligibility(state, building.id).ok
@@ -587,9 +581,11 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
       && FOOD_PRODUCER_TYPES.includes(building.type),
   ).length;
   if (measuredDeficit ? goingUp >= 2 : goingUp > 0) return null;
-  if (unstaffedFoodProducer && !measuredDeficit && !forecastRisk) return null;
-  const canCrewNewFoodSite = prospectiveFoodSiteStaffing(state);
-  if (!canCrewNewFoodSite) return null;
+  // A normal player can see an empty completed producer, but cannot predict
+  // who the workforce might hire or transfer. Wait for existing capacity to
+  // become productive rather than building another empty site.
+  if (state.buildings.some((site) => site.completed
+    && FOOD_PRODUCER_TYPES.includes(site.type) && site.occupants.length === 0)) return null;
 
   const daysLeft = Math.max(0, Math.floor(food / needPerDay));
   // Diversify deficits into available food sites, gated by research, water and safe prey.
@@ -614,8 +610,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
       && !canSpendKeepingReserve(state, BUILDING_CONFIGS[type].cost)) continue;
     if (!canAfford(state, BUILDING_CONFIGS[type].cost)) continue;
     const preyCondition = siteCondition(state, type);
-    const spot = findPlacementSpot(state, type, 0, (candidate) =>
-      (!preyCondition || preyCondition(candidate)) && canCrewNewFoodSite(candidate));
+    const spot = findPlacementSpot(state, type, 0, preyCondition);
     if (!spot) continue;
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type, x: spot.x, y: spot.y, rotation: 0 },
@@ -1754,10 +1749,10 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
       (building) =>
         building.type === entry.type &&
         building.completed &&
-        countActiveWorkersAtBuilding(state.entities, building.id) === 0,
+        building.occupants.length === 0,
     );
     if (unmanned) {
-      return `${BUILDING_CONFIGS[entry.type].label} stands unmanned — ${stock} ${entry.stock} left and no settler free to work it`;
+      return `${BUILDING_CONFIGS[entry.type].label} stands unmanned — ${stock} ${entry.stock} left and no workers assigned`;
     }
   }
 
