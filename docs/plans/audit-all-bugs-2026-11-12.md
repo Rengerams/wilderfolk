@@ -71,7 +71,7 @@ Every finding the audit names, one row each: **162 numbered** (S + W), plus the 
 | W-46 | scene owner keeps live pairs on re-open | Fixed | tests/dialogue.pipeline.integration.test.ts |
 | W-47 | one friendship hit per landed famine bite | Fixed | tests/famineDesperation.test.ts |
 | W-48 | intro resumes instead of rewinding | Fixed | tests/audio.introResume.test.ts |
-| W-49 | one music-path gain for both players | Fixed | tests/renderBatch.audioVolume.test.ts |
+| W-49 | one music-path gain for both players | Fixed | tests/audio.output.test.ts |
 | W-50 | docs check real paths and fails on missing docs | Fixed | scripts/check-docs.mjs (gate can fail) |
 | W-51 | unit-all alias added | Fixed | node scripts/test.mjs unit-all |
 | W-52 | storm gate asserted instead of skipped | Fixed | tests/weatherConsequences.test.ts |

@@ -91,7 +91,7 @@ claimed as verified (see the remediation log).
 | W-46 | scene owner keeps live pairs on re-open | tests/dialogue.pipeline.integration.test.ts | F |
 | W-47 | one friendship hit per landed famine bite | tests/famineDesperation.test.ts | F |
 | W-48 | intro resumes instead of rewinding | tests/audio.introResume.test.ts | R |
-| W-49 | one music-path gain for both players | tests/renderBatch.audioVolume.test.ts | F |
+| W-49 | one music-path gain for both players | tests/audio.output.test.ts | F |
 | W-50 | docs check real paths and fails on missing docs | scripts/check-docs.mjs (gate can fail) | A |
 | W-51 | unit-all alias added | node scripts/test.mjs unit-all | A |
 | W-52 | storm gate asserted instead of skipped | tests/weatherConsequences.test.ts | F |

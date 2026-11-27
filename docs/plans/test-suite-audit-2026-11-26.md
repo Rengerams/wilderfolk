@@ -201,6 +201,10 @@ Moved six frame-cache cases into `renderer.frameOwnership.test.ts` and two missi
 
 Moved the load index ordering source test into the central registry with all six ordering pairs. Registry total: 156 rules. Retained all 20 moved runtime cases. Verified active registry file references against the planned tree. Full CI verification pending.
 
+## Audio output consolidation — 2026-11-27
+
+Merged the two render-batch audio suites into `audio.output.test.ts`. Four cases share one recording Web Audio fixture for limiter routing, preset changes and element output levels.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete
