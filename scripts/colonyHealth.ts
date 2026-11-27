@@ -158,11 +158,21 @@ function placeLegalStarterBuilding(
   if (fromHomes.length > 0 && !commuter) throw new Error('Starter colony has no human commuters');
   setCurrentPathMap(world.worldMap, world.buildings);
   beginCommuteRoutePass();
-  for (let ring = 0; ring <= 24; ring++) {
+  // First try the preferred block, then the actual housing banks before a wider sweep.
+  // Every candidate still goes through the production facade and routed commute owners.
+  const searches = fromHomes.length > 0
+    ? [
+      { center: preferred, maxRing: 3 },
+      ...fromHomes.map((home) => ({ center: { x: home.x, y: home.y }, maxRing: 5 })),
+      { center: preferred, maxRing: 24 },
+    ]
+    : [{ center: preferred, maxRing: 24 }];
+  for (const { center, maxRing } of searches) {
+  for (let ring = 0; ring <= maxRing; ring++) {
     for (let dx = -ring; dx <= ring; dx++) {
       for (let dy = -ring; dy <= ring; dy++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
-        const spot = snapBuildingCenter(type, preferred.x + dx * step, preferred.y + dy * step, 0);
+        const spot = snapBuildingCenter(type, center.x + dx * step, center.y + dy * step, 0);
         // Already-built fixtures bypass the placement owner (research/slope gates are not navigation
         // barriers), but must stay walkable and overlap-free.
         const footprint = getBuildingFootprintForType(type, 0);
@@ -199,6 +209,7 @@ function placeLegalStarterBuilding(
         return createCompletedBuilding(world, type, spot.x, spot.y);
       }
     }
+  }
   }
   throw new Error(`Seeded ${type} has no legal, commutable starter placement near ${preferred.x},${preferred.y}`);
 }
