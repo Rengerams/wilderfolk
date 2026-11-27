@@ -12,6 +12,8 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import { TICKS_PER_HOUR, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { initGame } from '../src/game/worldGen';
 import { homeStandPosition } from '../src/game/simulation/humanMovement';
+import { isWaterTerrainType } from '../src/game/terrain/terrainTraits';
+import { tileTypeAt, tileTypeAtWorld } from '../src/game/terrain/terrainGrid';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import { getCurrentPathGrid, getNavigationQuote, hasUnreachableWalkTarget, steerWithPath, isGroundWalkableAt, lineCrossesBlocked, setCurrentPathMap } from '../src/game/pathfinding';
 
@@ -198,6 +200,78 @@ describe('tickHumanChildLeisure', () => {
       expect(isGroundWalkableAt(site!.x, site!.y, grid)).toBe(true);
       expect(lineCrossesBlocked(grid, child.x, child.y, site!.x, site!.y)).toBe(false);
       expect(lineCrossesBlocked(grid, mate.x, mate.y, site!.x, site!.y)).toBe(false);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('never chooses wadeable shallow water as a play site, even when every distant tile is wet', () => {
+    const { state, child } = childFixture();
+    const mate = playerChild(child, 11, { x: 115, y: 105 });
+    child.x = 105;
+    child.y = 105;
+    state.width = 400;
+    state.height = 300;
+    state.worldMap = testWorldMap({
+      tilesX: 40, tilesY: 30,
+      tileType: (tx, ty) => tx >= 9 && tx <= 12 && ty >= 9 && ty <= 12
+        ? undefined : TerrainType.ShallowWater,
+    });
+    setCurrentPathMap(state.worldMap, []);
+    try {
+      // Shallow water is intentionally wadeable for other navigation, but not a playground.
+      expect(isGroundWalkableAt(155, 105)).toBe(true);
+      expect(tileTypeAtWorld(state.worldMap, 155, 105)).toBe(TerrainType.ShallowWater);
+      const tick = playTickFor(child);
+      expect(tickChild(state, child, [child, mate], tick)).toBe(true);
+      expect(child.childPlaySite).toBeUndefined();
+      expect(child.childPlaySiteAttempt).toBeDefined();
+      expect(child.vx).toBe(0);
+      expect(child.vy).toBe(0);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('rejects saved play stops beside water within the child arrival radius', () => {
+    const { state, child } = childFixture();
+    const mate = playerChild(child, 11, { x: 115, y: 105 });
+    child.x = 105;
+    child.y = 105;
+    const tick = playTickFor(child);
+    expect(tickChild(state, child, [child, mate], tick)).toBe(true);
+    const day = Math.floor(tick / TICKS_PER_DAY);
+    const phase = Math.floor((tick % TICKS_PER_DAY) / (3 * TICKS_PER_HOUR));
+    const previous = { day, phase, x: 155, y: 105 };
+    child.childPlaySite = { ...previous, mateId: mate.id };
+    mate.childPlaySite = { ...previous, mateId: child.id };
+    child.childPlaySiteAttempt = { day, phase };
+    mate.childPlaySiteAttempt = { day, phase };
+
+    state.width = 400;
+    state.height = 300;
+    state.worldMap = testWorldMap({
+      tilesX: 40, tilesY: 30,
+      tileType: (tx, ty) => tx === 16 && ty === 10 ? TerrainType.ShallowWater : undefined,
+    });
+    setCurrentPathMap(state.worldMap, []);
+    try {
+      // (155,105) is dry but its play-arrival circle reaches shallow water at tile (16,10).
+      expect(tileTypeAtWorld(state.worldMap, previous.x, previous.y)).not.toBe(TerrainType.ShallowWater);
+      expect(tickChild(state, child, [child, mate], tick + 1)).toBe(true);
+      const site = child.childPlaySite;
+      expect(site).toBeDefined();
+      expect(site?.x === previous.x && site?.y === previous.y).toBe(false);
+      if (!site) throw new Error('expected replacement dry play stop');
+      for (let ty = Math.floor((site.y - 14) / 10); ty <= Math.floor((site.y + 14) / 10); ty++) {
+        for (let tx = Math.floor((site.x - 14) / 10); tx <= Math.floor((site.x + 14) / 10); tx++) {
+          const terrain = tileTypeAt(state.worldMap!, tx, ty);
+          expect(terrain, `play arrival radius at ${tx},${ty}`).not.toBeNull();
+          expect(isWaterTerrainType(terrain!), `play arrival radius at ${tx},${ty}`).toBe(false);
+        }
+      }
+      expect(mate.childPlaySite?.x).toBe(site.x);
+      expect(mate.childPlaySite?.y).toBe(site.y);
     } finally {
       setCurrentPathMap(null);
     }

@@ -7,7 +7,7 @@ import { applyLeaderHousePhase } from './leaderHouse';
 import { assignMissingResidences, moveResident, rebuildChildrenIds } from './housingPipeline';
 import type { WorldState, Entity, TerrainTile, Building } from './gameTypes';
 import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, FACTION_WANDER_PHASES, MapSize, PATH_CELL, createInitialResearchNodes } from './gameTypes';
-import { setTileOverride, tileTypeAt } from './terrain/terrainGrid';
+import { rebakeTerrainGrids, setTileOverride, tileTypeAt } from './terrain/terrainGrid';
 import { isWaterTerrainType } from './terrain/terrainTraits';
 import { INITIAL_CHALLENGES } from './challenges';
 import { normalizeLifetimeStats } from './stats';
@@ -477,10 +477,11 @@ function applySavedTerrainOverrides(
   overrides: unknown,
 ): WorldState['worldMap'] {
   if (!map || !Array.isArray(overrides) || overrides.length === 0) return map;
+  const restoredKeys = new Set<number>();
   for (const entry of overrides) {
     if (!Array.isArray(entry) || entry.length !== 2) continue;
     const [key, tile] = entry as [unknown, unknown];
-    if (typeof key !== 'number' || !Number.isSafeInteger(key) || key < 0) continue;
+    if (typeof key !== 'number' || !Number.isSafeInteger(key) || key < 0 || key >= map.width * map.height) continue;
     if (!tile || typeof tile !== 'object') continue;
     const candidate = tile as Partial<TerrainTile>;
     if (!TERRAIN_TYPE_VALUES.has(candidate.type)) continue;
@@ -492,7 +493,18 @@ function applySavedTerrainOverrides(
       elevation: candidate.elevation,
       moisture: candidate.moisture,
       variation: candidate.variation,
+      // Ground Reinforcement is a terrain edit, not a Building. Its marker must survive
+      // compact-save restoration for both the soil sprite and future saves.
+      ...(candidate.reinforced === true ? { reinforced: true } : {}),
     });
+    restoredKeys.add(key);
+  }
+  // The regenerated L0/L1 rasters predate these saved edits. Refresh them from the final
+  // overrides so walking and construction agree with tileAt immediately after loading.
+  for (const key of restoredKeys) {
+    const tx = key % map.width;
+    const ty = Math.floor(key / map.width);
+    rebakeTerrainGrids(map, { startTx: tx, endTx: tx, startTy: ty, endTy: ty, margin: 0 });
   }
   return map;
 }

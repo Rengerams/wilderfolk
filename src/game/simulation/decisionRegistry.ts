@@ -94,6 +94,7 @@ export type DecisionKey =
   | 'raidCombat'
   | 'outgoingRaidStatus'
   | 'raidRecovery'
+  | 'raidBattlePresentation'
   | 'raidTerminalPresentation'
   | 'crashRecovery'
   | 'valleyChronicle'
@@ -200,7 +201,7 @@ export const SIMULATION_DECISIONS = {
   humanLeisure: {
     owner: 'humanLeisureBehavior.ts — tickHumanLeisure (single free-time entry), tickHumanChildLeisure, tickAdultLeisureMotive',
     cadence: 'realtime',
-    cadenceNote: 'Called once per eligible humanTick free-time tick. Children prefer established friends and childhood bonds, form daily groups of two to four, share a safe rotating play site every three leisure hours (including failed-attempt phase caching; each member needs a clear direct leg or a priced detour of at most 24 tiles using a 600-node quote budget), reconcile survivors after a companion loss, and record active play/follow/home intent; play stops within 14 units or when no site is available, follow stops within 14 units, both clear stale walk targets; humanTick owns movement integration. Adult leisure holds a daily companion selection with hourly retry after a failed search, selects pair-keyed venue destinations, routes through the shared human walk owner, and temporarily rejects definitively unreachable goals with a home fallback.',
+    cadenceNote: 'Called once per eligible humanTick free-time tick. Children prefer established friends and childhood bonds, form daily groups of two to four, share a dry play site with a 14px water-free arrival area every three leisure hours (including invalidating wet saved sites and failed-attempt phase caching; each member needs a clear direct leg or a priced detour of at most 24 tiles using a 600-node quote budget), reconcile survivors after a companion loss, and record active play/follow/home intent; play stops within 14 units or when no site is available, follow stops within 14 units, both clear stale walk targets; humanTick owns movement integration. Adult leisure holds a daily companion selection with hourly retry after a failed search, selects pair-keyed venue destinations, routes through the shared human walk owner, and temporarily rejects definitively unreachable goals with a home fallback.',
     writes: ['human.vx', 'human.vy', 'human.indoorBuildingId', 'human.childPlaymateDay', 'human.childPlaymateId', 'human.childPlayGroupIds', 'human.childPlaySite', 'human.childPlaySiteAttempt', 'human.childLeisureActivity', 'human.childLeisureTargetId', 'human.leisureFriendSearch', 'human.leisureRejectedTarget'],
     scheduledFrom: 'humanTick.tickHumans → humanLeisureBehavior.tickHumanLeisure',
     testFile: 'tests/humanLeisureBehavior.test.ts, tests/humanStatus.projection.test.ts, tests/simulation.decisionRegistry.test.ts',
@@ -720,6 +721,14 @@ export const SIMULATION_DECISIONS = {
     writes: ['raidRecovery', 'paused (settlement destruction)', 'building.health (through building removal owner)', 'rivalSettlements.diplomacyMemory', 'eventLog (through logEvent)'],
     scheduledFrom: 'frontierCombat.ts → beginRaidRecovery/rememberRivalDisposition/applyWarCommunityReaction; gameTick.ts → tickRaidRecovery',
     testFile: 'tests/raidTerminalReport.test.ts, tests/raidChronicle.lifecycle.test.ts',
+  },
+  raidBattlePresentation: {
+    owner: 'eventLog.ts — selectRaidBattleEvents (pure Chronicle projection); App.tsx and components/BattleReportScreen.tsx — one active report, resume and presentation only',
+    cadence: 'on-demand',
+    cadenceNote: 'One battle ID per report; only bounded same-side legacy events may fall back to rival name. Sort chronologically, deduplicate event IDs, retain distinct named deaths and hide redundant complete loss summaries. Persisted battle result is authoritative. Phase and strength visuals reflect recorded combat; no simulated battle, extra RNG, save timer or second history writer.',
+    writes: [],
+    scheduledFrom: 'App.tsx → BattleReportScreen for the selected raid; frontierCombat.ts → logEvent owns tagged combat history',
+    testFile: 'tests/raidChronicle.lifecycle.test.ts, tests/battleReportScreen.test.ts',
   },
   raidTerminalPresentation: {
     owner: 'raidTerminalReport.ts — buildRaidTerminalReport (pure read-only projection); components/WarfareStatus.tsx, components/BattleReportScreen.tsx and components/RazeConfirmation.tsx own display only, including modal keyboard/focus',
