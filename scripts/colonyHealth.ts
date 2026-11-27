@@ -12,7 +12,7 @@ import { initGame } from '../src/game/gameEngine';
 import { createBuilding } from '../src/game/worldGen';
 import { getBuildingFootprintForType, snapBuildingCenter } from '../src/game/buildingRotation';
 import { isFootprintWithinMapBounds, overlapsAnyBuilding } from '../src/game/placementUtils';
-import { beginCommuteRoutePass, isWithinAssignableCommute } from '../src/game/commuteReach';
+import { beginCommuteRoutePass, isWithinAssignableCommute, quoteBuildingCommute } from '../src/game/commuteReach';
 import { getCurrentPathGrid, setCurrentPathMap } from '../src/game/pathfinding';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { assignMissingResidences } from '../src/game/housingPipeline';
@@ -168,6 +168,7 @@ function placeLegalStarterBuilding(
     ]
     : [{ center: preferred, maxRing: 24 }];
   const rejected = { boundsOrOverlap: 0, blockedCenter: 0, commute: 0, passed: 0 };
+  const commuteSamples: Array<{ distance: number; status: string; leadHours?: number }> = [];
   for (const { center, maxRing } of searches) {
   for (let ring = 0; ring <= maxRing; ring++) {
     for (let dx = -ring; dx <= ring; dx++) {
@@ -205,7 +206,16 @@ function placeLegalStarterBuilding(
               world.buildings,
               SPECIES_CONFIG[EntityType.Human].speed,
             ));
-          if (!reachable) { rejected.commute++; continue; }
+          if (!reachable) {
+            rejected.commute++;
+            if (commuteSamples.length < 12) {
+              const near = [...fromHomes].sort((a, b) => Math.hypot(a.x - spot.x, a.y - spot.y) - Math.hypot(b.x - spot.x, b.y - spot.y))[0];
+              beginCommuteRoutePass();
+              const verdict = quoteBuildingCommute(near, candidate, SPECIES_CONFIG[EntityType.Human].speed);
+              commuteSamples.push({ distance: Math.round(Math.hypot(near.x - spot.x, near.y - spot.y)), status: verdict.status, leadHours: verdict.status === 'priced' ? verdict.leadHours : undefined });
+            }
+            continue;
+          }
         }
         rejected.passed++;
         return createCompletedBuilding(world, type, spot.x, spot.y);
@@ -213,7 +223,7 @@ function placeLegalStarterBuilding(
     }
   }
   }
-  throw new Error(`Seeded ${type} has no legal, commutable starter placement near ${preferred.x},${preferred.y} (rejected: ${JSON.stringify(rejected)})`);
+  throw new Error(`Seeded ${type} has no legal, commutable starter placement near ${preferred.x},${preferred.y} (rejected: ${JSON.stringify(rejected)}, commute samples: ${JSON.stringify(commuteSamples)})`);
 }
 
 function placeStarterHousing(world: WorldState, anchor: { x: number; y: number }): void {
