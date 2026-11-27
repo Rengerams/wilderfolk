@@ -162,19 +162,19 @@ function placeLegalStarterBuilding(
   // Every candidate still goes through the production facade and routed commute owners.
   const searches = fromHomes.length > 0
     ? [
-      { center: preferred, maxRing: 3 },
-      ...fromHomes.map((home) => ({ center: { x: home.x, y: home.y }, maxRing: 5 })),
-      { center: preferred, maxRing: 24 },
+      { center: preferred, maxRing: 3, searchStep: step },
+      ...fromHomes.map((home) => ({ center: { x: home.x, y: home.y }, maxRing: 8, searchStep: PATH_CELL * 2 })),
+      { center: preferred, maxRing: 24, searchStep: step },
     ]
-    : [{ center: preferred, maxRing: 24 }];
+    : [{ center: preferred, maxRing: 24, searchStep: step }];
   const rejected = { boundsOrOverlap: 0, blockedCenter: 0, commute: 0, passed: 0 };
   const commuteSamples: Array<{ distance: number; fromDoors: number; toDoors: number; status: string; leadHours?: number }> = [];
-  for (const { center, maxRing } of searches) {
+  for (const { center, maxRing, searchStep } of searches) {
   for (let ring = 0; ring <= maxRing; ring++) {
     for (let dx = -ring; dx <= ring; dx++) {
       for (let dy = -ring; dy <= ring; dy++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
-        const spot = snapBuildingCenter(type, center.x + dx * step, center.y + dy * step, 0);
+        const spot = snapBuildingCenter(type, center.x + dx * searchStep, center.y + dy * searchStep, 0);
         // Already-built fixtures bypass the placement owner (research/slope gates are not navigation
         // barriers), but must stay walkable and overlap-free.
         const footprint = getBuildingFootprintForType(type, 0);
