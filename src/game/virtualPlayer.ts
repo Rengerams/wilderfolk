@@ -33,7 +33,6 @@ import {
   prospectiveFoodTransferDonors,
 } from './workforce';
 import { getWorkforcePolicy } from './workforcePolicy';
-import { readSkill } from './skills';
 import { getEffectiveBedCapacity, getOpenPlayerBeds, getLivePlayerPopulation } from './populationGrowth';
 import { canHostTownFestival } from './townHall';
 import { findCompletedBuilding } from './buildings';
@@ -1253,47 +1252,6 @@ function decideVenueSchedules(state: WorldState): VirtualPlayerDecision | null {
   return null;
 }
 
-/**
- * 19 — trim a genuine overstaffing surplus down to the building's crew cap. Only a workplace holding
- * more settlers than `maxOccupants` is touched, and the least skilled is released so the crew keeps its best.
- */
-function decideSurplusWorkers(state: WorldState): VirtualPlayerDecision | null {
-  const crewsByBuilding = new Map<number, WorldState['entities']>();
-  for (const human of state.entities) {
-    if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE || human.workerBuildingId == null) continue;
-    const crew = crewsByBuilding.get(human.workerBuildingId);
-    if (crew) crew.push(human);
-    else crewsByBuilding.set(human.workerBuildingId, [human]);
-  }
-
-  for (const building of state.buildings) {
-    if (!building.completed) continue;
-    const job = BUILDING_JOB_TYPES[building.type];
-    if (!job) continue;
-    const cap = BUILDING_CONFIGS[building.type].maxOccupants;
-
-    const crew = crewsByBuilding.get(building.id);
-    if (!crew || crew.length <= cap) continue;
-
-    let surplus = crew[0];
-    let lowestSkill = readSkill(surplus, job);
-    for (const worker of crew) {
-      const skill = readSkill(worker, job);
-      if (skill < lowestSkill || (skill === lowestSkill && worker.id < surplus.id)) {
-        surplus = worker;
-        lowestSkill = skill;
-      }
-    }
-
-    return {
-      command: { proto: WORKER_CMD_PROTO, op: 'removeWorker', buildingId: building.id, humanId: surplus.id },
-      reason: `release ${surplus.name} from the ${BUILDING_CONFIGS[building.type].label} — ${crew.length} hands for ${cap} posts`,
-    };
-  }
-
-  return null;
-}
-
 /** True when a road already serves this building. */
 function hasRoadNearby(state: WorldState, building: Building): boolean {
   const cx = building.x + building.width / 2;
@@ -1858,7 +1816,6 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
     ?? decideVisitorRelations(state)
     ?? decideWorkSchedule(state)
     ?? decideVenueSchedules(state)
-    ?? decideSurplusWorkers(state)
     ?? decideRoads(state)
     ?? decideDemolish(state)
     ?? decideUpkeep(state)
