@@ -174,12 +174,12 @@ export function resolveShift(
       && workplace?.type === BuildingType.TownHall
       && completed
       && goWorkTime);
-  const onMoonPriestShift =
+  const onPriestShift =
     entity.job === JobType.Priest
     && workplace?.type === BuildingType.Church
     && completed
-    && isOnMoonHowlerNightShift(state.tick, hour);
-  return { onShift: onDayJobShift || onMoonPriestShift, next: { hour: schedule.startHour, kind: 'day' } };
+    && (goWorkTime || isOnMoonHowlerNightShift(state.tick, hour));
+  return { onShift: onDayJobShift || onPriestShift, next: { hour: schedule.startHour, kind: 'day' } };
 }
 
 /**
