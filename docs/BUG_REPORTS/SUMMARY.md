@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-27 — [Children select shallow water as a play site](../bug_report/2026-11-27-child-play-sites-in-shallow-water.md):** investigating; PR #222 rejects wet play sites and arrival clearance, revalidates saved group destinations, preserves wading; 932 affected tests and all six PR workflows passed on `f5a158a81`; live-save verification pending.
+
 **2026-11-27 — [Active raid presentation duplicates and replays combat](../bug_report/2026-11-27-duplicate-raid-presentation.md):** investigating; PR #224 source fix and resolved-report regression added; HUD/live reopen/tribute browser checks pending.
 
 **2026-11-27 — [Battle commentary runs backward and mixes unrelated entries](../bug_report/2026-11-27-battle-commentary-reversed.md):** investigating; PR #224 chronological scoped selector and regression added; original save and browser verification pending.

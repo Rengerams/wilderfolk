@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (27 Nov 2026):** Children no longer choose shallow water as a play site; shared cached sites are revalidated for dry terrain and safe arrival clearance without changing ordinary wading navigation.
+
 - **Fixed/Improved (27 Nov 2026):** Show one active raid presentation, reopen live combat from its status card, consolidate surrender news, order Chronicle commentary forward, and give the report an animated symbolic battlefield without changing combat resolution.
 
 - **Fixed (27 Nov 2026):** Ground Reinforcement survives compact save/load: preserve the reinforced soil flag and rebuild affected walking/build rasters after terrain overrides are restored.
