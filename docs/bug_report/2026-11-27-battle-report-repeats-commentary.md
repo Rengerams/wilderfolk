@@ -37,4 +37,6 @@ Optional raid ID on new Chronicle rows only. Legacy rows remain readable through
 ## Verification result
 - Source inspection: confirmed the above presentation paths.
 - Regression tests, typecheck, lint, build and CI: NOT RUN by this agent.
-- Browser / user's save reproduction: NOT RUN.
+- Browser / user's save reproduction: NOT RUN; current agent environment has no checkout and cannot resolve github.com, and the original player save is unavailable.
+- PR #224 earlier implementation head 5588278 passed all six CI workflows. The later main implementation supersedes its name-only commentary selector with raid-ID scoping and retains the improved presentation. CI for this combined follow-up has not been verified.
+- PR #224 adds a successful outgoing raid regression in `tests/frontierCombat.hostility.test.ts`: real launch, arrival, six-hour resolution and repeated tick assert one victory announcement, one pending fate and one persisted report. Execution pending.
