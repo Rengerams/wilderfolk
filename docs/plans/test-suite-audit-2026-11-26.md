@@ -135,6 +135,10 @@ the value, not its presence.
 
 Nine source-only cases in eight mixed test files were moved to nine declarative rules: research-effect ownership, render transforms, trade reward copy, schooling and trade-block summaries, save loading and compatibility copy, residence relocation, and the obsolete building-actions facade. All runtime cases remain in Vitest. The registry now contains 126 rules (14 handwritten, 112 declarative). The original 56-file inventory is historical, not a fresh count. Also removed the retired corner rotation helper found by Knip. These changes have not yet been verified by the full CI gate.
 
+## Behavioral assertion increment — 2026-11-27
+
+Strengthened saved-birthday tests to compare complete settler ID sets and exact dates across two round trips; the legacy age test can no longer pass when settlers disappear. Forced dialogue checks preserve the live session and visible-line duration and prove that the control actually speaks. The commute fixture must contain both completed homes and farms, the peak-population record includes its year, and catch notifications assert the accepted count in the displayed text. Positive/non-empty premises are retained where they prevent vacuous tests. Full CI verification is pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

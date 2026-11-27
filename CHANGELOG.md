@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Tests (27 Nov 2026):** Strengthen birthdate round trips, dialogue-session preservation, commute fixture coverage, population records and accepted-catch notification assertions.
+
 - **Maintenance (27 Nov 2026):** Move nine more source-only cases into the static guard registry, retain behavior tests, and remove the retired corner rotation helper.
 
 - **Maintenance (27 Nov 2026):** Move 138 source-only tests into 117 static guards, prove declarative clauses individually, restore the People behavior test, and remove unused rendering exports.

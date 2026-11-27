@@ -27,8 +27,10 @@ describe('seeded producer-colony commute preflight', () => {
     expect(report.movement.secondsPerDayAt1x).toBe(288);
     expect(report.movement.settlers.length).toBeGreaterThan(0);
     expect(report.movement.settlers.some((sample) => sample.walked > 0)).toBe(true);
+    const sampledTicks = world.tick - report.movement.dayStart;
+    expect(sampledTicks).toBeGreaterThan(0);
     expect(report.movement.settlers.some((sample) =>
-      sample.travelling + sample.atWork + sample.atHome + sample.idle === world.tick - report.movement.dayStart)).toBe(true);
+      sample.travelling + sample.atWork + sample.atHome + sample.idle === sampledTicks)).toBe(true);
     expect(report.movement.settlers.every((sample) => Number.isFinite(sample.walked))).toBe(true);
   });
 
@@ -36,6 +38,8 @@ describe('seeded producer-colony commute preflight', () => {
     const { world } = prepareColonyWorld({ size: MapSize.Medium, seed: 12345, scenario: 'producers' });
     const houses = world.buildings.filter((site) => site.type === BuildingType.House && site.completed);
     const farms = world.buildings.filter((site) => site.type === BuildingType.Farm && site.completed);
+    expect(houses.length, 'producer fixture must have completed houses').toBeGreaterThan(0);
+    expect(farms.length, 'producer fixture must have completed farms').toBeGreaterThan(0);
     const founder = world.entities.find((person) => person.alive && person.type === EntityType.Human);
     expect(founder).toBeDefined();
     expect(world.worldMap).not.toBeNull();

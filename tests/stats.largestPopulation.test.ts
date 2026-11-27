@@ -27,6 +27,6 @@ describe('largestPopulation tracks the running peak', () => {
     state.lifetimeStats.largestPopulation = { count: peak + 5, year: state.year };
     gameTick(state);
 
-    expect(state.lifetimeStats.largestPopulation.count).toBe(peak + 5);
+    expect(state.lifetimeStats.largestPopulation).toEqual({ count: peak + 5, year: state.year });
   });
 });
