@@ -124,9 +124,11 @@ export function resolveShift(
     entity.job === JobType.Hotelier && workplace?.type === BuildingType.Hotel && completed;
   const ordinaryWorkplace =
     workplace != null
-    && workplace.type !== BuildingType.Church
-    && workplace.type !== BuildingType.TownHall
-    && workplace.type !== BuildingType.Prison;
+    && (!completed || (workplace.type !== BuildingType.Church
+      && workplace.type !== BuildingType.TownHall
+      && workplace.type !== BuildingType.Prison
+      && workplace.type !== BuildingType.Hospital
+      && workplace.type !== BuildingType.Hotel));
 
   const venueIndex = workplace ? workplace.occupants.indexOf(entity.id) : -1;
   const venueCount = workplace?.occupants.length ?? 0;
