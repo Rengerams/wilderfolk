@@ -286,7 +286,7 @@ function pickOverstaffedDonor(
  * Read-only supply for one prospective food workplace: only genuinely movable staff above the same
  * protected minimum that real transfers enforce.
  */
-export function prospectiveFoodTransferDonors(
+function prospectiveFoodTransferDonors(
   humans: Entity[],
   buildings: Building[],
   currentTick: number,
@@ -310,6 +310,55 @@ export function prospectiveFoodTransferDonors(
     if (spareSlots > 0) donors.push({ workers: workersBySite.get(site.id)!, spareSlots });
   }
   return donors;
+}
+
+/** Read-only food capacity information for planners; no staffing action is proposed. */
+export function findUnstaffedFoodProducer(state: WorldState): Building | undefined {
+  return state.buildings.find((site) => site.completed && isFoodWorkplace(site)
+    && countActiveWorkersAtBuilding(state.entities, site.id) < staffingCapFor(site, state.entities).cap);
+}
+
+/** Shared idle employment eligibility, including construction and apprenticeship reservations. */
+function isIdleWorkforceCandidate(human: Entity, crewIds: ReadonlySet<number>): boolean {
+  return human.alive && isPlayerHuman(human) && human.age >= HUMAN_ADULT_MIN_AGE
+    && !hasWorkAssignment(human) && human.apprenticeOfId == null
+    && !isImprisoned(human) && !crewIds.has(human.id);
+}
+
+/**
+ * Read-only construction feasibility: the same employment eligibility, donor floors and commute
+ * rules used by the workforce owner. Returns null when current/pending vacancies exhaust supply.
+ * The first food site is permitted as a bootstrap. No settler or policy is changed.
+ */
+export function prospectiveFoodSiteStaffing(state: WorldState): ((spot: { x: number; y: number }) => boolean) | null {
+  const sites = state.buildings.filter(isFoodWorkplace);
+  if (sites.length === 0) return () => true;
+  const crewIds = new Set(buildConstructionCrewIndex(state.buildings).keys());
+  const idle = state.entities.filter((human) => isIdleWorkforceCandidate(human, crewIds));
+  const donors = hasFoodStaffingPressure(state)
+    ? prospectiveFoodTransferDonors(state.entities, state.buildings, state.tick)
+    : [];
+  const counts = buildWorkforceAssignmentIndex(state.entities).counts;
+  const openPosts = sites.reduce((sum, site) => sum + (site.completed
+    ? Math.max(0, staffingCapFor(site, state.entities, counts.get(site.id) ?? 0).cap - (counts.get(site.id) ?? 0))
+    : BUILDING_CONFIGS[site.type].maxOccupants), 0);
+  if (idle.length + donors.reduce((sum, donor) => sum + donor.spareSlots, 0) <= openPosts) return null;
+  const origins = new Map<number, Entity>();
+  for (const person of [...idle, ...donors.flatMap((donor) => donor.workers)]) {
+    const key = person.residenceBuildingId ?? -(person.id + 1);
+    if (!origins.has(key)) origins.set(key, person);
+  }
+  const buildingById = new Map(state.buildings.map((site) => [site.id, site]));
+  const walkSpeed = SPECIES_CONFIG[EntityType.Human].speed;
+  return (spot) => {
+    for (const person of origins.values()) {
+      const from = (person.residenceBuildingId == null
+        ? undefined : buildingById.get(person.residenceBuildingId)) ?? person;
+      if (straightLineCommuteLowerBoundHours(from, spot, walkSpeed) > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
+      if (isWithinAssignableCommute(person, spot, state.buildings, walkSpeed, buildingById, state.worldMap)) return true;
+    }
+    return false;
+  };
 }
 
 export function findOverstaffedDonorBuilding(
@@ -683,14 +732,7 @@ function swapReachableWorkersIntoVacancies(
   if (wereCommuteRouteChecksDeferred()) return;
   const crewIds = new Set(buildConstructionCrewIndex(buildings).keys());
   const idle = humans.filter((human) =>
-    human.alive
-    && isPlayerHuman(human)
-    && human.age >= HUMAN_ADULT_MIN_AGE
-    && !hasWorkAssignment(human)
-    && human.apprenticeOfId == null
-    && !isImprisoned(human)
-    && !crewIds.has(human.id)
-    && !movedThisPass.has(human.id),
+    isIdleWorkforceCandidate(human, crewIds) && !movedThisPass.has(human.id),
   );
   if (idle.length === 0) return;
 
@@ -796,9 +838,7 @@ function pickIdleWorkerForBuilding(
   let bestDistance = Infinity;
   let bestSkill = -Infinity;
   for (const candidate of humans) {
-    if (!isPlayerHuman(candidate) || !candidate.alive || candidate.age < HUMAN_ADULT_MIN_AGE
-      || hasWorkAssignment(candidate) || candidate.apprenticeOfId != null || isImprisoned(candidate)
-      || crewIds.has(candidate.id) || excludedWorkers?.has(candidate.id)) continue;
+    if (!isIdleWorkforceCandidate(candidate, crewIds) || excludedWorkers?.has(candidate.id)) continue;
     const home = candidate.residenceBuildingId == null
       ? undefined
       : buildingById?.get(candidate.residenceBuildingId)
