@@ -17,7 +17,7 @@ import { getCurrentPathGrid, setCurrentPathMap } from '../src/game/pathfinding';
 import { Buildability } from '../src/game/terrain/terrainGrid';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { assignMissingResidences } from '../src/game/housingPipeline';
-import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, MapSize, PATH_CELL } from '../src/game/gameTypes';
+import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, MapPreset, MapSize, PATH_CELL } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { updateStorageCaps } from '../src/game/economy';
 import { getRecentFoodFlow } from '../src/game/economyLedger';
@@ -119,6 +119,8 @@ export interface ColonyScenarioOptions {
   size: MapSize;
   seed: number;
   scenario: ScenarioName;
+  /** Select the real world generator preset for the simulation fixture. */
+  preset?: MapPreset;
   /** Benchmark-only: place the seeded founders in a wide dry region without modifying terrain. */
   preferConnectedStart?: boolean;
 }
@@ -434,9 +436,9 @@ export function findDryBenchmarkStart(
 }
 
 export function prepareColonyWorld(options: ColonyScenarioOptions): ColonyScenario {
-  const { size, seed, scenario } = options;
+  const { size, seed, scenario, preset } = options;
   const plan = SCENARIOS[scenario];
-  const world = initGame({ size, seed });
+  const world = initGame({ size, seed, preset });
   setSimSeed(seed);
 
   const founders = livingHumans(world);
