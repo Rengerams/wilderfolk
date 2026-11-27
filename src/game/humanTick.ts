@@ -530,44 +530,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       tryDailyAmicableDivorce(state, entity, entityById, updatedBuildings, playerHumans);
     }
 
-    // The affair encounter needs the settler away from the spouse, so it is sampled at a per-settler
-    // waking hour but stays one roll per colony day (`personDayRoll` is day-keyed).
-    if (
-      !isPrisoner &&
-      !entity.raidDeploymentId &&
-      isPlayerHuman(entity) &&
-      // Compare clock hours with clock hours: the owner's stagger is an hour (06:00–19:00), not a
-      // tick-of-day.
-      hourOfDay === affairEncounterHourOfDay(entity.id, state.tick) &&
-      isStartOfClockHour(state.tick) &&
-      !isAsleepAtHome(entity, buildingById, hourOfDay) &&
-      !isSettlerLodgingAtHotel(entity, buildingById, hourOfDay, hotelLodging.hotels)
-    ) {
-      // Gossip is a daytime interaction, not an automatic midnight rumour.
-      tryDailyAffairGossip(
-        state,
-        entity,
-        entityById,
-        updatedBuildings,
-        buildingById,
-        churchStrength,
-        playerHumans,
-      );
-      tryDailyAffairEncounter(
-        state,
-        entity,
-        entityById,
-        updatedBuildings,
-        buildingById,
-        churchStrength,
-        hourOfDay,
-        humanSocialGrid,
-        playerHumans,
-        width,
-        height,
-      );
-    }
-
     tryGraduateHumanChild(entity, config.size, config.speed, (e) => {
       if (isPlayerHuman(e)) applyEducationGraduation(state, e);
     });
@@ -795,6 +757,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         schoolCommuteDue || onSchoolShift ||
         prisonCommuteDue ||
         entity.pregnant ||
+        (isStartOfClockHour(state.tick) && hourOfDay === affairEncounterHourOfDay(entity.id, state.tick)) ||
         hasAffairPartner(entity, entityById) ||
         (entity.affairProgress ?? 0) >= 20 ||
         (state.tick + entity.id) % OFFSCREEN_HUMAN_THROTTLE === 0);
@@ -1531,7 +1494,45 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && !onJobShift && !onOfficialShift && !onPriestShift &&
       !workCommuteDue && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue;
 
-    // Secret affairs: pregnancy or expecting status does not block encounters or catching.
+    // The affair encounter needs the settler away from the spouse, so it is sampled at a per-settler
+    // waking hour but stays one roll per colony day (`personDayRoll` is day-keyed).
+    if (
+      availableForAffair && !isPrisoner &&
+      !entity.raidDeploymentId &&
+      isPlayerHuman(entity) &&
+      // Compare clock hours with clock hours: the owner's stagger is an hour (waking hours), not a
+      // tick-of-day.
+      hourOfDay === affairEncounterHourOfDay(entity.id, state.tick) &&
+      isStartOfClockHour(state.tick) &&
+      !isAsleepAtHome(entity, buildingById, hourOfDay) &&
+      !isSettlerLodgingAtHotel(entity, buildingById, hourOfDay, hotelLodging.hotels)
+    ) {
+      // Gossip is a daytime interaction, not an automatic midnight rumour.
+      tryDailyAffairGossip(
+        state,
+        entity,
+        entityById,
+        updatedBuildings,
+        buildingById,
+        churchStrength,
+        playerHumans,
+      );
+      tryDailyAffairEncounter(
+        state,
+        entity,
+        entityById,
+        updatedBuildings,
+        buildingById,
+        churchStrength,
+        hourOfDay,
+        humanSocialGrid,
+        playerHumans,
+        width,
+        height,
+      );
+    }
+
+    // Secret affairs: pregnancy itself does not block eligible encounters or catching.
     const hasActiveMarriage =
       isMarriedOrExpecting(entity) &&
       entity.partnerId != null;
