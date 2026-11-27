@@ -52,6 +52,7 @@ import { Relationship } from '../gameConstants';
 import { prisonPrisonerCapacity } from '../prisonShifts';
 import { getSimRng, seededRandomForRun, personDayRoll } from '../simRng';
 import { startPregnancy } from '../pregnancy';
+import { recordMarriageEvent } from '../stats';
 
 import { addReputation } from '../simHelpers';
 
@@ -1646,6 +1647,7 @@ export function tryCompleteCourtshipMarriage(  state: WorldState,
   syncMarriageSurnames(entity, partner);
   const married1 = humanDisplayName(entity);
   const married2 = humanDisplayName(partner);
+  recordMarriageEvent(state);
   logEvent(state, 'marriage', `${married1} and ${married2} got married`, married1);
   addNotification(state, 'Marriage', `${married1} & ${married2} are now married`, 'success');
   requestDialogue({ eventKey: 'marriage.accepted', speaker: entity, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(8), priority: 'scripted' });
