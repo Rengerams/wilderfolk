@@ -164,6 +164,9 @@ function placeLegalStarterBuilding(
     ? [
       { center: preferred, maxRing: 3, searchStep: step },
       ...fromHomes.map((home) => ({ center: { x: home.x, y: home.y }, maxRing: 8, searchStep: PATH_CELL * 2 })),
+      // Keep successive producers on the same accessible dry bank as the first one.
+      ...world.buildings.filter((site) => site.completed && site.type === type)
+        .map((site) => ({ center: { x: site.x, y: site.y }, maxRing: 14, searchStep: PATH_CELL * 2 })),
       { center: preferred, maxRing: 24, searchStep: step },
     ]
     : [{ center: preferred, maxRing: 24, searchStep: step }];
