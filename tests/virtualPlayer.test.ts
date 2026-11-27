@@ -1619,39 +1619,24 @@ describe('virtual player remaining action surface', () => {
     expect(decideVirtualPlayerAction(staffed)?.command?.op).not.toBe('setBuildingStaffingMode');
   });
 
-  it('releases the least skilled hand from an over-crewed workplace', () => {
-    // The fixture's own farm is the over-crewed workplace under test.
+  it.each([BuildingType.Farm, BuildingType.Barracks])('never dismisses individual workers from an over-crewed %s', (type) => {
+    const cap = BUILDING_CONFIGS[type].maxOccupants;
+    const ids = Array.from({ length: cap + 1 }, (_, index) => index + 1);
     const world = makeWorld(
+      ids.map((id) => human(id, { residenceBuildingId: 1, workerBuildingId: 2 })),
       [
-        human(1, { residenceBuildingId: 1, workerBuildingId: 2, skills: { [JobType.Farmer]: 10 } }),
-        human(2, { residenceBuildingId: 1, workerBuildingId: 2, skills: { [JobType.Farmer]: 80 } }),
-        human(3, { residenceBuildingId: 1, workerBuildingId: 2, skills: { [JobType.Farmer]: 45 } }),
-      ],
-      [
-        building(1, BuildingType.House, { occupants: [1, 2, 3] }),
-        // A Farm holds two: the third hand is a surplus auto-staffing never makes.
-        building(2, BuildingType.Farm, { occupants: [1, 2, 3] }),
+        building(1, BuildingType.House, { occupants: ids }),
+        building(2, type, { occupants: ids }),
       ],
       {},
       { foodProducer: false },
     );
-
-    const decision = decideVirtualPlayerAction(world)!;
-
-    expect(decision.command).toEqual({
-      proto: WORKER_CMD_PROTO,
-      op: 'removeWorker',
-      buildingId: 2,
-      humanId: 1,
-    });
-    expect(decision.reason).toContain('3 hands for 2 posts');
-
-    const applied = applyWorkerCommand(world, decision.command);
-    expect(applied.entities.find((entity) => entity.id === 1)?.workerBuildingId).toBeUndefined();
-    // The crew now fits its posts, so the step retires.
-    expect(decideVirtualPlayerAction(applied)?.command ?? null).not.toMatchObject({
-      op: 'removeWorker',
-    });
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const decision = decideVirtualPlayerAction(world);
+      expect(decision?.command.op).not.toBe('removeWorker');
+      expect(decision?.command.op).not.toBe('assignWorker');
+    }
+    expect(world.entities.filter((entity) => entity.workerBuildingId === 2)).toHaveLength(cap + 1);
   });
 
   it('returns the work day and the venue hours to the owner defaults', () => {
