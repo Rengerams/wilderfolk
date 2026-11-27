@@ -125,7 +125,7 @@ export function tickPregnancyAndBirth(
     deerFather = deer;
   }
   const wildkinBirth = deerFather != null && seededRandomForRun(`${birthKey}:wildkin`) < LIFECYCLE_CONFIG.WILDKIN_CHANCE;
-  const biologicalFatherIdAtBirth = entity.pregnantById ?? entity.partnerId;
+  const biologicalFatherIdAtBirth = entity.pregnantById ?? undefined;
   const pregnancyFromYouthLove = entity.pregnancyFromYouthLove === true;
 
   const husband = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;
