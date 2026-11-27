@@ -1,6 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
 import { computeStorageMax, updateStorageCaps } from '../src/game/economy';
 import { buildingTypeHasLevelBenefit, getBuildingUpgradeEligibility } from '../src/game/buildingMaintenanceActions';
 import { initGame } from '../src/game/worldGen';
@@ -131,26 +129,6 @@ describe('a gain never lowers an over-cap store', () => {
     expect(state.resources.wood).toBe(30); // the delivery still deducts
     expect(state.resources.gold).toBe(250); // the reward adds nothing over the cap…
     expect(state.resources.gold).not.toBe(100); // …and never clamps the purse down to it
-  });
-
-  it('keeps the defect expression out of src entirely', () => {
-    const files: string[] = [];
-    const walk = (dir: string): void => {
-      for (const entry of readdirSync(dir)) {
-        const full = join(dir, entry);
-        if (statSync(full).isDirectory()) walk(full);
-        else if (full.endsWith('.ts') || full.endsWith('.tsx')) files.push(full);
-      }
-    };
-    walk(resolve(process.cwd(), 'src'));
-
-    // The exact shape: assigning `Math.min(storageMax.X, resources.X + …)` back onto the store;
-    // `worldGen`'s starter-stock clamp and the reputation clamp are different shapes.
-    const defect = /state\.resources\.\w+\s*=\s*Math\.min\(\s*state\.storageMax\./;
-    const offenders = files.filter((file) => defect.test(readFileSync(file, 'utf8')));
-
-    expect(offenders).toEqual([]);
-    expect(files.length).toBeGreaterThan(300); // the walk must actually cover the tree
   });
 });
 

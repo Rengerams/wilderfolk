@@ -3,8 +3,6 @@
  * the field except the two transports that carry it across the sim boundary.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
 import type { WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
@@ -84,42 +82,5 @@ describe('village reputation has one owner (A6)', () => {
 
     expect(state.villageReputation).toBe(ceilingOnly(REPUTATION_MAX - 1, 4));
     expect(state.villageReputation).toBe(REPUTATION_MAX);
-  });
-
-  it('leaves no raw writer outside the owner and the two transport sites', () => {
-    // A raw assignment to the field, whichever clamp shape it copies.
-    const rawWrite = /(?:state|world)\.villageReputation\s*=\s*[^=]/;
-    // The only non-computations of the field: the owner and the two transports that carry it across
-    // the sim boundary; paths are relative to `src/`.
-    const allowed = new Set([
-      'game/simHelpers.ts',
-      'game/simBuffers/simDelta.ts',
-      'game/simWorker/simPrep.ts',
-    ]);
-    const srcRoot = resolve(process.cwd(), 'src');
-    const offenders: string[] = [];
-    let scanned = 0;
-
-    const walk = (dir: string): void => {
-      for (const entry of readdirSync(dir)) {
-        const full = join(dir, entry);
-        if (statSync(full).isDirectory()) {
-          walk(full);
-        } else if (full.endsWith('.ts') || full.endsWith('.tsx')) {
-          scanned++;
-          const rel = relative(srcRoot, full).split('\\').join('/');
-          if (allowed.has(rel)) continue;
-          readFileSync(full, 'utf8')
-            .split('\n')
-            .forEach((line, index) => {
-              if (rawWrite.test(line)) offenders.push(`${rel}:${index + 1}  ${line.trim()}`);
-            });
-        }
-      }
-    };
-    walk(srcRoot);
-
-    expect(scanned).toBeGreaterThan(300); // the walk must actually cover the tree
-    expect(offenders, 'raw villageReputation writers outside the owner').toEqual([]);
   });
 });

@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Tests (27 Nov 2026):** Centralize reputation, storage and deterministic-position source scans, preserving coverage floors and behavioral tests.
+
 - **Tests (27 Nov 2026):** Move ten UI ownership, production-cap, trade and Chronicle source-only cases into the static registry without removing behavioral tests.
 
 - **Tests (27 Nov 2026):** Consolidate storage capacity, spoilage and upgrade regressions under their existing storage-cap test owner, preserving all ten cases.

@@ -147,6 +147,10 @@ Moved all ten storage-cap, spoilage, upgrade and catalogue cases from `economyAu
 
 Ten source-only cases from four mixed files now run as ten declarative guards: ready trade labels, defence ratio display, election delay, recruitment costs, population aggregates, capped production, trade eligibility/counts, and Chronicle handover/export. All behavioral tests remain. The registry now contains 136 rules (14 handwritten, 122 declarative). Each new clause was checked against the branch source before committing. Full CI is pending.
 
+## Fourth source-guard increment — 2026-11-27
+
+Migrated the reputation single-writer scan, storage gain clamp scan and deterministic tick-position trigonometry rule. The original owner exceptions, eight position modules, both TypeScript extensions and minimum 301-file coverage are preserved. The shared scanner now checks multiple extensions with a single rule and self-tests each extension and the minimum-file floor. The registry contains 139 rules (14 handwritten, 125 declarative). Three mixed test files retain all runtime cases. CI verification is pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

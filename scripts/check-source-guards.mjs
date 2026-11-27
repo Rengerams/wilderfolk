@@ -1475,6 +1475,10 @@ const SOURCE_ROWS = [
       { file: "src/game/EventLogPanel.tsx", contains: ["downloadChronicleLog(events, meta)", "downloadChronicleJSON(events, meta)", "downloadChronicleCSV(events, meta)"], notContains: ["downloadChronicleLog(allFiltered, meta)", "downloadChronicleJSON(allFiltered, meta)", "downloadChronicleCSV(allFiltered, meta)"] },
     ],
   },
+  // Fourth increment: whole-tree ownership and deterministic position math.
+  { id: "reputation-single-writer", scan: { dir: "src", ext: [".ts", ".tsx"], minFiles: 301, except: ["src/game/simHelpers.ts", "src/game/simBuffers/simDelta.ts", "src/game/simWorker/simPrep.ts"], notMatches: /(?:state|world)\.villageReputation[^\S\r\n]*=[^\S\r\n]*[^=\r\n]/, example: "state.villageReputation = 50;" } },
+  { id: "storage-gain-never-clamps-existing-stock", scan: { dir: "src", ext: [".ts", ".tsx"], minFiles: 301, notMatches: /state\.resources\.\w+\s*=\s*Math\.min\(\s*state\.storageMax\./, example: "state.resources.wood = Math.min(state.storageMax.wood, state.resources.wood + gain);" } },
+  { id: "deterministic-tick-position-trigonometry", checks: [{ files: ["src/game/humanTick.ts", "src/game/tickLayerSystems.ts", "src/game/moonHowler.ts", "src/game/villageLeadership.ts", "src/game/simulation/humanMovement.ts", "src/game/simulation/humanLifecycle.ts", "src/game/worldEventSites.ts", "src/game/dailyGrassEcology.ts"], notMatches: /^(?![^\S\r\n]*(?:\/\/|\*|\/\*))[^\r\n]*Math\.(sin|cos)\(/m, example: "const dx = Math.cos(angle);" }] },
 ];
 
 const asArray = (value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]);
@@ -1549,7 +1553,11 @@ function runCheck(ctx, check) {
 function runScan(ctx, scan) {
   const violations = [];
   const except = scan.except ?? [];
-  for (const file of ctx.sourceFiles(scan.dir, scan.ext)) {
+  const files = [...new Set(asArray(scan.ext ?? '.ts').flatMap((ext) => ctx.sourceFiles(scan.dir, ext)))].sort();
+  if (scan.minFiles !== undefined && files.length < scan.minFiles) {
+    violations.push(`${scan.dir}: scanned ${files.length} files, expected at least ${scan.minFiles}`);
+  }
+  for (const file of files) {
     if (except.includes(file)) continue;
     if (scan.notMatches.test(ctx.read(file))) violations.push(`${file}: still matches ${scan.notMatches}`);
   }
@@ -1563,10 +1571,15 @@ function runRow(ctx, row) {
 /** Mutate each declarative clause separately so another failing clause cannot mask a dead one. */
 function* rowMutations(row) {
   if (row.scan) {
-    const { dir, ext, example, notMatches } = row.scan;
-    const file = dir + '/__guard_probe__' + ext;
+    const { dir, ext, example, notMatches, minFiles } = row.scan;
     if (!example || !notMatches.test(example)) throw new Error('invalid scan example');
-    yield { file, text: example, expected: file + ': still matches ' + notMatches };
+    for (const extension of asArray(ext ?? '.ts')) {
+      const file = dir + '/__guard_probe__' + extension;
+      yield { file, text: example, expected: file + ': still matches ' + notMatches };
+    }
+    if (minFiles !== undefined) {
+      yield { emptyScan: true, expected: dir + ': scanned 0 files, expected at least ' + minFiles };
+    }
     return;
   }
   for (const check of row.checks) {
@@ -1670,10 +1683,11 @@ function main() {
       }
       try {
         let cases = 0;
-        for (const { file, text, expected } of rowMutations(row)) {
+        for (const { file, text, expected, emptyScan } of rowMutations(row)) {
           cases++;
           mutations++;
-          const violations = runRow(makeContext({ [file]: text }), row);
+          const context = emptyScan ? { ...makeContext(), sourceFiles: () => [] } : makeContext({ [file]: text });
+          const violations = runRow(context, row);
           if (!violations.includes(expected)) failures.push(row.id + ': mutation missed: ' + expected);
         }
         if (!cases) failures.push(row.id + ': no red-before sample');
