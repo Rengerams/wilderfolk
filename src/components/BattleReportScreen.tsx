@@ -11,6 +11,7 @@ type RaidReport = NonNullable<WorldState['raidBattleReports']>[number];
 interface BattleReportScreenProps {
   rivalName: string;
   incoming?: boolean;
+  resume?: boolean;
   dayLabel: string;
   events: GameEventLog[];
   resolved: boolean;
@@ -55,15 +56,15 @@ function outcomeHeadline(outcome: string | undefined, pending: PendingFate | und
     case 'meager': return 'A thin success';
     case 'fail': return 'The raid failed';
     case 'unanswered': return 'The village was undefended';
-    default: return 'Full time';
+    default: return 'Battle concluded';
   }
 }
 
 export default function BattleReportScreen({
-  rivalName, incoming, dayLabel, events, resolved, pending, report, liveArmy, liveDefense,
+  rivalName, incoming, resume, dayLabel, events, resolved, pending, report, liveArmy, liveDefense,
   liveSoldiers, progressPercent, startedAtTick, onClose, onFate,
 }: BattleReportScreenProps) {
-  const [revealed, setRevealed] = useState(() => Math.min(1, events.length));
+  const [revealed, setRevealed] = useState(() => resume ? events.length : Math.min(1, events.length));
   const [confirmExterminate, setConfirmExterminate] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
   const stableCloseRef = useRef<HTMLButtonElement>(null);
@@ -100,36 +101,46 @@ export default function BattleReportScreen({
   const enemyLosses = pending?.enemyDead ?? report?.enemyDeaths ?? 0;
   const committed = liveArmy?.soldierIds?.length ?? liveDefense?.soldierIds?.length
     ?? (pending ? pending.playerDead + (liveSoldiers ?? 0) : undefined);
-  const battleHour = Math.max(0, Math.min(6, Math.round((progressPercent / 100) * 6)));
+  const battleHour = Math.max(0, Math.min(6, Math.floor((progressPercent / 100) * 6)));
+  const phaseLabel = finalReady ? 'Aftermath' : resolved || pending ? 'Final reports' : battleHour < 2 ? 'Opening clash' : battleHour < 4 ? 'Main engagement' : 'Decisive phase';
+  const ourStrength = liveArmy?.attackerStrength ?? liveDefense?.defenseStrength;
+  const theirStrength = liveArmy?.defenderStrength ?? liveDefense?.attackerStrength;
+  const strengthShare = ourStrength != null && theirStrength != null && ourStrength + theirStrength > 0
+    ? (ourStrength / (ourStrength + theirStrength)) * 100 : undefined;
   const status = finalReady ? 'FULL TIME' : resolved || pending ? 'FINAL WHISTLE' : 'LIVE';
   const visible = events.slice(0, revealed);
 
   return (
     <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Raid match report" className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/95 p-3 text-stone-100 sm:p-5">
-      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-amber-700/60 bg-stone-950 shadow-2xl">
+      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-amber-700/60 bg-stone-950 shadow-[0_0_70px_rgba(180,83,9,0.22)]">
         <header className="border-b border-amber-800/50 bg-gradient-to-r from-stone-950 via-amber-950/60 to-stone-950 px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-500">War-band · text match</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-500">War chronicle · text match</p>
             <div className="flex items-center gap-3">
               <p className="text-[10px] uppercase tracking-[0.18em] text-stone-500">{dayLabel}</p>
               <button type="button" ref={stableCloseRef} data-autofocus aria-label="Close battle report" className="rounded border border-stone-700 px-2 py-1 text-[10px] uppercase tracking-wider text-stone-300 hover:bg-stone-800" onClick={onClose}>Close</button>
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <div className="relative mt-3 overflow-hidden rounded-xl border border-amber-800/50 bg-[radial-gradient(ellipse_at_center,_rgba(180,83,9,0.30),_transparent_60%),linear-gradient(110deg,_#10261e,_#1c1917_48%,_#331518)] px-3 py-4 sm:px-5 sm:py-6">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center text-7xl text-amber-300/10 sm:text-9xl">⚔</div>
+            <div className="relative mb-3 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-amber-200"><span className="h-px flex-1 bg-amber-700/50" />{phaseLabel}<span className="h-px flex-1 bg-amber-700/50" /></div>
+            <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-black uppercase tracking-wide text-emerald-200 sm:text-lg">Wilderfolk</p>
-              <p className="text-[10px] uppercase tracking-widest text-emerald-500/80">Home</p>
+              <p className="text-[10px] uppercase tracking-widest text-emerald-300/80">{incoming ? 'Defending' : 'Attacking'}</p>
             </div>
-            <div className="flex items-center gap-3 rounded-xl border border-stone-700 bg-black/60 px-4 py-2 font-mono shadow-inner">
+            <div className="rounded-xl border border-amber-900/80 bg-black/70 px-4 py-2 text-center font-mono shadow-inner"><p className="text-[9px] uppercase tracking-widest text-stone-400">Confirmed losses</p><div className="flex items-center gap-3">
               <span className="text-3xl font-black text-emerald-300 sm:text-4xl">{playerLosses}</span>
               <span className="text-lg text-stone-500">—</span>
               <span className="text-3xl font-black text-rose-300 sm:text-4xl">{enemyLosses}</span>
-            </div>
+            </div></div>
             <div className="min-w-0 text-right">
               <p className="truncate text-sm font-black uppercase tracking-wide text-rose-200 sm:text-lg">{rivalName}</p>
               <p className="text-[10px] uppercase tracking-widest text-rose-500/80">{incoming ? 'Raiders' : 'War-band'}</p>
             </div>
+            </div>
+            {strengthShare != null && <div className="relative mt-4"><div className="mb-1 flex justify-between text-[10px] font-bold uppercase tracking-wider"><span className="text-emerald-200">Our strength {Math.round(ourStrength!)}</span><span className="text-rose-200">Enemy strength {Math.round(theirStrength!)}</span></div><div className="flex h-2 overflow-hidden rounded-full bg-rose-800"><div className="bg-gradient-to-r from-emerald-800 to-emerald-400 transition-[width] duration-700" style={{ width: `${strengthShare}%` }} /></div></div>}
           </div>
 
           <div className="mt-3 flex items-center gap-3">
@@ -155,11 +166,11 @@ export default function BattleReportScreen({
               {visible.map((event) => {
                 const visual = commentaryVisual(event);
                 return (
-                  <div key={event.id} className={`grid grid-cols-[3.4rem_1.2rem_1fr] items-start gap-2 border-l-2 pl-3 ${visual.tone}`}>
+                  <div key={event.id} className={`grid grid-cols-[2.4rem_1.6rem_1fr] items-start gap-2 rounded-r-lg border-l-2 bg-stone-900/65 px-3 py-2.5 animate-in fade-in slide-in-from-bottom-1 motion-reduce:animate-none ${visual.tone}`}>
                     <span className="text-[10px] tabular-nums text-stone-500">
                       {startedAtTick != null ? `H${Math.max(0, Math.min(6, Math.floor((event.tick - startedAtTick) / TICKS_PER_HOUR)))}` : '—'}
                     </span>
-                    <span className="text-center text-xs">{visual.icon}</span>
+                    <span aria-hidden="true" className="rounded-full bg-black/40 text-center text-base leading-6">{visual.icon}</span>
                     <p>{event.message}</p>
                   </div>
                 );
@@ -170,7 +181,7 @@ export default function BattleReportScreen({
 
           <aside className="min-h-0 space-y-4 overflow-y-auto p-4">
             <div>
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-stone-400">Match stats</h3>
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-stone-400">Battlefield intelligence</h3>
               <dl className="grid grid-cols-2 gap-2 text-sm">
                 <div className="rounded-lg border border-stone-800 bg-stone-900/70 p-2">
                   <dt className="text-[10px] uppercase tracking-wider text-stone-500">Committed</dt>
@@ -206,8 +217,8 @@ export default function BattleReportScreen({
         <footer className="border-t border-stone-800 bg-stone-950 px-4 py-3 sm:px-6">
           {finalReady ? (
             <div className="space-y-3">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-500">Full time</p>
+              <div className="rounded-xl border border-amber-700/50 bg-gradient-to-r from-amber-950/70 to-stone-950 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-500">Battle outcome</p>
                 <p className="text-lg font-black text-amber-100">{outcomeHeadline(report?.outcome, pending)}</p>
                 <p className="text-sm text-stone-400">
                   {playerLosses} of ours killed · {enemyLosses} of theirs · {pending ? `${pending.enemySurvivors} survivors remain` : `${report?.enemyFallen.length ?? 0} identified enemy dead`}
