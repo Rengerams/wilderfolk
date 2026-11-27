@@ -49,7 +49,8 @@ type SettlerWorkReasonCode =
   | 'deployed'
   | 'sleeping'
   | 'eating'
-  | 'ill'
+  | 'exhausted'
+  | 'grieving'
   | 'going-to-hospital'
   | 'in-hospital'
   | 'unreachable'
@@ -250,7 +251,8 @@ export function getSettlerWorkReason(
   // attendance outranks it, or a worker at their post would read absent while the shift is credited.
   const care = medicalCareReason(entity, state.tick);
   if (care && care !== 'expecting' && !(onShift && atWork)) {
-    return { code: 'ill', label: `Ill — ${care}` };
+    if (care === 'exhausted') return { code: 'exhausted', label: 'Exhausted' };
+    if (care === 'grieving') return { code: 'grieving', label: 'Grieving' };
   }
 
   // `humanTick` holds a ceremony's attendees before its festival gatherers; keep that order.
