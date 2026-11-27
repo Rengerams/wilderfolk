@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (27 Nov 2026):** Children no longer choose shallow water as a play site; shared cached sites are revalidated for dry terrain and safe arrival clearance without changing ordinary wading navigation.
+
 - **Fixed (27 Nov 2026):** Ground Reinforcement survives compact save/load: preserve the reinforced soil flag and rebuild affected walking/build rasters after terrain overrides are restored.
 
 - **Fixed (27 Nov 2026):** Save-format mismatch diagnostics serialize invalid JSON markers instead of printing `[object Object]`; regression-covered without changing the save compatibility gate.
