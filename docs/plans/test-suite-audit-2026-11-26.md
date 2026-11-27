@@ -177,6 +177,14 @@ Strengthened quarry worker role, exclusive construction assignment and elapsed s
 
 All test cases were retained. The value-normalization suite shares the existing seeded save payload and load helper; the dismissed-event list tests use the element-shape suite's real payload and scoped RNG reset. The original election oracle, placement fixtures and name-label cases remain intact. Decision-registry and ownership links are updated; historical bug reports retain their original test paths as historical evidence. CI verification is pending.
 
+## Three additional owner-file consolidations — 2026-11-27
+
+- `housingPulse.audit.test.ts` → `housingPipeline.invariants.test.ts` (5 cases).
+- `virtualPlayer.staffingAndRepairBatch.test.ts` → `workforce.transitions.test.ts` (3 cases) and `workerCommand.roundtrip.test.ts` (2 cases).
+- `renderBatch.reducedMotion.test.ts` → `renderer.motionAndHover.test.ts` (5 cases, with mock cleanup scoped to the reduced-motion suite).
+
+All 15 cases are preserved. The staffing fixture keeps its original factory semantics. Updated active owner references. Full CI verification remains pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

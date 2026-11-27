@@ -33,6 +33,10 @@ import { removeWorkerFromBuilding } from '../src/game/buildingActionRouting';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { setHumanBirthFromAge } from '../src/game/dayCycle';
 import { recordScheduleWorkTick } from '../src/game/scheduleFatigue';
+import { createBuilding } from '../src/game/worldGen';
+import { setBuildingStaffingMode } from '../src/game/buildingConfigurationActions';
+import { isWorkerCommand, WORKER_CMD_PROTO } from '../src/game/simWorker/commands';
+import { human as staffingHuman, building as staffingBuilding } from '../src/test/factories';
 
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
   return {
@@ -574,5 +578,49 @@ describe('blacksmith operational bonus during imprisonment', () => {
 
     smith.prisonBuildingId = undefined;
     expect(getSmithBonus([forge], [smith])).toBe(1.25);
+  });
+});
+
+function legacyStaffingWorld(): WorldState {
+  return {
+    entities: [staffingHuman(1)],
+    buildings: [staffingBuilding(7, BuildingType.Church, { staffingMode: 'manual' })],
+    tick: 0,
+    resources: { wood: 100, stone: 100, food: 100, gold: 100, iron: 0 },
+    floatingTexts: [],
+    notifications: [],
+    nextFloatingTextId: 1,
+  } as unknown as WorldState;
+}
+
+describe('automatic workplace staffing', () => {
+  it('starts all job-capable buildings in auto, and does not set modes on non-jobs', () => {
+    for (const type of [
+      BuildingType.Church, BuildingType.Barracks, BuildingType.Prison,
+      BuildingType.School, BuildingType.Farm, BuildingType.Tavern,
+    ]) {
+      const built = createBuilding(type, 20, 20, 1);
+      expect(built.staffingMode).toBe('auto');
+    }
+    expect(createBuilding(BuildingType.House, 20, 20, 2).staffingMode).toBeUndefined();
+  });
+
+  it('normalizes legacy manual flags and assigns available workers', () => {
+    const world = legacyStaffingWorld();
+    assignMissingWorkers(world.entities, world.buildings, world);
+    expect(world.buildings[0].occupants).toEqual([1]);
+    expect(world.buildings[0].staffingMode).toBe('auto');
+    expect(world.entities[0].workerBuildingId).toBe(7);
+    // Automatic staffing is the simulation's scheduled responsibility, not a button or notification.
+    expect(world.notifications).toHaveLength(0);
+  });
+
+  it('rejects attempts to restore manual staffing after auto assignment', () => {
+    const world = legacyStaffingWorld();
+    assignMissingWorkers(world.entities, world.buildings, world);
+    const switched = setBuildingStaffingMode(world, 7, 'manual');
+    expect(switched).toBe(world);
+    expect(switched.buildings[0].staffingMode).toBe('auto');
+    expect(isWorkerCommand({ proto: WORKER_CMD_PROTO, op: 'setBuildingStaffingMode', buildingId: 7, mode: 'manual' })).toBe(false);
   });
 });
