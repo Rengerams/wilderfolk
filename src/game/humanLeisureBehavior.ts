@@ -35,6 +35,8 @@ const KID_PLAY_CHANCE = 0.72;
 export const CHILD_PLAYMATE_CANDIDATE_LIMIT = 32;
 /** Including the child: a pair, trio or four-child play circle. */
 export const CHILD_PLAY_GROUP_MAX = 4;
+/** A child may stop this close to the group play destination. Keep the entire area dry. */
+const CHILD_PLAY_ARRIVAL_RADIUS = 14;
 
 /** 80 in-game hours: one free-time activity holds for several days, not one tick. */
 const LEISURE_SLOT_TICKS = 80 * TICKS_PER_HOUR;
@@ -95,9 +97,10 @@ function isDryChildPlaySite(
   if (!Number.isFinite(x) || !Number.isFinite(y) || !isGroundWalkableAt(x, y, grid)) return false;
   const map = state.worldMap;
   if (!map) return true;
-  const radius = 14;
-  for (let ty = Math.floor((y - radius) / PATH_CELL); ty <= Math.floor((y + radius) / PATH_CELL); ty++) {
-    for (let tx = Math.floor((x - radius) / PATH_CELL); tx <= Math.floor((x + radius) / PATH_CELL); tx++) {
+  for (let ty = Math.floor((y - CHILD_PLAY_ARRIVAL_RADIUS) / PATH_CELL);
+    ty <= Math.floor((y + CHILD_PLAY_ARRIVAL_RADIUS) / PATH_CELL); ty++) {
+    for (let tx = Math.floor((x - CHILD_PLAY_ARRIVAL_RADIUS) / PATH_CELL);
+      tx <= Math.floor((x + CHILD_PLAY_ARRIVAL_RADIUS) / PATH_CELL); tx++) {
       const type = tileTypeAt(map, tx, ty);
       if (type === null || isWaterTerrainType(type)) return false;
     }
@@ -310,30 +313,30 @@ export function tickHumanChildLeisure(args: {
         entity.vx = 0;
         entity.vy = 0;
       } else {
-      const destinationX = site?.x ?? entity.x;
-      const destinationY = site?.y ?? entity.y;
-      const distance = Math.hypot(destinationX - entity.x, destinationY - entity.y);
-      if (site && distance > 14) {
-        steerHumanToward(entity, destinationX, destinationY, speed, 0.7,
-          `child_play_${entity.id}_${mate.id}`);
-      } else {
-        // Stop the previous route as well as velocity: off-screen walk resumption
-        // must not pull a child away from its arrived or unavailable destination.
-        clearHumanWalkTarget(entity);
-        entity.vx = 0;
-        entity.vy = 0;
-        if (seededRandomForRun(`chat-kid:${entity.id}:${state.tick}`) < 0.06 * PER_TICK_RATE_SCALE) {
-          requestDialogue({
-            eventKey: 'child.play', speaker: entity, tick: state.tick,
-            selectionRoll: personDayRoll(entity.id, state.tick, 719),
-            durationHours: 4 / TICKS_PER_HOUR,
-          });
+        const destinationX = site?.x ?? entity.x;
+        const destinationY = site?.y ?? entity.y;
+        const distance = Math.hypot(destinationX - entity.x, destinationY - entity.y);
+        if (site && distance > CHILD_PLAY_ARRIVAL_RADIUS) {
+          steerHumanToward(entity, destinationX, destinationY, speed, 0.7,
+            `child_play_${entity.id}_${mate.id}`);
+        } else {
+          // Stop the previous route as well as velocity: off-screen walk resumption
+          // must not pull a child away from its arrived or unavailable destination.
+          clearHumanWalkTarget(entity);
+          entity.vx = 0;
+          entity.vy = 0;
+          if (seededRandomForRun(`chat-kid:${entity.id}:${state.tick}`) < 0.06 * PER_TICK_RATE_SCALE) {
+            requestDialogue({
+              eventKey: 'child.play', speaker: entity, tick: state.tick,
+              selectionRoll: personDayRoll(entity.id, state.tick, 719),
+              durationHours: 4 / TICKS_PER_HOUR,
+            });
+          }
         }
-      }
-      faceVelocity(entity);
-      entity.childLeisureActivity = 'playing';
-      entity.childLeisureTargetId = mate.id;
-      return true;
+        faceVelocity(entity);
+        entity.childLeisureActivity = 'playing';
+        entity.childLeisureTargetId = mate.id;
+        return true;
       }
     }
   }
