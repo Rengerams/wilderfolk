@@ -4,6 +4,7 @@ import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/g
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { DAYS_PER_YEAR, PER_TICK_RATE_SCALE, TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay } from '../src/game/dayCycleClock';
+import { NIGHT_START } from '../src/game/daycycleconstants';
 import { prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { resetSimRng, seededRandomForRun, setSimSeed, personDayRoll } from '../src/game/simRng';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -119,6 +120,86 @@ function contextFor(state: WorldState, humans: Entity[]): TickContext {
 
 afterEach(() => {
   resetSimRng();
+});
+
+
+describe('war-band human upkeep', () => {
+  it('lets an exhausted, expectant soldier recover during seven hours of camp sleep', () => {
+    const state = newWorld();
+    const soldier = settler(77, {
+      gender: 'female', pregnant: true, pregnancyProgress: 10, pregnancyDueProgress: 5000,
+      job: JobType.Soldier, raidDeploymentId: 'outgoing_raid_test',
+    });
+    soldier.needs = { nutrition: 80, rest: 0, stamina: 0, severeHungerTicks: 0 };
+    state.entities = [soldier];
+    setSimSeed(TEST_SEED);
+    const start = TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR;
+    for (let offset = 0; offset < 7 * TICKS_PER_HOUR; offset++) {
+      state.tick = start + offset;
+      tickHumans(state, contextFor(state, [soldier]));
+    }
+    expect(soldier.needs!.rest).toBeGreaterThan(90);
+    expect(soldier.needs!.stamina).toBeGreaterThan(90);
+    expect(soldier.energy).toBeGreaterThan(90);
+    expect(soldier.raidDeploymentId).toBe('outgoing_raid_test');
+    expect(soldier.pregnant).toBe(true);
+    expect(soldier.indoorBuildingId).toBeUndefined();
+  });
+
+  it('does not count a marching soldier as present or working at the village barracks', () => {
+    const state = newWorld();
+    const barracks = building(9, BuildingType.Barracks, { x: 0, y: 0 });
+    const soldier = settler(78, {
+      job: JobType.Soldier, workerBuildingId: barracks.id, raidDeploymentId: 'outgoing_raid_test',
+    });
+    soldier.needs = { nutrition: 80, rest: 85, stamina: 100, severeHungerTicks: 0 };
+    state.entities = [soldier];
+    state.buildings = [barracks];
+    barracks.occupants = [soldier.id];
+    state.tick = TICKS_PER_DAY + 12 * TICKS_PER_HOUR;
+    tickHumans(state, contextFor(state, [soldier]));
+    expect(soldier.scheduleWorkedTicksToday ?? 0).toBe(0);
+    expect(soldier.schedulePresentTicksToday ?? 0).toBe(0);
+    expect(soldier.needs!.stamina).toBeLessThan(100);
+    expect(soldier.raidDeploymentId).toBe('outgoing_raid_test');
+  });
+});
+
+
+describe('nightly recovery keeps priority over spouse-following', () => {
+  it('sends an exhausted, married woman home instead of slowly chasing her spouse', () => {
+    const state = newWorld();
+    const house = building(97, BuildingType.House, { x: 500, y: 500 });
+    const wife = settler(88, {
+      gender: 'female', x: 720, y: 500, partnerId: 89,
+      relationshipStatus: 'married', reproductionCooldown: 0,
+      residenceBuildingId: house.id,
+    });
+    const husband = settler(89, {
+      gender: 'male', x: 1110, y: 500, partnerId: wife.id,
+      relationshipStatus: 'married', residenceBuildingId: house.id,
+    });
+    house.occupants = [wife.id, husband.id];
+    state.buildings = [house];
+    state.entities = [wife, husband];
+    state.tick = TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR + 2;
+    wife.needs = {
+      nutrition: 80, rest: 0, stamina: 0, severeHungerTicks: 0,
+      breakUntilRecovered: true,
+      sleepRecoveryUntilTick: state.tick + 8 * TICKS_PER_HOUR,
+    };
+
+    const homeDistance = Math.hypot(wife.x - house.x, wife.y - house.y);
+    const spouseStart = { x: husband.x, y: husband.y };
+    const spouseDistance = Math.hypot(wife.x - spouseStart.x, wife.y - spouseStart.y);
+    tickHumans(state, contextFor(state, [wife, husband]));
+
+    // Both settlers move during the tick; compare against the original chase target.
+    expect(Math.hypot(wife.x - house.x, wife.y - house.y)).toBeLessThan(homeDistance);
+    expect(Math.hypot(wife.x - spouseStart.x, wife.y - spouseStart.y)).toBeGreaterThan(spouseDistance);
+    expect(Math.hypot(wife.vx, wife.vy)).toBeGreaterThan(8);
+    expect(wife.needs?.sleepRecoveryUntilTick).toBeGreaterThan(state.tick);
+  });
 });
 
 describe('L8 — removal targets the settler\'s own building', () => {
