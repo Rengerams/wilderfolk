@@ -190,12 +190,13 @@ describe('nightly recovery keeps priority over spouse-following', () => {
     };
 
     const homeDistance = Math.hypot(wife.x - house.x, wife.y - house.y);
-    const spouseDistance = Math.hypot(wife.x - husband.x, wife.y - husband.y);
+    const spouseStart = { x: husband.x, y: husband.y };
+    const spouseDistance = Math.hypot(wife.x - spouseStart.x, wife.y - spouseStart.y);
     tickHumans(state, contextFor(state, [wife, husband]));
 
-    // The old chase replaced an urgent commute with a slow 2.4px/tick walk toward the spouse.
+    // Both settlers move during the tick; compare against the original chase target.
     expect(Math.hypot(wife.x - house.x, wife.y - house.y)).toBeLessThan(homeDistance);
-    expect(Math.hypot(wife.x - husband.x, wife.y - husband.y)).toBeGreaterThan(spouseDistance);
+    expect(Math.hypot(wife.x - spouseStart.x, wife.y - spouseStart.y)).toBeGreaterThan(spouseDistance);
     expect(Math.hypot(wife.vx, wife.vy)).toBeGreaterThan(8);
     expect(wife.needs?.sleepRecoveryUntilTick).toBeGreaterThan(state.tick);
   });
