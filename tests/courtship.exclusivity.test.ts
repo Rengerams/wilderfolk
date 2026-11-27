@@ -325,7 +325,7 @@ describe('a widowed settler may court again (owner, 2026-10-09)', () => {
     ).toBe(C_ID);
   });
 
-  it('leaves a pregnant widow expecting, because that pregnancy is still hers', () => {
+  it('clears the legacy marriage status of a pregnant widow without ending her pregnancy', () => {
     const husband = settler(A_ID, 'male', { partnerId: B_ID, relationshipStatus: 'expecting' });
     const widow = settler(B_ID, 'female', {
       partnerId: A_ID,
