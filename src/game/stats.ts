@@ -128,11 +128,10 @@ export function recordYearlyStats(state: WorldState, forYear?: number): YearlySt
   // Humans born during this calendar year (birthYear set at birth in `humanLifecycle`)
   const humanBirths = humans.filter((h) => h.birthYear === statsYear).length;
 
-  // Active marriages, not `=== 'married'`: conception moves both partners to `'expecting'`, so the
-  // narrow test lost the couple and `floor(delta / 2)` read the marriage as never having happened.
+  // Current married population is a stock; completed marriage events are a flow.
+  // Divorce and death must not subtract completed weddings.
   const marriedHumans = humans.filter(isMarriedOrExpecting).length;
-  const prevMarried = prevYearStats?.marriedCount ?? 0;
-  const marriagesThisYear = Math.max(0, Math.floor((marriedHumans - prevMarried) / 2));
+  const marriagesThisYear = state.eventLog.filter(event => event.type === 'marriage' && event.year === statsYear).length;
 
   const animalTypes = new Set<ET>([
     ET.Rabbit, ET.Deer, ET.Wolf, ET.Fox, ET.Werewolf, ET.Wildkin,
