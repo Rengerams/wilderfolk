@@ -1490,9 +1490,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     // Work and its commute own movement; neither kind of affair may steal their steering.
-    const availableForAffair = !stayIn && !sleepingForNeeds && !recoveringSleep && !takingNeedsBreak
-      && !onJobShift && !onOfficialShift && !onPriestShift &&
+    const offDutyForAffair = !onJobShift && !onOfficialShift && !onPriestShift &&
       !workCommuteDue && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue;
+    const availableForAffair = offDutyForAffair && !stayIn && !sleepingForNeeds && !recoveringSleep && !takingNeedsBreak;
 
     // The affair encounter needs the settler away from the spouse, so it is sampled at a per-settler
     // waking hour but stays one roll per colony day (`personDayRoll` is day-keyed).
@@ -1623,10 +1623,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Established affairs still happen in normal free time, but cannot steal
-    // spotlight participants' movement after the gathering vector is assigned.
+    // Established affairs can also use an already-reached overnight tryst house.
+    // Only ordinary free time permits pursuit; bedtime must not trigger a new commute.
     if (
-      availableForAffair &&
+      offDutyForAffair &&
       !inSpotlightGathering &&
       !goingToHospital &&
       canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
@@ -1640,17 +1640,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const trystTarget = getAffairTrystTarget(entity, lover, entityById, buildingById);
         const dist = Math.hypot(trystTarget.x - entity.x, trystTarget.y - entity.y) || 1;
         const tryst = isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_INTIMATE_RADIUS);
-        if (!tryst && dist > 14) {
+        const site = tryst ? getAffairTrystBuilding(entity, lover, entityById, buildingById) : undefined;
+        const overnight = !!site && isNightHour(hourOfDay) && !onDutyForSleep
+          && !preShiftSleep.headHome && !takingNeedsBreak && (!recoveringSleep || sleepingForNeeds);
+        if (availableForAffair && !tryst && dist > 14) {
           entity.indoorBuildingId = undefined;
           steerAffairApproach(entity, lover, trystTarget, config.speed * 0.32);
           suppressIdle = true;
-        } else if (tryst) {
-          // Genuine overnight tryst: enter the existing tryst building rather than
-          // granting any indoor/sleep state for an outdoor romantic encounter.
-          if (isNightHour(hourOfDay) && !onDutyForSleep) {
-            const site = getAffairTrystBuilding(entity, lover, entityById, buildingById);
-            if (site) enterHumanBuilding(entity, site);
-          }
+        } else if (tryst && (availableForAffair || overnight)) {
+          // Real indoor presence allows the physiology owner to observe sleep on the next tick.
+          if (overnight && site) enterHumanBuilding(entity, site);
           tryExposeCaughtAffairForPair(
             state,
             entity,
