@@ -1527,7 +1527,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     // Work and its commute own movement; neither kind of affair may steal their steering.
-    const availableForAffair = !onJobShift && !onOfficialShift && !onPriestShift &&
+    const availableForAffair = !stayIn && !sleepingForNeeds && !recoveringSleep && !takingNeedsBreak
+      && !onJobShift && !onOfficialShift && !onPriestShift &&
       !workCommuteDue && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue;
 
     // Secret affairs: pregnancy or expecting status does not block encounters or catching.
@@ -1577,15 +1578,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           if (shouldLeadAffairPair(entity, paramour)) {
             // One staggered attempt per game hour, not a roll every realtime tick.
             // 11.4% per hour preserves roughly the former 1%-per-tick hourly odds.
-            // Keep affair progress and visual feedback on their original realtime cadence.
+            // Progress is owned by the daily relationship encounter; retain visual feedback only.
             if ((state.tick + entity.id) % TICKS_PER_HOUR === 0) {
               settlerPairChat(entity, paramour, 'affair', 0.114);
             }
 
-            const churchPenalty = churchStrength > 0 ? 0.72 + (1 - churchStrength) * 0.28 : 1;
-            const affairRate = (churchStrength > 0 ? 5 : 8) * (state.festival?.active ? 1.4 : 1) * churchPenalty * PER_TICK_RATE_SCALE;
-            entity.affairProgress = Math.min(100, (entity.affairProgress || 0) + affairRate);
-            paramour.affairProgress = Math.min(100, (paramour.affairProgress || 0) + affairRate);
 
             if (getSimRng('humanTick')() < 0.06 * PER_TICK_RATE_SCALE) {
               state.deathParticles.push({
