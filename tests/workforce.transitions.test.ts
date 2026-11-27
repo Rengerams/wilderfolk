@@ -420,7 +420,7 @@ describe('workforce named transitions', () => {
 });
 
 describe('workforce command surface', () => {
-  it('immediately re-staffs an automatically managed Church after removing its only priest', () => {
+  it('rejects manual dismissal from an automatically managed Church', () => {
     const priest = human(1, {
       workerBuildingId: 4,
       occupation: JOB_LABELS[JobType.Priest],
@@ -430,6 +430,9 @@ describe('workforce command surface', () => {
     const world = makeWorld([priest], [church]);
 
     const next = removeWorkerFromBuilding(world, 4, 1);
+    expect(next).toBe(world);
+    expect(next.buildings.find((b) => b.id === 4)!.staffingMode).toBe('manual');
+    assignMissingWorkers(next.entities, next.buildings, next, true);
     const reassigned = next.entities.find((e) => e.id === 1)!;
 
     expect(reassigned.workerBuildingId).toBe(4);
