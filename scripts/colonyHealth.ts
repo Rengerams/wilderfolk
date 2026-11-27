@@ -183,7 +183,11 @@ function placeLegalStarterBuilding(
         if (type === BuildingType.House && grid && buildingAccessPoints(candidate, grid).length === 0) continue;
         if (fromHomes.length > 0) {
           beginCommuteRoutePass();
-          const reachable = fromHomes.every((home) =>
+          // A starter workplace only needs one genuinely commutable household:
+          // the workforce can staff it from that home. Requiring every home
+          // to reach every workplace fails on islands once water is correctly
+          // impassable, although valid jobs remain on the settled bank.
+          const reachable = fromHomes.some((home) =>
             isWithinAssignableCommute(
               { ...commuter!, residenceBuildingId: home.id },
               candidate,
