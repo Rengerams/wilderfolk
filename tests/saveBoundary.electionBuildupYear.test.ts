@@ -8,6 +8,7 @@ import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
 import { resetSimRng } from '../src/game/simRng';
 import { tickElectionBuildup } from '../src/game/villageLeadership';
+import { DAYS_PER_YEAR } from '../src/game/dayCycle';
 import { MapSize } from '../src/game/gameTypes';
 
 let cachedPayload: Record<string, unknown> | null = null;
@@ -42,11 +43,16 @@ describe('a leadership scalar the payload omits still loads', () => {
     if (!outcome.ok) return;
     expect(outcome.world.electionBuildupNotifiedYear).toBeNull();
 
-    // `until === 1` for year 3 with the last election at year 0; the notice must fire once, not
-    // on every buildup tick — the guard the loaded value feeds.
+    // Only the final day before the regular election may announce it, once per target year.
     outcome.world.lastElectionYear = 0;
-    const first = tickElectionBuildup(outcome.world, 3, true);
-    const second = tickElectionBuildup(outcome.world, 3, true);
+    expect(tickElectionBuildup(outcome.world, 3, 0)).toBeNull();
+    expect(tickElectionBuildup(outcome.world, 3, DAYS_PER_YEAR - 2)).toBeNull();
+    outcome.world.pendingElectionYear = null;
+    outcome.world.electionCeremony = null;
+    outcome.world.electionBuildupNotifiedYear = 3; // legacy early notice must not suppress the real one
+    const first = tickElectionBuildup(outcome.world, 3, DAYS_PER_YEAR - 1);
+    const second = tickElectionBuildup(outcome.world, 3, DAYS_PER_YEAR - 1);
+    expect(outcome.world.electionBuildupNotifiedYear).toBe(4);
     expect(first).not.toBeNull();
     expect(second).toBeNull();
   });
