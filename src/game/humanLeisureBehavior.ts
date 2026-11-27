@@ -86,8 +86,8 @@ function childPlayCompanionWeight(child: Entity, candidate: Entity): number {
     - Math.min(5, Math.max(0, dispute) / 10));
 }
 
-/** A play circle needs dry ground throughout its 14px arrival radius, not merely a
- * wadeable path cell. The path owner deliberately permits shallow-water crossings. */
+/** A play circle needs dry ground throughout its 14px arrival radius, not merely
+ * a walkable centre tile. The shared path owner blocks shallow-water crossing. */
 function isDryChildPlaySite(
   state: WorldState,
   x: number,
