@@ -141,11 +141,7 @@ export function resolveCombatLogField<K extends keyof CombatLogFields>(
   return (evt[field] as CombatLogFields[K] | undefined) ?? null;
 }
 
-/**
- * Read the canonical newest-first Chronicle as a forward-only battle feed.
- * Old saves have no raid id on entries: bound them by the battle clock, side,
- * rival and opening baseline, without deduplicating distinct milestone messages.
- */
+/** Return unique battle-scoped Chronicle entries in chronological order. */
 export function selectRaidBattleCommentary(
   events: readonly GameEventLog[],
   scope: { rivalName: string; incoming: boolean; baselineId: number; startedAtTick?: number; resolvedAtTick?: number },

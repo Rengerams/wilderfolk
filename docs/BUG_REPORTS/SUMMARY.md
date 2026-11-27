@@ -1,5 +1,11 @@
 # Bug report summary — one line per report
 
+**2026-11-27 — [Active raid presentation duplicates and replays combat](../bug_report/2026-11-27-duplicate-raid-presentation.md):** investigating; PR #224 source fix and resolved-report regression added; HUD/live reopen/tribute browser checks pending.
+
+**2026-11-27 — [Battle commentary runs backward and mixes unrelated entries](../bug_report/2026-11-27-battle-commentary-reversed.md):** investigating; PR #224 chronological scoped selector and regression added; original save and browser verification pending.
+
+**2026-11-27 — [One outgoing victory emits two surrender notifications](../bug_report/2026-11-27-duplicate-raid-surrender-news.md):** investigating; PR #224 duplicate source calls consolidated; dedicated notification-count regression and browser verification pending.
+
 **2026-11-26 — [HUD notifications expire before presentation](../bug_report/2026-11-26-hud-notifications-expire-before-presentation.md):** investigating; PR #216 adds FIFO presentation, visible-time expiry, worker acknowledgement and bounded overflow summaries. CI verified on `31d6957` (3,418 tests, all five workflows); browser/live-save verification pending.
 
 **2026-11-26 — [Staffing capacity search abandons larger eligible donors](../bug_report/2026-11-26-workforce-donor-search-stops-early.md):** investigating; PR #213 source fix and focused CI regressions passed on head `22ac3cb5`; follow-up CI pending.
