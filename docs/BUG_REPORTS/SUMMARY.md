@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-27 — [Raid warning hides elected leader's imprisonment](../bug_report/2026-11-27-raid-leader-imprisonment-ambiguous-warning.md):** investigating; Day-311 save shows a living commander jailed for scandal until tick 89920, not deployed; action/preview now identify custody and remaining hours, plus show missing weapons separately; CI and live-save retest pending.
+
 **2026-11-27 — [Nighttime spouse chasing blocks recovery sleep](../bug_report/2026-11-27-nighttime-spouse-chase-prevents-sleep.md):** investigating; an inspected Year-1 Day-304 save found 46 zero-rest adults (43 women, 41 on spouse-chase pace) and 71 critically low stamina; the free-time chase no longer overrides sleep commutes, regression CI pending.
 
 **2026-11-27 — [War-band soldiers never recover rest while deployed](../bug_report/2026-11-27-warband-camp-rest-exhaustion.md):** investigating; camp night sleep uses the normal physiology owner, with a 23:00–06:00 regression; earlier CI failed because its fixture began at 22:00; corrected test CI pending.

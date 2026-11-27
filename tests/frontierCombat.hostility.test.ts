@@ -143,6 +143,42 @@ describe('elected leader commands the militia and outgoing war-band', () => {
     expect(dispatched.entities.find((person) => person.id === leader.id)?.raidDeploymentId).toBe(event.id);
   });
 
+  it('explains a scandal imprisonment using the saved release tick and matches the raid preview', () => {
+    const world = village([rival({ relationship: 'tense' })]);
+    const leader = world.entities[11];
+    world.villageLeaderId = leader.id;
+    world.tick = 89601;
+    leader.name = 'Shawnta';
+    leader.prisonBuildingId = 274;
+    leader.prisonSentenceCrime = 'scandal';
+    leader.prisonerUntilTick = 89920;
+
+    const gate = canLaunchRaidOnRival(world, world.rivalSettlements[0]);
+    expect(gate.ok).toBe(false);
+    expect(gate.blockReason).toContain('Shawnta');
+    expect(gate.blockReason).toContain('imprisoned for scandal');
+    expect(gate.blockReason).toContain('release in 27 game hours');
+    const preview = getCombatPreview(world, { rival: world.rivalSettlements[0] });
+    expect(preview.canCounterRaid).toBe(false);
+    expect(preview.counterRaidBlockReason).toBe(gate.blockReason);
+    expect(launchRaidOnRival(world, world.rivalSettlements[0].id).pendingOutgoingRaidEvents).toHaveLength(0);
+
+    // Releasing the leader restores the original eligibility; no alternative commander is needed.
+    leader.prisonBuildingId = undefined;
+    leader.prisonerUntilTick = undefined;
+    leader.prisonSentenceCrime = undefined;
+    expect(canLaunchRaidOnRival(world, world.rivalSettlements[0]).ok).toBe(true);
+  });
+
+  it('reports the missing weapons rather than blaming a perfectly available leader', () => {
+    const world = village([rival({ relationship: 'tense' })]);
+    world.villageLeaderId = world.entities[11].id;
+    world.unlockedTechs = [];
+    const gate = canLaunchRaidOnRival(world, world.rivalSettlements[0]);
+    expect(gate.blockReason).toContain('Need weapons');
+    expect(gate.blockReason).not.toContain('leader');
+  });
+
   it('a busy or jailed leader cannot send a different army while absent', () => {
     const world = village([rival({ relationship: 'tense' }), rival({ id: 'rival_birch', name: 'Birch' , relationship: 'tense' })]);
     const leader = world.entities[11];

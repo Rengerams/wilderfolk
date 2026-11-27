@@ -323,14 +323,35 @@ export function canLaunchRaidOnRival(
   if ((state.pendingRaidVictories ?? []).some((pending) => pending.rivalId === rival.id)) {
     return { ok: false, foodCost, blockReason: 'Decide this settlement’s fate after the previous victory' };
   }
-  const available = getRaidParticipants(state, state.entities, 'outgoing');
-  if (state.villageLeaderId != null && !available.some((person) => person.id === state.villageLeaderId)) {
-    return { ok: false, foodCost, blockReason: 'The elected leader is unavailable to command the army' };
-  }
-  if (!available.some((person) => canBeMustered(person))) return { ok: false, foodCost, blockReason: 'No available soldiers' };
+  // Check weapons before computing the participant pool: getRaidParticipants excludes *everyone*
+  // without village armament, including a healthy elected leader. Do not call that "leader unavailable".
   if (!hasMilitiaWeapons(state)) {
     return { ok: false, foodCost, blockReason: 'Need weapons (stone/iron spears or swords)' };
   }
+  const available = getRaidParticipants(state, state.entities, 'outgoing');
+  if (state.villageLeaderId != null && !available.some((person) => person.id === state.villageLeaderId)) {
+    const leader = state.entities.find((person) => person.id === state.villageLeaderId);
+    if (leader?.prisonBuildingId != null) {
+      const remainingTicks = leader.prisonerUntilTick == null ? null : leader.prisonerUntilTick - state.tick;
+      const releaseHint = remainingTicks == null
+        ? ''
+        : remainingTicks <= 0
+          ? ' (release pending)'
+          : ` (release in ${Math.ceil(remainingTicks / TICKS_PER_HOUR)} game hours)`;
+      const sentence = leader.prisonSentenceCrime === 'scandal' ? ' for scandal' : '';
+      return { ok: false, foodCost,
+        blockReason: `Elected leader ${formatCitizenName(leader)} is imprisoned${sentence}${releaseHint} — cannot command the army` };
+    }
+    if (leader?.raidDeploymentId) {
+      return { ok: false, foodCost,
+        blockReason: `Elected leader ${formatCitizenName(leader)} is already deployed with a war-band` };
+    }
+    if (!leader || !leader.alive) {
+      return { ok: false, foodCost, blockReason: 'No living elected leader can command the army' };
+    }
+    return { ok: false, foodCost, blockReason: 'The elected leader is unavailable to command the army' };
+  }
+  if (!available.some((person) => canBeMustered(person))) return { ok: false, foodCost, blockReason: 'No available soldiers' };
   if (state.humanPopulation < MIN_RAID_POPULATION) {
     return { ok: false, foodCost, blockReason: `Need ${MIN_RAID_POPULATION}+ population` };
   }
