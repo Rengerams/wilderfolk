@@ -950,8 +950,6 @@ export function tryDailyAmicableDivorce(
   dissolveMarriage(entity, spouse, state.tick);
   startCourtshipCooldown(entity);
   startCourtshipCooldown(spouse);
-  if (entity.pregnant) entity.relationshipStatus = 'expecting';
-  if (spouse.pregnant) spouse.relationshipStatus = 'expecting';
 
   const villagers = playerHumans.filter(isPlayerHuman);
   reassignDivorcedResidences(entity, spouse, buildings, villagers);
@@ -998,8 +996,6 @@ function tryDivorceOnCaughtCheater(
   dissolveMarriage(spouse, cheater, state.tick);
   startCourtshipCooldown(spouse);
   startCourtshipCooldown(cheater);
-  if (cheater.pregnant) cheater.relationshipStatus = 'expecting';
-  if (spouse.pregnant) spouse.relationshipStatus = 'expecting';
   startFeud(state, spouse, paramour, 35);
 
   const spouseName = humanDisplayName(spouse);
@@ -1028,8 +1024,6 @@ function tryDivorceOnCaughtCheater(
       dissolveMarriage(paramourSpouse, paramour, state.tick);
       startCourtshipCooldown(paramourSpouse);
       startCourtshipCooldown(paramour);
-      if (paramour.pregnant) paramour.relationshipStatus = 'expecting';
-      if (paramourSpouse.pregnant) paramourSpouse.relationshipStatus = 'expecting';
       logEvent(
         state,
         'divorce',
