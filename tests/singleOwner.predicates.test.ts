@@ -54,12 +54,6 @@ describe('A3 — the colony-human rule has one owner', () => {
     expect(isPlayerHuman(humanWithFaction(3, 'player'))).toBe(true);
   });
 
-  it('classifies the union at the type level, not by a hand-maintained list', () => {
-    expect(source('src/game/playerHuman.ts')).toMatch(
-      /Record<NonNullable<Entity\['faction'\]>, boolean>/,
-    );
-  });
-
   it('never counts a non-human as a colonist', () => {
     expect(isPlayerHuman({ id: 4, type: EntityType.Deer, x: 0, y: 0, alive: true } as Entity)).toBe(false);
   });

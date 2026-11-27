@@ -1570,6 +1570,10 @@ const SOURCE_ROWS = [
       { file: "src/game/stripTopology.ts", matches: /isWallBuildingType[^;]*from '\.\/defenseStructures'/, notMatches: /WALL_STRIP_TYPES/, example: "const WALL_STRIP_TYPES = new Set();" },
     ],
   },
+  {
+    id: 'player-human-faction-union-exhaustive',
+    checks: [{ file: 'src/game/playerHuman.ts', matches: /Record<NonNullable<Entity\['faction'\]>, boolean>/ }],
+  },
 ];
 
 const asArray = (value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]);

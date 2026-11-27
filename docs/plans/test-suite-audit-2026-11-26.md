@@ -159,6 +159,10 @@ Moved all three unguarded-hour escape and workplace-restoration cases into `pris
 
 Moved thirteen source-only cases across nine mixed files (including the logistics guard's synthetic proof) and extracted one source assertion from a retained social-cadence behavior test. The five groups are UI ownership (3), raid/Chronicle/social cadence (2 cases plus the social assertion), logistics (3 cases into 2 guards), dashboard aggregations (2), and shared predicates (3). All runtime cases remain in Vitest. The 13 new rules bring the registry to 152 (14 handwritten, 138 declarative). Source clauses were checked against the branch before migration; the obsolete raid wrapper is checked by the existing absent-file mechanism. The five batches are pushed together to avoid cancelling intermediate CI runs. Full CI verification is pending.
 
+## Build repair — 2026-11-27
+
+The five-group migration left one source-only faction-union test calling its retired source helper. Moved that final type-level contract into the registry (153 rules), preserving runtime faction and election cases. This resolves the TS2304 reported by the build; the new CI run must verify it.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete
