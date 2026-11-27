@@ -29,7 +29,7 @@ export interface PregnancyStartOptions {
   origin: PregnancyOrigin;
   /** Biological father when known; recorded only when he is not the mother's current partner. */
   fatherId?: number;
-  /** The partner a married conception marks as expecting; omitted by constructor spawns. */
+  /** Optional partner context for legacy callers; pregnancy never changes their marital state. */
   partner?: Entity;
   pregnancyProgress?: number;
   /** Colony day that keys this pregnancy's term. */
