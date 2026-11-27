@@ -6,7 +6,6 @@
 import type { Entity } from './gameTypes';
 import { PREGNANCY_TICKS } from './dayCycle';
 import { seededRandomForRun } from './simRng';
-import { isMarriedOrExpecting } from './relationships';
 
 /** One validity rule for a saved due date: a positive, finite tick count. */
 export function isValidPregnancyDueProgress(due: number | undefined): due is number {
@@ -39,7 +38,7 @@ export interface PregnancyStartOptions {
 
 /**
  * The only pregnancy-start writer: conception paths and the entity factory both delegate here.
- * It owns the due roll, father recording, pair status and the youth-love record.
+ * It owns the due roll, father recording and the youth-love record, not marital status.
  */
 export function startPregnancy(entity: Entity, opts: PregnancyStartOptions): void {
   entity.pregnant = true;
@@ -50,15 +49,7 @@ export function startPregnancy(entity: Entity, opts: PregnancyStartOptions): voi
     : undefined;
   entity.pregnancyFromYouthLove = opts.origin === 'youth' ? true : undefined;
 
-  if (opts.origin === 'married') {
-    entity.relationshipStatus = 'expecting';
-    if (opts.partner && (isMarriedOrExpecting(opts.partner) || opts.partner.partnerId === entity.id)) {
-      opts.partner.relationshipStatus = 'expecting';
-    }
-  } else if (opts.origin !== 'youth') {
-    // An affair stays hidden behind the marriage; a pre-existing pregnancy keeps its arrival status.
-    entity.relationshipStatus = entity.partnerId != null ? 'married' : 'expecting';
-  }
+  // Pregnancy is independent of marital status; neither parent changes marriage state here.
 }
 
 /** Authoritative progress toward this mother's individual due date (±15% term variation). */
