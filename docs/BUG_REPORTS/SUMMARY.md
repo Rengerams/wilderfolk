@@ -1,5 +1,9 @@
 # Bug report summary — one line per report
 
+**2026-11-27 — [Election candidate names drift](../bug_report/2026-11-27-election-candidate-names-drift.md):** investigating; PR #230 snapshots ballot-time names and adds rename regression; legacy missing names explicitly identified; CI pending.
+
+**2026-11-27 — [Regular election buildup starts a year early](../bug_report/2026-11-27-election-buildup-one-year-early.md):** investigating; regular notice and gossip now limited to the preceding day; target-year marker preserves old saves; regression CI pending.
+
 **2026-11-27 — [Biological paternity changes during pregnancy](../bug_report/2026-11-27-paternity-changes-during-pregnancy.md):** investigating; PR #231 records conception-time identity, preserves it after removal, and migrates legacy pregnancy state; regression CI pending.
 
 **2026-11-27 — [Venue worker uses colony shift](../bug_report/2026-11-27-venue-worker-uses-colony-shift.md):** investigating; PR #231 corrects actual venue commute/duty projection and hotel double duty; post-festival regression added; exact live 24-hour symptom not yet reproduced.
