@@ -164,6 +164,7 @@ export function tickHumanChildLeisure(args: {
 }): boolean {
   if (args.entity.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(args.entity)) return args.suppressIdleInitial;
   const { state, entity, speed, hourOfDay, allHumans, updatedBuildings, buildingById, humanSocialGrid, width, height, livingHumanAt } = args;
+  const wasFollowing = entity.childLeisureActivity === 'following';
   entity.childLeisureActivity = undefined;
   entity.childLeisureTargetId = undefined;
   if (args.onSchedule || args.suppressIdleInitial) return args.suppressIdleInitial;
@@ -346,11 +347,15 @@ export function tickHumanChildLeisure(args: {
   // household custodian fallback (which can be the same working parent).
   const workTime = isOnWorkScheduleShift(state, hourOfDay)
     || (isWorkDay(state.tick) && isOnWorkCommuteHours(getWorkSchedule(state), hourOfDay));
-  const isAvailableCaregiver = (parent: Entity | undefined): parent is Entity =>
-    !!parent?.alive && isPlayerHuman(parent)
-    && (parent.workerBuildingId == null || (!workTime && parent.indoorBuildingId !== parent.workerBuildingId));
   const custodian = getChildCustodian(entity, allHumans, args.entityById);
-  const follow = [mother, father, custodian].find(isAvailableCaregiver);
+  let follow: Entity | undefined;
+  for (const caregiver of [mother, father, custodian]) {
+    if (!caregiver?.alive || !isPlayerHuman(caregiver) || caregiver.age < HUMAN_ADULT_MIN_AGE) continue;
+    if (caregiver.workerBuildingId != null
+      && (workTime || caregiver.indoorBuildingId === caregiver.workerBuildingId)) continue;
+    follow = caregiver;
+    break;
+  }
   if (follow?.alive && personDayRoll(entity.id, state.tick, 601) > 0.22) {
     const distance = Math.hypot(follow.x - entity.x, follow.y - entity.y) || 1;
     if (distance > 22) {
@@ -365,6 +370,11 @@ export function tickHumanChildLeisure(args: {
     entity.childLeisureActivity = 'following';
     entity.childLeisureTargetId = follow.id;
     return true;
+  }
+  if (wasFollowing) {
+    clearHumanWalkTarget(entity);
+    entity.vx = 0;
+    entity.vy = 0;
   }
   if (hasResidenceAssignment(entity)) {
     const residence = buildingById.get(entity.residenceBuildingId!);
