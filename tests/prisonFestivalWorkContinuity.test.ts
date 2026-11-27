@@ -384,6 +384,17 @@ describe('settlers keep working during a festival', () => {
     expect(innkeeper.scheduleWorkedTicksToday ?? 0, 'the 18:00 hour is inside the window').toBeGreaterThan(0);
   });
 
+  it('keeps the innkeeper off duty after a festival ends', () => {
+    const { state, innkeeper } = festivalWorkWorld();
+    if (state.festival) state.festival.daysLeft = 1;
+    state.tick = 18 * TICKS_PER_HOUR - 1;
+    gameTick(state);
+    expect(isFestivalOverrideActive(state, 'tavern')).toBe(false);
+    for (let tick = state.tick; tick < TICKS_PER_DAY + 16 * TICKS_PER_HOUR; tick++) gameTick(state);
+    expect(innkeeper.scheduleWorkedTicksToday ?? 0).toBe(0);
+    expect(getHumanActivityStatus(state, innkeeper)).not.toBe('Working at Tavern');
+  });
+
   it('credits a festival innkeeper for the configured window and not the whole day', () => {
     // An all-day festival override credited as work pins every innkeeper's fatigue at 100 and costs
     // the tavern a third of its output through the fatigue multiplier.
