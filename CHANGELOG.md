@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (27 Nov 2026):** Raid launch previews now identify a jailed elected commander and remaining sentence instead of displaying a generic unavailable-leader warning; lack of weapons is reported separately. A prisoner remains ineligible until released.
+
 - **Fixed (27 Nov 2026):** Water (including shallow water) now blocks pedestrian navigation unless crossed on a completed bridge. Walking and road eligibility reuse the canonical water terrain trait; water-dependent construction and reinforcement keep their separate rules.
 
 - **Fixed (27 Nov 2026):** Married settlers no longer abandon nighttime home travel to chase distant partners at leisure speed, preventing widespread sleep loss and critical exhaustion.
