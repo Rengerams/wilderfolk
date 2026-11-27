@@ -70,6 +70,7 @@ export const AFFAIR_ESTABLISHED_LOG_PHRASE = 'began a secret affair';
 const RELATIONSHIP_CONFIG = {
   DIVORCE_CAUGHT_CHANCE: 0.7,
   SCANDAL_COOLDOWN_TICKS: TICKS_PER_DAY * 21,
+  DIVORCE_COURTSHIP_COOLDOWN_DAYS: 21,
   SCHOOLYARD_BOND_EVERY_DAYS: 5,
   SCHOOLYARD_BOND_MAX_FRIENDS: 3,
 } as const;
@@ -948,8 +949,8 @@ export function tryDailyAmicableDivorce(
   if (rng() >= MARRIAGE_DAILY_AMICABLE_DIVORCE_CHANCE) return;
 
   dissolveMarriage(entity, spouse, state.tick);
-  startCourtshipCooldown(entity, 21);
-  startCourtshipCooldown(spouse, 21);
+  startCourtshipCooldown(entity, RELATIONSHIP_CONFIG.DIVORCE_COURTSHIP_COOLDOWN_DAYS);
+  startCourtshipCooldown(spouse, RELATIONSHIP_CONFIG.DIVORCE_COURTSHIP_COOLDOWN_DAYS);
 
   const villagers = playerHumans.filter(isPlayerHuman);
   reassignDivorcedResidences(entity, spouse, buildings, villagers);
@@ -997,8 +998,8 @@ function tryDivorceOnCaughtCheater(
     const offenderName = humanDisplayName(offender);
     const otherName = humanDisplayName(other);
     dissolveMarriage(spouse, offender, state.tick);
-    startCourtshipCooldown(spouse, 21);
-    startCourtshipCooldown(offender, 21);
+    startCourtshipCooldown(spouse, RELATIONSHIP_CONFIG.DIVORCE_COURTSHIP_COOLDOWN_DAYS);
+    startCourtshipCooldown(offender, RELATIONSHIP_CONFIG.DIVORCE_COURTSHIP_COOLDOWN_DAYS);
     startFeud(state, spouse, other, 35);
     logEvent(state, 'divorce', `${spouseName} divorced ${offenderName} after catching them with ${otherName}`, spouseName);
     addNotification(state, 'Divorce', formatCaughtCheaterDivorceDetail(spouse, offender), 'warning');
@@ -1109,9 +1110,11 @@ export function exposeAffair(
   addNotification(state, 'Scandal', `${who} & ${other} — the village is talking`, 'warning');
 
   if (reason === 'caught') {
+    const cheaterOffended = isMarriedScandalOffender(cheater);
+    const paramourOffended = isMarriedScandalOffender(paramour);
     tryDivorceOnCaughtCheater(state, cheater, paramour, entityById, buildings, playerHumans, true);
-    arrestForScandal(state, cheater);
-    arrestForScandal(state, paramour);
+    arrestForScandal(state, cheater, cheaterOffended);
+    arrestForScandal(state, paramour, paramourOffended);
   } else {
     // A rumour reaches the cheated spouse too; they blame the paramour and stay married.
     const spouse = cheater.partnerId != null ? entityById.get(cheater.partnerId) : undefined;
@@ -1149,9 +1152,9 @@ function reportUnguardedPrison(state: WorldState): void {
   );
 }
 
-function arrestForScandal(state: WorldState, offender: Entity): void {
+function arrestForScandal(state: WorldState, offender: Entity, marriedAtExposure: boolean): void {
   if (!offender.alive || offender.type !== EntityType.Human) return;
-  if (!isMarriedScandalOffender(offender)) return;
+  if (!marriedAtExposure) return;
   // A serving guard keeps the post: three shifts need three guards, so jailing the crew leaves the
   // Prison unguarded — and an unguarded Prison leaks its prisoners. The sentence would undo the post.
   if (offender.job === JobType.PrisonGuard) return;
