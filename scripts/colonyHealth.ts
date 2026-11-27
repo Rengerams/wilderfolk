@@ -356,6 +356,7 @@ export function findDryBenchmarkStart(
   world: WorldState,
   preferred: { x: number; y: number },
   districtSites?: readonly Readonly<{ x: number; y: number; width: number; height: number }>[],
+  accept?: (center: Readonly<{ x: number; y: number }>) => boolean,
 ): { x: number; y: number } {
   const map = world.worldMap;
   // The L1 build mask classifies shallow water as water even on an earlier game
@@ -385,13 +386,14 @@ export function findDryBenchmarkStart(
   for (const [halfWidth, halfHeight] of shapes) {
     let best: { x: number; y: number } | null = null;
     let bestDistance = Infinity;
+    const candidates: Array<{ x: number; y: number; distance: number }> = [];
     for (let ty = halfHeight + 2; ty + halfHeight + 2 < rows; ty += 2) {
       for (let tx = halfWidth + 2; tx + halfWidth + 2 < cols; tx += 2) {
         if (!districtSites && waterCount(tx - halfWidth, ty - halfHeight, tx + halfWidth, ty + halfHeight) !== 0) continue;
         const x = (tx + 0.5) * buildCell;
         const y = (ty + 0.5) * buildCell;
         const distance = Math.hypot(x - preferred.x, y - preferred.y);
-        if (distance >= bestDistance) continue;
+        if (!accept && distance >= bestDistance) continue;
         if (districtSites) {
           // A whole 360px vacancy mask wastes buildable land: only the actual
           // building footprints and open access corridors need clearance.
@@ -409,8 +411,19 @@ export function findDryBenchmarkStart(
           });
           if (!viable) continue;
         }
-        bestDistance = distance;
-        best = { x, y };
+        if (accept) candidates.push({ x, y, distance });
+        else {
+          bestDistance = distance;
+          best = { x, y };
+        }
+      }
+    }
+    if (accept) {
+      // The callback checks canonical building entrances and routed commutes.
+      // Test candidates in nearest-first order; never accept an unpriced route.
+      candidates.sort((a, b) => a.distance - b.distance || a.y - b.y || a.x - b.x);
+      for (const center of candidates) {
+        if (accept(center)) return { x: center.x, y: center.y };
       }
     }
     if (best) return best;
