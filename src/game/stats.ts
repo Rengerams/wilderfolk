@@ -31,7 +31,10 @@ export function createEmptyLifetimeStats(): LifetimeStats {
 /** Normalize lifetime records, preserving absence of the legacy marriage event counter. */
 export function normalizeLifetimeStats(value: unknown): LifetimeStats {
   const empty = createEmptyLifetimeStats();
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return empty;
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    delete empty.marriagesThisYear;
+    return empty;
+  }
   const saved = value as Partial<LifetimeStats>;
   const count = (field: unknown, fallback: number): number =>
     typeof field === 'number' && Number.isFinite(field) ? field : fallback;
