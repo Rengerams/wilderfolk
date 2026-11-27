@@ -141,6 +141,29 @@ export function resolveCombatLogField<K extends keyof CombatLogFields>(
   return (evt[field] as CombatLogFields[K] | undefined) ?? null;
 }
 
+/**
+ * Read the canonical newest-first Chronicle as a forward-only battle feed.
+ * Old saves have no raid id on entries: bound them by the battle clock, side,
+ * rival and opening baseline, without deduplicating distinct milestone messages.
+ */
+export function selectRaidBattleCommentary(
+  events: readonly GameEventLog[],
+  scope: { rivalName: string; incoming: boolean; baselineId: number; startedAtTick?: number; resolvedAtTick?: number },
+): GameEventLog[] {
+  const seen = new Set<number>();
+  const result: GameEventLog[] = [];
+  for (const event of events) {
+    if (event.type !== 'combat' || event.id <= scope.baselineId || seen.has(event.id)) continue;
+    if (scope.startedAtTick != null && event.tick < scope.startedAtTick) continue;
+    if (scope.resolvedAtTick != null && event.tick > scope.resolvedAtTick) continue;
+    if (scope.incoming ? event.combatKind !== 'defense' && event.combatKind !== 'incoming_raid' && event.combatKind !== 'repelled' : event.combatKind !== 'outgoing_raid') continue;
+    if (event.entityName !== scope.rivalName && !event.message.includes(scope.rivalName)) continue;
+    seen.add(event.id);
+    result.push(event);
+  }
+  return result.sort((a, b) => a.tick - b.tick || a.id - b.id);
+}
+
 /** The chronicle row label every event panel renders. */
 export function formatEventLogLine(evt: Pick<GameEventLog, 'year' | 'day' | 'message'>): string {
   return `Year ${displayYear(evt.year)}, Day ${evt.day} — ${evt.message}`;

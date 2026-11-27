@@ -88,6 +88,7 @@ import WarfareStatus from './components/WarfareStatus';
 import BattleReportScreen from './components/BattleReportScreen';
 import ConfirmActionDialog from './components/ConfirmActionDialog';
 import { downloadChronicleLog } from './game/eventLogExport';
+import { selectRaidBattleCommentary } from './game/eventLog';
 import { MapSize } from './game/gameTypes';
 
 import GameBuildRail from './components/GameBuildRail';
@@ -1720,7 +1721,7 @@ export default function App() {
           {/* Raid defense — respond before march deadline (distance-scaled) */}
           {pendingOutgoingRaids.length > 0 && (
             <div className={`pointer-events-auto absolute left-1/2 ${pendingRaids.length > 0 ? 'top-44' : 'top-4'} z-20 w-full max-w-lg -translate-x-1/2 animate-in fade-in slide-in-from-top`}>
-              {pendingOutgoingRaids.slice(0, 2).map((evt) => {
+              {pendingOutgoingRaids.filter((evt) => evt.id !== battleReport?.raidId).slice(0, 2).map((evt) => {
                 const status = getOutgoingRaidStatus(evt, world.tick);
                 return (
                 <div key={evt.id} className="mb-2 rounded-xl border border-orange-500/50 bg-orange-950/95 p-3 shadow-xl backdrop-blur">
@@ -1730,7 +1731,7 @@ export default function App() {
                       <h3 className="font-bold text-orange-100">{status.title}</h3>
                       <p className="text-sm text-stone-300">{status.detail}</p>
                       {status.summary && <p className="mt-1 text-[11px] text-orange-300/90">{status.summary}</p>}
-                      {evt.phase === 'fighting' && (evt.battleChronicle?.length ?? 0) > 0 && <div className="mt-2 space-y-1 rounded bg-stone-950/70 p-2 text-xs text-stone-200" aria-label="Battle chronicle">{evt.battleChronicle?.slice(-4).map((line, index) => <p key={index}>{line}</p>)}</div>}
+                      {evt.phase === 'fighting' && <button type="button" className="mt-2 rounded-lg border border-orange-500/60 bg-orange-900 px-3 py-1.5 text-xs font-bold text-orange-100 hover:bg-orange-800" onClick={() => setBattleReport({ rivalName: evt.rivalName, raidId: evt.id, baselineId: 0 })}>Watch battle</button>}
                       {evt.phase !== 'returning' && evt.phase !== 'fighting' && <button type="button" className="mt-2 rounded bg-amber-800 px-3 py-1.5 text-xs font-bold text-white" onClick={() => applyGameAction({ proto: 1, op: 'respondToOutgoingRaidEvent', eventId: evt.id, choiceId: 'recall' })}>Recall Army</button>}
                       <div className="mt-2 grid grid-cols-1 gap-1">
                         {(evt.phase === 'engaging' || !evt.phase ? evt.choices : []).map((choice) => (
@@ -1739,7 +1740,7 @@ export default function App() {
                             type="button"
                             onClick={() => {
                               playClickSound();
-                              if (choice.id === 'fight' || choice.id === 'decline_payoff' || choice.id === 'accept_payoff') {
+                              if (choice.id === 'fight' || choice.id === 'decline_payoff') {
                                 setBattleReport({
                                   rivalName: evt.rivalName,
                                   raidId: evt.id,
@@ -1780,7 +1781,7 @@ export default function App() {
 
           {pendingRaids.length > 0 && (
             <div className="pointer-events-auto absolute left-1/2 top-4 z-20 w-full max-w-lg -translate-x-1/2 animate-in fade-in slide-in-from-top">
-              {pendingRaids.slice(0, 2).map((evt) => {
+              {pendingRaids.filter((evt) => evt.id !== battleReport?.raidId).slice(0, 2).map((evt) => {
                 const raidRival = world.rivalSettlements.find((r) => r.id === evt.rivalId);
                 const raidPreview = getCombatPreview(world, {
                   rival: raidRival,
@@ -1802,7 +1803,9 @@ export default function App() {
                           <span> · {evt.marchDistanceTiles} tiles march</span>
                         )}
                       </p>
-                      <div className="mt-2">
+                      {evt.phase === 'fighting' ? (
+                        <button type="button" className="mt-2 rounded-lg border border-rose-500/60 bg-rose-900 px-3 py-1.5 text-xs font-bold text-rose-100 hover:bg-rose-800" onClick={() => setBattleReport({ rivalName: evt.rivalName, raidId: evt.id, baselineId: 0, incoming: true })}>Watch defense</button>
+                      ) : <div className="mt-2">
                         <Suspense fallback={<p className="text-[11px] text-stone-300">Loading preview…</p>}>
                           <CombatPreviewPanel
                             compact
@@ -1810,7 +1813,7 @@ export default function App() {
                             title="If they raid you — defend or barricade"
                           />
                         </Suspense>
-                      </div>
+                      </div>}
                       <div className="mt-2 grid grid-cols-1 gap-1">
                         {evt.choices.map((choice) => {
                           // Ask the raid owner for its gate rather than re-deriving it; the owner
@@ -2364,30 +2367,32 @@ export default function App() {
       )}
       {battleReport && (() => {
         const report = world.raidBattleReports?.find((entry) => entry.raidId === battleReport.raidId);
-        const battleWindowStart = report ? report.resolvedAtTick - RAID_BATTLE_HOURS * TICKS_PER_HOUR : undefined;
-        const events = world.eventLog.filter((event) =>
-          event.id > battleReport.baselineId &&
-          (battleWindowStart == null || event.tick >= battleWindowStart) &&
-          (event.combatKind === 'outgoing_raid' || event.combatKind === 'defense' || event.combatKind === 'incoming_raid') &&
-          (event.entityName === battleReport.rivalName || event.message.includes(battleReport.rivalName))
-        );
-        const resolved = events.some((event) => event.combatStage === 'resolved');
+
         const pending = (world.pendingRaidVictories ?? []).find((entry) => battleReport.raidId ? entry.raidId === battleReport.raidId : entry.rivalName === battleReport.rivalName);
         const liveDefense = world.pendingRaidEvents.find((entry) => entry.id === battleReport.raidId && entry.phase === 'fighting');
         const liveArmy = (world.pendingOutgoingRaidEvents ?? []).find((army) =>
           (battleReport.raidId ? army.id === battleReport.raidId : army.rivalName === battleReport.rivalName) && army.phase === 'fighting');
+        const startedAtTick = liveArmy?.battleStartedAtTick ?? liveDefense?.battleStartedAtTick
+          ?? (report ? report.resolvedAtTick - RAID_BATTLE_HOURS * TICKS_PER_HOUR : undefined);
+        const events = selectRaidBattleCommentary(world.eventLog, {
+          rivalName: battleReport.rivalName,
+          incoming: !!battleReport.incoming,
+          baselineId: battleReport.baselineId,
+          startedAtTick,
+          resolvedAtTick: report?.resolvedAtTick,
+        });
+        const resolved = !!report || !!pending;
         const progressPercent = liveArmy
           ? getBattleProgressPercent(liveArmy, world.tick)
           : liveDefense
             ? getBattleProgressPercent(liveDefense, world.tick)
             : resolved || pending ? 100 : 0;
-        const startedAtTick = liveArmy?.battleStartedAtTick ?? liveDefense?.battleStartedAtTick
-          ?? (report ? report.resolvedAtTick - RAID_BATTLE_HOURS * TICKS_PER_HOUR : undefined);
         return (
           <BattleReportScreen
             key={battleReport.raidId ?? battleReport.rivalName}
             rivalName={battleReport.rivalName}
             incoming={battleReport.incoming}
+            skipInitialReplay={battleReport.baselineId === 0 && resolved}
             dayLabel={`${world.season} · Year ${world.year} · Day ${world.dayInYear}`}
             events={events}
             resolved={resolved}

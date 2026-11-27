@@ -11,6 +11,7 @@ type RaidReport = NonNullable<WorldState['raidBattleReports']>[number];
 interface BattleReportScreenProps {
   rivalName: string;
   incoming?: boolean;
+  skipInitialReplay?: boolean;
   dayLabel: string;
   events: GameEventLog[];
   resolved: boolean;
@@ -61,9 +62,9 @@ function outcomeHeadline(outcome: string | undefined, pending: PendingFate | und
 
 export default function BattleReportScreen({
   rivalName, incoming, dayLabel, events, resolved, pending, report, liveArmy, liveDefense,
-  liveSoldiers, progressPercent, startedAtTick, onClose, onFate,
+  liveSoldiers, progressPercent, startedAtTick, skipInitialReplay, onClose, onFate,
 }: BattleReportScreenProps) {
-  const [revealed, setRevealed] = useState(() => Math.min(1, events.length));
+  const [revealed, setRevealed] = useState(() => skipInitialReplay ? events.length : Math.min(1, events.length));
   const [confirmExterminate, setConfirmExterminate] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
   const stableCloseRef = useRef<HTMLButtonElement>(null);
@@ -121,7 +122,7 @@ export default function BattleReportScreen({
               <p className="truncate text-sm font-black uppercase tracking-wide text-emerald-200 sm:text-lg">Wilderfolk</p>
               <p className="text-[10px] uppercase tracking-widest text-emerald-500/80">Home</p>
             </div>
-            <div className="flex items-center gap-3 rounded-xl border border-stone-700 bg-black/60 px-4 py-2 font-mono shadow-inner">
+            <div aria-label="Confirmed casualties" className="flex items-center gap-3 rounded-xl border border-amber-800/60 bg-black/70 px-4 py-2 font-mono shadow-inner">
               <span className="text-3xl font-black text-emerald-300 sm:text-4xl">{playerLosses}</span>
               <span className="text-lg text-stone-500">—</span>
               <span className="text-3xl font-black text-rose-300 sm:text-4xl">{enemyLosses}</span>
@@ -132,6 +133,18 @@ export default function BattleReportScreen({
             </div>
           </div>
 
+          <div aria-label="Battlefield illustration" className="relative mt-3 overflow-hidden rounded-xl border border-amber-900/70 bg-gradient-to-b from-stone-950 via-rose-950/40 to-stone-900 px-3 py-3">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(245,158,11,0.22),_transparent_68%)]" />
+            <div className="relative flex items-center justify-between gap-2">
+              <div aria-hidden="true" className={`text-3xl tracking-tighter text-emerald-200 sm:text-5xl ${status === 'LIVE' ? 'motion-safe:animate-pulse' : ''}`}>♟ ♟ ♟</div>
+              <div className="text-center">
+                <div aria-hidden="true" className={`text-4xl text-amber-300 drop-shadow-lg sm:text-5xl ${status === 'LIVE' ? 'motion-safe:animate-pulse' : ''}`}>⚔</div>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">{resolved || pending ? 'The field falls silent' : 'The lines clash'}</p>
+                <p className="text-[10px] text-stone-400">Confirmed casualties</p>
+              </div>
+              <div aria-hidden="true" className={`text-3xl tracking-tighter text-rose-200 sm:text-5xl ${status === 'LIVE' ? 'motion-safe:animate-pulse' : ''}`}>♟ ♟ ♟</div>
+            </div>
+          </div>
           <div className="mt-3 flex items-center gap-3">
             <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${status === 'LIVE' ? 'bg-rose-600/20 text-rose-300' : 'bg-emerald-600/20 text-emerald-300'}`}>
               {status === 'LIVE' && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-400" />}
@@ -155,7 +168,7 @@ export default function BattleReportScreen({
               {visible.map((event) => {
                 const visual = commentaryVisual(event);
                 return (
-                  <div key={event.id} className={`grid grid-cols-[3.4rem_1.2rem_1fr] items-start gap-2 border-l-2 pl-3 ${visual.tone}`}>
+                  <div key={event.id} className={`grid grid-cols-[3.4rem_1.2rem_1fr] items-start gap-2 rounded-r-md border-l-2 bg-stone-900/60 py-2 pl-3 motion-safe:transition-colors ${visual.tone}`}>
                     <span className="text-[10px] tabular-nums text-stone-500">
                       {startedAtTick != null ? `H${Math.max(0, Math.min(6, Math.floor((event.tick - startedAtTick) / TICKS_PER_HOUR)))}` : '—'}
                     </span>

@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed/Improved (27 Nov 2026):** Show one active raid presentation, reopen live combat from its status card, consolidate surrender news, order Chronicle commentary forward, and give the report an animated symbolic battlefield without changing combat resolution.
+
 - **Fixed (27 Nov 2026):** Ground Reinforcement survives compact save/load: preserve the reinforced soil flag and rebuild affected walking/build rasters after terrain overrides are restored.
 
 - **Fixed (27 Nov 2026):** Save-format mismatch diagnostics serialize invalid JSON markers instead of printing `[object Object]`; regression-covered without changing the save compatibility gate.

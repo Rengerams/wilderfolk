@@ -29,12 +29,25 @@ describe('raid match report presentation', () => {
   it('shows the scoreline and asks the direct extermination question at full time', () => {
     const html = render();
     expect(html).toContain('text match');
+    expect(html).toContain('Battlefield illustration');
+    expect(html).toContain('The field falls silent');
     expect(html).toContain('FULL TIME');
     expect(html).toContain('Hillford');
     expect(html).toContain('Do you want to exterminate this village?');
     expect(html).toContain('All 5 surviving inhabitants are killed');
     expect(html).toContain('No — spare and withdraw');
     expect(html).toContain('Yes — exterminate village');
+  });
+
+  it('reopens a resolved fate report without replaying the battle', () => {
+    const html = render({ skipInitialReplay: true, events: [
+      { id: 1, tick: 1, year: 2, day: 18, type: 'combat', message: 'First report' },
+      { id: 2, tick: 2, year: 2, day: 18, type: 'combat', message: 'Final report' },
+    ] });
+    expect(html).toContain('First report');
+    expect(html).toContain('Final report');
+    expect(html).toContain('FULL TIME');
+    expect(html).not.toContain('Skip commentary');
   });
 
   it('keeps fate buttons hidden until the commentary has been read', () => {
@@ -47,6 +60,7 @@ describe('raid match report presentation', () => {
       ],
     });
     expect(html).toContain('LIVE');
+    expect(html).toContain('The lines clash');
     expect(html).toContain('Skip commentary');
     expect(html).not.toContain('Do you want to exterminate this village?');
   });
