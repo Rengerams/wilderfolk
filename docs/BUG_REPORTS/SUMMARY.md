@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-27 — [Election candidate names drift](../bug_report/2026-11-27-election-candidate-names-drift.md):** investigating; PR #230 snapshots ballot-time names and adds rename regression; legacy missing names explicitly identified; CI pending.
+
 **2026-11-27 — [Regular election buildup starts a year early](../bug_report/2026-11-27-election-buildup-one-year-early.md):** investigating; regular notice and gossip now limited to the preceding day; target-year marker preserves old saves; regression CI pending.
 
 **2026-11-27 — [Raid warning hides elected leader's imprisonment](../bug_report/2026-11-27-raid-leader-imprisonment-ambiguous-warning.md):** investigating; Day-311 save shows a living commander jailed for scandal until tick 89920, not deployed; action/preview now identify custody and remaining hours, plus show missing weapons separately; CI and live-save retest pending.
