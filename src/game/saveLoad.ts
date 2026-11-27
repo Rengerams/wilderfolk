@@ -1709,6 +1709,14 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     world.entities = world.entities.filter((person) => !person.departedAlive);
     repairLoadedHumanGround(world);
     reconcileDanglingReferencesOnLoad(world);
+    // Legacy pregnancy status is not a marriage: use reciprocal spouse links and retain pregnancy.
+    const livingById = new Map(world.entities.filter(entity => entity.alive).map(entity => [entity.id, entity]));
+    for (const entity of world.entities) {
+      if (entity.relationshipStatus === 'expecting') {
+        const spouse = entity.partnerId == null ? undefined : livingById.get(entity.partnerId);
+        entity.relationshipStatus = spouse?.partnerId === entity.id ? 'married' : 'single';
+      }
+    }
 
     migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });
     // Trade-route carriers are always adults; promote any carrier younger than the adult age.
