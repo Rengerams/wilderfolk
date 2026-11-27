@@ -20,6 +20,26 @@ function makeMap(width: number, height: number, seed: number, blocker: (x: numbe
 }
 
 describe('pathfinding', () => {
+  it('uses the single terrain walkability policy for shallow water, with a completed bridge exception', () => {
+    const map = testWorldMap({
+      tilesX: 10, tilesY: 10, seed: 20261127,
+      tileType: (x) => x === 5 ? TerrainType.ShallowWater : TerrainType.Grassland,
+    });
+    const bare = getPathGrid(map, []);
+    expect(bare.blocked[5 * bare.cols + 5]).toBe(1);
+    expect(findPath(bare, 0, 5, 9, 5)).toBeNull();
+
+    const bridge: Building = {
+      id: 202, type: BuildingType.Bridge, x: 55, y: 55,
+      width: 10, height: 10, occupants: [], level: 1,
+      constructionProgress: 100, completed: true, health: 100, maxHealth: 100,
+      spriteScale: 1, buildAnimTimer: 0,
+    };
+    const crossed = getPathGrid(map, [bridge]);
+    expect(crossed.blocked[5 * crossed.cols + 5]).toBe(0);
+    expect(findPath(crossed, 0, 5, 9, 5)).not.toBeNull();
+  });
+
   it('detects a thin completed building along a long straight line', () => {
     // The former 128 samples were ~39 pixels apart and could skip a one-tile footprint.
     const map = makeMap(500, 12, 73, () => false);

@@ -359,12 +359,6 @@ export function patchTile(map: WorldMap, tx: number, ty: number, patch: Partial<
 
 /* ===== L0 / L1 occupancy ===== */
 
-/** Deep water and rivers block walking; shallow water is wadeable. */
-const WALK_BLOCKED_TERRAIN = new Set<TerrainType>([
-  TerrainType.DeepWater,
-  TerrainType.River,
-]);
-
 export const Walkability = {
   /** Free to walk. */
   Open: 0,
@@ -387,7 +381,7 @@ export const Buildability = {
 
 /** True when the terrain type alone permits walking (the L0 rule without the grid). */
 export function isWalkableTerrainType(type: TerrainType): boolean {
-  return !WALK_BLOCKED_TERRAIN.has(type);
+  return !isWaterTerrainType(type);
 }
 
 /**

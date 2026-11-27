@@ -1,5 +1,15 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-27 — ground traversal and construction policy audit
+
+| Decision | Owner | Contract |
+|---|---|---|
+| Water identity | `src/game/terrain/terrainTraits.ts` — `isWaterTerrainType` | Classify deep water, shallow water and rivers once; no duplicated pedestrian water set. |
+| Pedestrian terrain eligibility | `src/game/terrain/terrainGrid.ts` — `isWalkableTerrainType` | Only dry terrain is walkable. World generation, rebaking, pathfinding and road checks consume this rule; bridges override blocked cells only through `pathfinding.buildPathGrid`. |
+| Building and road terrain restrictions | `src/game/placementUtils.ts` — `isFootprintOnBuildableTerrain` | Ordinary buildings cannot be placed on water. Roads require walkable, unreserved ground; bridge, fishing and reinforcement exceptions remain construction-specific. |
+| Wildlife dry-ground eligibility | `src/game/worldGen.ts` — `isPassableWildlifePosition` | Reads shared water identity and map bounds; does not introduce another water terrain list. |
+
+
 ## 2026-11-26 — consistent workplace selection
 
 | Functions | Owner | Responsibility |
@@ -149,7 +159,7 @@ Genetics layers, activity registry, evaluator contract and change recipes: [DNA 
 | Textual and semantic duplicate ratchets | `scripts/check-duplicate-code.mjs` + `scripts/check-semantic-duplicates.mjs` | `runJscpd` (jscpd CLI invocation owned by `scripts/check-duplicate-code.mjs`; restored valid arguments), Standard CI `dup`/`semanticDup` steps; jscpd clones and behavior signatures are baselined in `docs/tools/duplicate-code-baseline.json` and `docs/tools/semantic-duplicates-baseline.json`; `--list`/`--explain`/`--mark` and `docs/tools/semantic-duplicates-reviewed.json` record real vs distinct verdicts, so only new/unreviewed groups fail |
 | Dialogue circumstance audit | `scripts/check-dialogue-circumstances.mjs` | `npm test -- check`: verifies every authored event key is known and reachable, every static caller names a real key, pair scenes have two speaking roles, and reviews per-event cue heuristics (`--strict` fails warnings) |
 | Population benchmark workflows | `.github/workflows/perf-population-small.yml`, `perf-population-medium.yml`, `perf-population-large.yml` → `.github/workflows/perf-population-reusable.yml` | Every pull request to `main`: fixed-seed 250/750 (2 days) and 1800 (3 days) baseline-vs-PR Actions benchmarks; all require genuine recorded workdays on PR, with manual stress runs also supported; no gameplay write authority |
-| VirtualPlayer population performance simulation | `scripts/perf-population-colony.mts` | One-time population/housing/work setup through existing owners, then normal gameTick plus hourly bot commands; writes per-citizen and per-job career-day evidence, bot commands and daily snapshots; game decisions remain production-owned |
+| VirtualPlayer population performance simulation | `scripts/perf-population-colony.mts` | `prepareScaledColony` (uses canonical dry-site and per-district routed commute preflight before populating each district), `rotateDistrictOffset` (pure quarter-turn layout transform for legal benchmark district fitting), `percentile`, `livingPlayers`, `careerCredits` (current-world career-day sum, combined with archived history for entities removed by gameTick), `main` (runs normal gameTick plus hourly bot commands, tracks independent lifetime workday totals and writes per-citizen and per-job evidence and snapshots); game decisions remain production-owned |
 | Real-colony audit and timing comparison | `scripts/compare-population-colony.mjs` | Validates 12 ticks/hour, allowed 2/3/180-day horizons, JSONL per-citizen career workdays, daily snapshots, and VirtualPlayer command counts | 
 | Benchmark JSON validation and comparison | `scripts/compare-population-benchmarks.mjs` | Checks seed, population, tick counts and invariants, then publishes comparative CI summary |
 | Producer-colony integration | `tests/longRunColony.integration.test.ts` | Independent 90-day scenario |
@@ -673,7 +683,7 @@ The functions below belong exclusively to the module shown. They supplement the 
 | `src/App.tsx` | `SaveToastBanner`, `GatedChoiceButton`, `RivalFocusButton`, `FavoriteFollowBanner`, `refreshSaveSlot`, `onWheel`, `openSubject`, `pending`, `liveArmy` |
 | `src/components/SelectedBuildingPanel.tsx` | `RaidChoiceButtons`, `ownerOutputHint`, `canAffordRecipe`, `refusal`, `pendingForRival`, `raidsForRival`, `outgoingRaidsForRival` |
 | `scripts/perf-at-pop.ts` | `change` |
-| `scripts/colonyHealth.ts` | `isScenarioName`, `createCompletedBuilding`, `placeLegalStarterBuilding` (bounded legal starter-fixture placement with walkable two-hour commute validation), `placeStarterHousing`, `spoilageRateForSilos`, `placeStorage`, `placeProducers`, `prepareColonyWorld`, `livingHumans`, `countLivingEntitiesByType`, `summarizeLivingPopulation`, `countRelationships`, `emptyEventTotals`, `createEventCounter`, `sampleDelta`, `captureConsoleVolume`, `safeInspect`, `transitionKeys`, `countChanged`, `createColonyObserver`, `sampleMovement` (opt-in post-gameTick daily movement and arrival observations; no world writes), `collectInvariantErrors`, `wrap`, `observe`, `sum` |
+| `scripts/colonyHealth.ts` | `isScenarioName`, `createCompletedBuilding`, `placeLegalStarterBuilding` (bounded legal starter-fixture placement with walkable two-hour commute validation), `placeStarterHousing`, `spoilageRateForSilos`, `placeStorage`, `placeProducers`, `findDryBenchmarkStart` (shared L1 dry and unoccupied site selector for starter camp and scaled districts, with caller-supplied routed-commute acceptance), `waterCount` (local L1 summed-area rectangle query within that selector), `prepareColonyWorld`, `livingHumans`, `countLivingEntitiesByType`, `summarizeLivingPopulation`, `countRelationships`, `emptyEventTotals`, `createEventCounter`, `sampleDelta`, `captureConsoleVolume`, `safeInspect`, `transitionKeys`, `countChanged`, `createColonyObserver`, `sampleMovement` (opt-in post-gameTick daily movement and arrival observations; no world writes), `collectInvariantErrors`, `wrap`, `observe`, `sum` |
 | `scripts/inspect-save.mts` | `countType`, `livingSettlers`, `waterAt` (water trait including wadeable shallows), `footprintHasWater`, `blockerAt`, `blockedAt`, `distanceToCentre`, `unguardedReason`, `imprisonForWatch`, `reportPrisonEscapeWatch`, `prisons` | Save-inspection-only audit and prison-escape diagnostic helpers; never game-state authority |
 
 ## PR #59 — scoped test fixture and browser-harness helper ownership

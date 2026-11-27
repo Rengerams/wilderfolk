@@ -4,13 +4,18 @@
 
 - **Fixed (27 Nov 2026):** Children no longer follow caregivers during work or commute hours, or while they remain at their workplace; stale following routes are cleared.
 
+
+- **Fixed (27 Nov 2026):** Population performance fixtures now seed 1,800 residents on actual dry Meadows terrain (continental remains the 250/750 stress map) and include departed settlers' earned career days in the independent workday audit without weakening checks.
+
 - **Fixed (27 Nov 2026):** Raid launch previews now identify a jailed elected commander and remaining sentence instead of displaying a generic unavailable-leader warning; lack of weapons is reported separately. A prisoner remains ineligible until released.
+
+- **Fixed (27 Nov 2026):** Water (including shallow water) now blocks pedestrian navigation unless crossed on a completed bridge. Walking and road eligibility reuse the canonical water terrain trait; water-dependent construction and reinforcement keep their separate rules.
 
 - **Fixed (27 Nov 2026):** Married settlers no longer abandon nighttime home travel to chase distant partners at leisure speed, preventing widespread sleep loss and critical exhaustion.
 
 - **Fixed (27 Nov 2026):** Deployed war-band soldiers regain rest/stamina through normal field sleep, pay ordinary march fatigue instead of phantom barracks attendance, and cannot conceive at their frozen village coordinates.
 
-- **Fixed (27 Nov 2026):** Children no longer choose shallow water as a play site; shared cached sites are revalidated for dry terrain and safe arrival clearance without changing ordinary wading navigation.
+- **Fixed (27 Nov 2026):** Children no longer choose shallow water as a play site; shared cached sites are revalidated for dry terrain and safe arrival clearance; ordinary shallow-water crossing is now blocked by the central navigation rule.
 
 - **Fixed (27 Nov 2026):** Battle reports use one raid-specific chronological timeline, suppress duplicate loss summaries and resume without replay. Cinematic phases, actual force strength and confirmed losses make the battle clearer; victory has one announcement.
 

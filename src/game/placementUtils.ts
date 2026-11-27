@@ -42,14 +42,15 @@ export function isFootprintWithinMapBounds(
   );
 }
 
-const RIVER_PLACE_TERRAIN = new Set<TerrainType>([
+const BRIDGE_PLACE_TERRAIN = new Set<TerrainType>([
   TerrainType.River,
+  TerrainType.ShallowWater,
   TerrainType.RiverBank,
 ]);
 
 /**
  * Ordinary buildings: any dry land, including mountains, snow and riverbank; never water.
- * Bridges: must touch river water; neither open water nor alpine ground can support a span.
+ * Bridges: must span shallow water or a river; deep water and alpine ground cannot support a span.
  */
 export function isFootprintOnBuildableTerrain(
   snapshot: Pick<WorldState, 'worldMap'>,
@@ -76,7 +77,7 @@ export function isFootprintOnBuildableTerrain(
   const bridge = buildingType === BuildingType.Bridge;
   const fishing = buildingType === BuildingType.FishingSpot;
   const road = buildingType === BuildingType.Road;
-  let riverCells = 0;
+  let bridgeWaterCells = 0;
   let waterCells = 0;
   let cells = 0;
   let unstableCells = 0;
@@ -92,16 +93,16 @@ export function isFootprintOnBuildableTerrain(
         if (isReinforceableTerrainType(tile.type)) unstableCells++;
       } else if (bridge) {
         // A bridge needs water to span, but may land on the banks/approach like a real deck.
-        if (isWaterTerrainType(tile.type) && !RIVER_PLACE_TERRAIN.has(tile.type)) return false;
+        if (isWaterTerrainType(tile.type) && !BRIDGE_PLACE_TERRAIN.has(tile.type)) return false;
         if (tile.type === TerrainType.Mountains || tile.type === TerrainType.Snow) return false;
-        if (tile.type === TerrainType.River) riverCells++;
+        if (tile.type === TerrainType.River || tile.type === TerrainType.ShallowWater) bridgeWaterCells++;
       } else if (fishing) {
         // A fishing dock may straddle ordinary land, bank and water, but not alpine ground.
         if (tile.type === TerrainType.Mountains || tile.type === TerrainType.Snow) return false;
         if (isWaterTerrainType(tile.type)) waterCells++;
       } else if (road) {
         const occupancy = snapshot.worldMap.pathGrid?.[ty * tileW + tx];
-        if (isWaterTerrainType(tile.type) || !isWalkableTerrainType(tile.type)
+        if (!isWalkableTerrainType(tile.type)
           || (occupancy !== undefined && occupancy !== Walkability.Open)) return false;
       } else if (isWaterTerrainType(tile.type)) {
         return false;
@@ -110,8 +111,8 @@ export function isFootprintOnBuildableTerrain(
   }
   if (reinforcement) return unstableCells > 0;
   if (bridge) {
-    // Must span actual river water, not only dry bank
-    return riverCells >= 1 && cells > 0;
+    // Must span actual shallow or river water, not only dry bank
+    return bridgeWaterCells >= 1 && cells > 0;
   }
   if (fishing) {
     // A dock must actually reach the water.
