@@ -121,6 +121,49 @@ afterEach(() => {
   resetSimRng();
 });
 
+
+describe('war-band human upkeep', () => {
+  it('lets an exhausted, expectant soldier recover during seven hours of camp sleep', () => {
+    const state = newWorld();
+    const soldier = settler(77, {
+      gender: 'female', pregnant: true, pregnancyProgress: 10, pregnancyDueProgress: 5000,
+      job: JobType.Soldier, raidDeploymentId: 'outgoing_raid_test',
+    });
+    soldier.needs = { nutrition: 80, rest: 0, stamina: 0, severeHungerTicks: 0 };
+    state.entities = [soldier];
+    setSimSeed(TEST_SEED);
+    const start = TICKS_PER_DAY + 22 * TICKS_PER_HOUR;
+    for (let offset = 0; offset < 7 * TICKS_PER_HOUR; offset++) {
+      state.tick = start + offset;
+      tickHumans(state, contextFor(state, [soldier]));
+    }
+    expect(soldier.needs.rest).toBeGreaterThan(90);
+    expect(soldier.needs.stamina).toBeGreaterThan(90);
+    expect(soldier.energy).toBeGreaterThan(90);
+    expect(soldier.raidDeploymentId).toBe('outgoing_raid_test');
+    expect(soldier.pregnant).toBe(true);
+    expect(soldier.indoorBuildingId).toBeUndefined();
+  });
+
+  it('does not count a marching soldier as present or working at the village barracks', () => {
+    const state = newWorld();
+    const barracks = building(9, BuildingType.Barracks, { x: 0, y: 0 });
+    const soldier = settler(78, {
+      job: JobType.Soldier, workerBuildingId: barracks.id, raidDeploymentId: 'outgoing_raid_test',
+    });
+    soldier.needs = { nutrition: 80, rest: 85, stamina: 100, severeHungerTicks: 0 };
+    state.entities = [soldier];
+    state.buildings = [barracks];
+    barracks.occupants = [soldier.id];
+    state.tick = TICKS_PER_DAY + 12 * TICKS_PER_HOUR;
+    tickHumans(state, contextFor(state, [soldier]));
+    expect(soldier.scheduleWorkedTicksToday ?? 0).toBe(0);
+    expect(soldier.schedulePresentTicksToday ?? 0).toBe(0);
+    expect(soldier.needs.stamina).toBeLessThan(100);
+    expect(soldier.raidDeploymentId).toBe('outgoing_raid_test');
+  });
+});
+
 describe('L8 — removal targets the settler\'s own building', () => {
   it('leaves a settler who works elsewhere assigned to their real workplace', () => {
     const state = newWorld();

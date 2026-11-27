@@ -769,7 +769,8 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
   recordRelationshipDiagnostic('conceptionCandidates');
   let outcome: ConceptionGateOutcome | null = null;
 
-  if (!isPlayerHuman(entity)) {
+  // Deployed humans retain their village coordinates for bookkeeping, not proximity.
+  if (!isPlayerHuman(entity) || entity.raidDeploymentId) {
     recordConceptionGate('eligibility');
     return false;
   }
@@ -784,7 +785,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
     entity.energy > config.reproductionEnergyThreshold * 0.75
   ) {
     const partner = getLivingEntity(entity.partnerId, ctx.entityById);
-    if (partner) {
+    if (partner && !partner.raidDeploymentId) {
       const dist = Math.hypot(partner.x - entity.x, partner.y - entity.y);
       const sharesHome = shareResidence(entity, partner);
       const bothAtSharedHome =
@@ -823,7 +824,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
     Math.max(entity.age, youthPartner.age) <= HUMAN_YOUTH_FERTILITY_END &&
     (entity.age < HUMAN_ADULT_MIN_AGE || youthPartner.age < HUMAN_ADULT_MIN_AGE) &&
     youthPartner.youthLovePartnerId === entity.id &&
-    !youthPartner.pregnant
+    !youthPartner.pregnant && !youthPartner.raidDeploymentId
   ) {
     if (
       entity.energy <= config.reproductionEnergyThreshold * 0.75 ||
@@ -858,7 +859,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
     !isSpouseNearby(entity, ctx.entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)
   ) {
     const lover = getLivingEntity(entity.affairPartnerId, ctx.entityById);
-    if (lover && isPlayerHuman(lover) && lover.affairPartnerId === entity.id) {
+    if (lover && !lover.raidDeploymentId && isPlayerHuman(lover) && lover.affairPartnerId === entity.id) {
       const tryst = isValidAffairConceptionSite(entity, lover, ctx.entityById, ctx.buildingById, AFFAIR_BUILDING_NEAR_RADIUS);
       const fertility = getFemaleFertility(entity.age);
       if (tryst && fertility > 0) {

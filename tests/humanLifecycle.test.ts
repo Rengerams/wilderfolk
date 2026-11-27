@@ -458,6 +458,30 @@ describe('human lifecycle golden contracts', () => {
     expect(state.eventLog.some((event) => event.type === 'scandal' && event.message.includes('may not be'))).toBe(true);
   });
 
+
+  it('does not conceive across stale village coordinates when either partner is deployed', () => {
+    const day = conceptionDay(603);
+    for (const deployedId of [MATERNAL_ID, FATHER_ID]) {
+      const husband = human(FATHER_ID, {
+        energy: 200, maxEnergy: 200, partnerId: MATERNAL_ID,
+        raidDeploymentId: deployedId === FATHER_ID ? 'outgoing_test' : undefined,
+      });
+      const mother = human(MATERNAL_ID, {
+        energy: 200, maxEnergy: 200, partnerId: FATHER_ID,
+        raidDeploymentId: deployedId === MATERNAL_ID ? 'outgoing_test' : undefined,
+      });
+      const { state, ctx } = makeFixture([mother, husband]);
+      setColonyDay(state, day);
+      expect(tryDailyConception(state, ctx, mother)).toBe(false);
+      expect(mother.pregnant).not.toBe(true);
+    }
+    const husband = human(FATHER_ID, { energy: 200, maxEnergy: 200, partnerId: MATERNAL_ID });
+    const mother = human(MATERNAL_ID, { energy: 200, maxEnergy: 200, partnerId: FATHER_ID });
+    const { state, ctx } = makeFixture([mother, husband]);
+    setColonyDay(state, day);
+    expect(tryDailyConception(state, ctx, mother)).toBe(true);
+  });
+
   it('gives married, youth-love and affair conceptions the same keyed term rule', () => {
     const marriedDay = conceptionDay(603);
     const husband = human(FATHER_ID, { energy: 200, maxEnergy: 200, partnerId: MATERNAL_ID, relationshipStatus: 'married' });

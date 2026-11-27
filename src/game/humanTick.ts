@@ -233,8 +233,9 @@ function observeHumanSleep(entity: Entity, context: {
   tick: number;
 }): { sleeping: boolean; hasHospital: boolean } {
   const { hourOfDay, previousIndoorBuildingId, onDuty, recoveringSleep, scheduledSleep, overrideNightSleep, hotels, buildingById, entityById, tick } = context;
-  if (entity.raidDeploymentId) return { sleeping: false, hasHospital: false };
   const night = isNightHour(hourOfDay);
+  // Soldiers sleeping at their field camp still use the one physiology recovery owner.
+  if (entity.raidDeploymentId) return { sleeping: night, hasHospital: false };
   if (entity.prisonBuildingId != null) {
     const cell = buildingById.get(entity.prisonBuildingId);
     return {
@@ -533,6 +534,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // waking hour but stays one roll per colony day (`personDayRoll` is day-keyed).
     if (
       !isPrisoner &&
+      !entity.raidDeploymentId &&
       isPlayerHuman(entity) &&
       // Compare clock hours with clock hours: the owner's stagger is an hour (06:00–19:00), not a
       // tick-of-day.
@@ -757,7 +759,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Pregnancy hospital priority outranks the shift: the settler still owes the duty hours, but
     // standing at a post they are leaving is not verified work.
     const goingToHospital = isPregnancyHospitalPriority(entity, staffedHospitals.length > 0);
-    if (isPlayerHuman(entity) && (onJobShift || onOfficialShift || onPriestShift)) {
+    if (isPlayerHuman(entity) && !entity.raidDeploymentId && (onJobShift || onOfficialShift || onPriestShift)) {
       // A construction crew has no regular workerBuildingId. Its resolved workplace supplies
       // the witnessed site and trade through the existing attendance recorders.
       const attendedJob = apprenticeSite
@@ -818,9 +820,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (isPlayerHuman(entity)) {
       advanceHumanNeeds(entity, {
         tick: state.tick, sleeping: sleepingForNeeds,
-        working: (onJobShift || onOfficialShift || onPriestShift) && (entity.workerBuildingId != null || apprenticeSite != null),
-        nightDuty: (onJobShift || onOfficialShift || onPriestShift) && isNightHour(hourOfDay),
-        moving: Math.hypot(entity.vx, entity.vy) > 0.1,
+        working: !entity.raidDeploymentId
+          && (onJobShift || onOfficialShift || onPriestShift)
+          && (entity.workerBuildingId != null || apprenticeSite != null),
+        nightDuty: !entity.raidDeploymentId
+          && (onJobShift || onOfficialShift || onPriestShift) && isNightHour(hourOfDay),
+        // The on-map body is frozen during deployment, but the war-band marches by day.
+        // Price it as normal movement, not a fictional local work shift.
+        moving: entity.raidDeploymentId
+          ? !sleepingForNeeds && hourOfDay >= 8 && hourOfDay < 17
+          : Math.hypot(entity.vx, entity.vy) > 0.1,
         // The needs break is a real off-duty stationary pause, not all idle leisure.
         resting: entity.needs?.breakUntilRecovered === true
           && !onDutyForSleep && !goingToHospital && !inSpotlightGathering
