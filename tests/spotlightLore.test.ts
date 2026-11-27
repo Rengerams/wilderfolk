@@ -230,6 +230,24 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     expect(world.spotlightLore).toBeNull();
   });
 
+  it('does not relocate a blocked square stage during a natural event or preview', () => {
+    const { world, girl } = makeFixture();
+    world.worldMap = testWorldMap({ tilesX: 96, tilesY: 72, seed: 63231 });
+    const square = createBuilding(BuildingType.Square, 520, 360, 91919);
+    const blocker = createBuilding(BuildingType.House, square.x, square.y - SPOTLIGHT_SQUARE_ART_LIFT_PX, 91920);
+    square.completed = true;
+    blocker.completed = true;
+    world.buildings = [square, blocker];
+    resetPathGridCaches();
+    world.tick = pickEligibleTick(world);
+    const original = { x: girl.x, y: girl.y };
+    expect(maybeStartSpotlightLore(world)).toBe(false);
+    expect(startSpotlightLoreDebug(world)).toBe(false);
+    expect(world.spotlightLore).toBeNull();
+    expect(world.spotlightLoreLastDay).toBeUndefined();
+    expect({ x: girl.x, y: girl.y }).toEqual(original);
+  });
+
   it('starts the dev preview through the typed worker command', () => {
     const { world } = makeFixture();
     world.tick = TICKS_PER_DAY * 120 + 5 * TICKS_PER_HOUR;

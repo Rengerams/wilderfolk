@@ -1,7 +1,7 @@
 # Spotlight stage lands off the middle of the Village Square
 
 - Bug: the stage point added half the square's footprint to a value that already was the centre, and the square's painted middle sits 34 px above its footprint centre, so the girl performed on the square's south edge, in front of the fountain and by the silos.
-- Status: resolved
+- Status: investigating
 - Severity: medium
 - Date discovered: 2026-11-03
 - Version/build: 0.6.5.2 working tree (0.6.5.1 base)
@@ -59,3 +59,6 @@ None. Only newly created scenes get the corrected origin; a ready scene saved ea
 - `npm run lint` — PASS (0 warnings, 0 errors).
 - `npm run build` — PASS, including the duplicate-code and semantic-overlap gates.
 - Browser capture — NOT RUN in this session (no running dev server or staged save); the staging position is covered by the unit test and the owner's visual check.
+
+## Follow-up — 2026-11-28
+The owner reported incorrect lore positioning again. The stage origin could still be moved by nearest-walkable snapping or border clamping, and debug preview could fall back away from a completed square. The stage owner now requires the exact painted centre to be walkable and within ring bounds; preview uses no alternative location when a completed square exists. A blocked-stage regression covers both entry points. CI and the owner's actual scene are not yet verified.
