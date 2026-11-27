@@ -738,18 +738,25 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         Math.max(commuteLeadHoursFor(distanceFromHome, config.speed),
           isPrisonGuardAtPost ? estimatedPrisonHours : 0))
         + (isPrisonGuardAtPost ? 0.5 : 0) : 0;
-    const preShiftSleep = preShiftSleepPlan(state.tick, nextShiftStartTick, scheduledCommuteHours);
+    // Children have a mandatory home/sleep window even without a workplace. School commute
+    // is still protected by the existing duty gates below.
+    const childBedtime = isPlayerHuman(entity) && entity.age < HUMAN_ADULT_MIN_AGE;
+    const childWakeTick = todayStartTick + (hourOfDay >= 6 ? TICKS_PER_DAY : 0) + 6 * TICKS_PER_HOUR;
+    const preShiftSleep = childBedtime
+      ? preShiftSleepPlan(state.tick, childWakeTick, 0)
+      : preShiftSleepPlan(state.tick, nextShiftStartTick, scheduledCommuteHours);
 
     // Attendance is a schedule fact, not a viewport one: crediting it above the off-screen throttle
     // is what stops a workplace's output from tracking where the camera happens to be.
     const onJobShift =
       onDayJobShift || onTavernShift || onHotelShift || onHospitalShift || onMoonPriestShift || onPrisonShift;
     // Work wins over revelry: the festival gathering is the free-time case (see `isFestivalGatherer`).
+    const recoveringSleep = (entity.needs?.sleepRecoveryUntilTick ?? 0) > state.tick;
     const festivalGathering = isFestivalGatherer(
       hourOfDay,
       state.festival?.active,
       onJobShift || onOfficialShift || hospitalCommuteDue || prisonCommuteDue || schoolCommuteDue
-        || preShiftSleep.headHome,
+        || preShiftSleep.headHome || recoveringSleep,
       isInnkeeper,
     );
     const atPost = workplace != null && isAtBuildingReach(entity, workplace);
@@ -773,7 +780,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    const recoveringSleep = (entity.needs?.sleepRecoveryUntilTick ?? 0) > state.tick;
     const inFocus = !focus || isInFocus(entity, focus);
     // An off-screen employee must leave the interior at shift end immediately, not wait
     // up to a full decision-throttle interval before appearing outside again.
@@ -782,7 +788,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const active =
       !isPrisoner &&
       (spotlightActorIds?.has(entity.id) || inFocus || leavingWork ||
-        (recoveringSleep && !onJobShift) ||
+        ((recoveringSleep || preShiftSleep.headHome) && !onJobShift) ||
         (entity.needs?.breakUntilRecovered === true && !onJobShift) ||
         hospitalCommuteDue ||
         schoolCommuteDue || onSchoolShift ||
@@ -795,10 +801,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // A ceremony holds its **attendees**, not the whole village: the owner's *"they again in a circle"*
     // was a thousand settlers sharing sixty ring slots. Everyone else keeps their day.
     const inElectionCeremony =
-      !prisonCommuteDue && !preShiftSleep.headHome && state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id, ceremonySeats);
+      !prisonCommuteDue && !preShiftSleep.headHome && !recoveringSleep && state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id, ceremonySeats);
     // Only the selected actors receive exclusive gathering movement; everyone else
     // keeps the normal commute, social and work priority rules.
-    const inSpotlightGathering = spotlightActorIds?.has(entity.id) === true;
+    const inSpotlightGathering = spotlightActorIds?.has(entity.id) === true
+      && !preShiftSleep.headHome && !recoveringSleep;
 
     const onDutyForSleep = onJobShift || onOfficialShift || onPriestShift
       || schoolCommuteDue || hospitalCommuteDue || prisonCommuteDue;
@@ -932,6 +939,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !goingToHospital &&
       !inSpotlightGathering &&
       !festivalGathering &&
+      !onJobShift && !onOfficialShift && !onPriestShift &&
       !onTavernShift &&
       !onMoonPriestShift &&
       !workCommuteDue &&
