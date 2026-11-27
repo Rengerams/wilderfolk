@@ -85,12 +85,11 @@ function finalizeHumanDeath(
     if (partnerId != null) {
       const partner = entityById.get(partnerId);
       if (partner?.alive) {
-        partner.partnerId = undefined;
-        // A father's `'expecting'` is the dead partner's pregnancy — nothing will ever clear it, and
-        // courtship refuses anything but `'single'`, so the widow or widower would never marry again.
+        // Evaluate the legacy marriage status before clearing the link; pregnancy is independent.
         if (isMarriedOrExpecting(partner)) {
           partner.relationshipStatus = 'single';
         }
+        partner.partnerId = undefined;
         // About a week of mourning when we know the tick — a faster recovery shortens it.
         if (tick != null) {
           const griefDays = SPOUSAL_GRIEF_DAYS / evaluateAptitudeInfluence(partner, 'bereavement').factor;
@@ -181,10 +180,10 @@ export function reconcileFamilyReferencesAfterRemoval(
   for (const survivor of entityById.values()) {
     if (!survivor.alive) continue;
     if (survivor.partnerId === removedId) {
-      survivor.partnerId = undefined;
       if (isMarriedOrExpecting(survivor)) {
         survivor.relationshipStatus = 'single';
       }
+      survivor.partnerId = undefined;
     }
     if (survivor.affairPartnerId === removedId) {
       survivor.affairPartnerId = undefined;
