@@ -2391,6 +2391,7 @@ export default function App() {
           <BattleReportScreen
             key={battleReport.raidId ?? battleReport.rivalName}
             rivalName={battleReport.rivalName}
+            villageName={world.villageName}
             incoming={incoming}
             resume={battleReport.resume}
             dayLabel={`${world.season} · Year ${world.year} · Day ${world.dayInYear}`}
