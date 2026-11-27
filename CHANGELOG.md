@@ -4,6 +4,9 @@
 
 - **Fixed (27 Nov 2026):** Regular election notices and buildup gossip begin one day before voting, not one year; the two-year election calendar and succession rules remain unchanged. The notice enters the Chronicle; ballot-time candidate names persist even after renaming or death.
 
+- **Fixed (27 Nov 2026):** Preserve the biological father's identity from conception through remarriage, divorce, death and save reload; childbirth no longer assigns paternity to a new spouse.
+- **Fixed (27 Nov 2026):** Protect bedtime and venue recovery; distinguish exhaustion from illness; use daily affair progress, witnessed divorce and cooldowns; persist actual wedding counts; keep pregnancy separate from marriage.
+
 - **Fixed (27 Nov 2026):** Children no longer follow caregivers during work or commute hours, or while they remain at their workplace; stale following routes are cleared.
 
 

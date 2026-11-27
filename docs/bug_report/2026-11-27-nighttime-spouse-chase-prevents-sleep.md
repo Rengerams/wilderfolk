@@ -41,3 +41,6 @@ No fields added or changed. Affected adults can resume home commuting after the 
 - PASS (data analysis): locally inspected the Year-1 Day-304 uploaded save; the counts above are actual values.
 - NOT RUN: original save simulated end-to-end after the proposed code change.
 - PENDING: updated `low-8-humans.test.ts` regression and GitHub CI.
+
+## Follow-up — 2026-11-27 (PR #231)
+Mandatory child bedtime and critical recovery now outrank discretionary gatherings and affair movement. Work schedules remain unchanged. The medical absence projection now distinguishes exhaustion and grief rather than calling them illness. Venue staff use their own shift in the commute and inspector. CI and save replay are not yet verified.

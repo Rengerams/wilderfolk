@@ -38,15 +38,14 @@ export function assertSimInvariants(state: WorldState): string[] {
     seen.add(e.id);
   }
 
-  // 4. childrenIds / partnerId / pregnantById must reference an entity that EXISTS (dead is fine:
-  // widowed spouses, fathers who died mid-pregnancy; only truly missing ids are corruption).
+  // 4. Live family references must resolve; a recorded biological father can be historical.
   const allIds = new Set(state.entities.map((e) => e.id));
   for (const e of alive) {
     if (e.partnerId != null && !allIds.has(e.partnerId)) {
       violations.push(`tick ${state.tick}: #${e.id} partnerId ${e.partnerId} missing`);
     }
-    if (e.pregnantById != null && !allIds.has(e.pregnantById)) {
-      violations.push(`tick ${state.tick}: #${e.id} pregnantById ${e.pregnantById} missing`);
+    if (e.pregnantById != null && (!Number.isSafeInteger(e.pregnantById) || e.pregnantById < 0)) {
+      violations.push(`tick ${state.tick}: #${e.id} invalid biological father ID ${e.pregnantById}`);
     }
     for (const cid of e.childrenIds ?? []) {
       if (!allIds.has(cid)) {

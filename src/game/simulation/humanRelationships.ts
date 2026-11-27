@@ -52,6 +52,7 @@ import { Relationship } from '../gameConstants';
 import { prisonPrisonerCapacity } from '../prisonShifts';
 import { getSimRng, seededRandomForRun, personDayRoll } from '../simRng';
 import { startPregnancy } from '../pregnancy';
+import { recordMarriageEvent } from '../stats';
 
 import { addReputation } from '../simHelpers';
 
@@ -67,8 +68,8 @@ const AFFAIR_DAILY_TRYST_RADIUS = 95;
 export const AFFAIR_ESTABLISHED_LOG_PHRASE = 'began a secret affair';
 
 const RELATIONSHIP_CONFIG = {
-  DIVORCE_CAUGHT_CHANCE: 0.7,
   SCANDAL_COOLDOWN_TICKS: TICKS_PER_DAY * 21,
+  DIVORCE_COURTSHIP_COOLDOWN_DAYS: 21,
   SCHOOLYARD_BOND_EVERY_DAYS: 5,
   SCHOOLYARD_BOND_MAX_FRIENDS: 3,
 } as const;
@@ -947,10 +948,8 @@ export function tryDailyAmicableDivorce(
   if (rng() >= MARRIAGE_DAILY_AMICABLE_DIVORCE_CHANCE) return;
 
   dissolveMarriage(entity, spouse, state.tick);
-  startCourtshipCooldown(entity);
-  startCourtshipCooldown(spouse);
-  if (entity.pregnant) entity.relationshipStatus = 'expecting';
-  if (spouse.pregnant) spouse.relationshipStatus = 'expecting';
+  startCourtshipCooldown(entity, RELATIONSHIP_CONFIG.DIVORCE_COURTSHIP_COOLDOWN_DAYS);
+  startCourtshipCooldown(spouse, RELATIONSHIP_CONFIG.DIVORCE_COURTSHIP_COOLDOWN_DAYS);
 
   const villagers = playerHumans.filter(isPlayerHuman);
   reassignDivorcedResidences(entity, spouse, buildings, villagers);
@@ -981,61 +980,28 @@ function tryDivorceOnCaughtCheater(
   entityById: Map<number, Entity>,
   buildings: Building[],
   playerHumans: readonly Entity[],
-  caughtInAct = false,
 ): void {
-  const isCheaterMarried =
-    isMarriedOrExpecting(cheater) &&
-    cheater.partnerId != null;
-  if (!isCheaterMarried) return;
-  if (!caughtInAct && !isSpouseNearby(cheater, entityById, 40)) return;
-
-  const spouse = getLivingEntity(cheater.partnerId!, entityById);
-  if (!spouse) return;
-  const divorceChance = caughtInAct ? 1 : RELATIONSHIP_CONFIG.DIVORCE_CAUGHT_CHANCE;
-  if (personDayRoll(cheater.id, state.tick, 608) >= divorceChance) return;
-
-  dissolveMarriage(spouse, cheater, state.tick);
-  startCourtshipCooldown(spouse);
-  startCourtshipCooldown(cheater);
-  if (cheater.pregnant) cheater.relationshipStatus = 'expecting';
-  if (spouse.pregnant) spouse.relationshipStatus = 'expecting';
-  startFeud(state, spouse, paramour, 35);
-
-  const spouseName = humanDisplayName(spouse);
-  const cheaterName = humanDisplayName(cheater);
-  const otherName = humanDisplayName(paramour);
-  logEvent(
-    state,
-    'divorce',
-    `${spouseName} divorced ${cheaterName} after catching them with ${otherName}`,
-    spouseName,
-  );
-  addNotification(state, 'Divorce', formatCaughtCheaterDivorceDetail(spouse, cheater), 'warning');
-  addFloatingText(state, (spouse.x + cheater.x) / 2, (spouse.y + cheater.y) / 2 - 22, 'Divorced!', '#f97316');
-
+  // Evaluate each marriage independently, using witness locations before arrest relocates anyone.
   const villagers = playerHumans.filter(isPlayerHuman);
-  reassignDivorcedResidences(spouse, cheater, buildings, villagers, spouse);
-
-  const isParamourMarried =
-    isMarriedOrExpecting(paramour) &&
-    paramour.partnerId != null;
-  if (isParamourMarried) {
-    const paramourSpouse = getLivingEntity(paramour.partnerId!, entityById);
-    const paramourSpousePresent = caughtInAct || isSpouseNearby(paramour, entityById, 40);
-    const paramourDivorceChance = caughtInAct ? 1 : RELATIONSHIP_CONFIG.DIVORCE_CAUGHT_CHANCE;
-    if (paramourSpouse && paramourSpousePresent && personDayRoll(paramour.id, state.tick, 609) < paramourDivorceChance) {
-      dissolveMarriage(paramourSpouse, paramour, state.tick);
-      if (paramour.pregnant) paramour.relationshipStatus = 'expecting';
-      if (paramourSpouse.pregnant) paramourSpouse.relationshipStatus = 'expecting';
-      logEvent(
-        state,
-        'divorce',
-        `${humanDisplayName(paramourSpouse)} divorced ${humanDisplayName(paramour)} after catching them with ${humanDisplayName(cheater)}`,
-        humanDisplayName(paramourSpouse),
-      );
-      addNotification(state, 'Divorce', formatCaughtCheaterDivorceDetail(paramourSpouse, paramour), 'warning');
-      reassignDivorcedResidences(paramourSpouse, paramour, buildings, villagers, paramourSpouse);
-    }
+  const witnessed = [cheater, paramour].flatMap((offender) => {
+    const spouse = getLivingEntity(offender.partnerId, entityById);
+    if (!isMarriedOrExpecting(offender) || !spouse || spouse.partnerId !== offender.id
+      || !isSpouseNearby(offender, entityById, AFFAIR_WALK_IN_RADIUS)) return [];
+    return [{ offender, spouse, other: offender === cheater ? paramour : cheater }];
+  });
+  for (const { offender, spouse, other } of witnessed) {
+    // Discovery already passed its probability gate; a witnessed caught event is definitive.
+    const spouseName = humanDisplayName(spouse);
+    const offenderName = humanDisplayName(offender);
+    const otherName = humanDisplayName(other);
+    dissolveMarriage(spouse, offender, state.tick);
+    startCourtshipCooldown(spouse, RELATIONSHIP_CONFIG.DIVORCE_COURTSHIP_COOLDOWN_DAYS);
+    startCourtshipCooldown(offender, RELATIONSHIP_CONFIG.DIVORCE_COURTSHIP_COOLDOWN_DAYS);
+    startFeud(state, spouse, other, 35);
+    logEvent(state, 'divorce', `${spouseName} divorced ${offenderName} after catching them with ${otherName}`, spouseName);
+    addNotification(state, 'Divorce', formatCaughtCheaterDivorceDetail(spouse, offender), 'warning');
+    addFloatingText(state, (spouse.x + offender.x) / 2, (spouse.y + offender.y) / 2 - 22, 'Divorced!', '#f97316');
+    reassignDivorcedResidences(spouse, offender, buildings, villagers, spouse);
   }
 }
 
@@ -1079,7 +1045,7 @@ function tryExposeCaughtAffair(
 
   let chance = caughtAffairRollChance(churchStrength, establishedAffair);
   if (walkInAtHome) chance = 1;
-  if (getSimRng('humanRelationships')() < chance) {
+  if (personDayRoll(cheater.id, state.tick, 611) < chance) {
     exposeAffair(state, cheater, paramour, 'caught', entityById, buildings, playerHumans);
   }
 }
@@ -1141,9 +1107,11 @@ export function exposeAffair(
   addNotification(state, 'Scandal', `${who} & ${other} — the village is talking`, 'warning');
 
   if (reason === 'caught') {
-    arrestForScandal(state, cheater);
-    arrestForScandal(state, paramour);
-    tryDivorceOnCaughtCheater(state, cheater, paramour, entityById, buildings, playerHumans, true);
+    const cheaterOffended = isMarriedScandalOffender(cheater);
+    const paramourOffended = isMarriedScandalOffender(paramour);
+    tryDivorceOnCaughtCheater(state, cheater, paramour, entityById, buildings, playerHumans);
+    arrestForScandal(state, cheater, cheaterOffended);
+    arrestForScandal(state, paramour, paramourOffended);
   } else {
     // A rumour reaches the cheated spouse too; they blame the paramour and stay married.
     const spouse = cheater.partnerId != null ? entityById.get(cheater.partnerId) : undefined;
@@ -1181,9 +1149,9 @@ function reportUnguardedPrison(state: WorldState): void {
   );
 }
 
-function arrestForScandal(state: WorldState, offender: Entity): void {
+function arrestForScandal(state: WorldState, offender: Entity, marriedAtExposure: boolean): void {
   if (!offender.alive || offender.type !== EntityType.Human) return;
-  if (!isMarriedScandalOffender(offender)) return;
+  if (!marriedAtExposure) return;
   // A serving guard keeps the post: three shifts need three guards, so jailing the crew leaves the
   // Prison unguarded — and an unguarded Prison leaks its prisoners. The sentence would undo the post.
   if (offender.job === JobType.PrisonGuard) return;
@@ -1298,8 +1266,8 @@ export function isWithinRemarriageBar(entity: Entity, other: Entity, tick: numbe
 }
 
 /** Put a settler out of the courting pool for `COURTSHIP_COOLDOWN_DAYS`, counted down daily. */
-function startCourtshipCooldown(entity: Entity): void {
-  entity.courtshipCooldownDays = Relationship.COURTSHIP_COOLDOWN_DAYS;
+function startCourtshipCooldown(entity: Entity, days: number = Relationship.COURTSHIP_COOLDOWN_DAYS): void {
+  entity.courtshipCooldownDays = Math.max(entity.courtshipCooldownDays ?? 0, days);
 }
 
 /**
@@ -1644,6 +1612,7 @@ export function tryCompleteCourtshipMarriage(  state: WorldState,
   syncMarriageSurnames(entity, partner);
   const married1 = humanDisplayName(entity);
   const married2 = humanDisplayName(partner);
+  recordMarriageEvent(state);
   logEvent(state, 'marriage', `${married1} and ${married2} got married`, married1);
   addNotification(state, 'Marriage', `${married1} & ${married2} are now married`, 'success');
   requestDialogue({ eventKey: 'marriage.accepted', speaker: entity, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(8), priority: 'scripted' });

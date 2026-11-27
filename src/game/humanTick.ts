@@ -530,44 +530,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       tryDailyAmicableDivorce(state, entity, entityById, updatedBuildings, playerHumans);
     }
 
-    // The affair encounter needs the settler away from the spouse, so it is sampled at a per-settler
-    // waking hour but stays one roll per colony day (`personDayRoll` is day-keyed).
-    if (
-      !isPrisoner &&
-      !entity.raidDeploymentId &&
-      isPlayerHuman(entity) &&
-      // Compare clock hours with clock hours: the owner's stagger is an hour (06:00–19:00), not a
-      // tick-of-day.
-      hourOfDay === affairEncounterHourOfDay(entity.id, state.tick) &&
-      isStartOfClockHour(state.tick) &&
-      !isAsleepAtHome(entity, buildingById, hourOfDay) &&
-      !isSettlerLodgingAtHotel(entity, buildingById, hourOfDay, hotelLodging.hotels)
-    ) {
-      // Gossip is a daytime interaction, not an automatic midnight rumour.
-      tryDailyAffairGossip(
-        state,
-        entity,
-        entityById,
-        updatedBuildings,
-        buildingById,
-        churchStrength,
-        playerHumans,
-      );
-      tryDailyAffairEncounter(
-        state,
-        entity,
-        entityById,
-        updatedBuildings,
-        buildingById,
-        churchStrength,
-        hourOfDay,
-        humanSocialGrid,
-        playerHumans,
-        width,
-        height,
-      );
-    }
-
     tryGraduateHumanChild(entity, config.size, config.speed, (e) => {
       if (isPlayerHuman(e)) applyEducationGraduation(state, e);
     });
@@ -600,7 +562,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         (workplace.type !== BuildingType.Church &&
           workplace.type !== BuildingType.TownHall &&
           workplace.type !== BuildingType.Prison &&
-          workplace.type !== BuildingType.Hospital));
+          workplace.type !== BuildingType.Hospital &&
+          workplace.type !== BuildingType.Hotel));
     const isHospitalDoctor = entity.job === JobType.Doctor
       && workplace?.type === BuildingType.Hospital && workplace.completed;
     const onHospitalShift = !!(isHospitalDoctor && isHospitalDoctorOnShift(workplace, state.tick, entity.id));
@@ -738,18 +701,25 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         Math.max(commuteLeadHoursFor(distanceFromHome, config.speed),
           isPrisonGuardAtPost ? estimatedPrisonHours : 0))
         + (isPrisonGuardAtPost ? 0.5 : 0) : 0;
-    const preShiftSleep = preShiftSleepPlan(state.tick, nextShiftStartTick, scheduledCommuteHours);
+    // Children have a mandatory home/sleep window even without a workplace. School commute
+    // is still protected by the existing duty gates below.
+    const childBedtime = isPlayerHuman(entity) && entity.age < HUMAN_ADULT_MIN_AGE;
+    const childWakeTick = todayStartTick + (hourOfDay >= 6 ? TICKS_PER_DAY : 0) + 6 * TICKS_PER_HOUR;
+    const preShiftSleep = childBedtime
+      ? preShiftSleepPlan(state.tick, childWakeTick, 0)
+      : preShiftSleepPlan(state.tick, nextShiftStartTick, scheduledCommuteHours);
 
     // Attendance is a schedule fact, not a viewport one: crediting it above the off-screen throttle
     // is what stops a workplace's output from tracking where the camera happens to be.
     const onJobShift =
       onDayJobShift || onTavernShift || onHotelShift || onHospitalShift || onMoonPriestShift || onPrisonShift;
     // Work wins over revelry: the festival gathering is the free-time case (see `isFestivalGatherer`).
+    const recoveringSleep = (entity.needs?.sleepRecoveryUntilTick ?? 0) > state.tick;
     const festivalGathering = isFestivalGatherer(
       hourOfDay,
       state.festival?.active,
       onJobShift || onOfficialShift || hospitalCommuteDue || prisonCommuteDue || schoolCommuteDue
-        || preShiftSleep.headHome,
+        || preShiftSleep.headHome || recoveringSleep,
       isInnkeeper,
     );
     const atPost = workplace != null && isAtBuildingReach(entity, workplace);
@@ -773,7 +743,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    const recoveringSleep = (entity.needs?.sleepRecoveryUntilTick ?? 0) > state.tick;
     const inFocus = !focus || isInFocus(entity, focus);
     // An off-screen employee must leave the interior at shift end immediately, not wait
     // up to a full decision-throttle interval before appearing outside again.
@@ -782,12 +751,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const active =
       !isPrisoner &&
       (spotlightActorIds?.has(entity.id) || inFocus || leavingWork ||
-        (recoveringSleep && !onJobShift) ||
+        ((recoveringSleep || preShiftSleep.headHome) && !onJobShift) ||
         (entity.needs?.breakUntilRecovered === true && !onJobShift) ||
         hospitalCommuteDue ||
         schoolCommuteDue || onSchoolShift ||
         prisonCommuteDue ||
         entity.pregnant ||
+        (isStartOfClockHour(state.tick) && hourOfDay === affairEncounterHourOfDay(entity.id, state.tick)) ||
         hasAffairPartner(entity, entityById) ||
         (entity.affairProgress ?? 0) >= 20 ||
         (state.tick + entity.id) % OFFSCREEN_HUMAN_THROTTLE === 0);
@@ -795,10 +765,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // A ceremony holds its **attendees**, not the whole village: the owner's *"they again in a circle"*
     // was a thousand settlers sharing sixty ring slots. Everyone else keeps their day.
     const inElectionCeremony =
-      !prisonCommuteDue && !preShiftSleep.headHome && state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id, ceremonySeats);
+      !prisonCommuteDue && !preShiftSleep.headHome && !recoveringSleep && state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id, ceremonySeats);
     // Only the selected actors receive exclusive gathering movement; everyone else
     // keeps the normal commute, social and work priority rules.
-    const inSpotlightGathering = spotlightActorIds?.has(entity.id) === true;
+    const inSpotlightGathering = spotlightActorIds?.has(entity.id) === true
+      && !preShiftSleep.headHome && !recoveringSleep;
 
     const onDutyForSleep = onJobShift || onOfficialShift || onPriestShift
       || schoolCommuteDue || hospitalCommuteDue || prisonCommuteDue;
@@ -923,15 +894,21 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const commuteLeadHours = workplace
       ? commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace), config.speed)
       : 0;
-    const workCommuteDue = isPrisonGuardAtPost ? prisonCommuteDue : workplace != null
-      && isWorkDay(state.tick)
-      && (goWorkTime || onWorkCommuteHours
-        || isWithinWorkCommuteLead(state.tick, commuteStartHour, commuteLeadHours));
+    const venueWork = (isInnkeeper || isHotelier) && workplace != null;
+    const venueCommuteDue = venueWork && nextShiftStartTick != null
+      && state.tick >= nextShiftStartTick - commuteLeadHours * TICKS_PER_HOUR;
+    const workCommuteDue = venueWork ? onTavernShift || onHotelShift || venueCommuteDue
+      : isHospitalDoctor ? hospitalCommuteDue || onHospitalShift
+      : isPrisonGuardAtPost ? prisonCommuteDue : workplace != null
+        && isWorkDay(state.tick)
+        && (goWorkTime || onWorkCommuteHours
+          || isWithinWorkCommuteLead(state.tick, commuteStartHour, commuteLeadHours));
 
     const stayIn =
       !goingToHospital &&
       !inSpotlightGathering &&
       !festivalGathering &&
+      !onJobShift && !onOfficialShift && !onPriestShift &&
       !onTavernShift &&
       !onMoonPriestShift &&
       !workCommuteDue &&
@@ -1198,7 +1175,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       tickTavernService({
         entity,
         workplace,
-        onTavernShift,
+        onTavernShift: onTavernShift || (isInnkeeper && venueCommuteDue),
         huntingWere: !!huntingWere,
         inElectionCeremony,
         speed: config.speed,
@@ -1513,10 +1490,49 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     // Work and its commute own movement; neither kind of affair may steal their steering.
-    const availableForAffair = !onJobShift && !onOfficialShift && !onPriestShift &&
+    const offDutyForAffair = !onJobShift && !onOfficialShift && !onPriestShift &&
       !workCommuteDue && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue;
+    const availableForAffair = offDutyForAffair && !stayIn && !sleepingForNeeds && !recoveringSleep && !takingNeedsBreak;
 
-    // Secret affairs: pregnancy or expecting status does not block encounters or catching.
+    // The affair encounter needs the settler away from the spouse, so it is sampled at a per-settler
+    // waking hour but stays one roll per colony day (`personDayRoll` is day-keyed).
+    if (
+      availableForAffair && !isPrisoner &&
+      !entity.raidDeploymentId &&
+      isPlayerHuman(entity) &&
+      // Compare clock hours with clock hours: the owner's stagger is an hour (waking hours), not a
+      // tick-of-day.
+      hourOfDay === affairEncounterHourOfDay(entity.id, state.tick) &&
+      isStartOfClockHour(state.tick) &&
+      !isAsleepAtHome(entity, buildingById, hourOfDay) &&
+      !isSettlerLodgingAtHotel(entity, buildingById, hourOfDay, hotelLodging.hotels)
+    ) {
+      // Gossip is a daytime interaction, not an automatic midnight rumour.
+      tryDailyAffairGossip(
+        state,
+        entity,
+        entityById,
+        updatedBuildings,
+        buildingById,
+        churchStrength,
+        playerHumans,
+      );
+      tryDailyAffairEncounter(
+        state,
+        entity,
+        entityById,
+        updatedBuildings,
+        buildingById,
+        churchStrength,
+        hourOfDay,
+        humanSocialGrid,
+        playerHumans,
+        width,
+        height,
+      );
+    }
+
+    // Secret affairs: pregnancy itself does not block eligible encounters or catching.
     const hasActiveMarriage =
       isMarriedOrExpecting(entity) &&
       entity.partnerId != null;
@@ -1563,15 +1579,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           if (shouldLeadAffairPair(entity, paramour)) {
             // One staggered attempt per game hour, not a roll every realtime tick.
             // 11.4% per hour preserves roughly the former 1%-per-tick hourly odds.
-            // Keep affair progress and visual feedback on their original realtime cadence.
+            // Progress is owned by the daily relationship encounter; retain visual feedback only.
             if ((state.tick + entity.id) % TICKS_PER_HOUR === 0) {
               settlerPairChat(entity, paramour, 'affair', 0.114);
             }
 
-            const churchPenalty = churchStrength > 0 ? 0.72 + (1 - churchStrength) * 0.28 : 1;
-            const affairRate = (churchStrength > 0 ? 5 : 8) * (state.festival?.active ? 1.4 : 1) * churchPenalty * PER_TICK_RATE_SCALE;
-            entity.affairProgress = Math.min(100, (entity.affairProgress || 0) + affairRate);
-            paramour.affairProgress = Math.min(100, (paramour.affairProgress || 0) + affairRate);
 
             if (getSimRng('humanTick')() < 0.06 * PER_TICK_RATE_SCALE) {
               state.deathParticles.push({
@@ -1611,10 +1623,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Established affairs still happen in normal free time, but cannot steal
-    // spotlight participants' movement after the gathering vector is assigned.
+    // Established affairs can also use an already-reached overnight tryst house.
+    // Only ordinary free time permits pursuit; bedtime must not trigger a new commute.
     if (
-      availableForAffair &&
+      offDutyForAffair &&
       !inSpotlightGathering &&
       !goingToHospital &&
       canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
@@ -1628,17 +1640,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const trystTarget = getAffairTrystTarget(entity, lover, entityById, buildingById);
         const dist = Math.hypot(trystTarget.x - entity.x, trystTarget.y - entity.y) || 1;
         const tryst = isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_INTIMATE_RADIUS);
-        if (!tryst && dist > 14) {
+        const site = tryst ? getAffairTrystBuilding(entity, lover, entityById, buildingById) : undefined;
+        const overnight = !!site && isNightHour(hourOfDay) && !onDutyForSleep
+          && !preShiftSleep.headHome && !takingNeedsBreak && (!recoveringSleep || sleepingForNeeds);
+        if (availableForAffair && !tryst && dist > 14) {
           entity.indoorBuildingId = undefined;
           steerAffairApproach(entity, lover, trystTarget, config.speed * 0.32);
           suppressIdle = true;
-        } else if (tryst) {
-          // Genuine overnight tryst: enter the existing tryst building rather than
-          // granting any indoor/sleep state for an outdoor romantic encounter.
-          if (isNightHour(hourOfDay) && !onDutyForSleep) {
-            const site = getAffairTrystBuilding(entity, lover, entityById, buildingById);
-            if (site) enterHumanBuilding(entity, site);
-          }
+        } else if (tryst && (availableForAffair || overnight)) {
+          // Real indoor presence allows the physiology owner to observe sleep on the next tick.
+          if (overnight && site) enterHumanBuilding(entity, site);
           tryExposeCaughtAffairForPair(
             state,
             entity,

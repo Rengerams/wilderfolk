@@ -107,11 +107,7 @@ export function createEntity(
   // Resolve relationship status
   const relationshipStatus = isHuman
     ? opts?.relationshipStatus ??
-      (opts?.partnerId != null
-        ? 'married'
-        : opts?.pregnant
-          ? 'expecting'
-          : 'single')
+      (opts?.partnerId != null ? 'married' : 'single')
     : undefined;
 
   const entity: Entity = {

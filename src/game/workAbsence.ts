@@ -49,7 +49,8 @@ type SettlerWorkReasonCode =
   | 'deployed'
   | 'sleeping'
   | 'eating'
-  | 'ill'
+  | 'exhausted'
+  | 'grieving'
   | 'going-to-hospital'
   | 'in-hospital'
   | 'unreachable'
@@ -97,7 +98,7 @@ function labelFor(building: Building): string {
 }
 
 /** Where the settler's next shift starts, and which of the three shift owners said so. */
-type NextShift = { hour: number; kind: 'day' | 'venue' | 'prison' | 'hospital' };
+type NextShift = { hour: number; kind: 'day' | 'venue' | 'prison' | 'hospital'; endHour?: number };
 
 const VENUE_BY_BUILDING: Partial<Record<BuildingType, 'tavern' | 'hotel'>> = {
   [BuildingType.Tavern]: 'tavern',
@@ -108,7 +109,7 @@ const VENUE_BY_BUILDING: Partial<Record<BuildingType, 'tavern' | 'hotel'>> = {
  * The shift predicates `humanTick` composes, each read from the owner holding that window: day
  * schedule, venue hours, moon-howler night, prison roster.
  */
-function resolveShift(
+export function resolveShift(
   state: WorldState,
   entity: Entity,
   workplace: Building | undefined,
@@ -123,9 +124,11 @@ function resolveShift(
     entity.job === JobType.Hotelier && workplace?.type === BuildingType.Hotel && completed;
   const ordinaryWorkplace =
     workplace != null
-    && workplace.type !== BuildingType.Church
-    && workplace.type !== BuildingType.TownHall
-    && workplace.type !== BuildingType.Prison;
+    && (!completed || (workplace.type !== BuildingType.Church
+      && workplace.type !== BuildingType.TownHall
+      && workplace.type !== BuildingType.Prison
+      && workplace.type !== BuildingType.Hospital
+      && workplace.type !== BuildingType.Hotel));
 
   const venueIndex = workplace ? workplace.occupants.indexOf(entity.id) : -1;
   const venueCount = workplace?.occupants.length ?? 0;
@@ -135,10 +138,10 @@ function resolveShift(
     const onVenueShift = venueIndex >= 0
       ? isVenueWorkerServiceHour(state, venueKind, hour, venueIndex, venueCount)
       : isVenueServiceHour(state, venueKind, hour);
-    const startHour = venueIndex >= 0
-      ? getVenueWorkerServiceWindow(state, venueKind, venueIndex, venueCount).startHour
-      : getVenueSchedule(state, venueKind).startHour;
-    return { onShift: onVenueShift, next: { hour: startHour, kind: 'venue' } };
+    const window = venueIndex >= 0
+      ? getVenueWorkerServiceWindow(state, venueKind, venueIndex, venueCount)
+      : getVenueSchedule(state, venueKind);
+    return { onShift: onVenueShift, next: { hour: window.startHour, endHour: window.endHour, kind: 'venue' } };
   }
 
   const isPrisonGuardAtPost =
@@ -173,12 +176,12 @@ function resolveShift(
       && workplace?.type === BuildingType.TownHall
       && completed
       && goWorkTime);
-  const onMoonPriestShift =
+  const onPriestShift =
     entity.job === JobType.Priest
     && workplace?.type === BuildingType.Church
     && completed
-    && isOnMoonHowlerNightShift(state.tick, hour);
-  return { onShift: onDayJobShift || onMoonPriestShift, next: { hour: schedule.startHour, kind: 'day' } };
+    && (goWorkTime || isOnMoonHowlerNightShift(state.tick, hour));
+  return { onShift: onDayJobShift || onPriestShift, next: { hour: schedule.startHour, kind: 'day' } };
 }
 
 /**
@@ -250,7 +253,8 @@ export function getSettlerWorkReason(
   // attendance outranks it, or a worker at their post would read absent while the shift is credited.
   const care = medicalCareReason(entity, state.tick);
   if (care && care !== 'expecting' && !(onShift && atWork)) {
-    return { code: 'ill', label: `Ill — ${care}` };
+    if (care === 'exhausted') return { code: 'exhausted', label: 'Exhausted' };
+    if (care === 'grieving') return { code: 'grieving', label: 'Grieving' };
   }
 
   // `humanTick` holds a ceremony's attendees before its festival gatherers; keep that order.

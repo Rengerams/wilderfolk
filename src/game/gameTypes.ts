@@ -255,7 +255,8 @@ interface MoonHowlerSavedState {
   youthLoveProgress?: number;
   youthLoveStartedDay?: number;
   pregnant?: boolean;
-  pregnantById?: number;
+  /** Biological father fixed at conception; null is explicitly unknown, undefined is legacy or not pregnant. */
+  pregnantById?: number | null;
   pregnancyFromYouthLove?: boolean;
   pregnancyProgress?: number;
   /** Paired with `pregnant` by `simulationInvariants`; parked and restored with it. */
@@ -378,7 +379,8 @@ export interface Entity {
   youthLovePartnerId?: number;
   youthLoveProgress?: number;
   youthLoveStartedDay?: number;
-  pregnantById?: number;
+  /** Biological father fixed at conception; null is explicitly unknown, undefined is legacy or not pregnant. */
+  pregnantById?: number | null;
   pregnancyFromYouthLove?: boolean;
   fatherId?: number;
   motherId?: number;

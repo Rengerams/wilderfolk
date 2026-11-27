@@ -369,10 +369,6 @@ export function resolveChildSurname(
   };
 }
 
-function statusAfterDivorce(entity: Entity): 'single' | 'expecting' {
-  return entity.pregnant ? 'expecting' : 'single';
-}
-
 function clearMarriageLinks(entity: Entity): void {
   entity.partnerId = undefined;
   entity.affairPartnerId = undefined;
@@ -390,8 +386,8 @@ export function grantDivorce(wife: Entity, husband: Entity, endedAtTick = 0): vo
   }
   clearMarriageLinks(wife);
   clearMarriageLinks(husband);
-  wife.relationshipStatus = statusAfterDivorce(wife);
-  husband.relationshipStatus = statusAfterDivorce(husband);
+  wife.relationshipStatus = 'single';
+  husband.relationshipStatus = 'single';
   // Stamp the pair so they cannot turn round and remarry each other. Both sides carry the record:
   // either partner may be the one whose courtship completes the marriage.
   wife.pastPartnerTicks = { ...wife.pastPartnerTicks, [husband.id]: endedAtTick };
@@ -407,8 +403,8 @@ export function dissolveMarriage(partnerA: Entity, partnerB: Entity, endedAtTick
   }
   clearMarriageLinks(partnerA);
   clearMarriageLinks(partnerB);
-  partnerA.relationshipStatus = statusAfterDivorce(partnerA);
-  partnerB.relationshipStatus = statusAfterDivorce(partnerB);
+  partnerA.relationshipStatus = 'single';
+  partnerB.relationshipStatus = 'single';
 }
 
 export function formatCaughtCheaterDivorceDetail(spouse: Entity, cheater: Entity): string {

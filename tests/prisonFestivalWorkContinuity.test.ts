@@ -14,7 +14,7 @@ import { isAtBuildingReach } from '../src/game/buildingAccess';
 import { tickPrisonPresence } from '../src/game/prisonGuardDuty';
 import { getHourOfDay } from '../src/game/dayCycleClock';
 import { getVenueSchedule, getVenueScheduleHours, isFestivalOverrideActive, isVenueServiceHour } from '../src/game/venueSchedule';
-import { getHumanActivityStatus } from '../src/game/humanStatus';
+import { getHumanActivityStatus, getHumanActivityProjection } from '../src/game/humanStatus';
 import { isChildAtSchool } from '../src/game/education';
 
 const PRISON_ID = 10;
@@ -384,6 +384,17 @@ describe('settlers keep working during a festival', () => {
     expect(innkeeper.scheduleWorkedTicksToday ?? 0, 'the 18:00 hour is inside the window').toBeGreaterThan(0);
   });
 
+  it('keeps the innkeeper off duty after a festival ends', () => {
+    const { state, innkeeper } = festivalWorkWorld();
+    if (state.festival) state.festival.daysLeft = 1;
+    state.tick = 18 * TICKS_PER_HOUR - 1;
+    gameTick(state);
+    expect(isFestivalOverrideActive(state, 'tavern')).toBe(false);
+    for (let tick = state.tick; tick < TICKS_PER_DAY + 16 * TICKS_PER_HOUR; tick++) gameTick(state);
+    expect(innkeeper.scheduleWorkedTicksToday ?? 0).toBe(0);
+    expect(getHumanActivityStatus(state, innkeeper)).not.toBe('Working at Tavern');
+  });
+
   it('credits a festival innkeeper for the configured window and not the whole day', () => {
     // An all-day festival override credited as work pins every innkeeper's fatigue at 100 and costs
     // the tavern a third of its output through the fatigue multiplier.
@@ -427,6 +438,11 @@ describe('a priest serving at a completed church', () => {
       weekday.priest.scheduleWorkedTicksToday ?? 0,
       'a priest on ordinary service recorded no attendance',
     ).toBeGreaterThan(0);
+    const weekdayActivity = getHumanActivityProjection(weekday.state, weekday.priest);
+    expect(weekdayActivity.schedule.onShift).toBe(true);
+    expect(weekdayActivity.target?.kind).toBe('workplace');
+    expect(weekdayActivity.target?.buildingId).toBe(30);
+    expect(weekdayActivity.activity).toBe('Working at Church');
 
     const restDay = churchWorld();
     // Day 5 is a Saturday: the same hour credits nothing to a day-shift post.
@@ -436,6 +452,7 @@ describe('a priest serving at a completed church', () => {
       restDay.priest.scheduleWorkedTicksToday ?? 0,
       'the rest day credited a service',
     ).toBe(0);
+    expect(getHumanActivityProjection(restDay.state, restDay.priest).schedule.onShift).toBe(false);
   });
 
   it('still records the moon-howler night duty, which is the church’s other shift', () => {
