@@ -352,7 +352,11 @@ function placeProducers(world: WorldState, anchor: { x: number; y: number }): Bu
  * for a wide, dry settlement rectangle: no terrain edits, alternate walking rules, or
  * separate path search. All actual buildings and assignments still use the normal owners.
  */
-function findDryBenchmarkStart(world: WorldState, preferred: { x: number; y: number }): { x: number; y: number } {
+export function findDryBenchmarkStart(
+  world: WorldState,
+  preferred: { x: number; y: number },
+  districtPlot = false,
+): { x: number; y: number } {
   const map = world.worldMap;
   // The L1 build mask classifies shallow water as water even on an earlier game
   // revision that permitted wading. It gives base and PR *identical* benchmark
@@ -365,17 +369,20 @@ function findDryBenchmarkStart(world: WorldState, preferred: { x: number; y: num
   for (let y = 0; y < rows; y++) {
     let waterInRow = 0;
     for (let x = 0; x < cols; x++) {
-      if (build[y * cols + x] === Buildability.Water) waterInRow++;
+      if (build[y * cols + x] !== Buildability.Open) waterInRow++;
       summed[(y + 1) * stride + x + 1] = summed[y * stride + x + 1] + waterInRow;
     }
   }
   const waterCount = (left: number, top: number, right: number, bottom: number) =>
     summed[bottom * stride + right] - summed[top * stride + right]
     - summed[bottom * stride + left] + summed[top * stride + left];
-  // Each L1 cell is two path cells across. The first rectangle leaves room for
-  // all eight starter homes, storage, four farms, and their approach paths.
+  // One owner selects both the founding district and the scaled benchmark plots.
+  // Reserve clearance around each plot so the simulated walk entrances remain dry.
   const buildCell = PATH_CELL * 2;
-  for (const [halfWidth, halfHeight] of [[18, 16], [15, 13], [12, 11]] as const) {
+  const shapes: readonly (readonly [number, number])[] = districtPlot
+    ? [[9, 9]]
+    : [[18, 16], [15, 13], [12, 11]];
+  for (const [halfWidth, halfHeight] of shapes) {
     let best: { x: number; y: number } | null = null;
     let bestDistance = Infinity;
     for (let ty = halfHeight + 2; ty + halfHeight + 2 < rows; ty += 2) {
@@ -384,12 +391,19 @@ function findDryBenchmarkStart(world: WorldState, preferred: { x: number; y: num
         const x = (tx + 0.5) * buildCell;
         const y = (ty + 0.5) * buildCell;
         const distance = Math.hypot(x - preferred.x, y - preferred.y);
-        if (distance < bestDistance) { bestDistance = distance; best = { x, y }; }
+        if (distance >= bestDistance) continue;
+        if (districtPlot && overlapsAnyBuilding(
+          world.buildings, halfWidth * 2 * buildCell, halfHeight * 2 * buildCell, x, y,
+        )) continue;
+        bestDistance = distance;
+        best = { x, y };
       }
     }
     if (best) return best;
   }
-  throw new Error('Benchmark map contains no sufficiently large dry starting area');
+  throw new Error(districtPlot
+    ? 'Benchmark map contains no unoccupied dry district plot'
+    : 'Benchmark map contains no sufficiently large dry starting area');
 }
 
 export function prepareColonyWorld(options: ColonyScenarioOptions): ColonyScenario {
