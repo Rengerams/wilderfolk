@@ -94,21 +94,22 @@ describe('tickHumanChildLeisure', () => {
     child.motherId = parent.id;
     const humans = [child, parent];
     const lookup = (id: number | null | undefined) => id === parent.id ? parent : undefined;
-    const day = Array.from({ length: 14 }, (_, i) => i).find((d) => isWorkDay(d * TICKS_PER_DAY + 9 * TICKS_PER_HOUR));
-    if (day == null) throw new Error('test needs a workday');
-    for (const hour of [6, 9]) {
-      const tick = day * TICKS_PER_DAY + hour * TICKS_PER_HOUR + 1;
-      tickChild(state, child, humans, tick, lookup);
-      expect(child.childLeisureActivity).not.toBe('following');
-      expect(child.childLeisureTargetId).not.toBe(parent.id);
+    const day = Array.from({ length: 60 }, (_, i) => i).find((d) =>
+      isWorkDay(d * TICKS_PER_DAY) && personDayRoll(child.id, d * TICKS_PER_DAY, 601) > 0.22);
+    if (day == null) throw new Error('test needs a workday with a follow roll');
+    state.workSchedule = { startHour: 8, endHour: 16 };
+    for (const [hour, expected] of [[6, true], [7, false], [9, false], [17, true]] as const) {
+      tickChild(state, child, humans, day * TICKS_PER_DAY + hour * TICKS_PER_HOUR + 1, lookup);
+      expect(child.childLeisureActivity === 'following').toBe(expected);
+      expect(child.childLeisureTargetId === parent.id).toBe(expected);
     }
-    const afterWork = day * TICKS_PER_DAY + 17 * TICKS_PER_HOUR + 1;
-    const eligible = Array.from({ length: 12 }, (_, i) => afterWork + i)
-      .find((tick) => personDayRoll(child.id, tick, 601) > 0.22);
-    if (eligible == null) throw new Error('test needs a follow roll');
-    tickChild(state, child, humans, eligible, lookup);
+    parent.indoorBuildingId = parent.workerBuildingId;
+    tickChild(state, child, humans, day * TICKS_PER_DAY + 18 * TICKS_PER_HOUR, lookup);
+    expect(child.childLeisureActivity).not.toBe('following');
+    parent.workerBuildingId = undefined;
+    parent.indoorBuildingId = undefined;
+    tickChild(state, child, humans, day * TICKS_PER_DAY + 9 * TICKS_PER_HOUR, lookup);
     expect(child.childLeisureActivity).toBe('following');
-    expect(child.childLeisureTargetId).toBe(parent.id);
   });
 
   it('prefers childhood and strong friends on successive days without excluding newcomers', () => {
