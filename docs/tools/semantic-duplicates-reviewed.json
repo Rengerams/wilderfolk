@@ -3,9 +3,9 @@
     {
       "hash": "42031f903aee973dd4f4e6ffc84744e0e650696f",
       "status": "distinct",
-      "reason": "ConfirmActionDialog is a destructive-action confirmation with its own cancel-first focus and explicit affirmative step; SubjectWindow is a read-only subject panel using a GameWindow shell. Their only shared call in this lexical gate is the keyboard claim, not duplicated decision authority.",
+      "reason": "ConfirmActionDialog is a destructive-action confirmation with its own cancel-first focus and explicit affirmative step; SubjectWindow is a read-only subject panel using a GameWindow shell. Their only shared call in this lexical gate is the keyboard claim, not duplicated decision authority. The shared-hook wiring is enforced by scripts/check-source-guards.mjs; the cursor test proves that map input yields while an overlay owns the keyboard.",
       "tests": [
-        "tests/keyboardGuards.contract.test.ts"
+        "tests/mapKeyboardCursor.test.ts"
       ]
     },
     {

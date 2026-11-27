@@ -29,7 +29,7 @@
       "tests": [
         "tests/workerCommand.roundtrip.test.ts",
         "tests/workerAssignment.test.ts",
-        "tests/virtualPlayer.staffingAndRepairBatch.test.ts"
+        "tests/workforce.transitions.test.ts"
       ]
     },
     {

@@ -185,6 +185,10 @@ All test cases were retained. The value-normalization suite shares the existing 
 
 All 15 cases are preserved. The staffing fixture keeps its original factory semantics. Updated active owner references. Full CI verification remains pending.
 
+## Semantic review reference repair — 2026-11-27
+
+CI passed all 153 source guards and 513 declarative mutations, but the overlap gate rejected a deleted staffing test path in its reviewed approval. Updated that path to its workforce owner and replaced the retired keyboard-contract reference in the semantic-duplicate review with the surviving overlay-keyboard behavior test, documenting the static guard separately. The review fingerprints and approval thresholds are unchanged. Full CI verification is pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

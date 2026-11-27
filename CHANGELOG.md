@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Tests (27 Nov 2026):** Repair stale semantic overlap and duplicate review evidence paths after test consolidation; retain the reviewed fingerprints and guard thresholds.
+
 - **Tests (27 Nov 2026):** Consolidate housing pulse, automatic staffing, repair command validation and reduced motion regressions into their owner suites, preserving all 15 cases.
 
 - **Tests (27 Nov 2026):** Consolidate five audit files into election, strip placement, overhead labels and save-boundary owner suites; preserve all cases and reuse payload fixtures.
