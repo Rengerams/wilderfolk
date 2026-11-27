@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (27 Nov 2026):** Protect child bedtime and off-duty recovery, distinguish exhaustion/grief from illness, limit stochastic affair discovery to a daily roll, require spouse proximity for divorce, and count recorded weddings instead of net married population.
+- **Fixed (27 Nov 2026):** Protect bedtime and venue recovery; distinguish exhaustion from illness; use daily affair progress, witnessed divorce and cooldowns; persist actual wedding counts; keep pregnancy separate from marriage.
 
 - **Fixed (27 Nov 2026):** Children no longer follow caregivers during work or commute hours, or while they remain at their workplace; stale following routes are cleared.
 
