@@ -244,8 +244,8 @@ export function killHuman(
 }
 
 /**
- * Clear marriage links when the partner row was removed from the alive list. Runs after dead entities
- * are pruned — the safety net when widow cleanup missed a death path.
+ * Repair orphaned marriage links and normalize legacy expecting status without changing pregnancy.
+ * Shared by save hydration and the post-prune lifecycle pass.
  */
 export function reconcileOrphanedMarriages(entities: readonly Entity[]): void {
   const byId = new Map<number, Entity>();
