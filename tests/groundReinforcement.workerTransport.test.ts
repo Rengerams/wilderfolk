@@ -11,6 +11,8 @@ import { applyWorkerCommand, extractCommandDelta } from '../src/game/simWorker/c
 import { applySimTickDelta } from '../src/game/simBuffers/simDelta';
 import { isFootprintOnBuildableTerrain } from '../src/game/placementUtils';
 import { isReinforceableTerrainType } from '../src/game/terrain/terrainTraits';
+import { createInitialView } from '../src/game/viewState';
+import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 
 const REINFORCE_PATCH_TILES = 3;
 /** Centre of a 3×3 patch that the reinforcement accepts (some hard ground, no deep water or river). */
@@ -67,5 +69,33 @@ describe('ground reinforcement crosses the worker boundary', () => {
       isFootprintOnBuildableTerrain(display, 30, 30, spot.x, spot.y),
       'a building must be placeable on the displayed reinforced ground',
     ).toBe(true);
+
+    // The display-side save must carry every worker-patched tile through JSON and restore.
+    const save = buildSaveData(display, createInitialView(display.width, display.height));
+    const parsed = parseSaveJson(JSON.stringify(save));
+    expect(parsed.valid).toBe(true);
+    if (!parsed.valid) throw new Error('reinforced save refused');
+    const loaded = loadGameFromParsed(parsed.parsed);
+    expect(loaded).not.toBeNull();
+    if (!loaded?.world.worldMap || !display.worldMap) throw new Error('reinforced map lost on load');
+    const restoredMap = loaded.world.worldMap;
+    const originalMap = display.worldMap;
+    const reinforced = [...(originalMap.overrides ?? new Map()).entries()]
+      .filter(([, edited]) => edited.reinforced === true);
+    expect(reinforced.length, 'the command changed and saved actual tiles').toBeGreaterThan(0);
+    for (const [key, edited] of reinforced) {
+      const tx = key % restoredMap.width;
+      const ty = Math.floor(key / restoredMap.width);
+      const restored = tileAt(restoredMap, tx, ty);
+      expect(restored?.type, `restored tile ${tx},${ty}`).toBe(edited.type);
+      expect(restored?.reinforced, `restored soil ${tx},${ty}`).toBe(true);
+      expect(restoredMap.pathGrid?.[key], `restored path cell ${key}`).toBe(originalMap.pathGrid?.[key]);
+      const bx = Math.floor(tx / 2);
+      const by = Math.floor(ty / 2);
+      const buildIndex = by * restoredMap.bCols! + bx;
+      expect(restoredMap.buildGrid?.[buildIndex], `restored build cell ${buildIndex}`)
+        .toBe(originalMap.buildGrid?.[buildIndex]);
+    }
+    expect(isFootprintOnBuildableTerrain(loaded.world, 30, 30, spot.x, spot.y)).toBe(true);
   });
 });

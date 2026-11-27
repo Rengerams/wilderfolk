@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (27 Nov 2026):** Ground Reinforcement survives compact save/load: preserve the reinforced soil flag and rebuild affected walking/build rasters after terrain overrides are restored.
+
 - **Fixed (27 Nov 2026):** Save-format mismatch diagnostics serialize invalid JSON markers instead of printing `[object Object]`; regression-covered without changing the save compatibility gate.
 
 - **Performance (26 Nov 2026):** Build the population family graph index once per group projection instead of once per disconnected household; verify deterministic groups and indexed alive lookups.

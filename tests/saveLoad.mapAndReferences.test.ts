@@ -7,8 +7,8 @@ import { initGame } from '../src/game/worldGen';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
 import { resetSimRng } from '../src/game/simRng';
-import { tileAt } from '../src/game/terrain/terrainGrid';
-import { EntityType, MapSize, TerrainType, type Entity, type WorldState } from '../src/game/gameTypes';
+import { patchTile, rebakeTerrainGrids, tileAt, tileTypeAt, BUILD_CELL, Walkability } from '../src/game/terrain/terrainGrid';
+import { EntityType, MapSize, PATH_CELL, TerrainType, type Entity, type WorldState } from '../src/game/gameTypes';
 
 function gameWithSettlers(): WorldState {
   resetSimRng();
@@ -69,6 +69,38 @@ describe('a compact save carries the terrain the player changed', () => {
     expect(reloaded.worldMap?.overrides?.size).toBe(expected);
     if (!reloaded.worldMap) throw new Error('the reloaded world has no map');
     expect(tileAt(reloaded.worldMap, tx, ty)?.type).toBe(TerrainType.Grassland);
+  });
+
+  it('restores a reinforced shallow-water tile as buildable soil with updated path and build grids', () => {
+    const world = gameWithSettlers();
+    const map = world.worldMap!;
+    let target: { tx: number; ty: number } | undefined;
+    for (let ty = 1; ty < map.height - 1 && !target; ty++) {
+      for (let tx = 1; tx < map.width - 1; tx++) {
+        if (tileTypeAt(map, tx, ty) === TerrainType.ShallowWater) {
+          target = { tx, ty };
+          break;
+        }
+      }
+    }
+    if (!target) throw new Error('fixture has no shallow-water tile');
+    const { tx, ty } = target;
+    const pathIndex = ty * map.width + tx;
+    const bx = Math.floor(tx * PATH_CELL / BUILD_CELL);
+    const by = Math.floor(ty * PATH_CELL / BUILD_CELL);
+    const buildIndex = by * map.bCols! + bx;
+    expect(tileTypeAt(map, tx, ty)).toBe(TerrainType.ShallowWater);
+    patchTile(map, tx, ty, { type: TerrainType.Rocky, reinforced: true });
+    rebakeTerrainGrids(map, { startTx: tx, endTx: tx, startTy: ty, endTy: ty, margin: 0 });
+    expect(map.pathGrid?.[pathIndex]).toBe(Walkability.Open);
+    const expectedBuild = map.buildGrid?.[buildIndex];
+
+    const loaded = buildWorld(JSON.parse(JSON.stringify(payloadFrom(world))) as Record<string, unknown>);
+    const restored = loaded.worldMap!;
+    expect(tileAt(restored, tx, ty)?.type).toBe(TerrainType.Rocky);
+    expect(tileAt(restored, tx, ty)?.reinforced).toBe(true);
+    expect(restored.pathGrid?.[pathIndex]).toBe(Walkability.Open);
+    expect(restored.buildGrid?.[buildIndex]).toBe(expectedBuild);
   });
 
   it('carries every override the world held, not just the last one', () => {
