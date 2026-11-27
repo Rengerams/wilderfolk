@@ -689,9 +689,12 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/pathfinding.test.ts` | `makeMap` |
 | `tests/storageCap.test.ts` | `addCompleted`, `makeWorld`, `addBuilding`, `capsFor` (storage fixtures consolidated from `economyAudit.storageCaps.test.ts`) |
 | `tests/prisonShifts.test.ts` | `prisoner`, `prisonBuilding`, `unguardedDay`, `escapedTogetherOnOneDay` (prison duty fixtures consolidated from `simBatch.prisonEscapes.test.ts`) |
+| `tests/villageLeadership.test.ts` | `legacyGetElectionGatherTarget`, `gatherWorld`, `eligibleIds` (gather-slot regression fixtures) |
+| `tests/renderer.overheadBadgeAndAssets.test.ts` | `subject` (name-label fixture) |
+| `tests/saveLoad.valueIntegrity.test.ts` | `logEntry`, `payloadWithEventLog` (value-normalization fixtures; existing `realPayload` and `buildWorld` reused) |
 | `tests/rpgArt.integration.test.ts` | `localAsset` |
 | `tests/stripDemolition.workerProtocol.test.ts` | `cmd` |
-| `tests/stripPlacement.crossings.test.ts` | `worldFor`, `crossingSpot`, `completedStrip` |
+| `tests/stripPlacement.crossings.test.ts` | `worldFor`, `crossingSpot`, `completedStrip`, `completedPlayerBuildings`, `findReplacementSpot`, `worldWithCompletedWall`, `gateSegmentReplacing` |
 | `tests/stripTopology.connections.test.ts` | `strip`, `stateWith` |
 | `tests/visualsAudit.renderWiring.test.ts` | `readSrc`, `child`, `snapshot`, `preFixKey` |
 | `tests/wallGate.rendering.test.ts` | `spyCanvas` |

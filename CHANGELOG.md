@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Tests (27 Nov 2026):** Consolidate five audit files into election, strip placement, overhead labels and save-boundary owner suites; preserve all cases and reuse payload fixtures.
+
 - **Tests (27 Nov 2026):** Strengthen the remaining six audit-listed behavioral suites: quarry, hospital attendance, camp terrain, yearly events, friendship and economy.
 
 - **Tests (27 Nov 2026):** Move the remaining faction-union source contract into the registry and repair the missing test helper compile error.

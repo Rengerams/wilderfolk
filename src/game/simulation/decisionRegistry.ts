@@ -696,7 +696,7 @@ export const SIMULATION_DECISIONS = {
       'notifications/bigNews',
     ],
     scheduledFrom: 'tickLayerDaily.ts 00:00 → dailyWorldEvents.tickYearBoundaryWorldEvents → villageLeadership term owner; tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → villageLeadership vacancy owner; tickLayerDaily.ts 06:00 → leaderHouse.syncLeaderHouseResidency',
-    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts, tests/medium-N5-electionGatherSlot.test.ts, tests/calendarPhase.auditRegressions.test.ts, tests/saveLoad.a1CalendarRepair.test.ts',
+    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts, tests/calendarPhase.auditRegressions.test.ts, tests/saveLoad.a1CalendarRepair.test.ts',
   },
   raidCombat: {
     owner: 'militiaBalance.ts — canBeMustered (shared adult muster eligibility with optional elected-commander job exemption); frontierCombat.ts — getRaidParticipants, canLaunchRaidOnRival, queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, beginRaidReturn, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory, isCounterRaidOnRival',

@@ -167,6 +167,16 @@ The five-group migration left one source-only faction-union test calling its ret
 
 Strengthened quarry worker role, exclusive construction assignment and elapsed simulation; hospital work-site attribution and duty accrual; camp coordinates and override-key bounds; independent prop terrain/overlap checks plus scoped RNG cleanup; reciprocal coworker/stranger relationships and positive tail bonds; and greenhouse ledger shape, irrigation prerequisite state and herd identity/coordinates. The six remaining audit-listed files now have targeted stronger assertions, while useful positive production/spawn premises remain. All eleven listed files have been addressed across the two increments. CI must validate the new assertions.
 
+## Five additional owner-file consolidations — 2026-11-27
+
+- `medium-N5-electionGatherSlot.test.ts` → `villageLeadership.test.ts` (5 cases)
+- `medium-B1-replacementCounter.test.ts` → `stripPlacement.crossings.test.ts` (3 cases)
+- `renderBatch.nameLabelGender.test.ts` → `renderer.overheadBadgeAndAssets.test.ts` (2 cases)
+- `persistenceBatch.valueNormalization.test.ts` → `saveLoad.valueIntegrity.test.ts` (15 cases)
+- `persistenceBatch.dismissedLists.test.ts` → `saveLoad.elementShape.test.ts` (2 cases)
+
+All test cases were retained. The value-normalization suite shares the existing seeded save payload and load helper; the dismissed-event list tests use the element-shape suite's real payload and scoped RNG reset. The original election oracle, placement fixtures and name-label cases remain intact. Decision-registry and ownership links are updated; historical bug reports retain their original test paths as historical evidence. CI verification is pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete
