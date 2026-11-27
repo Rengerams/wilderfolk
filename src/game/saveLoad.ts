@@ -31,7 +31,7 @@ import { loadAutoSavePreference } from './preferences';
 import { logEvent, repairEventLogOnLoad, syncEventLogIdFromState } from './eventLog';
 import { pickHumanVariant } from './humanSprites';
 import { migrateLegacyMoonHowler, syncMoonHowlerForms } from './moonHowler';
-import { reconcileFamilyReferencesAfterRemoval } from './humanLifecycleCleanup';
+import { reconcileFamilyReferencesAfterRemoval, reconcileOrphanedMarriages } from './humanLifecycleCleanup';
 import { isForeignFaction, isPlayerHuman } from './playerHuman';
 import { clampCloseFriendships } from './relationships';
 import { PLAYABLE_SPEEDS } from './gameConstants';
@@ -1721,14 +1721,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       }
     }
     reconcileDanglingReferencesOnLoad(world);
-    // Legacy pregnancy status is not a marriage: use reciprocal spouse links and retain pregnancy.
-    const livingById = new Map(world.entities.filter(entity => entity.alive).map(entity => [entity.id, entity]));
-    for (const entity of world.entities) {
-      if (entity.relationshipStatus === 'expecting') {
-        const spouse = entity.partnerId == null ? undefined : livingById.get(entity.partnerId);
-        entity.relationshipStatus = spouse?.partnerId === entity.id ? 'married' : 'single';
-      }
-    }
+    // The lifecycle owner repairs orphaned marriages and normalizes legacy expecting status.
+    reconcileOrphanedMarriages(world.entities);
 
     migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });
     // Trade-route carriers are always adults; promote any carrier younger than the adult age.
