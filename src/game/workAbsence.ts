@@ -109,7 +109,7 @@ const VENUE_BY_BUILDING: Partial<Record<BuildingType, 'tavern' | 'hotel'>> = {
  * The shift predicates `humanTick` composes, each read from the owner holding that window: day
  * schedule, venue hours, moon-howler night, prison roster.
  */
-function resolveShift(
+export function resolveShift(
   state: WorldState,
   entity: Entity,
   workplace: Building | undefined,
