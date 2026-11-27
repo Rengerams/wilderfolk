@@ -94,6 +94,7 @@ export type DecisionKey =
   | 'raidCombat'
   | 'outgoingRaidStatus'
   | 'raidRecovery'
+  | 'raidBattlePresentation'
   | 'raidTerminalPresentation'
   | 'crashRecovery'
   | 'valleyChronicle'
@@ -720,6 +721,14 @@ export const SIMULATION_DECISIONS = {
     writes: ['raidRecovery', 'paused (settlement destruction)', 'building.health (through building removal owner)', 'rivalSettlements.diplomacyMemory', 'eventLog (through logEvent)'],
     scheduledFrom: 'frontierCombat.ts → beginRaidRecovery/rememberRivalDisposition/applyWarCommunityReaction; gameTick.ts → tickRaidRecovery',
     testFile: 'tests/raidTerminalReport.test.ts, tests/raidChronicle.lifecycle.test.ts',
+  },
+  raidBattlePresentation: {
+    owner: 'eventLog.ts — selectRaidBattleEvents (pure Chronicle projection); App.tsx and components/BattleReportScreen.tsx — one active report, resume and presentation only',
+    cadence: 'on-demand',
+    cadenceNote: 'One battle ID per report; only bounded same-side legacy events may fall back to rival name. Sort chronologically, deduplicate event IDs, retain distinct named deaths and hide redundant complete loss summaries. Persisted battle result is authoritative. Phase and strength visuals reflect recorded combat; no simulated battle, extra RNG, save timer or second history writer.',
+    writes: [],
+    scheduledFrom: 'App.tsx → BattleReportScreen for the selected raid; frontierCombat.ts → logEvent owns tagged combat history',
+    testFile: 'tests/raidChronicle.lifecycle.test.ts, tests/battleReportScreen.test.ts',
   },
   raidTerminalPresentation: {
     owner: 'raidTerminalReport.ts — buildRaidTerminalReport (pure read-only projection); components/WarfareStatus.tsx, components/BattleReportScreen.tsx and components/RazeConfirmation.tsx own display only, including modal keyboard/focus',
