@@ -79,7 +79,7 @@ describe('M5 greenhouse food production reaches the economy ledger', () => {
 
     expect(state.resources.food, 'the greenhouse actually produced food').toBeGreaterThan(0);
     const ledger = state.economyLedger;
-    expect(ledger, 'a production day creates a ledger').toBeDefined();
+    expect(ledger, 'a production day creates a ledger').toMatchObject({ produced: { greenhouse: expect.any(Number) } });
     // The greenhouse row must exist and account for the food that reached storage.
     expect(ledger?.produced.greenhouse ?? 0, 'greenhouse ledger row').toBeGreaterThan(0);
     expect(ledger?.produced.greenhouse ?? 0).toBeGreaterThanOrEqual(state.resources.food);
@@ -98,7 +98,7 @@ describe('M10 Irrigation drought_resist is consumed by the drought farm penalty'
     expect(unresearched).toBeCloseTo(0.5);
 
     const node = state.researchNodes.find((n) => n.id === 'agriculture_3');
-    expect(node, 'agriculture_3 (Irrigation) node exists').toBeDefined();
+    expect(node, 'agriculture_3 (Irrigation) node exists').toMatchObject({ id: 'agriculture_3', researched: false });
     node!.researched = true;
 
     expect(getMultiplier(state, 'drought_resist')).toBeCloseTo(1.5);
@@ -150,6 +150,8 @@ describe('M19 autumn herd deer spawn on passable ground', () => {
         expect(herd.length, `${preset}/${seed}: a herd arrives`).toBeGreaterThan(0);
         expect(herd.length, `${preset}/${seed}: herd never exceeds base`).toBeLessThanOrEqual(HERD_BASE_SIZE);
         for (const deer of herd) {
+          expect(deer).toMatchObject({ type: EntityType.Deer, migrationTag: 0 });
+          expect(Number.isFinite(deer.x) && Number.isFinite(deer.y)).toBe(true);
           expect(
             isPassableWildlifePosition(state, deer.x, deer.y, 8),
             `${preset}/${seed}: deer ${deer.id} spawned on blocked terrain at ${deer.x},${deer.y}`,

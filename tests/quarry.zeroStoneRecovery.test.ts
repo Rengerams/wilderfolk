@@ -98,7 +98,9 @@ describe('zero stone with an unmanned Quarry', () => {
     assignMissingWorkers(workers, [house, quarry], state);
     expect(countWorkersAtBuilding(workers, quarry.id)).toBe(1);
     expect(house.occupants).toHaveLength(1);
-    expect(workers.filter((worker) => worker.workerBuildingId === quarry.id)).toHaveLength(1);
+    const miners = workers.filter((worker) => worker.workerBuildingId === quarry.id);
+    expect(miners.map((worker) => worker.job)).toEqual([JobType.Miner]);
+    expect(house.occupants).toEqual(workers.filter((worker) => worker.id !== miners[0]!.id).map((worker) => worker.id));
   });
 
   it('crews it from an idle hand and digs stone from zero, with no command at all', () => {
@@ -111,8 +113,10 @@ describe('zero stone with an unmanned Quarry', () => {
     }
     expect(adults(world).length, 'fixture needs settlers').toBeGreaterThan(0);
 
+    const startTick = world.tick;
     world = runDays(world, DAYS_RUN);
 
+    expect(world.tick - startTick).toBe(DAYS_RUN * TICKS_PER_DAY);
     expect(countWorkersAtBuilding(world.entities, quarryId), 'a hand must work the Quarry').toBeGreaterThan(0);
     expect(Math.floor(world.resources.stone), 'the Quarry must make stone').toBeGreaterThan(0);
   }, TEST_TIMEOUT_MS);

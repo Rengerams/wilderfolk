@@ -28,7 +28,8 @@ describe('camp ground', () => {
       for (const seed of SEEDS) {
         const map = generateWorldMap(MapSize.Medium, preset, seed);
         const site = map.campSite;
-        expect(site, `${preset}/${seed} resolved no camp site`).toBeDefined();
+        expect(site, `${preset}/${seed} resolved no camp site`).toEqual({ x: expect.any(Number), y: expect.any(Number) });
+        expect(Number.isFinite(site!.x) && Number.isFinite(site!.y)).toBe(true);
         expect(
           isFootprintBuildable(map, HOUSE.width, HOUSE.height, site!.x, site!.y),
           `${preset}/${seed} camp site is not buildable`,
@@ -43,6 +44,9 @@ describe('camp ground', () => {
         const map = generateWorldMap(MapSize.Medium, preset, seed);
         expect(map.overrides?.size ?? 0).toBeGreaterThan(0);
         for (const key of map.overrides!.keys()) {
+          expect(Number.isInteger(key), `${preset}/${seed} override key`).toBe(true);
+          expect(key).toBeGreaterThanOrEqual(0);
+          expect(key).toBeLessThan(map.width * map.height);
           const tx = key % map.width;
           const ty = Math.floor(key / map.width);
           expect(

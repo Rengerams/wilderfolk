@@ -163,6 +163,10 @@ Moved thirteen source-only cases across nine mixed files (including the logistic
 
 The five-group migration left one source-only faction-union test calling its retired source helper. Moved that final type-level contract into the registry (153 rules), preserving runtime faction and election cases. This resolves the TS2304 reported by the build; the new CI run must verify it.
 
+## Remaining six assertion-light files reviewed — 2026-11-27
+
+Strengthened quarry worker role, exclusive construction assignment and elapsed simulation; hospital work-site attribution and duty accrual; camp coordinates and override-key bounds; independent prop terrain/overlap checks plus scoped RNG cleanup; reciprocal coworker/stranger relationships and positive tail bonds; and greenhouse ledger shape, irrigation prerequisite state and herd identity/coordinates. The six remaining audit-listed files now have targeted stronger assertions, while useful positive production/spawn premises remain. All eleven listed files have been addressed across the two increments. CI must validate the new assertions.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

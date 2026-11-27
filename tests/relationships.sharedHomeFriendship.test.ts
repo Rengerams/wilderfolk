@@ -47,6 +47,7 @@ describe('daily friendship sources (F2)', () => {
     advanceSocialRelationships(world, [a, b]);
 
     expect(relationshipScore(a, b.id, 'friend')).toBeGreaterThan(0);
+    expect(relationshipScore(b, a.id, 'friend')).toBe(relationshipScore(a, b.id, 'friend'));
   });
 
   it('leaves settlers who share neither home nor work as strangers', () => {
@@ -57,6 +58,7 @@ describe('daily friendship sources (F2)', () => {
     advanceSocialRelationships(world, [a, b]);
 
     expect(relationshipScore(a, b.id, 'friend')).toBe(0);
+    expect(relationshipScore(b, a.id, 'friend')).toBe(0);
   });
 
   it('does not treat the jobless as sharing a trade', () => {
@@ -69,6 +71,7 @@ describe('daily friendship sources (F2)', () => {
     advanceSocialRelationships(world, [a, b]);
 
     expect(relationshipScore(a, b.id, 'friend')).toBe(0);
+    expect(relationshipScore(b, a.id, 'friend')).toBe(0);
   });
 
   it('reaches members past the pair budget instead of bonding the same head every day', () => {
@@ -86,7 +89,9 @@ describe('daily friendship sources (F2)', () => {
       advanceSocialRelationships(world, people);
     }
 
-    expect(Object.keys(tail.friendships ?? {}).length).toBeGreaterThan(0);
+    const partners = people.filter((p) => p.id !== tail.id && relationshipScore(tail, p.id, 'friend') > 0);
+    expect(partners.length, 'the tail must form a positive bond, not merely gain a map entry').toBeGreaterThan(0);
+    expect(relationshipScore(tail, tail.id, 'friend')).toBe(0);
   });
 });
 

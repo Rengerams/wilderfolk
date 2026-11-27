@@ -1,5 +1,5 @@
 /** Legal terrain for yearly wildlife and flora — obsolete on-map visitor tests retired in PR #165. */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { initGame, isPassableWildlifePosition } from '../src/game/worldGen';
 import { EntityType, TerrainType } from '../src/game/gameTypes';
 import type { Entity, WorldMap, WorldState } from '../src/game/gameTypes';
@@ -32,6 +32,8 @@ function paintMap(state: WorldState, isLand: (tx: number, ty: number, wx: number
 }
 
 describe('yearly world events', () => {
+  afterEach(resetSimRng);
+
   it('W-81: yearly wildlife and flora spawn only on legal ground', () => {
     const animals: Array<{ state: WorldState; entity: Entity }> = [];
     const props: Array<{ state: WorldState; entity: Entity }> = [];
@@ -66,10 +68,13 @@ describe('yearly world events', () => {
     }
     for (const { state, entity } of props) {
       expect(
-        isFootprintOnBuildableTerrain(state, 32, 32, entity.x, entity.y)
-        && !overlapsAnyBuilding(state.buildings, 32, 32, entity.x, entity.y),
-        `${entity.type} spawned on an illegal prop site at ${entity.x},${entity.y}`,
+        isFootprintOnBuildableTerrain(state, 32, 32, entity.x, entity.y),
+        `${entity.type} spawned on unbuildable terrain at ${entity.x},${entity.y}`,
       ).toBe(true);
+      expect(
+        overlapsAnyBuilding(state.buildings, 32, 32, entity.x, entity.y),
+        `${entity.type} overlaps a building at ${entity.x},${entity.y}`,
+      ).toBe(false);
     }
   });
 
