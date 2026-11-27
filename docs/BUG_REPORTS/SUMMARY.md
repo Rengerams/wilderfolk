@@ -6,7 +6,7 @@
 
 **2026-11-27 — [Battle commentary runs backward and mixes unrelated entries](../bug_report/2026-11-27-battle-commentary-reversed.md):** investigating; PR #224 chronological scoped selector and regression added; original save and browser verification pending.
 
-**2026-11-27 — [One outgoing victory emits two surrender notifications](../bug_report/2026-11-27-duplicate-raid-surrender-news.md):** investigating; PR #224 duplicate source calls consolidated; dedicated notification-count regression and browser verification pending.
+**2026-11-27 — [One outgoing victory emits two surrender notifications](../bug_report/2026-11-27-duplicate-raid-surrender-news.md):** investigating; PR #224 duplicate source calls consolidated; dedicated real raid lifecycle regression added; prior implementation CI green, follow-up CI and browser verification pending.
 
 **2026-11-26 — [HUD notifications expire before presentation](../bug_report/2026-11-26-hud-notifications-expire-before-presentation.md):** investigating; PR #216 adds FIFO presentation, visible-time expiry, worker acknowledgement and bounded overflow summaries. CI verified on `31d6957` (3,418 tests, all five workflows); browser/live-save verification pending.
 

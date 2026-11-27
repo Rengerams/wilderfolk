@@ -39,4 +39,4 @@ No schema or migration change. Existing Chronicle and raid records are retained.
 ## Verification result
 tests/eventLog.duplicatesAndNotifications.test.ts covers ordering, duplicate IDs, direction, time bounds, repelled defense and missing legacy start scope. Legacy Chronicle entries lack raid IDs; overlapping same-rival same-side records cannot be reliably separated.
 
-On implementation head 5588278, GitHub Actions reported PASS for Dead code audit, Required calendar scheduler gate and all three population performance workflows; Node.js CI was still running when checked. NOT RUN locally: targeted unit tests, typecheck, lint, build and browser replay. The report remains investigating until relevant verification completes.
+On implementation head 5588278, all six GitHub Actions workflows passed (including Node.js CI, run 45920465379). A later documentation commit had no runs and GitHub reported a merge conflict with main. Main was integrated in 7fe53ef; follow-up CI is not yet verified. Browser replay is blocked in the current environment: no repository checkout, GitHub DNS unavailable, and no original player save. The report remains investigating.

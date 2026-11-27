@@ -37,6 +37,6 @@ Combine the news into one addBigNews call, preserving the Chronicle victory entr
 No schema or migration change. Existing Chronicle and raid records are retained.
 
 ## Verification result
-No dedicated notification-count regression has been added in PR #224; existing raid lifecycle coverage remains. A focused successful-raid news assertion and browser verification remain outstanding.
+Added a regression in tests/frontierCombat.hostility.test.ts using the real launch, arrival, timed resolution and repeated tick lifecycle with a controlled winning strength ratio. It asserts exactly one surrender/victory announcement, relevant message content, one pending fate and one persisted report. Execution pending follow-up CI; browser verification remains outstanding.
 
-On implementation head 5588278, GitHub Actions reported PASS for Dead code audit, Required calendar scheduler gate and all three population performance workflows; Node.js CI was still running when checked. NOT RUN locally: targeted unit tests, typecheck, lint, build and browser replay. The report remains investigating until relevant verification completes.
+On implementation head 5588278, all six GitHub Actions workflows passed (including Node.js CI, run 45920465379). A later documentation commit had no runs and GitHub reported a merge conflict with main. Main was integrated in 7fe53ef; follow-up CI is not yet verified. Browser replay is blocked in the current environment: no repository checkout, GitHub DNS unavailable, and no original player save. The report remains investigating.
