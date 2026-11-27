@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (27 Nov 2026):** Regular election notices and buildup gossip begin one day before voting, not one year; the two-year election calendar and succession rules remain unchanged. The notice is recorded in the Chronicle.
+- **Fixed (27 Nov 2026):** Regular election notices and buildup gossip begin one day before voting, not one year; the two-year election calendar and succession rules remain unchanged. The notice enters the Chronicle; ballot-time candidate names persist even after renaming or death.
 
 - **Fixed (27 Nov 2026):** Children no longer follow caregivers during work or commute hours, or while they remain at their workplace; stale following routes are cleared.
 
