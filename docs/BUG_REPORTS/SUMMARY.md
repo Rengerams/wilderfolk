@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-27 — [Auto-player bypasses workforce owner](../bug_report/2026-11-27-autoplay-bypasses-workforce-owner.md):** investigating; independent worker dismissal removed and individual staffing commands excluded from auto-play proposals; regression CI pending.
+
 **2026-11-28 — [Spotlight stage off square centre (follow-up)](../bug_report/2026-11-03-spotlight-stage-off-square-centre.md):** investigating; reject displaced square origins and off-square debug fallback; regression added, live reproduction pending.
 
 **2026-11-27 — [Election candidate names drift](../bug_report/2026-11-27-election-candidate-names-drift.md):** investigating; PR #230 snapshots ballot-time names and adds rename regression; legacy missing names explicitly identified; CI pending.
