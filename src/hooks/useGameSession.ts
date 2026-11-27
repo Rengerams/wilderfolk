@@ -25,6 +25,8 @@ export interface ColonyBattleReport {
   raidId?: string;
   baselineId: number;
   incoming?: boolean;
+  /** Opening an existing report resumes its history instead of replaying the battle. */
+  resume?: boolean;
 }
 
 /** App-owned setters the colony boundary clears on every session transition. */

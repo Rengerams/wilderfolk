@@ -1037,6 +1037,8 @@ export interface GameEventLog {
   entityName?: string;
   combatKind?: CombatLogKind;
   combatStage?: CombatLogStage;
+  /** Optional for legacy Chronicle entries; identifies one campaign or defense. */
+  raidId?: string;
 }
 
 export interface DailyEconomyLedger {

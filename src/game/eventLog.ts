@@ -42,6 +42,7 @@ export function logEvent(
   entityName?: string,
   combatKind?: CombatLogKind,
   combatStage?: CombatLogStage,
+  raidId?: string,
 ): void {
   // Ids must be monotonic per log, not per realm: `applySimTickDelta` drops entries whose id
   // already exists, so never issue an id the newest-first log already uses.
@@ -58,8 +59,62 @@ export function logEvent(
     entityName,
     combatKind,
     combatStage,
+    ...(raidId ? { raidId } : {}),
   });
   if (state.eventLog.length > EVENT_LOG_MAX_ENTRIES) state.eventLog.pop();
+}
+
+/** Read a single battle from the canonical newest-first Chronicle, in display order.
+ * Legacy entries have no raid ID: require their exact rival, side and known battle window.
+ * Preserve named deaths but do not narrate the same casualty group a second time.
+ */
+export function selectRaidBattleEvents(
+  events: readonly GameEventLog[],
+  options: { raidId?: string; rivalName: string; incoming: boolean; baselineId: number;
+    startedAtTick?: number; endedAtTick?: number },
+): GameEventLog[] {
+  const { raidId, rivalName, incoming, baselineId, startedAtTick, endedAtTick } = options;
+  const seen = new Set<number>();
+  const selected: GameEventLog[] = [];
+  for (const event of events) {
+    if (event.type !== 'combat' || seen.has(event.id) || event.id <= baselineId
+      || (startedAtTick != null && event.tick < startedAtTick)
+      || (endedAtTick != null && event.tick > endedAtTick)
+      || event.combatStage === 'cancelled' || event.combatStage === 'challenge') continue;
+    if (event.raidId != null) {
+      if (!raidId || event.raidId !== raidId) continue;
+    } else {
+      if (startedAtTick == null && baselineId === 0) continue;
+      const correctSide = incoming
+        ? event.combatKind === 'defense' || event.combatKind === 'incoming_raid' || event.combatKind === 'repelled'
+        : event.combatKind === 'outgoing_raid';
+      if (!correctSide || event.entityName !== rivalName) continue;
+    }
+    // Identical text can refer to distinct settlers with the same name; only IDs deduplicate.
+    seen.add(event.id);
+    selected.push(event);
+  }
+  const namedDeaths = new Map<number, number>();
+  for (const entry of selected) {
+    if (entry.combatStage === 'casualties' && entry.message.startsWith('Village fighter killed:')) {
+      namedDeaths.set(entry.tick, (namedDeaths.get(entry.tick) ?? 0) + 1);
+    }
+  }
+  // Retain a casualty summary when the rolling log no longer contains every named death.
+  return selected.filter((entry) => {
+    if (entry.combatStage !== 'casualties') return true;
+    const count = /^([0-9]+) villagers? fell (?:on the raid|defending)/.exec(entry.message);
+    if (count) return (namedDeaths.get(entry.tick) ?? 0) < Number(count[1]);
+    if (entry.message.startsWith('Fallen in the fighting at ')) {
+      const summary = selected.find((candidate) => candidate.tick === entry.tick
+        && candidate.combatStage === 'casualties'
+        && /^([0-9]+) villagers? fell (?:on the raid|defending)/.test(candidate.message));
+      // The casualty owner's numbered summary (or its complete named rows) carries the same news.
+      return !summary;
+    }
+    return true;
+  })
+    .sort((a, b) => a.tick - b.tick || a.id - b.id);
 }
 
 /** Human death: chronicle entry + HUD notification. */

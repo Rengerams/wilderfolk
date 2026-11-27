@@ -37,6 +37,17 @@ describe('raid match report presentation', () => {
     expect(html).toContain('Yes — exterminate village');
   });
 
+  it('resumes a concluded report without replaying previous commentary', () => {
+    const html = render({ resume: true, events: [
+      { id: 1, tick: 1, year: 2, day: 18, type: 'combat', message: 'First clash.' },
+      { id: 2, tick: 2, year: 2, day: 18, type: 'combat', message: 'Final report.' },
+    ] });
+    expect(html).toContain('First clash.');
+    expect(html).toContain('Final report.');
+    expect(html).toContain('FULL TIME');
+    expect(html).not.toContain('Skip commentary');
+  });
+
   it('keeps fate buttons hidden until the commentary has been read', () => {
     const html = render({
       pending: undefined,
