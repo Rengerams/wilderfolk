@@ -22,12 +22,12 @@ function rollPregnancyDueProgress(settlerId: number, startDay: number): number {
   return Math.round(PREGNANCY_TICKS * (0.85 + seededRandomForRun(`pregnancy-due:${settlerId}:${startDay}`) * 0.3));
 }
 
-/** Where a pregnancy came from; it only changes the visible pair status and the youth record. */
+/** Where a pregnancy came from; it controls the youth record, not civil status. */
 type PregnancyOrigin = 'married' | 'youth' | 'affair' | 'existing';
 
 export interface PregnancyStartOptions {
   origin: PregnancyOrigin;
-  /** Biological father when known; recorded only when he is not the mother's current partner. */
+  /** Biological father at conception, even when he is the current spouse. */
   fatherId?: number;
   /** Optional partner context for legacy callers; pregnancy never changes their marital state. */
   partner?: Entity;
@@ -44,9 +44,7 @@ export function startPregnancy(entity: Entity, opts: PregnancyStartOptions): voi
   entity.pregnant = true;
   entity.pregnancyProgress = opts.pregnancyProgress ?? 0;
   entity.pregnancyDueProgress = rollPregnancyDueProgress(entity.id, opts.startDay);
-  entity.pregnantById = opts.fatherId != null && opts.fatherId !== entity.partnerId
-    ? opts.fatherId
-    : undefined;
+  entity.pregnantById = opts.fatherId ?? null;
   entity.pregnancyFromYouthLove = opts.origin === 'youth' ? true : undefined;
 
   // Pregnancy is independent of marital status; neither parent changes marriage state here.
