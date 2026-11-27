@@ -200,6 +200,8 @@ describe('production pays only witnessed attendance (W-136)', () => {
     { case: 'a resolved day with no shift', worker: { scheduleWorkedTicksToday: 0, schedulePresentTicksToday: 0, scheduleLastWorkedHours: 9 }, mobile: false, ticks: 108 },
     { case: 'a mobile hunter whose shift is the field', worker: { scheduleWorkedTicksToday: 108, schedulePresentTicksToday: 0 }, mobile: true, ticks: 108 },
     { case: 'a legacy save with only settled hours', worker: { scheduleLastWorkedHours: 6 }, mobile: false, ticks: 72 },
+    { case: 'a deployed leader with stale settled hours', worker: { raidDeploymentId: 'outgoing_test', scheduleLastWorkedHours: 9, scheduleLastWorkedSiteId: 9101 }, mobile: false, ticks: 0 },
+    { case: 'a deployed hunter with stale mobile rota', worker: { raidDeploymentId: 'outgoing_test', scheduleWorkedTicksToday: 108, scheduleLastWorkedHours: 9 }, mobile: true, ticks: 0 },
   ])('pays $case', ({ worker, mobile, ticks }) => {
     expect(getWorkdayAttendance(worker, mobile).ticks).toBe(ticks);
   });
@@ -225,6 +227,28 @@ describe('production pays only witnessed attendance (W-136)', () => {
     invalidateCachedEntityByType(state);
     return { state, farm, worker };
   }
+
+  it('does not pay a deployed production leader from yesterday\'s nine-hour shift', () => {
+    const deployed = farmDay(false);
+    const local = farmDay(false);
+    for (const { state, worker, farm } of [deployed, local]) {
+      state.villageLeaderId = worker.id;
+      worker.scheduleWorkedTicksToday = 0;
+      worker.schedulePresentTicksToday = 0;
+      worker.scheduleLastWorkedHours = 9;
+      worker.scheduleLastWorkedSiteId = farm.id;
+      state.tick = tickAtDailyPhase(1, 'production') - 1;
+    }
+    deployed.worker.raidDeploymentId = 'outgoing_raid_test';
+    expect(getWorkdayAttendance(deployed.worker)).toEqual({ ticks: 0, siteId: undefined });
+    setSimSeed(TEST_SEED);
+    gameTick(deployed.state, ON_SCREEN);
+    setSimSeed(TEST_SEED);
+    gameTick(local.state, ON_SCREEN);
+    expect(deployed.state.economyLedger?.produced.farms ?? 0).toBe(0);
+    expect(local.state.economyLedger?.produced.farms ?? 0).toBeGreaterThan(0);
+    expect(readSkill(deployed.worker, JobType.Farmer)).toBe(0);
+  });
 
   it('pays an on-post crew and pays a never-at-post crew nothing', () => {
     const onPost = farmDay(false);

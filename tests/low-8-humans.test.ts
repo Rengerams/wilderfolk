@@ -4,6 +4,7 @@ import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/g
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { DAYS_PER_YEAR, PER_TICK_RATE_SCALE, TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay } from '../src/game/dayCycleClock';
+import { NIGHT_START } from '../src/game/daycycleconstants';
 import { prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { resetSimRng, seededRandomForRun, setSimSeed, personDayRoll } from '../src/game/simRng';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -132,7 +133,7 @@ describe('war-band human upkeep', () => {
     soldier.needs = { nutrition: 80, rest: 0, stamina: 0, severeHungerTicks: 0 };
     state.entities = [soldier];
     setSimSeed(TEST_SEED);
-    const start = TICKS_PER_DAY + 22 * TICKS_PER_HOUR;
+    const start = TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR;
     for (let offset = 0; offset < 7 * TICKS_PER_HOUR; offset++) {
       state.tick = start + offset;
       tickHumans(state, contextFor(state, [soldier]));

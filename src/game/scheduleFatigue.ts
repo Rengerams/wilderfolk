@@ -132,14 +132,17 @@ export interface WorkdayAttendance {
  * settler who never reached the post earns nothing. Schedule hours only stand in for a shift no
  * fixed post can witness (a mobile hunter, whose work is the field) or for a day with no positive
  * rota/presence sample at all (a legacy save, a non-workday, or a shift that has not started yet).
+ * A deployed person always earns zero local attendance, including with stale saved hours.
  */
 export function getWorkdayAttendance(
   worker: Pick<Entity, 'schedulePresentTicksToday' | 'schedulePresentSiteIdToday'
     | 'scheduleWorkedTicksToday' | 'scheduleWorkedSiteIdToday'
-    | 'scheduleLastWorkedSiteId' | 'scheduleLastWorkedHours'>,
+    | 'scheduleLastWorkedSiteId' | 'scheduleLastWorkedHours' | 'raidDeploymentId'>,
   /** A mobile shift is never witnessed at a fixed post, so its schedule hours are its attendance. */
   mobileShift = false,
 ): WorkdayAttendance {
+  // A deployed worker is physically away, even if a legacy save retained yesterday's hours.
+  if (worker.raidDeploymentId != null) return { ticks: 0, siteId: undefined };
   const worked = worker.scheduleWorkedTicksToday;
   const present = worker.schedulePresentTicksToday;
   if (mobileShift) {
