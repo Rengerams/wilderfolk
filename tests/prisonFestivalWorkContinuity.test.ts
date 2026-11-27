@@ -14,7 +14,7 @@ import { isAtBuildingReach } from '../src/game/buildingAccess';
 import { tickPrisonPresence } from '../src/game/prisonGuardDuty';
 import { getHourOfDay } from '../src/game/dayCycleClock';
 import { getVenueSchedule, getVenueScheduleHours, isFestivalOverrideActive, isVenueServiceHour } from '../src/game/venueSchedule';
-import { getHumanActivityStatus } from '../src/game/humanStatus';
+import { getHumanActivityStatus, getHumanActivityProjection } from '../src/game/humanStatus';
 import { isChildAtSchool } from '../src/game/education';
 
 const PRISON_ID = 10;
@@ -438,6 +438,11 @@ describe('a priest serving at a completed church', () => {
       weekday.priest.scheduleWorkedTicksToday ?? 0,
       'a priest on ordinary service recorded no attendance',
     ).toBeGreaterThan(0);
+    const weekdayActivity = getHumanActivityProjection(weekday.state, weekday.priest);
+    expect(weekdayActivity.schedule.onShift).toBe(true);
+    expect(weekdayActivity.target?.kind).toBe('workplace');
+    expect(weekdayActivity.target?.buildingId).toBe(30);
+    expect(weekdayActivity.activity).toBe('Working at Church');
 
     const restDay = churchWorld();
     // Day 5 is a Saturday: the same hour credits nothing to a day-shift post.
@@ -447,6 +452,7 @@ describe('a priest serving at a completed church', () => {
       restDay.priest.scheduleWorkedTicksToday ?? 0,
       'the rest day credited a service',
     ).toBe(0);
+    expect(getHumanActivityProjection(restDay.state, restDay.priest).schedule.onShift).toBe(false);
   });
 
   it('still records the moon-howler night duty, which is the church’s other shift', () => {
