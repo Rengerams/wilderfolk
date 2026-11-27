@@ -168,7 +168,7 @@ function placeLegalStarterBuilding(
     ]
     : [{ center: preferred, maxRing: 24 }];
   const rejected = { boundsOrOverlap: 0, blockedCenter: 0, commute: 0, passed: 0 };
-  const commuteSamples: Array<{ distance: number; status: string; leadHours?: number }> = [];
+  const commuteSamples: Array<{ distance: number; fromDoors: number; toDoors: number; status: string; leadHours?: number }> = [];
   for (const { center, maxRing } of searches) {
   for (let ring = 0; ring <= maxRing; ring++) {
     for (let dx = -ring; dx <= ring; dx++) {
@@ -212,7 +212,8 @@ function placeLegalStarterBuilding(
               const near = [...fromHomes].sort((a, b) => Math.hypot(a.x - spot.x, a.y - spot.y) - Math.hypot(b.x - spot.x, b.y - spot.y))[0];
               beginCommuteRoutePass();
               const verdict = quoteBuildingCommute(near, candidate, SPECIES_CONFIG[EntityType.Human].speed);
-              commuteSamples.push({ distance: Math.round(Math.hypot(near.x - spot.x, near.y - spot.y)), status: verdict.status, leadHours: verdict.status === 'priced' ? verdict.leadHours : undefined });
+              const doorGrid = getCurrentPathGrid();
+              commuteSamples.push({ distance: Math.round(Math.hypot(near.x - spot.x, near.y - spot.y)), fromDoors: buildingAccessPoints(near, doorGrid).length, toDoors: buildingAccessPoints(candidate, doorGrid).length, status: verdict.status, leadHours: verdict.status === 'priced' ? verdict.leadHours : undefined });
             }
             continue;
           }
