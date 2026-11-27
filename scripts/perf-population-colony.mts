@@ -50,7 +50,8 @@ function livingPlayers(world: WorldState): Entity[] {
 
 function careerCredits(world: WorldState): number {
   let total = 0;
-  // Keep historical credits of settlers who died during a long simulation.
+  // Current-world credits only: gameTick prunes dead/departed entities. The
+  // benchmark separately archives removed entities' final history below.
   for (const entity of world.entities) {
     if (!entity.careerHistory) continue;
     for (const row of Object.values(entity.careerHistory)) total += row?.days ?? 0;
@@ -277,6 +278,10 @@ async function main(): Promise<void> {
   let previousDayCredits = 0;
   let previousDayBotActions = 0;
   let lastDailySampleIndex = 0;
+  // gameTick removes dead/departed settlers from world.entities. Preserve their
+  // final earned career days independently of the hourly workday-event audit.
+  // This is a true lifetime sum, not a bypass of the equality assertion.
+  let removedCareerCredits = 0;
   let measuredCareerBaseline = careerCredits(world);
   const botByOperation = new Map<string, number>();
   const careerByJob = new Map<string, number>();
@@ -305,6 +310,7 @@ async function main(): Promise<void> {
   for (let step = 1; step <= WARMUP + measuredTicks; step++) {
     const cpuStart = process.cpuUsage();
     const started = performance.now();
+    const entitiesBeforeTick = world.entities;
     world = gameTick(world, focus);
     const simMs = performance.now() - started;
     const botStart = performance.now();
@@ -326,13 +332,25 @@ async function main(): Promise<void> {
       }
     }
     const botMs = performance.now() - botStart;
+    // Keep an independent accounting of histories on entities that left the
+    // authoritative world during this tick. These identities are not in the
+    // final game state, but their credited workdays remain real.
+    if (entitiesBeforeTick !== world.entities) {
+      const currentIds = new Set(world.entities.map((entity) => entity.id));
+      for (const entity of entitiesBeforeTick) {
+        if (currentIds.has(entity.id) || !entity.careerHistory) continue;
+        for (const row of Object.values(entity.careerHistory)) {
+          removedCareerCredits += row?.days ?? 0;
+        }
+      }
+    }
     const cpu = process.cpuUsage(cpuStart);
     if (step > WARMUP) {
       wallTicks.push(simMs);
       cpuTicks.push((cpu.user + cpu.system) / 1000);
       botTicks.push(botMs);
     } else if (step === WARMUP) {
-      measuredCareerBaseline = careerCredits(world);
+      measuredCareerBaseline = careerCredits(world) + removedCareerCredits;
     }
 
     // Poll at most once per in-game hour: career days are credited in the midnight fatigue pass, so
@@ -424,7 +442,7 @@ async function main(): Promise<void> {
 
   const totalWall = wallTicks.reduce((sum, value) => sum + value, 0);
   const totalBot = botTicks.reduce((sum, value) => sum + value, 0);
-  const creditedDays = careerCredits(world) - measuredCareerBaseline;
+  const creditedDays = careerCredits(world) + removedCareerCredits - measuredCareerBaseline;
   if (creditedDays !== careerEventCount) {
     throw new Error('Career audit mismatch: entity history delta=' + creditedDays +
       ' vs recorded career events=' + careerEventCount);
