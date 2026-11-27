@@ -99,6 +99,19 @@ describe('infrastructure acceptance boundaries', () => {
     expect(isFootprintOnBuildableTerrain({ worldMap: map }, 64, 22, 100, 100, BuildingType.House)).toBe(false);
   });
 
+  it('allows bridges across shallow water while forbidding deep-water spans', () => {
+    const make = (water: typeof TerrainType.ShallowWater | typeof TerrainType.DeepWater) =>
+      testWorldMap({
+        tilesX: 20, tilesY: 20,
+        tileType: (tx) => tx >= 9 && tx <= 13 ? water : TerrainType.Grassland,
+      });
+    const shallow = make(TerrainType.ShallowWater);
+    const deep = make(TerrainType.DeepWater);
+    expect(isFootprintOnBuildableTerrain({ worldMap: shallow }, 64, 22, 100, 100, BuildingType.Bridge)).toBe(true);
+    expect(isFootprintOnBuildableTerrain({ worldMap: shallow }, 64, 22, 100, 100, BuildingType.Road)).toBe(false);
+    expect(isFootprintOnBuildableTerrain({ worldMap: deep }, 64, 22, 100, 100, BuildingType.Bridge)).toBe(false);
+  });
+
   it('never lets a legacy road open impassable water', () => {
     const map = testWorldMap({ tilesX: 20, tilesY: 20, tileType: (x) => x === 10 ? TerrainType.River : undefined });
     const road = building(1, BuildingType.Road, { x: 105, y: 105, width: 30, height: 10 });
