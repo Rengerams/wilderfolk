@@ -621,7 +621,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: 'One roll per settler per colony day through salted personDayRoll; married-near, youth-pair and affair trysts use separate salts. Conception is deliberately non-genetic: the `conception` activity carries no aptitude weights and reads no allele, so only the acquired lucky mark can move the married/youth chance; the retired inherited Lucky ×1.15 is gone and no replacement roll exists. The youth route follows the retained youth link: while one partner is 18 and the other is still a minor it may conceive in either direction; once both are 18 (or the older is beyond 18) the route closes and the handoff/adult path applies.',
     writes: [
       'human.pregnant',
-      'human.pregnantById',
+      'human.pregnantById (conception-time biological father or explicit unknown)',
       'human.pregnancyFromYouthLove (conception route)',
       'human.pregnancyProgress',
       'human.pregnancyDueProgress',
@@ -632,7 +632,7 @@ export const SIMULATION_DECISIONS = {
   pregnancyBirth: {
     owner: 'pregnancy.ts — startPregnancy (sole start writer), rollPregnancyDueProgress (only term formula), normalizePregnancyDueProgress (only invalid-due rule), isValidPregnancyDueProgress (validity), getPregnancyProgressFraction; humanLifecycle.ts — tickPregnancyAndBirth and isPregnancyHospitalDue (progress/delivery/threshold consumers); settlerTraits.ts — inheritGenome is the only birth genetics rule',
     cadence: 'pregnancy-progress',
-    cadenceNote: 'A single 85%-of-individual-due-date gate in humanLifecycle is read by humanHospitalBehavior doctor duty/admission and hospitalCare needs/reason. SelectedEntityPanel displays the nominal 24-day percentage without capping it: late deliveries can exceed 100%. HumanTick schedules progress and uses humanHospitalBehavior hospital priority to protect the route and stop crediting work presence when a staffed ward is available; duty hours and assigned jobs remain intact. No second pregnancy rule exists.',
+    cadenceNote: 'A single 85%-of-individual-due-date gate in humanLifecycle is read by humanHospitalBehavior doctor duty/admission and hospitalCare needs/reason. SelectedEntityPanel displays the nominal 24-day percentage without capping it: late deliveries can exceed 100%. HumanTick schedules progress and uses humanHospitalBehavior hospital priority to protect the route and stop crediting work presence when a staffed ward is available; duty hours and assigned jobs remain intact. Paternity is historical and survives relationship changes and removal; delivery never infers it from the current spouse. No second pregnancy rule exists.',
     writes: [
       'human.pregnancyProgress',
       'human.pregnant/pregnantById/pregnancyDueProgress/pregnancyFromYouthLove (cleared at birth)',
