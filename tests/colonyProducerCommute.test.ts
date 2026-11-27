@@ -14,6 +14,25 @@ afterEach(() => {
 });
 
 describe('seeded producer-colony commute preflight', () => {
+  it('can seed a full producer colony on connected dry ground on the huge benchmark map', () => {
+    const { world } = prepareColonyWorld({
+      size: MapSize.Huge, seed: 12345, scenario: 'producers', preferConnectedStart: true,
+    });
+    const homes = world.buildings.filter((site) => site.completed && site.type === BuildingType.House);
+    const farms = world.buildings.filter((site) => site.completed && site.type === BuildingType.Farm);
+    expect(homes).toHaveLength(8);
+    expect(farms).toHaveLength(4);
+    setCurrentPathMap(world.worldMap, world.buildings);
+    const founder = world.entities.find((e) => e.alive && e.type === EntityType.Human)!;
+    for (const home of homes) {
+      beginCommuteRoutePass();
+      const worker = { ...founder, residenceBuildingId: home.id };
+      expect(farms.some((farm) =>
+        isWithinAssignableCommute(worker, farm, world.buildings, SPECIES_CONFIG[EntityType.Human].speed)),
+      `Starter home ${home.id} has no genuine two-hour dry route to a farm`).toBe(true);
+    }
+  });
+
   it('observes a full day after normal simulation movement without changing the world', () => {
     const { world } = prepareColonyWorld({ size: MapSize.Medium, seed: 12345, scenario: 'producers' });
     const observer = createColonyObserver(world);
