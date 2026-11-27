@@ -73,8 +73,8 @@ function rectAroundTile(map: WorldMap, cx: number, cy: number, radiusTiles: numb
 }
 
 /**
- * Flatten the ground around the camp into a buildable clearing. Water stays water — a filled tile
- * is walkable land the ground bake still paints as sea, so settlers wade across open water.
+ * Flatten dry ground around the camp into a buildable clearing. Water remains water,
+ * and only a completed bridge may provide a pedestrian crossing.
  */
 function ensureCampClearing(
   map: WorldMap,
