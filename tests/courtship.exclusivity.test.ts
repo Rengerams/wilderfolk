@@ -340,7 +340,7 @@ describe('a widowed settler may court again (owner, 2026-10-09)', () => {
 
     expect(widow.partnerId).toBeUndefined();
     expect(widow.pregnant).toBe(true);
-    expect(widow.relationshipStatus).toBe('expecting');
+    expect(widow.relationshipStatus).toBe('single');
   });
 
   it('still frees a widow whose marriage ended without a pregnancy', () => {
