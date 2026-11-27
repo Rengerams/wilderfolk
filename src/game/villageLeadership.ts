@@ -814,6 +814,7 @@ export function startElectionCeremony(
   state.electionCeremony = {
     electionId,
     ballotTally: Object.fromEntries(vote.tally),
+    candidateNames: Object.fromEntries(ranked.map(candidate => [candidate.entityId, candidate.name])),
     ballotTotal: vote.totalVotes,
     ballotWinnerVotes: vote.winnerVotes,
     ballotCast: true,
@@ -1066,6 +1067,7 @@ export function runVillageElection(
     winnerId: winner.entityId,
     ballots: vote.totalVotes,
     tally: Object.fromEntries(vote.tally),
+    candidateNames: ceremony?.candidateNames ?? Object.fromEntries(ranked.map(candidate => [candidate.entityId, candidate.name])),
     eligibleVoters: countEligibleVoters(state),
     turnout: vote.totalVotes,
   };
@@ -1251,8 +1253,7 @@ export function tryStartTermElectionCeremony(
   if (
     dayInYear !== 0 ||
     year <= 0 ||
-    year % ELECTION_INTERVAL_YEARS !== 0 ||
-    state.lastElectionYear === year ||
+    getYearsUntilElectionForYear(year, state.lastElectionYear) !== 0 ||
     state.electionCeremony ||
     state.pendingElectionYear != null
   ) {
