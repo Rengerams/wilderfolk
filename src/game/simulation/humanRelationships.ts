@@ -68,7 +68,6 @@ const AFFAIR_DAILY_TRYST_RADIUS = 95;
 export const AFFAIR_ESTABLISHED_LOG_PHRASE = 'began a secret affair';
 
 const RELATIONSHIP_CONFIG = {
-  DIVORCE_CAUGHT_CHANCE: 0.7,
   SCANDAL_COOLDOWN_TICKS: TICKS_PER_DAY * 21,
   DIVORCE_COURTSHIP_COOLDOWN_DAYS: 21,
   SCHOOLYARD_BOND_EVERY_DAYS: 5,
@@ -981,7 +980,6 @@ function tryDivorceOnCaughtCheater(
   entityById: Map<number, Entity>,
   buildings: Building[],
   playerHumans: readonly Entity[],
-  caughtInAct = false,
 ): void {
   // Evaluate each marriage independently, using witness locations before arrest relocates anyone.
   const villagers = playerHumans.filter(isPlayerHuman);
@@ -992,8 +990,7 @@ function tryDivorceOnCaughtCheater(
     return [{ offender, spouse, other: offender === cheater ? paramour : cheater }];
   });
   for (const { offender, spouse, other } of witnessed) {
-    const divorceChance = RELATIONSHIP_CONFIG.DIVORCE_CAUGHT_CHANCE;
-    if (personDayRoll(offender.id, state.tick, caughtInAct ? 608 : 609) >= divorceChance) continue;
+    // Discovery already passed its probability gate; a witnessed caught event is definitive.
     const spouseName = humanDisplayName(spouse);
     const offenderName = humanDisplayName(offender);
     const otherName = humanDisplayName(other);
@@ -1112,7 +1109,7 @@ export function exposeAffair(
   if (reason === 'caught') {
     const cheaterOffended = isMarriedScandalOffender(cheater);
     const paramourOffended = isMarriedScandalOffender(paramour);
-    tryDivorceOnCaughtCheater(state, cheater, paramour, entityById, buildings, playerHumans, true);
+    tryDivorceOnCaughtCheater(state, cheater, paramour, entityById, buildings, playerHumans);
     arrestForScandal(state, cheater, cheaterOffended);
     arrestForScandal(state, paramour, paramourOffended);
   } else {
