@@ -792,7 +792,7 @@ export const STRATEGIC_MAP_PRESENTATION = {
   cadence: 'Read-only React render of the Frontier subject window',
   scheduledFrom: 'CitizenOverviewScreen.tsx → GameWindow.tsx → FrontierTabPanel.tsx → FrontierPanel.tsx → StrategicWorldMap.tsx',
   writes: [] as readonly string[],
-  testFile: 'tests/strategicWorldMap.projection.test.ts, tests/strategicWorldMap.windowLayout.test.ts',
+  testFile: 'tests/strategicWorldMap.projection.test.ts, scripts/check-source-guards.mjs',
 } as const;
 
 /** All declared decision keys as a typed array. */

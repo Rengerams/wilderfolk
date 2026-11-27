@@ -23,7 +23,7 @@ const STEP = {
    * Docs guards ride inside the step `npm test` already runs: they cost milliseconds and must not
    * become another command an agent has to remember.
    */
-  check: 'node scripts/check-source-shadow-files.mjs && node scripts/check-dialogue-ownership.mjs && node scripts/check-dialogue-circumstances.mjs && node scripts/check-docs.mjs && node scripts/check-comments.mjs',
+  check: 'node scripts/check-source-shadow-files.mjs && node scripts/check-dialogue-ownership.mjs && node scripts/check-dialogue-circumstances.mjs && node scripts/check-docs.mjs && node scripts/check-comments.mjs && node scripts/check-source-guards.mjs --self-test && node scripts/check-source-guards.mjs',
   dup: 'node scripts/check-duplicate-code.mjs',
   unit: 'vitest run --exclude tests/fullYear.integration.test.ts --exclude tests/longRunColony.integration.test.ts',
   unitAll: 'vitest run',
@@ -121,7 +121,7 @@ wilderfolk test runner - one entry point, choose with args
   npm test -- scripts-lint        oxlint, type-aware, over scripts/
   npm test -- scripts-types       tsc on the scripts project
   npm test -- dup                 jscpd duplicate scan
-  npm test -- check               source-shadow-file check
+  npm test -- check               source-shadow, dialogue, docs, comment and single-owner source guards
   npm test -- knip                knip (unused files/exports)
   npm test -- cycles [--strict|--json]
   npm test -- owners              verify every function has one recorded source owner
