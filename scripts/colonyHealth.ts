@@ -118,6 +118,8 @@ export interface ColonyScenarioOptions {
   size: MapSize;
   seed: number;
   scenario: ScenarioName;
+  /** Benchmark-only: place the seeded founders in a wide dry region without modifying terrain. */
+  preferConnectedStart?: boolean;
 }
 
 export interface ColonyScenario {
@@ -343,6 +345,48 @@ function placeProducers(world: WorldState, anchor: { x: number; y: number }): Bu
  * Build one seeded colony and provision it exactly as the named scenario says: the settlement skeleton
  * is identical in both scenarios; only producers, storage mix and the initial larder differ.
  */
+/**
+ * Benchmark-only start selection. The old seed puts 8 starter homes in a 222-cell pocket
+ * even though the same Huge map has a 142k-cell mainland. Scan the *existing* L0 water mask
+ * for a wide, dry settlement rectangle: no terrain edits, alternate walking rules, or
+ * separate path search. All actual buildings and assignments still use the normal owners.
+ */
+function findDryBenchmarkStart(world: WorldState, preferred: { x: number; y: number }): { x: number; y: number } {
+  const map = world.worldMap;
+  const water = map?.pathGrid;
+  if (!map || !water || water.length !== map.width * map.height) return preferred;
+  const cols = map.width, rows = map.height;
+  const stride = cols + 1;
+  const summed = new Int32Array((cols + 1) * (rows + 1));
+  for (let y = 0; y < rows; y++) {
+    let waterInRow = 0;
+    for (let x = 0; x < cols; x++) {
+      if (water[y * cols + x] === 1) waterInRow++;
+      summed[(y + 1) * stride + x + 1] = summed[y * stride + x + 1] + waterInRow;
+    }
+  }
+  const waterCount = (left: number, top: number, right: number, bottom: number) =>
+    summed[bottom * stride + right] - summed[top * stride + right]
+    - summed[bottom * stride + left] + summed[top * stride + left];
+  // Leave enough flat dry terrain for eight homes, storage and four farms with
+  // all their approaches. Prefer a site near the original seed's camp.
+  for (const [halfWidth, halfHeight] of [[36, 32], [30, 26], [24, 22]] as const) {
+    let best: { x: number; y: number } | null = null;
+    let bestDistance = Infinity;
+    for (let ty = halfHeight + 4; ty + halfHeight + 4 < rows; ty += 4) {
+      for (let tx = halfWidth + 4; tx + halfWidth + 4 < cols; tx += 4) {
+        if (waterCount(tx - halfWidth, ty - halfHeight, tx + halfWidth, ty + halfHeight) !== 0) continue;
+        const x = (tx + 0.5) * PATH_CELL;
+        const y = (ty + 0.5) * PATH_CELL;
+        const distance = Math.hypot(x - preferred.x, y - preferred.y);
+        if (distance < bestDistance) { bestDistance = distance; best = { x, y }; }
+      }
+    }
+    if (best) return best;
+  }
+  throw new Error('Benchmark map contains no sufficiently large dry starting area');
+}
+
 export function prepareColonyWorld(options: ColonyScenarioOptions): ColonyScenario {
   const { size, seed, scenario } = options;
   const plan = SCENARIOS[scenario];
@@ -350,7 +394,15 @@ export function prepareColonyWorld(options: ColonyScenarioOptions): ColonyScenar
   setSimSeed(seed);
 
   const founders = livingHumans(world);
-  const anchor = founders[0] ?? { x: world.width / 2, y: world.height / 2 };
+  const originalAnchor = founders[0] ?? { x: world.width / 2, y: world.height / 2 };
+  const anchor = options.preferConnectedStart ? findDryBenchmarkStart(world, originalAnchor) : originalAnchor;
+  if (options.preferConnectedStart && (anchor.x !== originalAnchor.x || anchor.y !== originalAnchor.y)) {
+    const dx = anchor.x - originalAnchor.x;
+    const dy = anchor.y - originalAnchor.y;
+    for (const founder of founders) { founder.x += dx; founder.y += dy; }
+    if (world.worldMap) world.worldMap.campSite = { ...anchor };
+    hydrateWorldRuntimeCaches(world);
+  }
 
   placeStarterHousing(world, anchor);
   placeLegalStarterBuilding(world, BuildingType.Tavern, { x: anchor.x + 180, y: anchor.y - 24 });
