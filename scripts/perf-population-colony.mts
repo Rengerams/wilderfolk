@@ -2,7 +2,7 @@ import { appendFileSync, writeFileSync } from 'node:fs';
 import { gameTick } from '../src/game/gameTick';
 import { createEntity } from '../src/game/entityFactory';
 import { BuildingType, BUILDING_CONFIGS } from '../src/game/buildings';
-import { EntityType, MapSize } from '../src/game/gameTypes';
+import { EntityType, MapPreset, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { getAbsoluteCalendarDay, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -69,7 +69,14 @@ function rotateDistrictOffset(x: number, y: number, quarterTurns: number): { x: 
 }
 
 function prepareScaledColony(target: number): WorldState {
-  const prepared = prepareColonyWorld({ size: MapSize.Huge, seed: SEED, scenario: 'producers', preferConnectedStart: true });
+  // A 1,800-resident city needs a genuinely buildable contiguous mainland. The
+  // Meadows preset is a real world-generation mode, not a bypass of water rules.
+  // Both baseline and PR use this identical scenario and the same settlement
+  // harness, while 250/750 residents retain their continental stress coverage.
+  const preset = target >= 1800 ? MapPreset.Meadows : MapPreset.Continental;
+  const prepared = prepareColonyWorld({
+    size: MapSize.Huge, seed: SEED, scenario: 'producers', preset, preferConnectedStart: true,
+  });
   const world = prepared.world;
   const founders = livingPlayers(world);
   const needed = target - founders.length;
