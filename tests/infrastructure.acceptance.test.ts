@@ -39,7 +39,7 @@ describe('infrastructure acceptance boundaries', () => {
       expect(isFootprintOnBuildableTerrain({ worldMap }, 10, 10, 55, 55, BuildingType.House)).toBe(false);
       expect(isTileBuildable(worldMap, 5, 5)).toBe(false);
       expect(isWaterTerrainType(terrain)).toBe(true);
-      expect(isWalkableTerrainType(terrain)).toBe(terrain === TerrainType.ShallowWater);
+      expect(isWalkableTerrainType(terrain)).toBe(false);
     });
   }
 
@@ -53,14 +53,14 @@ describe('infrastructure acceptance boundaries', () => {
     expect(isWaterTerrainType(TerrainType.RiverBank)).toBe(false);
   });
 
-  it('generates walkable shallow water without accidentally making it buildable', () => {
+  it('generates impassable shallow water that also remains unbuildable', () => {
     const map = generateRawTerrain(480, 480, 1234, MapSize.Medium, MapPreset.Islands, undefined, 4);
     let shallowTiles = 0;
     for (let ty = 0; ty < map.height; ty++) {
       for (let tx = 0; tx < map.width; tx++) {
         if (tileTypeAt(map, tx, ty) !== TerrainType.ShallowWater) continue;
         shallowTiles++;
-        expect(map.pathGrid![ty * map.width + tx]).toBe(Walkability.Open);
+        expect(map.pathGrid![ty * map.width + tx]).toBe(Walkability.Water);
         const buildIndex = Math.floor(ty / 2) * map.bCols! + Math.floor(tx / 2);
         expect(map.buildGrid![buildIndex]).toBe(Buildability.Water);
       }
