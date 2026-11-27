@@ -1,5 +1,7 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { EntityType, PATH_CELL } from './gameTypes';
+import { tileTypeAt, tileTypeAtWorld } from './terrain/terrainGrid';
+import { isWaterTerrainType } from './terrain/terrainTraits';
 import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition, crowdGatherPosition, homeStandPosition, steerHumanToward, clearHumanWalkTarget } from './simulation/humanMovement';
 import { faceVelocity } from './simulation/movementSteering';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
@@ -82,6 +84,27 @@ function childPlayCompanionWeight(child: Entity, candidate: Entity): number {
     - Math.min(5, Math.max(0, dispute) / 10));
 }
 
+/** A play circle needs dry ground throughout its 14px arrival radius, not merely a
+ * wadeable path cell. The path owner deliberately permits shallow-water crossings. */
+function isDryChildPlaySite(
+  state: WorldState,
+  x: number,
+  y: number,
+  grid = getCurrentPathGrid(),
+): boolean {
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !isGroundWalkableAt(x, y, grid)) return false;
+  const map = state.worldMap;
+  if (!map) return true;
+  const radius = 14;
+  for (let ty = Math.floor((y - radius) / PATH_CELL); ty <= Math.floor((y + radius) / PATH_CELL); ty++) {
+    for (let tx = Math.floor((x - radius) / PATH_CELL); tx <= Math.floor((x + radius) / PATH_CELL); tx++) {
+      const type = tileTypeAt(map, tx, ty);
+      if (type === null || isWaterTerrainType(type)) return false;
+    }
+  }
+  return true;
+}
+
 /** Pick a new reachable outdoor play stop for an entire small friend circle. */
 function chooseChildPlaySite(
   state: WorldState,
@@ -103,7 +126,7 @@ function chooseChildPlaySite(
     const y = (Math.floor((midY + deterministicSin(angle) * radius) / PATH_CELL) + 0.5) * PATH_CELL;
     if (x < 0 || y < 0 || x >= state.width || y >= state.height) continue;
     if (previous && Math.hypot(x - previous.x, y - previous.y) < 28) continue;
-    if (!isGroundWalkableAt(x, y, grid)) continue;
+    if (!isDryChildPlaySite(state, x, y, grid)) continue;
     // Prefer a clear direct leg, but accept a bounded route around walls or
     // through bridges. A pending quote is not proof of reachability.
     if (grid && group.some((member) => {
@@ -247,20 +270,26 @@ export function tickHumanChildLeisure(args: {
     if (mate?.alive && group.length >= 2
       && (reservedGroup || Math.hypot(mate.x - entity.x, mate.y - entity.y) <= SOCIAL_FRIENDSHIP_RADIUS)) {
       const phase = Math.floor(hourOfDay / 3);
+      const playGrid = getCurrentPathGrid();
       const cachedSite = entity.childPlaySite;
+      const invalidSavedSite = group.some((member) => {
+        const site = member.childPlaySite;
+        return !!site && site.day === day && site.phase === phase
+          && !isDryChildPlaySite(state, site.x, site.y, playGrid);
+      });
       if (!cachedSite || cachedSite.day !== day || cachedSite.phase !== phase
-        || cachedSite.mateId !== mate.id || !Number.isFinite(cachedSite.x)
-        || !Number.isFinite(cachedSite.y) || !isGroundWalkableAt(cachedSite.x, cachedSite.y)) {
+        || cachedSite.mateId !== mate.id || !isDryChildPlaySite(state, cachedSite.x, cachedSite.y, playGrid)
+        || invalidSavedSite) {
         // One stop shared by all participants, including children processed later this tick.
+        // Old saves may carry a now-invalid shallow-water destination: never reuse it.
         const shared = group.find((member) =>
           member.childPlaySite?.day === day && member.childPlaySite.phase === phase
-          && Number.isFinite(member.childPlaySite.x) && Number.isFinite(member.childPlaySite.y)
-          && isGroundWalkableAt(member.childPlaySite.x, member.childPlaySite.y))?.childPlaySite;
-        // A rejected search is a decision for this phase too. Without this
-        // marker every eligible tick repeats 12 blocked-ground probes per child.
+          && isDryChildPlaySite(state, member.childPlaySite.x, member.childPlaySite.y, playGrid))?.childPlaySite;
+        // Failed attempts are cached for this phase, except when an existing saved
+        // stop must be replaced because it is wet or otherwise unsafe.
         const attempted = group.some((member) =>
           member.childPlaySiteAttempt?.day === day && member.childPlaySiteAttempt.phase === phase);
-        if (shared || !attempted) {
+        if (shared || !attempted || invalidSavedSite) {
           const point = shared ?? chooseChildPlaySite(state, group, day, phase, cachedSite);
           for (const member of group) {
             if (member.childPlaymateId == null) continue;
@@ -273,6 +302,14 @@ export function tickHumanChildLeisure(args: {
       }
       const site = entity.childPlaySite;
       // Failed site searches must not turn a reserved group into a moving-target chase.
+      // A child already wading must move to safety or follow a guardian, not idle
+      // in the water while still reporting 'playing'.
+      const underfoot = state.worldMap ? tileTypeAtWorld(state.worldMap, entity.x, entity.y) : null;
+      if (!site && underfoot !== null && isWaterTerrainType(underfoot)) {
+        clearHumanWalkTarget(entity);
+        entity.vx = 0;
+        entity.vy = 0;
+      } else {
       const destinationX = site?.x ?? entity.x;
       const destinationY = site?.y ?? entity.y;
       const distance = Math.hypot(destinationX - entity.x, destinationY - entity.y);
@@ -297,6 +334,7 @@ export function tickHumanChildLeisure(args: {
       entity.childLeisureActivity = 'playing';
       entity.childLeisureTargetId = mate.id;
       return true;
+      }
     }
   }
   const mother = entity.motherId != null ? livingHumanAt(entity.motherId) : undefined;
