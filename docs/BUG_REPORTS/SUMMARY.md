@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-27 — [Biological paternity changes during pregnancy](../bug_report/2026-11-27-paternity-changes-during-pregnancy.md):** investigating; PR #231 records conception-time identity, preserves it after removal, and migrates legacy pregnancy state; regression CI pending.
+
 **2026-11-27 — [Venue worker uses colony shift](../bug_report/2026-11-27-venue-worker-uses-colony-shift.md):** investigating; PR #231 corrects actual venue commute/duty projection and hotel double duty; post-festival regression added; exact live 24-hour symptom not yet reproduced.
 
 **2026-11-27 — [Raid warning hides elected leader's imprisonment](../bug_report/2026-11-27-raid-leader-imprisonment-ambiguous-warning.md):** investigating; Day-311 save shows a living commander jailed for scandal until tick 89920, not deployed; action/preview now identify custody and remaining hours, plus show missing weapons separately; CI and live-save retest pending.
