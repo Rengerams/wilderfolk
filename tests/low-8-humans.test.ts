@@ -137,8 +137,8 @@ describe('war-band human upkeep', () => {
       state.tick = start + offset;
       tickHumans(state, contextFor(state, [soldier]));
     }
-    expect(soldier.needs.rest).toBeGreaterThan(90);
-    expect(soldier.needs.stamina).toBeGreaterThan(90);
+    expect(soldier.needs!.rest).toBeGreaterThan(90);
+    expect(soldier.needs!.stamina).toBeGreaterThan(90);
     expect(soldier.energy).toBeGreaterThan(90);
     expect(soldier.raidDeploymentId).toBe('outgoing_raid_test');
     expect(soldier.pregnant).toBe(true);
@@ -159,7 +159,7 @@ describe('war-band human upkeep', () => {
     tickHumans(state, contextFor(state, [soldier]));
     expect(soldier.scheduleWorkedTicksToday ?? 0).toBe(0);
     expect(soldier.schedulePresentTicksToday ?? 0).toBe(0);
-    expect(soldier.needs.stamina).toBeLessThan(100);
+    expect(soldier.needs!.stamina).toBeLessThan(100);
     expect(soldier.raidDeploymentId).toBe('outgoing_raid_test');
   });
 });
