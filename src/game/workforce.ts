@@ -200,7 +200,7 @@ interface WorkforceAssignmentIndex {
   movable: Map<number, number>;
 }
 
-function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number, foodEmergency = false): WorkforceAssignmentIndex {
+export function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number, foodEmergency = false): WorkforceAssignmentIndex {
   const counts = new Map<number, number>();
   const movable = new Map<number, number>();
   for (const human of humans) {
@@ -243,7 +243,7 @@ function donationFloor(donor: Building, recipient: Building | undefined): number
   return Math.min(coverage, Math.max(1, BUILDING_CONFIGS[donor.type].maxOccupants - 1));
 }
 
-function pickOverstaffedDonor(
+export function findOverstaffedDonorBuilding(
   jobBuildings: Building[],
   index: WorkforceAssignmentIndex,
   recipient: Building | undefined,
@@ -359,22 +359,6 @@ export function prospectiveFoodSiteStaffing(state: WorldState): ((spot: { x: num
     }
     return false;
   };
-}
-
-export function findOverstaffedDonorBuilding(
-  jobBuildings: Building[],
-  humans: Entity[],
-  excludeBuildingId: number,
-  currentTick?: number,
-  preserveEssentialCoverage = false,
-  foodEmergency = false,
-  rejectedDonors?: ReadonlySet<number>,
-): Building | undefined {
-  const recipient = jobBuildings.find((building) => building.id === excludeBuildingId);
-  return pickOverstaffedDonor(
-    jobBuildings, buildWorkforceAssignmentIndex(humans, currentTick, foodEmergency),
-    recipient, preserveEssentialCoverage, rejectedDonors,
-  );
 }
 
 export function pickWorkerToTransfer(
@@ -571,7 +555,7 @@ export function rebalanceJobWorkers(
     const priorityFood = isFoodWorkplace(needy);
     const rejectedDonors = new Set<number>();
     while (staffed < target) {
-      const donor = pickOverstaffedDonor(jobBuildings, index, needy, true, rejectedDonors);
+      const donor = findOverstaffedDonorBuilding(jobBuildings, index, needy, true, rejectedDonors);
       if (!donor) break;
       // An ordinary low-priority vacancy cannot undo the player's selected focus.
       const donorSector = workforceSectorForBuilding(donor.type);
