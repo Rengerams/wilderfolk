@@ -10,12 +10,16 @@ import { rebuildEntityByIdMap } from '../src/game/entityIndex';
 import { buildEntityByType } from '../src/game/simFocus';
 import { moveResident, syncResidenceOccupants } from '../src/game/housingPipeline';
 import { assignWorkerTransition, syncJobBuildingOccupants } from '../src/game/workforce';
+import { buildingAccessPoints } from '../src/game/buildingAccess';
+import { beginCommuteRoutePass, isWithinAssignableCommute } from '../src/game/commuteReach';
+import { getCurrentPathGrid, isGroundWalkableAt, setCurrentPathMap } from '../src/game/pathfinding';
+import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { updateStorageCaps } from '../src/game/economy';
 import { preloadDialogueBank } from '../src/game/dialogueTrees';
 import { loadNames } from '../src/game/nameLoader';
 import { getSimFocus } from './simFocus';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
-import { prepareColonyWorld, createCompletedBuilding, applyColonyBotAction, collectInvariantErrors } from './colonyHealth';
+import { prepareColonyWorld, createCompletedBuilding, findDryBenchmarkStart, applyColonyBotAction, collectInvariantErrors } from './colonyHealth';
 
 // The same real gameTick + hourly VirtualPlayer command route used by run-full-year.mts.
 // The setup is a one-time seeded, staffed colony: no free births, resources or buildings during measurement.
@@ -61,15 +65,16 @@ function prepareScaledColony(target: number): WorldState {
   if (needed < 0) throw new Error('Requested population is below the founding population');
   const districtSize = 24;
   const districts = Math.ceil(needed / districtSize);
-  const columns = Math.ceil(Math.sqrt(districts * 1.5));
-  const rows = Math.ceil(districts / columns);
-  const left = Math.round(world.width / 2 - columns * 305 / 2);
-  const top = Math.round(world.height / 2 - rows * 270 / 2);
+  const preferred = world.worldMap?.campSite ?? { x: world.width / 2, y: world.height / 2 };
+  const scaledResidents: Entity[] = [];
   let spawned = 0;
 
   for (let district = 0; district < districts; district++) {
-    const x = left + (district % columns) * 305;
-    const y = top + Math.floor(district / columns) * 270;
+    // Exactly the same dry L1 plot selection on baseline and PR. Each 360px square
+    // encloses every district footprint and its entrances and avoids all buildings.
+    const center = findDryBenchmarkStart(world, preferred, true);
+    const x = center.x - 120;
+    const y = center.y - 65;
     const homes = [0, 72, 144, 216].map((offset) =>
       createCompletedBuilding(world, BuildingType.House, x + offset, y));
     const jobs: Building[] = [
@@ -100,6 +105,7 @@ function prepareScaledColony(target: number): WorldState {
       world.entities.push(settler);
       moveResident(settler, home.id, 'assignment', { buildings: world.buildings });
       residents.push(settler);
+      scaledResidents.push(settler);
     }
     let next = 0;
     for (const job of jobs) {
@@ -108,6 +114,37 @@ function prepareScaledColony(target: number): WorldState {
         const worker = residents[next++];
         if (!assignWorkerTransition(worker, job)) throw new Error('Unable to assign seeded workplace');
       }
+    }
+  }
+
+  // Validate the same entrances and commute routes production uses before measuring.
+  // Never start a benchmark resident in water or the solid centre of a house.
+  setCurrentPathMap(world.worldMap, world.buildings);
+  const pathGrid = getCurrentPathGrid();
+  if (!pathGrid) throw new Error('Scaled benchmark has no navigation grid');
+  const buildingById = new Map(world.buildings.map((site) => [site.id, site]));
+  const checkedCommutes = new Set<string>();
+  for (const resident of scaledResidents) {
+    const home = buildingById.get(resident.residenceBuildingId ?? -1);
+    if (!home) throw new Error('Scaled benchmark resident has no valid home');
+    const entrances = buildingAccessPoints(home, pathGrid);
+    if (entrances.length === 0) throw new Error('Scaled benchmark home has no usable entrance: ' + home.id);
+    const entrance = entrances[resident.id % entrances.length];
+    resident.x = entrance.x;
+    resident.y = entrance.y;
+    if (!isGroundWalkableAt(resident.x, resident.y, pathGrid)) {
+      throw new Error('Scaled benchmark resident starts on blocked terrain: ' + resident.id);
+    }
+    const job = buildingById.get(resident.workerBuildingId ?? -1);
+    if (!job) continue;
+    const key = home.id + ':' + job.id;
+    if (checkedCommutes.has(key)) continue;
+    checkedCommutes.add(key);
+    beginCommuteRoutePass();
+    if (!isWithinAssignableCommute(
+      resident, job, world.buildings, SPECIES_CONFIG[EntityType.Human].speed, buildingById,
+    )) {
+      throw new Error('Scaled benchmark has no genuine two-hour commute for ' + key);
     }
   }
 
