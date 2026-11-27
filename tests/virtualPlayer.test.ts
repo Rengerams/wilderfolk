@@ -1635,6 +1635,9 @@ describe('virtual player remaining action surface', () => {
       const decision = decideVirtualPlayerAction(world);
       expect(decision?.command.op).not.toBe('removeWorker');
       expect(decision?.command.op).not.toBe('assignWorker');
+      expect(decision?.command.op).not.toBe('autoStaffWorkers');
+      expect(decision?.command.op).not.toBe('setWorkforcePolicy');
+      expect(decision?.command.op).not.toBe('setWorkforceFocus');
     }
     expect(world.entities.filter((entity) => entity.workerBuildingId === 2)).toHaveLength(cap + 1);
   });
