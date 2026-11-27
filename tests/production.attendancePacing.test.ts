@@ -240,6 +240,7 @@ describe('production pays only witnessed attendance (W-136)', () => {
       state.tick = tickAtDailyPhase(1, 'production') - 1;
     }
     deployed.worker.raidDeploymentId = 'outgoing_raid_test';
+    const skillBefore = readSkill(deployed.worker, JobType.Farmer);
     expect(getWorkdayAttendance(deployed.worker)).toEqual({ ticks: 0, siteId: undefined });
     setSimSeed(TEST_SEED);
     gameTick(deployed.state, ON_SCREEN);
@@ -247,7 +248,7 @@ describe('production pays only witnessed attendance (W-136)', () => {
     gameTick(local.state, ON_SCREEN);
     expect(deployed.state.economyLedger?.produced.farms ?? 0).toBe(0);
     expect(local.state.economyLedger?.produced.farms ?? 0).toBeGreaterThan(0);
-    expect(readSkill(deployed.worker, JobType.Farmer)).toBe(0);
+    expect(readSkill(deployed.worker, JobType.Farmer)).toBe(skillBefore);
   });
 
   it('pays an on-post crew and pays a never-at-post crew nothing', () => {
