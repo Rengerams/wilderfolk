@@ -1530,10 +1530,9 @@ function resolveOutgoingRaidCombat(
         enemyCasualties: [],
       }];
     }
-    addBigNews(state, '⚖️ Rival settlement surrendered', `Decide whether to spare, demand terms from, or exterminate ${rival.name}. ${rival.population} people remain.`, 'positive');
     const victoryTitle = '🏆 War-band returns victorious';
     const victoryMessage = `${verb} against ${rival.name}: ${enemyDeaths} enemy dead, ${playerDeaths} of our people lost. ${rival.population} rival inhabitants remain. ${lootNote ? `Spoils: ${lootNote}.` : 'No supplies recovered.'}`;
-    addBigNews(state, victoryTitle, victoryMessage, 'positive');
+    addBigNews(state, victoryTitle, `${victoryMessage} ${rival.name} has surrendered; decide the settlement's fate.`, 'positive');
     logEvent(state, 'combat', `Village victory celebrations — ${victoryMessage}`, rival.name, 'outgoing_raid', 'resolved', event.id);
   } else if (outcome === 'meager') {
     const gained = grantRaidSpoils(state, rollOutgoingRaidSpoils(rival, 'meager', lootScale));
