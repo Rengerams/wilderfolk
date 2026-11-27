@@ -600,7 +600,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         (workplace.type !== BuildingType.Church &&
           workplace.type !== BuildingType.TownHall &&
           workplace.type !== BuildingType.Prison &&
-          workplace.type !== BuildingType.Hospital));
+          workplace.type !== BuildingType.Hospital &&
+          workplace.type !== BuildingType.Hotel));
     const isHospitalDoctor = entity.job === JobType.Doctor
       && workplace?.type === BuildingType.Hospital && workplace.completed;
     const onHospitalShift = !!(isHospitalDoctor && isHospitalDoctorOnShift(workplace, state.tick, entity.id));
@@ -930,10 +931,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const commuteLeadHours = workplace
       ? commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace), config.speed)
       : 0;
-    const workCommuteDue = isPrisonGuardAtPost ? prisonCommuteDue : workplace != null
-      && isWorkDay(state.tick)
-      && (goWorkTime || onWorkCommuteHours
-        || isWithinWorkCommuteLead(state.tick, commuteStartHour, commuteLeadHours));
+    const venueWork = (isInnkeeper || isHotelier) && workplace != null;
+    const venueCommuteDue = venueWork && nextShiftStartTick != null
+      && state.tick >= nextShiftStartTick - commuteLeadHours * TICKS_PER_HOUR;
+    const workCommuteDue = venueWork ? onTavernShift || onHotelShift || venueCommuteDue
+      : isHospitalDoctor ? hospitalCommuteDue || onHospitalShift
+      : isPrisonGuardAtPost ? prisonCommuteDue : workplace != null
+        && isWorkDay(state.tick)
+        && (goWorkTime || onWorkCommuteHours
+          || isWithinWorkCommuteLead(state.tick, commuteStartHour, commuteLeadHours));
 
     const stayIn =
       !goingToHospital &&
@@ -1206,7 +1212,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       tickTavernService({
         entity,
         workplace,
-        onTavernShift,
+        onTavernShift: onTavernShift || (isInnkeeper && venueCommuteDue),
         huntingWere: !!huntingWere,
         inElectionCeremony,
         speed: config.speed,
