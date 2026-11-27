@@ -219,3 +219,21 @@ describe('Teraforge weather registry', () => {
     expect(daylightTint(13)).toBeNull();
   });
 });
+
+describe('M38 — storm damage never heals a building', () => {
+  it('leaves a building at or below the floor untouched and out of the report', () => {
+    const atFloor = building(1, BuildingType.House);
+    atFloor.health = 20;
+    const belowFloor = building(2, BuildingType.House);
+    belowFloor.health = 15;
+    const healthy = building(3, BuildingType.House);
+    healthy.health = 100;
+
+    const damaged = applyStormDamageToBuildings([atFloor, belowFloor, healthy], 1);
+
+    expect(belowFloor.health).toBe(15);
+    expect(atFloor.health).toBe(20);
+    expect(healthy.health).toBe(94);
+    expect(damaged.map((b) => b.id)).toEqual([3]);
+  });
+});

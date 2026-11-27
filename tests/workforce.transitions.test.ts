@@ -624,3 +624,30 @@ describe('automatic workplace staffing', () => {
     expect(isWorkerCommand({ proto: WORKER_CMD_PROTO, op: 'setBuildingStaffingMode', buildingId: 7, mode: 'manual' })).toBe(false);
   });
 });
+
+describe('M37 removeWorkerTransition residence occupancy', () => {
+  it('clears workplaces and crews but leaves the residence occupants list intact', () => {
+    const settler = human(1, {
+      workerBuildingId: 2,
+      residenceBuildingId: 10,
+      job: JobType.Farmer,
+    });
+    const builder = human(2);
+    const house = building(10, BuildingType.House, { occupants: [1] });
+    const farm = building(2, BuildingType.Farm, { occupants: [1] });
+    const site = building(3, BuildingType.House, { completed: false, occupants: [2] });
+    const state = makeWorld([settler, builder], [house, farm, site]);
+    expect(collectSimulationInvariantErrors(state)).toEqual([]);
+
+    removeWorkerTransition(settler, state.buildings);
+    removeWorkerTransition(builder, state.buildings);
+
+    expect(house.occupants).toEqual([1]);
+    expect(farm.occupants).toEqual([]);
+    expect(site.occupants).toEqual([]);
+    expect(settler.workerBuildingId).toBeUndefined();
+    expect(builder.workerBuildingId).toBeUndefined();
+    expect(settler.residenceBuildingId).toBe(10);
+    expect(collectSimulationInvariantErrors(state)).toEqual([]);
+  });
+});

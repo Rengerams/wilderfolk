@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyHumanWalkStep, commuteHumanToBuilding, commutePathCacheKey, crowdGatherPosition, enterHumanBuilding, homeStandPosition, nearestActiveMoonHowler, venueGatherPosition } from '../src/game/simulation/humanMovement';
+import { applyHumanWalkStep, commuteHumanToBuilding, commutePathCacheKey, crowdGatherPosition, enterHumanBuilding, homeStandPosition, humanBuildingTarget, nearestActiveMoonHowler, venueGatherPosition } from '../src/game/simulation/humanMovement';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import { isActiveMoonHowler } from '../src/game/moonHowler';
@@ -26,6 +26,16 @@ function werewolf(id: number, x: number, y: number, active: boolean): Entity {
 }
 
 describe('human movement helpers', () => {
+  it('keeps the home yard and workplace row anchored near the building centre', () => {
+    const home = { id: 1, type: BuildingType.House, x: 400, y: 400, width: 100, height: 60, occupants: [12], completed: true } as Building;
+    const stand = homeStandPosition(home, 12);
+    expect(Math.abs(stand.x - home.x)).toBeLessThan(40);
+    expect(stand.y).toBeGreaterThan(home.y);
+    const worker = humanBuildingTarget(home, 12);
+    expect(worker.x).toBe(home.x);
+    expect(worker.y).toBe(home.y + home.height / 2 + 10);
+  });
+
   it('keeps commute cache keys stable only when both endpoint tiles match', () => {
     const first = commutePathCacheKey(building.id, 101, 81, 200, 120);
     const sameTiles = commutePathCacheKey(building.id, 109, 89, 207, 127);

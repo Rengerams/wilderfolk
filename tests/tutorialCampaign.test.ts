@@ -122,3 +122,40 @@ describe('tutorial campaign', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+describe('M33 — the first-spring guide finishes instead of regressing every year', () => {
+  function guidedWorld(): WorldState {
+    const state = initGame({ size: 'medium', seed: 20240913 });
+    state.buildings = [];
+    for (const type of [BuildingType.House, BuildingType.Farm, BuildingType.HuntingSpot, BuildingType.Store]) {
+      addBuilding(state, type);
+    }
+    state.buildings[1].occupants = [1];
+    return state;
+  }
+
+  it('stays finished at the start of year 2', () => {
+    const state = guidedWorld();
+    state.year = 2;
+    state.dayInYear = 0;
+
+    expect(currentCampaignStep(state)).toBeNull();
+  });
+
+  it('stays finished on later years too', () => {
+    const state = guidedWorld();
+    state.year = 4;
+    state.dayInYear = 10;
+
+    expect(currentCampaignStep(state)).toBeNull();
+  });
+
+  it('still completes the winter step during the first winter', () => {
+    const state = guidedWorld();
+    state.year = 0;
+    state.dayInYear = 269;
+    expect(currentCampaignStep(state)?.id).toBe('winter_watch');
+    state.dayInYear = 270;
+    expect(currentCampaignStep(state)?.id).toBe('year_two');
+  });
+});

@@ -209,6 +209,10 @@ Merged the two render-batch audio suites into `audio.output.test.ts`. Four cases
 
 Moved 12 cases from five mixed suites. Beauty and theatre checks now live with their respective simulation owners, chronicle labels with event-log filters, frame catch-up with GameLoop RAF, persistence cleanup with the persistence hook, challenge progress with rewards, and production and herd placement with daily economy and migration. Reused the existing herd selector and challenge fixture. All eight destination suites passed (57 tests).
 
+## Leadership, story and simulation regressions — 2026-11-27
+
+Retired five mixed suites: `medium-batch2`, `medium-B2-leadership`, `medium-C2-story`, `entityAudit.transientGeometry` and `auditOpenItems.verification`. Their 29 cases became 28 runtime cases and one source guard. The seed guard scans the same game modules, excludes the two seed owners and has explicit mutation coverage. The census cases for traders and temporarily transformed settlers now exercise the same owner. Updated calendar guard and decision evidence paths.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

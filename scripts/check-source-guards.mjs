@@ -75,7 +75,7 @@ const DAY_LENGTH_SITES = [
   { file: 'tests/humanNeeds.mealRule.test.ts', pattern: /MEAL_TICK = 72/, spelling: 'MEAL_TICK = 72' },
   { file: 'tests/humanGraduation.education.test.ts', pattern: /72 \* 10/, spelling: '72 * 10' },
   { file: 'tests/moonHowler.test.ts', pattern: /DAYS_PER_MOON_CYCLE \* 72|NIGHT_START \* 3/, spelling: 'DAYS_PER_MOON_CYCLE * 72 + NIGHT_START * 3' },
-  { file: 'tests/medium-batch2.test.ts', pattern: /5 \* 72|\+= 72/, spelling: '5 * 72 / += 72' },
+  { file: 'tests/animalCare.test.ts', pattern: /5 \* 72|\+= 72/, spelling: '5 * 72 / += 72' },
   { file: 'tests/rivalDiplomacy.test.ts', pattern: /14 \* 72/, spelling: '14 * 72' },
   { file: 'tests/weatherConsequences.test.ts', pattern: /let t = 72;|t <= 71;/, spelling: 'for (let t = 72; …) with the `t <= 71` run-up' },
   { file: 'tests/conceptionEvent.labelling.test.ts', pattern: /state\.tick = 72;/, spelling: 'state.tick = 72' },
@@ -562,6 +562,14 @@ const SOURCE_ROWS = [
       { file: 'src/components/tabPanels/MoreTabPanel.tsx', contains: 'v{GAME_VERSION}' },
       { file: 'src/components/tabPanels/MoreTabPanel.tsx', notContains: 'v0.4 is a playtest', example: 'v0.4 is a playtest' },
     ],
+  },
+  {
+    id: 'simulation-decisions-use-adopted-seed',
+    scan: {
+      dir: 'src/game', ext: '.ts', minFiles: 1,
+      except: ['src/game/simRng.ts', 'src/game/saveLoad.ts'],
+      notMatches: /\bworldMap\??\.seed\b/, example: 'worldMap?.seed',
+    },
   },
   {
     id: 'no-view-converts-ticks-to-days',

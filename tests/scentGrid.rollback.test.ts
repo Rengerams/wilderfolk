@@ -2,9 +2,12 @@
  * `scentGrid` is simulation state, not a derived index: realtime decays it, systems samples it, and
  * save-load treats it as transient; these cases drive the real paths and assert its values.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { applySimPrep, extractSimPrep } from '../src/game/simWorker/simPrep';
+import { createInitialView } from '../src/game/viewState';
+import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
+import { resetSimRng } from '../src/game/simRng';
 import { ensureScentGrid } from '../src/game/scentGrid';
 import { WORKER_PROTO, type WorkerRequest, type WorkerResponse } from '../src/game/simWorker/protocol';
 import { MapSize, type WorldState } from '../src/game/gameTypes';
@@ -154,5 +157,42 @@ describe('scent field rollback and save persistence (F-1/F-2/F-3)', () => {
       producedTotal: 12,
       consumedTotal: 4,
     });
+  });
+});
+
+describe('N-19 — predator scent survives a save and load', () => {
+  afterEach(resetSimRng);
+
+  it('restores the decaying field instead of starting cold', () => {
+    const world = initGame({ skipTerrain: true, size: MapSize.Medium, seed: 20_261_112 });
+    ensureScentGrid(world).deposit(300, 300, 9);
+    const saved = buildSaveData(world, createInitialView(world.width, world.height));
+    const parsed = parseSaveJson(JSON.stringify(saved));
+    expect(parsed.valid).toBe(true);
+    if (!parsed.valid) return;
+    const loaded = loadGameFromParsed(parsed.parsed);
+    expect(loaded).not.toBeNull();
+    if (!loaded) return;
+
+    expect(loaded.world.scentGrid?.getScentAt(300, 300)).toBeCloseTo(9);
+    expect(loaded.world.scentGrid?.cols).toBe(world.scentGrid?.cols);
+  });
+
+  it('drops a malformed sidecar and loads a legacy save without one', () => {
+    const world = initGame({ skipTerrain: true, size: MapSize.Medium, seed: 20_261_112 });
+    ensureScentGrid(world).deposit(300, 300, 9);
+    const payload = buildSaveData(world, createInitialView(world.width, world.height));
+    payload.scentGrid = { cols: 1_000_000, rows: 2, cellSize: 80, values: [1, 2] };
+    const parsed = parseSaveJson(JSON.stringify(payload));
+    expect(parsed.valid).toBe(true);
+    if (!parsed.valid) return;
+    expect(loadGameFromParsed(parsed.parsed)?.world.scentGrid).toBeUndefined();
+
+    const legacy = buildSaveData(world, createInitialView(world.width, world.height));
+    delete legacy.scentGrid;
+    const legacyParsed = parseSaveJson(JSON.stringify(legacy));
+    expect(legacyParsed.valid).toBe(true);
+    if (!legacyParsed.valid) return;
+    expect(loadGameFromParsed(legacyParsed.parsed)?.world.scentGrid).toBeUndefined();
   });
 });

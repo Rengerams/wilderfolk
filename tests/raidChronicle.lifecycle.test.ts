@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CombatLogKind, CombatLogStage, GameEventLog, WorldState } from '../src/game/gameTypes';
-import { logEvent, selectRaidBattleEvents, summarizeCombatEvents } from '../src/game/eventLog';
+import { resolveCombatLogField, logEvent, selectRaidBattleEvents, summarizeCombatEvents } from '../src/game/eventLog';
 import { formatChronicleCSV } from '../src/game/eventLogExport';
 
 function entry(id: number, combatKind: CombatLogKind, combatStage: CombatLogStage, message: string): GameEventLog {
@@ -74,5 +74,22 @@ describe('raid chronicle lifecycle and combat stats', () => {
     logEvent(state, 'combat', 'Rivals are marching', 'Rivals', 'incoming_raid', 'dispatched', 'raid-test');
     expect(state.eventLog[0]).toMatchObject({ combatKind: 'incoming_raid', combatStage: 'dispatched', raidId: 'raid-test' });
     expect(summarizeCombatEvents(state.eventLog).raids).toBe(1);
+  });
+});
+
+describe('M7 — only combat entries are classified', () => {
+  const event = (over: Partial<GameEventLog>): GameEventLog =>
+    ({ id: 1, tick: 0, year: 0, day: 0, type: 'event', message: '', ...over }) as GameEventLog;
+
+  it('ignores a non-combat chronicle line that mentions a raid', () => {
+    expect(resolveCombatLogField(event({ type: 'event', message: 'A raid on the road delayed the caravan' }), 'combatKind')).toBeNull();
+    expect(resolveCombatLogField(event({ type: 'scandal', message: 'A raid story spread through the tavern' }), 'combatKind')).toBeNull();
+  });
+
+  it('classifies combat entries from their stored kind', () => {
+    expect(resolveCombatLogField(event({ type: 'combat', combatKind: 'repelled', message: 'x' }), 'combatKind')).toBe('repelled');
+    expect(
+      resolveCombatLogField(event({ type: 'combat', combatKind: 'incoming_raid', message: 'x' }), 'combatKind'),
+    ).toBe('incoming_raid');
   });
 });

@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { EntityType, TerrainType, emptyEntityByType } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { createEntity } from '../src/game/entityFactory';
+import {
+  OFFSCREEN_WILDLIFE_THROTTLE,
+  WILDLIFE_LAYER_INTERVAL,
+  isOffscreenWildlifeActive,
+} from '../src/game/simFocus';
 import { tickWildlife } from '../src/game/tickLayerSystems';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
@@ -164,5 +169,29 @@ describe('wildlife population policy', () => {
     expect(state.wildlifeCounts.wolves).toBeLessThanOrEqual(
       WILDLIFE_POPULATION_POLICY[EntityType.Wolf].replenishTarget,
     );
+  });
+});
+
+describe('M31 — the off-screen wildlife throttle counts layer pulses', () => {
+  it('lets every entity id act exactly once per throttle window', () => {
+    for (let id = 0; id < OFFSCREEN_WILDLIFE_THROTTLE; id++) {
+      let passes = 0;
+      const basePulse = Math.floor(id / OFFSCREEN_WILDLIFE_THROTTLE) * OFFSCREEN_WILDLIFE_THROTTLE + 1;
+      for (let pulse = basePulse; pulse < basePulse + OFFSCREEN_WILDLIFE_THROTTLE; pulse++) {
+        if (isOffscreenWildlifeActive(pulse * WILDLIFE_LAYER_INTERVAL, id)) passes++;
+      }
+      expect(passes).toBe(1);
+    }
+  });
+
+  it('is reachable for ids that the raw-tick formula never matched', () => {
+    // tickWildlife only runs on multiples of WILDLIFE_LAYER_INTERVAL.
+    for (const id of [1, 2, 3, 5, 6, 7]) {
+      let reachable = false;
+      for (let tick = 0; tick <= WILDLIFE_LAYER_INTERVAL * OFFSCREEN_WILDLIFE_THROTTLE * 2; tick += WILDLIFE_LAYER_INTERVAL) {
+        if (isOffscreenWildlifeActive(tick, id)) reachable = true;
+      }
+      expect(reachable).toBe(true);
+    }
   });
 });

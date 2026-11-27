@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { clearColonySessionState } from '../src/hooks/useGameSession';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   getHousingRelocationSnapshot,
   recordHousingRelocation,
@@ -52,5 +53,32 @@ describe('the relocation monitor', () => {
     expect(snapshot.totalMoves).toBe(100);
     expect(snapshot.recent).toHaveLength(64);
     expect(snapshot.recent.at(-1)?.members).toEqual([99]);
+  });
+});
+
+describe('N-29 — housing-relocation counters are session-scoped', () => {
+  afterEach(() => {
+    setHousingRelocationMonitorEnabled(false);
+    resetHousingRelocationMonitor();
+  });
+
+  it('clears the accumulated churn counters at the colony boundary', () => {
+    resetHousingRelocationMonitor();
+    setHousingRelocationMonitorEnabled(true);
+    recordHousingRelocation({ phase: 'audit', reason: 'test', members: [{ id: 1 }] });
+    expect(getHousingRelocationSnapshot().totalMoves).toBe(1);
+
+    clearColonySessionState({
+      cancelStripDemolition: () => {},
+      setBattleReport: (() => {}) as never,
+      setCampaignActive: (() => {}) as never,
+      setFamilyTreeFor: (() => {}) as never,
+      setHasPlacedHouse: (() => {}) as never,
+      setSelectedBuildingType: (() => {}) as never,
+      setWorkHoursOpen: (() => {}) as never,
+    });
+
+    expect(getHousingRelocationSnapshot().totalMoves).toBe(0);
+    expect(getHousingRelocationSnapshot().recent).toEqual([]);
   });
 });

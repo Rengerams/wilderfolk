@@ -270,3 +270,67 @@ describe('The Apprentice’s Terrible Invention Fair — canonical simulation co
     expect(demonstrated.resources.wood).toBe(after);
   });
 });
+
+describe('M17 — the Demonstration card is offered once and pays out once', () => {
+  function demoCount(state: WorldState): number {
+    return (state.pendingStoryEvents ?? []).filter((event) => event.id.startsWith('invention_resolution_')).length;
+  }
+
+  function advanceDays(state: WorldState, days: number): void {
+    state.dayInYear += days;
+    state.tick += days * TICKS_PER_DAY;
+  }
+
+  function fundedInventionFair(): WorldState {
+    const state = initGame({ size: 'medium', seed: 20240913 });
+    state.pendingStoryEvents = [];
+    state.storyFlags = {};
+    state.year = 0;
+    state.dayInYear = inventionFairEligibleDay(state.worldMap?.seed) + 1;
+    state.tick = state.dayInYear * TICKS_PER_DAY;
+    state.buildings = [hall()];
+    state.resources.wood = 100;
+    const apprentice = state.entities.find((entity) => entity.alive && entity.type === EntityType.Human);
+    if (!apprentice) throw new Error('fixture has no settler');
+    apprentice.apprenticeOfId = 1;
+
+    state.nextEntityId = Math.max(state.nextEntityId, ...state.entities.map((entity) => entity.id + 1));
+    let population = state.entities.filter((entity) => entity.alive && entity.type === EntityType.Human).length;
+    while (population++ < 15) state.entities.push({ ...structuredClone(apprentice), id: state.nextEntityId++, apprenticeOfId: undefined });
+    maybeOfferInventionFair(state);
+    if (!resolveInventionFair(state, 'fund_low_budget')) throw new Error('funding the rig was refused');
+    return state;
+  }
+
+  it('pushes one Demonstration card even when several colony days pass', () => {
+    const state = fundedInventionFair();
+
+    advanceDays(state, 10);
+    tickInventionFair(state);
+    state.tick += TICKS_PER_DAY;
+    tickInventionFairRealtime(state);
+    expect(demoCount(state)).toBe(1);
+
+    // Next colony day, card still unanswered: it must not be re-offered with a fresh id.
+    advanceDays(state, 1);
+    tickInventionFair(state);
+    expect(demoCount(state)).toBe(1);
+  });
+
+  it('does not repeat the stage-2 payout for a leftover duplicate answer', () => {
+    const state = fundedInventionFair();
+    advanceDays(state, 10);
+    tickInventionFair(state);
+    state.tick += TICKS_PER_DAY;
+    tickInventionFairRealtime(state);
+
+    expect(resolveInventionFair(state, 'dismantle')).toBe(true);
+    const woodAfterResolve = state.resources.wood;
+    const reputationAfterResolve = state.villageReputation;
+
+    // A leftover duplicate card must not pay out against the still-funded status.
+    expect(resolveInventionFair(state, 'keep')).toBe(true);
+    expect(state.resources.wood).toBe(woodAfterResolve);
+    expect(state.villageReputation).toBe(reputationAfterResolve);
+  });
+});

@@ -401,7 +401,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: '18:00 daily gating offers and schedules the 24-in-game-hour event; one realtime advance owns the 288-tick three-phase demonstration. Modern state is saved in WorldState, worker delta and rollback. Player story commands use the same owner; old flag-based saves continue resolving the legacy path.',
     writes: ['storyFlags', 'inventionFair', 'pendingStoryEvents', 'resources.wood', 'resources.gold', 'villageReputation', 'building.health', 'human.energy', 'human.needs.stamina', 'eventLog', 'bigNews', 'notifications'],
     scheduledFrom: 'tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → maybeOfferInventionFair/tickInventionFair; tickLayerRealtime → tickInventionFairRealtime; simWorker.commands respondToStoryEvent → storyEvents.respondToStoryEvent → inventionFair.resolveInventionFair',
-    testFile: 'tests/medium-C2-story.test.ts, tests/inventionFair.simulation.test.ts, tests/inventionFair.storageCap.test.ts, tests/inventionFair.invalidChoices.test.ts, tests/actionOutcome.test.ts',
+    testFile: 'tests/inventionFair.simulation.test.ts, tests/inventionFair.storageCap.test.ts, tests/inventionFair.invalidChoices.test.ts, tests/actionOutcome.test.ts',
   },
   authoredStoryExpiry: {
     owner: 'storyEvents.ts — tickPendingStoryEvents and the expire* resolvers; deerParliament/travelingTheatre/weddingDiplomacy/rumourLedger own their own resolved flags',
@@ -473,7 +473,7 @@ export const SIMULATION_DECISIONS = {
       'notifications',
     ],
     scheduledFrom: 'tickLayerDaily.tickYearBoundaryWorldEvents (00:00); dailyWorldEvents.tickDailyWorldEvents (18:00) → rollYearlyWorldEvent and tickFestivals; townHall.hostTownFestival via player command',
-    testFile: 'tests/dailyEconomy.ledgerEcology.test.ts, tests/medium-C2-story.test.ts, tests/festival.behavior.test.ts, tests/dayCycle.tavern.test.ts',
+    testFile: 'tests/dailyEconomy.ledgerEcology.test.ts, tests/inventionFair.simulation.test.ts, tests/festival.behavior.test.ts, tests/dayCycle.tavern.test.ts',
   },
   grassRegrowth: {
     owner: 'dailyGrassEcology.ts — tickGrassDaily; grassEcology.ts — GRASS_GROWTH_PER_DAY, getGrassGrowthMultiplier; ecosystemPressure.ts — getGrazingPressureReport (read-only estimate)',
