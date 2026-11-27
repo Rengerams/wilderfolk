@@ -682,7 +682,7 @@ export function getElectionCeremonyStatus(state: WorldState): string | null {
   }
 
   const until = getYearsUntilElection(state);
-  if (until === 1) return 'Leadership election next year — settlers are already whispering.';
+  if (until === 1 && state.dayInYear === DAYS_PER_YEAR - 1 && state.pendingElectionYear == null) return 'Leadership election tomorrow — settlers are already whispering.';
   if (until === 0) return 'Election this year — ceremony begins on the new year.';
   return null;
 }
@@ -738,7 +738,7 @@ export function tickElectionGossip(state: WorldState): void {
   const until = getYearsUntilElection(state);
   const inCeremony = state.electionCeremony != null;
   const vacancyPending = state.pendingElectionYear != null && !getVillageLeader(state);
-  if (until > 1 && !inCeremony && !vacancyPending) return;
+  if (!inCeremony && !vacancyPending && !(until === 1 && state.dayInYear === DAYS_PER_YEAR - 1)) return;
   if (!state.entities.some((entity) => isEligibleForLeadership(entity, state))) return;
 
   let chance = 0;
@@ -855,17 +855,18 @@ export function startElectionCeremony(
 export function tickElectionBuildup(
   state: WorldState,
   electionYear: number,
-  yearRollover: boolean,
+  dayInYear: number,
 ): ElectionBuildupNotice | null {
-  if (!yearRollover || electionYear <= 0) return null;
+  if (dayInYear !== DAYS_PER_YEAR - 1 || state.pendingElectionYear != null || state.electionCeremony) return null;
 
   const until = getYearsUntilElectionForYear(electionYear, state.lastElectionYear);
+  const targetYear = electionYear + 1;
 
-  if (until === 1 && state.electionBuildupNotifiedYear !== electionYear) {
-    state.electionBuildupNotifiedYear = electionYear;
+  if (until === 1 && state.electionBuildupNotifiedYear !== targetYear) {
+    state.electionBuildupNotifiedYear = targetYear;
     return {
-      title: '🗳️ Election next year',
-      message: `Year ${displayYear(electionYear)} — leadership election next year. Settlers are already whispering about who should lead ${state.villageName}.`,
+      title: '🗳️ Election tomorrow',
+      message: `The regular leadership election begins in 24 hours (Year ${displayYear(targetYear)}, Day 0). Settlers are already whispering about who should lead ${state.villageName}.`,
     };
   }
 
