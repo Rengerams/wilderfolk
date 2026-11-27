@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-27 — [Battle reports repeat and mix raid commentary](../bug_report/2026-11-27-battle-report-repeats-commentary.md):** investigating; raid-ID timeline, chronological order, resume, redundant casualty-summary suppression and single victory announcement implemented; regression and live-save verification pending.
+
 **2026-11-26 — [HUD notifications expire before presentation](../bug_report/2026-11-26-hud-notifications-expire-before-presentation.md):** investigating; PR #216 adds FIFO presentation, visible-time expiry, worker acknowledgement and bounded overflow summaries. CI verified on `31d6957` (3,418 tests, all five workflows); browser/live-save verification pending.
 
 **2026-11-26 — [Staffing capacity search abandons larger eligible donors](../bug_report/2026-11-26-workforce-donor-search-stops-early.md):** investigating; PR #213 source fix and focused CI regressions passed on head `22ac3cb5`; follow-up CI pending.
