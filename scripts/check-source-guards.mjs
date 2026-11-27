@@ -851,7 +851,7 @@ const SOURCE_ROWS = [
     checks: [
       {
         file: 'src/hooks/useKeyboardControls.ts',
-        contains: ["window.addEventListener('blur', releaseHeldKeys)", 'keysRef.current.clear();'],
+        contains: ["window.addEventListener('blur', releaseHeldKeys)", "document.addEventListener('visibilitychange', releaseHeldKeys)", 'keysRef.current.clear();'],
       },
     ],
   },
