@@ -2,7 +2,11 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Maintenance (27 Nov 2026):** Move single-owner source-text guards out of the unit test tier into the static check step, which proves each rule still catches a reintroduction; 138 source-only cases leave vitest; eight source-only files are removed, 117 rules guard the tree, and declarative clauses have individual mutation proofs.
+- **Maintenance (27 Nov 2026):** Move 138 source-only tests into 117 static guards, prove declarative clauses individually, restore the People behavior test, and remove unused rendering exports.
+
+- **Fixed (27 Nov 2026):** Married settlers no longer abandon nighttime home travel to chase distant partners at leisure speed, preventing widespread sleep loss and critical exhaustion.
+
+- **Fixed (27 Nov 2026):** Deployed war-band soldiers regain rest/stamina through normal field sleep, pay ordinary march fatigue instead of phantom barracks attendance, and cannot conceive at their frozen village coordinates.
 
 - **Fixed (27 Nov 2026):** Children no longer choose shallow water as a play site; shared cached sites are revalidated for dry terrain and safe arrival clearance without changing ordinary wading navigation.
 

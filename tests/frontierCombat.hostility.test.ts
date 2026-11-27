@@ -316,6 +316,33 @@ describe('mobilized raid lifecycle', () => {
     expect(world.graveRecords?.length ?? 0).toBe(graveCount);
   });
 
+  it('announces one successful surrender and preserves its fate decision across repeated ticks', () => {
+    const world = launchRaidOnRival(village([rival({ relationship: 'tense' })]), 'rival_oakcrossing');
+    const dispatched = world.pendingOutgoingRaidEvents[0]!;
+    dispatched.rivalResponse = 'fight';
+    dispatched.attackerStrength = 40;
+    dispatched.defenderStrength = 10;
+    world.tick = dispatched.arrivalAtTick!;
+    tickPendingOutgoingRaidEvents(world);
+    const raid = world.pendingOutgoingRaidEvents[0]!;
+    expect(raid.phase).toBe('fighting');
+    const priorNewsIds = new Set(world.bigNews.map((item) => item.id));
+
+    world.tick = raid.battleStartedAtTick! + 6 * TICKS_PER_HOUR;
+    tickPendingOutgoingRaidEvents(world);
+    tickPendingOutgoingRaidEvents(world);
+
+    const victoryNews = world.bigNews.filter((item) => !priorNewsIds.has(item.id)
+      && /surrendered|victorious/.test(item.title));
+    expect(victoryNews).toHaveLength(1);
+    expect(victoryNews[0]!.message).toContain('OakCrossing');
+    expect(victoryNews[0]!.message).toContain('enemy dead');
+    expect(victoryNews[0]!.message).toContain("decide the settlement's fate");
+    expect(world.pendingRaidVictories?.filter((item) => item.raidId === raid.id)).toHaveLength(1);
+    expect(world.raidBattleReports?.filter((item) => item.raidId === raid.id)).toHaveLength(1);
+    expect(raid.phase).toBe('returning');
+  });
+
   it('allows breaking an active treaty, which ends the treaty and declares war', () => {
     const state = village([rival({ relationship: 'neutral', peaceTreatyDays: 14 })]);
     expect(canProvokeRival(state, state.rivalSettlements[0]!).ok).toBe(true);

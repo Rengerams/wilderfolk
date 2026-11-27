@@ -1,8 +1,14 @@
 # Bug report summary — one line per report
 
+**2026-11-27 — [Nighttime spouse chasing blocks recovery sleep](../bug_report/2026-11-27-nighttime-spouse-chase-prevents-sleep.md):** investigating; an inspected Year-1 Day-304 save found 46 zero-rest adults (43 women, 41 on spouse-chase pace) and 71 critically low stamina; the free-time chase no longer overrides sleep commutes, regression CI pending.
+
+**2026-11-27 — [War-band soldiers never recover rest while deployed](../bug_report/2026-11-27-warband-camp-rest-exhaustion.md):** investigating; camp night sleep uses the normal physiology owner, with a 23:00–06:00 regression; earlier CI failed because its fixture began at 22:00; corrected test CI pending.
+
+**2026-11-27 — [Deployed war-band workers earn phantom village production and conceptions](../bug_report/2026-11-27-warband-phantom-village-activity.md):** investigating; canonical production attendance now excludes deployed workers even with prior-day hours, and conception checks reject absent partners; regression and CI pending.
+
 **2026-11-27 — [Children select shallow water as a play site](../bug_report/2026-11-27-child-play-sites-in-shallow-water.md):** investigating; PR #222 rejects wet play sites and arrival clearance, revalidates saved group destinations, preserves wading; 932 affected tests and all six PR workflows passed on `f5a158a81`; live-save verification pending.
 
-**2026-11-27 — [Battle reports repeat and mix raid commentary](../bug_report/2026-11-27-battle-report-repeats-commentary.md):** investigating; raid-ID timeline, chronological order, resume, redundant casualty-summary suppression and single victory announcement implemented; regression and live-save verification pending.
+**2026-11-27 — [Battle reports repeat and mix raid commentary](../bug_report/2026-11-27-battle-report-repeats-commentary.md):** investigating; raid-ID timeline, chronological order, resume, redundant casualty-summary suppression and single victory announcement implemented; PR #224 adds a dedicated real raid lifecycle regression for exactly one victory announcement and persistent fate; follow-up CI and live-save verification pending.
 
 **2026-11-26 — [HUD notifications expire before presentation](../bug_report/2026-11-26-hud-notifications-expire-before-presentation.md):** investigating; PR #216 adds FIFO presentation, visible-time expiry, worker acknowledgement and bounded overflow summaries. CI verified on `31d6957` (3,418 tests, all five workflows); browser/live-save verification pending.
 
