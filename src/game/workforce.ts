@@ -282,83 +282,11 @@ export function findOverstaffedDonorBuilding(
   return best ?? seed;
 }
 
-/**
- * Read-only supply for one prospective food workplace: only genuinely movable staff above the same
- * protected minimum that real transfers enforce.
- */
-function prospectiveFoodTransferDonors(
-  humans: Entity[],
-  buildings: Building[],
-  currentTick: number,
-): { workers: Entity[]; spareSlots: number }[] {
-  const workersBySite = new Map<number, Entity[]>();
-  for (const human of humans) {
-    if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE
-      || human.workerBuildingId == null
-      || !canAutoChangeWorkplace(human, currentTick, true)) continue;
-    const assigned = workersBySite.get(human.workerBuildingId) ?? [];
-    assigned.push(human);
-    workersBySite.set(human.workerBuildingId, assigned);
-  }
-  const counts = buildWorkforceAssignmentIndex(humans, currentTick, true).counts;
-  const donors: { workers: Entity[]; spareSlots: number }[] = [];
-  for (const site of completedJobBuildings(buildings, 'survival')) {
-    const spareSlots = Math.min(
-      Math.max(0, (counts.get(site.id) ?? 0) - minimumAutoCoverage(site)),
-      workersBySite.get(site.id)?.length ?? 0,
-    );
-    if (spareSlots > 0) donors.push({ workers: workersBySite.get(site.id)!, spareSlots });
-  }
-  return donors;
-}
-
-/** Read-only food capacity information for planners; no staffing action is proposed. */
-export function findUnstaffedFoodProducer(state: WorldState): Building | undefined {
-  return state.buildings.find((site) => site.completed && isFoodWorkplace(site)
-    && countActiveWorkersAtBuilding(state.entities, site.id) < staffingCapFor(site, state.entities).cap);
-}
-
 /** Shared idle employment eligibility, including construction and apprenticeship reservations. */
 function isIdleWorkforceCandidate(human: Entity, crewIds: ReadonlySet<number>): boolean {
   return human.alive && isPlayerHuman(human) && human.age >= HUMAN_ADULT_MIN_AGE
     && !hasWorkAssignment(human) && human.apprenticeOfId == null
     && !isImprisoned(human) && !crewIds.has(human.id);
-}
-
-/**
- * Read-only construction feasibility: the same employment eligibility, donor floors and commute
- * rules used by the workforce owner. Returns null when current/pending vacancies exhaust supply.
- * The first food site is permitted as a bootstrap. No settler or policy is changed.
- */
-export function prospectiveFoodSiteStaffing(state: WorldState): ((spot: { x: number; y: number }) => boolean) | null {
-  const sites = state.buildings.filter(isFoodWorkplace);
-  if (sites.length === 0) return () => true;
-  const crewIds = new Set(buildConstructionCrewIndex(state.buildings).keys());
-  const idle = state.entities.filter((human) => isIdleWorkforceCandidate(human, crewIds));
-  const donors = hasFoodStaffingPressure(state)
-    ? prospectiveFoodTransferDonors(state.entities, state.buildings, state.tick)
-    : [];
-  const counts = buildWorkforceAssignmentIndex(state.entities).counts;
-  const openPosts = sites.reduce((sum, site) => sum + (site.completed
-    ? Math.max(0, staffingCapFor(site, state.entities, counts.get(site.id) ?? 0).cap - (counts.get(site.id) ?? 0))
-    : BUILDING_CONFIGS[site.type].maxOccupants), 0);
-  if (idle.length + donors.reduce((sum, donor) => sum + donor.spareSlots, 0) <= openPosts) return null;
-  const origins = new Map<number, Entity>();
-  for (const person of [...idle, ...donors.flatMap((donor) => donor.workers)]) {
-    const key = person.residenceBuildingId ?? -(person.id + 1);
-    if (!origins.has(key)) origins.set(key, person);
-  }
-  const buildingById = new Map(state.buildings.map((site) => [site.id, site]));
-  const walkSpeed = SPECIES_CONFIG[EntityType.Human].speed;
-  return (spot) => {
-    for (const person of origins.values()) {
-      const from = (person.residenceBuildingId == null
-        ? undefined : buildingById.get(person.residenceBuildingId)) ?? person;
-      if (straightLineCommuteLowerBoundHours(from, spot, walkSpeed) > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
-      if (isWithinAssignableCommute(person, spot, state.buildings, walkSpeed, buildingById, state.worldMap)) return true;
-    }
-    return false;
-  };
 }
 
 export function pickWorkerToTransfer(
