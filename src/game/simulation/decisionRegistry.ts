@@ -362,7 +362,7 @@ export const SIMULATION_DECISIONS = {
       'villageForge.completed',
     ],
     scheduledFrom: 'tickLayerDaily',
-    testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts, tests/workSkillAttribution.accrual.test.ts, tests/forge.cadence.test.ts, tests/production.attendancePacing.test.ts',
+    testFile: 'tests/storageCap.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts, tests/workSkillAttribution.accrual.test.ts, tests/forge.cadence.test.ts, tests/production.attendancePacing.test.ts',
   },
   wildlifePredation: {
     owner: 'tickLayerSystems.tickWildlife — sole wildlife AI owner (hunt, predation, metabolism, reproduction); tickLayerSystems.tickWolfRecruitment — rare wolf migration; wildlifePopulationPolicy.getWildlifeCarryingCapacity owns the prey-supported breeding/migration cap; speciesConfig.getPreyEnergyGain owns prey energy; GRAZER_METABOLISM owns grazer metabolism',

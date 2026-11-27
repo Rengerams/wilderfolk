@@ -11,7 +11,7 @@ They were verified present, fixed, and re-tested on the final tree.
 | Worker ignores `simVersion` in the handshake | `isWorkerSimVersion` / `workerSimVersionMismatch`; init rejects a mismatched worker | `tests/gameWorker.uploadWatchdog.test.ts` |
 | Main-thread fallback runs at most one tick/frame | fallback drains `catchUpBudgetFor(speed)` ticks | `tests/gameLoop.fallbackTickRollback.test.ts` |
 | `hasMill` counts rival Mills for the player farm bonus | `isCompletedPlayerBuilding` gate | `tests/economyWorkforce.auditRemediation.test.ts` |
-| Fresh colony starts at 0.03 spoilage while the daily owner writes 0.02 | `worldGen` calls `updateStorageCaps`; legacy payloads take the owner's rate | `tests/economyAudit.storageCaps.test.ts`, `tests/low-4-save-worldgen.test.ts` |
+| Fresh colony starts at 0.03 spoilage while the daily owner writes 0.02 | `worldGen` calls `updateStorageCaps`; legacy payloads take the owner's rate | `tests/storageCap.test.ts`, `tests/low-4-save-worldgen.test.ts` |
 | Workshop preview uses yesterday's hours while production uses today's presence | both read `getWorkdayAttendance` | `tests/workshopEconomy.test.ts` |
 | `workforce.barracksAutoFill` asserts `> 1` and leaves a barracks short | asserts the full post count and a legal donor floor | `tests/workforce.barracksAutoFill.test.ts` |
 | Jailed worker's post counts as filled | `countActiveWorkersAtBuilding` excludes jailed holders; an idle hand backfills | `tests/economyWorkforce.auditRemediation.test.ts` |

@@ -185,7 +185,7 @@ present in the worktree before touching them. **These are not in the 158 fixed r
 | Worker ignores `simVersion` in the handshake | §4.4 | **Fixed** — `isWorkerSimVersion`/`workerSimVersionMismatch`, `tests/gameWorker.uploadWatchdog.test.ts` |
 | Main-thread fallback runs at most one tick/frame | §4.4 | **Fixed** — `catchUpBudgetFor(speed)`, `tests/gameLoop.fallbackTickRollback.test.ts` |
 | `hasMill` counts rival Mills for the player farm bonus | §4.3 | **Fixed** — `isCompletedPlayerBuilding`, `tests/economyWorkforce.auditRemediation.test.ts` |
-| Fresh colony starts at 0.03 spoilage while the daily owner writes 0.02 | §4.3 | **Fixed** — `worldGen` calls `updateStorageCaps`, `tests/economyAudit.storageCaps.test.ts` |
+| Fresh colony starts at 0.03 spoilage while the daily owner writes 0.02 | §4.3 | **Fixed** — `worldGen` calls `updateStorageCaps`, `tests/storageCap.test.ts` |
 | Workshop preview uses yesterday's hours while production uses today's presence | §4.3 | **Fixed** — both read `getWorkdayAttendance`, `tests/workshopEconomy.test.ts` |
 | `workforce.barracksAutoFill` asserts `> 1` and leaves a barracks short | §4.4 | **Fixed** — asserts the full post count, `tests/workforce.barracksAutoFill.test.ts` |
 | Jailed worker's post counts as filled | §5 | **Fixed** — `countActiveWorkersAtBuilding` excludes jailed holders, `tests/economyWorkforce.auditRemediation.test.ts` |

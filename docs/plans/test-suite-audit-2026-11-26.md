@@ -139,6 +139,10 @@ Nine source-only cases in eight mixed test files were moved to nine declarative 
 
 Strengthened saved-birthday tests to compare complete settler ID sets and exact dates across two round trips; the legacy age test can no longer pass when settlers disappear. Forced dialogue checks preserve the live session and visible-line duration and prove that the control actually speaks. The commute fixture must contain both completed homes and farms, the peak-population record includes its year, and catch notifications assert the accepted count in the displayed text. Positive/non-empty premises are retained where they prevent vacuous tests. Full CI verification is pending.
 
+## First owner-file consolidation — 2026-11-27
+
+Moved all ten storage-cap, spoilage, upgrade and catalogue cases from `economyAudit.storageCaps.test.ts` into `storageCap.test.ts`. Reused its existing `makeWorld` and `addBuilding` fixtures rather than duplicating them; no behavioral case was deleted. Updated the decision registry and active audit references. This reduces the file count by one, not the case count. Verification is pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

@@ -687,6 +687,7 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/low-7-sim-geometry.test.ts` | `entity`, `militiaWorld`, `realtimeContext`, `keyOf` |
 | `tests/medium-A-movement.test.ts` | `makeMap`, `pixel`, `hotel`, `hospital`, `makeState`, `findQualifyingTreatmentDay` |
 | `tests/pathfinding.test.ts` | `makeMap` |
+| `tests/storageCap.test.ts` | `addCompleted`, `makeWorld`, `addBuilding`, `capsFor` (storage fixtures consolidated from `economyAudit.storageCaps.test.ts`) |
 | `tests/rpgArt.integration.test.ts` | `localAsset` |
 | `tests/stripDemolition.workerProtocol.test.ts` | `cmd` |
 | `tests/stripPlacement.crossings.test.ts` | `worldFor`, `crossingSpot`, `completedStrip` |

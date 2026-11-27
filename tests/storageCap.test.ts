@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { computeStorageMax, updateStorageCaps } from '../src/game/economy';
+import { buildingTypeHasLevelBenefit, getBuildingUpgradeEligibility } from '../src/game/buildingMaintenanceActions';
 import { initGame } from '../src/game/worldGen';
 import { buildSaveData, loadGameFromParsed } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
@@ -220,5 +221,106 @@ describe('E-1 — storage contributors require completed buildings', () => {
     expect(completed.storageMax.food).toBeGreaterThan(base.storageMax.food);
     expect(completed.storageMax.stone).toBeGreaterThan(base.storageMax.stone);
     expect(completed.foodSpoilageRate).toBeLessThan(base.foodSpoilageRate);
+  });
+});
+
+describe('storage capacity, spoilage and upgrades', () => {
+  it('base caps: wood 800 (winter banking), food 800, gold capped at 20000', () => {
+    const w = makeWorld();
+    updateStorageCaps(w);
+    expect(w.storageMax.wood).toBe(800);
+    expect(w.storageMax.food).toBe(800);
+    expect(w.storageMax.gold).toBe(20000);
+  });
+
+  it('base spoilage is 2% (was 3%)', () => {
+    const w = makeWorld();
+    updateStorageCaps(w);
+    expect(w.foodSpoilageRate).toBeCloseTo(0.02);
+  });
+
+  it('a fresh colony starts at the daily owner\'s spoilage rate', () => {
+    const world = initGame({ skipTerrain: true, villageName: 'Fresh', seed: 20_261_112 });
+    const ownerWorld = makeWorld();
+    updateStorageCaps(ownerWorld);
+
+    expect(world.foodSpoilageRate).toBe(ownerWorld.foodSpoilageRate);
+    expect(world.foodSpoilageRate).toBeCloseTo(0.02);
+  });
+
+  it('one Storehouse adds +800 capacity for all non-food resources', () => {
+    const w = makeWorld();
+    addBuilding(w, BuildingType.WoodStorehouse);
+    updateStorageCaps(w);
+    expect(w.storageMax.wood).toBe(1600);
+    expect(w.storageMax.stone).toBe(1100);
+    expect(w.storageMax.iron).toBe(1100);
+    expect(w.storageMax.gold).toBe(20800);
+    expect(w.storageMax.food).toBe(800);
+  });
+
+  it('upgraded Storehouses add 1800 at level 2 and 2800 at level 3 to each non-food resource', () => {
+    const w = makeWorld();
+    addBuilding(w, BuildingType.WoodStorehouse);
+    w.buildings[0]!.level = 2;
+    updateStorageCaps(w);
+    expect(w.storageMax).toMatchObject({ wood: 2600, stone: 2100, iron: 2100, gold: 21800, food: 800 });
+    w.buildings[0]!.level = 3;
+    updateStorageCaps(w);
+    expect(w.storageMax).toMatchObject({ wood: 3600, stone: 3100, iron: 3100, gold: 22800, food: 800 });
+    addBuilding(w, BuildingType.WoodStorehouse);
+    updateStorageCaps(w);
+    expect(w.storageMax).toMatchObject({ wood: 4400, stone: 3900, iron: 3900, gold: 23600, food: 800 });
+  });
+
+  it('a Silo raises food storage to 2800 and cuts spoilage to 0.8%', () => {
+    const w = makeWorld();
+    addBuilding(w, BuildingType.Silo);
+    updateStorageCaps(w);
+    expect(w.storageMax.food).toBe(2800);
+    expect(w.foodSpoilageRate).toBeCloseTo(0.008);
+  });
+
+  it('upgraded Silos grant 2500 at level 2 and 3000 at level 3, stacking by building', () => {
+    const w = makeWorld();
+    addBuilding(w, BuildingType.Silo);
+    w.buildings[0]!.level = 2;
+    updateStorageCaps(w);
+    expect(w.storageMax.food).toBe(3300);
+    w.buildings[0]!.level = 3;
+    updateStorageCaps(w);
+    expect(w.storageMax.food).toBe(3800);
+    addBuilding(w, BuildingType.Silo);
+    updateStorageCaps(w);
+    expect(w.storageMax.food).toBe(5800);
+  });
+
+  it('a Barn raises wood storage +300 and food +400', () => {
+    const w = makeWorld();
+    addBuilding(w, BuildingType.Barn);
+    updateStorageCaps(w);
+    expect(w.storageMax.wood).toBe(1100);
+    expect(w.storageMax.food).toBe(1200);
+  });
+
+  it('offers upgrades for both storage types at levels 1 and 2', () => {
+    for (const type of [BuildingType.Silo, BuildingType.WoodStorehouse]) {
+      const world = makeWorld();
+      world.resources = { wood: 500, stone: 500, gold: 500, food: 0, iron: 0 };
+      addBuilding(world, type);
+      expect(buildingTypeHasLevelBenefit(type)).toBe(true);
+      expect(getBuildingUpgradeEligibility(world, world.buildings[0]!.id).ok).toBe(true);
+      world.buildings[0]!.level = 2;
+      expect(getBuildingUpgradeEligibility(world, world.buildings[0]!.id).ok).toBe(true);
+      world.buildings[0]!.level = 3;
+      expect(getBuildingUpgradeEligibility(world, world.buildings[0]!.id).ok).toBe(false);
+    }
+  });
+
+  it('the Storehouse config retains its sprite and saved building type', () => {
+    const cfg = BUILDING_CONFIGS[BuildingType.WoodStorehouse];
+    expect(cfg.sprite).toBe('/sprites/storehouse.png');
+    expect(cfg.label).toBe('Storehouse');
+    expect(cfg.maxOccupants).toBe(0);
   });
 });

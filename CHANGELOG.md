@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Tests (27 Nov 2026):** Consolidate storage capacity, spoilage and upgrade regressions under their existing storage-cap test owner, preserving all ten cases.
+
 - **Tests (27 Nov 2026):** Strengthen birthdate round trips, dialogue-session preservation, commute fixture coverage, population records and accepted-catch notification assertions.
 
 - **Maintenance (27 Nov 2026):** Move nine more source-only cases into the static guard registry, retain behavior tests, and remove the retired corner rotation helper.

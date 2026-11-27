@@ -181,7 +181,7 @@ condition is still present; `Needs verification` means no proof was run in this 
 | N-02 | Worker handshake ignores simVersion | Fixed | tests/gameWorker.uploadWatchdog.test.ts |
 | N-03 | Main-thread fallback runs at most one tick per frame | Fixed | tests/gameLoop.fallbackTickRollback.test.ts |
 | N-04 | hasMill counts rival Mills for the player farm bonus | Fixed | tests/economyWorkforce.auditRemediation.test.ts |
-| N-05 | Fresh colony starts at 0.03 spoilage while the daily owner writes 0.02 | Fixed | tests/economyAudit.storageCaps.test.ts |
+| N-05 | Fresh colony starts at 0.03 spoilage while the daily owner writes 0.02 | Fixed | tests/storageCap.test.ts |
 | N-06 | Workshop preview uses yesterday's hours while production uses today's presence | Fixed | tests/workshopEconomy.test.ts |
 | N-07 | workforce.barracksAutoFill leaves a barracks short | Fixed | tests/workforce.barracksAutoFill.test.ts |
 | N-08 | Jailed worker's post counts as filled | Fixed | tests/economyWorkforce.auditRemediation.test.ts |
