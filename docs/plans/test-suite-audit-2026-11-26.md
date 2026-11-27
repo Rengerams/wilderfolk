@@ -143,6 +143,10 @@ Strengthened saved-birthday tests to compare complete settler ID sets and exact 
 
 Moved all ten storage-cap, spoilage, upgrade and catalogue cases from `economyAudit.storageCaps.test.ts` into `storageCap.test.ts`. Reused its existing `makeWorld` and `addBuilding` fixtures rather than duplicating them; no behavioral case was deleted. Updated the decision registry and active audit references. This reduces the file count by one, not the case count. Verification is pending.
 
+## Third source-guard increment — 2026-11-27
+
+Ten source-only cases from four mixed files now run as ten declarative guards: ready trade labels, defence ratio display, election delay, recruitment costs, population aggregates, capped production, trade eligibility/counts, and Chronicle handover/export. All behavioral tests remain. The registry now contains 136 rules (14 handwritten, 122 declarative). Each new clause was checked against the branch source before committing. Full CI is pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

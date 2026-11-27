@@ -2,8 +2,6 @@
  * The trade-route eligibility rule lives in the trade owner and the UI must ask it, including the
  * coin→materials rescue routes the owner exempts from the Market requirement.
  */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Building, Resources, TradeRoute, WorldState } from '../src/game/gameTypes';
@@ -83,20 +81,5 @@ describe('trade-route eligibility (owner rule)', () => {
   it('blocks a route that is already active', () => {
     const rescue = rescueRoute({ active: true });
     expect(canEstablishTradeRoute(state([], [rescue]), rescue.id).ok).toBe(false);
-  });
-});
-
-describe('the trade UI asks the owner instead of restating the rule', () => {
-  const panelSource = readFileSync(resolve(process.cwd(), 'src/components/tabPanels/ProgressTabPanel.tsx'), 'utf8');
-  const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
-
-  it('ProgressTabPanel derives eligibility from canEstablishTradeRoute', () => {
-    expect(panelSource).toContain('canEstablishTradeRoute(state, route.id)');
-    expect(panelSource).not.toContain('marketOk && repOk');
-    expect(panelSource).not.toContain("'Need Market'");
-  });
-
-  it('App derives tradeReadyCount from canEstablishTradeRoute', () => {
-    expect(appSource).toContain('canEstablishTradeRoute(world, r.id)');
   });
 });

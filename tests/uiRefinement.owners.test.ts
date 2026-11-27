@@ -51,16 +51,6 @@ describe('R1 — the unmount save never writes a colony no loop owns', () => {
   });
 });
 
-describe('R4 — an establishable trade route is not labelled "Unavailable"', () => {
-  it('labels the inactive-but-ready state from the owner result', () => {
-    const panel = read('src/components/tabPanels/ProgressTabPanel.tsx');
-    expect(panel).toContain("'Ready to establish'");
-    expect(panel, 'the ready label is no longer gated on the owner eligibility').toMatch(
-      /eligibility\.ok[\s\S]{0,80}'Ready to establish'/,
-    );
-  });
-});
-
 describe('R8 — every goal card reports progress from the challenge\'s own targets', () => {
   it('gives each unfinished initial challenge a non-empty current / target row', () => {
     const state = world();
@@ -89,48 +79,5 @@ describe('R8 — every goal card reports progress from the challenge\'s own targ
     expect(getChallengeProgress({ ...century!, completed: false }, state)).toMatchObject({
       current: 42, target: 100, unit: 'years',
     });
-  });
-});
-
-describe('R22 — the printed defence ratio never rounds across a verdict band', () => {
-  it('floors the ratio instead of rounding it up into the next tier', () => {
-    const panel = read('src/game/CombatPreviewPanel.tsx');
-    expect(panel).toMatch(/Math\.floor\(ratio \* 100\)/);
-    expect(panel, 'a rounded ratio can print 135% beside a non-decisive badge')
-      .not.toMatch(/Math\.round\(ratio \* 100\)/);
-  });
-});
-
-describe('R24 — the leadership panel states the vacancy delay its owner uses', () => {
-  it('interpolates the owner constant instead of promising "3 months"', () => {
-    const panel = read('src/game/VillageLeadershipPanel.tsx');
-    expect(panel).toContain('formatElectionDelay(VACANCY_ELECTION_DELAY_YEARS)');
-    expect(panel, 'the vacancy delay is typed as prose again').not.toMatch(
-      /election is held 3 months later/,
-    );
-  });
-});
-
-describe('R25 — recruitment is priced and gated by its owner', () => {
-  it('keeps the village panel on getRecruitSettlerEligibility and RECRUITMENT_COST', () => {
-    const panel = read('src/components/tabPanels/VillageTabPanel.tsx');
-    expect(panel).toContain('getRecruitSettlerEligibility(state)');
-    expect(panel).toContain('RECRUITMENT_COST.food');
-    expect(panel).toContain('RECRUITMENT_COST.gold');
-    expect(panel, 'the panel re-derives the recruitment price or gate again').not.toMatch(
-      /food >= 30|gold >= 20|\(30🍖 20💰\)/,
-    );
-  });
-});
-
-describe('R29 — the household panel reads the village aggregation and assignable beds', () => {
-  it('takes its counts and beds from computeVillageStats, and re-derives neither', () => {
-    const panel = read('src/game/PopulationPanel.tsx');
-    expect(panel).toContain('computeVillageStats(state)');
-    // Beds come from `computeVillageStats` → the growth owner's `getTotalBeds`, not a local
-    // sum of `building.occupants`; this guard pins that read.
-    expect(panel).toContain('villageStats.beds');
-    expect(panel, 'the raw tick counters are back').not.toMatch(/state\.workingSettlers|state\.idleSettlers/);
-    expect(panel, 'the housing label counts unassignable beds again').not.toMatch(/getOpenBeds\(/);
   });
 });

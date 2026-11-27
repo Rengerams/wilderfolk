@@ -1413,6 +1413,68 @@ const SOURCE_ROWS = [
       { file: "src/game/buildingActions.ts", absent: true },
     ],
   },
+  // Third increment: UI owner, production and Chronicle contracts.
+  {
+    id: "trade-route-ready-label-owner",
+    checks: [
+      { file: "src/components/tabPanels/ProgressTabPanel.tsx", contains: "'Ready to establish'", matches: /eligibility\.ok[\s\S]{0,80}'Ready to establish'/ },
+    ],
+  },
+  {
+    id: "defence-ratio-floor",
+    checks: [
+      { file: "src/game/CombatPreviewPanel.tsx", matches: /Math\.floor\(ratio \* 100\)/, notMatches: /Math\.round\(ratio \* 100\)/, example: "Math.round(ratio * 100)" },
+    ],
+  },
+  {
+    id: "leadership-vacancy-delay-owner",
+    checks: [
+      { file: "src/game/VillageLeadershipPanel.tsx", contains: "formatElectionDelay(VACANCY_ELECTION_DELAY_YEARS)", notMatches: /election is held 3 months later/, example: "election is held 3 months later" },
+    ],
+  },
+  {
+    id: "village-recruitment-price-owner",
+    checks: [
+      { file: "src/components/tabPanels/VillageTabPanel.tsx", contains: ["getRecruitSettlerEligibility(state)", "RECRUITMENT_COST.food", "RECRUITMENT_COST.gold"], notMatches: /food >= 30|gold >= 20|\(30🍖 20💰\)/, example: "food >= 30" },
+    ],
+  },
+  {
+    id: "population-aggregate-owner",
+    checks: [
+      { file: "src/game/PopulationPanel.tsx", contains: ["computeVillageStats(state)", "villageStats.beds"], notMatches: [/state\.workingSettlers|state\.idleSettlers/, /getOpenBeds\(/], example: ["state.workingSettlers", "getOpenBeds(state)"] },
+    ],
+  },
+  {
+    id: "production-cap-announcement-owner",
+    checks: [
+      { file: "src/game/dailyBuildingEconomy.ts", contains: "function addProductionOutput", notMatches: /if \(addResource\(/, example: "if (addResource(state, 'wood', 1)) {}" },
+      { file: "src/components/GameHeader.tsx", contains: ["isResourceCapped(world, 'food')", "isResourceCapped(world, 'wood')", "isResourceCapped(world, 'gold')", "isResourceCapped(world, 'stone')", "isResourceCapped(world, 'iron')"] },
+    ],
+  },
+  {
+    id: "trade-panel-eligibility-owner",
+    checks: [
+      { file: "src/components/tabPanels/ProgressTabPanel.tsx", contains: "canEstablishTradeRoute(state, route.id)", notContains: ["marketOk && repOk", "'Need Market'"] },
+    ],
+  },
+  {
+    id: "trade-ready-count-owner",
+    checks: [
+      { file: "src/App.tsx", contains: "canEstablishTradeRoute(world, r.id)" },
+    ],
+  },
+  {
+    id: "chronicle-filter-handover",
+    checks: [
+      { file: "src/game/EventLogPanel.tsx", contains: "filterChoice.handedOver === initialFilter", notContains: "useEffect" },
+    ],
+  },
+  {
+    id: "chronicle-export-full-history",
+    checks: [
+      { file: "src/game/EventLogPanel.tsx", contains: ["downloadChronicleLog(events, meta)", "downloadChronicleJSON(events, meta)", "downloadChronicleCSV(events, meta)"], notContains: ["downloadChronicleLog(allFiltered, meta)", "downloadChronicleJSON(allFiltered, meta)", "downloadChronicleCSV(allFiltered, meta)"] },
+    ],
+  },
 ];
 
 const asArray = (value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]);
