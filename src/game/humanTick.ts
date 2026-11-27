@@ -1486,10 +1486,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Married couples proximity — free time only: a settler on a shift keeps the post his work
-    // commute gave him (a Prison is not an `ordinaryWorkplace`, so `socialTime` is true on a guard's shift).
+    // A free-time spouse approach must never replace a home/hotel commute or an exhausted
+    // settler's recovery break, even when the ordinary social window is still open.
     if (
-      !onJobShift &&
+      !onJobShift && !onSchedule && !commuting && !stayIn && !takingNeedsBreak &&
       socialTime &&
       isPlayerHuman(entity) &&
       entity.gender === 'female' &&

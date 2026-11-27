@@ -165,6 +165,42 @@ describe('war-band human upkeep', () => {
   });
 });
 
+
+describe('nightly recovery keeps priority over spouse-following', () => {
+  it('sends an exhausted, married woman home instead of slowly chasing her spouse', () => {
+    const state = newWorld();
+    const house = building(97, BuildingType.House, { x: 500, y: 500 });
+    const wife = settler(88, {
+      gender: 'female', x: 720, y: 500, partnerId: 89,
+      relationshipStatus: 'married', reproductionCooldown: 0,
+      residenceBuildingId: house.id,
+    });
+    const husband = settler(89, {
+      gender: 'male', x: 1110, y: 500, partnerId: wife.id,
+      relationshipStatus: 'married', residenceBuildingId: house.id,
+    });
+    house.occupants = [wife.id, husband.id];
+    state.buildings = [house];
+    state.entities = [wife, husband];
+    state.tick = TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR + 2;
+    wife.needs = {
+      nutrition: 80, rest: 0, stamina: 0, severeHungerTicks: 0,
+      breakUntilRecovered: true,
+      sleepRecoveryUntilTick: state.tick + 8 * TICKS_PER_HOUR,
+    };
+
+    const homeDistance = Math.hypot(wife.x - house.x, wife.y - house.y);
+    const spouseDistance = Math.hypot(wife.x - husband.x, wife.y - husband.y);
+    tickHumans(state, contextFor(state, [wife, husband]));
+
+    // The old chase replaced an urgent commute with a slow 2.4px/tick walk toward the spouse.
+    expect(Math.hypot(wife.x - house.x, wife.y - house.y)).toBeLessThan(homeDistance);
+    expect(Math.hypot(wife.x - husband.x, wife.y - husband.y)).toBeGreaterThan(spouseDistance);
+    expect(Math.hypot(wife.vx, wife.vy)).toBeGreaterThan(8);
+    expect(wife.needs?.sleepRecoveryUntilTick).toBeGreaterThan(state.tick);
+  });
+});
+
 describe('L8 — removal targets the settler\'s own building', () => {
   it('leaves a settler who works elsewhere assigned to their real workplace', () => {
     const state = newWorld();

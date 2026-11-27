@@ -233,6 +233,7 @@ describe('production pays only witnessed attendance (W-136)', () => {
     const local = farmDay(false);
     for (const { state, worker, farm } of [deployed, local]) {
       state.villageLeaderId = worker.id;
+      worker.occupation = 'leader';
       worker.scheduleWorkedTicksToday = 0;
       worker.schedulePresentTicksToday = 0;
       worker.scheduleLastWorkedHours = 9;

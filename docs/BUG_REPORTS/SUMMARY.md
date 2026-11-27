@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-27 — [Nighttime spouse chasing blocks recovery sleep](../bug_report/2026-11-27-nighttime-spouse-chase-prevents-sleep.md):** investigating; an inspected Year-1 Day-304 save found 46 zero-rest adults (43 women, 41 on spouse-chase pace) and 71 critically low stamina; the free-time chase no longer overrides sleep commutes, regression CI pending.
+
 **2026-11-27 — [War-band soldiers never recover rest while deployed](../bug_report/2026-11-27-warband-camp-rest-exhaustion.md):** investigating; camp night sleep uses the normal physiology owner, with a 23:00–06:00 regression; earlier CI failed because its fixture began at 22:00; corrected test CI pending.
 
 **2026-11-27 — [Deployed war-band workers earn phantom village production and conceptions](../bug_report/2026-11-27-warband-phantom-village-activity.md):** investigating; canonical production attendance now excludes deployed workers even with prior-day hours, and conception checks reject absent partners; regression and CI pending.
