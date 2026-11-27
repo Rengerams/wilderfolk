@@ -393,19 +393,19 @@ export function findDryBenchmarkStart(
         const distance = Math.hypot(x - preferred.x, y - preferred.y);
         if (distance >= bestDistance) continue;
         if (districtSites) {
-          if (overlapsAnyBuilding(
-            world.buildings, halfWidth * 2 * buildCell, halfHeight * 2 * buildCell, x, y,
-          )) continue;
-          // Only the real building footprint and shared access lanes need dry,
-          // unreserved land; requiring a completely empty 360px square rejects
-          // viable coast districts that the canonical route owner can serve.
+          // A whole 360px vacancy mask wastes buildable land: only the actual
+          // building footprints and open access corridors need clearance.
+          // Reuse the placement owner's overlap check for every individual site.
           const viable = districtSites.every((site) => {
-            const left = Math.floor((x + site.x - site.width / 2) / buildCell);
-            const right = Math.ceil((x + site.x + site.width / 2) / buildCell);
-            const top = Math.floor((y + site.y - site.height / 2) / buildCell);
-            const bottom = Math.ceil((y + site.y + site.height / 2) / buildCell);
+            const siteX = x + site.x;
+            const siteY = y + site.y;
+            const left = Math.floor((siteX - site.width / 2) / buildCell);
+            const right = Math.ceil((siteX + site.width / 2) / buildCell);
+            const top = Math.floor((siteY - site.height / 2) / buildCell);
+            const bottom = Math.ceil((siteY + site.height / 2) / buildCell);
             return left >= 0 && top >= 0 && right <= cols && bottom <= rows
-              && waterCount(left, top, right, bottom) === 0;
+              && waterCount(left, top, right, bottom) === 0
+              && !overlapsAnyBuilding(world.buildings, site.width, site.height, siteX, siteY);
           });
           if (!viable) continue;
         }
@@ -416,7 +416,7 @@ export function findDryBenchmarkStart(
     if (best) return best;
   }
   throw new Error(districtSites
-    ? 'Benchmark map contains no unoccupied dry district plot'
+    ? `Benchmark map contains no unoccupied dry district plot after ${world.buildings.length} completed buildings`
     : 'Benchmark map contains no sufficiently large dry starting area');
 }
 
