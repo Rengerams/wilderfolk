@@ -125,15 +125,15 @@ export function reconcileMarriageStatistics(state: WorldState): void {
   const lifetime = state.lifetimeStats;
   if (lifetime.marriagesThisYear != null) return;
   const byYear = new Map<number, number>();
-  for (const event of state.eventLog) {
+  for (const event of state.eventLog ?? []) {
     if (event.type === 'marriage') byYear.set(event.year, (byYear.get(event.year) ?? 0) + 1);
   }
   let closedLog = 0;
   for (const [year, count] of byYear) if (year < state.year) closedLog += count;
-  for (const record of state.yearlyStats) {
+  for (const record of state.yearlyStats ?? []) {
     record.marriages = Math.max(record.marriages, byYear.get(record.year) ?? 0);
   }
-  const closedRecords = state.yearlyStats.reduce((sum, record) => sum + record.marriages, 0);
+  const closedRecords = (state.yearlyStats ?? []).reduce((sum, record) => sum + record.marriages, 0);
   lifetime.marriagesThisYear = byYear.get(state.year) ?? 0;
   lifetime.totalMarriages = Math.max(lifetime.totalMarriages, closedLog, closedRecords) + lifetime.marriagesThisYear;
 }
