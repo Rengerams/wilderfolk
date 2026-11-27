@@ -342,8 +342,14 @@ export function tickHumanChildLeisure(args: {
   }
   const mother = entity.motherId != null ? livingHumanAt(entity.motherId) : undefined;
   const father = entity.fatherId != null ? livingHumanAt(entity.fatherId) : undefined;
-  const freeParent = [mother, father].find((parent) => parent?.alive && isPlayerHuman(parent) && !prefersHomeTonightFor(getWorkSchedule(state), parent.id, state.tick, hourOfDay) && !isOnWorkScheduleShift(state, hourOfDay)) ?? [mother, father].find((parent) => parent?.alive);
-  const follow = freeParent ?? getChildCustodian(entity, allHumans, args.entityById);
+  // Children may accompany a free caregiver, but must never trail an employed
+  // parent into their workplace during a shift. This also applies to the
+  // household custodian fallback (which can be the same working parent).
+  const isAvailableCaregiver = (parent: Entity | undefined): parent is Entity =>
+    !!parent?.alive && isPlayerHuman(parent)
+    && (parent.workerBuildingId == null || !isOnWorkScheduleShift(state, hourOfDay));
+  const custodian = getChildCustodian(entity, allHumans, args.entityById);
+  const follow = [mother, father, custodian].find(isAvailableCaregiver);
   if (follow?.alive && personDayRoll(entity.id, state.tick, 601) > 0.22) {
     const distance = Math.hypot(follow.x - entity.x, follow.y - entity.y) || 1;
     if (distance > 22) {
