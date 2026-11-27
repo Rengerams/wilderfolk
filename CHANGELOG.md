@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (27 Nov 2026):** Battle reports use one raid-specific chronological timeline, suppress duplicate loss summaries and resume without replay. Cinematic phases, actual force strength and confirmed losses make the battle clearer; victory has one announcement.
+
 - **Fixed (27 Nov 2026):** Ground Reinforcement survives compact save/load: preserve the reinforced soil flag and rebuild affected walking/build rasters after terrain overrides are restored.
 
 - **Fixed (27 Nov 2026):** Save-format mismatch diagnostics serialize invalid JSON markers instead of printing `[object Object]`; regression-covered without changing the save compatibility gate.
