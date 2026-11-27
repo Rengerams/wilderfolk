@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (27 Nov 2026):** Children no longer follow caregivers during work or commute hours, or while they remain at their workplace; stale following routes are cleared.
+
 - **Fixed (27 Nov 2026):** Married settlers no longer abandon nighttime home travel to chase distant partners at leisure speed, preventing widespread sleep loss and critical exhaustion.
 
 - **Fixed (27 Nov 2026):** Deployed war-band soldiers regain rest/stamina through normal field sleep, pay ordinary march fatigue instead of phantom barracks attendance, and cannot conceive at their frozen village coordinates.
