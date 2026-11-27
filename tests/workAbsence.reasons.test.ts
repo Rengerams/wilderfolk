@@ -103,6 +103,18 @@ function postedFarmer(farm: Building, overrides: Partial<Entity> = {}): Entity {
 }
 
 describe('the reason a settler is not at their post', () => {
+  it.each([BuildingType.Church, BuildingType.TownHall, BuildingType.Prison, BuildingType.Hospital, BuildingType.Hotel])('projects ordinary construction duty for unfinished %s', (type) => {
+    const site = building(1, type, { completed: false, constructionProgress: 0.5, occupants: [1] });
+    const stand = humanBuildingTarget(site, 1);
+    const worker = settler(1, { x: stand.x, y: stand.y });
+    const state = world(workdayTick(10), { entities: [worker], buildings: [site] });
+    const projection = getHumanActivityProjection(state, worker);
+    expect(projection.schedule.onShift).toBe(true);
+    expect(projection.target?.buildingId).toBe(site.id);
+    expect(projection.activity).toMatch(/^Working at /);
+    state.tick = workdayTick(17);
+    expect(getHumanActivityProjection(state, worker).schedule.onShift).toBe(false);
+  });
   it('reports Eating only when a meal actually occurred, never merely because hunger permits one', () => {
     const farm = building(1, BuildingType.Farm, { occupants: [1] });
     const worker = postedFarmer(farm, {
