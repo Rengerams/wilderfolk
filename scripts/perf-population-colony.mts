@@ -54,7 +54,7 @@ function careerCredits(world: WorldState): number {
 }
 
 function prepareScaledColony(target: number): WorldState {
-  const prepared = prepareColonyWorld({ size: MapSize.Huge, seed: SEED, scenario: 'producers' });
+  const prepared = prepareColonyWorld({ size: MapSize.Huge, seed: SEED, scenario: 'producers', preferConnectedStart: true });
   const world = prepared.world;
   const founders = livingPlayers(world);
   const needed = target - founders.length;
