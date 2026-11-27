@@ -1356,6 +1356,63 @@ const SOURCE_ROWS = [
       },
     ],
   },
+  // Second migration increment: preserve the original source-only contracts.
+  {
+    id: "research-effect-walk-one-owner",
+    checks: [
+      { file: "src/game/simHelpers.ts", matches: /for \(let j = 0; j < node\.effects\.length/ },
+      { file: "src/game/combat.ts", notMatches: [/for \(let j = 0; j < node\.effects\.length/, /function researchedEffect\s*\(/], example: ["for (let j = 0; j < node.effects.length; j++) {}", "function researchedEffect() {}"], contains: "resolveResearchEffect" },
+    ],
+  },
+  {
+    id: "render-transform-one-owner",
+    checks: [
+      { files: ["src/game/renderer/grid.ts", "src/game/renderer/scent.ts"], notMatches: [/\(\s*\w+\s*-\s*cam\.x\s*\)\s*\*\s*cam\.zoom\s*\+\s*cw\s*\/\s*2/, /\(\s*\w+\s*-\s*cam\.y\s*\)\s*\*\s*cam\.zoom\s*\+\s*ch\s*\/\s*2/], example: ["return (wx - cam.x) * cam.zoom + cw / 2;", "return (wy - cam.y) * cam.zoom + ch / 2;"] },
+      { file: "src/game/renderer/scent.ts", contains: "worldToScreen" },
+    ],
+  },
+  {
+    id: "trade-route-reward-copy-owner",
+    checks: [
+      { file: "src/components/tabPanels/ProgressTabPanel.tsx", contains: "formatResourceAmounts(route.resourcesReceived)", notMatches: /resourcesReceived\.gold > 0 \?/, example: "resourcesReceived.gold > 0 ? gold : stone" },
+    ],
+  },
+  {
+    id: "schooling-breakdown-owner",
+    checks: [
+      { file: "src/components/tabPanels/VillageTabPanel.tsx", contains: ["summarizeSchooling(state, state.tick, getHourOfDay(state.tick))", "describeSchoolingSummary(", "{summary.headline}", "{line}"] },
+    ],
+  },
+  {
+    id: "trade-route-block-summary-owner",
+    checks: [
+      { file: "src/components/tabPanels/ProgressTabPanel.tsx", contains: ["summarizeTradeRouteBlocks(state)", "tradeBlocks.blocked.map"] },
+    ],
+  },
+  {
+    id: "save-load-outcome-one-owner",
+    checks: [
+      { file: "src/App.tsx", contains: "const loadFromSlot = useCallback(", counts: [{ needle: "loadGameOutcome()", times: 1 }, { needle: "loadFromSlot({", times: 2 }], notMatches: /loadGame\(\)/, example: "loadGame();", notContains: "could not be restored" },
+    ],
+  },
+  {
+    id: "save-menu-compatibility-owner",
+    checks: [
+      { file: "src/components/GameMenu.tsx", contains: "describeSaveCompatibility", notContains: "Saves may break between updates" },
+    ],
+  },
+  {
+    id: "shared-residence-relocation-owner",
+    checks: [
+      { file: "src/game/housingPipeline.ts", contains: "planRelocation(household, 'couple'", notContains: "const needed = 2;" },
+    ],
+  },
+  {
+    id: "obsolete-building-actions-facade-retired",
+    checks: [
+      { file: "src/game/buildingActions.ts", absent: true },
+    ],
+  },
 ];
 
 const asArray = (value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]);

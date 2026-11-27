@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Maintenance (27 Nov 2026):** Move nine more source-only cases into the static guard registry, retain behavior tests, and remove the retired corner rotation helper.
+
 - **Maintenance (27 Nov 2026):** Move 138 source-only tests into 117 static guards, prove declarative clauses individually, restore the People behavior test, and remove unused rendering exports.
 
 - **Fixed (27 Nov 2026):** Married settlers no longer abandon nighttime home travel to chase distant partners at leisure speed, preventing widespread sleep loss and critical exhaustion.

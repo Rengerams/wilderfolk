@@ -38,14 +38,14 @@ runs in `scripts/check-source-guards.mjs` on every gate.
 | Audit-batch files (`audit*`, `low-*`, `medium-*`, `phase*`, `*Batch`, `duplication*`) | 51 | Merge into their subject owner |
 | Assertion-light files (≥ 40 % `toBeTruthy`/`toBeDefined`) | 11 | Strengthen or fold into a stronger file |
 
-Rows overlap, so they do not sum to 534. Unit tier now: 532 files / 3,594 cases.
+Rows overlap, so they do not sum to the unit-tier file count. Unit tier now: 532 files / 3,594 cases.
 
 ## What moved (two passes, 2026-11-27)
 
 `scripts/check-source-guards.mjs` owns the single-owner source rules: **117 rules**, of which 14 are
 hand-written scanners and 103 are declarative rows (`contains` / `notContains` / `matches` /
 `notMatches` / `counts` / `order` / `region` / `scan` / `absent`). It runs from the `check` step of
-every gate. `--self-test` synthesizes a violation for every rule — injecting the bad spelling, deleting
+the standard and full gates (standalone unit modes do not invoke it). `--self-test` synthesizes a violation for every rule — injecting the bad spelling, deleting
 the needle, swapping the order, removing a region anchor, adding a probe file — and fails if the rule
 stops reporting it. Declarative checks also mutate each file and clause separately and require the specific diagnostic. The handwritten guards retain their original per-rule samples.
 
@@ -57,7 +57,7 @@ stops reporting it. Declarative checks also mutate each file and clause separate
 - `strategicWorldMap.windowLayout` (2), `ux2.introPrompt` (2)
 - `selectedBuildingPanel.perBuildingState` (1)
 
-**Nineteen files were trimmed to their behavioral half:** `uiSingleOwner` (36 of 45), `uiRefinement.residuals`
+**Twenty-two files were trimmed to their behavioral half:** `uiSingleOwner` (36 of 45), `uiRefinement.residuals`
 (8 of 9), `ux2.doorNames` (7 of 9), `actionOutcome` (2), `alertStrip.criticalVisibility` (2),
 `buildGhost.failureReason`, `councilNotices.row`, `conceptionEvent.labelling`, `dashboard.foodBalance`,
 `dashboardData.suggestionLabels`, `dialogue.workerSaveParity`, `foodSpend.ledger`, `militiaArmament.label`,
@@ -130,6 +130,10 @@ accounted for 148 s of the 471 s summed time. Time was never the problem; compos
 `foodLedger.acceptedCatch` (3/7), `medium-C1-economy` (6/15), `colonyProducerCommute` (4/10),
 `stats.largestPopulation` (2/5). These pass on a partially broken implementation; they should assert
 the value, not its presence.
+
+## Second consolidation increment — 2026-11-27
+
+Nine source-only cases in eight mixed test files were moved to nine declarative rules: research-effect ownership, render transforms, trade reward copy, schooling and trade-block summaries, save loading and compatibility copy, residence relocation, and the obsolete building-actions facade. All runtime cases remain in Vitest. The registry now contains 126 rules (14 handwritten, 112 declarative). The original 56-file inventory is historical, not a fresh count. Also removed the retired corner rotation helper found by Knip. These changes have not yet been verified by the full CI gate.
 
 ## Remaining consolidation, in order
 

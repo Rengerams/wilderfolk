@@ -3,16 +3,8 @@
  * from the message a refused load shows.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describeSaveCompatibility, describeSaveReadFailure } from '../src/game/saveLoad';
 import { GAME_VERSION } from '../src/game/version';
-
-function read(relativePath: string): string {
-  // `SAVE_VERSION_EXPERIENCE_ROOT` points the read at a mirrored tree for red-before runs.
-  const root = process.env.SAVE_VERSION_EXPERIENCE_ROOT ?? process.cwd();
-  return readFileSync(resolve(root, relativePath), 'utf8');
-}
 
 describe('save-version experience (roadmap T4)', () => {
   it('names the build the player is running and what an update costs them', () => {
@@ -35,14 +27,5 @@ describe('save-version experience (roadmap T4)', () => {
     expect(refusal).toContain('not supported');
     expect(refusal, 'the refusal names the build the player is running').toContain(GAME_VERSION);
     expect(describeSaveCompatibility()).toContain(`v${GAME_VERSION}`);
-  });
-
-  it('renders the owner sentence in the menu instead of a second copy', () => {
-    const menu = read('src/components/GameMenu.tsx');
-
-    expect(menu, 'the menu no longer renders the save owner’s sentence').toContain(
-      'describeSaveCompatibility',
-    );
-    expect(menu, 'the vague pre-fix copy is back').not.toContain('Saves may break between updates');
   });
 });

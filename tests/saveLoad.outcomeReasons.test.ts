@@ -3,8 +3,6 @@
  * `describeSaveLoadOutcome` is the one place its message lives; both App load paths read it.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   loadGameOutcome,
   loadGameFromParsed,
@@ -97,22 +95,5 @@ describe('a load attempt always says why it failed', () => {
 
     stubSlot(null);
     expect(hasSaveSlot()).toBe(false);
-  });
-
-  it('routes both App load paths through the owner, with no second copy of the message', () => {
-    const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
-    // One slot loader, two entry points: `loadFromSlot` reads the owner and names the cause exactly
-    // once, and the menu and the map-setup screen both go through it.
-    expect(app, 'the shared slot loader is gone').toContain('const loadFromSlot = useCallback(');
-    expect(
-      app.match(/loadGameOutcome\(\)/g)?.length ?? 0,
-      'the owner is read from more than one place',
-    ).toBe(1);
-    expect(
-      app.match(/loadFromSlot\(\{/g)?.length ?? 0,
-      'both entry points must load through the shared path',
-    ).toBe(2);
-    expect(app, 'a load path still calls the reason-discarding loader').not.toMatch(/loadGame\(\)/);
-    expect(app, 'the unrestorable message is duplicated in the view').not.toContain('could not be restored');
   });
 });

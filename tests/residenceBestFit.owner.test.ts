@@ -3,8 +3,6 @@
  * movers passed as `movingTogether` so the shared-move discount uses the owner.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
 import { createBuilding } from '../src/game/worldGen';
@@ -36,7 +34,6 @@ describe('the least-crowded residence rule has one owner', () => {
 
   it('prefers the emptier home when one cannot take the pair', () => {
     const houses = [residence(1), residence(2)];
-    const capacity = 4;
     // House 1 is full enough that the pair does not fit; house 2 has room.
     const humans = [
       settler(10, 1), settler(11, 1), settler(12, 1),
@@ -44,7 +41,6 @@ describe('the least-crowded residence rule has one owner', () => {
     ];
     const movers = [settler(20), settler(21)];
 
-    expect(capacity).toBeGreaterThan(0);
     expect(pickLeastCrowdedResidence(humans, houses, 2, {}, undefined, movers)).toBe(2);
   });
 
@@ -58,18 +54,6 @@ describe('the least-crowded residence rule has one owner', () => {
     // House 1 reads as one resident (two minus the mover) and ties house 2's one, so the id wins.
     // Without the `movingTogether` discount house 1 reads two and house 2 is chosen instead.
     expect(pickLeastCrowdedResidence(humans, houses, 2, {}, undefined, [mover, partner])).toBe(1);
-  });
-
-  it('keeps the shared-residence caller on the owner', () => {
-    const source = readFileSync(
-      resolve(process.cwd(), 'src/game/housingPipeline.ts'),
-      'utf8',
-    );
-    expect(source, 'the shared-residence caller no longer delegates to the plan').toContain(
-      "planRelocation(household, 'couple'",
-    );
-    // No local `const needed = 2;` copy: the selection loop lives once, in the owner.
-    expect(source, 'the duplicated selection loop is back').not.toContain('const needed = 2;');
   });
 });
 
