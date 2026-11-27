@@ -205,6 +205,10 @@ Moved the load index ordering source test into the central registry with all six
 
 Merged the two render-batch audio suites into `audio.output.test.ts`. Four cases share one recording Web Audio fixture for limiter routing, preset changes and element output levels.
 
+## Owner-suite verification — 2026-11-27
+
+Moved 12 cases from five mixed suites. Beauty and theatre checks now live with their respective simulation owners, chronicle labels with event-log filters, frame catch-up with GameLoop RAF, persistence cleanup with the persistence hook, challenge progress with rewards, and production and herd placement with daily economy and migration. Reused the existing herd selector and challenge fixture. All eight destination suites passed (57 tests).
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

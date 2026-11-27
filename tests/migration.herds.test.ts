@@ -3,8 +3,8 @@
  * deer, leaves after a week, and next year's size follows how many were taken.
  */
 import { describe, it, expect } from 'vitest';
-import { initGame } from '../src/game/worldGen';
-import { EntityType } from '../src/game/gameTypes';
+import { initGame, isPassableWildlifePosition } from '../src/game/worldGen';
+import { EntityType, MapPreset } from '../src/game/gameTypes';
 import {
   HERD_BASE_SIZE,
   HERD_MIN_SIZE,
@@ -161,5 +161,39 @@ describe('autumn deer migration', () => {
     setDay(state, arrival + MIGRATION_WINDOW_DAYS);
     tickMigration(state, state.entities);
     expect(state.migrationNextHerdSize).toBeUndefined();
+  });
+});
+
+describe('M19 autumn herd deer spawn on passable ground', () => {
+  it('never places herd deer on unpassable terrain', () => {
+    const presets = [
+      MapPreset.Coastal,
+      MapPreset.Rivers,
+      MapPreset.Scandinavia,
+      MapPreset.Continental,
+      MapPreset.Highland,
+      MapPreset.Arabia,
+    ];
+    for (const preset of presets) {
+      for (const seed of [1, 2, 3]) {
+        const state = initGame({ villageName: 'C1', size: 'medium', preset, seed });
+        state.tick = migrationArrivalDay(state.worldMap!.seed) * TICKS_PER_DAY;
+        tickMigration(state, state.entities);
+
+        const herd = herdDeer(state, 0);
+        // The new terrain can block part of the edge strip, so a herd may arrive smaller than the
+        // base size — what matters is that a herd arrives and none of it lands on unpassable ground.
+        expect(herd.length, `${preset}/${seed}: a herd arrives`).toBeGreaterThan(0);
+        expect(herd.length, `${preset}/${seed}: herd never exceeds base`).toBeLessThanOrEqual(HERD_BASE_SIZE);
+        for (const deer of herd) {
+          expect(deer).toMatchObject({ type: EntityType.Deer, migrationTag: 0 });
+          expect(Number.isFinite(deer.x) && Number.isFinite(deer.y)).toBe(true);
+          expect(
+            isPassableWildlifePosition(state, deer.x, deer.y, 8),
+            `${preset}/${seed}: deer ${deer.id} spawned on blocked terrain at ${deer.x},${deer.y}`,
+          ).toBe(true);
+        }
+      }
+    }
   });
 });

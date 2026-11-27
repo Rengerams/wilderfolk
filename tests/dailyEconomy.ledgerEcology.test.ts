@@ -3,8 +3,13 @@
  * a Bountiful Harvest grant lasts exactly its year, every stored food gain reaches the one ledger,
  * and grass regrows by the day so pasture can actually thin and pressure can respond.
  */
+import { rebuildEntityByIdMap } from '../src/game/entityIndex';
+import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
+import { getWeatherFarmMultiplier } from '../src/game/worldEvents';
+import { getMultiplier } from '../src/game/simHelpers';
+import { gameTick } from '../src/game/gameEngine';
 import { describe, expect, it } from 'vitest';
-import { createEntity, initGame } from '../src/game/worldGen';
+import { createBuilding, createEntity, initGame } from '../src/game/worldGen';
 import {
   BUILDING_CONFIGS, BuildingType, EntityType, JobType, Season, WeatherType, emptyEntityByType,
 } from '../src/game/gameTypes';
@@ -360,5 +365,107 @@ describe('W-90 — a dead crew id neither speeds construction nor earns skill', 
       .toBe(empty.buildings[0].constructionProgress);
     // The dead id earns no construction skill either.
     expect(corpse.skills?.[JobType.Builder] ?? 0).toBe(0);
+  });
+});
+
+/**
+ * A controlled village: one adult settler, one completed producer, so the daily economy has
+ * exactly one staffed building; day 1 is a workday production tick.
+ */
+function loneProducerVillage(
+  type: BuildingType,
+  seed = 4242,
+): { state: WorldState; building: Building } {
+  const state = initGame({ villageName: 'C1', size: 'medium', seed });
+  const building = createBuilding(type, 240, 240, 9001);
+  building.completed = true;
+  building.constructionProgress = 100;
+
+  const worker = state.entities.find(
+    (e) =>
+      e.type === EntityType.Human &&
+      e.alive &&
+      !e.isJuvenile &&
+      !e.faction &&
+      e.occupation !== 'leader',
+  );
+  if (!worker) throw new Error('fixture: starter village has no adult settler');
+
+  state.buildings = [building];
+  state.entities = [worker];
+  rebuildEntityByIdMap(state);
+  invalidateCachedEntityByType(state);
+
+  // This isolated producer represents a settler who actually attended their
+  // completed workplace during the preceding shift.
+  worker.x = building.x + building.width / 2;
+  worker.y = building.y + building.height / 2;
+  worker.workerBuildingId = building.id;
+  worker.job = JobType.Farmer;
+  worker.occupation = 'farmer';
+  // Production now depends on actual attendance from the previous settled shift.
+  // The isolated fixture bypasses the realtime work ticks, so supply their earned hours.
+  worker.scheduleLastWorkedHours = 8;
+  building.occupants = [worker.id];
+
+  state.resources.food = 0;
+  // gameTick advances the clock first, so this lands on day 1 at 18:00 — the production phase.
+  state.tick = tickAtDailyPhase(1, 'production') - 1;
+  return { state, building };
+}
+
+describe('M5 greenhouse food production reaches the economy ledger', () => {
+  it('records staffed greenhouse output under its own ledger row', () => {
+    const { state } = loneProducerVillage(BuildingType.Greenhouse);
+    gameTick(state);
+
+    expect(state.resources.food, 'the greenhouse actually produced food').toBeGreaterThan(0);
+    const ledger = state.economyLedger;
+    expect(ledger, 'a production day creates a ledger').toMatchObject({ produced: { greenhouse: expect.any(Number) } });
+    // The greenhouse row must exist and account for the food that reached storage.
+    expect(ledger?.produced.greenhouse ?? 0, 'greenhouse ledger row').toBeGreaterThan(0);
+    expect(ledger?.produced.greenhouse ?? 0).toBeGreaterThanOrEqual(state.resources.food);
+  });
+});
+
+describe('M10 Irrigation drought_resist is consumed by the drought farm penalty', () => {
+  it('is read from research state and softens the drought penalty by 1.5x', () => {
+    const state = initGame({ villageName: 'C1', size: 'medium', seed: 11 });
+    expect(getMultiplier(state, 'drought_resist')).toBe(1);
+
+    const unresearched = getWeatherFarmMultiplier(
+      WeatherType.Drought,
+      getMultiplier(state, 'drought_resist'),
+    );
+    expect(unresearched).toBeCloseTo(0.5);
+
+    const node = state.researchNodes.find((n) => n.id === 'agriculture_3');
+    expect(node, 'agriculture_3 (Irrigation) node exists').toMatchObject({ id: 'agriculture_3', researched: false });
+    node!.researched = true;
+
+    expect(getMultiplier(state, 'drought_resist')).toBeCloseTo(1.5);
+    // "Farms work 50% better in drought": 0.5 * 1.5 = 0.75.
+    expect(
+      getWeatherFarmMultiplier(WeatherType.Drought, getMultiplier(state, 'drought_resist')),
+    ).toBeCloseTo(0.75);
+    // The resist is drought-only — clear weather is untouched.
+    expect(
+      getWeatherFarmMultiplier(WeatherType.Clear, getMultiplier(state, 'drought_resist')),
+    ).toBeCloseTo(1);
+  });
+
+  it('raises real farm output in a drought once Irrigation is researched', () => {
+    const plain = loneProducerVillage(BuildingType.Farm);
+    plain.state.weather = WeatherType.Drought;
+    gameTick(plain.state);
+
+    const irrigated = loneProducerVillage(BuildingType.Farm);
+    irrigated.state.weather = WeatherType.Drought;
+    irrigated.state.researchNodes.find((n) => n.id === 'agriculture_3')!.researched = true;
+    gameTick(irrigated.state);
+
+    expect(plain.state.resources.food, 'the drought farm still produced food').toBeGreaterThan(0);
+    // Irrigation must raise the drought harvest above the unresearched farm's.
+    expect(irrigated.state.resources.food).toBeGreaterThan(plain.state.resources.food);
   });
 });

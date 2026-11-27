@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Tests (27 Nov 2026):** Move beauty, theatre, chronicle, persistence, challenge, frame catch-up, production and herd regressions into their owner suites.
+
 - **Tests (27 Nov 2026):** Consolidate dialogue bank, load contract and off-screen throttle suites; centralize the save-load index ordering guard.
 
 - **Tests (27 Nov 2026):** Consolidate renderer frame-cache and fallback regressions, and move two frame ownership source checks into the central registry.

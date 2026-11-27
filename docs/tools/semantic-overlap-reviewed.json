@@ -195,7 +195,7 @@
       "reason": "Unrelated loops that both scan a bounded number of candidate points: the wildlife spawner draws passable ground from the yearly-event stream, the chronicle anchor resolves a settlement centre. No shared rule, data or owner; the similarity is the loop shape only.",
       "tests": [
         "tests/workerBoundary.closure.test.ts",
-        "tests/medium-C1-economy.test.ts"
+        "tests/migration.herds.test.ts"
       ]
     },
     {
