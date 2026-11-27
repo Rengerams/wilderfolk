@@ -8,8 +8,8 @@ import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
 import { deterministicCos, deterministicSin } from './simTrig';
 import { getBuildingCenter } from './buildingGeometry';
 import { getChildCustodian, hasResidenceAssignment } from './housingModel';
-import { getWorkSchedule, isOnWorkScheduleShift } from './workSchedule';
-import { getHourOfDay, getAbsoluteCalendarDay } from './dayCycleClock';
+import { getWorkSchedule, isOnWorkScheduleShift, isOnWorkCommuteHours } from './workSchedule';
+import { getHourOfDay, getAbsoluteCalendarDay, isWorkDay } from './dayCycleClock';
 import { BuildingType } from './buildings';
 import { pickSocialImpulse, isSocialStaggerTick, type SocialBuildingPicker } from './socialLife';
 import { isPlayerHuman } from './playerHuman';
@@ -17,7 +17,6 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { requestDialogue } from './dialogueTrees';
 import { isDialogueBusy } from './humanChat';
-import { prefersHomeTonightFor } from './humanSchedule';
 import type { TickContext } from './simulation/simulationTypes';
 import { findClosestAdaptiveInRadius, forEachAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_FRIENDSHIP_RADIUS } from './adaptiveSpatialQuery';
 import { seededRandomForRun, personDayRoll, getSimRng, PERSON_DAY_ROLL_SALTS } from './simRng';
@@ -345,9 +344,11 @@ export function tickHumanChildLeisure(args: {
   // Children may accompany a free caregiver, but must never trail an employed
   // parent into their workplace during a shift. This also applies to the
   // household custodian fallback (which can be the same working parent).
+  const workTime = isOnWorkScheduleShift(state, hourOfDay)
+    || (isWorkDay(state.tick) && isOnWorkCommuteHours(getWorkSchedule(state), hourOfDay));
   const isAvailableCaregiver = (parent: Entity | undefined): parent is Entity =>
     !!parent?.alive && isPlayerHuman(parent)
-    && (parent.workerBuildingId == null || !isOnWorkScheduleShift(state, hourOfDay));
+    && (parent.workerBuildingId == null || (!workTime && parent.indoorBuildingId !== parent.workerBuildingId));
   const custodian = getChildCustodian(entity, allHumans, args.entityById);
   const follow = [mother, father, custodian].find(isAvailableCaregiver);
   if (follow?.alive && personDayRoll(entity.id, state.tick, 601) > 0.22) {
