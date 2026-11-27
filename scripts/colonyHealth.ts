@@ -14,6 +14,7 @@ import { getBuildingFootprintForType, snapBuildingCenter } from '../src/game/bui
 import { isFootprintWithinMapBounds, overlapsAnyBuilding } from '../src/game/placementUtils';
 import { beginCommuteRoutePass, isWithinAssignableCommute, quoteBuildingCommute } from '../src/game/commuteReach';
 import { getCurrentPathGrid, setCurrentPathMap } from '../src/game/pathfinding';
+import { Buildability } from '../src/game/terrain/terrainGrid';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { assignMissingResidences } from '../src/game/housingPipeline';
 import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, MapSize, PATH_CELL } from '../src/game/gameTypes';
@@ -353,31 +354,35 @@ function placeProducers(world: WorldState, anchor: { x: number; y: number }): Bu
  */
 function findDryBenchmarkStart(world: WorldState, preferred: { x: number; y: number }): { x: number; y: number } {
   const map = world.worldMap;
-  const water = map?.pathGrid;
-  if (!map || !water || water.length !== map.width * map.height) return preferred;
-  const cols = map.width, rows = map.height;
+  // The L1 build mask classifies shallow water as water even on an earlier game
+  // revision that permitted wading. It gives base and PR *identical* benchmark
+  // terrain selection; the L0 walk policy still decides all actual routes.
+  const build = map?.buildGrid;
+  const cols = map?.bCols, rows = map?.bRows;
+  if (!map || !build || !cols || !rows || build.length !== cols * rows) return preferred;
   const stride = cols + 1;
   const summed = new Int32Array((cols + 1) * (rows + 1));
   for (let y = 0; y < rows; y++) {
     let waterInRow = 0;
     for (let x = 0; x < cols; x++) {
-      if (water[y * cols + x] === 1) waterInRow++;
+      if (build[y * cols + x] === Buildability.Water) waterInRow++;
       summed[(y + 1) * stride + x + 1] = summed[y * stride + x + 1] + waterInRow;
     }
   }
   const waterCount = (left: number, top: number, right: number, bottom: number) =>
     summed[bottom * stride + right] - summed[top * stride + right]
     - summed[bottom * stride + left] + summed[top * stride + left];
-  // Leave enough flat dry terrain for eight homes, storage and four farms with
-  // all their approaches. Prefer a site near the original seed's camp.
-  for (const [halfWidth, halfHeight] of [[36, 32], [30, 26], [24, 22]] as const) {
+  // Each L1 cell is two path cells across. The first rectangle leaves room for
+  // all eight starter homes, storage, four farms, and their approach paths.
+  const buildCell = PATH_CELL * 2;
+  for (const [halfWidth, halfHeight] of [[18, 16], [15, 13], [12, 11]] as const) {
     let best: { x: number; y: number } | null = null;
     let bestDistance = Infinity;
-    for (let ty = halfHeight + 4; ty + halfHeight + 4 < rows; ty += 4) {
-      for (let tx = halfWidth + 4; tx + halfWidth + 4 < cols; tx += 4) {
+    for (let ty = halfHeight + 2; ty + halfHeight + 2 < rows; ty += 2) {
+      for (let tx = halfWidth + 2; tx + halfWidth + 2 < cols; tx += 2) {
         if (waterCount(tx - halfWidth, ty - halfHeight, tx + halfWidth, ty + halfHeight) !== 0) continue;
-        const x = (tx + 0.5) * PATH_CELL;
-        const y = (ty + 0.5) * PATH_CELL;
+        const x = (tx + 0.5) * buildCell;
+        const y = (ty + 0.5) * buildCell;
         const distance = Math.hypot(x - preferred.x, y - preferred.y);
         if (distance < bestDistance) { bestDistance = distance; best = { x, y }; }
       }
