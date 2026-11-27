@@ -1113,7 +1113,7 @@ export function generateRawTerrain(
           const tx = Math.min(tileW - 1, x * per + i);
           const ty = Math.min(tileH - 1, y * per + j);
           const type = pathTileType(tx, ty);
-          // Shallow water is walkable, but all water must still be unbuildable.
+          // All water blocks walking and remains unbuildable.
           if (isWaterTerrainType(type)) water++;
         }
       buildGrid[y * bCols + x] = water
