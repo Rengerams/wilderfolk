@@ -337,7 +337,7 @@ describe('mobilized raid lifecycle', () => {
     expect(victoryNews).toHaveLength(1);
     expect(victoryNews[0]!.message).toContain('OakCrossing');
     expect(victoryNews[0]!.message).toContain('enemy dead');
-    expect(victoryNews[0]!.message).toContain("Decide the settlement's fate");
+    expect(victoryNews[0]!.message).toContain("decide the settlement's fate");
     expect(world.pendingRaidVictories?.filter((item) => item.raidId === raid.id)).toHaveLength(1);
     expect(world.raidBattleReports?.filter((item) => item.raidId === raid.id)).toHaveLength(1);
     expect(raid.phase).toBe('returning');

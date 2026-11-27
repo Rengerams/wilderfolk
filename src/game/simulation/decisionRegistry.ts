@@ -94,6 +94,7 @@ export type DecisionKey =
   | 'raidCombat'
   | 'outgoingRaidStatus'
   | 'raidRecovery'
+  | 'raidBattlePresentation'
   | 'raidTerminalPresentation'
   | 'crashRecovery'
   | 'valleyChronicle'
@@ -700,7 +701,7 @@ export const SIMULATION_DECISIONS = {
   raidCombat: {
     owner: 'militiaBalance.ts — canBeMustered (shared adult muster eligibility with optional elected-commander job exemption); frontierCombat.ts — getRaidParticipants, canLaunchRaidOnRival, queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, beginRaidReturn, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory, isCounterRaidOnRival',
     cadence: 'realtime',
-    cadenceNote: 'Incoming and outgoing battles progress on game ticks across six game hours. Raid dispatch, responses and settlement-fate choices also enter through player commands; truce recalls retain deployment until return, the preview and launch share eligibility, incoming strength uses the adult population with capped loot; the elected leader joins all viable defensive formations and outgoing campaigns even when not employed as a soldier, cannot deploy in simultaneous armies, faces the same casualty pool, and earns battlefield merit only when actually deployed; the immediate responder cannot skip the six-hour defense; treaties may be broken at a reputation cost, razing zeroes the strategic population of a settlement, and events are written through the ordinary Chronicle owner. Awarded spoils—gold included—enter through addCappedResource, so the configured storage cap and the common resource accounting apply. Successful outgoing resolution emits one combined surrender/victory news item; the persistent fate decision remains independent of presentation. Rival camp growth is staggered by the stable rival id, never by list position.',
+    cadenceNote: 'Incoming and outgoing battles progress on game ticks across six game hours. Raid dispatch, responses and settlement-fate choices also enter through player commands; truce recalls retain deployment until return, the preview and launch share eligibility, incoming strength uses the adult population with capped loot; the elected leader joins all viable defensive formations and outgoing campaigns even when not employed as a soldier, cannot deploy in simultaneous armies, faces the same casualty pool, and earns battlefield merit only when actually deployed; the immediate responder cannot skip the six-hour defense; treaties may be broken at a reputation cost, razing zeroes the strategic population of a settlement, and events are written through the ordinary Chronicle owner. Awarded spoils—gold included—enter through addCappedResource, so the configured storage cap and the common resource accounting apply. Rival camp growth is staggered by the stable rival id, never by list position.',
     writes: ['pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports', 'scoredRaidIds', 'human.raidDeploymentId', 'human.battleLeadershipMerit', 'rivalSettlements', 'resources (through economy owner)', 'eventLog (through logEvent)'],
     scheduledFrom: 'gameTick.ts → tickPendingRaidEvents/tickPendingOutgoingRaidEvents; simWorker/commands.ts → raid and victory commands',
     testFile: 'tests/frontierCombat.hostility.test.ts, tests/frontierCombat.raidGold.test.ts, tests/raidChronicle.lifecycle.test.ts, tests/raidDeadline.owner.test.ts, tests/humanTick.hotPathIndexes.test.ts',
@@ -720,6 +721,14 @@ export const SIMULATION_DECISIONS = {
     writes: ['raidRecovery', 'paused (settlement destruction)', 'building.health (through building removal owner)', 'rivalSettlements.diplomacyMemory', 'eventLog (through logEvent)'],
     scheduledFrom: 'frontierCombat.ts → beginRaidRecovery/rememberRivalDisposition/applyWarCommunityReaction; gameTick.ts → tickRaidRecovery',
     testFile: 'tests/raidTerminalReport.test.ts, tests/raidChronicle.lifecycle.test.ts',
+  },
+  raidBattlePresentation: {
+    owner: 'eventLog.ts — selectRaidBattleEvents (pure Chronicle projection); App.tsx and components/BattleReportScreen.tsx — one active report, resume and presentation only',
+    cadence: 'on-demand',
+    cadenceNote: 'One battle ID per report; only bounded same-side legacy events may fall back to rival name. Sort chronologically, deduplicate event IDs, retain distinct named deaths and hide redundant complete loss summaries. Persisted battle result is authoritative. Phase and strength visuals reflect recorded combat; no simulated battle, extra RNG, save timer or second history writer.',
+    writes: [],
+    scheduledFrom: 'App.tsx → BattleReportScreen for the selected raid; frontierCombat.ts → logEvent owns tagged combat history',
+    testFile: 'tests/raidChronicle.lifecycle.test.ts, tests/battleReportScreen.test.ts',
   },
   raidTerminalPresentation: {
     owner: 'raidTerminalReport.ts — buildRaidTerminalReport (pure read-only projection); components/WarfareStatus.tsx, components/BattleReportScreen.tsx and components/RazeConfirmation.tsx own display only, including modal keyboard/focus',

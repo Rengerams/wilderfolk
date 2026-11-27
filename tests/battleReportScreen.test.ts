@@ -29,8 +29,6 @@ describe('raid match report presentation', () => {
   it('shows the scoreline and asks the direct extermination question at full time', () => {
     const html = render();
     expect(html).toContain('text match');
-    expect(html).toContain('Battlefield illustration');
-    expect(html).toContain('The field falls silent');
     expect(html).toContain('FULL TIME');
     expect(html).toContain('Hillford');
     expect(html).toContain('Do you want to exterminate this village?');
@@ -39,13 +37,13 @@ describe('raid match report presentation', () => {
     expect(html).toContain('Yes — exterminate village');
   });
 
-  it('reopens a resolved fate report without replaying the battle', () => {
-    const html = render({ skipInitialReplay: true, events: [
-      { id: 1, tick: 1, year: 2, day: 18, type: 'combat', message: 'First report' },
-      { id: 2, tick: 2, year: 2, day: 18, type: 'combat', message: 'Final report' },
+  it('resumes a concluded report without replaying previous commentary', () => {
+    const html = render({ resume: true, events: [
+      { id: 1, tick: 1, year: 2, day: 18, type: 'combat', message: 'First clash.' },
+      { id: 2, tick: 2, year: 2, day: 18, type: 'combat', message: 'Final report.' },
     ] });
-    expect(html).toContain('First report');
-    expect(html).toContain('Final report');
+    expect(html).toContain('First clash.');
+    expect(html).toContain('Final report.');
     expect(html).toContain('FULL TIME');
     expect(html).not.toContain('Skip commentary');
   });
@@ -60,7 +58,6 @@ describe('raid match report presentation', () => {
       ],
     });
     expect(html).toContain('LIVE');
-    expect(html).toContain('The decisive hour');
     expect(html).toContain('Skip commentary');
     expect(html).not.toContain('Do you want to exterminate this village?');
   });

@@ -72,6 +72,7 @@ const REQUIRED_DECISIONS = [
   'raidCombat',
   'outgoingRaidStatus',
   'raidRecovery',
+  'raidBattlePresentation',
   'raidTerminalPresentation',
   'crashRecovery',
   'valleyChronicle',
@@ -92,6 +93,7 @@ const READ_ONLY_DECISIONS = new Set<string>([
   'completedBuildingLookup',
   'inputGuards',
   'raidTerminalPresentation',
+  'raidBattlePresentation',
   'outgoingRaidStatus',
   'crashRecovery',
   'chronicleProseNames',
@@ -158,6 +160,15 @@ describe('simulation decision registry', () => {
     expect(restock.cadenceNote).toContain('18:00');
     expect(restock.scheduledFrom).toContain('tickLayerDaily');
     expect(restock.testFile).toContain('wildlife.populationPolicy.test.ts');
+  });
+
+  it('registers raid battle presentation as a read-only Chronicle projection', () => {
+    const presentation = SIMULATION_DECISIONS.raidBattlePresentation;
+    expect(presentation.owner).toContain('selectRaidBattleEvents');
+    expect(presentation.cadence).toBe('on-demand');
+    expect(presentation.writes).toEqual([]);
+    expect(presentation.testFile).toContain('tests/raidChronicle.lifecycle.test.ts');
+    expect(presentation.testFile).toContain('tests/battleReportScreen.test.ts');
   });
 
   it('contains exactly the required decision keys', () => {

@@ -23,7 +23,6 @@ import {
   EVENT_LOG_MAX_ENTRIES,
   logEvent,
   repairEventLogOnLoad,
-  selectRaidBattleCommentary,
 } from '../src/game/eventLog';
 import { createEventCounter } from '../scripts/colonyHealth';
 
@@ -265,19 +264,5 @@ describe('the chronicle cap is a rolling window of the newest entries', () => {
     expect(reloaded.eventLog).toHaveLength(EVENT_LOG_MAX_ENTRIES);
     expect(reloaded.eventLog[0]!.id).toBe(EVENT_LOG_MAX_ENTRIES + 500);
     expect(reloaded.eventLog[reloaded.eventLog.length - 1]!.id).toBe(501);
-  });
-});
-
-
-describe('battle commentary projection', () => {
-  it('shows unique chronological events for the correct side and battle window', () => {
-    const base: GameEventLog = { id: 1, tick: 10, year: 1, day: 1, type: 'combat', message: 'Hillford', entityName: 'Hillford', combatKind: 'defense', combatStage: 'dispatched' };
-    const first = { ...base, id: 2 };
-    const final: GameEventLog = { ...base, id: 4, tick: 20, combatKind: 'repelled', combatStage: 'resolved' };
-    const outgoing: GameEventLog = { ...base, id: 3, tick: 15, combatKind: 'outgoing_raid' };
-    const entries = [{ ...base, id: 6, tick: 21 }, final, outgoing, first, first, { ...base, tick: 9 }];
-    expect(selectRaidBattleCommentary(entries, { rivalName: 'Hillford', incoming: true, baselineId: 0, startedAtTick: 10, resolvedAtTick: 20 }).map((event) => event.id)).toEqual([2, 4]);
-    expect(selectRaidBattleCommentary(entries, { rivalName: 'Hillford', incoming: false, baselineId: 0, startedAtTick: 10, resolvedAtTick: 20 }).map((event) => event.id)).toEqual([3]);
-    expect(selectRaidBattleCommentary(entries, { rivalName: 'Hillford', incoming: true, baselineId: 0 })).toEqual([]);
   });
 });
