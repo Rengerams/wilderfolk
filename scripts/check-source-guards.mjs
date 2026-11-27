@@ -14,11 +14,11 @@ function readFromDisk(relative) {
   return readFileSync(path.resolve(REPO, relative), 'utf8');
 }
 
-function walkTypeScript(dir) {
+function walkTypeScript(dir, extension = '.ts') {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) return walkTypeScript(full);
-    return entry.name.endsWith('.ts') ? [full] : [];
+    if (entry.isDirectory()) return walkTypeScript(full, extension);
+    return entry.name.endsWith(extension) ? [full] : [];
   });
 }
 
@@ -36,13 +36,13 @@ function makeContext(overlay = {}) {
     code(relative) {
       return stripComments(this.read(relative));
     },
-    /** Every `.ts` under a repo-relative directory, overlay files included. */
-    sourceFiles(dir) {
-      const fromDisk = walkTypeScript(path.resolve(REPO, dir)).map((full) =>
+    /** Every file with `extension` under a repo-relative directory, overlay files included. */
+    sourceFiles(dir, extension = '.ts') {
+      const fromDisk = walkTypeScript(path.resolve(REPO, dir), extension).map((full) =>
         path.relative(REPO, full).split(path.sep).join('/'),
       );
       const fromOverlay = Object.keys(overlay).filter(
-        (relative) => relative.startsWith(`${dir}/`) && relative.endsWith('.ts'),
+        (relative) => relative.startsWith(`${dir}/`) && relative.endsWith(extension),
       );
       return [...new Set([...fromDisk, ...fromOverlay])].sort();
     },
@@ -337,6 +337,1139 @@ const GUARDS = [
   },
 ];
 
+/**
+ * Declarative rows: a rule is a list of checks against named files. `notContains`/`notMatches` rows
+ * carry an `example` — the bad spelling — so the self-test can inject it and prove the row still
+ * reports a violation instead of passing on a typo.
+ */
+const SOURCE_ROWS = [
+  {
+    id: 'dynasty-panel-reads-chronicle-predicate',
+    checks: [
+      { file: 'src/components/tabPanels/DynastyPanel.tsx', notContains: 'generationsAlive >= 2', example: 'dynasty.generationsAlive >= 2' },
+      { file: 'src/components/tabPanels/DynastyPanel.tsx', contains: 'filter(meetsDynastyThreshold)' },
+      { file: 'src/game/familyLegacy.ts', contains: 'return computeDynasties(state).some(meetsDynastyThreshold);' },
+    ],
+  },
+  {
+    id: 'nature-bar-reads-ecosystem-health',
+    checks: [
+      { file: 'src/components/tabPanels/NatureTabPanel.tsx', contains: 'const ecosystemHealth = getEcosystemHealth(state);' },
+      { file: 'src/components/tabPanels/NatureTabPanel.tsx', notContains: 'Math.round(state.ecosystemHealth)', example: 'const x = Math.round(state.ecosystemHealth);' },
+    ],
+  },
+  {
+    id: 'research-gate-reads-can-start-research',
+    checks: [
+      { file: 'src/components/tabPanels/ProgressTabPanel.tsx', contains: 'canStartResearch(state, node.id)' },
+      { file: 'src/components/tabPanels/ProgressTabPanel.tsx', notContains: 'state.resources.wood >= node.cost.wood', example: 'if (state.resources.wood >= node.cost.wood) {}' },
+    ],
+  },
+  {
+    id: 'resource-bar-reads-fill-owner',
+    checks: [
+      { file: 'src/components/dashboard/GameDashboard.tsx', contains: 'resourceFillPercent(r)' },
+      { file: 'src/components/dashboard/GameDashboard.tsx', notContains: '(r.amount / r.cap)', example: 'const pct = (r.amount / r.cap) * 100;' },
+    ],
+  },
+  {
+    id: 'toast-lifetime-single-owner',
+    checks: [
+      { file: 'src/hooks/useTransientGameFeedback.ts', notContains: 'NOTIFICATION_LIFETIME_MS', example: 'const NOTIFICATION_LIFETIME_MS = 4000;' },
+      { file: 'src/hooks/useTransientGameFeedback.ts', contains: 'const cutoff = now - NOTIFICATION_DISPLAY_MS;' },
+      { file: 'src/hooks/useTransientGameFeedback.ts', notContains: 'notificationTimersRef', example: 'const notificationTimersRef = useRef(new Map());' },
+      { file: 'src/App.tsx', contains: 'visibleNotifications.map(' },
+      { file: 'src/App.tsx', notContains: 'world.notifications ?? []).slice(-4)', example: 'const recent = (world.notifications ?? []).slice(-4);' },
+    ],
+  },
+  {
+    id: 'sidebar-tab-one-union',
+    checks: [
+      { file: 'src/game/hotkeys.ts', counts: [{ needle: 'export type SidebarTab =', times: 1 }] },
+      { file: 'src/hooks/useGameShellState.ts', notContains: 'export type SidebarTab =', example: 'export type SidebarTab = SidebarTabId;' },
+      { file: 'src/hooks/useGameShellState.ts', contains: "import type { SidebarTab } from '../game/hotkeys';" },
+    ],
+  },
+  {
+    id: 'overlay-focus-one-query',
+    checks: [
+      { file: 'src/hooks/useModalFocus.ts', contains: 'export function getFocusableElements(container: HTMLElement): HTMLElement[]' },
+      { file: 'src/components/ShortcutsOverlay.tsx', contains: 'useModalFocus<HTMLDivElement>()' },
+      { file: 'src/components/ShortcutsOverlay.tsx', notContains: 'getFocusableElements', example: 'const items = getFocusableElements(ref.current);' },
+      { file: 'src/components/GameMenu.tsx', contains: 'getFocusableElements(panelRef.current)' },
+      { files: ['src/components/ShortcutsOverlay.tsx', 'src/components/GameMenu.tsx'], notContains: "querySelectorAll<HTMLElement>(\n      'button", example: "const x = ref.current?.querySelectorAll<HTMLElement>(\n      'button');" },
+      { file: 'src/components/ShortcutsOverlay.tsx', notContains: "'button, [href], input, select, textarea", example: "const q = 'button, [href], input, select, textarea';" },
+    ],
+  },
+  {
+    id: 'settler-name-fallback-owner',
+    checks: [
+      { file: 'src/components/SelectedEntityPanel.tsx', contains: 'citizenGivenName(' },
+      { file: 'src/components/SelectedEntityPanel.tsx', notContains: "e.name || 'Unknown'", example: "const label = e.name || 'Unknown';" },
+      { file: 'src/game/citizenId.ts', contains: 'if (!entity.name) return SETTLER_NAME_FALLBACK;' },
+    ],
+  },
+  {
+    id: 'menu-copy-reads-clock-owner',
+    checks: [
+      { file: 'src/components/GameMenu.tsx', contains: '${TICKS_PER_DAY} ticks = 1 day' },
+      { file: 'src/components/GameMenu.tsx', notContains: '(72 ticks = 1 day)', example: '72 ticks = 1 day' },
+      { file: 'src/components/GameMenu.tsx', notContains: 'Every 30 seconds when enabled', example: 'Every 30 seconds when enabled' },
+      { file: 'src/components/GameMenu.tsx', contains: 'Save on exit' },
+    ],
+  },
+  {
+    id: 'building-hints-read-owners',
+    checks: [
+      { file: 'src/components/SelectedBuildingPanel.tsx', contains: 'function ownerOutputHint(building: Building, state: WorldState): string | null {' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', contains: 'getWallSegmentCap(state)' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', contains: 'SMITH_BONUS_PER_WORKER' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', notContains: 'max +72 from all wall pieces', example: 'max +72 from all wall pieces' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', notContains: '+25% per worker', example: '+25% per worker' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', notContains: '+600 food storage', example: '+600 food storage' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', notContains: '+800 wood storage', example: '+800 wood storage' },
+    ],
+  },
+  {
+    id: 'worker-skill-line-reads-owner',
+    checks: [
+      { file: 'src/components/SelectedBuildingPanel.tsx', contains: 'getWorkerSkillMultiplier(state, building)' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', notContains: 'Math.round(avgSkill * 2)', example: 'const pct = Math.round(avgSkill * 2);' },
+    ],
+  },
+  {
+    id: 'clone-chart-axis-block',
+    checks: [
+      {
+        file: 'src/components/dashboard/GameDashboard.tsx',
+        counts: [
+          { needle: '<ChartGrid max={max} />', times: 2 },
+          { needle: '<ChartXAxis days={', times: 2 },
+          { needle: 'Array.from({ length: 5 }', times: 1 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'clone-hour-picker',
+    checks: [
+      {
+        file: 'src/components/WorkSchedulePanel.tsx',
+        counts: [
+          { needle: '<HourSelect', times: 2 },
+          { needle: 'Array.from({ length: HOURS_PER_DAY }', times: 1 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'clone-log-export-header',
+    checks: [
+      {
+        file: 'src/components/tabPanels/LogTabPanel.tsx',
+        counts: [
+          { needle: 'meta={logMeta}', times: 2 },
+          { needle: 'villageName: state.villageName', times: 1 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'clone-strip-commit-helper',
+    checks: [
+      {
+        file: 'src/hooks/useCanvasInteractions.ts',
+        counts: [
+          { needle: "op: 'placeStripChain'", times: 1 },
+          { needle: 'stripChainCommand(', times: 3 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'clone-settings-callback-contract',
+    checks: [
+      { file: 'src/components/GameMenu.tsx', contains: 'export interface GameMenuSettingsCallbacks {' },
+      { file: 'src/components/GameHeader.tsx', contains: 'interface Props extends GameMenuSettingsCallbacks {' },
+      { file: 'src/components/GameHeader.tsx', notContains: 'onToggleJuiceEffects: () => void;', example: 'onToggleJuiceEffects: () => void;' },
+      { file: 'src/components/GameMenu.tsx', counts: [{ needle: 'onToggleJuiceEffects: () => void;', times: 1 }] },
+    ],
+  },
+  {
+    id: 'clone-raid-choice-buttons',
+    checks: [
+      { file: 'src/App.tsx', counts: [{ needle: 'respondToRaidEvent', times: 1 }] },
+      {
+        file: 'src/components/SelectedBuildingPanel.tsx',
+        counts: [
+          { needle: '<RaidChoiceButtons', times: 0 },
+          { needle: 'text-[10px] font-bold ${colorClass}', times: 0 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'clone-frontier-props-forwarded',
+    checks: [
+      { file: 'src/components/FrontierPanel.tsx', contains: 'export interface FrontierPanelProps {' },
+      { file: 'src/components/tabPanels/FrontierTabPanel.tsx', contains: 'export type FrontierTabPanelProps = FrontierPanelProps;' },
+      { file: 'src/components/tabPanels/FrontierTabPanel.tsx', notContains: 'pendingOutgoingRaidCount: number;', example: 'pendingOutgoingRaidCount: number;' },
+    ],
+  },
+  {
+    id: 'clone-route-table',
+    checks: [
+      { file: 'src/hooks/useGameShellState.ts', contains: 'const OVERVIEW_ROUTES: Record<' },
+      { file: 'src/hooks/useGameShellState.ts', contains: 'const OVERVIEW_NAV_RAIL: Record<OverviewNavId, SidebarTab>' },
+      { file: 'src/hooks/useGameShellState.ts', contains: 'return OVERVIEW_ROUTES[tab];' },
+      { file: 'src/hooks/useGameShellState.ts', contains: 'return OVERVIEW_ROUTES[OVERVIEW_NAV_RAIL[id]];' },
+      { file: 'src/hooks/useGameShellState.ts', notContains: "? 'village'", example: "const t = id === 'village' ? 'village' : 'people';" },
+    ],
+  },
+  {
+    id: 'no-view-types-nameless-fallback',
+    checks: [
+      {
+        files: [
+          'src/components/SelectedEntityPanel.tsx',
+          'src/components/SelectedBuildingPanel.tsx',
+          'src/components/dashboard/GameDashboard.tsx',
+          'src/game/PopulationPanel.tsx',
+        ],
+        notMatches: /\.name \|\| '(Settler|Unnamed|Unknown)'/,
+        example: "const label = human.name || 'Settler';",
+      },
+    ],
+  },
+  {
+    id: 'mill-rule-rendered-from-owner',
+    checks: [
+      { file: 'src/components/SelectedBuildingPanel.tsx', contains: 'MILL_FOOD_PRODUCTION_MULT' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', notContains: 'boosts all food +25%', example: 'boosts all food +25%' },
+    ],
+  },
+  {
+    id: 'upgrade-ceiling-asked-of-owner',
+    checks: [
+      { file: 'src/components/SelectedBuildingPanel.tsx', contains: 'getBuildingUpgradeEligibility(state, building.id)' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', notMatches: /building\.level\s*<\s*3/, example: 'if (building.level < 3) upgrade();' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', notContains: 'at Lv.3', example: 'available at Lv.3' },
+    ],
+  },
+  {
+    id: 'guide-version-from-owner',
+    checks: [
+      { file: 'src/components/tabPanels/MoreTabPanel.tsx', contains: 'v{GAME_VERSION}' },
+      { file: 'src/components/tabPanels/MoreTabPanel.tsx', notContains: 'v0.4 is a playtest', example: 'v0.4 is a playtest' },
+    ],
+  },
+  {
+    id: 'no-view-converts-ticks-to-days',
+    scan: { dir: 'src', ext: '.tsx', notMatches: /\/\s*TICKS_PER_DAY/, example: 'const days = tick / TICKS_PER_DAY;' },
+  },
+  {
+    id: 'no-view-derives-fill-percent',
+    scan: { dir: 'src', ext: '.tsx', notMatches: /Math\.min\(100,/, except: ['src/game/IntroScreen.tsx'], example: 'const pct = Math.min(100, value);' },
+  },
+  {
+    id: 'no-view-reads-raw-happiness',
+    scan: { dir: 'src', ext: '.tsx', notMatches: /villageHappiness/, example: 'const h = state.villageHappiness;' },
+  },
+  {
+    id: 'no-view-retests-unique-building',
+    scan: { dir: 'src', ext: '.tsx', notMatches: /config\.unique/, example: 'if (config.unique) {}' },
+  },
+  {
+    id: 'no-view-joins-surname',
+    scan: { dir: 'src', ext: '.tsx', notMatches: /\.surname \?/, example: 'const name = human.surname ? human.surname : "";' },
+  },
+  {
+    id: 'header-reads-population-owner',
+    checks: [
+      { file: 'src/components/GameHeader.tsx', contains: 'isPopulationNearCap(world)' },
+      { file: 'src/components/GameHeader.tsx', notContains: '>= 0.9', example: 'const near = ratio >= 0.9;' },
+      { file: 'src/game/populationGrowth.ts', contains: 'const POPULATION_NEAR_CAP_RATIO = 0.9;' },
+      { file: 'src/game/populationGrowth.ts', contains: 'export function resolvePopulationCap(' },
+    ],
+  },
+  {
+    id: 'church-card-asks-moonhowler-owner',
+    checks: [
+      { file: 'src/components/SelectedBuildingPanel.tsx', contains: 'countStaffedPriests(state.buildings, ensureEntityByIdMap(state))' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', notContains: 'Math.max(1, priestCount)', example: 'const n = Math.max(1, priestCount);' },
+    ],
+  },
+  {
+    id: 'work-schedule-reads-fatigue-owner',
+    checks: [
+      { file: 'src/components/WorkSchedulePanel.tsx', contains: 'readVillageFatigue(state)' },
+      { file: 'src/components/WorkSchedulePanel.tsx', notMatches: /averageFatigue >= \d/, example: 'const tired = averageFatigue >= 60;' },
+      { file: 'src/game/dailyScheduleFatigue.ts', contains: 'const FATIGUE_BANDS' },
+    ],
+  },
+  {
+    id: 'cockpit-takes-idle-count-from-owner',
+    checks: [
+      { file: 'src/App.tsx', notContains: 'selectedBuildingIdleWorkerCount', example: 'const n = selectedBuildingIdleWorkerCount(building);' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', notContains: 'idleWorkers', example: 'const { idleWorkers } = props;' },
+    ],
+  },
+  {
+    id: 'browser-slot-loads-one-path',
+    checks: [
+      { file: 'src/App.tsx', contains: 'const loadFromSlot = useCallback(' },
+      { file: 'src/App.tsx', counts: [{ needle: "outcome.reason === 'unrestorable' ? hasSave() : false", times: 1 }] },
+    ],
+  },
+  {
+    id: 'nameless-strings-owned-by-citizenid',
+    checks: [
+      { file: 'src/game/citizenId.ts', contains: "export const SETTLER_NAME_FALLBACK = 'A settler';" },
+      { file: 'src/game/citizenId.ts', contains: "const SETTLER_LABEL_FALLBACK = 'Settler';" },
+      { file: 'src/game/citizenId.ts', notMatches: /entity\.name \|\| '(Settler|Unnamed|Unknown|A settler)'/, example: "return entity.name || 'Settler';" },
+      { file: 'src/game/citizenId.ts', contains: 'SETTLER_LABEL_FALLBACK' },
+    ],
+  },
+  {
+    id: 'terminal-export-through-save-owner',
+    checks: [
+      { file: 'src/App.tsx', contains: 'onExport={() => { void persistCurrentGame(' },
+      { file: 'src/App.tsx', notMatches: /onExport=\{\(\) => \{ saveGame\(/, example: 'onExport={() => { saveGame(); }}' },
+    ],
+  },
+  {
+    id: 'frontier-panel-renders-projection',
+    checks: [
+      { file: 'src/components/FrontierPanel.tsx', counts: [{ needle: 'projectFrontierPanel(state,', times: 1 }] },
+      { file: 'src/components/FrontierPanel.tsx', notMatches: /\.(?:filter|some|find|reduce|slice|sort|reverse)\(/, example: 'const a = view.rivals.filter(Boolean);' },
+      {
+        file: 'src/components/FrontierPanel.tsx',
+        notMatches: /\b(?:computeMilitiaBreakdown|countCompletedDefenseBuildings|getBarracksGuardCount|getCombatPreview|canLaunchRaidOnRival|canProvokeRival|normalizeRivalProfile|getRivalPresenceSummary)\s*\(/,
+        example: 'const m = computeMilitiaBreakdown(state);',
+      },
+      { file: 'src/components/FrontierPanel.tsx', contains: 'view.rivals.map(' },
+      { file: 'src/components/FrontierPanel.tsx', contains: 'view.battleReports.map(' },
+    ],
+  },
+  {
+    id: 'overview-reads-many-adults-idle',
+    checks: [
+      { file: 'src/components/CitizenOverviewScreen.tsx', contains: 'hasManyAdultsIdle(overview)' },
+      { file: 'src/components/CitizenOverviewScreen.tsx', notContains: 'overview.adults * 0.35', example: 'const many = overview.idle > overview.adults * 0.35;' },
+    ],
+  },
+  {
+    id: 'village-tooltip-names-reputation-bands',
+    checks: [{ file: 'src/components/tabPanels/VillageTabPanel.tsx', contains: 'REPUTATION_FRIENDLY_MIN' }],
+  },
+  {
+    id: 'reputation-bands-defined-once',
+    checks: [
+      {
+        file: 'src/game/simHelpers.ts',
+        counts: [
+          { needle: 'REPUTATION_FRIENDLY_MIN = 80', times: 1 },
+          { needle: 'REPUTATION_HARSH_MAX = 30', times: 1 },
+        ],
+      },
+      { files: ['src/game/groupEvents.ts', 'src/game/frontierCombat.ts'], notMatches: /rep\w*\s*>=\s*80\b/, example: 'if (rep >= 80) {}' },
+      { files: ['src/game/groupEvents.ts', 'src/game/frontierCombat.ts'], notMatches: /rep\w*\s*<=\s*30\b/, example: 'if (rep <= 30) {}' },
+    ],
+  },
+  {
+    id: 'farm-hint-uses-catalogue-cap',
+    checks: [
+      { file: 'src/components/SelectedBuildingPanel.tsx', contains: '(up to ${getBuildingConfig(type).maxOccupants})' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', notContains: 'up to 3)', example: '(up to 3)' },
+    ],
+  },
+  {
+    id: 'guard-preserve-bonuses-interpolated',
+    checks: [
+      { file: 'src/components/SelectedBuildingPanel.tsx', contains: 'MILITIA_BALANCE.guardBonusPerGuard' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', contains: 'PRESERVE_HEALTH_BONUS' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', notContains: '(+14 militia strength)', example: '(+14 militia strength)' },
+      { file: 'src/components/SelectedBuildingPanel.tsx', notContains: 'ecosystem health +4', example: 'ecosystem health +4' },
+      { file: 'src/game/buildings.ts', notContains: '+14 militia strength', example: '+14 militia strength' },
+      { file: 'src/game/buildings.ts', notContains: 'ecosystem health +4', example: 'ecosystem health +4' },
+    ],
+  },
+  {
+    id: 'keyboard-claim-yields-game-handler',
+    checks: [{ file: 'src/hooks/useKeyboardControls.ts', contains: 'if (isKeyboardClaimed()) return;' }],
+  },
+  {
+    id: 'overlay-keyboard-hook-claims-releases-pays',
+    checks: [
+      {
+        file: 'src/hooks/useOverlayKeyboard.ts',
+        contains: ['claimKeyboard(', 'releaseKeyboard('],
+        matches: /['"]Escape['"]/,
+      },
+    ],
+  },
+  {
+    id: 'overlays-delegate-to-shared-keyboard-hook',
+    checks: [
+      {
+        files: [
+          'src/components/BattleReportScreen.tsx',
+          'src/components/WarfareStatus.tsx',
+          'src/components/GameMenu.tsx',
+          'src/components/dashboard/GameDashboard.tsx',
+          'src/components/CitizenOverviewScreen.tsx',
+          'src/components/TutorialOverlay.tsx',
+          'src/components/ShortcutsOverlay.tsx',
+          'src/components/SpotlightLoreOverlay.tsx',
+        ],
+        contains: 'useOverlayKeyboard(',
+        notContains: 'claimKeyboard(',
+        example: 'claimKeyboard();',
+      },
+    ],
+  },
+  {
+    id: 'fullscreen-dialogs-share-focus-owner',
+    checks: [
+      {
+        files: ['src/components/BattleReportScreen.tsx', 'src/components/WarfareStatus.tsx'],
+        contains: ['useModalFocus<', 'useOverlayKeyboard('],
+      },
+      { file: 'src/components/BattleReportScreen.tsx', contains: 'ref={dialogRef}' },
+      { file: 'src/components/WarfareStatus.tsx', contains: 'ref={terminalRef}' },
+    ],
+  },
+  {
+    id: 'battle-commentary-focus-recovery',
+    checks: [
+      {
+        file: 'src/components/BattleReportScreen.tsx',
+        contains: [
+          'data-autofocus aria-label="Close battle report"',
+          'ref={stableCloseRef}',
+          'stableCloseRef.current?.focus()',
+          '[allSeen, finalReady, confirmExterminate, dialogRef]',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'spotlight-escape-through-skip',
+    checks: [
+      {
+        file: 'src/components/SpotlightLoreOverlay.tsx',
+        contains: [
+          "useOverlayKeyboard('spotlight-lore', skip)",
+          'const skip = () => {',
+          "callbacks.current.onFinish(scene.id, 'skipped');",
+          'onClick={skip}',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'raid-warfare-dialogs-trap-focus',
+    checks: [
+      {
+        files: ['src/components/BattleReportScreen.tsx', 'src/components/WarfareStatus.tsx'],
+        contains: 'useModalFocus<HTMLDivElement>(',
+      },
+    ],
+  },
+  {
+    id: 'confirm-dialog-traps-focus',
+    checks: [
+      {
+        file: 'src/components/ConfirmActionDialog.tsx',
+        contains: ['useModalFocus<HTMLDivElement>()', 'useOverlayKeyboard(owner, onCancel)', 'data-autofocus'],
+      },
+    ],
+  },
+  {
+    id: 'keyboard-claim-sites-only-in-shared-hook-ts',
+    scan: {
+      dir: 'src',
+      ext: '.ts',
+      notMatches: /claimKeyboard\(/,
+      except: ['src/game/keyboardOwnership.ts', 'src/hooks/useOverlayKeyboard.ts'],
+      example: 'claimKeyboard();',
+    },
+  },
+  {
+    id: 'keyboard-claim-sites-only-in-shared-hook-tsx',
+    scan: { dir: 'src', ext: '.tsx', notMatches: /claimKeyboard\(/, example: 'claimKeyboard();' },
+  },
+  {
+    id: 'hotkeys-stop-at-shortcuts-sheet',
+    checks: [{ file: 'src/hooks/useKeyboardControls.ts', contains: 'if (showShortcutsRef.current) return;' }],
+  },
+  {
+    id: 'gameplay-active-gate-precedes-building-hotkeys',
+    checks: [
+      {
+        file: 'src/hooks/useKeyboardControls.ts',
+        order: [['if (!gameplayActiveRef.current) return;', 'const hotBuild = HOTKEY_BUILDINGS[e.key];']],
+      },
+    ],
+  },
+  {
+    id: 'save-and-help-above-gameplay-gate',
+    checks: [
+      {
+        file: 'src/hooks/useKeyboardControls.ts',
+        order: [
+          ["e.key.toLowerCase() === 's'", 'if (!gameplayActiveRef.current) return;'],
+          ["e.key === '?'", 'if (!gameplayActiveRef.current) return;'],
+        ],
+      },
+    ],
+  },
+  {
+    id: 'form-control-guard-precedes-sidebar-tabs',
+    checks: [
+      { file: 'src/hooks/useKeyboardControls.ts', order: [['if (inFormControl) return;', 'resolveSidebarTabFromKey(e)']] },
+    ],
+  },
+  {
+    id: 'keyup-never-skips-text-field',
+    checks: [
+      {
+        file: 'src/hooks/useKeyboardControls.ts',
+        region: [
+          {
+            from: 'const handleKeyUp',
+            to: "window.addEventListener('keydown'",
+            contains: 'keysRef.current.delete',
+            notContains: 'isEditableTarget',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'focus-loss-releases-held-keys',
+    checks: [
+      {
+        file: 'src/hooks/useKeyboardControls.ts',
+        contains: ["window.addEventListener('blur', releaseHeldKeys)", 'keysRef.current.clear();'],
+      },
+    ],
+  },
+  {
+    id: 'key-repeat-guard-order',
+    checks: [
+      {
+        file: 'src/hooks/useKeyboardControls.ts',
+        order: [
+          ['keysRef.current.add(', 'if (e.repeat) return;'],
+          ['if (e.repeat) return;', 'togglePauseRef.current();'],
+          ['if (e.repeat) return;', 'setBuildPanelOpen((open) => !open);'],
+        ],
+      },
+    ],
+  },
+  {
+    id: 'overview-nav-states-aria-current',
+    checks: [
+      {
+        file: 'src/components/GameHeader.tsx',
+        contains: ['aria-current={open}', 'aria-label={`Open ${subject.label.toLowerCase()} window`}'],
+      },
+    ],
+  },
+  {
+    id: 'dashboard-tabs-state-aria-pressed',
+    checks: [{ file: 'src/components/dashboard/GameDashboard.tsx', contains: 'aria-pressed={openTab === tab.id}' }],
+  },
+  {
+    id: 'chronicle-chips-state-aria-pressed',
+    checks: [{ file: 'src/game/EventLogPanel.tsx', contains: 'aria-pressed={filter === opt.id}' }],
+  },
+  {
+    id: 'map-size-state-aria-pressed',
+    checks: [{ file: 'src/game/MapSetupScreen.tsx', contains: 'aria-pressed={selected}' }],
+  },
+  {
+    id: 'chronicle-subtabs-state-aria-pressed',
+    checks: [{ file: 'src/components/tabPanels/LogTabPanel.tsx', contains: 'aria-pressed={logSubTab === id}' }],
+  },
+  {
+    id: 'map-canvas-named-and-focusable',
+    checks: [
+      { file: 'src/components/GameMapStage.tsx', contains: ['role="img"', 'aria-label="Valley map"', 'tabIndex={0}'] },
+    ],
+  },
+  {
+    id: 'mini-map-keyboard-activatable',
+    checks: [
+      {
+        file: 'src/components/MiniMap.tsx',
+        contains: ['role="button"', 'aria-label="Mini-map', 'tabIndex={0}', 'onKeyDown=', 'navigateToVillage'],
+      },
+    ],
+  },
+  {
+    id: 'strip-demolition-awaits-confirmation',
+    checks: [
+      {
+        file: 'src/hooks/useCanvasInteractions.ts',
+        order: [
+          ['if (buildingIds.length > 0) setPendingStripDemolition(buildingIds);', 'const confirmStripDemolition = useCallback('],
+          ['const confirmStripDemolition = useCallback(', "op: 'demolishStripBuildings'"],
+        ],
+        region: [
+          {
+            from: 'if (buildingIds.length > 0) setPendingStripDemolition(buildingIds);',
+            to: 'const confirmStripDemolition = useCallback(',
+            notContains: "op: 'demolishStripBuildings'",
+          },
+        ],
+        contains: 'if (!ids?.length) return;',
+      },
+      {
+        file: 'src/App.tsx',
+        contains: [
+          '{pendingStripDemolition && (',
+          'owner="strip-demolition"',
+          'onConfirm={confirmStripDemolition}',
+          'onCancel={cancelStripDemolition}',
+          'This cannot be undone.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'new-settlement-arms-confirmation',
+    checks: [
+      {
+        file: 'src/game/MapSetupScreen.tsx',
+        contains: ['if (hasSave && !confirmStartArmed)', 'Settle anyway', 'Starting a new settlement deletes your saved colony'],
+      },
+    ],
+  },
+  {
+    id: 'name-field-enter-routes-through-confirmation',
+    checks: [
+      {
+        file: 'src/game/MapSetupScreen.tsx',
+        contains: "onKeyDown={(e) => e.key === 'Enter' && requestStart()}",
+        notContains: "onKeyDown={(e) => e.key === 'Enter' && handleStart()}",
+        example: "onKeyDown={(e) => e.key === 'Enter' && handleStart()}",
+      },
+    ],
+  },
+  {
+    id: 'map-cursor-binds-and-advertises-keys',
+    checks: [
+      {
+        file: 'src/components/GameMapStage.tsx',
+        contains: ['useMapKeyboardCursor(', 'onKeyDown={keyboardCursor.onKeyDown}', 'aria-keyshortcuts={MAP_CURSOR_KEYSHORTCUTS}'],
+      },
+    ],
+  },
+  {
+    id: 'map-cursor-announced',
+    checks: [
+      { file: 'src/components/GameMapStage.tsx', contains: 'aria-describedby="map-keyboard-cursor-status"' },
+      {
+        file: 'src/components/GameMapStage.tsx',
+        region: [{ from: 'id="map-keyboard-cursor-status"', within: 200, contains: 'aria-live="polite"' }],
+        contains: '{keyboardCursor.announcement}',
+      },
+    ],
+  },
+  {
+    id: 'map-cursor-marker-decorative',
+    checks: [
+      { file: 'src/components/GameMapStage.tsx', contains: 'keyboardCursor.active &&' },
+      {
+        file: 'src/components/GameMapStage.tsx',
+        region: [{ from: 'ref={cursorMarkerRef}', within: 240, contains: ['pointer-events-none', 'aria-hidden'] }],
+      },
+    ],
+  },
+  {
+    id: 'map-cursor-reads-ownership-rule',
+    checks: [
+      {
+        file: 'src/components/useMapKeyboardCursor.ts',
+        contains: "from '../game/keyboardOwnership'",
+        matches: /isKeyboardClaimed\s*\(/,
+        notContains: ['claimKeyboard(', 'releaseKeyboard('],
+        example: 'claimKeyboard();',
+      },
+    ],
+  },
+  {
+    id: 'story-card-asks-owner-for-eligibility',
+    checks: [
+      {
+        file: 'src/App.tsx',
+        region: [
+          {
+            from: 'Signature story cards',
+            to: 'Diplomacy event cards',
+            contains: ['getStoryChoiceEligibility(world, evt, choice.id)', 'blocked={blocked}'],
+            notContains: 'title={choice.detail}',
+          },
+        ],
+      },
+      { file: 'src/App.tsx', region: [{ from: 'function GatedChoiceButton', contains: 'disabled={blocked}' }] },
+    ],
+  },
+  {
+    id: 'story-card-renders-refusal-as-text',
+    checks: [
+      {
+        file: 'src/App.tsx',
+        region: [{ from: 'Signature story cards', to: 'Diplomacy event cards', contains: 'explanation={outcome.explanation}' }],
+      },
+      { file: 'src/App.tsx', region: [{ from: 'function GatedChoiceButton', contains: '{explanation && (' }] },
+      {
+        file: 'src/App.tsx',
+        region: [
+          {
+            from: 'Diplomacy event cards',
+            to: 'Favorite citizen follow banner',
+            contains: ['actionOutcomeFromGate(', 'explanation={outcome.explanation}'],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'critical-chip-named-marker',
+    checks: [
+      {
+        file: 'src/components/AlertBar.tsx',
+        matches: /alert\.severity === 'critical'/,
+        contains: 'aria-label={CRITICAL_MARKER.name}',
+      },
+    ],
+  },
+  {
+    id: 'alert-strip-routes-through-collapse-owner',
+    checks: [
+      {
+        file: 'src/components/AlertBar.tsx',
+        matches: /visibleAlertChips\(alerts, expanded\)/,
+        notMatches: /alerts\.slice\(/,
+        example: 'const shown = alerts.slice(0, 2);',
+      },
+    ],
+  },
+  {
+    id: 'build-ghost-derives-from-owner',
+    checks: [
+      { file: 'src/hooks/useCanvasInteractions.ts', contains: ['getPlaceBuildingFailureReason', 'createBuildGhost('] },
+      { file: 'src/App.tsx', contains: 'getPlaceBuildingFailureReason' },
+      {
+        file: 'src/game/renderer/buildPreview.ts',
+        contains: 'getPlaceBuildingFailureLabel(',
+        notContains: '✗ Blocked',
+        example: '✗ Blocked',
+      },
+    ],
+  },
+  {
+    id: 'council-notice-reads-message-field',
+    checks: [
+      {
+        file: 'src/game/dashboardData.ts',
+        notMatches: /as \{ title\?: string \}\)\.title/,
+        contains: 'latest.push(e.message)',
+        example: 'const t = (line as { title?: string }).title;',
+      },
+    ],
+  },
+  {
+    id: 'conception-helper-reads-stillborn-owner',
+    checks: [
+      {
+        file: 'tests/conceptionEvent.labelling.test.ts',
+        region: [
+          {
+            from: 'function liveBirthTick',
+            to: "throw new Error('no tick produces a live birth')",
+            contains: 'LIFECYCLE_CONFIG.STILLBORN_CHANCE',
+            notMatches: />=\s*0\.\d/,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'dashboard-economy-source-labels-single-source',
+    checks: [
+      {
+        file: 'src/components/dashboard/GameDashboard.tsx',
+        contains: 'ECONOMY_SOURCE_LABELS',
+        notMatches: /const SOURCE_LABELS/,
+        example: 'const SOURCE_LABELS = {',
+      },
+    ],
+  },
+  {
+    id: 'dashboard-suggestion-keys-are-composite',
+    checks: [
+      {
+        file: 'src/components/dashboard/GameDashboard.tsx',
+        notMatches: /key=\{line\.label\}/,
+        example: '<li key={line.label}>',
+        counts: [{ needle: 'key={`${line.label}-${index}`}', times: 2 }],
+      },
+    ],
+  },
+  {
+    id: 'worker-dialogue-install-payload',
+    checks: [{ file: 'src/game/simWorker/gameWorker.ts', contains: 'installDialogueBankPayload(canonicalDialogueBank)' }],
+  },
+  {
+    id: 'food-spend-through-owner',
+    checks: [
+      {
+        files: [
+          'src/game/groupEvents.ts',
+          'src/game/tradeCaravans.ts',
+          'src/game/townHall.ts',
+          'src/game/settlerInteractionActions.ts',
+          'src/game/frontierCombat.ts',
+          'src/game/weddingDiplomacy.ts',
+          'src/game/travelingTheatre.ts',
+          'src/game/deerParliament.ts',
+          'src/game/storyEvents.ts',
+          'src/game/animalCare.ts',
+          'src/game/worldEvents.ts',
+        ],
+        notMatches: /state\.resources\.food\s*-=/,
+        contains: 'spendFood(',
+        example: 'state.resources.food -= 5;',
+      },
+    ],
+  },
+  {
+    id: 'militia-armament-projection',
+    checks: [
+      { file: 'src/game/frontierPanelView.ts', contains: 'getMilitiaArmamentLabel(state)' },
+      { file: 'src/components/FrontierPanel.tsx', contains: ['projectFrontierPanel(state,', '{view.armament}'] },
+      {
+        files: ['src/components/FrontierPanel.tsx', 'src/game/frontierPanelView.ts'],
+        notMatches: /hasIronSpears\(|hasStoneSpears\(/,
+        example: 'const tier = hasIronSpears(state);',
+      },
+    ],
+  },
+  {
+    id: 'visitor-camp-retired',
+    checks: [
+      { file: 'src/components/VisitorCampPanel.tsx', absent: true },
+      { file: 'src/App.tsx', notContains: 'VisitorCampPanel', example: '<VisitorCampPanel />' },
+      { file: 'src/hooks/useCanvasInteractions.ts', notContains: 'hitTestCamp(', example: 'if (hitTestCamp(x, y)) {}' },
+      { file: 'src/components/FrontierPanel.tsx', notContains: 'view.visitors', example: 'view.visitors.map(renderVisitor)' },
+      {
+        file: 'src/game/groupEvents.ts',
+        notContains: [
+          'export function spawnVisitorGroup(',
+          'export function tickVisitorGroups(',
+          'export function tryMidYearVisitorEvent(',
+          'export function tryFirstWeekVisitor(',
+          'export function hitTestCamp(',
+        ],
+        example: 'export function spawnVisitorGroup(',
+      },
+    ],
+  },
+  {
+    id: 'rpg-art-preload-and-render',
+    checks: [
+      {
+        files: ['src/game/spriteLoader.ts', 'src/game/stripRender.ts'],
+        contains: [
+          '/sprites/oga_drummyfish/tile_pavement.png',
+          '/sprites/oga_drummyfish/wall.png',
+          '/sprites/oga_drummyfish/gate.png',
+        ],
+      },
+      {
+        file: 'src/game/stripRender.ts',
+        contains: [
+          'paintRpgPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap,',
+          'rotation === 90 ? sy : sx',
+          'paintRpgStoneStrip(ctx, sx, sy, w, h, rotation, isGate, alpha)',
+        ],
+        notContains: 'https://opengameart.org/sites/default/files/',
+        example: 'https://opengameart.org/sites/default/files/grass.png',
+      },
+    ],
+  },
+  {
+    id: 'people-subject-titled-people',
+    checks: [
+      {
+        file: 'src/hooks/useGameShellState.ts',
+        notContains: "label: 'Village'",
+        example: "label: 'Village',",
+      },
+    ],
+  },
+  {
+    id: 'council-window-named-consistently',
+    checks: [
+      { file: 'src/components/dashboard/GameDashboard.tsx', contains: 'title="Daily council"' },
+      { file: 'src/components/tabPanels/MoreTabPanel.tsx', contains: '🏘️ Daily council' },
+      { file: 'src/components/ShortcutsOverlay.tsx', contains: "'C', description: 'Daily council" },
+    ],
+  },
+  {
+    id: 'population-chip-and-council-door-distinct',
+    checks: [
+      {
+        file: 'src/components/GameHeader.tsx',
+        contains: ['aria-label={`Open ${OVERVIEW_SUBJECTS.people.label.toLowerCase()} window`}', 'aria-label="Open daily council"'],
+        notContains: ['aria-label="Open village overview"', 'aria-label="Open people overview"'],
+        example: 'aria-label="Open village overview"',
+      },
+    ],
+  },
+  {
+    id: 'window-named-by-visible-title',
+    checks: [
+      {
+        file: 'src/components/GameWindow.tsx',
+        contains: ['aria-labelledby={titleId}', 'id={titleId}'],
+        notContains: 'aria-label={title}',
+        example: 'aria-label={title}',
+      },
+    ],
+  },
+  {
+    id: 'key-table-holds-no-door-name',
+    checks: [
+      { file: 'src/game/hotkeys.ts', notMatches: /label: '/, example: "label: 'Village'," },
+    ],
+  },
+  {
+    id: 'sheet-and-guide-read-vocabulary',
+    checks: [
+      {
+        files: ['src/components/ShortcutsOverlay.tsx', 'src/components/tabPanels/MoreTabPanel.tsx'],
+        contains: 'overviewSubjectForTab(',
+        notMatches: /'Village'/,
+        example: "description: 'Village'",
+      },
+    ],
+  },
+  {
+    id: 'v-and-o-open-same-window',
+    checks: [
+      {
+        files: ['src/components/ShortcutsOverlay.tsx', 'src/components/tabPanels/MoreTabPanel.tsx'],
+        contains: 'V opens the same window',
+      },
+    ],
+  },
+  {
+    id: 'guide-list-from-vocabulary',
+    checks: [
+      {
+        file: 'src/components/tabPanels/MoreTabPanel.tsx',
+        contains: [
+          '{OVERVIEW_SUBJECTS.progress.icon} {OVERVIEW_SUBJECTS.progress.label}',
+          '{OVERVIEW_SUBJECTS.help.icon} {OVERVIEW_SUBJECTS.help.label}',
+        ],
+        notContains: ['🎯 Progress', '☰ Menu'],
+        example: '🎯 Progress',
+      },
+    ],
+  },
+  {
+    id: 'chronicle-header-uses-filter-label',
+    checks: [
+      {
+        file: 'src/game/EventLogPanel.tsx',
+        contains: 'getEventLogFilterLabel(filter)',
+        notContains: "${filter === 'all' ? '' : filter}",
+        example: "${filter === 'all' ? '' : filter}",
+      },
+    ],
+  },
+  {
+    id: 'resource-chip-accessible-name',
+    checks: [{ file: 'src/components/ResourceBadge.tsx', contains: 'aria-label={title}' }],
+  },
+  {
+    id: 'progress-subnav-pressed',
+    checks: [{ file: 'src/components/tabPanels/ProgressTabPanel.tsx', contains: 'aria-pressed={progressSubTab === id}' }],
+  },
+  {
+    id: 'build-rail-grid-toggle-pressed',
+    checks: [{ file: 'src/components/GameBuildRail.tsx', contains: 'aria-pressed={showGrid}' }],
+  },
+  {
+    id: 'menu-focus-enters-dialog',
+    checks: [
+      {
+        file: 'src/components/GameMenu.tsx',
+        contains: ['getFocusableElements(panelRef.current)[0]', 'first?.focus()'],
+      },
+    ],
+  },
+  {
+    id: 'intro-ignores-tab-and-modifiers',
+    checks: [
+      {
+        file: 'src/game/IntroScreen.tsx',
+        contains: ["event.key === 'Tab'", 'event.ctrlKey || event.metaKey || event.altKey'],
+      },
+    ],
+  },
+  {
+    id: 'mood-label-printed-once',
+    checks: [
+      {
+        file: 'src/components/CitizenOverviewScreen.tsx',
+        notContains: '{overview.moodLabel} — ',
+        contains: '{overview.moodDetail}',
+        example: '{overview.moodLabel} — {overview.moodDetail}',
+      },
+    ],
+  },
+  {
+    id: 'save-banner-in-both-session-states',
+    checks: [
+      {
+        file: 'src/App.tsx',
+        counts: [{ needle: '<SaveToastBanner', times: 2 }],
+        contains: 'className="z-[60]"',
+      },
+    ],
+  },
+  {
+    id: 'map-cursor-acts-through-pointer-path',
+    checks: [
+      {
+        file: 'src/components/useMapKeyboardCursor.ts',
+        matches: /dispatchEvent\(new MouseEvent\(type/,
+        notMatches: [/proto:\s*1/, /applyGameAction\s*\(/, /mutateWorld\s*\(/],
+        example: 'applyGameAction(state, command);',
+      },
+    ],
+  },
+];
+
+const asArray = (value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]);
+const quote = (text) => JSON.stringify(text.length > 60 ? `${text.slice(0, 57)}…` : text);
+const occurrences = (text, needle) => text.split(needle).length - 1;
+
+function runCheck(ctx, check) {
+  const violations = [];
+  for (const file of check.files ?? [check.file]) {
+    if (check.absent) {
+      if (ctx.exists(file)) violations.push(`${file}: the retired file is back`);
+      continue;
+    }
+    if (!ctx.exists(file)) {
+      violations.push(`${file}: guarded file is gone — retarget or drop the rule`);
+      continue;
+    }
+    const text = ctx.read(file);
+    for (const needle of asArray(check.contains)) {
+      if (!text.includes(needle)) violations.push(`${file}: no longer contains ${quote(needle)}`);
+    }
+    for (const needle of asArray(check.notContains)) {
+      if (text.includes(needle)) violations.push(`${file}: still contains ${quote(needle)}`);
+    }
+    for (const pattern of asArray(check.matches)) {
+      if (!pattern.test(text)) violations.push(`${file}: no longer matches ${pattern}`);
+    }
+    for (const pattern of asArray(check.notMatches)) {
+      if (pattern.test(text)) violations.push(`${file}: still matches ${pattern}`);
+    }
+    for (const { needle, times } of check.counts ?? []) {
+      const found = occurrences(text, needle);
+      if (found !== times) violations.push(`${file}: ${quote(needle)} appears ${found} times, expected ${times}`);
+    }
+    for (const [before, after] of check.order ?? []) {
+      const beforeAt = text.indexOf(before);
+      const afterAt = text.indexOf(after);
+      if (beforeAt < 0) violations.push(`${file}: no longer contains ${quote(before)}`);
+      else if (afterAt < 0) violations.push(`${file}: no longer contains ${quote(after)}`);
+      else if (beforeAt > afterAt) violations.push(`${file}: ${quote(before)} must precede ${quote(after)}`);
+    }
+    for (const region of check.region ?? []) {
+      const start = text.indexOf(region.from);
+      if (start < 0) {
+        violations.push(`${file}: region anchor ${quote(region.from)} is gone`);
+        continue;
+      }
+      const end = region.to
+        ? text.indexOf(region.to, start)
+        : region.within
+          ? start + region.within
+          : text.length;
+      if (end < 0) {
+        violations.push(`${file}: region end ${quote(region.to)} is gone`);
+        continue;
+      }
+      const slice = text.slice(start, end);
+      for (const needle of asArray(region.contains)) {
+        if (!slice.includes(needle)) violations.push(`${file}: the ${quote(region.from)} region lost ${quote(needle)}`);
+      }
+      for (const needle of asArray(region.notContains)) {
+        if (slice.includes(needle)) violations.push(`${file}: the ${quote(region.from)} region still contains ${quote(needle)}`);
+      }
+      for (const pattern of asArray(region.notMatches)) {
+        if (pattern.test(slice)) violations.push(`${file}: the ${quote(region.from)} region still matches ${pattern}`);
+      }
+    }
+  }
+  return violations;
+}
+
+function runScan(ctx, scan) {
+  const violations = [];
+  const except = scan.except ?? [];
+  for (const file of ctx.sourceFiles(scan.dir, scan.ext)) {
+    if (except.includes(file)) continue;
+    if (scan.notMatches.test(ctx.read(file))) violations.push(`${file}: still matches ${scan.notMatches}`);
+  }
+  return violations;
+}
+
+function runRow(ctx, row) {
+  return row.scan ? runScan(ctx, row.scan) : (row.checks ?? []).flatMap((check) => runCheck(ctx, check));
+}
+
+/** A synthetic violation for a row: mutate its first check's file, or add a probe file for a scan. */
+function rowOverlay(row) {
+  if (row.scan) {
+    const probe = `${row.scan.dir}/__guard_probe__.${row.scan.ext.replace('.', '')}`;
+    return { [probe]: row.scan.example ?? '' };
+  }
+  const check = row.checks[0];
+  const file = (check.files ?? [check.file])[0];
+  if (check.absent) return { [file]: '' };
+  const text = readFromDisk(file);
+  if (check.notContains !== undefined) return { [file]: `${text}\n${asArray(check.notContains)[0]}\n` };
+  if (check.notMatches !== undefined) return { [file]: `${text}\n${check.example ?? ''}\n` };
+  if (check.order !== undefined) return { [file]: text.split(check.order[0][1]).join('') };
+  if (check.region !== undefined) return { [file]: text.split(check.region[0].from).join('') };
+  if (check.contains !== undefined) return { [file]: text.split(asArray(check.contains)[0]).join('') };
+  if (check.matches !== undefined) {
+    const pattern = asArray(check.matches)[0];
+    return { [file]: text.replace(new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`), '') };
+  }
+  if (check.counts !== undefined) {
+    const { needle } = check.counts[0];
+    return { [file]: `${text}\n${needle}\n` };
+  }
+  return { [file]: text };
+}
+
+function runRows(ctx) {
+  return SOURCE_ROWS.flatMap((row) => runRow(ctx, row).map((message) => ({ id: row.id, message })));
+}
+
 function runGuards(ctx) {
   return GUARDS.flatMap((guard) =>
     guard.check(ctx).map((message) => ({ id: guard.id, message })),
@@ -355,21 +1488,30 @@ function main() {
       const violations = guard.check(makeContext(guard.sample));
       if (violations.length === 0) failures.push(`${guard.id}: did not report a violation on its sample`);
     }
+    for (const row of SOURCE_ROWS) {
+      if (row.scan ? !row.scan.example : !row.checks?.length) {
+        failures.push(`${row.id}: no red-before sample`);
+        continue;
+      }
+      const violations = runRow(makeContext(rowOverlay(row)), row);
+      if (violations.length === 0) failures.push(`${row.id}: did not report a violation on its sample`);
+    }
     if (failures.length > 0) {
       process.stderr.write(`source guards self-test FAILED\n${failures.map((line) => `  ${line}`).join('\n')}\n`);
       process.exit(1);
     }
-    process.stdout.write(`source guards self-test: PASS (${GUARDS.length} rules still catch a violation)\n`);
+    const total = GUARDS.length + SOURCE_ROWS.length;
+    process.stdout.write(`source guards self-test: PASS (${total} rules still catch a violation)\n`);
     return;
   }
 
-  const violations = runGuards(makeContext());
+  const violations = [...runGuards(makeContext()), ...runRows(makeContext())];
   if (violations.length > 0) {
     process.stderr.write(`source guards FAILED (${violations.length})\n`);
     for (const { id, message } of violations) process.stderr.write(`  [${id}] ${message}\n`);
     process.exit(1);
   }
-  process.stdout.write(`source guards: PASS (${GUARDS.length} rules)\n`);
+  process.stdout.write(`source guards: PASS (${GUARDS.length + SOURCE_ROWS.length} rules)\n`);
 }
 
 main();

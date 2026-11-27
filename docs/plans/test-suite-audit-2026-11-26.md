@@ -2,20 +2,19 @@
 
 Audit of `tests/` against the engineering standard in `AGENTS.md` §1.11 ("tests are evidence, not a
 productivity metric: guard real behavior, do not mirror implementation details"), followed by the
-first migration step the owner approved. Behavioral coverage was not reduced: every rule that left
-the unit tier now runs in `scripts/check-source-guards.mjs` on every gate.
+migration the owner approved. Behavioral coverage was not reduced: every rule that left the unit tier
+runs in `scripts/check-source-guards.mjs` on every gate.
 
 ## Verdict
 
-- **Up to date: yes.** 3,687 executed cases pass, 0 failed, 0 skipped, no test imports a module that
-  no longer exists, and the great majority of files were touched in November 2026. The suite was not
-  stale.
+- **Up to date: yes.** 3,593 executed cases pass, 0 failed, 0 skipped, no test imports a module that no
+  longer exists, and the great majority of files were touched in November 2026. The suite was not stale.
 - **Not redundant.** No two files share half of their assertion/title set, no literal pin is repeated
   across files, and the unused-code audit reports nothing.
 - **Over-composed.** The growth from 390 files (2026-10-28) to 542 came from audit batches and
   source-text guards, not from new behavioral coverage.
-- **Meaningful core:** the files that test runtime behavior at a canonical owner. Those are the
-  suite's value and are untouched.
+- **Meaningful core:** the files that test runtime behavior at a canonical owner. Those are the suite's
+  value and are untouched.
 
 ## How this was measured
 
@@ -34,60 +33,74 @@ the unit tier now runs in `scripts/check-source-guards.mjs` on every gate.
 
 | Category | Files | Judgment |
 | --- | --- | --- |
-| Behavioral owner tests | ~466 | Keep — this is the suite |
-| Source-text guards still in the test tier | 69 | Next migration increment |
+| Behavioral owner tests | ~470 | Keep — this is the suite |
+| Files that still read source text | 56 | Next migration increment |
 | Audit-batch files (`audit*`, `low-*`, `medium-*`, `phase*`, `*Batch`, `duplication*`) | 51 | Merge into their subject owner |
-| Single-case files | ~40 | Keep, but each costs a vitest process |
 | Assertion-light files (≥ 40 % `toBeTruthy`/`toBeDefined`) | 11 | Strengthen or fold into a stronger file |
 
-Rows overlap — an audit-batch file can also read source text — so they do not sum to 535.
+Rows overlap, so they do not sum to 534. Unit tier now: 532 files / 3,593 cases.
 
-## What moved in the migration (2026-11-27)
+## What moved (two passes, 2026-11-27)
 
-`scripts/check-source-guards.mjs` now owns the single-owner source-text rules as 14 named rules, run
-from the `check` step of every gate (`npm test -- check`). `--self-test` replays each rule against an
-overlay source tree and fails if the rule no longer reports a violation, so a rule cannot silently
-stop guarding. 44 cases left the unit tier; `introTimeline.cta` kept the data half of its third case and
-moved only the source assertion.
+`scripts/check-source-guards.mjs` owns the single-owner source rules: **117 rules**, of which 14 are
+hand-written scanners and 103 are declarative rows (`contains` / `notContains` / `matches` /
+`notMatches` / `counts` / `order` / `region` / `scan` / `absent`). It runs from the `check` step of
+every gate. `--self-test` synthesizes a violation for every rule — injecting the bad spelling, deleting
+the needle, swapping the order, removing a region anchor, adding a probe file — and fails if the rule
+stops reporting it, so a row cannot silently stop guarding.
 
-Files removed (their cases now run as rules):
+**139 cases left the unit tier. Eight files were removed:**
 
-- `stripPreview.emptyGuard.test.ts` → `strip-preview-never-empty`
-- `workplaceReference.singleOwner.test.ts` → `workplace-reference-single-owner`
-- `strategicWorldMap.windowLayout.test.ts` → `frontier-window-layout`
-- `ux2.introPrompt.test.ts` → `intro-ready-prompt`
-- `selectedBuildingPanel.perBuildingState.test.ts` → `selected-building-panel-keyed`
-- `debugGate.guide.test.ts` → `debug-mode-gate`
-- `ticksPerDay.literals.test.ts` → `test-tier-day-length-literals` (22 guarded test files)
+- `keyboardGuards.contract` (31 — the file was source contracts throughout)
+- `ticksPerDay.literals` (23 — 22 guarded test files plus the table floor)
+- `stripPreview.emptyGuard` (3), `workplaceReference.singleOwner` (3), `debugGate.guide` (3)
+- `strategicWorldMap.windowLayout` (2), `ux2.introPrompt` (2)
+- `selectedBuildingPanel.perBuildingState` (1)
 
-Files trimmed to their behavioral half: `dayLength.owner`, `copyAndDayIndex.owners`,
+**Nineteen files were trimmed to their behavioral half:** `uiSingleOwner` (36 of 45), `uiRefinement.residuals`
+(8 of 9), `ux2.doorNames` (8 of 9), `actionOutcome` (2), `alertStrip.criticalVisibility` (2),
+`buildGhost.failureReason`, `councilNotices.row`, `conceptionEvent.labelling`, `dashboard.foodBalance`,
+`dashboardData.suggestionLabels`, `dialogue.workerSaveParity`, `foodSpend.ledger`, `militiaArmament.label`,
+`onMapVisitors.retired`, `rpgArt.integration`, `dayLength.owner`, `copyAndDayIndex.owners`,
 `foodThresholds.owner`, `hospitalReputation.owner`, `buildingFocus.centre`, `introTimeline.cta`,
 `diagnosticsQuietness`.
 
-`compatFacadeMigration.test.ts` was **not** migrated: it runs the compatibility-facade tool against a
-temporary fixture, so it is a behavioral test of a script, not a source scan. An earlier draft of
-this audit listed it as source-only; that was wrong.
+`compatFacadeMigration` was **not** migrated: it runs the compatibility-facade tool against a temporary
+fixture, so it is a behavioral test of a script, not a source scan. An earlier draft of this audit
+listed it as source-only; that was wrong.
 
-## Remaining source-text guards — 69 files
+**Correction to the first inventory.** The first pass counted 208 source-scan cases with a per-case
+regex. That undercounted: a file that hoists `const source = readFileSync(...)` into the `describe`
+block (e.g. `alertStrip`, `keyboardGuards`) has cases that never name the helper. The real figure is
+closer to 250. The migrated 139 are the ones whose only evidence was source text; the cases left behind
+are behavioral tests that also assert the view reads its owner, which is legitimate.
 
-The largest, in order: `uiSingleOwner` (38 of 45 cases), `keyboardGuards.contract` (18 of 31),
-`visualsAudit.renderWiring` (16 of 27), `duplicationA.remaining` (10 of 16), `uxBatch.onboardingAndLogs`
-(8 of 15), `uiRefinement.residuals` (8 of 9), `ux2.doorNames` (8 of 9), `uxBatch.interactionWindows`
-(6 of 10), `ui-a11y.contract` (6 of 12), `low-2-events-defense` (20 source reads), plus `uiRefinement.owners`,
-`councilNotices.row`, `dashboardData.suggestionLabels`, `onMapVisitors.retired`, `rpgArt.integration`,
-`spotlightApplause`.
+## Remaining source-text guards — 56 files
 
-These are lint rules in the test tier: they break on behavior-preserving refactors, cannot fail for a
-behavioral reason, and each pays a vitest process. They belong in the same script, next to the 14
-rules already there. Porting them is mechanical — copy the regex and the file list into a `GUARDS`
-entry, add a `sample` for the self-test, then delete the case.
+Largest first: `visualsAudit.renderWiring` (16), `duplicationA.remaining` (10), `audit2026-09-21.regression`
+(8), `uxBatch.onboardingAndLogs` (8), `ui-a11y.contract` (6), `uiRefinement.owners` (6),
+`uxBatch.interactionWindows` (6), `uiPanelFixes.render` (5), `singleOwner.predicates` (4),
+`workforce.transitions`, `gameLoop`, `simRng`, `simulation.decisionRegistry`, `personality.*` (5 files),
+`renderer.*` (4), `renderBatch.*` (2), `storageCap`, `storageCapped.productionAnnounced`,
+`tradeRouteRewards.copy`, `tradeRoutes.eligibility`, `schooling.explains`, `saveLoad.outcomeReasons`,
+`saveVersionExperience`, `simTrig.deterministic`, `socialCadence.oneScenePerDay`, `spotlightApplause`,
+`taming.candidatesAndPost`, `raidDeadline.owner`, `residenceBestFit.owner`, `reputation.singleOwner`,
+`researchEffect.singleOwner`, `renderTransform.owner`, `logisticsOverlay.projection`,
+`low-2-events-defense`, `militiaBalance.prisoners`, `persistenceBatch.loadContract`,
+`dashboardAggregates.owner`, `buildingPanel.staffingRule`, `dailyEvents.chronicleCopy`,
+`dialogue.schema13`, `eventLogPanel.filters`, `footprintBounds.owner`, `humanSprites`,
+`simDelta.buildingFingerprintFields`, `ux2.researchBlockReason`, `auditOpenItems.verification`,
+`blueberryForaging`.
 
-## Absence / retirement guards — 288 cases
+Porting one is mechanical: copy the file list and the patterns into a row, give every `notContains` /
+`notMatches` its `example`, delete the case. `blueberryForaging` and `humanSprites` read assets rather
+than source, so they are fixture reads, not guards — check before porting.
 
-`not.toMatch`, `not.toContain`, `not.toThrow` on source text, and files such as
-`onMapVisitors.retired`, `hostileWeather.disabled`, `frontier.legacyEvents`. They guard against
-reintroducing removed code. Worth keeping where the removal was a real defect (`A17 manual job
-assignment retired`); pure archaeology belongs with the static checks.
+## Absence / retirement guards
+
+`not.toMatch`, `not.toContain`, `not.toThrow` on source text, and files such as `hostileWeather.disabled`,
+`frontier.legacyEvents`. They guard against reintroducing removed code. Worth keeping where the removal
+was a real defect (`A17 manual job assignment retired`); pure archaeology belongs with the static checks.
 
 ## Audit-batch files — 51
 
@@ -120,8 +133,8 @@ the value, not its presence.
 
 ## Remaining consolidation, in order
 
-1. **Port the 69 remaining source-text files' scan cases into `scripts/check-source-guards.mjs`**
-   (or delete the ones a behavioral case in the same file already covers). Highest value, lowest risk.
+1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete
+   the ones a behavioral case in the same file already covers). Highest value, lowest risk.
 2. **Merge the 51 audit-batch files into their subject owners.** Keep every case that names a rule;
    drop the ones that only restate a now-canonical implementation.
 3. **Strengthen the 11 assertion-light files** to assert values, or fold them into the stronger file
@@ -131,6 +144,6 @@ the value, not its presence.
 ## Bug report count
 
 New: 0. Updated existing: 0. No gameplay defect was found; the migration changed no production
-behavior. The one regression it caused was found and fixed inside the same pass: the decision
-registry's `testFile` field must name existing files, so the script path is listed without a rule
-suffix.
+behavior. The regressions it caused were found and fixed inside the same pass: the decision registry's
+`testFile` field must name existing files (the script is listed without a rule suffix), an emptied
+`describe` was removed, and the self-test's overlay builder no longer reads an intentionally absent file.

@@ -3,8 +3,6 @@
  * because every `'birth'` consumer treats the event as a delivered child.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { initGame } from '../src/game/worldGen';
 import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
@@ -256,21 +254,4 @@ describe('the live-delivery fixture follows the stillbirth owner', () => {
     );
   });
 
-  it('compares against STILLBORN_CHANCE rather than a literal', () => {
-    // Source guard: the helper's own body must name the owner. Without this case the detached
-    // `>= 0.5` copy is invisible, because today it picks the same live-birth tick (duplication G2).
-    const source = readFileSync(
-      resolve(process.cwd(), 'tests/conceptionEvent.labelling.test.ts'),
-      'utf8',
-    );
-    const start = source.indexOf('function liveBirthTick');
-    const end = source.indexOf("throw new Error('no tick produces a live birth')");
-    expect(start, 'fixture premise: the helper is still in this file').toBeGreaterThan(-1);
-    expect(end, 'fixture premise: the helper still throws when no tick works').toBeGreaterThan(start);
-    const helper = source.slice(start, end);
-    expect(helper, 'the helper no longer asks the owner for the threshold').toContain(
-      'LIFECYCLE_CONFIG.STILLBORN_CHANCE',
-    );
-    expect(helper, 'the magic stillbirth literal is back').not.toMatch(/>=\s*0\.\d/);
-  });
 });

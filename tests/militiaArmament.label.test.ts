@@ -3,8 +3,6 @@
  * accounts for — rather than restating a shorter tier list by hand.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { createInitialResearchNodes, BuildingType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
@@ -53,16 +51,4 @@ describe('militia armament label', () => {
     expect(getMilitiaArmamentLabel(makeState([], {}))).toBeNull();
   });
 
-  it('the readiness panel renders the canonical armament projection without restating tiers', () => {
-    const panel = readFileSync(resolve(process.cwd(), 'src/components/FrontierPanel.tsx'), 'utf8');
-    const projection = readFileSync(resolve(process.cwd(), 'src/game/frontierPanelView.ts'), 'utf8');
-    // The read-only projection asks the combat owner; React only displays the prepared verdict.
-    expect(projection).toContain('getMilitiaArmamentLabel(state)');
-    expect(panel).toContain('projectFrontierPanel(state,');
-    expect(panel).toContain('{view.armament}');
-    for (const source of [panel, projection]) {
-      expect(source, 'armament tiers must not be calculated outside militiaBalance').not.toMatch(/hasIronSpears\(/);
-      expect(source, 'armament tiers must not be calculated outside militiaBalance').not.toMatch(/hasStoneSpears\(/);
-    }
-  });
 });

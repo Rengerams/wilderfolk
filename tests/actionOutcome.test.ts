@@ -3,8 +3,6 @@
  * unchanged, and a gate that refuses without a reason never gets an invented one.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { initGame } from '../src/game/worldGen';
 import { getStoryChoiceEligibility } from '../src/game/storyEvents';
 import {
@@ -134,45 +132,3 @@ describe('action outcome (roadmap U2/O2)', () => {
   });
 });
 
-function read(relativePath: string): string {
-  // `ACTION_OUTCOME_ROOT` overrides the tree the source guard reads; unset, it reads the working tree.
-  const root = process.env.ACTION_OUTCOME_ROOT ?? process.cwd();
-  return readFileSync(resolve(root, relativePath), 'utf8');
-}
-
-describe('story card wiring (roadmap U2)', () => {
-  const app = read('src/App.tsx');
-  const storyCard = app.slice(app.indexOf('Signature story cards'), app.indexOf('Diplomacy event cards'));
-  const diplomacyCard = app.slice(app.indexOf('Diplomacy event cards'), app.indexOf('Favorite citizen follow banner'));
-  // Both cards drive the one shared control, so the rendering half lives in that component while the
-  // wiring half stays in the card regions; asserting both keeps every requirement.
-  const choiceButton = app.slice(app.indexOf('function GatedChoiceButton'));
-
-  it('asks the story owner for eligibility instead of offering every answer', () => {
-    // The card asks the owner per answer; an unconditional button with a hover-only title hides the refusal.
-    expect(storyCard, 'the story card no longer asks the story owner').toContain(
-      'getStoryChoiceEligibility(world, evt, choice.id)',
-    );
-    expect(storyCard, 'the story card stopped passing the gate verdict to the control').toContain(
-      'blocked={blocked}',
-    );
-    expect(choiceButton, 'a blocked answer is offered again').toContain('disabled={blocked}');
-    expect(storyCard, 'the pre-fix hint-only title is back').not.toContain('title={choice.detail}');
-  });
-
-  it('renders the owner refusal as visible text, not only as a hover title', () => {
-    expect(storyCard, 'the card stopped passing the refusal to the control').toContain(
-      'explanation={outcome.explanation}',
-    );
-    expect(
-      choiceButton,
-      'the refusal is hidden behind the title attribute again',
-    ).toContain('{explanation && (');
-    expect(diplomacyCard, 'the diplomacy card stopped using the shared outcome').toContain(
-      'actionOutcomeFromGate(',
-    );
-    expect(diplomacyCard, 'the diplomacy card stopped passing the refusal to the control').toContain(
-      'explanation={outcome.explanation}',
-    );
-  });
-});

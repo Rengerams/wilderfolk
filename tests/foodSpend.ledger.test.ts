@@ -3,8 +3,6 @@
  * guards the converted files against a raw food deduction returning.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { initGame } from '../src/game/worldGen';
 import { spendFood, summarizeFoodLedger, ECONOMY_SOURCE_LABELS } from '../src/game/economyLedger';
 import type { WorldState } from '../src/game/gameTypes';
@@ -18,20 +16,6 @@ function world(food: number): WorldState {
 }
 
 /** Files whose food spends have been converted to `spendFood`. */
-const CONVERTED = [
-  'src/game/groupEvents.ts',
-  'src/game/tradeCaravans.ts',
-  'src/game/townHall.ts',
-  'src/game/settlerInteractionActions.ts',
-  'src/game/frontierCombat.ts',
-  'src/game/weddingDiplomacy.ts',
-  'src/game/travelingTheatre.ts',
-  'src/game/deerParliament.ts',
-  'src/game/storyEvents.ts',
-  'src/game/animalCare.ts',
-  'src/game/worldEvents.ts',
-];
-
 describe('spending food reaches the ledger (F2 sweep)', () => {
   it('deducts and records under the named sink', () => {
     const state = world(100);
@@ -61,11 +45,4 @@ describe('spending food reaches the ledger (F2 sweep)', () => {
     }
   });
 
-  it('leaves no raw food deduction in the converted files', () => {
-    for (const file of CONVERTED) {
-      const src = readFileSync(resolve(process.cwd(), file), 'utf8');
-      expect(src, `${file} still deducts food directly`).not.toMatch(/state\.resources\.food\s*-=/);
-      expect(src).toContain('spendFood(');
-    }
-  });
 });

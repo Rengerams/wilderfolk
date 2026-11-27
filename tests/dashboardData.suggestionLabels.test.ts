@@ -3,8 +3,6 @@
  * rows by label plus position, never by label alone.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { initGame } from '../src/game/worldGen';
 import { explainSettler } from '../src/game/dashboardData';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -23,13 +21,4 @@ describe('settler explanation labels', () => {
     expect(new Set(labels).size, 'the dashboard keys these rows by label').toBe(labels.length);
   });
 
-  it('keeps the view independent of label uniqueness', () => {
-    const dashboard = readFileSync(
-      resolve(process.cwd(), 'src/components/dashboard/GameDashboard.tsx'),
-      'utf8',
-    );
-    expect(dashboard, 'a label-keyed row list is back').not.toMatch(/key=\{line\.label\}/);
-    const compositeKeys = dashboard.match(/key=\{`\$\{line\.label\}-\$\{index\}`\}/g)?.length ?? 0;
-    expect(compositeKeys, 'both label-keyed lists must key by label + position').toBeGreaterThanOrEqual(2);
-  });
 });

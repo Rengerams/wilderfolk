@@ -773,7 +773,7 @@ export const SIMULATION_DECISIONS = {
       'validated requested state transition (building/assignment/recipe/mode fields)',
     ],
     scheduledFrom: 'hooks/useCanvasInteractions.handleMouseUp (Alt-drag confirmation) → GameWorkerHost command channel; main-thread fallback in gameLoop',
-    testFile: 'tests/commands.validation.test.ts, tests/workerCommand.roundtrip.test.ts, tests/keyboardGuards.contract.test.ts',
+    testFile: 'tests/commands.validation.test.ts, tests/workerCommand.roundtrip.test.ts, scripts/check-source-guards.mjs',
   },
 } as const satisfies Record<DecisionKey, DecisionOwner>;
 

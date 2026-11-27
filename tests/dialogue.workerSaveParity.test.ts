@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { canonicalDialogueBank, DIALOGUE_EVENT_KEYS, getDialogueTreeById, installDialogueBankPayload, requestDialogue } from '../src/game/dialogueTrees';
 import { isDialogueBusy, resetDialogueSessions, tickHumanChat, type ChatSpeaker } from '../src/game/humanChat';
@@ -52,8 +51,6 @@ describe('main/worker and old-save dialogue compatibility', () => {
   });
 
   it('installs identical keyed source content after a worker message serialization boundary', () => {
-    const worker = readFileSync(new URL('../src/game/simWorker/gameWorker.ts', import.meta.url), 'utf8');
-    expect(worker).toContain('installDialogueBankPayload(canonicalDialogueBank)');
     const snapshot = JSON.parse(JSON.stringify(canonicalDialogueBank)) as typeof canonicalDialogueBank;
     installDialogueBankPayload(snapshot);
     expect(snapshot.dialogue_trees.map((scene) => scene.id))

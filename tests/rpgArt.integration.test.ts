@@ -18,16 +18,4 @@ describe('local CC0 RPG paths, walls and gates', () => {
     }
   });
 
-  it('preloads the bundled art and renders it for every road junction', () => {
-    const loader = readFileSync(fileURLToPath(new URL('../src/game/spriteLoader.ts', import.meta.url)), 'utf8');
-    const renderer = readFileSync(fileURLToPath(new URL('../src/game/stripRender.ts', import.meta.url)), 'utf8');
-    for (const name of ['tile_pavement.png', 'wall.png', 'gate.png']) {
-      expect(loader).toContain(`/sprites/oga_drummyfish/${name}`);
-      expect(renderer).toContain(`/sprites/oga_drummyfish/${name}`);
-    }
-    expect(renderer).toContain('paintRpgPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap,');
-    expect(renderer).toContain('rotation === 90 ? sy : sx');
-    expect(renderer).toContain('paintRpgStoneStrip(ctx, sx, sy, w, h, rotation, isGate, alpha)');
-    expect(renderer).not.toContain('https://opengameart.org/sites/default/files/');
-  });
 });

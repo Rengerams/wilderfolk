@@ -1,6 +1,6 @@
 {
  "generatedFrom": "src/**/*.{ts,tsx} + decisionRegistry.ts + OWNERSHIP_OVERVIEW.md",
- "generatedAt": "2026-11-27T00:42:04.923Z",
+ "generatedAt": "2026-11-27T01:13:33.305Z",
  "stats": {
   "files": 403,
   "functions": 3375,
@@ -1564,7 +1564,7 @@
     "building.health",
     "validated requested state transition (building/assignment/recipe/mode fields)"
    ],
-   "testFile": "tests/commands.validation.test.ts, tests/workerCommand.roundtrip.test.ts, tests/keyboardGuards.contract.test.ts",
+   "testFile": "tests/commands.validation.test.ts, tests/workerCommand.roundtrip.test.ts, scripts/check-source-guards.mjs",
    "modules": [
     "commands.ts"
    ],
