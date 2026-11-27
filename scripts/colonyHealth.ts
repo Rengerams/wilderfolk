@@ -167,6 +167,7 @@ function placeLegalStarterBuilding(
       { center: preferred, maxRing: 24 },
     ]
     : [{ center: preferred, maxRing: 24 }];
+  const rejected = { boundsOrOverlap: 0, blockedCenter: 0, commute: 0, passed: 0 };
   for (const { center, maxRing } of searches) {
   for (let ring = 0; ring <= maxRing; ring++) {
     for (let dx = -ring; dx <= ring; dx++) {
@@ -179,13 +180,13 @@ function placeLegalStarterBuilding(
         if (!isFootprintWithinMapBounds(footprint.width, footprint.height,
           spot.x, spot.y, world.width, world.height)
           || overlapsAnyBuilding(world.buildings, footprint.width, footprint.height,
-            spot.x, spot.y)) continue;
+            spot.x, spot.y)) { rejected.boundsOrOverlap++; continue; }
         const grid = getCurrentPathGrid();
         if (grid) {
           const col = Math.floor(spot.x / PATH_CELL);
           const row = Math.floor(spot.y / PATH_CELL);
           if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows
-            || grid.blocked[row * grid.cols + col]) continue;
+            || grid.blocked[row * grid.cols + col]) { rejected.blockedCenter++; continue; }
         }
         const candidate = createBuilding(type, spot.x, spot.y, -1);
         // The first seed house must itself have an accessible facade. A legal centre on an
@@ -204,14 +205,15 @@ function placeLegalStarterBuilding(
               world.buildings,
               SPECIES_CONFIG[EntityType.Human].speed,
             ));
-          if (!reachable) continue;
+          if (!reachable) { rejected.commute++; continue; }
         }
+        rejected.passed++;
         return createCompletedBuilding(world, type, spot.x, spot.y);
       }
     }
   }
   }
-  throw new Error(`Seeded ${type} has no legal, commutable starter placement near ${preferred.x},${preferred.y}`);
+  throw new Error(`Seeded ${type} has no legal, commutable starter placement near ${preferred.x},${preferred.y} (rejected: ${JSON.stringify(rejected)})`);
 }
 
 function placeStarterHousing(world: WorldState, anchor: { x: number; y: number }): void {
