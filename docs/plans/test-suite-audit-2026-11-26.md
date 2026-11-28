@@ -221,6 +221,10 @@ Moved all three `medium-N4-campAnchor.test.ts` regressions into `humanTick.hotPa
 
 Moved all seven cases from `medium-persistence.test.ts` into Moon Howler (2), Big News value integrity (1), save migration round-trip (2), worker prep fields (1), and tick-resolution migration (1). Reused the canonical round-trip fixture; preserved the original six-adult curse setup and RNG sequence. Registered the relocated adult helper and updated the decision evidence path. All cases remain runtime assertions; CI is pending.
 
+## Main integration — 2026-11-28
+
+Merged main through `dee009c6` without restoring retired audit files. Preserved main's new leader-custody, adult-education, ecology persistence, wildlife refuge and staffing regressions. Moved the added ecology round-trip case into the existing save migration suite and applied the updated ecosystem-health expectation to the relocated Nature-tab test. Extended the schooling guard with both new UI assertions. Updated active evidence paths; the combined branch requires a fresh full CI run.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete
