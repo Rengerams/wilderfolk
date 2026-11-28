@@ -446,25 +446,6 @@ export interface Entity {
   combatTicks?: number;
 }
 
-export type VisitorKind = 'traders' | 'pilgrims' | 'scholars' | 'hunters' | 'nomads' | 'refugees' | 'performers';
-
-export interface VisitorGroup {
-  id: string;
-  name: string;
-  kind: VisitorKind;
-  campX: number;
-  campY: number;
-  daysLeft: number;
-  spawnedAtCalendarDay?: number;
-  entityIds: number[];
-  giftsGiven: number;
-  diplomacyMemory?: { trust: number; fear: number; grievance: number };
-  tradesCompleted: number;
-  gold?: number;
-  refugeeResolved: boolean;
-  leaderTalked: boolean;
-}
-
 export type DiplomacyEventKind = 'tribute' | 'border_dispute' | 'alliance' | 'peace_treaty';
 
 export interface DiplomacyChoice {
@@ -944,7 +925,6 @@ export interface WorldState {
   chronicleChapters?: string[];
   festival: { active: boolean; name: string; daysLeft: number } | null;
   townHallFestivalCooldownUntilTick?: number;
-  visitorGroups: VisitorGroup[];
   rivalSettlements: RivalSettlement[];
   pendingDiplomacyEvents: DiplomacyEvent[];
   pendingRaidEvents: RaidEvent[];
@@ -975,7 +955,6 @@ export interface WorldState {
   renffrOmen?: RenffrOmen | null;
   renffrChatterUntilTick?: number;
   ecoHealthYearsAbove80: number;
-  firstWeekVisitorSpawned: boolean;
   villageLeaderId: number | null;
   /** Residents permitted to remain in the manor until succession is resolved. */
   pendingLeaderHouseResidentIds?: number[];
@@ -991,10 +970,6 @@ export interface WorldState {
   tutorialSeen?: string[];
   economyLedger?: DailyEconomyLedger;
   foodHistory?: FoodDaySample[];
-  visitorQuest?: VisitorQuest;
-  activeVillageRequest?: VillageRequest;
-  villageRequestCooldownUntilDay?: number;
-  villageRequestHistory?: VillageRequestHistoryEntry[];
   lastWildlifeReplenishLogDay?: number;
   dismissedBigNewsIds?: string[];
   dismissedActiveEventIds?: string[];
@@ -1071,47 +1046,6 @@ interface FoodDaySample {
   consumed: Record<string, number>;
 }
 
-export interface VisitorQuest {
-  id: string;
-  emoji: string;
-  title: string;
-  description: string;
-  goalType: 'deliver';
-  goalResource: 'wood' | 'stone' | 'food' | 'gold';
-  goalAmount: number;
-  progress: number;
-  status: 'active' | 'completed' | 'failed';
-  rewardGold: number;
-  rewardReputation: number;
-  expiresDay: number;
-}
-
-export interface VillageRequestChoice {
-  id: 'accept' | 'decline';
-  label: string;
-  detail: string;
-}
-
-export interface VillageRequest {
-  id: string;
-  kind: 'caravan_provisions';
-  sourceVisitorGroupId: string;
-  sourceName: string;
-  emoji: string;
-  title: string;
-  description: string;
-  choices: VillageRequestChoice[];
-  expiresDay: number;
-}
-
-export interface VillageRequestHistoryEntry {
-  id: string;
-  kind: VillageRequest['kind'];
-  sourceName: string;
-  outcome: 'accepted' | 'declined' | 'expired';
-  resolvedDay: number;
-}
-
 export interface GameNotification {
   id: string;
   title: string;
@@ -1121,7 +1055,6 @@ export interface GameNotification {
   /** Number of notices represented by an extreme-burst overflow summary. */
   overflowCount?: number;
   focus?: { x: number; y: number };
-  campKey?: string;
 }
 
 export interface BigNewsItem {

@@ -70,7 +70,6 @@ export function useContextualTutorial(world: WorldState, enabled: boolean) {
     enabled,
     world.tick,
     world.tutorialSeen,
-    world.visitorGroups,
     world.rivalSettlements,
     world.pendingDiplomacyEvents,
     world.pendingRaidEvents,

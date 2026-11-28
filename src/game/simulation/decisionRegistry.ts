@@ -77,7 +77,6 @@ export type DecisionKey =
   | 'herdMemory'
   | 'wildlifePredation'
   | 'wildlifeReplenishment'
-  | 'villageRequests'
   | 'inventionFair'
   | 'authoredStoryExpiry'
   | 'rivalStrategy'
@@ -114,7 +113,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/navigation.sharedRoutes.test.ts, tests/commuteRouteEstimate.test.ts, tests/pathfinding.segmentTraversal.test.ts',
   },
   virtualPlayer: {
-    owner: 'virtualPlayer.ts — decideVirtualPlayerAction, findPlacementSpot (existing-road-frontage-first lawful building placement, camp rings only as fallback), decideFood, wantedBootstrapCropSiteCount, needsAdditionalStore, decideIndustry, chooseRefugeeChoice (read-only policy proposals); economyLedger.isMeasuredFoodDeficit owns measured trend, getProjectedFoodSupply/isProjectedFoodShortfall own proactive demand risk',
+    owner: 'virtualPlayer.ts — decideVirtualPlayerAction, findPlacementSpot (existing-road-frontage-first lawful building placement, camp rings only as fallback), decideFood, wantedBootstrapCropSiteCount, needsAdditionalStore, decideIndustry (read-only policy proposals); economyLedger.isMeasuredFoodDeficit owns measured trend, getProjectedFoodSupply/isProjectedFoodShortfall own proactive demand risk',
     cadence: 'on-demand',
     cadenceNote: 'Once per in-game hour when auto-play is enabled; may propose food-production expansion using visible building occupancy and food supply; never queries private staffing eligibility, issues staffing commands or changes workforce policy or focus. Food expansion prefers real getRecentFoodFlow output and a seven-day forecast of population demand over interchangeable building counts, acting before deficits while waiting for visibly empty completed food sites only outside visible food pressure and limiting pending construction; before history exists, a crop-only bootstrap estimate excludes Fishing/Hunting Spot as Farm equivalents. Store expansion uses economy.computeStorageMax material caps at 85% pressure, never low gold or a population-based Store count. Mine tuning prioritizes a sub-80 gold treasury before an iron shortage; both are checked on the same hourly decision path. Housing status reports the occupied plus actually assignable bed capacity, excluding unoccupied reserved Leader\'s House beds. When no House plot is available, decideHousing first proposes safe redundant-site demolition or residence expansion before optional food construction. Actual world writes remain with command and workforce owners; the auto-player only proposes allowed player actions and never decides staffing or changes workforce priorities. The headless scenario command adapter hydrates runtime caches if it adopts a cloned WorldState into the existing shell. Elective community/perimeter/upgrade and optional storage proposals wait while the spare-bed reserve is short; decorative structures stay player-only',
     writes: [],
@@ -214,7 +213,7 @@ export const SIMULATION_DECISIONS = {
     cadence: 'on-demand',
     cadenceNote: 'Pure read-only geometry: buildingAccessPoints samples the full accessible perimeter at path-cell intervals and validates each frontage against the current grid; a doorstep is usable when doorstepHasExit finds one walkable orthogonal neighbour outside the footprint, so a narrow alley counts as a street; a side narrower than the doorstep standoff keeps the nearest open stand point, so no open facade loses its entrance; buildingAccessPoint selects a canonical first frontage for presentation, while isAtBuildingReach accepts any nearby reachable side and movement picks whichever facade it can actually reach. No extra state or scheduler. No tick, no scheduler, no RNG and no writes; the commuter targets the access and the activity enterHumanBuilding call decides entry.',
     writes: [],
-    scheduledFrom: 'humanMovement.commuteHumanToBuilding (navigation target and arrival), humanTick attendance, workAbsence, humanStatus, education, humanHospitalBehavior, hotelStay, logisticsOverlayData',
+    scheduledFrom: 'humanMovement.commuteHumanToBuilding (navigation target and arrival), humanTick attendance, workAbsence, humanStatus, education, humanHospitalBehavior, logisticsOverlayData',
     testFile: 'tests/homeEntry.geometry.test.ts, tests/buildingAccess.routeAround.test.ts, tests/settlers.indoors.test.ts, tests/workAbsence.reasons.test.ts, tests/education.centerGeometry.test.ts',
   },
   settlerDeathAudio: {
@@ -244,7 +243,7 @@ export const SIMULATION_DECISIONS = {
   humanPhysiology: {
     owner: 'simulation/humanPhysiology.ts — initialHumanNeeds, normalizeHumanNeeds, advanceHumanNeeds, resolveHumanNeedsIntent, getHumanNeedsWorkMultiplier, hasFatalStarvation, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy, getHumanStaminaRatio, rebaseHumanNeedsClockAfterFormRestore, hasNearbyWell',
     cadence: 'realtime',
-    cadenceNote: 'Player humans advance once per tick before offscreen throttling. Creation, load migration and form restoration initialize or restore saved needs. Resolve intent and work effects as read-only queries; the hourly meal cadence is owned by humanTick, passed into tryEatColonyMeal only at clock boundaries. HumanPhysiology determines hunger and the meal cooldown, never clock-boundary scheduling. The legacy human energy field is a one-way stamina projection. The sole seven-hour-night recovery rate is shared by rest and stamina, and humanTick.observeHumanSleep observes eligible homes, hotels, wards, cells, lover visits and deployed soldiers sleeping in camp at night before the single physiology write; marching troops use ordinary moving stamina cost, not local work attendance. Sleep requires a confirmed indoor arrival from the movement owner: buildingAccess.buildingAccessPoint is the one navigation target, buildingAccess.isAtBuildingReach is the one arrival rule, and only the activity enterHumanBuilding call writes indoor state; humanMovement.homeStandPosition fronts the doorstep, with home leisure using the same porch; this decision does not own navigation. A free-time spouse chase must not replace home/hotel commuting or critical-rest recovery. Children reserve 23:00–06:00 sleep with a preceding homeward hour; scheduled homeward travel bypasses offscreen throttling, and discretionary gatherings cannot interrupt recovery. Duty remains protected. Work-shift stamina costs 6/h (scaled once by labor aptitude), ordinary awake leisure costs 2/h, walking costs 5/h, and only an observed off-duty stationary needs break restores 5/h. Nine worked hours and eight waking leisure hours target 30% stamina at bedtime, followed by seven hours to refill; real configured shift lengths affect total work drain directly. Hospital medical triage is owned by hospitalCare.needsMedicalCare / medicalCareReason / medicalUrgency, consuming the existing 15%-stamina critical threshold; normal bedtime fatigue is not medical, while independent late pregnancy and grief remain eligible. Doctors and ward roster read that same tick-aware verdict without another threshold. The independent scheduleFatigue productivity multiplier is not reapplied to stamina. An unheated winter day multiplies the nutrition loss by 1.5, so daily heating wood buys a real reserve.',
+    cadenceNote: 'Player humans advance once per tick before offscreen throttling. Creation, load migration and form restoration initialize or restore saved needs. Resolve intent and work effects as read-only queries; the hourly meal cadence is owned by humanTick, passed into tryEatColonyMeal only at clock boundaries. HumanPhysiology determines hunger and the meal cooldown, never clock-boundary scheduling. The legacy human energy field is a one-way stamina projection. The sole seven-hour-night recovery rate is shared by rest and stamina, and humanTick.observeHumanSleep observes eligible homes, hotels, wards, cells, lover visits and deployed soldiers sleeping in camp at night before the single physiology write; marching troops use ordinary moving stamina cost, not local work attendance. Prison sleep and continued confinement share prisonShifts.isPrisonerInCell; hotel sleep and absence views share hotelStay.isSettlerLodgingAtHotel. No retired visitor sleep or hotel check-in writer remains; hotelStay reserves beds for player settlers only; sleep, capacity, roster and checkout share tick-aware reservation validity, and checkout updates any initialized lodging index before clearing the pointer. Sleep requires a confirmed indoor arrival from the movement owner: buildingAccess.buildingAccessPoint is the one navigation target, buildingAccess.isAtBuildingReach is the one arrival rule, and only the activity enterHumanBuilding call writes indoor state; humanMovement.homeStandPosition fronts the doorstep, with home leisure using the same porch; this decision does not own navigation. A free-time spouse chase must not replace home/hotel commuting or critical-rest recovery. Children reserve 23:00–06:00 sleep with a preceding homeward hour; scheduled homeward travel bypasses offscreen throttling, and discretionary gatherings cannot interrupt recovery. Duty remains protected. Work-shift stamina costs 6/h (scaled once by labor aptitude), ordinary awake leisure costs 2/h, walking costs 5/h, and only an observed off-duty stationary needs break restores 5/h. Nine worked hours and eight waking leisure hours target 30% stamina at bedtime, followed by seven hours to refill; real configured shift lengths affect total work drain directly. Hospital medical triage is owned by hospitalCare.needsMedicalCare / medicalCareReason / medicalUrgency, consuming the existing 15%-stamina critical threshold; normal bedtime fatigue is not medical, while independent late pregnancy and grief remain eligible. Doctors and ward roster read that same tick-aware verdict without another threshold. The independent scheduleFatigue productivity multiplier is not reapplied to stamina. An unheated winter day multiplies the nutrition loss by 1.5, so daily heating wood buys a real reserve.',
     writes: [
       'human.needs',
       'human.needs.nutrition',
@@ -258,7 +257,7 @@ export const SIMULATION_DECISIONS = {
       'human.energy (derived projection)',
     ],
     scheduledFrom: 'humanTick.ts → advanceHumanNeeds and resolveHumanNeedsIntent; entityFactory.ts → initialHumanNeeds; saveLoad.ts → normalizeHumanNeeds; domain effects → stamina/nutrition adjustment',
-    testFile: 'tests/humanNeeds.calibration.test.ts, tests/humanNeeds.mealRule.test.ts, tests/humanNeeds.restAndWell.test.ts, tests/humanNeeds.unheatedWinter.test.ts, tests/settlers.indoors.test.ts, tests/homeEntry.geometry.test.ts',
+    testFile: 'tests/humanNeeds.calibration.test.ts, tests/humanNeeds.mealRule.test.ts, tests/humanNeeds.restAndWell.test.ts, tests/humanNeeds.unheatedWinter.test.ts, tests/settlers.indoors.test.ts, tests/homeEntry.geometry.test.ts, tests/hotelSettlerLodging.night.test.ts',
   },
   humanMeals: {
     owner: 'simulation/humanNeeds.ts — canEatColonyMeal, tryEatColonyMeal, killFromStarvation, fract, freeHuntFoodGain',
@@ -540,20 +539,6 @@ export const SIMULATION_DECISIONS = {
     ],
     scheduledFrom: 'tickLayerDaily → migration.tickMigration',
     testFile: 'tests/migration.herds.test.ts, tests/invariants.commute.herd.test.ts',
-  },
-  villageRequests: {
-    owner: 'groupEvents.ts — tickVillageRequests, resolveVillageRequest (ONLY request generation, expiry, and resolution owner)',
-    cadence: 'new-calendar-day',
-    cadenceNote: 'daily generation/expiry; typed player-command delegates into the same owner through commands.ts',
-    writes: [
-      'activeVillageRequest',
-      'villageRequestCooldownUntilDay',
-      'villageRequestHistory',
-      'documented resources/reputation effects',
-      'eventLog/bigNews/floatingTexts',
-    ],
-    scheduledFrom: 'tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → groupEvents.tickVillageRequests; commands.ts "resolveVillageRequest" → groupEvents.resolveVillageRequest',
-    testFile: 'tests/villageRequests.test.ts, tests/workerCommand.roundtrip.test.ts, tests/gameWorker.transport.test.ts',
   },
   rivalStrategy: {
     owner: 'rivalEvents.ts — tickRivalSettlements; rivalProfiles.ts — growth eligibility/cadence and selectRivalDailyAction/applyRivalDailyAction',

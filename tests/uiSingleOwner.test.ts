@@ -15,7 +15,6 @@ import { MILL_FOOD_PRODUCTION_MULT } from '../src/game/dailyBuildingEconomy';
 import { BARN_ADJACENCY_BONUS } from '../src/game/adjacencyIndex';
 import { SILO_FOOD_STORAGE, WOOD_STOREHOUSE_STORAGE } from '../src/game/economy';
 import { hasManyAdultsIdle } from '../src/game/citizenOverview';
-import { getVisitorTradePriceMult } from '../src/game/groupEvents';
 import { REPUTATION_FRIENDLY_MIN, REPUTATION_HARSH_MAX, getReputationBand } from '../src/game/simHelpers';
 
 describe('C2 — the view reads the owner instead of re-deriving the rule', () => {
@@ -69,15 +68,6 @@ describe('C2 — the remaining semantic duplicates read their owners (2026-09-20
     expect(hasManyAdultsIdle({ idle: 3, adults: 2 })).toBe(true); // 3 > max(2, 0.7)
   });
 
-  it('the reputation bands that price visitor trade are named once', () => {
-    expect(getVisitorTradePriceMult(REPUTATION_FRIENDLY_MIN)).toBeLessThan(1);
-    expect(getVisitorTradePriceMult(REPUTATION_HARSH_MAX)).toBeGreaterThan(1);
-    expect(getVisitorTradePriceMult(REPUTATION_FRIENDLY_MIN - 1)).toBe(1);
-    expect(getVisitorTradePriceMult(REPUTATION_HARSH_MAX + 1)).toBe(1);
-  });
-
-  // Two different owners consume the bands — visitor trade prices and `frontierCombat`'s raid odds —
-  // so the boundary is pinned at the defining source, not at one consumer.
   it('the classifier is the only reader of the band boundaries', () => {
     expect(getReputationBand(REPUTATION_FRIENDLY_MIN)).toBe('friendly');
     expect(getReputationBand(REPUTATION_FRIENDLY_MIN - 1)).toBe('normal');

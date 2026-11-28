@@ -104,12 +104,6 @@ describe('affair establishment is announced once per affair', () => {
   });
 });
 
-function visitor(id: number, x: number, y: number): Entity {
-  const entity = settler(id, x, y);
-  entity.faction = 'visitor';
-  return entity;
-}
-
 function hotel(id: number, x: number, y: number): Building {
   const building = createBuilding(BuildingType.Hotel, x, y, id);
   building.completed = true;
@@ -117,25 +111,25 @@ function hotel(id: number, x: number, y: number): Building {
   return building;
 }
 
-/** Visitor ids whose check-in rolls all pass, so one call fills a whole hotel deterministically. */
-function checkInReadyIds(count: number, tick: number): number[] {
-  const ids: number[] = [];
-  for (let id = 2000; id < 200000 && ids.length < count; id++) {
-    if (personDayRoll(id, tick, 910) <= 0.55 && personDayRoll(id, tick, 911) < 0.35) ids.push(id);
-  }
-  return ids;
+/** Reserve beds for actual residents whose homes are far away. */
+function reservedLodgers(hotelId: number, x: number, y: number, firstId: number, tick: number): Entity[] {
+  return Array.from({ length: HOTEL_GUEST_CAPACITY }, (_, index) => {
+    const e = settler(firstId + index, x, y);
+    e.residenceBuildingId = 900;
+    e.hotelStayBuildingId = hotelId;
+    e.hotelStayUntilTick = tick + TICKS_PER_HOUR;
+    return e;
+  });
 }
 
 describe('a night of hotel lodging is announced once', () => {
   it('a second staffed hotel filling on the same night adds no card and no chronicle line', () => {
-    const tick = TICKS_PER_DAY + 19 * TICKS_PER_HOUR;
+    const tick = TICKS_PER_DAY + 23 * TICKS_PER_HOUR;
     const state = initGame({ skipTerrain: true });
-    const ids = checkInReadyIds(HOTEL_GUEST_CAPACITY * 2, tick);
-    expect(ids).toHaveLength(HOTEL_GUEST_CAPACITY * 2);
-
-    const firstBatch = ids.slice(0, HOTEL_GUEST_CAPACITY);
-    state.entities = firstBatch.map((id, index) => visitor(id, 300 + index, 300));
-    state.buildings = [hotel(100, 300, 300)];
+    const home = createBuilding(BuildingType.House, 100, 300, 900);
+    home.completed = true;
+    state.entities = reservedLodgers(100, 1280, 300, 2000, tick);
+    state.buildings = [home, hotel(100, 1280, 300)];
     state.tick = tick;
     invalidateEntityByIdMap(state);
 
@@ -143,12 +137,8 @@ describe('a night of hotel lodging is announced once', () => {
     const afterFirstNight = state.notifications.filter((note) => note.title === 'Hotel lodging occupancy');
     expect(afterFirstNight).toHaveLength(1);
 
-    const secondBatch = ids.slice(HOTEL_GUEST_CAPACITY);
-    state.entities = [
-      ...state.entities,
-      ...secondBatch.map((id, index) => visitor(id, 301 + index, 300)),
-    ];
-    state.buildings = [...state.buildings, hotel(101, 301, 300)];
+    state.entities = [...state.entities, ...reservedLodgers(101, 1400, 300, 3000, tick)];
+    state.buildings = [...state.buildings, hotel(101, 1400, 300)];
     invalidateEntityByIdMap(state);
 
     tickHotelLodging(state);
@@ -159,20 +149,15 @@ describe('a night of hotel lodging is announced once', () => {
 });
 
 describe('citywide hotel occupancy reporting', () => {
-  it('reports occupied beds across hotels even when no visitors are waiting to check in', () => {
+  it('reports reserved settler beds across all hotels', () => {
     const state = initGame({ skipTerrain: true });
-    const first = hotel(100, 300, 300);
-    const second = hotel(101, 700, 300);
-    const guests = Array.from({ length: HOTEL_GUEST_CAPACITY }, (_, index) =>
-      visitor(500 + index, 300, 300));
-    first.hotelGuestIds = guests.map((guest) => guest.id);
-    for (const guest of guests) {
-      guest.hotelStayBuildingId = first.id;
-      guest.hotelStayUntilTick = TICKS_PER_DAY * 3;
-    }
-    state.entities = guests;
-    state.buildings = [first, second];
-    state.tick = TICKS_PER_DAY + 19 * TICKS_PER_HOUR;
+    const first = hotel(100, 1280, 300);
+    const second = hotel(101, 1400, 300);
+    const home = createBuilding(BuildingType.House, 100, 300, 900);
+    home.completed = true;
+    state.tick = TICKS_PER_DAY + 23 * TICKS_PER_HOUR;
+    state.entities = reservedLodgers(first.id, first.x, first.y, 500, state.tick);
+    state.buildings = [home, first, second];
     invalidateEntityByIdMap(state);
 
     tickHotelLodging(state);

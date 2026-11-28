@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Exclude expired hotel beds from counts and sleep; share checkout, commute and lodging logic. Require confirmed prison/hotel entry for sleep. Retire on-map visitor state, UI, commands and transport; preserve old saves, settler checkout, theatre and rival events.
+
 - **Fixed (28 Nov 2026):** Children no longer keep following a caregiver during evening/night rosters or continue stale follow/play movement through school or bedtime, including homeless off-screen children; genuinely free-time following remains allowed.
 
 - **Improved (28 Nov 2026):** Centralize simulation, terrain and omen RNG stream construction and terrain percentile sampling without changing historical seeded sequences; list semantic duplicate groups in CI.

@@ -20,9 +20,8 @@ import {
 import { canAssignWorkerToBuilding } from './game/buildingStaffingActions';
 import { getPlaceBuildingFailureReason } from './game/buildingPlacementActions';
 import {
-  NIGHT_START, TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay, isNightHour, getAbsoluteCalendarDay,
+  NIGHT_START, TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay, isNightHour,
 } from './game/dayCycle';
-import { getVisitorQuest } from './game/visitorQuest';
 import { canEstablishTradeRoute } from './game/tradeCaravans';
 import {
   actionOutcomeFromGate,
@@ -30,9 +29,6 @@ import {
   storyChoiceReasonCode,
 } from './game/actionOutcome';
 import { getStoryChoiceEligibility } from './game/storyEvents';
-// The village-request card's gate lives with the command that answers it (`resolveVillageRequest`),
-// not in the `gameEngine` barrel, so it is imported from its owner directly.
-import { getVillageRequestEligibility } from './game/groupEvents';
 import { getDiplomacyChoiceEligibility } from './game/rivalDiplomacy';
 import type { WorldState } from './game/gameEngine';
 import { PLAYABLE_SPEEDS } from './game/gameConstants';
@@ -71,7 +67,6 @@ const IntroScreen = lazyWithRetry(() => import('./game/IntroScreen'));
 const MapSetupScreen = lazyWithRetry(() => import('./game/MapSetupScreen'));
 const CombatPreviewPanel = lazyWithRetry(() => import('./game/CombatPreviewPanel'));
 import ActiveEventBanner from './components/ActiveEventBanner';
-import VillageRequestCard from './components/VillageRequestCard';
 import BigNewsBanner from './components/BigNewsBanner';
 import ShortcutsOverlay from './components/ShortcutsOverlay';
 import GameDashboard from './components/dashboard/GameDashboard';
@@ -705,26 +700,8 @@ export default function App() {
       selectedEntityId: null,
       selectedEntityIds: [],
       selectedBuildingId: null,
-      highlightedCampKey: null,
-      selectedCampKey: null,
     });
   }, [loopRef]);
-
-  const focusCampOnMap = useCallback((id: string, x: number, y: number) => {
-    const loop = loopRef.current;
-    if (!loop) return;
-    const campKey = `visitor:${id}`;
-    const nextView = focusCameraOn(loop.getView(), x, y, 1.5);
-    loop.patchView({
-      ...nextView,
-      selectedEntityId: null,
-      selectedEntityIds: [],
-      selectedBuildingId: null,
-      highlightedCampKey: campKey,
-      selectedCampKey: campKey,
-    });
-    setInspectorCollapsed(false);
-  }, [setInspectorCollapsed, loopRef]);
 
   /** Rival settlements are strategic records: focus opens the strategic map, never the colony camera. */
   const focusRivalOnStrategicMap = useCallback(() => {
@@ -741,8 +718,6 @@ export default function App() {
       selectedEntityId: null,
       selectedEntityIds: [],
       selectedBuildingId: buildingId,
-      highlightedCampKey: null,
-      selectedCampKey: null,
     });
     setInspectorCollapsed(false);
   }, [setInspectorCollapsed, loopRef]);
@@ -756,8 +731,6 @@ export default function App() {
       selectedEntityId: entity.id,
       selectedEntityIds: [entity.id],
       selectedBuildingId: null,
-      highlightedCampKey: null,
-      selectedCampKey: null,
     });
     setInspectorCollapsed(false);
   }, [setInspectorCollapsed, loopRef]);
@@ -783,8 +756,6 @@ export default function App() {
         selectedEntityId: nextId,
         selectedEntityIds: [nextId],
         selectedBuildingId: null,
-        selectedCampKey: null,
-        highlightedCampKey: null,
       });
       setInspectorCollapsed(false);
       setView(loop.getView());
@@ -873,13 +844,6 @@ export default function App() {
         selectBuildingType(BuildingType.Farm);
         setBuildPanelOpen(true);
         break;
-      case 'focus_visitor':
-        if (action.visitorId != null && action.visitorX != null && action.visitorY != null) {
-          openTab('frontier');
-          focusCampOnMap(action.visitorId, action.visitorX, action.visitorY);
-          setInspectorCollapsed(false);
-        }
-        break;
       case 'focus_rival':
         if (action.rivalId != null && action.rivalX != null && action.rivalY != null) {
           openTab('frontier');
@@ -898,7 +862,7 @@ export default function App() {
         setBuildPanelOpen(true);
         break;
     }
-  }, [selectBuildingType, focusCampOnMap, focusRivalOnStrategicMap, focusBuildingOnMap, openTab, setProgressSubTab, setInspectorCollapsed, setBuildPanelOpen]);
+  }, [selectBuildingType, focusRivalOnStrategicMap, focusBuildingOnMap, openTab, setProgressSubTab, setInspectorCollapsed, setBuildPanelOpen]);
 
   const handlePriorityAlert = useCallback((alert: PriorityAlert) => {
     playClickSound();
@@ -917,16 +881,11 @@ export default function App() {
         focusRivalOnStrategicMap();
         setInspectorCollapsed(false);
         break;
-      case 'focus_visitor':
-        openTab('frontier');
-        focusCampOnMap(action.groupId, action.x, action.y);
-        setInspectorCollapsed(false);
-        break;
       case 'focus_building':
         focusBuildingOnMap(action.buildingId, action.x, action.y);
         break;
     }
-  }, [selectBuildingType, focusCampOnMap, focusRivalOnStrategicMap, focusBuildingOnMap, openTab, setProgressSubTab, setInspectorCollapsed, setBuildPanelOpen]);
+  }, [selectBuildingType, focusRivalOnStrategicMap, focusBuildingOnMap, openTab, setProgressSubTab, setInspectorCollapsed, setBuildPanelOpen]);
 
   const getViewCamera = useCallback(() => {
     return loopRef.current?.getView().camera ?? viewRef.current.camera;
@@ -1500,16 +1459,8 @@ export default function App() {
   // The modal is the sole active presentation of its own raid; other banners stay available.
   const visibleOutgoingRaids = pendingOutgoingRaids.filter((event) => event.id !== battleReport?.raidId);
   const visibleIncomingRaids = pendingRaids.filter((event) => event.id !== battleReport?.raidId);
-  const activeVillageRequest = world.activeVillageRequest;
-  const showVillageRequest = !!(
-    activeVillageRequest
-    && pendingDiplomacy.length === 0
-    && pendingRaids.length === 0
-    && pendingOutgoingRaids.length === 0
-  );
   const showActiveEventBanner = !!(
     activeEventForBanner
-    && !showVillageRequest
     && pendingDiplomacy.length === 0
     && pendingRaids.length === 0
   );
@@ -1671,17 +1622,6 @@ export default function App() {
                 if (n.focus) {
                   focusWorldCamera(n.focus.x, n.focus.y, 1.5);
                 }
-                // Visitor/rival camp notification — select the camp so the
-                // inspector opens with its talk/trade actions visible.
-                if (n.campKey) {
-                  loopRef.current?.patchView({
-                    selectedCampKey: n.campKey,
-                    selectedEntityId: null,
-                    selectedEntityIds: [],
-                    selectedBuildingId: null,
-                  });
-                  setInspectorCollapsed(false);
-                }
               };
               return (
               <div
@@ -1699,8 +1639,8 @@ export default function App() {
                 <button
                   type="button"
                   onClick={openSubject}
-                  disabled={!n.focus && !n.campKey}
-                  title={n.focus ? (n.campKey ? 'Open camp' : 'Focus location') : n.message}
+                  disabled={!n.focus}
+                  title={n.focus ? 'Focus location' : n.message}
                   className="block w-full rounded-xl px-3 py-2 pr-9 text-left disabled:cursor-default"
                 >
                   <span className="block font-bold leading-tight">{n.title}</span>
@@ -1968,48 +1908,6 @@ export default function App() {
             return <FavoriteFollowBanner fav={fav} onStop={toggleFavoriteCitizen} />;
           })()}
 
-          {/* Visitor quest card (traveling smith) */}
-          {(() => {
-            const q = getVisitorQuest(world);
-            if (!q) return null;
-            const resEmoji: Record<string, string> = { wood: '🪵', stone: '🪨', food: '🍖', gold: '💰', iron: '🔩' };
-            const have = world.resources[q.goalResource] ?? 0;
-            const canDeliver = have >= q.goalAmount;
-            const daysLeft = Math.max(0, q.expiresDay - getAbsoluteCalendarDay(world.tick));
-            return (
-              <div className="pointer-events-auto absolute left-1/2 top-16 z-[25] w-full max-w-md -translate-x-1/2 animate-in fade-in slide-in-from-top">
-                <div className="rounded-xl border border-amber-500/40 bg-stone-900/95 p-3 shadow-xl backdrop-blur">
-                  <div className="flex items-start gap-3">
-                    <Emoji className="text-2xl">{q.emoji}</Emoji>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="font-bold text-amber-200">{q.title}</h3>
-                        <span className="shrink-0 text-xs text-stone-400">{daysLeft}d left</span>
-                      </div>
-                      <p className="mt-0.5 text-sm leading-relaxed text-stone-300">{q.description}</p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span className="text-[13px] font-semibold text-stone-400">
-                          Needs {q.goalAmount} {resEmoji[q.goalResource] ?? q.goalResource} · you have {have}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={!canDeliver}
-                          onClick={() => {
-                            playClickSound();
-                            applyGameAction({ proto: 1, op: 'deliverVisitorQuest' });
-                          }}
-                          className="ml-auto rounded-lg bg-amber-600 px-3 py-1 text-[13px] font-bold text-amber-50 hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-stone-700 disabled:text-stone-500"
-                        >
-                          Deliver → +{q.rewardGold}💰 +{q.rewardReputation}⭐
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-
           {/* First-night shelter warning */}
           {showFirstNightWarning && (
             <div className="pointer-events-auto absolute left-1/2 top-16 z-20 w-full max-w-md -translate-x-1/2 animate-in fade-in slide-in-from-top">
@@ -2205,22 +2103,6 @@ export default function App() {
         The authored decision cards below stack in one flow column; pinning each to `top-4` let a
         later diplomacy card paint over a story card's title and choices.
       */}
-      {showVillageRequest && activeVillageRequest && (
-        <VillageRequestCard
-          request={activeVillageRequest}
-          // The owner's refusal reason, so an unaffordable offer renders disabled instead of failing open.
-          acceptBlockedReason={
-            getVillageRequestEligibility(world, activeVillageRequest, 'accept').blockReason ?? null
-          }
-          onResolve={(requestId, choice) => applyGameAction({
-            proto: 1,
-            op: 'resolveVillageRequest',
-            requestId,
-            choice,
-          })}
-        />
-      )}
-
       {showActiveEventBanner && activeEventForBanner && (
         <ActiveEventBanner event={activeEventForBanner} onDismiss={dismissActiveEvent} />
       )}
@@ -2228,7 +2110,7 @@ export default function App() {
       {activeBigNews.length > 0 && (
         <BigNewsBanner
           news={activeBigNews}
-          displaced={showActiveEventBanner || showVillageRequest}
+          displaced={showActiveEventBanner}
           onDismiss={dismissBigNewsItem}
         />
       )}

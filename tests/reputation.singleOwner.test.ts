@@ -7,7 +7,7 @@ import type { WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { tickChildrenShelter } from '../src/game/storyEvents';
-import { deliverVisitorQuest } from '../src/game/visitorQuest';
+import { addReputation } from '../src/game/simHelpers';
 
 const FIXTURE_SEED = 20_260_917;
 /** `simHelpers.addReputation`'s documented band. */
@@ -62,24 +62,7 @@ describe('village reputation has one owner (A6)', () => {
   it('writes exactly what the old ceiling-only expression wrote at the ceiling', () => {
     const state = initGame({ villageName: 'Repute', size: 'medium', seed: FIXTURE_SEED });
     state.villageReputation = REPUTATION_MAX - 1;
-    state.resources.wood = 50;
-    state.visitorQuest = {
-      id: 'quest_1',
-      emoji: '🔨',
-      title: 'The traveling smith',
-      description: 'Deliver 20 wood.',
-      goalType: 'deliver',
-      goalResource: 'wood',
-      goalAmount: 20,
-      progress: 0,
-      status: 'active',
-      rewardGold: 0,
-      rewardReputation: 4,
-      expiresDay: 99,
-    };
-
-    expect(deliverVisitorQuest(state)).toBe(true);
-
+    addReputation(state, 4);
     expect(state.villageReputation).toBe(ceilingOnly(REPUTATION_MAX - 1, 4));
     expect(state.villageReputation).toBe(REPUTATION_MAX);
   });

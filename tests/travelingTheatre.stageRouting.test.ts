@@ -23,7 +23,6 @@ const newsMessages = (state: WorldState): string[] => state.bigNews.map((item) =
 function reachOpeningNight(support: 'support_improvise' | 'support_hospitality'): WorldState {
   const state = initGame({ skipTerrain: true, seed: 20240913 });
   state.dayInYear = travelingTheatreEligibleDay(state.worldMap?.seed) + 1;
-  state.visitorGroups.push({ kind: 'performers', daysLeft: 5 } as never);
   logEvent(state, 'season', 'A hard winter passed');
 
   maybeOfferTravelingTheatre(state);
@@ -52,7 +51,6 @@ describe('traveling theatre stage routing', () => {
   it('still honours an explicit stage-2 cancel', () => {
     const state = initGame({ skipTerrain: true, seed: 20240913 });
     state.dayInYear = travelingTheatreEligibleDay(state.worldMap?.seed) + 1;
-    state.visitorGroups.push({ kind: 'performers', daysLeft: 5 } as never);
     logEvent(state, 'season', 'A hard winter passed');
     maybeOfferTravelingTheatre(state);
 
@@ -83,7 +81,6 @@ describe('M32 — the theatre reads recent history', () => {
   it('offers a script derived from the newest entries of a newest-first log', () => {
     const state = initGame({ seed: 20240913 });
     state.dayInYear = travelingTheatreEligibleDay(state.worldMap?.seed) + 1;
-    state.visitorGroups.push({ kind: 'performers', daysLeft: 5 } as never);
     // Newest entry is a scandal; everything older is filler, so only the head of the log
     // carries the history the script list is built from.
     state.eventLog = [{ id: 9999, tick: 0, year: 0, day: 0, type: 'scandal', message: 'A scandal' } as never];

@@ -42,7 +42,7 @@ export const BuildingType = {
   WildlifePreserve: 'wildlifePreserve',
   /** Public house — free-time hangout: drink, chat, unwind. */
   Tavern: 'tavern',
-  /** Guest lodging — visitors and stranded settlers sleep free; staffed by hoteliers. */
+  /** Guest lodging — settlers without usable housing sleep free; staffed by hoteliers. */
   Hotel: 'hotel',
   /** Cross rivers — place on river / bank tiles only. */
   Bridge: 'bridge',
@@ -161,8 +161,6 @@ export interface Building {
   rotation?: StoredBuildingRotation;
   /** WallGate only — closed gates block walkers; absent means open in legacy saves. */
   gateClosed?: boolean;
-  /** Hotel only — visitor entity ids currently lodging (max HOTEL_GUEST_CAPACITY). */
-  hotelGuestIds?: number[];
   /** Hunting Spot only — which prey the staffed hunters target (see HUNTING_SPOT_PREY_OPTIONS). */
   huntingSpotPrey?: HuntingSpotPrey;
   /**
@@ -735,7 +733,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     label: 'Hotel',
     // No guest count here: `HOTEL_GUEST_CAPACITY` is the owner, and this catalogue is deliberately
     // import-free (one type-only import), so a restated number would drift.
-    description: 'Visitor lodging — staff Hoteliers (day shift). Guests sleep overnight for free.',
+    description: 'Temporary settler lodging — staff Hoteliers (day shift). Guests sleep overnight for free.',
     sprite: '/sprites/hotel.png',
     backgroundColor: '#0e7490',
     padShape: 'round',

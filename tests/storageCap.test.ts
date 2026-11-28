@@ -7,8 +7,7 @@ import { createInitialView } from '../src/game/viewState';
 import { BUILDING_CONFIGS, BuildingType } from '../src/game/buildings';
 import type { Building, WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
-import { addResource, getAvailableStorageHeadroom } from '../src/game/resourceUtils';
-import { deliverVisitorQuest } from '../src/game/visitorQuest';
+import { addResource, addCappedResource, getAvailableStorageHeadroom } from '../src/game/resourceUtils';
 
 const BOOTSTRAP_FIXTURE_SEED = 20_260_920;
 
@@ -104,29 +103,11 @@ const GAIN_CLAMP_FIXTURE_SEED = 20_260_917;
  * zero and returns what it actually added, so surplus stock survives.
  */
 describe('a gain never lowers an over-cap store', () => {
-  it('a completed visitor quest leaves an over-cap purse alone and keeps the surplus', () => {
+  it('a capped gain leaves an over-cap purse alone and keeps the surplus', () => {
     const state = initGame({ skipTerrain: true, villageName: 'Caps', size: 'medium', seed: GAIN_CLAMP_FIXTURE_SEED });
     state.storageMax.gold = 100;
     state.resources.gold = 250; // over cap, e.g. after a demolition refund
-    state.resources.wood = 50;
-    state.visitorQuest = {
-      id: 'quest_1',
-      emoji: '🔨',
-      title: 'The traveling smith',
-      description: 'Deliver 20 wood.',
-      goalType: 'deliver',
-      goalResource: 'wood',
-      goalAmount: 20,
-      progress: 0,
-      status: 'active',
-      rewardGold: 30,
-      rewardReputation: 1,
-      expiresDay: 99,
-    };
-
-    expect(deliverVisitorQuest(state)).toBe(true);
-
-    expect(state.resources.wood).toBe(30); // the delivery still deducts
+    expect(addCappedResource(state, 'gold', 30)).toBe(0);
     expect(state.resources.gold).toBe(250); // the reward adds nothing over the cap…
     expect(state.resources.gold).not.toBe(100); // …and never clamps the purse down to it
   });

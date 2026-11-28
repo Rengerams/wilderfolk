@@ -3,14 +3,14 @@
  * slip past the container rule, so each has its own load-boundary validation.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { initGame } from '../src/game/worldGen';
+import { createBuilding, initGame } from '../src/game/worldGen';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, loadGameFromParsedOutcome, parseSaveJson } from '../src/game/saveLoad';
 import { resetSimRng } from '../src/game/simRng';
-import { MAP_SIZE_DIMENSIONS, MapSize, type RaidEvent, type VisitorGroup, type VillageRequest } from '../src/game/gameTypes';
+import { BuildingType, MAP_SIZE_DIMENSIONS, MapSize, type RaidEvent } from '../src/game/gameTypes';
 
 /** A camp as `groupEvents.spawnVisitorGroup` writes one. */
-function visitorGroup(): VisitorGroup {
+function visitorGroup(): Record<string, unknown> {
   return {
     id: 'visitor_traders_1',
     name: 'The Fairweather Caravan',
@@ -59,9 +59,15 @@ let cachedPayload: Record<string, unknown> | null = null;
 function buildPayload(): Record<string, unknown> {
   resetSimRng();
   const world = initGame({ skipTerrain: true, seed: 4242, size: MapSize.Medium });
-  world.visitorGroups.push(visitorGroup());
+  const hotel = createBuilding(BuildingType.Hotel, world.width / 2 + 120, world.height / 2, world.nextBuildingId++);
+  world.buildings.push(hotel);
   world.pendingRaidEvents.push(raidEvent());
-  world.activeVillageRequest = {
+  const payload = structuredClone(buildSaveData(world, createInitialView(world.width, world.height))) as Record<string, unknown>;
+  payload.visitorGroups = [visitorGroup()];
+  payload.visitorQuest = { status: 'active' };
+  payload.villageRequestCooldownUntilDay = 7;
+  payload.villageRequestHistory = [{ id: 'legacy' }];
+  payload.activeVillageRequest = {
     id: 'vreq_caravan_provisions_visitor_traders_1_2',
     kind: 'caravan_provisions',
     sourceVisitorGroupId: 'visitor_traders_1',
@@ -74,10 +80,8 @@ function buildPayload(): Record<string, unknown> {
       { id: 'decline', label: 'Decline politely', detail: 'Keep your supplies.' },
     ],
     expiresDay: 5,
-  } satisfies VillageRequest;
-  return structuredClone(
-    buildSaveData(world, createInitialView(world.width, world.height)),
-  ) as Record<string, unknown>;
+  };
+  return payload;
 }
 
 function visitorGroupIn(payload: Record<string, unknown>): Record<string, unknown> {
@@ -104,10 +108,14 @@ describe('retired camps and linked cards are dropped, but strategic raids still 
 
     expect(outcome.ok, outcome.ok ? '' : outcome.detail).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.world.visitorGroups).toHaveLength(0);
+    expect(outcome.world).not.toHaveProperty('visitorGroups');
     expect(outcome.world.pendingRaidEvents).toHaveLength(1);
     expect(outcome.world.pendingRaidEvents[0].attackerStrength).toBe(35);
-    expect(outcome.world.activeVillageRequest).toBeUndefined();
+    for (const key of ['visitorGroups', 'visitorQuest', 'activeVillageRequest', 'villageRequestCooldownUntilDay', 'villageRequestHistory']) {
+      expect(outcome.world).not.toHaveProperty(key);
+      expect(buildSaveData(outcome.world, createInitialView(outcome.world.width, outcome.world.height))).not.toHaveProperty(key);
+    }
+    expect(outcome.world).not.toHaveProperty('activeVillageRequest');
   });
 });
 
@@ -121,13 +129,27 @@ describe('loading saves retires on-map visitor NPCs without touching strategic r
     const visitorId = (payload.nextEntityId as number) + 1;
     entities.push({ ...player, id: visitorId, faction: 'visitor', groupId: 'visitor_traders_1' });
     payload.nextEntityId = visitorId + 1;
+    payload.firstWeekVisitorSpawned = true;
+    payload.activeEvent = { id: 'visitor_traders_legacy', title: 'Visitors Arrived', description: 'Old camp', emoji: 'x', effect: '', type: 'neutral' };
+    payload.bigNews = [{ id: 'old-visitor-news', title: 'Visitors Arrived', message: 'Old camp', type: 'neutral', createdAt: 0, dismissed: false }, { id: 'ordinary-news', title: 'Harvest', message: 'Keep', type: 'positive', createdAt: 0, dismissed: false }];
+    const buildings = payload.buildings as Array<Record<string, unknown>>;
+    expect(buildings.length).toBeGreaterThan(0);
+    const buildingId = buildings[0].id;
+    buildings[0].hotelGuestIds = [visitorId];
 
     const outcome = loadGameFromParsedOutcome(payload);
     expect(outcome.ok, outcome.ok ? '' : outcome.detail).toBe(true);
     if (!outcome.ok) return;
     expect(outcome.world.entities.some((entity) => entity.id === visitorId)).toBe(false);
     expect(outcome.world.entityById?.has(visitorId)).toBe(false);
-    expect(outcome.world.visitorGroups).toHaveLength(0);
+    expect(outcome.world).not.toHaveProperty('firstWeekVisitorSpawned');
+    expect(outcome.world.activeEvent).toBeNull();
+    expect(outcome.world.bigNews.map((news) => news.id)).not.toContain('old-visitor-news');
+    expect(outcome.world.bigNews.map((news) => news.id)).toContain('ordinary-news');
+    const restoredBuilding = outcome.world.buildings.find((b) => b.id === buildingId);
+    expect(restoredBuilding).toBeDefined();
+    expect(restoredBuilding).not.toHaveProperty('hotelGuestIds');
+    expect(outcome.world).not.toHaveProperty('visitorGroups');
     expect(outcome.world.pendingRaidEvents).toHaveLength(1);
   });
 });
@@ -141,7 +163,7 @@ describe('obsolete visitor camp records do not block existing saves', () => {
 
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.world.visitorGroups).toHaveLength(0);
+    expect(outcome.world).not.toHaveProperty('visitorGroups');
   });
 
   it('discards a camp whose daysLeft is not a number', () => {
@@ -152,7 +174,7 @@ describe('obsolete visitor camp records do not block existing saves', () => {
 
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.world.visitorGroups).toHaveLength(0);
+    expect(outcome.world).not.toHaveProperty('visitorGroups');
   });
 
   it('discards a camp whose kind is unrecognized', () => {
@@ -163,7 +185,7 @@ describe('obsolete visitor camp records do not block existing saves', () => {
 
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.world.visitorGroups).toHaveLength(0);
+    expect(outcome.world).not.toHaveProperty('visitorGroups');
   });
 
   it('discards a camp with no giftsGiven', () => {
@@ -174,7 +196,7 @@ describe('obsolete visitor camp records do not block existing saves', () => {
 
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.world.visitorGroups).toHaveLength(0);
+    expect(outcome.world).not.toHaveProperty('visitorGroups');
   });
 });
 
@@ -202,31 +224,13 @@ describe('an incoming raid whose own fields are unusable is refused by name', ()
   });
 });
 
-describe('a provisions card the shell cannot render is refused by name', () => {
-  it('refuses a card whose choices is not a list', () => {
+describe('retired provisions cards', () => {
+  it('ignores malformed legacy cards rather than rejecting the colony', () => {
     const payload = realPayload();
-    payload.activeVillageRequest = { ...(payload.activeVillageRequest as object), choices: 'accept' };
-
+    payload.activeVillageRequest = { choices: 'accept' };
     const outcome = loadGameFromParsedOutcome(payload);
-
-    expect(outcome.ok).toBe(false);
-    if (outcome.ok) return;
-    expect(outcome.reason).toBe('unrestorable');
-    expect(outcome.detail).toContain('activeVillageRequest');
-  });
-
-  it('refuses a card whose choice has no id, so nothing can be answered', () => {
-    const payload = realPayload();
-    payload.activeVillageRequest = {
-      ...(payload.activeVillageRequest as object),
-      choices: [{ label: 'Accept provisions', detail: 'Pay 20 gold.' }],
-    };
-
-    const outcome = loadGameFromParsedOutcome(payload);
-
-    expect(outcome.ok).toBe(false);
-    if (outcome.ok) return;
-    expect(outcome.detail).toContain('activeVillageRequest');
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) expect(outcome.world).not.toHaveProperty('activeVillageRequest');
   });
 });
 

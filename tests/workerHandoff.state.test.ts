@@ -301,14 +301,15 @@ describe('worker hand-off state', () => {
     const world = initGame({ seed: SEED, width: 1024, height: 768, skipTerrain: true });
     const visitor = human(910000, { faction: 'visitor', groupId: 'camp', x: 100, y: 100 });
     world.entities = [visitor];
-    world.visitorGroups = [{
+    const legacy = buildSaveData(world, createInitialView(world.width, world.height));
+    legacy.visitorGroups = [{
       id: 'camp', name: 'Surveyors', kind: 'scholars', campX: 500, campY: 500, daysLeft: 3,
       entityIds: [visitor.id], giftsGiven: 0, tradesCompleted: 0, refugeeResolved: true, leaderTalked: false,
     }];
 
-    const loaded = tinyLoad(world);
+    const loaded = loadGameFromParsed(legacy)!.world;
     expect(loaded.entities).toHaveLength(0);
-    expect(loaded.visitorGroups).toHaveLength(0);
+    expect(loaded).not.toHaveProperty('visitorGroups');
     loaded.simRng = snapshotSimRng();
 
     posted.length = 0;
@@ -317,7 +318,7 @@ describe('worker hand-off state', () => {
     const exported = posted.find((msg) => msg.type === 'exportSaveResult');
     if (exported?.type !== 'exportSaveResult') throw new Error('missing worker export');
     expect(exported.world.entities).toHaveLength(0);
-    expect(exported.world.visitorGroups).toHaveLength(0);
+    expect(exported.world).not.toHaveProperty('visitorGroups');
   });
 
   it('adopts a simulation pause on the tick result without letting a stale result resume it', async () => {
