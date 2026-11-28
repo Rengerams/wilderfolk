@@ -114,7 +114,7 @@ function makeWorld(
     wildlifeCounts: { grass: 0, rabbits: 0, deer: 0, wolves: 0, foxes: 0, werewolves: 0, wildkin: 0, trees: 0 },
     worldMap: buildableWorldMap(), yearlyStats: [], lifetimeStats: {}, visitorGroups: [],
     rivalSettlements: [], pendingDiplomacyEvents: [], pendingRaidEvents: [],
-    pendingOutgoingRaidEvents: [], ecoHealthYearsAbove80: 0, firstWeekVisitorSpawned: false,
+    pendingOutgoingRaidEvents: [], ecoHealthYearsAbove80: 0,
     villageLeaderId: null, leaderSinceYear: 0, lastElectionYear: -1, pendingElectionYear: null,
     electionBuildupNotifiedYear: null, electionCeremony: null, researchNodes: [],
     unlockedTechs: [], activeResearch: null, researchProgress: 0, festival: null,

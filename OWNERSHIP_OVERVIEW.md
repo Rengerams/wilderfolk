@@ -97,7 +97,7 @@ Regression coverage: `tests/hospital.howler.geometry.test.ts`, `tests/moonHowler
 |---|---|---|
 | `tickDailyWorldEvents` / `rollYearlyWorldEvent` | `dailyWorldEvents.ts` / `groupEvents.ts` | Removes first-week and mid-year arrivals and all visitor choices from the yearly event pool; ordinary world events remain. `tests/onMapVisitors.retired.test.ts` |
 | `tickLayerDaily` | `tickLayerDaily.ts` | No longer schedules obsolete `tickVisitorGroups`; no alternative visitor scheduler is introduced |
-| `loadGameFromParsedOutcome` | `saveLoad.ts` | Drops old visitor actors/camps, hotel guest roster wire fields and visitor-linked requests before live indexes are built; keeps strategic rival/raid records and trade routes. `tests/saveBoundary.elementRules.test.ts` ; legacy father migration freezes available identity before spouse cleanup |
+| `loadGameFromParsedOutcome` | `saveLoad.ts` | Drops old visitor actors/camps, first-week arrival flag and hotel guest roster wire fields and visitor-linked requests before live indexes are built; keeps strategic rival/raid records and trade routes. `tests/saveBoundary.elementRules.test.ts` ; legacy father migration freezes available identity before spouse cleanup |
 | `visitorLifecycle` / `factionWander` (retired decisions) | `simulation/decisionRegistry.ts` | Retired `tickFactionCampWander`, `ensureWanderState`, `nextVisitorActivity`, `makeNextAliveDeer`, and `killWildGameForPoach` have **no active owner**; no village-map visitor, rival wander or poaching scheduler. Old visitor load migration remains. |
 
 ## 2026-11-22 — legacy rival building load boundary

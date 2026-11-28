@@ -975,7 +975,6 @@ export interface WorldState {
   renffrOmen?: RenffrOmen | null;
   renffrChatterUntilTick?: number;
   ecoHealthYearsAbove80: number;
-  firstWeekVisitorSpawned: boolean;
   villageLeaderId: number | null;
   /** Residents permitted to remain in the manor until succession is resolved. */
   pendingLeaderHouseResidentIds?: number[];

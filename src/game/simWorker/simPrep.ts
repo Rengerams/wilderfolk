@@ -100,7 +100,6 @@ type SimPrepKeys =
   | 'eventsThisYear'
   | 'lastEventYear'
   | 'bountifulHarvest'
-  | 'firstWeekVisitorSpawned'
   | 'nextEntityId'
   | 'nextBuildingId'
   | 'nextFloatingTextId'
@@ -285,7 +284,6 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     eventsThisYear: [...(state.eventsThisYear ?? [])],
     lastEventYear: state.lastEventYear,
     bountifulHarvest: state.bountifulHarvest,
-    firstWeekVisitorSpawned: state.firstWeekVisitorSpawned,
     nextEntityId: state.nextEntityId,
     nextBuildingId: state.nextBuildingId,
     nextFloatingTextId: state.nextFloatingTextId,
@@ -421,7 +419,6 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.eventsThisYear = prep.eventsThisYear;
   world.lastEventYear = prep.lastEventYear;
   world.bountifulHarvest = prep.bountifulHarvest;
-  world.firstWeekVisitorSpawned = prep.firstWeekVisitorSpawned;
   world.nextEntityId = prep.nextEntityId;
   world.nextBuildingId = prep.nextBuildingId;
   world.nextFloatingTextId = prep.nextFloatingTextId;

@@ -96,7 +96,6 @@ function makeState(entities: Entity[], buildings: WorldState['buildings'] = []):
     pendingRaidEvents: [],
     pendingOutgoingRaidEvents: [],
     ecoHealthYearsAbove80: 0,
-    firstWeekVisitorSpawned: false,
     villageLeaderId: null,
     leaderSinceYear: 0,
     lastElectionYear: -1,

@@ -165,7 +165,6 @@ export interface SimTickDelta {
   lastEventYear: number;
   bountifulHarvest: boolean;
   ecoHealthYearsAbove80: number;
-  firstWeekVisitorSpawned: boolean;
   totalBuildingsCompleted: number;
   nextEntityId: number;
   nextBuildingId: number;
@@ -435,7 +434,6 @@ export function extractSimTickDelta(
     lastEventYear: world.lastEventYear,
     bountifulHarvest: world.bountifulHarvest,
     ecoHealthYearsAbove80: world.ecoHealthYearsAbove80,
-    firstWeekVisitorSpawned: world.firstWeekVisitorSpawned,
     totalBuildingsCompleted: world.totalBuildingsCompleted,
     nextEntityId: world.nextEntityId,
     nextBuildingId: world.nextBuildingId,
@@ -790,7 +788,6 @@ export function applySimTickDelta(
   world.lastEventYear = delta.lastEventYear;
   world.bountifulHarvest = delta.bountifulHarvest;
   world.ecoHealthYearsAbove80 = delta.ecoHealthYearsAbove80;
-  world.firstWeekVisitorSpawned = delta.firstWeekVisitorSpawned;
   world.totalBuildingsCompleted = delta.totalBuildingsCompleted;
   world.nextEntityId = delta.nextEntityId;
   world.nextBuildingId = delta.nextBuildingId;

@@ -138,7 +138,6 @@ function worldState(
     pendingRaidEvents: [],
     pendingOutgoingRaidEvents: [],
     ecoHealthYearsAbove80: 0,
-    firstWeekVisitorSpawned: false,
     villageLeaderId: null,
     leaderSinceYear: 0,
     lastElectionYear: -1,

@@ -650,7 +650,6 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     pendingOutgoingRaidEvents: [],
     tutorialSeen: [],
     ecoHealthYearsAbove80: 0,
-    firstWeekVisitorSpawned: false,
     villageLeaderId: null,
     leaderSinceYear: 0,
     lastElectionYear: -1,
