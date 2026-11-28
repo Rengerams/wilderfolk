@@ -28,11 +28,11 @@ jobs:
       SIM_FULL_SIM: '0'
 
     steps:
-      - uses: actions/checkout@v4.4.0
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4.4.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '26.12.1'
           cache: npm
@@ -94,7 +94,7 @@ jobs:
 
       - name: Upload raw simulation and timing evidence
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: population-perf-${{ inputs.tier }}-${{ inputs.days }}d-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/population-perf-${{ inputs.tier }}/
