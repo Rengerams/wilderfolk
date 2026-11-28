@@ -35,3 +35,6 @@ Existing missing IDs are inferred from the saved partner where available, before
 
 ## Verification result
 Source trace confirmed. Regression tests added for remarriage, removal and unknown father; family-reference contract updated. Tests and live simulation not run locally; CI pending. Genetic inheritance from a father whose live genome is no longer available remains outside the identity fix.
+
+## Follow-up — 2026-11-28
+New pregnancies require a valid father ID; the entity factory no longer uses the mother's own father. Ordinary births register available parents immediately. Legacy unknown paternity remains unknown rather than inventing ancestry. Adoption and immigration party rules are unchanged. Regression tests added; CI not yet verified.

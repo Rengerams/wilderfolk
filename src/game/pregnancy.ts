@@ -28,7 +28,7 @@ type PregnancyOrigin = 'married' | 'youth' | 'affair' | 'existing';
 export interface PregnancyStartOptions {
   origin: PregnancyOrigin;
   /** Biological father at conception, even when he is the current spouse. */
-  fatherId?: number;
+  fatherId: number;
   /** Optional partner context for legacy callers; pregnancy never changes their marital state. */
   partner?: Entity;
   pregnancyProgress?: number;
@@ -41,10 +41,13 @@ export interface PregnancyStartOptions {
  * It owns the due roll, father recording and the youth-love record, not marital status.
  */
 export function startPregnancy(entity: Entity, opts: PregnancyStartOptions): void {
+  if (!Number.isSafeInteger(opts.fatherId) || opts.fatherId < 0 || opts.fatherId === entity.id) {
+    throw new Error('Pregnancy requires a valid biological father ID');
+  }
   entity.pregnant = true;
   entity.pregnancyProgress = opts.pregnancyProgress ?? 0;
   entity.pregnancyDueProgress = rollPregnancyDueProgress(entity.id, opts.startDay);
-  entity.pregnantById = opts.fatherId ?? null;
+  entity.pregnantById = opts.fatherId;
   entity.pregnancyFromYouthLove = opts.origin === 'youth' ? true : undefined;
 
   // Pregnancy is independent of marital status; neither parent changes marriage state here.

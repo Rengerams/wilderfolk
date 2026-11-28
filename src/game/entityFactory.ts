@@ -185,9 +185,11 @@ export function createEntity(
     entity.age = ageYears;
 
     if (opts?.pregnant && entGender === 'female') {
+      const fatherId = opts.pregnantById ?? opts.partnerId;
+      if (fatherId == null) throw new Error('Arriving pregnancy requires a biological father ID');
       startPregnancy(entity, {
         origin: 'existing',
-        fatherId: opts.pregnantById ?? opts.fatherId ?? opts.partnerId,
+        fatherId,
         pregnancyProgress: opts.pregnancyProgress ?? 0,
         startDay: opts.colonyDay ?? 0,
       });

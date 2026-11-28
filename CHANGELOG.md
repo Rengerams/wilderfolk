@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Require biological paternity at pregnancy start, prevent confusing a mother's father with her baby's father, and register both available parents immediately at birth.
+
 - **Fixed (27 Nov 2026):** Prevent auto-player staffing commands, policy overrides and private workforce predictions; use visible occupancy for construction and reject legacy individual dismissal from completed workplaces.
 - **Fixed (28 Nov 2026):** Keep Spotlight Lore centred on the Village Square; skip blocked or displaced stage marks rather than relocating the performance, including debug preview.
 
