@@ -2235,7 +2235,7 @@ export function relocateJobSeekerForVacancy(
     unit.some((member) => eligibleIds.has(member.id))
     // Moving a worker's spouse or another employed household member would change
     // an existing commute. Only a wholly jobless unit may volunteer.
-    && unit.every((member) => member.workerBuildingId == null && !isImprisoned(member))
+    && unit.every((member) => member.workerBuildingId == null && member.apprenticeOfId == null && !isImprisoned(member))
     && unit.every((member) => member.residenceBuildingId === unit[0].residenceBuildingId)
   );
   if (units.length === 0) return false;
