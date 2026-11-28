@@ -1,12 +1,15 @@
 import { PERSON_DAY_ROLL_SALTS, personDayRoll, personPairDayRoll } from './simRng';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, WeatherType } from './gameTypes';
-import { isMarriedOrExpecting } from './relationships';
+import { isMutualMarriage } from './relationships';
+import { HUMAN_NEEDS, getHumanStaminaRatio, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
+import { needsMedicalCare, medicalUrgency } from './hospitalCare';
+import { isStaffedHospital } from './humanHospitalBehavior';
+import { getAbsoluteCalendarDay } from './dayCycleClock';
 import {
   DAYS_PER_YEAR,
   EVENING_START,
   HUMAN_VENERABLE_AGE,
-  TICKS_PER_DAY,
   TICKS_PER_HOUR,
   getHourOfDay,
   getWeekday,
@@ -44,7 +47,6 @@ type SocialMotive =
   | 'care_pregnant'
   | 'hospital_visit'
   | 'comfort_neighbor'
-  | 'kid_play'
   | 'birthday'
   | 'day_off'
   | 'none';
@@ -63,27 +65,16 @@ export interface SocialImpulse {
   dialogueRoll?: number;
 }
 
-export type SocialBuildingPicker = (
-  types: readonly BuildingType[],
-  salt: number,
-) => Building | undefined;
+export type SocialBuildingPool = (types: readonly BuildingType[]) => readonly Building[];
 
 const SOCIAL_IMPULSE_CONFIG = {
-  EXHAUSTED_ENERGY_RATIO: 0.28,
-  WEARY_ENERGY_RATIO: 0.4,
-  /** Below this, a person is considered medically vulnerable. */
-  VULNERABLE_ENERGY_RATIO: 0.5,
-  /** Below this, vulnerability boost kicks in hard. */
-  CRITICAL_ENERGY_RATIO: 0.3,
+  // Social help uses the physiology owner's break-recovery target, not a medical diagnosis.
   HARSH_WEATHER_STAY_HOME_CHANCE: 0.62,
   SUNDAY_SERVICE_ATTEND_CHANCE: 0.7,
   /** 0.6 = per-person, per-day chance that a settler with nothing else on spends a day off out. */
   DAY_OFF_GATHERING_CHANCE: 0.6,
   GREETING_MIN_DIST_SQ: 16, // 4px^2
   GREETING_MAX_DIST_SQ: 784, // 28px^2
-  /** Realistic chat bubble duration in ticks (3 ticks = 1 in-game hour). */
-  CHAT_BUBBLE_TICKS_SHORT: 4,
-  CHAT_BUBBLE_TICKS_NORMAL: 6,
 } as const;
 
 function isHarshWeather(weather: WorldState['weather']): boolean {
@@ -95,64 +86,28 @@ function isHarshWeather(weather: WorldState['weather']): boolean {
   );
 }
 
-function pickBuilding(
-  buildings: readonly Building[],
-  types: readonly BuildingType[],
-  salt: number,
-): Building | undefined {
-  if (buildings.length === 0 || types.length === 0) return undefined;
-
-  let count = 0;
-  for (let i = 0; i < buildings.length; i++) {
-    const b = buildings[i];
-    if (b.completed && types.includes(b.type)) {
-      count++;
+/** Nearest eligible completed venue; stable ID breaks ties in cached and uncached pools. */
+function pickBuilding(entity: Entity, buildings: readonly Building[], types: readonly BuildingType[]): Building | undefined {
+  let best: Building | undefined;
+  let bestDistance = Infinity;
+  for (const building of buildings) {
+    if (!building.completed || !types.includes(building.type)) continue;
+    if (building.type === BuildingType.Hospital && !isStaffedHospital(building)) continue;
+    const distance = (building.x - entity.x) ** 2 + (building.y - entity.y) ** 2;
+    if (distance < bestDistance || (distance === bestDistance && best && building.id < best.id)) {
+      best = building;
+      bestDistance = distance;
     }
   }
-
-  if (count === 0) return undefined;
-
-  // Guard against NaN / Infinity salts silently breaking selection.
-  const safeSalt = Number.isFinite(salt) ? Math.abs(Math.floor(salt)) : 0;
-  const targetIdx = safeSalt % count;
-
-  let currentIdx = 0;
-  for (let i = 0; i < buildings.length; i++) {
-    const b = buildings[i];
-    if (b.completed && types.includes(b.type)) {
-      if (currentIdx === targetIdx) return b;
-      currentIdx++;
-    }
-  }
-
-  return undefined;
+  return best;
 }
 
 function isGrieving(entity: Entity, tick: number): boolean {
   return (entity.griefUntilTick ?? 0) > tick;
 }
 
-function isExhausted(entity: Entity): boolean {
-  if (!Number.isFinite(entity.maxEnergy) || entity.maxEnergy <= 0) return false;
-  return entity.energy < entity.maxEnergy * SOCIAL_IMPULSE_CONFIG.EXHAUSTED_ENERGY_RATIO;
-}
-
 function isElder(entity: Entity): boolean {
   return entity.age >= HUMAN_VENERABLE_AGE;
-}
-
-function isMedicallyVulnerable(entity: Entity): boolean {
-  if (entity.pregnant) return true;
-  if (!Number.isFinite(entity.maxEnergy) || entity.maxEnergy <= 0) return false;
-  return entity.energy < entity.maxEnergy * SOCIAL_IMPULSE_CONFIG.VULNERABLE_ENERGY_RATIO;
-}
-
-function medicalVulnerabilityBoost(entity: Entity): number {
-  if (entity.pregnant) return 0.25;
-  if (!Number.isFinite(entity.maxEnergy) || entity.maxEnergy <= 0) return 0;
-  if (entity.energy < entity.maxEnergy * SOCIAL_IMPULSE_CONFIG.CRITICAL_ENERGY_RATIO) return 0.3;
-  if (entity.energy < entity.maxEnergy * SOCIAL_IMPULSE_CONFIG.VULNERABLE_ENERGY_RATIO) return 0.15;
-  return 0;
 }
 
 function isBirthdayToday(entity: Entity, dayInYear: number): boolean {
@@ -160,11 +115,6 @@ function isBirthdayToday(entity: Entity, dayInYear: number): boolean {
   const birthDayInYear =
     ((Math.floor(entity.birthDay) % DAYS_PER_YEAR) + DAYS_PER_YEAR) % DAYS_PER_YEAR;
   return birthDayInYear === dayInYear;
-}
-
-function absDaySalt(tick: number): number {
-  if (!Number.isFinite(tick)) return 0;
-  return Math.floor(tick / TICKS_PER_DAY) * 17;
 }
 
 /**
@@ -176,8 +126,7 @@ export function pickSocialImpulse(
   state: WorldState,
   buildings: readonly Building[],
   nearbyAdults: readonly Entity[],
-  nearbyKids: readonly Entity[],
-  pickSocialBuilding: SocialBuildingPicker = (types, salt) => pickBuilding(buildings, types, salt),
+  poolOf?: SocialBuildingPool,
 ): SocialImpulse {
   if (!entity.alive) return { motive: 'none' };
 
@@ -190,9 +139,12 @@ export function pickSocialImpulse(
   const weekday = getWeekday(tick);
   const onShift = isOnWorkScheduleShift(state, hour);
   const hasHome = hasResidenceAssignment(entity);
+  const completedErrands = entity.socialErrands?.day === getAbsoluteCalendarDay(tick) ? entity.socialErrands : undefined;
+  const pickSocialBuilding = (types: readonly BuildingType[]) => pickBuilding(entity, poolOf?.(types) ?? buildings, types);
 
   // 1. Sick / Exhausted — Rest at home (or just rest, if homeless)
-  if (isExhausted(entity)) {
+  if (resolveHumanNeedsIntent(entity, tick, false, false) === 'takeBreak'
+    || (!entity.needs && getHumanStaminaRatio(entity) < HUMAN_NEEDS.STAMINA_CRITICAL / 100)) {
     return {
       motive: 'sick_day',
       stayHome: hasHome,
@@ -203,7 +155,7 @@ export function pickSocialImpulse(
 
   // 2. Grief — Quiet days at home or prayer at church
   if (isGrieving(entity, tick)) {
-    const church = pickSocialBuilding([BuildingType.Church], entity.id + 3);
+    const church = pickSocialBuilding([BuildingType.Church]);
     if (church && personDayRoll(entity.id, tick, 702) < 0.4 && hour >= 9 && hour < 18) {
       return {
         motive: 'grief',
@@ -246,24 +198,9 @@ export function pickSocialImpulse(
     };
   }
 
-  // 5. Partner Care (Pregnant Spouse) — Active marriage only, spouse must be nearby
-  const spouse =
-    isMarriedOrExpecting(entity) && entity.partnerId != null
-      ? nearbyAdults.find(
-          (h) => h.id === entity.partnerId && h.alive && isMarriedOrExpecting(h),
-        )
-      : undefined;
-
+  // 5. Partner care is companionship, not a medical referral.
+  const spouse = nearbyAdults.find((h) => isMutualMarriage(entity, h));
   if (spouse?.pregnant && personDayRoll(entity.id, tick, 707) < 0.55) {
-    const hospital = pickSocialBuilding([BuildingType.Hospital], entity.id);
-    if (hospital && personDayRoll(entity.id, tick, 708) < 0.35) {
-      return {
-        motive: 'care_pregnant',
-        building: hospital,
-        company: spouse,
-        dialogueEvent: 'social.impulse.care_pregnant.to_hospital',
-      };
-    }
     return {
       motive: 'care_pregnant',
       company: spouse,
@@ -271,22 +208,14 @@ export function pickSocialImpulse(
     };
   }
 
-  // Pregnant self care
-  if (entity.pregnant && personDayRoll(entity.id, tick, 709) < 0.45) {
-    const hospital = pickSocialBuilding([BuildingType.Hospital], entity.id + 1);
-    if (hospital && hour >= 10 && hour < 17) {
-      return { motive: 'hospital_visit', building: hospital, dialogueEvent: 'social.impulse.hospital_visit.checkup' };
-    }
-    if (hasHome && hour >= EVENING_START) {
-      return { motive: 'care_pregnant', stayHome: true, dialogueEvent: 'social.impulse.care_pregnant.rest' };
-    }
+  if (entity.pregnant && hasHome && hour >= EVENING_START && personDayRoll(entity.id, tick, 709) < 0.45) {
+    return { motive: 'care_pregnant', stayHome: true, dialogueEvent: 'social.impulse.care_pregnant.rest' };
   }
 
   // 6. Sunday Service (Sunday = day 6)
   if (weekday === 6 && hour >= 9 && hour < 13) {
     const church = pickSocialBuilding(
       [BuildingType.Church],
-      entity.id + absDaySalt(tick),
     );
     if (
       church &&
@@ -302,8 +231,9 @@ export function pickSocialImpulse(
   }
 
   // 7. Civic Petition — Visit Town Hall (including post-scandal counseling)
-  const hall = pickSocialBuilding([BuildingType.TownHall], entity.id + 9);
+  const hall = pickSocialBuilding([BuildingType.TownHall]);
   if (
+    !completedErrands?.civic &&
     hall &&
     hall.occupants.length > 0 &&
     hour >= 9 &&
@@ -315,7 +245,7 @@ export function pickSocialImpulse(
       foodAid ||
       isGrieving(entity, tick) ||
       (entity.scandalCooldownUntilTick ?? 0) > tick ||
-      entity.energy < entity.maxEnergy * SOCIAL_IMPULSE_CONFIG.VULNERABLE_ENERGY_RATIO;
+      getHumanStaminaRatio(entity) < HUMAN_NEEDS.STAMINA_BREAK_RECOVERED / 100;
 
     if (needAid || personDayRoll(entity.id, tick, 731) < 0.15) {
       return {
@@ -329,12 +259,10 @@ export function pickSocialImpulse(
   }
 
   // 8. Hospital Visit (when staffed)
-  const hospital = pickSocialBuilding([BuildingType.Hospital], entity.id + 11);
+  const hospital = needsMedicalCare(entity, tick) ? pickSocialBuilding([BuildingType.Hospital]) : undefined;
   if (
     hospital &&
-    hospital.occupants.length > 0 &&
-    isMedicallyVulnerable(entity) &&
-    personDayRoll(entity.id, tick, 732) < 0.5 + medicalVulnerabilityBoost(entity)
+    personDayRoll(entity.id, tick, 732) < 0.5 + 0.3 * medicalUrgency(entity, tick)
   ) {
     return {
       motive: 'hospital_visit',
@@ -347,7 +275,6 @@ export function pickSocialImpulse(
   if (isBirthdayToday(entity, state.dayInYear) && personDayRoll(entity.id, tick, 712) < 0.65) {
     const tavern = pickSocialBuilding(
       [BuildingType.Tavern, BuildingType.Market],
-      entity.id,
     );
     return {
       motive: 'birthday',
@@ -357,10 +284,9 @@ export function pickSocialImpulse(
   }
 
   // 10. Market & Well Errands (during free daytime)
-  if (!onShift && hour >= 8 && hour <= 18 && personDayRoll(entity.id, tick, 713) < 0.28) {
+  if (!completedErrands?.market && !onShift && hour >= 8 && hour <= 18 && personDayRoll(entity.id, tick, 713) < 0.28) {
     const market = pickSocialBuilding(
       [BuildingType.Market, BuildingType.Store, BuildingType.Well],
-      entity.id + absDaySalt(tick),
     );
     if (market) {
       return {
@@ -379,7 +305,7 @@ export function pickSocialImpulse(
       h.id !== entity.id &&
       h.alive &&
       h.prisonBuildingId == null &&
-      h.energy < h.maxEnergy * SOCIAL_IMPULSE_CONFIG.WEARY_ENERGY_RATIO &&
+      getHumanStaminaRatio(h) < HUMAN_NEEDS.STAMINA_BREAK_RECOVERED / 100 &&
       personPairDayRoll(entity.id, h.id, tick, PERSON_DAY_ROLL_SALTS.socialWearyComfort) < 0.5,
   );
   if (weary && personDayRoll(entity.id, tick, 716) < 0.22) {
@@ -391,16 +317,12 @@ export function pickSocialImpulse(
     };
   }
 
-  // `nearbyKids` is intentionally unused here; kid_play is dispatched by the caller.
-  void nearbyKids;
-
   // Day Out — a settler with nowhere to be needs an anchor in this list; without it an idle
   // settler's only destination is home. Resting at home is the fallback, not the plan.
   const idle = !hasWorkAssignment(entity);
   if ((!isWorkDay(tick) || idle) && hour >= 9 && hour < EVENING_START) {
     const haunt = pickSocialBuilding(
       [BuildingType.Tavern, BuildingType.Market, BuildingType.TownHall, BuildingType.Church],
-      entity.id + absDaySalt(tick),
     );
     if (haunt && personDayRoll(entity.id, tick, 736) < SOCIAL_IMPULSE_CONFIG.DAY_OFF_GATHERING_CHANCE) {
       return {
