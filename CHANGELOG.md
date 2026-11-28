@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (28 Nov 2026):** Children no longer keep following a caregiver during evening/night rosters or resume stale follow routes off-screen after the school commute or mandatory bedtime begins; free-time following remains allowed when the caregiver is genuinely off duty.
+- **Fixed (28 Nov 2026):** Children no longer keep following a caregiver during evening/night rosters or continue stale follow/play movement through school or bedtime, including homeless off-screen children; genuinely free-time following remains allowed.
 
 - **Fixed (28 Nov 2026):** Keep the settled ecology type contract dependency-free so the strict import-cycle architecture gate remains intact.
 
