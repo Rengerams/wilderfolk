@@ -343,6 +343,9 @@ const GUARDS = [
  * reports a violation instead of passing on a typo.
  */
 const SOURCE_ROWS = [
+  { id: "renderer-snapped-verdict-position", checks: [{ file: "src/game/renderer/grid.ts", contains: "const px = worldToScreenX(cx, cam, cw);", notContains: "worldToScreenX(rawX," }] },
+  { id: "renderer-bounded-progress-samples", checks: [{ file: "src/game/buildingProgressDisplay.ts", matches: [/if \(value >= 100\) \{\s*\n\s*samples\.delete\(building\.id\);/, /samples\.size >= MAX_PROGRESS_SAMPLES/] }] },
+  { id: "renderer-shared-floating-text-fade", checks: [{ file: "src/game/renderer/markers.ts", contains: "FLOATING_TEXT_FADE_TICKS", notMatches: /ft\.life < 7/, example: "ft.life < 7" }, { file: "src/game/tickLayerRealtime.ts", contains: "FLOATING_TEXT_FADE_TICKS", notMatches: /ft\.life < 6/, example: "ft.life < 6" }] },
   { id: "grid-cell-clamp-single-owner", scan: { dir: "src", ext: [".ts", ".tsx"], except: ["src/game/spatialGrid.ts"], notMatches: /Math\.min\(\w+(\.\w+)? - 1, Math\.max\(0, Math\.floor\(/, example: "Math.min(cellCount - 1, Math.max(0, Math.floor(coord / cellSize)))", minFiles: 1 } },
   { id: "grid-cell-clamp-single-owner-owner", checks: [{ file: "src/game/spatialGrid.ts", matches: [/Math\.min\(\w+(\.\w+)? - 1, Math\.max\(0, Math\.floor\(/] }] },
   { id: "velocity-facing-single-owner", scan: { dir: "src", ext: [".ts", ".tsx"], except: ["src/game/simulation/movementSteering.ts"], notMatches: /spriteAngle\s*=\s*Math\.atan2\(\s*\w+\.vy,\s*\w+\.vx\s*\)/, example: "e.spriteAngle = Math.atan2(e.vy, e.vx)", minFiles: 1 } },

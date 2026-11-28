@@ -261,6 +261,10 @@ Moved all 26 movement cases to the pathfinding, human movement, hotel checkout a
 
 Moved six numeric behavior cases from `duplicationA.remaining` to the scent/grid, velocity steering and RNG owner suites. Migrated the other ten source-only cases (including one synthetic scan proof) to 13 declarative guards with individual mutation checks. The exact numerical steering and RNG oracles remain, including uncapped floating-point operation order. No runtime cases removed; CI pending.
 
+## Renderer wiring guard increment — 2026-11-28
+
+Moved three source-only cases (snapped verdict position, bounded progress samples and shared floating-text fade) into three declarative registry rules. All clauses were checked against the branch source; the mixed renderer suite and its runtime cases remain. CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

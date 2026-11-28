@@ -309,31 +309,6 @@ describe('D23 — ghost and strip previews ride the terrain relief', () => {
   });
 });
 
-describe('D27 — the build-grid plate is drawn where its verdict is computed', () => {
-  it('positions the marker on the snapped centre', () => {
-    const src = readSrc('game/renderer/grid.ts');
-    expect(src).toContain('const px = worldToScreenX(cx, cam, cw);');
-    expect(src).not.toContain('worldToScreenX(rawX,');
-  });
-});
-
-describe('D25 — the progress-smoothing samples are bounded', () => {
-  it('drops finished buildings and caps the map', () => {
-    const src = readSrc('game/buildingProgressDisplay.ts');
-    expect(src).toMatch(/if \(value >= 100\) \{\s*\n\s*samples\.delete\(building\.id\);/);
-    expect(src).toMatch(/samples\.size >= MAX_PROGRESS_SAMPLES/);
-  });
-});
-
-describe('D26 — one floating-text fade window', () => {
-  it('is a named constant used by the alpha fade and the shrink ramp', () => {
-    expect(readSrc('game/renderer/markers.ts')).toContain('FLOATING_TEXT_FADE_TICKS');
-    expect(readSrc('game/renderer/markers.ts')).not.toMatch(/ft\.life < 7/);
-    expect(readSrc('game/tickLayerRealtime.ts')).toContain('FLOATING_TEXT_FADE_TICKS');
-    expect(readSrc('game/tickLayerRealtime.ts')).not.toMatch(/ft\.life < 6/);
-  });
-});
-
 describe('guards are not vacuous', () => {
   // Each case feeds the pattern a source it must catch, so a vacuous pattern fails here rather
   // than sitting as a silent non-guard.
