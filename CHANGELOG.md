@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Children change safe play stops hourly, wander independently without a free companion, do not follow working apprentices or builders, and distinguish nearby playmates from companions still on their way.
+
 - **Fixed (28 Nov 2026):** Children no longer keep following a caregiver during evening/night rosters or continue stale follow/play movement through school or bedtime, including homeless off-screen children; genuinely free-time following remains allowed.
 
 - **Improved (28 Nov 2026):** Centralize simulation, terrain and omen RNG stream construction and terrain percentile sampling without changing historical seeded sequences; list semantic duplicate groups in CI.
