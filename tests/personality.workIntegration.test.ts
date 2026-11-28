@@ -12,7 +12,7 @@ import type { GenomeV2 } from '../src/game/settlerTraits';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { TICKS_PER_HOUR, tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { getWorkSchedule, getWorkScheduleHours } from '../src/game/workSchedule';
-import { MAX_SKILL, readSkill, WORK_SKILL_PER_SHIFT, getWorkerSkillMultiplier } from '../src/game/skills';
+import { MAX_SKILL, readSkill, WORK_SKILL_PER_SHIFT, getWorkerSkillMultiplier, getJobForBuilding, increaseEntitySkill } from '../src/game/skills';
 import { advanceApprenticeships } from '../src/game/apprenticeships';
 import { evaluateAptitudeInfluence } from '../src/game/personality/traitEvaluation';
 import { evaluateWorkerFit } from '../src/game/careers/workerFit';
@@ -307,4 +307,24 @@ describe('the apprenticeship-training activity reaches the real teaching path', 
     // The teacher keeps their own hand in either way.
     expect(readSkill(resistant.master, JobType.Blacksmith)).toBeCloseTo(80.05, 10);
   });
+});
+
+it('uses the same site trade for mixed construction crews, earned skill and output', () => {
+  const site = building(SITE_ID, BuildingType.Farm, { occupants: [1, 2], completed: false });
+  const a = human(1, { job: JobType.Builder, genomeV2: CONSTRUCTION_GENOME, skills: { builder: 80, farmer: 10 } });
+  const b = human(2, { job: JobType.Miner, genomeV2: ROUTINE_GENOME, skills: { miner: 90, farmer: 30 } });
+  const index = new Map([[a.id, a], [b.id, b]]);
+  const job = getJobForBuilding(site.type, 'construction');
+  expect(job).toBe(JobType.Farmer);
+  expect(getJobForBuilding(BuildingType.House, 'construction')).toBe(JobType.Builder);
+  expect(getJobForBuilding(BuildingType.House)).toBeUndefined();
+  for (const h of [a, b]) {
+    const fit = evaluateWorkerFit(h, job);
+    expect(getWorkerSkillMultiplier(bare, site, index, 'construction', new Set([h.id])))
+      .toBeCloseTo((1 + fit.skill * 0.02) * fit.aptitudeFactor, 10);
+    increaseEntitySkill(h, job, WORK_SKILL_PER_SHIFT);
+    expect(readSkill(h, job) - fit.skill).toBeCloseTo(WORK_SKILL_PER_SHIFT * fit.aptitudeFactor, 10);
+  }
+  expect(readSkill(a, JobType.Builder)).toBe(80);
+  expect(readSkill(b, JobType.Miner)).toBe(90);
 });

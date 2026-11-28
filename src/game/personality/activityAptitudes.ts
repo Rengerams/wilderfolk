@@ -325,7 +325,7 @@ export const APTITUDE_ACTIVITIES: Readonly<Record<AptitudeActivityId, AptitudeAc
 /** Every job resolves to one existing activity profile; unemployment has no trade aptitude.
  * This is a mapping only, not a second weight registry or persisted attribute.
  */
-export const JOB_APTITUDE_ACTIVITIES: Readonly<Record<JobType, AptitudeActivityId | undefined>> = {
+export const JOB_APTITUDE_ACTIVITIES = {
   settler: undefined,
   farmer: 'routineWork',
   lumberjack: 'extraction',
@@ -345,7 +345,7 @@ export const JOB_APTITUDE_ACTIVITIES: Readonly<Record<JobType, AptitudeActivityI
   prison_guard: 'defense',
   innkeeper: 'hospitality',
   hotelier: 'hospitality',
-};
+} as const satisfies Readonly<Record<JobType, AptitudeActivityId | undefined>>;
 
 /** The typed activity IDs in canonical order; the coverage test enumerates this. */
 export const APTITUDE_ACTIVITY_IDS = Object.freeze(Object.keys(APTITUDE_ACTIVITIES) as AptitudeActivityId[]);

@@ -8,12 +8,12 @@ import {
   LEADER_OCCUPATION,
   PATH_CELL,
 } from './gameTypes';
-import { getOccupationForBuilding, ensureEntitySkills, readSkill, writableEntitySkills } from './skills';
+import { getOccupationForBuilding, getJobForBuilding, ensureEntitySkills, readSkill, writableEntitySkills } from './skills';
 import { getBuildingConfig } from './buildingConfig';
 import { SPECIES_CONFIG } from './speciesConfig';
 import {
   beginCommuteRoutePass, isWithinAssignableCommute, wereCommuteRouteChecksDeferred,
-  straightLineCommuteLowerBoundHours, MAX_ASSIGNABLE_COMMUTE_HOURS, quoteBuildingCommute,
+  straightLineCommuteLowerBoundHours, MAX_ASSIGNABLE_COMMUTE_HOURS, quoteBuildingCommute, commuteQuarterHourBand,
 } from './commuteReach';
 import { TICKS_PER_HOUR } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
@@ -748,6 +748,7 @@ function pickIdleWorkerForBuilding(
   const buildingY = building.y + building.height / 2;
   let worker: Entity | undefined;
   let bestDistance = Infinity;
+  let bestBand = Infinity;
   let bestScore = -Infinity;
   let bestDays = -Infinity;
   for (const candidate of humans) {
@@ -775,8 +776,7 @@ function pickIdleWorkerForBuilding(
       : Math.hypot(dx, dy) / SPECIES_CONFIG[EntityType.Human].speed / TICKS_PER_HOUR;
     // Among reachable commutes in the same quarter-hour band, skill and DNA can genuinely
     // influence hiring. Longer commutes and established assignments retain their protection.
-    const band = Math.floor(distance * 4);
-    const bestBand = Math.floor(bestDistance * 4);
+    const band = commuteQuarterHourBand(distance);
     if (worker && band > bestBand) continue;
     const fit = evaluateWorkerFit(candidate, job);
     if (worker && band === bestBand && (fit.selectionScore < bestScore
@@ -784,6 +784,7 @@ function pickIdleWorkerForBuilding(
         || (fit.creditedDays === bestDays && distance >= bestDistance))))) continue;
     worker = candidate;
     bestDistance = distance;
+    bestBand = band;
     bestScore = fit.selectionScore;
     bestDays = fit.creditedDays;
   }
@@ -841,7 +842,7 @@ function assignBuilderInPlace(
   if (building.occupants.length >= cap) return false;
   const crewIds = constructionWorkerIds ?? new Set(buildConstructionCrewIndex(allBuildings).keys());
 
-  const buildJob = BUILDING_JOB_TYPES[building.type] ?? JobType.Builder;
+  const buildJob = getJobForBuilding(building.type, 'construction');
   const freeBuilder = humans.filter(
     (h) =>
       isPlayerHuman(h) &&

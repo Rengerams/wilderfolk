@@ -73,6 +73,13 @@ const MAX_PROGRESSIVE_COMMUTE_ROUTE_NODES = 131072;
 /** Route hours cached per grid generation; the cap bounds memory on a long-lived map. */
 const COMMUTE_ROUTE_CACHE_LIMIT = 4096;
 
+/** Stable quarter-hour hiring buckets at whole-second precision.
+ * Rounding before division keeps floating-point representations of the same boundary together.
+ */
+export function commuteQuarterHourBand(travelHours: number): number {
+  return Math.floor(Math.round(travelHours * 3600) / 900);
+}
+
 /** Applies the bounded urgency multiplier shared by movement and commute estimates. */
 export function commuteWalkSpeed(walkSpeed: number, rush = 1): number {
   const speed = Number.isFinite(walkSpeed) && walkSpeed > 0 ? walkSpeed : 1;

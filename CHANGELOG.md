@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Share construction trade attribution, stabilize vocational commute buckets and preserve scholar age/ID priority.
+
 - **Added (28 Nov 2026):** Derive trade aptitude from the existing genome and central activity weights; use it for reachable hiring, apprenticeship selection, earned skill growth and crew output without adding saved attributes.
 
 - **Fixed (28 Nov 2026):** Use one fixed nine-hour fatigue baseline for all jobs, independent of ordinary work hours; shorter shifts recover faster, and routine recovery no longer generates Chronicle messages.

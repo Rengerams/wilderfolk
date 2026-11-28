@@ -114,10 +114,21 @@ export function advanceApprenticeships(
         && !claimed.has(p.id) && readSkill(p, job) < GRADUATE_SKILL
         && p.careerMilestones?.[job]?.trainedAtDay == null
         && isWithinAssignableCommute(p, b, state.buildings, SPECIES_CONFIG[EntityType.Human].speed, buildingById);
-      // Preserve scholar reservation and age priority; aptitude selects among eligible peers.
-      const scholar = grandmaster ? scholars.filter(eligible).sort((a, b) =>
-        b.age - a.age || evaluateWorkerFit(b, job).selectionScore - evaluateWorkerFit(a, job).selectionScore
-        || a.id - b.id)[0] : undefined;
+      // Scholars are already ordered oldest first, then ascending ID. Only evaluate the oldest
+      // reachable age cohort; strict improvement preserves the lower ID for equal aptitude/skill.
+      let scholar: Entity | undefined;
+      let scholarFit = -Infinity;
+      if (grandmaster) {
+        for (const candidate of scholars) {
+          if (scholar && candidate.age < scholar.age) break;
+          if (!eligible(candidate)) continue;
+          const fit = evaluateWorkerFit(candidate, job).selectionScore;
+          if (fit > scholarFit) {
+            scholar = candidate;
+            scholarFit = fit;
+          }
+        }
+      }
       const bx = b.x + b.width / 2;
       const by = b.y + b.height / 2;
       let best: Entity | null = scholar ?? null;
