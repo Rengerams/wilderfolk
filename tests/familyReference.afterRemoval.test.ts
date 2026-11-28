@@ -1,3 +1,4 @@
+import { reconcileOrphanedMarriages } from '../src/game/humanLifecycleCleanup';
 /**
  * Family reference coverage after permanent removal: the death cleanup owns every clear, and this
  * file drives the real removal path rather than clearing references by hand.
@@ -305,5 +306,72 @@ describe('family references after permanent removal (P7)', () => {
     expect(fixture.controlPet.tamedBy).toBe(CONTROL_ID);
     expect(fixture.controlHouse.occupants).toEqual(controlHouseBefore);
     expect(fixture.state.entityById?.get(CONTROL_ID)).toBe(fixture.control);
+  });
+});
+
+describe('death cleanup vs the youth-love invariant', () => {
+  it('clears the survivor half of a youth-love link when the sweetheart dies', () => {
+    const sweetheart = human(1, { x: 100, y: 100,
+      gender: 'female',
+      age: 15,
+      isJuvenile: true,
+      youthLovePartnerId: 2,
+      youthLoveProgress: 40,
+      youthLoveStartedDay: 3,
+    });
+    const dying = human(2, { x: 100, y: 100,
+      gender: 'male',
+      age: 15,
+      isJuvenile: true,
+      youthLovePartnerId: 1,
+      youthLoveProgress: 40,
+      youthLoveStartedDay: 3,
+    });
+    const world = initGame({ skipTerrain: true, seed: 20240913 });
+    world.entities = [sweetheart, dying];
+    world.buildings = [];
+    world.villageLeaderId = null;
+    world.nextEntityId = 10_000;
+    world.tick = 0;
+    world.bigNews = [];
+    world.eventLog = [];
+    world.notifications = [];
+    world.floatingTexts = [];
+    const entityById = new Map<number, Entity>([[1, sweetheart], [2, dying]]);
+
+    killHuman(dying, [], entityById, world.tick);
+
+    expect(sweetheart.youthLovePartnerId).toBeUndefined();
+    expect(sweetheart.youthLoveProgress).toBeUndefined();
+    expect(sweetheart.youthLoveStartedDay).toBeUndefined();
+    // §5: a youth-love link joins two living settlers, so no one-sided link may survive.
+    expect(collectSimulationInvariantErrors(world)).toEqual([]);
+  });
+});
+
+describe('reconcileOrphanedMarriages uses the Moon Howler partner owner rule', () => {
+  it('keeps a marriage to a settler temporarily in Moon Howler form', () => {
+    const wife = human(1, { x: 100, y: 100, gender: 'female', partnerId: 2, relationshipStatus: 'married' });
+    const were = human(2, { x: 100, y: 100,
+      gender: 'male',
+      partnerId: 1,
+      relationshipStatus: 'married',
+      type: EntityType.Werewolf,
+      moonHowlerCursed: true,
+    });
+
+    reconcileOrphanedMarriages([wife, were]);
+
+    expect(wife.partnerId).toBe(2);
+    expect(wife.relationshipStatus).toBe('married');
+  });
+
+  it('clears a marriage whose partner row is gone', () => {
+    const wife = human(1, { x: 100, y: 100, gender: 'female', partnerId: 99, relationshipStatus: 'married' });
+
+    reconcileOrphanedMarriages([wife]);
+
+    expect(wife.partnerId).toBeUndefined();
+    expect(wife.relationshipStatus).toBe('single');
   });
 });

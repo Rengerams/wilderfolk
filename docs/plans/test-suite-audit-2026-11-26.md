@@ -229,6 +229,10 @@ Merged main through `dee009c6` without restoring retired audit files. Preserved 
 
 Moved 14 cases from `low-1-worker-persistence`, `medium-B1-staffing` and `renderBatch.sprites` into worker rollback/delta/display-cache, construction staffing, human tick and asset integration owners. Reused the shared building and human factories with the original fixture values and extended the existing tick context with optional focus. Kept the asset manifest's real preload/file checks together with its dynamic source-use check; these are not source-text-only architecture guards. CI pending.
 
+## Calendar, lifecycle and workforce owner consolidation — 2026-11-28
+
+Moved 22 regressions from `calendarPhase.auditRegressions`, `low-3-moon-lifecycle` and `economyWorkforce.auditRemediation` into clock cadence, Moon Howler, birth, family-reference cleanup, daily economy and workforce suites. The required calendar scheduler gate now explicitly runs the destination clock suite; all seven real-gameTick boundary checks remain. Reused the lifecycle's deterministic birth tick and delivery runner, and preserved the original generated-world staffing fixtures. CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

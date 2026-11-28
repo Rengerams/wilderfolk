@@ -469,3 +469,45 @@ describe('M10 Irrigation drought_resist is consumed by the drought farm penalty'
     expect(irrigated.state.resources.food).toBeGreaterThan(plain.state.resources.food);
   });
 });
+
+describe('completed Mill bonus', () => {
+  /** A farm with one witnessed shift, standing on the tick before its 18:00 production pass. */
+  function farmWorld(mill: 'none' | 'player'): WorldState {
+    const state = initGame({ skipTerrain: true, villageName: 'Audit', size: 'medium', seed: 20_261_112 });
+    const farm = createBuilding(BuildingType.Farm, 100, 100, 30);
+    farm.completed = true;
+    farm.constructionProgress = 100;
+    farm.occupants = [1];
+    const worker = createEntity(EntityType.Human, 100, 100, 1, 400, false,
+      { gender: 'male', name: 'Settler1', surname: 'Test', ageYears: 30, colonyDay: 0 });
+    worker.workerBuildingId = farm.id;
+    worker.scheduleLastWorkedHours = 9;
+    state.entities = [worker];
+    state.buildings = [farm];
+    if (mill !== 'none') {
+      const millBuilding = createBuilding(BuildingType.Mill, 200, 100, 31);
+      millBuilding.completed = true;
+      millBuilding.constructionProgress = 100;
+      state.buildings.push(millBuilding);
+    }
+    state.resources.food = 300;
+    state.tick = tickAtDailyPhase(2, 'production') - 1;
+    return state;
+  }
+
+  function runProductionPass(state: WorldState): number {
+    const before = state.resources.food;
+    gameTick(state);
+    return state.resources.food - before;
+  }
+
+  describe('the Mill farm bonus', () => {
+    it('raises farm output when a completed Mill stands', () => {
+      const none = runProductionPass(farmWorld('none'));
+      const player = runProductionPass(farmWorld('player'));
+
+      expect(none, 'the fixture must produce food, or the bonus proves nothing').toBeGreaterThan(0);
+      expect(player, 'a completed Mill raises farm output').toBeGreaterThan(none);
+    });
+  });
+});

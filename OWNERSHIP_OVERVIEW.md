@@ -89,7 +89,7 @@ Regression coverage: `tests/hospital.howler.geometry.test.ts`, `tests/moonHowler
 | Skill reads, writes and decay | `src/game/skills.ts` | `readSkill` is pure; `increaseEntitySkill` gives XP for production and witnessed apprenticeship lessons/completion (not school graduation), with revision bumps only when a value changes; `decayIdleSkills` avoids no-op revisions. `tests/skills.attendanceOwner.test.ts` |
 | Shift and construction provenance | `src/game/scheduleFatigue.ts` / `src/game/humanTick.ts` | The one attendance recorder receives builder site/job even without `workerBuildingId`; `getPracticedJobForCompletedDay` uses the current day's attendance at 00:00 without a previous-day fallback. No new scheduler. |
 | Construction production | `src/game/dailyBuildingEconomy.ts` | Onsite shift fractions contribute monotonically; stronger or weaker additional workers cannot remove earlier progress. Construction settles at 23:00 after all legal shifts; completion cannot enter the earlier 18:00 production/XP/forge/Mill pass. Any completion immediately refreshes caps and Silo spoilage through the sole economy.updateStorageCaps owner. Unattended build rates remain passive or 0.22×; accepted-output bonuses apply only to previously operational sites. `tests/personality.workIntegration.test.ts`, `tests/workSkillAttribution.accrual.test.ts` |
-| Day boundary | `src/game/tickLayerDaily.ts` | `tickLayerDaily` invokes the same construction owner at 23:00 and the sole 00:00 skill-decay call before attendance settlement. `tests/calendarPhase.auditRegressions.test.ts` |
+| Day boundary | `src/game/tickLayerDaily.ts` | `tickLayerDaily` invokes the same construction owner at 23:00 and the sole 00:00 skill-decay call before attendance settlement. `tests/dayCycle.cadence.test.ts` |
 
 ## 2026-11-22 — retire on-map visitors (no second scheduler)
 
@@ -161,7 +161,7 @@ Genetics layers, activity registry, evaluator contract and change recipes: [DNA 
 | Deterministic invariant harness | `scripts/sim-invariants.ts` — `main`, `createSeededRandom` | `SIM_SEED` passed directly to `initGame`; optional `SIM_START_DAY` boundary jump then real `gameTick` and `assertSimInvariants`, without an additional game scheduler |
 | Worker/main save and RNG parity fixture | `tests/workerMainThread.parity.test.ts` — `installWorkerSelf`, test-local `differences` | 2 × 288 ticks with two midnight crossings; existing worker protocol, saved-state and stream comparison; fixture uses `skipTerrain: true` |
 | Required real-calendar CI gate | `scripts/test.mjs` — `calendarScheduler` (test runner), `.github/workflows/calendar-scheduler.yml` (mandatory PR/main job), `vitest.config.ts` (scoped coverage) | `npm test -- calendar-scheduler`: selected day/year boundaries, no 720-day continuous loop or `--passWithNoTests` |
-| Calendar-phase test world fixture | `tests/calendarPhase.auditRegressions.test.ts` — `worldBeforeDay` | test-only: derive previous day from the canonical clock |
+| Calendar-phase test world fixture | `tests/dayCycle.cadence.test.ts` — `worldBeforeDay` | test-only: derive previous day from the canonical clock |
 | Six-hour defense regression harness | `tests/audit2026-09-21.regression.test.ts` — `defendableWorld`, `finishDefense` | Test-only: build the leader/reputation fixture, invoke `queueRaidDefense`, advance the genuine battle clock and assert its aftermath without bypassing the gameplay owner |
 | CI and standard/slow gate routing | `scripts/test.mjs` — `run` | `npm run test:standard`; PRs pass `--changed <base SHA>` for affected unit tests; main pushes run the full standard suite and the production build, and neither `npm test` nor `npm run test:standard` rewrites duplicate baselines. Static gates and build remain project-wide. `npm test -- colony-integration`, `npm test -- full` retain their separate slow gates. |
 | Bounded simulation CI | `.github/workflows/simulation-120-day.yml` | PR simulation-rule changes and manual dispatch; seeded producer bot, 120 days, 30-day invariant checkpoints |
@@ -724,6 +724,10 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/workerDisplayCache.ownership.test.ts` | `treeAt`, `grassAt` (reused grid fixtures) |
 | `tests/staffing.pregnancy.test.ts` | `makeWorld` (construction eligibility) |
 | `tests/rpgArt.integration.test.ts` | `publicPath`, `sourceTexts`, `walk`, `FakeImage.src` (sprite asset and preload fixtures) |
+| `tests/moonHowler.test.ts` | `human`, `moonState`, `sevenAdults` (debug curse and cadence fixtures, scoped) |
+| `tests/humanLifecycle.test.ts` | `birthFixture` (newborn residence and assignment regression; existing `liveBirthTick` and `runBirth` reused) |
+| `tests/dailyEconomy.ledgerEcology.test.ts` | `farmWorld`, `runProductionPass` (completed Mill production fixture) |
+| `tests/workforce.transitions.test.ts` | `completed`, `settler`, `freshWorld` (scoped allocation fixtures) |
 | `tests/inventionFair.simulation.test.ts` | `demoCount`, `advanceDays`, `fundedInventionFair` (funded-fair daily regression fixtures) |
 | `tests/tutorialCampaign.test.ts` | `guidedWorld` (guided tutorial fixture) |
 | `tests/dailyChallenges.rewards.test.ts` | `completedPlayerHouse` (challenge progression fixture) |

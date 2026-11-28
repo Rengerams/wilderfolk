@@ -29,7 +29,7 @@ const STEP = {
   unitAll: 'vitest run',
   invariantTest: 'vitest run tests/fullYear.integration.test.ts',
   /** Required in PR/main: real gameTick at selected day/year boundaries, not 720 simulated days. */
-  calendarScheduler: 'vitest run tests/calendarPhase.auditRegressions.test.ts tests/simulation.decisionRegistry.test.ts --coverage',
+  calendarScheduler: 'vitest run tests/dayCycle.cadence.test.ts tests/simulation.decisionRegistry.test.ts --coverage',
   colonyIntegrationTest: 'vitest run tests/longRunColony.integration.test.ts',
   /** Both year-long gates are independent processes; running them together halves the wall time. */
   integrationTests: 'vitest run tests/fullYear.integration.test.ts tests/longRunColony.integration.test.ts',

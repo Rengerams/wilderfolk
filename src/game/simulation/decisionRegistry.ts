@@ -412,7 +412,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: 'The existing human tick samples living assigned doctors once per calendar boundary. One doctor per fifty residents can halve the player sudden-illness risk at full coverage; empty, dead, jailed or deployed doctors provide no coverage. Old age and foreign mortality are unchanged.',
     writes: ['human.alive', 'human.energy', 'eventLog', 'deathParticles'],
     scheduledFrom: 'humanTick.tickHumans → tryDailyHumanMortality → killHuman',
-    testFile: 'tests/dailyEcology.pollutionGrading.test.ts, tests/calendarPhase.auditRegressions.test.ts',
+    testFile: 'tests/dailyEcology.pollutionGrading.test.ts, tests/dayCycle.cadence.test.ts',
   },
   wildlifeReplenishment: {
     owner: 'worldGen.replenishDepletedWildlife — wildlife restocking; wildlifePopulationPolicy.WILDLIFE_POPULATION_POLICY and getWildlifeCarryingCapacity — sole refill targets and prey-supported predator caps',
@@ -569,7 +569,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: 'Exactly once at 00:00, before attendance settlement, living adult player humans decay skills that were not practiced. Only the witnessed, site-attributed trade from that day is exempt; a held job alone is not. No-op decay does not dirty the entity profile revision. Required CI: calendar-scheduler gameTick regression.',
     writes: ['human.skills', 'human.profileRevision'],
     scheduledFrom: 'gameTick.ts → tickLayerDaily.ts 00:00 → skills.decayIdleSkills',
-    testFile: 'tests/calendarPhase.auditRegressions.test.ts, tests/skills.attendanceOwner.test.ts',
+    testFile: 'tests/dayCycle.cadence.test.ts, tests/skills.attendanceOwner.test.ts',
   },
   socialFeedback: {
     owner: 'humanSocial.ts — simAmbientChatNeighbors, simSettlerPairChat; socialLife.ts — pickSocialImpulse, tryWorkplaceBanter, tryNeighborGreeting, isSocialStaggerTick, isGreetingHour',
@@ -702,7 +702,7 @@ export const SIMULATION_DECISIONS = {
       'eventLog/title (Moonslayer)',
     ],
     scheduledFrom: 'tickLayerRealtime.ts → tickMoonHowlerCycle (22:00 on full-moon day through next-day 06:00; form ends at 06:00)',
-    testFile: 'tests/moonHowler.test.ts, tests/low-3-moon-lifecycle.test.ts',
+    testFile: 'tests/moonHowler.test.ts',
   },
   leadership: {
     owner: 'leaderHouse.ts — syncLeaderHouseResidency, applyLeaderOccupation; election and scoring: villageLeadership.ts — getLeadershipScoreBreakdown (real recorded workdays, two strongest trades, restrained family prestige, social trust, battle/campaign record), getYearsUntilElectionForYear (shared regular term calendar), tickElectionBuildup, tryStartTermElectionCeremony, startElectionCeremony (immutable ballot-time names), tryStartVacancyElectionCeremony, tickElectionCeremony, tickElectionGossip, creditedCeremonyBallot; dailyWorldEvents.ts — tickYearBoundaryWorldEvents (midnight scheduling), tickDailyWorldEvents (18:00 vacancy scheduling); ceremony attendance: villageLeadership.ts — isCeremonyAttendee, getElectionGatherTarget (read-only)',
@@ -725,7 +725,7 @@ export const SIMULATION_DECISIONS = {
       'notifications/bigNews',
     ],
     scheduledFrom: 'tickLayerDaily.ts 00:00 → dailyWorldEvents.tickYearBoundaryWorldEvents → villageLeadership term owner; tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → villageLeadership vacancy owner; tickLayerDaily.ts 06:00 → leaderHouse.syncLeaderHouseResidency',
-    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts, tests/calendarPhase.auditRegressions.test.ts, tests/saveLoad.a1CalendarRepair.test.ts',
+    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts, tests/dayCycle.cadence.test.ts, tests/saveLoad.a1CalendarRepair.test.ts',
   },
   raidCombat: {
     owner: 'militiaBalance.ts — canBeMustered (shared adult muster eligibility with optional elected-commander job exemption); frontierCombat.ts — getRaidParticipants, canLaunchRaidOnRival (read-only shared raid preview/action guard: check arms before participants, explain imprisoned leaders with saved release ticks), queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, beginRaidReturn, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory, isCounterRaidOnRival',
