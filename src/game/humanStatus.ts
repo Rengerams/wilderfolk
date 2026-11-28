@@ -22,10 +22,11 @@ function labelFor(building: Building): string {
 }
 
 /** Keep the primary companion visible, and mention additional living playmates. */
-function childPlayCompanionLabel(state: WorldState, entity: Entity, companion: Entity): string {
+function childPlayCompanionLabel(state: WorldState, entity: Entity, companion: Entity, nearbyOnly = false): string {
   const others = (entity.childPlayGroupIds ?? []).filter((id) =>
     id !== entity.id && id !== companion.id
-    && state.entities.some((candidate) => candidate.id === id && candidate.alive && candidate.isJuvenile),
+    && state.entities.some((candidate) => candidate.id === id && candidate.alive && candidate.isJuvenile
+      && (!nearbyOnly || (candidate.indoorBuildingId == null && Math.hypot(candidate.x - entity.x, candidate.y - entity.y) <= 28))),
   ).length;
   const name = citizenGivenName(companion);
   return others ? `${name} + ${others} ${others === 1 ? 'friend' : 'friends'}` : name;
@@ -122,11 +123,23 @@ export function getHumanActivityStatus(
 
   const currentChildLeisure = entity.childPlaymateDay === getAbsoluteCalendarDay(state.tick)
     ? entity.childLeisureActivity : undefined;
+  if (entity.isJuvenile && currentChildLeisure === 'playing' && entity.childLeisureTargetId == null) {
+    return 'Playing alone';
+  }
   if (entity.isJuvenile && entity.childLeisureTargetId != null && currentChildLeisure) {
     const companion = state.entities.find((candidate) =>
       candidate.id === entity.childLeisureTargetId && candidate.alive);
     if (companion && currentChildLeisure === 'playing') {
-      return `Playing with ${childPlayCompanionLabel(state, entity, companion)}`;
+      if (companion.isJuvenile && companion.indoorBuildingId == null
+        && Math.hypot(companion.x - entity.x, companion.y - entity.y) <= 28) {
+        return `Playing with ${childPlayCompanionLabel(state, entity, companion, true)}`;
+      }
+      const site = entity.childPlaySite;
+      if (site?.day === getAbsoluteCalendarDay(state.tick) && site.phase === hourOfDay) {
+        return Math.hypot(site.x - entity.x, site.y - entity.y) > 14
+          ? 'Walking to play area' : 'Waiting for playmates';
+      }
+      return 'Free time';
     }
     if (companion && currentChildLeisure === 'following') {
       return `Following ${citizenGivenName(companion)}`;
@@ -209,15 +222,19 @@ export function getHumanActivityProjection(
     if (eveningOuting) {
       return { kind: 'nearby-building', label: 'Evening outing', x: entity.x, y: entity.y };
     }
+    if (entity.isJuvenile && activity === 'Playing alone' && entity.childPlaySite?.mateId === entity.id) {
+      return { kind: 'play-site', label: 'Play area', x: entity.childPlaySite.x, y: entity.childPlaySite.y };
+    }
     if (entity.isJuvenile && entity.childLeisureTargetId != null
-      && (activity.startsWith('Playing with ') || activity.startsWith('Following '))) {
+      && (activity.startsWith('Playing with ') || activity.startsWith('Following ')
+        || activity === 'Walking to play area' || activity === 'Waiting for playmates')) {
       const companion = state.entities.find((candidate) =>
         candidate.id === entity.childLeisureTargetId && candidate.alive);
       if (companion) {
         const playSite = entity.childPlaySite;
         if (entity.childLeisureActivity === 'playing'
           && playSite?.day === getAbsoluteCalendarDay(state.tick)
-          && playSite.phase === Math.floor(hour / 3)
+          && playSite.phase === hour
           && playSite.mateId === companion.id) {
           return {
             kind: 'play-site',
