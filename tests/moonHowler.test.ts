@@ -79,6 +79,9 @@ describe('Moon Howler restored physiology clock', () => {
     expect(resident.needs?.stamina).toBe(25);
     expect(resident.energy).toBe(0);
     expect(resident.maxEnergy).toBe(0);
+    // Even a contradictory legacy reserve in a mixed-format save cannot override native needs.
+    resident.energy = 500;
+    resident.maxEnergy = 500;
     const restored = reload(migrated).entities.find((e) => e.id === person.id)!;
     expect(restored.needs).toEqual(resident.needs);
     expect(restored.energy).toBe(0);
@@ -105,9 +108,18 @@ describe('Moon Howler restored physiology clock', () => {
       person.moonHowlerSaved!.needs = undefined;
       person.moonHowlerSaved!.energy = 210;
       person.moonHowlerSaved!.maxEnergy = 500;
+    } else {
+      // A stale legacy reserve must lose to the saved native stamina.
+      person.moonHowlerSaved!.energy = 5;
+      person.moonHowlerSaved!.maxEnergy = 500;
     }
     person.energy = 73; // an independent wolf metabolic reserve
-    const loaded = reload(world);
+    const firstLoad = reload(world);
+    const firstWolf = firstLoad.entities.find((e) => e.id === person.id)!;
+    expect(firstWolf.moonHowlerSaved?.needs?.stamina).toBe(42);
+    expect(firstWolf.moonHowlerSaved?.energy).toBeUndefined();
+    expect(firstWolf.moonHowlerSaved?.maxEnergy).toBeUndefined();
+    const loaded = reload(firstLoad);
     const wolf = loaded.entities.find((e) => e.id === person.id)!;
     expect(wolf.type).toBe(EntityType.Werewolf);
     expect(wolf.energy).toBe(73);
