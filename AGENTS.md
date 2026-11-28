@@ -169,7 +169,7 @@ For TypeScript tooling, note that `typescript@7` exposes its compiler API throug
 
 ## 6. Existing tools and harnesses: extend, do not clone
 
-`package.json` and `scripts/test.mjs` are the authority for current commands and gates. Common entrypoints include `npm test`, `npm test -- help`, `npm run test:types`, `npm run lint`, `npm run build`, `npm run test:standard` and `npm run check:source`. Check the current scripts before running a command.
+`package.json` and `scripts/test.mjs` are the authority for current commands and gates. Common entrypoints include `npm test`, `npm test -- help`, `npm run test:types`, `npm run lint`, `npm run build`, `npm run test:standard`, `npm run test:ci`, `npm run test:calendar` and `npm run check:source`. Check the current scripts before running a command.
 
 Runtime observations use `scripts/autoplay_playwright_probe.py` together with `src/game/virtualPlayer.ts`. For simulation totals and colony histories, extend existing `scripts/test-bot-build-all.mts`, `scripts/run-full-year.mts` and `scripts/colonyHealth.ts` as appropriate. Do not create independent bots, schedulers, game probes or duplicate fixtures because an existing harness is inconvenient.
 

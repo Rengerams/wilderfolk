@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Improved (28 Nov 2026):** Route npm and CI verification through one test gate, avoiding repeated source, architecture, duplicate and type checks before the production bundle.
+
 - **Improved (28 Nov 2026):** Remove vendor-specific preview configuration and retain a standalone local container development workflow.
 
 - **Fixed (28 Nov 2026):** Keep the settled ecology type contract dependency-free so the strict import-cycle architecture gate remains intact.

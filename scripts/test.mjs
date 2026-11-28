@@ -58,19 +58,22 @@ const STEP = {
   invariants: 'tsx scripts/run-full-year.mts',
   browser: 'node scripts/browser-smoke.mjs && node scripts/browser-smoke.mjs --portrait-regression --out tmp/shots/portrait-ui',
   build: 'npm run build',
+  bundle: 'vite build',
   workerBoundary: 'tsx scripts/worker-boundary-audit.mts',
   clean: 'node scripts/clean.mjs',
   cleanApply: 'node scripts/clean.mjs --apply',
   watch: 'vitest',
 };
 
-/** Gates, as ordered step lists: fail-fast, so the first failing step stops the gate. */
+/** Gates are ordered and fail fast; types already checks the scripts project. */
+const STANDARD_STEPS = ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'];
+
 const GATE = {
-  standard: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'scriptsTypes', 'lint', 'unit'],
-  // Same steps as `standard`: the menu has always promised that, so the order must match too.
-  all: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'scriptsTypes', 'lint', 'unit'],
-  // `build` runs its own duplicate scan, so `dup` appears once here.
-  full: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'scriptsTypes', 'lint', 'unit', 'integrationTests', 'invariants', 'workerBoundary', 'knip', 'build'],
+  standard: STANDARD_STEPS,
+  all: STANDARD_STEPS,
+  // Static checks and all four TypeScript projects have already passed before bundling.
+  ci: [...STANDARD_STEPS, 'bundle'],
+  full: [...STANDARD_STEPS, 'integrationTests', 'invariants', 'workerBoundary', 'knip', 'bundle'],
   // The load-bearing cycle gate runs first: a knip finding must never mask it (see knip.ts).
   audit: ['cycles', 'owners', 'knip'],
   accept: ['build', 'browser'],
@@ -103,10 +106,12 @@ const ALIAS = {
 const MENU = `
 wilderfolk test runner - one entry point, choose with args
 
-  npm test                        standard gate: check -> owners -> semantic -> cycles --strict -> dup -> types -> lint -> unit
+  npm test                        standard gate: check -> owners -> semantic -> semantic duplicates -> strict cycles -> dup -> types -> lint -> unit
   npm test -- standard            same as above
   npm test -- standard --changed <sha>  standard checks; only affected unit tests
   npm test -- all                 same steps as standard
+  npm test -- ci                  standard + production bundle (CI entry point)
+  npm test -- ci --changed <sha>   project-wide static checks + affected unit tests + bundle
   npm test -- full                standard + both year/colony integration files + invariants + worker boundary + knip + build
   npm test -- accept              build + the real-browser gate
 
@@ -121,13 +126,13 @@ wilderfolk test runner - one entry point, choose with args
   npm test -- scripts-lint        oxlint, type-aware, over scripts/
   npm test -- scripts-types       tsc on the scripts project
   npm test -- dup                 jscpd duplicate scan
-  npm test -- check               source-shadow, dialogue, docs, comment and single-owner source guards
+  npm test -- check               source-shadow, dialogue, docs, comments, source guard self-tests and syntax-aware DNA scan
   npm test -- knip                knip (unused files/exports)
   npm test -- cycles [--strict|--json]
   npm test -- owners              verify every function has one recorded source owner
   npm test -- semantic            verify ownership, then block unreviewed function overlap
   npm test -- browser             browser gate (needs a prior build)
-  npm test -- build               tsc app + tsc node + vite build
+  npm test -- build               standalone checked build (npm run build)
   npm test -- watch               vitest in watch mode
   npm test -- clean [--apply]     housekeeping (dry run unless --apply)
 
@@ -175,9 +180,9 @@ if (name === 'unit') {
 } else if (name === 'cycles' && rest.length > 0) {
   steps = [`${STEP.cycles} ${rest.join(' ')}`];
 } else if (GATE[name]) {
-  if (rest.length > 0 && (name !== 'standard' || rest.length !== 2
+  if (rest.length > 0 && ((name !== 'standard' && name !== 'ci') || rest.length !== 2
     || rest[0] !== '--changed' || !/^[a-f0-9]{40}$/.test(rest[1]))) {
-    process.stderr.write('runner: expected standard --changed <40-character commit SHA>.\n');
+    process.stderr.write('runner: expected standard or ci --changed <40-character commit SHA>.\n');
     process.exit(1);
   }
   steps = GATE[name].map((key) => key === 'unit' && rest.length > 0

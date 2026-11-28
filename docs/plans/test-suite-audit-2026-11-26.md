@@ -289,6 +289,10 @@ Moved all 18 remaining cases from `low-2-events-defense` into five existing owne
 
 Moved all 20 remaining cases from `low-8-humans` into seven owner suites. Shared the existing generated-colony scenario fixtures without changing their initial conditions. All 50 original audit-batch files are now consolidated; the original 51-file headline was an overcount. No runtime cases removed on the basis of presumed overlap. CI pending.
 
+## Canonical npm and CI check routing — 2026-11-28
+
+The existing source check already includes both the declarative guards and the syntax-aware DNA scanner. Standard/all share the same ordered steps; CI adds the production bundle after them, and full adds its existing long-running gates before bundling. The four-project type check already covers scripts. Removed repeated check/owner/overlap/duplicate/lint/type invocations from the CI path; standalone build and type-checked build remain available. The npm duplicate alias now invokes the baseline-aware gate, not a separate raw scan. Changed-test filtering remains limited to the unit step on PRs. CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete
