@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Successful human hunts no longer restore stamina or legacy energy; colony food yield is unchanged.
+
 - **Fixed (28 Nov 2026):** Remove the meaningless Settler skill from skill awards, old saves, election merit and the inspector. Preserve real trade skills and unemployment status.
 
 - **Fixed (28 Nov 2026):** Show unemployment as an employment status, recognize apprenticeship and construction workplaces in the settler inspector, and keep trade skills in Career rather than displaying a fictitious Settler skill.
