@@ -1446,8 +1446,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         || person.needs?.breakUntilRecovered || (person.needs?.sleepRecoveryUntilTick ?? 0) > state.tick
         || isAsleepAtHome(person, buildingById, hourOfDay)
         || isPregnancyHospitalPriority(person, staffedHospitals.length > 0)) return false;
-      const post = findHumanWorkplace(person, updatedBuildings, workplaceOpts)
-        ?? getApprenticeTrainingSite(person, entityById, buildingById);
+      const { workplace: post } = resolveHumanWorkplace(person, updatedBuildings, allHumans, workplaceOpts);
       return (!post || (!resolveShift(state, person, post, hourOfDay).onShift
         && !isCommutingToBuilding(person, post)
         && !onWorkCommuteHours)) &&
