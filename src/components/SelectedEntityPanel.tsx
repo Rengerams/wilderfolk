@@ -8,7 +8,6 @@ import {
 import type { WorldState, Entity } from '../game/gameEngine';
 import {
   hasResidenceAssignment,
-  hasWorkAssignment,
   isImprisoned,
 } from '../game/housingModel';
 import { PREGNANCY_TICKS, daysUntilTick, getBirthDateString } from '../game/dayCycle';
@@ -283,18 +282,13 @@ export default function SelectedEntityPanel({
                   ⛓️ Imprisoned{prison ? ` at ${getBuildingConfig(prison.type).label}` : ''} · {daysLeft} day{daysLeft === 1 ? '' : 's'} left
                 </p>
               );
-            })() : hasWorkAssignment(entity) ? (() => {
-              const jobSite = state.buildings.find((b) => b.id === entity.workerBuildingId);
-              const label = jobSite ? getBuildingConfig(jobSite.type).label : 'Workplace';
-              return <p className="text-emerald-300">🔨 Works at: {label}</p>;
-            })() : !entity.isJuvenile && !entity.pregnant && (
+            })() : activityProjection?.workplace ? (
+              <p className="text-emerald-300">🔨 {activityProjection.workplace.apprenticeship ? 'Apprenticeship at' : 'Works at'}: {activityProjection.workplace.label}</p>
+            ) : !entity.isJuvenile && !entity.pregnant && (
               <p className="text-amber-300">🔨 Unemployed — no work assigned</p>
             )}
             <p className="text-sky-300">👕 {getHumanVariantLabel(entity.gender, entity.spriteVariant ?? 0)}</p>
             {entity.occupation && entity.occupation !== 'settler' && <p>💼 {entity.occupation}</p>}
-            {entity.job && (entity.skills?.[entity.job] ?? 0) > 0 && (
-              <p className="text-emerald-400">⭐ {entity.job} skill: {Math.round(entity.skills?.[entity.job] ?? 0)}/100</p>
-            )}
             {entity.pregnant && (
               <p className="font-bold text-pink-400">
                 🤰 Pregnant! ({Math.round(((entity.pregnancyProgress ?? 0) / PREGNANCY_TICKS) * 100)}%)

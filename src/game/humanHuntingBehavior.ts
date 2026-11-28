@@ -15,7 +15,7 @@ import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees'
 import { clearHumanWalkTarget, steerHumanToward } from './simulation/humanMovement';
 import { getCurrentPathGrid, lineCrossesBlocked } from './pathfinding';
 import { freeHuntFoodGain } from './simulation/humanNeeds';
-import { HUMAN_NEEDS, adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { HUMAN_NEEDS } from './simulation/humanPhysiology';
 import { tryTickBlueberryForaging } from './blueberryForaging';
 import {
   clearHuntersTargetingPrey,
@@ -155,14 +155,7 @@ export function tickHumanHunting(
         foughtBack: false,
       });
 
-      const energyBite =
-        config.energyGain[closestPrey.type] ??
-        (closestPrey.type === EntityType.Deer ? 350 : 150);
-      if (entity.needs) {
-        adjustHumanStaminaFromEnergy(entity, energyBite);
-      } else {
-        entity.energy = Math.min(entity.maxEnergy, entity.energy + energyBite);
-      }
+      // A successful hunt supplies colony food, never personal stamina or energy.
       entity.flash = 10;
       entity.combatTicks = 16;
       entity.huntTargetId = undefined;

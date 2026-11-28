@@ -2,7 +2,7 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState } from './gameTypes';
 import { maybeOfferValleyDebate } from './storyEvents';
 import { recordElectionPromises } from './electionPromises';
-import { BuildingType, EntityType } from './gameTypes';
+import { BuildingType, EntityType, JobType } from './gameTypes';
 import { DAYS_PER_YEAR, getAgeInYears, TICKS_PER_HOUR } from './dayCycle';
 import { isImprisoned } from './housingModel';
 import { displayYear } from './dayCycleClock';
@@ -12,7 +12,7 @@ import { addNotification } from './simEffects';
 import { isPlayerHuman } from './playerHuman';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 
-import { ensureEntitySkills } from './skills';
+import { readSkill } from './skills';
 import { simulateElectionVotes } from './electionVotes';
 import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
 import { findCompletedBuilding } from './buildings';
@@ -301,8 +301,8 @@ export function getLeadershipScoreBreakdown(
   entity: Entity,
   familyPrestige?: ReadonlyMap<string, number>,
 ): LeadershipScoreBreakdown {
-  const skills = ensureEntitySkills(entity);
-  const strongestTrades = Object.values(skills).filter((value) => Number.isFinite(value) && value > 0)
+  const strongestTrades = Object.values(JobType).map((job) => readSkill(entity, job))
+    .filter((value) => Number.isFinite(value) && value > 0)
     .sort((a, b) => b - a);
   const skillPoints = Math.min(SKILL_MERIT_CAP, Math.round(
     (strongestTrades[0] ?? 0) * LEADERSHIP_PRIMARY_SKILL_WEIGHT

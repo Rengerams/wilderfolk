@@ -39,6 +39,16 @@ describe('detectContextualTutorials reads the current state, not a previous worl
     expect(ids).toContain('valley_strained');
   });
 
+  it('never emits retired visitor tips and discards their old seen IDs', () => {
+    const world = freshWorld();
+    expect(detectedIds(world).some((id) => id === 'visitors_arrived' || id.startsWith('visitor_'))).toBe(false);
+    world.tutorialSeen = ['visitors_arrived', 'visitor_traders', 'first_winter'];
+    const seeded = seedTutorialSeenForExistingState(world);
+    expect(seeded).not.toContain('visitors_arrived');
+    expect(seeded).not.toContain('visitor_traders');
+    expect(seeded).toContain('first_winter');
+  });
+
   it('suppresses a mechanic the player has already been shown', () => {
     const world = freshWorld();
     world.season = Season.Winter;

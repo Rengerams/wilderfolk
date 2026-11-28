@@ -79,7 +79,6 @@ export function addNotification(
   message: string,
   type: 'info' | 'success' | 'warning' | 'event' = 'info',
   focus?: { x: number; y: number },
-  campKey?: string,
 ) {
   // Keep the existing RNG draw per notification even when an extreme burst is summarized.
   const notification: GameNotification = {
@@ -89,7 +88,6 @@ export function addNotification(
     type,
     createdAt: Date.now(),
     ...(focus ? { focus } : {}),
-    ...(campKey ? { campKey } : {}),
   };
   if (state.notifications.length < MAX_PENDING_NOTIFICATIONS) {
     state.notifications.push(notification);

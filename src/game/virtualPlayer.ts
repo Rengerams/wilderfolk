@@ -1,6 +1,6 @@
 import { needsMedicalCare } from './hospitalCare';
 
-import type { Building, HuntingSpotPrey, Resources, VisitorGroup, WorldState } from './gameTypes';
+import type { Building, HuntingSpotPrey, Resources, WorldState } from './gameTypes';
 import { canBuildLeaderHouse } from './leaderHouseExpansion';
 import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, GRID_SIZE, PATH_CELL } from './gameTypes';
 import type { ForgeOrderId } from './gameTypes';
@@ -28,7 +28,6 @@ import { getEffectiveBedCapacity, getOpenPlayerBeds, getLivePlayerPopulation } f
 import { canHostTownFestival } from './townHall';
 import { findCompletedBuilding } from './buildings';
 import { canStartResearch } from './research';
-import { getRefugeeChoiceEligibility, getVisitorLeaderTalkMeta, getVisitorTradeEligibility, getVillageRequestEligibility, type RefugeeChoice, type VisitorTradeAction } from './groupEvents';
 import { getDiplomacyChoiceEligibility, getPeaceTreatyEligibility, getRivalGiftEligibility, getRivalTradePactEligibility, getShowStrengthEligibility } from './rivalDiplomacy';
 import { VirtualPlayer } from './gameConstants';
 import { dailyFoodNeedForSettlers, getRecentFoodFlow, isMeasuredFoodDeficit, isProjectedFoodShortfall } from './economyLedger';
@@ -51,7 +50,6 @@ import {
   getTameEntityEligibility,
   getTameFoodCost,
 } from './settlerInteractionActions';
-import { getVisitorQuest } from './visitorQuest';
 import { canEstablishTradeRoute } from './tradeCaravans';
 import { getHourOfDay } from './dayCycle';
 import {
@@ -79,8 +77,7 @@ export interface VirtualPlayerDecision {
     | 'upgradeBuilding' | 'demolishBuilding' | 'setMineMode' | 'setHuntingSpotPrey'
     | 'setWorkshopRecipe' | 'queueForgeOrder' | 'recruitSettler' | 'tameEntity'
     | 'respondToRaidEvent' | 'respondToOutgoingRaidEvent' | 'respondToDiplomacyEvent'
-    | 'resolveVillageRequest' | 'respondToStoryEvent' | 'startResearch' | 'hostTownFestival'
-    | 'talkToVisitorLeader' | 'negotiateRefugees' | 'deliverVisitorQuest' | 'tradeWithVisitors'
+    | 'respondToStoryEvent' | 'startResearch' | 'hostTownFestival'
     | 'setWorkSchedule' | 'setVenueSchedule' | 'sendRivalGift' | 'showStrengthToRival'
     | 'signPeaceTreaty' | 'establishRivalTradePact' | 'establishTradeRoute' | 'launchRaidOnRival'
   }>;
@@ -373,24 +370,6 @@ function answerOpenCard(state: WorldState): VirtualPlayerDecision | null {
         reason: `answer ${diplomacy.rivalName} — ${diplomacy.kind.replace(/_/g, ' ')}`,
       };
     }
-  }
-
-  const request = state.activeVillageRequest;
-  if (request && request.choices.length > 0) {
-    // The request owner's eligibility gate decides accept vs decline — a failed
-    // accept leaves the request open and would burn every auto-play hour.
-    const accept = getVillageRequestEligibility(state, request, 'accept').ok;
-    return {
-      command: {
-        proto: WORKER_CMD_PROTO,
-        op: 'resolveVillageRequest',
-        requestId: request.id,
-        choice: accept ? 'accept' : 'decline',
-      },
-      reason: accept
-        ? `accept ${request.sourceName}'s provisions — gold and stores allow it`
-        : `decline ${request.sourceName}'s provisions — the colony cannot take them`,
-    };
   }
 
   const story = state.pendingStoryEvents?.[0];
@@ -952,102 +931,6 @@ function decideRecruitment(state: WorldState): VirtualPlayerDecision | null {
 }
 
 /**
- * Bot policy: what the bot wants from a visitor trade, in order — feed a real shortage, top up any
- * industry resource below its shelf (wood, stone, iron), then sell food the colony cannot eat.
- */
-function chooseVisitorTrade(state: WorldState, group: VisitorGroup): VisitorTradeAction | null {
-  const wanted: VisitorTradeAction[] = [];
-  if (!hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS)) wanted.push('buy_food');
-  if ((state.resources.wood ?? 0) < LOW_WOOD_STOCK) wanted.push('buy_wood');
-  if ((state.resources.stone ?? 0) < LOW_STONE_STOCK) wanted.push('buy_stone');
-  if ((state.resources.iron ?? 0) < LOW_IRON_STOCK) wanted.push('buy_iron');
-  if (hasFoodMargin(state, VirtualPlayer.FOOD_SURPLUS_DAYS)) wanted.push('sell_food');
-
-  for (const action of wanted) {
-    if (getVisitorTradeEligibility(state, group.id, action).ok) return action;
-  }
-  return null;
-}
-
-/**
- * 14 — visitors: speak with the leader, finish the smith's quest, then trade. Every branch is
- * owner-gated, so the bot never spends an hour on an action the owner would refuse.
- */
-function decideVisitorRelations(state: WorldState): VirtualPlayerDecision | null {
-  const group = state.visitorGroups?.[0];
-  if (!group) return null;
-
-  if (
-    group.kind !== 'refugees'
-    && !group.leaderTalked
-    && !getVisitorLeaderTalkMeta(group).unavailableReason
-  ) {
-    return {
-      command: { proto: WORKER_CMD_PROTO, op: 'talkToVisitorLeader', groupId: group.id },
-      reason: `hear out ${group.name} — one audience per visit`,
-    };
-  }
-
-  if (group.kind === 'refugees') {
-    const choice = chooseRefugeeChoice(state, group);
-    if (!choice) return null;
-    return {
-      command: { proto: WORKER_CMD_PROTO, op: 'negotiateRefugees', groupId: group.id, choice },
-      reason: choice === 'welcome'
-        ? `welcome ${group.name} — the larder is deep and beds stand free`
-        : `screen ${group.name} — take in the settlers the colony can feed`,
-    };
-  }
-
-  const quest = getVisitorQuest(state);
-  if (quest) {
-    const have = state.resources[quest.goalResource] ?? 0;
-    // Food is the colony's survival store: keep the same buffer the food step uses.
-    const reserve = quest.goalResource === 'food'
-      ? dailyFoodNeedForSettlers(playerHumanCount(state.entities)) * VirtualPlayer.FOOD_BUFFER_DAYS
-      : 0;
-    if (have >= quest.goalAmount + reserve) {
-      return {
-        command: { proto: WORKER_CMD_PROTO, op: 'deliverVisitorQuest' },
-        reason: `finish ${quest.title} — the goods are in store`,
-      };
-    }
-  }
-
-  const action = chooseVisitorTrade(state, group);
-  if (!action) return null;
-  return {
-    command: { proto: WORKER_CMD_PROTO, op: 'tradeWithVisitors', groupId: group.id, action },
-    reason: `trade with ${group.name} — ${action.replace(/_/g, ' ')}`,
-  };
-}
-
-/**
- * What the bot would ask a refugee camp for: welcome a group the colony can feed and bed, screen one
- * it can merely afford, and never turn families away on its own initiative.
- */
-function chooseRefugeeChoice(state: WorldState, group: VisitorGroup): RefugeeChoice | null {
-  if (isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)
-    || isProjectedFoodShortfall(state,
-      dailyFoodNeedForSettlers(playerHumanCount(state.entities)),
-      VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)) return null;
-  if (
-    hasFoodMargin(state, VirtualPlayer.REFUGEE_FOOD_RESERVE_DAYS)
-    && getOpenPlayerBeds(state) >= VirtualPlayer.REFUGEE_MIN_OPEN_BEDS
-    && getRefugeeChoiceEligibility(state, group.id, 'welcome').ok
-  ) {
-    return 'welcome';
-  }
-  if (
-    hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS)
-    && getRefugeeChoiceEligibility(state, group.id, 'screen').ok
-  ) {
-    return 'screen';
-  }
-  return null;
-}
-
-/**
  * 17 — keep the colony work day on the owner's standard window. `getWorkSchedule` falls back to
  * `DEFAULT_WORK_SCHEDULE` (07:00–16:00), so this fires only when the schedule differs from it.
  */
@@ -1452,12 +1335,6 @@ const COMMUNITY_BUILD_ORDER: readonly ServiceBuildOption[] = [
     needed: (state) => !ownsBuildingOfType(state, BuildingType.Mill),
   },
   {
-    type: BuildingType.Hotel,
-    needed: (state) =>
-      !ownsBuildingOfType(state, BuildingType.Hotel)
-      && (state.visitorGroups?.length ?? 0) > 0,
-  },
-  {
     type: BuildingType.TamingPost,
     needed: (state) => !ownsBuildingOfType(state, BuildingType.TamingPost),
   },
@@ -1671,7 +1548,6 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
     ?? decideForgeOrders(state)
     ?? decideBuildingTuning(state)
     ?? decideRecruitment(state)
-    ?? decideVisitorRelations(state)
     ?? decideWorkSchedule(state)
     ?? decideVenueSchedules(state)
     ?? decideRoads(state)

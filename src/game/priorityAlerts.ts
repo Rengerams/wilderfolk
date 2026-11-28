@@ -20,7 +20,6 @@ type PriorityAlertAction =
   | { type: 'tab'; tab: 'village' | 'frontier' | 'nature' | 'progress' | 'log' | 'more'; progressSub?: 'research' | 'trade' | 'goals' }
   | { type: 'build'; building: BuildingType }
   | { type: 'focus_rival'; rivalId: string; x: number; y: number }
-  | { type: 'focus_visitor'; groupId: string; x: number; y: number }
   | { type: 'focus_building'; buildingId: number; x: number; y: number };
 
 export interface PriorityAlert {

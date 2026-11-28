@@ -77,11 +77,6 @@ export function dampScandalReputationLoss(delta: number, buildings: Building[]):
   return Math.round(delta * 0.65);
 }
 
-/** Extra refugees admitted on a full welcome when the town hall is staffed. */
-export function getRefugeeWelcomeBonus(buildings: Building[]): number {
-  return isTownHallStaffed(buildings) ? 1 : 0;
-}
-
 export function tickTownHallCivic(
   state: WorldState,
   building: Building,

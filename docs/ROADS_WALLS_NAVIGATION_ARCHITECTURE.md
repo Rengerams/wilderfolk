@@ -34,7 +34,7 @@ flowchart TD
   GEOMETRY --> RENDER["renderer/buildings"]
   STATE --> GRID["pathfinding: grid, blockers, road surfaces"]
   GRID --> ROUTES["A* + route cache / route cost"]
-  ROUTES --> MOVE["humanMovement / humanTick / hotelStay"]
+  ROUTES --> MOVE["humanMovement / humanTick"]
   ROUTES --> COMMUTE["commuteReach / workforce eligibility"]
   MOVE --> STATE
 ```
@@ -55,7 +55,7 @@ No diagram arrow grants writing authority: rendering and React consume read-only
 | Rendering | `src/game/stripRender.ts`, `src/game/renderer/buildings.ts`, `src/game/renderer/buildPreview.ts` | painter, junction overlay, gate latch and affordability preview |
 | Art loading | `src/game/spriteLoader.ts` and `public/sprites/` | existing authored tiles, registered CC0 art and procedural fallback |
 | Routing and passability | `src/game/pathfinding.ts` | `buildPathGrid`, `walkRoute`, `steerWithPath`, `isWalkStepAllowed`, `isOnWalkableRoadAt` |
-| Entity movement | `src/game/simulation/humanMovement.ts`, `src/game/humanTick.ts`, `src/game/hotelStay.ts` | collision-aware walking and exact surface bonus |
+| Entity movement | `src/game/simulation/humanMovement.ts`, `src/game/humanTick.ts` | collision-aware walking and exact surface bonus |
 | Work commute reach | `src/game/commuteReach.ts` | `routeCommuteHours`, `straightRouteCost`, bounded search budgets |
 | Saved infrastructure | `src/game/buildings.ts` and existing save/worker transport | building IDs, completion, rotation, optional `gateClosed` |
 
@@ -86,7 +86,7 @@ Wall collision applies across ordinary travel, diagonal steps, path smoothing an
 
 A straight unobstructed route is a candidate, not an unconditional winner. The bounded planner may pick a longer paved detour if expected **travel time** is lower. Accepted waypoints must survive the final approach, and steering handles high-speed overshoot; rejected detours remain cached rather than retriggering A* at each crossed tile. Completion, deletion, closure or geometry changes invalidate affected routing state.
 
-`humanMovement.ts` and `humanTick.ts` apply step collision and real on-road speed. The legacy hotel-visitor steering path (`steerVisitorToHotel`, unreachable since the visitor camps were retired) uses the same actual speed treatment as the detour cost used to select roads. `commuteReach.ts` prices work reach from the current path grid where available; when a grid cannot be used, `straightRouteCost` weights only the exact *covered portions* of a straight line instead of granting whole-trip benefits after crossing one small road.
+`humanMovement.ts` and `humanTick.ts` apply step collision and real on-road speed. Settler hotel commutes use this same movement path. `commuteReach.ts` prices work reach from the current path grid where available; when a grid cannot be used, `straightRouteCost` weights only the exact *covered portions* of a straight line instead of granting whole-trip benefits after crossing one small road.
 
 Roads and bridges differ materially: legacy saved roads over water do not silently clear a water blocker, while completed valid bridges may allow crossing under bridge-specific rules.
 

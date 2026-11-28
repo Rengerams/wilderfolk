@@ -132,13 +132,11 @@ function worldState(
     worldMap: null,
     yearlyStats: [],
     lifetimeStats: {},
-    visitorGroups: [],
     rivalSettlements: [],
     pendingDiplomacyEvents: [],
     pendingRaidEvents: [],
     pendingOutgoingRaidEvents: [],
     ecoHealthYearsAbove80: 0,
-    firstWeekVisitorSpawned: false,
     villageLeaderId: null,
     leaderSinceYear: 0,
     lastElectionYear: -1,
@@ -424,6 +422,8 @@ function churchWorld(): { state: WorldState; priest: Entity } {
     residenceBuildingId: 20,
     x: 224,
     y: 81,
+    // Observe ordinary duty without a concurrent meal.
+    needs: { nutrition: 100, rest: 100, stamina: 100, severeHungerTicks: 0 },
   });
   return { state: worldState([priest], [house, church], null), priest };
 }

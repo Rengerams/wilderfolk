@@ -98,7 +98,6 @@ function tickWithYearlyWorldEvent(seed: number): { world: WorldState; before: Se
   world.dayInYear = DAYS_PER_YEAR / 2 - 40;
   world.lastEventYear = 0;
   // Keep the unrelated first-week visitor from claiming `activeEvent` on this synthetic day.
-  world.firstWeekVisitorSpawned = true;
 
   const before = new Set(world.entities.map((entity) => entity.id));
   gameTick(world);

@@ -4,6 +4,20 @@
 
 - **Fixed (28 Nov 2026):** Centralize school commute and witnessed attendance in education; show actual school duty in the child inspector and keep school hours out of workplace attendance.
 
+- **Fixed (28 Nov 2026):** Successful human hunts no longer restore stamina or legacy energy; colony food yield is unchanged.
+
+- **Fixed (28 Nov 2026):** Remove the meaningless Settler skill from skill awards, old saves, election merit and the inspector. Preserve real trade skills and unemployment status.
+
+- **Fixed (28 Nov 2026):** Show unemployment as an employment status, recognize apprenticeship and construction workplaces in the settler inspector, and keep trade skills in Career rather than displaying a fictitious Settler skill.
+
+- **Fixed (28 Nov 2026):** Settlers eat below 90% nutrition instead of 70%, allowing near-full reserves with unchanged food cost, nutritional decay and meal cooldown.
+
+- **Fixed (28 Nov 2026):** Children change safe play stops hourly, wander independently without a free companion or reachable shared stop, do not follow working apprentices or builders, and distinguish nearby playmates from companions still on their way.
+
+- **Fixed (28 Nov 2026):** Show valid apprenticeships as work in the settler inspector, route explanation and individual dashboard rows, with one indexed workplace resolver for simulation, UI and employment totals, without adding regular roster seats or changing training and production rules.
+
+- **Fixed (28 Nov 2026):** Exclude expired hotel beds from counts and sleep; share checkout, commute and lodging logic. Require confirmed prison/hotel entry for sleep. Retire on-map visitor state, UI, commands and transport; preserve old saves, settler checkout, theatre and rival events.
+
 - **Fixed (28 Nov 2026):** Children no longer keep following a caregiver during evening/night rosters or continue stale follow/play movement through school or bedtime, including homeless off-screen children; genuinely free-time following remains allowed.
 
 - **Improved (28 Nov 2026):** Centralize simulation, terrain and omen RNG stream construction and terrain percentile sampling without changing historical seeded sequences; list semantic duplicate groups in CI.
