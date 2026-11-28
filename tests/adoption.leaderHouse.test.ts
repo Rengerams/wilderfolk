@@ -216,3 +216,32 @@ describe("orphans are not adopted into the Leader's House", () => {
     expect(orphan.residenceBuildingId).toBe(HOUSE_ID);
   });
 });
+
+describe('repeated orphan adoption', () => {
+  it('distributes unrelated orphans between equally eligible couples', () => {
+    const a = human(10, { partnerId: 11, residenceBuildingId: 30 });
+    const b = human(11, { gender: 'female', partnerId: 10, residenceBuildingId: 30 });
+    const c = human(20, { partnerId: 21, residenceBuildingId: 31 });
+    const d = human(21, { gender: 'female', partnerId: 20, residenceBuildingId: 31 });
+    const first = human(40, { age: 6, motherId: 900, fatherId: 901 });
+    const second = human(41, { age: 7, motherId: 902, fatherId: 903 });
+    const people = [a, b, c, d, first, second];
+    const homes = [residence(30, BuildingType.House), residence(31, BuildingType.House)];
+    expect(ensureOrphanAdoption(first, people, homes)).toBe(true);
+    expect(ensureOrphanAdoption(second, people, homes)).toBe(true);
+    expect(first.adoptiveFatherId).toBe(a.id);
+    expect(second.adoptiveFatherId).toBe(c.id);
+  });
+
+  it('does not count grown adoptive children as active dependents', () => {
+    const a = human(10, { residenceBuildingId: 30, childrenIds: [50] });
+    const b = human(20, { residenceBuildingId: 31 });
+    const grown = human(50, { age: HUMAN_ADULT_MIN_AGE, adoptiveFatherId: 10, residenceBuildingId: 32 });
+    const orphan = human(40, { age: 6, motherId: 900, fatherId: 901 });
+    const homes = [30, 31, 32].map((id) => residence(id, BuildingType.House));
+    expect(ensureOrphanAdoption(orphan, [a, b, grown, orphan], homes)).toBe(true);
+    expect(orphan.adoptiveFatherId).toBe(a.id);
+    expect(grown.adoptiveFatherId).toBe(a.id);
+    expect(grown.residenceBuildingId).toBe(32);
+  });
+});
