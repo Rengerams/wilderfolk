@@ -570,6 +570,18 @@ describe('human lifecycle golden contracts', () => {
     expect(() => createEntity(EntityType.Human, 10, 10, MATERNAL_ID, 100, false, {
       gender: 'female', pregnant: true, fatherId: FATHER_ID,
     })).toThrow();
+    expect(() => createEntity(EntityType.Human, 10, 10, MATERNAL_ID, 100, false, {
+      gender: 'female', pregnant: true, partnerId: FATHER_ID,
+    })).toThrow();
+  });
+
+  it('does not invent maiden names or retain paternity on a non-pregnant spawn', () => {
+    const wife = createEntity(EntityType.Human, 10, 10, MATERNAL_ID, 100, false, {
+      gender: 'female', ageYears: 30, partnerId: FATHER_ID, surname: 'Vale', pregnantById: FATHER_ID,
+    });
+    expect(wife.relationshipStatus).toBe('married');
+    expect(wife.pregnantById).toBeUndefined();
+    expect(wife.maidenSurname).toBeUndefined();
   });
 
   it('gives an arriving pregnant immigrant and a colony conception the same pregnancy state', () => {
