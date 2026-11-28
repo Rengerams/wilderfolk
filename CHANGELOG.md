@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026, PR #254):** Centralize school duty and inspector status in education. Classroom rosters and credits require actual persisted seats and witnessed teacher/pupil presence, not speculative enrollment. School hours never count as workplace attendance.
+
 - **Fixed (28 Nov 2026):** Barracks soldiers patrol directly during their shift; shared presence and duty rules credit patrol attendance and show Patrolling rather than requiring a barracks visit.
 
 - **Fixed (28 Nov 2026):** Migrate human relationship, medical, hunting, civic and election decisions to stamina; use native stamina effects and thresholds, and retire the temporary energy mirror, isolate old-save conversion, and separate Moon Howler predator metabolism from saved human needs.
