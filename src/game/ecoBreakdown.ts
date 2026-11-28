@@ -35,12 +35,12 @@ export function getEcosystemBreakdown(state: WorldState, buildings: Building[] =
     {
       label: 'Town footprint',
       delta: -metrics.buildingImpact,
-      detail: `${metrics.playerCompletedBuildings} player buildings × −2 each`,
+      detail: `${metrics.occupiedLandPercent.toFixed(1)}% weighted buildable land occupied by ${metrics.playerCompletedBuildings} completed buildings`,
     },
     {
       label: 'Pollution',
       delta: -metrics.pollutionPenalty,
-      detail: `${metrics.pollutionLevel}% pollution ÷ 2${hasForestry2 ? ' (forestry_2 halved industrial pollution)' : ''}`,
+      detail: `${metrics.pollutionLevel}% pollution ÷ 2; ${metrics.industrialEmissions.toFixed(1)} industrial emissions before map scaling${hasForestry2 ? ' (forestry research halves industrial emissions)' : ''}`,
     },
     {
       label: 'Wildlife',
@@ -52,15 +52,18 @@ export function getEcosystemBreakdown(state: WorldState, buildings: Building[] =
     lines.push({
       label: 'Wildlife preserves',
       delta: metrics.preserveBonus,
-      detail: `${metrics.preserveCount} completed preserve${metrics.preserveCount === 1 ? '' : 's'} × +${PRESERVE_HEALTH_BONUS} each`,
+      detail: `${metrics.preserveCount} completed preserve${metrics.preserveCount === 1 ? '' : 's'}; up to +${PRESERVE_HEALTH_BONUS} each, total capped`,
     });
   }
 
+  const rawTotal = lines.reduce((total, line) => total + line.delta, 0);
+  if (rawTotal !== Math.round(metrics.health)) {
+    lines.push({ label: 'Score limit', delta: Math.round(metrics.health) - rawTotal, detail: 'Health is rounded and limited to 0–100' });
+  }
+
   let summary = 'Early wilderness starts at ~80% — zero wildlife carries a −20 baseline; keep predators and prey balanced.';
-  if (health <= 0 && metrics.playerCompletedBuildings >= 25) {
-    summary = 'Town scale dominates: building footprint and pollution outweigh wildlife. Eco tracks land pressure — not a failure state for balanced towns.';
-  } else if (health < 30) {
-    summary = 'Land under stress — fewer buildings, less industry, and healthier wildlife raise the score.';
+  if (health < 30) {
+    summary = 'Land under stress — protect habitat, reduce industrial emissions and maintain healthy wildlife.';
   } else if (health < 60) {
     summary = 'Moderate pressure — expansion and pollution are catching up with the wild.';
   }

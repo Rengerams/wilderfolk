@@ -1,16 +1,38 @@
 import type { Building, WildlifeCounts, WorldState } from './gameTypes';
-import { BuildingType } from './gameTypes';
+import { BuildingType, BUILDING_CONFIGS, MAP_SIZE_DIMENSIONS, MapSize } from './gameTypes';
+import { getWorkdayAttendance } from './scheduleFatigue';
+import { TICKS_PER_HOUR } from './dayCycleClock';
+import { getWorkSchedule, getWorkScheduleHours } from './workSchedule';
+import { isPlayerHuman } from './playerHuman';
 import type { PopulationCounts } from './entityCounts';
 import { hasTech } from './simHelpers';
 
-const INDUSTRIAL_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingType>([
-  BuildingType.Blacksmith,
-  BuildingType.Mill,
-  BuildingType.Workshop,
-  BuildingType.Mine,
-  BuildingType.Quarry,
-  BuildingType.LumberMill,
-]);
+/** Full-shift industrial pollution on a medium map; extraction is heavier than craft. */
+const INDUSTRIAL_EMISSIONS: Partial<Record<BuildingType, number>> = {
+  [BuildingType.Blacksmith]: 4,
+  [BuildingType.Mill]: 1,
+  [BuildingType.Workshop]: 2,
+  [BuildingType.Mine]: 5,
+  [BuildingType.Quarry]: 4,
+  [BuildingType.LumberMill]: 2,
+};
+
+/** Land disturbance weights, independent of decorative building count. */
+const LOW_IMPACT_FOOTPRINT: Partial<Record<BuildingType, number>> = {
+  [BuildingType.Road]: 0.1,
+  [BuildingType.Bridge]: 0.1,
+  [BuildingType.GroundReinforcement]: 0.1,
+  [BuildingType.Garden]: 0.1,
+  [BuildingType.Statue]: 0.1,
+  [BuildingType.Lamp]: 0.1,
+  [BuildingType.Fence]: 0.1,
+  [BuildingType.WildlifePreserve]: 0,
+  [BuildingType.Farm]: 0.5,
+  [BuildingType.HuntingSpot]: 0.25,
+  [BuildingType.FishingSpot]: 0.25,
+};
+const MAX_PRESERVE_HEALTH_BONUS = 20;
+const MEDIUM_MAP_AREA = MAP_SIZE_DIMENSIONS[MapSize.Medium].width * MAP_SIZE_DIMENSIONS[MapSize.Medium].height;
 
 const IDEAL_WILDLIFE = 80;
 
@@ -65,6 +87,9 @@ export interface EcosystemMetrics {
   /** Completed player (non-rival) buildings — the town footprint. */
   playerCompletedBuildings: number;
   buildingImpact: number;
+  /** Weighted land use as a percentage of the map's buildable habitat. */
+  occupiedLandPercent: number;
+  industrialEmissions: number;
   /** Completed industrial buildings of any faction, before the forestry multiplier. */
   industrialCount: number;
   pollutionLevel: number;
@@ -124,6 +149,20 @@ export function calculateEcosystemMetrics(
   let industrialCount = 0;
   let playerCompletedBuildings = 0;
   let preserveCount = 0;
+  let disturbedArea = 0;
+  let industrialEmissions = 0;
+  const mapArea = state.width > 0 && state.height > 0 ? state.width * state.height : MEDIUM_MAP_AREA;
+  const buildableFraction = state.worldMap?.stats?.__buildable ?? 1;
+  const habitatArea = mapArea * Math.max(0.05, Math.min(1, buildableFraction));
+  const mediumMapScale = MEDIUM_MAP_AREA / mapArea;
+  const shiftHours = Math.max(1, getWorkScheduleHours(getWorkSchedule(state)));
+  const workedHoursBySite = new Map<number, number>();
+  for (const worker of state.entities ?? []) {
+    if (!worker.alive || !isPlayerHuman(worker)) continue;
+    const attendance = getWorkdayAttendance(worker);
+    if (attendance.siteId == null || attendance.siteId < 0 || attendance.ticks <= 0) continue;
+    workedHoursBySite.set(attendance.siteId, (workedHoursBySite.get(attendance.siteId) ?? 0) + attendance.ticks / TICKS_PER_HOUR);
+  }
 
   // Single-pass building scan
   for (let i = 0; i < buildings.length; i++) {
@@ -132,8 +171,14 @@ export function calculateEcosystemMetrics(
 
     playerCompletedBuildings++;
 
-    if (INDUSTRIAL_BUILDING_TYPES.has(building.type)) {
+    const emissions = INDUSTRIAL_EMISSIONS[building.type];
+    const footprintWeight = LOW_IMPACT_FOOTPRINT[building.type] ?? (emissions == null ? 1 : 1.5);
+    disturbedArea += Math.max(0, building.width) * Math.max(0, building.height) * footprintWeight;
+    if (emissions != null) {
       industrialCount++;
+      const capacity = Math.max(1, BUILDING_CONFIGS[building.type].maxOccupants);
+      const activity = Math.min(1, (workedHoursBySite.get(building.id) ?? 0) / (capacity * shiftHours));
+      industrialEmissions += emissions * activity;
     }
 
     if (building.type === BuildingType.WildlifePreserve) {
@@ -147,8 +192,8 @@ export function calculateEcosystemMetrics(
     POLLUTION_PRESERVE_FLOOR,
     1 - preserveCount * POLLUTION_PRESERVE_DAMPING,
   );
-  const rawPollution = (industrialCount * 4 * pollutionMult
-    + counts.humans / HUMAN_POLLUTION_PER_POINT) * preserveDamping;
+  const rawPollution = (industrialEmissions * pollutionMult
+    + counts.humans / HUMAN_POLLUTION_PER_POINT) * mediumMapScale * preserveDamping;
   const pollutionLevel = Math.max(0, Math.min(100, Math.floor(rawPollution)));
 
   // Calculate Total Wildlife & Ratio
@@ -162,9 +207,10 @@ export function calculateEcosystemMetrics(
   const wildlifeRatio = Math.min(1.0, totalWildlife / IDEAL_WILDLIFE);
 
   // Calculate Ecosystem Health (0 - 100)
-  const buildingImpact = playerCompletedBuildings * 2;
+  const occupiedLandPercent = Math.min(100, 100 * disturbedArea / habitatArea);
+  const buildingImpact = Math.round(occupiedLandPercent);
   const pollutionPenalty = Math.floor(pollutionLevel / 2);
-  const preserveBonus = preserveCount * PRESERVE_HEALTH_BONUS;
+  const preserveBonus = Math.min(MAX_PRESERVE_HEALTH_BONUS, preserveCount * PRESERVE_HEALTH_BONUS);
   const wildlifeBonus = wildlifeRatio * 30 - 20;
 
   const rawEcoHealth = 100 - buildingImpact - pollutionPenalty + preserveBonus + wildlifeBonus;
@@ -173,6 +219,8 @@ export function calculateEcosystemMetrics(
   return {
     playerCompletedBuildings,
     buildingImpact,
+    occupiedLandPercent,
+    industrialEmissions,
     industrialCount,
     pollutionLevel,
     pollutionPenalty,

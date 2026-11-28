@@ -42,4 +42,25 @@ describe('pollution grading', () => {
     ];
     expect(pollutionAt(1_000, preserves)).toBeLessThan(pollutionAt(1_000));
   });
+  it('scales 800 buildings by their land use instead of their count', () => {
+    const houses = Array.from({ length: 800 }, (_, i) => ({
+      ...building(i + 1, BuildingType.House), width: 46, height: 40,
+    }));
+    const wildlife = { ...counts(1000), rabbits: 80 };
+    const small = calculateEcosystemMetrics({ ...world(houses), width: 2560, height: 1920 }, wildlife, houses);
+    const huge = calculateEcosystemMetrics({ ...world(houses), width: 6144, height: 4608 }, wildlife, houses);
+    expect(huge.health).toBeGreaterThan(70);
+    expect(small.buildingImpact).toBeGreaterThan(huge.buildingImpact);
+    const roads = houses.map(site => ({ ...site, type: BuildingType.Road }));
+    expect(calculateEcosystemMetrics(world(roads), wildlife, roads).buildingImpact).toBeLessThan(small.buildingImpact);
+  });
+
+  it('bounds stacked preserve benefits and leaves unstaffed industry without operational emissions', () => {
+    const preserves = Array.from({ length: 100 }, (_, i) => building(i + 1, BuildingType.WildlifePreserve));
+    const mine = building(101, BuildingType.Mine);
+    const metrics = calculateEcosystemMetrics(world([...preserves, mine]), counts(1000), [...preserves, mine]);
+    expect(metrics.preserveBonus).toBe(20);
+    expect(metrics.pollutionLevel).toBe(20);
+    expect(metrics.industrialEmissions).toBe(0);
+  });
 });

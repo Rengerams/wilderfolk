@@ -67,8 +67,9 @@ describe('M6 — the Nature-tab breakdown shares the ecosystem-health owner', ()
     const preserveLine = breakdown.lines.find((line) => line.label === 'Wildlife preserves');
     const lineTotal = breakdown.lines.reduce((total, line) => total + line.delta, 0);
 
-    // Owner: 100 base − 4 footprint + 4 preserve − 2 wildlife (48/80 ratio) = 98.
-    expect(state.ecosystemHealth).toBe(98);
+    // A small house occupies less than one rounded footprint point; the preserve is habitat.
+    // The resulting 102 is capped at 100 and the explanation accounts for the cap.
+    expect(state.ecosystemHealth).toBe(100);
     expect(metrics.totalWildlife).toBe(48);
     // The breakdown counts moon howlers and wildkin, not just the four prey/predator species.
     expect(breakdown.wildlifeCount).toBe(48);
