@@ -691,6 +691,7 @@ function main() {
       withPriorNamedCoverage: functions.filter((f) => f.ownerKey || f.legacyNamedEvidence).length,
       withLegacyModuleEvidence: functions.filter((f) => f.legacyModuleEvidence).length,
       migrationPending: functions.filter((f) => !f.ownerKey).length,
+      verifiedInfrastructureClaims: claims.filter(claim => claim.role === 'infrastructure').length,
       withoutRecordedOwner: functions.filter((f) => !f.ownerKey).length,
       decisions: decisions.length,
       ambiguousCalls: [...unresolved.values()].reduce((sum, entry) => sum + entry.count, 0),
