@@ -243,7 +243,7 @@ describe('commute approach easing (the doorstep stretch)', () => {
 describe('final road approach', () => {
   it('does not overshoot a child walk target after applying the road multiplier', () => {
     setCurrentPathMap(null);
-    const child = human(9001, { x: 100, y: 100, age: 25, gender: 'female', job: undefined, age: 10, isJuvenile: true, vx: 4, vy: 0 });
+    const child = human(9001, { x: 100, y: 100, gender: 'female', job: undefined, age: 10, isJuvenile: true, vx: 4, vy: 0 });
     rememberHumanWalkTarget(child, 104, 100, 4, 'child-final-leg');
     applyHumanWalkStep(child, ROAD_SPEED_MULT);
     expect(child.x).toBe(104);
