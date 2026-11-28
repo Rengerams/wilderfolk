@@ -10,19 +10,11 @@ import {
   EVENING_START,
   isAsleepAtHome,
   isFestivalGatherer,
-  isOnMoonHowlerNightShift,
   prefersHomeTonightFor,
 } from './humanSchedule';
-import { getWorkSchedule, isOnWorkScheduleShift } from './workSchedule';
-import {
-  getVenueSchedule,
-  getVenueWorkerServiceWindow,
-  isVenueServiceHour,
-  isVenueWorkerServiceHour,
-} from './venueSchedule';
-import { prisonDutyForGuard } from './prisonShifts';
-import { prisonGuardIds } from './prisonGuardDuty';
-import { isBarracksGuard } from './defenseStructures';
+import { getWorkSchedule } from './workSchedule';
+import { resolveShift } from './workDuty';
+export { resolveShift, resolveArmedDuty } from './workDuty';
 import { isCeremonyAttendee } from './villageLeadership';
 import { isRestingHospitalPatient, medicalCareReason } from './hospitalCare';
 import { isPregnancyHospitalPriority, isStaffedHospital } from './humanHospitalBehavior';
@@ -98,102 +90,6 @@ function labelFor(building: Building): string {
   return getBuildingConfig(building.type).label;
 }
 
-/** Where the settler's next shift starts, and which of the three shift owners said so. */
-type NextShift = { hour: number; kind: 'day' | 'venue' | 'prison' | 'hospital'; endHour?: number };
-
-const VENUE_BY_BUILDING: Partial<Record<BuildingType, 'tavern' | 'hotel'>> = {
-  [BuildingType.Tavern]: 'tavern',
-  [BuildingType.Hotel]: 'hotel',
-};
-
-/**
- * Canonical workplace duty shared by simulation and projections, using the existing schedule owners.
- */
-export function resolveShift(
-  state: WorldState,
-  entity: Entity,
-  workplace: Building | undefined,
-  hour: number,
-): {
-  onShift: boolean;
-  next: NextShift;
-  prisonDuty?: ReturnType<typeof prisonDutyForGuard>;
-  moonPriestDuty?: boolean;
-  patrolAssignment?: boolean;
-} {
-  const schedule = getWorkSchedule(state);
-  const goWorkTime = isOnWorkScheduleShift(state, hour);
-  const completed = workplace?.completed === true;
-  const isInnkeeper =
-    entity.job === JobType.Innkeeper && workplace?.type === BuildingType.Tavern && completed;
-  const isHotelier =
-    entity.job === JobType.Hotelier && workplace?.type === BuildingType.Hotel && completed;
-  const ordinaryWorkplace =
-    workplace != null
-    && (!completed || (workplace.type !== BuildingType.Church
-      && workplace.type !== BuildingType.TownHall
-      && workplace.type !== BuildingType.Prison
-      && workplace.type !== BuildingType.Hospital
-      && workplace.type !== BuildingType.Hotel));
-
-  const venueIndex = workplace ? workplace.occupants.indexOf(entity.id) : -1;
-  const venueCount = workplace?.occupants.length ?? 0;
-  const venueKind = workplace ? VENUE_BY_BUILDING[workplace.type] : undefined;
-  const isVenueWorker = venueKind != null && (venueKind === 'tavern' ? isInnkeeper : isHotelier);
-  if (venueKind != null && isVenueWorker) {
-    const onVenueShift = venueIndex >= 0
-      ? isVenueWorkerServiceHour(state, venueKind, hour, venueIndex, venueCount)
-      : isVenueServiceHour(state, venueKind, hour);
-    const window = venueIndex >= 0
-      ? getVenueWorkerServiceWindow(state, venueKind, venueIndex, venueCount)
-      : getVenueSchedule(state, venueKind);
-    return { onShift: onVenueShift, next: { hour: window.startHour, endHour: window.endHour, kind: 'venue' } };
-  }
-
-  const isPrisonGuardAtPost =
-    entity.job === JobType.PrisonGuard && workplace?.type === BuildingType.Prison && completed;
-  if (entity.job === JobType.Doctor && workplace?.type === BuildingType.Hospital && completed) {
-    const onShift = isHospitalDoctorOnShift(workplace, state.tick, entity.id);
-    return { onShift, next: { hour: 0, kind: 'hospital' } };
-  }
-
-  if (isPrisonGuardAtPost) {
-    const prisonDuty = prisonDutyForGuard(
-      entity.id,
-      prisonGuardIds(state, workplace?.occupants ?? []),
-      state.tick,
-    );
-    if (prisonDuty) {
-      return {
-        onShift: prisonDuty.onShift,
-        prisonDuty,
-        next: { hour: prisonDuty.shift.startHour, kind: 'prison' },
-      };
-    }
-    return { onShift: false, next: { hour: schedule.startHour, kind: 'prison' } };
-  }
-
-  const patrolAssignment = entity.job === JobType.Soldier && workplace?.type === BuildingType.Barracks
-    && isBarracksGuard(entity.id, entity.workerBuildingId, state.buildings);
-  const onDayJobShift =
-    (goWorkTime
-      && !isInnkeeper
-      && (ordinaryWorkplace || patrolAssignment))
-    || (entity.job === JobType.Official
-      && workplace?.type === BuildingType.TownHall
-      && completed
-      && goWorkTime);
-  const isPriest = entity.job === JobType.Priest
-    && workplace?.type === BuildingType.Church && completed;
-  const moonPriestDuty = isPriest && isOnMoonHowlerNightShift(state.tick, hour);
-  return {
-    onShift: onDayJobShift || (isPriest && goWorkTime) || moonPriestDuty,
-    next: { hour: schedule.startHour, kind: 'day' },
-    ...(moonPriestDuty ? { moonPriestDuty } : {}),
-    ...(patrolAssignment ? { patrolAssignment } : {}),
-  };
-}
-
 /** One on-duty presence rule for the tick, the inspector and the building roster.
  * A local soldier starts patrol directly, not by checking in at the barracks.
  * The tick supplies its existing threat/arrival observations; read-only projections can derive them.
@@ -223,22 +119,6 @@ export function resolveWorkPresence(
   if ((observed?.atPost ?? isAtBuildingReach(entity, workplace))
     || (observed ? observed.indoorBuildingId : entity.indoorBuildingId) === workplace.id) return 'post';
   return entity.job === JobType.Hunter && entity.huntTargetId != null ? 'field' : undefined;
-}
-
-export type ArmedDuty = 'none' | 'hunting' | 'military';
-
-/** Equipment eligibility reads the existing assignment and shift owners; never creates a new roster. */
-export function resolveArmedDuty(state: WorldState, entity: Entity): ArmedDuty {
-  if (!entity.alive || !isPlayerHuman(entity) || entity.age < HUMAN_ADULT_MIN_AGE || isImprisoned(entity)) return 'none';
-  if (entity.job === JobType.Soldier && entity.raidDeploymentId) return 'military';
-  if (entity.job !== JobType.Soldier && entity.job !== JobType.Hunter && entity.job !== JobType.PrisonGuard) return 'none';
-  const { workplace } = resolveHumanWorkplace(entity, state.buildings, state.entities);
-  if (!workplace?.completed || !workplace.occupants.includes(entity.id)) return 'none';
-  if (!resolveShift(state, entity, workplace, getHourOfDay(state.tick)).onShift) return 'none';
-  if (entity.job === JobType.Hunter && workplace.type === BuildingType.HuntingSpot) return 'hunting';
-  if ((entity.job === JobType.Soldier && isBarracksGuard(entity.id, entity.workerBuildingId, state.buildings))
-    || (entity.job === JobType.PrisonGuard && workplace.type === BuildingType.Prison)) return 'military';
-  return 'none';
 }
 
 /**
