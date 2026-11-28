@@ -175,7 +175,7 @@ export function canAutoChangeWorkplace(human: Entity, currentTick?: number, food
 }
 
 /** A verified falling food supply with fewer than six days in store warrants urgent staffing. */
-export function isAcuteFoodStaffingEmergency(state: WorldState): boolean {
+function isAcuteFoodStaffingEmergency(state: WorldState): boolean {
   if (!state.resources || !state.entities) return false;
   const settlers = state.entities.filter((entity) => entity.alive && isPlayerHuman(entity)).length;
   return settlers > 0
@@ -187,7 +187,7 @@ export function isAcuteFoodStaffingEmergency(state: WorldState): boolean {
  * Read the same prospective food-demand verdict as auto-play: a food vacancy may borrow a
  * nonessential, cooldown-locked employee before the larder collapses. Only food destinations.
  */
-export function hasFoodStaffingPressure(state: WorldState): boolean {
+function hasFoodStaffingPressure(state: WorldState): boolean {
   if (!state.entities || !state.resources) return false;
   const mouths = state.entities.filter((entity) => entity.alive && isPlayerHuman(entity)).length;
   return mouths > 0 && (isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)

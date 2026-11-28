@@ -731,6 +731,16 @@ const INDUSTRY_BUILD_ORDER: readonly {
   { type: BuildingType.Store, stock: 'gold', minimumStock: 80 },
 ];
 
+/** Stores expand wood/stone/iron capacity, never gold. Derive capacities from completed buildings:
+ * the once-daily storageMax snapshot can be stale after placing or importing one.
+ */
+export function needsAdditionalStore(state: WorldState): boolean {
+  const limits = computeStorageMax(state.buildings);
+  return (['wood', 'stone', 'iron'] as const).some((resource) =>
+    limits[resource] > 0 && (state.resources[resource] ?? 0) >= limits[resource] * 0.85,
+  );
+}
+
 /** One industry owner, evaluated separately for actual producers and late storage expansion. */
 function decideIndustry(state: WorldState, storeOnly = false): VirtualPlayerDecision | null {
   const underConstruction = INDUSTRY_BUILD_ORDER.some((entry) => isUnderConstruction(state, entry.type));
