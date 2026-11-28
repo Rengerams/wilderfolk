@@ -1,18 +1,19 @@
 import { PERSON_DAY_ROLL_SALTS, personDayRoll, resetSimRng, setSimSeed } from '../src/game/simRng';
 import { describe, expect, it, afterEach } from 'vitest';
-import { BuildingType, TerrainType, WeatherType, type Building, type Entity, type WorldState } from '../src/game/gameTypes';
+import { BuildingType, JobType, TerrainType, WeatherType, type Building, type Entity, type WorldState } from '../src/game/gameTypes';
 import {
   CHILD_PLAYMATE_CANDIDATE_LIMIT,
   CHILD_PLAY_GROUP_MAX,
   idleDestination,
   leisureKindFor,
   tickHumanChildLeisure,
+  stopInvalidChildFollowing,
 } from '../src/game/humanLeisureBehavior';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { TICKS_PER_HOUR, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { isWorkDay } from '../src/game/dayCycleClock';
-import { initGame } from '../src/game/worldGen';
-import { homeStandPosition } from '../src/game/simulation/humanMovement';
+import { createBuilding, initGame } from '../src/game/worldGen';
+import { homeStandPosition, rememberHumanWalkTarget, resumeHumanWalk } from '../src/game/simulation/humanMovement';
 import { isWaterTerrainType } from '../src/game/terrain/terrainTraits';
 import { tileTypeAt, tileTypeAtWorld } from '../src/game/terrain/terrainGrid';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -65,7 +66,7 @@ function crowdedSteeringTick(state: ReturnType<typeof initGame>, child: Entity, 
   throw new Error('could not find a crowded child play day');
 }
 
-function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans: Entity[], tick: number, livingHumanAt: (id: number | null | undefined) => Entity | undefined = () => undefined): boolean {
+function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans: Entity[], tick: number, livingHumanAt: (id: number | null | undefined) => Entity | undefined = () => undefined, buildings: Building[] = []): boolean {
   state.tick = tick;
   return tickHumanChildLeisure({
     state,
@@ -75,8 +76,8 @@ function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans:
     onSchedule: false,
     allHumans,
     entityById: new Map(allHumans.map((human) => [human.id, human])),
-    updatedBuildings: [],
-    buildingById: new Map(),
+    updatedBuildings: buildings,
+    buildingById: new Map(buildings.map((building) => [building.id, building])),
     humanSocialGrid: undefined,
     width: state.width,
     height: state.height,
@@ -110,6 +111,87 @@ describe('tickHumanChildLeisure', () => {
     parent.indoorBuildingId = undefined;
     tickChild(state, child, humans, day * TICKS_PER_DAY + 9 * TICKS_PER_HOUR, lookup);
     expect(child.childLeisureActivity).toBe('following');
+  });
+
+  it('does not follow a caregiver on a real evening venue shift outside the generic work window', () => {
+    const { state, child } = childFixture();
+    const parent = playerChild(child, 21, {
+      age: 30, isJuvenile: false, job: JobType.Innkeeper, workerBuildingId: 99,
+      x: 180, y: 100,
+    });
+    const tavern = createBuilding(BuildingType.Tavern, 180, 100, 99);
+    tavern.completed = true;
+    tavern.occupants = [parent.id];
+    state.buildings = [tavern];
+    state.workSchedule = { startHour: 8, endHour: 16 };
+    child.motherId = parent.id;
+    const humans = [child, parent];
+    const lookup = (id: number | null | undefined) => id === parent.id ? parent : undefined;
+    const day = Array.from({ length: 60 }, (_, i) => i).find((d) =>
+      personDayRoll(child.id, d * TICKS_PER_DAY, 601) > 0.22);
+    if (day == null) throw new Error('test needs a follow roll');
+    tickChild(state, child, humans, day * TICKS_PER_DAY + 18 * TICKS_PER_HOUR + 1, lookup, [tavern]);
+    expect(child.childLeisureActivity).not.toBe('following');
+    expect(child.childLeisureTargetId).toBeUndefined();
+  });
+
+  it('cancels cached following before an off-screen school or bedtime tick resumes it', () => {
+    const { state, child } = childFixture();
+    const parent = playerChild(child, 21, {
+      age: 30, isJuvenile: false, x: 220, y: 100,
+    });
+    child.motherId = parent.id;
+    const people = new Map([child, parent].map((person) => [person.id, person]));
+    const buildings = new Map<number, Building>();
+    const followRoute = () => {
+      child.childLeisureActivity = 'following';
+      child.childLeisureTargetId = parent.id;
+      child.vx = 2;
+      child.vy = 0;
+      rememberHumanWalkTarget(child, parent.x, parent.y, 2, `child_follow_${child.id}_${parent.id}`);
+    };
+    followRoute();
+    state.tick = 20 * TICKS_PER_HOUR;
+    expect(stopInvalidChildFollowing(state, child, people, buildings, 20, false)).toBe(false);
+    expect(child.childLeisureActivity).toBe('following');
+
+    // humanTick supplies mandatoryChildActivity from its single school/bedtime
+    // schedule, before the off-screen throttle can resume this old path.
+    expect(stopInvalidChildFollowing(state, child, people, buildings, 20, true)).toBe(true);
+    expect(child.childLeisureActivity).toBeUndefined();
+    expect(child.childLeisureTargetId).toBeUndefined();
+    expect(child.vx).toBe(0);
+    resumeHumanWalk(child);
+    expect(child.vx).toBe(0);
+
+    followRoute();
+    expect(stopInvalidChildFollowing(state, child, people, buildings, 8, true)).toBe(true);
+    resumeHumanWalk(child);
+    expect(child.vx).toBe(0);
+  });
+
+  it('cancels a moving child when the caregiver begins an evening shift off screen', () => {
+    const { state, child } = childFixture();
+    const parent = playerChild(child, 21, {
+      age: 30, isJuvenile: false, job: JobType.Innkeeper, workerBuildingId: 99,
+      x: 220, y: 100,
+    });
+    const tavern = createBuilding(BuildingType.Tavern, 220, 100, 99);
+    tavern.completed = true;
+    tavern.occupants = [parent.id];
+    state.buildings = [tavern];
+    child.childLeisureActivity = 'following';
+    child.childLeisureTargetId = parent.id;
+    child.vx = 2;
+    rememberHumanWalkTarget(child, parent.x, parent.y, 2, `child_follow_${child.id}_${parent.id}`);
+    const people = new Map([child, parent].map((person) => [person.id, person]));
+    state.tick = 18 * TICKS_PER_HOUR;
+    expect(stopInvalidChildFollowing(
+      state, child, people, new Map([[tavern.id, tavern]]), 18, false,
+    )).toBe(true);
+    expect(child.childLeisureActivity).toBeUndefined();
+    resumeHumanWalk(child);
+    expect(child.vx).toBe(0);
   });
 
   it('prefers childhood and strong friends on successive days without excluding newcomers', () => {
