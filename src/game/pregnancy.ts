@@ -13,7 +13,7 @@ export function isValidPregnancyDueProgress(due: number | undefined): due is num
 }
 
 /** Absent, zero and non-finite due dates read as one full term — never an instant birth. */
-export function normalizePregnancyDueProgress(due: number | undefined): number {
+function normalizePregnancyDueProgress(due: number | undefined): number {
   return isValidPregnancyDueProgress(due) ? due : PREGNANCY_TICKS;
 }
 
