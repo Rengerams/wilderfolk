@@ -482,7 +482,7 @@ export const SIMULATION_DECISIONS = {
       'human.apprenticeOfId',
       'human.apprenticeId',
     ],
-    scheduledFrom: 'tickLayerDaily — DAILY_PHASE_HOURS.relationships (social and housing at 06:00), DAILY_PHASE_HOURS.construction (apprenticeships at 23:00); humanTick work commute/presence; humanStatus read-only projection',
+    scheduledFrom: 'tickLayerDaily — DAILY_PHASE_HOURS.relationships (social and housing at 06:00), DAILY_PHASE_HOURS.construction (apprenticeships at 23:00); humanTick work commute/presence; humanStatus/workAbsence read-only workplace projection, movementExplanation and dashboardData',
     testFile: 'tests/apprenticeships.test.ts, tests/relationships.sharedHomeFriendship.test.ts, tests/relationships.friendCapAndFeudEnd.test.ts, tests/relationshipDiagnostics.test.ts, tests/villageLeadership.test.ts, tests/humanGraduation.education.test.ts, tests/immigration.composition.test.ts',
   },
   yearlyWorldEvents: {

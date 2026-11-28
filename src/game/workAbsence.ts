@@ -34,6 +34,7 @@ import { getRouteObstruction } from './pathfinding';
 import { commuteLeadHoursFor } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { findHumanWorkplace } from './workforce';
+import { getApprenticeTrainingSite } from './apprenticeships';
 import { isImprisoned, isNearResidence } from './housingModel';
 import { isPlayerHuman } from './playerHuman';
 import { getBuildingConfig } from './buildingConfig';
@@ -191,6 +192,22 @@ export function resolveShift(
   };
 }
 
+/** Read the real job or training site; apprentices never consume a regular roster seat. */
+export function resolveWorkplaceForDisplay(
+  state: WorldState,
+  entity: Entity,
+  constructionCrews?: ReadonlyMap<number, Building>,
+): { workplace: Building | undefined; trainingSite: Building | null } {
+  const regular = findHumanWorkplace(entity, state.buildings,
+    constructionCrews ? { constructionByWorkerId: constructionCrews } : undefined);
+  const trainingSite = regular || entity.apprenticeOfId == null ? null : getApprenticeTrainingSite(
+    entity,
+    new Map(state.entities.map((person) => [person.id, person])),
+    new Map(state.buildings.map((building) => [building.id, building])),
+  );
+  return { workplace: regular ?? trainingSite ?? undefined, trainingSite };
+}
+
 /**
  * Why this settler is not at their post right now. Reads stored state and the owners' predicates;
  * it invents no hours, distances or thresholds of its own.
@@ -207,11 +224,7 @@ export function getSettlerWorkReason(
 
   const hour = getHourOfDay(state.tick);
   const buildings = state.buildings;
-  const workplace = findHumanWorkplace(
-    entity,
-    buildings,
-    constructionCrews ? { constructionByWorkerId: constructionCrews } : undefined,
-  );
+  const { workplace, trainingSite } = resolveWorkplaceForDisplay(state, entity, constructionCrews);
   const isHospitalDoctor = entity.job === JobType.Doctor
     && workplace?.type === BuildingType.Hospital && workplace.completed;
   const doctorCommuteDue = !!(isHospitalDoctor && isHospitalDoctorCommuteTime(
@@ -278,12 +291,12 @@ export function getSettlerWorkReason(
       ? { code: 'no-post', label: 'Child — too young for a post' }
       : { code: 'no-post', label: 'No post assigned' };
   }
-  if (workplace.completed && !workplace.occupants.includes(entity.id)) {
+  if (workplace.completed && !trainingSite && !workplace.occupants.includes(entity.id)) {
     return { code: 'post-unstaffed', label: `Post has no roster — ${labelFor(workplace)}` };
   }
 
   const label = labelFor(workplace);
-  if (onShift && atWork) return { code: 'working', label: `Working at ${label}` };
+  if (onShift && atWork) return { code: 'working', label: trainingSite ? `Apprenticing at ${label}` : `Working at ${label}` };
   // The hospital roster owns its own commute window, which opens before the ward duty does.
   if (doctorCommuteDue) return { code: 'walking-to-work', label: `Walking to work — ${label}` };
   if (onShift) {

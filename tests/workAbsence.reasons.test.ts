@@ -14,6 +14,7 @@ import { commuteHumanToBuilding, humanBuildingTarget, steerHumanToward } from '.
 import { hospitalDoctorRoster } from '../src/game/hospitalShifts';
 import { collectDashboard, explainSettler } from '../src/game/dashboardData';
 import { getHumanActivityProjection } from '../src/game/humanStatus';
+import { explainHumanMovement } from '../src/game/movementExplanation';
 import {
   getSettlerWorkReason,
   getUnstaffedPostNote,
@@ -103,6 +104,27 @@ function postedFarmer(farm: Building, overrides: Partial<Entity> = {}): Entity {
 }
 
 describe('the reason a settler is not at their post', () => {
+  it('recognizes a fishing apprentice as working without adding a roster seat', () => {
+    const site = building(10, BuildingType.FishingSpot, { occupants: [2] });
+    const home = building(11, BuildingType.House);
+    const stand = humanBuildingTarget(site, 1);
+    const apprentice = settler(1, { apprenticeOfId: 2, residenceBuildingId: home.id, x: stand.x, y: stand.y });
+    const master = settler(2, { apprenticeId: 1, workerBuildingId: site.id, job: JobType.Fisher, skills: { [JobType.Fisher]: 80 } });
+    const state = world(workdayTick(10), { entities: [apprentice, master], buildings: [site, home] });
+    expect(getSettlerWorkReason(state, apprentice)).toEqual({ code: 'working', label: 'Apprenticing at Fishing Spot' });
+    const projection = getHumanActivityProjection(state, apprentice);
+    expect(projection.workplace).toEqual({ id: site.id, label: 'Fishing Spot', apprenticeship: true });
+    expect(projection.schedule.onShift).toBe(true);
+    expect(explainHumanMovement(state, apprentice.id).stops.map((stop) => stop.buildingId)).toEqual([home.id, site.id, home.id]);
+    state.tick = workdayTick(17);
+    expect(getHumanActivityProjection(state, apprentice).schedule.onShift).toBe(false);
+    expect(getSettlerWorkReason(state, apprentice).code).not.toBe('no-post');
+    expect(site.occupants).toEqual([master.id]);
+    expect(apprentice.workerBuildingId).toBeUndefined();
+    master.apprenticeId = undefined;
+    expect(getHumanActivityProjection(state, apprentice).workplace).toBeNull();
+    expect(getSettlerWorkReason(state, apprentice).code).toBe('no-post');
+  });
   it.each([BuildingType.Church, BuildingType.TownHall, BuildingType.Prison, BuildingType.Hospital, BuildingType.Hotel])('projects ordinary construction duty for unfinished %s', (type) => {
     const site = building(1, type, { completed: false, constructionProgress: 0.5, occupants: [1] });
     const stand = humanBuildingTarget(site, 1);

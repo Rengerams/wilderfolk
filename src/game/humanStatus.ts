@@ -10,12 +10,10 @@ import { EVENING_START } from './dayCycle';
 import { isAsleepAtHome, isFestivalGatherer, prefersHomeTonightFor } from './humanSchedule';
 import { isNearResidence } from './housingModel';
 import { getWorkSchedule, getWorkScheduleLabel } from './workSchedule';
-import { findHumanWorkplace } from './workforce';
-import { getApprenticeTrainingSite } from './apprenticeships';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { isCommutingToBuilding } from './simulation/humanMovement';
 import { BUILDING_CONFIGS } from './gameTypes';
-import { resolveShift, WORK_ARRIVE_DISTANCE, getSettlerWorkReason, type SettlerWorkReason } from './workAbsence';
+import { resolveShift, resolveWorkplaceForDisplay, WORK_ARRIVE_DISTANCE, getSettlerWorkReason, type SettlerWorkReason } from './workAbsence';
 
 function labelFor(building: Building): string {
   return BUILDING_CONFIGS[building.type]?.label ?? 'Building';
@@ -55,7 +53,7 @@ export type HumanActivityProjection = {
     onShift: boolean;
   };
   home: { id: number; label: string } | null;
-  workplace: { id: number; label: string } | null;
+  workplace: { id: number; label: string; apprenticeship?: boolean } | null;
   target: HumanActivityTarget | null;
   blockedReason: string | null;
   /** Why this settler is, or is not, at their post — the work-absence owner's verdict. */
@@ -86,12 +84,7 @@ export function getHumanActivityStatus(
 
   const hourOfDay = getHourOfDay(state.tick);
   const festivalActive = state.festival?.active;
-  const regularWorkplace = findHumanWorkplace(entity, state.buildings);
-  const trainingSite = regularWorkplace ? null : getApprenticeTrainingSite(
-    entity, new Map(state.entities.map((person) => [person.id, person])),
-    new Map(state.buildings.map((building) => [building.id, building])),
-  );
-  const workplace = regularWorkplace ?? trainingSite;
+  const { workplace, trainingSite } = resolveWorkplaceForDisplay(state, entity);
   const onWorkSchedule = !entity.isJuvenile && workplace != null && resolveShift(state, entity, workplace, hourOfDay).onShift;
   // The verdict is the simulation owner's, so the label cannot drift from what the settler does.
   if (isFestivalGatherer(hourOfDay, festivalActive, onWorkSchedule, entity.job === JobType.Innkeeper)) {
@@ -185,9 +178,8 @@ export function getHumanActivityProjection(
 ): HumanActivityProjection {
   const hour = getHourOfDay(state.tick);
   const schedule = getWorkSchedule(state);
-  const workplace = entity.isJuvenile ? undefined : (findHumanWorkplace(entity, state.buildings)
-    ?? getApprenticeTrainingSite(entity, new Map(state.entities.map((person) => [person.id, person])),
-      new Map(state.buildings.map((building) => [building.id, building]))) ?? undefined);
+  const assignment = resolveWorkplaceForDisplay(state, entity);
+  const workplace = entity.isJuvenile ? undefined : assignment.workplace;
   const homeBuilding = entity.residenceBuildingId == null
     ? null
     : state.buildings.find((building) => building.id === entity.residenceBuildingId) ?? null;
@@ -268,7 +260,7 @@ export function getHumanActivityProjection(
       onShift: !entity.isJuvenile && shift.onShift,
     },
     home: homeBuilding ? { id: homeBuilding.id, label: labelFor(homeBuilding) } : null,
-    workplace: workplace ? { id: workplace.id, label: labelFor(workplace) } : null,
+    workplace: workplace ? { id: workplace.id, label: labelFor(workplace), ...(assignment.trainingSite ? { apprenticeship: true } : {}) } : null,
     target,
     blockedReason,
     workReason,

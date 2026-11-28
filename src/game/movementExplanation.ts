@@ -2,7 +2,6 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { getBuildingConfig } from './buildingConfig';
 import { isPlayerHuman } from './playerHuman';
-import { findHumanWorkplace } from './workforce';
 import { getHourOfDay } from './dayCycleClock';
 import { isOnWorkScheduleShift } from './workSchedule';
 import { getHumanActivityProjection, isAtActivityTarget } from './humanStatus';
@@ -170,17 +169,17 @@ export function explainHumanMovement(state: WorldState, settlerId: number): Huma
     return { stops: homeStop ? [homeStop] : [], legIndex: null, legLabel: null, status, lines };
   }
 
-  const workplace = findHumanWorkplace(settler, state.buildings);
+  const activity = getHumanActivityProjection(state, settler);
+  const workplace = activity.workplace;
   const venue = settlerVenue(state, settler);
 
   const stops: SettlerRouteStop[] = [];
   if (homeStop) stops.push(homeStop);
-  if (workplace) stops.push({ kind: 'workplace', label: getBuildingConfig(workplace.type).label, buildingId: workplace.id });
+  if (workplace) stops.push({ kind: 'workplace', label: workplace.label, buildingId: workplace.id });
   if (venue) stops.push({ kind: 'venue', label: getBuildingConfig(venue.type).label, buildingId: venue.id });
   // The walk home closes the day — only worth a stop once there is somewhere to walk back from.
   if (homeStop && stops.length > 1) stops.push(homeStop);
 
-  const activity = getHumanActivityProjection(state, settler);
   const legIndex = resolveLegIndex(settler, stops, activity.target);
   const legLabel = legIndex != null && legIndex > 0
     ? `${stops[legIndex - 1]!.label} → ${stops[legIndex]!.label}`
