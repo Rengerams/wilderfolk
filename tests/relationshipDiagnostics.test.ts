@@ -148,7 +148,7 @@ describe('conception gate funnel (Objective 8)', () => {
       gender: 'female',
       relationshipStatus: 'married',
       partnerId: 2,
-      energy: ENERGY_THRESHOLD * 0.5,
+      needs: { nutrition: 80, rest: 80, stamina: 10 },
     });
     const husband = human(2, { gender: 'male' });
     const state = makeState([mother, husband]);

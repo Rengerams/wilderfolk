@@ -242,7 +242,7 @@ describe('settler lodging overnight', () => {
     tickHumans(state, contextFor(state, [walker]));
     expect(walker.needs!.rest - before.rest).toBeCloseTo(100 / (7 * TICKS_PER_HOUR));
     expect(walker.needs!.stamina - before.stamina).toBeCloseTo(100 / (7 * TICKS_PER_HOUR));
-    expect(walker.energy).toBeCloseTo(walker.maxEnergy * walker.needs!.stamina / 100);
+    expect(walker.energy).toBe(90); // legacy fixture field must not mirror stamina
   });
 
   it('sleeps at a completed hotel with a free bed when the walk home is too long for the night', () => {

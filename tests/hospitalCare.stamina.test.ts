@@ -98,7 +98,7 @@ describe('hospital care reads the authoritative stamina reserve', () => {
 
 describe('M11 — grief is a window, not a permanent state', () => {
   it('only seeks care while the grief deadline is in the future', () => {
-    const mourner = human({ energy: 120, maxEnergy: 200, needs: undefined, griefUntilTick: 500 });
+    const mourner = human({ energy: 120, maxEnergy: 200, needs: { nutrition: 80, rest: 80, stamina: 60 }, griefUntilTick: 500 });
 
     expect(needsMedicalCare(mourner, 100)).toBe(true);
     expect(needsMedicalCare(mourner, 500)).toBe(false);
