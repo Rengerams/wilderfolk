@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getDecisionRows, renderDecisionTable, replaceGeneratedBlock, validateRegistry, validateEntrypointSymbols } from './ownership-registry.mjs';
+import { getDecisionRows, renderDecisionTable, replaceGeneratedBlock, validateRegistry, validateEntrypointSymbols, validateDecisionKeys, parseOwnershipMode } from './ownership-registry.mjs';
 
 const sample = {
   key: 'sample',
@@ -39,4 +39,20 @@ test('all live registry decisions carry explicit primary references', () => {
   const rows = getDecisionRows();
   assert.ok(rows.length > 50);
   assert.ok(rows.every(row => row.entrypoints.length > 0));
+});
+
+test('CLI rejects omitted, unknown, repeated and conflicting modes', () => {
+  assert.equal(parseOwnershipMode(['--write']), '--write');
+  assert.equal(parseOwnershipMode(['--check']), '--check');
+  for (const args of [[], ['--chek'], ['--write', '--check'], ['--check', '--check'], ['--write', 'extra']]) {
+    assert.throws(() => parseOwnershipMode(args), /Usage:/);
+  }
+});
+
+test('missing and renamed decision keys fail the independent key contract', () => {
+  assert.deepEqual(validateDecisionKeys([sample], ['sample']), []);
+  assert.deepEqual(validateDecisionKeys([], ['sample']), ['Missing required decision: sample']);
+  assert.deepEqual(validateDecisionKeys([{ ...sample, key: 'renamed' }], ['sample']), [
+    'Missing required decision: sample', 'Unknown decision: renamed',
+  ]);
 });
