@@ -365,7 +365,7 @@ export const APTITUDE_ACTIVITY_OWNERS: Readonly<Record<AptitudeActivityId, strin
   pursuit: 'src/game/humanHuntingBehavior.ts',
   escape: 'src/game/humanTick.ts',
   defense: 'src/game/militiaBalance.ts',
-  courtship: 'src/game/humanTick.ts',
+  courtship: 'src/game/simulation/humanRelationships.ts',
   company: 'src/game/socialLife.ts',
   bereavement: 'src/game/humanLifecycleCleanup.ts',
   communityReaction: 'src/game/raidAftermath.ts',

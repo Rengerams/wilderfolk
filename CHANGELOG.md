@@ -2,6 +2,12 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Keep romantic candidate cleanup reciprocal, migrate legacy focus once, and prevent stale focus from completing marriage.
+
+- **Fixed (28 Nov 2026):** Preserve the symmetric courtship stamina gate when sharing pending romantic interest; exhausted settlers neither pursue nor advance dates, and their existing progress remains intact.
+
+- Relationships: pending courtship and secret-affair interests share reciprocal pair progress, DNA and decay; settlers can develop interest in multiple people, with labels derived from marital status. Awake nearby contact may progress outside designated leisure without taking over mandatory movement. Existing saves reuse the same candidate map.
+
 - **Fixed (28 Nov 2026):** Credit only Builder skill and aptitude for all construction work; operational work alone teaches the site's profession. Stabilize vocational commute buckets and preserve scholar age/ID priority.
 
 - **Added (28 Nov 2026):** Derive trade aptitude from the existing genome and central activity weights; use it for reachable hiring, apprenticeship selection, earned skill growth and crew output without adding saved attributes.
