@@ -3,6 +3,8 @@ import { statSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tsImport } from 'tsx/esm/api';
+import { SyntaxKind } from 'typescript/unstable/ast';
+import { API, SignatureKind, TypeFlags } from 'typescript/unstable/sync';
 
 const { SIMULATION_DECISIONS, DECISION_CADENCES, REQUIRED_DECISION_KEYS } = await tsImport('../src/game/simulation/decisionRegistry.ts', import.meta.url);
 
@@ -73,7 +75,7 @@ export function validateRegistry(rows, root, exists = isFile) {
       if (!/^(src|scripts)\/[\w/.-]+\.tsx?$/.test(ref.module) || ref.module.split('/').includes('..') || !exists(path.join(root, ref.module))) {
         failures.push(`${row.key}: missing or invalid owner module ${ref.module}`);
       }
-      if (!/^[A-Za-z_$][\w$]*$/.test(ref.symbol)) failures.push(`${row.key}: invalid entrypoint symbol ${ref.symbol}`);
+      if (!/^[A-Za-z_$][\w$]*(?:[.#][A-Za-z_$][\w$]*)?$/.test(ref.symbol)) failures.push(`${row.key}: invalid entrypoint symbol ${ref.symbol}`);
       if (claimed.has(qualified)) failures.push(`${qualified}: primary entrypoint claimed by ${claimed.get(qualified)} and ${row.key}`);
       claimed.set(qualified, row.key);
     }
@@ -85,10 +87,98 @@ export function validateRegistry(rows, root, exists = isFile) {
   return failures;
 }
 
-export function validateEntrypointSymbols(rows, functions) {
-  const available = new Set(functions.map(fn => `${fn.file}::${fn.name}`));
-  return rows.flatMap(row => row.entrypoints.filter(ref => !available.has(`${ref.module}::${ref.symbol}`))
-    .map(ref => `${row.key}: missing primary symbol ${ref.module}::${ref.symbol}`));
+/** Enumerate declarations in their real lexical scope. Facade re-exports never own a decision. */
+function directCallableCandidates(source, symbol) {
+  const candidates = [];
+  const member = /^([A-Za-z_$][\w$]*)([.#])([A-Za-z_$][\w$]*)$/.exec(symbol);
+  const localNames = new Set([symbol]);
+  const hasModifier = (node, kind) => {
+    let present = false;
+    node.forEachChild(child => { if (child.kind === kind) present = true; });
+    return present;
+  };
+  if (symbol === 'default') {
+    // Support a local declaration exported as default without treating an imported alias as an owner.
+    source.forEachChild(node => {
+      if (node.kind === SyntaxKind.ExportAssignment && !node.isExportEquals) {
+        const expression = node.expression;
+        if (expression.kind === SyntaxKind.Identifier) localNames.add(expression.getText());
+        else if (expression.kind === SyntaxKind.FunctionExpression || expression.kind === SyntaxKind.ArrowFunction) candidates.push(expression);
+      }
+    });
+  }
+  source.forEachChild(node => {
+    if (member) {
+      if (node.kind !== SyntaxKind.ClassDeclaration || node.name?.getText() !== member[1]) return;
+      node.forEachChild(child => {
+        if (child.kind !== SyntaxKind.MethodDeclaration || !child.body || child.name?.getText() !== member[3]) return;
+        if (hasModifier(child, SyntaxKind.StaticKeyword) === (member[2] === '.')) candidates.push(child.name);
+      });
+      return;
+    }
+    if (node.kind === SyntaxKind.FunctionDeclaration && node.body) {
+      if (localNames.has(node.name?.getText()) || (symbol === 'default' && hasModifier(node, SyntaxKind.DefaultKeyword))) candidates.push(node.name ?? node);
+    }
+    if (node.kind === SyntaxKind.VariableStatement) {
+      node.declarationList.forEachChild(declaration => {
+        if (declaration.kind === SyntaxKind.VariableDeclaration && declaration.initializer && localNames.has(declaration.name.getText())) candidates.push(declaration.name);
+      });
+    }
+  });
+  return candidates;
+}
+
+/** Use the installed TS7 compiler's project AST and type checker, not graph-scanner guesses.
+ * The contract names implementations, including private top-level functions, not export facades.
+ * Class methods must use Class.method (static) or Class#method (instance).
+ */
+export function validateEntrypointSymbols(rows, root) {
+  const failures = [];
+  const projects = new Map();
+  for (const row of rows) {
+    for (const ref of row.entrypoints) {
+      const config = ref.module.startsWith('scripts/') ? 'tsconfig.scripts.json' : 'tsconfig.app.json';
+      if (!projects.has(config)) projects.set(config, []);
+      projects.get(config).push({ key: row.key, ...ref });
+    }
+  }
+  for (const [config, refs] of projects) {
+    const api = new API({ cwd: root });
+    try {
+      const snapshot = api.updateSnapshot({ openProject: config });
+      try {
+        const project = snapshot.getProjects()[0];
+        if (!project) throw new Error(`No TypeScript project for ${config}`);
+        for (const ref of refs) {
+          const source = project.program.getSourceFile(path.resolve(root, ref.module));
+          const candidates = source ? directCallableCandidates(source, ref.symbol) : [];
+          const callable = candidates.some(node => {
+            const type = project.checker.getTypeAtLocation(node);
+            return type && !(type.flags & TypeFlags.Any) && project.checker.getSignaturesOfType(type, SignatureKind.Call).length > 0;
+          });
+          if (!callable) failures.push(`${ref.key}: missing or non-callable primary implementation ${ref.module}::${ref.symbol}`);
+        }
+      } finally {
+        snapshot.dispose();
+      }
+    } finally {
+      api.close();
+    }
+  }
+  return failures;
+}
+
+export function verifyOwnershipRegistry(rows, root, checkFreshness = true) {
+  const failures = [...validateDecisionKeys(rows), ...validateRegistry(rows, root)];
+  if (failures.length) return failures;
+  failures.push(...validateEntrypointSymbols(rows, root));
+  if (checkFreshness) {
+    const current = readFileSync(path.join(root, 'OWNERSHIP_OVERVIEW.md'), 'utf8');
+    if (replaceGeneratedBlock(current, renderDecisionTable(rows)) !== current) {
+      failures.push('Generated ownership overview is stale. Run npm run ownership:generate.');
+    }
+  }
+  return failures;
 }
 
 export function parseOwnershipMode(args) {
@@ -102,7 +192,7 @@ function main() {
   const file = path.join(root, 'OWNERSHIP_OVERVIEW.md');
   const current = readFileSync(file, 'utf8');
   const rows = getDecisionRows();
-  const failures = [...validateDecisionKeys(rows), ...validateRegistry(rows, root)];
+  const failures = verifyOwnershipRegistry(rows, root, mode === '--check');
   if (failures.length) throw new Error(failures.join('\n'));
   const next = replaceGeneratedBlock(current, renderDecisionTable(rows));
   if (mode === '--write') {
