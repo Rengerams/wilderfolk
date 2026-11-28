@@ -1,6 +1,6 @@
 # Bug report summary — one line per report
 
-**2026-11-28 — [Social motives bypass needs and leisure routing](../bug_report/2026-11-28-social-motive-owner-alignment.md):** investigating; shared medical/stamina criteria, reciprocal nearby spouse care, reachable routes and finite daily errand receipts; regression CI pending.
+**2026-11-28 — [Social motives bypass needs and leisure routing](../bug_report/2026-11-28-social-motive-owner-alignment.md):** investigating; shared medical/stamina criteria, reciprocal nearby spouse care, reachable routes and market arrival receipts and civic completion only after a successful 18:00 audience; regression CI pending.
 
 **2026-11-27 — [Auto-player bypasses workforce owner](../bug_report/2026-11-27-autoplay-bypasses-workforce-owner.md):** investigating; all auto-play staffing decisions and policy overrides removed; completed-job dismissal commands refused; privileged staffing feasibility removed; canonical donor selection remains in workforce; regression CI pending.
 

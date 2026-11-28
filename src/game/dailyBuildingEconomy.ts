@@ -95,7 +95,6 @@ import {
 import { tickElectionGossip } from './villageLeadership';
 import {
   getTownHallGovernanceEfficiency,
-  tickTownHallAudiences,
   tickTownHallCivic,
 } from './townHall';
 import { addHuntVisual } from './huntvisuals';
@@ -985,7 +984,6 @@ function tickBuildingProduction(
       // once per pass, not once per Town Hall.
       livingPlayerWorkers ??= playerWorkers.filter((e) => e.alive);
       tickTownHallCivic(state, building, livingPlayerWorkers, workedIds);
-      tickTownHallAudiences(state, building, livingPlayerWorkers);
     }
 
     // Silos are storage, not food producers; their food branch multiplied by zero workers.

@@ -523,10 +523,10 @@ function tickAdultLeisureMotive(args: {
       const spot = venueGatherPosition(b, entity.id);
       const arrived = steerTo(spot.x, spot.y, 0.5, 20, b);
       if (arrived) {
-        if (impulse.motive === 'market_errand' || impulse.motive === 'civic_petition') {
+        if (impulse.motive === 'market_errand') {
           const day = getAbsoluteCalendarDay(state.tick);
           const previous = entity.socialErrands?.day === day ? entity.socialErrands : { day };
-          entity.socialErrands = { ...previous, ...(impulse.motive === 'market_errand' ? { market: true } : { civic: true }) };
+          entity.socialErrands = { ...previous, market: true };
         }
         if (impulse.motive === 'sunday_service' || impulse.motive === 'grief' || impulse.motive === 'day_off') {
           if (seededRandomForRun(`chat-social:${entity.id}:${state.tick}`) < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1);

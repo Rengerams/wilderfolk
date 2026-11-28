@@ -5,7 +5,8 @@ import { isMutualMarriage } from './relationships';
 import { HUMAN_NEEDS, getHumanStaminaRatio, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { needsMedicalCare, medicalUrgency } from './hospitalCare';
 import { isStaffedHospital } from './humanHospitalBehavior';
-import { getAbsoluteCalendarDay } from './dayCycleClock';
+import { getAbsoluteCalendarDay, DAILY_PHASE_HOURS, getTickOfDay } from './dayCycleClock';
+import { isCivicAudienceDay, wantsCivicAudience } from './townHall';
 import {
   DAYS_PER_YEAR,
   EVENING_START,
@@ -233,11 +234,12 @@ export function pickSocialImpulse(
   // 7. Civic Petition — Visit Town Hall (including post-scandal counseling)
   const hall = pickSocialBuilding([BuildingType.TownHall]);
   if (
-    !completedErrands?.civic &&
+    isCivicAudienceDay(tick) &&
+    wantsCivicAudience(entity, state) &&
     hall &&
     hall.occupants.length > 0 &&
     hour >= 9 &&
-    hour < 18 &&
+    getTickOfDay(tick) <= DAILY_PHASE_HOURS.production * TICKS_PER_HOUR &&
     personDayRoll(entity.id, tick, 730) < 0.32
   ) {
     const foodAid = isFoodAlert(state);

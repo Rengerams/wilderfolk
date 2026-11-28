@@ -16,3 +16,7 @@ Static source tracing shows that socialLife used a legacy energy mirror for exha
 ## Verification
 
 Extended tests/socialCadence.oneScenePerDay.test.ts for stale energy versus stamina, healthy pregnancy, reciprocal marriage, nearest venue and completed errand selection. Existing inspector and worker fixtures are migrated to the shared pool interface. No local execution available; CI required. Static evidence, not a reproduced save-game incident.
+
+## Review follow-up — 2026-11-28
+
+Arrival is not a completed civic petition. The existing resolver now records a successful absolute day and rejects repeated effects; no receipt is written on arrival or a failed outcome. The existing three-day audience cadence runs at 18:00 independently of deferred 23:00 production, with witnessed staff attendance and the existing per-hall cap. Social visits use the same audience day and eligibility and remain eligible through the processing tick. Regression added; latest CI pending.

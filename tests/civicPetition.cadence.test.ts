@@ -8,9 +8,9 @@ import { initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
-import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, TICKS_PER_HOUR, getAbsoluteCalendarDay, tickAtDailyPhase } from '../src/game/dayCycleClock';
 
-import { officialHandlePetitioners, resolveCivicPetition, tickTownHallAudiences } from '../src/game/townHall';
+import { officialHandlePetitioners, resolveCivicPetition, tickTownHallAudiences, tickScheduledTownHallAudiences, isCivicAudienceDay, wantsCivicAudience } from '../src/game/townHall';
 import { advanceHumanNeeds, initialHumanNeeds } from '../src/game/simulation/humanPhysiology';
 
 const OFFICIAL_ID = 1;
@@ -165,5 +165,35 @@ describe('civic petitions resolve at the daily cadence only', () => {
 
     expect(petitioner.energy).toBeGreaterThan(energyBefore);
     expect(state.villageReputation).toBe(reputationBefore + 1);
+    expect(petitioner.civicPetitionResolvedDay).toBe(getAbsoluteCalendarDay(state.tick));
+    expect(wantsCivicAudience(petitioner, state)).toBe(false);
+    expect(resolveCivicPetition(state, petitioner, hall)).toEqual({ kind: 'none' });
+    expect(state.villageReputation).toBe(reputationBefore + 1);
+  });
+
+  it('does not complete on arrival or morning greeting, but processes at the scheduled evening even with deferred production', () => {
+    const { state, hall, official, petitioner } = makeWorld();
+    let day = 3;
+    for (; day < 5000; day += 3) {
+      const tick = tickAtDailyPhase(day, 'production');
+      if (personDayRoll(PETITIONER_ID, tick, 821 + day) <= 0.4 && personDayRoll(PETITIONER_ID, tick, 823) < 0.55) break;
+    }
+    expect(day).toBeLessThan(5000);
+    state.tick = day * TICKS_PER_DAY + 10 * TICKS_PER_HOUR;
+    petitioner.scandalCooldownUntilTick = tickAtDailyPhase(day, 'production') + TICKS_PER_HOUR;
+    petitioner.indoorBuildingId = hall.id;
+    official.workerBuildingId = hall.id;
+    official.schedulePresentSiteIdToday = hall.id;
+    official.schedulePresentTicksToday = 4 * TICKS_PER_HOUR;
+    state.productionDeferred = true;
+    expect(isCivicAudienceDay(state.tick)).toBe(true);
+    expect(wantsCivicAudience(petitioner, state)).toBe(true);
+    officialHandlePetitioners(state, official, hall, [official, petitioner]);
+    tickScheduledTownHallAudiences(state, [hall], [official, petitioner]);
+    expect(petitioner.civicPetitionResolvedDay).toBeUndefined();
+    state.tick = tickAtDailyPhase(day, 'production');
+    tickScheduledTownHallAudiences(state, [hall], [official, petitioner]);
+    expect(petitioner.civicPetitionResolvedDay).toBe(day);
+    expect(wantsCivicAudience(petitioner, state)).toBe(false);
   });
 });
