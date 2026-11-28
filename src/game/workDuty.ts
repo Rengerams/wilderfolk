@@ -115,7 +115,17 @@ type ArmedDuty = 'none' | 'hunting' | 'military';
 /** Equipment eligibility reads the existing assignment and shift owners; never creates a new roster. */
 export function resolveArmedDuty(state: WorldState, entity: Entity): ArmedDuty {
   if (!entity.alive || !isPlayerHuman(entity) || entity.age < HUMAN_ADULT_MIN_AGE || isImprisoned(entity)) return 'none';
-  if (entity.job === JobType.Soldier && entity.raidDeploymentId) return 'military';
+  // A deployment pointer alone does not establish duty: the active raid must also roster this soldier.
+  if (entity.raidDeploymentId != null) {
+    if (entity.job !== JobType.Soldier) return 'none';
+    const id = entity.raidDeploymentId;
+    const outgoing = state.pendingOutgoingRaidEvents?.some((event) =>
+      event.id === id && event.phase != null && event.soldierIds?.includes(entity.id));
+    const incoming = state.pendingRaidEvents?.some((event) =>
+      event.id === id && (event.phase === 'fighting' || event.phase === 'resolving')
+      && event.soldierIds?.includes(entity.id));
+    return outgoing || incoming ? 'military' : 'none';
+  }
   if (entity.job !== JobType.Soldier && entity.job !== JobType.Hunter && entity.job !== JobType.PrisonGuard) return 'none';
   const { workplace } = resolveHumanWorkplace(entity, state.buildings, state.entities);
   if (!workplace?.completed || !workplace.occupants.includes(entity.id)) return 'none';

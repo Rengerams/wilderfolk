@@ -8,7 +8,7 @@
 
 - **Fixed (28 Nov 2026):** Migrate human relationship, medical, hunting, civic and election decisions to stamina; use native stamina effects and thresholds, and retire the temporary energy mirror, isolate old-save conversion, and separate Moon Howler predator metabolism from saved human needs.
 
-- **Fixed (28 Nov 2026):** Hunts restore no stamina. Predator combat derives weapons from canonical duty, not caller input; native reserves and skill affect chances. Children cannot wield weapons. Moon Howlers use 1,800 energy and 2× combat resistance.
+- **Fixed (28 Nov 2026):** Hunts restore no stamina. Predator weapons require valid duty or active raid roster; native reserve defaults and skill affect chances. Children cannot wield weapons. Moon Howlers use 1,800 energy and 2× combat resistance.
 
 - **Fixed (28 Nov 2026):** Successful human hunts no longer restore stamina or legacy energy; colony food yield is unchanged.
 

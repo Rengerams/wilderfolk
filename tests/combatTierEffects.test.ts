@@ -17,7 +17,8 @@ import {
 } from '../src/game/combat';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
-import { resolveArmedDuty } from '../src/game/workAbsence';
+import { resolveArmedDuty } from '../src/game/workDuty';
+import { initialHumanNeeds } from '../src/game/simulation/humanPhysiology';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { resetSimRng, restoreSimRng, seededRandomForRun, setSimSeed, snapshotSimRng } from '../src/game/simRng';
 
@@ -30,6 +31,8 @@ function makeState(researched: string[], forgeCompleted: Record<string, boolean>
   return {
     tick: 10 * TICKS_PER_HOUR,
     entities: [],
+    pendingRaidEvents: [],
+    pendingOutgoingRaidEvents: [{ id: 'combat-test', phase: 'marching', soldierIds: Array.from({ length: 80 }, (_, i) => i + 1) }],
     unlockedTechs: [...researched],
     researchNodes,
     buildings: [
@@ -91,7 +94,10 @@ describe('personal combat equipment and condition', () => {
     expect(resolvePredatorCombatChances(state, h, wolf)).toEqual(unarmed);
     expect(rollPredatorCombat('counter-attack', state, h, wolf, state.tick)).toBe(false);
     expect(resolvePredatorCombatChances(state, { ...defender(1), age: 0 }, wolf)).toEqual({ counter: 0, block: 0 });
-    expect(resolvePredatorCombatChances(state, { ...defender(1), needs: undefined }, wolf)).toEqual({ counter: 0, block: 0 });
+    const missingNeeds = { ...defender(1), needs: undefined, energy: 0, maxEnergy: 500 };
+    expect(resolvePredatorCombatChances(state, missingNeeds, wolf)).toEqual(
+      resolvePredatorCombatChances(state, { ...missingNeeds, needs: initialHumanNeeds() }, wolf));
+    expect(missingNeeds.needs).toBeUndefined();
   });
 
   it('only gives hunting weapons to an adult rostered on a completed Hunting Spot during a shift', () => {
@@ -139,10 +145,34 @@ describe('personal combat equipment and condition', () => {
     state.tick = 23 * TICKS_PER_HOUR;
     expect(resolveArmedDuty(state, h)).toBe('none');
     h.raidDeploymentId = 'raid-test';
+    expect(resolveArmedDuty(state, h)).toBe('none');
+    h.raidDeploymentId = 'combat-test';
     expect(resolveArmedDuty(state, h)).toBe('military');
     h.age = 0;
     expect(resolveArmedDuty(state, h)).toBe('none');
   });
+  it('requires an active matching raid roster rather than an arbitrary deployment marker', () => {
+    const state = makeState(['defense_4', 'defense_8'], { iron_spears: true, iron_swords: true });
+    const h = defender(1);
+    const wolf = predator(2);
+    state.tick = 23 * TICKS_PER_HOUR;
+    expect(resolveArmedDuty(state, h)).toBe('military');
+    expect(resolvePredatorCombatChances(state, h, wolf).counter).toBeGreaterThan(0);
+    const event = state.pendingOutgoingRaidEvents[0];
+    event.soldierIds = [999];
+    expect(resolvePredatorCombatChances(state, h, wolf).counter).toBe(0);
+    event.soldierIds = [h.id];
+    event.phase = undefined;
+    expect(resolveArmedDuty(state, h)).toBe('none');
+    state.pendingOutgoingRaidEvents = [];
+    expect(resolveArmedDuty(state, h)).toBe('none');
+    expect(rollPredatorCombat('counter-attack', state, h, wolf, state.tick)).toBe(false);
+    state.pendingRaidEvents = [{ ...event, phase: 'fighting', soldierIds: [h.id] }];
+    expect(resolveArmedDuty(state, h)).toBe('military');
+    state.pendingRaidEvents[0].phase = undefined;
+    expect(resolveArmedDuty(state, h)).toBe('none');
+  });
+
   it('uses both reserves and not human legacy energy', () => {
     const state = makeState(['defense_4'], { iron_spears: true });
     const h = defender(1);

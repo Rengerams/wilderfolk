@@ -18,6 +18,7 @@ import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { readSkill } from './skills';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { resolveArmedDuty } from './workDuty';
+import { initialHumanNeeds } from './simulation/humanPhysiology';
 
 const EMPTY_FORGE: VillageForgeState = {
   activeOrder: null,
@@ -125,9 +126,9 @@ export function resolvePredatorCombatChances(
     return { counter: 0, block: 0 };
   }
   const duty = resolveArmedDuty(state, human);
-  const needs = human.needs;
+  const needs = human.needs ?? initialHumanNeeds();
   const unit = (value: number): number => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
-  const readiness = needs ? unit(Math.min(needs.stamina, needs.rest, needs.nutrition) / 100) : 0;
+  const readiness = unit(Math.min(needs.stamina, needs.rest, needs.nutrition) / 100);
   const predatorReserve = predator.maxEnergy > 0 ? unit(predator.energy / predator.maxEnergy) : 0;
   const aptitude = evaluateAptitudeInfluence(human, 'defense').factor;
   const skill = duty === 'military' ? readSkill(human, human.job === JobType.PrisonGuard ? JobType.PrisonGuard : JobType.Soldier)
