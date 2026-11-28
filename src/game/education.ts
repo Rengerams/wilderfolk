@@ -301,6 +301,8 @@ interface SchoolingReasonCount {
   count: number;
 }
 
+const EDUCATION_TIER_LABELS = ['Uneducated', 'Schooled', 'Educated', 'Scholar'] as const;
+
 /** Village-wide schooling answer: the population, the seats, and why each unseated child is out. */
 export interface SchoolingSummary {
   /** Settlers below `SCHOOL_MIN_AGE` — school is not open to them yet. */
@@ -315,6 +317,8 @@ export interface SchoolingSummary {
   classHours: boolean;
   /** Every school-age child without a seat, counted by the owner's reason. */
   outOfSchool: SchoolingReasonCount[];
+  /** Mutually exclusive education levels of current living adult player humans. */
+  adultEducation: { label: string; count: number }[];
 }
 
 /**
@@ -329,6 +333,14 @@ export function summarizeSchooling(
   const children = state.entities.filter(
     (e) => e.alive && e.type === EntityType.Human && e.age < HUMAN_ADULT_MIN_AGE && isPlayerHuman(e),
   );
+  const adultCounts = [0, 0, 0, 0];
+  for (const person of state.entities) {
+    if (!person.alive || !isPlayerHuman(person) || person.age < HUMAN_ADULT_MIN_AGE || person.isJuvenile) continue;
+    // Keep the legacy educated flag interpretation consistent with the citizen label.
+    const tier = person.educated ? Math.max(1, getEducationTier(person.schoolDays ?? 0)) : 0;
+    adultCounts[tier]++;
+  }
+  const adultEducation = EDUCATION_TIER_LABELS.map((label, tier) => ({ label, count: adultCounts[tier] }));
   const classHours = isSchoolTime(tick, hourOfDay);
   // Pass every settler: the roster reads teacher presence from the same list it seats children in.
   const rosters = buildSchoolRosters(state.buildings, state.entities, tick, hourOfDay);
@@ -355,7 +367,7 @@ export function summarizeSchooling(
   }
   const outOfSchool = [...buckets].map(([reason, count]) => ({ reason, count }));
   outOfSchool.sort((a, b) => b.count - a.count);
-  return { tooYoung, schoolAge, enrolled: enrolledIds.size, inClassNow, classHours, outOfSchool };
+  return { tooYoung, schoolAge, enrolled: enrolledIds.size, inClassNow, classHours, outOfSchool, adultEducation };
 }
 
 /** Player-facing schooling breakdown — the panel prints these strings verbatim. */
@@ -420,10 +432,9 @@ export function formatEducationLabel(entity: Pick<Entity, 'isJuvenile' | 'school
     return `📚 ${days} school day${days === 1 ? '' : 's'}`;
   }
   if (!entity.educated) return null;
-  const tier = getEducationTier(entity.schoolDays ?? 0);
-  if (tier >= 3) return '🎓 Scholar';
-  if (tier >= 2) return '📖 Educated';
-  return '📘 Schooled';
+  const tier = Math.max(1, getEducationTier(entity.schoolDays ?? 0));
+  const icon = tier === 3 ? '🎓' : tier === 2 ? '📖' : '📘';
+  return `${icon} ${EDUCATION_TIER_LABELS[tier]}`;
 }
 
 export function applyEducationGraduation(state: WorldState, entity: Entity): void {
