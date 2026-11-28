@@ -492,13 +492,16 @@ export function tickValleyEcologyStage(state: WorldState): void {
   }
 }
 
-/** Ensure stage fields exist after load (recompute if missing). */
+/** Restore missing legacy stage fields without advancing a valid persisted stage. */
 export function ensureValleyEcologyOnLoad(state: WorldState): void {
   if (!ValleyEcology.ENABLED) {
     parkValleyStageState(state);
     return;
   }
+  const hasSavedStage = state.valleyStage != null && valleyStageIndex(state.valleyStage) >= 0;
+  if (!hasSavedStage) state.valleyStage = undefined;
   ensureStageFields(state);
+  if (hasSavedStage) return;
   const raw = computeRawEcologyStress(state);
   const cur = valleyStageIndex(state.valleyStage ?? 'stable');
   if (Math.abs(raw.stressLevel - cur) > 1) {
