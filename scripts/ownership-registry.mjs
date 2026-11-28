@@ -1,5 +1,5 @@
 /** Build-time ownership metadata: the registry is loaded as TypeScript, never parsed as prose. */
-import { statSync, readFileSync, writeFileSync } from 'node:fs';
+import { statSync, realpathSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tsImport } from 'tsx/esm/api';
@@ -58,6 +58,12 @@ function isFile(file) {
   try { return statSync(file).isFile(); } catch { return false; }
 }
 
+/** Reject redundant segments and non-portable spellings before compiler lookup. */
+function isCanonicalModulePath(file) {
+  return typeof file === 'string' && !file.includes('\\') &&
+    path.posix.normalize(file) === file && !file.split('/').some(part => part === '.' || part === '..' || !part);
+}
+
 export function validateDecisionKeys(rows, required = REQUIRED_DECISION_KEYS) {
   const actual = new Set(rows.map(row => row.key));
   const expected = new Set(required);
@@ -78,7 +84,7 @@ export function validateRegistry(rows, root, exists = isFile) {
     if (!row.entrypoints?.length) failures.push(`${row.key}: missing primary entrypoint`);
     for (const ref of [...(row.entrypoints ?? []), ...(row.supporting ?? [])]) {
       const qualified = `${ref.module}::${ref.symbol}`;
-      if (!/^(src|scripts)\/[\w/.-]+\.tsx?$/.test(ref.module) || ref.module.split('/').includes('..') || !exists(path.join(root, ref.module))) {
+      if (!/^(src|scripts)\/[\w/.-]+\.tsx?$/.test(ref.module) || !isCanonicalModulePath(ref.module) || !exists(path.join(root, ref.module))) {
         failures.push(`${row.key}: missing or invalid owner module ${ref.module}`);
       }
       if (!/^[A-Za-z_$][\w$]*(?:[.#][A-Za-z_$][\w$]*)?$/.test(ref.symbol)) failures.push(`${row.key}: invalid entrypoint symbol ${ref.symbol}`);
@@ -86,11 +92,17 @@ export function validateRegistry(rows, root, exists = isFile) {
       claimed.set(qualified, row.key);
     }
     const tests = row.testFile.split(',').map(file => file.trim());
-    if (!tests.length || tests.some(file => !/^(tests|scripts)\/[\w/.-]+\.(ts|mjs)$/.test(file) || file.split('/').includes('..') || !exists(path.join(root, file)))) {
+    if (!tests.length || tests.some(file => !/^(tests|scripts)\/[\w/.-]+\.(ts|mjs)$/.test(file) || !isCanonicalModulePath(file) || !exists(path.join(root, file)))) {
       failures.push(`${row.key}: missing or invalid test reference(s): ${row.testFile}`);
     }
   }
   return failures;
+}
+
+function hasModifier(node, kind) {
+  let present = false;
+  node.forEachChild(child => { if (child.kind === kind) present = true; });
+  return present;
 }
 
 /** Enumerate declarations in their real lexical scope. Facade re-exports never own a decision. */
@@ -98,11 +110,6 @@ function directCallableCandidates(source, symbol) {
   const candidates = [];
   const member = /^([A-Za-z_$][\w$]*)([.#])([A-Za-z_$][\w$]*)$/.exec(symbol);
   const localNames = new Set([symbol]);
-  const hasModifier = (node, kind) => {
-    let present = false;
-    node.forEachChild(child => { if (child.kind === kind) present = true; });
-    return present;
-  };
   if (symbol === 'default') {
     // Support a local declaration exported as default without treating an imported alias as an owner.
     source.forEachChild(node => {
@@ -127,7 +134,12 @@ function directCallableCandidates(source, symbol) {
     }
     if (node.kind === SyntaxKind.VariableStatement) {
       node.declarationList.forEachChild(declaration => {
-        if (declaration.kind === SyntaxKind.VariableDeclaration && declaration.initializer && localNames.has(declaration.name.getText())) candidates.push(declaration.name);
+        if (declaration.kind !== SyntaxKind.VariableDeclaration || !localNames.has(declaration.name.getText())) return;
+        // A callable binding is not necessarily a local implementation. Reject aliases, member
+        // references and factory results; register their actual function declaration instead.
+        let initializer = declaration.initializer;
+        while (initializer?.kind === SyntaxKind.ParenthesizedExpression) initializer = initializer.expression;
+        if (initializer?.kind === SyntaxKind.ArrowFunction || initializer?.kind === SyntaxKind.FunctionExpression) candidates.push(declaration.name);
       });
     }
   });
@@ -135,16 +147,22 @@ function directCallableCandidates(source, symbol) {
 }
 
 /** Record the exact compiler declaration once, across gameplay and infrastructure contracts. */
-function recordResolvedClaim(resolved, failures, ref, source, node) {
+function recordResolvedClaim(resolved, failures, ref, source, node, root) {
   const offset = node.getStart(source);
   const line = source.getLineAndCharacterOfPosition(offset).line + 1;
   const name = node.kind === SyntaxKind.Identifier ? node.getText() : ref.symbol;
-  const identity = `${ref.module}:${offset}`;
+  const canonicalFile = realpathSync.native(source.fileName);
+  const module = path.relative(realpathSync.native(root), canonicalFile).replaceAll('\\', '/');
+  if (module !== ref.module) {
+    failures.push(`${ref.key}: noncanonical owner module ${ref.module}; use ${module}`);
+    return;
+  }
+  const identity = `${canonicalFile}:${offset}`;
   if (resolved.has(identity)) {
     failures.push(`${ref.key}: declaration ${ref.module}:${line} already claimed by ${resolved.get(identity).key}`);
     return;
   }
-  resolved.set(identity, { key: ref.key, file: ref.module, symbol: ref.symbol, name, line, role: ref.role ?? 'primary' });
+  resolved.set(identity, { key: ref.key, file: module, symbol: ref.symbol, name, line, role: ref.role ?? 'primary' });
 }
 
 /** Use the installed TS7 compiler's project AST and type checker, not graph-scanner guesses.
@@ -156,6 +174,10 @@ export function validateEntrypointSymbols(rows, root, resolved = new Map()) {
   const projects = new Map();
   for (const row of rows) {
     for (const ref of [...row.entrypoints, ...(row.supporting ?? []).map(ref => ({ ...ref, role: 'supporting' }))]) {
+      if (!isCanonicalModulePath(ref.module)) {
+        failures.push(`${row.key}: noncanonical owner module ${ref.module}`);
+        continue;
+      }
       const config = ref.module.startsWith('scripts/') ? 'tsconfig.scripts.json' : 'tsconfig.app.json';
       if (!projects.has(config)) projects.set(config, []);
       projects.get(config).push({ key: row.key, ...ref });
@@ -179,7 +201,7 @@ export function validateEntrypointSymbols(rows, root, resolved = new Map()) {
             failures.push(`${ref.key}: expected one callable primary implementation ${ref.module}::${ref.symbol}, found ${callable.length}`);
             continue;
           }
-          recordResolvedClaim(resolved, failures, ref, source, callable[0]);
+          recordResolvedClaim(resolved, failures, ref, source, callable[0], root);
         }
       } finally {
         snapshot.dispose();
@@ -215,10 +237,11 @@ const TOOLING_CONTRACTS = [
       "renderDecisionTable",
       "replaceGeneratedBlock",
       "isFile",
+      "isCanonicalModulePath",
       "validateDecisionKeys",
       "validateRegistry",
+      "hasModifier",
       "directCallableCandidates",
-      "directCallableCandidates::hasModifier",
       "recordResolvedClaim",
       "validateEntrypointSymbols",
       "findVerifiedClaim",
@@ -292,7 +315,7 @@ export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS, re
         keys.add(contract.key);
         const file = contract.module;
         if (!/^(src|scripts|tests)\/[\w/.-]+\.(?:[cm]?ts|tsx|[cm]?js|jsx)$/.test(file) ||
-            file.split('/').includes('..') || !isFile(path.join(root, file))) {
+            !isCanonicalModulePath(file) || !isFile(path.join(root, file))) {
           failures.push(`${contract.key}: missing or invalid infrastructure module ${file}`);
           continue;
         }
@@ -306,8 +329,16 @@ export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS, re
           continue;
         }
         const actual = new Map();
-        const visit = (node, scope = '') => {
+        const visit = (node, scope = '', classScope = false) => {
+          if ((node.kind === SyntaxKind.ClassDeclaration || node.kind === SyntaxKind.ClassExpression) && node.name) {
+            const className = node.name.getText();
+            const qualifiedClass = scope ? `${scope}::${className}` : className;
+            node.forEachChild(child => visit(child, qualifiedClass, true));
+            return;
+          }
           let name;
+          const method = classScope && node.kind === SyntaxKind.MethodDeclaration && node.body && node.name;
+          if (method) name = node.name.getText();
           if (node.kind === SyntaxKind.FunctionDeclaration && node.body && node.name) name = node.name.getText();
           if (node.kind === SyntaxKind.VariableDeclaration && node.initializer && node.name.kind === SyntaxKind.Identifier) {
             const initializer = node.initializer;
@@ -317,7 +348,9 @@ export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS, re
               if (type && !(type.flags & TypeFlags.Any) && project.checker.getSignaturesOfType(type, SignatureKind.Call).length) name = node.name.getText();
             }
           }
-          const qualified = name ? (scope ? `${scope}::${name}` : name) : scope;
+          const qualified = name
+            ? (method ? `${scope}${hasModifier(node, SyntaxKind.StaticKeyword) ? '.' : '#'}${name}` : scope ? `${scope}::${name}` : name)
+            : scope;
           if (name) {
             if (!actual.has(qualified)) actual.set(qualified, []);
             actual.get(qualified).push(node.name);
@@ -334,7 +367,7 @@ export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS, re
               failures.push(`${contract.key}: expected one infrastructure declaration ${file}::${symbol}, found ${nodes.length}`);
               continue;
             }
-            recordResolvedClaim(resolved, failures, { key: contract.key, module: file, symbol, role: 'infrastructure' }, source, nodes[0]);
+            recordResolvedClaim(resolved, failures, { key: contract.key, module: file, symbol, role: 'infrastructure' }, source, nodes[0], root);
           }
         }
         for (const symbol of actual.keys()) {
