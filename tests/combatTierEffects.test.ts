@@ -28,6 +28,8 @@ function makeState(researched: string[], forgeCompleted: Record<string, boolean>
   );
   const cfg = BUILDING_CONFIGS[BuildingType.Blacksmith];
   return {
+    tick: 10 * TICKS_PER_HOUR,
+    entities: [],
     unlockedTechs: [...researched],
     researchNodes,
     buildings: [
@@ -53,7 +55,7 @@ function makeState(researched: string[], forgeCompleted: Record<string, boolean>
 }
 
 function defender(id: number, seed = 0): Entity {
-  return { id, type: EntityType.Human, alive: true, age: 30, job: JobType.Soldier, combatRollSeed: seed,
+  return { id, type: EntityType.Human, alive: true, age: 30, job: JobType.Soldier, raidDeploymentId: 'combat-test', combatRollSeed: seed,
     needs: { stamina: 100, rest: 100, nutrition: 100, severeHungerTicks: 0 } } as Entity;
 }
 function predator(id: number): Entity {
@@ -62,15 +64,50 @@ function predator(id: number): Entity {
 }
 
 describe('personal combat equipment and condition', () => {
-  it('does not arm newborns, civilians or off-duty soldiers with forged village weapons', () => {
+  it('cannot arm a civilian, unassigned soldier, off-duty soldier, imprisoned soldier or child through the public combat API', () => {
     const state = makeState(['defense_4', 'defense_8', 'defense_9'], { iron_spears: true, iron_swords: true, scale_mail: true });
-    const h = defender(1);
-    expect(resolvePredatorCombatChances(state, h, predator(2), 'none').counter).toBe(0);
-    expect(resolvePredatorCombatChances(state, h, predator(2), 'none').block).toBeCloseTo(0.05);
-    expect(resolvePredatorCombatChances(state, { ...h, age: 0 }, predator(2), 'military')).toEqual({ counter: 0, block: 0 });
-    expect(resolvePredatorCombatChances(state, h, predator(2), 'military').counter).toBeCloseTo(0.55);
-    expect(resolvePredatorCombatChances(state, h, predator(2), 'hunting').counter).toBeCloseTo(0.45);
-    expect(resolvePredatorCombatChances(state, h, predator(2), 'hunting').block).toBeCloseTo(0.05);
+    const h: Entity = { ...defender(1), raidDeploymentId: undefined };
+    const wolf = predator(2);
+    const unarmed = { counter: 0, block: 0.05 };
+    const barracks = { ...state.buildings[0], id: 2, type: BuildingType.Barracks, occupants: [h.id] };
+    state.buildings.push(barracks);
+    const civilian = { ...h, job: JobType.Settler, workerBuildingId: barracks.id };
+    for (const person of [civilian, h]) {
+      expect(resolvePredatorCombatChances(state, person, wolf)).toEqual(unarmed);
+      expect(rollPredatorCombat('counter-attack', state, person, wolf, state.tick)).toBe(false);
+    }
+    h.workerBuildingId = barracks.id;
+    expect(resolvePredatorCombatChances(state, h, wolf).counter).toBeCloseTo(0.55);
+    expect(resolvePredatorCombatChances(state, h, wolf).block).toBeGreaterThan(unarmed.block);
+    state.tick = 23 * TICKS_PER_HOUR;
+    expect(resolvePredatorCombatChances(state, h, wolf)).toEqual(unarmed);
+    expect(rollPredatorCombat('counter-attack', state, h, wolf, state.tick)).toBe(false);
+    h.raidDeploymentId = 'combat-test';
+    expect(resolvePredatorCombatChances(state, h, wolf).counter).toBeCloseTo(0.55);
+    h.prisonBuildingId = 99;
+    expect(resolvePredatorCombatChances(state, h, wolf)).toEqual(unarmed);
+    expect(rollPredatorCombat('counter-attack', state, h, wolf, state.tick)).toBe(false);
+    expect(resolvePredatorCombatChances(state, { ...defender(1), age: 0 }, wolf)).toEqual({ counter: 0, block: 0 });
+    expect(resolvePredatorCombatChances(state, { ...defender(1), needs: undefined }, wolf)).toEqual({ counter: 0, block: 0 });
+  });
+
+  it('only gives hunting weapons to an adult rostered on a completed Hunting Spot during a shift', () => {
+    const state = makeState(['defense_4', 'defense_8', 'defense_9'], { iron_spears: true, iron_swords: true, scale_mail: true });
+    const hunter: Entity = { ...defender(1), job: JobType.Hunter, raidDeploymentId: undefined };
+    const wolf = predator(2);
+    const unarmed = { counter: 0, block: 0.05 };
+    expect(resolvePredatorCombatChances(state, hunter, wolf)).toEqual(unarmed);
+    expect(rollPredatorCombat('counter-attack', state, hunter, wolf, state.tick)).toBe(false);
+    const spot = { ...state.buildings[0], id: 2, type: BuildingType.HuntingSpot, occupants: [hunter.id] };
+    state.buildings.push(spot);
+    hunter.workerBuildingId = spot.id;
+    expect(resolvePredatorCombatChances(state, hunter, wolf).counter).toBeCloseTo(0.45);
+    expect(resolvePredatorCombatChances(state, hunter, wolf).block).toBeCloseTo(0.05);
+    spot.occupants = [];
+    expect(resolvePredatorCombatChances(state, hunter, wolf)).toEqual(unarmed);
+    spot.occupants = [hunter.id];
+    state.tick = 23 * TICKS_PER_HOUR;
+    expect(resolvePredatorCombatChances(state, hunter, wolf)).toEqual(unarmed);
   });
   it('makes a full-strength werewolf twice as difficult to block or counter as a wolf', () => {
     const state = makeState(['defense_4', 'defense_8', 'defense_9'], { iron_spears: true, iron_swords: true, scale_mail: true });
@@ -79,17 +116,17 @@ describe('personal combat equipment and condition', () => {
     const maxEnergy = SPECIES_CONFIG[EntityType.Werewolf].maxEnergy;
     const howler = { ...wolf, type: EntityType.Werewolf, energy: maxEnergy, maxEnergy, moonHowlerCursed: true };
     expect(maxEnergy).toBe(wolf.maxEnergy * 2);
-    const ordinary = resolvePredatorCombatChances(state, h, wolf, 'military');
-    const supernatural = resolvePredatorCombatChances(state, h, howler, 'military');
+    const ordinary = resolvePredatorCombatChances(state, h, wolf);
+    const supernatural = resolvePredatorCombatChances(state, h, howler);
     expect(ordinary.counter).toBeGreaterThan(0);
     expect(ordinary.block).toBeGreaterThan(0);
     expect(supernatural.counter).toBeCloseTo(ordinary.counter / 2);
     expect(supernatural.block).toBeCloseTo(ordinary.block / 2);
-    expect(resolvePredatorCombatChances(state, h, howler, 'none').block).toBeCloseTo(0.025);
+    expect(resolvePredatorCombatChances(state, { ...h, raidDeploymentId: undefined }, howler).block).toBeCloseTo(0.025);
   });
   it('uses the existing shift and deployment, not the job title alone', () => {
     const state = makeState([], {});
-    const h = defender(1);
+    const h = { ...defender(1), raidDeploymentId: undefined };
     const barracks = { ...state.buildings[0], id: 2, type: BuildingType.Barracks, occupants: [h.id] };
     state.buildings.push(barracks);
     h.workerBuildingId = barracks.id;
@@ -106,14 +143,14 @@ describe('personal combat equipment and condition', () => {
     const state = makeState(['defense_4'], { iron_spears: true });
     const h = defender(1);
     const wolf = predator(2);
-    const full = resolvePredatorCombatChances(state, h, wolf, 'military');
+    const full = resolvePredatorCombatChances(state, h, wolf);
     h.energy = 0;
     h.maxEnergy = 900;
-    expect(resolvePredatorCombatChances(state, h, wolf, 'military')).toEqual(full);
+    expect(resolvePredatorCombatChances(state, h, wolf)).toEqual(full);
     h.needs!.stamina = 20;
-    expect(resolvePredatorCombatChances(state, h, wolf, 'military').counter).toBeLessThan(full.counter);
+    expect(resolvePredatorCombatChances(state, h, wolf).counter).toBeLessThan(full.counter);
     wolf.energy = 100;
-    expect(resolvePredatorCombatChances(state, h, wolf, 'military').counter).toBeGreaterThan(full.counter * 0.2);
+    expect(resolvePredatorCombatChances(state, h, wolf).counter).toBeGreaterThan(full.counter * 0.2);
   });
 });
 
@@ -131,7 +168,7 @@ describe('tiered combat research does not stack', () => {
     // With chance 1.0 the old code returned true for every input.
     let refused = 0;
     for (let id = 1; id <= 60; id++) {
-      if (!rollPredatorCombat('counter-attack', state, defender(id, 0), predator(id + 500), 'military', 72)) refused++;
+      if (!rollPredatorCombat('counter-attack', state, defender(id, 0), predator(id + 500), 72)) refused++;
     }
     expect(refused).toBeGreaterThan(0);
   });
@@ -155,8 +192,8 @@ describe('combat rolls draw from the run-seeded stream', () => {
     const rolls: boolean[] = [];
     for (let id = 1; id <= 80; id++) {
       // Both defender and attacker decisions, across ticks and per-entity seeds.
-      rolls.push(rollPredatorCombat('predator-block', state, defender(id, id * 7919), predator(id + 500), 'military', 100 + id));
-      rolls.push(rollPredatorCombat('counter-attack', state, defender(id, id * 104_729), predator(id + 500), 'military', 100 + id));
+      rolls.push(rollPredatorCombat('predator-block', state, defender(id, id * 7919), predator(id + 500), 100 + id));
+      rolls.push(rollPredatorCombat('counter-attack', state, defender(id, id * 104_729), predator(id + 500), 100 + id));
     }
     return rolls;
   };
@@ -172,16 +209,16 @@ describe('combat rolls draw from the run-seeded stream', () => {
       const human = defender(id, id * 7919);
       const tick = 100 + id;
       for (const wolf of [predator(id + 500), predator(id + 900)]) {
-        const { block, counter } = resolvePredatorCombatChances(state, human, wolf, 'military');
-        expect(rollPredatorCombat('predator-block', state, human, wolf, 'military', tick))
+        const { block, counter } = resolvePredatorCombatChances(state, human, wolf);
+        expect(rollPredatorCombat('predator-block', state, human, wolf, tick))
           .toBe(block > 0 && seededRandomForRun(`combat:predator-block:${id}:${tick}:${human.combatRollSeed}`) < block);
-        expect(rollPredatorCombat('counter-attack', state, human, wolf, 'military', tick))
+        expect(rollPredatorCombat('counter-attack', state, human, wolf, tick))
           .toBe(counter > 0 && seededRandomForRun(`combat:counter-attack:${id}:${wolf.id}:${tick}:${human.combatRollSeed}`) < counter);
       }
     }
     const child = { ...defender(1), age: 0 };
-    expect(rollPredatorCombat('predator-block', state, child, predator(2), 'military', 100)).toBe(false);
-    expect(rollPredatorCombat('counter-attack', state, child, predator(2), 'military', 100)).toBe(false);
+    expect(rollPredatorCombat('predator-block', state, child, predator(2), 100)).toBe(false);
+    expect(rollPredatorCombat('counter-attack', state, child, predator(2), 100)).toBe(false);
   });
 
   it('two run seeds resolve the same combat differently', () => {
@@ -196,8 +233,8 @@ describe('combat rolls draw from the run-seeded stream', () => {
     const draw = (): boolean[] => {
       const rolls: boolean[] = [];
       for (let id = 1; id <= 40; id++) {
-        rolls.push(rollPredatorCombat('predator-block', state, defender(id, id * 7919), predator(id + 500), 'military', 300 + id));
-        rolls.push(rollPredatorCombat('counter-attack', state, defender(id, id * 104_729), predator(id + 900), 'military', 300 + id));
+        rolls.push(rollPredatorCombat('predator-block', state, defender(id, id * 7919), predator(id + 500), 300 + id));
+        rolls.push(rollPredatorCombat('counter-attack', state, defender(id, id * 104_729), predator(id + 900), 300 + id));
       }
       return rolls;
     };
