@@ -1,8 +1,11 @@
+import { tickAtDailyPhase } from '../src/game/dayCycleClock';
+import { indexLivingEntity } from '../src/game/entityIndex';
+import { gameTick } from '../src/game/gameEngine';
 /** Legal terrain for yearly wildlife and flora — obsolete on-map visitor tests retired in PR #165. */
 import { afterEach, describe, expect, it } from 'vitest';
 import { initGame, isPassableWildlifePosition } from '../src/game/worldGen';
-import { EntityType, TerrainType } from '../src/game/gameTypes';
-import type { Entity, WorldMap, WorldState } from '../src/game/gameTypes';
+import { EntityType, TerrainType, BuildingType } from '../src/game/gameTypes';
+import type { Entity, WorldMap, WorldState, Building, GameEvent } from '../src/game/gameTypes';
 import { rollYearlyWorldEvent } from '../src/game/groupEvents';
 import { isFootprintOnBuildableTerrain, overlapsAnyBuilding } from '../src/game/placementUtils';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
@@ -78,4 +81,87 @@ describe('yearly world events', () => {
     }
   });
 
+});
+
+describe('Yearly event identity and strategic frontier founding', () => {
+  afterEach(resetSimRng);
+
+  describe('L34 — recurring events carry instance-unique ids', () => {
+    it('does not reuse one id for the same yearly world event in different years', () => {
+      const first = yearlyEventAt(100);
+      const second = yearlyEventAt(200);
+      expect(first).not.toBeNull();
+      expect(second).not.toBeNull();
+      // Same seed + same pool ⇒ the same event is picked, so this really compares
+      // two instances of one event rather than two different events.
+      const baseId = (id: string) => id.replace(/_\d+$/, '');
+      expect(baseId(first!.id)).toBe(baseId(second!.id));
+      expect(first!.id.endsWith('_100')).toBe(true);
+      expect(second!.id.endsWith('_200')).toBe(true);
+      expect(second!.id).not.toBe(first!.id);
+    });
+  });
+
+  /** Same world, same seeded draw, different tick — the pick must be identical. */
+  function yearlyEventAt(tick: number): GameEvent | null {
+    const state = initGame({ skipTerrain: true });
+    state.tick = tick;
+    setSimSeed(9);
+    return rollYearlyWorldEvent(
+      state,
+      [...state.entities],
+      state.buildings,
+      state.width,
+      state.height,
+      () => state.nextEntityId++,
+    ).event;
+  }
+
+  describe('legacy frontier rival settlement spawning is retired', () => {
+    function colonyFixture(humans: number, withHouse: boolean): { state: WorldState; allAlive: Entity[] } {
+      const state = initGame({ skipTerrain: true });
+      const template = state.entities.find((e) => e.alive && e.type === EntityType.Human);
+      if (!template) throw new Error('the fixture world has no settler to clone');
+      let id = 900_000;
+      while (state.entities.filter((e) => e.alive && e.type === EntityType.Human).length < humans) {
+        const clone = { ...template, id: id++ } as Entity;
+        state.entities.push(clone);
+        // The grids are asserted inside `gameTick`, so a fixture settler must be indexed like a real one.
+        indexLivingEntity(state, clone);
+      }
+      if (withHouse) {
+        state.buildings.push({
+          id: 800_000,
+          type: BuildingType.House,
+          x: 400,
+          y: 400,
+          width: 3,
+          height: 3,
+          completed: true,
+          occupants: [],
+        } as unknown as Building);
+      }
+      return { state, allAlive: [...state.entities] };
+    }
+
+
+    it('founds only a strategic settlement at the frontier milestone, for any seed', () => {
+      for (const seed of [1, 7, 42]) {
+        resetSimRng();
+        setSimSeed(seed);
+        const { state } = colonyFixture(10, true);
+        state.paused = false;
+        state.tick = tickAtDailyPhase(10, 'worldEvents') - 1;
+        const originalBuildingCount = state.buildings.length;
+
+        gameTick(state);
+
+        expect(state.rivalSettlements).toHaveLength(1);
+        expect(state.entities.some((entity) => entity.faction === 'rival')).toBe(false);
+        expect(state.buildings).toHaveLength(originalBuildingCount);
+      }
+    });
+
+
+  });
 });

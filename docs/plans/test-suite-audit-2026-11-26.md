@@ -281,6 +281,10 @@ Retired `visualsAudit.renderWiring.test.ts`. Seven renderer runtime cases and th
 
 Moved all 26 remaining cases from `audit2026-09-21.regression` into their nine existing subject-owner suites (visitor trade, frontier combat, relationship predicates, citizen names, village anchor, rollback, save refusal, persistence, and spatial grid). Preserved each case and its assertions; reused the existing shared human fixture in the anchor suite. Updated the sprite-cache overlap approval to its actual rendering evidence and removed unused export visibility reported by Knip. No gameplay changes; CI pending.
 
+## Event and defense regression consolidation — 2026-11-28
+
+Moved all 18 remaining cases from `low-2-events-defense` into five existing owner suites: yearly/frontier events, visitor trade, diplomacy, militia and prison shifts. Reused the complete shared human and finished-building factories in place of partial duplicate literals; preserved assertions and scoped RNG resets. No gameplay changes; CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

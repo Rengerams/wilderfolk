@@ -1,10 +1,11 @@
-import { getDefenseStructureBreakdown, getWallSegmentCap } from '../src/game/defenseStructures';
+import { resetSimRng } from '../src/game/simRng';
+import { getDefenseStructureBreakdown, getWallSegmentCap, getBarracksGuardCount } from '../src/game/defenseStructures';
 import { human, finishedBuilding } from '../src/test/factories';
 /**
  * A prisoner is not militia: the adult count, raid fighter pool, casualty pool, chivalrous bonus
  * and combat flash all share `militiaBalance.canBeMustered`.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { initGame } from '../src/game/worldGen';
@@ -182,5 +183,28 @@ describe('L47 wall-cap label', () => {
     const lines = getDefenseStructureBreakdown(platedState, platedState.buildings);
     expect(lines.some((line) => line.includes('max +96'))).toBe(true);
     expect(lines.some((line) => line.includes('max +72'))).toBe(false);
+  });
+});
+
+describe('Read-only barracks occupancy', () => {
+  afterEach(resetSimRng);
+
+  describe('L15 — barracks occupancy is not pruned by a getter', () => {
+    it('counts only live, non-imprisoned soldiers and never rewrites the occupant list', () => {
+      const soldier = human(1, { job: JobType.Soldier, workerBuildingId: 8 });
+      const deadSoldier = human(2, { job: JobType.Soldier, alive: false, workerBuildingId: 8 });
+      const reassigned = human(3, { job: JobType.Settler, workerBuildingId: 8 });
+      const barracks = finishedBuilding(8, BuildingType.Barracks, { occupants: [1, 2, 3] });
+      const world = {
+        entities: [soldier, deadSoldier, reassigned],
+        buildings: [barracks],
+        tick: 0,
+      } as unknown as WorldState;
+      const before = [...barracks.occupants];
+
+      expect(getBarracksGuardCount(world, [barracks])).toBe(1);
+      // The getter reports; the assignment transition and killHuman repair.
+      expect(barracks.occupants).toEqual(before);
+    });
   });
 });

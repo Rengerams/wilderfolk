@@ -1,18 +1,17 @@
+import { resetSimRng } from '../src/game/simRng';
 import { formatResourceAmounts } from '../src/game/resourceTypes';
 import { MapSize } from '../src/game/gameTypes';
 /**
  * The visitor trade buttons must be gated by the owner `groupEvents.getVisitorTradeEligibility`, which
  * also rejects a leaving caravan, a group out of gold, and insufficient storage for what it receives.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, afterEach } from 'vitest';
 import { initGame } from '../src/game/worldGen';
-import {
-  getRefugeeChoiceEligibility,
+import { getRefugeeChoiceEligibility,
   getVisitorTradeEligibility,
   getVisitorTradeTerms,
-  VISITOR_TRADE_COSTS,
-} from '../src/game/groupEvents';
-import type { WorldState } from '../src/game/gameTypes';
+  VISITOR_TRADE_COSTS, tradeWithVisitors } from '../src/game/groupEvents';
+import type { WorldState, VisitorGroup } from '../src/game/gameTypes';
 
 const FIXTURE_SEED = 20_260_917;
 const GROUP_ID = 'visitors-1';
@@ -210,5 +209,63 @@ describe('Stone trade and resource amount formatting', () => {
     });
 
 
+  });
+});
+
+describe('Visitor trade command validation', () => {
+  afterEach(resetSimRng);
+
+  function trader(overrides: Partial<VisitorGroup> = {}): VisitorGroup {
+    return {
+      id: 'trader-1',
+      name: 'The Brass Kettle Caravan',
+      kind: 'traders',
+      entityIds: [],
+      campX: 320,
+      campY: 280,
+      daysLeft: 4,
+      giftsGiven: 0,
+      tradesCompleted: 0,
+      gold: 80,
+      refugeeResolved: false,
+      leaderTalked: false,
+      ...overrides,
+    };
+  }
+
+  function tradeCommandWorld(): WorldState {
+    const state = initGame({ skipTerrain: true });
+    state.visitorGroups = [trader()];
+    return state;
+  }
+
+  describe('groupEvents visitor trade uses the economy owners', () => {
+    it('refuses a trade priced in a resource the world does not hold instead of writing NaN', () => {
+      const state = tradeCommandWorld();
+      // A missing resource key must count as 0 and never put NaN into the purse.
+      (state.resources as unknown as Record<string, number | undefined>).gold = undefined;
+
+      const next = tradeWithVisitors(state, 'trader-1', 'buy_food');
+
+      expect(Number.isNaN(next.resources.gold as unknown as number)).toBe(false);
+      expect(next.resources.gold).toBeUndefined();
+      expect(next.visitorGroups[0]?.tradesCompleted).toBe(0);
+      expect(next.floatingTexts.some((f) => f.text.includes('💰'))).toBe(true);
+    });
+
+    it('refuses a purchase with no storage headroom before taking any payment (L32)', () => {
+      const state = tradeCommandWorld();
+      state.resources.gold = 500;
+      state.resources.food = state.storageMax.food;
+
+      const next = tradeWithVisitors(state, 'trader-1', 'buy_food');
+
+      expect(next.resources.gold).toBe(500);
+      expect(next.resources.food).toBe(state.resources.food);
+      expect(next.visitorGroups[0]?.tradesCompleted).toBe(0);
+      expect(
+        next.bigNews.some((news) => news.message.includes('not enough storage space')),
+      ).toBe(false);
+    });
   });
 });

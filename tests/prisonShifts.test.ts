@@ -1,14 +1,18 @@
+import { human, finishedBuilding } from '../src/test/factories';
+import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
+import { isNearBuilding } from '../src/game/simulation/humanRelationships';
+import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
 /**
  * The prison roster: three nine-hour shifts with one-hour handovers, rotated weekly. The duty pass
  * reads only these rules, so the arithmetic is what keeps a prison staffed.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { BUILDING_CONFIGS, BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
-import { tickPrisonGuardDuty } from '../src/game/prisonGuardDuty';
-import { syncJobBuildingOccupants } from '../src/game/workforce';
+import { tickPrisonGuardDuty, tickPrisonPresence } from '../src/game/prisonGuardDuty';
+import { syncJobBuildingOccupants, releasePrisoners } from '../src/game/workforce';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 import {
   PRISON_GUARDS_FOR_FULL_COVERAGE,
@@ -298,5 +302,203 @@ describe('tickPrisonGuardDuty rolls per unguarded hour', () => {
 
   it('releases both prisoners on a single day when the post was open all day', () => {
     expect(escapedTogetherOnOneDay()).toBe(true);
+  });
+});
+
+describe('Prison roster, presence and release', () => {
+  afterEach(resetSimRng);
+
+  /** One unguarded prisoner (no guards = 24 unguarded hours) in a completed Prison. */
+  function prisonWorld(): { world: WorldState; prisoner: Entity; prison: Building } {
+    const world = initGame({ skipTerrain: true });
+    const prisoner = world.entities.find(
+      (e) => e.type === EntityType.Human && e.id !== world.villageLeaderId,
+    )!;
+    const prisonId = 9001;
+    prisoner.workerBuildingId = undefined;
+    prisoner.prisonBuildingId = prisonId;
+    prisoner.prisonerUntilTick = world.tick + 10 * TICKS_PER_DAY;
+    prisoner.prisonSentenceCrime = 'scandal';
+    const prison = finishedBuilding(prisonId, BuildingType.Prison, { occupants: [prisoner.id] });
+    world.buildings = [prison];
+    return { world, prisoner, prison };
+  }
+
+  describe('L51 — a prison escape re-syncs the prison occupant list', () => {
+    it('drops the escapee from prison.occupants and clears the sentence crime', () => {
+      const { world, prisoner, prison } = prisonWorld();
+      expect(collectSimulationInvariantErrors(world)).toEqual([]);
+
+      setSimSeed(1);
+      let escaped = false;
+      for (let day = 0; day < 60 && !escaped; day++) {
+        tickPrisonGuardDuty(world);
+        escaped = prisoner.prisonBuildingId === undefined;
+      }
+
+      expect(escaped).toBe(true);
+      expect(prison.occupants).not.toContain(prisoner.id);
+      expect(prisoner.prisonSentenceCrime).toBeUndefined();
+      // §5 prison invariant: every id in `occupants` is a prisoner or a guard.
+      expect(collectSimulationInvariantErrors(world)).toEqual([]);
+    });
+
+    it('is the exact state the prison invariant rejects when the list is left stale', () => {
+      const { world, prisoner, prison } = prisonWorld();
+      // Stale escape end state: ownership cleared but the occupant id left behind.
+      prisoner.prisonBuildingId = undefined;
+      prisoner.prisonerUntilTick = undefined;
+
+      expect(prison.occupants).toContain(prisoner.id);
+      expect(
+        collectSimulationInvariantErrors(world).some((e) => e.includes('neither prisoner')),
+      ).toBe(true);
+    });
+  });
+
+  /** The same prison, with `guardCount` guards on its roster and the matching occupants list. */
+  function staffedPrison(guardCount: number): { world: WorldState; prisoner: Entity; prison: Building } {
+    const { world, prisoner, prison } = prisonWorld();
+    for (let i = 0; i < guardCount; i++) {
+      const guard = human(7000 + i, { job: JobType.PrisonGuard, workerBuildingId: prison.id });
+      world.entities.push(guard);
+      prison.occupants = [...(prison.occupants ?? []), guard.id];
+    }
+    return { world, prisoner, prison };
+  }
+
+  describe('prison coverage — the crew the shifts require has to fit in the building', () => {
+    it('seats a full guard crew and still has room for a prisoner', () => {
+      // The roster needs one guard per shift for 24 h coverage; a building that cannot seat them cannot
+      // hold a prisoner.
+      expect(BUILDING_CONFIGS[BuildingType.Prison].maxOccupants).toBeGreaterThanOrEqual(
+        PRISON_GUARDS_FOR_FULL_COVERAGE + 1,
+      );
+    });
+
+    it('holds the prisoner while the full crew is on the roster', () => {
+      const { world, prisoner } = staffedPrison(PRISON_GUARDS_FOR_FULL_COVERAGE);
+      setSimSeed(1);
+      for (let day = 0; day < 120; day++) tickPrisonGuardDuty(world);
+
+      expect(prisoner.prisonBuildingId).toBeDefined();
+      expect(prisoner.prisonerUntilTick).toBeDefined();
+      expect(collectSimulationInvariantErrors(world)).toEqual([]);
+    });
+
+    it('still leaks when the roster is one shift short', () => {
+      const { world, prisoner } = staffedPrison(PRISON_GUARDS_FOR_FULL_COVERAGE - 1);
+      setSimSeed(1);
+      let escaped = false;
+      for (let day = 0; day < 120 && !escaped; day++) {
+        tickPrisonGuardDuty(world);
+        escaped = prisoner.prisonBuildingId === undefined;
+      }
+
+      expect(escaped).toBe(true);
+    });
+  });
+
+  describe('prison coverage is presence, not the roster', () => {
+    /** One day of hourly post checks, the way the realtime layer runs them. */
+    function sampleDay(world: WorldState): void {
+      for (let hour = 0; hour < 24; hour++) {
+        world.tick = hour * TICKS_PER_HOUR;
+        tickPrisonPresence(world);
+      }
+    }
+
+    it('records no uncovered hour while the crew stands on the post', () => {
+      const { world, prisoner, prison } = staffedPrison(PRISON_GUARDS_FOR_FULL_COVERAGE);
+      sampleDay(world);
+
+      expect(prison.uncoveredPrisonHours ?? []).toEqual([]);
+
+      setSimSeed(1);
+      for (let day = 0; day < 120; day++) tickPrisonGuardDuty(world);
+      expect(prisoner.prisonBuildingId).toBeDefined();
+    });
+
+    it('sees a stationed guard even with the cells full and the guards seated last', () => {
+      // `prison.occupants` is guards ∪ prisoners, so presence must be sampled per guard rather than
+      // from list order; with the cells full and the guards last, every hour is still covered.
+      const { world, prisoner, prison } = prisonWorld();
+      const guards: Entity[] = [];
+      for (let i = 0; i < PRISON_GUARDS_FOR_FULL_COVERAGE; i++) {
+        const guard = human(7000 + i, { job: JobType.PrisonGuard, workerBuildingId: prison.id });
+        world.entities.push(guard);
+        guards.push(guard);
+      }
+      const cellmates = [prisoner.id];
+      for (let i = 0; i < 4; i++) {
+        const cellmate = human(8000 + i, { prisonBuildingId: prison.id });
+        world.entities.push(cellmate);
+        cellmates.push(cellmate.id);
+      }
+      prison.occupants = [...cellmates, ...guards.map((guard) => guard.id)];
+
+      for (const guard of guards) {
+        const stand = humanBuildingTarget(prison, guard.id);
+        const posted = { ...guard, x: stand.x, y: stand.y };
+        expect(isNearBuilding(posted, prison)).toBe(true);
+      }
+
+      // And the sampler agrees: every hour of the day is covered while they hold the row.
+      sampleDay(world);
+      expect(prison.uncoveredPrisonHours ?? []).toEqual([]);
+    });
+
+    it('leaks with a full roster when the guards never stood on the post', () => {
+      const { world, prisoner, prison } = staffedPrison(PRISON_GUARDS_FOR_FULL_COVERAGE);
+      for (const guardId of prison.occupants ?? []) {
+        const guard = world.entities.find((e) => e.id === guardId)!;
+        guard.x = 500;
+        guard.y = 500;
+      }
+      sampleDay(world);
+
+      // Assigned is not present: every hour of the day had nobody on the post.
+      expect((prison.uncoveredPrisonHours ?? []).length).toBe(24);
+
+      setSimSeed(1);
+      let escaped = false;
+      for (let day = 0; day < 60 && !escaped; day++) {
+        sampleDay(world);
+        tickPrisonGuardDuty(world);
+        escaped = prisoner.prisonBuildingId === undefined;
+      }
+
+      expect(escaped).toBe(true);
+    });
+
+    it('tells the player when a prisoner escapes, not just the chronicle', () => {
+      const { world, prisoner } = prisonWorld();
+      setSimSeed(1);
+      let told = false;
+      for (let day = 0; day < 60 && !told; day++) {
+        tickPrisonGuardDuty(world);
+        told = world.notifications.some((n) => n.title === 'Escaped');
+      }
+
+      expect(prisoner.prisonBuildingId, 'the prisoner never escaped, so nothing was announced').toBeUndefined();
+      expect(told, 'the escape was logged but the player was never told').toBe(true);
+    });
+
+    it('files a release with the jailings and tells the player', () => {
+      const { world, prisoner } = prisonWorld();
+      world.notifications = [];
+      world.eventLog = [];
+      // The sentence is served: `releasePrisoners` frees anyone whose release tick has arrived.
+      prisoner.prisonerUntilTick = world.tick;
+
+      releasePrisoners(world);
+
+      expect(prisoner.prisonBuildingId).toBeUndefined();
+      expect(world.notifications.some((n) => n.title === 'Released'), 'the release was not announced').toBe(true);
+      expect(
+        world.eventLog.some((e) => e.type === 'prison' && e.message.includes('released from prison')),
+        'the release did not file under the prison filter',
+      ).toBe(true);
+    });
   });
 });

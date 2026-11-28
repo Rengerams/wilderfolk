@@ -709,7 +709,9 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/hospitalWalk.regression.test.ts` | `makeState`, `findQualifyingTreatmentDay` (daily patient treatment fixture) |
 | `tests/pathfinding.test.ts` | `makeMap`, `pixel`, `human`, `blockedAt` (path-reuse and walkability fixtures) |
 | `tests/storageCap.test.ts` | `addCompleted`, `makeWorld`, `addBuilding`, `capsFor` (storage fixtures consolidated from `economyAudit.storageCaps.test.ts`) |
-| `tests/prisonShifts.test.ts` | `prisoner`, `prisonBuilding`, `unguardedDay`, `escapedTogetherOnOneDay` (prison duty fixtures consolidated from `simBatch.prisonEscapes.test.ts`) |
+| `tests/prisonShifts.test.ts` | `prisoner`, `prisonBuilding`, `unguardedDay`, `escapedTogetherOnOneDay`, `prisonWorld`, `staffedPrison`, `sampleDay` (prison duty fixtures consolidated from `simBatch.prisonEscapes.test.ts`) |
+| `tests/frontier.legacyEvents.test.ts` | `yearlyEventAt`, `baseId`, `colonyFixture` (yearly event and strategic frontier fixtures) |
+| `tests/rivalDiplomacy.test.ts` | `diplomacyWorld` (answer eligibility fixture) |
 | `tests/villageLeadership.test.ts` | `legacyGetElectionGatherTarget`, `gatherWorld`, `eligibleIds` (gather-slot regression fixtures) |
 | `tests/renderer.overheadBadgeAndAssets.test.ts` | `subject` (name-label fixture) |
 | `tests/saveLoad.valueIntegrity.test.ts` | `logEntry`, `payloadWithEventLog` (value-normalization fixtures; existing `realPayload` and `buildWorld` reused) |
@@ -721,7 +723,7 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/humanTick.hotPathIndexes.test.ts` | `building`, `settler`, `visitorGroup`, `festivalFixture`, `simContext`, `countedBuildings`, `runTick`, `baseSettler`, `throttleSettler`, `house`, `nightWorld`, `contextFor`, `positionOf`, `canonicalCampCenter`, `anchorFixture`, `pickId`, `restingSettlerWorld`, `townHallWorld` (shared tick fixtures, off-screen throttle and camp-anchor regressions) |
 | `tests/moonHowler.test.ts` | `adult` (scoped six-adult per-moon regression fixture) |
 | `tests/simPrep.rollbackFields.test.ts` | `settlerFixture` (mutable state rollback) |
-| `tests/visitorTradePanel.eligibility.test.ts` | `traderWorld` (stone trade fixture) |
+| `tests/visitorTradePanel.eligibility.test.ts` | `traderWorld`, `trader`, `tradeCommandWorld` (stone trade and command fixtures) |
 | `tests/scentGrid.rollback.test.ts` | `inRect` (entity-grid rectangle traversal fixture) |
 | `tests/workerDisplayCache.ownership.test.ts` | `treeAt`, `grassAt` (reused grid fixtures) |
 | `tests/staffing.pregnancy.test.ts` | `makeWorld` (construction eligibility) |
