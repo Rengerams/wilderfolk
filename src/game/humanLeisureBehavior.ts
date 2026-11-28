@@ -1,6 +1,6 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { EntityType, PATH_CELL } from './gameTypes';
-import { tileTypeAt, tileTypeAtWorld } from './terrain/terrainGrid';
+import { tileTypeAt } from './terrain/terrainGrid';
 import { isWaterTerrainType } from './terrain/terrainTraits';
 import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition, crowdGatherPosition, homeStandPosition, steerHumanToward, clearHumanWalkTarget } from './simulation/humanMovement';
 import { faceVelocity } from './simulation/movementSteering';
@@ -10,13 +10,17 @@ import { getBuildingCenter } from './buildingGeometry';
 import { getChildCustodian, hasResidenceAssignment } from './housingModel';
 import { getWorkSchedule, isOnWorkScheduleShift, isOnWorkCommuteHours } from './workSchedule';
 import { resolveShift } from './workAbsence';
+import { findHumanWorkplace } from './workforce';
+import { getApprenticeTrainingSite } from './apprenticeships';
+import { isSchoolTime } from './education';
+import { isAsleepAtHome } from './humanSchedule';
 import { isCommutingToBuilding } from './simulation/humanMovement';
 import { getHourOfDay, getAbsoluteCalendarDay, isWorkDay } from './dayCycleClock';
 import { BuildingType } from './buildings';
 import { pickSocialImpulse, isSocialStaggerTick, type SocialBuildingPool } from './socialLife';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { adjustHumanStaminaFromEnergy, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { requestDialogue } from './dialogueTrees';
 import { isDialogueBusy } from './humanChat';
 import type { TickContext } from './simulation/simulationTypes';
@@ -156,19 +160,28 @@ function canFollowCaregiverDuringLeisure(
   caregiver: Entity | undefined,
   buildingById: ReadonlyMap<number, Building>,
   hourOfDay: number,
+  entityById?: ReadonlyMap<number, Entity>,
 ): caregiver is Entity {
   if (!caregiver?.alive || !isPlayerHuman(caregiver) || caregiver.age < HUMAN_ADULT_MIN_AGE
     || caregiver.prisonBuildingId != null || caregiver.raidDeploymentId != null) return false;
-  const siteId = caregiver.workerBuildingId;
+  if (isAsleepAtHome(caregiver, buildingById, hourOfDay)
+    || resolveHumanNeedsIntent(caregiver, state.tick, false, false) !== 'continueActivity') return false;
+  const indoor = caregiver.indoorBuildingId == null ? undefined : buildingById.get(caregiver.indoorBuildingId);
+  if (indoor?.type === BuildingType.Hospital) return false;
+  const regular = findHumanWorkplace(caregiver, state.buildings, { buildingById });
+  const workplace = regular ?? (caregiver.apprenticeOfId != null
+    ? getApprenticeTrainingSite(caregiver, entityById ?? new Map(state.entities.map((person) => [person.id, person])), buildingById)
+    : null) ?? undefined;
+  const siteId = workplace?.id ?? caregiver.workerBuildingId;
   if (siteId == null) return true;
   const workTime = isOnWorkScheduleShift(state, hourOfDay)
     || (isWorkDay(state.tick) && isOnWorkCommuteHours(getWorkSchedule(state), hourOfDay));
   if (workTime || caregiver.indoorBuildingId === siteId) return false;
-  const workplace = buildingById.get(siteId);
+  const site = workplace ?? buildingById.get(siteId);
   // A sparse building lookup (e.g. migrated state or a focused fixture) must
   // not override an explicit indoor-at-work signal on the caregiver entity.
-  return !workplace || (!resolveShift(state, caregiver, workplace, hourOfDay).onShift
-    && !isCommutingToBuilding(caregiver, workplace));
+  return !site || (!resolveShift(state, caregiver, site, hourOfDay).onShift
+    && !isCommutingToBuilding(caregiver, site));
 }
 
 /**
@@ -190,7 +203,7 @@ export function stopSupersededChildLeisure(
   if (following && !mandatoryChildActivity) {
     const caregiver = child.childLeisureTargetId == null
       ? undefined : entityById?.get(child.childLeisureTargetId);
-    if (canFollowCaregiverDuringLeisure(state, caregiver, buildingById, hourOfDay)) {
+    if (canFollowCaregiverDuringLeisure(state, caregiver, buildingById, hourOfDay, entityById)) {
       return false;
     }
   }
@@ -327,11 +340,20 @@ export function tickHumanChildLeisure(args: {
       }
     }
   }
-  const mate = entity.childPlaymateId == null ? undefined : byId(entity.childPlaymateId);
-  const group = (entity.childPlayGroupIds ?? [entity.id, mate?.id].filter((id): id is number => id != null))
+  const primaryMate = entity.childPlaymateId == null ? undefined : byId(entity.childPlaymateId);
+  const group = (entity.childPlayGroupIds ?? [entity.id, primaryMate?.id].filter((id): id is number => id != null))
     .map((id) => byId(id))
     .filter((human): human is Entity =>
-      !!human?.alive && human.age < HUMAN_ADULT_MIN_AGE && isPlayerHuman(human));
+      !!human?.alive && human.age < HUMAN_ADULT_MIN_AGE && isPlayerHuman(human)
+      && (human.id === entity.id || (human.prisonBuildingId == null && human.raidDeploymentId == null
+        && !isAsleepAtHome(human, buildingById, hourOfDay)
+        && resolveHumanNeedsIntent(human, state.tick, false, false) === 'continueActivity'
+        && (human.schoolBuildingId == null || (!isSchoolTime(state.tick, hourOfDay)
+          && (!buildingById.has(human.schoolBuildingId)
+            || !isCommutingToBuilding(human, buildingById.get(human.schoolBuildingId)!))))
+        && (human.indoorBuildingId == null || buildingById.get(human.indoorBuildingId)?.type !== BuildingType.Hospital))));
+  const mate = group.find((member) => member.id === primaryMate?.id)
+    ?? group.find((member) => member.id !== entity.id);
   const impulse = pickSocialImpulse(entity, state, updatedBuildings, [], args.socialBuildingPool);
 
   if (!impulse.stayHome) {
@@ -341,13 +363,13 @@ export function tickHumanChildLeisure(args: {
       && entity.childPlayGroupIds.includes(mate?.id ?? -1);
     if (mate?.alive && group.length >= 2
       && (reservedGroup || Math.hypot(mate.x - entity.x, mate.y - entity.y) <= SOCIAL_FRIENDSHIP_RADIUS)) {
-      const phase = Math.floor(hourOfDay / 3);
+      const phase = hourOfDay;
       const playGrid = getCurrentPathGrid();
       const cachedSite = entity.childPlaySite;
       const invalidSavedSite = group.some((member) => {
         const site = member.childPlaySite;
         return !!site && site.day === day && site.phase === phase
-          && !isDryChildPlaySite(state, site.x, site.y, playGrid);
+          && site.mateId !== member.id && !isDryChildPlaySite(state, site.x, site.y, playGrid);
       });
       if (!cachedSite || cachedSite.day !== day || cachedSite.phase !== phase
         || cachedSite.mateId !== mate.id || !isDryChildPlaySite(state, cachedSite.x, cachedSite.y, playGrid)
@@ -356,36 +378,32 @@ export function tickHumanChildLeisure(args: {
         // Old saves may carry a now-invalid shallow-water destination: never reuse it.
         const shared = group.find((member) =>
           member.childPlaySite?.day === day && member.childPlaySite.phase === phase
-          && isDryChildPlaySite(state, member.childPlaySite.x, member.childPlaySite.y, playGrid))?.childPlaySite;
+          && member.childPlaySite.mateId !== member.id && isDryChildPlaySite(state, member.childPlaySite.x, member.childPlaySite.y, playGrid))?.childPlaySite;
         // Failed attempts are cached for this phase, except when an existing saved
         // stop must be replaced because it is wet or otherwise unsafe.
         const attempted = group.some((member) =>
-          member.childPlaySiteAttempt?.day === day && member.childPlaySiteAttempt.phase === phase);
+          member.childPlaySiteAttempt?.day === day && member.childPlaySiteAttempt.phase === phase
+          && !member.childPlaySiteAttempt.solo);
         if (shared || !attempted || invalidSavedSite) {
           const point = shared ?? chooseChildPlaySite(state, group, day, phase, cachedSite);
           for (const member of group) {
-            if (member.childPlaymateId == null) continue;
+            const companion = group.find((other) => other.id === member.childPlaymateId && other.id !== member.id)
+              ?? group.find((other) => other.id !== member.id);
+            if (!companion) continue;
             member.childPlaySite = point
-              ? { day, phase, mateId: member.childPlaymateId, x: point.x, y: point.y }
+              ? { day, phase, mateId: companion.id, x: point.x, y: point.y }
               : undefined;
             member.childPlaySiteAttempt = { day, phase };
           }
         }
       }
       const site = entity.childPlaySite;
-      // Failed site searches must not turn a reserved group into a moving-target chase.
-      // A child already wading must move to safety or follow a guardian, not idle
-      // in the water while still reporting 'playing'.
-      const underfoot = state.worldMap ? tileTypeAtWorld(state.worldMap, entity.x, entity.y) : null;
-      if (!site && underfoot !== null && isWaterTerrainType(underfoot)) {
-        clearHumanWalkTarget(entity);
-        entity.vx = 0;
-        entity.vy = 0;
-      } else {
-        const destinationX = site?.x ?? entity.x;
-        const destinationY = site?.y ?? entity.y;
+      // Failed site searches must not create a fictitious play activity or moving-target chase.
+      if (site && site.day === day && site.phase === phase && site.mateId === mate.id) {
+        const destinationX = site.x;
+        const destinationY = site.y;
         const distance = Math.hypot(destinationX - entity.x, destinationY - entity.y);
-        if (site && distance > CHILD_PLAY_ARRIVAL_RADIUS) {
+        if (distance > CHILD_PLAY_ARRIVAL_RADIUS) {
           steerHumanToward(entity, destinationX, destinationY, speed, 0.7,
             `child_play_${entity.id}_${mate.id}`);
         } else {
@@ -394,7 +412,9 @@ export function tickHumanChildLeisure(args: {
           clearHumanWalkTarget(entity);
           entity.vx = 0;
           entity.vy = 0;
-          if (seededRandomForRun(`chat-kid:${entity.id}:${state.tick}`) < 0.06 * PER_TICK_RATE_SCALE) {
+          if (group.some((member) => member.id !== entity.id
+            && member.indoorBuildingId == null && Math.hypot(member.x - entity.x, member.y - entity.y) <= 2 * CHILD_PLAY_ARRIVAL_RADIUS)
+            && seededRandomForRun(`chat-kid:${entity.id}:${state.tick}`) < 0.06 * PER_TICK_RATE_SCALE) {
             requestDialogue({
               eventKey: 'child.play', speaker: entity, tick: state.tick,
               selectionRoll: personDayRoll(entity.id, state.tick, 719),
@@ -416,7 +436,7 @@ export function tickHumanChildLeisure(args: {
   const custodian = getChildCustodian(entity, allHumans, args.entityById);
   let follow: Entity | undefined;
   for (const caregiver of [mother, father, custodian]) {
-    if (!canFollowCaregiverDuringLeisure(state, caregiver, buildingById, hourOfDay)) continue;
+    if (!canFollowCaregiverDuringLeisure(state, caregiver, buildingById, hourOfDay, args.entityById)) continue;
     follow = caregiver;
     break;
   }
@@ -440,15 +460,39 @@ export function tickHumanChildLeisure(args: {
     entity.vx = 0;
     entity.vy = 0;
   }
-  if (hasResidenceAssignment(entity)) {
-    const residence = buildingById.get(entity.residenceBuildingId!);
-    if (residence?.completed) {
-      if (commuteHumanToBuilding(entity, residence, speed)) enterHumanBuilding(entity, residence);
-      entity.childLeisureActivity = 'home';
-      return true;
-    }
+  if (mate && group.length >= 2 && !impulse.stayHome) {
+    clearHumanWalkTarget(entity);
+    entity.vx = 0;
+    entity.vy = 0;
+    return true;
   }
-  return args.suppressIdleInitial;
+  // No free caregiver or reachable shared stop: reuse the same bounded dry-site
+  // chooser for independent play, caching one attempt per hour.
+  const phase = hourOfDay;
+  const previous = entity.childPlaySite;
+  const attempt = entity.childPlaySiteAttempt;
+  if (!attempt?.solo || attempt.day !== day || attempt.phase !== phase) {
+    const point = chooseChildPlaySite(state, [entity], day, phase, previous);
+    entity.childPlaySite = point ? { day, phase, mateId: entity.id, ...point } : undefined;
+    entity.childPlaySiteAttempt = { day, phase, solo: true };
+  }
+  const solo = entity.childPlaySite;
+  if (solo?.mateId === entity.id && solo.day === day && solo.phase === phase
+    && isDryChildPlaySite(state, solo.x, solo.y)) {
+    if (Math.hypot(solo.x - entity.x, solo.y - entity.y) > CHILD_PLAY_ARRIVAL_RADIUS) {
+      steerHumanToward(entity, solo.x, solo.y, speed, 0.7, `child_play_${entity.id}_solo`);
+    } else {
+      clearHumanWalkTarget(entity);
+      entity.vx = 0;
+      entity.vy = 0;
+    }
+    entity.childLeisureActivity = 'playing';
+    return true;
+  }
+  clearHumanWalkTarget(entity);
+  entity.vx = 0;
+  entity.vy = 0;
+  return true;
 }
 
 
