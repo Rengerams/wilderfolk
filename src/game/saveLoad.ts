@@ -43,6 +43,7 @@ import { normalizeWorkSchedule } from './workSchedule';
 import { normalizeWorkforcePolicy, normalizeWorkforceFocus } from './workforcePolicy';
 import { normalizeVenueSchedule } from './venueSchedule';
 import { normalizeFestivalState, repairStaleFestivalOnLoad } from './dailyWorldEvents';
+import { normalizeSettledEcology } from './dailyEcology';
 
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
 import { adoptSimSeedFromWorld, restoreSimRng, seededStreamForRun, snapshotSimRng, worldSimRngSnapshot } from './simRng';
@@ -1542,6 +1543,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       bigNews: (worldData.bigNews ?? []).map(normalizeBigNewsItem),
       screenShakeImpulse: 0,
       festival: normalizeFestivalState(worldData.festival),
+      settledEcology: normalizeSettledEcology(worldData.settledEcology),
+      ecologySettlementPending: worldData.ecologySettlementPending === undefined ? undefined : worldData.ecologySettlementPending === true && worldData.productionDeferred === true,
       townHallFestivalCooldownUntilTick: worldData.townHallFestivalCooldownUntilTick ?? 0,
       // A save written before `storageMax` existed falls back to the owner's cap rule
       // (`computeStorageMax`) rather than a copy; a save that carries its own numbers keeps them.

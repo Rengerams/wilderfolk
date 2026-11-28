@@ -451,7 +451,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     maxOccupants: 5,
     emoji: '🏥',
     label: 'Hospital',
-    description: 'Staff doctors — settlers visit when sick or pregnant. Staffed wards lower village energy drain.',
+    description: 'Staff doctors for medical care and childbirth. Preventive care reduces sudden illness mortality.',
     sprite: '/sprites/hospital.png',
     backgroundColor: '#db2777',
     padShape: 'round',
@@ -707,7 +707,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     label: 'Wildlife Preserve',
     // As with the Barracks above: the amount is `PRESERVE_HEALTH_BONUS` (dailyEcology), reachable
     // only through `gameTypes`, so the catalogue states the rule without a number.
-    description: 'Fenced wild grove — restores ecosystem health and helps wildlife recover. No workers.',
+    description: 'Protected wild grove — reduces pollution, improves habitat and supports wildlife recovery. No workers.',
     sprite: '/sprites/wildlife_preserve.png',
     backgroundColor: '#166534',
     padShape: 'rect',

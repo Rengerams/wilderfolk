@@ -32,6 +32,7 @@ export const WORLD_STATE_SAVE_KEYS = [
   'pollutionLevel', 'valleyStage', 'valleyStageSinceDay', 'valleyRawStressStreakDays',
   // Queued story adjustments to the two derived ecology fields; written and cleared within one
   // daily tick, so they matter only if the save lands mid-tick.
+  'settledEcology', 'ecologySettlementPending',
   'pendingEcosystemHealthDelta', 'pendingPollutionDelta',
   'valleyRawCalmStreakDays', 'valleyLastStageNotifyDay',
   'challenges', 'autoSave', 'weather', 'weatherTimer', 'researchNodes',

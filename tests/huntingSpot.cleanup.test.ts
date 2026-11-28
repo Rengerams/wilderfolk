@@ -202,7 +202,23 @@ describe('Hunting Spot wildlife cleanup', () => {
     fox.type = EntityType.Fox;
     fox.x = hunter.x + 351;
     const byType = { [EntityType.Fox]: [fox] } as Record<EntityType, Entity[]>;
-    expect(huntingSpotTarget(spot, hunter, new Map([[fox.id, fox]]), byType)).toBe(fox);
+    expect(huntingSpotTarget(spot, hunter, new Map([[fox.id, fox]]), byType, [])).toBe(fox);
+  });
+
+  it('abandons a committed animal inside a completed preserve and selects unprotected prey', async () => {
+    const { huntingSpotTarget } = await import('../src/game/huntingSpot');
+    const { getCompletedWildlifePreserves } = await import('../src/game/wildlifePopulationPolicy');
+    const state = makeState();
+    const [hunter, protectedDeer] = state.entities;
+    const spot = state.buildings[0];
+    spot.huntingSpotTargetId = protectedDeer.id;
+    const outside = { ...deer(3), x: 290 };
+    const preserve = { ...spot, id: 20, type: BuildingType.WildlifePreserve, x: protectedDeer.x, y: protectedDeer.y, occupants: [] };
+    const byType = { [EntityType.Deer]: [protectedDeer, outside] } as Record<EntityType, Entity[]>;
+    const index = new Map([[protectedDeer.id, protectedDeer], [outside.id, outside]]);
+    expect(huntingSpotTarget(spot, hunter, index, byType, getCompletedWildlifePreserves([preserve]))).toBe(outside);
+    preserve.completed = false;
+    expect(huntingSpotTarget(spot, hunter, index, byType, getCompletedWildlifePreserves([preserve]))).toBe(protectedDeer);
   });
 
   it('does not fire at a distant wolf or let it counterattack after contact with other prey', async () => {

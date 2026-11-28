@@ -9,6 +9,8 @@
 
 - **Fixed (28 Nov 2026, PR #243):** Tie secret-affair progress to one reciprocal partner and clear anonymous 100%. Prevent dates from freezing until both are available. Fill completed jobs, including barracks, before construction claims the idle workforce; leaders follow normal staffing.
 
+- **Fixed/Improved (28 Nov 2026):** Scale ecology by occupied land and worked industry, cap preserve benefits, shelter wildlife and restore it in protected groves, reduce sudden illness through staffed hospital coverage, and settle emissions after the full shift with a matching Nature breakdown.
+
 - **Fixed (28 Nov 2026):** Use canonical stamina and medical rules for social motives, require reciprocal nearby spouse care, share reachable leisure routes, select nearby completed venues, and finish market errands once and civic petitions only after actual audience processing.
 
 - **Fixed (28 Nov 2026):** Protect active pregnancies from restarts and paternity changes, validate new pregnancy inputs, and centralize progress and delivery resets in the pregnancy owner.

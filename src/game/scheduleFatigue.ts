@@ -1,5 +1,5 @@
 import type { Entity, WorldState } from './gameTypes';
-import { TICKS_PER_HOUR } from './dayCycle';
+import { TICKS_PER_HOUR } from './dayCycleClock';
 import { getWorkSchedule } from './workSchedule';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';

@@ -74,7 +74,7 @@ function ownerOutputHint(building: Building, state: WorldState): string | null {
     case BuildingType.Barracks:
       return `Each living, non-imprisoned soldier assigned here adds +${MILITIA_BALANCE.guardBonusPerGuard} militia strength (more with Guard Halberds), even off shift.`;
     case BuildingType.WildlifePreserve:
-      return `Passive — restores ecosystem health +${PRESERVE_HEALTH_BONUS} and helps wildlife recover; no workers.`;
+      return `Passive — up to +${PRESERVE_HEALTH_BONUS} ecosystem health (capped total), lower pollution, protected wildlife habitat and recovery; no workers.`;
     default:
       return null;
   }

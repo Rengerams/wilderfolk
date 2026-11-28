@@ -46,6 +46,8 @@ type SimPrepKeys =
   | 'wildlifeCounts'
   | 'ecosystemHealth'
   | 'pollutionLevel'
+  | 'settledEcology'
+  | 'ecologySettlementPending'
   | 'pendingEcosystemHealthDelta'
   | 'pendingPollutionDelta'
   | 'biodiversityIndex'
@@ -224,6 +226,8 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     wildlifeCounts: { ...state.wildlifeCounts },
     ecosystemHealth: state.ecosystemHealth,
     pollutionLevel: state.pollutionLevel,
+    settledEcology: state.settledEcology ? { ...state.settledEcology } : undefined,
+    ecologySettlementPending: state.ecologySettlementPending,
     pendingEcosystemHealthDelta: state.pendingEcosystemHealthDelta,
     pendingPollutionDelta: state.pendingPollutionDelta,
     biodiversityIndex: state.biodiversityIndex,
@@ -358,6 +362,8 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.wildlifeCounts = prep.wildlifeCounts;
   world.ecosystemHealth = prep.ecosystemHealth;
   world.pollutionLevel = prep.pollutionLevel;
+  world.settledEcology = prep.settledEcology ? { ...prep.settledEcology } : undefined;
+  world.ecologySettlementPending = prep.ecologySettlementPending;
   world.pendingEcosystemHealthDelta = prep.pendingEcosystemHealthDelta;
   world.pendingPollutionDelta = prep.pendingPollutionDelta;
   world.biodiversityIndex = prep.biodiversityIndex;

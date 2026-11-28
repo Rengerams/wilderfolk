@@ -3,6 +3,7 @@ import { BuildingType, EntityType } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { isPlayerHuman } from './playerHuman';
 import { MAX_SKILL } from './skills';
+import { isWildlifeProtected } from './wildlifePopulationPolicy';
 
 /**
  * The Hunting Spot's own rules: who works it, which animal it is after and how close the hunter must
@@ -71,6 +72,7 @@ function pickHuntingSpotPrey(
   building: Building,
   hunter: Entity,
   byType: Record<EntityType, Entity[]>,
+  preserves: readonly Building[],
 ): Entity | null {
   const targetTypes = huntingSpotPreyTypes(building.huntingSpotPrey);
 
@@ -80,7 +82,7 @@ function pickHuntingSpotPrey(
     const pool = byType[targetTypes[t]] ?? [];
     for (let p = 0; p < pool.length; p++) {
       const prey = pool[p];
-      if (!prey.alive || prey.tamedBy != null) continue;
+      if (!prey.alive || prey.tamedBy != null || isWildlifeProtected(prey, preserves)) continue;
       const dist = Math.hypot(prey.x - hunter.x, prey.y - hunter.y);
       if (dist >= HUNTING_SPOT_SEARCH_RADIUS_PX) continue;
       const score = prey.type === EntityType.Wolf ? dist + 160 : dist;
@@ -109,8 +111,8 @@ function isHuntableSpotPreyType(building: Building, prey: Entity): boolean {
  * Whether a spot may keep the animal it already committed to: huntable, and not so far that the pursuit
  * has plainly failed (`HUNTING_SPOT_ABANDON_RADIUS_PX`).
  */
-function mayKeepHuntingSpotTarget(building: Building, hunter: Entity, prey: Entity): boolean {
-  if (!isHuntableSpotPreyType(building, prey)) return false;
+function mayKeepHuntingSpotTarget(building: Building, hunter: Entity, prey: Entity, preserves: readonly Building[]): boolean {
+  if (!isHuntableSpotPreyType(building, prey) || isWildlifeProtected(prey, preserves)) return false;
   return Math.hypot(prey.x - hunter.x, prey.y - hunter.y) < HUNTING_SPOT_ABANDON_RADIUS_PX;
 }
 
@@ -123,13 +125,14 @@ export function huntingSpotTarget(
   hunter: Entity,
   entityById: ReadonlyMap<number, Entity>,
   byType: Record<EntityType, Entity[]>,
+  preserves: readonly Building[],
 ): Entity | null {
   const committedId = building.huntingSpotTargetId;
   if (committedId != null) {
     const committed = entityById.get(committedId);
-    if (committed && mayKeepHuntingSpotTarget(building, hunter, committed)) return committed;
+    if (committed && mayKeepHuntingSpotTarget(building, hunter, committed, preserves)) return committed;
   }
-  return pickHuntingSpotPrey(building, hunter, byType);
+  return pickHuntingSpotPrey(building, hunter, byType, preserves);
 }
 
 /** Record the spot's choice (or clear it) — the owner of the decision writes it; everyone else reads. */
@@ -146,9 +149,10 @@ export function huntingSpotChaseTarget(
   hunter: Entity,
   entityById: ReadonlyMap<number, Entity>,
   byType: Record<EntityType, Entity[]>,
+  preserves: readonly Building[],
 ): Entity | null {
   if (!isHuntingSpotHunter(building, hunter, entityById)) return null;
-  const prey = huntingSpotTarget(building, hunter, entityById, byType);
+  const prey = huntingSpotTarget(building, hunter, entityById, byType, preserves);
   if (!prey) return null;
   const holdDistance = huntingKillReach(hunter, prey) * HUNTING_PURSUIT_CLOSE_FRACTION;
   const dist = Math.hypot(prey.x - hunter.x, prey.y - hunter.y);

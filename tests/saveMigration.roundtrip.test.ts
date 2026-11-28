@@ -9,6 +9,12 @@ import { building } from '../src/test/factories';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { WORLD_STATE_SAVE_KEYS } from '../src/game/saveSchema';
+import { extractSimPrep, applySimPrep } from '../src/game/simWorker/simPrep';
+import { extractSimTickDelta, applySimTickDelta } from '../src/game/simBuffers/simDelta';
+import { computePopulationCounts } from '../src/game/entityCounts';
+import { tickEcosystemMetrics } from '../src/game/dailyEcology';
+import { getEcosystemBreakdown } from '../src/game/ecoBreakdown';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { HERD_BASE_SIZE, MIGRATION_WINDOW_DAYS } from '../src/game/migration';
 import { getAbsoluteCalendarDay } from '../src/game/dayCycle';
 
@@ -89,6 +95,34 @@ describe('M20/M25/M34 — simulation state round-trips', () => {
     for (const key of ['lastMoonHowlerExorcismTick', 'moonHowlerPriestsFleeUntil', 'villageHappiness', 'chronicleChapters']) {
       expect(WORLD_STATE_SAVE_KEYS).toContain(key);
     }
+  });
+
+  it('preserves the settled ecology explanation and pending late settlement across save and worker boundaries', () => {
+    const state = initGame({ skipTerrain: true, seed: 20240913 });
+    tickEcosystemMetrics(state, computePopulationCounts(state.entities.filter(entity => entity.alive)), state.buildings);
+    state.workSchedule = { startHour: 12, endHour: 23 };
+    state.tick = TICKS_PER_DAY + 20 * TICKS_PER_HOUR;
+    state.productionDeferred = true;
+    state.productionValleyStage = state.valleyStage ?? 'stable';
+    state.ecologySettlementPending = true;
+    const expected = getEcosystemBreakdown(state);
+
+    const loaded = roundTrip(state);
+    expect(loaded.settledEcology).toEqual(state.settledEcology);
+    expect(loaded.ecologySettlementPending).toBe(true);
+    expect(getEcosystemBreakdown(loaded)).toEqual(expected);
+
+    const target = initGame({ skipTerrain: true, seed: 20240913 });
+    applySimPrep(target, extractSimPrep(state));
+    expect(target.settledEcology).toEqual(state.settledEcology);
+    expect(target.ecologySettlementPending).toBe(true);
+
+    target.settledEcology = undefined;
+    target.ecologySettlementPending = false;
+    applySimTickDelta(target, extractSimTickDelta(state, undefined, { cloneMode: 'isolated' }), { cloneMode: 'isolated' });
+    expect(target.settledEcology).toEqual(state.settledEcology);
+    expect(target.ecologySettlementPending).toBe(true);
+    expect(getEcosystemBreakdown(target)).toEqual(expected);
   });
 
   it('survives a save/load round-trip', () => {

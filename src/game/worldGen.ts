@@ -20,6 +20,7 @@ import {
   emptyEntityByType,
 } from './gameTypes';
 import { generateWorldMap } from './terrainGen';
+import { getAbsoluteCalendarDay } from './dayCycleClock';
 
 import { tileAt } from './terrain/terrainGrid';
 import { treeEcotoneAt } from './terrain/ecotones';
@@ -49,7 +50,7 @@ import { isWaterTerrainType } from './terrain/terrainTraits';
 import { buildEntityByType } from './simFocus';
 import { playerHumanCount } from './playerHuman';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { WILDLIFE_POPULATION_POLICY, getWildlifeCarryingCapacity } from './wildlifePopulationPolicy';
+import { WILDLIFE_POPULATION_POLICY, getWildlifeCarryingCapacity, getCompletedWildlifePreserves, WILDLIFE_PRESERVE_RADIUS } from './wildlifePopulationPolicy';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { appointFoundingLeader } from './villageLeadership';
 import { createInitialForgeState } from './forge';
@@ -369,8 +370,12 @@ export function replenishDepletedWildlife(
     : grassCount;
   const sufficientGrass = grassAfterReplenish >= MIN_PREY_GRASS;
 
-  const needsRabbits = (rabbits < rabbitPolicy.replenishMinimum && sufficientGrass) || rabbits < 20;
-  const needsDeer = (deer < deerPolicy.replenishMinimum && sufficientGrass) || deer < 10;
+  const preserves = getCompletedWildlifePreserves(state.buildings);
+  // One existing restock pulse, rotating the protected habitat; no extra per-preserve spawn cap.
+  const refuge = preserves.length ? preserves[Math.floor(getAbsoluteCalendarDay(state.tick) / 3) % preserves.length] : undefined;
+  const recoveryMultiplier = refuge ? 1.5 : 1;
+  const needsRabbits = (rabbits < rabbitPolicy.replenishMinimum * recoveryMultiplier && sufficientGrass) || rabbits < 20;
+  const needsDeer = (deer < deerPolicy.replenishMinimum * recoveryMultiplier && sufficientGrass) || deer < 10;
   const foxCapacity = getWildlifeCarryingCapacity(EntityType.Fox, counts);
   const wolfCapacity = getWildlifeCarryingCapacity(EntityType.Wolf, counts);
   // Do not bypass the prey gate when a predator species drops to a single animal.
@@ -383,16 +388,20 @@ export function replenishDepletedWildlife(
   let wildlifeSpawned = false;
 
   if (needsRabbits) {
-    spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, Math.min(MAX_PREY_SPAWN_PER_PULSE, rabbitPolicy.replenishTarget - rabbits), 120, 320, {
-      recordBirthYear: true, onSpawn,
-    });
+    const amount = Math.min(MAX_PREY_SPAWN_PER_PULSE, rabbitPolicy.replenishTarget - rabbits);
+    const before = state.nextEntityId;
+    if (refuge) spawnWildlifeRing(state, EntityType.Rabbit, refuge.x, refuge.y, amount, 32, WILDLIFE_PRESERVE_RADIUS, { recordBirthYear: true, onSpawn });
+    const remaining = amount - (state.nextEntityId - before);
+    if (remaining > 0) spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, remaining, 120, 320, { recordBirthYear: true, onSpawn });
     wildlifeSpawned = true;
   }
 
   if (needsDeer) {
-    spawnWildlifeRing(state, EntityType.Deer, cx, cy, Math.min(MAX_PREY_SPAWN_PER_PULSE, deerPolicy.replenishTarget - deer), 220, 440, {
-      recordBirthYear: true, onSpawn,
-    });
+    const amount = Math.min(MAX_PREY_SPAWN_PER_PULSE, deerPolicy.replenishTarget - deer);
+    const before = state.nextEntityId;
+    if (refuge) spawnWildlifeRing(state, EntityType.Deer, refuge.x, refuge.y, amount, 32, WILDLIFE_PRESERVE_RADIUS, { recordBirthYear: true, onSpawn });
+    const remaining = amount - (state.nextEntityId - before);
+    if (remaining > 0) spawnWildlifeRing(state, EntityType.Deer, cx, cy, remaining, 220, 440, { recordBirthYear: true, onSpawn });
     wildlifeSpawned = true;
   }
 
