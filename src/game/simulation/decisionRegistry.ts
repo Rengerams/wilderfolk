@@ -642,7 +642,7 @@ export const SIMULATION_DECISIONS = {
       'genealogyRegistry.people (via recordGenealogyBirth)',
       'eventLog/bigNews/floatingTexts',
     ],
-    scheduledFrom: 'humanTick.ts pregnancy gate → humanLifecycle.tickPregnancyAndBirth → settlerTraits.inheritGenome (birth-key seeded stream); entityFactory.createEntity(opts.pregnant) → pregnancy.startPregnancy (arrival spawns)',
+    scheduledFrom: 'humanTick.ts pregnancy gate → humanLifecycle.tickPregnancyAndBirth → settlerTraits.inheritGenome (birth-key seeded stream); entityFactory.createEntity(opts.pregnant, opts.pregnantById) → pregnancy.startPregnancy (arrival spawns require an explicit biological father; no spouse fallback)',
     testFile: 'tests/humanLifecycle.test.ts, tests/hospitalWalk.regression.test.ts, tests/pregnancyHospitalWork.test.ts, tests/settlers.indoors.test.ts, tests/workAbsence.reasons.test.ts, tests/conceptionEvent.labelling.test.ts, tests/personality.romanceContext.test.ts, tests/settlerTraits.test.ts, tests/duplicationA.remaining.test.ts',
   },
   wildkinLineage: {
