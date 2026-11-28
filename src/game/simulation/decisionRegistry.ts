@@ -207,7 +207,7 @@ export const SIMULATION_DECISIONS = {
       { module: 'src/game/virtualPlayer.ts', symbol: 'decideBuildingTuning' },
       { module: 'src/game/virtualPlayer.ts', symbol: 'decideRecruitment' },
       { module: 'src/game/virtualPlayer.ts', symbol: 'chooseVisitorTrade' },
-      { module: 'src/game/virtualPlayer.ts', symbol: 'chooseVisitorRelations' },
+      { module: 'src/game/virtualPlayer.ts', symbol: 'decideVisitorRelations' },
       { module: 'src/game/virtualPlayer.ts', symbol: 'chooseRefugeeChoice' },
       { module: 'src/game/virtualPlayer.ts', symbol: 'decideWorkSchedule' },
       { module: 'src/game/virtualPlayer.ts', symbol: 'decideVenueSchedules' },
