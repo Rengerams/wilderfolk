@@ -1,6 +1,5 @@
 import type { WorldState } from './gameTypes';
 import { BuildingType, EntityType, Season } from './gameTypes';
-import type { VisitorKind } from './gameTypes';
 import type { FocusHintAction } from './focusHints';
 import { NIGHT_START, TICKS_PER_DAY, getHourOfDay } from './dayCycle';
 import { displayYear } from './dayCycleClock';
@@ -15,14 +14,6 @@ type ContextualTutorialId =
   | 'shelter_night'
   | 'first_building_done'
   | 'first_worker_assigned'
-  | 'visitors_arrived'
-  | 'visitor_traders'
-  | 'visitor_pilgrims'
-  | 'visitor_scholars'
-  | 'visitor_hunters'
-  | 'visitor_nomads'
-  | 'visitor_refugees'
-  | 'visitor_performers'
   | 'rivals_arrived'
   | 'diplomacy_event'
   | 'raid_incoming'
@@ -71,74 +62,18 @@ const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutorialTip> 
     detail: 'Assigned settlers commute during work hours. Idle settlers eat food but produce nothing — check the Village tab for who is working.',
     action: { label: 'Village tab', id: 'open_village' },
   },
-  visitors_arrived: {
-    id: 'visitors_arrived',
-    icon: '🧳',
-    title: 'Travelers camped nearby',
-    detail: 'Visitor groups appear on the map as camp markers. Click a camp (or a traveler) to open the inspector — talk to their leader and see what they offer.',
-    action: { label: 'Frontier tab', id: 'open_frontier' },
-  },
-  visitor_traders: {
-    id: 'visitor_traders',
-    icon: '🛒',
-    title: 'Traders arrived',
-    detail: 'Talk to the caravan master once per visit for bonus gold. Trade food and wood while they stay, and collect free gifts each day they remain camped.',
-    action: { label: 'Frontier tab', id: 'open_frontier' },
-  },
-  visitor_pilgrims: {
-    id: 'visitor_pilgrims',
-    icon: '🕯️',
-    title: 'Pilgrims arrived',
-    detail: 'Pilgrims raise village reputation each day and bless your village if you speak with their elder. High reputation unlocks trade routes.',
-    action: { label: 'Frontier tab', id: 'open_frontier' },
-  },
-  visitor_scholars: {
-    id: 'visitor_scholars',
-    icon: '📚',
-    title: 'Scholars arrived',
-    detail: 'Scholars boost active research while camped. Talk to the head scholar for a large research jump or bonus gold if nothing is researching.',
-    action: { label: 'Frontier tab', id: 'open_frontier' },
-  },
-  visitor_hunters: {
-    id: 'visitor_hunters',
-    icon: '🏹',
-    title: 'Hunters arrived',
-    detail: 'Wilderness hunters may poach local deer. Talk to the hunt captain to reduce poaching. They also trade provisions like traders.',
-    action: { label: 'Frontier tab', id: 'open_frontier' },
-  },
-  visitor_nomads: {
-    id: 'visitor_nomads',
-    icon: '🐎',
-    title: 'Nomads arrived',
-    detail: 'Nomads bring daily wood gifts and share stories. Speak with the clan head for extra timber. They can trade while camped.',
-    action: { label: 'Frontier tab', id: 'open_frontier' },
-  },
-  visitor_refugees: {
-    id: 'visitor_refugees',
-    icon: '🧳',
-    title: 'Refugees arrived',
-    detail: 'Families ask to join your village. Welcome all, screen applicants, or turn them away — each choice costs food and affects reputation.',
-    action: { label: 'Frontier tab', id: 'open_frontier' },
-  },
-  visitor_performers: {
-    id: 'visitor_performers',
-    icon: '🎭',
-    title: 'Performers arrived',
-    detail: 'Traveling players lift spirits and can start a short festival. Toast the troupe leader for extra reputation and revelry.',
-    action: { label: 'Frontier tab', id: 'open_frontier' },
-  },
   rivals_arrived: {
     id: 'rivals_arrived',
     icon: '🏕️',
     title: 'Rival settlement founded',
-    detail: 'Another group claimed land nearby. Click their camp to send gifts, sign peace, trade pacts, or prepare for raids. Relationship matters.',
+    detail: 'Another settlement was founded. Open Frontier to send gifts, sign peace, establish trade pacts, or prepare for raids. Relationship matters.',
     action: { label: 'Frontier tab', id: 'open_frontier' },
   },
   diplomacy_event: {
     id: 'diplomacy_event',
     icon: '🤝',
     title: 'Diplomacy needed',
-    detail: 'A rival demands your response. Click the alert banner or their camp in the inspector to choose pay, negotiate, refuse, or other options.',
+    detail: 'A rival demands your response. Open the alert banner or the Frontier tab to choose pay, negotiate, refuse, or other options.',
     action: { label: 'Frontier tab', id: 'open_frontier' },
   },
   raid_incoming: {
@@ -200,7 +135,7 @@ const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutorialTip> 
     id: 'low_food',
     icon: '🍖',
     title: 'Food running low',
-    detail: 'Assign workers to farms, hunt deer and rabbits sustainably, or trade with visitors. Starvation and exhaustion follow empty stores.',
+    detail: 'Assign workers to farms, hunt deer and rabbits sustainably, or import food through trade routes. Starvation and exhaustion follow empty stores.',
     action: { label: 'Place farm', id: 'build_farm' },
   },
   ecosystem_low: {
@@ -235,7 +170,7 @@ const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutorialTip> 
     id: 'festival_started',
     icon: '🎉',
     title: 'Festival in the village',
-    detail: 'Revelry boosts courtship and reputation for a few days. Performers or your own events can start festivals.',
+    detail: 'Revelry boosts courtship and reputation for a few days. Seasonal events and your Town Hall can start festivals.',
     action: { label: 'Village tab', id: 'open_village' },
   },
   leadership_election: {
@@ -252,16 +187,6 @@ const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutorialTip> 
     detail: 'Challenges in Progress → Goals reward resources for milestones. They guide early priorities without forcing a single storyline.',
     action: { label: 'Goals', id: 'open_goals' },
   },
-};
-
-const VISITOR_TOPIC: Record<VisitorKind, ContextualTutorialId> = {
-  traders: 'visitor_traders',
-  pilgrims: 'visitor_pilgrims',
-  scholars: 'visitor_scholars',
-  hunters: 'visitor_hunters',
-  nomads: 'visitor_nomads',
-  refugees: 'visitor_refugees',
-  performers: 'visitor_performers',
 };
 
 function hasSeen(state: WorldState, id: ContextualTutorialId): boolean {
@@ -281,10 +206,6 @@ function derivedSeenIds(state: WorldState): Set<string> {
 
   if (state.buildings.some((b) => b.completed)) seen.add('first_building_done');
   if (staffedBuildings(state) > 0) seen.add('first_worker_assigned');
-  if (state.visitorGroups.length > 0) {
-    seen.add('visitors_arrived');
-    for (const g of state.visitorGroups) seen.add(VISITOR_TOPIC[g.kind]);
-  }
   if (state.rivalSettlements.length > 0) seen.add('rivals_arrived');
   if ((state.pendingDiplomacyEvents?.length ?? 0) > 0) seen.add('diplomacy_event');
   if ((state.pendingRaidEvents?.length ?? 0) > 0) seen.add('raid_incoming');
@@ -320,7 +241,9 @@ function derivedSeenIds(state: WorldState): Set<string> {
 
 /** Seeds a loaded save with every mechanic already true, so a load never replays tips. */
 export function seedTutorialSeenForExistingState(state: WorldState): string[] {
-  return [...new Set([...(state.tutorialSeen ?? []), ...derivedSeenIds(state)])];
+  const retained = (state.tutorialSeen ?? []).filter((id) => typeof id === 'string'
+    && id !== 'visitors_arrived' && !id.startsWith('visitor_'));
+  return [...new Set([...retained, ...derivedSeenIds(state)])];
 }
 
 /** Detect first-time mechanics that are true right now. Takes the live world, never a previous one. */
