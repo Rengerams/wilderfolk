@@ -314,6 +314,24 @@ describe('workforce named transitions', () => {
     expect(collectSimulationInvariantErrors(world)).toEqual([]);
   });
 
+  it('fills an empty barracks with the available idle leader before assigning builders', () => {
+    const leader = human(1, { occupation: LEADER_OCCUPATION, job: JobType.Settler });
+    const barracks = building(15, BuildingType.Barracks);
+    const construction = building(16, BuildingType.House, { completed: false });
+    const world = makeWorld([leader], [barracks, construction]);
+    world.villageLeaderId = leader.id;
+    world.workforcePolicy = 'survival';
+
+    assignMissingWorkers(world.entities, world.buildings, world);
+
+    expect(leader.workerBuildingId).toBe(barracks.id);
+    expect(leader.job).toBe(JobType.Soldier);
+    expect(leader.occupation).toBe(LEADER_OCCUPATION);
+    expect(barracks.occupants).toEqual([leader.id]);
+    expect(construction.occupants).toEqual([]);
+    expect(collectSimulationInvariantErrors(world)).toEqual([]);
+  });
+
   it('auto-staffs an idle leader like any other settler', () => {
     // The leader is a normal assignment candidate: auto-staff may assign an idle leader.
     const leader = human(1, { occupation: LEADER_OCCUPATION });
