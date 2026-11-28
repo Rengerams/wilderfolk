@@ -269,6 +269,24 @@ describe('affair progress belongs to a verified pair', () => {
     expect(married.affairProgress).toBe(0);
   });
 
+  it('retires pending progress when the candidates become spouses', () => {
+    const married = human(8, {
+      gender: 'female', relationshipStatus: 'married', partnerId: 2,
+      affairCandidateId: 2, affairProgress: 99,
+    });
+    const former = human(2, {
+      gender: 'male', relationshipStatus: 'married', partnerId: 8,
+      affairCandidateId: 8, affairProgress: 99,
+    });
+    const people = new Map([[married.id, married], [former.id, former]]);
+    reconcileAffairPartner(married, people);
+    reconcileAffairPartner(former, people);
+    expect(married.affairCandidateId).toBeUndefined();
+    expect(former.affairCandidateId).toBeUndefined();
+    expect(married.affairProgress).toBe(0);
+    expect(former.affairProgress).toBe(0);
+  });
+
   it('does not assign a completed affair to the wrong candidate when one person changes partners', () => {
     const married = human(8, {
       gender: 'female', relationshipStatus: 'married', partnerId: 6,
