@@ -1,10 +1,10 @@
 /** Build-time ownership metadata: the registry is loaded as TypeScript, never parsed as prose. */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { statSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tsImport } from 'tsx/esm/api';
 
-const { SIMULATION_DECISIONS, DECISION_CADENCES } = await tsImport('../src/game/simulation/decisionRegistry.ts', import.meta.url);
+const { SIMULATION_DECISIONS, DECISION_CADENCES, REQUIRED_DECISION_KEYS } = await tsImport('../src/game/simulation/decisionRegistry.ts', import.meta.url);
 
 export function getDecisionRows() {
   return Object.entries(SIMULATION_DECISIONS).map(([key, row]) => ({ source: 'decisionRegistry.ts', key, ...row }));
@@ -46,7 +46,20 @@ export function replaceGeneratedBlock(source, generated) {
   return source.slice(0, start) + generated + source.slice(end + '<!-- END GENERATED SIMULATION OWNERSHIP -->'.length);
 }
 
-export function validateRegistry(rows, root, exists = existsSync) {
+function isFile(file) {
+  try { return statSync(file).isFile(); } catch { return false; }
+}
+
+export function validateDecisionKeys(rows, required = REQUIRED_DECISION_KEYS) {
+  const actual = new Set(rows.map(row => row.key));
+  const expected = new Set(required);
+  return [
+    ...required.filter(key => !actual.has(key)).map(key => `Missing required decision: ${key}`),
+    ...[...actual].filter(key => !expected.has(key)).map(key => `Unknown decision: ${key}`),
+  ];
+}
+
+export function validateRegistry(rows, root, exists = isFile) {
   const failures = [];
   const keys = new Set();
   const claimed = new Map();
@@ -78,15 +91,21 @@ export function validateEntrypointSymbols(rows, functions) {
     .map(ref => `${row.key}: missing primary symbol ${ref.module}::${ref.symbol}`));
 }
 
+export function parseOwnershipMode(args) {
+  if (args.length === 1 && (args[0] === '--write' || args[0] === '--check')) return args[0];
+  throw new Error('Usage: node scripts/ownership-registry.mjs (--write | --check)');
+}
+
 function main() {
+  const mode = parseOwnershipMode(process.argv.slice(2));
   const root = process.cwd();
   const file = path.join(root, 'OWNERSHIP_OVERVIEW.md');
   const current = readFileSync(file, 'utf8');
   const rows = getDecisionRows();
-  const failures = validateRegistry(rows, root);
+  const failures = [...validateDecisionKeys(rows), ...validateRegistry(rows, root)];
   if (failures.length) throw new Error(failures.join('\n'));
   const next = replaceGeneratedBlock(current, renderDecisionTable(rows));
-  if (process.argv.includes('--write')) {
+  if (mode === '--write') {
     if (next !== current) writeFileSync(file, next);
   } else if (next !== current) {
     throw new Error('Generated ownership overview is stale. Run npm run ownership:generate.');
