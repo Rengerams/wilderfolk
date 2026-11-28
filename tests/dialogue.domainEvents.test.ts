@@ -79,8 +79,8 @@ describe('domain event-to-caption integration', () => {
     const doctor = world.entities.find((entity) => entity.id !== patient.id && entity.alive && isPlayerHuman(entity));
     expect(doctor).toBeDefined();
     if (!doctor) return;
-    patient.maxEnergy = 100;
-    patient.energy = 30;
+    patient.needs = { ...patient.needs!, stamina: 30 };
+    const energyBefore = patient.energy;
     patient.pregnant = true;
     const tick = Array.from({ length: 5000 }, (_, i) => i + 1)
       .find((candidate) => personDayRoll(patient.id, candidate, 904) < 0.2);
@@ -89,7 +89,8 @@ describe('domain event-to-caption integration', () => {
     world.tick = tick;
     const hospital = { id: 98710, occupants: [doctor.id] } as Building;
     expect(treatPatientAtHospital(world, patient, hospital, { doctorPresent: true })).toBe(true);
-    expect(patient.energy).toBeGreaterThan(30);
+    expect(patient.needs?.stamina).toBeGreaterThan(30);
+    expect(patient.energy).toBe(energyBefore);
     expect(patient.chatDialogueSessionKey).toBe(`solo:${patient.id}`);
     const correctLines = canonicalDialogueBank.dialogue_trees
       .filter((scene) => scene.eventKey === 'hospital.patient.pregnant')

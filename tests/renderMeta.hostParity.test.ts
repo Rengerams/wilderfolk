@@ -64,6 +64,23 @@ describe('render metadata is rebuilt on the host from the packed buffer', () => 
     expect(buildRenderEntityShim(reader, slot)?.energy).toBe(42);
   });
 
+  it('never sends a player human legacy energy value to the render buffer', () => {
+    const world = initGame({ size: MapSize.Medium, seed: 518 });
+    const person = world.entities.find((e) => e.alive && e.type === EntityType.Human && !e.faction)!;
+    person.energy = 123; // contradictory legacy input must not reach the display buffer
+    person.maxEnergy = 500;
+    person.needs = { nutrition: 70, rest: 65, stamina: 42 };
+    hydrateWorldRuntimeCaches(world);
+    const pack = packRenderSoA(world);
+    const reader = createRenderSoAReader(pack.buffer);
+    if (!reader) throw new Error('the packed buffer is not a valid render SoA');
+    const slot = pack.packedEntities.findIndex((e) => e.id === person.id);
+    expect(slot).toBeGreaterThanOrEqual(0);
+    expect(reader.energy(slot)).toBe(0);
+    const meta = packRenderMetaForSlots(reader, (id) => world.entityById?.get(id));
+    expect(meta[slot]?.needs).toEqual(person.needs);
+  });
+
   it('covers every slot of a priority-thinned overflow buffer', () => {
     const world = initGame({ size: MapSize.Medium, seed: 516 });
     hydrateWorldRuntimeCaches(world);

@@ -98,13 +98,14 @@ describe('A15 — the hospital reputation rule has one owner', () => {
       HOSPITAL_REPUTATION_PER_INTERVAL,
     );
 
-    const patient = human(1, { x: 120, y: 120, energy: 0 });
+    const patient = human(1, { x: 120, y: 120, energy: 0, needs: { nutrition: 80, rest: 85, stamina: 0 } });
     const treatingWard = intervalGrant([patient]);
     expect(treatingWard).toBeGreaterThanOrEqual(HOSPITAL_REPUTATION_PER_INTERVAL);
     expect(treatingWard).toBeLessThanOrEqual(
       HOSPITAL_REPUTATION_PER_INTERVAL + HOSPITAL_TREATMENT_REPUTATION_MAX,
     );
-    expect(patient.energy, 'fixture premise: the ward round actually treated the patient').toBeGreaterThan(0);
+    expect(patient.needs?.stamina, 'fixture premise: the ward round actually treated the patient').toBeGreaterThan(0);
+    expect(patient.energy).toBe(0);
   });
 
 });
