@@ -659,7 +659,9 @@ function main() {
   // gate while refusing to assign a decision key based on prose or a module-wide match.
   const moduleOwnsFile = (moduleName, file) => file === moduleName || file.endsWith(`/${moduleName}`);
   const resolved = new Map();
-  const ownershipFailures = verifyOwnershipRegistry(registry, ROOT, true, resolved);
+  const inventory = new Map();
+  const ownershipFailures = verifyOwnershipRegistry(registry, ROOT, true, resolved, inventory);
+  const unclaimedDeclarations = [...inventory.entries()].filter(([identity]) => !resolved.has(identity)).map(([, declaration]) => declaration);
   const claims = [...resolved.values()];
   const rowsByKey = new Map(registry.map(row => [row.key, row]));
   for (const fn of functions) {
@@ -691,6 +693,8 @@ function main() {
       withPriorNamedCoverage: functions.filter((f) => f.ownerKey || f.legacyNamedEvidence).length,
       withLegacyModuleEvidence: functions.filter((f) => f.legacyModuleEvidence).length,
       migrationPending: functions.filter((f) => !f.ownerKey).length,
+      compilerNamedDeclarations: inventory.size,
+      compilerUnclaimedDeclarations: unclaimedDeclarations.length,
       verifiedInfrastructureClaims: claims.filter(claim => claim.role === 'infrastructure').length,
       withoutRecordedOwner: functions.filter((f) => !f.ownerKey).length,
       decisions: decisions.length,
@@ -732,6 +736,7 @@ function main() {
       callees: callees[fn.index],
     })),
     verifiedClaims: claims,
+    unclaimedDeclarations,
     unregistered: functions.filter((fn) => !fn.ownerKey).map(({ name, file, line }) => ({ name, file, line })),
     ambiguous: [...unresolved.entries()]
       .map(([key, entry]) => ({ key, count: entry.count, sites: entry.sites }))
@@ -754,7 +759,11 @@ function main() {
       console.error('Functions without claims or legacy coverage:', undocumented.slice(0, 100).map(({ file, name, line }) => ({ file, name, line })));
       failures.push(`${undocumented.length} function(s) without any ownership evidence`);
     }
-    if (process.argv.includes('--strict-owners') && payload.unregistered.length) failures.push(`${payload.unregistered.length} function(s) still require explicit claims`);
+    if (process.argv.includes('--strict-owners') && unclaimedDeclarations.length) {
+      console.error('Compiler declarations without explicit claims:', unclaimedDeclarations.slice(0, 100));
+      failures.push(`${unclaimedDeclarations.length} compiler-indexed declaration(s) still require explicit claims`);
+    }
+    if (inventory.size < OWNERSHIP_FLOORS.functions) failures.push(`compiler indexed only ${inventory.size} named declarations (floor ${OWNERSHIP_FLOORS.functions})`);
     if (payload.stats.files < OWNERSHIP_FLOORS.files) {
       failures.push(`indexed ${payload.stats.files} files (floor ${OWNERSHIP_FLOORS.files})`);
     }
