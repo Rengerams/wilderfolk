@@ -889,6 +889,7 @@ export function tryDailyHumanMortality(
   entity: Entity,
   buildings: Building[],
   entityById?: ReadonlyMap<number, Entity>,
+  preventiveCareMultiplier = 1,
 ): boolean {
   if (!entity.alive) return false;
 
@@ -906,7 +907,8 @@ export function tryDailyHumanMortality(
     return true;
   }
   {
-    const illnessChance = HUMAN_DAILY_ILLNESS_CHANCE + getValleyIllnessChanceBonus(state);
+    const illnessChance = (HUMAN_DAILY_ILLNESS_CHANCE + getValleyIllnessChanceBonus(state))
+      * (isPlayerHuman(entity) ? preventiveCareMultiplier : 1);
     if (entity.age >= HUMAN_ADULT_MIN_AGE && personDayRoll(entity.id, state.tick, 607) < illnessChance) {
       killHuman(entity, buildings, entityById, state.tick, state);
       createDeathParticles(state, entity.x, entity.y, '#aaaaaa', 5, 'smoke');

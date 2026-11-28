@@ -28,6 +28,28 @@ export const HOSPITAL_TREATMENT_REPUTATION_MAX = 3;
 /** Days between staffed-hospital grants — `PRODUCTION_INTERVAL.hospital`, for the UI copy. */
 export const HOSPITAL_REPUTATION_INTERVAL_DAYS = PRODUCTION_INTERVAL.hospital / TICKS_PER_DAY;
 
+/** Preventive care scales with real living, assigned doctors, not empty hospital buildings.
+ * One doctor covers fifty residents; even full coverage only halves sudden-illness mortality.
+ * The daily mortality caller samples this once before any deaths or roster changes.
+ */
+export function getPreventiveCareMortalityMultiplier(
+  state: Pick<WorldState, 'humanPopulation'>,
+  buildings: readonly Building[],
+  entityById: ReadonlyMap<number, Entity>,
+): number {
+  const doctors = new Set<number>();
+  for (const hospital of buildings) {
+    if (!hospital.completed || hospital.type !== BuildingType.Hospital) continue;
+    for (const id of hospital.occupants) {
+      const doctor = entityById.get(id);
+      if (doctor?.alive && isPlayerHuman(doctor) && doctor.job === JobType.Doctor
+        && doctor.workerBuildingId === hospital.id && doctor.prisonBuildingId == null
+        && doctor.raidDeploymentId == null) doctors.add(id);
+    }
+  }
+  return 1 - 0.5 * Math.min(1, doctors.size * 50 / Math.max(1, state.humanPopulation));
+}
+
 /** How near the ward a settler must stand for the ward round to reach them, in world px. */
 const HOSPITAL_WARD_RADIUS_PX = 70;
 
@@ -50,7 +72,7 @@ export function grantHospitalIntervalReputation(
  */
 export function describeHospitalReputation(): string {
   return `Staffed: +${HOSPITAL_REPUTATION_PER_INTERVAL} reputation every ${HOSPITAL_REPUTATION_INTERVAL_DAYS} days,`
-    + ` up to +${HOSPITAL_TREATMENT_REPUTATION_MAX} more when patients are treated. Admitted patients recover extra stamina while resting.`;
+    + ` up to +${HOSPITAL_TREATMENT_REPUTATION_MAX} more when patients are treated. Admitted patients recover extra stamina while resting. Preventive care reduces sudden illness deaths by up to 50%, with one doctor per 50 residents.`;
 }
 
 export function isDoctorAtHospital(

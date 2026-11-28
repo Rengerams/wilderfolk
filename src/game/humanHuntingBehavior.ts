@@ -1,5 +1,5 @@
 import { personDayRoll } from './simRng';
-import type { Entity, WorldState } from './gameTypes';
+import type { Building, Entity, WorldState } from './gameTypes';
 import type { TickContext } from './simulation/simulationTypes';
 import { EntityType, JobType } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
@@ -25,6 +25,7 @@ import {
 } from './simulation/simulationEntities';
 import { findClosestInEntityGrid } from './simQueries';
 import { isPlayerHuman } from './playerHuman';
+import { getCompletedWildlifePreserves, isWildlifeProtected } from './wildlifePopulationPolicy';
 
 const HUNTER_WORK_STAMINA_THRESHOLD = 85;
 
@@ -53,6 +54,7 @@ export function tickHumanHunting(
   mobileGrid: TickContext['mobileGrid'],
   entityById: Map<number, Entity>,
   suppressIdleInitial: boolean,
+  preserves: readonly Building[] = getCompletedWildlifePreserves(state.buildings ?? []),
 ): boolean {
   let suppressIdle = suppressIdleInitial;
 
@@ -112,7 +114,7 @@ export function tickHumanHunting(
       entity.x,
       entity.y,
       huntRange,
-      (prey) => preyTypes.has(prey.type) && isValidHuntPrey(prey, prey.type, entity.id),
+      (prey) => preyTypes.has(prey.type) && isValidHuntPrey(prey, prey.type, entity.id) && !isWildlifeProtected(prey, preserves),
       'hunt',
       preyFallback,
     );

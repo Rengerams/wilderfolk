@@ -31,6 +31,7 @@ import { canAffordWorkshopRecipe } from './workshops';
 import { logEvent } from './eventLog';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getHuntFoodMultiplier } from './combat';
+import { getCompletedWildlifePreserves } from './wildlifePopulationPolicy';
 import { isProductionTick, PRODUCTION_INTERVAL, TICKS_PER_DAY, TICKS_PER_HOUR, killHuman } from './dayCycle';
 import { formatDeathLog } from './citizenId';
 import { logDeath } from './eventLog';
@@ -381,6 +382,7 @@ function tickBuildingProduction(
   // Construction finishes at 23:00, after this production pass, so only sites that
   // completed on an earlier day can supply output, XP and operational bonuses.
   const operationalBuildings = updatedBuildings;
+  const wildlifePreserves = getCompletedWildlifePreserves(operationalBuildings);
   // Production runs at 18:00 or, for evening shifts, 23:00, while isProductionTick is anchored to midnight.
   // Align to the same calendar day's start to preserve weekdays and interval cadence.
   const productionDayTick = state.tick - (state.tick % TICKS_PER_DAY);
@@ -552,7 +554,7 @@ function tickBuildingProduction(
        * Looking and killing use different distances: eyes reach 350 px, the kill reach is
        * bodies touching (`huntingKillReach`), which works because the hunter walks to the prey.
        */
-      const targetPrey = huntingSpotTarget(building, hunter, entityById, byType);
+      const targetPrey = huntingSpotTarget(building, hunter, entityById, byType, wildlifePreserves);
       // The spot owns the decision, so it records it: the hunter's walk reads the same commitment.
       commitHuntingSpotTarget(building, targetPrey);
 

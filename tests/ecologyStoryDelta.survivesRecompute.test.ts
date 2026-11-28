@@ -6,7 +6,7 @@ import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { describe, expect, it } from 'vitest';
 import { initGame, createBuilding } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
-import { BuildingType } from '../src/game/gameTypes';
+import { BuildingType, EntityType } from '../src/game/gameTypes';
 import {
   adjustEcosystemHealth,
   adjustPollutionLevel,
@@ -37,7 +37,9 @@ function settledWorld(seed = 4242) {
     world.buildings.push(building);
   });
 
-  const counts = { ...computePopulationCounts(world.entities.filter((entity) => entity.alive)), rabbits: 0, deer: 0, wolves: 0, foxes: 0, werewolves: 0, wildkin: 0 };
+  const fauna = new Set<EntityType>([EntityType.Rabbit, EntityType.Deer, EntityType.Wolf, EntityType.Fox, EntityType.Werewolf, EntityType.Wildkin]);
+  for (const entity of world.entities) if (fauna.has(entity.type)) entity.alive = false;
+  const counts = computePopulationCounts(world.entities.filter((entity) => entity.alive));
   world.wildlifeCounts = wildlifeCountsFromPopulation(counts);
   tickEcosystemMetrics(world, counts, world.buildings);
 
