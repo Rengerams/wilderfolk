@@ -5,7 +5,7 @@ import { PROFILE_REVISION, revisionOf } from '../src/game/entityRevision';
 import { human, building } from '../src/test/factories';
 import {
   MAX_SKILL, SKILL_IDLE_DECAY_PER_DAY, readSkill, increaseEntitySkill,
-  decayIdleSkills, gainSkill, getWorkerSkillMultiplier,
+  decayIdleSkills, gainSkill, getWorkerSkillMultiplier, ensureEntitySkills,
 } from '../src/game/skills';
 import {
   recordScheduleWorkTick, recordPresentWorkTick,
@@ -18,6 +18,19 @@ describe('skills have one writer and a pure reader', () => {
     expect(readSkill(settler, JobType.Farmer)).toBe(0);
     expect(settler.skills).toBeUndefined();
     expect(revisionOf(settler, PROFILE_REVISION)).toBe(0);
+  });
+
+  it('rejects unemployment skill awards and removes only the obsolete saved score', () => {
+    const settler = human(1, { job: JobType.Settler, skills: { [JobType.Settler]: 15, [JobType.Miner]: 53 } });
+    expect(readSkill(settler, JobType.Settler)).toBe(0);
+    expect(settler.skills?.[JobType.Settler]).toBe(15);
+    increaseEntitySkill(settler, JobType.Settler, 10);
+    expect(revisionOf(settler, PROFILE_REVISION)).toBe(0);
+    expect(ensureEntitySkills(settler)).toEqual({ [JobType.Miner]: 53 });
+    increaseEntitySkill(settler, JobType.Settler, 10);
+    expect(settler.skills).toEqual({ [JobType.Miner]: 53 });
+    increaseEntitySkill(settler, JobType.Miner, 1);
+    expect(readSkill(settler, JobType.Miner)).toBe(54);
   });
 
   it('ignores non-positive and invalid awards without dirtying saturated skills', () => {
