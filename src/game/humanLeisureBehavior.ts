@@ -173,23 +173,29 @@ function canFollowCaregiverDuringLeisure(
 }
 
 /**
- * Stop a remembered child-follow route before the off-screen movement throttle
- * resumes it. School, its commute, bedtime and the parent's real shift outrank
- * following. The schedule owner supplies its already-resolved mandatory intent.
+ * The sole child-leisure cancellation path. Stop a follow that has become
+ * ineligible, or clear leftover play/follow velocity when an obligatory schedule
+ * has no usable movement target. A school, home, or emergency route that already
+ * owns the tick must not be overwritten by this leisure cleanup.
  */
-export function stopInvalidChildFollowing(
+export function stopSupersededChildLeisure(
   state: WorldState,
   child: Entity,
-  entityById: ReadonlyMap<number, Entity>,
+  entityById: ReadonlyMap<number, Entity> | undefined,
   buildingById: ReadonlyMap<number, Building>,
   hourOfDay: number,
   mandatoryChildActivity: boolean,
+  noReplacementMovement = false,
 ): boolean {
-  if (child.age >= HUMAN_ADULT_MIN_AGE || child.childLeisureActivity !== 'following') return false;
-  const caregiver = child.childLeisureTargetId == null
-    ? undefined : entityById.get(child.childLeisureTargetId);
-  if (!mandatoryChildActivity && canFollowCaregiverDuringLeisure(state, caregiver, buildingById, hourOfDay)) {
-    return false;
+  if (child.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(child)) return false;
+  const following = child.childLeisureActivity === 'following';
+  if (!following && !(mandatoryChildActivity && noReplacementMovement)) return false;
+  if (following && !mandatoryChildActivity) {
+    const caregiver = child.childLeisureTargetId == null
+      ? undefined : entityById?.get(child.childLeisureTargetId);
+    if (canFollowCaregiverDuringLeisure(state, caregiver, buildingById, hourOfDay)) {
+      return false;
+    }
   }
   child.childLeisureActivity = undefined;
   child.childLeisureTargetId = undefined;
@@ -225,7 +231,14 @@ export function tickHumanChildLeisure(args: {
   entity.childLeisureTargetId = undefined;
   // A mandatory schedule preempts following even when there is no residence
   // or other schedule branch able to set suppressIdleInitial this tick.
-  if (args.mandatoryChildActivity) return true;
+  if (args.mandatoryChildActivity) {
+    // When no schedule owner has issued a replacement route, do not continue
+    // drifting on the previous play or follow velocity (even without a home).
+    if (!args.onSchedule && !args.suppressIdleInitial) {
+      stopSupersededChildLeisure(state, entity, args.entityById, buildingById, hourOfDay, true, true);
+    }
+    return true;
+  }
   if (args.onSchedule || args.suppressIdleInitial) return args.suppressIdleInitial;
 
   const day = getAbsoluteCalendarDay(state.tick);
