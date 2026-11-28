@@ -19,7 +19,7 @@ import { TICKS_PER_HOUR } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
 import { buildConstructionCrewIndex } from './workforceSummary';
 import { humanDisplayName } from './citizenId';
-import { assignMissingResidences, reassignDivorcedResidences, restoreCustodyAfterRelease } from './housingPipeline';
+import { assignMissingResidences, reassignDivorcedResidences, relocateJobSeekerForVacancy, restoreCustodyAfterRelease } from './housingPipeline';
 import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './housingModel';
 import { prisonGuardCapacity } from './prisonShifts';
 import { logEvent } from './eventLog';
@@ -1101,10 +1101,22 @@ export function staffJobBuildings(
   const constructionWorkerIds = new Set(buildConstructionCrewIndex(buildings).keys());
 
   const staffStart = profileStart();
+  // One household relocation per assignment pass avoids uprooting a settlement at once.
+  // Housing owns the move, while this function still owns all job selection and writes.
+  let relocatedJobSeeker = false;
   for (let i = 0; i < jobBuildings.length; i++) {
     const building = jobBuildings[i];
     while (assignWorkerInPlace(building, alive, buildings, constructionWorkerIds, buildingById, workerCounts)) {
-      // Fill job slots
+      // Fill jobs reachable from the worker's existing home first.
+    }
+    if (relocatedJobSeeker || (workerCounts.get(building.id) ?? 0) >= staffingCapFor(building, alive).cap) continue;
+    const unemployed = alive.filter((person) => isIdleWorkforceCandidate(person, constructionWorkerIds));
+    if (unemployed.length === 0) continue;
+    if (!relocateJobSeekerForVacancy(unemployed, alive, buildings, building)) continue;
+    relocatedJobSeeker = true;
+    // Rerun the same normal employment owner from the newly assigned home.
+    while (assignWorkerInPlace(building, alive, buildings, constructionWorkerIds, buildingById, workerCounts)) {
+      // A completed workplace remains staffed only by assignWorkerTransition.
     }
   }
   profileEnd('workforce.staff', staffStart);
