@@ -74,6 +74,9 @@ describe('personal combat equipment and condition', () => {
     const civilian = { ...h, job: JobType.Settler, workerBuildingId: barracks.id };
     for (const person of [civilian, h]) {
       expect(resolvePredatorCombatChances(state, person, wolf)).toEqual(unarmed);
+      // JavaScript callers cannot revive the old authority argument, even without TS checks.
+      expect(Reflect.apply(resolvePredatorCombatChances, undefined, [state, person, wolf, 'military'])).toEqual(unarmed);
+      expect(Reflect.apply(rollPredatorCombat, undefined, ['counter-attack', state, person, wolf, 'military', state.tick])).toBe(false);
       expect(rollPredatorCombat('counter-attack', state, person, wolf, state.tick)).toBe(false);
     }
     h.workerBuildingId = barracks.id;
@@ -97,6 +100,7 @@ describe('personal combat equipment and condition', () => {
     const wolf = predator(2);
     const unarmed = { counter: 0, block: 0.05 };
     expect(resolvePredatorCombatChances(state, hunter, wolf)).toEqual(unarmed);
+    expect(Reflect.apply(resolvePredatorCombatChances, undefined, [state, hunter, wolf, 'hunting'])).toEqual(unarmed);
     expect(rollPredatorCombat('counter-attack', state, hunter, wolf, state.tick)).toBe(false);
     const spot = { ...state.buildings[0], id: 2, type: BuildingType.HuntingSpot, occupants: [hunter.id] };
     state.buildings.push(spot);
