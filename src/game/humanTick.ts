@@ -693,7 +693,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Pregnancy hospital priority outranks the shift: the settler still owes the duty hours, but
     // standing at a post they are leaving is not verified work.
     const goingToHospital = isPregnancyHospitalPriority(entity, staffedHospitals.length > 0);
-    if (isPlayerHuman(entity) && !entity.raidDeploymentId && (onJobShift)) {
+    if (isPlayerHuman(entity) && !entity.raidDeploymentId && workplace != null && shift.onShift) {
       // A construction crew has no regular workerBuildingId. Its resolved workplace supplies
       // the witnessed site and trade through the existing attendance recorders.
       const attendedJob = apprenticeSite
