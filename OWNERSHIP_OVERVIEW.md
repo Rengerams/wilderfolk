@@ -811,7 +811,7 @@ take ownership away from their leaf implementations. Module-qualified names keep
 | Function | Sole owner | Responsibility |
 |---|---|---|
 | `bumpHistoryRevision`, `snapshotHistoryRevisions`, `resetHistoryRevisions` | `game/historyRevisions.ts` | Own per-world history revisions so the worker ships a history family only when its owner wrote it; no per-tick JSON fingerprints in the worker loop. |
-| `tests/eventLog.duplicatesAndNotifications.test.ts` | `reservedLodgers` — actual settler reservations for occupancy notification regressions. |
+| `reservedLodgers` | `tests/eventLog.duplicatesAndNotifications.test.ts` | Actual settler reservations for occupancy notification regressions. |
 | `createHotelLodgingIndex`, `isReachableHotel`, `lodgingHotelFor`, `lodgingHotelsFor` | `game/hotelStay.ts` | Build the hotel list and settler-bed counts once per tick, keep a valid reservation without rescanning, and update counts on reserve/release. |
 | `buildCeremonySeatIndex`, `rankCeremonyAttendees`, `isCeremonyAttendee`, `getElectionGatherTarget` | `game/villageLeadership.ts` | Own the id-sorted ceremony seat ranks; callers inside the human loop pass the tick's index, and the live single pass remains the fallback. |
 

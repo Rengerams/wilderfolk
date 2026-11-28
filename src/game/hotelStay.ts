@@ -267,7 +267,7 @@ export function isHotelierAtHotel(
 }
 
 /** Free-bed decision shared by direct and indexed reservation callers. */
-export function hotelHasVacancy(
+function hotelHasVacancy(
   hotel: Building,
   entities: readonly Entity[],
   settlerLodgers = countHotelSettlerLodgers(hotel, entities),
