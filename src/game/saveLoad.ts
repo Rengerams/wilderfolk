@@ -1,4 +1,4 @@
-import { normalizeHumanNeeds } from './simulation/humanPhysiology';
+import { legacyHumanNeeds, normalizeHumanNeeds } from './simulation/humanPhysiology';
 import { isFiniteNumber, isNonEmptyString } from './inputGuards';
 import { villageFileSlug } from './fileNames';
 import { normalizeCareerHistory } from './careers/careerHistory';
@@ -1579,7 +1579,20 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         if (entity.type === EntityType.Human) entity.generation ??= 0;
         if (TICKED_SPECIES.has(entity.type)) entity.animFrame ??= 0;
         migrateEntityPersistedFields(entity, fields);
-        if (isPlayerHuman(entity)) normalizeHumanNeeds(entity);
+        // Convert legacy reserves at the load boundary before form synchronization or tick migration.
+        // Persisted native needs take precedence; player wire slots never become a second reserve.
+        if (isPlayerHuman(entity)) {
+          normalizeHumanNeeds(entity, legacyHumanNeeds(entity.energy, entity.maxEnergy));
+          entity.energy = 0;
+          entity.maxEnergy = 0;
+        }
+        // The parked human snapshot is independent of the active predator's metabolic reserve.
+        const parkedNeeds = entity.moonHowlerSaved;
+        if (parkedNeeds && !isForeignFaction(entity.faction)) {
+          normalizeHumanNeeds(parkedNeeds, legacyHumanNeeds(parkedNeeds.energy, parkedNeeds.maxEnergy));
+          delete parkedNeeds.energy;
+          delete parkedNeeds.maxEnergy;
+        }
         if (entity.type === EntityType.Human && entity.spriteVariant === undefined && entity.gender) {
           entity.spriteVariant = pickHumanVariant(entity.id, entity.gender);
         }
