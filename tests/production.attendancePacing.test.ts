@@ -34,6 +34,7 @@ import { getWorkdayAttendance } from '../src/game/scheduleFatigue';
 import { getValleyFarmYieldMultiplier, getValleyHuntYieldMultiplier } from '../src/game/ecologyStage';
 import { getWorkScheduleHours, getWorkSchedule } from '../src/game/workSchedule';
 import { ensureEntitySkills, readSkill } from '../src/game/skills';
+import { evaluateWorkerFit } from '../src/game/careers/workerFit';
 
 const TEST_SEED = 20_261_112;
 const SETTLER_ID = 9001;
@@ -283,7 +284,7 @@ describe('production pays only witnessed attendance (W-136)', () => {
       const outputBefore = state.economyLedger?.produced.farms ?? 0;
       runTicks(state, 2 * TICKS_PER_HOUR + 1, ON_SCREEN);
       expect(state.economyLedger?.produced.farms ?? 0).toBeGreaterThan(outputBefore);
-      expect(readSkill(worker, JobType.Farmer) - before).toBeGreaterThanOrEqual(0.19);
+      expect(readSkill(worker, JobType.Farmer) - before).toBeGreaterThanOrEqual(0.19 * evaluateWorkerFit(worker, JobType.Farmer).aptitudeFactor);
       runTicks(state, TICKS_PER_HOUR, ON_SCREEN);
       expect(worker.schedulePresentTicksToday ?? 0).toBe(0);
     }
@@ -573,20 +574,20 @@ describe('construction and production attendance are separate (PR #166 reviews)'
     const senior = settler(450, 500);
     const junior = createEntity(EntityType.Human, 470, 500, SETTLER_ID + 1, 400, false,
       { gender: 'male', name: 'Luka', surname: 'Reed', ageYears: 30, colonyDay: 0 });
-    if (experienced) senior.skills = { [JobType.Miner]: 100 };
+    if (experienced) senior.skills = { [JobType.Builder]: 100 };
     state.entities = [senior, junior];
     site.occupants = [senior.id, junior.id];
     rebuildEntityByIdMap(state);
     invalidateCachedEntityByType(state);
     const full = getWorkScheduleHours(getWorkSchedule(state)) * TICKS_PER_HOUR;
     // Keep an expert's simulated shift below the 100% cap so the helper's tick remains measurable.
-    witnessSiteShift(senior, site, experienced ? Math.max(1, Math.floor(full / 4)) : full, JobType.Miner);
-    if (extraTicks > 0) witnessSiteShift(junior, site, extraTicks, JobType.Miner);
+    witnessSiteShift(senior, site, experienced ? Math.max(1, Math.floor(full / 4)) : full, JobType.Builder);
+    if (extraTicks > 0) witnessSiteShift(junior, site, extraTicks, JobType.Builder);
     state.tick = tickAtDailyPhase(1, 'construction') - 1;
     gameTick(state, ON_SCREEN);
     return {
       progress: site.constructionProgress, food: state.resources.food,
-      finished: site.completed, workerSkill: senior.skills?.[JobType.Miner] ?? 0,
+      finished: site.completed, workerSkill: senior.skills?.[JobType.Builder] ?? 0,
     };
   }
 
@@ -608,7 +609,9 @@ describe('construction and production attendance are separate (PR #166 reviews)'
     expect(state.tick).toBe(tickAtDailyPhase(1, 'construction'));
     expect(worker.schedulePresentTicksToday).toBeGreaterThan(0);
     expect(site.constructionProgress).toBeGreaterThan(0);
-    expect(readSkill(worker, JobType.Farmer)).toBeGreaterThan(0);
+    expect(readSkill(worker, JobType.Builder)).toBeGreaterThan(0);
+    expect(readSkill(worker, JobType.Farmer)).toBe(0);
+    expect(worker.scheduleWorkedJobToday).toBe(JobType.Builder);
   });
 
   it('never lowers progress when a second builder contributes one tick', () => {
@@ -643,7 +646,7 @@ describe('construction and production attendance are separate (PR #166 reviews)'
       rebuildEntityByIdMap(state);
       invalidateCachedEntityByType(state);
       const shift = getWorkScheduleHours(getWorkSchedule(state)) * TICKS_PER_HOUR;
-      witnessSiteShift(farmer, site, shift, JobType.Farmer);
+      witnessSiteShift(farmer, site, shift, previouslyCompleted ? JobType.Farmer : JobType.Builder);
       state.tick = tickAtDailyPhase(1, 'production') - 1;
       gameTick(state, ON_SCREEN);
       const foodAtEvening = state.resources.food;
@@ -657,7 +660,10 @@ describe('construction and production attendance are separate (PR #166 reviews)'
 
     expect(stillBuilding.site.completed).toBe(false);
     expect(justCompleted.site.completed).toBe(true);
-    expect(justCompleted.farmer.skills?.[JobType.Farmer] ?? 0).toBeCloseTo(0.2, 8);
+    expect(readSkill(justCompleted.farmer, JobType.Builder)).toBeCloseTo(0.2 * evaluateWorkerFit(justCompleted.farmer, JobType.Builder).aptitudeFactor, 8);
+    expect(readSkill(justCompleted.farmer, JobType.Farmer)).toBe(0);
+    expect(readSkill(operational.farmer, JobType.Farmer)).toBeGreaterThan(0);
+    expect(readSkill(operational.farmer, JobType.Builder)).toBe(0);
     expect(justCompleted.foodAtEvening).toBe(stillBuilding.foodAtEvening);
     expect(operational.foodAtEvening).toBeGreaterThan(justCompleted.foodAtEvening);
   });

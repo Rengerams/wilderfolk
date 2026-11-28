@@ -60,7 +60,7 @@ describe('personality and career inspector', () => {
   it('shows the real activity result the simulation uses', () => {
     const markup = render(human(1, { genomeV2: ROUTINE_GENOME, job: JobType.Farmer }));
     expect(markup).toContain('Activity effect');
-    expect(markup).toContain('Routine production');
+    expect(markup).toContain('Farming and routine production');
   });
 
   it('labels aptitude as a potential job fit for the current trade only', () => {

@@ -7,6 +7,11 @@
 - **Fixed (28 Nov 2026):** Preserve the symmetric courtship stamina gate when sharing pending romantic interest; exhausted settlers neither pursue nor advance dates, and their existing progress remains intact.
 
 - Relationships: pending courtship and secret-affair interests share reciprocal pair progress, DNA and decay; settlers can develop interest in multiple people, with labels derived from marital status. Awake nearby contact may progress outside designated leisure without taking over mandatory movement. Existing saves reuse the same candidate map.
+
+- **Fixed (28 Nov 2026):** Credit only Builder skill and aptitude for all construction work; operational work alone teaches the site's profession. Stabilize vocational commute buckets and preserve scholar age/ID priority.
+
+- **Added (28 Nov 2026):** Derive trade aptitude from the existing genome and central activity weights; use it for reachable hiring, apprenticeship selection, earned skill growth and crew output without adding saved attributes.
+
 - **Fixed (28 Nov 2026):** Use one fixed nine-hour fatigue baseline for all jobs, independent of ordinary work hours; shorter shifts recover faster, and routine recovery no longer generates Chronicle messages.
 
 - **Fixed (28 Nov 2026):** Restore one-time legacy player stamina and Moon Howler human-snapshot migration on load; native needs take precedence and active wolf metabolism remains independent.

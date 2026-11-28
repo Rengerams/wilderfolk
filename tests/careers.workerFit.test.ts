@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateWorkerFit } from '../src/game/careers/workerFit';
 import { assignWorkerInPlace } from '../src/game/workforce';
+import { commuteQuarterHourBand } from '../src/game/commuteReach';
 import { JobType, BuildingType } from '../src/game/gameTypes';
 import { human, building } from '../src/test/factories';
 import { genomeFrom } from './helpers/genome';
@@ -54,4 +55,31 @@ describe('optional worker fit after stable commute and skill ranking', () => {
     expect(first.workerBuildingId).toBe(10);
     expect(second.workerBuildingId).toBeUndefined();
   });
+});
+
+
+it('ranks distinct vocational talents rather than one routine factor for every job', () => {
+  const person = human(1, { genomeV2: genomeFrom({ sociability: 95, cooperation: 90, flexibility: 90, discipline: 10, persistence: 10 }) });
+  expect(evaluateWorkerFit(person, JobType.Hotelier).aptitudeFactor).toBeGreaterThan(1);
+  expect(evaluateWorkerFit(person, JobType.Miner).aptitudeFactor).toBeLessThan(1);
+  expect(evaluateWorkerFit(person, JobType.Settler).aptitudeFactor).toBe(1);
+});
+
+it('uses aptitude for a vacancy even when nearby candidates have different earned skills', () => {
+  const site = building(10, BuildingType.Farm);
+  const neutral = human(1, { x: 10, y: 10, skills: { farmer: 1 }, genomeV2: genomeFrom() });
+  const talented = human(2, { x: 10, y: 10, skills: {}, genomeV2: genomeFrom({ discipline: 95, persistence: 95, sociability: 5 }) });
+  expect(evaluateWorkerFit(talented, JobType.Farmer).selectionScore).toBeGreaterThan(1);
+  expect(assignWorkerInPlace(site, [neutral, talented], [site])).toBe(true);
+  expect(talented.workerBuildingId).toBe(site.id);
+  expect(talented.skills?.farmer ?? 0).toBe(0);
+});
+
+it('quantizes commute bands consistently at quarter-hour boundaries', () => {
+  for (const boundary of [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]) {
+    expect(commuteQuarterHourBand(boundary - Number.EPSILON)).toBe(boundary * 4);
+    expect(commuteQuarterHourBand(boundary + Number.EPSILON)).toBe(boundary * 4);
+    expect(commuteQuarterHourBand(boundary - 1 / 3600)).toBe(boundary * 4 - 1);
+    expect(commuteQuarterHourBand(boundary + 1 / 3600)).toBe(boundary * 4);
+  }
 });

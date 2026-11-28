@@ -268,7 +268,7 @@ export function tickBuildingProgress(state: WorldState): void {
         baseRate * buildMultiplier * globalMult * ordinaryWorkHours;
       building.buildAnimTimer += ordinaryWorkHours * 0.1;
 
-      const job = getJobForBuilding(building.type) ?? JobType.Builder;
+      const job = getJobForBuilding(building.type, 'construction');
       for (const [id, presenceShare] of attendedShares) {
         gainSkill(state, id, job, WORK_SKILL_PER_SHIFT * presenceShare, entityById);
       }

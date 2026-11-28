@@ -2,7 +2,7 @@ import type { Entity, WorldState, Building } from './gameTypes';
 import { BuildingType, BUILDING_JOB_TYPES, JOB_LABELS, JobType } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
+import { evaluateWorkerFit } from './careers/workerFit';
 import { PROFILE_REVISION, bumpRevision } from './entityRevision';
 import { isPlayerHuman } from './playerHuman';
 
@@ -11,8 +11,13 @@ export function getOccupationForBuilding(type: BuildingType): string {
   return job ? JOB_LABELS[job] : 'Worker';
 }
 
-export function getJobForBuilding(type: BuildingType): JobType | undefined {
-  return BUILDING_JOB_TYPES[type];
+/** One activity-to-credited-trade lookup: building is always Builder; operating a completed site uses its profession. */
+export function getJobForBuilding<Args extends [type: BuildingType, action?: WorkAction]>(
+  ...args: Args
+): Args extends [BuildingType, 'construction'] ? typeof JobType.Builder : JobType | undefined {
+  const [type, action] = args;
+  const job = action === 'construction' ? JobType.Builder : BUILDING_JOB_TYPES[type];
+  return job as Args extends [BuildingType, 'construction'] ? typeof JobType.Builder : JobType | undefined;
 }
 
 export function ensureEntitySkills(entity: { skills?: Partial<Record<JobType, number>> }): Partial<Record<JobType, number>> {
@@ -54,12 +59,14 @@ export const WORK_SKILL_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<Buil
   Object.keys(BUILDING_JOB_TYPES) as BuildingType[],
 );
 
-/** Single revision-aware skill writer for work and trade training. */
-export function increaseEntitySkill(entity: Entity, job: JobType, amount: number): void {
+/** Single skill writer: earned practice is priced once by the job's inherited aptitude.
+ * Fixed completion awards are already final amounts, not practice. */
+export function increaseEntitySkill(entity: Entity, job: JobType, amount: number, fixedAward = false): void {
   if (job === JobType.Settler || !isPlayerHuman(entity) || !entity.alive || entity.age < HUMAN_ADULT_MIN_AGE
     || !Number.isFinite(amount) || amount <= 0) return;
   const before = readSkill(entity, job);
-  const after = Math.min(MAX_SKILL, before + amount);
+  const credit = fixedAward ? amount : amount * evaluateWorkerFit(entity, job).aptitudeFactor;
+  const after = Math.min(MAX_SKILL, before + credit);
   if (after === before) return;
   ensureEntitySkills(entity)[job] = after;
   bumpRevision(entity, PROFILE_REVISION);
@@ -97,7 +104,7 @@ export function decayIdleSkills(entity: Entity, activeJob?: JobType, amount = SK
 
 /**
  * The one trade-XP loop behind both payers: credit only attested workers of `building` for its job.
- * `amount` is already the final per-worker credit; the callers own when and how much is earned.
+ * Callers own attendance and base credit; increaseEntitySkill applies vocational aptitude once.
  */
 function creditAttendedTradeSkill(
   state: WorldState,
@@ -131,7 +138,7 @@ export type WorkAction = 'production' | 'construction';
 
 /**
  * The crew's skill and the catalog's DNA factor for the work it is doing, as one multiplier: the
- * activity is construction or routine production, so each dimension is priced exactly once.
+ * same job profile supplies training, selection and output; each factor is applied once.
  */
 export function getWorkerSkillMultiplier(
   state: WorldState,
@@ -141,12 +148,9 @@ export function getWorkerSkillMultiplier(
   /** The workers who actually attended this shift. Omitted means the whole roster (construction). */
   workedIds?: ReadonlySet<number>,
 ): number {
-  const siteJob = getJobForBuilding(building.type);
-  // A build crew is paid the site's own trade when it has one, else Builder: a house or wall has
-  // no production job, yet the crew raising it still earns — and is priced by — Building.
-  const skillJob = action === 'construction' ? siteJob ?? JobType.Builder : siteJob;
+  // Price the work actually performed, not the crew's prior jobs or the site's future profession.
+  const skillJob = getJobForBuilding(building.type, action);
   if (!skillJob) return 1;
-  const workActivity = action === 'construction' ? 'construction' as const : 'routineWork' as const;
   let total = 0;
   let traitFactorSum = 0;
   let validWorkers = 0;
@@ -159,7 +163,7 @@ export function getWorkerSkillMultiplier(
     if (!h || !isPlayerHuman(h) || !h.alive || h.age < HUMAN_ADULT_MIN_AGE
       || h.prisonBuildingId != null) continue;
     total += readSkill(h, skillJob);
-    traitFactorSum += evaluateAptitudeInfluence(h, workActivity).factor;
+    traitFactorSum += evaluateWorkerFit(h, skillJob).aptitudeFactor;
     validWorkers++;
   }
   if (validWorkers === 0) return 1;

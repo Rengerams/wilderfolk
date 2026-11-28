@@ -9,10 +9,11 @@ import {
   APTITUDE_ACTIVITIES,
   APTITUDE_ACTIVITY_IDS,
   APTITUDE_ACTIVITY_OWNERS,
+  JOB_APTITUDE_ACTIVITIES,
 } from '../src/game/personality/activityAptitudes';
 import { evaluateAptitudeInfluence } from '../src/game/personality/traitEvaluation';
 import { initGame } from '../src/game/worldGen';
-import { EntityType } from '../src/game/gameTypes';
+import { EntityType, JobType } from '../src/game/gameTypes';
 import {
   APTITUDE_IDS,
   normalizeGenome,
@@ -67,6 +68,16 @@ describe('activity aptitude registry', () => {
     }
   });
 
+  it('maps every trade to a registered aptitude, excluding unemployment', () => {
+    expect(Object.keys(JOB_APTITUDE_ACTIVITIES).sort()).toEqual(Object.values(JobType).sort());
+    for (const job of Object.values(JobType)) {
+      const activity = JOB_APTITUDE_ACTIVITIES[job];
+      if (job === JobType.Settler) expect(activity).toBeUndefined();
+      else expect(APTITUDE_ACTIVITY_IDS).toContain(activity);
+    }
+    expect(new Set(Object.values(JOB_APTITUDE_ACTIVITIES)).size).toBeGreaterThan(10);
+  });
+
   it('gives every one of the fourteen dimensions both an upward and a downward weight', () => {
     for (const aptitude of APTITUDE_IDS) {
       const signs = activitiesFor(aptitude);
@@ -100,7 +111,13 @@ describe('activity aptitude registry', () => {
     for (const activity of APTITUDE_ACTIVITY_IDS) {
       const owner = APTITUDE_ACTIVITY_OWNERS[activity];
       const source = readFileSync(join(process.cwd(), owner), 'utf8');
-      expect(source.includes(`'${activity}'`), `${activity} not referenced by ${owner}`).toBe(true);
+      if (owner.endsWith('/workerFit.ts')) {
+        expect(Object.values(JOB_APTITUDE_ACTIVITIES)).toContain(activity);
+        expect(source).toContain('JOB_APTITUDE_ACTIVITIES[job]');
+        expect(source).toContain('evaluateAptitudeInfluence');
+      } else {
+        expect(source.includes(`'${activity}'`), `${activity} not referenced by ${owner}`).toBe(true);
+      }
     }
   });
 

@@ -8,12 +8,12 @@ import {
   LEADER_OCCUPATION,
   PATH_CELL,
 } from './gameTypes';
-import { getOccupationForBuilding, ensureEntitySkills, readSkill, writableEntitySkills } from './skills';
+import { getOccupationForBuilding, getJobForBuilding, ensureEntitySkills, readSkill, writableEntitySkills } from './skills';
 import { getBuildingConfig } from './buildingConfig';
 import { SPECIES_CONFIG } from './speciesConfig';
 import {
   beginCommuteRoutePass, isWithinAssignableCommute, wereCommuteRouteChecksDeferred,
-  straightLineCommuteLowerBoundHours, MAX_ASSIGNABLE_COMMUTE_HOURS, quoteBuildingCommute,
+  straightLineCommuteLowerBoundHours, MAX_ASSIGNABLE_COMMUTE_HOURS, quoteBuildingCommute, commuteQuarterHourBand,
 } from './commuteReach';
 import { TICKS_PER_HOUR } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
@@ -748,7 +748,9 @@ function pickIdleWorkerForBuilding(
   const buildingY = building.y + building.height / 2;
   let worker: Entity | undefined;
   let bestDistance = Infinity;
-  let bestSkill = -Infinity;
+  let bestBand = Infinity;
+  let bestScore = -Infinity;
+  let bestDays = -Infinity;
   for (const candidate of humans) {
     if (!isIdleWorkforceCandidate(candidate, crewIds) || excludedWorkers?.has(candidate.id)) continue;
     const home = candidate.residenceBuildingId == null
@@ -772,18 +774,19 @@ function pickIdleWorkerForBuilding(
       // The same unit as a priced leg: plain walk-hours, without the scheduling lead's one-hour
       // floor and rush factor, which would tie every near candidate and let skill outrank distance.
       : Math.hypot(dx, dy) / SPECIES_CONFIG[EntityType.Human].speed / TICKS_PER_HOUR;
-    const skill = readSkill(candidate, job);
-    if (worker && (distance > bestDistance || (distance === bestDistance && skill < bestSkill))) continue;
-    if (worker && distance === bestDistance && skill === bestSkill) {
-      const bestFit = evaluateWorkerFit(worker, job);
-      const candidateFit = evaluateWorkerFit(candidate, job);
-      if (candidateFit.creditedDays < bestFit.creditedDays
-        || (candidateFit.creditedDays === bestFit.creditedDays
-          && candidateFit.aptitudeFactor <= bestFit.aptitudeFactor)) continue;
-    }
+    // Among reachable commutes in the same quarter-hour band, skill and DNA can genuinely
+    // influence hiring. Longer commutes and established assignments retain their protection.
+    const band = commuteQuarterHourBand(distance);
+    if (worker && band > bestBand) continue;
+    const fit = evaluateWorkerFit(candidate, job);
+    if (worker && band === bestBand && (fit.selectionScore < bestScore
+      || (fit.selectionScore === bestScore && (fit.creditedDays < bestDays
+        || (fit.creditedDays === bestDays && distance >= bestDistance))))) continue;
     worker = candidate;
     bestDistance = distance;
-    bestSkill = skill;
+    bestBand = band;
+    bestScore = fit.selectionScore;
+    bestDays = fit.creditedDays;
   }
   return worker;
 }
@@ -839,7 +842,8 @@ function assignBuilderInPlace(
   if (building.occupants.length >= cap) return false;
   const crewIds = constructionWorkerIds ?? new Set(buildConstructionCrewIndex(allBuildings).keys());
 
-  const freeBuilder = humans.find(
+  const buildJob = getJobForBuilding(building.type, 'construction');
+  const freeBuilder = humans.filter(
     (h) =>
       isPlayerHuman(h) &&
       h.alive &&
@@ -849,7 +853,7 @@ function assignBuilderInPlace(
       !isImprisoned(h) &&
       !building.occupants.includes(h.id) &&
       !crewIds.has(h.id),
-  );
+  ).sort((a, b) => evaluateWorkerFit(b, buildJob).selectionScore - evaluateWorkerFit(a, buildJob).selectionScore)[0];
 
   if (freeBuilder) {
     building.occupants.push(freeBuilder.id);

@@ -4,6 +4,7 @@
  */
 import type { GeneticAptitude } from '../settlerTraits';
 import type { PersonalMarkId } from '../personalMarks';
+import type { JobType } from '../gameTypes';
 
 export type AptitudeActivityId =
   | 'friendship'
@@ -23,7 +24,15 @@ export type AptitudeActivityId =
   | 'company'
   | 'bereavement'
   | 'communityReaction'
-  | 'conception';
+  | 'conception'
+  | 'craftWork'
+  | 'commerce'
+  | 'medicine'
+  | 'administration'
+  | 'pastoralCare'
+  | 'fishingWork'
+  | 'hospitality'
+  | 'extraction';
 
 interface AptitudeWeight {
   readonly aptitude: GeneticAptitude;
@@ -103,7 +112,7 @@ export const APTITUDE_ACTIVITIES: Readonly<Record<AptitudeActivityId, AptitudeAc
     ],
   },
   apprenticeshipTraining: {
-    id: 'apprenticeshipTraining', label: 'Learning a trade', cap: 0.15,
+    id: 'apprenticeshipTraining', label: 'Teaching and training', cap: 0.15,
     weights: [
       { aptitude: 'curiosity', weight: 0.30 },
       { aptitude: 'discipline', weight: 0.28 },
@@ -112,7 +121,7 @@ export const APTITUDE_ACTIVITIES: Readonly<Record<AptitudeActivityId, AptitudeAc
     ],
   },
   routineWork: {
-    id: 'routineWork', label: 'Routine production', cap: 0.15,
+    id: 'routineWork', label: 'Farming and routine production', cap: 0.15,
     weights: [
       { aptitude: 'discipline', weight: 0.28 },
       { aptitude: 'persistence', weight: 0.26 },
@@ -233,6 +242,78 @@ export const APTITUDE_ACTIVITIES: Readonly<Record<AptitudeActivityId, AptitudeAc
       { aptitude: 'riskTaking', weight: -0.10 },
     ],
   },
+  craftWork: {
+    id: 'craftWork', label: 'Metalworking and craftsmanship', cap: 0.2,
+    weights: [
+      { aptitude: 'reasoning', weight: 0.3 },
+      { aptitude: 'creativity', weight: 0.25 },
+      { aptitude: 'patience', weight: 0.25 },
+      { aptitude: 'discipline', weight: 0.2 },
+    ],
+  },
+  commerce: {
+    id: 'commerce', label: 'Trading and logistics', cap: 0.2,
+    weights: [
+      { aptitude: 'sociability', weight: 0.3 },
+      { aptitude: 'reasoning', weight: 0.25 },
+      { aptitude: 'initiative', weight: 0.25 },
+      { aptitude: 'flexibility', weight: 0.2 },
+    ],
+  },
+  medicine: {
+    id: 'medicine', label: 'Medical care', cap: 0.2,
+    weights: [
+      { aptitude: 'sensitivity', weight: 0.3 },
+      { aptitude: 'reasoning', weight: 0.3 },
+      { aptitude: 'composure', weight: 0.25 },
+      { aptitude: 'perception', weight: 0.15 },
+    ],
+  },
+  administration: {
+    id: 'administration', label: 'Administration', cap: 0.2,
+    weights: [
+      { aptitude: 'discipline', weight: 0.3 },
+      { aptitude: 'reasoning', weight: 0.3 },
+      { aptitude: 'cooperation', weight: 0.2 },
+      { aptitude: 'initiative', weight: 0.2 },
+    ],
+  },
+  pastoralCare: {
+    id: 'pastoralCare', label: 'Pastoral and burial care', cap: 0.2,
+    weights: [
+      { aptitude: 'sensitivity', weight: 0.3 },
+      { aptitude: 'patience', weight: 0.25 },
+      { aptitude: 'composure', weight: 0.25 },
+      { aptitude: 'cooperation', weight: 0.2 },
+    ],
+  },
+  fishingWork: {
+    id: 'fishingWork', label: 'Fishing', cap: 0.2,
+    weights: [
+      { aptitude: 'patience', weight: 0.35 },
+      { aptitude: 'perception', weight: 0.3 },
+      { aptitude: 'persistence', weight: 0.2 },
+      { aptitude: 'riskTaking', weight: -0.15 },
+    ],
+  },
+  hospitality: {
+    id: 'hospitality', label: 'Hospitality', cap: 0.2,
+    weights: [
+      { aptitude: 'sociability', weight: 0.35 },
+      { aptitude: 'cooperation', weight: 0.25 },
+      { aptitude: 'flexibility', weight: 0.25 },
+      { aptitude: 'patience', weight: 0.15 },
+    ],
+  },
+  extraction: {
+    id: 'extraction', label: 'Mining and forestry', cap: 0.2,
+    weights: [
+      { aptitude: 'persistence', weight: 0.35 },
+      { aptitude: 'discipline', weight: 0.25 },
+      { aptitude: 'perception', weight: 0.2 },
+      { aptitude: 'riskTaking', weight: -0.2 },
+    ],
+  },
   /** Deliberately non-genetic: no aptitude weights, so only an acquired mark can move it. */
   conception: {
     id: 'conception', label: 'Conceiving', cap: 0.10,
@@ -240,6 +321,31 @@ export const APTITUDE_ACTIVITIES: Readonly<Record<AptitudeActivityId, AptitudeAc
     marks: [{ mark: 'lucky', weight: 0.50 }],
   },
 } as const;
+
+/** Every job resolves to one existing activity profile; unemployment has no trade aptitude.
+ * This is a mapping only, not a second weight registry or persisted attribute.
+ */
+export const JOB_APTITUDE_ACTIVITIES = {
+  settler: undefined,
+  farmer: 'routineWork',
+  lumberjack: 'extraction',
+  miner: 'extraction',
+  blacksmith: 'craftWork',
+  merchant: 'commerce',
+  teacher: 'apprenticeshipTraining',
+  doctor: 'medicine',
+  official: 'administration',
+  priest: 'pastoralCare',
+  gravekeeper: 'pastoralCare',
+  hunter: 'hunting',
+  fisher: 'fishingWork',
+  builder: 'construction',
+  guard: 'defense',
+  soldier: 'defense',
+  prison_guard: 'defense',
+  innkeeper: 'hospitality',
+  hotelier: 'hospitality',
+} as const satisfies Readonly<Record<JobType, AptitudeActivityId | undefined>>;
 
 /** The typed activity IDs in canonical order; the coverage test enumerates this. */
 export const APTITUDE_ACTIVITY_IDS = Object.freeze(Object.keys(APTITUDE_ACTIVITIES) as AptitudeActivityId[]);
@@ -251,17 +357,25 @@ export const APTITUDE_ACTIVITY_OWNERS: Readonly<Record<AptitudeActivityId, strin
   conflict: 'src/game/relationships.ts',
   learning: 'src/game/education.ts',
   research: 'src/game/education.ts',
-  apprenticeshipTraining: 'src/game/apprenticeships.ts',
-  routineWork: 'src/game/skills.ts',
-  construction: 'src/game/skills.ts',
+  apprenticeshipTraining: 'src/game/careers/workerFit.ts',
+  routineWork: 'src/game/careers/workerFit.ts',
+  construction: 'src/game/careers/workerFit.ts',
   labor: 'src/game/simulation/humanPhysiology.ts',
   hunting: 'src/game/humanHuntingBehavior.ts',
   pursuit: 'src/game/humanHuntingBehavior.ts',
   escape: 'src/game/humanTick.ts',
   defense: 'src/game/militiaBalance.ts',
-  courtship: 'src/game/humanTick.ts',
+  courtship: 'src/game/simulation/humanRelationships.ts',
   company: 'src/game/socialLife.ts',
   bereavement: 'src/game/humanLifecycleCleanup.ts',
   communityReaction: 'src/game/raidAftermath.ts',
   conception: 'src/game/simulation/humanRelationships.ts',
+  craftWork: 'src/game/careers/workerFit.ts',
+  commerce: 'src/game/careers/workerFit.ts',
+  medicine: 'src/game/careers/workerFit.ts',
+  administration: 'src/game/careers/workerFit.ts',
+  pastoralCare: 'src/game/careers/workerFit.ts',
+  fishingWork: 'src/game/careers/workerFit.ts',
+  hospitality: 'src/game/careers/workerFit.ts',
+  extraction: 'src/game/careers/workerFit.ts',
 };

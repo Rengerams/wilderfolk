@@ -14,6 +14,8 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import { readSkill, rewardProductionSkills, WORK_SKILL_BUILDING_TYPES, WORK_SKILL_PER_SHIFT } from '../src/game/skills';
 import { getWorkSchedule, getWorkScheduleHours } from '../src/game/workSchedule';
 
+import { genomeFrom } from './helpers/genome';
+
 const FIXTURE_SEED = 20_261_009;
 const SITE_ID = 20_000;
 /** With no storage buildings the daily recompute owns the wood cap: `updateStorageCaps` gives 800. */
@@ -51,6 +53,7 @@ function staffedWorld(
   const worker = state.entities.find((e) => e.alive && isPlayerHuman(e));
   expect(worker, 'fixture premise: the colony starts with a settler').toBeTruthy();
   worker!.faction = undefined;
+  worker!.genomeV2 = genomeFrom();
   worker!.workerBuildingId = options.completed === false ? undefined : SITE_ID;
   worker!.job = job;
   // The shift is settled before the daily layer reads attendance, so the fixture states it directly.

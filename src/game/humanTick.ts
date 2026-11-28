@@ -7,6 +7,7 @@ import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import { getChurchStrength } from './workforce';
+import { getJobForBuilding } from './skills';
 import { resolveShift, resolveWorkPresence } from './workAbsence';
 import { isPrisonerInCell } from './prisonShifts';
 import { buildConstructionCrewIndex, resolveHumanWorkplace } from './workforceSummary';
@@ -703,7 +704,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const attendedJob = apprenticeSite
         ? (BUILDING_JOB_TYPES[apprenticeSite.type] ?? JobType.Settler)
         : workplace && !workplace.completed
-          ? (BUILDING_JOB_TYPES[workplace.type] ?? JobType.Builder)
+          ? getJobForBuilding(workplace.type, 'construction')
           : (entity.job ?? null);
       recordScheduleWorkTick(entity, 1, workplace?.id, attendedJob);
       if (workPresence != null) {
