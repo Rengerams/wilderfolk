@@ -7,11 +7,10 @@ import { Relationship } from './gameConstants';
 import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
-import { getChurchStrength, findHumanWorkplace } from './workforce';
+import { getChurchStrength } from './workforce';
 import { resolveShift } from './workAbsence';
 import { isPrisonerInCell } from './prisonShifts';
-import { buildConstructionCrewIndex } from './workforceSummary';
-import { getApprenticeTrainingSite } from './apprenticeships';
+import { buildConstructionCrewIndex, resolveHumanWorkplace } from './workforceSummary';
 
 import { isPlayerHuman } from './playerHuman';
 import { deterministicCos, deterministicSin } from './simTrig';
@@ -298,7 +297,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const isTick8 = hourOfDay === 8 && isStartOfClockHour(state.tick);
 
   const constructionByWorkerId = buildConstructionCrewIndex(updatedBuildings);
-  const workplaceOpts = { buildingById, constructionByWorkerId };
+  const workplaceOpts = { buildingById, constructionByWorkerId, entityById };
   const allHumans: Entity[] = [];
   const humanIds = new Set<number>();
 
@@ -551,9 +550,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    const regularWorkplace = findHumanWorkplace(entity, updatedBuildings, workplaceOpts);
-    const apprenticeSite = regularWorkplace ? null : getApprenticeTrainingSite(entity, entityById, buildingById);
-    const workplace = regularWorkplace ?? apprenticeSite ?? undefined;
+    const { workplace, trainingSite: apprenticeSite } = resolveHumanWorkplace(entity, updatedBuildings, allHumans, workplaceOpts);
     const isInnkeeper =
       entity.job === JobType.Innkeeper && workplace?.type === BuildingType.Tavern && workplace.completed;
 

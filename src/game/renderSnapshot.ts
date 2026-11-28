@@ -16,7 +16,7 @@ import { getEcosystemHealth } from './dailyEcology';
 import { getTerrainRevision } from './terrain/terrainGrid';
 import { isPlayerHuman } from './playerHuman';
 import { isAssignableHome, isImprisoned } from './housingModel';
-import { findHumanWorkplace } from './workforce';
+import { resolveHumanWorkplace } from './workforceSummary';
 
 /**
  * A shared, frozen by-type table for the SoA render path, which never reads `snapshot.entityByType`;
@@ -40,7 +40,7 @@ export function resolveSelectedSettlerBuildings(
 ): SelectedSettlerBuildings | null {
   if (!selected?.alive || !isPlayerHuman(selected) || isImprisoned(selected)) return null;
   const home = resolveBuilding(world, selected.residenceBuildingId ?? null);
-  const work = findHumanWorkplace(selected, world.buildings ?? []) ?? null;
+  const work = resolveHumanWorkplace(selected, world.buildings ?? [], world.entities ?? []).workplace ?? null;
   return { home: home && isAssignableHome(home) ? home : null, work };
 }
 

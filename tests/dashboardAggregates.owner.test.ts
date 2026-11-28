@@ -119,7 +119,8 @@ describe('A7 — the village labour counters have one aggregator', () => {
   it('reports a workforce denominator that prisoners do not dilute', () => {
     const worker = settler(1, { job: JobType.Farmer, workerBuildingId: 7 } as Partial<Entity>);
     const prisoner = settler(2, { prisonBuildingId: 9 } as Partial<Entity>);
-    const state = world({ entities: [worker, prisoner], humanPopulation: 2 });
+    const farm: Building = { ...constructionSite(worker.id), id: 7, completed: true };
+    const state = world({ entities: [worker, prisoner], buildings: [farm], humanPopulation: 2 });
 
     const stats = computeVillageStats(state);
     expect(stats.adults).toBe(2);
@@ -128,6 +129,16 @@ describe('A7 — the village labour counters have one aggregator', () => {
     // Working and idle partition the workforce, so a fully employed free colony reads 100%.
     expect(stats.working + stats.idle).toBe(stats.workforce);
     expect(Math.round((stats.working / stats.workforce) * 100)).toBe(100);
+  });
+
+  it('does not count a demolished or nonexistent workplace pointer as employment', () => {
+    const worker = settler(1, { job: JobType.Farmer, workerBuildingId: 7 });
+    const state = world({ entities: [worker], humanPopulation: 1 });
+    expect(computeVillageStats(state)).toMatchObject({ workforce: 1, working: 0, idle: 1 });
+    expect(computeCitizenOverview(state)).toMatchObject({ working: 0, idle: 1 });
+    const dashboard = collectDashboard(state);
+    expect(dashboard.settlers[0]?.noWork).toBe(true);
+    expect(dashboard.concerns.find((c) => c.id === 'idle')).toBeDefined();
   });
 
   it('uses calendar age for adults even when a saved juvenile flag is stale', () => {
