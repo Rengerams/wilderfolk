@@ -211,31 +211,13 @@ describe('an incoming raid whose own fields are unusable is refused by name', ()
   });
 });
 
-describe('a provisions card the shell cannot render is refused by name', () => {
-  it('refuses a card whose choices is not a list', () => {
+describe('retired provisions cards', () => {
+  it('ignores malformed legacy cards rather than rejecting the colony', () => {
     const payload = realPayload();
-    payload.activeVillageRequest = { ...(payload.activeVillageRequest as object), choices: 'accept' };
-
+    payload.activeVillageRequest = { choices: 'accept' };
     const outcome = loadGameFromParsedOutcome(payload);
-
-    expect(outcome.ok).toBe(false);
-    if (outcome.ok) return;
-    expect(outcome.reason).toBe('unrestorable');
-    expect(outcome.detail).toContain('activeVillageRequest');
-  });
-
-  it('refuses a card whose choice has no id, so nothing can be answered', () => {
-    const payload = realPayload();
-    payload.activeVillageRequest = {
-      ...(payload.activeVillageRequest as object),
-      choices: [{ label: 'Accept provisions', detail: 'Pay 20 gold.' }],
-    };
-
-    const outcome = loadGameFromParsedOutcome(payload);
-
-    expect(outcome.ok).toBe(false);
-    if (outcome.ok) return;
-    expect(outcome.detail).toContain('activeVillageRequest');
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) expect(outcome.world.activeVillageRequest).toBeUndefined();
   });
 });
 

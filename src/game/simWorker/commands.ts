@@ -8,7 +8,6 @@ import { isValidHuntingSpotPrey } from '../huntingSpots';
 import type { BuildingRotation } from '../buildingRotation';
 import { MINE_ORES, type MineMode } from '../buildings';
 import { MAX_STRIP_SEGMENTS, type StripSegment } from '../stripBuild';
-import { VISITOR_TRADE_COSTS, type VisitorTradeAction, type RefugeeChoice, type VillageRequestChoiceId, resolveVillageRequest, talkToVisitorLeader, tradeWithVisitors, negotiateRefugees } from '../groupEvents';
 import { sendRivalGift, establishRivalTradePact, showStrengthToRival, signPeaceTreaty, respondToDiplomacyEvent } from '../rivalDiplomacy';
 import { setWorkSchedule, validateWorkSchedule } from '../workSchedule';
 import { setVenueSchedule, validateVenueSchedule, type VenueScheduleKind } from '../venueSchedule';
@@ -75,11 +74,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'respondToDiplomacyEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'respondToStoryEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'startGuidedCampaign' }
-  | { proto: 1; op: 'talkToVisitorLeader'; groupId: string }
-  | { proto: 1; op: 'tradeWithVisitors'; groupId: string; action: VisitorTradeAction }
-  | { proto: 1; op: 'resolveVillageRequest'; requestId: string; choice: VillageRequestChoiceId }
   | { proto: 1; op: 'deliverVisitorQuest' }
-  | { proto: 1; op: 'negotiateRefugees'; groupId: string; choice: RefugeeChoice }
   | { proto: 1; op: 'sendRivalGift'; rivalId: string }
   | { proto: 1; op: 'establishRivalTradePact'; rivalId: string }
   | { proto: 1; op: 'showStrengthToRival'; rivalId: string }
@@ -124,11 +119,7 @@ const WORKER_COMMAND_OPS = [
   'respondToDiplomacyEvent',
   'respondToStoryEvent',
   'startGuidedCampaign',
-  'talkToVisitorLeader',
-  'tradeWithVisitors',
-  'resolveVillageRequest',
   'deliverVisitorQuest',
-  'negotiateRefugees',
   'sendRivalGift',
   'establishRivalTradePact',
   'showStrengthToRival',
@@ -163,19 +154,6 @@ function getForgeOrderIds(): Set<string> {
   }
   return forgeOrderIdsSet;
 }
-
-let visitorTradeActionsSet: Set<string> | null = null;
-function getVisitorTradeActions(): Set<string> {
-  if (!visitorTradeActionsSet) {
-    visitorTradeActionsSet = new Set<string>(
-      VISITOR_TRADE_COSTS && typeof VISITOR_TRADE_COSTS === 'object' ? Object.keys(VISITOR_TRADE_COSTS) : [],
-    );
-  }
-  return visitorTradeActionsSet;
-}
-
-const REFUGEE_CHOICES = new Set<string>(['welcome', 'screen', 'turn_away']);
-const VILLAGE_REQUEST_CHOICES = new Set<string>(['accept', 'decline']);
 
 function isBuildingRotation(value: unknown): value is BuildingRotation {
   return value === 0 || value === 90 || value === 180 || value === 270;
@@ -271,16 +249,8 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
       return true;
     case 'startGuidedCampaign':
       return true;
-    case 'talkToVisitorLeader':
-      return isNonEmptyString(cmd.groupId);
-    case 'tradeWithVisitors':
-      return isNonEmptyString(cmd.groupId) && typeof cmd.action === 'string' && getVisitorTradeActions().has(cmd.action);
-    case 'resolveVillageRequest':
-      return isNonEmptyString(cmd.requestId) && typeof cmd.choice === 'string' && VILLAGE_REQUEST_CHOICES.has(cmd.choice);
     case 'deliverVisitorQuest':
       return true;
-    case 'negotiateRefugees':
-      return isNonEmptyString(cmd.groupId) && typeof cmd.choice === 'string' && REFUGEE_CHOICES.has(cmd.choice);
     case 'sendRivalGift':
     case 'establishRivalTradePact':
     case 'showStrengthToRival':
@@ -370,12 +340,6 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand, owners
       return world;
     case 'respondToDiplomacyEvent':
       return respondToDiplomacyEvent(world, cmd.eventId, cmd.choiceId);
-    case 'talkToVisitorLeader':
-      return talkToVisitorLeader(world, cmd.groupId);
-    case 'tradeWithVisitors':
-      return tradeWithVisitors(world, cmd.groupId, cmd.action);
-    case 'resolveVillageRequest':
-      return resolveVillageRequest(world, cmd.requestId, cmd.choice);
     case 'deliverVisitorQuest': {
       const done = deliverVisitorQuest(world);
       if (done) {
@@ -395,8 +359,6 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand, owners
       }
       return world;
     }
-    case 'negotiateRefugees':
-      return negotiateRefugees(world, cmd.groupId, cmd.choice);
     case 'sendRivalGift':
       return sendRivalGift(world, cmd.rivalId);
     case 'establishRivalTradePact':

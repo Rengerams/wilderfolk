@@ -77,7 +77,6 @@ export type DecisionKey =
   | 'herdMemory'
   | 'wildlifePredation'
   | 'wildlifeReplenishment'
-  | 'villageRequests'
   | 'inventionFair'
   | 'authoredStoryExpiry'
   | 'rivalStrategy'
@@ -114,7 +113,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/navigation.sharedRoutes.test.ts, tests/commuteRouteEstimate.test.ts, tests/pathfinding.segmentTraversal.test.ts',
   },
   virtualPlayer: {
-    owner: 'virtualPlayer.ts — decideVirtualPlayerAction, findPlacementSpot (existing-road-frontage-first lawful building placement, camp rings only as fallback), decideFood, wantedBootstrapCropSiteCount, needsAdditionalStore, decideIndustry, chooseRefugeeChoice (read-only policy proposals); economyLedger.isMeasuredFoodDeficit owns measured trend, getProjectedFoodSupply/isProjectedFoodShortfall own proactive demand risk',
+    owner: 'virtualPlayer.ts — decideVirtualPlayerAction, findPlacementSpot (existing-road-frontage-first lawful building placement, camp rings only as fallback), decideFood, wantedBootstrapCropSiteCount, needsAdditionalStore, decideIndustry (read-only policy proposals); economyLedger.isMeasuredFoodDeficit owns measured trend, getProjectedFoodSupply/isProjectedFoodShortfall own proactive demand risk',
     cadence: 'on-demand',
     cadenceNote: 'Once per in-game hour when auto-play is enabled; may propose food-production expansion using visible building occupancy and food supply; never queries private staffing eligibility, issues staffing commands or changes workforce policy or focus. Food expansion prefers real getRecentFoodFlow output and a seven-day forecast of population demand over interchangeable building counts, acting before deficits while waiting for visibly empty completed food sites only outside visible food pressure and limiting pending construction; before history exists, a crop-only bootstrap estimate excludes Fishing/Hunting Spot as Farm equivalents. Store expansion uses economy.computeStorageMax material caps at 85% pressure, never low gold or a population-based Store count. Mine tuning prioritizes a sub-80 gold treasury before an iron shortage; both are checked on the same hourly decision path. Housing status reports the occupied plus actually assignable bed capacity, excluding unoccupied reserved Leader\'s House beds. When no House plot is available, decideHousing first proposes safe redundant-site demolition or residence expansion before optional food construction. Actual world writes remain with command and workforce owners; the auto-player only proposes allowed player actions and never decides staffing or changes workforce priorities. The headless scenario command adapter hydrates runtime caches if it adopts a cloned WorldState into the existing shell. Elective community/perimeter/upgrade and optional storage proposals wait while the spare-bed reserve is short; decorative structures stay player-only',
     writes: [],
@@ -540,20 +539,6 @@ export const SIMULATION_DECISIONS = {
     ],
     scheduledFrom: 'tickLayerDaily → migration.tickMigration',
     testFile: 'tests/migration.herds.test.ts, tests/invariants.commute.herd.test.ts',
-  },
-  villageRequests: {
-    owner: 'groupEvents.ts — tickVillageRequests, resolveVillageRequest (ONLY request generation, expiry, and resolution owner)',
-    cadence: 'new-calendar-day',
-    cadenceNote: 'daily generation/expiry; typed player-command delegates into the same owner through commands.ts',
-    writes: [
-      'activeVillageRequest',
-      'villageRequestCooldownUntilDay',
-      'villageRequestHistory',
-      'documented resources/reputation effects',
-      'eventLog/bigNews/floatingTexts',
-    ],
-    scheduledFrom: 'tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → groupEvents.tickVillageRequests; commands.ts "resolveVillageRequest" → groupEvents.resolveVillageRequest',
-    testFile: 'tests/villageRequests.test.ts, tests/workerCommand.roundtrip.test.ts, tests/gameWorker.transport.test.ts',
   },
   rivalStrategy: {
     owner: 'rivalEvents.ts — tickRivalSettlements; rivalProfiles.ts — growth eligibility/cadence and selectRivalDailyAction/applyRivalDailyAction',

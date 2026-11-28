@@ -20,8 +20,6 @@ import type {
   ResearchNode,
   RivalSettlement,
   TradeRoute,
-  VisitorGroup,
-  VisitorQuest,
   WorldMap,
   WorldState,
 } from '../src/game/gameTypes';
@@ -38,7 +36,6 @@ import { assignMissingWorkers } from '../src/game/workforce';
 import { getRepairBuildingEligibility, buildingTypeHasLevelBenefit } from '../src/game/buildingMaintenanceActions';
 import { getForgeBlockReason, isForgeOrderComplete } from '../src/game/forge';
 import { getRecruitSettlerEligibility } from '../src/game/settlerInteractionActions';
-import { getVisitorTradeEligibility } from '../src/game/groupEvents';
 import { TOWN_HALL_FESTIVAL_COST } from '../src/game/townHall';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
@@ -276,23 +273,6 @@ function raidEvent() {
   };
 }
 
-function villageRequest() {
-  return {
-    id: 'vreq_caravan_provisions_traders_1_3',
-    kind: 'caravan_provisions' as const,
-    sourceVisitorGroupId: 'traders_1',
-    sourceName: 'The Salt Road',
-    emoji: '🥣',
-    title: 'Caravan Provisions Offer',
-    description: '',
-    choices: [
-      { id: 'accept' as const, label: 'Accept provisions', detail: '' },
-      { id: 'decline' as const, label: 'Decline politely', detail: '' },
-    ],
-    expiresDay: 6,
-  };
-}
-
 /** The in-game hour the bot may recruit a settler (see `VirtualPlayer`). */
 const RECRUIT_MORNING_TICK = 9 * TICKS_PER_HOUR;
 
@@ -309,44 +289,6 @@ function rival(overrides: Partial<RivalSettlement> = {}): RivalSettlement {
     daysUntilAction: 10,
     raidCooldownDays: 0,
     peaceTreatyDays: 0,
-    ...overrides,
-  };
-}
-
-/** A visitor camp standing next to the village. */
-function visitorGroup(overrides: Partial<VisitorGroup> = {}): VisitorGroup {
-  return {
-    id: 'visitors_traders_1',
-    name: 'The Salt Road',
-    kind: 'traders',
-    entityIds: [],
-    campX: CAMP_X + 60,
-    campY: CAMP_Y + 60,
-    daysLeft: 3,
-    giftsGiven: 0,
-    tradesCompleted: 0,
-    gold: 200,
-    refugeeResolved: false,
-    leaderTalked: false,
-    ...overrides,
-  };
-}
-
-/** The traveling smith's deliver quest, as `maybeStartVisitorQuest` writes it. */
-function visitorQuest(overrides: Partial<VisitorQuest> = {}): VisitorQuest {
-  return {
-    id: 'smith_wood',
-    emoji: '⚒️',
-    title: 'The traveling smith',
-    description: '',
-    goalType: 'deliver',
-    goalResource: 'wood',
-    goalAmount: 20,
-    progress: 0,
-    status: 'active',
-    rewardGold: 30,
-    rewardReputation: 4,
-    expiresDay: 5,
     ...overrides,
   };
 }
@@ -750,31 +692,6 @@ describe('virtual player decision engine', () => {
       eventId: 'story_7',
       choiceId: 'shelter_them',
     });
-  });
-
-  it('answers an active Village Request with the request own id', () => {
-    const request = villageRequest();
-
-    const affordable = makeWorld([human(1)], [], { activeVillageRequest: request });
-    expect(decideVirtualPlayerAction(affordable)!.command).toEqual({
-      proto: WORKER_CMD_PROTO,
-      op: 'resolveVillageRequest',
-      requestId: request.id,
-      choice: 'accept',
-    });
-
-    const broke = makeWorld([human(1)], [], {
-      activeVillageRequest: request,
-      resources: { wood: 500, stone: 500, food: 500, gold: 5, iron: 0 },
-    });
-    const decision = decideVirtualPlayerAction(broke)!;
-    expect(decision.command).toEqual({
-      proto: WORKER_CMD_PROTO,
-      op: 'resolveVillageRequest',
-      requestId: request.id,
-      choice: 'decline',
-    });
-    expect(decision.reason).toContain('decline');
   });
 
   it('does not repeatedly enable Auto-fill when a workplace already uses it', () => {
@@ -1312,78 +1229,6 @@ describe('virtual player remaining action surface', () => {
     });
   });
 
-  it('speaks with a visitor leader once per visit', () => {
-    const world = settledVillage(2, { visitorGroups: [visitorGroup()] });
-
-    const decision = decideVirtualPlayerAction(world)!;
-
-    expect(decision.command).toMatchObject({ op: 'talkToVisitorLeader', groupId: 'visitors_traders_1' });
-    expect(decision.reason).toContain('The Salt Road');
-
-    const applied = applyWorkerCommand(world, decision.command);
-    expect(applied.visitorGroups[0].leaderTalked).toBe(true);
-    // One audience per visit — the talk step retires itself.
-    expect(decideVirtualPlayerAction(applied)?.command ?? null).not.toMatchObject({
-      op: 'talkToVisitorLeader',
-    });
-  });
-
-  it("delivers the smith's quest when the goods are in store", () => {
-    const world = settledVillage(2, {
-      visitorGroups: [visitorGroup({ leaderTalked: true })],
-      visitorQuest: visitorQuest(),
-    });
-
-    const decision = decideVirtualPlayerAction(world)!;
-
-    expect(decision.command).toEqual({ proto: WORKER_CMD_PROTO, op: 'deliverVisitorQuest' });
-    expect(decision.reason).toContain('The traveling smith');
-
-    const applied = applyWorkerCommand(world, decision.command);
-    expect(applied.visitorQuest?.status).toBe('completed');
-    expect(applied.resources.wood).toBe(480);
-  });
-
-  it('buys food from a caravan when the stores are short', () => {
-    const ids = [1, 2];
-    const world = makeWorld(
-      ids.map((id) => human(id, { residenceBuildingId: 1, workerBuildingId: 2 })),
-      [
-        building(1, BuildingType.House, { occupants: ids }),
-        building(2, BuildingType.LumberMill, { occupants: ids }),
-        // A Farm already on the way, so the food step stands down and the caravan
-        // deal is the next thing the colony can actually do about the shortage.
-        building(3, BuildingType.Farm, { completed: false, constructionProgress: 10 }),
-      ],
-      {
-        resources: { wood: 500, stone: 500, food: 5, gold: 500, iron: 150 },
-        visitorGroups: [visitorGroup({ leaderTalked: true })],
-        // Neutral standing: reputation ≥ 31 keeps trade at the listed price, so the
-        // bought food costs exactly the 25 gold the caravan asks.
-        villageReputation: 50,
-      },
-    );
-
-    // An already-staffed Farm leaves the emergency caravan trade as the next action.
-    world.entities.find((entity) => entity.id === 2)!.workerBuildingId = FARM_ID;
-    world.buildings.find((site) => site.id === FARM_ID)!.occupants = [2];
-    world.buildings.find((site) => site.id === 2)!.occupants = [1];
-
-    const decision = decideVirtualPlayerAction(world)!;
-
-    expect(decision.command).toMatchObject({
-      op: 'tradeWithVisitors',
-      groupId: 'visitors_traders_1',
-      action: 'buy_food',
-    });
-    // The trade owner prices this deal the same way.
-    expect(getVisitorTradeEligibility(world, 'visitors_traders_1', 'buy_food').ok).toBe(true);
-
-    const applied = applyWorkerCommand(world, decision.command);
-    expect(applied.resources.food).toBe(45);
-    expect(applied.resources.gold).toBe(475);
-  });
-
   it('does not mutate job rosters during repeated pure virtual-player decisions', () => {
     const world = makeWorld(
       [
@@ -1847,47 +1692,7 @@ describe('virtual player remaining action surface', () => {
     });
   });
 
-  it('welcomes a refugee camp from a deep larder, and screens one it can only feed', () => {
-    const refugeeGroup = (overrides: Partial<VisitorGroup> = {}) => visitorGroup({
-      id: 'visitors_refugees_1',
-      name: 'The Displaced',
-      kind: 'refugees',
-      entityIds: [31],
-      ...overrides,
-    });
-    const refugeeCamp = { ...human(31), faction: 'visitor' as const, groupId: 'visitors_refugees_1' };
 
-    const deepLarder = settledVillage(2, {
-      visitorGroups: [refugeeGroup()],
-    });
-    deepLarder.entities.push(refugeeCamp as Entity);
-
-    const welcome = decideVirtualPlayerAction(deepLarder)!;
-    expect(welcome.command).toMatchObject({
-      op: 'negotiateRefugees',
-      groupId: 'visitors_refugees_1',
-      choice: 'welcome',
-    });
-    expect(welcome.reason).toContain('beds stand free');
-
-    const joined = applyWorkerCommand(deepLarder, welcome.command);
-    expect(joined.resources.food).toBe(460);
-    expect(joined.entities.find((entity) => entity.id === 31)?.faction).toBeUndefined();
-
-    // 20 food is past the welcome reserve but short of it: screen instead.
-    const shallow = settledVillage(2, {
-      resources: { wood: 500, stone: 500, food: 20, gold: 500, iron: 150 },
-      visitorGroups: [refugeeGroup({ id: 'visitors_refugees_2' })],
-    });
-    shallow.entities.push({ ...refugeeCamp, groupId: 'visitors_refugees_2' } as Entity);
-
-    const screen = decideVirtualPlayerAction(shallow)!;
-    expect(screen.command).toMatchObject({
-      op: 'negotiateRefugees',
-      groupId: 'visitors_refugees_2',
-      choice: 'screen',
-    });
-  });
 });
 
 describe('virtual player opening on a real colony', () => {

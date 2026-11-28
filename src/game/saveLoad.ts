@@ -974,9 +974,6 @@ function findUnrestorableField(parsed: Record<string, unknown>): string | null {
   if (parsed.lifetimeStats !== undefined && !isSaveObject(parsed.lifetimeStats)) {
     return 'lifetimeStats';
   }
-  if (parsed.activeVillageRequest !== undefined && !isUsableVillageRequest(parsed.activeVillageRequest)) {
-    return 'activeVillageRequest';
-  }
   // Present values must satisfy their own rule; absent ones are defaulted by the load path.
   for (const { field, isValid } of worldScalarRules()) {
     if (parsed[field] !== undefined && !isValid(parsed[field])) return field;
@@ -1340,24 +1337,6 @@ function findUnrestorableEntityField(parsed: Record<string, unknown>): string | 
 }
 
 /**
- * The shape `groupEvents.spawnVisitorGroup` gives a provisions card's answers: an id, a label and a
- * detail, all strings. The card is not a container element, so it gets its own rule.
- */
-function isVillageRequestChoice(value: unknown): boolean {
-  if (!isSaveObject(value)) return false;
-  const fields = value as Record<string, unknown>;
-  return [fields.id, fields.label, fields.detail].every((field) => typeof field === 'string');
-}
-
-/**
- * The one save field whose reader is a render-time call: `getVillageRequestEligibility` walks
- * `request.choices` while the card paints, so a present card must have a usable `choices` array.
- */
-function isUsableVillageRequest(value: unknown): boolean {
-  return isSaveObject(value) && Array.isArray(value.choices) && value.choices.every(isVillageRequestChoice);
-}
-
-/**
  * Clear every reference a loaded colony cannot resolve. A dangling `partnerId` is worse than a crash:
  * a "married" settler who never widows or divorces is excluded from courtship by it, permanently.
  */
@@ -1558,8 +1537,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       // On-map visitor camps are retired. Old saves keep their strategic rivals and raids.
       visitorGroups: [],
       visitorQuest: undefined,
-      activeVillageRequest: worldData.activeVillageRequest?.sourceVisitorGroupId
-        ? undefined : worldData.activeVillageRequest,
+      activeVillageRequest: undefined,
       rivalSettlements: (worldData.rivalSettlements ?? []).map((r) => ({
         ...r,
         raidCooldownDays: r.raidCooldownDays ?? 30,

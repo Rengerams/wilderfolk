@@ -344,7 +344,6 @@ const GUARDS = [
  */
 const SOURCE_ROWS = [
   { id: 'terrain-fill-single-stamp', checks: [{ file: 'src/game/terrainLayer.ts', region: [{ from: 'function drawTerrainFill(', to: 'type Cardinal', counts: [{ needle: 'drawImage(', times: 1 }] }] }] },
-  { id: "visitor-trade-formatter-owner", checks: [{ file: "src/game/groupEvents.ts", contains: "formatResourceAmounts(received)", notMatches: /receivedLabel\s*=\s*`\+\$\{added\}/, example: "receivedLabel = `+${added}`;" }] },
   { id: "yearly-marriage-statistics-owner", checks: [{ file: "src/game/stats.ts", contains: "filter(isMarriedOrExpecting)", notMatches: /relationshipStatus\s*===\s*'married'/, example: "relationshipStatus === 'married'" }] },
   { id: "active-marriage-predicate-single-owner", scan: { dir: "src", ext: [".ts", ".tsx"], except: ["src/game/relationships.ts"], notMatches: /function isActivelyMarried\s*\(/, example: "function isActivelyMarried(", minFiles: 1 } },
   { id: "marriage-status-read-owner", scan: { dir: "src", ext: [".ts", ".tsx"], except: ["src/game/relationships.ts"], notMatches: /relationshipStatus\s*(===|!==|==|!=)\s*'married'/, example: "relationshipStatus === 'married'", minFiles: 1 } },
@@ -1324,6 +1323,10 @@ const SOURCE_ROWS = [
           'export function tryMidYearVisitorEvent(',
           'export function tryFirstWeekVisitor(',
           'export function hitTestCamp(',
+          'export function tickVillageRequests(',
+          'export function tradeWithVisitors(',
+          'export function negotiateRefugees(',
+          'export function talkToVisitorLeader(',
         ],
         example: 'export function spawnVisitorGroup(',
       },

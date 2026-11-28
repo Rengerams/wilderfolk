@@ -30,9 +30,6 @@ import {
   storyChoiceReasonCode,
 } from './game/actionOutcome';
 import { getStoryChoiceEligibility } from './game/storyEvents';
-// The village-request card's gate lives with the command that answers it (`resolveVillageRequest`),
-// not in the `gameEngine` barrel, so it is imported from its owner directly.
-import { getVillageRequestEligibility } from './game/groupEvents';
 import { getDiplomacyChoiceEligibility } from './game/rivalDiplomacy';
 import type { WorldState } from './game/gameEngine';
 import { PLAYABLE_SPEEDS } from './game/gameConstants';
@@ -71,7 +68,6 @@ const IntroScreen = lazyWithRetry(() => import('./game/IntroScreen'));
 const MapSetupScreen = lazyWithRetry(() => import('./game/MapSetupScreen'));
 const CombatPreviewPanel = lazyWithRetry(() => import('./game/CombatPreviewPanel'));
 import ActiveEventBanner from './components/ActiveEventBanner';
-import VillageRequestCard from './components/VillageRequestCard';
 import BigNewsBanner from './components/BigNewsBanner';
 import ShortcutsOverlay from './components/ShortcutsOverlay';
 import GameDashboard from './components/dashboard/GameDashboard';
@@ -1464,16 +1460,8 @@ export default function App() {
   // The modal is the sole active presentation of its own raid; other banners stay available.
   const visibleOutgoingRaids = pendingOutgoingRaids.filter((event) => event.id !== battleReport?.raidId);
   const visibleIncomingRaids = pendingRaids.filter((event) => event.id !== battleReport?.raidId);
-  const activeVillageRequest = world.activeVillageRequest;
-  const showVillageRequest = !!(
-    activeVillageRequest
-    && pendingDiplomacy.length === 0
-    && pendingRaids.length === 0
-    && pendingOutgoingRaids.length === 0
-  );
   const showActiveEventBanner = !!(
     activeEventForBanner
-    && !showVillageRequest
     && pendingDiplomacy.length === 0
     && pendingRaids.length === 0
   );
@@ -2158,22 +2146,6 @@ export default function App() {
         The authored decision cards below stack in one flow column; pinning each to `top-4` let a
         later diplomacy card paint over a story card's title and choices.
       */}
-      {showVillageRequest && activeVillageRequest && (
-        <VillageRequestCard
-          request={activeVillageRequest}
-          // The owner's refusal reason, so an unaffordable offer renders disabled instead of failing open.
-          acceptBlockedReason={
-            getVillageRequestEligibility(world, activeVillageRequest, 'accept').blockReason ?? null
-          }
-          onResolve={(requestId, choice) => applyGameAction({
-            proto: 1,
-            op: 'resolveVillageRequest',
-            requestId,
-            choice,
-          })}
-        />
-      )}
-
       {showActiveEventBanner && activeEventForBanner && (
         <ActiveEventBanner event={activeEventForBanner} onDismiss={dismissActiveEvent} />
       )}
@@ -2181,7 +2153,7 @@ export default function App() {
       {activeBigNews.length > 0 && (
         <BigNewsBanner
           news={activeBigNews}
-          displaced={showActiveEventBanner || showVillageRequest}
+          displaced={showActiveEventBanner}
           onDismiss={dismissBigNewsItem}
         />
       )}
