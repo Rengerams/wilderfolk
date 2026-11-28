@@ -673,7 +673,7 @@ export const SIMULATION_DECISIONS = {
       'eventLog/title (Moonslayer)',
     ],
     scheduledFrom: 'tickLayerRealtime.ts → tickMoonHowlerCycle (22:00 on full-moon day through next-day 06:00; form ends at 06:00)',
-    testFile: 'tests/moonHowler.test.ts, tests/low-3-moon-lifecycle.test.ts, tests/medium-persistence.test.ts',
+    testFile: 'tests/moonHowler.test.ts, tests/low-3-moon-lifecycle.test.ts',
   },
   leadership: {
     owner: 'leaderHouse.ts — syncLeaderHouseResidency, applyLeaderOccupation; election and scoring: villageLeadership.ts — getLeadershipScoreBreakdown (real recorded workdays, two strongest trades, restrained family prestige, social trust, battle/campaign record), tickElectionBuildup, tryStartTermElectionCeremony, tryStartVacancyElectionCeremony, tickElectionCeremony, tickElectionGossip, creditedCeremonyBallot; dailyWorldEvents.ts — tickYearBoundaryWorldEvents (midnight scheduling), tickDailyWorldEvents (18:00 vacancy scheduling); ceremony attendance: villageLeadership.ts — isCeremonyAttendee, getElectionGatherTarget (read-only)',

@@ -536,3 +536,17 @@ describe('duplicate event-log ids are repaired on load', () => {
     expect(world.eventLog[world.eventLog.length - 1].id).toBe(overflow - EVENT_LOG_MAX_ENTRIES + 1);
   });
 });
+
+describe('M26 — Big News ids never collide with ids the world already used', () => {
+  it('continues above a trimmed log and a dismissed id', () => {
+    const state = initGame({ skipTerrain: true, seed: 20240913 });
+    state.bigNews = [
+      { id: 'bn_12', title: 'a', message: 'a', type: 'neutral', createdAt: 0, dismissed: false },
+    ] as unknown as WorldState['bigNews'];
+    state.dismissedBigNewsIds = ['bn_40'];
+
+    addBigNews(state, 'title', 'message');
+
+    expect(state.bigNews[state.bigNews.length - 1].id).toBe('bn_41');
+  });
+});

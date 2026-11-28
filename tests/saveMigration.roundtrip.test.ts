@@ -8,6 +8,7 @@ import { BuildingType, EntityType } from '../src/game/gameTypes';
 import { building } from '../src/test/factories';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
+import { WORLD_STATE_SAVE_KEYS } from '../src/game/saveSchema';
 import { HERD_BASE_SIZE, MIGRATION_WINDOW_DAYS } from '../src/game/migration';
 import { getAbsoluteCalendarDay } from '../src/game/dayCycle';
 
@@ -80,5 +81,28 @@ describe('legacy rival camp save compatibility', () => {
     });
     expect(loaded.buildings.some((item) => item.id === 9001)).toBe(false);
     expect(loaded.appliedSaveMigrations?.filter((id) => id === 'legacy-village-camps')).toHaveLength(1);
+  });
+});
+
+describe('M20/M25/M34 — simulation state round-trips', () => {
+  it('keeps the moon-howler cooldowns, village happiness and chronicle in the save allow-list', () => {
+    for (const key of ['lastMoonHowlerExorcismTick', 'moonHowlerPriestsFleeUntil', 'villageHappiness', 'chronicleChapters']) {
+      expect(WORLD_STATE_SAVE_KEYS).toContain(key);
+    }
+  });
+
+  it('survives a save/load round-trip', () => {
+    const state = initGame({ skipTerrain: true, seed: 20240913 });
+    state.lastMoonHowlerExorcismTick = 1234;
+    state.moonHowlerPriestsFleeUntil = 4321;
+    state.villageHappiness = 73;
+    state.chronicleChapters = ['first_harvest'];
+
+    const loaded = roundTrip(state);
+
+    expect(loaded.lastMoonHowlerExorcismTick).toBe(1234);
+    expect(loaded.moonHowlerPriestsFleeUntil).toBe(4321);
+    expect(loaded.villageHappiness).toBe(73);
+    expect(loaded.chronicleChapters).toEqual(['first_harvest']);
   });
 });

@@ -62,3 +62,20 @@ describe('prep rollback covers what the tick writes (F3/F5)', () => {
     expect(world.scentGrid?.values[0]).toBe(7);
   });
 });
+
+describe('worker prep preserves moon cooldowns and chronicle', () => {
+  it('is carried by the worker prep payload in both directions', () => {
+    const source = initGame({ skipTerrain: true, seed: 20240913 });
+    source.lastMoonHowlerExorcismTick = 555;
+    source.moonHowlerPriestsFleeUntil = 666;
+    source.chronicleChapters = ['a', 'b'];
+
+    const prep = extractSimPrep(source);
+    const target = initGame({ skipTerrain: true, seed: 20240913 });
+    applySimPrep(target, prep);
+
+    expect(target.lastMoonHowlerExorcismTick).toBe(555);
+    expect(target.moonHowlerPriestsFleeUntil).toBe(666);
+    expect(target.chronicleChapters).toEqual(['a', 'b']);
+  });
+});

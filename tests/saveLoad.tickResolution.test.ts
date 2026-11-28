@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
-import { buildSaveData, loadGameFromParsed } from '../src/game/saveLoad';
+import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { createInitialView } from '../src/game/viewState';
-import { EntityType, MapSize, BuildingType } from '../src/game/gameTypes';
+import { EntityType, MapSize, BuildingType, type GameEventLog, type WorldState } from '../src/game/gameTypes';
 import { building } from '../src/test/factories';
 
 describe('save tick-resolution migration', () => {
@@ -105,5 +105,32 @@ describe('save tick-resolution migration', () => {
     const loaded = loadGameFromParsed(payload);
     expect(loaded).not.toBeNull();
     expect(loaded!.world.tick).toBe(world.tick);
+  });
+});
+
+describe('M24 — a legacy day length scales every absolute threshold', () => {
+  it('scales pregnancyDueProgress and pending story-card deadlines with the timeline', () => {
+    const state = initGame({ skipTerrain: true, seed: 20240913 });
+    const mother = state.entities.find((e) => e.type === EntityType.Human)!;
+    mother.pregnant = true;
+    mother.pregnancyDueProgress = 1200;
+    mother.pregnancyProgress = 600;
+    state.pendingStoryEvents = [
+      { id: 'card', storyKey: 'k', title: 't', description: 'd', emoji: '🎭', choices: [], createdAtTick: 100, expiresAtTick: 400 } as unknown as NonNullable<WorldState['pendingStoryEvents']>[number],
+    ];
+
+    const raw = JSON.stringify({ ...buildSaveData(state, createInitialView(state.width, state.height)), _ticksPerDay: 24 });
+    const parsed = parseSaveJson(raw);
+    expect(parsed.valid).toBe(true);
+    if (!parsed.valid || !parsed.parsed) throw new Error('save invalid');
+    const loaded = loadGameFromParsed(parsed.parsed);
+    const scale = TICKS_PER_DAY / 24;
+
+    const loadedMother = loaded!.world.entities.find((e) => e.id === mother.id)!;
+    expect(loadedMother.pregnancyProgress).toBe(Math.round(600 * scale));
+    expect(loadedMother.pregnancyDueProgress).toBe(Math.round(1200 * scale));
+    const card = loaded!.world.pendingStoryEvents?.[0] as unknown as GameEventLog & { createdAtTick: number; expiresAtTick: number };
+    expect(card.createdAtTick).toBe(Math.round(100 * scale));
+    expect(card.expiresAtTick).toBe(Math.round(400 * scale));
   });
 });

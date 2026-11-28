@@ -217,6 +217,10 @@ Retired five mixed suites: `medium-batch2`, `medium-B2-leadership`, `medium-C2-s
 
 Moved all three `medium-N4-campAnchor.test.ts` regressions into `humanTick.hotPathIndexes.test.ts`. Reused the existing settler, building and simulation-context fixtures, with optional building overrides and an explicit hour. Retained the independent anchor oracle, branch pins and both moving/fixed-anchor cases. Registered six previously omitted relocated test helpers and the camp-anchor helpers under their actual owners. The previous head's six workflows passed; this increment awaits CI.
 
+## Persistence and Moon Howler owner consolidation — 2026-11-28
+
+Moved all seven cases from `medium-persistence.test.ts` into Moon Howler (2), Big News value integrity (1), save migration round-trip (2), worker prep fields (1), and tick-resolution migration (1). Reused the canonical round-trip fixture; preserved the original six-adult curse setup and RNG sequence. Registered the relocated adult helper and updated the decision evidence path. All cases remain runtime assertions; CI is pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

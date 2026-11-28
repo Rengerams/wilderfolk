@@ -698,6 +698,7 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/renderer.frameOwnership.test.ts` | `snapshot`, `minimalWorld`, `camera`, `blacksmithBuilding`, `gradientCounter` (frame cache fixtures) |
 | `tests/saveLoad.outcomeReasons.test.ts` | `stubSlot`, `memoryStorage`, `realPayload`, `buildPayload` (shared load-contract fixtures) |
 | `tests/humanTick.hotPathIndexes.test.ts` | `building`, `settler`, `visitorGroup`, `festivalFixture`, `simContext`, `countedBuildings`, `runTick`, `baseSettler`, `throttleSettler`, `house`, `nightWorld`, `contextFor`, `positionOf`, `canonicalCampCenter`, `anchorFixture` (shared tick fixtures, off-screen throttle and camp-anchor regressions) |
+| `tests/moonHowler.test.ts` | `adult` (scoped six-adult per-moon regression fixture) |
 | `tests/inventionFair.simulation.test.ts` | `demoCount`, `advanceDays`, `fundedInventionFair` (funded-fair daily regression fixtures) |
 | `tests/tutorialCampaign.test.ts` | `guidedWorld` (guided tutorial fixture) |
 | `tests/dailyChallenges.rewards.test.ts` | `completedPlayerHouse` (challenge progression fixture) |

@@ -1347,3 +1347,70 @@ describe('Moon Howler night census', () => {
     expect(roster).toBeGreaterThan(1);
   });
 });
+
+describe('M21 — the rare moon-howler roll is a per-moon decision', () => {
+  function adult(id: number): Entity {
+    return {
+      id,
+      type: EntityType.Human,
+      x: 100 + id,
+      y: 100,
+      energy: 200,
+      maxEnergy: 200,
+      age: 30,
+      birthYear: 0,
+      birthMonth: 0,
+      birthDay: 0,
+      maxAge: 90,
+      speed: 2,
+      size: 10,
+      vx: 0,
+      vy: 0,
+      flash: 0,
+      alive: true,
+      gender: id % 2 === 0 ? 'male' : 'female',
+      name: `H${id}`,
+      surname: 'Vale',
+      generation: 1,
+      isJuvenile: false,
+      job: JobType.Settler,
+      childrenIds: [],
+      reproductionCooldown: 0,
+      relationshipStatus: 'single',
+    } as Entity;
+  }
+
+  it('does not roll again on the later ticks of the nightfall hour', () => {
+    const state = initGame({ skipTerrain: true, seed: 20240913 });
+    // Full moon, nightfall, first tick of the hour, six cursable settlers, no active curse.
+    state.tick = DAYS_PER_MOON_CYCLE * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR;
+    const humans = [1, 2, 3, 4, 5, 6].map(adult);
+    state.entities = humans;
+    const entityById = new Map(humans.map((h) => [h.id, h]));
+
+    // First tick fails the 15% roll; the next two ticks would each have passed it.
+    const rolls = [MOON_HOWLER_REPLACEMENT_CHANCE + 0.5, 0, 0];
+    const rng = () => rolls.shift() ?? 0;
+
+    for (let i = 0; i < TICKS_PER_HOUR; i++) {
+      tickMoonHowlerCycle(state, state.entities, [], DAYS_PER_MOON_CYCLE, MOON_HOWLER_NIGHT_START, entityById, undefined, rng);
+      state.tick += 1;
+    }
+
+    expect(state.entities.filter((e) => e.moonHowlerCursed)).toHaveLength(0);
+    // The later ticks must not have consumed a replacement roll at all.
+    expect(rolls).toHaveLength(2);
+  });
+
+  it('still rolls on the first tick of the hour', () => {
+    const state = initGame({ skipTerrain: true, seed: 20240913 });
+    state.tick = DAYS_PER_MOON_CYCLE * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR;
+    const humans = [1, 2, 3, 4, 5, 6].map(adult);
+    state.entities = humans;
+    const entityById = new Map(humans.map((h) => [h.id, h]));
+
+    tickMoonHowlerCycle(state, state.entities, [], DAYS_PER_MOON_CYCLE, MOON_HOWLER_NIGHT_START, entityById, undefined, () => 0);
+
+    expect(state.entities.filter((e) => e.moonHowlerCursed)).toHaveLength(1);
+  });
+});
