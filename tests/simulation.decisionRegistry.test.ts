@@ -72,6 +72,7 @@ const REQUIRED_DECISIONS = [
   'wildkinLineage',
   'moonHowler',
   'leadership',
+  'predatorCombat',
   'raidCombat',
   'outgoingRaidStatus',
   'raidRecovery',

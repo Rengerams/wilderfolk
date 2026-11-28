@@ -2,7 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (28 Nov 2026):** Human relationship, medical, hunting, civic and election decisions read stamina instead of stale legacy energy; consolidate the temporary energy projection including Moon Howler restoration. Remove the obsolete stamina bonus from successful hunts; food yields and hunting injuries are unchanged. Replace the legacy effect bridge and capacity-dependent human thresholds with native stamina points. Predator combat now uses individual duty, equipment, reserves, aptitude and skill; children cannot wield weapons.
+- **Fixed (28 Nov 2026):** Migrate human relationship, medical, hunting, civic and election decisions to stamina; use native stamina effects and thresholds, and centralize the temporary energy mirror including Moon Howler restoration.
+
+- **Fixed (28 Nov 2026):** Remove personal stamina rewards from successful hunts without changing food yield or hunting injuries. Predator combat uses individual duty, equipment, reserves, aptitude and skill; children cannot wield weapons.
 
 - **Fixed (28 Nov 2026):** Children no longer keep following a caregiver during evening/night rosters or continue stale follow/play movement through school or bedtime, including homeless off-screen children; genuinely free-time following remains allowed.
 
