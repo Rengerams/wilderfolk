@@ -15,6 +15,7 @@ import { pickHumanVariant } from './humanSprites';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng } from './simRng';
 import { startPregnancy } from './pregnancy';
+import { isMarriedOrExpecting } from './relationships';
 
 /** Deterministic simulation RNG stream for entity factory creation. */
 function simRandom(): number {
@@ -100,7 +101,7 @@ export function createEntity(
   const surname = isHuman ? (opts?.surname?.trim() || getRandomSurname()) : undefined;
   const maidenSurname =
     isHuman && entGender === 'female'
-      ? opts?.maidenSurname?.trim() || (opts?.partnerId != null || opts?.relationshipStatus === 'married' || opts?.relationshipStatus === 'widowed' ? undefined : surname)
+      ? opts?.maidenSurname?.trim() || (opts?.partnerId != null || isMarriedOrExpecting({ relationshipStatus: opts?.relationshipStatus, partnerId: opts?.partnerId }) || opts?.relationshipStatus === 'widowed' ? undefined : surname)
       : undefined;
 
   // Resolve relationship status
@@ -180,7 +181,7 @@ export function createEntity(
   if (isHuman) {
     // Newborns also need a birth date at their actual colony day.
     const ageYears = opts?.ageYears ?? 0;
-    setHumanBirthFromAge(entity, ageYears, opts?.colonyDay ?? 0);
+    setHumanBirthFromAge(entity, ageYears, opts?.colonyDay ?? 0, undefined, undefined, true);
     if (opts?.pregnant) {
       const fatherId = opts.pregnantById;
       if (fatherId == null) throw new Error('Arriving pregnancy requires a biological father ID');
@@ -207,7 +208,7 @@ export function finalizeSettlerAge(
     entity.age > 0 ? entity.age : HUMAN_ADULT_MIN_AGE + Math.floor(simRandom() * 20),
   );
 
-  setHumanBirthFromAge(entity, targetAge, colonyDay);
+  setHumanBirthFromAge(entity, targetAge, colonyDay, undefined, undefined, true);
 
   // Preserve Generation 1 founders if already set; default unassigned to Generation 2
   entity.generation = entity.generation && entity.generation > 0 ? entity.generation : 2;
