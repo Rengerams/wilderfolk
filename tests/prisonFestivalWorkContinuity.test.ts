@@ -424,6 +424,8 @@ function churchWorld(): { state: WorldState; priest: Entity } {
     residenceBuildingId: 20,
     x: 224,
     y: 81,
+    // Observe ordinary duty without a concurrent meal.
+    needs: { nutrition: 100, rest: 100, stamina: 100, severeHungerTicks: 0 },
   });
   return { state: worldState([priest], [house, church], null), priest };
 }
