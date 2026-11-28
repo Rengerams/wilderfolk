@@ -4,7 +4,7 @@
  */
 import { readdirSync, readFileSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { getDecisionRows, validateRegistry, validateEntrypointSymbols } from './ownership-registry.mjs';
+import { getDecisionRows, verifyOwnershipRegistry } from './ownership-registry.mjs';
 
 const ROOT = process.cwd();
 const SRC = path.resolve(ROOT, 'src');
@@ -756,16 +756,7 @@ function main() {
     // Floors keep a parser regression from passing as "0 unowned": an empty or truncated index would
     // otherwise satisfy every per-function check vacuously.
     const OWNERSHIP_FLOORS = { files: 380, functions: 3200, explicitEntries: 1400 };
-    const external = [...new Set(registry.flatMap(row => row.entrypoints.map(ref => ref.module)).filter(file => file.startsWith('scripts/')))];
-    const metadataFailures = validateRegistry(registry, ROOT);
-    const externalFunctions = external.flatMap(file => {
-      try {
-        const full = path.resolve(ROOT, file);
-        const raw = readFileSync(full, 'utf8');
-        return extractDefinitions(stripLiteralsAndComments(raw), raw, full);
-      } catch { return []; }
-    });
-    const failures = [...metadataFailures, ...validateEntrypointSymbols(registry, [...functions, ...externalFunctions])];
+    const failures = verifyOwnershipRegistry(registry, ROOT);
     if (payload.unregistered.length) {
       console.error('Unregistered functions:', payload.unregistered.slice(0, 100));
       failures.push(`${payload.unregistered.length} function(s) without any recorded owner`);
