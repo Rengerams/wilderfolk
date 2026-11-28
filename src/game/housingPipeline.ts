@@ -1543,24 +1543,24 @@ export function ensureOrphanAdoption(
   const existing = siblings.map((sibling) => livingAdoptiveCustodian(sibling, guardianPool)).find((guardian) => !!guardian);
   const couples = listVillageCouples(guardianPool);
   const singles = listVillageSingleAdults(guardianPool).sort((a, b) => a.id - b.id);
-  const guardianHousehold = (guardian: Entity): Entity[] => [...new Map([...collectMinorHousehold(guardian, alive), ...alive.filter((member) =>
-      member.age < HUMAN_ADULT_MIN_AGE && member.partnerId == null
+  // Use the same live household for ranking and capacity; forward parent links also
+  // cover dependents whose reverse childrenIds projection has not been rebuilt yet.
+  const guardianHousehold = (guardian: Entity): Entity[] => [...new Map([
+    ...collectMinorHousehold(guardian, alive),
+    ...alive.filter((member) => member.age < HUMAN_ADULT_MIN_AGE && member.partnerId == null
       && [member.motherId, member.fatherId, member.adoptiveMotherId, member.adoptiveFatherId]
-        .some((id) => id != null && (id === guardian.id || id === guardian.partnerId))), ...siblings]
-    .map((member) => [member.id, member])).values()];
+        .some((id) => id != null && (id === guardian.id || id === guardian.partnerId))),
+  ].map((member) => [member.id, member])).values()];
+  const adoptionHousehold = (guardian: Entity): Entity[] => [...new Map([
+    ...guardianHousehold(guardian), ...siblings,
+  ].map((member) => [member.id, member])).values()];
   const canHouse = (guardian: Entity, currentOnly = false): boolean => {
-    const household = guardianHousehold(guardian);
+    const household = adoptionHousehold(guardian);
     const candidates = currentOnly ? residences.filter((home) => home.id === guardian.residenceBuildingId) : residences;
     return pickResidenceForFamily(household, residents, candidates, occupancy, traits) !== undefined;
   };
-  // Count live dependents from their authoritative parent links as well as the household
-  // projection: a stale reverse childrenIds list must not make a guardian look childless.
-  const dependentCount = (guardian: Entity): number => {
-    const ids = new Set([guardian.id, guardian.partnerId]);
-    return alive.filter((member) => member.age < HUMAN_ADULT_MIN_AGE && member.partnerId == null
-      && [member.motherId, member.fatherId, member.adoptiveMotherId, member.adoptiveFatherId]
-        .some((id) => id != null && ids.has(id))).length;
-  };
+  const dependentCount = (guardian: Entity): number => guardianHousehold(guardian)
+    .filter((member) => member.id !== guardian.id && member.id !== guardian.partnerId).length;
   const rankedCouples = couples.map((candidate) => candidate.partnerA)
     .sort((a, b) => dependentCount(a) - dependentCount(b) || a.id - b.id);
   const rankedSingles = singles.sort((a, b) => dependentCount(a) - dependentCount(b) || a.id - b.id);
@@ -1579,7 +1579,7 @@ export function ensureOrphanAdoption(
   }
   const partner = findLivingHuman(alive, guardian.partnerId);
   const guardians = [guardian, partner].filter((human): human is Entity => !!human);
-  const household = guardianHousehold(guardian);
+  const household = adoptionHousehold(guardian);
   const context = standaloneMoveContext(residents, residences, occupancy, traits, ledger);
   const plan = planRelocation(household, 'custody', context);
   if (!plan.move && !plan.settled) return false;
