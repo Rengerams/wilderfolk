@@ -404,7 +404,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: 'Weighted occupied buildable land replaces building-count penalties. Industrial emissions use witnessed work attendance and industrial type; pollution scales with map area and forestry research. Completed preserve bonuses are capped; immutable settled inputs explain the recorded score. Settlement runs at 18:00 after normal production or 23:00 after deferred production and before construction; the stage owner consumes those same metrics once.',
     writes: ['ecosystemHealth', 'pollutionLevel', 'biodiversityIndex', 'settledEcology', 'ecologySettlementPending', 'pendingEcosystemHealthDelta', 'pendingPollutionDelta', 'valleyStage', 'valleyStageSinceDay', 'valleyRawStressStreakDays', 'valleyRawCalmStreakDays', 'valleyLastStageNotifyDay', 'eventLog', 'notifications', 'bigNews'],
     scheduledFrom: 'tickLayerDaily → dailyWorldEvents.settleDailyEcology (18:00 via tickDailyWorldEvents or 23:00 deferred) → tickEcosystemMetrics / tickValleyEcologyStage',
-    testFile: 'tests/dailyEcology.pollutionGrading.test.ts, tests/medium-C2-story.test.ts, tests/ecologyStoryDelta.survivesRecompute.test.ts, tests/production.attendancePacing.test.ts',
+    testFile: 'tests/dailyEcology.pollutionGrading.test.ts, tests/medium-C2-story.test.ts, tests/ecologyStoryDelta.survivesRecompute.test.ts, tests/production.attendancePacing.test.ts, tests/medium-persistence.test.ts',
   },
   humanMortality: {
     owner: 'humanRelationships.tryDailyHumanMortality — daily age and sudden-illness roll; hospitalCare.getPreventiveCareMortalityMultiplier — preventive care capacity; dayCycle.killHuman — death transition',
