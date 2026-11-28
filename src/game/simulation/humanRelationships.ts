@@ -215,7 +215,7 @@ function findAffairLover(
   return isValidAffairTarget(entity, lover, tick) ? lover : undefined;
 }
 
-export function isSpouseNearby(entity: Entity, entityById: Map<number, Entity>, range = 52): boolean {
+function isSpouseNearby(entity: Entity, entityById: Map<number, Entity>, range = 52): boolean {
   const spouse = getLivingEntity(entity.partnerId, entityById);
   if (!spouse) return false;
   const dx = spouse.x - entity.x;

@@ -1611,18 +1611,18 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !isMaritalHomeOccupiedBySpouse(entity, entityById, buildingById, AFFAIR_SPOUSE_BLOCK_RADIUS)
     ) {
       const lover = livingHumanAt(entity.affairPartnerId);
-      if (lover?.alive && (canMeetAffair(lover) || (isNightHour(hourOfDay) && overnightTrystIds.has(entity.id)))) {
+      if (lover?.alive) {
         const trystTarget = getAffairTrystTarget(entity, lover, entityById, buildingById);
         const dist = Math.hypot(trystTarget.x - entity.x, trystTarget.y - entity.y) || 1;
         const tryst = isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_INTIMATE_RADIUS);
         const site = tryst ? getAffairTrystBuilding(entity, lover, entityById, buildingById) : undefined;
         const overnight = !!site && isNightHour(hourOfDay) && !onDutyForSleep
           && !preShiftSleep.headHome && !takingNeedsBreak && (!recoveringSleep || sleepingForNeeds);
-        if (availableForAffair && !tryst && dist > 14) {
+        if (availableForAffair && !tryst && dist > 14 && canMeetAffair(lover)) {
           entity.indoorBuildingId = undefined;
           steerAffairApproach(entity, lover, trystTarget, config.speed * 0.32);
           suppressIdle = true;
-        } else if (tryst && (availableForAffair || overnight)) {
+        } else if (tryst && ((availableForAffair && canMeetAffair(lover)) || overnight)) {
           // Real indoor presence allows the physiology owner to observe sleep on the next tick.
           if (overnight && site) enterHumanBuilding(entity, site);
           tryExposeCaughtAffairForPair(
