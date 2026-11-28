@@ -62,7 +62,7 @@ describe('observed career history', () => {
     marked.scheduleLastWorkedJob = undefined;
     recordScheduleWorkTick(marked, TICKS_PER_HOUR);
     expect(marked.scheduleWorkedTicksToday).toBe(TICKS_PER_HOUR);
-    resolveDailyScheduleFatigue(marked, { workSchedule: { startHour: 8, endHour: 17 } });
+    resolveDailyScheduleFatigue(marked);
     expect(marked.scheduleLastWorkedSiteId).toBe(farm.id);
     expect(marked.scheduleLastWorkedJob).toBe(JobType.Farmer);
     expect(recordCareerWork(marked, farm, JobType.Farmer, 2, marked.scheduleLastWorkedHours!)).toBe(true);
@@ -94,7 +94,7 @@ describe('observed career history', () => {
     h.workerBuildingId = 11;
     recordScheduleWorkTick(h, TICKS_PER_HOUR);
     h.workerBuildingId = 10;
-    resolveDailyScheduleFatigue(h, { workSchedule: { startHour: 8, endHour: 17 } });
+    resolveDailyScheduleFatigue(h);
     expect(h.scheduleLastWorkedHours).toBe(2);
     expect(h.scheduleLastWorkedSiteId).toBe(-1);
     expect(recordCareerWork(h, farm, JobType.Farmer, 0, 2)).toBe(false);
@@ -109,7 +109,7 @@ describe('observed career history', () => {
     h.job = JobType.Hunter;
     recordScheduleWorkTick(h, TICKS_PER_HOUR);
     h.job = JobType.Farmer;
-    resolveDailyScheduleFatigue(h, { workSchedule: { startHour: 8, endHour: 17 } });
+    resolveDailyScheduleFatigue(h);
     expect(h.scheduleLastWorkedSiteId).toBe(10);
     expect(h.scheduleLastWorkedJob).toBeNull();
     expect(recordCareerWork(h, farm, JobType.Farmer, 0, 2)).toBe(false);

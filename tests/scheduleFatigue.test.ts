@@ -12,8 +12,6 @@ import {
 } from '../src/game/scheduleFatigue';
 import { human as settler } from '../src/test/factories';
 
-const state = { workSchedule: { startHour: 7, endHour: 18 } };
-
 /**
  * `resolveDailyScheduleFatigue` reads only `scheduleFatigue` and
  * `scheduleWorkedTicksToday`, so the fixture carries only that shared shape.
@@ -37,7 +35,7 @@ const asEntity = (subject: ScheduleFatigueSubject): Entity => subject as Entity;
 describe('schedule fatigue', () => {
   it('adds bounded fatigue after an extended workday', () => {
     const worker = human({ scheduleWorkedTicksToday: 10 * TICKS_PER_HOUR });
-    const result = resolveDailyScheduleFatigue(asEntity(worker), state);
+    const result = resolveDailyScheduleFatigue(asEntity(worker));
     expect(result.workedHours).toBe(10);
     expect(result.fatigueAfter).toBeGreaterThan(0);
     expect(result.fatigueAfter).toBeLessThanOrEqual(100);
@@ -46,7 +44,7 @@ describe('schedule fatigue', () => {
 
   it('recovers more on a short day and never drops below zero', () => {
     const worker = human({ scheduleFatigue: 5, scheduleWorkedTicksToday: 4 * TICKS_PER_HOUR });
-    const result = resolveDailyScheduleFatigue(asEntity(worker), state);
+    const result = resolveDailyScheduleFatigue(asEntity(worker));
     expect(result.fatigueAfter).toBe(0);
     expect(getScheduleFatigue(worker)).toBe(0);
   });
@@ -55,16 +53,24 @@ describe('schedule fatigue', () => {
     // A neutral nine-hour day has no excess, so fatigue only recovers:
     // 30 - BASE_DAILY_RECOVERY(4) = 26.
     const worker = human({ scheduleFatigue: 30, scheduleWorkedTicksToday: 9 * TICKS_PER_HOUR });
-    const result = resolveDailyScheduleFatigue(asEntity(worker), state);
+    const result = resolveDailyScheduleFatigue(asEntity(worker));
     expect(result.fatigueAfter).toBe(26);
   });
 
   it('charges overtime only past the nine-hour day', () => {
     const worker = human({ scheduleFatigue: 0, scheduleWorkedTicksToday: 10 * TICKS_PER_HOUR });
-    const result = resolveDailyScheduleFatigue(asEntity(worker), state);
+    const result = resolveDailyScheduleFatigue(asEntity(worker));
     // One excess hour: 0 + 1 x 10 - BASE_DAILY_RECOVERY(4) = 6.
     expect(result.fatigueAfter).toBe(6);
   });
+
+  it.each([[0, 0], [7, 20], [8, 23], [9, 26], [10, 36], [11, 46]])(
+    'settles %ih against the fixed nine-hour baseline',
+    (hours, expected) => {
+      const worker = human({ scheduleFatigue: 30, scheduleWorkedTicksToday: hours * TICKS_PER_HOUR });
+      expect(resolveDailyScheduleFatigue(asEntity(worker)).fatigueAfter).toBe(expected);
+    },
+  );
 
   it('credits no attendance to a jailed settler', () => {
     const free = settler(1);

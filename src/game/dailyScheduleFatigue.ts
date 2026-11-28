@@ -5,8 +5,9 @@ import { isPlayerHuman, isPlayerHumanShiftOwner } from './playerHuman';
 import { getAbsoluteCalendarDay, isWorkDay, TICKS_PER_DAY } from './dayCycleClock';
 import { recordCareerWork } from './careers/careerHistory';
 import { advanceCareerProgression } from './careers/careerProgression';
-import { getScheduleProductivityMultiplier, getScheduleTargetHours, resolveDailyScheduleFatigue } from './scheduleFatigue';
+import { getScheduleProductivityMultiplier, resolveDailyScheduleFatigue } from './scheduleFatigue';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
+import { STANDARD_WORK_DAY_HOURS } from './workSchedule';
 
 const MEANINGFUL_FATIGUE_CHANGE = 8;
 
@@ -39,8 +40,6 @@ export function readVillageFatigue(state: WorldState): VillageFatigueReading {
   };
 }
 
-type FatigueResult = ReturnType<typeof resolveDailyScheduleFatigue>;
-
 function average(values: number[]): number {
   if (values.length === 0) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -60,10 +59,8 @@ export function resolveDailyVillageScheduleFatigue(
   buildingById: ReadonlyMap<number, Building>,
   moonHowlers: readonly Entity[] = [],
 ): void {
-  const results: FatigueResult[] = [];
-  // The standard work window is the same for every settler in this pass — `state.workSchedule` is
-  // written only at the worker boundary — so it is derived once instead of twice per settler.
-  const targetHours = getScheduleTargetHours(state);
+  let rises = 0;
+  let riseHours = 0;
   const completedDay = getAbsoluteCalendarDay(state.tick) - 1;
   const completedDayWasWorkday = isWorkDay(completedDay * TICKS_PER_DAY);
 
@@ -74,7 +71,7 @@ export function resolveDailyVillageScheduleFatigue(
     if (!human.alive || human.age < HUMAN_ADULT_MIN_AGE) continue;
     if (inMoonForm && (human.type !== EntityType.Werewolf || !isPlayerHumanShiftOwner(human))) continue;
     const priorLastWorkedHours = human.scheduleLastWorkedHours ?? 0;
-    const result = resolveDailyScheduleFatigue(human, state, targetHours);
+    const result = resolveDailyScheduleFatigue(human);
     // Do not erase the last worked day when the completed day was a non-workday:
     // Monday production must read Friday's attendance, not Sunday's zero.
     if (!completedDayWasWorkday && result.workedHours <= 0 && priorLastWorkedHours > 0) {
@@ -88,26 +85,11 @@ export function resolveDailyVillageScheduleFatigue(
     if (site && job && recordCareerWork(human, site, job, completedDay, result.workedHours)) {
       advanceCareerProgression(human, job, completedDay, 'work');
     }
-    if (Math.abs(result.fatigueAfter - result.fatigueBefore) >= MEANINGFUL_FATIGUE_CHANGE) {
-      results.push(result);
-    }
-  }
-
-  // One pass splits the day's workers into those over their hours and those under them.
-  let rises = 0;
-  let riseHours = 0;
-  let recoveries = 0;
-  let recoveryHours = 0;
-
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    if (result.workedHours <= 0) continue;
-    if (result.fatigueAfter > result.fatigueBefore) {
+    // Ordinary shifts and recovery are routine, not Chronicle events.
+    if (result.workedHours > STANDARD_WORK_DAY_HOURS
+      && result.fatigueAfter - result.fatigueBefore >= MEANINGFUL_FATIGUE_CHANGE) {
       rises++;
       riseHours += result.workedHours;
-    } else if (result.fatigueAfter < result.fatigueBefore) {
-      recoveries++;
-      recoveryHours += result.workedHours;
     }
   }
 
@@ -119,13 +101,4 @@ export function resolveDailyVillageScheduleFatigue(
     );
   }
 
-  // Off-shift recovery remains part of the simulation but is ordinary rest, not
-  // a chronicle event. Only describe recovery that followed an actual short shift.
-  if (recoveries > 0) {
-    logEvent(
-      state,
-      'event',
-      `Short shifts spared ${recoveries} settler${recoveries === 1 ? '' : 's'} from that output cost (each worked ${formatHours(recoveryHours / recoveries)} on average).`,
-    );
-  }
 }

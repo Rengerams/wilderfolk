@@ -12,7 +12,7 @@ import { PRODUCTION_INTERVAL, TICKS_PER_DAY, TICKS_PER_HOUR, isProductionTick } 
 import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { readSkill, rewardProductionSkills, WORK_SKILL_BUILDING_TYPES, WORK_SKILL_PER_SHIFT } from '../src/game/skills';
-import { getScheduleTargetHours } from '../src/game/scheduleFatigue';
+import { getWorkSchedule, getWorkScheduleHours } from '../src/game/workSchedule';
 
 const FIXTURE_SEED = 20_261_009;
 const SITE_ID = 20_000;
@@ -54,7 +54,7 @@ function staffedWorld(
   worker!.workerBuildingId = options.completed === false ? undefined : SITE_ID;
   worker!.job = job;
   // The shift is settled before the daily layer reads attendance, so the fixture states it directly.
-  worker!.scheduleLastWorkedHours = getScheduleTargetHours(state);
+  worker!.scheduleLastWorkedHours = getWorkScheduleHours(getWorkSchedule(state));
   state.buildings.find((b) => b.id === SITE_ID)!.occupants = [worker!.id];
   if (options.wood != null) state.resources.wood = options.wood;
   // Production earns its shift at 18:00; unfinished construction earns it at 23:00.
@@ -140,7 +140,7 @@ describe('a worked shift teaches its trade', () => {
     expect(skillIn(absent.state, absent.worker.id, JobType.Builder)).toBe(0);
 
     const { state, worker } = staffedWorld(BuildingType.House, JobType.Builder, { completed: false });
-    const ticks = getScheduleTargetHours(state) * TICKS_PER_HOUR;
+    const ticks = getWorkScheduleHours(getWorkSchedule(state)) * TICKS_PER_HOUR;
     worker.scheduleWorkedTicksToday = ticks;
     worker.scheduleWorkedSiteIdToday = SITE_ID;
     worker.scheduleWorkedJobToday = JobType.Builder;
