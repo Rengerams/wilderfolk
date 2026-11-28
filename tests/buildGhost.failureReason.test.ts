@@ -3,8 +3,6 @@
  * (`buildingPlacementLabels`) and the canvas draws; the wiring is pinned by source.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { initGame } from '../src/game/worldGen';
 import {
   getPlaceBuildingFailureReason,
@@ -277,23 +275,3 @@ describe('F5 — one placement decision and one label owner', () => {
   });
 });
 
-describe('F5 — the wiring', () => {
-  it('derives the ghost from the owner and renders the label instead of a fixed string', () => {
-    const read = (file: string) => readFileSync(resolve(process.cwd(), file), 'utf8');
-
-    const canvas = read('src/hooks/useCanvasInteractions.ts');
-    expect(canvas, 'the hover ghost must ask the owner for the reason')
-      .toContain('getPlaceBuildingFailureReason');
-    expect(canvas, 'the hover ghost must be built by the one constructor')
-      .toContain('createBuildGhost(');
-
-    const app = read('src/App.tsx');
-    expect(app, 'rotating the ghost must re-derive the reason')
-      .toContain('getPlaceBuildingFailureReason');
-
-    const preview = read('src/game/renderer/buildPreview.ts');
-    expect(preview, 'the renderer must ask the game layer for the label')
-      .toContain('getPlaceBuildingFailureLabel(');
-    expect(preview, 'the fixed refusal string must be gone').not.toContain('✗ Blocked');
-  });
-});

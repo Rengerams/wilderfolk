@@ -53,6 +53,21 @@ export function mulberry32Draw(advancedState: number): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
+/** A transient Mulberry32 stream starting at an exact 32-bit state; no extra seed mixing.
+ * Named simulation streams use this same constructor after their historical pre-mix.
+ * Terrain and tick-derived callers keep their legacy starting state without joining the live registry.
+ */
+export function createRngFromState(initialState: number): RngStream {
+  let s = initialState >>> 0;
+  const stream: RngStream = () => {
+    s = mulberry32Advance(s);
+    return mulberry32Draw(s);
+  };
+
+  streamStates.set(stream, { get: () => s, set: (state: number) => { s = state >>> 0; } });
+  return stream;
+}
+
 /**
  * Creates an independent Mulberry32 PRNG stream from a base seed and domain salt.
  * State is pre-mixed to ensure maximum entropy on the very first draw.
@@ -67,13 +82,7 @@ export function createSeededRng(seed: number, owner: string): RngStream {
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
   s = (preMixed ^ t) >>> 0;
 
-  const stream: RngStream = () => {
-    s = mulberry32Advance(s);
-    return mulberry32Draw(s);
-  };
-
-  streamStates.set(stream, { get: () => s, set: (state: number) => { s = state >>> 0; } });
-  return stream;
+  return createRngFromState(s);
 }
 
 /**

@@ -11,7 +11,7 @@ import {
   WeatherType,
 } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
-import { applyWorkerCommand, WORKER_CMD_PROTO, type WorkerCommand } from '../src/game/simWorker/commands';
+import { applyWorkerCommand, isWorkerCommand, WORKER_CMD_PROTO, type WorkerCommand } from '../src/game/simWorker/commands';
 import { getResidenceCapacity } from '../src/game/housingModel';
 import { getBuildingUpgradeEligibility } from '../src/game/buildingMaintenanceActions';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
@@ -313,5 +313,19 @@ describe('bounded command copies', () => {
     expect(actual.entities).toEqual(expected.entities);
     expect(actual.buildings).toEqual(expected.buildings);
     expect(world.entities[0].workerBuildingId).toBeUndefined();
+  });
+});
+
+describe('batch repair command transport', () => {
+  it('accepts distinct valid building IDs', () => {
+    expect(isWorkerCommand({
+      proto: WORKER_CMD_PROTO, op: 'repairBuildings', buildingIds: [2, 4, 6],
+    })).toBe(true);
+  });
+
+  it('rejects empty, duplicate, malformed, negative or noninteger IDs', () => {
+    for (const buildingIds of [[], [1, 1], [-1], [0], [1.5], ['1'], [NaN]]) {
+      expect(isWorkerCommand({ proto: WORKER_CMD_PROTO, op: 'repairBuildings', buildingIds })).toBe(false);
+    }
   });
 });

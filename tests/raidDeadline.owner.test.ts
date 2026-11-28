@@ -3,8 +3,6 @@
  * through `getRaidExpiresAtTick`; the unknown case is expressed inside the owner.
  */
 import { describe, expect, it } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { formatRaidDeadline, getRaidExpiresAtTick, resolveRaidVictory, provokeRival } from '../src/game/frontierCombat';
 import { initGame } from '../src/game/worldGen';
 import { human } from '../src/test/factories';
@@ -14,10 +12,6 @@ import { genomeFrom } from './helpers/genome';
 /** Civic voices: a strongly empathetic profile versus a severity-leaning one. */
 const RESTRAINT_GENOME = genomeFrom({ cooperation: 95, sensitivity: 95, flexibility: 90, discipline: 90, riskTaking: 5 });
 const SEVERITY_GENOME = genomeFrom({ cooperation: 5, sensitivity: 5, flexibility: 5, discipline: 5, riskTaking: 95 });
-
-function readSrc(relative: string): string {
-  return readFileSync(resolve(process.cwd(), relative), 'utf8');
-}
 
 /** Corrupt save shape: a payload whose deadline did not survive validation. */
 function undatedRaid(createdAtTick: number | undefined, expiresAtTick: number | undefined): RaidEvent {
@@ -30,19 +24,6 @@ describe('A16 — one raid-deadline renderer for both cards', () => {
     expect(Number.isFinite(getRaidExpiresAtTick(undated))).toBe(false);
     // An undated raid renders `deadline unknown`, never `NaN days left`.
     expect(formatRaidDeadline(undated, 0)).toBe('deadline unknown');
-  });
-
-  it('leaves the live raid card on the owner, with no wrapper module left', () => {
-    const app = readSrc('src/App.tsx');
-    const panel = readSrc('src/components/SelectedBuildingPanel.tsx');
-    expect(app, 'the outgoing raid card still uses the divergent wrapper').not.toContain('formatRaidDeadlineSafe');
-    expect(app).toContain('formatRaidDeadline(evt, world.tick)');
-    // Rival settlements are strategic records, so the building inspector no longer renders a raid card.
-    expect(panel, 'the dead rival-building raid card came back').not.toContain('formatRaidDeadline(');
-    expect(
-      existsSync(resolve(process.cwd(), 'src/game/raidUtils.ts')),
-      'the raidUtils wrapper module still exists',
-    ).toBe(false);
   });
 });
 

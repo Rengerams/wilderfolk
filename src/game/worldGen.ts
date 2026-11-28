@@ -67,16 +67,6 @@ export interface WildlifeSpawnOptions {
   onSpawn?: (entity: Entity) => void;
 }
 
-/** Deterministische simulatie RNG stream voor wereldgeneratie */
-function simRandom(): number {
-  return getSimRng('worldGen')();
-}
-
-/** Deterministische integer helper tussen min en max (inclusief) */
-function getRandomInt(min: number, max: number): number {
-  return min + Math.floor(simRandom() * (max - min + 1));
-}
-
 function getTileAtWorld(state: WorldState, x: number, y: number) {
   if (!state.worldMap) return null;
   const tw = state.worldMap.width > 0 ? state.width / state.worldMap.width : PATH_CELL;
@@ -168,8 +158,8 @@ function spawnWildlifeAtRandomPassable(
       const cy = opts?.cy ?? state.height / 2;
       const effMin = Math.max(0, opts?.minDist ?? 0);
       const effMax = Math.max(effMin, opts?.maxDist ?? Math.min(state.width, state.height) / 2);
-      const angle = simRandom() * Math.PI * 2;
-      const dist = effMin + simRandom() * (effMax - effMin);
+      const angle = getSimRng('worldGen')() * Math.PI * 2;
+      const dist = effMin + getSimRng('worldGen')() * (effMax - effMin);
       x = cx + Math.cos(angle) * dist;
       y = cy + Math.sin(angle) * dist;
 
@@ -179,8 +169,8 @@ function spawnWildlifeAtRandomPassable(
         continue;
       }
     } else {
-      x = margin + simRandom() * (state.width - margin * 2);
-      y = margin + simRandom() * (state.height - margin * 2);
+      x = margin + getSimRng('worldGen')() * (state.width - margin * 2);
+      y = margin + getSimRng('worldGen')() * (state.height - margin * 2);
     }
 
     if (!isPassableWildlifePosition(state, x, y, margin)) {
@@ -251,8 +241,8 @@ function spawnGrassPatch(
   const maxAttempts = count * 12;
 
   for (let attempt = 0; attempt < maxAttempts && spawned < count; attempt++) {
-    const angle = simRandom() * Math.PI * 2;
-    const dist = simRandom() * patchRadius;
+    const angle = getSimRng('worldGen')() * Math.PI * 2;
+    const dist = getSimRng('worldGen')() * patchRadius;
     const gx = cx + Math.cos(angle) * dist;
     const gy = cy + Math.sin(angle) * dist;
 
@@ -308,8 +298,8 @@ export function spawnWildlifeRing(
   for (let i = 0; i < count; i++) {
     let placed = false;
     for (let attempt = 0; attempt < 16; attempt++) {
-      const angle = simRandom() * Math.PI * 2;
-      const dist = effMin + simRandom() * Math.max(0, effMax - effMin);
+      const angle = getSimRng('worldGen')() * Math.PI * 2;
+      const dist = effMin + getSimRng('worldGen')() * Math.max(0, effMax - effMin);
       const sx = cx + Math.cos(angle) * dist;
       const sy = cy + Math.sin(angle) * dist;
 
@@ -701,19 +691,19 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   // 3. Grass Meadows
   for (let p = 0; p < 12; p++) {
-    const cx = width * 0.1 + simRandom() * width * 0.8;
-    const cy = height * 0.1 + simRandom() * height * 0.8;
-    spawnGrassPatch(state, cx, cy, 12, 70 + simRandom() * 90);
+    const cx = width * 0.1 + getSimRng('worldGen')() * width * 0.8;
+    const cy = height * 0.1 + getSimRng('worldGen')() * height * 0.8;
+    spawnGrassPatch(state, cx, cy, 12, 70 + getSimRng('worldGen')() * 90);
   }
 
   // 4. Tree Clusters & Forest Fills
   if ((state.worldMap?.generationVersion ?? 1) < 3) {
     for (let c = 0; c < 12; c++) {
-      const cx = width * 0.12 + simRandom() * width * 0.76;
-      const cy = height * 0.12 + simRandom() * height * 0.76;
+      const cx = width * 0.12 + getSimRng('worldGen')() * width * 0.76;
+      const cy = height * 0.12 + getSimRng('worldGen')() * height * 0.76;
       for (let i = 0; i < 14; i++) {
-        const angle = simRandom() * Math.PI * 2;
-        const dist = simRandom() * 72;
+        const angle = getSimRng('worldGen')() * Math.PI * 2;
+        const dist = getSimRng('worldGen')() * 72;
         const tx = cx + Math.cos(angle) * dist;
         const ty = cy + Math.sin(angle) * dist;
         if (!isPassableWildlifePosition(state, tx, ty, 4)) continue;
@@ -741,8 +731,8 @@ export function initGame(options: InitGameOptions = {}): WorldState {
       for (let row = 0, sy = spacing / 2; sy < height - spacing / 2; row++, sy += spacing) {
         const shift = row % 2 === 0 ? 0 : spacing / 2;
         for (let sx = spacing / 2 + shift; sx < width - spacing / 2; sx += spacing) {
-          const px = sx + (simRandom() - 0.5) * spacing * 0.46;
-          const py = sy + (simRandom() - 0.5) * spacing * 0.46;
+          const px = sx + (getSimRng('worldGen')() - 0.5) * spacing * 0.46;
+          const py = sy + (getSimRng('worldGen')() - 0.5) * spacing * 0.46;
           const biome = getTileAtWorld(state, px, py)?.type;
           // Revision 4 fades recruitment and canopy type through the local climate rather than
           // jumping from 3.5% grassland to 40% forest in one 10px tile.
@@ -755,10 +745,10 @@ export function initGame(options: InitGameOptions = {}): WorldState {
                 : biome === TerrainType.Grassland ? 0.035 : 0);
           if (density === 0) continue;
           const grove = valueNoise(px * 0.0025, py * 0.0025, climateSeed + 1881);
-          if (simRandom() >= density * (0.38 + grove * 1.18)) continue;
+          if (getSimRng('worldGen')() >= density * (0.38 + grove * 1.18)) continue;
           if (!isPassableWildlifePosition(state, px, py, 4)) continue;
           const tree = createEntity(EntityType.Tree, px, py, state.nextEntityId++);
-          tree.spriteVariant = simRandom() < (ecotone?.tallChance
+          tree.spriteVariant = getSimRng('worldGen')() < (ecotone?.tallChance
             ?? (biome === TerrainType.DarkForest ? 0.78 : 0.28)) ? 1 : 0;
           state.entities.push(tree);
           indexLivingEntity(state, tree);
@@ -770,10 +760,10 @@ export function initGame(options: InitGameOptions = {}): WorldState {
           const t = tileAt(map, tx, ty);
           if (!t) continue;
           const isForest = t.type === TerrainType.Forest || t.type === TerrainType.DarkForest;
-          if (!isForest || simRandom() > 0.22) continue;
+          if (!isForest || getSimRng('worldGen')() > 0.22) continue;
   
-          const px = (tx + 0.35 + simRandom() * 0.3) * tw;
-          const py = (ty + 0.35 + simRandom() * 0.3) * th;
+          const px = (tx + 0.35 + getSimRng('worldGen')() * 0.3) * tw;
+          const py = (ty + 0.35 + getSimRng('worldGen')() * 0.3) * th;
           if (!isPassableWildlifePosition(state, px, py, 4)) continue;
   
           const tree = createEntity(EntityType.Tree, px, py, state.nextEntityId++);
@@ -823,7 +813,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     generation: 1,
     surname,
     name: fatherFirstName,
-    ageYears: getRandomInt(22, 40),
+    ageYears: randomInt(getSimRng('worldGen'), 22, 40),
     colonyDay: 0,
   });
 
@@ -833,7 +823,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     surname,
     maidenSurname: motherMaidenSurname,
     name: motherFirstName,
-    ageYears: getRandomInt(20, 38),
+    ageYears: randomInt(getSimRng('worldGen'), 20, 38),
     colonyDay: 0,
   });
 

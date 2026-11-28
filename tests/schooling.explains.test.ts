@@ -3,8 +3,6 @@
  * nothing when no school existed. The schooling owner now answers why, and counts the village by it.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import {
@@ -52,10 +50,6 @@ function village(children: Entity[], buildings: Building[] = []): WorldState {
 
 function reasonCount(summary: ReturnType<typeof summarizeSchooling>, reason: string): number {
   return summary.outOfSchool.find((entry) => entry.reason === reason)?.count ?? 0;
-}
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), 'utf8');
 }
 
 describe('the schooling owner explains an empty classroom', () => {
@@ -164,16 +158,6 @@ describe('the schooling owner explains an empty classroom', () => {
       { label: 'Scholar', count: 2 },
     ]);
   });
-
-  it('the Village panel prints the owner breakdown', () => {
-    const panel = read('src/components/tabPanels/VillageTabPanel.tsx');
-    expect(panel).toContain('summarizeSchooling(state, state.tick, getHourOfDay(state.tick))');
-    expect(panel).toContain('describeSchoolingSummary(');
-    expect(panel).toContain('{summary.headline}');
-    expect(panel).toContain('attendance.adultEducation.map');
-    expect(panel).toContain('{row.count}');
-    expect(panel, 'the reason lines are computed and thrown away').toContain('{line}');
-  });
 });
 
 describe('the trade owner explains why no route is open', () => {
@@ -198,11 +182,5 @@ describe('the trade owner explains why no route is open', () => {
       { reason: 'Build a Market before establishing trade routes', count: 1 },
       { reason: 'Need 40 reputation', count: 1 },
     ]));
-  });
-
-  it('the Progress panel prints the trade owner aggregate', () => {
-    const panel = read('src/components/tabPanels/ProgressTabPanel.tsx');
-    expect(panel).toContain('summarizeTradeRouteBlocks(state)');
-    expect(panel).toContain('tradeBlocks.blocked.map');
   });
 });

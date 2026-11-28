@@ -4,10 +4,11 @@
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
-import { INITIAL_CHALLENGES } from '../src/game/challenges';
+import { getChallengeProgress, INITIAL_CHALLENGES } from '../src/game/challenges';
 import { tickDailyChallenges } from '../src/game/dailyChallenges';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
-import type { Resources, WorldState } from '../src/game/gameTypes';
+import { BuildingType } from '../src/game/buildings';
+import type { Building, Resources, WorldState } from '../src/game/gameTypes';
 
 const FIXTURE_SEED = 20_260_917;
 
@@ -71,5 +72,42 @@ describe('challenge reward grants', () => {
     for (const challenge of promising) {
       expect(challenge.reward?.iron ?? 0, challenge.id).toBeGreaterThan(0);
     }
+  });
+});
+
+function completedPlayerHouse(id: number): Building {
+  return {
+    id, type: BuildingType.House, x: 100, y: 100, width: 20, height: 20, completed: true, occupants: [], rotation: 0,
+  } as unknown as Building;
+}
+
+describe('R8 — every goal card reports progress from the challenge\'s own targets', () => {
+  it('gives each unfinished initial challenge a non-empty current / target row', () => {
+    const state = world();
+    for (const challenge of INITIAL_CHALLENGES) {
+      const row = getChallengeProgress({ ...challenge, completed: false }, state);
+      expect(row, `${challenge.id} has no progress row`).not.toBeNull();
+      expect(row?.target, challenge.id).toBeGreaterThan(0);
+      expect(row?.unit.length, challenge.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('counts Growing Village in completed player buildings and Century Mark in years', () => {
+    const state = world();
+    const growing = INITIAL_CHALLENGES.find((c) => c.id === 'growing_village');
+    const century = INITIAL_CHALLENGES.find((c) => c.id === 'century');
+    expect(growing, 'fixture premise: the challenge exists').toBeTruthy();
+    expect(century, 'fixture premise: the challenge exists').toBeTruthy();
+
+    const before = getChallengeProgress({ ...growing!, completed: false }, state);
+    expect(before).toMatchObject({ target: 5, unit: 'buildings' });
+    state.buildings.push(completedPlayerHouse(9001));
+    expect(getChallengeProgress({ ...growing!, completed: false }, state)?.current)
+      .toBe((before?.current ?? 0) + 1);
+
+    state.year = 42;
+    expect(getChallengeProgress({ ...century!, completed: false }, state)).toMatchObject({
+      current: 42, target: 100, unit: 'years',
+    });
   });
 });

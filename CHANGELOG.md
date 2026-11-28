@@ -4,7 +4,15 @@
 
 - **Fixed (28 Nov 2026):** Children no longer keep following a caregiver during evening/night rosters or continue stale follow/play movement through school or bedtime, including homeless off-screen children; genuinely free-time following remains allowed.
 
+- **Improved (28 Nov 2026):** Centralize simulation, terrain and omen RNG stream construction and terrain percentile sampling without changing historical seeded sequences; list semantic duplicate groups in CI.
+
+- **Improved (28 Nov 2026):** Route npm and CI verification through one test gate, avoiding repeated source, architecture, duplicate and type checks before the production bundle.
+
+- **Improved (28 Nov 2026):** Remove vendor-specific preview configuration and retain a standalone local container development workflow.
+
 - **Fixed (28 Nov 2026):** Keep the settled ecology type contract dependency-free so the strict import-cycle architecture gate remains intact.
+
+- **Tests (28 Nov 2026):** Consolidate all 50 audit-batch suites under their canonical owners, preserve runtime and asset regressions, and centralize source-only checks including the syntax-aware DNA scanner.
 
 - **Fixed (28 Nov 2026):** Resolve rare daily probabilities inside the existing RNG buckets instead of rounding them up; sudden illness follows its intended risk without a second random generator.
 - **Improved (28 Nov 2026):** Show current adult education totals by qualification level in the Village Schooling overview.
@@ -42,6 +50,40 @@
 
 - **Fixed (27 Nov 2026):** Water (including shallow water) now blocks pedestrian navigation unless crossed on a completed bridge. Walking and road eligibility reuse the canonical water terrain trait; water-dependent construction and reinforcement keep their separate rules.
 
+- **Tests (27 Nov 2026):** Consolidate five leadership, story and simulation regression suites and move the seed ownership check to the source guards.
+
+- **Tests (27 Nov 2026):** Move beauty, theatre, chronicle, persistence, challenge, frame catch-up, production and herd regressions into their owner suites.
+
+- **Tests (27 Nov 2026):** Consolidate dialogue bank, load contract and off-screen throttle suites; centralize the save-load index ordering guard.
+
+- **Tests (27 Nov 2026):** Consolidate renderer frame-cache and fallback regressions, and move two frame ownership source checks into the central registry.
+
+- **Tests (27 Nov 2026):** Repair stale semantic overlap and duplicate review evidence paths after test consolidation; retain the reviewed fingerprints and guard thresholds.
+
+- **Tests (27 Nov 2026):** Consolidate housing pulse, automatic staffing, repair command validation and reduced motion regressions into their owner suites, preserving all 15 cases.
+
+- **Tests (27 Nov 2026):** Consolidate five audit files into election, strip placement, overhead labels and save-boundary owner suites; preserve all cases and reuse payload fixtures.
+
+- **Tests (27 Nov 2026):** Strengthen the remaining six audit-listed behavioral suites: quarry, hospital attendance, camp terrain, yearly events, friendship and economy.
+
+- **Tests (27 Nov 2026):** Move the remaining faction-union source contract into the registry and repair the missing test helper compile error.
+
+- **Tests (27 Nov 2026):** Consolidate five groups of UI, raid, Chronicle, logistics, dashboard and predicate source guards; preserve behavioral coverage.
+
+- **Tests (27 Nov 2026):** Consolidate prison escape and workplace-restoration regressions under the prison roster and duty suite, preserving all three cases.
+
+- **Tests (27 Nov 2026):** Centralize reputation, storage and deterministic-position source scans, preserving coverage floors and behavioral tests.
+
+- **Tests (27 Nov 2026):** Move ten UI ownership, production-cap, trade and Chronicle source-only cases into the static registry without removing behavioral tests.
+
+- **Tests (27 Nov 2026):** Consolidate storage capacity, spoilage and upgrade regressions under their existing storage-cap test owner, preserving all ten cases.
+
+- **Tests (27 Nov 2026):** Strengthen birthdate round trips, dialogue-session preservation, commute fixture coverage, population records and accepted-catch notification assertions.
+
+- **Maintenance (27 Nov 2026):** Move nine more source-only cases into the static guard registry, retain behavior tests, and remove the retired corner rotation helper.
+
+- **Maintenance (27 Nov 2026):** Move 138 source-only tests into 117 static guards, prove declarative clauses individually, restore the People behavior test, and remove unused rendering exports.
+
 - **Fixed (27 Nov 2026):** Married settlers no longer abandon nighttime home travel to chase distant partners at leisure speed, preventing widespread sleep loss and critical exhaustion.
 
 - **Fixed (27 Nov 2026):** Deployed war-band soldiers regain rest/stamina through normal field sleep, pay ordinary march fatigue instead of phantom barracks attendance, and cannot conceive at their frozen village coordinates.
@@ -56,7 +98,7 @@
 
 - **Performance (26 Nov 2026):** Build the population family graph index once per group projection instead of once per disconnected household; verify deterministic groups and indexed alive lookups.
 
-- **Maintenance (26 Nov 2026):** Restore the Base44 sandbox runbook, fold the duplicate family-graph lookup into the shared alive-entity owner, and re-pin the reviewed semantic-overlap approvals.
+- **Maintenance (26 Nov 2026):** Restore the local container development runbook, fold the duplicate family-graph lookup into the shared alive-entity owner, and re-pin the reviewed semantic-overlap approvals.
 
 - **Maintenance (26 Nov 2026):** Remove unused renderer, audio and game helpers, drop blanket Knip export exclusions, and audit full-project and production-only reachability independently.
 
@@ -1047,7 +1089,7 @@
 
 - **Fixed:** A cursed Moon Howler in the leader's household no longer unseats the family from the Leader's House every full moon; the nightly relocation and move-in chronicle pair is gone.
 
-- **Added:** Base44 sandbox development environment — a Linux compose setup that serves the game's development server from the mounted clone on port 3000, with a lockfile-synced dependency install and a service healthcheck.
+- **Added:** Local container development environment — a Linux compose setup that serves the game's development server from the mounted clone on port 3000, with a lockfile-synced dependency install and a service healthcheck.
 
 - **Fixed:** Raid victory decisions now reach the simulation worker, restoring mercy, tribute and raze choices after a defeated settlement surrenders.
 - **Fixed:** Residents reserve a free hotel bed before walking there. Reservations count toward capacity, survive saving, and release when the stay ends, preventing overbooking by residents still en route.

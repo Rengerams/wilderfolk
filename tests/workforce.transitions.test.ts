@@ -1,12 +1,17 @@
+import { scenarioSettler, scenarioBuilding, scenarioWorld } from './helpers/humanScenario';
+import { removeStaffWorkerFromBuilding } from '../src/game/buildingStaffingActions';
+import { resetSimRng } from '../src/game/simRng';
+import { isPlayerHuman } from '../src/game/playerHuman';
 import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycycleconstants';
 /**
  * `workforce.ts` owns assignment: `workerBuildingId`, workplace `occupants`, `occupation` and `job`
  * must agree after every transition, no living human may hold two workplaces, and a leader keeps office.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
+  BUILDING_CONFIGS,
   BuildingType,
   EntityType,
   JOB_LABELS,
@@ -18,6 +23,10 @@ import {
   addToConstructionCrew,
   assignWorkerInPlace,
   assignMissingWorkers,
+  countActiveWorkersAtBuilding,
+  countWorkersAtBuilding,
+  rebalanceJobWorkers,
+  staffingCapFor,
   staffConstructionCrews,
   staffJobBuildings,
   assignWorkerTransition,
@@ -33,6 +42,10 @@ import { removeWorkerFromBuilding } from '../src/game/buildingActionRouting';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { setHumanBirthFromAge } from '../src/game/dayCycle';
 import { recordScheduleWorkTick } from '../src/game/scheduleFatigue';
+import { createBuilding, createEntity, initGame } from '../src/game/worldGen';
+import { setBuildingStaffingMode } from '../src/game/buildingConfigurationActions';
+import { isWorkerCommand, WORKER_CMD_PROTO } from '../src/game/simWorker/commands';
+import { human as staffingHuman, building as staffingBuilding } from '../src/test/factories';
 
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
   return {
@@ -667,5 +680,359 @@ describe('blacksmith operational bonus during imprisonment', () => {
 
     smith.prisonBuildingId = undefined;
     expect(getSmithBonus([forge], [smith])).toBe(1.25);
+  });
+});
+
+function legacyStaffingWorld(): WorldState {
+  return {
+    entities: [staffingHuman(1)],
+    buildings: [staffingBuilding(7, BuildingType.Church, { staffingMode: 'manual' })],
+    tick: 0,
+    resources: { wood: 100, stone: 100, food: 100, gold: 100, iron: 0 },
+    floatingTexts: [],
+    notifications: [],
+    nextFloatingTextId: 1,
+  } as unknown as WorldState;
+}
+
+describe('automatic workplace staffing', () => {
+  it('starts all job-capable buildings in auto, and does not set modes on non-jobs', () => {
+    for (const type of [
+      BuildingType.Church, BuildingType.Barracks, BuildingType.Prison,
+      BuildingType.School, BuildingType.Farm, BuildingType.Tavern,
+    ]) {
+      const built = createBuilding(type, 20, 20, 1);
+      expect(built.staffingMode).toBe('auto');
+    }
+    expect(createBuilding(BuildingType.House, 20, 20, 2).staffingMode).toBeUndefined();
+  });
+
+  it('normalizes legacy manual flags and assigns available workers', () => {
+    const world = legacyStaffingWorld();
+    assignMissingWorkers(world.entities, world.buildings, world);
+    expect(world.buildings[0].occupants).toEqual([1]);
+    expect(world.buildings[0].staffingMode).toBe('auto');
+    expect(world.entities[0].workerBuildingId).toBe(7);
+    // Automatic staffing is the simulation's scheduled responsibility, not a button or notification.
+    expect(world.notifications).toHaveLength(0);
+  });
+
+  it('rejects attempts to restore manual staffing after auto assignment', () => {
+    const world = legacyStaffingWorld();
+    assignMissingWorkers(world.entities, world.buildings, world);
+    const switched = setBuildingStaffingMode(world, 7, 'manual');
+    expect(switched).toBe(world);
+    expect(switched.buildings[0].staffingMode).toBe('auto');
+    expect(isWorkerCommand({ proto: WORKER_CMD_PROTO, op: 'setBuildingStaffingMode', buildingId: 7, mode: 'manual' })).toBe(false);
+  });
+});
+
+describe('M37 removeWorkerTransition residence occupancy', () => {
+  it('clears workplaces and crews but leaves the residence occupants list intact', () => {
+    const settler = human(1, {
+      workerBuildingId: 2,
+      residenceBuildingId: 10,
+      job: JobType.Farmer,
+    });
+    const builder = human(2);
+    const house = building(10, BuildingType.House, { occupants: [1] });
+    const farm = building(2, BuildingType.Farm, { occupants: [1] });
+    const site = building(3, BuildingType.House, { completed: false, occupants: [2] });
+    const state = makeWorld([settler, builder], [house, farm, site]);
+    expect(collectSimulationInvariantErrors(state)).toEqual([]);
+
+    removeWorkerTransition(settler, state.buildings);
+    removeWorkerTransition(builder, state.buildings);
+
+    expect(house.occupants).toEqual([1]);
+    expect(farm.occupants).toEqual([]);
+    expect(site.occupants).toEqual([]);
+    expect(settler.workerBuildingId).toBeUndefined();
+    expect(builder.workerBuildingId).toBeUndefined();
+    expect(settler.residenceBuildingId).toBe(10);
+    expect(collectSimulationInvariantErrors(state)).toEqual([]);
+  });
+});
+
+describe('automatic staffing allocation and bounded vacancies', () => {
+  const SEED = 20_261_112;
+
+  function completed(
+    type: BuildingType,
+    x: number,
+    y: number,
+    id: number,
+    overrides: Partial<Building> = {},
+  ): Building {
+    const building = createBuilding(type, x, y, id);
+    building.completed = true;
+    building.constructionProgress = 100;
+    Object.assign(building, overrides);
+    return building;
+  }
+
+  function settler(id: number, x: number, y: number, overrides: Partial<Entity> = {}): Entity {
+    const entity = createEntity(
+      EntityType.Human, x, y, id, 400, false,
+      { gender: 'male', name: `Settler${id}`, surname: 'Test', ageYears: 30, colonyDay: 0 },
+    );
+    Object.assign(entity, overrides);
+    return entity;
+  }
+
+  function freshWorld(): WorldState {
+    return initGame({ skipTerrain: true, villageName: 'Audit', size: 'medium', seed: SEED });
+  }
+
+  describe('a jailed holder\'s post is backfilled', () => {
+    it('hires reachable idle settlers into posts the sentence reserved', () => {
+      const state = freshWorld();
+      const farm = completed(BuildingType.Farm, 100, 100, 40);
+      const jailed = [1, 2].map((id) => settler(id, 100 + id, 100, {
+        workerBuildingId: farm.id,
+        prisonBuildingId: 90,
+        prisonerUntilTick: 100_000,
+      }));
+      const idle = [3, 4].map((id) => settler(id, 105 + id, 100));
+      state.entities = [...jailed, ...idle];
+      state.buildings = [farm];
+
+      assignMissingWorkers(state.entities, state.buildings, state);
+
+      expect(countActiveWorkersAtBuilding(state.entities, farm.id)).toBe(
+        BUILDING_CONFIGS[BuildingType.Farm].maxOccupants,
+      );
+      expect(countWorkersAtBuilding(state.entities, farm.id)).toBe(
+        BUILDING_CONFIGS[BuildingType.Farm].maxOccupants + jailed.length,
+      );
+      for (const prisoner of jailed) expect(prisoner.workerBuildingId).toBe(farm.id);
+    });
+  });
+
+  describe('a completed Taming Post exposes no post a mechanism cannot fill', () => {
+    it('reports no staffing posts while keeping its construction slots', () => {
+      const post = completed(BuildingType.TamingPost, 100, 100, 50);
+      const idle = settler(1, 100, 100);
+
+      expect(staffingCapFor(post, [idle])).toEqual({ cap: 0, staffed: 0 });
+      // Construction still uses the two configured slots (`BUILDING_JOB_TYPES` has no Taming Post job).
+      expect(BUILDING_CONFIGS[BuildingType.TamingPost].maxOccupants).toBe(2);
+    });
+  });
+
+  describe('construction leaves hands for the preset\'s jobs', () => {
+    it('seeds the growth preset\'s job building before the builders take the idle pool', () => {
+      const state = freshWorld();
+      state.workforcePolicy = 'growth';
+      const mill = completed(BuildingType.LumberMill, 200, 200, 60);
+      const house = createBuilding(BuildingType.House, 100, 100, 61);
+      const settlers = Array.from({ length: 6 }, (_, i) => settler(10 + i, 100 + i, 100));
+      state.entities = settlers;
+      state.buildings = [house, mill];
+
+      assignMissingWorkers(settlers, state.buildings, state);
+
+      expect(countActiveWorkersAtBuilding(settlers, mill.id), 'the Lumber Mill is not left empty').toBeGreaterThan(0);
+      expect(house.occupants.length, 'the construction site still has a crew').toBeGreaterThan(0);
+    });
+  });
+
+  describe('a bounded swap resolves a vacancy no idle settler can reach', () => {
+    it('moves the reachable worker and backfills the post behind them', () => {
+      const mill = completed(BuildingType.LumberMill, 600, 0, 70);
+      const quarry = completed(BuildingType.Quarry, 1_200, 0, 71);
+      // The mill worker reaches both sites; the idle settler reaches only the mill.
+      const atMill = settler(1, 850, 0, { workerBuildingId: mill.id });
+      const idle = settler(2, 100, 0);
+      mill.occupants = [atMill.id];
+
+      rebalanceJobWorkers([atMill, idle], [mill, quarry], 'growth', 100);
+
+      expect(atMill.workerBuildingId, 'the reachable worker takes the far vacancy').toBe(quarry.id);
+      expect(idle.workerBuildingId, 'the post behind them is backfilled').toBe(mill.id);
+      expect(quarry.occupants).toContain(atMill.id);
+      expect(mill.occupants).toContain(idle.id);
+    });
+
+    it('reserves an idle builder on an unfinished site while evaluating vacancy swaps', () => {
+      const mill = completed(BuildingType.LumberMill, 600, 0, 70);
+      const quarry = completed(BuildingType.Quarry, 1_200, 0, 71);
+      const atMill = settler(1, 850, 0, { workerBuildingId: mill.id });
+      const builder = settler(2, 100, 0);
+      mill.occupants = [atMill.id];
+      const houseSite = createBuilding(BuildingType.House, 2_000, 200, 72);
+      houseSite.occupants = [builder.id];
+
+      rebalanceJobWorkers([atMill, builder], [mill, quarry, houseSite], 'growth', 100);
+
+      expect(atMill.workerBuildingId).toBe(mill.id);
+      expect(builder.workerBuildingId).toBeUndefined();
+      expect(quarry.occupants).toEqual([]);
+      expect(mill.occupants).toEqual([atMill.id]);
+    });
+  });
+});
+
+describe('workplace roster index equivalence', () => {
+  /** Reference `syncJobBuildingOccupants`: re-filters the whole settler list per building. */
+  function referenceSyncJobBuildingOccupants(humans: Entity[], buildings: Building[]): void {
+    for (let i = 0; i < buildings.length; i++) {
+      const building = buildings[i];
+      if (!building.completed || !BUILDING_JOB_TYPES_REF[building.type]) {
+        continue;
+      }
+      if (building.type === BuildingType.Prison) {
+        building.occupants = humans
+          .filter(
+            (h) =>
+              h.alive &&
+              isPlayerHuman(h) &&
+              (h.workerBuildingId === building.id || h.prisonBuildingId === building.id),
+          )
+          .map((h) => h.id);
+        continue;
+      }
+      building.occupants = humans
+        .filter(
+          (h) =>
+            h.alive &&
+            isPlayerHuman(h) &&
+            h.workerBuildingId === building.id &&
+            h.prisonBuildingId == null,
+        )
+        .map((h) => h.id);
+    }
+  }
+
+  /**
+   * Local copy of the production `BUILDING_JOB_TYPES` membership test; it only has to cover the
+   * fixture's building types.
+   */
+  const BUILDING_JOB_TYPES_REF: Partial<Record<BuildingType, unknown>> = {
+    [BuildingType.Farm]: true,
+    [BuildingType.Prison]: true,
+    [BuildingType.Barracks]: true,
+    [BuildingType.Market]: true,
+    [BuildingType.Tavern]: true,
+    [BuildingType.LumberMill]: true,
+    [BuildingType.Quarry]: true,
+    [BuildingType.Mine]: true,
+    [BuildingType.Blacksmith]: true,
+    [BuildingType.Workshop]: true,
+    [BuildingType.TownHall]: true,
+    [BuildingType.Hospital]: true,
+    [BuildingType.Church]: true,
+    [BuildingType.Store]: true,
+    [BuildingType.Silo]: true,
+    [BuildingType.Hotel]: true,
+  };
+
+  describe('syncJobBuildingOccupants buckets like its pre-fix per-building filter', () => {
+    it('keeps the prison union and the narrower job predicate identical, including home === prison', () => {
+      const prison = staffingBuilding(1, BuildingType.Prison, { completed: true });
+      const farm = staffingBuilding(2, BuildingType.Farm, { completed: true });
+      const barracks = staffingBuilding(3, BuildingType.Barracks, { completed: true });
+      const secondFarm = staffingBuilding(4, BuildingType.Farm, { completed: true });
+      const site = createBuilding(BuildingType.Farm, 900, 900, 5);
+      const deadWorker = staffingHuman(1000, { alive: false });
+
+      const humans: Entity[] = [
+        // home === prison for both ids: the union must not emit this id twice.
+        staffingHuman(1001, { workerBuildingId: prison.id, prisonBuildingId: prison.id }),
+        // homes the farm, no prison.
+        staffingHuman(1002, { workerBuildingId: farm.id }),
+        // homes the farm but is imprisoned elsewhere: excluded from the farm, present in the prison list.
+        staffingHuman(1003, { workerBuildingId: farm.id, prisonBuildingId: prison.id }),
+        // homeless prisoner.
+        staffingHuman(1004, { prisonBuildingId: prison.id }),
+        staffingHuman(1005, { workerBuildingId: barracks.id }),
+        staffingHuman(1006, { workerBuildingId: secondFarm.id }),
+        staffingHuman(1007, { workerBuildingId: site.id }),
+        staffingHuman(1008, { workerBuildingId: farm.id, faction: 'rival' }),
+        deadWorker,
+      ];
+      deadWorker.workerBuildingId = farm.id;
+
+      const realWorld = makeWorld(structuredClone(humans), structuredClone([prison, farm, barracks, secondFarm, site]));
+      const referenceWorld = makeWorld(structuredClone(humans), structuredClone([prison, farm, barracks, secondFarm, site]));
+
+      syncJobBuildingOccupants(realWorld.entities, realWorld.buildings);
+      referenceSyncJobBuildingOccupants(referenceWorld.entities, referenceWorld.buildings);
+
+      expect(realWorld.buildings.map(b => [b.id, [...b.occupants]]), 'every building occupant list').toEqual(
+        referenceWorld.buildings.map(b => [b.id, [...b.occupants]]),
+      );
+
+      const byId = new Map(realWorld.buildings.map((b) => [b.id, b.occupants]));
+      // prison = home-or-prison union, deduped, in humans order.
+      expect(byId.get(prison.id)).toEqual([humans[0]!.id, humans[2]!.id, humans[3]!.id]);
+      // farm = home-only, so the imprisoned home-worker and the dead one are out.
+      expect(byId.get(farm.id)).toEqual([humans[1]!.id]);
+      expect(byId.get(barracks.id)).toEqual([humans[4]!.id]);
+      // A second completed Farm accepts its own roster; an unfinished site remains untouched.
+      expect(byId.get(secondFarm.id)).toEqual([humans[5]!.id]);
+      expect(byId.get(site.id)).toEqual([]);
+    });
+  });
+});
+
+describe('Staffing command and custody regressions', () => {
+  afterEach(resetSimRng);
+
+  describe('L8 — removal targets the settler\'s own building', () => {
+    it('leaves a settler who works elsewhere assigned to their real workplace', () => {
+      const state = scenarioWorld();
+      const church = scenarioBuilding(1, BuildingType.Church);
+      const school = scenarioBuilding(2, BuildingType.School);
+      state.buildings = [church, school];
+      const worker = scenarioSettler(10, { workerBuildingId: church.id, job: JobType.Priest, occupation: 'priest' });
+      church.occupants = [worker.id];
+      state.entities = [worker];
+
+      const next = removeStaffWorkerFromBuilding(state, school.id, worker.id);
+
+      // The command names the school, so the priest's church job and occupant slot must survive.
+      const nextWorker = next.entities.find((e) => e.id === worker.id)!;
+      expect(nextWorker.workerBuildingId).toBe(church.id);
+      expect(next.buildings.find((b) => b.id === church.id)!.occupants).toContain(worker.id);
+    });
+
+    it('refuses to remove an existing job and leaves normalization to the workforce owner', () => {
+      const state = scenarioWorld();
+      const church = scenarioBuilding(1, BuildingType.Church, { staffingMode: 'manual' });
+      state.buildings = [church];
+      const worker = scenarioSettler(10, { workerBuildingId: church.id, job: JobType.Priest, occupation: 'priest' });
+      church.occupants = [worker.id];
+      state.entities = [worker];
+
+      const next = removeStaffWorkerFromBuilding(state, church.id, worker.id);
+      expect(next).toBe(state);
+      expect(church.staffingMode).toBe('manual');
+      assignMissingWorkers(next.entities, next.buildings, next, true);
+
+      const nextWorker = next.entities.find((e) => e.id === worker.id)!;
+      expect(nextWorker.workerBuildingId).toBe(church.id);
+      expect(next.buildings.find((b) => b.id === church.id)!.occupants).toContain(worker.id);
+      expect(next.buildings.find((b) => b.id === church.id)!.staffingMode).toBe('auto');
+    });
+  });
+
+  describe('L78 — imprisoned settlers leave construction crews', () => {
+    it('detaches a prisoner from the crew it was working', () => {
+      const state = scenarioWorld();
+      const site = scenarioBuilding(1, BuildingType.House, { completed: false, occupants: [10] });
+      const prison = scenarioBuilding(9, BuildingType.Prison, { x: 300, y: 300 });
+      const prisoner = scenarioSettler(10, { prisonBuildingId: prison.id, workerBuildingId: undefined });
+      prison.occupants = [prisoner.id];
+      state.buildings = [site, prison];
+      state.entities = [prisoner];
+
+      prepareWorkforce([prisoner], state.buildings);
+
+      // A prisoner leaves the construction crew's occupant list, not just the job link.
+      expect(site.occupants).not.toContain(prisoner.id);
+      expect(prisoner.prisonBuildingId).toBe(prison.id);
+      expect(prison.occupants).toContain(prisoner.id);
+    });
   });
 });

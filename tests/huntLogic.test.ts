@@ -1,3 +1,4 @@
+import { HUNTING_SPOT_PREY_OPTIONS, isValidHuntingSpotPrey } from '../src/game/huntingSpots';
 /**
  * Hunting rules — free-roam food yields and prey validity after ecology / day-length work.
  */
@@ -84,5 +85,17 @@ describe('moon howler rite cooldown ticks', () => {
     const { MOON_HOWLER_EXORCISM_INTERVAL_HOURS } = await import('../src/game/moonHowler');
     const { TICKS_PER_HOUR } = await import('../src/game/dayCycle');
     expect(MOON_HOWLER_EXORCISM_INTERVAL_HOURS * TICKS_PER_HOUR).toBe(24);
+  });
+});
+
+describe('L43 hunting spot prey ids', () => {
+  it('accepts only own prey option ids and rejects Object.prototype keys', () => {
+    for (const option of HUNTING_SPOT_PREY_OPTIONS) {
+      expect(isValidHuntingSpotPrey(option.id)).toBe(true);
+    }
+    expect(isValidHuntingSpotPrey('toString')).toBe(false);
+    expect(isValidHuntingSpotPrey('constructor')).toBe(false);
+    expect(isValidHuntingSpotPrey('__proto__')).toBe(false);
+    expect(isValidHuntingSpotPrey(42)).toBe(false);
   });
 });

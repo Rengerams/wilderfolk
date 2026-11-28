@@ -3,6 +3,7 @@
  * at the 100 cap, and a Wildlife Preserve damps the score.
  */
 import { describe, expect, it } from 'vitest';
+import { initGame } from '../src/game/worldGen';
 import { calculateEcosystemMetrics, tickEcosystemMetrics, adjustEcosystemHealth, adjustPollutionLevel } from '../src/game/dailyEcology';
 import { getEcosystemBreakdown } from '../src/game/ecoBreakdown';
 import { BuildingType, BUILDING_CONFIGS, EntityType, JobType } from '../src/game/gameTypes';
@@ -114,5 +115,47 @@ describe('pollution grading', () => {
     expect(getPreventiveCareMortalityMultiplier({ humanPopulation: 500 }, [ward], byId)).toBeCloseTo(0.95);
     doctor.alive = false;
     expect(getPreventiveCareMortalityMultiplier({ humanPopulation: 50 }, [ward], byId)).toBe(1);
+  });
+});
+
+describe('M6 — the Nature-tab breakdown shares the ecosystem-health owner', () => {
+  it('explains the recorded Health with the owner formula, preserves and all six species', () => {
+    const state = initGame({ size: 'medium', seed: 20240913 });
+    state.buildings = [
+      building(1, BuildingType.House, { x: 100, y: 100 }),
+      building(2, BuildingType.WildlifePreserve, { x: 200, y: 200 }),
+    ];
+    state.humanPopulation = 0;
+    state.unlockedTechs = [];
+    state.wildlifeCounts = {
+      grass: 0,
+      rabbits: 40,
+      deer: 0,
+      wolves: 0,
+      foxes: 0,
+      werewolves: 4,
+      wildkin: 4,
+      trees: 0,
+    };
+
+    const counts = { ...state.wildlifeCounts, humans: 0, visitorHumans: 0, rivalHumans: 0 };
+    tickEcosystemMetrics(state, counts, state.buildings);
+
+    const breakdown = getEcosystemBreakdown(state);
+    const metrics = calculateEcosystemMetrics(state, counts, state.buildings);
+    const preserveLine = breakdown.lines.find((line) => line.label === 'Wildlife preserves');
+    const lineTotal = breakdown.lines.reduce((total, line) => total + line.delta, 0);
+
+    // A small house occupies less than one rounded footprint point; the preserve is habitat.
+    // The resulting 102 is capped at 100 and the explanation accounts for the cap.
+    expect(state.ecosystemHealth).toBe(100);
+    expect(metrics.totalWildlife).toBe(48);
+    // The breakdown counts moon howlers and wildkin, not just the four prey/predator species.
+    expect(breakdown.wildlifeCount).toBe(48);
+    // ...and it reports the preserve bonus the build panel advertises.
+    expect(preserveLine?.delta).toBe(4);
+    // The card's two Health numbers are the same owner value, and the lines sum to it.
+    expect(breakdown.health).toBe(state.ecosystemHealth);
+    expect(lineTotal).toBe(state.ecosystemHealth);
   });
 });

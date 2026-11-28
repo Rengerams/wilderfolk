@@ -35,11 +35,6 @@ export function normalizeBuildingRotation(rotation: unknown): BuildingRotation {
   return rotation === 90 ? 90 : 0;
 }
 
-export function normalizeCornerRotation(rotation: unknown): CornerRotation {
-  if (rotation === 90 || rotation === 180 || rotation === 270) return rotation;
-  return 0;
-}
-
 export function toggleBuildingRotation(rotation: BuildingRotation): BuildingRotation {
   return rotation === 0 ? 90 : 0;
 }

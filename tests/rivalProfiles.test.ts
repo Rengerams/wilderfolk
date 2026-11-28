@@ -68,3 +68,20 @@ describe('rival profiles and ledgers', () => {
     expect(profile.ledger.wood).toBe(3);
   });
 });
+
+describe('rival daily actions (L56)', () => {
+  it('only chooses fortify for a shelter rival that can pay the 12 wood', () => {
+    const profile = createRivalProfile(2, 'neutral');
+    profile.priority = 'shelter';
+    profile.ledger.recovery = 100;
+    profile.ledger.food = 100;
+    profile.ledger.wood = 8;
+
+    // 8 wood cannot pay the action's 12-wood cost, so the rival must not waste the day.
+    expect(selectRivalDailyAction(profile, 'neutral', () => 0.99)).toBe('gather');
+
+    profile.ledger.wood = 12;
+    expect(selectRivalDailyAction(profile, 'neutral', () => 0.99)).toBe('fortify');
+    expect(applyRivalDailyAction(profile, 'fortify').changed).toBe(true);
+  });
+});

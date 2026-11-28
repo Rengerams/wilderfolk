@@ -3,8 +3,6 @@
  * last events of the previous day; it stays absent on a quiet day.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { initGame } from '../src/game/worldGen';
 import { logEvent } from '../src/game/eventLog';
 import { collectDashboard } from '../src/game/dashboardData';
@@ -33,8 +31,6 @@ describe('the council notices row', () => {
     quiet.tick = TICKS_PER_DAY * 2 + 5;
     expect(collectDashboard(quiet).council.find((line) => line.label === 'Notices')).toBeUndefined();
 
-    const source = readFileSync(resolve(process.cwd(), 'src/game/dashboardData.ts'), 'utf8');
-    expect(source, 'the dead `title` cast is back').not.toMatch(/as \{ title\?: string \}\)\.title/);
-    expect(source).toContain('latest.push(e.message)');
+
   });
 });

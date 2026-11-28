@@ -95,7 +95,7 @@ export function isHumanSpritesReady(): boolean {
   return humanSpritesReady;
 }
 
-export async function loadHumanWalkSheets(): Promise<void> {
+async function loadHumanWalkSheets(): Promise<void> {
   await Promise.all(Array.from(HUMAN_SPRITE_PATHS).map(loadSprite));
   humanSpritesReady = true;
 }

@@ -150,7 +150,7 @@ The foreign war-captive feeding path was removed with the enemy-captive subsyste
 | New symbol ownership and alias cleanup | `OWNERSHIP_OVERVIEW.md` + targeted source audit | Updated; repo-wide completeness still requires check |
 | Nutrition/meal behaviors | `tests/humanNeeds.mealRule.test.ts` | Tests authored; final-head result needed |
 | 7/30/360-day physiology scenarios | `tests/humanNeeds.calibration.test.ts` | Tests authored; final-head result needed |
-| Civic aid, famine desperation and prison release | `tests/civicPetition.cadence.test.ts`, `tests/famineDesperation.test.ts`, `tests/prisonStay.holdsHomeAndPost.test.ts`, `tests/simBatch.prisonEscapes.test.ts` | Regression coverage authored |
+| Civic aid, famine desperation and prison release | `tests/civicPetition.cadence.test.ts`, `tests/famineDesperation.test.ts`, `tests/prisonStay.holdsHomeAndPost.test.ts`, `tests/prisonShifts.test.ts` | Regression coverage authored |
 | Camera-focus vs off-screen equivalence and worker delta | seeded A/B observables | Not yet accepted |
 | Medical, duty, actual sleep and other legacy-energy paths | scoped audit + targeted integration tests | Not yet accepted |
 | 360-day un-restocked producer colony | `run-full-year.mts --scenario=producers --days=360 --bot` | Prior day-330 failure; revalidation required |

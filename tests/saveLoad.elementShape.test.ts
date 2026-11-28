@@ -2,7 +2,7 @@
  * Shape refusal at the load boundary: a payload that parses and passes the version gate must still be
  * refused when the contents of `entities` or `buildings` are corrupt.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameEngine';
 import { createInitialView } from '../src/game/viewState';
@@ -339,5 +339,31 @@ describe('the element defaults repair what a payload omits, and nothing more', (
     expect(same?.vx, 'a carried vx must not be replaced by the default').toBe(12.5);
     expect(same?.flash).toBe(7);
     expect(same?.generation, 'a carried generation must survive').toBe(3);
+  });
+});
+
+describe('a loaded dismissed-event ledger', () => {
+  beforeEach(() => { resetSimRng(); });
+
+  it('refuses a ledger that is not a list, naming the field', () => {
+    const payload = realPayload();
+    payload.dismissedActiveEventIds = { raid: true };
+
+    const outcome = loadGameFromParsedOutcome(payload);
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.detail).toContain('dismissedActiveEventIds');
+  });
+
+  it('keeps the ids the payload carried', () => {
+    const payload = realPayload();
+    payload.dismissedActiveEventIds = ['raid-1', 'raid-2'];
+
+    const outcome = loadGameFromParsedOutcome(payload);
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.world.dismissedActiveEventIds).toEqual(['raid-1', 'raid-2']);
   });
 });

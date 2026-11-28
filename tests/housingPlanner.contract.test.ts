@@ -13,6 +13,7 @@ import {
   createHousingLedger,
   familyFitsInResidence,
   listPlayerResidences,
+  pickResidenceForFamily,
   planRelocation,
   relocateChildToCustodian,
   standaloneMoveContext,
@@ -354,5 +355,16 @@ describe('the relocation plan contract', () => {
     expect(tryMoveOutOfFamilyHome(adult, humans, [familyHome, grandchildHome, empty])).toBe(true);
     expect(adult.residenceBuildingId).toBe(12);
     expect(grandchild.residenceBuildingId).toBe(11);
+  });
+});
+
+describe('M23 — unfinished houses never house settlers', () => {
+  it('skips an unfinished residence while selecting a completed home', () => {
+    const settler = human(1);
+    const unfinished = building(10, BuildingType.House, { completed: false, constructionProgress: 0 });
+    const completed = building(11, BuildingType.House);
+
+    expect(pickResidenceForFamily([settler], [settler], [unfinished])).toBeUndefined();
+    expect(pickResidenceForFamily([settler], [settler], [unfinished, completed])).toBe(completed.id);
   });
 });

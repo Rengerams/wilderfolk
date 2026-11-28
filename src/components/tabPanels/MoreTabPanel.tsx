@@ -232,7 +232,7 @@ export default function MoreTabPanel({
           </div>
 
           {/* Debug-only tooling, gated on `?debug=1`; the gate is asserted by
-              `tests/debugGate.guide.test.ts` rather than trusted to this comment. */}
+              `scripts/check-source-guards.mjs` (debug-mode-gate) rather than trusted to this comment. */}
           {debugMode && (
             <div className="rounded-xl border border-dashed border-violet-700/40 bg-violet-950/20 p-3">
               <h3 className="mb-2 text-sm font-bold text-violet-300">🧪 Testing</h3>

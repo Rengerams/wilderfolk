@@ -84,7 +84,7 @@ No re-export wrapper is needed for meal scheduling constants: callsites read the
 
 ## 7. Verification and remaining acceptance risks
 
-Relevant regression suites: `tests/humanNeeds.mealRule.test.ts`, `tests/humanNeeds.calibration.test.ts`, `tests/simulation.decisionRegistry.test.ts`, `tests/civicPetition.cadence.test.ts`, `tests/prisonStay.holdsHomeAndPost.test.ts`, `tests/simBatch.prisonEscapes.test.ts` and `tests/workAbsence.reasons.test.ts`.
+Relevant regression suites: `tests/humanNeeds.mealRule.test.ts`, `tests/humanNeeds.calibration.test.ts`, `tests/simulation.decisionRegistry.test.ts`, `tests/civicPetition.cadence.test.ts`, `tests/prisonStay.holdsHomeAndPost.test.ts`, `tests/prisonShifts.test.ts` and `tests/workAbsence.reasons.test.ts`.
 
 Standard project commands (run in the repository's supported PowerShell environment):
 - `npm run check:source` — source lint and structural checks.

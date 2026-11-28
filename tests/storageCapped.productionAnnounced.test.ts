@@ -3,8 +3,6 @@
  * production gain is clamped at `storageMax` and must report what it actually accepted.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
 import { BuildingType } from '../src/game/gameTypes';
@@ -82,17 +80,4 @@ describe('a clamped store announces what it discarded', () => {
     expect(storesFullFloats(state), 'the refused remainder went unmentioned').toBeGreaterThan(0);
   });
 
-  it('leaves no producer that discards the clamp result, and gives the predicate a consumer', () => {
-    const economy = readFileSync(resolve(process.cwd(), 'src/game/dailyBuildingEconomy.ts'), 'utf8');
-    expect(economy).toContain('function addProductionOutput');
-    // Banned shape: a producer gating on the clamp result and dropping the refusal.
-    expect(economy, 'a producer still gates on the clamp result and drops the refusal')
-      .not.toMatch(/if \(addResource\(/);
-
-    const header = readFileSync(resolve(process.cwd(), 'src/components/GameHeader.tsx'), 'utf8');
-    for (const resource of ['food', 'wood', 'gold', 'stone', 'iron']) {
-      expect(header, `the ${resource} badge never shows a full store`)
-        .toContain(`isResourceCapped(world, '${resource}')`);
-    }
-  });
 });

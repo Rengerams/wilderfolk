@@ -91,3 +91,13 @@ describe('hospital care reads the authoritative stamina reserve', () => {
     expect(medicalCareReason(patient, 0)).toBe('exhausted');
   });
 });
+
+describe('M11 — grief is a window, not a permanent state', () => {
+  it('only seeks care while the grief deadline is in the future', () => {
+    const mourner = human({ energy: 120, maxEnergy: 200, needs: undefined, griefUntilTick: 500 });
+
+    expect(needsMedicalCare(mourner, 100)).toBe(true);
+    expect(needsMedicalCare(mourner, 500)).toBe(false);
+    expect(needsMedicalCare(mourner, 900)).toBe(false);
+  });
+});

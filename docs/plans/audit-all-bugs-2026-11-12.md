@@ -71,7 +71,7 @@ Every finding the audit names, one row each: **162 numbered** (S + W), plus the 
 | W-46 | scene owner keeps live pairs on re-open | Fixed | tests/dialogue.pipeline.integration.test.ts |
 | W-47 | one friendship hit per landed famine bite | Fixed | tests/famineDesperation.test.ts |
 | W-48 | intro resumes instead of rewinding | Fixed | tests/audio.introResume.test.ts |
-| W-49 | one music-path gain for both players | Fixed | tests/renderBatch.audioVolume.test.ts |
+| W-49 | one music-path gain for both players | Fixed | tests/audio.output.test.ts |
 | W-50 | docs check real paths and fails on missing docs | Fixed | scripts/check-docs.mjs (gate can fail) |
 | W-51 | unit-all alias added | Fixed | node scripts/test.mjs unit-all |
 | W-52 | storm gate asserted instead of skipped | Fixed | tests/weatherConsequences.test.ts |
@@ -181,7 +181,7 @@ condition is still present; `Needs verification` means no proof was run in this 
 | N-02 | Worker handshake ignores simVersion | Fixed | tests/gameWorker.uploadWatchdog.test.ts |
 | N-03 | Main-thread fallback runs at most one tick per frame | Fixed | tests/gameLoop.fallbackTickRollback.test.ts |
 | N-04 | hasMill counts rival Mills for the player farm bonus | Fixed | tests/economyWorkforce.auditRemediation.test.ts |
-| N-05 | Fresh colony starts at 0.03 spoilage while the daily owner writes 0.02 | Fixed | tests/economyAudit.storageCaps.test.ts |
+| N-05 | Fresh colony starts at 0.03 spoilage while the daily owner writes 0.02 | Fixed | tests/storageCap.test.ts |
 | N-06 | Workshop preview uses yesterday's hours while production uses today's presence | Fixed | tests/workshopEconomy.test.ts |
 | N-07 | workforce.barracksAutoFill leaves a barracks short | Fixed | tests/workforce.barracksAutoFill.test.ts |
 | N-08 | Jailed worker's post counts as filled | Fixed | tests/economyWorkforce.auditRemediation.test.ts |

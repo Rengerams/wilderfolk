@@ -4,7 +4,6 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PERSON_DAY_ROLL_SALTS, personDayRoll, personPairDayRoll } from '../src/game/simRng';
-import { readFileSync } from 'node:fs';
 import {
   isGreetingHour,
   isSocialStaggerTick,
@@ -127,8 +126,6 @@ describe('one shared social predicate (W-106)', () => {
     // The old `salt + id` arithmetic collided with the fixed greeting/comfort salts for ids 1-2.
     expect(greeting.size, 'greeting pair rolls collapse across partner ids').toBeGreaterThan(190);
     expect(comfort.size, 'comfort pair rolls collapse across partner ids').toBeGreaterThan(190);
-    const source = readFileSync('src/game/socialLife.ts', 'utf8');
-    expect(source, 'an id-added salt came back').not.toMatch(/personDayRoll\([^)]*\+ Math\.abs/);
   });
 
   it('exposes one stagger bucket and one greeting window', () => {

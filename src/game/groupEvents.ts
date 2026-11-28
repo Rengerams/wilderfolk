@@ -33,9 +33,9 @@ import { formatResourceAmounts, RESOURCE_METAS, type ResourceKey } from './resou
 export const VILLAGE_REQUEST_PROVISIONS_COST_GOLD = 15;
 export const VILLAGE_REQUEST_PROVISIONS_FOOD = 30;
 export const VILLAGE_REQUEST_PROVISIONS_REPUTATION = 2;
-export const VILLAGE_REQUEST_DECLINE_REPUTATION = 1;
-export const VILLAGE_REQUEST_EXPIRY_DAYS = 3;
-export const VILLAGE_REQUEST_COOLDOWN_DAYS = 7;
+const VILLAGE_REQUEST_DECLINE_REPUTATION = 1;
+const VILLAGE_REQUEST_EXPIRY_DAYS = 3;
+const VILLAGE_REQUEST_COOLDOWN_DAYS = 7;
 export type VillageRequestChoiceId = 'accept' | 'decline';
 
 function findLiveRequestSource(state: WorldState, request: VillageRequest): VisitorGroup | undefined {
@@ -323,7 +323,7 @@ export function getVisitorTradePriceMult(rep: number): number {
   return band === 'friendly' ? 0.8 : band === 'harsh' ? 1.25 : 1;
 }
 
-export function getVisitorTradeRewardMult(rep: number): number {
+function getVisitorTradeRewardMult(rep: number): number {
   return getReputationBand(rep) === 'friendly' ? 1.15 : 1;
 }
 
@@ -466,8 +466,8 @@ export function tradeWithVisitors(
 }
 
 /** Refugee offer prices — exported so the panel's button labels quote the owner's figures. */
-export const REFUGEE_WELCOME_FOOD = 40;
-export const REFUGEE_SCREEN_FOOD = 20;
+const REFUGEE_WELCOME_FOOD = 40;
+const REFUGEE_SCREEN_FOOD = 20;
 
 export type RefugeeChoice = 'welcome' | 'screen' | 'turn_away';
 
@@ -595,7 +595,7 @@ function admitRefugees(
   return joined;
 }
 
-export type WorldEventId =
+type WorldEventId =
   | 'wolf_migration'
   | 'bountiful_harvest'
   | 'traveling_merchant'

@@ -1,7 +1,8 @@
+import { type Entity } from '../src/game/gameTypes';
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { human } from '../src/test/factories';
-import { citizenFullName, formatCitizenName, formatDeathLog } from '../src/game/citizenId';
+import { citizenFullName, formatCitizenName, formatDeathLog, humanDisplayName } from '../src/game/citizenId';
 import { logDeath } from '../src/game/eventLog';
 import { applyEducationGraduation, SCHOOL_GRADUATION_DAYS } from '../src/game/education';
 import { tryFormSchoolyardBond } from '../src/game/simulation/humanRelationships';
@@ -69,4 +70,18 @@ describe('Chronicle citizen prose and stable identity', () => {
       && !note.message.includes('#901')
     )).toBe(true);
   });
+});
+
+describe('one definition of a settler display name', () => {
+  it('falls back to the owner for an absent name, and joins the parts it has', () => {
+    expect(humanDisplayName({ name: undefined } as Entity)).toBe('A settler');
+    expect(humanDisplayName({} as Entity)).toBe('A settler');
+    expect(humanDisplayName({ name: 'Asha', surname: 'Reed', title: 'Elder' } as Entity))
+      .toBe('Asha Reed Elder');
+    expect(humanDisplayName({ name: 'Asha' } as Entity)).toBe('Asha');
+  });
+
+
+
+
 });

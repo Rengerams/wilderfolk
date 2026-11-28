@@ -1,10 +1,12 @@
+import { resetSimRng } from '../src/game/simRng';
+import { ensureEntityByIdMap } from '../src/game/entityIndex';
 /**
  * Autumn deer migration: the herd arrives on a deterministic late-autumn day, behaves like normal
  * deer, leaves after a week, and next year's size follows how many were taken.
  */
-import { describe, it, expect } from 'vitest';
-import { initGame } from '../src/game/worldGen';
-import { EntityType } from '../src/game/gameTypes';
+import { afterEach, describe, it, expect } from 'vitest';
+import { initGame, isPassableWildlifePosition } from '../src/game/worldGen';
+import { EntityType, MapPreset } from '../src/game/gameTypes';
 import {
   HERD_BASE_SIZE,
   HERD_MIN_SIZE,
@@ -161,5 +163,89 @@ describe('autumn deer migration', () => {
     setDay(state, arrival + MIGRATION_WINDOW_DAYS);
     tickMigration(state, state.entities);
     expect(state.migrationNextHerdSize).toBeUndefined();
+  });
+});
+
+describe('M19 autumn herd deer spawn on passable ground', () => {
+  it('never places herd deer on unpassable terrain', () => {
+    const presets = [
+      MapPreset.Coastal,
+      MapPreset.Rivers,
+      MapPreset.Scandinavia,
+      MapPreset.Continental,
+      MapPreset.Highland,
+      MapPreset.Arabia,
+    ];
+    for (const preset of presets) {
+      for (const seed of [1, 2, 3]) {
+        const state = initGame({ villageName: 'C1', size: 'medium', preset, seed });
+        state.tick = migrationArrivalDay(state.worldMap!.seed) * TICKS_PER_DAY;
+        tickMigration(state, state.entities);
+
+        const herd = herdDeer(state, 0);
+        // The new terrain can block part of the edge strip, so a herd may arrive smaller than the
+        // base size — what matters is that a herd arrives and none of it lands on unpassable ground.
+        expect(herd.length, `${preset}/${seed}: a herd arrives`).toBeGreaterThan(0);
+        expect(herd.length, `${preset}/${seed}: herd never exceeds base`).toBeLessThanOrEqual(HERD_BASE_SIZE);
+        for (const deer of herd) {
+          expect(deer).toMatchObject({ type: EntityType.Deer, migrationTag: 0 });
+          expect(Number.isFinite(deer.x) && Number.isFinite(deer.y)).toBe(true);
+          expect(
+            isPassableWildlifePosition(state, deer.x, deer.y, 8),
+            `${preset}/${seed}: deer ${deer.id} spawned on blocked terrain at ${deer.x},${deer.y}`,
+          ).toBe(true);
+        }
+      }
+    }
+  });
+});
+
+describe('autumn herd bookkeeping (L45, L46)', () => {
+  afterEach(() => resetSimRng());
+  function herdGame() {
+    resetSimRng();
+    const state = initGame({ villageName: 'Herd', size: 'medium', seed: 4242 });
+    const arrival = migrationArrivalDay(state.worldMap!.seed);
+    setDay(state, arrival);
+    tickMigration(state, state.entities);
+    const herd = state.entities.filter(
+      (e) => e.type === EntityType.Deer && e.migrationTag === 0,
+    );
+    return { state, arrival, herd };
+  }
+
+  it('L45 — registers every spawned herd deer in the canonical entity-id index', () => {
+    const { state, arrival, herd } = herdGame();
+    expect(herd.length).toBe(HERD_BASE_SIZE);
+
+    const byId = ensureEntityByIdMap(state);
+    for (const herdDeer of herd) {
+      expect(byId.get(herdDeer.id), `herd deer ${herdDeer.id} missing from entityById`).toBe(herdDeer);
+    }
+
+    // Departure keeps the index living-only — no dead herd deer may linger in it.
+    const herdIds = herd.map((d) => d.id);
+    setDay(state, arrival + MIGRATION_WINDOW_DAYS);
+    tickMigration(state, state.entities);
+    for (const id of herdIds) {
+      expect(byId.get(id), `departed herd deer ${id} still indexed`).toBeUndefined();
+    }
+  });
+
+  it('L46 — reports and remembers herd losses as losses, not as a hunt', () => {
+    const { state, arrival, herd } = herdGame();
+    // The yearly memory is keyed on the number of losses, but the player-facing text must not
+    // claim a hunt that never happened.
+    for (let i = 0; i < 3; i++) herd[i].alive = false;
+
+    setDay(state, arrival + MIGRATION_WINDOW_DAYS);
+    tickMigration(state, state.entities);
+
+    expect(state.migrationNextHerdSize).toBe(HERD_BASE_SIZE - 3);
+    const news = state.bigNews.map((n) => n.message).join(' | ');
+    const log = state.eventLog.map((e) => e.message).join(' | ');
+    expect(news).toContain('lost from the passing herd');
+    expect(news).not.toContain('taken');
+    expect(log).not.toContain('hunted');
   });
 });

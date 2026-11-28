@@ -70,7 +70,7 @@ Not-fixed / not-a-fix items are listed separately at the bottom.
 | W-46 | scene owner keeps live pairs on re-open | tests/dialogue.pipeline.integration.test.ts |
 | W-47 | one friendship hit per landed famine bite | tests/famineDesperation.test.ts |
 | W-48 | intro resumes instead of rewinding | tests/audio.introResume.test.ts |
-| W-49 | one music-path gain for both players | tests/renderBatch.audioVolume.test.ts |
+| W-49 | one music-path gain for both players | tests/audio.output.test.ts |
 | W-50 | docs check real paths and fails on missing docs | scripts/check-docs.mjs (gate can fail) |
 | W-51 | unit-all alias added | node scripts/test.mjs unit-all |
 | W-52 | storm gate asserted instead of skipped | tests/weatherConsequences.test.ts |
@@ -185,7 +185,7 @@ present in the worktree before touching them. **These are not in the 158 fixed r
 | Worker ignores `simVersion` in the handshake | §4.4 | **Fixed** — `isWorkerSimVersion`/`workerSimVersionMismatch`, `tests/gameWorker.uploadWatchdog.test.ts` |
 | Main-thread fallback runs at most one tick/frame | §4.4 | **Fixed** — `catchUpBudgetFor(speed)`, `tests/gameLoop.fallbackTickRollback.test.ts` |
 | `hasMill` counts rival Mills for the player farm bonus | §4.3 | **Fixed** — `isCompletedPlayerBuilding`, `tests/economyWorkforce.auditRemediation.test.ts` |
-| Fresh colony starts at 0.03 spoilage while the daily owner writes 0.02 | §4.3 | **Fixed** — `worldGen` calls `updateStorageCaps`, `tests/economyAudit.storageCaps.test.ts` |
+| Fresh colony starts at 0.03 spoilage while the daily owner writes 0.02 | §4.3 | **Fixed** — `worldGen` calls `updateStorageCaps`, `tests/storageCap.test.ts` |
 | Workshop preview uses yesterday's hours while production uses today's presence | §4.3 | **Fixed** — both read `getWorkdayAttendance`, `tests/workshopEconomy.test.ts` |
 | `workforce.barracksAutoFill` asserts `> 1` and leaves a barracks short | §4.4 | **Fixed** — asserts the full post count, `tests/workforce.barracksAutoFill.test.ts` |
 | Jailed worker's post counts as filled | §5 | **Fixed** — `countActiveWorkersAtBuilding` excludes jailed holders, `tests/economyWorkforce.auditRemediation.test.ts` |

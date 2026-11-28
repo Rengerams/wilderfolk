@@ -7,6 +7,9 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const ROOT = process.cwd();
 const BASELINE = join(ROOT, 'docs', 'tools', 'duplicate-code-baseline.json');
@@ -23,7 +26,8 @@ function runJscpd() {
     '--reporters', 'json',
     '--output', output,
   ];
-  const result = spawnSync(process.execPath, [join(ROOT, 'node_modules', 'jscpd', 'run-jscpd.js'), ...args], {
+  // Resolve the installed CLI through its package, rather than a hard-coded node_modules path.
+  const result = spawnSync(process.execPath, [require.resolve('jscpd/run-jscpd.js'), ...args], {
     cwd: ROOT,
     stdio: 'ignore',
   });

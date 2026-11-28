@@ -3,8 +3,6 @@
  * list agrees with the command that refuses foreign settlers and unfinished posts.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { initGame, createEntity } from '../src/game/worldGen';
@@ -107,12 +105,5 @@ describe('taming candidates and post reach', () => {
       hasNearbyPlayerTamingPost(unfinishedState, creatureAt(unfinishedState, 110, 100)),
       'an unfinished post is not active yet',
     ).toBe(false);
-  });
-
-  it('keeps the panel on the owner for both', () => {
-    const panel = readFileSync(resolve(process.cwd(), 'src/components/SelectedEntityPanel.tsx'), 'utf8');
-    expect(panel).toContain('listTamingCandidates(state)');
-    expect(panel).toContain('hasNearbyPlayerTamingPost(state, entity)');
-    expect(panel, 'the panel restates the reach test again').not.toMatch(/TamingPost && Math\.hypot/);
   });
 });

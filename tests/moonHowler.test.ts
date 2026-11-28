@@ -1,8 +1,10 @@
+import { finishedBuilding, human as sharedHuman } from '../src/test/factories';
+import { spawnMoonHowlerDebug } from '../src/game/settlerInteractionActions';
 /**
  * Bundled Moon Howler suite: one `describe('<original file name>')` per source file, with each
  * file's constants and helpers scoped inside it.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
 import {
   BUILDING_CONFIGS,
@@ -53,7 +55,7 @@ import { buildEntityByType } from '../src/game/simFocus';
 import { isInsideCompletedBuilding } from '../src/game/terrainSystems';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
-import { createSeededRng, getSimRng, setSimSeed } from '../src/game/simRng';
+import { createSeededRng, getSimRng, setSimSeed, resetSimRng } from '../src/game/simRng';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 
 describe('Moon Howler restored physiology clock', () => {
@@ -1345,5 +1347,242 @@ describe('Moon Howler night census', () => {
     // The HUD count is the settler roster: the wolf form is the same settler, not a loss.
     expect(state.humanPopulation).toBe(roster);
     expect(roster).toBeGreaterThan(1);
+  });
+});
+
+describe('M21 — the rare moon-howler roll is a per-moon decision', () => {
+  function adult(id: number): Entity {
+    return {
+      id,
+      type: EntityType.Human,
+      x: 100 + id,
+      y: 100,
+      energy: 200,
+      maxEnergy: 200,
+      age: 30,
+      birthYear: 0,
+      birthMonth: 0,
+      birthDay: 0,
+      maxAge: 90,
+      speed: 2,
+      size: 10,
+      vx: 0,
+      vy: 0,
+      flash: 0,
+      alive: true,
+      gender: id % 2 === 0 ? 'male' : 'female',
+      name: `H${id}`,
+      surname: 'Vale',
+      generation: 1,
+      isJuvenile: false,
+      job: JobType.Settler,
+      childrenIds: [],
+      reproductionCooldown: 0,
+      relationshipStatus: 'single',
+    } as Entity;
+  }
+
+  it('does not roll again on the later ticks of the nightfall hour', () => {
+    const state = initGame({ skipTerrain: true, seed: 20240913 });
+    // Full moon, nightfall, first tick of the hour, six cursable settlers, no active curse.
+    state.tick = DAYS_PER_MOON_CYCLE * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR;
+    const humans = [1, 2, 3, 4, 5, 6].map(adult);
+    state.entities = humans;
+    const entityById = new Map(humans.map((h) => [h.id, h]));
+
+    // First tick fails the 15% roll; the next two ticks would each have passed it.
+    const rolls = [MOON_HOWLER_REPLACEMENT_CHANCE + 0.5, 0, 0];
+    const rng = () => rolls.shift() ?? 0;
+
+    for (let i = 0; i < TICKS_PER_HOUR; i++) {
+      tickMoonHowlerCycle(state, state.entities, [], DAYS_PER_MOON_CYCLE, MOON_HOWLER_NIGHT_START, entityById, undefined, rng);
+      state.tick += 1;
+    }
+
+    expect(state.entities.filter((e) => e.moonHowlerCursed)).toHaveLength(0);
+    // The later ticks must not have consumed a replacement roll at all.
+    expect(rolls).toHaveLength(2);
+  });
+
+  it('still rolls on the first tick of the hour', () => {
+    const state = initGame({ skipTerrain: true, seed: 20240913 });
+    state.tick = DAYS_PER_MOON_CYCLE * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR;
+    const humans = [1, 2, 3, 4, 5, 6].map(adult);
+    state.entities = humans;
+    const entityById = new Map(humans.map((h) => [h.id, h]));
+
+    tickMoonHowlerCycle(state, state.entities, [], DAYS_PER_MOON_CYCLE, MOON_HOWLER_NIGHT_START, entityById, undefined, () => 0);
+
+    expect(state.entities.filter((e) => e.moonHowlerCursed)).toHaveLength(1);
+  });
+});
+
+describe('debug curse and nightfall cadence', () => {
+  const FIXTURE_SEED = 20240913;
+  const FULL_MOON_DAY = DAYS_PER_MOON_CYCLE;
+  const FULL_MOON_NIGHTFALL_TICK = FULL_MOON_DAY * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR;
+
+  const FARM_ID = 300;
+  const HOUSE_ID = 500;
+  const CHURCH_ID = 700;
+  const CLERIC_ID = 90;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetSimRng();
+  });
+
+  /** This file's settlers stand at (100, 100) and default to male; the shared factory does neither. */
+  const human = (id: number, overrides: Partial<Entity> = {}): Entity =>
+    sharedHuman(id, { x: 100, y: 100, gender: 'male', ...overrides });
+
+  /** Real world state (initGame) with the fixture entities/buildings and a chosen tick. */
+  function moonState(entities: Entity[], buildings: Building[], tick: number): WorldState {
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
+    state.entities = entities;
+    state.buildings = buildings;
+    state.villageLeaderId = null;
+    state.nextEntityId = 10_000;
+    state.tick = tick;
+    state.bigNews = [];
+    state.eventLog = [];
+    state.notifications = [];
+    state.floatingTexts = [];
+    return state;
+  }
+
+  function sevenAdults(): Entity[] {
+    return Array.from({ length: 7 }, (_, i) => human(i + 1, { gender: i % 2 === 0 ? 'male' : 'female' }));
+  }
+
+  describe('debug Moon Howler curse (L48 + one-Howler ownership)', () => {
+    it('detaches the cursed settler from every occupants list it clears ids from', () => {
+      const settler = human(1, { workerBuildingId: FARM_ID, residenceBuildingId: HOUSE_ID });
+      const farm = finishedBuilding(FARM_ID, BuildingType.Farm, { occupants: [1] });
+      const house = finishedBuilding(HOUSE_ID, BuildingType.House, { occupants: [1] });
+      const state = moonState([settler], [farm, house], FULL_MOON_NIGHTFALL_TICK);
+
+      const cursed = spawnMoonHowlerDebug(state);
+
+      const howler = cursed.entities.find((entity) => entity.moonHowlerCursed);
+      expect(howler).toBeDefined();
+      expect(howler?.type).toBe(EntityType.Werewolf);
+      expect(howler?.workerBuildingId).toBeUndefined();
+      expect(howler?.residenceBuildingId).toBeUndefined();
+      // The command clones the world, so inspect the buildings it returned.
+      const farmAfter = cursed.buildings.find((b) => b.id === FARM_ID);
+      const houseAfter = cursed.buildings.find((b) => b.id === HOUSE_ID);
+      expect(farmAfter?.occupants).not.toContain(howler?.id);
+      expect(houseAfter?.occupants).not.toContain(howler?.id);
+      // §5 workplace/residence: no assignment id may point at a building that lists the settler
+      // (and no occupants list may keep a settler whose ids were cleared).
+      expect(collectSimulationInvariantErrors(cursed)).toEqual([]);
+    });
+
+    it('cannot create a second living cursed Moon Howler while one stalks the valley', () => {
+      const existing = human(1, { moonHowlerCursed: true });
+      const state = moonState([existing, ...sevenAdults()], [], FULL_MOON_NIGHTFALL_TICK);
+
+      const after = spawnMoonHowlerDebug(state);
+
+      expect(countActiveMoonHowlerCurses(after.entities)).toBe(1);
+      expect(after.entities.filter((entity) => entity.moonHowlerCursed)).toHaveLength(1);
+      expect(collectSimulationInvariantErrors(after)).toEqual([]);
+    });
+  });
+
+  describe('Moon Howler cadence + injected RNG', () => {
+    it('runs the Church rite on the injected stream, not raw Math.random (L49)', () => {
+      // The howler is already in werewolf form and hunting, 80px from the priest, so the rite
+      // reaches its roll without a transform/nudge changing the geometry.
+      const cursed = human(1, {
+        type: EntityType.Werewolf,
+        moonHowlerCursed: true,
+        name: 'Bjorn',
+        surname: 'Moonborn',
+        x: 400,
+        y: 320,
+      });
+      const cleric = human(CLERIC_ID, {
+        name: 'Ingrid',
+        gender: 'female',
+        job: JobType.Priest,
+        occupation: 'priest',
+        workerBuildingId: CHURCH_ID,
+        x: 320,
+        y: 320,
+      });
+      const church = finishedBuilding(CHURCH_ID, BuildingType.Church, {
+        occupants: [CLERIC_ID],
+        x: 300,
+        y: 300,
+        width: 50,
+        height: 56,
+      });
+      const state = moonState([cursed, ...sevenAdults(), cleric], [church], FULL_MOON_NIGHTFALL_TICK);
+      const entityById = new Map(state.entities.map((entity) => [entity.id, entity]));
+
+      // Raw randomness would cure (0.1 < 0.35). The injected stream says flee, so a curse that
+      // survives proves tickMoonHowlerCycle forwarded its rng into the rite.
+      vi.spyOn(Math, 'random').mockReturnValue(0.1);
+
+      tickMoonHowlerCycle(
+        state,
+        state.entities,
+        state.buildings,
+        FULL_MOON_DAY,
+        MOON_HOWLER_NIGHT_START,
+        entityById,
+        undefined,
+        () => 0.99,
+      );
+
+      expect(cursed.moonHowlerCursed).toBe(true);
+      expect(state.eventLog.some((event) => event.message.includes('failed to break'))).toBe(true);
+      expect(cleric.alive).toBe(true);
+      expect(collectSimulationInvariantErrors(state)).toEqual([]);
+    });
+
+    it('announces full-moon nightfall once per moon, not on every tick of the nightfall hour', () => {
+      const survivor = human(1, { moonHowlerCursed: true });
+      const state = moonState([survivor, ...sevenAdults().filter((h) => h.id !== 1)], [], FULL_MOON_NIGHTFALL_TICK);
+      const entityById = new Map(state.entities.map((entity) => [entity.id, entity]));
+
+      for (let offset = 0; offset < TICKS_PER_HOUR; offset++) {
+        state.tick = FULL_MOON_NIGHTFALL_TICK + offset;
+        tickMoonHowlerCycle(
+          state,
+          state.entities,
+          [],
+          FULL_MOON_DAY,
+          MOON_HOWLER_NIGHT_START,
+          entityById,
+          undefined,
+          () => 0.99,
+        );
+      }
+
+      const nightfallCards = state.bigNews.filter((news) => news.title.includes('Full Moon'));
+      expect(nightfallCards).toHaveLength(1);
+    });
+
+    it('decides the rare replacement roll once, on the first tick of the nightfall hour', () => {
+      const state = moonState(sevenAdults(), [], FULL_MOON_NIGHTFALL_TICK);
+      const entityById = new Map(state.entities.map((entity) => [entity.id, entity]));
+      let draws = 0;
+      const rng = (): number => {
+        draws += 1;
+        return 0.99; // fail the replacement roll
+      };
+
+      for (let offset = 0; offset < TICKS_PER_HOUR; offset++) {
+        state.tick = FULL_MOON_NIGHTFALL_TICK + offset;
+        tickMoonHowlerCycle(state, state.entities, [], FULL_MOON_DAY, MOON_HOWLER_NIGHT_START, entityById, undefined, rng);
+      }
+
+      // One roll per full moon: the gate (and the population scans behind it) runs once.
+      expect(draws).toBe(1);
+      expect(countActiveMoonHowlerCurses(state.entities)).toBe(0);
+    });
   });
 });

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
@@ -349,5 +350,30 @@ describe('persistGame', () => {
     const refusal = saveImportSizeRefusal(MAX_SAVE_IMPORT_BYTES + 1);
     expect(refusal).toContain('64 MB');
     expect(refusal).toContain('imports saves up to');
+  });
+});
+
+describe('R1 — the unmount save never writes a colony no loop owns', () => {
+  it('routes the unmount cleanup through the guarded session-stop save', () => {
+    const src = readFileSync('src/hooks/useGamePersistence.ts', 'utf8');
+    // The teardown owner is now `persistOnSessionStop`; the cleanup must call that one owner.
+    const effect = src.match(
+      /useEffect\(\(\) => \{\s*return \(\) => \{\s*void persistOnSessionStop\(\);\s*\};\s*\}, \[persistOnSessionStop\]\);/,
+    );
+    expect(effect, 'fixture premise: the unmount-save effect calls the guarded owner').not.toBeNull();
+
+    // The guard moved into the owner, which still reads the loop ref and skips without one.
+    const owner = src.match(
+      /const persistOnSessionStop = useCallback\(\(\): Promise<boolean> => \{([\s\S]*?)\n  \}, \[loopRef, persistCurrentGame\]\);/,
+    );
+    expect(owner, 'the guarded session-stop owner exists').not.toBeNull();
+    const body = owner?.[1] ?? '';
+    expect(body, 'the owner reads the loop ref into a local').toContain('const loop = loopRef.current;');
+    const guard = body.match(/if\s*\(\s*!loop[\s\S]*?\)\s*return Promise\.resolve\(false\);/);
+    expect(guard, 'the owner skips saving without a loop or during crash recovery').not.toBeNull();
+    expect(
+      guard?.index ?? Infinity,
+      'the owner guards before it persists',
+    ).toBeLessThan(body.indexOf('persistCurrentGame('));
   });
 });

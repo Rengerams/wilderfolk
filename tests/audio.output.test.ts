@@ -2,8 +2,8 @@
  * The intro and gameplay themes can play through an `HTMLAudioElement`, outside the Web Audio bus
  * chain, so that path must apply the same music-chain gain the buses apply.
  */
-import { describe, expect, it, vi } from 'vitest';
-import { VOLUMES } from '../src/audio/constants';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { LIMITER, VOLUMES } from '../src/audio/constants';
 import { levelsForPreset } from '../src/audio/preferences';
 import { htmlAudioVolumeForPath } from '../src/audio/htmlAudioSync';
 import { TRACK_VOLUMES } from '../src/audio/tracks';
@@ -56,8 +56,8 @@ class FakeAudioContext {
   state = 'running';
   currentTime = 0;
   destination = new FakeNode();
-  createGain = (): FakeGain => new FakeGain();
-  createDynamicsCompressor = (): FakeCompressor => new FakeCompressor();
+  createGain = vi.fn(() => new FakeGain());
+  createDynamicsCompressor = vi.fn(() => new FakeCompressor());
   createBiquadFilter = (): FakeFilter => new FakeFilter();
   resume = vi.fn(async () => undefined);
   decodeAudioData = vi.fn(async () => ({}));
@@ -87,6 +87,28 @@ import { audioGraph } from '../src/audio/graph';
 import { backgroundMusic } from '../src/audio/backgroundMusic';
 import { introMusic } from '../src/audio/introMusic';
 import { soundDirector } from '../src/audio/director';
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe('F-RND-30 — the master bus is limited before the speakers', () => {
+  it('routes master gain through a compressor and never straight to the destination', async () => {
+    vi.stubGlobal('AudioContext', FakeAudioContext);
+    const context = audioGraph.ensure() as unknown as FakeAudioContext;
+    const masterGain = context.createGain.mock.results[0]?.value;
+    const limiter = context.createDynamicsCompressor.mock.results[0]?.value;
+    expect(limiter).toBeDefined();
+    expect(masterGain).toBeDefined();
+    expect(limiter!.threshold.value).toBe(LIMITER.thresholdDb);
+    expect(limiter!.knee.value).toBe(LIMITER.kneeDb);
+    expect(limiter!.ratio.value).toBe(LIMITER.ratio);
+    expect(limiter!.attack.value).toBe(LIMITER.attackSec);
+    expect(limiter!.release.value).toBe(LIMITER.releaseSec);
+
+    expect(masterGain!.connect).toHaveBeenCalledWith(limiter);
+    expect(masterGain!.connect).not.toHaveBeenCalledWith(context.destination);
+    expect(limiter!.connect).toHaveBeenCalledWith(context.destination);
+  });
+});
 
 describe('F-RND-30 — the HTMLAudio element path matches the Web Audio music chain', () => {
   it('scales by the music path gain the buses apply, not just the preset', () => {

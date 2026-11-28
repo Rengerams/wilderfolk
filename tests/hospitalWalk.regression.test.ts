@@ -299,3 +299,72 @@ describe('doctor duty under the one pregnancy rule', () => {
     expect(wardRoundServes(PREGNANCY_TICKS, false)).toBe(true);
   });
 });
+
+function makeState(tick: number, entities: Entity[]): WorldState {
+  return {
+    tick,
+    entities,
+    resources: { food: 1000 },
+    floatingTexts: [],
+    nextFloatingTextId: 1,
+  } as unknown as WorldState;
+}
+
+/**
+ * First colony day on which both the day-stable treatment roll (salt 840) and the
+ * day-stable medicine roll (salt 902) pass for this settler.
+ */
+function findQualifyingTreatmentDay(entityId: number): number {
+  for (let day = 0; day < 2000; day++) {
+    const tick = day * TICKS_PER_DAY + (entityId % TICKS_PER_DAY);
+    const treatRoll = personDayRoll(entityId, tick, 840);
+    const medicineRoll = personDayRoll(entityId, tick, 902);
+    if (treatRoll < 0.2 && medicineRoll < 0.25) return day;
+  }
+  throw new Error(`no qualifying hospital-treatment day for settler ${entityId}`);
+}
+
+describe('M14 hospital routing movement', () => {
+  it('sets walk velocity without writing position (the human loop applies the step)', () => {
+    const patient = entity(20, 16, { pregnant: true, pregnancyProgress: 900, pregnancyDueProgress: 1000, energy: 40, maxEnergy: 100 });
+    const ward = hospital(5, 400, 0, [2]);
+    const state = makeState(0, [patient]);
+
+    tickHumanHospitalPatientCare({
+      state,
+      entity: patient,
+      staffedHospitals: [ward],
+      speed: 2,
+    });
+
+    expect(Math.hypot(patient.vx, patient.vy)).toBeGreaterThan(0);
+    expect(patient.x).toBe(20);
+    expect(patient.y).toBe(16);
+  });
+});
+
+describe('M13 hospital treatment cadence', () => {
+  it('treats a patient at the ward at most once per colony day', () => {
+    const ward = hospital(5, -20, -16, [2]); // ward center is (0, 0)
+    // Huge maxEnergy keeps the single heal from filling the patient, so every
+    // treatment repeats the food cost that makes the cadence observable.
+    const patient = entity(0, 0, { pregnant: true, energy: 0, maxEnergy: 100_000 });
+    const state = makeState(0, [patient]);
+
+    const day = findQualifyingTreatmentDay(patient.id);
+    const foodBefore = state.resources.food;
+    for (let i = 0; i < TICKS_PER_DAY; i++) {
+      state.tick = day * TICKS_PER_DAY + i;
+      tickHumanHospitalPatientCare({
+        state,
+        entity: patient,
+        staffedHospitals: [ward],
+        speed: 2,
+      });
+    }
+
+    // The day-stable gate passing is a once-per-day event, not a licence to repeat the
+    // skill + 1 food treatment on every tick of that day.
+    expect(foodBefore - state.resources.food).toBe(1);
+  });
+});

@@ -1,10 +1,9 @@
 /**
  * Normal play stays quiet: the diagnostics owner always collects for the drawer and history, but
- * console emission is opt-in and only `?debug=1` in `App.tsx` switches it on.
+ * console emission is opt-in and only `?debug=1` in `App.tsx` switches it on; that wiring is
+ * guarded in `scripts/check-source-guards.mjs`.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   flushRelationshipDiagnostics,
   getRelationshipDiagnosticsHistory,
@@ -48,20 +47,4 @@ describe('diagnostics quietness (roadmap U5)', () => {
   });
 });
 
-function read(relativePath: string): string {
-  // `DIAGNOSTICS_QUIET_ROOT` points this guard at a mirrored tree without touching `src/`.
-  const root = process.env.DIAGNOSTICS_QUIET_ROOT ?? process.cwd();
-  return readFileSync(resolve(root, relativePath), 'utf8');
-}
 
-describe('app wires the debug flag (roadmap U5)', () => {
-  it('switches the diagnostics console off unless the debug flag is set', () => {
-    // The owner default is on, so `App.tsx` must switch console logging from the debug flag.
-    const app = read('src/App.tsx');
-
-    expect(app, 'the app no longer switches diagnostics console logging').toContain(
-      'setRelationshipDiagnosticsConsoleLoggingEnabled(debugMode)',
-    );
-    expect(app, 'the switch is no longer tied to the debug flag').toContain("get('debug') === '1'");
-  });
-});

@@ -116,8 +116,8 @@ function assertPartialCatch(type: SpotKind): void {
   expect(tight.recorded).toBeLessThan(roomy.recorded);
   // The float echoes the ledger's number, not the nominal catch; matched by prefix because a
   // partially clamped catch appends its own note.
-  const echoed = tight.state.floatingTexts.find((t) => t.text.startsWith(`+${tight.recorded} ${UNIT[type]}`));
-  expect(echoed, 'no float echoed the accepted count').toBeTruthy();
+  const prefix = `+${tight.recorded} ${UNIT[type]}`;
+  expect(tight.state.floatingTexts.map((t) => t.text.slice(0, prefix.length)), 'no float echoed the accepted count').toContain(prefix);
   expect(
     tight.state.floatingTexts.some((t) => t.text.includes('tores full') || t.text.includes('store full')),
     'a partially clamped catch went unmentioned (F6)',

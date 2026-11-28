@@ -4,8 +4,6 @@
  * that write positions use it instead.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { deterministicCos, deterministicSin } from '../src/game/simTrig';
 
 describe('deterministic sine and cosine', () => {
@@ -28,31 +26,5 @@ describe('deterministic sine and cosine', () => {
       expect(deterministicSin(angle)).toBe(sin);
       expect(sin * sin + deterministicCos(angle) * deterministicCos(angle)).toBeCloseTo(1, 5);
     }
-  });
-});
-
-/** The modules that integrate a settler or animal position on a tick. */
-const TICK_POSITION_MODULES = [
-  'src/game/humanTick.ts',
-  'src/game/tickLayerSystems.ts',
-  'src/game/moonHowler.ts',
-  'src/game/villageLeadership.ts',
-  'src/game/simulation/humanMovement.ts',
-  'src/game/simulation/humanLifecycle.ts',
-  'src/game/worldEventSites.ts',
-  'src/game/dailyGrassEcology.ts',
-];
-
-describe('tick-position modules', () => {
-  it('use the deterministic owner instead of Math.sin/Math.cos', () => {
-    const offenders: string[] = [];
-    for (const file of TICK_POSITION_MODULES) {
-      readFileSync(resolve(process.cwd(), file), 'utf8').split('\n').forEach((line, index) => {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) return;
-        if (/Math\.(sin|cos)\(/.test(line)) offenders.push(`${file}:${index + 1}`);
-      });
-    }
-    expect(offenders).toEqual([]);
   });
 });

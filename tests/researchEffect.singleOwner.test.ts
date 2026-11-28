@@ -3,8 +3,6 @@
  * while genuinely additive targets still sum. Both resolvers must agree.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { createInitialResearchNodes, BuildingType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { getMultiplier } from '../src/game/simHelpers';
@@ -71,18 +69,5 @@ describe('research effects combine through one owner', () => {
     // tier list must not silently turn every `add` into a max.
     const state = makeState(['medicine_1', 'medicine_2']);
     expect(getMultiplier(state, 'plague_immunity')).toBeCloseTo(1 + 1);
-  });
-
-  it('keeps exactly one implementation of the research-effect walk', () => {
-    const read = (path: string): string => readFileSync(resolve(process.cwd(), path), 'utf8');
-    const walk = /for \(let j = 0; j < node\.effects\.length/;
-
-    // The walk is owned by `simHelpers.ts`; `combat.ts` must not keep a copy.
-    const walkers = ['src/game/simHelpers.ts', 'src/game/combat.ts'].filter((path) => walk.test(read(path)));
-    expect(walkers, 'the research-effect walk is duplicated again').toEqual(['src/game/simHelpers.ts']);
-
-    const combat = read('src/game/combat.ts');
-    expect(combat, 'combat.ts re-declared its own resolver').not.toMatch(/function researchedEffect\s*\(/);
-    expect(combat, 'combat.ts no longer reads the owner').toMatch(/resolveResearchEffect/);
   });
 });

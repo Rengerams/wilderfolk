@@ -1,4 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { scenarioSettler, scenarioBuilding, scenarioWorld } from './helpers/humanScenario';
+import { exposeAffair } from '../src/game/simulation/humanRelationships';
+import { isPlayerHuman } from '../src/game/playerHuman';
+import { resetSimRng } from '../src/game/simRng';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
+import type { Entity, WorldState } from '../src/game/gameTypes';
+import { describe, expect, it, afterEach } from 'vitest';
 import { BuildingType, LEADER_OCCUPATION } from '../src/game/gameTypes';
 import { human, building } from '../src/test/factories';
 import { getChildCustodian } from '../src/game/housingModel';
@@ -112,4 +118,65 @@ describe('divorce custody and housing', () => {
     expect(moreChildren.every((child) => child.residenceBuildingId === 10)).toBe(true);
   });
 
+});
+
+describe('Caught-affair custody regression', () => {
+  afterEach(resetSimRng);
+
+  describe('L60 — imprisoned custodian in a caught-affair divorce', () => {
+    function caughtScandal(state: WorldState, entities: Entity[]): void {
+      exposeAffair(
+        state,
+        entities.find((e) => e.id === 10)!,
+        entities.find((e) => e.id === 12)!,
+        'caught',
+        new Map(entities.map((e) => [e.id, e])),
+        state.buildings,
+        entities.filter(isPlayerHuman),
+      );
+    }
+
+    function scandalWorld(): { state: WorldState; cheater: Entity; child: Entity; spouse: Entity } {
+      const state = scenarioWorld();
+      // No staffed prison: `arrestForScandal` returns before its roll, so the cheater
+      // stays in the sentence the scenario already gave them.
+      const houseA = scenarioBuilding(1, BuildingType.House, { x: 0, y: 0 });
+      const houseB = scenarioBuilding(2, BuildingType.House, { x: 80, y: 0 });
+      const prison = scenarioBuilding(9, BuildingType.Prison, { x: 300, y: 300 });
+      const cheater = scenarioSettler(10, {
+        gender: 'female',
+        relationshipStatus: 'married',
+        partnerId: 11,
+        prisonBuildingId: prison.id,
+        prisonSentenceCrime: 'scandal',
+        prisonerUntilTick: state.tick + 500,
+      });
+      const spouse = scenarioSettler(11, { gender: 'male', relationshipStatus: 'married', partnerId: 10, residenceBuildingId: houseB.id });
+      const paramour = scenarioSettler(12, { gender: 'male', relationshipStatus: 'single' });
+      const child = scenarioSettler(13, {
+        isJuvenile: true,
+        age: 6,
+        motherId: cheater.id,
+        fatherId: spouse.id,
+        residenceBuildingId: houseB.id,
+      });
+      prison.occupants = [cheater.id];
+      houseB.occupants = [cheater.id, spouse.id, child.id];
+      state.buildings = [houseA, houseB, prison];
+      state.entities = [cheater, spouse, paramour, child];
+      state.tick = TICKS_PER_DAY + 10 * TICKS_PER_HOUR;
+      return { state, cheater, child, spouse };
+    }
+
+    it('leaves the imprisoned custodian unhoused and keeps minors out of the cell home', () => {
+      const { state, cheater, child, spouse } = scandalWorld();
+      caughtScandal(state, state.entities);
+
+      // The imprisoned cheater stays unhoused; the wronged parent retains the family home.
+      expect(cheater.residenceBuildingId).toBeUndefined();
+      expect(child.residenceBuildingId).toBe(2);
+      expect(spouse.residenceBuildingId).toBe(2);
+      expect(child.residenceBuildingId).toBe(spouse.residenceBuildingId);
+    });
+  });
 });

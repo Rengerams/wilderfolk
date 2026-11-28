@@ -1,3 +1,4 @@
+import { addGeneratedSocialHuman } from '../src/test/factories';
 /**
  * A Valley Chronicle chapter's food reward reaches the food ledger, so "why is my food low?" and the
  * 30-day `foodHistory` see the grant that actually entered storage.
@@ -41,5 +42,16 @@ describe('a Chronicle chapter food reward is recorded as produced', () => {
     expect(state.resources.food).toBe(REWARD_FOOD);
     // The grant must land in the food ledger so the store total is explained.
     expect(state.economyLedger?.produced.chronicle).toBe(REWARD_FOOD);
+  });
+});
+
+describe('dynasty chapter', () => {
+  it('the chronicle unlocks the A Dynasty chapter', () => {
+    const w = initGame({ villageName: 'P7', size: 'medium' });
+    addGeneratedSocialHuman(w, { id: 1, surname: 'Vale', generation: 1 });
+    addGeneratedSocialHuman(w, { id: 2, surname: 'Vale', generation: 2 });
+    addGeneratedSocialHuman(w, { id: 3, surname: 'Vale', generation: 3 });
+    const newly = advanceValleyChronicle(w);
+    expect(newly).toContain('a_dynasty');
   });
 });

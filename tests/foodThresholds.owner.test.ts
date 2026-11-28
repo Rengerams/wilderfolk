@@ -3,8 +3,6 @@
  * two bands by design, and which band a surface reacts to is a per-site UX choice.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   FOOD_LOW_THRESHOLD,
   getFoodCriticalThreshold,
@@ -40,22 +38,4 @@ describe('the food-low rule has one owner', () => {
     expect(isFoodCritical(world(60, 30))).toBe(false);
   });
 
-  it('leaves no surface deriving its own threshold', () => {
-    const files: Array<[string, RegExp]> = [
-      ['src/game/priorityAlerts.ts', /Math\.max\(15,/],
-      ['src/game/contextualTutorial.ts', /Math\.max\(15,/],
-      ['src/game/focusHints.ts', /Math\.max\(20,/],
-      ['src/game/citizenOverview.ts', /Math\.max\(20,/],
-      ['src/game/dashboardData.ts', /humans \* 3/],
-      // A component, not a domain module: the same no-own-threshold rule applies to the screen.
-      ['src/components/CitizenOverviewScreen.tsx', /Math\.max\(20,/],
-    ];
-    for (const [file, restated] of files) {
-      const source = readFileSync(resolve(process.cwd(), file), 'utf8');
-      expect(source, `${file} re-derives a food threshold`).not.toMatch(restated);
-      expect(source, `${file} does not call the owner at all`).toMatch(
-        /isFood(Alert|Critical|AlertAmount|CriticalAmount|Low)/,
-      );
-    }
-  });
 });

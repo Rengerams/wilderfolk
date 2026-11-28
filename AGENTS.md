@@ -169,7 +169,7 @@ For TypeScript tooling, note that `typescript@7` exposes its compiler API throug
 
 ## 6. Existing tools and harnesses: extend, do not clone
 
-`package.json` and `scripts/test.mjs` are the authority for current commands and gates. Common entrypoints include `npm test`, `npm test -- help`, `npm run test:types`, `npm run lint`, `npm run build`, `npm run test:standard` and `npm run check:source`. Check the current scripts before running a command.
+`package.json` and `scripts/test.mjs` are the authority for current commands and gates. Common entrypoints include `npm test`, `npm test -- help`, `npm run test:types`, `npm run lint`, `npm run build`, `npm run test:standard`, `npm run test:ci`, `npm run test:calendar` and `npm run check:source`. Check the current scripts before running a command.
 
 Runtime observations use `scripts/autoplay_playwright_probe.py` together with `src/game/virtualPlayer.ts`. For simulation totals and colony histories, extend existing `scripts/test-bot-build-all.mts`, `scripts/run-full-year.mts` and `scripts/colonyHealth.ts` as appropriate. Do not create independent bots, schedulers, game probes or duplicate fixtures because an existing harness is inconvenient.
 
@@ -266,11 +266,10 @@ Be curious, candid and inventive. Treat Wilderfolk as a complete simulation, not
 
 ---
 
-## 11. Base44 sandbox environment
+## 11. Local container development
 
-`docker-compose.base44.yml` is the Linux sandbox runbook; the rest of the tooling still assumes Windows/PowerShell and is unchanged.
+Optional local web development uses `compose.yaml`; the normal npm and Tauri workflows remain unchanged.
 
-- One `node:22` service runs `vite` from the bind-mounted clone on host port 3000 → container 5173, so edits hot-reload without a rebuild. Dependencies install into a named volume from `package-lock.json` at every start.
-- `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS` and `BASE44_PREVIEW_MODE` are platform-provided; Vite appends the first to its allowed hosts. No secrets are needed: the app is a client-only SPA with no backend.
-- Verify with `docker compose -f docker-compose.base44.yml ps`, then a `curl` of `http://localhost:3000/` returning 200 and a preview load that reaches the intro screen.
-- `.base44/environment.json` records the preview port, health path and start command. A clone without these two files cannot start in the sandbox — restore them rather than rebuilding the setup from scratch.
+- Run `docker compose up -d` to start the Vite development server on host port 3000 (container port 5173). The bind-mounted source supports hot reload, and dependencies are installed from the lockfile into a named volume.
+- Verify with `docker compose ps` and an HTTP request to `http://localhost:3000/`. The client-only application requires no backend or secrets.
+- Run `docker compose down` to stop the local service.

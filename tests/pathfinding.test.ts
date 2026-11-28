@@ -1,13 +1,15 @@
+import { applyHumanWalkStep, commuteHumanToBuilding, steerHumanToward } from '../src/game/simulation/humanMovement';
+import { getCurrentPathfinderTickCounters, resetPathfinderSession, setPathfindingMetricsEnabled } from '../src/game/pathfindingMetrics';
 /**
  * Pathfinding routes around water and mountains instead of walking through them, over real maps
  * whose passability grid is rebaked from the production tile projection.
  */
 import { describe, expect, it } from 'vitest';
 import {
-  findPath, getPathGrid, getRouteObstruction, lineCrossesBlocked, setCurrentPathMap, steerWithPath,
+  findPath, getPathGrid, getRouteObstruction, lineCrossesBlocked, setCurrentPathMap, steerWithPath, invalidateCommutePathsForWalker,
 } from '../src/game/pathfinding';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
-import type { Building, Entity } from '../src/game/gameTypes';
+import type { Building, Entity, WorldMap } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 
 function makeMap(width: number, height: number, seed: number, blocker: (x: number, y: number) => boolean) {
@@ -358,5 +360,440 @@ describe('pathfinding', () => {
     expect(path).not.toBeNull();
     expect(path![0]).toEqual({ x: 0, y: 5 });
     expect(path![path!.length - 1]).toEqual({ x: 9, y: 5 });
+  });
+});
+
+describe('path reuse and walk integration', () => {
+  /** World-pixel center of a tile. */
+  function pixel(tileX: number): number {
+    return tileX * PATH_CELL + PATH_CELL / 2;
+  }
+
+  function human(id: number, x: number, y: number, overrides: Partial<Entity> = {}): Entity {
+    return {
+      id,
+      type: 'human',
+      x,
+      y,
+      vx: 0,
+      vy: 0,
+      alive: true,
+      age: 25,
+      energy: 100,
+      maxEnergy: 100,
+      gender: 'female',
+      isJuvenile: false,
+      ...overrides,
+    } as Entity;
+  }
+
+  describe('patrol route reuse', () => {
+    it('reuses one planned route while a patrol target moves within one tile', () => {
+      const road = {
+        id: 812, type: BuildingType.Road, x: 300, y: 55,
+        width: 90, height: 10, completed: true,
+      } as Building;
+      setCurrentPathMap(makeMap(60, 20, 891, () => false), [road]);
+      setPathfindingMetricsEnabled(true);
+      resetPathfinderSession();
+      try {
+        const guard = human(13, 25, 55);
+        for (let tick = 0; tick < 12; tick++) {
+          const tx = 245 + tick * 0.1;
+          const ty = 55 + tick * 0.1;
+          steerHumanToward(guard,
+            (Math.floor(tx / PATH_CELL) + 0.5) * PATH_CELL,
+            (Math.floor(ty / PATH_CELL) + 0.5) * PATH_CELL,
+            2, 0.65, `patrol_${guard.id}`);
+          applyHumanWalkStep(guard, 1);
+        }
+        const counters = getCurrentPathfinderTickCounters();
+        expect(counters.cacheMisses).toBe(1);
+        expect(counters.cacheHits).toBeGreaterThan(0);
+      } finally {
+        setCurrentPathMap(null);
+        setPathfindingMetricsEnabled(false);
+        resetPathfinderSession();
+      }
+    });
+  });
+
+  describe('fast road waypoint steering', () => {
+    it('crosses ten-pixel road tiles without oscillating at a waypoint or repeatedly searching', () => {
+      const road = {
+        id: 803, type: BuildingType.Road, x: pixel(20), y: pixel(15),
+        width: 30 * PATH_CELL, height: PATH_CELL, completed: true,
+      } as Building;
+      setCurrentPathMap(makeMap(45, 35, 20261028, () => false), [road]);
+      setPathfindingMetricsEnabled(true);
+      resetPathfinderSession();
+      try {
+        // pixel() converts the tile axis to its centre. The target Y must be row 18,
+        // not row 36 (which lies outside this 35-row fixture and correctly blocks travel).
+        const walker = human(803, pixel(4), pixel(18));
+        const goalX = pixel(36);
+        const goalY = pixel(18);
+        const steps: number[] = [];
+        let arrived = false;
+        for (let tick = 0; tick < 90; tick++) {
+          const mode = steerWithPath(walker, goalX, goalY, 28, 'fast-road');
+          if (mode === 'arrived') { arrived = true; break; }
+          if (mode === 'direct') {
+            const dx = goalX - walker.x;
+            const dy = goalY - walker.y;
+            const dist = Math.hypot(dx, dy);
+            walker.vx = dx / dist * Math.min(28, dist / 1.5);
+            walker.vy = dy / dist * Math.min(28, dist / 1.5);
+          } else {
+            expect(mode).toBe('path');
+          }
+          const roadMult = 1.5;
+          steps.push(Math.hypot(walker.vx, walker.vy) * roadMult);
+          applyHumanWalkStep(walker, roadMult);
+        }
+        expect(arrived).toBe(true);
+        expect(steps.some((step) => step > PATH_CELL * 2)).toBe(true);
+        expect(getCurrentPathfinderTickCounters().findPathCalls).toBeLessThan(15);
+      } finally {
+        setPathfindingMetricsEnabled(false);
+        setCurrentPathMap(null);
+      }
+    });
+  });
+
+  describe('accepted road detour final approach', () => {
+    it('continues on accepted waypoints once closer than the initial search threshold', () => {
+      const road = {
+        id: 802, type: BuildingType.Road, x: pixel(20), y: pixel(18),
+        width: 34 * PATH_CELL, height: PATH_CELL, completed: true,
+      } as Building;
+      setCurrentPathMap(makeMap(45, 35, 20261027, () => false), [road]);
+      try {
+        const walker = human(802, pixel(4), pixel(18));
+        const targetX = pixel(36);
+        const targetY = pixel(18);
+        expect(steerWithPath(walker, targetX, targetY, 5, 'accepted-road')).toBe('path');
+        let enteredFinalApproach = false;
+        for (let step = 0; step < 120; step++) {
+          const result = steerWithPath(walker, targetX, targetY, 5, 'accepted-road');
+          const remaining = Math.hypot(walker.x - targetX, walker.y - targetY);
+          if (remaining < 150 && remaining > 35) {
+            expect(result).toBe('path');
+            enteredFinalApproach = true;
+            break;
+          }
+          expect(result).toBe('path');
+          walker.x += walker.vx;
+          walker.y += walker.vy;
+        }
+        expect(enteredFinalApproach).toBe(true);
+      } finally {
+        setCurrentPathMap(null);
+      }
+    });
+  });
+
+  describe('road detour negative caching', () => {
+    it('keeps a rejected detour cached as the walker crosses tiles on a clear route', () => {
+      const farRoad = {
+        id: 801, type: BuildingType.Road, x: pixel(30), y: pixel(30),
+        width: PATH_CELL, height: PATH_CELL, completed: true,
+      } as Building;
+      setCurrentPathMap(makeMap(40, 40, 20261026, () => false), [farRoad]);
+      setPathfindingMetricsEnabled(true);
+      resetPathfinderSession();
+      try {
+        const walker = human(801, pixel(2), pixel(5));
+        expect(steerWithPath(walker, pixel(35), pixel(5), 5, 'negative-road')).toBe('direct');
+        const searches = getCurrentPathfinderTickCounters().findPathCalls;
+        expect(searches).toBeGreaterThan(0);
+        for (let tile = 3; tile <= 12; tile++) {
+          walker.x = pixel(tile);
+          expect(steerWithPath(walker, pixel(35), pixel(5), 5, 'negative-road')).toBe('direct');
+        }
+        expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(searches);
+      } finally {
+        setPathfindingMetricsEnabled(false);
+        setCurrentPathMap(null);
+      }
+    });
+  });
+
+  describe('M22 path cache origin', () => {
+    it('retains routes for hundreds of simultaneous commuters and invalidates topology changes', () => {
+      const map = makeMap(40, 40, 934, (x, y) => y === 20 && x !== 35);
+      setCurrentPathMap(map, []);
+      setPathfindingMetricsEnabled(true);
+      resetPathfinderSession();
+      try {
+        const walkers = Array.from({ length: 300 }, (_, id) => human(id, pixel(5), pixel(35)));
+        for (const walker of walkers) {
+          expect(steerWithPath(walker, pixel(20), pixel(10), 5, `load_${walker.id}`)).toBe('path');
+        }
+        const searches = getCurrentPathfinderTickCounters().findPathCalls;
+        for (const walker of walkers) {
+          expect(steerWithPath(walker, pixel(20), pixel(10), 5, `load_${walker.id}`)).toBe('path');
+        }
+        expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(searches);
+        setCurrentPathMap(makeMap(40, 40, 935, (x, y) => y === 20), []);
+        expect(steerWithPath(walkers[0], pixel(20), pixel(10), 5, 'load_0')).toBe('blocked');
+        expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(searches + 1);
+      } finally {
+        setPathfindingMetricsEnabled(false);
+        setCurrentPathMap(null);
+      }
+    });
+
+    it('retries a failed route when the same key moves to another origin or destination', () => {
+      setCurrentPathMap(makeMap(40, 40, 936, (x, y) => y === 20), []);
+      const walker = human(1, pixel(5), pixel(35));
+      expect(steerWithPath(walker, pixel(20), pixel(10), 5, 'retry')).toBe('blocked');
+      setPathfindingMetricsEnabled(true);
+      resetPathfinderSession();
+      try {
+        walker.x += PATH_CELL;
+        steerWithPath(walker, pixel(20), pixel(10), 5, 'retry');
+        expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(1);
+        steerWithPath(walker, pixel(22), pixel(10), 5, 'retry');
+        expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(2);
+      } finally {
+        setPathfindingMetricsEnabled(false);
+        setCurrentPathMap(null);
+      }
+    });
+
+    it('recomputes a cached path started from a different origin', () => {
+      // Horizontal river at tile row 20 with a single gap at column 35.
+      setCurrentPathMap(makeMap(40, 40, 922, (x, y) => y === 20 && x !== 35), []);
+      // A walkable target north of the river: a blocked target is now approached from the walker's
+      // own side, which would make "did it steer back to the stale origin?" unanswerable. `pixel`
+      // reads one tile index, so each axis is converted on its own.
+      const target = { x: pixel(20), y: pixel(10) };
+      const entity = human(7, pixel(5), pixel(35));
+      const cacheKey = 'c_7_42_h';
+
+      // First leg: cached from the bottom-left corner.
+      expect(steerWithPath(entity, target.x, target.y, 5, cacheKey)).toBe('path');
+
+      // Same commute leg from a different origin: the cached waypoints must be recomputed, not reused
+      // to steer the settler back toward the stale origin.
+      entity.x = pixel(25);
+      entity.y = pixel(25);
+      expect(steerWithPath(entity, target.x, target.y, 5, cacheKey)).toBe('path');
+
+      const toStaleOriginX = pixel(5) - entity.x;
+      const toStaleOriginY = pixel(35) - entity.y;
+      const steeredBackToOrigin = entity.vx * toStaleOriginX + entity.vy * toStaleOriginY;
+      expect(steeredBackToOrigin).toBeLessThanOrEqual(0);
+    });
+  });
+
+  describe('path cache reuses the route through forward progress', () => {
+    it('does not re-run A* while the settler is still walking the cached route', () => {
+      setPathfindingMetricsEnabled(true);
+      resetPathfinderSession();
+      // A river with one gap keeps the direct line blocked for the whole first stretch of the walk.
+      setCurrentPathMap(makeMap(40, 40, 931, (x, y) => y === 20 && x !== 35), []);
+      const target = { x: pixel(20), y: pixel(20) };
+      const entity = human(7, pixel(5), pixel(5));
+      const cacheKey = 'c_7_42_h';
+
+      // First leg computes A* exactly once.
+      expect(steerWithPath(entity, target.x, target.y, 5, cacheKey)).toBe('path');
+
+      // Walk the route forward: each step must be a cache hit, never a fresh A* run.
+      for (let step = 0; step < 12; step++) {
+        entity.x += entity.vx;
+        entity.y += entity.vy;
+        expect(steerWithPath(entity, target.x, target.y, 5, cacheKey)).toBe('path');
+      }
+
+      const counters = getCurrentPathfinderTickCounters();
+      expect(counters.findPathCalls).toBe(1);
+      expect(counters.cacheMisses).toBe(1);
+      expect(counters.cacheHits).toBeGreaterThan(0);
+
+      setPathfindingMetricsEnabled(false);
+      resetPathfinderSession();
+    });
+  });
+
+  describe('water and walls are solid under every walk', () => {
+    /** The grid's own verdict for the tile a world point stands in. */
+    function blockedAt(map: WorldMap, buildings: Building[], x: number, y: number): boolean {
+      const grid = getPathGrid(map, buildings);
+      const tx = Math.floor(x / PATH_CELL);
+      const ty = Math.floor(y / PATH_CELL);
+      return grid.blocked[ty * grid.cols + tx] === 1;
+    }
+
+    it('stops a walker at the riverbank instead of letting it ford', () => {
+      const map = makeMap(40, 40, 941, (x) => x === 20);
+      setCurrentPathMap(map, []);
+      const walker = human(3, pixel(19), pixel(10));
+      walker.vx = 2;
+
+      for (let tick = 0; tick < 30; tick++) applyHumanWalkStep(walker, 1);
+
+      // Straight east is the river; blocked steps cannot carry the walker into it.
+      expect(Math.floor(walker.x / PATH_CELL), 'the settler walked into the river').toBeLessThan(20);
+      expect(blockedAt(map, [], walker.x, walker.y), 'the settler stood in the river').toBe(false);
+    });
+
+    it('lets a walker already standing on a blocked tile walk off it', () => {
+      const map = makeMap(40, 40, 944, (x) => x === 20);
+      setCurrentPathMap(map, []);
+      // Settlers can end up on water, so the occupied cell is not an obstacle to leaving it; testing
+      // the whole step instead of the ground ahead would freeze them there.
+      const walker = human(5, pixel(20) + 2, pixel(10));
+      walker.vx = -2;
+      for (let tick = 0; tick < 20; tick++) applyHumanWalkStep(walker, 1);
+
+      expect(Math.floor(walker.x / PATH_CELL), 'the settler could not leave the water').toBeLessThan(20);
+    });
+
+    it('routes a walker from blocked ground onto walkable ground before continuing', () => {
+      const map = makeMap(40, 40, 945, (x, y) => (x === 20 || x === 21) && y !== 20);
+      setCurrentPathMap(map, []);
+      const walker = human(6, pixel(20), pixel(10));
+      const targetX = pixel(25);
+      const targetY = pixel(10);
+
+      expect(steerWithPath(walker, targetX, targetY, 2, 'blocked-start')).toBe('path');
+      expect(walker.vx, 'the route should first steer toward nearby walkable ground').toBeLessThan(0);
+
+      for (let tick = 0; tick < 20; tick++) {
+        applyHumanWalkStep(walker, 1);
+        if (!blockedAt(map, [], walker.x, walker.y)) break;
+        steerWithPath(walker, targetX, targetY, 2, 'blocked-start');
+      }
+      expect(blockedAt(map, [], walker.x, walker.y), 'the settler remained on blocked ground').toBe(false);
+    });
+
+    it('stops a walker at a wall instead of letting it pass through', () => {
+      const map = makeMap(40, 40, 942, () => false);
+      const wall: Building = {
+        id: 5,
+        type: BuildingType.Wall,
+        x: pixel(20),
+        y: pixel(10),
+        width: PATH_CELL,
+        height: PATH_CELL,
+        occupants: [],
+        level: 1,
+        constructionProgress: 100,
+        completed: true,
+        health: 100,
+        maxHealth: 100,
+        spriteScale: 1,
+        buildAnimTimer: 0,
+      } as Building;
+      expect(blockedAt(map, [wall], pixel(20), pixel(10)), 'fixture premise: the wall blocks its own tile').toBe(true);
+      setCurrentPathMap(map, [wall]);
+
+      const walker = human(4, pixel(19), pixel(10));
+      walker.vx = 2;
+      for (let tick = 0; tick < 30; tick++) applyHumanWalkStep(walker, 1);
+
+      expect(blockedAt(map, [wall], walker.x, walker.y), 'the settler walked through the wall').toBe(false);
+      expect(walker.x, 'the settler should be backed away from the wall after repeated blocked steps')
+        .toBeLessThan(wall.x);
+    });
+
+    it('stops repeated blocked steps without teleporting or entering solid terrain', () => {
+      const map = makeMap(40, 40, 946, (x) => x === 20);
+      setCurrentPathMap(map, []);
+      const walker = human(7, pixel(19), pixel(10));
+      const startX = walker.x;
+      const startY = walker.y;
+
+      // A stale steering request can recur while the route is invalidated. It must not move the
+      // settler backwards, snap to a remote cell or push through the impassable river column.
+      for (let tick = 0; tick < 20; tick++) {
+        walker.vx = 2;
+        applyHumanWalkStep(walker, 1);
+        expect(blockedAt(map, [], walker.x, walker.y), 'step entered blocked ground').toBe(false);
+        expect(walker.x, 'blocked recovery jumped behind the starting point').toBeGreaterThanOrEqual(startX);
+        expect(walker.x, 'blocked recovery crossed the river boundary').toBeLessThan(20 * PATH_CELL);
+        expect(walker.y, 'blocked recovery changed the walk row').toBe(startY);
+      }
+
+      expect(walker.vx, 'blocked steering should stop movement until a valid new route exists').toBe(0);
+      expect(walker.vy).toBe(0);
+    });
+
+    it('routes a short leg through a gap instead of fording it', () => {
+      // River column 20 with a gap at row 12, and a workplace 20 px east: a leg under LONG_RANGE_DIST
+      // (50) must route through the gap rather than ford.
+      const map = makeMap(40, 40, 943, (x, y) => x === 20 && y !== 12);
+      const buildings: Building[] = [];
+      setCurrentPathMap(map, buildings);
+      const workplace = { id: 7, x: pixel(23), y: pixel(10) - 25, width: 40, height: 30, completed: true } as Building;
+      const walker = human(3, pixel(19), pixel(10));
+
+      let arrived = false;
+      let forded = false;
+      for (let tick = 0; tick < 600 && !arrived; tick++) {
+        arrived = commuteHumanToBuilding(walker, workplace, 1);
+        applyHumanWalkStep(walker, 1);
+        if (blockedAt(map, buildings, walker.x, walker.y)) forded = true;
+      }
+
+      expect(forded, 'the settler stood in the river').toBe(false);
+      // And it really crossed, through the gap: a walker merely stopped at the bank never arrives.
+      expect(arrived, 'the settler never reached the far bank').toBe(true);
+      expect(walker.x).toBeGreaterThan(pixel(20));
+    });
+
+    it('routes a fixed-place approach around a solid building instead of pressing into it', () => {
+      const map = makeMap(40, 40, 947, () => false);
+      const blocker = {
+        id: 12,
+        type: BuildingType.Farm,
+        x: pixel(20),
+        y: pixel(15),
+        width: 120,
+        height: 120,
+        completed: true,
+        occupants: [],
+        level: 1,
+        constructionProgress: 100,
+        health: 100,
+        maxHealth: 100,
+        spriteScale: 1,
+        buildAnimTimer: 0,
+      } as Building;
+      setCurrentPathMap(map, [blocker]);
+      const walker = human(8, pixel(2), pixel(10));
+      const targetX = pixel(37);
+      const targetY = pixel(10);
+      let insideFootprint = false;
+
+      for (let tick = 0; tick < 500 && Math.hypot(targetX - walker.x, targetY - walker.y) > 8; tick++) {
+        steerHumanToward(walker, targetX, targetY, 8, 1, 'fixed-place-test');
+        applyHumanWalkStep(walker, 1);
+        if (blockedAt(map, [blocker], walker.x, walker.y)) insideFootprint = true;
+      }
+
+      expect(insideFootprint, 'the walker entered the building footprint').toBe(false);
+      expect(walker.x, 'the walker never reached the far side').toBeGreaterThan(pixel(30));
+    });
+  });
+
+  describe('blocked commuter path recovery', () => {
+    it('invalidates only the stalled settler commute route for replanning', () => {
+      const map = makeMap(40, 40, 921, (x, y) => x === 20 && y !== 20);
+      setCurrentPathMap(map, []);
+      const first = human(9901, pixel(12), pixel(12));
+      const second = human(9902, pixel(12), pixel(12));
+      const targetX = pixel(28);
+      const targetY = pixel(25);
+      expect(steerWithPath(first, targetX, targetY, 2, 'c_9901_8_w')).toBe('path');
+      expect(steerWithPath(second, targetX, targetY, 2, 'c_9902_8_w')).toBe('path');
+      invalidateCommutePathsForWalker(first.id);
+      expect(steerWithPath(first, targetX, targetY, 2, 'c_9901_8_w')).toBe('path');
+      expect(steerWithPath(second, targetX, targetY, 2, 'c_9902_8_w')).toBe('path');
+      setCurrentPathMap(null);
+    });
   });
 });
