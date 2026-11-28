@@ -93,12 +93,13 @@ describe('blueberry foraging', () => {
     expect(tree.blueberryYield).toBe(1);
     expect(state.resources.food).toBe(foodBefore + BLUEBERRY_FOOD_PER_PICK);
     expect(state.economyLedger?.produced.foraging).toBe(BLUEBERRY_FOOD_PER_PICK);
-    expect(human.energy).toBe(80 + BLUEBERRY_STAMINA_PER_PICK * 4);
+    expect(human.energy).toBe(80);
     expect(human.needs?.stamina).toBeCloseTo(20 + BLUEBERRY_STAMINA_PER_PICK);
     // An ordinary awake tick spends a little stamina, but must not erase the reward.
     advanceHumanNeeds(human, { tick: state.tick + 1, elapsedTicks: 1, sleeping: false, working: false, moving: false });
-    expect(human.energy).toBeLessThan(80 + BLUEBERRY_STAMINA_PER_PICK * 4);
-    expect(human.energy).toBeGreaterThan(80);
+    expect(human.needs!.stamina).toBeLessThan(20 + BLUEBERRY_STAMINA_PER_PICK);
+    expect(human.needs!.stamina).toBeGreaterThan(20);
+    expect(human.energy).toBe(80);
     expect(human.blueberryForageTargetId).toBeUndefined();
   });
 

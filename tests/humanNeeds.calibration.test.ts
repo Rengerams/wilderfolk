@@ -14,7 +14,7 @@ type Scenario = 'normal' | 'night' | 'idle' | 'starving';
 
 function runNeedsScenario(days: number, scenario: Scenario) {
   const e = { id: 1, type: EntityType.Human, alive: true, isJuvenile: false,
-    energy: 400, maxEnergy: 500, needs: initialHumanNeeds(400, 500) } as Entity;
+    energy: 400, maxEnergy: 500, needs: initialHumanNeeds(80) } as Entity;
   const initialFood = scenario === 'starving' ? 0 : Math.max(1000, days * 4);
   const state = { tick: 0, resources: { food: initialFood } } as WorldState;
   let observedWorkHours = 0;
@@ -106,7 +106,7 @@ describe('physiology only: reproducible 7/30-day calibration contracts', () => {
 
   it('exports detached physiology values through the worker render sidecar', () => {
     const e = { id: 1, type: EntityType.Human, energy: 400, maxEnergy: 500,
-      needs: initialHumanNeeds(400, 500) } as Entity;
+      needs: initialHumanNeeds(80) } as Entity;
     const meta = packEntityRenderMeta(e);
     expect(meta.needs).toEqual(e.needs);
     e.needs!.nutrition = 0;
@@ -115,7 +115,7 @@ describe('physiology only: reproducible 7/30-day calibration contracts', () => {
 
   it('preserves exact needs and tick stamps across structured save/worker snapshots', () => {
     const e = { id: 8, type: EntityType.Human, energy: 450, maxEnergy: 500,
-      alive: true, isJuvenile: false, needs: initialHumanNeeds(450, 500) } as Entity;
+      alive: true, isJuvenile: false, needs: initialHumanNeeds(90) } as Entity;
     advanceHumanNeeds(e, { tick: 100, sleeping: false, working: true, moving: false });
     const restored = structuredClone(e);
     normalizeHumanNeeds(restored);

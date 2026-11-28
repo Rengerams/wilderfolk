@@ -154,7 +154,7 @@ describe('settlers inside buildings', () => {
       writeFileSync(join(fixtureDirectory, 'indoors.json'), JSON.stringify(buildSaveData(world, view)));
     }
     patient.pregnant = false;
-    patient.energy = patient.maxEnergy;
+    patient.needs!.stamina = 100;
     world.paused = false;
     gameTick(world);
     expect(patient.indoorBuildingId).toBeUndefined();

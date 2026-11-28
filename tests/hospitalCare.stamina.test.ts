@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Entity } from '../src/game/gameTypes';
 import { BuildingType } from '../src/game/gameTypes';
-import { HUMAN_NEEDS, getHumanStaminaRatio } from '../src/game/simulation/humanPhysiology';
+import { HUMAN_NEEDS, getHumanStaminaRatio, legacyHumanNeeds, normalizeHumanNeeds } from '../src/game/simulation/humanPhysiology';
 import { getHospitalRoster, medicalCareReason, medicalUrgency, needsMedicalCare } from '../src/game/hospitalCare';
 
 function human(overrides: Partial<Entity> = {}): Entity {
@@ -81,11 +81,15 @@ describe('hospital care reads the authoritative stamina reserve', () => {
     expect(medicalCareReason(patient, 0)).toBeNull();
   });
 
-  it('falls back to energy for a legacy human without needs, with the same critical boundary', () => {
+  it('uses old energy only at explicit migration, never during a medical decision', () => {
     const tired = human({ energy: 100, needs: undefined });
+    expect(getHumanStaminaRatio(tired)).toBeCloseTo(0.8);
+    normalizeHumanNeeds(tired, legacyHumanNeeds(tired.energy, tired.maxEnergy));
     expect(getHumanStaminaRatio(tired)).toBeCloseTo(0.2);
     expect(needsMedicalCare(tired, 0)).toBe(false);
     const patient = human({ energy: 50, needs: undefined });
+    expect(needsMedicalCare(patient, 0)).toBe(false);
+    normalizeHumanNeeds(patient, legacyHumanNeeds(patient.energy, patient.maxEnergy));
     expect(getHumanStaminaRatio(patient)).toBeCloseTo(0.1);
     expect(needsMedicalCare(patient, 0)).toBe(true);
     expect(medicalCareReason(patient, 0)).toBe('exhausted');

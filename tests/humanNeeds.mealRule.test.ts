@@ -4,7 +4,7 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { treatPatientAtHospital } from '../src/game/hospitalCare';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { tryEatColonyMeal } from '../src/game/simulation/humanNeeds';
-import { advanceHumanNeeds, adjustHumanStamina, getHumanNeedsWorkMultiplier, initialHumanNeeds, normalizeHumanNeeds, resolveHumanNeedsIntent } from '../src/game/simulation/humanPhysiology';
+import { advanceHumanNeeds, adjustHumanStamina, getHumanNeedsWorkMultiplier, legacyHumanNeeds, normalizeHumanNeeds, resolveHumanNeedsIntent } from '../src/game/simulation/humanPhysiology';
 
 const mealTick = TICKS_PER_DAY;
 function person(override: Partial<Entity> = {}): Entity {
@@ -95,6 +95,7 @@ describe('cross-system physiology compatibility', () => {
       expect(e.needs!.stamina).toBe(100);
       expect(e.needs!.rest).toBe(70);
       expect(e.needs!.nutrition).toBe(60);
+      expect(e.energy).toBe(0);
     }
   });
 
@@ -129,7 +130,7 @@ describe('cross-system physiology compatibility', () => {
     advanceHumanNeeds(patient, { tick: state.tick + 1, sleeping: false, working: false, moving: false });
     expect(patient.needs!.stamina).toBeLessThan(afterTreatment);
     expect(patient.needs!.stamina).toBeGreaterThan(before);
-    expect(patient.energy / patient.maxEnergy * 100).toBeCloseTo(patient.needs!.stamina, 4);
+    expect(patient.energy).toBe(100); // no runtime mirror
   });
 });
 
@@ -171,7 +172,7 @@ describe('independent physiological advancement', () => {
 
   it('treats zero stamina as recoverable and clamps bad old energy', () => {
     const e = person({ energy: Number.NaN, maxEnergy: 0 });
-    expect(initialHumanNeeds(e.energy, e.maxEnergy).stamina).toBe(80);
+    expect(legacyHumanNeeds(e.energy, e.maxEnergy).stamina).toBe(80);
     e.needs = { nutrition: 50, rest: 50, stamina: 0 };
     advanceHumanNeeds(e, { tick: mealTick, sleeping: false, working: false, moving: false, resting: true });
     expect(e.alive).toBe(true);

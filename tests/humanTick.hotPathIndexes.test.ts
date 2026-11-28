@@ -566,18 +566,18 @@ describe('human tick duty and offscreen physiology', () => {
       return state;
     }
 
-    it('drains the same energy on-screen and off-screen', () => {
+    it('drains the same stamina on-screen and off-screen', () => {
       expect(prefersHomeTonightFor(DEFAULT_WORK_SCHEDULE, settlerId, restingTick, restingHour)).toBe(true);
 
       const onscreen = restingSettlerWorld();
       tickHumans(onscreen, simContext(onscreen, onscreen.entities, restingHour));
-      const onscreenEnergy = onscreen.entities.find((e) => e.id === settlerId)!.energy;
+      const onscreenStamina = onscreen.entities.find((e) => e.id === settlerId)!.needs!.stamina;
 
       const offscreen = structuredClone(restingSettlerWorld());
       tickHumans(offscreen, simContext(offscreen, offscreen.entities, restingHour, FAR_FOCUS));
-      const offscreenEnergy = offscreen.entities.find((e) => e.id === settlerId)!.energy;
+      const offscreenStamina = offscreen.entities.find((e) => e.id === settlerId)!.needs!.stamina;
 
-      expect(offscreenEnergy).toBeCloseTo(onscreenEnergy, 6);
+      expect(offscreenStamina).toBeCloseTo(onscreenStamina, 6);
     });
   });
 
@@ -691,7 +691,7 @@ describe('Human tick priority and upkeep regressions', () => {
       }
       expect(soldier.needs!.rest).toBeGreaterThan(90);
       expect(soldier.needs!.stamina).toBeGreaterThan(90);
-      expect(soldier.energy).toBeGreaterThan(90);
+      expect(soldier.energy).toBe(90);
       expect(soldier.raidDeploymentId).toBe('outgoing_raid_test');
       expect(soldier.pregnant).toBe(true);
       expect(soldier.indoorBuildingId).toBeUndefined();

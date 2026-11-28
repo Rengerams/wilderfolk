@@ -6,6 +6,7 @@ import type { Building, BuildingType, Entity, WorldState } from '../game/gameTyp
 import { EntityType, JobType } from '../game/gameTypes';
 import { SPECIES_CONFIG } from '../game/speciesConfig';
 import { createEntity } from '../game/entityFactory';
+import { legacyHumanNeeds } from '../game/simulation/humanPhysiology';
 
 /**
  * The fields every hand-built settler fixture in the suite shares. `maxAge` mirrors what `createEntity`
@@ -41,7 +42,8 @@ function settlerBase(id: number): Entity {
 
 /** A living adult settler with a default `Settler` job — the suite's most-copied fixture. */
 export function human(id: number, overrides: Partial<Entity> = {}): Entity {
-  return { ...settlerBase(id), job: JobType.Settler, ...overrides };
+  const base = { ...settlerBase(id), job: JobType.Settler, ...overrides };
+  return { ...base, needs: base.needs ?? legacyHumanNeeds(base.energy, base.maxEnergy) };
 }
 
 /** A completed test building at `constructionProgress: 1`; the `100` variant is {@link finishedBuilding}. */

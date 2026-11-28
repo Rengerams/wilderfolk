@@ -16,7 +16,7 @@ function settler(): Entity {
     isJuvenile: false,
     energy: 400,
     maxEnergy: 500,
-    needs: { ...initialHumanNeeds(400, 500), lastAdvancedTick: 0 },
+    needs: { ...initialHumanNeeds(80), lastAdvancedTick: 0 },
   } as Entity;
 }
 
