@@ -710,14 +710,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // The off-screen throttle may resume yesterday's or last hour's walk.
-    // Invalidate a child's following intent BEFORE that resume branch, using
-    // the already-resolved school and bedtime schedule from this tick owner.
+    // School, sleep and other fixed obligations outrank voluntary child leisure,
+    // even for children without a completed residence or off-screen decision tick.
+    const childMandatoryActivity = entity.age < HUMAN_ADULT_MIN_AGE && (
+      schoolCommuteDue || onSchoolShift || preShiftSleep.headHome
+      || sleepingForNeeds || onDutyForSleep || recoveringSleep || takingNeedsBreak
+      || goingToHospital || inSpotlightGathering || festivalGathering || !allowFreeRoam
+    );
+    // Invalidate a stale child-follow walk before an off-screen tick can resume it.
     if (entity.age < HUMAN_ADULT_MIN_AGE && entity.childLeisureActivity === 'following') {
       stopInvalidChildFollowing(
-        state, entity, entityById, buildingById, hourOfDay,
-        schoolCommuteDue || onSchoolShift || preShiftSleep.headHome
-          || sleepingForNeeds || onDutyForSleep || recoveringSleep || takingNeedsBreak,
+        state, entity, entityById, buildingById, hourOfDay, childMandatoryActivity,
       );
     }
 
@@ -1686,6 +1689,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       height,
       livingHumanAt,
       suppressIdleInitial: suppressIdle,
+      mandatoryChildActivity: childMandatoryActivity,
       settlerChat,
       settlerPairChat,
       completedPoolOf,
