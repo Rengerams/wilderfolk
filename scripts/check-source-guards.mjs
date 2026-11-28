@@ -343,6 +343,7 @@ const GUARDS = [
  * reports a violation instead of passing on a typo.
  */
 const SOURCE_ROWS = [
+  { id: 'terrain-fill-single-stamp', checks: [{ file: 'src/game/terrainLayer.ts', region: [{ from: 'function drawTerrainFill(', to: 'type Cardinal', counts: [{ needle: 'drawImage(', times: 1 }] }] }] },
   { id: "visitor-trade-formatter-owner", checks: [{ file: "src/game/groupEvents.ts", contains: "formatResourceAmounts(received)", notMatches: /receivedLabel\s*=\s*`\+\$\{added\}/, example: "receivedLabel = `+${added}`;" }] },
   { id: "yearly-marriage-statistics-owner", checks: [{ file: "src/game/stats.ts", contains: "filter(isMarriedOrExpecting)", notMatches: /relationshipStatus\s*===\s*'married'/, example: "relationshipStatus === 'married'" }] },
   { id: "active-marriage-predicate-single-owner", scan: { dir: "src", ext: [".ts", ".tsx"], except: ["src/game/relationships.ts"], notMatches: /function isActivelyMarried\s*\(/, example: "function isActivelyMarried(", minFiles: 1 } },
@@ -1787,6 +1788,10 @@ function runCheck(ctx, check) {
         continue;
       }
       const slice = text.slice(start, end);
+      for (const { needle, times } of region.counts ?? []) {
+        const found = occurrences(slice, needle);
+        if (found !== times) violations.push(`${file}: the ${quote(region.from)} region ${quote(needle)} appears ${found} times, expected ${times}`);
+      }
       for (const needle of asArray(region.contains)) {
         if (!slice.includes(needle)) violations.push(`${file}: the ${quote(region.from)} region lost ${quote(needle)}`);
       }
@@ -1879,6 +1884,24 @@ function* rowMutations(row) {
           yield { file, text: remove(region.to), expected: file + ': region end ' + quote(region.to) + ' is gone' };
         }
         const label = file + ': the ' + quote(region.from) + ' region';
+        for (const { needle, times } of region.counts ?? []) {
+          const found = occurrences(text.slice(start, end), needle);
+          const insertion = start + region.from.length;
+          yield {
+            file,
+            text: text.slice(0, insertion) + needle + text.slice(insertion),
+            expected: label + ' ' + quote(needle) + ' appears ' + (found + 1) + ' times, expected ' + times,
+          };
+          if (found > 0) {
+            const at = text.indexOf(needle, insertion);
+            if (at < 0 || at >= end) throw new Error(file + ': counted needle not found inside region');
+            yield {
+              file,
+              text: text.slice(0, at) + ' '.repeat(needle.length) + text.slice(at + needle.length),
+              expected: label + ' ' + quote(needle) + ' appears ' + (found - 1) + ' times, expected ' + times,
+            };
+          }
+        }
         for (const needle of asArray(region.contains)) {
           // Remove all occurrences without shortening the bounded region.
           yield {

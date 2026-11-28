@@ -12,6 +12,9 @@ import {
   HUMAN_VARIANT_LABELS,
   HUMAN_WALK_FRAMES,
   WALK_SHEET_PATHS,
+  HUMAN_WORLD_HEIGHT,
+  getHumanSpriteMetrics,
+  getJuvenileFigureScale,
   getHumanMarkerColors,
   getHumanMarkerRadius,
   getHumanSelectionBounds,
@@ -328,5 +331,36 @@ describe('humanSprites.selectionHitBox.test.ts', () => {
       expect(bounds.rx).toBe(worldBox(1).rx);
       expect(bounds.ry).toBe(worldBox(1).ry);
     }
+  });
+});
+
+describe('D16 — every child sprite draws the same painted figure height', () => {
+  // Painted-figure fraction of each PNG's canvas from its alpha bounding box (this tier has no
+  // PNG decoder). Re-cut `child_*` art must re-measure these and `JUVENILE_FIGURE_FRACTIONS`.
+  const CHILD_ART = [
+    { gender: 'male', variant: 0, path: 'child_boy_bakersboy.png', figure: 0.918 },
+    { gender: 'male', variant: 1, path: 'child_boy_merchantson.png', figure: 0.880 },
+    { gender: 'female', variant: 0, path: 'child_girl_doctorsdaughter.png', figure: 1.0 },
+    { gender: 'female', variant: 1, path: 'child_girl_poorservant.png', figure: 0.970 },
+  ] as const;
+
+  const child = (gender: string, variant: number): Entity =>
+    ({ id: 7, gender, isJuvenile: true, size: 10, spriteVariant: variant }) as unknown as Entity;
+
+  it('pairs a shared figure height with a box grown by the art fraction', () => {
+    const zoom = 4; // clear of the HUMAN_MIN_SCREEN_PX floor, which would clamp every child alike
+    for (const { gender, variant, figure, path } of CHILD_ART) {
+      const human = child(gender, variant);
+      // `spriteH` is the *figure* height, and it is the same for every child…
+      expect(getHumanSpriteMetrics(human, zoom).spriteH, path)
+        .toBeCloseTo(HUMAN_WORLD_HEIGHT * 0.72 * zoom, 6);
+      // …so the drawn box must be `spriteH / fraction` for the padded figure inside it to fill it.
+      expect(getJuvenileFigureScale(human), path).toBeCloseTo(1 / figure, 6);
+    }
+  });
+
+  it('leaves adults on the unnormalised world height', () => {
+    const adult = { id: 8, gender: 'male', isJuvenile: false, size: 10, spriteVariant: 0 } as unknown as Entity;
+    expect(getHumanSpriteMetrics(adult, 4).spriteH).toBeCloseTo(HUMAN_WORLD_HEIGHT * 4, 6);
   });
 });

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EntityType, MapPreset, MapSize, TerrainType, type WorldMap } from '../src/game/gameTypes';
+import { testWorldMap } from '../src/test/worldMapFixtures';
+import { pickAtlasTile, pickSandWaterOverlay, terrainPaletteHex, TERRAIN_PALETTE } from '../src/game/terrainAtlas';
 import { generateRawTerrain } from '../src/game/terrain/terragen';
 import { WATER_CELL, tileAt } from '../src/game/terrain/terrainGrid';
 import { initGame } from '../src/game/worldGen';
@@ -90,5 +92,35 @@ describe('landscape rendering follows the simulation map', () => {
     expect(mountain).not.toBeNull();
     expect(flat!.skyOcclusion[4 * 9 + 4]).toBe(0);
     expect(mountain!.skyOcclusion[4 * 9 + 4]).toBeGreaterThan(0);
+  });
+});
+
+describe('D8 — the sand/water overlay is independent of the atlas pick', () => {
+
+
+  it('has a material the atlas cannot paint, which is why the old gate was wrong', () => {
+    // A coastal strip: open water across the top row, beach below it.
+    const map = testWorldMap({
+      tilesX: 3,
+      tilesY: 3,
+      seed: 5,
+      preset: MapPreset.Coastal,
+      tileType: (tx, ty) => (ty === 0 ? TerrainType.DeepWater : TerrainType.Beach),
+    });
+
+    // A beach tile has no atlas family, so it never receives an `atlasPick`…
+    expect(pickAtlasTile(map, 1, 1)).toBeNull();
+    // …while the mask it exists for is exactly what this tile wants.
+    expect(pickSandWaterOverlay(map, 1, 1)).not.toBeNull();
+  });
+});
+
+describe('D12 — one terrain palette owner', () => {
+
+
+  it('covers every terrain type with a CSS colour', () => {
+    for (const type of Object.values(TerrainType)) {
+      expect(terrainPaletteHex(type)).toBe(`#${TERRAIN_PALETTE[type].toString(16).padStart(6, '0')}`);
+    }
   });
 });

@@ -3,6 +3,9 @@
  * frame cadence, and the per-tick SoA bucket containers.
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { drawBuildSnapOverlay } from '../src/game/renderer/grid';
+import { initGame } from '../src/game/worldGen';
+import { createBuildGhost, createInitialView, type ViewState } from '../src/game/viewState';
 import { fitCanvasToDpr } from '../src/game/canvasLayer';
 import {
   drawMiniMapFrame,
@@ -441,5 +444,82 @@ describe('F-RND-9 — camera-only snapshots reuse the blacksmith predicate resul
     } finally {
       scan.mockRestore();
     }
+  });
+});
+
+describe('W-06 — placement verdict markers follow the live ghost', () => {
+  /** Records each diamond's first point, which is one marker per candidate cell. */
+  function recordingContext() {
+    const markers: { x: number; y: number }[] = [];
+    const ctx = {
+      save() {},
+      restore() {},
+      beginPath() {},
+      moveTo(x: number, y: number) { markers.push({ x, y }); },
+      lineTo() {},
+      closePath() {},
+      fill() {},
+      stroke() {},
+      ellipse() {},
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+    };
+    return { ctx: ctx as unknown as CanvasRenderingContext2D, markers };
+  }
+
+  it('re-centres the verdict cloud when the ghost moves, with no cache-key term', () => {
+    const world = initGame({ villageName: 'Ghost', seed: 20261111 });
+    const view = createInitialView(world.width, world.height) as ViewState;
+    const atGhost = (dx: number) => {
+      const snapshot = buildRenderSnapshot(world, {
+        ...view,
+        buildMode: BuildingType.House,
+        buildGhost: createBuildGhost(view.camera.x + dx, view.camera.y, null),
+      });
+      const { ctx, markers } = recordingContext();
+      drawBuildSnapOverlay(ctx, snapshot, 800, 600);
+      return markers.map((marker) => marker.x);
+    };
+
+    const left = atGhost(-100);
+    const right = atGhost(100);
+    expect(left.length).toBeGreaterThan(0);
+    expect(Math.max(...right) - Math.max(...left)).toBeGreaterThan(100);
+    expect(Math.min(...right) - Math.min(...left)).toBeGreaterThan(100);
+  });
+
+
+});
+
+describe('D18 — the entity layer key covers what its painters read', () => {
+  it('changes when only a non-primary selection id changes', () => {
+    // `humans.ts` / `animals.ts` draw a ring per id in `selectedEntityIds`, so dropping the second
+    // id has to invalidate the cached bitmap even though `selectedEntity.id` is unchanged.
+    const two = buildEntityLayerKey(snapshot({ selectedEntityIds: [1, 2], selectedEntity: { id: 1 } as RenderSnapshot['selectedEntity'] }), 800, 600);
+    const one = buildEntityLayerKey(snapshot({ selectedEntityIds: [1], selectedEntity: { id: 1 } as RenderSnapshot['selectedEntity'] }), 800, 600);
+    expect(two).not.toBe(one);
+  });
+
+  it('changes when the juice-effects preference flips', () => {
+    expect(buildEntityLayerKey(snapshot({ juiceEffectsEnabled: true }), 800, 600))
+      .not.toBe(buildEntityLayerKey(snapshot({ juiceEffectsEnabled: false }), 800, 600));
+  });
+
+  it('the pre-fix key could not tell those states apart', () => {
+    // A key without `selectedEntityIds` and `juiceEffectsEnabled` collides on these snapshots,
+    // so the cached bitmap stays stale.
+    const preFixKey = (s: RenderSnapshot): string => [
+      s.tick, s.hourOfDay, s.showGrid ? 1 : 0, s.showPaths ? 1 : 0,
+      s.hoveredBuilding?.id ?? '', s.selectedEntity?.id ?? '', s.selectedBuilding?.id ?? '',
+      s.villageLeaderId ?? '', s.highlightedCampKey ?? '', s.buildMode ?? '', s.buildRotation ?? 0,
+      s.pendingRaidEvents?.length ?? 0, s.pendingOutgoingRaidEvents?.length ?? 0,
+      s.visitorGroups.length, s.buildings.length, s.entities.length,
+    ].join('|');
+    const two = snapshot({ selectedEntityIds: [1, 2], selectedEntity: { id: 1 } as RenderSnapshot['selectedEntity'] });
+    const one = snapshot({ selectedEntityIds: [1], selectedEntity: { id: 1 } as RenderSnapshot['selectedEntity'] });
+    expect(preFixKey(two)).toBe(preFixKey(one));
+    expect(preFixKey(snapshot({ juiceEffectsEnabled: true })))
+      .toBe(preFixKey(snapshot({ juiceEffectsEnabled: false })));
   });
 });

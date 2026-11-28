@@ -273,6 +273,10 @@ The original pre-audit tree `ee6f1adc` contains exactly 50 files matching the do
 
 Moved the legacy DNA inventory and scanner self-tests out of Vitest to `scripts/check-legacy-dna.mts`, retaining all 25 original assertions including alias handling, comment/string exclusions and permitted owner reads. Standard/full source verification invokes the scanner. No gameplay changes; CI pending.
 
+## Renderer audit consolidation — 2026-11-28
+
+Retired `visualsAudit.renderWiring.test.ts`. Seven renderer runtime cases and their historical key proof now run in `renderer.frameOwnership`, `humanSprites` and `terrain.visualCoherence`. The scoped terrain-fill call count is now a declarative region count with both add/remove mutations. Its synthetic proof is superseded; the D21 literal-only example documented a non-defect (identical draw arguments in mutually exclusive transform branches), not a runtime test. No gameplay changes; CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete
