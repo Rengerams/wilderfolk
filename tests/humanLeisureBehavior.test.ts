@@ -327,7 +327,7 @@ describe('tickHumanChildLeisure', () => {
     tickChild(state, child, [child, mate], tick + 1);
     expect(child.childPlaySite).toEqual(first);
 
-    tickChild(state, child, [child, mate], tick + 3 * TICKS_PER_HOUR);
+    tickChild(state, child, [child, mate], tick + TICKS_PER_HOUR);
     const next = child.childPlaySite;
     expect(next).toBeDefined();
     expect(next!.phase).not.toBe(first!.phase);
@@ -416,7 +416,7 @@ describe('tickHumanChildLeisure', () => {
     const tick = playTickFor(child);
     expect(tickChild(state, child, [child, mate], tick)).toBe(true);
     const day = Math.floor(tick / TICKS_PER_DAY);
-    const phase = Math.floor((tick % TICKS_PER_DAY) / (3 * TICKS_PER_HOUR));
+    const phase = Math.floor((tick % TICKS_PER_DAY) / TICKS_PER_HOUR);
     const previous = { day, phase, x: 155, y: 105 };
     child.childPlaySite = { ...previous, mateId: mate.id };
     mate.childPlaySite = { ...previous, mateId: child.id };
@@ -504,7 +504,7 @@ describe('tickHumanChildLeisure', () => {
     expect(Math.hypot(child.vx, child.vy)).toBeGreaterThan(0);
   });
 
-  it('caches a rejected play-area search until the next three-hour phase', () => {
+  it('caches a rejected play-area search until the next hourly phase', () => {
     const { state, child } = childFixture();
     child.x = 105;
     child.y = 105;
@@ -594,9 +594,11 @@ describe('tickHumanChildLeisure', () => {
     const { state, child } = childFixture();
     const distant = playerChild(child, 12, { x: 1000, y: 100 });
 
-    expect(tickChild(state, child, [child, distant], playTickFor(child))).toBe(false);
-    expect(child.vx).toBe(0);
-    expect(child.vy).toBe(0);
+    expect(tickChild(state, child, [child, distant], playTickFor(child))).toBe(true);
+    expect(child.childPlaymateId).toBeUndefined();
+    expect(child.childLeisureActivity).toBe('playing');
+    expect(child.childPlaySite?.mateId).toBe(child.id);
+    expect(Math.hypot(child.vx, child.vy)).toBeGreaterThan(0);
   });
 
   it('chooses from a bounded candidate set in a crowded neighborhood', () => {
