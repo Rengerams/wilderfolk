@@ -455,6 +455,18 @@ describe('a priest serving at a completed church', () => {
     expect(getHumanActivityProjection(restDay.state, restDay.priest).schedule.onShift).toBe(false);
   });
 
+  it('keeps ordinary priest duty ahead of an evening festival when the colony shift extends to 21:00', () => {
+    const { state, priest } = churchWorld();
+    state.workSchedule = { startHour: 12, endHour: 21 };
+    state.festival = { active: true, name: 'Test Festival', daysLeft: 3 };
+    state.tick = 2 * TICKS_PER_DAY + 18 * TICKS_PER_HOUR - 1;
+    gameTick(state);
+    const church = state.buildings.find((site) => site.id === 30)!;
+    expect(priest.scheduleWorkedTicksToday ?? 0).toBeGreaterThan(0);
+    expect(priest.indoorBuildingId).toBe(church.id);
+    expect(getHumanActivityProjection(state, priest).schedule.onShift).toBe(true);
+  });
+
   it('still records the moon-howler night duty, which is the church’s other shift', () => {
     const { state, priest } = churchWorld();
     // The night duty begins at NIGHT_START on a full-moon day.
