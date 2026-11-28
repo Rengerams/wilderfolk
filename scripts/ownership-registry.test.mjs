@@ -151,6 +151,13 @@ test('tooling inventory requires qualified nested names and ignores anonymous ca
     assert.deepEqual(validateToolingInventory(root, [contract], resolved, inventory), []);
     assert.equal(inventory.size, 6);
     assert.ok([...inventory.keys()].every(identity => resolved.has(identity)));
+    writeFileSync(path.join(root, 'scripts/unregistered.mjs'), 'function unclaimed() {}');
+    const expanded = new Map();
+    const expandedClaims = new Map();
+    assert.deepEqual(validateToolingInventory(root, [contract], expandedClaims, expanded), []);
+    assert.deepEqual([...expanded.entries()].filter(([identity]) => !expandedClaims.has(identity)).map(([, declaration]) => declaration), [
+      { file: 'scripts/unregistered.mjs', symbol: 'unclaimed', line: 1 },
+    ]);
     assert.equal(resolved.size, 6);
     assert.ok(validateToolingInventory(root, [{ ...contract, symbols: contract.symbols.filter(symbol => symbol !== 'Inventory#collect') }]).some(message => message.includes('Inventory#collect: missing infrastructure claim')));
     assert.ok(validateToolingInventory(root, [{ ...contract, symbols: contract.symbols.filter(symbol => symbol !== 'Inventory.collect') }]).some(message => message.includes('Inventory.collect: missing infrastructure claim')));
