@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Tests (28 Nov 2026):** Move ten audit-batch suites to their canonical test owners, preserve 86 regressions and keep the required calendar gate and source guards on the destination files.
+
 - **Fixed (28 Nov 2026):** Resolve rare daily probabilities inside the existing RNG buckets instead of rounding them up; sudden illness follows its intended risk without a second random generator.
 - **Improved (28 Nov 2026):** Show current adult education totals by qualification level in the Village Schooling overview.
 

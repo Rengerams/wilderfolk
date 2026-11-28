@@ -239,7 +239,7 @@ Moved 19 cases from `low-4-save-worldgen` and `low-9-simdata` to save-version/va
 
 ## Social and indexed ownership consolidation — 2026-11-28
 
-Moved 31 cases from `phase7.social` and `audit.hotPathScans.equivalence` to relationship, family, Chronicle, housing and workforce suites plus a dedicated apprenticeship suite (there was no existing primary apprenticeship test file). Relocated the generated social resident fixture into the existing shared factory owner; preserved both independent index oracles and reused the roster suite's existing fixtures. Corrected stale evidence links that attributed unrelated UI/romance tests to the old mixed files. This ten-file increment preserves 86 original regressions; one new owner suite means nine net fewer files. CI pending.
+Moved 31 cases from `phase7.social` and `audit.hotPathScans.equivalence` to relationship, family, Chronicle, housing and workforce suites plus a dedicated apprenticeship suite (there was no existing primary apprenticeship test file). Relocated the generated social resident fixture into the existing shared factory owner; preserved both independent index oracles and reused the roster suite's existing fixtures. Corrected stale evidence links that attributed unrelated UI/romance tests to the old mixed files. This ten-file increment preserves 86 original regressions; one new owner suite means nine net fewer files. CI pending. Updated the relocated staffing clock-literal guard to scan the destination human-tick suite. Verified all active decision and semantic-review evidence paths against the staged tree.
 
 ## Remaining consolidation, in order
 

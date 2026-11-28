@@ -80,7 +80,7 @@ const DAY_LENGTH_SITES = [
   { file: 'tests/weatherConsequences.test.ts', pattern: /let t = 72;|t <= 71;/, spelling: 'for (let t = 72; …) with the `t <= 71` run-up' },
   { file: 'tests/conceptionEvent.labelling.test.ts', pattern: /state\.tick = 72;/, spelling: 'state.tick = 72' },
   { file: 'tests/humanLifecycle.test.ts', pattern: /state\.tick = 72;/, spelling: 'state.tick = 72' },
-  { file: 'tests/medium-B1-staffing.test.ts', pattern: /72 \+ (23|10) \* TICKS_PER_HOUR/, spelling: '72 + 23 * TICKS_PER_HOUR / 72 + 10 * TICKS_PER_HOUR' },
+  { file: 'tests/humanTick.hotPathIndexes.test.ts', pattern: /72 \+ (23|10) \* TICKS_PER_HOUR/, spelling: '72 + 23 * TICKS_PER_HOUR / 72 + 10 * TICKS_PER_HOUR' },
   { file: 'tests/affairAge.adultOnly.test.ts', pattern: /const TICK = 72;/, spelling: 'const TICK = 72' },
   { file: 'tests/dailyScheduleFatigue.test.ts', pattern: /tick: 72,/, spelling: 'tick: 72,' },
   { file: 'tests/famineDesperation.test.ts', pattern: /tick: 72,/, spelling: 'tick: 72,' },
