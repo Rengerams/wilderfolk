@@ -933,9 +933,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       || goingToHospital || inSpotlightGathering || inElectionCeremony
       || festivalGathering || !allowFreeRoam
     );
-    // Before the off-screen throttle resumes a cached route, remove stale
-    // following. Also stop leftover play velocity when bedtime has no residence
-    // destination. Never suppress an active school, home, hospital or danger route.
+    // Before the off-screen throttle, cancel invalid follow/play movement without a destination.
+    // Preserve school, home, hospital, and emergency routes already selected.
     const orphanedChildLeisure = !active && childMandatoryActivity
       && entity.age < HUMAN_ADULT_MIN_AGE && !home?.completed
       && !schoolCommuteDue && !hospitalCommuteDue && !goingToHospital

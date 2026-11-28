@@ -148,9 +148,8 @@ function chooseChildPlaySite(
 }
 
 /**
- * The single caregiver-follow eligibility rule. An ordinary daytime job and the
- * actual roster for venues, hospitals, guards and priests all exclude following.
- * Also respect a live commute or indoor duty, not merely the village clock.
+ * Only off-duty caregivers may be followed; use the shared shift and commute owners.
+ * An indoor-at-work signal remains authoritative even with a sparse building lookup.
  */
 function canFollowCaregiverDuringLeisure(
   state: WorldState,
@@ -173,10 +172,8 @@ function canFollowCaregiverDuringLeisure(
 }
 
 /**
- * The sole child-leisure cancellation path. Stop a follow that has become
- * ineligible, or clear leftover play/follow velocity when an obligatory schedule
- * has no usable movement target. A school, home, or emergency route that already
- * owns the tick must not be overwritten by this leisure cleanup.
+ * Cancel invalid following and leftover leisure when mandatory movement has no target.
+ * Never overwrite a school, home, or emergency route already selected this tick.
  */
 export function stopSupersededChildLeisure(
   state: WorldState,
