@@ -92,6 +92,22 @@ describe('legacy rival camp save compatibility', () => {
 });
 
 describe('M20/M25/M34 — simulation state round-trips', () => {
+  it('preserves ecology stage and hysteresis state across repeated save/load cycles', () => {
+    const state = initGame({ villageName: 'Valley', size: 'medium', seed: 7 });
+    state.tick = TICKS_PER_DAY * 20;
+    const savedStage = {
+      valleyStage: 'collapse' as const,
+      valleyStageSinceDay: 16,
+      valleyRawStressStreakDays: 0,
+      valleyRawCalmStreakDays: 1,
+      valleyLastStageNotifyDay: 16,
+    };
+    Object.assign(state, savedStage);
+    const loaded = roundTrip(state);
+    expect(loaded).toMatchObject(savedStage);
+    expect(roundTrip(loaded)).toMatchObject(savedStage);
+  });
+
   it('keeps the moon-howler cooldowns, village happiness and chronicle in the save allow-list', () => {
     for (const key of ['lastMoonHowlerExorcismTick', 'moonHowlerPriestsFleeUntil', 'villageHappiness', 'chronicleChapters']) {
       expect(WORLD_STATE_SAVE_KEYS).toContain(key);
