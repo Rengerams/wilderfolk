@@ -1,5 +1,5 @@
 import type { Building, Entity, WorldState } from './gameTypes';
-import { BuildingType, BUILDING_CONFIGS, EntityType } from './gameTypes';
+import { BuildingType, BUILDING_CONFIGS, EntityType, LEADER_OCCUPATION } from './gameTypes';
 import { BUILDING_TYPE_CODES, isCompletedPlayerBuilding } from './buildings';
 import { isPlayerHuman } from './playerHuman';
 import { getBuildingCenter } from './buildingGeometry';
@@ -229,6 +229,9 @@ export function getChildCustodian(
   const mother = livingHuman(humans, child.motherId, entityById);
   const father = livingHuman(humans, child.fatherId, entityById);
   if (mother && father && mother.partnerId !== father.id && father.partnerId !== mother.id) {
+    // The elected leader's dependent child belongs with the leader, even after separation.
+    if (mother.occupation === LEADER_OCCUPATION) return mother;
+    if (father.occupation === LEADER_OCCUPATION) return father;
     const endedAt = mother.pastPartnerTicks?.[father.id];
     if (endedAt != null && endedAt === father.pastPartnerTicks?.[mother.id]) {
       // One deterministic decision per divorced parental pair, shared by all their minors.

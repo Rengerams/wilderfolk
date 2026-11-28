@@ -14,7 +14,8 @@ import {
   summarizeSchooling,
 } from '../src/game/education';
 import { SCHOOL_MIN_AGE, SCHOOL_CHILDREN_PER_TEACHER } from '../src/game/gameConstants';
-import { isSchoolTime } from '../src/game/education';
+import { isSchoolTime, SCHOOL_GRADUATION_DAYS, SCHOOL_EDUCATED_DAYS, SCHOOL_FULL_EDUCATION_DAYS } from '../src/game/education';
+import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
 import { summarizeTradeRouteBlocks } from '../src/game/tradeCaravans';
 
 const CLASS_TICK = 0;
@@ -142,11 +143,35 @@ describe('the schooling owner explains an empty classroom', () => {
     }
   });
 
+  it('counts completed adult education levels once, excluding children, foreigners and the dead', () => {
+    const people: Entity[] = [
+      { ...child(1, HUMAN_ADULT_MIN_AGE), isJuvenile: false },
+      { ...child(2, HUMAN_ADULT_MIN_AGE), isJuvenile: false, educated: true, schoolDays: SCHOOL_GRADUATION_DAYS },
+      { ...child(3, 30), isJuvenile: false, educated: true, schoolDays: SCHOOL_EDUCATED_DAYS },
+      { ...child(4, 30), isJuvenile: false, educated: true, schoolDays: SCHOOL_FULL_EDUCATION_DAYS },
+      { ...child(5, 30), isJuvenile: false, educated: true, schoolDays: SCHOOL_FULL_EDUCATION_DAYS + 10 },
+      { ...child(6, 30), isJuvenile: false, educated: true }, // legacy educated settler
+      { ...child(7, HUMAN_ADULT_MIN_AGE - 1), schoolDays: SCHOOL_FULL_EDUCATION_DAYS },
+      { ...child(8, 30), isJuvenile: false, educated: true, schoolDays: SCHOOL_FULL_EDUCATION_DAYS, alive: false },
+      { ...child(9, 30), isJuvenile: false, educated: true, schoolDays: SCHOOL_FULL_EDUCATION_DAYS, faction: 'visitor' },
+      { ...child(10, HUMAN_ADULT_MIN_AGE), isJuvenile: true, schoolDays: SCHOOL_FULL_EDUCATION_DAYS },
+    ];
+    const state = village(people);
+    expect(summarizeSchooling(state, CLASS_TICK, CLASS_HOUR).adultEducation).toEqual([
+      { label: 'Uneducated', count: 1 },
+      { label: 'Schooled', count: 2 },
+      { label: 'Educated', count: 1 },
+      { label: 'Scholar', count: 2 },
+    ]);
+  });
+
   it('the Village panel prints the owner breakdown', () => {
     const panel = read('src/components/tabPanels/VillageTabPanel.tsx');
     expect(panel).toContain('summarizeSchooling(state, state.tick, getHourOfDay(state.tick))');
     expect(panel).toContain('describeSchoolingSummary(');
     expect(panel).toContain('{summary.headline}');
+    expect(panel).toContain('attendance.adultEducation.map');
+    expect(panel).toContain('{row.count}');
     expect(panel, 'the reason lines are computed and thrown away').toContain('{line}');
   });
 });

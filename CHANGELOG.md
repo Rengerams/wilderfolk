@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Improved (28 Nov 2026):** Show current adult education totals by qualification level in the Village Schooling overview.
+
 - **Fixed (28 Nov 2026, PR #243):** Let the housing owner move an unemployed household into spare beds near a reachable job, preserving custodians and school commutes. The existing staffing pass then assigns work; only one such move is attempted per pulse.
 
 - **Fixed (28 Nov 2026, PR #243):** Tie secret-affair progress to one reciprocal partner and clear anonymous 100%. Prevent dates from freezing until both are available. Fill completed jobs, including barracks, before construction claims the idle workforce; leaders follow normal staffing.

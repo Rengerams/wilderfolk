@@ -3,7 +3,7 @@
  * observes the pipeline's invariant report, and the growth report counts only assignable beds.
  */
 import { describe, expect, it } from 'vitest';
-import { BuildingType, EntityType, Season } from '../src/game/gameTypes';
+import { BuildingType, EntityType, Season, LEADER_OCCUPATION } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { LAYER_ASSIGN_INTERVAL, LAYER_ASSIGN_PHASE_TICK, tickLayerAssign } from '../src/game/tickLayerAssign';
@@ -111,6 +111,31 @@ describe('the weekly audit observes the housing invariant report', () => {
     const auditLine = world.eventLog.find((entry) => entry.message.startsWith('Housing audit'));
     expect(auditLine, 'the weekly audit writes its violations to the chronicle').toBeDefined();
     expect(auditLine?.message).toContain(`child #${child.id} has no home`);
+  });
+
+  it("accepts a separated leader's minor living with that parent in the manor", () => {
+    const manor = building(0, BuildingType.LeaderHouse);
+    const home = building(565, BuildingType.House);
+    const mother = human(2383, {
+      age: 18, gender: 'female', occupation: LEADER_OCCUPATION, residenceBuildingId: manor.id,
+      childrenIds: [4913], pastPartnerTicks: { 2552: 88330 },
+    });
+    const father = human(2552, {
+      age: 18, gender: 'male', residenceBuildingId: home.id, childrenIds: [4913],
+      pastPartnerTicks: { 2383: 88330 },
+    });
+    const child = human(4913, {
+      age: 3, isJuvenile: true, motherId: mother.id, fatherId: father.id, residenceBuildingId: manor.id,
+    });
+    const people = [mother, father, child];
+    const world = worldWith(people, [manor, home], WEEKLY_AUDIT_TICK);
+    world.villageLeaderId = mother.id;
+
+    tickLayerAssign(world, assignContext(world, people));
+
+    expect(child.residenceBuildingId).toBe(mother.residenceBuildingId);
+    expect(father.residenceBuildingId).toBe(home.id);
+    expect(world.eventLog.some((entry) => entry.message.startsWith('Housing audit'))).toBe(false);
   });
 
   it('audits custodial separation for a protected manor family', () => {
