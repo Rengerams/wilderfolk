@@ -39,11 +39,10 @@ export const WORLD_STATE_SAVE_KEYS = [
   'unlockedTechs', 'activeResearch', 'researchProgress',
   'tradeRoutes', 'totalBuildingsCompleted', 'productionDeferred', 'productionValleyStage', 'lastProcessedCalendarDay', 'yearlyStats',
   'lifetimeStats', 'eventLog', 'chronicleChapters', 'festival', 'townHallFestivalCooldownUntilTick',
-  'visitorGroups', 'activeVillageRequest', 'villageRequestCooldownUntilDay', 'villageRequestHistory',
   'rivalSettlements', 'pendingDiplomacyEvents', 'pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports', 'raidRecovery', 'scoredRaidIds', 'graveRecords',
   'renffrOmen', 'renffrChatterUntilTick',
   'activeMigration', 'migrationNextHerdSize',
-  'ecoHealthYearsAbove80', 'firstWeekVisitorSpawned', 'villageLeaderId', 'pendingLeaderHouseResidentIds', 'leaderSinceYear',
+  'ecoHealthYearsAbove80', 'villageLeaderId', 'pendingLeaderHouseResidentIds', 'leaderSinceYear',
   'lastElectionYear', 'pendingElectionYear', 'electionBuildupNotifiedYear', 'electionCeremony', 'spotlightLore', 'spotlightLoreLastDay', 'nextElectionId', 'lastElectionResult', 'electionPromiseRecords',
   'villageForge', 'tutorialSeen', 'dismissedBigNewsIds', 'dismissedActiveEventIds',
   // Live Big News cards: the dismissal ledger beside them already persists, so a load kept the
@@ -52,9 +51,6 @@ export const WORLD_STATE_SAVE_KEYS = [
   'dismissedNotificationIds', 'lastWildlifeReplenishLogDay', 'eventsThisYear',
   'appliedSaveMigrations',
   'storyFlags', 'pendingStoryEvents', 'inventionFair', 'guidedCampaign',
-  // The traveling-smith quest is created and expired only inside the simulation, so it
-  // must round-trip with the world it belongs to.
-  'visitorQuest',
   // The current year's death tally (the yearly record's `deaths`).
   'deathsThisYear',
   // Moon Howler lifecycle state written every full moon: the church-rite cooldown and the

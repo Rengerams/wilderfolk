@@ -69,7 +69,6 @@ export function scenarioWorld(): WorldState {
   const state = initGame({ skipTerrain: true, seed: HUMAN_SCENARIO_SEED });
   state.entities = [];
   state.buildings = [];
-  state.visitorGroups = [];
   state.pendingRaidEvents = [];
   state.pendingOutgoingRaidEvents = [];
   state.pendingDiplomacyEvents = [];

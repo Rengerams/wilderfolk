@@ -168,7 +168,7 @@ function completeActiveResearch(state: WorldState): void {
  * Adds progress to the active subject and resolves completion — the clamp's and the completion
  * branch's one home, so a gift that grants progress cannot skip the finish.
  */
-export function grantResearchProgress(state: WorldState, amount: number): void {
+function grantResearchProgress(state: WorldState, amount: number): void {
   if (!state.activeResearch) return;
   state.researchProgress = Math.min(100, state.researchProgress + amount);
   if (state.researchProgress >= 100) completeActiveResearch(state);

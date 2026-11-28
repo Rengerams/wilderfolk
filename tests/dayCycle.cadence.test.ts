@@ -200,7 +200,7 @@ describe('real gameTick calendar integration', () => {
         gameTick(world);
         world.tick = tickAtDailyPhase(day, 'worldEvents') - 1;
         gameTick(world);
-        expect(world.visitorGroups, `day ${day}`).toHaveLength(0);
+        expect(world, `day ${day}`).not.toHaveProperty('visitorGroups');
         expect(world.entities.some((entity) => entity.faction === 'visitor'), `day ${day}`).toBe(false);
       }
     });

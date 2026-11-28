@@ -38,7 +38,7 @@ describe('single human meal transaction', () => {
   it('prevents visitors, well-fed and unfunded meals without owning the scheduler cadence', () => {
     const cases: Array<[Entity, WorldState]> = [
       [person({ faction: 'visitor' }), world(10)],
-      [person({ needs: { nutrition: 85, rest: 20, stamina: 5 } }), world(10)],
+      [person({ needs: { nutrition: 90, rest: 20, stamina: 5 } }), world(10)],
       [person(), world(0)],
     ];
     for (const [e, state] of cases) {
@@ -48,6 +48,17 @@ describe('single human meal transaction', () => {
       expect(state.resources.food).toBe(food);
       expect(e.needs!.nutrition).toBe(nutrition);
     }
+  });
+
+  it('allows a hungry settler to reach almost full nutrition without changing meal cost', () => {
+    const state = world(10);
+    const eater = person({ needs: { nutrition: 89.9, rest: 70, stamina: 60 } });
+    expect(tryEatColonyMeal(eater, state)).toBe(true);
+    expect(eater.needs!.nutrition).toBeCloseTo(99.9);
+    expect(state.resources.food).toBe(9);
+    state.tick += 2 * TICKS_PER_HOUR;
+    expect(tryEatColonyMeal(eater, state)).toBe(false);
+    expect(state.resources.food).toBe(9);
   });
 
   it('does not decide clock-hour cadence inside the meal transaction', () => {

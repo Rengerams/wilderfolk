@@ -6,10 +6,10 @@ import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
-import { getChurchStrength, findHumanWorkplace } from './workforce';
+import { getChurchStrength } from './workforce';
 import { resolveShift } from './workAbsence';
-import { buildConstructionCrewIndex } from './workforceSummary';
-import { getApprenticeTrainingSite } from './apprenticeships';
+import { isPrisonerInCell } from './prisonShifts';
+import { buildConstructionCrewIndex, resolveHumanWorkplace } from './workforceSummary';
 
 import { isPlayerHuman } from './playerHuman';
 import { deterministicCos, deterministicSin } from './simTrig';
@@ -53,9 +53,9 @@ import {
   hasTeacherPresent,
   syncSchoolAssignments,
   recordChildSchoolTick,
-  isSchoolTime,
-  isChildAtSchool,
-  SCHOOL_START_HOUR,
+  isAttendingSchool,
+  isSchoolAge,
+  resolveSchoolSchedule,
 } from './education';
 import {
   getPlayerCampCenterFromBuildings,
@@ -88,7 +88,7 @@ import {
   tickTavernService,
 } from './humanVenueBehavior';
 import {
-  checkoutVisitor,
+  checkoutHotelLodger,
   createHotelLodgingIndex,
   isSettlerLodgingAtHotel,
   lodgingHotelFor,
@@ -223,19 +223,18 @@ function observeHumanSleep(entity: Entity, context: {
   recoveringSleep: boolean;
   scheduledSleep: boolean;
   overrideNightSleep: boolean;
-  hotels: readonly Building[];
   buildingById: Map<number, Building>;
   overnightTrystIds: ReadonlySet<number>;
   tick: number;
 }): { sleeping: boolean; hasHospital: boolean } {
-  const { hourOfDay, previousIndoorBuildingId, onDuty, recoveringSleep, scheduledSleep, overrideNightSleep, hotels, buildingById, overnightTrystIds, tick } = context;
+  const { hourOfDay, previousIndoorBuildingId, onDuty, recoveringSleep, scheduledSleep, overrideNightSleep, buildingById, overnightTrystIds, tick } = context;
   const night = isNightHour(hourOfDay);
   // Soldiers sleeping at their field camp still use the one physiology recovery owner.
   if (entity.raidDeploymentId) return { sleeping: night, hasHospital: false };
   if (entity.prisonBuildingId != null) {
     const cell = buildingById.get(entity.prisonBuildingId);
     return {
-      sleeping: Boolean(cell?.completed && night && Math.hypot(entity.x - cell.x, entity.y - cell.y) <= 18),
+      sleeping: night && isPrisonerInCell(entity, cell, previousIndoorBuildingId),
       hasHospital: false,
     };
   }
@@ -244,9 +243,8 @@ function observeHumanSleep(entity: Entity, context: {
   const home = entity.residenceBuildingId == null ? undefined : buildingById.get(entity.residenceBuildingId);
   const atHome = !!home && isResidenceBuilding(home)
     && previousIndoorBuildingId === home.id;
-  const atHotel = entity.hotelStayBuildingId != null
-    && previousIndoorBuildingId === entity.hotelStayBuildingId
-    && isSettlerLodgingAtHotel(entity, buildingById, hourOfDay, hotels);
+  const atHotel = previousIndoorBuildingId != null
+    && isSettlerLodgingAtHotel(entity, buildingById, tick, previousIndoorBuildingId);
   const ward = previousIndoorBuildingId == null ? undefined : buildingById.get(previousIndoorBuildingId);
   const hasHospital = isRestingHospitalPatient(entity, ward, tick, previousIndoorBuildingId);
 
@@ -298,7 +296,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const isTick8 = hourOfDay === 8 && isStartOfClockHour(state.tick);
 
   const constructionByWorkerId = buildConstructionCrewIndex(updatedBuildings);
-  const workplaceOpts = { buildingById, constructionByWorkerId };
+  const workplaceOpts = { buildingById, constructionByWorkerId, entityById };
   const allHumans: Entity[] = [];
   const humanIds = new Set<number>();
 
@@ -462,7 +460,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
   // Lodging runs for every settler each tick; build the hotel list and bed counts once so a
   // candidate hotel never rescans every entity for each settler.
-  const hotelLodging = createHotelLodgingIndex(updatedBuildings, allHumans, buildingById, entityById);
+  const hotelLodging = createHotelLodgingIndex(updatedBuildings, allHumans, state.tick, buildingById);
   // Ceremony seats are the same id-sorted ranks for every settler; build them once per tick.
   const ceremonySeats = state.electionCeremony ? buildCeremonySeatIndex(state) : undefined;
 
@@ -534,15 +532,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (isPlayerHuman(e)) applyEducationGraduation(state, e);
     });
 
-    const schoolTarget = schoolAssignments.get(entity.id);
+    const schoolTarget = isSchoolAge(entity) ? schoolAssignments.get(entity.id) : undefined;
 
     if (schoolTarget) {
       // Schoolyard rumours and new bonds run once per day at noon, when an awake child is at school.
       if (
         hourOfDay === 12 &&
-        isSchoolTime(state.tick, hourOfDay) &&
-        isChildAtSchool(entity, schoolTarget) &&
-        schoolsWithTeacherPresent.has(schoolTarget.id) &&
+        isAttendingSchool(entity, schoolTarget, hourOfDay, schoolsWithTeacherPresent.has(schoolTarget.id), state.tick) &&
         isStartOfClockHour(state.tick) &&
         !isAsleepAtHome(entity, buildingById, hourOfDay)
       ) {
@@ -551,9 +547,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    const regularWorkplace = findHumanWorkplace(entity, updatedBuildings, workplaceOpts);
-    const apprenticeSite = regularWorkplace ? null : getApprenticeTrainingSite(entity, entityById, buildingById);
-    const workplace = regularWorkplace ?? apprenticeSite ?? undefined;
+    const { workplace, trainingSite: apprenticeSite } = resolveHumanWorkplace(entity, updatedBuildings, allHumans, workplaceOpts);
     const isInnkeeper =
       entity.job === JobType.Innkeeper && workplace?.type === BuildingType.Tavern && workplace.completed;
 
@@ -567,18 +561,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.id,
       commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace), config.speed),
     ));
-    const onSchoolShift = schoolTarget != null && isSchoolTime(state.tick, hourOfDay);
     const schoolResidence = entity.residenceBuildingId == null
       ? undefined : buildingById.get(entity.residenceBuildingId);
-    const schoolQuote = schoolTarget
-      ? quoteBuildingCommute(schoolResidence ?? entity, schoolTarget, config.speed)
-      : null;
-    // Existing pupils depart conservatively while new route evidence is pending.
-    const schoolLeadHours = schoolQuote?.status === 'priced'
-      ? Math.min(MAX_ASSIGNABLE_COMMUTE_HOURS, Math.ceil(schoolQuote.leadHours))
-      : schoolTarget ? MAX_ASSIGNABLE_COMMUTE_HOURS : 0;
-    const schoolCommuteDue = schoolTarget != null && isWorkDay(state.tick)
-      && hourOfDay >= SCHOOL_START_HOUR - schoolLeadHours && hourOfDay < SCHOOL_START_HOUR;
+    const { onShift: onSchoolShift, commuteDue: schoolCommuteDue } = resolveSchoolSchedule(
+      entity, schoolTarget, schoolResidence, state.tick, hourOfDay, config.speed,
+    );
     const onDayJobShift = (goWorkTime && shift.next.kind === 'day' && shift.onShift) || onSchoolShift;
     const venueWorkerIndex = workplace ? workplace.occupants.indexOf(entity.id) : -1;
     const onTavernShift = isInnkeeper && shift.onShift;
@@ -696,7 +683,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Pregnancy hospital priority outranks the shift: the settler still owes the duty hours, but
     // standing at a post they are leaving is not verified work.
     const goingToHospital = isPregnancyHospitalPriority(entity, staffedHospitals.length > 0);
-    if (isPlayerHuman(entity) && !entity.raidDeploymentId && (onJobShift)) {
+    if (isPlayerHuman(entity) && !entity.raidDeploymentId && workplace != null && shift.onShift) {
       // A construction crew has no regular workerBuildingId. Its resolved workplace supplies
       // the witnessed site and trade through the existing attendance recorders.
       const attendedJob = apprenticeSite
@@ -746,7 +733,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const sleep = observeHumanSleep(entity, {
       hourOfDay, previousIndoorBuildingId, onDuty: onDutyForSleep, recoveringSleep,
       scheduledSleep: preShiftSleep.sleep, overrideNightSleep: preShiftSleep.overrideNight,
-      hotels: hotelLodging.hotels, buildingById, overnightTrystIds, tick: state.tick,
+      buildingById, overnightTrystIds, tick: state.tick,
     });
     const sleepingForNeeds = sleep.sleeping;
     const courtshipPresence = {
@@ -796,9 +783,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.vx = 0;
       entity.vy = 0;
       const prison = buildingById.get(entity.prisonBuildingId!);
-      if (prison) {
+      if (prison?.completed && prison.type === BuildingType.Prison) {
         const door = buildingAccessPoint(prison);
-        if (previousIndoorBuildingId === prison.id || isAtBuildingReach(entity, prison)) {
+        if (isPrisonerInCell(entity, prison, previousIndoorBuildingId) || isAtBuildingReach(entity, prison)) {
           enterHumanBuilding(entity, prison);
           entity.x = prison.x;
           entity.y = prison.y;
@@ -943,7 +930,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && (entity.childLeisureActivity === 'following' || orphanedChildLeisure)) {
       stopSupersededChildLeisure(
         state, entity, entityById, buildingById, hourOfDay,
-        childMandatoryActivity, orphanedChildLeisure,
+        childMandatoryActivity, orphanedChildLeisure, constructionByWorkerId,
       );
     }
 
@@ -998,8 +985,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         : undefined;
 
     if (!lodgingHotel && isPlayerHuman(entity) && entity.hotelStayBuildingId != null) {
-      hotelLodging.release(entity.hotelStayBuildingId);
-      checkoutVisitor(entity);
+      checkoutHotelLodger(entity, hotelLodging);
     }
 
     if (onMoonPriestShift) {
@@ -1479,7 +1465,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       hourOfDay === affairEncounterHourOfDay(entity.id, state.tick) &&
       isStartOfClockHour(state.tick) &&
       !isAsleepAtHome(entity, buildingById, hourOfDay) &&
-      !isSettlerLodgingAtHotel(entity, buildingById, hourOfDay, hotelLodging.hotels)
+      !isSettlerLodgingAtHotel(entity, buildingById, state.tick)
     ) {
       // Gossip is a daytime interaction, not an automatic midnight rumour.
       tryDailyAffairGossip(
@@ -1713,6 +1699,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       livingHumanAt,
       suppressIdleInitial: suppressIdle,
       mandatoryChildActivity: childMandatoryActivity,
+      constructionByWorkerId,
       settlerChat,
       settlerPairChat,
       completedPoolOf,
