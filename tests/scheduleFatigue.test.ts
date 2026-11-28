@@ -1,3 +1,6 @@
+import { gameTick } from '../src/game/gameTick';
+import { initGame } from '../src/game/worldGen';
+import { EntityType, MapSize } from '../src/game/gameTypes';
 import { describe, expect, it } from 'vitest';
 import { TICKS_PER_HOUR } from '../src/game/dayCycle';
 import type { Entity } from '../src/game/gameTypes';
@@ -77,5 +80,21 @@ describe('schedule fatigue', () => {
   it('keeps productivity above the documented safety floor', () => {
     expect(getScheduleProductivityMultiplier({ scheduleFatigue: 0 })).toBe(1);
     expect(getScheduleProductivityMultiplier({ scheduleFatigue: 100 })).toBe(0.65);
+  });
+});
+
+describe('first calendar boundary fatigue', () => {
+  it('L73 — the daily layer runs its social/chronicle block at tick 0 too', () => {
+    const world = initGame({ seed: 8, size: MapSize.Medium });
+    // `gameTick` increments first, so tick -1 lands on the tick-0 daily boundary; twelve hours
+    // worked must raise fatigue.
+    world.tick = -1;
+    for (const entity of world.entities) {
+      if (entity.type === EntityType.Human) entity.scheduleWorkedTicksToday = 12 * TICKS_PER_HOUR;
+    }
+    const after = gameTick(world);
+    const humans = after.entities.filter((e) => e.type === EntityType.Human);
+    expect(humans.length).toBeGreaterThan(0);
+    expect(Math.max(...humans.map((h) => h.scheduleFatigue ?? 0))).toBeGreaterThan(0);
   });
 });

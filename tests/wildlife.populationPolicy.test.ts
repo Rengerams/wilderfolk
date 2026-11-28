@@ -1,5 +1,7 @@
+import { rebakeTerrainGrids, setTileOverride } from '../src/game/terrain/terrainGrid';
+import { gameTick } from '../src/game/gameTick';
 import { describe, expect, it } from 'vitest';
-import { BuildingType, EntityType, TerrainType, emptyEntityByType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, MapSize, TerrainType, emptyEntityByType } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { createEntity } from '../src/game/entityFactory';
 import {
@@ -8,7 +10,7 @@ import {
   isOffscreenWildlifeActive,
 } from '../src/game/simFocus';
 import { tickWildlife } from '../src/game/tickLayerSystems';
-import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { computeWildlifeCounts } from '../src/game/entityCounts';
 import { createBuilding, initGame, isPassableWildlifePosition, replenishDepletedWildlife } from '../src/game/worldGen';
@@ -210,5 +212,109 @@ describe('M31 — the off-screen wildlife throttle counts layer pulses', () => {
       }
       expect(reachable).toBe(true);
     }
+  });
+});
+
+describe('wildlife recovery and logging cadence', () => {
+  function countType(state: ReturnType<typeof initGame>, type: EntityType): number {
+    return state.entities.filter((e) => e.alive && e.type === type).length;
+  }
+
+  it('L81 — the wildlife replenish log throttle only advances when a message is logged', () => {
+    const world = initGame({ seed: 11, size: MapSize.Medium });
+    const depleted = {
+      ...world.wildlifeCounts,
+      grass: 10, rabbits: 0, deer: 0, foxes: 0, wolves: 0,
+    };
+    world.wildlifeCounts = { ...depleted };
+    world.lastWildlifeReplenishLogDay = -999;
+
+    const logsBefore = world.eventLog.length;
+    expect(replenishDepletedWildlife(world)).toBe(true);
+    expect(world.eventLog.length).toBeGreaterThan(logsBefore);
+    const loggedDay = world.lastWildlifeReplenishLogDay;
+
+    // The next day the frontier is depleted again, but the 40-day gap has not passed: no
+    // message is due, so the throttle must stay where the last message left it.
+    world.wildlifeCounts = { ...depleted };
+    world.dayInYear += 1;
+    const logsBeforeSecond = world.eventLog.length;
+    replenishDepletedWildlife(world);
+    expect(world.eventLog.length).toBe(logsBeforeSecond);
+    expect(world.lastWildlifeReplenishLogDay).toBe(loggedDay);
+  });
+
+  it('L82 — prey do not repopulate when the grass refill actually placed nothing', () => {
+    const world = initGame({ seed: 33, size: MapSize.Medium });
+    // A 40px world puts every grass patch centre out of bounds (`spawnGrassPatch` bounds-checks
+    // `state.width/height`), while the tile grid below still lets wildlife spawn.
+    world.width = 40;
+    world.height = 40;
+    // A passable tile grid still lets wildlife spawn: Teraforge keeps no per-tile grid, so
+    // "grassland everywhere" is one override per tile.
+    if (world.worldMap) {
+      const map = world.worldMap;
+      for (let ty = 0; ty < map.height; ty++) {
+        for (let tx = 0; tx < map.width; tx++) {
+          setTileOverride(map, tx, ty, {
+            type: TerrainType.Grassland, elevation: 30, moisture: 50, variation: 0,
+          });
+        }
+      }
+      rebakeTerrainGrids(map, { startTx: 0, endTx: map.width - 1, startTy: 0, endTy: map.height - 1 });
+    }
+    world.entities = world.entities.filter((e) => e.type !== EntityType.Grass);
+    world.wildlifeCounts = {
+      ...world.wildlifeCounts,
+      grass: 0, rabbits: 10, deer: 10, foxes: 14, wolves: 6,
+    };
+
+    const rabbitsBefore = countType(world, EntityType.Rabbit);
+    expect(replenishDepletedWildlife(world)).toBe(true);
+    expect(countType(world, EntityType.Rabbit)).toBe(rabbitsBefore);
+  });
+
+  it('L83 — replenishDepletedWildlife reports false only when nothing needed refilling', () => {
+    const world = initGame({ seed: 55, size: MapSize.Medium });
+    world.wildlifeCounts = {
+      ...world.wildlifeCounts,
+      grass: 200, rabbits: 60, deer: 25, foxes: 20, wolves: 10,
+    };
+    const logsBefore = world.eventLog.length;
+    expect(replenishDepletedWildlife(world)).toBe(false);
+    expect(world.eventLog.length).toBe(logsBefore);
+
+    world.wildlifeCounts = {
+      ...world.wildlifeCounts,
+      grass: 10, rabbits: 0, deer: 0, foxes: 0, wolves: 0,
+    };
+    expect(replenishDepletedWildlife(world)).toBe(true);
+  });
+
+  it('replenishes extinct wildlife on the three-day world-events phase', () => {
+    const world = initGame({ seed: 128, size: MapSize.Medium });
+    world.entities = world.entities.filter((entity) => ![
+      EntityType.Rabbit, EntityType.Deer, EntityType.Fox, EntityType.Wolf,
+    ].some((type) => entity.type === type));
+    world.wildlifeCounts = { ...world.wildlifeCounts, rabbits: 0, deer: 0, foxes: 0, wolves: 0 };
+    world.tick = tickAtDailyPhase(3, 'worldEvents') - 1;
+    let next = gameTick(world);
+    expect(next.tick).toBe(tickAtDailyPhase(3, 'worldEvents'));
+    expect(countType(next, EntityType.Rabbit)).toBeGreaterThan(0);
+    expect(countType(next, EntityType.Deer)).toBeGreaterThan(0);
+    // An empty prey base must not cause instant fox/wolf restocking. Grazers recover first.
+    expect(countType(next, EntityType.Fox)).toBe(0);
+    expect(countType(next, EntityType.Wolf)).toBe(0);
+
+    // Every third-day refill can rebuild the prey base. Predators return only after
+    // the shared carrying-capacity policy can sustain them.
+    for (const day of [6, 9, 12]) {
+      next.tick = tickAtDailyPhase(day, 'worldEvents') - 1;
+      next = gameTick(next);
+      expect(next.tick).toBe(tickAtDailyPhase(day, 'worldEvents'));
+    }
+    expect(countType(next, EntityType.Rabbit)).toBeGreaterThan(35);
+    expect(countType(next, EntityType.Fox)).toBeGreaterThan(0);
+    expect(countType(next, EntityType.Wolf)).toBeGreaterThan(0);
   });
 });

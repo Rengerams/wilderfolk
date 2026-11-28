@@ -728,6 +728,10 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/humanLifecycle.test.ts` | `birthFixture` (newborn residence and assignment regression; existing `liveBirthTick` and `runBirth` reused) |
 | `tests/dailyEconomy.ledgerEcology.test.ts` | `farmWorld`, `runProductionPass` (completed Mill production fixture) |
 | `tests/workforce.transitions.test.ts` | `completed`, `settler`, `freshWorld` (scoped allocation fixtures) |
+| `tests/wildlife.populationPolicy.test.ts` | `countType` (living wildlife recovery and logging fixture) |
+| `tests/dailyEconomy.ledgerEcology.test.ts` | `seedRun`, `human`, `deer`, `building`, `baseState`, `floatingTexts`, `meatText`, `meatAmount`, `huntWorld` (scoped production and research fixtures) |
+| `tests/migration.herds.test.ts` | `herdGame` (seeded herd bookkeeping fixture; shared `setDay` reused) |
+| `tests/pathfinding.terrainRevision.test.ts` | `makeMap` (map cache identity fixture) |
 | `tests/inventionFair.simulation.test.ts` | `demoCount`, `advanceDays`, `fundedInventionFair` (funded-fair daily regression fixtures) |
 | `tests/tutorialCampaign.test.ts` | `guidedWorld` (guided tutorial fixture) |
 | `tests/dailyChallenges.rewards.test.ts` | `completedPlayerHouse` (challenge progression fixture) |

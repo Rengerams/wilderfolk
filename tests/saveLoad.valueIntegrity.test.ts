@@ -3,11 +3,11 @@
  * festival days and clock fields must be refused as "the session, or the reason".
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { initGame } from '../src/game/worldGen';
+import { initGame, createBuilding } from '../src/game/worldGen';
 import { createInitialView } from '../src/game/viewState';
-import { buildSaveData, loadGameFromParsedOutcome, describeSaveLoadOutcome } from '../src/game/saveLoad';
+import { buildSaveData, loadGameFromParsed, loadGameFromParsedOutcome, describeSaveLoadOutcome } from '../src/game/saveLoad';
 import { getSimSeed, resetSimRng, setSimSeed } from '../src/game/simRng';
-import { MapSize, WeatherType, type GameEventLog, type WorldState } from '../src/game/gameTypes';
+import { BuildingType, MapSize, WeatherType, type GameEventLog, type WorldState } from '../src/game/gameTypes';
 import { createEmptyLifetimeStats } from '../src/game/stats';
 import { addBigNews } from '../src/game/simEffects';
 import { logEvent, EVENT_LOG_MAX_ENTRIES } from '../src/game/eventLog';
@@ -548,5 +548,24 @@ describe('M26 — Big News ids never collide with ids the world already used', (
     addBigNews(state, 'title', 'message');
 
     expect(state.bigNews[state.bigNews.length - 1].id).toBe('bn_41');
+  });
+});
+
+describe('legacy spoilage defaults follow the economy owner', () => {
+  it('takes a missing spoilage rate from the economy owner, not a second literal', () => {
+    const world = initGame({ seed: 21, size: MapSize.Medium });
+    const silo = createBuilding(BuildingType.Silo, 100, 100, 900);
+    silo.completed = true;
+    silo.constructionProgress = 100;
+    world.buildings.push(silo);
+    const saved = buildSaveData(world, createInitialView(world.width, world.height));
+    const trimmed = JSON.parse(JSON.stringify(saved)) as Record<string, unknown>;
+    delete trimmed.foodSpoilageRate;
+
+    const loaded = loadGameFromParsed(trimmed);
+
+    expect(loaded).not.toBeNull();
+    // The Silo's cut is part of the owner's rule, so a fixed 2% fallback would read 0.02 here.
+    expect(loaded!.world.foodSpoilageRate).toBeCloseTo(0.008);
   });
 });

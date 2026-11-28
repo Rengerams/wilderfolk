@@ -233,6 +233,10 @@ Moved 14 cases from `low-1-worker-persistence`, `medium-B1-staffing` and `render
 
 Moved 22 regressions from `calendarPhase.auditRegressions`, `low-3-moon-lifecycle` and `economyWorkforce.auditRemediation` into clock cadence, Moon Howler, birth, family-reference cleanup, daily economy and workforce suites. The required calendar scheduler gate now explicitly runs the destination clock suite; all seven real-gameTick boundary checks remain. Reused the lifecycle's deterministic birth tick and delivery runner, and preserved the original generated-world staffing fixtures. CI pending.
 
+## Save, world generation and simulation data consolidation — 2026-11-28
+
+Moved 19 cases from `low-4-save-worldgen` and `low-9-simdata` to save-version/value/timeline, terrain preset, entity cache, wildlife, immigration, festival, fatigue, daily production, migration, pathfinding and simulation invariant owners. Reused the existing invariant world and herd clock helper. Kept the shared seeded production fixture scoped together. No runtime cases removed; CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

@@ -134,3 +134,28 @@ describe('M24 — a legacy day length scales every absolute threshold', () => {
     expect(card.expiresAtTick).toBe(Math.round(400 * scale));
   });
 });
+
+describe('missing day resolution uses the current clock', () => {
+  it('treats a same-version save without _ticksPerDay as the current day length', () => {
+    const world = initGame({ seed: 9, size: MapSize.Medium });
+    world.tick = 10 * TICKS_PER_DAY;
+    const mother = world.entities.find((e) => e.type === EntityType.Human)!;
+    mother.pregnant = true;
+    mother.pregnancyDueProgress = 1200;
+
+    const saved = buildSaveData(world, createInitialView(world.width, world.height));
+    const trimmed = JSON.parse(JSON.stringify(saved)) as Record<string, unknown>;
+    delete trimmed._ticksPerDay;
+
+    const parsed = parseSaveJson(JSON.stringify(trimmed));
+    expect(parsed.valid).toBe(true);
+    if (!parsed.valid || !parsed.parsed) throw new Error('save invalid');
+
+    const loaded = loadGameFromParsed(parsed.parsed);
+    expect(loaded).not.toBeNull();
+    // A missing `_ticksPerDay` means the current day length: no calendar or deadline rescale.
+    expect(loaded!.world.tick).toBe(10 * TICKS_PER_DAY);
+    const loadedMother = loaded!.world.entities.find((e) => e.id === mother.id)!;
+    expect(loadedMother.pregnancyDueProgress).toBe(1200);
+  });
+});
