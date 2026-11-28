@@ -85,7 +85,7 @@ describe('school-day credit needs the teacher there', () => {
   /** A pupil standing exactly where the tick sends them at this school. */
   function pupilAt(target: Building): Entity {
     const spot = buildingAccessPoint(target);
-    return child({ x: spot.x, y: spot.y });
+    return child({ x: spot.x, y: spot.y, schoolBuildingId: target.id });
   }
 
   it('credits a classroom tick while the teacher is there', () => {
@@ -93,6 +93,7 @@ describe('school-day credit needs the teacher there', () => {
     const kid = pupilAt(target);
     recordChildSchoolTick(kid, target, 10, true, classTick());
     expect(isAttendingSchool(kid, target, 10, true, classTick())).toBe(true);
+    expect(isAttendingSchool(child({ x: kid.x, y: kid.y }), target, 10, true, classTick())).toBe(false);
     expect(kid.schoolTicksToday).toBe(1);
   });
 
@@ -103,6 +104,13 @@ describe('school-day credit needs the teacher there', () => {
     expect(resolveSchoolSchedule(kid, target, undefined, classTick(), 10)).toEqual({ onShift: true, commuteDue: false });
     expect(getAssignedSchool(child({ x: target.x, y: target.y }), [target])).toBeUndefined();
     expect(resolveSchoolSchedule(kid, undefined, undefined, classTick(), 10).onShift).toBe(false);
+  });
+
+  it('cannot award attendance to a visitor without that school seat', () => {
+    const target = school([900]);
+    const visitor = child({ x: target.x, y: target.y });
+    recordChildSchoolTick(visitor, target, 10, true, classTick());
+    expect(visitor.schoolTicksToday ?? 0).toBe(0);
   });
 
   it('credits nothing while no teacher is at the school', () => {
