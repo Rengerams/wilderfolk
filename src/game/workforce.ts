@@ -1048,14 +1048,14 @@ function staffJobsBeforeConstruction(
   buildings: Building[],
   world: WorldState | undefined,
   buildingById: ReadonlyMap<number, Building>,
-): void {
-  if (!world) return;
+): boolean {
+  if (!world) return false;
   const policy = getWorkforcePolicy(world);
   const focus = getWorkforceFocus(world);
   const jobBuildings = completedJobBuildings(buildings, policy, focus);
   // Completed jobs get the idle pool before new construction. Survival first protects food
   // capacity, then seeds other workplaces in the preset's normal priority order.
-  if (jobBuildings.length === 0) return;
+  if (jobBuildings.length === 0) return false;
   const constructionIds = new Set(buildConstructionCrewIndex(buildings).keys());
   const workerCounts = new Map<number, number>();
   for (const human of alive) {
@@ -1074,17 +1074,19 @@ function staffJobsBeforeConstruction(
       && assignWorkerInPlace(site, alive, buildings, constructionIds, buildingById, workerCounts)) {
       // First try all applicants already able to commute from their current homes.
     }
-    if (relocatedJobSeeker || (workerCounts.get(site.id) ?? 0) >= target) continue;
+    const relocationTarget = site.type === BuildingType.School
+      ? preferredSchoolStaff(site, alive)
+      : staffingCapFor(site, alive).cap;
+    if (relocatedJobSeeker || (workerCounts.get(site.id) ?? 0) >= relocationTarget) continue;
     const unemployed = alive.filter((person) => isIdleWorkforceCandidate(person, constructionIds));
     if (unemployed.length === 0) continue;
     if (!relocateJobSeekerForVacancy(unemployed, alive, buildings, site)) continue;
     relocatedJobSeeker = true;
     // The housing owner moved the household; the ordinary workforce owner appoints the worker.
-    while ((workerCounts.get(site.id) ?? 0) < target
-      && assignWorkerInPlace(site, alive, buildings, constructionIds, buildingById, workerCounts)) {
-      // No speculative or second employment writer.
-    }
+    // Even an already seeded barracks has remaining posts to fill.
+    assignWorkerInPlace(site, alive, buildings, constructionIds, buildingById, workerCounts);
   }
+  return relocatedJobSeeker;
 }
 
 export function staffJobBuildings(
@@ -1211,7 +1213,7 @@ export function assignMissingWorkers(
     }
   }
   // The preset's jobs get their hands before construction can take the whole idle pool.
-  staffJobsBeforeConstruction(alive, buildings, world, buildingById);
+  const relocatedJobSeeker = staffJobsBeforeConstruction(alive, buildings, world, buildingById);
   const constructionStart = profileStart();
   staffConstructionCrews(alive, buildings, policy, worldSlices?.tick, getWorkforceFocus(worldSlices ?? {}));
   profileEnd('workforce.construction', constructionStart);
@@ -1219,7 +1221,7 @@ export function assignMissingWorkers(
   staffJobBuildings(alive, buildings, worldSlices, policy, buildingById);
   profileEnd('workforce.jobs', jobsStart);
   if (world && cacheable) {
-    if (wereCommuteRouteChecksDeferred()) {
+    if (wereCommuteRouteChecksDeferred() || relocatedJobSeeker) {
       // No route was proved unreachable: the search budget ran out. Discard even a cached signature
       // so the next scheduled assignment pulse retries these vacancies.
       lastWorkforceSignature.delete(world);
