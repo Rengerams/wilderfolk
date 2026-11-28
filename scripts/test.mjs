@@ -52,7 +52,7 @@ const STEP = {
   cycles: 'node scripts/check-import-cycles.mjs',
   /** Strict twin of `cycles`: a runtime import cycle exits 1 instead of warning. */
   cyclesStrict: 'node scripts/check-import-cycles.mjs --strict',
-  owners: 'node scripts/build-call-graph.mjs --json-only --verify-owners',
+  owners: 'node --test scripts/ownership-registry.test.mjs && node scripts/ownership-registry.mjs --check && node scripts/build-call-graph.mjs --json-only --verify-owners',
   semantic: 'node --test scripts/check-function-overlap.test.mjs scripts/check-function-overlap.integration.test.mjs && node scripts/check-function-overlap.mjs',
   semanticDup: 'node scripts/check-semantic-duplicates.mjs',
   invariants: 'tsx scripts/run-full-year.mts',
