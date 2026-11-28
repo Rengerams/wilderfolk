@@ -7,7 +7,7 @@ import {
   idleDestination,
   leisureKindFor,
   tickHumanChildLeisure,
-  stopInvalidChildFollowing,
+  stopSupersededChildLeisure,
 } from '../src/game/humanLeisureBehavior';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { TICKS_PER_HOUR, TICKS_PER_DAY } from '../src/game/dayCycle';
@@ -66,14 +66,14 @@ function crowdedSteeringTick(state: ReturnType<typeof initGame>, child: Entity, 
   throw new Error('could not find a crowded child play day');
 }
 
-function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans: Entity[], tick: number, livingHumanAt: (id: number | null | undefined) => Entity | undefined = () => undefined, buildings: Building[] = [], mandatoryChildActivity = false): boolean {
+function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans: Entity[], tick: number, livingHumanAt: (id: number | null | undefined) => Entity | undefined = () => undefined, buildings: Building[] = [], mandatoryChildActivity = false, scheduledMovement = false): boolean {
   state.tick = tick;
   return tickHumanChildLeisure({
     state,
     entity: child,
     speed: 5,
     hourOfDay: Math.floor((tick % TICKS_PER_DAY) / TICKS_PER_HOUR),
-    onSchedule: false,
+    onSchedule: scheduledMovement,
     allHumans,
     entityById: new Map(allHumans.map((human) => [human.id, human])),
     updatedBuildings: buildings,
@@ -82,7 +82,7 @@ function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans:
     width: state.width,
     height: state.height,
     livingHumanAt,
-    suppressIdleInitial: false,
+    suppressIdleInitial: scheduledMovement,
     mandatoryChildActivity,
   });
 }
@@ -156,6 +156,51 @@ describe('tickHumanChildLeisure', () => {
     }
   });
 
+  it('stops a homeless child drifting on stale play velocity at mandatory bedtime', () => {
+    const { state, child } = childFixture();
+    child.childLeisureActivity = 'playing';
+    child.vx = 2;
+    child.vy = 1;
+    rememberHumanWalkTarget(child, 250, 140, 2, `child_play_${child.id}`);
+    expect(tickChild(state, child, [child], 22 * TICKS_PER_HOUR + 1,
+      () => undefined, [], true)).toBe(true);
+    expect(child.childLeisureActivity).toBeUndefined();
+    expect(child.vx).toBe(0);
+    expect(child.vy).toBe(0);
+    resumeHumanWalk(child);
+    expect(child.vx).toBe(0);
+    expect(child.vy).toBe(0);
+  });
+
+  it('keeps already selected school or emergency movement when leisure is preempted', () => {
+    const { state, child } = childFixture();
+    child.childLeisureActivity = 'playing';
+    child.vx = 3;
+    child.vy = -1;
+    expect(tickChild(state, child, [child], 8 * TICKS_PER_HOUR + 1,
+      () => undefined, [], true, true)).toBe(true);
+    expect(child.vx).toBe(3);
+    expect(child.vy).toBe(-1);
+  });
+
+  it('stops a homeless child\'s old play route before an off-screen tick resumes it', () => {
+    const { state, child } = childFixture();
+    const humans = new Map([[child.id, child]]);
+    child.childLeisureActivity = 'playing';
+    child.vx = 3;
+    rememberHumanWalkTarget(child, 250, 100, 3, `child_play_${child.id}`);
+    state.tick = 22 * TICKS_PER_HOUR;
+    expect(stopSupersededChildLeisure(state, child, humans, new Map(), 22, true, true)).toBe(true);
+    expect(child.childLeisureActivity).toBeUndefined();
+    resumeHumanWalk(child);
+    expect(child.vx).toBe(0);
+    // An already-selected higher-priority route must not be erased by the
+    // off-screen cleanup when a replacement movement exists.
+    child.vx = 2;
+    expect(stopSupersededChildLeisure(state, child, humans, new Map(), 8, true, false)).toBe(false);
+    expect(child.vx).toBe(2);
+  });
+
   it('cancels cached following before an off-screen school or bedtime tick resumes it', () => {
     const { state, child } = childFixture();
     const parent = playerChild(child, 21, {
@@ -173,12 +218,12 @@ describe('tickHumanChildLeisure', () => {
     };
     followRoute();
     state.tick = 20 * TICKS_PER_HOUR;
-    expect(stopInvalidChildFollowing(state, child, people, buildings, 20, false)).toBe(false);
+    expect(stopSupersededChildLeisure(state, child, people, buildings, 20, false)).toBe(false);
     expect(child.childLeisureActivity).toBe('following');
 
     // humanTick supplies mandatoryChildActivity from its single school/bedtime
     // schedule, before the off-screen throttle can resume this old path.
-    expect(stopInvalidChildFollowing(state, child, people, buildings, 20, true)).toBe(true);
+    expect(stopSupersededChildLeisure(state, child, people, buildings, 20, true)).toBe(true);
     expect(child.childLeisureActivity).toBeUndefined();
     expect(child.childLeisureTargetId).toBeUndefined();
     expect(child.vx).toBe(0);
@@ -186,7 +231,7 @@ describe('tickHumanChildLeisure', () => {
     expect(child.vx).toBe(0);
 
     followRoute();
-    expect(stopInvalidChildFollowing(state, child, people, buildings, 8, true)).toBe(true);
+    expect(stopSupersededChildLeisure(state, child, people, buildings, 8, true)).toBe(true);
     resumeHumanWalk(child);
     expect(child.vx).toBe(0);
   });
@@ -207,7 +252,7 @@ describe('tickHumanChildLeisure', () => {
     rememberHumanWalkTarget(child, parent.x, parent.y, 2, `child_follow_${child.id}_${parent.id}`);
     const people = new Map([child, parent].map((person) => [person.id, person]));
     state.tick = 18 * TICKS_PER_HOUR;
-    expect(stopInvalidChildFollowing(
+    expect(stopSupersededChildLeisure(
       state, child, people, new Map([[tavern.id, tavern]]), 18, false,
     )).toBe(true);
     expect(child.childLeisureActivity).toBeUndefined();
