@@ -8,7 +8,6 @@ import {
 import type { WorldState, Entity } from '../game/gameEngine';
 import {
   hasResidenceAssignment,
-  hasWorkAssignment,
   isImprisoned,
 } from '../game/housingModel';
 import { PREGNANCY_TICKS, daysUntilTick, getBirthDateString } from '../game/dayCycle';
@@ -284,7 +283,7 @@ export default function SelectedEntityPanel({
                 </p>
               );
             })() : activityProjection?.workplace ? (
-              <p className="text-emerald-300">🔨 {entity.apprenticeOfId != null && !hasWorkAssignment(entity) ? 'Apprenticeship at:' : 'Works at:'} {activityProjection.workplace.label}</p>
+              <p className="text-emerald-300">🔨 {activityProjection.workplace.apprenticeship ? 'Apprenticeship at' : 'Works at'}: {activityProjection.workplace.label}</p>
             ) : !entity.isJuvenile && !entity.pregnant && (
               <p className="text-amber-300">🔨 Unemployed — no work assigned</p>
             )}

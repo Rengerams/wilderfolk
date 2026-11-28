@@ -1,4 +1,3 @@
-import { drawCampHighlightRings } from './markers';
 import { drawRenffrOmen } from '../renffrStar';
 import { profileEnd, profileStart } from '../performanceProfiler';
 import type { RenderSnapshot } from '../renderSnapshot';
@@ -43,7 +42,6 @@ export function drawGameOverlay(
   // Leader aura pulses on `renderTime`, so it lives here rather than in the tick-keyed entity
   // layer (where it froze between rebakes). See `drawLeaderAuraOverlay`.
   drawLeaderAuraOverlay(ctx, state, cw, ch);
-  drawCampHighlightRings(ctx, state, cw, ch);
   // Weather takes the snapshot because the effects paint in screen space against a camera-aware
   // frame, and the daylight cast needs the hour.
   const weatherStart = profileStart();

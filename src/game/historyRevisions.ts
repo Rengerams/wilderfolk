@@ -6,7 +6,6 @@ export const HISTORY_FAMILIES = [
   'populationHistory',
   'yearlyStats',
   'chronicleChapters',
-  'villageRequestHistory',
   'genealogyRegistry',
 ] as const;
 
@@ -18,7 +17,6 @@ const NO_REVISIONS: HistoryRevisions = Object.freeze({
   populationHistory: 0,
   yearlyStats: 0,
   chronicleChapters: 0,
-  villageRequestHistory: 0,
   genealogyRegistry: 0,
 });
 

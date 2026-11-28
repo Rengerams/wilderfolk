@@ -10,8 +10,7 @@ import { getBuildingCenter } from './buildingGeometry';
 import { getChildCustodian, hasResidenceAssignment } from './housingModel';
 import { getWorkSchedule, isOnWorkScheduleShift, isOnWorkCommuteHours } from './workSchedule';
 import { resolveShift } from './workAbsence';
-import { findHumanWorkplace } from './workforce';
-import { getApprenticeTrainingSite } from './apprenticeships';
+import { resolveHumanWorkplace } from './workforceSummary';
 import { isSchoolTime } from './education';
 import { isAsleepAtHome } from './humanSchedule';
 import { isCommutingToBuilding } from './simulation/humanMovement';
@@ -161,6 +160,7 @@ function canFollowCaregiverDuringLeisure(
   buildingById: ReadonlyMap<number, Building>,
   hourOfDay: number,
   entityById?: ReadonlyMap<number, Entity>,
+  constructionByWorkerId?: ReadonlyMap<number, Building>,
 ): caregiver is Entity {
   if (!caregiver?.alive || !isPlayerHuman(caregiver) || caregiver.age < HUMAN_ADULT_MIN_AGE
     || caregiver.prisonBuildingId != null || caregiver.raidDeploymentId != null) return false;
@@ -168,10 +168,8 @@ function canFollowCaregiverDuringLeisure(
     || resolveHumanNeedsIntent(caregiver, state.tick, false, false) !== 'continueActivity') return false;
   const indoor = caregiver.indoorBuildingId == null ? undefined : buildingById.get(caregiver.indoorBuildingId);
   if (indoor?.type === BuildingType.Hospital) return false;
-  const regular = findHumanWorkplace(caregiver, state.buildings, { buildingById });
-  const workplace = regular ?? (caregiver.apprenticeOfId != null
-    ? getApprenticeTrainingSite(caregiver, entityById ?? new Map(state.entities.map((person) => [person.id, person])), buildingById)
-    : null) ?? undefined;
+  const { workplace } = resolveHumanWorkplace(caregiver, state.buildings, state.entities,
+    { buildingById, entityById, constructionByWorkerId });
   const siteId = workplace?.id ?? caregiver.workerBuildingId;
   if (siteId == null) return true;
   const workTime = isOnWorkScheduleShift(state, hourOfDay)
@@ -196,6 +194,7 @@ export function stopSupersededChildLeisure(
   hourOfDay: number,
   mandatoryChildActivity: boolean,
   noReplacementMovement = false,
+  constructionByWorkerId?: ReadonlyMap<number, Building>,
 ): boolean {
   if (child.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(child)) return false;
   const following = child.childLeisureActivity === 'following';
@@ -203,7 +202,7 @@ export function stopSupersededChildLeisure(
   if (following && !mandatoryChildActivity) {
     const caregiver = child.childLeisureTargetId == null
       ? undefined : entityById?.get(child.childLeisureTargetId);
-    if (canFollowCaregiverDuringLeisure(state, caregiver, buildingById, hourOfDay, entityById)) {
+    if (canFollowCaregiverDuringLeisure(state, caregiver, buildingById, hourOfDay, entityById, constructionByWorkerId)) {
       return false;
     }
   }
@@ -226,6 +225,7 @@ export function tickHumanChildLeisure(args: {
   socialBuildingPool?: SocialBuildingPool;
   updatedBuildings: Building[];
   buildingById: Map<number, Building>;
+  constructionByWorkerId?: ReadonlyMap<number, Building>;
   humanSocialGrid: TickContext['humanSocialGrid'];
   width: number;
   height: number;
@@ -437,7 +437,7 @@ export function tickHumanChildLeisure(args: {
   const custodian = getChildCustodian(entity, allHumans, args.entityById);
   let follow: Entity | undefined;
   for (const caregiver of [mother, father, custodian]) {
-    if (!canFollowCaregiverDuringLeisure(state, caregiver, buildingById, hourOfDay, args.entityById)) continue;
+    if (!canFollowCaregiverDuringLeisure(state, caregiver, buildingById, hourOfDay, args.entityById, args.constructionByWorkerId)) continue;
     follow = caregiver;
     break;
   }
@@ -466,7 +466,9 @@ export function tickHumanChildLeisure(args: {
   const phase = hourOfDay;
   const previous = entity.childPlaySite;
   const attempt = entity.childPlaySiteAttempt;
-  if (!attempt?.solo || attempt.day !== day || attempt.phase !== phase) {
+  const invalidSoloSite = previous?.mateId === entity.id && previous.day === day && previous.phase === phase
+    && !isDryChildPlaySite(state, previous.x, previous.y);
+  if (!attempt?.solo || attempt.day !== day || attempt.phase !== phase || invalidSoloSite) {
     const point = chooseChildPlaySite(state, [entity], day, phase, previous);
     entity.childPlaySite = point ? { day, phase, mateId: entity.id, ...point } : undefined;
     // Preserve the shared attempt when falling back to solo play, so a failed
@@ -664,6 +666,7 @@ export function tickHumanLeisure(args: {
   entityById: Map<number, Entity>;
   updatedBuildings: Building[];
   buildingById: Map<number, Building>;
+  constructionByWorkerId?: ReadonlyMap<number, Building>;
   humanSocialGrid: TickContext['humanSocialGrid'];
   width: number;
   height: number;
@@ -722,6 +725,7 @@ export function tickHumanLeisure(args: {
         socialBuildingPool: completedPoolOf,
         updatedBuildings,
         buildingById,
+        constructionByWorkerId: args.constructionByWorkerId,
         humanSocialGrid,
         width,
         height,

@@ -55,7 +55,6 @@ const REQUIRED_DECISIONS = [
   'herdMemory',
   'wildlifePredation',
   'wildlifeReplenishment',
-  'villageRequests',
   'inventionFair',
   'authoredStoryExpiry',
   'rivalStrategy',

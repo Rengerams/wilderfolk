@@ -3,6 +3,18 @@
  * `WorkSchedule` cannot wrap midnight, so shifts derive from crew position and calendar week here.
  */
 import { getAbsoluteCalendarDay, TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycleClock';
+import { BuildingType, type Building } from './buildings';
+import type { Entity } from './gameTypes';
+
+/** Assignment alone is not cell occupancy: the movement owner must have admitted the prisoner. */
+export function isPrisonerInCell(
+  entity: Pick<Entity, 'prisonBuildingId'>,
+  prison: Building | undefined,
+  indoorBuildingId: number | undefined,
+): boolean {
+  return prison?.completed === true && prison.type === BuildingType.Prison
+    && entity.prisonBuildingId === prison.id && indoorBuildingId === prison.id;
+}
 
 type PrisonShiftKey = 'morning' | 'afternoon' | 'night';
 

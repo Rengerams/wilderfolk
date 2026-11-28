@@ -39,10 +39,6 @@ export interface ViewState {
   showPaths: boolean;
   showTechTree: boolean;
   showLogistics: boolean;
-  /** Camp marker highlight — `rival:<id>` or `visitor:<id>`. */
-  highlightedCampKey: string | null;
-  /** Selected visitor/rival camp for diplomacy inspector. */
-  selectedCampKey: string | null;
   /**
    * Favorite citizen — camera continuously follows while set (and entity stays alive).
    * Null = not following.
@@ -59,7 +55,6 @@ export const CAMERA_ZOOM_PRESETS: readonly number[] = [0.25, 0.5, 0.75, 1.0, 1.2
 
 const CAMERA_EPS = 1e-3;
 const CAMERA_LERP = 0.12;
-const CAMP_KEY_PATTERN = /^visitor:[\w-]+$/;
 
 /** A new session's opening view: the standard camera, placed on the camp the map cleared. */
 export function createInitialViewForWorld(world: WorldState): ViewState {
@@ -99,8 +94,6 @@ export function createInitialView(width: number, height: number, zoom = CAMERA_Z
     showPaths: false,
     showTechTree: false,
     showLogistics: false,
-    highlightedCampKey: null,
-    selectedCampKey: null,
     favoriteEntityId: null,
   };
 }
@@ -131,17 +124,6 @@ function parseIdFromLegacyRecord(value: unknown): number | null {
 
 function parseBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
-}
-
-function parseCampKey(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  return CAMP_KEY_PATTERN.test(value) ? value : null;
-}
-
-/** A restored camp selection must name a live visitor camp; rival settlements are strategic-only. */
-function resolveCampKey(world: WorldState, key: string | null): string | null {
-  if (key == null) return null;
-  return world.visitorGroups?.some((group) => key === `visitor:${group.id}`) ? key : null;
 }
 
 function parseBuildRotation(value: unknown): 0 | 90 {
@@ -285,8 +267,6 @@ export function createViewFromSave(
     showPaths: parseBoolean(data.showPaths, false),
     showTechTree: parseBoolean(data.showTechTree, false),
     showLogistics: parseBoolean(data.showLogistics, false),
-    highlightedCampKey: resolveCampKey(world, parseCampKey(data.highlightedCampKey)),
-    selectedCampKey: resolveCampKey(world, parseCampKey(data.selectedCampKey)),
     favoriteEntityId: (() => {
       const id = parseEntityId(data.favoriteEntityId);
       return id != null && resolveEntity(world, id) ? id : null;
@@ -417,8 +397,6 @@ export function mergeForSave(world: WorldState, view: ViewState): Record<string,
     showPaths: selection.showPaths,
     showTechTree: selection.showTechTree,
     showLogistics: selection.showLogistics,
-    highlightedCampKey: selection.highlightedCampKey,
-    selectedCampKey: selection.selectedCampKey,
     favoriteEntityId: selection.favoriteEntityId,
     screenShake: selection.screenShake,
   };

@@ -20,7 +20,6 @@ function pausedWorld(): WorldState {
     floatingTexts: [],
     bigNews: [],
     deathParticles: [],
-    visitorGroups: [],
     pendingRaidEvents: [],
     pendingOutgoingRaidEvents: [],
     buildings: [],

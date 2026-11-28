@@ -176,18 +176,6 @@ describe('traveling theatre offer expiry', () => {
   function theatreWorld(): WorldState {
     const world = worldAt(70, 1);
     logEvent(world, 'season', 'Spring began in the village');
-    world.visitorGroups.push({
-      id: 'troupe',
-      name: 'The Lantern Troupe',
-      kind: 'performers',
-      campX: 500,
-      campY: 500,
-      daysLeft: 20,
-      giftsGiven: 0,
-      tradesCompleted: 0,
-      refugeeResolved: false,
-      leaderTalked: false,
-    } as never);
     world.guidedCampaign = createGuidedCampaignState();
     world.storyFlags = { guided_deer_parliament_resolved: 1 };
     startGuidedCampaign(world);
