@@ -31,7 +31,7 @@ export function findHumanWorkplace(
 ): Building | undefined {
   const byId = opts?.buildingById;
   if (hasWorkAssignment(entity) && entity.workerBuildingId != null) {
-    const jobSite = byId?.get(entity.workerBuildingId) ?? buildings.find((b) => b.id === entity.workerBuildingId);
+    const jobSite = byId ? byId.get(entity.workerBuildingId) : buildings.find((b) => b.id === entity.workerBuildingId);
     if (jobSite?.completed && BUILDING_JOB_TYPES[jobSite.type]) {
       return jobSite;
     }

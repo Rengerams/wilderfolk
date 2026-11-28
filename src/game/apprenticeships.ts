@@ -12,13 +12,13 @@ import { getWorkSchedule } from './workSchedule';
 import { removeWorkerTransition } from './workforce';
 import { beginCommuteRoutePass, isWithinAssignableCommute } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
+import { MASTER_SKILL, APPRENTICESHIP_BUILDING_TYPES, getApprenticeTrainingSite } from './apprenticeshipEligibility';
 
 /**
  * Apprenticeships: a skilled master (skill ≥ 40) working a production building takes on a
  * school-qualified young adult; the apprentice graduates at skill ≥ 50.
  */
 
-import { MASTER_SKILL, APPRENTICESHIP_BUILDING_TYPES, getApprenticeTrainingSite } from './apprenticeshipEligibility';
 export { getApprenticeTrainingSite } from './apprenticeshipEligibility';
 const GRANDMASTER_SKILL = 80;
 const GRADUATE_SKILL = 50;

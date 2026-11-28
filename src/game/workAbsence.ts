@@ -208,6 +208,7 @@ export function getSettlerWorkReason(
   const hour = getHourOfDay(state.tick);
   const buildings = state.buildings;
   const { workplace, trainingSite } = assignment;
+  const commutingToWork = workplace != null && isCommutingToBuilding(entity, workplace);
   const isHospitalDoctor = entity.job === JobType.Doctor
     && workplace?.type === BuildingType.Hospital && workplace.completed;
   const doctorCommuteDue = !!(isHospitalDoctor && isHospitalDoctorCommuteTime(
@@ -238,7 +239,7 @@ export function getSettlerWorkReason(
   // Report an observed meal, not eligibility to eat at a future scheduler pulse.
   if (entity.needs?.lastMealTick === state.tick) return { code: 'eating', label: 'Eating' };
   // The hospital roster owns commute duty, including the hour before midnight.
-  if (!doctorCommuteDue && (isAsleepAtHome(entity, buildings, hour)
+  if (!doctorCommuteDue && !commutingToWork && (isAsleepAtHome(entity, buildings, hour)
       || isSettlerLodgingAtHotel(entity, buildings, hour))) {
     return { code: 'sleeping', label: 'Sleeping' };
   }
@@ -265,7 +266,7 @@ export function getSettlerWorkReason(
     return { code: 'at-election', label: 'At the election' };
   }
   const isInnkeeper = entity.job === JobType.Innkeeper && workplace?.type === BuildingType.Tavern;
-  if (isFestivalGatherer(hour, state.festival?.active, onShift, isInnkeeper)) {
+  if (isFestivalGatherer(hour, state.festival?.active, onShift || commutingToWork, isInnkeeper)) {
     return { code: 'at-festival', label: 'At the festival' };
   }
 
@@ -281,13 +282,10 @@ export function getSettlerWorkReason(
   const label = labelFor(workplace);
   if (onShift && atWork) return { code: 'working', label: trainingSite ? `Apprenticing at ${label}` : `Working at ${label}` };
   // The hospital roster owns its own commute window, which opens before the ward duty does.
-  if (doctorCommuteDue || (trainingSite && isCommutingToBuilding(entity, workplace))) return { code: 'walking-to-work', label: trainingSite ? `Walking to apprenticeship at ${label}` : `Walking to work — ${label}` };
+  if (doctorCommuteDue || commutingToWork) {
+    return { code: 'walking-to-work', label: trainingSite ? `Walking to apprenticeship at ${label}` : `Walking to work — ${label}` };
+  }
   if (onShift) {
-    // Other movement owners may be fleeing or hunting while an available detour exists.
-    // Only an active, commanded workplace walk is proof of travelling to work.
-    if (isCommutingToBuilding(entity, workplace)) {
-      return { code: 'walking-to-work', label: `Walking to work — ${label}` };
-    }
     const obstruction = getRouteObstruction(state.worldMap, state.buildings, entity, buildingAccessPoint(workplace));
     if (obstruction === 'blocked') {
       return { code: 'unreachable', label: `Route failure — cannot reach ${label}` };

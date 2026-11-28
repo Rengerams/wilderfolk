@@ -90,7 +90,7 @@ export function getHumanActivityStatus(
   const { workplace, trainingSite } = assignment;
   const onWorkSchedule = !entity.isJuvenile && workplace != null && resolveShift(state, entity, workplace, hourOfDay).onShift;
   // The verdict is the simulation owner's, so the label cannot drift from what the settler does.
-  if (isFestivalGatherer(hourOfDay, festivalActive, onWorkSchedule, entity.job === JobType.Innkeeper)) {
+  if (isFestivalGatherer(hourOfDay, festivalActive, onWorkSchedule || workReason.code === 'walking-to-work', entity.job === JobType.Innkeeper)) {
     return 'Gathering at festival';
   }
 
@@ -98,6 +98,7 @@ export function getHumanActivityStatus(
   if (!entity.isJuvenile && entity.huntTargetId != null) return 'Hunting';
 
   if (entity.needs?.lastMealTick === state.tick) return 'Eating';
+  if (workplace && workReason.code === 'walking-to-work') return trainingSite ? workReason.label : `Commuting to ${labelFor(workplace)}`;
   if (entity.needs && (entity.needs.sleepRecoveryUntilTick ?? 0) > state.tick && !onWorkSchedule) {
     const home = state.buildings.find((building) =>
       building.id === entity.residenceBuildingId && building.completed);
@@ -131,7 +132,6 @@ export function getHumanActivityStatus(
 
   // Assigned workplace during the configured work shift. Commuting is reported only on the
   // movement owner's evidence; being far from the post is not travel.
-  if (workplace && trainingSite && workReason.code === 'walking-to-work') return workReason.label;
   if (workplace && onWorkSchedule) {
     const label = labelFor(workplace);
     if (trainingSite) return workReason.code === 'working'
@@ -139,7 +139,7 @@ export function getHumanActivityStatus(
     if (isAtBuildingReach(entity, workplace) || entity.indoorBuildingId === workplace.id) {
       return `Working at ${label}`;
     }
-    return workReason.code === 'walking-to-work' ? `Commuting to ${label}` : `Away from ${label}`;
+    return `Away from ${label}`;
   }
 
   // Evening social outings are an intentional free-time state, not a failed home return: surface it
