@@ -159,6 +159,32 @@ describe('affair cadence (Objective 9)', () => {
     expect(collectSimulationInvariantErrors(ticked)).toEqual([]);
   });
 
+  it('establishes from the married participant even if the single paramour has the lower ID', () => {
+    const married = human(8, {
+      gender: 'female', relationshipStatus: 'married', partnerId: 7,
+      affairCandidateId: 2, affairProgress: 95, x: 10, y: 10,
+    });
+    const spouse = human(7, { gender: 'male', x: 200, y: 200 });
+    const single = human(2, {
+      gender: 'male', relationshipStatus: 'single',
+      affairCandidateId: 8, affairProgress: 95, x: 12, y: 10,
+    });
+    const state = makeState([married, spouse, single]);
+    const entityById = new Map(state.entities.map((entity) => [entity.id, entity]));
+    let day = 1;
+    while (day <= 20_000 && personDayRoll(married.id, day * TICKS_PER_DAY, 610) >= 0.001) day++;
+    expect(day).toBeLessThanOrEqual(20_000);
+    state.tick = day * TICKS_PER_DAY;
+
+    tryDailyAffairEncounter(state, married, entityById, state.buildings,
+      new Map(), 0, 18, undefined, [spouse, single], 400, 300);
+
+    expect(married.affairPartnerId).toBe(single.id);
+    expect(single.affairPartnerId).toBe(married.id);
+    expect(married.affairCandidateId).toBeUndefined();
+    expect(single.affairCandidateId).toBeUndefined();
+  });
+
   it('daily owner is the sole establisher (deterministic unit)', () => {
     const { wife, husband, paramour, state } = affairFixture();
     const entityById = new Map([[wife.id, wife], [husband.id, husband], [paramour.id, paramour]]);
