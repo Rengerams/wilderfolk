@@ -4,6 +4,7 @@
  */
 import { readdirSync, readFileSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { getDecisionRows, validateRegistry, validateEntrypointSymbols } from './ownership-registry.mjs';
 
 const ROOT = process.cwd();
 const SRC = path.resolve(ROOT, 'src');
@@ -398,39 +399,14 @@ function extractCalls(code, file) {
 
 // ----------------------------------- Ownership sources -----------------------------------
 
-function parseDecisionRegistry(file) {
-  const raw = readFileSync(file, 'utf8');
-  const entries = [];
-  const re = /^ {2}([A-Za-z_$][\w$]*):\s*\{([\s\S]*?)^ {2}\},/gm;
-  for (const match of raw.matchAll(re)) {
-    const key = match[1];
-    const body = match[2];
-    const field = (name) => {
-      const single = body.match(new RegExp(`\\b${name}:\\s*'([^']*)'`));
-      if (single) return single[1];
-      const list = body.match(new RegExp(`\\b${name}:\\s*\\[([\\s\\S]*?)\\]`));
-      if (list) return list[1].split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean);
-      return undefined;
-    };
-    entries.push({
-      source: 'decisionRegistry.ts',
-      key,
-      owner: field('owner'),
-      cadence: field('cadence'),
-      cadenceNote: field('cadenceNote'),
-      writes: field('writes') ?? [],
-      scheduledFrom: field('scheduledFrom'),
-      testFile: field('testFile'),
-    });
-  }
-  return entries;
-}
-
 function parseOwnershipOverview(file) {
   const raw = readFileSync(file, 'utf8');
   const entries = [];
+  let generated = false;
   for (const line of raw.split('\n')) {
-    if (!line.startsWith('|')) continue;
+    if (line === '<!-- BEGIN GENERATED SIMULATION OWNERSHIP -->') { generated = true; continue; }
+    if (line === '<!-- END GENERATED SIMULATION OWNERSHIP -->') { generated = false; continue; }
+    if (generated || !line.startsWith('|')) continue;
     const cells = line.split('|').map((c) => c.trim());
     if (cells.length < 6) continue;
     const [, decision, owner, cadence, entryFunctions] = cells;
@@ -647,7 +623,7 @@ function main() {
   }
 
   // --- ownership ------------------------------------------------------------------------------
-  const registry = parseDecisionRegistry(path.resolve(SRC, 'game/simulation/decisionRegistry.ts'));
+  const registry = getDecisionRows();
   const overview = parseOwnershipOverview(path.resolve(ROOT, 'OWNERSHIP_OVERVIEW.md'));
   const decisions = [...registry, ...overview];
 
@@ -687,7 +663,10 @@ function main() {
 
   const moduleOwnsFile = (moduleName, file) => file === moduleName || file.endsWith(`/${moduleName}`);
 
+  const primaryOwners = new Map(registry.flatMap(decision => decision.entrypoints.map(ref => [`${ref.module}::${ref.symbol}`, decision])));
   const ownerForFunction = (fn) => {
+    const explicit = primaryOwners.get(`${fn.file}::${fn.name}`);
+    if (explicit) return { decision: explicit, how: 'entry function' };
     for (const decision of decisions) {
       if (
         decision.entryFunctionNames.includes(fn.name)
@@ -777,7 +756,16 @@ function main() {
     // Floors keep a parser regression from passing as "0 unowned": an empty or truncated index would
     // otherwise satisfy every per-function check vacuously.
     const OWNERSHIP_FLOORS = { files: 380, functions: 3200, explicitEntries: 1400 };
-    const failures = [];
+    const external = [...new Set(registry.flatMap(row => row.entrypoints.map(ref => ref.module)).filter(file => file.startsWith('scripts/')))];
+    const metadataFailures = validateRegistry(registry, ROOT);
+    const externalFunctions = external.flatMap(file => {
+      try {
+        const full = path.resolve(ROOT, file);
+        const raw = readFileSync(full, 'utf8');
+        return extractDefinitions(stripLiteralsAndComments(raw), raw, full);
+      } catch { return []; }
+    });
+    const failures = [...metadataFailures, ...validateEntrypointSymbols(registry, [...functions, ...externalFunctions])];
     if (payload.unregistered.length) {
       console.error('Unregistered functions:', payload.unregistered.slice(0, 100));
       failures.push(`${payload.unregistered.length} function(s) without any recorded owner`);
