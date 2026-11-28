@@ -1,14 +1,22 @@
 {
-  "extends": "./tsconfig.scripts.json",
+  "extends": "./tsconfig.app.json",
   "compilerOptions": {
     "allowJs": true,
     "checkJs": false,
-    "noEmit": true
+    "noEmit": true,
+    "types": [
+      "node",
+      "vite/client"
+    ]
   },
   "include": [
-    "scripts/ownership-registry.mjs",
-    "scripts/build-call-graph.mjs",
-    "scripts/ownership-registry.test.mjs",
-    "scripts/test.mjs"
+    "src/**/*",
+    "scripts/**/*",
+    "tests/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "docs"
   ]
 }
