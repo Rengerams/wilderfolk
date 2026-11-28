@@ -30,7 +30,7 @@ const lastHousingSignature = new WeakMap<WorldState, string>();
 const housingChangedThisDay = new WeakMap<WorldState, boolean>();
 
 function housingSignature(world: WorldState, humans: readonly WorldState['entities'][number][]): string {
-  const parts: (number | string)[] = [];
+  const parts: (number | string)[] = [world.villageLeaderId ?? -1];
   for (const building of world.buildings) {
     if (!isResidenceBuilding(building) && building.type !== BuildingType.Road
       && building.type !== BuildingType.Bridge) continue;
