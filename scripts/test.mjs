@@ -23,7 +23,7 @@ const STEP = {
    * Docs guards ride inside the step `npm test` already runs: they cost milliseconds and must not
    * become another command an agent has to remember.
    */
-  check: 'node scripts/check-source-shadow-files.mjs && node scripts/check-dialogue-ownership.mjs && node scripts/check-dialogue-circumstances.mjs && node scripts/check-docs.mjs && node scripts/check-comments.mjs && node scripts/check-source-guards.mjs --self-test && node scripts/check-source-guards.mjs',
+  check: 'node scripts/check-source-shadow-files.mjs && node scripts/check-dialogue-ownership.mjs && node scripts/check-dialogue-circumstances.mjs && node scripts/check-docs.mjs && node scripts/check-comments.mjs && node scripts/check-source-guards.mjs --self-test && node scripts/check-source-guards.mjs && tsx scripts/check-legacy-dna.mts',
   dup: 'node scripts/check-duplicate-code.mjs',
   unit: 'vitest run --exclude tests/fullYear.integration.test.ts --exclude tests/longRunColony.integration.test.ts',
   unitAll: 'vitest run',

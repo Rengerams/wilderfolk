@@ -3,7 +3,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { createScanner, LanguageVariant, SyntaxKind } from 'typescript/unstable/ast';
-import { describe, expect, it } from 'vitest';
+import { deepStrictEqual, ok } from 'node:assert/strict';
 
 const ROOT = process.cwd();
 const GAME_SRC = join(ROOT, 'src', 'game');
@@ -313,97 +313,80 @@ function legacyInventory(): { files: number; findings: Record<string, number> } 
 
 const findingsFor = (path: string, source: string): Record<string, number> => inventory(path, tokenize(source));
 
-describe('no unregistered legacy DNA gameplay rules', () => {
-  it('keeps the migrated inventory empty across the whole game source tree', () => {
+// Scan the repository and prove the scanner's positive and negative fixtures.
+  { // keeps the migrated inventory empty across the whole game source tree
     const { files, findings } = legacyInventory();
-    expect(files).toBeGreaterThan(100);
-    expect(findings).toEqual(EXPECTED);
-  });
+    ok(files > 100, 'legacy DNA scan must cover more than 100 files');
+    deepStrictEqual(findings, EXPECTED);
+  }
 
-  it('still catches a reintroduced direct trait multiplier', () => {
+  { // still catches a reintroduced direct trait multiplier
     const source = "export function f(e) { return traitMultiplier(e, 'lucky', 1.15); }";
-    expect(findingsFor('src/game/regressionFixture.ts', source))
-      .toEqual({ 'src/game/regressionFixture.ts|legacyMultiplierCall': 1 });
-    expect(findingsFor('src/game/regressionFixture.ts', "function traitMultiplier() { return 1; }"))
-      .toEqual({ 'src/game/regressionFixture.ts|legacyMultiplierDefinition': 1 });
-    expect(findingsFor('src/game/regressionFixture.ts', "import { traitMultiplier } from './settlerTraits';"))
-      .toEqual({ 'src/game/regressionFixture.ts|legacyMultiplierImport': 1 });
-  });
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', source), { 'src/game/regressionFixture.ts|legacyMultiplierCall': 1 });
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', "function traitMultiplier() { return 1; }"), { 'src/game/regressionFixture.ts|legacyMultiplierDefinition': 1 });
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', "import { traitMultiplier } from './settlerTraits';"), { 'src/game/regressionFixture.ts|legacyMultiplierImport': 1 });
+  }
 
-  it('still catches an inlined per-trait gameplay check', () => {
-    expect(findingsFor('src/game/regressionFixture.ts', "if (e.traits?.includes('intuitive')) return 0.11;"))
-      .toEqual({ 'src/game/regressionFixture.ts|directTraitIncludes': 1 });
-    expect(findingsFor('src/game/regressionFixture.ts', "if (e.traits?.some((t) => t === 'fierce')) return 1;"))
-      .toEqual({ 'src/game/regressionFixture.ts|directTraitSome': 1 });
-  });
+  { // still catches an inlined per-trait gameplay check
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', "if (e.traits?.includes('intuitive')) return 0.11;"), { 'src/game/regressionFixture.ts|directTraitIncludes': 1 });
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', "if (e.traits?.some((t) => t === 'fierce')) return 1;"), { 'src/game/regressionFixture.ts|directTraitSome': 1 });
+  }
 
-  it('still catches a legacy trait check behind a local alias', () => {
-    expect(findingsFor('src/game/regressionFixture.ts', ["const dna = entity.traits;", "if (dna?.includes('lucky')) return 1.15;"].join('\n')))
-      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
-    expect(findingsFor('src/game/regressionFixture.ts', ["const dna = entity.traits ?? [];", "if (dna.some((t) => t === 'fierce')) return 1;"].join('\n')))
-      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitSome': 1 });
-    expect(findingsFor('src/game/regressionFixture.ts', ["let dna: SettlerTrait[] = entity.traits;", "return dna.includes('stoic');"].join('\n')))
-      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
-    expect(findingsFor('src/game/regressionFixture.ts', ["const { traits } = entity;", "return traits?.includes('intuitive');"].join('\n')))
-      .toEqual({ 'src/game/regressionFixture.ts|destructuredTraitIncludes': 1 });
-  });
+  { // still catches a legacy trait check behind a local alias
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', ["const dna = entity.traits;", "if (dna?.includes('lucky')) return 1.15;"].join('\n')), { 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', ["const dna = entity.traits ?? [];", "if (dna.some((t) => t === 'fierce')) return 1;"].join('\n')), { 'src/game/regressionFixture.ts|aliasedTraitSome': 1 });
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', ["let dna: SettlerTrait[] = entity.traits;", "return dna.includes('stoic');"].join('\n')), { 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', ["const { traits } = entity;", "return traits?.includes('intuitive');"].join('\n')), { 'src/game/regressionFixture.ts|destructuredTraitIncludes': 1 });
+  }
 
-  it('still catches a legacy trait check behind repeated assignments', () => {
-    expect(findingsFor('src/game/regressionFixture.ts', ['let dna;', 'dna = entity.traits;', "return dna.includes('stoic');"].join('\n')))
-      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
-    expect(findingsFor('src/game/regressionFixture.ts', ['let dna = [];', 'dna = entity.traits;', "return dna.some((t) => t === 'fierce');"].join('\n')))
-      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitSome': 1 });
-  });
+  { // still catches a legacy trait check behind repeated assignments
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', ['let dna;', 'dna = entity.traits;', "return dna.includes('stoic');"].join('\n')), { 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', ['let dna = [];', 'dna = entity.traits;', "return dna.some((t) => t === 'fierce');"].join('\n')), { 'src/game/regressionFixture.ts|aliasedTraitSome': 1 });
+  }
 
-  it('follows alias chains and renamed destructuring', () => {
-    expect(findingsFor('src/game/regressionFixture.ts', ['const source = entity.traits;', 'const copy = source;', "if (copy.includes('lucky')) return 1.15;"].join('\n')))
-      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
-    expect(findingsFor('src/game/regressionFixture.ts', ['const { traits: dna } = entity;', "return dna.includes('intuitive');"].join('\n')))
-      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
-    expect(findingsFor('src/game/regressionFixture.ts', ['const { traits } = entity;', 'const copy = traits ?? [];', "return copy.includes('intuitive');"].join('\n')))
-      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
-  });
+  { // follows alias chains and renamed destructuring
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', ['const source = entity.traits;', 'const copy = source;', "if (copy.includes('lucky')) return 1.15;"].join('\n')), { 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', ['const { traits: dna } = entity;', "return dna.includes('intuitive');"].join('\n')), { 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', ['const { traits } = entity;', 'const copy = traits ?? [];', "return copy.includes('intuitive');"].join('\n')), { 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
+  }
 
-  it('does not treat a value derived from the trait list as the list itself', () => {
-    expect(findingsFor('src/game/regressionFixture.ts', ['const dna = entity.traits;', 'const count = dna.length;', "if (count.includes('x')) return 1;"].join('\n')))
-      .toEqual({});
-    expect(findingsFor('src/game/regressionFixture.ts', 'const note = 1; if (note.includes(2)) return note;')).toEqual({});
-  });
+  { // does not treat a value derived from the trait list as the list itself
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', ['const dna = entity.traits;', 'const count = dna.length;', "if (count.includes('x')) return 1;"].join('\n')), {});
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', 'const note = 1; if (note.includes(2)) return note;'), {});
+  }
 
-  it('never mistakes an unrelated array for a DNA read', () => {
-    expect(findingsFor('src/game/regressionFixture.ts', 'const list = building.occupants; if (list.includes(3)) return 1;'))
-      .toEqual({});
-    expect(findingsFor('src/game/regressionFixture.ts', "if (TRAIT_POOL.includes('brave')) return 1;")).toEqual({});
-  });
+  { // never mistakes an unrelated array for a DNA read
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', 'const list = building.occupants; if (list.includes(3)) return 1;'), {});
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', "if (TRAIT_POOL.includes('brave')) return 1;"), {});
+  }
 
-  it('still catches a reintroduced pair table or pair helper', () => {
+  { // still catches a reintroduced pair table or pair helper
     const source = [
       "const TRAIT_CLASHES = [['brave', 'timid']];",
       'function traitClashCount(a, b) { return TRAIT_CLASHES.length; }',
       'const n = traitClashCount(a, b);',
     ].join('\n');
-    expect(findingsFor('src/game/regressionFixture.ts', source)).toEqual({
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', source), {
       'src/game/regressionFixture.ts|legacyPairTable': 1,
       'src/game/regressionFixture.ts|legacyPairHelperDefinition': 1,
       'src/game/regressionFixture.ts|legacyPairHelperCall': 1,
     });
-  });
+  }
 
-  it('never counts comments or string literals as rules', () => {
+  { // never counts comments or string literals as rules
     const source = [
       "// traitMultiplier(entity, 'lucky', 1.15) and entity.traits?.includes('intuitive')",
       "const note = 'traitClashCount(a, b) and traits?.includes(';",
     ].join('\n');
-    expect(findingsFor('src/game/regressionFixture.ts', source)).toEqual({});
-  });
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', source), {});
+  }
 
-  it('leaves the DNA pipeline its own reads', () => {
+  { // leaves the DNA pipeline its own reads
     for (const path of DNA_PIPELINE) {
-      expect(findingsFor(path, "if (e.traits?.includes('brave')) return true;"), path).toEqual({});
-      expect(findingsFor(path, ["const dna = e.traits;", "if (dna?.includes('brave')) return true;"].join('\n')), path)
-        .toEqual({});
+      deepStrictEqual(findingsFor(path, "if (e.traits?.includes('brave')) return true;"), {}, path);
+      deepStrictEqual(findingsFor(path, ["const dna = e.traits;", "if (dna?.includes('brave')) return true;"].join('\n')), {}, path);
     }
-    expect(findingsFor('src/game/regressionFixture.ts', "if (e.traits?.includes('brave')) return true;"))
-      .toEqual({ 'src/game/regressionFixture.ts|directTraitIncludes': 1 });
-  });
-});
+    deepStrictEqual(findingsFor('src/game/regressionFixture.ts', "if (e.traits?.includes('brave')) return true;"), { 'src/game/regressionFixture.ts|directTraitIncludes': 1 });
+  }
+
+process.stdout.write('legacy DNA source guard and scanner self-tests: PASS\n');

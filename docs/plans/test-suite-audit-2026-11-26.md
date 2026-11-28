@@ -269,6 +269,10 @@ Moved three source-only cases (snapped verdict position, bounded progress sample
 
 The original pre-audit tree `ee6f1adc` contains exactly 50 files matching the documented audit categories; head `a745ad9` has 45 retired and five remaining. The previous 51 was an overcount. At that head the tests directory contains 494 `.test.*` files (not a measured Vitest execution count). Moved 10 source-only cases from the September and events/defense suites and 13 renderer cases (including two synthetic proofs), plus one mixed-case source assertion, into 22 declarative rules. Retained all runtime cases, the scoped terrain-fill count and its synthetic proof, the transform example, and the token-aware DNA scanner. No simulation decision changed. CI pending.
 
+## Syntax-aware genetics guard consolidation — 2026-11-28
+
+Moved the legacy DNA inventory and scanner self-tests out of Vitest to `scripts/check-legacy-dna.mts`, retaining all 25 original assertions including alias handling, comment/string exclusions and permitted owner reads. Standard/full source verification invokes the scanner. No gameplay changes; CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

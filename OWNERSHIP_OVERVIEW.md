@@ -174,7 +174,7 @@ Genetics layers, activity registry, evaluator contract and change recipes: [DNA 
 | Real-colony audit and timing comparison | `scripts/compare-population-colony.mjs` | Validates 12 ticks/hour, allowed 2/3/180-day horizons, JSONL per-citizen career workdays, daily snapshots, and VirtualPlayer command counts | 
 | Benchmark JSON validation and comparison | `scripts/compare-population-benchmarks.mjs` | Checks seed, population, tick counts and invariants, then publishes comparative CI summary |
 | Producer-colony integration | `tests/longRunColony.integration.test.ts` | Independent 90-day scenario |
-| Genetics legacy-consumer source inventory | `tests/personality.legacyConsumerAudit.test.ts` | Standard Vitest: fails on any reintroduced categorical trait consumer; the retired inventory stays empty and the token-level guard is retained |
+| Genetics legacy-consumer source inventory | `scripts/check-legacy-dna.mts` | Source check gate: fails on any reintroduced categorical trait consumer; the retired inventory stays empty and the token-level guard is retained |
 | Stall-verdict unit regressions | `tests/longRunStallVerdict.test.ts` | Standard Vitest |
 | Terrain bake fixture | `tests/groundLook.bands.test.ts` | Pristine cached maps and pixels; sparse clearing overrides must affect rendered pixels and invalidate terrain revision keyed caches |
 | Save payload fixture | `tests/saveLoad.valueIntegrity.test.ts` | Independent clones of the real payload |
@@ -960,7 +960,7 @@ Named functions and named React callbacks were audited across every complete sou
 | `tests/personality.familyContext.test.ts` | `griefDays`, `griefUntilTick` | Local grief-window reference helpers; no runtime decision authority |
 | `tests/personality.civicContext.test.ts` | `civicFactor`, `villager`, `world`, `lastMessage` | Local civic fixtures; no runtime decision authority |
 | `tests/personality.legacyDNA.test.ts` | `legacyPayload`, `firstHumanGenomeAfterLoad`, `load`, `livingHumans`, `streamState` | Local old-save fixtures and stream probes; no runtime decision authority |
-| `tests/personality.legacyConsumerAudit.test.ts` | `sourcePaths`, `tokenize`, `isDot`, `isDeclarationKeyword`, `traitAssignments`, `assignmentEnd`, `destructuredTraitBindings`, `traitAliases`, `copiesAlias`, `inventory`, `legacyInventory`, `findingsFor`, `inPipeline` | Syntax-aware retired-consumer scanner helpers; no runtime decision authority |
+| `scripts/check-legacy-dna.mts` | `sourcePaths`, `tokenize`, `isDot`, `isDeclarationKeyword`, `traitAssignments`, `assignmentEnd`, `destructuredTraitBindings`, `traitAliases`, `copiesAlias`, `inventory`, `legacyInventory`, `findingsFor`, `inPipeline` | Syntax-aware retired-consumer scanner helpers; no runtime decision authority |
 | `tests/personalityCareer.oldSaveMigration.test.ts` | `oldPayload`, `load` | Local career-migration fixtures; no runtime decision authority |
 | `tests/personalityCareer.inspector.test.ts` | `render`, `renderPanel`, `livingSettler` | Local inspector render fixtures; no runtime decision authority |
 | `tests/careers.workerFit.test.ts` | — | Fixtures come from the shared factories; no file-local named functions |
