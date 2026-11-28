@@ -70,7 +70,7 @@ export function validateRegistry(rows, root, exists = isFile) {
     keys.add(row.key);
     if (!DECISION_CADENCES.includes(row.cadence)) failures.push(`${row.key}: invalid cadence ${row.cadence}`);
     if (!row.entrypoints?.length) failures.push(`${row.key}: missing primary entrypoint`);
-    for (const ref of row.entrypoints ?? []) {
+    for (const ref of [...(row.entrypoints ?? []), ...(row.supporting ?? [])]) {
       const qualified = `${ref.module}::${ref.symbol}`;
       if (!/^(src|scripts)\/[\w/.-]+\.tsx?$/.test(ref.module) || ref.module.split('/').includes('..') || !exists(path.join(root, ref.module))) {
         failures.push(`${row.key}: missing or invalid owner module ${ref.module}`);
@@ -132,11 +132,11 @@ function directCallableCandidates(source, symbol) {
  * The contract names implementations, including private top-level functions, not export facades.
  * Class methods must use Class.method (static) or Class#method (instance).
  */
-export function validateEntrypointSymbols(rows, root) {
+export function validateEntrypointSymbols(rows, root, resolved = new Map()) {
   const failures = [];
   const projects = new Map();
   for (const row of rows) {
-    for (const ref of row.entrypoints) {
+    for (const ref of [...row.entrypoints, ...(row.supporting ?? []).map(ref => ({ ...ref, role: 'supporting' }))]) {
       const config = ref.module.startsWith('scripts/') ? 'tsconfig.scripts.json' : 'tsconfig.app.json';
       if (!projects.has(config)) projects.set(config, []);
       projects.get(config).push({ key: row.key, ...ref });
@@ -152,11 +152,23 @@ export function validateEntrypointSymbols(rows, root) {
         for (const ref of refs) {
           const source = project.program.getSourceFile(path.resolve(root, ref.module));
           const candidates = source ? directCallableCandidates(source, ref.symbol) : [];
-          const callable = candidates.some(node => {
+          const callable = candidates.filter(node => {
             const type = project.checker.getTypeAtLocation(node);
             return type && !(type.flags & TypeFlags.Any) && project.checker.getSignaturesOfType(type, SignatureKind.Call).length > 0;
           });
-          if (!callable) failures.push(`${ref.key}: missing or non-callable primary implementation ${ref.module}::${ref.symbol}`);
+          if (callable.length !== 1) {
+            failures.push(`${ref.key}: expected one callable primary implementation ${ref.module}::${ref.symbol}, found ${callable.length}`);
+            continue;
+          }
+          const node = callable[0];
+          const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+          const name = node.kind === SyntaxKind.Identifier ? node.getText() : ref.symbol;
+          const identity = `${ref.module}:${node.getStart(source)}`;
+          if (resolved.has(identity)) {
+            failures.push(`${ref.key}: declaration ${ref.module}:${line} already claimed by ${resolved.get(identity).key}`);
+            continue;
+          }
+          resolved.set(identity, { key: ref.key, file: ref.module, symbol: ref.symbol, name, line, role: ref.role ?? 'primary' });
         }
       } finally {
         snapshot.dispose();
@@ -168,10 +180,58 @@ export function validateEntrypointSymbols(rows, root) {
   return failures;
 }
 
-export function verifyOwnershipRegistry(rows, root, checkFreshness = true) {
+/** Exact declaration lookup; neither method names nor module suffixes confer ownership. */
+export function findVerifiedClaim(fn, claims, graphFunctions) {
+  const matches = claims.filter(claim => claim.file === fn.file && claim.line === fn.line && claim.name === fn.name);
+  if (matches.length !== 1) return undefined;
+  const same = graphFunctions.filter(candidate => candidate.file === fn.file && candidate.line === fn.line && candidate.name === fn.name);
+  return same.length === 1 ? matches[0] : undefined;
+}
+
+const INFRASTRUCTURE_FUNCTIONS = [
+  'getDecisionRows', 'escapeCell', 'renderDecisionTable', 'replaceGeneratedBlock',
+  'isFile', 'validateDecisionKeys', 'validateRegistry', 'directCallableCandidates',
+  'hasModifier', 'validateEntrypointSymbols', 'findVerifiedClaim',
+  'verifyOwnershipRegistry', 'parseOwnershipMode', 'validateToolingInventory', 'visit', 'main',
+];
+
+/** The tool's own named implementation inventory is explicit and checked against the compiler AST. */
+export function validateToolingInventory(root) {
+  const file = 'scripts/ownership-registry.mjs';
+  const api = new API({ cwd: root });
+  try {
+    const snapshot = api.updateSnapshot({ openProject: 'tsconfig.ownership.json' });
+    try {
+      const source = snapshot.getProjects()[0]?.program.getSourceFile(path.resolve(root, file));
+      if (!source) return [`Missing tooling AST: ${file}`];
+      const actual = [];
+      const visit = node => {
+        if (node.kind === SyntaxKind.FunctionDeclaration && node.body && node.name) actual.push(node.name.getText());
+        if (node.kind === SyntaxKind.VariableDeclaration && node.initializer &&
+          (node.initializer.kind === SyntaxKind.ArrowFunction || node.initializer.kind === SyntaxKind.FunctionExpression)) {
+          actual.push(node.name.getText());
+        }
+        node.forEachChild(visit);
+      };
+      visit(source);
+      const expected = [...INFRASTRUCTURE_FUNCTIONS].sort();
+      const names = actual.sort();
+      const overview = readFileSync(path.join(root, 'OWNERSHIP_OVERVIEW.md'), 'utf8');
+      const marker = '| Ownership registry tooling |';
+      const registrations = overview.split(/\r?\n/).filter(line => line.startsWith(marker));
+      const documented = registrations.length === 1 ? [...registrations[0].split('|')[4].matchAll(/`([A-Za-z_$][\w$]*)`/g)].map(match => match[1]).sort() : [];
+      const failures = [];
+      if (JSON.stringify(names) !== JSON.stringify(expected)) failures.push(`Tooling ownership inventory mismatch: expected ${expected.join(', ')}; found ${names.join(', ')}`);
+      if (JSON.stringify(documented) !== JSON.stringify(expected)) failures.push('Tooling ownership documentation is missing, duplicated or stale.');
+      return failures;
+    } finally { snapshot.dispose(); }
+  } finally { api.close(); }
+}
+
+export function verifyOwnershipRegistry(rows, root, checkFreshness = true, resolved = new Map()) {
   const failures = [...validateDecisionKeys(rows), ...validateRegistry(rows, root)];
   if (failures.length) return failures;
-  failures.push(...validateEntrypointSymbols(rows, root));
+  failures.push(...validateEntrypointSymbols(rows, root, resolved), ...validateToolingInventory(root));
   if (checkFreshness) {
     const current = readFileSync(path.join(root, 'OWNERSHIP_OVERVIEW.md'), 'utf8');
     if (replaceGeneratedBlock(current, renderDecisionTable(rows)) !== current) {
