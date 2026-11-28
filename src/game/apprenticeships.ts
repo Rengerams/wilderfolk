@@ -1,5 +1,5 @@
 import type { Building, Entity, WorldState } from './gameTypes';
-import { BuildingType, BUILDING_JOB_TYPES, EntityType, type JobType } from './gameTypes';
+import { BUILDING_JOB_TYPES, EntityType, type JobType } from './gameTypes';
 import { readSkill, increaseEntitySkill } from './skills';
 import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
@@ -18,7 +18,8 @@ import { SPECIES_CONFIG } from './speciesConfig';
  * school-qualified young adult; the apprentice graduates at skill ≥ 50.
  */
 
-const MASTER_SKILL = 40;
+import { MASTER_SKILL, APPRENTICESHIP_BUILDING_TYPES, getApprenticeTrainingSite } from './apprenticeshipEligibility';
+export { getApprenticeTrainingSite } from './apprenticeshipEligibility';
 const GRANDMASTER_SKILL = 80;
 const GRADUATE_SKILL = 50;
 const APPRENTICESHIP_BONUS = 5;
@@ -30,43 +31,6 @@ function hasCompetingWorkAssignment(apprentice: Entity, buildings: readonly Buil
   return apprentice.workerBuildingId != null || buildings.some((site) =>
     !site.completed && site.occupants.includes(apprentice.id));
 }
-
-/** A trainee uses the mentor's real, staffed workplace, never a fabricated worker assignment. */
-export function getApprenticeTrainingSite(
-  apprentice: Entity,
-  entityById: ReadonlyMap<number, Entity>,
-  buildingById: ReadonlyMap<number, Building>,
-): Building | null {
-  if (!apprentice.alive || apprentice.age < HUMAN_ADULT_MIN_AGE || apprentice.prisonBuildingId != null
-    || apprentice.raidDeploymentId || apprentice.apprenticeId != null || apprentice.apprenticeOfId == null) return null;
-  const master = entityById.get(apprentice.apprenticeOfId);
-  if (!master?.alive || master.id === apprentice.id || master.age < HUMAN_ADULT_MIN_AGE
-    || master.apprenticeOfId != null || master.apprenticeId !== apprentice.id || master.prisonBuildingId != null
-    || master.raidDeploymentId || master.job == null || readSkill(master, master.job) < MASTER_SKILL) return null;
-  const atSite = (building: Building | undefined): building is Building => !!building
-    && building.completed && PRODUCTION_TYPES.has(building.type)
-    && BUILDING_JOB_TYPES[building.type] === master.job
-    && (building.occupants ?? []).includes(master.id);
-  const assigned = master.workerBuildingId == null ? undefined : buildingById.get(master.workerBuildingId);
-  if (atSite(assigned)) return assigned;
-  // Older saves can carry a valid building roster without a synchronized workerBuildingId.
-  for (const building of buildingById.values()) if (atSite(building)) return building;
-  return null;
-}
-
-const PRODUCTION_TYPES = new Set<BuildingType>([
-  BuildingType.Farm,
-  BuildingType.Greenhouse,
-  BuildingType.LumberMill,
-  BuildingType.Quarry,
-  BuildingType.Mine,
-  BuildingType.Blacksmith,
-  BuildingType.Workshop,
-  BuildingType.Store,
-  BuildingType.Market,
-  BuildingType.HuntingSpot,
-  BuildingType.FishingSpot,
-]);
 
 /** Daily pulse — match masters to apprentices and teach. */
 export function advanceApprenticeships(
@@ -118,7 +82,7 @@ export function advanceApprenticeships(
   for (const b of state.buildings) {
     if (!b.completed) continue;
     const job = BUILDING_JOB_TYPES[b.type];
-    if (!job || !PRODUCTION_TYPES.has(b.type)) continue;
+    if (!job || !APPRENTICESHIP_BUILDING_TYPES.has(b.type)) continue;
 
     const masters = (b.occupants ?? [])
       .map((id) => byId.get(id))

@@ -18,17 +18,16 @@ import {
   countHomelessSettlers,
   countResidentsInBuilding,
   getResidenceCapacity,
-  hasWorkAssignment,
   isHomelessSettler,
   isResidenceBuildingType,
 } from './housingModel';
 import { staffingCapFor } from './workforce';
-import { buildConstructionCrewIndex } from './workforceSummary';
+import { buildWorkplaceIndexes, resolveHumanWorkplace } from './workforceSummary';
 import { BUILDING_TYPE_CODES } from './buildings';
 import { getBuildingConfig } from './buildingConfig';
 import { formatCitizenName } from './citizenId';
 import type { SettlerWorkReason } from './workAbsence';
-import { getSettlerWorkReason, resolveWorkplaceForDisplay } from './workAbsence';
+import { getSettlerWorkReason } from './workAbsence';
 import { buildSchoolRosters, isSchoolTime } from './education';
 import { SCHOOL_MIN_AGE } from './gameConstants';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
@@ -511,20 +510,20 @@ export function collectDashboard(state: WorldState): DashboardData {
     for (const pupil of roster.pupils) onWayToSchoolIds.add(pupil.id);
   }
   const classInSession = schoolRosters.size > 0 && isSchoolTime(state.tick, getHourOfDay(state.tick));
-  const constructionCrews = buildConstructionCrewIndex(state.buildings);
+  const indexes = buildWorkplaceIndexes(state.entities, state.buildings);
   const settlers: DashboardSettler[] = [];
   /** Absence reasons of the posted settlers, collected in the same pass that builds the rows. */
   const postedReasons: SettlerWorkReason[] = [];
   for (const e of state.entities) {
     if (!e.alive || e.type !== EntityType.Human || !isPlayerHuman(e)) continue;
-    const role = e.isJuvenile ? 'Child' :
+    const assignment = resolveHumanWorkplace(e, state.buildings, state.entities, indexes);
+    const { workplace, trainingSite } = assignment;
+    const role = e.isJuvenile ? 'Child' : trainingSite ? `Apprentice — ${getBuildingConfig(trainingSite.type).label}` :
       e.occupation && e.occupation !== 'settler'
         ? e.occupation
         : (e.job ?? 'settler');
-    const workReason = getSettlerWorkReason(state, e, constructionCrews);
-    const trainingSite = e.apprenticeOfId != null ? resolveWorkplaceForDisplay(state, e, constructionCrews).trainingSite : null;
-    if (e.age >= HUMAN_ADULT_MIN_AGE && e.prisonBuildingId == null
-      && (hasWorkAssignment(e) || constructionCrews.has(e.id) || trainingSite != null)) {
+    const workReason = getSettlerWorkReason(state, e, assignment);
+    if (e.age >= HUMAN_ADULT_MIN_AGE && e.prisonBuildingId == null && workplace) {
       postedReasons.push(workReason);
     }
     settlers.push({
@@ -535,7 +534,7 @@ export function collectDashboard(state: WorldState): DashboardData {
       hoursToday: hoursToday(e),
       energyPct: energyPct(e),
       // The same indexed roster and age rule as the workforce-summary owner.
-      noWork: e.age >= HUMAN_ADULT_MIN_AGE && !hasWorkAssignment(e) && !constructionCrews.has(e.id) && !trainingSite && e.prisonBuildingId == null,
+      noWork: e.age >= HUMAN_ADULT_MIN_AGE && !workplace && e.prisonBuildingId == null,
       // A prisoner is neither homeless nor idle: imprisonment clears residence and workplace by design.
       noHome: isHomelessSettler(e),
       status: e.isJuvenile && classInSession && inClassIds.has(e.id)
@@ -627,7 +626,7 @@ export function explainSettler(state: WorldState, id: number): ExplanationLine[]
     tone: 'neutral',
   });
 
-  const { workplace, trainingSite } = resolveWorkplaceForDisplay(state, settler);
+  const { workplace, trainingSite } = resolveHumanWorkplace(settler, state.buildings, state.entities);
   const residence = settler.residenceBuildingId != null
     ? state.buildings.find((b) => b.id === settler.residenceBuildingId)
     : undefined;

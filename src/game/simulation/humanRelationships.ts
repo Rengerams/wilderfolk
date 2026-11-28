@@ -45,7 +45,7 @@ import { evaluateAptitudeInfluence } from '../personality/traitEvaluation';
 
 import { SCHOOL_GRADUATION_DAYS } from '../education';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
-import { findHumanWorkplace } from '../workforce';
+import { resolveHumanWorkplace } from '../workforceSummary';
 import { getWorkSchedule, type WorkSchedule } from '../workSchedule';
 import { requestDialogue, dialogueHoursFromNominalTicks } from '../dialogueTrees';
 import { Relationship } from '../gameConstants';
@@ -1495,7 +1495,7 @@ export function tryDailyAffairEncounter(
   if (!entity.gender || entity.age >= HUMAN_MAX_LIFESPAN_YEARS) return;
   if (entity.energy <= config.reproductionEnergyThreshold * 0.5) return;
   if (onScandalCooldown(entity, state.tick)) return;
-  const workplace = findHumanWorkplace(entity, buildings, { buildingById });
+  const workplace = resolveHumanWorkplace(entity, buildings, state.entities, { buildingById, entityById }).workplace;
   if (!canPursueSecretAffair(entity, hourOfDay, workplace, buildings, entityById, state.tick, getWorkSchedule(state))) return;
 
   if (isAtMaritalHome(entity, entityById, buildingById)) return;

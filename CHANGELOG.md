@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (28 Nov 2026):** Show valid apprenticeships as work in the settler inspector, route explanation and individual dashboard rows, without adding regular roster seats or changing training and production rules.
+- **Fixed (28 Nov 2026):** Show valid apprenticeships as work in the settler inspector, route explanation and individual dashboard rows, with one indexed workplace resolver for simulation, UI and employment totals, without adding regular roster seats or changing training and production rules.
 
 - **Fixed (28 Nov 2026):** Children no longer keep following a caregiver during evening/night rosters or continue stale follow/play movement through school or bedtime, including homeless off-screen children; genuinely free-time following remains allowed.
 

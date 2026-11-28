@@ -33,8 +33,7 @@ import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { getRouteObstruction } from './pathfinding';
 import { commuteLeadHoursFor } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { findHumanWorkplace } from './workforce';
-import { getApprenticeTrainingSite } from './apprenticeships';
+import { resolveHumanWorkplace, type WorkplaceResolution } from './workforceSummary';
 import { isImprisoned, isNearResidence } from './housingModel';
 import { isPlayerHuman } from './playerHuman';
 import { getBuildingConfig } from './buildingConfig';
@@ -192,22 +191,6 @@ export function resolveShift(
   };
 }
 
-/** Read the real job or training site; apprentices never consume a regular roster seat. */
-export function resolveWorkplaceForDisplay(
-  state: WorldState,
-  entity: Entity,
-  constructionCrews?: ReadonlyMap<number, Building>,
-): { workplace: Building | undefined; trainingSite: Building | null } {
-  const regular = findHumanWorkplace(entity, state.buildings,
-    constructionCrews ? { constructionByWorkerId: constructionCrews } : undefined);
-  const trainingSite = regular || entity.apprenticeOfId == null ? null : getApprenticeTrainingSite(
-    entity,
-    new Map(state.entities.map((person) => [person.id, person])),
-    new Map(state.buildings.map((building) => [building.id, building])),
-  );
-  return { workplace: regular ?? trainingSite ?? undefined, trainingSite };
-}
-
 /**
  * Why this settler is not at their post right now. Reads stored state and the owners' predicates;
  * it invents no hours, distances or thresholds of its own.
@@ -215,7 +198,7 @@ export function resolveWorkplaceForDisplay(
 export function getSettlerWorkReason(
   state: WorldState,
   entity: Entity,
-  constructionCrews?: ReadonlyMap<number, Building>,
+  assignment: WorkplaceResolution = resolveHumanWorkplace(entity, state.buildings, state.entities),
 ): SettlerWorkReason {
   if (!entity.alive) return { code: 'dead', label: 'Dead' };
   if (isImprisoned(entity)) return { code: 'in-prison', label: 'In prison' };
@@ -224,7 +207,7 @@ export function getSettlerWorkReason(
 
   const hour = getHourOfDay(state.tick);
   const buildings = state.buildings;
-  const { workplace, trainingSite } = resolveWorkplaceForDisplay(state, entity, constructionCrews);
+  const { workplace, trainingSite } = assignment;
   const isHospitalDoctor = entity.job === JobType.Doctor
     && workplace?.type === BuildingType.Hospital && workplace.completed;
   const doctorCommuteDue = !!(isHospitalDoctor && isHospitalDoctorCommuteTime(
@@ -298,7 +281,7 @@ export function getSettlerWorkReason(
   const label = labelFor(workplace);
   if (onShift && atWork) return { code: 'working', label: trainingSite ? `Apprenticing at ${label}` : `Working at ${label}` };
   // The hospital roster owns its own commute window, which opens before the ward duty does.
-  if (doctorCommuteDue) return { code: 'walking-to-work', label: `Walking to work — ${label}` };
+  if (doctorCommuteDue || (trainingSite && isCommutingToBuilding(entity, workplace))) return { code: 'walking-to-work', label: trainingSite ? `Walking to apprenticeship at ${label}` : `Walking to work — ${label}` };
   if (onShift) {
     // Other movement owners may be fleeing or hunting while an available detour exists.
     // Only an active, commanded workplace walk is proof of travelling to work.

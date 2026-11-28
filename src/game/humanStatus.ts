@@ -13,7 +13,8 @@ import { getWorkSchedule, getWorkScheduleLabel } from './workSchedule';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { isCommutingToBuilding } from './simulation/humanMovement';
 import { BUILDING_CONFIGS } from './gameTypes';
-import { resolveShift, resolveWorkplaceForDisplay, WORK_ARRIVE_DISTANCE, getSettlerWorkReason, type SettlerWorkReason } from './workAbsence';
+import { resolveShift, WORK_ARRIVE_DISTANCE, getSettlerWorkReason, type SettlerWorkReason } from './workAbsence';
+import { resolveHumanWorkplace, type WorkplaceResolution } from './workforceSummary';
 
 function labelFor(building: Building): string {
   return BUILDING_CONFIGS[building.type]?.label ?? 'Building';
@@ -74,8 +75,10 @@ export function isAtActivityTarget(entity: Entity, target: HumanActivityTarget |
 export function getHumanActivityStatus(
   state: WorldState,
   entity: Entity,
-  workReason: SettlerWorkReason = getSettlerWorkReason(state, entity),
+  workReason?: SettlerWorkReason,
+  assignment: WorkplaceResolution = resolveHumanWorkplace(entity, state.buildings, state.entities),
 ): string {
+  workReason ??= getSettlerWorkReason(state, entity, assignment);
   if (!entity.alive) return 'Dead';
   if (entity.raidDeploymentId) return 'Away with the war-band';
   // Hospital travel and admission are activities in their own right, not free time.
@@ -84,7 +87,7 @@ export function getHumanActivityStatus(
 
   const hourOfDay = getHourOfDay(state.tick);
   const festivalActive = state.festival?.active;
-  const { workplace, trainingSite } = resolveWorkplaceForDisplay(state, entity);
+  const { workplace, trainingSite } = assignment;
   const onWorkSchedule = !entity.isJuvenile && workplace != null && resolveShift(state, entity, workplace, hourOfDay).onShift;
   // The verdict is the simulation owner's, so the label cannot drift from what the settler does.
   if (isFestivalGatherer(hourOfDay, festivalActive, onWorkSchedule, entity.job === JobType.Innkeeper)) {
@@ -128,12 +131,11 @@ export function getHumanActivityStatus(
 
   // Assigned workplace during the configured work shift. Commuting is reported only on the
   // movement owner's evidence; being far from the post is not travel.
+  if (workplace && trainingSite && workReason.code === 'walking-to-work') return workReason.label;
   if (workplace && onWorkSchedule) {
     const label = labelFor(workplace);
-    if (trainingSite) return isAtBuildingReach(entity, trainingSite)
-      ? `Apprenticing at ${label}`
-      : isCommutingToBuilding(entity, trainingSite)
-        ? `Walking to apprenticeship at ${label}` : `Away from apprenticeship at ${label}`;
+    if (trainingSite) return workReason.code === 'working'
+      ? workReason.label : `Away from apprenticeship at ${label}`;
     if (isAtBuildingReach(entity, workplace) || entity.indoorBuildingId === workplace.id) {
       return `Working at ${label}`;
     }
@@ -178,19 +180,19 @@ export function getHumanActivityProjection(
 ): HumanActivityProjection {
   const hour = getHourOfDay(state.tick);
   const schedule = getWorkSchedule(state);
-  const assignment = resolveWorkplaceForDisplay(state, entity);
+  const assignment = resolveHumanWorkplace(entity, state.buildings, state.entities);
   const workplace = entity.isJuvenile ? undefined : assignment.workplace;
   const homeBuilding = entity.residenceBuildingId == null
     ? null
     : state.buildings.find((building) => building.id === entity.residenceBuildingId) ?? null;
-  const workReason = getSettlerWorkReason(state, entity);
-  const activity = getHumanActivityStatus(state, entity, workReason);
+  const workReason = getSettlerWorkReason(state, entity, assignment);
+  const activity = getHumanActivityStatus(state, entity, workReason, assignment);
   const shift = resolveShift(state, entity, workplace, hour);
   const target: HumanActivityTarget | null = (() => {
     // A hospital-bound or admitted settler is not walking a workplace leg, so claim no post target.
     if (workReason.code === 'going-to-hospital' || workReason.code === 'in-hospital') return null;
-    const onWorkSchedule = !entity.isJuvenile && workplace != null && resolveShift(state, entity, workplace, hour).onShift;
-    if (workplace && onWorkSchedule) {
+    const onWorkSchedule = !entity.isJuvenile && workplace != null && shift.onShift;
+    if (workplace && (onWorkSchedule || workReason.code === 'walking-to-work')) {
       const point = buildingAccessPoint(workplace);
       return { kind: 'workplace', label: labelFor(workplace), buildingId: workplace.id, ...point };
     }

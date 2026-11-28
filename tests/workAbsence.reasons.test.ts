@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
-import { BuildingType, EntityType, JobType, Season, TerrainType, WeatherType } from '../src/game/gameTypes';
+import { BUILDING_JOB_TYPES, BuildingType, EntityType, JobType, Season, TerrainType, WeatherType } from '../src/game/gameTypes';
 import { PREGNANCY_TICKS, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { setCurrentPathMap } from '../src/game/pathfinding';
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -15,6 +15,9 @@ import { hospitalDoctorRoster } from '../src/game/hospitalShifts';
 import { collectDashboard, explainSettler } from '../src/game/dashboardData';
 import { getHumanActivityProjection } from '../src/game/humanStatus';
 import { explainHumanMovement } from '../src/game/movementExplanation';
+import { APPRENTICESHIP_BUILDING_TYPES } from '../src/game/apprenticeshipEligibility';
+import { countWorkingAndIdleSettlers } from '../src/game/workforceSummary';
+import { getBuildingConfig } from '../src/game/buildingConfig';
 import {
   getSettlerWorkReason,
   getUnstaffedPostNote,
@@ -104,17 +107,21 @@ function postedFarmer(farm: Building, overrides: Partial<Entity> = {}): Entity {
 }
 
 describe('the reason a settler is not at their post', () => {
-  it('recognizes a fishing apprentice as working without adding a roster seat', () => {
-    const site = building(10, BuildingType.FishingSpot, { occupants: [2] });
+  it.each([...APPRENTICESHIP_BUILDING_TYPES])('recognizes a %s apprentice as working without adding a roster seat', (type) => {
+    const job = BUILDING_JOB_TYPES[type]!;
+    const label = getBuildingConfig(type).label;
+    const site = building(10, type, { occupants: [2] });
     const home = building(11, BuildingType.House);
     const stand = humanBuildingTarget(site, 1);
     const apprentice = settler(1, { apprenticeOfId: 2, residenceBuildingId: home.id, x: stand.x, y: stand.y });
-    const master = settler(2, { apprenticeId: 1, workerBuildingId: site.id, job: JobType.Fisher, skills: { [JobType.Fisher]: 80 } });
+    const master = settler(2, { apprenticeId: 1, workerBuildingId: site.id, job, skills: { [job]: 80 } });
     const state = world(workdayTick(10), { entities: [apprentice, master], buildings: [site, home] });
-    expect(getSettlerWorkReason(state, apprentice)).toEqual({ code: 'working', label: 'Apprenticing at Fishing Spot' });
+    expect(getSettlerWorkReason(state, apprentice)).toEqual({ code: 'working', label: `Apprenticing at ${label}` });
     const projection = getHumanActivityProjection(state, apprentice);
-    expect(projection.workplace).toEqual({ id: site.id, label: 'Fishing Spot', apprenticeship: true });
+    expect(projection.workplace).toEqual({ id: site.id, label, apprenticeship: true });
     expect(projection.schedule.onShift).toBe(true);
+    expect(countWorkingAndIdleSettlers(state.entities, state.buildings)).toEqual({ working: 2, idle: 0 });
+    expect(collectDashboard(state).settlers.find((row) => row.id === apprentice.id)?.noWork).toBe(false);
     expect(explainHumanMovement(state, apprentice.id).stops.map((stop) => stop.buildingId)).toEqual([home.id, site.id, home.id]);
     state.tick = workdayTick(17);
     expect(getHumanActivityProjection(state, apprentice).schedule.onShift).toBe(false);
@@ -124,6 +131,7 @@ describe('the reason a settler is not at their post', () => {
     master.apprenticeId = undefined;
     expect(getHumanActivityProjection(state, apprentice).workplace).toBeNull();
     expect(getSettlerWorkReason(state, apprentice).code).toBe('no-post');
+    expect(countWorkingAndIdleSettlers(state.entities, state.buildings)).toEqual({ working: 1, idle: 1 });
   });
   it.each([BuildingType.Church, BuildingType.TownHall, BuildingType.Prison, BuildingType.Hospital, BuildingType.Hotel])('projects ordinary construction duty for unfinished %s', (type) => {
     const site = building(1, type, { completed: false, constructionProgress: 0.5, occupants: [1] });

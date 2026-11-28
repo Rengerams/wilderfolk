@@ -1233,28 +1233,7 @@ export function assignMissingWorkers(
   }
 }
 
-export function findHumanWorkplace(
-  entity: Entity,
-  buildings: Building[],
-  opts?: {
-    buildingById?: ReadonlyMap<number, Building>;
-    constructionByWorkerId?: ReadonlyMap<number, Building>;
-  },
-): Building | undefined {
-  const byId = opts?.buildingById;
-  if (hasWorkAssignment(entity) && entity.workerBuildingId != null) {
-    const jobSite = byId?.get(entity.workerBuildingId) ?? buildings.find((b) => b.id === entity.workerBuildingId);
-    if (jobSite?.completed && BUILDING_JOB_TYPES[jobSite.type]) {
-      return jobSite;
-    }
-  }
-
-  const construction = opts?.constructionByWorkerId?.get(entity.id);
-  if (construction && !construction.completed) return construction;
-  if (opts?.constructionByWorkerId) return undefined;
-
-  return buildConstructionCrewIndex(buildings).get(entity.id);
-}
+export { findHumanWorkplace } from './workforceSummary';
 
 export function releasePrisoners(state: WorldState): void {
   const releasedSettlers: Entity[] = [];
