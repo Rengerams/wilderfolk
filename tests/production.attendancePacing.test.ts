@@ -34,6 +34,7 @@ import { getWorkdayAttendance } from '../src/game/scheduleFatigue';
 import { getValleyFarmYieldMultiplier, getValleyHuntYieldMultiplier } from '../src/game/ecologyStage';
 import { getWorkScheduleHours, getWorkSchedule } from '../src/game/workSchedule';
 import { ensureEntitySkills, readSkill } from '../src/game/skills';
+import { evaluateWorkerFit } from '../src/game/careers/workerFit';
 
 const TEST_SEED = 20_261_112;
 const SETTLER_ID = 9001;
@@ -283,7 +284,7 @@ describe('production pays only witnessed attendance (W-136)', () => {
       const outputBefore = state.economyLedger?.produced.farms ?? 0;
       runTicks(state, 2 * TICKS_PER_HOUR + 1, ON_SCREEN);
       expect(state.economyLedger?.produced.farms ?? 0).toBeGreaterThan(outputBefore);
-      expect(readSkill(worker, JobType.Farmer) - before).toBeGreaterThanOrEqual(0.19);
+      expect(readSkill(worker, JobType.Farmer) - before).toBeGreaterThanOrEqual(0.19 * evaluateWorkerFit(worker, JobType.Farmer).aptitudeFactor);
       runTicks(state, TICKS_PER_HOUR, ON_SCREEN);
       expect(worker.schedulePresentTicksToday ?? 0).toBe(0);
     }
@@ -657,7 +658,7 @@ describe('construction and production attendance are separate (PR #166 reviews)'
 
     expect(stillBuilding.site.completed).toBe(false);
     expect(justCompleted.site.completed).toBe(true);
-    expect(justCompleted.farmer.skills?.[JobType.Farmer] ?? 0).toBeCloseTo(0.2, 8);
+    expect(justCompleted.farmer.skills?.[JobType.Farmer] ?? 0).toBeCloseTo(0.2 * evaluateWorkerFit(justCompleted.farmer, JobType.Farmer).aptitudeFactor, 8);
     expect(justCompleted.foodAtEvening).toBe(stillBuilding.foodAtEvening);
     expect(operational.foodAtEvening).toBeGreaterThan(justCompleted.foodAtEvening);
   });

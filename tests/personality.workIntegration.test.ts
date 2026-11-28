@@ -15,6 +15,7 @@ import { getWorkSchedule, getWorkScheduleHours } from '../src/game/workSchedule'
 import { MAX_SKILL, readSkill, WORK_SKILL_PER_SHIFT, getWorkerSkillMultiplier } from '../src/game/skills';
 import { advanceApprenticeships } from '../src/game/apprenticeships';
 import { evaluateAptitudeInfluence } from '../src/game/personality/traitEvaluation';
+import { evaluateWorkerFit } from '../src/game/careers/workerFit';
 import { building, human } from '../src/test/factories';
 import { genomeFrom } from './helpers/genome';
 
@@ -26,7 +27,7 @@ const ROUTINE_GENOME = genomeFrom({ discipline: 95, persistence: 95, flexibility
 /** High creativity and reasoning: the positive construction weights. */
 const CONSTRUCTION_GENOME = genomeFrom({ creativity: 95, reasoning: 95, persistence: 85, initiative: 80, discipline: 10 });
 /** High flexibility and low curiosity/consistency: the negative apprenticeship-training profile. */
-const TRAINING_RESISTANT_GENOME = genomeFrom({ flexibility: 95, curiosity: 10, discipline: 10, persistence: 10 });
+const TRAINING_RESISTANT_GENOME = genomeFrom({ reasoning: 10, creativity: 10, patience: 10, discipline: 10, sociability: 95 });
 
 /** A one-worker crew map, so the multiplier reads the id map and not a world scan. */
 function crew(worker: Entity): Map<number, Entity> {
@@ -84,13 +85,13 @@ describe('the crew multiplier prices the trade activity once', () => {
     expect(getWorkerSkillMultiplier(bare, withStale, crew(apt))).toBeCloseTo(factor, 10);
   });
 
-  it('prices a construction crew from the construction activity', () => {
+  it('prices a construction crew from the same trade as its skill credit', () => {
     const site = building(SITE_ID, BuildingType.Farm, { occupants: [1], completed: false });
     const plain = skillingWorker(1, genomeFrom());
     const apt = skillingWorker(1, CONSTRUCTION_GENOME);
 
-    const factor = evaluateAptitudeInfluence(apt, 'construction').factor;
-    expect(factor, 'the fixture premise: the registry rewards raising a site').toBeGreaterThan(1);
+    const factor = evaluateWorkerFit(apt, JobType.Farmer).aptitudeFactor;
+    expect(factor).not.toBe(1);
     expect(getWorkerSkillMultiplier(bare, site, crew(plain), 'construction')).toBe(1);
     expect(getWorkerSkillMultiplier(bare, site, crew(apt), 'construction')).toBeCloseTo(factor, 10);
   });
@@ -247,7 +248,7 @@ describe('the real production day pays the trade activity', () => {
       expect(
         readSkill(full.state.entities.find((e) => e.id === worker.id)!, JobType.Farmer),
         'the shift itself stopped paying once the stored harvest was refused',
-      ).toBeCloseTo(WORK_SKILL_PER_SHIFT, 6);
+      ).toBeCloseTo(WORK_SKILL_PER_SHIFT * evaluateWorkerFit(worker, JobType.Farmer).aptitudeFactor, 6);
     }
   });
 });
@@ -300,7 +301,7 @@ describe('the apprenticeship-training activity reaches the real teaching path', 
     const plainGain = readSkill(plain.apprentice, JobType.Blacksmith);
     const resistantGain = readSkill(resistant.apprentice, JobType.Blacksmith);
     expect(plainGain, 'fixture premise: the master taught').toBeGreaterThan(0);
-    const factor = evaluateAptitudeInfluence(resistant.apprentice, 'apprenticeshipTraining').factor;
+    const factor = evaluateWorkerFit(resistant.apprentice, JobType.Blacksmith).aptitudeFactor;
     expect(factor, 'the fixture premise: the registry prices this profile below neutral').toBeLessThan(1);
     expect(resistantGain).toBeCloseTo(plainGain * factor, 10);
     // The teacher keeps their own hand in either way.

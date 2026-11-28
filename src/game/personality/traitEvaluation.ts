@@ -92,11 +92,11 @@ function markScoreOf(subject: AptitudeSubject | null | undefined, activity: Apti
  */
 export function evaluateAptitudeInfluence(
   subject: AptitudeSubject | null | undefined,
-  activityId: AptitudeActivityId,
+  activityId: AptitudeActivityId | undefined,
   options?: AptitudeEvaluationOptions,
 ): AptitudeInfluence {
   const explain = options?.includeReasons === true;
-  const activity = APTITUDE_ACTIVITIES[activityId];
+  const activity = activityId === undefined ? undefined : APTITUDE_ACTIVITIES[activityId];
   if (activity === undefined) return explain ? NEUTRAL_EXPLAINED : NEUTRAL;
 
   const genome = subject?.genomeV2;

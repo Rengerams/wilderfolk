@@ -5,7 +5,7 @@ import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { SCHOOL_GRADUATION_DAYS, getEducationTier } from './education';
-import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
+import { evaluateWorkerFit } from './careers/workerFit';
 import { advanceCareerProgression } from './careers/careerProgression';
 import { getAbsoluteCalendarDay, TICKS_PER_HOUR } from './dayCycleClock';
 import { getWorkSchedule } from './workSchedule';
@@ -114,16 +114,22 @@ export function advanceApprenticeships(
         && !claimed.has(p.id) && readSkill(p, job) < GRADUATE_SKILL
         && p.careerMilestones?.[job]?.trainedAtDay == null
         && isWithinAssignableCommute(p, b, state.buildings, SPECIES_CONFIG[EntityType.Human].speed, buildingById);
-      const scholar = grandmaster ? scholars.find(eligible) : undefined;
+      // Preserve scholar reservation and age priority; aptitude selects among eligible peers.
+      const scholar = grandmaster ? scholars.filter(eligible).sort((a, b) =>
+        b.age - a.age || evaluateWorkerFit(b, job).selectionScore - evaluateWorkerFit(a, job).selectionScore
+        || a.id - b.id)[0] : undefined;
       const bx = b.x + b.width / 2;
       const by = b.y + b.height / 2;
       let best: Entity | null = scholar ?? null;
       let bestD = Infinity;
+      let bestFit = -Infinity;
       if (!best) {
         for (const j of candidates) {
           if (!eligible(j)) continue;
           const d = Math.hypot(j.x - bx, j.y - by);
-          if (d < bestD) {
+          const fit = evaluateWorkerFit(j, job).selectionScore;
+          if (fit > bestFit || (fit === bestFit && d < bestD)) {
+            bestFit = fit;
             bestD = d;
             best = j;
           }
@@ -144,9 +150,8 @@ export function advanceApprenticeships(
 
 function teach(ap: Entity, master: Entity, job: JobType, state: WorldState): void {
   const masterSkill = readSkill(master, job);
-  // The apprentice's own aptitudes nudge how fast this trade is learned.
-  const trainingFactor = evaluateAptitudeInfluence(ap, 'apprenticeshipTraining').factor;
-  increaseEntitySkill(ap, job, (0.4 + (masterSkill / 100) * 0.5) * trainingFactor);
+  // The skill owner applies the same vocational factor as employment and production.
+  increaseEntitySkill(ap, job, 0.4 + (masterSkill / 100) * 0.5);
   // A teacher keeps their own hand in without dirtying a saturated skill.
   increaseEntitySkill(master, job, 0.05);
   if (readSkill(ap, job) >= GRADUATE_SKILL) {
@@ -155,7 +160,7 @@ function teach(ap: Entity, master: Entity, job: JobType, state: WorldState): voi
     if (ap.careerMilestones?.[job]?.trainedAtDay == null) {
       const tier = getEducationTier(ap.schoolDays ?? 0);
       increaseEntitySkill(ap, job, grandmaster ? GRANDMASTER_COMPLETION_BONUS
-        : tier === 2 ? EDUCATED_COMPLETION_BONUS : APPRENTICESHIP_BONUS);
+        : tier === 2 ? EDUCATED_COMPLETION_BONUS : APPRENTICESHIP_BONUS, true);
     }
     if (grandmaster) ap.grandmasterApprenticeshipCompleted = true;
     ap.apprenticeOfId = undefined;

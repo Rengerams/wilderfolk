@@ -55,3 +55,21 @@ describe('optional worker fit after stable commute and skill ranking', () => {
     expect(second.workerBuildingId).toBeUndefined();
   });
 });
+
+
+it('ranks distinct vocational talents rather than one routine factor for every job', () => {
+  const person = human(1, { genomeV2: genomeFrom({ sociability: 95, cooperation: 90, flexibility: 90, discipline: 10, persistence: 10 }) });
+  expect(evaluateWorkerFit(person, JobType.Hotelier).aptitudeFactor).toBeGreaterThan(1);
+  expect(evaluateWorkerFit(person, JobType.Miner).aptitudeFactor).toBeLessThan(1);
+  expect(evaluateWorkerFit(person, JobType.Settler).aptitudeFactor).toBe(1);
+});
+
+it('uses aptitude for a vacancy even when nearby candidates have different earned skills', () => {
+  const site = building(10, BuildingType.Farm);
+  const neutral = human(1, { x: 10, y: 10, skills: { farmer: 1 }, genomeV2: genomeFrom() });
+  const talented = human(2, { x: 10, y: 10, skills: {}, genomeV2: genomeFrom({ discipline: 95, persistence: 95, sociability: 5 }) });
+  expect(evaluateWorkerFit(talented, JobType.Farmer).selectionScore).toBeGreaterThan(1);
+  expect(assignWorkerInPlace(site, [neutral, talented], [site])).toBe(true);
+  expect(talented.workerBuildingId).toBe(site.id);
+  expect(talented.skills?.farmer ?? 0).toBe(0);
+});
