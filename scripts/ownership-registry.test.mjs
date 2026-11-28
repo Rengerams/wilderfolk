@@ -27,6 +27,10 @@ test('registry rows retain literal apostrophes and Markdown delimiters', () => {
 
 test('missing paths, duplicate decisions and conflicting primary claims fail', () => {
   assert.deepEqual(validateRegistry([sample], '/', () => true), []);
+  for (const module of ['src/game/./sample.ts', 'src/game//sample.ts', 'src/game/../game/sample.ts']) {
+    const alternate = { ...sample, key: 'alternate', entrypoints: [{ ...sample.entrypoints[0], module }] };
+    assert.ok(validateRegistry([sample, alternate], '/', () => true).some(message => message.includes('invalid owner module')));
+  }
   assert.ok(validateRegistry([sample], '/', () => false).some(message => message.includes('owner module')));
   assert.ok(validateRegistry([sample], '/', () => false).some(message => message.includes('test reference')));
   assert.ok(validateRegistry([sample, sample], '/', () => true).some(message => message.includes('Duplicate decision key')));
@@ -52,15 +56,24 @@ test('compiler verifies callable declarations in their owning module and scope',
       '  rest() {}',
       '}',
       "export { elsewhere as alias } from './other';",
+      'const other = advance;',
+      'const wrappedAlias = (advance);',
+      'const memberAlias = Owner.work;',
+      'const genuine = (function () {});',
     ].join('\n');
     writeFileSync(path.join(root, 'src/game/sample.ts'), source);
     writeFileSync(path.join(root, 'src/game/other.ts'), 'export function elsewhere() {}');
-    const rows = ['advance', 'generated', 'default', 'Owner.work', 'Owner#rest', 'notCallable', 'nested', 'alias', 'elsewhere', 'Owner.rest'].map(symbol => ({
+    const rows = ['advance', 'generated', 'default', 'Owner.work', 'Owner#rest', 'notCallable', 'nested', 'alias', 'elsewhere', 'Owner.rest', 'other', 'wrappedAlias', 'memberAlias', 'genuine'].map(symbol => ({
       ...sample, key: symbol, entrypoints: [{ ...sample.entrypoints[0], symbol }],
     }));
     const resolved = new Map();
     const failures = validateEntrypointSymbols(rows, root, resolved);
-    assert.deepEqual(failures.map(message => message.split(':')[0]), ['notCallable', 'nested', 'alias', 'elsewhere', 'Owner.rest']);
+    assert.deepEqual(failures.map(message => message.split(':')[0]), ['notCallable', 'nested', 'alias', 'elsewhere', 'Owner.rest', 'other', 'wrappedAlias', 'memberAlias']);
+    const alternate = { ...sample, key: 'alternate', entrypoints: [{ module: 'src/game/./sample.ts', symbol: 'advance' }] };
+    const pathClaims = new Map();
+    assert.ok(validateEntrypointSymbols([sample, alternate], root, pathClaims).some(message => message.includes('noncanonical owner module')));
+    assert.equal(pathClaims.size, 1);
+    assert.ok([...resolved.values()].some(claim => claim.symbol === 'genuine'));
     // Exercise the real call-graph parser against the exact compiler declarations, not hand-built graph records.
     process.env.CALLGRAPH_LIB = '1';
     const { extractDefinitions, stripLiteralsAndComments } = await import('./build-call-graph.mjs');
@@ -125,11 +138,15 @@ test('tooling inventory requires qualified nested names and ignores anonymous ca
       '  return [1].map(value => value + inner());',
       '}',
       'function other() { function inner() {} inner(); }',
+      'class Inventory { collect() {} static collect() {} }',
     ].join('\n'));
-    const contract = { key: 'infrastructure:sample', label: 'Sample', module: 'scripts/sample.mjs', symbols: ['outer', 'outer::inner', 'other', 'other::inner'] };
+    const contract = { key: 'infrastructure:sample', label: 'Sample', module: 'scripts/sample.mjs', symbols: ['outer', 'outer::inner', 'other', 'other::inner', 'Inventory#collect', 'Inventory.collect'] };
     const resolved = new Map();
     assert.deepEqual(validateToolingInventory(root, [contract], resolved), []);
-    assert.equal(resolved.size, 4);
+    assert.equal(resolved.size, 6);
+    assert.ok(validateToolingInventory(root, [{ ...contract, symbols: contract.symbols.filter(symbol => symbol !== 'Inventory#collect') }]).some(message => message.includes('Inventory#collect: missing infrastructure claim')));
+    assert.ok(validateToolingInventory(root, [{ ...contract, symbols: contract.symbols.filter(symbol => symbol !== 'Inventory.collect') }]).some(message => message.includes('Inventory.collect: missing infrastructure claim')));
+    assert.ok(validateToolingInventory(root, [{ ...contract, module: 'scripts/./sample.mjs' }]).some(message => message.includes('invalid infrastructure module')));
     assert.ok([...resolved.values()].every(claim => claim.role === 'infrastructure'));
     assert.ok(validateToolingInventory(root, [{ ...contract, symbols: ['outer', 'inner', 'other'] }]).some(message => message.includes('missing infrastructure claim')));
     assert.ok(validateToolingInventory(root, [contract, { ...contract, key: 'infrastructure:duplicate' }]).some(message => message.includes('already claimed')));
