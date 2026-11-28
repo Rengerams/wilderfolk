@@ -1582,14 +1582,16 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         // Convert legacy reserves at the load boundary before form synchronization or tick migration.
         // Persisted native needs take precedence; player wire slots never become a second reserve.
         if (isPlayerHuman(entity)) {
-          normalizeHumanNeeds(entity, legacyHumanNeeds(entity.energy, entity.maxEnergy));
+          normalizeHumanNeeds(entity, entity.needs?.stamina == null
+            ? legacyHumanNeeds(entity.energy, entity.maxEnergy) : undefined);
           entity.energy = 0;
           entity.maxEnergy = 0;
         }
         // The parked human snapshot is independent of the active predator's metabolic reserve.
         const parkedNeeds = entity.moonHowlerSaved;
         if (parkedNeeds && !isForeignFaction(entity.faction)) {
-          normalizeHumanNeeds(parkedNeeds, legacyHumanNeeds(parkedNeeds.energy, parkedNeeds.maxEnergy));
+          normalizeHumanNeeds(parkedNeeds, parkedNeeds.needs?.stamina == null
+            ? legacyHumanNeeds(parkedNeeds.energy, parkedNeeds.maxEnergy) : undefined);
           delete parkedNeeds.energy;
           delete parkedNeeds.maxEnergy;
         }
