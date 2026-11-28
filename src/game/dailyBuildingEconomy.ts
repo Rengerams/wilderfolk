@@ -434,6 +434,9 @@ function tickBuildingProduction(
     // settler changed sites; crediting that to the current building would be a guess.
     const siteId = attendance.siteId ?? h.workerBuildingId;
     if (siteId == null || siteId < 0) continue;
+    // Training attendance belongs to the mentor's site but does not occupy a production seat.
+    // A real roster member still contributes even if an old apprenticeship pointer survives.
+    if (h.apprenticeOfId != null && !ctx.buildingById.get(siteId)?.occupants.includes(h.id)) continue;
 
     const current = buildingWorkerStats.get(siteId)
       ?? { count: 0, fatigueSum: 0, workedHoursSum: 0, workedCount: 0, workedIds: new Set<number>() };

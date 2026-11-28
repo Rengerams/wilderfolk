@@ -359,6 +359,42 @@ describe('production pays only witnessed attendance (W-136)', () => {
     expect(afterWarning).toBe(beforeWarning);
   });
 
+  it('records apprenticeship attendance without adding a production seat or ordinary trade XP', () => {
+    const runProduction = (withApprentice: boolean) => {
+      resetSimRng();
+      const { state, worker, farm } = farmDay(false);
+      ensureEntitySkills(worker).farmer = 80;
+      witnessSiteShift(worker, farm, 108, JobType.Farmer);
+      let apprentice: Entity | undefined;
+      if (withApprentice) {
+        apprentice = createEntity(EntityType.Human, worker.x, worker.y, state.nextEntityId++, 400, false, {
+          gender: 'male', name: 'Apprentice', surname: 'Reed', ageYears: 20, colonyDay: 0,
+        });
+        worker.apprenticeId = apprentice.id;
+        apprentice.apprenticeOfId = worker.id;
+        apprentice.workerBuildingId = undefined;
+        ensureEntitySkills(apprentice).farmer = 10;
+        witnessSiteShift(apprentice, farm, 108, JobType.Farmer);
+        state.entities.push(apprentice);
+        rebuildEntityByIdMap(state);
+        invalidateCachedEntityByType(state);
+      }
+      state.tick = tickAtDailyPhase(1, 'production') - 1;
+      setSimSeed(TEST_SEED);
+      gameTick(state, ON_SCREEN);
+      if (apprentice) {
+        expect(apprentice.schedulePresentTicksToday).toBe(108);
+        expect(apprentice.schedulePresentSiteIdToday).toBe(farm.id);
+        expect(farm.occupants).toEqual([worker.id]);
+        expect(readSkill(apprentice, JobType.Farmer)).toBe(10);
+      }
+      return state.economyLedger?.produced.farms ?? 0;
+    };
+    const control = runProduction(false);
+    expect(control).toBeGreaterThan(0);
+    expect(runProduction(true)).toBe(control);
+  });
+
   it('prices and teaches only the workers who attended, never an absent roster member', () => {
     /** One production tick with the rota already settled: the fixture states attendance directly. */
     const runProduction = (withAbsentMaster: boolean) => {

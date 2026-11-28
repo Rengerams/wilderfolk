@@ -169,9 +169,7 @@ export function getHumanActivityStatus(
     const label = labelFor(workplace);
     if (trainingSite) return workReason.code === 'working'
       ? workReason.label : `Away from apprenticeship at ${label}`;
-    if (isAtBuildingReach(entity, workplace) || entity.indoorBuildingId === workplace.id) {
-      return `Working at ${label}`;
-    }
+    if (workReason.code === 'working') return workReason.label;
     return `Away from ${label}`;
   }
 
