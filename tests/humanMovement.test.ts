@@ -1,6 +1,10 @@
+import { COMMUTE_CONFIG, WORK_COMMUTE_RUSH as MAX_COMMUTE_SPEED_MULTIPLIER } from '../src/game/commuteReach';
+import { ROAD_SPEED_MULT } from '../src/game/simulation/movementSteering';
+import { buildingAccessPoint, isAtBuildingReach } from '../src/game/buildingAccess';
+import { human } from '../src/test/factories';
 import { describe, expect, it } from 'vitest';
-import { applyHumanWalkStep, commuteHumanToBuilding, commutePathCacheKey, crowdGatherPosition, enterHumanBuilding, homeStandPosition, humanBuildingTarget, nearestActiveMoonHowler, venueGatherPosition } from '../src/game/simulation/humanMovement';
-import { BuildingType, EntityType } from '../src/game/gameTypes';
+import { applyHumanWalkStep, commuteHumanToBuilding, commutePathCacheKey, crowdGatherPosition, enterHumanBuilding, homeStandPosition, humanBuildingTarget, nearestActiveMoonHowler, venueGatherPosition, rememberHumanWalkTarget } from '../src/game/simulation/humanMovement';
+import { BuildingType, EntityType, TerrainType } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import { isActiveMoonHowler } from '../src/game/moonHowler';
 import { setCurrentPathMap } from '../src/game/pathfinding';
@@ -158,5 +162,91 @@ describe('human movement helpers', () => {
 
     expect(isActiveMoonHowler(activeNear)).toBe(true);
     expect(nearestActiveMoonHowler(target, [inactive, activeFar, activeNear, deadNear])?.id).toBe(4);
+  });
+});
+
+describe('M27 commute movement', () => {
+  it('integrates a pathed commute step exactly once per tick, at the tuned distance', () => {
+    // Vertical river at tile column 20 with a single gap at row 20.
+    setCurrentPathMap(testWorldMap({ tilesX: 40, tilesY: 40, seed: 927, tileType: (x, y) => x === 20 && y !== 20 ? TerrainType.River : undefined }), []);
+    const building = { id: 7, x: 300, y: 150, width: 40, height: 30, completed: true } as Building;
+    const entity = human(3, { x: 55, y: 55, age: 25, gender: 'female', job: undefined });
+    const target = humanBuildingTarget(building, entity.id);
+
+    const speed = 1;
+    const distBefore = Math.hypot(target.x - entity.x, target.y - entity.y);
+    // Urgency speed is bounded and this call uses the ordinary walking pace.
+    const stepPerTick = speed * 0.88;
+
+    const startX = entity.x;
+    const startY = entity.y;
+    expect(commuteHumanToBuilding(entity, building, speed)).toBe(false);
+
+    // The stepper must leave the entity untouched: the loop's apply is the single integration.
+    // (`toBeCloseTo`: the step is set as a velocity and applied by the caller.)
+    expect(entity.x).toBeCloseTo(startX, 6);
+    expect(entity.y).toBeCloseTo(startY, 6);
+
+    entity.x += entity.vx;
+    entity.y += entity.vy;
+    const moved = Math.hypot(entity.x - startX, entity.y - startY);
+
+    // Exactly one step per tick — never two (a stepper that also moves the entity).
+    expect(moved).toBeCloseTo(Math.min(stepPerTick, distBefore), 6);
+  });
+
+  it('caps urgent long-distance walking at the configured maximum', () => {
+    setCurrentPathMap(null, []);
+    const building = { id: 8, x: 600, y: 600, width: 40, height: 30, completed: true } as Building;
+    const entity = human(4, { x: 0, y: 0, age: 25, gender: 'female', job: undefined });
+
+    expect(commuteHumanToBuilding(entity, building, 1, 3.5)).toBe(false);
+    expect(Math.hypot(entity.vx, entity.vy)).toBeCloseTo(
+      MAX_COMMUTE_SPEED_MULTIPLIER * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO,
+      6,
+    );
+  });
+});
+
+describe('commute approach easing (the doorstep stretch)', () => {
+  it('reaches the building without overshooting or exceeding urgent walking pace', () => {
+    // This fixture explicitly has no terrain map. A preceding movement test may
+    // leave another map active; it must not turn these 600px positions into obstacles.
+    setCurrentPathMap(null);
+    const building = { id: 9, x: 600, y: 600, width: 60, height: 48, completed: true } as Building;
+    const entity = human(5, { x: 0, y: 0, age: 25, gender: 'female', job: undefined });
+    const access = buildingAccessPoint(building);
+    entity.x = access.x;
+    entity.y = access.y + 45;
+    entity.vx = 0;
+    entity.vy = 0;
+
+    const steps: number[] = [];
+    let ticks = 0;
+    while (!isAtBuildingReach(entity, building) && ticks < 200) {
+      commuteHumanToBuilding(entity, building, 1.05, 2);
+      steps.push(Math.hypot(entity.vx, entity.vy));
+      entity.x += entity.vx;
+      entity.y += entity.vy;
+      ticks++;
+    }
+
+    // The urgent pace is capped at twice the configured walk speed, and the walker stops outside.
+    expect(isAtBuildingReach(entity, building)).toBe(true);
+    expect(ticks).toBeLessThanOrEqual(30);
+    expect(ticks).toBeGreaterThanOrEqual(1);
+    expect(Math.max(...steps)).toBeLessThanOrEqual(1.05 * MAX_COMMUTE_SPEED_MULTIPLIER);
+    expect(entity.y).toBeGreaterThan(building.y + building.height / 2);
+  });
+});
+
+describe('final road approach', () => {
+  it('does not overshoot a child walk target after applying the road multiplier', () => {
+    setCurrentPathMap(null);
+    const child = human(9001, { x: 100, y: 100, age: 25, gender: 'female', job: undefined, age: 10, isJuvenile: true, vx: 4, vy: 0 });
+    rememberHumanWalkTarget(child, 104, 100, 4, 'child-final-leg');
+    applyHumanWalkStep(child, ROAD_SPEED_MULT);
+    expect(child.x).toBe(104);
+    expect(child.y).toBe(100);
   });
 });

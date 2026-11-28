@@ -463,7 +463,7 @@ export const SIMULATION_DECISIONS = {
       'human.indoorBuildingId',
     ],
     scheduledFrom: 'tickHumans',
-    testFile: 'tests/production.attendancePacing.test.ts, tests/humanTick.hotPathIndexes.test.ts, tests/medium-A-movement.test.ts, tests/humanHunting.ledger.test.ts',
+    testFile: 'tests/production.attendancePacing.test.ts, tests/humanTick.hotPathIndexes.test.ts, tests/humanMovement.test.ts, tests/pathfinding.test.ts, tests/humanHunting.ledger.test.ts',
   },
   dailyRelationships: {
     owner: 'tickLayerDaily at 06:00 — relationships.advanceSocialRelationships (friendships/feuds), simulation/humanRelationships.advanceYouthLove and reconcileCourtships, leaderHouse.syncLeaderHouseResidency (delegated housing); at 23:00 — apprenticeships.advanceApprenticeships after all legal work shifts',

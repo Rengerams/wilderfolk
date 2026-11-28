@@ -253,6 +253,10 @@ Moved all 11 cases from `low-7-sim-geometry` to prey validity, map bounds, milit
 
 Moved all 19 cases from `low-5-combat-ecology` to outgoing raid, weather, storage, economy ledger, statistics, story and rival owner suites plus a dedicated `ecologyStage` suite. Kept warning preferences isolated with their original hooks and reused the storage and earthquake fixtures. All original case counts preserved. CI pending.
 
+## Movement owner consolidation — 2026-11-28
+
+Moved all 26 movement cases to the pathfinding, human movement, hotel checkout and hospital walk suites. Reused the canonical path map fixture, existing hospital entity and ward fixtures, and shared building/human factories for direct movement and lodging. Preserved distinct route reuse, blocked start, negative cache, sealed frontage, treatment cadence and final-step assertions; none were removed as duplicates. CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete
