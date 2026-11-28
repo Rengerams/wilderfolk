@@ -25,9 +25,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4.4.0
+      - uses: actions/checkout@v7.0.1
 
-      - uses: actions/setup-node@v4.4.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '26.12.1'
           cache: npm
@@ -57,17 +57,17 @@ jobs:
         shell: bash
     steps:
       - name: Checkout final A1 code
-        uses: actions/checkout@v4.4.0
+        uses: actions/checkout@v7.0.1
         with:
           path: after
 
       - name: Checkout pre-A1 baseline
-        uses: actions/checkout@v4.4.0
+        uses: actions/checkout@v7.0.1
         with:
           ref: 2a0acd8ac18ee5adb1393ef9b564e75cb44773f4
           path: before
 
-      - uses: actions/setup-node@v4.4.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '26.12.1'
           cache: npm
