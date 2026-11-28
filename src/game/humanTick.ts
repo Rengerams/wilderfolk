@@ -8,6 +8,7 @@ import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import { getChurchStrength, findHumanWorkplace } from './workforce';
 import { resolveShift } from './workAbsence';
+import { isPrisonerInCell } from './prisonShifts';
 import { buildConstructionCrewIndex } from './workforceSummary';
 import { getApprenticeTrainingSite } from './apprenticeships';
 
@@ -223,19 +224,18 @@ function observeHumanSleep(entity: Entity, context: {
   recoveringSleep: boolean;
   scheduledSleep: boolean;
   overrideNightSleep: boolean;
-  hotels: readonly Building[];
   buildingById: Map<number, Building>;
   overnightTrystIds: ReadonlySet<number>;
   tick: number;
 }): { sleeping: boolean; hasHospital: boolean } {
-  const { hourOfDay, previousIndoorBuildingId, onDuty, recoveringSleep, scheduledSleep, overrideNightSleep, hotels, buildingById, overnightTrystIds, tick } = context;
+  const { hourOfDay, previousIndoorBuildingId, onDuty, recoveringSleep, scheduledSleep, overrideNightSleep, buildingById, overnightTrystIds, tick } = context;
   const night = isNightHour(hourOfDay);
   // Soldiers sleeping at their field camp still use the one physiology recovery owner.
   if (entity.raidDeploymentId) return { sleeping: night, hasHospital: false };
   if (entity.prisonBuildingId != null) {
     const cell = buildingById.get(entity.prisonBuildingId);
     return {
-      sleeping: Boolean(cell?.completed && night && Math.hypot(entity.x - cell.x, entity.y - cell.y) <= 18),
+      sleeping: night && isPrisonerInCell(entity, cell, previousIndoorBuildingId),
       hasHospital: false,
     };
   }
@@ -244,9 +244,8 @@ function observeHumanSleep(entity: Entity, context: {
   const home = entity.residenceBuildingId == null ? undefined : buildingById.get(entity.residenceBuildingId);
   const atHome = !!home && isResidenceBuilding(home)
     && previousIndoorBuildingId === home.id;
-  const atHotel = entity.hotelStayBuildingId != null
-    && previousIndoorBuildingId === entity.hotelStayBuildingId
-    && isSettlerLodgingAtHotel(entity, buildingById, hourOfDay, hotels);
+  const atHotel = previousIndoorBuildingId != null
+    && isSettlerLodgingAtHotel(entity, buildingById, hourOfDay, previousIndoorBuildingId);
   const ward = previousIndoorBuildingId == null ? undefined : buildingById.get(previousIndoorBuildingId);
   const hasHospital = isRestingHospitalPatient(entity, ward, tick, previousIndoorBuildingId);
 
@@ -746,7 +745,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const sleep = observeHumanSleep(entity, {
       hourOfDay, previousIndoorBuildingId, onDuty: onDutyForSleep, recoveringSleep,
       scheduledSleep: preShiftSleep.sleep, overrideNightSleep: preShiftSleep.overrideNight,
-      hotels: hotelLodging.hotels, buildingById, overnightTrystIds, tick: state.tick,
+      buildingById, overnightTrystIds, tick: state.tick,
     });
     const sleepingForNeeds = sleep.sleeping;
     const courtshipPresence = {
@@ -796,9 +795,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.vx = 0;
       entity.vy = 0;
       const prison = buildingById.get(entity.prisonBuildingId!);
-      if (prison) {
+      if (prison?.completed && prison.type === BuildingType.Prison) {
         const door = buildingAccessPoint(prison);
-        if (previousIndoorBuildingId === prison.id || isAtBuildingReach(entity, prison)) {
+        if (isPrisonerInCell(entity, prison, previousIndoorBuildingId) || isAtBuildingReach(entity, prison)) {
           enterHumanBuilding(entity, prison);
           entity.x = prison.x;
           entity.y = prison.y;

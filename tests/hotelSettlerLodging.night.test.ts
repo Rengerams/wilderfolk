@@ -161,6 +161,31 @@ afterEach(() => {
 });
 
 describe('settler lodging overnight', () => {
+  it('credits one physiology sleep tick only after confirmed hotel entry', () => {
+    const state = newWorld();
+    const home = house(1, 100, WALKER_Y);
+    const inn = hotel(2, WALKER_X, WALKER_Y);
+    const walker = settler(1, {
+      x: inn.x, y: inn.y, residenceBuildingId: home.id,
+      needs: { nutrition: 80, rest: 40, stamina: 60, severeHungerTicks: 0 },
+    });
+    state.buildings = [home, inn];
+    state.entities = [walker];
+    expect(lodgingHotelFor(walker, state.buildings, state.entities, state.tick)).toBe(inn);
+    expect(isSettlerLodgingAtHotel(walker, state.buildings, 23)).toBe(false);
+    setSimSeed(TEST_SEED);
+    tickHumans(state, contextFor(state, [walker]));
+    expect(walker.needs!.rest).toBeLessThan(40);
+    expect(walker.indoorBuildingId).toBe(inn.id);
+    expect(isSettlerLodgingAtHotel(walker, state.buildings, 23)).toBe(true);
+    const before = { ...walker.needs! };
+    state.tick++;
+    tickHumans(state, contextFor(state, [walker]));
+    expect(walker.needs!.rest - before.rest).toBeCloseTo(100 / (7 * TICKS_PER_HOUR));
+    expect(walker.needs!.stamina - before.stamina).toBeCloseTo(100 / (7 * TICKS_PER_HOUR));
+    expect(walker.energy).toBeCloseTo(walker.maxEnergy * walker.needs!.stamina / 100);
+  });
+
   it('sleeps at a completed hotel with a free bed when the walk home is too long for the night', () => {
     const state = newWorld();
     const walkerX = WALKER_X;

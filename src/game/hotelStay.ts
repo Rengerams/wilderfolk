@@ -2,7 +2,6 @@
  * Hotel lodging — hotels host visitors and, overnight, settlers whose walk home is too long.
  * Lodging is free: the hotelier gains work experience for tending guests.
  */
-import { clearHumanWalkTarget, commuteHumanToBuilding, enterHumanBuilding } from './simulation/humanMovement';
 import { isAtBuildingReach } from './buildingAccess';
 import type { Building, Entity, WorldState } from './gameTypes';
 import {
@@ -11,7 +10,6 @@ import {
   JobType,
 } from './gameTypes';
 import {
-  PER_TICK_RATE_SCALE,
   getColonyDay,
   getHourOfDay,
   isNightHour,
@@ -25,15 +23,12 @@ import { isPlayerHuman } from './playerHuman';
 import { hasResidenceAssignment } from './housingModel';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { addFloatingText, addNotification } from './simEffects';
-import { isOnWalkableRoadAt } from './pathfinding';
-import { applyHumanWalkStep } from './simulation/humanMovement';
 import { logEvent } from './eventLog';
 import { ensureEntityByIdMap } from './entityIndex';
 import { isDialogueBusy } from './humanChat';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { gainSkill } from './skills';
 import { seededRandomForRun, personDayRoll } from './simRng';
-import { ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { isVenueServiceHour } from './venueSchedule';
 
 /** Max sleepers at one staffed hotel overnight; visitors and settlers share beds. */
@@ -41,12 +36,6 @@ export const HOTEL_GUEST_CAPACITY = 8;
 
 /** Walk-home time, in hours, below which a settler never looks for a hotel bed. */
 const LODGING_MIN_COMMUTE_HOURS = 1.5;
-
-/** Distance from a reserved hotel bed, in world px, at which a settler can rest. */
-const HOTEL_LODGING_RADIUS_PX = 40;
-
-/** Energy, per in-game hour of rest, restored by a night in a hotel bed. */
-const HOTEL_REST_ENERGY_PER_HOUR = 0.8;
 
 /** Colony day whose lodging summary has already been announced, so one night reports once. */
 const HOTEL_LODGING_NOTICE_DAY_FLAG = 'hotel_lodging_notice_day';
@@ -211,16 +200,12 @@ export function isSettlerLodgingAtHotel(
   entity: Entity,
   buildings: readonly Building[] | ReadonlyMap<number, Building>,
   hour: number,
-  hotels?: readonly Building[],
+  indoorBuildingId = entity.indoorBuildingId,
 ): boolean {
-  if (!isNightHour(hour) || !needsHotelBed(entity, buildings, hour)) return false;
-  const candidates: Iterable<Building> = hotels
-    ?? ('get' in buildings ? (buildings as ReadonlyMap<number, Building>).values() : buildings);
-  for (const b of candidates) {
-    if (!b.completed || b.type !== BuildingType.Hotel) continue;
-    if (holdsSettlerHotelBed(entity, b.id) && centreDistance(entity, b) <= HOTEL_LODGING_RADIUS_PX) return true;
-  }
-  return false;
+  if (!isNightHour(hour) || indoorBuildingId == null ||
+      !holdsSettlerHotelBed(entity, indoorBuildingId) || !needsHotelBed(entity, buildings, hour)) return false;
+  const hotel = buildingFrom(buildings, indoorBuildingId);
+  return hotel?.completed === true && hotel.type === BuildingType.Hotel;
 }
 
 /** Keep or reserve a free bed before the settler starts walking; otherwise walk home. */
@@ -274,11 +259,6 @@ export function lodgingHotelFor(
     return hotel;
   }
   return undefined;
-}
-
-/** A night of hotel rest restores energy at the same rate for visitors and settling lodgers. */
-function restAtHotel(entity: Entity): void {
-  entity.energy = Math.min(entity.maxEnergy, entity.energy + HOTEL_REST_ENERGY_PER_HOUR * PER_TICK_RATE_SCALE);
 }
 
 function findStaffedHotels(buildings: readonly Building[]): Building[] {
@@ -551,42 +531,6 @@ export function tickHotelLodging(state: WorldState): void {
     );
     logEvent(state, 'trade', `Hotel lodging: ${summary}`);
   }
-}
-
-/** Visitors checked in walk to / rest at the hotel. */
-export function steerVisitorToHotel(
-  visitor: Entity,
-  buildings: readonly Building[] | ReadonlyMap<number, Building>,
-  speed: number,
-): boolean {
-  visitor.indoorBuildingId = undefined;
-  if (visitor.hotelStayBuildingId == null) return false;
-  const hotel = buildingFrom(buildings, visitor.hotelStayBuildingId);
-  if (!hotel?.completed) {
-    clearHumanWalkTarget(visitor);
-    checkoutVisitor(visitor);
-    return false;
-  }
-  if (!isAtBuildingReach(visitor, hotel)) {
-    // The shared approach owner walks to whichever facade is reachable, so a guest is never
-    // stranded outside a doorstep that sits in a sealed pocket. It also records the walk target
-    // the off-screen throttle resumes, so arrival is never decided only on the decision tick.
-    if (commuteHumanToBuilding(visitor, hotel, speed * 0.7)) {
-      clearHumanWalkTarget(visitor);
-      enterHumanBuilding(visitor, hotel);
-      return true;
-    }
-    // The hotel owns this visitor's movement step: humanTick must not apply another one.
-    // Road route pricing and actual motion both use the same completed-road footprint.
-    applyHumanWalkStep(visitor, isOnWalkableRoadAt(visitor.x, visitor.y) ? ROAD_SPEED_MULT : 1);
-    return true;
-  }
-  visitor.vx = 0;
-  visitor.vy = 0;
-  clearHumanWalkTarget(visitor);
-  enterHumanBuilding(visitor, hotel);
-  restAtHotel(visitor);
-  return true;
 }
 
 /** Day-shift hotelier banter when guests are present. */

@@ -97,7 +97,7 @@ function makeFixture(): WorldState {
     visitorEntity(POINTS_AT_A_WITHOUT_BEING_A_GUEST, { hotelStayBuildingId: HOTEL_A }),
     visitorEntity(GUEST_LIVE_B, { hotelStayBuildingId: HOTEL_B }),
     visitorEntity(GUEST_DEAD_B, { alive: false, hotelStayBuildingId: HOTEL_B }),
-    // A pointer to a hotel that does not exist: left alone by this owner (steerVisitorToHotel clears it).
+    // A pointer to a hotel that does not exist: left alone by this roster-repair owner.
     visitorEntity(POINTS_AT_MISSING_HOTEL, { hotelStayBuildingId: MISSING_HOTEL }),
     // A guest of a hotel the tick's list does not contain: nothing may touch either side.
     visitorEntity(GUEST_OF_UNBUILT_HOTEL, { hotelStayBuildingId: HOTEL_UNDER_CONSTRUCTION }),
