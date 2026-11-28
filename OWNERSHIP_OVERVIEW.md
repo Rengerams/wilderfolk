@@ -704,7 +704,8 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 |---|---|
 | `tests/fullYear.integration.test.ts` | `expectFiniteNumber`, `expectNonNegative`, `expectEntitySanity`, `expectBuildingSanity`, `summarizeRelationships` |
 | `tests/infrastructure.acceptance.test.ts` | `at` |
-| `tests/low-7-sim-geometry.test.ts` | `entity`, `militiaWorld`, `realtimeContext`, `keyOf` |
+| `tests/tickLayerRealtime.moonHowler.test.ts` | `realtimeContext` (isolated module-mock realtime gate fixture) |
+| `tests/renderSnapshot.dirtyKey.test.ts` | `keyOf` (loop selection snapshot probe) |
 | `tests/medium-A-movement.test.ts` | `makeMap`, `pixel`, `hotel`, `hospital`, `makeState`, `findQualifyingTreatmentDay` |
 | `tests/pathfinding.test.ts` | `makeMap` |
 | `tests/storageCap.test.ts` | `addCompleted`, `makeWorld`, `addBuilding`, `capsFor` (storage fixtures consolidated from `economyAudit.storageCaps.test.ts`) |
@@ -963,7 +964,7 @@ Named functions and named React callbacks were audited across every complete sou
 | `tests/personalityCareer.inspector.test.ts` | `render`, `renderPanel`, `livingSettler` | Local inspector render fixtures; no runtime decision authority |
 | `tests/careers.workerFit.test.ts` | — | Fixtures come from the shared factories; no file-local named functions |
 | `tests/militiaBalance.chivalrous.test.ts` | `adult`, `settlers`, `strength` | Local militia fixtures; no runtime decision authority |
-| `tests/militiaBalance.prisoners.test.ts` | `adult`, `imprison`, `world`, `settlers` | Local custody fixtures; no runtime decision authority |
+| `tests/militiaBalance.prisoners.test.ts` | `adult`, `imprison`, `world`, `settlers`, `militiaWorld` | Local custody and wall-cap fixtures; no runtime decision authority |
 | `tests/raidDeadline.owner.test.ts` | `undatedRaid` | Local raid fixture for the corrupt undated-deadline payload; no runtime decision authority |
 | `tests/warfare.lifecycle.test.ts` | `colony`, `raid`, `reload` | Local warfare fixtures; no runtime decision authority |
 | `tests/frontierCombat.raidGold.test.ts` | `raidFixture`, `queuedRaid` | Local raid fixtures; no runtime decision authority |

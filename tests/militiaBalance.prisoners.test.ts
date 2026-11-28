@@ -1,3 +1,5 @@
+import { getDefenseStructureBreakdown, getWallSegmentCap } from '../src/game/defenseStructures';
+import { human, finishedBuilding } from '../src/test/factories';
 /**
  * A prisoner is not militia: the adult count, raid fighter pool, casualty pool, chivalrous bonus
  * and combat flash all share `militiaBalance.canBeMustered`.
@@ -7,10 +9,10 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
-import { EntityType, JobType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType, MapSize } from '../src/game/gameTypes';
 import { canBeMustered, computeMilitiaBreakdown } from '../src/game/militiaBalance';
 import { getRaidParticipants } from '../src/game/frontierCombat';
-import type { Entity, WorldState } from '../src/game/gameTypes';
+import type { Entity, VillageForgeState, WorldState } from '../src/game/gameTypes';
 import { genomeFrom } from './helpers/genome';
 
 const FIXTURE_SEED = 20_260_917;
@@ -131,5 +133,54 @@ describe('a prisoner is never mustered', () => {
     expect(src.match(/canBeMustered\(/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
     expect(src).not.toMatch(/isPlayerHuman\(e\) && !e\.isJuvenile/);
     expect(src).not.toMatch(/!e\.alive \|\| !isPlayerHuman\(e\)/);
+  });
+});
+
+describe('L47 wall-cap label', () => {
+  function militiaWorld(forge: VillageForgeState | undefined): WorldState {
+    const state = initGame({ villageName: 'MilitiaCap', size: MapSize.Medium, seed: 11 });
+    state.buildings = Array.from({ length: 10 }, (_, i) =>
+      finishedBuilding(100 + i, BuildingType.Wall, { x: i * 20 }),
+    );
+    state.entities = [human(1, { x: 100, y: 100, job: JobType.Soldier })];
+    state.villageForge = forge;
+    return state;
+  }
+
+  it('reports the cap the forge actually grants (+72 plain, +96 with wall plates)', () => {
+    const plainState = militiaWorld(undefined);
+    const plain = computeMilitiaBreakdown(plainState, plainState.entities);
+    expect(plain.lines.some((line) => line.includes('max +72'))).toBe(true);
+    expect(plain.lines.some((line) => line.includes('max +96'))).toBe(false);
+
+    const platedState = militiaWorld({
+      activeOrder: null,
+      progress: 0,
+      completed: { wall_plates: true },
+    } as VillageForgeState);
+    const plated = computeMilitiaBreakdown(platedState, platedState.entities);
+    expect(plated.lines.some((line) => line.includes('max +96'))).toBe(true);
+    // The label must not understate the bonus the same state actually grants.
+    expect(plated.barricadeStrength).toBeGreaterThan(plain.barricadeStrength);
+  });
+
+  it('reports the same cap in the defense-structure break-down (the L47 twin)', () => {
+    const plainState = militiaWorld(undefined);
+    expect(getWallSegmentCap(plainState)).toBe(72);
+    expect(
+      getDefenseStructureBreakdown(plainState, plainState.buildings).some((line) =>
+        line.includes('max +72'),
+      ),
+    ).toBe(true);
+
+    const platedState = militiaWorld({
+      activeOrder: null,
+      progress: 0,
+      completed: { wall_plates: true },
+    } as VillageForgeState);
+    expect(getWallSegmentCap(platedState)).toBe(96);
+    const lines = getDefenseStructureBreakdown(platedState, platedState.buildings);
+    expect(lines.some((line) => line.includes('max +96'))).toBe(true);
+    expect(lines.some((line) => line.includes('max +72'))).toBe(false);
   });
 });

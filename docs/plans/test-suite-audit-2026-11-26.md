@@ -245,6 +245,10 @@ Moved 31 cases from `phase7.social` and `audit.hotPathScans.equivalence` to rela
 
 Migrated all 26 source-only cases from `uxBatch.interactionWindows` and `uxBatch.onboardingAndLogs` into 15 declarative guard rows, covering all original meaningful source clauses, including the bounded inspector region and three gesture regexes. The old constant-string negative demonstration is superseded by individual clause mutations. Removed obsolete semantic-review references to the onboarding suite; the actual log export behavior suite remains. Verified every new rule against its source baseline. CI pending.
 
+## Geometry and realtime owner consolidation — 2026-11-28
+
+Moved all 11 cases from `low-7-sim-geometry` to prey validity, map bounds, militia, education, housing, family reference cleanup, strip junction, render snapshot and an isolated realtime Moon Howler suite. Reused the shared test fixtures and preserved the original module-mock isolation and direct GameLoop dirty-key probe. No runtime owner changed. CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

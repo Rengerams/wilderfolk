@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeStripJunction, collectStripCenters, connectionsAt } from '../src/game/stripJunction';
+import { analyzeStripJunction, classifyJunction, collectStripCenters, connectionsAt } from '../src/game/stripJunction';
 import { building } from '../src/test/factories';
 import { BuildingType } from '../src/game/gameTypes';
 
@@ -23,5 +23,13 @@ describe('junction geometry agrees with physical footprints', () => {
     const h = [{ x: 0, y: 0, width: 72, height: 12 }];
     const v = [{ x: 0, y: -36, width: 12, height: 72 }];
     expect(analyzeStripJunction(0, 0, h, v, 72).kind).toBe('tee');
+  });
+});
+
+describe('L71 lone-crossing junction', () => {
+  it('classifies a lone H/V crossing by all four physical arms', () => {
+    const conn = connectionsAt(100, 100, [{ x: 100, y: 100 }], [{ x: 100, y: 100 }], 40);
+    expect(conn).toEqual({ north: true, south: true, east: true, west: true });
+    expect(classifyJunction(conn)).toBe('cross');
   });
 });

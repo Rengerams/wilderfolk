@@ -375,3 +375,23 @@ describe('reconcileOrphanedMarriages uses the Moon Howler partner owner rule', (
     expect(wife.relationshipStatus).toBe('single');
   });
 });
+
+describe('L63 clearHuntersTargetingPrey', () => {
+  it('clears hunters that acquired the prey after the tick-start index was built', () => {
+    const indexed = human(1, { type: EntityType.Wolf, job: undefined, x: 100, y: 100, huntTargetId: 7 });
+    const midTick = human(2, { type: EntityType.Wolf, job: undefined, x: 100, y: 100, huntTargetId: 7 });
+    const bystander = deer(3, { x: 100, y: 100 });
+    const entityById = new Map<number, Entity>([
+      [indexed.id, indexed],
+      [midTick.id, midTick],
+      [bystander.id, bystander],
+    ]);
+    const index = new Map<number, Set<number>>([[7, new Set([indexed.id])]]);
+
+    clearHuntersTargetingPrey(7, entityById, index);
+
+    expect(indexed.huntTargetId).toBeUndefined();
+    expect(midTick.huntTargetId).toBeUndefined();
+    expect(index.has(7)).toBe(false);
+  });
+});

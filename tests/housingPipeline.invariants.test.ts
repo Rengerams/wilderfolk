@@ -1,3 +1,5 @@
+import { finishedBuilding } from '../src/test/factories';
+import * as housingPipeline from '../src/game/housingPipeline';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { setSimSeed } from '../src/game/simRng';
 import { createEntity } from '../src/game/entityFactory';
@@ -14,6 +16,7 @@ import { LAYER_ASSIGN_INTERVAL, LAYER_ASSIGN_PHASE_TICK, tickLayerAssign } from 
 import { getOpenBeds, getOpenPlayerBeds, getPopulationGrowthReport } from '../src/game/populationGrowth';
 import {
   assignMissingResidences,
+  auditHousingSharingIssues,
   rebalanceOvercrowdedResidences,
   syncResidenceOccupants,
   tryMoveOutOfFamilyHome,
@@ -626,5 +629,32 @@ describe('housing index and family traversal equivalence', () => {
       expect(groups.every((family) => family.length === 1)).toBe(true);
       expect(new Set(groups.map((family) => family[0].id)).size).toBe(people.length);
     });
+  });
+});
+
+describe('L54 dead family scorer', () => {
+  it('no longer exports the unreachable duplicate shared-residence scorer', () => {
+    expect('pickSharedResidenceForFamily' in housingPipeline).toBe(false);
+  });
+});
+
+describe('L55 housing-sharing audit', () => {
+  it('does not count leader housing as an empty ordinary house', () => {
+    const lone = human(1, { x: 100, y: 100, residenceBuildingId: 1 });
+    const partnerA = human(2, { x: 100, y: 100, residenceBuildingId: 1, partnerId: 3 });
+    const partnerB = human(3, { x: 100, y: 100, residenceBuildingId: 1, partnerId: 2 });
+    const humans = [lone, partnerA, partnerB];
+
+    const sharedHouse = finishedBuilding(1, BuildingType.House, { occupants: [1, 2, 3] });
+    const leaderHouse = finishedBuilding(3, BuildingType.LeaderHouse);
+
+    // Leader housing is not an empty ordinary home, so the settler sharing the family home
+    // is not flagged.
+    expect(auditHousingSharingIssues(humans, [sharedHouse, leaderHouse])).toEqual([]);
+
+    // A genuinely empty player house is still reported.
+    const freePlayerHouse = finishedBuilding(4, BuildingType.House);
+    const issues = auditHousingSharingIssues(humans, [sharedHouse, freePlayerHouse]);
+    expect(issues.some((issue) => issue.includes('1 empty house(s) are available'))).toBe(true);
   });
 });
