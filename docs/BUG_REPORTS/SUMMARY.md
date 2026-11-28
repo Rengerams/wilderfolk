@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-28 — [Children follow working caregivers and stale off-screen routes](../bug_report/2026-11-28-child-follows-working-caregiver-and-stale-route.md):** investigating; PR #245 uses real caregiver duty and commute, cancels cached following before school/bedtime and off-screen movement, and adds focused regression fixtures; current CI and live-save validation pending.
+
 **2026-11-28 — [Settled ecology type import cycle](../bug_report/2026-11-28-ecology-type-import-cycle.md):** investigating; move the shared metrics interface to dependency-free ecologyTypes; strict architecture regression reported red; fresh CI pending.
 
 **2026-11-28 — [Daily RNG rounds up rare mortality](../bug_report/2026-11-28-daily-rng-rare-mortality.md):** investigating; shared day-roll mixer resolves sub-bucket probabilities; deterministic million-roll comparison reproduced inflated mortality; regression CI pending.
