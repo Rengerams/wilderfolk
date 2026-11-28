@@ -6,6 +6,9 @@
     "noEmit": true
   },
   "include": [
-    "scripts/ownership-registry.mjs"
+    "scripts/ownership-registry.mjs",
+    "scripts/build-call-graph.mjs",
+    "scripts/ownership-registry.test.mjs",
+    "scripts/test.mjs"
   ]
 }
