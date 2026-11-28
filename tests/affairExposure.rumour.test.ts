@@ -1,14 +1,16 @@
+import { scenarioSettler, scenarioBuilding, scenarioWorld } from './helpers/humanScenario';
+import { isPlayerHuman } from '../src/game/playerHuman';
 /**
  * Daily affair gossip produces a rumour; the caught-in-the-act verdict stays with
  * `tryExposeCaughtAffair`, the only path that checks for a witness.
  */
-import { personDayRoll } from '../src/game/simRng';
-import { describe, expect, it } from 'vitest';
+import { personDayRoll, resetSimRng } from '../src/game/simRng';
+import { describe, expect, it, afterEach } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
-import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
 import { exposeAffair, tryDailyAffairGossip } from '../src/game/simulation/humanRelationships';
 
@@ -213,5 +215,61 @@ describe('a jailing raises a card the player cannot miss', () => {
     second.state.eventLog = state.eventLog;
     exposeAffair(second.state, second.cheater, second.paramour, 'caught', second.entityById, second.buildings, second.state.entities);
     expect(notice()).toHaveLength(1);
+  });
+});
+
+describe('Witnessed affair exposure regression', () => {
+  afterEach(resetSimRng);
+
+  describe('L62 — caught-in-the-act divorce is the only caught path', () => {
+    /** A colony day whose caught-divorce roll sits above the 0.7 soft chance. */
+    function tickAboveSoftChance(cheaterId: number): number {
+      for (let day = 1; day < 5000; day++) {
+        const tick = day * TICKS_PER_DAY + 10 * TICKS_PER_HOUR;
+        if (personDayRoll(cheaterId, tick, 608) >= 0.7) return tick;
+      }
+      throw new Error('no tick above the soft divorce chance');
+    }
+
+    it('divorces deterministically on "caught" and never on gossip "rumor"', () => {
+      const state = scenarioWorld();
+      const house = scenarioBuilding(2, BuildingType.House);
+      const prison = scenarioBuilding(9, BuildingType.Prison, { x: 300, y: 300 });
+      const cheater = scenarioSettler(10, {
+        gender: 'female',
+        relationshipStatus: 'married',
+        partnerId: 11,
+        prisonBuildingId: prison.id,
+        prisonSentenceCrime: 'scandal',
+        prisonerUntilTick: state.tick + 500,
+      });
+      const spouse = scenarioSettler(11, { gender: 'male', relationshipStatus: 'married', partnerId: 10, residenceBuildingId: house.id });
+      const paramour = scenarioSettler(12, { gender: 'male', relationshipStatus: 'single' });
+      paramour.affairPartnerId = cheater.id;
+      cheater.affairPartnerId = paramour.id;
+      prison.occupants = [cheater.id];
+      state.buildings = [house, prison];
+      state.entities = [cheater, spouse, paramour];
+      state.tick = tickAboveSoftChance(cheater.id);
+
+      const entityById = new Map(state.entities.map((e) => [e.id, e]));
+      const playerHumans = state.entities.filter(isPlayerHuman);
+
+      // Gossip exposure never reaches the divorce rule.
+      exposeAffair(state, cheater, paramour, 'rumor', entityById, state.buildings, playerHumans);
+      expect(spouse.partnerId).toBe(10);
+      expect(cheater.partnerId).toBe(11);
+
+      // A witnessed caught-in-the-act divorce ignores the 0.7 soft chance entirely:
+      // only `tryExposeCaughtAffair` can pass 'caught', and it requires a witness first.
+      expect(personDayRoll(cheater.id, state.tick, 608)).toBeGreaterThanOrEqual(0.7);
+      cheater.affairPartnerId = paramour.id;
+      paramour.affairPartnerId = cheater.id;
+      cheater.scandalCooldownUntilTick = undefined;
+      paramour.scandalCooldownUntilTick = undefined;
+      exposeAffair(state, cheater, paramour, 'caught', entityById, state.buildings, playerHumans);
+      expect(spouse.partnerId).toBeUndefined();
+      expect(cheater.partnerId).toBeUndefined();
+    });
   });
 });

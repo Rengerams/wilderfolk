@@ -1,3 +1,6 @@
+import { HUMAN_SCENARIO_SEED, scenarioSettler, scenarioBuilding, scenarioWorld, scenarioContext } from './helpers/humanScenario';
+import { SOCIAL_STAGGER } from '../src/game/adaptiveSpatialQuery';
+import { NIGHT_START } from '../src/game/daycycleconstants';
 import { buildingAccessPoint } from '../src/game/buildingAccess';
 import { DEFAULT_WORK_SCHEDULE } from '../src/game/workSchedule';
 import { prefersHomeTonightFor } from '../src/game/humanSchedule';
@@ -17,8 +20,8 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { OFFSCREEN_HUMAN_THROTTLE, type SimulationFocus } from '../src/game/simFocus';
-import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
-import { resetSimRng, setSimSeed, personDayRoll } from '../src/game/simRng';
+import { TICKS_PER_DAY, PER_TICK_RATE_SCALE, getHourOfDay } from '../src/game/dayCycleClock';
+import { resetSimRng, setSimSeed, personDayRoll, seededRandomForRun } from '../src/game/simRng';
 import { nearestWalkableWorldPoint } from '../src/game/pathfinding';
 
 const FIXTURE_SEED = 20_261_107;
@@ -666,4 +669,284 @@ describe('one definition of the village anchor', () => {
   });
 
 
+});
+
+describe('Human tick priority and upkeep regressions', () => {
+  afterEach(resetSimRng);
+
+  describe('war-band human upkeep', () => {
+    it('lets an exhausted, expectant soldier recover during seven hours of camp sleep', () => {
+      const state = scenarioWorld();
+      const soldier = scenarioSettler(77, {
+        gender: 'female', pregnant: true, pregnancyProgress: 10, pregnancyDueProgress: 5000,
+        job: JobType.Soldier, raidDeploymentId: 'outgoing_raid_test',
+      });
+      soldier.needs = { nutrition: 80, rest: 0, stamina: 0, severeHungerTicks: 0 };
+      state.entities = [soldier];
+      setSimSeed(HUMAN_SCENARIO_SEED);
+      const start = TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR;
+      for (let offset = 0; offset < 7 * TICKS_PER_HOUR; offset++) {
+        state.tick = start + offset;
+        tickHumans(state, scenarioContext(state, [soldier]));
+      }
+      expect(soldier.needs!.rest).toBeGreaterThan(90);
+      expect(soldier.needs!.stamina).toBeGreaterThan(90);
+      expect(soldier.energy).toBeGreaterThan(90);
+      expect(soldier.raidDeploymentId).toBe('outgoing_raid_test');
+      expect(soldier.pregnant).toBe(true);
+      expect(soldier.indoorBuildingId).toBeUndefined();
+    });
+
+    it('does not count a marching soldier as present or working at the village barracks', () => {
+      const state = scenarioWorld();
+      const barracks = scenarioBuilding(9, BuildingType.Barracks, { x: 0, y: 0 });
+      const soldier = scenarioSettler(78, {
+        job: JobType.Soldier, workerBuildingId: barracks.id, raidDeploymentId: 'outgoing_raid_test',
+      });
+      soldier.needs = { nutrition: 80, rest: 85, stamina: 100, severeHungerTicks: 0 };
+      state.entities = [soldier];
+      state.buildings = [barracks];
+      barracks.occupants = [soldier.id];
+      state.tick = TICKS_PER_DAY + 12 * TICKS_PER_HOUR;
+      tickHumans(state, scenarioContext(state, [soldier]));
+      expect(soldier.scheduleWorkedTicksToday ?? 0).toBe(0);
+      expect(soldier.schedulePresentTicksToday ?? 0).toBe(0);
+      expect(soldier.needs!.stamina).toBeLessThan(100);
+      expect(soldier.raidDeploymentId).toBe('outgoing_raid_test');
+    });
+  });
+
+  describe('nightly recovery keeps priority over spouse-following', () => {
+    it('sends an exhausted, married woman home instead of slowly chasing her spouse', () => {
+      const state = scenarioWorld();
+      const house = scenarioBuilding(97, BuildingType.House, { x: 500, y: 500 });
+      const wife = scenarioSettler(88, {
+        gender: 'female', x: 720, y: 500, partnerId: 89,
+        relationshipStatus: 'married', reproductionCooldown: 0,
+        residenceBuildingId: house.id,
+      });
+      const husband = scenarioSettler(89, {
+        gender: 'male', x: 1110, y: 500, partnerId: wife.id,
+        relationshipStatus: 'married', residenceBuildingId: house.id,
+      });
+      house.occupants = [wife.id, husband.id];
+      state.buildings = [house];
+      state.entities = [wife, husband];
+      state.tick = TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR + 2;
+      wife.needs = {
+        nutrition: 80, rest: 0, stamina: 0, severeHungerTicks: 0,
+        breakUntilRecovered: true,
+        sleepRecoveryUntilTick: state.tick + 8 * TICKS_PER_HOUR,
+      };
+
+      const homeDistance = Math.hypot(wife.x - house.x, wife.y - house.y);
+      const spouseStart = { x: husband.x, y: husband.y };
+      const spouseDistance = Math.hypot(wife.x - spouseStart.x, wife.y - spouseStart.y);
+      tickHumans(state, scenarioContext(state, [wife, husband]));
+
+      // Both settlers move during the tick; compare against the original chase target.
+      expect(Math.hypot(wife.x - house.x, wife.y - house.y)).toBeLessThan(homeDistance);
+      expect(Math.hypot(wife.x - spouseStart.x, wife.y - spouseStart.y)).toBeGreaterThan(spouseDistance);
+      expect(Math.hypot(wife.vx, wife.vy)).toBeGreaterThan(8);
+      expect(wife.needs?.sleepRecoveryUntilTick).toBeGreaterThan(state.tick);
+    });
+  });
+
+  describe('L39 — ambient dialogue cadence', () => {
+    /** Quiet-at-home settler (no commute, no leisure) whose ambient roll passes. */
+    function quietAmbientTick(id: number, aligned: boolean): number {
+      for (let day = 1; day < 5000; day++) {
+        for (let slot = 0; slot < TICKS_PER_DAY; slot++) {
+          const tick = day * TICKS_PER_DAY + slot;
+          const bucket = (tick + id) % SOCIAL_STAGGER;
+          if (aligned ? bucket !== 0 : bucket === 0) continue;
+          if (!aligned && (tick + id) % 3 !== 0) continue;
+          const hour = getHourOfDay(tick);
+          if (hour < 5 || hour >= 20) continue;
+          if (!prefersHomeTonightFor({ startHour: 20, endHour: 23 }, id, tick, hour)) continue;
+          if (seededRandomForRun(`chat-ambient:${id}:${tick}`) > 0.036 * PER_TICK_RATE_SCALE) continue;
+          return tick;
+        }
+      }
+      throw new Error('no ambient dialogue tick found');
+    }
+
+    function runAmbient(tick: number): { speaker: Entity; peer: Entity } {
+      const state = scenarioWorld();
+      state.tick = tick;
+      state.workSchedule = { startHour: 20, endHour: 23 };
+      const speaker = scenarioSettler(1, { x: 0, y: 0, gender: 'male', relationshipStatus: 'married', partnerId: 999 });
+      const peer = scenarioSettler(2, { x: 10, y: 0, gender: 'female', relationshipStatus: 'married', partnerId: 998 });
+      state.entities = [speaker, peer];
+      setSimSeed(HUMAN_SCENARIO_SEED);
+      tickHumans(state, scenarioContext(state, [speaker, peer]));
+      return { speaker, peer };
+    }
+
+    /** The ambient roll for the observed settler must actually pass on the chosen tick. */
+    function expectRollPasses(id: number, tick: number): void {
+      setSimSeed(HUMAN_SCENARIO_SEED);
+      expect(seededRandomForRun(`chat-ambient:${id}:${tick}`)).toBeLessThanOrEqual(0.036 * PER_TICK_RATE_SCALE);
+    }
+
+    it('never rolls ambient dialogue on a tick the neighbour scan skips', () => {
+      setSimSeed(HUMAN_SCENARIO_SEED);
+      const tick = quietAmbientTick(1, false);
+      expect((tick + 1) % SOCIAL_STAGGER).not.toBe(0);
+      expect((tick + 1) % 3).toBe(0);
+      expectRollPasses(1, tick);
+
+      const { speaker } = runAmbient(tick);
+
+      // An ambient roll on a bucket the neighbour scan rejects must not speak a solo line.
+      expect(speaker.chatPhrase).toBeUndefined();
+      expect(speaker.chatDialogueSessionKey).toBeUndefined();
+    });
+
+    it('still pairs with a nearby settler on the aligned bucket', () => {
+      setSimSeed(HUMAN_SCENARIO_SEED);
+      const tick = quietAmbientTick(1, true);
+      expect((tick + 1) % SOCIAL_STAGGER).toBe(0);
+      expectRollPasses(1, tick);
+
+      const { speaker, peer } = runAmbient(tick);
+
+      expect(speaker.chatPartnerId).toBe(peer.id);
+    });
+  });
+
+  describe('L40 — prisoner upkeep', () => {
+    it('advances a jailed settler\'s dialogue timer instead of freezing it', () => {
+      const state = scenarioWorld();
+      const prison = scenarioBuilding(9, BuildingType.Prison, { x: 100, y: 100 });
+      state.buildings = [prison];
+      const prisoner = scenarioSettler(1, {
+        x: 100,
+        y: 100,
+        prisonBuildingId: prison.id,
+        chatPhrase: 'Let me out.',
+        chatTicks: 6,
+      });
+      prison.occupants = [prisoner.id];
+      state.entities = [prisoner];
+
+      tickHumans(state, scenarioContext(state, [prisoner]));
+
+      // A jailed settler still advances the chat timer.
+      expect(prisoner.chatTicks).toBe(5);
+      expect(prisoner.chatPhrase).toBe('Let me out.');
+    });
+  });
+
+  describe('L41 — realtime affair gate honours the colony work schedule', () => {
+    /** First in-game noon that keeps the settler home on the evening work window. */
+    function noonTick(): number {
+      for (let day = 1; day < 5000; day++) {
+        const tick = day * TICKS_PER_DAY + 12 * TICKS_PER_HOUR;
+        if (prefersHomeTonightFor({ startHour: 20, endHour: 23 }, 1, tick, 12)) return tick;
+      }
+      throw new Error('no noon tick found');
+    }
+
+    function affairScene(tick: number, startHour: number, endHour: number): Entity {
+      const state = scenarioWorld();
+      state.tick = tick;
+      state.worldMap = null;
+      state.workSchedule = { startHour, endHour };
+      const farm = scenarioBuilding(1, BuildingType.Farm, { x: 180, y: 400 });
+      const farmHand = scenarioSettler(1, {
+        x: 400,
+        y: 400,
+        gender: 'male',
+        relationshipStatus: 'married',
+        partnerId: 999, // absent spouse: the gate only depends on the schedule
+        workerBuildingId: farm.id,
+        job: JobType.Farmer,
+        occupation: 'farmer',
+      });
+      farm.occupants = [farmHand.id];
+      const lover = scenarioSettler(2, {
+        x: 600,
+        y: 400,
+        gender: 'female',
+        relationshipStatus: 'married',
+        partnerId: 998,
+        affairPartnerId: farmHand.id,
+      });
+      farmHand.affairPartnerId = lover.id;
+      state.buildings = [farm];
+      state.entities = [farmHand, lover];
+      setSimSeed(HUMAN_SCENARIO_SEED);
+      tickHumans(state, scenarioContext(state, [farmHand, lover]));
+      return farmHand;
+    }
+
+    it('does not open the affair gate when the schedule excludes the hour', () => {
+      setSimSeed(HUMAN_SCENARIO_SEED);
+      const tick = noonTick();
+
+      // The player's 20:00–23:00 schedule excludes noon, so the affair gate stays shut.
+      const farmHand = affairScene(tick, 20, 23);
+
+      expect(farmHand.vx).toBe(0);
+      expect(farmHand.vy).toBe(0);
+    });
+
+    it('keeps the work commute ahead of an affair during the scheduled shift', () => {
+      setSimSeed(HUMAN_SCENARIO_SEED);
+      const tick = noonTick();
+      const farmHand = affairScene(tick, 7, 16);
+
+      // The farm is to the left and the lover to the right: work must win at noon.
+      expect(farmHand.vx).toBeLessThan(0);
+    });
+  });
+
+  describe('L42 — company-following leisure replaces stale velocity', () => {
+    /** Ticks whose deterministic rolls put the settler on the spouse-following branch. */
+    function companyFollowTicks(): number[] {
+      const ticks: number[] = [];
+      for (let day = 1; day < 5000 && ticks.length < 8; day++) {
+        const tick = day * TICKS_PER_DAY + 15 * TICKS_PER_HOUR;
+        const leisureSlotPeriod = 80 * TICKS_PER_HOUR;
+        const leisureSlot = Math.floor(tick / leisureSlotPeriod + 1 * 3); // entity id 1
+        if (personDayRoll(1, tick, 510 + leisureSlot) >= 0.4) continue;
+        if (personDayRoll(1, tick, 520 + leisureSlot) >= 0.78) continue;
+        ticks.push(tick);
+      }
+      if (ticks.length === 0) throw new Error('no company-following leisure tick found');
+      return ticks;
+    }
+
+    function runCompanyFollow(fixture: WorldState, tick: number, previousVx: number): number {
+      const state = structuredClone(fixture);
+      state.tick = tick;
+      const speaker = scenarioSettler(1, {
+        x: 400,
+        y: 400,
+        vx: previousVx,
+        gender: 'male',
+        relationshipStatus: 'married',
+        partnerId: 2,
+      });
+      const spouse = scenarioSettler(2, { x: 600, y: 400, gender: 'female', relationshipStatus: 'married', partnerId: 1 });
+      state.entities = [speaker, spouse];
+      setSimSeed(HUMAN_SCENARIO_SEED);
+      tickHumans(state, scenarioContext(state, [speaker, spouse]));
+      return speaker.vx;
+    }
+
+    it('routes toward company without blending stale velocity', () => {
+      const fixture = scenarioWorld();
+      fixture.worldMap = null;
+      setSimSeed(HUMAN_SCENARIO_SEED);
+      const routes = companyFollowTicks().map((tick) => ({
+        fresh: runCompanyFollow(fixture, tick, 0),
+        stale: runCompanyFollow(fixture, tick, -20),
+      }));
+      const towardCompany = routes.filter(({ fresh }) => fresh > 0);
+      expect(towardCompany.length).toBeGreaterThan(0);
+      expect(towardCompany.some(({ fresh, stale }) => Math.abs(fresh - stale) < 1e-9)).toBe(true);
+    });
+  });
 });

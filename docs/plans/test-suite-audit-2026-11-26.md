@@ -285,12 +285,15 @@ Moved all 26 remaining cases from `audit2026-09-21.regression` into their nine e
 
 Moved all 18 remaining cases from `low-2-events-defense` into five existing owner suites: yearly/frontier events, visitor trade, diplomacy, militia and prison shifts. Reused the complete shared human and finished-building factories in place of partial duplicate literals; preserved assertions and scoped RNG resets. No gameplay changes; CI pending.
 
+## Human regression suite consolidation — 2026-11-28
+
+Moved all 20 remaining cases from `low-8-humans` into seven owner suites. Shared the existing generated-colony scenario fixtures without changing their initial conditions. All 50 original audit-batch files are now consolidated; the original 51-file headline was an overcount. No runtime cases removed on the basis of presumed overlap. CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete
    the ones a behavioral case in the same file already covers). Highest value, lowest risk.
-2. **Merge the 50 audit-batch files into their subject owners.** Keep every case that names a rule;
-   drop the ones that only restate a now-canonical implementation.
+2. **Completed: all 50 audit-batch files consolidated.** Verify the complete gate before recording the final measured inventory and runtime.
 3. **Strengthen the 11 assertion-light files** to assert values, or fold them into the stronger file
    that already covers the owner.
 4. **Leave the behavioral files alone.** They are the suite's evidence.

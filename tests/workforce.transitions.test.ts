@@ -1,10 +1,13 @@
+import { scenarioSettler, scenarioBuilding, scenarioWorld } from './helpers/humanScenario';
+import { removeStaffWorkerFromBuilding } from '../src/game/buildingStaffingActions';
+import { resetSimRng } from '../src/game/simRng';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycycleconstants';
 /**
  * `workforce.ts` owns assignment: `workerBuildingId`, workplace `occupants`, `occupation` and `job`
  * must agree after every transition, no living human may hold two workplaces, and a leader keeps office.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
@@ -969,6 +972,67 @@ describe('workplace roster index equivalence', () => {
       // A second completed Farm accepts its own roster; an unfinished site remains untouched.
       expect(byId.get(secondFarm.id)).toEqual([humans[5]!.id]);
       expect(byId.get(site.id)).toEqual([]);
+    });
+  });
+});
+
+describe('Staffing command and custody regressions', () => {
+  afterEach(resetSimRng);
+
+  describe('L8 — removal targets the settler\'s own building', () => {
+    it('leaves a settler who works elsewhere assigned to their real workplace', () => {
+      const state = scenarioWorld();
+      const church = scenarioBuilding(1, BuildingType.Church);
+      const school = scenarioBuilding(2, BuildingType.School);
+      state.buildings = [church, school];
+      const worker = scenarioSettler(10, { workerBuildingId: church.id, job: JobType.Priest, occupation: 'priest' });
+      church.occupants = [worker.id];
+      state.entities = [worker];
+
+      const next = removeStaffWorkerFromBuilding(state, school.id, worker.id);
+
+      // The command names the school, so the priest's church job and occupant slot must survive.
+      const nextWorker = next.entities.find((e) => e.id === worker.id)!;
+      expect(nextWorker.workerBuildingId).toBe(church.id);
+      expect(next.buildings.find((b) => b.id === church.id)!.occupants).toContain(worker.id);
+    });
+
+    it('refuses to remove an existing job and leaves normalization to the workforce owner', () => {
+      const state = scenarioWorld();
+      const church = scenarioBuilding(1, BuildingType.Church, { staffingMode: 'manual' });
+      state.buildings = [church];
+      const worker = scenarioSettler(10, { workerBuildingId: church.id, job: JobType.Priest, occupation: 'priest' });
+      church.occupants = [worker.id];
+      state.entities = [worker];
+
+      const next = removeStaffWorkerFromBuilding(state, church.id, worker.id);
+      expect(next).toBe(state);
+      expect(church.staffingMode).toBe('manual');
+      assignMissingWorkers(next.entities, next.buildings, next, true);
+
+      const nextWorker = next.entities.find((e) => e.id === worker.id)!;
+      expect(nextWorker.workerBuildingId).toBe(church.id);
+      expect(next.buildings.find((b) => b.id === church.id)!.occupants).toContain(worker.id);
+      expect(next.buildings.find((b) => b.id === church.id)!.staffingMode).toBe('auto');
+    });
+  });
+
+  describe('L78 — imprisoned settlers leave construction crews', () => {
+    it('detaches a prisoner from the crew it was working', () => {
+      const state = scenarioWorld();
+      const site = scenarioBuilding(1, BuildingType.House, { completed: false, occupants: [10] });
+      const prison = scenarioBuilding(9, BuildingType.Prison, { x: 300, y: 300 });
+      const prisoner = scenarioSettler(10, { prisonBuildingId: prison.id, workerBuildingId: undefined });
+      prison.occupants = [prisoner.id];
+      state.buildings = [site, prison];
+      state.entities = [prisoner];
+
+      prepareWorkforce([prisoner], state.buildings);
+
+      // A prisoner leaves the construction crew's occupant list, not just the job link.
+      expect(site.occupants).not.toContain(prisoner.id);
+      expect(prisoner.prisonBuildingId).toBe(prison.id);
+      expect(prison.occupants).toContain(prisoner.id);
     });
   });
 });

@@ -1,11 +1,14 @@
+import { scenarioSettler, scenarioBuilding, scenarioWorld } from './helpers/humanScenario';
+import { resetSimRng } from '../src/game/simRng';
+import { DAYS_PER_YEAR } from '../src/game/dayCycleClock';
 /**
  * Amicable divorce (no affair needed).
  * Baseline: real ~7.5‰ marriages/year scaled ×10 for game pace (7.5%/year).
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, afterEach } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
-import { MARRIAGE_DAILY_AMICABLE_DIVORCE_CHANCE, tryDailyAmicableDivorce } from '../src/game/simulation/humanRelationships';
+import { MARRIAGE_DAILY_AMICABLE_DIVORCE_CHANCE, tryDailyAmicableDivorce, MARRIAGE_ANNUAL_AMICABLE_DIVORCE_RATE } from '../src/game/simulation/humanRelationships';
 import { getChildCustodian } from '../src/game/housingModel';
 
 function human(id: number, gender: 'male' | 'female', overrides: Partial<Entity> = {}): Entity {
@@ -139,5 +142,36 @@ describe('amicable divorce', () => {
   it('daily chance matches 7.5% per game year', () => {
     const yearDays = 360;
     expect(MARRIAGE_DAILY_AMICABLE_DIVORCE_CHANCE).toBeCloseTo(0.075 / yearDays, 6);
+  });
+});
+
+describe('Amicable divorce rate boundary', () => {
+  afterEach(resetSimRng);
+
+  describe('L61 — amicable-divorce rate has one definition', () => {
+    function runDivorce(roll: number): { husband: Entity; wife: Entity } {
+      const state = scenarioWorld();
+      const house = scenarioBuilding(1, BuildingType.House);
+      const husband = scenarioSettler(1, { gender: 'male', relationshipStatus: 'married', partnerId: 2, residenceBuildingId: house.id });
+      const wife = scenarioSettler(2, { gender: 'female', relationshipStatus: 'married', partnerId: 1, residenceBuildingId: house.id });
+      state.buildings = [house];
+      state.entities = [husband, wife];
+      const villagers = [husband, wife];
+      tryDailyAmicableDivorce(state, husband, new Map(villagers.map((e) => [e.id, e])), state.buildings, villagers, () => roll);
+      return { husband, wife };
+    }
+
+    it('drives the daily rule from the surviving exported annual rate', () => {
+      const daily = MARRIAGE_ANNUAL_AMICABLE_DIVORCE_RATE / DAYS_PER_YEAR;
+
+      // The daily rule derives from the exported annual rate, so a roll just under it still divorces.
+      const divorced = runDivorce(daily - 1e-9);
+      expect(divorced.husband.partnerId).toBeUndefined();
+      expect(divorced.wife.partnerId).toBeUndefined();
+
+      const kept = runDivorce(daily + 1e-9);
+      expect(kept.husband.partnerId).toBe(2);
+      expect(kept.wife.partnerId).toBe(1);
+    });
   });
 });

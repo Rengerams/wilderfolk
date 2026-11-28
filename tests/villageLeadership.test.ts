@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { scenarioSettler, scenarioWorld } from './helpers/humanScenario';
+import { resetSimRng } from '../src/game/simRng';
+import { describe, expect, it, afterEach } from 'vitest';
 import { DAYS_PER_YEAR, TICKS_PER_DAY, getColonyDay, killHuman, setHumanBirthFromAge } from '../src/game/dayCycle';
 import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
 import {
@@ -960,5 +962,37 @@ describe('election gather slot (N-5)', () => {
     for (const id of [0, 1, 2, 41, 70]) {
       expect(getElectionGatherTarget(empty, id)).toEqual(legacyGetElectionGatherTarget(empty, id));
     }
+  });
+});
+
+describe('Leader load reconciliation', () => {
+  afterEach(resetSimRng);
+
+  describe('L75 — load reconciliation drops a dangling leader id', () => {
+    it('clears the dead leader id and still schedules the vacancy election', () => {
+      const state = scenarioWorld();
+      const dead = scenarioSettler(1, { alive: false, age: 60 });
+      state.entities = [dead];
+      state.villageLeaderId = dead.id;
+      state.lastElectionYear = 1;
+      state.pendingElectionYear = null;
+
+      validateVillageLeaderOnLoad(state);
+
+      expect(state.villageLeaderId).toBeNull();
+      expect(state.pendingElectionYear).not.toBeNull();
+    });
+
+    it('keeps a jailed leader in office (office survives prison)', () => {
+      const state = scenarioWorld();
+      const leader = scenarioSettler(1, { prisonBuildingId: 9, occupation: 'leader' });
+      state.entities = [leader];
+      state.villageLeaderId = leader.id;
+      state.lastElectionYear = 1;
+
+      validateVillageLeaderOnLoad(state);
+
+      expect(state.villageLeaderId).toBe(leader.id);
+    });
   });
 });

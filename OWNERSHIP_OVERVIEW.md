@@ -576,7 +576,7 @@ exports it.
 | Family tree window | `components/FamilyTreeWindow.tsx` | UI (read-only; the data owner is `game/familyTree.buildFullFamilyTree`) | `FamilyTreeWindow` |
 | Test map fixtures | `src/test/worldMapFixtures.ts` | test tier only — never in the app build | `testWorldMap`, `blockedColumn` |
 | Child leisure regression fixtures | `tests/humanLeisureBehavior.test.ts` | test tier only | `playerChild`, `childFixture`, `playTickFor`, `crowdedSteeringTick`, `tickChild`, local `lookup` (resolve the parent fixture by ID) — exercise saved daily choices, caregiver work-window transitions, replacement and bounded scans without introducing another gameplay owner. |
-| Company-following movement fixture | `tests/low-8-humans.test.ts` | test tier only | `runCompanyFollow` — compare velocities in independently cloned worlds. |
+| Company-following movement fixture | `tests/humanTick.hotPathIndexes.test.ts` | test tier only | `runCompanyFollow` — compare velocities in independently cloned worlds. |
 | Rival growth fixture | `tests/frontierCombat.hostility.test.ts` | test tier only | `growWorld` — advances strategic population while retiring legacy local actors. |
 | Full-year integration diagnostics | `tests/fullYear.integration.test.ts` | test tier only | `runFullYear`, `printCheckpoint`, `writeFullYearDebug`, `fullYearEntitySnapshot`, `fullYearResidentRecords`, `printFullYearFailure`, `traceFullYearTick` — observe lifecycle and housing changes without repairing simulation state. |
 | Housing equivalence fixtures | `tests/housingPipeline.invariants.test.ts` | test tier only | `finishedBuilding`, `settler`, `referenceRebalanceOvercrowdedResidences`, `residenceAssignmentById`, `occupantLists`, `newWorld` — local differential fixture and independent oracle. |
@@ -720,7 +720,7 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/renderer.motionAndHover.test.ts` | `sharedModule`, `recorder`, `snapshot`, `completedBuilding`, `expectedPadFill` (isolated motion and fallback fixtures) |
 | `tests/renderer.frameOwnership.test.ts` | `snapshot`, `minimalWorld`, `camera`, `blacksmithBuilding`, `gradientCounter`, `recordingContext`, `atGhost`, `preFixKey` (frame cache and live placement fixtures) |
 | `tests/saveLoad.outcomeReasons.test.ts` | `stubSlot`, `memoryStorage`, `realPayload`, `buildPayload`, `payload` (shared load-contract fixtures) |
-| `tests/humanTick.hotPathIndexes.test.ts` | `building`, `settler`, `visitorGroup`, `festivalFixture`, `simContext`, `countedBuildings`, `runTick`, `baseSettler`, `throttleSettler`, `house`, `nightWorld`, `contextFor`, `positionOf`, `canonicalCampCenter`, `anchorFixture`, `pickId`, `restingSettlerWorld`, `townHallWorld` (shared tick fixtures, off-screen throttle and camp-anchor regressions) |
+| `tests/humanTick.hotPathIndexes.test.ts` | `building`, `settler`, `visitorGroup`, `festivalFixture`, `simContext`, `countedBuildings`, `runTick`, `baseSettler`, `throttleSettler`, `house`, `nightWorld`, `contextFor`, `positionOf`, `canonicalCampCenter`, `anchorFixture`, `pickId`, `restingSettlerWorld`, `townHallWorld`, `quietAmbientTick`, `runAmbient`, `expectRollPasses`, `noonTick`, `affairScene`, `companyFollowTicks`, `runCompanyFollow` (shared tick fixtures, off-screen throttle and camp-anchor regressions) |
 | `tests/moonHowler.test.ts` | `adult` (scoped six-adult per-moon regression fixture) |
 | `tests/simPrep.rollbackFields.test.ts` | `settlerFixture` (mutable state rollback) |
 | `tests/visitorTradePanel.eligibility.test.ts` | `traderWorld`, `trader`, `tradeCommandWorld` (stone trade and command fixtures) |
@@ -914,7 +914,11 @@ Named functions and named React callbacks audited across the complete source and
 | `tests/saveLoad.a1CalendarRepair.test.ts` | `roundTrip` | Real save/load fixture for one festival repair and Year-0 election sentinel |
 | `tests/gameLoop.test.ts` | `makeWorldForEntities`, `settleLoop`, `makeFakeHost`, `fakeHostReturning`, `loopWithWorker`, `msPerDay`, `humanEntity`, `makeWorldSessionSwap`, `fakeHost`, `liveLoop`, `building`, `makeWorldSpeed`, `loopWithStaleSnapshot`, `frame` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
 | `tests/longRunColony.integration.test.ts` | `observeRun`, `verdictFor` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
-| `tests/low-8-humans.test.ts` | `baseSettler`, `settler`, `building`, `newWorld`, `contextFor`, `quietAmbientTick`, `runAmbient`, `expectRollPasses`, `noonTick`, `affairScene`, `companyFollowTicks`, `caughtScandal`, `scandalWorld`, `runDivorce`, `tickAboveSoftChance`, `requestWorld` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
+| `tests/helpers/humanScenario.ts` | `baseSettler`, `scenarioSettler`, `scenarioBuilding`, `scenarioWorld`, `scenarioContext` | Shared generated-colony fixtures for integrated human decision regressions; no runtime decision authority |
+| `tests/divorceHousing.custody.test.ts` | `caughtScandal`, `scandalWorld` (imprisoned custodian scenario) |
+| `tests/amicableDivorce.test.ts` | `runDivorce` (annual-to-daily rate boundary) |
+| `tests/affairExposure.rumour.test.ts` | `tickAboveSoftChance` (witnessed exposure fixture) |
+| `tests/villageRequests.test.ts` | `requestWorld` (request eligibility and virtual-player parity) |
 | `tests/prisonFestivalWorkContinuity.test.ts` | `human`, `building`, `worldState`, `prisonWorld`, `festivalWorkWorld`, `churchWorld` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
 | `tests/residency.dayBoundary.budget.test.ts` | `pulseForUnit`, `lcg`, `largeColony`, `playerSettlers`, `playerResidences`, `assignment`, `housingViolations`, `settled`, `runPulses`, `parkBeforeDayBoundary` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
 | `tests/saveLoad.commuteGrid.test.ts` | `flatMap` | Local test fixtures, assertions or harness adapters only; no runtime decision authority |
