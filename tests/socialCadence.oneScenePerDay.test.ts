@@ -244,7 +244,7 @@ describe('social motives respect needs, mutual relationships and completed erran
     person.workerBuildingId = undefined;
     person.pregnant = false;
     person.griefUntilTick = 0;
-    const near = { id: 10001, type: BuildingType.Market, completed: true, x: person.x + 10, y: person.y, occupants: [] } as Building;
+    const near = { id: 10001, type: BuildingType.Market, completed: true, x: person.x + 10, y: person.y, occupants: [], width: 40, height: 30, level: 1, constructionProgress: 100, health: 100, maxHealth: 100 } as Building;
     const far = { ...near, id: 10002, x: person.x + 100 };
     let found = false;
     for (let day = 1; day < 100; day++) {
