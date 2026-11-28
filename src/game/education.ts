@@ -28,11 +28,45 @@ export const SCHOOL_FULL_EDUCATION_DAYS = 150;
 export const SCHOOL_MAX_CHILDREN = 20;
 
 export const SCHOOL_START_HOUR = 9;
-const SCHOOL_END_HOUR = 15;
+export const SCHOOL_END_HOUR = 15;
 export const SCHOOL_HOURS_PER_DAY = SCHOOL_END_HOUR - SCHOOL_START_HOUR;
 
 export function isSchoolTime(tick: number, hourOfDay: number): boolean {
   return isWorkDay(tick) && hourOfDay >= SCHOOL_START_HOUR && hourOfDay < SCHOOL_END_HOUR;
+}
+
+/** The one age-band rule for enrollment and its read-only projections. */
+export function isSchoolAge(child: Entity): boolean {
+  return child.alive && isPlayerHuman(child)
+    && child.age >= SCHOOL_MIN_AGE && child.age < HUMAN_ADULT_MIN_AGE;
+}
+
+/** Only an actual persisted seat is a duty destination, not a speculative roster match. */
+export function getAssignedSchool(child: Entity, buildings: readonly Building[]): Building | undefined {
+  if (!isSchoolAge(child)) return undefined;
+  return findStaffedSchools(buildings).find((school) => school.id === child.schoolBuildingId);
+}
+
+/** School owns the class and pre-class commute window; movement only executes it. */
+export function resolveSchoolSchedule(
+  child: Entity,
+  school: Building | undefined,
+  home: Building | undefined,
+  tick: number,
+  hourOfDay: number,
+  walkSpeed = SPECIES_CONFIG[EntityType.Human].speed,
+): { onShift: boolean; commuteDue: boolean } {
+  if (!school || !isSchoolAge(child)) return { onShift: false, commuteDue: false };
+  const onShift = isSchoolTime(tick, hourOfDay);
+  if (!isWorkDay(tick) || hourOfDay >= SCHOOL_START_HOUR
+    || hourOfDay < SCHOOL_START_HOUR - MAX_ASSIGNABLE_COMMUTE_HOURS) {
+    return { onShift, commuteDue: false };
+  }
+  const quote = quoteBuildingCommute(home ?? child, school, walkSpeed);
+  const leadHours = quote.status === 'priced'
+    ? Math.min(MAX_ASSIGNABLE_COMMUTE_HOURS, Math.ceil(quote.leadHours))
+    : MAX_ASSIGNABLE_COMMUTE_HOURS;
+  return { onShift, commuteDue: hourOfDay >= SCHOOL_START_HOUR - leadHours };
 }
 
 /** Attend at least half of the six-hour classroom day to earn one school day. */
@@ -132,9 +166,7 @@ export function syncSchoolAssignments(
   const assignments = new Map<number, Building>();
   const staffed = new Map(findStaffedSchools(buildings).map((school) => [school.id, school]));
   const reserved = new Map<number, number>();
-  const children = humans.filter((e) =>
-    e.alive && isPlayerHuman(e) && e.age < HUMAN_ADULT_MIN_AGE && e.age >= SCHOOL_MIN_AGE,
-  );
+  const children = humans.filter(isSchoolAge);
   // A settler who is no longer a pupil holds no seat: released here, where it is assigned, so no
   // later reader (school rosters, housing commute scoring) walks a graduate to school.
   const pupilIds = new Set(children.map((child) => child.id));
@@ -226,9 +258,7 @@ export function buildSchoolRosters(
 ): Map<number, SchoolRosterEntry> {
   const rosters = new Map<number, SchoolRosterEntry>();
   const schools = new Map(findStaffedSchools(buildings).map((school) => [school.id, school]));
-  const children = humans.filter((e) =>
-    e.alive && isPlayerHuman(e) && e.age < HUMAN_ADULT_MIN_AGE && e.age >= SCHOOL_MIN_AGE,
-  );
+  const children = humans.filter(isSchoolAge);
   const reserved = new Map<number, number>();
   const assigned = new Map<number, Building>();
   for (const child of children) {
@@ -244,7 +274,6 @@ export function buildSchoolRosters(
     assigned.set(child.id, school);
     reserved.set(school.id, (reserved.get(school.id) ?? 0) + 1);
   }
-  const classHours = isSchoolTime(tick, hourOfDay);
   const byId = new Map(humans.map((human) => [human.id, human]));
   const teacherPresent = new Map<number, boolean>();
   for (const [id, school] of schools) teacherPresent.set(id, hasTeacherPresent(school, byId));
@@ -258,7 +287,7 @@ export function buildSchoolRosters(
     }
     entry.pupils.push(child);
     // A class needs its teacher there — the same presence the school-day credit requires.
-    if (classHours && teacherPresent.get(school.id) && isChildAtSchool(child, school)) {
+    if (isAttendingSchool(child, school, hourOfDay, teacherPresent.get(school.id) === true, tick)) {
       entry.inClassNow.push(child);
     }
   }
@@ -401,18 +430,26 @@ export function creditChildSchoolDay(child: Entity): void {
   child.schoolTicksToday = 0;
 }
 
+/** One witnessed classroom attendance rule for credit, schoolyard events and projections. */
+export function isAttendingSchool(
+  child: Entity,
+  school: Building | undefined,
+  hourOfDay: number,
+  teacherPresent: boolean,
+  tick: number,
+): boolean {
+  return school != null && isSchoolAge(child)
+    && teacherPresent && isSchoolTime(tick, hourOfDay) && isChildAtSchool(child, school);
+}
+
 export function recordChildSchoolTick(
   child: Entity,
   school: Building | undefined,
   hourOfDay: number,
   teacherPresent: boolean,
-  tick?: number,
+  tick: number,
 ): void {
-  // Attendance counts only during the weekday 09:00–15:00 shift, with the teacher there.
-  const inSchoolHours = tick != null
-    ? isSchoolTime(tick, hourOfDay)
-    : hourOfDay >= SCHOOL_START_HOUR && hourOfDay < SCHOOL_END_HOUR;
-  if (!school || !teacherPresent || !inSchoolHours || !isChildAtSchool(child, school)) return;
+  if (!isAttendingSchool(child, school, hourOfDay, teacherPresent, tick)) return;
   child.schoolTicksToday = (child.schoolTicksToday ?? 0) + 1;
 }
 

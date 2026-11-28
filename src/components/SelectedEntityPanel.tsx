@@ -160,7 +160,7 @@ export default function SelectedEntityPanel({
               {activityProjection.blockedReason && (
                 <p className="mt-1 rounded bg-rose-950/50 px-1.5 py-1 text-rose-200">Blocked: {activityProjection.blockedReason}</p>
               )}
-              {activityProjection.workReason.code !== 'working' && (
+              {activityProjection.workReason.code !== 'working' && (!entity.isJuvenile || ['going-to-hospital', 'in-hospital', 'in-prison'].includes(activityProjection.workReason.code)) && (
                 <p className="mt-1 rounded bg-amber-950/50 px-1.5 py-1 text-amber-100">
                   🔨 {activityProjection.workReason.label}
                 </p>

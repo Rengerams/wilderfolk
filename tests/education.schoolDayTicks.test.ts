@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
-import { SCHOOL_DAY_MIN_HOURS, SCHOOL_DAY_MIN_TICKS, SCHOOL_HOURS_PER_DAY, isSchoolTime, creditChildSchoolDay, recordChildSchoolTick } from '../src/game/education';
+import { SCHOOL_DAY_MIN_HOURS, SCHOOL_DAY_MIN_TICKS, SCHOOL_HOURS_PER_DAY, isSchoolTime, creditChildSchoolDay, recordChildSchoolTick, isAttendingSchool, resolveSchoolSchedule, getAssignedSchool } from '../src/game/education';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { buildingAccessPoint } from '../src/game/buildingAccess';
 
@@ -16,6 +16,7 @@ function child(overrides: Partial<Entity> = {}): Entity {
     name: 'Kid',
     alive: true,
     isJuvenile: true,
+    age: 16,
     ...overrides,
   } as Entity;
 }
@@ -91,7 +92,17 @@ describe('school-day credit needs the teacher there', () => {
     const target = school([900]);
     const kid = pupilAt(target);
     recordChildSchoolTick(kid, target, 10, true, classTick());
+    expect(isAttendingSchool(kid, target, 10, true, classTick())).toBe(true);
     expect(kid.schoolTicksToday).toBe(1);
+  });
+
+  it('uses the persisted seat and school shift for a sixteen-year-old', () => {
+    const target = school([900]);
+    const kid = child({ schoolBuildingId: target.id, x: target.x, y: target.y });
+    expect(getAssignedSchool(kid, [target])).toBe(target);
+    expect(resolveSchoolSchedule(kid, target, undefined, classTick(), 10)).toEqual({ onShift: true, commuteDue: false });
+    expect(getAssignedSchool(child({ x: target.x, y: target.y }), [target])).toBeUndefined();
+    expect(resolveSchoolSchedule(kid, undefined, undefined, classTick(), 10).onShift).toBe(false);
   });
 
   it('credits nothing while no teacher is at the school', () => {
