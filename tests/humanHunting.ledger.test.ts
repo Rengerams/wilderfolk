@@ -10,8 +10,15 @@ import { tallyTickDeaths } from '../src/game/stats';
 import { setCurrentPathMap, isGroundWalkableAt } from '../src/game/pathfinding';
 import { applyHumanWalkStep } from '../src/game/simulation/humanMovement';
 import { testWorldMap } from '../src/test/worldMapFixtures';
+import { rebuildEntityByIdMap } from '../src/game/entityIndex';
+import { buildEntityByType } from '../src/game/simFocus';
+import { computeWildlifeCounts } from '../src/game/entityCounts';
 
 function contextFor(state: WorldState): TickContext {
+  // Match the edited fixture roster in the production indexes as well as the tick context.
+  rebuildEntityByIdMap(state);
+  state.entityByType = buildEntityByType(state.entities);
+  state.wildlifeCounts = computeWildlifeCounts(state.entities);
   const byType = emptyEntityByType();
   for (const entity of state.entities.filter((candidate) => candidate.alive)) {
     byType[entity.type].push(entity);
@@ -37,8 +44,8 @@ function contextFor(state: WorldState): TickContext {
   };
 }
 
-function huntFixture(): { state: WorldState; ctx: TickContext; hunter: Entity; deer: Entity } {
-  const state = initGame({ size: MapSize.Medium, skipTerrain: true });
+function huntFixture(seed = 1): { state: WorldState; ctx: TickContext; hunter: Entity; deer: Entity } {
+  const state = initGame({ size: MapSize.Medium, skipTerrain: true, seed });
   const hunter = state.entities.find((entity) => entity.type === EntityType.Human && !entity.isJuvenile);
   if (!hunter) throw new Error('fixture has no adult settler');
 
@@ -50,13 +57,17 @@ function huntFixture(): { state: WorldState; ctx: TickContext; hunter: Entity; d
   state.resources.food = 0;
 
   const deer = createEntity(EntityType.Deer, hunter.x, hunter.y + 2, state.nextEntityId++);
+  // skipTerrain still spawns random wildlife across the world. The hunting owner
+  // selects the nearest eligible prey, so unrelated animals must not compete with
+  // the single target whose death and food deposit this fixture is testing.
+  state.entities = state.entities.filter((entity) => entity.type === EntityType.Human);
   state.entities.push(deer);
   return { state, ctx: contextFor(state), hunter, deer };
 }
 
 describe('free-roaming hunting food flow', () => {
-  it('routes a free-roaming hunter around a river instead of chasing into the blocked bank', () => {
-    const { state, ctx, hunter, deer } = huntFixture();
+  it.each([1, 2, 3])('routes a free-roaming hunter around a river instead of chasing into the blocked bank (seed=%i)', (seed) => {
+    const { state, ctx, hunter, deer } = huntFixture(seed);
     hunter.x = 45;
     hunter.y = 55;
     deer.x = 105;
@@ -70,6 +81,7 @@ describe('free-roaming hunting food flow', () => {
       for (let tick = 0; tick < 60 && deer.alive; tick++) {
         tickHumanHunting(state, ctx, hunter, SPECIES_CONFIG[EntityType.Human],
           true, false, false, false, ctx.byType, ctx.mobileGrid, ctx.entityById, false);
+        if (deer.alive) expect(hunter.huntTargetId).toBe(deer.id);
         applyHumanWalkStep(hunter, 1);
         expect(isGroundWalkableAt(hunter.x, hunter.y)).toBe(true);
       }
