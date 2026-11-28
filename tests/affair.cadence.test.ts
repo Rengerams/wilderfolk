@@ -245,19 +245,42 @@ describe('affair progress belongs to a verified pair', () => {
       gender: 'male', relationshipStatus: 'married', partnerId: 2,
       affairProgress: 100,
     });
-    const people = new Map([[single.id, single], [married.id, married]]);
+    // The unrelated courtship must actually exist on both sides; a missing settler is a stale focus.
+    const suitor = human(4, {
+      gender: 'male', relationshipStatus: 'single',
+      courtshipPartnerId: single.id, courtshipProgress: 47,
+    });
+    const people = new Map([[single.id, single], [married.id, married], [suitor.id, suitor]]);
     reconcileAffairPartner(single, people);
     reconcileAffairPartner(married, people);
+    reconcileAffairPartner(suitor, people);
     expect(single.affairPartnerId).toBeUndefined();
     expect(single.affairProgress).toBe(0);
     expect(single.courtshipPartnerId).toBe(4);
     expect(single.courtshipProgress).toBe(47);
+    expect(suitor.courtshipPartnerId).toBe(single.id);
+    expect(suitor.courtshipProgress).toBe(47);
     expect(married.affairProgress).toBe(0);
-    expect(single.affairCandidates).toBeUndefined();
+    expect(single.affairCandidates).toEqual({ 4: { progress: 47, lastEncounterDay: 0 } });
+    expect(suitor.affairCandidates).toEqual({ 3: { progress: 47, lastEncounterDay: 0 } });
     expect(married.affairCandidates).toBeUndefined();
   });
 
-  it('keeps only a mutual unmarried paramour candidate with a married initiator', () => {
+  it('removes a legacy courtship focus whose partner is missing without transferring unbound progress', () => {
+    const single = human(3, {
+      gender: 'female', relationshipStatus: 'single',
+      affairProgress: 100, courtshipPartnerId: 4, courtshipProgress: 47,
+    });
+    const people = new Map([[single.id, single]]);
+    reconcileAffairPartner(single, people);
+    expect(single.affairProgress).toBe(0);
+    expect(single.affairPartnerId).toBeUndefined();
+    expect(single.affairCandidates).toBeUndefined();
+    expect(single.courtshipPartnerId).toBeUndefined();
+    expect(single.courtshipProgress).toBe(0);
+  });
+
+  it('keeps a mutual romantic candidate even when the single has another courtship focus', () => {
     const married = human(8, {
       gender: 'female', relationshipStatus: 'married', partnerId: 6,
       affairCandidateId: 2, affairProgress: 32,
@@ -275,11 +298,11 @@ describe('affair progress belongs to a verified pair', () => {
     expect(single.affairCandidateId).toBeUndefined();
     expect(isValidAffairTarget(married, single, 0)).toBe(true);
     single.courtshipPartnerId = 9;
-    expect(isValidAffairTarget(married, single, 0)).toBe(false);
+    expect(isValidAffairTarget(married, single, 0)).toBe(true);
     reconcileAffairPartner(single, people);
     reconcileAffairPartner(married, people);
-    expect(single.affairCandidates).toBeUndefined();
-    expect(married.affairCandidates).toBeUndefined();
+    expect(single.affairCandidates?.[8]?.progress).toBe(32);
+    expect(married.affairCandidates?.[2]?.progress).toBe(32);
   });
 
   it.each([false, true])('consumes both legacy sides on the first call and is idempotent (reverse=%s)', (reverse) => {

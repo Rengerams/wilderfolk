@@ -1,4 +1,4 @@
-import { getPendingAffairs } from '../game/simulation/humanRelationships';
+import { getRomanticCandidates } from '../game/simulation/humanRelationships';
 import {
   EntityType,
   isPlayerHuman,
@@ -313,9 +313,9 @@ export default function SelectedEntityPanel({
                 </p>
               );
             })()}
-            {getPendingAffairs(entity, allEntities, state.tick).map(({ person, progress }) => (
-              <p key={person.id} className="text-rose-300/70">
-                💋 Secret affair developing with {citizenFullName(person)} ({Math.round(progress)}%)
+            {getRomanticCandidates(entity, allEntities, state.tick).map(({ person, progress, kind }) => (
+              <p key={person.id} className={kind === 'affair' ? 'text-rose-300/70' : 'text-pink-300'}>
+                {kind === 'affair' ? '💋 Secret affair developing with' : '💕 Courting'} {citizenFullName(person)} ({Math.round(progress)}%)
               </p>
             ))}
             {entity.isBastard && <p className="text-violet-300">⚜ Born outside wedlock</p>}
@@ -335,7 +335,7 @@ export default function SelectedEntityPanel({
                 </p>
               );
             })()}
-            {entity.courtshipPartnerId != null && entity.relationshipStatus === 'single' && (() => {
+            {entity.courtshipPartnerId != null && !entity.affairCandidates?.[entity.courtshipPartnerId] && entity.affairPartnerId == null && entity.relationshipStatus === 'single' && (() => {
               const courtshipPartner = allEntities.find((candidate) =>
                 candidate.id === entity.courtshipPartnerId && candidate.alive
                 && candidate.courtshipPartnerId === entity.id);

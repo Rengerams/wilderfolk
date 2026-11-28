@@ -251,8 +251,10 @@ interface MoonHowlerSavedState {
   affairPartnerId?: number;
   /** Legacy input only; migrated into affairCandidates. */
   affairCandidateId?: number;
+  /** Reciprocal pending romantic interests (courtship or affair); historical save key retained. */
   affairCandidates?: Record<string, { progress: number; lastEncounterDay: number }>;
   affairProgress?: number;
+  /** Legacy input and current display focus, not an exclusive romantic commitment. */
   courtshipPartnerId?: number;
   courtshipProgress?: number;
   youthLovePartnerId?: number;
@@ -377,6 +379,7 @@ export interface Entity {
   affairPartnerId?: number;
   /** Legacy input only; migrated into affairCandidates. */
   affairCandidateId?: number;
+  /** Reciprocal pending romantic interests (courtship or affair); historical save key retained. */
   affairCandidates?: Record<string, { progress: number; lastEncounterDay: number }>;
   affairProgress?: number;
   lastAffairSiteDay?: number;
@@ -386,6 +389,7 @@ export interface Entity {
   griefUntilTick?: number;
   
   pastPartnerTicks?: Record<number, number>;
+  /** Legacy input and current display focus, not an exclusive romantic commitment. */
   courtshipPartnerId?: number;
   courtshipProgress?: number;
   youthLovePartnerId?: number;
