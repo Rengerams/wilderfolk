@@ -343,6 +343,7 @@ const GUARDS = [
  * reports a violation instead of passing on a typo.
  */
 const SOURCE_ROWS = [
+  { id: 'human-hunting-no-stamina-reward', checks: [{ file: 'src/game/humanHuntingBehavior.ts', notMatches: /adjustHumanStaminaFromEnergy|creditHumanNutritionFromFood|\.energyGain\b/, example: 'adjustHumanStaminaFromEnergy(entity, 350)' }] },
   { id: 'migrated-human-stamina-readers', checks: [{
     files: ['src/game/humanTick.ts', 'src/game/simulation/humanRelationships.ts',
       'src/game/hospitalCare.ts', 'src/game/humanHuntingBehavior.ts',

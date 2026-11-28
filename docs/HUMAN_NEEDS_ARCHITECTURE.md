@@ -24,7 +24,7 @@ Stage 1 migration inventory (legacy point units and missing-needs fallback are d
 | `hotelStay.ts` | visitor-only `restAtHotel` legacy recovery | audit/remove retired visitor path; player hotel sleep already advances in physiology |
 | `simulation/humanLifecycle.ts` | migrated maternal cost and birth recovery | authoritative stamina; point conversion remains |
 | `animalCare.ts` | tamer owner energy bonus | `adjustHumanStaminaFromEnergy` |
-| `humanHuntingBehavior.ts` / `dailyBuildingEconomy.ts` | migrated player reward and damage model selection | player identity, not optional needs presence |
+| `humanHuntingBehavior.ts` / `dailyBuildingEconomy.ts` | removed legacy kill stamina bonus; migrated damage model selection | food-only hunting yield; player identity for injury effects |
 | `humanEnergy` display/worker metadata | read-only projection | read `needs` for settlers, energy only for nonhumans |
 
 Rules for new code:

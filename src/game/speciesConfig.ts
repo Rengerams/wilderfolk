@@ -138,7 +138,7 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
   [EntityType.Human]: {
     maxEnergy: 500,
     energyLossPerTick: 4.2 * PER_TICK_RATE_SCALE,
-    energyGain: { deer: 350, rabbit: 150 },
+    energyGain: {}, // Settlers deposit hunted food; kills do not restore stamina.
     maxAge: 90, // Human years
     // Walking pace in world pixels per tick; commute timing uses the same speed.
     speed: 8,

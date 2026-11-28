@@ -15,7 +15,7 @@ import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees'
 import { clearHumanWalkTarget, steerHumanToward } from './simulation/humanMovement';
 import { getCurrentPathGrid, lineCrossesBlocked } from './pathfinding';
 import { freeHuntFoodGain } from './simulation/humanNeeds';
-import { HUMAN_NEEDS, adjustHumanStaminaFromEnergy, getHumanStaminaRatio } from './simulation/humanPhysiology';
+import { HUMAN_NEEDS, getHumanStaminaRatio } from './simulation/humanPhysiology';
 import { tryTickBlueberryForaging } from './blueberryForaging';
 import {
   clearHuntersTargetingPrey,
@@ -155,11 +155,8 @@ export function tickHumanHunting(
         foughtBack: false,
       });
 
-      const energyBite =
-        config.energyGain[closestPrey.type] ??
-        (closestPrey.type === EntityType.Deer ? 350 : 150);
-      // This branch is already restricted to player humans.
-      adjustHumanStaminaFromEnergy(entity, energyBite);
+      // A kill produces colony food, not personal physiological recovery.
+      // Movement/work costs and actual rest belong to humanPhysiology.
       entity.flash = 10;
       entity.combatTicks = 16;
       entity.huntTargetId = undefined;
