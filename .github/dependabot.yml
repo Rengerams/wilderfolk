@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # Houd npm dependencies bij
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Optioneel: groepeer minor/patch updates om PR-spam te voorkomen
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Houd GitHub Actions (zoals checkout en setup-node) automatisch bij
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
