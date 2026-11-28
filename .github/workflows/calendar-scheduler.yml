@@ -113,7 +113,7 @@ jobs:
             const after = read('a1-producer-' + horizon + '-after.log', day);
             if (!before || !after) throw new Error('Missing required producer checkpoint day ' + day);
             const beforeMetrics = { food: before.food, skillPoints: before.skillPoints, population: before.population.settlers };
-            const afterMetrics = { food: after.food, skillPoints: after.skillPoints, population: after.population.settlers };
+            const afterMetrics = { food: after.food, skillPoints: after.skillPoints, population: before.population.settlers };
             const delta = Object.fromEntries(Object.keys(beforeMetrics).map((key) =>
               [key, Number((afterMetrics[key] - beforeMetrics[key]).toFixed(3))]));
             console.log(JSON.stringify({ day, before: beforeMetrics, after: afterMetrics, delta }));
