@@ -117,10 +117,14 @@ export function addGeneratedSocialHuman(
       ageYears: opts.isJuvenile ? 8 : 18,
     },
   );
-  if (opts.workerBuildingId != null) e.workerBuildingId = opts.workerBuildingId;
-  if (opts.job) e.job = opts.job;
-  e.alive = true;
-  e.maxEnergy = 100;
-  w.entities.push(e);
-  return e;
+  // Construct the fixture with its initial assignment; no runtime workplace transition.
+  const resident: Entity = {
+    ...e,
+    ...(opts.workerBuildingId != null ? { workerBuildingId: opts.workerBuildingId } : {}),
+    ...(opts.job ? { job: opts.job } : {}),
+    alive: true,
+    maxEnergy: 100,
+  };
+  w.entities.push(resident);
+  return resident;
 }
