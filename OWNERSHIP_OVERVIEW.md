@@ -78,10 +78,11 @@ Explicit infrastructure claims share the compiler declaration ledger with gamepl
 
 | Responsibility | Sole owner | Named declarations |
 |---|---|---|
-| Ownership registry tooling | scripts/ownership-registry.mjs | getDecisionRows; escapeCell; renderDecisionTable; replaceGeneratedBlock; isFile; isCanonicalModulePath; validateDecisionKeys; validateRegistry; hasModifier; directFunctionImplementation; directCallableCandidates; declarationLocation; recordResolvedClaim; validateEntrypointSymbols; findVerifiedClaim; collectNamedDeclarations; collectNamedDeclarations::visit; validateToolingInventory; verifyOwnershipRegistry; parseOwnershipMode; main |
+| Ownership registry tooling | scripts/ownership-registry.mjs | getDecisionRows; getInfrastructureRows; escapeCell; renderDecisionTable; replaceGeneratedBlock; isFile; isCanonicalModulePath; validateDecisionKeys; validateRegistry; hasModifier; directFunctionImplementation; directCallableCandidates; declarationLocation; recordResolvedClaim; validateEntrypointSymbols; findVerifiedClaim; collectNamedDeclarations; collectNamedDeclarations::visit; validateToolingInventory; verifyOwnershipRegistry; parseOwnershipMode; main |
 | Call graph ownership projection | scripts/build-call-graph.mjs | collectSources; stripLiteralsAndComments; stripLiteralsAndComments::blank; lineOf; matchBrace; resolveModuleFile; extractImports; extractImports::resolve; extractReExports; findBodyBrace; bodyAfterSignatureBrace; extractClasses; parseParams; extractInstances; extractDefinitions; extractCalls; parseOwnershipOverview; modulesIn; main; main::resolveImportTarget; main::resolveThroughModule; main::resolveMethod; main::ownerOfLine; main::moduleOwnsFile; renderHtml |
 | Ownership registry tests | scripts/ownership-registry.test.mjs | None — anonymous test callbacks only |
 | Ownership test runner | scripts/test.mjs | run |
+| Decision registry verification utilities | src/game/simulation/decisionRegistry.ts | getDecisionsByCadence; isPropertyWritePermitted |
 
 <!-- END GENERATED SIMULATION OWNERSHIP -->
 
