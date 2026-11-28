@@ -600,6 +600,13 @@
       "tests": [
         "tests/combatTierEffects.test.ts"
       ]
+    },
+    {
+      "key": "src/game/combat.ts:158:rollPredatorBlock@ff9d18578f9eb5b32ddef52b800c731b0468aaee788914dd768526fd837dcff8 <-> src/game/combat.ts:165:rollCounterAttack@8e3afcb80673d8abe8ce279375bcc2a80949240943a783eb6c18fea6e367255b",
+      "reason": "Distinct encounter verdicts in the same combat owner: block uses the defender and tick as its roll identity, so multiple predators do not reroll the defender's protection during that tick; counterattack includes the predator id and uses a separate random namespace for each attacker. Both delegate probability calculation to resolvePredatorCombatChances and random generation to combatRoll, and neither writes state. Combining the verdicts or salts would change deterministic combat outcomes. The combat tier regression exercises both verdicts, including repeatability and independence from mutable RNG streams.",
+      "tests": [
+        "tests/combatTierEffects.test.ts"
+      ]
     }
   ]
 }
