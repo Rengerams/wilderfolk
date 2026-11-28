@@ -65,6 +65,7 @@ export type DecisionKey =
   | 'housing'
   | 'construction'
   | 'production'
+  | 'civicPetition'
   | 'tradeCaravans'
   | 'humanWalk'
   | 'dailyRelationships'
