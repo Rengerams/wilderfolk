@@ -717,7 +717,7 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
     expect(staffed.entities.filter((entity) => entity.workerBuildingId === 77).length).toBeGreaterThan(0);
   });
 
-  it('does not keep building idle Farms when no worker can be reassigned', () => {
+  it('allows low-stock food recovery independently of private transfer history but bounds pending construction', () => {
     const world = ownerColony(2, {
       tick: 4 * TICKS_PER_DAY,
       resources: { food: 0, wood: 500, stone: 500, gold: 500, iron: 30 },
@@ -725,9 +725,16 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
       mills: 0, farms: 1,
       extraBuildings: [building(77, BuildingType.Farm, { x: 700, y: 350 })],
     });
-    // The two existing workers have just transferred, so the workforce owner
-    // cannot legally move either to the idle Farm for sixty days.
     for (const entity of world.entities) entity.lastAutoJobTransferTick = world.tick;
+    const recovery = decideVirtualPlayerAction(world);
+    expect(recovery?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+    for (const entity of world.entities) entity.lastAutoJobTransferTick = undefined;
+    expect(decideVirtualPlayerAction(world)).toEqual(recovery);
+
+    // Low stock alone permits one pending food site, not another every hour.
+    world.buildings.push(building(78, BuildingType.Farm, {
+      x: 780, y: 350, completed: false, constructionProgress: 20,
+    }));
     expect(decideVirtualPlayerAction(world)?.command)
       .not.toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
   });
