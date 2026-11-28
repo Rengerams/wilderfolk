@@ -38,10 +38,9 @@ function affairFixture(tick: number) {
   const wife = settler(1, 10, 10, { gender: 'female', relationshipStatus: 'married', partnerId: 2 });
   const husband = settler(2, 100, 100, { gender: 'male' });
   const paramour = settler(3, 12, 10, { gender: 'male', relationshipStatus: 'single' });
-  wife.affairCandidateId = paramour.id;
-  paramour.affairCandidateId = wife.id;
-  wife.affairProgress = 100;
-  paramour.affairProgress = 100;
+  const entry = { progress: 100, lastEncounterDay: Math.floor(tick / TICKS_PER_DAY) };
+  wife.affairCandidates = { [paramour.id]: entry };
+  paramour.affairCandidates = { [wife.id]: entry };
   const state = initGame({ skipTerrain: true });
   state.entities = [wife, husband, paramour];
   state.tick = tick;

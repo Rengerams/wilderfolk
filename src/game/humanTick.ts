@@ -96,7 +96,7 @@ import {
 import { doctorHospitalShift } from './hospitalShifts';
 
 import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
-import { crowdGatherPosition, enterHumanBuilding, applyHumanWalkStep, advanceHumanWalkAnim, clearHumanWalkTarget, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, resumeHumanWalk, steerHumanToward } from './simulation/humanMovement';
+import { isCommutingToBuilding, crowdGatherPosition, enterHumanBuilding, applyHumanWalkStep, advanceHumanWalkAnim, clearHumanWalkTarget, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, resumeHumanWalk, steerHumanToward } from './simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
@@ -489,7 +489,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (!entity.alive) continue;
     const previousIndoorBuildingId = entity.indoorBuildingId;
     entity.indoorBuildingId = undefined;
-    reconcileAffairPartner(entity, entityById);
+    reconcileAffairPartner(entity, entityById, state.tick);
 
     // Common updates
     if (isNewCalendarDay) {
@@ -727,7 +727,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity.pregnant ||
         (isStartOfClockHour(state.tick) && hourOfDay === affairEncounterHourOfDay(entity.id, state.tick)) ||
         hasAffairPartner(entity, entityById) ||
-        (entity.affairProgress ?? 0) >= 20 ||
+        entity.affairCandidates != null ||
         (state.tick + entity.id) % OFFSCREEN_HUMAN_THROTTLE === 0);
 
     // A ceremony holds its **attendees**, not the whole village: the owner's *"they again in a circle"*
@@ -1455,6 +1455,19 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && !inElectionCeremony && !inSpotlightGathering && !festivalGathering;
     const availableForAffair = offDutyForAffair && !stayIn && !sleepingForNeeds && !recoveringSleep && !takingNeedsBreak;
 
+    const canMeetAffair = (person: Entity): boolean => {
+      if (!person.alive || person.raidDeploymentId != null || person.prisonBuildingId != null
+        || person.needs?.breakUntilRecovered || (person.needs?.sleepRecoveryUntilTick ?? 0) > state.tick
+        || isAsleepAtHome(person, buildingById, hourOfDay)
+        || isPregnancyHospitalPriority(person, staffedHospitals.length > 0)) return false;
+      const post = findHumanWorkplace(person, updatedBuildings, workplaceOpts)
+        ?? getApprenticeTrainingSite(person, entityById, buildingById);
+      return (!post || (!resolveShift(state, person, post, hourOfDay).onShift
+        && !isCommutingToBuilding(person, post)
+        && !onWorkCommuteHours)) &&
+        canPursueSecretAffair(person, hourOfDay, post ?? undefined, updatedBuildings, entityById, state.tick, workSchedule);
+    };
+
     // The affair encounter needs the settler away from the spouse, so it is sampled at a per-settler
     // waking hour but stays one roll per colony day (`personDayRoll` is day-keyed).
     if (
@@ -1490,6 +1503,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         playerHumans,
         width,
         height,
+        canMeetAffair,
       );
     }
 
@@ -1520,7 +1534,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity.x,
         entity.y,
         affairRange,
-        (h) => isValidAffairTarget(entity, h, state.tick) && !isSpouseNearby(h, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS),
+        (h) => isValidAffairTarget(entity, h, state.tick) && canMeetAffair(h),
         socialAdaptiveOptions('social', playerHumans.length, width, height),
       );
 

@@ -116,13 +116,12 @@ function affairFixture(): { wife: Entity; husband: Entity; paramour: Entity; sta
     gender: 'female',
     relationshipStatus: 'married',
     partnerId: 2,
-    affairProgress: 95,
-    affairCandidateId: 3,
+    affairCandidates: { 3: { progress: 95, lastEncounterDay: 0 } },
     x: 10,
     y: 10,
   });
   const husband = human(2, { gender: 'male', x: 100, y: 100 });
-  const paramour = human(3, { gender: 'male', relationshipStatus: 'single', affairProgress: 95, affairCandidateId: 1, x: 12, y: 10 });
+  const paramour = human(3, { gender: 'male', relationshipStatus: 'single', affairCandidates: { 1: { progress: 95, lastEncounterDay: 0 } }, x: 12, y: 10 });
   return { wife, husband, paramour, state: makeState([wife, husband, paramour]) };
 }
 
@@ -150,8 +149,8 @@ describe('affair cadence (Objective 9)', () => {
 
     expect(wifeAfter.affairPartnerId).toBeUndefined();
     expect(paramourAfter.affairPartnerId).toBeUndefined();
-    expect(wifeAfter.affairProgress).toBeGreaterThanOrEqual(95); // staggered path never establishes
-    expect(paramourAfter.affairProgress).toBeGreaterThanOrEqual(95);
+    expect(wifeAfter.affairCandidates?.[3]?.progress).toBeGreaterThanOrEqual(95); // staggered path never establishes
+    expect(paramourAfter.affairCandidates?.[1]?.progress).toBeGreaterThanOrEqual(95);
     // No scandal artifacts either — exposure requires an established affair.
     expect(ticked.entities.some((e) => e.prisonBuildingId != null)).toBe(false);
     expect(ticked.villageReputation).toBe(50);
@@ -162,12 +161,12 @@ describe('affair cadence (Objective 9)', () => {
   it('establishes from the married participant even if the single paramour has the lower ID', () => {
     const married = human(8, {
       gender: 'female', relationshipStatus: 'married', partnerId: 7,
-      affairCandidateId: 2, affairProgress: 95, x: 10, y: 10,
+      affairCandidates: { 2: { progress: 95, lastEncounterDay: 0 } }, x: 10, y: 10,
     });
     const spouse = human(7, { gender: 'male', x: 200, y: 200 });
     const single = human(2, {
       gender: 'male', relationshipStatus: 'single',
-      affairCandidateId: 8, affairProgress: 95, x: 12, y: 10,
+      affairCandidates: { 8: { progress: 95, lastEncounterDay: 0 } }, x: 12, y: 10,
     });
     const state = makeState([married, spouse, single]);
     const entityById = new Map(state.entities.map((entity) => [entity.id, entity]));
@@ -175,6 +174,8 @@ describe('affair cadence (Objective 9)', () => {
     while (day <= 20_000 && personDayRoll(married.id, day * TICKS_PER_DAY, 610) >= 0.001) day++;
     expect(day).toBeLessThanOrEqual(20_000);
     state.tick = day * TICKS_PER_DAY;
+    married.affairCandidates![2].lastEncounterDay = day;
+    single.affairCandidates![8].lastEncounterDay = day;
 
     tryDailyAffairEncounter(state, married, entityById, state.buildings,
       new Map(), 0, 18, undefined, [spouse, single], 400, 300);
@@ -195,6 +196,8 @@ describe('affair cadence (Objective 9)', () => {
     let day = 1;
     while (day <= 5000 && personDayRoll(wife.id, tickOnDay(day), 610) >= 0.001) day++;
     state.tick = tickOnDay(day);
+    wife.affairCandidates![3].lastEncounterDay = day;
+    paramour.affairCandidates![1].lastEncounterDay = day;
 
     tryDailyAffairEncounter(
       state,
@@ -256,17 +259,17 @@ describe('affair progress belongs to a verified pair', () => {
     const people = new Map([[married.id, married], [single.id, single]]);
     reconcileAffairPartner(married, people);
     reconcileAffairPartner(single, people);
-    expect(married.affairProgress).toBe(32);
-    expect(single.affairProgress).toBe(32);
-    expect(married.affairCandidateId).toBe(2);
-    expect(single.affairCandidateId).toBe(8);
+    expect(married.affairCandidates?.[2]?.progress).toBe(32);
+    expect(single.affairCandidates?.[8]?.progress).toBe(32);
+    expect(married.affairCandidateId).toBeUndefined();
+    expect(single.affairCandidateId).toBeUndefined();
     expect(isValidAffairTarget(married, single, 0)).toBe(true);
     single.courtshipPartnerId = 9;
     expect(isValidAffairTarget(married, single, 0)).toBe(false);
     reconcileAffairPartner(single, people);
     reconcileAffairPartner(married, people);
-    expect(single.affairProgress).toBe(0);
-    expect(married.affairProgress).toBe(0);
+    expect(single.affairCandidates).toBeUndefined();
+    expect(married.affairCandidates).toBeUndefined();
   });
 
   it('retires pending progress when the candidates become spouses', () => {
@@ -295,8 +298,8 @@ describe('affair progress belongs to a verified pair', () => {
     const former = human(2, { gender: 'male', relationshipStatus: 'single', affairCandidateId: 8, affairProgress: 99 });
     const next = human(3, { gender: 'male', relationshipStatus: 'single' });
     const people = new Map([[married.id, married], [former.id, former], [next.id, next]]);
-    // The existing committed pair is exclusive until explicitly ended.
-    expect(isValidAffairTarget(married, next, 0)).toBe(false);
+    // Pending interest is not an exclusive established affair.
+    expect(isValidAffairTarget(married, next, 0)).toBe(true);
     former.affairCandidateId = undefined;
     reconcileAffairPartner(married, people);
     expect(married.affairCandidateId).toBeUndefined();

@@ -82,7 +82,7 @@ export const ENTITY_PERSISTED_FIELDS = [
   'skills', 'needs', 'careerHistory', 'careerMilestones', 'dialogueRecentScenes', 'dialogueRecentLines',
   'childPlaymateDay', 'childPlaymateId', 'childPlayGroupIds', 'childPlaySite', 'childPlaySiteAttempt',
   'childLeisureActivity', 'childLeisureTargetId', 'socialErrands', 'civicPetitionResolvedDay',
-  'formerSpouseId', 'affairCandidateId', 'factionWander',
+  'formerSpouseId', 'affairCandidateId', 'affairCandidates', 'factionWander',
   'scheduleWorkedTicksToday', 'schedulePresentTicksToday', 'schedulePresentSiteIdToday', 'scheduleLastWorkedHours',
   'scheduleWorkedSiteIdToday', 'scheduleLastWorkedSiteId',
   'scheduleWorkedJobToday', 'scheduleLastWorkedJob',
