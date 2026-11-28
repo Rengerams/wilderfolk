@@ -11,7 +11,7 @@ on:
       producer_parity:
         description: 'Run the historical 7/360-day producer comparison'
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
