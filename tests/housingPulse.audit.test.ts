@@ -113,7 +113,7 @@ describe('the weekly audit observes the housing invariant report', () => {
     expect(auditLine?.message).toContain(`child #${child.id} has no home`);
   });
 
-  it('accepts a separated leader's minor living with that parent in the manor', () => {
+  it("accepts a separated leader's minor living with that parent in the manor", () => {
     const manor = building(0, BuildingType.LeaderHouse);
     const home = building(565, BuildingType.House);
     const mother = human(2383, {
