@@ -697,7 +697,11 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/renderer.motionAndHover.test.ts` | `sharedModule`, `recorder`, `snapshot`, `completedBuilding`, `expectedPadFill` (isolated motion and fallback fixtures) |
 | `tests/renderer.frameOwnership.test.ts` | `snapshot`, `minimalWorld`, `camera`, `blacksmithBuilding`, `gradientCounter` (frame cache fixtures) |
 | `tests/saveLoad.outcomeReasons.test.ts` | `stubSlot`, `memoryStorage`, `realPayload`, `buildPayload` (shared load-contract fixtures) |
-| `tests/humanTick.hotPathIndexes.test.ts` | `baseSettler`, `throttleSettler`, `house`, `nightWorld`, `contextFor`, `positionOf` (off-screen throttle fixtures) |
+| `tests/humanTick.hotPathIndexes.test.ts` | `building`, `settler`, `visitorGroup`, `festivalFixture`, `simContext`, `countedBuildings`, `runTick`, `baseSettler`, `throttleSettler`, `house`, `nightWorld`, `contextFor`, `positionOf`, `canonicalCampCenter`, `anchorFixture` (shared tick fixtures, off-screen throttle and camp-anchor regressions) |
+| `tests/inventionFair.simulation.test.ts` | `demoCount`, `advanceDays`, `fundedInventionFair` (funded-fair daily regression fixtures) |
+| `tests/tutorialCampaign.test.ts` | `guidedWorld` (guided tutorial fixture) |
+| `tests/dailyChallenges.rewards.test.ts` | `completedPlayerHouse` (challenge progression fixture) |
+| `tests/dailyEconomy.ledgerEcology.test.ts` | `loneProducerVillage` (single-producer ecology fixture) |
 | `tests/rpgArt.integration.test.ts` | `localAsset` |
 | `tests/stripDemolition.workerProtocol.test.ts` | `cmd` |
 | `tests/stripPlacement.crossings.test.ts` | `worldFor`, `crossingSpot`, `completedStrip`, `completedPlayerBuildings`, `findReplacementSpot`, `worldWithCompletedWall`, `gateSegmentReplacing` |
@@ -959,7 +963,7 @@ Functions added, changed, or previously absent from the register, grouped by sol
 | Malformed-save fixture helpers | `tests/saveBoundary.malformed.test.ts` | test-only | `realPayload`, `terrainPayload`, `loadText`, `refusedOutcome` | test-local, no runtime authority |
 | Civic petitions / town-hall audience | `src/game/townHall.ts` | realtime greeting + daily audience | `isAtHall` (indoor-or-canonical-reach, shared by petitioner, leader and official), `resolveCivicPetition`, `officialHandlePetitioners`, `tickTownHallAudiences` | `tests/geometry.footprintCentre.test.ts`, `tests/civicPetition.cadence.test.ts` |
 | Event site sampling | `src/game/worldEventSites.ts` | event spawn | `isLegalCampSite` (buildable footprint + no building overlap, the rule yearly props and event sites share), `pickSite` | `tests/geometry.footprintCentre.test.ts`, `tests/frontier.legacyEvents.test.ts` |
-| The village anchor | `src/game/villageAnchor.ts` | per tick / raid presentation | `getPlayerCampCenterFromBuildings` (delegates to `buildingGeometry.getBuildingCenter`), `getPlayerCampCenter`, `getPlayerSettlerCenter` | `tests/geometry.footprintCentre.test.ts`, `tests/medium-N4-campAnchor.test.ts` |
+| The village anchor | `src/game/villageAnchor.ts` | per tick / raid presentation | `getPlayerCampCenterFromBuildings` (delegates to `buildingGeometry.getBuildingCenter`), `getPlayerCampCenter`, `getPlayerSettlerCenter` | `tests/geometry.footprintCentre.test.ts`, `tests/humanTick.hotPathIndexes.test.ts` |
 | Wildlife retirement and yearly spawn points | `src/game/simulation/simulationEntities.ts` + `src/game/worldGen.ts` | on death / yearly event | `retireWildlifeInState` (state-level half of a wildlife death); village-map rival and visitor poaching has been removed | `tests/huntingSpot.cleanup.test.ts` |
 | Yearly world-event wildlife placement | `src/game/groupEvents.ts` | yearly | `spawnWildlife` (yearly events draw through `simHelpers.randomPointWhere`: `worldEventSites.isLegalCampSite` for tree or grass props; `worldGen.isPassableWildlifePosition` for wildlife); retired on-map visitor arrival functions have been removed | `tests/onMapVisitors.retired.test.ts`, `tests/frontier.legacyEvents.test.ts` |
 | Venue gathering positions | `src/game/simulation/humanMovement.ts` + `src/game/humanLeisureBehavior.ts` | leisure/realtime | `venueGatherPosition` (half-height standoff from the canonical centre), well/festival crowd points use `getBuildingCenter` | `tests/humanMovement.*`, `tests/humanLeisureBehavior.*` |

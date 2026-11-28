@@ -213,6 +213,10 @@ Moved 12 cases from five mixed suites. Beauty and theatre checks now live with t
 
 Retired five mixed suites: `medium-batch2`, `medium-B2-leadership`, `medium-C2-story`, `entityAudit.transientGeometry` and `auditOpenItems.verification`. Their 29 cases became 28 runtime cases and one source guard. The seed guard scans the same game modules, excludes the two seed owners and has explicit mutation coverage. The census cases for traders and temporarily transformed settlers now exercise the same owner. Updated calendar guard and decision evidence paths.
 
+## Camp-anchor owner consolidation — 2026-11-28
+
+Moved all three `medium-N4-campAnchor.test.ts` regressions into `humanTick.hotPathIndexes.test.ts`. Reused the existing settler, building and simulation-context fixtures, with optional building overrides and an explicit hour. Retained the independent anchor oracle, branch pins and both moving/fixed-anchor cases. Registered six previously omitted relocated test helpers and the camp-anchor helpers under their actual owners. The previous head's six workflows passed; this increment awaits CI.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete
