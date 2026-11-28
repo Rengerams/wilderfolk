@@ -338,6 +338,34 @@ describe('workforce named transitions', () => {
     expect(collectSimulationInvariantErrors(world)).toEqual([]);
   });
 
+  it('continues hiring into partially staffed barracks on the next unchanged staffing pulse', () => {
+    const first = human(1, { x: 100_000, residenceBuildingId: 10 });
+    const next = human(3, { x: 100_000, residenceBuildingId: 10 });
+    const serving = human(2, { x: 20, residenceBuildingId: 11,
+      workerBuildingId: 20, job: JobType.Soldier });
+    const far = building(10, BuildingType.House,
+      { x: 100_000, occupants: [1, 3] });
+    const near = building(11, BuildingType.House,
+      { x: 20, occupants: [2] });
+    const barracks = building(20, BuildingType.Barracks,
+      { occupants: [2] });
+    const world = makeWorld([first, next, serving], [far, near, barracks]);
+    world.workforcePolicy = 'survival';
+
+    assignMissingWorkers(world.entities, world.buildings, world);
+    expect([first, next].filter((worker) => worker.workerBuildingId === 20)).toHaveLength(1);
+    expect(barracks.occupants).toHaveLength(2);
+
+    // Nothing changed except the scheduled clock. A completed relocation must
+    // not cache away the remaining vacancy for an entire week.
+    world.tick += 72;
+    assignMissingWorkers(world.entities, world.buildings, world);
+    expect([first, next].filter((worker) => worker.workerBuildingId === 20)).toHaveLength(2);
+    expect(barracks.occupants).toHaveLength(3);
+    expect(near.occupants).toEqual([2, 1, 3]);
+    expect(collectSimulationInvariantErrors(world)).toEqual([]);
+  });
+
   it('never relocates a job seeker into a nearby home that has no spare beds', () => {
     const remote = human(1, { x: 100_000, residenceBuildingId: 10 });
     const children = Array.from({ length: 6 }, (_, index) =>
