@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { getDecisionRows, renderDecisionTable, replaceGeneratedBlock, validateRegistry, validateEntrypointSymbols, validateDecisionKeys, parseOwnershipMode } from './ownership-registry.mjs';
 
 const sample = {
@@ -30,9 +33,32 @@ test('missing paths, duplicate decisions and conflicting primary claims fail', (
   assert.ok(validateRegistry([sample, { ...sample, key: 'other' }], '/', () => true).some(message => message.includes('primary entrypoint claimed')));
 });
 
-test('a same-named function in another module cannot satisfy an ownership claim', () => {
-  assert.equal(validateEntrypointSymbols([sample], [{ file: 'src/game/other.ts', name: 'advance' }]).length, 1);
-  assert.deepEqual(validateEntrypointSymbols([sample], [{ file: 'src/game/sample.ts', name: 'advance' }]), []);
+test('compiler verifies callable declarations in their owning module and scope', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'wilderfolk-ownership-'));
+  try {
+    mkdirSync(path.join(root, 'src/game'), { recursive: true });
+    writeFileSync(path.join(root, 'tsconfig.app.json'), JSON.stringify({
+      compilerOptions: { strict: true, target: 'ES2022', module: 'ESNext', moduleResolution: 'bundler' },
+      include: ['src/**/*.ts'],
+    }));
+    writeFileSync(path.join(root, 'src/game/sample.ts'), [
+      'function advance() {}',
+      'export const generated = () => advance();',
+      'const notCallable = 42;',
+      'function enclosing() { function nested() {} return nested; }',
+      'export default function render() {}',
+      'export class Owner { static work() {} rest() {} }',
+      "export { elsewhere as alias } from './other';",
+    ].join('\n'));
+    writeFileSync(path.join(root, 'src/game/other.ts'), 'export function elsewhere() {}');
+    const rows = ['advance', 'generated', 'default', 'Owner.work', 'Owner#rest', 'notCallable', 'nested', 'alias', 'elsewhere', 'Owner.rest'].map(symbol => ({
+      ...sample, key: symbol, entrypoints: [{ ...sample.entrypoints[0], symbol }],
+    }));
+    const failures = validateEntrypointSymbols(rows, root);
+    assert.deepEqual(failures.map(message => message.split(':')[0]), ['notCallable', 'nested', 'alias', 'elsewhere', 'Owner.rest']);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('all live registry decisions carry explicit primary references', () => {
