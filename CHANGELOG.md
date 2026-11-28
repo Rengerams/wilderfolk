@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (28 Nov 2026):** Require confirmed prison and hotel entry before sleep recovery, and remove the retired visitor hotel movement and energy writer with its obsolete tests.
+- **Fixed (28 Nov 2026):** Require confirmed prison and hotel entry before sleep recovery, and remove the retired visitor hotel movement, check-in, capacity and energy paths with their obsolete tests. Keep settler checkout, occupancy and legacy-save cleanup.
 
 - **Fixed (28 Nov 2026):** Children no longer keep following a caregiver during evening/night rosters or continue stale follow/play movement through school or bedtime, including homeless off-screen children; genuinely free-time following remains allowed.
 

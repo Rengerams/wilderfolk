@@ -89,7 +89,7 @@ import {
   tickTavernService,
 } from './humanVenueBehavior';
 import {
-  checkoutVisitor,
+  checkoutHotelLodger,
   createHotelLodgingIndex,
   isSettlerLodgingAtHotel,
   lodgingHotelFor,
@@ -461,7 +461,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
   // Lodging runs for every settler each tick; build the hotel list and bed counts once so a
   // candidate hotel never rescans every entity for each settler.
-  const hotelLodging = createHotelLodgingIndex(updatedBuildings, allHumans, buildingById, entityById);
+  const hotelLodging = createHotelLodgingIndex(updatedBuildings, allHumans, buildingById);
   // Ceremony seats are the same id-sorted ranks for every settler; build them once per tick.
   const ceremonySeats = state.electionCeremony ? buildCeremonySeatIndex(state) : undefined;
 
@@ -998,7 +998,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     if (!lodgingHotel && isPlayerHuman(entity) && entity.hotelStayBuildingId != null) {
       hotelLodging.release(entity.hotelStayBuildingId);
-      checkoutVisitor(entity);
+      checkoutHotelLodger(entity);
     }
 
     if (onMoonPriestShift) {

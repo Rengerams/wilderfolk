@@ -1,8 +1,6 @@
 /**
- * Hotel lodging — hotels host visitors and, overnight, settlers whose walk home is too long.
- * Lodging is free: the hotelier gains work experience for tending guests.
+ * Hotel lodging — settlers whose walk home is too long can reserve an overnight bed.
  */
-import { isAtBuildingReach } from './buildingAccess';
 import type { Building, Entity, WorldState } from './gameTypes';
 import {
   BuildingType,
@@ -22,16 +20,13 @@ import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReac
 import { isPlayerHuman } from './playerHuman';
 import { hasResidenceAssignment } from './housingModel';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { addFloatingText, addNotification } from './simEffects';
+import { addNotification } from './simEffects';
 import { logEvent } from './eventLog';
-import { ensureEntityByIdMap } from './entityIndex';
 import { isDialogueBusy } from './humanChat';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
-import { gainSkill } from './skills';
-import { seededRandomForRun, personDayRoll } from './simRng';
-import { isVenueServiceHour } from './venueSchedule';
+import { personDayRoll } from './simRng';
 
-/** Max sleepers at one staffed hotel overnight; visitors and settlers share beds. */
+/** Max settler beds at one staffed hotel overnight. */
 export const HOTEL_GUEST_CAPACITY = 8;
 
 /** Walk-home time, in hours, below which a settler never looks for a hotel bed. */
@@ -89,7 +84,7 @@ function isReachableHotel(entity: Entity, hotel: Building, homeHours: number): b
 
 /**
  * The one hotel staffing gate: a completed player hotel with a hotelier posted takes guests, so an
- * unstaffed building cannot lodge visitors or settlers for free.
+ * unstaffed building cannot accept new settler reservations.
  */
 export function isStaffedHotel(building: Building): boolean {
   return building.completed
@@ -134,7 +129,7 @@ export function countHotelSettlerLodgers(hotel: Building, entities: readonly Ent
   return lodgers;
 }
 
-/** Settler reservations per hotel for the visitor capacity check. */
+/** Settler reservations per hotel for the capacity check. */
 function buildHotelSettlerLodgerCounts(
   hotels: readonly Building[],
   entities: readonly Entity[],
@@ -148,7 +143,6 @@ function buildHotelSettlerLodgerCounts(
 export interface HotelLodgingIndex {
   readonly hotels: readonly Building[];
   readonly buildingsById?: ReadonlyMap<number, Building>;
-  readonly entitiesById?: HotelGuestIndex;
   settlerLodgers(hotelId: number): number;
   reserve(hotelId: number): void;
   release(hotelId: number): void;
@@ -159,7 +153,6 @@ export function createHotelLodgingIndex(
   buildings: readonly Building[],
   entities: readonly Entity[],
   buildingsById?: ReadonlyMap<number, Building>,
-  entitiesById?: HotelGuestIndex,
 ): HotelLodgingIndex {
   let hotels: Building[] | null = null;
   const ensureHotels = (): Building[] => {
@@ -182,7 +175,6 @@ export function createHotelLodgingIndex(
       return ensureHotels();
     },
     buildingsById,
-    entitiesById,
     settlerLodgers: (hotelId) => ensureCounts().get(hotelId) ?? 0,
     reserve: (hotelId) => {
       const byHotel = ensureCounts();
@@ -222,7 +214,7 @@ export function lodgingHotelFor(
   if (!needsHotelBed(entity, buildingsForHome, hour)) {
     if (previousHotelId != null) {
       index?.release(previousHotelId);
-      checkoutVisitor(entity);
+      checkoutHotelLodger(entity);
     }
     return undefined;
   }
@@ -246,23 +238,19 @@ export function lodgingHotelFor(
     hour,
     index ? { hotels: index.hotels, buildingsById: index.buildingsById } : undefined,
   );
-  checkoutVisitor(entity);
+  checkoutHotelLodger(entity);
   if (previousHotelId != null) index?.release(previousHotelId);
   for (const hotel of hotels) {
     const settlerLodgers = index
       ? index.settlerLodgers(hotel.id)
       : countHotelSettlerLodgers(hotel, entities);
-    if (!hotelHasVacancy(hotel, entities, index?.entitiesById, settlerLodgers)) continue;
+    if (!hotelHasVacancy(hotel, entities, settlerLodgers)) continue;
     entity.hotelStayBuildingId = hotel.id;
     entity.hotelStayUntilTick = hotelCheckoutTick(tick);
     index?.reserve(hotel.id);
     return hotel;
   }
   return undefined;
-}
-
-function findStaffedHotels(buildings: readonly Building[]): Building[] {
-  return buildings.filter(isStaffedHotel);
 }
 
 export function isHotelierAtHotel(
@@ -278,107 +266,13 @@ export function isHotelierAtHotel(
   return h;
 }
 
-/**
- * Id → entity for the tick's guest lookups, built once per `tickHotelLodging` call; the entity
- * array travels alongside so an unindexed spawn still resolves by linear scan.
- */
-export type HotelGuestIndex = ReadonlyMap<number, Entity>;
-
-function findGuest(
-  id: number,
-  entities: readonly Entity[],
-  byId?: HotelGuestIndex,
-): Entity | undefined {
-  return byId?.get(id) ?? entities.find((x) => x.id === id);
-}
-
-function isLiveVisitor(entity: Entity | undefined): boolean {
-  return !!entity && entity.alive && entity.faction === 'visitor';
-}
-
-function guestCount(hotel: Building, entities: readonly Entity[], byId?: HotelGuestIndex): number {
-  const ids = hotel.hotelGuestIds ?? [];
-  let n = 0;
-  for (const id of ids) {
-    if (isLiveVisitor(findGuest(id, entities, byId))) n++;
-  }
-  return n;
-}
-
-/** Drop guests that died or stopped being visitors; list order is preserved. */
-function pruneHotelGuests(
-  hotel: Building,
-  entities: readonly Entity[],
-  byId?: HotelGuestIndex,
-): void {
-  const guests = hotel.hotelGuestIds ?? [];
-  if (guests.length === 0) return;
-  const live = guests.filter((id) => isLiveVisitor(findGuest(id, entities, byId)));
-  if (live.length !== guests.length) hotel.hotelGuestIds = live;
-}
-
-/** Clear stale visitor pointers while preserving assigned settler beds. */
-function repairHotelStayPointers(hotel: Building, entities: readonly Entity[]): void {
-  const guests = new Set(hotel.hotelGuestIds ?? []);
-  for (const e of entities) {
-    if (e.hotelStayBuildingId !== hotel.id || holdsSettlerHotelBed(e, hotel.id)) continue;
-    if (!isLiveVisitor(e) || !guests.has(e.id)) {
-      e.hotelStayBuildingId = undefined;
-      e.hotelStayUntilTick = undefined;
-    }
-  }
-}
-
-/** Repair hotel stay pointers in one entity pass, preserving settler reservations. */
-function repairAllHotelStayPointers(state: WorldState, hotels: readonly Building[]): void {
-  if (hotels.length === 0) return;
-  const guestsByHotel = new Map<number, ReadonlySet<number>>();
-  for (const h of hotels) guestsByHotel.set(h.id, new Set(h.hotelGuestIds ?? []));
-  for (const e of state.entities) {
-    const hotelId = e.hotelStayBuildingId;
-    if (hotelId == null) continue;
-    const guests = guestsByHotel.get(hotelId);
-    if (!guests) continue;
-    if (holdsSettlerHotelBed(e, hotelId)) continue;
-    if (!isLiveVisitor(e) || !guests.has(e.id)) {
-      e.hotelStayBuildingId = undefined;
-      e.hotelStayUntilTick = undefined;
-    }
-  }
-}
-
-/**
- * A hotel with a free bed: prunes guests that are no longer live visitors, repairs their stay
- * pointers when the prune dropped any, and counts visitors plus settler lodgers against the cap.
- */
+/** Free-bed decision shared by direct and indexed reservation callers. */
 export function hotelHasVacancy(
   hotel: Building,
   entities: readonly Entity[],
-  byId?: HotelGuestIndex,
   settlerLodgers = countHotelSettlerLodgers(hotel, entities),
 ): boolean {
-  const before = (hotel.hotelGuestIds ?? []).length;
-  pruneHotelGuests(hotel, entities, byId);
-  if ((hotel.hotelGuestIds ?? []).length !== before) repairHotelStayPointers(hotel, entities);
-  return guestCount(hotel, entities, byId) + settlerLodgers < HOTEL_GUEST_CAPACITY;
-}
-
-/** Pick a staffed hotel with free beds (prefer closest to visitor). */
-function pickHotelForVisitor(
-  visitor: Entity,
-  buildings: readonly Building[],
-  entities: readonly Entity[],
-  byId?: HotelGuestIndex,
-  settlerLodgersByHotel?: ReadonlyMap<number, number>,
-): Building | undefined {
-  const hotels = findStaffedHotels(buildings)
-    .filter((h) => hotelHasVacancy(h, entities, byId, settlerLodgersByHotel?.get(h.id) ?? countHotelSettlerLodgers(h, entities)))
-    .sort((a, b) => {
-      const da = Math.hypot(visitor.x - a.x, visitor.y - a.y);
-      const db = Math.hypot(visitor.x - b.x, visitor.y - b.y);
-      return da - db;
-    });
-  return hotels[0];
+  return settlerLodgers < HOTEL_GUEST_CAPACITY;
 }
 
 /**
@@ -389,137 +283,50 @@ export function hotelCheckoutTick(fromTick: number): number {
   return nextTickAtClockHour(fromTick, NIGHT_END);
 }
 
-/**
- * Check a visitor into a hotel for the night; lodging is free (the hotelier gains work experience).
- * Visitors and settler lodgers share `HOTEL_GUEST_CAPACITY`. Returns true if lodging started.
- */
-export function checkInVisitor(
-  state: WorldState,
-  visitor: Entity,
-  hotel: Building,
-  settlerLodgers = countHotelSettlerLodgers(hotel, state.entities),
-): boolean {
-  if (visitor.faction !== 'visitor' || !visitor.alive) return false;
-  if (!isStaffedHotel(hotel)) return false;
-  // This hotel alone: prune its guest list, then repair the stay pointers that no longer match it.
-  const byId = ensureEntityByIdMap(state);
-  pruneHotelGuests(hotel, state.entities, byId);
-  repairHotelStayPointers(hotel, state.entities);
-  if ((hotel.hotelGuestIds ?? []).includes(visitor.id)) {
-    // Refresh stay window through next morning
-    visitor.hotelStayUntilTick = hotelCheckoutTick(state.tick);
-    return true;
-  }
-  if (guestCount(hotel, state.entities, byId) + settlerLodgers >= HOTEL_GUEST_CAPACITY) return false;
-
-  // Free lodging for now — hoteliers still gain work experience for tending guests.
-  hotel.hotelGuestIds = [...(hotel.hotelGuestIds ?? []), visitor.id];
-  visitor.hotelStayBuildingId = hotel.id;
-  visitor.hotelStayUntilTick = hotelCheckoutTick(state.tick);
-
-  // A hotelier learns the trade by tending the desk, not by being on the roster somewhere else.
-  for (const id of hotel.occupants) {
-    const hotelier = byId.get(id);
-    if (!hotelier?.alive || !isAtBuildingReach(hotelier, hotel)) continue;
-    gainSkill(state, id, JobType.Hotelier, 0.12);
-  }
-
-  addFloatingText(
-    state,
-    hotel.x + hotel.width / 2,
-    hotel.y - 12,
-    'Guest checked in',
-    '#a5f3fc',
-    'brief',
-  );
-  // `isDialogueBusy`, not a raw `chatTicks` read: a guest with a live paired session must not have
-  // its line abandoned by the forced greeting below.
-  if (!isDialogueBusy(visitor)) {
-    // A stateless roll keyed on the guest and the tick, matching the chat convention used
-    // elsewhere (`humanChat`), so the greeting is reproducible instead of seedless.
-    requestDialogue({ eventKey: 'hotel.arrival', speaker: visitor, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(50), selectionRoll: seededRandomForRun(`hotel-greeting:${visitor.id}:${state.tick}`) });
-  }
-  return true;
+export function checkoutHotelLodger(entity: Entity): void {
+  entity.hotelStayBuildingId = undefined;
+  entity.hotelStayUntilTick = undefined;
 }
 
-export function checkoutVisitor(visitor: Entity, hotel?: Building): void {
-  if (hotel?.hotelGuestIds) {
-    hotel.hotelGuestIds = hotel.hotelGuestIds.filter((id) => id !== visitor.id);
-  }
-  visitor.hotelStayBuildingId = undefined;
-  visitor.hotelStayUntilTick = undefined;
-}
-
-/** Evening/night: pull free visitors into hotels; daytime: clear expired stays. */
+/** Release expired or invalid reservations and report citywide bed occupancy. */
 export function tickHotelLodging(state: WorldState): void {
   const hour = getHourOfDay(state.tick);
   const hotels = state.buildings.filter(
     (b) => b.completed && b.type === BuildingType.Hotel,
   );
-  // One guest index for the whole call: prune, `pickHotelForVisitor` and every `checkInVisitor`
-  // in the loop share it instead of rebuilding it per hotel per visitor.
-  const byId = ensureEntityByIdMap(state);
-  for (const h of hotels) pruneHotelGuests(h, state.entities, byId);
-  repairAllHotelStayPointers(state, hotels);
-
-  // One pass clears expired stays and collects the visitors looking for a room; the checkout must land
-  // first, and rooms are only offered while the desk is on shift, so the hotel's own schedule gates it.
-  const windowOpen = (isNightHour(hour) || hour >= 18) && isVenueServiceHour(state, 'hotel', hour);
-  const visitors: Entity[] = [];
-  for (const e of state.entities) {
-    if (isPlayerHuman(e) && e.hotelStayBuildingId != null) {
-      const hotel = buildingFrom(hotels, e.hotelStayBuildingId);
-      if (!e.alive || !hotel || e.hotelStayUntilTick == null
-        || e.prisonBuildingId != null || !!e.raidDeploymentId
-        || state.tick >= e.hotelStayUntilTick || !needsHotelBed(e, state.buildings, hour)) {
-        checkoutVisitor(e);
-      }
-      continue;
-    }
-    if (e.faction !== 'visitor') continue;
-    if (e.hotelStayBuildingId != null) {
-      if (e.hotelStayUntilTick == null || state.tick < e.hotelStayUntilTick) continue;
-      checkoutVisitor(e, buildingFrom(state.buildings, e.hotelStayBuildingId));
-    }
-    if (windowOpen && e.alive) visitors.push(e);
+  const byId = new Map(state.buildings.map((b) => [b.id, b]));
+  // Retired visitor rosters may survive in old save data; never count or recreate them.
+  for (const building of state.buildings) {
+    if (building.hotelGuestIds?.length) building.hotelGuestIds = undefined;
   }
-
-  // Offer rooms at dusk / night when hotels staffed
+  for (const entity of state.entities) {
+    if (entity.hotelStayBuildingId == null) continue;
+    const hotel = byId.get(entity.hotelStayBuildingId);
+    if (!isPlayerHuman(entity) || !entity.alive || !hotel?.completed || hotel.type !== BuildingType.Hotel
+      || entity.hotelStayUntilTick == null || entity.prisonBuildingId != null || !!entity.raidDeploymentId
+      || state.tick >= entity.hotelStayUntilTick || !needsHotelBed(entity, byId, hour)) {
+      checkoutHotelLodger(entity);
+    }
+  }
   const settlerLodgersByHotel = buildHotelSettlerLodgerCounts(hotels, state.entities);
-  for (const v of windowOpen ? visitors : []) {
-    // Stable chance per visitor per night so not everyone piles in same tick
-    if (personDayRoll(v.id, state.tick, 910) > 0.55) continue;
-    const hotel = pickHotelForVisitor(v, state.buildings, state.entities, byId, settlerLodgersByHotel);
-    if (!hotel) continue;
-    const settlerLodgers = settlerLodgersByHotel.get(hotel.id) ?? 0;
-    // Prefer check-in near evening once
-    if (hour >= 18 && hour <= 22 && personDayRoll(v.id, state.tick, 911) < 0.35) {
-      checkInVisitor(state, v, hotel, settlerLodgers);
-    } else if (isNightHour(hour) && personDayRoll(v.id, state.tick, 912) < 0.5) {
-      checkInVisitor(state, v, hotel, settlerLodgers);
-    }
-  }
 
   // A hotel holding every bed, counting the settlers asleep in it, is the threshold; the day stamp
   // makes that one summary per night rather than one per tick.
   const colonyDay = getColonyDay(state);
   const fullHotel = hotels.find(
     (h) =>
-      guestCount(h, state.entities, byId) + (settlerLodgersByHotel.get(h.id) ?? 0) >= HOTEL_GUEST_CAPACITY,
+      (settlerLodgersByHotel.get(h.id) ?? 0) >= HOTEL_GUEST_CAPACITY,
   );
   if (fullHotel && (state.storyFlags?.[HOTEL_LODGING_NOTICE_DAY_FLAG] ?? -1) !== colonyDay) {
     state.storyFlags = { ...state.storyFlags, [HOTEL_LODGING_NOTICE_DAY_FLAG]: colonyDay };
     // Report the entire city's occupied beds, not a single hotel's eight-bed cap.
-    // Visitors and settlers share beds; use the same counts as room assignment.
     const occupiedBeds = hotels.reduce(
-      (total, hotel) => total + guestCount(hotel, state.entities, byId)
-        + (settlerLodgersByHotel.get(hotel.id) ?? 0),
+      (total, hotel) => total + (settlerLodgersByHotel.get(hotel.id) ?? 0),
       0,
     );
     const totalBeds = hotels.length * HOTEL_GUEST_CAPACITY;
     const fullHotels = hotels.filter(
-      (hotel) => guestCount(hotel, state.entities, byId)
-        + (settlerLodgersByHotel.get(hotel.id) ?? 0) >= HOTEL_GUEST_CAPACITY,
+      (hotel) => (settlerLodgersByHotel.get(hotel.id) ?? 0) >= HOTEL_GUEST_CAPACITY,
     ).length;
     const summary = `${occupiedBeds}/${totalBeds} beds occupied across ${hotels.length} hotel${hotels.length === 1 ? '' : 's'} (${fullHotels} full)`;
     addNotification(
@@ -540,10 +347,10 @@ export function hotelierGreetGuests(
   hotel: Building,
 ): void {
   if (isDialogueBusy(hotelier)) return;
-  const guests = (hotel.hotelGuestIds ?? []).length;
-  if (guests <= 0) return;
-  // Once per clock hour — not every sub-hour tick (avoids greeting spam after day stretch)
+  // Once per clock hour — not every sub-hour tick.
   if (!isStartOfClockHour(state.tick)) return;
+  const guests = state.entities.filter((e) => holdsSettlerHotelBed(e, hotel.id) && e.indoorBuildingId === hotel.id).length;
+  if (guests <= 0) return;
   if (personDayRoll(hotelier.id, state.tick, 913 + getHourOfDay(state.tick)) > 0.35) return;
   requestDialogue({ eventKey: guests >= 3 ? 'hotel.service.busy' : 'hotel.service.welcome', speaker: hotelier, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(44) });
 }
@@ -551,28 +358,17 @@ export function hotelierGreetGuests(
 /** One hotel's roster — a view for the building inspector, derived like the school's. */
 export interface HotelRosterEntry {
   hotelId: number;
-  /** Visitor guests holding a bed, in check-in order. */
-  guests: Entity[];
   /** Settlers with a reserved bed, including those still walking here. */
   lodgers: Entity[];
-  /** The clock is inside the night window, so a bed holder is asleep rather than merely checked in. */
-  sleepingNow: boolean;
 }
 
 /** Bed holders at this hotel, including reserved settlers still on their way. */
 export function getHotelRoster(
   hotel: Building,
-  _buildings: readonly Building[],
   entities: readonly Entity[],
-  hour: number,
 ): HotelRosterEntry {
-  const byId = new Map<number, Entity>();
-  for (const e of entities) byId.set(e.id, e);
-  const guests = (hotel.hotelGuestIds ?? [])
-    .map((id) => byId.get(id))
-    .filter((e): e is Entity => isLiveVisitor(e));
   const lodgers = entities.filter((e) => holdsSettlerHotelBed(e, hotel.id));
-  return { hotelId: hotel.id, guests, lodgers, sleepingNow: isNightHour(hour) };
+  return { hotelId: hotel.id, lodgers };
 }
 
 /** Player-facing summary of a roster — the inspector renders these strings verbatim. */
@@ -580,13 +376,13 @@ export function describeHotelRoster(
   entry: HotelRosterEntry,
   hasHotelier: boolean,
 ): { headline: string; emptyHint: string | null; full: boolean } {
-  const beds = entry.guests.length + entry.lodgers.length;
+  const beds = entry.lodgers.length;
   return {
     headline: `Beds ${beds}/${HOTEL_GUEST_CAPACITY}`,
     emptyHint: beds > 0
       ? null
       : hasHotelier
-        ? 'Empty tonight — visitors check in at dusk, and settlers whose walk home outlasts the night sleep free.'
+        ? 'Empty tonight — settlers whose walk home outlasts the night sleep free.'
         : 'No hotelier assigned — only a staffed hotel takes guests.',
     full: beds >= HOTEL_GUEST_CAPACITY,
   };
