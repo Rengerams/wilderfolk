@@ -3,8 +3,8 @@
  * researched tier sets counter-attack and predator-block chance.
  */
 import { describe, expect, it, afterEach } from 'vitest';
-import { createInitialResearchNodes, BuildingType } from '../src/game/gameTypes';
-import type { WorldState } from '../src/game/gameTypes';
+import { createInitialResearchNodes, BuildingType, EntityType, JobType } from '../src/game/gameTypes';
+import type { WorldState, Entity } from '../src/game/gameTypes';
 import {
   getCounterAttackChance,
   getArmamentSteps,
@@ -12,10 +12,13 @@ import {
   getHuntFoodMultiplier,
   getHumanFleeSpeedMultiplier,
   getPredatorBlockChance,
+  resolvePredatorCombatChances,
   rollCounterAttack,
   rollPredatorBlock,
 } from '../src/game/combat';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
+import { resolveArmedDuty } from '../src/game/workAbsence';
+import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { resetSimRng, restoreSimRng, setSimSeed, snapshotSimRng } from '../src/game/simRng';
 
 /** A world with only the fields the combat tech readers touch. */
@@ -49,6 +52,55 @@ function makeState(researched: string[], forgeCompleted: Record<string, boolean>
   } as unknown as WorldState;
 }
 
+function defender(id: number, seed = 0): Entity {
+  return { id, type: EntityType.Human, alive: true, age: 30, job: JobType.Soldier, combatRollSeed: seed,
+    needs: { stamina: 100, rest: 100, nutrition: 100, severeHungerTicks: 0 } } as Entity;
+}
+function predator(id: number): Entity {
+  return { id, type: EntityType.Werewolf, alive: true, energy: 700, maxEnergy: 700 } as Entity;
+}
+
+describe('personal combat equipment and condition', () => {
+  it('does not arm newborns, civilians or off-duty soldiers with forged village weapons', () => {
+    const state = makeState(['defense_4', 'defense_8', 'defense_9'], { iron_spears: true, iron_swords: true, scale_mail: true });
+    const h = defender(1);
+    expect(resolvePredatorCombatChances(state, h, predator(2), 'none').counter).toBe(0);
+    expect(resolvePredatorCombatChances(state, h, predator(2), 'none').block).toBeCloseTo(0.05);
+    expect(resolvePredatorCombatChances(state, { ...h, age: 0 }, predator(2), 'military')).toEqual({ counter: 0, block: 0 });
+    expect(resolvePredatorCombatChances(state, h, predator(2), 'military').counter).toBeCloseTo(0.55);
+    expect(resolvePredatorCombatChances(state, h, predator(2), 'hunting').counter).toBeCloseTo(0.45);
+    expect(resolvePredatorCombatChances(state, h, predator(2), 'hunting').block).toBeCloseTo(0.05);
+  });
+  it('uses the existing shift and deployment, not the job title alone', () => {
+    const state = makeState([], {});
+    const h = defender(1);
+    const barracks = { ...state.buildings[0], id: 2, type: BuildingType.Barracks, occupants: [h.id] };
+    state.buildings.push(barracks);
+    h.workerBuildingId = barracks.id;
+    state.tick = 10 * TICKS_PER_HOUR;
+    expect(resolveArmedDuty(state, h)).toBe('military');
+    state.tick = 23 * TICKS_PER_HOUR;
+    expect(resolveArmedDuty(state, h)).toBe('none');
+    h.raidDeploymentId = 'raid-test';
+    expect(resolveArmedDuty(state, h)).toBe('military');
+    h.age = 0;
+    expect(resolveArmedDuty(state, h)).toBe('none');
+  });
+  it('uses both reserves and not human legacy energy', () => {
+    const state = makeState(['defense_4'], { iron_spears: true });
+    const h = defender(1);
+    const wolf = predator(2);
+    const full = resolvePredatorCombatChances(state, h, wolf, 'military');
+    h.energy = 0;
+    h.maxEnergy = 900;
+    expect(resolvePredatorCombatChances(state, h, wolf, 'military')).toEqual(full);
+    h.needs!.stamina = 20;
+    expect(resolvePredatorCombatChances(state, h, wolf, 'military').counter).toBeLessThan(full.counter);
+    wolf.energy = 100;
+    expect(resolvePredatorCombatChances(state, h, wolf, 'military').counter).toBeGreaterThan(full.counter * 0.2);
+  });
+});
+
 describe('tiered combat research does not stack', () => {
   it('counter-attack uses the strongest researched tier instead of the sum', () => {
     const bothTiers = makeState(['defense_4', 'defense_8'], { iron_spears: true, iron_swords: true });
@@ -63,7 +115,7 @@ describe('tiered combat research does not stack', () => {
     // With chance 1.0 the old code returned true for every input.
     let refused = 0;
     for (let id = 1; id <= 60; id++) {
-      if (!rollCounterAttack(state, id, id + 500, 72, 0)) refused++;
+      if (!rollCounterAttack(state, defender(id, 0), predator(id + 500), 'military', 72)) refused++;
     }
     expect(refused).toBeGreaterThan(0);
   });
@@ -87,8 +139,8 @@ describe('combat rolls draw from the run-seeded stream', () => {
     const rolls: boolean[] = [];
     for (let id = 1; id <= 80; id++) {
       // Both defender and attacker decisions, across ticks and per-entity seeds.
-      rolls.push(rollPredatorBlock(state, id, 100 + id, id * 7919));
-      rolls.push(rollCounterAttack(state, id, id + 500, 100 + id, id * 104_729));
+      rolls.push(rollPredatorBlock(state, defender(id, id * 7919), predator(id + 500), 'military', 100 + id));
+      rolls.push(rollCounterAttack(state, defender(id, id * 104_729), predator(id + 500), 'military', 100 + id));
     }
     return rolls;
   };
@@ -109,8 +161,8 @@ describe('combat rolls draw from the run-seeded stream', () => {
     const draw = (): boolean[] => {
       const rolls: boolean[] = [];
       for (let id = 1; id <= 40; id++) {
-        rolls.push(rollPredatorBlock(state, id, 300 + id, id * 7919));
-        rolls.push(rollCounterAttack(state, id, id + 900, 300 + id, id * 104_729));
+        rolls.push(rollPredatorBlock(state, defender(id, id * 7919), predator(id + 500), 'military', 300 + id));
+        rolls.push(rollCounterAttack(state, defender(id, id * 104_729), predator(id + 900), 'military', 300 + id));
       }
       return rolls;
     };

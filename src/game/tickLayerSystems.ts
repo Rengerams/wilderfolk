@@ -32,6 +32,7 @@ import { tamedAnimalsFedToday } from './animalCare';
 import { isPlayerHuman } from './playerHuman';
 import { appendDeathAge, citizenFullName, humanDisplayName } from './citizenId';
 import { rollPredatorBlock, rollCounterAttack } from './combat';
+import { resolveArmedDuty } from './workAbsence';
 import { isActiveMoonHowler } from './moonHowler';
 import { logDeath, logEvent } from './eventLog';
 import { logWildkinBirth } from './wildkinChronicle';
@@ -510,15 +511,16 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
           }
           if (dist < config.size + caughtPrey.size && clearContact) {
             const isHumanPrey = caughtPrey.type === EntityType.Human;
+            const duty = isHumanPrey ? resolveArmedDuty(state, caughtPrey) : 'none';
 
             if (
               isHumanPrey &&
               rollCounterAttack(
                 state,
-                caughtPrey.id,
-                entity.id,
+                caughtPrey,
+                entity,
+                duty,
                 state.tick,
-                caughtPrey.combatRollSeed ?? 0,
               )
             ) {
               const slainPredatorId = entity.id;
@@ -546,7 +548,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
               continue;
             } else if (
               isHumanPrey &&
-              rollPredatorBlock(state, caughtPrey.id, state.tick, caughtPrey.combatRollSeed ?? 0)
+              rollPredatorBlock(state, caughtPrey, entity, duty, state.tick)
             ) {
               caughtPrey.combatTicks = 14;
               caughtPrey.flash = 10;

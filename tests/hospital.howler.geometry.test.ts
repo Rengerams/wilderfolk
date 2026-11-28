@@ -23,6 +23,7 @@ import { tickWildlife } from '../src/game/tickLayerSystems';
 import { curseMoonHowler, transformToWerewolfForm } from '../src/game/moonHowler';
 import { syncGenealogyRegistry } from '../src/game/genealogyRegistry';
 import { rollCounterAttack } from '../src/game/combat';
+import { resolveArmedDuty } from '../src/game/workAbsence';
 import { COMBAT_TECH } from '../src/game/combatTech';
 
 const FIXTURE_SEED = 20_261_111;
@@ -193,6 +194,9 @@ describe('Moon Howler navigation and contact', () => {
     smith.completed = true;
     const howler = settler(40, 100, 100, 500);
     const defender = settler(41, 106, 100, 500);
+    defender.job = JobType.Soldier;
+    defender.raidDeploymentId = 'geometry-test';
+    defender.needs = { stamina: 100, rest: 100, nutrition: 100, severeHungerTicks: 0 };
     const witness = settler(42, 500, 600, 500);
     const state = freshState([howler, defender, witness], [smith]);
     state.villageLeaderId = howler.id;
@@ -204,7 +208,7 @@ describe('Moon Howler navigation and contact', () => {
     witness.huntTargetId = howler.id;
     const ctx = wildlifeContext(state, state.entities, howler);
     const tick = Array.from({ length: 100 }, (_, i) => (i + 1) * 4).find(
-      (candidate) => rollCounterAttack(state, defender.id, howler.id, candidate, defender.combatRollSeed ?? 0),
+      (candidate) => rollCounterAttack(state, defender, howler, resolveArmedDuty(state, defender), candidate),
     );
     expect(tick).toBeDefined();
     state.tick = tick!;

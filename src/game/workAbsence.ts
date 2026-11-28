@@ -191,6 +191,22 @@ export function resolveShift(
   };
 }
 
+export type ArmedDuty = 'none' | 'hunting' | 'military';
+
+/** Equipment eligibility reads the existing assignment and shift owners; never creates a new roster. */
+export function resolveArmedDuty(state: WorldState, entity: Entity): ArmedDuty {
+  if (!entity.alive || !isPlayerHuman(entity) || entity.age < HUMAN_ADULT_MIN_AGE || isImprisoned(entity)) return 'none';
+  if (entity.job === JobType.Soldier && entity.raidDeploymentId) return 'military';
+  if (entity.job !== JobType.Soldier && entity.job !== JobType.Hunter && entity.job !== JobType.PrisonGuard) return 'none';
+  const workplace = findHumanWorkplace(entity, state.buildings);
+  if (!workplace?.completed || !workplace.occupants.includes(entity.id)) return 'none';
+  if (!resolveShift(state, entity, workplace, getHourOfDay(state.tick)).onShift) return 'none';
+  if (entity.job === JobType.Hunter && workplace.type === BuildingType.HuntingSpot) return 'hunting';
+  if ((entity.job === JobType.Soldier && isBarracksGuard(entity.id, entity.workerBuildingId, state.buildings))
+    || (entity.job === JobType.PrisonGuard && workplace.type === BuildingType.Prison)) return 'military';
+  return 'none';
+}
+
 /**
  * Why this settler is not at their post right now. Reads stored state and the owners' predicates;
  * it invents no hours, distances or thresholds of its own.
