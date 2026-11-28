@@ -12,10 +12,12 @@ export function getOccupationForBuilding(type: BuildingType): string {
 }
 
 /** One activity-to-credited-trade lookup: building is always Builder; operating a completed site uses its profession. */
-export function getJobForBuilding(type: BuildingType, action: 'construction'): JobType;
-export function getJobForBuilding(type: BuildingType, action?: WorkAction): JobType | undefined;
-export function getJobForBuilding(type: BuildingType, action: WorkAction = 'production'): JobType | undefined {
-  return action === 'construction' ? JobType.Builder : BUILDING_JOB_TYPES[type];
+export function getJobForBuilding<Args extends [type: BuildingType, action?: WorkAction]>(
+  ...args: Args
+): Args extends [BuildingType, 'construction'] ? typeof JobType.Builder : JobType | undefined {
+  const [type, action] = args;
+  const job = action === 'construction' ? JobType.Builder : BUILDING_JOB_TYPES[type];
+  return job as Args extends [BuildingType, 'construction'] ? typeof JobType.Builder : JobType | undefined;
 }
 
 export function ensureEntitySkills(entity: { skills?: Partial<Record<JobType, number>> }): Partial<Record<JobType, number>> {
