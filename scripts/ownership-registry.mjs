@@ -454,7 +454,7 @@ export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS, re
         }
       }
       if (inventory) {
-        for (const filename of project.program.getRootFileNames()) {
+        for (const filename of project.rootFiles) {
           const module = path.relative(root, filename).replaceAll('\\', '/');
           if (!/^(src|scripts|tests)\//.test(module) || /\.d\.ts$/.test(module)) continue;
           const source = project.program.getSourceFile(filename);
