@@ -131,8 +131,8 @@ import {
   hasAffairPartner,
   isEligibleToCourt,
   isMaritalHomeOccupiedBySpouse,
-  isSpouseNearby,
   isValidAffairTarget,
+  selectPendingAffairMeeting,
   isValidAffairTrystSite,
   affairEncounterHourOfDay,
   reconcileAffairPartner,
@@ -1528,7 +1528,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !isMaritalHomeOccupiedBySpouse(entity, entityById, buildingById, AFFAIR_SPOUSE_BLOCK_RADIUS)
     ) {
       const affairRange = 75;
-      const paramour = findClosestAdaptiveInRadius(
+      const paramour = selectPendingAffairMeeting(entity, entityById, state.tick, canMeetAffair) ?? findClosestAdaptiveInRadius(
         humanSocialGrid,
         playerHumans,
         entity.x,
@@ -1611,7 +1611,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !isMaritalHomeOccupiedBySpouse(entity, entityById, buildingById, AFFAIR_SPOUSE_BLOCK_RADIUS)
     ) {
       const lover = livingHumanAt(entity.affairPartnerId);
-      if (lover?.alive) {
+      if (lover?.alive && (canMeetAffair(lover) || (isNightHour(hourOfDay) && overnightTrystIds.has(entity.id)))) {
         const trystTarget = getAffairTrystTarget(entity, lover, entityById, buildingById);
         const dist = Math.hypot(trystTarget.x - entity.x, trystTarget.y - entity.y) || 1;
         const tryst = isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_INTIMATE_RADIUS);

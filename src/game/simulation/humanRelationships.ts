@@ -119,6 +119,26 @@ function validPendingPair(a: Entity, b: Entity): boolean {
     && (isMarriedOrExpecting(a) || isMarriedOrExpecting(b));
 }
 
+/** Choose a nearby reciprocal candidate, rotating by day rather than locking to one person.
+ * A visit uses the existing movement owner; no new route planner or progression writer. */
+export function selectPendingAffairMeeting(
+  entity: Entity, people: ReadonlyMap<number, Entity>, tick: number,
+  canMeet: (person: Entity) => boolean,
+): Entity | undefined {
+  const day = getAbsoluteCalendarDay(tick);
+  const candidates = Object.keys(entity.affairCandidates ?? {}).map(Number).sort((a, b) => a - b);
+  for (let i = 0; i < candidates.length; i++) {
+    const id = candidates[(day + i) % candidates.length];
+    const other = people.get(id);
+    if (!other || !validPendingPair(entity, other) || !isValidAffairTarget(entity, other, tick)
+      || pendingAffairProgress(entity.affairCandidates?.[id], day) <= 0
+      || pendingAffairProgress(other.affairCandidates?.[entity.id], day) <= 0
+      || Math.hypot(entity.x - other.x, entity.y - other.y) > 240 || !canMeet(other)) continue;
+    return other;
+  }
+  return undefined;
+}
+
 /** Read-only mutual candidate projection; never invents or writes a pair. */
 export function getPendingAffairs(entity: Entity, people: readonly Entity[], tick: number): Array<{ person: Entity; progress: number }> {
   if (!entity.affairCandidates) return [];
@@ -1566,6 +1586,8 @@ export function tryDailyAffairEncounter(
   let bestDistSq = 120 * 120;
   const considerParamour = (candidate: Entity, distSq: number) => {
     if (!isValidAffairTarget(entity, candidate, state.tick) || !canMeet(candidate)) return;
+    if (isMarriedOrExpecting(candidate) && !shouldLeadAffairPair(entity, candidate)) return;
+    if (!isValidAffairTrystSite(entity, candidate, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) return;
     if (distSq >= bestDistSq) return;
     if (isSpouseNearby(candidate, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)) return;
     bestDistSq = distSq;

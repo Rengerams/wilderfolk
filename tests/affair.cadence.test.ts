@@ -7,7 +7,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
-import { isValidAffairTarget, reconcileAffairPartner, tryDailyAffairEncounter } from '../src/game/simulation/humanRelationships';
+import { getPendingAffairs, selectPendingAffairMeeting, isValidAffairTarget, reconcileAffairPartner, tryDailyAffairEncounter } from '../src/game/simulation/humanRelationships';
 
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
@@ -305,5 +305,43 @@ describe('affair progress belongs to a verified pair', () => {
     expect(married.affairCandidateId).toBeUndefined();
     expect(married.affairProgress).toBe(0);
     expect(isValidAffairTarget(married, next, 0)).toBe(true);
+  });
+});
+
+
+describe('nonexclusive pending affairs', () => {
+  it('keeps independent reciprocal candidates and expires only the stale pair', () => {
+    const married = human(1, { gender: 'female', relationshipStatus: 'married', partnerId: 9,
+      affairCandidates: { 2: { progress: 10, lastEncounterDay: 0 }, 3: { progress: 70, lastEncounterDay: 20 } } });
+    const first = human(2, { gender: 'male', relationshipStatus: 'single',
+      affairCandidates: { 1: { progress: 10, lastEncounterDay: 0 } } });
+    const second = human(3, { gender: 'male', relationshipStatus: 'single',
+      affairCandidates: { 1: { progress: 70, lastEncounterDay: 20 } } });
+    const people = [married, first, second];
+    const byId = new Map(people.map(person => [person.id, person]));
+    expect(getPendingAffairs(married, people, 0).map(p => p.person.id)).toEqual([3, 2]);
+    expect(selectPendingAffairMeeting(married, byId, 0, person => person.id === 3)).toBe(second);
+    reconcileAffairPartner(married, byId, 20 * TICKS_PER_DAY);
+    expect(first.affairCandidates).toBeUndefined();
+    expect(getPendingAffairs(married, people, 20 * TICKS_PER_DAY).map(p => p.progress)).toEqual([70]);
+  });
+
+  it('a real successful encounter with a different candidate keeps the first pair intact', () => {
+    const { wife, husband, paramour, state } = affairFixture();
+    const next = human(4, { gender: 'male', relationshipStatus: 'single', x: 11, y: 10 });
+    let day = 1;
+    while (day <= 20_000 && personDayRoll(wife.id, day * TICKS_PER_DAY, 610) >= 0.001) day++;
+    expect(day).toBeLessThanOrEqual(20_000);
+    wife.affairCandidates![3].lastEncounterDay = day;
+    paramour.affairCandidates![1].lastEncounterDay = day;
+    state.tick = day * TICKS_PER_DAY;
+    state.entities.push(next);
+    const byId = new Map(state.entities.map(person => [person.id, person]));
+    tryDailyAffairEncounter(state, wife, byId, [], new Map(), 0, 18, undefined,
+      [husband, paramour, next], 400, 300, person => person.id === next.id);
+    expect(wife.affairCandidates?.[3]?.progress).toBe(95);
+    expect(wife.affairCandidates?.[4]?.progress).toBeGreaterThan(0);
+    expect(wife.affairCandidates?.[4]).toEqual(next.affairCandidates?.[1]);
+    expect(wife.affairPartnerId).toBeUndefined();
   });
 });
