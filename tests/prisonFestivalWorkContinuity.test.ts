@@ -232,6 +232,27 @@ it('retains an already higher Fisher skill when reconciling legacy fishing crews
   expect(fisher.skills?.hunter).toBe(12);
 });
 
+it('records local soldier patrol and apprentice attendance through the same work counters', () => {
+  const barracks = building(10, BuildingType.Barracks, 750, 300, [1]);
+  const farm = building(11, BuildingType.Farm, 300, 200, [2]);
+  const soldier = human(1, { job: JobType.Soldier, workerBuildingId: barracks.id, x: 100, y: 100 });
+  const master = human(2, { job: JobType.Farmer, workerBuildingId: farm.id, apprenticeId: 3,
+    skills: { [JobType.Farmer]: 80 }, x: 300, y: 221 });
+  const apprentice = human(3, { apprenticeOfId: 2, workerBuildingId: undefined, x: 300, y: 221 });
+  const state = worldState([soldier, master, apprentice], [barracks, farm], null);
+  state.tick = 10 * TICKS_PER_HOUR;
+  expect(isAtBuildingReach(soldier, barracks)).toBe(false);
+  gameTick(state);
+  expect(soldier.scheduleWorkedTicksToday).toBe(1);
+  expect(soldier.schedulePresentTicksToday).toBe(1);
+  expect(soldier.schedulePresentSiteIdToday).toBe(barracks.id);
+  expect(apprentice.scheduleWorkedTicksToday).toBe(1);
+  expect(apprentice.schedulePresentTicksToday).toBe(1);
+  expect(apprentice.scheduleWorkedJobToday).toBe(JobType.Farmer);
+  expect(apprentice.schedulePresentSiteIdToday).toBe(farm.id);
+  expect(farm.occupants).toEqual([master.id]);
+});
+
 describe('a prison is open 24 hours', () => {
   it('counts a guard at the valid facade as present even outside the old centre-radius cutoff', () => {
     const { state, prison, nightGuard } = prisonWorld();

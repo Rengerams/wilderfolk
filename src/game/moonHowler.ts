@@ -21,7 +21,8 @@ import {
   killHuman,
   TICKS_PER_HOUR,
 } from './dayCycle';
-import { isPlayerHuman } from './playerHuman';
+import { isPlayerHuman, isActiveMoonHowler } from './playerHuman';
+export { isActiveMoonHowler } from './playerHuman';
 import { citizenFullName, humanDisplayName } from './citizenId';
 import { buildEntityByType } from './simFocus';
 import {
@@ -177,9 +178,6 @@ export function canMoonHowlerCurse(entity: Entity): boolean {
   );
 }
 
-export function isActiveMoonHowler(entity: Pick<Entity, 'alive' | 'type' | 'moonHowlerCursed'>): boolean {
-  return entity.alive && entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
-}
 
 export function curseMoonHowler(human: Entity): void {
   human.moonHowlerCursed = true;

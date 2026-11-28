@@ -35,7 +35,7 @@ import { commuteLeadHoursFor } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { resolveHumanWorkplace, type WorkplaceResolution } from './workforceSummary';
 import { isImprisoned, isNearResidence } from './housingModel';
-import { isPlayerHuman } from './playerHuman';
+import { isPlayerHuman, isActiveMoonHowler, HUMAN_HOWLER_FLEE_RADIUS } from './playerHuman';
 import { getBuildingConfig } from './buildingConfig';
 
 /** Distance under which a worker counts as standing at their post — the sim's own arrival test. */
@@ -118,6 +118,7 @@ export function resolveShift(
   next: NextShift;
   prisonDuty?: ReturnType<typeof prisonDutyForGuard>;
   moonPriestDuty?: boolean;
+  patrolAssignment?: boolean;
 } {
   const schedule = getWorkSchedule(state);
   const goWorkTime = isOnWorkScheduleShift(state, hour);
@@ -171,12 +172,12 @@ export function resolveShift(
     return { onShift: false, next: { hour: schedule.startHour, kind: 'prison' } };
   }
 
+  const patrolAssignment = entity.job === JobType.Soldier && workplace?.type === BuildingType.Barracks
+    && isBarracksGuard(entity.id, entity.workerBuildingId, state.buildings);
   const onDayJobShift =
     (goWorkTime
       && !isInnkeeper
-      && (ordinaryWorkplace
-        || (entity.job === JobType.Soldier
-          && isBarracksGuard(entity.id, entity.workerBuildingId, state.buildings))))
+      && (ordinaryWorkplace || patrolAssignment))
     || (entity.job === JobType.Official
       && workplace?.type === BuildingType.TownHall
       && completed
@@ -188,7 +189,39 @@ export function resolveShift(
     onShift: onDayJobShift || (isPriest && goWorkTime) || moonPriestDuty,
     next: { hour: schedule.startHour, kind: 'day' },
     ...(moonPriestDuty ? { moonPriestDuty } : {}),
+    ...(patrolAssignment ? { patrolAssignment } : {}),
   };
+}
+
+/** One on-duty presence rule for the tick, the inspector and the building roster.
+ * A local soldier starts patrol directly, not by checking in at the barracks.
+ * The tick supplies its existing threat/arrival observations; read-only projections can derive them.
+ */
+export function resolveWorkPresence(
+  state: WorldState,
+  entity: Entity,
+  workplace: Building | undefined,
+  shift: ReturnType<typeof resolveShift>,
+  observed?: { indoorBuildingId: number | undefined; atPost: boolean; threatened: boolean; goingToHospital: boolean },
+): 'post' | 'field' | 'patrol' | undefined {
+  if (!shift.onShift || !workplace || !entity.alive || !isPlayerHuman(entity)
+    || entity.age < HUMAN_ADULT_MIN_AGE || isImprisoned(entity) || entity.raidDeploymentId != null) return undefined;
+  if (shift.patrolAssignment) {
+    const indoorId = observed ? observed.indoorBuildingId : entity.indoorBuildingId;
+    const ward = indoorId == null ? undefined : state.buildings.find((b) => b.id === indoorId);
+    if (isRestingHospitalPatient(entity, ward, state.tick, indoorId)) return undefined;
+    const goingToHospital = observed?.goingToHospital
+      ?? isPregnancyHospitalPriority(entity, state.buildings.some(isStaffedHospital));
+    if (goingToHospital) return undefined;
+    const threatened = observed?.threatened ?? state.entities.some((candidate) =>
+      isActiveMoonHowler(candidate)
+      && (candidate.x - entity.x) ** 2 + (candidate.y - entity.y) ** 2 <= HUMAN_HOWLER_FLEE_RADIUS ** 2);
+    return threatened ? undefined : 'patrol';
+  }
+  if (observed?.goingToHospital) return undefined;
+  if ((observed?.atPost ?? isAtBuildingReach(entity, workplace))
+    || (observed ? observed.indoorBuildingId : entity.indoorBuildingId) === workplace.id) return 'post';
+  return entity.job === JobType.Hunter && entity.huntTargetId != null ? 'field' : undefined;
 }
 
 export type ArmedDuty = 'none' | 'hunting' | 'military';
@@ -260,13 +293,10 @@ export function getSettlerWorkReason(
     return { code: 'sleeping', label: 'Sleeping' };
   }
 
-  // The same three cases `humanTick` credits as verified work: at the building, inside it, or in
-  // the field for a hunter holding prey.
-  const { onShift, next } = resolveShift(state, entity, workplace, hour);
-  const atWork = workplace != null
-    && (isAtBuildingReach(entity, workplace)
-      || entity.indoorBuildingId === workplace.id
-      || (entity.job === JobType.Hunter && entity.huntTargetId != null));
+  const shift = resolveShift(state, entity, workplace, hour);
+  const { onShift, next } = shift;
+  const presence = resolveWorkPresence(state, entity, workplace, shift);
+  const atWork = presence != null;
 
   // The hospital owner's own word for why this settler needs care, verbatim. Pregnancy alone is
   // not an absence: `expecting` is a clinical reason, not evidence that no work happened. Visible
@@ -296,7 +326,8 @@ export function getSettlerWorkReason(
   }
 
   const label = labelFor(workplace);
-  if (onShift && atWork) return { code: 'working', label: trainingSite ? `Apprenticing at ${label}` : `Working at ${label}` };
+  if (onShift && atWork) return { code: 'working', label: presence === 'patrol' ? 'Patrolling' : trainingSite ? `Apprenticing at ${label}` : `Working at ${label}` };
+  if (onShift && shift.patrolAssignment) return { code: 'unknown', label: 'Patrol interrupted' };
   // The hospital roster owns its own commute window, which opens before the ward duty does.
   if (doctorCommuteDue || commutingToWork) {
     return { code: 'walking-to-work', label: trainingSite ? `Walking to apprenticeship at ${label}` : `Walking to work — ${label}` };

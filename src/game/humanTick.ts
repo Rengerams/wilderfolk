@@ -1,18 +1,17 @@
 import { MAX_ASSIGNABLE_COMMUTE_HOURS, MAX_COMMUTE_LEAD_HOURS, WORK_COMMUTE_RUSH, quoteBuildingCommute } from './commuteReach';
 import type { WorldState, Entity, Building } from './gameTypes';
 import { EntityType, BuildingType, BUILDING_JOB_TYPES, JobType, Season, PATH_CELL } from './gameTypes';
-import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { Relationship } from './gameConstants';
 import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import { getChurchStrength } from './workforce';
-import { resolveShift } from './workAbsence';
+import { resolveShift, resolveWorkPresence } from './workAbsence';
 import { isPrisonerInCell } from './prisonShifts';
 import { buildConstructionCrewIndex, resolveHumanWorkplace } from './workforceSummary';
 
-import { isPlayerHuman } from './playerHuman';
+import { isPlayerHuman, HUMAN_HOWLER_FLEE_RADIUS } from './playerHuman';
 import { deterministicCos, deterministicSin } from './simTrig';
 import { isSettlerRelationshipEntity } from './moonHowlerForm';
 import { buildCeremonySeatIndex, getElectionGatherTarget, isCeremonyAttendee } from './villageLeadership';
@@ -647,7 +646,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       ? undefined : buildingById.get(entity.residenceBuildingId);
     const distanceFromHome = workplace
       ? commuteDistanceFromResidence(entity, residenceForSleep, workplace) : 0;
-    const scheduledCommuteHours = workplace
+    const scheduledCommuteHours = workplace && !shift.patrolAssignment
       ? Math.min(MAX_ASSIGNABLE_COMMUTE_HOURS,
         Math.max(commuteLeadHoursFor(distanceFromHome, config.speed),
           isPrisonGuardAtPost ? estimatedPrisonHours : 0))
@@ -670,7 +669,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const venueWork = (isInnkeeper || isHotelier) && workplace != null;
     const venueCommuteDue = venueWork && nextShiftStartTick != null
       && state.tick >= nextShiftStartTick - commuteLeadHours * TICKS_PER_HOUR;
-    const workCommuteDue = venueWork ? onTavernShift || onHotelShift || venueCommuteDue
+    const workCommuteDue = shift.patrolAssignment ? false : venueWork ? onTavernShift || onHotelShift || venueCommuteDue
       : isHospitalDoctor ? hospitalCommuteDue || onHospitalShift
       : isPrisonGuardAtPost ? prisonCommuteDue : workplace != null
         && isWorkDay(state.tick)
@@ -688,11 +687,24 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     );
     const atPost = workplace != null && isAtBuildingReach(entity, workplace);
     const wasInsideWorkplace = workplace != null && previousIndoorBuildingId === workplace.id;
-    // Hunters work away from the spot; every other scheduled trade must be at its post or inside it.
-    const hunterInField = entity.job === JobType.Hunter && entity.huntTargetId != null;
     // Pregnancy hospital priority outranks the shift: the settler still owes the duty hours, but
     // standing at a post they are leaving is not verified work.
     const goingToHospital = isPregnancyHospitalPriority(entity, staffedHospitals.length > 0);
+    const huntingWere = anyActiveHowler
+      ? findClosestEntityInRadius(
+          mobileGrid,
+          entity.x,
+          entity.y,
+          HUMAN_HOWLER_FLEE_RADIUS,
+          isActiveMoonHowler,
+          'human_hunt',
+          byType[EntityType.Werewolf],
+        )
+      : undefined;
+    const workPresence = shift.onShift && workplace != null && isPlayerHuman(entity)
+      ? resolveWorkPresence(state, entity, workplace, shift, {
+          indoorBuildingId: previousIndoorBuildingId, atPost, threatened: !!huntingWere, goingToHospital,
+        }) : undefined;
     if (isPlayerHuman(entity) && !entity.raidDeploymentId && workplace != null && shift.onShift) {
       // A construction crew has no regular workerBuildingId. Its resolved workplace supplies
       // the witnessed site and trade through the existing attendance recorders.
@@ -702,7 +714,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           ? (BUILDING_JOB_TYPES[workplace.type] ?? JobType.Builder)
           : (entity.job ?? null);
       recordScheduleWorkTick(entity, 1, workplace?.id, attendedJob);
-      if (!goingToHospital && (atPost || wasInsideWorkplace || hunterInField)) {
+      if (workPresence != null) {
         recordPresentWorkTick(entity, 1, workplace?.id);
       }
     }
@@ -716,6 +728,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const active =
       !isPrisoner &&
       (spotlightActorIds?.has(entity.id) || inFocus || leavingWork ||
+        (shift.patrolAssignment && (shift.onShift || isStartOfClockHour(state.tick))) ||
         ((recoveringSleep || preShiftSleep.headHome) && !onJobShift) ||
         (entity.needs?.breakUntilRecovered === true && !onJobShift) ||
         hospitalCommuteDue ||
@@ -872,18 +885,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const socialTime = !goingToHospital && !inSpotlightGathering && !inElectionCeremony
       && !onDutyForSleep && !takingNeedsBreak && !sleepingForNeeds && !recoveringSleep;
     const allowFreeRoam = socialTime && (festivalGathering || !stayIn);
-
-    const huntingWere = anyActiveHowler
-      ? findClosestEntityInRadius(
-          mobileGrid,
-          entity.x,
-          entity.y,
-          110,
-          isActiveMoonHowler,
-          'human_hunt',
-          byType[EntityType.Werewolf],
-        )
-      : undefined;
 
     // The festival destination is shared by the readiness and movement decisions.
     const festivalStand = festivalGathering ? crowdGatherPosition(
@@ -1105,10 +1106,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !inElectionCeremony &&
       !inSpotlightGathering &&
       !festivalGathering &&
-      goWorkTime &&
-      workplace &&
-      entity.job === JobType.Soldier &&
-      isBarracksGuard(entity.id, entity.workerBuildingId, updatedBuildings)
+      workPresence === 'patrol'
     ) {
       const anchor = getCampAnchor();
       if (anchor) {
@@ -1120,10 +1118,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           (Math.floor(tx / PATH_CELL) + 0.5) * PATH_CELL,
           (Math.floor(ty / PATH_CELL) + 0.5) * PATH_CELL,
           config.speed, 0.65, `patrol_${entity.id}`);
-        onSchedule = true;
-        suppressIdle = true;
-      } else if (workplace) {
-        if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
         onSchedule = true;
         suppressIdle = true;
       }

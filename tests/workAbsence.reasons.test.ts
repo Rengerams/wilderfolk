@@ -20,6 +20,8 @@ import { countWorkingAndIdleSettlers } from '../src/game/workforceSummary';
 import { getBuildingConfig } from '../src/game/buildingConfig';
 import {
   getSettlerWorkReason,
+  resolveShift,
+  resolveWorkPresence,
   getUnstaffedPostNote,
   getWorkplaceRosterReasons,
   workplaceDutyLabel,
@@ -107,6 +109,28 @@ function postedFarmer(farm: Building, overrides: Partial<Entity> = {}): Entity {
 }
 
 describe('the reason a settler is not at their post', () => {
+  it('shares local barracks patrol presence and the inspector verdict without a barracks visit', () => {
+    const barracks = building(10, BuildingType.Barracks, { occupants: [1] });
+    const guard = settler(1, { job: JobType.Soldier, workerBuildingId: barracks.id, x: 300, y: 250 });
+    const state = world(workdayTick(10), { entities: [guard], buildings: [barracks] });
+    const shift = resolveShift(state, guard, barracks, 10);
+    expect(shift.patrolAssignment).toBe(true);
+    expect(resolveWorkPresence(state, guard, barracks, shift)).toBe('patrol');
+    expect(getSettlerWorkReason(state, guard)).toEqual({ code: 'working', label: 'Patrolling' });
+    expect(getHumanActivityProjection(state, guard)).toMatchObject({ activity: 'Patrolling', target: null });
+    expect(explainHumanMovement(state, guard.id).stops.some((stop) => stop.buildingId === barracks.id)).toBe(false);
+    guard.raidDeploymentId = 'raid-1';
+    expect(resolveWorkPresence(state, guard, barracks, shift)).toBeUndefined();
+    guard.raidDeploymentId = undefined;
+    state.entities.push(settler(2, { type: EntityType.Werewolf, moonHowlerCursed: true, x: guard.x, y: guard.y }));
+    expect(resolveWorkPresence(state, guard, barracks, shift)).toBeUndefined();
+    expect(getSettlerWorkReason(state, guard).label).toBe('Patrol interrupted');
+    state.entities.pop();
+    state.tick = workdayTick(18);
+    expect(resolveWorkPresence(state, guard, barracks, resolveShift(state, guard, barracks, 18))).toBeUndefined();
+  });
+
+
   it.each([...APPRENTICESHIP_BUILDING_TYPES])('recognizes a %s apprentice as working without adding a roster seat', (type) => {
     const job = BUILDING_JOB_TYPES[type]!;
     const label = getBuildingConfig(type).label;

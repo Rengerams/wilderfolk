@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Barracks soldiers patrol directly during their shift; shared presence and duty rules credit patrol attendance and show Patrolling rather than requiring a barracks visit.
+
 - **Fixed (28 Nov 2026):** Migrate human relationship, medical, hunting, civic and election decisions to stamina; use native stamina effects and thresholds, and retire the temporary energy mirror, isolate old-save conversion, and separate Moon Howler predator metabolism from saved human needs.
 
 - **Fixed (28 Nov 2026):** Hunts no longer restore personal stamina. Predator combat uses duty, equipment, reserves and skill; children cannot wield weapons. Moon Howlers use 1,800 energy and 2× combat resistance.

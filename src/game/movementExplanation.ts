@@ -171,6 +171,13 @@ export function explainHumanMovement(state: WorldState, settlerId: number): Huma
 
   const activity = getHumanActivityProjection(state, settler);
   const workplace = activity.workplace;
+  if (workplace?.patrol) {
+    const lines: ExplanationLine[] = [
+      { label: 'Activity', value: activity.activity, tone: 'neutral' },
+      { label: 'Duty', value: 'Settlement patrol — Barracks assignment; no check-in required.', tone: 'neutral' },
+    ];
+    return { stops: homeStop ? [homeStop] : [], legIndex: null, legLabel: null, status: 'none', lines };
+  }
   const venue = settlerVenue(state, settler);
 
   const stops: SettlerRouteStop[] = [];
