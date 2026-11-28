@@ -334,7 +334,8 @@ describe('workforce named transitions', () => {
     expect(remote.job).toBe(JobType.Soldier);
     expect(distantHouse.occupants).toEqual([]);
     expect(localHouse.occupants).toEqual([2, 1]);
-    expect(barracks.occupants).toEqual([2, 1]);
+    // Workforce reconciliation rebuilds the job roster in entity order.
+    expect(barracks.occupants).toEqual([1, 2]);
     expect(collectSimulationInvariantErrors(world)).toEqual([]);
   });
 
