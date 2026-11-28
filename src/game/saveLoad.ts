@@ -974,9 +974,6 @@ function findUnrestorableField(parsed: Record<string, unknown>): string | null {
   if (parsed.lifetimeStats !== undefined && !isSaveObject(parsed.lifetimeStats)) {
     return 'lifetimeStats';
   }
-  if (parsed.activeVillageRequest !== undefined && !isUsableVillageRequest(parsed.activeVillageRequest)) {
-    return 'activeVillageRequest';
-  }
   // Present values must satisfy their own rule; absent ones are defaulted by the load path.
   for (const { field, isValid } of worldScalarRules()) {
     if (parsed[field] !== undefined && !isValid(parsed[field])) return field;
@@ -1130,9 +1127,6 @@ const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>>
   tradeRoutes: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   eventLog: containerArrayRule(isAnyArray, EVENT_LOG_ELEMENT_RULES),
   chronicleChapters: containerArrayRule(isAnyArray, null),
-  // Retired camp payloads may be malformed: no runtime reader consumes their elements.
-  visitorGroups: containerArrayRule(isAnyArray, []),
-  villageRequestHistory: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   rivalSettlements: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   pendingDiplomacyEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   pendingRaidEvents: containerArrayRule(isAnyArray, PENDING_RAID_ELEMENT_RULES),
@@ -1187,7 +1181,7 @@ function findInvalidWarfareState(parsed: Record<string, unknown>): string | null
 }
 
 /**
- * The first unusable container array, named as `tradeRoutes` or `visitorGroups[2]`.
+ * The first unusable container array, named as `tradeRoutes` or `rivalSettlements[2]`.
  *
  * Only a field the payload actually holds is judged: an absent one is the restore's own `?? []`.
  */
@@ -1340,24 +1334,6 @@ function findUnrestorableEntityField(parsed: Record<string, unknown>): string | 
 }
 
 /**
- * The shape `groupEvents.spawnVisitorGroup` gives a provisions card's answers: an id, a label and a
- * detail, all strings. The card is not a container element, so it gets its own rule.
- */
-function isVillageRequestChoice(value: unknown): boolean {
-  if (!isSaveObject(value)) return false;
-  const fields = value as Record<string, unknown>;
-  return [fields.id, fields.label, fields.detail].every((field) => typeof field === 'string');
-}
-
-/**
- * The one save field whose reader is a render-time call: `getVillageRequestEligibility` walks
- * `request.choices` while the card paints, so a present card must have a usable `choices` array.
- */
-function isUsableVillageRequest(value: unknown): boolean {
-  return isSaveObject(value) && Array.isArray(value.choices) && value.choices.every(isVillageRequestChoice);
-}
-
-/**
  * Clear every reference a loaded colony cannot resolve. A dangling `partnerId` is worse than a crash:
  * a "married" settler who never widows or divorces is excluded from courtship by it, permanently.
  */
@@ -1498,12 +1474,13 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     const playerBuildings: Building[] = [];
     let retiredLegacyCampCount = 0;
     for (const building of worldData.buildings ?? []) {
-      const legacy = building as Building & { faction?: unknown };
+      const legacy = building as Building & { faction?: unknown; hotelGuestIds?: unknown };
       if (legacy.faction === 'rival') {
         retiredLegacyCampCount++;
         continue;
       }
       delete legacy.faction;
+      delete legacy.hotelGuestIds;
       playerBuildings.push(building);
     }
 
@@ -1540,7 +1517,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       // A payload without a speed predates the field; the loop runs at the fresh-colony default.
       speed: typeof worldData.speed === 'number' ? worldData.speed : 1,
       ...transient,
-      bigNews: (worldData.bigNews ?? []).map(normalizeBigNewsItem),
+      activeEvent: typeof worldData.activeEvent?.id === 'string' && worldData.activeEvent.id.startsWith('visitor_') ? null : worldData.activeEvent ?? null,
+      bigNews: (worldData.bigNews ?? []).map(normalizeBigNewsItem).filter((news) => !news.title.includes('Visitors Arrived')),
       screenShakeImpulse: 0,
       festival: normalizeFestivalState(worldData.festival),
       settledEcology: normalizeSettledEcology(worldData.settledEcology),
@@ -1554,13 +1532,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       eventLog: worldData.eventLog || [],
       worldMap: restoreWorldMapFromSave(source),
       ecoHealthYearsAbove80: worldData.ecoHealthYearsAbove80 ?? 0,
-      // On-map visitor camps are retired. Old saves keep their strategic rivals and raids.
-      // Preserve the retired flag for lossless worker/save round-trips; it schedules nothing.
-      firstWeekVisitorSpawned: worldData.firstWeekVisitorSpawned ?? false,
-      visitorGroups: [],
-      visitorQuest: undefined,
-      activeVillageRequest: worldData.activeVillageRequest?.sourceVisitorGroupId
-        ? undefined : worldData.activeVillageRequest,
+      // Old visitor fields are not in the live save allowlist; strategic records remain.
       rivalSettlements: (worldData.rivalSettlements ?? []).map((r) => ({
         ...r,
         raidCooldownDays: r.raidCooldownDays ?? 30,
@@ -1636,11 +1608,6 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     world.year = Math.floor(loadedTick / (TICKS_PER_DAY * DAYS_PER_YEAR));
     if (typeof world.lastProcessedCalendarDay !== 'number') {
       world.lastProcessedCalendarDay = getAbsoluteCalendarDay(loadedTick);
-    }
-    for (const g of world.visitorGroups ?? []) {
-      if (g.spawnedAtCalendarDay == null) {
-        g.spawnedAtCalendarDay = getAbsoluteCalendarDay(loadedTick);
-      }
     }
     const colonyDayOnLoad = getAbsoluteCalendarDay(loadedTick);
     const hourOnLoad = getHourOfDay(loadedTick);

@@ -12,7 +12,6 @@ function world(): WorldState {
     height: 900,
     entities: [],
     buildings: [],
-    visitorGroups: [],
     rivalSettlements: [],
     pendingRaidEvents: [],
     pendingOutgoingRaidEvents: [],

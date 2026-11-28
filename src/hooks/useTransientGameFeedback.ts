@@ -316,10 +316,6 @@ export function useTransientGameFeedback({
     if (!event) return;
 
     onFeedbackInteraction();
-    const visitorNewsIds = event.id.startsWith('visitor_')
-      ? (currentWorld.bigNews ?? []).filter((news) => news.title.includes('Visitors Arrived')).map((news) => news.id)
-      : [];
-
     setHiddenActiveEventIds((previous) => {
       if (previous.has(event.id)) return previous;
       const next = new Set(previous);
@@ -327,33 +323,11 @@ export function useTransientGameFeedback({
       return next;
     });
 
-    if (visitorNewsIds.length > 0) {
-      setHiddenBigNewsIds((previous) => {
-        const next = new Set(previous);
-        for (let i = 0; i < visitorNewsIds.length; i++) {
-          next.add(visitorNewsIds[i]);
-        }
-        return next;
-      });
-    }
-
     loopRef.current?.mutateWorld((session) => {
       const dismissedEvents = new Set(session.dismissedActiveEventIds ?? []);
       dismissedEvents.add(event.id);
       session.dismissedActiveEventIds = Array.from(dismissedEvents).slice(-MAX_DISMISSED_ACTIVE_EVENT_IDS);
       session.activeEvent = null;
-
-      if (visitorNewsIds.length > 0) {
-        const dismissedNews = new Set(session.dismissedBigNewsIds ?? []);
-        const visitorNewsSet = new Set(visitorNewsIds);
-        for (let i = 0; i < visitorNewsIds.length; i++) {
-          dismissedNews.add(visitorNewsIds[i]);
-        }
-        // Same tail cap as the single-item path above: `bigNews` is itself capped at 50, so a
-        // capped ledger cannot resurrect a live card, and an uncapped one grows for the session.
-        session.dismissedBigNewsIds = Array.from(dismissedNews).slice(-MAX_DISMISSED_BIG_NEWS_IDS);
-        session.bigNews = session.bigNews.filter((news) => !visitorNewsSet.has(news.id));
-      }
     });
   }, [loopRef, onFeedbackInteraction, worldRef]);
 

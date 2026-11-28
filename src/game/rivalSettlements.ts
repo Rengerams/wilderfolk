@@ -44,7 +44,6 @@ function spawnRivalSettlement(
   const avoid = [
     center,
     ...state.rivalSettlements.map((r) => ({ x: r.campX, y: r.campY })),
-    ...state.visitorGroups.map((v) => ({ x: v.campX, y: v.campY })),
   ];
   const span = Math.min(state.width, state.height);
   const site = pickSite(state, center, span * 0.30, span * 0.42, avoid, {

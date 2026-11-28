@@ -36,8 +36,8 @@ const GUIDE_HELP_TOPICS: GuideHelpTopic[] = [
   {
     id: 'rivals',
     title: 'Other tribes',
-    keywords: 'rival camp visitor tribe neighbor peace friendly tense build expand',
-    body: 'Rivals share your map and slowly expand their camp (houses, farms, markets, or towers by mood). Not always hostile. Click a camp for gifts, peace, trade, or raids.',
+    keywords: 'rival settlement tribe neighbor peace friendly tense grow diplomacy',
+    body: 'Rivals grow on the strategic map according to their resources and relationships. Open Frontier and select a settlement for gifts, peace, trade, or raids.',
   },
   {
     id: 'favorite',

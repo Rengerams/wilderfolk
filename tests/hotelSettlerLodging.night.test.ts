@@ -1,4 +1,4 @@
-/** Residents and visitors share beds reserved before departure. */
+/** Settlers reserve hotel beds before departure. */
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   BuildingType,
@@ -12,10 +12,10 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay } from '../src/game/dayCycleClock';
 import {
-  checkInVisitor,
   countHotelSettlerLodgers,
+  createHotelLodgingIndex,
+  checkoutHotelLodger,
   getHotelRoster,
-  hotelHasVacancy,
   isSettlerLodgingAtHotel,
   isStaffedHotel,
   tickHotelLodging,
@@ -97,8 +97,8 @@ function hotel(id: number, centreX: number, centreY: number, overrides: Partial<
     faction: undefined,
     // A completed hotel with a posted hotelier; an unstaffed one takes no guests.
     occupants: [99],
-    x: centreX - 30,
-    y: centreY - 26,
+    x: centreX,
+    y: centreY,
     width: 60,
     height: 52,
     level: 1,
@@ -107,7 +107,7 @@ function hotel(id: number, centreX: number, centreY: number, overrides: Partial<
 }
 
 function hotelCentre(building: Building): { x: number; y: number } {
-  return { x: building.x + building.width / 2, y: building.y + building.height / 2 };
+  return { x: building.x, y: building.y };
 }
 
 function distanceTo(entity: Entity, x: number, y: number): number {
@@ -118,7 +118,6 @@ function newWorld(): WorldState {
   const state = initGame({ skipTerrain: true, seed: TEST_SEED });
   state.entities = [];
   state.buildings = [];
-  state.visitorGroups = [];
   state.pendingRaidEvents = [];
   state.pendingOutgoingRaidEvents = [];
   state.pendingDiplomacyEvents = [];
@@ -161,6 +160,91 @@ afterEach(() => {
 });
 
 describe('settler lodging overnight', () => {
+  it('does not double-release a bed before lazy index initialization', () => {
+    const state = newWorld();
+    const home = house(1, 100, WALKER_Y);
+    const inn = hotel(2, WALKER_X, WALKER_Y);
+    const residents = Array.from({ length: HOTEL_GUEST_CAPACITY + 2 }, (_, i) =>
+      settler(i + 1, { x: WALKER_X, y: WALKER_Y, residenceBuildingId: home.id }));
+    state.buildings = [home, inn];
+    state.entities = residents;
+    for (const resident of residents.slice(0, HOTEL_GUEST_CAPACITY)) {
+      expect(lodgingHotelFor(resident, state.buildings, residents, state.tick)).toBe(inn);
+    }
+    const index = createHotelLodgingIndex(state.buildings, residents, state.tick);
+    checkoutHotelLodger(residents[0], index);
+    expect(index.settlerLodgers(inn.id)).toBe(HOTEL_GUEST_CAPACITY - 1);
+    expect(lodgingHotelFor(residents[8], state.buildings, residents, state.tick, index)).toBe(inn);
+    expect(lodgingHotelFor(residents[9], state.buildings, residents, state.tick, index)).toBeUndefined();
+    expect(index.settlerLodgers(inn.id)).toBe(countHotelSettlerLodgers(inn, residents, state.tick));
+    checkoutHotelLodger(residents[1], index);
+    checkoutHotelLodger(residents[1], index);
+    expect(index.settlerLodgers(inn.id)).toBe(HOTEL_GUEST_CAPACITY - 1);
+  });
+
+  it('rejects expired reservations for sleep, capacity and roster before cleanup', () => {
+    const state = newWorld();
+    // Both sides of the expiry boundary must be inside the night window, which starts at 23:00.
+    state.tick += 1;
+    expect(getHourOfDay(state.tick - 1)).toBe(getHourOfDay(state.tick));
+    const home = house(1, 100, WALKER_Y);
+    const inn = hotel(2, WALKER_X, WALKER_Y);
+    const resident = settler(1, { x: inn.x, y: inn.y, residenceBuildingId: home.id,
+      indoorBuildingId: inn.id, hotelStayBuildingId: inn.id, hotelStayUntilTick: state.tick });
+    state.buildings = [home, inn];
+    state.entities = [resident];
+    expect(isSettlerLodgingAtHotel(resident, state.buildings, state.tick - 1)).toBe(true);
+    expect(isSettlerLodgingAtHotel(resident, state.buildings, state.tick)).toBe(false);
+    expect(countHotelSettlerLodgers(inn, state.entities, state.tick)).toBe(0);
+    expect(getHotelRoster(inn, state.entities, state.tick).lodgers).toEqual([]);
+    const index = createHotelLodgingIndex(state.buildings, state.entities, state.tick);
+    expect(index.settlerLodgers(inn.id)).toBe(0);
+    expect(lodgingHotelFor(resident, state.buildings, state.entities, state.tick, index)).toBe(inn);
+    expect(index.settlerLodgers(inn.id)).toBe(1);
+    expect(resident.hotelStayUntilTick).toBeGreaterThan(state.tick);
+  });
+
+  it('clears invalid non-settler stay pointers without taking settler beds', () => {
+    const state = newWorld();
+    const home = house(1, 100, WALKER_Y);
+    const inn = hotel(2, WALKER_X, WALKER_Y);
+    const legacy = settler(88, { faction: 'visitor', hotelStayBuildingId: inn.id,
+      hotelStayUntilTick: state.tick + TICKS_PER_HOUR });
+    const resident = settler(1, { x: WALKER_X, y: WALKER_Y, residenceBuildingId: home.id });
+    state.buildings = [home, inn];
+    state.entities = [legacy, resident];
+    expect(lodgingHotelFor(resident, state.buildings, state.entities, state.tick)).toBe(inn);
+    tickHotelLodging(state);
+    expect(legacy.hotelStayBuildingId).toBeUndefined();
+    expect(resident.hotelStayBuildingId).toBe(inn.id);
+    expect(getHotelRoster(inn, state.entities, state.tick).lodgers).toEqual([resident]);
+  });
+
+  it('credits one physiology sleep tick only after confirmed hotel entry', () => {
+    const state = newWorld();
+    const home = house(1, 100, WALKER_Y);
+    const inn = hotel(2, WALKER_X, WALKER_Y);
+    const walker = settler(1, {
+      x: inn.x, y: inn.y, residenceBuildingId: home.id,
+      needs: { nutrition: 80, rest: 40, stamina: 60, severeHungerTicks: 0 },
+    });
+    state.buildings = [home, inn];
+    state.entities = [walker];
+    expect(lodgingHotelFor(walker, state.buildings, state.entities, state.tick)).toBe(inn);
+    expect(isSettlerLodgingAtHotel(walker, state.buildings, state.tick)).toBe(false);
+    setSimSeed(TEST_SEED);
+    tickHumans(state, contextFor(state, [walker]));
+    expect(walker.needs!.rest).toBeLessThan(40);
+    expect(walker.indoorBuildingId).toBe(inn.id);
+    expect(isSettlerLodgingAtHotel(walker, state.buildings, state.tick)).toBe(true);
+    const before = { ...walker.needs! };
+    state.tick++;
+    tickHumans(state, contextFor(state, [walker]));
+    expect(walker.needs!.rest - before.rest).toBeCloseTo(100 / (7 * TICKS_PER_HOUR));
+    expect(walker.needs!.stamina - before.stamina).toBeCloseTo(100 / (7 * TICKS_PER_HOUR));
+    expect(walker.energy).toBeCloseTo(walker.maxEnergy * walker.needs!.stamina / 100);
+  });
+
   it('sleeps at a completed hotel with a free bed when the walk home is too long for the night', () => {
     const state = newWorld();
     const walkerX = WALKER_X;
@@ -191,7 +275,7 @@ describe('settler lodging overnight', () => {
     setSimSeed(TEST_SEED);
     tickHumans(noInn, contextFor(noInn, [control]));
     expect(control.vx, 'without a hotel the settler still walks home').toBeLessThan(0);
-    expect(distanceTo(control, home.x + home.width / 2, home.y + home.height / 2))
+    expect(distanceTo(control, home.x, home.y))
       .toBeGreaterThan(200);
   });
 
@@ -218,8 +302,8 @@ describe('settler lodging overnight', () => {
     const home = house(1, 100, WALKER_Y);
     const inn = hotel(2, WALKER_X + 100, WALKER_Y);
     const guests = Array.from({ length: HOTEL_GUEST_CAPACITY - 1 }, (_, i) =>
-      settler(20 + i, { faction: 'visitor' }));
-    inn.hotelGuestIds = guests.map((e) => e.id);
+      settler(20 + i, { x: WALKER_X, y: WALKER_Y, residenceBuildingId: home.id,
+        hotelStayBuildingId: inn.id, hotelStayUntilTick: state.tick + TICKS_PER_HOUR }));
     const first = settler(1, { x: WALKER_X, y: WALKER_Y, residenceBuildingId: home.id });
     const second = settler(2, { x: WALKER_X, y: WALKER_Y, residenceBuildingId: home.id });
     state.buildings = [home, inn];
@@ -241,15 +325,13 @@ describe('settler lodging overnight', () => {
     tickHumans(state, contextFor(state, residents));
 
     expect(residents.filter((e) => e.hotelStayBuildingId === inn.id)).toHaveLength(HOTEL_GUEST_CAPACITY);
-    expect(countHotelSettlerLodgers(inn, residents)).toBe(HOTEL_GUEST_CAPACITY);
-    expect(getHotelRoster(inn, state.buildings, residents, 23).lodgers).toHaveLength(HOTEL_GUEST_CAPACITY);
-    expect(isSettlerLodgingAtHotel(residents[0], state.buildings, 23)).toBe(false);
+    expect(countHotelSettlerLodgers(inn, residents, state.tick)).toBe(HOTEL_GUEST_CAPACITY);
+    expect(getHotelRoster(inn, residents, state.tick).lodgers).toHaveLength(HOTEL_GUEST_CAPACITY);
+    expect(isSettlerLodgingAtHotel(residents[0], state.buildings, state.tick)).toBe(false);
     tickHotelLodging(state);
-    expect(countHotelSettlerLodgers(inn, residents)).toBe(HOTEL_GUEST_CAPACITY);
+    expect(countHotelSettlerLodgers(inn, residents, state.tick)).toBe(HOTEL_GUEST_CAPACITY);
     expect(lodgingHotelFor(residents[0], state.buildings, residents, state.tick)).toBe(inn);
-    const visitor = settler(100, { faction: 'visitor' });
-    state.entities.push(visitor);
-    expect(checkInVisitor(state, visitor, inn)).toBe(false);
+    expect(lodgingHotelFor(residents[8], state.buildings, residents, state.tick)).toBeUndefined();
 
     residents[0].alive = false;
     tickHotelLodging(state);
@@ -257,7 +339,7 @@ describe('settler lodging overnight', () => {
     expect(lodgingHotelFor(residents[8], state.buildings, residents, state.tick)).toBe(inn);
     state.tick = residents[8].hotelStayUntilTick!;
     tickHotelLodging(state);
-    expect(countHotelSettlerLodgers(inn, residents)).toBe(0);
+    expect(countHotelSettlerLodgers(inn, residents, state.tick)).toBe(0);
   });
 
   it('uses another hotel when the closest is reserved and releases a demolished destination', () => {
@@ -282,8 +364,8 @@ describe('settler lodging overnight', () => {
     const state = newWorld();
     const walkerX = WALKER_X;
     const walkerY = WALKER_Y;
-    // Centre 40 px away: about an hour's walk, below LODGING_MIN_COMMUTE_HOURS.
-    const home = house(1, walkerX - 60, walkerY);
+    // Nearby doorstep: less than LODGING_MIN_COMMUTE_HOURS.
+    const home = house(1, walkerX - 25, walkerY);
     const inn = hotel(2, walkerX + 45, walkerY);
     const walker = settler(1, { x: walkerX, y: walkerY, residenceBuildingId: home.id });
     state.buildings = [home, inn];
@@ -319,11 +401,5 @@ describe('settler lodging overnight', () => {
     walker.hotelStayUntilTick = undefined;
     expect(lodgingHotelFor(walker, [home, inn], [walker, ...eight], state.tick), 'all eight beds taken').toBeUndefined();
 
-    // Visitors and settlers share the one pool of HOTEL_GUEST_CAPACITY beds.
-    const visitors = [settler(31, { faction: 'visitor' }), settler(32, { faction: 'visitor' })];
-    const halfFullInn = hotel(3, innCentreX, walkerY, { hotelGuestIds: [31, 32] });
-    expect(HOTEL_GUEST_CAPACITY).toBe(8);
-    expect(hotelHasVacancy(halfFullInn, visitors, undefined, 6), '2 visitors + 6 settlers fill it').toBe(false);
-    expect(hotelHasVacancy(halfFullInn, visitors, undefined, 5)).toBe(true);
   });
 });

@@ -11,7 +11,7 @@ import { building as staffingBuilding, human as sharedHuman } from '../src/test/
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, MapSize, Season, WeatherType, emptyEntityByType } from '../src/game/gameTypes';
-import type { Building, Entity, VisitorGroup, WorldState } from '../src/game/gameTypes';
+import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { tickHumans } from '../src/game/humanTick';
 import { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter } from '../src/game/frontierCombat';
@@ -80,22 +80,6 @@ function settler(world: WorldState, id: number, x: number, y: number, overrides:
   return entity;
 }
 
-function visitorGroup(id: string, campX: number, campY: number, kind: VisitorGroup['kind'] = 'traders'): VisitorGroup {
-  return {
-    id,
-    name: `Group ${id}`,
-    kind,
-    entityIds: [],
-    campX,
-    campY,
-    daysLeft: 3,
-    giftsGiven: 0,
-    tradesCompleted: 0,
-    refugeeResolved: false,
-    leaderTalked: false,
-  };
-}
-
 interface Fixture {
   world: WorldState;
   goers: Entity[];
@@ -122,10 +106,6 @@ function festivalFixture(goerCount: number): Fixture {
     goers.push(settler(world, 10 + i, 200 + (i % 10) * 4, 460 + Math.floor(i / 10) * 4));
   }
   world.entities = goers;
-  world.visitorGroups = [
-    visitorGroup('V1', 100, 100),
-    visitorGroup('V2', 120, 120),
-  ];
   return { world, goers };
 }
 
@@ -280,7 +260,6 @@ function nightWorld(id: number): WorldState {
     : null;
   if (!position) throw new Error('fixture must provide walkable ground');
   state.entities = [throttleSettler(id, position)];
-  state.visitorGroups = [];
   state.pendingRaidEvents = [];
   state.pendingOutgoingRaidEvents = [];
   state.pendingDiplomacyEvents = [];

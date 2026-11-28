@@ -268,6 +268,38 @@ describe('settlers inside buildings', () => {
     expect(person.needs!.rest).toBeGreaterThan(beforeSleep);
   });
 
+  it('credits prisoner sleep only on the tick after actual cell admission', () => {
+    const world = initGame({ skipTerrain: true, seed: 630 });
+    world.worldMap = null;
+    const prison = building(7, BuildingType.Prison, { x: 300, y: 300, occupants: [1] });
+    const person = human(1, {
+      x: prison.x, y: prison.y, prisonBuildingId: prison.id,
+      prisonerUntilTick: 48 * TICKS_PER_HOUR,
+      needs: { nutrition: 80, rest: 40, stamina: 60, severeHungerTicks: 0 },
+    });
+    world.entities = [person];
+    world.buildings = [prison];
+    world.villageLeaderId = null;
+    world.entityByType = undefined;
+    world.entityById = undefined;
+    world.paused = false;
+    world.tick = 23 * TICKS_PER_HOUR - 1;
+    world.lastProcessedCalendarDay = 0;
+
+    gameTick(world);
+    expect(person.needs!.rest).toBeLessThan(40);
+    expect(person.indoorBuildingId).toBe(prison.id);
+    const before = { ...person.needs! };
+    gameTick(world);
+    expect(person.needs!.rest - before.rest).toBeCloseTo(100 / (7 * TICKS_PER_HOUR));
+    expect(person.needs!.stamina - before.stamina).toBeCloseTo(100 / (7 * TICKS_PER_HOUR));
+    prison.completed = false;
+    const restBefore = person.needs!.rest;
+    gameTick(world);
+    expect(person.needs!.rest).toBeLessThan(restBefore);
+    expect(person.indoorBuildingId).toBeUndefined();
+  });
+
   it('admits an established lover at the shared tryst house and credits sleep only after entry', () => {
     const world = initGame({ skipTerrain: true, seed: 626 });
     world.worldMap = null;
