@@ -362,7 +362,7 @@ export function extractDefinitions(code, raw, file, classes = []) {
         exported: Boolean(match[1]),
         kind,
         className: owner?.name ?? null,
-        isStatic: Boolean(owner && /\bstatic\s/.test(match[0].slice(0, match[0].indexOf(name)))),
+        isStatic: Boolean(owner && /^\s*(?:(?:export|public|private|protected|readonly|async|override|get|set)\s+)*static\s/.test(match[0])),
         params: params.names,
         paramTypes: params.types,
         bodyStart: bodyStartLine,
