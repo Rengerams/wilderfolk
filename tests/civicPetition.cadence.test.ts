@@ -12,6 +12,7 @@ import { TICKS_PER_DAY, TICKS_PER_HOUR, getAbsoluteCalendarDay, tickAtDailyPhase
 
 import { officialHandlePetitioners, resolveCivicPetition, tickTownHallAudiences, tickScheduledTownHallAudiences, isCivicAudienceDay, wantsCivicAudience } from '../src/game/townHall';
 import { advanceHumanNeeds, initialHumanNeeds } from '../src/game/simulation/humanPhysiology';
+import { pickSocialImpulse } from '../src/game/socialLife';
 
 const OFFICIAL_ID = 1;
 const PETITIONER_ID = 2;
@@ -176,7 +177,8 @@ describe('civic petitions resolve at the daily cadence only', () => {
     let day = 3;
     for (; day < 5000; day += 3) {
       const tick = tickAtDailyPhase(day, 'production');
-      if (personDayRoll(PETITIONER_ID, tick, 821 + day) <= 0.4 && personDayRoll(PETITIONER_ID, tick, 823) < 0.55) break;
+      if (personDayRoll(PETITIONER_ID, tick, 821 + day) <= 0.4 && personDayRoll(PETITIONER_ID, tick, 823) < 0.55
+        && personDayRoll(PETITIONER_ID, tick, 730) < 0.32) break;
     }
     expect(day).toBeLessThan(5000);
     state.tick = day * TICKS_PER_DAY + 10 * TICKS_PER_HOUR;
@@ -188,12 +190,15 @@ describe('civic petitions resolve at the daily cadence only', () => {
     state.productionDeferred = true;
     expect(isCivicAudienceDay(state.tick)).toBe(true);
     expect(wantsCivicAudience(petitioner, state)).toBe(true);
+    expect(pickSocialImpulse(petitioner, state, [hall], []).motive).toBe('civic_petition');
     officialHandlePetitioners(state, official, hall, [official, petitioner]);
     tickScheduledTownHallAudiences(state, [hall], [official, petitioner]);
     expect(petitioner.civicPetitionResolvedDay).toBeUndefined();
     state.tick = tickAtDailyPhase(day, 'production');
+    expect(pickSocialImpulse(petitioner, state, [hall], []).motive).toBe('civic_petition');
     tickScheduledTownHallAudiences(state, [hall], [official, petitioner]);
     expect(petitioner.civicPetitionResolvedDay).toBe(day);
     expect(wantsCivicAudience(petitioner, state)).toBe(false);
+    expect(pickSocialImpulse(petitioner, state, [hall], []).motive).not.toBe('civic_petition');
   });
 });

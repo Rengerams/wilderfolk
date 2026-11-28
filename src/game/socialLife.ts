@@ -243,21 +243,13 @@ export function pickSocialImpulse(
     personDayRoll(entity.id, tick, 730) < 0.32
   ) {
     const foodAid = isFoodAlert(state);
-    const needAid =
-      foodAid ||
-      isGrieving(entity, tick) ||
-      (entity.scandalCooldownUntilTick ?? 0) > tick ||
-      getHumanStaminaRatio(entity) < HUMAN_NEEDS.STAMINA_BREAK_RECOVERED / 100;
-
-    if (needAid || personDayRoll(entity.id, tick, 731) < 0.15) {
-      return {
-        motive: 'civic_petition',
-        building: hall,
-        dialogueEvent: isGrieving(entity, tick)
-          ? 'social.impulse.civic_petition.grief'
-          : foodAid ? 'social.impulse.civic_petition.food' : 'social.impulse.civic_petition.general',
-      };
-    }
+    return {
+      motive: 'civic_petition',
+      building: hall,
+      dialogueEvent: isGrieving(entity, tick)
+        ? 'social.impulse.civic_petition.grief'
+        : foodAid ? 'social.impulse.civic_petition.food' : 'social.impulse.civic_petition.general',
+    };
   }
 
   // 8. Hospital Visit (when staffed)
