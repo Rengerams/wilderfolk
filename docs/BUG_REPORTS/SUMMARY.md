@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-28 — [Settled ecology type import cycle](../bug_report/2026-11-28-ecology-type-import-cycle.md):** investigating; move the shared metrics interface to dependency-free ecologyTypes; strict architecture regression reported red; fresh CI pending.
+
 **2026-11-28 — [Daily RNG rounds up rare mortality](../bug_report/2026-11-28-daily-rng-rare-mortality.md):** investigating; shared day-roll mixer resolves sub-bucket probabilities; deterministic million-roll comparison reproduced inflated mortality; regression CI pending.
 **2026-11-28 — [Leader custody exception](../bug_report/2026-11-28-leader-custody-exception.md):** investigating; saved child #4913 lives with elected mother #2383 while ordinary custody selects father #2552; canonical custody now prefers the eligible elected parent after separation; regression CI pending.
 

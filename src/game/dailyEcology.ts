@@ -5,6 +5,7 @@ import { TICKS_PER_HOUR } from './dayCycleClock';
 import { getWorkSchedule, getWorkScheduleHours } from './workSchedule';
 import { isPlayerHuman } from './playerHuman';
 import type { PopulationCounts } from './entityCounts';
+import type { EcosystemMetrics } from './ecologyTypes';
 import { hasTech } from './simHelpers';
 
 /** Full-shift industrial pollution on a medium map; extraction is heavier than craft. */
@@ -82,28 +83,6 @@ export function adjustPollutionLevel(state: WorldState, delta: number): void {
 
 /** The wildlife tally plus the settler count the ecosystem-health score reads. */
 export type EcosystemCounts = WildlifeCounts & { humans: number };
-
-export interface EcosystemMetrics {
-  /** Completed player (non-rival) buildings — the town footprint. */
-  playerCompletedBuildings: number;
-  buildingImpact: number;
-  /** Weighted land use as a percentage of the map's buildable habitat. */
-  occupiedLandPercent: number;
-  industrialEmissions: number;
-  forestryReduced: boolean;
-  /** Completed industrial buildings of any faction, before the forestry multiplier. */
-  industrialCount: number;
-  pollutionLevel: number;
-  pollutionPenalty: number;
-  preserveCount: number;
-  preserveBonus: number;
-  /** Rabbits + deer + wolves + foxes + werewolves + wildkin — every species the score counts. */
-  totalWildlife: number;
-  wildlifeRatio: number;
-  wildlifeBonus: number;
-  /** Clamped to 0-100 but not rounded; `tickEcosystemMetrics` stores the rounded value. */
-  health: number;
-}
 
 /** Validate optional saved explanation data; old or malformed saves wait for the next settlement. */
 export function normalizeSettledEcology(value: unknown): EcosystemMetrics | undefined {
