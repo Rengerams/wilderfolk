@@ -162,7 +162,8 @@ If an approach was deliberately rejected, explain why concisely. If existing cod
 - **Comments:** at most two lines per new comment, describing a contract or non-obvious constraint. No history essays or comments that merely narrate adjacent code; longer rationale belongs in documentation.
 - **Dependencies:** use declared packages; justify additions. Never add a dependency or tool merely to solve a problem already supported by the project.
 - **Scope:** improve related architecture when necessary; no unrelated formatting churn, mass renames, dependency upgrades or refactors without a technical reason.
-
+-**Creating a PR** When creating a PR the PR ahs to be clear waht it solves how what code you changed and bugs reported, changelog filled, en ownership documents.
+  
 For TypeScript tooling, note that `typescript@7` exposes its compiler API through `typescript/unstable/*`; the root import is a stub. Do not restore `dependency-cruiser`. Always inspect current tooling before relying on an older assumption.
 
 ---
