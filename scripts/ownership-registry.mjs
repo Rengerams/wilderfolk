@@ -358,12 +358,24 @@ function collectNamedDeclarations(source, checker, includeClosureBindings = true
       if (implementation) {
         name = node.name.getText();
         member = node.kind !== SyntaxKind.VariableDeclaration && ownerKind !== '';
-      } else if (initializer.kind === SyntaxKind.ObjectLiteralExpression || initializer.kind === SyntaxKind.ClassExpression) {
+      } else if (initializer.kind === SyntaxKind.ObjectLiteralExpression || initializer.kind === SyntaxKind.ClassExpression || initializer.kind === SyntaxKind.ArrayLiteralExpression) {
         const separator = node.kind !== SyntaxKind.VariableDeclaration && ownerKind
           ? (ownerKind === 'class' && !hasModifier(node, SyntaxKind.StaticKeyword) ? '#' : '.')
           : '::';
         const qualifiedObject = scope ? `${scope}${separator}${node.name.getText()}` : node.name.getText();
-        initializer.forEachChild(child => visit(child, qualifiedObject, initializer.kind === SyntaxKind.ClassExpression ? 'class' : 'object'));
+        if (initializer.kind === SyntaxKind.ArrayLiteralExpression) {
+          let index = 0;
+          initializer.forEachChild(element => {
+            const elementScope = `${qualifiedObject}::item${index++}`;
+            if (element.kind === SyntaxKind.ObjectLiteralExpression) {
+              element.forEachChild(child => visit(child, elementScope, 'object'));
+            } else {
+              visit(element, elementScope);
+            }
+          });
+        } else {
+          initializer.forEachChild(child => visit(child, qualifiedObject, initializer.kind === SyntaxKind.ClassExpression ? 'class' : 'object'));
+        }
         return;
       } else if (includeClosureBindings && node.kind === SyntaxKind.VariableDeclaration && initializer.kind === SyntaxKind.CallExpression) {
         // Only a locally returned function literal establishes an IIFE implementation. Returning

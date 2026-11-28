@@ -1696,7 +1696,8 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/gameErrorBoundary.test.ts, tests/saveLoad.externalSlot.test.ts',
   },
   valleyChronicle: {
-    entrypoints: [{ module: 'src/game/valleyChronicle.ts', symbol: 'advanceValleyChronicle' }],
+    entrypoints: [{ module: 'src/game/valleyChronicle.ts', symbol: 'advanceValleyChronicle' }, { module: 'src/game/valleyChronicle.ts', symbol: 'anyForgeOrderDone' }, { module: 'src/game/valleyChronicle.ts', symbol: 'VALLEY_CHAPTERS::item0.isMet' }, { module: 'src/game/valleyChronicle.ts', symbol: 'VALLEY_CHAPTERS::item1.isMet' }, { module: 'src/game/valleyChronicle.ts', symbol: 'VALLEY_CHAPTERS::item2.isMet' }, { module: 'src/game/valleyChronicle.ts', symbol: 'VALLEY_CHAPTERS::item3.isMet' }, { module: 'src/game/valleyChronicle.ts', symbol: 'VALLEY_CHAPTERS::item5.isMet' }, { module: 'src/game/valleyChronicle.ts', symbol: 'VALLEY_CHAPTERS::item6.isMet' }, { module: 'src/game/valleyChronicle.ts', symbol: 'VALLEY_CHAPTERS::item7.isMet' }, { module: 'src/game/valleyChronicle.ts', symbol: 'VALLEY_CHAPTERS::item9.isMet' }],
+    supporting: [{ module: 'src/game/valleyChronicle.ts', symbol: 'hasCompleted' }],
     owner: 'valleyChronicle.ts — advanceValleyChronicle; components/tabPanels/ValleyChroniclePanel.tsx is read-only',
     cadence: 'daily',
     cadenceNote: 'Only the daily tick unlocks historical chapters; UI displays saved chapter IDs without a Legacy Goals projection or new achievement decisions.',

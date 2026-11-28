@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Qualify callable object properties inside named catalog arrays by entry position in the compiler ownership inventory, and explicitly register Valley Chronicle milestone predicates.
+
 - **Improved (28 Nov 2026):** Register explicit career save normalizers, Moon Howler policy/form implementations and schedule-impact projection under their existing owners; preserve gameplay behavior and keep strict migration pending.
 
 - **Improved (28 Nov 2026):** Derive simulation decision keys and generate the current ownership overview from the typed registry; validate primary and supporting declaration claims, tooling ownership and documentation freshness; distinguish verified claims from historical migration evidence.

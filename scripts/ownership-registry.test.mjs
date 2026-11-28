@@ -63,10 +63,11 @@ test('compiler verifies callable declarations in their owning module and scope',
       'const holder = { run() {}, inner: { go: () => 1 } };',
       'class Handler { task = () => 1; static work = () => 2; }',
       'const closureAlias = (() => advance)();',
+      'const catalog = [{ isMet: () => true }, { isMet: () => false }];',
     ].join('\n');
     writeFileSync(path.join(root, 'src/game/sample.ts'), source);
     writeFileSync(path.join(root, 'src/game/other.ts'), 'export function elsewhere() {}');
-    const rows = ['advance', 'generated', 'default', 'Owner.work', 'Owner#rest', 'notCallable', 'nested', 'alias', 'elsewhere', 'Owner.rest', 'other', 'wrappedAlias', 'memberAlias', 'genuine', 'enclosing::nested', 'holder.run', 'holder.inner.go', 'Handler#task', 'Handler.work', 'closureAlias'].map(symbol => ({
+    const rows = ['advance', 'generated', 'default', 'Owner.work', 'Owner#rest', 'notCallable', 'nested', 'alias', 'elsewhere', 'Owner.rest', 'other', 'wrappedAlias', 'memberAlias', 'genuine', 'enclosing::nested', 'holder.run', 'holder.inner.go', 'Handler#task', 'Handler.work', 'closureAlias', 'catalog::item0.isMet', 'catalog::item1.isMet'].map(symbol => ({
       ...sample, key: symbol, entrypoints: [{ ...sample.entrypoints[0], symbol }],
     }));
     const resolved = new Map();
@@ -76,7 +77,7 @@ test('compiler verifies callable declarations in their owning module and scope',
     const pathClaims = new Map();
     assert.ok(validateEntrypointSymbols([sample, alternate], root, pathClaims).some(message => message.includes('noncanonical owner module')));
     assert.equal(pathClaims.size, 1);
-    for (const symbol of ['genuine', 'enclosing::nested', 'holder.run', 'holder.inner.go', 'Handler#task', 'Handler.work']) {
+    for (const symbol of ['genuine', 'enclosing::nested', 'holder.run', 'holder.inner.go', 'Handler#task', 'Handler.work', 'catalog::item0.isMet', 'catalog::item1.isMet']) {
       assert.ok([...resolved.values()].some(claim => claim.symbol === symbol), symbol);
     }
     // Exercise the real call-graph parser against the exact compiler declarations, not hand-built graph records.
@@ -144,12 +145,13 @@ test('tooling inventory requires qualified nested names and ignores anonymous ca
       '}',
       'function other() { function inner() {} inner(); }',
       'class Inventory { collect() {} static collect() {} }',
+      'const catalog = [{ check: () => true }, { check: () => false }];',
     ].join('\n'));
-    const contract = { key: 'infrastructure:sample', label: 'Sample', module: 'scripts/sample.mjs', symbols: ['outer', 'outer::inner', 'other', 'other::inner', 'Inventory#collect', 'Inventory.collect'] };
+    const contract = { key: 'infrastructure:sample', label: 'Sample', module: 'scripts/sample.mjs', symbols: ['outer', 'outer::inner', 'other', 'other::inner', 'Inventory#collect', 'Inventory.collect', 'catalog::item0.check', 'catalog::item1.check'] };
     const resolved = new Map();
     const inventory = new Map();
     assert.deepEqual(validateToolingInventory(root, [contract], resolved, inventory), []);
-    assert.equal(inventory.size, 6);
+    assert.equal(inventory.size, 8);
     assert.ok([...inventory.keys()].every(identity => resolved.has(identity)));
     writeFileSync(path.join(root, 'scripts/unregistered.mjs'), 'function unclaimed() {}');
     const expanded = new Map();
@@ -158,7 +160,7 @@ test('tooling inventory requires qualified nested names and ignores anonymous ca
     assert.deepEqual([...expanded.entries()].filter(([identity]) => !expandedClaims.has(identity)).map(([, declaration]) => declaration), [
       { file: 'scripts/unregistered.mjs', symbol: 'unclaimed', line: 1 },
     ]);
-    assert.equal(resolved.size, 6);
+    assert.equal(resolved.size, 8);
     assert.ok(validateToolingInventory(root, [{ ...contract, symbols: contract.symbols.filter(symbol => symbol !== 'Inventory#collect') }]).some(message => message.includes('Inventory#collect: missing infrastructure claim')));
     assert.ok(validateToolingInventory(root, [{ ...contract, symbols: contract.symbols.filter(symbol => symbol !== 'Inventory.collect') }]).some(message => message.includes('Inventory.collect: missing infrastructure claim')));
     assert.ok(validateToolingInventory(root, [{ ...contract, module: 'scripts/./sample.mjs' }]).some(message => message.includes('invalid infrastructure module')));
