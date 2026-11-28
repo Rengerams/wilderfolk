@@ -78,7 +78,7 @@ Explicit infrastructure claims share the compiler declaration ledger with gamepl
 
 | Responsibility | Sole owner | Named declarations |
 |---|---|---|
-| Ownership registry tooling | scripts/ownership-registry.mjs | getDecisionRows; escapeCell; renderDecisionTable; replaceGeneratedBlock; isFile; isCanonicalModulePath; validateDecisionKeys; validateRegistry; hasModifier; directCallableCandidates; recordResolvedClaim; validateEntrypointSymbols; findVerifiedClaim; validateToolingInventory; validateToolingInventory::visit; verifyOwnershipRegistry; parseOwnershipMode; main |
+| Ownership registry tooling | scripts/ownership-registry.mjs | getDecisionRows; escapeCell; renderDecisionTable; replaceGeneratedBlock; isFile; isCanonicalModulePath; validateDecisionKeys; validateRegistry; hasModifier; directCallableCandidates; declarationLocation; recordResolvedClaim; validateEntrypointSymbols; findVerifiedClaim; collectNamedDeclarations; collectNamedDeclarations::visit; validateToolingInventory; verifyOwnershipRegistry; parseOwnershipMode; main |
 | Call graph ownership projection | scripts/build-call-graph.mjs | collectSources; stripLiteralsAndComments; stripLiteralsAndComments::blank; lineOf; matchBrace; resolveModuleFile; extractImports; extractImports::resolve; extractReExports; findBodyBrace; bodyAfterSignatureBrace; extractClasses; parseParams; extractInstances; extractDefinitions; extractCalls; parseOwnershipOverview; modulesIn; main; main::resolveImportTarget; main::resolveThroughModule; main::resolveMethod; main::ownerOfLine; main::moduleOwnsFile; renderHtml |
 | Ownership registry tests | scripts/ownership-registry.test.mjs | None — anonymous test callbacks only |
 | Ownership test runner | scripts/test.mjs | run |
@@ -239,7 +239,7 @@ Purpose: one decision → one owner module → one definition of each function.
 Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAIN_ARCHITECTURE.md).  
 Genetics layers, activity registry, evaluator contract and change recipes: [DNA aptitudes architecture](docs/DNA_APTITUDES_ARCHITECTURE.md).
 
-Older prose and tables are migration evidence only; they do not assign active decision authority. `npm test -- owners-strict` fails until all call-graph declarations have explicit claims. The standard owner gate preserves prior coverage checks during migration.
+Older prose and tables are migration evidence only; they do not assign active decision authority. `npm test -- owners-strict` fails until all compiler-indexed named declarations have explicit claims. The call graph includes the compiler inventory's exact unclaimed file, symbol and line records. The standard owner gate preserves prior coverage checks during migration.
 
 ## Non-gameplay test harness owners
 
