@@ -377,9 +377,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/storageCap.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts, tests/workSkillAttribution.accrual.test.ts, tests/forge.cadence.test.ts, tests/production.attendancePacing.test.ts',
   },
   predatorCombat: {
-    owner: 'combat.resolvePredatorCombatChances, combat.rollCounterAttack, combat.rollPredatorBlock; workAbsence.resolveArmedDuty',
+    owner: 'combat.resolvePredatorCombatChances, combat.rollPredatorCombat; workAbsence.resolveArmedDuty',
     cadence: 'on-demand',
-    cadenceNote: 'Actual predator encounters read the defender and predator, not village-wide equipment. Age, assignment, shift and deployment gate weapons and armour; native human reserves, existing nonhuman energy, aptitude and skill affect seeded rolls. No persistent strength, extra schedule or equipment inventory.',
+    cadenceNote: 'Actual predator encounters read the defender and predator, not village-wide equipment. Age, assignment, shift and deployment gate weapons and armour; native human reserves, existing nonhuman energy, aptitude and skill affect seeded rolls. One roll owner retains separate block and counterattack identities. No persistent strength, extra schedule or equipment inventory.',
     writes: [],
     scheduledFrom: 'tickLayerSystems.tickWildlife at unobstructed human contact',
     testFile: 'tests/combatTierEffects.test.ts, tests/hospital.howler.geometry.test.ts',

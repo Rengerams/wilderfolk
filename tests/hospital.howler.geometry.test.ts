@@ -22,7 +22,7 @@ import { getHumanStaminaRatio } from '../src/game/simulation/humanPhysiology';
 import { tickWildlife } from '../src/game/tickLayerSystems';
 import { curseMoonHowler, transformToWerewolfForm } from '../src/game/moonHowler';
 import { syncGenealogyRegistry } from '../src/game/genealogyRegistry';
-import { rollCounterAttack } from '../src/game/combat';
+import { rollPredatorCombat } from '../src/game/combat';
 import { resolveArmedDuty } from '../src/game/workAbsence';
 import { COMBAT_TECH } from '../src/game/combatTech';
 
@@ -208,7 +208,7 @@ describe('Moon Howler navigation and contact', () => {
     witness.huntTargetId = howler.id;
     const ctx = wildlifeContext(state, state.entities, howler);
     const tick = Array.from({ length: 100 }, (_, i) => (i + 1) * 4).find(
-      (candidate) => rollCounterAttack(state, defender, howler, resolveArmedDuty(state, defender), candidate),
+      (candidate) => rollPredatorCombat('counter-attack', state, defender, howler, resolveArmedDuty(state, defender), candidate),
     );
     expect(tick).toBeDefined();
     state.tick = tick!;

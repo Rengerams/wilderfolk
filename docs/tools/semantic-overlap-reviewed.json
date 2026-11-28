@@ -429,13 +429,6 @@
       ]
     },
     {
-      "key": "src/game/combat.ts:119:rollPredatorBlock@461f6605de6bb991a70627533057ebfe501358c746b37426f8998388f845727a <-> src/game/combat.ts:131:rollCounterAttack@438042a75b098527addd63d89ae36d7784bbe69b63c376447d1ad8c6ec88ec40",
-      "reason": "Both draw one run-seeded roll and compare it to a chance, but the chance owner and the stream key differ: rollPredatorBlock reads getPredatorBlockChance (armament plus predator_block research) and salts combat:predator-block:humanId:tick:seed, while rollCounterAttack reads getCounterAttackChance (counter_attack research) and salts combat:counter-attack:humanId:predatorId:tick:seed. One shared function would let either chance answer the other roll and collapse two independent salts into one, changing seeded outcomes; combatTierEffects pins each roll's own key and threshold.",
-      "tests": [
-        "tests/combatTierEffects.test.ts"
-      ]
-    },
-    {
       "key": "src/components/MiniMap.tsx:41:MiniMap@751cbc0e8cae3dd81f76ebc6f789cacafed817ed2678bff010f93e7f03aafc2b <-> src/components/MiniMap.tsx:61:draw@2c6e497501468915054410db1358879601f9505f0e95b4ce1db268075b19a04f",
       "reason": "MiniMap is the React surface: it owns the canvas ref, the animation-frame effect, resize handling and click-to-navigate wiring. draw is the frame routine that effect schedules, and it only paints the cached world snapshot. They share the component's local canvas and camera bindings by closure, which the token metric reads as similarity, but they have different lifecycles, side effects and callers; merging them would collapse the render loop into the component body.",
       "tests": [
@@ -597,13 +590,6 @@
     {
       "key": "src/game/combat.ts:59:hasScaleMail@69dfbcfc88959407764d4f8ce0bf6b94e8ffae6169905b0f95514e2f3383c4f4 <-> src/game/combat.ts:68:hasTowerBallistae@2bb4f71f19850251ab403da26eed3b8d331d8ca78562cbc12b045cda72ece366",
       "reason": "Each armament predicate requires its own research and completed forge order, with the shared blacksmith prerequisite. The armament-step regression checks that researching and forging ballistae does not unlock any other armament.",
-      "tests": [
-        "tests/combatTierEffects.test.ts"
-      ]
-    },
-    {
-      "key": "src/game/combat.ts:158:rollPredatorBlock@ff9d18578f9eb5b32ddef52b800c731b0468aaee788914dd768526fd837dcff8 <-> src/game/combat.ts:165:rollCounterAttack@8e3afcb80673d8abe8ce279375bcc2a80949240943a783eb6c18fea6e367255b",
-      "reason": "Distinct encounter verdicts in the same combat owner: block uses the defender and tick as its roll identity, so multiple predators do not reroll the defender's protection during that tick; counterattack includes the predator id and uses a separate random namespace for each attacker. Both delegate probability calculation to resolvePredatorCombatChances and random generation to combatRoll, and neither writes state. Combining the verdicts or salts would change deterministic combat outcomes. The combat tier regression exercises both verdicts, including repeatability and independence from mutable RNG streams.",
       "tests": [
         "tests/combatTierEffects.test.ts"
       ]

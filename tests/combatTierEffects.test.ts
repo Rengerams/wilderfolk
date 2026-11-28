@@ -13,13 +13,12 @@ import {
   getHumanFleeSpeedMultiplier,
   getPredatorBlockChance,
   resolvePredatorCombatChances,
-  rollCounterAttack,
-  rollPredatorBlock,
+  rollPredatorCombat,
 } from '../src/game/combat';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { resolveArmedDuty } from '../src/game/workAbsence';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
-import { resetSimRng, restoreSimRng, setSimSeed, snapshotSimRng } from '../src/game/simRng';
+import { resetSimRng, restoreSimRng, seededRandomForRun, setSimSeed, snapshotSimRng } from '../src/game/simRng';
 
 /** A world with only the fields the combat tech readers touch. */
 function makeState(researched: string[], forgeCompleted: Record<string, boolean>): WorldState {
@@ -115,7 +114,7 @@ describe('tiered combat research does not stack', () => {
     // With chance 1.0 the old code returned true for every input.
     let refused = 0;
     for (let id = 1; id <= 60; id++) {
-      if (!rollCounterAttack(state, defender(id, 0), predator(id + 500), 'military', 72)) refused++;
+      if (!rollPredatorCombat('counter-attack', state, defender(id, 0), predator(id + 500), 'military', 72)) refused++;
     }
     expect(refused).toBeGreaterThan(0);
   });
@@ -139,14 +138,33 @@ describe('combat rolls draw from the run-seeded stream', () => {
     const rolls: boolean[] = [];
     for (let id = 1; id <= 80; id++) {
       // Both defender and attacker decisions, across ticks and per-entity seeds.
-      rolls.push(rollPredatorBlock(state, defender(id, id * 7919), predator(id + 500), 'military', 100 + id));
-      rolls.push(rollCounterAttack(state, defender(id, id * 104_729), predator(id + 500), 'military', 100 + id));
+      rolls.push(rollPredatorCombat('predator-block', state, defender(id, id * 7919), predator(id + 500), 'military', 100 + id));
+      rolls.push(rollPredatorCombat('counter-attack', state, defender(id, id * 104_729), predator(id + 500), 'military', 100 + id));
     }
     return rolls;
   };
 
   afterEach(() => {
     resetSimRng();
+  });
+
+  it('preserves each verdict threshold and its original run-seeded identity', () => {
+    const state = makeState(['defense_3', 'defense_4', 'defense_8'], { iron_spears: true, iron_swords: true });
+    setSimSeed(4242);
+    for (let id = 1; id <= 40; id++) {
+      const human = defender(id, id * 7919);
+      const tick = 100 + id;
+      for (const wolf of [predator(id + 500), predator(id + 900)]) {
+        const { block, counter } = resolvePredatorCombatChances(state, human, wolf, 'military');
+        expect(rollPredatorCombat('predator-block', state, human, wolf, 'military', tick))
+          .toBe(block > 0 && seededRandomForRun(`combat:predator-block:${id}:${tick}:${human.combatRollSeed}`) < block);
+        expect(rollPredatorCombat('counter-attack', state, human, wolf, 'military', tick))
+          .toBe(counter > 0 && seededRandomForRun(`combat:counter-attack:${id}:${wolf.id}:${tick}:${human.combatRollSeed}`) < counter);
+      }
+    }
+    const child = { ...defender(1), age: 0 };
+    expect(rollPredatorCombat('predator-block', state, child, predator(2), 'military', 100)).toBe(false);
+    expect(rollPredatorCombat('counter-attack', state, child, predator(2), 'military', 100)).toBe(false);
   });
 
   it('two run seeds resolve the same combat differently', () => {
@@ -161,8 +179,8 @@ describe('combat rolls draw from the run-seeded stream', () => {
     const draw = (): boolean[] => {
       const rolls: boolean[] = [];
       for (let id = 1; id <= 40; id++) {
-        rolls.push(rollPredatorBlock(state, defender(id, id * 7919), predator(id + 500), 'military', 300 + id));
-        rolls.push(rollCounterAttack(state, defender(id, id * 104_729), predator(id + 900), 'military', 300 + id));
+        rolls.push(rollPredatorCombat('predator-block', state, defender(id, id * 7919), predator(id + 500), 'military', 300 + id));
+        rolls.push(rollPredatorCombat('counter-attack', state, defender(id, id * 104_729), predator(id + 900), 'military', 300 + id));
       }
       return rolls;
     };

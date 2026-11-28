@@ -155,18 +155,18 @@ function combatRoll(kind: 'predator-block' | 'counter-attack', ...keys: number[]
   return seededRandomForRun(`combat:${kind}:${keys.join(':')}`);
 }
 
-export function rollPredatorBlock(
+/** Resolve either encounter verdict through one probability comparison, preserving both seeded identities. */
+export function rollPredatorCombat(
+  kind: 'predator-block' | 'counter-attack',
   state: WorldState, human: Entity, predator: Entity, duty: ArmedDuty, tick: number,
 ): boolean {
-  const { block } = resolvePredatorCombatChances(state, human, predator, duty);
-  return block > 0 && combatRoll('predator-block', human.id, tick, human.combatRollSeed ?? 0) < block;
-}
-
-export function rollCounterAttack(
-  state: WorldState, human: Entity, predator: Entity, duty: ArmedDuty, tick: number,
-): boolean {
-  const { counter } = resolvePredatorCombatChances(state, human, predator, duty);
-  return counter > 0 && combatRoll('counter-attack', human.id, predator.id, tick, human.combatRollSeed ?? 0) < counter;
+  const chances = resolvePredatorCombatChances(state, human, predator, duty);
+  const chance = kind === 'counter-attack' ? chances.counter : chances.block;
+  if (!(chance > 0)) return false;
+  const keys = kind === 'counter-attack'
+    ? [human.id, predator.id, tick, human.combatRollSeed ?? 0]
+    : [human.id, tick, human.combatRollSeed ?? 0];
+  return combatRoll(kind, ...keys) < chance;
 }
 
 export interface ArmamentStep {
