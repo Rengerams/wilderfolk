@@ -53,6 +53,7 @@ const STEP = {
   /** Strict twin of `cycles`: a runtime import cycle exits 1 instead of warning. */
   cyclesStrict: 'node scripts/check-import-cycles.mjs --strict',
   owners: 'node --test scripts/ownership-registry.test.mjs && node scripts/build-call-graph.mjs --json-only --verify-owners',
+  ownersStrict: 'node --test scripts/ownership-registry.test.mjs && node scripts/build-call-graph.mjs --json-only --strict-owners',
   semantic: 'node --test scripts/check-function-overlap.test.mjs scripts/check-function-overlap.integration.test.mjs && node scripts/check-function-overlap.mjs',
   semanticDup: 'node scripts/check-semantic-duplicates.mjs',
   invariants: 'tsx scripts/run-full-year.mts',
@@ -90,6 +91,7 @@ const ALIAS = {
   knip: ['knip'],
   cycles: ['cycles'],
   owners: ['owners'],
+  'owners-strict': ['ownersStrict'],
   semantic: ['owners', 'semantic'],
   'semantic-dup': ['owners', 'semantic', 'semanticDup'],
   invariants: ['invariants'],
@@ -129,7 +131,8 @@ wilderfolk test runner - one entry point, choose with args
   npm test -- check               source-shadow, dialogue, docs, comments, source guard self-tests and syntax-aware DNA scan
   npm test -- knip                knip (unused files/exports)
   npm test -- cycles [--strict|--json]
-  npm test -- owners              verify every function has one recorded source owner
+  npm test -- owners              validate claims and prior ownership coverage during migration
+  npm test -- owners-strict       fail on every function without an explicit compiler-verified claim
   npm test -- semantic            verify ownership, then block unreviewed function overlap
   npm test -- browser             browser gate (needs a prior build)
   npm test -- build               standalone checked build (npm run build)
