@@ -126,12 +126,18 @@ test('tooling inventory requires qualified nested names and ignores anonymous ca
       '}',
       'function other() { function inner() {} inner(); }',
     ].join('\n'));
-    const overview = path.join(root, 'OWNERSHIP_OVERVIEW.md');
-    writeFileSync(overview, '| Sample | `scripts/sample.mjs` | build | `outer`, `outer::inner`, `other`, `other::inner` |');
-    const contracts = [['Sample', 'scripts/sample.mjs']];
-    assert.deepEqual(validateToolingInventory(root, contracts), []);
-    writeFileSync(overview, '| Sample | `scripts/sample.mjs` | build | `outer`, `inner`, `other` |');
-    assert.equal(validateToolingInventory(root, contracts).length, 1);
+    const contract = { key: 'infrastructure:sample', label: 'Sample', module: 'scripts/sample.mjs', symbols: ['outer', 'outer::inner', 'other', 'other::inner'] };
+    const resolved = new Map();
+    assert.deepEqual(validateToolingInventory(root, [contract], resolved), []);
+    assert.equal(resolved.size, 4);
+    assert.ok([...resolved.values()].every(claim => claim.role === 'infrastructure'));
+    assert.ok(validateToolingInventory(root, [{ ...contract, symbols: ['outer', 'inner', 'other'] }]).some(message => message.includes('missing infrastructure claim')));
+    assert.ok(validateToolingInventory(root, [contract, { ...contract, key: 'infrastructure:duplicate' }]).some(message => message.includes('already claimed')));
+    assert.ok(validateToolingInventory(root, [contract], resolved).some(message => message.includes('already claimed')));
+    assert.ok(validateToolingInventory(root, [contract, { ...contract, module: 'scripts/missing.mjs' }]).some(message => message.includes('Duplicate infrastructure contract')));
+    const generated = renderDecisionTable([sample], [contract]);
+    assert.ok(generated.includes('outer::inner'));
+    assert.notEqual(generated, renderDecisionTable([sample], [{ ...contract, symbols: ['outer'] }]));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
