@@ -34,3 +34,7 @@ No schema change. Explicit age initialization uses the same calendar owner for l
 
 ## Verification result
 Source trace only. Extended existing lifecycle and geometry regression suites. Local build, tests and live simulation not run; CI pending.
+
+## CI follow-up — 2026-11-28
+
+The affected suite passed 3,008 of 3,010 tests. Two failures exposed a direct marriage-status comparison and a calendar correction overwriting established child geometry. The factory now reads isMarriedOrExpecting and explicitly opts into spawn/finalization body initialization; ordinary calendar corrections retain their prior size. Existing graduation and architecture tests are unchanged. Re-run pending.
