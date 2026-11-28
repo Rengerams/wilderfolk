@@ -189,7 +189,6 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     buildings: profileSection('rollback.buildings', () => (state.buildings ?? []).map((b) => ({
       ...b,
       occupants: [...(b.occupants ?? [])],
-      hotelGuestIds: b.hotelGuestIds ? [...b.hotelGuestIds] : undefined,
     }))),
 
     // Copy the elements, not just the arrays: the realtime layer decays these in place, so a

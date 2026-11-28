@@ -121,12 +121,19 @@ describe('loading saves retires on-map visitor NPCs without touching strategic r
     const visitorId = (payload.nextEntityId as number) + 1;
     entities.push({ ...player, id: visitorId, faction: 'visitor', groupId: 'visitor_traders_1' });
     payload.nextEntityId = visitorId + 1;
+    const buildings = payload.buildings as Array<Record<string, unknown>>;
+    expect(buildings.length).toBeGreaterThan(0);
+    const buildingId = buildings[0].id;
+    buildings[0].hotelGuestIds = [visitorId];
 
     const outcome = loadGameFromParsedOutcome(payload);
     expect(outcome.ok, outcome.ok ? '' : outcome.detail).toBe(true);
     if (!outcome.ok) return;
     expect(outcome.world.entities.some((entity) => entity.id === visitorId)).toBe(false);
     expect(outcome.world.entityById?.has(visitorId)).toBe(false);
+    const restoredBuilding = outcome.world.buildings.find((b) => b.id === buildingId);
+    expect(restoredBuilding).toBeDefined();
+    expect(restoredBuilding).not.toHaveProperty('hotelGuestIds');
     expect(outcome.world.visitorGroups).toHaveLength(0);
     expect(outcome.world.pendingRaidEvents).toHaveLength(1);
   });

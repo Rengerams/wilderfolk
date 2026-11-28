@@ -226,7 +226,7 @@ function deltaCloneOptional<T>(value: T | null | undefined, mode: SimDeltaCloneM
 export const BUILDING_FINGERPRINT_FIELDS = [
   'id', 'type', 'siteTerrain', 'x', 'y', 'width', 'height', 'occupants', 'staffingMode', 'level',
   'constructionProgress', 'completed', 'health', 'maxHealth', 'spriteScale', 'buildAnimTimer',
-  'groupId', 'workshopRecipeId', 'rotation', 'gateClosed', 'hotelGuestIds',
+  'groupId', 'workshopRecipeId', 'rotation', 'gateClosed',
   'huntingSpotPrey', 'huntingSpotTargetId', 'huntingSpotInReachTick', 'uncoveredPrisonHours', 'mineMode',
 ] as const satisfies readonly (keyof Building)[];
 

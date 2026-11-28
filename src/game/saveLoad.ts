@@ -1498,12 +1498,13 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     const playerBuildings: Building[] = [];
     let retiredLegacyCampCount = 0;
     for (const building of worldData.buildings ?? []) {
-      const legacy = building as Building & { faction?: unknown };
+      const legacy = building as Building & { faction?: unknown; hotelGuestIds?: unknown };
       if (legacy.faction === 'rival') {
         retiredLegacyCampCount++;
         continue;
       }
       delete legacy.faction;
+      delete legacy.hotelGuestIds;
       playerBuildings.push(building);
     }
 

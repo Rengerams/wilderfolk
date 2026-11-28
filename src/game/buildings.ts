@@ -161,8 +161,6 @@ export interface Building {
   rotation?: StoredBuildingRotation;
   /** WallGate only — closed gates block walkers; absent means open in legacy saves. */
   gateClosed?: boolean;
-  /** Hotel only — visitor entity ids currently lodging (max HOTEL_GUEST_CAPACITY). */
-  hotelGuestIds?: number[];
   /** Hunting Spot only — which prey the staffed hunters target (see HUNTING_SPOT_PREY_OPTIONS). */
   huntingSpotPrey?: HuntingSpotPrey;
   /**

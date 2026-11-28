@@ -159,10 +159,10 @@ afterEach(() => {
 });
 
 describe('settler lodging overnight', () => {
-  it('ignores retired visitor rosters and clears their stale stay pointers without taking settler beds', () => {
+  it('clears invalid non-settler stay pointers without taking settler beds', () => {
     const state = newWorld();
     const home = house(1, 100, WALKER_Y);
-    const inn = hotel(2, WALKER_X, WALKER_Y, { hotelGuestIds: [88, 89] });
+    const inn = hotel(2, WALKER_X, WALKER_Y);
     const legacy = settler(88, { faction: 'visitor', hotelStayBuildingId: inn.id,
       hotelStayUntilTick: state.tick + TICKS_PER_HOUR });
     const resident = settler(1, { x: WALKER_X, y: WALKER_Y, residenceBuildingId: home.id });
@@ -170,7 +170,6 @@ describe('settler lodging overnight', () => {
     state.entities = [legacy, resident];
     expect(lodgingHotelFor(resident, state.buildings, state.entities, state.tick)).toBe(inn);
     tickHotelLodging(state);
-    expect(inn.hotelGuestIds).toBeUndefined();
     expect(legacy.hotelStayBuildingId).toBeUndefined();
     expect(resident.hotelStayBuildingId).toBe(inn.id);
     expect(getHotelRoster(inn, state.entities).lodgers).toEqual([resident]);

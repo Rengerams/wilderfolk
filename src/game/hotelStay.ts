@@ -295,10 +295,6 @@ export function tickHotelLodging(state: WorldState): void {
     (b) => b.completed && b.type === BuildingType.Hotel,
   );
   const byId = new Map(state.buildings.map((b) => [b.id, b]));
-  // Retired visitor rosters may survive in old save data; never count or recreate them.
-  for (const building of state.buildings) {
-    if (building.hotelGuestIds?.length) building.hotelGuestIds = undefined;
-  }
   for (const entity of state.entities) {
     if (entity.hotelStayBuildingId == null) continue;
     const hotel = byId.get(entity.hotelStayBuildingId);
