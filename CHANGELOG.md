@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (28 Nov 2026):** Migrate human relationship, medical, hunting, civic and election decisions to stamina; use native stamina effects and thresholds, and centralize the temporary energy mirror including Moon Howler restoration.
+- **Fixed (28 Nov 2026):** Migrate human relationship, medical, hunting, civic and election decisions to stamina; use native stamina effects and thresholds, and retire the temporary energy mirror, isolate old-save conversion, and separate Moon Howler predator metabolism from saved human needs.
 
 - **Fixed (28 Nov 2026):** Remove personal stamina rewards from successful hunts without changing food yield or hunting injuries. Predator combat uses individual duty, equipment, reserves, aptitude and skill; children cannot wield weapons. One roll owner preserves both seeded combat verdicts.
 

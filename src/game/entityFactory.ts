@@ -1,4 +1,4 @@
-import { initialHumanNeeds } from './simulation/humanPhysiology';
+import { legacyHumanNeeds } from './simulation/humanPhysiology';
 import type { Entity, WorldState } from './gameTypes';
 import { rollFounderGenome, type GenomeV2 } from './settlerTraits';
 import { rollBornMarks } from './personalMarks';
@@ -111,9 +111,10 @@ export function createEntity(
     faction: opts?.faction,
     x,
     y,
-    energy: energy ?? config.spawnEnergy,
-    maxEnergy: config.maxEnergy,
-    needs: isHuman ? initialHumanNeeds(energy ?? config.spawnEnergy, config.maxEnergy) : undefined,
+    // The positional reserve parameter is historical spawn input, not a live human energy pool.
+    energy: isSettler ? 0 : energy ?? config.spawnEnergy,
+    maxEnergy: isSettler ? 0 : config.maxEnergy,
+    needs: isHuman ? legacyHumanNeeds(energy ?? config.spawnEnergy, config.maxEnergy) : undefined,
     age: isHuman
       ? opts?.ageYears ?? 0
       : effectiveJuvenile

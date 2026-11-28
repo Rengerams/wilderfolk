@@ -230,8 +230,9 @@ export interface HumanNeedsState {
 
 interface MoonHowlerSavedState {
   needs?: HumanNeedsState;
-  energy: number;
-  maxEnergy: number;
+  /** Read only by the legacy save migration; new human-form snapshots omit both. */
+  energy?: number;
+  maxEnergy?: number;
   speed: number;
   size: number;
   job?: JobType;
@@ -284,6 +285,7 @@ export interface Entity {
   type: EntityType;
   x: number;
   y: number;
+  /** Nonhuman/foreign metabolism. Player humans retain zero-valued shared wire slots only. */
   energy: number;
   maxEnergy: number;
   needs?: HumanNeedsState;

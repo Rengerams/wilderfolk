@@ -353,11 +353,10 @@ const SOURCE_ROWS = [
     notMatches: /(?:\.energy\b|\[['"]energy['"]\])/,
     example: 'entity.energy',
   }] },
-  { id: 'human-stamina-mirror-single-owner', checks: [
-    { file: 'src/game/simulation/humanPhysiology.ts', counts: [
-      { needle: 'entity.energy = entity.maxEnergy * needs.stamina / 100;', times: 1 },
-    ] },
-    { file: 'src/game/moonHowlerForm.ts', notMatches: /\.energy\s*=.*\.stamina/, example: 'were.energy = were.maxEnergy * were.needs.stamina / 100;' },
+  { id: 'human-stamina-no-energy-mirror', checks: [
+    { file: 'src/game/simulation/humanPhysiology.ts', notMatches: /\.(?:energy|maxEnergy)\b|syncHumanEnergyMirror\b/, example: 'entity.energy = entity.maxEnergy * needs.stamina / 100;' },
+    { file: 'src/game/moonHowlerForm.ts', notMatches: /saved\?*\.(?:energy|maxEnergy)\b|\.energy\s*=.*\.stamina/, example: 'were.energy = saved?.energy;' },
+    { file: 'src/game/moonHowler.ts', notMatches: /human\.(?:energy|maxEnergy)\s*\+|energy:\s*human\.energy/, example: 'human.energy + 80' },
   ] },
   { id: 'terrain-fill-single-stamp', checks: [{ file: 'src/game/terrainLayer.ts', region: [{ from: 'function drawTerrainFill(', to: 'type Cardinal', counts: [{ needle: 'drawImage(', times: 1 }] }] }] },
   { id: "visitor-trade-formatter-owner", checks: [{ file: "src/game/groupEvents.ts", contains: "formatResourceAmounts(received)", notMatches: /receivedLabel\s*=\s*`\+\$\{added\}/, example: "receivedLabel = `+${added}`;" }] },

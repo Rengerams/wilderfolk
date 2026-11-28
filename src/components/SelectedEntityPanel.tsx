@@ -246,13 +246,13 @@ export default function SelectedEntityPanel({
       )}
 
       <div className="space-y-0.5 text-xs text-amber-200">
-        {isLocalSettler && entity.needs ? (
+        {isLocalSettler ? (entity.needs ? (
           <>
             <p>Nutrition: {Math.round(entity.needs.nutrition)} / 100</p>
             <p>Rest: {Math.round(entity.needs.rest)} / 100</p>
             <p>Stamina: {Math.round(entity.needs.stamina)} / 100</p>
           </>
-        ) : <p>Energy: {Math.round(entity.energy)} / {entity.maxEnergy}</p>}
+        ) : <p>Needs unavailable</p>) : <p>Energy: {Math.round(entity.energy)} / {entity.maxEnergy}</p>}
         <p>Age: {getAgeInYears(entity, state)} years{entity.isJuvenile && ' (child)'} — b. {getBirthDateString(entity)}</p>
         {entity.huntTargetId && (
           <p className="text-orange-300">🏹 Chasing prey — watch the dashed hunt line on the map</p>

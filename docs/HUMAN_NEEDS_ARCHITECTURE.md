@@ -1,45 +1,18 @@
 # Wilderfolk — Human Needs Architecture
 
-**Issue:** #61 | **PR:** #62 | **Reviewed:** 2026-10-27 | **State:** merged into `main` and accepted on 2026-10-27; additional verification is tracked as post-merge hardening. **Known debt:** the player-human `energy` migration is incomplete — see §1a; `energy` is not a second need and must not drive player decisions.
+**Issue:** #61 | **PR:** #62 | **Reviewed:** 2026-10-27 | **State:** merged into `main` and accepted on 2026-10-27; additional verification is tracked as post-merge hardening. **Current PR:** #250 retires the player-human runtime energy mirror and isolates compatibility at creation/load; final-head verification remains required.
 
-## 1a. Legacy energy compatibility — unfinished
+## 1a. Legacy energy compatibility
 
-`Entity.energy` / `maxEnergy` are **not** part of `HumanNeedsState`. They remain for four distinct reasons, only one of which is a migration concern:
+Player-human needs are native 0–100 reserves. Runtime decisions and effects never use the retired energy mirror. The common Entity wire slots remain numeric for other species; player humans initialize and load them as zero, and the worker rendering slot is zero for player humans. The inspector reads needs, not energy.
 
-- **Intentional current users:** nonhuman creatures (their own energy pool).
-- **Form bridge:** a Moon Howler form saves/restores `energy` alongside `needs`.
-- **Old-save fallback:** a human saved before `needs` existed seeds `stamina` from `energy` in `normalizeHumanNeeds`.
-- **Unfinished player-human migration:** old readers/writers still use the mirror.
-
-Migrated so far: `hospitalCare.needsMedicalCare`, `medicalUrgency`, `medicalCareReason` and the `humanHospitalBehavior` treatment gate now read `getHumanStaminaRatio`; the hospital no longer calls a settler exhausted from a stale mirror. Hospital stamina-only admission uses the existing 15% `HUMAN_NEEDS.STAMINA_CRITICAL` boundary, not the former 42% fatigue gate: routine ~30%-stamina bedtime fatigue belongs to the home/sleep owner; late pregnancy and grief remain independently eligible.
-
-Stage 2 migration inventory (native stamina units; legacy mirror and missing-needs fallback remain temporarily):
-
-| Owner | Path | Target |
-| --- | --- | --- |
-| `hospitalCare.treatPatientAtHospital` | migrated treatment sizing | native stamina points |
-| `simulation/humanRelationships.ts` | migrated conception/affair thresholds | native stamina thresholds |
-| `humanTick.ts` | migrated courtship eligibility thresholds | native stamina thresholds |
-| `socialLife.ts` | exhausted/vulnerable/critical impulse ratios | `getHumanStaminaRatio` |
-| `hotelStay.ts` | visitor-only `restAtHotel` legacy recovery | audit/remove retired visitor path; player hotel sleep already advances in physiology |
-| `simulation/humanLifecycle.ts` | migrated maternal cost and birth recovery | native stamina points |
-| `animalCare.ts` | tamer owner energy bonus | `adjustHumanStamina` |
-| `humanHuntingBehavior.ts` / `dailyBuildingEconomy.ts` | removed legacy kill stamina bonus; migrated damage model selection | food-only hunting yield; player identity for injury effects |
-| `humanEnergy` display/worker metadata | read-only projection | read `needs` for settlers, energy only for nonhumans |
-
-Rules for new code:
-
-1. Player-human decisions read `needs.stamina` / `needs.rest` (or `getHumanStaminaRatio`), never `Entity.energy`.
-2. Effects use native stamina percentage points through `adjustHumanStamina`; do not assign `Entity.energy` directly.
-3. `energy` is never a second authority for a rule that stamina already owns.
-4. Nonhuman creatures remain excluded from this rule; their energy is their own model.
-
-Stage 1 adds scoped source guards for migrated modules and the single mirror expression. Election turnout, civic petition thresholds and dashboard stamina are also migrated. Stage 2 replaces the legacy point bridge with `adjustHumanStamina`, converts all inventoried effects using the standard 500-point adult as the historical calibration, and removes education's obsolete capacity increase. Nonstandard legacy capacities no longer scale human effects. Full AST/symbol coverage, remaining mixed-domain paths, old-save boundary-only fallback and mirror removal remain open; the scoped text guard is not a repository-wide proof.
-
+- `initialHumanNeeds` takes native stamina. `legacyHumanNeeds` converts pre-needs saves and the historical positional spawn reserve once, before runtime decisions. `normalizeHumanNeeds` accepts explicit migration fallback values; otherwise it initializes native needs without reading energy.
+- New Moon Howler snapshots preserve native needs only. Active wolf form starts at the existing species spawn metabolic reserve; reverting restores native needs and rebases the physiology clock. Old saved human-form energy converts at load.
+- Nonhuman and foreign metabolism keeps its own energy semantics. Scoped source guards reject any return of the player runtime mirror; complete final-head CI is still required.
 
 ## 1. Purpose and invariants
 
-Replace the single human energy bar with independent, serialized **nutrition**, **rest**, and **stamina**, and enforce **one owner per rule and function**. Human `energy` is a derived compatibility projection from stamina, not a second mutable needs state. Nonhuman creatures deliberately retain their legacy energy semantics.
+Replace the single human energy bar with independent, serialized **nutrition**, **rest**, and **stamina**, and enforce **one owner per rule and function**. Human `energy` is not a reserve or a projection; shared player wire slots are zero. Nonhuman creatures deliberately retain their legacy energy semantics.
 
 - The physiology owner advances reserves exactly once per tick, before camera/off-screen throttling; `lastAdvancedTick` prevents duplicates.
 - No meal or food relief credits nutrition without a successful, ledger-recorded debit.
@@ -88,7 +61,6 @@ GameLoop / Worker -> gameTick -> humanTick (every player human)
   read prior movement, schedule, real sleep location, environment
   -> advanceHumanNeeds(entity, observation)
        update reserves and time-based hunger/recovery state exactly once
-       project energy = maxEnergy * stamina / 100
   -> humanTick isStartOfClockHour [sole meal scheduler]
        if awake -> humanNeeds.tryEatColonyMeal
          -> canEatColonyMeal -> resolveHumanNeedsIntent (hunger and cooldown only)
@@ -132,16 +104,16 @@ The Virtual Player now checks for a **completed, auto-managed food producer with
 
 ## 6. Persistence and compatibility
 
-Older saves are normalized with `normalizeHumanNeeds`. `saveSchema.ENTITY_PERSISTED_FIELDS` stores `needs`. Moon Howler form transitions preserve nested saved human needs; reverting rebases `lastAdvancedTick` to the tick preceding restoration, so the seven-hour nonhuman interval cannot be replayed as human hunger, sleep loss or stamina drain. `simWorker/simPrep.ts` deep-copies state (including nested saved needs), while `simBuffers/entityRenderMeta.ts` copies reserve values for display without owning or mutating them.
+Older saves explicitly convert their legacy reserve through `legacyHumanNeeds` before `normalizeHumanNeeds`. `saveSchema.ENTITY_PERSISTED_FIELDS` stores `needs`. Moon Howler form transitions preserve nested saved human needs; reverting rebases `lastAdvancedTick` to the tick preceding restoration, so the seven-hour nonhuman interval cannot be replayed as human hunger, sleep loss or stamina drain. `simWorker/simPrep.ts` deep-copies state (including nested saved needs), while `simBuffers/entityRenderMeta.ts` copies reserve values for display without owning or mutating them.
 
-The foreign war-captive feeding path was removed with the enemy-captive subsystem. Visitor/rival humans without a player household do not use colony food. Other human legacy-energy consumers remain an explicit migration audit area.
+The foreign war-captive feeding path was removed with the enemy-captive subsystem. Visitor/rival humans without a player household do not use colony food. Foreign entities retain their separate energy model. The player runtime mirror is removed; final-head verification remains open.
 
 ## 7. Removed redundant aliases
 
 - Dropped the pass-through `creditHumanStaminaFromEnergy`; callers use `adjustHumanStamina` directly.
 - Removed `asleepAtHome = sleepingForNeeds`: it misnamed hotel/cell sleep as sleeping at home.
 - Removed local meal-interval and hunger-threshold aliases from `humanNeeds.ts`; the removed foreign-captive path read `gameConstants.Human` directly.
-- Retained meaningful boundaries: source needs versus derived energy, player nutrition versus nonhuman energy, and roster fatigue versus sleep rest.
+- Retained meaningful boundaries: native player needs versus nonhuman energy, player nutrition versus nonhuman metabolism, and roster fatigue versus sleep rest.
 
 ## 8. Verification and merge policy
 
