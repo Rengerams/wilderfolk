@@ -23,11 +23,13 @@ export function renderDecisionTable(rows) {
     '',
     'Generated from `src/game/simulation/decisionRegistry.ts`. Run `npm run ownership:generate` after changing the registry. Do not edit this block manually.',
     '',
-    '| Decision | Primary entrypoints | Cadence | Permitted writes | Scheduling | Tests |',
+    '| Decision | Primary and supporting functions | Cadence | Permitted writes | Scheduling | Tests |',
     '|---|---|---|---|---|---|',
   ];
   for (const row of rows) {
-    const refs = row.entrypoints.map(({module, symbol}) => `${module}::${symbol}`).join('; ');
+    const primary = row.entrypoints.map(({module, symbol}) => `${module}::${symbol}`).join('; ');
+    const supporting = (row.supporting ?? []).map(({module, symbol}) => `${module}::${symbol}`).join('; ');
+    const refs = supporting ? `${primary}; supporting: ${supporting}` : primary;
     lines.push('| ' + [row.key, refs, row.cadence, row.writes.join('; ') || 'None', row.scheduledFrom, row.testFile].map(escapeCell).join(' | ') + ' |');
   }
   lines.push('', '<!-- END GENERATED SIMULATION OWNERSHIP -->');
@@ -182,18 +184,15 @@ export function validateEntrypointSymbols(rows, root, resolved = new Map()) {
 
 /** Exact declaration lookup; neither method names nor module suffixes confer ownership. */
 export function findVerifiedClaim(fn, claims, graphFunctions) {
-  const matches = claims.filter(claim => claim.file === fn.file && claim.line === fn.line && claim.name === fn.name);
+  const matches = claims.filter(claim => {
+    if (claim.file !== fn.file || claim.line !== fn.line || claim.name !== fn.name) return false;
+    const member = /^([A-Za-z_$][\w$]*)([.#])([A-Za-z_$][\w$]*)$/.exec(claim.symbol);
+    return member ? fn.className === member[1] && fn.isStatic === (member[2] === '.') : !fn.className;
+  });
   if (matches.length !== 1) return undefined;
   const same = graphFunctions.filter(candidate => candidate.file === fn.file && candidate.line === fn.line && candidate.name === fn.name);
   return same.length === 1 ? matches[0] : undefined;
 }
-
-const INFRASTRUCTURE_FUNCTIONS = [
-  'getDecisionRows', 'escapeCell', 'renderDecisionTable', 'replaceGeneratedBlock',
-  'isFile', 'validateDecisionKeys', 'validateRegistry', 'directCallableCandidates',
-  'hasModifier', 'validateEntrypointSymbols', 'findVerifiedClaim',
-  'verifyOwnershipRegistry', 'parseOwnershipMode', 'validateToolingInventory', 'visit', 'main',
-];
 
 /** The tool's own named implementation inventory is explicit and checked against the compiler AST. */
 export function validateToolingInventory(root) {
@@ -214,15 +213,13 @@ export function validateToolingInventory(root) {
         node.forEachChild(visit);
       };
       visit(source);
-      const expected = [...INFRASTRUCTURE_FUNCTIONS].sort();
       const names = actual.sort();
       const overview = readFileSync(path.join(root, 'OWNERSHIP_OVERVIEW.md'), 'utf8');
       const marker = '| Ownership registry tooling |';
       const registrations = overview.split(/\r?\n/).filter(line => line.startsWith(marker));
       const documented = registrations.length === 1 ? [...registrations[0].split('|')[4].matchAll(/`([A-Za-z_$][\w$]*)`/g)].map(match => match[1]).sort() : [];
       const failures = [];
-      if (JSON.stringify(names) !== JSON.stringify(expected)) failures.push(`Tooling ownership inventory mismatch: expected ${expected.join(', ')}; found ${names.join(', ')}`);
-      if (JSON.stringify(documented) !== JSON.stringify(expected)) failures.push('Tooling ownership documentation is missing, duplicated or stale.');
+      if (JSON.stringify(names) !== JSON.stringify(documented)) failures.push(`Tooling ownership documentation is missing, duplicated or stale: declared ${documented.join(', ')}; found ${names.join(', ')}`);
       return failures;
     } finally { snapshot.dispose(); }
   } finally { api.close(); }
