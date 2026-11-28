@@ -86,6 +86,16 @@ describe('Moon Howler restored physiology clock', () => {
     expect(restored.needs).toEqual(resident.needs);
     expect(restored.energy).toBe(0);
     expect(restored.maxEnergy).toBe(0);
+    // Zero is a valid native stamina value, not a missing legacy reserve.
+    const emptyStaminaWorld = reload(migrated);
+    const exhausted = emptyStaminaWorld.entities.find((e) => e.id === person.id)!;
+    exhausted.needs = { nutrition: 63, rest: 17, stamina: 0, severeHungerTicks: 0 };
+    exhausted.energy = 500;
+    exhausted.maxEnergy = 500;
+    const final = reload(emptyStaminaWorld).entities.find((e) => e.id === person.id)!;
+    expect(final.needs).toMatchObject({ nutrition: 63, rest: 17, stamina: 0 });
+    expect(final.energy).toBe(0);
+    expect(final.maxEnergy).toBe(0);
   });
 
   it.each([false, true])('preserves human reserves independently of active wolf metabolism (legacy snapshot: %s)', (legacy) => {
