@@ -1520,7 +1520,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       // A payload without a speed predates the field; the loop runs at the fresh-colony default.
       speed: typeof worldData.speed === 'number' ? worldData.speed : 1,
       ...transient,
-      bigNews: (worldData.bigNews ?? []).map(normalizeBigNewsItem),
+      activeEvent: worldData.activeEvent?.id?.startsWith('visitor_') ? null : worldData.activeEvent ?? null,
+      bigNews: (worldData.bigNews ?? []).filter((news) => !news.title.includes('Visitors Arrived')).map(normalizeBigNewsItem),
       screenShakeImpulse: 0,
       festival: normalizeFestivalState(worldData.festival),
       settledEcology: normalizeSettledEcology(worldData.settledEcology),

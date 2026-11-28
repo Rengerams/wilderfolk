@@ -446,7 +446,7 @@ export interface Entity {
   combatTicks?: number;
 }
 
-export type VisitorKind = 'traders' | 'pilgrims' | 'scholars' | 'hunters' | 'nomads' | 'refugees' | 'performers';
+type VisitorKind = 'traders' | 'pilgrims' | 'scholars' | 'hunters' | 'nomads' | 'refugees' | 'performers';
 
 export interface VisitorGroup {
   id: string;
@@ -1085,7 +1085,7 @@ export interface VisitorQuest {
   expiresDay: number;
 }
 
-export interface VillageRequestChoice {
+interface VillageRequestChoice {
   id: 'accept' | 'decline';
   label: string;
   detail: string;
@@ -1103,7 +1103,7 @@ export interface VillageRequest {
   expiresDay: number;
 }
 
-export interface VillageRequestHistoryEntry {
+interface VillageRequestHistoryEntry {
   id: string;
   kind: VillageRequest['kind'];
   sourceName: string;

@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (28 Nov 2026):** Require confirmed prison/hotel entry for sleep. Retire on-map visitor lodging, tutorials, selection, trade and requests; remove their obsolete commands and render data. Keep settler checkout, yearly events and strategic rivals.
+- **Fixed (28 Nov 2026):** Require confirmed prison/hotel entry for sleep. Retire on-map visitor lodging, tutorials, selection, trade and requests; remove their obsolete commands, notices and render data. Keep settler checkout, yearly events and strategic rivals.
 
 - **Fixed (28 Nov 2026):** Children no longer keep following a caregiver during evening/night rosters or continue stale follow/play movement through school or bedtime, including homeless off-screen children; genuinely free-time following remains allowed.
 

@@ -142,7 +142,7 @@ export default function MoreTabPanel({
               <p><strong className="text-stone-200">Build panel (left)</strong> — Press <strong className="text-stone-200">B</strong> to open. Pick a category, then a building. Keys <strong className="text-stone-200">1–9</strong> quick-select common types.</p>
               <p><strong className="text-stone-200">Grid</strong> — Press <strong className="text-stone-200">G</strong> to toggle the placement grid (auto-on when building).</p>
               <p><strong className="text-stone-200">Inspector</strong> — Top of the right panel; collapsible, auto-opens when you click the map.</p>
-              <p><strong className="text-stone-200">🏕️ Frontier</strong> — Visitors, rivals, raids and diplomacy. Opens in its own window.</p>
+              <p><strong className="text-stone-200">🏕️ Frontier</strong> — Rivals, raids and diplomacy. Opens in its own window.</p>
               <p><strong className="text-stone-200">🏘️ Daily council</strong> — What the village needs today, food by source, jobs and population.</p>
               <p><strong className="text-stone-200">🌿 Nature</strong> — Ecosystem health, weather and wildlife counts.</p>
               <p><strong className="text-stone-200">👥 People</strong> — The household roster, family trees and each settler's own story.</p>

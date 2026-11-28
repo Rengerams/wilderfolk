@@ -373,6 +373,7 @@ const SOURCE_ROWS = [
   { id: "velocity-facing-single-owner", scan: { dir: "src", ext: [".ts", ".tsx"], except: ["src/game/simulation/movementSteering.ts"], notMatches: /spriteAngle\s*=\s*Math\.atan2\(\s*\w+\.vy,\s*\w+\.vx\s*\)/, example: "e.spriteAngle = Math.atan2(e.vy, e.vx)", minFiles: 1 } },
   { id: "velocity-facing-single-owner-owner", checks: [{ file: "src/game/simulation/movementSteering.ts", matches: [/spriteAngle\s*=\s*Math\.atan2\(\s*\w+\.vy,\s*\w+\.vx\s*\)/] }] },
   { id: "swept-behaviors-use-movement-owner", checks: [{ files: ["src/game/simulation/humanMovement.ts", "src/game/humanHospitalBehavior.ts", "src/game/humanLeisureBehavior.ts", "src/game/blueberryForaging.ts", "src/game/humanHuntingBehavior.ts", "src/game/pathfinding.ts", "src/game/tickLayerSystems.ts", "src/game/humanTick.ts"], matches: [/steerHumanToward\(|steerEntityToward\(|setVelocityToward\(|faceVelocity\(|commuteHumanToBuilding\(/] }] },
+  { id: "retired-visitor-feedback", checks: [{ file: "src/hooks/useTransientGameFeedback.ts", notContains: ["visitorNewsIds", "Visitors Arrived"] }, { file: "src/hooks/useGameShellState.ts", notContains: "Visitors, rivals, raids" }] },
   { id: "retired-visitor-tutorials", checks: [{ files: ["src/game/contextualTutorial.ts", "src/hooks/useContextualTutorial.ts"], notContains: ["visitorGroups", "VISITOR_TOPIC", "visitor_traders:"] }] },
   { id: "retired-first-week-visitor-flag", checks: [{ files: ["src/game/gameTypes.ts", "src/game/worldGen.ts", "src/game/saveSchema.ts", "src/game/simWorker/simPrep.ts", "src/game/simBuffers/simDelta.ts"], notContains: "firstWeekVisitorSpawned" }] },
   { id: "retired-camp-view-stays-removed", checks: [{ files: ["src/game/viewState.ts", "src/game/renderSnapshot.ts", "src/App.tsx", "src/hooks/useCanvasInteractions.ts"], notContains: ["selectedCampKey", "highlightedCampKey", "focusCampOnMap"] }, { file: "src/game/renderer/markers.ts", notContains: ["drawCampMarkers", "drawCampHighlightRings"] }] },
@@ -1278,7 +1279,6 @@ const SOURCE_ROWS = [
     checks: [
       {
         files: [
-          'src/game/groupEvents.ts',
           'src/game/tradeCaravans.ts',
           'src/game/townHall.ts',
           'src/game/settlerInteractionActions.ts',

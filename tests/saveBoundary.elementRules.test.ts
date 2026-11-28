@@ -3,11 +3,11 @@
  * slip past the container rule, so each has its own load-boundary validation.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { initGame } from '../src/game/worldGen';
+import { createBuilding, initGame } from '../src/game/worldGen';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, loadGameFromParsedOutcome, parseSaveJson } from '../src/game/saveLoad';
 import { resetSimRng } from '../src/game/simRng';
-import { MAP_SIZE_DIMENSIONS, MapSize, type RaidEvent, type VisitorGroup, type VillageRequest } from '../src/game/gameTypes';
+import { BuildingType, MAP_SIZE_DIMENSIONS, MapSize, type RaidEvent, type VisitorGroup, type VillageRequest } from '../src/game/gameTypes';
 
 /** A camp as `groupEvents.spawnVisitorGroup` writes one. */
 function visitorGroup(): VisitorGroup {
@@ -59,6 +59,8 @@ let cachedPayload: Record<string, unknown> | null = null;
 function buildPayload(): Record<string, unknown> {
   resetSimRng();
   const world = initGame({ skipTerrain: true, seed: 4242, size: MapSize.Medium });
+  const hotel = createBuilding(BuildingType.Hotel, world.width / 2 + 120, world.height / 2, world.nextBuildingId++);
+  world.buildings.push(hotel);
   world.visitorGroups.push(visitorGroup());
   world.pendingRaidEvents.push(raidEvent());
   world.activeVillageRequest = {
@@ -122,6 +124,8 @@ describe('loading saves retires on-map visitor NPCs without touching strategic r
     entities.push({ ...player, id: visitorId, faction: 'visitor', groupId: 'visitor_traders_1' });
     payload.nextEntityId = visitorId + 1;
     payload.firstWeekVisitorSpawned = true;
+    payload.activeEvent = { id: 'visitor_traders_legacy', title: 'Visitors Arrived', description: 'Old camp', emoji: 'x', effect: '', type: 'neutral' };
+    payload.bigNews = [{ id: 'old-visitor-news', title: 'Visitors Arrived', message: 'Old camp', type: 'neutral', createdAt: 0, dismissed: false }, { id: 'ordinary-news', title: 'Harvest', message: 'Keep', type: 'positive', createdAt: 0, dismissed: false }];
     const buildings = payload.buildings as Array<Record<string, unknown>>;
     expect(buildings.length).toBeGreaterThan(0);
     const buildingId = buildings[0].id;
@@ -133,6 +137,9 @@ describe('loading saves retires on-map visitor NPCs without touching strategic r
     expect(outcome.world.entities.some((entity) => entity.id === visitorId)).toBe(false);
     expect(outcome.world.entityById?.has(visitorId)).toBe(false);
     expect(outcome.world).not.toHaveProperty('firstWeekVisitorSpawned');
+    expect(outcome.world.activeEvent).toBeNull();
+    expect(outcome.world.bigNews.map((news) => news.id)).not.toContain('old-visitor-news');
+    expect(outcome.world.bigNews.map((news) => news.id)).toContain('ordinary-news');
     const restoredBuilding = outcome.world.buildings.find((b) => b.id === buildingId);
     expect(restoredBuilding).toBeDefined();
     expect(restoredBuilding).not.toHaveProperty('hotelGuestIds');
