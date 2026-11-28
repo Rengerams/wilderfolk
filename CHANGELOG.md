@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Improved (28 Nov 2026):** Show current adult education totals by qualification level in the Village Schooling overview.
+
 - **Fixed (28 Nov 2026):** Use canonical stamina and medical rules for social motives, require reciprocal nearby spouse care, share reachable leisure routes, select nearby completed venues, and finish market errands once and civic petitions only after actual audience processing.
 
 - **Fixed (28 Nov 2026):** Protect active pregnancies from restarts and paternity changes, validate new pregnancy inputs, and centralize progress and delivery resets in the pregnancy owner.
