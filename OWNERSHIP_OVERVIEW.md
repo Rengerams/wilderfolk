@@ -228,6 +228,13 @@ Purpose: one decision → one owner module → one definition of each function.
 Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAIN_ARCHITECTURE.md).  
 Genetics layers, activity registry, evaluator contract and change recipes: [DNA aptitudes architecture](docs/DNA_APTITUDES_ARCHITECTURE.md).
 
+## Ownership infrastructure (active contract)
+
+| Decision / responsibility | Sole owner | Cadence | Named functions |
+|---|---|---|---|
+| Ownership registry tooling | `scripts/ownership-registry.mjs` | Build-time only; no gameplay writes | `getDecisionRows`, `escapeCell`, `renderDecisionTable`, `replaceGeneratedBlock`, `isFile`, `validateDecisionKeys`, `validateRegistry`, `directCallableCandidates`, `hasModifier`, `validateEntrypointSymbols`, `findVerifiedClaim`, `verifyOwnershipRegistry`, `parseOwnershipMode`, `validateToolingInventory`, `visit`, `main` |
+| Call graph ownership projection | `scripts/build-call-graph.mjs` | Build-time only | `main`, `parseOwnershipOverview`, `modulesIn`, `moduleOwnsFile`, `ownerHead`, `renderHtml` — historical evidence is separated from compiler-verified declaration claims; retired `ownerForFunction` first-match resolver and `parseDecisionRegistry` text parser. |
+
 ## Non-gameplay test harness owners
 
 | Responsibility | Sole owner | Invocation |
