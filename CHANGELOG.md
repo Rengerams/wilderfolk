@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Restore one-time legacy player stamina and Moon Howler human-snapshot migration on load; native needs take precedence and active wolf metabolism remains independent.
+
 - **Fixed (28 Nov 2026):** Repair the worker transport workflow YAML and its self-path filter so Knip and worker validation can load the configuration.
 - **Fixed (28 Nov 2026):** Preserve the saved valley ecology stage, dwell day and stress/recovery counters on reload; only daily settlement advances existing stages.
 
