@@ -36,7 +36,7 @@ const MEDIUM_MAP_AREA = MAP_SIZE_DIMENSIONS[MapSize.Medium].width * MAP_SIZE_DIM
 
 const IDEAL_WILDLIFE = 80;
 
-/** Settlers per point of population pollution: 300 / 1,000 / 2,500 colonies grade 12 / 40 / 100. */
+/** Medium-map residents per pollution point; larger maps dilute this pressure. */
 const HUMAN_POLLUTION_PER_POINT = 25;
 /** Each Wildlife Preserve damps the whole pollution score by 5%, floored so it never erases it. */
 const POLLUTION_PRESERVE_DAMPING = 0.05;
@@ -154,11 +154,11 @@ export function calculateEcosystemMetrics(
   const mapArea = state.width > 0 && state.height > 0 ? state.width * state.height : MEDIUM_MAP_AREA;
   const buildableFraction = state.worldMap?.stats?.__buildable ?? 1;
   const habitatArea = mapArea * Math.max(0.05, Math.min(1, buildableFraction));
-  const mediumMapScale = MEDIUM_MAP_AREA / mapArea;
+  const mediumMapScale = Math.min(1, MEDIUM_MAP_AREA / mapArea);
   const shiftHours = Math.max(1, getWorkScheduleHours(getWorkSchedule(state)));
   const workedHoursBySite = new Map<number, number>();
   for (const worker of state.entities ?? []) {
-    if (!worker.alive || !isPlayerHuman(worker)) continue;
+    if (!worker.alive || !isPlayerHuman(worker) || worker.prisonBuildingId != null) continue;
     const attendance = getWorkdayAttendance(worker);
     if (attendance.siteId == null || attendance.siteId < 0 || attendance.ticks <= 0) continue;
     workedHoursBySite.set(attendance.siteId, (workedHoursBySite.get(attendance.siteId) ?? 0) + attendance.ticks / TICKS_PER_HOUR);

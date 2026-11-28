@@ -1,5 +1,9 @@
 # Bug report summary — one line per report
 
+**2026-11-28 — [Large settlements forced into ecological collapse](../bug_report/2026-11-28-large-city-ecology-scaling.md):** investigating; weighted land use and industrial attendance replace flat penalties; city-scale regression added; CI pending.
+
+**2026-11-28 — [Preserve promises wildlife recovery without habitat](../bug_report/2026-11-28-preserve-no-wildlife-refuge.md):** investigating; protected hunting exclusion and capped habitat recovery implemented; CI pending.
+
 **2026-11-28 — [Social motives bypass needs and leisure routing](../bug_report/2026-11-28-social-motive-owner-alignment.md):** investigating; shared medical/stamina criteria, reciprocal nearby spouse care, reachable routes and market arrival receipts and civic completion only after a successful 18:00 audience; regression CI pending.
 
 **2026-11-28 — [Human activity priority drift](../bug_report/2026-11-28-human-activity-priority-drift.md):** investigating; shared workplace duty, protected movement priorities, tick-start tryst observation and schoolyard presence gate implemented; priest/festival regression added; CI pending.

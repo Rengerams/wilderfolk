@@ -125,7 +125,7 @@ export function huntingSpotTarget(
   hunter: Entity,
   entityById: ReadonlyMap<number, Entity>,
   byType: Record<EntityType, Entity[]>,
-  preserves: readonly Building[] = [],
+  preserves: readonly Building[],
 ): Entity | null {
   const committedId = building.huntingSpotTargetId;
   if (committedId != null) {
@@ -149,7 +149,7 @@ export function huntingSpotChaseTarget(
   hunter: Entity,
   entityById: ReadonlyMap<number, Entity>,
   byType: Record<EntityType, Entity[]>,
-  preserves: readonly Building[] = [],
+  preserves: readonly Building[],
 ): Entity | null {
   if (!isHuntingSpotHunter(building, hunter, entityById)) return null;
   const prey = huntingSpotTarget(building, hunter, entityById, byType, preserves);

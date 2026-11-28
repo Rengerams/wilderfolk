@@ -69,6 +69,8 @@ export type DecisionKey =
   | 'tradeCaravans'
   | 'humanWalk'
   | 'dailyRelationships'
+  | 'humanMortality'
+  | 'ecosystemMetrics'
   | 'yearlyWorldEvents'
   | 'grassRegrowth'
   | 'foodLedger'
@@ -396,13 +398,29 @@ export const SIMULATION_DECISIONS = {
     scheduledFrom: 'gameTick → tickLayerSystems.tickLayerSystems → tickWildlife / tickWolfRecruitment',
     testFile: 'tests/wildkin.apexRole.test.ts, tests/ecosystemPressure.winterDemand.test.ts, tests/wildlife.populationPolicy.test.ts',
   },
+  ecosystemMetrics: {
+    owner: 'dailyEcology.ts — calculateEcosystemMetrics, tickEcosystemMetrics; ecologyStage.ts — tickValleyEcologyStage',
+    cadence: 'daily',
+    cadenceNote: 'Weighted occupied buildable land replaces building-count penalties. Industrial emissions use witnessed work attendance and industrial type; pollution scales with map area and forestry research. Completed preserve bonuses are capped; the Nature breakdown reads the same calculation. The existing stage owner reads the resulting metrics.',
+    writes: ['ecosystemHealth', 'pollutionLevel', 'biodiversityIndex', 'pendingEcosystemHealthDelta', 'pendingPollutionDelta', 'valleyStage', 'valleyStageSinceDay', 'valleyRawStressStreakDays', 'valleyRawCalmStreakDays', 'valleyLastStageNotifyDay', 'eventLog', 'notifications', 'bigNews'],
+    scheduledFrom: 'tickLayerDaily → dailyWorldEvents.tickDailyWorldEvents → tickEcosystemMetrics → tickValleyEcologyStage',
+    testFile: 'tests/dailyEcology.pollutionGrading.test.ts, tests/medium-C2-story.test.ts, tests/ecologyStoryDelta.survivesRecompute.test.ts',
+  },
+  humanMortality: {
+    owner: 'humanRelationships.tryDailyHumanMortality — daily age and sudden-illness roll; hospitalCare.getPreventiveCareMortalityMultiplier — preventive care capacity; dayCycle.killHuman — death transition',
+    cadence: 'new-calendar-day',
+    cadenceNote: 'The existing human tick samples living assigned doctors once per calendar boundary. One doctor per fifty residents can halve the player sudden-illness risk at full coverage; empty, dead, jailed or deployed doctors provide no coverage. Old age and foreign mortality are unchanged.',
+    writes: ['human.alive', 'human.energy', 'eventLog', 'deathParticles'],
+    scheduledFrom: 'humanTick.tickHumans → tryDailyHumanMortality → killHuman',
+    testFile: 'tests/dailyEcology.pollutionGrading.test.ts, tests/calendarPhase.auditRegressions.test.ts',
+  },
   wildlifeReplenishment: {
     owner: 'worldGen.replenishDepletedWildlife — wildlife restocking; wildlifePopulationPolicy.WILDLIFE_POPULATION_POLICY and getWildlifeCarryingCapacity — sole refill targets and prey-supported predator caps',
     cadence: 'daily',
-    cadenceNote: 'Every third colony day at 18:00. Grazer restocking is bounded per pulse and predators are replenished only below their minimum and when existing prey can sustain them. Initial predator groups follow the same target policy.',
+    cadenceNote: 'Every third colony day at 18:00. Grazer restocking is bounded per pulse and predators are replenished only below their minimum and when existing prey can sustain them. Initial predator groups follow the same target policy. Completed preserves raise scarce-grazer refill thresholds and redirect the same bounded pulse into rotating protected habitat; no per-preserve spawn multiplier. Both settler hunting paths consume wildlifePopulationPolicy.isWildlifeProtected.',
     writes: ['entities (via worldGen.registerSpawnedWildlife)', 'nextEntityId', 'wildlifeCounts', 'lastWildlifeReplenishLogDay', 'eventLog'],
     scheduledFrom: 'tickLayerDaily → dailyWorldEvents.tickDailyWorldEvents → worldGen.replenishDepletedWildlife',
-    testFile: 'tests/wildlife.populationPolicy.test.ts',
+    testFile: 'tests/wildlife.populationPolicy.test.ts, tests/huntingSpot.cleanup.test.ts',
   },
   inventionFair: {
     owner: 'inventionFair.ts — maybeOfferInventionFair, tickInventionFair, tickInventionFairRealtime, getInventionFairChoiceEligibility, resolveInventionFair, rollInventionFairOutcome, private stage and outcome lifecycle; storyEvents delegates player choices only',

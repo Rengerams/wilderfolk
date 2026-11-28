@@ -1,17 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { EntityType, TerrainType, emptyEntityByType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, TerrainType, emptyEntityByType } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { createEntity } from '../src/game/entityFactory';
 import { tickWildlife } from '../src/game/tickLayerSystems';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { computeWildlifeCounts } from '../src/game/entityCounts';
-import { initGame, isPassableWildlifePosition, replenishDepletedWildlife } from '../src/game/worldGen';
+import { createBuilding, initGame, isPassableWildlifePosition, replenishDepletedWildlife } from '../src/game/worldGen';
 import {
   WILDLIFE_POPULATION_POLICY,
   wildlifeBreedingCeiling,
   wildlifeMayHuntRabbit,
   getWildlifeCarryingCapacity,
+  getCompletedWildlifePreserves,
+  isWildlifeProtected,
 } from '../src/game/wildlifePopulationPolicy';
 
 import { testWorldMap } from '../src/test/worldMapFixtures';
@@ -149,6 +151,21 @@ describe('wildlife population policy', () => {
   it('gives a wolf more than a day of basal energy per rabbit instead of driving repeat kills', () => {
     const wolf = SPECIES_CONFIG[EntityType.Wolf];
     expect(wolf.energyGain.rabbit).toBeGreaterThan(wolf.energyLossPerTick * TICKS_PER_DAY);
+  });
+
+  it('uses the existing capped recovery pulse inside a completed protected grove', () => {
+    const state = initGame({ skipTerrain: true, seed: 20261122 });
+    const preserve = createBuilding(BuildingType.WildlifePreserve, state.width / 2, state.height / 2, state.nextBuildingId++);
+    preserve.completed = true;
+    state.buildings.push(preserve);
+    for (const entity of state.entities) if (entity.type === EntityType.Rabbit) entity.alive = false;
+    state.wildlifeCounts = computeWildlifeCounts(state.entities);
+    replenishDepletedWildlife(state);
+    const rabbits = state.entities.filter(entity => entity.alive && entity.type === EntityType.Rabbit);
+    expect(rabbits.length).toBeGreaterThan(0);
+    expect(rabbits.length).toBeLessThanOrEqual(16);
+    const preserves = getCompletedWildlifePreserves(state.buildings);
+    expect(rabbits.every(rabbit => isWildlifeProtected(rabbit, preserves))).toBe(true);
   });
 
   it('repopulates an extinct rabbit herd in the existing wildlife-spawn owner', () => {

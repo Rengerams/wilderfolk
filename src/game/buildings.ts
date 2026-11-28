@@ -451,7 +451,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     maxOccupants: 5,
     emoji: '🏥',
     label: 'Hospital',
-    description: 'Staff doctors — settlers visit when sick or pregnant. Staffed wards lower village energy drain.',
+    description: 'Staff doctors for medical care and childbirth. Preventive care reduces sudden illness mortality.',
     sprite: '/sprites/hospital.png',
     backgroundColor: '#db2777',
     padShape: 'round',
