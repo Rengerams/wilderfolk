@@ -1,4 +1,4 @@
-import { legacyHumanNeeds, normalizeHumanNeeds } from './simulation/humanPhysiology';
+import { normalizeHumanNeeds } from './simulation/humanPhysiology';
 import { isFiniteNumber, isNonEmptyString } from './inputGuards';
 import { villageFileSlug } from './fileNames';
 import { normalizeCareerHistory } from './careers/careerHistory';
@@ -1579,18 +1579,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         if (entity.type === EntityType.Human) entity.generation ??= 0;
         if (TICKED_SPECIES.has(entity.type)) entity.animFrame ??= 0;
         migrateEntityPersistedFields(entity, fields);
-        if (isPlayerHuman(entity)) {
-          normalizeHumanNeeds(entity, legacyHumanNeeds(entity.energy, entity.maxEnergy));
-          entity.energy = 0;
-          entity.maxEnergy = 0;
-        }
-        // Old active wolf-form saves stored human energy instead of a native needs snapshot.
-        const humanForm = entity.moonHowlerSaved;
-        if (humanForm) {
-          normalizeHumanNeeds(humanForm, legacyHumanNeeds(humanForm.energy, humanForm.maxEnergy));
-          humanForm.energy = undefined;
-          humanForm.maxEnergy = undefined;
-        }
+        if (isPlayerHuman(entity)) normalizeHumanNeeds(entity);
         if (entity.type === EntityType.Human && entity.spriteVariant === undefined && entity.gender) {
           entity.spriteVariant = pickHumanVariant(entity.id, entity.gender);
         }
