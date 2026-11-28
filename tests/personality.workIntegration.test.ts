@@ -11,7 +11,7 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import type { GenomeV2 } from '../src/game/settlerTraits';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { TICKS_PER_HOUR, tickAtDailyPhase } from '../src/game/dayCycleClock';
-import { getScheduleTargetHours } from '../src/game/scheduleFatigue';
+import { getWorkSchedule, getWorkScheduleHours } from '../src/game/workSchedule';
 import { MAX_SKILL, readSkill, WORK_SKILL_PER_SHIFT, getWorkerSkillMultiplier } from '../src/game/skills';
 import { advanceApprenticeships } from '../src/game/apprenticeships';
 import { evaluateAptitudeInfluence } from '../src/game/personality/traitEvaluation';
@@ -154,7 +154,7 @@ function houseProgressAfterOneDay(genomeV2: GenomeV2): number {
   builder.workerBuildingId = undefined;
   site.occupants = [builder.id];
   // Direct production-boundary fixture: supply the observed shift it skipped in realtime.
-  builder.schedulePresentTicksToday = getScheduleTargetHours(state) * TICKS_PER_HOUR;
+  builder.schedulePresentTicksToday = getWorkScheduleHours(getWorkSchedule(state)) * TICKS_PER_HOUR;
   builder.schedulePresentSiteIdToday = SITE_ID;
   builder.scheduleWorkedTicksToday = builder.schedulePresentTicksToday;
   builder.scheduleWorkedSiteIdToday = SITE_ID;
@@ -214,7 +214,7 @@ function farmWorld(genomeV2: GenomeV2, skill = MAX_SKILL): { state: WorldState; 
     worker.job = JobType.Farmer;
     worker.genomeV2 = genomeV2;
     worker.skills = { [JobType.Farmer]: skill };
-    worker.scheduleLastWorkedHours = getScheduleTargetHours(state);
+    worker.scheduleLastWorkedHours = getWorkScheduleHours(getWorkSchedule(state));
   }
   farm.occupants = workers.map((worker) => worker.id);
   state.resources.food = START_FOOD;

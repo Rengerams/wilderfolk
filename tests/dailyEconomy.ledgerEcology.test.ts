@@ -21,7 +21,7 @@ import { TICKS_PER_HOUR, getAbsoluteCalendarDay, tickAtDailyPhase } from '../src
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { countLivingPopulation } from '../src/game/entityCounts';
 import { isPlayerHuman } from '../src/game/playerHuman';
-import { getScheduleTargetHours } from '../src/game/scheduleFatigue';
+import { getWorkSchedule, getWorkScheduleHours } from '../src/game/workSchedule';
 import { setSimSeed, resetSimRng, enableSeededGlobalRandom } from '../src/game/simRng';
 import { tickDailyWorldEvents, tickYearBoundaryWorldEvents } from '../src/game/dailyWorldEvents';
 import { tickBuildingProgress, tickDailyBuildingEconomy } from '../src/game/dailyBuildingEconomy';
@@ -120,7 +120,7 @@ describe('S-07 — a Bountiful Harvest grant lasts exactly its year', () => {
       for (const worker of workers) {
         worker.workerBuildingId = farm.id;
         worker.job = JobType.Farmer;
-        worker.scheduleLastWorkedHours = getScheduleTargetHours(state);
+        worker.scheduleLastWorkedHours = getWorkScheduleHours(getWorkSchedule(state));
       }
       farm.occupants = workers.map((worker) => worker.id);
       state.resources.food = 100;
