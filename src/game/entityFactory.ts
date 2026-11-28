@@ -158,6 +158,7 @@ export function createEntity(
     generation: isHuman ? gen : undefined,
     partnerId: opts?.partnerId,
     affairPartnerId: undefined,
+    affairCandidateId: undefined,
     affairProgress: 0,
     lastAffairSiteDay: undefined,
     lastAffairSiteX: undefined,

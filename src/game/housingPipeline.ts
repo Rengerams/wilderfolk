@@ -5,7 +5,7 @@ import type { ResidenceOccupancy } from './housingModel';
 import { findLivingHuman, collectFamilyMembers, collectMinorHousehold, collectOwnHousehold, indexFamilyRelations, isAdultChildAtHome, getChildCustodian, unitIsKinOf, unitKinIndex, type UnitKinIndex } from './housingModel';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, buildPlayerResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity, residenceRoomFor, countResidentsInBuilding, isAssignableHome } from './housingModel';
-import { beginCommuteRoutePass, estimatedCommuteHours, quoteBuildingCommute, MAX_ASSIGNABLE_COMMUTE_HOURS, straightLineCommuteLowerBoundHours } from './commuteReach';
+import { beginCommuteRoutePass, estimatedCommuteHours, isWithinAssignableCommute, quoteBuildingCommute, MAX_ASSIGNABLE_COMMUTE_HOURS, straightLineCommuteLowerBoundHours } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { TICKS_PER_DAY } from './dayCycleClock';
@@ -2213,6 +2213,63 @@ function pupilsKeepSchoolReach(
     if (!Number.isFinite(hours) || hours > MAX_ASSIGNABLE_COMMUTE_HOURS) return false;
   }
   return true;
+}
+
+/**
+ * Housing owner's job-seeker handoff. The workforce can request one eligible
+ * unemployed household near a completed vacant post; this owner alone decides
+ * whether a real, legal home move exists and writes it through relocateHousehold.
+ *
+ * The normal workforce selector/assignment remains the only job decision.
+ * Relocation is attempted only after no worker can commute from their current home.
+ */
+export function relocateJobSeekerForVacancy(
+  eligibleAdults: readonly Entity[],
+  alive: Entity[],
+  buildings: Building[],
+  workplace: Building,
+): boolean {
+  if (eligibleAdults.length === 0 || !workplace.completed) return false;
+  const eligibleIds = new Set(eligibleAdults.map((worker) => worker.id));
+  const units = buildHousingUnits(alive).filter((unit) =>
+    unit.some((member) => eligibleIds.has(member.id))
+    // Moving a worker's spouse or another employed household member would change
+    // an existing commute. Only a wholly jobless unit may volunteer.
+    && unit.every((member) => member.workerBuildingId == null && member.apprenticeOfId == null && !isImprisoned(member))
+    && unit.every((member) => member.residenceBuildingId === unit[0].residenceBuildingId)
+  );
+  if (units.length === 0) return false;
+  const residences = listPlayerResidences(buildings);
+  if (residences.length === 0) return false;
+  const context = standaloneMoveContext(alive, residences);
+  const buildingById = new Map(buildings.map((site) => [site.id, site]));
+  const walkSpeed = SPECIES_CONFIG[EntityType.Human].speed;
+  const schoolQuotes = new Map<string, number>();
+  const homes = residences.filter((home) =>
+    straightLineCommuteLowerBoundHours(home, workplace, walkSpeed) <= MAX_ASSIGNABLE_COMMUTE_HOURS
+  ).sort((a, b) => {
+    const da = Math.hypot(a.x - workplace.x, a.y - workplace.y);
+    const db = Math.hypot(b.x - workplace.x, b.y - workplace.y);
+    return da - db || a.id - b.id;
+  });
+  const commuteProbe = eligibleAdults[0];
+  for (const home of homes) {
+    // Don't spend a routed-commute search on a full home or an already housed unit.
+    const fitting = units.filter((unit) => unit[0].residenceBuildingId !== home.id
+      && familyFitsInResidence(unit, home, alive, context.occupancy));
+    if (fitting.length === 0) continue;
+    // All candidates for this home share the exact same home-to-post route.
+    // A geometrically nearby but disconnected home is never proof of a commute.
+    if (!isWithinAssignableCommute(
+      { ...commuteProbe, residenceBuildingId: home.id },
+      workplace, buildings, walkSpeed, buildingById,
+    )) continue;
+    for (const unit of fitting) {
+      if (!pupilsKeepSchoolReach(unit, home, buildings, walkSpeed, schoolQuotes, buildingById)) continue;
+      if (relocateHousehold(unit, home.id, 'commute', 'commute', context)) return true;
+    }
+  }
+  return false;
 }
 
 /** §12 commute move: the vacant home that most shortens the household's daily travel, and never back. */

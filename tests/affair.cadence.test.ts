@@ -7,7 +7,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
-import { tryDailyAffairEncounter } from '../src/game/simulation/humanRelationships';
+import { isValidAffairTarget, reconcileAffairPartner, tryDailyAffairEncounter } from '../src/game/simulation/humanRelationships';
 
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
@@ -117,11 +117,12 @@ function affairFixture(): { wife: Entity; husband: Entity; paramour: Entity; sta
     relationshipStatus: 'married',
     partnerId: 2,
     affairProgress: 95,
+    affairCandidateId: 3,
     x: 10,
     y: 10,
   });
   const husband = human(2, { gender: 'male', x: 100, y: 100 });
-  const paramour = human(3, { gender: 'male', relationshipStatus: 'single', affairProgress: 95, x: 12, y: 10 });
+  const paramour = human(3, { gender: 'male', relationshipStatus: 'single', affairProgress: 95, affairCandidateId: 1, x: 12, y: 10 });
   return { wife, husband, paramour, state: makeState([wife, husband, paramour]) };
 }
 
@@ -158,6 +159,32 @@ describe('affair cadence (Objective 9)', () => {
     expect(collectSimulationInvariantErrors(ticked)).toEqual([]);
   });
 
+  it('establishes from the married participant even if the single paramour has the lower ID', () => {
+    const married = human(8, {
+      gender: 'female', relationshipStatus: 'married', partnerId: 7,
+      affairCandidateId: 2, affairProgress: 95, x: 10, y: 10,
+    });
+    const spouse = human(7, { gender: 'male', x: 200, y: 200 });
+    const single = human(2, {
+      gender: 'male', relationshipStatus: 'single',
+      affairCandidateId: 8, affairProgress: 95, x: 12, y: 10,
+    });
+    const state = makeState([married, spouse, single]);
+    const entityById = new Map(state.entities.map((entity) => [entity.id, entity]));
+    let day = 1;
+    while (day <= 20_000 && personDayRoll(married.id, day * TICKS_PER_DAY, 610) >= 0.001) day++;
+    expect(day).toBeLessThanOrEqual(20_000);
+    state.tick = day * TICKS_PER_DAY;
+
+    tryDailyAffairEncounter(state, married, entityById, state.buildings,
+      new Map(), 0, 18, undefined, [spouse, single], 400, 300);
+
+    expect(married.affairPartnerId).toBe(single.id);
+    expect(single.affairPartnerId).toBe(married.id);
+    expect(married.affairCandidateId).toBeUndefined();
+    expect(single.affairCandidateId).toBeUndefined();
+  });
+
   it('daily owner is the sole establisher (deterministic unit)', () => {
     const { wife, husband, paramour, state } = affairFixture();
     const entityById = new Map([[wife.id, wife], [husband.id, husband], [paramour.id, paramour]]);
@@ -184,6 +211,8 @@ describe('affair cadence (Objective 9)', () => {
     );
     vi.restoreAllMocks();
 
+    expect(wife.affairCandidateId).toBeUndefined();
+    expect(paramour.affairCandidateId).toBeUndefined();
     expect(wife.affairPartnerId).toBe(3);
     expect(paramour.affairPartnerId).toBe(1);
     expect(wife.affairProgress).toBe(100);
@@ -192,5 +221,86 @@ describe('affair cadence (Objective 9)', () => {
     const snap = flushRelationshipDiagnostics(100, 1, 0)!;
     expect(snap.affairsEstablished).toBe(1);
     expect(snap.scandalExposures).toBe(0);
+  });
+});
+
+describe('affair progress belongs to a verified pair', () => {
+  it('clears legacy unbound progress instead of transferring 100% to a new lover', () => {
+    const single = human(3, {
+      gender: 'female', relationshipStatus: 'single',
+      affairProgress: 100, courtshipPartnerId: 4, courtshipProgress: 47,
+    });
+    const married = human(1, {
+      gender: 'male', relationshipStatus: 'married', partnerId: 2,
+      affairProgress: 100,
+    });
+    const people = new Map([[single.id, single], [married.id, married]]);
+    reconcileAffairPartner(single, people);
+    reconcileAffairPartner(married, people);
+    expect(single.affairPartnerId).toBeUndefined();
+    expect(single.affairProgress).toBe(0);
+    expect(single.courtshipPartnerId).toBe(4);
+    expect(single.courtshipProgress).toBe(47);
+    expect(married.affairProgress).toBe(0);
+  });
+
+  it('keeps only a mutual unmarried paramour candidate with a married initiator', () => {
+    const married = human(8, {
+      gender: 'female', relationshipStatus: 'married', partnerId: 6,
+      affairCandidateId: 2, affairProgress: 32,
+    });
+    const single = human(2, {
+      gender: 'male', relationshipStatus: 'single',
+      affairCandidateId: 8, affairProgress: 32,
+    });
+    const people = new Map([[married.id, married], [single.id, single]]);
+    reconcileAffairPartner(married, people);
+    reconcileAffairPartner(single, people);
+    expect(married.affairProgress).toBe(32);
+    expect(single.affairProgress).toBe(32);
+    expect(married.affairCandidateId).toBe(2);
+    expect(single.affairCandidateId).toBe(8);
+    expect(isValidAffairTarget(married, single, 0)).toBe(true);
+    single.courtshipPartnerId = 9;
+    expect(isValidAffairTarget(married, single, 0)).toBe(false);
+    reconcileAffairPartner(single, people);
+    reconcileAffairPartner(married, people);
+    expect(single.affairProgress).toBe(0);
+    expect(married.affairProgress).toBe(0);
+  });
+
+  it('retires pending progress when the candidates become spouses', () => {
+    const married = human(8, {
+      gender: 'female', relationshipStatus: 'married', partnerId: 2,
+      affairCandidateId: 2, affairProgress: 99,
+    });
+    const former = human(2, {
+      gender: 'male', relationshipStatus: 'married', partnerId: 8,
+      affairCandidateId: 8, affairProgress: 99,
+    });
+    const people = new Map([[married.id, married], [former.id, former]]);
+    reconcileAffairPartner(married, people);
+    reconcileAffairPartner(former, people);
+    expect(married.affairCandidateId).toBeUndefined();
+    expect(former.affairCandidateId).toBeUndefined();
+    expect(married.affairProgress).toBe(0);
+    expect(former.affairProgress).toBe(0);
+  });
+
+  it('does not assign a completed affair to the wrong candidate when one person changes partners', () => {
+    const married = human(8, {
+      gender: 'female', relationshipStatus: 'married', partnerId: 6,
+      affairCandidateId: 2, affairProgress: 99,
+    });
+    const former = human(2, { gender: 'male', relationshipStatus: 'single', affairCandidateId: 8, affairProgress: 99 });
+    const next = human(3, { gender: 'male', relationshipStatus: 'single' });
+    const people = new Map([[married.id, married], [former.id, former], [next.id, next]]);
+    // The existing committed pair is exclusive until explicitly ended.
+    expect(isValidAffairTarget(married, next, 0)).toBe(false);
+    former.affairCandidateId = undefined;
+    reconcileAffairPartner(married, people);
+    expect(married.affairCandidateId).toBeUndefined();
+    expect(married.affairProgress).toBe(0);
+    expect(isValidAffairTarget(married, next, 0)).toBe(true);
   });
 });

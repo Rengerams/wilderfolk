@@ -86,15 +86,20 @@ function courtFrame(
     partnerGender?: 'female' | 'male';
     energy?: number;
     partnerEnergy?: number;
+    established?: boolean;
+    initialSpeed?: number;
   } = {},
 ): CourtFrame {
   const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const a = settler(1, 'female', genomeV2, {
     energy: options.energy ?? 200,
+    vx: options.initialSpeed ?? 0,
+    ...(options.established ? { courtshipPartnerId: PARTNER_ID, courtshipProgress: 47 } : {}),
     ...(options.spouse ? { partnerId: PARTNER_ID, relationshipStatus: 'married' as const } : {}),
   });
   const b = settler(PARTNER_ID, options.partnerGender ?? 'male', genomeFrom(), {
     x: 300 + (options.distance ?? 0), energy: options.partnerEnergy ?? 200,
+    ...(options.established ? { courtshipPartnerId: 1, courtshipProgress: 47 } : {}),
   });
   state.entities = [a, b];
   state.tick = 12;
@@ -157,6 +162,15 @@ describe('courtship progress at the real owner boundary', () => {
     expect(
       courtFrame(COURTSHIP_GENOME, { festival: true }).progressA / courtFrame(COURTSHIP_GENOME).progressA,
     ).toBeCloseTo(2, 10);
+  });
+
+  it('does not freeze an established partner before the other person is available', () => {
+    const frame = courtFrame(genomeFrom(), {
+      established: true, partnerEnergy: 1, initialSpeed: 1.5,
+    });
+    expect(frame.progressA).toBe(47);
+    expect(frame.progressB).toBe(47);
+    expect(frame.speedA, 'a one-sided unavailable date must not erase the existing walk').toBeGreaterThan(0);
   });
 
   it('keeps the courtship gates: ineligible, absent or distant partners make no progress', () => {
