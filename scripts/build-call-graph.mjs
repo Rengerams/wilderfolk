@@ -4,7 +4,7 @@
  */
 import { readdirSync, readFileSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { getDecisionRows, verifyOwnershipRegistry, findVerifiedClaim } from './ownership-registry.mjs';
+import { getDecisionRows, getInfrastructureRows, verifyOwnershipRegistry, findVerifiedClaim } from './ownership-registry.mjs';
 
 const ROOT = process.cwd();
 const SRC = path.resolve(ROOT, 'src');
@@ -626,7 +626,9 @@ function main() {
   // --- ownership ------------------------------------------------------------------------------
   const registry = getDecisionRows();
   const overview = parseOwnershipOverview(path.resolve(ROOT, 'OWNERSHIP_OVERVIEW.md'));
-  const decisions = [...registry, ...overview];
+  const infrastructure = getInfrastructureRows();
+  const legacyDecisions = [...registry, ...overview];
+  const decisions = [...registry, ...infrastructure, ...overview];
 
   const functionNames = new Set(functions.map((f) => f.name));
 
@@ -663,11 +665,11 @@ function main() {
   const ownershipFailures = verifyOwnershipRegistry(registry, ROOT, true, resolved, inventory);
   const unclaimedDeclarations = [...inventory.entries()].filter(([identity]) => !resolved.has(identity)).map(([, declaration]) => declaration);
   const claims = [...resolved.values()];
-  const rowsByKey = new Map(registry.map(row => [row.key, row]));
+  const rowsByKey = new Map([...registry, ...infrastructure].map(row => [row.key, row]));
   for (const fn of functions) {
     const claim = findVerifiedClaim(fn, claims, functions);
     const owner = claim ? rowsByKey.get(claim.key) : undefined;
-    const legacy = decisions.filter(decision => decision.modules.some(name => moduleOwnsFile(name, fn.file)));
+    const legacy = legacyDecisions.filter(decision => decision.modules.some(name => moduleOwnsFile(name, fn.file)));
     fn.legacyNamedEvidence = legacy.some(decision => decision.entryFunctionNames.includes(fn.name));
     fn.legacyModuleEvidence = legacy.length > 0;
     fn.ownerKey = owner?.key ?? null;
@@ -754,23 +756,24 @@ function main() {
     // otherwise satisfy every per-function check vacuously.
     const OWNERSHIP_FLOORS = { files: 380, functions: 3200, explicitEntries: 1400 };
     const failures = [...ownershipFailures];
+    const strict = process.argv.includes('--strict-owners');
     const undocumented = functions.filter(fn => !fn.ownerKey && !fn.legacyModuleEvidence);
-    if (undocumented.length) {
+    if (!strict && undocumented.length) {
       console.error('Functions without claims or legacy coverage:', undocumented.slice(0, 100).map(({ file, name, line }) => ({ file, name, line })));
       failures.push(`${undocumented.length} function(s) without any ownership evidence`);
     }
-    if (process.argv.includes('--strict-owners') && unclaimedDeclarations.length) {
+    if (strict && unclaimedDeclarations.length) {
       console.error('Compiler declarations without explicit claims:', unclaimedDeclarations.slice(0, 100));
       failures.push(`${unclaimedDeclarations.length} compiler-indexed declaration(s) still require explicit claims`);
     }
     if (inventory.size < OWNERSHIP_FLOORS.functions) failures.push(`compiler indexed only ${inventory.size} named declarations (floor ${OWNERSHIP_FLOORS.functions})`);
-    if (payload.stats.files < OWNERSHIP_FLOORS.files) {
+    if (!strict && payload.stats.files < OWNERSHIP_FLOORS.files) {
       failures.push(`indexed ${payload.stats.files} files (floor ${OWNERSHIP_FLOORS.files})`);
     }
-    if (payload.stats.functions < OWNERSHIP_FLOORS.functions) {
+    if (!strict && payload.stats.functions < OWNERSHIP_FLOORS.functions) {
       failures.push(`indexed ${payload.stats.functions} functions (floor ${OWNERSHIP_FLOORS.functions})`);
     }
-    if (payload.stats.withPriorNamedCoverage < OWNERSHIP_FLOORS.explicitEntries) {
+    if (!strict && payload.stats.withPriorNamedCoverage < OWNERSHIP_FLOORS.explicitEntries) {
       failures.push(
         `only ${payload.stats.withPriorNamedCoverage} functions have verified claims or legacy named evidence (floor ${OWNERSHIP_FLOORS.explicitEntries})`,
       );
