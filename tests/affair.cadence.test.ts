@@ -257,7 +257,7 @@ describe('affair progress belongs to a verified pair', () => {
     expect(married.affairCandidates).toBeUndefined();
   });
 
-  it('keeps only a mutual unmarried paramour candidate with a married initiator', () => {
+  it('keeps a mutual romantic candidate even when the single has another courtship focus', () => {
     const married = human(8, {
       gender: 'female', relationshipStatus: 'married', partnerId: 6,
       affairCandidateId: 2, affairProgress: 32,
@@ -275,11 +275,11 @@ describe('affair progress belongs to a verified pair', () => {
     expect(single.affairCandidateId).toBeUndefined();
     expect(isValidAffairTarget(married, single, 0)).toBe(true);
     single.courtshipPartnerId = 9;
-    expect(isValidAffairTarget(married, single, 0)).toBe(false);
+    expect(isValidAffairTarget(married, single, 0)).toBe(true);
     reconcileAffairPartner(single, people);
     reconcileAffairPartner(married, people);
-    expect(single.affairCandidates).toBeUndefined();
-    expect(married.affairCandidates).toBeUndefined();
+    expect(single.affairCandidates?.[8]?.progress).toBe(32);
+    expect(married.affairCandidates?.[2]?.progress).toBe(32);
   });
 
   it.each([false, true])('consumes both legacy sides on the first call and is idempotent (reverse=%s)', (reverse) => {
