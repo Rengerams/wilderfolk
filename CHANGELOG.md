@@ -4,7 +4,7 @@
 
 - **Fixed (28 Nov 2026):** Migrate human relationship, medical, hunting, civic and election decisions to stamina; use native stamina effects and thresholds, and retire the temporary energy mirror, isolate old-save conversion, and separate Moon Howler predator metabolism from saved human needs.
 
-- **Fixed (28 Nov 2026):** Remove personal stamina rewards from successful hunts without changing food yield or hunting injuries. Predator combat uses individual duty, equipment, reserves, aptitude and skill; children cannot wield weapons. One roll owner preserves both seeded combat verdicts. Werewolves transform at full 1800 energy and are twice as difficult to block or counter as ordinary wolves.
+- **Fixed (28 Nov 2026):** Hunts no longer restore personal stamina. Predator combat uses duty, equipment, reserves and skill; children cannot wield weapons. Moon Howlers use 1,800 energy and 2× combat resistance.
 
 - **Fixed (28 Nov 2026):** Exclude expired hotel beds from counts and sleep; share checkout, commute and lodging logic. Require confirmed prison/hotel entry for sleep. Retire on-map visitor state, UI, commands and transport; preserve old saves, settler checkout, theatre and rival events.
 
