@@ -377,7 +377,7 @@ export const SIMULATION_DECISIONS = {
   predatorCombat: {
     owner: 'combat.resolvePredatorCombatChances, combat.rollPredatorCombat; workAbsence.resolveArmedDuty',
     cadence: 'on-demand',
-    cadenceNote: 'Actual predator encounters read the defender and predator, not village-wide equipment. Age, assignment, shift and deployment gate weapons and armour; native human reserves, existing nonhuman energy, aptitude and skill affect seeded rolls. One roll owner retains separate block and counterattack identities. No persistent strength, extra schedule or equipment inventory.',
+    cadenceNote: 'Actual predator encounters read the defender and predator, not village-wide equipment. Age, assignment, shift and deployment gate weapons and armour; native human reserves, existing nonhuman energy, aptitude, skill and speciesConfig predatorCombatStrength affect seeded rolls. Werewolves have twice the ordinary wolf resistance to human defence and transform at full species capacity. One roll owner retains separate block and counterattack identities. No persistent strength, extra schedule or equipment inventory.',
     writes: [],
     scheduledFrom: 'tickLayerSystems.tickWildlife at unobstructed human contact',
     testFile: 'tests/combatTierEffects.test.ts, tests/hospital.howler.geometry.test.ts',

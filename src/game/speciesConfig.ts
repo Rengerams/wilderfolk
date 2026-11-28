@@ -4,6 +4,8 @@ import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycleClock';
 export interface SpeciesConfig {
   /** Maximum energy storage capacity. */
   readonly maxEnergy: number;
+  /** Relative resistance to human defence in predator contact; defaults to an ordinary wolf (1). */
+  readonly predatorCombatStrength?: number;
   /** Basal energy drained per simulation tick. */
   readonly energyLossPerTick: number;
   /** Energy gained from consuming specific prey or forage items. */
@@ -171,7 +173,8 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
     sprite: '/sprites/tree.png',
   },
   [EntityType.Werewolf]: {
-    maxEnergy: 700,
+    maxEnergy: 1800,
+    predatorCombatStrength: 2,
     energyLossPerTick: 6.0 * PER_TICK_RATE_SCALE,
     energyGain: { deer: 400, rabbit: 100 },
     maxAge: 365 * 35,
@@ -180,7 +183,7 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
     reproductionCooldown: cd(720),
     reproductionEnergyThreshold: 300,
     reproductionChance: 0.001,
-    spawnEnergy: 350,
+    spawnEnergy: 1800,
     color: '#7c6f9a',
     fleeRange: 0,
     huntRange: 150 * MAP_SCALE,

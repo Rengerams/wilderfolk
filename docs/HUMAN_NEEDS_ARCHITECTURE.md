@@ -7,7 +7,7 @@
 Player-human needs are native 0–100 reserves. Runtime decisions and effects never use the retired energy mirror. The common Entity wire slots remain numeric for other species; player humans initialize and load them as zero, and the worker rendering slot is zero for player humans. The inspector reads needs, not energy.
 
 - `initialHumanNeeds` takes native stamina. `legacyHumanNeeds` converts pre-needs saves and the historical positional spawn reserve once, before runtime decisions. `normalizeHumanNeeds` accepts explicit migration fallback values; otherwise it initializes native needs without reading energy.
-- New Moon Howler snapshots preserve native needs only. Active wolf form starts at the existing species spawn metabolic reserve; reverting restores native needs and rebases the physiology clock. Old saved human-form energy converts at load.
+- New Moon Howler snapshots preserve native needs only. Active werewolf form starts at full species capacity (1800, twice the ordinary wolf); its species combat-strength factor is 2 in the existing predator encounter owner; reverting restores native needs and rebases the physiology clock. Old saved human-form energy converts at load.
 - Nonhuman and foreign metabolism keeps its own energy semantics. Scoped source guards reject any return of the player runtime mirror; complete final-head CI is still required.
 
 ## 1. Purpose and invariants

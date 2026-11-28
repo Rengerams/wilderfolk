@@ -49,6 +49,7 @@ import {
 } from '../src/game/moonHowler';
 import type { MoonHowlerSyncResult } from '../src/game/moonHowler';
 import { revertToHumanForm } from '../src/game/moonHowlerForm';
+import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { advanceHumanNeeds } from '../src/game/simulation/humanPhysiology';
 import type { RevertToHumanFormOptions } from '../src/game/moonHowlerForm';
 import { buildEntityByType } from '../src/game/simFocus';
@@ -95,7 +96,9 @@ describe('Moon Howler restored physiology clock', () => {
     person.needs = { nutrition: 80, rest: 85, stamina: 42, severeHungerTicks: 0 };
     curseMoonHowler(person);
     transformToWerewolfForm(person, world.buildings);
-    expect(person.energy).toBe(350);
+    expect(person.energy).toBe(SPECIES_CONFIG[EntityType.Werewolf].maxEnergy);
+    expect(person.maxEnergy).toBe(person.energy);
+    expect(person.energy).toBeGreaterThan(SPECIES_CONFIG[EntityType.Wolf].maxEnergy);
     expect(person.moonHowlerSaved?.energy).toBeUndefined();
     expect(person.moonHowlerSaved?.maxEnergy).toBeUndefined();
     if (legacy) {

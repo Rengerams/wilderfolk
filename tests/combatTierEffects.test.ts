@@ -16,6 +16,7 @@ import {
   rollPredatorCombat,
 } from '../src/game/combat';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
+import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { resolveArmedDuty } from '../src/game/workAbsence';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { resetSimRng, restoreSimRng, seededRandomForRun, setSimSeed, snapshotSimRng } from '../src/game/simRng';
@@ -56,7 +57,8 @@ function defender(id: number, seed = 0): Entity {
     needs: { stamina: 100, rest: 100, nutrition: 100, severeHungerTicks: 0 } } as Entity;
 }
 function predator(id: number): Entity {
-  return { id, type: EntityType.Werewolf, alive: true, energy: 700, maxEnergy: 700 } as Entity;
+  const maxEnergy = SPECIES_CONFIG[EntityType.Wolf].maxEnergy;
+  return { id, type: EntityType.Wolf, alive: true, energy: maxEnergy, maxEnergy } as Entity;
 }
 
 describe('personal combat equipment and condition', () => {
@@ -69,6 +71,21 @@ describe('personal combat equipment and condition', () => {
     expect(resolvePredatorCombatChances(state, h, predator(2), 'military').counter).toBeCloseTo(0.55);
     expect(resolvePredatorCombatChances(state, h, predator(2), 'hunting').counter).toBeCloseTo(0.45);
     expect(resolvePredatorCombatChances(state, h, predator(2), 'hunting').block).toBeCloseTo(0.05);
+  });
+  it('makes a full-strength werewolf twice as difficult to block or counter as a wolf', () => {
+    const state = makeState(['defense_4', 'defense_8', 'defense_9'], { iron_spears: true, iron_swords: true, scale_mail: true });
+    const h = defender(1);
+    const wolf = predator(2);
+    const maxEnergy = SPECIES_CONFIG[EntityType.Werewolf].maxEnergy;
+    const howler = { ...wolf, type: EntityType.Werewolf, energy: maxEnergy, maxEnergy, moonHowlerCursed: true };
+    expect(maxEnergy).toBe(wolf.maxEnergy * 2);
+    const ordinary = resolvePredatorCombatChances(state, h, wolf, 'military');
+    const supernatural = resolvePredatorCombatChances(state, h, howler, 'military');
+    expect(ordinary.counter).toBeGreaterThan(0);
+    expect(ordinary.block).toBeGreaterThan(0);
+    expect(supernatural.counter).toBeCloseTo(ordinary.counter / 2);
+    expect(supernatural.block).toBeCloseTo(ordinary.block / 2);
+    expect(resolvePredatorCombatChances(state, h, howler, 'none').block).toBeCloseTo(0.025);
   });
   it('uses the existing shift and deployment, not the job title alone', () => {
     const state = makeState([], {});

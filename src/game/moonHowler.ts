@@ -117,7 +117,6 @@ function rollMoonHowlerRiteOutcome(
   return 'priest_fled';
 }
 
-const WEREWOLF_FORM = { maxEnergy: 700, speed: 3.4, size: 14 };
 
 export function countActiveMoonHowlerCurses(entities: readonly Entity[]): number {
   return entities.filter((e) => e.alive && e.moonHowlerCursed).length;
@@ -230,7 +229,7 @@ export function forceMoonHowlerOutside(
 }
 
 export function transformToWerewolfForm(human: Entity, buildings: Building[]): void {
-  const cfg = WEREWOLF_FORM;
+  const cfg = SPECIES_CONFIG[EntityType.Werewolf];
   const liveJobId = human.workerBuildingId;
   const liveResidenceId = human.residenceBuildingId;
   const livePrisonId = human.prisonBuildingId;
@@ -289,7 +288,7 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
     human.combatRollSeed = ((human.id * 2654435761) ^ 0x9e3779b9) >>> 0;
   }
   // The transformed predator starts with its species' metabolic reserve, not human stamina.
-  human.energy = SPECIES_CONFIG[EntityType.Werewolf].spawnEnergy;
+  human.energy = cfg.maxEnergy;
   human.maxEnergy = cfg.maxEnergy;
   human.speed = cfg.speed;
   human.size = cfg.size;

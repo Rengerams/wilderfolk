@@ -16,6 +16,7 @@ import { seededRandomForRun } from './simRng';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { readSkill } from './skills';
+import { SPECIES_CONFIG } from './speciesConfig';
 import type { ArmedDuty } from './workAbsence';
 
 const EMPTY_FORGE: VillageForgeState = {
@@ -130,7 +131,8 @@ export function resolvePredatorCombatChances(
   const aptitude = evaluateAptitudeInfluence(human, 'defense').factor;
   const skill = duty === 'military' ? readSkill(human, human.job === JobType.PrisonGuard ? JobType.PrisonGuard : JobType.Soldier)
     : duty === 'hunting' ? readSkill(human, JobType.Hunter) : 0;
-  const factor = readiness * aptitude * (1 + 0.15 * unit(skill / 100)) * (1 + 0.5 * (1 - predatorReserve));
+  const predatorStrength = SPECIES_CONFIG[predator.type]?.predatorCombatStrength ?? 1;
+  const factor = readiness * aptitude * (1 + 0.15 * unit(skill / 100)) * (1 + 0.5 * (1 - predatorReserve)) / predatorStrength;
   let counter = 0;
   let block = 0.05; // adult unarmed self-defence, never military gear
   if (duty === 'military') {
