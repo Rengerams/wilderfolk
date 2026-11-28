@@ -29,8 +29,6 @@ import { recruitSettler, tameEntity, spawnMoonHowlerDebug } from '../settlerInte
 import { FORGE_ORDERS, queueForgeOrder } from '../forge';
 import { notifyBuildingLocked, startResearch } from '../research';
 import { establishTradeRoute } from '../tradeCaravans';
-import { addBigNews, addFloatingText } from '../simEffects';
-import { deliverVisitorQuest } from '../visitorQuest';
 import { respondToOutgoingRaidEvent, resolveRaidVictory, queueRaidDefense, launchRaidOnRival, provokeRival } from '../frontierCombat';
 import { respondToStoryEvent } from '../storyEvents';
 import { startGuidedCampaign } from '../guidedCampaign';
@@ -74,7 +72,6 @@ export type WorkerCommand =
   | { proto: 1; op: 'respondToDiplomacyEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'respondToStoryEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'startGuidedCampaign' }
-  | { proto: 1; op: 'deliverVisitorQuest' }
   | { proto: 1; op: 'sendRivalGift'; rivalId: string }
   | { proto: 1; op: 'establishRivalTradePact'; rivalId: string }
   | { proto: 1; op: 'showStrengthToRival'; rivalId: string }
@@ -119,7 +116,6 @@ const WORKER_COMMAND_OPS = [
   'respondToDiplomacyEvent',
   'respondToStoryEvent',
   'startGuidedCampaign',
-  'deliverVisitorQuest',
   'sendRivalGift',
   'establishRivalTradePact',
   'showStrengthToRival',
@@ -249,8 +245,6 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
       return true;
     case 'startGuidedCampaign':
       return true;
-    case 'deliverVisitorQuest':
-      return true;
     case 'sendRivalGift':
     case 'establishRivalTradePact':
     case 'showStrengthToRival':
@@ -340,25 +334,6 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand, owners
       return world;
     case 'respondToDiplomacyEvent':
       return respondToDiplomacyEvent(world, cmd.eventId, cmd.choiceId);
-    case 'deliverVisitorQuest': {
-      const done = deliverVisitorQuest(world);
-      if (done) {
-        addBigNews(
-          world,
-          '⚒️ The smith is grateful',
-          'The masterwork is finished — he pays handsomely and your reputation grows.',
-          'positive',
-        );
-        addFloatingText(
-          world,
-          (world.width ?? 1200) / 2,
-          (world.height ?? 900) / 2 - 40,
-          'Quest complete! +30💰 +4⭐',
-          '#fbbf24',
-        );
-      }
-      return world;
-    }
     case 'sendRivalGift':
       return sendRivalGift(world, cmd.rivalId);
     case 'establishRivalTradePact':

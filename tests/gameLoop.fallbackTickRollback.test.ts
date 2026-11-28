@@ -52,7 +52,6 @@ function makeWorld(): WorldState {
     worldMap: null,
     yearlyStats: [],
     lifetimeStats: {},
-    visitorGroups: [],
     rivalSettlements: [],
     pendingDiplomacyEvents: [],
     pendingRaidEvents: [],

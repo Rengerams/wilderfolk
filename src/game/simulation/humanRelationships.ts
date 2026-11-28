@@ -1543,9 +1543,7 @@ export function tryDailyAffairEncounter(
   const churchPenalty = churchStrength > 0
     ? R.AFFAIR_CHURCH_FLOOR_FACTOR + (1 - churchStrength) * (1 - R.AFFAIR_CHURCH_FLOOR_FACTOR)
     : 1;
-  const hasPerformers = state.visitorGroups.some((g) => g.kind === 'performers' && g.daysLeft > 0);
   const festivalMult = state.festival?.active ? R.AFFAIR_FESTIVAL_MULTIPLIER : 1;
-  const performerMult = hasPerformers ? R.AFFAIR_PERFORMERS_MULTIPLIER : 1;
   // The cohabitation bonus is about the pair being at the **paramour's** own place, so it reads that
   // residence directly rather than the chosen tryst site (which now prefers the cheater's home).
   const paramourResidence = getParamourResidence(paramour, buildingById);
@@ -1553,7 +1551,7 @@ export function tryDailyAffairEncounter(
     && isNearBuilding(entity, paramourResidence, AFFAIR_BUILDING_NEAR_RADIUS)
     && isNearBuilding(paramour, paramourResidence, AFFAIR_BUILDING_NEAR_RADIUS);
   const cohabitMult = atParamourHome ? R.AFFAIR_COHABIT_MULTIPLIER : 1;
-  const socialMult = festivalMult * performerMult * cohabitMult;
+  const socialMult = festivalMult * cohabitMult;
   const baseChance = churchStrength > 0
     ? R.AFFAIR_DAILY_TRYST_CHANCE_WITH_CHURCH
     : R.AFFAIR_DAILY_TRYST_CHANCE_NO_CHURCH;

@@ -90,7 +90,6 @@ function makeState(entities: Entity[], buildings: WorldState['buildings'] = []):
     worldMap: null,
     yearlyStats: [],
     lifetimeStats: {},
-    visitorGroups: [],
     rivalSettlements: [],
     pendingDiplomacyEvents: [],
     pendingRaidEvents: [],

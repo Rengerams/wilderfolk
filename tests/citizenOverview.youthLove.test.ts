@@ -81,7 +81,6 @@ function makeState(entities: Entity[]): WorldState {
     worldMap: null,
     yearlyStats: [],
     lifetimeStats: {},
-    visitorGroups: [],
     rivalSettlements: [],
     pendingDiplomacyEvents: [],
     pendingRaidEvents: [],

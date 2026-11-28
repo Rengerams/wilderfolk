@@ -360,7 +360,6 @@ function minimalWorld(buildings: Building[], tick: number): WorldState {
     floatingTexts: [],
     huntVisuals: [],
     disasters: [],
-    visitorGroups: [],
     rivalSettlements: [],
     unlockedTechs: [],
     researchNodes: [],

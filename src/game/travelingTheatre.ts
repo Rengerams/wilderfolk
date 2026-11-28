@@ -70,10 +70,6 @@ export function travelingTheatreEligibleDay(mapSeed: number | undefined): number
   return eligibleDayForStory(mapSeed, STORY_KEY, MIN_DAY, WINDOW_DAYS);
 }
 
-function hasPerformerGroup(state: WorldState): boolean {
-  return state.visitorGroups.some((g) => g.kind === 'performers' && (g.daysLeft ?? 0) > 0);
-}
-
 function availableScripts(state: WorldState): Stage1Choice[] {
   // `eventLog` is newest-first (logEvent unshifts), so the recent history is the head of the
   // array. `slice(-40)` took the *oldest* forty entries still held, i.e. the opposite end.
@@ -102,7 +98,6 @@ export function maybeOfferTravelingTheatre(state: WorldState): void {
   if (colonyDay < travelingTheatreEligibleDay(getSimSeed())) return;
   if (storyFlag(state, AUTHORED_STORY_COOLDOWN_FLAG) > colonyDay) return;
   if ((state.pendingStoryEvents ?? []).length > 0) return;
-  if (!hasPerformerGroup(state)) return;
   const scripts = availableScripts(state);
   if (scripts.length === 0) return;
 

@@ -116,7 +116,6 @@ function newWorld(): WorldState {
   const state = initGame({ skipTerrain: true, seed: TEST_SEED });
   state.entities = [];
   state.buildings = [];
-  state.visitorGroups = [];
   state.pendingRaidEvents = [];
   state.pendingOutgoingRaidEvents = [];
   state.pendingDiplomacyEvents = [];

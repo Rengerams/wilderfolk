@@ -688,7 +688,6 @@ function run(): void {
         total: world.tradeRoutes.length,
         active: world.tradeRoutes.filter((route) => route.active).length,
       },
-      visitorKinds: world.visitorGroups.map((group) => group.kind),
       festival: world.festival,
       villageLeaderId: world.villageLeaderId,
       lastElectionYear: world.lastElectionYear,

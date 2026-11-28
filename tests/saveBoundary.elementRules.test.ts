@@ -7,10 +7,10 @@ import { createBuilding, initGame } from '../src/game/worldGen';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, loadGameFromParsedOutcome, parseSaveJson } from '../src/game/saveLoad';
 import { resetSimRng } from '../src/game/simRng';
-import { BuildingType, MAP_SIZE_DIMENSIONS, MapSize, type RaidEvent, type VisitorGroup, type VillageRequest } from '../src/game/gameTypes';
+import { BuildingType, MAP_SIZE_DIMENSIONS, MapSize, type RaidEvent } from '../src/game/gameTypes';
 
 /** A camp as `groupEvents.spawnVisitorGroup` writes one. */
-function visitorGroup(): VisitorGroup {
+function visitorGroup(): Record<string, unknown> {
   return {
     id: 'visitor_traders_1',
     name: 'The Fairweather Caravan',
@@ -61,9 +61,13 @@ function buildPayload(): Record<string, unknown> {
   const world = initGame({ skipTerrain: true, seed: 4242, size: MapSize.Medium });
   const hotel = createBuilding(BuildingType.Hotel, world.width / 2 + 120, world.height / 2, world.nextBuildingId++);
   world.buildings.push(hotel);
-  world.visitorGroups.push(visitorGroup());
   world.pendingRaidEvents.push(raidEvent());
-  world.activeVillageRequest = {
+  const payload = structuredClone(buildSaveData(world, createInitialView(world.width, world.height))) as Record<string, unknown>;
+  payload.visitorGroups = [visitorGroup()];
+  payload.visitorQuest = { status: 'active' };
+  payload.villageRequestCooldownUntilDay = 7;
+  payload.villageRequestHistory = [{ id: 'legacy' }];
+  payload.activeVillageRequest = {
     id: 'vreq_caravan_provisions_visitor_traders_1_2',
     kind: 'caravan_provisions',
     sourceVisitorGroupId: 'visitor_traders_1',
@@ -76,10 +80,8 @@ function buildPayload(): Record<string, unknown> {
       { id: 'decline', label: 'Decline politely', detail: 'Keep your supplies.' },
     ],
     expiresDay: 5,
-  } satisfies VillageRequest;
-  return structuredClone(
-    buildSaveData(world, createInitialView(world.width, world.height)),
-  ) as Record<string, unknown>;
+  };
+  return payload;
 }
 
 function visitorGroupIn(payload: Record<string, unknown>): Record<string, unknown> {
@@ -106,10 +108,14 @@ describe('retired camps and linked cards are dropped, but strategic raids still 
 
     expect(outcome.ok, outcome.ok ? '' : outcome.detail).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.world.visitorGroups).toHaveLength(0);
+    expect(outcome.world).not.toHaveProperty('visitorGroups');
     expect(outcome.world.pendingRaidEvents).toHaveLength(1);
     expect(outcome.world.pendingRaidEvents[0].attackerStrength).toBe(35);
-    expect(outcome.world.activeVillageRequest).toBeUndefined();
+    for (const key of ['visitorGroups', 'visitorQuest', 'activeVillageRequest', 'villageRequestCooldownUntilDay', 'villageRequestHistory']) {
+      expect(outcome.world).not.toHaveProperty(key);
+      expect(buildSaveData(outcome.world, createInitialView(outcome.world.width, outcome.world.height))).not.toHaveProperty(key);
+    }
+    expect(outcome.world).not.toHaveProperty('activeVillageRequest');
   });
 });
 
@@ -143,7 +149,7 @@ describe('loading saves retires on-map visitor NPCs without touching strategic r
     const restoredBuilding = outcome.world.buildings.find((b) => b.id === buildingId);
     expect(restoredBuilding).toBeDefined();
     expect(restoredBuilding).not.toHaveProperty('hotelGuestIds');
-    expect(outcome.world.visitorGroups).toHaveLength(0);
+    expect(outcome.world).not.toHaveProperty('visitorGroups');
     expect(outcome.world.pendingRaidEvents).toHaveLength(1);
   });
 });
@@ -157,7 +163,7 @@ describe('obsolete visitor camp records do not block existing saves', () => {
 
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.world.visitorGroups).toHaveLength(0);
+    expect(outcome.world).not.toHaveProperty('visitorGroups');
   });
 
   it('discards a camp whose daysLeft is not a number', () => {
@@ -168,7 +174,7 @@ describe('obsolete visitor camp records do not block existing saves', () => {
 
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.world.visitorGroups).toHaveLength(0);
+    expect(outcome.world).not.toHaveProperty('visitorGroups');
   });
 
   it('discards a camp whose kind is unrecognized', () => {
@@ -179,7 +185,7 @@ describe('obsolete visitor camp records do not block existing saves', () => {
 
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.world.visitorGroups).toHaveLength(0);
+    expect(outcome.world).not.toHaveProperty('visitorGroups');
   });
 
   it('discards a camp with no giftsGiven', () => {
@@ -190,7 +196,7 @@ describe('obsolete visitor camp records do not block existing saves', () => {
 
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.world.visitorGroups).toHaveLength(0);
+    expect(outcome.world).not.toHaveProperty('visitorGroups');
   });
 });
 
@@ -224,7 +230,7 @@ describe('retired provisions cards', () => {
     payload.activeVillageRequest = { choices: 'accept' };
     const outcome = loadGameFromParsedOutcome(payload);
     expect(outcome.ok).toBe(true);
-    if (outcome.ok) expect(outcome.world.activeVillageRequest).toBeUndefined();
+    if (outcome.ok) expect(outcome.world).not.toHaveProperty('activeVillageRequest');
   });
 });
 

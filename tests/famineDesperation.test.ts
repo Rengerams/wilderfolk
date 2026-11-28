@@ -125,7 +125,6 @@ function makeState(seedForBite: () => number = seedThatFiresBite): { state: Worl
     worldMap: null,
     yearlyStats: [],
     lifetimeStats: {},
-    visitorGroups: [],
     rivalSettlements: [],
     pendingDiplomacyEvents: [],
     pendingRaidEvents: [],

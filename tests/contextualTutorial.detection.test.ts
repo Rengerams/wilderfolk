@@ -39,9 +39,8 @@ describe('detectContextualTutorials reads the current state, not a previous worl
     expect(ids).toContain('valley_strained');
   });
 
-  it('never emits retired visitor tips even for legacy camp records', () => {
+  it('never emits retired visitor tips and discards their old seen IDs', () => {
     const world = freshWorld();
-    world.visitorGroups = [{ id: 'legacy', kind: 'traders' } as WorldState['visitorGroups'][number]];
     expect(detectedIds(world).some((id) => id === 'visitors_arrived' || id.startsWith('visitor_'))).toBe(false);
     world.tutorialSeen = ['visitors_arrived', 'visitor_traders', 'first_winter'];
     const seeded = seedTutorialSeenForExistingState(world);

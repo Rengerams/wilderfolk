@@ -126,10 +126,6 @@ export interface SimTickDelta {
   notifications: WorldState['notifications'];
   festival: WorldState['festival'];
   townHallFestivalCooldownUntilTick: number;
-  visitorGroups: WorldState['visitorGroups'];
-  activeVillageRequest: WorldState['activeVillageRequest'];
-  villageRequestCooldownUntilDay: number;
-  villageRequestHistory?: NonNullable<WorldState['villageRequestHistory']>;
   rivalSettlements: WorldState['rivalSettlements'];
   pendingRaidEvents: WorldState['pendingRaidEvents'];
   pendingOutgoingRaidEvents: WorldState['pendingOutgoingRaidEvents'];
@@ -170,7 +166,6 @@ export interface SimTickDelta {
   nextBuildingId: number;
   nextFloatingTextId: number;
   renffrOmen: WorldState['renffrOmen'];
-  visitorQuest: WorldState['visitorQuest'];
   deathsThisYear: WorldState['deathsThisYear'];
   lastMoonHowlerExorcismTick: WorldState['lastMoonHowlerExorcismTick'];
   moonHowlerPriestsFleeUntil: WorldState['moonHowlerPriestsFleeUntil'];
@@ -391,10 +386,6 @@ export function extractSimTickDelta(
     notifications: deltaClone(world.notifications, cloneMode),
     festival: deltaCloneOptional(world.festival, cloneMode),
     townHallFestivalCooldownUntilTick: world.townHallFestivalCooldownUntilTick ?? 0,
-    visitorGroups: deltaClone(world.visitorGroups, cloneMode),
-    activeVillageRequest: deltaCloneOptional(world.activeVillageRequest, cloneMode) ?? undefined,
-    villageRequestCooldownUntilDay: world.villageRequestCooldownUntilDay ?? 0,
-    villageRequestHistory: deltaClone(world.villageRequestHistory ?? [], cloneMode),
     rivalSettlements: deltaClone(world.rivalSettlements, cloneMode),
     pendingRaidEvents: deltaClone(world.pendingRaidEvents ?? [], cloneMode),
     pendingOutgoingRaidEvents: deltaClone(world.pendingOutgoingRaidEvents ?? [], cloneMode),
@@ -439,7 +430,6 @@ export function extractSimTickDelta(
     nextBuildingId: world.nextBuildingId,
     nextFloatingTextId: world.nextFloatingTextId,
     renffrOmen: deltaCloneOptional(world.renffrOmen, cloneMode),
-    visitorQuest: deltaCloneOptional(world.visitorQuest, cloneMode) ?? undefined,
     deathsThisYear: deltaCloneOptional(world.deathsThisYear, cloneMode) ?? undefined,
     lastMoonHowlerExorcismTick: world.lastMoonHowlerExorcismTick,
     moonHowlerPriestsFleeUntil: world.moonHowlerPriestsFleeUntil,
@@ -733,12 +723,6 @@ export function applySimTickDelta(
 
   world.festival = deltaCloneOptional(delta.festival, cloneMode);
   world.townHallFestivalCooldownUntilTick = delta.townHallFestivalCooldownUntilTick;
-  world.visitorGroups = deltaClone(delta.visitorGroups, cloneMode);
-  world.activeVillageRequest = deltaCloneOptional(delta.activeVillageRequest, cloneMode) ?? undefined;
-  world.villageRequestCooldownUntilDay = delta.villageRequestCooldownUntilDay;
-  if ('villageRequestHistory' in delta) {
-    world.villageRequestHistory = deltaClone(delta.villageRequestHistory, cloneMode);
-  }
   world.rivalSettlements = deltaClone(delta.rivalSettlements, cloneMode);
   world.pendingRaidEvents = deltaClone(delta.pendingRaidEvents, cloneMode);
   world.pendingOutgoingRaidEvents = deltaClone(delta.pendingOutgoingRaidEvents, cloneMode);
@@ -793,7 +777,6 @@ export function applySimTickDelta(
   world.nextBuildingId = delta.nextBuildingId;
   world.nextFloatingTextId = delta.nextFloatingTextId;
   world.renffrOmen = deltaCloneOptional(delta.renffrOmen, cloneMode);
-  world.visitorQuest = deltaCloneOptional(delta.visitorQuest, cloneMode) ?? undefined;
   world.deathsThisYear = deltaCloneOptional(delta.deathsThisYear, cloneMode) ?? undefined;
   world.lastMoonHowlerExorcismTick = delta.lastMoonHowlerExorcismTick;
   world.moonHowlerPriestsFleeUntil = delta.moonHowlerPriestsFleeUntil;

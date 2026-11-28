@@ -64,10 +64,6 @@ type SimPrepKeys =
   | 'activeResearch'
   | 'researchProgress'
   | 'unlockedTechs'
-  | 'visitorGroups'
-  | 'activeVillageRequest'
-  | 'villageRequestCooldownUntilDay'
-  | 'villageRequestHistory'
   | 'rivalSettlements'
   | 'pendingRaidEvents'
   | 'pendingOutgoingRaidEvents'
@@ -110,7 +106,6 @@ type SimPrepKeys =
   | 'ecoHealthYearsAbove80'
   | 'villageReputation'
   | 'renffrOmen'
-  | 'visitorQuest'
   | 'deathsThisYear'
   | 'lastMoonHowlerExorcismTick'
   | 'moonHowlerPriestsFleeUntil'
@@ -243,10 +238,6 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     activeResearch: state.activeResearch,
     researchProgress: state.researchProgress,
     unlockedTechs: [...(state.unlockedTechs ?? [])],
-    visitorGroups: structuredClone(state.visitorGroups ?? []),
-    activeVillageRequest: state.activeVillageRequest ? structuredClone(state.activeVillageRequest) : undefined,
-    villageRequestCooldownUntilDay: state.villageRequestCooldownUntilDay ?? 0,
-    villageRequestHistory: structuredClone(state.villageRequestHistory ?? []),
     rivalSettlements: structuredClone(state.rivalSettlements ?? []),
     pendingRaidEvents: structuredClone(state.pendingRaidEvents ?? []),
     pendingOutgoingRaidEvents: structuredClone(state.pendingOutgoingRaidEvents ?? []),
@@ -294,7 +285,6 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     ecoHealthYearsAbove80: state.ecoHealthYearsAbove80 ?? 0,
     villageReputation: state.villageReputation ?? 0,
     renffrOmen: state.renffrOmen ? { ...state.renffrOmen } : null,
-    visitorQuest: state.visitorQuest ? { ...state.visitorQuest } : undefined,
     deathsThisYear: state.deathsThisYear ? { ...state.deathsThisYear } : { humans: 0, animals: 0 },
     lastMoonHowlerExorcismTick: state.lastMoonHowlerExorcismTick,
     moonHowlerPriestsFleeUntil: state.moonHowlerPriestsFleeUntil,
@@ -378,10 +368,6 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.activeResearch = prep.activeResearch;
   world.researchProgress = prep.researchProgress;
   world.unlockedTechs = prep.unlockedTechs;
-  world.visitorGroups = prep.visitorGroups;
-  world.activeVillageRequest = prep.activeVillageRequest;
-  world.villageRequestCooldownUntilDay = prep.villageRequestCooldownUntilDay;
-  world.villageRequestHistory = prep.villageRequestHistory;
   world.rivalSettlements = prep.rivalSettlements;
   world.pendingRaidEvents = prep.pendingRaidEvents;
   world.pendingOutgoingRaidEvents = prep.pendingOutgoingRaidEvents;
@@ -429,7 +415,6 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.ecoHealthYearsAbove80 = prep.ecoHealthYearsAbove80;
   world.villageReputation = prep.villageReputation;
   world.renffrOmen = prep.renffrOmen;
-  world.visitorQuest = prep.visitorQuest;
   world.deathsThisYear = prep.deathsThisYear;
   world.lastMoonHowlerExorcismTick = prep.lastMoonHowlerExorcismTick;
   world.moonHowlerPriestsFleeUntil = prep.moonHowlerPriestsFleeUntil;

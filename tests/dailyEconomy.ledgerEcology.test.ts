@@ -659,7 +659,6 @@ describe('daily production tax and hunting research regressions', () => {
       worldMap: null,
       yearlyStats: [],
       lifetimeStats: {},
-      visitorGroups: [],
       rivalSettlements: [],
       pendingDiplomacyEvents: [],
       pendingRaidEvents: [],

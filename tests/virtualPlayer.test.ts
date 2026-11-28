@@ -219,7 +219,6 @@ function makeWorld(
     worldMap: buildableWorldMap(),
     yearlyStats: [],
     lifetimeStats: {},
-    visitorGroups: [],
     rivalSettlements: [],
     pendingDiplomacyEvents: [],
     pendingRaidEvents: [],

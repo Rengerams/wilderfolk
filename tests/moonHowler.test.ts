@@ -594,7 +594,6 @@ describe('moonHowler.rare.test.ts', () => {
       worldMap: null,
       yearlyStats: [],
       lifetimeStats: {},
-      visitorGroups: [],
       rivalSettlements: [],
       pendingDiplomacyEvents: [],
       pendingRaidEvents: [],

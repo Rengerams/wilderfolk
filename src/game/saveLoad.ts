@@ -1127,9 +1127,6 @@ const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>>
   tradeRoutes: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   eventLog: containerArrayRule(isAnyArray, EVENT_LOG_ELEMENT_RULES),
   chronicleChapters: containerArrayRule(isAnyArray, null),
-  // Retired camp payloads may be malformed: no runtime reader consumes their elements.
-  visitorGroups: containerArrayRule(isAnyArray, []),
-  villageRequestHistory: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   rivalSettlements: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   pendingDiplomacyEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   pendingRaidEvents: containerArrayRule(isAnyArray, PENDING_RAID_ELEMENT_RULES),
@@ -1184,7 +1181,7 @@ function findInvalidWarfareState(parsed: Record<string, unknown>): string | null
 }
 
 /**
- * The first unusable container array, named as `tradeRoutes` or `visitorGroups[2]`.
+ * The first unusable container array, named as `tradeRoutes` or `rivalSettlements[2]`.
  *
  * Only a field the payload actually holds is judged: an absent one is the restore's own `?? []`.
  */
@@ -1535,10 +1532,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       eventLog: worldData.eventLog || [],
       worldMap: restoreWorldMapFromSave(source),
       ecoHealthYearsAbove80: worldData.ecoHealthYearsAbove80 ?? 0,
-      // On-map visitor camps are retired. Old saves keep their strategic rivals and raids.
-      visitorGroups: [],
-      visitorQuest: undefined,
-      activeVillageRequest: undefined,
+      // Old visitor fields are not in the live save allowlist; strategic records remain.
       rivalSettlements: (worldData.rivalSettlements ?? []).map((r) => ({
         ...r,
         raidCooldownDays: r.raidCooldownDays ?? 30,
@@ -1603,11 +1597,6 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     world.year = Math.floor(loadedTick / (TICKS_PER_DAY * DAYS_PER_YEAR));
     if (typeof world.lastProcessedCalendarDay !== 'number') {
       world.lastProcessedCalendarDay = getAbsoluteCalendarDay(loadedTick);
-    }
-    for (const g of world.visitorGroups ?? []) {
-      if (g.spawnedAtCalendarDay == null) {
-        g.spawnedAtCalendarDay = getAbsoluteCalendarDay(loadedTick);
-      }
     }
     const colonyDayOnLoad = getAbsoluteCalendarDay(loadedTick);
     const hourOnLoad = getHourOfDay(loadedTick);

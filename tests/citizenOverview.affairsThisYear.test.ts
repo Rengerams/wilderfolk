@@ -56,7 +56,6 @@ function makeState(eventLog: GameEventLog[]): WorldState {
     worldMap: null,
     yearlyStats: [],
     lifetimeStats: {},
-    visitorGroups: [],
     rivalSettlements: [],
     pendingDiplomacyEvents: [],
     pendingRaidEvents: [],

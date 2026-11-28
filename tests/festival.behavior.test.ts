@@ -126,7 +126,6 @@ function makeState(festivalActive: boolean): { state: WorldState; worker: Entity
     worldMap: null,
     yearlyStats: [],
     lifetimeStats: {},
-    visitorGroups: [],
     rivalSettlements: [],
     pendingDiplomacyEvents: [],
     pendingRaidEvents: [],

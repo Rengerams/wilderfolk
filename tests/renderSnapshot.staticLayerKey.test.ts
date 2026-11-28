@@ -45,7 +45,6 @@ function testWorld(overrides: Partial<WorldState> = {}): WorldState {
     floatingTexts: [],
     bigNews: [],
     deathParticles: [],
-    visitorGroups: [],
     pendingRaidEvents: [],
     pendingOutgoingRaidEvents: [],
     buildings: [],

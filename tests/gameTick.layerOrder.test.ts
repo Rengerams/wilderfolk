@@ -117,7 +117,6 @@ function world(startTick: number): WorldState {
     tradeRoutes: [],
     totalBuildingsCompleted: 0,
     worldMap: null,
-    visitorGroups: [],
     rivalSettlements: [],
     pendingDiplomacyEvents: [],
     pendingRaidEvents: [],

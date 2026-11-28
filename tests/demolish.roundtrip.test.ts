@@ -110,7 +110,6 @@ function makeWorld(entities: Entity[], buildings: Building[], extra: Partial<Wor
     worldMap: null,
     yearlyStats: [],
     lifetimeStats: {},
-    visitorGroups: [],
     rivalSettlements: [],
     pendingDiplomacyEvents: [],
     pendingRaidEvents: [],

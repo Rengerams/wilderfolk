@@ -33,6 +33,7 @@ describe('worker command validation parity', () => {
       { op: 'tradeWithVisitors', groupId: 'legacy', action: 'buy_food' },
       { op: 'resolveVillageRequest', requestId: 'legacy', choice: 'accept' },
       { op: 'negotiateRefugees', groupId: 'legacy', choice: 'welcome' },
+      { op: 'deliverVisitorQuest' },
     ]) expect(isWorkerCommand({ proto: 1, ...command })).toBe(false);
   });
 

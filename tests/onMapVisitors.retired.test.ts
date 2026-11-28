@@ -21,7 +21,7 @@ describe('retired on-map visitor arrivals', () => {
         () => state.nextEntityId++,
       );
 
-      expect(state.visitorGroups, `seed ${seed}`).toHaveLength(0);
+      expect(state, `seed ${seed}`).not.toHaveProperty('visitorGroups');
       expect(state.entities.some((entity) => entity.faction === 'visitor'), `seed ${seed}`).toBe(false);
       expect(result.event?.id.startsWith('visitor_') ?? false, `seed ${seed}`).toBe(false);
     }

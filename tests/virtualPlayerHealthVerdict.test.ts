@@ -112,7 +112,7 @@ function makeWorld(
     maxHumanPopulation: 80, workingSettlers: 0, idleSettlers: 0, villageName: 'Botville',
     villageReputation: 62, challenges: [], autoSave: false,
     wildlifeCounts: { grass: 0, rabbits: 0, deer: 0, wolves: 0, foxes: 0, werewolves: 0, wildkin: 0, trees: 0 },
-    worldMap: buildableWorldMap(), yearlyStats: [], lifetimeStats: {}, visitorGroups: [],
+    worldMap: buildableWorldMap(), yearlyStats: [], lifetimeStats: {},
     rivalSettlements: [], pendingDiplomacyEvents: [], pendingRaidEvents: [],
     pendingOutgoingRaidEvents: [], ecoHealthYearsAbove80: 0,
     villageLeaderId: null, leaderSinceYear: 0, lastElectionYear: -1, pendingElectionYear: null,
