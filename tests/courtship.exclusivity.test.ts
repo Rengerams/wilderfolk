@@ -444,3 +444,78 @@ describe('shared romantic progress', () => {
       .toEqual([[B_ID, 35, 'affair'], [C_ID, 15, 'courtship']]);
   });
 });
+
+
+describe('shared romantic map integrity', () => {
+  it.each([false, true])('imports both legacy courtship sides once (reverse=%s)', reverse => {
+    const a = settler(A_ID, 'male', { courtshipPartnerId: B_ID, courtshipProgress: 60 });
+    const b = settler(B_ID, 'female', { courtshipPartnerId: A_ID, courtshipProgress: 47 });
+    const { state, entityById } = fixture([a, b]);
+    reconcileAffairPartner(reverse ? b : a, entityById, state.tick);
+    expect(a.affairCandidates?.[B_ID]).toEqual({ progress: 47, lastEncounterDay: 1 });
+    expect(b.affairCandidates?.[A_ID]).toEqual(a.affairCandidates?.[B_ID]);
+    expect(a.courtshipProgress).toBe(47);
+    expect(b.courtshipProgress).toBe(47);
+    reconcileAffairPartner(reverse ? a : b, entityById, 10 * TICKS_PER_DAY);
+    expect(a.affairCandidates?.[B_ID]?.lastEncounterDay).toBe(1);
+    expect(a.courtshipProgress).toBe(45);
+    expect(b.courtshipProgress).toBe(45);
+  });
+
+  it.each(['half-entry', 'expired', 'dead', 'invalid'] as const)('removes %s pairs and matching focus without resurrecting legacy progress', reason => {
+    const entry = { progress: 10, lastEncounterDay: 0 };
+    const a = settler(A_ID, 'male', { courtshipPartnerId: B_ID, courtshipProgress: 100,
+      affairCandidates: { [B_ID]: entry } });
+    const b = settler(B_ID, 'female', { courtshipPartnerId: A_ID, courtshipProgress: 100,
+      affairCandidates: reason === 'half-entry' ? undefined : { [A_ID]: entry } });
+    const c = settler(C_ID, 'female');
+    const { state, entityById } = fixture([a, b, c]);
+    if (reason === 'dead') b.alive = false;
+    if (reason === 'invalid') b.prisonBuildingId = 99;
+    state.tick = (reason === 'expired' ? 20 : 1) * TICKS_PER_DAY;
+    expect(advanceRomanticInterest(a, c, state.tick, 30)).toBe(30);
+    for (const person of [b, a, b, a]) reconcileAffairPartner(person, entityById, state.tick);
+    expect(a.affairCandidates?.[B_ID]).toBeUndefined();
+    expect(b.affairCandidates?.[A_ID]).toBeUndefined();
+    expect(a.courtshipPartnerId).toBeUndefined();
+    expect(b.courtshipPartnerId).toBeUndefined();
+    expect(a.courtshipProgress).toBe(0);
+    expect(b.courtshipProgress).toBe(0);
+    expect(a.affairCandidates?.[C_ID]?.progress).toBe(30);
+    expect(c.affairCandidates?.[A_ID]?.progress).toBe(30);
+  });
+
+  it('does not marry from stale full focus when the reciprocal map has not reached 100', () => {
+    const a = settler(A_ID, 'male', { courtshipPartnerId: B_ID, courtshipProgress: 100,
+      affairCandidates: { [B_ID]: { progress: 20, lastEncounterDay: 1 } } });
+    const b = settler(B_ID, 'female', { courtshipPartnerId: A_ID, courtshipProgress: 100,
+      affairCandidates: { [A_ID]: { progress: 20, lastEncounterDay: 1 } } });
+    const { state } = fixture([a, b]);
+    expect(tryCompleteCourtshipMarriage(state, a, b, [], [a, b])).toBe(false);
+  });
+
+  it.each([false, true])('clears spouse candidates and third-party focus exactly once (reverse=%s)', reverse => {
+    const a = settler(A_ID, 'male');
+    const b = settler(B_ID, 'female');
+    const c = settler(C_ID, 'female');
+    const people = [a, b, c];
+    const { state, entityById } = fixture(people);
+    advanceRomanticInterest(a, b, state.tick, 100);
+    advanceRomanticInterest(a, c, state.tick, 40);
+    bindCourtship(a, b);
+    a.courtshipProgress = b.courtshipProgress = 100;
+    c.courtshipPartnerId = a.id;
+    c.courtshipProgress = 40;
+    const first = reverse ? b : a;
+    const second = reverse ? a : b;
+    expect(tryCompleteCourtshipMarriage(state, first, second, [], people)).toBe(true);
+    expect(tryCompleteCourtshipMarriage(state, second, first, [], people)).toBe(false);
+    for (const person of people) {
+      reconcileAffairPartner(person, entityById, state.tick);
+      expect(person.affairCandidates).toBeUndefined();
+      expect(person.courtshipPartnerId).toBeUndefined();
+      expect(person.courtshipProgress).toBe(0);
+    }
+    expect(state.eventLog.filter(e => e.type === 'marriage')).toHaveLength(1);
+  });
+});

@@ -11,7 +11,7 @@ import { grantMark } from '../src/game/personalMarks';
 import { initGame } from '../src/game/worldGen';
 import { tickHumans } from '../src/game/humanTick';
 import { tickPregnancyAndBirth } from '../src/game/simulation/humanLifecycle';
-import { courtshipRatePerHour, tryDailyConception } from '../src/game/simulation/humanRelationships';
+import { advanceRomanticInterest, courtshipRatePerHour, tryDailyConception } from '../src/game/simulation/humanRelationships';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { PER_TICK_RATE_SCALE } from '../src/game/dayCycleClock';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
@@ -172,6 +172,18 @@ describe('courtship progress at the real owner boundary', () => {
     expect(frame.progressA).toBe(47);
     expect(frame.progressB).toBe(47);
     expect(frame.speedA, 'a one-sided unavailable date must not erase the existing walk').toBeGreaterThan(0);
+  });
+
+  it('uses the same aptitude factor for courtship and affair progress', () => {
+    const factor = combinePairFactors(
+      evaluateAptitudeInfluence({ genomeV2: COURTSHIP_GENOME }, 'courtship').factor, 1);
+    for (const married of [false, true]) {
+      const a = settler(1, 'female', COURTSHIP_GENOME, married
+        ? { relationshipStatus: 'married', partnerId: 99 } : {});
+      const b = settler(2, 'male', genomeFrom());
+      expect(advanceRomanticInterest(a, b, TICKS_PER_DAY, 10)).toBeCloseTo(10 * factor, 12);
+      expect(a.affairCandidates?.[b.id]).toEqual(b.affairCandidates?.[a.id]);
+    }
   });
 
   it('keeps the courtship gates: ineligible, absent or distant partners make no progress', () => {
