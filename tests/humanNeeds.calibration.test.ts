@@ -8,7 +8,7 @@ import type { Entity, WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { packEntityRenderMeta } from '../src/game/simBuffers/entityRenderMeta';
 import { tryEatColonyMeal } from '../src/game/simulation/humanNeeds';
-import { advanceHumanNeeds, hasFatalStarvation, initialHumanNeeds, normalizeHumanNeeds } from '../src/game/simulation/humanPhysiology';
+import { adjustHumanStamina, advanceHumanNeeds, hasFatalStarvation, initialHumanNeeds, normalizeHumanNeeds } from '../src/game/simulation/humanPhysiology';
 
 type Scenario = 'normal' | 'night' | 'idle' | 'starving';
 
@@ -36,6 +36,14 @@ function runNeedsScenario(days: number, scenario: Scenario) {
 }
 
 describe('physiology only: reproducible 7/30-day calibration contracts', () => {
+  it('initializes missing native needs before applying a 20-point stamina loss, never touching legacy energy', () => {
+    const e = { id: 1, type: EntityType.Human, alive: true, energy: 7, maxEnergy: 500 } as Entity;
+    adjustHumanStamina(e, -20);
+    expect(e.needs).toEqual(initialHumanNeeds(60));
+    expect(e.energy).toBe(7);
+    expect(e.maxEnergy).toBe(500);
+  });
+
   it('keeps an ordinary nine-hour worker stable at roughly three food/day for 30 days', () => {
     const after = runNeedsScenario(30, 'normal');
     expect(after.observedWorkHours).toBeCloseTo(270, 4);
