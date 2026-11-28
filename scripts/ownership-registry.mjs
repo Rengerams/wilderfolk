@@ -87,7 +87,7 @@ export function validateRegistry(rows, root, exists = isFile) {
       if (!/^(src|scripts)\/[\w/.-]+\.tsx?$/.test(ref.module) || !isCanonicalModulePath(ref.module) || !exists(path.join(root, ref.module))) {
         failures.push(`${row.key}: missing or invalid owner module ${ref.module}`);
       }
-      if (!/^[A-Za-z_$][\w$]*(?:[.#][A-Za-z_$][\w$]*)?$/.test(ref.symbol)) failures.push(`${row.key}: invalid entrypoint symbol ${ref.symbol}`);
+      if (!/^[A-Za-z_$][\w$]*(?:(?:::|[.#])(?:get:|set:)?#?[A-Za-z_$][\w$]*)*$/.test(ref.symbol)) failures.push(`${row.key}: invalid entrypoint symbol ${ref.symbol}`);
       if (claimed.has(qualified)) failures.push(`${qualified}: primary entrypoint claimed by ${claimed.get(qualified)} and ${row.key}`);
       claimed.set(qualified, row.key);
     }
@@ -105,45 +105,25 @@ function hasModifier(node, kind) {
   return present;
 }
 
-/** Enumerate declarations in their real lexical scope. Facade re-exports never own a decision. */
-function directCallableCandidates(source, symbol) {
-  const candidates = [];
-  const member = /^([A-Za-z_$][\w$]*)([.#])([A-Za-z_$][\w$]*)$/.exec(symbol);
-  const localNames = new Set([symbol]);
-  if (symbol === 'default') {
-    // Support a local declaration exported as default without treating an imported alias as an owner.
-    source.forEachChild(node => {
-      if (node.kind === SyntaxKind.ExportAssignment && !node.isExportEquals) {
-        const expression = node.expression;
-        if (expression.kind === SyntaxKind.Identifier) localNames.add(expression.getText());
-        else if (expression.kind === SyntaxKind.FunctionExpression || expression.kind === SyntaxKind.ArrowFunction) candidates.push(expression);
-      }
-    });
-  }
+/** Only an actual function body is a local implementation; wrappers around a reference are not. */
+function directFunctionImplementation(node) {
+  while (node?.kind === SyntaxKind.ParenthesizedExpression) node = node.expression;
+  return node?.kind === SyntaxKind.ArrowFunction || node?.kind === SyntaxKind.FunctionExpression ? node : undefined;
+}
+
+/** Resolve named declarations from the shared inventory, including a local default-export alias. */
+function directCallableCandidates(source, symbol, inventory) {
+  if (symbol !== 'default') return inventory.get(symbol) ?? [];
+  const candidates = new Set(inventory.get('default') ?? []);
   source.forEachChild(node => {
-    if (member) {
-      if (node.kind !== SyntaxKind.ClassDeclaration || node.name?.getText() !== member[1]) return;
-      node.forEachChild(child => {
-        if (child.kind !== SyntaxKind.MethodDeclaration || !child.body || child.name?.getText() !== member[3]) return;
-        if (hasModifier(child, SyntaxKind.StaticKeyword) === (member[2] === '.')) candidates.push(child.name);
-      });
-      return;
+    if (node.kind === SyntaxKind.FunctionDeclaration && node.body && node.name && hasModifier(node, SyntaxKind.DefaultKeyword)) {
+      for (const candidate of inventory.get(node.name.getText()) ?? []) candidates.add(candidate);
     }
-    if (node.kind === SyntaxKind.FunctionDeclaration && node.body) {
-      if (localNames.has(node.name?.getText()) || (symbol === 'default' && hasModifier(node, SyntaxKind.DefaultKeyword))) candidates.push(node.name ?? node);
-    }
-    if (node.kind === SyntaxKind.VariableStatement) {
-      node.declarationList.forEachChild(declaration => {
-        if (declaration.kind !== SyntaxKind.VariableDeclaration || !localNames.has(declaration.name.getText())) return;
-        // A callable binding is not necessarily a local implementation. Reject aliases, member
-        // references and factory results; register their actual function declaration instead.
-        let initializer = declaration.initializer;
-        while (initializer?.kind === SyntaxKind.ParenthesizedExpression) initializer = initializer.expression;
-        if (initializer?.kind === SyntaxKind.ArrowFunction || initializer?.kind === SyntaxKind.FunctionExpression) candidates.push(declaration.name);
-      });
+    if (node.kind === SyntaxKind.ExportAssignment && !node.isExportEquals && node.expression.kind === SyntaxKind.Identifier) {
+      for (const candidate of inventory.get(node.expression.getText()) ?? []) candidates.add(candidate);
     }
   });
-  return candidates;
+  return [...candidates];
 }
 
 /** Record the exact compiler declaration once, across gameplay and infrastructure contracts. */
@@ -194,9 +174,13 @@ export function validateEntrypointSymbols(rows, root, resolved = new Map()) {
       try {
         const project = snapshot.getProjects()[0];
         if (!project) throw new Error(`No TypeScript project for ${config}`);
+        const inventories = new Map();
         for (const ref of refs) {
           const source = project.program.getSourceFile(path.resolve(root, ref.module));
-          const candidates = source ? directCallableCandidates(source, ref.symbol) : [];
+          if (source && !inventories.has(ref.module)) {
+            inventories.set(ref.module, collectNamedDeclarations(source, project.checker, false));
+          }
+          const candidates = source ? directCallableCandidates(source, ref.symbol, inventories.get(ref.module)) : [];
           const callable = candidates.filter(node => {
             const type = project.checker.getTypeAtLocation(node);
             return type && !(type.flags & TypeFlags.Any) && project.checker.getSignaturesOfType(type, SignatureKind.Call).length > 0;
@@ -245,6 +229,7 @@ const TOOLING_CONTRACTS = [
       "validateDecisionKeys",
       "validateRegistry",
       "hasModifier",
+      "directFunctionImplementation",
       "directCallableCandidates",
       "declarationLocation",
       "recordResolvedClaim",
@@ -309,7 +294,7 @@ const TOOLING_CONTRACTS = [
 /** One compiler inventory for named implementations, including lexical and member scope.
  * Anonymous inline callbacks are not independent ownership declarations.
  */
-function collectNamedDeclarations(source, checker) {
+function collectNamedDeclarations(source, checker, includeClosureBindings = true) {
   const actual = new Map();
   const visit = (node, scope = '', ownerKind = '') => {
     if ((node.kind === SyntaxKind.ClassDeclaration || node.kind === SyntaxKind.ClassExpression) && node.name) {
@@ -321,35 +306,68 @@ function collectNamedDeclarations(source, checker) {
     let name;
     let nameNode = node.name;
     let member = false;
-    const method = node.kind === SyntaxKind.MethodDeclaration && node.body && node.name;
+    let implementation;
+    const method = [SyntaxKind.MethodDeclaration, SyntaxKind.GetAccessor, SyntaxKind.SetAccessor].includes(node.kind) && node.body && node.name;
     if (method) {
-      name = node.name.getText();
+      const prefix = node.kind === SyntaxKind.GetAccessor ? 'get:' : node.kind === SyntaxKind.SetAccessor ? 'set:' : '';
+      name = prefix + node.name.getText();
       member = ownerKind !== '';
     }
-    if (node.kind === SyntaxKind.FunctionDeclaration && node.body) {
+    if (ownerKind === 'class' && node.kind === SyntaxKind.Constructor && node.body) {
+      name = 'constructor';
+      nameNode = node;
+      member = true;
+    }
+    if ((node.kind === SyntaxKind.FunctionDeclaration || node.kind === SyntaxKind.FunctionExpression) && node.body) {
       name = node.name?.getText() ?? (hasModifier(node, SyntaxKind.DefaultKeyword) ? 'default' : undefined);
       nameNode = node.name ?? node;
+    }
+    if (node.kind === SyntaxKind.ExportAssignment && !node.isExportEquals) {
+      implementation = directFunctionImplementation(node.expression);
+      if (implementation) {
+        name = 'default';
+        nameNode = implementation;
+      }
     }
     if ((node.kind === SyntaxKind.VariableDeclaration || node.kind === SyntaxKind.PropertyDeclaration ||
          node.kind === SyntaxKind.PropertyAssignment) && node.initializer && node.name) {
       let initializer = node.initializer;
       while (initializer.kind === SyntaxKind.ParenthesizedExpression) initializer = initializer.expression;
-      const direct = initializer.kind === SyntaxKind.ArrowFunction || initializer.kind === SyntaxKind.FunctionExpression;
-      if (direct) {
+      implementation = directFunctionImplementation(initializer);
+      if (implementation) {
         name = node.name.getText();
         member = node.kind !== SyntaxKind.VariableDeclaration && ownerKind !== '';
-      } else if (node.kind === SyntaxKind.VariableDeclaration && initializer.kind === SyntaxKind.ObjectLiteralExpression) {
-        const qualifiedObject = scope ? `${scope}::${node.name.getText()}` : node.name.getText();
-        initializer.forEachChild(child => visit(child, qualifiedObject, 'object'));
+      } else if (initializer.kind === SyntaxKind.ObjectLiteralExpression || initializer.kind === SyntaxKind.ClassExpression) {
+        const separator = node.kind !== SyntaxKind.VariableDeclaration && ownerKind
+          ? (ownerKind === 'class' && !hasModifier(node, SyntaxKind.StaticKeyword) ? '#' : '.')
+          : '::';
+        const qualifiedObject = scope ? `${scope}${separator}${node.name.getText()}` : node.name.getText();
+        initializer.forEachChild(child => visit(child, qualifiedObject, initializer.kind === SyntaxKind.ClassExpression ? 'class' : 'object'));
         return;
-      } else if (node.kind === SyntaxKind.VariableDeclaration && initializer.kind === SyntaxKind.CallExpression &&
-                 initializer.expression.kind === SyntaxKind.ParenthesizedExpression) {
-        // A closure-producing IIFE is a callable binding, not a second alias of an existing function.
-        const expression = initializer.expression.expression;
-        if (expression.kind === SyntaxKind.ArrowFunction || expression.kind === SyntaxKind.FunctionExpression) {
-          const type = checker.getTypeAtLocation(node.name);
-          if (type && !(type.flags & TypeFlags.Any) && checker.getSignaturesOfType(type, SignatureKind.Call).length) name = node.name.getText();
+      } else if (includeClosureBindings && node.kind === SyntaxKind.VariableDeclaration && initializer.kind === SyntaxKind.CallExpression) {
+        // Only a locally returned function literal establishes an IIFE implementation. Returning
+        // an existing callable binding is an alias, not a second owner.
+        const factory = directFunctionImplementation(initializer.expression);
+        if (factory) {
+          let returnedImplementation = Boolean(directFunctionImplementation(factory.body));
+          if (factory.body.kind === SyntaxKind.Block) {
+            factory.body.forEachChild(child => {
+              if (child.kind === SyntaxKind.ReturnStatement && directFunctionImplementation(child.expression)) returnedImplementation = true;
+            });
+          }
+          if (returnedImplementation) {
+            const type = checker.getTypeAtLocation(node.name);
+            if (type && !(type.flags & TypeFlags.Any) && checker.getSignaturesOfType(type, SignatureKind.Call).length) name = node.name.getText();
+          }
         }
+      }
+    }
+    if (node.kind === SyntaxKind.BinaryExpression && node.operatorToken.kind === SyntaxKind.EqualsToken &&
+        (node.left.kind === SyntaxKind.Identifier || node.left.kind === SyntaxKind.PropertyAccessExpression)) {
+      implementation = directFunctionImplementation(node.right);
+      if (implementation) {
+        name = node.left.getText();
+        nameNode = node.left.kind === SyntaxKind.PropertyAccessExpression ? node.left.name : node.left;
       }
     }
     const qualified = name
@@ -360,7 +378,10 @@ function collectNamedDeclarations(source, checker) {
       if (!actual.has(qualified)) actual.set(qualified, []);
       actual.get(qualified).push(nameNode);
     }
-    node.forEachChild(child => visit(child, qualified));
+    // A named function expression assigned to a binding has one canonical binding identity.
+    // Traverse its children, not the expression root again.
+    if (implementation) implementation.forEachChild(child => visit(child, qualified));
+    else node.forEachChild(child => visit(child, qualified));
   };
   visit(source);
   return actual;
@@ -395,10 +416,8 @@ export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS, re
           continue;
         }
         const actual = collectNamedDeclarations(source, project.checker);
-        const declared = new Set();
         for (const contract of owners) {
           for (const symbol of contract.symbols) {
-            declared.add(symbol);
             const nodes = actual.get(symbol) ?? [];
             if (nodes.length !== 1) {
               failures.push(`${contract.key}: expected one infrastructure declaration ${file}::${symbol}, found ${nodes.length}`);
@@ -407,8 +426,10 @@ export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS, re
             recordResolvedClaim(resolved, failures, { key: contract.key, module: file, symbol, role: 'infrastructure' }, source, nodes[0], root);
           }
         }
-        for (const symbol of actual.keys()) {
-          if (!declared.has(symbol)) failures.push(`${file}::${symbol}: missing infrastructure claim`);
+        for (const [symbol, nodes] of actual) {
+          if (nodes.some(node => !resolved.has(declarationLocation(source, node, root).identity))) {
+            failures.push(`${file}::${symbol}: missing infrastructure claim`);
+          }
         }
       }
       if (inventory) {
