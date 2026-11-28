@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { getDecisionRows, renderDecisionTable, replaceGeneratedBlock, validateRegistry, validateEntrypointSymbols, validateDecisionKeys, parseOwnershipMode } from './ownership-registry.mjs';
+import { getDecisionRows, renderDecisionTable, replaceGeneratedBlock, validateRegistry, validateEntrypointSymbols, validateDecisionKeys, parseOwnershipMode, findVerifiedClaim } from './ownership-registry.mjs';
 
 const sample = {
   key: 'sample',
@@ -81,4 +81,13 @@ test('missing and renamed decision keys fail the independent key contract', () =
   assert.deepEqual(validateDecisionKeys([{ ...sample, key: 'renamed' }], ['sample']), [
     'Missing required decision: sample', 'Unknown decision: renamed',
   ]);
+});
+
+test('verified ownership matches an exact declaration, never an adjacent method or duplicate', () => {
+  const claim = { file: 'src/game/sample.ts', symbol: 'Owner.work', name: 'work', line: 12, key: 'sample' };
+  const fn = { file: claim.file, name: claim.name, line: claim.line };
+  assert.equal(findVerifiedClaim(fn, [claim], [fn]), claim);
+  assert.equal(findVerifiedClaim({ ...fn, line: 13 }, [claim], [fn]), undefined);
+  assert.equal(findVerifiedClaim({ ...fn, file: 'src/other/sample.ts' }, [claim], [fn]), undefined);
+  assert.equal(findVerifiedClaim(fn, [claim], [fn, { ...fn }]), undefined);
 });
