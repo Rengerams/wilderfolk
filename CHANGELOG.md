@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Improved (28 Nov 2026):** Derive simulation decision keys and generate the current ownership overview from the typed registry; validate primary function references and documentation freshness through the existing ownership gate.
+
 - **Fixed (28 Nov 2026):** Children no longer keep following a caregiver during evening/night rosters or continue stale follow/play movement through school or bedtime, including homeless off-screen children; genuinely free-time following remains allowed.
 
 - **Improved (28 Nov 2026):** Centralize simulation, terrain and omen RNG stream construction and terrain percentile sampling without changing historical seeded sequences; list semantic duplicate groups in CI.
