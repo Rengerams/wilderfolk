@@ -237,6 +237,10 @@ Moved 22 regressions from `calendarPhase.auditRegressions`, `low-3-moon-lifecycl
 
 Moved 19 cases from `low-4-save-worldgen` and `low-9-simdata` to save-version/value/timeline, terrain preset, entity cache, wildlife, immigration, festival, fatigue, daily production, migration, pathfinding and simulation invariant owners. Reused the existing invariant world and herd clock helper. Kept the shared seeded production fixture scoped together. No runtime cases removed; CI pending.
 
+## Social and indexed ownership consolidation — 2026-11-28
+
+Moved 31 cases from `phase7.social` and `audit.hotPathScans.equivalence` to relationship, family, Chronicle, housing and workforce suites plus a dedicated apprenticeship suite (there was no existing primary apprenticeship test file). Relocated the generated social resident fixture into the existing shared factory owner; preserved both independent index oracles and reused the roster suite's existing fixtures. Corrected stale evidence links that attributed unrelated UI/romance tests to the old mixed files. This ten-file increment preserves 86 original regressions; one new owner suite means nine net fewer files. CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

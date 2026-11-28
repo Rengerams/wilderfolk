@@ -1,3 +1,4 @@
+import { isPlayerHuman } from '../src/game/playerHuman';
 import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycycleconstants';
 /**
  * `workforce.ts` owns assignment: `workerBuildingId`, workplace `occupants`, `occupation` and `job`
@@ -865,6 +866,109 @@ describe('automatic staffing allocation and bounded vacancies', () => {
       expect(builder.workerBuildingId).toBeUndefined();
       expect(quarry.occupants).toEqual([]);
       expect(mill.occupants).toEqual([atMill.id]);
+    });
+  });
+});
+
+describe('workplace roster index equivalence', () => {
+  /** Reference `syncJobBuildingOccupants`: re-filters the whole settler list per building. */
+  function referenceSyncJobBuildingOccupants(humans: Entity[], buildings: Building[]): void {
+    for (let i = 0; i < buildings.length; i++) {
+      const building = buildings[i];
+      if (!building.completed || !BUILDING_JOB_TYPES_REF[building.type]) {
+        continue;
+      }
+      if (building.type === BuildingType.Prison) {
+        building.occupants = humans
+          .filter(
+            (h) =>
+              h.alive &&
+              isPlayerHuman(h) &&
+              (h.workerBuildingId === building.id || h.prisonBuildingId === building.id),
+          )
+          .map((h) => h.id);
+        continue;
+      }
+      building.occupants = humans
+        .filter(
+          (h) =>
+            h.alive &&
+            isPlayerHuman(h) &&
+            h.workerBuildingId === building.id &&
+            h.prisonBuildingId == null,
+        )
+        .map((h) => h.id);
+    }
+  }
+
+  /**
+   * Local copy of the production `BUILDING_JOB_TYPES` membership test; it only has to cover the
+   * fixture's building types.
+   */
+  const BUILDING_JOB_TYPES_REF: Partial<Record<BuildingType, unknown>> = {
+    [BuildingType.Farm]: true,
+    [BuildingType.Prison]: true,
+    [BuildingType.Barracks]: true,
+    [BuildingType.Market]: true,
+    [BuildingType.Tavern]: true,
+    [BuildingType.LumberMill]: true,
+    [BuildingType.Quarry]: true,
+    [BuildingType.Mine]: true,
+    [BuildingType.Blacksmith]: true,
+    [BuildingType.Workshop]: true,
+    [BuildingType.TownHall]: true,
+    [BuildingType.Hospital]: true,
+    [BuildingType.Church]: true,
+    [BuildingType.Store]: true,
+    [BuildingType.Silo]: true,
+    [BuildingType.Hotel]: true,
+  };
+
+  describe('syncJobBuildingOccupants buckets like its pre-fix per-building filter', () => {
+    it('keeps the prison union and the narrower job predicate identical, including home === prison', () => {
+      const prison = staffingBuilding(1, BuildingType.Prison, { completed: true });
+      const farm = staffingBuilding(2, BuildingType.Farm, { completed: true });
+      const barracks = staffingBuilding(3, BuildingType.Barracks, { completed: true });
+      const secondFarm = staffingBuilding(4, BuildingType.Farm, { completed: true });
+      const site = createBuilding(BuildingType.Farm, 900, 900, 5);
+      const deadWorker = staffingHuman(1000, { alive: false });
+
+      const humans: Entity[] = [
+        // home === prison for both ids: the union must not emit this id twice.
+        staffingHuman(1001, { workerBuildingId: prison.id, prisonBuildingId: prison.id }),
+        // homes the farm, no prison.
+        staffingHuman(1002, { workerBuildingId: farm.id }),
+        // homes the farm but is imprisoned elsewhere: excluded from the farm, present in the prison list.
+        staffingHuman(1003, { workerBuildingId: farm.id, prisonBuildingId: prison.id }),
+        // homeless prisoner.
+        staffingHuman(1004, { prisonBuildingId: prison.id }),
+        staffingHuman(1005, { workerBuildingId: barracks.id }),
+        staffingHuman(1006, { workerBuildingId: secondFarm.id }),
+        staffingHuman(1007, { workerBuildingId: site.id }),
+        staffingHuman(1008, { workerBuildingId: farm.id, faction: 'rival' }),
+        deadWorker,
+      ];
+      deadWorker.workerBuildingId = farm.id;
+
+      const realWorld = makeWorld(structuredClone(humans), structuredClone([prison, farm, barracks, secondFarm, site]));
+      const referenceWorld = makeWorld(structuredClone(humans), structuredClone([prison, farm, barracks, secondFarm, site]));
+
+      syncJobBuildingOccupants(realWorld.entities, realWorld.buildings);
+      referenceSyncJobBuildingOccupants(referenceWorld.entities, referenceWorld.buildings);
+
+      expect(realWorld.buildings.map(b => [b.id, [...b.occupants]]), 'every building occupant list').toEqual(
+        referenceWorld.buildings.map(b => [b.id, [...b.occupants]]),
+      );
+
+      const byId = new Map(realWorld.buildings.map((b) => [b.id, b.occupants]));
+      // prison = home-or-prison union, deduped, in humans order.
+      expect(byId.get(prison.id)).toEqual([humans[0]!.id, humans[2]!.id, humans[3]!.id]);
+      // farm = home-only, so the imprisoned home-worker and the dead one are out.
+      expect(byId.get(farm.id)).toEqual([humans[1]!.id]);
+      expect(byId.get(barracks.id)).toEqual([humans[4]!.id]);
+      // A second completed Farm accepts its own roster; an unfinished site remains untouched.
+      expect(byId.get(secondFarm.id)).toEqual([humans[5]!.id]);
+      expect(byId.get(site.id)).toEqual([]);
     });
   });
 });

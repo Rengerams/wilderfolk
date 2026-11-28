@@ -1,3 +1,5 @@
+import { addGeneratedSocialHuman } from '../src/test/factories';
+import { initGame } from '../src/game/worldGen';
 /**
  * Friendships grow from shared work, home and childhood: the daily pass must bump cohabitants
  * by residence as well as by workplace and job type.
@@ -144,5 +146,26 @@ describe('close friendships are capped per settler', () => {
     // Warming an un-close bond is still allowed; only a *new close* bond is refused.
     expect(relationshipScore(newcomer, loaded.id, 'friend')).toBeGreaterThan(0);
     expect(friendCount(newcomer), 'the newcomer takes on no close bond').toBe(0);
+  });
+});
+
+describe('relationship webs — friendships', () => {
+  it('shared workplace grows a reciprocal friendship each day', () => {
+    const w = initGame({ villageName: 'P7', size: 'medium' });
+    const a = addGeneratedSocialHuman(w, { id: 1, workerBuildingId: 10 });
+    const b = addGeneratedSocialHuman(w, { id: 2, workerBuildingId: 10 });
+    expect(relationshipScore(a, b.id, 'friend')).toBe(0);
+    advanceSocialRelationships(w, w.entities);
+    expect(relationshipScore(a, b.id, 'friend')).toBeGreaterThanOrEqual(0.5);
+    expect(relationshipScore(a, b.id, 'friend')).toBe(relationshipScore(b, a.id, 'friend'));
+  });
+
+  it('strong friendships count for the UI badge', () => {
+    const w = initGame({ villageName: 'P7', size: 'medium' });
+    const a = addGeneratedSocialHuman(w, { id: 1, workerBuildingId: 10 });
+    const b = addGeneratedSocialHuman(w, { id: 2, workerBuildingId: 10 });
+    a.friendships = { [`friend_${b.id}`]: 70 };
+    b.friendships = { [`friend_${a.id}`]: 70 };
+    expect(friendCount(a)).toBe(1);
   });
 });

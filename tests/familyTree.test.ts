@@ -1,3 +1,6 @@
+import { computeDynasties, hasDynasty } from '../src/game/familyLegacy';
+import { addGeneratedSocialHuman } from '../src/test/factories';
+import { initGame } from '../src/game/worldGen';
 import { describe, expect, it } from 'vitest';
 import { EntityType, type Entity } from '../src/game/gameTypes';
 import {
@@ -742,5 +745,24 @@ describe('family tree branch navigation', () => {
     const ordered = orderFamilyTreeRows(tree.rows, tree.parentLinks);
     expect(ordered.find((row) => row.delta === 1)?.members.map((person) => person.id)).toEqual([3, 5, 4, 6]);
     expect(tree.rows.map((row) => row.members.map((person) => person.id))).toEqual(original);
+  });
+});
+
+describe('family legacy — dynasties', () => {
+  it('three living generations of one surname is a dynasty', () => {
+    const w = initGame({ villageName: 'P7', size: 'medium' });
+    addGeneratedSocialHuman(w, { id: 1, surname: 'Vale', generation: 1 });
+    addGeneratedSocialHuman(w, { id: 2, surname: 'Vale', generation: 2 });
+    addGeneratedSocialHuman(w, { id: 3, surname: 'Vale', generation: 3 });
+    const dynasties = computeDynasties(w);
+    expect(dynasties[0]).toMatchObject({ surname: 'Vale', generationsAlive: 3, members: 3 });
+    expect(hasDynasty(w)).toBe(true);
+  });
+
+  it('two generations is not yet a dynasty', () => {
+    const w = initGame({ villageName: 'P7', size: 'medium' });
+    addGeneratedSocialHuman(w, { id: 1, surname: 'Vale', generation: 1 });
+    addGeneratedSocialHuman(w, { id: 2, surname: 'Vale', generation: 2 });
+    expect(hasDynasty(w)).toBe(false);
   });
 });

@@ -2,9 +2,10 @@
  * Shared test fixture factories. The literals are complete `Entity`/`Building` values, typed rather
  * than cast, so a new required field fails to compile here instead of reading as `undefined`.
  */
-import type { Building, BuildingType, Entity } from '../game/gameTypes';
+import type { Building, BuildingType, Entity, WorldState } from '../game/gameTypes';
 import { EntityType, JobType } from '../game/gameTypes';
 import { SPECIES_CONFIG } from '../game/speciesConfig';
+import { createEntity } from '../game/entityFactory';
 
 /**
  * The fields every hand-built settler fixture in the suite shares. `maxAge` mirrors what `createEntity`
@@ -85,4 +86,41 @@ export function byType(entities: Entity[]): Record<EntityType, Entity[]> {
   for (const type of Object.values(EntityType)) buckets[type] = [];
   for (const entity of entities) buckets[entity.type].push(entity);
   return buckets;
+}
+
+/** A generated resident with the social fixture's age and energy, inserted into its real world. */
+export function addGeneratedSocialHuman(
+  w: WorldState,
+  opts: {
+    id: number;
+    name?: string;
+    surname?: string;
+    generation?: number;
+    isJuvenile?: boolean;
+    workerBuildingId?: number;
+    job?: JobType;
+    x?: number;
+    y?: number;
+  },
+): Entity {
+  const e = createEntity(
+    EntityType.Human,
+    opts.x ?? 300,
+    opts.y ?? 300,
+    opts.id,
+    80,
+    opts.isJuvenile ?? false,
+    {
+      name: opts.name ?? `H${opts.id}`,
+      surname: opts.surname,
+      generation: opts.generation,
+      ageYears: opts.isJuvenile ? 8 : 18,
+    },
+  );
+  if (opts.workerBuildingId != null) e.workerBuildingId = opts.workerBuildingId;
+  if (opts.job) e.job = opts.job;
+  e.alive = true;
+  e.maxEnergy = 100;
+  w.entities.push(e);
+  return e;
 }

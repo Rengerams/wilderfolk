@@ -483,7 +483,7 @@ export const SIMULATION_DECISIONS = {
       'human.apprenticeId',
     ],
     scheduledFrom: 'tickLayerDaily — DAILY_PHASE_HOURS.relationships (social and housing at 06:00), DAILY_PHASE_HOURS.construction (apprenticeships at 23:00); humanTick work commute/presence; humanStatus read-only projection',
-    testFile: 'tests/phase7.social.test.ts, tests/relationshipDiagnostics.test.ts, tests/villageLeadership.test.ts, tests/humanGraduation.education.test.ts, tests/immigration.composition.test.ts',
+    testFile: 'tests/apprenticeships.test.ts, tests/relationships.sharedHomeFriendship.test.ts, tests/relationships.friendCapAndFeudEnd.test.ts, tests/relationshipDiagnostics.test.ts, tests/villageLeadership.test.ts, tests/humanGraduation.education.test.ts, tests/immigration.composition.test.ts',
   },
   yearlyWorldEvents: {
     owner: 'dailyWorldEvents.ts — tickYearBoundaryWorldEvents, tickDailyWorldEvents, tickFestivals, normalizeFestivalState, repairStaleFestivalOnLoad; groupEvents.ts — rollYearlyWorldEvent; townHall.ts — hostTownFestival, getTownHallFestivalCooldownTicks',
@@ -577,7 +577,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: 'Human-social owner only selects real nearby eligible participants and social motives at the shared work/morning/stagger gates; reciprocal marriage and the same proximity radius govern spouse care; the physiology and hospital owners supply break and medical eligibility, and nearest completed venues are selected consistently from cached or direct pools. Healthy pregnancy is not a hospital referral. A scene is requested at most once per person per colony day across every event family (hasDialogueSceneOnDay counts greeting, banter and solo scenes together), even though the gate itself is evaluated per tick; the dialogue router selects text and humanChat executes sessions. Affair tryst speech is sampled on the initiating settler\'s hourly ID-staggered tick (11.4% opportunity, formerly 1% each active tick); tryst progress stays realtime. The spatial query is adaptive and may legitimately use a bounded linear candidate scan.',
     writes: ['floatingTexts (hearts)', 'small courtship progress'],
     scheduledFrom: 'humanTick.ts realtime social/leisure path, with SOCIAL_STAGGER on neighbour selection',
-    testFile: 'tests/phase7.social.test.ts, tests/socialLife.dialogueBusy.test.ts, tests/humanChat.ambientPairing.test.ts, tests/socialCadence.oneScenePerDay.test.ts',
+    testFile: 'tests/socialLife.dialogueBusy.test.ts, tests/humanChat.ambientPairing.test.ts, tests/socialCadence.oneScenePerDay.test.ts',
   },
   dialogueContent: {
     owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, hasDialogueSceneOnDay, rememberDialogueLine, dialogueHoursFromNominalTicks, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, parsePresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
@@ -623,7 +623,7 @@ export const SIMULATION_DECISIONS = {
       'human.partnerId',
     ],
     scheduledFrom: 'humanTick.ts (per realtime tick, observed pair sleep, distance and shared-duty gates) → humanRelationships.findCourtshipPartner / canAdvanceCourtship / tryCompleteCourtshipMarriage',
-    testFile: 'tests/phase7.social.test.ts, tests/courtship.exclusivity.test.ts',
+    testFile: 'tests/courtship.exclusivity.test.ts',
   },
   affairs: {
     owner: 'humanRelationships.ts — tryDailyAffairEncounter, recordAffairTrystSite, tryDailyAffairGossip, tryExposeCaughtAffairForPair, exposeAffair',
@@ -641,7 +641,7 @@ export const SIMULATION_DECISIONS = {
       'villageReputation',
     ],
     scheduledFrom: 'humanTick.ts tickHumans → one daily lover-specific waking-hour gate for tryDailyAffairEncounter and tryDailyAffairGossip; realtime meeting and caught-in-act proximity, with shared tryst site read-only in humanRelationships.getAffairTrystBuilding and the shared approach point in buildingAccess.buildingAccessPoint',
-    testFile: 'tests/affair.cadence.test.ts, tests/eventLog.duplicatesAndNotifications.test.ts, tests/phase7.social.test.ts, tests/electionGossip.dedup.test.ts, tests/affairTrystSite.walkIn.test.ts, tests/settlers.indoors.test.ts',
+    testFile: 'tests/affair.cadence.test.ts, tests/eventLog.duplicatesAndNotifications.test.ts, tests/electionGossip.dedup.test.ts, tests/affairTrystSite.walkIn.test.ts, tests/settlers.indoors.test.ts',
   },
   conception: {
     owner: 'humanRelationships.ts — tryDailyConception (ONLY conception decision/roll owner; the married, youth and affair routes all apply the same conception activity factor); pregnancy.ts — startPregnancy (sole pregnancy-start writer, called by resolveConception)',
@@ -655,7 +655,7 @@ export const SIMULATION_DECISIONS = {
       'human.pregnancyDueProgress',
     ],
     scheduledFrom: 'humanTick.ts (isNewCalendarDay gate) → tryDailyConception → resolveConception → pregnancy.startPregnancy',
-    testFile: 'tests/phase7.social.test.ts, tests/conceptionEvent.labelling.test.ts, tests/youthConception.ageFloor.test.ts, tests/humanLifecycle.test.ts',
+    testFile: 'tests/conceptionEvent.labelling.test.ts, tests/youthConception.ageFloor.test.ts, tests/humanLifecycle.test.ts',
   },
   pregnancyBirth: {
     owner: 'pregnancy.ts — startPregnancy (validates and freezes conception identity), advancePregnancy (one progress tick and due verdict), clearPregnancy (delivery reset), normalizePregnancyElapsedProgress (legacy elapsed rule), rollPregnancyDueProgress (only term formula), normalizePregnancyDueProgress (only invalid-due rule), isValidPregnancyDueProgress (validity), getPregnancyProgressFraction; humanLifecycle.ts — tickPregnancyAndBirth and isPregnancyHospitalDue (delivery/threshold consumers; no pregnancy field writes); settlerTraits.ts — inheritGenome is the only birth genetics rule',
