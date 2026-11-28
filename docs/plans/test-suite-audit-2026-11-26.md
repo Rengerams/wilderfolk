@@ -293,6 +293,10 @@ Moved all 20 remaining cases from `low-8-humans` into seven owner suites. Shared
 
 The existing source check already includes both the declarative guards and the syntax-aware DNA scanner. Standard/all share the same ordered steps; CI adds the production bundle after them, and full adds its existing long-running gates before bundling. The four-project type check already covers scripts. Removed repeated check/owner/overlap/duplicate/lint/type invocations from the CI path; standalone build and type-checked build remain available. The npm duplicate alias now invokes the baseline-aware gate, not a separate raw scan. Changed-test filtering remains limited to the unit step on PRs. CI pending.
 
+## Duplicate gate dependency discovery — 2026-11-28
+
+The full-project Knip job on `ad1d36b` reported `jscpd` as unused after the npm alias was routed to the canonical duplicate gate. The gate actually executes the installed CLI through a filesystem path. Resolve the same CLI using a literal package subpath through Node's `require.resolve` so dependency analysis can see its consumer; retain the scan options and baseline behavior. No ignore rule, dependency removal or duplicate scanning route added. CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete
