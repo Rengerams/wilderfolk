@@ -85,9 +85,11 @@ test('missing and renamed decision keys fail the independent key contract', () =
 
 test('verified ownership matches an exact declaration, never an adjacent method or duplicate', () => {
   const claim = { file: 'src/game/sample.ts', symbol: 'Owner.work', name: 'work', line: 12, key: 'sample' };
-  const fn = { file: claim.file, name: claim.name, line: claim.line };
+  const fn = { file: claim.file, name: claim.name, line: claim.line, className: 'Owner', isStatic: true };
   assert.equal(findVerifiedClaim(fn, [claim], [fn]), claim);
   assert.equal(findVerifiedClaim({ ...fn, line: 13 }, [claim], [fn]), undefined);
+  assert.equal(findVerifiedClaim({ ...fn, isStatic: false }, [claim], [fn]), undefined);
+  assert.equal(findVerifiedClaim({ ...fn, className: 'Other' }, [claim], [fn]), undefined);
   assert.equal(findVerifiedClaim({ ...fn, file: 'src/other/sample.ts' }, [claim], [fn]), undefined);
   assert.equal(findVerifiedClaim(fn, [claim], [fn, { ...fn }]), undefined);
 });
