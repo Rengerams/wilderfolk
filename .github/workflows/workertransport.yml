@@ -1,17 +1,15 @@
-name: workertransport
-
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main]]
     paths:
       - 'src/game/**'
       - 'scripts/repro-worker-stall.mts'
       - 'tests/gameWorker*.test.ts'
       - 'tests/renderBufferPool*.test.ts'
       - 'tests/simDelta*.test.ts'
-      - '.github/workflows/workertransport.yml'
+      - '.github/workflows/worker-transport-validation.yml'
   workflow_dispatch:
 
 permissions:
