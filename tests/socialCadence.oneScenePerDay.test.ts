@@ -15,7 +15,7 @@ import {
 import { resetDialogueSessions, tickHumanChat } from '../src/game/humanChat';
 import { simAmbientChatNeighbors } from '../src/game/simulation/humanSocial';
 import { explainHumanMovement } from '../src/game/movementExplanation';
-import { initGame } from '../src/game/worldGen';
+import { createBuilding, initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -186,13 +186,80 @@ describe('movement inspector reads the real social input (W-105)', () => {
     for (let day = 5; day < 40 && chosen < 0; day += 7) {
       const tick = day * TICKS_PER_DAY + 10 * TICKS_PER_HOUR;
       state.tick = tick;
-      const withoutNeighbours = pickSocialImpulse(mother, state, state.buildings, [], []);
-      const withSpouse = pickSocialImpulse(mother, state, state.buildings, [spouse], []);
+      const withoutNeighbours = pickSocialImpulse(mother, state, state.buildings, []);
+      const withSpouse = pickSocialImpulse(mother, state, state.buildings, [spouse]);
       if (withoutNeighbours.building && withSpouse.motive === 'care_pregnant') chosen = tick;
     }
     expect(chosen, 'fixture premise: the two input sets disagree on this tick').toBeGreaterThanOrEqual(0);
 
     const explanation = explainHumanMovement(state, mother.id);
     expect(explanation.stops.some((stop) => stop.kind === 'venue')).toBe(false);
+  });
+});
+
+describe('social motives respect needs, mutual relationships and completed errands', () => {
+  it('does not send a healthy early pregnancy or a stale energy mirror to the ward', () => {
+    const state = initGame({ skipTerrain: true, seed: 424242 });
+    const person = state.entities.find((e) => e.alive && isPlayerHuman(e) && e.age >= 18)!;
+    person.energy = 1;
+    person.needs = { nutrition: 90, rest: 90, stamina: 90, severeHungerTicks: 0 };
+    person.pregnant = true;
+    person.pregnancyProgress = 1;
+    person.pregnancyDueProgress = 100;
+    person.griefUntilTick = 0;
+    const ward = createBuilding(BuildingType.Hospital, person.x, person.y, 10001);
+    ward.completed = true;
+    ward.occupants = [10002];
+    for (let day = 1; day < 30; day++) {
+      state.tick = day * TICKS_PER_DAY + 12 * TICKS_PER_HOUR;
+      const impulse = pickSocialImpulse(person, state, [ward], []);
+      expect(impulse.motive).not.toBe('hospital_visit');
+      expect(impulse.motive).not.toBe('sick_day');
+    }
+    person.needs = { ...person.needs, stamina: 10 };
+    expect(pickSocialImpulse(person, state, [ward], []).motive).toBe('sick_day');
+  });
+
+  it('checks mutual spouse links rather than a stale one-way marriage', () => {
+    const state = initGame({ skipTerrain: true, seed: 424242 });
+    const adults = state.entities.filter((e) => e.alive && isPlayerHuman(e) && e.age >= 18);
+    const [person, spouse] = adults;
+    person.relationshipStatus = spouse.relationshipStatus = 'married';
+    person.partnerId = spouse.id;
+    spouse.partnerId = person.id;
+    spouse.pregnant = true;
+    let found = false;
+    for (let day = 1; day < 60; day++) {
+      state.tick = day * TICKS_PER_DAY + 12 * TICKS_PER_HOUR;
+      if (pickSocialImpulse(person, state, [], [spouse]).motive !== 'care_pregnant') continue;
+      found = true;
+      spouse.partnerId = undefined;
+      expect(pickSocialImpulse(person, state, [], [spouse]).motive).not.toBe('care_pregnant');
+      break;
+    }
+    expect(found).toBe(true);
+  });
+
+  it('chooses the nearest completed venue in either pool order and skips a completed errand', () => {
+    const state = initGame({ skipTerrain: true, seed: 424242 });
+    const person = state.entities.find((e) => e.alive && isPlayerHuman(e) && e.age >= 18)!;
+    person.workerBuildingId = undefined;
+    person.pregnant = false;
+    person.griefUntilTick = 0;
+    const near = createBuilding(BuildingType.Market, person.x + 10, person.y, 10001);
+    near.completed = true;
+    const far = { ...near, id: 10002, x: person.x + 100 };
+    let found = false;
+    for (let day = 1; day < 100; day++) {
+      state.tick = day * TICKS_PER_DAY + 10 * TICKS_PER_HOUR;
+      if (pickSocialImpulse(person, state, [far, near], []).motive !== 'market_errand') continue;
+      found = true;
+      expect(pickSocialImpulse(person, state, [far, near], []).building?.id).toBe(near.id);
+      expect(pickSocialImpulse(person, state, [near, far], [], () => [near, far]).building?.id).toBe(near.id);
+      person.socialErrands = { day, market: true };
+      expect(pickSocialImpulse(person, state, [far, near], []).motive).not.toBe('market_errand');
+      break;
+    }
+    expect(found).toBe(true);
   });
 });

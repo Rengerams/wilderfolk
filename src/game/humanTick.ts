@@ -76,7 +76,6 @@ import {
   isSocialStaggerTick,
   tryNeighborGreeting,
   tryWorkplaceBanter,
-  type SocialBuildingPicker,
 } from './socialLife';
 import {
   isPregnancyHospitalPriority,
@@ -399,12 +398,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       completedPoolByKey.set(key, pool);
     }
     return pool;
-  };
-  const pickSocialBuilding: SocialBuildingPicker = (types, salt) => {
-    const pool = completedPoolOf(types);
-    if (pool.length === 0) return undefined;
-    const safeSalt = Number.isFinite(salt) ? Math.abs(Math.floor(salt)) : 0;
-    return pool[safeSalt % pool.length];
   };
 
   const chatHints = chatHintsFromWorld({
@@ -1683,7 +1676,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       inSpotlightGathering,
       allHumans,
       entityById,
-      pickSocialBuilding,
       updatedBuildings,
       buildingById,
       humanSocialGrid,

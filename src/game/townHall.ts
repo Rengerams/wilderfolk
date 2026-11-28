@@ -1,7 +1,9 @@
 import { personDayRoll } from './simRng';
 import type { WorldState, Building, Entity } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
-import { ticksForDays, TICKS_PER_DAY, getHourOfDay } from './dayCycle';
+import { ticksForDays, getHourOfDay, isProductionTick, PRODUCTION_INTERVAL } from './dayCycle';
+import { getAbsoluteCalendarDay, getTickOfDay, DAILY_PHASE_HOURS, TICKS_PER_HOUR } from './dayCycleClock';
+import { getWorkdayAttendance } from './scheduleFatigue';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isWorkScheduleHour } from './workSchedule';
 import { getWorkSchedule } from './workSchedule';
@@ -162,7 +164,8 @@ export function isOfficialAtHall(
 }
 
 /** Settler wants civic attention (dispute, aid, gossip, leader). */
-function wantsCivicAudience(entity: Entity, state: WorldState): boolean {
+export function wantsCivicAudience(entity: Entity, state: WorldState): boolean {
+  if (entity.civicPetitionResolvedDay === getAbsoluteCalendarDay(state.tick)) return false;
   if (!isPlayerHuman(entity) || entity.age < HUMAN_ADULT_MIN_AGE) return false;
   if (entity.job === JobType.Official) return false;
   if ((entity.griefUntilTick ?? 0) > state.tick) return true;
@@ -172,6 +175,26 @@ function wantsCivicAudience(entity: Entity, state: WorldState): boolean {
   }
   if ((entity.scandalCooldownUntilTick ?? 0) > state.tick) return true;
   return personDayRoll(entity.id, state.tick, 820) < 0.18;
+}
+
+/** The existing three-day hall cadence, anchored to the colony day, not the tax settlement. */
+export function isCivicAudienceDay(tick: number): boolean {
+  return isProductionTick(tick - getTickOfDay(tick), PRODUCTION_INTERVAL.townHall);
+}
+
+/** Run audiences at the existing evening phase even when production is deferred. */
+export function tickScheduledTownHallAudiences(state: WorldState, buildings: readonly Building[], people: Entity[]): void {
+  if (!isCivicAudienceDay(state.tick) || getTickOfDay(state.tick) !== DAILY_PHASE_HOURS.production * TICKS_PER_HOUR) return;
+  for (const hall of buildings) {
+    if (hall.type !== BuildingType.TownHall || !hall.completed || hall.occupants.length === 0) continue;
+    // Preserve the production pass's witnessed attendance requirement; roster alone is insufficient.
+    if (!people.some((person) => {
+      if (!person.alive || person.prisonBuildingId != null || !isPlayerHuman(person)) return false;
+      const attendance = getWorkdayAttendance(person);
+      return attendance.ticks > 0 && (attendance.siteId ?? person.workerBuildingId) === hall.id;
+    })) continue;
+    tickTownHallAudiences(state, hall, people);
+  }
 }
 
 export type CivicPetitionResult =
@@ -203,7 +226,12 @@ export function resolveCivicPetition(
 
   if (!isAtHall(petitioner, hall)) return { kind: 'none' };
 
-  const day = Math.floor(state.tick / TICKS_PER_DAY);
+  const day = getAbsoluteCalendarDay(state.tick);
+  if (petitioner.civicPetitionResolvedDay === day) return { kind: 'none' };
+  const complete = (result: Exclude<CivicPetitionResult, { kind: 'none' }>): CivicPetitionResult => {
+    petitioner.civicPetitionResolvedDay = day;
+    return result;
+  };
   if (personDayRoll(petitioner.id, state.tick, 821 + day) > 0.4) return { kind: 'none' };
 
   const leader = getVillageLeader(state);
@@ -237,7 +265,7 @@ export function resolveCivicPetition(
     addFloatingText(state, petitioner.x, petitioner.y - 14, `+${spent} food (aid)`, '#86efac', 'brief');
     requestDialogue({ eventKey: 'townHall.foodAid', speaker: petitioner, tick: state.tick, selectionRoll: personDayRoll(petitioner.id, state.tick, 831), durationHours: dialogueHoursFromNominalTicks(50), priority: 'scripted' });
     addReputation(state, 1);
-    return { kind: 'aid_food', amount: spent };
+    return complete({ kind: 'aid_food', amount: spent });
   }
 
   // Scandal / grief → being heard
@@ -251,7 +279,7 @@ export function resolveCivicPetition(
     const hallCentre = getBuildingCenter(hall);
     addFloatingText(state, hallCentre.x, hallCentre.y - 10, '📜 Petition heard', '#93c5fd', 'brief');
     addReputation(state, 1);
-    return { kind: 'heard' };
+    return complete({ kind: 'heard' });
   }
 
   // Leader audience. Both lines are gated on `isDialogueBusy` so neither abandons a pair mid-way; the
@@ -264,7 +292,7 @@ export function resolveCivicPetition(
       requestDialogue({ eventKey: 'townHall.audience.leader', speaker: leader, tick: state.tick, selectionRoll: personDayRoll(leader.id, state.tick, 834), durationHours: dialogueHoursFromNominalTicks(48) });
     }
     addReputation(state, 1);
-    return { kind: 'leader_audience' };
+    return complete({ kind: 'leader_audience' });
   }
 
   // Generic civic visit — small gold stipend for very poor days
@@ -278,12 +306,12 @@ export function resolveCivicPetition(
     adjustHumanStaminaFromEnergy(petitioner, 5);
     addFloatingText(state, petitioner.x, petitioner.y - 12, '🪙 Stipend', '#fde047', 'brief');
     requestDialogue({ eventKey: 'townHall.goldAid', speaker: petitioner, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(40), priority: 'scripted' });
-    return { kind: 'aid_gold', amount };
+    return complete({ kind: 'aid_gold', amount });
   }
 
   if (personDayRoll(petitioner.id, state.tick, 826) < 0.25) {
     requestDialogue({ eventKey: 'townHall.generic', speaker: petitioner, tick: state.tick, selectionRoll: personDayRoll(petitioner.id, state.tick, 835), durationHours: dialogueHoursFromNominalTicks(40), priority: 'scripted' });
-    return { kind: 'heard' };
+    return complete({ kind: 'heard' });
   }
 
   return { kind: 'none' };

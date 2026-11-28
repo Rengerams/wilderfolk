@@ -263,7 +263,6 @@ describe('worker hand-off state', () => {
         inSpotlightGathering: false,
         allHumans: world.entities,
         entityById: new Map(world.entities.map((entity) => [entity.id, entity])),
-        pickSocialBuilding: () => undefined,
         updatedBuildings: world.buildings,
         buildingById: new Map(),
         humanSocialGrid: undefined,
