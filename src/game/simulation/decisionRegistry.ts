@@ -136,9 +136,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/chronicle.citizenProseNames.test.ts',
   },
   dailyPersonRoll: {
-    owner: 'simRng.ts — personDayRoll',
+    owner: 'simRng.ts — personDayRoll, personPairDayRoll, mixDayRoll',
     cadence: 'on-demand',
-    cadenceNote: 'Pure stateless hash keyed by settler ID, absolute colony day and call-site salt. Stable for the entire colony day; read-only and consumes no RNG stream state.',
+    cadenceNote: 'Pure stateless hash keyed by settler ID, absolute colony day and call-site salt; pair rolls hash both IDs. Historical buckets retain aligned strict thresholds, with quotient precision resolving rare probabilities. Stable for the entire colony day; read-only and consumes no RNG stream state.',
     writes: [],
     scheduledFrom: 'Direct on-demand calls from humanSchedule, townHall, socialLife, hospitalCare, humanHospitalBehavior, humanLeisureBehavior, humanHuntingBehavior, hotelStay, humanTick and simulation/humanRelationships',
     testFile: 'tests/personDayRoll.simRng.test.ts, tests/humanLeisureBehavior.test.ts, tests/civicPetition.cadence.test.ts',

@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Resolve rare daily probabilities inside the existing RNG buckets instead of rounding them up; sudden illness follows its intended risk without a second random generator.
 - **Improved (28 Nov 2026):** Show current adult education totals by qualification level in the Village Schooling overview.
 
 - **Fixed (28 Nov 2026, PR #243):** Let the housing owner move an unemployed household into spare beds near a reachable job, preserving custodians and school commutes. The existing staffing pass then assigns work; only one such move is attempted per pulse.
