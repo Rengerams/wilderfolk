@@ -1,10 +1,12 @@
+import { REPUTATION_MAX, addReputation } from '../src/game/simHelpers';
+import { TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { human } from '../src/test/factories';
 /**
  * Raid pressure is a property of the village, not of the camp: the war-band and its prize grow with
  * the adult population rather than currently available soldiers. Loot has an independent cap.
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import {
-  clampRaidGoldGain,
+import { clampRaidGoldGain,
   countArmedMilitia,
   respondToOutgoingRaidEvent,
   tickPendingOutgoingRaidEvents,
@@ -12,10 +14,9 @@ import {
   getRivalRaidStrength,
   maybeQueueRaid,
   RAID_GROWTH_BASE_ADULTS,
-  type RaidEvent,
-} from '../src/game/frontierCombat';
+  type RaidEvent, getRaidChoiceEligibility, queueRaidDefense, respondToRaidEvent, tickPendingRaidEvents } from '../src/game/frontierCombat';
 import { computeMilitiaBreakdown } from '../src/game/militiaBalance';
-import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, OutgoingRaidEvent, RivalSettlement, WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
@@ -266,5 +267,164 @@ describe('outgoing raid payoff, news and militia ownership', () => {
       expect(ownerCount).toBeGreaterThan(0);
       expect(countArmedMilitia(state, state.entities)).toBe(ownerCount);
     });
+  });
+});
+
+describe('the leader-honored announcement survives a maxed reputation', () => {
+  /** A decisive player victory, so `rewardRaidParticipants` runs its victory branch. */
+  function defendableWorld(reputation: number): { world: WorldState; eventId: string } {
+    const world = initGame({ villageName: 'Raid', seed: 20260922, size: MapSize.Medium });
+    world.resources = { wood: 5000, stone: 5000, food: 5000, gold: 5000, iron: 5000 };
+    world.storageMax = { wood: 5000, stone: 5000, food: 5000, gold: 5000, iron: 5000 };
+    world.villageReputation = reputation;
+
+    const leader = human(1, { name: 'Bryn', job: JobType.Soldier });
+    const guard = human(2, { name: 'Ash', job: JobType.Soldier });
+    world.entities = [leader, guard];
+    world.villageLeaderId = leader.id;
+    world.humanPopulation = 2;
+    // Spears satisfy `hasMilitiaWeapons`, which `getRaidChoiceEligibility('defend')` requires.
+    world.unlockedTechs = [...(world.unlockedTechs ?? []), 'defense_2'];
+    world.researchNodes = (world.researchNodes ?? []).map((node) =>
+      node.id === 'defense_2' ? { ...node, researched: true, unlocked: true } : node,
+    );
+
+    const rival = {
+      id: 'rival_1',
+      population: 8,
+      foundedYear: 0,
+      name: 'Ravenhold',
+      campX: 900,
+      campY: 900,
+      relationship: 'tense',
+      raidCooldownDays: 0,
+      peaceTreatyDays: 0,
+      daysUntilAction: 5,
+    } as unknown as RivalSettlement;
+    world.rivalSettlements = [rival];
+
+    const eventId = 'raid_audit';
+    world.pendingRaidEvents = [
+      {
+        id: eventId,
+        rivalId: rival.id,
+        rivalName: rival.name,
+        title: 'Ravenhold is marching',
+        description: 'A war-band is on the road.',
+        emoji: '⚔️',
+        choices: [{ id: 'defend', label: 'Defend', hint: '' }],
+        createdAtTick: 0,
+        expiresAtTick: 10_000,
+        marchDistanceTiles: 6,
+        // Overwhelmingly one-sided, so the outcome is a decisive player victory by construction.
+        attackerStrength: 1,
+        defenderStrength: 100,
+        lootFood: 10,
+        lootGold: 5,
+        lootWood: 0,
+        lootStone: 0,
+        lootIron: 0,
+      } as unknown as WorldState['pendingRaidEvents'][number],
+    ];
+    return { world, eventId };
+  }
+
+  /** Production defense is a six-hour scheduled battle, never an immediate choice resolution. */
+  function finishDefense(world: WorldState, eventId: string): WorldState {
+    const started = queueRaidDefense(world, eventId, 'defend');
+    const event = started.pendingRaidEvents.find((entry) => entry.id === eventId);
+    expect(event?.phase).toBe('fighting');
+    // Fixed seed 5 applies timed casualties while keeping the leader alive for reputation tests.
+    setSimSeed(5);
+    started.tick = (event?.battleStartedAtTick ?? started.tick) + 6 * TICKS_PER_HOUR;
+    tickPendingRaidEvents(started, started.entities);
+    expect(started.entities.find((person) => person.id === 1)?.alive).toBe(true);
+    return started;
+  }
+
+  it('stores a once-only report for an actual resolved raid with named village losses', () => {
+    const { world, eventId } = defendableWorld(50);
+    const after = finishDefense(world, eventId);
+    const report = after.raidBattleReports?.find((entry) => entry.raidId === eventId);
+    expect(report).toBeDefined();
+    expect(report?.side).toBe('defense');
+    expect(report?.leaderId).toBe(1);
+    expect(report?.outcome).toBe('decisive');
+    expect(report?.playerDeaths).toBe(report?.playerFallen.length);
+    expect(after.pendingRaidEvents.some((entry) => entry.id === eventId)).toBe(false);
+
+    const repeated = respondToRaidEvent(after, eventId, 'defend');
+    expect(repeated.raidBattleReports).toEqual(after.raidBattleReports);
+    expect(repeated.entities.find((entity) => entity.id === 1)?.battleLeadershipMerit)
+      .toBe(after.entities.find((entity) => entity.id === 1)?.battleLeadershipMerit);
+  });
+
+  it('records serious defense as one leadership award while excluding trivial threats', () => {
+    const { world, eventId } = defendableWorld(50);
+    const trivial = finishDefense(world, eventId);
+    expect(trivial.raidBattleReports?.[0]?.leadershipMerit).toBe(0);
+    const serious = structuredClone(world);
+    serious.pendingRaidEvents[0]!.attackerStrength = 10;
+    const outcome = finishDefense(serious, eventId);
+    const report = outcome.raidBattleReports?.find((entry) => entry.raidId === eventId);
+    expect(report).toBeDefined();
+    expect(report?.leadershipMerit).toBeGreaterThanOrEqual(0);
+  });
+
+  it('announces the leader when reputation still has room to rise', () => {
+    const { world, eventId } = defendableWorld(REPUTATION_MAX - 5);
+    const after = finishDefense(world, eventId);
+
+    expect(after.villageReputation).toBeGreaterThan(REPUTATION_MAX - 5);
+    // The positive control: with room below the cap the banner is expected. Without this the case
+    // below would pass vacuously.
+    expect(after.bigNews.some((news) => news.title === '👑 Leader honored')).toBe(true);
+  });
+
+  it('announces the rise that reaches the cap', () => {
+    // The full-bar case the old guard got right: 96 + 4 is a real rise, and the banner says so.
+    const { world, eventId } = defendableWorld(REPUTATION_MAX - 4);
+    const after = finishDefense(world, eventId);
+
+    expect(after.villageReputation).toBe(REPUTATION_MAX);
+    expect(after.bigNews.some((news) => news.title === '👑 Leader honored')).toBe(true);
+  });
+
+  it('stays silent when the clamp delivered nothing', () => {
+    // `addReputation` clamps, so a victory at the cap grants 0; the banner promises "reputation
+    // rises", so it is gated on the amount granted, not on the clamped total.
+    const { world, eventId } = defendableWorld(REPUTATION_MAX);
+    const after = finishDefense(world, eventId);
+
+    expect(after.villageReputation).toBe(REPUTATION_MAX);
+    // The victory itself still happens and is still logged; only the banner is withheld.
+    expect(after.eventLog.some((entry) => entry.message.includes('led the raid against'))).toBe(true);
+    expect(
+      after.bigNews.some((news) => news.title === '👑 Leader honored'),
+      'the banner promises a rise the clamp did not deliver',
+    ).toBe(false);
+  });
+
+  it('reports the clamped delta from the owner', () => {
+    const { world } = defendableWorld(REPUTATION_MAX);
+    // `addReputation` owns the clamp, so it is the one place that can say what was applied.
+    expect(addReputation(world, 4)).toBe(0);
+    expect(world.villageReputation).toBe(REPUTATION_MAX);
+
+    world.villageReputation = REPUTATION_MAX - 1;
+    expect(addReputation(world, 4)).toBe(1);
+    expect(world.villageReputation).toBe(REPUTATION_MAX);
+
+    world.villageReputation = 0;
+    expect(addReputation(world, -5)).toBe(0);
+    expect(world.villageReputation).toBe(0);
+  });
+
+  it('does not raise the eligibility gate it shares with the virtual player', () => {
+    // The fix must not have changed what `defend` costs or requires.
+    const { world, eventId } = defendableWorld(0);
+    const event = world.pendingRaidEvents[0];
+    expect(getRaidChoiceEligibility(world, event, 'defend').ok).toBe(true);
+    expect(getRaidChoiceEligibility(world, event, 'defend', world.entities).ok).toBe(true);
   });
 });

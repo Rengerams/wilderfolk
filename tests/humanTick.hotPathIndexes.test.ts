@@ -635,3 +635,35 @@ describe('human tick duty and offscreen physiology', () => {
     });
   });
 });
+
+describe('one definition of the village anchor', () => {
+  it('prefers a hall, then a house, then the settler mean — never a stray building', () => {
+    const hall = {
+      id: 1, type: BuildingType.TownHall, completed: true, x: 100, y: 100, width: 40, height: 40,
+    } as never;
+    const house = {
+      id: 2, type: BuildingType.House, completed: true, x: 200, y: 200, width: 20, height: 20,
+    } as never;
+    const barracks = {
+      id: 3, type: BuildingType.Barracks, completed: true, x: 900, y: 900, width: 40, height: 40,
+    } as never;
+
+    // `building.x/y` is the canonical footprint centre (buildingGeometry), so the anchor is that
+    // point itself; adding half a footprint would put the camp ~2 tiles south-east of the hall.
+    expect(getPlayerCampCenterFromBuildings([hall, house])).toEqual({ x: 100, y: 100 });
+    expect(getPlayerCampCenterFromBuildings([house])).toEqual({ x: 200, y: 200 });
+    // No hall and no house: the building half must decline, which is what lets the settler mean answer.
+    expect(getPlayerCampCenterFromBuildings([barracks])).toBeNull();
+
+    // This is the case the renderer's private copy got wrong: it returned the first completed player
+    // building (the Barracks at 920,920) while the simulation anchored on the settlers.
+    const world = {
+      entities: [sharedHuman(1, { x: 300, y: 300 }), sharedHuman(2, { x: 400, y: 400 })],
+      width: 1000,
+      height: 1000,
+    };
+    expect(getPlayerCampCenter(world, [barracks])).toEqual({ x: 350, y: 350 });
+  });
+
+
+});

@@ -1,3 +1,4 @@
+import { isMarriedOrExpecting } from '../src/game/relationships';
 /**
  * Each "one rule" has a single owner: the colony-human predicate in `playerHuman`, the predator set
  * in `combat`, and "what is a wall" in `defenseStructures`.
@@ -168,4 +169,20 @@ describe('A11 — "what is a wall" has one owner', () => {
     const { hList, vList } = collectStripCenters(buildings, 'wall');
     expect(hList.length + vList.length, 'a wall type dropped out of the strip family').toBe(2);
   });
+});
+
+describe('one definition of "in an active marriage"', () => {
+  it('counts expecting as married, because conception sets both partners to it', () => {
+    expect(isMarriedOrExpecting({ relationshipStatus: 'married' })).toBe(true);
+    expect(isMarriedOrExpecting({ relationshipStatus: 'expecting', partnerId: 1 })).toBe(true);
+    expect(isMarriedOrExpecting({ relationshipStatus: 'expecting' })).toBe(false);
+    expect(isMarriedOrExpecting({ relationshipStatus: 'single' })).toBe(false);
+    expect(isMarriedOrExpecting({ relationshipStatus: undefined })).toBe(false);
+  });
+
+
+
+
+
+
 });

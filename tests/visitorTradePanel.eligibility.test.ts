@@ -1,3 +1,5 @@
+import { formatResourceAmounts } from '../src/game/resourceTypes';
+import { MapSize } from '../src/game/gameTypes';
 /**
  * The visitor trade buttons must be gated by the owner `groupEvents.getVisitorTradeEligibility`, which
  * also rejects a leaving caravan, a group out of gold, and insufficient storage for what it receives.
@@ -119,4 +121,94 @@ describe('legacy refugee choice eligibility (R5)', () => {
   });
 
 
+});
+
+describe('Stone trade and resource amount formatting', () => {
+  /**
+   * A minimal world with a player trader and the given store, built from `initGame` so every field the
+   * owners read exists. The trader is the shared fixture for the two stone-trade cases.
+   */
+  function traderWorld(resources: Partial<WorldState['resources']> = {}): WorldState {
+    const world = initGame({ villageName: 'Stone', seed: 20260921, size: MapSize.Medium });
+    world.visitorGroups = [
+      {
+        id: 'trader-1',
+        name: 'Traders',
+        kind: 'traders',
+        daysLeft: 3,
+        gold: 500,
+        campX: 100,
+        campY: 100,
+        tradesCompleted: 0,
+        giftsGiven: 0,
+      } as unknown as WorldState['visitorGroups'][number],
+    ];
+    world.resources = { wood: 100, stone: 100, food: 100, gold: 500, iron: 50, ...resources };
+    world.storageMax = { wood: 5000, stone: 5000, food: 5000, gold: 5000, iron: 5000 };
+    return world;
+  }
+
+  describe('visitor trade can buy and sell stone (audit: no stone route to a caravan)', () => {
+    it('quotes both stone actions from the owner', () => {
+      // Reputation deliberately at the neutral band, so the multipliers are 1 and the raw catalogue
+      // prices are what these assertions read.
+      const world = traderWorld();
+      world.villageReputation = 50;
+      const buy = getVisitorTradeTerms(world, 'buy_stone');
+      expect(buy.effectivePay.gold).toBe(20);
+      expect(buy.effectiveReceive.stone).toBe(25);
+
+      const sell = getVisitorTradeTerms(world, 'sell_stone');
+      expect(sell.effectivePay.stone).toBe(35);
+      expect(sell.effectiveReceive.gold).toBe(20);
+    });
+
+    it('gates them like every other action — price, then what the store can take', () => {
+      const affordable = traderWorld({ gold: 100 });
+      affordable.villageReputation = 50;
+      expect(getVisitorTradeEligibility(affordable, 'trader-1', 'buy_stone').ok).toBe(true);
+
+      const broke = traderWorld({ gold: 0 });
+      broke.villageReputation = 50;
+      const brokeGate = getVisitorTradeEligibility(broke, 'trader-1', 'buy_stone');
+      expect(brokeGate.ok).toBe(false);
+      expect(brokeGate.blockReason).toBe('Need 20💰');
+
+      // Selling needs the stone *and* room for the gold it pays — the same two-sided gate as sell_iron.
+      const noStone = traderWorld({ stone: 0 });
+      noStone.villageReputation = 50;
+      expect(getVisitorTradeEligibility(noStone, 'trader-1', 'sell_stone').ok).toBe(false);
+
+      const fullPurse = traderWorld();
+      fullPurse.villageReputation = 50;
+      fullPurse.storageMax.gold = 500;
+      fullPurse.resources.gold = 500;
+      const fullGate = getVisitorTradeEligibility(fullPurse, 'trader-1', 'sell_stone');
+      expect(fullGate.ok).toBe(false);
+      expect(fullGate.blockReason).toBe('Cannot store more gold');
+    });
+
+    it('retains both legacy stone trade command keys in the catalogue', () => {
+      // The command validator derives its accepted actions from this table, so an action missing here
+      // is rejected as an invalid `WorkerCommand` before it reaches the owner.
+      expect(Object.keys(VISITOR_TRADE_COSTS)).toContain('buy_stone');
+      expect(Object.keys(VISITOR_TRADE_COSTS)).toContain('sell_stone');
+
+
+    });
+  });
+
+  describe('a multi-resource trade float names every resource, not only the last', () => {
+    it('accumulates instead of overwriting', () => {
+      // The two-resource trade bundles are why the float accumulates; the formatter is what it now
+      // reads, so this pins the exact string a two-resource deal produces.
+      expect(formatResourceAmounts({ gold: 30, iron: 15 })).toBe('30 💰 · 15 🔩');
+      expect(formatResourceAmounts({ stone: 80, gold: 60 })).toBe('80 🪨 · 60 💰');
+      // A single-resource deal is unchanged from the old `+N<emoji>` shape apart from the separator.
+      expect(formatResourceAmounts({ wood: 30 })).toBe('30 🪵');
+      expect(formatResourceAmounts({})).toBe('');
+    });
+
+
+  });
 });

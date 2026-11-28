@@ -1,3 +1,4 @@
+import { human } from '../src/test/factories';
 import { EntitySpatialGrid, gridCellAxis } from '../src/game/spatialGrid';
 /**
  * `scentGrid` is simulation state, not a derived index: realtime decays it, systems samples it, and
@@ -11,7 +12,7 @@ import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/sa
 import { resetSimRng } from '../src/game/simRng';
 import { ensureScentGrid, ScentGrid } from '../src/game/scentGrid';
 import { WORKER_PROTO, type WorkerRequest, type WorkerResponse } from '../src/game/simWorker/protocol';
-import { MapSize, type WorldState } from '../src/game/gameTypes';
+import { MapSize, type WorldState, type Entity } from '../src/game/gameTypes';
 
 interface SelfShim {
   onmessage: ((event: { data: WorkerRequest }) => void) | null;
@@ -230,5 +231,40 @@ describe('A12 — one owner for world→cell coordinate clamping', () => {
     // deposit finite coordinates, so the shared clamp propagates NaN. Pinned, not hidden.
     expect(entityGrid.cellCoords(Number.NaN, 10)).toBeNull();
     expect(Number.isNaN(scentGrid.cellCoords(Number.NaN, 10).col)).toBe(true);
+  });
+});
+
+describe('the spatial grid refreshes an object that did not change cell', () => {
+  /** Everything the grid holds in a rectangle, via its own traversal primitive. */
+  function inRect(grid: EntitySpatialGrid<Entity>, minX: number, minY: number, maxX: number, maxY: number): Entity[] {
+    const found: Entity[] = [];
+    grid.forEachInRect(minX, minY, maxX, maxY, (entity) => found.push(entity));
+    return found;
+  }
+
+  it('replaces the stored entry when a fresh object arrives for the same cell', () => {
+    // The worker's render path builds a new shim per slot per tick with the same id and cell, so the
+    // grid must replace the stored entry to carry fields that changed without a cell change.
+    const grid = new EntitySpatialGrid<Entity>(100, 100, 10);
+    const first = human(1, { x: 5, y: 5 });
+    const refreshed = human(1, { x: 5, y: 5, flash: 9 });
+    expect(first.id).toBe(refreshed.id);
+
+    grid.reconcile([first]);
+    grid.reconcile([refreshed]);
+
+    const cell = inRect(grid, 0, 0, 10, 10);
+    expect(cell).toHaveLength(1);
+    expect(cell[0], 'the grid kept the stale object').toBe(refreshed);
+    expect(cell[0].flash).toBe(9);
+  });
+
+  it('still moves an entity between cells', () => {
+    const grid = new EntitySpatialGrid<Entity>(100, 100, 10);
+    grid.reconcile([human(1, { x: 5, y: 5 })]);
+    grid.reconcile([human(1, { x: 55, y: 55 })]);
+
+    expect(inRect(grid, 0, 0, 10, 10)).toHaveLength(0);
+    expect(inRect(grid, 50, 50, 60, 60)).toHaveLength(1);
   });
 });

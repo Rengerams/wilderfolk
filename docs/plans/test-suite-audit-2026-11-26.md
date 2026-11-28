@@ -277,6 +277,10 @@ Moved the legacy DNA inventory and scanner self-tests out of Vitest to `scripts/
 
 Retired `visualsAudit.renderWiring.test.ts`. Seven renderer runtime cases and their historical key proof now run in `renderer.frameOwnership`, `humanSprites` and `terrain.visualCoherence`. The scoped terrain-fill call count is now a declarative region count with both add/remove mutations. Its synthetic proof is superseded; the D21 literal-only example documented a non-defect (identical draw arguments in mutually exclusive transform branches), not a runtime test. No gameplay changes; CI pending.
 
+## September regression suite consolidation — 2026-11-28
+
+Moved all 26 remaining cases from `audit2026-09-21.regression` into their nine existing subject-owner suites (visitor trade, frontier combat, relationship predicates, citizen names, village anchor, rollback, save refusal, persistence, and spatial grid). Preserved each case and its assertions; reused the existing shared human fixture in the anchor suite. Updated the sprite-cache overlap approval to its actual rendering evidence and removed unused export visibility reported by Knip. No gameplay changes; CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

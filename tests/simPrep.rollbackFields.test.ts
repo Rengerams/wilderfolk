@@ -187,3 +187,31 @@ describe('worker rollback of mutable economy and entity records', () => {
     expect(world.disasters[0].progress).toBe(0);
   });
 });
+
+describe('the tick rollback restores the pre-tick float and particle values', () => {
+  it('copies the elements, not just the arrays', () => {
+    const world = initGame({ villageName: 'Rollback', seed: 20260923, size: MapSize.Medium });
+    world.floatingTexts = [
+      { id: 1, x: 10, y: 10, text: 'hi', color: '#fff', life: 5, maxLife: 5, scale: 1 },
+    ] as unknown as WorldState['floatingTexts'];
+    world.deathParticles = [
+      { x: 10, y: 10, vx: 0, vy: 0, life: 5, maxLife: 5, color: '#fff', size: 2 },
+    ] as unknown as WorldState['deathParticles'];
+
+    const prep = extractSimPrep(world);
+    // The snapshot must hold copies: the realtime layer decays these objects in place, so an aliased
+    // backup would "restore" the already-mutated values.
+    expect(prep.floatingTexts[0]).not.toBe(world.floatingTexts[0]);
+    expect(prep.deathParticles[0]).not.toBe(world.deathParticles[0]);
+
+    // The realtime layer's in-place decay, applied to the live objects after the snapshot.
+    world.floatingTexts[0].life -= 1;
+    world.floatingTexts[0].y -= 0.7;
+    world.deathParticles[0].life -= 1;
+    applySimPrep(world, prep);
+
+    expect(world.floatingTexts[0].life).toBe(5);
+    expect(world.floatingTexts[0].y).toBe(10);
+    expect(world.deathParticles[0].life).toBe(5);
+  });
+});

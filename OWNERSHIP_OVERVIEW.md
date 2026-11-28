@@ -162,7 +162,7 @@ Genetics layers, activity registry, evaluator contract and change recipes: [DNA 
 | Worker/main save and RNG parity fixture | `tests/workerMainThread.parity.test.ts` — `installWorkerSelf`, test-local `differences` | 2 × 288 ticks with two midnight crossings; existing worker protocol, saved-state and stream comparison; fixture uses `skipTerrain: true` |
 | Required real-calendar CI gate | `scripts/test.mjs` — `calendarScheduler` (test runner), `.github/workflows/calendar-scheduler.yml` (mandatory PR/main job), `vitest.config.ts` (scoped coverage) | `npm test -- calendar-scheduler`: selected day/year boundaries, no 720-day continuous loop or `--passWithNoTests` |
 | Calendar-phase test world fixture | `tests/dayCycle.cadence.test.ts` — `worldBeforeDay` | test-only: derive previous day from the canonical clock |
-| Six-hour defense regression harness | `tests/audit2026-09-21.regression.test.ts` — `defendableWorld`, `finishDefense` | Test-only: build the leader/reputation fixture, invoke `queueRaidDefense`, advance the genuine battle clock and assert its aftermath without bypassing the gameplay owner |
+| Six-hour defense regression harness | `tests/frontierCombat.raidGold.test.ts` — `defendableWorld`, `finishDefense` | Test-only: build the leader/reputation fixture, invoke `queueRaidDefense`, advance the genuine battle clock and assert its aftermath without bypassing the gameplay owner |
 | CI and standard/slow gate routing | `scripts/test.mjs` — `run` | `npm run test:standard`; PRs pass `--changed <base SHA>` for affected unit tests; main pushes run the full standard suite and the production build, and neither `npm test` nor `npm run test:standard` rewrites duplicate baselines. Static gates and build remain project-wide. `npm test -- colony-integration`, `npm test -- full` retain their separate slow gates. |
 | Bounded simulation CI | `.github/workflows/simulation-120-day.yml` | PR simulation-rule changes and manual dispatch; seeded producer bot, 120 days, 30-day invariant checkpoints |
 | Incremental function overlap review | `scripts/check-function-overlap.mjs` — `main` (sole scanner entrypoint: load call graph, detect missing source files, regenerate stale JSON/HTML via the existing graph builder, then run the incremental gate), `changedLines`, `lex`, `dice`, `overlap`, `checkOverlaps`, `extractFact`, `unchangedTopLevelFunction` and internal comparison helpers | Standard CI after `scripts/build-call-graph.mjs`; fingerprints and test-backed exceptions in `docs/tools/semantic-overlap-reviewed.json`; stale-graph regression owned by `scripts/check-function-overlap.integration.test.mjs` — `runCase` |
@@ -717,10 +717,12 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/workforce.transitions.test.ts` | `legacyStaffingWorld` (legacy manual staffing fixture) |
 | `tests/renderer.motionAndHover.test.ts` | `sharedModule`, `recorder`, `snapshot`, `completedBuilding`, `expectedPadFill` (isolated motion and fallback fixtures) |
 | `tests/renderer.frameOwnership.test.ts` | `snapshot`, `minimalWorld`, `camera`, `blacksmithBuilding`, `gradientCounter`, `recordingContext`, `atGhost`, `preFixKey` (frame cache and live placement fixtures) |
-| `tests/saveLoad.outcomeReasons.test.ts` | `stubSlot`, `memoryStorage`, `realPayload`, `buildPayload` (shared load-contract fixtures) |
+| `tests/saveLoad.outcomeReasons.test.ts` | `stubSlot`, `memoryStorage`, `realPayload`, `buildPayload`, `payload` (shared load-contract fixtures) |
 | `tests/humanTick.hotPathIndexes.test.ts` | `building`, `settler`, `visitorGroup`, `festivalFixture`, `simContext`, `countedBuildings`, `runTick`, `baseSettler`, `throttleSettler`, `house`, `nightWorld`, `contextFor`, `positionOf`, `canonicalCampCenter`, `anchorFixture`, `pickId`, `restingSettlerWorld`, `townHallWorld` (shared tick fixtures, off-screen throttle and camp-anchor regressions) |
 | `tests/moonHowler.test.ts` | `adult` (scoped six-adult per-moon regression fixture) |
 | `tests/simPrep.rollbackFields.test.ts` | `settlerFixture` (mutable state rollback) |
+| `tests/visitorTradePanel.eligibility.test.ts` | `traderWorld` (stone trade fixture) |
+| `tests/scentGrid.rollback.test.ts` | `inRect` (entity-grid rectangle traversal fixture) |
 | `tests/workerDisplayCache.ownership.test.ts` | `treeAt`, `grassAt` (reused grid fixtures) |
 | `tests/staffing.pregnancy.test.ts` | `makeWorld` (construction eligibility) |
 | `tests/rpgArt.integration.test.ts` | `publicPath`, `sourceTexts`, `walk`, `FakeImage.src` (sprite asset and preload fixtures) |

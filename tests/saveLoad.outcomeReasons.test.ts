@@ -316,3 +316,88 @@ describe('the save-loadability probe validates the saved payload', () => {
   });
 });
 });
+
+describe('a save that would load into a broken world is refused by name', () => {
+  // Built by the real save writer, so the "accepts a well-formed payload" control cannot pass
+  // vacuously on a hand-written stub that is missing half the world.
+  function payload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    const world = initGame({ villageName: 'Broken', seed: 20260924, size: MapSize.Medium });
+    return { ...buildSaveData(world, createInitialView(world.width, world.height)), ...overrides };
+  }
+
+  it('accepts a well-formed payload', () => {
+    expect(loadGameFromParsedOutcome(payload()).ok).toBe(true);
+  });
+
+  it('refuses a non-finite tick, which would stop the daily layer forever', () => {
+    const outcome = loadGameFromParsedOutcome(payload({ tick: 'not-a-number' }));
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.reason).toBe('unrestorable');
+    expect(outcome.detail).toContain('tick');
+  });
+
+  it('refuses a non-finite map dimension', () => {
+    const outcome = loadGameFromParsedOutcome(payload({ width: Number.NaN }));
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.detail).toContain('width');
+  });
+
+  it('refuses a purse missing a key, where every affordability test is permanently false', () => {
+    const outcome = loadGameFromParsedOutcome(payload({ resources: { gold: 5, iron: 0 } }));
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.detail).toContain('resources');
+  });
+
+  it('refuses a non-finite storage cap', () => {
+    const outcome = loadGameFromParsedOutcome(
+      payload({ storageMax: { wood: 10, stone: 10, food: 10, gold: 10, iron: Number.NaN } }),
+    );
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.detail).toContain('storageMax');
+  });
+
+  it('does not write through to the payload it is handed', () => {
+    // `pickWorldStateFromSave` copies top-level keys by reference, so the returned world's arrays are
+    // the payload's own — and `migrateTickTimeline` scales tick fields in place, mutating the caller.
+    const raid = {
+      id: 'raid_frozen',
+      rivalId: 'rival_1',
+      rivalName: 'Ravenhold',
+      title: 't',
+      description: 'd',
+      emoji: '⚔️',
+      choices: [],
+      createdAtTick: 700,
+      expiresAtTick: 800,
+      marchDistanceTiles: 1,
+      attackerStrength: 1,
+      defenderStrength: 1,
+      lootFood: 0,
+      lootGold: 0,
+      lootWood: 0,
+    };
+    const p = payload({
+      _ticksPerDay: 24,
+      tick: 720,
+      pendingRaidEvents: [raid],
+    });
+    const snapshot = JSON.stringify(p);
+
+    const first = loadGameFromParsedOutcome(p);
+    expect(first.ok).toBe(true);
+    // The caller's own object is untouched…
+    expect(JSON.stringify(p)).toBe(snapshot);
+    expect((p.pendingRaidEvents as (typeof raid)[])[0].createdAtTick).toBe(700);
+
+    // …so a second load of the same payload produces the same world rather than scaling again.
+    const second = loadGameFromParsedOutcome(p);
+    expect(second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect(second.world.tick).toBe(first.world.tick);
+    expect(second.world.pendingRaidEvents).toEqual(first.world.pendingRaidEvents);
+  });
+});

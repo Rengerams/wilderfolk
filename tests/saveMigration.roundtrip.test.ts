@@ -1,13 +1,14 @@
+import { invalidateWorldRuntimeCaches } from '../src/game/worldRuntimeCaches';
 /**
  * The autumn-migration state survives save/load: the save schema carries
  * `activeMigration`, `migrationNextHerdSize` and `migrationTag`.
  */
 import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';
-import { BuildingType, EntityType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, MapSize, type WorldState } from '../src/game/gameTypes';
 import { building } from '../src/test/factories';
 import { createInitialView } from '../src/game/viewState';
-import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
+import { buildSaveData, loadGameFromParsed, parseSaveJson, loadGameFromParsedOutcome } from '../src/game/saveLoad';
 import { WORLD_STATE_SAVE_KEYS } from '../src/game/saveSchema';
 import { extractSimPrep, applySimPrep } from '../src/game/simWorker/simPrep';
 import { extractSimTickDelta, applySimTickDelta } from '../src/game/simBuffers/simDelta';
@@ -138,5 +139,50 @@ describe('M20/M25/M34 — simulation state round-trips', () => {
     expect(loaded.moonHowlerPriestsFleeUntil).toBe(4321);
     expect(loaded.villageHappiness).toBe(73);
     expect(loaded.chronicleChapters).toEqual(['first_harvest']);
+  });
+});
+
+describe('what the tick writes is durable', () => {
+  it('saves the heating decision the simulation reads for the rest of the day', () => {
+    // `humanNeeds` reads the cached `villageCanHeat` to apply the 1.5x unheated-winter penalty, so a
+    // reload must not refund the rest of the day it was decided for.
+    expect(
+      (WORLD_STATE_SAVE_KEYS as readonly string[]).includes('villageCanHeat'),
+      'villageCanHeat is not saved, so a reload cancels the rest of the day it was decided for',
+    ).toBe(true);
+  });
+
+  it('rebuilds the beauty grid on load without discarding the saved happiness', () => {
+    // `beautyGrid` is a stripped runtime cache and `villageHappiness` is saved, so the load rebuilds
+    // the grid from the stored decor without recomputing the happiness it already has.
+    const world = initGame({ villageName: 'Pretty', seed: 20260927, size: MapSize.Medium });
+    world.buildings = [
+      ...world.buildings,
+      { ...world.buildings[0], id: 9001, type: BuildingType.Garden, completed: true, occupants: [] },
+    ] as WorldState['buildings'];
+    world.villageHappiness = 73;
+
+    const saved = buildSaveData(world, createInitialView(world.width, world.height));
+    // The save does not carry the grid…
+    expect('beautyGrid' in saved).toBe(false);
+
+    const outcome = loadGameFromParsedOutcome(saved);
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    // …the load rebuilds it from the stored decor…
+    expect(outcome.world.beautyGrid, 'the beauty grid was not rebuilt on load').toBeDefined();
+    // …and the persisted happiness survives, because the next daily tick owns refining it.
+    expect(outcome.world.villageHappiness).toBe(73);
+  });
+});
+
+describe('runtime caches are stripped by their owner', () => {
+  it('drops the beauty grid as well as the spatial indexes', () => {
+    // A live `Int16Array` riding an export clone is the cost of leaving a non-serializable field out
+    // of the drop list — and nothing then forces the load path to recompute it.
+    const world = initGame({ villageName: 'Caches', seed: 20260928, size: MapSize.Medium });
+    world.beautyGrid = { cols: 1, rows: 1, values: new Int16Array(1) };
+    invalidateWorldRuntimeCaches(world);
+    expect(world.beautyGrid).toBeUndefined();
   });
 });
