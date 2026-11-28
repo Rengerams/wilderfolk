@@ -4,6 +4,7 @@ import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import {
   AUTO_JOB_TRANSFER_COOLDOWN_TICKS,
   canAutoChangeWorkplace,
+  buildWorkforceAssignmentIndex,
   findOverstaffedDonorBuilding,
   pickWorkerToTransfer,
   transferWorkerBetweenBuildings,
@@ -33,7 +34,7 @@ describe('automatic job stability without blocking new colonies', () => {
       workerBuildingId: quarry.id, apprenticeOfId: 99,
     }));
     expect(canAutoChangeWorkplace(workers[0], 100, true)).toBe(false);
-    expect(findOverstaffedDonorBuilding([quarry, farm], workers, farm.id, 100, true, true)).toBeUndefined();
+    expect(findOverstaffedDonorBuilding([quarry, farm], buildWorkforceAssignmentIndex(workers, 100, true), farm, true)).toBeUndefined();
     expect(pickWorkerToTransfer(workers, quarry, farm, 100, [quarry, farm], undefined, true)).toBeUndefined();
   });
 
@@ -111,7 +112,7 @@ describe('automatic job stability without blocking new colonies', () => {
     const quarry = building(10, BuildingType.Quarry, { occupants: [1, 2, 3] });
     const farm = building(11, BuildingType.Farm);
     const workers = [1, 2, 3].map((id) => human(id, { workerBuildingId: quarry.id }));
-    expect(findOverstaffedDonorBuilding([quarry, farm], workers, farm.id, 100, true)?.id).toBe(quarry.id);
+    expect(findOverstaffedDonorBuilding([quarry, farm], buildWorkforceAssignmentIndex(workers, 100), farm, true)?.id).toBe(quarry.id);
     rebalanceJobWorkers(workers, [quarry, farm], undefined, 100);
     expect(quarry.occupants).toHaveLength(1);
     expect(farm.occupants).toHaveLength(2);
@@ -154,8 +155,8 @@ describe('automatic job stability without blocking new colonies', () => {
     const workers = [1, 2].map((id) => human(id, { workerBuildingId: farm.id }));
     // Manual staffing may request an eligible worker; auto-staff can share a full food crew across
     // food sites, because two half-crewed sites out-produce one full site and an idle one.
-    expect(findOverstaffedDonorBuilding([farm, empty], workers, empty.id, 100)?.id).toBe(farm.id);
-    expect(findOverstaffedDonorBuilding([farm, empty], workers, empty.id, 100, true)?.id).toBe(farm.id);
+    expect(findOverstaffedDonorBuilding([farm, empty], buildWorkforceAssignmentIndex(workers, 100), empty)?.id).toBe(farm.id);
+    expect(findOverstaffedDonorBuilding([farm, empty], buildWorkforceAssignmentIndex(workers, 100), empty, true)?.id).toBe(farm.id);
     rebalanceJobWorkers(workers, [farm, empty], undefined, 100);
     expect(farm.occupants).toHaveLength(1);
     expect(empty.occupants).toHaveLength(1);
@@ -177,12 +178,12 @@ describe('automatic job stability without blocking new colonies', () => {
 
     expect(AUTO_JOB_TRANSFER_COOLDOWN_TICKS).toBe(3 * TICKS_PER_DAY);
     expect(canAutoChangeWorkplace(workers[0], 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS - 1)).toBe(false);
-    expect(findOverstaffedDonorBuilding(jobs, workers, 11, 101)).toBeUndefined();
+    expect(findOverstaffedDonorBuilding(jobs, buildWorkforceAssignmentIndex(workers, 101), jobs.find((site) => site.id === 11))).toBeUndefined();
     expect(pickWorkerToTransfer(workers, farm, quarry, 101)).toBeUndefined();
 
     const eligibleTick = 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS;
     expect(canAutoChangeWorkplace(workers[0], eligibleTick)).toBe(true);
-    expect(findOverstaffedDonorBuilding(jobs, workers, 11, eligibleTick)?.id).toBe(10);
+    expect(findOverstaffedDonorBuilding(jobs, buildWorkforceAssignmentIndex(workers, eligibleTick), jobs.find((site) => site.id === 11))?.id).toBe(10);
     const eligible = pickWorkerToTransfer(workers, farm, quarry, eligibleTick);
     expect(eligible).toBeDefined();
     transferWorkerBetweenBuildings(eligible!, farm, quarry, eligibleTick);
@@ -216,13 +217,13 @@ describe('automatic job stability without blocking new colonies', () => {
       ...[6, 7].map((id) => human(id, { workerBuildingId: 12 })),
       ...[8, 9].map((id) => human(id, { workerBuildingId: 13 })),
     ];
-    expect(findOverstaffedDonorBuilding(jobs, workers, 99)?.id).toBe(11);
-    expect(findOverstaffedDonorBuilding(jobs, workers, 11)?.id).toBe(12);
-    expect(findOverstaffedDonorBuilding(jobs, workers, 12)?.id).toBe(11);
+    expect(findOverstaffedDonorBuilding(jobs, buildWorkforceAssignmentIndex(workers), undefined)?.id).toBe(11);
+    expect(findOverstaffedDonorBuilding(jobs, buildWorkforceAssignmentIndex(workers), jobs.find((site) => site.id === 11))?.id).toBe(12);
+    expect(findOverstaffedDonorBuilding(jobs, buildWorkforceAssignmentIndex(workers), jobs.find((site) => site.id === 12))?.id).toBe(11);
     // An eligible worker at a donor is necessary, not merely two assigned employees.
     workers[3].lastAutoJobTransferTick = 99;
     workers[4].lastAutoJobTransferTick = 99;
-    expect(findOverstaffedDonorBuilding(jobs, workers, 99, 100)?.id).toBe(12);
+    expect(findOverstaffedDonorBuilding(jobs, buildWorkforceAssignmentIndex(workers, 100), undefined)?.id).toBe(12);
   });
 
   it('handles thousands of settlers without one population scan per donor building', () => {
@@ -232,8 +233,8 @@ describe('automatic job stability without blocking new colonies', () => {
     const workers = Array.from({ length: 8000 }, (_, i) =>
       human(10000 + i, { workerBuildingId: 1000 + Math.floor(i / 40) }),
     );
-    expect(findOverstaffedDonorBuilding(jobs, workers, -1)?.id).toBe(1000);
-    expect(findOverstaffedDonorBuilding(jobs, workers, 1000)?.id).toBe(1001);
+    expect(findOverstaffedDonorBuilding(jobs, buildWorkforceAssignmentIndex(workers), undefined)?.id).toBe(1000);
+    expect(findOverstaffedDonorBuilding(jobs, buildWorkforceAssignmentIndex(workers), jobs[0])?.id).toBe(1001);
   });
 
   it('allows older saves without timestamps and never blocks a first job', () => {
@@ -266,7 +267,7 @@ describe('a prisoner keeps the reserved post', () => {
 
     expect(canAutoChangeWorkplace(jailed, tick)).toBe(false);
     // Two active workers make a donor; the jailed assignment supplies no coverage or movable worker.
-    expect(findOverstaffedDonorBuilding([lumber, quarry], workers, 11, tick)?.id).toBe(10);
+    expect(findOverstaffedDonorBuilding([lumber, quarry], buildWorkforceAssignmentIndex(workers, tick), quarry)?.id).toBe(10);
     expect(pickWorkerToTransfer(workers, lumber, quarry, tick)).toBe(free);
 
     rebalanceJobWorkers(workers, [lumber, quarry], undefined, tick);
@@ -283,7 +284,7 @@ describe('a prisoner keeps the reserved post', () => {
     const workers = [free, jailed];
     const tick = 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS * 2;
 
-    expect(findOverstaffedDonorBuilding([lumber, quarry], workers, 11, tick)).toBeUndefined();
+    expect(findOverstaffedDonorBuilding([lumber, quarry], buildWorkforceAssignmentIndex(workers, tick), quarry)).toBeUndefined();
     rebalanceJobWorkers(workers, [lumber, quarry], undefined, tick);
     expect(quarry.occupants).toEqual([]);
     expect(free.workerBuildingId).toBe(10);
@@ -297,7 +298,7 @@ describe('a prisoner keeps the reserved post', () => {
       human(id, { workerBuildingId: 10, prisonBuildingId: 90, prisonerUntilTick: 10_000 }),
     );
 
-    expect(findOverstaffedDonorBuilding([farm, quarry], prisoners, 11, 100)).toBeUndefined();
+    expect(findOverstaffedDonorBuilding([farm, quarry], buildWorkforceAssignmentIndex(prisoners, 100), quarry)).toBeUndefined();
     rebalanceJobWorkers(prisoners, [farm, quarry], undefined, 100);
     expect(quarry.occupants).toEqual([]);
   });

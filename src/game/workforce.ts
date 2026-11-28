@@ -175,7 +175,7 @@ export function canAutoChangeWorkplace(human: Entity, currentTick?: number, food
 }
 
 /** A verified falling food supply with fewer than six days in store warrants urgent staffing. */
-export function isAcuteFoodStaffingEmergency(state: WorldState): boolean {
+function isAcuteFoodStaffingEmergency(state: WorldState): boolean {
   if (!state.resources || !state.entities) return false;
   const settlers = state.entities.filter((entity) => entity.alive && isPlayerHuman(entity)).length;
   return settlers > 0
@@ -187,7 +187,7 @@ export function isAcuteFoodStaffingEmergency(state: WorldState): boolean {
  * Read the same prospective food-demand verdict as auto-play: a food vacancy may borrow a
  * nonessential, cooldown-locked employee before the larder collapses. Only food destinations.
  */
-export function hasFoodStaffingPressure(state: WorldState): boolean {
+function hasFoodStaffingPressure(state: WorldState): boolean {
   if (!state.entities || !state.resources) return false;
   const mouths = state.entities.filter((entity) => entity.alive && isPlayerHuman(entity)).length;
   return mouths > 0 && (isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)
@@ -200,7 +200,7 @@ interface WorkforceAssignmentIndex {
   movable: Map<number, number>;
 }
 
-function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number, foodEmergency = false): WorkforceAssignmentIndex {
+export function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number, foodEmergency = false): WorkforceAssignmentIndex {
   const counts = new Map<number, number>();
   const movable = new Map<number, number>();
   for (const human of humans) {
@@ -243,7 +243,7 @@ function donationFloor(donor: Building, recipient: Building | undefined): number
   return Math.min(coverage, Math.max(1, BUILDING_CONFIGS[donor.type].maxOccupants - 1));
 }
 
-function pickOverstaffedDonor(
+export function findOverstaffedDonorBuilding(
   jobBuildings: Building[],
   index: WorkforceAssignmentIndex,
   recipient: Building | undefined,
@@ -282,50 +282,11 @@ function pickOverstaffedDonor(
   return best ?? seed;
 }
 
-/**
- * Read-only supply for one prospective food workplace: only genuinely movable staff above the same
- * protected minimum that real transfers enforce.
- */
-export function prospectiveFoodTransferDonors(
-  humans: Entity[],
-  buildings: Building[],
-  currentTick: number,
-): { workers: Entity[]; spareSlots: number }[] {
-  const workersBySite = new Map<number, Entity[]>();
-  for (const human of humans) {
-    if (!human.alive || !isPlayerHuman(human) || human.age < HUMAN_ADULT_MIN_AGE
-      || human.workerBuildingId == null
-      || !canAutoChangeWorkplace(human, currentTick, true)) continue;
-    const assigned = workersBySite.get(human.workerBuildingId) ?? [];
-    assigned.push(human);
-    workersBySite.set(human.workerBuildingId, assigned);
-  }
-  const counts = buildWorkforceAssignmentIndex(humans, currentTick, true).counts;
-  const donors: { workers: Entity[]; spareSlots: number }[] = [];
-  for (const site of completedJobBuildings(buildings, 'survival')) {
-    const spareSlots = Math.min(
-      Math.max(0, (counts.get(site.id) ?? 0) - minimumAutoCoverage(site)),
-      workersBySite.get(site.id)?.length ?? 0,
-    );
-    if (spareSlots > 0) donors.push({ workers: workersBySite.get(site.id)!, spareSlots });
-  }
-  return donors;
-}
-
-export function findOverstaffedDonorBuilding(
-  jobBuildings: Building[],
-  humans: Entity[],
-  excludeBuildingId: number,
-  currentTick?: number,
-  preserveEssentialCoverage = false,
-  foodEmergency = false,
-  rejectedDonors?: ReadonlySet<number>,
-): Building | undefined {
-  const recipient = jobBuildings.find((building) => building.id === excludeBuildingId);
-  return pickOverstaffedDonor(
-    jobBuildings, buildWorkforceAssignmentIndex(humans, currentTick, foodEmergency),
-    recipient, preserveEssentialCoverage, rejectedDonors,
-  );
+/** Shared idle employment eligibility, including construction and apprenticeship reservations. */
+function isIdleWorkforceCandidate(human: Entity, crewIds: ReadonlySet<number>): boolean {
+  return human.alive && isPlayerHuman(human) && human.age >= HUMAN_ADULT_MIN_AGE
+    && !hasWorkAssignment(human) && human.apprenticeOfId == null
+    && !isImprisoned(human) && !crewIds.has(human.id);
 }
 
 export function pickWorkerToTransfer(
@@ -522,7 +483,7 @@ export function rebalanceJobWorkers(
     const priorityFood = isFoodWorkplace(needy);
     const rejectedDonors = new Set<number>();
     while (staffed < target) {
-      const donor = pickOverstaffedDonor(jobBuildings, index, needy, true, rejectedDonors);
+      const donor = findOverstaffedDonorBuilding(jobBuildings, index, needy, true, rejectedDonors);
       if (!donor) break;
       // An ordinary low-priority vacancy cannot undo the player's selected focus.
       const donorSector = workforceSectorForBuilding(donor.type);
@@ -683,14 +644,7 @@ function swapReachableWorkersIntoVacancies(
   if (wereCommuteRouteChecksDeferred()) return;
   const crewIds = new Set(buildConstructionCrewIndex(buildings).keys());
   const idle = humans.filter((human) =>
-    human.alive
-    && isPlayerHuman(human)
-    && human.age >= HUMAN_ADULT_MIN_AGE
-    && !hasWorkAssignment(human)
-    && human.apprenticeOfId == null
-    && !isImprisoned(human)
-    && !crewIds.has(human.id)
-    && !movedThisPass.has(human.id),
+    isIdleWorkforceCandidate(human, crewIds) && !movedThisPass.has(human.id),
   );
   if (idle.length === 0) return;
 
@@ -796,9 +750,7 @@ function pickIdleWorkerForBuilding(
   let bestDistance = Infinity;
   let bestSkill = -Infinity;
   for (const candidate of humans) {
-    if (!isPlayerHuman(candidate) || !candidate.alive || candidate.age < HUMAN_ADULT_MIN_AGE
-      || hasWorkAssignment(candidate) || candidate.apprenticeOfId != null || isImprisoned(candidate)
-      || crewIds.has(candidate.id) || excludedWorkers?.has(candidate.id)) continue;
+    if (!isIdleWorkforceCandidate(candidate, crewIds) || excludedWorkers?.has(candidate.id)) continue;
     const home = candidate.residenceBuildingId == null
       ? undefined
       : buildingById?.get(candidate.residenceBuildingId)

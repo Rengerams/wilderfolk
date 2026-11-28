@@ -248,7 +248,7 @@ describe('the health verdict at the owner numbers', () => {
     expect(decision?.reason).toContain('projected');
   });
 
-  it('plans a future Farm with a safe excess donor even when every adult already works', () => {
+  it('plans food expansion from visible demand even when every adult already works', () => {
     const world = ownerColony(5, {
       tick: 8 * TICKS_PER_DAY,
       workforcePolicy: 'survival',
@@ -265,7 +265,7 @@ describe('the health verdict at the owner numbers', () => {
     expect(action?.reason).toContain('projected');
   });
 
-  it('never plans a future Farm using protected food crews as pretend spare labor', () => {
+  it('does not use private transfer eligibility to plan food expansion', () => {
     const world = ownerColony(4, {
       tick: 8 * TICKS_PER_DAY,
       workforcePolicy: 'survival',
@@ -276,9 +276,10 @@ describe('the health verdict at the owner numbers', () => {
       })),
     }, { farms: 2, mills: 0 });
     expect(world.entities.every((human) => human.workerBuildingId != null)).toBe(true);
-    expect(decideVirtualPlayerAction(world)?.command).not.toMatchObject({
-      op: 'startBuilding', type: BuildingType.Farm,
-    });
+    const before = decideVirtualPlayerAction(world);
+    // Private employment history is not available in a normal player construction decision.
+    world.entities.forEach((human) => { human.lastAutoJobTransferTick = undefined; });
+    expect(decideVirtualPlayerAction(world)).toEqual(before);
   });
 
   it('transfers an excess lumber worker to a waiting Farm before food runs short', () => {
@@ -294,8 +295,9 @@ describe('the health verdict at the owner numbers', () => {
       extraBuildings: [building(77, BuildingType.Farm, { x: 340, y: 330 })] });
     world.entities.forEach((human) => { human.lastAutoJobTransferTick = world.tick; });
     const action = decideVirtualPlayerAction(world);
-    expect(action?.command).toMatchObject({ op: 'autoStaffWorkers' });
-    const after = applyWorkerCommand(world, action!.command);
+    expect(action?.command.op).not.toBe('autoStaffWorkers');
+    assignMissingWorkers(world.entities, world.buildings, world, true);
+    const after = world;
     expect(after.entities.filter((person) => person.workerBuildingId === 77)).toHaveLength(2);
     expect(after.entities.filter((person) => person.workerBuildingId === 200)).toHaveLength(1);
   });
@@ -333,8 +335,9 @@ describe('the health verdict at the owner numbers', () => {
       ],
     });
     const decision = decideVirtualPlayerAction(world);
-    expect(decision?.command).toMatchObject({ op: 'autoStaffWorkers' });
-    const applied = applyWorkerCommand(world, decision!.command);
+    expect(decision?.command.op).not.toBe('autoStaffWorkers');
+    assignMissingWorkers(world.entities, world.buildings, world, true);
+    const applied = world;
     expect(applied.entities.filter((entity) => entity.workerBuildingId === 77)).toHaveLength(1);
     expect(applied.entities.filter((entity) => entity.workerBuildingId === 78)).toHaveLength(1);
     expect(applied.entities.find((entity) => entity.id === 5)?.workerBuildingId).toBe(79);
@@ -398,8 +401,9 @@ describe('the health verdict at the owner numbers', () => {
     world.entities.forEach((entity) => { entity.lastAutoJobTransferTick = world.tick; });
     expect(world.entities.every((entity) => !canAutoChangeWorkplace(entity, world.tick))).toBe(true);
     const decision = decideVirtualPlayerAction(world);
-    expect(decision?.command).toMatchObject({ op: 'autoStaffWorkers' });
-    const after = applyWorkerCommand(world, decision!.command);
+    expect(decision?.command.op).not.toBe('autoStaffWorkers');
+    assignMissingWorkers(world.entities, world.buildings, world, true);
+    const after = world;
     expect(after.entities.filter((entity) => entity.workerBuildingId === 77)).toHaveLength(1);
     expect(after.entities.filter((entity) => entity.workerBuildingId === 200)).toHaveLength(1);
     expect(after.entities.filter((entity) => entity.workerBuildingId === 300)).toHaveLength(2);
@@ -407,7 +411,7 @@ describe('the health verdict at the owner numbers', () => {
       .toBe(world.tick);
   });
 
-  it('switches to survival staffing before moving workers during a food crisis', () => {
+  it('preserves the player workforce preset during a food crisis', () => {
     const world = ownerColony(4, {
       tick: 4 * TICKS_PER_DAY,
       workforcePolicy: 'growth',
@@ -420,7 +424,9 @@ describe('the health verdict at the owner numbers', () => {
       extraBuildings: [building(77, BuildingType.Farm, { x: 700, y: 350 })],
     });
     const decision = decideVirtualPlayerAction(world);
-    expect(decision?.command).toMatchObject({ op: 'setWorkforcePolicy', preset: 'survival' });
+    expect(decision?.command.op).not.toBe('setWorkforcePolicy');
+    assignMissingWorkers(world.entities, world.buildings, world, true);
+    expect(world.workforcePolicy).toBe('growth');
   });
 
   it('preserves a separate worker while normalizing an old manual workplace during food rebalancing', () => {
@@ -438,8 +444,9 @@ describe('the health verdict at the owner numbers', () => {
       ],
     });
     const decision = decideVirtualPlayerAction(world);
-    expect(decision?.command).toMatchObject({ op: 'autoStaffWorkers' });
-    const applied = applyWorkerCommand(world, decision!.command);
+    expect(decision?.command.op).not.toBe('autoStaffWorkers');
+    assignMissingWorkers(world.entities, world.buildings, world, true);
+    const applied = world;
     expect(applied.buildings.find((building) => building.id === 79)?.staffingMode).toBe('auto');
     expect(applied.entities.find((entity) => entity.id === 6)?.workerBuildingId).toBe(79);
     expect(applied.entities.filter((entity) => entity.workerBuildingId === 77).length).toBeGreaterThan(0);
@@ -535,16 +542,15 @@ describe('the health verdict at the owner numbers', () => {
       .toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
   });
 
-  it('stops unstaffable food expansion across repeated deficit days', () => {
+  it('allows recovery across repeated measured deficit days despite a visible empty food site', () => {
     const world = ownerColony(3, {
       tick: 8 * TICKS_PER_DAY,
       resources: { food: 300, wood: 500, stone: 200, gold: 0, iron: 150 },
     }, {
       mills: 1, farms: 1,
-      extraBuildings: [building(80, BuildingType.Mill)],
+      extraBuildings: [building(80, BuildingType.Mill), building(81, BuildingType.Farm)],
     });
-    // The Farm requires both workers; the one remaining Lumber Mill employee
-    // is its protected minimum. There is no idle or surplus donor for a new site.
+    // A visible empty Farm must not veto recovery from a measured deficit.
     const farm = world.buildings.find((site) => site.type === BuildingType.Farm)!;
     farm.level = 3;
     for (let day = 8; day <= 14; day++) {
@@ -553,10 +559,11 @@ describe('the health verdict at the owner numbers', () => {
         day: day - 7 + index, produced: { farms: 3 }, consumed: { meals: 9 },
       }));
       const action = decideVirtualPlayerAction(world)?.command;
+      expect(action?.op).toBe('startBuilding');
       if (action?.op === 'startBuilding') {
         expect([
           BuildingType.Farm, BuildingType.Greenhouse, BuildingType.FishingSpot, BuildingType.HuntingSpot,
-        ]).not.toContain(action.type);
+        ]).toContain(action.type);
       }
     }
   });
@@ -577,7 +584,7 @@ describe('the health verdict at the owner numbers', () => {
       .not.toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
   });
 
-  it('switches to survival for a measured deficit even when every food site is crewed', () => {
+  it('does not change the workforce preset even when every food site is crewed', () => {
     const world = ownerColony(4, {
       tick: 4 * TICKS_PER_DAY,
       workforcePolicy: 'growth',
@@ -587,8 +594,9 @@ describe('the health verdict at the owner numbers', () => {
       })),
     }, { mills: 0, farms: 1 });
 
-    expect(decideVirtualPlayerAction(world)?.command)
-      .toMatchObject({ op: 'setWorkforcePolicy', preset: 'survival' });
+    expect(decideVirtualPlayerAction(world)?.command.op).not.toBe('setWorkforcePolicy');
+    assignMissingWorkers(world.entities, world.buildings, world, true);
+    expect(world.workforcePolicy).toBe('growth');
   });
 
   it('never calls a zero-stone colony healthy, and staffs the Quarry nobody works', () => {
@@ -604,12 +612,10 @@ describe('the health verdict at the owner numbers', () => {
 
     const decision = decideVirtualPlayerAction(unmanned);
 
-    expect(decision).not.toBeNull();
-    expect(decision!.command.op).toBe('autoStaffWorkers');
-    expect(decision!.reason).toContain('Quarry');
-    // …and the command the ladder proposes really ends the shortage: a hand lands on the Quarry,
-    // so the step cannot re-propose the same no-op hour after hour.
-    const applied = applyWorkerCommand(unmanned, decision!.command);
+    expect(decision?.command.op).not.toBe('autoStaffWorkers');
+    // The automatic workforce owner, not the bot, supplies the vacant Quarry.
+    assignMissingWorkers(unmanned.entities, unmanned.buildings, unmanned, true);
+    const applied = unmanned;
     const quarry = applied.buildings.find((candidate) => candidate.type === BuildingType.Quarry)!;
     expect(quarry.occupants.length).toBeGreaterThan(0);
     expect(decideVirtualPlayerAction(applied)?.command.op).not.toBe('autoStaffWorkers');
@@ -705,13 +711,13 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
     });
 
     const decision = decideVirtualPlayerAction(world);
-    expect(decision?.command.op).toBe('autoStaffWorkers');
-    expect(decision?.reason).toContain('food production needs workers');
-    const staffed = applyWorkerCommand(world, decision!.command);
+    expect(decision?.command.op).not.toBe('autoStaffWorkers');
+    assignMissingWorkers(world.entities, world.buildings, world, true);
+    const staffed = world;
     expect(staffed.entities.filter((entity) => entity.workerBuildingId === 77).length).toBeGreaterThan(0);
   });
 
-  it('does not keep building idle Farms when no worker can be reassigned', () => {
+  it('allows low-stock food recovery independently of private transfer history but bounds pending construction', () => {
     const world = ownerColony(2, {
       tick: 4 * TICKS_PER_DAY,
       resources: { food: 0, wood: 500, stone: 500, gold: 500, iron: 30 },
@@ -719,9 +725,16 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
       mills: 0, farms: 1,
       extraBuildings: [building(77, BuildingType.Farm, { x: 700, y: 350 })],
     });
-    // The two existing workers have just transferred, so the workforce owner
-    // cannot legally move either to the idle Farm for sixty days.
     for (const entity of world.entities) entity.lastAutoJobTransferTick = world.tick;
+    const recovery = decideVirtualPlayerAction(world);
+    expect(recovery?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+    for (const entity of world.entities) entity.lastAutoJobTransferTick = undefined;
+    expect(decideVirtualPlayerAction(world)).toEqual(recovery);
+
+    // Low stock alone permits one pending food site, not another every hour.
+    world.buildings.push(building(78, BuildingType.Farm, {
+      x: 780, y: 350, completed: false, constructionProgress: 20,
+    }));
     expect(decideVirtualPlayerAction(world)?.command)
       .not.toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
   });
