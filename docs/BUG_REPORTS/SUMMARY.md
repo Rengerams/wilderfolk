@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-28 — [Leader custody exception](../bug_report/2026-11-28-leader-custody-exception.md):** investigating; saved child #4913 lives with elected mother #2383 while ordinary custody selects father #2552; canonical custody now prefers the eligible elected parent after separation; regression CI pending.
+
 **2026-11-28 — [Social motives bypass needs and leisure routing](../bug_report/2026-11-28-social-motive-owner-alignment.md):** investigating; shared medical/stamina criteria, reciprocal nearby spouse care, reachable routes and market arrival receipts and civic completion only after a successful 18:00 audience; regression CI pending.
 
 **2026-11-28 — [Human activity priority drift](../bug_report/2026-11-28-human-activity-priority-drift.md):** investigating; shared workplace duty, protected movement priorities, tick-start tryst observation and schoolyard presence gate implemented; priest/festival regression added; CI pending.
