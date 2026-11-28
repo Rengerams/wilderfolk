@@ -362,6 +362,7 @@ export function extractDefinitions(code, raw, file, classes = []) {
         exported: Boolean(match[1]),
         kind,
         className: owner?.name ?? null,
+        isStatic: Boolean(owner && /\bstatic\s/.test(match[0].slice(0, match[0].indexOf(name)))),
         params: params.names,
         paramTypes: params.types,
         bodyStart: bodyStartLine,
@@ -687,6 +688,7 @@ function main() {
       withExplicitEntry: functions.filter((f) => f.ownerKey).length,
       withModuleOwner: 0,
       withLegacyNamedEvidence: functions.filter((f) => f.legacyNamedEvidence).length,
+      withPriorNamedCoverage: functions.filter((f) => f.ownerKey || f.legacyNamedEvidence).length,
       withLegacyModuleEvidence: functions.filter((f) => f.legacyModuleEvidence).length,
       migrationPending: functions.filter((f) => !f.ownerKey).length,
       withoutRecordedOwner: functions.filter((f) => !f.ownerKey).length,
@@ -718,6 +720,7 @@ function main() {
       exported: fn.exported,
       kind: fn.kind,
       className: fn.className,
+      isStatic: fn.isStatic,
       ownerKey: fn.ownerKey,
       ownerSource: fn.ownerSource,
       ownerHow: fn.ownerHow,
@@ -757,9 +760,9 @@ function main() {
     if (payload.stats.functions < OWNERSHIP_FLOORS.functions) {
       failures.push(`indexed ${payload.stats.functions} functions (floor ${OWNERSHIP_FLOORS.functions})`);
     }
-    if (payload.stats.withLegacyNamedEvidence < OWNERSHIP_FLOORS.explicitEntries) {
+    if (payload.stats.withPriorNamedCoverage < OWNERSHIP_FLOORS.explicitEntries) {
       failures.push(
-        `only ${payload.stats.withLegacyNamedEvidence} functions have legacy named evidence (floor ${OWNERSHIP_FLOORS.explicitEntries})`,
+        `only ${payload.stats.withPriorNamedCoverage} functions have verified claims or legacy named evidence (floor ${OWNERSHIP_FLOORS.explicitEntries})`,
       );
     }
     if (failures.length) {
