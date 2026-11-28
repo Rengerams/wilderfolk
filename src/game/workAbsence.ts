@@ -14,7 +14,7 @@ import {
 } from './humanSchedule';
 import { getWorkSchedule } from './workSchedule';
 import { resolveShift } from './workDuty';
-export { resolveShift, resolveArmedDuty } from './workDuty';
+export { resolveShift } from './workDuty';
 import { isCeremonyAttendee } from './villageLeadership';
 import { isRestingHospitalPatient, medicalCareReason } from './hospitalCare';
 import { isPregnancyHospitalPriority, isStaffedHospital } from './humanHospitalBehavior';

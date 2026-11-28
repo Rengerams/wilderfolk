@@ -136,7 +136,7 @@ describe('personal combat equipment and condition', () => {
   });
   it('uses the existing shift and deployment, not the job title alone', () => {
     const state = makeState([], {});
-    const h = { ...defender(1), raidDeploymentId: undefined };
+    const h: Entity = { ...defender(1), raidDeploymentId: undefined };
     const barracks = { ...state.buildings[0], id: 2, type: BuildingType.Barracks, occupants: [h.id] };
     state.buildings.push(barracks);
     h.workerBuildingId = barracks.id;
