@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { getDecisionRows, renderDecisionTable, replaceGeneratedBlock, validateRegistry, validateEntrypointSymbols, validateDecisionKeys, parseOwnershipMode, findVerifiedClaim } from './ownership-registry.mjs';
+import { getDecisionRows, renderDecisionTable, replaceGeneratedBlock, validateRegistry, validateEntrypointSymbols, validateDecisionKeys, parseOwnershipMode, findVerifiedClaim, validateToolingInventory } from './ownership-registry.mjs';
 
 const sample = {
   key: 'sample',
@@ -92,4 +92,29 @@ test('verified ownership matches an exact declaration, never an adjacent method 
   assert.equal(findVerifiedClaim({ ...fn, className: 'Other' }, [claim], [fn]), undefined);
   assert.equal(findVerifiedClaim({ ...fn, file: 'src/other/sample.ts' }, [claim], [fn]), undefined);
   assert.equal(findVerifiedClaim(fn, [claim], [fn, { ...fn }]), undefined);
+});
+
+test('tooling inventory requires qualified nested names and ignores anonymous callbacks', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'wilderfolk-tooling-'));
+  try {
+    mkdirSync(path.join(root, 'scripts'));
+    writeFileSync(path.join(root, 'tsconfig.ownership.json'), JSON.stringify({
+      compilerOptions: { allowJs: true, noEmit: true }, include: ['scripts/*.mjs'],
+    }));
+    writeFileSync(path.join(root, 'scripts/sample.mjs'), [
+      'function outer() {',
+      '  const inner = () => 1;',
+      '  return [1].map(value => value + inner());',
+      '}',
+      'function other() { function inner() {} inner(); }',
+    ].join('\n'));
+    const overview = path.join(root, 'OWNERSHIP_OVERVIEW.md');
+    writeFileSync(overview, '| Sample | `scripts/sample.mjs` | build | `outer`, `outer::inner`, `other`, `other::inner` |');
+    const contracts = [['Sample', 'scripts/sample.mjs']];
+    assert.deepEqual(validateToolingInventory(root, contracts), []);
+    writeFileSync(overview, '| Sample | `scripts/sample.mjs` | build | `outer`, `inner`, `other` |');
+    assert.equal(validateToolingInventory(root, contracts).length, 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
