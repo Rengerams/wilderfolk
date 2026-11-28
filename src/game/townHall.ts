@@ -20,7 +20,7 @@ import { isDialogueBusy } from './humanChat';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { isPlayerHuman } from './playerHuman';
 import { isFoodAlert } from './resourceUtils';
-import { HUMAN_NEEDS, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy, getHumanStaminaRatio } from './simulation/humanPhysiology';
+import { HUMAN_NEEDS, creditHumanNutritionFromFood, adjustHumanStamina, getHumanStaminaRatio } from './simulation/humanPhysiology';
 
 export function getTownHallFestivalCooldownTicks(): number {
   return ticksForDays(90);
@@ -274,7 +274,7 @@ export function resolveCivicPetition(
       || (petitioner.scandalCooldownUntilTick ?? 0) > state.tick)
     && personDayRoll(petitioner.id, state.tick, 823) < 0.55
   ) {
-    adjustHumanStaminaFromEnergy(petitioner, 6);
+    adjustHumanStamina(petitioner, 1.2);
     requestDialogue({ eventKey: 'townHall.heard', speaker: petitioner, tick: state.tick, selectionRoll: personDayRoll(petitioner.id, state.tick, 832), durationHours: dialogueHoursFromNominalTicks(52), priority: 'scripted' });
     const hallCentre = getBuildingCenter(hall);
     addFloatingText(state, hallCentre.x, hallCentre.y - 10, '📜 Petition heard', '#93c5fd', 'brief');
@@ -303,7 +303,7 @@ export function resolveCivicPetition(
   ) {
     const amount = 1;
     state.resources.gold -= amount;
-    adjustHumanStaminaFromEnergy(petitioner, 5);
+    adjustHumanStamina(petitioner, 1);
     addFloatingText(state, petitioner.x, petitioner.y - 12, '🪙 Stipend', '#fde047', 'brief');
     requestDialogue({ eventKey: 'townHall.goldAid', speaker: petitioner, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(40), priority: 'scripted' });
     return complete({ kind: 'aid_gold', amount });

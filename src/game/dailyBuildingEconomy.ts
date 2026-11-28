@@ -40,9 +40,9 @@ import type { TickContext } from './simulation/simulationTypes';
 import {
   commitHuntingSpotTarget,
   findLiveAssignedWorker,
-  HUNTING_FIGHT_BACK_BITE_ENERGY,
+  HUNTING_FIGHT_BACK_BITE_STAMINA,
   HUNTING_FIGHT_BACK_CHANCE,
-  HUNTING_FIGHT_BACK_MAUL_ENERGY,
+  HUNTING_FIGHT_BACK_MAUL_STAMINA,
   huntingFightBackFate,
   huntingKillReach,
   huntingSpotTarget,
@@ -82,7 +82,7 @@ import { assignMissingWorkers, getSmithBonus } from './workforce';
 import { isImprisoned } from './housingModel';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { adjustHumanStaminaFromEnergy, getHumanNeedsWorkMultiplier } from './simulation/humanPhysiology';
+import { adjustHumanStamina, getHumanNeedsWorkMultiplier } from './simulation/humanPhysiology';
 import { grantHospitalIntervalReputation } from './hospitalCare';
 import {
   getScheduleProductivityMultiplier,
@@ -592,7 +592,7 @@ function tickBuildingProduction(
             skill: readSkill(hunter, JobType.Hunter),
           });
           if (fate === 'killed') {
-            // A settler's health is its energy, but the wolf kills here, so death goes through
+            // A fatal wolf attack is separate from stamina depletion; death goes through
             // the one owner every other death uses, which also runs family/residence/workplace cleanup.
             const killedById = ensureEntityByIdMap(state);
             killHuman(hunter, updatedBuildings, killedById, state.tick, state);
@@ -608,12 +608,9 @@ function tickBuildingProduction(
           }
 
   const mauled = fate === 'mauled';
-          const damage = HUNTING_FIGHT_BACK_BITE_ENERGY + (mauled ? HUNTING_FIGHT_BACK_MAUL_ENERGY : 0);
-          if (isPlayerHuman(hunter)) {
-            adjustHumanStaminaFromEnergy(hunter, -damage);
-          } else {
-            hunter.energy = Math.max(0, hunter.energy - damage);
-          }
+          const damage = HUNTING_FIGHT_BACK_BITE_STAMINA + (mauled ? HUNTING_FIGHT_BACK_MAUL_STAMINA : 0);
+          // findLiveAssignedWorker admits only player humans.
+          adjustHumanStamina(hunter, -damage);
           hunter.combatTicks = 14;
           hunter.flash = 10;
           addFloatingText(

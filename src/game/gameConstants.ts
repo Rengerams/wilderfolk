@@ -8,6 +8,11 @@ export const Social = {
  * The base chance is per eligible pair; only establishment can produce a scandal.
  */
 export const Relationship = {
+  COURTSHIP_MIN_STAMINA: 21.6,
+  AFFAIR_MIN_STAMINA: 18,
+  MARRIED_CONCEPTION_MIN_STAMINA: 27,
+  YOUTH_CONCEPTION_PARTNER_MIN_STAMINA: 21.6,
+  AFFAIR_CONCEPTION_MIN_STAMINA: 23.4,
   AFFAIR_MIN_AGE: 18,
   AFFAIR_DAILY_TRYST_CHANCE_WITH_CHURCH: 0.07,
   AFFAIR_DAILY_TRYST_CHANCE_NO_CHURCH: 0.1,

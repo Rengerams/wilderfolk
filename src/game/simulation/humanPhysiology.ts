@@ -53,6 +53,11 @@ function syncHumanEnergyMirror(entity: Entity, needs: HumanNeedsState): void {
   entity.energy = entity.maxEnergy * needs.stamina / 100;
 }
 
+/** The one clamped runtime stamina mutation; normalization constructs a new state. */
+function setHumanStamina(needs: HumanNeedsState, stamina: number): void {
+  needs.stamina = bounded(stamina, 0);
+}
+
 export function initialHumanNeeds(energy: number, maxEnergy: number): HumanNeedsState {
   return { nutrition: 80, rest: 85, stamina: maxEnergy > 0 && Number.isFinite(maxEnergy)
     ? bounded(energy / maxEnergy * 100, 80) : 80, severeHungerTicks: 0 };
@@ -123,7 +128,7 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
     if (obs.working) staminaRate /= evaluateAptitudeInfluence(entity, 'labor').factor;
     if (obs.hasWell) staminaRate *= HUMAN_NEEDS.WELL_STAMINA_DRAIN_MULTIPLIER;
   }
-  needs.stamina = bounded(needs.stamina + staminaRate * hours, 0);
+  setHumanStamina(needs, needs.stamina + staminaRate * hours);
   // Intent latching belongs to the single physiology mutator. Read-only status
   // queries must never modify saved human state or change the next sim tick.
   if (needs.breakUntilRecovered === true) {
@@ -165,11 +170,11 @@ export function creditHumanNutritionFromFood(entity: Entity, foodUnits: number):
   if (needs.nutrition > HUMAN_NEEDS.NUTRITION_STARVING) needs.severeHungerTicks = 0;
 }
 
-/** Convert a legacy-sized stamina effect without writing a second energy owner. */
-export function adjustHumanStaminaFromEnergy(entity: Entity, energyPoints: number): void {
-  if (!Number.isFinite(energyPoints) || energyPoints === 0) return;
+/** Apply a native stamina percentage-point effect; no legacy capacity conversion. */
+export function adjustHumanStamina(entity: Entity, staminaPoints: number): void {
+  if (!Number.isFinite(staminaPoints) || staminaPoints === 0) return;
   const needs = entity.needs ?? normalizeHumanNeeds(entity);
-  needs.stamina = bounded(needs.stamina + energyPoints / Math.max(1, entity.maxEnergy) * 100, 0);
+  setHumanStamina(needs, needs.stamina + staminaPoints);
   syncHumanEnergyMirror(entity, needs);
 }
 

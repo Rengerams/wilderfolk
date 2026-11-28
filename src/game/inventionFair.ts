@@ -11,7 +11,7 @@ import { storyFlag, setStoryFlags, bumpVillageReputation, eligibleDayForStory, s
 import { addCappedResource, consumeResources, deductResource, canAfford } from './resourceUtils';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { adjustHumanStamina } from './simulation/humanPhysiology';
 import { getSimRng, getSimSeed, personDayRoll } from './simRng';
 import { crowdGatherPosition } from './simulation/humanMovement';
 import { isGroundWalkableAt } from './pathfinding';
@@ -498,7 +498,7 @@ export function tickInventionFairRealtime(state: WorldState): void {
     for (const slot of fair.spectatorSlots) {
       const spectator = state.entities.find((e) => e.id === slot.humanId && e.alive && isPlayerHuman(e));
       if (spectator && Math.hypot(spectator.x - slot.x, spectator.y - slot.y) <= 24) {
-        adjustHumanStaminaFromEnergy(spectator, -25);
+        adjustHumanStamina(spectator, -5);
       }
     }
     bumpVillageReputation(state, -10);

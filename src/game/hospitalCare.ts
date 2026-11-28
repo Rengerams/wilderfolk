@@ -13,7 +13,7 @@ import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees'
 import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
 import { spendFood } from './economyLedger';
-import { HUMAN_NEEDS, adjustHumanStaminaFromEnergy, getHumanStaminaRatio } from './simulation/humanPhysiology';
+import { HUMAN_NEEDS, adjustHumanStamina, getHumanStaminaRatio } from './simulation/humanPhysiology';
 import { getPregnancyProgressFraction } from './pregnancy';
 import { isPregnancyHospitalDue } from './simulation/humanLifecycle';
 import { getBuildingCenter } from './buildingGeometry';
@@ -221,10 +221,10 @@ export function treatPatientAtHospital(
 
   const strength = 0.55 + hospital.occupants.length * 0.2 + (doctorOnSite ? 0.35 : 0);
   const heal = Math.min(
-    patient.maxEnergy * (1 - getHumanStaminaRatio(patient)),
-    (8 + strength * 14) * (patient.pregnant ? 0.7 : 1),
+    100 * (1 - getHumanStaminaRatio(patient)),
+    (1.6 + strength * 2.8) * (patient.pregnant ? 0.7 : 1),
   );
-  if (heal < 0.5) return false;
+  if (heal < 0.1) return false;
 
   // Light medicine cost occasionally — spend through the day ledger so the
   // "why is my food low?" view sees the medicine line like every other meal.
@@ -232,9 +232,8 @@ export function treatPatientAtHospital(
     spendFood(state, 'medicine', 1);
   }
 
-  // Medical recovery is stamina in the new physiology model. Keep the legacy
-  // projection in sync so the next metabolism tick cannot erase paid treatment.
-  adjustHumanStaminaFromEnergy(patient, heal);
+  // Treatment directly requests native stamina points from physiology.
+  adjustHumanStamina(patient, heal);
   // Pregnancy progress is owned only by humanLifecycle.tickPregnancyAndBirth.
 
   // Only a doctor who actually treated the patient learns medicine; the roster alone is not work.

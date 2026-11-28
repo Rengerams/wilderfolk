@@ -23,7 +23,7 @@ import { logWildkinBirth } from '../wildkinChronicle';
 import { humanDisplayName } from '../citizenId';
 import { dampScandalReputationLoss } from '../townHall';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
-import { adjustHumanStaminaFromEnergy, getHumanStaminaRatio } from './humanPhysiology';
+import { adjustHumanStamina, getHumanStaminaRatio } from './humanPhysiology';
 import { isPlayerHuman } from '../playerHuman';
 import { seededRandomForRun, seededStreamForRun } from '../simRng';
 import { addReputation } from '../simHelpers';
@@ -57,8 +57,10 @@ export const LIFECYCLE_CONFIG = {
   WILDKIN_CHANCE: 0.03,
   DEER_PROXIMITY_RADIUS: 80,
   STILLBORN_CHANCE: 0.001,
-  MATERNAL_ENERGY_COST: 45,
-  MATERNAL_ENERGY_MIN_RATIO: 0.18,
+  MATERNAL_STAMINA_COST: 9,
+  MATERNAL_STAMINA_MIN: 18,
+  FOREIGN_MATERNAL_ENERGY_COST: 45,
+  FOREIGN_MATERNAL_ENERGY_MIN_RATIO: 0.18,
   STILLBORN_GRIEF_DAYS: 3,
   SCANDAL_BASE_REP_LOSS: -3,
   HOSPITAL_THRESHOLD_RATIO: 0.85,
@@ -128,18 +130,16 @@ export function tickPregnancyAndBirth(
 
   // Mother recovery and pregnancy reset
   if (isPlayerHuman(entity)) {
-    const currentStamina = getHumanStaminaRatio(entity);
-    // Convert the historical cost/floor using the same capacity as the bridge.
-    const capacity = Math.max(1, entity.maxEnergy);
+    const currentStamina = getHumanStaminaRatio(entity) * 100;
     const recoveredStamina = Math.max(
-      LIFECYCLE_CONFIG.MATERNAL_ENERGY_MIN_RATIO,
-      currentStamina - LIFECYCLE_CONFIG.MATERNAL_ENERGY_COST / capacity,
+      LIFECYCLE_CONFIG.MATERNAL_STAMINA_MIN,
+      currentStamina - LIFECYCLE_CONFIG.MATERNAL_STAMINA_COST,
     );
-    adjustHumanStaminaFromEnergy(entity, (recoveredStamina - currentStamina) * capacity);
+    adjustHumanStamina(entity, recoveredStamina - currentStamina);
   } else {
     entity.energy = Math.max(
-      entity.maxEnergy * LIFECYCLE_CONFIG.MATERNAL_ENERGY_MIN_RATIO,
-      entity.energy - LIFECYCLE_CONFIG.MATERNAL_ENERGY_COST,
+      entity.maxEnergy * LIFECYCLE_CONFIG.FOREIGN_MATERNAL_ENERGY_MIN_RATIO,
+      entity.energy - LIFECYCLE_CONFIG.FOREIGN_MATERNAL_ENERGY_COST,
     );
   }
   recordRelationshipDiagnostic('birthsCompletedThisInterval');

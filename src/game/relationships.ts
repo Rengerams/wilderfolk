@@ -5,7 +5,7 @@ import { combinePairFactors, evaluateAptitudeInfluence } from './personality/tra
 import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
 import { getSimRng } from './simRng';
-import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { adjustHumanStamina } from './simulation/humanPhysiology';
 import { RELATIONSHIP_REVISION, bumpRevision } from './entityRevision';
 
 /** True while the settler is in an active marriage: `'married'`, or `'expecting'` for a pregnancy. */
@@ -52,7 +52,7 @@ const FRIENDSHIP_CHILDHOOD_BUMP = 0.3;
 export const FRIENDSHIP_DECAY_PER_DAY = 0.1;
 
 const FEUD_DECAY_PER_DAY = 0.4;
-const FEUD_ENERGY_DRAIN = 0.15;
+const FEUD_STAMINA_DRAIN = 0.03;
 const FEUD_BREWING_THRESHOLD = 30;
 
 /** Baseline daily feud chance for one pair before the two settler conflict modifiers. */
@@ -431,8 +431,8 @@ export function advanceSocialRelationships(
         mapForDecay(p, 'feuds')[key] = next;
         mapForDecay(other, 'feuds')[otherKey] = next;
 
-        adjustHumanStaminaFromEnergy(p, -FEUD_ENERGY_DRAIN);
-        adjustHumanStaminaFromEnergy(other, -FEUD_ENERGY_DRAIN);
+        adjustHumanStamina(p, -FEUD_STAMINA_DRAIN);
+        adjustHumanStamina(other, -FEUD_STAMINA_DRAIN);
       }
     }
   }
@@ -472,8 +472,8 @@ export function advanceSocialRelationships(
   for (const p of people) {
     const strongCount = friendCount(p);
     if (strongCount === 0) continue;
-    const boost = Math.min(2, strongCount * 0.8);
-    adjustHumanStaminaFromEnergy(p, boost);
+    const boost = Math.min(0.4, strongCount * 0.16);
+    adjustHumanStamina(p, boost);
   }
 }
 

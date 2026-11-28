@@ -16,7 +16,7 @@ import { BuildingType } from './buildings';
 import { pickSocialImpulse, isSocialStaggerTick, type SocialBuildingPool } from './socialLife';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { adjustHumanStamina } from './simulation/humanPhysiology';
 import { requestDialogue } from './dialogueTrees';
 import { isDialogueBusy } from './humanChat';
 import type { TickContext } from './simulation/simulationTypes';
@@ -577,7 +577,7 @@ function tickAdultLeisureMotive(args: {
         && (!grid || !lineCrossesBlocked(grid, entity.x, entity.y, company.x, company.y))) {
         if (impulse.motive === 'comfort_neighbor') {
           settlerPairChat(entity, company, 'social', 0.12);
-          if (isPlayerHuman(company)) adjustHumanStaminaFromEnergy(company, 0.15 * PER_TICK_RATE_SCALE);
+          if (isPlayerHuman(company)) adjustHumanStamina(company, 0.03 * PER_TICK_RATE_SCALE);
         } else if (impulse.motive === 'care_pregnant') settlerPairChat(entity, company, 'home', 0.12);
       }
       suppressIdle = true;
@@ -595,7 +595,7 @@ function tickAdultLeisureMotive(args: {
         if (impulse.motive === 'sunday_service' || impulse.motive === 'grief' || impulse.motive === 'day_off') {
           if (seededRandomForRun(`chat-social:${entity.id}:${state.tick}`) < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1);
         } else if (impulse.motive === 'market_errand' || impulse.motive === 'birthday') {
-          adjustHumanStaminaFromEnergy(entity, 0.2 * PER_TICK_RATE_SCALE);
+          adjustHumanStamina(entity, 0.04 * PER_TICK_RATE_SCALE);
           settlerChat(entity, 'social', 0.1);
         }
       }
@@ -856,7 +856,7 @@ export function tickHumanLeisure(args: {
             const beautyGrid = state.beautyGrid ?? null;
             if (beautyAt(beautyGrid, entity.x, entity.y) >= 3
               && seededRandomForRun(`leisure-garden:${entity.id}:${tick}`) < 0.04 * PER_TICK_RATE_SCALE) {
-              adjustHumanStaminaFromEnergy(entity, 0.4 * PER_TICK_RATE_SCALE);
+              adjustHumanStamina(entity, 0.08 * PER_TICK_RATE_SCALE);
               addFloatingText(state, entity.x, entity.y - 26, '💐', '#f9a8d4', 'brief');
             }
           }
@@ -877,7 +877,7 @@ export function tickHumanLeisure(args: {
             const spot = venueGatherPosition(tavern, entity.id);
             const arrived = steerTo(spot.x, spot.y, 0.5, 18, tavern);
             if (arrived) {
-              adjustHumanStaminaFromEnergy(entity, 0.45 * PER_TICK_RATE_SCALE);
+              adjustHumanStamina(entity, 0.09 * PER_TICK_RATE_SCALE);
               settlerChat(entity, 'social', 0.14 * PER_TICK_RATE_SCALE);
               if (getSimRng('humanTick')() < 0.04 * PER_TICK_RATE_SCALE) {
                 addFloatingText(state, entity.x, entity.y - 14, '🍺', '#fbbf24');
@@ -899,7 +899,7 @@ export function tickHumanLeisure(args: {
             const spot = crowdGatherPosition(wellCentre.x, wellCentre.y, entity.id);
             const arrived = steerTo(spot.x, spot.y, 0.45, 12);
             if (arrived) {
-              adjustHumanStaminaFromEnergy(entity, 0.35 * PER_TICK_RATE_SCALE);
+              adjustHumanStamina(entity, 0.07 * PER_TICK_RATE_SCALE);
             }
           } else {
             steerTo(

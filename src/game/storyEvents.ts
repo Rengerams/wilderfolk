@@ -7,7 +7,7 @@ import { addBigNews, addNotification } from './simEffects';
 import { addCappedResource } from './resourceUtils';
 import { spendFood } from './economyLedger';
 import { isPlayerHuman } from './playerHuman';
-import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { adjustHumanStamina } from './simulation/humanPhysiology';
 import { logEvent } from './eventLog';
 import { Human } from './gameConstants';
 import { expireDeerParliament, getDeerParliamentChoiceEligibility, resolveDeerParliament } from './deerParliament';
@@ -630,7 +630,7 @@ function resolveGriefBeat(state: WorldState, choiceId: string): void {
     (e) => e.alive && isPlayerHuman(e) && (e.griefUntilTick ?? 0) > state.tick,
   );
   if (choiceId === 'comfort') {
-    if (mourner) adjustHumanStaminaFromEnergy(mourner, 20);
+    if (mourner) adjustHumanStamina(mourner, 4);
     addReputation(state, 1);
     addBigNews(state, '🕯️ The household holds', 'A quiet word by the fire — the mourning settler rests easier, and the village stands a little closer.', 'positive');
     logEvent(state, 'event', `${state.villageName} comforted a grieving household — grief carried together, not alone.`);

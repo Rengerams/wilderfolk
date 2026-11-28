@@ -5,7 +5,6 @@ import type { WorldState, Entity, Building } from '../gameTypes';
 import { EntityType, BuildingType, JobType, BUILDING_CONFIGS } from '../gameTypes';
 import type { TickContext } from './simulationTypes';
 import type { EntitySpatialGrid } from '../spatialGrid';
-import { SPECIES_CONFIG } from '../speciesConfig';
 import { addBigNews, addFloatingText, addNotification, createDeathParticles } from '../simEffects';
 import { getValleyIllnessChanceBonus } from '../ecologyStage';
 // One owner for "where the building is": `placementUtils.getBuildingCenter` reads `x/y` as the
@@ -790,7 +789,6 @@ function recordConceptionGate(outcome: ConceptionGateOutcome): void {
 }
 
 export function tryDailyConception(state: WorldState, ctx: TickContext, entity: Entity): boolean {
-  const config = SPECIES_CONFIG[EntityType.Human];
   recordRelationshipDiagnostic('conceptionCandidates');
   let outcome: ConceptionGateOutcome | null = null;
 
@@ -807,7 +805,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
   if (
     isMarriedOrExpecting(entity) &&
     entity.partnerId &&
-    getHumanStaminaRatio(entity) > config.reproductionEnergyThreshold * 0.75 / Math.max(1, entity.maxEnergy)
+    getHumanStaminaRatio(entity) * 100 > Relationship.MARRIED_CONCEPTION_MIN_STAMINA
   ) {
     const partner = getLivingEntity(entity.partnerId, ctx.entityById);
     if (partner && isPlayerHuman(partner) && partner.gender === 'male' && !partner.raidDeploymentId) {
@@ -852,8 +850,8 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
     !youthPartner.pregnant && !youthPartner.raidDeploymentId
   ) {
     if (
-      getHumanStaminaRatio(entity) <= config.reproductionEnergyThreshold * 0.75 / Math.max(1, entity.maxEnergy) ||
-      getHumanStaminaRatio(youthPartner) <= config.reproductionEnergyThreshold * 0.6 / Math.max(1, youthPartner.maxEnergy)
+      getHumanStaminaRatio(entity) * 100 <= Relationship.MARRIED_CONCEPTION_MIN_STAMINA ||
+      getHumanStaminaRatio(youthPartner) * 100 <= Relationship.YOUTH_CONCEPTION_PARTNER_MIN_STAMINA
     ) {
       outcome ??= 'energy';
     } else {
@@ -880,7 +878,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
 
   if (
     hasAffairPartner(entity, ctx.entityById) &&
-    getHumanStaminaRatio(entity) > config.reproductionEnergyThreshold * 0.65 / Math.max(1, entity.maxEnergy) &&
+    getHumanStaminaRatio(entity) * 100 > Relationship.AFFAIR_CONCEPTION_MIN_STAMINA &&
     !isSpouseNearby(entity, ctx.entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)
   ) {
     const lover = getLivingEntity(entity.affairPartnerId, ctx.entityById);
@@ -902,7 +900,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
       return false;
     }
   } else if (hasAffairPartner(entity, ctx.entityById)) {
-    outcome ??= getHumanStaminaRatio(entity) <= config.reproductionEnergyThreshold * 0.65 / Math.max(1, entity.maxEnergy) ? 'energy' : 'proximity';
+    outcome ??= getHumanStaminaRatio(entity) * 100 <= Relationship.AFFAIR_CONCEPTION_MIN_STAMINA ? 'energy' : 'proximity';
   }
 
   recordConceptionGate(outcome ?? 'eligibility');
@@ -1488,13 +1486,12 @@ export function tryDailyAffairEncounter(
   // The caller matches a whole encounter hour and three ticks share it. Acting only on the hour's
   // first tick keeps the encounter — and its one establishment line — once per settler per day.
   if (!isStartOfClockHour(state.tick)) return;
-  const config = SPECIES_CONFIG[EntityType.Human];
   recordRelationshipDiagnostic('affairChecks');
   if (!isPlayerHuman(entity)) return;
   if (entity.prisonBuildingId != null) return;
   if (!isMarriedOrExpecting(entity) || entity.age < HUMAN_ADULT_MIN_AGE) return;
   if (!entity.gender || entity.age >= HUMAN_MAX_LIFESPAN_YEARS) return;
-  if (getHumanStaminaRatio(entity) <= config.reproductionEnergyThreshold * 0.5 / Math.max(1, entity.maxEnergy)) return;
+  if (getHumanStaminaRatio(entity) * 100 <= Relationship.AFFAIR_MIN_STAMINA) return;
   if (onScandalCooldown(entity, state.tick)) return;
   const workplace = findHumanWorkplace(entity, buildings, { buildingById });
   if (!canPursueSecretAffair(entity, hourOfDay, workplace, buildings, entityById, state.tick, getWorkSchedule(state))) return;
