@@ -11,7 +11,7 @@ import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 import { resolveChildSurname, getRandomName } from '../nameLoader';
 import { genomeOf, inheritGenome } from '../settlerTraits';
 import { createEntity } from '../entityFactory';
-import { getPregnancyProgressFraction, normalizePregnancyDueProgress } from '../pregnancy';
+import { advancePregnancy, clearPregnancy, getPregnancyProgressFraction } from '../pregnancy';
 import { SPECIES_CONFIG } from '../speciesConfig';
 import { pushNewEntity, allLivingHumans } from './simulationEntities';
 import { recordGenealogyBirth } from '../genealogyRegistry';
@@ -98,12 +98,7 @@ export function tickPregnancyAndBirth(
   const { width, height, byType, newEntities, entityById, updatedBuildings } = ctx;
   const { livingHumanAt } = opts;
 
-  entity.pregnancyProgress = (entity.pregnancyProgress ?? 0) + 1;
-  const dueProgress = normalizePregnancyDueProgress(entity.pregnancyDueProgress);
-
-  if (entity.pregnancyProgress < dueProgress) {
-    return;
-  }
+  if (!advancePregnancy(entity)) return;
 
   // --- Birth --
 
@@ -142,11 +137,7 @@ export function tickPregnancyAndBirth(
     entity.energy = recoveredEnergy;
   }
   recordRelationshipDiagnostic('birthsCompletedThisInterval');
-  entity.pregnant = false;
-  entity.pregnancyProgress = 0;
-  entity.pregnancyDueProgress = undefined;
-  entity.pregnantById = undefined;
-  entity.pregnancyFromYouthLove = undefined;
+  clearPregnancy(entity);
   clearExpectingStatus(entity);
   entity.reproductionCooldown = REPRODUCTION_COOLDOWN_TICKS;
 

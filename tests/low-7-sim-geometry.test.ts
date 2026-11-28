@@ -35,7 +35,7 @@ import {
 import { clampToMapBounds } from '../src/game/mapBounds';
 import { computeMilitiaBreakdown } from '../src/game/militiaBalance';
 import { getDefenseStructureBreakdown, getWallSegmentCap } from '../src/game/defenseStructures';
-import { createEntity } from '../src/game/entityFactory';
+import { createEntity, finalizeSettlerAge } from '../src/game/entityFactory';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 
 import { clearHuntersTargetingPrey } from '../src/game/simulation/simulationEntities';
@@ -204,6 +204,16 @@ describe('L21/L22 factory juvenile threshold', () => {
     });
     expect(adult.isJuvenile).toBe(false);
     expect(adult.size).toBe(humanSize);
+
+    const mismatchedChild = createEntity(EntityType.Human, 10, 10, 903, undefined, false, { ageYears: 8 });
+    expect(mismatchedChild.isJuvenile).toBe(true);
+    expect(mismatchedChild.size).toBe(humanSize * 0.5);
+    const mismatchedAdult = createEntity(EntityType.Human, 10, 10, 904, undefined, true, { ageYears: 30 });
+    expect(mismatchedAdult.isJuvenile).toBe(false);
+    expect(mismatchedAdult.size).toBe(humanSize);
+    finalizeSettlerAge(mismatchedChild, { year: 1, dayInYear: 1, tick: 0 });
+    expect(mismatchedChild.isJuvenile).toBe(false);
+    expect(mismatchedChild.size).toBe(humanSize);
   });
 });
 

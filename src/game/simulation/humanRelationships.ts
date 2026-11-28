@@ -707,7 +707,7 @@ const CONCEPTION_LOOK: Readonly<Record<ConceptionKind, {
 };
 
 /**
- * Conception presentation and chronicle around `humanLifecycle.startPregnancy`, the one writer that
+ * Conception presentation and chronicle around `pregnancy.startPregnancy`, the one writer that
  * owns pregnancy state. The kind only changes the wording and the pulse.
  */
 function resolveConception(
@@ -719,8 +719,7 @@ function resolveConception(
   const look = CONCEPTION_LOOK[kind];
   startPregnancy(entity, {
     origin: kind,
-    fatherId: partner.id,
-    partner,
+    father: partner,
     startDay: getColonyDay(state),
   });
   entity.flash = look.flash;
@@ -786,7 +785,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
     entity.energy > config.reproductionEnergyThreshold * 0.75
   ) {
     const partner = getLivingEntity(entity.partnerId, ctx.entityById);
-    if (partner && !partner.raidDeploymentId) {
+    if (partner && isPlayerHuman(partner) && partner.gender === 'male' && !partner.raidDeploymentId) {
       const dist = Math.hypot(partner.x - entity.x, partner.y - entity.y);
       const sharesHome = shareResidence(entity, partner);
       const bothAtSharedHome =
