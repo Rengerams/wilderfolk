@@ -256,16 +256,14 @@ export function removeStaffWorkerFromBuilding(
   buildingId: number,
   humanId: number,
 ): WorldState {
+  const source = originalState.buildings.find((candidate) => candidate.id === buildingId);
+  // Completed workplaces are automatic. The legacy command may only remove a builder.
+  if (!source || source.completed || !source.occupants.includes(humanId)) return originalState;
+  const candidate = originalState.entities.find((entity) => entity.id === humanId);
+  if (!candidate || candidate.workerBuildingId != null) return originalState;
+
   const state = structuredClone(originalState);
-  const building = state.buildings.find((candidate) => candidate.id === buildingId);
-  const human = state.entities.find((entity) => entity.id === humanId);
-  if (!building || !human) return state;
-  if (building.completed && isResidenceBuildingType(building.type)) return state;
-
-  // `removeWorkerTransition` clears the settler's real job and crew, so refuse unless this
-  // building owns the assignment (workplace link or construction-crew roster).
-  if (human.workerBuildingId !== buildingId && !building.occupants.includes(humanId)) return state;
-
+  const human = state.entities.find((entity) => entity.id === humanId)!;
   removeWorkerTransition(human, state.buildings);
   assignMissingWorkers(allPlayerHumans(state.entities), state.buildings, state);
   return state;

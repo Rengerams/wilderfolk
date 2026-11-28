@@ -20,10 +20,15 @@ const SPOTLIGHT_MIN_SLOT_GAP_PX = 20;
 /** The square sprite is drawn bottom-anchored (0.92), so its painted middle sits 0.42 x 70 x 1.15 px above x/y. */
 export const SPOTLIGHT_SQUARE_ART_LIFT_PX = 34;
 
-/** The square's painted middle, not its footprint centre: a flat plaza stands lower than a house. */
-function squareStagePoint(square: Building): { x: number; y: number } {
+/** The square's painted middle is an exact stage mark, not a movable navigation target. */
+function squareStagePoint(state: WorldState, square: Building): { x: number; y: number } | null {
   const center = getBuildingCenter(square);
-  return { x: center.x, y: center.y - SPOTLIGHT_SQUARE_ART_LIFT_PX };
+  const point = { x: center.x, y: center.y - SPOTLIGHT_SQUARE_ART_LIFT_PX };
+  if (!state.worldMap || point.x < SPOTLIGHT_RING_RADIUS_PX || point.y < SPOTLIGHT_RING_RADIUS_PX ||
+      point.x > state.width - SPOTLIGHT_RING_RADIUS_PX || point.y > state.height - SPOTLIGHT_RING_RADIUS_PX) return null;
+  const walkable = nearestWalkableWorldPoint(state.worldMap, state.buildings, point.x, point.y);
+  // Never move the entire performance to an adjacent building or another street.
+  return walkable?.x === point.x && walkable.y === point.y ? point : null;
 }
 
 function availableSpotlightActor(entity: Entity): boolean {
@@ -152,14 +157,10 @@ export function maybeStartSpotlightLore(state: WorldState): boolean {
 
   const square = state.buildings.find((b) =>
     b.type === BuildingType.Square && b.completed);
-  const squareStage = square ? squareStagePoint(square) : null;
-
-  const squareOrigin = squareStage
-    ? nearestWalkableWorldPoint(state.worldMap, state.buildings, squareStage.x, squareStage.y)
-    : null;
+  const squareStage = square ? squareStagePoint(state, square) : null;
 
   const scene = square
-    ? squareOrigin && buildSpotlightLoreScene(state, girl, chorus, `${day}:${girl.id}`, squareOrigin)
+    ? squareStage && buildSpotlightLoreScene(state, girl, chorus, `${day}:${girl.id}`, squareStage)
     : buildSpotlightLoreScene(state, girl, chorus, `${day}:${girl.id}`);
   if (!scene) return false;
   if (square) stageSpotlightLoreCast(state, scene, girl, chorus);
@@ -195,17 +196,19 @@ export function startSpotlightLoreDebug(state: WorldState): boolean {
   const camp = map.campSite ?? { x: state.width / 2, y: state.height / 2 };
   const square = state.buildings.find((b) =>
     b.type === BuildingType.Square && b.completed);
-  const squareStage = square ? squareStagePoint(square) : null;
+  const squareStage = square ? squareStagePoint(state, square) : null;
 
-  const candidates = [
-    ...(squareStage ? [squareStage] : []),
+  // A completed square is authoritative. Open-ground alternatives are only for villages without one.
+  const candidates = square ? (squareStage ? [squareStage] : []) : [
     { x: girl.x, y: girl.y },
     { x: camp.x, y: camp.y },
     { x: state.width / 2, y: state.height / 2 },
   ];
-  for (let gx = 1; gx <= 4; gx++) {
-    for (let gy = 1; gy <= 4; gy++) {
-      candidates.push({ x: state.width * gx / 5, y: state.height * gy / 5 });
+  if (!square) {
+    for (let gx = 1; gx <= 4; gx++) {
+      for (let gy = 1; gy <= 4; gy++) {
+        candidates.push({ x: state.width * gx / 5, y: state.height * gy / 5 });
+      }
     }
   }
   const tried = new Set<string>();
@@ -213,7 +216,7 @@ export function startSpotlightLoreDebug(state: WorldState): boolean {
     const key = `${Math.round(candidate.x)}:${Math.round(candidate.y)}`;
     if (tried.has(key)) continue;
     tried.add(key);
-    const origin = nearestWalkableWorldPoint(map, state.buildings, candidate.x, candidate.y);
+    const origin = square ? candidate : nearestWalkableWorldPoint(map, state.buildings, candidate.x, candidate.y);
     if (!origin) continue;
     const chorus = men
       .map((man) => ({ man, distance: Math.hypot(man.x - origin.x, man.y - origin.y) }))

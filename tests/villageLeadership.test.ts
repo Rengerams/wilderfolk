@@ -174,13 +174,19 @@ describe('villageLeadership.electionGaps.test.ts', () => {
       const electionId = ceremony.electionId;
       const tally = { ...ceremony.ballotTally };
       const ballots = ceremony.ballotTotal;
+      const names = { ...ceremony.candidateNames };
+      expect(Object.keys(names).length).toBeGreaterThan(0);
       for (const candidate of state.entities) {
-        if (candidate.type === EntityType.Human) candidate.skills = { farmer: 100 };
+        if (candidate.type === EntityType.Human) {
+          candidate.skills = { farmer: 100 };
+          candidate.name = 'Renamed after ballot';
+        }
       }
       expect(state.electionCeremony?.ballotTally).toEqual(tally);
       const result = runVillageElection(state, TERM_YEAR, 'term');
       expect(state.lastElectionResult?.electionId).toBe(electionId);
       expect(state.lastElectionResult?.tally).toEqual(tally);
+      expect(state.lastElectionResult?.candidateNames).toEqual(names);
       expect(state.lastElectionResult?.ballots).toBe(ballots);
       expect(state.lastElectionResult?.winnerId).toBe(result.leaderId);
     });

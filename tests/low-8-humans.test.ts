@@ -11,7 +11,7 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import { initGame } from '../src/game/worldGen';
 import { SOCIAL_STAGGER } from '../src/game/adaptiveSpatialQuery';
 import { removeStaffWorkerFromBuilding } from '../src/game/buildingStaffingActions';
-import { prepareWorkforce } from '../src/game/workforce';
+import { assignMissingWorkers, prepareWorkforce } from '../src/game/workforce';
 import { tickHumans } from '../src/game/humanTick';
 import { exposeAffair, MARRIAGE_ANNUAL_AMICABLE_DIVORCE_RATE, tryDailyAmicableDivorce } from '../src/game/simulation/humanRelationships';
 import { validateVillageLeaderOnLoad } from '../src/game/villageLeadership';
@@ -220,7 +220,7 @@ describe('L8 — removal targets the settler\'s own building', () => {
     expect(next.buildings.find((b) => b.id === church.id)!.occupants).toContain(worker.id);
   });
 
-  it('removes only the targeted job before automatic staffing refills the Church', () => {
+  it('refuses to remove an existing job and leaves normalization to the workforce owner', () => {
     const state = newWorld();
     const church = building(1, BuildingType.Church, { staffingMode: 'manual' });
     state.buildings = [church];
@@ -229,6 +229,9 @@ describe('L8 — removal targets the settler\'s own building', () => {
     state.entities = [worker];
 
     const next = removeStaffWorkerFromBuilding(state, church.id, worker.id);
+    expect(next).toBe(state);
+    expect(church.staffingMode).toBe('manual');
+    assignMissingWorkers(next.entities, next.buildings, next, true);
 
     const nextWorker = next.entities.find((e) => e.id === worker.id)!;
     expect(nextWorker.workerBuildingId).toBe(church.id);

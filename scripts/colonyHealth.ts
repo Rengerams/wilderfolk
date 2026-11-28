@@ -12,11 +12,12 @@ import { initGame } from '../src/game/gameEngine';
 import { createBuilding } from '../src/game/worldGen';
 import { getBuildingFootprintForType, snapBuildingCenter } from '../src/game/buildingRotation';
 import { isFootprintWithinMapBounds, overlapsAnyBuilding } from '../src/game/placementUtils';
-import { beginCommuteRoutePass, isWithinAssignableCommute } from '../src/game/commuteReach';
+import { beginCommuteRoutePass, isWithinAssignableCommute, quoteBuildingCommute } from '../src/game/commuteReach';
 import { getCurrentPathGrid, setCurrentPathMap } from '../src/game/pathfinding';
+import { Buildability } from '../src/game/terrain/terrainGrid';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { assignMissingResidences } from '../src/game/housingPipeline';
-import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, MapSize, PATH_CELL } from '../src/game/gameTypes';
+import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, MapPreset, MapSize, PATH_CELL } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { updateStorageCaps } from '../src/game/economy';
 import { getRecentFoodFlow } from '../src/game/economyLedger';
@@ -118,6 +119,10 @@ export interface ColonyScenarioOptions {
   size: MapSize;
   seed: number;
   scenario: ScenarioName;
+  /** Select the real world generator preset for the simulation fixture. */
+  preset?: MapPreset;
+  /** Benchmark-only: place the seeded founders in a wide dry region without modifying terrain. */
+  preferConnectedStart?: boolean;
 }
 
 export interface ColonyScenario {
@@ -158,24 +163,39 @@ function placeLegalStarterBuilding(
   if (fromHomes.length > 0 && !commuter) throw new Error('Starter colony has no human commuters');
   setCurrentPathMap(world.worldMap, world.buildings);
   beginCommuteRoutePass();
-  for (let ring = 0; ring <= 24; ring++) {
+  // First try the preferred block, then the actual housing banks before a wider sweep.
+  // Every candidate still goes through the production facade and routed commute owners.
+  const searches = fromHomes.length > 0
+    ? [
+      { center: preferred, maxRing: 3, searchStep: step },
+      ...fromHomes.map((home) => ({ center: { x: home.x, y: home.y }, maxRing: 8, searchStep: PATH_CELL * 2 })),
+      // Keep successive producers on the same accessible dry bank as the first one.
+      ...world.buildings.filter((site) => site.completed && site.type === type)
+        .map((site) => ({ center: { x: site.x, y: site.y }, maxRing: 14, searchStep: PATH_CELL * 2 })),
+      { center: preferred, maxRing: 24, searchStep: step },
+    ]
+    : [{ center: preferred, maxRing: 24, searchStep: step }];
+  const rejected = { boundsOrOverlap: 0, blockedCenter: 0, commute: 0, passed: 0 };
+  const commuteSamples: Array<{ distance: number; fromDoors: number; toDoors: number; status: string; leadHours?: number }> = [];
+  for (const { center, maxRing, searchStep } of searches) {
+  for (let ring = 0; ring <= maxRing; ring++) {
     for (let dx = -ring; dx <= ring; dx++) {
       for (let dy = -ring; dy <= ring; dy++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
-        const spot = snapBuildingCenter(type, preferred.x + dx * step, preferred.y + dy * step, 0);
+        const spot = snapBuildingCenter(type, center.x + dx * searchStep, center.y + dy * searchStep, 0);
         // Already-built fixtures bypass the placement owner (research/slope gates are not navigation
         // barriers), but must stay walkable and overlap-free.
         const footprint = getBuildingFootprintForType(type, 0);
         if (!isFootprintWithinMapBounds(footprint.width, footprint.height,
           spot.x, spot.y, world.width, world.height)
           || overlapsAnyBuilding(world.buildings, footprint.width, footprint.height,
-            spot.x, spot.y)) continue;
+            spot.x, spot.y)) { rejected.boundsOrOverlap++; continue; }
         const grid = getCurrentPathGrid();
         if (grid) {
           const col = Math.floor(spot.x / PATH_CELL);
           const row = Math.floor(spot.y / PATH_CELL);
           if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows
-            || grid.blocked[row * grid.cols + col]) continue;
+            || grid.blocked[row * grid.cols + col]) { rejected.blockedCenter++; continue; }
         }
         const candidate = createBuilding(type, spot.x, spot.y, -1);
         // The first seed house must itself have an accessible facade. A legal centre on an
@@ -183,20 +203,71 @@ function placeLegalStarterBuilding(
         if (type === BuildingType.House && grid && buildingAccessPoints(candidate, grid).length === 0) continue;
         if (fromHomes.length > 0) {
           beginCommuteRoutePass();
-          const reachable = fromHomes.every((home) =>
+          // A starter workplace only needs one genuinely commutable household:
+          // the workforce can staff it from that home. Requiring every home
+          // to reach every workplace fails on islands once water is correctly
+          // impassable, although valid jobs remain on the settled bank.
+          const reachable = fromHomes.some((home) =>
             isWithinAssignableCommute(
               { ...commuter!, residenceBuildingId: home.id },
               candidate,
               world.buildings,
               SPECIES_CONFIG[EntityType.Human].speed,
             ));
-          if (!reachable) continue;
+          if (!reachable) {
+            rejected.commute++;
+            if (commuteSamples.length < 12) {
+              const near = [...fromHomes].sort((a, b) => Math.hypot(a.x - spot.x, a.y - spot.y) - Math.hypot(b.x - spot.x, b.y - spot.y))[0];
+              beginCommuteRoutePass();
+              const verdict = quoteBuildingCommute(near, candidate, SPECIES_CONFIG[EntityType.Human].speed);
+              const doorGrid = getCurrentPathGrid();
+              commuteSamples.push({ distance: Math.round(Math.hypot(near.x - spot.x, near.y - spot.y)), fromDoors: buildingAccessPoints(near, doorGrid).length, toDoors: buildingAccessPoints(candidate, doorGrid).length, status: verdict.status, leadHours: verdict.status === 'priced' ? verdict.leadHours : undefined });
+            }
+            continue;
+          }
         }
+        rejected.passed++;
         return createCompletedBuilding(world, type, spot.x, spot.y);
       }
     }
   }
-  throw new Error(`Seeded ${type} has no legal, commutable starter placement near ${preferred.x},${preferred.y}`);
+  }
+  const grid = getCurrentPathGrid();
+  const regionSummary = (() => {
+    if (!grid) return null;
+    const labels = new Int32Array(grid.blocked.length);
+    let nextLabel = 0;
+    const sizes: number[] = [0];
+    const stack: number[] = [];
+    for (let i = 0; i < grid.blocked.length; i++) {
+      if (grid.blocked[i] || labels[i]) continue;
+      const label = ++nextLabel;
+      labels[i] = label;
+      stack.push(i);
+      let count = 0;
+      while (stack.length) {
+        const cur = stack.pop()!;
+        count++;
+        const x = cur % grid.cols, y = Math.floor(cur / grid.cols);
+        for (const ni of [x > 0 ? cur - 1 : -1, x + 1 < grid.cols ? cur + 1 : -1,
+          y > 0 ? cur - grid.cols : -1, y + 1 < grid.rows ? cur + grid.cols : -1]) {
+          if (ni < 0 || grid.blocked[ni] || labels[ni]) continue;
+          labels[ni] = label;
+          stack.push(ni);
+        }
+      }
+      sizes[label] = count;
+    }
+    const homeRegions = fromHomes.map((home) => {
+      const door = buildingAccessPoints(home, grid)[0];
+      const index = door ? Math.floor(door.y / PATH_CELL) * grid.cols + Math.floor(door.x / PATH_CELL) : -1;
+      const label = index >= 0 && index < labels.length ? labels[index] : 0;
+      return { x: home.x, y: home.y, region: label, cells: sizes[label] ?? 0 };
+    });
+    return { regionCount: nextLabel, homeRegions, largestRegions: [...sizes].sort((a, b) => b - a).slice(0, 5),
+      existing: world.buildings.map((site) => ({ type: site.type, x: site.x, y: site.y })) };
+  })();
+  throw new Error(`Seeded ${type} has no legal, commutable starter placement near ${preferred.x},${preferred.y} (rejected: ${JSON.stringify(rejected)}, commute samples: ${JSON.stringify(commuteSamples)}, terrain: ${JSON.stringify(regionSummary)})`);
 }
 
 function placeStarterHousing(world: WorldState, anchor: { x: number; y: number }): void {
@@ -277,14 +348,109 @@ function placeProducers(world: WorldState, anchor: { x: number; y: number }): Bu
  * Build one seeded colony and provision it exactly as the named scenario says: the settlement skeleton
  * is identical in both scenarios; only producers, storage mix and the initial larder differ.
  */
+/**
+ * Benchmark-only start selection. The old seed puts 8 starter homes in a 222-cell pocket
+ * even though the same Huge map has a 142k-cell mainland. Scan the *existing* L0 water mask
+ * for a wide, dry settlement rectangle: no terrain edits, alternate walking rules, or
+ * separate path search. All actual buildings and assignments still use the normal owners.
+ */
+export function findDryBenchmarkStart(
+  world: WorldState,
+  preferred: { x: number; y: number },
+  districtSites?: readonly Readonly<{ x: number; y: number; width: number; height: number }>[],
+  accept?: (center: Readonly<{ x: number; y: number }>) => boolean,
+): { x: number; y: number } {
+  const map = world.worldMap;
+  // The L1 build mask classifies shallow water as water even on an earlier game
+  // revision that permitted wading. It gives base and PR *identical* benchmark
+  // terrain selection; the L0 walk policy still decides all actual routes.
+  const build = map?.buildGrid;
+  const cols = map?.bCols, rows = map?.bRows;
+  if (!map || !build || !cols || !rows || build.length !== cols * rows) return preferred;
+  const stride = cols + 1;
+  const summed = new Int32Array((cols + 1) * (rows + 1));
+  for (let y = 0; y < rows; y++) {
+    let waterInRow = 0;
+    for (let x = 0; x < cols; x++) {
+      if (build[y * cols + x] !== Buildability.Open) waterInRow++;
+      summed[(y + 1) * stride + x + 1] = summed[y * stride + x + 1] + waterInRow;
+    }
+  }
+  const waterCount = (left: number, top: number, right: number, bottom: number) =>
+    summed[bottom * stride + right] - summed[top * stride + right]
+    - summed[bottom * stride + left] + summed[top * stride + left];
+  // One owner selects both the founding district and the scaled benchmark plots.
+  // Reserve clearance around each plot so the simulated walk entrances remain dry.
+  const buildCell = PATH_CELL * 2;
+  const shapes: readonly (readonly [number, number])[] = districtSites
+    ? [[9, 9]]
+    : [[18, 16], [15, 13], [12, 11]];
+  for (const [halfWidth, halfHeight] of shapes) {
+    let best: { x: number; y: number } | null = null;
+    let bestDistance = Infinity;
+    const candidates: Array<{ x: number; y: number; distance: number }> = [];
+    for (let ty = halfHeight + 2; ty + halfHeight + 2 < rows; ty += 2) {
+      for (let tx = halfWidth + 2; tx + halfWidth + 2 < cols; tx += 2) {
+        if (!districtSites && waterCount(tx - halfWidth, ty - halfHeight, tx + halfWidth, ty + halfHeight) !== 0) continue;
+        const x = (tx + 0.5) * buildCell;
+        const y = (ty + 0.5) * buildCell;
+        const distance = Math.hypot(x - preferred.x, y - preferred.y);
+        if (!accept && distance >= bestDistance) continue;
+        if (districtSites) {
+          // A whole 360px vacancy mask wastes buildable land: only the actual
+          // building footprints and open access corridors need clearance.
+          // Reuse the placement owner's overlap check for every individual site.
+          const viable = districtSites.every((site) => {
+            const siteX = x + site.x;
+            const siteY = y + site.y;
+            const left = Math.floor((siteX - site.width / 2) / buildCell);
+            const right = Math.ceil((siteX + site.width / 2) / buildCell);
+            const top = Math.floor((siteY - site.height / 2) / buildCell);
+            const bottom = Math.ceil((siteY + site.height / 2) / buildCell);
+            return left >= 0 && top >= 0 && right <= cols && bottom <= rows
+              && waterCount(left, top, right, bottom) === 0
+              && !overlapsAnyBuilding(world.buildings, site.width, site.height, siteX, siteY);
+          });
+          if (!viable) continue;
+        }
+        if (accept) candidates.push({ x, y, distance });
+        else {
+          bestDistance = distance;
+          best = { x, y };
+        }
+      }
+    }
+    if (accept) {
+      // The callback checks canonical building entrances and routed commutes.
+      // Test candidates in nearest-first order; never accept an unpriced route.
+      candidates.sort((a, b) => a.distance - b.distance || a.y - b.y || a.x - b.x);
+      for (const center of candidates) {
+        if (accept(center)) return { x: center.x, y: center.y };
+      }
+    }
+    if (best) return best;
+  }
+  throw new Error(districtSites
+    ? `Benchmark map contains no unoccupied dry district plot after ${world.buildings.length} completed buildings`
+    : 'Benchmark map contains no sufficiently large dry starting area');
+}
+
 export function prepareColonyWorld(options: ColonyScenarioOptions): ColonyScenario {
-  const { size, seed, scenario } = options;
+  const { size, seed, scenario, preset } = options;
   const plan = SCENARIOS[scenario];
-  const world = initGame({ size, seed });
+  const world = initGame({ size, seed, preset });
   setSimSeed(seed);
 
   const founders = livingHumans(world);
-  const anchor = founders[0] ?? { x: world.width / 2, y: world.height / 2 };
+  const originalAnchor = founders[0] ?? { x: world.width / 2, y: world.height / 2 };
+  const anchor = options.preferConnectedStart ? findDryBenchmarkStart(world, originalAnchor) : originalAnchor;
+  if (options.preferConnectedStart && (anchor.x !== originalAnchor.x || anchor.y !== originalAnchor.y)) {
+    const dx = anchor.x - originalAnchor.x;
+    const dy = anchor.y - originalAnchor.y;
+    for (const founder of founders) { founder.x += dx; founder.y += dy; }
+    if (world.worldMap) world.worldMap.campSite = { ...anchor };
+    hydrateWorldRuntimeCaches(world);
+  }
 
   placeStarterHousing(world, anchor);
   placeLegalStarterBuilding(world, BuildingType.Tavern, { x: anchor.x + 180, y: anchor.y - 24 });

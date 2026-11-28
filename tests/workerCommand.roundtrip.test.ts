@@ -140,13 +140,15 @@ describe('worker command round trips (shared worker + fallback implementation)',
     expect(church.occupants).toEqual([]);
   });
 
-  it('a removed worker is eligible for automatic vacancy refilling', () => {
+  it('legacy removeWorker refuses completed individual job dismissal', () => {
     const priest = human(1, { workerBuildingId: 4, job: JobType.Priest });
     const church = building(4, BuildingType.Church, { occupants: [1], staffingMode: 'manual' });
     const world = makeWorld([priest], [church]);
     const next = applyWorkerCommand(world, cmd({ op: 'removeWorker', buildingId: 4, humanId: 1 }));
-    expect(next.buildings.find((site) => site.id === 4)?.staffingMode).toBe('auto');
-    expect(next.entities[0]?.workerBuildingId).toBe(4);
+    expect(next).toBe(world);
+    expect(church.staffingMode).toBe('manual');
+    expect(church.occupants).toEqual([1]);
+    expect(priest.workerBuildingId).toBe(4);
   });
 
   it('legacy assignWorker cannot transfer employees between job sites', () => {

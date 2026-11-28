@@ -255,18 +255,20 @@ function announceElectionCeremony(state: WorldState): void {
 
 /** Only the 00:00 day-zero boundary may schedule a term election. */
 export function tickYearBoundaryWorldEvents(state: WorldState): void {
-  if (!isNewCalendarDayTick(state) || state.dayInYear !== 0 || state.year <= 0) return;
+  if (!isNewCalendarDayTick(state)) return;
+  const buildupNews = tickElectionBuildup(state, state.year, state.dayInYear);
+  if (buildupNews) {
+    addBigNews(state, buildupNews.title, buildupNews.message, 'neutral');
+    addNotification(state, buildupNews.title, buildupNews.message, 'event');
+    logEvent(state, 'election', buildupNews.message);
+  }
+  if (state.dayInYear !== 0 || state.year <= 0) return;
   if (getCalendarDay(state.tick - 1) === 0) return;
 
   // A harvest grant lasts exactly the year it was rolled for. Clearing at the midnight boundary —
   // before the new year's production and its roll — stops a grant bleeding one day forward.
   state.bountifulHarvest = false;
 
-  const buildupNews = tickElectionBuildup(state, state.year, true);
-  if (buildupNews) {
-    addBigNews(state, buildupNews.title, buildupNews.message, 'neutral');
-    addNotification(state, buildupNews.title, buildupNews.message, 'event');
-  }
   if (tryStartTermElectionCeremony(state, state.year, state.dayInYear)) {
     announceElectionCeremony(state);
   }

@@ -2,7 +2,7 @@ import { appendFileSync, writeFileSync } from 'node:fs';
 import { gameTick } from '../src/game/gameTick';
 import { createEntity } from '../src/game/entityFactory';
 import { BuildingType, BUILDING_CONFIGS } from '../src/game/buildings';
-import { EntityType, MapSize } from '../src/game/gameTypes';
+import { EntityType, MapPreset, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { getAbsoluteCalendarDay, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -10,12 +10,17 @@ import { rebuildEntityByIdMap } from '../src/game/entityIndex';
 import { buildEntityByType } from '../src/game/simFocus';
 import { moveResident, syncResidenceOccupants } from '../src/game/housingPipeline';
 import { assignWorkerTransition, syncJobBuildingOccupants } from '../src/game/workforce';
+import { buildingAccessPoints } from '../src/game/buildingAccess';
+import { beginCommuteRoutePass, isWithinAssignableCommute, quoteBuildingCommute, MAX_ASSIGNABLE_COMMUTE_HOURS } from '../src/game/commuteReach';
+import { getCurrentPathGrid, getReadOnlyPathGrid, isGroundWalkableAt, setCurrentPathMap } from '../src/game/pathfinding';
+import { SPECIES_CONFIG } from '../src/game/speciesConfig';
+import { createBuilding } from '../src/game/worldGen';
 import { updateStorageCaps } from '../src/game/economy';
 import { preloadDialogueBank } from '../src/game/dialogueTrees';
 import { loadNames } from '../src/game/nameLoader';
 import { getSimFocus } from './simFocus';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
-import { prepareColonyWorld, createCompletedBuilding, applyColonyBotAction, collectInvariantErrors } from './colonyHealth';
+import { prepareColonyWorld, createCompletedBuilding, findDryBenchmarkStart, applyColonyBotAction, collectInvariantErrors } from './colonyHealth';
 
 // The same real gameTick + hourly VirtualPlayer command route used by run-full-year.mts.
 // The setup is a one-time seeded, staffed colony: no free births, resources or buildings during measurement.
@@ -45,7 +50,8 @@ function livingPlayers(world: WorldState): Entity[] {
 
 function careerCredits(world: WorldState): number {
   let total = 0;
-  // Keep historical credits of settlers who died during a long simulation.
+  // Current-world credits only: gameTick prunes dead/departed entities. The
+  // benchmark separately archives removed entities' final history below.
   for (const entity of world.entities) {
     if (!entity.careerHistory) continue;
     for (const row of Object.values(entity.careerHistory)) total += row?.days ?? 0;
@@ -53,37 +59,111 @@ function careerCredits(world: WorldState): number {
   return total;
 }
 
+/** Rotate benchmark district geometry without changing building types or their owners. */
+function rotateDistrictOffset(x: number, y: number, quarterTurns: number): { x: number; y: number } {
+  switch (quarterTurns) {
+    case 1: return { x: -y, y: x };
+    case 2: return { x: -x, y: -y };
+    case 3: return { x: y, y: -x };
+    default: return { x, y };
+  }
+}
+
 function prepareScaledColony(target: number): WorldState {
-  const prepared = prepareColonyWorld({ size: MapSize.Huge, seed: SEED, scenario: 'producers' });
+  // A 1,800-resident city needs a genuinely buildable contiguous mainland. The
+  // Meadows preset is a real world-generation mode, not a bypass of water rules.
+  // Both baseline and PR use this identical scenario and the same settlement
+  // harness, while 250/750 residents retain their continental stress coverage.
+  const preset = target >= 1800 ? MapPreset.Meadows : MapPreset.Continental;
+  const prepared = prepareColonyWorld({
+    size: MapSize.Huge, seed: SEED, scenario: 'producers', preset, preferConnectedStart: true,
+  });
   const world = prepared.world;
   const founders = livingPlayers(world);
   const needed = target - founders.length;
   if (needed < 0) throw new Error('Requested population is below the founding population');
   const districtSize = 24;
   const districts = Math.ceil(needed / districtSize);
-  const columns = Math.ceil(Math.sqrt(districts * 1.5));
-  const rows = Math.ceil(districts / columns);
-  const left = Math.round(world.width / 2 - columns * 305 / 2);
-  const top = Math.round(world.height / 2 - rows * 270 / 2);
+  const preferred = world.worldMap?.campSite ?? { x: world.width / 2, y: world.height / 2 };
+  const scaledResidents: Entity[] = [];
   let spawned = 0;
 
   for (let district = 0; district < districts; district++) {
-    const x = left + (district % columns) * 305;
-    const y = top + Math.floor(district / columns) * 270;
-    const homes = [0, 72, 144, 216].map((offset) =>
-      createCompletedBuilding(world, BuildingType.House, x + offset, y));
-    const jobs: Building[] = [
-      ...[0, 72, 144, 216].map((offset) => createCompletedBuilding(world, BuildingType.Farm, x + offset, y + 95)),
-      createCompletedBuilding(world, BuildingType.LumberMill, x, y + 185),
-      createCompletedBuilding(world, BuildingType.Quarry, x + 82, y + 185),
-      createCompletedBuilding(world, BuildingType.Market, x + 166, y + 185),
-      createCompletedBuilding(world, BuildingType.Tavern, x + 238, y + 185),
+    // The full template (buildings plus genuine walk corridors) is the same on
+    // baseline and PR; rotate it to fit irregular mainland and coastal terrain.
+    const siteTypes: Array<readonly [BuildingType, number, number]> = [
+      ...[0, 72, 144, 216].map((offset) => [BuildingType.House, offset, 0] as const),
+      ...[0, 72, 144, 216].map((offset) => [BuildingType.Farm, offset, 95] as const),
+      [BuildingType.LumberMill, 0, 185],
+      [BuildingType.Quarry, 82, 185],
+      [BuildingType.Market, 166, 185],
+      [BuildingType.Tavern, 238, 185],
     ];
-
     if (district % 4 === 0) {
-      createCompletedBuilding(world, BuildingType.Barn, x + 235, y - 72);
-      createCompletedBuilding(world, BuildingType.Silo, x + 170, y - 72);
+      siteTypes.push([BuildingType.Barn, 235, -72], [BuildingType.Silo, 170, -72]);
     }
+    let choice: { center: { x: number; y: number }; orientation: number } | null = null;
+    for (let orientation = 0; orientation < 4; orientation++) {
+      const centreOffset = rotateDistrictOffset(120, 65, orientation);
+      const districtSites = siteTypes.map(([type, offsetX, offsetY]) => {
+        const point = rotateDistrictOffset(offsetX, offsetY, orientation);
+        return {
+          x: point.x - centreOffset.x, y: point.y - centreOffset.y,
+          width: BUILDING_CONFIGS[type].width + 8,
+          height: BUILDING_CONFIGS[type].height + 8,
+        };
+      });
+      // One shared dry central lane and two cross-streets keep each row connected.
+      for (const [px, py, width, height] of [
+        [36, 92, 8, 192], [120, 55, 260, 8], [120, 140, 260, 8],
+      ]) {
+        const rotated = rotateDistrictOffset(px, py, orientation);
+        districtSites.push({
+          x: rotated.x - centreOffset.x, y: rotated.y - centreOffset.y,
+          width: orientation % 2 ? height : width,
+          height: orientation % 2 ? width : height,
+        });
+      }
+      try {
+        const center = findDryBenchmarkStart(world, preferred, districtSites, (spot) => {
+          const origin = { x: spot.x - centreOffset.x, y: spot.y - centreOffset.y };
+          const preview = siteTypes.map(([type, offsetX, offsetY], index) => {
+            const point = rotateDistrictOffset(offsetX, offsetY, orientation);
+            return { ...createBuilding(type, origin.x + point.x, origin.y + point.y, -index - 1), completed: true };
+          });
+          const grid = getReadOnlyPathGrid(world.worldMap!, [...world.buildings, ...preview]);
+          const homes = preview.slice(0, 4);
+          const jobs = preview.slice(4, 12);
+          const checked = new Set<string>();
+          let workerIndex = 0;
+          for (const job of jobs) {
+            for (let position = 0; position < BUILDING_CONFIGS[job.type].maxOccupants
+              && workerIndex < districtSize; position++, workerIndex++) {
+              const home = homes[Math.floor(workerIndex / 6)];
+              const key = home.id + ':' + job.id;
+              if (checked.has(key)) continue;
+              checked.add(key);
+              const quote = quoteBuildingCommute(home, job, SPECIES_CONFIG[EntityType.Human].speed, grid);
+              if (quote.status !== 'priced' || quote.leadHours > MAX_ASSIGNABLE_COMMUTE_HOURS) return false;
+            }
+          }
+          return true;
+        });
+        choice = { center, orientation };
+        break;
+      } catch (error) {
+        if (!(error instanceof Error) || !error.message.startsWith('Benchmark map contains no unoccupied dry district plot')) throw error;
+      }
+    }
+    if (!choice) throw new Error('No dry, routed district remains after ' + district + ' of ' + districts + ' districts');
+    const centreOffset = rotateDistrictOffset(120, 65, choice.orientation);
+    const origin = { x: choice.center.x - centreOffset.x, y: choice.center.y - centreOffset.y };
+    const placed = siteTypes.map(([type, offsetX, offsetY]) => {
+      const point = rotateDistrictOffset(offsetX, offsetY, choice.orientation);
+      return createCompletedBuilding(world, type, origin.x + point.x, origin.y + point.y);
+    });
+    const homes = placed.slice(0, 4);
+    const jobs: Building[] = placed.slice(4, 12);
 
     const residents: Entity[] = [];
     for (let local = 0; local < districtSize && spawned < needed; local++, spawned++) {
@@ -100,6 +180,7 @@ function prepareScaledColony(target: number): WorldState {
       world.entities.push(settler);
       moveResident(settler, home.id, 'assignment', { buildings: world.buildings });
       residents.push(settler);
+      scaledResidents.push(settler);
     }
     let next = 0;
     for (const job of jobs) {
@@ -108,6 +189,37 @@ function prepareScaledColony(target: number): WorldState {
         const worker = residents[next++];
         if (!assignWorkerTransition(worker, job)) throw new Error('Unable to assign seeded workplace');
       }
+    }
+  }
+
+  // Validate the same entrances and commute routes production uses before measuring.
+  // Never start a benchmark resident in water or the solid centre of a house.
+  setCurrentPathMap(world.worldMap, world.buildings);
+  const pathGrid = getCurrentPathGrid();
+  if (!pathGrid) throw new Error('Scaled benchmark has no navigation grid');
+  const buildingById = new Map(world.buildings.map((site) => [site.id, site]));
+  const checkedCommutes = new Set<string>();
+  for (const resident of scaledResidents) {
+    const home = buildingById.get(resident.residenceBuildingId ?? -1);
+    if (!home) throw new Error('Scaled benchmark resident has no valid home');
+    const entrances = buildingAccessPoints(home, pathGrid);
+    if (entrances.length === 0) throw new Error('Scaled benchmark home has no usable entrance: ' + home.id);
+    const entrance = entrances[resident.id % entrances.length];
+    resident.x = entrance.x;
+    resident.y = entrance.y;
+    if (!isGroundWalkableAt(resident.x, resident.y, pathGrid)) {
+      throw new Error('Scaled benchmark resident starts on blocked terrain: ' + resident.id);
+    }
+    const job = buildingById.get(resident.workerBuildingId ?? -1);
+    if (!job) continue;
+    const key = home.id + ':' + job.id;
+    if (checkedCommutes.has(key)) continue;
+    checkedCommutes.add(key);
+    beginCommuteRoutePass();
+    if (!isWithinAssignableCommute(
+      resident, job, world.buildings, SPECIES_CONFIG[EntityType.Human].speed, buildingById,
+    )) {
+      throw new Error('Scaled benchmark has no genuine two-hour commute for ' + key);
     }
   }
 
@@ -166,6 +278,10 @@ async function main(): Promise<void> {
   let previousDayCredits = 0;
   let previousDayBotActions = 0;
   let lastDailySampleIndex = 0;
+  // gameTick removes dead/departed settlers from world.entities. Preserve their
+  // final earned career days independently of the hourly workday-event audit.
+  // This is a true lifetime sum, not a bypass of the equality assertion.
+  let removedCareerCredits = 0;
   let measuredCareerBaseline = careerCredits(world);
   const botByOperation = new Map<string, number>();
   const careerByJob = new Map<string, number>();
@@ -194,6 +310,7 @@ async function main(): Promise<void> {
   for (let step = 1; step <= WARMUP + measuredTicks; step++) {
     const cpuStart = process.cpuUsage();
     const started = performance.now();
+    const entitiesBeforeTick = world.entities;
     world = gameTick(world, focus);
     const simMs = performance.now() - started;
     const botStart = performance.now();
@@ -215,13 +332,25 @@ async function main(): Promise<void> {
       }
     }
     const botMs = performance.now() - botStart;
+    // Keep an independent accounting of histories on entities that left the
+    // authoritative world during this tick. These identities are not in the
+    // final game state, but their credited workdays remain real.
+    if (entitiesBeforeTick !== world.entities) {
+      const currentIds = new Set(world.entities.map((entity) => entity.id));
+      for (const entity of entitiesBeforeTick) {
+        if (currentIds.has(entity.id) || !entity.careerHistory) continue;
+        for (const row of Object.values(entity.careerHistory)) {
+          removedCareerCredits += row?.days ?? 0;
+        }
+      }
+    }
     const cpu = process.cpuUsage(cpuStart);
     if (step > WARMUP) {
       wallTicks.push(simMs);
       cpuTicks.push((cpu.user + cpu.system) / 1000);
       botTicks.push(botMs);
     } else if (step === WARMUP) {
-      measuredCareerBaseline = careerCredits(world);
+      measuredCareerBaseline = careerCredits(world) + removedCareerCredits;
     }
 
     // Poll at most once per in-game hour: career days are credited in the midnight fatigue pass, so
@@ -313,7 +442,7 @@ async function main(): Promise<void> {
 
   const totalWall = wallTicks.reduce((sum, value) => sum + value, 0);
   const totalBot = botTicks.reduce((sum, value) => sum + value, 0);
-  const creditedDays = careerCredits(world) - measuredCareerBaseline;
+  const creditedDays = careerCredits(world) + removedCareerCredits - measuredCareerBaseline;
   if (creditedDays !== careerEventCount) {
     throw new Error('Career audit mismatch: entity history delta=' + creditedDays +
       ' vs recorded career events=' + careerEventCount);

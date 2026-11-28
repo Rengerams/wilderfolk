@@ -311,7 +311,8 @@ describe('the leader-honored announcement survives a maxed reputation', () => {
 describe('one definition of "in an active marriage"', () => {
   it('counts expecting as married, because conception sets both partners to it', () => {
     expect(isMarriedOrExpecting({ relationshipStatus: 'married' })).toBe(true);
-    expect(isMarriedOrExpecting({ relationshipStatus: 'expecting' })).toBe(true);
+    expect(isMarriedOrExpecting({ relationshipStatus: 'expecting', partnerId: 1 })).toBe(true);
+    expect(isMarriedOrExpecting({ relationshipStatus: 'expecting' })).toBe(false);
     expect(isMarriedOrExpecting({ relationshipStatus: 'single' })).toBe(false);
     expect(isMarriedOrExpecting({ relationshipStatus: undefined })).toBe(false);
   });

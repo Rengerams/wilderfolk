@@ -11,7 +11,7 @@ import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 import { resolveChildSurname, getRandomName } from '../nameLoader';
 import { genomeOf, inheritGenome } from '../settlerTraits';
 import { createEntity } from '../entityFactory';
-import { getPregnancyProgressFraction, normalizePregnancyDueProgress } from '../pregnancy';
+import { advancePregnancy, clearPregnancy, getPregnancyProgressFraction } from '../pregnancy';
 import { SPECIES_CONFIG } from '../speciesConfig';
 import { pushNewEntity, allLivingHumans } from './simulationEntities';
 import { recordGenealogyBirth } from '../genealogyRegistry';
@@ -98,12 +98,7 @@ export function tickPregnancyAndBirth(
   const { width, height, byType, newEntities, entityById, updatedBuildings } = ctx;
   const { livingHumanAt } = opts;
 
-  entity.pregnancyProgress = (entity.pregnancyProgress ?? 0) + 1;
-  const dueProgress = normalizePregnancyDueProgress(entity.pregnancyDueProgress);
-
-  if (entity.pregnancyProgress < dueProgress) {
-    return;
-  }
+  if (!advancePregnancy(entity)) return;
 
   // --- Birth --
 
@@ -125,13 +120,13 @@ export function tickPregnancyAndBirth(
     deerFather = deer;
   }
   const wildkinBirth = deerFather != null && seededRandomForRun(`${birthKey}:wildkin`) < LIFECYCLE_CONFIG.WILDKIN_CHANCE;
-  const biologicalFatherIdAtBirth = entity.pregnantById ?? entity.partnerId;
+  const biologicalFatherIdAtBirth = entity.pregnantById ?? undefined;
   const pregnancyFromYouthLove = entity.pregnancyFromYouthLove === true;
 
   const husband = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;
   const biologicalFather = biologicalFatherIdAtBirth != null ? livingHumanAt(biologicalFatherIdAtBirth) : undefined;
 
-  //Mother recovery & status reset
+  // Mother recovery and pregnancy reset
   const recoveredEnergy = Math.max(
     entity.maxEnergy * LIFECYCLE_CONFIG.MATERNAL_ENERGY_MIN_RATIO,
     entity.energy - LIFECYCLE_CONFIG.MATERNAL_ENERGY_COST,
@@ -142,15 +137,11 @@ export function tickPregnancyAndBirth(
     entity.energy = recoveredEnergy;
   }
   recordRelationshipDiagnostic('birthsCompletedThisInterval');
-  entity.pregnant = false;
-  entity.pregnancyProgress = 0;
-  entity.pregnancyDueProgress = undefined;
-  entity.pregnantById = undefined;
-  entity.pregnancyFromYouthLove = undefined;
-  entity.relationshipStatus = entity.partnerId != null ? 'married' : 'single';
+  clearPregnancy(entity);
+  clearExpectingStatus(entity);
   entity.reproductionCooldown = REPRODUCTION_COOLDOWN_TICKS;
 
-  //Clear expectant status on partners regardless of birth outcome
+  // Repair legacy status on partners without changing current relationship status.
   clearExpectingStatus(husband);
   clearExpectingStatus(biologicalFather);
 
@@ -254,6 +245,8 @@ export function tickPregnancyAndBirth(
     newbornBucket.push(child);
   }
 
+  recordGenealogyBirth(state, entity);
+  if (biologicalFather) recordGenealogyBirth(state, biologicalFather);
   recordGenealogyBirth(state, child);
 
   // Synchronize family relationships

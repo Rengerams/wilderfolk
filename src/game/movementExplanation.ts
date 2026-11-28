@@ -103,7 +103,7 @@ function settlerVenue(state: WorldState, settler: Entity): Building | undefined 
     height: state.height,
     livingHumanAt: (id) => (id == null ? undefined : state.entities.find((entity) => entity.id === id)),
   });
-  return pickSocialImpulse(settler, state, state.buildings, nearbyAdults, []).building;
+  return pickSocialImpulse(settler, state, state.buildings, nearbyAdults).building;
 }
 
 /**

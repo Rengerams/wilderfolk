@@ -248,6 +248,8 @@ interface MoonHowlerSavedState {
   /** Last spouse this settler divorced; release housing must not put them back together. */
   formerSpouseId?: number;
   affairPartnerId?: number;
+  /** Mutual, unestablished affair candidate; progress belongs to this pair only. */
+  affairCandidateId?: number;
   affairProgress?: number;
   courtshipPartnerId?: number;
   courtshipProgress?: number;
@@ -255,7 +257,8 @@ interface MoonHowlerSavedState {
   youthLoveProgress?: number;
   youthLoveStartedDay?: number;
   pregnant?: boolean;
-  pregnantById?: number;
+  /** Biological father fixed at conception; null is explicitly unknown, undefined is legacy or not pregnant. */
+  pregnantById?: number | null;
   pregnancyFromYouthLove?: boolean;
   pregnancyProgress?: number;
   /** Paired with `pregnant` by `simulationInvariants`; parked and restored with it. */
@@ -310,6 +313,10 @@ export interface Entity {
   leisureFriendSearch?: { day: number; tick: number; friendId: number | null };
   /** Temporary rejection of a proven unreachable leisure destination. */
   leisureRejectedTarget?: { x: number; y: number; untilTick: number };
+  /** Completed finite errands for this absolute colony day, replaced on arrival by the leisure owner. */
+  socialErrands?: { day: number; market?: boolean };
+  /** Absolute day of a successful civic petition; only the town-hall resolver writes it. */
+  civicPetitionResolvedDay?: number;
   childPlaymateDay?: number;
   childPlaymateId?: number;
   /** A daily play circle of two to four children; set by the one child-leisure owner. */
@@ -365,6 +372,8 @@ export interface Entity {
   /** Last spouse this settler divorced; release housing must not put them back together. */
   formerSpouseId?: number;
   affairPartnerId?: number;
+  /** Mutual, unestablished affair candidate; progress belongs to this pair only. */
+  affairCandidateId?: number;
   affairProgress?: number;
   lastAffairSiteDay?: number;
   lastAffairSiteX?: number;
@@ -378,7 +387,8 @@ export interface Entity {
   youthLovePartnerId?: number;
   youthLoveProgress?: number;
   youthLoveStartedDay?: number;
-  pregnantById?: number;
+  /** Biological father fixed at conception; null is explicitly unknown, undefined is legacy or not pregnant. */
+  pregnantById?: number | null;
   pregnancyFromYouthLove?: boolean;
   fatherId?: number;
   motherId?: number;
@@ -770,6 +780,8 @@ export interface OutgoingRaidEvent {
 export interface ElectionCeremonyState {
   electionId?: number;
   ballotTally?: Record<string, number>;
+  /** Immutable names at ballot time; absent on legacy saves. */
+  candidateNames?: Record<string, string>;
   ballotTotal?: number;
   ballotWinnerVotes?: number;
   ballotCast?: boolean;
@@ -969,7 +981,7 @@ export interface WorldState {
   electionBuildupNotifiedYear: number | null;
   electionCeremony: ElectionCeremonyState | null;
   nextElectionId?: number;
-  lastElectionResult?: { electionId: number; winnerId: number | null; ballots: number; tally: Record<string, number>; turnout: number; eligibleVoters: number };
+  lastElectionResult?: { electionId: number; winnerId: number | null; ballots: number; tally: Record<string, number>; candidateNames?: Record<string, string>; turnout: number; eligibleVoters: number };
   electionPromiseRecords?: Array<{ electionId: number; leaderId: number; year: number; dueDay: number; codes: number[]; evaluated: boolean }>;
   villageForge?: VillageForgeState;
   tutorialSeen?: string[];

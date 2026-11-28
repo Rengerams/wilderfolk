@@ -9,8 +9,15 @@ import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { RELATIONSHIP_REVISION, bumpRevision } from './entityRevision';
 
 /** True while the settler is in an active marriage: `'married'`, or `'expecting'` for a pregnancy. */
-export function isMarriedOrExpecting(entity: Pick<Entity, 'relationshipStatus'>): boolean {
-  return entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting';
+export function isMarriedOrExpecting(entity: Pick<Entity, 'relationshipStatus' | 'partnerId'>): boolean {
+  return entity.relationshipStatus === 'married' || (entity.relationshipStatus === 'expecting' && entity.partnerId != null);
+}
+
+/** A living pair with reciprocal active marriage links; legacy expecting remains read-compatible. */
+export function isMutualMarriage(a: Entity, b: Entity | undefined): b is Entity {
+  return !!b && a.alive && b.alive && a.id !== b.id
+    && a.partnerId === b.id && b.partnerId === a.id
+    && isMarriedOrExpecting(a) && isMarriedOrExpecting(b);
 }
 
  const FRIEND_PREFIX = 'friend_';

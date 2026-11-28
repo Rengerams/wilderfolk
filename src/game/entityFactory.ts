@@ -15,6 +15,7 @@ import { pickHumanVariant } from './humanSprites';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng } from './simRng';
 import { startPregnancy } from './pregnancy';
+import { isMarriedOrExpecting } from './relationships';
 
 /** Deterministic simulation RNG stream for entity factory creation. */
 function simRandom(): number {
@@ -37,7 +38,7 @@ export interface CreateEntityOptions {
   pregnancyProgress?: number;
   pregnantById?: number;
   partnerId?: number;
-  relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
+  relationshipStatus?: 'single' | 'married' | 'widowed';
   name?: string;
   /** Genome inherited from both biological parents at birth. */
   inheritedGenome?: GenomeV2;
@@ -79,10 +80,9 @@ export function createEntity(
     opts?.gender ?? (isHuman ? (simRandom() > 0.5 ? 'male' : 'female') : undefined);
   const gen = opts?.generation ?? 0;
 
-  // Auto-detect juvenile status from the calendar age against the dayCycle owner's childhood
-  // boundary, the same one `setHumanBirthFromAge` below applies, so the flag and `size` agree.
-  const effectiveJuvenile =
-    isJuvenile ?? (isHuman && opts?.ageYears !== undefined ? opts.ageYears < HUMAN_ADULT_MIN_AGE : false);
+  // Human age and body size are initialized together by the calendar owner below.
+  // The explicit juvenile flag applies only to wildlife and other non-human species.
+  const effectiveJuvenile = !isHuman && (isJuvenile ?? false);
 
   let name: string | undefined;
   if (isHuman) {
@@ -101,17 +101,13 @@ export function createEntity(
   const surname = isHuman ? (opts?.surname?.trim() || getRandomSurname()) : undefined;
   const maidenSurname =
     isHuman && entGender === 'female'
-      ? opts?.maidenSurname?.trim() || (opts?.partnerId != null ? getRandomSurname() : surname)
+      ? opts?.maidenSurname?.trim() || (opts?.partnerId != null || isMarriedOrExpecting({ relationshipStatus: opts?.relationshipStatus, partnerId: opts?.partnerId }) || opts?.relationshipStatus === 'widowed' ? undefined : surname)
       : undefined;
 
   // Resolve relationship status
   const relationshipStatus = isHuman
     ? opts?.relationshipStatus ??
-      (opts?.partnerId != null
-        ? 'married'
-        : opts?.pregnant
-          ? 'expecting'
-          : 'single')
+      (opts?.partnerId != null ? 'married' : 'single')
     : undefined;
 
   const entity: Entity = {
@@ -142,7 +138,7 @@ export function createEntity(
     gender: isHuman ? entGender : undefined,
     isJuvenile: effectiveJuvenile,
     pregnant: undefined,
-    // Settler-only: the isHuman branch below assigns 0, so no blade of grass materialises it.
+    // Pregnancy fields are populated only by the pregnancy owner.
     pregnancyProgress: undefined,
     workerBuildingId: undefined,
     residenceBuildingId: undefined,
@@ -162,6 +158,7 @@ export function createEntity(
     generation: isHuman ? gen : undefined,
     partnerId: opts?.partnerId,
     affairPartnerId: undefined,
+    affairCandidateId: undefined,
     affairProgress: 0,
     lastAffairSiteDay: undefined,
     lastAffairSiteX: undefined,
@@ -170,7 +167,7 @@ export function createEntity(
     prisonBuildingId: undefined,
     prisonerUntilTick: undefined,
     prisonSentenceCrime: undefined,
-    pregnantById: opts?.pregnantById,
+    pregnantById: undefined,
     courtshipProgress: 0,
     isBastard: opts?.isBastard,
     adoptiveMotherId: undefined,
@@ -185,13 +182,13 @@ export function createEntity(
   if (isHuman) {
     // Newborns also need a birth date at their actual colony day.
     const ageYears = opts?.ageYears ?? 0;
-    setHumanBirthFromAge(entity, ageYears, opts?.colonyDay ?? 0);
-    entity.age = ageYears;
-
-    if (opts?.pregnant && entGender === 'female') {
+    setHumanBirthFromAge(entity, ageYears, opts?.colonyDay ?? 0, undefined, undefined, true);
+    if (opts?.pregnant) {
+      const fatherId = opts.pregnantById;
+      if (fatherId == null) throw new Error('Arriving pregnancy requires a biological father ID');
       startPregnancy(entity, {
         origin: 'existing',
-        fatherId: opts.pregnantById ?? opts.fatherId ?? opts.partnerId,
+        fatherId,
         pregnancyProgress: opts.pregnancyProgress ?? 0,
         startDay: opts.colonyDay ?? 0,
       });
@@ -212,9 +209,7 @@ export function finalizeSettlerAge(
     entity.age > 0 ? entity.age : HUMAN_ADULT_MIN_AGE + Math.floor(simRandom() * 20),
   );
 
-  setHumanBirthFromAge(entity, targetAge, colonyDay);
-  entity.age = targetAge;
-  entity.isJuvenile = false;
+  setHumanBirthFromAge(entity, targetAge, colonyDay, undefined, undefined, true);
 
   // Preserve Generation 1 founders if already set; default unassigned to Generation 2
   entity.generation = entity.generation && entity.generation > 0 ? entity.generation : 2;

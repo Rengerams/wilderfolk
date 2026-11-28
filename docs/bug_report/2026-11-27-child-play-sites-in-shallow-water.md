@@ -43,3 +43,6 @@ No new save fields, format changes or migration are introduced. Existing optiona
 - PASS — GitHub reported success for all six PR workflows associated with `f5a158a81`: Node.js CI, dead code audit, required calendar scheduler gate, and small/medium/large population performance workflows.
 - NOT RUN — independent pre-fix test execution, original player-save reproduction, browser/live-save verification and full-year/long-run Vitest suites (excluded from the cited affected-test command).
 - PENDING — CI on this documentation follow-up; keep status investigating until remaining gameplay confirmation is available.
+
+## Follow-up (27 Nov 2026)
+PR #229 subsequently changed the global pedestrian movement contract: shallow water is now impassable except on completed bridges. This report's earlier wading assumption records the state before that change; its dry-play-site clearance still applies independently.

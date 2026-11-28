@@ -2,6 +2,40 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Resolve rare daily probabilities inside the existing RNG buckets instead of rounding them up; sudden illness follows its intended risk without a second random generator.
+- **Improved (28 Nov 2026):** Show current adult education totals by qualification level in the Village Schooling overview.
+
+- **Fixed (28 Nov 2026, PR #243):** Let the housing owner move an unemployed household into spare beds near a reachable job, preserving custodians and school commutes. The existing staffing pass then assigns work; only one such move is attempted per pulse.
+
+- **Fixed (28 Nov 2026, PR #243):** Tie secret-affair progress to one reciprocal partner and clear anonymous 100%. Prevent dates from freezing until both are available. Fill completed jobs, including barracks, before construction claims the idle workforce; leaders follow normal staffing.
+
+- **Fixed (28 Nov 2026):** Use canonical stamina and medical rules for social motives, require reciprocal nearby spouse care, share reachable leisure routes, select nearby completed venues, and finish market errands once and civic petitions only after actual audience processing.
+
+- **Fixed (28 Nov 2026):** Protect active pregnancies from restarts and paternity changes, validate new pregnancy inputs, and centralize progress and delivery resets in the pregnancy owner.
+
+- **Fixed (28 Nov 2026):** Require explicit paternity for arriving pregnancies, prevent stale father IDs on non-pregnant spawns, and align human body size with calendar age. New spawns cannot use pregnancy as civil status or invent an unknown maiden name.
+
+- **Fixed (28 Nov 2026):** Share workplace duty between simulation and inspector; protect duty, commutes and gatherings from affair steering; sample overnight trysts before movement and require real classroom presence for schoolyard interactions.
+
+- **Fixed (28 Nov 2026):** Require biological paternity at pregnancy start, prevent confusing a mother's father with her baby's father, and register both available parents immediately at birth.
+
+- **Fixed (27 Nov 2026):** Prevent auto-player staffing commands, policy overrides and private workforce predictions; use visible occupancy for construction and reject legacy individual dismissal from completed workplaces.
+- **Fixed (28 Nov 2026):** Keep Spotlight Lore centred on the Village Square; skip blocked or displaced stage marks rather than relocating the performance, including debug preview.
+
+- **Fixed (27 Nov 2026):** Regular election notices and buildup gossip begin one day before voting, not one year; the two-year election calendar and succession rules remain unchanged. The notice enters the Chronicle; ballot-time candidate names persist even after renaming or death.
+
+- **Fixed (27 Nov 2026):** Preserve the biological father's identity from conception through remarriage, divorce, death and save reload; childbirth no longer assigns paternity to a new spouse.
+- **Fixed (27 Nov 2026):** Protect bedtime and venue recovery; distinguish exhaustion from illness; use daily affair progress, witnessed divorce and cooldowns; persist actual wedding counts; keep pregnancy separate from marriage.
+
+- **Fixed (27 Nov 2026):** Children no longer follow caregivers during work or commute hours, or while they remain at their workplace; stale following routes are cleared.
+
+
+- **Fixed (27 Nov 2026):** Population performance fixtures now seed 1,800 residents on actual dry Meadows terrain (continental remains the 250/750 stress map) and include departed settlers' earned career days in the independent workday audit without weakening checks.
+
+- **Fixed (27 Nov 2026):** Raid launch previews now identify a jailed elected commander and remaining sentence instead of displaying a generic unavailable-leader warning; lack of weapons is reported separately. A prisoner remains ineligible until released.
+
+- **Fixed (27 Nov 2026):** Water (including shallow water) now blocks pedestrian navigation unless crossed on a completed bridge. Walking and road eligibility reuse the canonical water terrain trait; water-dependent construction and reinforcement keep their separate rules.
+
 - **Tests (27 Nov 2026):** Consolidate five leadership, story and simulation regression suites and move the seed ownership check to the source guards.
 
 - **Tests (27 Nov 2026):** Move beauty, theatre, chronicle, persistence, challenge, frame catch-up, production and herd regressions into their owner suites.
@@ -40,7 +74,7 @@
 
 - **Fixed (27 Nov 2026):** Deployed war-band soldiers regain rest/stamina through normal field sleep, pay ordinary march fatigue instead of phantom barracks attendance, and cannot conceive at their frozen village coordinates.
 
-- **Fixed (27 Nov 2026):** Children no longer choose shallow water as a play site; shared cached sites are revalidated for dry terrain and safe arrival clearance without changing ordinary wading navigation.
+- **Fixed (27 Nov 2026):** Children no longer choose shallow water as a play site; shared cached sites are revalidated for dry terrain and safe arrival clearance; ordinary shallow-water crossing is now blocked by the central navigation rule.
 
 - **Fixed (27 Nov 2026):** Battle reports use one raid-specific chronological timeline, suppress duplicate loss summaries and resume without replay. Cinematic phases, actual force strength and confirmed losses make the battle clearer; victory has one announcement.
 

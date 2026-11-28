@@ -39,11 +39,6 @@ function removeHumanFromBuildingOccupants(entity: Entity, buildings: Building[])
   }
 }
 
-/** The status a settler holds once the marriage that set it is gone: only a pregnancy keeps `'expecting'`. */
-function statusAfterMarriageEnd(entity: Pick<Entity, 'pregnant'>): 'single' | 'expecting' {
-  return entity.pregnant ? 'expecting' : 'single';
-}
-
 /** Clear building assignments when a human dies (work, home, prison). */
 function finalizeHumanDeath(
   entity: Entity,
@@ -68,10 +63,11 @@ function finalizeHumanDeath(
   entity.prisonSentenceCrime = undefined;
 
   if (isMarriedOrExpecting(entity)) {
-    entity.relationshipStatus = statusAfterMarriageEnd(entity);
+    entity.relationshipStatus = 'single';
   }
   entity.partnerId = undefined;
   entity.affairPartnerId = undefined;
+  entity.affairCandidateId = undefined;
   entity.affairProgress = 0;
  // A courtship ends with the settler: the link and its progress are a pair bond, so the
   // dying side keeps neither and the survivor's half is cleared by the reference sweep below.
@@ -90,12 +86,11 @@ function finalizeHumanDeath(
     if (partnerId != null) {
       const partner = entityById.get(partnerId);
       if (partner?.alive) {
-        partner.partnerId = undefined;
-        // A father's `'expecting'` is the dead partner's pregnancy — nothing will ever clear it, and
-        // courtship refuses anything but `'single'`, so the widow or widower would never marry again.
+        // Evaluate the legacy marriage status before clearing the link; pregnancy is independent.
         if (isMarriedOrExpecting(partner)) {
-          partner.relationshipStatus = statusAfterMarriageEnd(partner);
+          partner.relationshipStatus = 'single';
         }
+        partner.partnerId = undefined;
         // About a week of mourning when we know the tick — a faster recovery shortens it.
         if (tick != null) {
           const griefDays = SPOUSAL_GRIEF_DAYS / evaluateAptitudeInfluence(partner, 'bereavement').factor;
@@ -186,10 +181,10 @@ export function reconcileFamilyReferencesAfterRemoval(
   for (const survivor of entityById.values()) {
     if (!survivor.alive) continue;
     if (survivor.partnerId === removedId) {
-      survivor.partnerId = undefined;
       if (isMarriedOrExpecting(survivor)) {
-        survivor.relationshipStatus = statusAfterMarriageEnd(survivor);
+        survivor.relationshipStatus = 'single';
       }
+      survivor.partnerId = undefined;
     }
     if (survivor.affairPartnerId === removedId) {
       survivor.affairPartnerId = undefined;
@@ -204,7 +199,7 @@ export function reconcileFamilyReferencesAfterRemoval(
       survivor.courtshipPartnerId = undefined;
       survivor.courtshipProgress = 0;
     }
-    if (survivor.pregnantById === removedId) survivor.pregnantById = undefined;
+    // Biological paternity is historical lineage, not a live reference; retain it after removal.
     // A youth-love link joins two living settlers. Reconciliation runs before most daily deaths, so
     // the survivor's half must be cleared here or it points at a pruned settler until the next day.
     if (survivor.youthLovePartnerId === removedId) {
@@ -250,8 +245,8 @@ export function killHuman(
 }
 
 /**
- * Clear marriage links when the partner row was removed from the alive list. Runs after dead entities
- * are pruned — the safety net when widow cleanup missed a death path.
+ * Repair orphaned marriage links and normalize legacy expecting status without changing pregnancy.
+ * Shared by save hydration and the post-prune lifecycle pass.
  */
 export function reconcileOrphanedMarriages(entities: readonly Entity[]): void {
   const byId = new Map<number, Entity>();
@@ -266,8 +261,12 @@ export function reconcileOrphanedMarriages(entities: readonly Entity[]): void {
     // names a marriage cannot outlive the partner it names either (a father's `'expecting'` is
     // cleared only by his partner's pregnancy, so nothing else would ever free him).
     const partner = human.partnerId != null ? byId.get(human.partnerId) : undefined;
+    // Legacy pregnancy markers are normalized independently of pregnancy itself.
+    if (human.relationshipStatus === 'expecting') {
+      human.relationshipStatus = partner?.alive && partner.partnerId === human.id ? 'married' : 'single';
+    }
     if (partner?.alive && isSettlerRelationshipEntity(partner)) continue;
     if (human.partnerId != null) human.partnerId = undefined;
-    if (isMarriedOrExpecting(human)) human.relationshipStatus = statusAfterMarriageEnd(human);
+    if (isMarriedOrExpecting(human)) human.relationshipStatus = 'single';
   }
 }

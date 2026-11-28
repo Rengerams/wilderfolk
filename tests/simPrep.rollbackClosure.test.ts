@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
+import { recordMarriageEvent } from '../src/game/stats';
 import { applySimPrep, extractSimPrep } from '../src/game/simWorker/simPrep';
 import { TICKS_PER_DAY, DAYS_PER_YEAR, getCalendarDay } from '../src/game/dayCycleClock';
 import type { WorldState } from '../src/game/gameTypes';
@@ -68,6 +69,7 @@ describe('worker prep rollback closure', () => {
       wildkin: 0,
       buildings: 0,
     });
+    recordMarriageEvent(world);
     const prep = extractSimPrep(world);
     const beforeMarriages = prep.lifetimeStats.totalMarriages;
     expect(getCalendarDay(world.tick)).toBe(DAYS_PER_YEAR - 1);
@@ -78,7 +80,9 @@ describe('worker prep rollback closure', () => {
     // stats — otherwise this test would pass vacuously.
     expect(world.year).toBe(prep.year + 1);
     expect(world.yearlyStats.length).toBe(prep.yearlyStats.length + 1);
-    expect(world.lifetimeStats.totalMarriages).toBeGreaterThan(beforeMarriages);
+    expect(world.lifetimeStats.totalMarriages).toBe(beforeMarriages);
+    expect(world.yearlyStats.at(-1)?.marriages).toBe(1);
+    expect(world.lifetimeStats.marriagesThisYear).toBe(0);
 
     applySimPrep(world, prep);
 

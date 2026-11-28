@@ -28,6 +28,7 @@ import { tickDailyChallenges } from './dailyChallenges';
 import { tickGrassDaily } from './dailyGrassEcology';
 import { resolveDailyVillageScheduleFatigue } from './dailyScheduleFatigue';
 import { tickBuildingProgress, tickDailyBuildingEconomy } from './dailyBuildingEconomy';
+import { tickScheduledTownHallAudiences } from './townHall';
 import { tickDailyWorldEvents, tickYearBoundaryWorldEvents } from './dailyWorldEvents';
 import { applyDailyWeatherEffects } from './worldEvents';
 
@@ -128,6 +129,11 @@ export function tickLayerDaily(
     profileEnd('daily.tickDailyBuildingEconomy', stage11);
     state.productionDeferred = false;
     state.productionValleyStage = undefined;
+  }
+
+  // Audiences belong to the evening civic phase, not deferred tax settlement.
+  if (hour === DAILY_PHASE_HOURS.production) {
+    tickScheduledTownHallAudiences(state, ctx.updatedBuildings, ctx.playerHumans);
   }
 
   // 23:00 — consume all witnessed construction shifts before 00:00 clears the counters.

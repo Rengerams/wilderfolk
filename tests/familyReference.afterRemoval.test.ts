@@ -50,7 +50,6 @@ const REMOVAL_REFERENCE_FIELDS = [
   'affairPartnerId',
   'courtshipPartnerId',
   'youthLovePartnerId',
-  'pregnantById',
   'adoptiveMotherId',
   'adoptiveFatherId',
   'tamedBy',
@@ -270,10 +269,10 @@ describe('family references after permanent removal (P7)', () => {
     expect(fixture.lover.lastAffairSiteX).toBeUndefined();
     expect(fixture.lover.lastAffairSiteY).toBeUndefined();
 
-    // Pregnant partner — the pregnancy survives, the father reference does not.
+    // Pregnant partner — the pregnancy and historical biological father identity both survive.
     expect(fixture.pregnantPartner.pregnant).toBe(true);
     expect(fixture.pregnantPartner.pregnancyDueProgress).toBe(9);
-    expect(fixture.pregnantPartner.pregnantById).toBeUndefined();
+    expect(fixture.pregnantPartner.pregnantById).toBe(REMOVED_ID);
 
     // A surviving parent's child list drops the settler that left the world.
     expect(fixture.mother.childrenIds).toEqual([]);

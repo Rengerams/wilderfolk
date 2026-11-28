@@ -13,6 +13,7 @@ export function createEmptyLifetimeStats(): LifetimeStats {
     totalHumansBorn: 0,
     totalHumansDied: 0,
     totalMarriages: 0,
+    marriagesThisYear: 0,
     totalBuildings: 0,
     totalBuildingsUpgraded: 0,
     totalResourcesGathered: { wood: 0, stone: 0, food: 0, gold: 0 },
@@ -27,10 +28,13 @@ export function createEmptyLifetimeStats(): LifetimeStats {
   };
 }
 
-/** A loaded `lifetimeStats`: every one of the record's 14 fields falls back to its empty value. */
+/** Normalize lifetime records, preserving absence of the legacy marriage event counter. */
 export function normalizeLifetimeStats(value: unknown): LifetimeStats {
   const empty = createEmptyLifetimeStats();
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return empty;
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    delete empty.marriagesThisYear;
+    return empty;
+  }
   const saved = value as Partial<LifetimeStats>;
   const count = (field: unknown, fallback: number): number =>
     typeof field === 'number' && Number.isFinite(field) ? field : fallback;
@@ -46,6 +50,8 @@ export function normalizeLifetimeStats(value: unknown): LifetimeStats {
     totalHumansBorn: count(saved.totalHumansBorn, empty.totalHumansBorn),
     totalHumansDied: count(saved.totalHumansDied, empty.totalHumansDied),
     totalMarriages: count(saved.totalMarriages, empty.totalMarriages),
+    ...(typeof saved.marriagesThisYear === 'number' && Number.isSafeInteger(saved.marriagesThisYear) && saved.marriagesThisYear >= 0
+      ? { marriagesThisYear: saved.marriagesThisYear } : {}),
     totalBuildings: count(saved.totalBuildings, empty.totalBuildings),
     totalBuildingsUpgraded: count(saved.totalBuildingsUpgraded, empty.totalBuildingsUpgraded),
     totalResourcesGathered: {
@@ -117,6 +123,32 @@ export function tallyTickDeaths(state: WorldState, aliveAtTickStart: readonly En
   tally.animals += deadAnimals;
 }
 
+/** Adopt retained wedding evidence once for legacy saves. Older pruned history is a lower bound. */
+export function reconcileMarriageStatistics(state: WorldState): void {
+  const lifetime = state.lifetimeStats;
+  if (lifetime.marriagesThisYear != null) return;
+  const byYear = new Map<number, number>();
+  for (const event of state.eventLog ?? []) {
+    if (event.type === 'marriage') byYear.set(event.year, (byYear.get(event.year) ?? 0) + 1);
+  }
+  let closedLog = 0;
+  for (const [year, count] of byYear) if (year < state.year) closedLog += count;
+  for (const record of state.yearlyStats ?? []) {
+    record.marriages = Math.max(record.marriages, byYear.get(record.year) ?? 0);
+  }
+  const closedRecords = (state.yearlyStats ?? []).reduce((sum, record) => sum + record.marriages, 0);
+  lifetime.marriagesThisYear = byYear.get(state.year) ?? 0;
+  lifetime.totalMarriages = Math.max(lifetime.totalMarriages, closedLog, closedRecords) + lifetime.marriagesThisYear;
+}
+
+/** Sole marriage counter writer at the committed wedding transition. */
+export function recordMarriageEvent(state: WorldState): void {
+  if (!state.lifetimeStats) return;
+  reconcileMarriageStatistics(state);
+  state.lifetimeStats.marriagesThisYear = (state.lifetimeStats.marriagesThisYear ?? 0) + 1;
+  state.lifetimeStats.totalMarriages += 1;
+}
+
 export function recordYearlyStats(state: WorldState, forYear?: number): YearlyStats {
   const entities = state.entities;
   const alive = entities.filter(e => e.alive);
@@ -128,11 +160,11 @@ export function recordYearlyStats(state: WorldState, forYear?: number): YearlySt
   // Humans born during this calendar year (birthYear set at birth in `humanLifecycle`)
   const humanBirths = humans.filter((h) => h.birthYear === statsYear).length;
 
-  // Active marriages, not `=== 'married'`: conception moves both partners to `'expecting'`, so the
-  // narrow test lost the couple and `floor(delta / 2)` read the marriage as never having happened.
+  // Current married population is a stock; completed marriage events are a flow.
+  // Divorce and death must not subtract completed weddings.
   const marriedHumans = humans.filter(isMarriedOrExpecting).length;
-  const prevMarried = prevYearStats?.marriedCount ?? 0;
-  const marriagesThisYear = Math.max(0, Math.floor((marriedHumans - prevMarried) / 2));
+  const marriagesThisYear = (statsYear === state.year ? state.lifetimeStats?.marriagesThisYear : undefined)
+    ?? (state.eventLog ?? []).filter(event => event.type === 'marriage' && event.year === statsYear).length;
 
   const animalTypes = new Set<ET>([
     ET.Rabbit, ET.Deer, ET.Wolf, ET.Fox, ET.Werewolf, ET.Wildkin,
@@ -219,7 +251,8 @@ export function updateLifetimeStats(state: WorldState, stats: LifetimeStats): Li
   s.totalBuildings = state.totalBuildingsCompleted;
   s.technologiesResearched = state.unlockedTechs.length;
   if (latestYear) {
-    s.totalMarriages += latestYear.marriages;
+    // Weddings are counted at the event, not again at the year boundary.
+    s.marriagesThisYear = 0;
     s.totalBuildingsUpgraded += latestYear.buildings.upgraded;
   }
   // tradeRoutesEstablished incremented in establishTradeRoute; disastersSurvived in worldEvents.ts

@@ -10,7 +10,7 @@ import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WO
 import { rebakeTerrainGrids, setTileOverride, tileTypeAt } from './terrain/terrainGrid';
 import { isWaterTerrainType } from './terrain/terrainTraits';
 import { INITIAL_CHALLENGES } from './challenges';
-import { normalizeLifetimeStats } from './stats';
+import { normalizeLifetimeStats, reconcileMarriageStatistics } from './stats';
 import {
   mergeForSave,
   createViewFromSave,
@@ -31,7 +31,7 @@ import { loadAutoSavePreference } from './preferences';
 import { logEvent, repairEventLogOnLoad, syncEventLogIdFromState } from './eventLog';
 import { pickHumanVariant } from './humanSprites';
 import { migrateLegacyMoonHowler, syncMoonHowlerForms } from './moonHowler';
-import { reconcileFamilyReferencesAfterRemoval } from './humanLifecycleCleanup';
+import { reconcileFamilyReferencesAfterRemoval, reconcileOrphanedMarriages } from './humanLifecycleCleanup';
 import { isForeignFaction, isPlayerHuman } from './playerHuman';
 import { clampCloseFriendships } from './relationships';
 import { PLAYABLE_SPEEDS } from './gameConstants';
@@ -1373,7 +1373,6 @@ function reconcileDanglingReferencesOnLoad(world: WorldState): void {
   for (const entity of aliveEntities) {
     for (const id of [
       entity.partnerId,
-      entity.pregnantById,
       entity.courtshipPartnerId,
       entity.youthLovePartnerId,
       entity.affairPartnerId,
@@ -1420,6 +1419,9 @@ function floorIdAllocators(world: WorldState): void {
   let highestEntity = 0;
   for (const entity of world.entities ?? []) {
     if (isPersistedId(entity.id) && entity.id > highestEntity) highestEntity = entity.id;
+    for (const fatherId of [entity.pregnantById, entity.moonHowlerSaved?.pregnantById]) {
+      if (isPersistedId(fatherId) && fatherId > highestEntity) highestEntity = fatherId;
+    }
   }
   // The genealogy registry keeps a settler after they leave `entities`, so their id retires with them.
   for (const person of Object.values(world.genealogyRegistry?.people ?? {})) {
@@ -1677,6 +1679,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       : structuredClone(INITIAL_CHALLENGES);
     world.yearlyStats = world.yearlyStats ?? [];
     world.lifetimeStats = normalizeLifetimeStats(world.lifetimeStats);
+    reconcileMarriageStatistics(world);
     world.eventsThisYear = worldData.eventsThisYear ?? [];
     if (!Array.isArray(world.chronicleChapters)) {
       world.chronicleChapters = [];
@@ -1707,7 +1710,19 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     pruneOrphanRivalEntities(world);
     world.entities = world.entities.filter((person) => !person.departedAlive);
     repairLoadedHumanGround(world);
+    // Freeze the best available legacy father identity before live spouse links are repaired.
+    for (const entity of world.entities) {
+      if (entity.pregnant && entity.pregnantById === undefined) {
+        entity.pregnantById = isPersistedId(entity.partnerId) ? entity.partnerId : null;
+      }
+      const parked = entity.moonHowlerSaved;
+      if (parked?.pregnant && parked.pregnantById === undefined) {
+        parked.pregnantById = isPersistedId(parked.partnerId) ? parked.partnerId : null;
+      }
+    }
     reconcileDanglingReferencesOnLoad(world);
+    // The lifecycle owner repairs orphaned marriages and normalizes legacy expecting status.
+    reconcileOrphanedMarriages(world.entities);
 
     migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });
     // Trade-route carriers are always adults; promote any carrier younger than the adult age.

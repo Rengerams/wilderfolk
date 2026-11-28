@@ -43,6 +43,7 @@ const REQUIRED_DECISIONS = [
   'housing',
   'construction',
   'production',
+  'civicPetition',
   'tradeCaravans',
   'humanWalk',
   'dailyRelationships',
@@ -113,6 +114,12 @@ describe('simulation decision registry', () => {
     expect(leisure.scheduledFrom).toContain('humanTick.tickHumans');
     expect(leisure.writes).toContain('human.vx');
     expect(leisure.testFile).toContain('humanLeisureBehavior.test.ts');
+  });
+
+  it('assigns civic completion to the audience owner, not leisure arrival', () => {
+    expect(isPropertyWritePermitted('civicPetition', 'human.civicPetitionResolvedDay')).toBe(true);
+    expect(isPropertyWritePermitted('humanLeisure', 'human.civicPetitionResolvedDay')).toBe(false);
+    expect(SIMULATION_DECISIONS.civicPetition.scheduledFrom).toContain('tickScheduledTownHallAudiences');
   });
 
   it('registers the shared untrusted-input guard owner with its real call sites', () => {

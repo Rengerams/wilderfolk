@@ -8,7 +8,9 @@ import { gameTick } from '../src/game/gameTick';
 import { EntityType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
-import { recordYearlyStats, updateLifetimeStats } from '../src/game/stats';
+import { recordMarriageEvent, reconcileMarriageStatistics, recordYearlyStats, updateLifetimeStats } from '../src/game/stats';
+
+import { logEvent } from '../src/game/eventLog';
 
 const FIXTURE_SEED = 20240913;
 
@@ -65,5 +67,32 @@ describe('the yearly record and the lifetime total read the tally', () => {
     const lifetime = updateLifetimeStats(state, state.lifetimeStats);
 
     expect(lifetime.totalHumansDied).toBe(7);
+  });
+});
+ describe('wedding event accounting', () => {
+  it('adopts retained historical weddings once, counts new weddings immediately, and survives log pruning', () => {
+    const state = initGame({ seed: FIXTURE_SEED, skipTerrain: true });
+    state.eventLog = [];
+    state.year = 0;
+    logEvent(state, 'marriage', 'A and B got married');
+    logEvent(state, 'marriage', 'C and D got married');
+    logEvent(state, 'divorce', 'A and B divorced');
+    state.year = 1;
+    logEvent(state, 'marriage', 'A and E got married');
+    delete state.lifetimeStats.marriagesThisYear;
+    state.lifetimeStats.totalMarriages = 1;
+    reconcileMarriageStatistics(state);
+    expect(state.lifetimeStats.totalMarriages).toBe(3);
+    expect(state.lifetimeStats.marriagesThisYear).toBe(1);
+    reconcileMarriageStatistics(state);
+    expect(state.lifetimeStats.totalMarriages).toBe(3);
+    recordMarriageEvent(state);
+    state.eventLog = [];
+    const annual = recordYearlyStats(state);
+    expect(annual.marriages).toBe(2);
+    state.yearlyStats.push(annual);
+    state.lifetimeStats = updateLifetimeStats(state, state.lifetimeStats);
+    expect(state.lifetimeStats.totalMarriages).toBe(4);
+    expect(state.lifetimeStats.marriagesThisYear).toBe(0);
   });
 });

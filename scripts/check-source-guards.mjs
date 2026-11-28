@@ -1388,7 +1388,7 @@ const SOURCE_ROWS = [
   {
     id: "schooling-breakdown-owner",
     checks: [
-      { file: "src/components/tabPanels/VillageTabPanel.tsx", contains: ["summarizeSchooling(state, state.tick, getHourOfDay(state.tick))", "describeSchoolingSummary(", "{summary.headline}", "{line}"] },
+      { file: "src/components/tabPanels/VillageTabPanel.tsx", contains: ["summarizeSchooling(state, state.tick, getHourOfDay(state.tick))", "describeSchoolingSummary(", "{summary.headline}", "{line}", "attendance.adultEducation.map", "{row.count}"] },
     ],
   },
   {

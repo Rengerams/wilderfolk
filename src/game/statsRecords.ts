@@ -19,7 +19,7 @@ export interface YearlyStats {
   births: { humans: number; animals: number };
   deaths: { humans: number; animals: number };
   marriages: number;
-  /** Married player humans at year-end (for year-over-year marriage delta). */
+  /** Married player humans at year-end (population stock, not wedding count). */
   marriedCount: number;
   buildings: {
     completed: number;
@@ -43,6 +43,8 @@ export interface LifetimeStats {
   totalHumansBorn: number;
   totalHumansDied: number;
   totalMarriages: number;
+  /** Open-year event tally, absent only on pre-event-accounting saves. */
+  marriagesThisYear?: number;
   totalBuildings: number;
   totalBuildingsUpgraded: number;
   totalResourcesGathered: GatheredResources;

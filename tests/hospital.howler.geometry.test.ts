@@ -259,7 +259,7 @@ describe('Moon Howler navigation and contact', () => {
     const wildlifeGrid = getWildlifePathGrid(humanGrid, waterBlocked);
     expect(getWildlifePathGrid(humanGrid, waterBlocked)).toBe(wildlifeGrid);
     expect(wildlifeGrid.blocked[4]).toBe(1);
-    expect(humanGrid.blocked[4]).toBe(0);
+    expect(humanGrid.blocked[4]).toBe(1);
     expect(wildlifeGrid.blocked[5 * humanGrid.cols + 4]).toBe(0);
   });
 

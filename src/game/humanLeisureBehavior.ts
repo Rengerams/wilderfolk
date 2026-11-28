@@ -8,16 +8,15 @@ import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
 import { deterministicCos, deterministicSin } from './simTrig';
 import { getBuildingCenter } from './buildingGeometry';
 import { getChildCustodian, hasResidenceAssignment } from './housingModel';
-import { getWorkSchedule, isOnWorkScheduleShift } from './workSchedule';
-import { getHourOfDay, getAbsoluteCalendarDay } from './dayCycleClock';
+import { getWorkSchedule, isOnWorkScheduleShift, isOnWorkCommuteHours } from './workSchedule';
+import { getHourOfDay, getAbsoluteCalendarDay, isWorkDay } from './dayCycleClock';
 import { BuildingType } from './buildings';
-import { pickSocialImpulse, isSocialStaggerTick, type SocialBuildingPicker } from './socialLife';
+import { pickSocialImpulse, isSocialStaggerTick, type SocialBuildingPool } from './socialLife';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { requestDialogue } from './dialogueTrees';
 import { isDialogueBusy } from './humanChat';
-import { prefersHomeTonightFor } from './humanSchedule';
 import type { TickContext } from './simulation/simulationTypes';
 import { findClosestAdaptiveInRadius, forEachAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_FRIENDSHIP_RADIUS } from './adaptiveSpatialQuery';
 import { seededRandomForRun, personDayRoll, getSimRng, PERSON_DAY_ROLL_SALTS } from './simRng';
@@ -27,7 +26,7 @@ import { getCurrentPathGrid, getNavigationQuote, hasUnreachableWalkTarget, isGro
 import { fract } from './simulation/humanNeeds';
 import { findClosestEntityInRadius } from './simQueries';
 import { hasAffairPartner, canPursueSecretAffair, isAtMaritalHome } from './simulation/humanRelationships';
-import { relationshipScore } from './relationships';
+import { isMutualMarriage, relationshipScore } from './relationships';
 
 /** One daily play roll, not a new companion every clock hour. */
 const KID_PLAY_CHANCE = 0.72;
@@ -86,8 +85,8 @@ function childPlayCompanionWeight(child: Entity, candidate: Entity): number {
     - Math.min(5, Math.max(0, dispute) / 10));
 }
 
-/** A play circle needs dry ground throughout its 14px arrival radius, not merely a
- * wadeable path cell. The path owner deliberately permits shallow-water crossings. */
+/** A play circle needs dry ground throughout its 14px arrival radius, not merely
+ * a walkable centre tile. The shared path owner blocks shallow-water crossing. */
 function isDryChildPlaySite(
   state: WorldState,
   x: number,
@@ -154,7 +153,7 @@ export function tickHumanChildLeisure(args: {
   onSchedule: boolean;
   allHumans: Entity[];
   entityById?: ReadonlyMap<number, Entity>;
-  pickSocialBuilding?: SocialBuildingPicker;
+  socialBuildingPool?: SocialBuildingPool;
   updatedBuildings: Building[];
   buildingById: Map<number, Building>;
   humanSocialGrid: TickContext['humanSocialGrid'];
@@ -165,6 +164,7 @@ export function tickHumanChildLeisure(args: {
 }): boolean {
   if (args.entity.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(args.entity)) return args.suppressIdleInitial;
   const { state, entity, speed, hourOfDay, allHumans, updatedBuildings, buildingById, humanSocialGrid, width, height, livingHumanAt } = args;
+  const wasFollowing = entity.childLeisureActivity === 'following';
   entity.childLeisureActivity = undefined;
   entity.childLeisureTargetId = undefined;
   if (args.onSchedule || args.suppressIdleInitial) return args.suppressIdleInitial;
@@ -263,7 +263,7 @@ export function tickHumanChildLeisure(args: {
     .map((id) => byId(id))
     .filter((human): human is Entity =>
       !!human?.alive && human.age < HUMAN_ADULT_MIN_AGE && isPlayerHuman(human));
-  const impulse = pickSocialImpulse(entity, state, updatedBuildings, [], [], args.pickSocialBuilding);
+  const impulse = pickSocialImpulse(entity, state, updatedBuildings, [], args.socialBuildingPool);
 
   if (!impulse.stayHome) {
     // The radius gates initial membership, not an outing already assigned to a
@@ -342,8 +342,20 @@ export function tickHumanChildLeisure(args: {
   }
   const mother = entity.motherId != null ? livingHumanAt(entity.motherId) : undefined;
   const father = entity.fatherId != null ? livingHumanAt(entity.fatherId) : undefined;
-  const freeParent = [mother, father].find((parent) => parent?.alive && isPlayerHuman(parent) && !prefersHomeTonightFor(getWorkSchedule(state), parent.id, state.tick, hourOfDay) && !isOnWorkScheduleShift(state, hourOfDay)) ?? [mother, father].find((parent) => parent?.alive);
-  const follow = freeParent ?? getChildCustodian(entity, allHumans, args.entityById);
+  // Children may accompany a free caregiver, but must never trail an employed
+  // parent into their workplace during a shift. This also applies to the
+  // household custodian fallback (which can be the same working parent).
+  const workTime = isOnWorkScheduleShift(state, hourOfDay)
+    || (isWorkDay(state.tick) && isOnWorkCommuteHours(getWorkSchedule(state), hourOfDay));
+  const custodian = getChildCustodian(entity, allHumans, args.entityById);
+  let follow: Entity | undefined;
+  for (const caregiver of [mother, father, custodian]) {
+    if (!caregiver?.alive || !isPlayerHuman(caregiver) || caregiver.age < HUMAN_ADULT_MIN_AGE) continue;
+    if (caregiver.workerBuildingId != null
+      && (workTime || caregiver.indoorBuildingId === caregiver.workerBuildingId)) continue;
+    follow = caregiver;
+    break;
+  }
   if (follow?.alive && personDayRoll(entity.id, state.tick, 601) > 0.22) {
     const distance = Math.hypot(follow.x - entity.x, follow.y - entity.y) || 1;
     if (distance > 22) {
@@ -358,6 +370,11 @@ export function tickHumanChildLeisure(args: {
     entity.childLeisureActivity = 'following';
     entity.childLeisureTargetId = follow.id;
     return true;
+  }
+  if (wasFollowing) {
+    clearHumanWalkTarget(entity);
+    entity.vx = 0;
+    entity.vy = 0;
   }
   if (hasResidenceAssignment(entity)) {
     const residence = buildingById.get(entity.residenceBuildingId!);
@@ -405,8 +422,8 @@ export function idleDestination(
 }
 
 /**
- * The exact nearby-adult input `pickSocialImpulse` sees: the staggered grid scan plus the spouse,
- * who may stand outside the scan radius. The movement inspector reads this owner too.
+ * The exact nearby-adult input `pickSocialImpulse` sees: the staggered grid scan plus a spouse
+ * inside the same radius. The movement inspector reads this owner too.
  */
 export function socialImpulseNearbyAdults(args: {
   state: WorldState;
@@ -425,7 +442,9 @@ export function socialImpulseNearbyAdults(args: {
     }, socialAdaptiveOptions('social', allHumans.length, width, height));
   }
   const spouse = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;
-  if (spouse?.alive && !nearbyAdults.some((h) => h.id === spouse.id)) nearbyAdults.push(spouse);
+  if (spouse?.alive && isPlayerHuman(spouse) && spouse.age >= HUMAN_ADULT_MIN_AGE
+    && Math.hypot(spouse.x - entity.x, spouse.y - entity.y) <= SOCIAL_FRIENDSHIP_RADIUS
+    && !nearbyAdults.some((h) => h.id === spouse.id)) nearbyAdults.push(spouse);
   return nearbyAdults;
 }
 
@@ -434,7 +453,7 @@ function tickAdultLeisureMotive(args: {
   entity: Entity;
   speed: number;
   allHumans: Entity[];
-  pickSocialBuilding?: SocialBuildingPicker;
+  socialBuildingPool?: SocialBuildingPool;
   updatedBuildings: Building[];
   buildingById: Map<number, Building>;
   humanSocialGrid: TickContext['humanSocialGrid'];
@@ -444,8 +463,9 @@ function tickAdultLeisureMotive(args: {
   settlerChat: (entity: Entity, context: 'social' | 'home', chance: number) => void;
   settlerPairChat: (entityA: Entity, entityB: Entity, context: 'social' | 'home', chance: number) => void;
   suppressIdleInitial: boolean;
+  steerTo: (x: number, y: number, speedMult: number, arrive?: number, destination?: Building) => boolean;
 }): { suppressIdle: boolean; spouseEarly?: Entity } {
-  const { state, entity, speed, allHumans, updatedBuildings, buildingById, humanSocialGrid, width, height, livingHumanAt, settlerChat, settlerPairChat } = args;
+  const { state, entity, speed, allHumans, updatedBuildings, buildingById, humanSocialGrid, width, height, livingHumanAt, settlerChat, settlerPairChat, steerTo } = args;
   // Mourning is leisure, never a reason to leave a paid shift.
   // Deterministically offer rare visits to a grave of a parent, spouse or child.
   if (!isOnWorkScheduleShift(state, getHourOfDay(state.tick)) && state.graveRecords?.length) {
@@ -459,12 +479,7 @@ function tickAdultLeisureMotive(args: {
       const yard = relative ? buildingById.get(relative.graveyardId ?? -1) : undefined;
       if (yard?.completed && yard.type === BuildingType.Graveyard) {
         const spot = venueGatherPosition(yard, entity.id);
-        if (Math.hypot(entity.x - spot.x, entity.y - spot.y) > 18) {
-          steerHumanToward(entity, spot.x, spot.y, speed, 0.5, `leisure_grief_${entity.id}_${yard.id}`);
-        } else {
-          entity.vx *= 0.2;
-          entity.vy *= 0.2;
-        }
+        steerTo(spot.x, spot.y, 0.5, 18);
         return { suppressIdle: true };
       }
     }
@@ -472,8 +487,9 @@ function tickAdultLeisureMotive(args: {
   const nearbyAdults = socialImpulseNearbyAdults({
     state, entity, allHumans, humanSocialGrid, width, height, livingHumanAt,
   });
-  const spouseEarly = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;
-  const impulse = pickSocialImpulse(entity, state, updatedBuildings, nearbyAdults, [], args.pickSocialBuilding);
+  const partner = livingHumanAt(entity.partnerId);
+  const spouseEarly = isMutualMarriage(entity, partner) ? partner : undefined;
+  const impulse = pickSocialImpulse(entity, state, updatedBuildings, nearbyAdults, args.socialBuildingPool);
   let suppressIdle = args.suppressIdleInitial;
   if (impulse.motive !== 'none') {
     if (impulse.dialogueEvent && seededRandomForRun(`chat-bubble:${entity.id}:${state.tick}`) < 0.08 * PER_TICK_RATE_SCALE && !isDialogueBusy(entity)) {
@@ -487,54 +503,38 @@ function tickAdultLeisureMotive(args: {
       const home = buildingById.get(entity.residenceBuildingId!);
       if (home?.completed) {
         if (commuteHumanToBuilding(entity, home, speed * (impulse.motive === 'sick_day' ? 0.7 : 0.9), 1)) enterHumanBuilding(entity, home);
-        if (impulse.motive === 'sick_day') adjustHumanStaminaFromEnergy(entity, 0.25 * PER_TICK_RATE_SCALE);
         suppressIdle = true;
       }
-    } else if (impulse.company?.alive && impulse.building) {
-      const meeting = venueGatherPosition(impulse.building, entity.id);
-      const targetX = meeting.x;
-      const targetY = meeting.y;
-      const dist = Math.hypot(targetX - entity.x, targetY - entity.y) || 1;
-      if (dist > 16) {
-        steerHumanToward(
-          entity,
-          targetX,
-          targetY,
-          speed,
-          0.48,
-          `leisure_company_${impulse.building.id}_${entity.id}`,
-        );
-      } else {
-        clearHumanWalkTarget(entity);
-        entity.vx = 0;
-        entity.vy = 0;
-        if (Math.hypot(impulse.company.x - entity.x, impulse.company.y - entity.y) <= 24) {
-          settlerPairChat(entity, impulse.company, 'home', 0.1);
-        }
-      }
-      suppressIdle = true;
     } else if (impulse.company?.alive) {
-      const c = impulse.company; const dist = Math.hypot(c.x - entity.x, c.y - entity.y) || 1;
-      if (dist > 16) {
-        steerHumanToward(entity, c.x, c.y, speed, 0.5, `leisure_person_${entity.id}_${c.id}`);
+      const company = impulse.company;
+      const arrived = steerTo(company.x, company.y, 0.5, 16);
+      const grid = getCurrentPathGrid();
+      if (arrived && Math.hypot(company.x - entity.x, company.y - entity.y) <= 16
+        && (!grid || !lineCrossesBlocked(grid, entity.x, entity.y, company.x, company.y))) {
+        if (impulse.motive === 'comfort_neighbor') {
+          settlerPairChat(entity, company, 'social', 0.12);
+          if (isPlayerHuman(company)) adjustHumanStaminaFromEnergy(company, 0.15 * PER_TICK_RATE_SCALE);
+        } else if (impulse.motive === 'care_pregnant') settlerPairChat(entity, company, 'home', 0.12);
       }
-      else if (impulse.motive === 'comfort_neighbor') { settlerPairChat(entity, c, 'social', 0.12); if (isPlayerHuman(c)) adjustHumanStaminaFromEnergy(c, 0.15 * PER_TICK_RATE_SCALE); }
-      else if (impulse.motive === 'care_pregnant') settlerPairChat(entity, c, 'home', 0.12);
       suppressIdle = true;
     } else if (impulse.building) {
       const b = impulse.building;
   
       const spot = venueGatherPosition(b, entity.id);
-      const arrived = Math.hypot(entity.x - spot.x, entity.y - spot.y) < 20;
+      const arrived = steerTo(spot.x, spot.y, 0.5, 20, b);
       if (arrived) {
-        clearHumanWalkTarget(entity);
-        entity.vx = 0;
-        entity.vy = 0;
-        enterHumanBuilding(entity, b);
+        if (impulse.motive === 'market_errand') {
+          const day = getAbsoluteCalendarDay(state.tick);
+          const previous = entity.socialErrands?.day === day ? entity.socialErrands : { day };
+          entity.socialErrands = { ...previous, market: true };
+        }
+        if (impulse.motive === 'sunday_service' || impulse.motive === 'grief' || impulse.motive === 'day_off') {
+          if (seededRandomForRun(`chat-social:${entity.id}:${state.tick}`) < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1);
+        } else if (impulse.motive === 'market_errand' || impulse.motive === 'birthday') {
+          adjustHumanStaminaFromEnergy(entity, 0.2 * PER_TICK_RATE_SCALE);
+          settlerChat(entity, 'social', 0.1);
+        }
       }
-      if (!arrived) steerHumanToward(entity, spot.x, spot.y, speed * 0.5, 1, `leisure_venue_${b.id}_${entity.id}`);
-      else if (impulse.motive === 'sunday_service' || impulse.motive === 'grief' || impulse.motive === 'day_off') { entity.vx *= 0.2; entity.vy *= 0.2; if (seededRandomForRun(`chat-social:${entity.id}:${state.tick}`) < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1); }
-      else if (impulse.motive === 'market_errand' || impulse.motive === 'birthday') { adjustHumanStaminaFromEnergy(entity, 0.2 * PER_TICK_RATE_SCALE); settlerChat(entity, 'social', 0.1); }
       suppressIdle = true;
     }
   }
@@ -554,7 +554,6 @@ export function tickHumanLeisure(args: {
   inSpotlightGathering: boolean;
   allHumans: Entity[];
   entityById: Map<number, Entity>;
-  pickSocialBuilding?: SocialBuildingPicker;
   updatedBuildings: Building[];
   buildingById: Map<number, Building>;
   humanSocialGrid: TickContext['humanSocialGrid'];
@@ -576,7 +575,7 @@ export function tickHumanLeisure(args: {
 }): boolean {
   const {
     state, entity, speed, hourOfDay, onSchedule, allowFreeRoam, inSpotlightGathering,
-    allHumans, entityById, pickSocialBuilding, updatedBuildings, buildingById, humanSocialGrid,
+    allHumans, entityById, updatedBuildings, buildingById, humanSocialGrid,
     width, height, livingHumanAt, settlerChat, settlerPairChat, completedPoolOf,
     workersByWorkplace, workerIndexById, workplace, workSchedule, idleVenues,
     treeGrid, trees, weekend,
@@ -610,7 +609,7 @@ export function tickHumanLeisure(args: {
         onSchedule,
         allHumans,
         entityById,
-        pickSocialBuilding,
+        socialBuildingPool: completedPoolOf,
         updatedBuildings,
         buildingById,
         humanSocialGrid,
@@ -704,7 +703,7 @@ export function tickHumanLeisure(args: {
         entity,
         speed: speed,
         allHumans,
-        pickSocialBuilding,
+        socialBuildingPool: completedPoolOf,
         updatedBuildings,
         buildingById,
         humanSocialGrid,
@@ -714,12 +713,13 @@ export function tickHumanLeisure(args: {
         settlerChat,
         settlerPairChat,
         suppressIdleInitial: suppressIdle,
+        steerTo,
       });
       suppressIdle = adultLeisure.suppressIdle;
       const spouseEarly = adultLeisure.spouseEarly;
 
       if (!suppressIdle) {
-        const spouse = spouseEarly ?? (entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined);
+        const spouse = spouseEarly;
         const kids = (entity.childrenIds ?? [])
           .map((id) => livingHumanAt(id))
           .filter((k): k is Entity => !!k?.alive && k.age < HUMAN_ADULT_MIN_AGE);
