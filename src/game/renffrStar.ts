@@ -2,7 +2,7 @@ import type { Entity, RenffrLetter, RenffrOmen, WorldState } from './gameTypes';
 import { TICKS_PER_DAY, isStartOfClockHour } from './dayCycle';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { isPlayerHuman } from './playerHuman';
-import { getSimSeed, mulberry32Advance, mulberry32Draw } from './simRng';
+import { createRngFromState, getSimSeed, mulberry32Advance, mulberry32Draw } from './simRng';
 
 const RENFFR_OMEN_SPEAKER_COUNT = 4;
 
@@ -38,11 +38,7 @@ function createRenffrOmen(): RenffrOmen {
 
 /** Deterministic 0..1 roll from world seed + tick — the shared Mulberry32 step (`simRng`). */
 function renffrRng(state: WorldState, salt: number): () => number {
-  let s = renffrSeed(state, salt);
-  return () => {
-    s = mulberry32Advance(s);
-    return mulberry32Draw(s);
-  };
+  return createRngFromState(renffrSeed(state, salt));
 }
 
 /** Single 0..1 roll (same stream) without allocating a closure — for hot paths. */

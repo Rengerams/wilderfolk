@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Improved (28 Nov 2026):** Centralize simulation, terrain and omen RNG stream construction and terrain percentile sampling without changing historical seeded sequences; list semantic duplicate groups in CI.
+
 - **Improved (28 Nov 2026):** Route npm and CI verification through one test gate, avoiding repeated source, architecture, duplicate and type checks before the production bundle.
 
 - **Improved (28 Nov 2026):** Remove vendor-specific preview configuration and retain a standalone local container development workflow.

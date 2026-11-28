@@ -182,6 +182,12 @@ function main() {
     findings.push(group);
   }
   console.log(`semantic-duplicates gate: ${groups.length} group(s); ${findings.length} new/unreviewed group(s)`);
+  // Emit the actual group membership in CI without running a second scan or granting approvals.
+  for (const [index, group] of groups.entries()) {
+    const review = reviewFor(reviews, group.hash);
+    const status = findings.includes(group) ? 'unreviewed' : review?.status === 'distinct' ? 'reviewed-distinct' : 'baseline';
+    console.log(`${groupLabel(group, index)} (${status})`);
+  }
   for (const group of findings.slice(0, 20)) {
     console.error(`NEW SEMANTIC DUPLICATE: ${group.functions.map((fn) => fn.id).join(' ~ ')}`);
   }

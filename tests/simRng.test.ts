@@ -14,6 +14,7 @@ import { applySimTickDelta, extractSimTickDelta } from '../src/game/simBuffers/s
 import {
   adoptSimSeedFromWorld,
   createSeededRng,
+  createRngFromState,
   hashSalt,
   mulberry32Advance,
   mulberry32Draw,
@@ -507,5 +508,27 @@ describe('A21 — renffrStar builds on the simRng Mulberry32 step', () => {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     const inline = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     expect(fromOwner).toBe(inline);
+  });
+});
+
+
+describe('exact-state transient RNG streams', () => {
+  it('matches the historical terrain and tick-derived Mulberry32 sequence without registering a live owner', () => {
+    resetSimRng();
+    try {
+      for (const seed of [0, 1, 12345, 0xffffffff, -17]) {
+        let state = seed | 0;
+        const actual = createRngFromState(seed);
+        for (let draw = 0; draw < 16; draw++) {
+          state = (state + 0x6d2b79f5) | 0;
+          let t = Math.imul(state ^ (state >>> 15), 1 | state);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          expect(actual()).toBe(((t ^ (t >>> 14)) >>> 0) / 4294967296);
+        }
+      }
+      expect(snapshotSimRng().owners).toEqual([]);
+    } finally {
+      resetSimRng();
+    }
   });
 });

@@ -17,11 +17,6 @@ import { getSimRng } from './simRng';
 import { startPregnancy } from './pregnancy';
 import { isMarriedOrExpecting } from './relationships';
 
-/** Deterministic simulation RNG stream for entity factory creation. */
-function simRandom(): number {
-  return getSimRng('entityFactory')();
-}
-
 export interface CreateEntityOptions {
   gender?: 'male' | 'female';
   fatherId?: number;
@@ -77,7 +72,7 @@ export function createEntity(
   };
 
   const entGender =
-    opts?.gender ?? (isHuman ? (simRandom() > 0.5 ? 'male' : 'female') : undefined);
+    opts?.gender ?? (isHuman ? (getSimRng('entityFactory')() > 0.5 ? 'male' : 'female') : undefined);
   const gen = opts?.generation ?? 0;
 
   // Human age and body size are initialized together by the calendar owner below.
@@ -123,7 +118,7 @@ export function createEntity(
       ? opts?.ageYears ?? 0
       : effectiveJuvenile
         ? 0
-        : Math.floor(simRandom() * config.maxAge * 0.3),
+        : Math.floor(getSimRng('entityFactory')() * config.maxAge * 0.3),
     birthYear: isHuman ? 0 : -1,
     birthMonth: 0,
     birthDay: 0,
@@ -132,7 +127,7 @@ export function createEntity(
     size: effectiveJuvenile ? config.size * 0.5 : config.size,
     vx: 0,
     vy: 0,
-    reproductionCooldown: type === EntityType.Grass || type === EntityType.Tree ? 0 : simRandom() * 100,
+    reproductionCooldown: type === EntityType.Grass || type === EntityType.Tree ? 0 : getSimRng('entityFactory')() * 100,
     alive: true,
     flash: 0,
     gender: isHuman ? entGender : undefined,
@@ -172,7 +167,7 @@ export function createEntity(
     isBastard: opts?.isBastard,
     adoptiveMotherId: undefined,
     adoptiveFatherId: undefined,
-    spriteAngle: simRandom() * Math.PI * 2,
+    spriteAngle: getSimRng('entityFactory')() * Math.PI * 2,
     animFrame: TICKED_SPECIES.has(type) ? 0 : undefined,
     combatRollSeed: TICKED_SPECIES.has(type) ? ((id * 2654435761) ^ 0x9e3779b9) >>> 0 : undefined,
     spriteVariant:
@@ -206,7 +201,7 @@ export function finalizeSettlerAge(
   const colonyDay = getColonyDay(state);
   const targetAge = Math.max(
     HUMAN_ADULT_MIN_AGE,
-    entity.age > 0 ? entity.age : HUMAN_ADULT_MIN_AGE + Math.floor(simRandom() * 20),
+    entity.age > 0 ? entity.age : HUMAN_ADULT_MIN_AGE + Math.floor(getSimRng('entityFactory')() * 20),
   );
 
   setHumanBirthFromAge(entity, targetAge, colonyDay, undefined, undefined, true);
