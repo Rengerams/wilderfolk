@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Distribute orphan adoption among eligible households by minor dependents; reject unchecked guardian fallbacks and preserve independent adult descendants.
+
 - **Fixed (28 Nov 2026):** Keep romantic candidate cleanup reciprocal, migrate legacy focus once, and prevent stale focus from completing marriage.
 
 - **Fixed (28 Nov 2026):** Preserve the symmetric courtship stamina gate when sharing pending romantic interest; exhausted settlers neither pursue nor advance dates, and their existing progress remains intact.
