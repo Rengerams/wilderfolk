@@ -211,8 +211,6 @@ function throttleSettler(id: number, overrides: Partial<Entity> = {}): Entity {
     alive: true,
     isJuvenile: false,
     age: 30,
-    energy: 400,
-    maxEnergy: 400,
     vx: 0,
     vy: 0,
     flash: 0,
@@ -534,8 +532,6 @@ describe('human tick duty and offscreen physiology', () => {
       const settler = sharedHuman(settlerId, { maxAge: 80,
         x: home.x + home.width / 2,
         y: home.y + home.height / 2,
-        energy: 500,
-        maxEnergy: 500,
         residenceBuildingId: 900,
       });
       state.tick = restingTick;
@@ -588,8 +584,6 @@ describe('human tick duty and offscreen physiology', () => {
         workerBuildingId: 900,
         job: JobType.Official,
         occupation: 'official',
-        energy: 500,
-        maxEnergy: 500,
         gender: 'male',
       });
       // A grieving settler next to the hall always wants a civic audience.
@@ -597,8 +591,6 @@ describe('human tick duty and offscreen physiology', () => {
         x: doorstep.x + 4,
         y: doorstep.y + 4,
         griefUntilTick: dayJobTick + 1000,
-        energy: 500,
-        maxEnergy: 500,
         gender: 'female',
       });
       state.tick = dayJobTick;
@@ -670,7 +662,8 @@ describe('Human tick priority and upkeep regressions', () => {
       }
       expect(soldier.needs!.rest).toBeGreaterThan(90);
       expect(soldier.needs!.stamina).toBeGreaterThan(90);
-      expect(soldier.energy).toBe(90);
+      // Player humans keep no energy mirror: camp sleep restores native stamina only.
+      expect(soldier.energy).toBe(0);
       expect(soldier.raidDeploymentId).toBe('outgoing_raid_test');
       expect(soldier.pregnant).toBe(true);
       expect(soldier.indoorBuildingId).toBeUndefined();

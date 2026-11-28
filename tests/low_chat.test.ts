@@ -44,8 +44,9 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
     type: EntityType.Human,
     x: 0,
     y: 0,
-    energy: 50,
-    maxEnergy: 100,
+    energy: 0,
+    maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 50 },
     age: 30,
     birthYear: 0,
     birthMonth: 0,
@@ -117,7 +118,7 @@ function tickWhere(predicate: (tick: number) => boolean): number {
 function runWardRound(doctorOffsetX: number): number {
   const hospital = makeHospital([9]);
   const patient = human(1, { x: 120, y: 120, needs: { nutrition: 80, rest: 80, stamina: 0 } });
-  const doctor = human(9, { x: 120 + doctorOffsetX, y: 120, energy: 100 });
+  const doctor = human(9, { x: 120 + doctorOffsetX, y: 120 });
   const state = makeWorld([patient, doctor]);
 
   tickHospitalDailyCare(state, hospital, [patient]);
@@ -147,8 +148,8 @@ describe('L36 — medicine cost transparency', () => {
   it('records the medicine food cost on the economy ledger', () => {
     const tick = tickWhere((t) => personDayRoll(5, t, 902) < 0.25);
     const hospital = makeHospital([9]);
-    const patient = human(5, { x: 120, y: 120, energy: 0 });
-    const doctor = human(9, { x: 500, y: 500, energy: 100 });
+    const patient = human(5, { x: 120, y: 120, needs: { nutrition: 80, rest: 85, stamina: 0 } });
+    const doctor = human(9, { x: 500, y: 500 });
     const state = makeWorld([patient, doctor], tick, 5);
 
     expect(treatPatientAtHospital(state, patient, hospital)).toBe(true);
@@ -356,7 +357,7 @@ describe('L53 — friendship pruning', () => {
       needs: { nutrition: 80, rest: 80, stamina: 50 },
       friendships: { friend_99: 80, friend_2: 80 },
     });
-    const neighbour = human(2, { energy: 50 });
+    const neighbour = human(2, { needs: { nutrition: 80, rest: 85, stamina: 50 } });
     const state = makeWorld([survivor, neighbour]);
 
     advanceSocialRelationships(state, [survivor, neighbour]);

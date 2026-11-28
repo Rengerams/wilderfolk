@@ -89,8 +89,9 @@ function settler(id: number, overrides: Partial<Entity> = {}): Entity {
     y: 0,
     vx: 0,
     vy: 0,
-    energy: 100,
-    maxEnergy: 100,
+    energy: 0,
+    maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 100 },
     age: 30,
     isJuvenile: false,
     ...overrides,
@@ -366,7 +367,9 @@ describe('the reason a settler is not at their post', () => {
   it('says working for a tired settler who is visibly at the post', () => {
     const farm = building(1, BuildingType.Farm, { occupants: [1] });
     const stand = humanBuildingTarget(farm, 1);
-    const worker = postedFarmer(farm, { x: stand.x, y: stand.y, energy: 30 });
+    const worker = postedFarmer(farm, {
+      x: stand.x, y: stand.y, needs: { nutrition: 80, rest: 85, stamina: 30 },
+    });
     const state = world(workdayTick(10), { entities: [worker], buildings: [farm] });
 
     expect(getSettlerWorkReason(state, worker)).toEqual({
@@ -393,7 +396,7 @@ describe('the reason a settler is not at their post', () => {
   it('says going to hospital, not resting, from the 85% threshold when a ward is staffed', () => {
     const ward = building(10, BuildingType.Hospital, { occupants: [9] });
     const worker = settler(1, {
-      energy: 90,
+      needs: { nutrition: 80, rest: 85, stamina: 90 },
       pregnant: true,
       pregnancyProgress: PREGNANCY_TICKS * 0.85,
       x: 900,

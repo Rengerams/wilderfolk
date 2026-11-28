@@ -20,8 +20,9 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
     type: EntityType.Human,
     x: 0,
     y: 0,
-    energy: 50,
-    maxEnergy: 100,
+    energy: 0,
+    maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 50 },
     age: 30,
     alive: true,
     isJuvenile: false,
@@ -70,7 +71,7 @@ function hospital(occupantIds: number[]): Building {
 
 /** Reputation one 5-day interval pays a staffed hospital, with the patient standing in the ward. */
 function intervalGrant(patients: Entity[]): number {
-  const doctor = human(2, { x: 120, y: 120, energy: 100 });
+  const doctor = human(2, { x: 120, y: 120 });
   const state = world([...patients, doctor]);
   const ward = hospital([2]);
 
@@ -98,7 +99,7 @@ describe('A15 — the hospital reputation rule has one owner', () => {
       HOSPITAL_REPUTATION_PER_INTERVAL,
     );
 
-    const patient = human(1, { x: 120, y: 120, energy: 0, needs: { nutrition: 80, rest: 85, stamina: 0 } });
+    const patient = human(1, { x: 120, y: 120, needs: { nutrition: 80, rest: 85, stamina: 0 } });
     const treatingWard = intervalGrant([patient]);
     expect(treatingWard).toBeGreaterThanOrEqual(HOSPITAL_REPUTATION_PER_INTERVAL);
     expect(treatingWard).toBeLessThanOrEqual(

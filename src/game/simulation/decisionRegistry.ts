@@ -417,7 +417,7 @@ export const SIMULATION_DECISIONS = {
     owner: 'humanRelationships.tryDailyHumanMortality — daily age and sudden-illness roll; hospitalCare.getPreventiveCareMortalityMultiplier — preventive care capacity; dayCycle.killHuman — death transition',
     cadence: 'new-calendar-day',
     cadenceNote: 'The existing human tick samples living assigned doctors once per calendar boundary. One doctor per fifty residents can halve the player sudden-illness risk at full coverage; empty, dead, jailed or deployed doctors provide no coverage. Old age and foreign mortality are unchanged.',
-    writes: ['human.alive', 'human.energy', 'eventLog', 'deathParticles'],
+    writes: ['human.alive', 'eventLog', 'deathParticles'],
     scheduledFrom: 'humanTick.tickHumans → tryDailyHumanMortality → killHuman',
     testFile: 'tests/dailyEcology.pollutionGrading.test.ts, tests/dayCycle.cadence.test.ts',
   },

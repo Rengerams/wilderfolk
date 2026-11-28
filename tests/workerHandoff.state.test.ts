@@ -221,8 +221,7 @@ describe('worker hand-off state', () => {
         partnerId: 900002,
         birthDay: 200,
         birthMonth: 5,
-        energy: 100,
-        maxEnergy: 100,
+        needs: { nutrition: 80, rest: 85, stamina: 100 },
       });
       const partner = human(900002, {
         x: 312,
@@ -230,8 +229,7 @@ describe('worker hand-off state', () => {
         partnerId: 900001,
         birthDay: 201,
         birthMonth: 5,
-        energy: 100,
-        maxEnergy: 100,
+        needs: { nutrition: 80, rest: 85, stamina: 100 },
       });
       world.entities = [resident, partner];
       world.buildings = [];

@@ -40,7 +40,8 @@ const CAMP_Y = 450;
 
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
   return {
-    id, type: EntityType.Human, x: CAMP_X, y: CAMP_Y, energy: 500, maxEnergy: 500,
+    id, type: EntityType.Human, x: CAMP_X, y: CAMP_Y, energy: 0, maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 100 },
     age: 30, birthYear: 0, birthMonth: 0, birthDay: 0, alive: true, size: 10, speed: 2,
     vx: 0, vy: 0, flash: 0, animFrame: 0, spriteAngle: 0, childrenIds: [], generation: 0,
     isJuvenile: false, job: JobType.Settler, name: `Settler${id}`, ...overrides,

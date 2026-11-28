@@ -27,8 +27,6 @@ export function scenarioSettler(id: number, overrides: Partial<Entity> = {}): En
     alive: true,
     isJuvenile: false,
     age: 30,
-    energy: 90,
-    maxEnergy: 100,
     x: 0,
     y: 0,
     vx: 0,
