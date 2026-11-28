@@ -60,20 +60,25 @@ test('compiler verifies callable declarations in their owning module and scope',
       'const wrappedAlias = (advance);',
       'const memberAlias = Owner.work;',
       'const genuine = (function () {});',
+      'const holder = { run() {}, inner: { go: () => 1 } };',
+      'class Handler { task = () => 1; static work = () => 2; }',
+      'const closureAlias = (() => advance)();',
     ].join('\n');
     writeFileSync(path.join(root, 'src/game/sample.ts'), source);
     writeFileSync(path.join(root, 'src/game/other.ts'), 'export function elsewhere() {}');
-    const rows = ['advance', 'generated', 'default', 'Owner.work', 'Owner#rest', 'notCallable', 'nested', 'alias', 'elsewhere', 'Owner.rest', 'other', 'wrappedAlias', 'memberAlias', 'genuine'].map(symbol => ({
+    const rows = ['advance', 'generated', 'default', 'Owner.work', 'Owner#rest', 'notCallable', 'nested', 'alias', 'elsewhere', 'Owner.rest', 'other', 'wrappedAlias', 'memberAlias', 'genuine', 'enclosing::nested', 'holder.run', 'holder.inner.go', 'Handler#task', 'Handler.work', 'closureAlias'].map(symbol => ({
       ...sample, key: symbol, entrypoints: [{ ...sample.entrypoints[0], symbol }],
     }));
     const resolved = new Map();
     const failures = validateEntrypointSymbols(rows, root, resolved);
-    assert.deepEqual(failures.map(message => message.split(':')[0]), ['notCallable', 'nested', 'alias', 'elsewhere', 'Owner.rest', 'other', 'wrappedAlias', 'memberAlias']);
+    assert.deepEqual(failures.map(message => message.split(':')[0]), ['notCallable', 'nested', 'alias', 'elsewhere', 'Owner.rest', 'other', 'wrappedAlias', 'memberAlias', 'closureAlias']);
     const alternate = { ...sample, key: 'alternate', entrypoints: [{ module: 'src/game/./sample.ts', symbol: 'advance' }] };
     const pathClaims = new Map();
     assert.ok(validateEntrypointSymbols([sample, alternate], root, pathClaims).some(message => message.includes('noncanonical owner module')));
     assert.equal(pathClaims.size, 1);
-    assert.ok([...resolved.values()].some(claim => claim.symbol === 'genuine'));
+    for (const symbol of ['genuine', 'enclosing::nested', 'holder.run', 'holder.inner.go', 'Handler#task', 'Handler.work']) {
+      assert.ok([...resolved.values()].some(claim => claim.symbol === symbol), symbol);
+    }
     // Exercise the real call-graph parser against the exact compiler declarations, not hand-built graph records.
     process.env.CALLGRAPH_LIB = '1';
     const { extractDefinitions, stripLiteralsAndComments } = await import('./build-call-graph.mjs');
