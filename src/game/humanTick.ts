@@ -313,9 +313,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
   }
 
-  // Sleep and shift observations become available as each settler is ticked. A pair can
-  // interact when its second member is processed; neither person's unobserved sleep
-  // state may be guessed from the clock or from whether the other one is awake.
+  // Sleep, stamina and shift observations become available as each settler is ticked.
+  // Only ready participants enter this map, so both nearby contact and pursuit use the
+  // same observed stamina gate without invalidating persistent romantic interest.
   const courtshipReadiness = new Map<number, {
     sleeping: boolean;
     onDuty: boolean;
@@ -892,7 +892,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     courtshipPresence.socialTime = socialTime && !takingNeedsBreak && (!stayIn || homeLeisure) && !inElectionCeremony
       && !workCommuteDue && !huntingWere && (!festivalGathering || atFestival);
     courtshipPresence.contactOnly = contactOnly;
-    if (!goingToHospital && !inSpotlightGathering && !inElectionCeremony && !huntingWere) {
+    if (!goingToHospital && !inSpotlightGathering && !inElectionCeremony && !huntingWere
+      && getHumanStaminaRatio(entity) * 100 > Relationship.COURTSHIP_MIN_STAMINA) {
       courtshipReadiness.set(entity.id, courtshipPresence);
     } else {
       courtshipPresence.atWorkplace = false;
@@ -909,8 +910,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && closeCourtshipPartner.courtshipPartnerId === entity.id
       && courtshipReadiness.has(entity.id)
       && isEligibleToCourt(entity) && isEligibleToCourt(closeCourtshipPartner)
-      && getHumanStaminaRatio(entity) * 100 > Relationship.COURTSHIP_MIN_STAMINA
-      && getHumanStaminaRatio(closeCourtshipPartner) * 100 > Relationship.COURTSHIP_MIN_STAMINA
       && canAdvanceCourtship(courtshipPresence, closeCourtshipPresence,
         Math.hypot(closeCourtshipPartner.x - entity.x, closeCourtshipPartner.y - entity.y),
         courtshipPresence.socialTime && closeCourtshipPresence.socialTime);

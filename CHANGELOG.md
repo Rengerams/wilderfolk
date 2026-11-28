@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Preserve the symmetric courtship stamina gate when sharing pending romantic interest; exhausted settlers neither pursue nor advance dates, and their existing progress remains intact.
+
 - Relationships: pending courtship and secret-affair interests share reciprocal pair progress, DNA and decay; settlers can develop interest in multiple people, with labels derived from marital status. Awake nearby contact may progress outside designated leisure without taking over mandatory movement. Existing saves reuse the same candidate map.
 
 - **Fixed (28 Nov 2026):** Restore one-time legacy player stamina and Moon Howler human-snapshot migration on load; native needs take precedence and active wolf metabolism remains independent.

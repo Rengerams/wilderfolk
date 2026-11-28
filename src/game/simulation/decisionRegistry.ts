@@ -607,7 +607,7 @@ export const SIMULATION_DECISIONS = {
   courtship: {
     owner: 'humanRelationships.ts — findCourtshipPartner, isEligibleToCourt, canAdvanceCourtship, advanceRomanticInterest, romanticPairKind, getRomanticCandidates, tryCompleteCourtshipMarriage',
     cadence: 'realtime',
-    cadenceNote: 'Realtime: observed awake nearby participants can gain nonexclusive pair interest at home, on a walk or at a shared workplace. Only free leisure can redirect walking; work/commutes and recovery are preserved. advanceRomanticInterest applies DNA once and writes reciprocal entries in the shared persisted affairCandidates map; romanticPairKind derives the label from current marital status. Legacy courtship scalars are current focus only. Marriage finalization clears reciprocal candidate entries.',
+    cadenceNote: 'Realtime: observed awake nearby participants above the existing COURTSHIP_MIN_STAMINA threshold can gain nonexclusive pair interest at home, on a walk or at a shared workplace; humanTick admits both through the same courtshipReadiness map before contact or pursuit, without clearing pending interest when tired. Only free leisure can redirect walking; work/commutes and recovery are preserved. advanceRomanticInterest applies DNA once and writes reciprocal entries in the shared persisted affairCandidates map; romanticPairKind derives the label from current marital status. Legacy courtship scalars are current focus only. Marriage finalization clears reciprocal candidate entries.',
     writes: [
       'human.courtshipPartnerId',
       'human.courtshipProgress',

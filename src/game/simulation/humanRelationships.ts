@@ -122,7 +122,7 @@ function validPendingPair(a: Entity, b: Entity): boolean {
 }
 
 /** Context is derived from the current relationship status of both participants. */
-export function romanticPairKind(a: Entity, b: Entity): 'courtship' | 'affair' {
+function romanticPairKind(a: Entity, b: Entity): 'courtship' | 'affair' {
   return isMarriedOrExpecting(a) || isMarriedOrExpecting(b) ? 'affair' : 'courtship';
 }
 
