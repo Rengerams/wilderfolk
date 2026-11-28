@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Improved (28 Nov 2026):** Remove vendor-specific preview configuration and retain a standalone local container development workflow.
+
 - **Fixed (28 Nov 2026):** Keep the settled ecology type contract dependency-free so the strict import-cycle architecture gate remains intact.
 
 - **Tests (28 Nov 2026):** Consolidate all 50 audit-batch suites under their canonical owners, preserve runtime and asset regressions, and centralize source-only checks including the syntax-aware DNA scanner.
@@ -90,7 +92,7 @@
 
 - **Performance (26 Nov 2026):** Build the population family graph index once per group projection instead of once per disconnected household; verify deterministic groups and indexed alive lookups.
 
-- **Maintenance (26 Nov 2026):** Restore the Base44 sandbox runbook, fold the duplicate family-graph lookup into the shared alive-entity owner, and re-pin the reviewed semantic-overlap approvals.
+- **Maintenance (26 Nov 2026):** Restore the local container development runbook, fold the duplicate family-graph lookup into the shared alive-entity owner, and re-pin the reviewed semantic-overlap approvals.
 
 - **Maintenance (26 Nov 2026):** Remove unused renderer, audio and game helpers, drop blanket Knip export exclusions, and audit full-project and production-only reachability independently.
 
@@ -1081,7 +1083,7 @@
 
 - **Fixed:** A cursed Moon Howler in the leader's household no longer unseats the family from the Leader's House every full moon; the nightly relocation and move-in chronicle pair is gone.
 
-- **Added:** Base44 sandbox development environment — a Linux compose setup that serves the game's development server from the mounted clone on port 3000, with a lockfile-synced dependency install and a service healthcheck.
+- **Added:** Local container development environment — a Linux compose setup that serves the game's development server from the mounted clone on port 3000, with a lockfile-synced dependency install and a service healthcheck.
 
 - **Fixed:** Raid victory decisions now reach the simulation worker, restoring mercy, tribute and raze choices after a defeated settlement surrenders.
 - **Fixed:** Residents reserve a free hotel bed before walking there. Reservations count toward capacity, survive saving, and release when the stay ends, preventing overbooking by residents still en route.
