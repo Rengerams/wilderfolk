@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import type { WorldState } from '../src/game/gameTypes';
-import { computeRawEcologyStress, tickValleyEcologyStage } from '../src/game/ecologyStage';
+import { computeRawEcologyStress, ensureValleyEcologyOnLoad, tickValleyEcologyStage } from '../src/game/ecologyStage';
 import { ValleyEcology } from '../src/game/gameConstants';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { loadValleyStageWarnings, saveValleyStageWarnings } from '../src/game/preferences';
@@ -49,6 +49,50 @@ describe('valley ecology stage (L17, L18)', () => {
     state.wildlifeCounts = { ...state.wildlifeCounts, deer: 1, rabbits: 2, wolves: 3, wildkin: 0, grass: 120 };
     state.pollutionLevel = 0;
   }
+
+  it('preserves the saved stage despite divergent instantaneous stress on repeated loads', () => {
+    const state = world();
+    quietValley(state);
+    state.ecosystemHealth = 10;
+    state.tick = TICKS_PER_DAY * 20;
+    state.valleyStage = 'stable';
+    state.valleyStageSinceDay = 7;
+    state.valleyRawStressStreakDays = 1;
+    state.valleyRawCalmStreakDays = 0;
+    state.valleyLastStageNotifyDay = 6;
+    expect(computeRawEcologyStress(state).stressLevel).toBe(2);
+
+    for (let load = 0; load < 3; load++) {
+      ensureValleyEcologyOnLoad(state);
+      expect(state).toMatchObject({
+        valleyStage: 'stable',
+        valleyStageSinceDay: 7,
+        valleyRawStressStreakDays: 1,
+        valleyRawCalmStreakDays: 0,
+        valleyLastStageNotifyDay: 6,
+      });
+    }
+  });
+
+  it('initializes a missing legacy stage and its missing counters', () => {
+    const state = world();
+    quietValley(state);
+    state.ecosystemHealth = 10;
+    state.tick = TICKS_PER_DAY * 20;
+    state.valleyStage = undefined;
+    state.valleyStageSinceDay = undefined;
+    state.valleyRawStressStreakDays = undefined;
+    state.valleyRawCalmStreakDays = undefined;
+    state.valleyLastStageNotifyDay = undefined;
+    ensureValleyEcologyOnLoad(state);
+    expect(state).toMatchObject({
+      valleyStage: 'strained',
+      valleyStageSinceDay: 20,
+      valleyRawStressStreakDays: 0,
+      valleyRawCalmStreakDays: 0,
+      valleyLastStageNotifyDay: -999,
+    });
+  });
 
   it('suppresses a recovery notice inside the notify cooldown', () => {
     const state = world();
