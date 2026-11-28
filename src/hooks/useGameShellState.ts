@@ -101,7 +101,7 @@ export interface OverviewSubjectMeta {
 
 export const OVERVIEW_SUBJECTS: Record<OverviewNavId, OverviewSubjectMeta> = {
   people: { icon: '👥', label: 'People', hint: 'Citizens, housing, work hours' },
-  frontier: { icon: '🏕️', label: 'Frontier', hint: 'Visitors, rivals, raids' },
+  frontier: { icon: '🏕️', label: 'Frontier', hint: 'Rivals, raids, diplomacy' },
   nature: { icon: '🌿', label: 'Nature', hint: 'Ecosystem and wildlife' },
   progress: { icon: '🔬', label: 'Progress', hint: 'Research, trade, goals' },
   chronicle: { icon: '📜', label: 'Log', hint: 'Births, deaths, scandals' },

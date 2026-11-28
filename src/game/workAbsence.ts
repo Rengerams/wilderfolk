@@ -240,7 +240,7 @@ export function getSettlerWorkReason(
   if (entity.needs?.lastMealTick === state.tick) return { code: 'eating', label: 'Eating' };
   // The hospital roster owns commute duty, including the hour before midnight.
   if (!doctorCommuteDue && !commutingToWork && (isAsleepAtHome(entity, buildings, hour)
-      || isSettlerLodgingAtHotel(entity, buildings, hour))) {
+      || isSettlerLodgingAtHotel(entity, buildings, state.tick))) {
     return { code: 'sleeping', label: 'Sleeping' };
   }
 
@@ -286,6 +286,7 @@ export function getSettlerWorkReason(
     return { code: 'walking-to-work', label: trainingSite ? `Walking to apprenticeship at ${label}` : `Walking to work — ${label}` };
   }
   if (onShift) {
+
     const obstruction = getRouteObstruction(state.worldMap, state.buildings, entity, buildingAccessPoint(workplace));
     if (obstruction === 'blocked') {
       return { code: 'unreachable', label: `Route failure — cannot reach ${label}` };

@@ -34,9 +34,13 @@ function hotelWorld(): { state: WorldState; hotelier: WorldState['entities'][num
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    hotelGuestIds: [1, 2],
   } as unknown as Building);
 
+  const guest = state.entities.find((e) => e.id !== hotelier!.id && e.alive && isPlayerHuman(e));
+  expect(guest).toBeTruthy();
+  guest!.hotelStayBuildingId = HOTEL_ID;
+  guest!.hotelStayUntilTick = TICKS_PER_DAY;
+  guest!.indoorBuildingId = HOTEL_ID;
   return { state, hotelier: hotelier! };
 }
 

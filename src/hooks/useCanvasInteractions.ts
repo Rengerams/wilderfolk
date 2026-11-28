@@ -186,8 +186,6 @@ export function useCanvasInteractions({
                 selectedBuildingId: under.id,
                 selectedEntityId: null,
                 selectedEntityIds: [],
-                selectedCampKey: null,
-                highlightedCampKey: null,
               });
               setInspectorCollapsed(false);
               return;
@@ -298,11 +296,6 @@ export function useCanvasInteractions({
             selectedEntityId: nextEntityIds[nextEntityIds.length - 1] ?? null,
             selectedEntityIds: nextEntityIds,
             selectedBuildingId: clickedBuilding?.id ?? null,
-            highlightedCampKey:
-              clickedEntity?.faction === 'visitor' && clickedEntity.groupId
-                ? `visitor:${clickedEntity.groupId}`
-                : null,
-            selectedCampKey: null,
           });
         }
         setInspectorCollapsed(false);
@@ -311,8 +304,6 @@ export function useCanvasInteractions({
           selectedEntityId: null,
           selectedEntityIds: [],
           selectedBuildingId: null,
-          highlightedCampKey: null,
-          selectedCampKey: null,
         });
       }
     },

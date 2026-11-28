@@ -1,11 +1,9 @@
 /**
- * Worker-command validation must accept every value in the source catalogs (FORGE_ORDERS,
- * VISITOR_TRADE_COSTS): a validator allow-list that drifts silently no-ops the player action.
+ * Worker-command validation must accept every value in the source catalogs (FORGE_ORDERS): a validator allow-list that drifts silently no-ops the player action.
  */
 import { describe, expect, it } from 'vitest';
 import { isWorkerCommand } from '../src/game/simWorker/commands';
 import { FORGE_ORDERS } from '../src/game/forge';
-import { VISITOR_TRADE_COSTS, type VisitorTradeAction } from '../src/game/groupEvents';
 
 describe('worker command validation parity', () => {
   it('accepts every forge order in FORGE_ORDERS', () => {
@@ -14,16 +12,6 @@ describe('worker command validation parity', () => {
       expect(
         isWorkerCommand({ proto: 1, op: 'queueForgeOrder', buildingId: 1, orderId: order.id }),
         `queueForgeOrder ${order.id} should be valid`,
-      ).toBe(true);
-    }
-  });
-
-  it('accepts every visitor trade action in VISITOR_TRADE_COSTS', () => {
-    expect(Object.keys(VISITOR_TRADE_COSTS).length).toBeGreaterThan(0);
-    for (const action of Object.keys(VISITOR_TRADE_COSTS) as VisitorTradeAction[]) {
-      expect(
-        isWorkerCommand({ proto: 1, op: 'tradeWithVisitors', groupId: 'g1', action }),
-        `tradeWithVisitors ${action} should be valid`,
       ).toBe(true);
     }
   });
@@ -37,6 +25,16 @@ describe('worker command validation parity', () => {
     }
     expect(isWorkerCommand({ proto: 1, op: 'resolveRaidVictory', eventId: '', choiceId: 'raze' })).toBe(false);
     expect(isWorkerCommand({ proto: 1, op: 'resolveRaidVictory', eventId: 'raid-123', choiceId: '' })).toBe(false);
+  });
+
+  it('rejects all retired on-map visitor commands', () => {
+    for (const command of [
+      { op: 'talkToVisitorLeader', groupId: 'legacy' },
+      { op: 'tradeWithVisitors', groupId: 'legacy', action: 'buy_food' },
+      { op: 'resolveVillageRequest', requestId: 'legacy', choice: 'accept' },
+      { op: 'negotiateRefugees', groupId: 'legacy', choice: 'welcome' },
+      { op: 'deliverVisitorQuest' },
+    ]) expect(isWorkerCommand({ proto: 1, ...command })).toBe(false);
   });
 
   it('rejects unknown ops and unknown values', () => {

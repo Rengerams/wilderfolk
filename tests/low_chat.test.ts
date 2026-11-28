@@ -281,7 +281,6 @@ describe('L74 — travelling theatre script choice', () => {
   function reachOpeningNight(script: string): WorldState {
     const state = initGame({ seed: 20240913 });
     state.dayInYear = travelingTheatreEligibleDay(state.worldMap?.seed) + 1;
-    state.visitorGroups.push({ kind: 'performers', daysLeft: 5 } as never);
     logEvent(state, 'season', 'A hard winter passed');
     logEvent(state, 'scandal', 'A hungry settler tried to eat a neighbour’s foot');
 

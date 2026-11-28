@@ -481,6 +481,24 @@ describe('Big News cards survive a save', () => {
     ]);
   });
 
+  it('normalizes malformed news before filtering retired visitor announcements', () => {
+    const payload = realPayload();
+    payload.bigNews = [
+      { id: 'bn_7' },
+      { id: 'bn_8', title: 'Visitors Arrived' },
+      { id: 'bn_9', title: 42 },
+      { id: 'bn_10', title: 'Harvest' },
+    ];
+    const outcome = loadGameFromParsedOutcome(payload);
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.world.bigNews.map(({ id, title }) => ({ id, title }))).toEqual([
+      { id: 'bn_7', title: '' },
+      { id: 'bn_9', title: '' },
+      { id: 'bn_10', title: 'Harvest' },
+    ]);
+  });
+
   it('still refuses a card with no id, naming its position', () => {
     const payload = realPayload();
     payload.bigNews = [{ title: 'no id' }];

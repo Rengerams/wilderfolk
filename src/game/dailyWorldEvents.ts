@@ -11,7 +11,7 @@ import { addReputation } from './simHelpers';
 import { tickLeaderVacancy, tickElectionBuildup, tryStartVacancyElectionCeremony, tryStartTermElectionCeremony } from './villageLeadership';
 import { getTownHallFestivalCooldownTicks, isTownHallStaffed } from './townHall';
 
-import { rollYearlyWorldEvent, tickVillageRequests } from './groupEvents';
+import { rollYearlyWorldEvent } from './groupEvents';
 import { tickRivalSettlements } from './rivalEvents';
 import { tickPendingDiplomacyEvents, maybeQueueDiplomacyEvent } from './rivalDiplomacy';
 import { maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferGriefBeat, maybeOfferHowlerRumor, maybeOfferWinterPrep, tickWinterFreezeCheck, tickPendingStoryEvents, maybeOfferChildrenShelter, tickChildrenShelter } from './storyEvents';
@@ -139,7 +139,6 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   // Catch burials delayed by missing or full graveyards; constant-time when none await.
   assignPendingGraves(state);
   // Frontier systems
-  tickVillageRequests(state);
   // First-session arc (year 0 only): welcome, wolf choice, ranger's memory, Old Kaia's winter quest.
   if (state.year === 0) {
     maybeOfferWelcome(state);

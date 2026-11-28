@@ -3,8 +3,6 @@
  * inheritance, validation and the deterministic old-save backfill.
  */
 import { getSimRng, randomInt, type RngStream } from './simRng';
-import { grantMark, rollBornMarks, type MarkCarrier } from './personalMarks';
-import { PROFILE_REVISION, bumpRevision } from './entityRevision';
 
 /**
  * The canonical ordered aptitude IDs. Index == genome slot; every table below derives from it.
@@ -176,21 +174,6 @@ function buildGenome(pairs: AllelePair[]): GenomeV2 {
 /** The one founder allocation; `stream` is the injected-RNG seam for tests and deterministic loads. */
 export function rollFounderGenome(stream?: RngStream): GenomeV2 {
   return drawGenome(stream ?? getSimRng('settlerGenetics'), FOUNDER_ALLELE_MIN, FOUNDER_ALLELE_MAX);
-}
-
-/**
- * Citizenship establishes the permanent identity a settler's whole life is priced from: a foreign
- * human arrives neutral, so the owner granting citizenship rolls the genome and born marks once.
- */
-type MutableGenomeCarrier = { -readonly [K in keyof GenomeCarrier]: GenomeCarrier[K] };
-
-export function establishCitizenIdentity(person: MutableGenomeCarrier & MarkCarrier): void {
-  if (person.genomeV2 == null) {
-    person.genomeV2 = rollFounderGenome();
-    // `genomeV2` is a profile field the delta omits until its revision changes.
-    bumpRevision(person, PROFILE_REVISION);
-  }
-  for (const mark of rollBornMarks()) grantMark(person, mark.id, mark.day, mark.source);
 }
 
 /** Deterministic old-save backfill using the RNG owner's independent per-citizen stream.

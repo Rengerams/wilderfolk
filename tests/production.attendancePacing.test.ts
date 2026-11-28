@@ -68,7 +68,6 @@ function isolatedWorld(blocked = false): WorldState {
   state.festival = null;
   state.spotlightLore = null;
   state.inventionFair = null;
-  state.visitorGroups = [];
   state.pendingRaidEvents = [];
   state.pendingOutgoingRaidEvents = [];
   state.pendingDiplomacyEvents = [];

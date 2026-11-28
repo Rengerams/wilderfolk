@@ -17,7 +17,7 @@ export const EVENT_LOG_FILTER_OPTIONS: Array<{ id: 'all' | GameEventLog['type'];
   { id: 'building', label: 'Buildings' },
   { id: 'research', label: 'Research' },
   { id: 'trade', label: 'Trade' },
-  { id: 'migration', label: 'Visitors' },
+  { id: 'migration', label: 'Migration' },
   { id: 'disaster', label: 'Disasters' },
   { id: 'combat', label: 'Combat' },
   { id: 'event', label: 'Events' },

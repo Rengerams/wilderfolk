@@ -1,63 +1,6 @@
 import { FLOATING_TEXT_FADE_TICKS, type Camera } from '../gameTypes';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { _cachedHumans, _cachedPartnerById } from './entityCache';
-import { motionTime } from './shared';
-
-/** Highlight ring alpha — on the render clock, so the pulse animates between simulation ticks. */
-function campHighlightPulse(): number {
-  return 0.55 + 0.25 * Math.sin(motionTime * 2.2);
-}
-
-// ============ CAMP MARKERS ============
-export function drawCampMarkers(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
-  const cam = state.camera;
-  if (cam.zoom < 0.35) return;
-
-  for (const group of state.visitorGroups) {
-    const sx = (group.campX - cam.x) * cam.zoom + cw / 2;
-    const sy = (group.campY - cam.y) * cam.zoom + ch / 2;
-    if (sx < -40 || sx > cw + 40 || sy < -40 || sy > ch + 40) continue;
-    ctx.fillStyle = 'rgba(6, 78, 59, 0.55)';
-    ctx.beginPath();
-    ctx.arc(sx, sy, Math.max(10, 14 * cam.zoom), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(34, 211, 238, 0.7)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    if (cam.zoom > 0.5) {
-      ctx.font = `bold ${Math.max(7, 8 * cam.zoom)}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#a5f3fc';
-      ctx.fillText(group.name, sx, sy - Math.max(12, 16 * cam.zoom));
-      ctx.fillStyle = '#6ee7b7';
-      ctx.font = `${Math.max(6, 7 * cam.zoom)}px sans-serif`;
-      ctx.fillText(`${group.daysLeft}d`, sx, sy + Math.max(14, 18 * cam.zoom));
-    }
-  }
-}
-
-/** Render-clock camp selection pulses; these must not be baked into the tick cache. */
-export function drawCampHighlightRings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number): void {
-  const cam = state.camera;
-  if (cam.zoom < 0.35 || !state.highlightedCampKey) return;
-  const key = state.highlightedCampKey;
-  // Visitor camps are the only on-map camps; rival settlements live on the strategic map.
-  const camp = key.startsWith('visitor:')
-    ? state.visitorGroups.find((group) => key === `visitor:${group.id}`)
-    : undefined;
-  if (!camp) return;
-  const sx = (camp.campX - cam.x) * cam.zoom + cw / 2;
-  const sy = (camp.campY - cam.y) * cam.zoom + ch / 2;
-  if (sx < -40 || sx > cw + 40 || sy < -40 || sy > ch + 40) return;
-  ctx.save();
-  ctx.strokeStyle = `rgba(34, 211, 238, ${campHighlightPulse()})`;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(sx, sy, Math.max(18, 22 * cam.zoom), 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-}
-
 // ============ FLOATING TEXTS ============
 export function drawFloatingTexts(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const cam = state.camera;

@@ -78,7 +78,6 @@ function flatWorld(): WorldState {
   state.festival = null;
   state.spotlightLore = null;
   state.inventionFair = null;
-  state.visitorGroups = [];
   state.pendingRaidEvents = [];
   state.pendingOutgoingRaidEvents = [];
   state.pendingDiplomacyEvents = [];

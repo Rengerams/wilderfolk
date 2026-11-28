@@ -344,7 +344,6 @@ const GUARDS = [
  */
 const SOURCE_ROWS = [
   { id: 'terrain-fill-single-stamp', checks: [{ file: 'src/game/terrainLayer.ts', region: [{ from: 'function drawTerrainFill(', to: 'type Cardinal', counts: [{ needle: 'drawImage(', times: 1 }] }] }] },
-  { id: "visitor-trade-formatter-owner", checks: [{ file: "src/game/groupEvents.ts", contains: "formatResourceAmounts(received)", notMatches: /receivedLabel\s*=\s*`\+\$\{added\}/, example: "receivedLabel = `+${added}`;" }] },
   { id: "yearly-marriage-statistics-owner", checks: [{ file: "src/game/stats.ts", contains: "filter(isMarriedOrExpecting)", notMatches: /relationshipStatus\s*===\s*'married'/, example: "relationshipStatus === 'married'" }] },
   { id: "active-marriage-predicate-single-owner", scan: { dir: "src", ext: [".ts", ".tsx"], except: ["src/game/relationships.ts"], notMatches: /function isActivelyMarried\s*\(/, example: "function isActivelyMarried(", minFiles: 1 } },
   { id: "marriage-status-read-owner", scan: { dir: "src", ext: [".ts", ".tsx"], except: ["src/game/relationships.ts"], notMatches: /relationshipStatus\s*(===|!==|==|!=)\s*'married'/, example: "relationshipStatus === 'married'", minFiles: 1 } },
@@ -373,7 +372,13 @@ const SOURCE_ROWS = [
   { id: "grid-cell-clamp-single-owner-owner", checks: [{ file: "src/game/spatialGrid.ts", matches: [/Math\.min\(\w+(\.\w+)? - 1, Math\.max\(0, Math\.floor\(/] }] },
   { id: "velocity-facing-single-owner", scan: { dir: "src", ext: [".ts", ".tsx"], except: ["src/game/simulation/movementSteering.ts"], notMatches: /spriteAngle\s*=\s*Math\.atan2\(\s*\w+\.vy,\s*\w+\.vx\s*\)/, example: "e.spriteAngle = Math.atan2(e.vy, e.vx)", minFiles: 1 } },
   { id: "velocity-facing-single-owner-owner", checks: [{ file: "src/game/simulation/movementSteering.ts", matches: [/spriteAngle\s*=\s*Math\.atan2\(\s*\w+\.vy,\s*\w+\.vx\s*\)/] }] },
-  { id: "swept-behaviors-use-movement-owner", checks: [{ files: ["src/game/simulation/humanMovement.ts", "src/game/humanHospitalBehavior.ts", "src/game/humanLeisureBehavior.ts", "src/game/blueberryForaging.ts", "src/game/humanHuntingBehavior.ts", "src/game/hotelStay.ts", "src/game/pathfinding.ts", "src/game/tickLayerSystems.ts", "src/game/humanTick.ts"], matches: [/steerHumanToward\(|steerEntityToward\(|setVelocityToward\(|faceVelocity\(|commuteHumanToBuilding\(/] }] },
+  { id: "swept-behaviors-use-movement-owner", checks: [{ files: ["src/game/simulation/humanMovement.ts", "src/game/humanHospitalBehavior.ts", "src/game/humanLeisureBehavior.ts", "src/game/blueberryForaging.ts", "src/game/humanHuntingBehavior.ts", "src/game/pathfinding.ts", "src/game/tickLayerSystems.ts", "src/game/humanTick.ts"], matches: [/steerHumanToward\(|steerEntityToward\(|setVelocityToward\(|faceVelocity\(|commuteHumanToBuilding\(/] }] },
+  { id: "retired-visitor-runtime-state", scan: { dir: "src", ext: [".ts", ".tsx"], except: ["src/game/saveLoad.ts"], notMatches: /\b(visitorGroups|VisitorGroup|VisitorKind|visitorQuest|VisitorQuest|activeVillageRequest|VillageRequest|villageRequestHistory|villageRequestCooldownUntilDay|hotelGuestIds|selectedCampKey|highlightedCampKey|firstWeekVisitorSpawned|talkToVisitorLeader|tradeWithVisitors|resolveVillageRequest|negotiateRefugees|deliverVisitorQuest|campKey)\b/, example: "world.visitorGroups", minFiles: 1 } },
+  { id: "retired-visitor-feedback", checks: [{ file: "src/hooks/useTransientGameFeedback.ts", notContains: ["visitorNewsIds", "Visitors Arrived"] }, { file: "src/hooks/useGameShellState.ts", notContains: "Visitors, rivals, raids" }] },
+  { id: "retired-visitor-tutorials", checks: [{ files: ["src/game/contextualTutorial.ts", "src/hooks/useContextualTutorial.ts"], notContains: ["visitorGroups", "VISITOR_TOPIC", "visitor_traders:"] }] },
+  { id: "retired-first-week-visitor-flag", checks: [{ files: ["src/game/gameTypes.ts", "src/game/worldGen.ts", "src/game/saveSchema.ts", "src/game/simWorker/simPrep.ts", "src/game/simBuffers/simDelta.ts"], notContains: "firstWeekVisitorSpawned" }] },
+  { id: "retired-camp-view-stays-removed", checks: [{ files: ["src/game/viewState.ts", "src/game/renderSnapshot.ts", "src/App.tsx", "src/hooks/useCanvasInteractions.ts"], notContains: ["selectedCampKey", "highlightedCampKey", "focusCampOnMap"] }, { file: "src/game/renderer/markers.ts", notContains: ["drawCampMarkers", "drawCampHighlightRings"] }] },
+  { id: "retired-hotel-movement-stays-removed", checks: [{ file: "src/game/hotelStay.ts", notContains: ["steerVisitorToHotel", "restAtHotel", "HOTEL_REST_ENERGY_PER_HOUR", "checkInVisitor", "pickHotelForVisitor", "checkoutVisitor", "hotelGuestIds", "commuteHumanToBuilding(", "applyHumanWalkStep("] }] },
   { id: "manual-staffing-controls-retired", checks: [{ file: "src/components/SelectedBuildingPanel.tsx", contains: "Employment is automatic", notContains: ["isManualStaffingBuilding", "onSetStaffingMode", "onAssignWorker"] }] },
   { id: "builder-eligibility-single-predicate", checks: [{ file: "src/game/buildingStaffingActions.ts", counts: [{ needle: "isEligibleBuilderForBuilding(", times: 3 }], contains: ["&& !constructionCrews.has(entity.id)", "if (buildConstructionCrewIndex(state.buildings).has(humanId)) return 'on-another-crew';"] }] },
   { id: "raid-deadline-runtime-owner", checks: [{ file: "src/game/frontierCombat.ts", order: [["export function tickPendingRaidEvents", "export function tickPendingOutgoingRaidEvents"]], region: [{ from: "export function tickPendingRaidEvents", to: "export function tickPendingOutgoingRaidEvents", contains: "getRaidExpiresAtTick(evt)" }, { from: "export function tickPendingOutgoingRaidEvents", contains: "getRaidExpiresAtTick(evt)", notMatches: [/state\.tick < evt\.expiresAtTick/], example: ["state.tick < evt.expiresAtTick"] }] }] },
@@ -1275,7 +1280,6 @@ const SOURCE_ROWS = [
     checks: [
       {
         files: [
-          'src/game/groupEvents.ts',
           'src/game/tradeCaravans.ts',
           'src/game/townHall.ts',
           'src/game/settlerInteractionActions.ts',
@@ -1320,6 +1324,10 @@ const SOURCE_ROWS = [
           'export function tryMidYearVisitorEvent(',
           'export function tryFirstWeekVisitor(',
           'export function hitTestCamp(',
+          'export function tickVillageRequests(',
+          'export function tradeWithVisitors(',
+          'export function negotiateRefugees(',
+          'export function talkToVisitorLeader(',
         ],
         example: 'export function spawnVisitorGroup(',
       },
