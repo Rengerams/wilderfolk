@@ -4,7 +4,7 @@
  */
 import { readdirSync, readFileSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { getDecisionRows, verifyOwnershipRegistry } from './ownership-registry.mjs';
+import { getDecisionRows, verifyOwnershipRegistry, findVerifiedClaim } from './ownership-registry.mjs';
 
 const ROOT = process.cwd();
 const SRC = path.resolve(ROOT, 'src');
@@ -628,13 +628,6 @@ function main() {
   const decisions = [...registry, ...overview];
 
   const functionNames = new Set(functions.map((f) => f.name));
-  const fileBasenames = new Map();
-  for (const fn of functions) {
-    const base = fn.file.split('/').pop();
-    const list = fileBasenames.get(base) ?? new Set();
-    list.add(fn.file);
-    fileBasenames.set(base, list);
-  }
 
   for (const decision of decisions) {
     // Names and modules come from the owner / entry-functions cells only. scheduledFrom names the
@@ -661,35 +654,24 @@ function main() {
     decision.modules = [...new Set(modulesIn(ownerHead))].sort();
   }
 
+  // Legacy evidence is a migration diagnostic, not authority. Preserve the previous coverage
+  // gate while refusing to assign a decision key based on prose or a module-wide match.
   const moduleOwnsFile = (moduleName, file) => file === moduleName || file.endsWith(`/${moduleName}`);
-
-  const primaryOwners = new Map(registry.flatMap(decision => decision.entrypoints.map(ref => [`${ref.module}::${ref.symbol}`, decision])));
-  const ownerForFunction = (fn) => {
-    const explicit = primaryOwners.get(`${fn.file}::${fn.name}`);
-    if (explicit) return { decision: explicit, how: 'entry function' };
-    for (const decision of decisions) {
-      if (
-        decision.entryFunctionNames.includes(fn.name)
-        && decision.modules.some((name) => moduleOwnsFile(name, fn.file))
-      ) {
-        return { decision, how: 'entry function' };
-      }
-    }
-    for (const decision of decisions) {
-      if (decision.modules.some((name) => moduleOwnsFile(name, fn.file))) {
-        return { decision, how: 'module owner' };
-      }
-    }
-    return undefined;
-  };
-
+  const resolved = new Map();
+  const ownershipFailures = verifyOwnershipRegistry(registry, ROOT, true, resolved);
+  const claims = [...resolved.values()];
+  const rowsByKey = new Map(registry.map(row => [row.key, row]));
   for (const fn of functions) {
-    const owner = ownerForFunction(fn);
-    fn.ownerKey = owner?.decision.key ?? null;
-    fn.ownerSource = owner?.decision.source ?? null;
-    fn.ownerHow = owner?.how ?? null;
-    fn.ownerOwnerCell = owner?.decision.owner ?? null;
-    fn.cadence = owner?.decision.cadence ?? null;
+    const claim = findVerifiedClaim(fn, claims, functions);
+    const owner = claim ? rowsByKey.get(claim.key) : undefined;
+    const legacy = decisions.filter(decision => decision.modules.some(name => moduleOwnsFile(name, fn.file)));
+    fn.legacyNamedEvidence = legacy.some(decision => decision.entryFunctionNames.includes(fn.name));
+    fn.legacyModuleEvidence = legacy.length > 0;
+    fn.ownerKey = owner?.key ?? null;
+    fn.ownerSource = owner?.source ?? null;
+    fn.ownerHow = claim ? 'verified ' + claim.role : null;
+    fn.ownerOwnerCell = owner?.owner ?? null;
+    fn.cadence = owner?.cadence ?? null;
     fn.callerCount = callers[fn.index].length;
     fn.calleeCount = callees[fn.index].length;
   }
@@ -702,8 +684,11 @@ function main() {
       functions: functions.length,
       callEdges: callees.reduce((sum, list) => sum + list.length, 0),
       withRecordedOwner: functions.filter((f) => f.ownerKey).length,
-      withExplicitEntry: functions.filter((f) => f.ownerHow === 'entry function').length,
-      withModuleOwner: functions.filter((f) => f.ownerHow === 'module owner').length,
+      withExplicitEntry: functions.filter((f) => f.ownerKey).length,
+      withModuleOwner: 0,
+      withLegacyNamedEvidence: functions.filter((f) => f.legacyNamedEvidence).length,
+      withLegacyModuleEvidence: functions.filter((f) => f.legacyModuleEvidence).length,
+      migrationPending: functions.filter((f) => !f.ownerKey).length,
       withoutRecordedOwner: functions.filter((f) => !f.ownerKey).length,
       decisions: decisions.length,
       ambiguousCalls: [...unresolved.values()].reduce((sum, entry) => sum + entry.count, 0),
@@ -736,10 +721,13 @@ function main() {
       ownerKey: fn.ownerKey,
       ownerSource: fn.ownerSource,
       ownerHow: fn.ownerHow,
+      legacyNamedEvidence: fn.legacyNamedEvidence,
+      legacyModuleEvidence: fn.legacyModuleEvidence,
       cadence: fn.cadence,
       callers: callers[fn.index],
       callees: callees[fn.index],
     })),
+    verifiedClaims: claims,
     unregistered: functions.filter((fn) => !fn.ownerKey).map(({ name, file, line }) => ({ name, file, line })),
     ambiguous: [...unresolved.entries()]
       .map(([key, entry]) => ({ key, count: entry.count, sites: entry.sites }))
@@ -752,24 +740,26 @@ function main() {
   if (!jsonOnly) writeFileSync(path.join(OUT_DIR, 'call-graph.html'), renderHtml(payload));
 
   console.log(JSON.stringify(payload.stats, null, 2));
-  if (process.argv.includes('--verify-owners')) {
+  if (process.argv.includes('--verify-owners') || process.argv.includes('--strict-owners')) {
     // Floors keep a parser regression from passing as "0 unowned": an empty or truncated index would
     // otherwise satisfy every per-function check vacuously.
     const OWNERSHIP_FLOORS = { files: 380, functions: 3200, explicitEntries: 1400 };
-    const failures = verifyOwnershipRegistry(registry, ROOT);
-    if (payload.unregistered.length) {
-      console.error('Unregistered functions:', payload.unregistered.slice(0, 100));
-      failures.push(`${payload.unregistered.length} function(s) without any recorded owner`);
+    const failures = [...ownershipFailures];
+    const undocumented = functions.filter(fn => !fn.ownerKey && !fn.legacyModuleEvidence);
+    if (undocumented.length) {
+      console.error('Functions without claims or legacy coverage:', undocumented.slice(0, 100).map(({ file, name, line }) => ({ file, name, line })));
+      failures.push(`${undocumented.length} function(s) without any ownership evidence`);
     }
+    if (process.argv.includes('--strict-owners') && payload.unregistered.length) failures.push(`${payload.unregistered.length} function(s) still require explicit claims`);
     if (payload.stats.files < OWNERSHIP_FLOORS.files) {
       failures.push(`indexed ${payload.stats.files} files (floor ${OWNERSHIP_FLOORS.files})`);
     }
     if (payload.stats.functions < OWNERSHIP_FLOORS.functions) {
       failures.push(`indexed ${payload.stats.functions} functions (floor ${OWNERSHIP_FLOORS.functions})`);
     }
-    if (payload.stats.withExplicitEntry < OWNERSHIP_FLOORS.explicitEntries) {
+    if (payload.stats.withLegacyNamedEvidence < OWNERSHIP_FLOORS.explicitEntries) {
       failures.push(
-        `only ${payload.stats.withExplicitEntry} functions have an explicit owner entry (floor ${OWNERSHIP_FLOORS.explicitEntries})`,
+        `only ${payload.stats.withLegacyNamedEvidence} functions have legacy named evidence (floor ${OWNERSHIP_FLOORS.explicitEntries})`,
       );
     }
     if (failures.length) {
@@ -886,7 +876,7 @@ function renderHtml(payload) {
 const data = JSON.parse(document.getElementById('payload').textContent);
 const $ = (id) => document.getElementById(id);
 $('stats').textContent = data.stats.functions + ' functions · ' + data.stats.callEdges +
-  ' internal call edges · ' + data.stats.withRecordedOwner + ' owned · ' +
+  ' internal call edges · ' + data.stats.withRecordedOwner + ' verified owners · ' + data.stats.migrationPending + ' pending migration · ' +
   data.stats.decisions + ' ownership rows · ' + data.stats.injectedCallbackCalls +
   ' injected callbacks · ' + data.stats.externalMethodCalls + ' external/prototype calls · ' +
   data.stats.ambiguousCalls + ' ambiguous';
@@ -1019,7 +1009,7 @@ function renderDetail(f, index) {
               : '')
           + (decision && decision.testFile ? '<p><span class="muted">tests:</span> ' + decision.testFile + '</p>' : '')
         : '<div class="owner" style="border-color:#f59e0b">no recorded owner</div>'
-          + '<p class="muted">Not named as a decision entry function, and its file is not an owner module in the registry or the ownership overview.</p>')
+          + '<p class="muted">No explicit compiler-verified decision claim. Historical documentation is migration evidence only.</p>')
     + '<h2>Called by (' + f.callers.length + ')</h2>'
     + '<table>' + f.callers.slice(0, 60).map((e) => '<tr><td><a href="#" data-go="' + e.index + '">'
         + data.functions[e.index].name + '</a></td><td class="muted">' + short(e.file) + '</td></tr>').join('') + '</table>'
