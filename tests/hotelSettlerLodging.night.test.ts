@@ -184,6 +184,9 @@ describe('settler lodging overnight', () => {
 
   it('rejects expired reservations for sleep, capacity and roster before cleanup', () => {
     const state = newWorld();
+    // Both sides of the expiry boundary must be inside the night window, which starts at 23:00.
+    state.tick += 1;
+    expect(getHourOfDay(state.tick - 1)).toBe(getHourOfDay(state.tick));
     const home = house(1, 100, WALKER_Y);
     const inn = hotel(2, WALKER_X, WALKER_Y);
     const resident = settler(1, { x: inn.x, y: inn.y, residenceBuildingId: home.id,
