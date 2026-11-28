@@ -48,8 +48,8 @@ jobs:
         run: SIM_START_DAY=720 SIM_DAYS=3 npx tsx scripts/sim-invariants.ts
 
   producer-parity:
-    # Historical baseline comparison is expensive; never block routine PR/main checks.
-    if: github.event_name == 'workflow_dispatch' && inputs.producer_parity
+    # Runs automatically on push to main, or manually via workflow_dispatch (never blocks PRs).
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.producer_parity)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
