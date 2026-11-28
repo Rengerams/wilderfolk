@@ -766,7 +766,7 @@ take ownership away from their leaf implementations. Module-qualified names keep
 | Audio: preferences.ts | `src/audio/preferences.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
 | UI: resourceLabels.ts | `src/components/resourceLabels.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
 | Game: combatTech.ts | `src/game/combatTech.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
-| Game: ecologyTypes.ts | `src/game/ecologyTypes.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: ecologyTypes.ts | `src/game/ecologyTypes.ts` | shared types only | `ValleyStage`, `EcosystemMetrics` (settled score input contract); no dependency on simulation modules |
 | Game: gameEngine.ts | `src/game/gameEngine.ts` | module-local | Compatibility exports only; implementation ownership stays with leaf modules |
 | Game: genealogyRegistry.ts | `src/game/genealogyRegistry.ts` | module-local / on-demand read-only | `editGenealogyRegistry` publishes a new registry for rollback; `findFamilyGroupRoot` — sole owner of path-compressed genealogy group-root lookup (shared with `familyTree.ts`); remaining local functions and methods are defined in this module, not re-exported definitions |
 | Game: genealogyTypes.ts | `src/game/genealogyTypes.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
