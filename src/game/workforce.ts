@@ -1063,19 +1063,26 @@ function staffJobsBeforeConstruction(
       workerCounts.set(human.workerBuildingId, (workerCounts.get(human.workerBuildingId) ?? 0) + 1);
     }
   }
+  let relocatedJobSeeker = false;
   for (const site of jobBuildings) {
     const selected = focus.includes(workforceSectorForBuilding(site.type)!);
-    if ((!isFoodWorkplace(site) || policy !== 'survival') && !selected) {
-      if ((workerCounts.get(site.id) ?? 0) > 0) continue;
-      assignWorkerInPlace(site, alive, buildings, constructionIds, buildingById, workerCounts);
-      continue;
-    }
-    const target = site.type === BuildingType.School
-      ? preferredSchoolStaff(site, alive)
-      : staffingCapFor(site, alive).cap;
+    const fillPriority = (policy === 'survival' && isFoodWorkplace(site)) || selected;
+    const target = fillPriority
+      ? (site.type === BuildingType.School ? preferredSchoolStaff(site, alive) : staffingCapFor(site, alive).cap)
+      : 1;
     while ((workerCounts.get(site.id) ?? 0) < target
       && assignWorkerInPlace(site, alive, buildings, constructionIds, buildingById, workerCounts)) {
-      // Fill important vacancies before construction crews consume the idle pool.
+      // First try all applicants already able to commute from their current homes.
+    }
+    if (relocatedJobSeeker || (workerCounts.get(site.id) ?? 0) >= target) continue;
+    const unemployed = alive.filter((person) => isIdleWorkforceCandidate(person, constructionIds));
+    if (unemployed.length === 0) continue;
+    if (!relocateJobSeekerForVacancy(unemployed, alive, buildings, site)) continue;
+    relocatedJobSeeker = true;
+    // The housing owner moved the household; the ordinary workforce owner appoints the worker.
+    while ((workerCounts.get(site.id) ?? 0) < target
+      && assignWorkerInPlace(site, alive, buildings, constructionIds, buildingById, workerCounts)) {
+      // No speculative or second employment writer.
     }
   }
 }
@@ -1101,22 +1108,10 @@ export function staffJobBuildings(
   const constructionWorkerIds = new Set(buildConstructionCrewIndex(buildings).keys());
 
   const staffStart = profileStart();
-  // One household relocation per assignment pass avoids uprooting a settlement at once.
-  // Housing owns the move, while this function still owns all job selection and writes.
-  let relocatedJobSeeker = false;
   for (let i = 0; i < jobBuildings.length; i++) {
     const building = jobBuildings[i];
     while (assignWorkerInPlace(building, alive, buildings, constructionWorkerIds, buildingById, workerCounts)) {
-      // Fill jobs reachable from the worker's existing home first.
-    }
-    if (relocatedJobSeeker || (workerCounts.get(building.id) ?? 0) >= staffingCapFor(building, alive).cap) continue;
-    const unemployed = alive.filter((person) => isIdleWorkforceCandidate(person, constructionWorkerIds));
-    if (unemployed.length === 0) continue;
-    if (!relocateJobSeekerForVacancy(unemployed, alive, buildings, building)) continue;
-    relocatedJobSeeker = true;
-    // Rerun the same normal employment owner from the newly assigned home.
-    while (assignWorkerInPlace(building, alive, buildings, constructionWorkerIds, buildingById, workerCounts)) {
-      // A completed workplace remains staffed only by assignWorkerTransition.
+      // Fill available posts through the canonical worker transition.
     }
   }
   profileEnd('workforce.staff', staffStart);
