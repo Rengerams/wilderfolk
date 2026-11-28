@@ -9,6 +9,9 @@ import { initGame } from '../src/game/worldGen';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import {
   bindCourtship,
+  advanceRomanticInterest,
+  getRomanticCandidates,
+  reconcileAffairPartner,
   canAdvanceCourtship,
   findCourtshipPartner,
   isEligibleToCourt,
@@ -72,9 +75,9 @@ describe('courtship requires awake nearby participants and real workplace overla
   const idle = { sleeping: false, onDuty: false, workplaceId: undefined, atWorkplace: false };
   const working = { sleeping: false, onDuty: true, workplaceId: 42, atWorkplace: true };
 
-  it('allows two off-shift awake settlers in social time but not outside it', () => {
+  it('allows nearby awake settlers even outside designated social time', () => {
     expect(canAdvanceCourtship(idle, idle, 8, true)).toBe(true);
-    expect(canAdvanceCourtship(idle, idle, 8, false)).toBe(false);
+    expect(canAdvanceCourtship(idle, idle, 8, false)).toBe(true);
   });
 
   it('freezes progress if either partner is asleep, including co-located lovers', () => {
@@ -99,7 +102,7 @@ describe('courtship requires awake nearby participants and real workplace overla
 });
 
 describe('courtship exclusivity and cleanup (audit F5)', () => {
-  it('does not offer a settler who is already in a mutual courtship to a third settler', () => {
+  it('offers a settler with an existing pending courtship to another candidate', () => {
     const a = settler(A_ID, 'male', { courtshipPartnerId: B_ID, courtshipProgress: 60 });
     const b = settler(B_ID, 'female', { courtshipPartnerId: A_ID, courtshipProgress: 60 });
     const c = settler(C_ID, 'male');
@@ -107,7 +110,7 @@ describe('courtship exclusivity and cleanup (audit F5)', () => {
 
     const partner = findCourtshipPartner(c, false, 120, undefined, new Map(), [a, b, c], 1200, 900);
 
-    expect(partner).toBeUndefined();
+    expect(partner?.id).toBe(B_ID);
   });
 
   it('still re-selects the caller’s own mutual partner every tick', () => {
@@ -379,13 +382,13 @@ describe('courtship candidate availability', () => {
     expect(findCourtshipPartner(a, false, 120, undefined, new Map(), humans, 1200, 900, 0, entityById, candidate => candidate.id !== B_ID)?.id).toBe(C_ID);
   });
 
-  it('waits for an unavailable established partner without switching', () => {
+  it('can choose another candidate while the previous contact is unavailable', () => {
     const a = settler(A_ID, 'male', { courtshipPartnerId: B_ID, courtshipProgress: 60 });
     const b = settler(B_ID, 'female', { courtshipPartnerId: A_ID, courtshipProgress: 60 });
     const c = settler(C_ID, 'female');
     const humans = [a, b, c];
     const { entityById } = fixture(humans);
-    expect(findCourtshipPartner(a, false, 120, undefined, new Map(), humans, 1200, 900, 0, entityById, candidate => candidate.id !== B_ID)).toBeUndefined();
+    expect(findCourtshipPartner(a, false, 120, undefined, new Map(), humans, 1200, 900, 0, entityById, candidate => candidate.id !== B_ID)?.id).toBe(C_ID);
     expect(a.courtshipProgress).toBe(60);
     expect(a.courtshipPartnerId).toBe(B_ID);
   });
@@ -403,7 +406,7 @@ it('selects the same courtship candidate at equal distance in either traversal o
 
 
 describe('courtship cooldown reconciliation order', () => {
-  it.each([false, true])('starts equal cooldowns for both partners (reverse=%s)', reverse => {
+  it.each([false, true])('does not apply a global cooldown when repairing a pending display focus (reverse=%s)', reverse => {
     const a = settler(A_ID, 'male', { courtshipPartnerId: B_ID, courtshipProgress: 60 });
     const b = settler(B_ID, 'female', { courtshipPartnerId: A_ID, courtshipProgress: 60, pregnant: true });
     const humans = reverse ? [b, a] : [a, b];
@@ -413,10 +416,31 @@ describe('courtship cooldown reconciliation order', () => {
     expect(b.courtshipPartnerId).toBeUndefined();
     expect(a.courtshipProgress).toBe(0);
     expect(b.courtshipProgress).toBe(0);
-    expect(a.courtshipCooldownDays).toBe(1);
-    expect(b.courtshipCooldownDays).toBe(1);
+    expect(a.courtshipCooldownDays ?? 0).toBe(0);
+    expect(b.courtshipCooldownDays ?? 0).toBe(0);
     reconcileCourtships(context(entityById, humans));
-    expect(a.courtshipCooldownDays).toBe(0);
-    expect(b.courtshipCooldownDays).toBe(0);
+    expect(a.courtshipCooldownDays ?? 0).toBe(0);
+    expect(b.courtshipCooldownDays ?? 0).toBe(0);
+  });
+});
+
+
+describe('shared romantic progress', () => {
+  it('keeps independent reciprocal interests and classifies from current marital status', () => {
+    const a = settler(A_ID, 'male');
+    const b = settler(B_ID, 'female');
+    const c = settler(C_ID, 'female');
+    const people = [a, b, c];
+    const { state, entityById } = fixture(people);
+    expect(advanceRomanticInterest(a, b, state.tick, 30)).toBe(30);
+    expect(advanceRomanticInterest(a, c, state.tick, 15)).toBe(15);
+    expect(advanceRomanticInterest(b, a, state.tick, 5)).toBe(35);
+    expect(getRomanticCandidates(a, people, state.tick).map(({ person, progress, kind }) => [person.id, progress, kind]))
+      .toEqual([[B_ID, 35, 'courtship'], [C_ID, 15, 'courtship']]);
+    b.relationshipStatus = 'married';
+    b.partnerId = 99;
+    reconcileAffairPartner(a, entityById, state.tick);
+    expect(getRomanticCandidates(a, people, state.tick).map(({ person, progress, kind }) => [person.id, progress, kind]))
+      .toEqual([[B_ID, 35, 'affair'], [C_ID, 15, 'courtship']]);
   });
 });
