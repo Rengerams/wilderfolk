@@ -469,7 +469,7 @@ export default function SelectedBuildingPanel({
           );
         })()}
         {building.completed && building.type === BuildingType.Hotel && (() => {
-          const roster = getHotelRoster(building, state.entities);
+          const roster = getHotelRoster(building, state.entities, state.tick);
           const summary = describeHotelRoster(roster, building.occupants.length > 0);
           return (
             <div className="mt-2 space-y-1 rounded-lg border border-cyan-700/40 bg-cyan-950/30 p-2">
@@ -483,7 +483,7 @@ export default function SelectedBuildingPanel({
                     <li key={lodger.id} className="flex items-baseline justify-between gap-2 text-[11px]">
                       <span className="truncate text-stone-200">{formatCitizenName(lodger)}</span>
                       <span className="shrink-0 text-emerald-300">
-                        {isSettlerLodgingAtHotel(lodger, state.buildings, getHourOfDay(state.tick))
+                        {isSettlerLodgingAtHotel(lodger, state.buildings, state.tick)
                           ? 'settler · asleep' : 'settler · bed reserved'}
                       </span>
                     </li>

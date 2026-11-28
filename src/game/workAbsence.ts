@@ -243,7 +243,7 @@ export function getSettlerWorkReason(
   if (entity.needs?.lastMealTick === state.tick) return { code: 'eating', label: 'Eating' };
   // The hospital roster owns commute duty, including the hour before midnight.
   if (!doctorCommuteDue && (isAsleepAtHome(entity, buildings, hour)
-      || isSettlerLodgingAtHotel(entity, buildings, hour))) {
+      || isSettlerLodgingAtHotel(entity, buildings, state.tick))) {
     return { code: 'sleeping', label: 'Sleeping' };
   }
 

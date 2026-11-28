@@ -245,7 +245,7 @@ function observeHumanSleep(entity: Entity, context: {
   const atHome = !!home && isResidenceBuilding(home)
     && previousIndoorBuildingId === home.id;
   const atHotel = previousIndoorBuildingId != null
-    && isSettlerLodgingAtHotel(entity, buildingById, hourOfDay, previousIndoorBuildingId);
+    && isSettlerLodgingAtHotel(entity, buildingById, tick, previousIndoorBuildingId);
   const ward = previousIndoorBuildingId == null ? undefined : buildingById.get(previousIndoorBuildingId);
   const hasHospital = isRestingHospitalPatient(entity, ward, tick, previousIndoorBuildingId);
 
@@ -461,7 +461,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
   // Lodging runs for every settler each tick; build the hotel list and bed counts once so a
   // candidate hotel never rescans every entity for each settler.
-  const hotelLodging = createHotelLodgingIndex(updatedBuildings, allHumans, buildingById);
+  const hotelLodging = createHotelLodgingIndex(updatedBuildings, allHumans, state.tick, buildingById);
   // Ceremony seats are the same id-sorted ranks for every settler; build them once per tick.
   const ceremonySeats = state.electionCeremony ? buildCeremonySeatIndex(state) : undefined;
 
@@ -997,8 +997,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         : undefined;
 
     if (!lodgingHotel && isPlayerHuman(entity) && entity.hotelStayBuildingId != null) {
-      hotelLodging.release(entity.hotelStayBuildingId);
-      checkoutHotelLodger(entity);
+      checkoutHotelLodger(entity, hotelLodging);
     }
 
     if (onMoonPriestShift) {
@@ -1465,7 +1464,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       hourOfDay === affairEncounterHourOfDay(entity.id, state.tick) &&
       isStartOfClockHour(state.tick) &&
       !isAsleepAtHome(entity, buildingById, hourOfDay) &&
-      !isSettlerLodgingAtHotel(entity, buildingById, hourOfDay)
+      !isSettlerLodgingAtHotel(entity, buildingById, state.tick)
     ) {
       // Gossip is a daytime interaction, not an automatic midnight rumour.
       tryDailyAffairGossip(
