@@ -9,6 +9,8 @@ import { deterministicCos, deterministicSin } from './simTrig';
 import { getBuildingCenter } from './buildingGeometry';
 import { getChildCustodian, hasResidenceAssignment } from './housingModel';
 import { getWorkSchedule, isOnWorkScheduleShift, isOnWorkCommuteHours } from './workSchedule';
+import { resolveShift } from './workAbsence';
+import { isCommutingToBuilding } from './simulation/humanMovement';
 import { getHourOfDay, getAbsoluteCalendarDay, isWorkDay } from './dayCycleClock';
 import { BuildingType } from './buildings';
 import { pickSocialImpulse, isSocialStaggerTick, type SocialBuildingPool } from './socialLife';
@@ -145,6 +147,61 @@ function chooseChildPlaySite(
   return null;
 }
 
+/**
+ * Only off-duty caregivers may be followed; use the shared shift and commute owners.
+ * An indoor-at-work signal remains authoritative even with a sparse building lookup.
+ */
+function canFollowCaregiverDuringLeisure(
+  state: WorldState,
+  caregiver: Entity | undefined,
+  buildingById: ReadonlyMap<number, Building>,
+  hourOfDay: number,
+): caregiver is Entity {
+  if (!caregiver?.alive || !isPlayerHuman(caregiver) || caregiver.age < HUMAN_ADULT_MIN_AGE
+    || caregiver.prisonBuildingId != null || caregiver.raidDeploymentId != null) return false;
+  const siteId = caregiver.workerBuildingId;
+  if (siteId == null) return true;
+  const workTime = isOnWorkScheduleShift(state, hourOfDay)
+    || (isWorkDay(state.tick) && isOnWorkCommuteHours(getWorkSchedule(state), hourOfDay));
+  if (workTime || caregiver.indoorBuildingId === siteId) return false;
+  const workplace = buildingById.get(siteId);
+  // A sparse building lookup (e.g. migrated state or a focused fixture) must
+  // not override an explicit indoor-at-work signal on the caregiver entity.
+  return !workplace || (!resolveShift(state, caregiver, workplace, hourOfDay).onShift
+    && !isCommutingToBuilding(caregiver, workplace));
+}
+
+/**
+ * Cancel invalid following and leftover leisure when mandatory movement has no target.
+ * Never overwrite a school, home, or emergency route already selected this tick.
+ */
+export function stopSupersededChildLeisure(
+  state: WorldState,
+  child: Entity,
+  entityById: ReadonlyMap<number, Entity> | undefined,
+  buildingById: ReadonlyMap<number, Building>,
+  hourOfDay: number,
+  mandatoryChildActivity: boolean,
+  noReplacementMovement = false,
+): boolean {
+  if (child.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(child)) return false;
+  const following = child.childLeisureActivity === 'following';
+  if (!following && !(mandatoryChildActivity && noReplacementMovement)) return false;
+  if (following && !mandatoryChildActivity) {
+    const caregiver = child.childLeisureTargetId == null
+      ? undefined : entityById?.get(child.childLeisureTargetId);
+    if (canFollowCaregiverDuringLeisure(state, caregiver, buildingById, hourOfDay)) {
+      return false;
+    }
+  }
+  child.childLeisureActivity = undefined;
+  child.childLeisureTargetId = undefined;
+  clearHumanWalkTarget(child);
+  child.vx = 0;
+  child.vy = 0;
+  return true;
+}
+
 export function tickHumanChildLeisure(args: {
   state: WorldState;
   entity: Entity;
@@ -160,6 +217,8 @@ export function tickHumanChildLeisure(args: {
   width: number;
   height: number;
   livingHumanAt: (id: number | null | undefined) => Entity | undefined;
+  /** Scheduled school, bedtime and duty are not voluntary leisure. */
+  mandatoryChildActivity?: boolean;
   suppressIdleInitial: boolean;
 }): boolean {
   if (args.entity.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(args.entity)) return args.suppressIdleInitial;
@@ -167,6 +226,16 @@ export function tickHumanChildLeisure(args: {
   const wasFollowing = entity.childLeisureActivity === 'following';
   entity.childLeisureActivity = undefined;
   entity.childLeisureTargetId = undefined;
+  // A mandatory schedule preempts following even when there is no residence
+  // or other schedule branch able to set suppressIdleInitial this tick.
+  if (args.mandatoryChildActivity) {
+    // When no schedule owner has issued a replacement route, do not continue
+    // drifting on the previous play or follow velocity (even without a home).
+    if (!args.onSchedule && !args.suppressIdleInitial) {
+      stopSupersededChildLeisure(state, entity, args.entityById, buildingById, hourOfDay, true, true);
+    }
+    return true;
+  }
   if (args.onSchedule || args.suppressIdleInitial) return args.suppressIdleInitial;
 
   const day = getAbsoluteCalendarDay(state.tick);
@@ -342,17 +411,12 @@ export function tickHumanChildLeisure(args: {
   }
   const mother = entity.motherId != null ? livingHumanAt(entity.motherId) : undefined;
   const father = entity.fatherId != null ? livingHumanAt(entity.fatherId) : undefined;
-  // Children may accompany a free caregiver, but must never trail an employed
-  // parent into their workplace during a shift. This also applies to the
-  // household custodian fallback (which can be the same working parent).
-  const workTime = isOnWorkScheduleShift(state, hourOfDay)
-    || (isWorkDay(state.tick) && isOnWorkCommuteHours(getWorkSchedule(state), hourOfDay));
+  // The same real-shift eligibility check also invalidates cached following
+  // on off-screen ticks, including the household custodian fallback.
   const custodian = getChildCustodian(entity, allHumans, args.entityById);
   let follow: Entity | undefined;
   for (const caregiver of [mother, father, custodian]) {
-    if (!caregiver?.alive || !isPlayerHuman(caregiver) || caregiver.age < HUMAN_ADULT_MIN_AGE) continue;
-    if (caregiver.workerBuildingId != null
-      && (workTime || caregiver.indoorBuildingId === caregiver.workerBuildingId)) continue;
+    if (!canFollowCaregiverDuringLeisure(state, caregiver, buildingById, hourOfDay)) continue;
     follow = caregiver;
     break;
   }
@@ -560,6 +624,8 @@ export function tickHumanLeisure(args: {
   width: number;
   height: number;
   livingHumanAt: (id: number | null | undefined) => Entity | undefined;
+  /** Scheduled school, bedtime and duty are not voluntary leisure. */
+  mandatoryChildActivity?: boolean;
   suppressIdleInitial: boolean;
   settlerChat: (entity: Entity, context: 'social' | 'home' | 'child', chance: number, partner?: Entity | null) => void;
   settlerPairChat: (entityA: Entity, entityB: Entity, context: 'social' | 'home', chance: number) => void;
@@ -617,6 +683,7 @@ export function tickHumanLeisure(args: {
         height,
         livingHumanAt,
         suppressIdleInitial: suppressIdle,
+        mandatoryChildActivity: args.mandatoryChildActivity,
       })
     ) {
       suppressIdle = true;

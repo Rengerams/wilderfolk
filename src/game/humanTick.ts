@@ -61,7 +61,7 @@ import {
   getPlayerCampCenterFromBuildings,
   getPlayerSettlerCenter,
 } from './frontierCombat';
-import { idleDestination, tickHumanLeisure } from './humanLeisureBehavior';
+import { idleDestination, stopSupersededChildLeisure, tickHumanLeisure } from './humanLeisureBehavior';
 import { tickHumanHunting } from './humanHuntingBehavior';
 import {
   HUNTING_PURSUIT_SPEED_MULT,
@@ -710,6 +710,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
+
     const inFocus = !focus || isInFocus(entity, focus);
     // An off-screen employee must leave the interior at shift end immediately, not wait
     // up to a full decision-throttle interval before appearing outside again.
@@ -923,6 +924,28 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && canAdvanceCourtship(courtshipPresence, closeCourtshipPresence,
         Math.hypot(closeCourtshipPartner.x - entity.x, closeCourtshipPartner.y - entity.y),
         courtshipPresence.socialTime && closeCourtshipPresence.socialTime);
+
+    // School, sleep and other fixed obligations outrank voluntary child leisure,
+    // even for children without a completed residence or off-screen decision tick.
+    const childMandatoryActivity = entity.age < HUMAN_ADULT_MIN_AGE && (
+      schoolCommuteDue || onSchoolShift || preShiftSleep.headHome
+      || sleepingForNeeds || onDutyForSleep || recoveringSleep || takingNeedsBreak
+      || goingToHospital || inSpotlightGathering || inElectionCeremony
+      || festivalGathering || !allowFreeRoam
+    );
+    // Before the off-screen throttle, cancel invalid follow/play movement without a destination.
+    // Preserve school, home, hospital, and emergency routes already selected.
+    const orphanedChildLeisure = !active && childMandatoryActivity
+      && entity.age < HUMAN_ADULT_MIN_AGE && !home?.completed
+      && !schoolCommuteDue && !hospitalCommuteDue && !goingToHospital
+      && !inSpotlightGathering && !inElectionCeremony && !festivalGathering && !huntingWere;
+    if (entity.age < HUMAN_ADULT_MIN_AGE
+      && (entity.childLeisureActivity === 'following' || orphanedChildLeisure)) {
+      stopSupersededChildLeisure(
+        state, entity, entityById, buildingById, hourOfDay,
+        childMandatoryActivity, orphanedChildLeisure,
+      );
+    }
 
     if (!active && !closeCourtshipDue) {
       if (previousIndoorBuildingId != null && buildingById.get(previousIndoorBuildingId)?.completed) {
@@ -1675,6 +1698,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       height,
       livingHumanAt,
       suppressIdleInitial: suppressIdle,
+      mandatoryChildActivity: childMandatoryActivity,
       settlerChat,
       settlerPairChat,
       completedPoolOf,
