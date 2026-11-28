@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Require biological paternity at pregnancy start, prevent confusing a mother's father with her baby's father, and register both available parents immediately at birth.
+
 - **Fixed (28 Nov 2026):** Keep Spotlight Lore centred on the Village Square; skip blocked or displaced stage marks rather than relocating the performance, including debug preview.
 
 - **Fixed (27 Nov 2026):** Regular election notices and buildup gossip begin one day before voting, not one year; the two-year election calendar and succession rules remain unchanged. The notice enters the Chronicle; ballot-time candidate names persist even after renaming or death.
