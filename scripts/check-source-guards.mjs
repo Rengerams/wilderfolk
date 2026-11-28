@@ -350,14 +350,14 @@ const SOURCE_ROWS = [
     files: ['src/game/humanTick.ts', 'src/game/simulation/humanRelationships.ts',
       'src/game/hospitalCare.ts', 'src/game/humanHuntingBehavior.ts',
       'src/game/electionVotes.ts', 'src/game/townHall.ts', 'src/game/dashboardData.ts'],
-    notMatches: /(?:\\.energy\\b|\\[['"]energy['"]\\])/,
+    notMatches: /(?:\.energy\b|\[['"]energy['"]\])/,
     example: 'entity.energy',
   }] },
   { id: 'human-stamina-mirror-single-owner', checks: [
     { file: 'src/game/simulation/humanPhysiology.ts', counts: [
       { needle: 'entity.energy = entity.maxEnergy * needs.stamina / 100;', times: 1 },
     ] },
-    { file: 'src/game/moonHowlerForm.ts', notMatches: /\\.energy\\s*=.*\\.stamina/, example: 'were.energy = were.maxEnergy * were.needs.stamina / 100;' },
+    { file: 'src/game/moonHowlerForm.ts', notMatches: /\.energy\s*=.*\.stamina/, example: 'were.energy = were.maxEnergy * were.needs.stamina / 100;' },
   ] },
   { id: 'terrain-fill-single-stamp', checks: [{ file: 'src/game/terrainLayer.ts', region: [{ from: 'function drawTerrainFill(', to: 'type Cardinal', counts: [{ needle: 'drawImage(', times: 1 }] }] }] },
   { id: "visitor-trade-formatter-owner", checks: [{ file: "src/game/groupEvents.ts", contains: "formatResourceAmounts(received)", notMatches: /receivedLabel\s*=\s*`\+\$\{added\}/, example: "receivedLabel = `+${added}`;" }] },
