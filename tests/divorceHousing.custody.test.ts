@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BuildingType } from '../src/game/gameTypes';
+import { BuildingType, LEADER_OCCUPATION } from '../src/game/gameTypes';
 import { human, building } from '../src/test/factories';
 import { getChildCustodian } from '../src/game/housingModel';
 import { reassignDivorcedResidences } from '../src/game/housingPipeline';
@@ -25,6 +25,21 @@ describe('divorce custody and housing', () => {
     const people = [mother, father, first, second];
     expect(getChildCustodian(first, people)?.id).toBe(father.id);
     expect(getChildCustodian(second, people)?.id).toBe(father.id);
+  });
+
+  it.each(['mother', 'father'] as const)('prioritizes the elected %s after separation, until they leave office', (role) => {
+    const endedAt = role === 'mother' ? 1200 : 1201;
+    const mother = human(1, { gender: 'female', pastPartnerTicks: { 2: endedAt } });
+    const father = human(2, { gender: 'male', pastPartnerTicks: { 1: endedAt } });
+    const child = human(3, { age: 5, isJuvenile: true, motherId: 1, fatherId: 2 });
+    const people = [mother, father, child];
+    const leader = role === 'mother' ? mother : father;
+    const otherParent = role === 'mother' ? father : mother;
+    expect(getChildCustodian(child, people)?.id).toBe(otherParent.id);
+    leader.occupation = LEADER_OCCUPATION;
+    expect(getChildCustodian(child, people)?.id).toBe(leader.id);
+    leader.occupation = 'settler';
+    expect(getChildCustodian(child, people)?.id).toBe(otherParent.id);
   });
 
   it('moves the departing parent alone while the keeper keeps the minors', () => {

@@ -144,6 +144,16 @@ function SchoolingBreakdown({ state }: { state: WorldState }) {
       {summary.notes.map((note) => (
         <p key={note} className="text-stone-400">{note}</p>
       ))}
+      <div className="mt-3 space-y-1">
+        <p className="font-bold text-stone-200">Education levels</p>
+        <p className="text-stone-400">Current adult settlers by completed education</p>
+        {attendance.adultEducation.map((row) => (
+          <div key={row.label} className="flex items-center justify-between rounded bg-stone-600/30 px-2 py-1">
+            <span className="text-stone-400">{row.label}</span>
+            <span className="font-bold text-stone-200 tabular-nums">{row.count}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
