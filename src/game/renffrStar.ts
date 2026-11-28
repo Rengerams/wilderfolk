@@ -36,11 +36,6 @@ function createRenffrOmen(): RenffrOmen {
   };
 }
 
-/** Deterministic 0..1 roll from world seed + tick — the shared Mulberry32 step (`simRng`). */
-function renffrRng(state: WorldState, salt: number): () => number {
-  return createRngFromState(renffrSeed(state, salt));
-}
-
 /** Single 0..1 roll (same stream) without allocating a closure — for hot paths. */
 function renffrRoll(state: WorldState, salt: number): number {
   return mulberry32Draw(mulberry32Advance(renffrSeed(state, salt)));
@@ -72,7 +67,7 @@ function beginRenffrSettlerChatter(state: WorldState, entities: readonly Entity[
   const humans = entities.filter((e) => e.alive && isPlayerHuman(e));
   if (humans.length === 0) return;
 
-  const shuffled = shuffleArray(humans, renffrRng(state, 0x52e1));
+  const shuffled = shuffleArray(humans, createRngFromState(renffrSeed(state, 0x52e1)));
   const count = Math.min(RENFFR_OMEN_SPEAKER_COUNT, shuffled.length);
   for (let i = 0; i < count; i++) {
     requestDialogue({ eventKey: 'renffr.omen', speaker: shuffled[i], tick: state.tick, durationHours: dialogueHoursFromNominalTicks(150), priority: 'scripted', selectionRoll: i / RENFFR_OMEN_SPEAKER_COUNT });
