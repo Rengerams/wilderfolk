@@ -1,7 +1,20 @@
 /** Shared wildlife population limits for breeding, three-day replenishment and the Nature panel.
  * This is policy data only: tickLayerSystems owns breeding/predation and worldGen owns spawning.
  */
-import { EntityType } from './gameTypes';
+import { BuildingType, EntityType } from './gameTypes';
+import type { Building, Entity } from './gameTypes';
+
+/** A completed grove and its surrounding habitat, measured from its centre in world pixels. */
+export const WILDLIFE_PRESERVE_RADIUS = 96;
+
+export function getCompletedWildlifePreserves(buildings: readonly Building[]): Building[] {
+  return buildings.filter((building) => building.completed && building.type === BuildingType.WildlifePreserve);
+}
+
+/** Humans cannot hunt in a protected grove. Natural predator/prey interactions remain intact. */
+export function isWildlifeProtected(prey: Pick<Entity, 'x' | 'y'>, preserves: readonly Building[]): boolean {
+  return preserves.some((preserve) => (prey.x - preserve.x) ** 2 + (prey.y - preserve.y) ** 2 <= WILDLIFE_PRESERVE_RADIUS ** 2);
+}
 
 export const WILDLIFE_POPULATION_POLICY = {
   [EntityType.Rabbit]: { breedingCeiling: 150, replenishMinimum: 35, replenishTarget: 150 },

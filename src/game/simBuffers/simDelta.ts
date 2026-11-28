@@ -83,6 +83,8 @@ export interface SimTickDelta {
   wildlifeCounts: WorldState['wildlifeCounts'];
   ecosystemHealth: number;
   pollutionLevel: number;
+  settledEcology?: WorldState['settledEcology'];
+  ecologySettlementPending?: boolean;
   pendingEcosystemHealthDelta?: number;
   pendingPollutionDelta?: number;
   biodiversityIndex: number;
@@ -361,6 +363,8 @@ export function extractSimTickDelta(
     wildlifeCounts: { ...world.wildlifeCounts },
     ecosystemHealth: world.ecosystemHealth,
     pollutionLevel: world.pollutionLevel,
+    settledEcology: deltaCloneOptional(world.settledEcology, cloneMode) ?? undefined,
+    ecologySettlementPending: world.ecologySettlementPending,
     pendingEcosystemHealthDelta: world.pendingEcosystemHealthDelta,
     pendingPollutionDelta: world.pendingPollutionDelta,
     biodiversityIndex: world.biodiversityIndex,
@@ -679,6 +683,8 @@ export function applySimTickDelta(
   world.wildlifeCounts = { ...delta.wildlifeCounts };
   world.ecosystemHealth = delta.ecosystemHealth;
   world.pollutionLevel = delta.pollutionLevel;
+  world.settledEcology = deltaCloneOptional(delta.settledEcology, cloneMode) ?? undefined;
+  world.ecologySettlementPending = delta.ecologySettlementPending;
   world.pendingEcosystemHealthDelta = delta.pendingEcosystemHealthDelta;
   world.pendingPollutionDelta = delta.pendingPollutionDelta;
   world.biodiversityIndex = delta.biodiversityIndex;

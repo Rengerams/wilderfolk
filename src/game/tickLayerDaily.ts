@@ -29,7 +29,7 @@ import { tickGrassDaily } from './dailyGrassEcology';
 import { resolveDailyVillageScheduleFatigue } from './dailyScheduleFatigue';
 import { tickBuildingProgress, tickDailyBuildingEconomy } from './dailyBuildingEconomy';
 import { tickScheduledTownHallAudiences } from './townHall';
-import { tickDailyWorldEvents, tickYearBoundaryWorldEvents } from './dailyWorldEvents';
+import { settleDailyEcology, tickDailyWorldEvents, tickYearBoundaryWorldEvents } from './dailyWorldEvents';
 import { applyDailyWeatherEffects } from './worldEvents';
 
 // Chronicles
@@ -134,6 +134,11 @@ export function tickLayerDaily(
   // Audiences belong to the evening civic phase, not deferred tax settlement.
   if (hour === DAILY_PHASE_HOURS.production) {
     tickScheduledTownHallAudiences(state, ctx.updatedBuildings, ctx.playerHumans);
+  }
+
+  // A deferred ecology pass observes the entire shift, before construction changes the footprint.
+  if (hour === DAILY_PHASE_HOURS.construction && state.ecologySettlementPending) {
+    settleDailyEcology(state, ctx, allAlive);
   }
 
   // 23:00 — consume all witnessed construction shifts before 00:00 clears the counters.

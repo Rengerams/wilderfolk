@@ -290,7 +290,40 @@ describe('production pays only witnessed attendance (W-136)', () => {
     }
   });
 
-  it('defers evening output without applying the ecology warning announced at 18:00', () => {
+  it('charges the full witnessed industrial shift only at the deferred ecology boundary', () => {
+    const { state, worker } = farmDay(false);
+    const mine = completedBuilding(BuildingType.Mine, 650, 500, 9101);
+    state.buildings = [mine];
+    mine.occupants = [worker.id];
+    worker.job = JobType.Miner;
+    worker.occupation = 'miner';
+    worker.workerBuildingId = mine.id;
+    Object.assign(worker, buildingAccessPoint(mine, getReadOnlyPathGrid(state.worldMap!, [mine])));
+    state.workSchedule = { startHour: 12, endHour: 23 };
+    worker.scheduleWorkedTicksToday = 6 * TICKS_PER_HOUR;
+    worker.schedulePresentTicksToday = 6 * TICKS_PER_HOUR;
+    worker.scheduleWorkedSiteIdToday = mine.id;
+    worker.schedulePresentSiteIdToday = mine.id;
+    const previous = state.settledEcology;
+    state.tick = tickAtDailyPhase(1, 'production') - 1;
+
+    gameTick(state, ON_SCREEN);
+    expect(state.ecologySettlementPending).toBe(true);
+    expect(state.settledEcology).toBe(previous);
+
+    // Supply the remaining witnessed hours before the real late-phase settlement.
+    worker.scheduleWorkedTicksToday = 11 * TICKS_PER_HOUR;
+    worker.schedulePresentTicksToday = 11 * TICKS_PER_HOUR;
+    worker.scheduleWorkedSiteIdToday = mine.id;
+    worker.schedulePresentSiteIdToday = mine.id;
+    state.tick = tickAtDailyPhase(1, 'construction') - 1;
+    gameTick(state, ON_SCREEN);
+
+    expect(state.ecologySettlementPending).toBe(false);
+    expect(state.settledEcology?.industrialEmissions).toBeCloseTo(5 / BUILDING_CONFIGS[BuildingType.Mine].maxOccupants);
+  });
+
+  it('settles evening output before its ecology warning at 23:00', () => {
     const produce = (transition: boolean): number => {
       resetSimRng();
       setSimSeed(TEST_SEED);
@@ -305,7 +338,8 @@ describe('production pays only witnessed attendance (W-136)', () => {
       runTicks(state, 3 * TICKS_PER_HOUR + 1, ON_SCREEN);
       expect(state.productionDeferred).toBe(true);
       expect(state.productionValleyStage).toBe('strained');
-      if (transition) expect(state.valleyStage).toBe('damaged');
+      expect(state.ecologySettlementPending).toBe(true);
+      expect(state.valleyStage).toBe('strained');
       expect(state.economyLedger?.produced.farms ?? 0).toBe(0);
       expect(getValleyFarmYieldMultiplier(state, state.productionValleyStage)).toBe(1);
       expect(getValleyHuntYieldMultiplier(state, state.productionValleyStage)).toBe(0.9);
@@ -313,6 +347,9 @@ describe('production pays only witnessed attendance (W-136)', () => {
       runTicks(state, 5 * TICKS_PER_HOUR, ON_SCREEN);
       expect(state.productionDeferred).toBe(false);
       expect(state.productionValleyStage).toBeUndefined();
+      expect(state.ecologySettlementPending).toBe(false);
+      expect(state.settledEcology).toBeDefined();
+      if (transition) expect(state.valleyStage).toBe('damaged');
       expect(farm.completed).toBe(true);
       return state.economyLedger?.produced.farms ?? 0;
     };

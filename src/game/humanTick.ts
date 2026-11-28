@@ -100,7 +100,8 @@ import { crowdGatherPosition, enterHumanBuilding, applyHumanWalkStep, advanceHum
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
-import { isRestingHospitalPatient } from './hospitalCare';
+import { getPreventiveCareMortalityMultiplier, isRestingHospitalPatient } from './hospitalCare';
+import { getCompletedWildlifePreserves } from './wildlifePopulationPolicy';
 import { simAmbientChatNeighbors, simSettlerPairChat } from './simulation/humanSocial';
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
 
@@ -287,6 +288,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const onWorkCommuteHours = isWorkDay(state.tick) && isOnWorkCommuteHours(workSchedule, hourOfDay);
   const weekend = isWeekend(state.tick);
   const isNewCalendarDay = isNewCalendarDayTick(state);
+  const mortalityMultiplier = isNewCalendarDay ? getPreventiveCareMortalityMultiplier(state, updatedBuildings, entityById) : 1;
+  const wildlifePreserves = getCompletedWildlifePreserves(updatedBuildings);
   const humanFleeMult = getHumanFleeSpeedMultiplier(state);
   const spotlightGather = state.spotlightLore ?? null;
   const spotlightActorIds = spotlightGather
@@ -509,7 +512,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (!prey?.alive) entity.huntTargetId = undefined;
     }
 
-    if (isNewCalendarDay && tryDailyHumanMortality(state, entity, updatedBuildings, entityById)) {
+    if (isNewCalendarDay && tryDailyHumanMortality(state, entity, updatedBuildings, entityById, mortalityMultiplier)) {
       syncEntityGrids(ctx, entity);
       continue;
     }
@@ -1150,8 +1153,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
        * The move-to-prey order: the Hunting Spot's hunter walks to the animal the spot is committed to
        * shoot and holds beside it, because a contact-distance reach takes nothing from the post.
        */
-      const spotPrey = huntingSpotTarget(workplace, entity, entityById, byType);
-      const chase = spotPrey ? huntingSpotChaseTarget(workplace, entity, entityById, byType) : null;
+      const spotPrey = huntingSpotTarget(workplace, entity, entityById, byType, wildlifePreserves);
+      const chase = spotPrey ? huntingSpotChaseTarget(workplace, entity, entityById, byType, wildlifePreserves) : null;
       // Who is after what: the map's dashed hunt line and the prey's flee rule both read this field.
       entity.huntTargetId = spotPrey ? spotPrey.id : undefined;
       if (chase) {
@@ -1222,6 +1225,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       mobileGrid,
       entityById,
       suppressIdle,
+      wildlifePreserves,
     );
     suppressIdle = huntingSuppressIdle;
     // Do not advertise leisure availability while another movement owner is active.

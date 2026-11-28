@@ -6,7 +6,7 @@ import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { describe, expect, it } from 'vitest';
 import { initGame, createBuilding } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
-import { BuildingType } from '../src/game/gameTypes';
+import { BuildingType, EntityType } from '../src/game/gameTypes';
 import {
   adjustEcosystemHealth,
   adjustPollutionLevel,
@@ -22,8 +22,8 @@ import { TICKS_PER_DAY } from '../src/game/dayCycle';
  */
 function settledWorld(seed = 4242) {
   const world = initGame({ size: 'medium', seed });
-  // Four industrial buildings: `buildingImpact` is +2 each, so the pristine 100 drops by 8 before
-  // pollution is even counted. That is the headroom the delta assertions need.
+  // Leave the fixture with depleted wildlife so queued score deltas have real headroom even
+  // under the land-area formula, which no longer penalizes idle buildings by a flat count.
   const industrial = [
     BuildingType.Blacksmith,
     BuildingType.Mill,
@@ -37,6 +37,8 @@ function settledWorld(seed = 4242) {
     world.buildings.push(building);
   });
 
+  const fauna = new Set<EntityType>([EntityType.Rabbit, EntityType.Deer, EntityType.Wolf, EntityType.Fox, EntityType.Werewolf, EntityType.Wildkin]);
+  for (const entity of world.entities) if (fauna.has(entity.type)) entity.alive = false;
   const counts = computePopulationCounts(world.entities.filter((entity) => entity.alive));
   world.wildlifeCounts = wildlifeCountsFromPopulation(counts);
   tickEcosystemMetrics(world, counts, world.buildings);

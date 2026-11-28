@@ -47,6 +47,8 @@ const REQUIRED_DECISIONS = [
   'tradeCaravans',
   'humanWalk',
   'dailyRelationships',
+  'humanMortality',
+  'ecosystemMetrics',
   'yearlyWorldEvents',
   'grassRegrowth',
   'foodLedger',
