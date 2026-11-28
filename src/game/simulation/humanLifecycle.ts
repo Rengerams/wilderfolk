@@ -254,6 +254,8 @@ export function tickPregnancyAndBirth(
     newbornBucket.push(child);
   }
 
+  recordGenealogyBirth(state, entity);
+  if (biologicalFather) recordGenealogyBirth(state, biologicalFather);
   recordGenealogyBirth(state, child);
 
   // Synchronize family relationships
