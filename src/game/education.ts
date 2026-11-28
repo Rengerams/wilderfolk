@@ -234,7 +234,7 @@ export function getSchoolingBlockReason(
   if (!schools.some((b) => b.completed)) return 'School still under construction';
   const staffed = findStaffedSchools(buildings);
   if (staffed.length === 0) return 'School has no teacher assigned';
-  if (findSchoolForChild(child, buildings, reserved)) return null;
+  if (findSchoolForChild(child, buildings, reserved)) return 'Awaiting school assignment';
   if (staffed.every((school) => (reserved?.get(school.id) ?? 0) >= schoolCapacity(school))) {
     return 'Every classroom is full';
   }
@@ -267,13 +267,8 @@ export function buildSchoolRosters(
     assigned.set(child.id, school);
     reserved.set(school.id, (reserved.get(school.id) ?? 0) + 1);
   }
-  for (const child of children) {
-    if (assigned.has(child.id)) continue;
-    const school = findSchoolForChild(child, buildings, reserved);
-    if (!school) continue;
-    assigned.set(child.id, school);
-    reserved.set(school.id, (reserved.get(school.id) ?? 0) + 1);
-  }
+  // This is a read-only roster of actual persisted seats. Enrollment belongs only to
+  // syncSchoolAssignments; a hypothetical match must not appear as an enrolled pupil.
   const byId = new Map(humans.map((human) => [human.id, human]));
   const teacherPresent = new Map<number, boolean>();
   for (const [id, school] of schools) teacherPresent.set(id, hasTeacherPresent(school, byId));
@@ -338,7 +333,7 @@ export interface SchoolingSummary {
   tooYoung: number;
   /** Children in the school-age band the tick enrols (`SCHOOL_MIN_AGE` to graduation). */
   schoolAge: number;
-  /** School-age children the seat rule gives a place to. */
+  /** School-age children with an actual, persisted school seat. */
   enrolled: number;
   /** Enrolled children inside a classroom during class hours right now. */
   inClassNow: number;
@@ -438,7 +433,7 @@ export function isAttendingSchool(
   teacherPresent: boolean,
   tick: number,
 ): boolean {
-  return school != null && isSchoolAge(child)
+  return school != null && isSchoolAge(child) && child.schoolBuildingId === school.id
     && teacherPresent && isSchoolTime(tick, hourOfDay) && isChildAtSchool(child, school);
 }
 
