@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Allow independent pending affair progress per candidate, decay unused bonds and keep established affairs exclusive; show all developing pairs in the inspector.
 - **Fixed (28 Nov 2026, PR #254):** Centralize school duty and inspector status in education. Classroom rosters and credits require actual persisted seats and witnessed teacher/pupil presence, not speculative enrollment. School hours never count as workplace attendance.
 
 - **Fixed (28 Nov 2026):** Successful human hunts no longer restore stamina or legacy energy; colony food yield is unchanged.

@@ -248,8 +248,9 @@ interface MoonHowlerSavedState {
   /** Last spouse this settler divorced; release housing must not put them back together. */
   formerSpouseId?: number;
   affairPartnerId?: number;
-  /** Mutual, unestablished affair candidate; progress belongs to this pair only. */
+  /** Legacy input only; migrated into affairCandidates. */
   affairCandidateId?: number;
+  affairCandidates?: Record<string, { progress: number; lastEncounterDay: number }>;
   affairProgress?: number;
   courtshipPartnerId?: number;
   courtshipProgress?: number;
@@ -372,8 +373,9 @@ export interface Entity {
   /** Last spouse this settler divorced; release housing must not put them back together. */
   formerSpouseId?: number;
   affairPartnerId?: number;
-  /** Mutual, unestablished affair candidate; progress belongs to this pair only. */
+  /** Legacy input only; migrated into affairCandidates. */
   affairCandidateId?: number;
+  affairCandidates?: Record<string, { progress: number; lastEncounterDay: number }>;
   affairProgress?: number;
   lastAffairSiteDay?: number;
   lastAffairSiteX?: number;

@@ -250,6 +250,7 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
     partnerId: human.partnerId,
     affairPartnerId: human.affairPartnerId,
     affairCandidateId: human.affairCandidateId,
+    affairCandidates: human.affairCandidates,
     affairProgress: human.affairProgress,
     courtshipPartnerId: human.courtshipPartnerId,
     courtshipProgress: human.courtshipProgress,
