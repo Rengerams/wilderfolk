@@ -314,6 +314,49 @@ describe('workforce named transitions', () => {
     expect(collectSimulationInvariantErrors(world)).toEqual([]);
   });
 
+  it('relocates a jobless settler to a partly occupied nearby home before assigning an empty barracks post', () => {
+    const remote = human(1, { x: 100_000, residenceBuildingId: 10 });
+    const serving = human(2, { x: 20, residenceBuildingId: 11,
+      workerBuildingId: 20, job: JobType.Soldier });
+    const distantHouse = building(10, BuildingType.House,
+      { x: 100_000, occupants: [1] });
+    const localHouse = building(11, BuildingType.House,
+      { x: 20, occupants: [2] });
+    const barracks = building(20, BuildingType.Barracks,
+      { x: 0, occupants: [2] });
+    const world = makeWorld([remote, serving], [distantHouse, localHouse, barracks]);
+    world.workforcePolicy = 'survival';
+
+    assignMissingWorkers(world.entities, world.buildings, world);
+
+    expect(remote.residenceBuildingId).toBe(localHouse.id);
+    expect(remote.workerBuildingId).toBe(barracks.id);
+    expect(remote.job).toBe(JobType.Soldier);
+    expect(distantHouse.occupants).toEqual([]);
+    expect(localHouse.occupants).toEqual([2, 1]);
+    expect(barracks.occupants).toEqual([2, 1]);
+    expect(collectSimulationInvariantErrors(world)).toEqual([]);
+  });
+
+  it('never relocates a job seeker into a nearby home that has no spare beds', () => {
+    const remote = human(1, { x: 100_000, residenceBuildingId: 10 });
+    const children = Array.from({ length: 6 }, (_, index) =>
+      human(30 + index, { x: 20, age: 10, isJuvenile: true, residenceBuildingId: 11 }));
+    const far = building(10, BuildingType.House,
+      { x: 100_000, occupants: [1] });
+    const full = building(11, BuildingType.House,
+      { x: 20, occupants: children.map((child) => child.id) });
+    const barracks = building(20, BuildingType.Barracks);
+    const world = makeWorld([remote, ...children], [far, full, barracks]);
+    world.workforcePolicy = 'survival';
+
+    assignMissingWorkers(world.entities, world.buildings, world);
+
+    expect(remote.residenceBuildingId).toBe(far.id);
+    expect(remote.workerBuildingId).toBeUndefined();
+    expect(barracks.occupants).toEqual([]);
+  });
+
   it('fills an empty barracks with the available idle leader before assigning builders', () => {
     const leader = human(1, { occupation: LEADER_OCCUPATION, job: JobType.Settler });
     const barracks = building(15, BuildingType.Barracks);
