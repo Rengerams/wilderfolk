@@ -213,6 +213,8 @@ export function tickHumanChildLeisure(args: {
   width: number;
   height: number;
   livingHumanAt: (id: number | null | undefined) => Entity | undefined;
+  /** Scheduled school, bedtime and duty are not voluntary leisure. */
+  mandatoryChildActivity?: boolean;
   suppressIdleInitial: boolean;
 }): boolean {
   if (args.entity.age >= HUMAN_ADULT_MIN_AGE || !isPlayerHuman(args.entity)) return args.suppressIdleInitial;
@@ -220,6 +222,9 @@ export function tickHumanChildLeisure(args: {
   const wasFollowing = entity.childLeisureActivity === 'following';
   entity.childLeisureActivity = undefined;
   entity.childLeisureTargetId = undefined;
+  // A mandatory schedule preempts following even when there is no residence
+  // or other schedule branch able to set suppressIdleInitial this tick.
+  if (args.mandatoryChildActivity) return true;
   if (args.onSchedule || args.suppressIdleInitial) return args.suppressIdleInitial;
 
   const day = getAbsoluteCalendarDay(state.tick);
@@ -608,6 +613,8 @@ export function tickHumanLeisure(args: {
   width: number;
   height: number;
   livingHumanAt: (id: number | null | undefined) => Entity | undefined;
+  /** Scheduled school, bedtime and duty are not voluntary leisure. */
+  mandatoryChildActivity?: boolean;
   suppressIdleInitial: boolean;
   settlerChat: (entity: Entity, context: 'social' | 'home' | 'child', chance: number, partner?: Entity | null) => void;
   settlerPairChat: (entityA: Entity, entityB: Entity, context: 'social' | 'home', chance: number) => void;
@@ -665,6 +672,7 @@ export function tickHumanLeisure(args: {
         height,
         livingHumanAt,
         suppressIdleInitial: suppressIdle,
+        mandatoryChildActivity: args.mandatoryChildActivity,
       })
     ) {
       suppressIdle = true;
