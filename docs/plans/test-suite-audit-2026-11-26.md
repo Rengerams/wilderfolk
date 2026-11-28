@@ -225,6 +225,10 @@ Moved all seven cases from `medium-persistence.test.ts` into Moon Howler (2), Bi
 
 Merged main through `dee009c6` without restoring retired audit files. Preserved main's new leader-custody, adult-education, ecology persistence, wildlife refuge and staffing regressions. Moved the added ecology round-trip case into the existing save migration suite and applied the updated ecosystem-health expectation to the relocated Nature-tab test. Extended the schooling guard with both new UI assertions. Updated active evidence paths; the combined branch requires a fresh full CI run.
 
+## Worker, staffing and sprite owner consolidation — 2026-11-28
+
+Moved 14 cases from `low-1-worker-persistence`, `medium-B1-staffing` and `renderBatch.sprites` into worker rollback/delta/display-cache, construction staffing, human tick and asset integration owners. Reused the shared building and human factories with the original fixture values and extended the existing tick context with optional focus. Kept the asset manifest's real preload/file checks together with its dynamic source-use check; these are not source-text-only architecture guards. CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

@@ -1,3 +1,4 @@
+import { EntityType, JobType, MapSize, type Entity, type TradeRoute } from '../src/game/gameTypes';
 /**
  * The prep rollback covers what the tick writes: `activeEvent` is restored, and `applySimPrep`
  * keeps the live `scentGrid` rather than invalidating it.
@@ -77,5 +78,112 @@ describe('worker prep preserves moon cooldowns and chronicle', () => {
     expect(target.lastMoonHowlerExorcismTick).toBe(555);
     expect(target.moonHowlerPriestsFleeUntil).toBe(666);
     expect(target.chronicleChapters).toEqual(['a', 'b']);
+  });
+});
+
+describe('worker rollback of mutable economy and entity records', () => {
+  function settlerFixture(): Entity {
+    return {
+      id: 1,
+      type: EntityType.Human,
+      x: 10,
+      y: 10,
+      energy: 100,
+      maxEnergy: 100,
+      age: 30,
+      birthYear: 0,
+      birthMonth: 0,
+      birthDay: 0,
+      alive: true,
+      size: 10,
+      speed: 2,
+      vx: 0,
+      vy: 0,
+      flash: 0,
+      animFrame: 0,
+      spriteAngle: 0,
+      generation: 0,
+      isJuvenile: false,
+      job: JobType.Settler,
+      childrenIds: [7, 8],
+      childhoodFriendsIds: [9],
+      skills: { [JobType.Farmer]: 1 },
+      friendships: { '2': 0.5 },
+      feuds: { '3': 0.25 },
+      moonHowlerSaved: { energy: 5, maxEnergy: 10, speed: 1, size: 2 },
+    } as unknown as Entity;
+  }
+
+  it('L65 — rolls back the economy ledger, food history and spoilage rate', () => {
+    const world = initGame({ size: MapSize.Medium, seed: 11 });
+    world.economyLedger = { day: 3, produced: { food: 10 }, consumed: { food: 2 } };
+    world.foodHistory = [{ day: 2, produced: { food: 5 }, consumed: { food: 1 } }];
+    world.foodSpoilageRate = 0.03;
+
+    const prep = extractSimPrep(world);
+
+    // The backup must own copies of the nested records, not references into live state.
+    expect(prep.economyLedger).toEqual(world.economyLedger);
+    expect(prep.economyLedger).not.toBe(world.economyLedger);
+    expect(prep.economyLedger!.produced).not.toBe(world.economyLedger.produced);
+    expect(prep.foodHistory).toEqual(world.foodHistory);
+    expect(prep.foodHistory).not.toBe(world.foodHistory);
+
+    // A daily tick that fails after writing the ledger leaves these in-place edits behind.
+    world.economyLedger.produced.food = 99;
+    world.foodHistory![0].consumed.food = 77;
+    world.foodSpoilageRate = 0.008;
+
+    applySimPrep(world, prep);
+
+    expect(world.economyLedger).toEqual({ day: 3, produced: { food: 10 }, consumed: { food: 2 } });
+    expect(world.foodHistory).toEqual([{ day: 2, produced: { food: 5 }, consumed: { food: 1 } }]);
+    expect(world.foodSpoilageRate).toBe(0.03);
+  });
+
+  it('L66 — rolls back nested entity state and mutable array elements', () => {
+    const world = initGame({ size: MapSize.Medium, seed: 12 });
+    const settler = settlerFixture();
+    world.entities = [settler];
+    const route: TradeRoute = {
+      id: 'route-1',
+      targetName: 'North',
+      resourcesGiven: { wood: 10, stone: 0, food: 0, gold: 0, iron: 0 },
+      resourcesReceived: { wood: 0, stone: 0, food: 5, gold: 0, iron: 0 },
+      reputationRequired: 0,
+      active: true,
+      caravanLeg: 'outbound',
+      caravanWaitTicks: 0,
+      caravansCompleted: 0,
+    };
+    world.tradeRoutes = [route];
+    world.disasters = [{ type: 'fire', x: 1, y: 2, radius: 10, duration: 5, progress: 0 }];
+
+    const prep = extractSimPrep(world);
+
+    // In-place writes of the failed attempt — the writers the rollback must undo.
+    settler.skills![JobType.Farmer] = 99;
+    settler.childrenIds!.push(9);
+    settler.childhoodFriendsIds!.push(10);
+    // Relationship records are copy-on-write: a writer replaces the record, never mutates it.
+    settler.friendships = { ...settler.friendships, '2': 0.9 };
+    settler.feuds = { ...settler.feuds, '3': 0.8 };
+    settler.moonHowlerSaved!.energy = 500;
+    world.tradeRoutes[0].caravanWaitTicks = 9;
+    world.tradeRoutes[0].caravansCompleted = 4;
+    world.disasters[0].progress = 3;
+
+    applySimPrep(world, prep);
+
+    const restored = world.entities.find((e) => e.id === settler.id)!;
+    expect(restored.skills).toEqual({ [JobType.Farmer]: 1 });
+    expect(restored.childrenIds).toEqual([7, 8]);
+    expect(restored.childhoodFriendsIds).toEqual([9]);
+    expect(restored.friendships).toEqual({ '2': 0.5 });
+    expect(restored.feuds).toEqual({ '3': 0.25 });
+    expect(restored.moonHowlerSaved?.energy).toBe(5);
+    expect(world.tradeRoutes[0].caravanWaitTicks).toBe(0);
+    expect(world.tradeRoutes[0].caravansCompleted).toBe(0);
+    expect(world.disasters[0].progress).toBe(0);
   });
 });

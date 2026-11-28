@@ -718,8 +718,12 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/renderer.motionAndHover.test.ts` | `sharedModule`, `recorder`, `snapshot`, `completedBuilding`, `expectedPadFill` (isolated motion and fallback fixtures) |
 | `tests/renderer.frameOwnership.test.ts` | `snapshot`, `minimalWorld`, `camera`, `blacksmithBuilding`, `gradientCounter` (frame cache fixtures) |
 | `tests/saveLoad.outcomeReasons.test.ts` | `stubSlot`, `memoryStorage`, `realPayload`, `buildPayload` (shared load-contract fixtures) |
-| `tests/humanTick.hotPathIndexes.test.ts` | `building`, `settler`, `visitorGroup`, `festivalFixture`, `simContext`, `countedBuildings`, `runTick`, `baseSettler`, `throttleSettler`, `house`, `nightWorld`, `contextFor`, `positionOf`, `canonicalCampCenter`, `anchorFixture` (shared tick fixtures, off-screen throttle and camp-anchor regressions) |
+| `tests/humanTick.hotPathIndexes.test.ts` | `building`, `settler`, `visitorGroup`, `festivalFixture`, `simContext`, `countedBuildings`, `runTick`, `baseSettler`, `throttleSettler`, `house`, `nightWorld`, `contextFor`, `positionOf`, `canonicalCampCenter`, `anchorFixture`, `pickId`, `restingSettlerWorld`, `townHallWorld` (shared tick fixtures, off-screen throttle and camp-anchor regressions) |
 | `tests/moonHowler.test.ts` | `adult` (scoped six-adult per-moon regression fixture) |
+| `tests/simPrep.rollbackFields.test.ts` | `settlerFixture` (mutable state rollback) |
+| `tests/workerDisplayCache.ownership.test.ts` | `treeAt`, `grassAt` (reused grid fixtures) |
+| `tests/staffing.pregnancy.test.ts` | `makeWorld` (construction eligibility) |
+| `tests/rpgArt.integration.test.ts` | `publicPath`, `sourceTexts`, `walk`, `FakeImage.src` (sprite asset and preload fixtures) |
 | `tests/inventionFair.simulation.test.ts` | `demoCount`, `advanceDays`, `fundedInventionFair` (funded-fair daily regression fixtures) |
 | `tests/tutorialCampaign.test.ts` | `guidedWorld` (guided tutorial fixture) |
 | `tests/dailyChallenges.rewards.test.ts` | `completedPlayerHouse` (challenge progression fixture) |

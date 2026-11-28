@@ -1,3 +1,7 @@
+import { buildingAccessPoint } from '../src/game/buildingAccess';
+import { DEFAULT_WORK_SCHEDULE } from '../src/game/workSchedule';
+import { prefersHomeTonightFor } from '../src/game/humanSchedule';
+import { building as staffingBuilding, human as sharedHuman } from '../src/test/factories';
 /**
  * PERF-04: festival place lookups are tick-stable, so `tickHumans` indexes them once
  * instead of scanning for every settler. Retired visitor-camp movement is no longer tested.
@@ -14,7 +18,7 @@ import { testWorldMap } from '../src/test/worldMapFixtures';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { OFFSCREEN_HUMAN_THROTTLE, type SimulationFocus } from '../src/game/simFocus';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
-import { resetSimRng, setSimSeed } from '../src/game/simRng';
+import { resetSimRng, setSimSeed, personDayRoll } from '../src/game/simRng';
 import { nearestWalkableWorldPoint } from '../src/game/pathfinding';
 
 const FIXTURE_SEED = 20_261_107;
@@ -122,7 +126,7 @@ function festivalFixture(goerCount: number): Fixture {
   return { world, goers };
 }
 
-function simContext(state: WorldState, humans: Entity[], hourOfDay = 18): TickContext {
+function simContext(state: WorldState, humans: Entity[], hourOfDay = 18, focus?: SimulationFocus): TickContext {
   const byType = emptyEntityByType();
   byType[EntityType.Human] = humans;
   return {
@@ -143,6 +147,7 @@ function simContext(state: WorldState, humans: Entity[], hourOfDay = 18): TickCo
     entityById: new Map(humans.map((h) => [h.id, h])),
     buildingById: new Map(state.buildings.map((b) => [b.id, b])),
     predators: [],
+    focus,
     hasWell: false,
     hasHospital: false,
   };
@@ -519,5 +524,114 @@ describe('camp anchor inside the human loop (N-4)', () => {
     expect(getPlayerCampCenter(world, world.buildings)).toEqual(after);
 
     expect(Math.hypot(guard.x - 215, guard.y - 215)).toBeLessThan(30);
+  });
+});
+
+describe('human tick duty and offscreen physiology', () => {
+  function pickId(predicate: (id: number) => boolean): number {
+    for (let id = 1; id <= 500; id++) {
+      if (predicate(id)) return id;
+    }
+    throw new Error('no fixture id satisfied the predicate');
+  }
+
+  const FAR_FOCUS: SimulationFocus = { minX: 5000, maxX: 6000, minY: 5000, maxY: 6000 };
+
+  describe('M15 — one energy-drain rule on the throttled path', () => {
+    const restingTick = TICKS_PER_DAY + 23 * TICKS_PER_HOUR; // 23:00 on day 1
+    const restingHour = 23;
+    const settlerId = pickId(
+      (id) =>
+        prefersHomeTonightFor(DEFAULT_WORK_SCHEDULE, id, restingTick, restingHour)
+        && (restingTick + id) % OFFSCREEN_HUMAN_THROTTLE !== 0,
+    );
+
+    function restingSettlerWorld(): WorldState {
+      const state = initGame({ size: MapSize.Medium, seed: 7 });
+      const home = staffingBuilding(900, BuildingType.House, { x: 0, y: 0, width: 46, height: 40, occupants: [settlerId] });
+      const settler = sharedHuman(settlerId, { maxAge: 80,
+        x: home.x + home.width / 2,
+        y: home.y + home.height / 2,
+        energy: 500,
+        maxEnergy: 500,
+        residenceBuildingId: 900,
+      });
+      state.tick = restingTick;
+      state.entities = [settler];
+      state.buildings = [home];
+      state.resources.food = 0;
+      return state;
+    }
+
+    it('drains the same energy on-screen and off-screen', () => {
+      expect(prefersHomeTonightFor(DEFAULT_WORK_SCHEDULE, settlerId, restingTick, restingHour)).toBe(true);
+
+      const onscreen = restingSettlerWorld();
+      tickHumans(onscreen, simContext(onscreen, onscreen.entities, restingHour));
+      const onscreenEnergy = onscreen.entities.find((e) => e.id === settlerId)!.energy;
+
+      const offscreen = structuredClone(restingSettlerWorld());
+      tickHumans(offscreen, simContext(offscreen, offscreen.entities, restingHour, FAR_FOCUS));
+      const offscreenEnergy = offscreen.entities.find((e) => e.id === settlerId)!.energy;
+
+      expect(offscreenEnergy).toBeCloseTo(onscreenEnergy, 6);
+    });
+  });
+
+  describe('M16 — on-duty official reaches officialHandlePetitioners', () => {
+    const dayJobTick = TICKS_PER_DAY + 10 * TICKS_PER_HOUR; // 10:00 on a work day
+    const dayJobHour = 10;
+    const officialId = pickId(
+      (id) => (dayJobTick + id) % 3 !== 0 && personDayRoll(id, dayJobTick, 836) < 0.4,
+    );
+    const petitionerId = officialId + 500;
+
+    function townHallWorld(): WorldState {
+      const state = initGame({ size: MapSize.Medium, seed: 7 });
+      // The hall stands on the generated camp clearing, so its doorstep is open, walkable ground.
+      const site = state.worldMap?.campSite ?? { x: 300, y: 300 };
+      const hall = staffingBuilding(900, BuildingType.TownHall, {
+        x: site.x,
+        y: site.y,
+        width: 60,
+        height: 50,
+        occupants: [officialId],
+      });
+      // `building.x/y` is the footprint centre; the official works at the hall's canonical south
+      // doorstep (bare-grid frontage), not at the old corner + 0.9 height reference.
+      const doorstep = buildingAccessPoint(hall, null);
+      const official = sharedHuman(officialId, { maxAge: 80,
+        x: doorstep.x,
+        y: doorstep.y,
+        workerBuildingId: 900,
+        job: JobType.Official,
+        occupation: 'official',
+        energy: 500,
+        maxEnergy: 500,
+        gender: 'male',
+      });
+      // A grieving settler next to the hall always wants a civic audience.
+      const petitioner = sharedHuman(petitionerId, { maxAge: 80,
+        x: doorstep.x + 4,
+        y: doorstep.y + 4,
+        griefUntilTick: dayJobTick + 1000,
+        energy: 500,
+        maxEnergy: 500,
+        gender: 'female',
+      });
+      state.tick = dayJobTick;
+      state.entities = [official, petitioner];
+      state.buildings = [hall];
+      state.resources.food = 0;
+      return state;
+    }
+
+    it('runs the hall audience behaviour and greets the petitioner', () => {
+      const world = townHallWorld();
+      tickHumans(world, simContext(world, world.entities, dayJobHour));
+
+      const official = world.entities.find((e) => e.id === officialId)!;
+      expect(official.chatPhrase).toBeTruthy();
+    });
   });
 });
