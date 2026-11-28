@@ -154,20 +154,28 @@ export function getPendingAffairs(entity: Entity, people: readonly Entity[], tic
 
 export function reconcileAffairPartner(entity: Entity, entityById: Map<number, Entity>, tick = 0): void {
   const day = getAbsoluteCalendarDay(tick);
-  // One-time migration of reciprocal old candidate; the scalar is only for established affairs.
+  // Consume both reciprocal legacy references in one call, even for an invalid pair.
+  // Never overwrite an existing map entry or erase an established affair's scalar.
   if (entity.affairCandidateId != null) {
     const other = entityById.get(entity.affairCandidateId);
-    if (other?.affairCandidateId === entity.id && validPendingPair(entity, other)) {
+    if (other?.affairCandidateId === entity.id) {
       const progress = Math.min(Relationship.AFFAIR_PROGRESS_MAX, entity.affairProgress ?? 0, other.affairProgress ?? 0);
-      if (Number.isFinite(progress) && progress > 0) {
+      const migrate = validPendingPair(entity, other)
+        && !entity.affairCandidates?.[other.id] && !other.affairCandidates?.[entity.id]
+        && Number.isFinite(progress) && progress > 0;
+      entity.affairCandidateId = undefined;
+      other.affairCandidateId = undefined;
+      if (entity.affairPartnerId == null) entity.affairProgress = 0;
+      if (other.affairPartnerId == null) other.affairProgress = 0;
+      if (migrate) {
         const entry = { progress, lastEncounterDay: day };
         writePendingAffair(entity, other.id, entry);
         writePendingAffair(other, entity.id, entry);
       }
-      other.affairCandidateId = undefined;
-      other.affairProgress = 0;
+    } else {
+      entity.affairCandidateId = undefined;
+      if (entity.affairPartnerId == null) entity.affairProgress = 0;
     }
-    entity.affairCandidateId = undefined;
   }
   if (!entity.alive || entity.affairPartnerId != null) {
     clearPendingAffairs(entity, entityById);
@@ -182,7 +190,7 @@ export function reconcileAffairPartner(entity: Entity, entityById: Map<number, E
     }
     return;
   }
-  if (entity.affairProgress) entity.affairProgress = 0;
+  if (entity.affairProgress != null) entity.affairProgress = 0;
   for (const [id, entry] of Object.entries(entity.affairCandidates ?? {})) {
     const other = entityById.get(Number(id));
     if (!other || !validPendingPair(entity, other) ||
