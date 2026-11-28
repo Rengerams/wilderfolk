@@ -110,7 +110,7 @@ import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { buildResidenceOccupantIndex, findClosestEntityInRadius } from './simQueries';
 
 
-import { combinePairFactors, evaluateAptitudeInfluence } from './personality/traitEvaluation';
+import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import type { TickContext } from './simulation/simulationTypes';
 
 
@@ -123,6 +123,7 @@ import {
 import {
   AFFAIR_SPOUSE_BLOCK_RADIUS,
   bindCourtship,
+  advanceRomanticInterest,
   canAdvanceCourtship,
   canPursueSecretAffair,
   courtshipRatePerHour,
@@ -1277,9 +1278,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Courtship: only two observed, awake people may interact. An on-duty pair may
     // progress only if both are actually at their *same* workplace and within 10 px.
     // Other workers do not abandon their jobs to chase dates.
-    if (!sleepingForNeeds && (((!suppressIdle || contactOnly) && courtshipPresence.socialTime) || courtshipPresence.onDuty) &&
-      isEligibleToCourt(entity) && entity.gender &&
-      getHumanStaminaRatio(entity) * 100 > Relationship.COURTSHIP_MIN_STAMINA) {
+    if (!sleepingForNeeds && courtshipReadiness.has(entity.id) && isEligibleToCourt(entity) && entity.gender) {
       // Never stop an unobserved partner's movement: they might be asleep,
       // working, exhausted, or otherwise unavailable. The pair's actual
       // close-contact branch below owns stopping only after both are observed.
@@ -1297,12 +1296,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entityById,
         (candidate) => {
           const presence = courtshipReadiness.get(candidate.id);
-          if (!presence || presence.sleeping || getHumanStaminaRatio(candidate) * 100 <= Relationship.COURTSHIP_MIN_STAMINA) return false;
-          if (courtshipPresence.onDuty || presence.onDuty) {
-            return canAdvanceCourtship(courtshipPresence, presence, Math.hypot(candidate.x - entity.x, candidate.y - entity.y), socialTime);
-          }
-          return courtshipPresence.socialTime && presence.socialTime
-            && (!(contactOnly || presence.contactOnly) || Math.hypot(candidate.x - entity.x, candidate.y - entity.y) <= 10);
+          if (!presence || presence.sleeping) return false;
+          const distance = Math.hypot(candidate.x - entity.x, candidate.y - entity.y);
+          if (canAdvanceCourtship(courtshipPresence, presence, distance, socialTime)) return true;
+          return !courtshipPresence.onDuty && !presence.onDuty && !contactOnly && !suppressIdle
+            && courtshipPresence.socialTime;
         },
       );
 
@@ -1310,8 +1308,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       // that person's own sleep observation, instead of inventing one here.
       const otherPresence = closest && courtshipReadiness.get(closest.id);
       // Eligibility must be symmetric: a well-rested caller cannot advance a tired partner.
-      if (closest && otherPresence && !otherPresence.sleeping &&
-        getHumanStaminaRatio(closest) * 100 > Relationship.COURTSHIP_MIN_STAMINA) {
+      if (closest && otherPresence && !otherPresence.sleeping) {
         const dx = closest.x - entity.x;
         const dy = closest.y - entity.y;
         const dist = Math.hypot(dx, dy);
@@ -1320,7 +1317,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const closeEnough = dist <= 10;
 
         if (!closeEnough) {
-          if (!courtshipPresence.onDuty && !otherPresence.onDuty && !contactOnly && !otherPresence.contactOnly && courtshipPresence.socialTime && otherPresence.socialTime) {
+          if (!courtshipPresence.onDuty && !otherPresence.onDuty && !contactOnly && !suppressIdle && courtshipPresence.socialTime) {
             // Keep established dates stable, but do not lock two strangers into an
             // exclusive relationship until they actually meet. An unreachable route
             // must not create a permanent zero-progress courtship.
@@ -1333,7 +1330,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         } else if (canAdvanceCourtship(courtshipPresence, otherPresence, dist, courtshipPresence.socialTime && otherPresence.socialTime)) {
           // Leisure dates stop at contact instead of resuming an old walk target.
           // Coworkers keep their work movement and attendance untouched.
-          if (!courtshipPresence.onDuty && !otherPresence.onDuty && !contactOnly && !otherPresence.contactOnly) {
+          if (!courtshipPresence.onDuty && !otherPresence.onDuty && !contactOnly && !otherPresence.contactOnly
+            && courtshipPresence.socialTime && otherPresence.socialTime && !suppressIdle) {
             entity.vx = 0;
             entity.vy = 0;
             clearHumanWalkTarget(entity);
@@ -1344,15 +1342,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             clearHumanWalkTarget(closest);
             suppressIdle = true;
           }
-          // The relationship owner decides how a pair is bound (new partner → progress starts at zero).
-          bindCourtship(entity, closest);
 
           // Either partner may be processed second. Credit this pair at most once
           // this tick, irrespective of entity iteration order or ID.
           // Fully progressed pairs (including loaded saves) need the marriage
           // transition, not another aptitude calculation, dialogue or heart roll.
-          if (((entity.courtshipProgress ?? 0) < 100 || (closest.courtshipProgress ?? 0) < 100)
-            && !advancedCourtshipIds.has(entity.id) && !advancedCourtshipIds.has(closest.id)) {
+          if (!advancedCourtshipIds.has(entity.id) && !advancedCourtshipIds.has(closest.id)) {
             advancedCourtshipIds.add(entity.id);
             advancedCourtshipIds.add(closest.id);
 
@@ -1365,20 +1360,18 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               settlerPairChat(speaker, listener, 'courtship', 0.1);
             }
 
-            // Symmetric pair rule: both people's courtship aptitudes average into one rate.
-            const courtshipFactor = combinePairFactors(
-              evaluateAptitudeInfluence(entity, 'courtship').factor,
-              evaluateAptitudeInfluence(closest, 'courtship').factor,
-            );
             const courtRate =
-              courtshipRatePerHour(!courtshipPresence.onDuty && !otherPresence.onDuty) *
+              courtshipRatePerHour(courtshipPresence.socialTime && otherPresence.socialTime
+                && !courtshipPresence.onDuty && !otherPresence.onDuty) *
               (state.festival?.active ? 2 : 1) *
-              (livingTogether ? 1.5 : 1) *
-              courtshipFactor *
-              PER_TICK_RATE_SCALE;
-
-            entity.courtshipProgress = Math.min(100, (entity.courtshipProgress || 0) + courtRate);
-            closest.courtshipProgress = Math.min(100, (closest.courtshipProgress || 0) + courtRate);
+              (livingTogether ? 1.5 : 1) * PER_TICK_RATE_SCALE;
+            const progress = advanceRomanticInterest(entity, closest, state.tick, courtRate);
+            if (progress > 0) {
+              // Legacy focus is presentation/completion only, never candidate eligibility.
+              bindCourtship(entity, closest);
+              entity.courtshipProgress = progress;
+              closest.courtshipProgress = progress;
+            }
 
             if (getSimRng('humanTick')() < 0.08 * PER_TICK_RATE_SCALE) {
               state.deathParticles.push({
