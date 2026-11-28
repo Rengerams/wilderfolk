@@ -11,11 +11,11 @@ export function getOccupationForBuilding(type: BuildingType): string {
   return job ? JOB_LABELS[job] : 'Worker';
 }
 
-/** One site-to-credited-trade lookup for attendance, hiring, XP and output. */
+/** One activity-to-credited-trade lookup: building is always Builder; operating a completed site uses its profession. */
 export function getJobForBuilding(type: BuildingType, action: 'construction'): JobType;
 export function getJobForBuilding(type: BuildingType, action?: WorkAction): JobType | undefined;
 export function getJobForBuilding(type: BuildingType, action: WorkAction = 'production'): JobType | undefined {
-  return BUILDING_JOB_TYPES[type] ?? (action === 'construction' ? JobType.Builder : undefined);
+  return action === 'construction' ? JobType.Builder : BUILDING_JOB_TYPES[type];
 }
 
 export function ensureEntitySkills(entity: { skills?: Partial<Record<JobType, number>> }): Partial<Record<JobType, number>> {
@@ -146,7 +146,7 @@ export function getWorkerSkillMultiplier(
   /** The workers who actually attended this shift. Omitted means the whole roster (construction). */
   workedIds?: ReadonlySet<number>,
 ): number {
-  // Ignore a crew member's previous occupation: the witnessed site's credited trade owns both XP and output.
+  // Price the work actually performed, not the crew's prior jobs or the site's future profession.
   const skillJob = getJobForBuilding(building.type, action);
   if (!skillJob) return 1;
   let total = 0;

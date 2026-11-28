@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (28 Nov 2026):** Share construction trade attribution, stabilize vocational commute buckets and preserve scholar age/ID priority.
+- **Fixed (28 Nov 2026):** Credit only Builder skill and aptitude for all construction work; operational work alone teaches the site's profession. Stabilize vocational commute buckets and preserve scholar age/ID priority.
 
 - **Added (28 Nov 2026):** Derive trade aptitude from the existing genome and central activity weights; use it for reachable hiring, apprenticeship selection, earned skill growth and crew output without adding saved attributes.
 

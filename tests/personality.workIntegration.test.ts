@@ -85,13 +85,14 @@ describe('the crew multiplier prices the trade activity once', () => {
     expect(getWorkerSkillMultiplier(bare, withStale, crew(apt))).toBeCloseTo(factor, 10);
   });
 
-  it('prices a construction crew from the same trade as its skill credit', () => {
+  it('prices a farm construction crew using Builder aptitude, not Farmer aptitude', () => {
     const site = building(SITE_ID, BuildingType.Farm, { occupants: [1], completed: false });
     const plain = skillingWorker(1, genomeFrom());
     const apt = skillingWorker(1, CONSTRUCTION_GENOME);
 
-    const factor = evaluateWorkerFit(apt, JobType.Farmer).aptitudeFactor;
-    expect(factor).not.toBe(1);
+    const factor = evaluateWorkerFit(apt, JobType.Builder).aptitudeFactor;
+    expect(factor).toBeGreaterThan(1);
+    expect(factor).not.toBe(evaluateWorkerFit(apt, JobType.Farmer).aptitudeFactor);
     expect(getWorkerSkillMultiplier(bare, site, crew(plain), 'construction')).toBe(1);
     expect(getWorkerSkillMultiplier(bare, site, crew(apt), 'construction')).toBeCloseTo(factor, 10);
   });
@@ -309,14 +310,18 @@ describe('the apprenticeship-training activity reaches the real teaching path', 
   });
 });
 
-it('uses the same site trade for mixed construction crews, earned skill and output', () => {
+it('credits Builder aptitude and skill for mixed construction crews without teaching the future trade', () => {
   const site = building(SITE_ID, BuildingType.Farm, { occupants: [1, 2], completed: false });
   const a = human(1, { job: JobType.Builder, genomeV2: CONSTRUCTION_GENOME, skills: { builder: 80, farmer: 10 } });
   const b = human(2, { job: JobType.Miner, genomeV2: ROUTINE_GENOME, skills: { miner: 90, farmer: 30 } });
   const index = new Map([[a.id, a], [b.id, b]]);
   const job = getJobForBuilding(site.type, 'construction');
-  expect(job).toBe(JobType.Farmer);
+  expect(job).toBe(JobType.Builder);
+  expect(getJobForBuilding(BuildingType.Mine, 'construction')).toBe(JobType.Builder);
+  expect(getJobForBuilding(BuildingType.Hospital, 'construction')).toBe(JobType.Builder);
   expect(getJobForBuilding(BuildingType.House, 'construction')).toBe(JobType.Builder);
+  expect(getJobForBuilding(BuildingType.Farm)).toBe(JobType.Farmer);
+  expect(getJobForBuilding(BuildingType.Mine)).toBe(JobType.Miner);
   expect(getJobForBuilding(BuildingType.House)).toBeUndefined();
   for (const h of [a, b]) {
     const fit = evaluateWorkerFit(h, job);
@@ -325,6 +330,9 @@ it('uses the same site trade for mixed construction crews, earned skill and outp
     increaseEntitySkill(h, job, WORK_SKILL_PER_SHIFT);
     expect(readSkill(h, job) - fit.skill).toBeCloseTo(WORK_SKILL_PER_SHIFT * fit.aptitudeFactor, 10);
   }
-  expect(readSkill(a, JobType.Builder)).toBe(80);
+  expect(readSkill(a, JobType.Builder)).toBeGreaterThan(80);
+  expect(readSkill(b, JobType.Builder)).toBeGreaterThan(0);
+  expect(readSkill(a, JobType.Farmer)).toBe(10);
+  expect(readSkill(b, JobType.Farmer)).toBe(30);
   expect(readSkill(b, JobType.Miner)).toBe(90);
 });
