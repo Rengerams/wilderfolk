@@ -17,7 +17,7 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { readSkill } from './skills';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { resolveArmedDuty } from './workAbsence';
+import { resolveArmedDuty } from './workDuty';
 
 const EMPTY_FORGE: VillageForgeState = {
   activeOrder: null,
@@ -161,7 +161,7 @@ function combatRoll(kind: 'predator-block' | 'counter-attack', ...keys: number[]
 /** Resolve either encounter verdict through one probability comparison, preserving both seeded identities. */
 export function rollPredatorCombat(
   kind: 'predator-block' | 'counter-attack',
-  state: WorldState, human: Entity, predator: Entity, duty: ArmedDuty, tick: number,
+  state: WorldState, human: Entity, predator: Entity, tick: number,
 ): boolean {
   const chances = resolvePredatorCombatChances(state, human, predator);
   const chance = kind === 'counter-attack' ? chances.counter : chances.block;
