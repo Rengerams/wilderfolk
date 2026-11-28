@@ -20,12 +20,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.4.0
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4.1.0
+        uses: actions/setup-node@v7.1.0
         with:
           node-version: '26.12.1'
           cache: npm
@@ -38,14 +38,28 @@ jobs:
           CHECK_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: |
           set -e
+          
+          # Vang force-pushes, nieuwe branches of de eerste commit af
+          if [[ -z "$CHECK_BASE_SHA" || "$CHECK_BASE_SHA" == "0000000000000000000000000000000000000000" ]] || ! git cat-file -e "$CHECK_BASE_SHA^{commit}" 2>/dev/null; then
+            echo "Geen geldige base commit gevonden. Terugvallen op HEAD~1 of huidige HEAD."
+            CHECK_BASE_SHA=$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)
+          fi
+
           base_dir="$RUNNER_TEMP/wilderfolk-semantic-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           
           # Zorg voor een schone afronding bij fouten of succes
           trap 'git worktree remove --force "$base_dir" >/dev/null 2>&1 || true' EXIT
           
-          # Bereid de git worktree en symlink voor
+          # Bereid de git worktree voor
           git worktree add --detach "$base_dir" "$CHECK_BASE_SHA"
-          ln -s "$GITHUB_WORKSPACE/node_modules" "$base_dir/node_modules"
+          
+          # Gebruik symlink als package-lock.json gelijk is; installeer anders schoon in de worktree
+          if cmp -s "$GITHUB_WORKSPACE/package-lock.json" "$base_dir/package-lock.json"; then
+            ln -s "$GITHUB_WORKSPACE/node_modules" "$base_dir/node_modules"
+          else
+            echo "package-lock.json is gewijzigd; dependencies worden schoon geïnstalleerd voor de baseline..."
+            (cd "$base_dir" && npm ci --prefer-offline --no-audit --no-fund)
+          fi
           
           # Genereer de baselines in de tijdelijke worktree
           cd "$base_dir"
