@@ -174,3 +174,14 @@ test('tooling inventory requires qualified nested names and ignores anonymous ca
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+
+test('supporting declarations cannot duplicate primary or other supporting claims', () => {
+  const helper = { module: 'src/game/sample.ts', symbol: 'helper' };
+  const first = { ...sample, supporting: [helper] };
+  assert.deepEqual(validateRegistry([first], '/', () => true), []);
+  assert.ok(validateRegistry([{ ...sample, supporting: [sample.entrypoints[0]] }], '/', () => true)
+    .some(message => message.includes('claimed by')));
+  const other = { ...sample, key: 'other', entrypoints: [{ ...helper, symbol: 'other' }], supporting: [helper] };
+  assert.ok(validateRegistry([first, other], '/', () => true).some(message => message.includes('claimed by')));
+});

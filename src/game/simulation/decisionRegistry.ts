@@ -242,6 +242,9 @@ export const SIMULATION_DECISIONS = {
   },
   workerMotionPresentation: {
     entrypoints: [{ module: 'src/game/gameLoop.ts', symbol: 'isLightweightWorkerCommand' }],
+    supporting: [
+      { module: 'src/game/scheduleFeedback.ts', symbol: 'getScheduleImpactPreview' },
+    ],
     owner: 'gameLoop.ts — isLightweightWorkerCommand, canPreviewWorkerCommand, registerWorkerHandlers, scheduleFrame, frameBody, stepFallbackTick, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
     cadence: 'render',
     cadenceNote: 'Worker message admission awaits the shared census-name gate. Failed fallback ticks retain accumulator time; each command carries a host monotonic id and the worker echoes the last applied id so recovery replays only unproven work. Buffer pooling and delta packing remain transport-only, and display caches are hydrated once. On acknowledged ticks, blend only confirmed positions. Top-level schedule/policy commands use shallow previews and skip unnecessary catalog rebuilding unless a tick completed while commands were pending; the next acknowledgement reconciles entities and stale selections. Read-only schedule impact counts authoritative workerBuildingId assignments and shared construction crew membership in one entity pass, excludes imprisoned and invalid staff, and compares complete windows. On save, halt new ticks while earlier commands settle. The tick result carries the simulation-authored pause and the replica adopts it one-way; host resume stays authoritative. No gameplay writes.',
@@ -314,6 +317,9 @@ export const SIMULATION_DECISIONS = {
   },
   careerHistory: {
     entrypoints: [{ module: 'src/game/careers/careerHistory.ts', symbol: 'recordCareerWork' }],
+    supporting: [
+      { module: 'src/game/careers/careerHistory.ts', symbol: 'normalizeCareerHistory' },
+    ],
     owner: 'careers/careerHistory.ts — recordCareerWork; single writer of compact observed work days per job',
     cadence: 'daily',
     cadenceNote: 'No independent pass: credits the just-finished calendar day immediately inside dailyScheduleFatigue.resolveDailyVillageScheduleFatigue after the midnight attendance snapshot, using the shared indexed workplace map. Current staffing may differ after a Moon Howler night; canonical player human shift membership includes temporary transformed settlers and explicit player markers. No construction inference, noon delay or full-storage gating.',
@@ -323,6 +329,10 @@ export const SIMULATION_DECISIONS = {
   },
   careerProgression: {
     entrypoints: [{ module: 'src/game/careers/careerProgression.ts', symbol: 'advanceCareerProgression' }],
+    supporting: [
+      { module: 'src/game/careers/careerProgression.ts', symbol: 'normalizeCareerMilestones' },
+      { module: 'src/game/careers/careerProgression.ts', symbol: 'normalizeCareerMilestones::validDay' },
+    ],
     owner: 'careers/careerProgression.ts — advanceCareerProgression; new career milestone owner',
     cadence: 'daily',
     cadenceNote: 'Event-driven only: after a newly accepted career day or actual apprenticeship completion; no duplicate skill writer or career timer.',
@@ -1442,7 +1452,30 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/humanLifecycle.test.ts, tests/genealogyRegistry.test.ts, tests/wildkin.apexRole.test.ts',
   },
   moonHowler: {
-    entrypoints: [{ module: 'src/game/moonHowler.ts', symbol: 'tickMoonHowlerCycle' }],
+    entrypoints: [{ module: 'src/game/moonHowler.ts', symbol: 'tickMoonHowlerCycle' }, { module: 'src/game/moonHowler.ts', symbol: 'curseMoonHowler' }, { module: 'src/game/moonHowler.ts', symbol: 'forceMoonHowlerOutside' }, { module: 'src/game/moonHowler.ts', symbol: 'transformToWerewolfForm' }, { module: 'src/game/moonHowler.ts', symbol: 'tryMoonHowlerChurchCures' }, { module: 'src/game/moonHowler.ts', symbol: 'migrateLegacyMoonHowler' }, { module: 'src/game/moonHowler.ts', symbol: 'syncMoonHowlerForms' }, { module: 'src/game/moonHowlerForm.ts', symbol: 'revertToHumanForm' }, { module: 'src/game/moonHowlerForm.ts', symbol: 'finalizeMoonHowlerDeath' }],
+    supporting: [
+      { module: 'src/game/moonHowler.ts', symbol: 'moonHowlerRiteWeights' },
+      { module: 'src/game/moonHowler.ts', symbol: 'rollMoonHowlerRiteOutcome' },
+      { module: 'src/game/moonHowler.ts', symbol: 'countActiveMoonHowlerCurses' },
+      { module: 'src/game/moonHowler.ts', symbol: 'canBeginMoonHowlerCurse' },
+      { module: 'src/game/moonHowler.ts', symbol: 'shouldApplyNewMoonHowlerCurse' },
+      { module: 'src/game/moonHowler.ts', symbol: 'detachEntityFromBuildingOccupants' },
+      { module: 'src/game/moonHowler.ts', symbol: 'shouldMoonHowlerTransform' },
+      { module: 'src/game/moonHowler.ts', symbol: 'isMoonHowlerTransformTick' },
+      { module: 'src/game/moonHowler.ts', symbol: 'isMoonHowlerRevertTick' },
+      { module: 'src/game/moonHowler.ts', symbol: 'isMoonHowlerCureWindow' },
+      { module: 'src/game/moonHowler.ts', symbol: 'isMoonHowlerEligible' },
+      { module: 'src/game/moonHowler.ts', symbol: 'canMoonHowlerCurse' },
+      { module: 'src/game/moonHowler.ts', symbol: 'isActiveMoonHowler' },
+      { module: 'src/game/moonHowler.ts', symbol: 'cureMoonHowler' },
+      { module: 'src/game/moonHowler.ts', symbol: 'isEligiblePriest' },
+      { module: 'src/game/moonHowler.ts', symbol: 'pickPriest' },
+      { module: 'src/game/moonHowler.ts', symbol: 'countStaffedPriests' },
+      { module: 'src/game/moonHowler.ts', symbol: 'guardsNearPriest' },
+      { module: 'src/game/moonHowlerForm.ts', symbol: 'countPrisonersAtBuilding' },
+      { module: 'src/game/moonHowlerForm.ts', symbol: 'prisonPrisonerCap' },
+      { module: 'src/game/moonHowlerForm.ts', symbol: 'isSettlerRelationshipEntity' },
+    ],
     owner: 'moonHowler.ts + moonHowlerForm.ts — tickMoonHowlerCycle, curseMoonHowler, transformToWerewolfForm, revertToHumanForm, cureMoonHowler, finalizeMoonHowlerDeath, isSettlerRelationshipEntity; night window owned by daycycleconstants.ts',
     cadence: 'full-moon-event',
     cadenceNote: 'The existing night-window ejection excludes road and bridge travel surfaces from the padded indoor footprint check; they remain traversable. Hunting uses the wildlife systems owner independently of viewport. Transform, ejection and reversion clear the transient indoor marker; reversion stops predator velocity.',
