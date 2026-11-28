@@ -522,9 +522,9 @@ describe('tickHumanChildLeisure', () => {
       const tick = playTickFor(child);
       tickChild(state, child, [child, mate], tick);
       const day = Math.floor(tick / TICKS_PER_DAY);
-      const phase = Math.floor((tick % TICKS_PER_DAY) / (3 * TICKS_PER_HOUR));
+      const phase = Math.floor((tick % TICKS_PER_DAY) / TICKS_PER_HOUR);
       expect(child.childPlaySite).toBeUndefined();
-      expect(child.childPlaySiteAttempt).toEqual({ day, phase });
+      expect(child.childPlaySiteAttempt).toEqual({ day, phase, solo: true, shared: true });
       expect(mate.childPlaySiteAttempt).toEqual({ day, phase });
       // No reachable play stop: do not chase the other child's moving coordinates.
       mate.x = 150;
@@ -540,14 +540,36 @@ describe('tickHumanChildLeisure', () => {
       setCurrentPathMap(state.worldMap, state.buildings);
       tickChild(state, child, [child, mate], tick + 1);
       expect(child.childPlaySite).toBeUndefined();
-      expect(child.childPlaySiteAttempt).toEqual({ day, phase });
+      expect(child.childPlaySiteAttempt).toEqual({ day, phase, solo: true, shared: true });
 
-      tickChild(state, child, [child, mate], tick + 3 * TICKS_PER_HOUR);
+      tickChild(state, child, [child, mate], tick + TICKS_PER_HOUR);
       expect(child.childPlaySite).toBeDefined();
       expect(child.childPlaySiteAttempt?.phase).not.toBe(phase);
     } finally {
       setCurrentPathMap(null);
     }
+  });
+
+  it('uses solo play when the reserved shared destination is unavailable', () => {
+    const { state, child } = childFixture();
+    const mate = playerChild(child, 11, { x: 120, y: 100 });
+    const tick = playTickFor(child);
+    const day = Math.floor(tick / TICKS_PER_DAY);
+    const phase = Math.floor((tick % TICKS_PER_DAY) / TICKS_PER_HOUR);
+    for (const member of [child, mate]) {
+      member.childPlaymateDay = day;
+      member.childPlaymateId = member.id === child.id ? mate.id : child.id;
+      member.childPlayGroupIds = [child.id, mate.id];
+      member.childPlaySiteAttempt = { day, phase };
+    }
+    expect(tickChild(state, child, [child, mate], tick)).toBe(true);
+    expect(child.childPlaySite?.mateId).toBe(child.id);
+    expect(child.childLeisureTargetId).toBeUndefined();
+    expect(child.childPlaySiteAttempt).toEqual({ day, phase, solo: true, shared: true });
+    const first = child.childPlaySite;
+    tickChild(state, child, [child, mate], tick + 1);
+    expect(child.childPlaySite).toEqual(first);
+    expect(Math.hypot(child.vx, child.vy)).toBeGreaterThan(0);
   });
 
   it('keeps surviving group members paired when the founder dies', () => {

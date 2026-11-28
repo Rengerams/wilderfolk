@@ -383,7 +383,7 @@ export function tickHumanChildLeisure(args: {
         // stop must be replaced because it is wet or otherwise unsafe.
         const attempted = group.some((member) =>
           member.childPlaySiteAttempt?.day === day && member.childPlaySiteAttempt.phase === phase
-          && !member.childPlaySiteAttempt.solo);
+          && (!member.childPlaySiteAttempt.solo || member.childPlaySiteAttempt.shared));
         if (shared || !attempted || invalidSavedSite) {
           const point = shared ?? chooseChildPlaySite(state, group, day, phase, cachedSite);
           for (const member of group) {
@@ -399,7 +399,8 @@ export function tickHumanChildLeisure(args: {
       }
       const site = entity.childPlaySite;
       // Failed site searches must not create a fictitious play activity or moving-target chase.
-      if (site && site.day === day && site.phase === phase && site.mateId === mate.id) {
+      if (site && site.day === day && site.phase === phase && site.mateId === mate.id
+        && isDryChildPlaySite(state, site.x, site.y, playGrid)) {
         const destinationX = site.x;
         const destinationY = site.y;
         const distance = Math.hypot(destinationX - entity.x, destinationY - entity.y);
@@ -460,12 +461,6 @@ export function tickHumanChildLeisure(args: {
     entity.vx = 0;
     entity.vy = 0;
   }
-  if (mate && group.length >= 2 && !impulse.stayHome) {
-    clearHumanWalkTarget(entity);
-    entity.vx = 0;
-    entity.vy = 0;
-    return true;
-  }
   // No free caregiver or reachable shared stop: reuse the same bounded dry-site
   // chooser for independent play, caching one attempt per hour.
   const phase = hourOfDay;
@@ -474,7 +469,11 @@ export function tickHumanChildLeisure(args: {
   if (!attempt?.solo || attempt.day !== day || attempt.phase !== phase) {
     const point = chooseChildPlaySite(state, [entity], day, phase, previous);
     entity.childPlaySite = point ? { day, phase, mateId: entity.id, ...point } : undefined;
-    entity.childPlaySiteAttempt = { day, phase, solo: true };
+    // Preserve the shared attempt when falling back to solo play, so a failed
+    // group search cannot be repeated on every tick.
+    const shared = attempt?.day === day && attempt.phase === phase
+      && (!attempt.solo || attempt.shared);
+    entity.childPlaySiteAttempt = { day, phase, solo: true, ...(shared ? { shared: true as const } : {}) };
   }
   const solo = entity.childPlaySite;
   if (solo?.mateId === entity.id && solo.day === day && solo.phase === phase
@@ -486,6 +485,7 @@ export function tickHumanChildLeisure(args: {
       entity.vx = 0;
       entity.vy = 0;
     }
+    faceVelocity(entity);
     entity.childLeisureActivity = 'playing';
     return true;
   }

@@ -6,7 +6,6 @@ import {
   getAgeInYears,
 } from '../game/gameEngine';
 import type { WorldState, Entity } from '../game/gameEngine';
-import { JobType } from '../game/gameTypes';
 import {
   hasResidenceAssignment,
   hasWorkAssignment,

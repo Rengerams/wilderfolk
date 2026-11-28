@@ -83,6 +83,9 @@ describe('selected human activity projection', () => {
     companion.indoorBuildingId = undefined;
     companion.x = child.x + 5;
     companion.y = child.y;
+    companion.childPlaymateDay = child.childPlaymateDay;
+    companion.childLeisureActivity = 'playing';
+    companion.childLeisureTargetId = child.id;
     child.childPlaymateId = companion.id;
     child.childLeisureActivity = 'playing';
     child.childLeisureTargetId = companion.id;
@@ -99,8 +102,20 @@ describe('selected human activity projection', () => {
       label: 'Activity', value: `Playing with ${companion.name}`,
     });
 
+    companion.childLeisureActivity = undefined;
+    expect(getHumanActivityStatus(world, child)).toBe('Free time');
+    companion.childLeisureActivity = 'playing';
     companion.x = child.x + 200;
     expect(getHumanActivityStatus(world, child)).toBe('Free time');
+    child.childLeisureTargetId = undefined;
+    child.childPlaySite = {
+      day: child.childPlaymateDay!, phase: 19, mateId: child.id,
+      x: child.x + 60, y: child.y,
+    };
+    expect(getHumanActivityStatus(world, child)).toBe('Walking to play area');
+    expect(getHumanActivityProjection(world, child).target?.kind).toBe('play-site');
+    child.x += 60;
+    expect(getHumanActivityStatus(world, child)).toBe('Playing alone');
     child.childLeisureActivity = undefined;
     child.childLeisureTargetId = undefined;
     expect(getHumanActivityStatus(world, child)).toBe('Free time');

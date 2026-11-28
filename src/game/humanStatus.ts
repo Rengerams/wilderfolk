@@ -21,12 +21,27 @@ function labelFor(building: Building): string {
   return BUILDING_CONFIGS[building.type]?.label ?? 'Building';
 }
 
+/** Present companions must actually be playing in the same outing, not just nearby. */
+function isPresentPlaymate(state: WorldState, entity: Entity, candidate: Entity): boolean {
+  const day = getAbsoluteCalendarDay(state.tick);
+  if (!candidate.alive || !candidate.isJuvenile || candidate.indoorBuildingId != null
+    || candidate.childPlaymateDay !== day || candidate.childLeisureActivity !== 'playing'
+    || candidate.childLeisureTargetId == null || Math.hypot(candidate.x - entity.x, candidate.y - entity.y) > 28) return false;
+  const site = entity.childPlaySite;
+  const other = candidate.childPlaySite;
+  if (!site) return !other && (candidate.childLeisureTargetId === entity.id
+    || !!candidate.childPlayGroupIds?.includes(entity.id));
+  return !!other && other.day === day && other.phase === getHourOfDay(state.tick)
+    && other.mateId !== candidate.id && other.x === site.x && other.y === site.y
+    && Math.hypot(other.x - candidate.x, other.y - candidate.y) <= 14;
+}
+
 /** Keep the primary companion visible, and mention additional living playmates. */
 function childPlayCompanionLabel(state: WorldState, entity: Entity, companion: Entity, nearbyOnly = false): string {
   const others = (entity.childPlayGroupIds ?? []).filter((id) =>
     id !== entity.id && id !== companion.id
     && state.entities.some((candidate) => candidate.id === id && candidate.alive && candidate.isJuvenile
-      && (!nearbyOnly || (candidate.indoorBuildingId == null && Math.hypot(candidate.x - entity.x, candidate.y - entity.y) <= 28))),
+      && (!nearbyOnly || isPresentPlaymate(state, entity, candidate))),
   ).length;
   const name = citizenGivenName(companion);
   return others ? `${name} + ${others} ${others === 1 ? 'friend' : 'friends'}` : name;
@@ -124,22 +139,25 @@ export function getHumanActivityStatus(
   const currentChildLeisure = entity.childPlaymateDay === getAbsoluteCalendarDay(state.tick)
     ? entity.childLeisureActivity : undefined;
   if (entity.isJuvenile && currentChildLeisure === 'playing' && entity.childLeisureTargetId == null) {
-    return 'Playing alone';
+    const site = entity.childPlaySite;
+    if (site?.day !== getAbsoluteCalendarDay(state.tick) || site.phase !== hourOfDay
+      || site.mateId !== entity.id) return 'Free time';
+    return Math.hypot(site.x - entity.x, site.y - entity.y) > 14
+      ? 'Walking to play area' : 'Playing alone';
   }
   if (entity.isJuvenile && entity.childLeisureTargetId != null && currentChildLeisure) {
     const companion = state.entities.find((candidate) =>
       candidate.id === entity.childLeisureTargetId && candidate.alive);
     if (companion && currentChildLeisure === 'playing') {
-      if (companion.isJuvenile && companion.indoorBuildingId == null
-        && Math.hypot(companion.x - entity.x, companion.y - entity.y) <= 28) {
-        return `Playing with ${childPlayCompanionLabel(state, entity, companion, true)}`;
-      }
       const site = entity.childPlaySite;
-      if (site?.day === getAbsoluteCalendarDay(state.tick) && site.phase === hourOfDay) {
-        return Math.hypot(site.x - entity.x, site.y - entity.y) > 14
-          ? 'Walking to play area' : 'Waiting for playmates';
-      }
-      return 'Free time';
+      const currentSite = site?.day === getAbsoluteCalendarDay(state.tick) && site.phase === hourOfDay;
+      if (currentSite && Math.hypot(site.x - entity.x, site.y - entity.y) > 14) return 'Walking to play area';
+      const present = [companion, ...state.entities.filter((candidate) =>
+        candidate.id !== companion.id && candidate.id !== entity.id
+        && entity.childPlayGroupIds?.includes(candidate.id))]
+        .find((candidate) => isPresentPlaymate(state, entity, candidate));
+      if (present && (!site || currentSite)) return `Playing with ${childPlayCompanionLabel(state, entity, present, true)}`;
+      return currentSite ? 'Waiting for playmates' : 'Free time';
     }
     if (companion && currentChildLeisure === 'following') {
       return `Following ${citizenGivenName(companion)}`;
@@ -222,7 +240,8 @@ export function getHumanActivityProjection(
     if (eveningOuting) {
       return { kind: 'nearby-building', label: 'Evening outing', x: entity.x, y: entity.y };
     }
-    if (entity.isJuvenile && activity === 'Playing alone' && entity.childPlaySite?.mateId === entity.id) {
+    if (entity.isJuvenile && (activity === 'Playing alone' || activity === 'Walking to play area')
+      && entity.childPlaySite?.mateId === entity.id) {
       return { kind: 'play-site', label: 'Play area', x: entity.childPlaySite.x, y: entity.childPlaySite.y };
     }
     if (entity.isJuvenile && entity.childLeisureTargetId != null
