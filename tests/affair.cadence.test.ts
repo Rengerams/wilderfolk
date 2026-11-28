@@ -9,7 +9,7 @@ import type { Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
 import { getPendingAffairs, selectPendingAffairMeeting, isValidAffairTarget, reconcileAffairPartner, tryDailyAffairEncounter } from '../src/game/simulation/humanRelationships';
 
-import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import {
   flushRelationshipDiagnostics,
@@ -133,23 +133,32 @@ afterAll(() => {
 });
 
 describe('affair cadence (Objective 9)', () => {
-  it('staggered path completes progress but NEVER establishes an affair', () => {
-    const { state } = affairFixture();
-    const world = structuredClone(state);
-
-    // One full day MINUS the day boundary — the staggered path runs, the daily
-    // owner does not.
-    let ticked = world;
-    for (let t = 1; t <= 71; t++) ticked = gameTick(ticked);
+  it('realtime pursuit outside the daily encounter gate never advances or establishes a pair', () => {
+    const { state, wife, paramour } = affairFixture();
+    // Begin AFTER the 18:00 clock boundary; no daily encounter can run until 19:00.
+    state.tick = 18 * TICKS_PER_HOUR;
+    paramour.x = 170; // outside the old 75-unit search but within known-candidate pursuit
+    const initialWife = structuredClone(wife.affairCandidates);
+    const initialParamour = structuredClone(paramour.affairCandidates);
+    const byId = new Map(state.entities.map(person => [person.id, person]));
+    for (let t = 0; t < 5; t++) {
+      expect(selectPendingAffairMeeting(wife, byId, state.tick + t, () => true)).toBe(paramour);
+    }
+    expect(wife.affairCandidates).toEqual(initialWife);
+    expect(paramour.affairCandidates).toEqual(initialParamour);
+    let ticked = state;
+    for (let t = 1; t < TICKS_PER_HOUR; t++) ticked = gameTick(ticked);
 
     const wifeAfter = ticked.entities.find((e) => e.id === 1)!;
     const paramourAfter = ticked.entities.find((e) => e.id === 3)!;
-
     expect(wifeAfter.affairPartnerId).toBeUndefined();
     expect(paramourAfter.affairPartnerId).toBeUndefined();
-    expect(wifeAfter.affairCandidates?.[3]?.progress).toBeGreaterThanOrEqual(95); // staggered path never establishes
-    expect(paramourAfter.affairCandidates?.[1]?.progress).toBeGreaterThanOrEqual(95);
-    // No scandal artifacts either — exposure requires an established affair.
+    expect(wifeAfter.affairCandidates).toEqual(initialWife);
+    expect(paramourAfter.affairCandidates).toEqual(initialParamour);
+    const snap = flushRelationshipDiagnostics(ticked.tick, 0, 0)!;
+    expect(snap.affairChecks).toBe(0);
+    expect(snap.affairProgressGains).toBe(0);
+    expect(snap.affairsEstablished).toBe(0);
     expect(ticked.entities.some((e) => e.prisonBuildingId != null)).toBe(false);
     expect(ticked.villageReputation).toBe(50);
     expect(ticked.eventLog.some((l) => l.type === 'scandal')).toBe(false);
@@ -243,6 +252,8 @@ describe('affair progress belongs to a verified pair', () => {
     expect(single.courtshipPartnerId).toBe(4);
     expect(single.courtshipProgress).toBe(47);
     expect(married.affairProgress).toBe(0);
+    expect(single.affairCandidates).toBeUndefined();
+    expect(married.affairCandidates).toBeUndefined();
   });
 
   it('keeps only a mutual unmarried paramour candidate with a married initiator', () => {
@@ -268,6 +279,76 @@ describe('affair progress belongs to a verified pair', () => {
     reconcileAffairPartner(married, people);
     expect(single.affairCandidates).toBeUndefined();
     expect(married.affairCandidates).toBeUndefined();
+  });
+
+  it.each([false, true])('consumes both legacy sides on the first call and is idempotent (reverse=%s)', (reverse) => {
+    const married = human(8, { gender: 'female', relationshipStatus: 'married', partnerId: 6,
+      affairCandidateId: 2, affairProgress: 32 });
+    const single = human(2, { gender: 'male', relationshipStatus: 'single',
+      affairCandidateId: 8, affairProgress: 47 });
+    const people = new Map([[married.id, married], [single.id, single]]);
+    const order = reverse ? [single, married] : [married, single];
+    reconcileAffairPartner(order[0], people, 3 * TICKS_PER_DAY);
+    const entry = { progress: 32, lastEncounterDay: 3 };
+    expect(married.affairCandidates).toEqual({ 2: entry });
+    expect(single.affairCandidates).toEqual({ 8: entry });
+    for (const person of order) {
+      expect(person.affairCandidateId).toBeUndefined();
+      expect(person.affairProgress).toBe(0);
+    }
+    const snapshot = structuredClone(order);
+    for (let round = 0; round < 3; round++) {
+      for (const person of [...order].reverse()) reconcileAffairPartner(person, people, (4 + round) * TICKS_PER_DAY);
+      expect(order).toEqual(snapshot);
+    }
+  });
+
+  it.each([false, true])('discards one-sided legacy progress regardless of reconciliation order (reverse=%s)', (reverse) => {
+    const married = human(8, { gender: 'female', relationshipStatus: 'married', partnerId: 6,
+      affairCandidateId: 2, affairProgress: 99 });
+    const single = human(2, { gender: 'male', relationshipStatus: 'single', affairProgress: 100 });
+    const people = new Map([[married.id, married], [single.id, single]]);
+    const order = reverse ? [single, married] : [married, single];
+    for (const person of order) reconcileAffairPartner(person, people);
+    for (const person of order) {
+      expect(person.affairCandidateId).toBeUndefined();
+      expect(person.affairCandidates).toBeUndefined();
+      expect(person.affairProgress).toBe(0);
+      expect(person.affairPartnerId).toBeUndefined();
+    }
+  });
+
+  it('discards both invalid reciprocal legacy links immediately, preserving any established scalar', () => {
+    const married = human(8, { gender: 'female', relationshipStatus: 'married', partnerId: 6,
+      affairCandidateId: 2, affairProgress: 99 });
+    const single = human(2, { gender: 'male', relationshipStatus: 'single',
+      affairCandidateId: 8, affairPartnerId: 4, affairProgress: 100 });
+    const lover = human(4, { gender: 'female', relationshipStatus: 'married', affairPartnerId: 2, affairProgress: 100 });
+    const people = new Map([[married.id, married], [single.id, single], [lover.id, lover]]);
+    reconcileAffairPartner(married, people);
+    expect(married.affairCandidateId).toBeUndefined();
+    expect(married.affairProgress).toBe(0);
+    expect(married.affairCandidates).toBeUndefined();
+    expect(single.affairCandidateId).toBeUndefined();
+    expect(single.affairPartnerId).toBe(4);
+    expect(single.affairProgress).toBe(100);
+    expect(single.affairCandidates).toBeUndefined();
+  });
+
+  it('does not refresh or overwrite an already migrated reciprocal map with stale legacy scalars', () => {
+    const { wife, paramour, state } = affairFixture();
+    wife.affairCandidateId = paramour.id;
+    paramour.affairCandidateId = wife.id;
+    wife.affairProgress = 100;
+    paramour.affairProgress = 100;
+    const byId = new Map(state.entities.map(person => [person.id, person]));
+    reconcileAffairPartner(paramour, byId, 5 * TICKS_PER_DAY);
+    expect(wife.affairCandidates).toEqual({ 3: { progress: 95, lastEncounterDay: 0 } });
+    expect(paramour.affairCandidates).toEqual({ 1: { progress: 95, lastEncounterDay: 0 } });
+    expect(wife.affairCandidateId).toBeUndefined();
+    expect(paramour.affairCandidateId).toBeUndefined();
+    expect(wife.affairProgress).toBe(0);
+    expect(paramour.affairProgress).toBe(0);
   });
 
   it('retires pending progress when the candidates become spouses', () => {
@@ -321,6 +402,9 @@ describe('nonexclusive pending affairs', () => {
     expect(selectPendingAffairMeeting(married, byId, 0, person => person.id === 3)).toBe(second);
     reconcileAffairPartner(married, byId, 20 * TICKS_PER_DAY);
     expect(first.affairCandidates).toBeUndefined();
+    expect(married.affairCandidates?.[first.id]).toBeUndefined();
+    expect(married.affairCandidates).toEqual({ 3: { progress: 70, lastEncounterDay: 20 } });
+    expect(second.affairCandidates).toEqual({ 1: { progress: 70, lastEncounterDay: 20 } });
     expect(getPendingAffairs(married, people, 20 * TICKS_PER_DAY).map(p => p.progress)).toEqual([70]);
   });
 
