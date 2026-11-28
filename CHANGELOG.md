@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Show unemployment as an employment status, recognize apprenticeship and construction workplaces in the settler inspector, and keep trade skills in Career rather than displaying a fictitious Settler skill.
+
 - **Fixed (28 Nov 2026):** Settlers eat below 90% nutrition instead of 70%, allowing near-full reserves with unchanged food cost, nutritional decay and meal cooldown.
 
 - **Fixed (28 Nov 2026):** Children change safe play stops hourly, wander independently without a free companion, do not follow working apprentices or builders, and distinguish nearby playmates from companions still on their way.
