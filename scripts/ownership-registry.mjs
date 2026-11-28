@@ -253,7 +253,7 @@ export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS) {
         const registrations = overview.split(/\r?\n/).filter(line => line.startsWith(`| ${label} |`));
         const cells = registrations.length === 1 ? registrations[0].split('|') : [];
         const documented = cells[2]?.trim() === '`' + file + '`' ?
-          [...cells[4].matchAll(/`([A-Za-z_$][\w$]*(?:::[A-Za-z_$][\w$]*)*)`/g)].map(match => match[1]).sort() : [];
+          [...(cells[4] ?? '').matchAll(/`([A-Za-z_$][\w$]*(?:::[A-Za-z_$][\w$]*)*)`/g)].map(match => match[1]).sort() : [];
         if (cells[2]?.trim() !== '`' + file + '`' || JSON.stringify(names) !== JSON.stringify(documented)) {
           failures.push(`${file}: tooling ownership documentation mismatch: declared ${documented.join(', ')}; found ${names.join(', ')}`);
         }
