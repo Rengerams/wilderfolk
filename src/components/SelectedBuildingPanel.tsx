@@ -687,7 +687,7 @@ export default function SelectedBuildingPanel({
                 <p key={w.id} className="text-[11px] text-emerald-200">
                   👷 {citizenFullName(w)}
                   {w.job ? ` · ${w.job}` : ''}
-                  <span className={duty === 'Working' ? 'text-emerald-300' : duty === 'Walking to work' || duty === 'Going to hospital' ? 'text-sky-300' : duty === 'Absent' ? 'text-amber-300' : 'text-stone-400'}> · {duty}</span>
+                  <span className={(duty === 'Working' || duty === 'Patrolling') ? 'text-emerald-300' : duty === 'Walking to work' || duty === 'Going to hospital' ? 'text-sky-300' : duty === 'Absent' ? 'text-amber-300' : 'text-stone-400'}> · {duty}</span>
                   {w.apprenticeId != null && (
                     <span className="text-cyan-300">
                       {' '}🎓 {(() => {

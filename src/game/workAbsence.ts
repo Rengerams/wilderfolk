@@ -72,6 +72,7 @@ export interface SettlerWorkReason {
 
 export type WorkplaceDutyLabel =
   | 'Working'
+  | 'Patrolling'
   | 'Walking to work'
   | 'Going to hospital'
   | 'In hospital'
@@ -80,7 +81,7 @@ export type WorkplaceDutyLabel =
 
 /** Maps a staff member's work reason to a workplace-only duty label. */
 export function workplaceDutyLabel(reason: SettlerWorkReason): WorkplaceDutyLabel {
-  if (reason.code === 'working') return 'Working';
+  if (reason.code === 'working') return reason.label === 'Patrolling' ? 'Patrolling' : 'Working';
   if (reason.code === 'walking-to-work') return 'Walking to work';
   if (reason.code === 'going-to-hospital') return 'Going to hospital';
   if (reason.code === 'in-hospital') return 'In hospital';
