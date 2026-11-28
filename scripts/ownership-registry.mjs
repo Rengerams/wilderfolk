@@ -147,17 +147,21 @@ function directCallableCandidates(source, symbol) {
 }
 
 /** Record the exact compiler declaration once, across gameplay and infrastructure contracts. */
-function recordResolvedClaim(resolved, failures, ref, source, node, root) {
+function declarationLocation(source, node, root) {
   const offset = node.getStart(source);
   const line = source.getLineAndCharacterOfPosition(offset).line + 1;
-  const name = node.kind === SyntaxKind.Identifier ? node.getText() : ref.symbol;
   const canonicalFile = realpathSync.native(source.fileName);
   const module = path.relative(realpathSync.native(root), canonicalFile).replaceAll('\\', '/');
+  return { identity: `${canonicalFile}:${offset}`, module, line };
+}
+
+function recordResolvedClaim(resolved, failures, ref, source, node, root) {
+  const { identity, module, line } = declarationLocation(source, node, root);
+  const name = node.kind === SyntaxKind.Identifier ? node.getText() : ref.symbol;
   if (module !== ref.module) {
     failures.push(`${ref.key}: noncanonical owner module ${ref.module}; use ${module}`);
     return;
   }
-  const identity = `${canonicalFile}:${offset}`;
   if (resolved.has(identity)) {
     failures.push(`${ref.key}: declaration ${ref.module}:${line} already claimed by ${resolved.get(identity).key}`);
     return;
@@ -242,11 +246,13 @@ const TOOLING_CONTRACTS = [
       "validateRegistry",
       "hasModifier",
       "directCallableCandidates",
+      "declarationLocation",
       "recordResolvedClaim",
       "validateEntrypointSymbols",
       "findVerifiedClaim",
+      "collectNamedDeclarations",
+      "collectNamedDeclarations::visit",
       "validateToolingInventory",
-      "validateToolingInventory::visit",
       "verifyOwnershipRegistry",
       "parseOwnershipMode",
       "main"
@@ -300,8 +306,68 @@ const TOOLING_CONTRACTS = [
   }
 ];
 
+/** One compiler inventory for named implementations, including lexical and member scope.
+ * Anonymous inline callbacks are not independent ownership declarations.
+ */
+function collectNamedDeclarations(source, checker) {
+  const actual = new Map();
+  const visit = (node, scope = '', ownerKind = '') => {
+    if ((node.kind === SyntaxKind.ClassDeclaration || node.kind === SyntaxKind.ClassExpression) && node.name) {
+      const className = node.name.getText();
+      const qualifiedClass = scope ? `${scope}::${className}` : className;
+      node.forEachChild(child => visit(child, qualifiedClass, 'class'));
+      return;
+    }
+    let name;
+    let nameNode = node.name;
+    let member = false;
+    const method = node.kind === SyntaxKind.MethodDeclaration && node.body && node.name;
+    if (method) {
+      name = node.name.getText();
+      member = ownerKind !== '';
+    }
+    if (node.kind === SyntaxKind.FunctionDeclaration && node.body) {
+      name = node.name?.getText() ?? (hasModifier(node, SyntaxKind.DefaultKeyword) ? 'default' : undefined);
+      nameNode = node.name ?? node;
+    }
+    if ((node.kind === SyntaxKind.VariableDeclaration || node.kind === SyntaxKind.PropertyDeclaration ||
+         node.kind === SyntaxKind.PropertyAssignment) && node.initializer && node.name) {
+      let initializer = node.initializer;
+      while (initializer.kind === SyntaxKind.ParenthesizedExpression) initializer = initializer.expression;
+      const direct = initializer.kind === SyntaxKind.ArrowFunction || initializer.kind === SyntaxKind.FunctionExpression;
+      if (direct) {
+        name = node.name.getText();
+        member = node.kind !== SyntaxKind.VariableDeclaration && ownerKind !== '';
+      } else if (node.kind === SyntaxKind.VariableDeclaration && initializer.kind === SyntaxKind.ObjectLiteralExpression) {
+        const qualifiedObject = scope ? `${scope}::${node.name.getText()}` : node.name.getText();
+        initializer.forEachChild(child => visit(child, qualifiedObject, 'object'));
+        return;
+      } else if (node.kind === SyntaxKind.VariableDeclaration && initializer.kind === SyntaxKind.CallExpression &&
+                 initializer.expression.kind === SyntaxKind.ParenthesizedExpression) {
+        // A closure-producing IIFE is a callable binding, not a second alias of an existing function.
+        const expression = initializer.expression.expression;
+        if (expression.kind === SyntaxKind.ArrowFunction || expression.kind === SyntaxKind.FunctionExpression) {
+          const type = checker.getTypeAtLocation(node.name);
+          if (type && !(type.flags & TypeFlags.Any) && checker.getSignaturesOfType(type, SignatureKind.Call).length) name = node.name.getText();
+        }
+      }
+    }
+    const qualified = name
+      ? (member ? `${scope}${ownerKind === 'class' && !hasModifier(node, SyntaxKind.StaticKeyword) ? '#' : '.'}${name}`
+        : scope ? `${scope}::${name}` : name)
+      : scope;
+    if (name) {
+      if (!actual.has(qualified)) actual.set(qualified, []);
+      actual.get(qualified).push(nameNode);
+    }
+    node.forEachChild(child => visit(child, qualified));
+  };
+  visit(source);
+  return actual;
+}
+
 /** Verify every named declaration in each registered infrastructure module using the shared ledger. */
-export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS, resolved = new Map()) {
+export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS, resolved = new Map(), inventory = null) {
   const api = new API({ cwd: root });
   try {
     const snapshot = api.updateSnapshot({ openProject: 'tsconfig.ownership.json' });
@@ -328,36 +394,7 @@ export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS, re
           failures.push(`Missing tooling AST: ${file}`);
           continue;
         }
-        const actual = new Map();
-        const visit = (node, scope = '', classScope = false) => {
-          if ((node.kind === SyntaxKind.ClassDeclaration || node.kind === SyntaxKind.ClassExpression) && node.name) {
-            const className = node.name.getText();
-            const qualifiedClass = scope ? `${scope}::${className}` : className;
-            node.forEachChild(child => visit(child, qualifiedClass, true));
-            return;
-          }
-          let name;
-          const method = classScope && node.kind === SyntaxKind.MethodDeclaration && node.body && node.name;
-          if (method) name = node.name.getText();
-          if (node.kind === SyntaxKind.FunctionDeclaration && node.body && node.name) name = node.name.getText();
-          if (node.kind === SyntaxKind.VariableDeclaration && node.initializer && node.name.kind === SyntaxKind.Identifier) {
-            const initializer = node.initializer;
-            if (initializer.kind === SyntaxKind.ArrowFunction || initializer.kind === SyntaxKind.FunctionExpression) name = node.name.getText();
-            else if (initializer.kind === SyntaxKind.CallExpression && initializer.expression.kind === SyntaxKind.ParenthesizedExpression) {
-              const type = project.checker.getTypeAtLocation(node.name);
-              if (type && !(type.flags & TypeFlags.Any) && project.checker.getSignaturesOfType(type, SignatureKind.Call).length) name = node.name.getText();
-            }
-          }
-          const qualified = name
-            ? (method ? `${scope}${hasModifier(node, SyntaxKind.StaticKeyword) ? '.' : '#'}${name}` : scope ? `${scope}::${name}` : name)
-            : scope;
-          if (name) {
-            if (!actual.has(qualified)) actual.set(qualified, []);
-            actual.get(qualified).push(node.name);
-          }
-          node.forEachChild(child => visit(child, qualified));
-        };
-        visit(source);
+        const actual = collectNamedDeclarations(source, project.checker);
         const declared = new Set();
         for (const contract of owners) {
           for (const symbol of contract.symbols) {
@@ -374,15 +411,33 @@ export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS, re
           if (!declared.has(symbol)) failures.push(`${file}::${symbol}: missing infrastructure claim`);
         }
       }
+      if (inventory) {
+        for (const filename of project.program.getRootFileNames()) {
+          const module = path.relative(root, filename).replaceAll('\\', '/');
+          if (!/^(src|scripts|tests)\//.test(module) || /\.d\.ts$/.test(module)) continue;
+          const source = project.program.getSourceFile(filename);
+          if (!source) {
+            failures.push(`Missing inventory AST: ${module}`);
+            continue;
+          }
+          for (const [symbol, nodes] of collectNamedDeclarations(source, project.checker)) {
+            for (const node of nodes) {
+              const location = declarationLocation(source, node, root);
+              if (inventory.has(location.identity)) continue;
+              inventory.set(location.identity, { file: location.module, symbol, line: location.line });
+            }
+          }
+        }
+      }
       return failures;
     } finally { snapshot.dispose(); }
   } finally { api.close(); }
 }
 
-export function verifyOwnershipRegistry(rows, root, checkFreshness = true, resolved = new Map()) {
+export function verifyOwnershipRegistry(rows, root, checkFreshness = true, resolved = new Map(), inventory = null) {
   const failures = [...validateDecisionKeys(rows), ...validateRegistry(rows, root)];
   if (failures.length) return failures;
-  failures.push(...validateEntrypointSymbols(rows, root, resolved), ...validateToolingInventory(root, TOOLING_CONTRACTS, resolved));
+  failures.push(...validateEntrypointSymbols(rows, root, resolved), ...validateToolingInventory(root, TOOLING_CONTRACTS, resolved, inventory));
   if (checkFreshness) {
     const current = readFileSync(path.join(root, 'OWNERSHIP_OVERVIEW.md'), 'utf8');
     if (replaceGeneratedBlock(current, renderDecisionTable(rows)) !== current) {
