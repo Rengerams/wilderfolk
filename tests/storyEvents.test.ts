@@ -1,3 +1,6 @@
+import { finishedBuilding } from '../src/test/factories';
+import { storyFlag } from '../src/game/storyHelpers';
+import { maybeOfferRumourLedger } from '../src/game/rumourLedger';
 /**
  * Signature story beats pin their offer guards (once per world / once per election), their
  * resolution effects, and command-validator parity with the UI.
@@ -5,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { isWorkerCommand } from '../src/game/simWorker/commands';
 import { initGame } from '../src/game/gameEngine';
-import type { WorldState } from '../src/game/gameTypes';
+import type { GameEventLog, WorldState } from '../src/game/gameTypes';
 import { BuildingType, EntityType, MapSize } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import {
@@ -510,5 +513,27 @@ describe('ten children shelter quest', () => {
     expect(next.rivalSettlements[0].relationship).toBe('friendly');
     tickChildrenShelter(next);
     expect(next.rivalSettlements[0].relationship).toBe('friendly');
+  });
+});
+
+describe('rumour ledger source scan (L57)', () => {
+  it('reads the newest matching event and records that event id', () => {
+    const state = initGame({ villageName: 'Testholm', size: 'medium', seed: 7 });
+    state.year = 2;
+    state.dayInYear = 0;
+    state.tick = TICKS_PER_DAY * 720;
+    state.buildings.push(finishedBuilding(1, BuildingType.TownHall, { x: 100, y: 100, width: 60, height: 48, rotation: 0 }));
+    state.pendingStoryEvents = [];
+    state.storyFlags = {};
+    const newest: GameEventLog = { id: 777, tick: 700, year: 2, day: 0, type: 'combat', message: 'Raiders repelled at the palisade' };
+    const middle: GameEventLog = { id: 500, tick: 400, year: 1, day: 40, type: 'trade', message: 'A caravan arrived' };
+    const oldest: GameEventLog = { id: 11, tick: 10, year: 0, day: 10, type: 'birth', message: 'A child was born' };
+    state.eventLog = [newest, middle, oldest];
+
+    maybeOfferRumourLedger(state);
+
+    // SOURCE_KINDS order: family, civic, ecology, frontier, scandal → frontier is 4.
+    expect(storyFlag(state, 'rumour_ledger_source_kind')).toBe(4);
+    expect(storyFlag(state, 'rumour_ledger_source_event')).toBe(777);
   });
 });

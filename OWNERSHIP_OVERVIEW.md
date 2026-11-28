@@ -732,6 +732,8 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/dailyEconomy.ledgerEcology.test.ts` | `seedRun`, `human`, `deer`, `building`, `baseState`, `floatingTexts`, `meatText`, `meatAmount`, `huntWorld` (scoped production and research fixtures) |
 | `tests/migration.herds.test.ts` | `herdGame` (seeded herd bookkeeping fixture; shared `setDay` reused) |
 | `tests/pathfinding.terrainRevision.test.ts` | `makeMap` (map cache identity fixture) |
+| `tests/ecologyStage.test.ts` | `world`, `memoryStorage`, `quietValley`, `stressedValley`, `stepUp`, `stepDown`, `walkLadder`, `atStage`, `step` (ladder and warning preference fixtures) |
+| `tests/frontierCombat.raidGold.test.ts` | `rival`, `outgoingEvent` (scoped outgoing raid payoff and news fixtures) |
 | `tests/inventionFair.simulation.test.ts` | `demoCount`, `advanceDays`, `fundedInventionFair` (funded-fair daily regression fixtures) |
 | `tests/tutorialCampaign.test.ts` | `guidedWorld` (guided tutorial fixture) |
 | `tests/dailyChallenges.rewards.test.ts` | `completedPlayerHouse` (challenge progression fixture) |

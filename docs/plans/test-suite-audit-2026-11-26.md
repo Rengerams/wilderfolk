@@ -249,6 +249,10 @@ Migrated all 26 source-only cases from `uxBatch.interactionWindows` and `uxBatch
 
 Moved all 11 cases from `low-7-sim-geometry` to prey validity, map bounds, militia, education, housing, family reference cleanup, strip junction, render snapshot and an isolated realtime Moon Howler suite. Reused the shared test fixtures and preserved the original module-mock isolation and direct GameLoop dirty-key probe. No runtime owner changed. CI pending.
 
+## Combat, ecology and economy owner consolidation — 2026-11-28
+
+Moved all 19 cases from `low-5-combat-ecology` to outgoing raid, weather, storage, economy ledger, statistics, story and rival owner suites plus a dedicated `ecologyStage` suite. Kept warning preferences isolated with their original hooks and reused the storage and earthquake fixtures. All original case counts preserved. CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

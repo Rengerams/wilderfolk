@@ -1,3 +1,6 @@
+import { finishedBuilding } from '../src/test/factories';
+import { BuildingType } from '../src/game/gameTypes';
+import { recordYearlyStats } from '../src/game/stats';
 /**
  * `largestPopulation` tracks the true peak with a running max on every tick, not the
  * year-end sample in `yearlyStats.population.humans`.
@@ -28,5 +31,23 @@ describe('largestPopulation tracks the running peak', () => {
     gameTick(state);
 
     expect(state.lifetimeStats.largestPopulation).toEqual({ count: peak + 5, year: state.year });
+  });
+});
+
+describe('yearly statistics (L69)', () => {
+  it('reports the per-year upgrade delta, not last year delta against the cumulative total', () => {
+    const state = initGame({ villageName: 'Testholm', size: 'medium', seed: 7 });
+    state.buildings = [finishedBuilding(1, BuildingType.House, { x: 100, y: 100, width: 60, height: 48, rotation: 0, level: 3 })];
+
+    const year1 = recordYearlyStats(state, 1);
+    state.yearlyStats.push(year1);
+    const year2 = recordYearlyStats(state, 2);
+    state.yearlyStats.push(year2);
+    const year3 = recordYearlyStats(state, 3);
+
+    expect(year1.buildings.upgraded).toBe(2);
+    expect(year2.buildings.upgraded).toBe(0);
+    expect(year3.buildings.upgraded).toBe(0);
+    expect(year3.buildings.upgradedTotal).toBe(2);
   });
 });

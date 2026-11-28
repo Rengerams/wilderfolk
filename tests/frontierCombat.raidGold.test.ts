@@ -5,6 +5,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
   clampRaidGoldGain,
+  countArmedMilitia,
+  respondToOutgoingRaidEvent,
+  tickPendingOutgoingRaidEvents,
   getRaidGrowthScale,
   getRivalRaidStrength,
   maybeQueueRaid,
@@ -13,7 +16,7 @@ import {
 } from '../src/game/frontierCombat';
 import { computeMilitiaBreakdown } from '../src/game/militiaBalance';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
-import type { Building, Entity, RivalSettlement, WorldState } from '../src/game/gameTypes';
+import type { Building, Entity, OutgoingRaidEvent, RivalSettlement, WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 import { genomeFrom } from './helpers/genome';
@@ -166,5 +169,102 @@ describe('a raid scales with the village it is aimed at', () => {
     // quantity that must not drift with population; a walkover is a ratio of tens.
     expect(Math.max(...ratios) - Math.min(...ratios)).toBeLessThan(0.01);
     expect(ratios[0]).toBeLessThan(1.5);
+  });
+});
+
+describe('outgoing raid payoff, news and militia ownership', () => {
+  function rival(): RivalSettlement {
+    return {
+      id: 'rival-one',
+      name: 'North Camp',
+      campX: 50,
+      campY: 50,
+      population: 6,
+      relationship: 'neutral',
+      foundedYear: 0,
+      daysUntilAction: 10,
+      raidCooldownDays: 10,
+      peaceTreatyDays: 0,
+    };
+  }
+
+  function outgoingEvent(over: Partial<OutgoingRaidEvent> = {}): OutgoingRaidEvent {
+    return {
+      id: 'out_1',
+      rivalId: 'rival-one',
+      rivalName: 'North Camp',
+      title: 'Raid',
+      description: 'Raid',
+      emoji: '🏹',
+      choices: [],
+      createdAtTick: 0,
+      expiresAtTick: 1000,
+      marchDistanceTiles: 10,
+      isCounterRaid: false,
+      rivalResponse: 'payoff_offer',
+      attackerStrength: 100,
+      defenderStrength: 50,
+      lootFood: 40,
+      lootGold: 10,
+      lootWood: 20,
+      lootStone: 5,
+      ...over,
+    };
+  }
+
+  describe('frontierCombat raid spoils (L26, cross-cutting storage-cap clamps)', () => {
+    it('never subtracts stores that already sit above the storage cap', () => {
+      const state = initGame({ villageName: 'Testholm', size: 'medium', seed: 7 });
+      state.rivalSettlements = [rival()];
+      state.resources.food = state.storageMax.food + 60;
+      state.resources.wood = state.storageMax.wood - 10;
+      const overCapFood = state.resources.food;
+      const event = outgoingEvent({ rivalResponse: 'payoff_offer' });
+      state.pendingOutgoingRaidEvents = [event];
+
+      const after = respondToOutgoingRaidEvent(state, event.id, 'accept_payoff');
+
+      // Over-cap stock is left untouched — spoils never clamp a store down…
+      expect(after.resources.food).toBe(overCapFood);
+      // …while a capped store still takes only the headroom that exists.
+      expect(after.resources.wood).toBe(after.storageMax.wood);
+      expect(after.pendingOutgoingRaidEvents ?? []).toHaveLength(0);
+    });
+  });
+
+  describe('frontierCombat big news (L27)', () => {
+    it('mints unique big-news ids when two notices fire on one capped tick', () => {
+      const state = initGame({ villageName: 'Testholm', size: 'medium', seed: 7 });
+      state.tick = 500;
+      state.bigNews = Array.from({ length: 50 }, (_, i) => ({
+        id: `seed_${i}`,
+        title: 'Earlier news',
+        message: 'Earlier news',
+        type: 'neutral' as const,
+        createdAt: 0,
+        dismissed: false,
+      }));
+      state.pendingOutgoingRaidEvents = [
+        outgoingEvent({ id: 'expired_a', rivalId: 'absent_a', rivalName: 'Camp A', expiresAtTick: 500, rivalResponse: 'fight' }),
+        outgoingEvent({ id: 'expired_b', rivalId: 'absent_b', rivalName: 'Camp B', expiresAtTick: 500, rivalResponse: 'fight' }),
+      ];
+
+      tickPendingOutgoingRaidEvents(state);
+
+      const ids = state.bigNews.map((n) => n.id);
+      expect(ids).toHaveLength(50);
+      expect(new Set(ids).size).toBe(50);
+      expect(ids.filter((id) => id.startsWith('bn_'))).toHaveLength(2);
+    });
+  });
+
+  describe('frontierCombat militia count (cross-cutting dead militia rule)', () => {
+    it('counts militia through the militia owner instead of a local arming rule', () => {
+      const state = initGame({ villageName: 'Testholm', size: 'medium', seed: 7 });
+      for (const entity of state.entities) if (entity.alive && entity.type === EntityType.Human) entity.job = JobType.Soldier;
+      const ownerCount = computeMilitiaBreakdown(state, state.entities, { includeStructures: false }).adultCount;
+      expect(ownerCount).toBeGreaterThan(0);
+      expect(countArmedMilitia(state, state.entities)).toBe(ownerCount);
+    });
   });
 });

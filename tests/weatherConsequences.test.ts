@@ -9,6 +9,7 @@ import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { getWeatherFarmMultiplier } from '../src/game/worldEvents';
 import {
   applyDailyWeatherEffects,
+  applyEarthquakeDamageToBuildings,
   applyStormDamageToBuildings,
   HOSTILE_WEATHER_ENABLED,
 } from '../src/game/worldEvents';
@@ -235,5 +236,28 @@ describe('M38 — storm damage never heals a building', () => {
     expect(atFloor.health).toBe(20);
     expect(healthy.health).toBe(94);
     expect(damaged.map((b) => b.id)).toEqual([3]);
+  });
+});
+
+describe('worldEvents earthquake (L79)', () => {
+  it('damages only completed buildings inside the quake radius', () => {
+    const inside = playerHouse(1, 100);
+    const justInside = { ...playerHouse(2, 100), x: 140 };
+    const justOutside = { ...playerHouse(3, 100), x: 180 };
+    const unfinishedInside = { ...playerHouse(5, 100), x: 110, completed: false };
+
+    const damaged = applyEarthquakeDamageToBuildings(
+      [inside, justInside, justOutside, unfinishedInside],
+      100,
+      100,
+      60,
+      1,
+    );
+
+    expect(damaged).toEqual([inside, justInside]);
+    expect(inside.health).toBe(85);
+    expect(justInside.health).toBe(85);
+    expect(justOutside.health).toBe(100);
+    expect(unfinishedInside.health).toBe(100);
   });
 });

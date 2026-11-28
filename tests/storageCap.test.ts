@@ -302,3 +302,9 @@ describe('storage capacity, spoilage and upgrades', () => {
     expect(cfg.maxOccupants).toBe(0);
   });
 });
+
+describe('Silo spoilage lower bound', () => {
+  it('lets one Silo reach the formula 0.8% spoilage instead of clamping it to 1%', () => {
+    expect(capsFor([BuildingType.Silo]).foodSpoilageRate).toBeCloseTo(0.008, 5);
+  });
+});
