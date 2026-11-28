@@ -164,10 +164,11 @@ function canFollowCaregiverDuringLeisure(
   if (siteId == null) return true;
   const workTime = isOnWorkScheduleShift(state, hourOfDay)
     || (isWorkDay(state.tick) && isOnWorkCommuteHours(getWorkSchedule(state), hourOfDay));
-  if (workTime) return false;
+  if (workTime || caregiver.indoorBuildingId === siteId) return false;
   const workplace = buildingById.get(siteId);
+  // A sparse building lookup (e.g. migrated state or a focused fixture) must
+  // not override an explicit indoor-at-work signal on the caregiver entity.
   return !workplace || (!resolveShift(state, caregiver, workplace, hourOfDay).onShift
-    && caregiver.indoorBuildingId !== workplace.id
     && !isCommutingToBuilding(caregiver, workplace));
 }
 
