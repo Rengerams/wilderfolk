@@ -710,19 +710,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // School, sleep and other fixed obligations outrank voluntary child leisure,
-    // even for children without a completed residence or off-screen decision tick.
-    const childMandatoryActivity = entity.age < HUMAN_ADULT_MIN_AGE && (
-      schoolCommuteDue || onSchoolShift || preShiftSleep.headHome
-      || sleepingForNeeds || onDutyForSleep || recoveringSleep || takingNeedsBreak
-      || goingToHospital || inSpotlightGathering || festivalGathering || !allowFreeRoam
-    );
-    // Invalidate a stale child-follow walk before an off-screen tick can resume it.
-    if (entity.age < HUMAN_ADULT_MIN_AGE && entity.childLeisureActivity === 'following') {
-      stopInvalidChildFollowing(
-        state, entity, entityById, buildingById, hourOfDay, childMandatoryActivity,
-      );
-    }
 
     const inFocus = !focus || isInFocus(entity, focus);
     // An off-screen employee must leave the interior at shift end immediately, not wait
@@ -937,6 +924,21 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && canAdvanceCourtship(courtshipPresence, closeCourtshipPresence,
         Math.hypot(closeCourtshipPartner.x - entity.x, closeCourtshipPartner.y - entity.y),
         courtshipPresence.socialTime && closeCourtshipPresence.socialTime);
+
+    // School, sleep and other fixed obligations outrank voluntary child leisure,
+    // even for children without a completed residence or off-screen decision tick.
+    const childMandatoryActivity = entity.age < HUMAN_ADULT_MIN_AGE && (
+      schoolCommuteDue || onSchoolShift || preShiftSleep.headHome
+      || sleepingForNeeds || onDutyForSleep || recoveringSleep || takingNeedsBreak
+      || goingToHospital || inSpotlightGathering || inElectionCeremony
+      || festivalGathering || !allowFreeRoam
+    );
+    // Invalidate a stale child-follow walk before an off-screen tick can resume it.
+    if (entity.age < HUMAN_ADULT_MIN_AGE && entity.childLeisureActivity === 'following') {
+      stopInvalidChildFollowing(
+        state, entity, entityById, buildingById, hourOfDay, childMandatoryActivity,
+      );
+    }
 
     if (!active && !closeCourtshipDue) {
       if (previousIndoorBuildingId != null && buildingById.get(previousIndoorBuildingId)?.completed) {
