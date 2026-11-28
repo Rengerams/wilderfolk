@@ -705,26 +705,8 @@ export default function App() {
       selectedEntityId: null,
       selectedEntityIds: [],
       selectedBuildingId: null,
-      highlightedCampKey: null,
-      selectedCampKey: null,
     });
   }, [loopRef]);
-
-  const focusCampOnMap = useCallback((id: string, x: number, y: number) => {
-    const loop = loopRef.current;
-    if (!loop) return;
-    const campKey = `visitor:${id}`;
-    const nextView = focusCameraOn(loop.getView(), x, y, 1.5);
-    loop.patchView({
-      ...nextView,
-      selectedEntityId: null,
-      selectedEntityIds: [],
-      selectedBuildingId: null,
-      highlightedCampKey: campKey,
-      selectedCampKey: campKey,
-    });
-    setInspectorCollapsed(false);
-  }, [setInspectorCollapsed, loopRef]);
 
   /** Rival settlements are strategic records: focus opens the strategic map, never the colony camera. */
   const focusRivalOnStrategicMap = useCallback(() => {
@@ -741,8 +723,6 @@ export default function App() {
       selectedEntityId: null,
       selectedEntityIds: [],
       selectedBuildingId: buildingId,
-      highlightedCampKey: null,
-      selectedCampKey: null,
     });
     setInspectorCollapsed(false);
   }, [setInspectorCollapsed, loopRef]);
@@ -756,8 +736,6 @@ export default function App() {
       selectedEntityId: entity.id,
       selectedEntityIds: [entity.id],
       selectedBuildingId: null,
-      highlightedCampKey: null,
-      selectedCampKey: null,
     });
     setInspectorCollapsed(false);
   }, [setInspectorCollapsed, loopRef]);
@@ -783,8 +761,6 @@ export default function App() {
         selectedEntityId: nextId,
         selectedEntityIds: [nextId],
         selectedBuildingId: null,
-        selectedCampKey: null,
-        highlightedCampKey: null,
       });
       setInspectorCollapsed(false);
       setView(loop.getView());
@@ -873,13 +849,6 @@ export default function App() {
         selectBuildingType(BuildingType.Farm);
         setBuildPanelOpen(true);
         break;
-      case 'focus_visitor':
-        if (action.visitorId != null && action.visitorX != null && action.visitorY != null) {
-          openTab('frontier');
-          focusCampOnMap(action.visitorId, action.visitorX, action.visitorY);
-          setInspectorCollapsed(false);
-        }
-        break;
       case 'focus_rival':
         if (action.rivalId != null && action.rivalX != null && action.rivalY != null) {
           openTab('frontier');
@@ -898,7 +867,7 @@ export default function App() {
         setBuildPanelOpen(true);
         break;
     }
-  }, [selectBuildingType, focusCampOnMap, focusRivalOnStrategicMap, focusBuildingOnMap, openTab, setProgressSubTab, setInspectorCollapsed, setBuildPanelOpen]);
+  }, [selectBuildingType, focusRivalOnStrategicMap, focusBuildingOnMap, openTab, setProgressSubTab, setInspectorCollapsed, setBuildPanelOpen]);
 
   const handlePriorityAlert = useCallback((alert: PriorityAlert) => {
     playClickSound();
@@ -917,16 +886,11 @@ export default function App() {
         focusRivalOnStrategicMap();
         setInspectorCollapsed(false);
         break;
-      case 'focus_visitor':
-        openTab('frontier');
-        focusCampOnMap(action.groupId, action.x, action.y);
-        setInspectorCollapsed(false);
-        break;
       case 'focus_building':
         focusBuildingOnMap(action.buildingId, action.x, action.y);
         break;
     }
-  }, [selectBuildingType, focusCampOnMap, focusRivalOnStrategicMap, focusBuildingOnMap, openTab, setProgressSubTab, setInspectorCollapsed, setBuildPanelOpen]);
+  }, [selectBuildingType, focusRivalOnStrategicMap, focusBuildingOnMap, openTab, setProgressSubTab, setInspectorCollapsed, setBuildPanelOpen]);
 
   const getViewCamera = useCallback(() => {
     return loopRef.current?.getView().camera ?? viewRef.current.camera;
@@ -1671,17 +1635,6 @@ export default function App() {
                 if (n.focus) {
                   focusWorldCamera(n.focus.x, n.focus.y, 1.5);
                 }
-                // Visitor/rival camp notification — select the camp so the
-                // inspector opens with its talk/trade actions visible.
-                if (n.campKey) {
-                  loopRef.current?.patchView({
-                    selectedCampKey: n.campKey,
-                    selectedEntityId: null,
-                    selectedEntityIds: [],
-                    selectedBuildingId: null,
-                  });
-                  setInspectorCollapsed(false);
-                }
               };
               return (
               <div
@@ -1699,8 +1652,8 @@ export default function App() {
                 <button
                   type="button"
                   onClick={openSubject}
-                  disabled={!n.focus && !n.campKey}
-                  title={n.focus ? (n.campKey ? 'Open camp' : 'Focus location') : n.message}
+                  disabled={!n.focus}
+                  title={n.focus ? 'Focus location' : n.message}
                   className="block w-full rounded-xl px-3 py-2 pr-9 text-left disabled:cursor-default"
                 >
                   <span className="block font-bold leading-tight">{n.title}</span>

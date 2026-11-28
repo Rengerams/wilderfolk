@@ -106,15 +106,8 @@ describe('static entity layer cache identity', () => {
       .not.toBe(layerKey(testWorld({ buildings: [staticBuilding()] })));
   });
 
-  it('repaints when the day advances, so grass and camp countdowns refresh', () => {
-    const camp = { id: 'visitor-1', campX: 200, campY: 200, daysLeft: 2 };
-    const today = testWorld({ visitorGroups: [camp] as unknown as WorldState['visitorGroups'] });
-    const tomorrow = testWorld({
-      dayInYear: 2,
-      visitorGroups: [{ ...camp, daysLeft: 1 }] as unknown as WorldState['visitorGroups'],
-    });
-
-    expect(layerKey(tomorrow)).not.toBe(layerKey(today));
+  it('repaints when the day advances so grass refreshes', () => {
+    expect(layerKey(testWorld({ dayInYear: 2 }))).not.toBe(layerKey(testWorld({ dayInYear: 1 })));
   });
 
   it('reuses the built static revision for a camera-only snapshot rebuild', () => {

@@ -293,12 +293,10 @@ function snapshot(overrides: Partial<RenderSnapshot> = {}): RenderSnapshot {
     juiceEffectsEnabled: true,
     selectedBuilding: null,
     villageLeaderId: null,
-    highlightedCampKey: null,
     buildMode: null,
     buildRotation: 0,
     pendingRaidEvents: [],
     pendingOutgoingRaidEvents: [],
-    visitorGroups: [],
     buildings: [],
     entities: [],
     ...overrides,
@@ -333,12 +331,10 @@ describe('F-RND-4 — the entity-layer key is not rebuilt while its fields hold'
       snapshot({ juiceEffectsEnabled: false }),
       snapshot({ selectedBuilding: { id: 4 } as RenderSnapshot['selectedBuilding'] }),
       snapshot({ villageLeaderId: 5 }),
-      snapshot({ highlightedCampKey: '4,5' }),
       snapshot({ buildMode: BuildingType.House }),
       snapshot({ buildRotation: 90 }),
       snapshot({ pendingRaidEvents: [{}] as RenderSnapshot['pendingRaidEvents'] }),
       snapshot({ pendingOutgoingRaidEvents: [{}] as RenderSnapshot['pendingOutgoingRaidEvents'] }),
-      snapshot({ visitorGroups: [{}] as RenderSnapshot['visitorGroups'] }),
       snapshot({ buildings: [blacksmithBuilding()] }),
       snapshot({ entities: [{}] as RenderSnapshot['entities'] }),
     ];
@@ -512,9 +508,9 @@ describe('D18 — the entity layer key covers what its painters read', () => {
     const preFixKey = (s: RenderSnapshot): string => [
       s.tick, s.hourOfDay, s.showGrid ? 1 : 0, s.showPaths ? 1 : 0,
       s.hoveredBuilding?.id ?? '', s.selectedEntity?.id ?? '', s.selectedBuilding?.id ?? '',
-      s.villageLeaderId ?? '', s.highlightedCampKey ?? '', s.buildMode ?? '', s.buildRotation ?? 0,
+      s.villageLeaderId ?? '', s.buildMode ?? '', s.buildRotation ?? 0,
       s.pendingRaidEvents?.length ?? 0, s.pendingOutgoingRaidEvents?.length ?? 0,
-      s.visitorGroups.length, s.buildings.length, s.entities.length,
+      s.buildings.length, s.entities.length,
     ].join('|');
     const two = snapshot({ selectedEntityIds: [1, 2], selectedEntity: { id: 1 } as RenderSnapshot['selectedEntity'] });
     const one = snapshot({ selectedEntityIds: [1], selectedEntity: { id: 1 } as RenderSnapshot['selectedEntity'] });

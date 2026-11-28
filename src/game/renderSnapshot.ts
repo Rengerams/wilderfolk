@@ -66,7 +66,6 @@ export function renderSnapshotDirtyKey(
     world.deathParticles.length,
     world.pendingRaidEvents?.length ?? 0,
     world.pendingOutgoingRaidEvents?.length ?? 0,
-    world.visitorGroups.length,
     world.buildings.length,
     world.entities.length,
     view.camera.x.toFixed(1),
@@ -80,8 +79,6 @@ export function renderSnapshotDirtyKey(
     view.buildMode ?? '',
     view.buildRotation ?? 0,
     view.favoriteEntityId ?? '',
-    view.highlightedCampKey ?? '',
-    view.selectedCampKey ?? '',
     view.showGrid ? 1 : 0,
     view.showPaths ? 1 : 0,
     view.showLogistics ? 1 : 0,
@@ -147,9 +144,7 @@ export interface RenderSnapshot {
   readonly logistics: LogisticsOverlayData | null;
   readonly festival: WorldState['festival'];
   readonly spotlightLore: WorldState['spotlightLore'];
-  readonly visitorGroups: WorldState['visitorGroups'];
   readonly rivalSettlements: WorldState['rivalSettlements'];
-  readonly highlightedCampKey: string | null;
   readonly ecosystemHealth: number;
   readonly pollutionLevel: number;
   readonly renffrOmen: WorldState['renffrOmen'];
@@ -202,9 +197,6 @@ function staticEntityLayerRevision(world: WorldState): string {
       // is painted per frame, so only the day's real step may re-bake the layer.
       b.completed ? 0 : b.constructionProgress,
     );
-  }
-  for (const group of world.visitorGroups ?? []) {
-    parts.push(group.id, group.campX, group.campY, group.daysLeft);
   }
   return parts.join('|');
 }
@@ -333,9 +325,7 @@ export function buildRenderSnapshot(
     logistics: view.showLogistics ? computeLogisticsOverlayCached(world) : null,
     festival: world.festival,
     spotlightLore: world.spotlightLore,
-    visitorGroups: world.visitorGroups ?? [],
     rivalSettlements: world.rivalSettlements ?? [],
-    highlightedCampKey: view.highlightedCampKey,
     ecosystemHealth: getEcosystemHealth(world),
     pollutionLevel: world.pollutionLevel,
     renffrOmen: world.renffrOmen ?? null,

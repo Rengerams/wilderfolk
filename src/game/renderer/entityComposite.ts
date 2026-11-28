@@ -17,7 +17,7 @@ import { drawGrid } from './grid';
 import { drawGrass } from './grass';
 import { drawHumans, drawHuntChaseLines, drawTradeRouteLines } from './humans';
 import { shouldDrawSpotlightHuman } from './overheadLayout';
-import { drawCampMarkers, drawEcoConnections, drawFloatingTexts } from './markers';
+import { drawEcoConnections, drawFloatingTexts } from './markers';
 import { drawParticles } from './particles';
 import { drawScentOverlay } from './scent';
 import { drawTree, sortedTrees } from './trees';
@@ -68,7 +68,6 @@ function paintWorldEntityLayer(ctx: CanvasContext2d, state: RenderSnapshot, cw: 
   drawGrass(drawCtx, state, cw, ch);
   drawBuildingGroundwork(drawCtx, state, cw, ch);
   drawStaticOccluders(drawCtx, state, cw, ch);
-  drawCampMarkers(drawCtx, state, cw, ch);
 }
 
 /**

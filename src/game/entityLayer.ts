@@ -65,14 +65,12 @@ export function buildEntityLayerKey(state: RenderSnapshot, cw: number, ch: numbe
     state.juiceEffectsEnabled ? 1 : 0,
     state.selectedBuilding?.id ?? '',
     state.villageLeaderId ?? '',
-    state.highlightedCampKey ?? '',
     // A running performance repaints the stage without building level marks (drawBuildings reads it).
     state.spotlightLore?.phase ?? '',
     state.buildMode ?? '',
     state.buildRotation ?? 0,
     state.pendingRaidEvents?.length ?? 0,
     state.pendingOutgoingRaidEvents?.length ?? 0,
-    state.visitorGroups.length,
     state.buildings.length,
     state.entities.length,
   );

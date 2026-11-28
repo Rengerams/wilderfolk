@@ -32,7 +32,6 @@ type FocusHintActionId =
   | 'open_log'
   | 'build_house'
   | 'build_farm'
-  | 'focus_visitor'
   | 'focus_rival'
   | 'focus_blacksmith'
   | 'build_blacksmith';
@@ -40,9 +39,6 @@ type FocusHintActionId =
 export interface FocusHintAction {
   label: string;
   id: FocusHintActionId;
-  visitorId?: string;
-  visitorX?: number;
-  visitorY?: number;
   rivalId?: string;
   rivalX?: number;
   rivalY?: number;
@@ -139,30 +135,14 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
     }
   }
 
-  if (state.visitorGroups.length > 0) {
-    const group = state.visitorGroups[0];
-    hints.push({
-      icon: '🧳',
-      title: `${group.name} on the map`,
-      detail: `Visitors (${group.kind}) stay ${group.daysLeft} more days — click camp to talk to their leader or trade.`,
-      action: {
-        label: 'Show camp',
-        id: 'focus_visitor',
-        visitorId: group.id,
-        visitorX: group.campX,
-        visitorY: group.campY,
-      },
-    });
-  }
-
   if (state.rivalSettlements.length > 0) {
     const rival = state.rivalSettlements[0];
     hints.push({
       icon: '🏕️',
       title: `${rival.name} — ${rival.relationship}`,
-      detail: `${rival.population} rival settlers camped nearby. Gifts, peace, trade pacts, or raids from their camp.`,
+      detail: `${rival.population} rival settlers in a neighboring settlement. Gifts, peace, trade pacts, or raids via the strategic map.`,
       action: {
-        label: 'Show rival camp',
+        label: 'Show rival settlement',
         id: 'focus_rival',
         rivalId: rival.id,
         rivalX: rival.campX,
@@ -173,14 +153,13 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
 
   if (
     humans >= 8
-    && state.visitorGroups.length === 0
     && state.rivalSettlements.length === 0
     && state.year >= 5
   ) {
     hints.push({
       icon: '🗺️',
       title: 'The world will answer',
-      detail: 'Pilgrims, performers, and rival camps arrive as reputation and years grow — keep building toward 25+ population.',
+      detail: 'Rival settlements emerge as your colony grows — keep building toward 25+ population.',
     });
   }
 
