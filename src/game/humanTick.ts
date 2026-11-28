@@ -61,7 +61,7 @@ import {
   getPlayerCampCenterFromBuildings,
   getPlayerSettlerCenter,
 } from './frontierCombat';
-import { idleDestination, stopInvalidChildFollowing, tickHumanLeisure } from './humanLeisureBehavior';
+import { idleDestination, stopSupersededChildLeisure, tickHumanLeisure } from './humanLeisureBehavior';
 import { tickHumanHunting } from './humanHuntingBehavior';
 import {
   HUNTING_PURSUIT_SPEED_MULT,
@@ -933,10 +933,18 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       || goingToHospital || inSpotlightGathering || inElectionCeremony
       || festivalGathering || !allowFreeRoam
     );
-    // Invalidate a stale child-follow walk before an off-screen tick can resume it.
-    if (entity.age < HUMAN_ADULT_MIN_AGE && entity.childLeisureActivity === 'following') {
-      stopInvalidChildFollowing(
-        state, entity, entityById, buildingById, hourOfDay, childMandatoryActivity,
+    // Before the off-screen throttle resumes a cached route, remove stale
+    // following. Also stop leftover play velocity when bedtime has no residence
+    // destination. Never suppress an active school, home, hospital or danger route.
+    const orphanedChildLeisure = !active && childMandatoryActivity
+      && entity.age < HUMAN_ADULT_MIN_AGE && !home?.completed
+      && !schoolCommuteDue && !hospitalCommuteDue && !goingToHospital
+      && !inSpotlightGathering && !inElectionCeremony && !festivalGathering && !huntingWere;
+    if (entity.age < HUMAN_ADULT_MIN_AGE
+      && (entity.childLeisureActivity === 'following' || orphanedChildLeisure)) {
+      stopSupersededChildLeisure(
+        state, entity, entityById, buildingById, hourOfDay,
+        childMandatoryActivity, orphanedChildLeisure,
       );
     }
 
