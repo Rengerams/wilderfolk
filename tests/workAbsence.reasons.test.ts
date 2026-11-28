@@ -127,12 +127,18 @@ describe('the reason a settler is not at their post', () => {
     apprentice.x = 250;
     apprentice.y = 230;
     setProjectedCommuteBuildingId(apprentice, site.id);
+    // A destination alone is not travel: the movement owner requires a moving body too.
+    expect(getHumanActivityProjection(state, apprentice).workReason.code).not.toBe('walking-to-work');
+    apprentice.vx = -1;
+    apprentice.vy = -1;
     const commute = getHumanActivityProjection(state, apprentice);
     expect(commute.schedule.onShift).toBe(false);
     expect(commute.workReason.code).toBe('walking-to-work');
     expect(commute.activity).toBe(`Walking to apprenticeship at ${label}`);
     expect(commute.target?.buildingId).toBe(site.id);
     setProjectedCommuteBuildingId(apprentice, undefined);
+    apprentice.vx = 0;
+    apprentice.vy = 0;
     state.tick = workdayTick(17);
     expect(getHumanActivityProjection(state, apprentice).schedule.onShift).toBe(false);
     expect(getSettlerWorkReason(state, apprentice).code).not.toBe('no-post');
