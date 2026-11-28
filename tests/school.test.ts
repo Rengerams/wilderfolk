@@ -388,6 +388,7 @@ describe('school.roster.test.ts', () => {
       const children = Array.from({ length: SCHOOL_CHILDREN_PER_TEACHER + 2 }, (_, index) => child(9000 + index, 110, 100));
       const tick = classTick();
 
+      syncSchoolAssignments(children, [near, far], false, 6.4);
       const rosters = buildSchoolRosters([near, far], children, tick, 10);
       const nearPupils = rosters.get(near.id)?.pupils ?? [];
       const farPupils = rosters.get(far.id)?.pupils ?? [];
@@ -402,11 +403,21 @@ describe('school.roster.test.ts', () => {
       expect(new Set(all).size).toBe(children.length);
     });
 
+    it('does not invent a school roster entry for an unassigned child', () => {
+      const target = school(8000, 100, 100);
+      const visitor = child(9000, 100, 100);
+      const roster = getSchoolRoster(target, [target], [teacherAt(target, 9001), visitor], classTick(), 10);
+      expect(roster.pupils).toEqual([]);
+      expect(roster.inClassNow).toEqual([]);
+      expect(visitor.schoolBuildingId).toBeUndefined();
+    });
+
     it('enrols no more than the school capacity when one school is the only one', () => {
       const only = school(8000, 100, 100);
       const children = Array.from({ length: SCHOOL_CHILDREN_PER_TEACHER + 2 }, (_, index) => child(9000 + index, 110, 100));
       const tick = classTick();
 
+      syncSchoolAssignments(children, [only], false, 6.4);
       const rosters = buildSchoolRosters([only], children, tick, 10);
       const total = [...rosters.values()].reduce((sum, entry) => sum + entry.pupils.length, 0);
       expect(rosters.get(only.id)?.pupils).toHaveLength(SCHOOL_CHILDREN_PER_TEACHER);
@@ -419,6 +430,7 @@ describe('school.roster.test.ts', () => {
       const children = Array.from({ length: SCHOOL_MAX_CHILDREN + 2 }, (_, index) => child(9000 + index, 110, 100));
       const tick = classTick();
 
+      syncSchoolAssignments(children, [doubled], false, 6.4);
       const rosters = buildSchoolRosters([doubled], children, tick, 10);
       expect(rosters.get(doubled.id)?.pupils).toHaveLength(SCHOOL_MAX_CHILDREN);
       expect([...rosters.values()].reduce((sum, entry) => sum + entry.pupils.length, 0)).toBe(SCHOOL_MAX_CHILDREN);
@@ -439,7 +451,7 @@ describe('school.roster.test.ts', () => {
       const grownUp = child(9000, 110, 100, { isJuvenile: false, age: 30 });
       const rivalChild = child(9001, 110, 100, { faction: 'rival' });
       const deadChild = child(9002, 110, 100, { alive: false });
-      const realChild = child(9003, 110, 100);
+      const realChild = child(9003, 110, 100, { schoolBuildingId: staffed.id });
       const tick = classTick();
 
       const entry = getSchoolRoster(
@@ -455,7 +467,7 @@ describe('school.roster.test.ts', () => {
     it('marks a pupil "in class" only inside the classroom during class hours', () => {
       const staffed = school(8000, 100, 100);
       const tutor = teacherAt(staffed, 9001);
-      const inside = child(9000, staffed.x, staffed.y); // building coordinates are its centre
+      const inside = child(9000, staffed.x, staffed.y, { schoolBuildingId: staffed.id }); // actual persisted seat
       const outside = child(9002, 600, 700, { schoolBuildingId: staffed.id });
       const tick = classTick();
 

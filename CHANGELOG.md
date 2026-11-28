@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026, PR #254):** Centralize school duty and inspector status in education. Classroom rosters and credits require actual persisted seats and witnessed teacher/pupil presence, not speculative enrollment. School hours never count as workplace attendance.
+
 - **Fixed (28 Nov 2026):** Successful human hunts no longer restore stamina or legacy energy; colony food yield is unchanged.
 
 - **Fixed (28 Nov 2026):** Remove the meaningless Settler skill from skill awards, old saves, election merit and the inspector. Preserve real trade skills and unemployment status.

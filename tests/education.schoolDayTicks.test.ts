@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
-import { SCHOOL_DAY_MIN_HOURS, SCHOOL_DAY_MIN_TICKS, SCHOOL_HOURS_PER_DAY, isSchoolTime, creditChildSchoolDay, recordChildSchoolTick } from '../src/game/education';
+import { SCHOOL_DAY_MIN_HOURS, SCHOOL_DAY_MIN_TICKS, SCHOOL_HOURS_PER_DAY, isSchoolTime, creditChildSchoolDay, recordChildSchoolTick, isAttendingSchool, resolveSchoolSchedule, getAssignedSchool } from '../src/game/education';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { buildingAccessPoint } from '../src/game/buildingAccess';
 
@@ -16,6 +16,7 @@ function child(overrides: Partial<Entity> = {}): Entity {
     name: 'Kid',
     alive: true,
     isJuvenile: true,
+    age: 16,
     ...overrides,
   } as Entity;
 }
@@ -84,14 +85,32 @@ describe('school-day credit needs the teacher there', () => {
   /** A pupil standing exactly where the tick sends them at this school. */
   function pupilAt(target: Building): Entity {
     const spot = buildingAccessPoint(target);
-    return child({ x: spot.x, y: spot.y });
+    return child({ x: spot.x, y: spot.y, schoolBuildingId: target.id });
   }
 
   it('credits a classroom tick while the teacher is there', () => {
     const target = school([900]);
     const kid = pupilAt(target);
     recordChildSchoolTick(kid, target, 10, true, classTick());
+    expect(isAttendingSchool(kid, target, 10, true, classTick())).toBe(true);
+    expect(isAttendingSchool(child({ x: kid.x, y: kid.y }), target, 10, true, classTick())).toBe(false);
     expect(kid.schoolTicksToday).toBe(1);
+  });
+
+  it('uses the persisted seat and school shift for a sixteen-year-old', () => {
+    const target = school([900]);
+    const kid = child({ schoolBuildingId: target.id, x: target.x, y: target.y });
+    expect(getAssignedSchool(kid, [target])).toBe(target);
+    expect(resolveSchoolSchedule(kid, target, undefined, classTick(), 10)).toEqual({ onShift: true, commuteDue: false });
+    expect(getAssignedSchool(child({ x: target.x, y: target.y }), [target])).toBeUndefined();
+    expect(resolveSchoolSchedule(kid, undefined, undefined, classTick(), 10).onShift).toBe(false);
+  });
+
+  it('cannot award attendance to an unassigned child without that school seat', () => {
+    const target = school([900]);
+    const visitor = child({ x: target.x, y: target.y });
+    recordChildSchoolTick(visitor, target, 10, true, classTick());
+    expect(visitor.schoolTicksToday ?? 0).toBe(0);
   });
 
   it('credits nothing while no teacher is at the school', () => {
@@ -103,7 +122,7 @@ describe('school-day credit needs the teacher there', () => {
 
   it('credits nothing for a child who is not at the school', () => {
     const target = school([900]);
-    const kid = child({ x: 900, y: 900 });
+    const kid = child({ x: 900, y: 900, schoolBuildingId: target.id });
     recordChildSchoolTick(kid, target, 10, true, classTick());
     expect(kid.schoolTicksToday ?? 0).toBe(0);
   });

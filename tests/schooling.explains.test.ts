@@ -7,6 +7,7 @@ import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import {
   SCHOOL_MAX_CHILDREN,
+  syncSchoolAssignments,
   describeSchoolingSummary,
   getSchoolingBlockReason,
   summarizeSchooling,
@@ -79,16 +80,28 @@ describe('the schooling owner explains an empty classroom', () => {
     const before = summarizeSchooling(village(children, [school(50, [])]), CLASS_TICK, CLASS_HOUR);
     expect(before.outOfSchool).toEqual([{ reason: 'School has no teacher assigned', count: 8 }]);
 
-    const staffed = summarizeSchooling(village(children, [school(50, [900])]), CLASS_TICK, CLASS_HOUR);
+    const opened = school(50, [900]);
+    syncSchoolAssignments(children, [opened], false, 6.4);
+    const staffed = summarizeSchooling(village(children, [opened]), CLASS_TICK, CLASS_HOUR);
     expect(staffed.outOfSchool).toEqual([]);
     expect(staffed.enrolled).toBe(8);
     expect(describeSchoolingSummary(staffed).lines).toEqual([]);
   });
 
+  it('shows a real unassigned child as awaiting enrollment instead of silently counting a hypothetical seat', () => {
+    const unassigned = child(1, 7, 100, 100);
+    const classroom = school(50, [900]);
+    const summary = summarizeSchooling(village([unassigned], [classroom]), CLASS_TICK, CLASS_HOUR);
+    expect(summary.enrolled).toBe(0);
+    expect(summary.outOfSchool).toEqual([{ reason: 'Awaiting school assignment', count: 1 }]);
+  });
+
   it('names the full classroom and leaves no child unaccounted for', () => {
     const children = Array.from({ length: SCHOOL_MAX_CHILDREN + 5 }, (_, i) =>
       child(i + 1, 7, 100, 100));
-    const summary = summarizeSchooling(village(children, [school(50, [900, 901])]), CLASS_TICK, CLASS_HOUR);
+    const classroom = school(50, [900, 901]);
+    syncSchoolAssignments(children, [classroom], false, 6.4);
+    const summary = summarizeSchooling(village(children, [classroom]), CLASS_TICK, CLASS_HOUR);
 
     expect(summary.schoolAge).toBe(SCHOOL_MAX_CHILDREN + 5);
     expect(summary.enrolled).toBe(SCHOOL_MAX_CHILDREN);
@@ -100,11 +113,15 @@ describe('the schooling owner explains an empty classroom', () => {
     const children = Array.from({ length: SCHOOL_CHILDREN_PER_TEACHER + 3 }, (_, i) =>
       child(i + 1, 7, 100, 100));
 
-    const oneTeacher = summarizeSchooling(village(children, [school(50, [900])]), CLASS_TICK, CLASS_HOUR);
+    const first = school(50, [900]);
+    syncSchoolAssignments(children, [first], false, 6.4);
+    const oneTeacher = summarizeSchooling(village(children, [first]), CLASS_TICK, CLASS_HOUR);
     expect(oneTeacher.enrolled).toBe(SCHOOL_CHILDREN_PER_TEACHER);
     expect(oneTeacher.outOfSchool).toEqual([{ reason: 'Every classroom is full', count: 3 }]);
 
-    const twoTeachers = summarizeSchooling(village(children, [school(50, [900, 901])]), CLASS_TICK, CLASS_HOUR);
+    const expanded = school(50, [900, 901]);
+    syncSchoolAssignments(children, [expanded], false, 6.4);
+    const twoTeachers = summarizeSchooling(village(children, [expanded]), CLASS_TICK, CLASS_HOUR);
     expect(twoTeachers.enrolled).toBe(children.length);
     expect(twoTeachers.outOfSchool).toEqual([]);
   });
@@ -126,7 +143,7 @@ describe('the schooling owner explains an empty classroom', () => {
     farChild.schoolBuildingId = 50;
     // The teacher on the school's worker row: a class counts only while they are there.
     const tutor = { ...child(900, 30, 100, 120), isJuvenile: false } as Entity;
-    const state = village([child(1, 7, 100, 100), farChild, tutor], [school(50, [900])]);
+    const state = village([Object.assign(child(1, 7, 100, 100), { schoolBuildingId: 50 }), farChild, tutor], [school(50, [900])]);
     const summary = summarizeSchooling(state, CLASS_TICK, CLASS_HOUR);
 
     expect(summary.classHours).toBe(isSchoolTime(CLASS_TICK, CLASS_HOUR));

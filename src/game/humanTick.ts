@@ -53,9 +53,9 @@ import {
   hasTeacherPresent,
   syncSchoolAssignments,
   recordChildSchoolTick,
-  isSchoolTime,
-  isChildAtSchool,
-  SCHOOL_START_HOUR,
+  isAttendingSchool,
+  isSchoolAge,
+  resolveSchoolSchedule,
 } from './education';
 import {
   getPlayerCampCenterFromBuildings,
@@ -532,15 +532,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (isPlayerHuman(e)) applyEducationGraduation(state, e);
     });
 
-    const schoolTarget = schoolAssignments.get(entity.id);
+    const schoolTarget = isSchoolAge(entity) ? schoolAssignments.get(entity.id) : undefined;
 
     if (schoolTarget) {
       // Schoolyard rumours and new bonds run once per day at noon, when an awake child is at school.
       if (
         hourOfDay === 12 &&
-        isSchoolTime(state.tick, hourOfDay) &&
-        isChildAtSchool(entity, schoolTarget) &&
-        schoolsWithTeacherPresent.has(schoolTarget.id) &&
+        isAttendingSchool(entity, schoolTarget, hourOfDay, schoolsWithTeacherPresent.has(schoolTarget.id), state.tick) &&
         isStartOfClockHour(state.tick) &&
         !isAsleepAtHome(entity, buildingById, hourOfDay)
       ) {
@@ -563,18 +561,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.id,
       commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace), config.speed),
     ));
-    const onSchoolShift = schoolTarget != null && isSchoolTime(state.tick, hourOfDay);
     const schoolResidence = entity.residenceBuildingId == null
       ? undefined : buildingById.get(entity.residenceBuildingId);
-    const schoolQuote = schoolTarget
-      ? quoteBuildingCommute(schoolResidence ?? entity, schoolTarget, config.speed)
-      : null;
-    // Existing pupils depart conservatively while new route evidence is pending.
-    const schoolLeadHours = schoolQuote?.status === 'priced'
-      ? Math.min(MAX_ASSIGNABLE_COMMUTE_HOURS, Math.ceil(schoolQuote.leadHours))
-      : schoolTarget ? MAX_ASSIGNABLE_COMMUTE_HOURS : 0;
-    const schoolCommuteDue = schoolTarget != null && isWorkDay(state.tick)
-      && hourOfDay >= SCHOOL_START_HOUR - schoolLeadHours && hourOfDay < SCHOOL_START_HOUR;
+    const { onShift: onSchoolShift, commuteDue: schoolCommuteDue } = resolveSchoolSchedule(
+      entity, schoolTarget, schoolResidence, state.tick, hourOfDay, config.speed,
+    );
     const onDayJobShift = (goWorkTime && shift.next.kind === 'day' && shift.onShift) || onSchoolShift;
     const venueWorkerIndex = workplace ? workplace.occupants.indexOf(entity.id) : -1;
     const onTavernShift = isInnkeeper && shift.onShift;
@@ -692,7 +683,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Pregnancy hospital priority outranks the shift: the settler still owes the duty hours, but
     // standing at a post they are leaving is not verified work.
     const goingToHospital = isPregnancyHospitalPriority(entity, staffedHospitals.length > 0);
-    if (isPlayerHuman(entity) && !entity.raidDeploymentId && (onJobShift)) {
+    if (isPlayerHuman(entity) && !entity.raidDeploymentId && workplace != null && shift.onShift) {
       // A construction crew has no regular workerBuildingId. Its resolved workplace supplies
       // the witnessed site and trade through the existing attendance recorders.
       const attendedJob = apprenticeSite

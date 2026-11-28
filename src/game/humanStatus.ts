@@ -10,6 +10,8 @@ import { EVENING_START } from './dayCycle';
 import { isAsleepAtHome, isFestivalGatherer, prefersHomeTonightFor } from './humanSchedule';
 import { isNearResidence } from './housingModel';
 import { getWorkSchedule, getWorkScheduleLabel } from './workSchedule';
+import { getAssignedSchool, isSchoolAge, isAttendingSchool, hasTeacherPresent,
+  isSchoolTime, isChildAtSchool, resolveSchoolSchedule, SCHOOL_START_HOUR, SCHOOL_END_HOUR } from './education';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { isCommutingToBuilding } from './simulation/humanMovement';
 import { BUILDING_CONFIGS } from './gameTypes';
@@ -47,7 +49,7 @@ function childPlayCompanionLabel(state: WorldState, entity: Entity, companion: E
 }
 
 export type HumanActivityTarget = {
-  kind: 'workplace' | 'home' | 'nearby-building' | 'hunt' | 'combat' | 'playmate' | 'guardian' | 'play-site';
+  kind: 'school' | 'workplace' | 'home' | 'nearby-building' | 'hunt' | 'combat' | 'playmate' | 'guardian' | 'play-site';
   label: string;
   buildingId?: number;
   entityId?: number;
@@ -93,6 +95,10 @@ export function getHumanActivityStatus(
   entity: Entity,
   workReason?: SettlerWorkReason,
   assignment: WorkplaceResolution = resolveHumanWorkplace(entity, state.buildings, state.entities),
+  school = getAssignedSchool(entity, state.buildings),
+  schoolSchedule = resolveSchoolSchedule(entity, school,
+    state.buildings.find((building) => building.id === entity.residenceBuildingId),
+    state.tick, getHourOfDay(state.tick)),
 ): string {
   workReason ??= getSettlerWorkReason(state, entity, assignment);
   if (!entity.alive) return 'Dead';
@@ -100,13 +106,14 @@ export function getHumanActivityStatus(
   // Hospital travel and admission are activities in their own right, not free time.
   if (workReason.code === 'going-to-hospital') return 'Walking to hospital';
   if (workReason.code === 'in-hospital') return 'In hospital';
+  if (workReason.code === 'in-prison') return 'In prison';
 
   const hourOfDay = getHourOfDay(state.tick);
   const festivalActive = state.festival?.active;
   const { workplace, trainingSite } = assignment;
   const onWorkSchedule = !entity.isJuvenile && workplace != null && resolveShift(state, entity, workplace, hourOfDay).onShift;
   // The verdict is the simulation owner's, so the label cannot drift from what the settler does.
-  if (isFestivalGatherer(hourOfDay, festivalActive, onWorkSchedule || workReason.code === 'walking-to-work', entity.job === JobType.Innkeeper)) {
+  if (isFestivalGatherer(hourOfDay, festivalActive, onWorkSchedule || workReason.code === 'walking-to-work' || schoolSchedule.onShift || schoolSchedule.commuteDue, entity.job === JobType.Innkeeper)) {
     return 'Gathering at festival';
   }
 
@@ -123,6 +130,14 @@ export function getHumanActivityStatus(
     }
   }
   if (isAsleepAtHome(entity, state.buildings, hourOfDay, onWorkSchedule)) return 'Sleeping';
+
+  if (school && (schoolSchedule.onShift || schoolSchedule.commuteDue)) {
+    const teacherPresent = hasTeacherPresent(school, new Map(state.entities.map((person) => [person.id, person])));
+    if (isAttendingSchool(entity, school, hourOfDay, teacherPresent, state.tick)) return 'Attending school';
+    if (isChildAtSchool(entity, school)) return schoolSchedule.onShift ? 'Waiting for teacher' : 'Waiting for class';
+    return isCommutingToBuilding(entity, school) ? 'Walking to school' : 'Away from school';
+  }
+  if (isSchoolAge(entity) && isSchoolTime(state.tick, hourOfDay) && !school) return 'No assigned school seat';
 
   // The movement owner records both scheduled and leisure homeward journeys.
   const childHome = entity.isJuvenile && entity.residenceBuildingId != null
@@ -217,11 +232,17 @@ export function getHumanActivityProjection(
     ? null
     : state.buildings.find((building) => building.id === entity.residenceBuildingId) ?? null;
   const workReason = getSettlerWorkReason(state, entity, assignment);
-  const activity = getHumanActivityStatus(state, entity, workReason, assignment);
+  const school = getAssignedSchool(entity, state.buildings);
+  const schoolSchedule = resolveSchoolSchedule(entity, school, homeBuilding ?? undefined, state.tick, hour);
+  const activity = getHumanActivityStatus(state, entity, workReason, assignment, school, schoolSchedule);
   const shift = resolveShift(state, entity, workplace, hour);
   const target: HumanActivityTarget | null = (() => {
     // A hospital-bound or admitted settler is not walking a workplace leg, so claim no post target.
-    if (workReason.code === 'going-to-hospital' || workReason.code === 'in-hospital') return null;
+    if (workReason.code === 'going-to-hospital' || workReason.code === 'in-hospital' || workReason.code === 'in-prison') return null;
+    if (school && (schoolSchedule.onShift || schoolSchedule.commuteDue)
+      && ['Attending school', 'Waiting for teacher', 'Waiting for class', 'Walking to school', 'Away from school'].includes(activity)) {
+      return { kind: 'school', label: labelFor(school), buildingId: school.id, ...buildingAccessPoint(school) };
+    }
     const onWorkSchedule = !entity.isJuvenile && workplace != null && shift.onShift;
     if (workplace && (onWorkSchedule || workReason.code === 'walking-to-work')) {
       const point = buildingAccessPoint(workplace);
@@ -290,7 +311,12 @@ export function getHumanActivityProjection(
 
   return {
     activity,
-    schedule: {
+    schedule: isSchoolAge(entity) ? {
+      label: 'School — weekdays 09:00–15:00',
+      startHour: SCHOOL_START_HOUR,
+      endHour: SCHOOL_END_HOUR,
+      onShift: isSchoolTime(state.tick, hour),
+    } : {
       label: entity.isJuvenile ? 'Child — no work schedule'
         : shift.next.kind === 'venue' ? 'Individual venue shift' : getWorkScheduleLabel(schedule),
       startHour: shift.next.kind === 'venue' ? shift.next.hour : schedule.startHour,
