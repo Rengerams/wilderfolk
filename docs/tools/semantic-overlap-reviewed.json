@@ -250,24 +250,21 @@
       "key": "src/game/EventLogPanel.tsx:142:downloadLogFile@f62ca08ad026db9a20abfd8a9b1d18d9b942a2fcb231b9b990c7632de65f8a63 <-> src/game/EventLogPanel.tsx:147:downloadLogJSON@d885e6851237dd0b610cb032c936b5ffcb812032a5ff7ece1280a22b95c9a7b9",
       "reason": "One shared download helper plus three format writers (JSON, CSV, text). The formats differ in MIME type, escaping and column layout; the shared helper owns the anchor/blob/revoke lifecycle. Collapsing the three would lose the player-facing format choice, which the log panel now exports over the full stored set.",
       "tests": [
-        "tests/eventLogPanel.filters.test.ts",
-        "tests/uxBatch.onboardingAndLogs.test.ts"
+        "tests/eventLogPanel.filters.test.ts"
       ]
     },
     {
       "key": "src/game/EventLogPanel.tsx:142:downloadLogFile@f62ca08ad026db9a20abfd8a9b1d18d9b942a2fcb231b9b990c7632de65f8a63 <-> src/game/EventLogPanel.tsx:152:downloadLogCSV@92d40762678bdc4efb4161b0a52f8b61ff38a5ab776d735e1387d524590fae36",
       "reason": "One shared download helper plus three format writers (JSON, CSV, text). The formats differ in MIME type, escaping and column layout; the shared helper owns the anchor/blob/revoke lifecycle. Collapsing the three would lose the player-facing format choice, which the log panel now exports over the full stored set.",
       "tests": [
-        "tests/eventLogPanel.filters.test.ts",
-        "tests/uxBatch.onboardingAndLogs.test.ts"
+        "tests/eventLogPanel.filters.test.ts"
       ]
     },
     {
       "key": "src/game/EventLogPanel.tsx:147:downloadLogJSON@d885e6851237dd0b610cb032c936b5ffcb812032a5ff7ece1280a22b95c9a7b9 <-> src/game/EventLogPanel.tsx:152:downloadLogCSV@92d40762678bdc4efb4161b0a52f8b61ff38a5ab776d735e1387d524590fae36",
       "reason": "One shared download helper plus three format writers (JSON, CSV, text). The formats differ in MIME type, escaping and column layout; the shared helper owns the anchor/blob/revoke lifecycle. Collapsing the three would lose the player-facing format choice, which the log panel now exports over the full stored set.",
       "tests": [
-        "tests/eventLogPanel.filters.test.ts",
-        "tests/uxBatch.onboardingAndLogs.test.ts"
+        "tests/eventLogPanel.filters.test.ts"
       ]
     },
     {

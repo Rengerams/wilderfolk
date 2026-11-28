@@ -344,6 +344,104 @@ const GUARDS = [
  */
 const SOURCE_ROWS = [
   {
+    id: "overlay-window-keyboard-ownership",
+    checks: [
+      { file: "src/components/WorkHoursWindow.tsx", contains: ["from '../hooks/useOverlayKeyboard'", "useOverlayKeyboard('work-hours-window', onClose)"] },
+      { file: "src/components/FamilyTreeWindow.tsx", contains: ["from '../hooks/useOverlayKeyboard'", "useOverlayKeyboard('family-tree-window', onClose)"] },
+      { file: "src/hooks/useOverlayKeyboard.ts", contains: ["claimKeyboard(owner)"] },
+    ],
+  },
+  {
+    id: "bulk-strip-demolition-confirmation",
+    checks: [
+      { file: "src/hooks/useCanvasInteractions.ts", contains: ["setPendingStripDemolition(buildingIds)", "confirmStripDemolition"] },
+    ],
+  },
+  {
+    id: "overlay-window-stacking",
+    checks: [
+      { file: "src/components/WorkHoursWindow.tsx", contains: ["onClose={onClose} centered"] },
+      { file: "src/components/ShortcutsOverlay.tsx", contains: ["z-[60]"] },
+    ],
+  },
+  {
+    id: "family-tree-visible-generation-bound",
+    checks: [
+      { file: "src/components/FamilyTreeWindow.tsx", contains: ["Math.max(1, ...tree.rows.map((row) => Math.abs(row.delta)))", "visibleRows.reduce"], notContains: ["[2, 3, 4, 5, 6]", "${tree.memberCount} people drawn"] },
+    ],
+  },
+  {
+    id: "camera-pan-preserves-selection",
+    checks: [
+      { file: "src/hooks/useCanvasInteractions.ts", contains: ["const pointerMovedRef = useRef(false);"], matches: [/const origin = clickOriginRef\.current;\n\s*if \(origin && e\) \{\n\s*const dx = e\.clientX - origin\.x;\n\s*const dy = e\.clientY - origin\.y;\n\s*pointerMovedRef\.current = dx \* dx \+ dy \* dy > 16;/, /if \(pointerMovedRef\.current\) \{\n\s*pointerMovedRef\.current = false;\n\s*return;\n\s*\}/, /pointerMovedRef\.current = false;\n\s*stripPlacedOnMouseUpRef\.current = false;\n\s*if \(gameplayActive && e\.button === 0\)/] },
+    ],
+  },
+  {
+    id: "catalogue-optional-sprite-fallback",
+    checks: [
+      { file: "src/components/BuildCatalogPanel.tsx", contains: ["(config.sprite || type === BuildingType.GroundReinforcement) ? (", "'/sprites/ground_soil.png' : config.sprite", ") : (", "{config.emoji}"] },
+    ],
+  },
+  {
+    id: "taming-picker-owner-and-all-candidates",
+    checks: [
+      { file: "src/components/SelectedEntityPanel.tsx", contains: ["{availableHumans.map(h => (", "{availableHumans.length} available:", "getTameEntityEligibility(state, entity.id, availableHumans[0].id).blockReason", "const tameDisabled = tameFoodCost != null && !canAffordTame;", "disabled={tameDisabled}", "{tameBlockReason && ("], notContains: ["availableHumans.slice(0, 4)"] },
+    ],
+  },
+  {
+    id: "settler-card-person-name",
+    checks: [
+      { file: "src/components/SelectedEntityPanel.tsx", contains: ["{citizenFullName(entity)}"], notContains: ["Citizen #{entity.id}"] },
+    ],
+  },
+  {
+    id: "collapsed-build-rail-hotkey",
+    checks: [
+      { file: "src/components/GameBuildRail.tsx", contains: ["<kbd className=\"rounded bg-stone-800 px-1 text-[10px] font-bold text-stone-400\">B</kbd>"], notContains: ["title=\"Build catalog on the left · press B\""] },
+    ],
+  },
+  {
+    id: "guide-shortcuts-wiring",
+    checks: [
+      { file: "src/components/tabPanels/MoreTabPanel.tsx", contains: ["onOpenShortcuts?: () => void;", "Open the shortcut sheet"] },
+      { file: "src/components/CitizenOverviewScreen.tsx", contains: ["onOpenShortcuts={onOpenShortcuts}"] },
+      { file: "src/App.tsx", contains: ["onOpenShortcuts={() => setShowShortcuts(true)}"] },
+    ],
+  },
+  {
+    id: "single-chapter-moment-card",
+    checks: [
+      { file: "src/hooks/useTransientGameFeedback.ts", contains: ["activeChapterMoment: pendingChapterCard,"], notContains: ["momentCard"] },
+      { file: "src/App.tsx", contains: ["<MomentTitleCard moment={activeChapterMoment} onDone={dismissChapterCard} />"], notContains: ["dismissMomentCard"] },
+    ],
+  },
+  {
+    id: "inspector-diagnostics-and-regions",
+    checks: [
+      { file: "src/components/GameInspector.tsx", contains: ["role=\"region\" aria-label=\"Inspector (collapsed)\"", "role=\"region\" aria-label=\"Inspector (nothing selected)\"", "role=\"region\" aria-label=\"Inspector\""], region: [{ from: "if (!hasSelection)", to: "return (\n    <div role=\"region\" aria-label=\"Inspector\" className=\"flex flex-col\">", contains: "{diagnostics}" }] },
+    ],
+  },
+  {
+    id: "concern-log-intent-wiring",
+    checks: [
+      { file: "src/components/dashboard/GameDashboard.tsx", contains: ["raid: { subTab: 'combat', filter: 'combat' }", "howler: { subTab: 'chronicle', filter: 'event' }", "Log →"] },
+      { file: "src/hooks/useGameShellState.ts", contains: ["setLogFilter(filter);"] },
+      { file: "src/components/tabPanels/LogTabPanel.tsx", contains: ["initialFilter={logFilter}", "onFilterChange={setLogFilter}"] },
+    ],
+  },
+  {
+    id: "retired-sidebar-css",
+    checks: [
+      { file: "src/App.css", contains: [".game-view-drawer--build {", ".game-view-drawer--rail {", ".build-panel-toggle"], notMatches: [/\.sidebar-tab/, /sidebar-tabs/, /game-view-drawer--dock/], example: [".sidebar-tab {}", "sidebar-tabs {}", "game-view-drawer--dock {}"] },
+    ],
+  },
+  {
+    id: "biodiversity-index-scale",
+    checks: [
+      { file: "src/components/tabPanels/NatureTabPanel.tsx", contains: ["BIODIVERSITY_SCALE", "of {BIODIVERSITY_SCALE.max.toFixed(2)} max", "const BIODIVERSITY_SPECIES_COUNT = 6;", "Math.log(BIODIVERSITY_SPECIES_COUNT)"] },
+    ],
+  },
+  {
     id: 'dynasty-panel-reads-chronicle-predicate',
     checks: [
       { file: 'src/components/tabPanels/DynastyPanel.tsx', notContains: 'generationsAlive >= 2', example: 'dynasty.generationsAlive >= 2' },
