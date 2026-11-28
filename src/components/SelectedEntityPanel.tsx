@@ -318,11 +318,17 @@ export default function SelectedEntityPanel({
                 </p>
               );
             })()}
-            {/* Progress builds before `affairPartnerId` is set at 100, so a brewing affair is shown
-                without a name; only an established pair has a paramour to name. */}
-            {entity.affairPartnerId == null && (entity.affairProgress ?? 0) > 0 && (
-              <p className="text-rose-300/70">💋 Secret affair brewing ({Math.round(entity.affairProgress ?? 0)}%)</p>
-            )}
+            {/* Pending progress has its own reciprocal partner identity: no anonymous 100%. */}
+            {entity.affairPartnerId == null && entity.affairCandidateId != null && (() => {
+              const candidate = allEntities.find((person) =>
+                person.id === entity.affairCandidateId && person.alive
+                && person.affairCandidateId === entity.id);
+              return candidate ? (
+                <p className="text-rose-300/70">
+                  💋 Secret affair developing with {citizenFullName(candidate)} ({Math.round(entity.affairProgress ?? 0)}%)
+                </p>
+              ) : null;
+            })()}
             {entity.isBastard && <p className="text-violet-300">⚜ Born outside wedlock</p>}
             {childCount > 0 && (
               <p className="text-pink-200">
