@@ -202,6 +202,8 @@ describe('human lifecycle golden contracts', () => {
     expect(child?.id).toBe(NEWBORN_ID);
     expect(child?.motherId).toBe(MATERNAL_ID);
     expect(child?.fatherId).toBe(FATHER_ID);
+    expect(state.genealogyRegistry?.people[String(FATHER_ID)]?.childrenIds).toContain(NEWBORN_ID);
+    expect(state.genealogyRegistry?.people[String(MATERNAL_ID)]?.childrenIds).toContain(NEWBORN_ID);
     expect(child?.age).toBe(0);
     expect(ctx.entityById.get(NEWBORN_ID)).toBe(child);
     expect(mother.childrenIds).toContain(NEWBORN_ID);
@@ -540,7 +542,9 @@ describe('human lifecycle golden contracts', () => {
     const newHusband = human(HUSBAND_ID, { partnerId: MATERNAL_ID });
     const mother = human(MATERNAL_ID, { partnerId: FATHER_ID });
     const { state, ctx } = makeFixture([mother, father, newHusband]);
-    startPregnancy(mother, { origin: 'married', fatherId: scenario === 'unknown father' ? undefined : FATHER_ID, startDay: 1 });
+    startPregnancy(mother, { origin: 'married', fatherId: FATHER_ID, startDay: 1 });
+    // Legacy saves may lack recoverable paternity; never attribute it to a later spouse.
+    if (scenario === 'unknown father') mother.pregnantById = null;
     mother.partnerId = HUSBAND_ID;
     father.partnerId = undefined;
     father.relationshipStatus = 'single';
@@ -557,6 +561,15 @@ describe('human lifecycle golden contracts', () => {
     expect(child.fatherId).toBe(scenario === 'unknown father' ? undefined : FATHER_ID);
     expect(newHusband.childrenIds).not.toContain(child.id);
     expect(mother.relationshipStatus).toBe('married');
+  });
+
+  it('rejects a missing or self-referencing father before starting pregnancy', () => {
+    const mother = human(MATERNAL_ID);
+    expect(() => startPregnancy(mother, { origin: 'married', fatherId: MATERNAL_ID, startDay: 1 })).toThrow();
+    expect(mother.pregnant).not.toBe(true);
+    expect(() => createEntity(EntityType.Human, 10, 10, MATERNAL_ID, 100, false, {
+      gender: 'female', pregnant: true, fatherId: FATHER_ID,
+    })).toThrow();
   });
 
   it('gives an arriving pregnant immigrant and a colony conception the same pregnancy state', () => {
