@@ -2254,15 +2254,17 @@ export function relocateJobSeekerForVacancy(
   });
   const commuteProbe = eligibleAdults[0];
   for (const home of homes) {
+    // Don't spend a routed-commute search on a full home or an already housed unit.
+    const fitting = units.filter((unit) => unit[0].residenceBuildingId !== home.id
+      && familyFitsInResidence(unit, home, alive, context.occupancy));
+    if (fitting.length === 0) continue;
     // All candidates for this home share the exact same home-to-post route.
     // A geometrically nearby but disconnected home is never proof of a commute.
     if (!isWithinAssignableCommute(
       { ...commuteProbe, residenceBuildingId: home.id },
       workplace, buildings, walkSpeed, buildingById,
     )) continue;
-    for (const unit of units) {
-      if (unit[0].residenceBuildingId === home.id) continue;
-      if (!familyFitsInResidence(unit, home, alive, context.occupancy)) continue;
+    for (const unit of fitting) {
       if (!pupilsKeepSchoolReach(unit, home, buildings, walkSpeed, schoolQuotes, buildingById)) continue;
       if (relocateHousehold(unit, home.id, 'commute', 'commute', context)) return true;
     }
