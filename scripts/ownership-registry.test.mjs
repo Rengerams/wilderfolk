@@ -33,7 +33,7 @@ test('missing paths, duplicate decisions and conflicting primary claims fail', (
   assert.ok(validateRegistry([sample, { ...sample, key: 'other' }], '/', () => true).some(message => message.includes('primary entrypoint claimed')));
 });
 
-test('compiler verifies callable declarations in their owning module and scope', () => {
+test('compiler verifies callable declarations in their owning module and scope', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'wilderfolk-ownership-'));
   try {
     mkdirSync(path.join(root, 'src/game'), { recursive: true });
@@ -41,21 +41,39 @@ test('compiler verifies callable declarations in their owning module and scope',
       compilerOptions: { strict: true, target: 'ES2022', module: 'ESNext', moduleResolution: 'bundler' },
       include: ['src/**/*.ts'],
     }));
-    writeFileSync(path.join(root, 'src/game/sample.ts'), [
+    const source = [
       'function advance() {}',
       'export const generated = () => advance();',
       'const notCallable = 42;',
       'function enclosing() { function nested() {} return nested; }',
       'export default function render() {}',
-      'export class Owner { static work() {} rest() {} }',
+      'export class Owner {',
+      '  static work() {}',
+      '  rest() {}',
+      '}',
       "export { elsewhere as alias } from './other';",
-    ].join('\n'));
+    ].join('\n');
+    writeFileSync(path.join(root, 'src/game/sample.ts'), source);
     writeFileSync(path.join(root, 'src/game/other.ts'), 'export function elsewhere() {}');
     const rows = ['advance', 'generated', 'default', 'Owner.work', 'Owner#rest', 'notCallable', 'nested', 'alias', 'elsewhere', 'Owner.rest'].map(symbol => ({
       ...sample, key: symbol, entrypoints: [{ ...sample.entrypoints[0], symbol }],
     }));
-    const failures = validateEntrypointSymbols(rows, root);
+    const resolved = new Map();
+    const failures = validateEntrypointSymbols(rows, root, resolved);
     assert.deepEqual(failures.map(message => message.split(':')[0]), ['notCallable', 'nested', 'alias', 'elsewhere', 'Owner.rest']);
+    // Exercise the real call-graph parser against the exact compiler declarations, not hand-built graph records.
+    process.env.CALLGRAPH_LIB = '1';
+    const { extractDefinitions, stripLiteralsAndComments } = await import('./build-call-graph.mjs');
+    const definitions = extractDefinitions(stripLiteralsAndComments(source), source,
+      path.resolve('src/game/sample.ts'), [{ name: 'Owner', bodyStart: 6, bodyEnd: 9 }]);
+    const claims = [...resolved.values()];
+    for (const symbol of ['Owner.work', 'Owner#rest']) {
+      const claim = claims.find(ref => ref.symbol === symbol);
+      assert.ok(claim, symbol);
+      const fn = definitions.find(definition => definition.name === claim.name && definition.line === claim.line);
+      assert.ok(fn, symbol);
+      assert.equal(findVerifiedClaim(fn, claims, definitions), claim);
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
