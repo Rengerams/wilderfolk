@@ -20,7 +20,7 @@ import { isDialogueBusy } from './humanChat';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { isPlayerHuman } from './playerHuman';
 import { isFoodAlert } from './resourceUtils';
-import { HUMAN_NEEDS, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { HUMAN_NEEDS, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy, getHumanStaminaRatio } from './simulation/humanPhysiology';
 
 export function getTownHallFestivalCooldownTicks(): number {
   return ticksForDays(90);
@@ -299,7 +299,7 @@ export function resolveCivicPetition(
   if (
     state.resources.gold >= 5
     && personDayRoll(petitioner.id, state.tick, 825) < 0.2
-    && (petitioner.needs?.stamina ?? petitioner.energy / Math.max(1, petitioner.maxEnergy) * 100) < 60
+    && getHumanStaminaRatio(petitioner) < 0.6
   ) {
     const amount = 1;
     state.resources.gold -= amount;

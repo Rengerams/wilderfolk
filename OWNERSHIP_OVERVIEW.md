@@ -1,5 +1,11 @@
 # Wilderfolk Ownership Overview
 
+## 2026-11-28 — human stamina authority (migration stage 1)
+
+- `humanPhysiology.ts`: private `syncHumanEnergyMirror` is the sole stamina-to-energy projection, invoked by `advanceHumanNeeds`, `adjustHumanStaminaFromEnergy` and `rebaseHumanNeedsClockAfterFormRestore`; existing `getHumanStaminaRatio` supplies migrated decisions.
+- Updated `tickHumans`, `tryDailyConception` and affair eligibility in `humanRelationships.ts`, `treatPatientAtHospital`, `tickHumanHunting`, maternal birth recovery, election turnout, civic petition eligibility and dashboard `energyPct` to read authoritative stamina. Hunting Spot damage selects the player model through `isPlayerHuman`, not optional field presence. Legacy point units and missing-needs compatibility remain temporarily.
+- Source guard `migrated-human-stamina-readers` protects the migrated modules; `human-stamina-mirror-single-owner` guards the shared projection. Remaining visitor/foreign/nonhuman paths, legacy capacity and full AST audit are tracked in `docs/HUMAN_NEEDS_ARCHITECTURE.md`.
+
 ## 2026-11-28 — relationship identity, courtship movement and staffed barracks
 
 | Existing functions/paths | Sole owner | Decision and verification |

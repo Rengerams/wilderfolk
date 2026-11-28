@@ -1,3 +1,4 @@
+import { getHumanStaminaRatio } from './simulation/humanPhysiology';
 /**
  * Dashboard data snapshot — a pure read-only projection of authoritative state for the
  * full-screen dashboard, including the council and staffing explanations.
@@ -165,9 +166,9 @@ function sumRecord(record: Record<string, number>): number {
   return total;
 }
 
-/** % energy of a settler, 0..100. */
+/** Stamina percentage of a settler, 0..100 (legacy dashboard field name). */
 function energyPct(e: Entity): number {
-  return e.maxEnergy > 0 ? Math.round((e.energy / e.maxEnergy) * 100) : 0;
+  return Math.round(getHumanStaminaRatio(e) * 100);
 }
 
 /** Work-hours logged today from the authoritative schedule-worked tick counter. */

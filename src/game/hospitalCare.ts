@@ -221,7 +221,7 @@ export function treatPatientAtHospital(
 
   const strength = 0.55 + hospital.occupants.length * 0.2 + (doctorOnSite ? 0.35 : 0);
   const heal = Math.min(
-    patient.maxEnergy - patient.energy,
+    patient.maxEnergy * (1 - getHumanStaminaRatio(patient)),
     (8 + strength * 14) * (patient.pregnant ? 0.7 : 1),
   );
   if (heal < 0.5) return false;

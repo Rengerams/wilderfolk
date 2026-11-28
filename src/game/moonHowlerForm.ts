@@ -66,7 +66,6 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   were.needs = saved?.needs ? { ...saved.needs } : undefined;
   normalizeHumanNeeds(were);
   rebaseHumanNeedsClockAfterFormRestore(were, tick);
-  were.energy = were.maxEnergy * were.needs!.stamina / 100;
   were.speed = saved?.speed ?? cfg.speed;
   were.size = saved?.size ?? cfg.size;
   were.relationshipStatus = saved?.relationshipStatus;

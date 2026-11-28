@@ -99,7 +99,7 @@ import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, set
 import { crowdGatherPosition, enterHumanBuilding, applyHumanWalkStep, advanceHumanWalkAnim, clearHumanWalkTarget, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, resumeHumanWalk, steerHumanToward } from './simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
-import { advanceHumanNeeds, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
+import { advanceHumanNeeds, getHumanStaminaRatio, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { getPreventiveCareMortalityMultiplier, isRestingHospitalPatient } from './hospitalCare';
 import { getCompletedWildlifePreserves } from './wildlifePopulationPolicy';
 import { simAmbientChatNeighbors, simSettlerPairChat } from './simulation/humanSocial';
@@ -919,8 +919,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && closeCourtshipPartner.courtshipPartnerId === entity.id
       && courtshipReadiness.has(entity.id)
       && isEligibleToCourt(entity) && isEligibleToCourt(closeCourtshipPartner)
-      && entity.energy > config.reproductionEnergyThreshold * 0.6
-      && closeCourtshipPartner.energy > config.reproductionEnergyThreshold * 0.6
+      && getHumanStaminaRatio(entity) > config.reproductionEnergyThreshold * 0.6 / Math.max(1, entity.maxEnergy)
+      && getHumanStaminaRatio(closeCourtshipPartner) > config.reproductionEnergyThreshold * 0.6 / Math.max(1, closeCourtshipPartner.maxEnergy)
       && canAdvanceCourtship(courtshipPresence, closeCourtshipPresence,
         Math.hypot(closeCourtshipPartner.x - entity.x, closeCourtshipPartner.y - entity.y),
         courtshipPresence.socialTime && closeCourtshipPresence.socialTime);
@@ -1298,7 +1298,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Other workers do not abandon their jobs to chase dates.
     if (!sleepingForNeeds && (((!suppressIdle || contactOnly) && courtshipPresence.socialTime) || courtshipPresence.onDuty) &&
       isEligibleToCourt(entity) && entity.gender &&
-      entity.energy > config.reproductionEnergyThreshold * 0.6) {
+      getHumanStaminaRatio(entity) > config.reproductionEnergyThreshold * 0.6 / Math.max(1, entity.maxEnergy)) {
       // Never stop an unobserved partner's movement: they might be asleep,
       // working, exhausted, or otherwise unavailable. The pair's actual
       // close-contact branch below owns stopping only after both are observed.
@@ -1316,7 +1316,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entityById,
         (candidate) => {
           const presence = courtshipReadiness.get(candidate.id);
-          if (!presence || presence.sleeping || candidate.energy <= config.reproductionEnergyThreshold * 0.6) return false;
+          if (!presence || presence.sleeping || getHumanStaminaRatio(candidate) <= config.reproductionEnergyThreshold * 0.6 / Math.max(1, candidate.maxEnergy)) return false;
           if (courtshipPresence.onDuty || presence.onDuty) {
             return canAdvanceCourtship(courtshipPresence, presence, Math.hypot(candidate.x - entity.x, candidate.y - entity.y), socialTime);
           }
@@ -1330,7 +1330,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const otherPresence = closest && courtshipReadiness.get(closest.id);
       // Eligibility must be symmetric: a well-rested caller cannot advance a tired partner.
       if (closest && otherPresence && !otherPresence.sleeping &&
-        closest.energy > config.reproductionEnergyThreshold * 0.6) {
+        getHumanStaminaRatio(closest) > config.reproductionEnergyThreshold * 0.6 / Math.max(1, closest.maxEnergy)) {
         const dx = closest.x - entity.x;
         const dy = closest.y - entity.y;
         const dist = Math.hypot(dx, dy);
@@ -1507,7 +1507,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.gender &&
       entity.age >= HUMAN_ADULT_MIN_AGE &&
       entity.age < HUMAN_MAX_LIFESPAN_YEARS &&
-      entity.energy > config.reproductionEnergyThreshold * 0.5 &&
+      getHumanStaminaRatio(entity) > config.reproductionEnergyThreshold * 0.5 / Math.max(1, entity.maxEnergy) &&
       hasActiveMarriage &&
       // An empty marital home is a valid tryst site: only a spouse right there blocks it, at the
       // affair gates' 22 px — the wider 55 px arrival window is the walk-in that catches them.

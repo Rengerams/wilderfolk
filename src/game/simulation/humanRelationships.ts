@@ -1,3 +1,4 @@
+import { getHumanStaminaRatio } from './humanPhysiology';
 import { reassignDivorcedResidences, syncPartnerResidence } from '../housingPipeline';
 
 import type { WorldState, Entity, Building } from '../gameTypes';
@@ -806,7 +807,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
   if (
     isMarriedOrExpecting(entity) &&
     entity.partnerId &&
-    entity.energy > config.reproductionEnergyThreshold * 0.75
+    getHumanStaminaRatio(entity) > config.reproductionEnergyThreshold * 0.75 / Math.max(1, entity.maxEnergy)
   ) {
     const partner = getLivingEntity(entity.partnerId, ctx.entityById);
     if (partner && isPlayerHuman(partner) && partner.gender === 'male' && !partner.raidDeploymentId) {
@@ -851,8 +852,8 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
     !youthPartner.pregnant && !youthPartner.raidDeploymentId
   ) {
     if (
-      entity.energy <= config.reproductionEnergyThreshold * 0.75 ||
-      youthPartner.energy <= config.reproductionEnergyThreshold * 0.6
+      getHumanStaminaRatio(entity) <= config.reproductionEnergyThreshold * 0.75 / Math.max(1, entity.maxEnergy) ||
+      getHumanStaminaRatio(youthPartner) <= config.reproductionEnergyThreshold * 0.6 / Math.max(1, youthPartner.maxEnergy)
     ) {
       outcome ??= 'energy';
     } else {
@@ -879,7 +880,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
 
   if (
     hasAffairPartner(entity, ctx.entityById) &&
-    entity.energy > config.reproductionEnergyThreshold * 0.65 &&
+    getHumanStaminaRatio(entity) > config.reproductionEnergyThreshold * 0.65 / Math.max(1, entity.maxEnergy) &&
     !isSpouseNearby(entity, ctx.entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)
   ) {
     const lover = getLivingEntity(entity.affairPartnerId, ctx.entityById);
@@ -901,7 +902,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
       return false;
     }
   } else if (hasAffairPartner(entity, ctx.entityById)) {
-    outcome ??= entity.energy <= config.reproductionEnergyThreshold * 0.65 ? 'energy' : 'proximity';
+    outcome ??= getHumanStaminaRatio(entity) <= config.reproductionEnergyThreshold * 0.65 / Math.max(1, entity.maxEnergy) ? 'energy' : 'proximity';
   }
 
   recordConceptionGate(outcome ?? 'eligibility');
@@ -1493,7 +1494,7 @@ export function tryDailyAffairEncounter(
   if (entity.prisonBuildingId != null) return;
   if (!isMarriedOrExpecting(entity) || entity.age < HUMAN_ADULT_MIN_AGE) return;
   if (!entity.gender || entity.age >= HUMAN_MAX_LIFESPAN_YEARS) return;
-  if (entity.energy <= config.reproductionEnergyThreshold * 0.5) return;
+  if (getHumanStaminaRatio(entity) <= config.reproductionEnergyThreshold * 0.5 / Math.max(1, entity.maxEnergy)) return;
   if (onScandalCooldown(entity, state.tick)) return;
   const workplace = findHumanWorkplace(entity, buildings, { buildingById });
   if (!canPursueSecretAffair(entity, hourOfDay, workplace, buildings, entityById, state.tick, getWorkSchedule(state))) return;

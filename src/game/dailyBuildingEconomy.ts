@@ -609,7 +609,7 @@ function tickBuildingProduction(
 
   const mauled = fate === 'mauled';
           const damage = HUNTING_FIGHT_BACK_BITE_ENERGY + (mauled ? HUNTING_FIGHT_BACK_MAUL_ENERGY : 0);
-          if (hunter.needs) {
+          if (isPlayerHuman(hunter)) {
             adjustHumanStaminaFromEnergy(hunter, -damage);
           } else {
             hunter.energy = Math.max(0, hunter.energy - damage);

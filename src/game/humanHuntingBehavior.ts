@@ -15,7 +15,7 @@ import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees'
 import { clearHumanWalkTarget, steerHumanToward } from './simulation/humanMovement';
 import { getCurrentPathGrid, lineCrossesBlocked } from './pathfinding';
 import { freeHuntFoodGain } from './simulation/humanNeeds';
-import { HUMAN_NEEDS, adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { HUMAN_NEEDS, adjustHumanStaminaFromEnergy, getHumanStaminaRatio } from './simulation/humanPhysiology';
 import { tryTickBlueberryForaging } from './blueberryForaging';
 import {
   clearHuntersTargetingPrey,
@@ -67,7 +67,7 @@ export function tickHumanHunting(
   // Assigned hunters retain their stamina-based job cadence; emergency hunting
   // is triggered by nutrition, never by the unrelated stamina projection.
   const freeHuntHungry = isJobHunter
-    ? (entity.needs?.stamina ?? entity.energy / Math.max(1, entity.maxEnergy) * 100) < HUNTER_WORK_STAMINA_THRESHOLD
+    ? (getHumanStaminaRatio(entity) * 100) < HUNTER_WORK_STAMINA_THRESHOLD
     : famine && (entity.needs?.nutrition ?? 100) < HUMAN_NEEDS.EAT_ENTER_NUTRITION;
 
   const blueberryForaging =
@@ -158,11 +158,8 @@ export function tickHumanHunting(
       const energyBite =
         config.energyGain[closestPrey.type] ??
         (closestPrey.type === EntityType.Deer ? 350 : 150);
-      if (entity.needs) {
-        adjustHumanStaminaFromEnergy(entity, energyBite);
-      } else {
-        entity.energy = Math.min(entity.maxEnergy, entity.energy + energyBite);
-      }
+      // This branch is already restricted to player humans.
+      adjustHumanStaminaFromEnergy(entity, energyBite);
       entity.flash = 10;
       entity.combatTicks = 16;
       entity.huntTargetId = undefined;

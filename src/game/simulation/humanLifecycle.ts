@@ -23,7 +23,7 @@ import { logWildkinBirth } from '../wildkinChronicle';
 import { humanDisplayName } from '../citizenId';
 import { dampScandalReputationLoss } from '../townHall';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
-import { adjustHumanStaminaFromEnergy } from './humanPhysiology';
+import { adjustHumanStaminaFromEnergy, getHumanStaminaRatio } from './humanPhysiology';
 import { isPlayerHuman } from '../playerHuman';
 import { seededRandomForRun, seededStreamForRun } from '../simRng';
 import { addReputation } from '../simHelpers';
@@ -127,14 +127,20 @@ export function tickPregnancyAndBirth(
   const biologicalFather = biologicalFatherIdAtBirth != null ? livingHumanAt(biologicalFatherIdAtBirth) : undefined;
 
   // Mother recovery and pregnancy reset
-  const recoveredEnergy = Math.max(
-    entity.maxEnergy * LIFECYCLE_CONFIG.MATERNAL_ENERGY_MIN_RATIO,
-    entity.energy - LIFECYCLE_CONFIG.MATERNAL_ENERGY_COST,
-  );
   if (isPlayerHuman(entity)) {
-    adjustHumanStaminaFromEnergy(entity, recoveredEnergy - entity.energy);
+    const currentStamina = getHumanStaminaRatio(entity);
+    // Convert the historical cost/floor using the same capacity as the bridge.
+    const capacity = Math.max(1, entity.maxEnergy);
+    const recoveredStamina = Math.max(
+      LIFECYCLE_CONFIG.MATERNAL_ENERGY_MIN_RATIO,
+      currentStamina - LIFECYCLE_CONFIG.MATERNAL_ENERGY_COST / capacity,
+    );
+    adjustHumanStaminaFromEnergy(entity, (recoveredStamina - currentStamina) * capacity);
   } else {
-    entity.energy = recoveredEnergy;
+    entity.energy = Math.max(
+      entity.maxEnergy * LIFECYCLE_CONFIG.MATERNAL_ENERGY_MIN_RATIO,
+      entity.energy - LIFECYCLE_CONFIG.MATERNAL_ENERGY_COST,
+    );
   }
   recordRelationshipDiagnostic('birthsCompletedThisInterval');
   clearPregnancy(entity);

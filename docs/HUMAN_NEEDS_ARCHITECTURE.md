@@ -13,18 +13,18 @@
 
 Migrated so far: `hospitalCare.needsMedicalCare`, `medicalUrgency`, `medicalCareReason` and the `humanHospitalBehavior` treatment gate now read `getHumanStaminaRatio`; the hospital no longer calls a settler exhausted from a stale mirror. Hospital stamina-only admission uses the existing 15% `HUMAN_NEEDS.STAMINA_CRITICAL` boundary, not the former 42% fatigue gate: routine ~30%-stamina bedtime fatigue belongs to the home/sleep owner; late pregnancy and grief remain independently eligible.
 
-Remaining player-human `energy` paths (the actual acceptance list):
+Stage 1 migration inventory (legacy point units and missing-needs fallback are deliberately still present):
 
 | Owner | Path | Target |
 | --- | --- | --- |
-| `hospitalCare.treatPatientAtHospital` | heal sizing from `maxEnergy - energy` | stamina via `adjustHumanStaminaFromEnergy` (the conversion bridge) |
-| `simulation/humanRelationships.ts` | married/youth conception thresholds | `getHumanStaminaRatio` |
-| `humanTick.ts` | courtship eligibility thresholds | `getHumanStaminaRatio` |
+| `hospitalCare.treatPatientAtHospital` | migrated treatment sizing | authoritative stamina; point conversion remains |
+| `simulation/humanRelationships.ts` | migrated conception/affair thresholds | `getHumanStaminaRatio`; legacy capacity conversion remains |
+| `humanTick.ts` | migrated courtship eligibility thresholds | `getHumanStaminaRatio`; legacy capacity conversion remains |
 | `socialLife.ts` | exhausted/vulnerable/critical impulse ratios | `getHumanStaminaRatio` |
-| `hotelStay.ts` | direct `energy +=` rest | `adjustHumanStaminaFromEnergy` |
-| `simulation/humanLifecycle.ts` | maternal energy cost and birth recovery | stamina |
+| `hotelStay.ts` | visitor-only `restAtHotel` legacy recovery | audit/remove retired visitor path; player hotel sleep already advances in physiology |
+| `simulation/humanLifecycle.ts` | migrated maternal cost and birth recovery | authoritative stamina; point conversion remains |
 | `animalCare.ts` | tamer owner energy bonus | `adjustHumanStaminaFromEnergy` |
-| `humanHuntingBehavior.ts` | no-`needs` fallback | keep the fallback only |
+| `humanHuntingBehavior.ts` / `dailyBuildingEconomy.ts` | migrated player reward and damage model selection | player identity, not optional needs presence |
 | `humanEnergy` display/worker metadata | read-only projection | read `needs` for settlers, energy only for nonhumans |
 
 Rules for new code:
@@ -34,7 +34,7 @@ Rules for new code:
 3. `energy` is never a second authority for a rule that stamina already owns.
 4. Nonhuman creatures remain excluded from this rule; their energy is their own model.
 
-There is no source gate yet. The table above is the migration checklist; a future `*.legacyEnergyAudit.test.ts` should fail when a player-human module adds a new `energy` read outside the allowlist.
+Stage 1 adds scoped source guards for migrated modules and the single mirror expression. Election turnout, civic petition thresholds and dashboard stamina are also migrated. Full AST/symbol coverage, remaining mixed-domain paths, legacy capacity units, old-save boundary-only fallback and mirror removal remain open; the scoped text guard is not a repository-wide proof.
 
 
 ## 1. Purpose and invariants

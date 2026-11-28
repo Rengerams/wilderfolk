@@ -84,6 +84,22 @@ describe('single human meal transaction', () => {
 });
 
 describe('cross-system physiology compatibility', () => {
+  it('sizes medical treatment from stamina even when legacy energy disagrees', () => {
+    const run = (energy: number, stamina: number) => {
+      const patient = person({ x: 100, y: 100, energy, needs: { nutrition: 60, rest: 70, stamina } });
+      const doctor = person({ id: 2, x: 100, y: 100 });
+      const hospital = { id: 4, type: BuildingType.Hospital, completed: true,
+        x: 100, y: 100, width: 40, height: 40, occupants: [doctor.id] } as Building;
+      const state = { ...world(10), entities: [patient, doctor],
+        floatingTexts: [], nextFloatingTextId: 1 } as WorldState;
+      const treated = treatPatientAtHospital(state, patient, hospital, { doctorPresent: true });
+      return { treated, stamina: patient.needs!.stamina };
+    };
+    expect(run(500, 20)).toEqual(run(100, 20));
+    expect(run(500, 20).treated).toBe(true);
+    expect(run(0, 100)).toEqual({ treated: false, stamina: 100 });
+  });
+
   it('keeps a hospital stamina treatment after the next physiological tick', () => {
     const patient = person({ x: 100, y: 100, needs: { nutrition: 60, rest: 70, stamina: 20 },
       energy: 100 });

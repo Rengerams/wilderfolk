@@ -48,6 +48,11 @@ export function hasNearbyWell(entity: Pick<Entity, 'x' | 'y'>, wells: readonly B
 const bounded = (n: number, fallback: number): number =>
   Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : fallback;
 
+/** The one temporary stamina-to-energy projection; never a source of player decisions. */
+function syncHumanEnergyMirror(entity: Entity, needs: HumanNeedsState): void {
+  entity.energy = entity.maxEnergy * needs.stamina / 100;
+}
+
 export function initialHumanNeeds(energy: number, maxEnergy: number): HumanNeedsState {
   return { nutrition: 80, rest: 85, stamina: maxEnergy > 0 && Number.isFinite(maxEnergy)
     ? bounded(energy / maxEnergy * 100, 80) : 80, severeHungerTicks: 0 };
@@ -144,8 +149,8 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
     needs.sleepRecoveryUntilTick = obs.tick + HUMAN_NEEDS.RECOVERY_SLEEP_HOURS * TICKS_PER_HOUR;
   }
   needs.lastAdvancedTick = obs.tick;
-  // One-way compatibility read for legacy social and combat consumers.
-  entity.energy = entity.maxEnergy * needs.stamina / 100;
+  // One-way compatibility projection for remaining legacy consumers.
+  syncHumanEnergyMirror(entity, needs);
   return needs;
 }
 
@@ -165,7 +170,7 @@ export function adjustHumanStaminaFromEnergy(entity: Entity, energyPoints: numbe
   if (!Number.isFinite(energyPoints) || energyPoints === 0) return;
   const needs = entity.needs ?? normalizeHumanNeeds(entity);
   needs.stamina = bounded(needs.stamina + energyPoints / Math.max(1, entity.maxEnergy) * 100, 0);
-  entity.energy = entity.maxEnergy * needs.stamina / 100;
+  syncHumanEnergyMirror(entity, needs);
 }
 
 /**
@@ -182,8 +187,9 @@ export function getHumanStaminaRatio(entity: Entity): number {
 
 /** Resume at the human-form tick, without charging the Moon Howler night again. */
 export function rebaseHumanNeedsClockAfterFormRestore(entity: Entity, tick?: number): void {
-  if (tick === undefined || !Number.isSafeInteger(tick) || tick < 0) return;
   const needs = entity.needs ?? normalizeHumanNeeds(entity);
+  syncHumanEnergyMirror(entity, needs);
+  if (tick === undefined || !Number.isSafeInteger(tick) || tick < 0) return;
   needs.lastAdvancedTick = Math.max(0, tick - 1);
 }
 
