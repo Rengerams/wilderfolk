@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-28 — [Social motives bypass needs and leisure routing](../bug_report/2026-11-28-social-motive-owner-alignment.md):** investigating; shared medical/stamina criteria, reciprocal nearby spouse care, reachable routes and finite daily errand receipts; regression CI pending.
+
 **2026-11-27 — [Auto-player bypasses workforce owner](../bug_report/2026-11-27-autoplay-bypasses-workforce-owner.md):** investigating; all auto-play staffing decisions and policy overrides removed; completed-job dismissal commands refused; privileged staffing feasibility removed; canonical donor selection remains in workforce; regression CI pending.
 
 **2026-11-28 — [Spotlight stage off square centre (follow-up)](../bug_report/2026-11-03-spotlight-stage-off-square-centre.md):** investigating; reject displaced square origins and off-square debug fallback; regression added, live reproduction pending.
