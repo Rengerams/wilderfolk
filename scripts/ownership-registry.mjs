@@ -16,7 +16,7 @@ function escapeCell(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('|', '&#124;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('[', '&#91;').replaceAll(']', '&#93;').replace(/\r?\n/g, ' ');
 }
 
-export function renderDecisionTable(rows) {
+export function renderDecisionTable(rows, contracts = TOOLING_CONTRACTS) {
   const lines = [
     '<!-- BEGIN GENERATED SIMULATION OWNERSHIP -->',
     '## Current simulation decisions (generated)',
@@ -31,6 +31,10 @@ export function renderDecisionTable(rows) {
     const supporting = (row.supporting ?? []).map(({module, symbol}) => `${module}::${symbol}`).join('; ');
     const refs = supporting ? `${primary}; supporting: ${supporting}` : primary;
     lines.push('| ' + [row.key, refs, row.cadence, row.writes.join('; ') || 'None', row.scheduledFrom, row.testFile].map(escapeCell).join(' | ') + ' |');
+  }
+  lines.push('', ...["## Ownership infrastructure (generated)","","Explicit infrastructure claims share the compiler declaration ledger with gameplay decisions. Named nested helpers are qualified; anonymous callbacks are excluded. Embedded browser viewer code is owned by `renderHtml` and is not part of the outer JavaScript AST.","","| Responsibility | Sole owner | Named declarations |","|---|---|---|"]);
+  for (const contract of contracts) {
+    lines.push('| ' + [contract.label, contract.module, contract.symbols.join('; ') || 'None — anonymous test callbacks only'].map(escapeCell).join(' | ') + ' |');
   }
   lines.push('', '<!-- END GENERATED SIMULATION OWNERSHIP -->');
   return lines.join('\n');
@@ -130,6 +134,19 @@ function directCallableCandidates(source, symbol) {
   return candidates;
 }
 
+/** Record the exact compiler declaration once, across gameplay and infrastructure contracts. */
+function recordResolvedClaim(resolved, failures, ref, source, node) {
+  const offset = node.getStart(source);
+  const line = source.getLineAndCharacterOfPosition(offset).line + 1;
+  const name = node.kind === SyntaxKind.Identifier ? node.getText() : ref.symbol;
+  const identity = `${ref.module}:${offset}`;
+  if (resolved.has(identity)) {
+    failures.push(`${ref.key}: declaration ${ref.module}:${line} already claimed by ${resolved.get(identity).key}`);
+    return;
+  }
+  resolved.set(identity, { key: ref.key, file: ref.module, symbol: ref.symbol, name, line, role: ref.role ?? 'primary' });
+}
+
 /** Use the installed TS7 compiler's project AST and type checker, not graph-scanner guesses.
  * The contract names implementations, including private top-level functions, not export facades.
  * Class methods must use Class.method (static) or Class#method (instance).
@@ -162,15 +179,7 @@ export function validateEntrypointSymbols(rows, root, resolved = new Map()) {
             failures.push(`${ref.key}: expected one callable primary implementation ${ref.module}::${ref.symbol}, found ${callable.length}`);
             continue;
           }
-          const node = callable[0];
-          const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
-          const name = node.kind === SyntaxKind.Identifier ? node.getText() : ref.symbol;
-          const identity = `${ref.module}:${node.getStart(source)}`;
-          if (resolved.has(identity)) {
-            failures.push(`${ref.key}: declaration ${ref.module}:${line} already claimed by ${resolved.get(identity).key}`);
-            continue;
-          }
-          resolved.set(identity, { key: ref.key, file: ref.module, symbol: ref.symbol, name, line, role: ref.role ?? 'primary' });
+          recordResolvedClaim(resolved, failures, ref, source, callable[0]);
         }
       } finally {
         snapshot.dispose();
@@ -194,44 +203,109 @@ export function findVerifiedClaim(fn, claims, graphFunctions) {
   return same.length === 1 ? matches[0] : undefined;
 }
 
-/** Explicit infrastructure contracts. Names include nested helpers, not anonymous callbacks.
- * The unstable compiler API is version-pinned; upgrading TypeScript requires rerunning these checks.
- */
+/** Explicit infrastructure claims; the generated overview is their projection, not authority. */
 const TOOLING_CONTRACTS = [
-  [
-    "Ownership registry tooling",
-    "scripts/ownership-registry.mjs"
-  ],
-  [
-    "Call graph ownership projection",
-    "scripts/build-call-graph.mjs"
-  ],
-  [
-    "Ownership registry tests",
-    "scripts/ownership-registry.test.mjs"
-  ],
-  [
-    "Ownership test runner",
-    "scripts/test.mjs"
-  ]
+  {
+    "key": "infrastructure:ownership-registry",
+    "label": "Ownership registry tooling",
+    "module": "scripts/ownership-registry.mjs",
+    "symbols": [
+      "getDecisionRows",
+      "escapeCell",
+      "renderDecisionTable",
+      "replaceGeneratedBlock",
+      "isFile",
+      "validateDecisionKeys",
+      "validateRegistry",
+      "directCallableCandidates",
+      "directCallableCandidates::hasModifier",
+      "recordResolvedClaim",
+      "validateEntrypointSymbols",
+      "findVerifiedClaim",
+      "validateToolingInventory",
+      "validateToolingInventory::visit",
+      "verifyOwnershipRegistry",
+      "parseOwnershipMode",
+      "main"
+    ]
+  },
+  {
+    "key": "infrastructure:call-graph",
+    "label": "Call graph ownership projection",
+    "module": "scripts/build-call-graph.mjs",
+    "symbols": [
+      "collectSources",
+      "stripLiteralsAndComments",
+      "stripLiteralsAndComments::blank",
+      "lineOf",
+      "matchBrace",
+      "resolveModuleFile",
+      "extractImports",
+      "extractImports::resolve",
+      "extractReExports",
+      "findBodyBrace",
+      "bodyAfterSignatureBrace",
+      "extractClasses",
+      "parseParams",
+      "extractInstances",
+      "extractDefinitions",
+      "extractCalls",
+      "parseOwnershipOverview",
+      "modulesIn",
+      "main",
+      "main::resolveImportTarget",
+      "main::resolveThroughModule",
+      "main::resolveMethod",
+      "main::ownerOfLine",
+      "main::moduleOwnsFile",
+      "renderHtml"
+    ]
+  },
+  {
+    "key": "infrastructure:ownership-tests",
+    "label": "Ownership registry tests",
+    "module": "scripts/ownership-registry.test.mjs",
+    "symbols": []
+  },
+  {
+    "key": "infrastructure:test-runner",
+    "label": "Ownership test runner",
+    "module": "scripts/test.mjs",
+    "symbols": [
+      "run"
+    ]
+  }
 ];
 
-/** The source AST owns the inventory; documentation must name each declaration in its scope. */
-export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS) {
+/** Verify every named declaration in each registered infrastructure module using the shared ledger. */
+export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS, resolved = new Map()) {
   const api = new API({ cwd: root });
   try {
     const snapshot = api.updateSnapshot({ openProject: 'tsconfig.ownership.json' });
     try {
       const project = snapshot.getProjects()[0];
-      const overview = readFileSync(path.join(root, 'OWNERSHIP_OVERVIEW.md'), 'utf8');
       const failures = [];
-      for (const [label, file] of contracts) {
+      const grouped = new Map();
+      const keys = new Set();
+      for (const contract of contracts) {
+        if (keys.has(contract.key)) failures.push(`Duplicate infrastructure contract: ${contract.key}`);
+        keys.add(contract.key);
+        const file = contract.module;
+        if (!/^(src|scripts|tests)\/[\w/.-]+\.(?:[cm]?ts|tsx|[cm]?js|jsx)$/.test(file) ||
+            file.split('/').includes('..') || !isFile(path.join(root, file))) {
+          failures.push(`${contract.key}: missing or invalid infrastructure module ${file}`);
+          continue;
+        }
+        if (!grouped.has(file)) grouped.set(file, []);
+        grouped.get(file).push(contract);
+      }
+      for (const [file, owners] of grouped) {
         const source = project?.program.getSourceFile(path.resolve(root, file));
         if (!source) {
           failures.push(`Missing tooling AST: ${file}`);
           continue;
         }
-        const actual = [];
+        const actual = new Map();
         const visit = (node, scope = '') => {
           let name;
           if (node.kind === SyntaxKind.FunctionDeclaration && node.body && node.name) name = node.name.getText();
@@ -239,23 +313,32 @@ export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS) {
             const initializer = node.initializer;
             if (initializer.kind === SyntaxKind.ArrowFunction || initializer.kind === SyntaxKind.FunctionExpression) name = node.name.getText();
             else if (initializer.kind === SyntaxKind.CallExpression && initializer.expression.kind === SyntaxKind.ParenthesizedExpression) {
-              // A closure-producing IIFE is a callable binding; a computed scalar is not.
               const type = project.checker.getTypeAtLocation(node.name);
               if (type && !(type.flags & TypeFlags.Any) && project.checker.getSignaturesOfType(type, SignatureKind.Call).length) name = node.name.getText();
             }
           }
           const qualified = name ? (scope ? `${scope}::${name}` : name) : scope;
-          if (name) actual.push(qualified);
+          if (name) {
+            if (!actual.has(qualified)) actual.set(qualified, []);
+            actual.get(qualified).push(node.name);
+          }
           node.forEachChild(child => visit(child, qualified));
         };
         visit(source);
-        const names = actual.sort();
-        const registrations = overview.split(/\r?\n/).filter(line => line.startsWith(`| ${label} |`));
-        const cells = registrations.length === 1 ? registrations[0].split('|') : [];
-        const documented = cells[2]?.trim() === '`' + file + '`' ?
-          [...(cells[4] ?? '').matchAll(/`([A-Za-z_$][\w$]*(?:::[A-Za-z_$][\w$]*)*)`/g)].map(match => match[1]).sort() : [];
-        if (cells[2]?.trim() !== '`' + file + '`' || JSON.stringify(names) !== JSON.stringify(documented)) {
-          failures.push(`${file}: tooling ownership documentation mismatch: declared ${documented.join(', ')}; found ${names.join(', ')}`);
+        const declared = new Set();
+        for (const contract of owners) {
+          for (const symbol of contract.symbols) {
+            declared.add(symbol);
+            const nodes = actual.get(symbol) ?? [];
+            if (nodes.length !== 1) {
+              failures.push(`${contract.key}: expected one infrastructure declaration ${file}::${symbol}, found ${nodes.length}`);
+              continue;
+            }
+            recordResolvedClaim(resolved, failures, { key: contract.key, module: file, symbol, role: 'infrastructure' }, source, nodes[0]);
+          }
+        }
+        for (const symbol of actual.keys()) {
+          if (!declared.has(symbol)) failures.push(`${file}::${symbol}: missing infrastructure claim`);
         }
       }
       return failures;
@@ -266,7 +349,7 @@ export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS) {
 export function verifyOwnershipRegistry(rows, root, checkFreshness = true, resolved = new Map()) {
   const failures = [...validateDecisionKeys(rows), ...validateRegistry(rows, root)];
   if (failures.length) return failures;
-  failures.push(...validateEntrypointSymbols(rows, root, resolved), ...validateToolingInventory(root));
+  failures.push(...validateEntrypointSymbols(rows, root, resolved), ...validateToolingInventory(root, TOOLING_CONTRACTS, resolved));
   if (checkFreshness) {
     const current = readFileSync(path.join(root, 'OWNERSHIP_OVERVIEW.md'), 'utf8');
     if (replaceGeneratedBlock(current, renderDecisionTable(rows)) !== current) {
