@@ -11,7 +11,7 @@ on:
       producer_parity:
         description: 'Run the historical 7/360-day producer comparison'
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
@@ -52,9 +52,6 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.producer_parity
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    defaults:
-      run:
-        shell: bash
     steps:
       - name: Checkout final A1 code
         uses: actions/checkout@v7.0.1
@@ -73,12 +70,12 @@ jobs:
           cache: npm
           cache-dependency-path: after/package-lock.json
 
-      - name: Install baseline dependencies
-        working-directory: before
-        run: npm ci --prefer-offline --no-audit --no-fund
-
       - name: Install final dependencies
         working-directory: after
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Install baseline dependencies
+        working-directory: before
         run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Use identical existing producer harness for both revisions
@@ -110,7 +107,7 @@ jobs:
               .map((line) => JSON.parse(line))
               .find((item) => item.kind === 'full-year-checkpoint' && item.day === day);
           };
-          for (const day of [7, 30, 360]) {
+          for (const day of) {
             const horizon = day === 7 ? 7 : 360;
             const before = read('a1-producer-' + horizon + '-before.log', day);
             const after = read('a1-producer-' + horizon + '-after.log', day);
@@ -122,3 +119,11 @@ jobs:
             console.log(JSON.stringify({ day, before: beforeMetrics, after: afterMetrics, delta }));
           }
           NODE
+
+      - name: Upload producer logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: producer-parity-logs
+          path: a1-producer-*.log
+          retention-days: 7
