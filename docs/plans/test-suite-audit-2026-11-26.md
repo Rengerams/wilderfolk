@@ -35,7 +35,7 @@ runs in `scripts/check-source-guards.mjs` on every gate.
 | --- | --- | --- |
 | Behavioral owner tests | ~470 | Keep — this is the suite |
 | Files that still read source text | 56 | Next migration increment |
-| Audit-batch files (`audit*`, `low-*`, `medium-*`, `phase*`, `*Batch`, `duplication*`) | 51 | Merge into their subject owner |
+| Audit-batch files (`audit*`, `low-*`, `medium-*`, `phase*`, `*Batch`, `duplication*`) | 50 | Merge into their subject owner |
 | Assertion-light files (≥ 40 % `toBeTruthy`/`toBeDefined`) | 11 | Strengthen or fold into a stronger file |
 
 Rows overlap, so they do not sum to the unit-tier file count. Unit tier now: 532 files / 3,594 cases.
@@ -102,7 +102,7 @@ than source, so they are fixture reads, not guards — check before porting.
 `frontier.legacyEvents`. They guard against reintroducing removed code. Worth keeping where the removal
 was a real defect (`A17 manual job assignment retired`); pure archaeology belongs with the static checks.
 
-## Audit-batch files — 51
+## Audit-batch files — 50
 
 `audit2026-09-21.regression` (34 cases), `auditOpenItems.verification`, `audit.hotPathScans.equivalence`,
 `calendarPhase.auditRegressions`, `economyAudit.*`, `entityAudit.*`, `housingPulse.audit`,
@@ -265,11 +265,15 @@ Moved six numeric behavior cases from `duplicationA.remaining` to the scent/grid
 
 Moved three source-only cases (snapped verdict position, bounded progress samples and shared floating-text fade) into three declarative registry rules. All clauses were checked against the branch source; the mixed renderer suite and its runtime cases remain. CI pending.
 
+## Inventory reconciliation and mixed-suite guard migration — 2026-11-28
+
+The original pre-audit tree `ee6f1adc` contains exactly 50 files matching the documented audit categories; head `a745ad9` has 45 retired and five remaining. The previous 51 was an overcount. At that head the tests directory contains 494 `.test.*` files (not a measured Vitest execution count). Moved 10 source-only cases from the September and events/defense suites and 13 renderer cases (including two synthetic proofs), plus one mixed-case source assertion, into 22 declarative rules. Retained all runtime cases, the scoped terrain-fill count and its synthetic proof, the transform example, and the token-aware DNA scanner. No simulation decision changed. CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete
    the ones a behavioral case in the same file already covers). Highest value, lowest risk.
-2. **Merge the 51 audit-batch files into their subject owners.** Keep every case that names a rule;
+2. **Merge the 50 audit-batch files into their subject owners.** Keep every case that names a rule;
    drop the ones that only restate a now-canonical implementation.
 3. **Strengthen the 11 assertion-light files** to assert values, or fold them into the stronger file
    that already covers the owner.

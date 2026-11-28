@@ -2,8 +2,6 @@
  * Low-severity regression guards for `groupEvents`, `defenseStructures` and `prisonGuardDuty`:
  * visitor trades, diplomacy eligibility, instance-unique event ids, barracks occupancy, prison escape.
  */
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type {
@@ -523,30 +521,5 @@ describe('legacy frontier rival settlement spawning is retired', () => {
     }
   });
 
-  it('keeps the old rival settlement roll out of the regular world event pool', () => {
-    const source = readFileSync(
-      fileURLToPath(new URL('../src/game/groupEvents.ts', import.meta.url)),
-      'utf8',
-    );
-    expect(source).not.toContain("id: 'rival_settlement'");
-    expect(source).not.toContain('spawnRivalSettlement');
-  });
-});
 
-/**
- * World events must roll every year: the block's own label, and the frontier draw rides on it. A
- * cadence has no return value to assert, so the guard is on the source.
- */
-describe('world events roll yearly', () => {
-  const BIENNIAL_ROLL = /state\.year % 2 === 0/;
-
-  it('no longer skips every other year', () => {
-    const source = readFileSync(
-      fileURLToPath(new URL('../src/game/dailyWorldEvents.ts', import.meta.url)),
-      'utf8',
-    );
-
-    expect(BIENNIAL_ROLL.test('if (state.year > 0 && state.year % 2 === 0 && state.year !== state.lastEventYear) {')).toBe(true);
-    expect(BIENNIAL_ROLL.test(source)).toBe(false);
-  });
 });

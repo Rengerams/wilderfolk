@@ -3,8 +3,6 @@
  * name copies the `.tsx`-only owner guard could not see.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   BuildingType,
   JobType,
@@ -37,23 +35,6 @@ import { EntitySpatialGrid } from '../src/game/spatialGrid';
 import { invalidateWorldRuntimeCaches } from '../src/game/worldRuntimeCaches';
 import { formatResourceAmounts } from '../src/game/resourceTypes';
 import { GAME_VERSION } from '../src/game/version';
-
-function read(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), 'utf8');
-}
-
-/** Every `.ts`/`.tsx` under `src/`, posix-relative — the tree walk the source guards scan. */
-function srcFiles(dir = resolve(process.cwd(), 'src')): string[] {
-  const found: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = resolve(dir, entry.name);
-    if (entry.isDirectory()) found.push(...srcFiles(full));
-    else if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) {
-      found.push(resolve(full).slice(resolve(process.cwd()).length + 1).replaceAll('\\', '/'));
-    }
-  }
-  return found;
-}
 
 /**
  * A minimal world with a player trader and the given store, built from `initGame` so every field the
@@ -140,13 +121,7 @@ describe('a multi-resource trade float names every resource, not only the last',
     expect(formatResourceAmounts({})).toBe('');
   });
 
-  it('is the formatter the trade command uses', () => {
-    const source = read('src/game/groupEvents.ts');
-    expect(source, 'the trade float went back to a hand-built label')
-      .toContain('formatResourceAmounts(received)');
-    expect(source, 'the received label is assigned per key again (last key wins)')
-      .not.toMatch(/receivedLabel\s*=\s*`\+\$\{added\}/);
-  });
+
 });
 
 describe('the leader-honored announcement survives a maxed reputation', () => {
@@ -317,31 +292,11 @@ describe('one definition of "in an active marriage"', () => {
     expect(isMarriedOrExpecting({ relationshipStatus: undefined })).toBe(false);
   });
 
-  it('is what the yearly statistics count, not the narrow `=== "married"`', () => {
-    const stats = read('src/game/stats.ts');
-    expect(stats, 'the yearly marriage count went back to the narrow test')
-      .toContain('filter(isMarriedOrExpecting)');
-    // Scoped to the count site: `recordYearlyStats` may still *read* a status elsewhere.
-    expect(stats, 'a `relationshipStatus === "married"` count is back in stats.ts')
-      .not.toMatch(/relationshipStatus\s*===\s*'married'/);
-  });
 
-  it('has no second private copy in the tree', () => {
-    // The owner is the only module allowed to declare the predicate; the check is on the
-    // *declaration*, because spelling the two statuses out at a call site is how the copies began.
-    const offenders = srcFiles().filter(
-      (file) => file !== 'src/game/relationships.ts' && /function isActivelyMarried\s*\(/.test(read(file)),
-    );
-    expect(offenders, 'a second marriage predicate is back outside relationships.ts').toEqual([]);
-  });
 
-  it('is the only marriage test: no caller compares the status against "married"', () => {
-    // The narrow comparison is how the yearly marriage count drifted; every reader asks the owner.
-    const offenders = srcFiles()
-      .filter((file) => file !== 'src/game/relationships.ts')
-      .filter((file) => /relationshipStatus\s*(===|!==|==|!=)\s*'married'/.test(read(file)));
-    expect(offenders, 'a caller compares relationshipStatus against "married" directly').toEqual([]);
-  });
+
+
+
 });
 
 describe('one definition of a settler display name', () => {
@@ -353,22 +308,9 @@ describe('one definition of a settler display name', () => {
     expect(humanDisplayName({ name: 'Asha' } as Entity)).toBe('Asha');
   });
 
-  it('is what both former copies now call', () => {
-    for (const file of ['src/game/workforce.ts', 'src/game/villageLeadership.ts']) {
-      const source = read(file);
-      expect(source, `${file} does not delegate to the name owner`).toContain('humanDisplayName(entity)');
-      expect(source, `${file} types its own nameless-settler fallback again`)
-        .not.toMatch(/entity\.name \|\| '(Settler|Unknown)'/);
-    }
-  });
 
-  it('is the one fallback the whole tree uses', () => {
-    // The two `.ts` copies were invisible to `uiSingleOwner.test.ts`, which walks only `.tsx`.
-    const offenders = srcFiles().filter((file) =>
-      /entity\.name \|\| '(Settler|Unknown|Unnamed)'/.test(read(file)),
-    );
-    expect(offenders, 'a domain module re-typed a nameless-settler fallback').toEqual([]);
-  });
+
+
 });
 
 describe('one definition of the village anchor', () => {
@@ -400,13 +342,7 @@ describe('one definition of the village anchor', () => {
     expect(getPlayerCampCenter(world, [barracks])).toEqual({ x: 350, y: 350 });
   });
 
-  it('does not restate the anchor rule in the renderer', () => {
-    const humans = read('src/game/renderer/humans.ts');
-    expect(humans, 'the renderer restated the anchor rule again')
-      .not.toMatch(/function getPlayerCampCenterFromBuildings/);
-    expect(humans, 'the renderer should not retain a private anchor call')
-      .not.toContain('getPlayerCampCenter');
-  });
+
 });
 
 describe('the tick rollback restores the pre-tick float and particle values', () => {
@@ -602,14 +538,5 @@ describe('the spatial grid refreshes an object that did not change cell', () => 
   });
 });
 
-describe('one terrain-tile size', () => {
-  it('owns the world-units-per-tile constant once', () => {
-    // `PATH_CELL` is the one world-units-per-tile constant: raid distances and footprint validity
-    // are only correct when they agree with the terrain grid that defines it.
-    const offenders = srcFiles().filter((file) =>
-      /\b(PIXELS_PER_TILE|PLACEMENT_TILE_SIZE)\b/.test(read(file)),
-    );
-    expect(offenders, 'a module re-declared the terrain tile size').toEqual([]);
-  });
-});
+
 

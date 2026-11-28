@@ -24,28 +24,6 @@ function readSrc(relative: string): string {
   return readFileSync(fileURLToPath(new URL(`../src/${relative}`, import.meta.url)), 'utf8');
 }
 
-// ---- Hunt arrows belong in the per-frame overlay, not the tick-keyed entity layer ----
-const HUNT_ARROW_IN_ENTITY_LAYER = /drawHuntVisuals\(/;
-const HUNT_ARROW_IN_OVERLAY = /drawHuntVisuals\(ctx, state, cw, ch\)/;
-
-// ---- The sand/water overlay is not nested inside the atlas branch ----
-const OVERLAY_INSIDE_ATLAS_PICK = /if \(atlasPick\) \{\s*\n\s*const overlayPick/;
-
-// ---- The minimap reads the canonical palette instead of its own table ----
-const MINIMAP_LOCAL_PALETTE = /#5f8a48/;
-
-// ---- One strip index per repaint, not one per road ----
-const PER_ROAD_JUNCTION = /detectBuildingJunction\(/;
-
-// ---- The decor ghost takes the procedural draw, not a sprite that has no art on disk ----
-const DECOR_PREVIEW_PROCEDURAL = /drawProceduralDecor\(ctx, state\.buildMode/;
-
-// ---- The pulsing leader aura lives only in the per-frame overlay pass ----
-const UNGUARDED_LEADER_AURA = /if \(isLeader && cam\.zoom > 0\.22\) \{/;
-const AURA_FROM_LAYER_PAINTER = /drawLeaderAura\(ctx, human/;
-const AURA_OWNER = /export function drawLeaderAuraOverlay/;
-const AURA_IN_LIVE_PASS = /drawLeaderAuraOverlay\(ctx, state, cw, ch\)/;
-
 describe('W-06 — placement verdict markers follow the live ghost', () => {
   /** Records each diamond's first point, which is one marker per candidate cell. */
   function recordingContext() {
@@ -88,50 +66,15 @@ describe('W-06 — placement verdict markers follow the live ghost', () => {
     expect(Math.min(...right) - Math.min(...left)).toBeGreaterThan(100);
   });
 
-  it('is painted by the per-frame overlay, never by the cached static layer', () => {
-    expect(readSrc('game/renderer/entityComposite.ts')).not.toMatch(/drawBuildSnapOverlay|drawBuildStripPreviewOverlay/);
-    expect(readSrc('game/renderer/overlay.ts')).toMatch(/drawBuildSnapOverlay\(ctx, state, cw, ch\)/);
-    expect(readSrc('game/renderer/overlay.ts')).toMatch(/drawBuildStripPreviewOverlay\(ctx, state, cw, ch\)/);
-  });
+
 });
 
-describe('W-24/W-22/W-26 — time- and render-owned state stays out of the wrong owner', () => {
-  it('paints the ramped construction bar per frame instead of baking it', () => {
-    expect(readSrc('game/renderer/overlay.ts')).toMatch(/drawConstructionProgressOverlay\(ctx, state, cw, ch\)/);
-    expect(readSrc('game/renderer/entityComposite.ts')).not.toMatch(/drawConstructionProgressOverlay/);
-    // The baked figure keys on the authoritative daily value; only the live bar reads the ramp.
-    expect(readSrc('game/renderer/buildings.ts')).not.toMatch(/displayedConstructionProgress\(building, state\.tick\)/);
-  });
 
-  it('the render patch writes presentation kinematics only', () => {
-    const src = readSrc('game/simBuffers/applyKinematics.ts');
-    for (const field of ['size', 'huntTargetId', 'chatTicks', 'chatPhrase']) {
-      expect(src).not.toMatch(new RegExp(`entity\\.${field}\\s*=`));
-    }
-  });
 
-  it('the walk owner advances the walk phase, not the sprite module', () => {
-    expect(readSrc('game/humanSprites.ts')).not.toMatch(/human\.animFrame\s*=/);
-    expect(readSrc('game/simulation/humanMovement.ts')).toMatch(/export function advanceHumanWalkAnim/);
-  });
-});
 
-describe('D5 — hunt arrows draw in the per-frame overlay', () => {
-  it('is not painted into the tick-keyed entity layer', () => {
-    // The arrow advances on the millisecond clock `HUNT_ANIM_MS`, which the tick-keyed layer
-    // cannot sample.
-    expect(readSrc('game/renderer/entityComposite.ts')).not.toMatch(HUNT_ARROW_IN_ENTITY_LAYER);
-    expect(readSrc('game/renderer/overlay.ts')).toMatch(HUNT_ARROW_IN_OVERLAY);
-  });
-});
 
 describe('D8 — the sand/water overlay is independent of the atlas pick', () => {
-  it('is stamped outside the atlas branch', () => {
-    const src = readSrc('game/terrainLayer.ts');
-    expect(src).not.toMatch(OVERLAY_INSIDE_ATLAS_PICK);
-    // Once per base-painter branch: atlas, flat fallback, stamped fill.
-    expect((src.match(/drawSandWaterOverlay\(ctx/g) ?? []).length).toBe(3);
-  });
+
 
   it('has a material the atlas cannot paint, which is why the old gate was wrong', () => {
     // A coastal strip: open water across the top row, beach below it.
@@ -159,14 +102,7 @@ describe('D9 — a terrain fill is stamped once', () => {
 });
 
 describe('D12 — one terrain palette owner', () => {
-  it('is defined once and imported by every consumer', () => {
-    expect((readSrc('game/terrainAtlas.ts').match(/0x5e7a3a/g) ?? []).length).toBe(1);
-    expect(readSrc('game/renderer/terrain.ts')).toContain('TERRAIN_PALETTE');
-    // The bake and the minimap are the only consumers of the canonical palette;
-    // the minimap reads `terrainPaletteHex`, never a local table.
-    expect(readSrc('components/MiniMap.tsx')).toContain('terrainPaletteHex');
-    expect(readSrc('components/MiniMap.tsx')).not.toMatch(MINIMAP_LOCAL_PALETTE);
-  });
+
 
   it('covers every terrain type with a CSS colour', () => {
     for (const type of Object.values(TerrainType)) {
@@ -175,14 +111,7 @@ describe('D12 — one terrain palette owner', () => {
   });
 });
 
-describe('D14 — road and wall indexes are each collected once per repaint', () => {
-  it('does not re-derive the junction index per road', () => {
-    const src = readSrc('game/renderer/buildings.ts');
-    // Match the call, not the word: the loop's doc comment also names it.
-    expect(src).not.toMatch(PER_ROAD_JUNCTION);
-    expect((src.match(/collectStripCenters\(/g) ?? []).length).toBe(2);
-  });
-});
+
 
 describe('D16 — every child sprite draws the same painted figure height', () => {
   // Painted-figure fraction of each PNG's canvas from its alpha bounding box (this tier has no
@@ -207,8 +136,6 @@ describe('D16 — every child sprite draws the same painted figure height', () =
       // …so the drawn box must be `spriteH / fraction` for the padded figure inside it to fill it.
       expect(getJuvenileFigureScale(human), path).toBeCloseTo(1 / figure, 6);
     }
-    // And the draw site is what applies it — otherwise the scale is computed and thrown away.
-    expect(readSrc('game/renderer/humans.ts')).toMatch(/spriteH \* getJuvenileFigureScale\(human\)/);
   });
 
   it('leaves adults on the unnormalised world height', () => {
@@ -217,16 +144,7 @@ describe('D16 — every child sprite draws the same painted figure height', () =
   });
 });
 
-describe('D17 — the decor build preview draws the decor, not a rectangle', () => {
-  it('routes decor types through the same procedural draw as the placed building', () => {
-    const src = readSrc('game/renderer/buildPreview.ts');
-    expect(src).toMatch(DECOR_PREVIEW_PROCEDURAL);
-    expect(src).toContain('isDecorType(state.buildMode)');
-    // Procedural decor declares no sprite and has no art on disk, so the sprite lookup can only
-    // ever return null for it — the ghost must not depend on it.
-    expect(src).toMatch(/const previewFrame = isDecor \|\| !cfg\.sprite \? null : getSpriteFrame\(cfg\.sprite\)/);
-  });
-});
+
 
 describe('D18 — the entity layer key covers what its painters read', () => {
   function snapshot(overrides: Record<string, unknown> = {}): RenderSnapshot {
@@ -286,44 +204,14 @@ describe('D18 — the entity layer key covers what its painters read', () => {
   });
 });
 
-describe('D19 — the leader aura is drawn per frame, not into the cached layer', () => {
-  it('has exactly one owner, in the overlay pass', () => {
-    const humans = readSrc('game/renderer/humans.ts');
-    // The aura pulses on `renderTime` every frame, while `drawHumans` feeds a tick-keyed
-    // bitmap; drawing the aura there would freeze or drop it.
-    expect(humans).not.toMatch(AURA_FROM_LAYER_PAINTER);
-    expect(humans).not.toMatch(UNGUARDED_LEADER_AURA);
-    expect(humans).toMatch(AURA_OWNER);
-    expect(readSrc('game/renderer/overlay.ts')).toMatch(AURA_IN_LIVE_PASS);
-  });
-});
 
-describe('D23 — ghost and strip previews ride the terrain relief', () => {
-  it('lifts the ghost sprite and both preview plates', () => {
-    // One owner for the sampled footprint point: a bare `terrainRiseAt` in either file is the drift
-    // this pins, because it cannot say which point of the footprint it sampled.
-    expect(readSrc('game/renderer/buildPreview.ts')).toContain('footprintGroundRise(state.worldMap');
-    expect(readSrc('game/renderer/buildings.ts')).toContain('footprintGroundRise(state.worldMap');
-    // Once for the strip segments, once for the ghost plate.
-    expect((readSrc('game/renderer/grid.ts').match(/terrainRiseAt\(state\.worldMap/g) ?? []).length).toBe(2);
-  });
-});
+
+
 
 describe('guards are not vacuous', () => {
   // Each case feeds the pattern a source it must catch, so a vacuous pattern fails here rather
   // than sitting as a silent non-guard.
-  it('each pattern catches the defect it was written for', () => {
-    // The entity-layer call the pattern must catch.
-    expect('  drawHuntVisuals(drawCtx, state, cw, ch);').toMatch(HUNT_ARROW_IN_ENTITY_LAYER);
-    // The overlay nested inside the atlas branch.
-    expect('if (atlasPick) {\n      const overlayPick = overlayReady ? pickSandWaterOverlay(map, tx, ty) : null;')
-      .toMatch(OVERLAY_INSIDE_ATLAS_PICK);
-    // The minimap's local palette literal.
-    expect("  [TerrainType.Grassland]: '#5f8a48',").toMatch(MINIMAP_LOCAL_PALETTE);
-    // The per-road junction lookup.
-    expect("const roadJunction = detectBuildingJunction(state.buildings, b, 'road');")
-      .toMatch(PER_ROAD_JUNCTION);
-  });
+
 
   it('the pre-fix terrain fill really did stamp twice', () => {
     const preFixBody = `
@@ -335,17 +223,7 @@ describe('guards are not vacuous', () => {
     expect((preFixBody.match(/drawImage\(/g) ?? []).length).toBe(2);
   });
 
-  it('each D16–D27 pattern catches the pre-fix code the audit quoted', () => {
-    // The validity-coloured ghost rectangle with no procedural draw.
-    expect("    ctx.fillStyle = valid ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)';")
-      .not.toMatch(DECOR_PREVIEW_PROCEDURAL);
-    // The aura call the layer painter must not make.
-    expect('      drawLeaderAura(ctx, human, sx, footY, headY, size, spriteH, bobY, cam.zoom);')
-      .toMatch(AURA_FROM_LAYER_PAINTER);
-    expect('    if (isLeader && cam.zoom > 0.22) {').toMatch(UNGUARDED_LEADER_AURA);
-    // Plate on the raw cell, verdict on the snapped one.
-    expect('const px = worldToScreenX(rawX, cam, cw);').not.toContain('worldToScreenX(cx,');
-  });
+
 
   it('the D21 flip is a transform, so identical draw calls are not a defect', () => {
     // `stampPropSprite`'s two `drawImage` calls are identical inside `if (flipX)`, after
