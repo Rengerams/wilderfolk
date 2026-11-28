@@ -15,7 +15,7 @@ import {
 import { resetDialogueSessions, tickHumanChat } from '../src/game/humanChat';
 import { simAmbientChatNeighbors } from '../src/game/simulation/humanSocial';
 import { explainHumanMovement } from '../src/game/movementExplanation';
-import { initGame } from '../src/game/worldGen';
+import { createBuilding, initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -207,7 +207,9 @@ describe('social motives respect needs, mutual relationships and completed erran
     person.pregnancyProgress = 1;
     person.pregnancyDueProgress = 100;
     person.griefUntilTick = 0;
-    const ward = { id: 10001, type: BuildingType.Hospital, completed: true, x: person.x, y: person.y, occupants: [10002] } as Building;
+    const ward = createBuilding(BuildingType.Hospital, person.x, person.y, 10001);
+    ward.completed = true;
+    ward.occupants = [10002];
     for (let day = 1; day < 30; day++) {
       state.tick = day * TICKS_PER_DAY + 12 * TICKS_PER_HOUR;
       const impulse = pickSocialImpulse(person, state, [ward], []);
@@ -244,7 +246,8 @@ describe('social motives respect needs, mutual relationships and completed erran
     person.workerBuildingId = undefined;
     person.pregnant = false;
     person.griefUntilTick = 0;
-    const near = { id: 10001, type: BuildingType.Market, completed: true, x: person.x + 10, y: person.y, occupants: [], width: 40, height: 30, level: 1, constructionProgress: 100, health: 100, maxHealth: 100 } as Building;
+    const near = createBuilding(BuildingType.Market, person.x + 10, person.y, 10001);
+    near.completed = true;
     const far = { ...near, id: 10002, x: person.x + 100 };
     let found = false;
     for (let day = 1; day < 100; day++) {
