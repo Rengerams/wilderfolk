@@ -41,7 +41,7 @@ export interface EntityRenderMeta {
   relationshipStatus?: Entity['relationshipStatus'];
   partnerId?: number;
   affairPartnerId?: number;
-  affairCandidateId?: number;
+  affairCandidates?: Entity['affairCandidates'];
   courtshipPartnerId?: number;
   workerBuildingId?: number;
   prisonBuildingId?: number;
@@ -78,7 +78,7 @@ export function packEntityRenderMeta(entity: Entity): EntityRenderMeta {
     relationshipStatus: entity.relationshipStatus,
     partnerId: entity.partnerId,
     affairPartnerId: entity.affairPartnerId,
-    affairCandidateId: entity.affairCandidateId,
+    affairCandidates: entity.affairCandidates,
     courtshipPartnerId: entity.courtshipPartnerId,
     workerBuildingId: entity.workerBuildingId,
     prisonBuildingId: entity.prisonBuildingId,
@@ -168,7 +168,7 @@ export function buildRenderEntityShim(
     relationshipStatus: meta?.relationshipStatus,
     partnerId: meta?.partnerId,
     affairPartnerId: meta?.affairPartnerId,
-    affairCandidateId: meta?.affairCandidateId,
+    affairCandidates: meta?.affairCandidates,
     courtshipPartnerId: meta?.courtshipPartnerId,
     skills: meta?.skills ? { ...meta.skills } : {},
     combatTicks: meta?.combatTicks ?? ((flags & RENDER_FLAG_COMBAT) ? 1 : 0),

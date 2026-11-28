@@ -1,3 +1,4 @@
+import { getPendingAffairs } from '../game/simulation/humanRelationships';
 import {
   EntityType,
   isPlayerHuman,
@@ -312,17 +313,11 @@ export default function SelectedEntityPanel({
                 </p>
               );
             })()}
-            {/* Pending progress has its own reciprocal partner identity: no anonymous 100%. */}
-            {entity.affairPartnerId == null && entity.affairCandidateId != null && (() => {
-              const candidate = allEntities.find((person) =>
-                person.id === entity.affairCandidateId && person.alive
-                && person.affairCandidateId === entity.id);
-              return candidate ? (
-                <p className="text-rose-300/70">
-                  💋 Secret affair developing with {citizenFullName(candidate)} ({Math.round(entity.affairProgress ?? 0)}%)
-                </p>
-              ) : null;
-            })()}
+            {getPendingAffairs(entity, allEntities, state.tick).map(({ person, progress }) => (
+              <p key={person.id} className="text-rose-300/70">
+                💋 Secret affair developing with {citizenFullName(person)} ({Math.round(progress)}%)
+              </p>
+            ))}
             {entity.isBastard && <p className="text-violet-300">⚜ Born outside wedlock</p>}
             {childCount > 0 && (
               <p className="text-pink-200">

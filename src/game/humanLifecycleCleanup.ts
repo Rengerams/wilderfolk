@@ -68,6 +68,7 @@ function finalizeHumanDeath(
   entity.partnerId = undefined;
   entity.affairPartnerId = undefined;
   entity.affairCandidateId = undefined;
+  entity.affairCandidates = undefined;
   entity.affairProgress = 0;
  // A courtship ends with the settler: the link and its progress are a pair bond, so the
   // dying side keeps neither and the survivor's half is cleared by the reference sweep below.
@@ -185,6 +186,11 @@ export function reconcileFamilyReferencesAfterRemoval(
         survivor.relationshipStatus = 'single';
       }
       survivor.partnerId = undefined;
+    }
+    if (survivor.affairCandidates?.[removedId]) {
+      const next = { ...survivor.affairCandidates };
+      delete next[removedId];
+      survivor.affairCandidates = Object.keys(next).length ? next : undefined;
     }
     if (survivor.affairPartnerId === removedId) {
       survivor.affairPartnerId = undefined;

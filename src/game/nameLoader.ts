@@ -372,6 +372,8 @@ export function resolveChildSurname(
 function clearMarriageLinks(entity: Entity): void {
   entity.partnerId = undefined;
   entity.affairPartnerId = undefined;
+  entity.affairCandidates = undefined;
+  entity.affairCandidateId = undefined;
   entity.affairProgress = 0;
   entity.courtshipPartnerId = undefined;
   entity.courtshipProgress = 0;

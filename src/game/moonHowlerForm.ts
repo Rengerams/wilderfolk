@@ -73,6 +73,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   were.partnerId = saved?.partnerId;
   were.affairPartnerId = saved?.affairPartnerId;
   were.affairCandidateId = saved?.affairCandidateId;
+  were.affairCandidates = saved?.affairCandidates;
   were.affairProgress = saved?.affairProgress ?? 0;
   were.courtshipPartnerId = saved?.courtshipPartnerId;
   were.courtshipProgress = saved?.courtshipProgress ?? 0;
