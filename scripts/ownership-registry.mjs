@@ -12,6 +12,17 @@ export function getDecisionRows() {
   return Object.entries(SIMULATION_DECISIONS).map(([key, row]) => ({ source: 'decisionRegistry.ts', key, ...row }));
 }
 
+/** Read-only projection of explicit infrastructure contracts for the call graph. */
+export function getInfrastructureRows() {
+  return TOOLING_CONTRACTS.map(contract => ({
+    source: 'infrastructureManifest',
+    key: contract.key,
+    owner: contract.module + ' — ' + contract.label,
+    entryFunctionsCell: contract.symbols.join(', '),
+    writes: [],
+  }));
+}
+
 function escapeCell(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('|', '&#124;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('[', '&#91;').replaceAll(']', '&#93;').replace(/\r?\n/g, ' ');
 }
@@ -221,6 +232,7 @@ const TOOLING_CONTRACTS = [
     "module": "scripts/ownership-registry.mjs",
     "symbols": [
       "getDecisionRows",
+      "getInfrastructureRows",
       "escapeCell",
       "renderDecisionTable",
       "replaceGeneratedBlock",
@@ -287,6 +299,15 @@ const TOOLING_CONTRACTS = [
     "module": "scripts/test.mjs",
     "symbols": [
       "run"
+    ]
+  },
+  {
+    "key": "infrastructure:decision-registry",
+    "label": "Decision registry verification utilities",
+    "module": "src/game/simulation/decisionRegistry.ts",
+    "symbols": [
+      "getDecisionsByCadence",
+      "isPropertyWritePermitted"
     ]
   }
 ];
