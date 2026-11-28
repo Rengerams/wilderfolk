@@ -102,7 +102,7 @@ export default function MoreTabPanel({
               <p>• <strong className="text-stone-200">Challenges</strong> (Progress → Goals) — stepped goals with resource rewards.</p>
               <p>• <strong className="text-stone-200">Your legend</strong> (Progress → Goals) — not a hard win. History describes you (warlike, steward, trader, builder, diplomat). Optional challenges give rewards.</p>
               <p>• <strong className="text-stone-200">Living drama</strong> — marriages, scandals, babies, moon howlers (Log / .txt chronicle).</p>
-              <p>• <strong className="text-stone-200">The wider world</strong> — pilgrims, performers, rival camps appear as you grow.</p>
+              <p>• <strong className="text-stone-200">The wider world</strong> — rival settlements and authored stories emerge as you grow.</p>
               <p>• <strong className="text-stone-200">Trade &amp; reputation</strong> — become a known township, link routes, unlock gold.</p>
               {/* The build card above is the only place the version is rendered. */}
               <p className="text-stone-300 italic">This build is a playtest — more scripted story and rivals are planned. For now, pick one legacy and watch your chronicle unfold.</p>
@@ -158,12 +158,11 @@ export default function MoreTabPanel({
           </div>
 
           <div className="rounded-xl bg-stone-700/50 p-3">
-            <h3 className="mb-2 text-sm font-bold text-cyan-300">🧳 Visitors & Rival Settlements</h3>
+            <h3 className="mb-2 text-sm font-bold text-cyan-300">🏕️ Rival Settlements</h3>
             <div className="space-y-1 text-stone-300">
-              <p>• <strong className="text-cyan-200">Traveling groups</strong> camp near your village — traders, pilgrims, scholars, performers, and more. They bring gifts and leave after a while.</p>
-              <p>• <strong className="text-amber-200">Rival settlements</strong> appear on the same map and <strong className="text-stone-200">slowly expand</strong> (houses, farms, markets, or towers by mood — not always hostile).</p>
-              <p>• Relationships vary: <em>friendly</em> neighbors trade &amp; grow peacefully, <em>competitive</em> ones hunt your deer, <em>tense</em> ones may fortify and raid.</p>
-              <p>• Check the <strong className="text-stone-200">Frontier</strong> window to see who&apos;s currently on the map.</p>
+              <p>• <strong className="text-amber-200">Rival settlements</strong> appear on the strategic map and <strong className="text-stone-200">slowly grow</strong> according to their resources and disposition.</p>
+              <p>• Relationships vary: <em>friendly</em> neighbors trade &amp; grow peacefully, <em>competitive</em> ones pursue their own interests, <em>tense</em> ones may fortify and raid.</p>
+              <p>• Check the <strong className="text-stone-200">Frontier</strong> window to see neighboring settlements and their relationships.</p>
             </div>
           </div>
 
@@ -212,10 +211,8 @@ export default function MoreTabPanel({
           <div className="rounded-xl bg-stone-700/50 p-3">
             <h3 className="mb-2 text-sm font-bold text-cyan-300">🏕️ Other tribes</h3>
             <div className="space-y-1 text-stone-300">
-              <p>• <strong className="text-stone-200">Visitors</strong> camp nearby (traders, pilgrims, refugees…) — passive bonuses while they stay.</p>
-              <p>• <strong className="text-stone-200">Rival settlements</strong> appear from ~6 population / yearly events — their camps grow slowly on the map (mood shapes what they build).</p>
-              <p>• <strong className="text-stone-200">Diplomacy</strong> — click a rival camp for gifts, pacts, peace treaties (🕊️), militia, raids, and event responses.</p>
-              <p>• <strong className="text-stone-200">Visitor camps</strong> — talk to the caravan leader (once per visit), trade goods, or negotiate refugees.</p>
+              <p>• <strong className="text-stone-200">Rival settlements</strong> may be founded from six colonists onward, and grow on the strategic map.</p>
+              <p>• <strong className="text-stone-200">Diplomacy</strong> — open Frontier and select a settlement for gifts, pacts, peace treaties (🕊️), militia, raids, and event responses.</p>
               <p className="text-stone-300 italic">Raids use strength ratios (not a battle screen). Peace treaties block attacks; prep walls, barracks, and spears.</p>
             </div>
           </div>
