@@ -106,7 +106,7 @@ describe('school-day credit needs the teacher there', () => {
     expect(resolveSchoolSchedule(kid, undefined, undefined, classTick(), 10).onShift).toBe(false);
   });
 
-  it('cannot award attendance to a visitor without that school seat', () => {
+  it('cannot award attendance to an unassigned child without that school seat', () => {
     const target = school([900]);
     const visitor = child({ x: target.x, y: target.y });
     recordChildSchoolTick(visitor, target, 10, true, classTick());
@@ -122,7 +122,7 @@ describe('school-day credit needs the teacher there', () => {
 
   it('credits nothing for a child who is not at the school', () => {
     const target = school([900]);
-    const kid = child({ x: 900, y: 900 });
+    const kid = child({ x: 900, y: 900, schoolBuildingId: target.id });
     recordChildSchoolTick(kid, target, 10, true, classTick());
     expect(kid.schoolTicksToday ?? 0).toBe(0);
   });

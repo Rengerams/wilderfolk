@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/gameEngine';
-import { BuildingType, MapSize, EntityType } from '../src/game/gameTypes';
+import { BuildingType, MapSize, EntityType, JobType } from '../src/game/gameTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { DEFAULT_WORK_SCHEDULE } from '../src/game/workSchedule';
 import { getHumanActivityProjection, getHumanActivityStatus } from '../src/game/humanStatus';
 import { explainHumanMovement } from '../src/game/movementExplanation';
+import { buildingAccessPoint } from '../src/game/buildingAccess';
 import { setProjectedCommuteBuildingId } from '../src/game/simulation/humanMovement';
 
 describe('selected human activity projection', () => {
@@ -62,6 +63,42 @@ describe('selected human activity projection', () => {
     expect(projection.schedule.onShift).toBe(false);
     expect(projection.workReason.code).toBe('no-post');
     expect(projection.target).toBeNull();
+  });
+
+  it('shows the persisted school duty of a sixteen-year-old and distinguishes teacher absence and travel', () => {
+    const world = initGame({ villageName: 'School Projection', size: MapSize.Medium, seed: 108 });
+    const [child, teacher] = world.entities.filter((e) => e.alive && e.type === EntityType.Human);
+    if (!child || !teacher) throw new Error('Expected two settlers');
+    const school = {
+      id: 90003, type: BuildingType.School, x: 500, y: 500,
+      width: 40, height: 40, occupants: [teacher.id], level: 1,
+      constructionProgress: 1, completed: true, health: 100,
+      maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
+    };
+    world.buildings = [school];
+    world.tick = 10 * TICKS_PER_HOUR;
+    Object.assign(child, { age: 16, isJuvenile: true, workerBuildingId: undefined,
+      residenceBuildingId: undefined, indoorBuildingId: undefined, needs: undefined,
+      schoolBuildingId: school.id, x: school.x, y: school.y });
+    Object.assign(teacher, buildingAccessPoint(school), { age: 30, isJuvenile: false,
+      job: JobType.Teacher, workerBuildingId: school.id });
+    const before = child.schoolTicksToday;
+    const projection = getHumanActivityProjection(world, child);
+    expect(projection.activity).toBe('Attending school');
+    expect(projection.schedule).toMatchObject({ startHour: 9, endHour: 15, onShift: true });
+    expect(projection.target).toMatchObject({ kind: 'school', buildingId: school.id });
+    expect(projection.workplace).toBeNull();
+    expect(child.schoolTicksToday).toBe(before);
+    teacher.x += 300;
+    expect(getHumanActivityStatus(world, child)).toBe('Waiting for teacher');
+    child.x += 300;
+    child.vx = 0;
+    expect(getHumanActivityStatus(world, child)).toBe('Away from school');
+    child.vx = 1;
+    setProjectedCommuteBuildingId(child, school.id);
+    expect(getHumanActivityStatus(world, child)).toBe('Walking to school');
+    child.schoolBuildingId = undefined;
+    expect(getHumanActivityStatus(world, child)).toBe('No assigned school seat');
   });
 
   it('shows real child play instead of walking home and exposes the playmate as target', () => {
