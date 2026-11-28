@@ -37,6 +37,76 @@ export interface DecisionOwner {
   readonly testFile: string;
 }
 
+/** Stable required gameplay contract; independent of the registry implementation. */
+export const REQUIRED_DECISION_KEYS = [
+  'navigation',
+  'workerMotionPresentation',
+  'virtualPlayer',
+  'chronicleProseNames',
+  'dailyPersonRoll',
+  'traitInfluence',
+  'personalMarks',
+  'careerHistory',
+  'careerProgression',
+  'workerFit',
+  'completedBuildingLookup',
+  'inputGuards',
+  'humanPhysiology',
+  'humanMeals',
+  'workSchedule',
+  'workforce',
+  'immigration',
+  'school',
+  'buildingAccess',
+  'humanLeisure',
+  'settlerDeathAudio',
+  'terrainClearingFields',
+  'colonyMovementObservation',
+  'housing',
+  'construction',
+  'production',
+  'civicPetition',
+  'tradeCaravans',
+  'humanWalk',
+  'dailyRelationships',
+  'humanMortality',
+  'ecosystemMetrics',
+  'yearlyWorldEvents',
+  'grassRegrowth',
+  'foodLedger',
+  'herdMemory',
+  'wildlifePredation',
+  'wildlifeReplenishment',
+  'villageRequests',
+  'inventionFair',
+  'authoredStoryExpiry',
+  'rivalStrategy',
+  'idleSkillDecay',
+  'socialFeedback',
+  'dialogueContent',
+  'dialogueSessions',
+  'renffrOmen',
+  'spotlightLore',
+  'courtship',
+  'affairs',
+  'conception',
+  'pregnancyBirth',
+  'wildkinLineage',
+  'moonHowler',
+  'leadership',
+  'raidCombat',
+  'outgoingRaidStatus',
+  'raidRecovery',
+  'raidBattlePresentation',
+  'raidTerminalPresentation',
+  'crashRecovery',
+  'valleyChronicle',
+  'terrainRiverSurface',
+  'commands',
+] as const;
+
+export type DecisionKey = (typeof REQUIRED_DECISION_KEYS)[number];
+
 export const SIMULATION_DECISIONS = {
   navigation: {
     entrypoints: [{ module: 'src/game/pathfinding.ts', symbol: 'getNavigationQuote' }, { module: 'src/game/commuteReach.ts', symbol: 'quoteCommute' }],
@@ -810,10 +880,7 @@ export const SIMULATION_DECISIONS = {
     scheduledFrom: 'hooks/useCanvasInteractions.handleMouseUp (Alt-drag confirmation) → GameWorkerHost command channel; main-thread fallback in gameLoop',
     testFile: 'tests/commands.validation.test.ts, tests/workerCommand.roundtrip.test.ts, scripts/check-source-guards.mjs',
   },
-} as const satisfies Record<string, DecisionOwner>;
-
-/** Stable keys are derived from the one authoritative registry. */
-export type DecisionKey = keyof typeof SIMULATION_DECISIONS;
+} as const satisfies Record<DecisionKey, DecisionOwner>;
 
 /** Selected-settler inspector: read-only render of the saved genome and career records, no tick or writer. */
 export const PERSONALITY_CAREER_INSPECTOR_PRESENTATION = {
