@@ -4,7 +4,7 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { treatPatientAtHospital } from '../src/game/hospitalCare';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { tryEatColonyMeal } from '../src/game/simulation/humanNeeds';
-import { advanceHumanNeeds, getHumanNeedsWorkMultiplier, initialHumanNeeds, normalizeHumanNeeds, resolveHumanNeedsIntent } from '../src/game/simulation/humanPhysiology';
+import { advanceHumanNeeds, adjustHumanStamina, getHumanNeedsWorkMultiplier, initialHumanNeeds, normalizeHumanNeeds, resolveHumanNeedsIntent } from '../src/game/simulation/humanPhysiology';
 
 const mealTick = TICKS_PER_DAY;
 function person(override: Partial<Entity> = {}): Entity {
@@ -84,6 +84,20 @@ describe('single human meal transaction', () => {
 });
 
 describe('cross-system physiology compatibility', () => {
+  it('applies native stamina points independently of legacy capacity and clamps the reserve', () => {
+    for (const maxEnergy of [100, 400, 500, 900]) {
+      const e = person({ maxEnergy, energy: 0, needs: { nutrition: 60, rest: 70, stamina: 20 } });
+      adjustHumanStamina(e, 9);
+      expect(e.needs!.stamina).toBe(29);
+      adjustHumanStamina(e, -50);
+      expect(e.needs!.stamina).toBe(0);
+      adjustHumanStamina(e, 150);
+      expect(e.needs!.stamina).toBe(100);
+      expect(e.needs!.rest).toBe(70);
+      expect(e.needs!.nutrition).toBe(60);
+    }
+  });
+
   it('sizes medical treatment from stamina even when legacy energy disagrees', () => {
     const run = (energy: number, stamina: number) => {
       const patient = person({ x: 100, y: 100, energy, needs: { nutrition: 60, rest: 70, stamina } });

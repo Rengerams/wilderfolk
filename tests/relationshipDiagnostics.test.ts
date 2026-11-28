@@ -40,7 +40,7 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
     x: 10,
     y: 10,
     energy: 100,
-    maxEnergy: 100,
+    maxEnergy: 500,
     age: 30,
     birthYear: 0,
     birthMonth: 0,

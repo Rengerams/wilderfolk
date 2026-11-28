@@ -13,28 +13,28 @@
 
 Migrated so far: `hospitalCare.needsMedicalCare`, `medicalUrgency`, `medicalCareReason` and the `humanHospitalBehavior` treatment gate now read `getHumanStaminaRatio`; the hospital no longer calls a settler exhausted from a stale mirror. Hospital stamina-only admission uses the existing 15% `HUMAN_NEEDS.STAMINA_CRITICAL` boundary, not the former 42% fatigue gate: routine ~30%-stamina bedtime fatigue belongs to the home/sleep owner; late pregnancy and grief remain independently eligible.
 
-Stage 1 migration inventory (legacy point units and missing-needs fallback are deliberately still present):
+Stage 2 migration inventory (native stamina units; legacy mirror and missing-needs fallback remain temporarily):
 
 | Owner | Path | Target |
 | --- | --- | --- |
-| `hospitalCare.treatPatientAtHospital` | migrated treatment sizing | authoritative stamina; point conversion remains |
-| `simulation/humanRelationships.ts` | migrated conception/affair thresholds | `getHumanStaminaRatio`; legacy capacity conversion remains |
-| `humanTick.ts` | migrated courtship eligibility thresholds | `getHumanStaminaRatio`; legacy capacity conversion remains |
+| `hospitalCare.treatPatientAtHospital` | migrated treatment sizing | native stamina points |
+| `simulation/humanRelationships.ts` | migrated conception/affair thresholds | native stamina thresholds |
+| `humanTick.ts` | migrated courtship eligibility thresholds | native stamina thresholds |
 | `socialLife.ts` | exhausted/vulnerable/critical impulse ratios | `getHumanStaminaRatio` |
 | `hotelStay.ts` | visitor-only `restAtHotel` legacy recovery | audit/remove retired visitor path; player hotel sleep already advances in physiology |
-| `simulation/humanLifecycle.ts` | migrated maternal cost and birth recovery | authoritative stamina; point conversion remains |
-| `animalCare.ts` | tamer owner energy bonus | `adjustHumanStaminaFromEnergy` |
+| `simulation/humanLifecycle.ts` | migrated maternal cost and birth recovery | native stamina points |
+| `animalCare.ts` | tamer owner energy bonus | `adjustHumanStamina` |
 | `humanHuntingBehavior.ts` / `dailyBuildingEconomy.ts` | removed legacy kill stamina bonus; migrated damage model selection | food-only hunting yield; player identity for injury effects |
 | `humanEnergy` display/worker metadata | read-only projection | read `needs` for settlers, energy only for nonhumans |
 
 Rules for new code:
 
 1. Player-human decisions read `needs.stamina` / `needs.rest` (or `getHumanStaminaRatio`), never `Entity.energy`.
-2. Legacy-sized effects write through `adjustHumanStaminaFromEnergy`; do not assign `Entity.energy` directly.
+2. Effects use native stamina percentage points through `adjustHumanStamina`; do not assign `Entity.energy` directly.
 3. `energy` is never a second authority for a rule that stamina already owns.
 4. Nonhuman creatures remain excluded from this rule; their energy is their own model.
 
-Stage 1 adds scoped source guards for migrated modules and the single mirror expression. Election turnout, civic petition thresholds and dashboard stamina are also migrated. Full AST/symbol coverage, remaining mixed-domain paths, legacy capacity units, old-save boundary-only fallback and mirror removal remain open; the scoped text guard is not a repository-wide proof.
+Stage 1 adds scoped source guards for migrated modules and the single mirror expression. Election turnout, civic petition thresholds and dashboard stamina are also migrated. Stage 2 replaces the legacy point bridge with `adjustHumanStamina`, converts all inventoried effects using the standard 500-point adult as the historical calibration, and removes education's obsolete capacity increase. Nonstandard legacy capacities no longer scale human effects. Full AST/symbol coverage, remaining mixed-domain paths, old-save boundary-only fallback and mirror removal remain open; the scoped text guard is not a repository-wide proof.
 
 
 ## 1. Purpose and invariants
@@ -64,7 +64,7 @@ Replace the single human energy bar with independent, serialized **nutrition**, 
 | `nightDutyRecoveryPending` | overnight duty completed and owed daytime recovery |
 | `sleepRecoveryUntilTick` | bounded recovery attempt deadline |
 
-**One authoritative rule owner:** `src/game/simulation/humanPhysiology.ts`, exporting `HUMAN_NEEDS`, `HumanNeedsObservation`, `HumanNeedsIntent`, `initialHumanNeeds`, `normalizeHumanNeeds`, `advanceHumanNeeds`, `resolveHumanNeedsIntent`, `getHumanNeedsWorkMultiplier`, `hasFatalStarvation`, `creditHumanNutritionFromFood`, `adjustHumanStaminaFromEnergy`, and `rebaseHumanNeedsClockAfterFormRestore`.
+**One authoritative rule owner:** `src/game/simulation/humanPhysiology.ts`, exporting `HUMAN_NEEDS`, `HumanNeedsObservation`, `HumanNeedsIntent`, `initialHumanNeeds`, `normalizeHumanNeeds`, `advanceHumanNeeds`, `resolveHumanNeedsIntent`, `getHumanNeedsWorkMultiplier`, `hasFatalStarvation`, `creditHumanNutritionFromFood`, `adjustHumanStamina`, and `rebaseHumanNeedsClockAfterFormRestore`.
 
 | Owner | Responsibilities |
 | --- | --- |
@@ -138,7 +138,7 @@ The foreign war-captive feeding path was removed with the enemy-captive subsyste
 
 ## 7. Removed redundant aliases
 
-- Dropped the pass-through `creditHumanStaminaFromEnergy`; callers use `adjustHumanStaminaFromEnergy` directly.
+- Dropped the pass-through `creditHumanStaminaFromEnergy`; callers use `adjustHumanStamina` directly.
 - Removed `asleepAtHome = sleepingForNeeds`: it misnamed hotel/cell sleep as sleeping at home.
 - Removed local meal-interval and hunger-threshold aliases from `humanNeeds.ts`; the removed foreign-captive path read `gameConstants.Human` directly.
 - Retained meaningful boundaries: source needs versus derived energy, player nutrition versus nonhuman energy, and roster fatigue versus sleep rest.

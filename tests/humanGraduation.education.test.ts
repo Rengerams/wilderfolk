@@ -119,11 +119,13 @@ describe('a child graduates once, with the education payoff', () => {
     state.entities = [child];
 
     expect(syncThenGraduate(state, child)).toBe(true);
-    const energyAfterGraduation = child.maxEnergy;
+    const staminaAfterGraduation = child.needs!.stamina;
+    const capacityAfterGraduation = child.maxEnergy;
 
     // Later ticks re-run both calls; the transition must be a no-op now.
     expect(syncThenGraduate(state, child)).toBe(false);
-    expect(child.maxEnergy).toBe(energyAfterGraduation);
+    expect(child.needs!.stamina).toBe(staminaAfterGraduation);
+    expect(child.maxEnergy).toBe(capacityAfterGraduation);
   });
 
   it('does not graduate a child who is still below the childhood threshold', () => {

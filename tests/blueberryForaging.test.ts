@@ -5,7 +5,7 @@ import { initGame, createEntity } from '../src/game/worldGen';
 import { EntityType, MapSize, Season, emptyEntityByType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import {
-  BLUEBERRY_ENERGY_PER_PICK,
+  BLUEBERRY_STAMINA_PER_PICK,
   BLUEBERRY_FOOD_PER_PICK,
   BLUEBERRY_MAX_YIELD,
   BLUEBERRY_REGROWTH_DAYS,
@@ -71,7 +71,7 @@ describe('blueberry foraging', () => {
     }
   });
 
-  it('picks one nearby ripe portion during free time and adds bounded food plus energy', () => {
+  it('picks one nearby ripe portion during free time and adds bounded food plus native stamina', () => {
     const state = initGame({ size: MapSize.Medium });
     const human = state.entities.find((entity) => entity.type === EntityType.Human)!;
     human.energy = 80;
@@ -93,11 +93,11 @@ describe('blueberry foraging', () => {
     expect(tree.blueberryYield).toBe(1);
     expect(state.resources.food).toBe(foodBefore + BLUEBERRY_FOOD_PER_PICK);
     expect(state.economyLedger?.produced.foraging).toBe(BLUEBERRY_FOOD_PER_PICK);
-    expect(human.energy).toBe(80 + BLUEBERRY_ENERGY_PER_PICK);
-    expect(human.needs?.stamina).toBeCloseTo(20 + BLUEBERRY_ENERGY_PER_PICK / 400 * 100);
+    expect(human.energy).toBe(80 + BLUEBERRY_STAMINA_PER_PICK * 4);
+    expect(human.needs?.stamina).toBeCloseTo(20 + BLUEBERRY_STAMINA_PER_PICK);
     // An ordinary awake tick spends a little stamina, but must not erase the reward.
     advanceHumanNeeds(human, { tick: state.tick + 1, elapsedTicks: 1, sleeping: false, working: false, moving: false });
-    expect(human.energy).toBeLessThan(80 + BLUEBERRY_ENERGY_PER_PICK);
+    expect(human.energy).toBeLessThan(80 + BLUEBERRY_STAMINA_PER_PICK * 4);
     expect(human.energy).toBeGreaterThan(80);
     expect(human.blueberryForageTargetId).toBeUndefined();
   });

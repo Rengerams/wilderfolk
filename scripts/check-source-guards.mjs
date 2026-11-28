@@ -343,6 +343,8 @@ const GUARDS = [
  * reports a violation instead of passing on a typo.
  */
 const SOURCE_ROWS = [
+  { id: 'human-legacy-stamina-bridge-retired', scan: { dir: 'src', ext: ['.ts', '.tsx'], notMatches: /adjustHumanStaminaFromEnergy\b/, example: 'adjustHumanStaminaFromEnergy(entity, 10)', minFiles: 1 } },
+  { id: 'human-native-stamina-thresholds', checks: [{ files: ['src/game/humanTick.ts', 'src/game/simulation/humanRelationships.ts', 'src/game/hospitalCare.ts', 'src/game/education.ts'], notMatches: /\.maxEnergy\b|reproductionEnergyThreshold\b/, example: 'entity.maxEnergy' }] },
   { id: 'human-hunting-no-stamina-reward', checks: [{ file: 'src/game/humanHuntingBehavior.ts', notMatches: /adjustHumanStaminaFromEnergy|creditHumanNutritionFromFood|\.energyGain\b/, example: 'adjustHumanStaminaFromEnergy(entity, 350)' }] },
   { id: 'migrated-human-stamina-readers', checks: [{
     files: ['src/game/humanTick.ts', 'src/game/simulation/humanRelationships.ts',
