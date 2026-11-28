@@ -17,7 +17,7 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { readSkill } from './skills';
 import { SPECIES_CONFIG } from './speciesConfig';
-import type { ArmedDuty } from './workAbsence';
+import { resolveArmedDuty } from './workAbsence';
 
 const EMPTY_FORGE: VillageForgeState = {
   activeOrder: null,
@@ -119,11 +119,12 @@ export function getCounterAttackChance(state: WorldState): number {
  * No persistent strength or second equipment inventory is introduced.
  */
 export function resolvePredatorCombatChances(
-  state: WorldState, human: Entity, predator: Entity, duty: ArmedDuty,
+  state: WorldState, human: Entity, predator: Entity,
 ): { counter: number; block: number } {
   if (!human.alive || human.type !== EntityType.Human || human.age < HUMAN_ADULT_MIN_AGE) {
     return { counter: 0, block: 0 };
   }
+  const duty = resolveArmedDuty(state, human);
   const needs = human.needs;
   const unit = (value: number): number => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
   const readiness = needs ? unit(Math.min(needs.stamina, needs.rest, needs.nutrition) / 100) : 0;
@@ -162,7 +163,7 @@ export function rollPredatorCombat(
   kind: 'predator-block' | 'counter-attack',
   state: WorldState, human: Entity, predator: Entity, duty: ArmedDuty, tick: number,
 ): boolean {
-  const chances = resolvePredatorCombatChances(state, human, predator, duty);
+  const chances = resolvePredatorCombatChances(state, human, predator);
   const chance = kind === 'counter-attack' ? chances.counter : chances.block;
   if (!(chance > 0)) return false;
   const keys = kind === 'counter-attack'
