@@ -8,6 +8,8 @@
 
 - **Fixed (28 Nov 2026):** Require explicit paternity for arriving pregnancies, prevent stale father IDs on non-pregnant spawns, and align human body size with calendar age. New spawns cannot use pregnancy as civil status or invent an unknown maiden name.
 
+- **Fixed (28 Nov 2026):** Share workplace duty between simulation and inspector; protect duty, commutes and gatherings from affair steering; sample overnight trysts before movement and require real classroom presence for schoolyard interactions.
+
 - **Fixed (28 Nov 2026):** Require biological paternity at pregnancy start, prevent confusing a mother's father with her baby's father, and register both available parents immediately at birth.
 
 - **Fixed (27 Nov 2026):** Prevent auto-player staffing commands, policy overrides and private workforce predictions; use visible occupancy for construction and reject legacy individual dismissal from completed workplaces.

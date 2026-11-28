@@ -106,15 +106,19 @@ const VENUE_BY_BUILDING: Partial<Record<BuildingType, 'tavern' | 'hotel'>> = {
 };
 
 /**
- * The shift predicates `humanTick` composes, each read from the owner holding that window: day
- * schedule, venue hours, moon-howler night, prison roster.
+ * Canonical workplace duty shared by simulation and projections, using the existing schedule owners.
  */
 export function resolveShift(
   state: WorldState,
   entity: Entity,
   workplace: Building | undefined,
   hour: number,
-): { onShift: boolean; next: NextShift } {
+): {
+  onShift: boolean;
+  next: NextShift;
+  prisonDuty?: ReturnType<typeof prisonDutyForGuard>;
+  moonPriestDuty?: boolean;
+} {
   const schedule = getWorkSchedule(state);
   const goWorkTime = isOnWorkScheduleShift(state, hour);
   const completed = workplace?.completed === true;
@@ -160,6 +164,7 @@ export function resolveShift(
     if (prisonDuty) {
       return {
         onShift: prisonDuty.onShift,
+        prisonDuty,
         next: { hour: prisonDuty.shift.startHour, kind: 'prison' },
       };
     }
@@ -176,12 +181,14 @@ export function resolveShift(
       && workplace?.type === BuildingType.TownHall
       && completed
       && goWorkTime);
-  const onPriestShift =
-    entity.job === JobType.Priest
-    && workplace?.type === BuildingType.Church
-    && completed
-    && (goWorkTime || isOnMoonHowlerNightShift(state.tick, hour));
-  return { onShift: onDayJobShift || onPriestShift, next: { hour: schedule.startHour, kind: 'day' } };
+  const isPriest = entity.job === JobType.Priest
+    && workplace?.type === BuildingType.Church && completed;
+  const moonPriestDuty = isPriest && isOnMoonHowlerNightShift(state.tick, hour);
+  return {
+    onShift: onDayJobShift || (isPriest && goWorkTime) || moonPriestDuty,
+    next: { hour: schedule.startHour, kind: 'day' },
+    ...(moonPriestDuty ? { moonPriestDuty } : {}),
+  };
 }
 
 /**

@@ -45,7 +45,6 @@ export {
   EVENING_START,
   isFestivalGatheringHour,
   isOnInnkeeperShift,
-  isOnMoonHowlerNightShift,
   isTavernOpen,
 } from './humanSchedule';
 
