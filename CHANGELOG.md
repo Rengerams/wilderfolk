@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Keep the settled ecology type contract dependency-free so the strict import-cycle architecture gate remains intact.
+
 - **Fixed (28 Nov 2026):** Resolve rare daily probabilities inside the existing RNG buckets instead of rounding them up; sudden illness follows its intended risk without a second random generator.
 - **Improved (28 Nov 2026):** Show current adult education totals by qualification level in the Village Schooling overview.
 
