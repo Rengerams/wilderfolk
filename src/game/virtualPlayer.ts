@@ -583,8 +583,9 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   if (measuredDeficit ? goingUp >= 2 : goingUp > 0) return null;
   // A normal player can see an empty completed producer, but cannot predict
   // who the workforce might hire or transfer. Wait for existing capacity to
-  // become productive rather than building another empty site.
-  if (state.buildings.some((site) => site.completed
+  // become productive during normal expansion, but visible food pressure must
+  // permit recovery even if an existing site cannot be staffed.
+  if (!shortOnFood && !measuredDeficit && !forecastRisk && state.buildings.some((site) => site.completed
     && FOOD_PRODUCER_TYPES.includes(site.type) && site.occupants.length === 0)) return null;
 
   const daysLeft = Math.max(0, Math.floor(food / needPerDay));

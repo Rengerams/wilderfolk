@@ -542,7 +542,7 @@ describe('the health verdict at the owner numbers', () => {
       .toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
   });
 
-  it('waits across repeated deficit days when a visible completed food site remains empty', () => {
+  it('allows recovery across repeated measured deficit days despite a visible empty food site', () => {
     const world = ownerColony(3, {
       tick: 8 * TICKS_PER_DAY,
       resources: { food: 300, wood: 500, stone: 200, gold: 0, iron: 150 },
@@ -550,7 +550,7 @@ describe('the health verdict at the owner numbers', () => {
       mills: 1, farms: 1,
       extraBuildings: [building(80, BuildingType.Mill), building(81, BuildingType.Farm)],
     });
-    // The empty Farm is visible to the player. Do not query hidden workforce eligibility.
+    // A visible empty Farm must not veto recovery from a measured deficit.
     const farm = world.buildings.find((site) => site.type === BuildingType.Farm)!;
     farm.level = 3;
     for (let day = 8; day <= 14; day++) {
@@ -559,10 +559,11 @@ describe('the health verdict at the owner numbers', () => {
         day: day - 7 + index, produced: { farms: 3 }, consumed: { meals: 9 },
       }));
       const action = decideVirtualPlayerAction(world)?.command;
+      expect(action?.op).toBe('startBuilding');
       if (action?.op === 'startBuilding') {
         expect([
           BuildingType.Farm, BuildingType.Greenhouse, BuildingType.FishingSpot, BuildingType.HuntingSpot,
-        ]).not.toContain(action.type);
+        ]).toContain(action.type);
       }
     }
   });
