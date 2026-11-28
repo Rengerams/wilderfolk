@@ -48,7 +48,7 @@ jobs:
         run: SIM_START_DAY=720 SIM_DAYS=3 npx tsx scripts/sim-invariants.ts
 
   producer-parity:
-    # Runs automatically on push to main, or manually via workflow_dispatch (never blocks PRs).
+    # Runs on the workflow's PR, push and manual triggers to compare producer checkpoints.
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -106,7 +106,7 @@ jobs:
               .map((line) => JSON.parse(line))
               .find((item) => item.kind === 'full-year-checkpoint' && item.day === day);
           };
-          for (const day of) {
+          for (const day of [7, 30, 360]) {
             const horizon = day === 7 ? 7 : 360;
             const before = read('a1-producer-' + horizon + '-before.log', day);
             const after = read('a1-producer-' + horizon + '-after.log', day);
