@@ -38,3 +38,7 @@ Source trace confirmed. Regression tests added for remarriage, removal and unkno
 
 ## Follow-up — 2026-11-28
 New pregnancies require a valid father ID; the entity factory no longer uses the mother's own father. Ordinary births register available parents immediately. Legacy unknown paternity remains unknown rather than inventing ancestry. Adoption and immigration party rules are unchanged. Regression tests added; CI not yet verified.
+
+## Factory follow-up — 2026-11-28
+
+The remaining arriving-pregnancy spouse fallback is removed; the arrival caller already supplies the biological father's ID explicitly. Non-pregnant spawns no longer retain a supplied pregnancy father. Regression coverage extends the existing lifecycle test. Legacy unknown paternity remains unknown; adoption continues through the housing owner. CI not yet verified.
