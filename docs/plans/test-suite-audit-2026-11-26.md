@@ -257,6 +257,10 @@ Moved all 19 cases from `low-5-combat-ecology` to outgoing raid, weather, storag
 
 Moved all 26 movement cases to the pathfinding, human movement, hotel checkout and hospital walk suites. Reused the canonical path map fixture, existing hospital entity and ward fixtures, and shared building/human factories for direct movement and lodging. Preserved distinct route reuse, blocked start, negative cache, sealed frontage, treatment cadence and final-step assertions; none were removed as duplicates. CI pending.
 
+## Duplication owner evidence — 2026-11-28
+
+Moved six numeric behavior cases from `duplicationA.remaining` to the scent/grid, velocity steering and RNG owner suites. Migrated the other ten source-only cases (including one synthetic scan proof) to 13 declarative guards with individual mutation checks. The exact numerical steering and RNG oracles remain, including uncapped floating-point operation order. No runtime cases removed; CI pending.
+
 ## Remaining consolidation, in order
 
 1. **Port the 56 remaining files' source-only cases into `scripts/check-source-guards.mjs`** (or delete

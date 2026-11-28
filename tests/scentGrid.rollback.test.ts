@@ -1,3 +1,4 @@
+import { EntitySpatialGrid, gridCellAxis } from '../src/game/spatialGrid';
 /**
  * `scentGrid` is simulation state, not a derived index: realtime decays it, systems samples it, and
  * save-load treats it as transient; these cases drive the real paths and assert its values.
@@ -8,7 +9,7 @@ import { applySimPrep, extractSimPrep } from '../src/game/simWorker/simPrep';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { resetSimRng } from '../src/game/simRng';
-import { ensureScentGrid } from '../src/game/scentGrid';
+import { ensureScentGrid, ScentGrid } from '../src/game/scentGrid';
 import { WORKER_PROTO, type WorkerRequest, type WorkerResponse } from '../src/game/simWorker/protocol';
 import { MapSize, type WorldState } from '../src/game/gameTypes';
 
@@ -194,5 +195,40 @@ describe('N-19 — predator scent survives a save and load', () => {
     expect(legacyParsed.valid).toBe(true);
     if (!legacyParsed.valid) return;
     expect(loadGameFromParsed(legacyParsed.parsed)?.world.scentGrid).toBeUndefined();
+  });
+});
+
+describe('A12 — one owner for world→cell coordinate clamping', () => {
+  it('keeps both grids on the same cell for every coordinate', () => {
+    const entityGrid = new EntitySpatialGrid(800, 600, 80);
+    const scentGrid = new ScentGrid(800, 600, 80);
+    const probes: Array<[number, number]> = [
+      [0, 0],
+      [1, 79],
+      [79, 1],
+      [80, 80],
+      [640.5, 320.25],
+      [799, 599],
+      [800, 600],
+      [-1, -1],
+      [-40, 700],
+    ];
+    for (const [x, y] of probes) {
+      const scent = scentGrid.cellCoords(x, y);
+      expect(entityGrid.cellCoords(x, y), `entity grid at (${x}, ${y})`).toEqual(scent);
+      expect(scent, `both grids at (${x}, ${y})`).toEqual({
+        col: gridCellAxis(x, 80, 10),
+        row: gridCellAxis(y, 80, 8),
+      });
+    }
+  });
+
+  it('negotiates the non-finite case explicitly rather than by accident', () => {
+    const entityGrid = new EntitySpatialGrid(800, 600, 80);
+    const scentGrid = new ScentGrid(800, 600, 80);
+    // The entity grid rejects non-finite input; the scent grid has no guard and its callers only
+    // deposit finite coordinates, so the shared clamp propagates NaN. Pinned, not hidden.
+    expect(entityGrid.cellCoords(Number.NaN, 10)).toBeNull();
+    expect(Number.isNaN(scentGrid.cellCoords(Number.NaN, 10).col)).toBe(true);
   });
 });

@@ -14,6 +14,9 @@ import { applySimTickDelta, extractSimTickDelta } from '../src/game/simBuffers/s
 import {
   adoptSimSeedFromWorld,
   createSeededRng,
+  hashSalt,
+  mulberry32Advance,
+  mulberry32Draw,
   enableSeededGlobalRandom,
   getPresentationRng,
   getSimRng,
@@ -465,5 +468,44 @@ describe('seeded global Math.random is a harness opt-in', () => {
     } finally {
       resetSimRng();
     }
+  });
+});
+
+describe('A21 — renffrStar builds on the simRng Mulberry32 step', () => {
+  it('still draws the exact values the inline generator produced', () => {
+    const seed = 20240917;
+    const owner = 'a21-probe';
+    // Inline reference the owner must reproduce: seed expression + pre-mix + the Mulberry32 step.
+    let s = (((seed >>> 0) ^ hashSalt(owner)) + 0x6d2b79f5) >>> 0;
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    s = (s ^ t) >>> 0;
+    const expected: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      s = (s + 0x6d2b79f5) >>> 0;
+      let r = s;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      expected.push(((r ^ (r >>> 14)) >>> 0) / 4294967296);
+    }
+
+    const stream = createSeededRng(seed, owner);
+    for (const [index, value] of expected.entries()) {
+      expect(stream(), `draw ${index} moved`).toBe(value);
+    }
+  });
+
+  it('exposes the step to closure-free callers without changing it', () => {
+    let s = 12345;
+    const fromOwner = mulberry32Draw(mulberry32Advance(s));
+    // Inline reference for the step `mulberry32Advance`/`mulberry32Draw` must reproduce.
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    const inline = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    expect(fromOwner).toBe(inline);
   });
 });

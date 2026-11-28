@@ -671,7 +671,7 @@ export const SIMULATION_DECISIONS = {
       'eventLog/bigNews/floatingTexts',
     ],
     scheduledFrom: 'humanTick.ts pregnancy gate → humanLifecycle.tickPregnancyAndBirth → pregnancy.advancePregnancy / clearPregnancy → settlerTraits.inheritGenome (birth-key seeded stream); entityFactory.createEntity(opts.pregnant, opts.pregnantById) → pregnancy.startPregnancy (arrival spawns require an explicit biological father; no spouse fallback)',
-    testFile: 'tests/humanLifecycle.test.ts, tests/hospitalWalk.regression.test.ts, tests/pregnancyHospitalWork.test.ts, tests/settlers.indoors.test.ts, tests/workAbsence.reasons.test.ts, tests/conceptionEvent.labelling.test.ts, tests/personality.romanceContext.test.ts, tests/settlerTraits.test.ts, tests/duplicationA.remaining.test.ts',
+    testFile: 'tests/humanLifecycle.test.ts, tests/hospitalWalk.regression.test.ts, tests/pregnancyHospitalWork.test.ts, tests/settlers.indoors.test.ts, tests/workAbsence.reasons.test.ts, tests/conceptionEvent.labelling.test.ts, tests/personality.romanceContext.test.ts, tests/settlerTraits.test.ts, scripts/check-source-guards.mjs',
   },
   wildkinLineage: {
     owner: 'humanLifecycle.ts — tickPregnancyAndBirth (human mother + closest deer father); tickLayerSystems.ts — tickWildlife (Wildkin parents and juvenile guardian steering); genealogyRegistry.ts — recordGenealogyBirth, recordGenealogyDeath, syncGenealogyRegistry (sole persisted family owner); wildkinChronicle.ts — logWildkinBirth, logWildkinDeath, tickWildkinChronicle (sole log owner)',
