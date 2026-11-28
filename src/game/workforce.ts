@@ -1039,8 +1039,9 @@ export function staffConstructionCrews(
 }
 
 /**
- * Reserve the idle pool for the preset's jobs before builders take it: survival fills food production,
- * while every other preset seeds each empty job building with one hand.
+ * Reserve the idle pool for the preset's jobs before builders take it. Survival fills food
+ * producers first, then seeds other completed workplaces; no finished post (including barracks)
+ * may lose its only available applicant just because construction runs earlier.
  */
 function staffJobsBeforeConstruction(
   alive: Entity[],
@@ -1052,13 +1053,9 @@ function staffJobsBeforeConstruction(
   const policy = getWorkforcePolicy(world);
   const focus = getWorkforceFocus(world);
   const jobBuildings = completedJobBuildings(buildings, policy, focus);
-  // Survival fills food production; every other preset seeds each empty job building with one hand,
-  // so construction cannot consume the whole idle pool before the preset's jobs are staffed.
-  const targets = policy === 'survival'
-    ? jobBuildings.filter((building) => isFoodWorkplace(building)
-      || focus.includes(workforceSectorForBuilding(building.type)!))
-    : jobBuildings;
-  if (targets.length === 0) return;
+  // Completed jobs get the idle pool before new construction. Survival first protects food
+  // capacity, then seeds other workplaces in the preset's normal priority order.
+  if (jobBuildings.length === 0) return;
   const constructionIds = new Set(buildConstructionCrewIndex(buildings).keys());
   const workerCounts = new Map<number, number>();
   for (const human of alive) {
@@ -1066,9 +1063,9 @@ function staffJobsBeforeConstruction(
       workerCounts.set(human.workerBuildingId, (workerCounts.get(human.workerBuildingId) ?? 0) + 1);
     }
   }
-  for (const site of targets) {
+  for (const site of jobBuildings) {
     const selected = focus.includes(workforceSectorForBuilding(site.type)!);
-    if (policy !== 'survival' && !selected) {
+    if ((!isFoodWorkplace(site) || policy !== 'survival') && !selected) {
       if ((workerCounts.get(site.id) ?? 0) > 0) continue;
       assignWorkerInPlace(site, alive, buildings, constructionIds, buildingById, workerCounts);
       continue;
