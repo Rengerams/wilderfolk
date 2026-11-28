@@ -194,32 +194,70 @@ export function findVerifiedClaim(fn, claims, graphFunctions) {
   return same.length === 1 ? matches[0] : undefined;
 }
 
-/** The tool's own named implementation inventory is explicit and checked against the compiler AST. */
-export function validateToolingInventory(root) {
-  const file = 'scripts/ownership-registry.mjs';
+/** Explicit infrastructure contracts. Names include nested helpers, not anonymous callbacks.
+ * The unstable compiler API is version-pinned; upgrading TypeScript requires rerunning these checks.
+ */
+const TOOLING_CONTRACTS = [
+  [
+    "Ownership registry tooling",
+    "scripts/ownership-registry.mjs"
+  ],
+  [
+    "Call graph ownership projection",
+    "scripts/build-call-graph.mjs"
+  ],
+  [
+    "Ownership registry tests",
+    "scripts/ownership-registry.test.mjs"
+  ],
+  [
+    "Ownership test runner",
+    "scripts/test.mjs"
+  ]
+];
+
+/** The source AST owns the inventory; documentation must name each declaration in its scope. */
+export function validateToolingInventory(root, contracts = TOOLING_CONTRACTS) {
   const api = new API({ cwd: root });
   try {
     const snapshot = api.updateSnapshot({ openProject: 'tsconfig.ownership.json' });
     try {
-      const source = snapshot.getProjects()[0]?.program.getSourceFile(path.resolve(root, file));
-      if (!source) return [`Missing tooling AST: ${file}`];
-      const actual = [];
-      const visit = node => {
-        if (node.kind === SyntaxKind.FunctionDeclaration && node.body && node.name) actual.push(node.name.getText());
-        if (node.kind === SyntaxKind.VariableDeclaration && node.initializer &&
-          (node.initializer.kind === SyntaxKind.ArrowFunction || node.initializer.kind === SyntaxKind.FunctionExpression)) {
-          actual.push(node.name.getText());
-        }
-        node.forEachChild(visit);
-      };
-      visit(source);
-      const names = actual.sort();
+      const project = snapshot.getProjects()[0];
       const overview = readFileSync(path.join(root, 'OWNERSHIP_OVERVIEW.md'), 'utf8');
-      const marker = '| Ownership registry tooling |';
-      const registrations = overview.split(/\r?\n/).filter(line => line.startsWith(marker));
-      const documented = registrations.length === 1 ? [...registrations[0].split('|')[4].matchAll(/`([A-Za-z_$][\w$]*)`/g)].map(match => match[1]).sort() : [];
       const failures = [];
-      if (JSON.stringify(names) !== JSON.stringify(documented)) failures.push(`Tooling ownership documentation is missing, duplicated or stale: declared ${documented.join(', ')}; found ${names.join(', ')}`);
+      for (const [label, file] of contracts) {
+        const source = project?.program.getSourceFile(path.resolve(root, file));
+        if (!source) {
+          failures.push(`Missing tooling AST: ${file}`);
+          continue;
+        }
+        const actual = [];
+        const visit = (node, scope = '') => {
+          let name;
+          if (node.kind === SyntaxKind.FunctionDeclaration && node.body && node.name) name = node.name.getText();
+          if (node.kind === SyntaxKind.VariableDeclaration && node.initializer && node.name.kind === SyntaxKind.Identifier) {
+            const initializer = node.initializer;
+            if (initializer.kind === SyntaxKind.ArrowFunction || initializer.kind === SyntaxKind.FunctionExpression) name = node.name.getText();
+            else if (initializer.kind === SyntaxKind.CallExpression && initializer.expression.kind === SyntaxKind.ParenthesizedExpression) {
+              // A closure-producing IIFE is a callable binding; a computed scalar is not.
+              const type = project.checker.getTypeAtLocation(node.name);
+              if (type && !(type.flags & TypeFlags.Any) && project.checker.getSignaturesOfType(type, SignatureKind.Call).length) name = node.name.getText();
+            }
+          }
+          const qualified = name ? (scope ? `${scope}::${name}` : name) : scope;
+          if (name) actual.push(qualified);
+          node.forEachChild(child => visit(child, qualified));
+        };
+        visit(source);
+        const names = actual.sort();
+        const registrations = overview.split(/\r?\n/).filter(line => line.startsWith(`| ${label} |`));
+        const cells = registrations.length === 1 ? registrations[0].split('|') : [];
+        const documented = cells[2]?.trim() === '`' + file + '`' ?
+          [...cells[4].matchAll(/`([A-Za-z_$][\w$]*(?:::[A-Za-z_$][\w$]*)*)`/g)].map(match => match[1]).sort() : [];
+        if (cells[2]?.trim() !== '`' + file + '`' || JSON.stringify(names) !== JSON.stringify(documented)) {
+          failures.push(`${file}: tooling ownership documentation mismatch: declared ${documented.join(', ')}; found ${names.join(', ')}`);
+        }
+      }
       return failures;
     } finally { snapshot.dispose(); }
   } finally { api.close(); }
