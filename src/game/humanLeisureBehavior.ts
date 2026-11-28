@@ -9,6 +9,8 @@ import { deterministicCos, deterministicSin } from './simTrig';
 import { getBuildingCenter } from './buildingGeometry';
 import { getChildCustodian, hasResidenceAssignment } from './housingModel';
 import { getWorkSchedule, isOnWorkScheduleShift, isOnWorkCommuteHours } from './workSchedule';
+import { resolveShift } from './workAbsence';
+import { isCommutingToBuilding } from './simulation/humanMovement';
 import { getHourOfDay, getAbsoluteCalendarDay, isWorkDay } from './dayCycleClock';
 import { BuildingType } from './buildings';
 import { pickSocialImpulse, isSocialStaggerTick, type SocialBuildingPool } from './socialLife';
@@ -143,6 +145,57 @@ function chooseChildPlaySite(
     return { x, y };
   }
   return null;
+}
+
+/**
+ * The single caregiver-follow eligibility rule. An ordinary daytime job and the
+ * actual roster for venues, hospitals, guards and priests all exclude following.
+ * Also respect a live commute or indoor duty, not merely the village clock.
+ */
+function canFollowCaregiverDuringLeisure(
+  state: WorldState,
+  caregiver: Entity | undefined,
+  buildingById: ReadonlyMap<number, Building>,
+  hourOfDay: number,
+): caregiver is Entity {
+  if (!caregiver?.alive || !isPlayerHuman(caregiver) || caregiver.age < HUMAN_ADULT_MIN_AGE
+    || caregiver.prisonBuildingId != null || caregiver.raidDeploymentId != null) return false;
+  const siteId = caregiver.workerBuildingId;
+  if (siteId == null) return true;
+  const workTime = isOnWorkScheduleShift(state, hourOfDay)
+    || (isWorkDay(state.tick) && isOnWorkCommuteHours(getWorkSchedule(state), hourOfDay));
+  if (workTime) return false;
+  const workplace = buildingById.get(siteId);
+  return !workplace || (!resolveShift(state, caregiver, workplace, hourOfDay).onShift
+    && caregiver.indoorBuildingId !== workplace.id
+    && !isCommutingToBuilding(caregiver, workplace));
+}
+
+/**
+ * Stop a remembered child-follow route before the off-screen movement throttle
+ * resumes it. School, its commute, bedtime and the parent's real shift outrank
+ * following. The schedule owner supplies its already-resolved mandatory intent.
+ */
+export function stopInvalidChildFollowing(
+  state: WorldState,
+  child: Entity,
+  entityById: ReadonlyMap<number, Entity>,
+  buildingById: ReadonlyMap<number, Building>,
+  hourOfDay: number,
+  mandatoryChildActivity: boolean,
+): boolean {
+  if (child.age >= HUMAN_ADULT_MIN_AGE || child.childLeisureActivity !== 'following') return false;
+  const caregiver = child.childLeisureTargetId == null
+    ? undefined : entityById.get(child.childLeisureTargetId);
+  if (!mandatoryChildActivity && canFollowCaregiverDuringLeisure(state, caregiver, buildingById, hourOfDay)) {
+    return false;
+  }
+  child.childLeisureActivity = undefined;
+  child.childLeisureTargetId = undefined;
+  clearHumanWalkTarget(child);
+  child.vx = 0;
+  child.vy = 0;
+  return true;
 }
 
 export function tickHumanChildLeisure(args: {
@@ -342,17 +395,12 @@ export function tickHumanChildLeisure(args: {
   }
   const mother = entity.motherId != null ? livingHumanAt(entity.motherId) : undefined;
   const father = entity.fatherId != null ? livingHumanAt(entity.fatherId) : undefined;
-  // Children may accompany a free caregiver, but must never trail an employed
-  // parent into their workplace during a shift. This also applies to the
-  // household custodian fallback (which can be the same working parent).
-  const workTime = isOnWorkScheduleShift(state, hourOfDay)
-    || (isWorkDay(state.tick) && isOnWorkCommuteHours(getWorkSchedule(state), hourOfDay));
+  // The same real-shift eligibility check also invalidates cached following
+  // on off-screen ticks, including the household custodian fallback.
   const custodian = getChildCustodian(entity, allHumans, args.entityById);
   let follow: Entity | undefined;
   for (const caregiver of [mother, father, custodian]) {
-    if (!caregiver?.alive || !isPlayerHuman(caregiver) || caregiver.age < HUMAN_ADULT_MIN_AGE) continue;
-    if (caregiver.workerBuildingId != null
-      && (workTime || caregiver.indoorBuildingId === caregiver.workerBuildingId)) continue;
+    if (!canFollowCaregiverDuringLeisure(state, caregiver, buildingById, hourOfDay)) continue;
     follow = caregiver;
     break;
   }
