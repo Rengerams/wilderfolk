@@ -34,6 +34,8 @@
     "audit:deps:cycles": "node scripts/test.mjs cycles",
     "audit:deps:cycles:strict": "node scripts/test.mjs cycles --strict",
     "audit:deps:graph": "node scripts/test.mjs cycles --json",
+    "ownership:generate": "node scripts/ownership-registry.mjs --write",
+    "ownership:check": "node scripts/test.mjs owners",
     "graph:calls": "node scripts/build-call-graph.mjs",
     "audit": "node scripts/test.mjs audit",
     "deno:build": "npm run build && deno desktop --backend webview --exclude node_modules .",
