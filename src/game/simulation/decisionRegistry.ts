@@ -566,7 +566,7 @@ export const SIMULATION_DECISIONS = {
   idleSkillDecay: {
     owner: 'skills.ts — decayIdleSkills; sole non-active trade-skill decay writer',
     cadence: 'new-calendar-day',
-    cadenceNote: 'Exactly once at 00:00, before attendance settlement, living adult player humans decay skills that were not practiced. Only the witnessed, site-attributed trade from that day is exempt; a held job alone is not. No-op decay does not dirty the entity profile revision. Required CI: calendar-scheduler gameTick regression.',
+    cadenceNote: 'Exactly once at 00:00, before attendance settlement, living adult player humans decay skills that were not practiced. Unemployment is not a trade; the skills owner ignores its awards and reads and removes obsolete saved scores. Only the witnessed, site-attributed trade from that day is exempt; a held job alone is not. No-op decay does not dirty the entity profile revision. Required CI: calendar-scheduler gameTick regression.',
     writes: ['human.skills', 'human.profileRevision'],
     scheduledFrom: 'gameTick.ts → tickLayerDaily.ts 00:00 → skills.decayIdleSkills',
     testFile: 'tests/dayCycle.cadence.test.ts, tests/skills.attendanceOwner.test.ts',
