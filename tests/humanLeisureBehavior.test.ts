@@ -66,7 +66,7 @@ function crowdedSteeringTick(state: ReturnType<typeof initGame>, child: Entity, 
   throw new Error('could not find a crowded child play day');
 }
 
-function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans: Entity[], tick: number, livingHumanAt: (id: number | null | undefined) => Entity | undefined = () => undefined, buildings: Building[] = []): boolean {
+function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans: Entity[], tick: number, livingHumanAt: (id: number | null | undefined) => Entity | undefined = () => undefined, buildings: Building[] = [], mandatoryChildActivity = false): boolean {
   state.tick = tick;
   return tickHumanChildLeisure({
     state,
@@ -83,6 +83,7 @@ function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans:
     height: state.height,
     livingHumanAt,
     suppressIdleInitial: false,
+    mandatoryChildActivity,
   });
 }
 
@@ -133,6 +134,26 @@ describe('tickHumanChildLeisure', () => {
     tickChild(state, child, humans, day * TICKS_PER_DAY + 18 * TICKS_PER_HOUR + 1, lookup, [tavern]);
     expect(child.childLeisureActivity).not.toBe('following');
     expect(child.childLeisureTargetId).toBeUndefined();
+  });
+
+  it('does not start following again while bedtime or school is mandatory, even without a home', () => {
+    const { state, child } = childFixture();
+    const parent = playerChild(child, 21, { age: 30, isJuvenile: false, x: 220, y: 100 });
+    child.motherId = parent.id;
+    const people = [child, parent];
+    const lookup = (id: number | null | undefined) => id === parent.id ? parent : undefined;
+    const day = Array.from({ length: 60 }, (_, i) => i).find((d) =>
+      personDayRoll(child.id, d * TICKS_PER_DAY, 601) > 0.22);
+    if (day == null) throw new Error('test needs a follow roll');
+    for (const hour of [8, 22]) {
+      const wasLeisure = tickChild(
+        state, child, people, day * TICKS_PER_DAY + hour * TICKS_PER_HOUR + 1,
+        lookup, [], true,
+      );
+      expect(wasLeisure).toBe(true);
+      expect(child.childLeisureActivity).not.toBe('following');
+      expect(child.childLeisureTargetId).toBeUndefined();
+    }
   });
 
   it('cancels cached following before an off-screen school or bedtime tick resumes it', () => {
