@@ -321,10 +321,10 @@ export interface Entity {
   childPlaymateId?: number;
   /** A daily play circle of two to four children; set by the one child-leisure owner. */
   childPlayGroupIds?: number[];
-  /** Stable, saved play outing for one companion and three-hour leisure phase. */
+  /** Stable, saved play outing for one companion (or self) and hourly leisure phase. */
   childPlaySite?: { day: number; phase: number; mateId: number; x: number; y: number };
-  /** Successful or unsuccessful destination search, cached for one three-hour phase. */
-  childPlaySiteAttempt?: { day: number; phase: number };
+  /** Successful or unsuccessful destination search, cached for one hour. */
+  childPlaySiteAttempt?: { day: number; phase: number; solo?: true; shared?: true };
   /** Current child leisure intent, written by the leisure owner for the inspector. */
   childLeisureActivity?: 'playing' | 'following' | 'home';
   childLeisureTargetId?: number;

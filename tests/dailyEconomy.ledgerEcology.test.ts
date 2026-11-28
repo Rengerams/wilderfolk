@@ -709,7 +709,11 @@ describe('daily production tax and hunting research regressions', () => {
 
   describe('Hunting Spot research multiplier (L29)', () => {
     function huntWorld(day: number, withStoneSpears: boolean): WorldState {
-      const hunter = human(1, { workerBuildingId: 10, energy: 100, maxEnergy: 100, scheduleLastWorkedHours: 8, speed: 0 });
+      const hunter = human(1, {
+        workerBuildingId: 10, energy: 100, maxEnergy: 100, scheduleLastWorkedHours: 8, speed: 0,
+        // Isolate staffed production from famine-driven free hunting.
+        needs: { nutrition: 100, rest: 100, stamina: 100, severeHungerTicks: 0 },
+      });
       const prey = deer(2);
       // Keep the target touching the hunter until the production phase.
       // An animal that wanders away turns this research test into a chase test.

@@ -78,6 +78,14 @@ describe('selected human activity projection', () => {
     if (eveningTick === undefined) throw new Error('Expected an evening-outing preference sample');
     world.tick = eveningTick;
     child.childPlaymateDay = Math.floor(world.tick / TICKS_PER_DAY);
+    companion.isJuvenile = true;
+    companion.age = 10;
+    companion.indoorBuildingId = undefined;
+    companion.x = child.x + 5;
+    companion.y = child.y;
+    companion.childPlaymateDay = child.childPlaymateDay;
+    companion.childLeisureActivity = 'playing';
+    companion.childLeisureTargetId = child.id;
     child.childPlaymateId = companion.id;
     child.childLeisureActivity = 'playing';
     child.childLeisureTargetId = companion.id;
@@ -94,6 +102,20 @@ describe('selected human activity projection', () => {
       label: 'Activity', value: `Playing with ${companion.name}`,
     });
 
+    companion.childLeisureActivity = undefined;
+    expect(getHumanActivityStatus(world, child)).toBe('Free time');
+    companion.childLeisureActivity = 'playing';
+    companion.x = child.x + 200;
+    expect(getHumanActivityStatus(world, child)).toBe('Free time');
+    child.childLeisureTargetId = undefined;
+    child.childPlaySite = {
+      day: child.childPlaymateDay!, phase: 19, mateId: child.id,
+      x: child.x + 60, y: child.y,
+    };
+    expect(getHumanActivityStatus(world, child)).toBe('Walking to play area');
+    expect(getHumanActivityProjection(world, child).target?.kind).toBe('play-site');
+    child.x += 60;
+    expect(getHumanActivityStatus(world, child)).toBe('Playing alone');
     child.childLeisureActivity = undefined;
     child.childLeisureTargetId = undefined;
     expect(getHumanActivityStatus(world, child)).toBe('Free time');
@@ -110,6 +132,10 @@ describe('selected human activity projection', () => {
     third.id = Math.max(...world.entities.map((e) => e.id)) + 1;
     third.alive = true;
     third.isJuvenile = true;
+    mate.isJuvenile = true;
+    mate.age = 10;
+    mate.x = child.x + 200;
+    mate.indoorBuildingId = undefined;
     world.entities.push(third);
     child.isJuvenile = true;
     child.age = 10;
@@ -124,11 +150,11 @@ describe('selected human activity projection', () => {
     child.childLeisureTargetId = mate.id;
     child.childPlaySite = {
       day: child.childPlaymateDay,
-      phase: Math.floor((world.tick % TICKS_PER_DAY) / (3 * TICKS_PER_HOUR)),
+      phase: Math.floor((world.tick % TICKS_PER_DAY) / TICKS_PER_HOUR),
       mateId: mate.id, x: child.x + 65, y: child.y + 45,
     };
     const projection = getHumanActivityProjection(world, child);
-    expect(projection.activity).toBe(`Playing with ${mate.name} + 1 friend`);
+    expect(projection.activity).toBe('Walking to play area');
     expect(projection.target).toMatchObject({
       kind: 'play-site', entityId: mate.id,
       x: child.x + 65, y: child.y + 45,

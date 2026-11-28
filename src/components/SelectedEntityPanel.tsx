@@ -289,9 +289,6 @@ export default function SelectedEntityPanel({
             )}
             <p className="text-sky-300">👕 {getHumanVariantLabel(entity.gender, entity.spriteVariant ?? 0)}</p>
             {entity.occupation && entity.occupation !== 'settler' && <p>💼 {entity.occupation}</p>}
-            {entity.job && (entity.skills?.[entity.job] ?? 0) > 0 && (
-              <p className="text-emerald-400">⭐ {entity.job} skill: {Math.round(entity.skills?.[entity.job] ?? 0)}/100</p>
-            )}
             {entity.pregnant && (
               <p className="font-bold text-pink-400">
                 🤰 Pregnant! ({Math.round(((entity.pregnancyProgress ?? 0) / PREGNANCY_TICKS) * 100)}%)
