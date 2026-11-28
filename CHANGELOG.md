@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Children no longer keep following a caregiver during evening/night rosters or resume stale follow routes off-screen after the school commute or mandatory bedtime begins; free-time following remains allowed when the caregiver is genuinely off duty.
+
 - **Fixed (28 Nov 2026):** Keep the settled ecology type contract dependency-free so the strict import-cycle architecture gate remains intact.
 
 - **Fixed (28 Nov 2026):** Resolve rare daily probabilities inside the existing RNG buckets instead of rounding them up; sudden illness follows its intended risk without a second random generator.
