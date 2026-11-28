@@ -41,7 +41,7 @@ import { forEachAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_AFFAIR_RADIUS } 
 import { isMarriedOrExpecting, startFeud } from '../relationships';
 import { logDeath, logEvent } from '../eventLog';
 import { isPlayerHuman } from '../playerHuman';
-import { evaluateAptitudeInfluence } from '../personality/traitEvaluation';
+import { combinePairFactors, evaluateAptitudeInfluence } from '../personality/traitEvaluation';
 
 import { SCHOOL_GRADUATION_DAYS } from '../education';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
@@ -85,13 +85,13 @@ function affairPairLead(a: Entity, b: Entity): { lead: Entity; other: Entity } {
 // ============ SOCIAL / AFFAIR PAIR RECONCILIATION ============
 
 /** One point per day after seven days without a witnessed encounter. */
-function pendingAffairProgress(entry: { progress: number; lastEncounterDay: number } | undefined, day: number): number {
+function pendingRomanticProgress(entry: { progress: number; lastEncounterDay: number } | undefined, day: number): number {
   if (!entry || !Number.isFinite(entry.progress) || !Number.isFinite(entry.lastEncounterDay)) return 0;
   return Math.max(0, Math.min(Relationship.AFFAIR_PROGRESS_MAX, entry.progress)
     - Math.max(0, day - entry.lastEncounterDay - 7));
 }
 
-function writePendingAffair(entity: Entity, otherId: number, entry?: { progress: number; lastEncounterDay: number }): void {
+function writeRomanticCandidate(entity: Entity, otherId: number, entry?: { progress: number; lastEncounterDay: number }): void {
   if (!entry && !entity.affairCandidates?.[otherId]) return;
   const next = { ...entity.affairCandidates };
   if (entry) next[otherId] = entry;
@@ -99,24 +99,55 @@ function writePendingAffair(entity: Entity, otherId: number, entry?: { progress:
   entity.affairCandidates = Object.keys(next).length ? next : undefined;
 }
 
-function clearPendingAffairs(entity: Entity, entityById: ReadonlyMap<number, Entity>): void {
+function clearRomanticCandidates(entity: Entity, entityById: ReadonlyMap<number, Entity>): void {
   for (const id of Object.keys(entity.affairCandidates ?? {})) {
     const other = entityById.get(Number(id));
-    if (other) writePendingAffair(other, entity.id);
+    if (other) writeRomanticCandidate(other, entity.id);
   }
   entity.affairCandidates = undefined;
 }
 
+/** Shared pending-pair eligibility; the map retains its historical persisted key. */
 function validPendingPair(a: Entity, b: Entity): boolean {
   return a.id !== b.id && a.alive && b.alive && isPlayerHuman(a) && isPlayerHuman(b)
     && a.affairPartnerId == null && b.affairPartnerId == null
     && a.prisonBuildingId == null && b.prisonBuildingId == null
-    && a.courtshipPartnerId == null && b.courtshipPartnerId == null
     && a.partnerId !== b.id && b.partnerId !== a.id
     && a.gender != null && b.gender != null && a.gender !== b.gender
     && a.age >= HUMAN_ADULT_MIN_AGE && b.age >= HUMAN_ADULT_MIN_AGE
     && a.age < HUMAN_MAX_LIFESPAN_YEARS && b.age < HUMAN_MAX_LIFESPAN_YEARS
-    && (isMarriedOrExpecting(a) || isMarriedOrExpecting(b));
+    && (isMarriedOrExpecting(a) || isMarriedOrExpecting(b)
+      || (a.relationshipStatus === 'single' && b.relationshipStatus === 'single'
+        && a.partnerId == null && b.partnerId == null));
+}
+
+/** Context is derived from the current relationship status of both participants. */
+export function romanticPairKind(a: Entity, b: Entity): 'courtship' | 'affair' {
+  return isMarriedOrExpecting(a) || isMarriedOrExpecting(b) ? 'affair' : 'courtship';
+}
+
+/** The one pending romantic progress writer, for courtship and affairs alike. */
+export function advanceRomanticInterest(a: Entity, b: Entity, tick: number, amount: number): number {
+  if (!validPendingPair(a, b) || !Number.isFinite(amount) || amount <= 0) return 0;
+  const kind = romanticPairKind(a, b);
+  if (kind === 'courtship'
+    ? !isEligibleToCourt(a) || !isCourtshipCandidate(a, b, tick)
+    : !isValidAffairTarget(a, b, tick)) return 0;
+  const day = getAbsoluteCalendarDay(tick);
+  const oldA = a.affairCandidates?.[b.id];
+  const oldB = b.affairCandidates?.[a.id];
+  const legacy = kind === 'courtship'
+    && a.courtshipPartnerId === b.id && b.courtshipPartnerId === a.id
+    && !oldA && !oldB
+    ? Math.max(0, Math.min(100, a.courtshipProgress ?? 0, b.courtshipProgress ?? 0)) : 0;
+  const factor = combinePairFactors(evaluateAptitudeInfluence(a, 'courtship').factor,
+    evaluateAptitudeInfluence(b, 'courtship').factor);
+  const progress = Math.min(100, Math.max(legacy,
+    Math.min(pendingRomanticProgress(oldA, day), pendingRomanticProgress(oldB, day))) + amount * factor);
+  const entry = { progress, lastEncounterDay: day };
+  writeRomanticCandidate(a, b.id, entry);
+  writeRomanticCandidate(b, a.id, entry);
+  return progress;
 }
 
 /** Choose a nearby reciprocal candidate, rotating by day rather than locking to one person.
@@ -130,9 +161,9 @@ export function selectPendingAffairMeeting(
   for (let i = 0; i < candidates.length; i++) {
     const id = candidates[(day + i) % candidates.length];
     const other = people.get(id);
-    if (!other || !validPendingPair(entity, other) || !isValidAffairTarget(entity, other, tick)
-      || pendingAffairProgress(entity.affairCandidates?.[id], day) <= 0
-      || pendingAffairProgress(other.affairCandidates?.[entity.id], day) <= 0
+    if (!other || romanticPairKind(entity, other) !== 'affair' || !validPendingPair(entity, other) || !isValidAffairTarget(entity, other, tick)
+      || pendingRomanticProgress(entity.affairCandidates?.[id], day) <= 0
+      || pendingRomanticProgress(other.affairCandidates?.[entity.id], day) <= 0
       || Math.hypot(entity.x - other.x, entity.y - other.y) > 240 || !canMeet(other)) continue;
     return other;
   }
@@ -140,16 +171,23 @@ export function selectPendingAffairMeeting(
 }
 
 /** Read-only mutual candidate projection; never invents or writes a pair. */
-export function getPendingAffairs(entity: Entity, people: readonly Entity[], tick: number): Array<{ person: Entity; progress: number }> {
+export function getRomanticCandidates(entity: Entity, people: readonly Entity[], tick: number): Array<{ person: Entity; progress: number; kind: 'courtship' | 'affair' }> {
   if (!entity.affairCandidates) return [];
   const day = getAbsoluteCalendarDay(tick);
   return people.flatMap((person) => {
     const entry = entity.affairCandidates?.[person.id];
     const reciprocal = person.affairCandidates?.[entity.id];
     if (!entry || !reciprocal || !validPendingPair(entity, person)) return [];
-    const progress = Math.min(pendingAffairProgress(entry, day), pendingAffairProgress(reciprocal, day));
-    return progress > 0 ? [{ person, progress }] : [];
+    const progress = Math.min(pendingRomanticProgress(entry, day), pendingRomanticProgress(reciprocal, day));
+    return progress > 0 ? [{ person, progress, kind: romanticPairKind(entity, person) }] : [];
   }).sort((a, b) => b.progress - a.progress || a.person.id - b.person.id);
+}
+
+/** Existing affair-only consumers are a projection of the shared candidate map. */
+export function getPendingAffairs(entity: Entity, people: readonly Entity[], tick: number): Array<{ person: Entity; progress: number }> {
+  return getRomanticCandidates(entity, people, tick)
+    .filter((entry) => entry.kind === 'affair')
+    .map(({ person, progress }) => ({ person, progress }));
 }
 
 export function reconcileAffairPartner(entity: Entity, entityById: Map<number, Entity>, tick = 0): void {
@@ -160,7 +198,7 @@ export function reconcileAffairPartner(entity: Entity, entityById: Map<number, E
     const other = entityById.get(entity.affairCandidateId);
     if (other?.affairCandidateId === entity.id) {
       const progress = Math.min(Relationship.AFFAIR_PROGRESS_MAX, entity.affairProgress ?? 0, other.affairProgress ?? 0);
-      const migrate = validPendingPair(entity, other)
+      const migrate = validPendingPair(entity, other) && romanticPairKind(entity, other) === 'affair'
         && !entity.affairCandidates?.[other.id] && !other.affairCandidates?.[entity.id]
         && Number.isFinite(progress) && progress > 0;
       entity.affairCandidateId = undefined;
@@ -169,16 +207,30 @@ export function reconcileAffairPartner(entity: Entity, entityById: Map<number, E
       if (other.affairPartnerId == null) other.affairProgress = 0;
       if (migrate) {
         const entry = { progress, lastEncounterDay: day };
-        writePendingAffair(entity, other.id, entry);
-        writePendingAffair(other, entity.id, entry);
+        writeRomanticCandidate(entity, other.id, entry);
+        writeRomanticCandidate(other, entity.id, entry);
       }
     } else {
       entity.affairCandidateId = undefined;
       if (entity.affairPartnerId == null) entity.affairProgress = 0;
     }
   }
+  // Import legacy courtship scalars once, before a new contact can replace the display focus.
+  if (entity.courtshipPartnerId != null) {
+    const other = entityById.get(entity.courtshipPartnerId);
+    if (other?.courtshipPartnerId === entity.id && validPendingPair(entity, other)
+      && romanticPairKind(entity, other) === 'courtship'
+      && !entity.affairCandidates?.[other.id] && !other.affairCandidates?.[entity.id]) {
+      const progress = Math.min(100, entity.courtshipProgress ?? 0, other.courtshipProgress ?? 0);
+      if (Number.isFinite(progress) && progress > 0) {
+        const entry = { progress, lastEncounterDay: day };
+        writeRomanticCandidate(entity, other.id, entry);
+        writeRomanticCandidate(other, entity.id, entry);
+      }
+    }
+  }
   if (!entity.alive || entity.affairPartnerId != null) {
-    clearPendingAffairs(entity, entityById);
+    clearRomanticCandidates(entity, entityById);
     const lover = entity.affairPartnerId == null ? undefined : getLivingEntity(entity.affairPartnerId, entityById);
     if (!entity.alive || !lover || lover.affairPartnerId !== entity.id ||
       lover.prisonBuildingId != null || entity.prisonBuildingId != null) {
@@ -194,10 +246,20 @@ export function reconcileAffairPartner(entity: Entity, entityById: Map<number, E
   for (const [id, entry] of Object.entries(entity.affairCandidates ?? {})) {
     const other = entityById.get(Number(id));
     if (!other || !validPendingPair(entity, other) ||
-      pendingAffairProgress(entry, day) <= 0 ||
-      pendingAffairProgress(other.affairCandidates?.[entity.id], day) <= 0) {
-      writePendingAffair(entity, Number(id));
-      if (other) writePendingAffair(other, entity.id);
+      pendingRomanticProgress(entry, day) <= 0 ||
+      pendingRomanticProgress(other.affairCandidates?.[entity.id], day) <= 0) {
+      writeRomanticCandidate(entity, Number(id));
+      if (entity.courtshipPartnerId === Number(id)) {
+        entity.courtshipPartnerId = undefined;
+        entity.courtshipProgress = 0;
+      }
+      if (other) {
+        writeRomanticCandidate(other, entity.id);
+        if (other.courtshipPartnerId === entity.id) {
+          other.courtshipPartnerId = undefined;
+          other.courtshipProgress = 0;
+        }
+      }
     }
   }
 }
@@ -773,8 +835,6 @@ export function isValidAffairTarget(entity: Entity, target: Entity, tick: number
   if (entity.prisonBuildingId != null || target.prisonBuildingId != null) return false;
   if (!entity.gender || target.gender === entity.gender || target.id === entity.id) return false;
   if (target.id === entity.partnerId || entity.id === target.partnerId) return false;
-  // A committed courtship excludes simultaneous secret-affair pursuit.
-  if (entity.courtshipPartnerId != null || target.courtshipPartnerId != null) return false;
   if (entity.age < HUMAN_ADULT_MIN_AGE || target.age < HUMAN_ADULT_MIN_AGE) return false;
   if (target.age >= HUMAN_MAX_LIFESPAN_YEARS) return false;
   if (entity.affairPartnerId != null && target.id !== entity.affairPartnerId) return false;
@@ -1326,7 +1386,7 @@ export function canAdvanceCourtship(
   first: CourtshipPresence,
   second: CourtshipPresence,
   distancePx: number,
-  socialTime: boolean,
+  _socialTime: boolean,
 ): boolean {
   if (first.sleeping || second.sleeping || !Number.isFinite(distancePx) || distancePx > 10) return false;
   if (first.onDuty || second.onDuty) {
@@ -1335,7 +1395,8 @@ export function canAdvanceCourtship(
       && first.workplaceId === second.workplaceId
       && first.atWorkplace && second.atWorkplace;
   }
-  return socialTime;
+  // Awake contact while walking, visiting or staying at home is still social contact.
+  return true;
 }
 
 /** Per-hour courtship pace: full rate in social life, heavily cut on a work shift. */
@@ -1373,13 +1434,11 @@ function startCourtshipCooldown(entity: Entity, days: number = Relationship.COUR
 }
 
 /**
- * A courtship is a mutual pair bond, so a settler already courting someone else is not a candidate —
- * except the caller's own current partner, which the mutuality branch re-selects every tick.
+ * Pending romantic interest is nonexclusive; a previous courtship focus is not an eligibility gate.
  */
 function isCourtshipCandidate(entity: Entity, candidate: Entity, tick: number): boolean {
   return (
     isEligibleToCourt(candidate) &&
-    (candidate.courtshipPartnerId == null || candidate.courtshipPartnerId === entity.id) &&
     !!candidate.gender &&
     !!entity.gender &&
     candidate.gender !== entity.gender &&
@@ -1435,11 +1494,10 @@ export function reconcileCourtships(
     }
     entity.courtshipPartnerId = undefined;
     entity.courtshipProgress = 0;
-    startCourtshipCooldown(entity);
+    // Losing the display focus must not penalize unrelated romantic candidates.
     if (partner && partner.courtshipPartnerId === entity.id) {
       partner.courtshipPartnerId = undefined;
       partner.courtshipProgress = 0;
-      startCourtshipCooldown(partner);
     }
   }
 }
@@ -1459,17 +1517,6 @@ export function findCourtshipPartner(
   entityById?: ReadonlyMap<number, Entity>,
   available: (candidate: Entity) => boolean = () => true,
 ): Entity | undefined {
-  const currentCourtship =
-    entity.courtshipPartnerId != null
-      ? entityById?.get(entity.courtshipPartnerId) ?? fallbackHumans?.find((candidate) => candidate.id === entity.courtshipPartnerId)
-      : undefined;
-  if (currentCourtship && currentCourtship.courtshipPartnerId === entity.id) {
-    // An existing reciprocal bond must be repaired by its owner before a new
-    // partner can be selected, even if its current eligibility is invalid.
-    return isCourtshipCandidate(entity, currentCourtship, tick) && available(currentCourtship)
-      ? currentCourtship : undefined;
-  }
-
   let closest: Entity | undefined;
   let closestDistSq = courtRange * courtRange;
   const considered = new Set<number>();
@@ -1574,7 +1621,7 @@ export function tryDailyAffairEncounter(
   const workplace = resolveHumanWorkplace(entity, buildings, state.entities, { buildingById, entityById }).workplace;
   if (!canPursueSecretAffair(entity, hourOfDay, workplace, buildings, entityById, state.tick, getWorkSchedule(state))) return;
 
-  if (isAtMaritalHome(entity, entityById, buildingById)) return;
+  // A home without the spouse is a valid meeting place.
 
   if (entity.affairPartnerId != null) {
     const established = getLivingEntity(entity.affairPartnerId, entityById);
@@ -1639,24 +1686,18 @@ export function tryDailyAffairEncounter(
   const bump = Math.round(
     (R.AFFAIR_PROGRESS_BUMP_MIN + Math.floor(seededRandomForRun(`affair-bump:${entity.id}:${state.tick}`) * R.AFFAIR_PROGRESS_BUMP_SPAN)) * socialMult,
   );
-  const day = getAbsoluteCalendarDay(state.tick);
   const alreadyEstablished = entity.affairPartnerId === paramour.id && paramour.affairPartnerId === entity.id;
-  const progress = Math.min(R.AFFAIR_PROGRESS_MAX,
-    Math.min(pendingAffairProgress(entity.affairCandidates?.[paramour.id], day),
-      pendingAffairProgress(paramour.affairCandidates?.[entity.id], day)) + bump);
-  if (!alreadyEstablished) {
-    const entry = { progress, lastEncounterDay: day };
-    writePendingAffair(entity, paramour.id, entry);
-    writePendingAffair(paramour, entity.id, entry);
-  }
+  const progress = alreadyEstablished ? R.AFFAIR_PROGRESS_MAX
+    : advanceRomanticInterest(entity, paramour, state.tick, bump);
+  if (!alreadyEstablished && progress <= 0) return;
   recordRelationshipDiagnostic('affairProgressGains');
   recordAffairTrystSite(entity, paramour, state, buildingById, entityById);
 
   // An established pair re-ran this block on every later successful roll, re-announcing the same
   // affair. Establishment is the transition, so only a pair that is not already each other's logs it.
   if (!alreadyEstablished && progress >= R.AFFAIR_PROGRESS_MAX) {
-    clearPendingAffairs(entity, entityById);
-    clearPendingAffairs(paramour, entityById);
+    clearRomanticCandidates(entity, entityById);
+    clearRomanticCandidates(paramour, entityById);
     entity.affairPartnerId = paramour.id;
     paramour.affairPartnerId = entity.id;
     entity.affairCandidateId = undefined;
@@ -1695,7 +1736,8 @@ export function tryCompleteCourtshipMarriage(  state: WorldState,
   entity.partnerId = partner.id;
   entity.courtshipPartnerId = undefined;
   entity.courtshipProgress = 0;
-  entity.affairCandidates = undefined;
+  const byId = new Map(playerHumans.map((person) => [person.id, person]));
+  clearRomanticCandidates(entity, byId);
   entity.affairPartnerId = undefined;
   entity.affairCandidateId = undefined;
   entity.affairProgress = 0;
@@ -1703,7 +1745,7 @@ export function tryCompleteCourtshipMarriage(  state: WorldState,
   partner.partnerId = entity.id;
   partner.courtshipPartnerId = undefined;
   partner.courtshipProgress = 0;
-  partner.affairCandidates = undefined;
+  clearRomanticCandidates(partner, byId);
   partner.affairPartnerId = undefined;
   partner.affairCandidateId = undefined;
   partner.affairProgress = 0;
