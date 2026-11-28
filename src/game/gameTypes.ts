@@ -311,6 +311,10 @@ export interface Entity {
   leisureFriendSearch?: { day: number; tick: number; friendId: number | null };
   /** Temporary rejection of a proven unreachable leisure destination. */
   leisureRejectedTarget?: { x: number; y: number; untilTick: number };
+  /** Completed finite errands for this absolute colony day, replaced on arrival by the leisure owner. */
+  socialErrands?: { day: number; market?: boolean };
+  /** Absolute day of a successful civic petition; only the town-hall resolver writes it. */
+  civicPetitionResolvedDay?: number;
   childPlaymateDay?: number;
   childPlaymateId?: number;
   /** A daily play circle of two to four children; set by the one child-leisure owner. */

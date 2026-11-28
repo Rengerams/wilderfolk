@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Use canonical stamina and medical rules for social motives, require reciprocal nearby spouse care, share reachable leisure routes, select nearby completed venues, and finish market errands once and civic petitions only after actual audience processing.
+
 - **Fixed (28 Nov 2026):** Protect active pregnancies from restarts and paternity changes, validate new pregnancy inputs, and centralize progress and delivery resets in the pregnancy owner.
 
 - **Fixed (28 Nov 2026):** Require explicit paternity for arriving pregnancies, prevent stale father IDs on non-pregnant spawns, and align human body size with calendar age. New spawns cannot use pregnancy as civil status or invent an unknown maiden name.

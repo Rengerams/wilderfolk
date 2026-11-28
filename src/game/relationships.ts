@@ -13,6 +13,13 @@ export function isMarriedOrExpecting(entity: Pick<Entity, 'relationshipStatus' |
   return entity.relationshipStatus === 'married' || (entity.relationshipStatus === 'expecting' && entity.partnerId != null);
 }
 
+/** A living pair with reciprocal active marriage links; legacy expecting remains read-compatible. */
+export function isMutualMarriage(a: Entity, b: Entity | undefined): b is Entity {
+  return !!b && a.alive && b.alive && a.id !== b.id
+    && a.partnerId === b.id && b.partnerId === a.id
+    && isMarriedOrExpecting(a) && isMarriedOrExpecting(b);
+}
+
  const FRIEND_PREFIX = 'friend_';
 const FEUD_PREFIX = 'feud_';
 
