@@ -82,7 +82,7 @@ All numbers below come from `HUMAN_NEEDS` (simulation-hour units) rather than fr
 | --- | ---: |
 | nutrition: base / additional work / walking cost per hour | 1.2 / 0.16 / 0.12 |
 | nutrition restored per food unit | 10 |
-| eat when below / cooldown | 70 / 2 hours |
+| eat when below / cooldown | 90 / 2 hours |
 | rest: awake loss / verified sleep gain per hour | 4 / 12 |
 | stamina: work loss / walk loss / ordinary awake loss / actual rest-break gain / sleep gain per hour | 6 / 5 / 2 / 5 / 100÷7 |
 | critical rest / recovery target | 20 / 85 |

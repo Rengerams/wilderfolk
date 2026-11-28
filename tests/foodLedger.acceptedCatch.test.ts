@@ -46,6 +46,8 @@ function human(id: number): Entity {
     maxAge: 90, reproductionCooldown: 0,
     workerBuildingId: SPOT_ID,
     scheduleLastWorkedHours: 8,
+    // Keep meal withdrawals from changing the storage headroom under test.
+    needs: { nutrition: 100, rest: 100, stamina: 100, severeHungerTicks: 0 },
   };
 }
 

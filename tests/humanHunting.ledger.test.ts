@@ -147,6 +147,22 @@ describe('free-roaming hunting food flow', () => {
     expect(hunter.energy).toBe(energy);
   });
 
+  it.each([true, false])('does not restore stamina or energy after a kill (needs=%s)', (hasNeeds) => {
+    const { state, ctx, hunter, deer } = huntFixture();
+    if (!hasNeeds) hunter.needs = undefined;
+    hunter.energy = 200; // contradictory legacy value must not be changed by a kill
+    const before = hunter.needs ? { ...hunter.needs } : undefined;
+    const energyBefore = hunter.energy;
+
+    tickHumanHunting(state, ctx, hunter, SPECIES_CONFIG[EntityType.Human],
+      true, false, false, false, ctx.byType, ctx.mobileGrid, ctx.entityById, false);
+
+    expect(deer.alive).toBe(false);
+    expect(state.resources.food).toBeGreaterThan(0);
+    expect(hunter.needs).toEqual(before);
+    expect(hunter.energy).toBe(energyBefore);
+  });
+
   it('reports the storage-accepted food in the reward text when the larder is nearly full', () => {
     const { state, ctx, hunter, deer } = huntFixture();
     // Only seven units fit, so the nominal deer yield must not be the promised number.

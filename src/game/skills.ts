@@ -19,6 +19,8 @@ export function ensureEntitySkills(entity: { skills?: Partial<Record<JobType, nu
   if (!entity.skills || typeof entity.skills !== 'object') {
     entity.skills = {};
   }
+  // Old saves may contain a score for unemployment; it is not a trade.
+  delete entity.skills[JobType.Settler];
   return entity.skills;
 }
 
@@ -29,7 +31,7 @@ export function writableEntitySkills(entity: Entity): Partial<Record<JobType, nu
 }
 
 export function readSkill(entity: { skills?: Partial<Record<JobType, number>> }, job: JobType): number {
-  return entity.skills?.[job] ?? 0;
+  return job === JobType.Settler ? 0 : entity.skills?.[job] ?? 0;
 }
 
 /** Skill ceiling — a trade is scored 0..100. */
@@ -54,7 +56,7 @@ export const WORK_SKILL_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<Buil
 
 /** Single revision-aware skill writer for work and trade training. */
 export function increaseEntitySkill(entity: Entity, job: JobType, amount: number): void {
-  if (!isPlayerHuman(entity) || !entity.alive || entity.age < HUMAN_ADULT_MIN_AGE
+  if (job === JobType.Settler || !isPlayerHuman(entity) || !entity.alive || entity.age < HUMAN_ADULT_MIN_AGE
     || !Number.isFinite(amount) || amount <= 0) return;
   const before = readSkill(entity, job);
   const after = Math.min(MAX_SKILL, before + amount);
@@ -79,9 +81,10 @@ export function gainSkill(
 export function decayIdleSkills(entity: Entity, activeJob?: JobType, amount = SKILL_IDLE_DECAY_PER_DAY): void {
   if (!isPlayerHuman(entity) || !entity.alive || entity.age < HUMAN_ADULT_MIN_AGE
     || !Number.isFinite(amount) || amount <= 0 || !entity.skills) return;
-  let changed = false;
+  let changed = Object.prototype.hasOwnProperty.call(entity.skills, JobType.Settler);
+  if (changed) ensureEntitySkills(entity);
   for (const job of Object.values(JobType)) {
-    if (job === activeJob) continue;
+    if (job === JobType.Settler || job === activeJob) continue;
     const current = entity.skills[job] ?? 0;
     if (!Number.isFinite(current) || current <= 0) continue;
     const next = Math.max(0, current - amount);

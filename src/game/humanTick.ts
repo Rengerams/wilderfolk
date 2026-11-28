@@ -940,7 +940,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && (entity.childLeisureActivity === 'following' || orphanedChildLeisure)) {
       stopSupersededChildLeisure(
         state, entity, entityById, buildingById, hourOfDay,
-        childMandatoryActivity, orphanedChildLeisure,
+        childMandatoryActivity, orphanedChildLeisure, constructionByWorkerId,
       );
     }
 
@@ -1695,6 +1695,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       livingHumanAt,
       suppressIdleInitial: suppressIdle,
       mandatoryChildActivity: childMandatoryActivity,
+      constructionByWorkerId,
       settlerChat,
       settlerPairChat,
       completedPoolOf,
