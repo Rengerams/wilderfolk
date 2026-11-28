@@ -116,6 +116,9 @@ export function reconcileAffairPartner(entity: Entity, entityById: Map<number, E
     candidate.affairPartnerId != null || entity.prisonBuildingId != null ||
     candidate.prisonBuildingId != null || entity.courtshipPartnerId != null ||
     candidate.courtshipPartnerId != null ||
+    entity.partnerId === candidate.id || candidate.partnerId === entity.id ||
+    entity.gender == null || candidate.gender == null || entity.gender === candidate.gender ||
+    entity.age < HUMAN_ADULT_MIN_AGE || candidate.age < HUMAN_ADULT_MIN_AGE ||
     (!isMarriedOrExpecting(entity) && !isMarriedOrExpecting(candidate))) {
     entity.affairCandidateId = undefined;
     entity.affairProgress = 0;
