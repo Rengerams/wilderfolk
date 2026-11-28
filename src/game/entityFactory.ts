@@ -181,7 +181,7 @@ export function createEntity(
     // Newborns also need a birth date at their actual colony day.
     const ageYears = opts?.ageYears ?? 0;
     setHumanBirthFromAge(entity, ageYears, opts?.colonyDay ?? 0);
-    if (opts?.pregnant && entGender === 'female') {
+    if (opts?.pregnant) {
       const fatherId = opts.pregnantById;
       if (fatherId == null) throw new Error('Arriving pregnancy requires a biological father ID');
       startPregnancy(entity, {
