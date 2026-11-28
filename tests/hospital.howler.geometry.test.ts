@@ -198,6 +198,16 @@ describe('Moon Howler navigation and contact', () => {
     defender.needs = { stamina: 100, rest: 100, nutrition: 100, severeHungerTicks: 0 };
     const witness = settler(42, 500, 600, 500);
     const state = freshState([howler, defender, witness], [smith]);
+    // A deployed defender must belong to a live raid roster; the marker alone is not duty.
+    state.pendingRaidEvents = [{
+      id: 'geometry-test', phase: 'fighting', defenseChoice: 'defend',
+      soldierIds: [defender.id], battleStartedAtTick: state.tick,
+      rivalId: 'geometry-rival', rivalName: 'Geometry Rival',
+      title: 'Test defense', description: 'Active defense fixture', emoji: '',
+      choices: [], createdAtTick: state.tick, expiresAtTick: 2 * TICKS_PER_DAY,
+      marchDistanceTiles: 1, attackerStrength: 1,
+      lootFood: 0, lootGold: 0, lootWood: 0, lootStone: 0,
+    }];
     state.villageLeaderId = howler.id;
     state.unlockedTechs = [COMBAT_TECH.ironSpears];
     state.villageForge = { activeOrder: null, progress: 0, completed: { iron_spears: true } };
