@@ -1,6 +1,7 @@
 // Entity types as const object
 import type { Resources } from './resourceTypes';
 import type { ValleyStage } from './ecologyTypes';
+import type { EcosystemMetrics } from './dailyEcology';
 import type { YearlyStats, LifetimeStats } from './statsRecords';
 import type { ScentGrid } from './scentGrid';
 import type { BeautyGrid } from './beautyGrid';
@@ -901,6 +902,10 @@ export interface WorldState {
   ecosystemHealth: number;
   biodiversityIndex: number;
   pollutionLevel: number;
+  /** Immutable baseline inputs for explaining the most recent ecology settlement. */
+  settledEcology?: Readonly<EcosystemMetrics>;
+  /** Set only when the evening ecology pass awaits the completed late shift. */
+  ecologySettlementPending?: boolean;
   pendingEcosystemHealthDelta?: number;
   pendingPollutionDelta?: number;
   valleyStage?: ValleyStage;

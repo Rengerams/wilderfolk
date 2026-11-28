@@ -1,6 +1,5 @@
-import { type Building, type WorldState } from './gameTypes';
-import { calculateEcosystemMetrics, getEcosystemHealth, PRESERVE_HEALTH_BONUS, type EcosystemCounts } from './dailyEcology';
-import { hasTech } from './simHelpers';
+import type { WorldState } from './gameTypes';
+import { getEcosystemHealth, PRESERVE_HEALTH_BONUS } from './dailyEcology';
 
 interface EcosystemBreakdownLine {
   label: string;
@@ -10,12 +9,12 @@ interface EcosystemBreakdownLine {
 
 export interface EcosystemBreakdown {
   health: number;
-  buildingCount: number;
-  buildingImpact: number;
+  buildingCount?: number;
+  buildingImpact?: number;
   pollutionLevel: number;
-  pollutionPenalty: number;
-  wildlifeCount: number;
-  wildlifeBonus: number;
+  pollutionPenalty?: number;
+  wildlifeCount?: number;
+  wildlifeBonus?: number;
   lines: EcosystemBreakdownLine[];
   summary: string;
 }
@@ -24,11 +23,15 @@ export interface EcosystemBreakdown {
  * Read-only explanation of the ecosystem-health score: reports the value its owner recorded and
  * derives every line from the same inputs, so the Nature tab cannot disagree with the Health shown.
  */
-export function getEcosystemBreakdown(state: WorldState, buildings: Building[] = state.buildings): EcosystemBreakdown {
-  const counts: EcosystemCounts = { ...state.wildlifeCounts, humans: state.humanPopulation };
-  const metrics = calculateEcosystemMetrics(state, counts, buildings);
-  const hasForestry2 = hasTech(state, 'forestry_2');
+export function getEcosystemBreakdown(state: WorldState): EcosystemBreakdown {
   const health = getEcosystemHealth(state);
+  const metrics = state.settledEcology;
+  if (!metrics) return {
+    health,
+    pollutionLevel: state.pollutionLevel,
+    lines: [{ label: 'Recorded health', delta: health, detail: 'No settled breakdown yet' }],
+    summary: 'The detailed explanation will be available after the next ecology settlement.',
+  };
 
   const lines: EcosystemBreakdownLine[] = [
     { label: 'Base', delta: 100, detail: 'Starting wilderness score' },
@@ -40,7 +43,7 @@ export function getEcosystemBreakdown(state: WorldState, buildings: Building[] =
     {
       label: 'Pollution',
       delta: -metrics.pollutionPenalty,
-      detail: `${metrics.pollutionLevel}% pollution ÷ 2; ${metrics.industrialEmissions.toFixed(1)} industrial emissions before map scaling${hasForestry2 ? ' (forestry research halves industrial emissions)' : ''}`,
+      detail: `${metrics.pollutionLevel}% settled pollution ÷ 2; ${metrics.industrialEmissions.toFixed(1)} industrial emissions before map scaling${metrics.forestryReduced ? ' (forestry research halves industrial emissions)' : ''}${state.pollutionLevel !== metrics.pollutionLevel ? `; current pollution ${state.pollutionLevel}% after story adjustments` : ''}`,
     },
     {
       label: 'Wildlife',
@@ -61,6 +64,11 @@ export function getEcosystemBreakdown(state: WorldState, buildings: Building[] =
     lines.push({ label: 'Score limit', delta: Math.round(metrics.health) - rawTotal, detail: 'Health is rounded and limited to 0–100' });
   }
 
+  const storyAdjustment = health - Math.round(metrics.health);
+  if (storyAdjustment !== 0) {
+    lines.push({ label: 'Story adjustments', delta: storyAdjustment, detail: 'Net change to the recorded health since calculation' });
+  }
+
   let summary = 'Early wilderness starts at ~80% — zero wildlife carries a −20 baseline; keep predators and prey balanced.';
   if (health < 30) {
     summary = 'Land under stress — protect habitat, reduce industrial emissions and maintain healthy wildlife.';
@@ -72,7 +80,7 @@ export function getEcosystemBreakdown(state: WorldState, buildings: Building[] =
     health,
     buildingCount: metrics.playerCompletedBuildings,
     buildingImpact: metrics.buildingImpact,
-    pollutionLevel: metrics.pollutionLevel,
+    pollutionLevel: state.pollutionLevel,
     pollutionPenalty: metrics.pollutionPenalty,
     wildlifeCount: metrics.totalWildlife,
     wildlifeBonus: metrics.wildlifeBonus,

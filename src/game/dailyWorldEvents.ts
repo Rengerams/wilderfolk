@@ -186,12 +186,9 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   // Replenished wildlife reaches the working list and the eco indexes at this point of use.
   mergeNewEntitiesIntoAlive(allAlive, ctx.newEntities);
 
-  // Eco indexes refresh once per day (before the valley stage consumes them)
-  tickEcosystemMetrics(state, countLivingPopulation(allAlive, ctx.newEntities), ctx.updatedBuildings);
-
-  // Valley ecology stage, reading the eco indexes refreshed just above. It runs after this day's
-  // building production, so its farm/hunt multipliers land one day late — always behind the warning.
-  tickValleyEcologyStage(state);
+  // Match production settlement: late shifts still have witnessed hours to earn.
+  state.ecologySettlementPending = state.productionDeferred === true;
+  if (!state.ecologySettlementPending) settleDailyEcology(state, ctx, allAlive);
 
   // Autumn deer migration — herds arrive, graze, and leave with memory
   tickMigration(state, allAlive, ctx);
@@ -236,6 +233,13 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   if (tryStartVacancyElectionCeremony(state, state.year, state.dayInYear)) {
     announceElectionCeremony(state);
   }
+}
+
+/** Settle ecology and its stage together, once after the day's applicable production pass. */
+export function settleDailyEcology(state: WorldState, ctx: TickContext, allAlive: Entity[]): void {
+  tickEcosystemMetrics(state, countLivingPopulation(allAlive, ctx.newEntities), ctx.updatedBuildings);
+  tickValleyEcologyStage(state);
+  state.ecologySettlementPending = false;
 }
 
 function announceElectionCeremony(state: WorldState): void {

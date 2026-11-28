@@ -290,7 +290,7 @@ describe('production pays only witnessed attendance (W-136)', () => {
     }
   });
 
-  it('defers evening output without applying the ecology warning announced at 18:00', () => {
+  it('settles evening output before its ecology warning at 23:00', () => {
     const produce = (transition: boolean): number => {
       resetSimRng();
       setSimSeed(TEST_SEED);
@@ -305,7 +305,8 @@ describe('production pays only witnessed attendance (W-136)', () => {
       runTicks(state, 3 * TICKS_PER_HOUR + 1, ON_SCREEN);
       expect(state.productionDeferred).toBe(true);
       expect(state.productionValleyStage).toBe('strained');
-      if (transition) expect(state.valleyStage).toBe('damaged');
+      expect(state.ecologySettlementPending).toBe(true);
+      expect(state.valleyStage).toBe('strained');
       expect(state.economyLedger?.produced.farms ?? 0).toBe(0);
       expect(getValleyFarmYieldMultiplier(state, state.productionValleyStage)).toBe(1);
       expect(getValleyHuntYieldMultiplier(state, state.productionValleyStage)).toBe(0.9);
@@ -313,6 +314,9 @@ describe('production pays only witnessed attendance (W-136)', () => {
       runTicks(state, 5 * TICKS_PER_HOUR, ON_SCREEN);
       expect(state.productionDeferred).toBe(false);
       expect(state.productionValleyStage).toBeUndefined();
+      expect(state.ecologySettlementPending).toBe(false);
+      expect(state.settledEcology).toBeDefined();
+      if (transition) expect(state.valleyStage).toBe('damaged');
       expect(farm.completed).toBe(true);
       return state.economyLedger?.produced.farms ?? 0;
     };

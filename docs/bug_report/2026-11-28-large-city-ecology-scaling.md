@@ -25,7 +25,10 @@ Read `calculateEcosystemMetrics` on base 8dd5190 and supply 800 completed buildi
 Use weighted built footprint relative to buildable map area; industrial pollution uses canonical witnessed work attendance and type weights; forestry mitigates industry, population emissions are map-scaled, preserve score capped at 20. Nature explanation reads the canonical metrics. Staffed preventive care mitigates sudden illness using living doctor coverage, without altering age mortality.
 
 ## Save/migration impact
-No added save fields; existing health and stage update on their normal daily cadence, with normal recovery lag. Preventive care uses live assignment data.
+Optional settled ecology inputs and pending settlement flag round-trip through save and worker boundaries. Old saves retain the recorded score and wait for the next full settlement for the explanation; no invented historical breakdown. Late shifts settle at 23:00 after production; normal shifts at 18:00. Preventive care uses live assignment data.
+
+## Review follow-up
+Codex reported truncated evening-shift emissions and a live explanation inconsistent with the settled score. The existing production phase now determines the ecology settlement boundary; Nature reads the immutable inputs, and story changes are shown separately. Regression tests cover the late-phase order and stable explanation. Verification pending CI.
 
 ## Verification
 Static code review and arithmetic reproduction; Vitest and build not run in this environment. Player save not inspected; CI pending.

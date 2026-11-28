@@ -103,12 +103,9 @@ export default function NatureTabPanel({ state }: NatureTabPanelProps) {
   ]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const ecoBreakdown = useMemo(() => getEcosystemBreakdown(state), [
-    state.wildlifeCounts,
-    state.buildings,
-    state.unlockedTechs,
+    state.settledEcology,
     state.ecosystemHealth,
-    state.humanPopulation,
-    state.tick,
+    state.pollutionLevel,
   ]);
   const stage = valley.stage;
   /**

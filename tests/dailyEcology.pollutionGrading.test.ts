@@ -3,7 +3,8 @@
  * at the 100 cap, and a Wildlife Preserve damps the score.
  */
 import { describe, expect, it } from 'vitest';
-import { calculateEcosystemMetrics } from '../src/game/dailyEcology';
+import { calculateEcosystemMetrics, tickEcosystemMetrics, adjustEcosystemHealth, adjustPollutionLevel } from '../src/game/dailyEcology';
+import { getEcosystemBreakdown } from '../src/game/ecoBreakdown';
 import { BuildingType, BUILDING_CONFIGS, EntityType, JobType } from '../src/game/gameTypes';
 import type { EcosystemCounts } from '../src/game/dailyEcology';
 import type { Building, WorldState } from '../src/game/gameTypes';
@@ -81,6 +82,25 @@ describe('pollution grading', () => {
     expect(active.pollutionLevel).toBeGreaterThan(0);
     const cleaner = calculateEcosystemMetrics({ ...state, unlockedTechs: ['forestry_2'] }, counts(0), [mine]);
     expect(cleaner.pollutionLevel).toBeLessThan(active.pollutionLevel);
+  });
+
+  it('explains settled emissions after attendance resets and story adjustments change recorded scores', () => {
+    const mine = building(1, BuildingType.Mine);
+    const worker = createEntity(EntityType.Human, 100, 100, 10, 300);
+    worker.schedulePresentTicksToday = 9 * TICKS_PER_HOUR;
+    worker.schedulePresentSiteIdToday = mine.id;
+    const state = { ...world([mine]), entities: [worker] };
+    const tally = { ...counts(0), rabbits: 20, visitorHumans: 0, rivalHumans: 0 };
+    tickEcosystemMetrics(state, tally, [mine]);
+    const baseline = getEcosystemBreakdown(state);
+    worker.schedulePresentTicksToday = 1;
+    state.unlockedTechs = ['forestry_2'];
+    expect(getEcosystemBreakdown(state)).toEqual(baseline);
+    adjustEcosystemHealth(state, 3);
+    adjustPollutionLevel(state, 4);
+    const adjusted = getEcosystemBreakdown(state);
+    expect(adjusted.pollutionLevel).toBe(state.pollutionLevel);
+    expect(adjusted.lines.reduce((sum, line) => sum + line.delta, 0)).toBeCloseTo(state.ecosystemHealth);
   });
 
   it('scales mortality prevention with living assigned doctors rather than hospital count', () => {

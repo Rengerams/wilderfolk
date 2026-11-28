@@ -90,6 +90,7 @@ export interface EcosystemMetrics {
   /** Weighted land use as a percentage of the map's buildable habitat. */
   occupiedLandPercent: number;
   industrialEmissions: number;
+  forestryReduced: boolean;
   /** Completed industrial buildings of any faction, before the forestry multiplier. */
   industrialCount: number;
   pollutionLevel: number;
@@ -102,6 +103,18 @@ export interface EcosystemMetrics {
   wildlifeBonus: number;
   /** Clamped to 0-100 but not rounded; `tickEcosystemMetrics` stores the rounded value. */
   health: number;
+}
+
+/** Validate optional saved explanation data; old or malformed saves wait for the next settlement. */
+export function normalizeSettledEcology(value: unknown): EcosystemMetrics | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const candidate = value as Partial<EcosystemMetrics>;
+  const numericKeys = ['playerCompletedBuildings', 'buildingImpact', 'occupiedLandPercent',
+    'industrialEmissions', 'industrialCount', 'pollutionLevel', 'pollutionPenalty',
+    'preserveCount', 'preserveBonus', 'totalWildlife', 'wildlifeRatio', 'wildlifeBonus', 'health'] as const;
+  if (typeof candidate.forestryReduced !== 'boolean'
+    || numericKeys.some(key => { const n = candidate[key]; return typeof n !== 'number' || !Number.isFinite(n); })) return undefined;
+  return candidate as EcosystemMetrics;
 }
 
 /**
@@ -187,7 +200,8 @@ export function calculateEcosystemMetrics(
   }
 
   // Calculate Pollution: the population term grades across the scale instead of pinning at the cap.
-  const pollutionMult = hasTech(state, 'forestry_2') ? 0.5 : 1.0;
+  const forestryReduced = hasTech(state, 'forestry_2');
+  const pollutionMult = forestryReduced ? 0.5 : 1.0;
   const preserveDamping = Math.max(
     POLLUTION_PRESERVE_FLOOR,
     1 - preserveCount * POLLUTION_PRESERVE_DAMPING,
@@ -221,6 +235,7 @@ export function calculateEcosystemMetrics(
     buildingImpact,
     occupiedLandPercent,
     industrialEmissions,
+    forestryReduced,
     industrialCount,
     pollutionLevel,
     pollutionPenalty,
@@ -243,6 +258,7 @@ export function tickEcosystemMetrics(
   buildings: Building[],
 ): void {
   const metrics = calculateEcosystemMetrics(state, counts, buildings);
+  state.settledEcology = metrics;
   state.pollutionLevel = metrics.pollutionLevel;
   setEcosystemHealth(state, Math.round(metrics.health));
 
