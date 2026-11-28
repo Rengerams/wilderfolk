@@ -61,7 +61,7 @@ import {
   getPlayerCampCenterFromBuildings,
   getPlayerSettlerCenter,
 } from './frontierCombat';
-import { idleDestination, tickHumanLeisure } from './humanLeisureBehavior';
+import { idleDestination, stopInvalidChildFollowing, tickHumanLeisure } from './humanLeisureBehavior';
 import { tickHumanHunting } from './humanHuntingBehavior';
 import {
   HUNTING_PURSUIT_SPEED_MULT,
@@ -708,6 +708,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (!goingToHospital && (atPost || wasInsideWorkplace || hunterInField)) {
         recordPresentWorkTick(entity, 1, workplace?.id);
       }
+    }
+
+    // The off-screen throttle may resume yesterday's or last hour's walk.
+    // Invalidate a child's following intent BEFORE that resume branch, using
+    // the already-resolved school and bedtime schedule from this tick owner.
+    if (entity.age < HUMAN_ADULT_MIN_AGE && entity.childLeisureActivity === 'following') {
+      stopInvalidChildFollowing(
+        state, entity, entityById, buildingById, hourOfDay,
+        schoolCommuteDue || onSchoolShift || preShiftSleep.headHome
+          || sleepingForNeeds || onDutyForSleep || recoveringSleep || takingNeedsBreak,
+      );
     }
 
     const inFocus = !focus || isInFocus(entity, focus);
