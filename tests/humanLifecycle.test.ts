@@ -7,7 +7,7 @@ import { initGame } from '../src/game/worldGen';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { tickPregnancyAndBirth, LIFECYCLE_CONFIG, isPregnancyHospitalDue } from '../src/game/simulation/humanLifecycle';
-import { getPregnancyProgressFraction, startPregnancy } from '../src/game/pregnancy';
+import { advancePregnancy, clearPregnancy, getPregnancyProgressFraction, startPregnancy } from '../src/game/pregnancy';
 import { createEntity } from '../src/game/entityFactory';
 import { tryDailyConception } from '../src/game/simulation/humanRelationships';
 import { personDayRoll, resetSimRng, seededRandomForRun } from '../src/game/simRng';
@@ -542,7 +542,7 @@ describe('human lifecycle golden contracts', () => {
     const newHusband = human(HUSBAND_ID, { partnerId: MATERNAL_ID });
     const mother = human(MATERNAL_ID, { partnerId: FATHER_ID });
     const { state, ctx } = makeFixture([mother, father, newHusband]);
-    startPregnancy(mother, { origin: 'married', fatherId: FATHER_ID, startDay: 1 });
+    startPregnancy(mother, { origin: 'married', father, startDay: 1 });
     // Legacy saves may lack recoverable paternity; never attribute it to a later spouse.
     if (scenario === 'unknown father') mother.pregnantById = null;
     mother.partnerId = HUSBAND_ID;
@@ -565,11 +565,70 @@ describe('human lifecycle golden contracts', () => {
 
   it('rejects a missing or self-referencing father before starting pregnancy', () => {
     const mother = human(MATERNAL_ID);
-    expect(() => startPregnancy(mother, { origin: 'married', fatherId: MATERNAL_ID, startDay: 1 })).toThrow();
+    expect(() => startPregnancy(mother, { origin: 'married', father: mother, startDay: 1 })).toThrow();
     expect(mother.pregnant).not.toBe(true);
     expect(() => createEntity(EntityType.Human, 10, 10, MATERNAL_ID, 100, false, {
       gender: 'female', pregnant: true, fatherId: FATHER_ID,
     })).toThrow();
+    expect(() => createEntity(EntityType.Human, 10, 10, MATERNAL_ID, 100, false, {
+      gender: 'female', pregnant: true, partnerId: FATHER_ID,
+    })).toThrow();
+  });
+
+  it('does not invent maiden names or retain paternity on a non-pregnant spawn', () => {
+    const wife = createEntity(EntityType.Human, 10, 10, MATERNAL_ID, 100, false, {
+      gender: 'female', ageYears: 30, partnerId: FATHER_ID, surname: 'Vale', pregnantById: FATHER_ID,
+    });
+    expect(wife.relationshipStatus).toBe('married');
+    expect(wife.pregnantById).toBeUndefined();
+    expect(wife.maidenSurname).toBeUndefined();
+  });
+
+  it('rejects duplicate starts without altering the active pregnancy or biological father', () => {
+    const mother = human(MATERNAL_ID);
+    const father = human(FATHER_ID);
+    startPregnancy(mother, { origin: 'married', father, startDay: 1 });
+    advancePregnancy(mother);
+    const before = { ...mother };
+    expect(() => startPregnancy(mother, { origin: 'affair', father: human(HUSBAND_ID), startDay: 2 })).toThrow();
+    expect(mother).toEqual(before);
+    clearPregnancy(mother);
+    expect(advancePregnancy(mother)).toBe(false);
+    expect(mother.pregnantById).toBeUndefined();
+    expect(mother.pregnancyDueProgress).toBeUndefined();
+  });
+
+  it('rejects invalid start state before writing any pregnancy fields', () => {
+    const father = human(FATHER_ID);
+    for (const mother of [
+      human(MATERNAL_ID, { gender: 'male' }),
+      human(MATERNAL_ID, { alive: false }),
+      human(MATERNAL_ID, { type: EntityType.Deer }),
+    ]) {
+      const before = { ...mother };
+      expect(() => startPregnancy(mother, { origin: 'married', father, startDay: 1 })).toThrow();
+      expect(mother).toEqual(before);
+    }
+    const mother = human(MATERNAL_ID);
+    const before = { ...mother };
+    for (const pregnancyProgress of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => startPregnancy(mother, { origin: 'existing', fatherId: FATHER_ID, pregnancyProgress, startDay: 1 })).toThrow();
+    }
+    for (const startDay of [-1, Number.NaN, Number.POSITIVE_INFINITY, 1.5]) {
+      expect(() => startPregnancy(mother, { origin: 'married', father, startDay })).toThrow();
+    }
+    expect(() => startPregnancy(mother, { origin: 'affair', father: human(FATHER_ID, { alive: false }), startDay: 1 })).toThrow();
+    expect(() => startPregnancy(mother, { origin: 'affair', father: human(FATHER_ID, { gender: 'female' }), startDay: 1 })).toThrow();
+    expect(mother).toEqual(before);
+  });
+
+  it('repairs invalid legacy elapsed progress without triggering immediate delivery', () => {
+    for (const pregnancyProgress of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const mother = human(MATERNAL_ID, { pregnant: true, pregnancyProgress, pregnancyDueProgress: 10, pregnantById: FATHER_ID });
+      expect(advancePregnancy(mother)).toBe(false);
+      expect(mother.pregnancyProgress).toBe(1);
+      expect(mother.pregnantById).toBe(FATHER_ID);
+    }
   });
 
   it('gives an arriving pregnant immigrant and a colony conception the same pregnancy state', () => {

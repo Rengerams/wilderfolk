@@ -38,3 +38,11 @@ Source trace confirmed. Regression tests added for remarriage, removal and unkno
 
 ## Follow-up — 2026-11-28
 New pregnancies require a valid father ID; the entity factory no longer uses the mother's own father. Ordinary births register available parents immediately. Legacy unknown paternity remains unknown rather than inventing ancestry. Adoption and immigration party rules are unchanged. Regression tests added; CI not yet verified.
+
+## Factory follow-up — 2026-11-28
+
+The remaining arriving-pregnancy spouse fallback is removed; the arrival caller already supplies the biological father's ID explicitly. Non-pregnant spawns no longer retain a supplied pregnancy father. Regression coverage extends the existing lifecycle test. Legacy unknown paternity remains unknown; adoption continues through the housing owner. CI not yet verified.
+
+## Pregnancy-state owner follow-up — 2026-11-28
+
+An accidental second call to startPregnancy previously reset progress, due date and paternity. The pregnancy owner now rejects active pregnancy restarts and invalid start inputs before any writes, validates the actual father entity for colony conception, and owns scheduled progress plus delivery resets. Arrival creation receives an explicit father ID from the immigration party owner; it has no world lookup. Existing save migration and Moon Howler restoration remain transport boundaries. Extended lifecycle regressions; CI not yet verified.

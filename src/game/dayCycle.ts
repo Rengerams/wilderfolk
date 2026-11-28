@@ -4,6 +4,7 @@ import type { Entity, WorldState } from './gameTypes';
 import { HUMAN_ADULT_MIN_AGE,HUMAN_VENERABLE_AGE } from './daycycleconstants';
 import { hasWorkAssignment } from './housingModel';
 import { clearWorkerAssignment } from './workforce';
+import { SPECIES_CONFIG } from './speciesConfig';
 import {
   DAYS_PER_YEAR,
   getAbsoluteCalendarDay,
@@ -119,13 +120,14 @@ function daysLivedFromAgeYears(ageYears: number): number {
   );
 }
 
-/** Set birth calendar from a target life-age at a given colony day. */
+/** Set birth calendar from a target life-age; only spawn/finalization explicitly initializes body size. */
 export function setHumanBirthFromAge(
   entity: Entity,
   ageYears: number,
   colonyDay: number,
   month?: number,
   day?: number,
+  initializeBody = false,
 ): void {
   const daysLived = daysLivedFromAgeYears(Math.max(0, ageYears));
   const birthColonyDay = colonyDay - daysLived;
@@ -143,6 +145,7 @@ export function setHumanBirthFromAge(
 
   entity.age = Math.max(0, ageYears);
   entity.isJuvenile = entity.age < HUMAN_ADULT_MIN_AGE;
+  if (initializeBody) entity.size = SPECIES_CONFIG[EntityType.Human].size * (entity.isJuvenile ? 0.5 : 1);
   entity.maxAge = HUMAN_MAX_LIFESPAN_YEARS;
 }
 
